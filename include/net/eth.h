@@ -84,7 +84,7 @@ typedef struct ip_pseudo_header {
 } ip_pseudo_header;
 
 /* IPv6 address */
-struct in6_addr {
+struct in6_address {
     union {
         uint8_t __u6_addr8[16];
     } __in6_u;
@@ -105,8 +105,8 @@ struct ip6_header {
             uint8_t  ip6_un3_ecn;  /* 2 bits ECN, top 6 bits payload length */
         } ip6_un3;
     } ip6_ctlun;
-    struct in6_addr ip6_src;     /* source address */
-    struct in6_addr ip6_dst;     /* destination address */
+    struct in6_address ip6_src;    /* source address */
+    struct in6_address ip6_dst;    /* destination address */
 };
 
 struct ip6_ext_hdr {

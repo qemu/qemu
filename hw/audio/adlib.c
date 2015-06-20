@@ -173,7 +173,7 @@ static void timer_handler (int c, double interval_Sec)
     s->ticking[n] = 1;
 #ifdef DEBUG
     interval = get_ticks_per_sec () * interval_Sec;
-    exp = qemu_get_clock_ns (vm_clock) + interval;
+    exp = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + interval;
     s->exp[n] = exp;
 #endif
 
@@ -284,9 +284,9 @@ static void Adlib_fini (AdlibState *s)
 }
 
 static MemoryRegionPortio adlib_portio_list[] = {
-    { 0x388, 4, 1, .read = adlib_read, .write = adlib_write, },
     { 0, 4, 1, .read = adlib_read, .write = adlib_write, },
     { 0, 2, 1, .read = adlib_read, .write = adlib_write, },
+    { 0x388, 4, 1, .read = adlib_read, .write = adlib_write, },
     PORTIO_END_OF_LIST(),
 };
 

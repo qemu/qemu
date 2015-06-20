@@ -696,7 +696,7 @@ void tb_flush(CPUArchState *env1)
     }
     tcg_ctx.tb_ctx.nb_tbs = 0;
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
         memset(env->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
@@ -850,7 +850,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 
     /* remove the TB from the hash list */
     h = tb_jmp_cache_hash_func(tb->pc);
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
         if (env->tb_jmp_cache[h] == tb) {
@@ -1318,18 +1318,6 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     mmap_unlock();
 }
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-/* check whether the given addr is in TCG generated code buffer or not */
-bool is_tcg_gen_code(uintptr_t tc_ptr)
-{
-    /* This can be called during code generation, code_gen_buffer_size
-       is used instead of code_gen_ptr for upper boundary checking */
-    return (tc_ptr >= (uintptr_t)tcg_ctx.code_gen_buffer &&
-            tc_ptr < (uintptr_t)(tcg_ctx.code_gen_buffer +
-                    tcg_ctx.code_gen_buffer_size));
-}
-#endif
-
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
    tb[1].tc_ptr. Return NULL if not found */
 static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
@@ -1679,8 +1667,9 @@ static int dump_region(void *priv, abi_ulong start,
 /* dump memory mappings */
 void page_dump(FILE *f)
 {
-    (void) fprintf(f, "%-8s %-8s %-8s %s\n",
-            "start", "end", "size", "prot");
+    const int length = sizeof(abi_ulong) * 2;
+    (void) fprintf(f, "%-*s %-*s %-*s %s\n",
+            length, "start", length, "end", length, "size", "prot");
     walk_memory_regions(f, dump_region);
 }
 

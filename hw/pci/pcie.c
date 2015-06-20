@@ -187,7 +187,7 @@ static void hotplug_event_notify(PCIDevice *dev)
     } else if (msi_enabled(dev)) {
         msi_notify(dev, pcie_cap_flags_get_vector(dev));
     } else {
-        qemu_set_irq(dev->irq[dev->exp.hpev_intx], dev->exp.hpev_notified);
+        pci_set_irq(dev, dev->exp.hpev_notified);
     }
 }
 
@@ -195,7 +195,7 @@ static void hotplug_event_clear(PCIDevice *dev)
 {
     hotplug_event_update_event_status(dev);
     if (!msix_enabled(dev) && !msi_enabled(dev) && !dev->exp.hpev_notified) {
-        qemu_set_irq(dev->irq[dev->exp.hpev_intx], 0);
+        pci_irq_deassert(dev);
     }
 }
 
@@ -251,7 +251,7 @@ static int pcie_cap_slot_hotplug(DeviceState *qdev,
                                    PCI_EXP_SLTSTA_PDS);
         pcie_cap_slot_event(d, PCI_EXP_HP_EV_PDC);
     } else {
-        qdev_free(&pci_dev->qdev);
+        object_unparent(OBJECT(pci_dev));
         pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
                                      PCI_EXP_SLTSTA_PDS);
         pcie_cap_slot_event(d, PCI_EXP_HP_EV_PDC);

@@ -61,7 +61,7 @@ static int serial_pci_init(PCIDevice *dev)
     }
 
     pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
-    s->irq = pci->dev.irq[0];
+    s->irq = pci_allocate_irq(&pci->dev);
 
     memory_region_init_io(&s->io, OBJECT(pci), &serial_io_ops, s, "serial", 8);
     pci_register_bar(&pci->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
@@ -79,7 +79,7 @@ static void multi_serial_irq_mux(void *opaque, int n, int level)
             pending = 1;
         }
     }
-    qemu_set_irq(pci->dev.irq[0], pending);
+    pci_set_irq(&pci->dev, pending);
 }
 
 static int multi_serial_pci_init(PCIDevice *dev)
@@ -132,6 +132,7 @@ static void serial_pci_exit(PCIDevice *dev)
 
     serial_exit_core(s);
     memory_region_destroy(&s->io);
+    qemu_free_irq(s->irq);
 }
 
 static void multi_serial_pci_exit(PCIDevice *dev)

@@ -42,7 +42,7 @@ const char *filename;
 const char *argv0;
 int gdbstub_port;
 envlist_t *envlist;
-const char *cpu_model;
+static const char *cpu_model;
 unsigned long mmap_min_addr;
 #if defined(CONFIG_USE_GUEST_BASE)
 unsigned long guest_base;
@@ -117,10 +117,14 @@ void fork_end(int child)
 {
     mmap_fork_end(child);
     if (child) {
+        CPUState *cpu, *next_cpu;
         /* Child processes created by fork() only have a single thread.
            Discard information about the parent threads.  */
-        first_cpu = thread_cpu;
-        first_cpu->next_cpu = NULL;
+        CPU_FOREACH_SAFE(cpu, next_cpu) {
+            if (cpu != thread_cpu) {
+                QTAILQ_REMOVE(&cpus, thread_cpu, node);
+            }
+        }
         pending_cpus = 0;
         pthread_mutex_init(&exclusive_lock, NULL);
         pthread_mutex_init(&cpu_list_mutex, NULL);
@@ -154,7 +158,7 @@ static inline void start_exclusive(void)
 
     pending_cpus = 1;
     /* Make all other cpus stop executing.  */
-    for (other_cpu = first_cpu; other_cpu; other_cpu = other_cpu->next_cpu) {
+    CPU_FOREACH(other_cpu) {
         if (other_cpu->running) {
             pending_cpus++;
             cpu_exit(other_cpu);
@@ -445,6 +449,9 @@ void cpu_loop(CPUX86State *env)
         __r;                                            \
     })
 
+#ifdef TARGET_ABI32
+/* Commpage handling -- there is no commpage for AArch64 */
+
 /*
  * See the Linux kernel's Documentation/arm/kernel_user_helpers.txt
  * Input:
@@ -578,6 +585,7 @@ do_kernel_trap(CPUARMState *env)
 
     return 0;
 }
+#endif
 
 static int do_strex(CPUARMState *env)
 {
@@ -657,6 +665,7 @@ done:
     return segv;
 }
 
+#ifdef TARGET_ABI32
 void cpu_loop(CPUARMState *env)
 {
     CPUState *cs = CPU(arm_env_get_cpu(env));
@@ -868,6 +877,83 @@ void cpu_loop(CPUARMState *env)
         process_pending_signals(env);
     }
 }
+
+#else
+
+/* AArch64 main loop */
+void cpu_loop(CPUARMState *env)
+{
+    CPUState *cs = CPU(arm_env_get_cpu(env));
+    int trapnr, sig;
+    target_siginfo_t info;
+    uint32_t addr;
+
+    for (;;) {
+        cpu_exec_start(cs);
+        trapnr = cpu_arm_exec(env);
+        cpu_exec_end(cs);
+
+        switch (trapnr) {
+        case EXCP_SWI:
+            env->xregs[0] = do_syscall(env,
+                                       env->xregs[8],
+                                       env->xregs[0],
+                                       env->xregs[1],
+                                       env->xregs[2],
+                                       env->xregs[3],
+                                       env->xregs[4],
+                                       env->xregs[5],
+                                       0, 0);
+            break;
+        case EXCP_INTERRUPT:
+            /* just indicate that signals should be handled asap */
+            break;
+        case EXCP_UDEF:
+            info.si_signo = SIGILL;
+            info.si_errno = 0;
+            info.si_code = TARGET_ILL_ILLOPN;
+            info._sifields._sigfault._addr = env->pc;
+            queue_signal(env, info.si_signo, &info);
+            break;
+        case EXCP_PREFETCH_ABORT:
+            addr = env->cp15.c6_insn;
+            goto do_segv;
+        case EXCP_DATA_ABORT:
+            addr = env->cp15.c6_data;
+        do_segv:
+            info.si_signo = SIGSEGV;
+            info.si_errno = 0;
+            /* XXX: check env->error_code */
+            info.si_code = TARGET_SEGV_MAPERR;
+            info._sifields._sigfault._addr = addr;
+            queue_signal(env, info.si_signo, &info);
+            break;
+        case EXCP_DEBUG:
+        case EXCP_BKPT:
+            sig = gdb_handlesig(cs, TARGET_SIGTRAP);
+            if (sig) {
+                info.si_signo = sig;
+                info.si_errno = 0;
+                info.si_code = TARGET_TRAP_BRKPT;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
+        case EXCP_STREX:
+            if (do_strex(env)) {
+                addr = env->cp15.c6_data;
+                goto do_segv;
+            }
+            break;
+        default:
+            fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
+                    trapnr);
+            cpu_dump_state(cs, stderr, fprintf, 0);
+            abort();
+        }
+        process_pending_signals(env);
+    }
+}
+#endif /* ndef TARGET_ABI32 */
 
 #endif
 
@@ -1775,7 +1861,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_lseek	, 3)
 	MIPS_SYS(sys_getpid	, 0)	/* 4020 */
 	MIPS_SYS(sys_mount	, 5)
-	MIPS_SYS(sys_oldumount	, 1)
+	MIPS_SYS(sys_umount	, 1)
 	MIPS_SYS(sys_setuid	, 1)
 	MIPS_SYS(sys_getuid	, 0)
 	MIPS_SYS(sys_stime	, 1)	/* 4025 */
@@ -1805,7 +1891,7 @@ static const uint8_t mips_syscall_args[] = {
 	MIPS_SYS(sys_geteuid	, 0)
 	MIPS_SYS(sys_getegid	, 0)	/* 4050 */
 	MIPS_SYS(sys_acct	, 0)
-	MIPS_SYS(sys_umount	, 2)
+	MIPS_SYS(sys_umount2	, 2)
 	MIPS_SYS(sys_ni_syscall	, 0)
 	MIPS_SYS(sys_ioctl	, 3)
 	MIPS_SYS(sys_fcntl	, 3)	/* 4055 */
@@ -2314,12 +2400,31 @@ done_syscall:
                 if (env->hflags & MIPS_HFLAG_M16) {
                     if (env->insn_flags & ASE_MICROMIPS) {
                         /* microMIPS mode */
-                        abi_ulong instr[2];
+                        ret = get_user_u16(trap_instr, env->active_tc.PC);
+                        if (ret != 0) {
+                            goto error;
+                        }
 
-                        ret = get_user_u16(instr[0], env->active_tc.PC) ||
-                              get_user_u16(instr[1], env->active_tc.PC + 2);
+                        if ((trap_instr >> 10) == 0x11) {
+                            /* 16-bit instruction */
+                            code = trap_instr & 0xf;
+                        } else {
+                            /* 32-bit instruction */
+                            abi_ulong instr_lo;
 
-                        trap_instr = (instr[0] << 16) | instr[1];
+                            ret = get_user_u16(instr_lo,
+                                               env->active_tc.PC + 2);
+                            if (ret != 0) {
+                                goto error;
+                            }
+                            trap_instr = (trap_instr << 16) | instr_lo;
+                            code = ((trap_instr >> 6) & ((1 << 20) - 1));
+                            /* Unfortunately, microMIPS also suffers from
+                               the old assembler bug...  */
+                            if (code >= (1 << 10)) {
+                                code >>= 10;
+                            }
+                        }
                     } else {
                         /* MIPS16e mode */
                         ret = get_user_u16(trap_instr, env->active_tc.PC);
@@ -2327,26 +2432,21 @@ done_syscall:
                             goto error;
                         }
                         code = (trap_instr >> 6) & 0x3f;
-                        if (do_break(env, &info, code) != 0) {
-                            goto error;
-                        }
-                        break;
                     }
                 } else {
                     ret = get_user_ual(trap_instr, env->active_tc.PC);
-                }
+                    if (ret != 0) {
+                        goto error;
+                    }
 
-                if (ret != 0) {
-                    goto error;
-                }
-
-                /* As described in the original Linux kernel code, the
-                 * below checks on 'code' are to work around an old
-                 * assembly bug.
-                 */
-                code = ((trap_instr >> 6) & ((1 << 20) - 1));
-                if (code >= (1 << 10)) {
-                    code >>= 10;
+                    /* As described in the original Linux kernel code, the
+                     * below checks on 'code' are to work around an old
+                     * assembly bug.
+                     */
+                    code = ((trap_instr >> 6) & ((1 << 20) - 1));
+                    if (code >= (1 << 10)) {
+                        code >>= 10;
+                    }
                 }
 
                 if (do_break(env, &info, code) != 0) {
@@ -3185,6 +3285,37 @@ void init_task_state(TaskState *ts)
     ts->sigqueue_table[i].next = NULL;
 }
 
+CPUArchState *cpu_copy(CPUArchState *env)
+{
+    CPUArchState *new_env = cpu_init(cpu_model);
+#if defined(TARGET_HAS_ICE)
+    CPUBreakpoint *bp;
+    CPUWatchpoint *wp;
+#endif
+
+    /* Reset non arch specific state */
+    cpu_reset(ENV_GET_CPU(new_env));
+
+    memcpy(new_env, env, sizeof(CPUArchState));
+
+    /* Clone all break/watchpoints.
+       Note: Once we support ptrace with hw-debug register access, make sure
+       BP_CPU break/watchpoints are handled correctly on clone. */
+    QTAILQ_INIT(&env->breakpoints);
+    QTAILQ_INIT(&env->watchpoints);
+#if defined(TARGET_HAS_ICE)
+    QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
+        cpu_breakpoint_insert(new_env, bp->pc, bp->flags, NULL);
+    }
+    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
+        cpu_watchpoint_insert(new_env, wp->vaddr, (~wp->len_mask) + 1,
+                              wp->flags, NULL);
+    }
+#endif
+
+    return new_env;
+}
+
 static void handle_arg_help(const char *arg)
 {
     usage();
@@ -3532,6 +3663,26 @@ static int parse_args(int argc, char **argv)
     return optind;
 }
 
+static int get_execfd(char **envp)
+{
+    typedef struct {
+        long a_type;
+        long a_val;
+    } auxv_t;
+    auxv_t *auxv;
+
+    while (*envp++ != NULL) {
+        ;
+    }
+
+    for (auxv = (auxv_t *)envp; auxv->a_type != AT_NULL; auxv++) {
+        if (auxv->a_type == AT_EXECFD) {
+            return auxv->a_val;
+        }
+    }
+    return -1;
+}
+
 int main(int argc, char **argv, char **envp)
 {
     struct target_pt_regs regs1, *regs = &regs1;
@@ -3546,6 +3697,7 @@ int main(int argc, char **argv, char **envp)
     int target_argc;
     int i;
     int ret;
+    int execfd;
 
     module_call_init(MODULE_INIT_QOM);
 
@@ -3589,6 +3741,8 @@ int main(int argc, char **argv, char **envp)
 
     /* Scan interp_prefix dir for replacement files. */
     init_paths(interp_prefix);
+
+    init_qemu_uname_release();
 
     if (cpu_model == NULL) {
 #if defined(TARGET_I386)
@@ -3721,7 +3875,16 @@ int main(int argc, char **argv, char **envp)
     env->opaque = ts;
     task_settid(ts);
 
-    ret = loader_exec(filename, target_argv, target_environ, regs,
+    execfd = get_execfd(envp);
+    if (execfd < 0) {
+        execfd = open(filename, O_RDONLY);
+    }
+    if (execfd < 0) {
+        printf("Error while loading %s: %s\n", filename, strerror(-execfd));
+        _exit(1);
+    }
+
+    ret = loader_exec(execfd, filename, target_argv, target_environ, regs,
         info, &bprm);
     if (ret != 0) {
         printf("Error while loading %s: %s\n", filename, strerror(-ret));
@@ -3880,6 +4043,22 @@ int main(int argc, char **argv, char **envp)
     cpu_x86_load_seg(env, R_FS, 0);
     cpu_x86_load_seg(env, R_GS, 0);
 #endif
+#elif defined(TARGET_AARCH64)
+    {
+        int i;
+
+        if (!(arm_feature(env, ARM_FEATURE_AARCH64))) {
+            fprintf(stderr,
+                    "The selected ARM CPU does not support 64 bit mode\n");
+            exit(1);
+        }
+
+        for (i = 0; i < 31; i++) {
+            env->xregs[i] = regs->regs[i];
+        }
+        env->pc = regs->pc;
+        env->xregs[31] = regs->sp;
+    }
 #elif defined(TARGET_ARM)
     {
         int i;

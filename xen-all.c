@@ -98,6 +98,7 @@ typedef struct XenIOState {
 
     Notifier exit;
     Notifier suspend;
+    Notifier wakeup;
 } XenIOState;
 
 /* Xen specific function for piix pci */
@@ -154,7 +155,7 @@ qemu_irq *xen_interrupt_controller_init(void)
 
 /* Memory Ops */
 
-static void xen_ram_init(ram_addr_t ram_size)
+static void xen_ram_init(ram_addr_t ram_size, MemoryRegion **ram_memory_p)
 {
     MemoryRegion *sysmem = get_system_memory();
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
@@ -168,6 +169,7 @@ static void xen_ram_init(ram_addr_t ram_size)
         block_len += HVM_BELOW_4G_MMIO_LENGTH;
     }
     memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
+    *ram_memory_p = &ram_memory;
     vmstate_register_ram_global(&ram_memory);
 
     if (ram_size >= HVM_BELOW_4G_RAM_END) {
@@ -606,19 +608,19 @@ static ioreq_t *cpu_get_ioreq(XenIOState *state)
 
     port = xc_evtchn_pending(state->xce_handle);
     if (port == state->bufioreq_local_port) {
-        qemu_mod_timer(state->buffered_io_timer,
-                BUFFER_IO_MAX_DELAY + qemu_get_clock_ms(rt_clock));
+        timer_mod(state->buffered_io_timer,
+                BUFFER_IO_MAX_DELAY + qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
         return NULL;
     }
 
     if (port != -1) {
-        for (i = 0; i < smp_cpus; i++) {
+        for (i = 0; i < max_cpus; i++) {
             if (state->ioreq_local_port[i] == port) {
                 break;
             }
         }
 
-        if (i == smp_cpus) {
+        if (i == max_cpus) {
             hw_error("Fatal error while trying to get io event!\n");
         }
 
@@ -828,10 +830,10 @@ static void handle_buffered_io(void *opaque)
     XenIOState *state = opaque;
 
     if (handle_buffered_iopage(state)) {
-        qemu_mod_timer(state->buffered_io_timer,
-                BUFFER_IO_MAX_DELAY + qemu_get_clock_ms(rt_clock));
+        timer_mod(state->buffered_io_timer,
+                BUFFER_IO_MAX_DELAY + qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
     } else {
-        qemu_del_timer(state->buffered_io_timer);
+        timer_del(state->buffered_io_timer);
         xc_evtchn_unmask(state->xce_handle, state->bufioreq_local_port);
     }
 }
@@ -947,7 +949,7 @@ static void xenstore_record_dm_state(struct xs_handle *xs, const char *state)
         exit(1);
     }
 
-    snprintf(path, sizeof (path), "/local/domain/0/device-model/%u/state", xen_domid);
+    snprintf(path, sizeof (path), "device-model/%u/state", xen_domid);
     if (!xs_write(xs, XBT_NULL, path, state, strlen(state))) {
         fprintf(stderr, "error recording dm state\n");
         exit(1);
@@ -962,7 +964,7 @@ static void xen_main_loop_prepare(XenIOState *state)
         evtchn_fd = xc_evtchn_fd(state->xce_handle);
     }
 
-    state->buffered_io_timer = qemu_new_timer_ms(rt_clock, handle_buffered_io,
+    state->buffered_io_timer = timer_new_ms(QEMU_CLOCK_REALTIME, handle_buffered_io,
                                                  state);
 
     if (evtchn_fd != -1) {
@@ -1059,7 +1061,12 @@ static void xen_read_physmap(XenIOState *state)
     free(entries);
 }
 
-int xen_hvm_init(void)
+static void xen_wakeup_notifier(Notifier *notifier, void *data)
+{
+    xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 0);
+}
+
+int xen_hvm_init(MemoryRegion **ram_memory)
 {
     int i, rc;
     unsigned long ioreq_pfn;
@@ -1088,6 +1095,9 @@ int xen_hvm_init(void)
     state->suspend.notify = xen_suspend_notifier;
     qemu_register_suspend_notifier(&state->suspend);
 
+    state->wakeup.notify = xen_wakeup_notifier;
+    qemu_register_wakeup_notifier(&state->wakeup);
+
     xc_get_hvm_param(xen_xc, xen_domid, HVM_PARAM_IOREQ_PFN, &ioreq_pfn);
     DPRINTF("shared page at pfn %lx\n", ioreq_pfn);
     state->shared_page = xc_map_foreign_range(xen_xc, xen_domid, XC_PAGE_SIZE,
@@ -1105,10 +1115,10 @@ int xen_hvm_init(void)
         hw_error("map buffered IO page returned error %d", errno);
     }
 
-    state->ioreq_local_port = g_malloc0(smp_cpus * sizeof (evtchn_port_t));
+    state->ioreq_local_port = g_malloc0(max_cpus * sizeof (evtchn_port_t));
 
     /* FIXME: how about if we overflow the page here? */
-    for (i = 0; i < smp_cpus; i++) {
+    for (i = 0; i < max_cpus; i++) {
         rc = xc_evtchn_bind_interdomain(state->xce_handle, xen_domid,
                                         xen_vcpu_eport(state->shared_page, i));
         if (rc == -1) {
@@ -1134,7 +1144,7 @@ int xen_hvm_init(void)
 
     /* Init RAM management */
     xen_map_cache_init(xen_phys_offset_to_gaddr, state);
-    xen_ram_init(ram_size);
+    xen_ram_init(ram_size, ram_memory);
 
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 

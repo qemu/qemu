@@ -53,6 +53,23 @@ The use of '*' as a prefix to the name means the member is optional.  Optional
 members should always be added to the end of the dictionary to preserve
 backwards compatibility.
 
+
+A complex type definition can specify another complex type as its base.
+In this case, the fields of the base type are included as top-level fields
+of the new complex type's dictionary in the QMP wire format. An example
+definition is:
+
+ { 'type': 'BlockdevOptionsGenericFormat', 'data': { 'file': 'str' } }
+ { 'type': 'BlockdevOptionsGenericCOWFormat',
+   'base': 'BlockdevOptionsGenericFormat',
+   'data': { '*backing': 'str' } }
+
+An example BlockdevOptionsGenericCOWFormat object on the wire could use
+both fields like this:
+
+ { "file": "/some/place/my-image",
+   "backing": "/some/place/my-backing-file" }
+
 === Enumeration types ===
 
 An enumeration type is a dictionary containing a single key whose value is a
@@ -147,7 +164,7 @@ This example allows using both of the following example objects:
  { "file": "my_existing_block_device_id" }
  { "file": { "driver": "file",
              "readonly": false,
-             'filename': "/tmp/mydisk.qcow2" } }
+             "filename": "/tmp/mydisk.qcow2" } }
 
 
 === Commands ===

@@ -323,9 +323,9 @@ abi_long copy_from_user(void *hptr, abi_ulong gaddr, size_t len);
 abi_long copy_to_user(abi_ulong gaddr, void *hptr, size_t len);
 
 /* Functions for accessing guest memory.  The tget and tput functions
-   read/write single values, byteswapping as necessary.  The lock_user
+   read/write single values, byteswapping as necessary.  The lock_user function
    gets a pointer to a contiguous area of guest memory, but does not perform
-   and byteswapping.  lock_user may return either a pointer to the guest
+   any byteswapping.  lock_user may return either a pointer to the guest
    memory, or a temporary buffer.  */
 
 /* Lock an area of guest memory into the host.  If copy is true then the
@@ -381,7 +381,7 @@ static inline void *lock_user_string(abi_ulong guest_addr)
     return lock_user(VERIFY_READ, guest_addr, (long)(len + 1), 1);
 }
 
-/* Helper macros for locking/ulocking a target struct.  */
+/* Helper macros for locking/unlocking a target struct.  */
 #define lock_user_struct(type, host_ptr, guest_addr, copy)      \
     (host_ptr = lock_user(type, guest_addr, sizeof(*host_ptr), copy))
 #define unlock_user_struct(host_ptr, guest_addr, copy)          \

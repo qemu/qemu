@@ -209,7 +209,6 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
     const char *initrd_filename = args->initrd_filename;
     DeviceState *dev = NULL;
     SysBusDevice *busdev;
-    qemu_irq *irqp;
     qemu_irq pic[128];
     int n;
     qemu_irq cpu_irq[4];
@@ -239,8 +238,7 @@ static void calxeda_init(QEMUMachineInitArgs *args, enum cxmachines machine)
 
         /* This will become a QOM property eventually */
         cpu->reset_cbar = GIC_BASE_ADDR;
-        irqp = arm_pic_init_cpu(cpu);
-        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
+        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
 
     sysmem = get_system_memory();
@@ -365,7 +363,6 @@ static QEMUMachine highbank_machine = {
     .init = highbank_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine midway_machine = {
@@ -374,7 +371,6 @@ static QEMUMachine midway_machine = {
     .init = midway_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void calxeda_machines_init(void)

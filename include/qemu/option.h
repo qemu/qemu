@@ -46,6 +46,7 @@ typedef struct QEMUOptionParameter {
         char* s;
     } value;
     const char *help;
+    bool assigned;
 } QEMUOptionParameter;
 
 
@@ -141,6 +142,7 @@ void qemu_opts_loc_restore(QemuOpts *opts);
 int qemu_opts_set(QemuOptsList *list, const char *id,
                   const char *name, const char *value);
 const char *qemu_opts_id(QemuOpts *opts);
+void qemu_opts_set_id(QemuOpts *opts, char *id);
 void qemu_opts_del(QemuOpts *opts);
 void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp);
 int qemu_opts_do_parse(QemuOpts *opts, const char *params, const char *firstname);

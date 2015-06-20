@@ -25,6 +25,7 @@
 #include "cpu.h"
 #include "mmu.h"
 #include "exec/exec-all.h"
+#include "exec/softmmu_exec.h"
 #include "qemu/host-utils.h"
 #include "helper.h"
 

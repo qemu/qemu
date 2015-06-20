@@ -2,6 +2,7 @@
 #include "exec/gdbstub.h"
 #include "helper.h"
 #include "qemu/host-utils.h"
+#include "sysemu/arch_init.h"
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
 
@@ -67,14 +68,22 @@ static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
 static int raw_read(CPUARMState *env, const ARMCPRegInfo *ri,
                     uint64_t *value)
 {
-    *value = CPREG_FIELD32(env, ri);
+    if (ri->type & ARM_CP_64BIT) {
+        *value = CPREG_FIELD64(env, ri);
+    } else {
+        *value = CPREG_FIELD32(env, ri);
+    }
     return 0;
 }
 
 static int raw_write(CPUARMState *env, const ARMCPRegInfo *ri,
                      uint64_t value)
 {
-    CPREG_FIELD32(env, ri) = value;
+    if (ri->type & ARM_CP_64BIT) {
+        CPREG_FIELD64(env, ri) = value;
+    } else {
+        CPREG_FIELD32(env, ri) = value;
+    }
     return 0;
 }
 
@@ -216,10 +225,16 @@ static void count_cpreg(gpointer key, gpointer opaque)
 
 static gint cpreg_key_compare(gconstpointer a, gconstpointer b)
 {
-    uint32_t aidx = *(uint32_t *)a;
-    uint32_t bidx = *(uint32_t *)b;
+    uint64_t aidx = cpreg_to_kvm_id(*(uint32_t *)a);
+    uint64_t bidx = cpreg_to_kvm_id(*(uint32_t *)b);
 
-    return aidx - bidx;
+    if (aidx > bidx) {
+        return 1;
+    }
+    if (aidx < bidx) {
+        return -1;
+    }
+    return 0;
 }
 
 static void cpreg_make_keylist(gpointer key, gpointer value, gpointer udata)
@@ -528,6 +543,13 @@ static int pmintenclr_write(CPUARMState *env, const ARMCPRegInfo *ri,
     return 0;
 }
 
+static int vbar_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                      uint64_t value)
+{
+    env->cp15.c12_vbar = value & ~0x1Ful;
+    return 0;
+}
+
 static int ccsidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
                        uint64_t *value)
 {
@@ -613,6 +635,10 @@ static const ARMCPRegInfo v7_cp_reginfo[] = {
       .access = PL1_RW, .type = ARM_CP_NO_MIGRATE,
       .fieldoffset = offsetof(CPUARMState, cp15.c9_pminten),
       .resetvalue = 0, .writefn = pmintenclr_write, },
+    { .name = "VBAR", .cp = 15, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW, .writefn = vbar_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.c12_vbar),
+      .resetvalue = 0 },
     { .name = "SCR", .cp = 15, .crn = 1, .crm = 1, .opc1 = 0, .opc2 = 0,
       .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, cp15.c1_scr),
       .resetvalue = 0, },
@@ -687,14 +713,260 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+#ifndef CONFIG_USER_ONLY
+
+static uint64_t gt_get_countervalue(CPUARMState *env)
+{
+    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / GTIMER_SCALE;
+}
+
+static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
+{
+    ARMGenericTimer *gt = &cpu->env.cp15.c14_timer[timeridx];
+
+    if (gt->ctl & 1) {
+        /* Timer enabled: calculate and set current ISTATUS, irq, and
+         * reset timer to when ISTATUS next has to change
+         */
+        uint64_t count = gt_get_countervalue(&cpu->env);
+        /* Note that this must be unsigned 64 bit arithmetic: */
+        int istatus = count >= gt->cval;
+        uint64_t nexttick;
+
+        gt->ctl = deposit32(gt->ctl, 2, 1, istatus);
+        qemu_set_irq(cpu->gt_timer_outputs[timeridx],
+                     (istatus && !(gt->ctl & 2)));
+        if (istatus) {
+            /* Next transition is when count rolls back over to zero */
+            nexttick = UINT64_MAX;
+        } else {
+            /* Next transition is when we hit cval */
+            nexttick = gt->cval;
+        }
+        /* Note that the desired next expiry time might be beyond the
+         * signed-64-bit range of a QEMUTimer -- in this case we just
+         * set the timer for as far in the future as possible. When the
+         * timer expires we will reset the timer for any remaining period.
+         */
+        if (nexttick > INT64_MAX / GTIMER_SCALE) {
+            nexttick = INT64_MAX / GTIMER_SCALE;
+        }
+        timer_mod(cpu->gt_timer[timeridx], nexttick);
+    } else {
+        /* Timer disabled: ISTATUS and timer output always clear */
+        gt->ctl &= ~4;
+        qemu_set_irq(cpu->gt_timer_outputs[timeridx], 0);
+        timer_del(cpu->gt_timer[timeridx]);
+    }
+}
+
+static int gt_cntfrq_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                          uint64_t *value)
+{
+    /* Not visible from PL0 if both PL0PCTEN and PL0VCTEN are zero */
+    if (arm_current_pl(env) == 0 && !extract32(env->cp15.c14_cntkctl, 0, 2)) {
+        return EXCP_UDEF;
+    }
+    *value = env->cp15.c14_cntfrq;
+    return 0;
+}
+
+static void gt_cnt_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int timeridx = ri->opc1 & 1;
+
+    timer_del(cpu->gt_timer[timeridx]);
+}
+
+static int gt_cnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t *value)
+{
+    int timeridx = ri->opc1 & 1;
+
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, timeridx, 1)) {
+        return EXCP_UDEF;
+    }
+    *value = gt_get_countervalue(env);
+    return 0;
+}
+
+static int gt_cval_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t *value)
+{
+    int timeridx = ri->opc1 & 1;
+
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
+        return EXCP_UDEF;
+    }
+    *value = env->cp15.c14_timer[timeridx].cval;
+    return 0;
+}
+
+static int gt_cval_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    int timeridx = ri->opc1 & 1;
+
+    env->cp15.c14_timer[timeridx].cval = value;
+    gt_recalc_timer(arm_env_get_cpu(env), timeridx);
+    return 0;
+}
+static int gt_tval_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t *value)
+{
+    int timeridx = ri->crm & 1;
+
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
+        return EXCP_UDEF;
+    }
+    *value = (uint32_t)(env->cp15.c14_timer[timeridx].cval -
+                        gt_get_countervalue(env));
+    return 0;
+}
+
+static int gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                         uint64_t value)
+{
+    int timeridx = ri->crm & 1;
+
+    env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) +
+        + sextract64(value, 0, 32);
+    gt_recalc_timer(arm_env_get_cpu(env), timeridx);
+    return 0;
+}
+
+static int gt_ctl_read(CPUARMState *env, const ARMCPRegInfo *ri,
+                       uint64_t *value)
+{
+    int timeridx = ri->crm & 1;
+
+    if (arm_current_pl(env) == 0 &&
+        !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
+        return EXCP_UDEF;
+    }
+    *value = env->cp15.c14_timer[timeridx].ctl;
+    return 0;
+}
+
+static int gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    int timeridx = ri->crm & 1;
+    uint32_t oldval = env->cp15.c14_timer[timeridx].ctl;
+
+    env->cp15.c14_timer[timeridx].ctl = value & 3;
+    if ((oldval ^ value) & 1) {
+        /* Enable toggled */
+        gt_recalc_timer(cpu, timeridx);
+    } else if ((oldval & value) & 2) {
+        /* IMASK toggled: don't need to recalculate,
+         * just set the interrupt line based on ISTATUS
+         */
+        qemu_set_irq(cpu->gt_timer_outputs[timeridx],
+                     (oldval & 4) && (value & 2));
+    }
+    return 0;
+}
+
+void arm_gt_ptimer_cb(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    gt_recalc_timer(cpu, GTIMER_PHYS);
+}
+
+void arm_gt_vtimer_cb(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+
+    gt_recalc_timer(cpu, GTIMER_VIRT);
+}
+
 static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
-    /* Dummy implementation: RAZ/WI the whole crn=14 space */
-    { .name = "GENERIC_TIMER", .cp = 15, .crn = 14,
-      .crm = CP_ANY, .opc1 = CP_ANY, .opc2 = CP_ANY,
-      .access = PL1_RW, .type = ARM_CP_CONST | ARM_CP_NO_MIGRATE,
-      .resetvalue = 0 },
+    /* Note that CNTFRQ is purely reads-as-written for the benefit
+     * of software; writing it doesn't actually change the timer frequency.
+     * Our reset value matches the fixed frequency we implement the timer at.
+     */
+    { .name = "CNTFRQ", .cp = 15, .crn = 14, .crm = 0, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW | PL0_R,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_cntfrq),
+      .resetvalue = (1000 * 1000 * 1000) / GTIMER_SCALE,
+      .readfn = gt_cntfrq_read, .raw_readfn = raw_read,
+    },
+    /* overall control: mostly access permissions */
+    { .name = "CNTKCTL", .cp = 15, .crn = 14, .crm = 1, .opc1 = 0, .opc2 = 0,
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_cntkctl),
+      .resetvalue = 0,
+    },
+    /* per-timer control */
+    { .name = "CNTP_CTL", .cp = 15, .crn = 14, .crm = 2, .opc1 = 0, .opc2 = 1,
+      .type = ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].ctl),
+      .resetvalue = 0,
+      .readfn = gt_ctl_read, .writefn = gt_ctl_write,
+      .raw_readfn = raw_read, .raw_writefn = raw_write,
+    },
+    { .name = "CNTV_CTL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 1,
+      .type = ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].ctl),
+      .resetvalue = 0,
+      .readfn = gt_ctl_read, .writefn = gt_ctl_write,
+      .raw_readfn = raw_read, .raw_writefn = raw_write,
+    },
+    /* TimerValue views: a 32 bit downcounting view of the underlying state */
+    { .name = "CNTP_TVAL", .cp = 15, .crn = 14, .crm = 2, .opc1 = 0, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .readfn = gt_tval_read, .writefn = gt_tval_write,
+    },
+    { .name = "CNTV_TVAL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 0,
+      .type = ARM_CP_NO_MIGRATE | ARM_CP_IO, .access = PL1_RW | PL0_R,
+      .readfn = gt_tval_read, .writefn = gt_tval_write,
+    },
+    /* The counter itself */
+    { .name = "CNTPCT", .cp = 15, .crm = 14, .opc1 = 0,
+      .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE | ARM_CP_IO,
+      .readfn = gt_cnt_read, .resetfn = gt_cnt_reset,
+    },
+    { .name = "CNTVCT", .cp = 15, .crm = 14, .opc1 = 1,
+      .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_MIGRATE | ARM_CP_IO,
+      .readfn = gt_cnt_read, .resetfn = gt_cnt_reset,
+    },
+    /* Comparison value, indicating when the timer goes off */
+    { .name = "CNTP_CVAL", .cp = 15, .crm = 14, .opc1 = 2,
+      .access = PL1_RW | PL0_R,
+      .type = ARM_CP_64BIT | ARM_CP_IO,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_PHYS].cval),
+      .resetvalue = 0,
+      .readfn = gt_cval_read, .writefn = gt_cval_write,
+      .raw_readfn = raw_read, .raw_writefn = raw_write,
+    },
+    { .name = "CNTV_CVAL", .cp = 15, .crm = 14, .opc1 = 3,
+      .access = PL1_RW | PL0_R,
+      .type = ARM_CP_64BIT | ARM_CP_IO,
+      .fieldoffset = offsetof(CPUARMState, cp15.c14_timer[GTIMER_VIRT].cval),
+      .resetvalue = 0,
+      .readfn = gt_cval_read, .writefn = gt_cval_write,
+      .raw_readfn = raw_read, .raw_writefn = raw_write,
+    },
     REGINFO_SENTINEL
 };
+
+#else
+/* In user-mode none of the generic timer registers are accessible,
+ * and their implementation depends on QEMU_CLOCK_VIRTUAL and qdev gpio outputs,
+ * so instead just don't register any of them.
+ */
+static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
+    REGINFO_SENTINEL
+};
+
+#endif
 
 static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
@@ -718,7 +990,7 @@ static int par_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 static inline bool extended_addresses_enabled(CPUARMState *env)
 {
     return arm_feature(env, ARM_FEATURE_LPAE)
-        && (env->cp15.c2_control & (1 << 31));
+        && (env->cp15.c2_control & (1U << 31));
 }
 
 static int ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
@@ -1131,7 +1403,7 @@ static int mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri,
      * so these bits always RAZ.
      */
     if (arm_feature(env, ARM_FEATURE_V7MP)) {
-        mpidr |= (1 << 31);
+        mpidr |= (1U << 31);
         /* Cores which are uniprocessor (non-coherent)
          * but still implement the MP extensions set
          * bit 30. (For instance, A9UP.) However we do
@@ -1494,7 +1766,6 @@ void register_cp_regs_for_features(ARMCPU *cpu)
 ARMCPU *cpu_arm_init(const char *cpu_model)
 {
     ARMCPU *cpu;
-    CPUARMState *env;
     ObjectClass *oc;
 
     oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_model);
@@ -1502,8 +1773,6 @@ ARMCPU *cpu_arm_init(const char *cpu_model)
         return NULL;
     }
     cpu = ARM_CPU(object_new(object_class_get_name(oc)));
-    env = &cpu->env;
-    env->cpu_model_str = cpu_model;
 
     /* TODO this should be set centrally, once possible */
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
@@ -1573,6 +1842,37 @@ void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     (*cpu_fprintf)(f, "Available CPUs:\n");
     g_slist_foreach(list, arm_cpu_list_entry, &s);
     g_slist_free(list);
+}
+
+static void arm_cpu_add_definition(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    CpuDefinitionInfoList **cpu_list = user_data;
+    CpuDefinitionInfoList *entry;
+    CpuDefinitionInfo *info;
+    const char *typename;
+
+    typename = object_class_get_name(oc);
+    info = g_malloc0(sizeof(*info));
+    info->name = g_strndup(typename,
+                           strlen(typename) - strlen("-" TYPE_ARM_CPU));
+
+    entry = g_malloc0(sizeof(*entry));
+    entry->value = info;
+    entry->next = *cpu_list;
+    *cpu_list = entry;
+}
+
+CpuDefinitionInfoList *arch_query_cpu_definitions(Error **errp)
+{
+    CpuDefinitionInfoList *cpu_list = NULL;
+    GSList *list;
+
+    list = object_class_get_list(TYPE_ARM_CPU, false);
+    g_slist_foreach(list, arm_cpu_add_definition, &cpu_list);
+    g_slist_free(list);
+
+    return cpu_list;
 }
 
 void define_one_arm_cp_reg_with_opaque(ARMCPU *cpu,
@@ -1974,6 +2274,37 @@ static void do_v7m_exception_exit(CPUARMState *env)
        pointer.  */
 }
 
+/* Exception names for debug logging; note that not all of these
+ * precisely correspond to architectural exceptions.
+ */
+static const char * const excnames[] = {
+    [EXCP_UDEF] = "Undefined Instruction",
+    [EXCP_SWI] = "SVC",
+    [EXCP_PREFETCH_ABORT] = "Prefetch Abort",
+    [EXCP_DATA_ABORT] = "Data Abort",
+    [EXCP_IRQ] = "IRQ",
+    [EXCP_FIQ] = "FIQ",
+    [EXCP_BKPT] = "Breakpoint",
+    [EXCP_EXCEPTION_EXIT] = "QEMU v7M exception exit",
+    [EXCP_KERNEL_TRAP] = "QEMU intercept of kernel commpage",
+    [EXCP_STREX] = "QEMU intercept of STREX",
+};
+
+static inline void arm_log_exception(int idx)
+{
+    if (qemu_loglevel_mask(CPU_LOG_INT)) {
+        const char *exc = NULL;
+
+        if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
+            exc = excnames[idx];
+        }
+        if (!exc) {
+            exc = "unknown";
+        }
+        qemu_log_mask(CPU_LOG_INT, "Taking exception %d [%s]\n", idx, exc);
+    }
+}
+
 void arm_v7m_cpu_do_interrupt(CPUState *cs)
 {
     ARMCPU *cpu = ARM_CPU(cs);
@@ -1981,6 +2312,8 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
     uint32_t xpsr = xpsr_read(env);
     uint32_t lr;
     uint32_t addr;
+
+    arm_log_exception(env->exception_index);
 
     lr = 0xfffffff1;
     if (env->v7m.current_sp)
@@ -2011,6 +2344,7 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
             if (nr == 0xab) {
                 env->regs[15] += 2;
                 env->regs[0] = do_arm_semihosting(env);
+                qemu_log_mask(CPU_LOG_INT, "...handled as semihosting call\n");
                 return;
             }
         }
@@ -2064,6 +2398,8 @@ void arm_cpu_do_interrupt(CPUState *cs)
 
     assert(!IS_M(env));
 
+    arm_log_exception(env->exception_index);
+
     /* TODO: Vectored interrupt controller.  */
     switch (env->exception_index) {
     case EXCP_UDEF:
@@ -2091,6 +2427,7 @@ void arm_cpu_do_interrupt(CPUState *cs)
                     || (mask == 0xab && env->thumb))
                   && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
                 env->regs[0] = do_arm_semihosting(env);
+                qemu_log_mask(CPU_LOG_INT, "...handled as semihosting call\n");
                 return;
             }
         }
@@ -2108,18 +2445,23 @@ void arm_cpu_do_interrupt(CPUState *cs)
                   && (env->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_USR) {
                 env->regs[15] += 2;
                 env->regs[0] = do_arm_semihosting(env);
+                qemu_log_mask(CPU_LOG_INT, "...handled as semihosting call\n");
                 return;
             }
         }
         env->cp15.c5_insn = 2;
         /* Fall through to prefetch abort.  */
     case EXCP_PREFETCH_ABORT:
+        qemu_log_mask(CPU_LOG_INT, "...with IFSR 0x%x IFAR 0x%x\n",
+                      env->cp15.c5_insn, env->cp15.c6_insn);
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x0c;
         mask = CPSR_A | CPSR_I;
         offset = 4;
         break;
     case EXCP_DATA_ABORT:
+        qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
+                      env->cp15.c5_data, env->cp15.c6_data);
         new_mode = ARM_CPU_MODE_ABT;
         addr = 0x10;
         mask = CPSR_A | CPSR_I;
@@ -2145,7 +2487,17 @@ void arm_cpu_do_interrupt(CPUState *cs)
     }
     /* High vectors.  */
     if (env->cp15.c1_sys & (1 << 13)) {
+        /* when enabled, base address cannot be remapped.  */
         addr += 0xffff0000;
+    } else {
+        /* ARM v7 architectures provide a vector base address register to remap
+         * the interrupt vector table.
+         * This register is only followed in non-monitor mode, and has a secure
+         * and un-secure copy. Since the cpu is always in a un-secure operation
+         * and is never in monitor mode this feature is always active.
+         * Note: only bits 31:5 are valid.
+         */
+        addr += env->cp15.c12_vbar;
     }
     switch_mode (env, new_mode);
     env->spsr = cpsr_read(env);

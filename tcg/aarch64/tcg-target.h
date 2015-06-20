@@ -61,6 +61,8 @@ typedef enum {
 #define TCG_TARGET_HAS_sub2_i32         0
 #define TCG_TARGET_HAS_mulu2_i32        0
 #define TCG_TARGET_HAS_muls2_i32        0
+#define TCG_TARGET_HAS_muluh_i32        0
+#define TCG_TARGET_HAS_mulsh_i32        0
 
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_rem_i64          0
@@ -87,13 +89,16 @@ typedef enum {
 #define TCG_TARGET_HAS_sub2_i64         0
 #define TCG_TARGET_HAS_mulu2_i64        0
 #define TCG_TARGET_HAS_muls2_i64        0
+#define TCG_TARGET_HAS_muluh_i64        0
+#define TCG_TARGET_HAS_mulsh_i64        0
 
 enum {
     TCG_AREG0 = TCG_REG_X19,
 };
 
-static inline void flush_icache_range(tcg_target_ulong start,
-                                      tcg_target_ulong stop)
+#define TCG_TARGET_HAS_new_ldst         0
+
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
     __builtin___clear_cache((char *)start, (char *)stop);
 }

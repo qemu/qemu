@@ -3,11 +3,11 @@
 
 /* PCMCIA/Cardbus */
 
-#include "qemu-common.h"
+#include "hw/qdev.h"
 
-typedef struct {
+typedef struct PCMCIASocket {
     qemu_irq irq;
-    int attached;
+    bool attached;
     const char *slot_string;
     const char *card_string;
 } PCMCIASocket;
@@ -16,22 +16,42 @@ void pcmcia_socket_register(PCMCIASocket *socket);
 void pcmcia_socket_unregister(PCMCIASocket *socket);
 void pcmcia_info(Monitor *mon, const QDict *qdict);
 
+#define TYPE_PCMCIA_CARD "pcmcia-card"
+#define PCMCIA_CARD(obj) \
+    OBJECT_CHECK(PCMCIACardState, (obj), TYPE_PCMCIA_CARD)
+#define PCMCIA_CARD_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(PCMCIACardClass, obj, TYPE_PCMCIA_CARD)
+#define PCMCIA_CARD_CLASS(cls) \
+    OBJECT_CLASS_CHECK(PCMCIACardClass, cls, TYPE_PCMCIA_CARD)
+
 struct PCMCIACardState {
-    void *state;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
+
     PCMCIASocket *slot;
-    int (*attach)(void *state);
-    int (*detach)(void *state);
+};
+
+typedef struct PCMCIACardClass {
+    /*< private >*/
+    DeviceClass parent_class;
+    /*< public >*/
+
+    int (*attach)(PCMCIACardState *state);
+    int (*detach)(PCMCIACardState *state);
+
     const uint8_t *cis;
     int cis_len;
 
     /* Only valid if attached */
-    uint8_t (*attr_read)(void *state, uint32_t address);
-    void (*attr_write)(void *state, uint32_t address, uint8_t value);
-    uint16_t (*common_read)(void *state, uint32_t address);
-    void (*common_write)(void *state, uint32_t address, uint16_t value);
-    uint16_t (*io_read)(void *state, uint32_t address);
-    void (*io_write)(void *state, uint32_t address, uint16_t value);
-};
+    uint8_t (*attr_read)(PCMCIACardState *card, uint32_t address);
+    void (*attr_write)(PCMCIACardState *card, uint32_t address, uint8_t value);
+    uint16_t (*common_read)(PCMCIACardState *card, uint32_t address);
+    void (*common_write)(PCMCIACardState *card,
+                         uint32_t address, uint16_t value);
+    uint16_t (*io_read)(PCMCIACardState *card, uint32_t address);
+    void (*io_write)(PCMCIACardState *card, uint32_t address, uint16_t value);
+} PCMCIACardClass;
 
 #define CISTPL_DEVICE		0x01	/* 5V Device Information Tuple */
 #define CISTPL_NO_LINK		0x14	/* No Link Tuple */

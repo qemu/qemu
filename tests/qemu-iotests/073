@@ -1,0 +1,166 @@
+#!/bin/bash
+#
+# Test count_contiguous_clusters in qcow2
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto generic
+_supported_os Linux
+
+CLUSTER_SIZE=64k
+size=128M
+
+echo
+echo "== creating backing file =="
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $size
+
+_make_test_img -b "$TEST_IMG.base"
+$QEMU_IO -c "write -P 0xa5 0 $size" "$TEST_IMG.base" | _filter_qemu_io
+
+echo
+echo "== normal -> unallocated =="
+
+$QEMU_IO -c "write -P 0x11 0 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x11 0x10000 0x10000" "$TEST_IMG.base" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x11 0 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== normal -> compressed =="
+
+$QEMU_IO -c "write -P 0x22 0x20000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0x22 0x30000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x22 0x20000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== normal -> zero =="
+
+$QEMU_IO -c "write -P 0x33 0x40000 0x20000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x33 0x40000 0x20000" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -P 0 0x40000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z 0x50000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0 0x40000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo
+echo "== unallocated -> normal =="
+
+$QEMU_IO -c "write -P 0x44 0x60000 0x10000" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x44 0x70000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x44 0x60000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== unallocated -> compressed =="
+
+$QEMU_IO -c "write -P 0x55 0x80000 0x10000" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0x55 0x90000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x55 0x80000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== unallocated -> zero =="
+
+$QEMU_IO -c "write -P 0x66 0xa0000 0x20000" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -P 0 0xa0000 0x10000" "$TEST_IMG.base" | _filter_qemu_io
+$QEMU_IO -c "write -z 0xb0000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0 0xa0000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo
+echo "== compressed -> normal =="
+
+$QEMU_IO -c "write -c -P 0x77 0xc0000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x77 0xd0000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x77 0xc0000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== compressed -> unallocated =="
+
+$QEMU_IO -c "write -c -P 0x88 0xe0000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x88 0xf0000 0x10000" "$TEST_IMG.base" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0x88 0xe0000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== compressed -> zero =="
+
+$QEMU_IO -c "write -c -P 0 0x100000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0x99 0x110000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z 0x110000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0 0x100000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo
+echo "== zero -> normal =="
+
+$QEMU_IO -c "write -P 0xaa 0x120000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0 0x130000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z 0x120000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0 0x120000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== zero -> unallocated =="
+
+$QEMU_IO -c "write -z 0x140000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0 0x150000 0x10000" "$TEST_IMG.base" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0 0x140000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== zero -> compressed =="
+
+$QEMU_IO -c "write -c -P 0 0x170000 0x10000" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -z 0x160000 0x10000" "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0 0x160000 0x20000" "$TEST_IMG" | _filter_qemu_io
+
+
+_check_test_img
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

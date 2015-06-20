@@ -62,7 +62,7 @@
  *
  * We load our kernel at 4M, leaving space for SLOF initial image
  */
-#define FDT_MAX_SIZE            0x10000
+#define FDT_MAX_SIZE            0x40000
 #define RTAS_MAX_SIZE           0x10000
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
@@ -88,6 +88,9 @@ int spapr_allocate_irq(int hint, bool lsi)
 
     if (hint) {
         irq = hint;
+        if (hint >= spapr->next_irq) {
+            spapr->next_irq = hint + 1;
+        }
         /* FIXME: we should probably check for collisions somehow */
     } else {
         irq = spapr->next_irq++;
@@ -103,22 +106,39 @@ int spapr_allocate_irq(int hint, bool lsi)
     return irq;
 }
 
-/* Allocate block of consequtive IRQs, returns a number of the first */
-int spapr_allocate_irq_block(int num, bool lsi)
+/*
+ * Allocate block of consequtive IRQs, returns a number of the first.
+ * If msi==true, aligns the first IRQ number to num.
+ */
+int spapr_allocate_irq_block(int num, bool lsi, bool msi)
 {
     int first = -1;
-    int i;
+    int i, hint = 0;
+
+    /*
+     * MSIMesage::data is used for storing VIRQ so
+     * it has to be aligned to num to support multiple
+     * MSI vectors. MSI-X is not affected by this.
+     * The hint is used for the first IRQ, the rest should
+     * be allocated continuously.
+     */
+    if (msi) {
+        assert((num == 1) || (num == 2) || (num == 4) ||
+               (num == 8) || (num == 16) || (num == 32));
+        hint = (spapr->next_irq + num - 1) & ~(num - 1);
+    }
 
     for (i = 0; i < num; ++i) {
         int irq;
 
-        irq = spapr_allocate_irq(0, lsi);
+        irq = spapr_allocate_irq(hint, lsi);
         if (!irq) {
             return -1;
         }
 
         if (0 == i) {
             first = irq;
+            hint = 0;
         }
 
         /* If the above doesn't create a consecutive block then that's
@@ -141,14 +161,33 @@ static XICSState *try_create_xics(const char *type, int nr_servers,
         return NULL;
     }
 
-    return XICS(dev);
+    return XICS_COMMON(dev);
 }
 
 static XICSState *xics_system_init(int nr_servers, int nr_irqs)
 {
     XICSState *icp = NULL;
 
-    icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs);
+    if (kvm_enabled()) {
+        QemuOpts *machine_opts = qemu_get_machine_opts();
+        bool irqchip_allowed = qemu_opt_get_bool(machine_opts,
+                                                "kernel_irqchip", true);
+        bool irqchip_required = qemu_opt_get_bool(machine_opts,
+                                                  "kernel_irqchip", false);
+        if (irqchip_allowed) {
+            icp = try_create_xics(TYPE_KVM_XICS, nr_servers, nr_irqs);
+        }
+
+        if (irqchip_required && !icp) {
+            perror("Failed to create in-kernel XICS\n");
+            abort();
+        }
+    }
+
+    if (!icp) {
+        icp = try_create_xics(TYPE_XICS, nr_servers, nr_irqs);
+    }
+
     if (!icp) {
         perror("Failed to create XICS\n");
         abort();
@@ -165,9 +204,8 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
     int smt = kvmppc_smt_threads();
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
 
-    assert(spapr->cpu_model);
-
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
+        DeviceClass *dc = DEVICE_GET_CLASS(cpu);
         uint32_t associativity[] = {cpu_to_be32(0x5),
                                     cpu_to_be32(0x0),
                                     cpu_to_be32(0x0),
@@ -179,7 +217,7 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPREnvironment *spapr)
             continue;
         }
 
-        snprintf(cpu_model, 32, "/cpus/%s@%x", spapr->cpu_model,
+        snprintf(cpu_model, 32, "/cpus/%s@%x", dc->fw_name,
                  cpu->cpu_index);
 
         offset = fdt_path_offset(fdt, cpu_model);
@@ -249,10 +287,10 @@ static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
     } while (0)
 
 
-static void *spapr_create_fdt_skel(const char *cpu_model,
-                                   hwaddr initrd_base,
+static void *spapr_create_fdt_skel(hwaddr initrd_base,
                                    hwaddr initrd_size,
                                    hwaddr kernel_size,
+                                   bool little_endian,
                                    const char *boot_device,
                                    const char *kernel_cmdline,
                                    uint32_t epow_irq)
@@ -262,11 +300,10 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr\0hcall-interrupt"
-        "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk";
+        "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk\0hcall-set-mode";
     char qemu_hypertas_prop[] = "hcall-memop1";
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
-    char *modelname;
     int i, smt = kvmppc_smt_threads();
     unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
 
@@ -306,6 +343,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                               cpu_to_be64(kernel_size) };
 
         _FDT((fdt_property(fdt, "qemu,boot-kernel", &kprop, sizeof(kprop))));
+        if (little_endian) {
+            _FDT((fdt_property(fdt, "qemu,boot-kernel-le", NULL, 0)));
+        }
     }
     if (boot_device) {
         _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
@@ -322,18 +362,10 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x1)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x0)));
 
-    modelname = g_strdup(cpu_model);
-
-    for (i = 0; i < strlen(modelname); i++) {
-        modelname[i] = toupper(modelname[i]);
-    }
-
-    /* This is needed during FDT finalization */
-    spapr->cpu_model = g_strdup(modelname);
-
-    for (cs = first_cpu; cs != NULL; cs = cs->next_cpu) {
+    CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         CPUPPCState *env = &cpu->env;
+        DeviceClass *dc = DEVICE_GET_CLASS(cs);
         PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
         int index = cs->cpu_index;
         uint32_t servers_prop[smp_threads];
@@ -350,7 +382,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
             continue;
         }
 
-        nodename = g_strdup_printf("%s@%x", modelname, index);
+        nodename = g_strdup_printf("%s@%x", dc->fw_name, index);
 
         _FDT((fdt_begin_node(fdt, nodename)));
 
@@ -398,6 +430,10 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         _FDT((fdt_property(fdt, "ibm,ppc-interrupt-gserver#s",
                            gservers_prop, sizeof(gservers_prop))));
 
+        if (env->spr_cb[SPR_PURR].oea_read) {
+            _FDT((fdt_property(fdt, "ibm,purr", NULL, 0)));
+        }
+
         if (env->mmu_model & POWERPC_MMU_1TSEG) {
             _FDT((fdt_property(fdt, "ibm,processor-segment-sizes",
                                segs, sizeof(segs))));
@@ -429,8 +465,6 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 
         _FDT((fdt_end_node(fdt)));
     }
-
-    g_free(modelname);
 
     _FDT((fdt_end_node(fdt)));
 
@@ -789,7 +823,7 @@ static void htab_save_first_pass(QEMUFile *f, sPAPREnvironment *spapr,
 {
     int htabslots = HTAB_SIZE(spapr) / HASH_PTE_SIZE_64;
     int index = spapr->htab_save_index;
-    int64_t starttime = qemu_get_clock_ns(rt_clock);
+    int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     assert(spapr->htab_first_pass);
 
@@ -820,7 +854,7 @@ static void htab_save_first_pass(QEMUFile *f, sPAPREnvironment *spapr,
             qemu_put_buffer(f, HPTE(spapr->htab, chunkstart),
                             HASH_PTE_SIZE_64 * n_valid);
 
-            if ((qemu_get_clock_ns(rt_clock) - starttime) > max_ns) {
+            if ((qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
                 break;
             }
         }
@@ -841,7 +875,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
     int htabslots = HTAB_SIZE(spapr) / HASH_PTE_SIZE_64;
     int examined = 0, sent = 0;
     int index = spapr->htab_save_index;
-    int64_t starttime = qemu_get_clock_ns(rt_clock);
+    int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     assert(!spapr->htab_first_pass);
 
@@ -886,7 +920,7 @@ static int htab_save_later_pass(QEMUFile *f, sPAPREnvironment *spapr,
                             HASH_PTE_SIZE_64 * n_valid);
             sent += index - chunkstart;
 
-            if (!final && (qemu_get_clock_ns(rt_clock) - starttime) > max_ns) {
+            if (!final && (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) > max_ns) {
                 break;
             }
         }
@@ -1071,7 +1105,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
+    const char *boot_device = args->boot_order;
     PowerPCCPU *cpu;
     CPUPPCState *env;
     PCIHostState *phb;
@@ -1082,6 +1116,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     uint32_t initrd_base = 0;
     long kernel_size = 0, initrd_size = 0;
     long load_limit, rtas_limit, fw_size;
+    bool kernel_le = false;
     char *filename;
 
     msi_supported = true;
@@ -1155,8 +1190,6 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         }
         env = &cpu->env;
 
-        xics_cpu_setup(spapr->icp, cpu);
-
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
 
@@ -1169,6 +1202,8 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
         if (kvm_enabled()) {
             kvmppc_set_papr(cpu);
         }
+
+        xics_cpu_setup(spapr->icp, cpu);
 
         qemu_register_reset(spapr_cpu_reset, cpu);
     }
@@ -1214,6 +1249,7 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
     spapr_create_nvram(spapr);
 
     /* Set up PCI */
+    spapr_pci_msi_init(spapr, SPAPR_PCI_MSI_WINDOW);
     spapr_pci_rtas_init();
 
     phb = spapr_create_phb(spapr, 0);
@@ -1260,6 +1296,12 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
 
         kernel_size = load_elf(kernel_filename, translate_kernel_address, NULL,
                                NULL, &lowaddr, NULL, 1, ELF_MACHINE, 0);
+        if (kernel_size < 0) {
+            kernel_size = load_elf(kernel_filename,
+                                   translate_kernel_address, NULL,
+                                   NULL, &lowaddr, NULL, 0, ELF_MACHINE, 0);
+            kernel_le = kernel_size > 0;
+        }
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(kernel_filename,
                                               KERNEL_LOAD_ADDR,
@@ -1308,9 +1350,8 @@ static void ppc_spapr_init(QEMUMachineInitArgs *args)
                          &savevm_htab_handlers, spapr);
 
     /* Prepare the device tree */
-    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,
-                                            initrd_base, initrd_size,
-                                            kernel_size,
+    spapr->fdt_skel = spapr_create_fdt_skel(initrd_base, initrd_size,
+                                            kernel_size, kernel_le,
                                             boot_device, kernel_cmdline,
                                             spapr->epow_irq);
     assert(spapr->fdt_skel != NULL);
@@ -1325,7 +1366,7 @@ static QEMUMachine spapr_machine = {
     .block_default_type = IF_SCSI,
     .max_cpus = MAX_CPUS,
     .no_parallel = 1,
-    .boot_order = NULL,
+    .default_boot_order = NULL,
 };
 
 static void spapr_machine_init(void)

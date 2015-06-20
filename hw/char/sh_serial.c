@@ -248,11 +248,9 @@ static uint64_t sh_serial_read(void *opaque, hwaddr offs,
                     s->flags &= ~SH_SERIAL_FLAG_RDF;
             }
             break;
-#if 0
         case 0x18:
             ret = s->fcr;
             break;
-#endif
         case 0x1c:
             ret = s->rx_cnt;
             break;

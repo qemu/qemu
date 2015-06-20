@@ -188,10 +188,6 @@ void s390x_translate_init(void)
                                       offsetof(CPUS390XState, fregs[i].d),
                                       cpu_reg_names[i + 16]);
     }
-
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 static TCGv_i64 load_reg(int reg)
@@ -1169,7 +1165,7 @@ static ExitStatus help_goto_direct(DisasContext *s, uint64_t dest)
         update_cc_op(s);
         tcg_gen_goto_tb(0);
         tcg_gen_movi_i64(psw_addr, dest);
-        tcg_gen_exit_tb((tcg_target_long)s->tb);
+        tcg_gen_exit_tb((uintptr_t)s->tb);
         return EXIT_GOTO_TB;
     } else {
         tcg_gen_movi_i64(psw_addr, dest);
@@ -1227,13 +1223,13 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
             /* Branch not taken.  */
             tcg_gen_goto_tb(0);
             tcg_gen_movi_i64(psw_addr, s->next_pc);
-            tcg_gen_exit_tb((tcg_target_long)s->tb + 0);
+            tcg_gen_exit_tb((uintptr_t)s->tb + 0);
 
             /* Branch taken.  */
             gen_set_label(lab);
             tcg_gen_goto_tb(1);
             tcg_gen_movi_i64(psw_addr, dest);
-            tcg_gen_exit_tb((tcg_target_long)s->tb + 1);
+            tcg_gen_exit_tb((uintptr_t)s->tb + 1);
 
             ret = EXIT_GOTO_TB;
         } else {
@@ -1256,7 +1252,7 @@ static ExitStatus help_branch(DisasContext *s, DisasCompare *c,
             update_cc_op(s);
             tcg_gen_goto_tb(0);
             tcg_gen_movi_i64(psw_addr, s->next_pc);
-            tcg_gen_exit_tb((tcg_target_long)s->tb + 0);
+            tcg_gen_exit_tb((uintptr_t)s->tb + 0);
 
             gen_set_label(lab);
             if (is_imm) {

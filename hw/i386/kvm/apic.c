@@ -79,7 +79,7 @@ void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic)
     v = (s->divide_conf & 3) | ((s->divide_conf >> 1) & 4);
     s->count_shift = (v + 1) & 7;
 
-    s->initial_count_load_time = qemu_get_clock_ns(vm_clock);
+    s->initial_count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     apic_next_timer(s, s->initial_count_load_time);
 }
 

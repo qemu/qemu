@@ -10,6 +10,7 @@
  */
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "qemu/main-loop.h"
 
 #undef DEBUG_PUV3
 #include "hw/unicore32/puv3.h"

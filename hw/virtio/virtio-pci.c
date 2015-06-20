@@ -92,7 +92,8 @@
 /* HACK for virtio to determine if it's running a big endian guest */
 bool virtio_is_big_endian(void);
 
-static void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev);
+static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
+                               VirtIOPCIProxy *dev);
 
 /* virtio device */
 /* DeviceState to VirtIOPCIProxy. For use off data-path. TODO: use QOM. */
@@ -115,7 +116,7 @@ static void virtio_pci_notify(DeviceState *d, uint16_t vector)
     if (msix_enabled(&proxy->pci_dev))
         msix_notify(&proxy->pci_dev, vector);
     else
-        qemu_set_irq(proxy->pci_dev.irq[0], proxy->vdev->isr & 1);
+        pci_set_irq(&proxy->pci_dev, proxy->vdev->isr & 1);
 }
 
 static void virtio_pci_save_config(DeviceState *d, QEMUFile *f)
@@ -361,7 +362,7 @@ static uint32_t virtio_ioport_read(VirtIOPCIProxy *proxy, uint32_t addr)
         /* reading from the ISR also clears it. */
         ret = vdev->isr;
         vdev->isr = 0;
-        qemu_set_irq(proxy->pci_dev.irq[0], 0);
+        pci_irq_deassert(&proxy->pci_dev);
         break;
     case VIRTIO_MSI_CONFIG_VECTOR:
         ret = vdev->config_vector;
@@ -508,7 +509,7 @@ static int kvm_virtio_pci_irqfd_use(VirtIOPCIProxy *proxy,
     VirtQueue *vq = virtio_get_queue(proxy->vdev, queue_no);
     EventNotifier *n = virtio_queue_get_guest_notifier(vq);
     int ret;
-    ret = kvm_irqchip_add_irqfd_notifier(kvm_state, n, irqfd->virq);
+    ret = kvm_irqchip_add_irqfd_notifier(kvm_state, n, NULL, irqfd->virq);
     return ret;
 }
 
@@ -799,8 +800,7 @@ static int virtio_pci_set_guest_notifiers(DeviceState *d, int nvqs, bool assign)
             break;
         }
 
-        r = virtio_pci_set_guest_notifier(d, n, assign,
-                                          kvm_msi_via_irqfd_enabled());
+        r = virtio_pci_set_guest_notifier(d, n, assign, with_irqfd);
         if (r < 0) {
             goto assign_error;
         }
@@ -918,7 +918,7 @@ static void virtio_9p_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_9p_pci_instance_init(Object *obj)
 {
     V9fsPCIState *dev = VIRTIO_9P_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_9P);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_9P);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -986,7 +986,7 @@ static int virtio_pci_init(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *dev = VIRTIO_PCI(pci_dev);
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
-    virtio_pci_bus_new(&dev->bus, dev);
+    virtio_pci_bus_new(&dev->bus, sizeof(dev->bus), dev);
     if (k->init != NULL) {
         return k->init(dev);
     }
@@ -1078,7 +1078,7 @@ static void virtio_blk_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_blk_pci_instance_init(Object *obj)
 {
     VirtIOBlkPCI *dev = VIRTIO_BLK_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BLK);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BLK);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1148,7 +1148,7 @@ static void virtio_scsi_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_scsi_pci_instance_init(Object *obj)
 {
     VirtIOSCSIPCI *dev = VIRTIO_SCSI_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SCSI);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1205,7 +1205,7 @@ static void vhost_scsi_pci_class_init(ObjectClass *klass, void *data)
 static void vhost_scsi_pci_instance_init(Object *obj)
 {
     VHostSCSIPCI *dev = VHOST_SCSI_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VHOST_SCSI);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1286,7 +1286,7 @@ static void virtio_balloon_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_balloon_pci_instance_init(Object *obj)
 {
     VirtIOBalloonPCI *dev = VIRTIO_BALLOON_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BALLOON);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BALLOON);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 
     object_property_add(obj, "guest-stats", "guest statistics",
@@ -1372,7 +1372,7 @@ static void virtio_serial_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_serial_pci_instance_init(Object *obj)
 {
     VirtIOSerialPCI *dev = VIRTIO_SERIAL_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SERIAL);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SERIAL);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1431,7 +1431,7 @@ static void virtio_net_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_net_pci_instance_init(Object *obj)
 {
     VirtIONetPCI *dev = VIRTIO_NET_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_NET);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -1487,7 +1487,7 @@ static void virtio_rng_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_rng_initfn(Object *obj)
 {
     VirtIORngPCI *dev = VIRTIO_RNG_PCI(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_RNG);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng, NULL);
@@ -1504,13 +1504,14 @@ static const TypeInfo virtio_rng_pci_info = {
 
 /* virtio-pci-bus */
 
-static void virtio_pci_bus_new(VirtioBusState *bus, VirtIOPCIProxy *dev)
+static void virtio_pci_bus_new(VirtioBusState *bus, size_t bus_size,
+                               VirtIOPCIProxy *dev)
 {
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;
     char virtio_bus_name[] = "virtio-bus";
 
-    qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_PCI_BUS, qdev,
+    qbus_create_inplace(bus, bus_size, TYPE_VIRTIO_PCI_BUS, qdev,
                         virtio_bus_name);
     qbus = BUS(bus);
     qbus->allow_hotplug = 1;

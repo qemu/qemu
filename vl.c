@@ -196,7 +196,7 @@ NICInfo nd_table[MAX_NICS];
 int autostart;
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
-QEMUClock *rtc_clock;
+QEMUClockType rtc_clock;
 int vga_interface_type = VGA_NONE;
 static int full_screen = 0;
 static int no_frame = 0;
@@ -254,6 +254,7 @@ uint64_t node_mem[MAX_NODES];
 unsigned long *node_cpumask[MAX_NODES];
 
 uint8_t qemu_uuid[16];
+bool qemu_uuid_set;
 
 static QEMUBootSetHandler *boot_set_handler;
 static void *boot_set_opaque;
@@ -649,9 +650,8 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_WATCHDOG, RUN_STATE_RUNNING },
     { RUN_STATE_WATCHDOG, RUN_STATE_FINISH_MIGRATE },
 
-    { RUN_STATE_GUEST_PANICKED, RUN_STATE_PAUSED },
+    { RUN_STATE_GUEST_PANICKED, RUN_STATE_RUNNING },
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_FINISH_MIGRATE },
-    { RUN_STATE_GUEST_PANICKED, RUN_STATE_DEBUG },
 
     { RUN_STATE_MAX, RUN_STATE_MAX },
 };
@@ -697,8 +697,7 @@ int runstate_is_running(void)
 bool runstate_needs_reset(void)
 {
     return runstate_check(RUN_STATE_INTERNAL_ERROR) ||
-        runstate_check(RUN_STATE_SHUTDOWN) ||
-        runstate_check(RUN_STATE_GUEST_PANICKED);
+        runstate_check(RUN_STATE_SHUTDOWN);
 }
 
 StatusInfo *qmp_query_status(Error **errp)
@@ -817,11 +816,11 @@ static void configure_rtc(QemuOpts *opts)
     value = qemu_opt_get(opts, "clock");
     if (value) {
         if (!strcmp(value, "host")) {
-            rtc_clock = host_clock;
+            rtc_clock = QEMU_CLOCK_HOST;
         } else if (!strcmp(value, "rt")) {
-            rtc_clock = rt_clock;
+            rtc_clock = QEMU_CLOCK_REALTIME;
         } else if (!strcmp(value, "vm")) {
-            rtc_clock = vm_clock;
+            rtc_clock = QEMU_CLOCK_VIRTUAL;
         } else {
             fprintf(stderr, "qemu: invalid option value '%s'\n", value);
             exit(1);
@@ -855,81 +854,12 @@ static int nb_hcis;
 static int cur_hci;
 static struct HCIInfo *hci_table[MAX_NICS];
 
-static struct bt_vlan_s {
-    struct bt_scatternet_s net;
-    int id;
-    struct bt_vlan_s *next;
-} *first_bt_vlan;
-
-/* find or alloc a new bluetooth "VLAN" */
-static struct bt_scatternet_s *qemu_find_bt_vlan(int id)
-{
-    struct bt_vlan_s **pvlan, *vlan;
-    for (vlan = first_bt_vlan; vlan != NULL; vlan = vlan->next) {
-        if (vlan->id == id)
-            return &vlan->net;
-    }
-    vlan = g_malloc0(sizeof(struct bt_vlan_s));
-    vlan->id = id;
-    pvlan = &first_bt_vlan;
-    while (*pvlan != NULL)
-        pvlan = &(*pvlan)->next;
-    *pvlan = vlan;
-    return &vlan->net;
-}
-
-static void null_hci_send(struct HCIInfo *hci, const uint8_t *data, int len)
-{
-}
-
-static int null_hci_addr_set(struct HCIInfo *hci, const uint8_t *bd_addr)
-{
-    return -ENOTSUP;
-}
-
-static struct HCIInfo null_hci = {
-    .cmd_send = null_hci_send,
-    .sco_send = null_hci_send,
-    .acl_send = null_hci_send,
-    .bdaddr_set = null_hci_addr_set,
-};
-
 struct HCIInfo *qemu_next_hci(void)
 {
     if (cur_hci == nb_hcis)
         return &null_hci;
 
     return hci_table[cur_hci++];
-}
-
-static struct HCIInfo *hci_init(const char *str)
-{
-    char *endp;
-    struct bt_scatternet_s *vlan = 0;
-
-    if (!strcmp(str, "null"))
-        /* null */
-        return &null_hci;
-    else if (!strncmp(str, "host", 4) && (str[4] == '\0' || str[4] == ':'))
-        /* host[:hciN] */
-        return bt_host_hci(str[4] ? str + 5 : "hci0");
-    else if (!strncmp(str, "hci", 3)) {
-        /* hci[,vlan=n] */
-        if (str[3]) {
-            if (!strncmp(str + 3, ",vlan=", 6)) {
-                vlan = qemu_find_bt_vlan(strtol(str + 9, &endp, 0));
-                if (*endp)
-                    vlan = 0;
-            }
-        } else
-            vlan = qemu_find_bt_vlan(0);
-        if (vlan)
-           return bt_new_hci(vlan);
-    }
-
-    fprintf(stderr, "qemu: Unknown bluetooth HCI `%s'.\n", str);
-
-    return 0;
 }
 
 static int bt_hci_parse(const char *str)
@@ -1538,8 +1468,10 @@ static void configure_msg(QemuOpts *opts)
 
 static int usb_device_add(const char *devname)
 {
-    const char *p;
     USBDevice *dev = NULL;
+#ifndef CONFIG_LINUX
+    const char *p;
+#endif
 
     if (!usb_enabled(false)) {
         return -1;
@@ -1555,15 +1487,8 @@ static int usb_device_add(const char *devname)
     /* only the linux version is qdev-ified, usb-bsd still needs this */
     if (strstart(devname, "host:", &p)) {
         dev = usb_host_device_open(usb_bus_find(-1), p);
-    } else
-#endif
-    if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
-        dev = usb_bt_init(usb_bus_find(-1),
-                          devname[2] ? hci_init(p)
-                                     : bt_new_hci(qemu_find_bt_vlan(0)));
-    } else {
-        return -1;
     }
+#endif
     if (!dev)
         return -1;
 
@@ -1804,14 +1729,14 @@ static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
 static int suspend_requested;
-static int wakeup_requested;
+static WakeupReason wakeup_reason;
 static NotifierList powerdown_notifiers =
     NOTIFIER_LIST_INITIALIZER(powerdown_notifiers);
 static NotifierList suspend_notifiers =
     NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
 static NotifierList wakeup_notifiers =
     NOTIFIER_LIST_INITIALIZER(wakeup_notifiers);
-static uint32_t wakeup_reason_mask = ~0;
+static uint32_t wakeup_reason_mask = ~(1 << QEMU_WAKEUP_REASON_NONE);
 static RunState vmstop_requested = RUN_STATE_MAX;
 
 int qemu_shutdown_requested_get(void)
@@ -1861,11 +1786,9 @@ static int qemu_suspend_requested(void)
     return r;
 }
 
-static int qemu_wakeup_requested(void)
+static WakeupReason qemu_wakeup_requested(void)
 {
-    int r = wakeup_requested;
-    wakeup_requested = 0;
-    return r;
+    return wakeup_reason;
 }
 
 static int qemu_powerdown_requested(void)
@@ -1982,8 +1905,7 @@ void qemu_system_wakeup_request(WakeupReason reason)
         return;
     }
     runstate_set(RUN_STATE_RUNNING);
-    notifier_list_notify(&wakeup_notifiers, &reason);
-    wakeup_requested = 1;
+    wakeup_reason = reason;
     qemu_notify_event();
 }
 
@@ -2075,6 +1997,8 @@ static bool main_loop_should_exit(void)
         pause_all_vcpus();
         cpu_synchronize_all_states();
         qemu_system_reset(VMRESET_SILENT);
+        notifier_list_notify(&wakeup_notifiers, &wakeup_reason);
+        wakeup_reason = QEMU_WAKEUP_REASON_NONE;
         resume_all_vcpus();
         monitor_protocol_event(QEVENT_WAKEUP, NULL);
     }
@@ -2405,7 +2329,7 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
 
     qemu_chr_new_from_opts(opts, NULL, &local_err);
     if (error_is_set(&local_err)) {
-        fprintf(stderr, "%s\n", error_get_pretty(local_err));
+        error_report("%s", error_get_pretty(local_err));
         error_free(local_err);
         return -1;
     }
@@ -2911,7 +2835,7 @@ int main(int argc, char **argv, char **envp)
     const char *icount_option = NULL;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
-    const char *boot_order = NULL;
+    const char *boot_order;
     DisplayState *ds;
     int cyls, heads, secs, translation;
     QemuOpts *hda_opts = NULL, *opts, *machine_opts;
@@ -2955,6 +2879,9 @@ int main(int argc, char **argv, char **envp)
     module_call_init(MODULE_INIT_QOM);
 
     qemu_add_opts(&qemu_drive_opts);
+    qemu_add_drive_opts(&qemu_legacy_drive_opts);
+    qemu_add_drive_opts(&qemu_common_drive_opts);
+    qemu_add_drive_opts(&qemu_drive_opts);
     qemu_add_opts(&qemu_chardev_opts);
     qemu_add_opts(&qemu_device_opts);
     qemu_add_opts(&qemu_netdev_opts);
@@ -2977,7 +2904,7 @@ int main(int argc, char **argv, char **envp)
     runstate_init();
 
     init_clocks();
-    rtc_clock = host_clock;
+    rtc_clock = QEMU_CLOCK_HOST;
 
     qemu_cache_utils_init(envp);
 
@@ -3577,7 +3504,8 @@ int main(int argc, char **argv, char **envp)
                 do_acpitable_option(opts);
                 break;
             case QEMU_OPTION_smbios:
-                do_smbios_option(optarg);
+                opts = qemu_opts_parse(qemu_find_opts("smbios"), optarg, 0);
+                do_smbios_option(opts);
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
@@ -3673,6 +3601,7 @@ int main(int argc, char **argv, char **envp)
                             " Wrong format.\n");
                     exit(1);
                 }
+                qemu_uuid_set = true;
                 break;
 	    case QEMU_OPTION_option_rom:
 		if (nb_option_roms >= MAX_OPTION_ROMS) {
@@ -3726,7 +3655,9 @@ int main(int argc, char **argv, char **envp)
                 old_param = 1;
                 break;
             case QEMU_OPTION_clock:
-                configure_alarms(optarg);
+                /* Clock options no longer exist.  Keep this option for
+                 * backward compatibility.
+                 */
                 break;
             case QEMU_OPTION_startdate:
                 configure_rtc_date_offset(optarg, 1);
@@ -4132,9 +4063,7 @@ int main(int argc, char **argv, char **envp)
     initrd_filename = qemu_opt_get(machine_opts, "initrd");
     kernel_cmdline = qemu_opt_get(machine_opts, "append");
 
-    if (!boot_order) {
-        boot_order = machine->boot_order;
-    }
+    boot_order = machine->default_boot_order;
     opts = qemu_opts_find(qemu_find_opts("boot-opts"), NULL);
     if (opts) {
         char *normal_boot_order;
@@ -4321,7 +4250,7 @@ int main(int argc, char **argv, char **envp)
     qdev_machine_init();
 
     QEMUMachineInitArgs args = { .ram_size = ram_size,
-                                 .boot_device = boot_order,
+                                 .boot_order = boot_order,
                                  .kernel_filename = kernel_filename,
                                  .kernel_cmdline = kernel_cmdline,
                                  .initrd_filename = initrd_filename,
@@ -4353,6 +4282,7 @@ int main(int argc, char **argv, char **envp)
     /* init local displays */
     switch (display_type) {
     case DT_NOGRAPHIC:
+        (void)ds;	/* avoid warning if no display is configured */
         break;
 #if defined(CONFIG_CURSES)
     case DT_CURSES:
@@ -4387,8 +4317,8 @@ int main(int argc, char **argv, char **envp)
         vnc_display_init(ds);
         vnc_display_open(ds, vnc_display, &local_err);
         if (local_err != NULL) {
-            fprintf(stderr, "Failed to start VNC server on `%s': %s\n",
-                    vnc_display, error_get_pretty(local_err));
+            error_report("Failed to start VNC server on `%s': %s",
+                         vnc_display, error_get_pretty(local_err));
             error_free(local_err);
             exit(1);
         }
@@ -4399,8 +4329,8 @@ int main(int argc, char **argv, char **envp)
     }
 #endif
 #ifdef CONFIG_SPICE
-    if (using_spice && !spice_displays) {
-        qemu_spice_display_init(ds);
+    if (using_spice) {
+        qemu_spice_display_init();
     }
 #endif
 
@@ -4420,6 +4350,9 @@ int main(int argc, char **argv, char **envp)
     qemu_register_reset(qbus_reset_all_fn, sysbus_get_default());
     qemu_run_machine_init_done_notifiers();
 
+    /* Done notifiers can load ROMs */
+    rom_load_done();
+
     qemu_system_reset(VMRESET_SILENT);
     if (loadvm) {
         if (load_vmstate(loadvm) < 0) {
@@ -4431,7 +4364,8 @@ int main(int argc, char **argv, char **envp)
         Error *local_err = NULL;
         qemu_start_incoming_migration(incoming, &local_err);
         if (local_err) {
-            fprintf(stderr, "-incoming %s: %s\n", incoming, error_get_pretty(local_err));
+            error_report("-incoming %s: %s", incoming,
+                         error_get_pretty(local_err));
             error_free(local_err);
             exit(1);
         }

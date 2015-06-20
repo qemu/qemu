@@ -10,6 +10,8 @@
 
 #include "qemu-io.h"
 #include "block/block_int.h"
+#include "block/qapi.h"
+#include "qemu/main-loop.h"
 
 #define CMD_NOFILE_OK   0x01
 
@@ -1677,6 +1679,7 @@ static const cmdinfo_t length_cmd = {
 static int info_f(BlockDriverState *bs, int argc, char **argv)
 {
     BlockDriverInfo bdi;
+    ImageInfoSpecific *spec_info;
     char s1[64], s2[64];
     int ret;
 
@@ -1697,6 +1700,13 @@ static int info_f(BlockDriverState *bs, int argc, char **argv)
 
     printf("cluster size: %s\n", s1);
     printf("vm state offset: %s\n", s2);
+
+    spec_info = bdrv_get_specific_info(bs);
+    if (spec_info) {
+        printf("Format specific information:\n");
+        bdrv_image_info_specific_dump(fprintf, stdout, spec_info);
+        qapi_free_ImageInfoSpecific(spec_info);
+    }
 
     return 0;
 }
@@ -1829,6 +1839,10 @@ static int alloc_f(BlockDriverState *bs, int argc, char **argv)
     sector_num = offset >> 9;
     while (remaining) {
         ret = bdrv_is_allocated(bs, sector_num, remaining, &num);
+        if (ret < 0) {
+            printf("is_allocated failed: %s\n", strerror(-ret));
+            return 0;
+        }
         sector_num += num;
         remaining -= num;
         if (ret) {

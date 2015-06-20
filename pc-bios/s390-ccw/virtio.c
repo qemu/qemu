@@ -123,6 +123,7 @@ static void vring_init(struct vring *vr, unsigned int num, void *p,
     /* We're running with interrupts off anyways, so don't bother */
     vr->used->flags = VRING_USED_F_NO_NOTIFY;
     vr->used->idx = 0;
+    vr->used_idx = 0;
 
     debug_print_addr("init vr", vr);
 }
@@ -150,8 +151,6 @@ static void vring_send_buf(struct vring *vr, void *p, int len, int flags)
     if (!(flags & VRING_DESC_F_NEXT)) {
         vr->avail->idx++;
     }
-
-    vr->used->idx = vr->next_idx;
 }
 
 static u64 get_clock(void)
@@ -180,7 +179,8 @@ static int vring_wait_reply(struct vring *vr, int timeout)
     struct subchannel_id schid = vr->schid;
     int r = 0;
 
-    while (vr->used->idx == vr->next_idx) {
+    /* Wait until the used index has moved. */
+    while (vr->used->idx == vr->used_idx) {
         vring_notify(schid);
         if (timeout && (get_second() >= target_second)) {
             r = 1;
@@ -189,6 +189,7 @@ static int vring_wait_reply(struct vring *vr, int timeout)
         yield();
     }
 
+    vr->used_idx = vr->used->idx;
     vr->next_idx = 0;
     vr->desc[0].len = 0;
     vr->desc[0].flags = 0;

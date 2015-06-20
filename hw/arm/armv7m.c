@@ -11,6 +11,8 @@
 #include "hw/arm/arm.h"
 #include "hw/loader.h"
 #include "elf.h"
+#include "sysemu/qtest.h"
+#include "qemu/error-report.h"
 
 /* Bitbanded IO.  Each word corresponds to a single bit.  */
 
@@ -173,7 +175,6 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     DeviceState *nvic;
     /* FIXME: make this local state.  */
     static qemu_irq pic[64];
-    qemu_irq *cpu_pic;
     int image_size;
     uint64_t entry;
     uint64_t lowaddr;
@@ -221,8 +222,8 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     nvic = qdev_create(NULL, "armv7m_nvic");
     env->nvic = nvic;
     qdev_init_nofail(nvic);
-    cpu_pic = arm_pic_init_cpu(cpu);
-    sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0, cpu_pic[ARM_PIC_CPU_IRQ]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(nvic), 0,
+                       qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
     for (i = 0; i < 64; i++) {
         pic[i] = qdev_get_gpio_in(nvic, i);
     }
@@ -233,21 +234,22 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     big_endian = 0;
 #endif
 
-    if (!kernel_filename) {
+    if (!kernel_filename && !qtest_enabled()) {
         fprintf(stderr, "Guest image must be specified (using -kernel)\n");
         exit(1);
     }
 
-    image_size = load_elf(kernel_filename, NULL, NULL, &entry, &lowaddr,
-                          NULL, big_endian, ELF_MACHINE, 1);
-    if (image_size < 0) {
-        image_size = load_image_targphys(kernel_filename, 0, flash_size);
-	lowaddr = 0;
-    }
-    if (image_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n",
-                kernel_filename);
-        exit(1);
+    if (kernel_filename) {
+        image_size = load_elf(kernel_filename, NULL, NULL, &entry, &lowaddr,
+                              NULL, big_endian, ELF_MACHINE, 1);
+        if (image_size < 0) {
+            image_size = load_image_targphys(kernel_filename, 0, flash_size);
+            lowaddr = 0;
+        }
+        if (image_size < 0) {
+            error_report("Could not load kernel '%s'", kernel_filename);
+            exit(1);
+        }
     }
 
     /* Hack to map an additional page of ram at the top of the address

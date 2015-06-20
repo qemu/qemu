@@ -5,12 +5,16 @@ check-qjson
 check-qlist
 check-qstring
 test-aio
+test-bitops
+test-throttle
 test-cutils
 test-hbitmap
+test-int128
 test-iov
 test-mul64
 test-qapi-types.[ch]
 test-qapi-visit.[ch]
+test-qdev-global-props
 test-qmp-commands.h
 test-qmp-commands
 test-qmp-input-strict
@@ -19,3 +23,4 @@ test-thread-pool
 test-x86-cpuid
 test-xbzrle
 *-test
+qapi-schema/*.test.*

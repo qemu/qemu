@@ -161,7 +161,7 @@ class QAPISchema:
 def parse_schema(fp):
     try:
         schema = QAPISchema(fp)
-    except QAPISchemaError as e:
+    except QAPISchemaError, e:
         print >>sys.stderr, e
         exit(1)
 
@@ -236,9 +236,19 @@ def c_var(name, protect=True):
     # GCC http://gcc.gnu.org/onlinedocs/gcc-4.7.1/gcc/C-Extensions.html
     # excluding _.*
     gcc_words = set(['asm', 'typeof'])
+    # C++ ISO/IEC 14882:2003 2.11
+    cpp_words = set(['bool', 'catch', 'class', 'const_cast', 'delete',
+                     'dynamic_cast', 'explicit', 'false', 'friend', 'mutable',
+                     'namespace', 'new', 'operator', 'private', 'protected',
+                     'public', 'reinterpret_cast', 'static_cast', 'template',
+                     'this', 'throw', 'true', 'try', 'typeid', 'typename',
+                     'using', 'virtual', 'wchar_t',
+                     # alternative representations
+                     'and', 'and_eq', 'bitand', 'bitor', 'compl', 'not',
+                     'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'])
     # namespace pollution:
     polluted_words = set(['unix'])
-    if protect and (name in c89_words | c99_words | c11_words | gcc_words | polluted_words):
+    if protect and (name in c89_words | c99_words | c11_words | gcc_words | cpp_words | polluted_words):
         return "q_" + name
     return name.replace('-', '_').lstrip("*")
 

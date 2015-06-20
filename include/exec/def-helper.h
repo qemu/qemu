@@ -240,8 +240,7 @@ static inline void glue(gen_helper_, name)(dh_retvar_decl(ret) \
 #elif GEN_HELPER == 2
 /* Register helpers.  */
 
-#define DEF_HELPER_FLAGS_0(name, flags, ret) \
-tcg_register_helper(HELPER(name), #name);
+#define DEF_HELPER_FLAGS_0(name, flags, ret)  { HELPER(name), #name },
 
 #define DEF_HELPER_FLAGS_1(name, flags, ret, t1) \
 DEF_HELPER_FLAGS_0(name, flags, ret)

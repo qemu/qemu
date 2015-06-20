@@ -65,8 +65,8 @@ done
 echo "Compressing image"
 echo
 
-mv $TEST_IMG $TEST_IMG.orig
-$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -c $TEST_IMG.orig $TEST_IMG
+mv "$TEST_IMG" "$TEST_IMG.orig"
+$QEMU_IMG convert -f $IMGFMT -O $IMGFMT -c "$TEST_IMG.orig" "$TEST_IMG"
 
 echo "Testing compressed image"
 echo

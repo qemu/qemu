@@ -81,6 +81,7 @@ enum {
     CMD_IDENTIFY    = 0xec,
 
     CMDF_ABORT      = 0x100,
+    CMDF_NO_BM      = 0x200,
 };
 
 enum {
@@ -190,6 +191,11 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
         break;
     default:
         g_assert_not_reached();
+    }
+
+    if (flags & CMDF_NO_BM) {
+        qpci_config_writew(dev, PCI_COMMAND,
+                           PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
     }
 
     /* Select device 0 */
@@ -352,6 +358,25 @@ static void test_bmdma_long_prdt(void)
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 }
 
+static void test_bmdma_no_busmaster(void)
+{
+    uint8_t status;
+
+    /* No PRDT_EOT, each entry addr 0/size 64k, and in theory qemu shouldn't be
+     * able to access it anyway because the Bus Master bit in the PCI command
+     * register isn't set. This is complete nonsense, but it used to be pretty
+     * good at confusing and occasionally crashing qemu. */
+    PrdtEntry prdt[4096] = { };
+
+    status = send_dma_request(CMD_READ_DMA | CMDF_NO_BM, 0, 512,
+                              prdt, ARRAY_SIZE(prdt));
+
+    /* Not entirely clear what the expected result is, but this is what we get
+     * in practice. At least we want to be aware of any changes. */
+    g_assert_cmphex(status, ==, BM_STS_ACTIVE | BM_STS_INTR);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+}
+
 static void test_bmdma_setup(void)
 {
     ide_test_start(
@@ -435,8 +460,9 @@ static void test_flush(void)
         tmp_path);
 
     /* Delay the completion of the flush request until we explicitly do it */
-    qmp("{'execute':'human-monitor-command', 'arguments': { "
-        "'command-line': 'qemu-io ide0-hd0 \"break flush_to_os A\"'} }");
+    qmp_discard_response("{'execute':'human-monitor-command', 'arguments': {"
+                         " 'command-line':"
+                         " 'qemu-io ide0-hd0 \"break flush_to_os A\"'} }");
 
     /* FLUSH CACHE command on device 0*/
     outb(IDE_BASE + reg_device, 0);
@@ -448,8 +474,9 @@ static void test_flush(void)
     assert_bit_clear(data, DF | ERR | DRQ);
 
     /* Complete the command */
-    qmp("{'execute':'human-monitor-command', 'arguments': { "
-        "'command-line': 'qemu-io ide0-hd0 \"resume A\"'} }");
+    qmp_discard_response("{'execute':'human-monitor-command', 'arguments': {"
+                         " 'command-line':"
+                         " 'qemu-io ide0-hd0 \"resume A\"'} }");
 
     /* Check registers */
     data = inb(IDE_BASE + reg_device);
@@ -493,6 +520,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/bmdma/simple_rw", test_bmdma_simple_rw);
     qtest_add_func("/ide/bmdma/short_prdt", test_bmdma_short_prdt);
     qtest_add_func("/ide/bmdma/long_prdt", test_bmdma_long_prdt);
+    qtest_add_func("/ide/bmdma/no_busmaster", test_bmdma_no_busmaster);
     qtest_add_func("/ide/bmdma/teardown", test_bmdma_teardown);
 
     qtest_add_func("/ide/flush", test_flush);

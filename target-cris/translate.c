@@ -558,7 +558,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_tl(env_pc, dest);
-                tcg_gen_exit_tb((tcg_target_long)tb + n);
+                tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         tcg_gen_movi_tl(env_pc, dest);
         tcg_gen_exit_tb(0);
@@ -3479,9 +3479,6 @@ void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 void cris_initialize_tcg(void)
 {
     int i;
-
-#define GEN_HELPER 2
-#include "helper.h"
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     cc_x = tcg_global_mem_new(TCG_AREG0,

@@ -35,8 +35,6 @@
 #include "qapi/visitor.h"
 #include "sysemu/arch_init.h"
 
-#include "hyperv.h"
-
 #include "hw/hw.h"
 #if defined(CONFIG_KVM)
 #include <linux/kvm_para.h>
@@ -49,6 +47,118 @@
 #include "hw/xen/xen.h"
 #include "hw/i386/apic_internal.h"
 #endif
+
+
+/* Cache topology CPUID constants: */
+
+/* CPUID Leaf 2 Descriptors */
+
+#define CPUID_2_L1D_32KB_8WAY_64B 0x2c
+#define CPUID_2_L1I_32KB_8WAY_64B 0x30
+#define CPUID_2_L2_2MB_8WAY_64B   0x7d
+
+
+/* CPUID Leaf 4 constants: */
+
+/* EAX: */
+#define CPUID_4_TYPE_DCACHE  1
+#define CPUID_4_TYPE_ICACHE  2
+#define CPUID_4_TYPE_UNIFIED 3
+
+#define CPUID_4_LEVEL(l)          ((l) << 5)
+
+#define CPUID_4_SELF_INIT_LEVEL (1 << 8)
+#define CPUID_4_FULLY_ASSOC     (1 << 9)
+
+/* EDX: */
+#define CPUID_4_NO_INVD_SHARING (1 << 0)
+#define CPUID_4_INCLUSIVE       (1 << 1)
+#define CPUID_4_COMPLEX_IDX     (1 << 2)
+
+#define ASSOC_FULL 0xFF
+
+/* AMD associativity encoding used on CPUID Leaf 0x80000006: */
+#define AMD_ENC_ASSOC(a) (a <=   1 ? a   : \
+                          a ==   2 ? 0x2 : \
+                          a ==   4 ? 0x4 : \
+                          a ==   8 ? 0x6 : \
+                          a ==  16 ? 0x8 : \
+                          a ==  32 ? 0xA : \
+                          a ==  48 ? 0xB : \
+                          a ==  64 ? 0xC : \
+                          a ==  96 ? 0xD : \
+                          a == 128 ? 0xE : \
+                          a == ASSOC_FULL ? 0xF : \
+                          0 /* invalid value */)
+
+
+/* Definitions of the hardcoded cache entries we expose: */
+
+/* L1 data cache: */
+#define L1D_LINE_SIZE         64
+#define L1D_ASSOCIATIVITY      8
+#define L1D_SETS              64
+#define L1D_PARTITIONS         1
+/* Size = LINE_SIZE*ASSOCIATIVITY*SETS*PARTITIONS = 32KiB */
+#define L1D_DESCRIPTOR CPUID_2_L1D_32KB_8WAY_64B
+/*FIXME: CPUID leaf 0x80000005 is inconsistent with leaves 2 & 4 */
+#define L1D_LINES_PER_TAG      1
+#define L1D_SIZE_KB_AMD       64
+#define L1D_ASSOCIATIVITY_AMD  2
+
+/* L1 instruction cache: */
+#define L1I_LINE_SIZE         64
+#define L1I_ASSOCIATIVITY      8
+#define L1I_SETS              64
+#define L1I_PARTITIONS         1
+/* Size = LINE_SIZE*ASSOCIATIVITY*SETS*PARTITIONS = 32KiB */
+#define L1I_DESCRIPTOR CPUID_2_L1I_32KB_8WAY_64B
+/*FIXME: CPUID leaf 0x80000005 is inconsistent with leaves 2 & 4 */
+#define L1I_LINES_PER_TAG      1
+#define L1I_SIZE_KB_AMD       64
+#define L1I_ASSOCIATIVITY_AMD  2
+
+/* Level 2 unified cache: */
+#define L2_LINE_SIZE          64
+#define L2_ASSOCIATIVITY      16
+#define L2_SETS             4096
+#define L2_PARTITIONS          1
+/* Size = LINE_SIZE*ASSOCIATIVITY*SETS*PARTITIONS = 4MiB */
+/*FIXME: CPUID leaf 2 descriptor is inconsistent with CPUID leaf 4 */
+#define L2_DESCRIPTOR CPUID_2_L2_2MB_8WAY_64B
+/*FIXME: CPUID leaf 0x80000006 is inconsistent with leaves 2 & 4 */
+#define L2_LINES_PER_TAG       1
+#define L2_SIZE_KB_AMD       512
+
+/* No L3 cache: */
+#define L3_SIZE_KB             0 /* disabled */
+#define L3_ASSOCIATIVITY       0 /* disabled */
+#define L3_LINES_PER_TAG       0 /* disabled */
+#define L3_LINE_SIZE           0 /* disabled */
+
+/* TLB definitions: */
+
+#define L1_DTLB_2M_ASSOC       1
+#define L1_DTLB_2M_ENTRIES   255
+#define L1_DTLB_4K_ASSOC       1
+#define L1_DTLB_4K_ENTRIES   255
+
+#define L1_ITLB_2M_ASSOC       1
+#define L1_ITLB_2M_ENTRIES   255
+#define L1_ITLB_4K_ASSOC       1
+#define L1_ITLB_4K_ENTRIES   255
+
+#define L2_DTLB_2M_ASSOC       0 /* disabled */
+#define L2_DTLB_2M_ENTRIES     0 /* disabled */
+#define L2_DTLB_4K_ASSOC       4
+#define L2_DTLB_4K_ENTRIES   512
+
+#define L2_ITLB_2M_ASSOC       0 /* disabled */
+#define L2_ITLB_2M_ENTRIES     0 /* disabled */
+#define L2_ITLB_4K_ASSOC       4
+#define L2_ITLB_4K_ENTRIES   512
+
+
 
 static void x86_cpu_vendor_words2str(char *dst, uint32_t vendor1,
                                      uint32_t vendor2, uint32_t vendor3)
@@ -125,7 +235,7 @@ static const char *ext4_feature_name[] = {
 
 static const char *kvm_feature_name[] = {
     "kvmclock", "kvm_nopiodelay", "kvm_mmu", "kvmclock",
-    "kvm_asyncpf", "kvm_steal_time", "kvm_pv_eoi", NULL,
+    "kvm_asyncpf", "kvm_steal_time", "kvm_pv_eoi", "kvm_pv_unhalt",
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
@@ -218,6 +328,15 @@ X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 };
 #undef REGISTER
 
+typedef struct ExtSaveArea {
+    uint32_t feature, bits;
+    uint32_t offset, size;
+} ExtSaveArea;
+
+static const ExtSaveArea ext_save_areas[] = {
+    [2] = { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
+            .offset = 0x100, .size = 0x240 },
+};
 
 const char *get_register_name_32(unsigned int reg)
 {
@@ -376,6 +495,7 @@ typedef struct x86_def_t {
     int stepping;
     FeatureWordArray features;
     char model_id[48];
+    bool cache_info_passthrough;
 } x86_def_t;
 
 #define I486_FEATURES (CPUID_FP87 | CPUID_VME | CPUID_PSE)
@@ -434,7 +554,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 4,
         .vendor = CPUID_VENDOR_AMD,
         .family = 6,
-        .model = 2,
+        .model = 6,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             PPRO_FEATURES |
@@ -537,7 +657,7 @@ static x86_def_t builtin_x86_defs[] = {
         .level = 4,
         .vendor = CPUID_VENDOR_INTEL,
         .family = 6,
-        .model = 3,
+        .model = 6,
         .stepping = 3,
         .features[FEAT_1_EDX] =
             PPRO_FEATURES,
@@ -1029,6 +1149,7 @@ static void kvm_cpu_fill_host(x86_def_t *x86_cpu_def)
     assert(kvm_enabled());
 
     x86_cpu_def->name = "host";
+    x86_cpu_def->cache_info_passthrough = true;
     host_cpuid(0x0, 0, &eax, &ebx, &ecx, &edx);
     x86_cpu_vendor_words2str(x86_cpu_def->vendor, ebx, edx, ecx);
 
@@ -1591,12 +1712,19 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
                 object_property_parse(OBJECT(cpu), num, "tsc-frequency", errp);
             } else if (!strcmp(featurestr, "hv-spinlocks")) {
                 char *err;
+                const int min = 0xFFF;
                 numvalue = strtoul(val, &err, 0);
                 if (!*val || *err) {
                     error_setg(errp, "bad numerical value %s", val);
                     goto out;
                 }
-                hyperv_set_spinlock_retries(numvalue);
+                if (numvalue < min) {
+                    fprintf(stderr, "hv-spinlocks value shall always be >= 0x%x"
+                            ", fixup will be removed in future versions\n",
+                            min);
+                    numvalue = min;
+                }
+                cpu->hyperv_spinlock_attempts = numvalue;
             } else {
                 error_setg(errp, "unrecognized feature %s", featurestr);
                 goto out;
@@ -1606,9 +1734,9 @@ static void cpu_x86_parse_featurestr(X86CPU *cpu, char *features, Error **errp)
         } else if (!strcmp(featurestr, "enforce")) {
             check_cpuid = enforce_cpuid = 1;
         } else if (!strcmp(featurestr, "hv_relaxed")) {
-            hyperv_enable_relaxed_timing(true);
+            cpu->hyperv_relaxed_timing = true;
         } else if (!strcmp(featurestr, "hv_vapic")) {
-            hyperv_enable_vapic_recommended(true);
+            cpu->hyperv_vapic = true;
         } else {
             error_setg(errp, "feature string `%s' not in format (+feature|"
                        "-feature|feature=xyz)", featurestr);
@@ -1771,6 +1899,7 @@ static void cpu_x86_register(X86CPU *cpu, const char *name, Error **errp)
     env->features[FEAT_C000_0001_EDX] = def->features[FEAT_C000_0001_EDX];
     env->features[FEAT_7_0_EBX] = def->features[FEAT_7_0_EBX];
     env->cpuid_xlevel2 = def->xlevel2;
+    cpu->cache_info_passthrough = def->cache_info_passthrough;
 
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
 }
@@ -1779,7 +1908,6 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
                        Error **errp)
 {
     X86CPU *cpu = NULL;
-    CPUX86State *env;
     gchar **model_pieces;
     char *name, *features;
     char *typename;
@@ -1802,8 +1930,6 @@ X86CPU *cpu_x86_create(const char *cpu_model, DeviceState *icc_bridge,
     qdev_set_parent_bus(DEVICE(cpu), qdev_get_child_bus(icc_bridge, "icc"));
     object_unref(OBJECT(cpu));
 #endif
-    env = &cpu->env;
-    env->cpu_model_str = cpu_model;
 
     cpu_x86_register(cpu, name, &error);
     if (error) {
@@ -1847,7 +1973,7 @@ X86CPU *cpu_x86_init(const char *cpu_model)
 
 out:
     if (error) {
-        fprintf(stderr, "%s\n", error_get_pretty(error));
+        error_report("%s", error_get_pretty(error));
         error_free(error);
         if (cpu != NULL) {
             object_unref(OBJECT(cpu));
@@ -1945,39 +2071,57 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 2:
         /* cache info: needed for Pentium Pro compatibility */
-        *eax = 1;
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            break;
+        }
+        *eax = 1; /* Number of CPUID[EAX=2] calls required */
         *ebx = 0;
         *ecx = 0;
-        *edx = 0x2c307d;
+        *edx = (L1D_DESCRIPTOR << 16) | \
+               (L1I_DESCRIPTOR <<  8) | \
+               (L2_DESCRIPTOR);
         break;
     case 4:
         /* cache info: needed for Core compatibility */
-        if (cs->nr_cores > 1) {
-            *eax = (cs->nr_cores - 1) << 26;
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, count, eax, ebx, ecx, edx);
+            *eax &= ~0xFC000000;
         } else {
             *eax = 0;
-        }
-        switch (count) {
+            switch (count) {
             case 0: /* L1 dcache info */
-                *eax |= 0x0000121;
-                *ebx = 0x1c0003f;
-                *ecx = 0x000003f;
-                *edx = 0x0000001;
+                *eax |= CPUID_4_TYPE_DCACHE | \
+                        CPUID_4_LEVEL(1) | \
+                        CPUID_4_SELF_INIT_LEVEL;
+                *ebx = (L1D_LINE_SIZE - 1) | \
+                       ((L1D_PARTITIONS - 1) << 12) | \
+                       ((L1D_ASSOCIATIVITY - 1) << 22);
+                *ecx = L1D_SETS - 1;
+                *edx = CPUID_4_NO_INVD_SHARING;
                 break;
             case 1: /* L1 icache info */
-                *eax |= 0x0000122;
-                *ebx = 0x1c0003f;
-                *ecx = 0x000003f;
-                *edx = 0x0000001;
+                *eax |= CPUID_4_TYPE_ICACHE | \
+                        CPUID_4_LEVEL(1) | \
+                        CPUID_4_SELF_INIT_LEVEL;
+                *ebx = (L1I_LINE_SIZE - 1) | \
+                       ((L1I_PARTITIONS - 1) << 12) | \
+                       ((L1I_ASSOCIATIVITY - 1) << 22);
+                *ecx = L1I_SETS - 1;
+                *edx = CPUID_4_NO_INVD_SHARING;
                 break;
             case 2: /* L2 cache info */
-                *eax |= 0x0000143;
+                *eax |= CPUID_4_TYPE_UNIFIED | \
+                        CPUID_4_LEVEL(2) | \
+                        CPUID_4_SELF_INIT_LEVEL;
                 if (cs->nr_threads > 1) {
                     *eax |= (cs->nr_threads - 1) << 14;
                 }
-                *ebx = 0x3c0003f;
-                *ecx = 0x0000fff;
-                *edx = 0x0000001;
+                *ebx = (L2_LINE_SIZE - 1) | \
+                       ((L2_PARTITIONS - 1) << 12) | \
+                       ((L2_ASSOCIATIVITY - 1) << 22);
+                *ecx = L2_SETS - 1;
+                *edx = CPUID_4_NO_INVD_SHARING;
                 break;
             default: /* end of info */
                 *eax = 0;
@@ -1985,6 +2129,12 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                 *ecx = 0;
                 *edx = 0;
                 break;
+            }
+        }
+
+        /* QEMU gives out its own APIC IDs, never pass down bits 31..26.  */
+        if ((*eax & 31) && cs->nr_cores > 1) {
+            *eax |= (cs->nr_cores - 1) << 26;
         }
         break;
     case 5:
@@ -2038,29 +2188,51 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *edx = 0;
         }
         break;
-    case 0xD:
+    case 0xD: {
+        KVMState *s = cs->kvm_state;
+        uint64_t kvm_mask;
+        int i;
+
         /* Processor Extended State */
-        if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
-            *eax = 0;
-            *ebx = 0;
-            *ecx = 0;
-            *edx = 0;
+        *eax = 0;
+        *ebx = 0;
+        *ecx = 0;
+        *edx = 0;
+        if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) || !kvm_enabled()) {
             break;
         }
-        if (kvm_enabled()) {
-            KVMState *s = cs->kvm_state;
+        kvm_mask =
+            kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX) |
+            ((uint64_t)kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX) << 32);
 
-            *eax = kvm_arch_get_supported_cpuid(s, 0xd, count, R_EAX);
-            *ebx = kvm_arch_get_supported_cpuid(s, 0xd, count, R_EBX);
-            *ecx = kvm_arch_get_supported_cpuid(s, 0xd, count, R_ECX);
-            *edx = kvm_arch_get_supported_cpuid(s, 0xd, count, R_EDX);
-        } else {
-            *eax = 0;
-            *ebx = 0;
-            *ecx = 0;
-            *edx = 0;
+        if (count == 0) {
+            *ecx = 0x240;
+            for (i = 2; i < ARRAY_SIZE(ext_save_areas); i++) {
+                const ExtSaveArea *esa = &ext_save_areas[i];
+                if ((env->features[esa->feature] & esa->bits) == esa->bits &&
+                    (kvm_mask & (1 << i)) != 0) {
+                    if (i < 32) {
+                        *eax |= 1 << i;
+                    } else {
+                        *edx |= 1 << (i - 32);
+                    }
+                    *ecx = MAX(*ecx, esa->offset + esa->size);
+                }
+            }
+            *eax |= kvm_mask & (XSTATE_FP | XSTATE_SSE);
+            *ebx = *ecx;
+        } else if (count == 1) {
+            *eax = kvm_arch_get_supported_cpuid(s, 0xd, 1, R_EAX);
+        } else if (count < ARRAY_SIZE(ext_save_areas)) {
+            const ExtSaveArea *esa = &ext_save_areas[count];
+            if ((env->features[esa->feature] & esa->bits) == esa->bits &&
+                (kvm_mask & (1 << count)) != 0) {
+                *eax = esa->offset;
+                *ebx = esa->size;
+            }
         }
         break;
+    }
     case 0x80000000:
         *eax = env->cpuid_xlevel;
         *ebx = env->cpuid_vendor1;
@@ -2097,17 +2269,39 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0x80000005:
         /* cache info (L1 cache) */
-        *eax = 0x01ff01ff;
-        *ebx = 0x01ff01ff;
-        *ecx = 0x40020140;
-        *edx = 0x40020140;
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            break;
+        }
+        *eax = (L1_DTLB_2M_ASSOC << 24) | (L1_DTLB_2M_ENTRIES << 16) | \
+               (L1_ITLB_2M_ASSOC <<  8) | (L1_ITLB_2M_ENTRIES);
+        *ebx = (L1_DTLB_4K_ASSOC << 24) | (L1_DTLB_4K_ENTRIES << 16) | \
+               (L1_ITLB_4K_ASSOC <<  8) | (L1_ITLB_4K_ENTRIES);
+        *ecx = (L1D_SIZE_KB_AMD << 24) | (L1D_ASSOCIATIVITY_AMD << 16) | \
+               (L1D_LINES_PER_TAG << 8) | (L1D_LINE_SIZE);
+        *edx = (L1I_SIZE_KB_AMD << 24) | (L1I_ASSOCIATIVITY_AMD << 16) | \
+               (L1I_LINES_PER_TAG << 8) | (L1I_LINE_SIZE);
         break;
     case 0x80000006:
         /* cache info (L2 cache) */
-        *eax = 0;
-        *ebx = 0x42004200;
-        *ecx = 0x02008140;
-        *edx = 0;
+        if (cpu->cache_info_passthrough) {
+            host_cpuid(index, 0, eax, ebx, ecx, edx);
+            break;
+        }
+        *eax = (AMD_ENC_ASSOC(L2_DTLB_2M_ASSOC) << 28) | \
+               (L2_DTLB_2M_ENTRIES << 16) | \
+               (AMD_ENC_ASSOC(L2_ITLB_2M_ASSOC) << 12) | \
+               (L2_ITLB_2M_ENTRIES);
+        *ebx = (AMD_ENC_ASSOC(L2_DTLB_4K_ASSOC) << 28) | \
+               (L2_DTLB_4K_ENTRIES << 16) | \
+               (AMD_ENC_ASSOC(L2_ITLB_4K_ASSOC) << 12) | \
+               (L2_ITLB_4K_ENTRIES);
+        *ecx = (L2_SIZE_KB_AMD << 16) | \
+               (AMD_ENC_ASSOC(L2_ASSOCIATIVITY) << 12) | \
+               (L2_LINES_PER_TAG << 8) | (L2_LINE_SIZE);
+        *edx = ((L3_SIZE_KB/512) << 18) | \
+               (AMD_ENC_ASSOC(L3_ASSOCIATIVITY) << 12) | \
+               (L3_LINES_PER_TAG << 8) | (L3_LINE_SIZE);
         break;
     case 0x80000008:
         /* virtual & phys address size in low 2 bytes. */
@@ -2241,6 +2435,7 @@ static void x86_cpu_reset(CPUState *s)
     env->fpuc = 0x37f;
 
     env->mxcsr = 0x1f80;
+    env->xstate_bv = XSTATE_FP | XSTATE_SSE;
 
     env->pat = 0x0007040600070406ULL;
     env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
@@ -2489,6 +2684,7 @@ static void x86_cpu_initfn(Object *obj)
                         x86_cpu_get_feature_words,
                         NULL, NULL, (void *)cpu->filtered_features, NULL);
 
+    cpu->hyperv_spinlock_attempts = HYPERV_SPINLOCK_NEVER_RETRY;
     env->cpuid_apic_id = x86_cpu_apic_id_from_index(cs->cpu_index);
 
     /* init various static tables used in TCG mode */

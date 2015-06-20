@@ -129,8 +129,8 @@ static void check_rate_limit(void *opaque)
 
     vrng->quota_remaining = vrng->conf.max_bytes;
     virtio_rng_process(vrng);
-    qemu_mod_timer(vrng->rate_limit_timer,
-                   qemu_get_clock_ms(vm_clock) + vrng->conf.period_ms);
+    timer_mod(vrng->rate_limit_timer,
+                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
 }
 
 static int virtio_rng_device_init(VirtIODevice *vdev)
@@ -138,6 +138,12 @@ static int virtio_rng_device_init(VirtIODevice *vdev)
     DeviceState *qdev = DEVICE(vdev);
     VirtIORNG *vrng = VIRTIO_RNG(vdev);
     Error *local_err = NULL;
+
+    if (!vrng->conf.period_ms > 0) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "period",
+                      "a positive number");
+        return -1;
+    }
 
     if (vrng->conf.rng == NULL) {
         vrng->conf.default_backend = RNG_RANDOM(object_new(TYPE_RNG_RANDOM));
@@ -172,11 +178,11 @@ static int virtio_rng_device_init(VirtIODevice *vdev)
     assert(vrng->conf.max_bytes <= INT64_MAX);
     vrng->quota_remaining = vrng->conf.max_bytes;
 
-    vrng->rate_limit_timer = qemu_new_timer_ms(vm_clock,
+    vrng->rate_limit_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                check_rate_limit, vrng);
 
-    qemu_mod_timer(vrng->rate_limit_timer,
-                   qemu_get_clock_ms(vm_clock) + vrng->conf.period_ms);
+    timer_mod(vrng->rate_limit_timer,
+                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
 
     register_savevm(qdev, "virtio-rng", -1, 1, virtio_rng_save,
                     virtio_rng_load, vrng);
@@ -189,8 +195,8 @@ static int virtio_rng_device_exit(DeviceState *qdev)
     VirtIORNG *vrng = VIRTIO_RNG(qdev);
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
 
-    qemu_del_timer(vrng->rate_limit_timer);
-    qemu_free_timer(vrng->rate_limit_timer);
+    timer_del(vrng->rate_limit_timer);
+    timer_free(vrng->rate_limit_timer);
     unregister_savevm(qdev, "virtio-rng", vrng);
     virtio_cleanup(vdev);
     return 0;

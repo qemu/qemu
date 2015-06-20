@@ -10,6 +10,7 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "net/net.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
@@ -267,6 +268,9 @@ static void mcf5208evb_init(QEMUMachineInitArgs *args)
 
     /* Load kernel.  */
     if (!kernel_filename) {
+        if (qtest_enabled()) {
+            return;
+        }
         fprintf(stderr, "Kernel image must be specified\n");
         exit(1);
     }
@@ -295,7 +299,6 @@ static QEMUMachine mcf5208evb_machine = {
     .desc = "MCF5206EVB",
     .init = mcf5208evb_init,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void mcf5208evb_machine_init(void)

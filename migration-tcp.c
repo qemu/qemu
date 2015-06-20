@@ -18,6 +18,7 @@
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
 #include "block/block.h"
+#include "qemu/main-loop.h"
 
 //#define DEBUG_MIGRATION_TCP
 

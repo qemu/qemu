@@ -26,6 +26,7 @@
 #include "hw/ptimer.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -178,7 +179,7 @@ static void leon3_generic_hw_init(QEMUMachineInitArgs *args)
             fprintf(stderr, "qemu: could not load prom '%s'\n", filename);
             exit(1);
         }
-    } else if (kernel_filename == NULL) {
+    } else if (kernel_filename == NULL && !qtest_enabled()) {
         fprintf(stderr, "Can't read bios image %s\n", filename);
         exit(1);
     }
@@ -216,7 +217,6 @@ static QEMUMachine leon3_generic_machine = {
     .name     = "leon3_generic",
     .desc     = "Leon-3 generic",
     .init     = leon3_generic_hw_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void leon3_machine_init(void)

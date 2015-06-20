@@ -205,6 +205,11 @@ static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
             goto err;
         }
 
+        if (ncs[i]) {
+            ret = -EINVAL;
+            goto err;
+        }
+
         ncs[i] = peers[i];
         ncs[i]->queue_index = i;
     }
@@ -299,6 +304,10 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
     }
     if (id == -1) {
         *ptr = NULL;
+        return;
+    }
+    if (*ptr) {
+        error_set_from_qdev_prop_error(errp, -EINVAL, dev, prop, name);
         return;
     }
 

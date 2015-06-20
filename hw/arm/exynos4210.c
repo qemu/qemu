@@ -137,10 +137,8 @@ void exynos4210_write_secondary(ARMCPU *cpu,
 Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         unsigned long ram_size)
 {
-    qemu_irq cpu_irq[EXYNOS4210_NCPUS];
     int i, n;
     Exynos4210State *s = g_new(Exynos4210State, 1);
-    qemu_irq *irqp;
     qemu_irq gate_irq[EXYNOS4210_NCPUS][EXYNOS4210_IRQ_GATE_NINPUTS];
     unsigned long mem_size;
     DeviceState *dev;
@@ -152,15 +150,6 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
             fprintf(stderr, "Unable to find CPU %d definition\n", n);
             exit(1);
         }
-
-        /* Create PIC controller for each processor instance */
-        irqp = arm_pic_init_cpu(s->cpu[n]);
-
-        /*
-         * Get GICs gpio_in cpu_irq to connect a combiner to them later.
-         * Use only IRQ for a while.
-         */
-        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
     }
 
     /*** IRQs ***/
@@ -178,8 +167,9 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
         }
         busdev = SYS_BUS_DEVICE(dev);
 
-        /* Connect IRQ Gate output to cpu_irq */
-        sysbus_connect_irq(busdev, 0, cpu_irq[i]);
+        /* Connect IRQ Gate output to CPU's IRQ line */
+        sysbus_connect_irq(busdev, 0,
+                           qdev_get_gpio_in(DEVICE(s->cpu[i]), ARM_CPU_IRQ));
     }
 
     /* Private memory region and Internal GIC */

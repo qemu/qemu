@@ -330,9 +330,9 @@ static bool pv_eoi_msr_needed(void *opaque)
 
 static bool steal_time_msr_needed(void *opaque)
 {
-    CPUX86State *cpu = opaque;
+    X86CPU *cpu = opaque;
 
-    return cpu->steal_time_msr != 0;
+    return cpu->env.steal_time_msr != 0;
 }
 
 static const VMStateDescription vmstate_steal_time_msr = {
@@ -341,7 +341,7 @@ static const VMStateDescription vmstate_steal_time_msr = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT64(steal_time_msr, CPUX86State),
+        VMSTATE_UINT64(env.steal_time_msr, X86CPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -435,6 +435,14 @@ static bool misc_enable_needed(void *opaque)
     return env->msr_ia32_misc_enable != MSR_IA32_MISC_ENABLE_DEFAULT;
 }
 
+static bool feature_control_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_ia32_feature_control != 0;
+}
+
 static const VMStateDescription vmstate_msr_ia32_misc_enable = {
     .name = "cpu/msr_ia32_misc_enable",
     .version_id = 1,
@@ -442,6 +450,58 @@ static const VMStateDescription vmstate_msr_ia32_misc_enable = {
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
         VMSTATE_UINT64(env.msr_ia32_misc_enable, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_msr_ia32_feature_control = {
+    .name = "cpu/msr_ia32_feature_control",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_ia32_feature_control, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool pmu_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    int i;
+
+    if (env->msr_fixed_ctr_ctrl || env->msr_global_ctrl ||
+        env->msr_global_status || env->msr_global_ovf_ctrl) {
+        return true;
+    }
+    for (i = 0; i < MAX_FIXED_COUNTERS; i++) {
+        if (env->msr_fixed_counters[i]) {
+            return true;
+        }
+    }
+    for (i = 0; i < MAX_GP_COUNTERS; i++) {
+        if (env->msr_gp_counters[i] || env->msr_gp_evtsel[i]) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static const VMStateDescription vmstate_msr_architectural_pmu = {
+    .name = "cpu/msr_architectural_pmu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(env.msr_fixed_ctr_ctrl, X86CPU),
+        VMSTATE_UINT64(env.msr_global_ctrl, X86CPU),
+        VMSTATE_UINT64(env.msr_global_status, X86CPU),
+        VMSTATE_UINT64(env.msr_global_ovf_ctrl, X86CPU),
+        VMSTATE_UINT64_ARRAY(env.msr_fixed_counters, X86CPU, MAX_FIXED_COUNTERS),
+        VMSTATE_UINT64_ARRAY(env.msr_gp_counters, X86CPU, MAX_GP_COUNTERS),
+        VMSTATE_UINT64_ARRAY(env.msr_gp_evtsel, X86CPU, MAX_GP_COUNTERS),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -571,6 +631,12 @@ const VMStateDescription vmstate_x86_cpu = {
         }, {
             .vmsd = &vmstate_msr_ia32_misc_enable,
             .needed = misc_enable_needed,
+        }, {
+            .vmsd = &vmstate_msr_ia32_feature_control,
+            .needed = feature_control_needed,
+        }, {
+            .vmsd = &vmstate_msr_architectural_pmu,
+            .needed = pmu_enable_needed,
         } , {
             /* empty */
         }

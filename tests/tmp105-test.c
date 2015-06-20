@@ -59,7 +59,7 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_start("-display none -machine n800");
+    s = qtest_start("-machine n800");
     i2c = omap_i2c_create(OMAP2_I2C_1_BASE);
     addr = N8X0_ADDR;
 

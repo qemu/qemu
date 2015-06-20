@@ -29,6 +29,7 @@
  */
 #include "qemu-common.h"
 #include "hw/hw.h"
+#include "qapi/visitor.h"
 #include "qemu/range.h"
 #include "hw/isa/isa.h"
 #include "hw/sysbus.h"
@@ -525,6 +526,43 @@ static const MemoryRegionOps ich9_rst_cnt_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN
 };
 
+Object *ich9_lpc_find(void)
+{
+    bool ambig;
+    Object *o = object_resolve_path_type("", TYPE_ICH9_LPC_DEVICE, &ambig);
+
+    if (ambig) {
+        return NULL;
+    }
+    return o;
+}
+
+static void ich9_lpc_get_sci_int(Object *obj, Visitor *v,
+                                 void *opaque, const char *name,
+                                 Error **errp)
+{
+    ICH9LPCState *lpc = ICH9_LPC_DEVICE(obj);
+    uint32_t value = ich9_lpc_sci_irq(lpc);
+
+    visit_type_uint32(v, &value, name, errp);
+}
+
+static void ich9_lpc_add_properties(ICH9LPCState *lpc)
+{
+    static const uint8_t acpi_enable_cmd = ICH9_APM_ACPI_ENABLE;
+    static const uint8_t acpi_disable_cmd = ICH9_APM_ACPI_DISABLE;
+
+    object_property_add(OBJECT(lpc), ACPI_PM_PROP_SCI_INT, "uint32",
+                        ich9_lpc_get_sci_int,
+                        NULL, NULL, NULL, NULL);
+    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_ENABLE_CMD,
+                                  &acpi_enable_cmd, NULL);
+    object_property_add_uint8_ptr(OBJECT(lpc), ACPI_PM_PROP_ACPI_DISABLE_CMD,
+                                  &acpi_disable_cmd, NULL);
+
+    ich9_pm_add_properties(OBJECT(lpc), &lpc->pm, NULL);
+}
+
 static int ich9_lpc_initfn(PCIDevice *d)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(d);
@@ -551,6 +589,8 @@ static int ich9_lpc_initfn(PCIDevice *d)
     memory_region_add_subregion_overlap(pci_address_space_io(d),
                                         ICH9_RST_CNT_IOPORT, &lpc->rst_cnt_mem,
                                         1);
+
+    ich9_lpc_add_properties(lpc);
 
     return 0;
 }

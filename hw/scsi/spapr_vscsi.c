@@ -117,6 +117,20 @@ static struct vscsi_req *vscsi_get_req(VSCSIState *s)
     return NULL;
 }
 
+static struct vscsi_req *vscsi_find_req(VSCSIState *s, uint64_t srp_tag)
+{
+    vscsi_req *req;
+    int i;
+
+    for (i = 0; i < VSCSI_REQ_LIMIT; i++) {
+        req = &s->reqs[i];
+        if (req->iu.srp.cmd.tag == srp_tag) {
+            return req;
+        }
+    }
+    return NULL;
+}
+
 static void vscsi_put_req(vscsi_req *req)
 {
     if (req->sreq != NULL) {
@@ -755,40 +769,91 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 static int vscsi_process_tsk_mgmt(VSCSIState *s, vscsi_req *req)
 {
     union viosrp_iu *iu = &req->iu;
-    int fn;
+    vscsi_req *tmpreq;
+    int i, lun = 0, resp = SRP_TSK_MGMT_COMPLETE;
+    SCSIDevice *d;
+    uint64_t tag = iu->srp.rsp.tag;
+    uint8_t sol_not = iu->srp.cmd.sol_not;
 
     fprintf(stderr, "vscsi_process_tsk_mgmt %02x\n",
             iu->srp.tsk_mgmt.tsk_mgmt_func);
 
-    switch (iu->srp.tsk_mgmt.tsk_mgmt_func) {
-#if 0 /* We really don't deal with these for now */
-    case SRP_TSK_ABORT_TASK:
-        fn = ABORT_TASK;
-        break;
-    case SRP_TSK_ABORT_TASK_SET:
-        fn = ABORT_TASK_SET;
-        break;
-    case SRP_TSK_CLEAR_TASK_SET:
-        fn = CLEAR_TASK_SET;
-        break;
-    case SRP_TSK_LUN_RESET:
-        fn = LOGICAL_UNIT_RESET;
-        break;
-    case SRP_TSK_CLEAR_ACA:
-        fn = CLEAR_ACA;
-        break;
-#endif
-    default:
-        fn = 0;
-    }
-    if (fn) {
-        /* XXX Send/Handle target task management */
-        ;
+    d = vscsi_device_find(&s->bus, be64_to_cpu(req->iu.srp.tsk_mgmt.lun), &lun);
+    if (!d) {
+        resp = SRP_TSK_MGMT_FIELDS_INVALID;
     } else {
-        vscsi_makeup_sense(s, req, ILLEGAL_REQUEST, 0x20, 0);
-        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
+        switch (iu->srp.tsk_mgmt.tsk_mgmt_func) {
+        case SRP_TSK_ABORT_TASK:
+            if (d->lun != lun) {
+                resp = SRP_TSK_MGMT_FIELDS_INVALID;
+                break;
+            }
+
+            tmpreq = vscsi_find_req(s, req->iu.srp.tsk_mgmt.task_tag);
+            if (tmpreq && tmpreq->sreq) {
+                assert(tmpreq->sreq->hba_private);
+                scsi_req_cancel(tmpreq->sreq);
+            }
+            break;
+
+        case SRP_TSK_LUN_RESET:
+            if (d->lun != lun) {
+                resp = SRP_TSK_MGMT_FIELDS_INVALID;
+                break;
+            }
+
+            qdev_reset_all(&d->qdev);
+            break;
+
+        case SRP_TSK_ABORT_TASK_SET:
+        case SRP_TSK_CLEAR_TASK_SET:
+            if (d->lun != lun) {
+                resp = SRP_TSK_MGMT_FIELDS_INVALID;
+                break;
+            }
+
+            for (i = 0; i < VSCSI_REQ_LIMIT; i++) {
+                tmpreq = &s->reqs[i];
+                if (tmpreq->iu.srp.cmd.lun != req->iu.srp.tsk_mgmt.lun) {
+                    continue;
+                }
+                if (!tmpreq->active || !tmpreq->sreq) {
+                    continue;
+                }
+                assert(tmpreq->sreq->hba_private);
+                scsi_req_cancel(tmpreq->sreq);
+            }
+            break;
+
+        case SRP_TSK_CLEAR_ACA:
+            resp = SRP_TSK_MGMT_NOT_SUPPORTED;
+            break;
+
+        default:
+            resp = SRP_TSK_MGMT_FIELDS_INVALID;
+            break;
+        }
     }
-    return !fn;
+
+    /* Compose the response here as  */
+    memset(iu, 0, sizeof(struct srp_rsp) + 4);
+    iu->srp.rsp.opcode = SRP_RSP;
+    iu->srp.rsp.req_lim_delta = cpu_to_be32(1);
+    iu->srp.rsp.tag = tag;
+    iu->srp.rsp.flags |= SRP_RSP_FLAG_RSPVALID;
+    iu->srp.rsp.resp_data_len = cpu_to_be32(4);
+    if (resp) {
+        iu->srp.rsp.sol_not = (sol_not & 0x04) >> 2;
+    } else {
+        iu->srp.rsp.sol_not = (sol_not & 0x02) >> 1;
+    }
+
+    iu->srp.rsp.status = GOOD;
+    iu->srp.rsp.data[3] = resp;
+
+    vscsi_send_iu(s, req, sizeof(iu->srp.rsp) + 4, VIOSRP_SRP_FORMAT);
+
+    return 1;
 }
 
 static int vscsi_handle_srp_req(VSCSIState *s, vscsi_req *req)
@@ -858,29 +923,97 @@ static int vscsi_send_adapter_info(VSCSIState *s, vscsi_req *req)
     return vscsi_send_iu(s, req, sizeof(*sinfo), VIOSRP_MAD_FORMAT);
 }
 
+static int vscsi_send_capabilities(VSCSIState *s, vscsi_req *req)
+{
+    struct viosrp_capabilities *vcap;
+    struct capabilities cap = { };
+    uint16_t len, req_len;
+    uint64_t buffer;
+    int rc;
+
+    vcap = &req->iu.mad.capabilities;
+    req_len = len = be16_to_cpu(vcap->common.length);
+    buffer = be64_to_cpu(vcap->buffer);
+    if (len > sizeof(cap)) {
+        fprintf(stderr, "vscsi_send_capabilities: capabilities size mismatch !\n");
+
+        /*
+         * Just read and populate the structure that is known.
+         * Zero rest of the structure.
+         */
+        len = sizeof(cap);
+    }
+    rc = spapr_vio_dma_read(&s->vdev, buffer, &cap, len);
+    if (rc)  {
+        fprintf(stderr, "vscsi_send_capabilities: DMA read failure !\n");
+    }
+
+    /*
+     * Current implementation does not suppport any migration or
+     * reservation capabilities. Construct the response telling the
+     * guest not to use them.
+     */
+    cap.flags = 0;
+    cap.migration.ecl = 0;
+    cap.reserve.type = 0;
+    cap.migration.common.server_support = 0;
+    cap.reserve.common.server_support = 0;
+
+    rc = spapr_vio_dma_write(&s->vdev, buffer, &cap, len);
+    if (rc)  {
+        fprintf(stderr, "vscsi_send_capabilities: DMA write failure !\n");
+    }
+    if (req_len > len) {
+        /*
+         * Being paranoid and lets not worry about the error code
+         * here. Actual write of the cap is done above.
+         */
+        spapr_vio_dma_set(&s->vdev, (buffer + len), 0, (req_len - len));
+    }
+    vcap->common.status = rc ? cpu_to_be32(1) : 0;
+    return vscsi_send_iu(s, req, sizeof(*vcap), VIOSRP_MAD_FORMAT);
+}
+
 static int vscsi_handle_mad_req(VSCSIState *s, vscsi_req *req)
 {
     union mad_iu *mad = &req->iu.mad;
+    bool request_handled = false;
+    uint64_t retlen = 0;
 
     switch (be32_to_cpu(mad->empty_iu.common.type)) {
     case VIOSRP_EMPTY_IU_TYPE:
         fprintf(stderr, "Unsupported EMPTY MAD IU\n");
+        retlen = sizeof(mad->empty_iu);
         break;
     case VIOSRP_ERROR_LOG_TYPE:
         fprintf(stderr, "Unsupported ERROR LOG MAD IU\n");
-        mad->error_log.common.status = cpu_to_be16(1);
-        vscsi_send_iu(s, req, sizeof(mad->error_log), VIOSRP_MAD_FORMAT);
+        retlen = sizeof(mad->error_log);
         break;
     case VIOSRP_ADAPTER_INFO_TYPE:
         vscsi_send_adapter_info(s, req);
+        request_handled = true;
         break;
     case VIOSRP_HOST_CONFIG_TYPE:
-        mad->host_config.common.status = cpu_to_be16(1);
-        vscsi_send_iu(s, req, sizeof(mad->host_config), VIOSRP_MAD_FORMAT);
+        retlen = sizeof(mad->host_config);
+        break;
+    case VIOSRP_CAPABILITIES_TYPE:
+        vscsi_send_capabilities(s, req);
+        request_handled = true;
         break;
     default:
         fprintf(stderr, "VSCSI: Unknown MAD type %02x\n",
                 be32_to_cpu(mad->empty_iu.common.type));
+        /*
+         * PAPR+ says that "The length field is set to the length
+         * of the data structure(s) used in the command".
+         * As we did not recognize the request type, put zero there.
+         */
+        retlen = 0;
+    }
+
+    if (!request_handled) {
+        mad->empty_iu.common.status = cpu_to_be16(VIOSRP_MAD_NOT_SUPPORTED);
+        vscsi_send_iu(s, req, retlen, VIOSRP_MAD_FORMAT);
     }
 
     return 1;
@@ -1020,7 +1153,8 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
 
     dev->crq.SendFunc = vscsi_do_crq;
 
-    scsi_bus_new(&s->bus, &dev->qdev, &vscsi_scsi_info, NULL);
+    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
+                 &vscsi_scsi_info, NULL);
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {
@@ -1089,6 +1223,7 @@ static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
     k->dt_type = "vscsi";
     k->dt_compatible = "IBM,v-scsi";
     k->signal_mask = 0x00000001;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->props = spapr_vscsi_properties;
     k->rtce_window_size = 0x10000000;
     dc->vmsd = &vmstate_spapr_vscsi;

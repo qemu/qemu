@@ -27,6 +27,7 @@
 #include "sysemu/char.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
+#include "qemu/error-report.h"
 
 //#define DEBUG_SERIAL
 
@@ -188,7 +189,7 @@ static void serial_update_msl(SerialState *s)
     uint8_t omsr;
     int flags;
 
-    qemu_del_timer(s->modem_status_poll);
+    timer_del(s->modem_status_poll);
 
     if (qemu_chr_fe_ioctl(s->chr,CHR_IOCTL_SERIAL_GET_TIOCM, &flags) == -ENOTSUP) {
         s->poll_msl = -1;
@@ -215,7 +216,7 @@ static void serial_update_msl(SerialState *s)
        We'll be lazy and poll only every 10ms, and only poll it at all if MSI interrupts are turned on */
 
     if (s->poll_msl)
-        qemu_mod_timer(s->modem_status_poll, qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 100);
+        timer_mod(s->modem_status_poll, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + get_ticks_per_sec() / 100);
 }
 
 static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
@@ -252,7 +253,7 @@ static gboolean serial_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
         s->tsr_retry = 0;
     }
 
-    s->last_xmit_ts = qemu_get_clock_ns(vm_clock);
+    s->last_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     if (s->lsr & UART_LSR_THRE) {
         s->lsr |= UART_LSR_TEMT;
@@ -306,7 +307,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                      s->poll_msl = 1;
                      serial_update_msl(s);
                 } else {
-                     qemu_del_timer(s->modem_status_poll);
+                     timer_del(s->modem_status_poll);
                      s->poll_msl = 0;
                 }
             }
@@ -329,7 +330,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
         /* FIFO clear */
 
         if (val & UART_FCR_RFR) {
-            qemu_del_timer(s->fifo_timeout_timer);
+            timer_del(s->fifo_timeout_timer);
             s->timeout_ipending=0;
             fifo8_reset(&s->recv_fifo);
         }
@@ -397,7 +398,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
                 qemu_chr_fe_ioctl(s->chr,CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
                 /* Update the modem status after a one-character-send wait-time, since there may be a response
                    from the device/computer at the other end of the serial line */
-                qemu_mod_timer(s->modem_status_poll, qemu_get_clock_ns(vm_clock) + s->char_transmit_time);
+                timer_mod(s->modem_status_poll, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time);
             }
         }
         break;
@@ -429,7 +430,7 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
                 if (s->recv_fifo.num == 0) {
                     s->lsr &= ~(UART_LSR_DR | UART_LSR_BI);
                 } else {
-                    qemu_mod_timer(s->fifo_timeout_timer, qemu_get_clock_ns (vm_clock) + s->char_transmit_time * 4);
+                    timer_mod(s->fifo_timeout_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time * 4);
                 }
                 s->timeout_ipending = 0;
             } else {
@@ -556,7 +557,7 @@ static void serial_receive1(void *opaque, const uint8_t *buf, int size)
         }
         s->lsr |= UART_LSR_DR;
         /* call the timeout receive callback in 4 char transmit time */
-        qemu_mod_timer(s->fifo_timeout_timer, qemu_get_clock_ns (vm_clock) + s->char_transmit_time * 4);
+        timer_mod(s->fifo_timeout_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->char_transmit_time * 4);
     } else {
         if (s->lsr & UART_LSR_DR)
             s->lsr |= UART_LSR_OE;
@@ -635,7 +636,7 @@ static void serial_reset(void *opaque)
     fifo8_reset(&s->recv_fifo);
     fifo8_reset(&s->xmit_fifo);
 
-    s->last_xmit_ts = qemu_get_clock_ns(vm_clock);
+    s->last_xmit_ts = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     s->thr_ipending = 0;
     s->last_break_enable = 0;
@@ -649,9 +650,9 @@ void serial_realize_core(SerialState *s, Error **errp)
         return;
     }
 
-    s->modem_status_poll = qemu_new_timer_ns(vm_clock, (QEMUTimerCB *) serial_update_msl, s);
+    s->modem_status_poll = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) serial_update_msl, s);
 
-    s->fifo_timeout_timer = qemu_new_timer_ns(vm_clock, (QEMUTimerCB *) fifo_timeout_int, s);
+    s->fifo_timeout_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) fifo_timeout_int, s);
     qemu_register_reset(serial_reset, s);
 
     qemu_chr_add_handlers(s->chr, serial_can_receive1, serial_receive1,
@@ -696,7 +697,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     s->chr = chr;
     serial_realize_core(s, &err);
     if (err != NULL) {
-        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_report("%s", error_get_pretty(err));
         error_free(err);
         exit(1);
     }
@@ -760,7 +761,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 
     serial_realize_core(s, &err);
     if (err != NULL) {
-        fprintf(stderr, "%s\n", error_get_pretty(err));
+        error_report("%s", error_get_pretty(err));
         error_free(err);
         exit(1);
     }

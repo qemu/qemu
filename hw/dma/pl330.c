@@ -1256,7 +1256,7 @@ static void pl330_dma_stop_irq(void *opaque, int irq, int level)
 
     if (s->periph_busy[irq] != level) {
         s->periph_busy[irq] = level;
-        qemu_mod_timer(s->timer, qemu_get_clock_ns(vm_clock));
+        timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
     }
 }
 
@@ -1519,7 +1519,7 @@ static void pl330_reset(DeviceState *d)
         s->periph_busy[i] = 0;
     }
 
-    qemu_del_timer(s->timer);
+    timer_del(s->timer);
 }
 
 static void pl330_realize(DeviceState *dev, Error **errp)
@@ -1532,7 +1532,7 @@ static void pl330_realize(DeviceState *dev, Error **errp)
                           "dma", PL330_IOMEM_SIZE);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 
-    s->timer = qemu_new_timer_ns(vm_clock, pl330_exec_cycle_timer, s);
+    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pl330_exec_cycle_timer, s);
 
     s->cfg[0] = (s->mgr_ns_at_rst ? 0x4 : 0) |
                 (s->num_periph_req > 0 ? 1 : 0) |

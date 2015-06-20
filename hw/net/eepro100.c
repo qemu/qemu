@@ -409,7 +409,7 @@ static void disable_interrupt(EEPRO100State * s)
 {
     if (s->int_stat) {
         TRACE(INT, logout("interrupt disabled\n"));
-        qemu_irq_lower(s->dev.irq[0]);
+        pci_irq_deassert(&s->dev);
         s->int_stat = 0;
     }
 }
@@ -418,7 +418,7 @@ static void enable_interrupt(EEPRO100State * s)
 {
     if (!s->int_stat) {
         TRACE(INT, logout("interrupt enabled\n"));
-        qemu_irq_raise(s->dev.irq[0]);
+        pci_irq_assert(&s->dev);
         s->int_stat = 1;
     }
 }

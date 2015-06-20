@@ -150,7 +150,10 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 {
     AioContext *ctx = (AioContext *) source;
     QEMUBH *bh;
+    int deadline;
 
+    /* We assume there is no timeout already supplied */
+    *timeout = -1;
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
             if (bh->idle) {
@@ -164,6 +167,14 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
                 return true;
             }
         }
+    }
+
+    deadline = qemu_timeout_ns_to_ms(timerlistgroup_deadline_ns(&ctx->tlg));
+    if (deadline == 0) {
+        *timeout = 0;
+        return true;
+    } else {
+        *timeout = qemu_soonest_timeout(*timeout, deadline);
     }
 
     return false;
@@ -180,7 +191,7 @@ aio_ctx_check(GSource *source)
             return true;
 	}
     }
-    return aio_pending(ctx);
+    return aio_pending(ctx) || (timerlistgroup_deadline_ns(&ctx->tlg) == 0);
 }
 
 static gboolean
@@ -201,10 +212,11 @@ aio_ctx_finalize(GSource     *source)
     AioContext *ctx = (AioContext *) source;
 
     thread_pool_free(ctx->thread_pool);
-    aio_set_event_notifier(ctx, &ctx->notifier, NULL, NULL);
+    aio_set_event_notifier(ctx, &ctx->notifier, NULL);
     event_notifier_cleanup(&ctx->notifier);
     qemu_mutex_destroy(&ctx->bh_lock);
     g_array_free(ctx->pollfds, TRUE);
+    timerlistgroup_deinit(&ctx->tlg);
 }
 
 static GSourceFuncs aio_source_funcs = {
@@ -233,6 +245,11 @@ void aio_notify(AioContext *ctx)
     event_notifier_set(&ctx->notifier);
 }
 
+static void aio_timerlist_notify(void *opaque)
+{
+    aio_notify(opaque);
+}
+
 AioContext *aio_context_new(void)
 {
     AioContext *ctx;
@@ -243,7 +260,8 @@ AioContext *aio_context_new(void)
     event_notifier_init(&ctx->notifier, false);
     aio_set_event_notifier(ctx, &ctx->notifier, 
                            (EventNotifierHandler *)
-                           event_notifier_test_and_clear, NULL);
+                           event_notifier_test_and_clear);
+    timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
 
     return ctx;
 }

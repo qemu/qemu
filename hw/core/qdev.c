@@ -164,7 +164,7 @@ int qdev_init(DeviceState *dev)
     if (local_err != NULL) {
         qerror_report_err(local_err);
         error_free(local_err);
-        qdev_free(dev);
+        object_unparent(OBJECT(dev));
         return -1;
     }
     return 0;
@@ -258,7 +258,7 @@ void qbus_reset_all_fn(void *opaque)
 int qdev_simple_unplug_cb(DeviceState *dev)
 {
     /* just zap it */
-    qdev_free(dev);
+    object_unparent(OBJECT(dev));
     return 0;
 }
 
@@ -278,12 +278,6 @@ void qdev_init_nofail(DeviceState *dev)
         error_report("Initialization of device %s failed", typename);
         exit(1);
     }
-}
-
-/* Unlink device from bus and free the structure.  */
-void qdev_free(DeviceState *dev)
-{
-    object_unparent(OBJECT(dev));
 }
 
 void qdev_machine_creation_done(void)
@@ -458,7 +452,7 @@ static void bus_unparent(Object *obj)
 
     while ((kid = QTAILQ_FIRST(&bus->children)) != NULL) {
         DeviceState *dev = kid->child;
-        qdev_free(dev);
+        object_unparent(OBJECT(dev));
     }
     if (bus->parent) {
         QLIST_REMOVE(bus, sibling);
@@ -470,10 +464,10 @@ static void bus_unparent(Object *obj)
     }
 }
 
-void qbus_create_inplace(void *bus, const char *typename,
+void qbus_create_inplace(void *bus, size_t size, const char *typename,
                          DeviceState *parent, const char *name)
 {
-    object_initialize(bus, typename);
+    object_initialize(bus, size, typename);
     qbus_realize(bus, parent, name);
 }
 
@@ -752,7 +746,6 @@ static void device_initfn(Object *obj)
         }
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
-    qdev_prop_set_globals(dev, &err);
     if (err != NULL) {
         qerror_report_err(err);
         error_free(err);
@@ -761,6 +754,15 @@ static void device_initfn(Object *obj)
 
     object_property_add_link(OBJECT(dev), "parent_bus", TYPE_BUS,
                              (Object **)&dev->parent_bus, &err);
+    assert_no_error(err);
+}
+
+static void device_post_init(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    Error *err = NULL;
+
+    qdev_prop_set_globals(dev, &err);
     assert_no_error(err);
 }
 
@@ -853,6 +855,7 @@ static const TypeInfo device_type_info = {
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(DeviceState),
     .instance_init = device_initfn,
+    .instance_post_init = device_post_init,
     .instance_finalize = device_finalize,
     .class_base_init = device_class_base_init,
     .class_init = device_class_init,

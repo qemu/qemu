@@ -30,22 +30,6 @@ typedef enum DeviceCategory {
     DEVICE_CATEGORY_MAX
 } DeviceCategory;
 
-static inline const char *qdev_category_get_name(DeviceCategory category)
-{
-    static const char *category_names[DEVICE_CATEGORY_MAX] = {
-        [DEVICE_CATEGORY_BRIDGE]  = "Controller/Bridge/Hub",
-        [DEVICE_CATEGORY_USB]     = "USB",
-        [DEVICE_CATEGORY_STORAGE] = "Storage",
-        [DEVICE_CATEGORY_NETWORK] = "Network",
-        [DEVICE_CATEGORY_INPUT]   = "Input",
-        [DEVICE_CATEGORY_DISPLAY] = "Display",
-        [DEVICE_CATEGORY_SOUND]   = "Sound",
-        [DEVICE_CATEGORY_MISC]    = "Misc",
-    };
-
-    return category_names[category];
-};
-
 typedef int (*qdev_initfn)(DeviceState *dev);
 typedef int (*qdev_event)(DeviceState *dev);
 typedef void (*qdev_resetfn)(DeviceState *dev);
@@ -237,7 +221,6 @@ void qdev_init_nofail(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
 void qdev_unplug(DeviceState *dev, Error **errp);
-void qdev_free(DeviceState *dev);
 int qdev_simple_unplug_cb(DeviceState *dev);
 void qdev_machine_creation_done(void);
 bool qdev_machine_modified(void);
@@ -264,7 +247,7 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id);
 typedef int (qbus_walkerfn)(BusState *bus, void *opaque);
 typedef int (qdev_walkerfn)(DeviceState *dev, void *opaque);
 
-void qbus_create_inplace(void *bus, const char *typename,
+void qbus_create_inplace(void *bus, size_t size, const char *typename,
                          DeviceState *parent, const char *name);
 BusState *qbus_create(const char *typename, DeviceState *parent, const char *name);
 /* Returns > 0 if either devfn or busfn skip walk somewhere in cursion,

@@ -238,8 +238,6 @@ void xtensa_translate_init(void)
                     uregnames[i].name);
         }
     }
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 static inline bool option_bits_enabled(DisasContext *dc, uint64_t opt)
@@ -400,7 +398,7 @@ static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
     } else {
         if (slot >= 0) {
             tcg_gen_goto_tb(slot);
-            tcg_gen_exit_tb((tcg_target_long)dc->tb + slot);
+            tcg_gen_exit_tb((uintptr_t)dc->tb + slot);
         } else {
             tcg_gen_exit_tb(0);
         }
@@ -3018,6 +3016,14 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     gen_tb_end(tb, insn_count);
     *tcg_ctx.gen_opc_ptr = INDEX_op_end;
 
+#ifdef DEBUG_DISAS
+    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+        qemu_log("----------------\n");
+        qemu_log("IN: %s\n", lookup_symbol(pc_start));
+        log_target_disas(env, pc_start, dc.pc - pc_start, 0);
+        qemu_log("\n");
+    }
+#endif
     if (search_pc) {
         j = tcg_ctx.gen_opc_ptr - tcg_ctx.gen_opc_buf;
         memset(tcg_ctx.gen_opc_instr_start + lj + 1, 0,

@@ -154,55 +154,19 @@ static uint64_t assigned_dev_ioport_rw(AssignedDevRegion *dev_region,
     uint64_t val = 0;
     int fd = dev_region->region->resource_fd;
 
-    if (fd >= 0) {
-        if (data) {
-            DEBUG("pwrite data=%" PRIx64 ", size=%d, e_phys=" TARGET_FMT_plx
-                  ", addr="TARGET_FMT_plx"\n", *data, size, addr, addr);
-            if (pwrite(fd, data, size, addr) != size) {
-                error_report("%s - pwrite failed %s",
-                             __func__, strerror(errno));
-            }
-        } else {
-            if (pread(fd, &val, size, addr) != size) {
-                error_report("%s - pread failed %s",
-                             __func__, strerror(errno));
-                val = (1UL << (size * 8)) - 1;
-            }
-            DEBUG("pread val=%" PRIx64 ", size=%d, e_phys=" TARGET_FMT_plx
-                  ", addr=" TARGET_FMT_plx "\n", val, size, addr, addr);
+    if (data) {
+        DEBUG("pwrite data=%" PRIx64 ", size=%d, e_phys=" TARGET_FMT_plx
+              ", addr="TARGET_FMT_plx"\n", *data, size, addr, addr);
+        if (pwrite(fd, data, size, addr) != size) {
+            error_report("%s - pwrite failed %s", __func__, strerror(errno));
         }
     } else {
-        uint32_t port = addr + dev_region->u.r_baseport;
-
-        if (data) {
-            DEBUG("out data=%" PRIx64 ", size=%d, e_phys=" TARGET_FMT_plx
-                  ", host=%x\n", *data, size, addr, port);
-            switch (size) {
-            case 1:
-                outb(*data, port);
-                break;
-            case 2:
-                outw(*data, port);
-                break;
-            case 4:
-                outl(*data, port);
-                break;
-            }
-        } else {
-            switch (size) {
-            case 1:
-                val = inb(port);
-                break;
-            case 2:
-                val = inw(port);
-                break;
-            case 4:
-                val = inl(port);
-                break;
-            }
-            DEBUG("in data=%" PRIx64 ", size=%d, e_phys=" TARGET_FMT_plx
-                  ", host=%x\n", val, size, addr, port);
+        if (pread(fd, &val, size, addr) != size) {
+            error_report("%s - pread failed %s", __func__, strerror(errno));
+            val = (1UL << (size * 8)) - 1;
         }
+        DEBUG("pread val=%" PRIx64 ", size=%d, e_phys=" TARGET_FMT_plx
+              ", addr=" TARGET_FMT_plx "\n", val, size, addr, addr);
     }
     return val;
 }
@@ -568,8 +532,7 @@ static int get_real_device_id(const char *devpath, uint16_t *val)
     return get_real_id(devpath, "device", val);
 }
 
-static int get_real_device(AssignedDevice *pci_dev, uint16_t r_seg,
-                           uint8_t r_bus, uint8_t r_dev, uint8_t r_func)
+static int get_real_device(AssignedDevice *pci_dev)
 {
     char dir[128], name[128];
     int fd, r = 0, v;
@@ -582,7 +545,8 @@ static int get_real_device(AssignedDevice *pci_dev, uint16_t r_seg,
     dev->region_number = 0;
 
     snprintf(dir, sizeof(dir), "/sys/bus/pci/devices/%04x:%02x:%02x.%x/",
-             r_seg, r_bus, r_dev, r_func);
+             pci_dev->host.domain, pci_dev->host.bus,
+             pci_dev->host.slot, pci_dev->host.function);
 
     snprintf(name, sizeof(name), "%sconfig", dir);
 
@@ -791,26 +755,22 @@ static void assign_failed_examine(AssignedDevice *dev)
         goto fail;
     }
 
-    error_report("*** The driver '%s' is occupying your device "
-                 "%04x:%02x:%02x.%x.",
-                 ns, dev->host.domain, dev->host.bus, dev->host.slot,
-                 dev->host.function);
-    error_report("***");
-    error_report("*** You can try the following commands to free it:");
-    error_report("***");
-    error_report("*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub/"
-                 "new_id", vendor_id, device_id);
-    error_report("*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/"
-                 "%s/unbind",
-                 dev->host.domain, dev->host.bus, dev->host.slot,
-                 dev->host.function, ns);
-    error_report("*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/"
-                 "pci-stub/bind",
-                 dev->host.domain, dev->host.bus, dev->host.slot,
-                 dev->host.function);
-    error_report("*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub"
-                 "/remove_id", vendor_id, device_id);
-    error_report("***");
+    error_printf("*** The driver '%s' is occupying your device "
+        "%04x:%02x:%02x.%x.\n"
+        "***\n"
+        "*** You can try the following commands to free it:\n"
+        "***\n"
+        "*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub/new_id\n"
+        "*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/%s/unbind\n"
+        "*** $ echo \"%04x:%02x:%02x.%x\" > /sys/bus/pci/drivers/"
+        "pci-stub/bind\n"
+        "*** $ echo \"%04x %04x\" > /sys/bus/pci/drivers/pci-stub/remove_id\n"
+        "***",
+        ns, dev->host.domain, dev->host.bus, dev->host.slot,
+        dev->host.function, vendor_id, device_id,
+        dev->host.domain, dev->host.bus, dev->host.slot, dev->host.function,
+        ns, dev->host.domain, dev->host.bus, dev->host.slot,
+        dev->host.function, vendor_id, device_id);
 
     return;
 
@@ -1769,8 +1729,7 @@ static int assigned_initfn(struct PCIDevice *pci_dev)
     memcpy(dev->emulate_config_write, dev->emulate_config_read,
            sizeof(dev->emulate_config_read));
 
-    if (get_real_device(dev, dev->host.domain, dev->host.bus,
-                        dev->host.slot, dev->host.function)) {
+    if (get_real_device(dev)) {
         error_report("pci-assign: Error: Couldn't get real device (%s)!",
                      dev->dev.qdev.id);
         goto out;

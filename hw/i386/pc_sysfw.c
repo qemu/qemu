@@ -53,10 +53,7 @@ static void pc_isa_bios_init(MemoryRegion *rom_memory,
     flash_size = memory_region_size(flash_mem);
 
     /* map the last 128KB of the BIOS in ISA space */
-    isa_bios_size = flash_size;
-    if (isa_bios_size > (128 * 1024)) {
-        isa_bios_size = 128 * 1024;
-    }
+    isa_bios_size = MIN(flash_size, 128 * 1024);
     isa_bios = g_malloc(sizeof(*isa_bios));
     memory_region_init_ram(isa_bios, NULL, "isa-bios", isa_bios_size);
     vmstate_register_ram_global(isa_bios);

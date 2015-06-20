@@ -1359,6 +1359,9 @@ typedef struct elf64_shdr {
 #define NT_S390_TODPREG 0x303           /* s390 TOD programmable register */
 #define NT_S390_TODCMP  0x302           /* s390 TOD clock comparator register */
 #define NT_S390_TIMER   0x301           /* s390 timer register */
+#define NT_PPC_VMX       0x100          /* PowerPC Altivec/VMX registers */
+#define NT_PPC_SPE       0x101          /* PowerPC SPE/EVR registers */
+#define NT_PPC_VSX       0x102          /* PowerPC VSX registers */
 
 
 /* Note header in a PT_NOTE section */

@@ -172,7 +172,7 @@ static void shpc_interrupt_update(PCIDevice *d)
     if (msi_enabled(d) && shpc->msi_requested != level)
         msi_notify(d, 0);
     else
-        qemu_set_irq(d->irq[0], level);
+        pci_set_irq(d, level);
     shpc->msi_requested = level;
 }
 
@@ -254,7 +254,7 @@ static void shpc_free_devices_in_slot(SHPCDevice *shpc, int slot)
          ++devfn) {
         PCIDevice *affected_dev = shpc->sec_bus->devices[devfn];
         if (affected_dev) {
-            qdev_free(&affected_dev->qdev);
+            object_unparent(OBJECT(affected_dev));
         }
     }
 }

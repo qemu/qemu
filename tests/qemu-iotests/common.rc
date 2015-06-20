@@ -20,17 +20,17 @@
 dd()
 {
    if [ "$HOSTOS" == "Linux" ]
-   then	
-	command dd --help | grep noxfer > /dev/null 2>&1
-	
-	if [ "$?" -eq 0 ]
-	    then
-		command dd status=noxfer $@
-	    else
-		command dd $@
-    	fi
+   then
+        command dd --help | grep noxfer > /dev/null 2>&1
+
+        if [ "$?" -eq 0 ]
+            then
+                command dd status=noxfer $@
+            else
+                command dd $@
+            fi
    else
-	command dd $@
+        command dd $@
    fi
 }
 
@@ -91,6 +91,18 @@ _set_default_imgopts()
     fi
 }
 
+_use_sample_img()
+{
+    SAMPLE_IMG_FILE="${1%\.bz2}"
+    TEST_IMG="$TEST_DIR/$SAMPLE_IMG_FILE"
+    bzcat "$SAMPLE_IMG_DIR/$1" > "$TEST_IMG"
+    if [ $? -ne 0 ]
+    then
+        echo "_use_sample_img error, cannot extract '$SAMPLE_IMG_DIR/$1'"
+        exit 1
+    fi
+}
+
 _make_test_img()
 {
     # extra qemu-img options can be added by tests
@@ -99,6 +111,8 @@ _make_test_img()
     local image_size=$*
     local optstr=""
     local img_name=""
+    local use_backing=0
+    local backing_file=""
 
     if [ -n "$TEST_IMG_FILE" ]; then
         img_name=$TEST_IMG_FILE
@@ -111,7 +125,8 @@ _make_test_img()
     fi
 
     if [ "$1" = "-b" ]; then
-        extra_img_options="$1 $2"
+        use_backing=1
+        backing_file=$2
         image_size=$3
     fi
     if [ \( "$IMGFMT" = "qcow2" -o "$IMGFMT" = "qed" \) -a -n "$CLUSTER_SIZE" ]; then
@@ -123,7 +138,13 @@ _make_test_img()
     fi
 
     # XXX(hch): have global image options?
-    $QEMU_IMG create -f $IMGFMT $extra_img_options $img_name $image_size | \
+    (
+     if [ $use_backing = 1 ]; then
+        $QEMU_IMG create -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" $image_size 2>&1
+     else
+        $QEMU_IMG create -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
+     fi
+    ) | \
         sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
@@ -136,7 +157,10 @@ _make_test_img()
             -e "s# zeroed_grain=\\(on\\|off\\)##g" \
             -e "s# subformat='[^']*'##g" \
             -e "s# adapter_type='[^']*'##g" \
-            -e "s# lazy_refcounts=\\(on\\|off\\)##g"
+            -e "s# lazy_refcounts=\\(on\\|off\\)##g" \
+            -e "s# block_size=[0-9]\\+##g" \
+            -e "s# block_state_zero=\\(on\\|off\\)##g" \
+            -e "s# log_size=[0-9]\\+##g"
 
     # Start an NBD server on the image file, which is what we'll be talking to
     if [ $IMGPROTO = "nbd" ]; then
@@ -152,20 +176,24 @@ _cleanup_test_img()
 
         nbd)
             kill $QEMU_NBD_PID
-            rm -f $TEST_IMG_FILE
+            rm -f "$TEST_IMG_FILE"
             ;;
         file)
-            rm -f $TEST_DIR/t.$IMGFMT
-            rm -f $TEST_DIR/t.$IMGFMT.orig
-            rm -f $TEST_DIR/t.$IMGFMT.base
+            rm -f "$TEST_DIR/t.$IMGFMT"
+            rm -f "$TEST_DIR/t.$IMGFMT.orig"
+            rm -f "$TEST_DIR/t.$IMGFMT.base"
+            if [ -n "$SAMPLE_IMG_FILE" ]
+            then
+                rm -f "$TEST_DIR/$SAMPLE_IMG_FILE"
+            fi
             ;;
 
         rbd)
-            rbd rm $TEST_DIR/t.$IMGFMT > /dev/null
+            rbd rm "$TEST_DIR/t.$IMGFMT" > /dev/null
             ;;
 
         sheepdog)
-            collie vdi delete $TEST_DIR/t.$IMGFMT
+            collie vdi delete "$TEST_DIR/t.$IMGFMT"
             ;;
 
     esac
@@ -173,7 +201,7 @@ _cleanup_test_img()
 
 _check_test_img()
 {
-    $QEMU_IMG check "$@" -f $IMGFMT $TEST_IMG 2>&1 | _filter_testdir | \
+    $QEMU_IMG check "$@" -f $IMGFMT "$TEST_IMG" 2>&1 | _filter_testdir | \
         sed -e '/allocated.*fragmented.*compressed clusters/d' \
             -e 's/qemu-img: This image format does not support checks/No errors were found on the image./' \
             -e '/Image end offset: [0-9]\+/d'
@@ -181,20 +209,38 @@ _check_test_img()
 
 _img_info()
 {
-    $QEMU_IMG info "$@" $TEST_IMG 2>&1 | \
+    discard=0
+    regex_json_spec_start='^ *"format-specific": \{'
+    $QEMU_IMG info "$@" "$TEST_IMG" 2>&1 | \
         sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" \
             -e "s#$TEST_DIR#TEST_DIR#g" \
             -e "s#$IMGFMT#IMGFMT#g" \
             -e "/^disk size:/ D" \
-            -e "/actual-size/ D"
+            -e "/actual-size/ D" | \
+        while IFS='' read line; do
+            if [[ $line == "Format specific information:" ]]; then
+                discard=1
+            elif [[ $line =~ $regex_json_spec_start ]]; then
+                discard=2
+                regex_json_spec_end="^${line%%[^ ]*}\\},? *$"
+            fi
+            if [[ $discard == 0 ]]; then
+                echo "$line"
+            elif [[ $discard == 1 && ! $line ]]; then
+                echo
+                discard=0
+            elif [[ $discard == 2 && $line =~ $regex_json_spec_end ]]; then
+                discard=0
+            fi
+        done
 }
 
 _get_pids_by_name()
 {
     if [ $# -ne 1 ]
     then
-	echo "Usage: _get_pids_by_name process-name" 1>&2
-	exit 1
+        echo "Usage: _get_pids_by_name process-name" 1>&2
+        exit 1
     fi
 
     # Algorithm ... all ps(1) variants have a time of the form MM:SS or
@@ -206,12 +252,12 @@ _get_pids_by_name()
 
     ps $PS_ALL_FLAGS \
     | sed -n \
-	-e 's/$/ /' \
-	-e 's/[ 	][ 	]*/ /g' \
-	-e 's/^ //' \
-	-e 's/^[^ ]* //' \
-	-e "/[0-9]:[0-9][0-9]  *[^ ]*\/$1 /s/ .*//p" \
-	-e "/[0-9]:[0-9][0-9]  *$1 /s/ .*//p"
+        -e 's/$/ /' \
+        -e 's/[         ][         ]*/ /g' \
+        -e 's/^ //' \
+        -e 's/^[^ ]* //' \
+        -e "/[0-9]:[0-9][0-9]  *[^ ]*\/$1 /s/ .*//p" \
+        -e "/[0-9]:[0-9][0-9]  *$1 /s/ .*//p"
 }
 
 # fqdn for localhost
@@ -229,8 +275,8 @@ _need_to_be_root()
     id=`id | $SED_PROG -e 's/(.*//' -e 's/.*=//'`
     if [ "$id" -ne 0 ]
     then
-	echo "Arrgh ... you need to be root (not uid=$id) to run this test"
-	exit 1
+        echo "Arrgh ... you need to be root (not uid=$id) to run this test"
+        exit 1
     fi
 }
 
@@ -248,33 +294,33 @@ _need_to_be_root()
 _do()
 {
     if [ $# -eq 1 ]; then
-	_cmd=$1
+        _cmd=$1
     elif [ $# -eq 2 ]; then
-	_note=$1
-	_cmd=$2
-	echo -n "$_note... "
+        _note=$1
+        _cmd=$2
+        echo -n "$_note... "
     else
-	echo "Usage: _do [note] cmd" 1>&2
-	status=1; exit
+        echo "Usage: _do [note] cmd" 1>&2
+        status=1; exit
     fi
 
     (eval "echo '---' \"$_cmd\"") >>$here/$seq.full
     (eval "$_cmd") >$tmp._out 2>&1; ret=$?
     cat $tmp._out >>$here/$seq.full
     if [ $# -eq 2 ]; then
-	if [ $ret -eq 0 ]; then
-	    echo "done"
-	else
-	    echo "fail"
-	fi
+        if [ $ret -eq 0 ]; then
+            echo "done"
+        else
+            echo "fail"
+        fi
     fi
     if [ $ret -ne 0  ] \
-	&& [ "$_do_die_on_error" = "always" \
-	    -o \( $# -eq 2 -a "$_do_die_on_error" = "message_only" \) ]
+        && [ "$_do_die_on_error" = "always" \
+            -o \( $# -eq 2 -a "$_do_die_on_error" = "message_only" \) ]
     then
-	[ $# -ne 2 ] && echo
-	eval "echo \"$_cmd\" failed \(returned $ret\): see $seq.full"
-	status=1; exit
+        [ $# -ne 2 ] && echo
+        eval "echo \"$_cmd\" failed \(returned $ret\): see $seq.full"
+        status=1; exit
     fi
 
     return $ret
@@ -305,9 +351,9 @@ _fail()
 _supported_fmt()
 {
     for f; do
-	if [ "$f" = "$IMGFMT" -o "$f" = "generic" ]; then
-	    return
-	fi
+        if [ "$f" = "$IMGFMT" -o "$f" = "generic" -a "$IMGFMT_GENERIC" = "true" ]; then
+            return
+        fi
     done
 
     _notrun "not suitable for this image format: $IMGFMT"
@@ -318,9 +364,9 @@ _supported_fmt()
 _supported_proto()
 {
     for f; do
-	if [ "$f" = "$IMGPROTO" -o "$f" = "generic" ]; then
-	    return
-	fi
+        if [ "$f" = "$IMGPROTO" -o "$f" = "generic" ]; then
+            return
+        fi
     done
 
     _notrun "not suitable for this image protocol: $IMGPROTO"
@@ -332,10 +378,10 @@ _supported_os()
 {
     for h
     do
-	if [ "$h" = "$HOSTOS" ]
-	then
-	    return
-	fi
+        if [ "$h" = "$HOSTOS" ]
+        then
+            return
+        fi
     done
 
     _notrun "not suitable for this OS: $HOSTOS"

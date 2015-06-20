@@ -1,0 +1,71 @@
+language: c
+python:
+  - "2.4"
+compiler:
+  - gcc
+  - clang
+env:
+  global:
+    - TEST_CMD="make check"
+    - EXTRA_CONFIG=""
+    # Development packages, EXTRA_PKGS saved for additional builds
+    - CORE_PKGS="libusb-1.0-0-dev libiscsi-dev librados-dev libncurses5-dev"
+    - NET_PKGS="libseccomp-dev libgnutls-dev libssh2-1-dev  libspice-server-dev libspice-protocol-dev libnss3-dev"
+    - GUI_PKGS="libgtk-3-dev libvte-2.90-dev libsdl1.2-dev libpng12-dev libpixman-1-dev"
+    - EXTRA_PKGS=""
+  matrix:
+  - TARGETS=alpha-softmmu,alpha-linux-user
+  - TARGETS=arm-softmmu,arm-linux-user
+  - TARGETS=cris-softmmu
+  - TARGETS=i386-softmmu,x86_64-softmmu
+  - TARGETS=lm32-softmmu
+  - TARGETS=m68k-softmmu
+  - TARGETS=microblaze-softmmu,microblazeel-softmmu
+  - TARGETS=mips-softmmu,mips64-softmmu,mips64el-softmmu,mipsel-softmmu
+  - TARGETS=moxie-softmmu
+  - TARGETS=or32-softmmu,
+  - TARGETS=ppc-softmmu,ppc64-softmmu,ppcemb-softmmu
+  - TARGETS=s390x-softmmu
+  - TARGETS=sh4-softmmu,sh4eb-softmmu
+  - TARGETS=sparc-softmmu,sparc64-softmmu
+  - TARGETS=unicore32-softmmu
+  - TARGETS=xtensa-softmmu,xtensaeb-softmmu
+before_install:
+  - git submodule update --init --recursive
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq ${CORE_PKGS} ${NET_PKGS} ${GUI_PKGS} ${EXTRA_PKGS}
+script: "./configure --target-list=${TARGETS} ${EXTRA_CONFIG} && make && ${TEST_CMD}"
+matrix:
+  # We manually include a number of additional build for non-standard bits
+  include:
+    # Debug related options
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--enable-debug"
+      compiler: gcc
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--enable-debug --enable-tcg-interpreter"
+      compiler: gcc
+    # Currently configure doesn't force --disable-pie
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--enable-gprof --enable-gcov --disable-pie"
+      compiler: gcc
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_PKGS="sparse"
+           EXTRA_CONFIG="--enable-sparse"
+      compiler: gcc
+    # All the trace backends (apart from dtrace)
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--enable-trace-backend=stderr"
+      compiler: gcc
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--enable-trace-backend=simple"
+      compiler: gcc
+    - env: TARGETS=i386-softmmu,x86_64-softmmu
+           EXTRA_CONFIG="--enable-trace-backend=ftrace"
+           TEST_CMD=""
+      compiler: gcc
+    # This disabled make check for the ftrace backend which needs more setting up
+    # Currently broken on 12.04 due to mis-packaged liburcu and changed API, will be pulled.
+    #- env: TARGETS=i386-softmmu,x86_64-softmmu
+    #       EXTRA_PKGS="liblttng-ust-dev liburcu-dev"
+    #       EXTRA_CONFIG="--enable-trace-backend=ust"

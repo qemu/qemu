@@ -18,9 +18,6 @@ common-obj-$(CONFIG_USB_STORAGE_UAS)  += dev-uas.o
 common-obj-$(CONFIG_USB_AUDIO)        += dev-audio.o
 common-obj-$(CONFIG_USB_SERIAL)       += dev-serial.o
 common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
-
-# FIXME: make configurable too
-CONFIG_USB_BLUETOOTH := y
 common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
 
 ifeq ($(CONFIG_USB_SMARTCARD),y)

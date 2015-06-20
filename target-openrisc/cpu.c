@@ -209,7 +209,6 @@ OpenRISCCPU *cpu_openrisc_init(const char *cpu_model)
         return NULL;
     }
     cpu = OPENRISC_CPU(object_new(object_class_get_name(oc)));
-    cpu->env.cpu_model_str = cpu_model;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 

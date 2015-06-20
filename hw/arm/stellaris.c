@@ -78,14 +78,14 @@ static void gptm_update_irq(gptm_state *s)
 
 static void gptm_stop(gptm_state *s, int n)
 {
-    qemu_del_timer(s->timer[n]);
+    timer_del(s->timer[n]);
 }
 
 static void gptm_reload(gptm_state *s, int n, int reset)
 {
     int64_t tick;
     if (reset)
-        tick = qemu_get_clock_ns(vm_clock);
+        tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     else
         tick = s->tick[n];
 
@@ -103,7 +103,7 @@ static void gptm_reload(gptm_state *s, int n, int reset)
         hw_error("TODO: 16-bit timer mode 0x%x\n", s->mode[n]);
     }
     s->tick[n] = tick;
-    qemu_mod_timer(s->timer[n], tick);
+    timer_mod(s->timer[n], tick);
 }
 
 static void gptm_tick(void *opaque)
@@ -318,8 +318,8 @@ static int stellaris_gptm_init(SysBusDevice *sbd)
     sysbus_init_mmio(sbd, &s->iomem);
 
     s->opaque[0] = s->opaque[1] = s;
-    s->timer[0] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[0]);
-    s->timer[1] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[1]);
+    s->timer[0] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[0]);
+    s->timer[1] = timer_new_ns(QEMU_CLOCK_VIRTUAL, gptm_tick, &s->opaque[1]);
     vmstate_register(dev, -1, &vmstate_stellaris_gptm, s);
     return 0;
 }
@@ -1348,14 +1348,12 @@ static QEMUMachine lm3s811evb_machine = {
     .name = "lm3s811evb",
     .desc = "Stellaris LM3S811EVB",
     .init = lm3s811evb_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine lm3s6965evb_machine = {
     .name = "lm3s6965evb",
     .desc = "Stellaris LM3S6965EVB",
     .init = lm3s6965evb_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void stellaris_machine_init(void)

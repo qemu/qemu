@@ -108,7 +108,9 @@ petalogix_s3adsp1800_init(QEMUMachineInitArgs *args)
     xilinx_ethlite_create(&nd_table[0], ETHLITE_BASEADDR, irq[1], 0, 0);
 
     microblaze_load_kernel(cpu, ddr_base, ram_size,
-                    BINARY_DEVICE_TREE_FILE, machine_cpu_reset);
+                           args->initrd_filename,
+                           BINARY_DEVICE_TREE_FILE,
+                           machine_cpu_reset);
 }
 
 static QEMUMachine petalogix_s3adsp1800_machine = {
@@ -116,7 +118,6 @@ static QEMUMachine petalogix_s3adsp1800_machine = {
     .desc = "PetaLogix linux refdesign for xilinx Spartan 3ADSP1800",
     .init = petalogix_s3adsp1800_init,
     .is_default = 1,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void petalogix_s3adsp1800_machine_init(void)

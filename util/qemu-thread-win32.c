@@ -227,6 +227,32 @@ void qemu_sem_wait(QemuSemaphore *sem)
     }
 }
 
+void qemu_event_init(QemuEvent *ev, bool init)
+{
+    /* Manual reset.  */
+    ev->event = CreateEvent(NULL, TRUE, init, NULL);
+}
+
+void qemu_event_destroy(QemuEvent *ev)
+{
+    CloseHandle(ev->event);
+}
+
+void qemu_event_set(QemuEvent *ev)
+{
+    SetEvent(ev->event);
+}
+
+void qemu_event_reset(QemuEvent *ev)
+{
+    ResetEvent(ev->event);
+}
+
+void qemu_event_wait(QemuEvent *ev)
+{
+    WaitForSingleObject(ev->event, INFINITE);
+}
+
 struct QemuThreadData {
     /* Passed to win32_start_routine.  */
     void             *(*start_routine)(void *);

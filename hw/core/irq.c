@@ -68,11 +68,27 @@ qemu_irq *qemu_allocate_irqs(qemu_irq_handler handler, void *opaque, int n)
     return qemu_extend_irqs(NULL, 0, handler, opaque, n);
 }
 
+qemu_irq qemu_allocate_irq(qemu_irq_handler handler, void *opaque, int n)
+{
+    struct IRQState *irq;
+
+    irq = g_new(struct IRQState, 1);
+    irq->handler = handler;
+    irq->opaque = opaque;
+    irq->n = n;
+
+    return irq;
+}
 
 void qemu_free_irqs(qemu_irq *s)
 {
     g_free(s[0]);
     g_free(s);
+}
+
+void qemu_free_irq(qemu_irq irq)
+{
+    g_free(irq);
 }
 
 static void qemu_notirq(void *opaque, int line, int level)

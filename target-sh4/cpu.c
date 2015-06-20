@@ -144,7 +144,6 @@ static ObjectClass *superh_cpu_class_by_name(const char *cpu_model)
 SuperHCPU *cpu_sh4_init(const char *cpu_model)
 {
     SuperHCPU *cpu;
-    CPUSH4State *env;
     ObjectClass *oc;
 
     oc = superh_cpu_class_by_name(cpu_model);
@@ -152,8 +151,6 @@ SuperHCPU *cpu_sh4_init(const char *cpu_model)
         return NULL;
     }
     cpu = SUPERH_CPU(object_new(object_class_get_name(oc)));
-    env = &cpu->env;
-    env->cpu_model_str = cpu_model;
 
     object_property_set_bool(OBJECT(cpu), true, "realized", NULL);
 

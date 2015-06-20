@@ -18,6 +18,7 @@
 #include "hw/ptimer.h"
 #include "hw/sysbus.h"
 #include "hw/arm/imx.h"
+#include "qemu/main-loop.h"
 
 #define TYPE_IMX_EPIT "imx.epit"
 
@@ -43,7 +44,7 @@ static char const *imx_epit_reg_name(uint32_t reg)
 }
 
 #  define DPRINTF(fmt, args...) \
-          do { printf("%s: " fmt , __func__, ##args); } while (0)
+    do { fprintf(stderr, "%s: " fmt , __func__, ##args); } while (0)
 #else
 #  define DPRINTF(fmt, args...) do {} while (0)
 #endif
@@ -152,7 +153,7 @@ static void imx_epit_reset(DeviceState *dev)
     /*
      * Soft reset doesn't touch some bits; hard reset clears them
      */
-    s->cr &= ~(CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
+    s->cr &= (CR_EN|CR_ENMOD|CR_STOPEN|CR_DOZEN|CR_WAITEN|CR_DBGEN);
     s->sr = 0;
     s->lr = TIMER_MAX;
     s->cmp = 0;
@@ -167,7 +168,7 @@ static void imx_epit_reset(DeviceState *dev)
     ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
     if (s->freq && (s->cr & CR_EN)) {
         /* if the timer is still enabled, restart it */
-        ptimer_run(s->timer_reload, 1);
+        ptimer_run(s->timer_reload, 0);
     }
 }
 
@@ -218,17 +219,17 @@ static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
 
 static void imx_epit_reload_compare_timer(IMXEPITState *s)
 {
-    if ((s->cr & CR_OCIEN) && s->cmp) {
-        /* if the compare feature is on */
+    if ((s->cr & (CR_EN | CR_OCIEN)) == (CR_EN | CR_OCIEN))  {
+        /* if the compare feature is on and timers are running */
         uint32_t tmp = imx_epit_update_count(s);
+        uint64_t next;
         if (tmp > s->cmp) {
-            /* reinit the cmp timer if required */
-            ptimer_set_count(s->timer_cmp, tmp - s->cmp);
-            if ((s->cr & CR_EN)) {
-                /* Restart the cmp timer if required */
-                ptimer_run(s->timer_cmp, 0);
-            }
+            /* It'll fire in this round of the timer */
+            next = tmp - s->cmp;
+        } else { /* catch it next time around */
+            next = tmp - s->cmp + ((s->cr & CR_RLD) ? TIMER_MAX : s->lr);
         }
+        ptimer_set_count(s->timer_cmp, next);
     }
 }
 
@@ -237,11 +238,14 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
 {
     IMXEPITState *s = IMX_EPIT(opaque);
     uint32_t reg = offset >> 2;
+    uint64_t oldcr;
 
     DPRINTF("(%s, value = 0x%08x)\n", imx_epit_reg_name(reg), (uint32_t)value);
 
     switch (reg) {
     case 0: /* CR */
+
+        oldcr = s->cr;
         s->cr = value & 0x03ffffff;
         if (s->cr & CR_SWR) {
             /* handle the reset */
@@ -250,21 +254,34 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
             imx_epit_set_freq(s);
         }
 
-        if (s->freq && (s->cr & CR_EN)) {
+        if (s->freq && (s->cr & CR_EN) && !(oldcr & CR_EN)) {
             if (s->cr & CR_ENMOD) {
                 if (s->cr & CR_RLD) {
                     ptimer_set_limit(s->timer_reload, s->lr, 1);
+                    ptimer_set_limit(s->timer_cmp, s->lr, 1);
                 } else {
                     ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
+                    ptimer_set_limit(s->timer_cmp, TIMER_MAX, 1);
                 }
             }
 
             imx_epit_reload_compare_timer(s);
-
-            ptimer_run(s->timer_reload, 1);
-        } else {
+            ptimer_run(s->timer_reload, 0);
+            if (s->cr & CR_OCIEN) {
+                ptimer_run(s->timer_cmp, 0);
+            } else {
+                ptimer_stop(s->timer_cmp);
+            }
+        } else if (!(s->cr & CR_EN)) {
             /* stop both timers */
             ptimer_stop(s->timer_reload);
+            ptimer_stop(s->timer_cmp);
+        } else  if (s->cr & CR_OCIEN) {
+            if (!(oldcr & CR_OCIEN)) {
+                imx_epit_reload_compare_timer(s);
+                ptimer_run(s->timer_cmp, 0);
+            }
+        } else {
             ptimer_stop(s->timer_cmp);
         }
         break;
@@ -284,13 +301,13 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
             /* Also set the limit if the LRD bit is set */
             /* If IOVW bit is set then set the timer value */
             ptimer_set_limit(s->timer_reload, s->lr, s->cr & CR_IOVW);
+            ptimer_set_limit(s->timer_cmp, s->lr, 0);
         } else if (s->cr & CR_IOVW) {
             /* If IOVW bit is set then set the timer value */
             ptimer_set_count(s->timer_reload, s->lr);
         }
 
         imx_epit_reload_compare_timer(s);
-
         break;
 
     case 3: /* CMP */
@@ -306,51 +323,14 @@ static void imx_epit_write(void *opaque, hwaddr offset, uint64_t value,
         break;
     }
 }
-
-static void imx_epit_timeout(void *opaque)
-{
-    IMXEPITState *s = IMX_EPIT(opaque);
-
-    DPRINTF("\n");
-
-    if (!(s->cr & CR_EN)) {
-        return;
-    }
-
-    if (s->cr & CR_RLD) {
-        ptimer_set_limit(s->timer_reload, s->lr, 1);
-    } else {
-        ptimer_set_limit(s->timer_reload, TIMER_MAX, 1);
-    }
-
-    if (s->cr & CR_OCIEN) {
-        /* if compare register is 0 then we handle the interrupt here */
-        if (s->cmp == 0) {
-            s->sr = 1;
-            imx_epit_update_int(s);
-        } else if (s->cmp <= s->lr) {
-            /* We should launch the compare register */
-            ptimer_set_count(s->timer_cmp, s->lr - s->cmp);
-            ptimer_run(s->timer_cmp, 0);
-        } else {
-            IPRINTF("s->lr < s->cmp\n");
-        }
-    }
-}
-
 static void imx_epit_cmp(void *opaque)
 {
     IMXEPITState *s = IMX_EPIT(opaque);
 
-    DPRINTF("\n");
+    DPRINTF("sr was %d\n", s->sr);
 
-    ptimer_stop(s->timer_cmp);
-
-    /* compare register is not 0 */
-    if (s->cmp) {
-        s->sr = 1;
-        imx_epit_update_int(s);
-    }
+    s->sr = 1;
+    imx_epit_update_int(s);
 }
 
 void imx_timerp_create(const hwaddr addr, qemu_irq irq, DeviceState *ccm)
@@ -400,8 +380,7 @@ static void imx_epit_realize(DeviceState *dev, Error **errp)
                           0x00001000);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    bh = qemu_bh_new(imx_epit_timeout, s);
-    s->timer_reload = ptimer_init(bh);
+    s->timer_reload = ptimer_init(NULL);
 
     bh = qemu_bh_new(imx_epit_cmp, s);
     s->timer_cmp = ptimer_init(bh);

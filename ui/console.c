@@ -208,8 +208,8 @@ static void gui_update(void *opaque)
         }
         trace_console_refresh(interval);
     }
-    ds->last_update = qemu_get_clock_ms(rt_clock);
-    qemu_mod_timer(ds->gui_timer, ds->last_update + interval);
+    ds->last_update = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    timer_mod(ds->gui_timer, ds->last_update + interval);
 }
 
 static void gui_setup_refresh(DisplayState *ds)
@@ -232,12 +232,12 @@ static void gui_setup_refresh(DisplayState *ds)
     }
 
     if (need_timer && ds->gui_timer == NULL) {
-        ds->gui_timer = qemu_new_timer_ms(rt_clock, gui_update, ds);
-        qemu_mod_timer(ds->gui_timer, qemu_get_clock_ms(rt_clock));
+        ds->gui_timer = timer_new_ms(QEMU_CLOCK_REALTIME, gui_update, ds);
+        timer_mod(ds->gui_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME));
     }
     if (!need_timer && ds->gui_timer != NULL) {
-        qemu_del_timer(ds->gui_timer);
-        qemu_free_timer(ds->gui_timer);
+        timer_del(ds->gui_timer);
+        timer_free(ds->gui_timer);
         ds->gui_timer = NULL;
     }
 
@@ -408,39 +408,6 @@ static const pixman_color_t color_table_rgb[2][8] = {
         QEMU_RGB(0xff, 0xff, 0xff),  /* white */
     }
 };
-
-#ifdef DEBUG_CONSOLE
-static void console_print_text_attributes(TextAttributes *t_attrib, char ch)
-{
-    if (t_attrib->bold) {
-        printf("b");
-    } else {
-        printf(" ");
-    }
-    if (t_attrib->uline) {
-        printf("u");
-    } else {
-        printf(" ");
-    }
-    if (t_attrib->blink) {
-        printf("l");
-    } else {
-        printf(" ");
-    }
-    if (t_attrib->invers) {
-        printf("i");
-    } else {
-        printf(" ");
-    }
-    if (t_attrib->unvisible) {
-        printf("n");
-    } else {
-        printf(" ");
-    }
-
-    printf(" fg: %d bg: %d ch:'%2X' '%c'\n", t_attrib->fgcol, t_attrib->bgcol, ch, ch);
-}
-#endif
 
 static void vga_putcharxy(QemuConsole *s, int x, int y, int ch,
                           TextAttributes *t_attrib)
@@ -1040,7 +1007,7 @@ void console_select(unsigned int index)
         DisplayState *ds = s->ds;
 
         if (active_console && active_console->cursor_timer) {
-            qemu_del_timer(active_console->cursor_timer);
+            timer_del(active_console->cursor_timer);
         }
         active_console = s;
         if (ds->have_gfx) {
@@ -1059,8 +1026,8 @@ void console_select(unsigned int index)
             dpy_text_resize(s, s->width, s->height);
         }
         if (s->cursor_timer) {
-            qemu_mod_timer(s->cursor_timer,
-                   qemu_get_clock_ms(rt_clock) + CONSOLE_CURSOR_PERIOD / 2);
+            timer_mod(s->cursor_timer,
+                   qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + CONSOLE_CURSOR_PERIOD / 2);
         }
     }
 }
@@ -1105,7 +1072,7 @@ static void kbd_send_chars(void *opaque)
     /* characters are pending: we send them a bit later (XXX:
        horrible, should change char device API) */
     if (s->out_fifo.count > 0) {
-        qemu_mod_timer(s->kbd_timer, qemu_get_clock_ms(rt_clock) + 1);
+        timer_mod(s->kbd_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + 1);
     }
 }
 
@@ -1368,7 +1335,7 @@ void update_displaychangelistener(DisplayChangeListener *dcl,
 
     dcl->update_interval = interval;
     if (!ds->refreshing && ds->update_interval > interval) {
-        qemu_mod_timer(ds->gui_timer, ds->last_update + interval);
+        timer_mod(ds->gui_timer, ds->last_update + interval);
     }
 }
 
@@ -1693,8 +1660,8 @@ static void text_console_update_cursor(void *opaque)
 
     s->cursor_visible_phase = !s->cursor_visible_phase;
     graphic_hw_invalidate(s);
-    qemu_mod_timer(s->cursor_timer,
-                   qemu_get_clock_ms(rt_clock) + CONSOLE_CURSOR_PERIOD / 2);
+    timer_mod(s->cursor_timer,
+                   qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + CONSOLE_CURSOR_PERIOD / 2);
 }
 
 static const GraphicHwOps text_console_ops = {
@@ -1714,7 +1681,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
 
     s->out_fifo.buf = s->out_fifo_buf;
     s->out_fifo.buf_size = sizeof(s->out_fifo_buf);
-    s->kbd_timer = qemu_new_timer_ms(rt_clock, kbd_send_chars, s);
+    s->kbd_timer = timer_new_ms(QEMU_CLOCK_REALTIME, kbd_send_chars, s);
     s->ds = ds;
 
     s->y_displayed = 0;
@@ -1731,7 +1698,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
     }
 
     s->cursor_timer =
-        qemu_new_timer_ms(rt_clock, text_console_update_cursor, s);
+        timer_new_ms(QEMU_CLOCK_REALTIME, text_console_update_cursor, s);
 
     s->hw_ops = &text_console_ops;
     s->hw = s;

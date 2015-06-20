@@ -1,0 +1,20 @@
+import "oaidl.idl";
+import "ocidl.idl";
+
+[
+    uuid(103B8142-6CE5-48A7-BDE1-794D3192FCF1),
+    version(1.0),
+    helpstring("QGAVSSProvider Type Library")
+]
+library QGAVSSHWProviderLib
+{
+    importlib("stdole2.tlb");
+    [
+        uuid(6E6A3492-8D4D-440C-9619-5E5D0CC31CA8),
+        helpstring("QGAVSSProvider Class")
+    ]
+    coclass QGAVSSHWProvider
+    {
+        [default] interface IUnknown;
+    };
+};

@@ -147,7 +147,9 @@ cpu_x86_dump_seg_cache(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf,
             cpu_fprintf(f, " [%c%c", (sc->flags & DESC_C_MASK) ? 'C' : '-',
                         (sc->flags & DESC_R_MASK) ? 'R' : '-');
         } else {
-            cpu_fprintf(f, (sc->flags & DESC_B_MASK) ? "DS  " : "DS16");
+            cpu_fprintf(f,
+                        (sc->flags & DESC_B_MASK || env->hflags & HF_LMA_MASK)
+                        ? "DS  " : "DS16");
             cpu_fprintf(f, " [%c%c", (sc->flags & DESC_E_MASK) ? 'E' : '-',
                         (sc->flags & DESC_W_MASK) ? 'W' : '-');
         }
@@ -187,8 +189,6 @@ void x86_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     int eflags, i, nb;
     char cc_op_name[32];
     static const char *seg_name[6] = { "ES", "CS", "SS", "DS", "FS", "GS" };
-
-    cpu_synchronize_state(cs);
 
     eflags = cpu_compute_eflags(env);
 #ifdef TARGET_X86_64
@@ -894,7 +894,10 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     uint32_t page_offset;
     int page_size;
 
-    if (env->cr[4] & CR4_PAE_MASK) {
+    if (!(env->cr[0] & CR0_PG_MASK)) {
+        pte = addr & env->a20_mask;
+        page_size = 4096;
+    } else if (env->cr[4] & CR4_PAE_MASK) {
         target_ulong pdpe_addr;
         uint64_t pde, pdpe;
 
@@ -952,26 +955,21 @@ hwaddr x86_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     } else {
         uint32_t pde;
 
-        if (!(env->cr[0] & CR0_PG_MASK)) {
-            pte = addr;
-            page_size = 4096;
+        /* page directory entry */
+        pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & 0xffc)) & env->a20_mask;
+        pde = ldl_phys(pde_addr);
+        if (!(pde & PG_PRESENT_MASK))
+            return -1;
+        if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
+            pte = pde & ~0x003ff000; /* align to 4MB */
+            page_size = 4096 * 1024;
         } else {
             /* page directory entry */
-            pde_addr = ((env->cr[3] & ~0xfff) + ((addr >> 20) & 0xffc)) & env->a20_mask;
-            pde = ldl_phys(pde_addr);
-            if (!(pde & PG_PRESENT_MASK))
+            pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & env->a20_mask;
+            pte = ldl_phys(pte_addr);
+            if (!(pte & PG_PRESENT_MASK))
                 return -1;
-            if ((pde & PG_PSE_MASK) && (env->cr[4] & CR4_PSE_MASK)) {
-                pte = pde & ~0x003ff000; /* align to 4MB */
-                page_size = 4096 * 1024;
-            } else {
-                /* page directory entry */
-                pte_addr = ((pde & ~0xfff) + ((addr >> 10) & 0xffc)) & env->a20_mask;
-                pte = ldl_phys(pte_addr);
-                if (!(pte & PG_PRESENT_MASK))
-                    return -1;
-                page_size = 4096;
-            }
+            page_size = 4096;
         }
         pte = pte & env->a20_mask;
     }
@@ -1231,8 +1229,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
         params.mcg_status = MCG_STATUS_MCIP | MCG_STATUS_RIPV;
         params.addr = 0;
         params.misc = 0;
-        for (other_cs = first_cpu; other_cs != NULL;
-             other_cs = other_cs->next_cpu) {
+        CPU_FOREACH(other_cs) {
             if (other_cs == cs) {
                 continue;
             }

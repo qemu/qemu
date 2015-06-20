@@ -8,8 +8,12 @@ MAKEFLAGS += -rR
 %.d:
 %.h:
 %.c:
+%.cpp:
 %.m:
 %.mak:
+
+# Flags for C++ compilation
+QEMU_CXXFLAGS = -D__STDC_LIMIT_MACROS $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Wold-style-declaration -Wold-style-definition -Wredundant-decls, $(QEMU_CFLAGS))
 
 # Flags for dependency generation
 QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
@@ -50,6 +54,9 @@ endif
 %.o: %.asm
 	$(call quiet-command,$(AS) $(ASFLAGS) -o $@ $<,"  AS    $(TARGET_DIR)$@")
 
+%.o: %.cpp
+	$(call quiet-command,$(CXX) $(QEMU_INCLUDES) $(QEMU_CXXFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CXX   $(TARGET_DIR)$@")
+
 %.o: %.m
 	$(call quiet-command,$(OBJCC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
 
@@ -70,7 +77,7 @@ quiet-command = $(if $(V),$1,$(if $(2),@echo $2 && $1, @$1))
 cc-option = $(if $(shell $(CC) $1 $2 -S -o /dev/null -xc /dev/null \
               >/dev/null 2>&1 && echo OK), $2, $3)
 
-VPATH_SUFFIXES = %.c %.h %.S %.m %.mak %.texi %.sh %.rc
+VPATH_SUFFIXES = %.c %.h %.S %.cpp %.m %.mak %.texi %.sh %.rc
 set-vpath = $(if $1,$(foreach PATTERN,$(VPATH_SUFFIXES),$(eval vpath $(PATTERN) $1)))
 
 # find-in-path
@@ -81,6 +88,34 @@ set-vpath = $(if $1,$(foreach PATTERN,$(VPATH_SUFFIXES),$(eval vpath $(PATTERN) 
 find-in-path = $(if $(find-string /, $1), \
         $(wildcard $1), \
         $(wildcard $(patsubst %, %/$1, $(subst :, ,$(PATH)))))
+
+# Logical functions (for operating on y/n values like CONFIG_FOO vars)
+# Inputs to these must be either "y" (true) or "n" or "" (both false)
+# Output is always either "y" or "n".
+# Usage: $(call land,$(CONFIG_FOO),$(CONFIG_BAR))
+# Logical NOT
+lnot = $(if $(subst n,,$1),n,y)
+# Logical AND
+land = $(if $(findstring yy,$1$2),y,n)
+# Logical OR
+lor = $(if $(findstring y,$1$2),y,n)
+# Logical XOR (note that this is the inverse of leqv)
+lxor = $(if $(filter $(call lnot,$1),$(call lnot,$2)),n,y)
+# Logical equivalence (note that leqv "","n" is true)
+leqv = $(if $(filter $(call lnot,$1),$(call lnot,$2)),y,n)
+# Logical if: like make's $(if) but with an leqv-like test
+lif = $(if $(subst n,,$1),$2,$3)
+
+# String testing functions: inputs to these can be any string;
+# the output is always either "y" or "n". Leading and trailing whitespace
+# is ignored when comparing strings.
+# String equality
+eq = $(if $(subst $2,,$1)$(subst $1,,$2),n,y)
+# String inequality
+ne = $(if $(subst $2,,$1)$(subst $1,,$2),y,n)
+# Emptiness/non-emptiness tests:
+isempty = $(if $1,n,y)
+notempty = $(if $1,y,n)
 
 # Generate files with tracetool
 TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py

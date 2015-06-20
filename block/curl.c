@@ -86,7 +86,6 @@ typedef struct BDRVCURLState {
 
 static void curl_clean_state(CURLState *s);
 static void curl_multi_do(void *arg);
-static int curl_aio_flush(void *opaque);
 
 static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
                         void *s, void *sp)
@@ -94,17 +93,16 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     DPRINTF("CURL (AIO): Sock action %d on fd %d\n", action, fd);
     switch (action) {
         case CURL_POLL_IN:
-            qemu_aio_set_fd_handler(fd, curl_multi_do, NULL, curl_aio_flush, s);
+            qemu_aio_set_fd_handler(fd, curl_multi_do, NULL, s);
             break;
         case CURL_POLL_OUT:
-            qemu_aio_set_fd_handler(fd, NULL, curl_multi_do, curl_aio_flush, s);
+            qemu_aio_set_fd_handler(fd, NULL, curl_multi_do, s);
             break;
         case CURL_POLL_INOUT:
-            qemu_aio_set_fd_handler(fd, curl_multi_do, curl_multi_do,
-                                    curl_aio_flush, s);
+            qemu_aio_set_fd_handler(fd, curl_multi_do, curl_multi_do, s);
             break;
         case CURL_POLL_REMOVE:
-            qemu_aio_set_fd_handler(fd, NULL, NULL, NULL, NULL);
+            qemu_aio_set_fd_handler(fd, NULL, NULL, NULL);
             break;
     }
 
@@ -397,7 +395,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int curl_open(BlockDriverState *bs, QDict *options, int flags)
+static int curl_open(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp)
 {
     BDRVCURLState *s = bs->opaque;
     CURLState *state = NULL;
@@ -495,21 +494,6 @@ out_noclean:
     return -EINVAL;
 }
 
-static int curl_aio_flush(void *opaque)
-{
-    BDRVCURLState *s = opaque;
-    int i, j;
-
-    for (i=0; i < CURL_NUM_STATES; i++) {
-        for(j=0; j < CURL_NUM_ACB; j++) {
-            if (s->states[i].acb[j]) {
-                return 1;
-            }
-        }
-    }
-    return 0;
-}
-
 static void curl_aio_cancel(BlockDriverAIOCB *blockacb)
 {
     // Do we have to implement canceling? Seems to work without...
@@ -589,12 +573,6 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
     acb->nb_sectors = nb_sectors;
 
     acb->bh = qemu_bh_new(curl_readv_bh_cb, acb);
-
-    if (!acb->bh) {
-        DPRINTF("CURL: qemu_bh_new failed\n");
-        return NULL;
-    }
-
     qemu_bh_schedule(acb->bh);
     return &acb->common;
 }

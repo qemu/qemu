@@ -12,6 +12,7 @@
 #include "qemu-common.h"
 #include "hw/qdev.h"
 #include "hw/ptimer.h"
+#include "qemu/main-loop.h"
 
 /* Common timer implementation.  */
 

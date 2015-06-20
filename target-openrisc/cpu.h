@@ -373,6 +373,7 @@ void cpu_openrisc_pic_init(OpenRISCCPU *cpu);
 /* hw/openrisc_timer.c */
 void cpu_openrisc_clock_init(OpenRISCCPU *cpu);
 void cpu_openrisc_count_update(OpenRISCCPU *cpu);
+void cpu_openrisc_timer_update(OpenRISCCPU *cpu);
 void cpu_openrisc_count_start(OpenRISCCPU *cpu);
 void cpu_openrisc_count_stop(OpenRISCCPU *cpu);
 

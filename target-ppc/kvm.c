@@ -419,7 +419,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
 
-    idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_cpu, cpu);
+    idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, kvm_kick_cpu, cpu);
 
     /* Some targets support access to KVM's guest TLB. */
     switch (cenv->mmu_model) {
@@ -818,7 +818,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
         /* Sync SLB */
 #ifdef TARGET_PPC64
-        for (i = 0; i < 64; i++) {
+        for (i = 0; i < ARRAY_SIZE(env->slb); i++) {
             sregs.u.s.ppc64.slb[i].slbe = env->slb[i].esid;
             sregs.u.s.ppc64.slb[i].slbv = env->slb[i].vsid;
         }
@@ -1033,9 +1033,22 @@ int kvm_arch_get_registers(CPUState *cs)
 
         /* Sync SLB */
 #ifdef TARGET_PPC64
-        for (i = 0; i < 64; i++) {
-            ppc_store_slb(env, sregs.u.s.ppc64.slb[i].slbe,
-                               sregs.u.s.ppc64.slb[i].slbv);
+        /*
+         * The packed SLB array we get from KVM_GET_SREGS only contains
+         * information about valid entries. So we flush our internal
+         * copy to get rid of stale ones, then put all valid SLB entries
+         * back in.
+         */
+        memset(env->slb, 0, sizeof(env->slb));
+        for (i = 0; i < ARRAY_SIZE(env->slb); i++) {
+            target_ulong rb = sregs.u.s.ppc64.slb[i].slbe;
+            target_ulong rs = sregs.u.s.ppc64.slb[i].slbv;
+            /*
+             * Only restore valid entries
+             */
+            if (rb & SLB_ESID_V) {
+                ppc_store_slb(env, rb, rs);
+            }
         }
 #endif
 
@@ -1136,7 +1149,7 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
         }
 
         /* Always wake up soon in case the interrupt was level based */
-        qemu_mod_timer(idle_timer, qemu_get_clock_ns(vm_clock) +
+        timer_mod(idle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                        (get_ticks_per_sec() / 50));
     }
 
@@ -1789,6 +1802,20 @@ static int kvm_ppc_register_host_cpu_type(void)
     return 0;
 }
 
+int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function)
+{
+    struct kvm_rtas_token_args args = {
+        .token = token,
+    };
+
+    if (!kvm_check_extension(kvm_state, KVM_CAP_PPC_RTAS)) {
+        return -ENOENT;
+    }
+
+    strncpy(args.name, function, sizeof(args.name));
+
+    return kvm_vm_ioctl(kvm_state, KVM_PPC_RTAS_DEFINE_TOKEN, &args);
+}
 
 int kvmppc_get_htab_fd(bool write)
 {
@@ -1807,7 +1834,7 @@ int kvmppc_get_htab_fd(bool write)
 
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
 {
-    int64_t starttime = qemu_get_clock_ns(rt_clock);
+    int64_t starttime = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     uint8_t buf[bufsize];
     ssize_t rc;
 
@@ -1823,7 +1850,7 @@ int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
         }
     } while ((rc != 0)
              && ((max_ns < 0)
-                 || ((qemu_get_clock_ns(rt_clock) - starttime) < max_ns)));
+                 || ((qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - starttime) < max_ns)));
 
     return (rc == 0) ? 1 : 0;
 }

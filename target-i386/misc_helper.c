@@ -566,6 +566,15 @@ void helper_rdmsr(CPUX86State *env)
 }
 #endif
 
+static void do_pause(X86CPU *cpu)
+{
+    CPUX86State *env = &cpu->env;
+
+    /* Just let another CPU run.  */
+    env->exception_index = EXCP_INTERRUPT;
+    cpu_loop_exit(env);
+}
+
 static void do_hlt(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
@@ -610,12 +619,21 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
     cpu = x86_env_get_cpu(env);
     cs = CPU(cpu);
     /* XXX: not complete but not completely erroneous */
-    if (cs->cpu_index != 0 || cs->next_cpu != NULL) {
-        /* more than one CPU: do not sleep because another CPU may
-           wake this one */
+    if (cs->cpu_index != 0 || CPU_NEXT(cs) != NULL) {
+        do_pause(cpu);
     } else {
         do_hlt(cpu);
     }
+}
+
+void helper_pause(CPUX86State *env, int next_eip_addend)
+{
+    X86CPU *cpu = x86_env_get_cpu(env);
+
+    cpu_svm_check_intercept_param(env, SVM_EXIT_PAUSE, 0);
+    env->eip += next_eip_addend;
+
+    do_pause(cpu);
 }
 
 void helper_debug(CPUX86State *env)

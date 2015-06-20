@@ -110,8 +110,6 @@ void openrisc_translate_init(void)
                                       offsetof(CPUOpenRISCState, gpr[i]),
                                       regnames[i]);
     }
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 /* Writeback SR_F transaltion-space to execution-space.  */
@@ -198,7 +196,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
                                        likely(!dc->singlestep_enabled)) {
         tcg_gen_movi_tl(cpu_pc, dest);
         tcg_gen_goto_tb(n);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         tcg_gen_movi_tl(cpu_pc, dest);
         if (dc->singlestep_enabled) {
@@ -211,41 +209,48 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
 static void gen_jump(DisasContext *dc, uint32_t imm, uint32_t reg, uint32_t op0)
 {
     target_ulong tmp_pc;
-    int lab = gen_new_label();
-    TCGv sr_f = tcg_temp_new();
     /* N26, 26bits imm */
     tmp_pc = sign_extend((imm<<2), 26) + dc->pc;
-    tcg_gen_andi_tl(sr_f, cpu_sr, SR_F);
 
-    if (op0 == 0x00) {    /* l.j */
+    switch (op0) {
+    case 0x00:     /* l.j */
         tcg_gen_movi_tl(jmp_pc, tmp_pc);
-    } else if (op0 == 0x01) {    /* l.jal */
+        break;
+    case 0x01:     /* l.jal */
         tcg_gen_movi_tl(cpu_R[9], (dc->pc + 8));
         tcg_gen_movi_tl(jmp_pc, tmp_pc);
-    } else if (op0 == 0x03) {    /* l.bnf */
-        tcg_gen_movi_tl(jmp_pc, dc->pc+8);
-        tcg_gen_brcondi_i32(TCG_COND_EQ, sr_f, SR_F, lab);
-        tcg_gen_movi_tl(jmp_pc, tmp_pc);
-        gen_set_label(lab);
-    } else if (op0 == 0x04) {    /* l.bf */
-        tcg_gen_movi_tl(jmp_pc, dc->pc+8);
-        tcg_gen_brcondi_i32(TCG_COND_NE, sr_f, SR_F, lab);
-        tcg_gen_movi_tl(jmp_pc, tmp_pc);
-        gen_set_label(lab);
-    } else if (op0 == 0x11) {    /* l.jr */
+        break;
+    case 0x03:     /* l.bnf */
+    case 0x04:     /* l.bf  */
+        {
+            int lab = gen_new_label();
+            TCGv sr_f = tcg_temp_new();
+            tcg_gen_movi_tl(jmp_pc, dc->pc+8);
+            tcg_gen_andi_tl(sr_f, cpu_sr, SR_F);
+            tcg_gen_brcondi_i32(op0 == 0x03 ? TCG_COND_EQ : TCG_COND_NE,
+                                sr_f, SR_F, lab);
+            tcg_gen_movi_tl(jmp_pc, tmp_pc);
+            gen_set_label(lab);
+            tcg_temp_free(sr_f);
+        }
+        break;
+    case 0x11:     /* l.jr */
         tcg_gen_mov_tl(jmp_pc, cpu_R[reg]);
-    } else if (op0 == 0x12) {    /* l.jalr */
+        break;
+    case 0x12:     /* l.jalr */
         tcg_gen_movi_tl(cpu_R[9], (dc->pc + 8));
         tcg_gen_mov_tl(jmp_pc, cpu_R[reg]);
-    } else {
+        break;
+    default:
         gen_illegal_exception(dc);
+        break;
     }
 
-    tcg_temp_free(sr_f);
     dc->delayed_branch = 2;
     dc->tb_flags |= D_FLAG;
     gen_sync_flags(dc);
 }
+
 
 static void dec_calc(DisasContext *dc, uint32_t insn)
 {
@@ -906,29 +911,33 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
     case 0x27:    /* l.addi */
         LOG_DIS("l.addi r%d, r%d, %d\n", rd, ra, I16);
         {
-            int lab = gen_new_label();
-            TCGv_i64 ta = tcg_temp_new_i64();
-            TCGv_i64 td = tcg_temp_local_new_i64();
-            TCGv_i32 res = tcg_temp_local_new_i32();
-            TCGv_i32 sr_ove = tcg_temp_local_new_i32();
-            tcg_gen_extu_i32_i64(ta, cpu_R[ra]);
-            tcg_gen_addi_i64(td, ta, sign_extend(I16, 16));
-            tcg_gen_trunc_i64_i32(res, td);
-            tcg_gen_shri_i64(td, td, 32);
-            tcg_gen_andi_i64(td, td, 0x3);
-            /* Jump to lab when no overflow.  */
-            tcg_gen_brcondi_i64(TCG_COND_EQ, td, 0x0, lab);
-            tcg_gen_brcondi_i64(TCG_COND_EQ, td, 0x3, lab);
-            tcg_gen_ori_i32(cpu_sr, cpu_sr, (SR_OV | SR_CY));
-            tcg_gen_andi_i32(sr_ove, cpu_sr, SR_OVE);
-            tcg_gen_brcondi_i32(TCG_COND_NE, sr_ove, SR_OVE, lab);
-            gen_exception(dc, EXCP_RANGE);
-            gen_set_label(lab);
-            tcg_gen_mov_i32(cpu_R[rd], res);
-            tcg_temp_free_i64(ta);
-            tcg_temp_free_i64(td);
-            tcg_temp_free_i32(res);
-            tcg_temp_free_i32(sr_ove);
+            if (I16 == 0) {
+                tcg_gen_mov_tl(cpu_R[rd], cpu_R[ra]);
+            } else {
+                int lab = gen_new_label();
+                TCGv_i64 ta = tcg_temp_new_i64();
+                TCGv_i64 td = tcg_temp_local_new_i64();
+                TCGv_i32 res = tcg_temp_local_new_i32();
+                TCGv_i32 sr_ove = tcg_temp_local_new_i32();
+                tcg_gen_extu_i32_i64(ta, cpu_R[ra]);
+                tcg_gen_addi_i64(td, ta, sign_extend(I16, 16));
+                tcg_gen_trunc_i64_i32(res, td);
+                tcg_gen_shri_i64(td, td, 32);
+                tcg_gen_andi_i64(td, td, 0x3);
+                /* Jump to lab when no overflow.  */
+                tcg_gen_brcondi_i64(TCG_COND_EQ, td, 0x0, lab);
+                tcg_gen_brcondi_i64(TCG_COND_EQ, td, 0x3, lab);
+                tcg_gen_ori_i32(cpu_sr, cpu_sr, (SR_OV | SR_CY));
+                tcg_gen_andi_i32(sr_ove, cpu_sr, SR_OVE);
+                tcg_gen_brcondi_i32(TCG_COND_NE, sr_ove, SR_OVE, lab);
+                gen_exception(dc, EXCP_RANGE);
+                gen_set_label(lab);
+                tcg_gen_mov_i32(cpu_R[rd], res);
+                tcg_temp_free_i64(ta);
+                tcg_temp_free_i64(td);
+                tcg_temp_free_i32(res);
+                tcg_temp_free_i32(sr_ove);
+            }
         }
         break;
 

@@ -1145,7 +1145,9 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             switch (ret) {
             case USB_RET_IOERROR:
             case USB_RET_NODEV:
+                DPRINTF("usb-ohci: got DEV ERROR\n");
                 OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_DEVICENOTRESPONDING);
+                break;
             case USB_RET_NAK:
                 DPRINTF("usb-ohci: got NAK\n");
                 return 1;
@@ -1255,8 +1257,8 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
 /* Generate a SOF event, and set a timer for EOF */
 static void ohci_sof(OHCIState *ohci)
 {
-    ohci->sof_time = qemu_get_clock_ns(vm_clock);
-    qemu_mod_timer(ohci->eof_timer, ohci->sof_time + usb_frame_time);
+    ohci->sof_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    timer_mod(ohci->eof_timer, ohci->sof_time + usb_frame_time);
     ohci_set_interrupt(ohci, OHCI_INTR_SF);
 }
 
@@ -1353,12 +1355,12 @@ static void ohci_frame_boundary(void *opaque)
  */
 static int ohci_bus_start(OHCIState *ohci)
 {
-    ohci->eof_timer = qemu_new_timer_ns(vm_clock,
+    ohci->eof_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                     ohci_frame_boundary,
                     ohci);
 
     if (ohci->eof_timer == NULL) {
-        fprintf(stderr, "usb-ohci: %s: qemu_new_timer_ns failed\n", ohci->name);
+        fprintf(stderr, "usb-ohci: %s: timer_new_ns failed\n", ohci->name);
         ohci_die(ohci);
         return 0;
     }
@@ -1374,7 +1376,7 @@ static int ohci_bus_start(OHCIState *ohci)
 static void ohci_bus_stop(OHCIState *ohci)
 {
     if (ohci->eof_timer)
-        qemu_del_timer(ohci->eof_timer);
+        timer_del(ohci->eof_timer);
     ohci->eof_timer = NULL;
 }
 
@@ -1478,7 +1480,7 @@ static uint32_t ohci_get_frame_remaining(OHCIState *ohci)
     /* Being in USB operational state guarnatees sof_time was
      * set already.
      */
-    tks = qemu_get_clock_ns(vm_clock) - ohci->sof_time;
+    tks = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - ohci->sof_time;
 
     /* avoid muldiv if possible */
     if (tks >= usb_frame_time)
@@ -1885,7 +1887,7 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
             return -1;
         }
     } else {
-        usb_bus_new(&ohci->bus, &ohci_bus_ops, dev);
+        usb_bus_new(&ohci->bus, sizeof(ohci->bus), &ohci_bus_ops, dev);
         for (i = 0; i < num_ports; i++) {
             usb_register_port(&ohci->bus, &ohci->rhport[i].port,
                               ohci, i, &ohci_port_ops,
@@ -1948,7 +1950,7 @@ static int usb_ohci_initfn_pci(PCIDevice *dev)
                       pci_get_address_space(dev)) != 0) {
         return -1;
     }
-    ohci->state.irq = dev->irq[0];
+    ohci->state.irq = pci_allocate_irq(dev);
 
     pci_register_bar(dev, 0, 0, &ohci->state.mem);
     return 0;

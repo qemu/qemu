@@ -1,0 +1,387 @@
+QA output created by 061
+
+=== Testing version downgrade with zero expansion ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x0
+compatible_features       0x1
+autoclear_features        0x0
+refcount_order            4
+header_length             104
+
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x0
+compatible_features       0x0
+autoclear_features        0x0
+refcount_order            4
+header_length             72
+
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+=== Testing dirty version downgrade ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x1
+compatible_features       0x1
+autoclear_features        0x0
+refcount_order            4
+header_length             104
+
+Repairing cluster 5 refcount=0 reference=1
+Repairing cluster 6 refcount=0 reference=1
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x0
+compatible_features       0x0
+autoclear_features        0x0
+refcount_order            4
+header_length             72
+
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+=== Testing version downgrade with unknown compat/autoclear flags ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x0
+compatible_features       0x40000000000
+autoclear_features        0x40000000000
+refcount_order            4
+header_length             104
+
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x0
+compatible_features       0x0
+autoclear_features        0x0
+refcount_order            4
+header_length             72
+
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
+No errors were found on the image.
+
+=== Testing version upgrade and resize ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 65536/65536 bytes at offset 44040192
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x0
+compatible_features       0x0
+autoclear_features        0x0
+refcount_order            4
+header_length             72
+
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      134217728
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x0
+compatible_features       0x1
+autoclear_features        0x0
+refcount_order            4
+header_length             104
+
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
+read 65536/65536 bytes at offset 44040192
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+=== Testing dirty lazy_refcounts=off ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x1
+compatible_features       0x1
+autoclear_features        0x0
+refcount_order            4
+header_length             104
+
+Repairing cluster 5 refcount=0 reference=1
+Repairing cluster 6 refcount=0 reference=1
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+incompatible_features     0x0
+compatible_features       0x0
+autoclear_features        0x0
+refcount_order            4
+header_length             104
+
+Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+=== Testing backing file ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+
+=== Testing invalid configurations ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
+qemu-img: Error while amending options: Invalid argument
+Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
+qemu-img: Error while amending options: Invalid argument
+Unknown compatibility level 0.42.
+qemu-img: Error while amending options: Invalid argument
+Unknown option 'foo'
+qemu-img: Invalid options for file format 'qcow2'
+Changing the cluster size is not supported.
+qemu-img: Error while amending options: Operation not supported
+Changing the encryption flag is not supported.
+qemu-img: Error while amending options: Operation not supported
+Cannot change preallocation mode.
+qemu-img: Error while amending options: Operation not supported
+
+=== Testing correct handling of unset value ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+Should work:
+Should not work:
+Changing the cluster size is not supported.
+qemu-img: Error while amending options: Operation not supported
+
+=== Testing zero expansion on inactive clusters ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing zero expansion on shared L2 table ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing zero expansion on backed image ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base' 
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing zero expansion on backed inactive clusters ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base' 
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 65536/65536 bytes at offset 65536
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing zero expansion on backed image with shared L2 table ===
+
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='TEST_DIR/t.IMGFMT.base' 
+wrote 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 131072/131072 bytes at offset 0
+128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Testing preallocated zero expansion on full image ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
+wrote 67108864/67108864 bytes at offset 0
+64 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 67108864/67108864 bytes at offset 0
+64 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+read 67108864/67108864 bytes at offset 0
+64 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done

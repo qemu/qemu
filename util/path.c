@@ -39,7 +39,7 @@ static int strneq(const char *s1, unsigned int n, const char *s2)
 }
 
 static struct pathelem *add_entry(struct pathelem *root, const char *name,
-                                  unsigned char type);
+                                  unsigned type);
 
 static struct pathelem *new_entry(const char *root,
                                   struct pathelem *parent,
@@ -82,7 +82,7 @@ static struct pathelem *add_dir_maybe(struct pathelem *path)
 }
 
 static struct pathelem *add_entry(struct pathelem *root, const char *name,
-                                  unsigned char type)
+                                  unsigned type)
 {
     struct pathelem **e;
 

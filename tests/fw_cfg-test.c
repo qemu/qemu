@@ -126,8 +126,7 @@ int main(int argc, char **argv)
     g_test_add_func("/fw_cfg/numa", test_fw_cfg_numa);
     g_test_add_func("/fw_cfg/boot_menu", test_fw_cfg_boot_menu);
 
-    cmdline = g_strdup_printf("-display none "
-                              "-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8 ");
+    cmdline = g_strdup_printf("-uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8 ");
     s = qtest_start(cmdline);
     g_free(cmdline);
 

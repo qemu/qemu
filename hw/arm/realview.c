@@ -56,7 +56,6 @@ static void realview_init(QEMUMachineInitArgs *args,
     MemoryRegion *ram_hack = g_new(MemoryRegion, 1);
     DeviceState *dev, *sysctl, *gpio2, *pl041;
     SysBusDevice *busdev;
-    qemu_irq *irqp;
     qemu_irq pic[64];
     qemu_irq mmc_irq[2];
     PCIBus *pci_bus = NULL;
@@ -92,8 +91,7 @@ static void realview_init(QEMUMachineInitArgs *args,
             fprintf(stderr, "Unable to find CPU definition\n");
             exit(1);
         }
-        irqp = arm_pic_init_cpu(cpu);
-        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
+        cpu_irq[n] = qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ);
     }
     env = &cpu->env;
     if (arm_feature(env, ARM_FEATURE_V7)) {
@@ -371,7 +369,6 @@ static QEMUMachine realview_eb_machine = {
     .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
     .init = realview_eb_init,
     .block_default_type = IF_SCSI,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine realview_eb_mpcore_machine = {
@@ -380,14 +377,12 @@ static QEMUMachine realview_eb_mpcore_machine = {
     .init = realview_eb_mpcore_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine realview_pb_a8_machine = {
     .name = "realview-pb-a8",
     .desc = "ARM RealView Platform Baseboard for Cortex-A8",
     .init = realview_pb_a8_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine realview_pbx_a9_machine = {
@@ -396,7 +391,6 @@ static QEMUMachine realview_pbx_a9_machine = {
     .init = realview_pbx_a9_init,
     .block_default_type = IF_SCSI,
     .max_cpus = 4,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void realview_machine_init(void)

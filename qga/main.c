@@ -34,6 +34,7 @@
 #include "qemu/bswap.h"
 #ifdef _WIN32
 #include "qga/service-win32.h"
+#include "qga/vss-win32.h"
 #include <windows.h>
 #endif
 #ifdef __linux__
@@ -346,48 +347,35 @@ static gint ga_strcmp(gconstpointer str1, gconstpointer str2)
 }
 
 /* disable commands that aren't safe for fsfreeze */
-static void ga_disable_non_whitelisted(void)
+static void ga_disable_non_whitelisted(QmpCommand *cmd, void *opaque)
 {
-    char **list_head, **list;
-    bool whitelisted;
-    int i;
+    bool whitelisted = false;
+    int i = 0;
+    const char *name = qmp_command_name(cmd);
 
-    list_head = list = qmp_get_command_list();
-    while (*list != NULL) {
-        whitelisted = false;
-        i = 0;
-        while (ga_freeze_whitelist[i] != NULL) {
-            if (strcmp(*list, ga_freeze_whitelist[i]) == 0) {
-                whitelisted = true;
-            }
-            i++;
+    while (ga_freeze_whitelist[i] != NULL) {
+        if (strcmp(name, ga_freeze_whitelist[i]) == 0) {
+            whitelisted = true;
         }
-        if (!whitelisted) {
-            g_debug("disabling command: %s", *list);
-            qmp_disable_command(*list);
-        }
-        g_free(*list);
-        list++;
+        i++;
     }
-    g_free(list_head);
+    if (!whitelisted) {
+        g_debug("disabling command: %s", name);
+        qmp_disable_command(name);
+    }
 }
 
 /* [re-]enable all commands, except those explicitly blacklisted by user */
-static void ga_enable_non_blacklisted(GList *blacklist)
+static void ga_enable_non_blacklisted(QmpCommand *cmd, void *opaque)
 {
-    char **list_head, **list;
+    GList *blacklist = opaque;
+    const char *name = qmp_command_name(cmd);
 
-    list_head = list = qmp_get_command_list();
-    while (*list != NULL) {
-        if (g_list_find_custom(blacklist, *list, ga_strcmp) == NULL &&
-            !qmp_command_is_enabled(*list)) {
-            g_debug("enabling command: %s", *list);
-            qmp_enable_command(*list);
-        }
-        g_free(*list);
-        list++;
+    if (g_list_find_custom(blacklist, name, ga_strcmp) == NULL &&
+        !qmp_command_is_enabled(cmd)) {
+        g_debug("enabling command: %s", name);
+        qmp_enable_command(name);
     }
-    g_free(list_head);
 }
 
 static bool ga_create_file(const char *path)
@@ -423,7 +411,7 @@ void ga_set_frozen(GAState *s)
         return;
     }
     /* disable all non-whitelisted (for frozen state) commands */
-    ga_disable_non_whitelisted();
+    qmp_for_each_command(ga_disable_non_whitelisted, NULL);
     g_warning("disabling logging due to filesystem freeze");
     ga_disable_logging(s);
     s->frozen = true;
@@ -459,7 +447,7 @@ void ga_unset_frozen(GAState *s)
     }
 
     /* enable all disabled, non-blacklisted commands */
-    ga_enable_non_blacklisted(s->blacklist);
+    qmp_for_each_command(ga_enable_non_blacklisted, s->blacklist);
     s->frozen = false;
     if (!ga_delete_file(s->state_filepath_isfrozen)) {
         g_warning("unable to delete %s, fsfreeze may not function properly",
@@ -919,6 +907,11 @@ int64_t ga_get_fd_handle(GAState *s, Error **errp)
     return handle;
 }
 
+static void ga_print_cmd(QmpCommand *cmd, void *opaque)
+{
+    printf("%s\n", qmp_command_name(cmd));
+}
+
 int main(int argc, char **argv)
 {
     const char *sopt = "hVvdm:p:l:f:F::b:s:t:";
@@ -995,15 +988,8 @@ int main(int argc, char **argv)
             daemonize = 1;
             break;
         case 'b': {
-            char **list_head, **list;
             if (is_help_option(optarg)) {
-                list_head = list = qmp_get_command_list();
-                while (*list != NULL) {
-                    printf("%s\n", *list);
-                    g_free(*list);
-                    list++;
-                }
-                g_free(list_head);
+                qmp_for_each_command(ga_print_cmd, NULL);
                 return 0;
             }
             for (j = 0, i = 0, len = strlen(optarg); i < len; i++) {
@@ -1031,8 +1017,15 @@ int main(int argc, char **argv)
                 fixed_state_dir = (state_dir == dfl_pathnames.state_dir) ?
                                   NULL :
                                   state_dir;
-                return ga_install_service(path, log_filepath, fixed_state_dir);
+                if (ga_install_vss_provider()) {
+                    return EXIT_FAILURE;
+                }
+                if (ga_install_service(path, log_filepath, fixed_state_dir)) {
+                    return EXIT_FAILURE;
+                }
+                return 0;
             } else if (strcmp(service, "uninstall") == 0) {
+                ga_uninstall_vss_provider();
                 return ga_uninstall_service();
             } else {
                 printf("Unknown service command.\n");
@@ -1118,7 +1111,7 @@ int main(int argc, char **argv)
             s->deferred_options.log_filepath = log_filepath;
         }
         ga_disable_logging(s);
-        ga_disable_non_whitelisted();
+        qmp_for_each_command(ga_disable_non_whitelisted, NULL);
     } else {
         if (daemonize) {
             become_daemon(pid_filepath);

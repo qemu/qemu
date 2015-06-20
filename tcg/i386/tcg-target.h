@@ -24,12 +24,14 @@
 #ifndef TCG_TARGET_I386 
 #define TCG_TARGET_I386 1
 
-//#define TCG_TARGET_WORDS_BIGENDIAN
+#undef TCG_TARGET_WORDS_BIGENDIAN
 
-#if TCG_TARGET_REG_BITS == 64
-# define TCG_TARGET_NB_REGS 16
+#ifdef __x86_64__
+# define TCG_TARGET_REG_BITS  64
+# define TCG_TARGET_NB_REGS   16
 #else
-# define TCG_TARGET_NB_REGS 8
+# define TCG_TARGET_REG_BITS  32
+# define TCG_TARGET_NB_REGS    8
 #endif
 
 typedef enum {
@@ -96,6 +98,8 @@ typedef enum {
 #define TCG_TARGET_HAS_sub2_i32         1
 #define TCG_TARGET_HAS_mulu2_i32        1
 #define TCG_TARGET_HAS_muls2_i32        1
+#define TCG_TARGET_HAS_muluh_i32        0
+#define TCG_TARGET_HAS_mulsh_i32        0
 
 #if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_div2_i64         1
@@ -122,7 +126,11 @@ typedef enum {
 #define TCG_TARGET_HAS_sub2_i64         1
 #define TCG_TARGET_HAS_mulu2_i64        1
 #define TCG_TARGET_HAS_muls2_i64        1
+#define TCG_TARGET_HAS_muluh_i64        0
+#define TCG_TARGET_HAS_mulsh_i64        0
 #endif
+
+#define TCG_TARGET_HAS_new_ldst         1
 
 #define TCG_TARGET_deposit_i32_valid(ofs, len) \
     (((ofs) == 0 && (len) == 8) || ((ofs) == 8 && (len) == 8) || \
@@ -135,8 +143,7 @@ typedef enum {
 # define TCG_AREG0 TCG_REG_EBP
 #endif
 
-static inline void flush_icache_range(tcg_target_ulong start,
-                                      tcg_target_ulong stop)
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
 }
 

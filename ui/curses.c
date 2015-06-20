@@ -106,9 +106,9 @@ static void curses_resize(DisplayChangeListener *dcl,
     curses_calc_pad();
 }
 
-#ifndef _WIN32
-#if defined(SIGWINCH) && defined(KEY_RESIZE)
-static void curses_winch_handler(int signum)
+#if !defined(_WIN32) && defined(SIGWINCH) && defined(KEY_RESIZE)
+static volatile sig_atomic_t got_sigwinch;
+static void curses_winch_check(void)
 {
     struct winsize {
         unsigned short ws_row;
@@ -117,18 +117,34 @@ static void curses_winch_handler(int signum)
         unsigned short ws_ypixel;   /* unused */
     } ws;
 
-    /* terminal size changed */
-    if (ioctl(1, TIOCGWINSZ, &ws) == -1)
+    if (!got_sigwinch) {
         return;
+    }
+    got_sigwinch = false;
+
+    if (ioctl(1, TIOCGWINSZ, &ws) == -1) {
+        return;
+    }
 
     resize_term(ws.ws_row, ws.ws_col);
-    curses_calc_pad();
     invalidate = 1;
-
-    /* some systems require this */
-    signal(SIGWINCH, curses_winch_handler);
 }
-#endif
+
+static void curses_winch_handler(int signum)
+{
+    got_sigwinch = true;
+}
+
+static void curses_winch_init(void)
+{
+    struct sigaction old, winch = {
+        .sa_handler  = curses_winch_handler,
+    };
+    sigaction(SIGWINCH, &winch, &old);
+}
+#else
+static void curses_winch_check(void) {}
+static void curses_winch_init(void) {}
 #endif
 
 static void curses_cursor_position(DisplayChangeListener *dcl,
@@ -162,6 +178,8 @@ static kbd_layout_t *kbd_layout = NULL;
 static void curses_refresh(DisplayChangeListener *dcl)
 {
     int chr, nextchr, keysym, keycode, keycode_alt;
+
+    curses_winch_check();
 
     if (invalidate) {
         clear();
@@ -349,13 +367,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
     curses_keyboard_setup();
     atexit(curses_atexit);
 
-#ifndef _WIN32
-#if defined(SIGWINCH) && defined(KEY_RESIZE)
-    /* some curses implementations provide a handler, but we
-     * want to be sure this is handled regardless of the library */
-    signal(SIGWINCH, curses_winch_handler);
-#endif
-#endif
+    curses_winch_init();
 
     dcl = (DisplayChangeListener *) g_malloc0(sizeof(DisplayChangeListener));
     dcl->ops = &dcl_ops;

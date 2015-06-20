@@ -103,7 +103,7 @@ DEF_HELPER_3(fmuls, f32, env, f32, f32)
 DEF_HELPER_3(fdivs, f32, env, f32, f32)
 
 DEF_HELPER_3(fsmuld, f64, env, f32, f32)
-DEF_HELPER_3(fdmulq, void, env, f64, f64);
+DEF_HELPER_3(fdmulq, void, env, f64, f64)
 
 DEF_HELPER_FLAGS_1(fnegs, TCG_CALL_NO_RWG_SE, f32, f32)
 DEF_HELPER_2(fitod, f64, env, s32)
@@ -156,22 +156,22 @@ DEF_HELPER_FLAGS_3(bshuffle, TCG_CALL_NO_RWG_SE, i64, i64, i64, i64)
     DEF_HELPER_FLAGS_2(f ## name ## 32s, TCG_CALL_NO_RWG_SE, \
                        i32, i32, i32)
 
-VIS_HELPER(padd);
-VIS_HELPER(psub);
+VIS_HELPER(padd)
+VIS_HELPER(psub)
 #define VIS_CMPHELPER(name)                                              \
     DEF_HELPER_FLAGS_2(f##name##16, TCG_CALL_NO_RWG_SE,      \
                        i64, i64, i64)                                    \
     DEF_HELPER_FLAGS_2(f##name##32, TCG_CALL_NO_RWG_SE,      \
                        i64, i64, i64)
-VIS_CMPHELPER(cmpgt);
-VIS_CMPHELPER(cmpeq);
-VIS_CMPHELPER(cmple);
-VIS_CMPHELPER(cmpne);
+VIS_CMPHELPER(cmpgt)
+VIS_CMPHELPER(cmpeq)
+VIS_CMPHELPER(cmple)
+VIS_CMPHELPER(cmpne)
 #endif
 #undef F_HELPER_0_1
 #undef VIS_HELPER
 #undef VIS_CMPHELPER
-DEF_HELPER_1(compute_psr, void, env);
-DEF_HELPER_1(compute_C_icc, i32, env);
+DEF_HELPER_1(compute_psr, void, env)
+DEF_HELPER_1(compute_C_icc, i32, env)
 
 #include "exec/def-helper.h"

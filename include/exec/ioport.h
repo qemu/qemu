@@ -45,6 +45,10 @@ typedef struct MemoryRegionPortio {
 
 #define PORTIO_END_OF_LIST() { }
 
+#ifndef CONFIG_USER_ONLY
+extern const MemoryRegionOps unassigned_io_ops;
+#endif
+
 void cpu_outb(pio_addr_t addr, uint8_t val);
 void cpu_outw(pio_addr_t addr, uint16_t val);
 void cpu_outl(pio_addr_t addr, uint32_t val);
@@ -60,11 +64,13 @@ typedef struct PortioList {
     struct MemoryRegion **regions;
     void *opaque;
     const char *name;
+    bool flush_coalesced_mmio;
 } PortioList;
 
 void portio_list_init(PortioList *piolist, Object *owner,
                       const struct MemoryRegionPortio *callbacks,
                       void *opaque, const char *name);
+void portio_list_set_flush_coalesced(PortioList *piolist);
 void portio_list_destroy(PortioList *piolist);
 void portio_list_add(PortioList *piolist,
                      struct MemoryRegion *address_space,

@@ -119,6 +119,7 @@ typedef struct VFIOINTx {
 typedef struct VFIOMSIVector {
     EventNotifier interrupt; /* eventfd triggered on interrupt */
     struct VFIODevice *vdev; /* back pointer to device */
+    MSIMessage msg; /* cache the MSI message so we know when it changes */
     int virq; /* KVM irqchip route for QEMU bypass */
     bool use;
 } VFIOMSIVector;
@@ -165,6 +166,7 @@ typedef struct VFIODevice {
     off_t config_offset; /* Offset of config space region within device fd */
     unsigned int rom_size;
     off_t rom_offset; /* Offset of ROM region within device fd */
+    void *rom;
     int msi_cap_size;
     VFIOMSIVector *msi_vectors;
     VFIOMSIXInfo *msix;
@@ -184,6 +186,9 @@ typedef struct VFIODevice {
     bool reset_works;
     bool has_vga;
     bool pci_aer;
+    bool has_flr;
+    bool has_pm_reset;
+    bool needs_reset;
 } VFIODevice;
 
 typedef struct VFIOGroup {
@@ -276,8 +281,8 @@ static void vfio_intx_mmap_enable(void *opaque)
     VFIODevice *vdev = opaque;
 
     if (vdev->intx.pending) {
-        qemu_mod_timer(vdev->intx.mmap_timer,
-                       qemu_get_clock_ms(vm_clock) + vdev->intx.mmap_timeout);
+        timer_mod(vdev->intx.mmap_timer,
+                       qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vdev->intx.mmap_timeout);
         return;
     }
 
@@ -297,11 +302,11 @@ static void vfio_intx_interrupt(void *opaque)
             'A' + vdev->intx.pin);
 
     vdev->intx.pending = true;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 1);
+    pci_irq_assert(&vdev->pdev);
     vfio_mmap_set_enabled(vdev, false);
     if (vdev->intx.mmap_timeout) {
-        qemu_mod_timer(vdev->intx.mmap_timer,
-                       qemu_get_clock_ms(vm_clock) + vdev->intx.mmap_timeout);
+        timer_mod(vdev->intx.mmap_timer,
+                       qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vdev->intx.mmap_timeout);
     }
 }
 
@@ -315,7 +320,7 @@ static void vfio_eoi(VFIODevice *vdev)
             vdev->host.bus, vdev->host.slot, vdev->host.function);
 
     vdev->intx.pending = false;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+    pci_irq_deassert(&vdev->pdev);
     vfio_unmask_intx(vdev);
 }
 
@@ -341,7 +346,7 @@ static void vfio_enable_intx_kvm(VFIODevice *vdev)
     qemu_set_fd_handler(irqfd.fd, NULL, NULL, vdev);
     vfio_mask_intx(vdev);
     vdev->intx.pending = false;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+    pci_irq_deassert(&vdev->pdev);
 
     /* Get an eventfd for resample/unmask */
     if (event_notifier_init(&vdev->intx.unmask, 0)) {
@@ -417,7 +422,7 @@ static void vfio_disable_intx_kvm(VFIODevice *vdev)
      */
     vfio_mask_intx(vdev);
     vdev->intx.pending = false;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+    pci_irq_deassert(&vdev->pdev);
 
     /* Tell KVM to stop listening for an INTx irqfd */
     if (kvm_vm_ioctl(kvm_state, KVM_IRQFD, &irqfd)) {
@@ -488,6 +493,7 @@ static int vfio_enable_intx(VFIODevice *vdev)
     vfio_disable_interrupts(vdev);
 
     vdev->intx.pin = pin - 1; /* Pin A (1) -> irq[0] */
+    pci_config_set_interrupt_pin(vdev->pdev.config, pin);
 
 #ifdef CONFIG_KVM
     /*
@@ -543,11 +549,11 @@ static void vfio_disable_intx(VFIODevice *vdev)
 {
     int fd;
 
-    qemu_del_timer(vdev->intx.mmap_timer);
+    timer_del(vdev->intx.mmap_timer);
     vfio_disable_intx_kvm(vdev);
     vfio_disable_irqindex(vdev, VFIO_PCI_INTX_IRQ_INDEX);
     vdev->intx.pending = false;
-    qemu_set_irq(vdev->pdev.irq[vdev->intx.pin], 0);
+    pci_irq_deassert(&vdev->pdev);
     vfio_mmap_set_enabled(vdev, true);
 
     fd = event_notifier_get_fd(&vdev->intx.interrupt);
@@ -646,7 +652,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     vector->virq = msg ? kvm_irqchip_add_msi_route(kvm_state, *msg) : -1;
     if (vector->virq < 0 ||
         kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
-                                       vector->virq) < 0) {
+                                       NULL, vector->virq) < 0) {
         if (vector->virq >= 0) {
             kvm_irqchip_release_virq(kvm_state, vector->virq);
             vector->virq = -1;
@@ -795,7 +801,6 @@ retry:
     vdev->msi_vectors = g_malloc0(vdev->nr_vectors * sizeof(VFIOMSIVector));
 
     for (i = 0; i < vdev->nr_vectors; i++) {
-        MSIMessage msg;
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
 
         vector->vdev = vdev;
@@ -805,16 +810,16 @@ retry:
             error_report("vfio: Error: event_notifier_init failed");
         }
 
-        msg = msi_get_message(&vdev->pdev, i);
+        vector->msg = msi_get_message(&vdev->pdev, i);
 
         /*
          * Attempt to enable route through KVM irqchip,
          * default to userspace handling if unavailable.
          */
-        vector->virq = kvm_irqchip_add_msi_route(kvm_state, msg);
+        vector->virq = kvm_irqchip_add_msi_route(kvm_state, vector->msg);
         if (vector->virq < 0 ||
             kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->interrupt,
-                                           vector->virq) < 0) {
+                                           NULL, vector->virq) < 0) {
             qemu_set_fd_handler(event_notifier_get_fd(&vector->interrupt),
                                 vfio_msi_interrupt, NULL, vector);
         }
@@ -915,6 +920,33 @@ static void vfio_disable_msi(VFIODevice *vdev)
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
             vdev->host.bus, vdev->host.slot, vdev->host.function);
+}
+
+static void vfio_update_msi(VFIODevice *vdev)
+{
+    int i;
+
+    for (i = 0; i < vdev->nr_vectors; i++) {
+        VFIOMSIVector *vector = &vdev->msi_vectors[i];
+        MSIMessage msg;
+
+        if (!vector->use || vector->virq < 0) {
+            continue;
+        }
+
+        msg = msi_get_message(&vdev->pdev, i);
+
+        if (msg.address != vector->msg.address ||
+            msg.data != vector->msg.data) {
+
+            DPRINTF("%s(%04x:%02x:%02x.%x) MSI vector %d changed\n",
+                    __func__, vdev->host.domain, vdev->host.bus,
+                    vdev->host.slot, vdev->host.function, i);
+
+            kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg);
+            vector->msg = msg;
+        }
+    }
 }
 
 /*
@@ -1028,6 +1060,131 @@ static const MemoryRegionOps vfio_bar_ops = {
     .write = vfio_bar_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
+
+static void vfio_pci_load_rom(VFIODevice *vdev)
+{
+    struct vfio_region_info reg_info = {
+        .argsz = sizeof(reg_info),
+        .index = VFIO_PCI_ROM_REGION_INDEX
+    };
+    uint64_t size;
+    off_t off = 0;
+    size_t bytes;
+
+    if (ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info)) {
+        error_report("vfio: Error getting ROM info: %m");
+        return;
+    }
+
+    DPRINTF("Device %04x:%02x:%02x.%x ROM:\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    DPRINTF("  size: 0x%lx, offset: 0x%lx, flags: 0x%lx\n",
+            (unsigned long)reg_info.size, (unsigned long)reg_info.offset,
+            (unsigned long)reg_info.flags);
+
+    vdev->rom_size = size = reg_info.size;
+    vdev->rom_offset = reg_info.offset;
+
+    if (!vdev->rom_size) {
+        return;
+    }
+
+    vdev->rom = g_malloc(size);
+    memset(vdev->rom, 0xff, size);
+
+    while (size) {
+        bytes = pread(vdev->fd, vdev->rom + off, size, vdev->rom_offset + off);
+        if (bytes == 0) {
+            break;
+        } else if (bytes > 0) {
+            off += bytes;
+            size -= bytes;
+        } else {
+            if (errno == EINTR || errno == EAGAIN) {
+                continue;
+            }
+            error_report("vfio: Error reading device ROM: %m");
+            break;
+        }
+    }
+}
+
+static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
+{
+    VFIODevice *vdev = opaque;
+    uint64_t val = ((uint64_t)1 << (size * 8)) - 1;
+
+    /* Load the ROM lazily when the guest tries to read it */
+    if (unlikely(!vdev->rom)) {
+        vfio_pci_load_rom(vdev);
+    }
+
+    memcpy(&val, vdev->rom + addr,
+           (addr < vdev->rom_size) ? MIN(size, vdev->rom_size - addr) : 0);
+
+    DPRINTF("%s(%04x:%02x:%02x.%x, 0x%"HWADDR_PRIx", 0x%x) = 0x%"PRIx64"\n",
+            __func__, vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function, addr, size, val);
+
+    return val;
+}
+
+static void vfio_rom_write(void *opaque, hwaddr addr,
+                           uint64_t data, unsigned size)
+{
+}
+
+static const MemoryRegionOps vfio_rom_ops = {
+    .read = vfio_rom_read,
+    .write = vfio_rom_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_pci_size_rom(VFIODevice *vdev)
+{
+    uint32_t orig, size = cpu_to_le32((uint32_t)PCI_ROM_ADDRESS_MASK);
+    off_t offset = vdev->config_offset + PCI_ROM_ADDRESS;
+    char name[32];
+
+    if (vdev->pdev.romfile || !vdev->pdev.rom_bar) {
+        return;
+    }
+
+    /*
+     * Use the same size ROM BAR as the physical device.  The contents
+     * will get filled in later when the guest tries to read it.
+     */
+    if (pread(vdev->fd, &orig, 4, offset) != 4 ||
+        pwrite(vdev->fd, &size, 4, offset) != 4 ||
+        pread(vdev->fd, &size, 4, offset) != 4 ||
+        pwrite(vdev->fd, &orig, 4, offset) != 4) {
+        error_report("%s(%04x:%02x:%02x.%x) failed: %m",
+                     __func__, vdev->host.domain, vdev->host.bus,
+                     vdev->host.slot, vdev->host.function);
+        return;
+    }
+
+    size = ~(le32_to_cpu(size) & PCI_ROM_ADDRESS_MASK) + 1;
+
+    if (!size) {
+        return;
+    }
+
+    DPRINTF("%04x:%02x:%02x.%x ROM size 0x%x\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function, size);
+
+    snprintf(name, sizeof(name), "vfio[%04x:%02x:%02x.%x].rom",
+             vdev->host.domain, vdev->host.bus, vdev->host.slot,
+             vdev->host.function);
+
+    memory_region_init_io(&vdev->pdev.rom, OBJECT(vdev),
+                          &vfio_rom_ops, vdev, name, size);
+
+    pci_register_bar(&vdev->pdev, PCI_ROM_SLOT,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &vdev->pdev.rom);
+
+    vdev->pdev.has_rom = true;
+}
 
 static void vfio_vga_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
@@ -1834,10 +1991,16 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
 
         is_enabled = msi_enabled(pdev);
 
-        if (!was_enabled && is_enabled) {
-            vfio_enable_msi(vdev);
-        } else if (was_enabled && !is_enabled) {
-            vfio_disable_msi(vdev);
+        if (!was_enabled) {
+            if (is_enabled) {
+                vfio_enable_msi(vdev);
+            }
+        } else {
+            if (!is_enabled) {
+                vfio_disable_msi(vdev);
+            } else {
+                vfio_update_msi(vdev);
+            }
         }
     } else if (pdev->cap_present & QEMU_PCI_CAP_MSIX &&
         ranges_overlap(addr, len, pdev->msix_cap, MSIX_CAP_LENGTH)) {
@@ -1928,7 +2091,8 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (vfio_listener_skipped_section(section)) {
         DPRINTF("SKIPPING region_add %"HWADDR_PRIx" - %"PRIx64"\n",
                 section->offset_within_address_space,
-                section->offset_within_address_space + section->size - 1);
+                section->offset_within_address_space +
+                int128_get64(int128_sub(section->size, int128_one())));
         return;
     }
 
@@ -1973,7 +2137,8 @@ static void vfio_listener_region_del(MemoryListener *listener,
     if (vfio_listener_skipped_section(section)) {
         DPRINTF("SKIPPING region_del %"HWADDR_PRIx" - %"PRIx64"\n",
                 section->offset_within_address_space,
-                section->offset_within_address_space + section->size - 1);
+                section->offset_within_address_space +
+                int128_get64(int128_sub(section->size, int128_one())));
         return;
     }
 
@@ -2480,6 +2645,42 @@ static int vfio_setup_pcie_cap(VFIODevice *vdev, int pos, uint8_t size)
     return pos;
 }
 
+static void vfio_check_pcie_flr(VFIODevice *vdev, uint8_t pos)
+{
+    uint32_t cap = pci_get_long(vdev->pdev.config + pos + PCI_EXP_DEVCAP);
+
+    if (cap & PCI_EXP_DEVCAP_FLR) {
+        DPRINTF("%04x:%02x:%02x.%x Supports FLR via PCIe cap\n",
+                vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                vdev->host.function);
+        vdev->has_flr = true;
+    }
+}
+
+static void vfio_check_pm_reset(VFIODevice *vdev, uint8_t pos)
+{
+    uint16_t csr = pci_get_word(vdev->pdev.config + pos + PCI_PM_CTRL);
+
+    if (!(csr & PCI_PM_CTRL_NO_SOFT_RESET)) {
+        DPRINTF("%04x:%02x:%02x.%x Supports PM reset\n",
+                vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                vdev->host.function);
+        vdev->has_pm_reset = true;
+    }
+}
+
+static void vfio_check_af_flr(VFIODevice *vdev, uint8_t pos)
+{
+    uint8_t cap = pci_get_byte(vdev->pdev.config + pos + PCI_AF_CAP);
+
+    if ((cap & PCI_AF_CAP_TP) && (cap & PCI_AF_CAP_FLR)) {
+        DPRINTF("%04x:%02x:%02x.%x Supports FLR via AF cap\n",
+                vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                vdev->host.function);
+        vdev->has_flr = true;
+    }
+}
+
 static int vfio_add_std_cap(VFIODevice *vdev, uint8_t pos)
 {
     PCIDevice *pdev = &vdev->pdev;
@@ -2524,13 +2725,21 @@ static int vfio_add_std_cap(VFIODevice *vdev, uint8_t pos)
         ret = vfio_setup_msi(vdev, pos);
         break;
     case PCI_CAP_ID_EXP:
+        vfio_check_pcie_flr(vdev, pos);
         ret = vfio_setup_pcie_cap(vdev, pos, size);
         break;
     case PCI_CAP_ID_MSIX:
         ret = vfio_setup_msix(vdev, pos);
         break;
     case PCI_CAP_ID_PM:
+        vfio_check_pm_reset(vdev, pos);
         vdev->pm_cap = pos;
+        ret = pci_add_capability(pdev, cap_id, pos, size);
+        break;
+    case PCI_CAP_ID_AF:
+        vfio_check_af_flr(vdev, pos);
+        ret = pci_add_capability(pdev, cap_id, pos, size);
+        break;
     default:
         ret = pci_add_capability(pdev, cap_id, pos, size);
         break;
@@ -2559,49 +2768,277 @@ static int vfio_add_capabilities(VFIODevice *vdev)
     return vfio_add_std_cap(vdev, pdev->config[PCI_CAPABILITY_LIST]);
 }
 
-static int vfio_load_rom(VFIODevice *vdev)
+static void vfio_pci_pre_reset(VFIODevice *vdev)
 {
-    uint64_t size = vdev->rom_size;
-    char name[32];
-    off_t off = 0, voff = vdev->rom_offset;
-    ssize_t bytes;
-    void *ptr;
+    PCIDevice *pdev = &vdev->pdev;
+    uint16_t cmd;
 
-    /* If loading ROM from file, pci handles it */
-    if (vdev->pdev.romfile || !vdev->pdev.rom_bar || !size) {
-        return 0;
-    }
+    vfio_disable_interrupts(vdev);
 
-    DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
-            vdev->host.bus, vdev->host.slot, vdev->host.function);
+    /* Make sure the device is in D0 */
+    if (vdev->pm_cap) {
+        uint16_t pmcsr;
+        uint8_t state;
 
-    snprintf(name, sizeof(name), "vfio[%04x:%02x:%02x.%x].rom",
-             vdev->host.domain, vdev->host.bus, vdev->host.slot,
-             vdev->host.function);
-    memory_region_init_ram(&vdev->pdev.rom, OBJECT(vdev), name, size);
-    ptr = memory_region_get_ram_ptr(&vdev->pdev.rom);
-    memset(ptr, 0xff, size);
-
-    while (size) {
-        bytes = pread(vdev->fd, ptr + off, size, voff + off);
-        if (bytes == 0) {
-            break; /* expect that we could get back less than the ROM BAR */
-        } else if (bytes > 0) {
-            off += bytes;
-            size -= bytes;
-        } else {
-            if (errno == EINTR || errno == EAGAIN) {
-                continue;
+        pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
+        state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+        if (state) {
+            pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
+            vfio_pci_write_config(pdev, vdev->pm_cap + PCI_PM_CTRL, pmcsr, 2);
+            /* vfio handles the necessary delay here */
+            pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
+            state = pmcsr & PCI_PM_CTRL_STATE_MASK;
+            if (state) {
+                error_report("vfio: Unable to power on device, stuck in D%d\n",
+                             state);
             }
-            error_report("vfio: Error reading device ROM: %m");
-            memory_region_destroy(&vdev->pdev.rom);
-            return -errno;
         }
     }
 
-    pci_register_bar(&vdev->pdev, PCI_ROM_SLOT, 0, &vdev->pdev.rom);
-    vdev->pdev.has_rom = true;
-    return 0;
+    /*
+     * Stop any ongoing DMA by disconecting I/O, MMIO, and bus master.
+     * Also put INTx Disable in known state.
+     */
+    cmd = vfio_pci_read_config(pdev, PCI_COMMAND, 2);
+    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
+             PCI_COMMAND_INTX_DISABLE);
+    vfio_pci_write_config(pdev, PCI_COMMAND, cmd, 2);
+}
+
+static void vfio_pci_post_reset(VFIODevice *vdev)
+{
+    vfio_enable_intx(vdev);
+}
+
+static bool vfio_pci_host_match(PCIHostDeviceAddress *host1,
+                                PCIHostDeviceAddress *host2)
+{
+    return (host1->domain == host2->domain && host1->bus == host2->bus &&
+            host1->slot == host2->slot && host1->function == host2->function);
+}
+
+static int vfio_pci_hot_reset(VFIODevice *vdev, bool single)
+{
+    VFIOGroup *group;
+    struct vfio_pci_hot_reset_info *info;
+    struct vfio_pci_dependent_device *devices;
+    struct vfio_pci_hot_reset *reset;
+    int32_t *fds;
+    int ret, i, count;
+    bool multi = false;
+
+    DPRINTF("%s(%04x:%02x:%02x.%x) %s\n", __func__, vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function,
+            single ? "one" : "multi");
+
+    vfio_pci_pre_reset(vdev);
+    vdev->needs_reset = false;
+
+    info = g_malloc0(sizeof(*info));
+    info->argsz = sizeof(*info);
+
+    ret = ioctl(vdev->fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret && errno != ENOSPC) {
+        ret = -errno;
+        if (!vdev->has_pm_reset) {
+            error_report("vfio: Cannot reset device %04x:%02x:%02x.%x, "
+                         "no available reset mechanism.", vdev->host.domain,
+                         vdev->host.bus, vdev->host.slot, vdev->host.function);
+        }
+        goto out_single;
+    }
+
+    count = info->count;
+    info = g_realloc(info, sizeof(*info) + (count * sizeof(*devices)));
+    info->argsz = sizeof(*info) + (count * sizeof(*devices));
+    devices = &info->devices[0];
+
+    ret = ioctl(vdev->fd, VFIO_DEVICE_GET_PCI_HOT_RESET_INFO, info);
+    if (ret) {
+        ret = -errno;
+        error_report("vfio: hot reset info failed: %m");
+        goto out_single;
+    }
+
+    DPRINTF("%04x:%02x:%02x.%x: hot reset dependent devices:\n",
+            vdev->host.domain, vdev->host.bus, vdev->host.slot,
+            vdev->host.function);
+
+    /* Verify that we have all the groups required */
+    for (i = 0; i < info->count; i++) {
+        PCIHostDeviceAddress host;
+        VFIODevice *tmp;
+
+        host.domain = devices[i].segment;
+        host.bus = devices[i].bus;
+        host.slot = PCI_SLOT(devices[i].devfn);
+        host.function = PCI_FUNC(devices[i].devfn);
+
+        DPRINTF("\t%04x:%02x:%02x.%x group %d\n", host.domain,
+                host.bus, host.slot, host.function, devices[i].group_id);
+
+        if (vfio_pci_host_match(&host, &vdev->host)) {
+            continue;
+        }
+
+        QLIST_FOREACH(group, &group_list, next) {
+            if (group->groupid == devices[i].group_id) {
+                break;
+            }
+        }
+
+        if (!group) {
+            if (!vdev->has_pm_reset) {
+                error_report("vfio: Cannot reset device %04x:%02x:%02x.%x, "
+                             "depends on group %d which is not owned.",
+                             vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                             vdev->host.function, devices[i].group_id);
+            }
+            ret = -EPERM;
+            goto out;
+        }
+
+        /* Prep dependent devices for reset and clear our marker. */
+        QLIST_FOREACH(tmp, &group->device_list, next) {
+            if (vfio_pci_host_match(&host, &tmp->host)) {
+                if (single) {
+                    DPRINTF("vfio: found another in-use device "
+                            "%04x:%02x:%02x.%x\n", host.domain, host.bus,
+                            host.slot, host.function);
+                    ret = -EINVAL;
+                    goto out_single;
+                }
+                vfio_pci_pre_reset(tmp);
+                tmp->needs_reset = false;
+                multi = true;
+                break;
+            }
+        }
+    }
+
+    if (!single && !multi) {
+        DPRINTF("vfio: No other in-use devices for multi hot reset\n");
+        ret = -EINVAL;
+        goto out_single;
+    }
+
+    /* Determine how many group fds need to be passed */
+    count = 0;
+    QLIST_FOREACH(group, &group_list, next) {
+        for (i = 0; i < info->count; i++) {
+            if (group->groupid == devices[i].group_id) {
+                count++;
+                break;
+            }
+        }
+    }
+
+    reset = g_malloc0(sizeof(*reset) + (count * sizeof(*fds)));
+    reset->argsz = sizeof(*reset) + (count * sizeof(*fds));
+    fds = &reset->group_fds[0];
+
+    /* Fill in group fds */
+    QLIST_FOREACH(group, &group_list, next) {
+        for (i = 0; i < info->count; i++) {
+            if (group->groupid == devices[i].group_id) {
+                fds[reset->count++] = group->fd;
+                break;
+            }
+        }
+    }
+
+    /* Bus reset! */
+    ret = ioctl(vdev->fd, VFIO_DEVICE_PCI_HOT_RESET, reset);
+    g_free(reset);
+
+    DPRINTF("%04x:%02x:%02x.%x hot reset: %s\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function,
+            ret ? "%m" : "Success");
+
+out:
+    /* Re-enable INTx on affected devices */
+    for (i = 0; i < info->count; i++) {
+        PCIHostDeviceAddress host;
+        VFIODevice *tmp;
+
+        host.domain = devices[i].segment;
+        host.bus = devices[i].bus;
+        host.slot = PCI_SLOT(devices[i].devfn);
+        host.function = PCI_FUNC(devices[i].devfn);
+
+        if (vfio_pci_host_match(&host, &vdev->host)) {
+            continue;
+        }
+
+        QLIST_FOREACH(group, &group_list, next) {
+            if (group->groupid == devices[i].group_id) {
+                break;
+            }
+        }
+
+        if (!group) {
+            break;
+        }
+
+        QLIST_FOREACH(tmp, &group->device_list, next) {
+            if (vfio_pci_host_match(&host, &tmp->host)) {
+                vfio_pci_post_reset(tmp);
+                break;
+            }
+        }
+    }
+out_single:
+    vfio_pci_post_reset(vdev);
+    g_free(info);
+
+    return ret;
+}
+
+/*
+ * We want to differentiate hot reset of mulitple in-use devices vs hot reset
+ * of a single in-use device.  VFIO_DEVICE_RESET will already handle the case
+ * of doing hot resets when there is only a single device per bus.  The in-use
+ * here refers to how many VFIODevices are affected.  A hot reset that affects
+ * multiple devices, but only a single in-use device, means that we can call
+ * it from our bus ->reset() callback since the extent is effectively a single
+ * device.  This allows us to make use of it in the hotplug path.  When there
+ * are multiple in-use devices, we can only trigger the hot reset during a
+ * system reset and thus from our reset handler.  We separate _one vs _multi
+ * here so that we don't overlap and do a double reset on the system reset
+ * path where both our reset handler and ->reset() callback are used.  Calling
+ * _one() will only do a hot reset for the one in-use devices case, calling
+ * _multi() will do nothing if a _one() would have been sufficient.
+ */
+static int vfio_pci_hot_reset_one(VFIODevice *vdev)
+{
+    return vfio_pci_hot_reset(vdev, true);
+}
+
+static int vfio_pci_hot_reset_multi(VFIODevice *vdev)
+{
+    return vfio_pci_hot_reset(vdev, false);
+}
+
+static void vfio_pci_reset_handler(void *opaque)
+{
+    VFIOGroup *group;
+    VFIODevice *vdev;
+
+    QLIST_FOREACH(group, &group_list, next) {
+        QLIST_FOREACH(vdev, &group->device_list, next) {
+            if (!vdev->reset_works || (!vdev->has_flr && vdev->has_pm_reset)) {
+                vdev->needs_reset = true;
+            }
+        }
+    }
+
+    QLIST_FOREACH(group, &group_list, next) {
+        QLIST_FOREACH(vdev, &group->device_list, next) {
+            if (vdev->needs_reset) {
+                vfio_pci_hot_reset_multi(vdev);
+            }
+        }
+    }
 }
 
 static int vfio_connect_container(VFIOGroup *group)
@@ -2746,6 +3183,10 @@ static VFIOGroup *vfio_get_group(int groupid)
         return NULL;
     }
 
+    if (QLIST_EMPTY(&group_list)) {
+        qemu_register_reset(vfio_pci_reset_handler, NULL);
+    }
+
     QLIST_INSERT_HEAD(&group_list, group, next);
 
     return group;
@@ -2762,6 +3203,10 @@ static void vfio_put_group(VFIOGroup *group)
     DPRINTF("vfio_put_group: close group->fd\n");
     close(group->fd);
     g_free(group);
+
+    if (QLIST_EMPTY(&group_list)) {
+        qemu_unregister_reset(vfio_pci_reset_handler, NULL);
+    }
 }
 
 static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
@@ -2800,9 +3245,6 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
     }
 
     vdev->reset_works = !!(dev_info.flags & VFIO_DEVICE_FLAGS_RESET);
-    if (!vdev->reset_works) {
-        error_report("Warning, device %s does not support reset", name);
-    }
 
     if (dev_info.num_regions < VFIO_PCI_CONFIG_REGION_INDEX + 1) {
         error_report("vfio: unexpected number of io regions %u",
@@ -2836,22 +3278,6 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
         vdev->bars[i].nr = i;
         QLIST_INIT(&vdev->bars[i].quirks);
     }
-
-    reg_info.index = VFIO_PCI_ROM_REGION_INDEX;
-
-    ret = ioctl(vdev->fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info);
-    if (ret) {
-        error_report("vfio: Error getting ROM info: %m");
-        goto error;
-    }
-
-    DPRINTF("Device %s ROM:\n", name);
-    DPRINTF("  size: 0x%lx, offset: 0x%lx, flags: 0x%lx\n",
-            (unsigned long)reg_info.size, (unsigned long)reg_info.offset,
-            (unsigned long)reg_info.flags);
-
-    vdev->rom_size = reg_info.size;
-    vdev->rom_offset = reg_info.offset;
 
     reg_info.index = VFIO_PCI_CONFIG_REGION_INDEX;
 
@@ -2917,13 +3343,15 @@ static int vfio_get_device(VFIOGroup *group, const char *name, VFIODevice *vdev)
     ret = ioctl(vdev->fd, VFIO_DEVICE_GET_IRQ_INFO, &irq_info);
     if (ret) {
         /* This can fail for an old kernel or legacy PCI dev */
-        DPRINTF("VFIO_DEVICE_GET_IRQ_INFO failure ret=%d\n", ret);
+        DPRINTF("VFIO_DEVICE_GET_IRQ_INFO failure: %m\n");
         ret = 0;
     } else if (irq_info.count == 1) {
         vdev->pci_aer = true;
     } else {
-        error_report("vfio: Warning: "
-                     "Could not enable error recovery for the device\n");
+        error_report("vfio: %04x:%02x:%02x.%x "
+                     "Could not enable error recovery for the device",
+                     vdev->host.domain, vdev->host.bus, vdev->host.slot,
+                     vdev->host.function);
     }
 
 error:
@@ -2964,11 +3392,10 @@ static void vfio_err_notifier_handler(void *opaque)
      * guest to contain the error.
      */
 
-    error_report("%s (%04x:%02x:%02x.%x)"
-        "Unrecoverable error detected...\n"
-        "Please collect any data possible and then kill the guest",
-        __func__, vdev->host.domain, vdev->host.bus,
-        vdev->host.slot, vdev->host.function);
+    error_report("%s(%04x:%02x:%02x.%x) Unrecoverable error detected.  "
+                 "Please collect any data possible and then kill the guest",
+                 __func__, vdev->host.domain, vdev->host.bus,
+                 vdev->host.slot, vdev->host.function);
 
     vm_stop(RUN_STATE_IO_ERROR);
 }
@@ -2991,8 +3418,7 @@ static void vfio_register_err_notifier(VFIODevice *vdev)
     }
 
     if (event_notifier_init(&vdev->err_notifier, 0)) {
-        error_report("vfio: Warning: "
-                     "Unable to init event notifier for error detection\n");
+        error_report("vfio: Unable to init event notifier for error detection");
         vdev->pci_aer = false;
         return;
     }
@@ -3013,7 +3439,7 @@ static void vfio_register_err_notifier(VFIODevice *vdev)
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
     if (ret) {
-        error_report("vfio: Failed to set up error notification\n");
+        error_report("vfio: Failed to set up error notification");
         qemu_set_fd_handler(*pfd, NULL, NULL, vdev);
         event_notifier_cleanup(&vdev->err_notifier);
         vdev->pci_aer = false;
@@ -3046,7 +3472,7 @@ static void vfio_unregister_err_notifier(VFIODevice *vdev)
 
     ret = ioctl(vdev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
     if (ret) {
-        error_report("vfio: Failed to de-assign error fd: %d\n", ret);
+        error_report("vfio: Failed to de-assign error fd: %m");
     }
     g_free(irq_set);
     qemu_set_fd_handler(event_notifier_get_fd(&vdev->err_notifier),
@@ -3142,6 +3568,13 @@ static int vfio_initfn(PCIDevice *pdev)
     vdev->emulated_config_bits[PCI_HEADER_TYPE] =
                                               PCI_HEADER_TYPE_MULTI_FUNCTION;
 
+    /* Restore or clear multifunction, this is always controlled by QEMU */
+    if (vdev->pdev.cap_present & QEMU_PCI_CAP_MULTIFUNCTION) {
+        vdev->pdev.config[PCI_HEADER_TYPE] |= PCI_HEADER_TYPE_MULTI_FUNCTION;
+    } else {
+        vdev->pdev.config[PCI_HEADER_TYPE] &= ~PCI_HEADER_TYPE_MULTI_FUNCTION;
+    }
+
     /*
      * Clear host resource mapping info.  If we choose not to register a
      * BAR, such as might be the case with the option ROM, we can get
@@ -3150,7 +3583,7 @@ static int vfio_initfn(PCIDevice *pdev)
     memset(&vdev->pdev.config[PCI_BASE_ADDRESS_0], 0, 24);
     memset(&vdev->pdev.config[PCI_ROM_ADDRESS], 0, 4);
 
-    vfio_load_rom(vdev);
+    vfio_pci_size_rom(vdev);
 
     ret = vfio_early_setup_msix(vdev);
     if (ret) {
@@ -3176,7 +3609,7 @@ static int vfio_initfn(PCIDevice *pdev)
     }
 
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
-        vdev->intx.mmap_timer = qemu_new_timer_ms(vm_clock,
+        vdev->intx.mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                   vfio_intx_mmap_enable, vdev);
         pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_update_irq);
         ret = vfio_enable_intx(vdev);
@@ -3210,11 +3643,12 @@ static void vfio_exitfn(PCIDevice *pdev)
     pci_device_set_intx_routing_notifier(&vdev->pdev, NULL);
     vfio_disable_interrupts(vdev);
     if (vdev->intx.mmap_timer) {
-        qemu_free_timer(vdev->intx.mmap_timer);
+        timer_free(vdev->intx.mmap_timer);
     }
     vfio_teardown_msi(vdev);
     vfio_unmap_bars(vdev);
     g_free(vdev->emulated_config_bits);
+    g_free(vdev->rom);
     vfio_put_device(vdev);
     vfio_put_group(group);
 }
@@ -3223,51 +3657,34 @@ static void vfio_pci_reset(DeviceState *dev)
 {
     PCIDevice *pdev = DO_UPCAST(PCIDevice, qdev, dev);
     VFIODevice *vdev = DO_UPCAST(VFIODevice, pdev, pdev);
-    uint16_t cmd;
 
     DPRINTF("%s(%04x:%02x:%02x.%x)\n", __func__, vdev->host.domain,
             vdev->host.bus, vdev->host.slot, vdev->host.function);
 
-    vfio_disable_interrupts(vdev);
+    vfio_pci_pre_reset(vdev);
 
-    /* Make sure the device is in D0 */
-    if (vdev->pm_cap) {
-        uint16_t pmcsr;
-        uint8_t state;
-
-        pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
-        state = pmcsr & PCI_PM_CTRL_STATE_MASK;
-        if (state) {
-            pmcsr &= ~PCI_PM_CTRL_STATE_MASK;
-            vfio_pci_write_config(pdev, vdev->pm_cap + PCI_PM_CTRL, pmcsr, 2);
-            /* vfio handles the necessary delay here */
-            pmcsr = vfio_pci_read_config(pdev, vdev->pm_cap + PCI_PM_CTRL, 2);
-            state = pmcsr & PCI_PM_CTRL_STATE_MASK;
-            if (state) {
-                error_report("vfio: Unable to power on device, stuck in D%d\n",
-                             state);
-            }
-        }
+    if (vdev->reset_works && (vdev->has_flr || !vdev->has_pm_reset) &&
+        !ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
+        DPRINTF("%04x:%02x:%02x.%x FLR/VFIO_DEVICE_RESET\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+        goto post_reset;
     }
 
-    /*
-     * Stop any ongoing DMA by disconecting I/O, MMIO, and bus master.
-     * Also put INTx Disable in known state.
-     */
-    cmd = vfio_pci_read_config(pdev, PCI_COMMAND, 2);
-    cmd &= ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER |
-             PCI_COMMAND_INTX_DISABLE);
-    vfio_pci_write_config(pdev, PCI_COMMAND, cmd, 2);
-
-    if (vdev->reset_works) {
-        if (ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
-            error_report("vfio: Error unable to reset physical device "
-                         "(%04x:%02x:%02x.%x): %m", vdev->host.domain,
-                         vdev->host.bus, vdev->host.slot, vdev->host.function);
-        }
+    /* See if we can do our own bus reset */
+    if (!vfio_pci_hot_reset_one(vdev)) {
+        goto post_reset;
     }
 
-    vfio_enable_intx(vdev);
+    /* If nothing else works and the device supports PM reset, use it */
+    if (vdev->reset_works && vdev->has_pm_reset &&
+        !ioctl(vdev->fd, VFIO_DEVICE_RESET)) {
+        DPRINTF("%04x:%02x:%02x.%x PCI PM Reset\n", vdev->host.domain,
+            vdev->host.bus, vdev->host.slot, vdev->host.function);
+        goto post_reset;
+    }
+
+post_reset:
+    vfio_pci_post_reset(vdev);
 }
 
 static Property vfio_pci_dev_properties[] = {

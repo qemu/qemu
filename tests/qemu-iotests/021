@@ -53,7 +53,7 @@ for pattern in $INVALID_PATTERNS; do
     for op in $TEST_OPS; do
         echo
 	echo "== testing $op -P $pattern =="
-	$QEMU_IO -c "$op -P $pattern 0 4096" $TEST_IMG | _filter_qemu_io
+	$QEMU_IO -c "$op -P $pattern 0 4096" "$TEST_IMG" | _filter_qemu_io
     done
 done
 

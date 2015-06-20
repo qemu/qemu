@@ -115,6 +115,7 @@ struct vring_used {
 struct vring {
     unsigned int num;
     int next_idx;
+    int used_idx;
     struct vring_desc *desc;
     struct vring_avail *avail;
     struct vring_used *used;

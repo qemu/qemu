@@ -47,6 +47,8 @@ static int vty_getchars(VIOsPAPRDevice *sdev, uint8_t *buf, int max)
         buf[n++] = dev->buf[dev->out++ % VTERM_BUFSIZE];
     }
 
+    qemu_chr_accept_input(dev->chardev);
+
     return n;
 }
 
@@ -166,6 +168,7 @@ static void spapr_vty_class_init(ObjectClass *klass, void *data)
     k->dt_name = "vty";
     k->dt_type = "serial";
     k->dt_compatible = "hvterm1";
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->props = spapr_vty_properties;
     dc->vmsd = &vmstate_spapr_vty;
 }

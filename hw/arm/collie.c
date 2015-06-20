@@ -62,7 +62,6 @@ static QEMUMachine collie_machine = {
     .name = "collie",
     .desc = "Collie PDA (SA-1110)",
     .init = collie_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void collie_machine_init(void)

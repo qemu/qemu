@@ -277,11 +277,11 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
     KeyValueList *p;
 
     if (!key_timer) {
-        key_timer = qemu_new_timer_ns(vm_clock, release_keys, NULL);
+        key_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, release_keys, NULL);
     }
 
     if (keycodes != NULL) {
-        qemu_del_timer(key_timer);
+        timer_del(key_timer);
         release_keys(NULL);
     }
 
@@ -308,7 +308,7 @@ void qmp_send_key(KeyValueList *keys, bool has_hold_time, int64_t hold_time,
     }
 
     /* delayed key up events */
-    qemu_mod_timer(key_timer, qemu_get_clock_ns(vm_clock) +
+    timer_mod(key_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                    muldiv64(get_ticks_per_sec(), hold_time, 1000));
 }
 

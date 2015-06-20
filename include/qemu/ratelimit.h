@@ -23,7 +23,7 @@ typedef struct {
 
 static inline int64_t ratelimit_calculate_delay(RateLimit *limit, uint64_t n)
 {
-    int64_t now = qemu_get_clock_ns(rt_clock);
+    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     if (limit->next_slice_time < now) {
         limit->next_slice_time = now + limit->slice_ns;

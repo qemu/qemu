@@ -44,8 +44,6 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     struct stat s;
 #endif
 
-#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || \
-    defined(__OpenBSD__) || defined(__APPLE__)
     /* if no ifname is given, always start the search from tap0/tun0. */
     int i;
     char dname[100];
@@ -76,15 +74,6 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
                    dname, strerror(errno));
         return -1;
     }
-#else
-    TFR(fd = open("/dev/tap", O_RDWR));
-    if (fd < 0) {
-        fprintf(stderr,
-            "warning: could not open /dev/tap: no virtual network emulation: %s\n",
-            strerror(errno));
-        return -1;
-    }
-#endif
 
 #ifdef TAPGIFNAME
     if (ioctl(fd, TAPGIFNAME, (void *)&ifr) < 0) {

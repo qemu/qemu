@@ -136,7 +136,7 @@ void pit_get_channel_info_common(PITCommonState *s, PITChannelState *sc,
     info->gate = sc->gate;
     info->mode = sc->mode;
     info->initial_count = sc->count;
-    info->out = pit_get_out(sc, qemu_get_clock_ns(vm_clock));
+    info->out = pit_get_out(sc, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 void pit_get_channel_info(ISADevice *dev, int channel, PITChannelInfo *info)
@@ -157,7 +157,7 @@ void pit_reset_common(PITCommonState *pit)
         s = &pit->channels[i];
         s->mode = 3;
         s->gate = (i != 2);
-        s->count_load_time = qemu_get_clock_ns(vm_clock);
+        s->count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         s->count = 0x10000;
         if (i == 0 && !s->irq_disabled) {
             s->next_transition_time =

@@ -494,6 +494,11 @@ SDState *sd_init(BlockDriverState *bs, bool is_spi)
 {
     SDState *sd;
 
+    if (bs && bdrv_is_read_only(bs)) {
+        fprintf(stderr, "sd_init: Cannot use read-only drive\n");
+        return NULL;
+    }
+
     sd = (SDState *) g_malloc0(sizeof(SDState));
     sd->buf = qemu_blockalign(bs, 512);
     sd->spi = is_spi;

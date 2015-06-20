@@ -53,6 +53,7 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
     if (err) {
         goto bridge_error;
     }
+    dev->config[PCI_INTERRUPT_PIN] = 0x1;
     memory_region_init(&bridge_dev->bar, OBJECT(dev), "shpc-bar", shpc_bar_size(dev));
     err = shpc_init(dev, &br->sec_bus, &bridge_dev->bar, 0);
     if (err) {
@@ -73,7 +74,6 @@ static int pci_bridge_dev_initfn(PCIDevice *dev)
      * Check whether that works well. */
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
 		     PCI_BASE_ADDRESS_MEM_TYPE_64, &bridge_dev->bar);
-    dev->config[PCI_INTERRUPT_PIN] = 0x1;
     return 0;
 msi_error:
     slotid_cap_cleanup(dev);

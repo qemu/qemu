@@ -13,6 +13,8 @@ struct sPAPRNVRAM;
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
+    hwaddr msi_win_addr;
+    MemoryRegion msiwindow;
     struct sPAPRNVRAM *nvram;
     XICSState *icp;
 
@@ -27,7 +29,6 @@ typedef struct sPAPREnvironment {
     target_ulong entry_point;
     uint32_t next_irq;
     uint64_t rtc_offset;
-    char *cpu_model;
     bool has_graphics;
 
     uint32_t epow_irq;
@@ -109,6 +110,15 @@ typedef struct sPAPREnvironment {
 #define H_NOT_ENOUGH_RESOURCES -44
 #define H_R_STATE         -45
 #define H_RESCINDEND      -46
+#define H_P2              -55
+#define H_P3              -56
+#define H_P4              -57
+#define H_P5              -58
+#define H_P6              -59
+#define H_P7              -60
+#define H_P8              -61
+#define H_P9              -62
+#define H_UNSUPPORTED_FLAG -256
 #define H_MULTI_THREADS_ACTIVE -9005
 
 
@@ -142,6 +152,11 @@ typedef struct sPAPREnvironment {
 #define H_N               (1ULL<<(63-61))
 #define H_PP1             (1ULL<<(63-62))
 #define H_PP2             (1ULL<<(63-63))
+
+/* H_SET_MODE flags */
+#define H_SET_MODE_ENDIAN        4
+#define H_SET_MODE_ENDIAN_BIG    0
+#define H_SET_MODE_ENDIAN_LITTLE 1
 
 /* VASI States */
 #define H_VASI_INVALID    0
@@ -267,7 +282,9 @@ typedef struct sPAPREnvironment {
 #define H_GET_EM_PARMS          0x2B8
 #define H_SET_MPP               0x2D0
 #define H_GET_MPP               0x2D4
-#define MAX_HCALL_OPCODE        H_GET_MPP
+#define H_XIRR_X                0x2FC
+#define H_SET_MODE              0x31C
+#define MAX_HCALL_OPCODE        H_SET_MODE
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
@@ -303,7 +320,7 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
                              target_ulong *args);
 
 int spapr_allocate_irq(int hint, bool lsi);
-int spapr_allocate_irq_block(int num, bool lsi);
+int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 
 static inline int spapr_allocate_msi(int hint)
 {
@@ -315,14 +332,19 @@ static inline int spapr_allocate_lsi(int hint)
     return spapr_allocate_irq(hint, true);
 }
 
+static inline uint64_t ppc64_phys_to_real(uint64_t addr)
+{
+    return addr & ~0xF000000000000000ULL;
+}
+
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {
-    return ldl_be_phys(phys + 4*n);
+    return ldl_be_phys(ppc64_phys_to_real(phys + 4*n));
 }
 
 static inline void rtas_st(target_ulong phys, int n, uint32_t val)
 {
-    stl_be_phys(phys + 4*n, val);
+    stl_be_phys(ppc64_phys_to_real(phys + 4*n), val);
 }
 
 typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,

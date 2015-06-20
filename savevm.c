@@ -97,18 +97,18 @@ static void qemu_announce_self_once(void *opaque)
 
     if (--count) {
         /* delay 50ms, 150ms, 250ms, ... */
-        qemu_mod_timer(timer, qemu_get_clock_ms(rt_clock) +
+        timer_mod(timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) +
                        50 + (SELF_ANNOUNCE_ROUNDS - count - 1) * 100);
     } else {
-	    qemu_del_timer(timer);
-	    qemu_free_timer(timer);
+	    timer_del(timer);
+	    timer_free(timer);
     }
 }
 
 void qemu_announce_self(void)
 {
 	static QEMUTimer *timer;
-	timer = qemu_new_timer_ms(rt_clock, qemu_announce_self_once, &timer);
+	timer = timer_new_ms(QEMU_CLOCK_REALTIME, qemu_announce_self_once, &timer);
 	qemu_announce_self_once(&timer);
 }
 
@@ -566,6 +566,13 @@ QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops)
     return f;
 }
 
+/*
+ * Get last error for stream f
+ *
+ * Return negative error value if there has been an error on previous
+ * operations, return 0 if no error happened.
+ *
+ */
 int qemu_file_get_error(QEMUFile *f)
 {
     return f->last_error;
@@ -642,7 +649,7 @@ void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
 
 void ram_control_load_hook(QEMUFile *f, uint64_t flags)
 {
-    int ret = 0;
+    int ret = -EINVAL;
 
     if (f->ops->hook_ram_load) {
         ret = f->ops->hook_ram_load(f, f->opaque, flags);
@@ -787,7 +794,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
         if (l > size)
             l = size;
         memcpy(f->buf + f->buf_index, buf, l);
-        f->bytes_xfer += size;
+        f->bytes_xfer += l;
         if (f->ops->writev_buffer) {
             add_to_iovec(f, f->buf + f->buf_index, l);
         }
@@ -979,23 +986,23 @@ uint64_t qemu_get_be64(QEMUFile *f)
 
 /* timer */
 
-void qemu_put_timer(QEMUFile *f, QEMUTimer *ts)
+void timer_put(QEMUFile *f, QEMUTimer *ts)
 {
     uint64_t expire_time;
 
-    expire_time = qemu_timer_expire_time_ns(ts);
+    expire_time = timer_expire_time_ns(ts);
     qemu_put_be64(f, expire_time);
 }
 
-void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
+void timer_get(QEMUFile *f, QEMUTimer *ts)
 {
     uint64_t expire_time;
 
     expire_time = qemu_get_be64(f);
     if (expire_time != -1) {
-        qemu_mod_timer_ns(ts, expire_time);
+        timer_mod_ns(ts, expire_time);
     } else {
-        qemu_del_timer(ts);
+        timer_del(ts);
     }
 }
 
@@ -1339,14 +1346,14 @@ const VMStateInfo vmstate_info_float64 = {
 static int get_timer(QEMUFile *f, void *pv, size_t size)
 {
     QEMUTimer *v = pv;
-    qemu_get_timer(f, v);
+    timer_get(f, v);
     return 0;
 }
 
 static void put_timer(QEMUFile *f, void *pv, size_t size)
 {
     QEMUTimer *v = pv;
-    qemu_put_timer(f, v);
+    timer_put(f, v);
 }
 
 const VMStateInfo vmstate_info_timer = {
@@ -2325,18 +2332,21 @@ static int del_existing_snapshots(Monitor *mon, const char *name)
 {
     BlockDriverState *bs;
     QEMUSnapshotInfo sn1, *snapshot = &sn1;
-    int ret;
+    Error *err = NULL;
 
     bs = NULL;
     while ((bs = bdrv_next(bs))) {
         if (bdrv_can_snapshot(bs) &&
             bdrv_snapshot_find(bs, snapshot, name) >= 0)
         {
-            ret = bdrv_snapshot_delete(bs, name);
-            if (ret < 0) {
+            bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
+            if (error_is_set(&err)) {
                 monitor_printf(mon,
-                               "Error while deleting snapshot on '%s'\n",
-                               bdrv_get_device_name(bs));
+                               "Error while deleting snapshot on device '%s':"
+                               " %s\n",
+                               bdrv_get_device_name(bs),
+                               error_get_pretty(err));
+                error_free(err);
                 return -1;
             }
         }
@@ -2387,7 +2397,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     qemu_gettimeofday(&tv);
     sn->date_sec = tv.tv_sec;
     sn->date_nsec = tv.tv_usec * 1000;
-    sn->vm_clock_nsec = qemu_get_clock_ns(vm_clock);
+    sn->vm_clock_nsec = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     if (name) {
         ret = bdrv_snapshot_find(bs, old_sn, name);
@@ -2550,7 +2560,7 @@ int load_vmstate(const char *name)
 void do_delvm(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
-    int ret;
+    Error *err = NULL;
     const char *name = qdict_get_str(qdict, "name");
 
     bs = find_vmstate_bs();
@@ -2562,15 +2572,14 @@ void do_delvm(Monitor *mon, const QDict *qdict)
     bs1 = NULL;
     while ((bs1 = bdrv_next(bs1))) {
         if (bdrv_can_snapshot(bs1)) {
-            ret = bdrv_snapshot_delete(bs1, name);
-            if (ret < 0) {
-                if (ret == -ENOTSUP)
-                    monitor_printf(mon,
-                                   "Snapshots not supported on device '%s'\n",
-                                   bdrv_get_device_name(bs1));
-                else
-                    monitor_printf(mon, "Error %d while deleting snapshot on "
-                                   "'%s'\n", ret, bdrv_get_device_name(bs1));
+            bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
+            if (error_is_set(&err)) {
+                monitor_printf(mon,
+                               "Error while deleting snapshot on device '%s':"
+                               " %s\n",
+                               bdrv_get_device_name(bs),
+                               error_get_pretty(err));
+                error_free(err);
             }
         }
     }

@@ -17,6 +17,21 @@
 #include "css.h"
 #include "virtio-ccw.h"
 
+void io_subsystem_reset(void)
+{
+    DeviceState *css, *sclp;
+
+    css = DEVICE(object_resolve_path_type("", "virtual-css-bridge", NULL));
+    if (css) {
+        qdev_reset_all(css);
+    }
+    sclp = DEVICE(object_resolve_path_type("",
+                  "s390-sclp-event-facility", NULL));
+    if (sclp) {
+        qdev_reset_all(sclp);
+    }
+}
+
 static int virtio_ccw_hcall_notify(const uint64_t *args)
 {
     uint64_t subch_id = args[0];
@@ -126,7 +141,6 @@ static QEMUMachine ccw_machine = {
     .no_sdcard = 1,
     .use_sclp = 1,
     .max_cpus = 255,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void ccw_machine_init(void)

@@ -19,6 +19,7 @@
 #include "hw/hw.h"
 #include "audio/audio.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/qtest.h"
 #include "ui/console.h"
 #include "hw/arm/omap.h"
 #include "hw/boards.h"
@@ -255,25 +256,22 @@ static void palmte_init(QEMUMachineInitArgs *args)
         }
     }
 
-    if (!rom_loaded && !kernel_filename) {
+    if (!rom_loaded && !kernel_filename && !qtest_enabled()) {
         fprintf(stderr, "Kernel or ROM image must be specified\n");
         exit(1);
     }
 
     /* Load the kernel.  */
-    if (kernel_filename) {
-        palmte_binfo.kernel_filename = kernel_filename;
-        palmte_binfo.kernel_cmdline = kernel_cmdline;
-        palmte_binfo.initrd_filename = initrd_filename;
-        arm_load_kernel(mpu->cpu, &palmte_binfo);
-    }
+    palmte_binfo.kernel_filename = kernel_filename;
+    palmte_binfo.kernel_cmdline = kernel_cmdline;
+    palmte_binfo.initrd_filename = initrd_filename;
+    arm_load_kernel(mpu->cpu, &palmte_binfo);
 }
 
 static QEMUMachine palmte_machine = {
     .name = "cheetah",
     .desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)",
     .init = palmte_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void palmte_machine_init(void)

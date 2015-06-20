@@ -20,7 +20,7 @@
 ; NSIS_WIN32_MAKENSIS
 
 !define PRODUCT "QEMU"
-!define URL     "http://www.qemu.org/"
+!define URL     "http://www.qemu-project.org/"
 
 !define UNINST_EXE "$INSTDIR\qemu-uninstall.exe"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT}"
@@ -60,7 +60,11 @@ InstallDir $PROGRAMFILES\qemu
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM "Software\qemu" "Install_Dir"
+!ifdef W64
+InstallDirRegKey HKLM "Software\qemu64" "Install_Dir"
+!else
+InstallDirRegKey HKLM "Software\qemu32" "Install_Dir"
+!endif
 
 ; Request administrator privileges for Windows Vista.
 RequestExecutionLevel admin

@@ -1586,7 +1586,6 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
     ARMCPU *cpu;
-    qemu_irq *cpu_pic;
     qemu_irq pic[32];
     DeviceState *dev;
     DeviceState *i2c_dev;
@@ -1610,7 +1609,6 @@ static void musicpal_init(QEMUMachineInitArgs *args)
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    cpu_pic = arm_pic_init_cpu(cpu);
 
     /* For now we use a fixed - the original - RAM size */
     memory_region_init_ram(ram, NULL, "musicpal.ram", MP_RAM_DEFAULT_SIZE);
@@ -1622,7 +1620,7 @@ static void musicpal_init(QEMUMachineInitArgs *args)
     memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 
     dev = sysbus_create_simple(TYPE_MV88W8618_PIC, MP_PIC_BASE,
-                               cpu_pic[ARM_PIC_CPU_IRQ]);
+                               qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ));
     for (i = 0; i < 32; i++) {
         pic[i] = qdev_get_gpio_in(dev, i);
     }
@@ -1731,7 +1729,6 @@ static QEMUMachine musicpal_machine = {
     .name = "musicpal",
     .desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)",
     .init = musicpal_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void musicpal_machine_init(void)

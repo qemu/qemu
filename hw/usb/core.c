@@ -403,7 +403,7 @@ void usb_handle_packet(USBDevice *dev, USBPacket *p)
         p->ep->halted = false;
     }
 
-    if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline) {
+    if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline || p->stream) {
         usb_process_one(p);
         if (p->status == USB_RET_ASYNC) {
             /* hcd drivers cannot handle async for isoc */
@@ -420,7 +420,8 @@ void usb_handle_packet(USBDevice *dev, USBPacket *p)
              * When pipelining is enabled usb-devices must always return async,
              * otherwise packets can complete out of order!
              */
-            assert(!p->ep->pipeline || QTAILQ_EMPTY(&p->ep->queue));
+            assert(p->stream || !p->ep->pipeline ||
+                   QTAILQ_EMPTY(&p->ep->queue));
             if (p->status != USB_RET_NAK) {
                 usb_packet_set_state(p, USB_PACKET_COMPLETE);
             }
@@ -434,7 +435,7 @@ void usb_packet_complete_one(USBDevice *dev, USBPacket *p)
 {
     USBEndpoint *ep = p->ep;
 
-    assert(QTAILQ_FIRST(&ep->queue) == p);
+    assert(p->stream || QTAILQ_FIRST(&ep->queue) == p);
     assert(p->status != USB_RET_ASYNC && p->status != USB_RET_NAK);
 
     if (p->status != USB_RET_SUCCESS ||
@@ -621,6 +622,7 @@ void usb_ep_reset(USBDevice *dev)
     dev->ep_ctl.nr = 0;
     dev->ep_ctl.type = USB_ENDPOINT_XFER_CONTROL;
     dev->ep_ctl.ifnum = 0;
+    dev->ep_ctl.max_packet_size = 64;
     dev->ep_ctl.dev = dev;
     dev->ep_ctl.pipeline = false;
     for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
@@ -632,6 +634,8 @@ void usb_ep_reset(USBDevice *dev)
         dev->ep_out[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_in[ep].ifnum = USB_INTERFACE_INVALID;
         dev->ep_out[ep].ifnum = USB_INTERFACE_INVALID;
+        dev->ep_in[ep].max_packet_size = 0;
+        dev->ep_out[ep].max_packet_size = 0;
         dev->ep_in[ep].dev = dev;
         dev->ep_out[ep].dev = dev;
         dev->ep_in[ep].pipeline = false;

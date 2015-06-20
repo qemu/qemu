@@ -335,7 +335,7 @@ static int pxa2xx_cpccnt_read(CPUARMState *env, const ARMCPRegInfo *ri,
 {
     PXA2xxState *s = (PXA2xxState *)ri->opaque;
     if (s->pmnc & 1) {
-        *value = qemu_get_clock_ns(vm_clock);
+        *value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     } else {
         *value = 0;
     }
@@ -842,7 +842,7 @@ static inline void pxa2xx_rtc_int_update(PXA2xxRTCState *s)
 
 static void pxa2xx_rtc_hzupdate(PXA2xxRTCState *s)
 {
-    int64_t rt = qemu_get_clock_ms(rtc_clock);
+    int64_t rt = qemu_clock_get_ms(rtc_clock);
     s->last_rcnr += ((rt - s->last_hz) << 15) /
             (1000 * ((s->rttr & 0xffff) + 1));
     s->last_rdcr += ((rt - s->last_hz) << 15) /
@@ -852,7 +852,7 @@ static void pxa2xx_rtc_hzupdate(PXA2xxRTCState *s)
 
 static void pxa2xx_rtc_swupdate(PXA2xxRTCState *s)
 {
-    int64_t rt = qemu_get_clock_ms(rtc_clock);
+    int64_t rt = qemu_clock_get_ms(rtc_clock);
     if (s->rtsr & (1 << 12))
         s->last_swcr += (rt - s->last_sw) / 10;
     s->last_sw = rt;
@@ -860,7 +860,7 @@ static void pxa2xx_rtc_swupdate(PXA2xxRTCState *s)
 
 static void pxa2xx_rtc_piupdate(PXA2xxRTCState *s)
 {
-    int64_t rt = qemu_get_clock_ms(rtc_clock);
+    int64_t rt = qemu_clock_get_ms(rtc_clock);
     if (s->rtsr & (1 << 15))
         s->last_swcr += rt - s->last_pi;
     s->last_pi = rt;
@@ -870,43 +870,43 @@ static inline void pxa2xx_rtc_alarm_update(PXA2xxRTCState *s,
                 uint32_t rtsr)
 {
     if ((rtsr & (1 << 2)) && !(rtsr & (1 << 0)))
-        qemu_mod_timer(s->rtc_hz, s->last_hz +
+        timer_mod(s->rtc_hz, s->last_hz +
                 (((s->rtar - s->last_rcnr) * 1000 *
                   ((s->rttr & 0xffff) + 1)) >> 15));
     else
-        qemu_del_timer(s->rtc_hz);
+        timer_del(s->rtc_hz);
 
     if ((rtsr & (1 << 5)) && !(rtsr & (1 << 4)))
-        qemu_mod_timer(s->rtc_rdal1, s->last_hz +
+        timer_mod(s->rtc_rdal1, s->last_hz +
                 (((s->rdar1 - s->last_rdcr) * 1000 *
                   ((s->rttr & 0xffff) + 1)) >> 15)); /* TODO: fixup */
     else
-        qemu_del_timer(s->rtc_rdal1);
+        timer_del(s->rtc_rdal1);
 
     if ((rtsr & (1 << 7)) && !(rtsr & (1 << 6)))
-        qemu_mod_timer(s->rtc_rdal2, s->last_hz +
+        timer_mod(s->rtc_rdal2, s->last_hz +
                 (((s->rdar2 - s->last_rdcr) * 1000 *
                   ((s->rttr & 0xffff) + 1)) >> 15)); /* TODO: fixup */
     else
-        qemu_del_timer(s->rtc_rdal2);
+        timer_del(s->rtc_rdal2);
 
     if ((rtsr & 0x1200) == 0x1200 && !(rtsr & (1 << 8)))
-        qemu_mod_timer(s->rtc_swal1, s->last_sw +
+        timer_mod(s->rtc_swal1, s->last_sw +
                         (s->swar1 - s->last_swcr) * 10); /* TODO: fixup */
     else
-        qemu_del_timer(s->rtc_swal1);
+        timer_del(s->rtc_swal1);
 
     if ((rtsr & 0x1800) == 0x1800 && !(rtsr & (1 << 10)))
-        qemu_mod_timer(s->rtc_swal2, s->last_sw +
+        timer_mod(s->rtc_swal2, s->last_sw +
                         (s->swar2 - s->last_swcr) * 10); /* TODO: fixup */
     else
-        qemu_del_timer(s->rtc_swal2);
+        timer_del(s->rtc_swal2);
 
     if ((rtsr & 0xc000) == 0xc000 && !(rtsr & (1 << 13)))
-        qemu_mod_timer(s->rtc_pi, s->last_pi +
+        timer_mod(s->rtc_pi, s->last_pi +
                         (s->piar & 0xffff) - s->last_rtcpicr);
     else
-        qemu_del_timer(s->rtc_pi);
+        timer_del(s->rtc_pi);
 }
 
 static inline void pxa2xx_rtc_hz_tick(void *opaque)
@@ -986,16 +986,19 @@ static uint64_t pxa2xx_rtc_read(void *opaque, hwaddr addr,
     case PIAR:
         return s->piar;
     case RCNR:
-        return s->last_rcnr + ((qemu_get_clock_ms(rtc_clock) - s->last_hz) << 15) /
-                (1000 * ((s->rttr & 0xffff) + 1));
+        return s->last_rcnr +
+            ((qemu_clock_get_ms(rtc_clock) - s->last_hz) << 15) /
+            (1000 * ((s->rttr & 0xffff) + 1));
     case RDCR:
-        return s->last_rdcr + ((qemu_get_clock_ms(rtc_clock) - s->last_hz) << 15) /
-                (1000 * ((s->rttr & 0xffff) + 1));
+        return s->last_rdcr +
+            ((qemu_clock_get_ms(rtc_clock) - s->last_hz) << 15) /
+            (1000 * ((s->rttr & 0xffff) + 1));
     case RYCR:
         return s->last_rycr;
     case SWCR:
         if (s->rtsr & (1 << 12))
-            return s->last_swcr + (qemu_get_clock_ms(rtc_clock) - s->last_sw) / 10;
+            return s->last_swcr +
+                (qemu_clock_get_ms(rtc_clock) - s->last_sw) / 10;
         else
             return s->last_swcr;
     default:
@@ -1135,14 +1138,14 @@ static int pxa2xx_rtc_init(SysBusDevice *dev)
     s->last_swcr = (tm.tm_hour << 19) |
             (tm.tm_min << 13) | (tm.tm_sec << 7);
     s->last_rtcpicr = 0;
-    s->last_hz = s->last_sw = s->last_pi = qemu_get_clock_ms(rtc_clock);
+    s->last_hz = s->last_sw = s->last_pi = qemu_clock_get_ms(rtc_clock);
 
-    s->rtc_hz    = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_hz_tick,    s);
-    s->rtc_rdal1 = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_rdal1_tick, s);
-    s->rtc_rdal2 = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_rdal2_tick, s);
-    s->rtc_swal1 = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_swal1_tick, s);
-    s->rtc_swal2 = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_swal2_tick, s);
-    s->rtc_pi    = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_pi_tick,    s);
+    s->rtc_hz    = timer_new_ms(rtc_clock, pxa2xx_rtc_hz_tick,    s);
+    s->rtc_rdal1 = timer_new_ms(rtc_clock, pxa2xx_rtc_rdal1_tick, s);
+    s->rtc_rdal2 = timer_new_ms(rtc_clock, pxa2xx_rtc_rdal2_tick, s);
+    s->rtc_swal1 = timer_new_ms(rtc_clock, pxa2xx_rtc_swal1_tick, s);
+    s->rtc_swal2 = timer_new_ms(rtc_clock, pxa2xx_rtc_swal2_tick, s);
+    s->rtc_pi    = timer_new_ms(rtc_clock, pxa2xx_rtc_pi_tick,    s);
 
     sysbus_init_irq(dev, &s->rtc_irq);
 

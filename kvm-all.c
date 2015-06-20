@@ -111,6 +111,7 @@ bool kvm_halt_in_kernel_allowed;
 bool kvm_irqfds_allowed;
 bool kvm_msi_via_irqfd_allowed;
 bool kvm_gsi_routing_allowed;
+bool kvm_gsi_direct_mapping;
 bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
 
@@ -1069,6 +1070,10 @@ void kvm_irqchip_release_virq(KVMState *s, int virq)
     struct kvm_irq_routing_entry *e;
     int i;
 
+    if (kvm_gsi_direct_mapping()) {
+        return;
+    }
+
     for (i = 0; i < s->irq_routes->nr; i++) {
         e = &s->irq_routes->entries[i];
         if (e->gsi == virq) {
@@ -1190,6 +1195,10 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     struct kvm_irq_routing_entry kroute = {};
     int virq;
 
+    if (kvm_gsi_direct_mapping()) {
+        return msg.data & 0xffff;
+    }
+
     if (!kvm_gsi_routing_enabled()) {
         return -ENOSYS;
     }
@@ -1216,6 +1225,10 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
 {
     struct kvm_irq_routing_entry kroute = {};
 
+    if (kvm_gsi_direct_mapping()) {
+        return 0;
+    }
+
     if (!kvm_irqchip_in_kernel()) {
         return -ENOSYS;
     }
@@ -1230,13 +1243,19 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
     return kvm_update_routing_entry(s, &kroute);
 }
 
-static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int virq, bool assign)
+static int kvm_irqchip_assign_irqfd(KVMState *s, int fd, int rfd, int virq,
+                                    bool assign)
 {
     struct kvm_irqfd irqfd = {
         .fd = fd,
         .gsi = virq,
         .flags = assign ? 0 : KVM_IRQFD_FLAG_DEASSIGN,
     };
+
+    if (rfd != -1) {
+        irqfd.flags |= KVM_IRQFD_FLAG_RESAMPLE;
+        irqfd.resamplefd = rfd;
+    }
 
     if (!kvm_irqfds_enabled()) {
         return -ENOSYS;
@@ -1276,14 +1295,17 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
 }
 #endif /* !KVM_CAP_IRQ_ROUTING */
 
-int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
+int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
+                                   EventNotifier *rn, int virq)
 {
-    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), virq, true);
+    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n),
+           rn ? event_notifier_get_fd(rn) : -1, virq, true);
 }
 
 int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
 {
-    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), virq, false);
+    return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), -1, virq,
+           false);
 }
 
 static int kvm_irqchip_create(KVMState *s)
@@ -1313,24 +1335,20 @@ static int kvm_irqchip_create(KVMState *s)
     return 0;
 }
 
+/* Find number of supported CPUs using the recommended
+ * procedure from the kernel API documentation to cope with
+ * older kernels that may be missing capabilities.
+ */
+static int kvm_recommended_vcpus(KVMState *s)
+{
+    int ret = kvm_check_extension(s, KVM_CAP_NR_VCPUS);
+    return (ret) ? ret : 4;
+}
+
 static int kvm_max_vcpus(KVMState *s)
 {
-    int ret;
-
-    /* Find number of supported CPUs using the recommended
-     * procedure from the kernel API documentation to cope with
-     * older kernels that may be missing capabilities.
-     */
-    ret = kvm_check_extension(s, KVM_CAP_MAX_VCPUS);
-    if (ret) {
-        return ret;
-    }
-    ret = kvm_check_extension(s, KVM_CAP_NR_VCPUS);
-    if (ret) {
-        return ret;
-    }
-
-    return 4;
+    int ret = kvm_check_extension(s, KVM_CAP_MAX_VCPUS);
+    return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
 int kvm_init(void)
@@ -1338,11 +1356,19 @@ int kvm_init(void)
     static const char upgrade_note[] =
         "Please upgrade to at least kernel 2.6.29 or recent kvm-kmod\n"
         "(see http://sourceforge.net/projects/kvm).\n";
+    struct {
+        const char *name;
+        int num;
+    } num_cpus[] = {
+        { "SMP",          smp_cpus },
+        { "hotpluggable", max_cpus },
+        { NULL, }
+    }, *nc = num_cpus;
+    int soft_vcpus_limit, hard_vcpus_limit;
     KVMState *s;
     const KVMCapabilityInfo *missing_cap;
     int ret;
     int i;
-    int max_vcpus;
 
     s = g_malloc0(sizeof(KVMState));
 
@@ -1383,12 +1409,26 @@ int kvm_init(void)
         goto err;
     }
 
-    max_vcpus = kvm_max_vcpus(s);
-    if (smp_cpus > max_vcpus) {
-        ret = -EINVAL;
-        fprintf(stderr, "Number of SMP cpus requested (%d) exceeds max cpus "
-                "supported by KVM (%d)\n", smp_cpus, max_vcpus);
-        goto err;
+    /* check the vcpu limits */
+    soft_vcpus_limit = kvm_recommended_vcpus(s);
+    hard_vcpus_limit = kvm_max_vcpus(s);
+
+    while (nc->name) {
+        if (nc->num > soft_vcpus_limit) {
+            fprintf(stderr,
+                    "Warning: Number of %s cpus requested (%d) exceeds "
+                    "the recommended cpus supported by KVM (%d)\n",
+                    nc->name, nc->num, soft_vcpus_limit);
+
+            if (nc->num > hard_vcpus_limit) {
+                ret = -EINVAL;
+                fprintf(stderr, "Number of %s cpus requested (%d) exceeds "
+                        "the maximum cpus supported by KVM (%d)\n",
+                        nc->name, nc->num, hard_vcpus_limit);
+                goto err;
+            }
+        }
+        nc++;
     }
 
     s->vmfd = kvm_ioctl(s, KVM_CREATE_VM, 0);
@@ -1499,32 +1539,8 @@ static void kvm_handle_io(uint16_t port, void *data, int direction, int size,
     uint8_t *ptr = data;
 
     for (i = 0; i < count; i++) {
-        if (direction == KVM_EXIT_IO_IN) {
-            switch (size) {
-            case 1:
-                stb_p(ptr, cpu_inb(port));
-                break;
-            case 2:
-                stw_p(ptr, cpu_inw(port));
-                break;
-            case 4:
-                stl_p(ptr, cpu_inl(port));
-                break;
-            }
-        } else {
-            switch (size) {
-            case 1:
-                cpu_outb(port, ldub_p(ptr));
-                break;
-            case 2:
-                cpu_outw(port, lduw_p(ptr));
-                break;
-            case 4:
-                cpu_outl(port, ldl_p(ptr));
-                break;
-            }
-        }
-
+        address_space_rw(&address_space_io, port, ptr, size,
+                         direction == KVM_EXIT_IO_OUT);
         ptr += size;
     }
 }
@@ -1820,19 +1836,6 @@ int kvm_has_intx_set_mask(void)
     return kvm_state->intx_set_mask;
 }
 
-void *kvm_ram_alloc(ram_addr_t size)
-{
-#ifdef TARGET_S390X
-    void *mem;
-
-    mem = kvm_arch_ram_alloc(size);
-    if (mem) {
-        return mem;
-    }
-#endif
-    return qemu_anon_ram_alloc(size);
-}
-
 void kvm_setup_guest_memory(void *start, size_t size)
 {
 #ifdef CONFIG_VALGRIND_H
@@ -1933,7 +1936,7 @@ int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
         }
     }
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         err = kvm_update_guest_debug(cpu, 0);
         if (err) {
             return err;
@@ -1973,7 +1976,7 @@ int kvm_remove_breakpoint(CPUState *cpu, target_ulong addr,
         }
     }
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         err = kvm_update_guest_debug(cpu, 0);
         if (err) {
             return err;
@@ -1990,7 +1993,7 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
     QTAILQ_FOREACH_SAFE(bp, &s->kvm_sw_breakpoints, entry, next) {
         if (kvm_arch_remove_sw_breakpoint(cpu, bp) != 0) {
             /* Try harder to find a CPU that currently sees the breakpoint. */
-            for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+            CPU_FOREACH(cpu) {
                 if (kvm_arch_remove_sw_breakpoint(cpu, bp) == 0) {
                     break;
                 }
@@ -2001,7 +2004,7 @@ void kvm_remove_all_breakpoints(CPUState *cpu)
     }
     kvm_arch_remove_all_hw_breakpoints();
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         kvm_update_guest_debug(cpu, 0);
     }
 }

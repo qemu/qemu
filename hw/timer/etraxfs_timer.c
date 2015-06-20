@@ -93,7 +93,7 @@ timer_read(void *opaque, hwaddr addr, unsigned int size)
         r = ptimer_get_count(t->ptimer_t1);
         break;
     case R_TIME:
-        r = qemu_get_clock_ns(vm_clock) / 10;
+        r = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 10;
         break;
     case RW_INTR_MASK:
         r = t->rw_intr_mask;

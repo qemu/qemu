@@ -72,6 +72,7 @@
 #define PRIV_XSCH                       0x76
 #define PRIV_SQBS                       0x8a
 #define PRIV_EQBS                       0x9c
+#define DIAG_IPL                        0x308
 #define DIAG_KVM_HYPERCALL              0x500
 #define DIAG_KVM_BREAKPOINT             0x501
 
@@ -92,9 +93,15 @@ const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
 
 static int cap_sync_regs;
 
+static void *legacy_s390_alloc(size_t size);
+
 int kvm_arch_init(KVMState *s)
 {
     cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
+    if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
+        || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
+        phys_mem_set_alloc(legacy_s390_alloc);
+    }
     return 0;
 }
 
@@ -318,29 +325,14 @@ int kvm_s390_get_registers_partial(CPUState *cs)
  * to grow. We also have to use MAP parameters that avoid
  * read-only mapping of guest pages.
  */
-static void *legacy_s390_alloc(ram_addr_t size)
+static void *legacy_s390_alloc(size_t size)
 {
     void *mem;
 
     mem = mmap((void *) 0x800000000ULL, size,
                PROT_EXEC|PROT_READ|PROT_WRITE,
                MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
-    if (mem == MAP_FAILED) {
-        fprintf(stderr, "Allocating RAM failed\n");
-        abort();
-    }
-    return mem;
-}
-
-void *kvm_arch_ram_alloc(ram_addr_t size)
-{
-    /* Can we use the standard allocation ? */
-    if (kvm_check_extension(kvm_state, KVM_CAP_S390_GMAP) &&
-        kvm_check_extension(kvm_state, KVM_CAP_S390_COW)) {
-        return NULL;
-    } else {
-        return legacy_s390_alloc(size);
-    }
+    return mem == MAP_FAILED ? NULL : mem;
 }
 
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
@@ -426,18 +418,6 @@ static void enter_pgmcheck(S390CPU *cpu, uint16_t code)
     kvm_s390_interrupt(cpu, KVM_S390_PROGRAM_INT, code);
 }
 
-static inline void setcc(S390CPU *cpu, uint64_t cc)
-{
-    CPUS390XState *env = &cpu->env;
-    CPUState *cs = CPU(cpu);
-
-    cs->kvm_run->psw_mask &= ~(3ull << 44);
-    cs->kvm_run->psw_mask |= (cc & 3) << 44;
-
-    env->psw.mask &= ~(3ul << 44);
-    env->psw.mask |= (cc & 3) << 44;
-}
-
 static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
                                  uint16_t ipbh0)
 {
@@ -447,6 +427,10 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     int r = 0;
 
     cpu_synchronize_state(CPU(cpu));
+    if (env->psw.mask & PSW_MASK_PSTATE) {
+        enter_pgmcheck(cpu, PGM_PRIVILEGED);
+        return 0;
+    }
     sccb = env->regs[ipbh0 & 0xf];
     code = env->regs[(ipbh0 & 0xf0) >> 4];
 
@@ -462,8 +446,6 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
 static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
                                uint8_t ipa0, uint8_t ipa1, uint8_t ipb)
 {
-    int r = 0;
-    int no_cc = 0;
     CPUS390XState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
 
@@ -477,67 +459,59 @@ static int kvm_handle_css_inst(S390CPU *cpu, struct kvm_run *run,
 
     switch (ipa1) {
     case PRIV_XSCH:
-        r = ioinst_handle_xsch(env, env->regs[1]);
+        ioinst_handle_xsch(cpu, env->regs[1]);
         break;
     case PRIV_CSCH:
-        r = ioinst_handle_csch(env, env->regs[1]);
+        ioinst_handle_csch(cpu, env->regs[1]);
         break;
     case PRIV_HSCH:
-        r = ioinst_handle_hsch(env, env->regs[1]);
+        ioinst_handle_hsch(cpu, env->regs[1]);
         break;
     case PRIV_MSCH:
-        r = ioinst_handle_msch(env, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_msch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
     case PRIV_SSCH:
-        r = ioinst_handle_ssch(env, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_ssch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
     case PRIV_STCRW:
-        r = ioinst_handle_stcrw(env, run->s390_sieic.ipb);
+        ioinst_handle_stcrw(cpu, run->s390_sieic.ipb);
         break;
     case PRIV_STSCH:
-        r = ioinst_handle_stsch(env, env->regs[1], run->s390_sieic.ipb);
+        ioinst_handle_stsch(cpu, env->regs[1], run->s390_sieic.ipb);
         break;
     case PRIV_TSCH:
         /* We should only get tsch via KVM_EXIT_S390_TSCH. */
         fprintf(stderr, "Spurious tsch intercept\n");
         break;
     case PRIV_CHSC:
-        r = ioinst_handle_chsc(env, run->s390_sieic.ipb);
+        ioinst_handle_chsc(cpu, run->s390_sieic.ipb);
         break;
     case PRIV_TPI:
         /* This should have been handled by kvm already. */
         fprintf(stderr, "Spurious tpi intercept\n");
         break;
     case PRIV_SCHM:
-        no_cc = 1;
-        r = ioinst_handle_schm(env, env->regs[1], env->regs[2],
-                               run->s390_sieic.ipb);
+        ioinst_handle_schm(cpu, env->regs[1], env->regs[2],
+                           run->s390_sieic.ipb);
         break;
     case PRIV_RSCH:
-        r = ioinst_handle_rsch(env, env->regs[1]);
+        ioinst_handle_rsch(cpu, env->regs[1]);
         break;
     case PRIV_RCHP:
-        r = ioinst_handle_rchp(env, env->regs[1]);
+        ioinst_handle_rchp(cpu, env->regs[1]);
         break;
     case PRIV_STCPS:
         /* We do not provide this instruction, it is suppressed. */
-        no_cc = 1;
-        r = 0;
         break;
     case PRIV_SAL:
-        no_cc = 1;
-        r = ioinst_handle_sal(env, env->regs[1]);
+        ioinst_handle_sal(cpu, env->regs[1]);
         break;
     case PRIV_SIGA:
         /* Not provided, set CC = 3 for subchannel not operational */
-        r = 3;
+        setcc(cpu, 3);
         break;
     default:
         return -1;
-    }
-
-    if (r >= 0 && !no_cc) {
-        setcc(cpu, r);
     }
 
     return 0;
@@ -578,32 +552,45 @@ static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
     return 0;
 }
 
+static void kvm_handle_diag_308(S390CPU *cpu, struct kvm_run *run)
+{
+    uint64_t r1, r3;
+
+    cpu_synchronize_state(CPU(cpu));
+    r1 = (run->s390_sieic.ipa & 0x00f0) >> 8;
+    r3 = run->s390_sieic.ipa & 0x000f;
+    handle_diag_308(&cpu->env, r1, r3);
+}
+
 static int handle_diag(S390CPU *cpu, struct kvm_run *run, int ipb_code)
 {
     int r = 0;
 
     switch (ipb_code) {
-        case DIAG_KVM_HYPERCALL:
-            r = handle_hypercall(cpu, run);
-            break;
-        case DIAG_KVM_BREAKPOINT:
-            sleep(10);
-            break;
-        default:
-            DPRINTF("KVM: unknown DIAG: 0x%x\n", ipb_code);
-            r = -1;
-            break;
+    case DIAG_IPL:
+        kvm_handle_diag_308(cpu, run);
+        break;
+    case DIAG_KVM_HYPERCALL:
+        r = handle_hypercall(cpu, run);
+        break;
+    case DIAG_KVM_BREAKPOINT:
+        sleep(10);
+        break;
+    default:
+        DPRINTF("KVM: unknown DIAG: 0x%x\n", ipb_code);
+        r = -1;
+        break;
     }
 
     return r;
 }
 
-static int s390_cpu_restart(S390CPU *cpu)
+int kvm_s390_cpu_restart(S390CPU *cpu)
 {
     kvm_s390_interrupt(cpu, KVM_S390_RESTART, 0);
     s390_add_running_cpu(cpu);
     qemu_cpu_kick(CPU(cpu));
-    DPRINTF("DONE: SIGP cpu restart: %p\n", &cpu->env);
+    DPRINTF("DONE: KVM cpu restart: %p\n", &cpu->env);
     return 0;
 }
 
@@ -672,7 +659,7 @@ static int handle_sigp(S390CPU *cpu, struct kvm_run *run, uint8_t ipa1)
 
     switch (order_code) {
         case SIGP_RESTART:
-            r = s390_cpu_restart(target_cpu);
+            r = kvm_s390_cpu_restart(target_cpu);
             break;
         case SIGP_STORE_STATUS_ADDR:
             r = s390_store_status(target_env, parameter);

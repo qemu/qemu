@@ -57,7 +57,7 @@ $QEMU_IO \
 	-c "write 4k 4k" \
 	-c "write 9M 4k" \
 	-c "read -P 65 -s 4k -l 4k 2044k 8k" \
-$TEST_IMG | _filter_qemu_io
+"$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "checking image for errors"

@@ -74,9 +74,6 @@ void uc32_translate_init(void)
         cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
                                 offsetof(CPUUniCore32State, regs[i]), regnames[i]);
     }
-
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 static int num_temps;
@@ -1100,7 +1097,7 @@ static inline void gen_goto_tb(DisasContext *s, int n, uint32_t dest)
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(n);
         gen_set_pc_im(dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         gen_set_pc_im(dest);
         tcg_gen_exit_tb(0);

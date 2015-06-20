@@ -65,10 +65,7 @@ void *qemu_anon_ram_alloc(size_t size)
     /* FIXME: this is not exactly optimal solution since VirtualAlloc
        has 64Kb granularity, but at least it guarantees us that the
        memory is page aligned. */
-    if (!size) {
-        abort();
-    }
-    ptr = qemu_oom_check(VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE));
+    ptr = VirtualAlloc(NULL, size, MEM_COMMIT, PAGE_READWRITE);
     trace_qemu_anon_ram_alloc(size, ptr);
     return ptr;
 }
@@ -125,6 +122,16 @@ void qemu_set_nonblock(int fd)
     unsigned long opt = 1;
     ioctlsocket(fd, FIONBIO, &opt);
     qemu_fd_register(fd);
+}
+
+int socket_set_fast_reuse(int fd)
+{
+    /* Enabling the reuse of an endpoint that was used by a socket still in
+     * TIME_WAIT state is usually performed by setting SO_REUSEADDR. On Windows
+     * fast reuse is the default and SO_REUSEADDR does strange things. So we
+     * don't have to do anything here. More info can be found at:
+     * http://msdn.microsoft.com/en-us/library/windows/desktop/ms740621.aspx */
+    return 0;
 }
 
 int inet_aton(const char *cp, struct in_addr *ia)

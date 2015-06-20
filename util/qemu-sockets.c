@@ -155,7 +155,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
             continue;
         }
 
-        qemu_setsockopt(slisten, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+        socket_set_fast_reuse(slisten);
 #ifdef IPV6_V6ONLY
         if (e->ai_family == PF_INET6) {
             /* listen on both ipv4 and ipv6 */
@@ -274,7 +274,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
         error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
         return -1;
     }
-    qemu_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    socket_set_fast_reuse(sock);
     if (connect_state != NULL) {
         qemu_set_nonblock(sock);
     }
@@ -455,7 +455,7 @@ int inet_dgram_opts(QemuOpts *opts, Error **errp)
         error_set_errno(errp, errno, QERR_SOCKET_CREATE_FAILED);
         goto err;
     }
-    qemu_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    socket_set_fast_reuse(sock);
 
     /* bind socket */
     if (bind(sock, local->ai_addr, local->ai_addrlen) < 0) {

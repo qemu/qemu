@@ -377,8 +377,8 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
             /* loop over the indirect descriptor table */
             indirect = 1;
             max = vring_desc_len(desc_pa, i) / sizeof(VRingDesc);
-            num_bufs = i = 0;
             desc_pa = vring_desc_addr(desc_pa, i);
+            num_bufs = i = 0;
         }
 
         do {

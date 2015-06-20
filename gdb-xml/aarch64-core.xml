@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2009-2012 Free Software Foundation, Inc.
+     Contributed by ARM Ltd.
+
+     Copying and distribution of this file, with or without modification,
+     are permitted in any medium without royalty provided the copyright
+     notice and this notice are preserved.  -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.aarch64.core">
+  <reg name="x0" bitsize="64"/>
+  <reg name="x1" bitsize="64"/>
+  <reg name="x2" bitsize="64"/>
+  <reg name="x3" bitsize="64"/>
+  <reg name="x4" bitsize="64"/>
+  <reg name="x5" bitsize="64"/>
+  <reg name="x6" bitsize="64"/>
+  <reg name="x7" bitsize="64"/>
+  <reg name="x8" bitsize="64"/>
+  <reg name="x9" bitsize="64"/>
+  <reg name="x10" bitsize="64"/>
+  <reg name="x11" bitsize="64"/>
+  <reg name="x12" bitsize="64"/>
+  <reg name="x13" bitsize="64"/>
+  <reg name="x14" bitsize="64"/>
+  <reg name="x15" bitsize="64"/>
+  <reg name="x16" bitsize="64"/>
+  <reg name="x17" bitsize="64"/>
+  <reg name="x18" bitsize="64"/>
+  <reg name="x19" bitsize="64"/>
+  <reg name="x20" bitsize="64"/>
+  <reg name="x21" bitsize="64"/>
+  <reg name="x22" bitsize="64"/>
+  <reg name="x23" bitsize="64"/>
+  <reg name="x24" bitsize="64"/>
+  <reg name="x25" bitsize="64"/>
+  <reg name="x26" bitsize="64"/>
+  <reg name="x27" bitsize="64"/>
+  <reg name="x28" bitsize="64"/>
+  <reg name="x29" bitsize="64"/>
+  <reg name="x30" bitsize="64"/>
+  <reg name="sp" bitsize="64" type="data_ptr"/>
+
+  <reg name="pc" bitsize="64" type="code_ptr"/>
+  <reg name="cpsr" bitsize="32"/>
+</feature>

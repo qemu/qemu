@@ -31,8 +31,8 @@ static const S32Test test_s32_data[] = {
 };
 
 static const S64Test test_s64_data[] = {
-    { 0x8459826734967223, 60, 4, -8 },
-    { 0x8459826734967223, 0, 64, 0x8459826734967223 },
+    { 0x8459826734967223ULL, 60, 4, -8 },
+    { 0x8459826734967223ULL, 0, 64, 0x8459826734967223LL },
 };
 
 static void test_sextract32(void)

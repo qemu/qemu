@@ -1,0 +1,63 @@
+#!/bin/bash
+#
+# Test case for discarding preallocated zero clusters in qcow2
+#
+# Copyright (C) 2013 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mreitz@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+# This tests qocw2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto generic
+_supported_os Linux
+
+IMGOPTS="compat=1.1"
+IMG_SIZE=64M
+
+echo
+echo "=== Testing snapshotting an image with zero clusters ==="
+echo
+_make_test_img $IMG_SIZE
+# Write some normal clusters, zero them (creating preallocated zero clusters)
+# and discard those
+$QEMU_IO -c "write 0 256k" -c "write -z 0 256k" -c "discard 0 256k" "$TEST_IMG" \
+         | _filter_qemu_io
+# Check the image (there shouldn't be any leaks)
+_check_test_img
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

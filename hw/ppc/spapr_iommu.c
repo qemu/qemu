@@ -22,12 +22,11 @@
 #include "kvm_ppc.h"
 #include "sysemu/dma.h"
 #include "exec/address-spaces.h"
+#include "trace.h"
 
 #include "hw/ppc/spapr.h"
 
 #include <libfdt.h>
-
-/* #define DEBUG_TCE */
 
 enum sPAPRTCEAccess {
     SPAPR_TCE_FAULT = 0,
@@ -61,44 +60,28 @@ static IOMMUTLBEntry spapr_tce_translate_iommu(MemoryRegion *iommu, hwaddr addr)
 {
     sPAPRTCETable *tcet = container_of(iommu, sPAPRTCETable, iommu);
     uint64_t tce;
-
-#ifdef DEBUG_TCE
-    fprintf(stderr, "spapr_tce_translate liobn=0x%" PRIx32 " addr=0x"
-            DMA_ADDR_FMT "\n", tcet->liobn, addr);
-#endif
+    IOMMUTLBEntry ret = {
+        .target_as = &address_space_memory,
+        .iova = 0,
+        .translated_addr = 0,
+        .addr_mask = ~(hwaddr)0,
+        .perm = IOMMU_NONE,
+    };
 
     if (tcet->bypass) {
-        return (IOMMUTLBEntry) {
-            .target_as = &address_space_memory,
-            .iova = 0,
-            .translated_addr = 0,
-            .addr_mask = ~(hwaddr)0,
-            .perm = IOMMU_RW,
-        };
+        ret.perm = IOMMU_RW;
+    } else if (addr < tcet->window_size) {
+        /* Check if we are in bound */
+        tce = tcet->table[addr >> SPAPR_TCE_PAGE_SHIFT];
+        ret.iova = addr & ~SPAPR_TCE_PAGE_MASK;
+        ret.translated_addr = tce & ~SPAPR_TCE_PAGE_MASK;
+        ret.addr_mask = SPAPR_TCE_PAGE_MASK;
+        ret.perm = tce;
     }
+    trace_spapr_iommu_xlate(tcet->liobn, addr, ret.iova, ret.perm,
+                            ret.addr_mask);
 
-    /* Check if we are in bound */
-    if (addr >= tcet->window_size) {
-#ifdef DEBUG_TCE
-        fprintf(stderr, "spapr_tce_translate out of bounds\n");
-#endif
-        return (IOMMUTLBEntry) { .perm = IOMMU_NONE };
-    }
-
-    tce = tcet->table[addr >> SPAPR_TCE_PAGE_SHIFT];
-
-#ifdef DEBUG_TCE
-    fprintf(stderr, " ->  *paddr=0x%llx, *len=0x%llx\n",
-            (tce & ~SPAPR_TCE_PAGE_MASK), SPAPR_TCE_PAGE_MASK + 1);
-#endif
-
-    return (IOMMUTLBEntry) {
-        .target_as = &address_space_memory,
-        .iova = addr & ~SPAPR_TCE_PAGE_MASK,
-        .translated_addr = tce & ~SPAPR_TCE_PAGE_MASK,
-        .addr_mask = SPAPR_TCE_PAGE_MASK,
-        .perm = tce,
-    };
+    return ret;
 }
 
 static int spapr_tce_table_pre_load(void *opaque)
@@ -150,10 +133,7 @@ static int spapr_tce_table_realize(DeviceState *dev)
     }
     tcet->nb_table = tcet->window_size >> SPAPR_TCE_PAGE_SHIFT;
 
-#ifdef DEBUG_TCE
-    fprintf(stderr, "spapr_iommu: New TCE table @ %p, liobn=0x%x, "
-            "table @ %p, fd=%d\n", tcet, liobn, tcet->table, tcet->fd);
-#endif
+    trace_spapr_iommu_new_table(tcet->liobn, tcet, tcet->table, tcet->fd);
 
     memory_region_init_iommu(&tcet->iommu, OBJECT(dev), &spapr_iommu_ops,
                              "iommu-spapr", UINT64_MAX);
@@ -250,20 +230,17 @@ static target_ulong h_put_tce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     target_ulong liobn = args[0];
     target_ulong ioba = args[1];
     target_ulong tce = args[2];
+    target_ulong ret = H_PARAMETER;
     sPAPRTCETable *tcet = spapr_tce_find_by_liobn(liobn);
 
     ioba &= ~(SPAPR_TCE_PAGE_SIZE - 1);
 
     if (tcet) {
-        return put_tce_emu(tcet, ioba, tce);
+        ret = put_tce_emu(tcet, ioba, tce);
     }
-#ifdef DEBUG_TCE
-    fprintf(stderr, "%s on liobn=" TARGET_FMT_lx /*%s*/
-            "  ioba 0x" TARGET_FMT_lx "  TCE 0x" TARGET_FMT_lx "\n",
-            __func__, liobn, /*dev->qdev.id, */ioba, tce);
-#endif
+    trace_spapr_iommu_put(liobn, ioba, tce, ret);
 
-    return H_PARAMETER;
+    return ret;
 }
 
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,

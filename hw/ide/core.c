@@ -777,8 +777,8 @@ static void ide_sector_write_cb(void *opaque, int ret)
            that at the expense of slower write performances. Use this
            option _only_ to install Windows 2000. You must disable it
            for normal use. */
-        qemu_mod_timer(s->sector_write_timer,
-                       qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() / 1000));
+        timer_mod(s->sector_write_timer,
+                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + (get_ticks_per_sec() / 1000));
     } else {
         ide_set_irq(s->bus);
     }
@@ -2194,7 +2194,7 @@ static void ide_init1(IDEBus *bus, int unit)
     s->smart_selftest_data = qemu_blockalign(s->bs, 512);
     memset(s->smart_selftest_data, 0, 512);
 
-    s->sector_write_timer = qemu_new_timer_ns(vm_clock,
+    s->sector_write_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                            ide_sector_write_timer_cb, s);
 }
 
@@ -2241,55 +2241,6 @@ void ide_init2(IDEBus *bus, qemu_irq irq)
     for(i = 0; i < 2; i++) {
         ide_init1(bus, i);
         ide_reset(&bus->ifs[i]);
-    }
-    bus->irq = irq;
-    bus->dma = &ide_dma_nop;
-}
-
-/* TODO convert users to qdev and remove */
-void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
-                                    DriveInfo *hd1, qemu_irq irq)
-{
-    int i, trans;
-    DriveInfo *dinfo;
-    uint32_t cyls, heads, secs;
-
-    for(i = 0; i < 2; i++) {
-        dinfo = i == 0 ? hd0 : hd1;
-        ide_init1(bus, i);
-        if (dinfo) {
-            cyls  = dinfo->cyls;
-            heads = dinfo->heads;
-            secs  = dinfo->secs;
-            trans = dinfo->trans;
-            if (!cyls && !heads && !secs) {
-                hd_geometry_guess(dinfo->bdrv, &cyls, &heads, &secs, &trans);
-            } else if (trans == BIOS_ATA_TRANSLATION_AUTO) {
-                trans = hd_bios_chs_auto_trans(cyls, heads, secs);
-            }
-            if (cyls < 1 || cyls > 65535) {
-                error_report("cyls must be between 1 and 65535");
-                exit(1);
-            }
-            if (heads < 1 || heads > 16) {
-                error_report("heads must be between 1 and 16");
-                exit(1);
-            }
-            if (secs < 1 || secs > 255) {
-                error_report("secs must be between 1 and 255");
-                exit(1);
-            }
-            if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
-                               dinfo->media_cd ? IDE_CD : IDE_HD,
-                               NULL, dinfo->serial, NULL, 0,
-                               cyls, heads, secs, trans) < 0) {
-                error_report("Can't set up IDE drive %s", dinfo->id);
-                exit(1);
-            }
-            bdrv_attach_dev_nofail(dinfo->bdrv, &bus->ifs[i]);
-        } else {
-            ide_reset(&bus->ifs[i]);
-        }
     }
     bus->irq = irq;
     bus->dma = &ide_dma_nop;

@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-null.h"
+
 #if defined(TCG_TARGET_WORDS_BIGENDIAN) == defined(TARGET_WORDS_BIGENDIAN)
 # define TCG_NEED_BSWAP 0
 #else
@@ -108,33 +110,33 @@ static const TCGReg tcg_target_call_oarg_regs[2] = {
 
 static uint8_t *tb_ret_addr;
 
-static inline uint32_t reloc_lo16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_lo16_val(void *pc, intptr_t target)
 {
     return target & 0xffff;
 }
 
-static inline void reloc_lo16 (void *pc, tcg_target_long target)
+static inline void reloc_lo16(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0xffff)
                        | reloc_lo16_val(pc, target);
 }
 
-static inline uint32_t reloc_hi16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_hi16_val(void *pc, intptr_t target)
 {
     return (target >> 16) & 0xffff;
 }
 
-static inline void reloc_hi16 (void *pc, tcg_target_long target)
+static inline void reloc_hi16(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0xffff)
                        | reloc_hi16_val(pc, target);
 }
 
-static inline uint32_t reloc_pc16_val (void *pc, tcg_target_long target)
+static inline uint32_t reloc_pc16_val(void *pc, intptr_t target)
 {
     int32_t disp;
 
-    disp = target - (tcg_target_long) pc - 4;
+    disp = target - (intptr_t)pc - 4;
     if (disp != (disp << 14) >> 14) {
         tcg_abort ();
     }
@@ -157,14 +159,14 @@ static inline uint32_t reloc_26_val (void *pc, tcg_target_long target)
     return (target >> 2) & 0x3ffffff;
 }
 
-static inline void reloc_pc26 (void *pc, tcg_target_long target)
+static inline void reloc_pc26(void *pc, intptr_t target)
 {
     *(uint32_t *) pc = (*(uint32_t *) pc & ~0x3ffffff)
                        | reloc_26_val(pc, target);
 }
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     value += addend;
     switch(type) {
@@ -422,83 +424,83 @@ static inline void tcg_out_movi(TCGContext *s, TCGType type,
 
 static inline void tcg_out_bswap16(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
-    tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
-#else
-    /* ret and arg can't be register at */
-    if (ret == TCG_REG_AT || arg == TCG_REG_AT) {
-        tcg_abort();
-    }
+    if (use_mips32r2_instructions) {
+        tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
+    } else {
+        /* ret and arg can't be register at */
+        if (ret == TCG_REG_AT || arg == TCG_REG_AT) {
+            tcg_abort();
+        }
 
-    tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
-    tcg_out_opc_sa(s, OPC_SLL, ret, arg, 8);
-    tcg_out_opc_imm(s, OPC_ANDI, ret, ret, 0xff00);
-    tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
-#endif
+        tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
+        tcg_out_opc_sa(s, OPC_SLL, ret, arg, 8);
+        tcg_out_opc_imm(s, OPC_ANDI, ret, ret, 0xff00);
+        tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
+    }
 }
 
 static inline void tcg_out_bswap16s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
-    tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
-    tcg_out_opc_reg(s, OPC_SEH, ret, 0, ret);
-#else
-    /* ret and arg can't be register at */
-    if (ret == TCG_REG_AT || arg == TCG_REG_AT) {
-        tcg_abort();
-    }
+    if (use_mips32r2_instructions) {
+        tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
+        tcg_out_opc_reg(s, OPC_SEH, ret, 0, ret);
+    } else {
+        /* ret and arg can't be register at */
+        if (ret == TCG_REG_AT || arg == TCG_REG_AT) {
+            tcg_abort();
+        }
 
-    tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
-    tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
-    tcg_out_opc_sa(s, OPC_SRA, ret, ret, 16);
-    tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
-#endif
+        tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
+        tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
+        tcg_out_opc_sa(s, OPC_SRA, ret, ret, 16);
+        tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
+    }
 }
 
 static inline void tcg_out_bswap32(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
-    tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
-    tcg_out_opc_sa(s, OPC_ROTR, ret, ret, 16);
-#else
-    /* ret and arg must be different and can't be register at */
-    if (ret == arg || ret == TCG_REG_AT || arg == TCG_REG_AT) {
-        tcg_abort();
+    if (use_mips32r2_instructions) {
+        tcg_out_opc_reg(s, OPC_WSBH, ret, 0, arg);
+        tcg_out_opc_sa(s, OPC_ROTR, ret, ret, 16);
+    } else {
+        /* ret and arg must be different and can't be register at */
+        if (ret == arg || ret == TCG_REG_AT || arg == TCG_REG_AT) {
+            tcg_abort();
+        }
+
+        tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
+
+        tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 24);
+        tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
+
+        tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_AT, arg, 0xff00);
+        tcg_out_opc_sa(s, OPC_SLL, TCG_REG_AT, TCG_REG_AT, 8);
+        tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
+
+        tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
+        tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_AT, TCG_REG_AT, 0xff00);
+        tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
     }
-
-    tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
-
-    tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 24);
-    tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
-
-    tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_AT, arg, 0xff00);
-    tcg_out_opc_sa(s, OPC_SLL, TCG_REG_AT, TCG_REG_AT, 8);
-    tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
-
-    tcg_out_opc_sa(s, OPC_SRL, TCG_REG_AT, arg, 8);
-    tcg_out_opc_imm(s, OPC_ANDI, TCG_REG_AT, TCG_REG_AT, 0xff00);
-    tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_REG_AT);
-#endif
 }
 
 static inline void tcg_out_ext8s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
-    tcg_out_opc_reg(s, OPC_SEB, ret, 0, arg);
-#else
-    tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
-    tcg_out_opc_sa(s, OPC_SRA, ret, ret, 24);
-#endif
+    if (use_mips32r2_instructions) {
+        tcg_out_opc_reg(s, OPC_SEB, ret, 0, arg);
+    } else {
+        tcg_out_opc_sa(s, OPC_SLL, ret, arg, 24);
+        tcg_out_opc_sa(s, OPC_SRA, ret, ret, 24);
+    }
 }
 
 static inline void tcg_out_ext16s(TCGContext *s, TCGReg ret, TCGReg arg)
 {
-#if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
-    tcg_out_opc_reg(s, OPC_SEH, ret, 0, arg);
-#else
-    tcg_out_opc_sa(s, OPC_SLL, ret, arg, 16);
-    tcg_out_opc_sa(s, OPC_SRA, ret, ret, 16);
-#endif
+    if (use_mips32r2_instructions) {
+        tcg_out_opc_reg(s, OPC_SEH, ret, 0, arg);
+    } else {
+        tcg_out_opc_sa(s, OPC_SLL, ret, arg, 16);
+        tcg_out_opc_sa(s, OPC_SRA, ret, ret, 16);
+    }
 }
 
 static inline void tcg_out_ldst(TCGContext *s, int opc, TCGArg arg,
@@ -514,13 +516,13 @@ static inline void tcg_out_ldst(TCGContext *s, int opc, TCGArg arg,
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, OPC_LW, arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, OPC_SW, arg, arg1, arg2);
 }
@@ -919,9 +921,6 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, TCGReg ret,
 }
 
 #if defined(CONFIG_SOFTMMU)
-
-#include "exec/softmmu_defs.h"
-
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -1406,12 +1405,12 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_mov(s, TCG_TYPE_I32, args[0], TCG_REG_AT);
         break;
     case INDEX_op_mul_i32:
-#if defined(__mips_isa_rev) && (__mips_isa_rev >= 1)
-        tcg_out_opc_reg(s, OPC_MUL, args[0], args[1], args[2]);
-#else
-        tcg_out_opc_reg(s, OPC_MULT, 0, args[1], args[2]);
-        tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
-#endif
+        if (use_mips32_instructions) {
+            tcg_out_opc_reg(s, OPC_MUL, args[0], args[1], args[2]);
+        } else {
+            tcg_out_opc_reg(s, OPC_MULT, 0, args[1], args[2]);
+            tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
+        }
         break;
     case INDEX_op_muls2_i32:
         tcg_out_opc_reg(s, OPC_MULT, 0, args[2], args[3]);
@@ -1422,6 +1421,14 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         tcg_out_opc_reg(s, OPC_MULTU, 0, args[2], args[3]);
         tcg_out_opc_reg(s, OPC_MFLO, args[0], 0, 0);
         tcg_out_opc_reg(s, OPC_MFHI, args[1], 0, 0);
+        break;
+    case INDEX_op_mulsh_i32:
+        tcg_out_opc_reg(s, OPC_MULT, 0, args[1], args[2]);
+        tcg_out_opc_reg(s, OPC_MFHI, args[0], 0, 0);
+        break;
+    case INDEX_op_muluh_i32:
+        tcg_out_opc_reg(s, OPC_MULTU, 0, args[1], args[2]);
+        tcg_out_opc_reg(s, OPC_MFHI, args[0], 0, 0);
         break;
     case INDEX_op_div_i32:
         tcg_out_opc_reg(s, OPC_DIV, 0, args[1], args[2]);
@@ -1506,20 +1513,19 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         }
         break;
 
-    /* The bswap routines do not work on non-R2 CPU. In that case
-       we let TCG generating the corresponding code. */
     case INDEX_op_bswap16_i32:
-        tcg_out_bswap16(s, args[0], args[1]);
+        tcg_out_opc_reg(s, OPC_WSBH, args[0], 0, args[1]);
         break;
     case INDEX_op_bswap32_i32:
-        tcg_out_bswap32(s, args[0], args[1]);
+        tcg_out_opc_reg(s, OPC_WSBH, args[0], 0, args[1]);
+        tcg_out_opc_sa(s, OPC_ROTR, args[0], args[0], 16);
         break;
 
     case INDEX_op_ext8s_i32:
-        tcg_out_ext8s(s, args[0], args[1]);
+        tcg_out_opc_reg(s, OPC_SEB, args[0], 0, args[1]);
         break;
     case INDEX_op_ext16s_i32:
-        tcg_out_ext16s(s, args[0], args[1]);
+        tcg_out_opc_reg(s, OPC_SEH, args[0], 0, args[1]);
         break;
 
     case INDEX_op_deposit_i32:
@@ -1602,6 +1608,8 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_mul_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_muls2_i32, { "r", "r", "rZ", "rZ" } },
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rZ" } },
+    { INDEX_op_mulsh_i32, { "r", "rZ", "rZ" } },
+    { INDEX_op_muluh_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_div_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_divu_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_rem_i32, { "r", "rZ", "rZ" } },
@@ -1617,29 +1625,19 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_shl_i32, { "r", "rZ", "ri" } },
     { INDEX_op_shr_i32, { "r", "rZ", "ri" } },
     { INDEX_op_sar_i32, { "r", "rZ", "ri" } },
-#if TCG_TARGET_HAS_rot_i32
     { INDEX_op_rotr_i32, { "r", "rZ", "ri" } },
     { INDEX_op_rotl_i32, { "r", "rZ", "ri" } },
-#endif
 
-#if TCG_TARGET_HAS_bswap16_i32
     { INDEX_op_bswap16_i32, { "r", "r" } },
-#endif
-#if TCG_TARGET_HAS_bswap32_i32
     { INDEX_op_bswap32_i32, { "r", "r" } },
-#endif
 
     { INDEX_op_ext8s_i32, { "r", "rZ" } },
     { INDEX_op_ext16s_i32, { "r", "rZ" } },
 
-#if TCG_TARGET_HAS_deposit_i32
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
-#endif
 
     { INDEX_op_brcond_i32, { "rZ", "rZ" } },
-#if TCG_TARGET_HAS_movcond_i32
     { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "0" } },
-#endif
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
 
@@ -1688,6 +1686,86 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_RA,       /* should be last for ABI compliance */
 };
 
+/* The Linux kernel doesn't provide any information about the available
+   instruction set. Probe it using a signal handler. */
+
+#include <signal.h>
+
+#ifndef use_movnz_instructions
+bool use_movnz_instructions = false;
+#endif
+
+#ifndef use_mips32_instructions
+bool use_mips32_instructions = false;
+#endif
+
+#ifndef use_mips32r2_instructions
+bool use_mips32r2_instructions = false;
+#endif
+
+static volatile sig_atomic_t got_sigill;
+
+static void sigill_handler(int signo, siginfo_t *si, void *data)
+{
+    /* Skip the faulty instruction */
+    ucontext_t *uc = (ucontext_t *)data;
+    uc->uc_mcontext.pc += 4;
+
+    got_sigill = 1;
+}
+
+static void tcg_target_detect_isa(void)
+{
+    struct sigaction sa_old, sa_new;
+
+    memset(&sa_new, 0, sizeof(sa_new));
+    sa_new.sa_flags = SA_SIGINFO;
+    sa_new.sa_sigaction = sigill_handler;
+    sigaction(SIGILL, &sa_new, &sa_old);
+
+    /* Probe for movn/movz, necessary to implement movcond. */
+#ifndef use_movnz_instructions
+    got_sigill = 0;
+    asm volatile(".set push\n"
+                 ".set mips32\n"
+                 "movn $zero, $zero, $zero\n"
+                 "movz $zero, $zero, $zero\n"
+                 ".set pop\n"
+                 : : : );
+    use_movnz_instructions = !got_sigill;
+#endif
+
+    /* Probe for MIPS32 instructions. As no subsetting is allowed
+       by the specification, it is only necessary to probe for one
+       of the instructions. */
+#ifndef use_mips32_instructions
+    got_sigill = 0;
+    asm volatile(".set push\n"
+                 ".set mips32\n"
+                 "mul $zero, $zero\n"
+                 ".set pop\n"
+                 : : : );
+    use_mips32_instructions = !got_sigill;
+#endif
+
+    /* Probe for MIPS32r2 instructions if MIPS32 instructions are
+       available. As no subsetting is allowed by the specification,
+       it is only necessary to probe for one of the instructions. */
+#ifndef use_mips32r2_instructions
+    if (use_mips32_instructions) {
+        got_sigill = 0;
+        asm volatile(".set push\n"
+                     ".set mips32r2\n"
+                     "seb $zero, $zero\n"
+                     ".set pop\n"
+                     : : : );
+        use_mips32r2_instructions = !got_sigill;
+    }
+#endif
+
+    sigaction(SIGILL, &sa_old, NULL);
+}
+
 /* Generate global QEMU prologue and epilogue code */
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
@@ -1727,6 +1805,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
 static void tcg_target_init(TCGContext *s)
 {
+    tcg_target_detect_isa();
     tcg_regset_set(tcg_target_available_regs[TCG_TYPE_I32], 0xffffffff);
     tcg_regset_set(tcg_target_call_clobber_regs,
                    (1 << TCG_REG_V0) |

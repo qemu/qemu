@@ -69,7 +69,7 @@ static MemoryRegion io_mem_unassigned;
 
 #endif
 
-CPUState *first_cpu;
+struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
 /* current CPU in the current thread. It is only valid inside
    cpu_exec() */
 DEFINE_TLS(CPUState *, current_cpu);
@@ -129,7 +129,6 @@ static PhysPageMap next_map;
 
 static void io_mem_init(void);
 static void memory_map_init(void);
-static void *qemu_safe_ram_ptr(ram_addr_t addr);
 
 static MemoryRegion io_mem_watch;
 #endif
@@ -351,44 +350,29 @@ const VMStateDescription vmstate_cpu_common = {
 
 CPUState *qemu_get_cpu(int index)
 {
-    CPUState *cpu = first_cpu;
-
-    while (cpu) {
-        if (cpu->cpu_index == index) {
-            break;
-        }
-        cpu = cpu->next_cpu;
-    }
-
-    return cpu;
-}
-
-void qemu_for_each_cpu(void (*func)(CPUState *cpu, void *data), void *data)
-{
     CPUState *cpu;
 
-    cpu = first_cpu;
-    while (cpu) {
-        func(cpu, data);
-        cpu = cpu->next_cpu;
+    CPU_FOREACH(cpu) {
+        if (cpu->cpu_index == index) {
+            return cpu;
+        }
     }
+
+    return NULL;
 }
 
 void cpu_exec_init(CPUArchState *env)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    CPUState **pcpu;
+    CPUState *some_cpu;
     int cpu_index;
 
 #if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
 #endif
-    cpu->next_cpu = NULL;
-    pcpu = &first_cpu;
     cpu_index = 0;
-    while (*pcpu != NULL) {
-        pcpu = &(*pcpu)->next_cpu;
+    CPU_FOREACH(some_cpu) {
         cpu_index++;
     }
     cpu->cpu_index = cpu_index;
@@ -398,7 +382,7 @@ void cpu_exec_init(CPUArchState *env)
 #ifndef CONFIG_USER_ONLY
     cpu->thread_id = qemu_get_thread_id();
 #endif
-    *pcpu = cpu;
+    QTAILQ_INSERT_TAIL(&cpus, cpu, node);
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
 #endif
@@ -425,8 +409,10 @@ static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 #else
 static void breakpoint_invalidate(CPUState *cpu, target_ulong pc)
 {
-    tb_invalidate_phys_addr(cpu_get_phys_page_debug(cpu, pc) |
-            (pc & ~TARGET_PAGE_MASK));
+    hwaddr phys = cpu_get_phys_page_debug(cpu, pc);
+    if (phys != -1) {
+        tb_invalidate_phys_addr(phys | (pc & ~TARGET_PAGE_MASK));
+    }
 }
 #endif
 #endif /* TARGET_HAS_ICE */
@@ -640,55 +626,40 @@ void cpu_abort(CPUArchState *env, const char *fmt, ...)
     abort();
 }
 
-CPUArchState *cpu_copy(CPUArchState *env)
+#if !defined(CONFIG_USER_ONLY)
+static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
 {
-    CPUArchState *new_env = cpu_init(env->cpu_model_str);
-#if defined(TARGET_HAS_ICE)
-    CPUBreakpoint *bp;
-    CPUWatchpoint *wp;
-#endif
+    RAMBlock *block;
 
-    /* Reset non arch specific state */
-    cpu_reset(ENV_GET_CPU(new_env));
-
-    /* Copy arch specific state into the new CPU */
-    memcpy(new_env, env, sizeof(CPUArchState));
-
-    /* Clone all break/watchpoints.
-       Note: Once we support ptrace with hw-debug register access, make sure
-       BP_CPU break/watchpoints are handled correctly on clone. */
-    QTAILQ_INIT(&env->breakpoints);
-    QTAILQ_INIT(&env->watchpoints);
-#if defined(TARGET_HAS_ICE)
-    QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
-        cpu_breakpoint_insert(new_env, bp->pc, bp->flags, NULL);
+    /* The list is protected by the iothread lock here.  */
+    block = ram_list.mru_block;
+    if (block && addr - block->offset < block->length) {
+        goto found;
     }
-    QTAILQ_FOREACH(wp, &env->watchpoints, entry) {
-        cpu_watchpoint_insert(new_env, wp->vaddr, (~wp->len_mask) + 1,
-                              wp->flags, NULL);
+    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+        if (addr - block->offset < block->length) {
+            goto found;
+        }
     }
-#endif
 
-    return new_env;
+    fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
+    abort();
+
+found:
+    ram_list.mru_block = block;
+    return block;
 }
 
-#if !defined(CONFIG_USER_ONLY)
 static void tlb_reset_dirty_range_all(ram_addr_t start, ram_addr_t end,
                                       uintptr_t length)
 {
-    uintptr_t start1;
+    RAMBlock *block;
+    ram_addr_t start1;
 
-    /* we modify the TLB cache so that the dirty bit will be set again
-       when accessing the range */
-    start1 = (uintptr_t)qemu_safe_ram_ptr(start);
-    /* Check that we don't span multiple blocks - this breaks the
-       address comparisons below.  */
-    if ((uintptr_t)qemu_safe_ram_ptr(end - 1) - start1
-            != (end - 1) - start) {
-        abort();
-    }
+    block = qemu_get_ram_block(start);
+    assert(block == qemu_get_ram_block(end - 1));
+    start1 = (uintptr_t)block->host + (start - block->offset);
     cpu_tlb_reset_dirty_all(start1, length);
-
 }
 
 /* Note: start and end must be within the same ram block.  */
@@ -763,6 +734,18 @@ hwaddr memory_region_section_get_iotlb(CPUArchState *env,
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
 static subpage_t *subpage_init(AddressSpace *as, hwaddr base);
+
+static void *(*phys_mem_alloc)(size_t size) = qemu_anon_ram_alloc;
+
+/*
+ * Set a custom physical guest memory alloator.
+ * Accelerators with unusual needs may need this.  Hopefully, we can
+ * get rid of it eventually.
+ */
+void phys_mem_set_alloc(void *(*alloc)(size_t))
+{
+    phys_mem_alloc = alloc;
+}
 
 static uint16_t phys_section_add(MemoryRegionSection *section)
 {
@@ -869,7 +852,7 @@ static void mem_add(MemoryListener *listener, MemoryRegionSection *section)
         now = remain;
         if (int128_lt(remain.size, page_size)) {
             register_subpage(d, &now);
-        } else if (remain.offset_within_region & ~TARGET_PAGE_MASK) {
+        } else if (remain.offset_within_address_space & ~TARGET_PAGE_MASK) {
             now.size = page_size;
             register_subpage(d, &now);
         } else {
@@ -895,7 +878,7 @@ void qemu_mutex_unlock_ramlist(void)
     qemu_mutex_unlock(&ram_list.mutex);
 }
 
-#if defined(__linux__) && !defined(TARGET_S390X)
+#ifdef __linux__
 
 #include <sys/vfs.h>
 
@@ -997,6 +980,14 @@ static void *file_ram_alloc(RAMBlock *block,
     }
     block->fd = fd;
     return area;
+}
+#else
+static void *file_ram_alloc(RAMBlock *block,
+                            ram_addr_t memory,
+                            const char *path)
+{
+    fprintf(stderr, "-mem-path not supported on this host\n");
+    exit(1);
 }
 #endif
 
@@ -1114,6 +1105,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 
     size = TARGET_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
+    new_block->fd = -1;
 
     /* This assumes the iothread lock is taken here too.  */
     qemu_mutex_lock_ramlist();
@@ -1122,26 +1114,32 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     if (host) {
         new_block->host = host;
         new_block->flags |= RAM_PREALLOC_MASK;
+    } else if (xen_enabled()) {
+        if (mem_path) {
+            fprintf(stderr, "-mem-path not supported with Xen\n");
+            exit(1);
+        }
+        xen_ram_alloc(new_block->offset, size, mr);
     } else {
         if (mem_path) {
-#if defined (__linux__) && !defined(TARGET_S390X)
-            new_block->host = file_ram_alloc(new_block, size, mem_path);
-            if (!new_block->host) {
-                new_block->host = qemu_anon_ram_alloc(size);
-                memory_try_enable_merging(new_block->host, size);
+            if (phys_mem_alloc != qemu_anon_ram_alloc) {
+                /*
+                 * file_ram_alloc() needs to allocate just like
+                 * phys_mem_alloc, but we haven't bothered to provide
+                 * a hook there.
+                 */
+                fprintf(stderr,
+                        "-mem-path not supported with this accelerator\n");
+                exit(1);
             }
-#else
-            fprintf(stderr, "-mem-path option unsupported\n");
-            exit(1);
-#endif
-        } else {
-            if (xen_enabled()) {
-                xen_ram_alloc(new_block->offset, size, mr);
-            } else if (kvm_enabled()) {
-                /* some s390/kvm configurations have special constraints */
-                new_block->host = kvm_ram_alloc(size);
-            } else {
-                new_block->host = qemu_anon_ram_alloc(size);
+            new_block->host = file_ram_alloc(new_block, size, mem_path);
+        }
+        if (!new_block->host) {
+            new_block->host = phys_mem_alloc(size);
+            if (!new_block->host) {
+                fprintf(stderr, "Cannot set up guest memory '%s': %s\n",
+                        new_block->mr->name, strerror(errno));
+                exit(1);
             }
             memory_try_enable_merging(new_block->host, size);
         }
@@ -1172,6 +1170,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
 
     qemu_ram_setup_dump(new_block->host, size);
     qemu_madvise(new_block->host, size, QEMU_MADV_HUGEPAGE);
+    qemu_madvise(new_block->host, size, QEMU_MADV_DONTFORK);
 
     if (kvm_enabled())
         kvm_setup_guest_memory(new_block->host, size);
@@ -1215,23 +1214,15 @@ void qemu_ram_free(ram_addr_t addr)
             ram_list.version++;
             if (block->flags & RAM_PREALLOC_MASK) {
                 ;
-            } else if (mem_path) {
-#if defined (__linux__) && !defined(TARGET_S390X)
-                if (block->fd) {
-                    munmap(block->host, block->length);
-                    close(block->fd);
-                } else {
-                    qemu_anon_ram_free(block->host, block->length);
-                }
-#else
-                abort();
+            } else if (xen_enabled()) {
+                xen_invalidate_map_cache_entry(block->host);
+#ifndef _WIN32
+            } else if (block->fd >= 0) {
+                munmap(block->host, block->length);
+                close(block->fd);
 #endif
             } else {
-                if (xen_enabled()) {
-                    xen_invalidate_map_cache_entry(block->host);
-                } else {
-                    qemu_anon_ram_free(block->host, block->length);
-                }
+                qemu_anon_ram_free(block->host, block->length);
             }
             g_free(block);
             break;
@@ -1255,38 +1246,31 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
             vaddr = block->host + offset;
             if (block->flags & RAM_PREALLOC_MASK) {
                 ;
+            } else if (xen_enabled()) {
+                abort();
             } else {
                 flags = MAP_FIXED;
                 munmap(vaddr, length);
-                if (mem_path) {
-#if defined(__linux__) && !defined(TARGET_S390X)
-                    if (block->fd) {
+                if (block->fd >= 0) {
 #ifdef MAP_POPULATE
-                        flags |= mem_prealloc ? MAP_POPULATE | MAP_SHARED :
-                            MAP_PRIVATE;
+                    flags |= mem_prealloc ? MAP_POPULATE | MAP_SHARED :
+                        MAP_PRIVATE;
 #else
-                        flags |= MAP_PRIVATE;
+                    flags |= MAP_PRIVATE;
 #endif
-                        area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                    flags, block->fd, offset);
-                    } else {
-                        flags |= MAP_PRIVATE | MAP_ANONYMOUS;
-                        area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
-                                    flags, -1, 0);
-                    }
-#else
-                    abort();
-#endif
+                    area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
+                                flags, block->fd, offset);
                 } else {
-#if defined(TARGET_S390X) && defined(CONFIG_KVM)
-                    flags |= MAP_SHARED | MAP_ANONYMOUS;
-                    area = mmap(vaddr, length, PROT_EXEC|PROT_READ|PROT_WRITE,
-                                flags, -1, 0);
-#else
+                    /*
+                     * Remap needs to match alloc.  Accelerators that
+                     * set phys_mem_alloc never remap.  If they did,
+                     * we'd need a remap hook here.
+                     */
+                    assert(phys_mem_alloc == qemu_anon_ram_alloc);
+
                     flags |= MAP_PRIVATE | MAP_ANONYMOUS;
                     area = mmap(vaddr, length, PROT_READ | PROT_WRITE,
                                 flags, -1, 0);
-#endif
                 }
                 if (area != vaddr) {
                     fprintf(stderr, "Could not remap addr: "
@@ -1302,29 +1286,6 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
     }
 }
 #endif /* !_WIN32 */
-
-static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
-{
-    RAMBlock *block;
-
-    /* The list is protected by the iothread lock here.  */
-    block = ram_list.mru_block;
-    if (block && addr - block->offset < block->length) {
-        goto found;
-    }
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (addr - block->offset < block->length) {
-            goto found;
-        }
-    }
-
-    fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
-    abort();
-
-found:
-    ram_list.mru_block = block;
-    return block;
-}
 
 /* Return a host pointer to ram allocated with qemu_ram_alloc.
    With the exception of the softmmu code in this file, this should
@@ -1351,40 +1312,6 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
         }
     }
     return block->host + (addr - block->offset);
-}
-
-/* Return a host pointer to ram allocated with qemu_ram_alloc.  Same as
- * qemu_get_ram_ptr but do not touch ram_list.mru_block.
- *
- * ??? Is this still necessary?
- */
-static void *qemu_safe_ram_ptr(ram_addr_t addr)
-{
-    RAMBlock *block;
-
-    /* The list is protected by the iothread lock here.  */
-    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-        if (addr - block->offset < block->length) {
-            if (xen_enabled()) {
-                /* We need to check if the requested address is in the RAM
-                 * because we don't want to map the entire memory in QEMU.
-                 * In that case just map until the end of the page.
-                 */
-                if (block->offset == 0) {
-                    return xen_map_cache(addr, 0, 0);
-                } else if (block->host == NULL) {
-                    block->host =
-                        xen_map_cache(block->offset, block->length, 1);
-                }
-            }
-            return block->host + (addr - block->offset);
-        }
-    }
-
-    fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
-    abort();
-
-    return NULL;
 }
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
@@ -1575,7 +1502,7 @@ static uint64_t subpage_read(void *opaque, hwaddr addr,
     uint8_t buf[4];
 
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p len %d addr " TARGET_FMT_plx "\n", __func__,
+    printf("%s: subpage %p len %u addr " TARGET_FMT_plx "\n", __func__,
            subpage, len, addr);
 #endif
     address_space_read(subpage->as, addr + subpage->base, buf, len);
@@ -1598,7 +1525,7 @@ static void subpage_write(void *opaque, hwaddr addr,
     uint8_t buf[4];
 
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p len %d addr " TARGET_FMT_plx
+    printf("%s: subpage %p len %u addr " TARGET_FMT_plx
            " value %"PRIx64"\n",
            __func__, subpage, len, addr, value);
 #endif
@@ -1619,16 +1546,16 @@ static void subpage_write(void *opaque, hwaddr addr,
 }
 
 static bool subpage_accepts(void *opaque, hwaddr addr,
-                            unsigned size, bool is_write)
+                            unsigned len, bool is_write)
 {
     subpage_t *subpage = opaque;
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p %c len %d addr " TARGET_FMT_plx "\n",
+    printf("%s: subpage %p %c len %u addr " TARGET_FMT_plx "\n",
            __func__, subpage, is_write ? 'w' : 'r', len, addr);
 #endif
 
     return address_space_access_valid(subpage->as, addr + subpage->base,
-                                      size, is_write);
+                                      len, is_write);
 }
 
 static const MemoryRegionOps subpage_ops = {
@@ -1648,8 +1575,8 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     idx = SUBPAGE_IDX(start);
     eidx = SUBPAGE_IDX(end);
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %ld\n", __func__,
-           mmio, start, end, idx, eidx, memory);
+    printf("%s: %p start %08x end %08x idx %08x eidx %08x section %d\n",
+           __func__, mmio, start, end, idx, eidx, section);
 #endif
     for (; idx <= eidx; idx++) {
         mmio->sub_section[idx] = section;
@@ -1670,8 +1597,8 @@ static subpage_t *subpage_init(AddressSpace *as, hwaddr base)
                           "subpage", TARGET_PAGE_SIZE);
     mmio->iomem.subpage = true;
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
-           mmio, base, TARGET_PAGE_SIZE, subpage_memory);
+    printf("%s: %p base " TARGET_FMT_plx " len %08x\n", __func__,
+           mmio, base, TARGET_PAGE_SIZE);
 #endif
     subpage_register(mmio, 0, TARGET_PAGE_SIZE-1, PHYS_SECTION_UNASSIGNED);
 
@@ -1762,7 +1689,7 @@ static void tcg_commit(MemoryListener *listener)
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
     /* XXX: slow ! */
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         CPUArchState *env = cpu->env_ptr;
 
         tlb_flush(env, 1);
@@ -1820,11 +1747,14 @@ static void memory_map_init(void)
     address_space_init(&address_space_memory, system_memory, "memory");
 
     system_io = g_malloc(sizeof(*system_io));
-    memory_region_init(system_io, NULL, "io", 65536);
+    memory_region_init_io(system_io, NULL, &unassigned_io_ops, NULL, "io",
+                          65536);
     address_space_init(&address_space_io, system_io, "I/O");
 
     memory_listener_register(&core_memory_listener, &address_space_memory);
-    memory_listener_register(&tcg_memory_listener, &address_space_memory);
+    if (tcg_enabled()) {
+        memory_listener_register(&tcg_memory_listener, &address_space_memory);
+    }
 }
 
 MemoryRegion *get_system_memory(void)
@@ -1927,6 +1857,9 @@ static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
     /* Don't attempt accesses larger than the maximum.  */
     if (l > access_size_max) {
         l = access_size_max;
+    }
+    if (l & (l - 1)) {
+        l = 1 << (qemu_fls(l) - 1);
     }
 
     return l;
@@ -2168,7 +2101,9 @@ void *address_space_map(AddressSpace *as,
         if (bounce.buffer) {
             return NULL;
         }
-        bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, TARGET_PAGE_SIZE);
+        /* Avoid unbounded allocations */
+        l = MIN(l, TARGET_PAGE_SIZE);
+        bounce.buffer = qemu_memalign(TARGET_PAGE_SIZE, l);
         bounce.addr = addr;
         bounce.len = l;
 

@@ -78,50 +78,50 @@ _wrapup()
 
     if $showme
     then
-	:
+        :
     elif $needwrap
     then
-	if [ -f check.time -a -f $tmp.time ]
-	then
-	    cat check.time $tmp.time \
-	    | $AWK_PROG '
-	{ t[$1] = $2 }
-END	{ if (NR > 0) {
-	    for (i in t) print i " " t[i]
-	  }
-	}' \
-	    | sort -n >$tmp.out
-	    mv $tmp.out check.time
-	fi
+        if [ -f check.time -a -f $tmp.time ]
+        then
+            cat check.time $tmp.time \
+            | $AWK_PROG '
+        { t[$1] = $2 }
+END        { if (NR > 0) {
+            for (i in t) print i " " t[i]
+          }
+        }' \
+            | sort -n >$tmp.out
+            mv $tmp.out check.time
+        fi
 
-	if [ -f $tmp.expunged ]
-	then
-	    notrun=`wc -l <$tmp.expunged | sed -e 's/  *//g'`
-	    try=`expr $try - $notrun`
-	    list=`echo "$list" | sed -f $tmp.expunged`
-	fi
+        if [ -f $tmp.expunged ]
+        then
+            notrun=`wc -l <$tmp.expunged | sed -e 's/  *//g'`
+            try=`expr $try - $notrun`
+            list=`echo "$list" | sed -f $tmp.expunged`
+        fi
 
-	echo "" >>check.log
-	date >>check.log
-	echo $list | fmt | sed -e 's/^/    /' >>check.log
-	$interrupt && echo "Interrupted!" >>check.log
-        
-	if [ ! -z "$notrun" ]
-	then
-	    echo "Not run:$notrun"
-	    echo "Not run:$notrun" >>check.log
-	fi
+        echo "" >>check.log
+        date >>check.log
+        echo $list | fmt | sed -e 's/^/    /' >>check.log
+        $interrupt && echo "Interrupted!" >>check.log
+
+        if [ ! -z "$notrun" ]
+        then
+            echo "Not run:$notrun"
+            echo "Not run:$notrun" >>check.log
+        fi
         if [ ! -z "$n_bad" -a $n_bad != 0 ]
-	then
-	    echo "Failures:$bad"
-	    echo "Failed $n_bad of $try tests"
-	    echo "Failures:$bad" | fmt >>check.log
-	    echo "Failed $n_bad of $try tests" >>check.log
-	else
-	    echo "Passed all $try tests"
-	    echo "Passed all $try tests" >>check.log
-	fi
-	needwrap=false
+        then
+            echo "Failures:$bad"
+            echo "Failed $n_bad of $try tests"
+            echo "Failures:$bad" | fmt >>check.log
+            echo "Failed $n_bad of $try tests" >>check.log
+        else
+            echo "Passed all $try tests"
+            echo "Passed all $try tests" >>check.log
+        fi
+        needwrap=false
     fi
 
     rm -f /tmp/*.out /tmp/*.err /tmp/*.time
@@ -164,6 +164,7 @@ QEMU_IO       -- $QEMU_IO
 IMGFMT        -- $FULL_IMGFMT_DETAILS
 IMGPROTO      -- $FULL_IMGPROTO_DETAILS
 PLATFORM      -- $FULL_HOST_DETAILS
+SOCKET_SCM_HELPER -- $SOCKET_SCM_HELPER
 
 EOF
 #MKFS_OPTIONS  -- $FULL_MKFS_OPTIONS
@@ -185,82 +186,88 @@ do
 
     if $showme
     then
-	echo
-	continue
-    elif [ -f expunged ] && $expunge && egrep "^$seq([ 	]|\$)" expunged >/dev/null
+        echo
+        continue
+    elif [ -f expunged ] && $expunge && egrep "^$seq([         ]|\$)" expunged >/dev/null
     then
-	echo " - expunged"
-	rm -f $seq.out.bad
-	echo "/^$seq\$/d" >>$tmp.expunged
+        echo " - expunged"
+        rm -f $seq.out.bad
+        echo "/^$seq\$/d" >>$tmp.expunged
     elif [ ! -f $seq ]
     then
-	echo " - no such test?"
-	echo "/^$seq\$/d" >>$tmp.expunged
+        echo " - no such test?"
+        echo "/^$seq\$/d" >>$tmp.expunged
     else
-	# really going to try and run this one
-	#
-	rm -f $seq.out.bad
-	lasttime=`sed -n -e "/^$seq /s/.* //p" <check.time`
-	if [ "X$lasttime" != X ]; then
-		echo -n " ${lasttime}s ..."
-	else
-		echo -n "	"	# prettier output with timestamps.
-	fi
-	rm -f core $seq.notrun
+        # really going to try and run this one
+        #
+        rm -f $seq.out.bad
+        lasttime=`sed -n -e "/^$seq /s/.* //p" <check.time`
+        if [ "X$lasttime" != X ]; then
+                echo -n " ${lasttime}s ..."
+        else
+                echo -n "        "        # prettier output with timestamps.
+        fi
+        rm -f core $seq.notrun
 
-	# for hangcheck ...
-	echo "$seq" >/tmp/check.sts
+        # for hangcheck ...
+        echo "$seq" >/tmp/check.sts
 
-	start=`_wallclock`
-	$timestamp && echo -n "	["`date "+%T"`"]"
-	[ ! -x $seq ] && chmod u+x $seq # ensure we can run it
-	MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
-		./$seq >$tmp.out 2>&1
-	sts=$?
-	$timestamp && _timestamp
-	stop=`_wallclock`
+        start=`_wallclock`
+        $timestamp && echo -n "        ["`date "+%T"`"]"
+        [ ! -x $seq ] && chmod u+x $seq # ensure we can run it
+        MALLOC_PERTURB_=${MALLOC_PERTURB_:-$(($RANDOM % 255 + 1))} \
+                ./$seq >$tmp.out 2>&1
+        sts=$?
+        $timestamp && _timestamp
+        stop=`_wallclock`
 
-	if [ -f core ]
-	then
-	    echo -n " [dumped core]"
-	    mv core $seq.core
-	    err=true
-	fi
+        if [ -f core ]
+        then
+            echo -n " [dumped core]"
+            mv core $seq.core
+            err=true
+        fi
 
-	if [ -f $seq.notrun ]
-	then
-	    $timestamp || echo -n " [not run] "
-	    $timestamp && echo " [not run]" && echo -n "	$seq -- "
-	    cat $seq.notrun
-	    notrun="$notrun $seq"
-	else
-	    if [ $sts -ne 0 ]
-	    then
-		echo -n " [failed, exit status $sts]"
-		err=true
-	    fi
-	    if [ ! -f $seq.out ]
-	    then
-		echo " - no qualified output"
-		err=true
-	    else
-		if diff -w $seq.out $tmp.out >/dev/null 2>&1
-		then
-		    echo ""
-		    if $err
-		    then
-			:
-		    else
-			echo "$seq `expr $stop - $start`" >>$tmp.time
-		    fi
-		else
-		    echo " - output mismatch (see $seq.out.bad)"
-		    mv $tmp.out $seq.out.bad
-		    $diff -w $seq.out $seq.out.bad
-		    err=true
-		fi
-	    fi
-	fi
+        if [ -f $seq.notrun ]
+        then
+            $timestamp || echo -n " [not run] "
+            $timestamp && echo " [not run]" && echo -n "        $seq -- "
+            cat $seq.notrun
+            notrun="$notrun $seq"
+        else
+            if [ $sts -ne 0 ]
+            then
+                echo -n " [failed, exit status $sts]"
+                err=true
+            fi
+
+            reference=$seq.out
+            if (echo $QEMU_IO_OPTIONS | grep -s -- '--nocache' > /dev/null); then
+                [ -f $seq.out.nocache ] && reference=$seq.out.nocache
+            fi
+
+            if [ ! -f $reference ]
+            then
+                echo " - no qualified output"
+                err=true
+            else
+                if diff -w $reference $tmp.out >/dev/null 2>&1
+                then
+                    echo ""
+                    if $err
+                    then
+                        :
+                    else
+                        echo "$seq `expr $stop - $start`" >>$tmp.time
+                    fi
+                else
+                    echo " - output mismatch (see $seq.out.bad)"
+                    mv $tmp.out $seq.out.bad
+                    $diff -w $reference $seq.out.bad
+                    err=true
+                fi
+            fi
+        fi
 
     fi
 
@@ -268,12 +275,12 @@ do
     #
     if $err
     then
-	bad="$bad $seq"
-	n_bad=`expr $n_bad + 1`
-	quick=false
+        bad="$bad $seq"
+        n_bad=`expr $n_bad + 1`
+        quick=false
     fi
     [ -f $seq.notrun ] || try=`expr $try + 1`
-    
+
     seq="after_$seq"
 done
 

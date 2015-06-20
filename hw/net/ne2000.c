@@ -467,7 +467,7 @@ static inline void ne2000_mem_writel(NE2000State *s, uint32_t addr,
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        cpu_to_le32wu((uint32_t *)(s->mem + addr), val);
+        stl_le_p(s->mem + addr, val);
     }
 }
 
@@ -497,7 +497,7 @@ static inline uint32_t ne2000_mem_readl(NE2000State *s, uint32_t addr)
     addr &= ~1; /* XXX: check exact behaviour if not even */
     if (addr < 32 ||
         (addr >= NE2000_PMEM_START && addr < NE2000_MEM_SIZE)) {
-        return le32_to_cpupu((uint32_t *)(s->mem + addr));
+        return ldl_le_p(s->mem + addr);
     } else {
         return 0xffffffff;
     }
@@ -693,7 +693,7 @@ static void ne2000_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps ne2000_ops = {
     .read = ne2000_read,
     .write = ne2000_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /***********************************************************/
@@ -731,7 +731,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     s = &d->ne2000;
     ne2000_setup_io(s, DEVICE(pci_dev), 0x100);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
-    s->irq = d->dev.irq[0];
+    s->irq = pci_allocate_irq(&d->dev);
 
     qemu_macaddr_default_if_unset(&s->c.macaddr);
     ne2000_reset(s);
@@ -752,6 +752,7 @@ static void pci_ne2000_exit(PCIDevice *pci_dev)
 
     memory_region_destroy(&s->io);
     qemu_del_nic(s->nic);
+    qemu_free_irq(s->irq);
 }
 
 static Property ne2000_properties[] = {

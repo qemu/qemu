@@ -3,7 +3,6 @@
 include pci.mak
 include sound.mak
 include usb.mak
-CONFIG_GDBSTUB_XML=y
 CONFIG_ISA_MMIO=y
 CONFIG_ESCC=y
 CONFIG_M48T59=y

@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-null.h"
+
 /* TODO list:
  * - See TODO comments in code.
  */
@@ -370,7 +372,7 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #endif
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
     /* tcg_out_reloc always uses the same type, addend. */
     assert(type == sizeof(tcg_target_long));
@@ -413,13 +415,6 @@ static void tcg_out_i(TCGContext *s, tcg_target_ulong v)
 {
     *(tcg_target_ulong *)s->code_ptr = v;
     s->code_ptr += sizeof(tcg_target_ulong);
-}
-
-/* Write 64 bit value. */
-static void tcg_out64(TCGContext *s, uint64_t v)
-{
-    *(uint64_t *)s->code_ptr = v;
-    s->code_ptr += sizeof(v);
 }
 
 /* Write opcode. */
@@ -488,7 +483,7 @@ static void tci_out_label(TCGContext *s, TCGArg arg)
 }
 
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
-                       tcg_target_long arg2)
+                       intptr_t arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
     if (type == TCG_TYPE_I32) {
@@ -677,7 +672,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_shl_i64:
     case INDEX_op_shr_i64:
     case INDEX_op_sar_i64:
-        /* TODO: Implementation of rotl_i64, rotr_i64 missing in tci.c. */
     case INDEX_op_rotl_i64:     /* Optional (TCG_TARGET_HAS_rot_i64). */
     case INDEX_op_rotr_i64:     /* Optional (TCG_TARGET_HAS_rot_i64). */
         tcg_out_r(s, args[0]);
@@ -842,7 +836,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 }
 
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
-                       tcg_target_long arg2)
+                       intptr_t arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
     if (type == TCG_TYPE_I32) {

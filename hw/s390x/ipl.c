@@ -62,10 +62,10 @@ typedef struct S390IPLState {
 static int s390_ipl_init(SysBusDevice *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
-    ram_addr_t kernel_size = 0;
+    int kernel_size;
 
     if (!ipl->kernel) {
-        ram_addr_t bios_size = 0;
+        int bios_size;
         char *bios_filename;
 
         /* Load zipl bootloader */
@@ -80,7 +80,7 @@ static int s390_ipl_init(SysBusDevice *dev)
 
         bios_size = load_elf(bios_filename, NULL, NULL, &ipl->start_addr, NULL,
                              NULL, 1, ELF_MACHINE, 0);
-        if (bios_size == -1UL) {
+        if (bios_size == -1) {
             bios_size = load_image_targphys(bios_filename, ZIPL_IMAGE_START,
                                             4096);
             ipl->start_addr = ZIPL_IMAGE_START;
@@ -90,17 +90,17 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
         g_free(bios_filename);
 
-        if ((long)bios_size < 0) {
+        if (bios_size == -1) {
             hw_error("could not load bootloader '%s'\n", bios_name);
         }
         return 0;
     } else {
         kernel_size = load_elf(ipl->kernel, NULL, NULL, NULL, NULL,
                                NULL, 1, ELF_MACHINE, 0);
-        if (kernel_size == -1UL) {
+        if (kernel_size == -1) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
         }
-        if (kernel_size == -1UL) {
+        if (kernel_size == -1) {
             fprintf(stderr, "could not load kernel '%s'\n", ipl->kernel);
             return -1;
         }
@@ -115,7 +115,8 @@ static int s390_ipl_init(SysBusDevice *dev)
         ipl->start_addr = KERN_IMAGE_START;
     }
     if (ipl->initrd) {
-        ram_addr_t initrd_offset, initrd_size;
+        ram_addr_t initrd_offset;
+        int initrd_size;
 
         initrd_offset = INITRD_START;
         while (kernel_size + 0x100000 > initrd_offset) {
@@ -123,7 +124,7 @@ static int s390_ipl_init(SysBusDevice *dev)
         }
         initrd_size = load_image_targphys(ipl->initrd, initrd_offset,
                                           ram_size - initrd_offset);
-        if (initrd_size == -1UL) {
+        if (initrd_size == -1) {
             fprintf(stderr, "qemu: could not load initrd '%s'\n", ipl->initrd);
             exit(1);
         }

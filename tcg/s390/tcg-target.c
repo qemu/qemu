@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+#include "tcg-be-null.h"
+
 /* We only support generating code for 64-bit mode.  */
 #if TCG_TARGET_REG_BITS != 64
 #error "unsupported code generation mode"
@@ -315,9 +317,6 @@ static const uint8_t tcg_cond_to_ltr_cond[] = {
 };
 
 #ifdef CONFIG_SOFTMMU
-
-#include "exec/softmmu_defs.h"
-
 /* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
    int mmu_idx) */
 static const void * const qemu_ld_helpers[4] = {
@@ -351,10 +350,10 @@ static uint8_t *tb_ret_addr;
 static uint64_t facilities;
 
 static void patch_reloc(uint8_t *code_ptr, int type,
-                        tcg_target_long value, tcg_target_long addend)
+                        intptr_t value, intptr_t addend)
 {
-    tcg_target_long code_ptr_tl = (tcg_target_long)code_ptr;
-    tcg_target_long pcrel2;
+    intptr_t code_ptr_tl = (intptr_t)code_ptr;
+    intptr_t pcrel2;
 
     /* ??? Not the usual definition of "addend".  */
     pcrel2 = (value - (code_ptr_tl + addend)) >> 1;
@@ -771,7 +770,7 @@ static void tcg_out_mem(TCGContext *s, S390Opcode opc_rx, S390Opcode opc_rxy,
 
 /* load data without address translation or endianness conversion */
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg data,
-                              TCGReg base, tcg_target_long ofs)
+                              TCGReg base, intptr_t ofs)
 {
     if (type == TCG_TYPE_I32) {
         tcg_out_mem(s, RX_L, RXY_LY, data, base, TCG_REG_NONE, ofs);
@@ -781,7 +780,7 @@ static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg data,
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg data,
-                              TCGReg base, tcg_target_long ofs)
+                              TCGReg base, intptr_t ofs)
 {
     if (type == TCG_TYPE_I32) {
         tcg_out_mem(s, RX_ST, RXY_STY, data, base, TCG_REG_NONE, ofs);

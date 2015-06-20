@@ -69,12 +69,6 @@ static void nbd_close_notifier(Notifier *n, void *data)
     g_free(cn);
 }
 
-static void nbd_server_put_ref(NBDExport *exp)
-{
-    BlockDriverState *bs = nbd_export_get_blockdev(exp);
-    drive_put_ref(drive_get_by_blockdev(bs));
-}
-
 void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
                         Error **errp)
 {
@@ -105,11 +99,9 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
         writable = false;
     }
 
-    exp = nbd_export_new(bs, 0, -1, writable ? 0 : NBD_FLAG_READ_ONLY,
-                         nbd_server_put_ref);
+    exp = nbd_export_new(bs, 0, -1, writable ? 0 : NBD_FLAG_READ_ONLY, NULL);
 
     nbd_export_set_name(exp, device);
-    drive_get_ref(drive_get_by_blockdev(bs));
 
     n = g_malloc0(sizeof(NBDCloseNotifier));
     n->n.notify = nbd_close_notifier;

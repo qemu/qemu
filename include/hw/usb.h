@@ -444,9 +444,6 @@ int set_usb_string(uint8_t *buf, const char *str);
 USBDevice *usb_host_device_open(USBBus *bus, const char *devname);
 void usb_host_info(Monitor *mon, const QDict *qdict);
 
-/* usb-bt.c */
-USBDevice *usb_bt_init(USBBus *bus, HCIInfo *hci);
-
 /* usb ports of the VM */
 
 #define VM_USB_HUB_SIZE 8
@@ -498,7 +495,8 @@ struct USBBusOps {
     void (*wakeup_endpoint)(USBBus *bus, USBEndpoint *ep, unsigned int stream);
 };
 
-void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);
+void usb_bus_new(USBBus *bus, size_t bus_size,
+                 USBBusOps *ops, DeviceState *host);
 USBBus *usb_bus_find(int busnr);
 void usb_legacy_register(const char *typename, const char *usbdevice_name,
                          USBDevice *(*usbdevice_init)(USBBus *bus,

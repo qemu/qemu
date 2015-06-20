@@ -16,6 +16,8 @@
 
 #include "qemu-io.h"
 #include "qemu/main-loop.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "block/block_int.h"
 #include "trace/control.h"
 
@@ -32,7 +34,7 @@ static char **cmdline;
 
 static int close_f(BlockDriverState *bs, int argc, char **argv)
 {
-    bdrv_delete(bs);
+    bdrv_unref(bs);
     qemuio_bs = NULL;
     return 0;
 }
@@ -44,24 +46,30 @@ static const cmdinfo_t close_cmd = {
     .oneline    = "close the current open file",
 };
 
-static int openfile(char *name, int flags, int growable)
+static int openfile(char *name, int flags, int growable, QDict *opts)
 {
+    Error *local_err = NULL;
+
     if (qemuio_bs) {
         fprintf(stderr, "file open already, try 'help close'\n");
         return 1;
     }
 
     if (growable) {
-        if (bdrv_file_open(&qemuio_bs, name, NULL, flags)) {
-            fprintf(stderr, "%s: can't open device %s\n", progname, name);
+        if (bdrv_file_open(&qemuio_bs, name, opts, flags, &local_err)) {
+            fprintf(stderr, "%s: can't open device %s: %s\n", progname, name,
+                    error_get_pretty(local_err));
+            error_free(local_err);
             return 1;
         }
     } else {
         qemuio_bs = bdrv_new("hda");
 
-        if (bdrv_open(qemuio_bs, name, NULL, flags, NULL) < 0) {
-            fprintf(stderr, "%s: can't open device %s\n", progname, name);
-            bdrv_delete(qemuio_bs);
+        if (bdrv_open(qemuio_bs, name, opts, flags, NULL, &local_err) < 0) {
+            fprintf(stderr, "%s: can't open device %s: %s\n", progname, name,
+                    error_get_pretty(local_err));
+            error_free(local_err);
+            bdrv_unref(qemuio_bs);
             qemuio_bs = NULL;
             return 1;
         }
@@ -83,7 +91,8 @@ static void open_help(void)
 " -r, -- open file read-only\n"
 " -s, -- use snapshot file\n"
 " -n, -- disable host cache\n"
-" -g, -- allow file to grow (only applies to protocols)"
+" -g, -- allow file to grow (only applies to protocols)\n"
+" -o, -- options to be given to the block driver"
 "\n");
 }
 
@@ -96,9 +105,18 @@ static const cmdinfo_t open_cmd = {
     .argmin     = 1,
     .argmax     = -1,
     .flags      = CMD_NOFILE_OK,
-    .args       = "[-Crsn] [path]",
+    .args       = "[-Crsn] [-o options] [path]",
     .oneline    = "open the file specified by path",
     .help       = open_help,
+};
+
+static QemuOptsList empty_opts = {
+    .name = "drive",
+    .head = QTAILQ_HEAD_INITIALIZER(empty_opts.head),
+    .desc = {
+        /* no elements => accept any params */
+        { /* end of list */ }
+    },
 };
 
 static int open_f(BlockDriverState *bs, int argc, char **argv)
@@ -107,8 +125,10 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
     int readonly = 0;
     int growable = 0;
     int c;
+    QemuOpts *qopts;
+    QDict *opts = NULL;
 
-    while ((c = getopt(argc, argv, "snrg")) != EOF) {
+    while ((c = getopt(argc, argv, "snrgo:")) != EOF) {
         switch (c) {
         case 's':
             flags |= BDRV_O_SNAPSHOT;
@@ -121,6 +141,15 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
             break;
         case 'g':
             growable = 1;
+            break;
+        case 'o':
+            qopts = qemu_opts_parse(&empty_opts, optarg, 0);
+            if (qopts == NULL) {
+                printf("could not parse option list -- %s\n", optarg);
+                return 0;
+            }
+            opts = qemu_opts_to_qdict(qopts, opts);
+            qemu_opts_del(qopts);
             break;
         default:
             return qemuio_command_usage(&open_cmd);
@@ -135,7 +164,7 @@ static int open_f(BlockDriverState *bs, int argc, char **argv)
         return qemuio_command_usage(&open_cmd);
     }
 
-    return openfile(argv[optind], flags, growable);
+    return openfile(argv[optind], flags, growable, opts);
 }
 
 static int quit_f(BlockDriverState *bs, int argc, char **argv)
@@ -412,7 +441,7 @@ int main(int argc, char **argv)
     }
 
     if ((argc - optind) == 1) {
-        openfile(argv[optind], flags, growable);
+        openfile(argv[optind], flags, growable, NULL);
     }
     command_loop();
 
@@ -422,7 +451,7 @@ int main(int argc, char **argv)
     bdrv_drain_all();
 
     if (qemuio_bs) {
-        bdrv_delete(qemuio_bs);
+        bdrv_unref(qemuio_bs);
     }
     return 0;
 }

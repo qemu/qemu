@@ -47,6 +47,10 @@ static int usb_device_post_load(void *opaque, int version_id)
     } else {
         dev->attached = 1;
     }
+    if (dev->setup_index >= sizeof(dev->data_buf) ||
+        dev->setup_len >= sizeof(dev->data_buf)) {
+        return -EINVAL;
+    }
     return 0;
 }
 
@@ -67,9 +71,10 @@ const VMStateDescription vmstate_usb_device = {
     }
 };
 
-void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host)
+void usb_bus_new(USBBus *bus, size_t bus_size,
+                 USBBusOps *ops, DeviceState *host)
 {
-    qbus_create_inplace(&bus->qbus, TYPE_USB_BUS, host, NULL);
+    qbus_create_inplace(bus, bus_size, TYPE_USB_BUS, host, NULL);
     bus->ops = ops;
     bus->busnr = next_usb_bus++;
     bus->qbus.allow_hotplug = 1; /* Yes, we can */
@@ -351,8 +356,9 @@ void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr)
 
 void usb_unregister_port(USBBus *bus, USBPort *port)
 {
-    if (port->dev)
-        qdev_free(&port->dev->qdev);
+    if (port->dev) {
+        object_unparent(OBJECT(port->dev));
+    }
     QTAILQ_REMOVE(&bus->free, port, next);
     bus->nfree--;
 }
@@ -500,7 +506,7 @@ int usb_device_delete_addr(int busnr, int addr)
         return -1;
     dev = port->dev;
 
-    qdev_free(&dev->qdev);
+    object_unparent(OBJECT(dev));
     return 0;
 }
 

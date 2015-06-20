@@ -51,6 +51,7 @@ struct TypeImpl
     void *class_data;
 
     void (*instance_init)(Object *obj);
+    void (*instance_post_init)(Object *obj);
     void (*instance_finalize)(Object *obj);
 
     bool abstract;
@@ -111,6 +112,7 @@ static TypeImpl *type_register_internal(const TypeInfo *info)
     ti->class_data = info->class_data;
 
     ti->instance_init = info->instance_init;
+    ti->instance_post_init = info->instance_post_init;
     ti->instance_finalize = info->instance_finalize;
 
     ti->abstract = info->abstract;
@@ -298,7 +300,18 @@ static void object_init_with_type(Object *obj, TypeImpl *ti)
     }
 }
 
-void object_initialize_with_type(void *data, TypeImpl *type)
+static void object_post_init_with_type(Object *obj, TypeImpl *ti)
+{
+    if (ti->instance_post_init) {
+        ti->instance_post_init(obj);
+    }
+
+    if (type_has_parent(ti)) {
+        object_post_init_with_type(obj, type_get_parent(ti));
+    }
+}
+
+void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
 {
     Object *obj = data;
 
@@ -307,19 +320,21 @@ void object_initialize_with_type(void *data, TypeImpl *type)
 
     g_assert(type->instance_size >= sizeof(Object));
     g_assert(type->abstract == false);
+    g_assert(size >= type->instance_size);
 
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
     object_ref(obj);
     QTAILQ_INIT(&obj->properties);
     object_init_with_type(obj, type);
+    object_post_init_with_type(obj, type);
 }
 
-void object_initialize(void *data, const char *typename)
+void object_initialize(void *data, size_t size, const char *typename)
 {
     TypeImpl *type = type_get_by_name(typename);
 
-    object_initialize_with_type(data, type);
+    object_initialize_with_type(data, size, type);
 }
 
 static inline bool object_property_is_child(ObjectProperty *prop)
@@ -410,7 +425,7 @@ Object *object_new_with_type(Type type)
     type_initialize(type);
 
     obj = g_malloc(type->instance_size);
-    object_initialize_with_type(obj, type);
+    object_initialize_with_type(obj, type->instance_size, type);
     obj->free = g_free;
 
     return obj;
@@ -823,8 +838,9 @@ char *object_property_get_str(Object *obj, const char *name,
 void object_property_set_link(Object *obj, Object *value,
                               const char *name, Error **errp)
 {
-    object_property_set_str(obj, object_get_canonical_path(value),
-                            name, errp);
+    gchar *path = object_get_canonical_path(value);
+    object_property_set_str(obj, path, name, errp);
+    g_free(path);
 }
 
 Object *object_property_get_link(Object *obj, const char *name,
@@ -1327,6 +1343,66 @@ void object_property_add_bool(Object *obj, const char *name,
 static char *qdev_get_type(Object *obj, Error **errp)
 {
     return g_strdup(object_get_typename(obj));
+}
+
+static void property_get_uint8_ptr(Object *obj, Visitor *v,
+                                   void *opaque, const char *name,
+                                   Error **errp)
+{
+    uint8_t value = *(uint8_t *)opaque;
+    visit_type_uint8(v, &value, name, errp);
+}
+
+static void property_get_uint16_ptr(Object *obj, Visitor *v,
+                                   void *opaque, const char *name,
+                                   Error **errp)
+{
+    uint16_t value = *(uint16_t *)opaque;
+    visit_type_uint16(v, &value, name, errp);
+}
+
+static void property_get_uint32_ptr(Object *obj, Visitor *v,
+                                   void *opaque, const char *name,
+                                   Error **errp)
+{
+    uint32_t value = *(uint32_t *)opaque;
+    visit_type_uint32(v, &value, name, errp);
+}
+
+static void property_get_uint64_ptr(Object *obj, Visitor *v,
+                                   void *opaque, const char *name,
+                                   Error **errp)
+{
+    uint64_t value = *(uint64_t *)opaque;
+    visit_type_uint64(v, &value, name, errp);
+}
+
+void object_property_add_uint8_ptr(Object *obj, const char *name,
+                                   const uint8_t *v, Error **errp)
+{
+    object_property_add(obj, name, "uint8", property_get_uint8_ptr,
+                        NULL, NULL, (void *)v, errp);
+}
+
+void object_property_add_uint16_ptr(Object *obj, const char *name,
+                                    const uint16_t *v, Error **errp)
+{
+    object_property_add(obj, name, "uint16", property_get_uint16_ptr,
+                        NULL, NULL, (void *)v, errp);
+}
+
+void object_property_add_uint32_ptr(Object *obj, const char *name,
+                                    const uint32_t *v, Error **errp)
+{
+    object_property_add(obj, name, "uint32", property_get_uint32_ptr,
+                        NULL, NULL, (void *)v, errp);
+}
+
+void object_property_add_uint64_ptr(Object *obj, const char *name,
+                                    const uint64_t *v, Error **errp)
+{
+    object_property_add(obj, name, "uint64", property_get_uint64_ptr,
+                        NULL, NULL, (void *)v, errp);
 }
 
 static void object_instance_init(Object *obj)

@@ -64,17 +64,17 @@ static const VMStateDescription vmstate_gic = {
     .post_load = gic_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(enabled, GICState),
-        VMSTATE_BOOL_ARRAY(cpu_enabled, GICState, NCPU),
+        VMSTATE_BOOL_ARRAY(cpu_enabled, GICState, GIC_NCPU),
         VMSTATE_STRUCT_ARRAY(irq_state, GICState, GIC_MAXIRQ, 1,
                              vmstate_gic_irq_state, gic_irq_state),
         VMSTATE_UINT8_ARRAY(irq_target, GICState, GIC_MAXIRQ),
-        VMSTATE_UINT8_2DARRAY(priority1, GICState, GIC_INTERNAL, NCPU),
+        VMSTATE_UINT8_2DARRAY(priority1, GICState, GIC_INTERNAL, GIC_NCPU),
         VMSTATE_UINT8_ARRAY(priority2, GICState, GIC_MAXIRQ - GIC_INTERNAL),
-        VMSTATE_UINT16_2DARRAY(last_active, GICState, GIC_MAXIRQ, NCPU),
-        VMSTATE_UINT16_ARRAY(priority_mask, GICState, NCPU),
-        VMSTATE_UINT16_ARRAY(running_irq, GICState, NCPU),
-        VMSTATE_UINT16_ARRAY(running_priority, GICState, NCPU),
-        VMSTATE_UINT16_ARRAY(current_pending, GICState, NCPU),
+        VMSTATE_UINT16_2DARRAY(last_active, GICState, GIC_MAXIRQ, GIC_NCPU),
+        VMSTATE_UINT16_ARRAY(priority_mask, GICState, GIC_NCPU),
+        VMSTATE_UINT16_ARRAY(running_irq, GICState, GIC_NCPU),
+        VMSTATE_UINT16_ARRAY(running_priority, GICState, GIC_NCPU),
+        VMSTATE_UINT16_ARRAY(current_pending, GICState, GIC_NCPU),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -84,9 +84,9 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
     GICState *s = ARM_GIC_COMMON(dev);
     int num_irq = s->num_irq;
 
-    if (s->num_cpu > NCPU) {
+    if (s->num_cpu > GIC_NCPU) {
         error_setg(errp, "requested %u CPUs exceeds GIC maximum %d",
-                   s->num_cpu, NCPU);
+                   s->num_cpu, GIC_NCPU);
         return;
     }
     s->num_irq += GIC_BASE_IRQ;

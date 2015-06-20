@@ -1331,7 +1331,7 @@ static void pcnet_poll_timer(void *opaque)
 {
     PCNetState *s = opaque;
 
-    qemu_del_timer(s->poll_timer);
+    timer_del(s->poll_timer);
 
     if (CSR_TDMD(s)) {
         pcnet_transmit(s);
@@ -1340,7 +1340,7 @@ static void pcnet_poll_timer(void *opaque)
     pcnet_update_irq(s);
 
     if (!CSR_STOP(s) && !CSR_SPND(s) && !CSR_DPOLL(s)) {
-        uint64_t now = qemu_get_clock_ns(vm_clock) * 33;
+        uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) * 33;
         if (!s->timer || !now)
             s->timer = now;
         else {
@@ -1351,8 +1351,8 @@ static void pcnet_poll_timer(void *opaque)
             } else
                 CSR_POLL(s) = t;
         }
-        qemu_mod_timer(s->poll_timer,
-            pcnet_get_next_poll_time(s,qemu_get_clock_ns(vm_clock)));
+        timer_mod(s->poll_timer,
+            pcnet_get_next_poll_time(s,qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)));
     }
 }
 
@@ -1731,7 +1731,7 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
     int i;
     uint16_t checksum;
 
-    s->poll_timer = qemu_new_timer_ns(vm_clock, pcnet_poll_timer, s);
+    s->poll_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, pcnet_poll_timer, s);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(info, &s->conf, object_get_typename(OBJECT(dev)), dev->id, s);

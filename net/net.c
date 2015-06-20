@@ -27,6 +27,7 @@
 #include "clients.h"
 #include "hub.h"
 #include "net/slirp.h"
+#include "net/eth.h"
 #include "util.h"
 
 #include "monitor/monitor.h"
@@ -36,6 +37,7 @@
 #include "qmp-commands.h"
 #include "hw/qdev.h"
 #include "qemu/iov.h"
+#include "qemu/main-loop.h"
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/dealloc-visitor.h"
@@ -206,7 +208,7 @@ static void qemu_net_client_setup(NetClientState *nc,
     }
     QTAILQ_INSERT_TAIL(&net_clients, nc, next);
 
-    nc->send_queue = qemu_new_net_queue(nc);
+    nc->incoming_queue = qemu_new_net_queue(nc);
     nc->destructor = destructor;
 }
 
@@ -288,8 +290,8 @@ static void qemu_cleanup_net_client(NetClientState *nc)
 
 static void qemu_free_net_client(NetClientState *nc)
 {
-    if (nc->send_queue) {
-        qemu_del_net_queue(nc->send_queue);
+    if (nc->incoming_queue) {
+        qemu_del_net_queue(nc->incoming_queue);
     }
     if (nc->peer) {
         nc->peer->peer = NULL;
@@ -430,7 +432,7 @@ void qemu_purge_queued_packets(NetClientState *nc)
         return;
     }
 
-    qemu_net_queue_purge(nc->peer->send_queue, nc);
+    qemu_net_queue_purge(nc->peer->incoming_queue, nc);
 }
 
 void qemu_flush_queued_packets(NetClientState *nc)
@@ -441,9 +443,8 @@ void qemu_flush_queued_packets(NetClientState *nc)
         if (net_hub_flush(nc->peer)) {
             qemu_notify_event();
         }
-        return;
     }
-    if (qemu_net_queue_flush(nc->send_queue)) {
+    if (qemu_net_queue_flush(nc->incoming_queue)) {
         /* We emptied the queue successfully, signal to the IO thread to repoll
          * the file descriptor (for tap, for example).
          */
@@ -467,7 +468,7 @@ static ssize_t qemu_send_packet_async_with_flags(NetClientState *sender,
         return size;
     }
 
-    queue = sender->peer->send_queue;
+    queue = sender->peer->incoming_queue;
 
     return qemu_net_queue_send(queue, sender, flags, buf, size, sent_cb);
 }
@@ -542,7 +543,7 @@ ssize_t qemu_sendv_packet_async(NetClientState *sender,
         return iov_size(iov, iovcnt);
     }
 
-    queue = sender->peer->send_queue;
+    queue = sender->peer->incoming_queue;
 
     return qemu_net_queue_send_iov(queue, sender,
                                    QEMU_NET_PACKET_FLAG_NONE,
@@ -686,6 +687,11 @@ static int net_init_nic(const NetClientOptions *opts, const char *name,
     if (nic->has_macaddr &&
         net_parse_macaddr(nd->macaddr.a, nic->macaddr) < 0) {
         error_report("invalid syntax for ethernet address");
+        return -1;
+    }
+    if (nic->has_macaddr &&
+        is_multicast_ether_addr(nd->macaddr.a)) {
+        error_report("NIC cannot have multicast MAC address (odd 1st byte)");
         return -1;
     }
     qemu_macaddr_default_if_unset(&nd->macaddr);

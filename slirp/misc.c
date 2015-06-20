@@ -9,6 +9,7 @@
 #include <libslirp.h>
 
 #include "monitor/monitor.h"
+#include "qemu/main-loop.h"
 
 #ifdef DEBUG
 int slirp_debug = DBG_CALL|DBG_MISC|DBG_ERROR;
@@ -211,8 +212,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
                     so->s = accept(s, (struct sockaddr *)&addr, &addrlen);
                 } while (so->s < 0 && errno == EINTR);
                 closesocket(s);
-                opt = 1;
-                qemu_setsockopt(so->s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
+                socket_set_fast_reuse(so->s);
                 opt = 1;
                 qemu_setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
 		qemu_set_nonblock(so->s);

@@ -239,6 +239,8 @@ uint32_t HELPER(ror_cc)(CPUUniCore32State *env, uint32_t x, uint32_t i)
 }
 
 #ifndef CONFIG_USER_ONLY
+#include "exec/softmmu_exec.h"
+
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0

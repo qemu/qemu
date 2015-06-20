@@ -9,6 +9,8 @@
 #define MAX_SCSI_DEVS	255
 
 #define SCSI_CMD_BUF_SIZE     16
+#define SCSI_SENSE_LEN      18
+#define SCSI_INQUIRY_LEN    36
 
 typedef struct SCSIBus SCSIBus;
 typedef struct SCSIBusInfo SCSIBusInfo;
@@ -152,8 +154,8 @@ struct SCSIBus {
     const SCSIBusInfo *info;
 };
 
-void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info,
-                  const char *bus_name);
+void scsi_bus_new(SCSIBus *bus, size_t bus_size, DeviceState *host,
+                  const SCSIBusInfo *info, const char *bus_name);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 {

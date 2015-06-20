@@ -32,6 +32,7 @@
 #include "qemu/iov.h"
 #include "sysemu/dma.h"
 #include "trace.h"
+#include "qemu/main-loop.h"
 
 //#define DEBUG
 //#define DEBUG_DUMP_DATA
@@ -163,7 +164,6 @@ struct UHCIState {
 
     /* Interrupts that should be raised at the end of the current frame.  */
     uint32_t pending_int_mask;
-    int irq_pin;
 
     /* Active packets */
     QTAILQ_HEAD(, UHCIQueue) queues;
@@ -380,7 +380,7 @@ static void uhci_update_irq(UHCIState *s)
     } else {
         level = 0;
     }
-    qemu_set_irq(s->dev.irq[s->irq_pin], level);
+    pci_set_irq(&s->dev, level);
 }
 
 static void uhci_reset(void *opaque)
@@ -432,7 +432,7 @@ static int uhci_post_load(void *opaque, int version_id)
     UHCIState *s = opaque;
 
     if (version_id < 2) {
-        s->expire_time = qemu_get_clock_ns(vm_clock) +
+        s->expire_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
             (get_ticks_per_sec() / FRAME_TIMER_FREQ);
     }
     return 0;
@@ -475,9 +475,9 @@ static void uhci_port_write(void *opaque, hwaddr addr,
         if ((val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
             /* start frame processing */
             trace_usb_uhci_schedule_start();
-            s->expire_time = qemu_get_clock_ns(vm_clock) +
+            s->expire_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                 (get_ticks_per_sec() / FRAME_TIMER_FREQ);
-            qemu_mod_timer(s->frame_timer, s->expire_time);
+            timer_mod(s->frame_timer, s->expire_time);
             s->status &= ~UHCI_STS_HCHALTED;
         } else if (!(val & UHCI_CMD_RS)) {
             s->status |= UHCI_STS_HCHALTED;
@@ -1160,7 +1160,7 @@ static void uhci_frame_timer(void *opaque)
     if (!(s->cmd & UHCI_CMD_RS)) {
         /* Full stop */
         trace_usb_uhci_schedule_stop();
-        qemu_del_timer(s->frame_timer);
+        timer_del(s->frame_timer);
         uhci_async_cancel_all(s);
         /* set hchalted bit in status - UHCI11D 2.1.2 */
         s->status |= UHCI_STS_HCHALTED;
@@ -1169,7 +1169,7 @@ static void uhci_frame_timer(void *opaque)
 
     /* We still store expire_time in our state, for migration */
     t_last_run = s->expire_time - frame_t;
-    t_now = qemu_get_clock_ns(vm_clock);
+    t_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     /* Process up to MAX_FRAMES_PER_TICK frames */
     frames = (t_now - t_last_run) / frame_t;
@@ -1203,7 +1203,7 @@ static void uhci_frame_timer(void *opaque)
     }
     s->pending_int_mask = 0;
 
-    qemu_mod_timer(s->frame_timer, t_now + frame_t);
+    timer_mod(s->frame_timer, t_now + frame_t);
 }
 
 static const MemoryRegionOps uhci_ioport_ops = {
@@ -1239,8 +1239,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
     /* TODO: reset value should be 0. */
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
-    s->irq_pin = u->info.irq_pin;
-    pci_config_set_interrupt_pin(pci_conf, s->irq_pin + 1);
+    pci_config_set_interrupt_pin(pci_conf, u->info.irq_pin + 1);
 
     if (s->masterbus) {
         USBPort *ports[NB_PORTS];
@@ -1253,14 +1252,14 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
             return -1;
         }
     } else {
-        usb_bus_new(&s->bus, &uhci_bus_ops, &s->dev.qdev);
+        usb_bus_new(&s->bus, sizeof(s->bus), &uhci_bus_ops, DEVICE(dev));
         for (i = 0; i < NB_PORTS; i++) {
             usb_register_port(&s->bus, &s->ports[i].port, s, i, &uhci_port_ops,
                               USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
         }
     }
     s->bh = qemu_bh_new(uhci_bh, s);
-    s->frame_timer = qemu_new_timer_ns(vm_clock, uhci_frame_timer, s);
+    s->frame_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, uhci_frame_timer, s);
     s->num_ports_vmstate = NB_PORTS;
     QTAILQ_INIT(&s->queues);
 

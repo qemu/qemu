@@ -67,4 +67,6 @@ const char *qdict_get_try_str(const QDict *qdict, const char *key);
 QDict *qdict_clone_shallow(const QDict *src);
 void qdict_flatten(QDict *qdict);
 
+void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start);
+
 #endif /* QDICT_H */

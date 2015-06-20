@@ -50,8 +50,7 @@ Descriptions of section entries:
 
 General Project Administration
 ------------------------------
-M: Anthony Liguori <aliguori@us.ibm.com>
-M: Paul Brook <paul@codesourcery.com>
+M: Anthony Liguori <aliguori@amazon.com>
 
 Guest CPU cores (TCG):
 ----------------------
@@ -62,7 +61,6 @@ F: target-alpha/
 F: hw/alpha/
 
 ARM
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: target-arm/
@@ -83,8 +81,7 @@ F: hw/lm32/
 F: hw/char/lm32_*
 
 M68K
-M: Paul Brook <paul@codesourcery.com>
-S: Odd Fixes
+S: Orphan
 F: target-m68k/
 F: hw/m68k/
 
@@ -248,7 +245,6 @@ F: hw/*/imx*
 F: hw/arm/kzm.c
 
 Integrator CP
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/integratorcp.c
@@ -274,7 +270,6 @@ S: Maintained
 F: hw/arm/palm.c
 
 Real View
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/realview*
@@ -285,13 +280,11 @@ S: Maintained
 F: hw/arm/spitz.c
 
 Stellaris
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/*/stellaris*
 
 Versatile PB
-M: Paul Brook <paul@codesourcery.com>
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/*/versatile*
@@ -327,18 +320,15 @@ F: hw/lm32/milkymist.c
 M68K Machines
 -------------
 an5206
-M: Paul Brook <paul@codesourcery.com>
-S: Maintained
+S: Orphan
 F: hw/m68k/an5206.c
 
 dummy_m68k
-M: Paul Brook <paul@codesourcery.com>
-S: Maintained
+S: Orphan
 F: hw/m68k/dummy_m68k.c
 
 mcf5208
-M: Paul Brook <paul@codesourcery.com>
-S: Maintained
+S: Orphan
 F: hw/m68k/mcf5208.c
 
 MicroBlaze Machines
@@ -509,7 +499,7 @@ F: hw/unicore32/
 X86 Machines
 ------------
 PC
-M: Anthony Liguori <aliguori@us.ibm.com>
+M: Anthony Liguori <aliguori@amazon.com>
 S: Supported
 F: hw/i386/pc.[ch]
 F: hw/i386/pc_piix.c
@@ -567,8 +557,7 @@ F: hw/scsi/*
 T: git git://github.com/bonzini/qemu.git scsi-next
 
 LSI53C895A
-M: Paul Brook <paul@codesourcery.com>
-S: Odd Fixes
+S: Orphan
 F: hw/scsi/lsi53c895a.c
 
 SSI
@@ -593,7 +582,7 @@ S: Supported
 F: hw/*/*vhost*
 
 virtio
-M: Anthony Liguori <aliguori@us.ibm.com>
+M: Anthony Liguori <aliguori@amazon.com>
 S: Supported
 F: hw/*/virtio*
 
@@ -638,6 +627,7 @@ Subsystems
 ----------
 Audio
 M: Vassili Karpov (malc) <av1474@comtv.ru>
+M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: audio/
 F: hw/audio/
@@ -649,9 +639,11 @@ S: Supported
 F: block*
 F: block/
 F: hw/block/
+T: git git://repo.or.cz/qemu/kevin.git block
+T: git git://github.com/stefanha/qemu.git block
 
 Character Devices
-M: Anthony Liguori <aliguori@us.ibm.com>
+M: Anthony Liguori <aliguori@amazon.com>
 S: Maintained
 F: qemu-char.c
 
@@ -689,7 +681,7 @@ F: audio/spiceaudio.c
 F: hw/display/qxl*
 
 Graphics
-M: Anthony Liguori <aliguori@us.ibm.com>
+M: Anthony Liguori <aliguori@amazon.com>
 S: Maintained
 F: ui/
 
@@ -699,7 +691,7 @@ S: Odd Fixes
 F: ui/cocoa.m
 
 Main loop
-M: Anthony Liguori <aliguori@us.ibm.com>
+M: Anthony Liguori <aliguori@amazon.com>
 S: Supported
 F: vl.c
 
@@ -709,9 +701,10 @@ S: Supported
 F: monitor.c
 F: hmp.c
 F: hmp-commands.hx
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 Network device layer
-M: Anthony Liguori <aliguori@us.ibm.com>
+M: Anthony Liguori <aliguori@amazon.com>
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: net/
@@ -730,6 +723,7 @@ M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Supported
 F: qapi/
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QAPI Schema
 M: Eric Blake <eblake@redhat.com>
@@ -737,6 +731,7 @@ M: Luiz Capitulino <lcapitulino@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: qapi-schema.json
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QMP
 M: Luiz Capitulino <lcapitulino@redhat.com>
@@ -745,6 +740,7 @@ F: qmp.c
 F: monitor.c
 F: qmp-commands.hx
 F: QMP/
+T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 SLIRP
 M: Jan Kiszka <jan.kiszka@siemens.com>
@@ -765,6 +761,12 @@ Checkpatch
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Odd Fixes
 F: scripts/checkpatch.pl
+
+Seccomp
+M: Eduardo Otubo <otubo@linux.vnet.ibm.com>
+S: Supported
+F: qemu-seccomp.c
+F: include/sysemu/seccomp.h
 
 Usermode Emulation
 ------------------
@@ -796,11 +798,6 @@ ARM target
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
 F: tcg/arm/
-
-HPPA target
-M: Richard Henderson <rth@twiddle.net>
-S: Maintained
-F: tcg/hppa/
 
 i386 target
 M: qemu-devel@nongnu.org
@@ -842,25 +839,67 @@ TCI target
 M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
 F: tcg/tci/
+F: tci.c
 
 Stable branches
 ---------------
 Stable 1.0
 L: qemu-stable@nongnu.org
-T: git git://git.qemu.org/qemu-stable-1.0.git
+T: git git://git.qemu-project.org/qemu-stable-1.0.git
 S: Orphan
 
 Stable 0.15
 L: qemu-stable@nongnu.org
-T: git git://git.qemu.org/qemu-stable-0.15.git
-S: Orphan
+M: Andreas Färber <afaerber@suse.de>
+T: git git://git.qemu-project.org/qemu-stable-0.15.git
+S: Supported
 
 Stable 0.14
 L: qemu-stable@nongnu.org
-T: git git://git.qemu.org/qemu-stable-0.14.git
+T: git git://git.qemu-project.org/qemu-stable-0.14.git
 S: Orphan
 
 Stable 0.10
 L: qemu-stable@nongnu.org
-T: git git://git.qemu.org/qemu-stable-0.10.git
+T: git git://git.qemu-project.org/qemu-stable-0.10.git
 S: Orphan
+
+Block drivers
+-------------
+VMDK
+M: Fam Zheng <famz@redhat.com>
+S: Supported
+F: block/vmdk.c
+
+RBD
+M: Josh Durgin <josh.durgin@inktank.com>
+S: Supported
+F: block/rbd.c
+
+Sheepdog
+M: MORITA Kazutaka <morita.kazutaka@lab.ntt.co.jp>
+M: Liu Yuan <namei.unix@gmail.com>
+S: Supported
+F: block/sheepdog.c
+
+VHDX
+M: Jeff Cody <jcody@redhat.com>
+S: Supported
+F: block/vhdx*
+
+VDI
+M: Stefan Weil <sw@weilnetz.de>
+S: Maintained
+F: block/vdi.c
+
+iSCSI
+M: Ronnie Sahlberg <ronniesahlberg@gmail.com>
+M: Paolo Bonzini <pbonzini@redhat.com>
+M: Peter Lieven <pl@kamp.de>
+S: Supported
+F: block/iscsi.c
+
+SSH
+M: Richard W.M. Jones <rjones@redhat.com>
+S: Supported
+F: block/ssh.c

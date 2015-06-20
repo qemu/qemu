@@ -8,7 +8,8 @@
 #define READLINE_MAX_COMPLETIONS 256
 
 typedef void ReadLineFunc(Monitor *mon, const char *str, void *opaque);
-typedef void ReadLineCompletionFunc(const char *cmdline);
+typedef void ReadLineCompletionFunc(Monitor *mon,
+                                    const char *cmdline);
 
 typedef struct ReadLineState {
     char cmd_buf[READLINE_CMD_BUF_SIZE + 1];

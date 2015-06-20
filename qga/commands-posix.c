@@ -99,7 +99,7 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
         reopen_fd_to_null(1);
         reopen_fd_to_null(2);
 
-        execle("/sbin/shutdown", "shutdown", shutdown_flag, "+0",
+        execle("/sbin/shutdown", "shutdown", "-h", shutdown_flag, "+0",
                "hypervisor initiated shutdown", (char*)NULL, environ);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
@@ -401,7 +401,7 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, E
         return -1;
     }
 
-    slog("guest-file-open, handle: %d", handle);
+    slog("guest-file-open, handle: %" PRId64, handle);
     return handle;
 }
 
@@ -410,7 +410,7 @@ void qmp_guest_file_close(int64_t handle, Error **err)
     GuestFileHandle *gfh = guest_file_handle_find(handle, err);
     int ret;
 
-    slog("guest-file-close called, handle: %ld", handle);
+    slog("guest-file-close called, handle: %" PRId64, handle);
     if (!gfh) {
         return;
     }
@@ -451,7 +451,7 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
     read_count = fread(buf, 1, count, fh);
     if (ferror(fh)) {
         error_setg_errno(err, errno, "failed to read file");
-        slog("guest-file-read failed, handle: %ld", handle);
+        slog("guest-file-read failed, handle: %" PRId64, handle);
     } else {
         buf[read_count] = 0;
         read_data = g_malloc0(sizeof(GuestFileRead));
@@ -496,7 +496,7 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
     write_count = fwrite(buf, 1, count, fh);
     if (ferror(fh)) {
         error_setg_errno(err, errno, "failed to write to file");
-        slog("guest-file-write failed, handle: %ld", handle);
+        slog("guest-file-write failed, handle: %" PRId64, handle);
     } else {
         write_data = g_malloc0(sizeof(GuestFileWrite));
         write_data->count = write_count;
@@ -566,7 +566,7 @@ typedef struct FsMount {
     QTAILQ_ENTRY(FsMount) next;
 } FsMount;
 
-typedef QTAILQ_HEAD(, FsMount) FsMountList;
+typedef QTAILQ_HEAD(FsMountList, FsMount) FsMountList;
 
 static void free_fs_mount_list(FsMountList *mounts)
 {
@@ -728,7 +728,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    QTAILQ_FOREACH(mount, &mounts, next) {
+    QTAILQ_FOREACH_REVERSE(mount, &mounts, FsMountList, next) {
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
             error_setg_errno(err, errno, "failed to open %s", mount->dirname);

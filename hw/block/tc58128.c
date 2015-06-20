@@ -1,6 +1,8 @@
 #include "hw/hw.h"
 #include "hw/sh4/sh.h"
 #include "hw/loader.h"
+#include "sysemu/qtest.h"
+#include "qemu/error-report.h"
 
 #define CE1  0x0100
 #define CE2  0x0200
@@ -36,10 +38,10 @@ static void init_dev(tc58128_dev * dev, const char *filename)
 	/* Load flash image skipping the first block */
 	ret = load_image(filename, dev->flash_contents + 528 * 32);
 	if (ret < 0) {
-	    fprintf(stderr, "ret=%d\n", ret);
-	    fprintf(stderr, "qemu: could not load flash image %s\n",
-		    filename);
-	    exit(1);
+            if (!qtest_enabled()) {
+                error_report("Could not load flash image %s", filename);
+                exit(1);
+            }
 	} else {
 	    /* Build first block with number of blocks */
 	    blocks = (ret + 528 * 32 - 1) / (528 * 32);

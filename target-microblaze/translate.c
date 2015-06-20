@@ -49,6 +49,8 @@ static TCGv env_imm;
 static TCGv env_btaken;
 static TCGv env_btarget;
 static TCGv env_iflags;
+static TCGv env_res_addr;
+static TCGv env_res_val;
 
 #include "exec/gen-icount.h"
 
@@ -138,7 +140,7 @@ static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
     if ((tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_tl(cpu_SR[SR_PC], dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         tcg_gen_movi_tl(cpu_SR[SR_PC], dest);
         tcg_gen_exit_tb(0);
@@ -150,6 +152,10 @@ static void read_carry(DisasContext *dc, TCGv d)
     tcg_gen_shri_tl(d, cpu_SR[SR_MSR], 31);
 }
 
+/*
+ * write_carry sets the carry bits in MSR based on bit 0 of v.
+ * v[31:1] are ignored.
+ */
 static void write_carry(DisasContext *dc, TCGv v)
 {
     TCGv t0 = tcg_temp_new();
@@ -162,10 +168,10 @@ static void write_carry(DisasContext *dc, TCGv v)
     tcg_temp_free(t0);
 }
 
-static void write_carryi(DisasContext *dc, int carry)
+static void write_carryi(DisasContext *dc, bool carry)
 {
     TCGv t0 = tcg_temp_new();
-    tcg_gen_movi_tl(t0, carry ? 1 : 0);
+    tcg_gen_movi_tl(t0, carry);
     write_carry(dc, t0);
     tcg_temp_free(t0);
 }
@@ -386,10 +392,7 @@ static void dec_and(DisasContext *dc)
         return;
 
     if (not) {
-        TCGv t = tcg_temp_new();
-        tcg_gen_not_tl(t, *(dec_alu_op_b(dc)));
-        tcg_gen_and_tl(cpu_R[dc->rd], cpu_R[dc->ra], t);
-        tcg_temp_free(t);
+        tcg_gen_andc_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
     } else
         tcg_gen_and_tl(cpu_R[dc->rd], cpu_R[dc->ra], *(dec_alu_op_b(dc)));
 }
@@ -749,7 +752,7 @@ static void dec_barrel(DisasContext *dc)
 
 static void dec_bit(DisasContext *dc)
 {
-    TCGv t0, t1;
+    TCGv t0;
     unsigned int op;
     int mem_index = cpu_mmu_index(dc->env);
 
@@ -760,32 +763,22 @@ static void dec_bit(DisasContext *dc)
             t0 = tcg_temp_new();
 
             LOG_DIS("src r%d r%d\n", dc->rd, dc->ra);
-            tcg_gen_andi_tl(t0, cpu_R[dc->ra], 1);
+            tcg_gen_andi_tl(t0, cpu_SR[SR_MSR], MSR_CC);
+            write_carry(dc, cpu_R[dc->ra]);
             if (dc->rd) {
-                t1 = tcg_temp_new();
-                read_carry(dc, t1);
-                tcg_gen_shli_tl(t1, t1, 31);
-
                 tcg_gen_shri_tl(cpu_R[dc->rd], cpu_R[dc->ra], 1);
-                tcg_gen_or_tl(cpu_R[dc->rd], cpu_R[dc->rd], t1);
-                tcg_temp_free(t1);
+                tcg_gen_or_tl(cpu_R[dc->rd], cpu_R[dc->rd], t0);
             }
-
-            /* Update carry.  */
-            write_carry(dc, t0);
             tcg_temp_free(t0);
             break;
 
         case 0x1:
         case 0x41:
             /* srl.  */
-            t0 = tcg_temp_new();
             LOG_DIS("srl r%d r%d\n", dc->rd, dc->ra);
 
-            /* Update carry.  */
-            tcg_gen_andi_tl(t0, cpu_R[dc->ra], 1);
-            write_carry(dc, t0);
-            tcg_temp_free(t0);
+            /* Update carry. Note that write carry only looks at the LSB.  */
+            write_carry(dc, cpu_R[dc->ra]);
             if (dc->rd) {
                 if (op == 0x41)
                     tcg_gen_shri_tl(cpu_R[dc->rd], cpu_R[dc->ra], 1);
@@ -872,7 +865,7 @@ static void dec_imm(DisasContext *dc)
 }
 
 static inline void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
-                            unsigned int size)
+                            unsigned int size, bool exclusive)
 {
     int mem_index = cpu_mmu_index(dc->env);
 
@@ -884,6 +877,11 @@ static inline void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
         tcg_gen_qemu_ld32u(dst, addr, mem_index);
     } else
         cpu_abort(dc->env, "Incorrect load size %d\n", size);
+
+    if (exclusive) {
+        tcg_gen_mov_tl(env_res_addr, addr);
+        tcg_gen_mov_tl(env_res_val, dst);
+    }
 }
 
 static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
@@ -1055,7 +1053,7 @@ static void dec_load(DisasContext *dc)
          * into v. If the load succeeds, we verify alignment of the
          * address and if that succeeds we write into the destination reg.
          */
-        gen_load(dc, v, *addr, size);
+        gen_load(dc, v, *addr, size, ex);
 
         tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
         gen_helper_memalign(cpu_env, *addr, tcg_const_tl(dc->rd),
@@ -1070,20 +1068,19 @@ static void dec_load(DisasContext *dc)
         tcg_temp_free(v);
     } else {
         if (dc->rd) {
-            gen_load(dc, cpu_R[dc->rd], *addr, size);
+            gen_load(dc, cpu_R[dc->rd], *addr, size, ex);
             if (rev) {
                 dec_byteswap(dc, cpu_R[dc->rd], cpu_R[dc->rd], size);
             }
         } else {
             /* We are loading into r0, no need to reverse.  */
-            gen_load(dc, env_imm, *addr, size);
+            gen_load(dc, env_imm, *addr, size, ex);
         }
     }
 
     if (ex) { /* lwx */
         /* no support for for AXI exclusive so always clear C */
         write_carryi(dc, 0);
-        tcg_gen_st_tl(*addr, cpu_env, offsetof(CPUMBState, res_addr));
     }
 
     if (addr == &t)
@@ -1107,7 +1104,7 @@ static void gen_store(DisasContext *dc, TCGv addr, TCGv val,
 
 static void dec_store(DisasContext *dc)
 {
-    TCGv t, *addr, swx_addr, r_check;
+    TCGv t, *addr, swx_addr;
     int swx_skip = 0;
     unsigned int size, rev = 0, ex = 0;
 
@@ -1131,9 +1128,9 @@ static void dec_store(DisasContext *dc)
     sync_jmpstate(dc);
     addr = compute_ldst_addr(dc, &t);
 
-    r_check = tcg_temp_new();
     swx_addr = tcg_temp_local_new();
     if (ex) { /* swx */
+        TCGv tval;
 
         /* Force addr into the swx_addr. */
         tcg_gen_mov_tl(swx_addr, *addr);
@@ -1141,11 +1138,20 @@ static void dec_store(DisasContext *dc)
         /* swx does not throw unaligned access errors, so force alignment */
         tcg_gen_andi_tl(swx_addr, swx_addr, ~3);
 
-        tcg_gen_ld_tl(r_check, cpu_env, offsetof(CPUMBState, res_addr));
         write_carryi(dc, 1);
         swx_skip = gen_new_label();
-        tcg_gen_brcond_tl(TCG_COND_NE, r_check, swx_addr, swx_skip);
+        tcg_gen_brcond_tl(TCG_COND_NE, env_res_addr, swx_addr, swx_skip);
+
+        /* Compare the value loaded at lwx with current contents of
+           the reserved location.
+           FIXME: This only works for system emulation where we can expect
+           this compare and the following write to be atomic. For user
+           emulation we need to add atomicity between threads.  */
+        tval = tcg_temp_new();
+        gen_load(dc, tval, swx_addr, 4, false);
+        tcg_gen_brcond_tl(TCG_COND_NE, env_res_val, tval, swx_skip);
         write_carryi(dc, 0);
+        tcg_temp_free(tval);
     }
 
     if (rev && size != 4) {
@@ -1227,7 +1233,6 @@ static void dec_store(DisasContext *dc)
     if (ex) {
         gen_set_label(swx_skip);
     }
-    tcg_temp_free(r_check);
     tcg_temp_free(swx_addr);
 
     if (addr == &t)
@@ -2014,6 +2019,12 @@ void mb_tcg_init(void)
     env_btaken = tcg_global_mem_new(TCG_AREG0,
                      offsetof(CPUMBState, btaken),
                      "btaken");
+    env_res_addr = tcg_global_mem_new(TCG_AREG0,
+                     offsetof(CPUMBState, res_addr),
+                     "res_addr");
+    env_res_val = tcg_global_mem_new(TCG_AREG0,
+                     offsetof(CPUMBState, res_val),
+                     "res_val");
     for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
         cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
                           offsetof(CPUMBState, regs[i]),
@@ -2024,8 +2035,6 @@ void mb_tcg_init(void)
                           offsetof(CPUMBState, sregs[i]),
                           special_regnames[i]);
     }
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)

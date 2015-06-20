@@ -44,6 +44,22 @@ typedef struct MemoryRegionPortioList {
     MemoryRegionPortio ports[];
 } MemoryRegionPortioList;
 
+static uint64_t unassigned_io_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return -1ULL;
+}
+
+static void unassigned_io_write(void *opaque, hwaddr addr, uint64_t val,
+                                unsigned size)
+{
+}
+
+const MemoryRegionOps unassigned_io_ops = {
+    .read = unassigned_io_read,
+    .write = unassigned_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 void cpu_outb(pio_addr_t addr, uint8_t val)
 {
     LOG_IOPORT("outb: %04"FMT_pioaddr" %02"PRIx8"\n", addr, val);
@@ -123,6 +139,12 @@ void portio_list_init(PortioList *piolist,
     piolist->opaque = opaque;
     piolist->owner = owner;
     piolist->name = name;
+    piolist->flush_coalesced_mmio = false;
+}
+
+void portio_list_set_flush_coalesced(PortioList *piolist)
+{
+    piolist->flush_coalesced_mmio = true;
 }
 
 void portio_list_destroy(PortioList *piolist)
@@ -215,6 +237,9 @@ static void portio_list_add_1(PortioList *piolist,
      */
     memory_region_init_io(&mrpio->mr, piolist->owner, &portio_ops, mrpio,
                           piolist->name, off_high - off_low);
+    if (piolist->flush_coalesced_mmio) {
+        memory_region_set_flush_coalesced(&mrpio->mr);
+    }
     memory_region_add_subregion(piolist->address_space,
                                 start + off_low, &mrpio->mr);
     piolist->regions[piolist->nr] = &mrpio->mr;

@@ -202,11 +202,12 @@ static int macio_oldworld_initfn(PCIDevice *d)
     return 0;
 }
 
-static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, int index)
+static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, size_t ide_size,
+                           int index)
 {
     gchar *name;
 
-    object_initialize(ide, TYPE_MACIO_IDE);
+    object_initialize(ide, ide_size, TYPE_MACIO_IDE);
     qdev_set_parent_bus(DEVICE(ide), sysbus_get_default());
     memory_region_add_subregion(&s->bar, 0x1f000 + ((index + 1) * 0x1000),
                                 &ide->mem);
@@ -224,13 +225,13 @@ static void macio_oldworld_init(Object *obj)
 
     qdev_init_gpio_out(DEVICE(obj), os->irqs, ARRAY_SIZE(os->irqs));
 
-    object_initialize(&os->nvram, TYPE_MACIO_NVRAM);
+    object_initialize(&os->nvram, sizeof(os->nvram), TYPE_MACIO_NVRAM);
     dev = DEVICE(&os->nvram);
     qdev_prop_set_uint32(dev, "size", 0x2000);
     qdev_prop_set_uint32(dev, "it_shift", 4);
 
     for (i = 0; i < 2; i++) {
-        macio_init_ide(s, &os->ide[i], i);
+        macio_init_ide(s, &os->ide[i], sizeof(os->ide[i]), i);
     }
 }
 
@@ -245,10 +246,10 @@ static uint64_t timer_read(void *opaque, hwaddr addr, unsigned size)
 
     switch (addr) {
     case 0x38:
-        value = qemu_get_clock_ns(vm_clock);
+        value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         break;
     case 0x3c:
-        value = qemu_get_clock_ns(vm_clock) >> 32;
+        value = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) >> 32;
         break;
     }
 
@@ -310,7 +311,7 @@ static void macio_newworld_init(Object *obj)
     qdev_init_gpio_out(DEVICE(obj), ns->irqs, ARRAY_SIZE(ns->irqs));
 
     for (i = 0; i < 2; i++) {
-        macio_init_ide(s, &ns->ide[i], i);
+        macio_init_ide(s, &ns->ide[i], sizeof(ns->ide[i]), i);
     }
 }
 
@@ -321,7 +322,7 @@ static void macio_instance_init(Object *obj)
 
     memory_region_init(&s->bar, NULL, "macio", 0x80000);
 
-    object_initialize(&s->cuda, TYPE_CUDA);
+    object_initialize(&s->cuda, sizeof(s->cuda), TYPE_CUDA);
     qdev_set_parent_bus(DEVICE(&s->cuda), sysbus_get_default());
     object_property_add_child(obj, "cuda", OBJECT(&s->cuda), NULL);
 

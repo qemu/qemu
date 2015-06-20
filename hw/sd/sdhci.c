@@ -134,8 +134,8 @@ static void sdhci_raise_insertion_irq(void *opaque)
     SDHCIState *s = (SDHCIState *)opaque;
 
     if (s->norintsts & SDHC_NIS_REMOVE) {
-        qemu_mod_timer(s->insert_timer,
-                       qemu_get_clock_ns(vm_clock) + SDHC_INSERTION_DELAY);
+        timer_mod(s->insert_timer,
+                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + SDHC_INSERTION_DELAY);
     } else {
         s->prnsts = 0x1ff0000;
         if (s->norintstsen & SDHC_NISEN_INSERT) {
@@ -152,8 +152,8 @@ static void sdhci_insert_eject_cb(void *opaque, int irq, int level)
 
     if ((s->norintsts & SDHC_NIS_REMOVE) && level) {
         /* Give target some time to notice card ejection */
-        qemu_mod_timer(s->insert_timer,
-                       qemu_get_clock_ns(vm_clock) + SDHC_INSERTION_DELAY);
+        timer_mod(s->insert_timer,
+                       qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + SDHC_INSERTION_DELAY);
     } else {
         if (level) {
             s->prnsts = 0x1ff0000;
@@ -186,8 +186,8 @@ static void sdhci_card_readonly_cb(void *opaque, int irq, int level)
 
 static void sdhci_reset(SDHCIState *s)
 {
-    qemu_del_timer(s->insert_timer);
-    qemu_del_timer(s->transfer_timer);
+    timer_del(s->insert_timer);
+    timer_del(s->transfer_timer);
     /* Set all registers to 0. Capabilities registers are not cleared
      * and assumed to always preserve their value, given to them during
      * initialization */
@@ -764,8 +764,8 @@ static void sdhci_do_adma(SDHCIState *s)
     }
 
     /* we have unfinished business - reschedule to continue ADMA */
-    qemu_mod_timer(s->transfer_timer,
-                   qemu_get_clock_ns(vm_clock) + SDHC_TRANSFER_DELAY);
+    timer_mod(s->transfer_timer,
+                   qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + SDHC_TRANSFER_DELAY);
 }
 
 /* Perform data transfer according to controller configuration */
@@ -1166,22 +1166,25 @@ static void sdhci_initfn(Object *obj)
 
     di = drive_get_next(IF_SD);
     s->card = sd_init(di ? di->bdrv : NULL, false);
+    if (s->card == NULL) {
+        exit(1);
+    }
     s->eject_cb = qemu_allocate_irqs(sdhci_insert_eject_cb, s, 1)[0];
     s->ro_cb = qemu_allocate_irqs(sdhci_card_readonly_cb, s, 1)[0];
     sd_set_cb(s->card, s->ro_cb, s->eject_cb);
 
-    s->insert_timer = qemu_new_timer_ns(vm_clock, sdhci_raise_insertion_irq, s);
-    s->transfer_timer = qemu_new_timer_ns(vm_clock, sdhci_do_data_transfer, s);
+    s->insert_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sdhci_raise_insertion_irq, s);
+    s->transfer_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sdhci_do_data_transfer, s);
 }
 
 static void sdhci_uninitfn(Object *obj)
 {
     SDHCIState *s = SDHCI(obj);
 
-    qemu_del_timer(s->insert_timer);
-    qemu_free_timer(s->insert_timer);
-    qemu_del_timer(s->transfer_timer);
-    qemu_free_timer(s->transfer_timer);
+    timer_del(s->insert_timer);
+    timer_free(s->insert_timer);
+    timer_del(s->transfer_timer);
+    timer_free(s->transfer_timer);
     qemu_free_irqs(&s->eject_cb);
     qemu_free_irqs(&s->ro_cb);
 

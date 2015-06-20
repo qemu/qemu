@@ -112,9 +112,7 @@ void *qemu_anon_ram_alloc(size_t size)
     size_t offset = QEMU_ALIGN_UP((uintptr_t)ptr, align) - (uintptr_t)ptr;
 
     if (ptr == MAP_FAILED) {
-        fprintf(stderr, "Failed to allocate %zu B: %s\n",
-                size, strerror(errno));
-        abort();
+        return NULL;
     }
 
     ptr += offset;
@@ -157,6 +155,18 @@ void qemu_set_nonblock(int fd)
     int f;
     f = fcntl(fd, F_GETFL);
     fcntl(fd, F_SETFL, f | O_NONBLOCK);
+}
+
+int socket_set_fast_reuse(int fd)
+{
+    int val = 1, ret;
+
+    ret = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                     (const char *)&val, sizeof(val));
+
+    assert(ret == 0);
+
+    return ret;
 }
 
 void qemu_set_cloexec(int fd)

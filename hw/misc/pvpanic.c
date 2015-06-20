@@ -112,13 +112,19 @@ static void pvpanic_isa_realizefn(DeviceState *dev, Error **errp)
     isa_register_ioport(d, &s->io, s->ioport);
 }
 
-void pvpanic_init(ISABus *bus)
+#define PVPANIC_IOPORT_PROP "ioport"
+
+uint16_t pvpanic_port(void)
 {
-    isa_create_simple(bus, TYPE_ISA_PVPANIC_DEVICE);
+    Object *o = object_resolve_path_type("", TYPE_ISA_PVPANIC_DEVICE, NULL);
+    if (!o) {
+        return 0;
+    }
+    return object_property_get_int(o, PVPANIC_IOPORT_PROP, NULL);
 }
 
 static Property pvpanic_isa_properties[] = {
-    DEFINE_PROP_UINT16("ioport", PVPanicState, ioport, 0x505),
+    DEFINE_PROP_UINT16(PVPANIC_IOPORT_PROP, PVPanicState, ioport, 0x505),
     DEFINE_PROP_END_OF_LIST(),
 };
 

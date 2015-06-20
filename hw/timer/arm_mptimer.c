@@ -19,41 +19,13 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw/sysbus.h"
+#include "hw/timer/arm_mptimer.h"
 #include "qemu/timer.h"
 #include "qom/cpu.h"
 
 /* This device implements the per-cpu private timer and watchdog block
  * which is used in both the ARM11MPCore and Cortex-A9MP.
  */
-
-#define MAX_CPUS 4
-
-/* State of a single timer or watchdog block */
-typedef struct {
-    uint32_t count;
-    uint32_t load;
-    uint32_t control;
-    uint32_t status;
-    int64_t tick;
-    QEMUTimer *timer;
-    qemu_irq irq;
-    MemoryRegion iomem;
-} TimerBlock;
-
-#define TYPE_ARM_MPTIMER "arm_mptimer"
-#define ARM_MPTIMER(obj) \
-    OBJECT_CHECK(ARMMPTimerState, (obj), TYPE_ARM_MPTIMER)
-
-typedef struct {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    uint32_t num_cpu;
-    TimerBlock timerblock[MAX_CPUS];
-    MemoryRegion iomem;
-} ARMMPTimerState;
 
 static inline int get_current_cpu(ARMMPTimerState *s)
 {
@@ -81,10 +53,10 @@ static void timerblock_reload(TimerBlock *tb, int restart)
         return;
     }
     if (restart) {
-        tb->tick = qemu_get_clock_ns(vm_clock);
+        tb->tick = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     }
     tb->tick += (int64_t)tb->count * timerblock_scale(tb);
-    qemu_mod_timer(tb->timer, tb->tick);
+    timer_mod(tb->timer, tb->tick);
 }
 
 static void timerblock_tick(void *opaque)
@@ -113,7 +85,7 @@ static uint64_t timerblock_read(void *opaque, hwaddr addr,
             return 0;
         }
         /* Slow and ugly, but hopefully won't happen too often.  */
-        val = tb->tick - qemu_get_clock_ns(vm_clock);
+        val = tb->tick - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         val /= timerblock_scale(tb);
         if (val < 0) {
             val = 0;
@@ -140,7 +112,7 @@ static void timerblock_write(void *opaque, hwaddr addr,
     case 4: /* Counter.  */
         if ((tb->control & 1) && tb->count) {
             /* Cancel the previous timer.  */
-            qemu_del_timer(tb->timer);
+            timer_del(tb->timer);
         }
         tb->count = value;
         if (tb->control & 1) {
@@ -211,7 +183,7 @@ static void timerblock_reset(TimerBlock *tb)
     tb->status = 0;
     tb->tick = 0;
     if (tb->timer) {
-        qemu_del_timer(tb->timer);
+        timer_del(tb->timer);
     }
 }
 
@@ -225,13 +197,24 @@ static void arm_mptimer_reset(DeviceState *dev)
     }
 }
 
-static int arm_mptimer_init(SysBusDevice *dev)
+static void arm_mptimer_init(Object *obj)
 {
+    ARMMPTimerState *s = ARM_MPTIMER(obj);
+
+    memory_region_init_io(&s->iomem, obj, &arm_thistimer_ops, s,
+                          "arm_mptimer_timer", 0x20);
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->iomem);
+}
+
+static void arm_mptimer_realize(DeviceState *dev, Error **errp)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ARMMPTimerState *s = ARM_MPTIMER(dev);
     int i;
 
-    if (s->num_cpu < 1 || s->num_cpu > MAX_CPUS) {
-        hw_error("%s: num-cpu must be between 1 and %d\n", __func__, MAX_CPUS);
+    if (s->num_cpu < 1 || s->num_cpu > ARM_MPTIMER_MAX_CPUS) {
+        hw_error("%s: num-cpu must be between 1 and %d\n",
+                 __func__, ARM_MPTIMER_MAX_CPUS);
     }
     /* We implement one timer block per CPU, and expose multiple MMIO regions:
      *  * region 0 is "timer for this core"
@@ -243,19 +226,14 @@ static int arm_mptimer_init(SysBusDevice *dev)
      *  * timer for core 1
      * and so on.
      */
-    memory_region_init_io(&s->iomem, OBJECT(s), &arm_thistimer_ops, s,
-                          "arm_mptimer_timer", 0x20);
-    sysbus_init_mmio(dev, &s->iomem);
     for (i = 0; i < s->num_cpu; i++) {
         TimerBlock *tb = &s->timerblock[i];
-        tb->timer = qemu_new_timer_ns(vm_clock, timerblock_tick, tb);
-        sysbus_init_irq(dev, &tb->irq);
+        tb->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, timerblock_tick, tb);
+        sysbus_init_irq(sbd, &tb->irq);
         memory_region_init_io(&tb->iomem, OBJECT(s), &timerblock_ops, tb,
                               "arm_mptimer_timerblock", 0x20);
-        sysbus_init_mmio(dev, &tb->iomem);
+        sysbus_init_mmio(sbd, &tb->iomem);
     }
-
-    return 0;
 }
 
 static const VMStateDescription vmstate_timerblock = {
@@ -292,9 +270,8 @@ static Property arm_mptimer_properties[] = {
 static void arm_mptimer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
 
-    sbc->init = arm_mptimer_init;
+    dc->realize = arm_mptimer_realize;
     dc->vmsd = &vmstate_arm_mptimer;
     dc->reset = arm_mptimer_reset;
     dc->no_user = 1;
@@ -305,6 +282,7 @@ static const TypeInfo arm_mptimer_info = {
     .name          = TYPE_ARM_MPTIMER,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(ARMMPTimerState),
+    .instance_init = arm_mptimer_init,
     .class_init    = arm_mptimer_class_init,
 };
 

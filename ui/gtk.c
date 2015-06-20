@@ -51,10 +51,6 @@
 #include <glib/gi18n.h>
 #include <locale.h>
 #include <vte/vte.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/wait.h>
 #include <math.h>
 
 #include "ui/console.h"

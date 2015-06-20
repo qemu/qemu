@@ -35,6 +35,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     BDRVQcowState *s = bs->opaque;
     int new_l1_size2, ret, i;
     uint64_t *new_l1_table;
+    int64_t old_l1_table_offset, old_l1_size;
     int64_t new_l1_table_offset, new_l1_size;
     uint8_t data[12];
 
@@ -80,6 +81,14 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
         goto fail;
     }
 
+    /* the L1 position has not yet been updated, so these clusters must
+     * indeed be completely free */
+    ret = qcow2_pre_write_overlap_check(bs, 0, new_l1_table_offset,
+                                        new_l1_size2);
+    if (ret < 0) {
+        goto fail;
+    }
+
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_WRITE_TABLE);
     for(i = 0; i < s->l1_size; i++)
         new_l1_table[i] = cpu_to_be64(new_l1_table[i]);
@@ -92,17 +101,19 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
     /* set new table */
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_ACTIVATE_TABLE);
     cpu_to_be32w((uint32_t*)data, new_l1_size);
-    cpu_to_be64wu((uint64_t*)(data + 4), new_l1_table_offset);
+    stq_be_p(data + 4, new_l1_table_offset);
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, l1_size), data,sizeof(data));
     if (ret < 0) {
         goto fail;
     }
     g_free(s->l1_table);
-    qcow2_free_clusters(bs, s->l1_table_offset, s->l1_size * sizeof(uint64_t),
-                        QCOW2_DISCARD_OTHER);
+    old_l1_table_offset = s->l1_table_offset;
     s->l1_table_offset = new_l1_table_offset;
     s->l1_table = new_l1_table;
+    old_l1_size = s->l1_size;
     s->l1_size = new_l1_size;
+    qcow2_free_clusters(bs, old_l1_table_offset, old_l1_size * sizeof(uint64_t),
+                        QCOW2_DISCARD_OTHER);
     return 0;
  fail:
     g_free(new_l1_table);
@@ -137,7 +148,7 @@ static int l2_load(BlockDriverState *bs, uint64_t l2_offset,
  * and we really don't want bdrv_pread to perform a read-modify-write)
  */
 #define L1_ENTRIES_PER_SECTOR (512 / 8)
-static int write_l1_entry(BlockDriverState *bs, int l1_index)
+int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t buf[L1_ENTRIES_PER_SECTOR];
@@ -147,6 +158,12 @@ static int write_l1_entry(BlockDriverState *bs, int l1_index)
     l1_start_index = l1_index & ~(L1_ENTRIES_PER_SECTOR - 1);
     for (i = 0; i < L1_ENTRIES_PER_SECTOR; i++) {
         buf[i] = cpu_to_be64(s->l1_table[l1_start_index + i]);
+    }
+
+    ret = qcow2_pre_write_overlap_check(bs, QCOW2_OL_ACTIVE_L1,
+            s->l1_table_offset + 8 * l1_start_index, sizeof(buf));
+    if (ret < 0) {
+        return ret;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_L1_UPDATE);
@@ -173,7 +190,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t old_l2_offset;
-    uint64_t *l2_table;
+    uint64_t *l2_table = NULL;
     int64_t l2_offset;
     int ret;
 
@@ -185,7 +202,8 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
     l2_offset = qcow2_alloc_clusters(bs, s->l2_size * sizeof(uint64_t));
     if (l2_offset < 0) {
-        return l2_offset;
+        ret = l2_offset;
+        goto fail;
     }
 
     ret = qcow2_cache_flush(bs, s->refcount_block_cache);
@@ -198,7 +216,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     trace_qcow2_l2_allocate_get_empty(bs, l1_index);
     ret = qcow2_cache_get_empty(bs, s->l2_table_cache, l2_offset, (void**) table);
     if (ret < 0) {
-        return ret;
+        goto fail;
     }
 
     l2_table = *table;
@@ -239,7 +257,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     /* update the L1 entry */
     trace_qcow2_l2_allocate_write_l1(bs, l1_index);
     s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
-    ret = write_l1_entry(bs, l1_index);
+    ret = qcow2_write_l1_entry(bs, l1_index);
     if (ret < 0) {
         goto fail;
     }
@@ -250,8 +268,14 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
 fail:
     trace_qcow2_l2_allocate_done(bs, l1_index, ret);
-    qcow2_cache_put(bs, s->l2_table_cache, (void**) table);
+    if (l2_table != NULL) {
+        qcow2_cache_put(bs, s->l2_table_cache, (void**) table);
+    }
     s->l1_table[l1_index] = old_l2_offset;
+    if (l2_offset > 0) {
+        qcow2_free_clusters(bs, l2_offset, s->l2_size * sizeof(uint64_t),
+                            QCOW2_DISCARD_ALWAYS);
+    }
     return ret;
 }
 
@@ -263,23 +287,26 @@ fail:
  * cluster which may require a different handling)
  */
 static int count_contiguous_clusters(uint64_t nb_clusters, int cluster_size,
-        uint64_t *l2_table, uint64_t start, uint64_t stop_flags)
+        uint64_t *l2_table, uint64_t stop_flags)
 {
     int i;
-    uint64_t mask = stop_flags | L2E_OFFSET_MASK;
-    uint64_t offset = be64_to_cpu(l2_table[0]) & mask;
+    uint64_t mask = stop_flags | L2E_OFFSET_MASK | QCOW_OFLAG_COMPRESSED;
+    uint64_t first_entry = be64_to_cpu(l2_table[0]);
+    uint64_t offset = first_entry & mask;
 
     if (!offset)
         return 0;
 
-    for (i = start; i < start + nb_clusters; i++) {
+    assert(qcow2_get_cluster_type(first_entry) != QCOW2_CLUSTER_COMPRESSED);
+
+    for (i = 0; i < nb_clusters; i++) {
         uint64_t l2_entry = be64_to_cpu(l2_table[i]) & mask;
         if (offset + (uint64_t) i * cluster_size != l2_entry) {
             break;
         }
     }
 
-	return (i - start);
+	return i;
 }
 
 static int count_contiguous_free_clusters(uint64_t nb_clusters, uint64_t *l2_table)
@@ -366,6 +393,12 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
         qcow2_encrypt_sectors(s, start_sect + n_start,
                         iov.iov_base, iov.iov_base, n, 1,
                         &s->aes_encrypt_key);
+    }
+
+    ret = qcow2_pre_write_overlap_check(bs, 0,
+            cluster_offset + n_start * BDRV_SECTOR_SIZE, n * BDRV_SECTOR_SIZE);
+    if (ret < 0) {
+        goto out;
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
@@ -466,8 +499,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
             return -EIO;
         }
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], 0,
-                QCOW_OFLAG_COMPRESSED | QCOW_OFLAG_ZERO);
+                &l2_table[l2_index], QCOW_OFLAG_ZERO);
         *cluster_offset = 0;
         break;
     case QCOW2_CLUSTER_UNALLOCATED:
@@ -478,8 +510,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     case QCOW2_CLUSTER_NORMAL:
         /* how many allocated clusters ? */
         c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], 0,
-                QCOW_OFLAG_COMPRESSED | QCOW_OFLAG_ZERO);
+                &l2_table[l2_index], QCOW_OFLAG_ZERO);
         *cluster_offset &= L2E_OFFSET_MASK;
         break;
     default:
@@ -695,6 +726,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     }
     qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
 
+    assert(l2_index + m->nb_clusters <= s->l2_size);
     for (i = 0; i < m->nb_clusters; i++) {
         /* if two concurrent writes happen to the same unallocated cluster
 	 * each write allocates separate cluster and writes data concurrently.
@@ -908,7 +940,7 @@ static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
         /* We keep all QCOW_OFLAG_COPIED clusters */
         keep_clusters =
             count_contiguous_clusters(nb_clusters, s->cluster_size,
-                                      &l2_table[l2_index], 0,
+                                      &l2_table[l2_index],
                                       QCOW_OFLAG_COPIED | QCOW_OFLAG_ZERO);
         assert(keep_clusters <= nb_clusters);
 
@@ -1317,7 +1349,7 @@ int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
  * clusters.
  */
 static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
-    unsigned int nb_clusters)
+    unsigned int nb_clusters, enum qcow2_discard_type type)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t *l2_table;
@@ -1346,7 +1378,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
         l2_table[l2_index + i] = cpu_to_be64(0);
 
         /* Then decrease the refcount */
-        qcow2_free_any_clusters(bs, old_offset, 1, QCOW2_DISCARD_REQUEST);
+        qcow2_free_any_clusters(bs, old_offset, 1, type);
     }
 
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
@@ -1358,7 +1390,7 @@ static int discard_single_l2(BlockDriverState *bs, uint64_t offset,
 }
 
 int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
-    int nb_sectors)
+    int nb_sectors, enum qcow2_discard_type type)
 {
     BDRVQcowState *s = bs->opaque;
     uint64_t end_offset;
@@ -1381,7 +1413,7 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 
     /* Each L2 table is handled by its own loop iteration */
     while (nb_clusters > 0) {
-        ret = discard_single_l2(bs, offset, nb_clusters);
+        ret = discard_single_l2(bs, offset, nb_clusters, type);
         if (ret < 0) {
             goto fail;
         }
@@ -1474,5 +1506,257 @@ fail:
     s->cache_discards = false;
     qcow2_process_discards(bs, ret);
 
+    return ret;
+}
+
+/*
+ * Expands all zero clusters in a specific L1 table (or deallocates them, for
+ * non-backed non-pre-allocated zero clusters).
+ *
+ * expanded_clusters is a bitmap where every bit corresponds to one cluster in
+ * the image file; a bit gets set if the corresponding cluster has been used for
+ * zero expansion (i.e., has been filled with zeroes and is referenced from an
+ * L2 table). nb_clusters contains the total cluster count of the image file,
+ * i.e., the number of bits in expanded_clusters.
+ */
+static int expand_zero_clusters_in_l1(BlockDriverState *bs, uint64_t *l1_table,
+                                      int l1_size, uint8_t **expanded_clusters,
+                                      uint64_t *nb_clusters)
+{
+    BDRVQcowState *s = bs->opaque;
+    bool is_active_l1 = (l1_table == s->l1_table);
+    uint64_t *l2_table = NULL;
+    int ret;
+    int i, j;
+
+    if (!is_active_l1) {
+        /* inactive L2 tables require a buffer to be stored in when loading
+         * them from disk */
+        l2_table = qemu_blockalign(bs, s->cluster_size);
+    }
+
+    for (i = 0; i < l1_size; i++) {
+        uint64_t l2_offset = l1_table[i] & L1E_OFFSET_MASK;
+        bool l2_dirty = false;
+
+        if (!l2_offset) {
+            /* unallocated */
+            continue;
+        }
+
+        if (is_active_l1) {
+            /* get active L2 tables from cache */
+            ret = qcow2_cache_get(bs, s->l2_table_cache, l2_offset,
+                    (void **)&l2_table);
+        } else {
+            /* load inactive L2 tables from disk */
+            ret = bdrv_read(bs->file, l2_offset / BDRV_SECTOR_SIZE,
+                    (void *)l2_table, s->cluster_sectors);
+        }
+        if (ret < 0) {
+            goto fail;
+        }
+
+        for (j = 0; j < s->l2_size; j++) {
+            uint64_t l2_entry = be64_to_cpu(l2_table[j]);
+            int64_t offset = l2_entry & L2E_OFFSET_MASK, cluster_index;
+            int cluster_type = qcow2_get_cluster_type(l2_entry);
+            bool preallocated = offset != 0;
+
+            if (cluster_type == QCOW2_CLUSTER_NORMAL) {
+                cluster_index = offset >> s->cluster_bits;
+                assert((cluster_index >= 0) && (cluster_index < *nb_clusters));
+                if ((*expanded_clusters)[cluster_index / 8] &
+                    (1 << (cluster_index % 8))) {
+                    /* Probably a shared L2 table; this cluster was a zero
+                     * cluster which has been expanded, its refcount
+                     * therefore most likely requires an update. */
+                    ret = qcow2_update_cluster_refcount(bs, cluster_index, 1,
+                                                        QCOW2_DISCARD_NEVER);
+                    if (ret < 0) {
+                        goto fail;
+                    }
+                    /* Since we just increased the refcount, the COPIED flag may
+                     * no longer be set. */
+                    l2_table[j] = cpu_to_be64(l2_entry & ~QCOW_OFLAG_COPIED);
+                    l2_dirty = true;
+                }
+                continue;
+            }
+            else if (qcow2_get_cluster_type(l2_entry) != QCOW2_CLUSTER_ZERO) {
+                continue;
+            }
+
+            if (!preallocated) {
+                if (!bs->backing_hd) {
+                    /* not backed; therefore we can simply deallocate the
+                     * cluster */
+                    l2_table[j] = 0;
+                    l2_dirty = true;
+                    continue;
+                }
+
+                offset = qcow2_alloc_clusters(bs, s->cluster_size);
+                if (offset < 0) {
+                    ret = offset;
+                    goto fail;
+                }
+            }
+
+            ret = qcow2_pre_write_overlap_check(bs, 0, offset, s->cluster_size);
+            if (ret < 0) {
+                if (!preallocated) {
+                    qcow2_free_clusters(bs, offset, s->cluster_size,
+                                        QCOW2_DISCARD_ALWAYS);
+                }
+                goto fail;
+            }
+
+            ret = bdrv_write_zeroes(bs->file, offset / BDRV_SECTOR_SIZE,
+                                    s->cluster_sectors);
+            if (ret < 0) {
+                if (!preallocated) {
+                    qcow2_free_clusters(bs, offset, s->cluster_size,
+                                        QCOW2_DISCARD_ALWAYS);
+                }
+                goto fail;
+            }
+
+            l2_table[j] = cpu_to_be64(offset | QCOW_OFLAG_COPIED);
+            l2_dirty = true;
+
+            cluster_index = offset >> s->cluster_bits;
+
+            if (cluster_index >= *nb_clusters) {
+                uint64_t old_bitmap_size = (*nb_clusters + 7) / 8;
+                uint64_t new_bitmap_size;
+                /* The offset may lie beyond the old end of the underlying image
+                 * file for growable files only */
+                assert(bs->file->growable);
+                *nb_clusters = size_to_clusters(s, bs->file->total_sectors *
+                                                BDRV_SECTOR_SIZE);
+                new_bitmap_size = (*nb_clusters + 7) / 8;
+                *expanded_clusters = g_realloc(*expanded_clusters,
+                                               new_bitmap_size);
+                /* clear the newly allocated space */
+                memset(&(*expanded_clusters)[old_bitmap_size], 0,
+                       new_bitmap_size - old_bitmap_size);
+            }
+
+            assert((cluster_index >= 0) && (cluster_index < *nb_clusters));
+            (*expanded_clusters)[cluster_index / 8] |= 1 << (cluster_index % 8);
+        }
+
+        if (is_active_l1) {
+            if (l2_dirty) {
+                qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+                qcow2_cache_depends_on_flush(s->l2_table_cache);
+            }
+            ret = qcow2_cache_put(bs, s->l2_table_cache, (void **)&l2_table);
+            if (ret < 0) {
+                l2_table = NULL;
+                goto fail;
+            }
+        } else {
+            if (l2_dirty) {
+                ret = qcow2_pre_write_overlap_check(bs,
+                        QCOW2_OL_INACTIVE_L2 | QCOW2_OL_ACTIVE_L2, l2_offset,
+                        s->cluster_size);
+                if (ret < 0) {
+                    goto fail;
+                }
+
+                ret = bdrv_write(bs->file, l2_offset / BDRV_SECTOR_SIZE,
+                        (void *)l2_table, s->cluster_sectors);
+                if (ret < 0) {
+                    goto fail;
+                }
+            }
+        }
+    }
+
+    ret = 0;
+
+fail:
+    if (l2_table) {
+        if (!is_active_l1) {
+            qemu_vfree(l2_table);
+        } else {
+            if (ret < 0) {
+                qcow2_cache_put(bs, s->l2_table_cache, (void **)&l2_table);
+            } else {
+                ret = qcow2_cache_put(bs, s->l2_table_cache,
+                        (void **)&l2_table);
+            }
+        }
+    }
+    return ret;
+}
+
+/*
+ * For backed images, expands all zero clusters on the image. For non-backed
+ * images, deallocates all non-pre-allocated zero clusters (and claims the
+ * allocation for pre-allocated ones). This is important for downgrading to a
+ * qcow2 version which doesn't yet support metadata zero clusters.
+ */
+int qcow2_expand_zero_clusters(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t *l1_table = NULL;
+    uint64_t nb_clusters;
+    uint8_t *expanded_clusters;
+    int ret;
+    int i, j;
+
+    nb_clusters = size_to_clusters(s, bs->file->total_sectors *
+                                   BDRV_SECTOR_SIZE);
+    expanded_clusters = g_malloc0((nb_clusters + 7) / 8);
+
+    ret = expand_zero_clusters_in_l1(bs, s->l1_table, s->l1_size,
+                                     &expanded_clusters, &nb_clusters);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* Inactive L1 tables may point to active L2 tables - therefore it is
+     * necessary to flush the L2 table cache before trying to access the L2
+     * tables pointed to by inactive L1 entries (else we might try to expand
+     * zero clusters that have already been expanded); furthermore, it is also
+     * necessary to empty the L2 table cache, since it may contain tables which
+     * are now going to be modified directly on disk, bypassing the cache.
+     * qcow2_cache_empty() does both for us. */
+    ret = qcow2_cache_empty(bs, s->l2_table_cache);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    for (i = 0; i < s->nb_snapshots; i++) {
+        int l1_sectors = (s->snapshots[i].l1_size * sizeof(uint64_t) +
+                BDRV_SECTOR_SIZE - 1) / BDRV_SECTOR_SIZE;
+
+        l1_table = g_realloc(l1_table, l1_sectors * BDRV_SECTOR_SIZE);
+
+        ret = bdrv_read(bs->file, s->snapshots[i].l1_table_offset /
+                BDRV_SECTOR_SIZE, (void *)l1_table, l1_sectors);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        for (j = 0; j < s->snapshots[i].l1_size; j++) {
+            be64_to_cpus(&l1_table[j]);
+        }
+
+        ret = expand_zero_clusters_in_l1(bs, l1_table, s->snapshots[i].l1_size,
+                                         &expanded_clusters, &nb_clusters);
+        if (ret < 0) {
+            goto fail;
+        }
+    }
+
+    ret = 0;
+
+fail:
+    g_free(expanded_clusters);
+    g_free(l1_table);
     return ret;
 }

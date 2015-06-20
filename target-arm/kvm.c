@@ -67,7 +67,13 @@ static bool reg_syncs_via_tuple_list(uint64_t regidx)
 
 static int compare_u64(const void *a, const void *b)
 {
-    return *(uint64_t *)a - *(uint64_t *)b;
+    if (*(uint64_t *)a > *(uint64_t *)b) {
+        return 1;
+    }
+    if (*(uint64_t *)a < *(uint64_t *)b) {
+        return -1;
+    }
+    return 0;
 }
 
 int kvm_arch_init_vcpu(CPUState *cs)

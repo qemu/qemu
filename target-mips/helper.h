@@ -148,7 +148,7 @@ DEF_HELPER_2(mtc0_taghi, void, env, tl)
 DEF_HELPER_2(mtc0_datahi, void, env, tl)
 
 /* MIPS MT functions */
-DEF_HELPER_2(mftgpr, tl, env, i32);
+DEF_HELPER_2(mftgpr, tl, env, i32)
 DEF_HELPER_2(mftlo, tl, env, i32)
 DEF_HELPER_2(mfthi, tl, env, i32)
 DEF_HELPER_2(mftacx, tl, env, i32)
@@ -165,11 +165,11 @@ DEF_HELPER_1(evpe, tl, env)
 #endif /* !CONFIG_USER_ONLY */
 
 /* microMIPS functions */
-DEF_HELPER_4(lwm, void, env, tl, tl, i32);
-DEF_HELPER_4(swm, void, env, tl, tl, i32);
+DEF_HELPER_4(lwm, void, env, tl, tl, i32)
+DEF_HELPER_4(swm, void, env, tl, tl, i32)
 #ifdef TARGET_MIPS64
-DEF_HELPER_4(ldm, void, env, tl, tl, i32);
-DEF_HELPER_4(sdm, void, env, tl, tl, i32);
+DEF_HELPER_4(ldm, void, env, tl, tl, i32)
+DEF_HELPER_4(sdm, void, env, tl, tl, i32)
 #endif
 
 DEF_HELPER_2(fork, void, tl, tl)
@@ -615,7 +615,7 @@ DEF_HELPER_FLAGS_4(dmsubu, 0, void, tl, tl, i32, env)
 DEF_HELPER_FLAGS_1(bitrev, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_3(insv, 0, tl, env, tl, tl)
 #if defined(TARGET_MIPS64)
-DEF_HELPER_FLAGS_3(dinsv, 0, tl, env, tl, tl);
+DEF_HELPER_FLAGS_3(dinsv, 0, tl, env, tl, tl)
 #endif
 
 /* DSP Compare-Pick Sub-class insns */

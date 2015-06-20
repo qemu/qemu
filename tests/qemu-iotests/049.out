@@ -96,7 +96,7 @@ qemu-img: Image size must be less than 8 EiB!
 
 qemu-img create -f qcow2 -o size=-1024 TEST_DIR/t.qcow2
 qemu-img: qcow2 doesn't support shrinking images yet
-qemu-img: Formatting or formatting option not supported for file format 'qcow2'
+qemu-img: TEST_DIR/t.qcow2: Could not resize image: Operation not supported
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=-1024 encryption=off cluster_size=65536 lazy_refcounts=off 
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- -1k
@@ -104,7 +104,7 @@ qemu-img: Image size must be less than 8 EiB!
 
 qemu-img create -f qcow2 -o size=-1k TEST_DIR/t.qcow2
 qemu-img: qcow2 doesn't support shrinking images yet
-qemu-img: Formatting or formatting option not supported for file format 'qcow2'
+qemu-img: TEST_DIR/t.qcow2: Could not resize image: Operation not supported
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=-1024 encryption=off cluster_size=65536 lazy_refcounts=off 
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- 1kilobyte
@@ -120,7 +120,7 @@ qemu-img: kilobytes, megabytes, gigabytes, terabytes, petabytes and exabytes.
 
 qemu-img create -f qcow2 -o size=foobar TEST_DIR/t.qcow2
 qemu-img: Parameter 'size' expects a size
-qemu-img: Invalid options for file format 'qcow2'.
+qemu-img: TEST_DIR/t.qcow2: Invalid options for file format 'qcow2'.
 
 == Check correct interpretation of suffixes for cluster size ==
 
@@ -163,13 +163,11 @@ qemu-img create -f qcow2 -o compat=1.1 TEST_DIR/t.qcow2 64M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='1.1' encryption=off cluster_size=65536 lazy_refcounts=off 
 
 qemu-img create -f qcow2 -o compat=0.42 TEST_DIR/t.qcow2 64M
-Invalid compatibility level: '0.42'
-qemu-img: TEST_DIR/t.qcow2: error while creating qcow2: Invalid argument
+qemu-img: TEST_DIR/t.qcow2: Invalid compatibility level: '0.42'
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='0.42' encryption=off cluster_size=65536 lazy_refcounts=off 
 
 qemu-img create -f qcow2 -o compat=foobar TEST_DIR/t.qcow2 64M
-Invalid compatibility level: 'foobar'
-qemu-img: TEST_DIR/t.qcow2: error while creating qcow2: Invalid argument
+qemu-img: TEST_DIR/t.qcow2: Invalid compatibility level: 'foobar'
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='foobar' encryption=off cluster_size=65536 lazy_refcounts=off 
 
 == Check preallocation option ==
@@ -181,8 +179,7 @@ qemu-img create -f qcow2 -o preallocation=metadata TEST_DIR/t.qcow2 64M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=65536 preallocation='metadata' lazy_refcounts=off 
 
 qemu-img create -f qcow2 -o preallocation=1234 TEST_DIR/t.qcow2 64M
-Invalid preallocation mode: '1234'
-qemu-img: TEST_DIR/t.qcow2: error while creating qcow2: Invalid argument
+qemu-img: TEST_DIR/t.qcow2: Invalid preallocation mode: '1234'
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 encryption=off cluster_size=65536 preallocation='1234' lazy_refcounts=off 
 
 == Check encryption option ==
@@ -205,8 +202,7 @@ qemu-img create -f qcow2 -o compat=0.10,lazy_refcounts=off TEST_DIR/t.qcow2 64M
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='0.10' encryption=off cluster_size=65536 lazy_refcounts=off 
 
 qemu-img create -f qcow2 -o compat=0.10,lazy_refcounts=on TEST_DIR/t.qcow2 64M
-Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
-qemu-img: TEST_DIR/t.qcow2: error while creating qcow2: Invalid argument
+qemu-img: TEST_DIR/t.qcow2: Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=67108864 compat='0.10' encryption=off cluster_size=65536 lazy_refcounts=on 
 
 *** done

@@ -367,7 +367,8 @@ int pci_bridge_initfn(PCIDevice *dev, const char *typename)
 	    br->bus_name = dev->qdev.id;
     }
 
-    qbus_create_inplace(&sec_bus->qbus, typename, &dev->qdev, br->bus_name);
+    qbus_create_inplace(sec_bus, sizeof(br->sec_bus), typename, DEVICE(dev),
+                        br->bus_name);
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq ? br->map_irq : pci_swizzle_map_irq_fn;
     sec_bus->address_space_mem = &br->address_space_mem;
@@ -390,7 +391,7 @@ void pci_bridge_exitfn(PCIDevice *pci_dev)
     pci_bridge_region_cleanup(s, s->windows);
     memory_region_destroy(&s->address_space_mem);
     memory_region_destroy(&s->address_space_io);
-    /* qbus_free() is called automatically by qdev_free() */
+    /* qbus_free() is called automatically during device deletion */
 }
 
 /*

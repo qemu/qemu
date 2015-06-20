@@ -176,8 +176,10 @@ petalogix_ml605_init(QEMUMachineInitArgs *args)
         }
     }
 
-    microblaze_load_kernel(cpu, ddr_base, ram_size, BINARY_DEVICE_TREE_FILE,
-                                                            machine_cpu_reset);
+    microblaze_load_kernel(cpu, ddr_base, ram_size,
+                           args->initrd_filename,
+                           BINARY_DEVICE_TREE_FILE,
+                           machine_cpu_reset);
 
 }
 
@@ -186,7 +188,6 @@ static QEMUMachine petalogix_ml605_machine = {
     .desc = "PetaLogix linux refdesign for xilinx ml605 little endian",
     .init = petalogix_ml605_init,
     .is_default = 0,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void petalogix_ml605_machine_init(void)

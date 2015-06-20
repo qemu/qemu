@@ -3581,7 +3581,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
         gen_save_pc(dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         gen_save_pc(dest);
         if (ctx->singlestep_enabled) {
@@ -15886,10 +15886,6 @@ void mips_tcg_init(void)
                                        offsetof(CPUMIPSState, active_fpu.fcr31),
                                        "fcr31");
 
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
-
     inited = 1;
 }
 
@@ -15907,7 +15903,6 @@ MIPSCPU *cpu_mips_init(const char *cpu_model)
     cpu = MIPS_CPU(object_new(TYPE_MIPS_CPU));
     env = &cpu->env;
     env->cpu_model = def;
-    env->cpu_model_str = cpu_model;
 
 #ifndef CONFIG_USER_ONLY
     mmu_init(env, def);

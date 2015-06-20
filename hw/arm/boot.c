@@ -354,8 +354,10 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
-        fprintf(stderr, "Kernel image must be specified\n");
-        exit(1);
+        /* If no kernel specified, do nothing; we will start from address 0
+         * (typically a boot ROM image) in the same way as hardware.
+         */
+        return;
     }
 
     info->dtb_filename = qemu_opt_get(qemu_get_machine_opts(), "dtb");
@@ -468,7 +470,7 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     }
     info->is_linux = is_linux;
 
-    for (; cs; cs = cs->next_cpu) {
+    for (; cs; cs = CPU_NEXT(cs)) {
         cpu = ARM_CPU(cs);
         cpu->env.boot_info = info;
         qemu_register_reset(do_cpu_reset, cpu);

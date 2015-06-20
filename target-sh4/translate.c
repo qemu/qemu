@@ -143,10 +143,6 @@ void sh4_translate_init(void)
                                               offsetof(CPUSH4State, fregs[i]),
                                               fregnames[i]);
 
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
-
     done_init = 1;
 }
 
@@ -186,7 +182,7 @@ static void gen_goto_tb(DisasContext * ctx, int n, target_ulong dest)
 	/* Use a direct jump if in same page and singlestep not enabled */
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(cpu_pc, dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         tcg_gen_movi_i32(cpu_pc, dest);
         if (ctx->singlestep_enabled)

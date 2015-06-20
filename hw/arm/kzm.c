@@ -82,7 +82,6 @@ static void kzm_init(QEMUMachineInitArgs *args)
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
     MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
-    qemu_irq *cpu_pic;
     DeviceState *dev;
     DeviceState *ccm;
 
@@ -108,11 +107,10 @@ static void kzm_init(QEMUMachineInitArgs *args)
     memory_region_init_ram(sram, NULL, "kzm.sram", 0x4000);
     memory_region_add_subregion(address_space_mem, 0x1FFFC000, sram);
 
-    cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs("imx_avic", 0x68000000,
-                                cpu_pic[ARM_PIC_CPU_IRQ],
-                                cpu_pic[ARM_PIC_CPU_FIQ], NULL);
-
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
+                                NULL);
 
     imx_serial_create(0, 0x43f90000, qdev_get_gpio_in(dev, 45));
     imx_serial_create(1, 0x43f94000, qdev_get_gpio_in(dev, 32));
@@ -146,7 +144,6 @@ static QEMUMachine kzm_machine = {
     .name = "kzm",
     .desc = "ARM KZM Emulation Baseboard (ARM1136)",
     .init = kzm_init,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void kzm_machine_init(void)

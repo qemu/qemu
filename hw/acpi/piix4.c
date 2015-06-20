@@ -29,6 +29,7 @@
 #include "exec/ioport.h"
 #include "hw/nvram/fw_cfg.h"
 #include "exec/address-spaces.h"
+#include "hw/acpi/piix4.h"
 
 //#define DEBUG
 
@@ -69,6 +70,8 @@ typedef struct PIIX4PMState {
     /*< public >*/
 
     MemoryRegion io;
+    uint32_t io_base;
+
     MemoryRegion io_gpe;
     MemoryRegion io_pci;
     MemoryRegion io_cpu;
@@ -152,14 +155,13 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
 static void pm_io_space_update(PIIX4PMState *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
-    uint32_t pm_io_base;
 
-    pm_io_base = le32_to_cpu(*(uint32_t *)(d->config + 0x40));
-    pm_io_base &= 0xffc0;
+    s->io_base = le32_to_cpu(*(uint32_t *)(d->config + 0x40));
+    s->io_base &= 0xffc0;
 
     memory_region_transaction_begin();
     memory_region_set_enabled(&s->io, d->config[0x80] & 1);
-    memory_region_set_address(&s->io, pm_io_base);
+    memory_region_set_address(&s->io, s->io_base);
     memory_region_transaction_commit();
 }
 
@@ -263,7 +265,7 @@ static int acpi_load_old(QEMUFile *f, void *opaque, int version_id)
         return ret;
     }
 
-    qemu_get_timer(f, s->ar.tmr.timer);
+    timer_get(f, s->ar.tmr.timer);
     qemu_get_sbe64s(f, &s->ar.tmr.overflow_time);
 
     qemu_get_be16s(f, (uint16_t *)s->ar.gpe.sts);
@@ -326,7 +328,7 @@ static void acpi_piix_eject_slot(PIIX4PMState *s, unsigned slots)
             if (pc->no_hotplug) {
                 slot_free = false;
             } else {
-                qdev_free(qdev);
+                object_unparent(OBJECT(qdev));
             }
         }
     }
@@ -380,6 +382,7 @@ static void piix4_reset(void *opaque)
         /* Mark SMM as already inited (until KVM supports SMM). */
         pci_conf[0x5B] = 0x02;
     }
+    pm_io_space_update(s);
     piix4_update_hotplug(s);
 }
 
@@ -404,6 +407,28 @@ static void piix4_pm_machine_ready(Notifier *n, void *opaque)
     pci_conf[0x63] = 0x60;
     pci_conf[0x67] = (memory_region_present(io_as, 0x3f8) ? 0x08 : 0) |
         (memory_region_present(io_as, 0x2f8) ? 0x90 : 0);
+}
+
+static void piix4_pm_add_propeties(PIIX4PMState *s)
+{
+    static const uint8_t acpi_enable_cmd = ACPI_ENABLE;
+    static const uint8_t acpi_disable_cmd = ACPI_DISABLE;
+    static const uint32_t gpe0_blk = GPE_BASE;
+    static const uint32_t gpe0_blk_len = GPE_LEN;
+    static const uint16_t sci_int = 9;
+
+    object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_ACPI_ENABLE_CMD,
+                                  &acpi_enable_cmd, NULL);
+    object_property_add_uint8_ptr(OBJECT(s), ACPI_PM_PROP_ACPI_DISABLE_CMD,
+                                  &acpi_disable_cmd, NULL);
+    object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_GPE0_BLK,
+                                  &gpe0_blk, NULL);
+    object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_GPE0_BLK_LEN,
+                                  &gpe0_blk_len, NULL);
+    object_property_add_uint16_ptr(OBJECT(s), ACPI_PM_PROP_SCI_INT,
+                                  &sci_int, NULL);
+    object_property_add_uint32_ptr(OBJECT(s), ACPI_PM_PROP_PM_IO_BASE,
+                                  &s->io_base, NULL);
 }
 
 static int piix4_pm_initfn(PCIDevice *dev)
@@ -455,7 +480,19 @@ static int piix4_pm_initfn(PCIDevice *dev)
 
     piix4_acpi_system_hot_add_init(pci_address_space_io(dev), dev->bus, s);
 
+    piix4_pm_add_propeties(s);
     return 0;
+}
+
+Object *piix4_pm_find(void)
+{
+    bool ambig;
+    Object *o = object_resolve_path_type("", TYPE_PIIX4_PM, &ambig);
+
+    if (ambig || !o) {
+        return NULL;
+    }
+    return o;
 }
 
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
@@ -488,9 +525,9 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
 static Property piix4_pm_properties[] = {
     DEFINE_PROP_UINT32("smb_io_base", PIIX4PMState, smb_io_base, 0),
-    DEFINE_PROP_UINT8("disable_s3", PIIX4PMState, disable_s3, 0),
-    DEFINE_PROP_UINT8("disable_s4", PIIX4PMState, disable_s4, 0),
-    DEFINE_PROP_UINT8("s4_val", PIIX4PMState, s4_val, 2),
+    DEFINE_PROP_UINT8(ACPI_PM_PROP_S3_DISABLED, PIIX4PMState, disable_s3, 0),
+    DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_DISABLED, PIIX4PMState, disable_s4, 0),
+    DEFINE_PROP_UINT8(ACPI_PM_PROP_S4_VAL, PIIX4PMState, s4_val, 2),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -667,22 +704,14 @@ static void piix4_cpu_added_req(Notifier *n, void *opaque)
     piix4_cpu_hotplug_req(s, CPU(opaque), PLUG);
 }
 
-static void piix4_init_cpu_status(CPUState *cpu, void *data)
-{
-    CPUStatus *g = (CPUStatus *)data;
-    CPUClass *k = CPU_GET_CLASS(cpu);
-    int64_t id = k->get_arch_id(cpu);
-
-    g_assert((id / 8) < PIIX4_PROC_LEN);
-    g->sts[id / 8] |= (1 << (id % 8));
-}
-
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
                                 PCIHotplugState state);
 
 static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                            PCIBus *bus, PIIX4PMState *s)
 {
+    CPUState *cpu;
+
     memory_region_init_io(&s->io_gpe, OBJECT(s), &piix4_gpe_ops, s,
                           "acpi-gpe0", GPE_LEN);
     memory_region_add_subregion(parent, GPE_BASE, &s->io_gpe);
@@ -693,7 +722,13 @@ static void piix4_acpi_system_hot_add_init(MemoryRegion *parent,
                                 &s->io_pci);
     pci_bus_hotplug(bus, piix4_device_hotplug, DEVICE(s));
 
-    qemu_for_each_cpu(piix4_init_cpu_status, &s->gpe_cpu);
+    CPU_FOREACH(cpu) {
+        CPUClass *cc = CPU_GET_CLASS(cpu);
+        int64_t id = cc->get_arch_id(cpu);
+
+        g_assert((id / 8) < PIIX4_PROC_LEN);
+        s->gpe_cpu.sts[id / 8] |= (1 << (id % 8));
+    }
     memory_region_init_io(&s->io_cpu, OBJECT(s), &cpu_hotplug_ops, s,
                           "acpi-cpu-hotplug", PIIX4_PROC_LEN);
     memory_region_add_subregion(parent, PIIX4_PROC_BASE, &s->io_cpu);

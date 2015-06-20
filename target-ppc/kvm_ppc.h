@@ -38,6 +38,7 @@ uint64_t kvmppc_rma_size(uint64_t current_size, unsigned int hash_shift);
 #endif /* !CONFIG_USER_ONLY */
 int kvmppc_fixup_cpu(PowerPCCPU *cpu);
 bool kvmppc_has_cap_epr(void);
+int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function);
 int kvmppc_get_htab_fd(bool write);
 int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns);
 int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
@@ -162,6 +163,12 @@ static inline int kvmppc_fixup_cpu(PowerPCCPU *cpu)
 static inline bool kvmppc_has_cap_epr(void)
 {
     return false;
+}
+
+static inline int kvmppc_define_rtas_kernel_token(uint32_t token,
+                                                  const char *function)
+{
+    return -1;
 }
 
 static inline int kvmppc_get_htab_fd(bool write)

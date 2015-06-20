@@ -254,6 +254,7 @@ static void update_sr (AC97LinkState *s, AC97BusMasterRegs *r, uint32_t new_sr)
         s->glob_sta &= ~masks[r - s->bm_regs];
         dolog ("set irq level=0\n");
         qemu_set_irq (s->irq, 0);
+        pci_irq_deassert(&s->dev);
     }
 }
 

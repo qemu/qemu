@@ -535,7 +535,7 @@ static void megasas_complete_frame(MegasasState *s, uint64_t context)
                 msix_notify(pci_dev, 0);
             } else {
                 trace_megasas_irq_raise();
-                qemu_irq_raise(pci_dev->irq[0]);
+                pci_irq_assert(pci_dev);
             }
         }
     } else {
@@ -1936,7 +1936,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
         s->intr_mask = val;
         if (!megasas_intr_enabled(s) && !msix_enabled(pci_dev)) {
             trace_megasas_irq_lower();
-            qemu_irq_lower(pci_dev->irq[0]);
+            pci_irq_deassert(pci_dev);
         }
         if (megasas_intr_enabled(s)) {
             trace_megasas_intr_enabled();
@@ -1952,7 +1952,7 @@ static void megasas_mmio_write(void *opaque, hwaddr addr,
             stl_le_phys(s->producer_pa, s->reply_queue_head);
             if (!msix_enabled(pci_dev)) {
                 trace_megasas_irq_lower();
-                qemu_irq_lower(pci_dev->irq[0]);
+                pci_irq_deassert(pci_dev);
             }
         }
         break;
@@ -2171,7 +2171,8 @@ static int megasas_scsi_init(PCIDevice *dev)
         s->frames[i].state = s;
     }
 
-    scsi_bus_new(&s->bus, DEVICE(dev), &megasas_scsi_info, NULL);
+    scsi_bus_new(&s->bus, sizeof(s->bus), DEVICE(dev),
+                 &megasas_scsi_info, NULL);
     if (!d->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
         if (err != NULL) {

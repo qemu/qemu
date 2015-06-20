@@ -1,0 +1,23 @@
+# rules to build qga-vss.dll
+
+qga-vss-dll-obj-y += requester.o provider.o install.o
+
+obj-qga-vss-dll-obj-y = $(addprefix $(obj)/, $(qga-vss-dll-obj-y))
+$(obj-qga-vss-dll-obj-y): QEMU_CXXFLAGS = $(filter-out -Wstrict-prototypes -Wmissing-prototypes -Wnested-externs -Wold-style-declaration -Wold-style-definition -Wredundant-decls -fstack-protector-all, $(QEMU_CFLAGS)) -Wno-unknown-pragmas -Wno-delete-non-virtual-dtor
+
+$(obj)/qga-vss.dll: LDFLAGS = -shared -Wl,--add-stdcall-alias,--enable-stdcall-fixup -lole32 -loleaut32 -lshlwapi -luuid -static
+$(obj)/qga-vss.dll: $(obj-qga-vss-dll-obj-y) $(SRC_PATH)/$(obj)/qga-vss.def
+	$(call quiet-command,$(CXX) -o $@ $(qga-vss-dll-obj-y) $(SRC_PATH)/qga/vss-win32/qga-vss.def $(CXXFLAGS) $(LDFLAGS),"  LINK  $(TARGET_DIR)$@")
+
+
+# rules to build qga-provider.tlb
+# Currently, only native build is supported because building .tlb
+# (TypeLibrary) from .idl requires WindowsSDK and MIDL (and cl.exe in VC++).
+MIDL=$(WIN_SDK)/Bin/midl
+
+$(obj)/qga-vss.tlb: $(SRC_PATH)/$(obj)/qga-vss.idl
+ifeq ($(WIN_SDK),"")
+	$(call quiet-command,cp $(dir $<)qga-vss.tlb $@, "  COPY  $(TARGET_DIR)$@")
+else
+	$(call quiet-command,$(MIDL) -tlb $@ -I $(WIN_SDK)/Include $<,"  MIDL  $(TARGET_DIR)$@")
+endif

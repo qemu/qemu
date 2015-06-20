@@ -116,7 +116,8 @@ static QemuOptsList runtime_opts = {
     },
 };
 
-static int blkverify_open(BlockDriverState *bs, QDict *options, int flags)
+static int blkverify_open(BlockDriverState *bs, QDict *options, int flags,
+                          Error **errp)
 {
     BDRVBlkverifyState *s = bs->opaque;
     QemuOpts *opts;
@@ -127,8 +128,7 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags)
     opts = qemu_opts_create_nofail(&runtime_opts);
     qemu_opts_absorb_qdict(opts, options, &local_err);
     if (error_is_set(&local_err)) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         ret = -EINVAL;
         goto fail;
     }
@@ -136,26 +136,30 @@ static int blkverify_open(BlockDriverState *bs, QDict *options, int flags)
     /* Parse the raw image filename */
     raw = qemu_opt_get(opts, "x-raw");
     if (raw == NULL) {
+        error_setg(errp, "Could not retrieve raw image filename");
         ret = -EINVAL;
         goto fail;
     }
 
-    ret = bdrv_file_open(&bs->file, raw, NULL, flags);
+    ret = bdrv_file_open(&bs->file, raw, NULL, flags, &local_err);
     if (ret < 0) {
+        error_propagate(errp, local_err);
         goto fail;
     }
 
     /* Open the test file */
     filename = qemu_opt_get(opts, "x-image");
     if (filename == NULL) {
+        error_setg(errp, "Could not retrieve test image filename");
         ret = -EINVAL;
         goto fail;
     }
 
     s->test_file = bdrv_new("");
-    ret = bdrv_open(s->test_file, filename, NULL, flags, NULL);
+    ret = bdrv_open(s->test_file, filename, NULL, flags, NULL, &local_err);
     if (ret < 0) {
-        bdrv_delete(s->test_file);
+        error_propagate(errp, local_err);
+        bdrv_unref(s->test_file);
         s->test_file = NULL;
         goto fail;
     }
@@ -169,7 +173,7 @@ static void blkverify_close(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
 
-    bdrv_delete(s->test_file);
+    bdrv_unref(s->test_file);
     s->test_file = NULL;
 }
 
@@ -412,6 +416,8 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_aio_readv         = blkverify_aio_readv,
     .bdrv_aio_writev        = blkverify_aio_writev,
     .bdrv_aio_flush         = blkverify_aio_flush,
+
+    .bdrv_check_ext_snapshot = bdrv_check_ext_snapshot_forbidden,
 };
 
 static void bdrv_blkverify_init(void)

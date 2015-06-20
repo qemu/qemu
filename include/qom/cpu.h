@@ -23,6 +23,7 @@
 #include <signal.h>
 #include "hw/qdev-core.h"
 #include "exec/hwaddr.h"
+#include "qemu/queue.h"
 #include "qemu/thread.h"
 #include "qemu/tls.h"
 #include "qemu/typedefs.h"
@@ -152,6 +153,7 @@ struct kvm_run;
  * @current_tb: Currently executing TB.
  * @gdb_regs: Additional GDB registers.
  * @gdb_num_regs: Number of total registers accessible to GDB.
+ * @gdb_num_g_regs: Number of registers in GDB 'g' packets.
  * @next_cpu: Next CPU sharing TB cache.
  * @kvm_fd: vCPU file descriptor for KVM.
  *
@@ -188,7 +190,8 @@ struct CPUState {
     struct TranslationBlock *current_tb;
     struct GDBRegisterState *gdb_regs;
     int gdb_num_regs;
-    CPUState *next_cpu;
+    int gdb_num_g_regs;
+    QTAILQ_ENTRY(CPUState) node;
 
     int kvm_fd;
     bool kvm_vcpu_dirty;
@@ -200,7 +203,13 @@ struct CPUState {
     uint32_t halted; /* used by alpha, cris, ppc TCG */
 };
 
-extern CPUState *first_cpu;
+QTAILQ_HEAD(CPUTailQ, CPUState);
+extern struct CPUTailQ cpus;
+#define CPU_NEXT(cpu) QTAILQ_NEXT(cpu, node)
+#define CPU_FOREACH(cpu) QTAILQ_FOREACH(cpu, &cpus, node)
+#define CPU_FOREACH_SAFE(cpu, next_cpu) \
+    QTAILQ_FOREACH_SAFE(cpu, &cpus, node, next_cpu)
+#define first_cpu QTAILQ_FIRST(&cpus)
 
 DECLARE_TLS(CPUState *, current_cpu);
 #define current_cpu tls_var(current_cpu)
@@ -392,15 +401,6 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
  * Schedules the function @func for execution on the vCPU @cpu asynchronously.
  */
 void async_run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data);
-
-/**
- * qemu_for_each_cpu:
- * @func: The function to be executed.
- * @data: Data to pass to the function.
- *
- * Executes @func for each CPU.
- */
-void qemu_for_each_cpu(void (*func)(CPUState *cpu, void *data), void *data);
 
 /**
  * qemu_get_cpu:

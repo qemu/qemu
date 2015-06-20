@@ -1,0 +1,11 @@
+QA output created by 068
+
+=== Saving and reloading a VM state to/from a qcow2 image ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=131072 
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) s[K[Dsa[K[D[Dsav[K[D[D[Dsave[K[D[D[D[Dsavev[K[D[D[D[D[Dsavevm[K[D[D[D[D[D[Dsavevm [K[D[D[D[D[D[D[Dsavevm 0[K
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+*** done

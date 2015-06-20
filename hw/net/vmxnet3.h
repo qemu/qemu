@@ -34,7 +34,6 @@
 #define __le16  uint16_t
 #define __le32  uint32_t
 #define __le64  uint64_t
-#define __packed QEMU_PACKED
 
 #if defined(HOST_WORDS_BIGENDIAN)
 #define __BIG_ENDIAN_BITFIELD
@@ -749,7 +748,6 @@ struct Vmxnet3_DriverShared {
 #undef __le16
 #undef __le32
 #undef __le64
-#undef __packed
 #if defined(HOST_WORDS_BIGENDIAN)
 #undef __BIG_ENDIAN_BITFIELD
 #endif

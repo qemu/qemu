@@ -28,7 +28,7 @@ function do_is_allocated() {
 }
 
 function is_allocated() {
-    do_is_allocated "$@" | $QEMU_IO $TEST_IMG | _filter_qemu_io
+    do_is_allocated "$@" | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 }
 
 function do_io() {
@@ -46,18 +46,18 @@ function do_io() {
 }
 
 function io_pattern() {
-    do_io "$@" | $QEMU_IO $TEST_IMG | _filter_qemu_io
+    do_io "$@" | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 }
 
 function io() {
     local start=$2
     local pattern=$(( (start >> 9) % 256 ))
 
-    do_io "$@" $pattern | $QEMU_IO $TEST_IMG | _filter_qemu_io
+    do_io "$@" $pattern | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 }
 
 function io_zero() {
-    do_io "$@" 0 | $QEMU_IO $TEST_IMG | _filter_qemu_io
+    do_io "$@" 0 | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 }
 
 function io_test() {
@@ -106,8 +106,8 @@ function io_test2() {
     local num=$3
 
     # Pattern (repeat after 9 clusters):
-    #	used - used - free - used - compressed - compressed -
-    #	free - free - compressed
+    #        used - used - free - used - compressed - compressed -
+    #        free - free - compressed
 
     # Write the clusters to be compressed
     echo === Clusters to be compressed [1]
@@ -117,8 +117,8 @@ function io_test2() {
     echo === Clusters to be compressed [3]
     io_pattern writev $((offset + 8 * $cluster_size)) $cluster_size $((9 * $cluster_size)) $num 165
 
-    mv $TEST_IMG $TEST_IMG.orig
-    $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -c $TEST_IMG.orig $TEST_IMG
+    mv "$TEST_IMG" "$TEST_IMG.orig"
+    $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -c "$TEST_IMG.orig" "$TEST_IMG"
 
     # Write the used clusters
     echo === Used clusters [1]

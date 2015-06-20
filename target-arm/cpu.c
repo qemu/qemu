@@ -23,7 +23,9 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
+#include "hw/arm/arm.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/kvm.h"
 
 static void arm_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -82,6 +84,11 @@ static void arm_cpu_reset(CPUState *s)
         env->iwmmxt.cregs[ARM_IWMMXT_wCID] = 0x69051000 | 'Q';
     }
 
+    if (arm_feature(env, ARM_FEATURE_AARCH64)) {
+        /* 64 bit CPUs always start in 64 bit mode */
+        env->aarch64 = 1;
+    }
+
 #if defined(CONFIG_USER_ONLY)
     env->uncached_cpsr = ARM_CPU_MODE_USR;
     /* For user mode we must enable access to coprocessors */
@@ -106,7 +113,7 @@ static void arm_cpu_reset(CPUState *s)
                modified flash and reset itself.  However images
                loaded via -kernel have not been copied yet, so load the
                values directly from there.  */
-            env->regs[13] = ldl_p(rom);
+            env->regs[13] = ldl_p(rom) & 0xFFFFFFFC;
             pc = ldl_p(rom + 4);
             env->thumb = pc & 1;
             env->regs[15] = pc & ~1;
@@ -129,6 +136,55 @@ static void arm_cpu_reset(CPUState *s)
     tb_flush(env);
 }
 
+#ifndef CONFIG_USER_ONLY
+static void arm_cpu_set_irq(void *opaque, int irq, int level)
+{
+    ARMCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+
+    switch (irq) {
+    case ARM_CPU_IRQ:
+        if (level) {
+            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+        }
+        break;
+    case ARM_CPU_FIQ:
+        if (level) {
+            cpu_interrupt(cs, CPU_INTERRUPT_FIQ);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_FIQ);
+        }
+        break;
+    default:
+        hw_error("arm_cpu_set_irq: Bad interrupt line %d\n", irq);
+    }
+}
+
+static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
+{
+#ifdef CONFIG_KVM
+    ARMCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
+    int kvm_irq = KVM_ARM_IRQ_TYPE_CPU << KVM_ARM_IRQ_TYPE_SHIFT;
+
+    switch (irq) {
+    case ARM_CPU_IRQ:
+        kvm_irq |= KVM_ARM_IRQ_CPU_IRQ;
+        break;
+    case ARM_CPU_FIQ:
+        kvm_irq |= KVM_ARM_IRQ_CPU_FIQ;
+        break;
+    default:
+        hw_error("arm_cpu_kvm_set_irq: Bad interrupt line %d\n", irq);
+    }
+    kvm_irq |= cs->cpu_index << KVM_ARM_IRQ_VCPU_SHIFT;
+    kvm_set_irq(kvm_state, kvm_irq, level ? 1 : 0);
+#endif
+}
+#endif
+
 static inline void set_feature(CPUARMState *env, int feature)
 {
     env->features |= 1ULL << feature;
@@ -144,6 +200,22 @@ static void arm_cpu_initfn(Object *obj)
     cpu_exec_init(&cpu->env);
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
                                          g_free, g_free);
+
+#ifndef CONFIG_USER_ONLY
+    /* Our inbound IRQ and FIQ lines */
+    if (kvm_enabled()) {
+        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_kvm_set_irq, 2);
+    } else {
+        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 2);
+    }
+
+    cpu->gt_timer[GTIMER_PHYS] = timer_new(QEMU_CLOCK_VIRTUAL, GTIMER_SCALE,
+                                                arm_gt_ptimer_cb, cpu);
+    cpu->gt_timer[GTIMER_VIRT] = timer_new(QEMU_CLOCK_VIRTUAL, GTIMER_SCALE,
+                                                arm_gt_vtimer_cb, cpu);
+    qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
+                       ARRAY_SIZE(cpu->gt_timer_outputs));
+#endif
 
     if (tcg_enabled() && !inited) {
         inited = true;
@@ -221,8 +293,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
     acc->parent_realize(dev, errp);
 }
 
-/* CPU models */
-
 static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
@@ -241,6 +311,9 @@ static ObjectClass *arm_cpu_class_by_name(const char *cpu_model)
     }
     return oc;
 }
+
+/* CPU models. These are not needed for the AArch64 linux-user build. */
+#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
 
 static void arm926_initfn(Object *obj)
 {
@@ -755,6 +828,7 @@ static void pxa270c5_initfn(Object *obj)
     cpu->reset_sctlr = 0x00000078;
 }
 
+#ifdef CONFIG_USER_ONLY
 static void arm_any_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -765,8 +839,14 @@ static void arm_any_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_THUMB2EE);
     set_feature(&cpu->env, ARM_FEATURE_ARM_DIV);
     set_feature(&cpu->env, ARM_FEATURE_V7MP);
+#ifdef TARGET_AARCH64
+    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
+#endif
     cpu->midr = 0xffffffff;
 }
+#endif
+
+#endif /* !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64) */
 
 typedef struct ARMCPUInfo {
     const char *name;
@@ -775,6 +855,7 @@ typedef struct ARMCPUInfo {
 } ARMCPUInfo;
 
 static const ARMCPUInfo arm_cpus[] = {
+#if !defined(CONFIG_USER_ONLY) || !defined(TARGET_AARCH64)
     { .name = "arm926",      .initfn = arm926_initfn },
     { .name = "arm946",      .initfn = arm946_initfn },
     { .name = "arm1026",     .initfn = arm1026_initfn },
@@ -807,7 +888,10 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "pxa270-b1",   .initfn = pxa270b1_initfn },
     { .name = "pxa270-c0",   .initfn = pxa270c0_initfn },
     { .name = "pxa270-c5",   .initfn = pxa270c5_initfn },
+#ifdef CONFIG_USER_ONLY
     { .name = "any",         .initfn = arm_any_initfn },
+#endif
+#endif
 };
 
 static void arm_cpu_class_init(ObjectClass *oc, void *data)

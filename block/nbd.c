@@ -279,13 +279,6 @@ static void nbd_coroutine_start(BDRVNBDState *s, struct nbd_request *request)
     request->handle = INDEX_TO_HANDLE(s, i);
 }
 
-static int nbd_have_request(void *opaque)
-{
-    BDRVNBDState *s = opaque;
-
-    return s->in_flight > 0;
-}
-
 static void nbd_reply_ready(void *opaque)
 {
     BDRVNBDState *s = opaque;
@@ -341,8 +334,7 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
 
     qemu_co_mutex_lock(&s->send_mutex);
     s->send_coroutine = qemu_coroutine_self();
-    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, nbd_restart_write,
-                            nbd_have_request, s);
+    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, nbd_restart_write, s);
     if (qiov) {
         if (!s->is_unix) {
             socket_set_cork(s->sock, 1);
@@ -361,8 +353,7 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
     } else {
         rc = nbd_send_request(s->sock, request);
     }
-    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, NULL,
-                            nbd_have_request, s);
+    qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, NULL, s);
     s->send_coroutine = NULL;
     qemu_co_mutex_unlock(&s->send_mutex);
     return rc;
@@ -438,8 +429,7 @@ static int nbd_establish_connection(BlockDriverState *bs)
     /* Now that we're connected, set the socket to be non-blocking and
      * kick the reply mechanism.  */
     qemu_set_nonblock(sock);
-    qemu_aio_set_fd_handler(sock, nbd_reply_ready, NULL,
-                            nbd_have_request, s);
+    qemu_aio_set_fd_handler(sock, nbd_reply_ready, NULL, s);
 
     s->sock = sock;
     s->size = size;
@@ -459,11 +449,12 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     request.len = 0;
     nbd_send_request(s->sock, &request);
 
-    qemu_aio_set_fd_handler(s->sock, NULL, NULL, NULL, NULL);
+    qemu_aio_set_fd_handler(s->sock, NULL, NULL, NULL);
     closesocket(s->sock);
 }
 
-static int nbd_open(BlockDriverState *bs, QDict *options, int flags)
+static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
+                    Error **errp)
 {
     BDRVNBDState *s = bs->opaque;
     int result;

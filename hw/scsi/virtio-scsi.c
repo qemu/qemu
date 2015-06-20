@@ -627,7 +627,8 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
         return ret;
     }
 
-    scsi_bus_new(&s->bus, qdev, &virtio_scsi_scsi_info, vdev->bus_name);
+    scsi_bus_new(&s->bus, sizeof(s->bus), qdev,
+                 &virtio_scsi_scsi_info, vdev->bus_name);
 
     if (!qdev->hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus, &err);
@@ -692,6 +693,7 @@ static const TypeInfo virtio_scsi_common_info = {
     .name = TYPE_VIRTIO_SCSI_COMMON,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOSCSICommon),
+    .abstract = true,
     .class_init = virtio_scsi_common_class_init,
 };
 

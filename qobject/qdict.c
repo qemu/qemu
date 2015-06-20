@@ -527,3 +527,24 @@ void qdict_flatten(QDict *qdict)
 {
     qdict_do_flatten(qdict, qdict, NULL);
 }
+
+/* extract all the src QDict entries starting by start into dst */
+void qdict_extract_subqdict(QDict *src, QDict **dst, const char *start)
+
+{
+    const QDictEntry *entry, *next;
+    const char *p;
+
+    *dst = qdict_new();
+    entry = qdict_first(src);
+
+    while (entry != NULL) {
+        next = qdict_next(src, entry);
+        if (strstart(entry->key, start, &p)) {
+            qobject_incref(entry->value);
+            qdict_put_obj(*dst, p, entry->value);
+            qdict_del(src, entry->key);
+        }
+        entry = next;
+    }
+}

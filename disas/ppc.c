@@ -5157,7 +5157,8 @@ int
 print_insn_ppc (bfd_vma memaddr, struct disassemble_info *info)
 {
   int dialect = (char *) info->private_data - (char *) 0;
-  return print_insn_powerpc (memaddr, info, 1, dialect);
+  return print_insn_powerpc (memaddr, info, info->endian == BFD_ENDIAN_BIG,
+                             dialect);
 }
 
 /* Print a big endian PowerPC instruction.  */

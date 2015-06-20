@@ -198,7 +198,7 @@ void apic_init_reset(DeviceState *d)
     s->wait_for_sipi = 1;
 
     if (s->timer) {
-        qemu_del_timer(s->timer);
+        timer_del(s->timer);
     }
     s->timer_expiry = -1;
 }

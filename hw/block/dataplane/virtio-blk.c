@@ -42,6 +42,7 @@ typedef struct {
 
 struct VirtIOBlockDataPlane {
     bool started;
+    bool starting;
     bool stopping;
     QEMUBH *start_bh;
     QemuThread thread;
@@ -261,11 +262,6 @@ static int process_request(IOQueue *ioq, struct iovec iov[],
     }
 }
 
-static int flush_true(EventNotifier *e)
-{
-    return true;
-}
-
 static void handle_notify(EventNotifier *e)
 {
     VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
@@ -345,14 +341,6 @@ static void handle_notify(EventNotifier *e)
     }
 }
 
-static int flush_io(EventNotifier *e)
-{
-    VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
-                                           io_notifier);
-
-    return s->num_reqs > 0;
-}
-
 static void handle_io(EventNotifier *e)
 {
     VirtIOBlockDataPlane *s = container_of(e, VirtIOBlockDataPlane,
@@ -376,9 +364,9 @@ static void *data_plane_thread(void *opaque)
 {
     VirtIOBlockDataPlane *s = opaque;
 
-    do {
+    while (!s->stopping || s->num_reqs > 0) {
         aio_poll(s->ctx, true);
-    } while (!s->stopping || s->num_reqs > 0);
+    }
     return NULL;
 }
 
@@ -464,8 +452,15 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         return;
     }
 
+    if (s->starting) {
+        return;
+    }
+
+    s->starting = true;
+
     vq = virtio_get_queue(s->vdev, 0);
     if (!vring_setup(&s->vring, s->vdev, 0)) {
+        s->starting = false;
         return;
     }
 
@@ -485,7 +480,7 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         exit(1);
     }
     s->host_notifier = *virtio_queue_get_host_notifier(vq);
-    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify, flush_true);
+    aio_set_event_notifier(s->ctx, &s->host_notifier, handle_notify);
 
     /* Set up ioqueue */
     ioq_init(&s->ioqueue, s->fd, REQ_MAX);
@@ -493,8 +488,9 @@ void virtio_blk_data_plane_start(VirtIOBlockDataPlane *s)
         ioq_put_iocb(&s->ioqueue, &s->requests[i].iocb);
     }
     s->io_notifier = *ioq_get_notifier(&s->ioqueue);
-    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io, flush_io);
+    aio_set_event_notifier(s->ctx, &s->io_notifier, handle_io);
 
+    s->starting = false;
     s->started = true;
     trace_virtio_blk_data_plane_start(s);
 
@@ -525,10 +521,10 @@ void virtio_blk_data_plane_stop(VirtIOBlockDataPlane *s)
         qemu_thread_join(&s->thread);
     }
 
-    aio_set_event_notifier(s->ctx, &s->io_notifier, NULL, NULL);
+    aio_set_event_notifier(s->ctx, &s->io_notifier, NULL);
     ioq_cleanup(&s->ioqueue);
 
-    aio_set_event_notifier(s->ctx, &s->host_notifier, NULL, NULL);
+    aio_set_event_notifier(s->ctx, &s->host_notifier, NULL);
     k->set_host_notifier(qbus->parent, 0, false);
 
     aio_context_unref(s->ctx);

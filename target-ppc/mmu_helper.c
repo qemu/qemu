@@ -2061,7 +2061,7 @@ void helper_store_sr(CPUPPCState *env, target_ulong srnum, target_ulong value)
         /* ESID = srnum */
         rb |= ((uint32_t)srnum & 0xf) << 28;
         /* Set the valid bit */
-        rb |= 1 << 27;
+        rb |= SLB_ESID_V;
         /* Index = ESID */
         rb |= (uint32_t)srnum;
 
@@ -2870,6 +2870,8 @@ void helper_booke206_tlbflush(CPUPPCState *env, uint32_t type)
 
 
 /*****************************************************************************/
+
+#include "exec/softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
 

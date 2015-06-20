@@ -44,7 +44,8 @@ static const TestCase test_cases[] = {
     { "ppc", "prep", 0x80000000, .bswap = true },
     { "ppc", "bamboo", 0xe8000000, .bswap = true, .superio = "i82378" },
     { "ppc64", "mac99", 0xf2000000, .bswap = true, .superio = "i82378" },
-    { "ppc64", "pseries", 0x10080000000, .bswap = true, .superio = "i82378" },
+    { "ppc64", "pseries", 0x10080000000ULL,
+      .bswap = true, .superio = "i82378" },
     { "sh4", "r2d", 0xfe240000, .superio = "i82378" },
     { "sh4eb", "r2d", 0xfe240000, .bswap = true, .superio = "i82378" },
     { "sparc64", "sun4u", 0x1fe02000000LL, .bswap = true },
@@ -120,7 +121,7 @@ static void test_endianness(gconstpointer data)
     const TestCase *test = data;
     char *args;
 
-    args = g_strdup_printf("-display none -M %s%s%s -device pc-testdev",
+    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
                            test->machine,
                            test->superio ? " -device " : "",
                            test->superio ?: "");
@@ -195,7 +196,7 @@ static void test_endianness_split(gconstpointer data)
     const TestCase *test = data;
     char *args;
 
-    args = g_strdup_printf("-display none -M %s%s%s -device pc-testdev",
+    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
                            test->machine,
                            test->superio ? " -device " : "",
                            test->superio ?: "");
@@ -242,7 +243,7 @@ static void test_endianness_combine(gconstpointer data)
     const TestCase *test = data;
     char *args;
 
-    args = g_strdup_printf("-display none -M %s%s%s -device pc-testdev",
+    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
                            test->machine,
                            test->superio ? " -device " : "",
                            test->superio ?: "");

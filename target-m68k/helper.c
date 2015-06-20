@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-#include "helpers.h"
+#include "helper.h"
 
 #define SIGNBIT (1u << 31)
 
@@ -110,7 +110,6 @@ M68kCPU *cpu_m68k_init(const char *cpu_model)
     }
     cpu = M68K_CPU(object_new(object_class_get_name(oc)));
     env = &cpu->env;
-    env->cpu_model_str = cpu_model;
 
     register_m68k_insns(env);
 

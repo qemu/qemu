@@ -65,12 +65,12 @@ static void kvm_pit_update_clock_offset(KVMPITState *s)
 
     /*
      * Measure the delta between CLOCK_MONOTONIC, the base used for
-     * kvm_pit_channel_state::count_load_time, and vm_clock. Take the
+     * kvm_pit_channel_state::count_load_time, and QEMU_CLOCK_VIRTUAL. Take the
      * minimum of several samples to filter out scheduling noise.
      */
     clock_offset = INT64_MAX;
     for (i = 0; i < CALIBRATION_ROUNDS; i++) {
-        offset = qemu_get_clock_ns(vm_clock);
+        offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         clock_gettime(CLOCK_MONOTONIC, &ts);
         offset -= ts.tv_nsec;
         offset -= (int64_t)ts.tv_sec * 1000000000;
@@ -194,7 +194,7 @@ static void kvm_pit_set_gate(PITCommonState *s, PITChannelState *sc, int val)
     case 5:
         if (sc->gate < val) {
             /* restart counting on rising edge */
-            sc->count_load_time = qemu_get_clock_ns(vm_clock);
+            sc->count_load_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
         }
         break;
     }

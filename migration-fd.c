@@ -14,6 +14,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "migration/migration.h"
 #include "monitor/monitor.h"

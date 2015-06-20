@@ -371,7 +371,7 @@ usb_xhci_port_link(uint32_t port, uint32_t pls) "port %d, pls %d"
 usb_xhci_port_notify(uint32_t port, uint32_t pls) "port %d, bits %x"
 usb_xhci_slot_enable(uint32_t slotid) "slotid %d"
 usb_xhci_slot_disable(uint32_t slotid) "slotid %d"
-usb_xhci_slot_address(uint32_t slotid) "slotid %d"
+usb_xhci_slot_address(uint32_t slotid, const char *port) "slotid %d, port %s"
 usb_xhci_slot_configure(uint32_t slotid) "slotid %d"
 usb_xhci_slot_evaluate(uint32_t slotid) "slotid %d"
 usb_xhci_slot_reset(uint32_t slotid) "slotid %d"
@@ -381,6 +381,7 @@ usb_xhci_ep_set_dequeue(uint32_t slotid, uint32_t epid, uint32_t streamid, uint6
 usb_xhci_ep_kick(uint32_t slotid, uint32_t epid, uint32_t streamid) "slotid %d, epid %d, streamid %d"
 usb_xhci_ep_stop(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
 usb_xhci_ep_reset(uint32_t slotid, uint32_t epid) "slotid %d, epid %d"
+usb_xhci_ep_state(uint32_t slotid, uint32_t epid, const char *os, const char *ns) "slotid %d, epid %d, %s -> %s"
 usb_xhci_xfer_start(void *xfer, uint32_t slotid, uint32_t epid, uint32_t streamid) "%p: slotid %d, epid %d, streamid %d"
 usb_xhci_xfer_async(void *xfer) "%p"
 usb_xhci_xfer_nak(void *xfer) "%p"
@@ -410,6 +411,7 @@ usb_hub_set_port_feature(int addr, int nr, const char *f) "dev %d, port %d, feat
 usb_hub_clear_port_feature(int addr, int nr, const char *f) "dev %d, port %d, feature %s"
 usb_hub_attach(int addr, int nr) "dev %d, port %d"
 usb_hub_detach(int addr, int nr) "dev %d, port %d"
+usb_hub_status_report(int addr, int status) "dev %d, status 0x%x"
 
 # hw/usb/dev-uas.c
 usb_uas_reset(int addr) "dev %d"
@@ -1057,7 +1059,7 @@ qxl_io_destroy_primary_ignored(int qid, const char *mode) "%d %s"
 qxl_io_log(int qid, const uint8_t *log_buf) "%d %s"
 qxl_io_read_unexpected(int qid) "%d"
 qxl_io_unexpected_vga_mode(int qid, uint64_t addr, uint64_t val, const char *desc) "%d 0x%"PRIx64"=%"PRIu64" (%s)"
-qxl_io_write(int qid, const char *mode, uint64_t addr, uint64_t val, unsigned size, int async) "%d %s addr=%"PRIu64 " val=%"PRIu64" size=%u async=%d"
+qxl_io_write(int qid, const char *mode, uint64_t addr, const char *aname, uint64_t val, unsigned size, int async) "%d %s addr=%"PRIu64 " (%s) val=%"PRIu64" size=%u async=%d"
 qxl_memslot_add_guest(int qid, uint32_t slot_id, uint64_t guest_start, uint64_t guest_end) "%d %u: guest phys 0x%"PRIx64 " - 0x%" PRIx64
 qxl_post_load(int qid, const char *mode) "%d %s"
 qxl_pre_load(int qid) "%d"
@@ -1107,7 +1109,6 @@ qemu_spice_wakeup(uint32_t qid) "%d"
 qemu_spice_create_update(uint32_t left, uint32_t right, uint32_t top, uint32_t bottom) "lr %d -> %d,  tb -> %d -> %d"
 
 # hw/display/qxl-render.c
-qxl_render_blit_guest_primary_initialized(void) ""
 qxl_render_blit(int32_t stride, int32_t left, int32_t right, int32_t top, int32_t bottom) "stride=%d [%d, %d, %d, %d]"
 qxl_render_guest_primary_resized(int32_t width, int32_t height, int32_t stride, int32_t bytes_pp, int32_t bits_pp) "%dx%d, stride %d, bpp %d, depth %d"
 qxl_render_update_area_done(void *cookie) "%p"
@@ -1120,7 +1121,7 @@ spapr_pci_rtas_ibm_query_interrupt_source_number(unsigned ioa, unsigned intr) "q
 spapr_pci_msi_write(uint64_t addr, uint64_t data, uint32_t dt_irq) "@%"PRIx64"<=%"PRIx64" IRQ %u"
 spapr_pci_lsi_set(const char *busname, int pin, uint32_t irq) "%s PIN%d IRQ %u"
 
-# hw/ppc/xics.c
+# hw/intc/xics.c
 xics_icp_check_ipi(int server, uint8_t mfrr) "CPU %d can take IPI mfrr=%#x"
 xics_icp_accept(uint32_t old_xirr, uint32_t new_xirr) "icp_accept: XIRR %#"PRIx32"->%#"PRIx32
 xics_icp_eoi(int server, uint32_t xirr, uint32_t new_xirr) "icp_eoi: server %d given XIRR %#"PRIx32" new XIRR %#"PRIx32
@@ -1132,6 +1133,11 @@ xics_set_irq_lsi(int srcno, int nr) "set_irq_lsi: srcno %d [irq %#x]"
 xics_ics_write_xive(int nr, int srcno, int server, uint8_t priority) "ics_write_xive: irq %#x [src %d] server %#x prio %#x"
 xics_ics_reject(int nr, int srcno) "reject irq %#x [src %d]"
 xics_ics_eoi(int nr) "ics_eoi: irq %#x"
+
+# hw/ppc/spapr_iommu.c
+spapr_iommu_put(uint64_t liobn, uint64_t ioba, uint64_t tce, uint64_t ret) "liobn=%"PRIx64" ioba=0x%"PRIx64" tce=0x%"PRIx64" ret=%"PRId64
+spapr_iommu_xlate(uint64_t liobn, uint64_t ioba, uint64_t tce, unsigned perm, unsigned pgsize) "liobn=%"PRIx64" 0x%"PRIx64" -> 0x%"PRIx64" perm=%u mask=%x"
+spapr_iommu_new_table(uint64_t liobn, void *tcet, void *table, int fd) "liobn=%"PRIx64" tcet=%p table=%p fd=%d"
 
 # util/hbitmap.c
 hbitmap_iter_skip_words(const void *hb, void *hbi, uint64_t pos, unsigned long cur) "hb %p hbi %p pos %"PRId64" cur 0x%lx"
@@ -1160,9 +1166,9 @@ virtio_ccw_new_device(int cssid, int ssid, int schid, int devno, const char *dev
 migrate_set_state(int new_state) "new state %d"
 
 # kvm-all.c
-kvm_ioctl(int type, void *arg) "type %d, arg %p"
-kvm_vm_ioctl(int type, void *arg) "type %d, arg %p"
-kvm_vcpu_ioctl(int cpu_index, int type, void *arg) "cpu_index %d, type %d, arg %p"
+kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
+kvm_vm_ioctl(int type, void *arg) "type 0x%x, arg %p"
+kvm_vcpu_ioctl(int cpu_index, int type, void *arg) "cpu_index %d, type 0x%x, arg %p"
 kvm_run_exit(int cpu_index, uint32_t reason) "cpu_index %d, reason %d"
 
 # memory.c
@@ -1176,3 +1182,7 @@ object_class_dynamic_cast_assert(const char *type, const char *target, const cha
 # hw/xen/xen_pvdevice.c
 xen_pv_mmio_read(uint64_t addr) "WARNING: read from Xen PV Device MMIO space (address %"PRIx64")"
 xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (address %"PRIx64")"
+
+# hw/pci/pci_host.c
+pci_cfg_read(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x -> 0x%x"
+pci_cfg_write(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x <- 0x%x"

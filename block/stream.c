@@ -57,6 +57,11 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
     BlockDriverState *intermediate;
     intermediate = top->backing_hd;
 
+    /* Must assign before bdrv_delete() to prevent traversing dangling pointer
+     * while we delete backing image instances.
+     */
+    top->backing_hd = base;
+
     while (intermediate) {
         BlockDriverState *unused;
 
@@ -68,9 +73,8 @@ static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
         unused = intermediate;
         intermediate = intermediate->backing_hd;
         unused->backing_hd = NULL;
-        bdrv_delete(unused);
+        bdrv_unref(unused);
     }
-    top->backing_hd = base;
 }
 
 static void coroutine_fn stream_run(void *opaque)
@@ -110,21 +114,22 @@ wait:
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that bdrv_drain_all() returns.
          */
-        block_job_sleep_ns(&s->common, rt_clock, delay_ns);
+        block_job_sleep_ns(&s->common, QEMU_CLOCK_REALTIME, delay_ns);
         if (block_job_is_cancelled(&s->common)) {
             break;
         }
 
-        ret = bdrv_co_is_allocated(bs, sector_num,
-                                   STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+        copy = false;
+
+        ret = bdrv_is_allocated(bs, sector_num,
+                                STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
         if (ret == 1) {
             /* Allocated in the top, no need to copy.  */
-            copy = false;
-        } else {
+        } else if (ret >= 0) {
             /* Copy if allocated in the intermediate images.  Limit to the
              * known-unallocated area [sector_num, sector_num+n).  */
-            ret = bdrv_co_is_allocated_above(bs->backing_hd, base,
-                                             sector_num, n, &n);
+            ret = bdrv_is_allocated_above(bs->backing_hd, base,
+                                          sector_num, n, &n);
 
             /* Finish early if end of backing file has been reached */
             if (ret == 0 && n == 0) {
@@ -134,7 +139,7 @@ wait:
             copy = (ret == 1);
         }
         trace_stream_one_iteration(s, sector_num, n, ret);
-        if (ret >= 0 && copy) {
+        if (copy) {
             if (s->common.speed) {
                 delay_ns = ratelimit_calculate_delay(&s->limit, n);
                 if (delay_ns > 0) {
@@ -198,9 +203,9 @@ static void stream_set_speed(BlockJob *job, int64_t speed, Error **errp)
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
 }
 
-static const BlockJobType stream_job_type = {
+static const BlockJobDriver stream_job_driver = {
     .instance_size = sizeof(StreamBlockJob),
-    .job_type      = "stream",
+    .job_type      = BLOCK_JOB_TYPE_STREAM,
     .set_speed     = stream_set_speed,
 };
 
@@ -219,7 +224,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
         return;
     }
 
-    s = block_job_create(&stream_job_type, bs, speed, cb, opaque, errp);
+    s = block_job_create(&stream_job_driver, bs, speed, cb, opaque, errp);
     if (!s) {
         return;
     }

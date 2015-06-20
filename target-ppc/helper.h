@@ -168,8 +168,8 @@ DEF_HELPER_3(vslo, void, avr, avr, avr)
 DEF_HELPER_3(vsro, void, avr, avr, avr)
 DEF_HELPER_3(vaddcuw, void, avr, avr, avr)
 DEF_HELPER_3(vsubcuw, void, avr, avr, avr)
-DEF_HELPER_2(lvsl, void, avr, tl);
-DEF_HELPER_2(lvsr, void, avr, tl);
+DEF_HELPER_2(lvsl, void, avr, tl)
+DEF_HELPER_2(lvsr, void, avr, tl)
 DEF_HELPER_4(vaddsbs, void, env, avr, avr, avr)
 DEF_HELPER_4(vaddshs, void, env, avr, avr, avr)
 DEF_HELPER_4(vaddsws, void, env, avr, avr, avr)
@@ -220,7 +220,7 @@ DEF_HELPER_5(vmsumuhs, void, env, avr, avr, avr, avr)
 DEF_HELPER_5(vmsumshm, void, env, avr, avr, avr, avr)
 DEF_HELPER_5(vmsumshs, void, env, avr, avr, avr, avr)
 DEF_HELPER_4(vmladduhm, void, avr, avr, avr, avr)
-DEF_HELPER_2(mtvscr, void, env, avr);
+DEF_HELPER_2(mtvscr, void, env, avr)
 DEF_HELPER_3(lvebx, void, env, avr, tl)
 DEF_HELPER_3(lvehx, void, env, avr, tl)
 DEF_HELPER_3(lvewx, void, env, avr, tl)
@@ -349,7 +349,7 @@ DEF_HELPER_2(load_slb_vsid, tl, env, tl)
 DEF_HELPER_FLAGS_1(slbia, TCG_CALL_NO_RWG, void, env)
 DEF_HELPER_FLAGS_2(slbie, TCG_CALL_NO_RWG, void, env, tl)
 #endif
-DEF_HELPER_FLAGS_2(load_sr, TCG_CALL_NO_RWG, tl, env, tl);
+DEF_HELPER_FLAGS_2(load_sr, TCG_CALL_NO_RWG, tl, env, tl)
 DEF_HELPER_FLAGS_3(store_sr, TCG_CALL_NO_RWG, void, env, tl, tl)
 
 DEF_HELPER_FLAGS_1(602_mfrom, TCG_CALL_NO_RWG_SE, tl, tl)
@@ -367,7 +367,7 @@ DEF_HELPER_3(divo, tl, env, tl, tl)
 DEF_HELPER_3(divs, tl, env, tl, tl)
 DEF_HELPER_3(divso, tl, env, tl, tl)
 
-DEF_HELPER_2(load_dcr, tl, env, tl);
+DEF_HELPER_2(load_dcr, tl, env, tl)
 DEF_HELPER_3(store_dcr, void, env, tl, tl)
 
 DEF_HELPER_2(load_dump_spr, void, env, i32)

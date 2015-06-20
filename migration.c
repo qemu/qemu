@@ -14,6 +14,7 @@
  */
 
 #include "qemu-common.h"
+#include "qemu/main-loop.h"
 #include "migration/migration.h"
 #include "monitor/monitor.h"
 #include "migration/qemu-file.h"
@@ -149,6 +150,7 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
     MigrationState *s = migrate_get_current();
     int i;
 
+    caps = NULL; /* silence compiler warning */
     for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
         if (head == NULL) {
             head = g_malloc0(sizeof(*caps));
@@ -197,7 +199,7 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         info->has_status = true;
         info->status = g_strdup("active");
         info->has_total_time = true;
-        info->total_time = qemu_get_clock_ms(rt_clock)
+        info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME)
             - s->total_time;
         info->has_expected_downtime = true;
         info->expected_downtime = s->expected_downtime;
@@ -375,7 +377,7 @@ static MigrationState *migrate_init(const MigrationParams *params)
     s->state = MIG_STATE_SETUP;
     trace_migrate_set_state(MIG_STATE_SETUP);
 
-    s->total_time = qemu_get_clock_ms(rt_clock);
+    s->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     return s;
 }
 
@@ -544,8 +546,8 @@ int64_t migrate_xbzrle_cache_size(void)
 static void *migration_thread(void *opaque)
 {
     MigrationState *s = opaque;
-    int64_t initial_time = qemu_get_clock_ms(rt_clock);
-    int64_t setup_start = qemu_get_clock_ms(host_clock);
+    int64_t initial_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    int64_t setup_start = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     int64_t initial_bytes = 0;
     int64_t max_size = 0;
     int64_t start_time = initial_time;
@@ -554,7 +556,7 @@ static void *migration_thread(void *opaque)
     DPRINTF("beginning savevm\n");
     qemu_savevm_state_begin(s->file, &s->params);
 
-    s->setup_time = qemu_get_clock_ms(host_clock) - setup_start;
+    s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     migrate_set_state(s, MIG_STATE_SETUP, MIG_STATE_ACTIVE);
 
     DPRINTF("setup complete\n");
@@ -566,7 +568,8 @@ static void *migration_thread(void *opaque)
         if (!qemu_file_rate_limit(s->file)) {
             DPRINTF("iterate\n");
             pending_size = qemu_savevm_state_pending(s->file, max_size);
-            DPRINTF("pending size %lu max %lu\n", pending_size, max_size);
+            DPRINTF("pending size %" PRIu64 " max %" PRIu64 "\n",
+                    pending_size, max_size);
             if (pending_size && pending_size >= max_size) {
                 qemu_savevm_state_iterate(s->file);
             } else {
@@ -574,7 +577,7 @@ static void *migration_thread(void *opaque)
 
                 DPRINTF("done iterating\n");
                 qemu_mutex_lock_iothread();
-                start_time = qemu_get_clock_ms(rt_clock);
+                start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
                 qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
                 old_vm_running = runstate_is_running();
 
@@ -601,7 +604,7 @@ static void *migration_thread(void *opaque)
             migrate_set_state(s, MIG_STATE_ACTIVE, MIG_STATE_ERROR);
             break;
         }
-        current_time = qemu_get_clock_ms(rt_clock);
+        current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         if (current_time >= initial_time + BUFFER_DELAY) {
             uint64_t transferred_bytes = qemu_ftell(s->file) - initial_bytes;
             uint64_t time_spent = current_time - initial_time;
@@ -632,7 +635,7 @@ static void *migration_thread(void *opaque)
 
     qemu_mutex_lock_iothread();
     if (s->state == MIG_STATE_COMPLETED) {
-        int64_t end_time = qemu_get_clock_ms(rt_clock);
+        int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         s->total_time = end_time - s->total_time;
         s->downtime = end_time - start_time;
         runstate_set(RUN_STATE_POSTMIGRATE);

@@ -106,6 +106,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <linux/dm-ioctl.h>
 #include <linux/reboot.h>
 #include <linux/route.h>
+#include <linux/filter.h>
 #include "linux_loop.h"
 #include "cpu-uname.h"
 
@@ -1149,11 +1150,15 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
             break;
         }
 
-        cmsg->cmsg_level = tswap32(target_cmsg->cmsg_level);
+        if (tswap32(target_cmsg->cmsg_level) == TARGET_SOL_SOCKET) {
+            cmsg->cmsg_level = SOL_SOCKET;
+        } else {
+            cmsg->cmsg_level = tswap32(target_cmsg->cmsg_level);
+        }
         cmsg->cmsg_type = tswap32(target_cmsg->cmsg_type);
         cmsg->cmsg_len = CMSG_LEN(len);
 
-        if (cmsg->cmsg_level != TARGET_SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
+        if (cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
             gemu_log("Unsupported ancillary data: %d/%d\n", cmsg->cmsg_level, cmsg->cmsg_type);
             memcpy(data, target_data, len);
         } else {
@@ -1204,11 +1209,15 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
             break;
         }
 
-        target_cmsg->cmsg_level = tswap32(cmsg->cmsg_level);
+        if (cmsg->cmsg_level == SOL_SOCKET) {
+            target_cmsg->cmsg_level = tswap32(TARGET_SOL_SOCKET);
+        } else {
+            target_cmsg->cmsg_level = tswap32(cmsg->cmsg_level);
+        }
         target_cmsg->cmsg_type = tswap32(cmsg->cmsg_type);
         target_cmsg->cmsg_len = tswapal(TARGET_CMSG_LEN(len));
 
-        if ((cmsg->cmsg_level == TARGET_SOL_SOCKET) &&
+        if ((cmsg->cmsg_level == SOL_SOCKET) &&
                                 (cmsg->cmsg_type == SCM_RIGHTS)) {
             int *fd = (int *)data;
             int *target_fd = (int *)target_data;
@@ -1216,7 +1225,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
 
             for (i = 0; i < numfds; i++)
                 target_fd[i] = tswap32(fd[i]);
-        } else if ((cmsg->cmsg_level == TARGET_SOL_SOCKET) &&
+        } else if ((cmsg->cmsg_level == SOL_SOCKET) &&
                                 (cmsg->cmsg_type == SO_TIMESTAMP) &&
                                 (len == sizeof(struct timeval))) {
             /* copy struct timeval to target */
@@ -1314,6 +1323,26 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
             goto unimplemented;
         }
         break;
+    case SOL_IPV6:
+        switch (optname) {
+        case IPV6_MTU_DISCOVER:
+        case IPV6_MTU:
+        case IPV6_V6ONLY:
+        case IPV6_RECVPKTINFO:
+            val = 0;
+            if (optlen < sizeof(uint32_t)) {
+                return -TARGET_EINVAL;
+            }
+            if (get_user_u32(val, optval_addr)) {
+                return -TARGET_EFAULT;
+            }
+            ret = get_errno(setsockopt(sockfd, level, optname,
+                                       &val, sizeof(val)));
+            break;
+        default:
+            goto unimplemented;
+        }
+        break;
     case SOL_RAW:
         switch (optname) {
         case ICMP_FILTER:
@@ -1357,6 +1386,49 @@ set_timeout:
         case TARGET_SO_SNDTIMEO:
                 optname = SO_SNDTIMEO;
                 goto set_timeout;
+        case TARGET_SO_ATTACH_FILTER:
+        {
+                struct target_sock_fprog *tfprog;
+                struct target_sock_filter *tfilter;
+                struct sock_fprog fprog;
+                struct sock_filter *filter;
+                int i;
+
+                if (optlen != sizeof(*tfprog)) {
+                    return -TARGET_EINVAL;
+                }
+                if (!lock_user_struct(VERIFY_READ, tfprog, optval_addr, 0)) {
+                    return -TARGET_EFAULT;
+                }
+                if (!lock_user_struct(VERIFY_READ, tfilter,
+                                      tswapal(tfprog->filter), 0)) {
+                    unlock_user_struct(tfprog, optval_addr, 1);
+                    return -TARGET_EFAULT;
+                }
+
+                fprog.len = tswap16(tfprog->len);
+                filter = malloc(fprog.len * sizeof(*filter));
+                if (filter == NULL) {
+                    unlock_user_struct(tfilter, tfprog->filter, 1);
+                    unlock_user_struct(tfprog, optval_addr, 1);
+                    return -TARGET_ENOMEM;
+                }
+                for (i = 0; i < fprog.len; i++) {
+                    filter[i].code = tswap16(tfilter[i].code);
+                    filter[i].jt = tfilter[i].jt;
+                    filter[i].jf = tfilter[i].jf;
+                    filter[i].k = tswap32(tfilter[i].k);
+                }
+                fprog.filter = filter;
+
+                ret = get_errno(setsockopt(sockfd, SOL_SOCKET,
+                                SO_ATTACH_FILTER, &fprog, sizeof(fprog)));
+                free(filter);
+
+                unlock_user_struct(tfilter, tfprog->filter, 1);
+                unlock_user_struct(tfprog, optval_addr, 1);
+                return ret;
+        }
             /* Options with 'int' argument.  */
         case TARGET_SO_DEBUG:
 		optname = SO_DEBUG;
@@ -1701,7 +1773,7 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
     free(vec);
 }
 
-static inline void target_to_host_sock_type(int *type)
+static inline int target_to_host_sock_type(int *type)
 {
     int host_type = 0;
     int target_type = *type;
@@ -1718,22 +1790,56 @@ static inline void target_to_host_sock_type(int *type)
         break;
     }
     if (target_type & TARGET_SOCK_CLOEXEC) {
+#if defined(SOCK_CLOEXEC)
         host_type |= SOCK_CLOEXEC;
+#else
+        return -TARGET_EINVAL;
+#endif
     }
     if (target_type & TARGET_SOCK_NONBLOCK) {
+#if defined(SOCK_NONBLOCK)
         host_type |= SOCK_NONBLOCK;
+#elif !defined(O_NONBLOCK)
+        return -TARGET_EINVAL;
+#endif
     }
     *type = host_type;
+    return 0;
+}
+
+/* Try to emulate socket type flags after socket creation.  */
+static int sock_flags_fixup(int fd, int target_type)
+{
+#if !defined(SOCK_NONBLOCK) && defined(O_NONBLOCK)
+    if (target_type & TARGET_SOCK_NONBLOCK) {
+        int flags = fcntl(fd, F_GETFL);
+        if (fcntl(fd, F_SETFL, O_NONBLOCK | flags) == -1) {
+            close(fd);
+            return -TARGET_EINVAL;
+        }
+    }
+#endif
+    return fd;
 }
 
 /* do_socket() Must return target values and target errnos. */
 static abi_long do_socket(int domain, int type, int protocol)
 {
-    target_to_host_sock_type(&type);
+    int target_type = type;
+    int ret;
+
+    ret = target_to_host_sock_type(&type);
+    if (ret) {
+        return ret;
+    }
 
     if (domain == PF_NETLINK)
         return -EAFNOSUPPORT; /* do not NETLINK socket connections possible */
-    return get_errno(socket(domain, type, protocol));
+    ret = get_errno(socket(domain, type, protocol));
+    if (ret >= 0) {
+        ret = sock_flags_fixup(ret, target_type);
+    }
+    return ret;
 }
 
 /* do_bind() Must return target values and target errnos. */
@@ -4737,7 +4843,7 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
                                              abi_ulong target_addr,
                                              struct stat *host_st)
 {
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM) && defined(TARGET_ABI32)
     if (((CPUARMState *)cpu_env)->eabi) {
         struct target_eabi_stat64 *target_st;
 
@@ -4764,10 +4870,10 @@ static inline abi_long host_to_target_stat64(void *cpu_env,
     } else
 #endif
     {
-#if TARGET_ABI_BITS == 64 && !defined(TARGET_ALPHA)
-        struct target_stat *target_st;
-#else
+#if defined(TARGET_HAS_STRUCT_STAT64)
         struct target_stat64 *target_st;
+#else
+        struct target_stat *target_st;
 #endif
 
         if (!lock_user_struct(VERIFY_WRITE, target_st, target_addr, 0))
@@ -4863,21 +4969,13 @@ int host_to_target_waitstatus(int status)
     return status;
 }
 
-int get_osversion(void)
+static int relstr_to_int(const char *s)
 {
-    static int osversion;
-    struct new_utsname buf;
-    const char *s;
+    /* Convert a uname release string like "2.6.18" to an integer
+     * of the form 0x020612. (Beware that 0x020612 is *not* 2.6.12.)
+     */
     int i, n, tmp;
-    if (osversion)
-        return osversion;
-    if (qemu_uname_release && *qemu_uname_release) {
-        s = qemu_uname_release;
-    } else {
-        if (sys_uname(&buf))
-            return 0;
-        s = buf.release;
-    }
+
     tmp = 0;
     for (i = 0; i < 3; i++) {
         n = 0;
@@ -4887,13 +4985,55 @@ int get_osversion(void)
             s++;
         }
         tmp = (tmp << 8) + n;
-        if (*s == '.')
+        if (*s == '.') {
             s++;
+        }
     }
-    osversion = tmp;
+    return tmp;
+}
+
+int get_osversion(void)
+{
+    static int osversion;
+    struct new_utsname buf;
+    const char *s;
+
+    if (osversion)
+        return osversion;
+    if (qemu_uname_release && *qemu_uname_release) {
+        s = qemu_uname_release;
+    } else {
+        if (sys_uname(&buf))
+            return 0;
+        s = buf.release;
+    }
+    osversion = relstr_to_int(s);
     return osversion;
 }
 
+void init_qemu_uname_release(void)
+{
+    /* Initialize qemu_uname_release for later use.
+     * If the host kernel is too old and the user hasn't asked for
+     * a specific fake version number, we might want to fake a minimum
+     * target kernel version.
+     */
+#ifdef UNAME_MINIMUM_RELEASE
+    struct new_utsname buf;
+
+    if (qemu_uname_release && *qemu_uname_release) {
+        return;
+    }
+
+    if (sys_uname(&buf)) {
+        return;
+    }
+
+    if (relstr_to_int(buf.release) < relstr_to_int(UNAME_MINIMUM_RELEASE)) {
+        qemu_uname_release = UNAME_MINIMUM_RELEASE;
+    }
+#endif
+}
 
 static int open_self_maps(void *cpu_env, int fd)
 {
@@ -5037,22 +5177,70 @@ static int is_proc_myself(const char *filename, const char *entry)
     return 0;
 }
 
+#if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
+static int is_proc(const char *filename, const char *entry)
+{
+    return strcmp(filename, entry) == 0;
+}
+
+static int open_net_route(void *cpu_env, int fd)
+{
+    FILE *fp;
+    char *line = NULL;
+    size_t len = 0;
+    ssize_t read;
+
+    fp = fopen("/proc/net/route", "r");
+    if (fp == NULL) {
+        return -EACCES;
+    }
+
+    /* read header */
+
+    read = getline(&line, &len, fp);
+    dprintf(fd, "%s", line);
+
+    /* read routes */
+
+    while ((read = getline(&line, &len, fp)) != -1) {
+        char iface[16];
+        uint32_t dest, gw, mask;
+        unsigned int flags, refcnt, use, metric, mtu, window, irtt;
+        sscanf(line, "%s\t%08x\t%08x\t%04x\t%d\t%d\t%d\t%08x\t%d\t%u\t%u\n",
+                     iface, &dest, &gw, &flags, &refcnt, &use, &metric,
+                     &mask, &mtu, &window, &irtt);
+        dprintf(fd, "%s\t%08x\t%08x\t%04x\t%d\t%d\t%d\t%08x\t%d\t%u\t%u\n",
+                iface, tswap32(dest), tswap32(gw), flags, refcnt, use,
+                metric, tswap32(mask), mtu, window, irtt);
+    }
+
+    free(line);
+    fclose(fp);
+
+    return 0;
+}
+#endif
+
 static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 {
     struct fake_open {
         const char *filename;
         int (*fill)(void *cpu_env, int fd);
+        int (*cmp)(const char *s1, const char *s2);
     };
     const struct fake_open *fake_open;
     static const struct fake_open fakes[] = {
-        { "maps", open_self_maps },
-        { "stat", open_self_stat },
-        { "auxv", open_self_auxv },
-        { NULL, NULL }
+        { "maps", open_self_maps, is_proc_myself },
+        { "stat", open_self_stat, is_proc_myself },
+        { "auxv", open_self_auxv, is_proc_myself },
+#if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
+        { "/proc/net/route", open_net_route, is_proc },
+#endif
+        { NULL, NULL, NULL }
     };
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
-        if (is_proc_myself(pathname, fake_open->filename)) {
+        if (fake_open->cmp(pathname, fake_open->filename)) {
             break;
         }
     }
@@ -5113,25 +5301,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
            Do thread termination if we have more then one thread.  */
         /* FIXME: This probably breaks if a signal arrives.  We should probably
            be disabling signals.  */
-        if (first_cpu->next_cpu) {
+        if (CPU_NEXT(first_cpu)) {
             TaskState *ts;
-            CPUState **lastp;
-            CPUState *p;
 
             cpu_list_lock();
-            lastp = &first_cpu;
-            p = first_cpu;
-            while (p && p != cpu) {
-                lastp = &p->next_cpu;
-                p = p->next_cpu;
-            }
-            /* If we didn't find the CPU for this thread then something is
-               horribly wrong.  */
-            if (!p) {
-                abort();
-            }
             /* Remove the CPU from the list.  */
-            *lastp = p->next_cpu;
+            QTAILQ_REMOVE(&cpus, cpu, node);
             cpu_list_unlock();
             ts = ((CPUArchState *)cpu_env)->opaque;
             if (ts->child_tidptr) {
@@ -5676,7 +5851,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(p, arg1, 0);
         }
         break;
-#ifdef TARGET_NR_umount2 /* not on alpha */
+#ifdef TARGET_NR_umount2
     case TARGET_NR_umount2:
         if (!(p = lock_user_string(arg1)))
             goto efault;
@@ -6394,7 +6569,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_mmap
     case TARGET_NR_mmap:
-#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || defined(TARGET_ARM) || \
+#if (defined(TARGET_I386) && defined(TARGET_ABI32)) || \
+    (defined(TARGET_ARM) && defined(TARGET_ABI32)) || \
     defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_MICROBLAZE) \
     || defined(TARGET_S390X)
         {
@@ -8988,6 +9164,34 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         } else {
             ret = -TARGET_EFAULT;
         }
+        break;
+    }
+#endif
+#ifdef TARGET_NR_atomic_cmpxchg_32
+    case TARGET_NR_atomic_cmpxchg_32:
+    {
+        /* should use start_exclusive from main.c */
+        abi_ulong mem_value;
+        if (get_user_u32(mem_value, arg6)) {
+            target_siginfo_t info;
+            info.si_signo = SIGSEGV;
+            info.si_errno = 0;
+            info.si_code = TARGET_SEGV_MAPERR;
+            info._sifields._sigfault._addr = arg6;
+            queue_signal((CPUArchState *)cpu_env, info.si_signo, &info);
+            ret = 0xdeadbeef;
+
+        }
+        if (mem_value == arg2)
+            put_user_u32(arg1, arg6);
+        ret = mem_value;
+        break;
+    }
+#endif
+#ifdef TARGET_NR_atomic_barrier
+    case TARGET_NR_atomic_barrier:
+    {
+        /* Like the kernel implementation and the qemu arm barrier, no-op this? */
         break;
     }
 #endif

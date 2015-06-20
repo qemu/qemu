@@ -405,6 +405,7 @@ static int ioreq_map(struct ioreq *ioreq)
                 xen_be_printf(&ioreq->blkdev->xendev, 0,
                               "can't map grant ref %d (%s, %d maps)\n",
                               refs[i], strerror(errno), ioreq->blkdev->cnt_map);
+                ioreq->mapped = 1;
                 ioreq_unmap(ioreq);
                 return -1;
             }
@@ -809,11 +810,16 @@ static int blk_connect(struct XenDevice *xendev)
         xen_be_printf(&blkdev->xendev, 2, "create new bdrv (xenbus setup)\n");
         blkdev->bs = bdrv_new(blkdev->dev);
         if (blkdev->bs) {
+            Error *local_err = NULL;
             BlockDriver *drv = bdrv_find_whitelisted_format(blkdev->fileproto,
                                                            readonly);
             if (bdrv_open(blkdev->bs,
-                          blkdev->filename, NULL, qflags, drv) != 0) {
-                bdrv_delete(blkdev->bs);
+                          blkdev->filename, NULL, qflags, drv, &local_err) != 0)
+            {
+                xen_be_printf(&blkdev->xendev, 0, "error: %s\n",
+                              error_get_pretty(local_err));
+                error_free(local_err);
+                bdrv_unref(blkdev->bs);
                 blkdev->bs = NULL;
             }
         }
@@ -824,6 +830,14 @@ static int blk_connect(struct XenDevice *xendev)
         /* setup via qemu cmdline -> already setup for us */
         xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");
         blkdev->bs = blkdev->dinfo->bdrv;
+        if (bdrv_is_read_only(blkdev->bs) && !readonly) {
+            xen_be_printf(&blkdev->xendev, 0, "Unexpected read-only drive");
+            blkdev->bs = NULL;
+            return -1;
+        }
+        /* blkdev->bs is not create by us, we get a reference
+         * so we can bdrv_unref() unconditionally */
+        bdrv_ref(blkdev->bs);
     }
     bdrv_attach_dev_nofail(blkdev->bs, blkdev);
     blkdev->file_size = bdrv_getlength(blkdev->bs);
@@ -922,12 +936,8 @@ static void blk_disconnect(struct XenDevice *xendev)
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
 
     if (blkdev->bs) {
-        if (!blkdev->dinfo) {
-            /* close/delete only if we created it ourself */
-            bdrv_close(blkdev->bs);
-            bdrv_detach_dev(blkdev->bs, blkdev);
-            bdrv_delete(blkdev->bs);
-        }
+        bdrv_detach_dev(blkdev->bs, blkdev);
+        bdrv_unref(blkdev->bs);
         blkdev->bs = NULL;
     }
     xen_be_unbind_evtchn(&blkdev->xendev);

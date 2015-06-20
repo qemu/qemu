@@ -32,6 +32,7 @@
 #include "hw/loader.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/dma.h"
+#include "qemu/iov.h"
 
 #include "e1000_regs.h"
 
@@ -63,6 +64,8 @@ static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 #define MAXIMUM_ETHERNET_VLAN_SIZE 1522
 /* this is the size past which hardware will drop packets when setting LPE=1 */
 #define MAXIMUM_ETHERNET_LPE_SIZE 16384
+
+#define MAXIMUM_ETHERNET_HDR_LEN (14+4)
 
 /*
  * HW models:
@@ -135,9 +138,16 @@ typedef struct E1000State_st {
 
     QEMUTimer *autoneg_timer;
 
+    QEMUTimer *mit_timer;      /* Mitigation timer. */
+    bool mit_timer_on;         /* Mitigation timer is running. */
+    bool mit_irq_level;        /* Tracks interrupt pin level. */
+    uint32_t mit_ide;          /* Tracks E1000_TXD_CMD_IDE bit. */
+
 /* Compatibility flags for migration to/from qemu 1.3.0 and older */
 #define E1000_FLAG_AUTONEG_BIT 0
+#define E1000_FLAG_MIT_BIT 1
 #define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
+#define E1000_FLAG_MIT (1 << E1000_FLAG_MIT_BIT)
     uint32_t compat_flags;
 } E1000State;
 
@@ -158,7 +168,8 @@ enum {
     defreg(TORH),	defreg(TORL),	defreg(TOTH),	defreg(TOTL),
     defreg(TPR),	defreg(TPT),	defreg(TXDCTL),	defreg(WUFC),
     defreg(RA),		defreg(MTA),	defreg(CRCERRS),defreg(VFTA),
-    defreg(VET),
+    defreg(VET),        defreg(RDTR),   defreg(RADV),   defreg(TADV),
+    defreg(ITR),
 };
 
 static void
@@ -190,7 +201,7 @@ set_phy_ctrl(E1000State *s, int index, uint16_t val)
         e1000_link_down(s);
         s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
         DBGOUT(PHY, "Start link auto negotiation\n");
-        qemu_mod_timer(s->autoneg_timer, qemu_get_clock_ms(vm_clock) + 500);
+        timer_mod(s->autoneg_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 }
 
@@ -245,10 +256,21 @@ static const uint32_t mac_reg_init[] = {
                 E1000_MANC_RMCP_EN,
 };
 
+/* Helper function, *curr == 0 means the value is not set */
+static inline void
+mit_update_delay(uint32_t *curr, uint32_t value)
+{
+    if (value && (*curr == 0 || value < *curr)) {
+        *curr = value;
+    }
+}
+
 static void
 set_interrupt_cause(E1000State *s, int index, uint32_t val)
 {
     PCIDevice *d = PCI_DEVICE(s);
+    uint32_t pending_ints;
+    uint32_t mit_delay;
 
     if (val && (E1000_DEVID >= E1000_DEV_ID_82547EI_MOBILE)) {
         /* Only for 8257x */
@@ -266,7 +288,57 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
      */
     s->mac_reg[ICS] = val;
 
-    qemu_set_irq(d->irq[0], (s->mac_reg[IMS] & s->mac_reg[ICR]) != 0);
+    pending_ints = (s->mac_reg[IMS] & s->mac_reg[ICR]);
+    if (!s->mit_irq_level && pending_ints) {
+        /*
+         * Here we detect a potential raising edge. We postpone raising the
+         * interrupt line if we are inside the mitigation delay window
+         * (s->mit_timer_on == 1).
+         * We provide a partial implementation of interrupt mitigation,
+         * emulating only RADV, TADV and ITR (lower 16 bits, 1024ns units for
+         * RADV and TADV, 256ns units for ITR). RDTR is only used to enable
+         * RADV; relative timers based on TIDV and RDTR are not implemented.
+         */
+        if (s->mit_timer_on) {
+            return;
+        }
+        if (s->compat_flags & E1000_FLAG_MIT) {
+            /* Compute the next mitigation delay according to pending
+             * interrupts and the current values of RADV (provided
+             * RDTR!=0), TADV and ITR.
+             * Then rearm the timer.
+             */
+            mit_delay = 0;
+            if (s->mit_ide &&
+                    (pending_ints & (E1000_ICR_TXQE | E1000_ICR_TXDW))) {
+                mit_update_delay(&mit_delay, s->mac_reg[TADV] * 4);
+            }
+            if (s->mac_reg[RDTR] && (pending_ints & E1000_ICS_RXT0)) {
+                mit_update_delay(&mit_delay, s->mac_reg[RADV] * 4);
+            }
+            mit_update_delay(&mit_delay, s->mac_reg[ITR]);
+
+            if (mit_delay) {
+                s->mit_timer_on = 1;
+                timer_mod(s->mit_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                          mit_delay * 256);
+            }
+            s->mit_ide = 0;
+        }
+    }
+
+    s->mit_irq_level = (pending_ints != 0);
+    pci_set_irq(d, s->mit_irq_level);
+}
+
+static void
+e1000_mit_timer(void *opaque)
+{
+    E1000State *s = opaque;
+
+    s->mit_timer_on = 0;
+    /* Call set_interrupt_cause to update the irq level (if necessary). */
+    set_interrupt_cause(s, 0, s->mac_reg[ICR]);
 }
 
 static void
@@ -306,7 +378,11 @@ static void e1000_reset(void *opaque)
     uint8_t *macaddr = d->conf.macaddr.a;
     int i;
 
-    qemu_del_timer(d->autoneg_timer);
+    timer_del(d->autoneg_timer);
+    timer_del(d->mit_timer);
+    d->mit_timer_on = 0;
+    d->mit_irq_level = 0;
+    d->mit_ide = 0;
     memset(d->phy_reg, 0, sizeof d->phy_reg);
     memmove(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
     memset(d->mac_reg, 0, sizeof d->mac_reg);
@@ -325,6 +401,7 @@ static void e1000_reset(void *opaque)
         d->mac_reg[RA] |= macaddr[i] << (8 * i);
         d->mac_reg[RA + 1] |= (i < 2) ? macaddr[i + 4] << (8 * i) : 0;
     }
+    qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
 }
 
 static void
@@ -451,8 +528,7 @@ putsum(uint8_t *data, uint32_t n, uint32_t sloc, uint32_t css, uint32_t cse)
         n = cse + 1;
     if (sloc < n-1) {
         sum = net_checksum_add(n-css, data+css);
-        cpu_to_be16wu((uint16_t *)(data + sloc),
-                      net_checksum_finish(sum));
+        stw_be_p(data + sloc, net_checksum_finish(sum));
     }
 }
 
@@ -513,31 +589,28 @@ xmit_seg(E1000State *s)
         DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
                frames, tp->size, css);
         if (tp->ip) {		// IPv4
-            cpu_to_be16wu((uint16_t *)(tp->data+css+2),
-                          tp->size - css);
-            cpu_to_be16wu((uint16_t *)(tp->data+css+4),
+            stw_be_p(tp->data+css+2, tp->size - css);
+            stw_be_p(tp->data+css+4,
                           be16_to_cpup((uint16_t *)(tp->data+css+4))+frames);
         } else			// IPv6
-            cpu_to_be16wu((uint16_t *)(tp->data+css+4),
-                          tp->size - css);
+            stw_be_p(tp->data+css+4, tp->size - css);
         css = tp->tucss;
         len = tp->size - css;
         DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", tp->tcp, css, len);
         if (tp->tcp) {
             sofar = frames * tp->mss;
-            cpu_to_be32wu((uint32_t *)(tp->data+css+4),	// seq
-                be32_to_cpupu((uint32_t *)(tp->data+css+4))+sofar);
+            stl_be_p(tp->data+css+4, ldl_be_p(tp->data+css+4)+sofar); /* seq */
             if (tp->paylen - sofar > tp->mss)
                 tp->data[css + 13] &= ~9;		// PSH, FIN
         } else	// UDP
-            cpu_to_be16wu((uint16_t *)(tp->data+css+4), len);
+            stw_be_p(tp->data+css+4, len);
         if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
             unsigned int phsum;
             // add pseudo-header length before checksum calculation
             sp = (uint16_t *)(tp->data + tp->tucso);
             phsum = be16_to_cpup(sp) + len;
             phsum = (phsum >> 16) + (phsum & 0xffff);
-            cpu_to_be16wu(sp, phsum);
+            stw_be_p(sp, phsum);
         }
         tp->tso_frames++;
     }
@@ -572,6 +645,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     struct e1000_context_desc *xp = (struct e1000_context_desc *)dp;
     struct e1000_tx *tp = &s->tx;
 
+    s->mit_ide |= (txd_lower & E1000_TXD_CMD_IDE);
     if (dtype == E1000_TXD_CMD_DEXT) {	// context descriptor
         op = le32_to_cpu(xp->cmd_and_length);
         tp->ipcss = xp->lower_setup.ip_fields.ipcss;
@@ -606,9 +680,9 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     if (vlan_enabled(s) && is_vlan_txd(txd_lower) &&
         (tp->cptse || txd_lower & E1000_TXD_CMD_EOP)) {
         tp->vlan_needed = 1;
-        cpu_to_be16wu((uint16_t *)(tp->vlan_header),
+        stw_be_p(tp->vlan_header,
                       le16_to_cpup((uint16_t *)(s->mac_reg + VET)));
-        cpu_to_be16wu((uint16_t *)(tp->vlan_header + 2),
+        stw_be_p(tp->vlan_header + 2,
                       le16_to_cpu(dp->upper.fields.special));
     }
         
@@ -825,7 +899,7 @@ static uint64_t rx_desc_base(E1000State *s)
 }
 
 static ssize_t
-e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
 {
     E1000State *s = qemu_get_nic_opaque(nc);
     PCIDevice *d = PCI_DEVICE(s);
@@ -834,8 +908,12 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     unsigned int n, rdt;
     uint32_t rdh_start;
     uint16_t vlan_special = 0;
-    uint8_t vlan_status = 0, vlan_offset = 0;
+    uint8_t vlan_status = 0;
     uint8_t min_buf[MIN_BUF_SIZE];
+    struct iovec min_iov;
+    uint8_t *filter_buf = iov->iov_base;
+    size_t size = iov_size(iov, iovcnt);
+    size_t iov_ofs = 0;
     size_t desc_offset;
     size_t desc_size;
     size_t total_size;
@@ -850,10 +928,16 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     /* Pad to minimum Ethernet frame length */
     if (size < sizeof(min_buf)) {
-        memcpy(min_buf, buf, size);
+        iov_to_buf(iov, iovcnt, 0, min_buf, size);
         memset(&min_buf[size], 0, sizeof(min_buf) - size);
-        buf = min_buf;
-        size = sizeof(min_buf);
+        min_iov.iov_base = filter_buf = min_buf;
+        min_iov.iov_len = size = sizeof(min_buf);
+        iovcnt = 1;
+        iov = &min_iov;
+    } else if (iov->iov_len < MAXIMUM_ETHERNET_HDR_LEN) {
+        /* This is very unlikely, but may happen. */
+        iov_to_buf(iov, iovcnt, 0, min_buf, MAXIMUM_ETHERNET_HDR_LEN);
+        filter_buf = min_buf;
     }
 
     /* Discard oversized packets if !LPE and !SBP. */
@@ -864,14 +948,24 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         return size;
     }
 
-    if (!receive_filter(s, buf, size))
+    if (!receive_filter(s, filter_buf, size)) {
         return size;
+    }
 
-    if (vlan_enabled(s) && is_vlan_packet(s, buf)) {
-        vlan_special = cpu_to_le16(be16_to_cpup((uint16_t *)(buf + 14)));
-        memmove((uint8_t *)buf + 4, buf, 12);
+    if (vlan_enabled(s) && is_vlan_packet(s, filter_buf)) {
+        vlan_special = cpu_to_le16(be16_to_cpup((uint16_t *)(filter_buf
+                                                                + 14)));
+        iov_ofs = 4;
+        if (filter_buf == iov->iov_base) {
+            memmove(filter_buf + 4, filter_buf, 12);
+        } else {
+            iov_from_buf(iov, iovcnt, 4, filter_buf, 12);
+            while (iov->iov_len <= iov_ofs) {
+                iov_ofs -= iov->iov_len;
+                iov++;
+            }
+        }
         vlan_status = E1000_RXD_STAT_VP;
-        vlan_offset = 4;
         size -= 4;
     }
 
@@ -893,12 +987,23 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         desc.status |= (vlan_status | E1000_RXD_STAT_DD);
         if (desc.buffer_addr) {
             if (desc_offset < size) {
+                size_t iov_copy;
+                hwaddr ba = le64_to_cpu(desc.buffer_addr);
                 size_t copy_size = size - desc_offset;
                 if (copy_size > s->rxbuf_size) {
                     copy_size = s->rxbuf_size;
                 }
-                pci_dma_write(d, le64_to_cpu(desc.buffer_addr),
-                              buf + desc_offset + vlan_offset, copy_size);
+                do {
+                    iov_copy = MIN(copy_size, iov->iov_len - iov_ofs);
+                    pci_dma_write(d, ba, iov->iov_base + iov_ofs, iov_copy);
+                    copy_size -= iov_copy;
+                    ba += iov_copy;
+                    iov_ofs += iov_copy;
+                    if (iov_ofs == iov->iov_len) {
+                        iov++;
+                        iov_ofs = 0;
+                    }
+                } while (copy_size);
             }
             desc_offset += desc_size;
             desc.length = cpu_to_le16(desc_size);
@@ -948,6 +1053,17 @@ e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     return size;
 }
 
+static ssize_t
+e1000_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+{
+    const struct iovec iov = {
+        .iov_base = (uint8_t *)buf,
+        .iov_len = size
+    };
+
+    return e1000_receive_iov(nc, &iov, 1);
+}
+
 static uint32_t
 mac_readreg(E1000State *s, int index)
 {
@@ -986,7 +1102,15 @@ mac_read_clr8(E1000State *s, int index)
 static void
 mac_writereg(E1000State *s, int index, uint32_t val)
 {
+    uint32_t macaddr[2];
+
     s->mac_reg[index] = val;
+
+    if (index == RA + 1) {
+        macaddr[0] = cpu_to_le32(s->mac_reg[RA]);
+        macaddr[1] = cpu_to_le32(s->mac_reg[RA + 1]);
+        qemu_format_nic_info_str(qemu_get_queue(s->nic), (uint8_t *)macaddr);
+    }
 }
 
 static void
@@ -1047,7 +1171,8 @@ static uint32_t (*macreg_readops[])(E1000State *, int) = {
     getreg(TORL),	getreg(TOTL),	getreg(IMS),	getreg(TCTL),
     getreg(RDH),	getreg(RDT),	getreg(VET),	getreg(ICS),
     getreg(TDBAL),	getreg(TDBAH),	getreg(RDBAH),	getreg(RDBAL),
-    getreg(TDLEN),	getreg(RDLEN),
+    getreg(TDLEN),      getreg(RDLEN),  getreg(RDTR),   getreg(RADV),
+    getreg(TADV),       getreg(ITR),
 
     [TOTH] = mac_read_clr8,	[TORH] = mac_read_clr8,	[GPRC] = mac_read_clr4,
     [GPTC] = mac_read_clr4,	[TPR] = mac_read_clr4,	[TPT] = mac_read_clr4,
@@ -1069,6 +1194,8 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
     [TDH] = set_16bit,	[RDH] = set_16bit,	[RDT] = set_rdt,
     [IMC] = set_imc,	[IMS] = set_ims,	[ICR] = set_icr,
     [EECD] = set_eecd,	[RCTL] = set_rx_control, [CTRL] = set_ctrl,
+    [RDTR] = set_16bit, [RADV] = set_16bit,     [TADV] = set_16bit,
+    [ITR] = set_16bit,
     [RA ... RA+31] = &mac_writereg,
     [MTA ... MTA+127] = &mac_writereg,
     [VFTA ... VFTA+127] = &mac_writereg,
@@ -1150,6 +1277,11 @@ static void e1000_pre_save(void *opaque)
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
 
+    /* If the mitigation timer is active, emulate a timeout now. */
+    if (s->mit_timer_on) {
+        e1000_mit_timer(s);
+    }
+
     if (!(s->compat_flags & E1000_FLAG_AUTONEG)) {
         return;
     }
@@ -1171,6 +1303,14 @@ static int e1000_post_load(void *opaque, int version_id)
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
 
+    if (!(s->compat_flags & E1000_FLAG_MIT)) {
+        s->mac_reg[ITR] = s->mac_reg[RDTR] = s->mac_reg[RADV] =
+            s->mac_reg[TADV] = 0;
+        s->mit_irq_level = false;
+    }
+    s->mit_ide = 0;
+    s->mit_timer_on = false;
+
     /* nc.link_down can't be migrated, so infer link_down according
      * to link status bit in mac_reg[STATUS].
      * Alternatively, restart link negotiation if it was in progress. */
@@ -1184,11 +1324,33 @@ static int e1000_post_load(void *opaque, int version_id)
         s->phy_reg[PHY_CTRL] & MII_CR_RESTART_AUTO_NEG &&
         !(s->phy_reg[PHY_STATUS] & MII_SR_AUTONEG_COMPLETE)) {
         nc->link_down = false;
-        qemu_mod_timer(s->autoneg_timer, qemu_get_clock_ms(vm_clock) + 500);
+        timer_mod(s->autoneg_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 500);
     }
 
     return 0;
 }
+
+static bool e1000_mit_state_needed(void *opaque)
+{
+    E1000State *s = opaque;
+
+    return s->compat_flags & E1000_FLAG_MIT;
+}
+
+static const VMStateDescription vmstate_e1000_mit_state = {
+    .name = "e1000/mit_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields    = (VMStateField[]) {
+        VMSTATE_UINT32(mac_reg[RDTR], E1000State),
+        VMSTATE_UINT32(mac_reg[RADV], E1000State),
+        VMSTATE_UINT32(mac_reg[TADV], E1000State),
+        VMSTATE_UINT32(mac_reg[ITR], E1000State),
+        VMSTATE_BOOL(mit_irq_level, E1000State),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const VMStateDescription vmstate_e1000 = {
     .name = "e1000",
@@ -1267,6 +1429,14 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, MTA, 128),
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_e1000_mit_state,
+            .needed = e1000_mit_state_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
@@ -1314,8 +1484,10 @@ pci_e1000_uninit(PCIDevice *dev)
 {
     E1000State *d = E1000(dev);
 
-    qemu_del_timer(d->autoneg_timer);
-    qemu_free_timer(d->autoneg_timer);
+    timer_del(d->autoneg_timer);
+    timer_free(d->autoneg_timer);
+    timer_del(d->mit_timer);
+    timer_free(d->mit_timer);
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
     qemu_del_nic(d->nic);
@@ -1326,6 +1498,7 @@ static NetClientInfo net_e1000_info = {
     .size = sizeof(NICState),
     .can_receive = e1000_can_receive,
     .receive = e1000_receive,
+    .receive_iov = e1000_receive_iov,
     .cleanup = e1000_cleanup,
     .link_status_changed = e1000_set_link_status,
 };
@@ -1370,7 +1543,8 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     add_boot_device_path(d->conf.bootindex, dev, "/ethernet-phy@0");
 
-    d->autoneg_timer = qemu_new_timer_ms(vm_clock, e1000_autoneg_timer, d);
+    d->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, d);
+    d->mit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000_mit_timer, d);
 
     return 0;
 }
@@ -1385,6 +1559,8 @@ static Property e1000_properties[] = {
     DEFINE_NIC_PROPERTIES(E1000State, conf),
     DEFINE_PROP_BIT("autonegotiation", E1000State,
                     compat_flags, E1000_FLAG_AUTONEG_BIT, true),
+    DEFINE_PROP_BIT("mitigation", E1000State,
+                    compat_flags, E1000_FLAG_MIT_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

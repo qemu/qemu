@@ -69,7 +69,7 @@ static ssize_t dump_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         return size;
     }
 
-    ts = muldiv64(qemu_get_clock_ns(vm_clock), 1000000, get_ticks_per_sec());
+    ts = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 1000000, get_ticks_per_sec());
     caplen = size > s->pcap_caplen ? s->pcap_caplen : size;
 
     hdr.ts.tv_sec = ts / 1000000 + s->start_ts;

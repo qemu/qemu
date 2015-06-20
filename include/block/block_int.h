@@ -34,17 +34,12 @@
 #include "monitor/monitor.h"
 #include "qemu/hbitmap.h"
 #include "block/snapshot.h"
+#include "qemu/main-loop.h"
+#include "qemu/throttle.h"
 
 #define BLOCK_FLAG_ENCRYPT          1
 #define BLOCK_FLAG_COMPAT6          4
 #define BLOCK_FLAG_LAZY_REFCOUNTS   8
-
-#define BLOCK_IO_LIMIT_READ     0
-#define BLOCK_IO_LIMIT_WRITE    1
-#define BLOCK_IO_LIMIT_TOTAL    2
-
-#define BLOCK_IO_SLICE_TIME     100000000
-#define NANOSECONDS_PER_SECOND  1000000000.0
 
 #define BLOCK_OPT_SIZE              "size"
 #define BLOCK_OPT_ENCRYPT           "encryption"
@@ -69,26 +64,27 @@ typedef struct BdrvTrackedRequest {
     CoQueue wait_queue; /* coroutines blocked on this request */
 } BdrvTrackedRequest;
 
-
-typedef struct BlockIOLimit {
-    int64_t bps[3];
-    int64_t iops[3];
-} BlockIOLimit;
-
-typedef struct BlockIOBaseValue {
-    uint64_t bytes[2];
-    uint64_t ios[2];
-} BlockIOBaseValue;
-
 struct BlockDriver {
     const char *format_name;
     int instance_size;
+
+    /* if not defined external snapshots are allowed
+     * future block filters will query their children to build the response
+     */
+    ExtSnapshotPerm (*bdrv_check_ext_snapshot)(BlockDriverState *bs);
+
     int (*bdrv_probe)(const uint8_t *buf, int buf_size, const char *filename);
     int (*bdrv_probe_device)(const char *filename);
 
     /* Any driver implementing this callback is expected to be able to handle
      * NULL file names in its .bdrv_open() implementation */
     void (*bdrv_parse_filename)(const char *filename, QDict *options, Error **errp);
+    /* Drivers not implementing bdrv_parse_filename nor bdrv_open should have
+     * this field set to true, except ones that are defined only by their
+     * child's bs.
+     * An example of the last type will be the quorum block driver.
+     */
+    bool bdrv_needs_filename;
 
     /* For handling image reopen for split or non-split files */
     int (*bdrv_reopen_prepare)(BDRVReopenState *reopen_state,
@@ -96,15 +92,18 @@ struct BlockDriver {
     void (*bdrv_reopen_commit)(BDRVReopenState *reopen_state);
     void (*bdrv_reopen_abort)(BDRVReopenState *reopen_state);
 
-    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags);
-    int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags);
+    int (*bdrv_open)(BlockDriverState *bs, QDict *options, int flags,
+                     Error **errp);
+    int (*bdrv_file_open)(BlockDriverState *bs, QDict *options, int flags,
+                          Error **errp);
     int (*bdrv_read)(BlockDriverState *bs, int64_t sector_num,
                      uint8_t *buf, int nb_sectors);
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
                       const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
     void (*bdrv_rebind)(BlockDriverState *bs);
-    int (*bdrv_create)(const char *filename, QEMUOptionParameter *options);
+    int (*bdrv_create)(const char *filename, QEMUOptionParameter *options,
+                       Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
     /* aio */
@@ -134,7 +133,7 @@ struct BlockDriver {
         int64_t sector_num, int nb_sectors);
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
-    int coroutine_fn (*bdrv_co_is_allocated)(BlockDriverState *bs,
+    int64_t coroutine_fn (*bdrv_co_get_block_status)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum);
 
     /*
@@ -157,8 +156,11 @@ struct BlockDriver {
 
     const char *protocol_name;
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
+
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
+    bool has_variable_length;
     int64_t (*bdrv_get_allocated_file_size)(BlockDriverState *bs);
+
     int (*bdrv_write_compressed)(BlockDriverState *bs, int64_t sector_num,
                                  const uint8_t *buf, int nb_sectors);
 
@@ -166,12 +168,16 @@ struct BlockDriver {
                                 QEMUSnapshotInfo *sn_info);
     int (*bdrv_snapshot_goto)(BlockDriverState *bs,
                               const char *snapshot_id);
-    int (*bdrv_snapshot_delete)(BlockDriverState *bs, const char *snapshot_id);
+    int (*bdrv_snapshot_delete)(BlockDriverState *bs,
+                                const char *snapshot_id,
+                                const char *name,
+                                Error **errp);
     int (*bdrv_snapshot_list)(BlockDriverState *bs,
                               QEMUSnapshotInfo **psn_info);
     int (*bdrv_snapshot_load_tmp)(BlockDriverState *bs,
                                   const char *snapshot_name);
     int (*bdrv_get_info)(BlockDriverState *bs, BlockDriverInfo *bdi);
+    ImageInfoSpecific *(*bdrv_get_specific_info)(BlockDriverState *bs);
 
     int (*bdrv_save_vmstate)(BlockDriverState *bs, QEMUIOVector *qiov,
                              int64_t pos);
@@ -203,6 +209,9 @@ struct BlockDriver {
      */
     int (*bdrv_check)(BlockDriverState* bs, BdrvCheckResult *result,
         BdrvCheckMode fix);
+
+    int (*bdrv_amend_options)(BlockDriverState *bs,
+        QEMUOptionParameter *options);
 
     void (*bdrv_debug_event)(BlockDriverState *bs, BlkDebugEvent event);
 
@@ -263,13 +272,9 @@ struct BlockDriverState {
     /* number of in-flight copy-on-read requests */
     unsigned int copy_on_read_in_flight;
 
-    /* the time for latest disk I/O */
-    int64_t slice_start;
-    int64_t slice_end;
-    BlockIOLimit io_limits;
-    BlockIOBaseValue slice_submitted;
-    CoQueue      throttled_reqs;
-    QEMUTimer    *block_timer;
+    /* I/O throttling */
+    ThrottleState throttle_state;
+    CoQueue      throttled_reqs[2];
     bool         io_limits_enabled;
 
     /* I/O stats (display with "info blockstats"). */
@@ -280,6 +285,9 @@ struct BlockDriverState {
 
     /* Whether the disk can expand beyond total_sectors */
     int growable;
+
+    /* Whether produces zeros when read beyond eof */
+    bool zero_beyond_eof;
 
     /* the memory alignment required for the buffers handled by this driver */
     int buffer_alignment;
@@ -294,6 +302,7 @@ struct BlockDriverState {
     BlockDeviceIoStatus iostatus;
     char device_name[32];
     HBitmap *dirty_bitmap;
+    int refcnt;
     int in_use; /* users other than guest access, eg. block migration */
     QTAILQ_ENTRY(BlockDriverState) list;
 
@@ -308,7 +317,8 @@ struct BlockDriverState {
 int get_tmp_filename(char *filename, int size);
 
 void bdrv_set_io_limits(BlockDriverState *bs,
-                        BlockIOLimit *io_limits);
+                        ThrottleConfig *cfg);
+
 
 /**
  * bdrv_add_before_write_notifier:

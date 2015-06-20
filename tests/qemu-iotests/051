@@ -45,7 +45,14 @@ _supported_os Linux
 function do_run_qemu()
 {
     echo Testing: "$@"
-    echo quit | $QEMU -nographic -monitor stdio -serial none "$@"
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nographic -monitor stdio -serial none "$@"
     echo
 }
 
@@ -57,26 +64,41 @@ function run_qemu()
 size=128M
 
 _make_test_img $size
+cp "$TEST_IMG" "$TEST_IMG.orig"
+mv "$TEST_IMG" "$TEST_IMG.base"
+_make_test_img -b "$TEST_IMG.base" $size
 
 echo
 echo === Unknown option ===
 echo
 
-run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=
-run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=on
-run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=1234
-run_qemu -drive file=$TEST_IMG,format=qcow2,unknown_opt=foo
+run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=
+run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=1234
+run_qemu -drive file="$TEST_IMG",format=qcow2,unknown_opt=foo
 
+echo
+echo === Invalid format ===
+echo
+
+run_qemu -drive file="$TEST_IMG",format=foo
+run_qemu -drive file="$TEST_IMG",driver=foo
+
+echo
+echo === Overriding backing file ===
+echo
+
+echo "info block" | run_qemu -drive file="$TEST_IMG",driver=qcow2,backing.file.filename="$TEST_IMG.orig" -nodefaults
 
 echo
 echo === Enable and disable lazy refcounting on the command line, plus some invalid values ===
 echo
 
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=on
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=off
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=42
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=foo
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=off
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=42
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=foo
 
 
 echo
@@ -85,8 +107,8 @@ echo
 
 _make_test_img -ocompat=0.10 $size
 
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=on
-run_qemu -drive file=$TEST_IMG,format=qcow2,lazy-refcounts=off
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=on
+run_qemu -drive file="$TEST_IMG",format=qcow2,lazy-refcounts=off
 
 echo
 echo === No medium ===
@@ -112,21 +134,21 @@ echo
 echo === Read-only ===
 echo
 
-run_qemu -drive file=$TEST_IMG,if=floppy,readonly=on
-run_qemu -drive file=$TEST_IMG,if=ide,media=cdrom,readonly=on
-run_qemu -drive file=$TEST_IMG,if=scsi,media=cdrom,readonly=on
+run_qemu -drive file="$TEST_IMG",if=floppy,readonly=on
+run_qemu -drive file="$TEST_IMG",if=ide,media=cdrom,readonly=on
+run_qemu -drive file="$TEST_IMG",if=scsi,media=cdrom,readonly=on
 
-run_qemu -drive file=$TEST_IMG,if=ide,readonly=on
-run_qemu -drive file=$TEST_IMG,if=virtio,readonly=on
-run_qemu -drive file=$TEST_IMG,if=scsi,readonly=on
+run_qemu -drive file="$TEST_IMG",if=ide,readonly=on
+run_qemu -drive file="$TEST_IMG",if=virtio,readonly=on
+run_qemu -drive file="$TEST_IMG",if=scsi,readonly=on
 
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-cd,drive=disk
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-cd,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
 
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-drive,drive=disk
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device ide-hd,drive=disk
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
-run_qemu -drive file=$TEST_IMG,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-drive,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-hd,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
+run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
 
 echo
 echo === Cache modes ===
@@ -146,8 +168,8 @@ echo
 echo === Specifying the protocol layer ===
 echo
 
-run_qemu -drive file=$TEST_IMG,file.driver=file
-run_qemu -drive file=$TEST_IMG,file.driver=qcow2
+run_qemu -drive file="$TEST_IMG",file.driver=file
+run_qemu -drive file="$TEST_IMG",file.driver=qcow2
 
 echo
 echo === Parsing protocol from file name ===

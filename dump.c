@@ -66,7 +66,7 @@ typedef struct DumpState {
     uint32_t sh_info;
     bool have_section;
     bool resume;
-    size_t note_size;
+    ssize_t note_size;
     hwaddr memory_offset;
     int fd;
 
@@ -277,7 +277,7 @@ static int write_elf64_notes(DumpState *s)
     int ret;
     int id;
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         id = cpu_index(cpu);
         ret = cpu_write_elf64_note(fd_write_vmcore, cpu, id, s);
         if (ret < 0) {
@@ -286,7 +286,7 @@ static int write_elf64_notes(DumpState *s)
         }
     }
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         ret = cpu_write_elf64_qemunote(fd_write_vmcore, cpu, s);
         if (ret < 0) {
             dump_error(s, "dump: failed to write CPU status.\n");
@@ -327,7 +327,7 @@ static int write_elf32_notes(DumpState *s)
     int ret;
     int id;
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         id = cpu_index(cpu);
         ret = cpu_write_elf32_note(fd_write_vmcore, cpu, id, s);
         if (ret < 0) {
@@ -336,7 +336,7 @@ static int write_elf32_notes(DumpState *s)
         }
     }
 
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         ret = cpu_write_elf32_qemunote(fd_write_vmcore, cpu, s);
         if (ret < 0) {
             dump_error(s, "dump: failed to write CPU status.\n");
@@ -734,7 +734,7 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
      */
     cpu_synchronize_all_states();
     nr_cpus = 0;
-    for (cpu = first_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         nr_cpus++;
     }
 
@@ -765,7 +765,7 @@ static int dump_init(DumpState *s, int fd, bool paging, bool has_filter,
 
     s->note_size = cpu_get_note_size(s->dump_info.d_class,
                                      s->dump_info.d_machine, nr_cpus);
-    if (ret < 0) {
+    if (s->note_size < 0) {
         error_set(errp, QERR_UNSUPPORTED);
         goto cleanup;
     }

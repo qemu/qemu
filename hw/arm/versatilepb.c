@@ -178,7 +178,6 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     ARMCPU *cpu;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    qemu_irq *cpu_pic;
     qemu_irq pic[32];
     qemu_irq sic[32];
     DeviceState *dev, *sysctl;
@@ -211,10 +210,10 @@ static void versatile_init(QEMUMachineInitArgs *args, int board_id)
     qdev_init_nofail(sysctl);
     sysbus_mmio_map(SYS_BUS_DEVICE(sysctl), 0, 0x10000000);
 
-    cpu_pic = arm_pic_init_cpu(cpu);
     dev = sysbus_create_varargs("pl190", 0x10140000,
-                                cpu_pic[ARM_PIC_CPU_IRQ],
-                                cpu_pic[ARM_PIC_CPU_FIQ], NULL);
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
+                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
+                                NULL);
     for (n = 0; n < 32; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
     }
@@ -368,7 +367,6 @@ static QEMUMachine versatilepb_machine = {
     .desc = "ARM Versatile/PB (ARM926EJ-S)",
     .init = vpb_init,
     .block_default_type = IF_SCSI,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static QEMUMachine versatileab_machine = {
@@ -376,7 +374,6 @@ static QEMUMachine versatileab_machine = {
     .desc = "ARM Versatile/AB (ARM926EJ-S)",
     .init = vab_init,
     .block_default_type = IF_SCSI,
-    DEFAULT_MACHINE_OPTIONS,
 };
 
 static void versatile_machine_init(void)

@@ -48,27 +48,27 @@ echo "== Creating zero size image =="
 _make_test_img 0
 _check_test_img
 
-mv $TEST_IMG $TEST_IMG.orig
+mv "$TEST_IMG" "$TEST_IMG.orig"
 
 echo
 echo "== Converting the image =="
 
-$QEMU_IMG convert -O $IMGFMT $TEST_IMG.orig $TEST_IMG
+$QEMU_IMG convert -O $IMGFMT "$TEST_IMG.orig" "$TEST_IMG"
 _check_test_img
 
 echo
 echo "== Converting the image, compressed =="
 
 if [ "$IMGFMT" == "qcow2" ]; then
-    $QEMU_IMG convert -c -O $IMGFMT $TEST_IMG.orig $TEST_IMG
+    $QEMU_IMG convert -c -O $IMGFMT "$TEST_IMG.orig" "$TEST_IMG"
 fi
 _check_test_img
 
 echo
 echo "== Rebasing the image =="
 
-$QEMU_IMG rebase -u -b $TEST_IMG.orig $TEST_IMG
-$QEMU_IMG rebase -b $TEST_IMG.orig $TEST_IMG
+$QEMU_IMG rebase -u -b "$TEST_IMG.orig" "$TEST_IMG"
+$QEMU_IMG rebase -b "$TEST_IMG.orig" "$TEST_IMG"
 _check_test_img
 
 # success, all done

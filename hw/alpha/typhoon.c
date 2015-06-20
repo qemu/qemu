@@ -26,9 +26,9 @@ typedef struct TyphoonCchip {
 } TyphoonCchip;
 
 typedef struct TyphoonWindow {
-    uint32_t base_addr;
-    uint32_t mask;
-    uint32_t translated_base_pfn;
+    uint64_t wba;
+    uint64_t wsm;
+    uint64_t tba;
 } TyphoonWindow;
  
 typedef struct TyphoonPchip {
@@ -37,6 +37,10 @@ typedef struct TyphoonPchip {
     MemoryRegion reg_mem;
     MemoryRegion reg_io;
     MemoryRegion reg_conf;
+
+    AddressSpace iommu_as;
+    MemoryRegion iommu;
+
     uint64_t ctl;
     TyphoonWindow win[4];
 } TyphoonPchip;
@@ -209,53 +213,53 @@ static uint64_t pchip_read(void *opaque, hwaddr addr, unsigned size)
     switch (addr) {
     case 0x0000:
         /* WSBA0: Window Space Base Address Register.  */
-        ret = s->pchip.win[0].base_addr;
+        ret = s->pchip.win[0].wba;
         break;
     case 0x0040:
         /* WSBA1 */
-        ret = s->pchip.win[1].base_addr;
+        ret = s->pchip.win[1].wba;
         break;
     case 0x0080:
         /* WSBA2 */
-        ret = s->pchip.win[2].base_addr;
+        ret = s->pchip.win[2].wba;
         break;
     case 0x00c0:
         /* WSBA3 */
-        ret = s->pchip.win[3].base_addr;
+        ret = s->pchip.win[3].wba;
         break;
 
     case 0x0100:
         /* WSM0: Window Space Mask Register.  */
-        ret = s->pchip.win[0].mask;
+        ret = s->pchip.win[0].wsm;
         break;
     case 0x0140:
         /* WSM1 */
-        ret = s->pchip.win[1].mask;
+        ret = s->pchip.win[1].wsm;
         break;
     case 0x0180:
         /* WSM2 */
-        ret = s->pchip.win[2].mask;
+        ret = s->pchip.win[2].wsm;
         break;
     case 0x01c0:
         /* WSM3 */
-        ret = s->pchip.win[3].mask;
+        ret = s->pchip.win[3].wsm;
         break;
 
     case 0x0200:
         /* TBA0: Translated Base Address Register.  */
-        ret = (uint64_t)s->pchip.win[0].translated_base_pfn << 10;
+        ret = s->pchip.win[0].tba;
         break;
     case 0x0240:
         /* TBA1 */
-        ret = (uint64_t)s->pchip.win[1].translated_base_pfn << 10;
+        ret = s->pchip.win[1].tba;
         break;
     case 0x0280:
         /* TBA2 */
-        ret = (uint64_t)s->pchip.win[2].translated_base_pfn << 10;
+        ret = s->pchip.win[2].tba;
         break;
     case 0x02c0:
         /* TBA3 */
-        ret = (uint64_t)s->pchip.win[3].translated_base_pfn << 10;
+        ret = s->pchip.win[3].tba;
         break;
 
     case 0x0300:
@@ -458,53 +462,53 @@ static void pchip_write(void *opaque, hwaddr addr,
     switch (addr) {
     case 0x0000:
         /* WSBA0: Window Space Base Address Register.  */
-        s->pchip.win[0].base_addr = val;
+        s->pchip.win[0].wba = val & 0xfff00003u;
         break;
     case 0x0040:
         /* WSBA1 */
-        s->pchip.win[1].base_addr = val;
+        s->pchip.win[1].wba = val & 0xfff00003u;
         break;
     case 0x0080:
         /* WSBA2 */
-        s->pchip.win[2].base_addr = val;
+        s->pchip.win[2].wba = val & 0xfff00003u;
         break;
     case 0x00c0:
         /* WSBA3 */
-        s->pchip.win[3].base_addr = val;
+        s->pchip.win[3].wba = (val & 0x80fff00001ull) | 2;
         break;
 
     case 0x0100:
         /* WSM0: Window Space Mask Register.  */
-        s->pchip.win[0].mask = val;
+        s->pchip.win[0].wsm = val & 0xfff00000u;
         break;
     case 0x0140:
         /* WSM1 */
-        s->pchip.win[1].mask = val;
+        s->pchip.win[1].wsm = val & 0xfff00000u;
         break;
     case 0x0180:
         /* WSM2 */
-        s->pchip.win[2].mask = val;
+        s->pchip.win[2].wsm = val & 0xfff00000u;
         break;
     case 0x01c0:
         /* WSM3 */
-        s->pchip.win[3].mask = val;
+        s->pchip.win[3].wsm = val & 0xfff00000u;
         break;
 
     case 0x0200:
         /* TBA0: Translated Base Address Register.  */
-        s->pchip.win[0].translated_base_pfn = val >> 10;
+        s->pchip.win[0].tba = val & 0x7fffffc00ull;
         break;
     case 0x0240:
         /* TBA1 */
-        s->pchip.win[1].translated_base_pfn = val >> 10;
+        s->pchip.win[1].tba = val & 0x7fffffc00ull;
         break;
     case 0x0280:
         /* TBA2 */
-        s->pchip.win[2].translated_base_pfn = val >> 10;
+        s->pchip.win[2].tba = val & 0x7fffffc00ull;
         break;
     case 0x02c0:
         /* TBA3 */
-        s->pchip.win[3].translated_base_pfn = val >> 10;
+        s->pchip.win[3].tba = val & 0x7fffffc00ull;
         break;
 
     case 0x0300:
@@ -512,7 +516,6 @@ static void pchip_write(void *opaque, hwaddr addr,
         oldval = s->pchip.ctl;
         oldval &= ~0x00001cff0fc7ffull;       /* RW fields */
         oldval |= val & 0x00001cff0fc7ffull;
-
         s->pchip.ctl = oldval;
         break;
 
@@ -592,6 +595,140 @@ static const MemoryRegionOps pchip_ops = {
         .max_access_size = 8,
     },
 };
+
+/* A subroutine of typhoon_translate_iommu that builds an IOMMUTLBEntry
+   using the given translated address and mask.  */
+static bool make_iommu_tlbe(hwaddr taddr, hwaddr mask, IOMMUTLBEntry *ret)
+{
+    *ret = (IOMMUTLBEntry) {
+        .target_as = &address_space_memory,
+        .translated_addr = taddr,
+        .addr_mask = mask,
+        .perm = IOMMU_RW,
+    };
+    return true;
+}
+
+/* A subroutine of typhoon_translate_iommu that handles scatter-gather
+   translation, given the address of the PTE.  */
+static bool pte_translate(hwaddr pte_addr, IOMMUTLBEntry *ret)
+{
+    uint64_t pte = ldq_phys(pte_addr);
+
+    /* Check valid bit.  */
+    if ((pte & 1) == 0) {
+        return false;
+    }
+
+    return make_iommu_tlbe((pte & 0x3ffffe) << 12, 0x1fff, ret);
+}
+
+/* A subroutine of typhoon_translate_iommu that handles one of the
+   four single-address-cycle translation windows.  */
+static bool window_translate(TyphoonWindow *win, hwaddr addr,
+                             IOMMUTLBEntry *ret)
+{
+    uint32_t wba = win->wba;
+    uint64_t wsm = win->wsm;
+    uint64_t tba = win->tba;
+    uint64_t wsm_ext = wsm | 0xfffff;
+
+    /* Check for window disabled.  */
+    if ((wba & 1) == 0) {
+        return false;
+    }
+
+    /* Check for window hit.  */
+    if ((addr & ~wsm_ext) != (wba & 0xfff00000u)) {
+        return false;
+    }
+
+    if (wba & 2) {
+        /* Scatter-gather translation.  */
+        hwaddr pte_addr;
+
+        /* See table 10-6, Generating PTE address for PCI DMA Address.  */
+        pte_addr  = tba & ~(wsm >> 10);
+        pte_addr |= (addr & (wsm | 0xfe000)) >> 10;
+        return pte_translate(pte_addr, ret);
+    } else {
+	/* Direct-mapped translation.  */
+	return make_iommu_tlbe(tba & ~wsm_ext, wsm_ext, ret);
+    }
+}
+
+/* Handle PCI-to-system address translation.  */
+/* TODO: A translation failure here ought to set PCI error codes on the
+   Pchip and generate a machine check interrupt.  */
+static IOMMUTLBEntry typhoon_translate_iommu(MemoryRegion *iommu, hwaddr addr)
+{
+    TyphoonPchip *pchip = container_of(iommu, TyphoonPchip, iommu);
+    IOMMUTLBEntry ret;
+    int i;
+
+    if (addr <= 0xffffffffu) {
+        /* Single-address cycle.  */
+
+        /* Check for the Window Hole, inhibiting matching.  */
+        if ((pchip->ctl & 0x20)
+            && addr >= 0x80000
+            && addr <= 0xfffff) {
+            goto failure;
+        }
+
+        /* Check the first three windows.  */
+        for (i = 0; i < 3; ++i) {
+            if (window_translate(&pchip->win[i], addr, &ret)) {
+                goto success;
+            }
+        }
+
+        /* Check the fourth window for DAC disable.  */
+        if ((pchip->win[3].wba & 0x80000000000ull) == 0
+	    && window_translate(&pchip->win[3], addr, &ret)) {
+            goto success;
+        }
+    } else {
+        /* Double-address cycle.  */
+
+        if (addr >= 0x10000000000ull && addr < 0x20000000000ull) {
+            /* Check for the DMA monster window.  */
+            if (pchip->ctl & 0x40) {
+                /* See 10.1.4.4; in particular <39:35> is ignored.  */
+                make_iommu_tlbe(0, 0x007ffffffffull, &ret);
+		goto success;
+            }
+        }
+
+        if (addr >= 0x80000000000ull && addr <= 0xfffffffffffull) {
+            /* Check the fourth window for DAC enable and window enable.  */
+            if ((pchip->win[3].wba & 0x80000000001ull) == 0x80000000001ull) {
+                uint64_t pte_addr;
+
+                pte_addr  = pchip->win[3].tba & 0x7ffc00000ull;
+                pte_addr |= (addr & 0xffffe000u) >> 10;
+                if (pte_translate(pte_addr, &ret)) {
+			goto success;
+		}
+            }
+        }
+    }
+
+ failure:
+    ret = (IOMMUTLBEntry) { .perm = IOMMU_NONE };
+ success:
+    return ret;
+}
+
+static const MemoryRegionIOMMUOps typhoon_iommu_ops = {
+    .translate = typhoon_translate_iommu,
+};
+
+static AddressSpace *typhoon_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
+{
+    TyphoonState *s = opaque;
+    return &s->pchip.iommu_as;
+}
 
 static void typhoon_set_irq(void *opaque, int irq, int level)
 {
@@ -688,12 +825,15 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     s = TYPHOON_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
 
+    s->cchip.misc = 0x800000000ull; /* Revision: Typhoon.  */
+    s->pchip.win[3].wba = 2;        /* Window 3 SG always enabled. */
+
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
         AlphaCPU *cpu = cpus[i];
         s->cchip.cpu[i] = cpu;
         if (cpu != NULL) {
-            cpu->alarm_timer = qemu_new_timer_ns(vm_clock,
+            cpu->alarm_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                                  typhoon_alarm_timer,
                                                  (void *)((uintptr_t)s + i));
         }
@@ -745,6 +885,12 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
                          &s->pchip.reg_mem, &s->pchip.reg_io,
                          0, 64, TYPE_PCI_BUS);
     phb->bus = b;
+
+    /* Host memory as seen from the PCI side, via the IOMMU.  */
+    memory_region_init_iommu(&s->pchip.iommu, OBJECT(s), &typhoon_iommu_ops,
+                             "iommu-typhoon", UINT64_MAX);
+    address_space_init(&s->pchip.iommu_as, &s->pchip.iommu, "pchip0-pci");
+    pci_setup_iommu(b, typhoon_pci_dma_iommu, s);
 
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
     memory_region_init_io(&s->pchip.reg_iack, OBJECT(s), &alpha_pci_iack_ops,

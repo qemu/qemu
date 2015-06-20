@@ -142,7 +142,7 @@ diddit:
 
 /*
  * Send a packet
- * We choose a packet based on it's position in the output queues;
+ * We choose a packet based on its position in the output queues;
  * If there are packets on the fastq, they are sent FIFO, before
  * everything else.  Otherwise we choose the first packet from the
  * batchq and send it.  the next packet chosen will be from the session
@@ -154,7 +154,7 @@ diddit:
  */
 void if_start(Slirp *slirp)
 {
-    uint64_t now = qemu_get_clock_ns(rt_clock);
+    uint64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     bool from_batchq, next_from_batchq;
     struct mbuf *ifm, *ifm_next, *ifqt;
 

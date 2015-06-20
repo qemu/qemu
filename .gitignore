@@ -44,8 +44,11 @@ qemu-ga
 qemu-bridge-helper
 qemu-monitor.texi
 vscclient
-QMP/qmp-commands.txt
+qmp-commands.txt
+test-bitops
 test-coroutine
+test-int128
+test-opts-visitor
 test-qmp-input-visitor
 test-qmp-output-visitor
 test-string-input-visitor
@@ -79,6 +82,7 @@ fsdev/virtfs-proxy-helper.pod
 *.la
 *.pc
 .libs
+.sdk
 *.swp
 *.orig
 .pc

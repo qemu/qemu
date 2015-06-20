@@ -337,8 +337,7 @@ int tcp_fconnect(struct socket *so)
     struct sockaddr_in addr;
 
     qemu_set_nonblock(s);
-    opt = 1;
-    qemu_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    socket_set_fast_reuse(s);
     opt = 1;
     qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(opt));
 
@@ -426,8 +425,7 @@ void tcp_connect(struct socket *inso)
         return;
     }
     qemu_set_nonblock(s);
-    opt = 1;
-    qemu_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
+    socket_set_fast_reuse(s);
     opt = 1;
     qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
     socket_set_nodelay(s);

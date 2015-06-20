@@ -49,10 +49,10 @@
 
 #include "tcg-op.h"
 
-#if TCG_TARGET_REG_BITS == 64
-# define ELF_CLASS  ELFCLASS64
-#else
+#if UINTPTR_MAX == UINT32_MAX
 # define ELF_CLASS  ELFCLASS32
+#else
+# define ELF_CLASS  ELFCLASS64
 #endif
 #ifdef HOST_WORDS_BIGENDIAN
 # define ELF_DATA   ELFDATA2MSB
@@ -66,7 +66,7 @@
 static void tcg_target_init(TCGContext *s);
 static void tcg_target_qemu_prologue(TCGContext *s);
 static void patch_reloc(uint8_t *code_ptr, int type, 
-                        tcg_target_long value, tcg_target_long addend);
+                        intptr_t value, intptr_t addend);
 
 /* The CIE and FDE header definitions will be common to all hosts.  */
 typedef struct {
@@ -82,8 +82,8 @@ typedef struct {
 typedef struct QEMU_PACKED {
     uint32_t len __attribute__((aligned((sizeof(void *)))));
     uint32_t cie_offset;
-    tcg_target_long func_start;
-    tcg_target_long func_len;
+    uintptr_t func_start;
+    uintptr_t func_len;
 } DebugFrameFDEHeader;
 
 static void tcg_register_jit_int(void *buf, size_t size,
@@ -93,16 +93,19 @@ static void tcg_register_jit_int(void *buf, size_t size,
 /* Forward declarations for functions declared and used in tcg-target.c. */
 static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str);
 static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
-                       tcg_target_long arg2);
+                       intptr_t arg2);
 static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg);
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          TCGReg ret, tcg_target_long arg);
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        const int *const_args);
 static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
-                       tcg_target_long arg2);
+                       intptr_t arg2);
 static int tcg_target_const_match(tcg_target_long val,
                                   const TCGArgConstraint *arg_ct);
+static void tcg_out_tb_init(TCGContext *s);
+static void tcg_out_tb_finalize(TCGContext *s);
+
 
 TCGOpDef tcg_op_defs[] = {
 #define DEF(s, oargs, iargs, cargs, flags) { #s, oargs, iargs, cargs, iargs + oargs + cargs, flags },
@@ -121,20 +124,29 @@ static inline void tcg_out8(TCGContext *s, uint8_t v)
 
 static inline void tcg_out16(TCGContext *s, uint16_t v)
 {
-    *(uint16_t *)s->code_ptr = v;
-    s->code_ptr += 2;
+    uint8_t *p = s->code_ptr;
+    *(uint16_t *)p = v;
+    s->code_ptr = p + 2;
 }
 
 static inline void tcg_out32(TCGContext *s, uint32_t v)
 {
-    *(uint32_t *)s->code_ptr = v;
-    s->code_ptr += 4;
+    uint8_t *p = s->code_ptr;
+    *(uint32_t *)p = v;
+    s->code_ptr = p + 4;
+}
+
+static inline void tcg_out64(TCGContext *s, uint64_t v)
+{
+    uint8_t *p = s->code_ptr;
+    *(uint64_t *)p = v;
+    s->code_ptr = p + 8;
 }
 
 /* label relocation processing */
 
 static void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
-                          int label_index, long addend)
+                          int label_index, intptr_t addend)
 {
     TCGLabel *l;
     TCGRelocation *r;
@@ -160,11 +172,12 @@ static void tcg_out_label(TCGContext *s, int label_index, void *ptr)
 {
     TCGLabel *l;
     TCGRelocation *r;
-    tcg_target_long value = (tcg_target_long)ptr;
+    intptr_t value = (intptr_t)ptr;
 
     l = &s->labels[label_index];
-    if (l->has_value)
+    if (l->has_value) {
         tcg_abort();
+    }
     r = l->u.first_reloc;
     while (r != NULL) {
         patch_reloc(r->ptr, r->type, value, r->addend);
@@ -244,12 +257,41 @@ void tcg_pool_reset(TCGContext *s)
     s->pool_current = NULL;
 }
 
+#include "helper.h"
+
+typedef struct TCGHelperInfo {
+    void *func;
+    const char *name;
+} TCGHelperInfo;
+
+static const TCGHelperInfo all_helpers[] = {
+#define GEN_HELPER 2
+#include "helper.h"
+
+    /* Include tcg-runtime.c functions.  */
+    { tcg_helper_div_i32, "div_i32" },
+    { tcg_helper_rem_i32, "rem_i32" },
+    { tcg_helper_divu_i32, "divu_i32" },
+    { tcg_helper_remu_i32, "remu_i32" },
+
+    { tcg_helper_shl_i64, "shl_i64" },
+    { tcg_helper_shr_i64, "shr_i64" },
+    { tcg_helper_sar_i64, "sar_i64" },
+    { tcg_helper_div_i64, "div_i64" },
+    { tcg_helper_rem_i64, "rem_i64" },
+    { tcg_helper_divu_i64, "divu_i64" },
+    { tcg_helper_remu_i64, "remu_i64" },
+    { tcg_helper_mulsh_i64, "mulsh_i64" },
+    { tcg_helper_muluh_i64, "muluh_i64" },
+};
+
 void tcg_context_init(TCGContext *s)
 {
-    int op, total_args, n;
+    int op, total_args, n, i;
     TCGOpDef *def;
     TCGArgConstraint *args_ct;
     int *sorted_args;
+    GHashTable *helper_table;
 
     memset(s, 0, sizeof(*s));
     s->nb_globals = 0;
@@ -274,7 +316,16 @@ void tcg_context_init(TCGContext *s)
         sorted_args += n;
         args_ct += n;
     }
-    
+
+    /* Register helpers.  */
+    /* Use g_direct_hash/equal for direct pointer comparisons on func.  */
+    s->helpers = helper_table = g_hash_table_new(NULL, NULL);
+
+    for (i = 0; i < ARRAY_SIZE(all_helpers); ++i) {
+        g_hash_table_insert(helper_table, (gpointer)all_helpers[i].func,
+                            (gpointer)all_helpers[i].name);
+    }
+
     tcg_target_init(s);
 }
 
@@ -284,8 +335,7 @@ void tcg_prologue_init(TCGContext *s)
     s->code_buf = s->code_gen_prologue;
     s->code_ptr = s->code_buf;
     tcg_target_qemu_prologue(s);
-    flush_icache_range((tcg_target_ulong)s->code_buf,
-                       (tcg_target_ulong)s->code_ptr);
+    flush_icache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_ptr);
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM)) {
@@ -298,8 +348,7 @@ void tcg_prologue_init(TCGContext *s)
 #endif
 }
 
-void tcg_set_frame(TCGContext *s, int reg,
-                   tcg_target_long start, tcg_target_long size)
+void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size)
 {
     s->frame_start = start;
     s->frame_end = start + size;
@@ -324,13 +373,7 @@ void tcg_func_start(TCGContext *s)
     s->gen_opc_ptr = s->gen_opc_buf;
     s->gen_opparam_ptr = s->gen_opparam_buf;
 
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
-    /* Initialize qemu_ld/st labels to assist code generation at the end of TB
-       for TLB miss cases at the end of TB */
-    s->qemu_ldst_labels = tcg_malloc(sizeof(TCGLabelQemuLdst) *
-                                     TCG_MAX_QEMU_LDST);
-    s->nb_qemu_ldst_labels = 0;
-#endif
+    s->be = tcg_malloc(sizeof(TCGBackendData));
 }
 
 static inline void tcg_temp_alloc(TCGContext *s, int n)
@@ -382,7 +425,7 @@ TCGv_i64 tcg_global_reg_new_i64(int reg, const char *name)
 }
 
 static inline int tcg_global_mem_new_internal(TCGType type, int reg,
-                                              tcg_target_long offset,
+                                              intptr_t offset,
                                               const char *name)
 {
     TCGContext *s = &tcg_ctx;
@@ -442,21 +485,15 @@ static inline int tcg_global_mem_new_internal(TCGType type, int reg,
     return idx;
 }
 
-TCGv_i32 tcg_global_mem_new_i32(int reg, tcg_target_long offset,
-                                const char *name)
+TCGv_i32 tcg_global_mem_new_i32(int reg, intptr_t offset, const char *name)
 {
-    int idx;
-
-    idx = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
+    int idx = tcg_global_mem_new_internal(TCG_TYPE_I32, reg, offset, name);
     return MAKE_TCGV_I32(idx);
 }
 
-TCGv_i64 tcg_global_mem_new_i64(int reg, tcg_target_long offset,
-                                const char *name)
+TCGv_i64 tcg_global_mem_new_i64(int reg, intptr_t offset, const char *name)
 {
-    int idx;
-
-    idx = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
+    int idx = tcg_global_mem_new_internal(TCG_TYPE_I64, reg, offset, name);
     return MAKE_TCGV_I64(idx);
 }
 
@@ -618,25 +655,6 @@ int tcg_check_temp_count(void)
 }
 #endif
 
-void tcg_register_helper(void *func, const char *name)
-{
-    TCGContext *s = &tcg_ctx;
-    int n;
-    if ((s->nb_helpers + 1) > s->allocated_helpers) {
-        n = s->allocated_helpers;
-        if (n == 0) {
-            n = 4;
-        } else {
-            n *= 2;
-        }
-        s->helpers = realloc(s->helpers, n * sizeof(TCGHelperInfo));
-        s->allocated_helpers = n;
-    }
-    s->helpers[s->nb_helpers].func = (tcg_target_ulong)func;
-    s->helpers[s->nb_helpers].name = name;
-    s->nb_helpers++;
-}
-
 /* Note: we convert the 64 bit args to 32 bit and do some alignment
    and endian swap. Maybe it would be better to do the alignment
    and endian swap in tcg_reg_alloc_call(). */
@@ -793,6 +811,188 @@ void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
 }
 #endif
 
+static inline TCGMemOp tcg_canonicalize_memop(TCGMemOp op, bool is64, bool st)
+{
+    switch (op & MO_SIZE) {
+    case MO_8:
+        op &= ~MO_BSWAP;
+        break;
+    case MO_16:
+        break;
+    case MO_32:
+        if (!is64) {
+            op &= ~MO_SIGN;
+        }
+        break;
+    case MO_64:
+        if (!is64) {
+            tcg_abort();
+        }
+        break;
+    }
+    if (st) {
+        op &= ~MO_SIGN;
+    }
+    return op;
+}
+
+static const TCGOpcode old_ld_opc[8] = {
+    [MO_UB] = INDEX_op_qemu_ld8u,
+    [MO_SB] = INDEX_op_qemu_ld8s,
+    [MO_UW] = INDEX_op_qemu_ld16u,
+    [MO_SW] = INDEX_op_qemu_ld16s,
+#if TCG_TARGET_REG_BITS == 32
+    [MO_UL] = INDEX_op_qemu_ld32,
+    [MO_SL] = INDEX_op_qemu_ld32,
+#else
+    [MO_UL] = INDEX_op_qemu_ld32u,
+    [MO_SL] = INDEX_op_qemu_ld32s,
+#endif
+    [MO_Q]  = INDEX_op_qemu_ld64,
+};
+
+static const TCGOpcode old_st_opc[4] = {
+    [MO_UB] = INDEX_op_qemu_st8,
+    [MO_UW] = INDEX_op_qemu_st16,
+    [MO_UL] = INDEX_op_qemu_st32,
+    [MO_Q]  = INDEX_op_qemu_st64,
+};
+
+void tcg_gen_qemu_ld_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+{
+    memop = tcg_canonicalize_memop(memop, 0, 0);
+
+    if (TCG_TARGET_HAS_new_ldst) {
+        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_ld_i32;
+        tcg_add_param_i32(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = memop;
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+        return;
+    }
+
+    /* The old opcodes only support target-endian memory operations.  */
+    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
+    assert(old_ld_opc[memop & MO_SSIZE] != 0);
+
+    if (TCG_TARGET_REG_BITS == 32) {
+        *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
+        tcg_add_param_i32(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+    } else {
+        TCGv_i64 val64 = tcg_temp_new_i64();
+
+        *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
+        tcg_add_param_i64(val64);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+
+        tcg_gen_trunc_i64_i32(val, val64);
+        tcg_temp_free_i64(val64);
+    }
+}
+
+void tcg_gen_qemu_st_i32(TCGv_i32 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+{
+    memop = tcg_canonicalize_memop(memop, 0, 1);
+
+    if (TCG_TARGET_HAS_new_ldst) {
+        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_st_i32;
+        tcg_add_param_i32(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = memop;
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+        return;
+    }
+
+    /* The old opcodes only support target-endian memory operations.  */
+    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
+    assert(old_st_opc[memop & MO_SIZE] != 0);
+
+    if (TCG_TARGET_REG_BITS == 32) {
+        *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
+        tcg_add_param_i32(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+    } else {
+        TCGv_i64 val64 = tcg_temp_new_i64();
+
+        tcg_gen_extu_i32_i64(val64, val);
+
+        *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
+        tcg_add_param_i64(val64);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+
+        tcg_temp_free_i64(val64);
+    }
+}
+
+void tcg_gen_qemu_ld_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+{
+    memop = tcg_canonicalize_memop(memop, 1, 0);
+
+#if TCG_TARGET_REG_BITS == 32
+    if ((memop & MO_SIZE) < MO_64) {
+        tcg_gen_qemu_ld_i32(TCGV_LOW(val), addr, idx, memop);
+        if (memop & MO_SIGN) {
+            tcg_gen_sari_i32(TCGV_HIGH(val), TCGV_LOW(val), 31);
+        } else {
+            tcg_gen_movi_i32(TCGV_HIGH(val), 0);
+        }
+        return;
+    }
+#endif
+
+    if (TCG_TARGET_HAS_new_ldst) {
+        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_ld_i64;
+        tcg_add_param_i64(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = memop;
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+        return;
+    }
+
+    /* The old opcodes only support target-endian memory operations.  */
+    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
+    assert(old_ld_opc[memop & MO_SSIZE] != 0);
+
+    *tcg_ctx.gen_opc_ptr++ = old_ld_opc[memop & MO_SSIZE];
+    tcg_add_param_i64(val);
+    tcg_add_param_tl(addr);
+    *tcg_ctx.gen_opparam_ptr++ = idx;
+}
+
+void tcg_gen_qemu_st_i64(TCGv_i64 val, TCGv addr, TCGArg idx, TCGMemOp memop)
+{
+    memop = tcg_canonicalize_memop(memop, 1, 1);
+
+#if TCG_TARGET_REG_BITS == 32
+    if ((memop & MO_SIZE) < MO_64) {
+        tcg_gen_qemu_st_i32(TCGV_LOW(val), addr, idx, memop);
+        return;
+    }
+#endif
+
+    if (TCG_TARGET_HAS_new_ldst) {
+        *tcg_ctx.gen_opc_ptr++ = INDEX_op_qemu_st_i64;
+        tcg_add_param_i64(val);
+        tcg_add_param_tl(addr);
+        *tcg_ctx.gen_opparam_ptr++ = memop;
+        *tcg_ctx.gen_opparam_ptr++ = idx;
+        return;
+    }
+
+    /* The old opcodes only support target-endian memory operations.  */
+    assert((memop & MO_BSWAP) == MO_TE || (memop & MO_SIZE) == MO_8);
+    assert(old_st_opc[memop & MO_SIZE] != 0);
+
+    *tcg_ctx.gen_opc_ptr++ = old_st_opc[memop & MO_SIZE];
+    tcg_add_param_i64(val);
+    tcg_add_param_tl(addr);
+    *tcg_ctx.gen_opparam_ptr++ = idx;
+}
 
 static void tcg_reg_alloc_start(TCGContext *s)
 {
@@ -849,47 +1049,14 @@ char *tcg_get_arg_str_i64(TCGContext *s, char *buf, int buf_size, TCGv_i64 arg)
     return tcg_get_arg_str_idx(s, buf, buf_size, GET_TCGV_I64(arg));
 }
 
-static int helper_cmp(const void *p1, const void *p2)
+/* Find helper name.  */
+static inline const char *tcg_find_helper(TCGContext *s, uintptr_t val)
 {
-    const TCGHelperInfo *th1 = p1;
-    const TCGHelperInfo *th2 = p2;
-    if (th1->func < th2->func)
-        return -1;
-    else if (th1->func == th2->func)
-        return 0;
-    else
-        return 1;
-}
-
-/* find helper definition (Note: A hash table would be better) */
-static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val)
-{
-    int m, m_min, m_max;
-    TCGHelperInfo *th;
-    tcg_target_ulong v;
-
-    if (unlikely(!s->helpers_sorted)) {
-        qsort(s->helpers, s->nb_helpers, sizeof(TCGHelperInfo), 
-              helper_cmp);
-        s->helpers_sorted = 1;
+    const char *ret = NULL;
+    if (s->helpers) {
+        ret = g_hash_table_lookup(s->helpers, (gpointer)val);
     }
-
-    /* binary search */
-    m_min = 0;
-    m_max = s->nb_helpers - 1;
-    while (m_min <= m_max) {
-        m = (m_min + m_max) >> 1;
-        th = &s->helpers[m];
-        v = th->func;
-        if (v == val)
-            return th;
-        else if (val < v) {
-            m_max = m - 1;
-        } else {
-            m_min = m + 1;
-        }
-    }
-    return NULL;
+    return ret;
 }
 
 static const char * const cond_name[] =
@@ -906,6 +1073,22 @@ static const char * const cond_name[] =
     [TCG_COND_GEU] = "geu",
     [TCG_COND_LEU] = "leu",
     [TCG_COND_GTU] = "gtu"
+};
+
+static const char * const ldst_name[] =
+{
+    [MO_UB]   = "ub",
+    [MO_SB]   = "sb",
+    [MO_LEUW] = "leuw",
+    [MO_LESW] = "lesw",
+    [MO_LEUL] = "leul",
+    [MO_LESL] = "lesl",
+    [MO_LEQ]  = "leq",
+    [MO_BEUW] = "beuw",
+    [MO_BESW] = "besw",
+    [MO_BEUL] = "beul",
+    [MO_BESL] = "besl",
+    [MO_BEQ]  = "beq",
 };
 
 void tcg_dump_ops(TCGContext *s)
@@ -974,7 +1157,7 @@ void tcg_dump_ops(TCGContext *s)
             }
         } else if (c == INDEX_op_movi_i32 || c == INDEX_op_movi_i64) {
             tcg_target_ulong val;
-            TCGHelperInfo *th;
+            const char *name;
 
             nb_oargs = def->nb_oargs;
             nb_iargs = def->nb_iargs;
@@ -982,9 +1165,9 @@ void tcg_dump_ops(TCGContext *s)
             qemu_log(" %s %s,$", def->name,
                      tcg_get_arg_str_idx(s, buf, sizeof(buf), args[0]));
             val = args[1];
-            th = tcg_find_helper(s, val);
-            if (th) {
-                qemu_log("%s", th->name);
+            name = tcg_find_helper(s, val);
+            if (name) {
+                qemu_log("%s", name);
             } else {
                 if (c == INDEX_op_movi_i32) {
                     qemu_log("0x%x", (uint32_t)val);
@@ -1031,6 +1214,17 @@ void tcg_dump_ops(TCGContext *s)
             case INDEX_op_movcond_i64:
                 if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]]) {
                     qemu_log(",%s", cond_name[args[k++]]);
+                } else {
+                    qemu_log(",$0x%" TCG_PRIlx, args[k++]);
+                }
+                i = 1;
+                break;
+            case INDEX_op_qemu_ld_i32:
+            case INDEX_op_qemu_st_i32:
+            case INDEX_op_qemu_ld_i64:
+            case INDEX_op_qemu_st_i64:
+                if (args[k] < ARRAY_SIZE(ldst_name) && ldst_name[args[k]]) {
+                    qemu_log(",%s", ldst_name[args[k++]]);
                 } else {
                     qemu_log(",$0x%" TCG_PRIlx, args[k++]);
                 }
@@ -1243,12 +1437,13 @@ static inline void tcg_la_bb_end(TCGContext *s, uint8_t *dead_temps,
 static void tcg_liveness_analysis(TCGContext *s)
 {
     int i, op_index, nb_args, nb_iargs, nb_oargs, arg, nb_ops;
-    TCGOpcode op, op_new;
+    TCGOpcode op, op_new, op_new2;
     TCGArg *args;
     const TCGOpDef *def;
     uint8_t *dead_temps, *mem_temps;
     uint16_t dead_args;
     uint8_t sync_args;
+    bool have_op_new2;
     
     s->gen_opc_ptr++; /* skip end */
 
@@ -1385,29 +1580,52 @@ static void tcg_liveness_analysis(TCGContext *s)
             goto do_not_remove;
 
         case INDEX_op_mulu2_i32:
+            op_new = INDEX_op_mul_i32;
+            op_new2 = INDEX_op_muluh_i32;
+            have_op_new2 = TCG_TARGET_HAS_muluh_i32;
+            goto do_mul2;
         case INDEX_op_muls2_i32:
             op_new = INDEX_op_mul_i32;
+            op_new2 = INDEX_op_mulsh_i32;
+            have_op_new2 = TCG_TARGET_HAS_mulsh_i32;
             goto do_mul2;
         case INDEX_op_mulu2_i64:
+            op_new = INDEX_op_mul_i64;
+            op_new2 = INDEX_op_muluh_i64;
+            have_op_new2 = TCG_TARGET_HAS_muluh_i64;
+            goto do_mul2;
         case INDEX_op_muls2_i64:
             op_new = INDEX_op_mul_i64;
+            op_new2 = INDEX_op_mulsh_i64;
+            have_op_new2 = TCG_TARGET_HAS_mulsh_i64;
+            goto do_mul2;
         do_mul2:
             args -= 4;
             nb_iargs = 2;
             nb_oargs = 2;
-            /* Likewise, test for the high part of the operation dead.  */
             if (dead_temps[args[1]] && !mem_temps[args[1]]) {
                 if (dead_temps[args[0]] && !mem_temps[args[0]]) {
+                    /* Both parts of the operation are dead.  */
                     goto do_remove;
                 }
+                /* The high part of the operation is dead; generate the low. */
                 s->gen_opc_buf[op_index] = op = op_new;
                 args[1] = args[2];
                 args[2] = args[3];
-                assert(s->gen_opc_buf[op_index + 1] == INDEX_op_nop);
-                tcg_set_nop(s, s->gen_opc_buf + op_index + 1, args + 3, 1);
-                /* Fall through and mark the single-word operation live.  */
-                nb_oargs = 1;
+            } else if (have_op_new2 && dead_temps[args[0]]
+                       && !mem_temps[args[0]]) {
+                /* The low part of the operation is dead; generate the high.  */
+                s->gen_opc_buf[op_index] = op = op_new2;
+                args[0] = args[1];
+                args[1] = args[2];
+                args[2] = args[3];
+            } else {
+                goto do_not_remove;
             }
+            assert(s->gen_opc_buf[op_index + 1] == INDEX_op_nop);
+            tcg_set_nop(s, s->gen_opc_buf + op_index + 1, args + 3, 1);
+            /* Mark the single-word operation live.  */
+            nb_oargs = 1;
             goto do_not_remove;
 
         default:
@@ -1581,7 +1799,7 @@ static void temp_allocate_frame(TCGContext *s, int temp)
     ts->mem_offset = s->current_frame_offset;
     ts->mem_reg = s->frame_reg;
     ts->mem_allocated = 1;
-    s->current_frame_offset += (tcg_target_long)sizeof(tcg_target_long);
+    s->current_frame_offset += sizeof(tcg_target_long);
 }
 
 /* sync register 'reg' by saving it to the corresponding temporary */
@@ -2044,7 +2262,9 @@ static int tcg_reg_alloc_call(TCGContext *s, const TCGOpDef *def,
     int nb_iargs, nb_oargs, flags, nb_regs, i, reg, nb_params;
     TCGArg arg, func_arg;
     TCGTemp *ts;
-    tcg_target_long stack_offset, call_stack_size, func_addr;
+    intptr_t stack_offset;
+    size_t call_stack_size;
+    uintptr_t func_addr;
     int const_func_arg, allocate_args;
     TCGRegSet allocated_regs;
     const TCGArgConstraint *arg_ct;
@@ -2283,6 +2503,8 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
     s->code_buf = gen_code_buf;
     s->code_ptr = gen_code_buf;
 
+    tcg_out_tb_init(s);
+
     args = s->gen_opparam_buf;
     op_index = 0;
 
@@ -2356,10 +2578,8 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
 #endif
     }
  the_end:
-#if defined(CONFIG_QEMU_LDST_OPTIMIZATION) && defined(CONFIG_SOFTMMU)
     /* Generate TB finalization at the end of block */
     tcg_out_tb_finalize(s);
-#endif
     return -1;
 }
 
@@ -2382,8 +2602,7 @@ int tcg_gen_code(TCGContext *s, uint8_t *gen_code_buf)
     tcg_gen_code_common(s, gen_code_buf, -1);
 
     /* flush instruction cache */
-    flush_icache_range((tcg_target_ulong)gen_code_buf,
-                       (tcg_target_ulong)s->code_ptr);
+    flush_icache_range((uintptr_t)gen_code_buf, (uintptr_t)s->code_ptr);
 
     return s->code_ptr -  gen_code_buf;
 }

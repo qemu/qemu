@@ -66,50 +66,50 @@ function backing_io()
     done
 }
 
-backing_io 0 256 write | $QEMU_IO $TEST_IMG | _filter_qemu_io
+backing_io 0 256 write | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
-mv $TEST_IMG $TEST_IMG.base
+mv "$TEST_IMG" "$TEST_IMG.base"
 
-_make_test_img -b $TEST_IMG.base 6G
+_make_test_img -b "$TEST_IMG.base" 6G
 
 echo
 echo "== COW in a single cluster =="
-$QEMU_IO -c "write -P 0x77 0 2k" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "write -P 0x88 6k 2k" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "write -P 0x99 9k 2k" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -P 0x77 0 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x88 6k 2k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x99 9k 2k" "$TEST_IMG" | _filter_qemu_io
 
-$QEMU_IO -c "read -P 0x77 0 2k" $TEST_IMG | _filter_qemu_io
-backing_io $((2 * 1024)) 8 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 0x88 6k 2k" $TEST_IMG | _filter_qemu_io
-backing_io $((8 * 1024)) 2 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 0x99 9k 2k" $TEST_IMG | _filter_qemu_io
-backing_io $((11 * 1024)) 2 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -P 0x77 0 2k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((2 * 1024)) 8 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x88 6k 2k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((8 * 1024)) 2 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x99 9k 2k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((11 * 1024)) 2 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== COW in two-cluster allocations =="
-$QEMU_IO -c "write -P 0x77 16k 6k" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "write -P 0x88 26k 6k" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "write -P 0x99 33k 5k" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -P 0x77 16k 6k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x88 26k 6k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x99 33k 5k" "$TEST_IMG" | _filter_qemu_io
 
-$QEMU_IO -c "read -P 0x77 16k 6k" $TEST_IMG | _filter_qemu_io
-backing_io $((22 * 1024)) 8 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 0x88 26k 6k" $TEST_IMG | _filter_qemu_io
-backing_io $((32 * 1024)) 2 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 0x99 33k 5k" $TEST_IMG | _filter_qemu_io
-backing_io $((38 * 1024)) 4 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -P 0x77 16k 6k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((22 * 1024)) 8 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x88 26k 6k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((32 * 1024)) 2 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x99 33k 5k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((38 * 1024)) 4 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
 echo
 echo "== COW in multi-cluster allocations =="
-$QEMU_IO -c "write -P 0x77 48k 15k" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "write -P 0x88 66k 14k" $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "write -P 0x99 83k 15k" $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "write -P 0x77 48k 15k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x88 66k 14k" "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x99 83k 15k" "$TEST_IMG" | _filter_qemu_io
 
-$QEMU_IO -c "read -P 0x77 48k 15k" $TEST_IMG | _filter_qemu_io
-backing_io $((63 * 1024)) 6 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 0x88 66k 14k" $TEST_IMG | _filter_qemu_io
-backing_io $((80 * 1024)) 6 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
-$QEMU_IO -c "read -P 0x99 83k 15k" $TEST_IMG | _filter_qemu_io
-backing_io $((98 * 1024)) 4 read | $QEMU_IO $TEST_IMG | _filter_qemu_io
+$QEMU_IO -c "read -P 0x77 48k 15k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((63 * 1024)) 6 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x88 66k 14k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((80 * 1024)) 6 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0x99 83k 15k" "$TEST_IMG" | _filter_qemu_io
+backing_io $((98 * 1024)) 4 read | $QEMU_IO "$TEST_IMG" | _filter_qemu_io
 
 _check_test_img
 

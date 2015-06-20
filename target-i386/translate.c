@@ -2090,6 +2090,7 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm,
     int scale;
     int opreg;
     int mod, rm, code, override, must_add_seg;
+    TCGv sum;
 
     override = s->override;
     must_add_seg = s->addseg;
@@ -2099,10 +2100,9 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm,
     rm = modrm & 7;
 
     if (s->aflag) {
-
         havesib = 0;
         base = rm;
-        index = 0;
+        index = -1;
         scale = 0;
 
         if (base == 4) {
@@ -2110,6 +2110,9 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm,
             code = cpu_ldub_code(env, s->pc++);
             scale = (code >> 6) & 3;
             index = ((code >> 3) & 7) | REX_X(s);
+            if (index == 4) {
+                index = -1;  /* no index */
+            }
             base = (code & 7);
         }
         base |= REX_B(s);
@@ -2137,59 +2140,57 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm,
             break;
         }
 
-        if (base >= 0) {
-            /* for correct popl handling with esp */
-            if (base == 4 && s->popl_esp_hack)
-                disp += s->popl_esp_hack;
-#ifdef TARGET_X86_64
-            if (s->aflag == 2) {
-                gen_op_movq_A0_reg(base);
-                if (disp != 0) {
-                    gen_op_addq_A0_im(disp);
-                }
-            } else
-#endif
-            {
-                gen_op_movl_A0_reg(base);
-                if (disp != 0)
-                    gen_op_addl_A0_im(disp);
+        /* For correct popl handling with esp.  */
+        if (base == R_ESP && s->popl_esp_hack) {
+            disp += s->popl_esp_hack;
+        }
+
+        /* Compute the address, with a minimum number of TCG ops.  */
+        TCGV_UNUSED(sum);
+        if (index >= 0) {
+            if (scale == 0) {
+                sum = cpu_regs[index];
+            } else {
+                tcg_gen_shli_tl(cpu_A0, cpu_regs[index], scale);
+                sum = cpu_A0;
             }
+            if (base >= 0) {
+                tcg_gen_add_tl(cpu_A0, sum, cpu_regs[base]);
+                sum = cpu_A0;
+            }
+        } else if (base >= 0) {
+            sum = cpu_regs[base];
+        }
+        if (TCGV_IS_UNUSED(sum)) {
+            tcg_gen_movi_tl(cpu_A0, disp);
         } else {
-#ifdef TARGET_X86_64
-            if (s->aflag == 2) {
-                gen_op_movq_A0_im(disp);
-            } else
-#endif
-            {
-                gen_op_movl_A0_im(disp);
-            }
+            tcg_gen_addi_tl(cpu_A0, sum, disp);
         }
-        /* index == 4 means no index */
-        if (havesib && (index != 4)) {
-#ifdef TARGET_X86_64
-            if (s->aflag == 2) {
-                gen_op_addq_A0_reg_sN(scale, index);
-            } else
-#endif
-            {
-                gen_op_addl_A0_reg_sN(scale, index);
-            }
-        }
+
         if (must_add_seg) {
             if (override < 0) {
-                if (base == R_EBP || base == R_ESP)
+                if (base == R_EBP || base == R_ESP) {
                     override = R_SS;
-                else
+                } else {
                     override = R_DS;
+                }
             }
-#ifdef TARGET_X86_64
-            if (s->aflag == 2) {
-                gen_op_addq_A0_seg(override);
-            } else
-#endif
-            {
-                gen_op_addl_A0_seg(s, override);
+
+            tcg_gen_ld_tl(cpu_tmp0, cpu_env,
+                          offsetof(CPUX86State, segs[override].base));
+            if (CODE64(s)) {
+                if (s->aflag != 2) {
+                    tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
+                }
+                tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
+                goto done;
             }
+
+            tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
+        }
+
+        if (s->aflag != 2) {
+            tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
         }
     } else {
         switch (mod) {
@@ -2259,6 +2260,7 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm,
         }
     }
 
+ done:
     opreg = OR_A0;
     disp = 0;
     *reg_ptr = opreg;
@@ -2413,7 +2415,7 @@ static inline void gen_goto_tb(DisasContext *s, int tb_num, target_ulong eip)
         /* jump to same page: we can use a direct jump */
         tcg_gen_goto_tb(tb_num);
         gen_jmp_im(eip);
-        tcg_gen_exit_tb((tcg_target_long)tb + tb_num);
+        tcg_gen_exit_tb((uintptr_t)tb + tb_num);
     } else {
         /* jump to another page: currently not optimized */
         gen_jmp_im(eip);
@@ -6434,12 +6436,18 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 }
                 break;
             case 0x1d: /* fucomi */
+                if (!(s->cpuid_features & CPUID_CMOV)) {
+                    goto illegal_op;
+                }
                 gen_update_cc_op(s);
                 gen_helper_fmov_FT0_STN(cpu_env, tcg_const_i32(opreg));
                 gen_helper_fucomi_ST0_FT0(cpu_env);
                 set_cc_op(s, CC_OP_EFLAGS);
                 break;
             case 0x1e: /* fcomi */
+                if (!(s->cpuid_features & CPUID_CMOV)) {
+                    goto illegal_op;
+                }
                 gen_update_cc_op(s);
                 gen_helper_fmov_FT0_STN(cpu_env, tcg_const_i32(opreg));
                 gen_helper_fcomi_ST0_FT0(cpu_env);
@@ -6495,6 +6503,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 }
                 break;
             case 0x3d: /* fucomip */
+                if (!(s->cpuid_features & CPUID_CMOV)) {
+                    goto illegal_op;
+                }
                 gen_update_cc_op(s);
                 gen_helper_fmov_FT0_STN(cpu_env, tcg_const_i32(opreg));
                 gen_helper_fucomi_ST0_FT0(cpu_env);
@@ -6502,6 +6513,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 set_cc_op(s, CC_OP_EFLAGS);
                 break;
             case 0x3e: /* fcomip */
+                if (!(s->cpuid_features & CPUID_CMOV)) {
+                    goto illegal_op;
+                }
                 gen_update_cc_op(s);
                 gen_helper_fmov_FT0_STN(cpu_env, tcg_const_i32(opreg));
                 gen_helper_fcomi_ST0_FT0(cpu_env);
@@ -6518,6 +6532,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                         (JCC_BE << 1),
                         (JCC_P << 1),
                     };
+
+                    if (!(s->cpuid_features & CPUID_CMOV)) {
+                        goto illegal_op;
+                    }
                     op1 = fcmov_cc[op & 3] | (((op >> 3) & 1) ^ 1);
                     l1 = gen_new_label();
                     gen_jcc1_noeob(s, op1, l1);
@@ -6889,6 +6907,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_ldst_modrm(env, s, modrm, OT_BYTE, OR_TMP0, 1);
         break;
     case 0x140 ... 0x14f: /* cmov Gv, Ev */
+        if (!(s->cpuid_features & CPUID_CMOV)) {
+            goto illegal_op;
+        }
         ot = dflag + OT_WORD;
         modrm = cpu_ldub_code(env, s->pc++);
         reg = ((modrm >> 3) & 7) | rex_r;
@@ -7205,7 +7226,10 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             goto do_xchg_reg_eax;
         }
         if (prefixes & PREFIX_REPZ) {
-            gen_svm_check_intercept(s, pc_start, SVM_EXIT_PAUSE);
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_pause(cpu_env, tcg_const_i32(s->pc - pc_start));
+            s->is_jmp = DISAS_TB_JUMP;
         }
         break;
     case 0x9b: /* fwait */
@@ -8242,10 +8266,6 @@ void optimize_flags_init(void)
     cpu_regs[R_EDI] = tcg_global_mem_new_i32(TCG_AREG0,
                                              offsetof(CPUX86State, regs[R_EDI]), "edi");
 #endif
-
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for

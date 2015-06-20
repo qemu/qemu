@@ -67,7 +67,6 @@ void virtio_bus_reset(VirtioBusState *bus)
 /* Destroy the VirtIODevice */
 void virtio_bus_destroy_device(VirtioBusState *bus)
 {
-    DeviceState *qdev;
     BusState *qbus = BUS(bus);
     VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
     DPRINTF("%s: remove device.\n", qbus->name);
@@ -76,8 +75,7 @@ void virtio_bus_destroy_device(VirtioBusState *bus)
         if (klass->device_unplug != NULL) {
             klass->device_unplug(qbus->parent);
         }
-        qdev = DEVICE(bus->vdev);
-        qdev_free(qdev);
+        object_unparent(OBJECT(bus->vdev));
         bus->vdev = NULL;
     }
 }

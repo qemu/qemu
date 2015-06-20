@@ -23,7 +23,6 @@ struct AioHandler
     GPollFD pfd;
     IOHandler *io_read;
     IOHandler *io_write;
-    AioFlushHandler *io_flush;
     int deleted;
     int pollfds_idx;
     void *opaque;
@@ -47,7 +46,6 @@ void aio_set_fd_handler(AioContext *ctx,
                         int fd,
                         IOHandler *io_read,
                         IOHandler *io_write,
-                        AioFlushHandler *io_flush,
                         void *opaque)
 {
     AioHandler *node;
@@ -84,7 +82,6 @@ void aio_set_fd_handler(AioContext *ctx,
         /* Update handler with latest information */
         node->io_read = io_read;
         node->io_write = io_write;
-        node->io_flush = io_flush;
         node->opaque = opaque;
         node->pollfds_idx = -1;
 
@@ -97,12 +94,10 @@ void aio_set_fd_handler(AioContext *ctx,
 
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
-                            EventNotifierHandler *io_read,
-                            AioFlushEventNotifierHandler *io_flush)
+                            EventNotifierHandler *io_read)
 {
     aio_set_fd_handler(ctx, event_notifier_get_fd(notifier),
-                       (IOHandler *)io_read, NULL,
-                       (AioFlushHandler *)io_flush, notifier);
+                       (IOHandler *)io_read, NULL, notifier);
 }
 
 bool aio_pending(AioContext *ctx)
@@ -147,7 +142,11 @@ static bool aio_dispatch(AioContext *ctx)
             (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR)) &&
             node->io_read) {
             node->io_read(node->opaque);
-            progress = true;
+
+            /* aio_notify() does not count as progress */
+            if (node->opaque != &ctx->notifier) {
+                progress = true;
+            }
         }
         if (!node->deleted &&
             (revents & (G_IO_OUT | G_IO_ERR)) &&
@@ -166,6 +165,10 @@ static bool aio_dispatch(AioContext *ctx)
             g_free(tmp);
         }
     }
+
+    /* Run our timers */
+    progress |= timerlistgroup_run_timers(&ctx->tlg);
+
     return progress;
 }
 
@@ -173,7 +176,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
     int ret;
-    bool busy, progress;
+    bool progress;
 
     progress = false;
 
@@ -200,20 +203,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
     g_array_set_size(ctx->pollfds, 0);
 
     /* fill pollfds */
-    busy = false;
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
         node->pollfds_idx = -1;
-
-        /* If there aren't pending AIO operations, don't invoke callbacks.
-         * Otherwise, if there are no AIO requests, qemu_aio_wait() would
-         * wait indefinitely.
-         */
-        if (!node->deleted && node->io_flush) {
-            if (node->io_flush(node->opaque) == 0) {
-                continue;
-            }
-            busy = true;
-        }
         if (!node->deleted && node->pfd.events) {
             GPollFD pfd = {
                 .fd = node->pfd.fd,
@@ -226,15 +217,15 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     ctx->walking_handlers--;
 
-    /* No AIO operations?  Get us out of here */
-    if (!busy) {
+    /* early return if we only have the aio_notify() fd */
+    if (ctx->pollfds->len == 1) {
         return progress;
     }
 
     /* wait until next event */
-    ret = g_poll((GPollFD *)ctx->pollfds->data,
-                 ctx->pollfds->len,
-                 blocking ? -1 : 0);
+    ret = qemu_poll_ns((GPollFD *)ctx->pollfds->data,
+                         ctx->pollfds->len,
+                         blocking ? timerlistgroup_deadline_ns(&ctx->tlg) : 0);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {
@@ -245,11 +236,12 @@ bool aio_poll(AioContext *ctx, bool blocking)
                 node->pfd.revents = pfd->revents;
             }
         }
-        if (aio_dispatch(ctx)) {
-            progress = true;
-        }
     }
 
-    assert(progress || busy);
-    return true;
+    /* Run dispatch even if there were no readable fds to run timers */
+    if (aio_dispatch(ctx)) {
+        progress = true;
+    }
+
+    return progress;
 }

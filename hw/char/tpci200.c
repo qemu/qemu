@@ -134,8 +134,8 @@ static void tpci200_set_irq(void *opaque, int intno, int level)
     /* Check if the interrupt is edge sensitive */
     if (dev->ctrl[ip_n] & CTRL_INT_EDGE(intno)) {
         if (level) {
-            qemu_set_irq(dev->dev.irq[0], !dev->int_set);
-            qemu_set_irq(dev->dev.irq[0],  dev->int_set);
+            pci_set_irq(&dev->dev, !dev->int_set);
+            pci_set_irq(&dev->dev,  dev->int_set);
         }
     } else {
         unsigned i, j;
@@ -153,10 +153,10 @@ static void tpci200_set_irq(void *opaque, int intno, int level)
         }
 
         if (level_status && !dev->int_set) {
-            qemu_irq_raise(dev->dev.irq[0]);
+            pci_irq_assert(&dev->dev);
             dev->int_set = 1;
         } else if (!level_status && dev->int_set) {
-            qemu_irq_lower(dev->dev.irq[0]);
+            pci_irq_deassert(&dev->dev);
             dev->int_set = 0;
         }
     }
@@ -607,7 +607,7 @@ static int tpci200_initfn(PCIDevice *pci_dev)
     pci_register_bar(&s->dev, 4, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->las2);
     pci_register_bar(&s->dev, 5, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->las3);
 
-    ipack_bus_new_inplace(&s->bus, DEVICE(&s->dev), NULL,
+    ipack_bus_new_inplace(&s->bus, sizeof(s->bus), DEVICE(pci_dev), NULL,
                           N_MODULES, tpci200_set_irq);
 
     return 0;

@@ -39,12 +39,12 @@ static inline void gen_tb_start(void)
 static void gen_tb_end(TranslationBlock *tb, int num_insns)
 {
     gen_set_label(exitreq_label);
-    tcg_gen_exit_tb((tcg_target_long)tb + TB_EXIT_REQUESTED);
+    tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_REQUESTED);
 
     if (use_icount) {
         *icount_arg = num_insns;
         gen_set_label(icount_label);
-        tcg_gen_exit_tb((tcg_target_long)tb + TB_EXIT_ICOUNT_EXPIRED);
+        tcg_gen_exit_tb((uintptr_t)tb + TB_EXIT_ICOUNT_EXPIRED);
     }
 }
 

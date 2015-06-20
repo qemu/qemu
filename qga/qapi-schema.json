@@ -141,10 +141,13 @@
 #
 # @enabled: whether command is currently enabled by guest admin
 #
+# @success-response: whether command returns a response on success
+#                    (since 1.7)
+#
 # Since 1.1.0
 ##
 { 'type': 'GuestAgentCommandInfo',
-  'data': { 'name': 'str', 'enabled': 'bool' } }
+  'data': { 'name': 'str', 'enabled': 'bool', 'success-response': 'bool' } }
 
 ##
 # @GuestAgentInfo

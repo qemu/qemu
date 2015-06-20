@@ -48,6 +48,7 @@ typedef struct I440FXState {
     PCIHostState parent_obj;
     PcPciInfo pci_info;
     uint64_t pci_hole64_size;
+    uint32_t short_root_bus;
 } I440FXState;
 
 #define PIIX_NUM_PIC_IRQS       16      /* i8259 * 2 */
@@ -235,18 +236,24 @@ static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
                                                 void *opaque, const char *name,
                                                 Error **errp)
 {
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
+    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Range w64;
 
-    visit_type_uint64(v, &s->pci_info.w64.begin, name, errp);
+    pci_bus_get_w64_range(h->bus, &w64);
+
+    visit_type_uint64(v, &w64.begin, name, errp);
 }
 
 static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
                                               void *opaque, const char *name,
                                               Error **errp)
 {
-    I440FXState *s = I440FX_PCI_HOST_BRIDGE(obj);
+    PCIHostState *h = PCI_HOST_BRIDGE(obj);
+    Range w64;
 
-    visit_type_uint64(v, &s->pci_info.w64.end, name, errp);
+    pci_bus_get_w64_range(h->bus, &w64);
+
+    visit_type_uint64(v, &w64.end, name, errp);
 }
 
 static void i440fx_pcihost_initfn(Object *obj)
@@ -320,6 +327,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     PCII440FXState *f;
     unsigned i;
     I440FXState *i440fx;
+    uint64_t pci_hole64_size;
 
     dev = qdev_create(NULL, TYPE_I440FX_PCI_HOST_BRIDGE);
     s = PCI_HOST_BRIDGE(dev);
@@ -351,13 +359,15 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
                              pci_hole_start, pci_hole_size);
     memory_region_add_subregion(f->system_memory, pci_hole_start, &f->pci_hole);
 
+    pci_hole64_size = pci_host_get_hole64_size(i440fx->pci_hole64_size);
+
     pc_init_pci64_hole(&i440fx->pci_info, 0x100000000ULL + above_4g_mem_size,
-                       i440fx->pci_hole64_size);
+                       pci_hole64_size);
     memory_region_init_alias(&f->pci_hole_64bit, OBJECT(d), "pci-hole64",
                              f->pci_address_space,
                              i440fx->pci_info.w64.begin,
-                             i440fx->pci_hole64_size);
-    if (i440fx->pci_hole64_size) {
+                             pci_hole64_size);
+    if (pci_hole64_size) {
         memory_region_add_subregion(f->system_memory,
                                     i440fx->pci_info.w64.begin,
                                     &f->pci_hole_64bit);
@@ -405,6 +415,14 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     i440fx_update_memory_mappings(f);
 
     return b;
+}
+
+PCIBus *find_i440fx(void)
+{
+    PCIHostState *s = OBJECT_CHECK(PCIHostState,
+                                   object_resolve_path("/machine/i440fx", NULL),
+                                   TYPE_PCI_HOST_BRIDGE);
+    return s ? s->bus : NULL;
 }
 
 /* PIIX3 PCI to ISA bridge */
@@ -703,13 +721,19 @@ static const TypeInfo i440fx_info = {
 static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
                                                 PCIBus *rootbus)
 {
+    I440FXState *s = I440FX_PCI_HOST_BRIDGE(host_bridge);
+
     /* For backwards compat with old device paths */
-    return "0000";
+    if (s->short_root_bus) {
+        return "0000";
+    }
+    return "0000:00";
 }
 
 static Property i440fx_props[] = {
     DEFINE_PROP_SIZE(PCI_HOST_PROP_PCI_HOLE64_SIZE, I440FXState,
                      pci_hole64_size, DEFAULT_PCI_HOLE64_SIZE),
+    DEFINE_PROP_UINT32("short_root_bus", I440FXState, short_root_bus, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

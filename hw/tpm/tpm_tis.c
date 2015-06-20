@@ -28,6 +28,7 @@
 #include "hw/pci/pci_ids.h"
 #include "tpm_tis.h"
 #include "qemu-common.h"
+#include "qemu/main-loop.h"
 
 /*#define DEBUG_TIS */
 

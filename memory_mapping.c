@@ -270,7 +270,7 @@ static CPUState *find_paging_enabled_cpu(CPUState *start_cpu)
 {
     CPUState *cpu;
 
-    for (cpu = start_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+    CPU_FOREACH(cpu) {
         if (cpu_paging_enabled(cpu)) {
             return cpu;
         }
@@ -289,7 +289,8 @@ void qemu_get_guest_memory_mapping(MemoryMappingList *list,
 
     first_paging_enabled_cpu = find_paging_enabled_cpu(first_cpu);
     if (first_paging_enabled_cpu) {
-        for (cpu = first_paging_enabled_cpu; cpu != NULL; cpu = cpu->next_cpu) {
+        for (cpu = first_paging_enabled_cpu; cpu != NULL;
+             cpu = CPU_NEXT(cpu)) {
             Error *err = NULL;
             cpu_get_memory_mapping(cpu, list, &err);
             if (err) {

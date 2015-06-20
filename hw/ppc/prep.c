@@ -452,7 +452,7 @@ static void ppc_prep_init(QEMUMachineInitArgs *args)
     const char *kernel_filename = args->kernel_filename;
     const char *kernel_cmdline = args->kernel_cmdline;
     const char *initrd_filename = args->initrd_filename;
-    const char *boot_device = args->boot_device;
+    const char *boot_device = args->boot_order;
     MemoryRegion *sysmem = get_system_memory();
     PowerPCCPU *cpu = NULL;
     CPUPPCState *env = NULL;
@@ -691,7 +691,7 @@ static QEMUMachine prep_machine = {
     .desc = "PowerPC PREP platform",
     .init = ppc_prep_init,
     .max_cpus = MAX_CPUS,
-    DEFAULT_MACHINE_OPTIONS,
+    .default_boot_order = "cad",
 };
 
 static void prep_machine_init(void)

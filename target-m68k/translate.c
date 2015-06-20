@@ -23,9 +23,9 @@
 #include "tcg-op.h"
 #include "qemu/log.h"
 
-#include "helpers.h"
+#include "helper.h"
 #define GEN_HELPER 1
-#include "helpers.h"
+#include "helper.h"
 
 //#define DEBUG_DISPATCH 1
 
@@ -108,9 +108,6 @@ void m68k_tcg_init(void)
 
     NULL_QREG = tcg_global_mem_new(TCG_AREG0, -4, "NULL");
     store_dummy = tcg_global_mem_new(TCG_AREG0, -8, "NULL");
-
-#define GEN_HELPER 2
-#include "helpers.h"
 }
 
 static inline void qemu_assert(int cond, const char *msg)
@@ -869,7 +866,7 @@ static void gen_jmp_tb(DisasContext *s, int n, uint32_t dest)
                (s->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_i32(QREG_PC, dest);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         gen_jmp_im(s, dest);
         tcg_gen_exit_tb(0);

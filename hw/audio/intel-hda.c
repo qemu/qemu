@@ -40,11 +40,11 @@ static const TypeInfo hda_codec_bus_info = {
     .instance_size = sizeof(HDACodecBus),
 };
 
-void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,
+void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
                         hda_codec_response_func response,
                         hda_codec_xfer_func xfer)
 {
-    qbus_create_inplace(&bus->qbus, TYPE_HDA_BUS, dev, NULL);
+    qbus_create_inplace(bus, bus_size, TYPE_HDA_BUS, dev, NULL);
     bus->response = response;
     bus->xfer = xfer;
 }
@@ -269,7 +269,7 @@ static void intel_hda_update_irq(IntelHDAState *d)
             msi_notify(&d->pci, 0);
         }
     } else {
-        qemu_set_irq(d->pci.irq[0], level);
+        pci_set_irq(&d->pci, level);
     }
 }
 
@@ -526,7 +526,7 @@ static void intel_hda_get_wall_clk(IntelHDAState *d, const IntelHDAReg *reg)
 {
     int64_t ns;
 
-    ns = qemu_get_clock_ns(vm_clock) - d->wall_base_ns;
+    ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - d->wall_base_ns;
     d->wall_clk = (uint32_t)(ns * 24 / 1000);  /* 24 MHz */
 }
 
@@ -1111,7 +1111,7 @@ static void intel_hda_reset(DeviceState *dev)
     HDACodecDevice *cdev;
 
     intel_hda_regs_reset(d);
-    d->wall_base_ns = qemu_get_clock_ns(vm_clock);
+    d->wall_base_ns = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     /* reset codecs */
     QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
@@ -1142,7 +1142,7 @@ static int intel_hda_init(PCIDevice *pci)
         msi_init(&d->pci, 0x50, 1, true, false);
     }
 
-    hda_codec_bus_init(DEVICE(pci), &d->codecs,
+    hda_codec_bus_init(DEVICE(pci), &d->codecs, sizeof(d->codecs),
                        intel_hda_response, intel_hda_xfer);
 
     return 0;

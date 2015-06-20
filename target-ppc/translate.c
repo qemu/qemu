@@ -175,10 +175,6 @@ void ppc_translate_init(void)
     cpu_access_type = tcg_global_mem_new_i32(TCG_AREG0,
                                              offsetof(CPUPPCState, access_type), "access_type");
 
-    /* register helpers */
-#define GEN_HELPER 2
-#include "helper.h"
-
     done_init = 1;
 }
 
@@ -428,9 +424,9 @@ EXTRACT_HELPER(CRM, 12, 8);
 EXTRACT_HELPER(SR, 16, 4);
 
 /* mtfsf/mtfsfi */
-EXTRACT_HELPER(FPBF, 19, 3);
+EXTRACT_HELPER(FPBF, 23, 3);
 EXTRACT_HELPER(FPIMM, 12, 4);
-EXTRACT_HELPER(FPL, 21, 1);
+EXTRACT_HELPER(FPL, 25, 1);
 EXTRACT_HELPER(FPFLM, 17, 8);
 EXTRACT_HELPER(FPW, 16, 1);
 
@@ -3551,7 +3547,7 @@ static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
         likely(!ctx->singlestep_enabled)) {
         tcg_gen_goto_tb(n);
         tcg_gen_movi_tl(cpu_nip, dest & ~3);
-        tcg_gen_exit_tb((tcg_target_long)tb + n);
+        tcg_gen_exit_tb((uintptr_t)tb + n);
     } else {
         tcg_gen_movi_tl(cpu_nip, dest & ~3);
         if (unlikely(ctx->singlestep_enabled)) {
@@ -9535,8 +9531,6 @@ void ppc_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
     int i;
-
-    cpu_synchronize_state(cs);
 
     cpu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
                 TARGET_FMT_lx " XER " TARGET_FMT_lx "\n",

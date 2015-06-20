@@ -202,9 +202,9 @@ static void backup_iostatus_reset(BlockJob *job)
     bdrv_iostatus_reset(s->target);
 }
 
-static const BlockJobType backup_job_type = {
+static const BlockJobDriver backup_job_driver = {
     .instance_size  = sizeof(BackupBlockJob),
-    .job_type       = "backup",
+    .job_type       = BLOCK_JOB_TYPE_BACKUP,
     .set_speed      = backup_set_speed,
     .iostatus_reset = backup_iostatus_reset,
 };
@@ -272,9 +272,9 @@ static void coroutine_fn backup_run(void *opaque)
                 uint64_t delay_ns = ratelimit_calculate_delay(
                         &job->limit, job->sectors_read);
                 job->sectors_read = 0;
-                block_job_sleep_ns(&job->common, rt_clock, delay_ns);
+                block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, delay_ns);
             } else {
-                block_job_sleep_ns(&job->common, rt_clock, 0);
+                block_job_sleep_ns(&job->common, QEMU_CLOCK_REALTIME, 0);
             }
 
             if (block_job_is_cancelled(&job->common)) {
@@ -289,14 +289,14 @@ static void coroutine_fn backup_run(void *opaque)
                  * backing file. */
 
                 for (i = 0; i < BACKUP_SECTORS_PER_CLUSTER;) {
-                    /* bdrv_co_is_allocated() only returns true/false based
-                     * on the first set of sectors it comes accross that
+                    /* bdrv_is_allocated() only returns true/false based
+                     * on the first set of sectors it comes across that
                      * are are all in the same state.
                      * For that reason we must verify each sector in the
                      * backup cluster length.  We end up copying more than
                      * needed but at some point that is always the case. */
                     alloced =
-                        bdrv_co_is_allocated(bs,
+                        bdrv_is_allocated(bs,
                                 start * BACKUP_SECTORS_PER_CLUSTER + i,
                                 BACKUP_SECTORS_PER_CLUSTER - i, &n);
                     i += n;
@@ -338,7 +338,7 @@ static void coroutine_fn backup_run(void *opaque)
     hbitmap_free(job->bitmap);
 
     bdrv_iostatus_disable(target);
-    bdrv_delete(target);
+    bdrv_unref(target);
 
     block_job_completed(&job->common, ret);
 }
@@ -370,7 +370,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
-    BackupBlockJob *job = block_job_create(&backup_job_type, bs, speed,
+    BackupBlockJob *job = block_job_create(&backup_job_driver, bs, speed,
                                            cb, opaque, errp);
     if (!job) {
         return;

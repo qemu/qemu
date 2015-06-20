@@ -17,10 +17,13 @@ import os
 import getopt
 import errno
 
-def generate_visit_struct_fields(name, field_prefix, fn_prefix, members):
+def generate_visit_struct_fields(name, field_prefix, fn_prefix, members, base = None):
     substructs = []
     ret = ''
-    full_name = name if not fn_prefix else "%s_%s" % (name, fn_prefix)
+    if not fn_prefix:
+        full_name = name
+    else:
+        full_name = "%s_%s" % (name, fn_prefix)
 
     for argname, argentry, optional, structured in parse_args(members):
         if structured:
@@ -41,6 +44,19 @@ static void visit_type_%(full_name)s_fields(Visitor *m, %(name)s ** obj, Error *
 ''',
         name=name, full_name=full_name)
     push_indent()
+
+    if base:
+        ret += mcgen('''
+visit_start_implicit_struct(m, obj ? (void**) &(*obj)->%(c_name)s : NULL, sizeof(%(type)s), &err);
+if (!err) {
+    visit_type_%(type)s_fields(m, obj ? &(*obj)->%(c_prefix)s%(c_name)s : NULL, &err);
+    error_propagate(errp, err);
+    err = NULL;
+    visit_end_implicit_struct(m, &err);
+}
+''',
+                     c_prefix=c_var(field_prefix),
+                     type=type_name(base), c_name=c_var('base'))
 
     for argname, argentry, optional, structured in parse_args(members):
         if optional:
@@ -84,7 +100,10 @@ if (!error_is_set(errp)) {
 ''')
     push_indent()
 
-    full_name = name if not field_prefix else "%s_%s" % (field_prefix, name)
+    if not field_prefix:
+        full_name = name
+    else:
+        full_name = "%s_%s" % (field_prefix, name)
 
     if len(field_prefix):
         ret += mcgen('''
@@ -120,8 +139,13 @@ if (!err) {
 ''')
     return ret
 
-def generate_visit_struct(name, members):
-    ret = generate_visit_struct_fields(name, "", "", members)
+def generate_visit_struct(expr):
+
+    name = expr['type']
+    members = expr['data']
+    base = expr.get('base')
+
+    ret = generate_visit_struct_fields(name, "", "", members, base)
 
     ret += mcgen('''
 
@@ -265,12 +289,17 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
             name=name)
 
     pop_indent()
+
+    if not discriminator:
+        desc_type = "type"
+    else:
+        desc_type = discriminator
     ret += mcgen('''
         visit_type_%(name)sKind(m, &(*obj)->kind, "%(type)s", &err);
         if (!err) {
             switch ((*obj)->kind) {
 ''',
-                 name=name, type="type" if not discriminator else discriminator)
+                 name=name, type=desc_type)
 
     for key in members:
         if not discriminator:
@@ -472,7 +501,7 @@ if do_builtins:
 
 for expr in exprs:
     if expr.has_key('type'):
-        ret = generate_visit_struct(expr['type'], expr['data'])
+        ret = generate_visit_struct(expr)
         ret += generate_visit_list(expr['type'], expr['data'])
         fdef.write(ret)
 

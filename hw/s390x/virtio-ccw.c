@@ -27,7 +27,8 @@
 #include "virtio-ccw.h"
 #include "trace.h"
 
-static void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev);
+static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
+                               VirtioCcwDevice *dev);
 
 static int virtual_css_bus_reset(BusState *qbus)
 {
@@ -659,7 +660,7 @@ static int virtio_ccw_net_init(VirtioCcwDevice *ccw_dev)
 static void virtio_ccw_net_instance_init(Object *obj)
 {
     VirtIONetCcw *dev = VIRTIO_NET_CCW(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_NET);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_NET);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -679,7 +680,7 @@ static int virtio_ccw_blk_init(VirtioCcwDevice *ccw_dev)
 static void virtio_ccw_blk_instance_init(Object *obj)
 {
     VirtIOBlkCcw *dev = VIRTIO_BLK_CCW(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BLK);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BLK);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -712,7 +713,7 @@ static int virtio_ccw_serial_init(VirtioCcwDevice *ccw_dev)
 static void virtio_ccw_serial_instance_init(Object *obj)
 {
     VirtioSerialCcw *dev = VIRTIO_SERIAL_CCW(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SERIAL);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SERIAL);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -758,7 +759,7 @@ static void balloon_ccw_stats_set_poll_interval(Object *obj, struct Visitor *v,
 static void virtio_ccw_balloon_instance_init(Object *obj)
 {
     VirtIOBalloonCcw *dev = VIRTIO_BALLOON_CCW(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_BALLOON);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_BALLOON);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 
     object_property_add(obj, "guest-stats", "guest statistics",
@@ -798,7 +799,7 @@ static int virtio_ccw_scsi_init(VirtioCcwDevice *ccw_dev)
 static void virtio_ccw_scsi_instance_init(Object *obj)
 {
     VirtIOSCSICcw *dev = VIRTIO_SCSI_CCW(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_SCSI);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 
@@ -819,7 +820,7 @@ static int vhost_ccw_scsi_init(VirtioCcwDevice *ccw_dev)
 static void vhost_ccw_scsi_instance_init(Object *obj)
 {
     VHostSCSICcw *dev = VHOST_SCSI_CCW(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VHOST_SCSI);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VHOST_SCSI);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
 }
 #endif
@@ -1170,7 +1171,7 @@ static const TypeInfo vhost_ccw_scsi = {
 static void virtio_ccw_rng_instance_init(Object *obj)
 {
     VirtIORNGCcw *dev = VIRTIO_RNG_CCW(obj);
-    object_initialize(OBJECT(&dev->vdev), TYPE_VIRTIO_RNG);
+    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_RNG);
     object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
     object_property_add_link(obj, "rng", TYPE_RNG_BACKEND,
                              (Object **)&dev->vdev.conf.rng, NULL);
@@ -1209,7 +1210,7 @@ static int virtio_ccw_busdev_init(DeviceState *dev)
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
     VirtIOCCWDeviceClass *_info = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
 
-    virtio_ccw_bus_new(&_dev->bus, _dev);
+    virtio_ccw_bus_new(&_dev->bus, sizeof(_dev->bus), _dev);
 
     return _info->init(_dev);
 }
@@ -1238,7 +1239,7 @@ static int virtio_ccw_busdev_unplug(DeviceState *dev)
 
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid, 1, 0);
 
-    qdev_free(dev);
+    object_unparent(OBJECT(dev));
     return 0;
 }
 
@@ -1289,14 +1290,15 @@ static const TypeInfo virtual_css_bridge_info = {
 
 /* virtio-ccw-bus */
 
-static void virtio_ccw_bus_new(VirtioBusState *bus, VirtioCcwDevice *dev)
+static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
+                               VirtioCcwDevice *dev)
 {
     DeviceState *qdev = DEVICE(dev);
     BusState *qbus;
     char virtio_bus_name[] = "virtio-bus";
 
-    qbus_create_inplace((BusState *)bus, TYPE_VIRTIO_CCW_BUS, qdev,
-                        virtio_bus_name);
+    qbus_create_inplace(bus, bus_size, TYPE_VIRTIO_CCW_BUS,
+                        qdev, virtio_bus_name);
     qbus = BUS(bus);
     qbus->allow_hotplug = 1;
 }

@@ -49,6 +49,7 @@ static const XtensaConfig dc233c = {
     EXCEPTIONS_SECTION,
     INTERRUPTS_SECTION,
     TLB_SECTION,
+    DEBUG_SECTION,
     .clock_freq_khz = 10000,
 };
 

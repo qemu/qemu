@@ -25,30 +25,18 @@
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 
-typedef struct CPUExistsArgs {
-    int64_t id;
-    bool found;
-} CPUExistsArgs;
-
-static void cpu_exist_cb(CPUState *cpu, void *data)
-{
-    CPUClass *klass = CPU_GET_CLASS(cpu);
-    CPUExistsArgs *arg = data;
-
-    if (klass->get_arch_id(cpu) == arg->id) {
-        arg->found = true;
-    }
-}
-
 bool cpu_exists(int64_t id)
 {
-    CPUExistsArgs data = {
-        .id = id,
-        .found = false,
-    };
+    CPUState *cpu;
 
-    qemu_for_each_cpu(cpu_exist_cb, &data);
-    return data.found;
+    CPU_FOREACH(cpu) {
+        CPUClass *cc = CPU_GET_CLASS(cpu);
+
+        if (cc->get_arch_id(cpu) == id) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool cpu_paging_enabled(const CPUState *cpu)
@@ -174,6 +162,7 @@ void cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
     CPUClass *cc = CPU_GET_CLASS(cpu);
 
     if (cc->dump_state) {
+        cpu_synchronize_state(cpu);
         cc->dump_state(cpu, f, cpu_fprintf, flags);
     }
 }
@@ -240,7 +229,7 @@ static void cpu_common_initfn(Object *obj)
     CPUState *cpu = CPU(obj);
     CPUClass *cc = CPU_GET_CLASS(obj);
 
-    cpu->gdb_num_regs = cc->gdb_num_core_regs;
+    cpu->gdb_num_regs = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;
 }
 
 static int64_t cpu_common_get_arch_id(CPUState *cpu)

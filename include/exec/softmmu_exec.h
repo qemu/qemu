@@ -19,7 +19,8 @@
 #define ldul_executive  ldl_executive
 #define ldul_supervisor ldl_supervisor
 
-#include "exec/softmmu_defs.h"
+/* The memory helpers for tcg-generated code need tcg_target_long etc.  */
+#include "tcg.h"
 
 #define ACCESS_TYPE 0
 #define MEMSUFFIX MMU_MODE0_SUFFIX

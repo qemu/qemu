@@ -961,7 +961,8 @@ static int handle_cmd(AHCIState *s, int port, int slot)
         /* We're ready to process the command in FIS byte 2. */
         ide_exec_cmd(&s->dev[port].port, cmd_fis[2]);
 
-        if (s->dev[port].port.ifs[0].status & READY_STAT) {
+        if ((s->dev[port].port.ifs[0].status & (READY_STAT|DRQ_STAT|BUSY_STAT)) ==
+            READY_STAT) {
             ahci_write_fis_d2h(&s->dev[port], cmd_fis);
         }
     }
@@ -1175,7 +1176,7 @@ void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
     for (i = 0; i < s->ports; i++) {
         AHCIDevice *ad = &s->dev[i];
 
-        ide_bus_new(&ad->port, qdev, i, 1);
+        ide_bus_new(&ad->port, sizeof(ad->port), qdev, i, 1);
         ide_init2(&ad->port, irqs[i]);
 
         ad->hba = s;
@@ -1198,7 +1199,15 @@ void ahci_reset(AHCIState *s)
     int i;
 
     s->control_regs.irqstatus = 0;
-    s->control_regs.ghc = 0;
+    /* AHCI Enable (AE)
+     * The implementation of this bit is dependent upon the value of the
+     * CAP.SAM bit. If CAP.SAM is '0', then GHC.AE shall be read-write and
+     * shall have a reset value of '0'. If CAP.SAM is '1', then AE shall be
+     * read-only and shall have a reset value of '1'.
+     *
+     * We set HOST_CAP_AHCI so we must enable AHCI at reset.
+     */
+    s->control_regs.ghc = HOST_CTL_AHCI_EN;
 
     for (i = 0; i < s->ports; i++) {
         pr = &s->dev[i].port_regs;

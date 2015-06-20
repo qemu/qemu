@@ -14,10 +14,12 @@
 #ifndef QEMU_AIO_H
 #define QEMU_AIO_H
 
+#include "qemu/typedefs.h"
 #include "qemu-common.h"
 #include "qemu/queue.h"
 #include "qemu/event_notifier.h"
 #include "qemu/thread.h"
+#include "qemu/timer.h"
 
 typedef struct BlockDriverAIOCB BlockDriverAIOCB;
 typedef void BlockDriverCompletionFunc(void *opaque, int ret);
@@ -42,7 +44,7 @@ typedef struct AioHandler AioHandler;
 typedef void QEMUBHFunc(void *opaque);
 typedef void IOHandler(void *opaque);
 
-typedef struct AioContext {
+struct AioContext {
     GSource source;
 
     /* The list of registered AIO handlers */
@@ -72,10 +74,10 @@ typedef struct AioContext {
 
     /* Thread pool for performing work and receiving completion callbacks */
     struct ThreadPool *thread_pool;
-} AioContext;
 
-/* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
-typedef int (AioFlushEventNotifierHandler)(EventNotifier *e);
+    /* TimerLists for calling timers - one per clock type */
+    QEMUTimerListGroup tlg;
+};
 
 /**
  * aio_context_new: Allocate a new AioContext.
@@ -198,9 +200,6 @@ bool aio_pending(AioContext *ctx);
 bool aio_poll(AioContext *ctx, bool blocking);
 
 #ifdef CONFIG_POSIX
-/* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
-typedef int (AioFlushHandler)(void *opaque);
-
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
  * to qemu_set_fd_handler2.  Unlike qemu_set_fd_handler2, these callbacks will
  * be invoked when using qemu_aio_wait().
@@ -212,7 +211,6 @@ void aio_set_fd_handler(AioContext *ctx,
                         int fd,
                         IOHandler *io_read,
                         IOHandler *io_write,
-                        AioFlushHandler *io_flush,
                         void *opaque);
 #endif
 
@@ -225,8 +223,7 @@ void aio_set_fd_handler(AioContext *ctx,
  */
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
-                            EventNotifierHandler *io_read,
-                            AioFlushEventNotifierHandler *io_flush);
+                            EventNotifierHandler *io_read);
 
 /* Return a GSource that lets the main loop poll the file descriptors attached
  * to this AioContext.
@@ -240,15 +237,56 @@ struct ThreadPool *aio_get_thread_pool(AioContext *ctx);
 
 bool qemu_aio_wait(void);
 void qemu_aio_set_event_notifier(EventNotifier *notifier,
-                                 EventNotifierHandler *io_read,
-                                 AioFlushEventNotifierHandler *io_flush);
+                                 EventNotifierHandler *io_read);
 
 #ifdef CONFIG_POSIX
 void qemu_aio_set_fd_handler(int fd,
                              IOHandler *io_read,
                              IOHandler *io_write,
-                             AioFlushHandler *io_flush,
                              void *opaque);
 #endif
+
+/**
+ * aio_timer_new:
+ * @ctx: the aio context
+ * @type: the clock type
+ * @scale: the scale
+ * @cb: the callback to call on timer expiry
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Allocate a new timer attached to the context @ctx.
+ * The function is responsible for memory allocation.
+ *
+ * The preferred interface is aio_timer_init. Use that
+ * unless you really need dynamic memory allocation.
+ *
+ * Returns: a pointer to the new timer
+ */
+static inline QEMUTimer *aio_timer_new(AioContext *ctx, QEMUClockType type,
+                                       int scale,
+                                       QEMUTimerCB *cb, void *opaque)
+{
+    return timer_new_tl(ctx->tlg.tl[type], scale, cb, opaque);
+}
+
+/**
+ * aio_timer_init:
+ * @ctx: the aio context
+ * @ts: the timer
+ * @type: the clock type
+ * @scale: the scale
+ * @cb: the callback to call on timer expiry
+ * @opaque: the opaque pointer to pass to the callback
+ *
+ * Initialise a new timer attached to the context @ctx.
+ * The caller is responsible for memory allocation.
+ */
+static inline void aio_timer_init(AioContext *ctx,
+                                  QEMUTimer *ts, QEMUClockType type,
+                                  int scale,
+                                  QEMUTimerCB *cb, void *opaque)
+{
+    timer_init(ts, ctx->tlg.tl[type], scale, cb, opaque);
+}
 
 #endif

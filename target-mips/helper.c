@@ -193,7 +193,7 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
         }
     }
 #if 0
-    qemu_log(TARGET_FMT_lx " %d %d => " TARGET_FMT_lx " %d (%d)\n",
+    qemu_log(TARGET_FMT_lx " %d %d => %" HWADDR_PRIx " %d (%d)\n",
             address, rw, access_type, *physical, *prot, ret);
 #endif
 

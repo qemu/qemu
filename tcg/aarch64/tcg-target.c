@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory for details.
  */
 
+#include "tcg-be-ldst.h"
 #include "qemu/bitops.h"
 
 #ifndef NDEBUG
@@ -88,7 +89,7 @@ static inline void reloc_pc19(void *code_ptr, tcg_target_long target)
 }
 
 static inline void patch_reloc(uint8_t *code_ptr, int type,
-                               tcg_target_long value, tcg_target_long addend)
+                               intptr_t value, intptr_t addend)
 {
     value += addend;
 
@@ -423,14 +424,14 @@ static inline void tcg_out_mov(TCGContext *s,
 }
 
 static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_LD,
                  arg, arg1, arg2);
 }
 
 static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
-                              TCGReg arg1, tcg_target_long arg2)
+                              TCGReg arg1, intptr_t arg2)
 {
     tcg_out_ldst(s, (type == TCG_TYPE_I64) ? LDST_64 : LDST_32, LDST_ST,
                  arg, arg1, arg2);
@@ -778,24 +779,24 @@ static inline void tcg_out_nop(TCGContext *s)
 }
 
 #ifdef CONFIG_SOFTMMU
-#include "exec/softmmu_defs.h"
-
-/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
-   int mmu_idx) */
+/* helper signature: helper_ret_ld_mmu(CPUState *env, target_ulong addr,
+ *                                     int mmu_idx, uintptr_t ra)
+ */
 static const void * const qemu_ld_helpers[4] = {
-    helper_ldb_mmu,
-    helper_ldw_mmu,
-    helper_ldl_mmu,
-    helper_ldq_mmu,
+    helper_ret_ldub_mmu,
+    helper_ret_lduw_mmu,
+    helper_ret_ldul_mmu,
+    helper_ret_ldq_mmu,
 };
 
-/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
-   uintxx_t val, int mmu_idx) */
+/* helper signature: helper_ret_st_mmu(CPUState *env, target_ulong addr,
+ *                                     uintxx_t val, int mmu_idx, uintptr_t ra)
+ */
 static const void * const qemu_st_helpers[4] = {
-    helper_stb_mmu,
-    helper_stw_mmu,
-    helper_stl_mmu,
-    helper_stq_mmu,
+    helper_ret_stb_mmu,
+    helper_ret_stw_mmu,
+    helper_ret_stl_mmu,
+    helper_ret_stq_mmu,
 };
 
 static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
@@ -804,6 +805,7 @@ static void tcg_out_qemu_ld_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, 1, TCG_REG_X0, TCG_AREG0);
     tcg_out_movr(s, (TARGET_LONG_BITS == 64), TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X2, lb->mem_index);
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X3, (tcg_target_long)lb->raddr);
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP,
                  (tcg_target_long)qemu_ld_helpers[lb->opc & 3]);
     tcg_out_callr(s, TCG_REG_TMP);
@@ -824,6 +826,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_movr(s, (TARGET_LONG_BITS == 64), TCG_REG_X1, lb->addrlo_reg);
     tcg_out_movr(s, 1, TCG_REG_X2, lb->datalo_reg);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_X3, lb->mem_index);
+    tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_X4, (tcg_target_long)lb->raddr);
     tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_TMP,
                  (tcg_target_long)qemu_st_helpers[lb->opc & 3]);
     tcg_out_callr(s, TCG_REG_TMP);
@@ -832,33 +835,13 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *lb)
     tcg_out_goto(s, (tcg_target_long)lb->raddr);
 }
 
-void tcg_out_tb_finalize(TCGContext *s)
-{
-    int i;
-    for (i = 0; i < s->nb_qemu_ldst_labels; i++) {
-        TCGLabelQemuLdst *label = &s->qemu_ldst_labels[i];
-        if (label->is_ld) {
-            tcg_out_qemu_ld_slow_path(s, label);
-        } else {
-            tcg_out_qemu_st_slow_path(s, label);
-        }
-    }
-}
-
 static void add_qemu_ldst_label(TCGContext *s, int is_ld, int opc,
                                 TCGReg data_reg, TCGReg addr_reg,
                                 int mem_index,
                                 uint8_t *raddr, uint8_t *label_ptr)
 {
-    int idx;
-    TCGLabelQemuLdst *label;
+    TCGLabelQemuLdst *label = new_ldst_label(s);
 
-    if (s->nb_qemu_ldst_labels >= TCG_MAX_QEMU_LDST) {
-        tcg_abort();
-    }
-
-    idx = s->nb_qemu_ldst_labels++;
-    label = &s->qemu_ldst_labels[idx];
     label->is_ld = is_ld;
     label->opc = opc;
     label->datalo_reg = data_reg;

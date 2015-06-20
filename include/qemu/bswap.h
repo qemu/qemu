@@ -410,53 +410,6 @@ static inline void stfq_be_p(void *ptr, float64 v)
     stq_be_p(ptr, u.ll);
 }
 
-/* Legacy unaligned versions.  Note that we never had a complete set.  */
-
-static inline void cpu_to_le16wu(uint16_t *p, uint16_t v)
-{
-    stw_le_p(p, v);
-}
-
-static inline void cpu_to_le32wu(uint32_t *p, uint32_t v)
-{
-    stl_le_p(p, v);
-}
-
-static inline uint16_t le16_to_cpupu(const uint16_t *p)
-{
-    return lduw_le_p(p);
-}
-
-static inline uint32_t le32_to_cpupu(const uint32_t *p)
-{
-    return ldl_le_p(p);
-}
-
-static inline uint32_t be32_to_cpupu(const uint32_t *p)
-{
-    return ldl_be_p(p);
-}
-
-static inline void cpu_to_be16wu(uint16_t *p, uint16_t v)
-{
-    stw_be_p(p, v);
-}
-
-static inline void cpu_to_be32wu(uint32_t *p, uint32_t v)
-{
-    stl_be_p(p, v);
-}
-
-static inline void cpu_to_be64wu(uint64_t *p, uint64_t v)
-{
-    stq_be_p(p, v);
-}
-
-static inline void cpu_to_32wu(uint32_t *p, uint32_t v)
-{
-    stl_p(p, v);
-}
-
 static inline unsigned long leul_to_cpu(unsigned long v)
 {
     /* In order to break an include loop between here and

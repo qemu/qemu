@@ -56,6 +56,7 @@
 #include "hw/cpu/icc_bus.h"
 #include "hw/boards.h"
 #include "hw/pci/pci_host.h"
+#include "acpi-build.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -89,7 +90,9 @@ struct e820_table {
     struct e820_entry entry[E820_NR_ENTRIES];
 } QEMU_PACKED __attribute((__aligned__(4)));
 
-static struct e820_table e820_table;
+static struct e820_table e820_reserve;
+static struct e820_entry *e820_table;
+static unsigned e820_entries;
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
 void gsi_handler(void *opaque, int n, int level)
@@ -191,13 +194,12 @@ static void pic_irq_request(void *opaque, int irq, int level)
 
     DPRINTF("pic_irqs: %s irq %d\n", level? "raise" : "lower", irq);
     if (env->apic_state) {
-        while (cs) {
+        CPU_FOREACH(cs) {
             cpu = X86_CPU(cs);
             env = &cpu->env;
             if (apic_accept_pic_intr(env->apic_state)) {
                 apic_deliver_pic_intr(env->apic_state, level);
             }
-            cs = cs->next_cpu;
         }
     } else {
         if (level) {
@@ -577,19 +579,32 @@ static void handle_a20_line_change(void *opaque, int irq, int level)
 
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
-    int index = le32_to_cpu(e820_table.count);
+    int index = le32_to_cpu(e820_reserve.count);
     struct e820_entry *entry;
 
-    if (index >= E820_NR_ENTRIES)
-        return -EBUSY;
-    entry = &e820_table.entry[index++];
+    if (type != E820_RAM) {
+        /* old FW_CFG_E820_TABLE entry -- reservations only */
+        if (index >= E820_NR_ENTRIES) {
+            return -EBUSY;
+        }
+        entry = &e820_reserve.entry[index++];
 
-    entry->address = cpu_to_le64(address);
-    entry->length = cpu_to_le64(length);
-    entry->type = cpu_to_le32(type);
+        entry->address = cpu_to_le64(address);
+        entry->length = cpu_to_le64(length);
+        entry->type = cpu_to_le32(type);
 
-    e820_table.count = cpu_to_le32(index);
-    return index;
+        e820_reserve.count = cpu_to_le32(index);
+    }
+
+    /* new "etc/e820" file -- include ram too */
+    e820_table = g_realloc(e820_table,
+                           sizeof(struct e820_entry) * (e820_entries+1));
+    e820_table[e820_entries].address = cpu_to_le64(address);
+    e820_table[e820_entries].length = cpu_to_le64(length);
+    e820_table[e820_entries].type = cpu_to_le32(type);
+    e820_entries++;
+
+    return e820_entries;
 }
 
 /* Calculates the limit to CPU APIC ID values
@@ -640,7 +655,9 @@ static FWCfgState *bochs_bios_init(void)
         fw_cfg_add_bytes(fw_cfg, FW_CFG_SMBIOS_ENTRIES,
                          smbios_table, smbios_len);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_E820_TABLE,
-                     &e820_table, sizeof(e820_table));
+                     &e820_reserve, sizeof(e820_reserve));
+    fw_cfg_add_file(fw_cfg, "etc/e820", e820_table,
+                    sizeof(struct e820_entry) * e820_entries);
 
     fw_cfg_add_bytes(fw_cfg, FW_CFG_HPET, &hpet_cfg, sizeof(hpet_cfg));
     /* allocate memory for the NUMA channel: one (64bit) word for the number
@@ -978,7 +995,7 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
         cpu = pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i),
                          icc_bridge, &error);
         if (error) {
-            fprintf(stderr, "%s\n", error_get_pretty(error));
+            error_report("%s", error_get_pretty(error));
             error_free(error);
             exit(1);
         }
@@ -1041,6 +1058,7 @@ void pc_guest_info_machine_done(Notifier *notifier, void *data)
                                                       PcGuestInfoState,
                                                       machine_done);
     pc_fw_cfg_guest_info(&guest_info_state->info);
+    acpi_setup(&guest_info_state->info);
 }
 
 PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
@@ -1048,6 +1066,27 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
 {
     PcGuestInfoState *guest_info_state = g_malloc0(sizeof *guest_info_state);
     PcGuestInfo *guest_info = &guest_info_state->info;
+    int i, j;
+
+    guest_info->ram_size = below_4g_mem_size + above_4g_mem_size;
+    guest_info->apic_id_limit = pc_apic_id_limit(max_cpus);
+    guest_info->apic_xrupt_override = kvm_allows_irq0_override();
+    guest_info->numa_nodes = nb_numa_nodes;
+    guest_info->node_mem = g_memdup(node_mem, guest_info->numa_nodes *
+                                    sizeof *guest_info->node_mem);
+    guest_info->node_cpu = g_malloc0(guest_info->apic_id_limit *
+                                     sizeof *guest_info->node_cpu);
+
+    for (i = 0; i < max_cpus; i++) {
+        unsigned int apic_id = x86_cpu_apic_id_from_index(i);
+        assert(apic_id < guest_info->apic_id_limit);
+        for (j = 0; j < nb_numa_nodes; j++) {
+            if (test_bit(i, node_cpumask[j])) {
+                guest_info->node_cpu[apic_id] = j;
+                break;
+            }
+        }
+    }
 
     guest_info_state->machine_done.notify = pc_guest_info_machine_done;
     qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
@@ -1094,10 +1133,10 @@ void pc_acpi_init(const char *default_dsdt)
         opts = qemu_opts_parse(qemu_find_opts("acpi"), arg, 0);
         g_assert(opts != NULL);
 
-        acpi_table_add(opts, &err);
+        acpi_table_add_builtin(opts, &err);
         if (err) {
-            fprintf(stderr, "WARNING: failed to load %s: %s\n", filename,
-                    error_get_pretty(err));
+            error_report("WARNING: failed to load %s: %s", filename,
+                         error_get_pretty(err));
             error_free(err);
         }
         g_free(arg);
@@ -1135,12 +1174,14 @@ FWCfgState *pc_memory_init(MemoryRegion *system_memory,
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", ram,
                              0, below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
+    e820_add_entry(0, below_4g_mem_size, E820_RAM);
     if (above_4g_mem_size > 0) {
         ram_above_4g = g_malloc(sizeof(*ram_above_4g));
         memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g", ram,
                                  below_4g_mem_size, above_4g_mem_size);
         memory_region_add_subregion(system_memory, 0x100000000ULL,
                                     ram_above_4g);
+        e820_add_entry(0x100000000ULL, above_4g_mem_size, E820_RAM);
     }
 
 

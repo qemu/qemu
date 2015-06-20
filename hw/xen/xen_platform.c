@@ -95,7 +95,7 @@ static void unplug_nic(PCIBus *b, PCIDevice *d, void *o)
     if (pci_get_word(d->config + PCI_CLASS_DEVICE) ==
             PCI_CLASS_NETWORK_ETHERNET
             && strcmp(d->name, "xen-pci-passthrough") != 0) {
-        qdev_free(DEVICE(d));
+        object_unparent(OBJECT(d));
     }
 }
 

@@ -18,9 +18,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "qemu/queue.h"
+#include "qapi/error.h"
 
 struct Visitor;
-struct Error;
 
 struct TypeImpl;
 typedef struct TypeImpl *Type;
@@ -249,7 +249,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     MyClass parent_class;
  *
  *     MyDoSomething parent_do_something;
- * } MyClass;
+ * } DerivedClass;
  *
  * static void derived_do_something(MyState *obj)
  * {
@@ -301,7 +301,7 @@ typedef void (ObjectPropertyAccessor)(Object *obj,
                                       struct Visitor *v,
                                       void *opaque,
                                       const char *name,
-                                      struct Error **errp);
+                                      Error **errp);
 
 /**
  * ObjectPropertyRelease:
@@ -398,6 +398,8 @@ struct Object
  * @instance_init: This function is called to initialize an object.  The parent
  *   class will have already been initialized so the type is only responsible
  *   for initializing its own members.
+ * @instance_post_init: This function is called to finish initialization of
+ *   an object, after all @instance_init functions were called.
  * @instance_finalize: This function is called during object destruction.  This
  *   is called before the parent @instance_finalize function has been called.
  *   An object should only free the members that are unique to its type in this
@@ -433,6 +435,7 @@ struct TypeInfo
 
     size_t instance_size;
     void (*instance_init)(Object *obj);
+    void (*instance_post_init)(Object *obj);
     void (*instance_finalize)(Object *obj);
 
     bool abstract;
@@ -582,25 +585,27 @@ Object *object_new_with_type(Type type);
 
 /**
  * object_initialize_with_type:
- * @obj: A pointer to the memory to be used for the object.
+ * @data: A pointer to the memory to be used for the object.
+ * @size: The maximum size available at @data for the object.
  * @type: The type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
  * have already been allocated.  The returned object has a reference count of 1,
  * and will be finalized when the last reference is dropped.
  */
-void object_initialize_with_type(void *data, Type type);
+void object_initialize_with_type(void *data, size_t size, Type type);
 
 /**
  * object_initialize:
  * @obj: A pointer to the memory to be used for the object.
+ * @size: The maximum size available at @obj for the object.
  * @typename: The name of the type of the object to instantiate.
  *
  * This function will initialize an object.  The memory for the object should
  * have already been allocated.  The returned object has a reference count of 1,
  * and will be finalized when the last reference is dropped.
  */
-void object_initialize(void *obj, const char *typename);
+void object_initialize(void *obj, size_t size, const char *typename);
 
 /**
  * object_dynamic_cast:
@@ -785,9 +790,9 @@ void object_property_add(Object *obj, const char *name, const char *type,
                          ObjectPropertyAccessor *get,
                          ObjectPropertyAccessor *set,
                          ObjectPropertyRelease *release,
-                         void *opaque, struct Error **errp);
+                         void *opaque, Error **errp);
 
-void object_property_del(Object *obj, const char *name, struct Error **errp);
+void object_property_del(Object *obj, const char *name, Error **errp);
 
 /**
  * object_property_find:
@@ -798,7 +803,7 @@ void object_property_del(Object *obj, const char *name, struct Error **errp);
  * Look up a property for an object and return its #ObjectProperty if found.
  */
 ObjectProperty *object_property_find(Object *obj, const char *name,
-                                     struct Error **errp);
+                                     Error **errp);
 
 void object_unparent(Object *obj);
 
@@ -813,7 +818,7 @@ void object_unparent(Object *obj);
  * Reads a property from a object.
  */
 void object_property_get(Object *obj, struct Visitor *v, const char *name,
-                         struct Error **errp);
+                         Error **errp);
 
 /**
  * object_property_set_str:
@@ -824,7 +829,7 @@ void object_property_get(Object *obj, struct Visitor *v, const char *name,
  * Writes a string value to a property.
  */
 void object_property_set_str(Object *obj, const char *value,
-                             const char *name, struct Error **errp);
+                             const char *name, Error **errp);
 
 /**
  * object_property_get_str:
@@ -837,7 +842,7 @@ void object_property_set_str(Object *obj, const char *value,
  * The caller should free the string.
  */
 char *object_property_get_str(Object *obj, const char *name,
-                              struct Error **errp);
+                              Error **errp);
 
 /**
  * object_property_set_link:
@@ -848,7 +853,7 @@ char *object_property_get_str(Object *obj, const char *name,
  * Writes an object's canonical path to a property.
  */
 void object_property_set_link(Object *obj, Object *value,
-                              const char *name, struct Error **errp);
+                              const char *name, Error **errp);
 
 /**
  * object_property_get_link:
@@ -861,7 +866,7 @@ void object_property_set_link(Object *obj, Object *value,
  * string or not a valid object path).
  */
 Object *object_property_get_link(Object *obj, const char *name,
-                                 struct Error **errp);
+                                 Error **errp);
 
 /**
  * object_property_set_bool:
@@ -872,7 +877,7 @@ Object *object_property_get_link(Object *obj, const char *name,
  * Writes a bool value to a property.
  */
 void object_property_set_bool(Object *obj, bool value,
-                              const char *name, struct Error **errp);
+                              const char *name, Error **errp);
 
 /**
  * object_property_get_bool:
@@ -884,7 +889,7 @@ void object_property_set_bool(Object *obj, bool value,
  * an error occurs (including when the property value is not a bool).
  */
 bool object_property_get_bool(Object *obj, const char *name,
-                              struct Error **errp);
+                              Error **errp);
 
 /**
  * object_property_set_int:
@@ -895,7 +900,7 @@ bool object_property_get_bool(Object *obj, const char *name,
  * Writes an integer value to a property.
  */
 void object_property_set_int(Object *obj, int64_t value,
-                             const char *name, struct Error **errp);
+                             const char *name, Error **errp);
 
 /**
  * object_property_get_int:
@@ -907,7 +912,7 @@ void object_property_set_int(Object *obj, int64_t value,
  * an error occurs (including when the property value is not an integer).
  */
 int64_t object_property_get_int(Object *obj, const char *name,
-                                struct Error **errp);
+                                Error **errp);
 
 /**
  * object_property_set:
@@ -921,7 +926,7 @@ int64_t object_property_get_int(Object *obj, const char *name,
  * Writes a property to a object.
  */
 void object_property_set(Object *obj, struct Visitor *v, const char *name,
-                         struct Error **errp);
+                         Error **errp);
 
 /**
  * object_property_parse:
@@ -933,7 +938,7 @@ void object_property_set(Object *obj, struct Visitor *v, const char *name,
  * Parses a string and writes the result into a property of an object.
  */
 void object_property_parse(Object *obj, const char *string,
-                           const char *name, struct Error **errp);
+                           const char *name, Error **errp);
 
 /**
  * object_property_print:
@@ -945,7 +950,7 @@ void object_property_parse(Object *obj, const char *string,
  * caller shall free the string.
  */
 char *object_property_print(Object *obj, const char *name,
-                            struct Error **errp);
+                            Error **errp);
 
 /**
  * object_property_get_type:
@@ -956,7 +961,7 @@ char *object_property_print(Object *obj, const char *name,
  * Returns:  The type name of the property.
  */
 const char *object_property_get_type(Object *obj, const char *name,
-                                     struct Error **errp);
+                                     Error **errp);
 
 /**
  * object_get_root:
@@ -1049,7 +1054,7 @@ Object *object_resolve_path_component(Object *parent, const gchar *part);
  * The child object itself can be retrieved using object_property_get_link().
  */
 void object_property_add_child(Object *obj, const char *name,
-                               Object *child, struct Error **errp);
+                               Object *child, Error **errp);
 
 /**
  * object_property_add_link:
@@ -1072,7 +1077,7 @@ void object_property_add_child(Object *obj, const char *name,
  */
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **child,
-                              struct Error **errp);
+                              Error **errp);
 
 /**
  * object_property_add_str:
@@ -1087,9 +1092,9 @@ void object_property_add_link(Object *obj, const char *name,
  * property of type 'string'.
  */
 void object_property_add_str(Object *obj, const char *name,
-                             char *(*get)(Object *, struct Error **),
-                             void (*set)(Object *, const char *, struct Error **),
-                             struct Error **errp);
+                             char *(*get)(Object *, Error **),
+                             void (*set)(Object *, const char *, Error **),
+                             Error **errp);
 
 /**
  * object_property_add_bool:
@@ -1103,9 +1108,61 @@ void object_property_add_str(Object *obj, const char *name,
  * property of type 'bool'.
  */
 void object_property_add_bool(Object *obj, const char *name,
-                              bool (*get)(Object *, struct Error **),
-                              void (*set)(Object *, bool, struct Error **),
-                              struct Error **errp);
+                              bool (*get)(Object *, Error **),
+                              void (*set)(Object *, bool, Error **),
+                              Error **errp);
+
+/**
+ * object_property_add_uint8_ptr:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @v: pointer to value
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add an integer property in memory.  This function will add a
+ * property of type 'uint8'.
+ */
+void object_property_add_uint8_ptr(Object *obj, const char *name,
+                                   const uint8_t *v, Error **errp);
+
+/**
+ * object_property_add_uint16_ptr:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @v: pointer to value
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add an integer property in memory.  This function will add a
+ * property of type 'uint16'.
+ */
+void object_property_add_uint16_ptr(Object *obj, const char *name,
+                                    const uint16_t *v, Error **errp);
+
+/**
+ * object_property_add_uint32_ptr:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @v: pointer to value
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add an integer property in memory.  This function will add a
+ * property of type 'uint32'.
+ */
+void object_property_add_uint32_ptr(Object *obj, const char *name,
+                                    const uint32_t *v, Error **errp);
+
+/**
+ * object_property_add_uint64_ptr:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @v: pointer to value
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add an integer property in memory.  This function will add a
+ * property of type 'uint64'.
+ */
+void object_property_add_uint64_ptr(Object *obj, const char *name,
+                                    const uint64_t *v, Error **Errp);
 
 /**
  * object_child_foreach:

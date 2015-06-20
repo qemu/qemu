@@ -23,7 +23,6 @@
 struct AioHandler {
     EventNotifier *e;
     EventNotifierHandler *io_notify;
-    AioFlushEventNotifierHandler *io_flush;
     GPollFD pfd;
     int deleted;
     QLIST_ENTRY(AioHandler) node;
@@ -31,8 +30,7 @@ struct AioHandler {
 
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *e,
-                            EventNotifierHandler *io_notify,
-                            AioFlushEventNotifierHandler *io_flush)
+                            EventNotifierHandler *io_notify)
 {
     AioHandler *node;
 
@@ -73,7 +71,6 @@ void aio_set_event_notifier(AioContext *ctx,
         }
         /* Update handler with latest information */
         node->io_notify = io_notify;
-        node->io_flush = io_flush;
     }
 
     aio_notify(ctx);
@@ -96,8 +93,9 @@ bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
     HANDLE events[MAXIMUM_WAIT_OBJECTS + 1];
-    bool busy, progress;
+    bool progress;
     int count;
+    int timeout;
 
     progress = false;
 
@@ -110,6 +108,9 @@ bool aio_poll(AioContext *ctx, bool blocking)
         blocking = false;
         progress = true;
     }
+
+    /* Run timers */
+    progress |= timerlistgroup_run_timers(&ctx->tlg);
 
     /*
      * Then dispatch any pending callbacks from the GSource.
@@ -126,7 +127,11 @@ bool aio_poll(AioContext *ctx, bool blocking)
         if (node->pfd.revents && node->io_notify) {
             node->pfd.revents = 0;
             node->io_notify(node->e);
-            progress = true;
+
+            /* aio_notify() does not count as progress */
+            if (node->e != &ctx->notifier) {
+                progress = true;
+            }
         }
 
         tmp = node;
@@ -147,19 +152,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
     ctx->walking_handlers++;
 
     /* fill fd sets */
-    busy = false;
     count = 0;
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
-        /* If there aren't pending AIO operations, don't invoke callbacks.
-         * Otherwise, if there are no AIO requests, qemu_aio_wait() would
-         * wait indefinitely.
-         */
-        if (!node->deleted && node->io_flush) {
-            if (node->io_flush(node->e) == 0) {
-                continue;
-            }
-            busy = true;
-        }
         if (!node->deleted && node->io_notify) {
             events[count++] = event_notifier_get_handle(node->e);
         }
@@ -167,15 +161,18 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     ctx->walking_handlers--;
 
-    /* No AIO operations?  Get us out of here */
-    if (!busy) {
+    /* early return if we only have the aio_notify() fd */
+    if (count == 1) {
         return progress;
     }
 
     /* wait until next event */
     while (count > 0) {
-        int timeout = blocking ? INFINITE : 0;
-        int ret = WaitForMultipleObjects(count, events, FALSE, timeout);
+        int ret;
+
+        timeout = blocking ?
+            qemu_timeout_ns_to_ms(timerlistgroup_deadline_ns(&ctx->tlg)) : 0;
+        ret = WaitForMultipleObjects(count, events, FALSE, timeout);
 
         /* if we have any signaled events, dispatch event */
         if ((DWORD) (ret - WAIT_OBJECT_0) >= count) {
@@ -196,7 +193,11 @@ bool aio_poll(AioContext *ctx, bool blocking)
                 event_notifier_get_handle(node->e) == events[ret - WAIT_OBJECT_0] &&
                 node->io_notify) {
                 node->io_notify(node->e);
-                progress = true;
+
+                /* aio_notify() does not count as progress */
+                if (node->e != &ctx->notifier) {
+                    progress = true;
+                }
             }
 
             tmp = node;
@@ -214,6 +215,14 @@ bool aio_poll(AioContext *ctx, bool blocking)
         events[ret - WAIT_OBJECT_0] = events[--count];
     }
 
-    assert(progress || busy);
-    return true;
+    if (blocking) {
+        /* Run the timers a second time. We do this because otherwise aio_wait
+         * will not note progress - and will stop a drain early - if we have
+         * a timer that was not ready to run entering g_poll but is ready
+         * after g_poll. This will only do anything if a timer has expired.
+         */
+        progress |= timerlistgroup_run_timers(&ctx->tlg);
+    }
+
+    return progress;
 }

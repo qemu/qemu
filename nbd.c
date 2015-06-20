@@ -38,6 +38,7 @@
 
 #include "qemu/sockets.h"
 #include "qemu/queue.h"
+#include "qemu/main-loop.h"
 
 //#define DEBUG_NBD
 
@@ -881,6 +882,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
     exp->nbdflags = nbdflags;
     exp->size = size == -1 ? bdrv_getlength(bs) : size;
     exp->close = close;
+    bdrv_ref(bs);
     return exp;
 }
 
@@ -927,6 +929,10 @@ void nbd_export_close(NBDExport *exp)
     }
     nbd_export_set_name(exp, NULL);
     nbd_export_put(exp);
+    if (exp->bs) {
+        bdrv_unref(exp->bs);
+        exp->bs = NULL;
+    }
 }
 
 void nbd_export_get(NBDExport *exp)

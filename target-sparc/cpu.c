@@ -84,7 +84,6 @@ static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
         env->def->features |= CPU_FEATURE_FLOAT128;
     }
 #endif
-    env->cpu_model_str = cpu_model;
     env->version = def->iu_version;
     env->fsr = def->fpu_version;
     env->nwindows = def->nwindows;

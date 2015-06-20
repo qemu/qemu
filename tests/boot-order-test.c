@@ -34,19 +34,19 @@ static void test_a_boot_order(const char *machine,
     char *args;
     uint64_t actual;
 
-    args = g_strdup_printf("-nodefaults -display none%s%s %s",
+    args = g_strdup_printf("-nodefaults%s%s %s",
                            machine ? " -M " : "",
                            machine ?: "",
                            test_args);
     qtest_start(args);
     actual = read_boot_order();
     g_assert_cmphex(actual, ==, expected_boot);
-    qmp("{ 'execute': 'system_reset' }");
+    qmp_discard_response("{ 'execute': 'system_reset' }");
     /*
      * system_reset only requests reset.  We get a RESET event after
      * the actual reset completes.  Need to wait for that.
      */
-    qmp("");                    /* HACK: wait for event */
+    qmp_discard_response("");   /* HACK: wait for event */
     actual = read_boot_order();
     g_assert_cmphex(actual, ==, expected_reboot);
     qtest_quit(global_qtest);

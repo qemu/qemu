@@ -30,7 +30,7 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-#	_cleanup_test_img
+	_cleanup_test_img
 	true
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
@@ -50,7 +50,7 @@ _make_test_img 1M
 
 for i in `seq 1 10`; do
     echo "savevm $i"
-    $QEMU -nographic -hda $TEST_IMG -serial none -monitor stdio >/dev/null 2>&1 <<EOF
+    $QEMU -nographic -hda "$TEST_IMG" -serial none -monitor stdio >/dev/null 2>&1 <<EOF
 savevm test-$i
 quit
 EOF

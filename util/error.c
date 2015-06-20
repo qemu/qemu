@@ -76,6 +76,41 @@ void error_setg_file_open(Error **errp, int os_errno, const char *filename)
     error_setg_errno(errp, os_errno, "Could not open '%s'", filename);
 }
 
+#ifdef _WIN32
+
+void error_set_win32(Error **errp, int win32_err, ErrorClass err_class,
+                     const char *fmt, ...)
+{
+    Error *err;
+    char *msg1;
+    va_list ap;
+
+    if (errp == NULL) {
+        return;
+    }
+    assert(*errp == NULL);
+
+    err = g_malloc0(sizeof(*err));
+
+    va_start(ap, fmt);
+    msg1 = g_strdup_vprintf(fmt, ap);
+    if (win32_err != 0) {
+        char *msg2 = g_win32_error_message(win32_err);
+        err->msg = g_strdup_printf("%s: %s (error: %x)", msg1, msg2,
+                                   (unsigned)win32_err);
+        g_free(msg2);
+        g_free(msg1);
+    } else {
+        err->msg = msg1;
+    }
+    va_end(ap);
+    err->err_class = err_class;
+
+    *errp = err;
+}
+
+#endif
+
 Error *error_copy(const Error *err)
 {
     Error *err_new;
