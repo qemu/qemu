@@ -452,5 +452,6 @@ static inline void *lock_user_string(abi_ulong guest_addr)
  */
 #include "target_cpu.h"
 #include "target_signal.h"
+#include "target_structs.h"
 
 #endif /* QEMU_H */

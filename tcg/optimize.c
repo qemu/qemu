@@ -726,16 +726,25 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             mask = temps[args[1]].mask & mask;
             break;
 
-        CASE_OP_32_64(sar):
+        case INDEX_op_sar_i32:
             if (temps[args[2]].state == TCG_TEMP_CONST) {
-                mask = ((tcg_target_long)temps[args[1]].mask
-                        >> temps[args[2]].val);
+                mask = (int32_t)temps[args[1]].mask >> temps[args[2]].val;
+            }
+            break;
+        case INDEX_op_sar_i64:
+            if (temps[args[2]].state == TCG_TEMP_CONST) {
+                mask = (int64_t)temps[args[1]].mask >> temps[args[2]].val;
             }
             break;
 
-        CASE_OP_32_64(shr):
+        case INDEX_op_shr_i32:
             if (temps[args[2]].state == TCG_TEMP_CONST) {
-                mask = temps[args[1]].mask >> temps[args[2]].val;
+                mask = (uint32_t)temps[args[1]].mask >> temps[args[2]].val;
+            }
+            break;
+        case INDEX_op_shr_i64:
+            if (temps[args[2]].state == TCG_TEMP_CONST) {
+                mask = (uint64_t)temps[args[1]].mask >> temps[args[2]].val;
             }
             break;
 

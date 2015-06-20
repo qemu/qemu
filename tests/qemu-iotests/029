@@ -1,7 +1,6 @@
 #!/bin/bash
 #
-# Test loading internal snapshots where the L1 table of the snapshot
-# is smaller than the current L1 table.
+# qcow2 internal snapshots/VM state tests
 #
 # Copyright (C) 2011 Red Hat, Inc.
 #
@@ -31,7 +30,8 @@ status=1	# failure is the default!
 
 _cleanup()
 {
-	_cleanup_test_img
+    rm -f $TEST_IMG.snap
+    _cleanup_test_img
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
 
@@ -44,6 +44,14 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto generic
 _supported_os Linux
+
+offset_size=24
+offset_l1_size=36
+
+echo
+echo Test loading internal snapshots where the L1 table of the snapshot
+echo is smaller than the current L1 table.
+echo
 
 CLUSTER_SIZE=65536
 _make_test_img 64M
@@ -58,6 +66,32 @@ $QEMU_IMG snapshot -c foo "$TEST_IMG"
 $QEMU_IO -c 'write -b 0 4M' "$TEST_IMG" | _filter_qemu_io
 $QEMU_IMG snapshot -a foo "$TEST_IMG"
 _check_test_img
+
+
+echo
+echo Try using a huge VM state
+echo
+
+CLUSTER_SIZE=65536
+_make_test_img 64M
+{ $QEMU_IO -c "write -b -P 0x11 1T 4k" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IMG snapshot -c foo $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IMG snapshot -a foo $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+{ $QEMU_IO -c "read -b -P 0x11 1T 4k" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+_check_test_img
+
+
+echo
+echo "qcow2_snapshot_load_tmp() should take the L1 size from the snapshot"
+echo
+
+CLUSTER_SIZE=512
+_make_test_img 64M
+{ $QEMU_IMG snapshot -c foo $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
+poke_file "$TEST_IMG" "$offset_size" "\x00\x00\x00\x00\x00\x00\x02\x00"
+poke_file "$TEST_IMG" "$offset_l1_size" "\x00\x00\x00\x01"
+{ $QEMU_IMG convert -s foo $TEST_IMG $TEST_IMG.snap; } 2>&1 | _filter_qemu_io | _filter_testdir
+
 
 # success, all done
 echo "*** done"

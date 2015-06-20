@@ -81,7 +81,7 @@ mirror_start(void *bs, void *s, void *co, void *opaque) "bs %p s %p co %p opaque
 mirror_restart_iter(void *s, int64_t cnt) "s %p dirty count %"PRId64
 mirror_before_flush(void *s) "s %p"
 mirror_before_drain(void *s, int64_t cnt) "s %p dirty count %"PRId64
-mirror_before_sleep(void *s, int64_t cnt, int synced) "s %p dirty count %"PRId64" synced %d"
+mirror_before_sleep(void *s, int64_t cnt, int synced, uint64_t delay_ns) "s %p dirty count %"PRId64" synced %d delay %"PRIu64"ns"
 mirror_one_iteration(void *s, int64_t sector_num, int nb_sectors) "s %p sector_num %"PRId64" nb_sectors %d"
 mirror_iteration_done(void *s, int64_t sector_num, int nb_sectors, int ret) "s %p sector_num %"PRId64" nb_sectors %d ret %d"
 mirror_yield(void *s, int64_t cnt, int buf_free_count, int in_flight) "s %p dirty count %"PRId64" free buffers %d in_flight %d"
@@ -670,6 +670,7 @@ megasas_dcmd_ld_get_list(int cmd, int num, int max) "scmd %d: DCMD LD get list: 
 megasas_dcmd_ld_get_info(int cmd, int ld_id) "scmd %d: DCMD LD get info for dev %d"
 megasas_dcmd_pd_get_info(int cmd, int pd_id) "scmd %d: DCMD PD get info for dev %d"
 megasas_dcmd_pd_list_query(int cmd, int flags) "scmd %d: DCMD PD list query flags %x"
+megasas_dcmd_ld_list_query(int cmd, int flags) "scmd %d: DCMD LD list query flags %x"
 megasas_dcmd_unsupported(int cmd, unsigned long size) "scmd %d: set properties len %ld"
 megasas_abort_frame(int cmd, int abort_cmd) "scmd %d: aborting frame %x"
 megasas_abort_no_cmd(int cmd, uint64_t context) "scmd %d: no active command for frame context %" PRIx64 ""

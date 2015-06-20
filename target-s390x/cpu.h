@@ -274,6 +274,9 @@ typedef struct CPUS390XState {
 #define FLAG_MASK_64            (PSW_MASK_64     >> 32)
 #define FLAG_MASK_32            0x00001000
 
+/* Control register 0 bits */
+#define CR0_EDAT                0x0000000000800000ULL
+
 static inline int cpu_mmu_index (CPUS390XState *env)
 {
     if (env->psw.mask & PSW_MASK_PSTATE) {
@@ -351,6 +354,9 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb)
 
     return addr;
 }
+
+/* Base/displacement are at the same locations. */
+#define decode_basedisp_rs decode_basedisp_s
 
 void s390x_tod_timer(void *opaque);
 void s390x_cpu_timer(void *opaque);
@@ -929,6 +935,7 @@ struct sysib_322 {
 #define _REGION_ENTRY_LENGTH    0x03      /* region third length              */
 
 #define _SEGMENT_ENTRY_ORIGIN   ~0x7ffULL /* segment table origin             */
+#define _SEGMENT_ENTRY_FC       0x400     /* format control                   */
 #define _SEGMENT_ENTRY_RO       0x200     /* page protection bit              */
 #define _SEGMENT_ENTRY_INV      0x20      /* invalid segment table entry      */
 

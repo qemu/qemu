@@ -2417,21 +2417,6 @@ static struct shm_region {
     abi_ulong	size;
 } shm_regions[N_SHM_REGIONS];
 
-struct target_ipc_perm
-{
-    abi_long __key;
-    abi_ulong uid;
-    abi_ulong gid;
-    abi_ulong cuid;
-    abi_ulong cgid;
-    unsigned short int mode;
-    unsigned short int __pad1;
-    unsigned short int __seq;
-    unsigned short int __pad2;
-    abi_ulong __unused1;
-    abi_ulong __unused2;
-};
-
 struct target_semid_ds
 {
   struct target_ipc_perm sem_perm;
@@ -2453,12 +2438,21 @@ static inline abi_long target_to_host_ipc_perm(struct ipc_perm *host_ip,
     if (!lock_user_struct(VERIFY_READ, target_sd, target_addr, 1))
         return -TARGET_EFAULT;
     target_ip = &(target_sd->sem_perm);
-    host_ip->__key = tswapal(target_ip->__key);
-    host_ip->uid = tswapal(target_ip->uid);
-    host_ip->gid = tswapal(target_ip->gid);
-    host_ip->cuid = tswapal(target_ip->cuid);
-    host_ip->cgid = tswapal(target_ip->cgid);
+    host_ip->__key = tswap32(target_ip->__key);
+    host_ip->uid = tswap32(target_ip->uid);
+    host_ip->gid = tswap32(target_ip->gid);
+    host_ip->cuid = tswap32(target_ip->cuid);
+    host_ip->cgid = tswap32(target_ip->cgid);
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC)
+    host_ip->mode = tswap32(target_ip->mode);
+#else
     host_ip->mode = tswap16(target_ip->mode);
+#endif
+#if defined(TARGET_PPC)
+    host_ip->__seq = tswap32(target_ip->__seq);
+#else
+    host_ip->__seq = tswap16(target_ip->__seq);
+#endif
     unlock_user_struct(target_sd, target_addr, 0);
     return 0;
 }
@@ -2472,12 +2466,21 @@ static inline abi_long host_to_target_ipc_perm(abi_ulong target_addr,
     if (!lock_user_struct(VERIFY_WRITE, target_sd, target_addr, 0))
         return -TARGET_EFAULT;
     target_ip = &(target_sd->sem_perm);
-    target_ip->__key = tswapal(host_ip->__key);
-    target_ip->uid = tswapal(host_ip->uid);
-    target_ip->gid = tswapal(host_ip->gid);
-    target_ip->cuid = tswapal(host_ip->cuid);
-    target_ip->cgid = tswapal(host_ip->cgid);
+    target_ip->__key = tswap32(host_ip->__key);
+    target_ip->uid = tswap32(host_ip->uid);
+    target_ip->gid = tswap32(host_ip->gid);
+    target_ip->cuid = tswap32(host_ip->cuid);
+    target_ip->cgid = tswap32(host_ip->cgid);
+#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_PPC)
+    target_ip->mode = tswap32(host_ip->mode);
+#else
     target_ip->mode = tswap16(host_ip->mode);
+#endif
+#if defined(TARGET_PPC)
+    target_ip->__seq = tswap32(host_ip->__seq);
+#else
+    target_ip->__seq = tswap16(host_ip->__seq);
+#endif
     unlock_user_struct(target_sd, target_addr, 1);
     return 0;
 }
@@ -2908,29 +2911,6 @@ end:
     return ret;
 }
 
-struct target_shmid_ds
-{
-    struct target_ipc_perm shm_perm;
-    abi_ulong shm_segsz;
-    abi_ulong shm_atime;
-#if TARGET_ABI_BITS == 32
-    abi_ulong __unused1;
-#endif
-    abi_ulong shm_dtime;
-#if TARGET_ABI_BITS == 32
-    abi_ulong __unused2;
-#endif
-    abi_ulong shm_ctime;
-#if TARGET_ABI_BITS == 32
-    abi_ulong __unused3;
-#endif
-    int shm_cpid;
-    int shm_lpid;
-    abi_ulong shm_nattch;
-    unsigned long int __unused4;
-    unsigned long int __unused5;
-};
-
 static inline abi_long target_to_host_shmid_ds(struct shmid_ds *host_sd,
                                                abi_ulong target_addr)
 {
@@ -3216,7 +3196,7 @@ static abi_long do_ipc(unsigned int call, int first,
 
 	/* IPC_* and SHM_* command values are the same on all linux platforms */
     case IPCOP_shmctl:
-        ret = do_shmctl(first, second, third);
+        ret = do_shmctl(first, second, ptr);
         break;
     default:
 	gemu_log("Unsupported ipc call: %d (version %d)\n", call, version);
@@ -7499,6 +7479,22 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             ret = get_errno(sys_sched_getaffinity(arg1, mask_size, mask));
 
             if (!is_error(ret)) {
+                if (ret > arg2) {
+                    /* More data returned than the caller's buffer will fit.
+                     * This only happens if sizeof(abi_long) < sizeof(long)
+                     * and the caller passed us a buffer holding an odd number
+                     * of abi_longs. If the host kernel is actually using the
+                     * extra 4 bytes then fail EINVAL; otherwise we can just
+                     * ignore them and only copy the interesting part.
+                     */
+                    int numcpus = sysconf(_SC_NPROCESSORS_CONF);
+                    if (numcpus > arg2 * 8) {
+                        ret = -TARGET_EINVAL;
+                        break;
+                    }
+                    ret = arg2;
+                }
+
                 if (copy_to_user(arg3, mask, ret)) {
                     goto efault;
                 }

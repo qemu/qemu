@@ -147,6 +147,15 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     qemu_get_be32s(f, &n);
     assert(n < vs->conf.num_queues);
     qemu_get_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
+    /* TODO: add a way for SCSIBusInfo's load_request to fail,
+     * and fail migration instead of asserting here.
+     * When we do, we might be able to re-enable NDEBUG below.
+     */
+#ifdef NDEBUG
+#error building with NDEBUG is not supported
+#endif
+    assert(req->elem.in_num <= ARRAY_SIZE(req->elem.in_sg));
+    assert(req->elem.out_num <= ARRAY_SIZE(req->elem.out_sg));
     virtio_scsi_parse_req(s, vs->cmd_vqs[n], req);
 
     scsi_req_ref(sreq);
@@ -305,6 +314,10 @@ static void virtio_scsi_command_complete(SCSIRequest *r, uint32_t status,
 {
     VirtIOSCSIReq *req = r->hba_private;
     uint32_t sense_len;
+
+    if (r->io_canceled) {
+        return;
+    }
 
     req->resp.cmd->response = VIRTIO_SCSI_S_OK;
     req->resp.cmd->status = status;
@@ -483,7 +496,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
                                    uint32_t event, uint32_t reason)
 {
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
-    VirtIOSCSIReq *req = virtio_scsi_pop_req(s, vs->event_vq);
+    VirtIOSCSIReq *req;
     VirtIOSCSIEvent *evt;
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
     int in_size;
@@ -492,6 +505,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
         return;
     }
 
+    req = virtio_scsi_pop_req(s, vs->event_vq);
     if (!req) {
         s->events_dropped = true;
         return;
@@ -516,7 +530,7 @@ static void virtio_scsi_push_event(VirtIOSCSI *s, SCSIDevice *dev,
     evt->event = event;
     evt->reason = reason;
     if (!dev) {
-        assert(event == VIRTIO_SCSI_T_NO_EVENT);
+        assert(event == VIRTIO_SCSI_T_EVENTS_MISSED);
     } else {
         evt->lun[0] = 1;
         evt->lun[1] = dev->id;
@@ -644,22 +658,21 @@ static int virtio_scsi_device_init(VirtIODevice *vdev)
     return 0;
 }
 
-int virtio_scsi_common_exit(VirtIOSCSICommon *vs)
+void virtio_scsi_common_exit(VirtIOSCSICommon *vs)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vs);
 
     g_free(vs->cmd_vqs);
     virtio_cleanup(vdev);
-    return 0;
 }
 
-static int virtio_scsi_device_exit(DeviceState *qdev)
+static void virtio_scsi_device_exit(VirtIODevice *vdev)
 {
-    VirtIOSCSI *s = VIRTIO_SCSI(qdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(qdev);
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
 
-    unregister_savevm(qdev, "virtio-scsi", s);
-    return virtio_scsi_common_exit(vs);
+    unregister_savevm(DEVICE(vdev), "virtio-scsi", s);
+    virtio_scsi_common_exit(vs);
 }
 
 static Property virtio_scsi_properties[] = {
@@ -680,10 +693,10 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_scsi_device_exit;
     dc->props = virtio_scsi_properties;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     vdc->init = virtio_scsi_device_init;
+    vdc->exit = virtio_scsi_device_exit;
     vdc->set_config = virtio_scsi_set_config;
     vdc->get_features = virtio_scsi_get_features;
     vdc->reset = virtio_scsi_reset;

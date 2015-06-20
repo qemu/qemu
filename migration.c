@@ -105,7 +105,7 @@ static void process_incoming_migration_co(void *opaque)
     ret = qemu_loadvm_state(f);
     qemu_fclose(f);
     if (ret < 0) {
-        fprintf(stderr, "load of migration failed\n");
+        error_report("load of migration failed: %s", strerror(-ret));
         exit(EXIT_FAILURE);
     }
     qemu_announce_self();
@@ -437,6 +437,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
 #endif
     } else {
         error_set(errp, QERR_INVALID_PARAMETER_VALUE, "uri", "a valid migration protocol");
+        s->state = MIG_STATE_ERROR;
         return;
     }
 
@@ -583,7 +584,7 @@ static void *migration_thread(void *opaque)
 
                 ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
                 if (ret >= 0) {
-                    qemu_file_set_rate_limit(s->file, INT_MAX);
+                    qemu_file_set_rate_limit(s->file, INT64_MAX);
                     qemu_savevm_state_complete(s->file);
                 }
                 qemu_mutex_unlock_iothread();

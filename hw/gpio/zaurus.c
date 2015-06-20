@@ -203,6 +203,15 @@ static bool is_version_0 (void *opaque, int version_id)
     return version_id == 0;
 }
 
+static bool vmstate_scoop_validate(void *opaque, int version_id)
+{
+    ScoopInfo *s = opaque;
+
+    return !(s->prev_level & 0xffff0000) &&
+        !(s->gpio_level & 0xffff0000) &&
+        !(s->gpio_dir & 0xffff0000);
+}
+
 static const VMStateDescription vmstate_scoop_regs = {
     .name = "scoop",
     .version_id = 1,
@@ -215,6 +224,7 @@ static const VMStateDescription vmstate_scoop_regs = {
         VMSTATE_UINT32(gpio_level, ScoopInfo),
         VMSTATE_UINT32(gpio_dir, ScoopInfo),
         VMSTATE_UINT32(prev_level, ScoopInfo),
+        VMSTATE_VALIDATE("irq levels are 16 bit", vmstate_scoop_validate),
         VMSTATE_UINT16(mcr, ScoopInfo),
         VMSTATE_UINT16(cdr, ScoopInfo),
         VMSTATE_UINT16(ccr, ScoopInfo),

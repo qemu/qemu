@@ -458,7 +458,7 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
     Object *inst;
 
     for (i = 0; obj && i < OBJECT_CLASS_CAST_CACHE; i++) {
-        if (obj->class->cast_cache[i] == typename) {
+        if (obj->class->object_cast_cache[i] == typename) {
             goto out;
         }
     }
@@ -475,9 +475,10 @@ Object *object_dynamic_cast_assert(Object *obj, const char *typename,
 
     if (obj && obj == inst) {
         for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
-            obj->class->cast_cache[i - 1] = obj->class->cast_cache[i];
+            obj->class->object_cast_cache[i - 1] =
+                    obj->class->object_cast_cache[i];
         }
-        obj->class->cast_cache[i - 1] = typename;
+        obj->class->object_cast_cache[i - 1] = typename;
     }
 
 out:
@@ -547,7 +548,7 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
     int i;
 
     for (i = 0; class && i < OBJECT_CLASS_CAST_CACHE; i++) {
-        if (class->cast_cache[i] == typename) {
+        if (class->class_cast_cache[i] == typename) {
             ret = class;
             goto out;
         }
@@ -568,9 +569,9 @@ ObjectClass *object_class_dynamic_cast_assert(ObjectClass *class,
 #ifdef CONFIG_QOM_CAST_DEBUG
     if (class && ret == class) {
         for (i = 1; i < OBJECT_CLASS_CAST_CACHE; i++) {
-            class->cast_cache[i - 1] = class->cast_cache[i];
+            class->class_cast_cache[i - 1] = class->class_cast_cache[i];
         }
-        class->cast_cache[i - 1] = typename;
+        class->class_cast_cache[i - 1] = typename;
     }
 out:
 #endif
@@ -1272,6 +1273,7 @@ void object_property_add_str(Object *obj, const char *name,
                            void (*set)(Object *, const char *, Error **),
                            Error **errp)
 {
+    Error *local_err = NULL;
     StringProperty *prop = g_malloc0(sizeof(*prop));
 
     prop->get = get;
@@ -1281,7 +1283,11 @@ void object_property_add_str(Object *obj, const char *name,
                         get ? property_get_str : NULL,
                         set ? property_set_str : NULL,
                         property_release_str,
-                        prop, errp);
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
 }
 
 typedef struct BoolProperty
@@ -1328,6 +1334,7 @@ void object_property_add_bool(Object *obj, const char *name,
                               void (*set)(Object *, bool, Error **),
                               Error **errp)
 {
+    Error *local_err = NULL;
     BoolProperty *prop = g_malloc0(sizeof(*prop));
 
     prop->get = get;
@@ -1337,7 +1344,11 @@ void object_property_add_bool(Object *obj, const char *name,
                         get ? property_get_bool : NULL,
                         set ? property_set_bool : NULL,
                         property_release_bool,
-                        prop, errp);
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
 }
 
 static char *qdev_get_type(Object *obj, Error **errp)

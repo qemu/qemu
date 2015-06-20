@@ -427,6 +427,12 @@ void virtqueue_map_sg(struct iovec *sg, hwaddr *addr,
     unsigned int i;
     hwaddr len;
 
+    if (num_sg > VIRTQUEUE_MAX_SIZE) {
+        error_report("virtio: map attempt out of bounds: %zd > %d",
+                     num_sg, VIRTQUEUE_MAX_SIZE);
+        exit(1);
+    }
+
     for (i = 0; i < num_sg; i++) {
         len = sg[i].iov_len;
         sg[i].iov_base = cpu_physical_memory_map(addr[i], &len, is_write);
@@ -888,7 +894,9 @@ int virtio_set_features(VirtIODevice *vdev, uint32_t val)
 
 int virtio_load(VirtIODevice *vdev, QEMUFile *f)
 {
-    int num, i, ret;
+    int i, ret;
+    int32_t config_len;
+    uint32_t num;
     uint32_t features;
     uint32_t supported_features;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
@@ -903,6 +911,9 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
     qemu_get_8s(f, &vdev->status);
     qemu_get_8s(f, &vdev->isr);
     qemu_get_be16s(f, &vdev->queue_sel);
+    if (vdev->queue_sel >= VIRTIO_PCI_QUEUE_MAX) {
+        return -1;
+    }
     qemu_get_be32s(f, &features);
 
     if (virtio_set_features(vdev, features) < 0) {
@@ -911,10 +922,26 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f)
                      features, supported_features);
         return -1;
     }
-    vdev->config_len = qemu_get_be32(f);
-    qemu_get_buffer(f, vdev->config, vdev->config_len);
+    config_len = qemu_get_be32(f);
+
+    /*
+     * There are cases where the incoming config can be bigger or smaller
+     * than what we have; so load what we have space for, and skip
+     * any excess that's in the stream.
+     */
+    qemu_get_buffer(f, vdev->config, MIN(config_len, vdev->config_len));
+
+    while (config_len > vdev->config_len) {
+        qemu_get_byte(f);
+        config_len--;
+    }
 
     num = qemu_get_be32(f);
+
+    if (num > VIRTIO_PCI_QUEUE_MAX) {
+        error_report("Invalid number of PCI queues: 0x%x", num);
+        return -1;
+    }
 
     for (i = 0; i < num; i++) {
         vdev->vq[i].vring.num = qemu_get_be32(f);
@@ -1158,14 +1185,19 @@ static int virtio_device_init(DeviceState *qdev)
     if (k->init(vdev) < 0) {
         return -1;
     }
-    virtio_bus_plug_device(vdev);
+    virtio_bus_device_plugged(vdev);
     return 0;
 }
 
 static int virtio_device_exit(DeviceState *qdev)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtioDeviceClass *k = VIRTIO_DEVICE_GET_CLASS(qdev);
 
+    virtio_bus_device_unplugged(vdev);
+    if (k->exit) {
+        k->exit(vdev);
+    }
     if (vdev->bus_name) {
         g_free(vdev->bus_name);
         vdev->bus_name = NULL;

@@ -1357,6 +1357,11 @@ EOF
       pie="no"
     fi
   fi
+
+  if compile_prog "-fno-pie" "-nopie"; then
+    CFLAGS_NOPIE="-fno-pie"
+    LDFLAGS_NOPIE="-nopie"
+  fi
 fi
 
 ##########################################
@@ -3539,6 +3544,11 @@ fi
 
 int128=no
 cat > $TMPC << EOF
+#if defined(__clang_major__) && defined(__clang_minor__)
+# if ((__clang_major__ < 3) || (__clang_major__ == 3) && (__clang_minor__ < 2))
+#  error __int128_t does not work in CLANG before 3.2
+# endif
+#endif
 __int128_t a;
 __uint128_t b;
 int main (void) {
@@ -4312,6 +4322,7 @@ echo "LD=$ld" >> $config_host_mak
 echo "WINDRES=$windres" >> $config_host_mak
 echo "LIBTOOL=$libtool" >> $config_host_mak
 echo "CFLAGS=$CFLAGS" >> $config_host_mak
+echo "CFLAGS_NOPIE=$CFLAGS_NOPIE" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_INCLUDES=$QEMU_INCLUDES" >> $config_host_mak
 if test "$sparse" = "yes" ; then
@@ -4325,6 +4336,7 @@ else
   echo "AUTOCONF_HOST := "                             >> $config_host_mak
 fi
 echo "LDFLAGS=$LDFLAGS" >> $config_host_mak
+echo "LDFLAGS_NOPIE=$LDFLAGS_NOPIE" >> $config_host_mak
 echo "LIBTOOLFLAGS=$LIBTOOLFLAGS" >> $config_host_mak
 echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak

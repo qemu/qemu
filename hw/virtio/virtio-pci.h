@@ -82,7 +82,6 @@ typedef struct VirtioPCIClass {
 
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
-    VirtIODevice *vdev;
     MemoryRegion bar;
     uint32_t flags;
     uint32_t class_code;

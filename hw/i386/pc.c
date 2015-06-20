@@ -1093,21 +1093,13 @@ PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
     return guest_info;
 }
 
-void pc_init_pci64_hole(PcPciInfo *pci_info, uint64_t pci_hole64_start,
-                        uint64_t pci_hole64_size)
+/* setup pci memory address space mapping into system address space */
+void pc_pci_as_mapping_init(Object *owner, MemoryRegion *system_memory,
+                            MemoryRegion *pci_address_space)
 {
-    if ((sizeof(hwaddr) == 4) || (!pci_hole64_size)) {
-        return;
-    }
-    /*
-     * BIOS does not set MTRR entries for the 64 bit window, so no need to
-     * align address to power of two.  Align address at 1G, this makes sure
-     * it can be exactly covered with a PAT entry even when using huge
-     * pages.
-     */
-    pci_info->w64.begin = ROUND_UP(pci_hole64_start, 0x1ULL << 30);
-    pci_info->w64.end = pci_info->w64.begin + pci_hole64_size;
-    assert(pci_info->w64.begin <= pci_info->w64.end);
+    /* Set to lower priority than RAM */
+    memory_region_add_subregion_overlap(system_memory, 0x0,
+                                        pci_address_space, -1);
 }
 
 void pc_acpi_init(const char *default_dsdt)

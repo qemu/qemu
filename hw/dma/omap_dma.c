@@ -1660,7 +1660,7 @@ struct soc_dma_s *omap_dma_init(hwaddr base, qemu_irq *irqs,
     }
 
     omap_dma_setcaps(s);
-    omap_clk_adduser(s->clk, qemu_allocate_irqs(omap_dma_clk_update, s, 1)[0]);
+    omap_clk_adduser(s->clk, qemu_allocate_irq(omap_dma_clk_update, s, 0));
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, 1);
 
@@ -2082,7 +2082,7 @@ struct soc_dma_s *omap_dma4_init(hwaddr base, qemu_irq *irqs,
     s->intr_update = omap_dma_interrupts_4_update;
 
     omap_dma_setcaps(s);
-    omap_clk_adduser(s->clk, qemu_allocate_irqs(omap_dma_clk_update, s, 1)[0]);
+    omap_clk_adduser(s->clk, qemu_allocate_irq(omap_dma_clk_update, s, 0));
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, !!s->dma->freq);
 

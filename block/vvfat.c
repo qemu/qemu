@@ -788,7 +788,9 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	    s->current_mapping->path=buffer;
 	    s->current_mapping->read_only =
 		(st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) == 0;
-	}
+        } else {
+            g_free(buffer);
+        }
     }
     closedir(dir);
 
@@ -1866,7 +1868,7 @@ static int check_directory_consistency(BDRVVVFATState *s,
 
 	if (s->used_clusters[cluster_num] & USED_ANY) {
 	    fprintf(stderr, "cluster %d used more than once\n", (int)cluster_num);
-	    return 0;
+            goto fail;
 	}
 	s->used_clusters[cluster_num] = USED_DIRECTORY;
 

@@ -539,7 +539,7 @@ typedef struct x86_def_t {
 #define TCG_EXT3_FEATURES (CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM | \
           CPUID_EXT3_CR8LEG | CPUID_EXT3_ABM | CPUID_EXT3_SSE4A)
 #define TCG_SVM_FEATURES 0
-#define TCG_7_0_EBX_FEATURES (CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_SMAP \
+#define TCG_7_0_EBX_FEATURES (CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_SMAP | \
           CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ADX)
           /* missing:
           CPUID_7_0_EBX_FSGSBASE, CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
@@ -2446,6 +2446,8 @@ static void x86_cpu_reset(CPUState *s)
     cpu_breakpoint_remove_all(env, BP_CPU);
     cpu_watchpoint_remove_all(env, BP_CPU);
 
+    env->xcr0 = 1;
+
 #if !defined(CONFIG_USER_ONLY)
     /* We hard-wire the BSP to the first CPU. */
     if (s->cpu_index == 0) {
@@ -2560,6 +2562,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     if (!kvm_enabled()) {
         env->features[FEAT_1_EDX] &= TCG_FEATURES;
         env->features[FEAT_1_ECX] &= TCG_EXT_FEATURES;
+        env->features[FEAT_7_0_EBX] &= TCG_7_0_EBX_FEATURES;
         env->features[FEAT_8000_0001_EDX] &= (TCG_EXT2_FEATURES
 #ifdef TARGET_X86_64
             | CPUID_EXT2_SYSCALL | CPUID_EXT2_LM

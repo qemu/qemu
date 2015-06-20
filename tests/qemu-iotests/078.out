@@ -1,0 +1,26 @@
+QA output created by 078
+
+== Read from a valid image ==
+read 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== Negative catalog size ==
+qemu-io: can't open device TEST_DIR/empty.bochs: Catalog size is too large
+no file open, try 'help open'
+
+== Overflow for catalog size * sizeof(uint32_t) ==
+qemu-io: can't open device TEST_DIR/empty.bochs: Catalog size is too large
+no file open, try 'help open'
+
+== Too small catalog bitmap for image size ==
+qemu-io: can't open device TEST_DIR/empty.bochs: Catalog size is too small for this disk size
+no file open, try 'help open'
+
+== Negative extent size ==
+qemu-io: can't open device TEST_DIR/empty.bochs: Extent size 4294967295 is too large
+no file open, try 'help open'
+
+== Zero extent size ==
+qemu-io: can't open device TEST_DIR/empty.bochs: Extent size may not be zero
+no file open, try 'help open'
+*** done

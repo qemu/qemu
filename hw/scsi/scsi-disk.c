@@ -1597,6 +1597,14 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
         scsi_disk_emulate_unmap(r, r->iov.iov_base);
         break;
 
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
+        if (r->req.status == -1) {
+            scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
+        }
+        break;
+
     default:
         abort();
     }
@@ -1837,6 +1845,14 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     case UNMAP:
         DPRINTF("Unmap (len %lu)\n", (long)r->req.cmd.xfer);
         break;
+    case VERIFY_10:
+    case VERIFY_12:
+    case VERIFY_16:
+        DPRINTF("Verify (bytchk %lu)\n", (r->req.buf[1] >> 1) & 3);
+        if (req->cmd.buf[1] & 6) {
+            goto illegal_request;
+        }
+        break;
     case WRITE_SAME_10:
     case WRITE_SAME_16:
         nb_sectors = scsi_data_cdb_length(r->req.cmd.buf);
@@ -1936,10 +1952,6 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
             scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
             return 0;
         }
-        /* fallthrough */
-    case VERIFY_10:
-    case VERIFY_12:
-    case VERIFY_16:
         DPRINTF("Write %s(sector %" PRId64 ", count %u)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",
                 r->req.cmd.lba, len);
@@ -2169,6 +2181,7 @@ static const SCSIReqOps scsi_disk_emulate_reqops = {
     .send_command = scsi_disk_emulate_command,
     .read_data    = scsi_disk_emulate_read_data,
     .write_data   = scsi_disk_emulate_write_data,
+    .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
 };
 
@@ -2207,14 +2220,14 @@ static const SCSIReqOps *const scsi_disk_reqops_dispatch[256] = {
     [UNMAP]                           = &scsi_disk_emulate_reqops,
     [WRITE_SAME_10]                   = &scsi_disk_emulate_reqops,
     [WRITE_SAME_16]                   = &scsi_disk_emulate_reqops,
+    [VERIFY_10]                       = &scsi_disk_emulate_reqops,
+    [VERIFY_12]                       = &scsi_disk_emulate_reqops,
+    [VERIFY_16]                       = &scsi_disk_emulate_reqops,
 
     [READ_6]                          = &scsi_disk_dma_reqops,
     [READ_10]                         = &scsi_disk_dma_reqops,
     [READ_12]                         = &scsi_disk_dma_reqops,
     [READ_16]                         = &scsi_disk_dma_reqops,
-    [VERIFY_10]                       = &scsi_disk_dma_reqops,
-    [VERIFY_12]                       = &scsi_disk_dma_reqops,
-    [VERIFY_16]                       = &scsi_disk_dma_reqops,
     [WRITE_6]                         = &scsi_disk_dma_reqops,
     [WRITE_10]                        = &scsi_disk_dma_reqops,
     [WRITE_12]                        = &scsi_disk_dma_reqops,
@@ -2359,7 +2372,7 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
 	 * ones (such as WRITE SAME or EXTENDED COPY, etc.).  So, without
 	 * O_DIRECT everything must go through SG_IO.
          */
-        if (bdrv_get_flags(s->qdev.conf.bs) & BDRV_O_NOCACHE) {
+        if (!(bdrv_get_flags(s->qdev.conf.bs) & BDRV_O_NOCACHE)) {
             break;
         }
 

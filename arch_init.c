@@ -857,64 +857,60 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 {
     ram_addr_t addr;
     int flags, ret = 0;
-    int error;
     static uint64_t seq_iter;
 
     seq_iter++;
 
-    if (version_id < 4 || version_id > 4) {
+    if (version_id != 4) {
         return -EINVAL;
     }
 
-    do {
+    while (!ret) {
         addr = qemu_get_be64(f);
 
         flags = addr & ~TARGET_PAGE_MASK;
         addr &= TARGET_PAGE_MASK;
 
         if (flags & RAM_SAVE_FLAG_MEM_SIZE) {
-            if (version_id == 4) {
-                /* Synchronize RAM block list */
-                char id[256];
-                ram_addr_t length;
-                ram_addr_t total_ram_bytes = addr;
+            /* Synchronize RAM block list */
+            char id[256];
+            ram_addr_t length;
+            ram_addr_t total_ram_bytes = addr;
 
-                while (total_ram_bytes) {
-                    RAMBlock *block;
-                    uint8_t len;
+            while (total_ram_bytes) {
+                RAMBlock *block;
+                uint8_t len;
 
-                    len = qemu_get_byte(f);
-                    qemu_get_buffer(f, (uint8_t *)id, len);
-                    id[len] = 0;
-                    length = qemu_get_be64(f);
+                len = qemu_get_byte(f);
+                qemu_get_buffer(f, (uint8_t *)id, len);
+                id[len] = 0;
+                length = qemu_get_be64(f);
 
-                    QTAILQ_FOREACH(block, &ram_list.blocks, next) {
-                        if (!strncmp(id, block->idstr, sizeof(id))) {
-                            if (block->length != length) {
-                                fprintf(stderr,
-                                        "Length mismatch: %s: " RAM_ADDR_FMT
-                                        " in != " RAM_ADDR_FMT "\n", id, length,
-                                        block->length);
-                                ret =  -EINVAL;
-                                goto done;
-                            }
-                            break;
+                QTAILQ_FOREACH(block, &ram_list.blocks, next) {
+                    if (!strncmp(id, block->idstr, sizeof(id))) {
+                        if (block->length != length) {
+                            fprintf(stderr,
+                                    "Length mismatch: %s: " RAM_ADDR_FMT
+                                    " in != " RAM_ADDR_FMT "\n", id, length,
+                                    block->length);
+                            ret =  -EINVAL;
                         }
+                        break;
                     }
-
-                    if (!block) {
-                        fprintf(stderr, "Unknown ramblock \"%s\", cannot "
-                                "accept migration\n", id);
-                        ret = -EINVAL;
-                        goto done;
-                    }
-
-                    total_ram_bytes -= length;
                 }
-            }
-        }
 
-        if (flags & RAM_SAVE_FLAG_COMPRESS) {
+                if (!block) {
+                    fprintf(stderr, "Unknown ramblock \"%s\", cannot "
+                            "accept migration\n", id);
+                    ret = -EINVAL;
+                }
+                if (ret) {
+                    break;
+                }
+
+                total_ram_bytes -= length;
+            }
+        } else if (flags & RAM_SAVE_FLAG_COMPRESS) {
             void *host;
             uint8_t ch;
 
@@ -941,20 +937,24 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             }
 
             if (load_xbzrle(f, addr, host) < 0) {
+                error_report("Failed to decompress XBZRLE page at "
+                             RAM_ADDR_FMT, addr);
                 ret = -EINVAL;
-                goto done;
+                break;
             }
         } else if (flags & RAM_SAVE_FLAG_HOOK) {
             ram_control_load_hook(f, flags);
+        } else if (flags & RAM_SAVE_FLAG_EOS) {
+            /* normal exit */
+            break;
+        } else {
+            error_report("Unknown migration flags: %#x", flags);
+            ret = -EINVAL;
+            break;
         }
-        error = qemu_file_get_error(f);
-        if (error) {
-            ret = error;
-            goto done;
-        }
-    } while (!(flags & RAM_SAVE_FLAG_EOS));
+        ret = qemu_file_get_error(f);
+    }
 
-done:
     DPRINTF("Completed load of VM with exit code %d seq iteration "
             "%" PRIu64 "\n", ret, seq_iter);
     return ret;

@@ -965,7 +965,7 @@ void kvm_init_irq_routing(KVMState *s)
 {
     int gsi_count, i;
 
-    gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING);
+    gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING) - 1;
     if (gsi_count > 0) {
         unsigned int gsi_bits, i;
 
@@ -1431,16 +1431,22 @@ int kvm_init(void)
         nc++;
     }
 
-    s->vmfd = kvm_ioctl(s, KVM_CREATE_VM, 0);
-    if (s->vmfd < 0) {
+    do {
+        ret = kvm_ioctl(s, KVM_CREATE_VM, 0);
+    } while (ret == -EINTR);
+
+    if (ret < 0) {
+        fprintf(stderr, "ioctl(KVM_CREATE_VM) failed: %d %s\n", -ret,
+                strerror(-ret));
+
 #ifdef TARGET_S390X
         fprintf(stderr, "Please add the 'switch_amode' kernel parameter to "
                         "your host kernel command line\n");
 #endif
-        ret = s->vmfd;
         goto err;
     }
 
+    s->vmfd = ret;
     missing_cap = kvm_check_extension_list(s, kvm_required_capabilites);
     if (!missing_cap) {
         missing_cap =

@@ -966,14 +966,14 @@ fail:
  */
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
 {
-    char backing_filename[PATH_MAX];
-    int back_flags, ret;
+    char *backing_filename = g_malloc0(PATH_MAX);
+    int back_flags, ret = 0;
     BlockDriver *back_drv = NULL;
     Error *local_err = NULL;
 
     if (bs->backing_hd != NULL) {
         QDECREF(options);
-        return 0;
+        goto free_exit;
     }
 
     /* NULL means an empty set of options */
@@ -986,10 +986,9 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         backing_filename[0] = '\0';
     } else if (bs->backing_file[0] == '\0' && qdict_size(options) == 0) {
         QDECREF(options);
-        return 0;
+        goto free_exit;
     } else {
-        bdrv_get_full_backing_filename(bs, backing_filename,
-                                       sizeof(backing_filename));
+        bdrv_get_full_backing_filename(bs, backing_filename, PATH_MAX);
     }
 
     bs->backing_hd = bdrv_new("");
@@ -1012,11 +1011,14 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         error_setg(errp, "Could not open backing file: %s",
                    error_get_pretty(local_err));
         error_free(local_err);
-        return ret;
+        goto free_exit;
     }
     pstrcpy(bs->backing_file, sizeof(bs->backing_file),
             bs->backing_hd->file->filename);
-    return 0;
+    ret = 0;
+free_exit:
+    g_free(backing_filename);
+    return ret;
 }
 
 /*
@@ -1032,7 +1034,8 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
 {
     int ret;
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
-    char tmp_filename[PATH_MAX + 1];
+    char *backing_filename = NULL;
+    char *tmp_filename = g_malloc0(PATH_MAX + 1);
     BlockDriverState *file = NULL;
     QDict *file_options = NULL;
     const char *drvname;
@@ -1052,7 +1055,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         int64_t total_size;
         BlockDriver *bdrv_qcow2;
         QEMUOptionParameter *create_options;
-        char backing_filename[PATH_MAX];
+        backing_filename = g_malloc0(PATH_MAX);
 
         if (qdict_size(options) != 0) {
             error_setg(errp, "Can't use snapshot=on with driver-specific options");
@@ -1064,9 +1067,9 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
         /* if snapshot, we create a temporary backing file and open it
            instead of opening 'filename' directly */
 
-        /* if there is a backing file, use it */
         bs1 = bdrv_new("");
-        ret = bdrv_open(bs1, filename, NULL, 0, drv, &local_err);
+        ret = bdrv_open(bs1, filename, NULL, BDRV_O_NO_BACKING, drv,
+                        &local_err);
         if (ret < 0) {
             bdrv_unref(bs1);
             goto fail;
@@ -1075,7 +1078,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
 
         bdrv_unref(bs1);
 
-        ret = get_tmp_filename(tmp_filename, sizeof(tmp_filename));
+        ret = get_tmp_filename(tmp_filename, PATH_MAX + 1);
         if (ret < 0) {
             error_setg_errno(errp, -ret, "Could not get temporary filename");
             goto fail;
@@ -1083,8 +1086,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, QDict *options,
 
         /* Real path is meaningless for protocols */
         if (path_has_protocol(filename)) {
-            snprintf(backing_filename, sizeof(backing_filename),
-                     "%s", filename);
+            snprintf(backing_filename, PATH_MAX, "%s", filename);
         } else if (!realpath(filename, backing_filename)) {
             ret = -errno;
             error_setg_errno(errp, errno, "Could not resolve path '%s'", filename);
@@ -1206,6 +1208,8 @@ fail:
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
     }
+    g_free(tmp_filename);
+    g_free(backing_filename);
     return ret;
 
 close_and_fail:
@@ -1214,6 +1218,8 @@ close_and_fail:
     if (error_is_set(&local_err)) {
         error_propagate(errp, local_err);
     }
+    g_free(tmp_filename);
+    g_free(backing_filename);
     return ret;
 }
 
@@ -2271,6 +2277,10 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
 static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
                               int nb_sectors)
 {
+    if (nb_sectors > INT_MAX / BDRV_SECTOR_SIZE) {
+        return -EIO;
+    }
+
     return bdrv_check_byte_request(bs, sector_num * BDRV_SECTOR_SIZE,
                                    nb_sectors * BDRV_SECTOR_SIZE);
 }

@@ -370,16 +370,14 @@ static int virtio_balloon_device_init(VirtIODevice *vdev)
     return 0;
 }
 
-static int virtio_balloon_device_exit(DeviceState *qdev)
+static void virtio_balloon_device_exit(VirtIODevice *vdev)
 {
-    VirtIOBalloon *s = VIRTIO_BALLOON(qdev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
 
     balloon_stats_destroy_timer(s);
     qemu_remove_balloon_handler(s);
-    unregister_savevm(qdev, "virtio-balloon", s);
+    unregister_savevm(DEVICE(vdev), "virtio-balloon", s);
     virtio_cleanup(vdev);
-    return 0;
 }
 
 static Property virtio_balloon_properties[] = {
@@ -390,10 +388,10 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_balloon_device_exit;
     dc->props = virtio_balloon_properties;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     vdc->init = virtio_balloon_device_init;
+    vdc->exit = virtio_balloon_device_exit;
     vdc->get_config = virtio_balloon_get_config;
     vdc->set_config = virtio_balloon_set_config;
     vdc->get_features = virtio_balloon_get_features;

@@ -37,8 +37,6 @@ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 #include <scsi/sg.h>
 #include "block/scsi.h"
 
-#define SCSI_SENSE_BUF_SIZE 96
-
 #define SG_ERR_DRIVER_TIMEOUT  0x06
 #define SG_ERR_DRIVER_SENSE    0x08
 

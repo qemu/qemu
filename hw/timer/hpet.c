@@ -42,7 +42,6 @@
 
 #define HPET_MSI_SUPPORT        0
 
-#define TYPE_HPET "hpet"
 #define HPET(obj) OBJECT_CHECK(HPETState, (obj), TYPE_HPET)
 
 struct HPETState;
@@ -228,6 +227,18 @@ static int hpet_pre_load(void *opaque)
     return 0;
 }
 
+static bool hpet_validate_num_timers(void *opaque, int version_id)
+{
+    HPETState *s = opaque;
+
+    if (s->num_timers < HPET_MIN_TIMERS) {
+        return false;
+    } else if (s->num_timers > HPET_MAX_TIMERS) {
+        return false;
+    }
+    return true;
+}
+
 static int hpet_post_load(void *opaque, int version_id)
 {
     HPETState *s = opaque;
@@ -296,6 +307,7 @@ static const VMStateDescription vmstate_hpet = {
         VMSTATE_UINT64(isr, HPETState),
         VMSTATE_UINT64(hpet_counter, HPETState),
         VMSTATE_UINT8_V(num_timers, HPETState, 2),
+        VMSTATE_VALIDATE("num_timers in range", hpet_validate_num_timers),
         VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers, 0,
                                     vmstate_hpet_timer, HPETTimer),
         VMSTATE_END_OF_LIST()
@@ -755,11 +767,6 @@ static void hpet_device_class_init(ObjectClass *klass, void *data)
     dc->reset = hpet_reset;
     dc->vmsd = &vmstate_hpet;
     dc->props = hpet_device_properties;
-}
-
-bool hpet_find(void)
-{
-    return object_resolve_path_type("", TYPE_HPET, NULL);
 }
 
 static const TypeInfo hpet_device_info = {

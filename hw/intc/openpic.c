@@ -41,6 +41,7 @@
 #include "hw/sysbus.h"
 #include "hw/pci/msi.h"
 #include "qemu/bitops.h"
+#include "qapi/qmp/qerror.h"
 
 //#define DEBUG_OPENPIC
 
@@ -1416,7 +1417,7 @@ static void openpic_load_IRQ_queue(QEMUFile* f, IRQQueue *q)
 static int openpic_load(QEMUFile* f, void *opaque, int version_id)
 {
     OpenPICState *opp = (OpenPICState *)opaque;
-    unsigned int i;
+    unsigned int i, nb_cpus;
 
     if (version_id != 1) {
         return -EINVAL;
@@ -1428,7 +1429,11 @@ static int openpic_load(QEMUFile* f, void *opaque, int version_id)
     qemu_get_be32s(f, &opp->spve);
     qemu_get_be32s(f, &opp->tfrr);
 
-    qemu_get_be32s(f, &opp->nb_cpus);
+    qemu_get_be32s(f, &nb_cpus);
+    if (opp->nb_cpus != nb_cpus) {
+        return -EINVAL;
+    }
+    assert(nb_cpus > 0 && nb_cpus <= MAX_CPU);
 
     for (i = 0; i < opp->nb_cpus; i++) {
         qemu_get_sbe32s(f, &opp->dst[i].ctpr);
@@ -1566,6 +1571,13 @@ static void openpic_realize(DeviceState *dev, Error **errp)
                 OPENPIC_SUMMARY_REG_START, OPENPIC_SUMMARY_REG_SIZE},
         {NULL}
     };
+
+    if (opp->nb_cpus > MAX_CPU) {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+                  TYPE_OPENPIC, "nb_cpus", (uint64_t)opp->nb_cpus,
+                  (uint64_t)0, (uint64_t)MAX_CPU);
+        return;
+    }
 
     switch (opp->model) {
     case OPENPIC_MODEL_FSL_MPIC_20:

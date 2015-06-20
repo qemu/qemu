@@ -531,6 +531,12 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
 
     if (!(env->cr[0] & CR0_PG_MASK)) {
         pte = addr;
+#ifdef TARGET_X86_64
+        if (!(env->hflags & HF_LMA_MASK)) {
+            /* Without long mode we can only address 32bits in real mode */
+            pte = (uint32_t)pte;
+        }
+#endif
         virt_addr = addr & TARGET_PAGE_MASK;
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         page_size = 4096;

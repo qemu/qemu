@@ -795,6 +795,13 @@ static const VMStateDescription vmstate_pcie_aer_err = {
     }
 };
 
+static bool pcie_aer_state_log_num_valid(void *opaque, int version_id)
+{
+    PCIEAERLog *s = opaque;
+
+    return s->log_num <= s->log_max;
+}
+
 const VMStateDescription vmstate_pcie_aer_log = {
     .name = "PCIE_AER_ERROR_LOG",
     .version_id = 1,
@@ -802,7 +809,8 @@ const VMStateDescription vmstate_pcie_aer_log = {
     .minimum_version_id_old = 1,
     .fields     = (VMStateField[]) {
         VMSTATE_UINT16(log_num, PCIEAERLog),
-        VMSTATE_UINT16(log_max, PCIEAERLog),
+        VMSTATE_UINT16_EQUAL(log_max, PCIEAERLog),
+        VMSTATE_VALIDATE("log_num <= log_max", pcie_aer_state_log_num_valid),
         VMSTATE_STRUCT_VARRAY_POINTER_UINT16(log, PCIEAERLog, log_num,
                               vmstate_pcie_aer_err, PCIEAERErr),
         VMSTATE_END_OF_LIST()

@@ -240,11 +240,25 @@ static const MemoryRegionOps pl022_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static int pl022_post_load(void *opaque, int version_id)
+{
+    PL022State *s = opaque;
+
+    if (s->tx_fifo_head < 0 ||
+        s->tx_fifo_head >= ARRAY_SIZE(s->tx_fifo) ||
+        s->rx_fifo_head < 0 ||
+        s->rx_fifo_head >= ARRAY_SIZE(s->rx_fifo)) {
+        return -1;
+    }
+    return 0;
+}
+
 static const VMStateDescription vmstate_pl022 = {
     .name = "pl022_ssp",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .post_load = pl022_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT32(cr0, PL022State),
         VMSTATE_UINT32(cr1, PL022State),

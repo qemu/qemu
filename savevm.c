@@ -1111,22 +1111,25 @@ const VMStateInfo vmstate_info_int32_equal = {
     .put  = put_int32,
 };
 
-/* 32 bit int. See that the received value is the less or the same
-   than the one in the field */
+/* 32 bit int. Check that the received value is non-negative
+ * and less than or equal to the one in the field.
+ */
 
 static int get_int32_le(QEMUFile *f, void *pv, size_t size)
 {
-    int32_t *old = pv;
-    int32_t new;
-    qemu_get_sbe32s(f, &new);
+    int32_t *cur = pv;
+    int32_t loaded;
+    qemu_get_sbe32s(f, &loaded);
 
-    if (*old <= new)
+    if (loaded >= 0 && loaded <= *cur) {
+        *cur = loaded;
         return 0;
+    }
     return -EINVAL;
 }
 
 const VMStateInfo vmstate_info_int32_le = {
-    .name = "int32 equal",
+    .name = "int32 le",
     .get  = get_int32_le,
     .put  = put_int32,
 };
@@ -1673,6 +1676,50 @@ static void vmstate_subsection_save(QEMUFile *f, const VMStateDescription *vmsd,
 static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
                                    void *opaque);
 
+static int vmstate_n_elems(void *opaque, VMStateField *field)
+{
+    int n_elems = 1;
+
+    if (field->flags & VMS_ARRAY) {
+        n_elems = field->num;
+    } else if (field->flags & VMS_VARRAY_INT32) {
+        n_elems = *(int32_t *)(opaque+field->num_offset);
+    } else if (field->flags & VMS_VARRAY_UINT32) {
+        n_elems = *(uint32_t *)(opaque+field->num_offset);
+    } else if (field->flags & VMS_VARRAY_UINT16) {
+        n_elems = *(uint16_t *)(opaque+field->num_offset);
+    } else if (field->flags & VMS_VARRAY_UINT8) {
+        n_elems = *(uint8_t *)(opaque+field->num_offset);
+    }
+
+    return n_elems;
+}
+
+static int vmstate_size(void *opaque, VMStateField *field)
+{
+    int size = field->size;
+
+    if (field->flags & VMS_VBUFFER) {
+        size = *(int32_t *)(opaque+field->size_offset);
+        if (field->flags & VMS_MULTIPLY) {
+            size *= field->size;
+        }
+    }
+
+    return size;
+}
+
+static void *vmstate_base_addr(void *opaque, VMStateField *field)
+{
+    void *base_addr = opaque + field->offset;
+
+    if (field->flags & VMS_POINTER) {
+        base_addr = *(void **)base_addr + field->start;
+    }
+
+    return base_addr;
+}
+
 int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                        void *opaque, int version_id)
 {
@@ -1682,11 +1729,12 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
     if (version_id > vmsd->version_id) {
         return -EINVAL;
     }
-    if (version_id < vmsd->minimum_version_id_old) {
-        return -EINVAL;
-    }
     if  (version_id < vmsd->minimum_version_id) {
-        return vmsd->load_state_old(f, opaque, version_id);
+        if (vmsd->load_state_old &&
+            version_id >= vmsd->minimum_version_id_old) {
+            return vmsd->load_state_old(f, opaque, version_id);
+        }
+        return -EINVAL;
     }
     if (vmsd->pre_load) {
         int ret = vmsd->pre_load(opaque);
@@ -1698,30 +1746,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
              field->field_exists(opaque, version_id)) ||
             (!field->field_exists &&
              field->version_id <= version_id)) {
-            void *base_addr = opaque + field->offset;
-            int i, n_elems = 1;
-            int size = field->size;
+            void *base_addr = vmstate_base_addr(opaque, field);
+            int i, n_elems = vmstate_n_elems(opaque, field);
+            int size = vmstate_size(opaque, field);
 
-            if (field->flags & VMS_VBUFFER) {
-                size = *(int32_t *)(opaque+field->size_offset);
-                if (field->flags & VMS_MULTIPLY) {
-                    size *= field->size;
-                }
-            }
-            if (field->flags & VMS_ARRAY) {
-                n_elems = field->num;
-            } else if (field->flags & VMS_VARRAY_INT32) {
-                n_elems = *(int32_t *)(opaque+field->num_offset);
-            } else if (field->flags & VMS_VARRAY_UINT32) {
-                n_elems = *(uint32_t *)(opaque+field->num_offset);
-            } else if (field->flags & VMS_VARRAY_UINT16) {
-                n_elems = *(uint16_t *)(opaque+field->num_offset);
-            } else if (field->flags & VMS_VARRAY_UINT8) {
-                n_elems = *(uint8_t *)(opaque+field->num_offset);
-            }
-            if (field->flags & VMS_POINTER) {
-                base_addr = *(void **)base_addr + field->start;
-            }
             for (i = 0; i < n_elems; i++) {
                 void *addr = base_addr + size * i;
 
@@ -1738,6 +1766,10 @@ int vmstate_load_state(QEMUFile *f, const VMStateDescription *vmsd,
                     return ret;
                 }
             }
+        } else if (field->flags & VMS_MUST_EXIST) {
+            fprintf(stderr, "Input validation failed: %s/%s\n",
+                    vmsd->name, field->name);
+            return -1;
         }
         field++;
     }
@@ -1762,30 +1794,10 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
     while(field->name) {
         if (!field->field_exists ||
             field->field_exists(opaque, vmsd->version_id)) {
-            void *base_addr = opaque + field->offset;
-            int i, n_elems = 1;
-            int size = field->size;
+            void *base_addr = vmstate_base_addr(opaque, field);
+            int i, n_elems = vmstate_n_elems(opaque, field);
+            int size = vmstate_size(opaque, field);
 
-            if (field->flags & VMS_VBUFFER) {
-                size = *(int32_t *)(opaque+field->size_offset);
-                if (field->flags & VMS_MULTIPLY) {
-                    size *= field->size;
-                }
-            }
-            if (field->flags & VMS_ARRAY) {
-                n_elems = field->num;
-            } else if (field->flags & VMS_VARRAY_INT32) {
-                n_elems = *(int32_t *)(opaque+field->num_offset);
-            } else if (field->flags & VMS_VARRAY_UINT32) {
-                n_elems = *(uint32_t *)(opaque+field->num_offset);
-            } else if (field->flags & VMS_VARRAY_UINT16) {
-                n_elems = *(uint16_t *)(opaque+field->num_offset);
-            } else if (field->flags & VMS_VARRAY_UINT8) {
-                n_elems = *(uint8_t *)(opaque+field->num_offset);
-            }
-            if (field->flags & VMS_POINTER) {
-                base_addr = *(void **)base_addr + field->start;
-            }
             for (i = 0; i < n_elems; i++) {
                 void *addr = base_addr + size * i;
 
@@ -1797,6 +1809,12 @@ void vmstate_save_state(QEMUFile *f, const VMStateDescription *vmsd,
                 } else {
                     field->info->put(f, addr, size);
                 }
+            }
+        } else {
+            if (field->flags & VMS_MUST_EXIST) {
+                fprintf(stderr, "Output state validation failed: %s/%s\n",
+                        vmsd->name, field->name);
+                assert(!(field->flags & VMS_MUST_EXIST));
             }
         }
         field++;

@@ -278,7 +278,9 @@ STDMETHODIMP CQGAVssProvider::DeleteSnapshots(
     VSS_ID SourceObjectId, VSS_OBJECT_TYPE eSourceObjectType,
     BOOL bForceDelete, LONG *plDeletedSnapshots, VSS_ID *pNondeletedSnapshotID)
 {
-    return E_NOTIMPL;
+    *plDeletedSnapshots = 0;
+    *pNondeletedSnapshotID = SourceObjectId;
+    return S_OK;
 }
 
 STDMETHODIMP CQGAVssProvider::BeginPrepareSnapshot(
@@ -291,8 +293,17 @@ STDMETHODIMP CQGAVssProvider::BeginPrepareSnapshot(
 STDMETHODIMP CQGAVssProvider::IsVolumeSupported(
     VSS_PWSZ pwszVolumeName, BOOL *pbSupportedByThisProvider)
 {
-    *pbSupportedByThisProvider = TRUE;
+    HANDLE hEventFrozen;
 
+    /* Check if a requester is qemu-ga by whether an event is created */
+    hEventFrozen = OpenEvent(EVENT_ALL_ACCESS, FALSE, EVENT_NAME_FROZEN);
+    if (!hEventFrozen) {
+        *pbSupportedByThisProvider = FALSE;
+        return S_OK;
+    }
+    CloseHandle(hEventFrozen);
+
+    *pbSupportedByThisProvider = TRUE;
     return S_OK;
 }
 
@@ -342,18 +353,18 @@ STDMETHODIMP CQGAVssProvider::CommitSnapshots(VSS_ID SnapshotSetId)
     HANDLE hEventFrozen, hEventThaw, hEventTimeout;
 
     hEventFrozen = OpenEvent(EVENT_ALL_ACCESS, FALSE, EVENT_NAME_FROZEN);
-    if (hEventFrozen == INVALID_HANDLE_VALUE) {
+    if (!hEventFrozen) {
         return E_FAIL;
     }
 
     hEventThaw = OpenEvent(EVENT_ALL_ACCESS, FALSE, EVENT_NAME_THAW);
-    if (hEventThaw == INVALID_HANDLE_VALUE) {
+    if (!hEventThaw) {
         CloseHandle(hEventFrozen);
         return E_FAIL;
     }
 
     hEventTimeout = OpenEvent(EVENT_ALL_ACCESS, FALSE, EVENT_NAME_TIMEOUT);
-    if (hEventTimeout == INVALID_HANDLE_VALUE) {
+    if (!hEventTimeout) {
         CloseHandle(hEventFrozen);
         CloseHandle(hEventThaw);
         return E_FAIL;

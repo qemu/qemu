@@ -515,6 +515,12 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint32_t features)
         }
         vhost_net_ack_features(tap_get_vhost_net(nc->peer), features);
     }
+
+    if ((1 << VIRTIO_NET_F_CTRL_VLAN) & features) {
+        memset(n->vlans, 0, MAX_VLAN >> 3);
+    } else {
+        memset(n->vlans, 0xff, MAX_VLAN >> 3);
+    }
 }
 
 static int virtio_net_handle_rx_mode(VirtIONet *n, uint8_t cmd,
@@ -837,6 +843,14 @@ static int virtio_net_has_buffers(VirtIONetQueue *q, int bufsize)
     return 1;
 }
 
+static void virtio_net_hdr_swap(struct virtio_net_hdr *hdr)
+{
+    tswap16s(&hdr->hdr_len);
+    tswap16s(&hdr->gso_size);
+    tswap16s(&hdr->csum_start);
+    tswap16s(&hdr->csum_offset);
+}
+
 /* dhclient uses AF_PACKET but doesn't pass auxdata to the kernel so
  * it never finds out that the packets don't have valid checksums.  This
  * causes dhclient to get upset.  Fedora's carried a patch for ages to
@@ -872,6 +886,7 @@ static void receive_header(VirtIONet *n, const struct iovec *iov, int iov_cnt,
         void *wbuf = (void *)buf;
         work_around_broken_dhclient(wbuf, wbuf + n->host_hdr_len,
                                     size - n->host_hdr_len);
+        virtio_net_hdr_swap(wbuf);
         iov_from_buf(iov, iov_cnt, 0, buf, sizeof(struct virtio_net_hdr));
     } else {
         struct virtio_net_hdr hdr = {
@@ -1078,6 +1093,14 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
         if (out_num < 1) {
             error_report("virtio-net header not in first element");
             exit(1);
+        }
+
+        if (n->has_vnet_hdr) {
+            if (out_sg[0].iov_len < n->guest_hdr_len) {
+                error_report("virtio-net header incorrect");
+                exit(1);
+            }
+            virtio_net_hdr_swap((void *) out_sg[0].iov_base);
         }
 
         /*
@@ -1336,10 +1359,17 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         if (n->mac_table.in_use <= MAC_TABLE_ENTRIES) {
             qemu_get_buffer(f, n->mac_table.macs,
                             n->mac_table.in_use * ETH_ALEN);
-        } else if (n->mac_table.in_use) {
-            uint8_t *buf = g_malloc0(n->mac_table.in_use);
-            qemu_get_buffer(f, buf, n->mac_table.in_use * ETH_ALEN);
-            g_free(buf);
+        } else {
+            int64_t i;
+
+            /* Overflow detected - can happen if source has a larger MAC table.
+             * We simply set overflow flag so there's no need to maintain the
+             * table of addresses, discard them all.
+             * Note: 64 bit math to avoid integer overflow.
+             */
+            for (i = 0; i < (int64_t)n->mac_table.in_use * ETH_ALEN; ++i) {
+                qemu_get_byte(f);
+            }
             n->mac_table.multi_overflow = n->mac_table.uni_overflow = 1;
             n->mac_table.in_use = 0;
         }
@@ -1381,6 +1411,11 @@ static int virtio_net_load(QEMUFile *f, void *opaque, int version_id)
         }
 
         n->curr_queues = qemu_get_be16(f);
+        if (n->curr_queues > n->max_queues) {
+            error_report("virtio-net: curr_queues %x > max_queues %x",
+                         n->curr_queues, n->max_queues);
+            return -1;
+        }
         for (i = 1; i < n->curr_queues; i++) {
             n->vqs[i].tx_waiting = qemu_get_be32(f);
         }
@@ -1570,16 +1605,15 @@ static int virtio_net_device_init(VirtIODevice *vdev)
     return 0;
 }
 
-static int virtio_net_device_exit(DeviceState *qdev)
+static void virtio_net_device_exit(VirtIODevice *vdev)
 {
-    VirtIONet *n = VIRTIO_NET(qdev);
-    VirtIODevice *vdev = VIRTIO_DEVICE(qdev);
+    VirtIONet *n = VIRTIO_NET(vdev);
     int i;
 
     /* This will stop vhost backend if appropriate. */
     virtio_net_set_status(vdev, 0);
 
-    unregister_savevm(qdev, "virtio-net", n);
+    unregister_savevm(DEVICE(vdev), "virtio-net", n);
 
     if (n->netclient_name) {
         g_free(n->netclient_name);
@@ -1610,8 +1644,6 @@ static int virtio_net_device_exit(DeviceState *qdev)
     g_free(n->vqs);
     qemu_del_nic(n->nic);
     virtio_cleanup(vdev);
-
-    return 0;
 }
 
 static void virtio_net_instance_init(Object *obj)
@@ -1638,10 +1670,10 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
-    dc->exit = virtio_net_device_exit;
     dc->props = virtio_net_properties;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
     vdc->init = virtio_net_device_init;
+    vdc->exit = virtio_net_device_exit;
     vdc->get_config = virtio_net_get_config;
     vdc->set_config = virtio_net_set_config;
     vdc->get_features = virtio_net_get_features;

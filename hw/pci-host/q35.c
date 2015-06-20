@@ -356,28 +356,11 @@ static int mch_init(PCIDevice *d)
 {
     int i;
     MCHPCIState *mch = MCH_PCI_DEVICE(d);
-    uint64_t pci_hole64_size;
 
-    /* setup pci memory regions */
-    memory_region_init_alias(&mch->pci_hole, OBJECT(mch), "pci-hole",
-                             mch->pci_address_space,
-                             mch->below_4g_mem_size,
-                             0x100000000ULL - mch->below_4g_mem_size);
-    memory_region_add_subregion(mch->system_memory, mch->below_4g_mem_size,
-                                &mch->pci_hole);
+    /* setup pci memory mapping */
+    pc_pci_as_mapping_init(OBJECT(mch), mch->system_memory,
+                           mch->pci_address_space);
 
-    pci_hole64_size = pci_host_get_hole64_size(mch->pci_hole64_size);
-    pc_init_pci64_hole(&mch->pci_info, 0x100000000ULL + mch->above_4g_mem_size,
-                       pci_hole64_size);
-    memory_region_init_alias(&mch->pci_hole_64bit, OBJECT(mch), "pci-hole64",
-                             mch->pci_address_space,
-                             mch->pci_info.w64.begin,
-                             pci_hole64_size);
-    if (pci_hole64_size) {
-        memory_region_add_subregion(mch->system_memory,
-                                    mch->pci_info.w64.begin,
-                                    &mch->pci_hole_64bit);
-    }
     /* smram */
     cpu_smm_register(&mch_set_smm, mch);
     memory_region_init_alias(&mch->smram_region, OBJECT(mch), "smram-region",

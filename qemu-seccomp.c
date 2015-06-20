@@ -230,6 +230,7 @@ int seccomp_start(void)
 
     ctx = seccomp_init(SCMP_ACT_KILL);
     if (ctx == NULL) {
+        rc = -1;
         goto seccomp_return;
     }
 
