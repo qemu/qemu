@@ -1998,6 +1998,11 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
         GLenum gl_type;
         unsigned int bytes_per_pixel;
         switch (d->pgraph.surface_color.format) {
+        case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_Z1R5G5B5:
+            bytes_per_pixel = 2;
+            gl_format = GL_BGRA;
+            gl_type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+            break;
         case NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5:
             bytes_per_pixel = 2;
             gl_format = GL_RGB;
@@ -2010,6 +2015,8 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
             gl_type = GL_UNSIGNED_INT_8_8_8_8_REV;
             break;
         default:
+            NV2A_DPRINTF("bad color surface format %x\n",
+                d->pgraph.surface_color.format);
             assert(false);
         }
 
