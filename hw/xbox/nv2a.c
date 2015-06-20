@@ -246,6 +246,10 @@
 #   define NV_PGRAPH_TRAPPED_ADDR_CHID                        0x01F00000
 #   define NV_PGRAPH_TRAPPED_ADDR_DHV                         0x10000000
 #define NV_PGRAPH_TRAPPED_DATA_LOW                       0x00000708
+#define NV_PGRAPH_SURFACE                                0x00000710
+#   define NV_PGRAPH_SURFACE_WRITE_3D                         0x00700000
+#   define NV_PGRAPH_SURFACE_READ_3D                          0x07000000
+#   define NV_PGRAPH_SURFACE_MODULO_3D                        0x70000000
 #define NV_PGRAPH_INCREMENT                              0x0000071C
 #   define NV_PGRAPH_INCREMENT_READ_BLIT                        (1 << 0)
 #   define NV_PGRAPH_INCREMENT_READ_3D                          (1 << 1)
@@ -489,6 +493,10 @@
 #define NV_KELVIN_PRIMITIVE                              0x0097
 #   define NV097_NO_OPERATION                                 0x00970100
 #   define NV097_WAIT_FOR_IDLE                                0x00970110
+#   define NV097_SET_FLIP_READ                                0x00970120
+#   define NV097_SET_FLIP_WRITE                               0x00970124
+#   define NV097_SET_FLIP_MODULO                              0x00970128
+#   define NV097_FLIP_INCREMENT_WRITE                         0x0097012C
 #   define NV097_FLIP_STALL                                   0x00970130
 #   define NV097_SET_CONTEXT_DMA_NOTIFIES                     0x00970180
 #   define NV097_SET_CONTEXT_DMA_A                            0x00970184
@@ -1019,10 +1027,6 @@ typedef struct Cache1State {
     uint32_t data_shadow;
     uint32_t error;
 
-
-    /* Puller state */
-    QemuMutex pull_lock;
-
     bool pull_enabled;
     enum FIFOEngine bound_engines[NV2A_NUM_SUBCHANNELS];
     enum FIFOEngine last_engine;
@@ -1045,9 +1049,13 @@ typedef struct ChannelControl {
 typedef struct NV2AState {
     PCIDevice dev;
     qemu_irq irq;
+    
+    bool exiting;
 
     VGACommonState vga;
     GraphicHwOps hw_ops;
+
+    QEMUTimer *vblank_timer;
 
     MemoryRegion *vram;
     MemoryRegion vram_pci;
@@ -1160,6 +1168,7 @@ static void update_irq(NV2AState *d)
     }
 
     if (d->pmc.pending_interrupts && d->pmc.enabled_interrupts) {
+        NV2A_DPRINTF("raise irq\n");
         pci_irq_assert(&d->dev);
     } else {
         pci_irq_deassert(&d->dev);
@@ -2381,12 +2390,45 @@ static void pgraph_method(NV2AState *d,
         pgraph_update_surface(d, false);
         break;
 
+
+    case NV097_SET_FLIP_READ:
+        SET_MASK(pg->regs[NV_PGRAPH_SURFACE], NV_PGRAPH_SURFACE_READ_3D,
+                 parameter);
+        break;
+    case NV097_SET_FLIP_WRITE:
+        SET_MASK(pg->regs[NV_PGRAPH_SURFACE], NV_PGRAPH_SURFACE_WRITE_3D,
+                 parameter);
+        break;
+    case NV097_SET_FLIP_MODULO:
+        SET_MASK(pg->regs[NV_PGRAPH_SURFACE], NV_PGRAPH_SURFACE_MODULO_3D,
+                 parameter);
+        break;
+    case NV097_FLIP_INCREMENT_WRITE: {
+        SET_MASK(pg->regs[NV_PGRAPH_SURFACE],
+                 NV_PGRAPH_SURFACE_WRITE_3D,
+                 (GET_MASK(pg->regs[NV_PGRAPH_SURFACE],
+                          NV_PGRAPH_SURFACE_WRITE_3D)+1)
+                    % GET_MASK(pg->regs[NV_PGRAPH_SURFACE],
+                               NV_PGRAPH_SURFACE_MODULO_3D) );
+        break;
+    }
     case NV097_FLIP_STALL:
         pgraph_update_surface(d, false);
 
         qemu_mutex_unlock(&pg->lock);
-        qemu_sem_wait(&pg->read_3d);
-        qemu_mutex_lock(&pg->lock);
+
+        // busy-wait for now...
+        while (true) {
+            qemu_mutex_lock(&pg->lock);
+
+            uint32_t s = pg->regs[NV_PGRAPH_SURFACE];
+            if (GET_MASK(s, NV_PGRAPH_SURFACE_READ_3D)
+                == GET_MASK(s, NV_PGRAPH_SURFACE_WRITE_3D)) {
+                break;
+            }
+
+            qemu_mutex_unlock(&pg->lock);            
+        }
         break;
     
     case NV097_SET_CONTEXT_DMA_NOTIFIES:
@@ -3044,7 +3086,7 @@ static void pgraph_wait_fifo_access(NV2AState *d) {
     qemu_mutex_unlock(&d->pgraph.lock);
 }
 
-static void *pfifo_puller_thread(void *arg)
+static void* pfifo_puller_thread(void *arg)
 {
     NV2AState *d = arg;
     Cache1State *state = &d->pfifo.cache1;
@@ -3052,25 +3094,14 @@ static void *pfifo_puller_thread(void *arg)
     RAMHTEntry entry;
 
     while (true) {
-        qemu_mutex_lock(&state->pull_lock);
-        if (!state->pull_enabled) {
-            qemu_mutex_unlock(&state->pull_lock);
-            return NULL;
-        }
-        qemu_mutex_unlock(&state->pull_lock);
-
         qemu_mutex_lock(&state->cache_lock);
-        while (QSIMPLEQ_EMPTY(&state->cache)) {
+        while (QSIMPLEQ_EMPTY(&state->cache) || !state->pull_enabled) {
             qemu_cond_wait(&state->cache_cond, &state->cache_lock);
 
-            /* we could have been woken up to tell us we should die */
-            qemu_mutex_lock(&state->pull_lock);
-            if (!state->pull_enabled) {
-                qemu_mutex_unlock(&state->pull_lock);
+            if (d->exiting) {
                 qemu_mutex_unlock(&state->cache_lock);
                 return NULL;
             }
-            qemu_mutex_unlock(&state->pull_lock);
         }
         command = QSIMPLEQ_FIRST(&state->cache);
         QSIMPLEQ_REMOVE_HEAD(&state->cache, entry);
@@ -3097,10 +3128,10 @@ static void *pfifo_puller_thread(void *arg)
             }
 
             /* the engine is bound to the subchannel */
-            qemu_mutex_lock(&state->pull_lock);
+            qemu_mutex_lock(&state->cache_lock);
             state->bound_engines[command->subchannel] = entry.engine;
             state->last_engine = entry.engine;
-            qemu_mutex_unlock(&state->pull_lock);
+            qemu_mutex_unlock(&state->cache_lock);
         } else if (command->method >= 0x100) {
             /* method passed to engine */
 
@@ -3117,9 +3148,9 @@ static void *pfifo_puller_thread(void *arg)
                 //qemu_mutex_unlock_iothread();
             }
 
-            qemu_mutex_lock(&state->pull_lock);
+            qemu_mutex_lock(&state->cache_lock);
             enum FIFOEngine engine = state->bound_engines[command->subchannel];
-            qemu_mutex_unlock(&state->pull_lock);
+            qemu_mutex_unlock(&state->cache_lock);
 
             switch (engine) {
             case ENGINE_GRAPHICS:
@@ -3132,9 +3163,9 @@ static void *pfifo_puller_thread(void *arg)
                 break;
             }
 
-            qemu_mutex_lock(&state->pull_lock);
+            qemu_mutex_lock(&state->cache_lock);
             state->last_engine = state->bound_engines[command->subchannel];
-            qemu_mutex_unlock(&state->pull_lock);
+            qemu_mutex_unlock(&state->cache_lock);
         }
 
         g_free(command);
@@ -3265,6 +3296,9 @@ static void pfifo_run_pusher(NV2AState *d) {
             }
         }
     }
+
+    NV2A_DPRINTF("DMA pusher done: max 0x%llx, 0x%llx - 0x%llx\n",
+                 dma_len, control->dma_get, control->dma_put);
 
     if (state->error) {
         NV2A_DPRINTF("pb error: %d\n", state->error);
@@ -3459,16 +3493,16 @@ static uint64_t pfifo_read(void *opaque,
             | d->pfifo.cache1.subroutine_active;
         break;
     case NV_PFIFO_CACHE1_PULL0:
-        qemu_mutex_lock(&d->pfifo.cache1.pull_lock);
+        qemu_mutex_lock(&d->pfifo.cache1.cache_lock);
         r = d->pfifo.cache1.pull_enabled;
-        qemu_mutex_unlock(&d->pfifo.cache1.pull_lock);
+        qemu_mutex_unlock(&d->pfifo.cache1.cache_lock);
         break;
     case NV_PFIFO_CACHE1_ENGINE:
-        qemu_mutex_lock(&d->pfifo.cache1.pull_lock);
+        qemu_mutex_lock(&d->pfifo.cache1.cache_lock);
         for (i=0; i<NV2A_NUM_SUBCHANNELS; i++) {
             r |= d->pfifo.cache1.bound_engines[i] << (i*2);
         }
-        qemu_mutex_unlock(&d->pfifo.cache1.pull_lock);
+        qemu_mutex_unlock(&d->pfifo.cache1.cache_lock);
         break;
     case NV_PFIFO_CACHE1_DMA_DCOUNT:
         r = d->pfifo.cache1.dcount;
@@ -3574,30 +3608,25 @@ static void pfifo_write(void *opaque, hwaddr addr,
             (val & NV_PFIFO_CACHE1_DMA_SUBROUTINE_STATE);
         break;
     case NV_PFIFO_CACHE1_PULL0:
-        qemu_mutex_lock(&d->pfifo.cache1.pull_lock);
+        qemu_mutex_lock(&d->pfifo.cache1.cache_lock);
         if ((val & NV_PFIFO_CACHE1_PULL0_ACCESS)
              && !d->pfifo.cache1.pull_enabled) {
             d->pfifo.cache1.pull_enabled = true;
 
-            /* fire up puller thread */
-            qemu_thread_create(&d->pfifo.puller_thread,
-                               pfifo_puller_thread,
-                               d, QEMU_THREAD_DETACHED);
+            /* the puller thread should wake up */        
+            qemu_cond_signal(&d->pfifo.cache1.cache_cond);
         } else if (!(val & NV_PFIFO_CACHE1_PULL0_ACCESS)
                      && d->pfifo.cache1.pull_enabled) {
             d->pfifo.cache1.pull_enabled = false;
-
-            /* the puller thread should die, wake it up. */
-            qemu_cond_broadcast(&d->pfifo.cache1.cache_cond);
         }
-        qemu_mutex_unlock(&d->pfifo.cache1.pull_lock);
+        qemu_mutex_unlock(&d->pfifo.cache1.cache_lock);
         break;
     case NV_PFIFO_CACHE1_ENGINE:
-        qemu_mutex_lock(&d->pfifo.cache1.pull_lock);
+        qemu_mutex_lock(&d->pfifo.cache1.cache_lock);
         for (i=0; i<NV2A_NUM_SUBCHANNELS; i++) {
             d->pfifo.cache1.bound_engines[i] = (val >> (i*2)) & 3;
         }
-        qemu_mutex_unlock(&d->pfifo.cache1.pull_lock);
+        qemu_mutex_unlock(&d->pfifo.cache1.cache_lock);
         break;
     case NV_PFIFO_CACHE1_DMA_DCOUNT:
         d->pfifo.cache1.dcount =
@@ -3891,7 +3920,9 @@ static uint64_t pgraph_read(void *opaque,
     uint64_t r = 0;
     switch (addr) {
     case NV_PGRAPH_INTR:
+        qemu_mutex_lock(&d->pgraph.lock);
         r = d->pgraph.pending_interrupts;
+        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_INTR_EN:
         r = d->pgraph.enabled_interrupts;
@@ -3950,36 +3981,35 @@ static void pgraph_write(void *opaque, hwaddr addr,
 
     reg_log_write(NV_PGRAPH, addr, val);
 
+    qemu_mutex_lock(&d->pgraph.lock);
+
     switch (addr) {
     case NV_PGRAPH_INTR:
-        qemu_mutex_lock(&d->pgraph.lock);
         d->pgraph.pending_interrupts &= ~val;
         qemu_cond_broadcast(&d->pgraph.interrupt_cond);
-        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_INTR_EN:
         d->pgraph.enabled_interrupts = val;
         break;
     case NV_PGRAPH_CTX_CONTROL:
-        qemu_mutex_lock(&d->pgraph.lock);
         d->pgraph.channel_valid = (val & NV_PGRAPH_CTX_CONTROL_CHID);
-        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_CTX_USER:
-        qemu_mutex_lock(&d->pgraph.lock);
         pgraph_set_context_user(d, val);
-        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_INCREMENT:
         if (val & NV_PGRAPH_INCREMENT_READ_3D) {
-            qemu_sem_post(&d->pgraph.read_3d);
+            SET_MASK(d->pgraph.regs[NV_PGRAPH_SURFACE],
+                     NV_PGRAPH_SURFACE_READ_3D,
+                     (GET_MASK(d->pgraph.regs[NV_PGRAPH_SURFACE],
+                              NV_PGRAPH_SURFACE_READ_3D)+1)
+                        % GET_MASK(d->pgraph.regs[NV_PGRAPH_SURFACE],
+                                   NV_PGRAPH_SURFACE_MODULO_3D) );
         }
         break;
     case NV_PGRAPH_FIFO:
-        qemu_mutex_lock(&d->pgraph.lock);
         d->pgraph.fifo_access = GET_MASK(val, NV_PGRAPH_FIFO_ACCESS);
         qemu_cond_broadcast(&d->pgraph.fifo_access_cond);
-        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_CHANNEL_CTX_TABLE:
         d->pgraph.context_table =
@@ -3990,7 +4020,6 @@ static void pgraph_write(void *opaque, hwaddr addr,
             (val & NV_PGRAPH_CHANNEL_CTX_POINTER_INST) << 4;
         break;
     case NV_PGRAPH_CHANNEL_CTX_TRIGGER:
-        qemu_mutex_lock(&d->pgraph.lock);
 
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN) {
             NV2A_DPRINTF("PGRAPH: read channel %d context from %llx\n",
@@ -4008,12 +4037,13 @@ static void pgraph_write(void *opaque, hwaddr addr,
             /* do stuff ... */
         }
 
-        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     default:
         d->pgraph.regs[addr] = val;
         break;
     }
+
+    qemu_mutex_unlock(&d->pgraph.lock);
 }
 
 
@@ -4762,12 +4792,16 @@ static int nv2a_initfn(PCIDevice *dev)
     }
 
     /* init fifo cache1 */
-    qemu_mutex_init(&d->pfifo.cache1.pull_lock);
     qemu_mutex_init(&d->pfifo.cache1.cache_lock);
     qemu_cond_init(&d->pfifo.cache1.cache_cond);
     QSIMPLEQ_INIT(&d->pfifo.cache1.cache);
 
     pgraph_init(&d->pgraph);
+
+    /* fire up puller */
+    qemu_thread_create(&d->pfifo.puller_thread,
+                       pfifo_puller_thread,
+                       d, QEMU_THREAD_DETACHED);
 
     return 0;
 }
@@ -4777,7 +4811,10 @@ static void nv2a_exitfn(PCIDevice *dev)
     NV2AState *d;
     d = NV2A_DEVICE(dev);
 
-    qemu_mutex_destroy(&d->pfifo.cache1.pull_lock);
+    d->exiting = true;
+    qemu_cond_signal(&d->pfifo.cache1.cache_cond);
+    qemu_thread_join(&d->pfifo.puller_thread);
+
     qemu_mutex_destroy(&d->pfifo.cache1.cache_lock);
     qemu_cond_destroy(&d->pfifo.cache1.cache_cond);
 
