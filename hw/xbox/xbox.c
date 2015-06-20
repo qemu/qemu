@@ -125,7 +125,6 @@ void xbox_init_common(QEMUMachineInitArgs *args,
     int i;
     ram_addr_t ram_size = args->ram_size;
     const char *cpu_model = args->cpu_model;
-    const char *boot_device = args->boot_device;
 
     PCIBus *host_bus;
     ISABus *isa_bus;
@@ -340,7 +339,7 @@ static QEMUMachine xbox_machine = {
     .no_floppy = 1,
     .no_cdrom = 1,
     .no_sdcard = 1,
-    DEFAULT_MACHINE_OPTIONS
+    PC_DEFAULT_MACHINE_OPTIONS
 };
 
 static void xbox_machine_init(void) {

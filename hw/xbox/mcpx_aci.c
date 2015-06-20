@@ -42,6 +42,8 @@ static int mcpx_aci_initfn(PCIDevice *dev)
 {
     MCPXACIState *d = MCPX_ACI_DEVICE(dev);
 
+    dev->config[PCI_INTERRUPT_PIN] = 0x01;
+
     //mmio
     memory_region_init(&d->mmio, OBJECT(dev), "mcpx-aci-mmio", 0x1000);
 
@@ -64,7 +66,7 @@ static int mcpx_aci_initfn(PCIDevice *dev)
 
     pci_register_bar(&d->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    ac97_common_init(&d->ac97, dev->irq[0], pci_get_address_space(&d->dev));
+    ac97_common_init(&d->ac97, &d->dev, pci_get_address_space(&d->dev));
 
     return 0;
 }

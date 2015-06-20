@@ -248,13 +248,12 @@ static void update_sr (AC97LinkState *s, AC97BusMasterRegs *r, uint32_t new_sr)
     if (level) {
         s->glob_sta |= masks[r - s->bm_regs];
         dolog ("set irq level=1\n");
-        qemu_set_irq (s->irq, 1);
+        pci_irq_assert(s->pci_dev);
     }
     else {
         s->glob_sta &= ~masks[r - s->bm_regs];
         dolog ("set irq level=0\n");
-        qemu_set_irq (s->irq, 0);
-        pci_irq_deassert(&s->dev);
+        pci_irq_deassert(s->pci_dev);
     }
 }
 
@@ -1280,10 +1279,10 @@ static void ac97_on_reset (void *opaque)
 }
 
 void ac97_common_init (AC97LinkState *s,
-                       qemu_irq irq,
+                       PCIDevice* pci_dev,
                        AddressSpace *as)
 {
-    s->irq = irq;
+    s->pci_dev = pci_dev;
     s->as = as;
 
     qemu_register_reset (ac97_on_reset, s);
@@ -1399,7 +1398,7 @@ static int ac97_initfn (PCIDevice *dev)
     pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nam);
     pci_register_bar (&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nabm);
 
-    ac97_common_init(&s->state, s->dev.irq[0], pci_get_address_space(&s->dev));
+    ac97_common_init(&s->state, &s->dev, pci_get_address_space(&s->dev));
 
     return 0;
 }

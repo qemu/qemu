@@ -18,6 +18,7 @@
  */
 
 #include "hw/hw.h"
+#include "hw/i386/pc.h"
 #include "hw/boards.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
@@ -276,7 +277,7 @@ static QEMUMachine chihiro_machine = {
     .no_floppy = 1,
     .no_cdrom = 1,
     .no_sdcard = 1,
-    DEFAULT_MACHINE_OPTIONS
+    PC_DEFAULT_MACHINE_OPTIONS
 };
 
 static void chihiro_machine_init(void) {

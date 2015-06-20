@@ -52,7 +52,7 @@ typedef struct AC97BusMasterRegs {
 } AC97BusMasterRegs;
 
 typedef struct AC97LinkState {
-    qemu_irq irq;
+    PCIDevice *pci_dev;
     AddressSpace *as;
     QEMUSoundCard card;
 
@@ -72,7 +72,7 @@ typedef struct AC97LinkState {
 } AC97LinkState;
 
 void ac97_common_init (AC97LinkState *s,
-                       qemu_irq irq,
+                       PCIDevice *pci_dev,
                        AddressSpace *as);
 
 

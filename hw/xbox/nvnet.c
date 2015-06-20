@@ -78,6 +78,8 @@ static int nvnet_initfn(PCIDevice *dev)
 {
     NVNetState *d = NVNET_DEVICE(dev);
 
+    dev->config[PCI_INTERRUPT_PIN] = 0x01;
+
     memory_region_init_io(&d->mmio, OBJECT(dev),
                           &nvnet_mmio_ops, d, "nvnet-mmio", MMIO_SIZE);
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);

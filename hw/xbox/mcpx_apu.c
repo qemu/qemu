@@ -187,11 +187,11 @@ static void update_irq(MCPXAPUState *d)
 
         d->regs[NV_PAPU_ISTS] |= NV_PAPU_ISTS_GINTSTS;
         MCPX_DPRINTF("mcpx irq raise\n");
-        qemu_irq_raise(d->dev.irq[0]);
+        pci_irq_assert(&d->dev);
     } else {
         d->regs[NV_PAPU_ISTS] &= ~NV_PAPU_ISTS_GINTSTS;
         MCPX_DPRINTF("mcpx irq lower\n");
-        qemu_irq_lower(d->dev.irq[0]);
+        pci_irq_deassert(&d->dev);
     }
 }
 
@@ -228,9 +228,10 @@ static void mcpx_apu_write(void *opaque, hwaddr addr,
     case NV_PAPU_SECTL:
         if ( ((val & NV_PAPU_SECTL_XCNTMODE) >> 3)
                 == NV_PAPU_SECTL_XCNTMODE_OFF) {
-            qemu_del_timer(d->se.frame_timer);
+            timer_del(d->se.frame_timer);
         } else {
-            qemu_mod_timer(d->se.frame_timer, qemu_get_clock_ms(vm_clock) + 10);
+            timer_mod(d->se.frame_timer,
+                qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 10);
         }
         d->regs[addr] = val;
         break;
@@ -438,7 +439,7 @@ static const MemoryRegionOps gp_ops = {
 static void se_frame(void *opaque)
 {
     MCPXAPUState *d = opaque;
-    qemu_mod_timer(d->se.frame_timer, qemu_get_clock_ms(vm_clock) + 10);
+    timer_mod(d->se.frame_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 10);
     MCPX_DPRINTF("mcpx frame ping\n");
     int list;
     for (list=0; list < 3; list++) {
@@ -477,6 +478,8 @@ static int mcpx_apu_initfn(PCIDevice *dev)
 {
     MCPXAPUState *d = MCPX_APU_DEVICE(dev);
 
+    dev->config[PCI_INTERRUPT_PIN] = 0x01;
+
     memory_region_init_io(&d->mmio, OBJECT(dev), &mcpx_apu_mmio_ops, d,
                           "mcpx-apu-mmio", 0x80000);
 
@@ -491,7 +494,7 @@ static int mcpx_apu_initfn(PCIDevice *dev)
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
 
-    d->se.frame_timer = qemu_new_timer_ms(vm_clock, se_frame, d);
+    d->se.frame_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, se_frame, d);
 
     d->gp.dsp = dsp_init(d, gp_scratch_rw);
 
