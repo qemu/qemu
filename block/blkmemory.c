@@ -34,7 +34,8 @@ typedef struct BDRVMemoryState {
     AddressSpace *as;
 } BDRVMemoryState;
 
-static int memory_open(BlockDriverState *bs, QDict *options, int flags)
+static int memory_open(BlockDriverState *bs, QDict *options, int flags,
+                       Error **errp)
 {
     /* We're kinda unique in that we're inited with a MemoryRegion instead
      * of a file. A MemoryRegion pointer can't be put in QDict, so we have
