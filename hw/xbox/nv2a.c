@@ -764,11 +764,12 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
 
 #define GET_MASK(v, mask) (((v) & (mask)) >> (ffs(mask)-1))
 
-#define SET_MASK(v, mask, val)                                       \
-    do {                                                             \
-        (v) &= ~(mask);                                              \
-        (v) |= ((val) << (ffs(mask)-1)) & (mask);                    \
-    } while (0)
+#define SET_MASK(v, mask, val) ({                                    \
+        const typeof(val) __val = (val);                             \
+        const typeof(mask) __mask = (mask);                          \
+        (v) &= ~(__mask);                                            \
+        (v) |= ((__val) << (ffs(__mask)-1)) & (__mask);              \
+    })
 
 #define CASE_4(v, step)                                              \
     case (v):                                                        \
@@ -2423,13 +2424,19 @@ static void pgraph_method(NV2AState *d,
         pgraph_update_surface(d, false);
 
         while (true) {
+            NV2A_DPRINTF("flip stall read: %d, write: %d, modulo: %d\n",
+                GET_MASK(pg->regs[NV_PGRAPH_SURFACE], NV_PGRAPH_SURFACE_READ_3D),
+                GET_MASK(pg->regs[NV_PGRAPH_SURFACE], NV_PGRAPH_SURFACE_WRITE_3D),
+                GET_MASK(pg->regs[NV_PGRAPH_SURFACE], NV_PGRAPH_SURFACE_MODULO_3D));
+
             uint32_t s = pg->regs[NV_PGRAPH_SURFACE];
             if (GET_MASK(s, NV_PGRAPH_SURFACE_READ_3D)
-                == GET_MASK(s, NV_PGRAPH_SURFACE_WRITE_3D)) {
+                != GET_MASK(s, NV_PGRAPH_SURFACE_WRITE_3D)) {
                 break;
             }
             qemu_cond_wait(&pg->flip_3d, &pg->lock);
         }
+        NV2A_DPRINTF("flip stall done\n");
         break;
     
     case NV097_SET_CONTEXT_DMA_NOTIFIES:
@@ -3918,12 +3925,12 @@ static uint64_t pgraph_read(void *opaque,
 {
     NV2AState *d = opaque;
 
+    qemu_mutex_lock(&d->pgraph.lock);
+
     uint64_t r = 0;
     switch (addr) {
     case NV_PGRAPH_INTR:
-        qemu_mutex_lock(&d->pgraph.lock);
         r = d->pgraph.pending_interrupts;
-        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_INTR_EN:
         r = d->pgraph.enabled_interrupts;
@@ -3932,14 +3939,12 @@ static uint64_t pgraph_read(void *opaque,
         r = d->pgraph.notify_source;
         break;
     case NV_PGRAPH_CTX_USER:
-        qemu_mutex_lock(&d->pgraph.lock);
         SET_MASK(r, NV_PGRAPH_CTX_USER_CHANNEL_3D,
                  d->pgraph.context[d->pgraph.channel_id].channel_3d);
         SET_MASK(r, NV_PGRAPH_CTX_USER_CHANNEL_3D_VALID, 1);
         SET_MASK(r, NV_PGRAPH_CTX_USER_SUBCH, 
                  d->pgraph.context[d->pgraph.channel_id].subchannel << 13);
         SET_MASK(r, NV_PGRAPH_CTX_USER_CHID, d->pgraph.channel_id);
-        qemu_mutex_unlock(&d->pgraph.lock);
         break;
     case NV_PGRAPH_TRAPPED_ADDR:
         SET_MASK(r, NV_PGRAPH_TRAPPED_ADDR_CHID, d->pgraph.trapped_channel_id);
@@ -3962,6 +3967,8 @@ static uint64_t pgraph_read(void *opaque,
         r = d->pgraph.regs[addr];
         break;
     }
+
+    qemu_mutex_unlock(&d->pgraph.lock);
 
     reg_log_read(NV_PGRAPH, addr, r);
     return r;
@@ -4092,6 +4099,10 @@ static void pcrtc_write(void *opaque, hwaddr addr,
         val &= 0x03FFFFFF;
         assert(val < memory_region_size(d->vram));
         d->pcrtc.start = val;
+
+        NV2A_DPRINTF("PCRTC_START - %x %x %x %x\n",
+                d->vram_ptr[val+64], d->vram_ptr[val+64+1],
+                d->vram_ptr[val+64+2], d->vram_ptr[val+64+3]);
         break;
     default:
         break;
