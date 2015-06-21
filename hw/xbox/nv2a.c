@@ -937,7 +937,7 @@ typedef struct PGRAPHState {
     bool fifo_access;
     QemuCond fifo_access_cond;
 
-    QemuSemaphore read_3d;
+    QemuCond flip_3d;
 
     unsigned int channel_id;
     bool channel_valid;
@@ -2136,7 +2136,7 @@ static void pgraph_init(PGRAPHState *pg)
     qemu_mutex_init(&pg->lock);
     qemu_cond_init(&pg->interrupt_cond);
     qemu_cond_init(&pg->fifo_access_cond);
-    qemu_sem_init(&pg->read_3d, 0);
+    qemu_cond_init(&pg->flip_3d);
 
     /* fire up opengl */
 
@@ -2206,7 +2206,7 @@ static void pgraph_destroy(PGRAPHState *pg)
     qemu_mutex_destroy(&pg->lock);
     qemu_cond_destroy(&pg->interrupt_cond);
     qemu_cond_destroy(&pg->fifo_access_cond);
-    qemu_sem_destroy(&pg->read_3d);
+    qemu_cond_destroy(&pg->flip_3d);
 
     glo_set_current(pg->gl_context);
 
@@ -2422,19 +2422,13 @@ static void pgraph_method(NV2AState *d,
     case NV097_FLIP_STALL:
         pgraph_update_surface(d, false);
 
-        qemu_mutex_unlock(&pg->lock);
-
-        // busy-wait for now...
         while (true) {
-            qemu_mutex_lock(&pg->lock);
-
             uint32_t s = pg->regs[NV_PGRAPH_SURFACE];
             if (GET_MASK(s, NV_PGRAPH_SURFACE_READ_3D)
                 == GET_MASK(s, NV_PGRAPH_SURFACE_WRITE_3D)) {
                 break;
             }
-
-            qemu_mutex_unlock(&pg->lock);            
+            qemu_cond_wait(&pg->flip_3d, &pg->lock);
         }
         break;
     
@@ -4012,6 +4006,7 @@ static void pgraph_write(void *opaque, hwaddr addr,
                               NV_PGRAPH_SURFACE_READ_3D)+1)
                         % GET_MASK(d->pgraph.regs[NV_PGRAPH_SURFACE],
                                    NV_PGRAPH_SURFACE_MODULO_3D) );
+            qemu_cond_broadcast(&d->pgraph.flip_3d);
         }
         break;
     case NV_PGRAPH_FIFO:
