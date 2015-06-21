@@ -42,7 +42,7 @@
 #define INTERRUPT_START_FRAME (1 << 1)
 #define INTERRUPT_DMA_EOL (1 << 7)
 
-#define DPRINTF(s, ...) fprintf(stderr, s, ## __VA_ARGS__)
+#define DPRINTF(s, ...) printf(s, ## __VA_ARGS__)
 
 struct DSPState {
     dsp_core_t core;
@@ -163,7 +163,7 @@ void dsp_run(DSPState* dsp, int cycles)
     //         DebugDsp_Check();
     //     }
     // } else {
-    //  fprintf(stderr, "--> %d\n", dsp->core.save_cycles);
+    //  printf("--> %d\n", dsp->core.save_cycles);
     while (dsp->save_cycles > 0)
     {
         dsp56k_execute_instruction(&dsp->core);
@@ -247,7 +247,7 @@ uint32_t dsp_disasm_memory(DSPState* dsp, uint32_t dsp_memdump_addr, uint32_t ds
 
     for (mem = dsp_memdump_addr; mem <= dsp_memdump_upper; mem++) {
         value = dsp_read_memory(dsp, mem, space, &mem_str);
-        fprintf(stderr,"%s:%04x  %06x\n", mem_str, mem, value);
+        printf("%s:%04x  %06x\n", mem_str, mem, value);
     }
     return dsp_memdump_upper+1;
 }
@@ -261,27 +261,27 @@ void dsp_info(DSPState* dsp)
     int i, j;
     const char *stackname[] = { "SSH", "SSL" };
 
-    fputs("DSP core information:\n", stderr);
+    printf("DSP core information:\n");
 
     for (i = 0; i < ARRAYSIZE(stackname); i++) {
-        fprintf(stderr, "- %s stack:", stackname[i]);
+        printf("- %s stack:", stackname[i]);
         for (j = 0; j < ARRAYSIZE(dsp->core.stack[0]); j++) {
-            fprintf(stderr, " %04x", dsp->core.stack[i][j]);
+            printf(" %04x", dsp->core.stack[i][j]);
         }
-        fputs("\n", stderr);
+        printf("\n");
     }
 
-    fprintf(stderr, "- Interrupt IPL:");
+    printf("- Interrupt IPL:");
     for (i = 0; i < ARRAYSIZE(dsp->core.interrupt_ipl); i++) {
-        fprintf(stderr, " %04x", dsp->core.interrupt_ipl[i]);
+        printf(" %04x", dsp->core.interrupt_ipl[i]);
     }
-    fputs("\n", stderr);
+    printf("\n");
 
-    fprintf(stderr, "- Pending ints: ");
+    printf("- Pending ints: ");
     for (i = 0; i < ARRAYSIZE(dsp->core.interrupt_is_pending); i++) {
-        fprintf(stderr, " %04hx", dsp->core.interrupt_is_pending[i]);
+        printf(" %04hx", dsp->core.interrupt_is_pending[i]);
     }
-    fputs("\n", stderr);
+    printf("\n");
 }
 
 /**
@@ -291,24 +291,24 @@ void dsp_print_registers(DSPState* dsp)
 {
     uint32_t i;
 
-    fprintf(stderr,"A: A2: %02x  A1: %06x  A0: %06x\n",
+    printf("A: A2: %02x  A1: %06x  A0: %06x\n",
         dsp->core.registers[DSP_REG_A2], dsp->core.registers[DSP_REG_A1], dsp->core.registers[DSP_REG_A0]);
-    fprintf(stderr,"B: B2: %02x  B1: %06x  B0: %06x\n",
+    printf("B: B2: %02x  B1: %06x  B0: %06x\n",
         dsp->core.registers[DSP_REG_B2], dsp->core.registers[DSP_REG_B1], dsp->core.registers[DSP_REG_B0]);
     
-    fprintf(stderr,"X: X1: %06x  X0: %06x\n", dsp->core.registers[DSP_REG_X1], dsp->core.registers[DSP_REG_X0]);
-    fprintf(stderr,"Y: Y1: %06x  Y0: %06x\n", dsp->core.registers[DSP_REG_Y1], dsp->core.registers[DSP_REG_Y0]);
+    printf("X: X1: %06x  X0: %06x\n", dsp->core.registers[DSP_REG_X1], dsp->core.registers[DSP_REG_X0]);
+    printf("Y: Y1: %06x  Y0: %06x\n", dsp->core.registers[DSP_REG_Y1], dsp->core.registers[DSP_REG_Y0]);
 
     for (i=0; i<8; i++) {
-        fprintf(stderr,"R%01x: %04x   N%01x: %04x   M%01x: %04x\n", 
+        printf("R%01x: %04x   N%01x: %04x   M%01x: %04x\n", 
             i, dsp->core.registers[DSP_REG_R0+i],
             i, dsp->core.registers[DSP_REG_N0+i],
             i, dsp->core.registers[DSP_REG_M0+i]);
     }
 
-    fprintf(stderr,"LA: %04x   LC: %04x   PC: %04x\n", dsp->core.registers[DSP_REG_LA], dsp->core.registers[DSP_REG_LC], dsp->core.pc);
-    fprintf(stderr,"SR: %04x  OMR: %02x\n", dsp->core.registers[DSP_REG_SR], dsp->core.registers[DSP_REG_OMR]);
-    fprintf(stderr,"SP: %02x    SSH: %04x  SSL: %04x\n", 
+    printf("LA: %04x   LC: %04x   PC: %04x\n", dsp->core.registers[DSP_REG_LA], dsp->core.registers[DSP_REG_LC], dsp->core.pc);
+    printf("SR: %04x  OMR: %02x\n", dsp->core.registers[DSP_REG_SR], dsp->core.registers[DSP_REG_OMR]);
+    printf("SP: %02x    SSH: %04x  SSL: %04x\n", 
         dsp->core.registers[DSP_REG_SP], dsp->core.registers[DSP_REG_SSH], dsp->core.registers[DSP_REG_SSL]);
 }
 

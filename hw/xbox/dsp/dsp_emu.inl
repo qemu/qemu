@@ -29,7 +29,7 @@ static void emu_undefined(dsp_core_t* dsp)
 {
     if (!dsp->executing_for_disasm) {
         dsp->cur_inst_len = 0;
-        fprintf(stderr, "Dsp: 0x%04x: 0x%06x Illegal instruction\n",dsp->pc, dsp->cur_inst);
+        printf("Dsp: 0x%04x: 0x%06x Illegal instruction\n",dsp->pc, dsp->cur_inst);
         /* Add some artificial CPU cycles to avoid being stuck in an infinite loop */
         dsp->instr_cycle += 100;
     } else {

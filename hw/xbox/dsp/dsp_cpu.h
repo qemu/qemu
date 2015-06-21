@@ -228,8 +228,8 @@ struct dsp_core_s {
     uint16_t disasm_cur_inst_len;
 
     /* Current instruction */
-    char disasm_str_instr[50];
-    char disasm_str_instr2[120];
+    char disasm_str_instr[128];
+    char disasm_str_instr2[128];
     char disasm_parallelmove_name[64];
 
     /**********************************
