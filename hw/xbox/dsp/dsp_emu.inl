@@ -7279,7 +7279,7 @@ static void emu_lua(dsp_core_t* dsp)
 
 static void emu_lua_rel(dsp_core_t* dsp)
 {
-    uint32_t aa = (dsp->cur_inst >> 4) & BITMASK(4)
+    uint32_t aa = ((dsp->cur_inst >> 4) & BITMASK(4))
                 + (((dsp->cur_inst >> 11) & BITMASK(3)) << 4);
     uint32_t addrreg = (dsp->cur_inst>>8) & BITMASK(3);
     uint32_t dstreg = dsp->cur_inst & BITMASK(3);
