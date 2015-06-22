@@ -43,7 +43,7 @@ void visit_optional(Visitor *v, bool *present, const char *name,
                     Error **errp);
 void visit_get_next_type(Visitor *v, int *obj, const int *qtypes,
                          const char *name, Error **errp);
-void visit_type_enum(Visitor *v, int *obj, const char *strings[],
+void visit_type_enum(Visitor *v, int *obj, const char * const strings[],
                      const char *kind, const char *name, Error **errp);
 void visit_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp);
 void visit_type_uint8(Visitor *v, uint8_t *obj, const char *name, Error **errp);

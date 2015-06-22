@@ -2749,6 +2749,33 @@ static int machine_set_property(void *opaque,
     return 0;
 }
 
+
+/*
+ * Initial object creation happens before all other
+ * QEMU data types are created. The majority of objects
+ * can be created at this point. The rng-egd object
+ * cannot be created here, as it depends on the chardev
+ * already existing.
+ */
+static bool object_create_initial(const char *type)
+{
+    if (g_str_equal(type, "rng-egd")) {
+        return false;
+    }
+    return true;
+}
+
+
+/*
+ * The remainder of object creation happens after the
+ * creation of chardev, fsdev and device data types.
+ */
+static bool object_create_delayed(const char *type)
+{
+    return !object_create_initial(type);
+}
+
+
 static int object_create(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *err = NULL;
@@ -2757,6 +2784,7 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     void *dummy = NULL;
     OptsVisitor *ov;
     QDict *pdict;
+    bool (*type_predicate)(const char *) = opaque;
 
     ov = opts_visitor_new(opts);
     pdict = qemu_opts_to_qdict(opts, NULL);
@@ -2769,6 +2797,9 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     qdict_del(pdict, "qom-type");
     visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
     if (err) {
+        goto out;
+    }
+    if (!type_predicate(type)) {
         goto out;
     }
 
@@ -4192,6 +4223,12 @@ int main(int argc, char **argv, char **envp)
 
     socket_init();
 
+    if (qemu_opts_foreach(qemu_find_opts("object"),
+                          object_create,
+                          object_create_initial, NULL)) {
+        exit(1);
+    }
+
     if (qemu_opts_foreach(qemu_find_opts("chardev"),
                           chardev_init_func, NULL, NULL)) {
         exit(1);
@@ -4215,7 +4252,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
-                          object_create, NULL, NULL)) {
+                          object_create,
+                          object_create_delayed, NULL)) {
         exit(1);
     }
 

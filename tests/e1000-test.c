@@ -44,8 +44,8 @@ int main(int argc, char **argv)
     for (i = 0; i < ARRAY_SIZE(models); i++) {
         char *path;
 
-        path = g_strdup_printf("/%s/e1000/%s", qtest_get_arch(), models[i]);
-        g_test_add_data_func(path, models[i], test_device);
+        path = g_strdup_printf("e1000/%s", models[i]);
+        qtest_add_data_func(path, models[i], test_device);
     }
 
     return g_test_run();

@@ -3487,22 +3487,6 @@ DEF("no-kvm-irqchip", 0, QEMU_OPTION_no_kvm_irqchip, "", QEMU_ARCH_I386)
 HXCOMM Deprecated (ignored)
 DEF("tdf", 0, QEMU_OPTION_tdf,"", QEMU_ARCH_ALL)
 
-DEF("object", HAS_ARG, QEMU_OPTION_object,
-    "-object TYPENAME[,PROP1=VALUE1,...]\n"
-    "                create an new object of type TYPENAME setting properties\n"
-    "                in the order they are specified.  Note that the 'id'\n"
-    "                property must be set.  These objects are placed in the\n"
-    "                '/objects' path.\n",
-    QEMU_ARCH_ALL)
-STEXI
-@item -object @var{typename}[,@var{prop1}=@var{value1},...]
-@findex -object
-Create an new object of type @var{typename} setting properties
-in the order they are specified.  Note that the 'id'
-property must be set.  These objects are placed in the
-'/objects' path.
-ETEXI
-
 DEF("msg", HAS_ARG, QEMU_OPTION_msg,
     "-msg timestamp[=on|off]\n"
     "                change the format of messages\n"
@@ -3527,6 +3511,60 @@ STEXI
 Dump json-encoded vmstate information for current machine type to file
 in @var{file}
 ETEXI
+
+DEFHEADING(Generic object creation)
+
+DEF("object", HAS_ARG, QEMU_OPTION_object,
+    "-object TYPENAME[,PROP1=VALUE1,...]\n"
+    "                create a new object of type TYPENAME setting properties\n"
+    "                in the order they are specified.  Note that the 'id'\n"
+    "                property must be set.  These objects are placed in the\n"
+    "                '/objects' path.\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -object @var{typename}[,@var{prop1}=@var{value1},...]
+@findex -object
+Create a new object of type @var{typename} setting properties
+in the order they are specified.  Note that the 'id'
+property must be set.  These objects are placed in the
+'/objects' path.
+
+@table @option
+
+@item -object memory-backend-file,id=@var{id},size=@var{size},mem-path=@var{dir},share=@var{on|off}
+
+Creates a memory file backend object, which can be used to back
+the guest RAM with huge pages. The @option{id} parameter is a
+unique ID that will be used to reference this memory region
+when configuring the @option{-numa} argument. The @option{size}
+option provides the size of the memory region, and accepts
+common suffixes, eg @option{500M}. The @option{mem-path} provides
+the path to either a shared memory or huge page filesystem mount.
+The @option{share} boolean option determines whether the memory
+region is marked as private to QEMU, or shared. The latter allows
+a co-operating external process to access the QEMU memory region.
+
+@item -object rng-random,id=@var{id},filename=@var{/dev/random}
+
+Creates a random number generator backend which obtains entropy from
+a device on the host. The @option{id} parameter is a unique ID that
+will be used to reference this entropy backend from the @option{virtio-rng}
+device. The @option{filename} parameter specifies which file to obtain
+entropy from and if omitted defaults to @option{/dev/random}.
+
+@item -object rng-egd,id=@var{id},chardev=@var{chardevid}
+
+Creates a random number generator backend which obtains entropy from
+an external daemon running on the host. The @option{id} parameter is
+a unique ID that will be used to reference this entropy backend from
+the @option{virtio-rng} device. The @option{chardev} parameter is
+the unique ID of a character device backend that provides the connection
+to the RNG daemon.
+
+@end table
+
+ETEXI
+
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI

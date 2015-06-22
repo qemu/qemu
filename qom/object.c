@@ -11,6 +11,7 @@
  */
 
 #include "qom/object.h"
+#include "qom/object_interfaces.h"
 #include "qemu-common.h"
 #include "qapi/visitor.h"
 #include "qapi-visit.h"
@@ -438,6 +439,114 @@ Object *object_new(const char *typename)
 
     return object_new_with_type(ti);
 }
+
+
+Object *object_new_with_props(const char *typename,
+                              Object *parent,
+                              const char *id,
+                              Error **errp,
+                              ...)
+{
+    va_list vargs;
+    Object *obj;
+
+    va_start(vargs, errp);
+    obj = object_new_with_propv(typename, parent, id, errp, vargs);
+    va_end(vargs);
+
+    return obj;
+}
+
+
+Object *object_new_with_propv(const char *typename,
+                              Object *parent,
+                              const char *id,
+                              Error **errp,
+                              va_list vargs)
+{
+    Object *obj;
+    ObjectClass *klass;
+    Error *local_err = NULL;
+
+    klass = object_class_by_name(typename);
+    if (!klass) {
+        error_setg(errp, "invalid object type: %s", typename);
+        return NULL;
+    }
+
+    if (object_class_is_abstract(klass)) {
+        error_setg(errp, "object type '%s' is abstract", typename);
+        return NULL;
+    }
+    obj = object_new(typename);
+
+    if (object_set_propv(obj, &local_err, vargs) < 0) {
+        goto error;
+    }
+
+    object_property_add_child(parent, id, obj, &local_err);
+    if (local_err) {
+        goto error;
+    }
+
+    if (object_dynamic_cast(obj, TYPE_USER_CREATABLE)) {
+        user_creatable_complete(obj, &local_err);
+        if (local_err) {
+            object_unparent(obj);
+            goto error;
+        }
+    }
+
+    object_unref(OBJECT(obj));
+    return obj;
+
+ error:
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+    object_unref(obj);
+    return NULL;
+}
+
+
+int object_set_props(Object *obj,
+                     Error **errp,
+                     ...)
+{
+    va_list vargs;
+    int ret;
+
+    va_start(vargs, errp);
+    ret = object_set_propv(obj, errp, vargs);
+    va_end(vargs);
+
+    return ret;
+}
+
+
+int object_set_propv(Object *obj,
+                     Error **errp,
+                     va_list vargs)
+{
+    const char *propname;
+    Error *local_err = NULL;
+
+    propname = va_arg(vargs, char *);
+    while (propname != NULL) {
+        const char *value = va_arg(vargs, char *);
+
+        g_assert(value != NULL);
+        object_property_parse(obj, value, propname, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -1;
+        }
+        propname = va_arg(vargs, char *);
+    }
+
+    return 0;
+}
+
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
@@ -960,13 +1069,34 @@ int64_t object_property_get_int(Object *obj, const char *name,
     return retval;
 }
 
+typedef struct EnumProperty {
+    const char * const *strings;
+    int (*get)(Object *, Error **);
+    void (*set)(Object *, int, Error **);
+} EnumProperty;
+
 int object_property_get_enum(Object *obj, const char *name,
-                             const char *strings[], Error **errp)
+                             const char *typename, Error **errp)
 {
     StringOutputVisitor *sov;
     StringInputVisitor *siv;
     char *str;
     int ret;
+    ObjectProperty *prop = object_property_find(obj, name, errp);
+    EnumProperty *enumprop;
+
+    if (prop == NULL) {
+        return 0;
+    }
+
+    if (!g_str_equal(prop->type, typename)) {
+        error_setg(errp, "Property %s on %s is not '%s' enum type",
+                   name, object_class_get_name(
+                       object_get_class(obj)), typename);
+        return 0;
+    }
+
+    enumprop = prop->opaque;
 
     sov = string_output_visitor_new(false);
     object_property_get(obj, string_output_get_visitor(sov), name, errp);
@@ -974,7 +1104,7 @@ int object_property_get_enum(Object *obj, const char *name,
     siv = string_input_visitor_new(str);
     string_output_visitor_cleanup(sov);
     visit_type_enum(string_input_get_visitor(siv),
-                    &ret, strings, NULL, name, errp);
+                    &ret, enumprop->strings, NULL, name, errp);
 
     g_free(str);
     string_input_visitor_cleanup(siv);
@@ -1052,6 +1182,11 @@ Object *object_get_root(void)
     }
 
     return root;
+}
+
+Object *object_get_objects_root(void)
+{
+    return container_get(object_get_root(), "/objects");
 }
 
 static void object_get_child_property(Object *obj, Visitor *v, void *opaque,
@@ -1559,6 +1694,58 @@ void object_property_add_bool(Object *obj, const char *name,
     }
 }
 
+static void property_get_enum(Object *obj, Visitor *v, void *opaque,
+                              const char *name, Error **errp)
+{
+    EnumProperty *prop = opaque;
+    int value;
+
+    value = prop->get(obj, errp);
+    visit_type_enum(v, &value, prop->strings, NULL, name, errp);
+}
+
+static void property_set_enum(Object *obj, Visitor *v, void *opaque,
+                              const char *name, Error **errp)
+{
+    EnumProperty *prop = opaque;
+    int value;
+
+    visit_type_enum(v, &value, prop->strings, NULL, name, errp);
+    prop->set(obj, value, errp);
+}
+
+static void property_release_enum(Object *obj, const char *name,
+                                  void *opaque)
+{
+    EnumProperty *prop = opaque;
+    g_free(prop);
+}
+
+void object_property_add_enum(Object *obj, const char *name,
+                              const char *typename,
+                              const char * const *strings,
+                              int (*get)(Object *, Error **),
+                              void (*set)(Object *, int, Error **),
+                              Error **errp)
+{
+    Error *local_err = NULL;
+    EnumProperty *prop = g_malloc(sizeof(*prop));
+
+    prop->strings = strings;
+    prop->get = get;
+    prop->set = set;
+
+    object_property_add(obj, name, typename,
+                        get ? property_get_enum : NULL,
+                        set ? property_set_enum : NULL,
+                        property_release_enum,
+                        prop, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        g_free(prop);
+    }
+}
+
 typedef struct TMProperty {
     void (*get)(Object *, struct tm *, Error **);
 } TMProperty;
@@ -1705,7 +1892,7 @@ void object_property_add_uint64_ptr(Object *obj, const char *name,
 
 typedef struct {
     Object *target_obj;
-    const char *target_name;
+    char *target_name;
 } AliasProperty;
 
 static void property_get_alias(Object *obj, struct Visitor *v, void *opaque,
@@ -1736,6 +1923,7 @@ static void property_release_alias(Object *obj, const char *name, void *opaque)
 {
     AliasProperty *prop = opaque;
 
+    g_free(prop->target_name);
     g_free(prop);
 }
 
@@ -1763,7 +1951,7 @@ void object_property_add_alias(Object *obj, const char *name,
 
     prop = g_malloc(sizeof(*prop));
     prop->target_obj = target_obj;
-    prop->target_name = target_name;
+    prop->target_name = g_strdup(target_name);
 
     op = object_property_add(obj, name, prop_type,
                              property_get_alias,
