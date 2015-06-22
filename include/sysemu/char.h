@@ -128,9 +128,17 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename,
 /**
  * @qemu_chr_delete:
  *
- * Destroy a character backend.
+ * Destroy a character backend and remove it from the list of
+ * identified character backends.
  */
 void qemu_chr_delete(CharDriverState *chr);
+
+/**
+ * @qemu_chr_free:
+ *
+ * Destroy a character backend.
+ */
+void qemu_chr_free(CharDriverState *chr);
 
 /**
  * @qemu_chr_fe_set_echo:
