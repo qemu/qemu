@@ -103,3 +103,5 @@ cscope.*
 tags
 TAGS
 *~
+.project
+pixman/
