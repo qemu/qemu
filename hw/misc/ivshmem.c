@@ -299,7 +299,7 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
 
     if (chr == NULL) {
         error_report("creating eventfd for eventfd %d failed", eventfd);
-        exit(1);
+        return NULL;
     }
     qemu_chr_fe_claim_no_fail(chr);
 
