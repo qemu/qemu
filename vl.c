@@ -3997,17 +3997,14 @@ int main(int argc, char **argv, char **envp)
         exit(0);
     }
 
-    /* Open the logfile at this point, if necessary. We can't open the logfile
-     * when encountering either of the logging options (-d or -D) because the
-     * other one may be encountered later on the command line, changing the
-     * location or level of logging.
+    /* Open the logfile at this point and set the log mask if necessary.
      */
+    if (log_file) {
+        qemu_set_log_filename(log_file);
+    }
+
     if (log_mask) {
         int mask;
-        if (log_file) {
-            qemu_set_log_filename(log_file);
-        }
-
         mask = qemu_str_to_log_mask(log_mask);
         if (!mask) {
             qemu_print_log_usage(stdout);

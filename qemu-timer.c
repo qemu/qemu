@@ -573,7 +573,7 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
         now = get_clock_realtime();
         last = clock->last;
         clock->last = now;
-        if (now < last) {
+        if (now < last || now > (last + get_max_clock_jump())) {
             notifier_list_notify(&clock->reset_notifiers, &now);
         }
         return now;
