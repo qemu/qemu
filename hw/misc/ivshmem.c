@@ -480,7 +480,7 @@ static bool fifo_update_and_get(IVShmemState *s, const uint8_t *buf, int size,
 static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
-    int incoming_fd, tmp_fd;
+    int incoming_fd;
     int guest_max_eventfd;
     long incoming_posn;
 
@@ -495,21 +495,21 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     }
 
     /* pick off s->server_chr->msgfd and store it, posn should accompany msg */
-    tmp_fd = qemu_chr_fe_get_msgfd(s->server_chr);
-    IVSHMEM_DPRINTF("posn is %ld, fd is %d\n", incoming_posn, tmp_fd);
+    incoming_fd = qemu_chr_fe_get_msgfd(s->server_chr);
+    IVSHMEM_DPRINTF("posn is %ld, fd is %d\n", incoming_posn, incoming_fd);
 
     /* make sure we have enough space for this guest */
     if (incoming_posn >= s->nb_peers) {
         if (increase_dynamic_storage(s, incoming_posn) < 0) {
             error_report("increase_dynamic_storage() failed");
-            if (tmp_fd != -1) {
-                close(tmp_fd);
+            if (incoming_fd != -1) {
+                close(incoming_fd);
             }
             return;
         }
     }
 
-    if (tmp_fd == -1) {
+    if (incoming_fd == -1) {
         /* if posn is positive and unseen before then this is our posn*/
         if ((incoming_posn >= 0) &&
                             (s->peers[incoming_posn].eventfds == NULL)) {
@@ -522,15 +522,6 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
             close_guest_eventfds(s, incoming_posn);
             return;
         }
-    }
-
-    /* because of the implementation of get_msgfd, we need a dup */
-    incoming_fd = dup(tmp_fd);
-
-    if (incoming_fd == -1) {
-        error_report("could not allocate file descriptor %s", strerror(errno));
-        close(tmp_fd);
-        return;
     }
 
     /* if the position is -1, then it's shared memory region fd */
