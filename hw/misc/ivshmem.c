@@ -619,6 +619,7 @@ static void ivshmem_reset(DeviceState *d)
     IVShmemState *s = IVSHMEM(d);
 
     s->intrstatus = 0;
+    s->intrmask = 0;
     ivshmem_use_msix(s);
 }
 
