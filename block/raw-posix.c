@@ -96,8 +96,6 @@
 #include <xfs/xfs.h>
 #endif
 
-//#define DEBUG_FLOPPY
-
 //#define DEBUG_BLOCK
 
 #ifdef DEBUG_BLOCK
@@ -2172,16 +2170,12 @@ static int fd_open(BlockDriverState *bs)
         (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
         qemu_close(s->fd);
         s->fd = -1;
-#ifdef DEBUG_FLOPPY
-        printf("Floppy closed\n");
-#endif
+        DPRINTF("Floppy closed\n");
     }
     if (s->fd < 0) {
         if (s->fd_got_error &&
             (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->fd_error_time) < FD_OPEN_TIMEOUT) {
-#ifdef DEBUG_FLOPPY
-            printf("No floppy (open delayed)\n");
-#endif
+            DPRINTF("No floppy (open delayed)\n");
             return -EIO;
         }
         s->fd = qemu_open(bs->filename, s->open_flags & ~O_NONBLOCK);
@@ -2190,14 +2184,10 @@ static int fd_open(BlockDriverState *bs)
             s->fd_got_error = 1;
             if (last_media_present)
                 s->fd_media_changed = 1;
-#ifdef DEBUG_FLOPPY
-            printf("No floppy\n");
-#endif
+            DPRINTF("No floppy\n");
             return -EIO;
         }
-#ifdef DEBUG_FLOPPY
-        printf("Floppy opened\n");
-#endif
+        DPRINTF("Floppy opened\n");
     }
     if (!last_media_present)
         s->fd_media_changed = 1;
@@ -2465,9 +2455,7 @@ static int floppy_media_changed(BlockDriverState *bs)
     fd_open(bs);
     ret = s->fd_media_changed;
     s->fd_media_changed = 0;
-#ifdef DEBUG_FLOPPY
-    printf("Floppy changed=%d\n", ret);
-#endif
+    DPRINTF("Floppy changed=%d\n", ret);
     return ret;
 }
 
