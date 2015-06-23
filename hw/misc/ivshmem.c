@@ -441,6 +441,42 @@ static int increase_dynamic_storage(IVShmemState *s, int new_min_size)
     return 0;
 }
 
+static bool fifo_update_and_get(IVShmemState *s, const uint8_t *buf, int size,
+                                void *data, size_t len)
+{
+    const uint8_t *p;
+    uint32_t num;
+
+    assert(len <= sizeof(long)); /* limitation of the fifo */
+    if (fifo8_is_empty(&s->incoming_fifo) && size == len) {
+        memcpy(data, buf, size);
+        return true;
+    }
+
+    IVSHMEM_DPRINTF("short read of %d bytes\n", size);
+
+    num = MIN(size, sizeof(long) - fifo8_num_used(&s->incoming_fifo));
+    fifo8_push_all(&s->incoming_fifo, buf, num);
+
+    if (fifo8_num_used(&s->incoming_fifo) < len) {
+        assert(num == 0);
+        return false;
+    }
+
+    size -= num;
+    buf += num;
+    p = fifo8_pop_buf(&s->incoming_fifo, len, &num);
+    assert(num == len);
+
+    memcpy(data, p, len);
+
+    if (size > 0) {
+        fifo8_push_all(&s->incoming_fifo, buf, size);
+    }
+
+    return true;
+}
+
 static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
@@ -448,26 +484,9 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     int guest_max_eventfd;
     long incoming_posn;
 
-    if (fifo8_is_empty(&s->incoming_fifo) && size == sizeof(incoming_posn)) {
-        memcpy(&incoming_posn, buf, size);
-    } else {
-        const uint8_t *p;
-        uint32_t num;
-
-        IVSHMEM_DPRINTF("short read of %d bytes\n", size);
-        num = MIN(size, sizeof(long) - fifo8_num_used(&s->incoming_fifo));
-        fifo8_push_all(&s->incoming_fifo, buf, num);
-        if (fifo8_num_used(&s->incoming_fifo) < sizeof(incoming_posn)) {
-            return;
-        }
-        size -= num;
-        buf += num;
-        p = fifo8_pop_buf(&s->incoming_fifo, sizeof(incoming_posn), &num);
-        g_assert(num == sizeof(incoming_posn));
-        memcpy(&incoming_posn, p, sizeof(incoming_posn));
-        if (size > 0) {
-            fifo8_push_all(&s->incoming_fifo, buf, size);
-        }
+    if (!fifo_update_and_get(s, buf, size,
+                             &incoming_posn, sizeof(incoming_posn))) {
+        return;
     }
 
     if (incoming_posn < -1) {
