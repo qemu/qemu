@@ -585,7 +585,7 @@ static int find_image_format(BlockDriverState *bs, const char *filename,
     int ret = 0;
 
     /* Return the raw BlockDriver * to scsi-generic devices or empty drives */
-    if (bs->sg || !bdrv_is_inserted(bs) || bdrv_getlength(bs) == 0) {
+    if (bdrv_is_sg(bs) || !bdrv_is_inserted(bs) || bdrv_getlength(bs) == 0) {
         *pdrv = &bdrv_raw;
         return ret;
     }
@@ -617,7 +617,7 @@ static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
     BlockDriver *drv = bs->drv;
 
     /* Do not attempt drv->bdrv_getlength() on scsi-generic devices */
-    if (bs->sg)
+    if (bdrv_is_sg(bs))
         return 0;
 
     /* query actual device if possible, otherwise just trust the hint */
@@ -948,7 +948,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     assert(bdrv_opt_mem_align(bs) != 0);
     assert(bdrv_min_mem_align(bs) != 0);
-    assert((bs->request_alignment != 0) || bs->sg);
+    assert((bs->request_alignment != 0) || bdrv_is_sg(bs));
 
     qemu_opts_del(opts);
     return 0;

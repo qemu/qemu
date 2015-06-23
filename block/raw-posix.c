@@ -305,9 +305,9 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     char *buf;
     size_t max_align = MAX(MAX_BLOCKSIZE, getpagesize());
 
-    /* For /dev/sg devices the alignment is not really used.
+    /* For SCSI generic devices the alignment is not really used.
        With buffered I/O, we don't have any restrictions. */
-    if (bs->sg || !s->needs_alignment) {
+    if (bdrv_is_sg(bs) || !s->needs_alignment) {
         bs->request_alignment = 1;
         s->buf_align = 1;
         return;
