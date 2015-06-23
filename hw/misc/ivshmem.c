@@ -233,7 +233,7 @@ static uint64_t ivshmem_io_read(void *opaque, hwaddr addr,
 
         case IVPOSITION:
             /* return my VM ID if the memory is mapped */
-            if (s->shm_fd > 0) {
+            if (s->shm_fd >= 0) {
                 ret = s->vm_id;
             } else {
                 ret = -1;
@@ -665,6 +665,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         PCI_BASE_ADDRESS_MEM_PREFETCH;
     Error *local_err = NULL;
 
+    s->shm_fd = -1;
+
     if (s->sizearg == NULL) {
         s->ivshmem_size = 4 << 20; /* 4 MB default */
     } else {
@@ -708,8 +710,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     pci_conf[PCI_COMMAND] = PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
 
     pci_config_set_interrupt_pin(pci_conf, 1);
-
-    s->shm_fd = 0;
 
     memory_region_init_io(&s->ivshmem_mmio, OBJECT(s), &ivshmem_mmio_ops, s,
                           "ivshmem-mmio", IVSHMEM_REG_BAR_SIZE);
