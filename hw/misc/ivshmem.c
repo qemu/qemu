@@ -455,7 +455,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
         uint32_t num;
 
         IVSHMEM_DPRINTF("short read of %d bytes\n", size);
-        num = MAX(size, sizeof(long) - fifo8_num_used(&s->incoming_fifo));
+        num = MIN(size, sizeof(long) - fifo8_num_used(&s->incoming_fifo));
         fifo8_push_all(&s->incoming_fifo, buf, num);
         if (fifo8_num_used(&s->incoming_fifo) < sizeof(incoming_posn)) {
             return;
