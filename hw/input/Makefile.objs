@@ -11,6 +11,7 @@ common-obj-$(CONFIG_VMMOUSE) += vmmouse.o
 ifeq ($(CONFIG_LINUX),y)
 common-obj-$(CONFIG_VIRTIO) += virtio-input.o
 common-obj-$(CONFIG_VIRTIO) += virtio-input-hid.o
+common-obj-$(CONFIG_VIRTIO) += virtio-input-host.o
 endif
 
 obj-$(CONFIG_MILKYMIST) += milkymist-softusb.o
