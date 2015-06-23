@@ -644,7 +644,19 @@ M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: include/hw/pci/*
 F: hw/pci/*
+
+ACPI
+M: Michael S. Tsirkin <mst@redhat.com>
+M: Igor Mammedov <imammedo@redhat.com>
+S: Supported
+F: include/hw/acpi/*
+F: hw/mem/*
 F: hw/acpi/*
+F: hw/i386/acpi-build.[hc]
+F: hw/i386/*dsl
+F: hw/arm/virt-acpi-build.c
+F: include/hw/arm/virt-acpi-build.h
+F: scripts/acpi*py
 
 ppc4xx
 M: Alexander Graf <agraf@suse.de>
