@@ -96,8 +96,7 @@ XenPTReg *xen_pt_find_reg(XenPTRegGroup *reg_grp, uint32_t address)
 }
 
 static uint32_t get_throughable_mask(const XenPCIPassthroughState *s,
-                                     const XenPTRegInfo *reg,
-                                     uint32_t valid_mask)
+                                     XenPTRegInfo *reg, uint32_t valid_mask)
 {
     uint32_t throughable_mask = ~(reg->emu_mask | reg->ro_mask);
 
@@ -729,8 +728,8 @@ static XenPTRegInfo xen_pt_emu_reg_header0[] = {
         .offset     = PCI_ROM_ADDRESS,
         .size       = 4,
         .init_val   = 0x00000000,
-        .ro_mask    = 0x000007FE,
-        .emu_mask   = 0xFFFFF800,
+        .ro_mask    = ~PCI_ROM_ADDRESS_MASK & ~PCI_ROM_ADDRESS_ENABLE,
+        .emu_mask   = (uint32_t)PCI_ROM_ADDRESS_MASK,
         .init       = xen_pt_bar_reg_init,
         .u.dw.read  = xen_pt_long_reg_read,
         .u.dw.write = xen_pt_exp_rom_bar_reg_write,
