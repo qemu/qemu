@@ -825,9 +825,30 @@ static void page_flush_tb(void)
     }
 }
 
-/* flush all the translation blocks */
-/* XXX: tb_flush is currently not thread safe.  System emulation calls it only
- * with tb_lock taken or from safe_work, so no need to take tb_lock here.
+#ifdef CONFIG_SOFTMMU
+static void tb_flush_work(CPUState *cpu, void *opaque)
+{
+    tb_flush(cpu);
+}
+#endif
+
+void tb_flush_safe(CPUState *cpu)
+{
+#ifdef CONFIG_SOFTMMU
+    async_safe_run_on_cpu(cpu, tb_flush_work, NULL);
+#else
+    qemu_log("Safe flushing of TBs not implemented for linux-user\n");
+    tb_flush(cpu);
+#endif
+}
+
+/* Flush *all* translations
+ *
+ * This invalidates all translations, lookups and caches.
+ *
+ * This is not thread save for linux-user. For softmmu targets the
+ * flushing is done when all vCPUs are quiescent via the
+ * async_safe_work mechanism
  */
 void tb_flush(CPUState *cpu)
 {
@@ -1183,10 +1204,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     if (unlikely(!tb)) {
  buffer_overflow:
         /* flush must be done */
-        tb_flush(cpu);
-        /* cannot fail at this point */
-        tb = tb_alloc(pc);
-        assert(tb != NULL);
+        tb_flush_safe(cpu);
+        tb_unlock();
+        cpu_loop_exit(cpu);
     }
 
     gen_code_buf = tcg_ctx.code_gen_ptr;
