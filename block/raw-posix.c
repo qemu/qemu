@@ -99,12 +99,18 @@
 //#define DEBUG_FLOPPY
 
 //#define DEBUG_BLOCK
-#if defined(DEBUG_BLOCK)
-#define DEBUG_BLOCK_PRINT(formatCstr, ...) do { if (qemu_log_enabled()) \
-    { qemu_log(formatCstr, ## __VA_ARGS__); qemu_log_flush(); } } while (0)
+
+#ifdef DEBUG_BLOCK
+# define DEBUG_BLOCK_PRINT 1
 #else
-#define DEBUG_BLOCK_PRINT(formatCstr, ...)
+# define DEBUG_BLOCK_PRINT 0
 #endif
+#define DPRINTF(fmt, ...) \
+do { \
+    if (DEBUG_BLOCK_PRINT) { \
+        printf(fmt, ## __VA_ARGS__); \
+    } \
+} while (0)
 
 /* OS X does not have O_DSYNC */
 #ifndef O_DSYNC
@@ -1020,6 +1026,7 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
 static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
 {
     struct xfs_flock64 fl;
+    int err;
 
     memset(&fl, 0, sizeof(fl));
     fl.l_whence = SEEK_SET;
@@ -1027,8 +1034,9 @@ static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
     fl.l_len = bytes;
 
     if (xfsctl(NULL, s->fd, XFS_IOC_ZERO_RANGE, &fl) < 0) {
-        DEBUG_BLOCK_PRINT("cannot write zero range (%s)\n", strerror(errno));
-        return -errno;
+        err = errno;
+        DPRINTF("cannot write zero range (%s)\n", strerror(errno));
+        return -err;
     }
 
     return 0;
@@ -1037,6 +1045,7 @@ static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
 static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
 {
     struct xfs_flock64 fl;
+    int err;
 
     memset(&fl, 0, sizeof(fl));
     fl.l_whence = SEEK_SET;
@@ -1044,8 +1053,9 @@ static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
     fl.l_len = bytes;
 
     if (xfsctl(NULL, s->fd, XFS_IOC_UNRESVSP64, &fl) < 0) {
-        DEBUG_BLOCK_PRINT("cannot punch hole (%s)\n", strerror(errno));
-        return -errno;
+        err = errno;
+        DPRINTF("cannot punch hole (%s)\n", strerror(errno));
+        return -err;
     }
 
     return 0;
