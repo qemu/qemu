@@ -89,7 +89,7 @@ typedef struct IVShmemState {
     int shm_fd; /* shared memory file descriptor */
 
     Peer *peers;
-    int nb_peers; /* how many guests we have space for */
+    int nb_peers; /* how many peers we have space for */
 
     int vm_id;
     uint32_t vectors;
@@ -387,9 +387,9 @@ static void ivshmem_del_eventfd(IVShmemState *s, int posn, int i)
                               &s->peers[posn].eventfds[i]);
 }
 
-static void close_guest_eventfds(IVShmemState *s, int posn)
+static void close_peer_eventfds(IVShmemState *s, int posn)
 {
-    int i, guest_curr_max;
+    int i, n;
 
     if (!ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
         return;
@@ -399,14 +399,14 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
         return;
     }
 
-    guest_curr_max = s->peers[posn].nb_eventfds;
+    n = s->peers[posn].nb_eventfds;
 
     memory_region_transaction_begin();
-    for (i = 0; i < guest_curr_max; i++) {
+    for (i = 0; i < n; i++) {
         ivshmem_del_eventfd(s, posn, i);
     }
     memory_region_transaction_commit();
-    for (i = 0; i < guest_curr_max; i++) {
+    for (i = 0; i < n; i++) {
         event_notifier_cleanup(&s->peers[posn].eventfds[i]);
     }
 
@@ -415,7 +415,7 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
 }
 
 /* this function increase the dynamic storage need to store data about other
- * guests */
+ * peers */
 static int resize_peers(IVShmemState *s, int new_min_size)
 {
 
@@ -432,7 +432,7 @@ static int resize_peers(IVShmemState *s, int new_min_size)
     old_size = s->nb_peers;
     s->nb_peers = new_min_size;
 
-    IVSHMEM_DPRINTF("bumping storage to %d guests\n", s->nb_peers);
+    IVSHMEM_DPRINTF("bumping storage to %d peers\n", s->nb_peers);
 
     s->peers = g_realloc(s->peers, s->nb_peers * sizeof(Peer));
 
@@ -503,7 +503,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     incoming_fd = qemu_chr_fe_get_msgfd(s->server_chr);
     IVSHMEM_DPRINTF("posn is %ld, fd is %d\n", incoming_posn, incoming_fd);
 
-    /* make sure we have enough space for this guest */
+    /* make sure we have enough space for this peer */
     if (incoming_posn >= s->nb_peers) {
         if (resize_peers(s, incoming_posn + 1) < 0) {
             error_report("failed to resize peers array");
@@ -522,9 +522,9 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
             /* receive our posn */
             s->vm_id = incoming_posn;
         } else {
-            /* otherwise an fd == -1 means an existing guest has gone away */
+            /* otherwise an fd == -1 means an existing peer has gone away */
             IVSHMEM_DPRINTF("posn %ld has gone away\n", incoming_posn);
-            close_guest_eventfds(s, incoming_posn);
+            close_peer_eventfds(s, incoming_posn);
         }
         return;
     }
@@ -573,7 +573,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     /* get a new eventfd: */
     new_eventfd = peer->nb_eventfds++;
 
-    /* this is an eventfd for a particular guest VM */
+    /* this is an eventfd for a particular peer VM */
     IVSHMEM_DPRINTF("eventfds[%ld][%d] = %d\n", incoming_posn,
                     new_eventfd, incoming_fd);
     event_notifier_init_fd(&peer->eventfds[new_eventfd], incoming_fd);
@@ -753,7 +753,7 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
             return;
         }
 
-        /* we allocate enough space for 16 guests and grow as needed */
+        /* we allocate enough space for 16 peers and grow as needed */
         resize_peers(s, 16);
         s->vm_id = -1;
 
@@ -831,7 +831,7 @@ static void pci_ivshmem_exit(PCIDevice *dev)
 
     if (s->peers) {
         for (i = 0; i < s->nb_peers; i++) {
-            close_guest_eventfds(s, i);
+            close_peer_eventfds(s, i);
         }
         g_free(s->peers);
     }
