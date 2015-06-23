@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!-- Copyright 2015 IBM Corp.
+
+     This work is licensed under the terms of the GNU GPL, version 2 or
+     (at your option) any later version. See the COPYING file in the
+     top-level directory. -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.s390.cr">
+  <reg name="cr0" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr1" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr2" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr3" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr4" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr5" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr6" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr7" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr8" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr9" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr10" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr11" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr12" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr13" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr14" bitsize="64" type="uint64" group="control"/>
+  <reg name="cr15" bitsize="64" type="uint64" group="control"/>
+</feature>

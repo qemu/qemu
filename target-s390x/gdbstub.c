@@ -174,6 +174,39 @@ static int cpu_write_vreg(CPUS390XState *env, uint8_t *mem_buf, int n)
     }
 }
 
+/* the values represent the positions in s390-cr.xml */
+#define S390_C0_REGNUM 0
+#define S390_C15_REGNUM 15
+/* total number of registers in s390-cr.xml */
+#define S390_NUM_C_REGS 16
+
+#ifndef CONFIG_USER_ONLY
+static int cpu_read_c_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
+{
+    switch (n) {
+    case S390_C0_REGNUM ... S390_C15_REGNUM:
+        return gdb_get_regl(mem_buf, env->cregs[n]);
+    default:
+        return 0;
+    }
+}
+
+static int cpu_write_c_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
+{
+    switch (n) {
+    case S390_C0_REGNUM ... S390_C15_REGNUM:
+        env->cregs[n] = ldtul_p(mem_buf);
+        if (tcg_enabled()) {
+            tlb_flush(ENV_GET_CPU(env), 1);
+        }
+        cpu_synchronize_post_init(ENV_GET_CPU(env));
+        return 8;
+    default:
+        return 0;
+    }
+}
+#endif
+
 void s390_cpu_gdb_init(CPUState *cs)
 {
     gdb_register_coprocessor(cs, cpu_read_ac_reg,
@@ -187,4 +220,10 @@ void s390_cpu_gdb_init(CPUState *cs)
     gdb_register_coprocessor(cs, cpu_read_vreg,
                              cpu_write_vreg,
                              S390_NUM_VREGS, "s390-vx.xml", 0);
+
+#ifndef CONFIG_USER_ONLY
+    gdb_register_coprocessor(cs, cpu_read_c_reg,
+                             cpu_write_c_reg,
+                             S390_NUM_C_REGS, "s390-cr.xml", 0);
+#endif
 }
