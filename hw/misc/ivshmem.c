@@ -399,6 +399,7 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
         return;
     }
     if (posn < 0 || posn >= s->nb_peers) {
+        error_report("invalid peer %d", posn);
         return;
     }
 
