@@ -1127,16 +1127,35 @@ int qemu_loadvm_state(QEMUFile *f)
      * Try to read in the VMDESC section as well, so that dumping tools that
      * intercept our migration stream have the chance to see it.
      */
-    if (qemu_get_byte(f) == QEMU_VM_VMDESCRIPTION) {
-        uint32_t size = qemu_get_be32(f);
-        uint8_t *buf = g_malloc(0x1000);
 
-        while (size > 0) {
-            uint32_t read_chunk = MIN(size, 0x1000);
-            qemu_get_buffer(f, buf, read_chunk);
-            size -= read_chunk;
+    /* We've got to be careful; if we don't read the data and just shut the fd
+     * then the sender can error if we close while it's still sending.
+     * We also mustn't read data that isn't there; some transports (RDMA)
+     * will stall waiting for that data when the source has already closed.
+     */
+    if (should_send_vmdesc()) {
+        uint8_t *buf;
+        uint32_t size;
+        section_type = qemu_get_byte(f);
+
+        if (section_type != QEMU_VM_VMDESCRIPTION) {
+            error_report("Expected vmdescription section, but got %d",
+                         section_type);
+            /*
+             * It doesn't seem worth failing at this point since
+             * we apparently have an otherwise valid VM state
+             */
+        } else {
+            buf = g_malloc(0x1000);
+            size = qemu_get_be32(f);
+
+            while (size > 0) {
+                uint32_t read_chunk = MIN(size, 0x1000);
+                qemu_get_buffer(f, buf, read_chunk);
+                size -= read_chunk;
+            }
+            g_free(buf);
         }
-        g_free(buf);
     }
 
     cpu_synchronize_all_post_init();
