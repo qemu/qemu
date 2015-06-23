@@ -56,22 +56,14 @@
     } \
 } while (0)
 
+/* We need a solution for stuffing 64 bit pointers in 32 bit ones if
+ * we care about this combination */
+QEMU_BUILD_BUG_ON(sizeof(target_ulong) > sizeof(void *));
+
 /* statistics */
 int tlb_flush_count;
 
-/* NOTE:
- * If flush_global is true (the usual case), flush all tlb entries.
- * If flush_global is false, flush (at least) all tlb entries not
- * marked global.
- *
- * Since QEMU doesn't currently implement a global/not-global flag
- * for tlb entries, at the moment tlb_flush() will also flush all
- * tlb entries in the flush_global == false case. This is OK because
- * CPU architectures generally permit an implementation to drop
- * entries from the TLB at any time, so flushing more entries than
- * required is only an efficiency issue, not a correctness issue.
- */
-void tlb_flush(CPUState *cpu, int flush_global)
+static void tlb_flush_nocheck(CPUState *cpu, int flush_global)
 {
     CPUArchState *env = cpu->env_ptr;
 
@@ -89,6 +81,34 @@ void tlb_flush(CPUState *cpu, int flush_global)
     env->tlb_flush_addr = -1;
     env->tlb_flush_mask = 0;
     tlb_flush_count++;
+    /* atomic_mb_set(&cpu->pending_tlb_flush, 0); */
+}
+
+static void tlb_flush_global_async_work(CPUState *cpu, void *opaque)
+{
+    tlb_flush_nocheck(cpu, GPOINTER_TO_INT(opaque));
+}
+
+/* NOTE:
+ * If flush_global is true (the usual case), flush all tlb entries.
+ * If flush_global is false, flush (at least) all tlb entries not
+ * marked global.
+ *
+ * Since QEMU doesn't currently implement a global/not-global flag
+ * for tlb entries, at the moment tlb_flush() will also flush all
+ * tlb entries in the flush_global == false case. This is OK because
+ * CPU architectures generally permit an implementation to drop
+ * entries from the TLB at any time, so flushing more entries than
+ * required is only an efficiency issue, not a correctness issue.
+ */
+void tlb_flush(CPUState *cpu, int flush_global)
+{
+    if (cpu->created) {
+        async_run_on_cpu(cpu, tlb_flush_global_async_work,
+                         GINT_TO_POINTER(flush_global));
+    } else {
+        tlb_flush_nocheck(cpu, flush_global);
+    }
 }
 
 static inline void v_tlb_flush_by_mmuidx(CPUState *cpu, va_list argp)
@@ -220,6 +240,21 @@ void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...)
     va_end(argp);
 
     tb_flush_jmp_cache(cpu, addr);
+}
+
+static void tlb_flush_page_async_work(CPUState *cpu, void *opaque)
+{
+    tlb_flush_page(cpu, GPOINTER_TO_UINT(opaque));
+}
+
+void tlb_flush_page_all(target_ulong addr)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        async_run_on_cpu(cpu, tlb_flush_page_async_work,
+                         GUINT_TO_POINTER(addr));
+    }
 }
 
 /* update the TLBs so that writes to code in the virtual page 'addr'
