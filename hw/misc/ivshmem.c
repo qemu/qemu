@@ -571,6 +571,13 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     /* each peer has an associated array of eventfds, and we keep
      * track of how many eventfds received so far */
     /* get a new eventfd: */
+    if (peer->nb_eventfds >= s->vectors) {
+        error_report("Too many eventfd received, device has %d vectors",
+                     s->vectors);
+        close(incoming_fd);
+        return;
+    }
+
     new_eventfd = peer->nb_eventfds++;
 
     /* this is an eventfd for a particular peer VM */
