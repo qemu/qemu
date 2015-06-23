@@ -977,7 +977,7 @@ static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
         val = proxy->gfselect;
         break;
     case VIRTIO_PCI_COMMON_GF:
-        if (proxy->gfselect <= ARRAY_SIZE(proxy->guest_features)) {
+        if (proxy->gfselect < ARRAY_SIZE(proxy->guest_features)) {
             val = proxy->guest_features[proxy->gfselect];
         }
         break;
@@ -1052,7 +1052,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
         proxy->gfselect = val;
         break;
     case VIRTIO_PCI_COMMON_GF:
-        if (proxy->gfselect <= ARRAY_SIZE(proxy->guest_features)) {
+        if (proxy->gfselect < ARRAY_SIZE(proxy->guest_features)) {
             proxy->guest_features[proxy->gfselect] = val;
             virtio_set_features(vdev,
                                 (((uint64_t)proxy->guest_features[1]) << 32) |
