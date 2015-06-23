@@ -128,6 +128,11 @@ ivshmem_client_handle_server_msg(IvshmemClient *client)
     /* new vector */
     IVSHMEM_CLIENT_DEBUG(client, "  new vector %d (fd=%d) for peer id %ld\n",
                          peer->vectors_count, fd, peer->id);
+    if (peer->vectors_count >= G_N_ELEMENTS(peer->vectors)) {
+        IVSHMEM_CLIENT_DEBUG(client, "Too many vectors received, failing");
+        return -1;
+    }
+
     peer->vectors[peer->vectors_count] = fd;
     peer->vectors_count++;
 
