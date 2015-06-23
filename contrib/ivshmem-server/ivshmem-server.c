@@ -145,8 +145,17 @@ ivshmem_server_handle_new_conn(IvshmemServer *server)
     peer->sock_fd = newfd;
 
     /* get an unused peer id */
-    while (ivshmem_server_search_peer(server, server->cur_id) != NULL) {
+    /* XXX: this could use id allocation such as Linux IDA, or simply
+     * a free-list */
+    for (i = 0; i < G_MAXUINT16; i++) {
+        if (ivshmem_server_search_peer(server, server->cur_id) == NULL) {
+            break;
+        }
         server->cur_id++;
+    }
+    if (i == G_MAXUINT16) {
+        IVSHMEM_SERVER_DEBUG(server, "cannot allocate new client id\n");
+        goto fail;
     }
     peer->id = server->cur_id++;
 

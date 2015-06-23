@@ -71,7 +71,7 @@ typedef struct IvshmemServer {
     size_t shm_size;                 /**< size of shm */
     int shm_fd;                      /**< shm file descriptor */
     unsigned n_vectors;              /**< number of vectors */
-    long cur_id;                     /**< id to be given to next client */
+    uint16_t cur_id;                 /**< id to be given to next client */
     bool verbose;                    /**< true in verbose mode */
     IvshmemServerPeerList peer_list; /**< list of peers */
 } IvshmemServer;
