@@ -59,6 +59,7 @@
 #include <linux/fd.h>
 #include <linux/fs.h>
 #include <linux/hdreg.h>
+#include <scsi/sg.h>
 #ifdef __s390__
 #include <asm/dasd.h>
 #endif
@@ -2086,15 +2087,38 @@ static void hdev_parse_filename(const char *filename, QDict *options,
     qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
 }
 
+static bool hdev_is_sg(BlockDriverState *bs)
+{
+
+#if defined(__linux__)
+
+    struct stat st;
+    struct sg_scsi_id scsiid;
+    int sg_version;
+
+    if (stat(bs->filename, &st) >= 0 && S_ISCHR(st.st_mode) &&
+        !bdrv_ioctl(bs, SG_GET_VERSION_NUM, &sg_version) &&
+        !bdrv_ioctl(bs, SG_GET_SCSI_ID, &scsiid)) {
+        DPRINTF("SG device found: type=%d, version=%d\n",
+            scsiid.scsi_type, sg_version);
+        return true;
+    }
+
+#endif
+
+    return false;
+}
+
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     Error *local_err = NULL;
     int ret;
-    const char *filename = qdict_get_str(options, "filename");
 
 #if defined(__APPLE__) && defined(__MACH__)
+    const char *filename = qdict_get_str(options, "filename");
+
     if (strstart(filename, "/dev/cdrom", NULL)) {
         kern_return_t kernResult;
         io_iterator_t mediaIterator;
@@ -2123,16 +2147,6 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
 #endif
 
     s->type = FTYPE_FILE;
-#if defined(__linux__)
-    {
-        char resolved_path[ MAXPATHLEN ], *temp;
-
-        temp = realpath(filename, resolved_path);
-        if (temp && strstart(temp, "/dev/sg", NULL)) {
-            bs->sg = 1;
-        }
-    }
-#endif
 
     ret = raw_open_common(bs, options, flags, 0, &local_err);
     if (ret < 0) {
@@ -2141,6 +2155,9 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
         }
         return ret;
     }
+
+    /* Since this does ioctl the device must be already opened */
+    bs->sg = hdev_is_sg(bs);
 
     if (flags & BDRV_O_RDWR) {
         ret = check_hdev_writable(s);
