@@ -533,6 +533,12 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     if (incoming_posn == -1) {
         void * map_ptr;
 
+        if (s->shm_fd >= 0) {
+            error_report("shm already initialized");
+            close(incoming_fd);
+            return;
+        }
+
         if (check_shm_size(s, incoming_fd, &err) == -1) {
             error_report_err(err);
             close(incoming_fd);
