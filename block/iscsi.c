@@ -628,10 +628,6 @@ static int coroutine_fn iscsi_co_flush(BlockDriverState *bs)
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
 
-    if (bdrv_is_sg(bs)) {
-        return 0;
-    }
-
     if (!iscsilun->force_next_flush) {
         return 0;
     }

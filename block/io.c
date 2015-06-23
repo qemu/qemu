@@ -2265,7 +2265,8 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
     int ret;
 
-    if (!bs || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
+    if (!bs || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
+        bdrv_is_sg(bs)) {
         return 0;
     }
 
