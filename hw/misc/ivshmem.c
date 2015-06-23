@@ -925,6 +925,7 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     dc->props = ivshmem_properties;
     dc->vmsd = &ivshmem_vmsd;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "Inter-VM shared memory";
 }
 
 static const TypeInfo ivshmem_info = {
