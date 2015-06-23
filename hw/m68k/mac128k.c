@@ -59,29 +59,20 @@ static void mac128k_init(MachineState *machine)
     //mcf5206_init(address_space_mem, AN5206_MBAR_ADDR1, cpu);
 
     /* Load kernel.  */
-	if (kernel_filename) {
-		kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
-							   NULL, NULL, 1, ELF_MACHINE, 0);
-		entry = elf_entry;
-		if (kernel_size < 0) {
-			kernel_size = load_uimage(kernel_filename, &entry, NULL, NULL,
-									  NULL, NULL);
-		}
-		if (kernel_size < 0) {
-			kernel_size = load_image_targphys(kernel_filename,
-											  KERNEL_LOAD_ADDR,
-											  ram_size - KERNEL_LOAD_ADDR);
-			entry = KERNEL_LOAD_ADDR;
-		}
-		if (kernel_size < 0) {
-			fprintf(stderr, "qemu: could not load kernel '%s'\n",
-					kernel_filename);
-			exit(1);
-		}
-	} else {
-		entry = 0;
-	}
-	env->pc = entry;
+    if (kernel_filename) {
+        kernel_size = load_image_targphys(kernel_filename,
+                                          KERNEL_LOAD_ADDR,
+                                          ram_size - KERNEL_LOAD_ADDR);
+        entry = KERNEL_LOAD_ADDR;
+        if (kernel_size < 0) {
+            fprintf(stderr, "qemu: could not load kernel '%s'\n",
+                    kernel_filename);
+            exit(1);
+        }
+    } else {
+        entry = 0;
+    }
+    env->pc = entry;
 }
 
 static QEMUMachine mac128k_machine = {
