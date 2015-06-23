@@ -91,6 +91,10 @@ typedef struct PIIX3State {
     MemoryRegion rcr_mem;
 } PIIX3State;
 
+#define TYPE_PIIX3_PCI_DEVICE "pci-piix3"
+#define PIIX3_PCI_DEVICE(obj) \
+    OBJECT_CHECK(PIIX3State, (obj), TYPE_PIIX3_PCI_DEVICE)
+
 #define TYPE_I440FX_PCI_DEVICE "i440FX"
 #define I440FX_PCI_DEVICE(obj) \
     OBJECT_CHECK(PCII440FXState, (obj), TYPE_I440FX_PCI_DEVICE)
@@ -368,13 +372,15 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
      * connected to the IOAPIC directly.
      * These additional routes can be discovered through ACPI. */
     if (xen_enabled()) {
-        piix3 = DO_UPCAST(PIIX3State, dev,
-                pci_create_simple_multifunction(b, -1, true, "PIIX3-xen"));
+        PCIDevice *pci_dev = pci_create_simple_multifunction(b,
+                             -1, true, "PIIX3-xen");
+        piix3 = PIIX3_PCI_DEVICE(pci_dev);
         pci_bus_irqs(b, xen_piix3_set_irq, xen_pci_slot_get_pirq,
                 piix3, XEN_PIIX_NUM_PIRQS);
     } else {
-        piix3 = DO_UPCAST(PIIX3State, dev,
-                pci_create_simple_multifunction(b, -1, true, "PIIX3"));
+        PCIDevice *pci_dev = pci_create_simple_multifunction(b,
+                             -1, true, "PIIX3");
+        piix3 = PIIX3_PCI_DEVICE(pci_dev);
         pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
                 PIIX_NUM_PIRQS);
         pci_bus_set_route_irq_fn(b, piix3_route_intx_pin_to_irq);
@@ -480,7 +486,7 @@ static void piix3_write_config(PCIDevice *dev,
 {
     pci_default_write_config(dev, address, val, len);
     if (ranges_overlap(address, len, PIIX_PIRQC, 4)) {
-        PIIX3State *piix3 = DO_UPCAST(PIIX3State, dev, dev);
+        PIIX3State *piix3 = PIIX3_PCI_DEVICE(dev);
         int pic_irq;
 
         pci_bus_fire_intx_routing_notifier(piix3->dev.bus);
@@ -634,7 +640,7 @@ static const MemoryRegionOps rcr_ops = {
 
 static void piix3_realize(PCIDevice *dev, Error **errp)
 {
-    PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
+    PIIX3State *d = PIIX3_PCI_DEVICE(dev);
 
     isa_bus_new(DEVICE(d), get_system_memory(),
                 pci_address_space_io(dev));
@@ -647,7 +653,7 @@ static void piix3_realize(PCIDevice *dev, Error **errp)
     qemu_register_reset(piix3_reset, d);
 }
 
-static void piix3_class_init(ObjectClass *klass, void *data)
+static void pci_piix3_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -656,7 +662,6 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     dc->vmsd        = &vmstate_piix3;
     dc->hotpluggable   = false;
     k->realize      = piix3_realize;
-    k->config_write = piix3_write_config;
     k->vendor_id    = PCI_VENDOR_ID_INTEL;
     /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
     k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0;
@@ -668,38 +673,37 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     dc->cannot_instantiate_with_device_add_yet = true;
 }
 
+static const TypeInfo piix3_pci_type_info = {
+    .name = TYPE_PIIX3_PCI_DEVICE,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PIIX3State),
+    .abstract = true,
+    .class_init = pci_piix3_class_init,
+};
+
+static void piix3_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->config_write = piix3_write_config;
+}
+
 static const TypeInfo piix3_info = {
     .name          = "PIIX3",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PIIX3State),
+    .parent        = TYPE_PIIX3_PCI_DEVICE,
     .class_init    = piix3_class_init,
 };
 
 static void piix3_xen_class_init(ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    dc->desc        = "ISA bridge";
-    dc->vmsd        = &vmstate_piix3;
-    dc->hotpluggable   = false;
-    k->realize      = piix3_realize;
     k->config_write = piix3_write_config_xen;
-    k->vendor_id    = PCI_VENDOR_ID_INTEL;
-    /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
-    k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0;
-    k->class_id     = PCI_CLASS_BRIDGE_ISA;
-    /*
-     * Reason: part of PIIX3 southbridge, needs to be wired up by
-     * pc_piix.c's pc_init1()
-     */
-    dc->cannot_instantiate_with_device_add_yet = true;
 };
 
 static const TypeInfo piix3_xen_info = {
     .name          = "PIIX3-xen",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PIIX3State),
+    .parent        = TYPE_PIIX3_PCI_DEVICE,
     .class_init    = piix3_xen_class_init,
 };
 
@@ -772,6 +776,7 @@ static const TypeInfo i440fx_pcihost_info = {
 static void i440fx_register_types(void)
 {
     type_register_static(&i440fx_info);
+    type_register_static(&piix3_pci_type_info);
     type_register_static(&piix3_info);
     type_register_static(&piix3_xen_info);
     type_register_static(&i440fx_pcihost_info);

@@ -36,6 +36,10 @@ typedef struct XenPTReg XenPTReg;
 
 typedef struct XenPCIPassthroughState XenPCIPassthroughState;
 
+#define TYPE_XEN_PT_DEVICE "xen-pci-passthrough"
+#define XEN_PT_DEVICE(obj) \
+    OBJECT_CHECK(XenPCIPassthroughState, (obj), TYPE_XEN_PT_DEVICE)
+
 /* function type for config reg */
 typedef int (*xen_pt_conf_reg_init)
     (XenPCIPassthroughState *, XenPTRegInfo *, uint32_t real_offset,

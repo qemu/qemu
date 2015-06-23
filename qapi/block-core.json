@@ -1083,7 +1083,7 @@
 #
 # I/O limits can be disabled by setting all of them to 0. In this case
 # the device will be removed from its group and the rest of its
-# members will no be affected. The 'group' parameter is ignored.
+# members will not be affected. The 'group' parameter is ignored.
 #
 # @device: The name of the device
 #
