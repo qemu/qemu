@@ -296,6 +296,25 @@ static int virtio_ccw_set_vqs(SubchDev *sch, uint64_t addr, uint32_t align,
     return 0;
 }
 
+static void virtio_ccw_reset_virtio(VirtioCcwDevice *dev, VirtIODevice *vdev)
+{
+    virtio_ccw_stop_ioeventfd(dev);
+    virtio_reset(vdev);
+    if (dev->indicators) {
+        release_indicator(&dev->routes.adapter, dev->indicators);
+        dev->indicators = NULL;
+    }
+    if (dev->indicators2) {
+        release_indicator(&dev->routes.adapter, dev->indicators2);
+        dev->indicators2 = NULL;
+    }
+    if (dev->summary_indicator) {
+        release_indicator(&dev->routes.adapter, dev->summary_indicator);
+        dev->summary_indicator = NULL;
+    }
+    dev->sch->thinint_active = false;
+}
+
 static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
 {
     int ret;
@@ -359,8 +378,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         }
         break;
     case CCW_CMD_VDEV_RESET:
-        virtio_ccw_stop_ioeventfd(dev);
-        virtio_reset(vdev);
+        virtio_ccw_reset_virtio(dev, vdev);
         ret = 0;
         break;
     case CCW_CMD_READ_FEAT:
@@ -500,7 +518,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
             }
             if (virtio_set_status(vdev, status) == 0) {
                 if (vdev->status == 0) {
-                    virtio_reset(vdev);
+                    virtio_ccw_reset_virtio(dev, vdev);
                 }
                 if (status & VIRTIO_CONFIG_S_DRIVER_OK) {
                     virtio_ccw_start_ioeventfd(dev);
@@ -1081,21 +1099,8 @@ static void virtio_ccw_reset(DeviceState *d)
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
     VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
 
-    virtio_ccw_stop_ioeventfd(dev);
-    virtio_reset(vdev);
+    virtio_ccw_reset_virtio(dev, vdev);
     css_reset_sch(dev->sch);
-    if (dev->indicators) {
-        release_indicator(&dev->routes.adapter, dev->indicators);
-        dev->indicators = NULL;
-    }
-    if (dev->indicators2) {
-        release_indicator(&dev->routes.adapter, dev->indicators2);
-        dev->indicators2 = NULL;
-    }
-    if (dev->summary_indicator) {
-        release_indicator(&dev->routes.adapter, dev->summary_indicator);
-        dev->summary_indicator = NULL;
-    }
 }
 
 static void virtio_ccw_vmstate_change(DeviceState *d, bool running)
