@@ -13,7 +13,6 @@
 #include "qapi/visitor.h"
 #include "qapi-types.h"
 #include "qapi-visit.h"
-#include "qapi/qmp/qerror.h"
 #include "qemu/config-file.h"
 #include "qom/object_interfaces.h"
 

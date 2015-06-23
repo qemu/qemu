@@ -132,7 +132,8 @@ static void parse_option_bool(const char *name, const char *value, bool *ret,
         } else if (!strcmp(value, "off")) {
             *ret = 0;
         } else {
-            error_set(errp,QERR_INVALID_PARAMETER_VALUE, name, "'on' or 'off'");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name, "'on' or 'off'");
         }
     } else {
         *ret = 1;
@@ -148,12 +149,12 @@ static void parse_option_number(const char *name, const char *value,
     if (value != NULL) {
         number = strtoull(value, &postfix, 0);
         if (*postfix != '\0') {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
             return;
         }
         *ret = number;
     } else {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
     }
 }
 
@@ -198,7 +199,7 @@ void parse_option_size(const char *name, const char *value,
             *ret = (uint64_t) sizef;
             break;
         default:
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
 #if 0 /* conversion from qerror_report() to error_set() broke this: */
             error_printf_unless_qmp("You may use k, M, G or T suffixes for "
                     "kilobytes, megabytes, gigabytes and terabytes.\n");
@@ -206,7 +207,7 @@ void parse_option_size(const char *name, const char *value,
             return;
         }
     } else {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
     }
 }
 
@@ -527,7 +528,7 @@ static void opt_set(QemuOpts *opts, const char *name, const char *value,
 
     desc = find_desc_by_name(opts->list->desc, name);
     if (!desc && !opts_accepts_any(opts)) {
-        error_set(errp, QERR_INVALID_PARAMETER, name);
+        error_setg(errp, QERR_INVALID_PARAMETER, name);
         return;
     }
 
@@ -563,7 +564,7 @@ void qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val,
     opt = g_malloc0(sizeof(*opt));
     opt->desc = find_desc_by_name(desc, name);
     if (!opt->desc && !opts_accepts_any(opts)) {
-        error_set(errp, QERR_INVALID_PARAMETER, name);
+        error_setg(errp, QERR_INVALID_PARAMETER, name);
         g_free(opt);
         return;
     }
@@ -584,7 +585,7 @@ void qemu_opt_set_number(QemuOpts *opts, const char *name, int64_t val,
     opt = g_malloc0(sizeof(*opt));
     opt->desc = find_desc_by_name(desc, name);
     if (!opt->desc && !opts_accepts_any(opts)) {
-        error_set(errp, QERR_INVALID_PARAMETER, name);
+        error_setg(errp, QERR_INVALID_PARAMETER, name);
         g_free(opt);
         return;
     }
@@ -640,7 +641,8 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
 
     if (id) {
         if (!id_wellformed(id)) {
-            error_set(errp,QERR_INVALID_PARAMETER_VALUE, "id", "an identifier");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id",
+                       "an identifier");
 #if 0 /* conversion from qerror_report() to error_set() broke this: */
             error_printf_unless_qmp("Identifiers consist of letters, digits, '-', '.', '_', starting with a letter.\n");
 #endif
@@ -820,7 +822,7 @@ void qemu_opts_do_parse(QemuOpts *opts, const char *params,
 }
 
 static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
-                            int permit_abbrev, bool defaults, Error **errp)
+                            bool permit_abbrev, bool defaults, Error **errp)
 {
     const char *firstname;
     char value[1024], *id = NULL;
@@ -867,19 +869,32 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
  * Create a QemuOpts in @list and with options parsed from @params.
  * If @permit_abbrev, the first key=value in @params may omit key=,
  * and is treated as if key was @list->implied_opt_name.
- * Report errors with qerror_report_err().
+ * On error, store an error object through @errp if non-null.
  * Return the new QemuOpts on success, null pointer on error.
  */
 QemuOpts *qemu_opts_parse(QemuOptsList *list, const char *params,
-                          int permit_abbrev)
+                          bool permit_abbrev, Error **errp)
+{
+    return opts_parse(list, params, permit_abbrev, false, errp);
+}
+
+/**
+ * Create a QemuOpts in @list and with options parsed from @params.
+ * If @permit_abbrev, the first key=value in @params may omit key=,
+ * and is treated as if key was @list->implied_opt_name.
+ * Report errors with error_report_err().  This is inappropriate in
+ * QMP context.  Do not use this function there!
+ * Return the new QemuOpts on success, null pointer on error.
+ */
+QemuOpts *qemu_opts_parse_noisily(QemuOptsList *list, const char *params,
+                                  bool permit_abbrev)
 {
     Error *err = NULL;
     QemuOpts *opts;
 
     opts = opts_parse(list, params, permit_abbrev, false, &err);
-    if (!opts) {
-        qerror_report_err(err);
-        error_free(err);
+    if (err) {
+        error_report_err(err);
     }
     return opts;
 }
@@ -927,7 +942,7 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
         break;
     case QTYPE_QBOOL:
         pstrcpy(buf, sizeof(buf),
-                qbool_get_int(qobject_to_qbool(obj)) ? "on" : "off");
+                qbool_get_bool(qobject_to_qbool(obj)) ? "on" : "off");
         value = buf;
         break;
     default:
@@ -1042,7 +1057,7 @@ void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
     QTAILQ_FOREACH(opt, &opts->head, next) {
         opt->desc = find_desc_by_name(desc, opt->name);
         if (!opt->desc) {
-            error_set(errp, QERR_INVALID_PARAMETER, opt->name);
+            error_setg(errp, QERR_INVALID_PARAMETER, opt->name);
             return;
         }
 

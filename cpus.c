@@ -27,6 +27,7 @@
 
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "exec/gdbstub.h"
 #include "sysemu/dma.h"
@@ -1512,8 +1513,8 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
 
     cpu = qemu_get_cpu(cpu_index);
     if (cpu == NULL) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
-                  "a CPU number");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
+                   "a CPU number");
         return;
     }
 
@@ -1533,7 +1534,7 @@ void qmp_memsave(int64_t addr, int64_t size, const char *filename,
             goto exit;
         }
         if (fwrite(buf, 1, l, f) != l) {
-            error_set(errp, QERR_IO_ERROR);
+            error_setg(errp, QERR_IO_ERROR);
             goto exit;
         }
         addr += l;
@@ -1563,7 +1564,7 @@ void qmp_pmemsave(int64_t addr, int64_t size, const char *filename,
             l = size;
         cpu_physical_memory_read(addr, buf, l);
         if (fwrite(buf, 1, l, f) != l) {
-            error_set(errp, QERR_IO_ERROR);
+            error_setg(errp, QERR_IO_ERROR);
             goto exit;
         }
         addr += l;

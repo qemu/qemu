@@ -26,6 +26,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 #include "block/coroutine.h"

@@ -29,10 +29,12 @@
 #include "trace.h"
 #include "hw/qdev.h"
 #include "sysemu/sysemu.h"
+#include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/timer.h"
 #include "qemu/acl.h"
 #include "qemu/config-file.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/types.h"
 #include "qmp-commands.h"
 #include "qemu/osdep.h"
@@ -427,7 +429,7 @@ VncInfo *qmp_query_vnc(Error **errp)
 
         if (getsockname(vd->lsock, (struct sockaddr *)&sa,
                         &salen) == -1) {
-            error_set(errp, QERR_UNDEFINED_ERROR);
+            error_setg(errp, QERR_UNDEFINED_ERROR);
             goto out_error;
         }
 
@@ -435,7 +437,7 @@ VncInfo *qmp_query_vnc(Error **errp)
                         host, sizeof(host),
                         serv, sizeof(serv),
                         NI_NUMERICHOST | NI_NUMERICSERV) < 0) {
-            error_set(errp, QERR_UNDEFINED_ERROR);
+            error_setg(errp, QERR_UNDEFINED_ERROR);
             goto out_error;
         }
 
@@ -3749,10 +3751,10 @@ static void vnc_auto_assign_id(QemuOptsList *olist, QemuOpts *opts)
     qemu_opts_set_id(opts, id);
 }
 
-QemuOpts *vnc_parse_func(const char *str)
+QemuOpts *vnc_parse(const char *str, Error **errp)
 {
     QemuOptsList *olist = qemu_find_opts("vnc");
-    QemuOpts *opts = qemu_opts_parse(olist, str, 1);
+    QemuOpts *opts = qemu_opts_parse(olist, str, true, errp);
     const char *id;
 
     if (!opts) {

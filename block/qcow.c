@@ -25,6 +25,7 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include <zlib.h>
+#include "qapi/qmp/qerror.h"
 #include "qemu/aes.h"
 #include "migration/migration.h"
 
@@ -123,8 +124,8 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         char version[64];
         snprintf(version, sizeof(version), "QCOW version %" PRIu32,
                  header.version);
-        error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-                  bdrv_get_device_or_node_name(bs), "qcow", version);
+        error_setg(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+                   bdrv_get_device_or_node_name(bs), "qcow", version);
         ret = -ENOTSUP;
         goto fail;
     }

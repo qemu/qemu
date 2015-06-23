@@ -56,13 +56,13 @@ const QDictEntry *qdict_next(const QDict *qdict, const QDictEntry *entry);
 /* High level helpers */
 double qdict_get_double(const QDict *qdict, const char *key);
 int64_t qdict_get_int(const QDict *qdict, const char *key);
-int qdict_get_bool(const QDict *qdict, const char *key);
+bool qdict_get_bool(const QDict *qdict, const char *key);
 QList *qdict_get_qlist(const QDict *qdict, const char *key);
 QDict *qdict_get_qdict(const QDict *qdict, const char *key);
 const char *qdict_get_str(const QDict *qdict, const char *key);
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t def_value);
-int qdict_get_try_bool(const QDict *qdict, const char *key, int def_value);
+bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value);
 const char *qdict_get_try_str(const QDict *qdict, const char *key);
 
 void qdict_copy_default(QDict *dst, QDict *src, const char *key);

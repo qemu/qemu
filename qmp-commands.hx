@@ -276,7 +276,7 @@ EQMP
         .args_type  = "device:O",
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
-        .mhandler.cmd_new = do_device_add,
+        .mhandler.cmd_new = qmp_device_add,
     },
 
 SQMP
@@ -1983,7 +1983,7 @@ EQMP
         .args_type  = "",
         .params     = "",
         .help       = "enable QMP capabilities",
-        .mhandler.cmd_new = do_qmp_capabilities,
+        .mhandler.cmd_new = qmp_capabilities,
     },
 
 SQMP

@@ -3138,7 +3138,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(env, pc_start, dc.pc - pc_start, 0);
+        log_target_disas(cs, pc_start, dc.pc - pc_start, 0);
         qemu_log("\n");
     }
 #endif

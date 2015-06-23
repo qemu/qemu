@@ -23,6 +23,7 @@
  */
 #include "qapi-visit.h"
 #include "qapi/qmp-output-visitor.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "qemu-common.h"
 #include "qemu/option.h"
@@ -739,7 +740,7 @@ static int img_commit(int argc, char **argv)
     if (base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (!base_bs) {
-            error_set(&local_err, QERR_BASE_NOT_FOUND, base);
+            error_setg(&local_err, QERR_BASE_NOT_FOUND, base);
             goto done;
         }
     } else {
@@ -1590,7 +1591,8 @@ static int img_convert(int argc, char **argv)
             break;
         case 'l':
             if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
-                sn_opts = qemu_opts_parse(&internal_snapshot_opts, optarg, 0);
+                sn_opts = qemu_opts_parse_noisily(&internal_snapshot_opts,
+                                                  optarg, false);
                 if (!sn_opts) {
                     error_report("Failed in parsing snapshot param '%s'",
                                  optarg);

@@ -23,6 +23,7 @@
 #include "sysemu/memory_mapping.h"
 #include "sysemu/cpus.h"
 #include "qapi/error.h"
+#include "qapi/qmp/qerror.h"
 #include "qmp-commands.h"
 
 #include <zlib.h>
@@ -1474,7 +1475,7 @@ static void dump_init(DumpState *s, int fd, bool has_format,
 
     s->start = get_start_block(s);
     if (s->start == -1) {
-        error_set(errp, QERR_INVALID_PARAMETER, "begin");
+        error_setg(errp, QERR_INVALID_PARAMETER, "begin");
         goto cleanup;
     }
 
@@ -1484,14 +1485,14 @@ static void dump_init(DumpState *s, int fd, bool has_format,
      */
     ret = cpu_get_dump_info(&s->dump_info, &s->guest_phys_blocks);
     if (ret < 0) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         goto cleanup;
     }
 
     s->note_size = cpu_get_note_size(s->dump_info.d_class,
                                      s->dump_info.d_machine, nr_cpus);
     if (s->note_size < 0) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         goto cleanup;
     }
 
@@ -1615,11 +1616,11 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
         return;
     }
     if (has_begin && !has_length) {
-        error_set(errp, QERR_MISSING_PARAMETER, "length");
+        error_setg(errp, QERR_MISSING_PARAMETER, "length");
         return;
     }
     if (!has_begin && has_length) {
-        error_set(errp, QERR_MISSING_PARAMETER, "begin");
+        error_setg(errp, QERR_MISSING_PARAMETER, "begin");
         return;
     }
 
@@ -1656,7 +1657,7 @@ void qmp_dump_guest_memory(bool paging, const char *file, bool has_begin,
     }
 
     if (fd == -1) {
-        error_set(errp, QERR_INVALID_PARAMETER, "protocol");
+        error_setg(errp, QERR_INVALID_PARAMETER, "protocol");
         return;
     }
 

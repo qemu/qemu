@@ -27,6 +27,7 @@
 #include "ui/pixel_ops.h"
 #include "hw/loader.h"
 #include "hw/sysbus.h"
+#include "qemu/error-report.h"
 
 #define TCX_ROM_FILE "QEMU,tcx.bin"
 #define FCODE_MAX_ROM_SIZE 0x10000

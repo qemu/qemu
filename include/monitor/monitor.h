@@ -2,7 +2,6 @@
 #define MONITOR_H
 
 #include "qemu-common.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "block/block.h"
 #include "qemu/readline.h"
@@ -39,15 +38,13 @@ void monitor_flush(Monitor *mon);
 int monitor_set_cpu(int cpu_index);
 int monitor_get_cpu_index(void);
 
-void monitor_set_error(Monitor *mon, QError *qerror);
 void monitor_read_command(Monitor *mon, int show_prompt);
 int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                           void *opaque);
 
-int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret);
-
-int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret);
-int qmp_object_add(Monitor *mon, const QDict *qdict, QObject **ret);
+void qmp_qom_set(QDict *qdict, QObject **ret, Error **errp);
+void qmp_qom_get(QDict *qdict, QObject **ret, Error **errp);
+void qmp_object_add(QDict *qdict, QObject **ret, Error **errp);
 void object_add(const char *type, const char *id, const QDict *qdict,
                 Visitor *v, Error **errp);
 

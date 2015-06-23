@@ -32,6 +32,8 @@
 
 #include "monitor/monitor.h"
 #include "qemu-common.h"
+#include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/config-file.h"
 #include "qmp-commands.h"
@@ -945,16 +947,16 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
             break;
 
         default:
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
-                      "a netdev backend type");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                       "a netdev backend type");
             return -1;
         }
     } else {
         u.net = object;
         opts = u.net->opts;
         if (opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "type",
-                      "a net type");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                       "a net type");
             return -1;
         }
         /* missing optional values have been initialized to "all bits zero" */
@@ -975,8 +977,8 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
         if (net_client_init_fun[opts->kind](opts, name, peer, errp) < 0) {
             /* FIXME drop when all init functions store an Error */
             if (errp && !*errp) {
-                error_set(errp, QERR_DEVICE_INIT_FAILED,
-                          NetClientOptionsKind_lookup[opts->kind]);
+                error_setg(errp, QERR_DEVICE_INIT_FAILED,
+                           NetClientOptionsKind_lookup[opts->kind]);
             }
             return -1;
         }
@@ -1049,7 +1051,8 @@ void hmp_host_net_add(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    opts = qemu_opts_parse(qemu_find_opts("net"), opts_str ? opts_str : "", 0);
+    opts = qemu_opts_parse_noisily(qemu_find_opts("net"),
+                                   opts_str ? opts_str : "", false);
     if (!opts) {
         return;
     }
@@ -1089,7 +1092,7 @@ void netdev_add(QemuOpts *opts, Error **errp)
     net_client_init(opts, 1, errp);
 }
 
-int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret)
+void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp)
 {
     Error *local_err = NULL;
     QemuOptsList *opts_list;
@@ -1097,26 +1100,22 @@ int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret)
 
     opts_list = qemu_find_opts_err("netdev", &local_err);
     if (local_err) {
-        goto exit_err;
+        goto out;
     }
 
     opts = qemu_opts_from_qdict(opts_list, qdict, &local_err);
     if (local_err) {
-        goto exit_err;
+        goto out;
     }
 
     netdev_add(opts, &local_err);
     if (local_err) {
         qemu_opts_del(opts);
-        goto exit_err;
+        goto out;
     }
 
-    return 0;
-
-exit_err:
-    qerror_report_err(local_err);
-    error_free(local_err);
-    return -1;
+out:
+    error_propagate(errp, local_err);
 }
 
 void qmp_netdev_del(const char *id, Error **errp)
@@ -1126,7 +1125,8 @@ void qmp_netdev_del(const char *id, Error **errp)
 
     nc = qemu_find_netdev(id);
     if (!nc) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, id);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", id);
         return;
     }
 
@@ -1237,7 +1237,8 @@ void qmp_set_link(const char *name, bool up, Error **errp)
                                           MAX_QUEUE_NUM);
 
     if (queues == 0) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, name);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", name);
         return;
     }
     nc = ncs[0];
@@ -1412,7 +1413,7 @@ int net_client_parse(QemuOptsList *opts_list, const char *optarg)
     }
 #endif
 
-    if (!qemu_opts_parse(opts_list, optarg, 1)) {
+    if (!qemu_opts_parse_noisily(opts_list, optarg, true)) {
         return -1;
     }
 

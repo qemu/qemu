@@ -27,6 +27,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "ui/console.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "hw/timer/hpet.h"
 #include "hw/sysbus.h"

@@ -36,7 +36,6 @@
 #include <asm/hyperv.h>
 #include "hw/pci/pci.h"
 #include "migration/migration.h"
-#include "qapi/qmp/qerror.h"
 #include "exec/memattrs.h"
 
 //#define DEBUG_KVM

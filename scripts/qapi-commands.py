@@ -195,12 +195,10 @@ out:
     return ret
 
 def gen_marshal_input_decl(name, args, ret_type, middle_mode):
-    if middle_mode:
-        return 'int qmp_marshal_input_%s(Monitor *mon, const QDict *qdict, QObject **ret)' % c_name(name)
-    else:
-        return 'static void qmp_marshal_input_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
-
-
+    ret = 'void qmp_marshal_input_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
+    if not middle_mode:
+        ret = "static " + ret
+    return ret
 
 def gen_marshal_input(name, args, ret_type, middle_mode):
     hdr = gen_marshal_input_decl(name, args, ret_type, middle_mode)
@@ -211,11 +209,6 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
     Error *local_err = NULL;
 ''',
                 header=hdr)
-
-    if middle_mode:
-        ret += mcgen('''
-    QDict *args = (QDict *)qdict;
-''')
 
     if ret_type:
         if is_c_ptr(ret_type):
@@ -253,35 +246,13 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
 
 out:
 ''')
-    if not middle_mode:
-        ret += mcgen('''
-    error_propagate(errp, local_err);
-''')
     ret += mcgen('''
+    error_propagate(errp, local_err);
 %(visitor_input_block_cleanup)s
+}
 ''',
                  visitor_input_block_cleanup=gen_visitor_input_block(args,
                                                                      dealloc=True))
-
-    if middle_mode:
-        ret += mcgen('''
-
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-    return 0;
-''')
-    else:
-        ret += mcgen('''
-    return;
-''')
-
-    ret += mcgen('''
-}
-''')
-
     return ret
 
 def gen_registry(commands):
@@ -358,7 +329,6 @@ h_comment = '''
 fdef.write(mcgen('''
 #include "qemu-common.h"
 #include "qemu/module.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/types.h"
 #include "qapi/qmp/dispatch.h"
 #include "qapi/visitor.h"

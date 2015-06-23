@@ -38,7 +38,6 @@
 #include "qemu/error-report.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-#include "monitor/monitor.h"
 
 #include "ccid.h"
 

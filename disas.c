@@ -9,7 +9,7 @@
 
 typedef struct CPUDebug {
     struct disassemble_info info;
-    CPUArchState *env;
+    CPUState *cpu;
 } CPUDebug;
 
 /* Filled in by elfload.c.  Simplistic, but will do for now. */
@@ -39,7 +39,7 @@ target_read_memory (bfd_vma memaddr,
 {
     CPUDebug *s = container_of(info, CPUDebug, info);
 
-    cpu_memory_rw_debug(ENV_GET_CPU(s->env), memaddr, myaddr, length, 0);
+    cpu_memory_rw_debug(s->cpu, memaddr, myaddr, length, 0);
     return 0;
 }
 
@@ -195,7 +195,7 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
            bit 16 indicates little endian.
     other targets - unused
  */
-void target_disas(FILE *out, CPUArchState *env, target_ulong code,
+void target_disas(FILE *out, CPUState *cpu, target_ulong code,
                   target_ulong size, int flags)
 {
     target_ulong pc;
@@ -205,7 +205,7 @@ void target_disas(FILE *out, CPUArchState *env, target_ulong code,
 
     INIT_DISASSEMBLE_INFO(s.info, out, fprintf);
 
-    s.env = env;
+    s.cpu = cpu;
     s.info.read_memory_func = target_read_memory;
     s.info.buffer_vma = code;
     s.info.buffer_length = size;
@@ -430,7 +430,7 @@ monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
     if (monitor_disas_is_physical) {
         cpu_physical_memory_read(memaddr, myaddr, length);
     } else {
-        cpu_memory_rw_debug(ENV_GET_CPU(s->env), memaddr, myaddr, length, 0);
+        cpu_memory_rw_debug(s->cpu, memaddr, myaddr, length, 0);
     }
     return 0;
 }
@@ -447,7 +447,7 @@ monitor_fprintf(FILE *stream, const char *fmt, ...)
 
 /* Disassembler for the monitor.
    See target_disas for a description of flags. */
-void monitor_disas(Monitor *mon, CPUArchState *env,
+void monitor_disas(Monitor *mon, CPUState *cpu,
                    target_ulong pc, int nb_insn, int is_physical, int flags)
 {
     int count, i;
@@ -456,7 +456,7 @@ void monitor_disas(Monitor *mon, CPUArchState *env,
 
     INIT_DISASSEMBLE_INFO(s.info, (FILE *)mon, monitor_fprintf);
 
-    s.env = env;
+    s.cpu = cpu;
     monitor_disas_is_physical = is_physical;
     s.info.read_memory_func = monitor_read_memory;
     s.info.print_address_func = generic_print_target_address;

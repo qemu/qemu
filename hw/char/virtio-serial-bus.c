@@ -20,6 +20,7 @@
 
 #include "qemu/iov.h"
 #include "monitor/monitor.h"
+#include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "hw/sysbus.h"
 #include "trace.h"

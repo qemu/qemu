@@ -185,8 +185,8 @@ static void parse_type_int(Visitor *v, int64_t *obj, const char *name,
     StringInputVisitor *siv = DO_UPCAST(StringInputVisitor, visitor, v);
 
     if (!siv->string) {
-        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
-                  "integer");
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "integer");
         return;
     }
 
@@ -217,8 +217,8 @@ static void parse_type_int(Visitor *v, int64_t *obj, const char *name,
     return;
 
 error:
-    error_set(errp, QERR_INVALID_PARAMETER_VALUE, name,
-              "an int64 value or range");
+    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
+               "an int64 value or range");
 }
 
 static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
@@ -231,8 +231,8 @@ static void parse_type_size(Visitor *v, uint64_t *obj, const char *name,
     if (siv->string) {
         parse_option_size(name, siv->string, &val, &err);
     } else {
-        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
-                  "size");
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "size");
         return;
     }
     if (err) {
@@ -263,8 +263,8 @@ static void parse_type_bool(Visitor *v, bool *obj, const char *name,
         }
     }
 
-    error_set(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
-              "boolean");
+    error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+               "boolean");
 }
 
 static void parse_type_str(Visitor *v, char **obj, const char *name,
@@ -274,8 +274,8 @@ static void parse_type_str(Visitor *v, char **obj, const char *name,
     if (siv->string) {
         *obj = g_strdup(siv->string);
     } else {
-        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
-                  "string");
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "string");
     }
 }
 
@@ -291,8 +291,8 @@ static void parse_type_number(Visitor *v, double *obj, const char *name,
         val = strtod(siv->string, &endp);
     }
     if (!siv->string || errno || endp == siv->string || *endp) {
-        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
-                  "number");
+        error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "number");
         return;
     }
 

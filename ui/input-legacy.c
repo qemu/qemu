@@ -23,7 +23,6 @@
  */
 
 #include "sysemu/sysemu.h"
-#include "monitor/monitor.h"
 #include "ui/console.h"
 #include "qapi/error.h"
 #include "qmp-commands.h"

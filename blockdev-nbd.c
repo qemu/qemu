@@ -12,7 +12,6 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
 #include "hw/block/block.h"
-#include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
@@ -91,11 +90,12 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     if (!blk_is_inserted(blk)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 

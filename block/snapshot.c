@@ -24,6 +24,7 @@
 
 #include "block/snapshot.h"
 #include "block/block_int.h"
+#include "qapi/qmp/qerror.h"
 
 QemuOptsList internal_snapshot_opts = {
     .name = "snapshot",
@@ -229,7 +230,7 @@ int bdrv_snapshot_delete(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
     if (!drv) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
         return -ENOMEDIUM;
     }
     if (!snapshot_id && !name) {
@@ -315,7 +316,7 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
     BlockDriver *drv = bs->drv;
 
     if (!drv) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
         return -ENOMEDIUM;
     }
     if (!snapshot_id && !name) {

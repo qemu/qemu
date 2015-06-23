@@ -1770,7 +1770,7 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("\n");
-        log_target_disas(&cpu->env, pc_start, dc->pc - pc_start, 0);
+        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
         qemu_log("\nisize=%d osize=%d\n",
                  dc->pc - pc_start, tcg_op_buf_count());
     }

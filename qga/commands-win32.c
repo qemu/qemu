@@ -182,8 +182,8 @@ static void acquire_privilege(const char *name, Error **errp)
         TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY, &token))
     {
         if (!LookupPrivilegeValue(NULL, name, &priv.Privileges[0].Luid)) {
-            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                      "no luid for requested privilege");
+            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                       "no luid for requested privilege");
             goto out;
         }
 
@@ -191,14 +191,14 @@ static void acquire_privilege(const char *name, Error **errp)
         priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
         if (!AdjustTokenPrivileges(token, FALSE, &priv, 0, NULL, 0)) {
-            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                      "unable to acquire requested privilege");
+            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                       "unable to acquire requested privilege");
             goto out;
         }
 
     } else {
-        error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                  "failed to open privilege token");
+        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                   "failed to open privilege token");
     }
 
 out:
@@ -217,8 +217,8 @@ static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
 
     HANDLE thread = CreateThread(NULL, 0, func, opaque, 0, NULL);
     if (!thread) {
-        error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                  "failed to dispatch asynchronous command");
+        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                   "failed to dispatch asynchronous command");
         error_propagate(errp, local_err);
     }
 }
@@ -237,8 +237,8 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
     } else if (strcmp(mode, "reboot") == 0) {
         shutdown_flag |= EWX_REBOOT;
     } else {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
-                  "halt|powerdown|reboot");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
+                   "halt|powerdown|reboot");
         return;
     }
 
@@ -252,7 +252,7 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
 
     if (!ExitWindowsEx(shutdown_flag, SHTDN_REASON_FLAG_PLANNED)) {
         slog("guest-shutdown failed: %lu", GetLastError());
-        error_set(errp, QERR_UNDEFINED_ERROR);
+        error_setg(errp, QERR_UNDEFINED_ERROR);
     }
 }
 
@@ -384,7 +384,7 @@ static void guest_file_init(void)
 
 GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
@@ -394,7 +394,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
     if (!vss_initialized()) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
@@ -415,7 +415,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
     Error *local_err = NULL;
 
     if (!vss_initialized()) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
@@ -446,7 +446,7 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
                                        strList *mountpoints,
                                        Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
@@ -459,7 +459,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
     int i;
 
     if (!vss_initialized()) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
@@ -495,7 +495,7 @@ static void guest_fsfreeze_cleanup(void)
  */
 void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 typedef enum {
@@ -510,27 +510,27 @@ static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
 
     ZeroMemory(&sys_pwr_caps, sizeof(sys_pwr_caps));
     if (!GetPwrCapabilities(&sys_pwr_caps)) {
-        error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                  "failed to determine guest suspend capabilities");
+        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                   "failed to determine guest suspend capabilities");
         goto out;
     }
 
     switch (mode) {
     case GUEST_SUSPEND_MODE_DISK:
         if (!sys_pwr_caps.SystemS4) {
-            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                      "suspend-to-disk not supported by OS");
+            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                       "suspend-to-disk not supported by OS");
         }
         break;
     case GUEST_SUSPEND_MODE_RAM:
         if (!sys_pwr_caps.SystemS3) {
-            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                      "suspend-to-ram not supported by OS");
+            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                       "suspend-to-ram not supported by OS");
         }
         break;
     default:
-        error_set(&local_err, QERR_INVALID_PARAMETER_VALUE, "mode",
-                  "GuestSuspendMode");
+        error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "mode",
+                   "GuestSuspendMode");
     }
 
 out:
@@ -586,12 +586,12 @@ void qmp_guest_suspend_ram(Error **errp)
 
 void qmp_guest_suspend_hybrid(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
@@ -666,13 +666,13 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return -1;
 }
 
@@ -681,25 +681,25 @@ void qmp_guest_set_user_password(const char *username,
                                  bool crypted,
                                  Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 GuestMemoryBlockResponseList *
 qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 

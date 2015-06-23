@@ -25,6 +25,7 @@
 #include "monitor/monitor.h"
 #include "monitor/qdev.h"
 #include "qapi/opts-visitor.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/string-output-visitor.h"
 #include "qapi-visit.h"
 #include "ui/console.h"
@@ -438,8 +439,8 @@ void hmp_info_block(Monitor *mon, const QDict *qdict)
     BlockInfoList *block_list, *info;
     BlockDeviceInfoList *blockdev_list, *blockdev;
     const char *device = qdict_get_try_str(qdict, "device");
-    bool verbose = qdict_get_try_bool(qdict, "verbose", 0);
-    bool nodes = qdict_get_try_bool(qdict, "nodes", 0);
+    bool verbose = qdict_get_try_bool(qdict, "verbose", false);
+    bool nodes = qdict_get_try_bool(qdict, "nodes", false);
     bool printed = false;
 
     /* Print BlockBackend information */
@@ -995,7 +996,7 @@ void hmp_nmi(Monitor *mon, const QDict *qdict)
 void hmp_set_link(Monitor *mon, const QDict *qdict)
 {
     const char *name = qdict_get_str(qdict, "name");
-    int up = qdict_get_bool(qdict, "up");
+    bool up = qdict_get_bool(qdict, "up");
     Error *err = NULL;
 
     qmp_set_link(name, up, &err);
@@ -1039,13 +1040,13 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     const char *filename = qdict_get_str(qdict, "target");
     const char *format = qdict_get_try_str(qdict, "format");
-    int reuse = qdict_get_try_bool(qdict, "reuse", 0);
-    int full = qdict_get_try_bool(qdict, "full", 0);
+    bool reuse = qdict_get_try_bool(qdict, "reuse", false);
+    bool full = qdict_get_try_bool(qdict, "full", false);
     enum NewImageMode mode;
     Error *err = NULL;
 
     if (!filename) {
-        error_set(&err, QERR_MISSING_PARAMETER, "target");
+        error_setg(&err, QERR_MISSING_PARAMETER, "target");
         hmp_handle_error(mon, &err);
         return;
     }
@@ -1069,13 +1070,13 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     const char *filename = qdict_get_str(qdict, "target");
     const char *format = qdict_get_try_str(qdict, "format");
-    int reuse = qdict_get_try_bool(qdict, "reuse", 0);
-    int full = qdict_get_try_bool(qdict, "full", 0);
+    bool reuse = qdict_get_try_bool(qdict, "reuse", false);
+    bool full = qdict_get_try_bool(qdict, "full", false);
     enum NewImageMode mode;
     Error *err = NULL;
 
     if (!filename) {
-        error_set(&err, QERR_MISSING_PARAMETER, "target");
+        error_setg(&err, QERR_MISSING_PARAMETER, "target");
         hmp_handle_error(mon, &err);
         return;
     }
@@ -1098,14 +1099,14 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     const char *filename = qdict_get_try_str(qdict, "snapshot-file");
     const char *format = qdict_get_try_str(qdict, "format");
-    int reuse = qdict_get_try_bool(qdict, "reuse", 0);
+    bool reuse = qdict_get_try_bool(qdict, "reuse", false);
     enum NewImageMode mode;
     Error *err = NULL;
 
     if (!filename) {
         /* In the future, if 'snapshot-file' is not specified, the snapshot
            will be taken internally. Today it's actually required. */
-        error_set(&err, QERR_MISSING_PARAMETER, "snapshot-file");
+        error_setg(&err, QERR_MISSING_PARAMETER, "snapshot-file");
         hmp_handle_error(mon, &err);
         return;
     }
@@ -1200,7 +1201,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
     }
 
     if (i == MIGRATION_CAPABILITY_MAX) {
-        error_set(&err, QERR_INVALID_PARAMETER, cap);
+        error_setg(&err, QERR_INVALID_PARAMETER, cap);
     }
 
     qapi_free_MigrationCapabilityStatusList(caps);
@@ -1244,7 +1245,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     }
 
     if (i == MIGRATION_PARAMETER_MAX) {
-        error_set(&err, QERR_INVALID_PARAMETER, param);
+        error_setg(&err, QERR_INVALID_PARAMETER, param);
     }
 
     if (err) {
@@ -1294,7 +1295,7 @@ void hmp_expire_password(Monitor *mon, const QDict *qdict)
 
 void hmp_eject(Monitor *mon, const QDict *qdict)
 {
-    int force = qdict_get_try_bool(qdict, "force", 0);
+    bool force = qdict_get_try_bool(qdict, "force", false);
     const char *device = qdict_get_str(qdict, "device");
     Error *err = NULL;
 
@@ -1394,7 +1395,7 @@ void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
 {
     Error *error = NULL;
     const char *device = qdict_get_str(qdict, "device");
-    bool force = qdict_get_try_bool(qdict, "force", 0);
+    bool force = qdict_get_try_bool(qdict, "force", false);
 
     qmp_block_job_cancel(device, true, force, &error);
 
@@ -1474,9 +1475,9 @@ static void hmp_migrate_status_cb(void *opaque)
 
 void hmp_migrate(Monitor *mon, const QDict *qdict)
 {
-    int detach = qdict_get_try_bool(qdict, "detach", 0);
-    int blk = qdict_get_try_bool(qdict, "blk", 0);
-    int inc = qdict_get_try_bool(qdict, "inc", 0);
+    bool detach = qdict_get_try_bool(qdict, "detach", false);
+    bool blk = qdict_get_try_bool(qdict, "blk", false);
+    bool inc = qdict_get_try_bool(qdict, "inc", false);
     const char *uri = qdict_get_str(qdict, "uri");
     Error *err = NULL;
 
@@ -1507,7 +1508,10 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 
 void hmp_device_add(Monitor *mon, const QDict *qdict)
 {
-    do_device_add(mon, qdict, NULL);
+    Error *err = NULL;
+
+    qmp_device_add((QDict *)qdict, NULL, &err);
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_device_del(Monitor *mon, const QDict *qdict)
@@ -1522,10 +1526,10 @@ void hmp_device_del(Monitor *mon, const QDict *qdict)
 void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
-    int paging = qdict_get_try_bool(qdict, "paging", 0);
-    int zlib = qdict_get_try_bool(qdict, "zlib", 0);
-    int lzo = qdict_get_try_bool(qdict, "lzo", 0);
-    int snappy = qdict_get_try_bool(qdict, "snappy", 0);
+    bool paging = qdict_get_try_bool(qdict, "paging", false);
+    bool zlib = qdict_get_try_bool(qdict, "zlib", false);
+    bool lzo = qdict_get_try_bool(qdict, "lzo", false);
+    bool snappy = qdict_get_try_bool(qdict, "snappy", false);
     const char *file = qdict_get_str(qdict, "filename");
     bool has_begin = qdict_haskey(qdict, "begin");
     bool has_length = qdict_haskey(qdict, "length");
@@ -1751,8 +1755,8 @@ void hmp_screendump(Monitor *mon, const QDict *qdict)
 void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)
 {
     const char *uri = qdict_get_str(qdict, "uri");
-    int writable = qdict_get_try_bool(qdict, "writable", 0);
-    int all = qdict_get_try_bool(qdict, "all", 0);
+    bool writable = qdict_get_try_bool(qdict, "writable", false);
+    bool all = qdict_get_try_bool(qdict, "all", false);
     Error *local_err = NULL;
     BlockInfoList *block_list, *info;
     SocketAddress *addr;
@@ -1805,7 +1809,7 @@ exit:
 void hmp_nbd_server_add(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
-    int writable = qdict_get_try_bool(qdict, "writable", 0);
+    bool writable = qdict_get_try_bool(qdict, "writable", false);
     Error *local_err = NULL;
 
     qmp_nbd_server_add(device, true, writable, &local_err);
@@ -1839,7 +1843,7 @@ void hmp_chardev_add(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
     QemuOpts *opts;
 
-    opts = qemu_opts_parse(qemu_find_opts("chardev"), args, 1);
+    opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"), args, true);
     if (opts == NULL) {
         error_setg(&err, "Parsing chardev args failed");
     } else {
@@ -1867,7 +1871,8 @@ void hmp_qemu_io(Monitor *mon, const QDict *qdict)
     if (blk) {
         qemuio_command(blk, command);
     } else {
-        error_set(&err, QERR_DEVICE_NOT_FOUND, device);
+        error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
     }
 
     hmp_handle_error(mon, &err);
@@ -1995,7 +2000,8 @@ void hmp_qom_set(Monitor *mon, const QDict *qdict)
 
     obj = object_resolve_path(path, &ambiguous);
     if (obj == NULL) {
-        error_set(&err, QERR_DEVICE_NOT_FOUND, path);
+        error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", path);
     } else {
         if (ambiguous) {
             monitor_printf(mon, "Warning: Path '%s' is ambiguous\n", path);

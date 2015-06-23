@@ -26,6 +26,7 @@
 #include "sysemu/cpus.h"
 #include "kvm_i386.h"
 
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/qerror.h"
@@ -1524,8 +1525,8 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v, void *opaque,
         return;
     }
     if (value < min || value > max) {
-        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
-                  name ? name : "null", value, min, max);
+        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+                   name ? name : "null", value, min, max);
         return;
     }
 
@@ -1565,8 +1566,8 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v, void *opaque,
         return;
     }
     if (value < min || value > max) {
-        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
-                  name ? name : "null", value, min, max);
+        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+                   name ? name : "null", value, min, max);
         return;
     }
 
@@ -1603,8 +1604,8 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
         return;
     }
     if (value < min || value > max) {
-        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
-                  name ? name : "null", value, min, max);
+        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+                   name ? name : "null", value, min, max);
         return;
     }
 
@@ -1632,8 +1633,7 @@ static void x86_cpuid_set_vendor(Object *obj, const char *value,
     int i;
 
     if (strlen(value) != CPUID_VENDOR_SZ) {
-        error_set(errp, QERR_PROPERTY_VALUE_BAD, "",
-                  "vendor", value);
+        error_setg(errp, QERR_PROPERTY_VALUE_BAD, "", "vendor", value);
         return;
     }
 
@@ -1709,8 +1709,8 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
         return;
     }
     if (value < min || value > max) {
-        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
-                  name ? name : "null", value, min, max);
+        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE, "",
+                   name ? name : "null", value, min, max);
         return;
     }
 

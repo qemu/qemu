@@ -27,7 +27,6 @@
 
 #include "hw/char/serial.h"
 #include "hw/pci/pci.h"
-#include "qapi/qmp/qerror.h"
 
 #define PCI_SERIAL_MAX_PORTS 4
 

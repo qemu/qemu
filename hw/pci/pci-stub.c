@@ -20,12 +20,13 @@
 
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
+#include "qapi/qmp/qerror.h"
 #include "hw/pci/pci.h"
 #include "qmp-commands.h"
 
 PciInfoList *qmp_query_pci(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 

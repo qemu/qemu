@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "block/block_int.h"
@@ -31,6 +32,7 @@
 #include "qemu/iov.h"
 #include "raw-aio.h"
 #include "qapi/util.h"
+#include "qapi/qmp/qstring.h"
 
 #if defined(__APPLE__) && (__MACH__)
 #include <paths.h>

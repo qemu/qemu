@@ -27,8 +27,9 @@
 
 #include "qemu-common.h"
 #include "qemu/timer.h"
-#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
+#include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "sysemu/char.h"
 
@@ -1369,7 +1370,7 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
     int i;
 
     if (dev->cs == NULL) {
-        error_set(errp, QERR_MISSING_PARAMETER, "chardev");
+        error_setg(errp, QERR_MISSING_PARAMETER, "chardev");
         return;
     }
 
@@ -1378,8 +1379,8 @@ static void usbredir_realize(USBDevice *udev, Error **errp)
                                            &dev->filter_rules,
                                            &dev->filter_rules_count);
         if (i) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "filter",
-                      "a usb device filter string");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "filter",
+                       "a usb device filter string");
             return;
         }
     }

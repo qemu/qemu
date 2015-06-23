@@ -18,6 +18,7 @@
 #include "block/block_int.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
@@ -800,8 +801,8 @@ static int quorum_valid_threshold(int threshold, int num_children, Error **errp)
 {
 
     if (threshold < 1) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  "vote-threshold", "value >= 1");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "vote-threshold", "value >= 1");
         return -ERANGE;
     }
 
@@ -1024,9 +1025,9 @@ static void quorum_refresh_filename(BlockDriverState *bs)
     qdict_put_obj(opts, QUORUM_OPT_VOTE_THRESHOLD,
                   QOBJECT(qint_from_int(s->threshold)));
     qdict_put_obj(opts, QUORUM_OPT_BLKVERIFY,
-                  QOBJECT(qbool_from_int(s->is_blkverify)));
+                  QOBJECT(qbool_from_bool(s->is_blkverify)));
     qdict_put_obj(opts, QUORUM_OPT_REWRITE,
-                  QOBJECT(qbool_from_int(s->rewrite_corrupted)));
+                  QOBJECT(qbool_from_bool(s->rewrite_corrupted)));
     qdict_put_obj(opts, "children", QOBJECT(children));
 
     bs->full_open_options = opts;

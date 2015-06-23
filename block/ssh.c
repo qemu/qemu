@@ -30,9 +30,11 @@
 #include <libssh2_sftp.h>
 
 #include "block/block_int.h"
+#include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "qemu/uri.h"
 #include "qapi/qmp/qint.h"
+#include "qapi/qmp/qstring.h"
 
 /* DEBUG_SSH=1 enables the DPRINTF (debugging printf) statements in
  * this block driver code.

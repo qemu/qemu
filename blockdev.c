@@ -36,10 +36,12 @@
 #include "block/blockjob.h"
 #include "block/throttle-groups.h"
 #include "monitor/monitor.h"
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/types.h"
 #include "qapi-visit.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/util.h"
 #include "sysemu/sysemu.h"
@@ -174,7 +176,7 @@ static int drive_index_to_unit_id(BlockInterfaceType type, int index)
 
 QemuOpts *drive_def(const char *optstr)
 {
-    return qemu_opts_parse(qemu_find_opts("drive"), optstr, 0);
+    return qemu_opts_parse_noisily(qemu_find_opts("drive"), optstr, false);
 }
 
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
@@ -1111,7 +1113,8 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return NULL;
     }
     bs = blk_bs(blk);
@@ -1300,7 +1303,8 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     /* 2. check for validation */
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -1310,7 +1314,7 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     aio_context_acquire(state->aio_context);
 
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 
@@ -1451,7 +1455,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     /* start processing */
     drv = bdrv_find_format(format);
     if (!drv) {
-        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+        error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
         return;
     }
 
@@ -1478,7 +1482,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     aio_context_acquire(state->aio_context);
 
     if (!bdrv_is_inserted(state->old_bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 
@@ -1489,13 +1493,13 @@ static void external_snapshot_prepare(BlkTransactionState *common,
 
     if (!bdrv_is_read_only(state->old_bs)) {
         if (bdrv_flush(state->old_bs)) {
-            error_set(errp, QERR_IO_ERROR);
+            error_setg(errp, QERR_IO_ERROR);
             return;
         }
     }
 
     if (!bdrv_is_first_non_filter(state->old_bs)) {
-        error_set(errp, QERR_FEATURE_DISABLED, "snapshot");
+        error_setg(errp, QERR_FEATURE_DISABLED, "snapshot");
         return;
     }
 
@@ -1580,7 +1584,8 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
 
     blk = blk_by_name(backup->device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", backup->device);
         return;
     }
     bs = blk_bs(blk);
@@ -1850,7 +1855,8 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
 
@@ -1910,7 +1916,8 @@ void qmp_change_blockdev(const char *device, const char *filename,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -1921,7 +1928,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
     if (format) {
         drv = bdrv_find_whitelisted_format(format, bs->read_only);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }
@@ -1971,7 +1978,8 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2202,17 +2210,17 @@ void qmp_block_resize(bool has_device, const char *device,
     aio_context_acquire(aio_context);
 
     if (!bdrv_is_first_non_filter(bs)) {
-        error_set(errp, QERR_FEATURE_DISABLED, "resize");
+        error_setg(errp, QERR_FEATURE_DISABLED, "resize");
         goto out;
     }
 
     if (size < 0) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
         goto out;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+        error_setg(errp, QERR_DEVICE_IN_USE, device);
         goto out;
     }
 
@@ -2224,16 +2232,16 @@ void qmp_block_resize(bool has_device, const char *device,
     case 0:
         break;
     case -ENOMEDIUM:
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         break;
     case -ENOTSUP:
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         break;
     case -EACCES:
         error_setg(errp, "Device '%s' is read only", device);
         break;
     case -EBUSY:
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+        error_setg(errp, QERR_DEVICE_IN_USE, device);
         break;
     default:
         error_setg_errno(errp, -ret, "Could not resize");
@@ -2291,7 +2299,8 @@ void qmp_block_stream(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2306,7 +2315,7 @@ void qmp_block_stream(const char *device,
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
-            error_set(errp, QERR_BASE_NOT_FOUND, base);
+            error_setg(errp, QERR_BASE_NOT_FOUND, base);
             goto out;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
@@ -2365,7 +2374,8 @@ void qmp_block_commit(const char *device,
      *  scenario in which all optional arguments are omitted. */
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2403,7 +2413,7 @@ void qmp_block_commit(const char *device,
     }
 
     if (base_bs == NULL) {
-        error_set(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
+        error_setg(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
         goto out;
     }
 
@@ -2477,7 +2487,8 @@ void qmp_drive_backup(const char *device, const char *target,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2488,7 +2499,7 @@ void qmp_drive_backup(const char *device, const char *target,
     /* Although backup_run has this check too, we need to use bs->drv below, so
      * do an early check redundantly. */
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         goto out;
     }
 
@@ -2498,7 +2509,7 @@ void qmp_drive_backup(const char *device, const char *target,
     if (format) {
         drv = bdrv_find_format(format);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }
@@ -2680,18 +2691,20 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
-                  "a value in range [512B, 64MB]");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
+                   "a value in range [512B, 64MB]");
         return;
     }
     if (granularity & (granularity - 1)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity", "power of 2");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
+                   "power of 2");
         return;
     }
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2700,7 +2713,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     aio_context_acquire(aio_context);
 
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         goto out;
     }
 
@@ -2710,7 +2723,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     if (format) {
         drv = bdrv_find_format(format);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }
@@ -2957,7 +2970,8 @@ void qmp_change_backing_file(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);

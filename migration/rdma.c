@@ -15,6 +15,7 @@
 #include "migration/migration.h"
 #include "migration/qemu-file.h"
 #include "exec/cpu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "qemu/bitmap.h"

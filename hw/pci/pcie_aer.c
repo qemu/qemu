@@ -975,7 +975,7 @@ static int do_pcie_aer_inject_error(Monitor *mon,
     if (pcie_aer_parse_error_string(error_name, &error_status, &correctable)) {
         char *e = NULL;
         error_status = strtoul(error_name, &e, 0);
-        correctable = qdict_get_try_bool(qdict, "correctable", 0);
+        correctable = qdict_get_try_bool(qdict, "correctable", false);
         if (!e || *e != '\0') {
             monitor_printf(mon, "invalid error status value. \"%s\"",
                            error_name);
@@ -989,7 +989,7 @@ static int do_pcie_aer_inject_error(Monitor *mon,
     if (correctable) {
         err.flags |= PCIE_AER_ERR_IS_CORRECTABLE;
     }
-    if (qdict_get_try_bool(qdict, "advisory_non_fatal", 0)) {
+    if (qdict_get_try_bool(qdict, "advisory_non_fatal", false)) {
         err.flags |= PCIE_AER_ERR_MAYBE_ADVISORY;
     }
     if (qdict_haskey(qdict, "header0")) {

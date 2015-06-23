@@ -173,7 +173,7 @@ opts_end_struct(Visitor *v, Error **errp)
         const QemuOpt *first;
 
         first = g_queue_peek_head(any);
-        error_set(errp, QERR_INVALID_PARAMETER, first->name);
+        error_setg(errp, QERR_INVALID_PARAMETER, first->name);
     }
     g_hash_table_destroy(ov->unprocessed_opts);
     ov->unprocessed_opts = NULL;
@@ -193,7 +193,7 @@ lookup_distinct(const OptsVisitor *ov, const char *name, Error **errp)
 
     list = g_hash_table_lookup(ov->unprocessed_opts, name);
     if (!list) {
-        error_set(errp, QERR_MISSING_PARAMETER, name);
+        error_setg(errp, QERR_MISSING_PARAMETER, name);
     }
     return list;
 }
@@ -341,8 +341,8 @@ opts_type_bool(Visitor *v, bool *obj, const char *name, Error **errp)
             strcmp(opt->str, "n") == 0) {
             *obj = false;
         } else {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-                "on|yes|y|off|no|n");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+                       "on|yes|y|off|no|n");
             return;
         }
     } else {
@@ -403,9 +403,9 @@ opts_type_int(Visitor *v, int64_t *obj, const char *name, Error **errp)
             }
         }
     }
-    error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-              (ov->list_mode == LM_NONE) ? "an int64 value" :
-                                           "an int64 value or range");
+    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+               (ov->list_mode == LM_NONE) ? "an int64 value" :
+                                            "an int64 value or range");
 }
 
 
@@ -455,9 +455,9 @@ opts_type_uint64(Visitor *v, uint64_t *obj, const char *name, Error **errp)
             }
         }
     }
-    error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-              (ov->list_mode == LM_NONE) ? "a uint64 value" :
-                                           "a uint64 value or range");
+    error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+               (ov->list_mode == LM_NONE) ? "a uint64 value" :
+                                            "a uint64 value or range");
 }
 
 
@@ -477,8 +477,8 @@ opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
     val = strtosz_suffix(opt->str ? opt->str : "", &endptr,
                          STRTOSZ_DEFSUFFIX_B);
     if (val < 0 || *endptr) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
-                  "a size value representible as a non-negative int64");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+                   "a size value representible as a non-negative int64");
         return;
     }
 

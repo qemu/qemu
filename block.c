@@ -26,7 +26,9 @@
 #include "trace.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
@@ -2698,7 +2700,7 @@ void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp)
             error_setg(errp, "Node '%s' is not encrypted",
                       bdrv_get_device_or_node_name(bs));
         } else if (bdrv_set_key(bs, key) < 0) {
-            error_set(errp, QERR_INVALID_PASSWORD);
+            error_setg(errp, QERR_INVALID_PASSWORD);
         }
     } else {
         if (bdrv_key_required(bs)) {

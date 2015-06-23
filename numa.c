@@ -31,7 +31,6 @@
 #include "qapi-visit.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/dealloc-visitor.h"
-#include "qapi/qmp/qerror.h"
 #include "hw/boards.h"
 #include "sysemu/hostmem.h"
 #include "qmp-commands.h"

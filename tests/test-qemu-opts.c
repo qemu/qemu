@@ -323,7 +323,7 @@ static void test_qemu_opt_unset(void)
     int ret;
 
     /* dynamically initialized (parsed) opts */
-    opts = qemu_opts_parse(&opts_list_03, "key=value", 0);
+    opts = qemu_opts_parse(&opts_list_03, "key=value", false, NULL);
     g_assert(opts != NULL);
 
     /* check default/parsed value */

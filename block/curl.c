@@ -24,6 +24,7 @@
 #include "qemu-common.h"
 #include "block/block_int.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
 #include <curl/curl.h>
 
 // #define DEBUG_CURL

@@ -22,7 +22,6 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-lexer.h"
-#include "qapi/qmp/qerror.h"
 
 typedef struct JSONParserContext
 {
@@ -558,9 +557,9 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
     }
 
     if (token_is_keyword(token, "true")) {
-        ret = QOBJECT(qbool_from_int(true));
+        ret = QOBJECT(qbool_from_bool(true));
     } else if (token_is_keyword(token, "false")) {
-        ret = QOBJECT(qbool_from_int(false));
+        ret = QOBJECT(qbool_from_bool(false));
     } else if (token_is_keyword(token, "null")) {
         ret = qnull();
     } else {
@@ -593,7 +592,7 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
     if (token_is_escape(token, "%p")) {
         obj = va_arg(*ap, QObject *);
     } else if (token_is_escape(token, "%i")) {
-        obj = QOBJECT(qbool_from_int(va_arg(*ap, int)));
+        obj = QOBJECT(qbool_from_bool(va_arg(*ap, int)));
     } else if (token_is_escape(token, "%d")) {
         obj = QOBJECT(qint_from_int(va_arg(*ap, int)));
     } else if (token_is_escape(token, "%ld")) {

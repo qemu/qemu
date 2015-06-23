@@ -133,7 +133,7 @@ static void tpm_backend_prop_set_opened(Object *obj, bool value, Error **errp)
     }
 
     if (!value && s->opened) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, QERR_PERMISSION_DENIED);
         return;
     }
 

@@ -22,12 +22,12 @@
  */
 
 #include "hw/hw.h"
+#include "qapi/qmp/qerror.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 #include "hw/boards.h"
-#include "monitor/monitor.h"
 #include "hw/loader.h"
 #include "hw/virtio/virtio.h"
 #include "hw/sysbus.h"
@@ -324,7 +324,7 @@ void s390_nmi(NMIState *n, int cpu_index, Error **errp)
     CPUState *cs = qemu_get_cpu(cpu_index);
 
     if (s390_cpu_restart(S390_CPU(cs))) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
     }
 }
 

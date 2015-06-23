@@ -44,7 +44,6 @@ typedef enum {
     QTYPE_QLIST,
     QTYPE_QFLOAT,
     QTYPE_QBOOL,
-    QTYPE_QERROR,
     QTYPE_MAX,
 } qtype_code;
 
