@@ -8929,7 +8929,7 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 #endif
 
-    cpu_exec_init(&cpu->env, &local_err);
+    cpu_exec_init(cs, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return;

@@ -571,9 +571,8 @@ void cpu_exec_exit(CPUState *cpu)
 }
 #endif
 
-void cpu_exec_init(CPUArchState *env, Error **errp)
+void cpu_exec_init(CPUState *cpu, Error **errp)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     CPUClass *cc = CPU_GET_CLASS(cpu);
     int cpu_index;
     Error *local_err = NULL;
@@ -604,7 +603,7 @@ void cpu_exec_init(CPUArchState *env, Error **errp)
     }
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
     register_savevm(NULL, "cpu", cpu_index, CPU_SAVE_VERSION,
-                    cpu_save, cpu_load, env);
+                    cpu_save, cpu_load, cpu->env_ptr);
     assert(cc->vmsd == NULL);
     assert(qdev_get_vmsd(DEVICE(cpu)) == NULL);
 #endif
