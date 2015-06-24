@@ -1357,9 +1357,9 @@ int vm_stop_force_state(RunState state)
     }
 }
 
-static int tcg_cpu_exec(CPUArchState *env)
+static int tcg_cpu_exec(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = cpu->env_ptr;
     int ret;
 #ifdef CONFIG_PROFILER
     int64_t ti;
@@ -1421,13 +1421,12 @@ static void tcg_exec_all(void)
     }
     for (; next_cpu != NULL && !exit_request; next_cpu = CPU_NEXT(next_cpu)) {
         CPUState *cpu = next_cpu;
-        CPUArchState *env = cpu->env_ptr;
 
         qemu_clock_enable(QEMU_CLOCK_VIRTUAL,
                           (cpu->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
         if (cpu_can_run(cpu)) {
-            r = tcg_cpu_exec(env);
+            r = tcg_cpu_exec(cpu);
             if (r == EXCP_DEBUG) {
                 cpu_handle_guest_debug(cpu);
                 break;
