@@ -392,7 +392,7 @@ static void arm_cpu_initfn(Object *obj)
     uint32_t Aff1, Aff0;
 
     cs->env_ptr = &cpu->env;
-    cpu_exec_init(&cpu->env);
+    cpu_exec_init(&cpu->env, &error_abort);
     cpu->cp_regs = g_hash_table_new_full(g_int_hash, g_int_equal,
                                          g_free, g_free);
 

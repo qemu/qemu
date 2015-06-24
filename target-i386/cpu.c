@@ -3038,7 +3038,7 @@ static void x86_cpu_initfn(Object *obj)
     static int inited;
 
     cs->env_ptr = env;
-    cpu_exec_init(env);
+    cpu_exec_init(env, &error_abort);
 
     object_property_add(obj, "family", "int",
                         x86_cpuid_version_get_family,
