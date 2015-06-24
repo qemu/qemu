@@ -79,6 +79,7 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOGPU *g = &vvga->vdev;
     VGACommonState *vga = &vvga->vga;
     uint32_t offset;
+    int i;
 
     /* init vga compat bits */
     vga->vram_size_mb = 8;
@@ -120,6 +121,12 @@ static void virtio_vga_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 
     vga->con = g->scanout[0].con;
     graphic_console_set_hwops(vga->con, &virtio_vga_ops, vvga);
+
+    for (i = 0; i < g->conf.max_outputs; i++) {
+        object_property_set_link(OBJECT(g->scanout[i].con),
+                                 OBJECT(vpci_dev),
+                                 "device", errp);
+    }
 }
 
 static void virtio_vga_reset(DeviceState *dev)
