@@ -940,19 +940,21 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
     }
 
     free_in_cluster = s->cluster_size - offset_into_cluster(s, offset);
-    if (!offset || free_in_cluster < size) {
-        int64_t new_cluster = alloc_clusters_noref(bs, s->cluster_size);
-        if (new_cluster < 0) {
-            return new_cluster;
+    do {
+        if (!offset || free_in_cluster < size) {
+            int64_t new_cluster = alloc_clusters_noref(bs, s->cluster_size);
+            if (new_cluster < 0) {
+                return new_cluster;
+            }
+
+            if (!offset || ROUND_UP(offset, s->cluster_size) != new_cluster) {
+                offset = new_cluster;
+            }
         }
 
-        if (!offset || ROUND_UP(offset, s->cluster_size) != new_cluster) {
-            offset = new_cluster;
-        }
-    }
-
-    assert(offset);
-    ret = update_refcount(bs, offset, size, 1, false, QCOW2_DISCARD_NEVER);
+        assert(offset);
+        ret = update_refcount(bs, offset, size, 1, false, QCOW2_DISCARD_NEVER);
+    } while (ret == -EAGAIN);
     if (ret < 0) {
         return ret;
     }
