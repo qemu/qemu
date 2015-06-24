@@ -14666,9 +14666,18 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_TGEIU;
             goto do_trapi;
-        case TNEI:
-            mips32_op = OPC_TNEI;
-            goto do_trapi;
+        case TNEI: /* SYNCI */
+            if (ctx->insn_flags & ISA_MIPS32R6) {
+                /* SYNCI */
+                /* Break the TB to be able to sync copied instructions
+                   immediately */
+                ctx->bstate = BS_STOP;
+            } else {
+                /* TNEI */
+                mips32_op = OPC_TNEI;
+                goto do_trapi;
+            }
+            break;
         case TEQI:
             check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_TEQI;
@@ -14741,6 +14750,8 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case POOL32C:
         minor = (ctx->opcode >> 12) & 0xf;
+        offset = sextract32(ctx->opcode, 0,
+                            (ctx->insn_flags & ISA_MIPS32R6) ? 9 : 12);
         switch (minor) {
         case LWL:
             check_insn_opc_removed(ctx, ISA_MIPS32R6);
@@ -14798,23 +14809,27 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             mips32_op = OPC_LL;
             goto do_ld_lr;
         do_ld_lr:
-            gen_ld(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_ld(ctx, mips32_op, rt, rs, offset);
             break;
         do_st_lr:
             gen_st(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
             break;
         case SC:
-            gen_st_cond(ctx, OPC_SC, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_st_cond(ctx, OPC_SC, rt, rs, offset);
             break;
 #if defined(TARGET_MIPS64)
         case SCD:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
-            gen_st_cond(ctx, OPC_SCD, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_st_cond(ctx, OPC_SCD, rt, rs, offset);
             break;
 #endif
         case PREF:
             /* Treat as no-op */
+            if ((ctx->insn_flags & ISA_MIPS32R6) && (rt >= 24)) {
+                /* hint codes 24-31 are reserved and signal RI */
+                generate_exception(ctx, EXCP_RI);
+            }
             break;
         default:
             MIPS_INVAL("pool32c");
