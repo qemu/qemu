@@ -315,6 +315,11 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
     if ((ext & 0x800) == 0 && !m68k_feature(s->env, M68K_FEATURE_WORD_INDEX))
         return NULL_QREG;
 
+    if (m68k_feature(s->env, M68K_FEATURE_M68000) &&
+        !m68k_feature(s->env, M68K_FEATURE_SCALED_INDEX)) {
+        ext &= ~(3 << 9);
+    }
+
     if (ext & 0x100) {
         /* full extension word format */
         if (!m68k_feature(s->env, M68K_FEATURE_EXT_FULL))
