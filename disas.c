@@ -201,7 +201,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     target_ulong pc;
     int count;
     CPUDebug s;
-    int (*print_insn)(bfd_vma pc, disassemble_info *info) = NULL;
 
     INIT_DISASSEMBLE_INFO(s.info, out, fprintf);
 
@@ -224,7 +223,7 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     } else {
         s.info.mach = bfd_mach_i386_i386;
     }
-    print_insn = print_insn_i386;
+    s.info.print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
     if (flags & 4) {
         /* We might not be compiled with the A64 disassembler
@@ -232,12 +231,12 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
          * fall through to the default print_insn_od case.
          */
 #if defined(CONFIG_ARM_A64_DIS)
-        print_insn = print_insn_arm_a64;
+        s.info.print_insn = print_insn_arm_a64;
 #endif
     } else if (flags & 1) {
-        print_insn = print_insn_thumb1;
+        s.info.print_insn = print_insn_thumb1;
     } else {
-        print_insn = print_insn_arm;
+        s.info.print_insn = print_insn_arm;
     }
     if (flags & 2) {
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -247,7 +246,7 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
 #endif
     }
 #elif defined(TARGET_SPARC)
-    print_insn = print_insn_sparc;
+    s.info.print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64
     s.info.mach = bfd_mach_sparc_v9b;
 #endif
@@ -266,49 +265,49 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
 #endif
     }
     s.info.disassembler_options = (char *)"any";
-    print_insn = print_insn_ppc;
+    s.info.print_insn = print_insn_ppc;
 #elif defined(TARGET_M68K)
-    print_insn = print_insn_m68k;
+    s.info.print_insn = print_insn_m68k;
 #elif defined(TARGET_MIPS)
 #ifdef TARGET_WORDS_BIGENDIAN
-    print_insn = print_insn_big_mips;
+    s.info.print_insn = print_insn_big_mips;
 #else
-    print_insn = print_insn_little_mips;
+    s.info.print_insn = print_insn_little_mips;
 #endif
 #elif defined(TARGET_SH4)
     s.info.mach = bfd_mach_sh4;
-    print_insn = print_insn_sh;
+    s.info.print_insn = print_insn_sh;
 #elif defined(TARGET_ALPHA)
     s.info.mach = bfd_mach_alpha_ev6;
-    print_insn = print_insn_alpha;
+    s.info.print_insn = print_insn_alpha;
 #elif defined(TARGET_CRIS)
     if (flags != 32) {
         s.info.mach = bfd_mach_cris_v0_v10;
-        print_insn = print_insn_crisv10;
+        s.info.print_insn = print_insn_crisv10;
     } else {
         s.info.mach = bfd_mach_cris_v32;
-        print_insn = print_insn_crisv32;
+        s.info.print_insn = print_insn_crisv32;
     }
 #elif defined(TARGET_S390X)
     s.info.mach = bfd_mach_s390_64;
-    print_insn = print_insn_s390;
+    s.info.print_insn = print_insn_s390;
 #elif defined(TARGET_MICROBLAZE)
     s.info.mach = bfd_arch_microblaze;
-    print_insn = print_insn_microblaze;
+    s.info.print_insn = print_insn_microblaze;
 #elif defined(TARGET_MOXIE)
     s.info.mach = bfd_arch_moxie;
-    print_insn = print_insn_moxie;
+    s.info.print_insn = print_insn_moxie;
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
-    print_insn = print_insn_lm32;
+    s.info.print_insn = print_insn_lm32;
 #endif
-    if (print_insn == NULL) {
-        print_insn = print_insn_od_target;
+    if (s.info.print_insn == NULL) {
+        s.info.print_insn = print_insn_od_target;
     }
 
     for (pc = code; size > 0; pc += count, size -= count) {
 	fprintf(out, "0x" TARGET_FMT_lx ":  ", pc);
-	count = print_insn(pc, &s.info);
+	count = s.info.print_insn(pc, &s.info);
 #if 0
         {
             int i;
@@ -452,7 +451,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
 {
     int count, i;
     CPUDebug s;
-    int (*print_insn)(bfd_vma pc, disassemble_info *info);
 
     INIT_DISASSEMBLE_INFO(s.info, (FILE *)mon, monitor_fprintf);
 
@@ -476,13 +474,13 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
     } else {
         s.info.mach = bfd_mach_i386_i386;
     }
-    print_insn = print_insn_i386;
+    s.info.print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
-    print_insn = print_insn_arm;
+    s.info.print_insn = print_insn_arm;
 #elif defined(TARGET_ALPHA)
-    print_insn = print_insn_alpha;
+    s.info.print_insn = print_insn_alpha;
 #elif defined(TARGET_SPARC)
-    print_insn = print_insn_sparc;
+    s.info.print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64
     s.info.mach = bfd_mach_sparc_v9b;
 #endif
@@ -500,27 +498,27 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
     if ((flags >> 16) & 1) {
         s.info.endian = BFD_ENDIAN_LITTLE;
     }
-    print_insn = print_insn_ppc;
+    s.info.print_insn = print_insn_ppc;
 #elif defined(TARGET_M68K)
-    print_insn = print_insn_m68k;
+    s.info.print_insn = print_insn_m68k;
 #elif defined(TARGET_MIPS)
 #ifdef TARGET_WORDS_BIGENDIAN
-    print_insn = print_insn_big_mips;
+    s.info.print_insn = print_insn_big_mips;
 #else
-    print_insn = print_insn_little_mips;
+    s.info.print_insn = print_insn_little_mips;
 #endif
 #elif defined(TARGET_SH4)
     s.info.mach = bfd_mach_sh4;
-    print_insn = print_insn_sh;
+    s.info.print_insn = print_insn_sh;
 #elif defined(TARGET_S390X)
     s.info.mach = bfd_mach_s390_64;
-    print_insn = print_insn_s390;
+    s.info.print_insn = print_insn_s390;
 #elif defined(TARGET_MOXIE)
     s.info.mach = bfd_arch_moxie;
-    print_insn = print_insn_moxie;
+    s.info.print_insn = print_insn_moxie;
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
-    print_insn = print_insn_lm32;
+    s.info.print_insn = print_insn_lm32;
 #else
     monitor_printf(mon, "0x" TARGET_FMT_lx
                    ": Asm output not supported on this arch\n", pc);
@@ -529,7 +527,7 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
 
     for(i = 0; i < nb_insn; i++) {
 	monitor_printf(mon, "0x" TARGET_FMT_lx ":  ", pc);
-        count = print_insn(pc, &s.info);
+        count = s.info.print_insn(pc, &s.info);
 	monitor_printf(mon, "\n");
 	if (count < 0)
 	    break;
