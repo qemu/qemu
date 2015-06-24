@@ -1464,6 +1464,21 @@ int subch_device_load(SubchDev *s, QEMUFile *f)
     }
     s->ccw_fmt_1 = qemu_get_byte(f);
     s->ccw_no_data_cnt = qemu_get_byte(f);
+    /*
+     * Hack alert. We don't migrate the channel subsystem status (no
+     * device!), but we need to find out if the guest enabled mss/mcss-e.
+     * If the subchannel is enabled, it certainly was able to access it,
+     * so adjust the max_ssid/max_cssid values for relevant ssid/cssid
+     * values. This is not watertight, but better than nothing.
+     */
+    if (s->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA) {
+        if (s->ssid) {
+            channel_subsys->max_ssid = MAX_SSID;
+        }
+        if (s->cssid != channel_subsys->default_cssid) {
+            channel_subsys->max_cssid = MAX_CSSID;
+        }
+    }
     return 0;
 }
 
