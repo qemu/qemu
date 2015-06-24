@@ -13343,6 +13343,10 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
         break;
     case 0x2c:
         switch (minor) {
+        case BITSWAP:
+            check_insn(ctx, ISA_MIPS32R6);
+            gen_bitswap(ctx, OPC_BITSWAP, rs, rt);
+            break;
         case SEB:
             gen_bshfl(ctx, OPC_SEB, rs, rt);
             break;
@@ -13543,7 +13547,11 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
                 gen_helper_do_semihosting(cpu_env);
             } else {
                 check_insn(ctx, ISA_MIPS32);
-                generate_exception(ctx, EXCP_DBp);
+                if (ctx->hflags & MIPS_HFLAG_SBRI) {
+                    generate_exception(ctx, EXCP_RI);
+                } else {
+                    generate_exception(ctx, EXCP_DBp);
+                }
             }
             break;
         default:
@@ -13903,6 +13911,14 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             do_shifti:
                 gen_shift_imm(ctx, mips32_op, rt, rs, rd);
                 break;
+            case SELEQZ:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_cond_move(ctx, OPC_SELEQZ, rd, rs, rt);
+                break;
+            case SELNEZ:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_cond_move(ctx, OPC_SELNEZ, rd, rs, rt);
+                break;
             default:
                 goto pool32a_invalid;
             }
@@ -13976,16 +13992,52 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
             minor = (ctx->opcode >> 6) & 0xf;
             switch (minor) {
                 /* Conditional moves */
-            case MOVN:
-                mips32_op = OPC_MOVN;
-                goto do_cmov;
-            case MOVZ:
-                mips32_op = OPC_MOVZ;
-            do_cmov:
-                gen_cond_move(ctx, mips32_op, rd, rs, rt);
+            case MOVN: /* MUL */
+                if (ctx->insn_flags & ISA_MIPS32R6) {
+                    /* MUL */
+                    gen_r6_muldiv(ctx, R6_OPC_MUL, rd, rs, rt);
+                } else {
+                    /* MOVN */
+                    gen_cond_move(ctx, OPC_MOVN, rd, rs, rt);
+                }
                 break;
-            case LWXS:
-                gen_ldxs(ctx, rs, rt, rd);
+            case MOVZ: /* MUH */
+                if (ctx->insn_flags & ISA_MIPS32R6) {
+                    /* MUH */
+                    gen_r6_muldiv(ctx, R6_OPC_MUH, rd, rs, rt);
+                } else {
+                    /* MOVZ */
+                    gen_cond_move(ctx, OPC_MOVZ, rd, rs, rt);
+                }
+                break;
+            case MULU:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_MULU, rd, rs, rt);
+                break;
+            case MUHU:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_MUHU, rd, rs, rt);
+                break;
+            case LWXS: /* DIV */
+                if (ctx->insn_flags & ISA_MIPS32R6) {
+                    /* DIV */
+                    gen_r6_muldiv(ctx, R6_OPC_DIV, rd, rs, rt);
+                } else {
+                    /* LWXS */
+                    gen_ldxs(ctx, rs, rt, rd);
+                }
+                break;
+            case MOD:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_MOD, rd, rs, rt);
+                break;
+            case R6_DIVU:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_DIVU, rd, rs, rt);
+                break;
+            case MODU:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_MODU, rd, rs, rt);
                 break;
             default:
                 goto pool32a_invalid;
@@ -13994,6 +14046,16 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
         case INS:
             gen_bitops(ctx, OPC_INS, rt, rs, rr, rd);
             return;
+        case LSA:
+            check_insn(ctx, ISA_MIPS32R6);
+            gen_lsa(ctx, OPC_LSA, rd, rs, rt,
+                    extract32(ctx->opcode, 9, 2));
+            break;
+        case ALIGN:
+            check_insn(ctx, ISA_MIPS32R6);
+            gen_align(ctx, OPC_ALIGN, rd, rs, rt,
+                      extract32(ctx->opcode, 9, 2));
+            break;
         case EXT:
             gen_bitops(ctx, OPC_EXT, rt, rs, rr, rd);
             return;
