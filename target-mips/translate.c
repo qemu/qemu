@@ -1724,6 +1724,15 @@ static target_long addr_add(DisasContext *ctx, target_long base,
     return sum;
 }
 
+static inline void gen_move_low32(TCGv ret, TCGv_i64 arg)
+{
+#if defined(TARGET_MIPS64)
+    tcg_gen_ext32s_tl(ret, arg);
+#else
+    tcg_gen_trunc_i64_tl(ret, arg);
+#endif
+}
+
 static inline void check_cp0_enabled(DisasContext *ctx)
 {
     if (unlikely(!(ctx->hflags & MIPS_HFLAG_CP0)))
@@ -4846,17 +4855,94 @@ static void gen_bshfl (DisasContext *ctx, uint32_t op2, int rt, int rd)
     tcg_temp_free(t0);
 }
 
-#ifndef CONFIG_USER_ONLY
-/* CP0 (MMU and control) */
-static inline void gen_move_low32(TCGv ret, TCGv_i64 arg)
+static void gen_lsa(DisasContext *ctx, int opc, int rd, int rs, int rt,
+                    int imm2)
 {
-#if defined(TARGET_MIPS64)
-    tcg_gen_ext32s_tl(ret, arg);
-#else
-    tcg_gen_trunc_i64_tl(ret, arg);
-#endif
+    TCGv t0;
+    TCGv t1;
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    gen_load_gpr(t0, rs);
+    gen_load_gpr(t1, rt);
+    tcg_gen_shli_tl(t0, t0, imm2 + 1);
+    tcg_gen_add_tl(cpu_gpr[rd], t0, t1);
+    if (opc == OPC_LSA) {
+        tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
+    }
+
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+
+    return;
 }
 
+static void gen_align(DisasContext *ctx, int opc, int rd, int rs, int rt,
+                      int bp)
+{
+    TCGv t0;
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rt);
+    if (bp == 0) {
+        tcg_gen_mov_tl(cpu_gpr[rd], t0);
+    } else {
+        TCGv t1 = tcg_temp_new();
+        gen_load_gpr(t1, rs);
+        switch (opc) {
+        case OPC_ALIGN:
+            {
+                TCGv_i64 t2 = tcg_temp_new_i64();
+                tcg_gen_concat_tl_i64(t2, t1, t0);
+                tcg_gen_shri_i64(t2, t2, 8 * (4 - bp));
+                gen_move_low32(cpu_gpr[rd], t2);
+                tcg_temp_free_i64(t2);
+            }
+            break;
+#if defined(TARGET_MIPS64)
+        case OPC_DALIGN:
+            tcg_gen_shli_tl(t0, t0, 8 * bp);
+            tcg_gen_shri_tl(t1, t1, 8 * (8 - bp));
+            tcg_gen_or_tl(cpu_gpr[rd], t1, t0);
+            break;
+#endif
+        }
+        tcg_temp_free(t1);
+    }
+
+    tcg_temp_free(t0);
+}
+
+static void gen_bitswap(DisasContext *ctx, int opc, int rd, int rt)
+{
+    TCGv t0;
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rt);
+    switch (opc) {
+    case OPC_BITSWAP:
+        gen_helper_bitswap(cpu_gpr[rd], t0);
+        break;
+#if defined(TARGET_MIPS64)
+    case OPC_DBITSWAP:
+        gen_helper_dbitswap(cpu_gpr[rd], t0);
+        break;
+#endif
+    }
+    tcg_temp_free(t0);
+}
+
+#ifndef CONFIG_USER_ONLY
+/* CP0 (MMU and control) */
 static inline void gen_mthc0_entrylo(TCGv arg, target_ulong off)
 {
     TCGv_i64 t0 = tcg_temp_new_i64();
@@ -16442,18 +16528,7 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
     op1 = MASK_SPECIAL(ctx->opcode);
     switch (op1) {
     case OPC_LSA:
-        if (rd != 0) {
-            int imm2 = extract32(ctx->opcode, 6, 3);
-            TCGv t0 = tcg_temp_new();
-            TCGv t1 = tcg_temp_new();
-            gen_load_gpr(t0, rs);
-            gen_load_gpr(t1, rt);
-            tcg_gen_shli_tl(t0, t0, imm2 + 1);
-            tcg_gen_add_tl(t0, t0, t1);
-            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
-            tcg_temp_free(t1);
-            tcg_temp_free(t0);
-        }
+        gen_lsa(ctx, op1, rd, rs, rt, extract32(ctx->opcode, 6, 2));
         break;
     case OPC_MULT ... OPC_DIVU:
         op2 = MASK_R6_MULDIV(ctx->opcode);
@@ -16502,17 +16577,7 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
 #if defined(TARGET_MIPS64)
     case OPC_DLSA:
         check_mips_64(ctx);
-        if (rd != 0) {
-            int imm2 = extract32(ctx->opcode, 6, 3);
-            TCGv t0 = tcg_temp_new();
-            TCGv t1 = tcg_temp_new();
-            gen_load_gpr(t0, rs);
-            gen_load_gpr(t1, rt);
-            tcg_gen_shli_tl(t0, t0, imm2 + 1);
-            tcg_gen_add_tl(cpu_gpr[rd], t0, t1);
-            tcg_temp_free(t1);
-            tcg_temp_free(t0);
-        }
+        gen_lsa(ctx, op1, rd, rs, rt, extract32(ctx->opcode, 6, 2));
         break;
     case R6_OPC_DCLO:
     case R6_OPC_DCLZ:
@@ -16936,35 +17001,15 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
                 /* Treat as NOP. */
                 break;
             }
-            TCGv t0 = tcg_temp_new();
-            gen_load_gpr(t0, rt);
-
             op2 = MASK_BSHFL(ctx->opcode);
             switch (op2) {
             case OPC_ALIGN ... OPC_ALIGN_END:
-                sa &= 3;
-                if (sa == 0) {
-                    tcg_gen_mov_tl(cpu_gpr[rd], t0);
-                } else {
-                    TCGv t1 = tcg_temp_new();
-                    TCGv_i64 t2 = tcg_temp_new_i64();
-                    gen_load_gpr(t1, rs);
-                    tcg_gen_concat_tl_i64(t2, t1, t0);
-                    tcg_gen_shri_i64(t2, t2, 8 * (4 - sa));
-#if defined(TARGET_MIPS64)
-                    tcg_gen_ext32s_i64(cpu_gpr[rd], t2);
-#else
-                    tcg_gen_trunc_i64_i32(cpu_gpr[rd], t2);
-#endif
-                    tcg_temp_free_i64(t2);
-                    tcg_temp_free(t1);
-                }
+                gen_align(ctx, OPC_ALIGN, rd, rs, rt, sa & 3);
                 break;
             case OPC_BITSWAP:
-                gen_helper_bitswap(cpu_gpr[rd], t0);
+                gen_bitswap(ctx, op2, rd, rt);
                 break;
             }
-            tcg_temp_free(t0);
         }
         break;
 #if defined(TARGET_MIPS64)
@@ -16981,29 +17026,16 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
                 /* Treat as NOP. */
                 break;
             }
-            TCGv t0 = tcg_temp_new();
-            gen_load_gpr(t0, rt);
-
             op2 = MASK_DBSHFL(ctx->opcode);
             switch (op2) {
             case OPC_DALIGN ... OPC_DALIGN_END:
-                sa &= 7;
-                if (sa == 0) {
-                    tcg_gen_mov_tl(cpu_gpr[rd], t0);
-                } else {
-                    TCGv t1 = tcg_temp_new();
-                    gen_load_gpr(t1, rs);
-                    tcg_gen_shli_tl(t0, t0, 8 * sa);
-                    tcg_gen_shri_tl(t1, t1, 8 * (8 - sa));
-                    tcg_gen_or_tl(cpu_gpr[rd], t1, t0);
-                    tcg_temp_free(t1);
-                }
+                gen_align(ctx, OPC_DALIGN, rd, rs, rt, sa & 7);
                 break;
             case OPC_DBITSWAP:
-                gen_helper_dbitswap(cpu_gpr[rd], t0);
+                gen_bitswap(ctx, op2, rd, rt);
                 break;
             }
-            tcg_temp_free(t0);
+
         }
         break;
 #endif
