@@ -53,7 +53,7 @@ ivshmem_client_parse_args(IvshmemClientArgs *args, int argc, char *argv[])
             break;
 
         case 'S': /* unix_sock_path */
-            args->unix_sock_path = strdup(optarg);
+            args->unix_sock_path = optarg;
             break;
 
         default:

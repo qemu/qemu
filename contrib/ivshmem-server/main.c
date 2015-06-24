@@ -92,15 +92,15 @@ ivshmem_server_parse_args(IvshmemServerArgs *args, int argc, char *argv[])
             break;
 
         case 'p': /* pid_file */
-            args->pid_file = strdup(optarg);
+            args->pid_file = optarg;
             break;
 
         case 'S': /* unix_socket_path */
-            args->unix_socket_path = strdup(optarg);
+            args->unix_socket_path = optarg;
             break;
 
         case 'm': /* shm_path */
-            args->shm_path = strdup(optarg);
+            args->shm_path = optarg;
             break;
 
         case 'l': /* shm_size */
