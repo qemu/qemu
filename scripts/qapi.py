@@ -943,15 +943,20 @@ def pop_indent(indent_amount=4):
     global indent_level
     indent_level -= indent_amount
 
+# Generate @code with @kwds interpolated.
+# Obey indent_level, and strip eatspace.
 def cgen(code, **kwds):
-    indent = genindent(indent_level)
-    lines = code.split('\n')
-    lines = map(lambda x: indent + x, lines)
-    return '\n'.join(lines) % kwds + '\n'
+    raw = code % kwds
+    if indent_level:
+        indent = genindent(indent_level)
+        raw = re.subn("^.", indent + r'\g<0>', raw, 0, re.MULTILINE)
+        raw = raw[0]
+    return re.sub(re.escape(eatspace) + ' *', '', raw)
 
 def mcgen(code, **kwds):
-    raw = cgen('\n'.join(code.split('\n')[1:-1]), **kwds)
-    return re.sub(re.escape(eatspace) + ' *', '', raw)
+    if code[0] == '\n':
+        code = code[1:]
+    return cgen(code, **kwds)
 
 def basename(filename):
     return filename.split("/")[-1]

@@ -56,7 +56,7 @@ def gen_sync_call(name, args, ret_type, indent=0):
                 name=c_name(name), args=arglist, retval=retval).rstrip()
     if ret_type:
         ret += "\n" + gen_err_check('local_err')
-        ret += "\n" + mcgen(''''
+        ret += "\n" + mcgen('''
 %(marshal_output_call)s
 ''',
                             marshal_output_call=gen_marshal_output_call(name, ret_type)).rstrip()
