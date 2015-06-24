@@ -293,7 +293,6 @@ static inline uint8_t xen_pt_pci_intx(XenPCIPassthroughState *s)
 }
 
 /* MSI/MSI-X */
-int xen_pt_msi_set_enable(XenPCIPassthroughState *s, bool en);
 int xen_pt_msi_setup(XenPCIPassthroughState *s);
 int xen_pt_msi_update(XenPCIPassthroughState *d);
 void xen_pt_msi_disable(XenPCIPassthroughState *s);

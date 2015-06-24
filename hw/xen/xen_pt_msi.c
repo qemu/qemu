@@ -220,7 +220,7 @@ static int msi_msix_disable(XenPCIPassthroughState *s,
  * MSI virtualization functions
  */
 
-int xen_pt_msi_set_enable(XenPCIPassthroughState *s, bool enable)
+static int xen_pt_msi_set_enable(XenPCIPassthroughState *s, bool enable)
 {
     XEN_PT_LOG(&s->dev, "%s MSI.\n", enable ? "enabling" : "disabling");
 
