@@ -32,7 +32,7 @@ static void mac128k_init(MachineState *machine)
     MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     if (!cpu_model) {
-        cpu_model = "mc68000";
+        cpu_model = "m68000";
     }
     cpu = cpu_m68k_init(cpu_model);
     if (!cpu) {
