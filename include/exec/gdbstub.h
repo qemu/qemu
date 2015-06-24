@@ -22,7 +22,7 @@ void gdb_exit(CPUArchState *, int);
 int gdb_queuesig (void);
 int gdb_handlesig(CPUState *, int);
 void gdb_signalled(CPUArchState *, int);
-void gdbserver_fork(CPUArchState *);
+void gdbserver_fork(CPUState *);
 #endif
 /* Get or set a register.  Returns the size of the register.  */
 typedef int (*gdb_reg_cb)(CPUArchState *env, uint8_t *buf, int reg);

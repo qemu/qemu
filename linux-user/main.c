@@ -130,7 +130,7 @@ void fork_end(int child)
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
         pthread_mutex_init(&tcg_ctx.tb_ctx.tb_lock, NULL);
-        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
+        gdbserver_fork(thread_cpu);
     } else {
         pthread_mutex_unlock(&exclusive_lock);
         pthread_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);

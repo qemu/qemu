@@ -92,7 +92,7 @@ void fork_start(void)
 void fork_end(int child)
 {
     if (child) {
-        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
+        gdbserver_fork(thread_cpu);
     }
 }
 

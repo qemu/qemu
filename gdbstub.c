@@ -1629,9 +1629,8 @@ int gdbserver_start(int port)
 }
 
 /* Disable gdb stub for child processes.  */
-void gdbserver_fork(CPUArchState *env)
+void gdbserver_fork(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     GDBState *s = gdbserver_state;
 
     if (gdbserver_fd < 0 || s->fd < 0) {
