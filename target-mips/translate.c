@@ -13173,6 +13173,110 @@ static void gen_pool16c_insn(DisasContext *ctx)
     }
 }
 
+static inline void gen_movep(DisasContext *ctx, int enc_dest, int enc_rt,
+                             int enc_rs)
+{
+    int rd, rs, re, rt;
+    static const int rd_enc[] = { 5, 5, 6, 4, 4, 4, 4, 4 };
+    static const int re_enc[] = { 6, 7, 7, 21, 22, 5, 6, 7 };
+    static const int rs_rt_enc[] = { 0, 17, 2, 3, 16, 18, 19, 20 };
+    rd = rd_enc[enc_dest];
+    re = re_enc[enc_dest];
+    rs = rs_rt_enc[enc_rs];
+    rt = rs_rt_enc[enc_rt];
+    if (rs) {
+        tcg_gen_mov_tl(cpu_gpr[rd], cpu_gpr[rs]);
+    } else {
+        tcg_gen_movi_tl(cpu_gpr[rd], 0);
+    }
+    if (rt) {
+        tcg_gen_mov_tl(cpu_gpr[re], cpu_gpr[rt]);
+    } else {
+        tcg_gen_movi_tl(cpu_gpr[re], 0);
+    }
+}
+
+static void gen_pool16c_r6_insn(DisasContext *ctx)
+{
+    int rt = mmreg((ctx->opcode >> 7) & 0x7);
+    int rs = mmreg((ctx->opcode >> 4) & 0x7);
+
+    switch (ctx->opcode & 0xf) {
+    case R6_NOT16:
+        gen_logic(ctx, OPC_NOR, rt, rs, 0);
+        break;
+    case R6_AND16:
+        gen_logic(ctx, OPC_AND, rt, rt, rs);
+        break;
+    case R6_LWM16:
+        {
+            int lwm_converted = 0x11 + extract32(ctx->opcode, 8, 2);
+            int offset = extract32(ctx->opcode, 4, 4);
+            gen_ldst_multiple(ctx, LWM32, lwm_converted, 29, offset << 2);
+        }
+        break;
+    case R6_JRC16: /* JRCADDIUSP */
+        if ((ctx->opcode >> 4) & 1) {
+            /* JRCADDIUSP */
+            int imm = extract32(ctx->opcode, 5, 5);
+            gen_compute_branch(ctx, OPC_JR, 2, 31, 0, 0, 0);
+            gen_arith_imm(ctx, OPC_ADDIU, 29, 29, imm << 2);
+        } else {
+            /* JRC16 */
+            int rs = extract32(ctx->opcode, 5, 5);
+            gen_compute_branch(ctx, OPC_JR, 2, rs, 0, 0, 0);
+        }
+        break;
+    case MOVEP ... MOVEP_07:
+    case MOVEP_0C ... MOVEP_0F:
+        {
+            int enc_dest = uMIPS_RD(ctx->opcode);
+            int enc_rt = uMIPS_RS2(ctx->opcode);
+            int enc_rs = (ctx->opcode & 3) | ((ctx->opcode >> 1) & 4);
+            gen_movep(ctx, enc_dest, enc_rt, enc_rs);
+        }
+        break;
+    case R6_XOR16:
+        gen_logic(ctx, OPC_XOR, rt, rt, rs);
+        break;
+    case R6_OR16:
+        gen_logic(ctx, OPC_OR, rt, rt, rs);
+        break;
+    case R6_SWM16:
+        {
+            int swm_converted = 0x11 + extract32(ctx->opcode, 8, 2);
+            int offset = extract32(ctx->opcode, 4, 4);
+            gen_ldst_multiple(ctx, SWM32, swm_converted, 29, offset << 2);
+        }
+        break;
+    case JALRC16: /* BREAK16, SDBBP16 */
+        switch (ctx->opcode & 0x3f) {
+        case JALRC16:
+        case JALRC16 + 0x20:
+            /* JALRC16 */
+            gen_compute_branch(ctx, OPC_JALR, 2, (ctx->opcode >> 5) & 0x1f,
+                               31, 0, 0);
+            break;
+        case R6_BREAK16:
+            /* BREAK16 */
+            generate_exception(ctx, EXCP_BREAK);
+            break;
+        case R6_SDBBP16:
+            /* SDBBP16 */
+            if (ctx->hflags & MIPS_HFLAG_SBRI) {
+                generate_exception(ctx, EXCP_RI);
+            } else {
+                generate_exception(ctx, EXCP_DBp);
+            }
+            break;
+        }
+        break;
+    default:
+        generate_exception(ctx, EXCP_RI);
+        break;
+    }
+}
+
 static void gen_ldxs (DisasContext *ctx, int base, int index, int rd)
 {
     TCGv t0 = tcg_temp_new();
@@ -15182,8 +15286,14 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
                 opc = OPC_SUBU;
                 break;
             }
-
-            gen_arith(ctx, opc, rd, rs1, rs2);
+            if (ctx->insn_flags & ISA_MIPS32R6) {
+                /* In the Release 6 the register number location in
+                 * the instruction encoding has changed.
+                 */
+                gen_arith(ctx, opc, rs1, rd, rs2);
+            } else {
+                gen_arith(ctx, opc, rd, rs1, rs2);
+            }
         }
         break;
     case POOL16B:
@@ -15207,7 +15317,11 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case POOL16C:
-        gen_pool16c_insn(ctx);
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            gen_pool16c_r6_insn(ctx);
+        } else {
+            gen_pool16c_insn(ctx);
+        }
         break;
     case LWGP16:
         {
@@ -15227,18 +15341,7 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
             int enc_dest = uMIPS_RD(ctx->opcode);
             int enc_rt = uMIPS_RS2(ctx->opcode);
             int enc_rs = uMIPS_RS1(ctx->opcode);
-            int rd, rs, re, rt;
-            static const int rd_enc[] = { 5, 5, 6, 4, 4, 4, 4, 4 };
-            static const int re_enc[] = { 6, 7, 7, 21, 22, 5, 6, 7 };
-            static const int rs_rt_enc[] = { 0, 17, 2, 3, 16, 18, 19, 20 };
-
-            rd = rd_enc[enc_dest];
-            re = re_enc[enc_dest];
-            rs = rs_rt_enc[enc_rs];
-            rt = rs_rt_enc[enc_rt];
-
-            gen_arith(ctx, OPC_ADDU, rd, rs, 0);
-            gen_arith(ctx, OPC_ADDU, re, rt, 0);
+            gen_movep(ctx, enc_dest, enc_rt, enc_rs);
         }
         break;
     case LBU16:
