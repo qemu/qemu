@@ -1,5 +1,6 @@
 /* General "disassemble this chunk" code.  Used for debugging. */
 #include "config.h"
+#include "qemu-common.h"
 #include "disas/bfd.h"
 #include "elf.h"
 #include <errno.h>
@@ -198,6 +199,7 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
 void target_disas(FILE *out, CPUState *cpu, target_ulong code,
                   target_ulong size, int flags)
 {
+    CPUClass *cc = CPU_GET_CLASS(cpu);
     target_ulong pc;
     int count;
     CPUDebug s;
@@ -215,6 +217,11 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
 #else
     s.info.endian = BFD_ENDIAN_LITTLE;
 #endif
+
+    if (cc->disas_set_info) {
+        cc->disas_set_info(cpu, &s.info);
+    }
+
 #if defined(TARGET_I386)
     if (flags == 2) {
         s.info.mach = bfd_mach_x86_64;
@@ -449,6 +456,7 @@ monitor_fprintf(FILE *stream, const char *fmt, ...)
 void monitor_disas(Monitor *mon, CPUState *cpu,
                    target_ulong pc, int nb_insn, int is_physical, int flags)
 {
+    CPUClass *cc = CPU_GET_CLASS(cpu);
     int count, i;
     CPUDebug s;
 
@@ -466,6 +474,11 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
 #else
     s.info.endian = BFD_ENDIAN_LITTLE;
 #endif
+
+    if (cc->disas_set_info) {
+        cc->disas_set_info(cpu, &s.info);
+    }
+
 #if defined(TARGET_I386)
     if (flags == 2) {
         s.info.mach = bfd_mach_x86_64;
@@ -519,11 +532,12 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
     s.info.print_insn = print_insn_lm32;
-#else
-    monitor_printf(mon, "0x" TARGET_FMT_lx
-                   ": Asm output not supported on this arch\n", pc);
-    return;
 #endif
+    if (!s.info.print_insn) {
+        monitor_printf(mon, "0x" TARGET_FMT_lx
+                       ": Asm output not supported on this arch\n", pc);
+        return;
+    }
 
     for(i = 0; i < nb_insn; i++) {
 	monitor_printf(mon, "0x" TARGET_FMT_lx ":  ", pc);

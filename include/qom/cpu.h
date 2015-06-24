@@ -23,6 +23,7 @@
 #include <signal.h>
 #include <setjmp.h>
 #include "hw/qdev-core.h"
+#include "disas/bfd.h"
 #include "exec/hwaddr.h"
 #include "exec/memattrs.h"
 #include "qemu/queue.h"
@@ -117,6 +118,7 @@ struct TranslationBlock;
  * @cpu_exec_enter: Callback for cpu_exec preparation.
  * @cpu_exec_exit: Callback for cpu_exec cleanup.
  * @cpu_exec_interrupt: Callback for processing interrupts in cpu_exec.
+ * @disas_set_info: Setup architecture specific components of disassembly info
  *
  * Represents a CPU family or model.
  */
@@ -172,6 +174,8 @@ typedef struct CPUClass {
     void (*cpu_exec_enter)(CPUState *cpu);
     void (*cpu_exec_exit)(CPUState *cpu);
     bool (*cpu_exec_interrupt)(CPUState *cpu, int interrupt_request);
+
+    void (*disas_set_info)(CPUState *cpu, disassemble_info *info);
 } CPUClass;
 
 #ifdef HOST_WORDS_BIGENDIAN
