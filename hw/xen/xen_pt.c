@@ -379,7 +379,7 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
         }
     }
 
-    /* need to shift back before passing them to xen_host_pci_device */
+    /* need to shift back before passing them to xen_host_pci_set_block. */
     val >>= (addr & 3) << 3;
 
     memory_region_transaction_commit();
@@ -407,7 +407,7 @@ out:
                                     (uint8_t *)&val + index, len);
 
         if (rc < 0) {
-            XEN_PT_ERR(d, "pci_write_block failed. return value: %d.\n", rc);
+            XEN_PT_ERR(d, "xen_host_pci_set_block failed. return value: %d.\n", rc);
         }
     }
 }
