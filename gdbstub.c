@@ -754,12 +754,9 @@ static void gdb_breakpoint_remove_all(void)
 static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 {
     CPUState *cpu = s->c_cpu;
-    CPUClass *cc = CPU_GET_CLASS(cpu);
 
     cpu_synchronize_state(cpu);
-    if (cc->set_pc) {
-        cc->set_pc(cpu, pc);
-    }
+    cpu_set_pc(cpu, pc);
 }
 
 static CPUState *find_cpu(uint32_t thread_id)
