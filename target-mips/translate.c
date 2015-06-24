@@ -12243,6 +12243,8 @@ enum {
     TLBR = 0x1,
     TLBWI = 0x2,
     TLBWR = 0x3,
+    TLBINV = 0x4,
+    TLBINVF = 0x5,
     WAIT = 0x9,
     IRET = 0xd,
     DERET = 0xe,
@@ -13026,6 +13028,12 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             goto do_cp0;
         case TLBWR:
             mips32_op = OPC_TLBWR;
+            goto do_cp0;
+        case TLBINV:
+            mips32_op = OPC_TLBINV;
+            goto do_cp0;
+        case TLBINVF:
+            mips32_op = OPC_TLBINVF;
             goto do_cp0;
         case WAIT:
             mips32_op = OPC_WAIT;
