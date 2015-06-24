@@ -499,8 +499,7 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 
     iov_discard_front(&iov, &out_num, sizeof(req->out));
 
-    if (in_num < 1 ||
-        in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
+    if (in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
         error_report("virtio-blk request inhdr too short");
         exit(1);
     }
