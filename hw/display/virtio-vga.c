@@ -138,7 +138,6 @@ static void virtio_vga_reset(DeviceState *dev)
 }
 
 static Property virtio_vga_properties[] = {
-    DEFINE_VIRTIO_GPU_PROPERTIES(VirtIOVGA, vdev.conf),
     DEFINE_VIRTIO_GPU_PCI_PROPERTIES(VirtIOPCIProxy),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -162,8 +161,9 @@ static void virtio_vga_class_init(ObjectClass *klass, void *data)
 static void virtio_vga_inst_initfn(Object *obj)
 {
     VirtIOVGA *dev = VIRTIO_VGA(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_GPU);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_GPU);
 }
 
 static TypeInfo virtio_vga_info = {

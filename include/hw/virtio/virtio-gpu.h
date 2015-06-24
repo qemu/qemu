@@ -112,9 +112,6 @@ extern const GraphicHwOps virtio_gpu_ops;
                     VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false), \
     DEFINE_PROP_UINT32("vectors", _state, nvectors, 3)
 
-#define DEFINE_VIRTIO_GPU_PROPERTIES(_state, _conf_field)               \
-    DEFINE_PROP_UINT32("max_outputs", _state, _conf_field.max_outputs, 1)
-
 #define VIRTIO_GPU_FILL_CMD(out) do {                                   \
         size_t s;                                                       \
         s = iov_to_buf(cmd->elem.out_sg, cmd->elem.out_num, 0,          \

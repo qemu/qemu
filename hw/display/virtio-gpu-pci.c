@@ -17,7 +17,6 @@
 #include "hw/virtio/virtio-gpu.h"
 
 static Property virtio_gpu_pci_properties[] = {
-    DEFINE_VIRTIO_GPU_PROPERTIES(VirtIOGPUPCI, vdev.conf),
     DEFINE_VIRTIO_GPU_PCI_PROPERTIES(VirtIOPCIProxy),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -57,8 +56,9 @@ static void virtio_gpu_pci_class_init(ObjectClass *klass, void *data)
 static void virtio_gpu_initfn(Object *obj)
 {
     VirtIOGPUPCI *dev = VIRTIO_GPU_PCI(obj);
-    object_initialize(&dev->vdev, sizeof(dev->vdev), TYPE_VIRTIO_GPU);
-    object_property_add_child(obj, "virtio-backend", OBJECT(&dev->vdev), NULL);
+
+    virtio_instance_init_common(obj, &dev->vdev, sizeof(dev->vdev),
+                                TYPE_VIRTIO_GPU);
 }
 
 static const TypeInfo virtio_gpu_pci_info = {
