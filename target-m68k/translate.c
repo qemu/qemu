@@ -268,14 +268,27 @@ static TCGv gen_ldst(DisasContext *s, int opsize, TCGv addr, TCGv val,
     }
 }
 
+/* Read a 16-bit immediate constant */
+static inline uint16_t read_im16(CPUM68KState *env, DisasContext *s)
+{
+    uint16_t im;
+    im = cpu_lduw_code(env, s->pc);
+    s->pc += 2;
+    return im;
+}
+
+/* Read an 8-bit immediate constant */
+static inline uint8_t read_im8(CPUM68KState *env, DisasContext *s)
+{
+    return read_im16(env, s);
+}
+
 /* Read a 32-bit immediate constant.  */
 static inline uint32_t read_im32(CPUM68KState *env, DisasContext *s)
 {
     uint32_t im;
-    im = ((uint32_t)cpu_lduw_code(env, s->pc)) << 16;
-    s->pc += 2;
-    im |= cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    im = read_im16(env, s) << 16;
+    im |= 0xffff & read_im16(env, s);
     return im;
 }
 
@@ -309,8 +322,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
     uint32_t bd, od;
 
     offset = s->pc;
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
 
     if ((ext & 0x800) == 0 && !m68k_feature(s->env, M68K_FEATURE_WORD_INDEX))
         return NULL_QREG;
@@ -328,8 +340,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
         if ((ext & 0x30) > 0x10) {
             /* base displacement */
             if ((ext & 0x30) == 0x20) {
-                bd = (int16_t)cpu_lduw_code(env, s->pc);
-                s->pc += 2;
+                bd = (int16_t)read_im16(env, s);
             } else {
                 bd = read_im32(env, s);
             }
@@ -377,8 +388,7 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
             if ((ext & 3) > 1) {
                 /* outer displacement */
                 if ((ext & 3) == 2) {
-                    od = (int16_t)cpu_lduw_code(env, s->pc);
-                    s->pc += 2;
+                    od = (int16_t)read_im16(env, s);
                 } else {
                     od = read_im32(env, s);
                 }
@@ -530,8 +540,7 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
     case 5: /* Indirect displacement.  */
         reg = AREG(insn, 0);
         tmp = tcg_temp_new();
-        ext = cpu_lduw_code(env, s->pc);
-        s->pc += 2;
+        ext = read_im16(env, s);
         tcg_gen_addi_i32(tmp, reg, (int16_t)ext);
         return tmp;
     case 6: /* Indirect index + displacement.  */
@@ -540,16 +549,14 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
     case 7: /* Other */
         switch (insn & 7) {
         case 0: /* Absolute short.  */
-            offset = cpu_ldsw_code(env, s->pc);
-            s->pc += 2;
+            offset = (int16_t)read_im16(env, s);
             return tcg_const_i32(offset);
         case 1: /* Absolute long.  */
             offset = read_im32(env, s);
             return tcg_const_i32(offset);
         case 2: /* pc displacement  */
             offset = s->pc;
-            offset += cpu_ldsw_code(env, s->pc);
-            s->pc += 2;
+            offset += (int16_t)read_im16(env, s);
             return tcg_const_i32(offset);
         case 3: /* pc index+displacement.  */
             return gen_lea_indexed(env, s, NULL_QREG);
@@ -656,19 +663,17 @@ static TCGv gen_ea(CPUM68KState *env, DisasContext *s, uint16_t insn,
             switch (opsize) {
             case OS_BYTE:
                 if (what == EA_LOADS) {
-                    offset = cpu_ldsb_code(env, s->pc + 1);
+                    offset = (int8_t)read_im8(env, s);
                 } else {
-                    offset = cpu_ldub_code(env, s->pc + 1);
+                    offset = read_im8(env, s);
                 }
-                s->pc += 2;
                 break;
             case OS_WORD:
                 if (what == EA_LOADS) {
-                    offset = cpu_ldsw_code(env, s->pc);
+                    offset = (int16_t)read_im16(env, s);
                 } else {
-                    offset = cpu_lduw_code(env, s->pc);
+                    offset = read_im16(env, s);
                 }
-                s->pc += 2;
                 break;
             case OS_LONG:
                 offset = read_im32(env, s);
@@ -961,8 +966,7 @@ DISAS_INSN(divl)
     TCGv reg;
     uint16_t ext;
 
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
     if (ext & 0x87f8) {
         gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
         return;
@@ -1113,8 +1117,7 @@ DISAS_INSN(movem)
     TCGv tmp;
     int is_load;
 
-    mask = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    mask = read_im16(env, s);
     tmp = gen_lea(env, s, insn, OS_LONG);
     if (IS_NULL_QREG(tmp)) {
         gen_addr_fault(s);
@@ -1157,8 +1160,7 @@ DISAS_INSN(bitop_im)
         opsize = OS_LONG;
     op = (insn >> 6) & 3;
 
-    bitnum = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    bitnum = read_im16(env, s);
     if (bitnum & 0xff00) {
         disas_undef(env, s, insn);
         return;
@@ -1411,8 +1413,7 @@ static void gen_set_sr(CPUM68KState *env, DisasContext *s, uint16_t insn,
     else if ((insn & 0x3f) == 0x3c)
       {
         uint16_t val;
-        val = cpu_lduw_code(env, s->pc);
-        s->pc += 2;
+        val = read_im16(env, s);
         gen_set_sr_im(s, val, ccr_only);
       }
     else
@@ -1535,8 +1536,7 @@ DISAS_INSN(mull)
 
     /* The upper 32 bits of the product are discarded, so
        muls.l and mulu.l are functionally equivalent.  */
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
     if (ext & 0x87ff) {
         gen_exception(s, s->pc - 4, EXCP_UNSUPPORTED);
         return;
@@ -1677,8 +1677,7 @@ DISAS_INSN(branch)
     op = (insn >> 8) & 0xf;
     offset = (int8_t)insn;
     if (offset == 0) {
-        offset = cpu_ldsw_code(env, s->pc);
-        s->pc += 2;
+        offset = (int16_t)read_im16(env, s);
     } else if (offset == -1) {
         offset = read_im32(env, s);
     }
@@ -1962,14 +1961,12 @@ DISAS_INSN(strldsr)
     uint32_t addr;
 
     addr = s->pc - 2;
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
     if (ext != 0x46FC) {
         gen_exception(s, addr, EXCP_UNSUPPORTED);
         return;
     }
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
     if (IS_USER(s) || (ext & SR_S) == 0) {
         gen_exception(s, addr, EXCP_PRIVILEGE);
         return;
@@ -2036,8 +2033,7 @@ DISAS_INSN(stop)
         return;
     }
 
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
 
     gen_set_sr_im(s, ext, 0);
     tcg_gen_movi_i32(cpu_halted, 1);
@@ -2063,8 +2059,7 @@ DISAS_INSN(movec)
         return;
     }
 
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
 
     if (ext & 0x8000) {
         reg = AREG(ext, 12);
@@ -2130,8 +2125,7 @@ DISAS_INSN(fpu)
     int set_dest;
     int opsize;
 
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
     opmode = ext & 0x7f;
     switch ((ext >> 13) & 7) {
     case 0: case 2:
@@ -2413,8 +2407,7 @@ DISAS_INSN(fbcc)
     offset = cpu_ldsw_code(env, s->pc);
     s->pc += 2;
     if (insn & (1 << 6)) {
-        offset = (offset << 16) | cpu_lduw_code(env, s->pc);
-        s->pc += 2;
+        offset = (offset << 16) | read_im16(env, s);
     }
 
     l1 = gen_new_label();
@@ -2539,8 +2532,7 @@ DISAS_INSN(mac)
         s->done_mac = 1;
     }
 
-    ext = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    ext = read_im16(env, s);
 
     acc = ((insn >> 7) & 1) | ((ext >> 3) & 2);
     dual = ((insn & 0x30) != 0 && (ext & 3) != 0);
@@ -3011,8 +3003,7 @@ static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 {
     uint16_t insn;
 
-    insn = cpu_lduw_code(env, s->pc);
-    s->pc += 2;
+    insn = read_im16(env, s);
 
     opcode_table[insn](env, s, insn);
 }
