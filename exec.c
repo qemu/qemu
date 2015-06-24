@@ -526,12 +526,57 @@ void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as)
 }
 #endif
 
+#ifndef CONFIG_USER_ONLY
+static DECLARE_BITMAP(cpu_index_map, MAX_CPUMASK_BITS);
+
+static int cpu_get_free_index(Error **errp)
+{
+    int cpu = find_first_zero_bit(cpu_index_map, MAX_CPUMASK_BITS);
+
+    if (cpu >= MAX_CPUMASK_BITS) {
+        error_setg(errp, "Trying to use more CPUs than max of %d",
+                   MAX_CPUMASK_BITS);
+        return -1;
+    }
+
+    bitmap_set(cpu_index_map, cpu, 1);
+    return cpu;
+}
+
+void cpu_exec_exit(CPUState *cpu)
+{
+    if (cpu->cpu_index == -1) {
+        /* cpu_index was never allocated by this @cpu or was already freed. */
+        return;
+    }
+
+    bitmap_clear(cpu_index_map, cpu->cpu_index, 1);
+    cpu->cpu_index = -1;
+}
+#else
+
+static int cpu_get_free_index(Error **errp)
+{
+    CPUState *some_cpu;
+    int cpu_index = 0;
+
+    CPU_FOREACH(some_cpu) {
+        cpu_index++;
+    }
+    return cpu_index;
+}
+
+void cpu_exec_exit(CPUState *cpu)
+{
+}
+#endif
+
 void cpu_exec_init(CPUArchState *env, Error **errp)
 {
     CPUState *cpu = ENV_GET_CPU(env);
     CPUClass *cc = CPU_GET_CLASS(cpu);
-    CPUState *some_cpu;
     int cpu_index;
+    Error *local_err = NULL;
 
 #ifndef CONFIG_USER_ONLY
     cpu->as = &address_space_memory;
@@ -542,11 +587,14 @@ void cpu_exec_init(CPUArchState *env, Error **errp)
 #if defined(CONFIG_USER_ONLY)
     cpu_list_lock();
 #endif
-    cpu_index = 0;
-    CPU_FOREACH(some_cpu) {
-        cpu_index++;
+    cpu_index = cpu->cpu_index = cpu_get_free_index(&local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+#if defined(CONFIG_USER_ONLY)
+        cpu_list_unlock();
+#endif
+        return;
     }
-    cpu->cpu_index = cpu_index;
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
