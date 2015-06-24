@@ -268,9 +268,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
 #elif defined(TARGET_S390X)
     s.info.mach = bfd_mach_s390_64;
     s.info.print_insn = print_insn_s390;
-#elif defined(TARGET_MICROBLAZE)
-    s.info.mach = bfd_arch_microblaze;
-    s.info.print_insn = print_insn_microblaze;
 #elif defined(TARGET_MOXIE)
     s.info.mach = bfd_arch_moxie;
     s.info.print_insn = print_insn_moxie;
