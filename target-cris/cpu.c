@@ -161,6 +161,20 @@ static void cris_cpu_set_irq(void *opaque, int irq, int level)
 }
 #endif
 
+static void cris_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    CRISCPU *cc = CRIS_CPU(cpu);
+    CPUCRISState *env = &cc->env;
+
+    if (env->pregs[PR_VR] != 32) {
+        info->mach = bfd_mach_cris_v0_v10;
+        info->print_insn = print_insn_crisv10;
+    } else {
+        info->mach = bfd_mach_cris_v32;
+        info->print_insn = print_insn_crisv32;
+    }
+}
+
 static void cris_cpu_initfn(Object *obj)
 {
     CPUState *cs = CPU(obj);
@@ -292,6 +306,8 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
 
     cc->gdb_num_core_regs = 49;
     cc->gdb_stop_before_watchpoint = true;
+
+    cc->disas_set_info = cris_disas_set_info;
 }
 
 static const TypeInfo cris_cpu_type_info = {

@@ -257,14 +257,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
 #elif defined(TARGET_ALPHA)
     s.info.mach = bfd_mach_alpha_ev6;
     s.info.print_insn = print_insn_alpha;
-#elif defined(TARGET_CRIS)
-    if (flags != 32) {
-        s.info.mach = bfd_mach_cris_v0_v10;
-        s.info.print_insn = print_insn_crisv10;
-    } else {
-        s.info.mach = bfd_mach_cris_v32;
-        s.info.print_insn = print_insn_crisv32;
-    }
 #elif defined(TARGET_S390X)
     s.info.mach = bfd_mach_s390_64;
     s.info.print_insn = print_insn_s390;
