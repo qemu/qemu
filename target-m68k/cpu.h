@@ -90,6 +90,9 @@ typedef struct CPUM68KState {
     uint32_t div1;
     uint32_t div2;
 
+    /* Upper 32 bits of a 64bit operand for quad MUL/DIV.  */
+    uint32_t quadh;
+
     /* MMU status.  */
     struct {
         uint32_t ar;
@@ -123,20 +126,31 @@ int cpu_m68k_exec(CPUM68KState *s);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_m68k_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-void cpu_m68k_flush_flags(CPUM68KState *, int);
 
-enum {
+typedef enum {
     CC_OP_DYNAMIC, /* Use env->cc_op  */
     CC_OP_FLAGS, /* CC_DEST = CVZN, CC_SRC = unused */
+    CC_OP_LOGICB, /* CC_DEST = result, CC_SRC = unused */
+    CC_OP_LOGICW, /* CC_DEST = result, CC_SRC = unused */
     CC_OP_LOGIC, /* CC_DEST = result, CC_SRC = unused */
+    CC_OP_ADDB,   /* CC_DEST = result, CC_SRC = source */
+    CC_OP_ADDW,   /* CC_DEST = result, CC_SRC = source */
     CC_OP_ADD,   /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SUBB,   /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SUBW,   /* CC_DEST = result, CC_SRC = source */
     CC_OP_SUB,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_CMPB,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_CMPW,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_ADDXB,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_ADDXW,  /* CC_DEST = result, CC_SRC = source */
     CC_OP_ADDX,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SUBXB,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SUBXW,  /* CC_DEST = result, CC_SRC = source */
     CC_OP_SUBX,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SHIFTB, /* CC_DEST = result, CC_SRC = carry */
+    CC_OP_SHIFTW, /* CC_DEST = result, CC_SRC = carry */
     CC_OP_SHIFT, /* CC_DEST = result, CC_SRC = carry */
-};
+
+    CC_OP_NB,
+} CCOp;
 
 #define CCF_C 0x01
 #define CCF_V 0x02
@@ -179,6 +193,7 @@ void do_m68k_semihosting(CPUM68KState *env, int nr);
    ISA revisions mentioned.  */
 
 enum m68k_features {
+    M68K_FEATURE_M68000,
     M68K_FEATURE_CF_ISA_A,
     M68K_FEATURE_CF_ISA_B, /* (ISA B or C).  */
     M68K_FEATURE_CF_ISA_APLUSC, /* BIT/BITREV, FF1, STRLDSR (ISA A+ or C).  */
@@ -189,7 +204,14 @@ enum m68k_features {
     M68K_FEATURE_CF_EMAC_B, /* Revision B EMAC (dual accumulate).  */
     M68K_FEATURE_USP, /* User Stack Pointer.  (ISA A+, B or C).  */
     M68K_FEATURE_EXT_FULL, /* 68020+ full extension word.  */
-    M68K_FEATURE_WORD_INDEX /* word sized address index registers.  */
+    M68K_FEATURE_WORD_INDEX, /* word sized address index registers.  */
+    M68K_FEATURE_SCALED_INDEX, /* scaled address index registers.  */
+    M68K_FEATURE_LONG_MULDIV, /* 32 bit multiply/divide. */
+    M68K_FEATURE_QUAD_MULDIV, /* 64 bit multiply/divide. */
+    M68K_FEATURE_BCCL,        /* Long conditional branches.  */
+    M68K_FEATURE_BITFIELD,    /* Bit field insns.  */
+    M68K_FEATURE_FPU,
+    M68K_FEATURE_CAS
 };
 
 static inline int m68k_feature(CPUM68KState *env, int feature)
@@ -202,8 +224,8 @@ void m68k_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void register_m68k_insns (CPUM68KState *env);
 
 #ifdef CONFIG_USER_ONLY
-/* Linux uses 8k pages.  */
-#define TARGET_PAGE_BITS 13
+/* Linux uses 4k pages.  */
+#define TARGET_PAGE_BITS 12
 #else
 /* Smallest TLB entry size is 1k.  */
 #define TARGET_PAGE_BITS 10

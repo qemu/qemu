@@ -26,7 +26,6 @@ static void mac128k_init(MachineState *machine)
     M68kCPU *cpu;
     CPUM68KState *env;
     int kernel_size;
-    uint64_t elf_entry;
     hwaddr entry;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);

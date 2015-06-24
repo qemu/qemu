@@ -195,12 +195,22 @@ void HELPER(divu)(CPUM68KState *env, uint32_t word)
     quot = num / den;
     rem = num % den;
     flags = 0;
-    if (word && quot > 0xffff)
-        flags |= CCF_V;
-    if (quot == 0)
-        flags |= CCF_Z;
-    else if ((int32_t)quot < 0)
-        flags |= CCF_N;
+    /* Avoid using a PARAM1 of zero.  This breaks dyngen because it uses
+       the address of a symbol, and gcc knows symbols can't have address
+       zero.  */
+    if (word && quot > 0xffff) {
+        /* real 68040 keep Z and N on overflow,
+         * whereas documentation says "undefined"
+         */
+        flags |= CCF_V | (env->cc_dest & (CCF_Z|CCF_N));
+    } else {
+        if (quot == 0) {
+            flags |= CCF_Z;
+        } else if ((int16_t)quot < 0) {
+            flags |= CCF_N;
+        }
+    }
+
     env->div1 = quot;
     env->div2 = rem;
     env->cc_dest = flags;
@@ -222,13 +232,163 @@ void HELPER(divs)(CPUM68KState *env, uint32_t word)
     quot = num / den;
     rem = num % den;
     flags = 0;
-    if (word && quot != (int16_t)quot)
-        flags |= CCF_V;
-    if (quot == 0)
-        flags |= CCF_Z;
-    else if (quot < 0)
-        flags |= CCF_N;
+    if (word && quot != (int16_t)quot) {
+        /* real 68040 keep Z and N on overflow,
+         * whereas documentation says "undefined"
+         */
+        flags |= CCF_V | (env->cc_dest & (CCF_Z|CCF_N));
+    } else {
+        if (quot == 0) {
+            flags |= CCF_Z;
+        } else if ((int16_t)quot < 0) {
+            flags |= CCF_N;
+        }
+    }
+
     env->div1 = quot;
     env->div2 = rem;
     env->cc_dest = flags;
+}
+
+void HELPER(divu64)(CPUM68KState *env)
+{
+    uint32_t num;
+    uint32_t den;
+    uint64_t quot;
+    uint32_t rem;
+    uint32_t flags;
+    uint64_t quad;
+
+    num = env->div1;
+    den = env->div2;
+    /* ??? This needs to make sure the throwing location is accurate.  */
+    if (den == 0) {
+        raise_exception(env, EXCP_DIV0);
+    }
+    quad = num | ((uint64_t)env->quadh << 32);
+    quot = quad / den;
+    rem = quad % den;
+    if (quot > 0xffffffffULL) {
+        flags = (env->cc_dest & ~CCF_C) | CCF_V;
+    } else {
+        flags = 0;
+        if (quot == 0) {
+            flags |= CCF_Z;
+        } else if ((int32_t)quot < 0) {
+            flags |= CCF_N;
+        }
+        env->div1 = quot;
+        env->quadh = rem;
+    }
+    env->cc_dest = flags;
+}
+
+void HELPER(divs64)(CPUM68KState *env)
+{
+    uint32_t num;
+    int32_t den;
+    int64_t quot;
+    int32_t rem;
+    int32_t flags;
+    int64_t quad;
+
+    num = env->div1;
+    den = env->div2;
+    if (den == 0) {
+        raise_exception(env, EXCP_DIV0);
+    }
+    quad = num | ((int64_t)env->quadh << 32);
+    quot = quad / (int64_t)den;
+    rem = quad % (int64_t)den;
+
+    if ((quot & 0xffffffff80000000ULL) &&
+        (quot & 0xffffffff80000000ULL) != 0xffffffff80000000ULL) {
+        flags = (env->cc_dest & ~CCF_C) | CCF_V;
+    } else {
+        flags = 0;
+        if (quot == 0) {
+            flags |= CCF_Z;
+        } else if ((int32_t)quot < 0) {
+            flags |= CCF_N;
+        }
+        env->div1 = quot;
+        env->quadh = rem;
+    }
+    env->cc_dest = flags;
+}
+
+uint32_t HELPER(mulu32_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
+{
+    uint64_t res = (uint32_t)op1 * op2;
+    uint32_t flags;
+
+    flags = 0;
+    if (res >> 32) {
+        flags |= CCF_V;
+    }
+    if ((uint32_t)res == 0) {
+        flags |= CCF_Z;
+    }
+    if ((int32_t)res < 0) {
+        flags |= CCF_N;
+    }
+    env->cc_dest = flags;
+
+    return res;
+}
+
+uint32_t HELPER(muls32_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
+{
+    int64_t res = (int32_t)op1 * (int32_t)op2;
+    uint32_t flags;
+
+    flags = 0;
+    if (res != (int64_t)(int32_t)res) {
+        flags |= CCF_V;
+    }
+    if ((uint32_t)res == 0) {
+        flags |= CCF_Z;
+    }
+    if ((int32_t)res < 0) {
+        flags |= CCF_N;
+    }
+    env->cc_dest = flags;
+
+    return res;
+}
+
+uint32_t HELPER(mulu64)(CPUM68KState *env, uint32_t op1, uint32_t op2)
+{
+    uint64_t res = (uint64_t)op1 * op2;
+    uint32_t flags;
+
+    env->quadh = res >> 32;
+    flags = 0;
+    if (res == 0) {
+        flags |= CCF_Z;
+    }
+    if ((int64_t)res < 0) {
+        flags |= CCF_N;
+    }
+    env->cc_dest = flags;
+
+    return res;
+}
+
+uint32_t HELPER(muls64)(CPUM68KState *env, uint32_t op1, uint32_t op2)
+{
+    int64_t res = (uint64_t)(int32_t)op1 * (int32_t)op2;
+    uint32_t flags;
+
+    env->quadh = res >> 32;
+    flags = 0;
+    if (res == 0) {
+        flags |= CCF_Z;
+    }
+    if (res < 0) {
+        flags |= CCF_N;
+    }
+    env->cc_dest = flags;
+
+    return res;
 }
