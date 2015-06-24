@@ -346,27 +346,6 @@ extern int singlestep;
 /* cpu-exec.c */
 extern volatile sig_atomic_t exit_request;
 
-/**
- * cpu_can_do_io:
- * @cpu: The CPU for which to check IO.
- *
- * Deterministic execution requires that IO only be performed on the last
- * instruction of a TB so that interrupts take effect immediately.
- *
- * Returns: %true if memory-mapped IO is safe, %false otherwise.
- */
-static inline bool cpu_can_do_io(CPUState *cpu)
-{
-    if (!use_icount) {
-        return true;
-    }
-    /* If not executing code then assume we are ok.  */
-    if (cpu->current_tb == NULL) {
-        return true;
-    }
-    return cpu->can_do_io != 0;
-}
-
 #if !defined(CONFIG_USER_ONLY)
 void migration_bitmap_extend(ram_addr_t old, ram_addr_t new);
 #endif

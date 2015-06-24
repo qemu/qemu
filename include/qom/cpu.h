@@ -231,7 +231,9 @@ struct kvm_run;
  * @icount_decr: Number of cycles left, with interrupt flag in high bit.
  * This allows a single read-compare-cbranch-write sequence to test
  * for both decrementer underflow and exceptions.
- * @can_do_io: Nonzero if memory-mapped IO is safe.
+ * @can_do_io: Nonzero if memory-mapped IO is safe. Deterministic execution
+ * requires that IO only be performed on the last instruction of a TB
+ * so that interrupts take effect immediately.
  * @env_ptr: Pointer to subclass-specific CPUArchState field.
  * @current_tb: Currently executing TB.
  * @gdb_regs: Additional GDB registers.
