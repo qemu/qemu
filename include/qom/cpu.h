@@ -602,6 +602,20 @@ static inline void cpu_unaligned_access(CPUState *cpu, vaddr addr,
 #endif
 
 /**
+ * cpu_set_pc:
+ * @cpu: The CPU to set the program counter for.
+ * @addr: Program counter value.
+ *
+ * Sets the program counter for a CPU.
+ */
+static inline void cpu_set_pc(CPUState *cpu, vaddr addr)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+
+    cc->set_pc(cpu, addr);
+}
+
+/**
  * cpu_reset_interrupt:
  * @cpu: The CPU to clear the interrupt on.
  * @mask: The interrupt mask to clear.
