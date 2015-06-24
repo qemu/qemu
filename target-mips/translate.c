@@ -12378,6 +12378,8 @@ enum {
     LBU16 = 0x02,
     MOVE16 = 0x03,
     ADDI32 = 0x04,
+    R6_LUI = 0x04,
+    AUI = 0x04,
     LBU32 = 0x05,
     SB32 = 0x06,
     LB32 = 0x07,
@@ -12400,54 +12402,86 @@ enum {
     POOL32S = 0x16,  /* MIPS64 */
     DADDIU32 = 0x17, /* MIPS64 */
 
-    /* 0x1f is reserved */
     POOL32C = 0x18,
     LWGP16 = 0x19,
     LW16 = 0x1a,
     POOL16E = 0x1b,
     XORI32 = 0x1c,
     JALS32 = 0x1d,
+    BOVC = 0x1d,
+    BEQC = 0x1d,
+    BEQZALC = 0x1d,
     ADDIUPC = 0x1e,
+    PCREL = 0x1e,
+    BNVC = 0x1f,
+    BNEC = 0x1f,
+    BNEZALC = 0x1f,
 
-    /* 0x20 is reserved */
-    RES_20 = 0x20,
+    R6_BEQZC = 0x20,
+    JIC = 0x20,
     POOL16F = 0x21,
     SB16 = 0x22,
     BEQZ16 = 0x23,
+    BEQZC16 = 0x23,
     SLTI32 = 0x24,
     BEQ32 = 0x25,
+    BC = 0x25,
     SWC132 = 0x26,
     LWC132 = 0x27,
 
-    /* 0x28 and 0x29 are reserved */
-    RES_28 = 0x28,
+    /* 0x29 is reserved */
     RES_29 = 0x29,
+    R6_BNEZC = 0x28,
+    JIALC = 0x28,
     SH16 = 0x2a,
     BNEZ16 = 0x2b,
+    BNEZC16 = 0x2b,
     SLTIU32 = 0x2c,
     BNE32 = 0x2d,
+    BALC = 0x2d,
     SDC132 = 0x2e,
     LDC132 = 0x2f,
 
-    /* 0x30 and 0x31 are reserved */
-    RES_30 = 0x30,
+    /* 0x31 is reserved */
     RES_31 = 0x31,
+    BLEZALC = 0x30,
+    BGEZALC = 0x30,
+    BGEUC = 0x30,
     SWSP16 = 0x32,
     B16 = 0x33,
+    BC16 = 0x33,
     ANDI32 = 0x34,
     J32 = 0x35,
+    BGTZC = 0x35,
+    BLTZC = 0x35,
+    BLTC = 0x35,
     SD32 = 0x36, /* MIPS64 */
     LD32 = 0x37, /* MIPS64 */
 
-    /* 0x38 and 0x39 are reserved */
-    RES_38 = 0x38,
+    /* 0x39 is reserved */
     RES_39 = 0x39,
+    BGTZALC = 0x38,
+    BLTZALC = 0x38,
+    BLTUC = 0x38,
     SW16 = 0x3a,
     LI16 = 0x3b,
     JALX32 = 0x3c,
     JAL32 = 0x3d,
+    BLEZC = 0x3d,
+    BGEZC = 0x3d,
+    BGEC = 0x3d,
     SW32 = 0x3e,
     LW32 = 0x3f
+};
+
+/* PCREL Instructions perform PC-Relative address calculation. bits 20..16 */
+enum {
+    ADDIUPC_00 = 0x00,
+    ADDIUPC_07 = 0x07,
+    AUIPC = 0x1e,
+    ALUIPC = 0x1f,
+    LWPC_08 = 0x08,
+    LWPC_0F = 0x0F,
 };
 
 /* POOL32A encoding of minor opcode field */
@@ -12459,6 +12493,8 @@ enum {
     SRL32 = 0x1,
     SRA = 0x2,
     ROTR = 0x3,
+    SELEQZ = 0x5,
+    SELNEZ = 0x6,
 
     SLLV = 0x0,
     SRLV = 0x1,
@@ -12477,11 +12513,21 @@ enum {
     SLTU = 0xe,
 
     MOVN = 0x0,
+    R6_MUL  = 0x0,
     MOVZ = 0x1,
+    MUH  = 0x1,
+    MULU = 0x2,
+    MUHU = 0x3,
     LWXS = 0x4,
+    R6_DIV  = 0x4,
+    MOD  = 0x5,
+    R6_DIVU = 0x6,
+    MODU = 0x7,
 
     /* The following can be distinguished by their lower 6 bits. */
     INS = 0x0c,
+    LSA = 0x0f,
+    ALIGN = 0x1f,
     EXT = 0x2c,
     POOL32AXF = 0x3c
 };
@@ -12534,6 +12580,7 @@ enum {
     /* end of microMIPS32 DSP */
 
     /* bits 15..12 for 0x2c */
+    BITSWAP = 0x0,
     SEB = 0x2,
     SEH = 0x3,
     CLO = 0x4,
@@ -12560,7 +12607,10 @@ enum {
     /* bits 15..12 for 0x3c */
     JALR = 0x0,
     JR = 0x0,                   /* alias */
+    JALRC = 0x0,
+    JRC = 0x0,
     JALR_HB = 0x1,
+    JALRC_HB = 0x1,
     JALRS = 0x4,
     JALRS_HB = 0x5,
 
@@ -12644,32 +12694,39 @@ enum {
 enum {
     /* These are the bit 7..6 values */
     ADD_FMT = 0x0,
-    MOVN_FMT = 0x0,
 
     SUB_FMT = 0x1,
-    MOVZ_FMT = 0x1,
 
     MUL_FMT = 0x2,
 
     DIV_FMT = 0x3,
 
     /* These are the bit 8..6 values */
+    MOVN_FMT = 0x0,
     RSQRT2_FMT = 0x0,
     MOVF_FMT = 0x0,
+    RINT_FMT = 0x0,
+    SELNEZ_FMT = 0x0,
 
+    MOVZ_FMT = 0x1,
     LWXC1 = 0x1,
     MOVT_FMT = 0x1,
+    CLASS_FMT = 0x1,
+    SELEQZ_FMT = 0x1,
 
     PLL_PS = 0x2,
     SWXC1 = 0x2,
+    SEL_FMT = 0x2,
 
     PLU_PS = 0x3,
     LDXC1 = 0x3,
 
+    MOVN_FMT_04 = 0x4,
     PUL_PS = 0x4,
     SDXC1 = 0x4,
     RECIP2_FMT = 0x4,
 
+    MOVZ_FMT_05 = 0x05,
     PUU_PS = 0x5,
     LUXC1 = 0x5,
 
@@ -12677,8 +12734,10 @@ enum {
     SUXC1 = 0x6,
     ADDR_PS = 0x6,
     PREFX = 0x6,
+    MADDF_FMT = 0x6,
 
     MULR_PS = 0x7,
+    MSUBF_FMT = 0x7,
 
     MADD_S = 0x01,
     MADD_D = 0x09,
@@ -12695,10 +12754,17 @@ enum {
     NMSUB_D = 0x2a,
     NMSUB_PS = 0x32,
 
+    MIN_FMT = 0x3,
+    MAX_FMT = 0xb,
+    MINA_FMT = 0x23,
+    MAXA_FMT = 0x2b,
     POOL32FXF = 0x3b,
 
     CABS_COND_FMT = 0x1c,              /* MIPS3D */
-    C_COND_FMT = 0x3c
+    C_COND_FMT = 0x3c,
+
+    CMP_CONDN_S = 0x5,
+    CMP_CONDN_D = 0x15
 };
 
 /* POOL32Fxf encoding of minor opcode extension field */
@@ -12751,10 +12817,15 @@ enum {
     BGTZ = 0x06,
     BEQZC = 0x07,
     TLTI = 0x08,
+    BC1EQZC = 0x08,
     TGEI = 0x09,
+    BC1NEZC = 0x09,
     TLTIU = 0x0a,
+    BC2EQZC = 0x0a,
     TGEIU = 0x0b,
+    BC2NEZC = 0x0a,
     TNEI = 0x0c,
+    R6_SYNCI = 0x0c,
     LUI = 0x0d,
     TEQI = 0x0e,
     SYNCI = 0x10,
@@ -12805,6 +12876,26 @@ enum {
     BREAK16 = 0x28,
     SDBBP16 = 0x2c,
     JRADDIUSP = 0x30
+};
+
+/* R6 POOL16C encoding of minor opcode field (bits 0..5) */
+
+enum {
+    R6_NOT16    = 0x00,
+    R6_AND16    = 0x01,
+    R6_LWM16    = 0x02,
+    R6_JRC16    = 0x03,
+    MOVEP       = 0x04,
+    MOVEP_07    = 0x07,
+    R6_XOR16    = 0x08,
+    R6_OR16     = 0x09,
+    R6_SWM16    = 0x0a,
+    JALRC16     = 0x0b,
+    MOVEP_0C    = 0x0c,
+    MOVEP_0F    = 0x0f,
+    JRCADDIUSP  = 0x13,
+    R6_BREAK16  = 0x1b,
+    R6_SDBBP16  = 0x3b
 };
 
 /* POOL16D encoding of minor opcode field */
@@ -14848,12 +14939,8 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
             tcg_gen_movi_tl(cpu_gpr[reg], imm);
         }
         break;
-    case RES_20:
-    case RES_28:
     case RES_29:
-    case RES_30:
     case RES_31:
-    case RES_38:
     case RES_39:
         generate_exception(ctx, EXCP_RI);
         break;
