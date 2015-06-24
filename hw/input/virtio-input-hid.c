@@ -252,7 +252,11 @@ static void virtio_input_handle_sync(DeviceState *dev)
 static void virtio_input_hid_realize(DeviceState *dev, Error **errp)
 {
     VirtIOInputHID *vhid = VIRTIO_INPUT_HID(dev);
+
     vhid->hs = qemu_input_handler_register(dev, vhid->handler);
+    if (vhid->display && vhid->hs) {
+        qemu_input_handler_bind(vhid->hs, vhid->display, vhid->head, NULL);
+    }
 }
 
 static void virtio_input_hid_unrealize(DeviceState *dev, Error **errp)
@@ -301,10 +305,17 @@ static void virtio_input_hid_handle_status(VirtIOInput *vinput,
     }
 }
 
+static Property virtio_input_hid_properties[] = {
+    DEFINE_PROP_STRING("display", VirtIOInputHID, display),
+    DEFINE_PROP_UINT32("head", VirtIOInputHID, head, 0),
+};
+
 static void virtio_input_hid_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOInputClass *vic = VIRTIO_INPUT_CLASS(klass);
 
+    dc->props          = virtio_input_hid_properties;
     vic->realize       = virtio_input_hid_realize;
     vic->unrealize     = virtio_input_hid_unrealize;
     vic->change_active = virtio_input_hid_change_active;
