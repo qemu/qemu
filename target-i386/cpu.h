@@ -962,7 +962,7 @@ typedef struct CPUX86State {
     uint8_t has_error_code;
     uint32_t sipi_vector;
     bool tsc_valid;
-    int tsc_khz;
+    int64_t tsc_khz;
     void *kvm_xsave_buf;
 
     uint64_t mcg_cap;
