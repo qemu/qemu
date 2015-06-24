@@ -74,7 +74,7 @@ void helper_tbis(CPUAlphaState *env, uint64_t p)
 
 void helper_tb_flush(CPUAlphaState *env)
 {
-    tb_flush(env);
+    tb_flush(CPU(alpha_env_get_cpu(env)));
 }
 
 void helper_halt(uint64_t restart)

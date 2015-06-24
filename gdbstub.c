@@ -1226,7 +1226,6 @@ void gdb_set_stop_cpu(CPUState *cpu)
 static void gdb_vm_state_change(void *opaque, int running, RunState state)
 {
     GDBState *s = gdbserver_state;
-    CPUArchState *env = s->c_cpu->env_ptr;
     CPUState *cpu = s->c_cpu;
     char buf[256];
     const char *type;
@@ -1261,7 +1260,7 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
             cpu->watchpoint_hit = NULL;
             goto send_packet;
         }
-        tb_flush(env);
+        tb_flush(cpu);
         ret = GDB_SIGNAL_TRAP;
         break;
     case RUN_STATE_PAUSED:
@@ -1490,7 +1489,6 @@ gdb_queuesig (void)
 int
 gdb_handlesig(CPUState *cpu, int sig)
 {
-    CPUArchState *env = cpu->env_ptr;
     GDBState *s;
     char buf[256];
     int n;
@@ -1502,7 +1500,7 @@ gdb_handlesig(CPUState *cpu, int sig)
 
     /* disable single step if it was enabled */
     cpu_single_step(cpu, 0);
-    tb_flush(env);
+    tb_flush(cpu);
 
     if (sig != 0) {
         snprintf(buf, sizeof(buf), "S%02x", target_signal_to_gdb(sig));

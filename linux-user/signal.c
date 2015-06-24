@@ -2348,7 +2348,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
 		/* Flush instruction space. */
 		//flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
-                //		tb_flush(env);
+                //		tb_flush(CPU(sparc_env_get_cpu(env)));
 	}
         unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
 	return;
