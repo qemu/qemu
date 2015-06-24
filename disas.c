@@ -151,14 +151,6 @@ bfd_vma bfd_getb16 (const bfd_byte *addr)
   return (bfd_vma) v;
 }
 
-#ifdef TARGET_ARM
-static int
-print_insn_thumb1(bfd_vma pc, disassemble_info *info)
-{
-  return print_insn_arm(pc | 1, info);
-}
-#endif
-
 static int print_insn_objdump(bfd_vma pc, disassemble_info *info,
                               const char *prefix)
 {
@@ -191,7 +183,6 @@ static int print_insn_od_target(bfd_vma pc, disassemble_info *info)
 /* Disassemble this for me please... (debugging). 'flags' has the following
    values:
     i386 - 1 means 16 bit code, 2 means 64 bit code
-    arm  - bit 0 = thumb, bit 1 = reverse endian, bit 2 = A64
     ppc  - bits 0:15 specify (optionally) the machine instruction set;
            bit 16 indicates little endian.
     other targets - unused
@@ -231,27 +222,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
         s.info.mach = bfd_mach_i386_i386;
     }
     s.info.print_insn = print_insn_i386;
-#elif defined(TARGET_ARM)
-    if (flags & 4) {
-        /* We might not be compiled with the A64 disassembler
-         * because it needs a C++ compiler; in that case we will
-         * fall through to the default print_insn_od case.
-         */
-#if defined(CONFIG_ARM_A64_DIS)
-        s.info.print_insn = print_insn_arm_a64;
-#endif
-    } else if (flags & 1) {
-        s.info.print_insn = print_insn_thumb1;
-    } else {
-        s.info.print_insn = print_insn_arm;
-    }
-    if (flags & 2) {
-#ifdef TARGET_WORDS_BIGENDIAN
-        s.info.endian = BFD_ENDIAN_LITTLE;
-#else
-        s.info.endian = BFD_ENDIAN_BIG;
-#endif
-    }
 #elif defined(TARGET_SPARC)
     s.info.print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64
@@ -488,8 +458,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
         s.info.mach = bfd_mach_i386_i386;
     }
     s.info.print_insn = print_insn_i386;
-#elif defined(TARGET_ARM)
-    s.info.print_insn = print_insn_arm;
 #elif defined(TARGET_ALPHA)
     s.info.print_insn = print_insn_alpha;
 #elif defined(TARGET_SPARC)

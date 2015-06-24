@@ -382,6 +382,39 @@ static inline void unset_feature(CPUARMState *env, int feature)
     env->features &= ~(1ULL << feature);
 }
 
+static int
+print_insn_thumb1(bfd_vma pc, disassemble_info *info)
+{
+  return print_insn_arm(pc | 1, info);
+}
+
+static void arm_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    ARMCPU *ac = ARM_CPU(cpu);
+    CPUARMState *env = &ac->env;
+
+    if (is_a64(env)) {
+        /* We might not be compiled with the A64 disassembler
+         * because it needs a C++ compiler. Leave print_insn
+         * unset in this case to use the caller default behaviour.
+         */
+#if defined(CONFIG_ARM_A64_DIS)
+        info->print_insn = print_insn_arm_a64;
+#endif
+    } else if (env->thumb) {
+        info->print_insn = print_insn_thumb1;
+    } else {
+        info->print_insn = print_insn_arm;
+    }
+    if (env->bswap_code) {
+#ifdef TARGET_WORDS_BIGENDIAN
+        info->endian = BFD_ENDIAN_LITTLE;
+#else
+        info->endian = BFD_ENDIAN_BIG;
+#endif
+    }
+}
+
 #define ARM_CPUS_PER_CLUSTER 8
 
 static void arm_cpu_initfn(Object *obj)
@@ -1368,6 +1401,8 @@ static void arm_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_core_xml_file = "arm-core.xml";
     cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = arm_debug_excp_handler;
+
+    cc->disas_set_info = arm_disas_set_info;
 }
 
 static void cpu_register(const ARMCPUInfo *info)
