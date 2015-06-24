@@ -1828,6 +1828,8 @@ static int xen_pt_ptr_reg_init(XenPCIPassthroughState *s,
             rc = xen_host_pci_get_byte(&s->real_device,
                                        reg_field + PCI_CAP_LIST_ID, &cap_id);
             if (rc) {
+                XEN_PT_ERR(&s->dev, "Failed to read capability @0x%x (rc:%d)\n",
+                           reg_field + PCI_CAP_LIST_ID, rc);
                 return rc;
             }
             if (xen_pt_emu_reg_grps[i].grp_id == cap_id) {
@@ -2037,6 +2039,9 @@ int xen_pt_config_init(XenPCIPassthroughState *s)
                                                   reg_grp_offset,
                                                   &reg_grp_entry->size);
             if (rc < 0) {
+                XEN_PT_LOG(&s->dev, "Failed to initialize %d/%ld, type=0x%x, rc:%d\n",
+                           i, ARRAY_SIZE(xen_pt_emu_reg_grps),
+                           xen_pt_emu_reg_grps[i].grp_type, rc);
                 xen_pt_config_delete(s);
                 return rc;
             }
@@ -2051,6 +2056,10 @@ int xen_pt_config_init(XenPCIPassthroughState *s)
                     /* initialize capability register */
                     rc = xen_pt_config_reg_init(s, reg_grp_entry, regs);
                     if (rc < 0) {
+                        XEN_PT_LOG(&s->dev, "Failed to initialize %d/%ld reg 0x%x in grp_type=0x%x (%d/%ld), rc=%d\n",
+                                   j, ARRAY_SIZE(xen_pt_emu_reg_grps[i].emu_regs),
+                                   regs->offset, xen_pt_emu_reg_grps[i].grp_type,
+                                   i, ARRAY_SIZE(xen_pt_emu_reg_grps), rc);
                         xen_pt_config_delete(s);
                         return rc;
                     }
