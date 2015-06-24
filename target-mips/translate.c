@@ -14209,6 +14209,14 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                     goto pool32f_invalid;
                 }
                 break;
+            case CMP_CONDN_S:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_cmp_s(ctx, (ctx->opcode >> 6) & 0x1f, rt, rs, rd);
+                break;
+            case CMP_CONDN_D:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_cmp_d(ctx, (ctx->opcode >> 6) & 0x1f, rt, rs, rd);
+                break;
             case POOL32FXF:
                 gen_pool32fxf(ctx, rt, rs);
                 break;
@@ -14232,6 +14240,19 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                     mips32_op = OPC_CVT_PS_S;
                 do_ps:
                     gen_farith(ctx, mips32_op, rt, rs, rd, 0);
+                    break;
+                default:
+                    goto pool32f_invalid;
+                }
+                break;
+            case MIN_FMT:
+                check_insn(ctx, ISA_MIPS32R6);
+                switch ((ctx->opcode >> 9) & 0x3) {
+                case FMT_SDPS_S:
+                    gen_farith(ctx, OPC_MIN_S, rt, rs, rd, 0);
+                    break;
+                case FMT_SDPS_D:
+                    gen_farith(ctx, OPC_MIN_D, rt, rs, rd, 0);
                     break;
                 default:
                     goto pool32f_invalid;
@@ -14265,6 +14286,19 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                     mips32_op = OPC_SUXC1;
                 do_ldst_cp1:
                     gen_flt3_ldst(ctx, mips32_op, rd, rd, rt, rs);
+                    break;
+                default:
+                    goto pool32f_invalid;
+                }
+                break;
+            case MAX_FMT:
+                check_insn(ctx, ISA_MIPS32R6);
+                switch ((ctx->opcode >> 9) & 0x3) {
+                case FMT_SDPS_S:
+                    gen_farith(ctx, OPC_MAX_S, rt, rs, rd, 0);
+                    break;
+                case FMT_SDPS_D:
+                    gen_farith(ctx, OPC_MAX_D, rt, rs, rd, 0);
                     break;
                 default:
                     goto pool32f_invalid;
@@ -14318,40 +14352,70 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                 }
                 break;
             case 0x20:
-                /* MOV[FT].fmt and PREFX */
+                /* MOV[FT].fmt, PREFX, RINT.fmt, CLASS.fmt*/
                 cc = (ctx->opcode >> 13) & 0x7;
                 fmt = (ctx->opcode >> 9) & 0x3;
                 switch ((ctx->opcode >> 6) & 0x7) {
-                case MOVF_FMT:
-                    switch (fmt) {
-                    case FMT_SDPS_S:
-                        gen_movcf_s(ctx, rs, rt, cc, 0);
-                        break;
-                    case FMT_SDPS_D:
-                        gen_movcf_d(ctx, rs, rt, cc, 0);
-                        break;
-                    case FMT_SDPS_PS:
-                        check_ps(ctx);
-                        gen_movcf_ps(ctx, rs, rt, cc, 0);
-                        break;
-                    default:
-                        goto pool32f_invalid;
+                case MOVF_FMT: /* RINT_FMT */
+                    if (ctx->insn_flags & ISA_MIPS32R6) {
+                        /* RINT_FMT */
+                        switch (fmt) {
+                        case FMT_SDPS_S:
+                            gen_farith(ctx, OPC_RINT_S, 0, rt, rs, 0);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_farith(ctx, OPC_RINT_D, 0, rt, rs, 0);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
+                    } else {
+                        /* MOVF_FMT */
+                        switch (fmt) {
+                        case FMT_SDPS_S:
+                            gen_movcf_s(ctx, rs, rt, cc, 0);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_movcf_d(ctx, rs, rt, cc, 0);
+                            break;
+                        case FMT_SDPS_PS:
+                            check_ps(ctx);
+                            gen_movcf_ps(ctx, rs, rt, cc, 0);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
                     }
                     break;
-                case MOVT_FMT:
-                    switch (fmt) {
-                    case FMT_SDPS_S:
-                        gen_movcf_s(ctx, rs, rt, cc, 1);
-                        break;
-                    case FMT_SDPS_D:
-                        gen_movcf_d(ctx, rs, rt, cc, 1);
-                        break;
-                    case FMT_SDPS_PS:
-                        check_ps(ctx);
-                        gen_movcf_ps(ctx, rs, rt, cc, 1);
-                        break;
-                    default:
-                        goto pool32f_invalid;
+                case MOVT_FMT: /* CLASS_FMT */
+                    if (ctx->insn_flags & ISA_MIPS32R6) {
+                        /* CLASS_FMT */
+                        switch (fmt) {
+                        case FMT_SDPS_S:
+                            gen_farith(ctx, OPC_CLASS_S, 0, rt, rs, 0);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_farith(ctx, OPC_CLASS_D, 0, rt, rs, 0);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
+                    } else {
+                        /* MOVT_FMT */
+                        switch (fmt) {
+                        case FMT_SDPS_S:
+                            gen_movcf_s(ctx, rs, rt, cc, 1);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_movcf_d(ctx, rs, rt, cc, 1);
+                            break;
+                        case FMT_SDPS_PS:
+                            check_ps(ctx);
+                            gen_movcf_ps(ctx, rs, rt, cc, 1);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
                     }
                     break;
                 case PREFX:
@@ -14376,6 +14440,32 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                 default:                                \
                     goto pool32f_invalid;               \
                 }
+            case MINA_FMT:
+                check_insn(ctx, ISA_MIPS32R6);
+                switch ((ctx->opcode >> 9) & 0x3) {
+                case FMT_SDPS_S:
+                    gen_farith(ctx, OPC_MINA_S, rt, rs, rd, 0);
+                    break;
+                case FMT_SDPS_D:
+                    gen_farith(ctx, OPC_MINA_D, rt, rs, rd, 0);
+                    break;
+                default:
+                    goto pool32f_invalid;
+                }
+                break;
+            case MAXA_FMT:
+                check_insn(ctx, ISA_MIPS32R6);
+                switch ((ctx->opcode >> 9) & 0x3) {
+                case FMT_SDPS_S:
+                    gen_farith(ctx, OPC_MAXA_S, rt, rs, rd, 0);
+                    break;
+                case FMT_SDPS_D:
+                    gen_farith(ctx, OPC_MAXA_D, rt, rs, rd, 0);
+                    break;
+                default:
+                    goto pool32f_invalid;
+                }
+                break;
             case 0x30:
                 /* regular FP ops */
                 switch ((ctx->opcode >> 6) & 0x3) {
@@ -14404,12 +14494,89 @@ static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
                 break;
             case 0x38:
                 /* cmovs */
-                switch ((ctx->opcode >> 6) & 0x3) {
-                case MOVN_FMT:
+                switch ((ctx->opcode >> 6) & 0x7) {
+                case MOVN_FMT: /* SELNEZ_FMT */
+                    if (ctx->insn_flags & ISA_MIPS32R6) {
+                        /* SELNEZ_FMT */
+                        switch ((ctx->opcode >> 9) & 0x3) {
+                        case FMT_SDPS_S:
+                            gen_sel_s(ctx, OPC_SELNEZ_S, rd, rt, rs);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_sel_d(ctx, OPC_SELNEZ_D, rd, rt, rs);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
+                    } else {
+                        /* MOVN_FMT */
+                        FINSN_3ARG_SDPS(MOVN);
+                    }
+                    break;
+                case MOVN_FMT_04:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     FINSN_3ARG_SDPS(MOVN);
                     break;
-                case MOVZ_FMT:
+                case MOVZ_FMT: /* SELEQZ_FMT */
+                    if (ctx->insn_flags & ISA_MIPS32R6) {
+                        /* SELEQZ_FMT */
+                        switch ((ctx->opcode >> 9) & 0x3) {
+                        case FMT_SDPS_S:
+                            gen_sel_s(ctx, OPC_SELEQZ_S, rd, rt, rs);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_sel_d(ctx, OPC_SELEQZ_D, rd, rt, rs);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
+                    } else {
+                        /* MOVZ_FMT */
+                        FINSN_3ARG_SDPS(MOVZ);
+                    }
+                    break;
+                case MOVZ_FMT_05:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     FINSN_3ARG_SDPS(MOVZ);
+                    break;
+                case SEL_FMT:
+                    check_insn(ctx, ISA_MIPS32R6);
+                    switch ((ctx->opcode >> 9) & 0x3) {
+                    case FMT_SDPS_S:
+                        gen_sel_s(ctx, OPC_SEL_S, rd, rt, rs);
+                        break;
+                    case FMT_SDPS_D:
+                        gen_sel_d(ctx, OPC_SEL_D, rd, rt, rs);
+                        break;
+                    default:
+                        goto pool32f_invalid;
+                    }
+                    break;
+                case MADDF_FMT:
+                    check_insn(ctx, ISA_MIPS32R6);
+                    switch ((ctx->opcode >> 9) & 0x3) {
+                    case FMT_SDPS_S:
+                        mips32_op = OPC_MADDF_S;
+                        goto do_fpop;
+                    case FMT_SDPS_D:
+                        mips32_op = OPC_MADDF_D;
+                        goto do_fpop;
+                    default:
+                        goto pool32f_invalid;
+                    }
+                    break;
+                case MSUBF_FMT:
+                    check_insn(ctx, ISA_MIPS32R6);
+                    switch ((ctx->opcode >> 9) & 0x3) {
+                    case FMT_SDPS_S:
+                        mips32_op = OPC_MSUBF_S;
+                        goto do_fpop;
+                    case FMT_SDPS_D:
+                        mips32_op = OPC_MSUBF_D;
+                        goto do_fpop;
+                    default:
+                        goto pool32f_invalid;
+                    }
                     break;
                 default:
                     goto pool32f_invalid;
