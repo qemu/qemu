@@ -1472,6 +1472,7 @@ static void virtio_ccw_save_config(DeviceState *d, QEMUFile *f)
     qemu_put_be16(f, vdev->config_vector);
     qemu_put_be64(f, dev->routes.adapter.ind_offset);
     qemu_put_byte(f, dev->thinint_isc);
+    qemu_put_be32(f, dev->revision);
 }
 
 static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
@@ -1512,6 +1513,7 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
                                        dev->thinint_isc, true, false,
                                        &dev->routes.adapter.adapter_id);
     }
+    dev->revision = qemu_get_be32(f);
 
     return 0;
 }
