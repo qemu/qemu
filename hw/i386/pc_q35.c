@@ -73,7 +73,6 @@ static void pc_q35_init(MachineState *machine)
     PCIDevice *lpc;
     BusState *idebus[MAX_SATA_PORTS];
     ISADevice *rtc_state;
-    ISADevice *floppy;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
     MemoryRegion *ram_memory;
@@ -249,7 +248,7 @@ static void pc_q35_init(MachineState *machine)
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, !mc->no_floppy, &floppy,
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, !mc->no_floppy,
                          (pc_machine->vmport != ON_OFF_AUTO_ON), 0xff0104);
 
     /* connect pm stuff to lpc */
@@ -278,7 +277,7 @@ static void pc_q35_init(MachineState *machine)
                       8, NULL, 0);
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
-                 machine, floppy, idebus[0], idebus[1], rtc_state);
+                 machine, idebus[0], idebus[1], rtc_state);
 
     /* the rest devices to which pci devfn is automatically assigned */
     pc_vga_init(isa_bus, host_bus);

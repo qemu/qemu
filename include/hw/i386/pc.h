@@ -199,13 +199,12 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           bool create_fdctrl,
-                          ISADevice **floppy,
                           bool no_vmport,
                           uint32 hpet_irqs);
 void pc_init_ne2k_isa(ISABus *bus, NICInfo *nd);
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device, MachineState *machine,
-                  ISADevice *floppy, BusState *ide0, BusState *ide1,
+                  BusState *ide0, BusState *ide1,
                   ISADevice *s);
 void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_pci_device_init(PCIBus *pci_bus);

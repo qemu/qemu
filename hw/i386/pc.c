@@ -430,7 +430,7 @@ static void pc_cmos_init_late(void *opaque)
 
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device, MachineState *machine,
-                  ISADevice *floppy, BusState *idebus0, BusState *idebus1,
+                  BusState *idebus0, BusState *idebus1,
                   ISADevice *s)
 {
     int val;
@@ -1463,7 +1463,6 @@ static const MemoryRegionOps ioportF0_io_ops = {
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           bool create_fdctrl,
-                          ISADevice **floppy,
                           bool no_vmport,
                           uint32 hpet_irqs)
 {
@@ -1559,7 +1558,9 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         fd[i] = drive_get(IF_FLOPPY, 0, i);
         create_fdctrl |= !!fd[i];
     }
-    *floppy = create_fdctrl ? fdctrl_init_isa(isa_bus, fd) : NULL;
+    if (create_fdctrl) {
+        fdctrl_init_isa(isa_bus, fd);
+    }
 }
 
 void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus)
