@@ -121,11 +121,12 @@ uint64_t HELPER(clz)(uint64_t v)
     return clz64(v);
 }
 
-uint64_t HELPER(cvd)(int32_t bin)
+uint64_t HELPER(cvd)(int32_t reg)
 {
     /* positive 0 */
     uint64_t dec = 0x0c;
-    int shift = 4;
+    int64_t bin = reg;
+    int shift;
 
     if (bin < 0) {
         bin = -bin;
@@ -133,9 +134,7 @@ uint64_t HELPER(cvd)(int32_t bin)
     }
 
     for (shift = 4; (shift < 64) && bin; shift += 4) {
-        int current_number = bin % 10;
-
-        dec |= (current_number) << shift;
+        dec |= (bin % 10) << shift;
         bin /= 10;
     }
 
