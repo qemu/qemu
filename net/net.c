@@ -60,6 +60,9 @@ const char *host_net_devices[] = {
 #ifdef CONFIG_NET_BRIDGE
     "bridge",
 #endif
+#ifdef CONFIG_NETMAP
+    "netmap",
+#endif
 #ifdef CONFIG_SLIRP
     "user",
 #endif
@@ -910,78 +913,58 @@ static int (* const net_client_init_fun[NET_CLIENT_OPTIONS_KIND_MAX])(
 
 static int net_client_init1(const void *object, int is_netdev, Error **errp)
 {
-    union {
-        const Netdev    *netdev;
-        const NetLegacy *net;
-    } u;
     const NetClientOptions *opts;
     const char *name;
+    NetClientState *peer = NULL;
 
     if (is_netdev) {
-        u.netdev = object;
-        opts = u.netdev->opts;
-        name = u.netdev->id;
+        const Netdev *netdev = object;
+        opts = netdev->opts;
+        name = netdev->id;
 
-        switch (opts->kind) {
-#ifdef CONFIG_SLIRP
-        case NET_CLIENT_OPTIONS_KIND_USER:
-#endif
-        case NET_CLIENT_OPTIONS_KIND_TAP:
-        case NET_CLIENT_OPTIONS_KIND_SOCKET:
-#ifdef CONFIG_VDE
-        case NET_CLIENT_OPTIONS_KIND_VDE:
-#endif
-#ifdef CONFIG_NETMAP
-        case NET_CLIENT_OPTIONS_KIND_NETMAP:
-#endif
-#ifdef CONFIG_NET_BRIDGE
-        case NET_CLIENT_OPTIONS_KIND_BRIDGE:
-#endif
-        case NET_CLIENT_OPTIONS_KIND_HUBPORT:
-#ifdef CONFIG_VHOST_NET_USED
-        case NET_CLIENT_OPTIONS_KIND_VHOST_USER:
-#endif
-#ifdef CONFIG_L2TPV3
-        case NET_CLIENT_OPTIONS_KIND_L2TPV3:
-#endif
-            break;
-
-        default:
+        if (opts->kind == NET_CLIENT_OPTIONS_KIND_DUMP ||
+            opts->kind == NET_CLIENT_OPTIONS_KIND_NIC ||
+            !net_client_init_fun[opts->kind]) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
                        "a netdev backend type");
             return -1;
         }
     } else {
-        u.net = object;
-        opts = u.net->opts;
+        const NetLegacy *net = object;
+        opts = net->opts;
+        /* missing optional values have been initialized to "all bits zero" */
+        name = net->has_id ? net->id : net->name;
+
+        if (opts->kind == NET_CLIENT_OPTIONS_KIND_NONE) {
+            return 0; /* nothing to do */
+        }
         if (opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT) {
             error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
                        "a net type");
             return -1;
         }
-        /* missing optional values have been initialized to "all bits zero" */
-        name = u.net->has_id ? u.net->id : u.net->name;
-    }
 
-    if (net_client_init_fun[opts->kind]) {
-        NetClientState *peer = NULL;
-
-        /* Do not add to a vlan if it's a -netdev or a nic with a netdev=
-         * parameter. */
-        if (!is_netdev &&
-            (opts->kind != NET_CLIENT_OPTIONS_KIND_NIC ||
-             !opts->nic->has_netdev)) {
-            peer = net_hub_add_port(u.net->has_vlan ? u.net->vlan : 0, NULL);
-        }
-
-        if (net_client_init_fun[opts->kind](opts, name, peer, errp) < 0) {
-            /* FIXME drop when all init functions store an Error */
-            if (errp && !*errp) {
-                error_setg(errp, QERR_DEVICE_INIT_FAILED,
-                           NetClientOptionsKind_lookup[opts->kind]);
-            }
+        if (!net_client_init_fun[opts->kind]) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
+                       "a net backend type (maybe it is not compiled "
+                       "into this binary)");
             return -1;
         }
+
+        /* Do not add to a vlan if it's a nic with a netdev= parameter. */
+        if (opts->kind != NET_CLIENT_OPTIONS_KIND_NIC ||
+            !opts->nic->has_netdev) {
+            peer = net_hub_add_port(net->has_vlan ? net->vlan : 0, NULL);
+        }
+    }
+
+    if (net_client_init_fun[opts->kind](opts, name, peer, errp) < 0) {
+        /* FIXME drop when all init functions store an Error */
+        if (errp && !*errp) {
+            error_setg(errp, QERR_DEVICE_INIT_FAILED,
+                       NetClientOptionsKind_lookup[opts->kind]);
+        }
+        return -1;
     }
     return 0;
 }
