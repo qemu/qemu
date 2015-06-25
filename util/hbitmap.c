@@ -356,6 +356,19 @@ void hbitmap_reset(HBitmap *hb, uint64_t start, uint64_t count)
     hb_reset_between(hb, HBITMAP_LEVELS - 1, start, last);
 }
 
+void hbitmap_reset_all(HBitmap *hb)
+{
+    unsigned int i;
+
+    /* Same as hbitmap_alloc() except for memset() instead of malloc() */
+    for (i = HBITMAP_LEVELS; --i >= 1; ) {
+        memset(hb->levels[i], 0, hb->sizes[i] * sizeof(unsigned long));
+    }
+
+    hb->levels[0][0] = 1UL << (BITS_PER_LONG - 1);
+    hb->count = 0;
+}
+
 bool hbitmap_get(const HBitmap *hb, uint64_t item)
 {
     /* Compute position and bit in the last layer.  */

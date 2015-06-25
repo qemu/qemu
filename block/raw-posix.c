@@ -59,6 +59,7 @@
 #include <linux/fd.h>
 #include <linux/fs.h>
 #include <linux/hdreg.h>
+#include <scsi/sg.h>
 #ifdef __s390__
 #include <asm/dasd.h>
 #endif
@@ -96,15 +97,19 @@
 #include <xfs/xfs.h>
 #endif
 
-//#define DEBUG_FLOPPY
-
 //#define DEBUG_BLOCK
-#if defined(DEBUG_BLOCK)
-#define DEBUG_BLOCK_PRINT(formatCstr, ...) do { if (qemu_log_enabled()) \
-    { qemu_log(formatCstr, ## __VA_ARGS__); qemu_log_flush(); } } while (0)
+
+#ifdef DEBUG_BLOCK
+# define DEBUG_BLOCK_PRINT 1
 #else
-#define DEBUG_BLOCK_PRINT(formatCstr, ...)
+# define DEBUG_BLOCK_PRINT 0
 #endif
+#define DPRINTF(fmt, ...) \
+do { \
+    if (DEBUG_BLOCK_PRINT) { \
+        printf(fmt, ## __VA_ARGS__); \
+    } \
+} while (0)
 
 /* OS X does not have O_DSYNC */
 #ifndef O_DSYNC
@@ -305,9 +310,9 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     char *buf;
     size_t max_align = MAX(MAX_BLOCKSIZE, getpagesize());
 
-    /* For /dev/sg devices the alignment is not really used.
+    /* For SCSI generic devices the alignment is not really used.
        With buffered I/O, we don't have any restrictions. */
-    if (bs->sg || !s->needs_alignment) {
+    if (bdrv_is_sg(bs) || !s->needs_alignment) {
         bs->request_alignment = 1;
         s->buf_align = 1;
         return;
@@ -1020,6 +1025,7 @@ static ssize_t handle_aiocb_rw(RawPosixAIOData *aiocb)
 static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
 {
     struct xfs_flock64 fl;
+    int err;
 
     memset(&fl, 0, sizeof(fl));
     fl.l_whence = SEEK_SET;
@@ -1027,8 +1033,9 @@ static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
     fl.l_len = bytes;
 
     if (xfsctl(NULL, s->fd, XFS_IOC_ZERO_RANGE, &fl) < 0) {
-        DEBUG_BLOCK_PRINT("cannot write zero range (%s)\n", strerror(errno));
-        return -errno;
+        err = errno;
+        DPRINTF("cannot write zero range (%s)\n", strerror(errno));
+        return -err;
     }
 
     return 0;
@@ -1037,6 +1044,7 @@ static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
 static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
 {
     struct xfs_flock64 fl;
+    int err;
 
     memset(&fl, 0, sizeof(fl));
     fl.l_whence = SEEK_SET;
@@ -1044,8 +1052,9 @@ static int xfs_discard(BDRVRawState *s, int64_t offset, uint64_t bytes)
     fl.l_len = bytes;
 
     if (xfsctl(NULL, s->fd, XFS_IOC_UNRESVSP64, &fl) < 0) {
-        DEBUG_BLOCK_PRINT("cannot punch hole (%s)\n", strerror(errno));
-        return -errno;
+        err = errno;
+        DPRINTF("cannot punch hole (%s)\n", strerror(errno));
+        return -err;
     }
 
     return 0;
@@ -2078,15 +2087,38 @@ static void hdev_parse_filename(const char *filename, QDict *options,
     qdict_put_obj(options, "filename", QOBJECT(qstring_from_str(filename)));
 }
 
+static bool hdev_is_sg(BlockDriverState *bs)
+{
+
+#if defined(__linux__)
+
+    struct stat st;
+    struct sg_scsi_id scsiid;
+    int sg_version;
+
+    if (stat(bs->filename, &st) >= 0 && S_ISCHR(st.st_mode) &&
+        !bdrv_ioctl(bs, SG_GET_VERSION_NUM, &sg_version) &&
+        !bdrv_ioctl(bs, SG_GET_SCSI_ID, &scsiid)) {
+        DPRINTF("SG device found: type=%d, version=%d\n",
+            scsiid.scsi_type, sg_version);
+        return true;
+    }
+
+#endif
+
+    return false;
+}
+
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
     BDRVRawState *s = bs->opaque;
     Error *local_err = NULL;
     int ret;
-    const char *filename = qdict_get_str(options, "filename");
 
 #if defined(__APPLE__) && defined(__MACH__)
+    const char *filename = qdict_get_str(options, "filename");
+
     if (strstart(filename, "/dev/cdrom", NULL)) {
         kern_return_t kernResult;
         io_iterator_t mediaIterator;
@@ -2115,16 +2147,6 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
 #endif
 
     s->type = FTYPE_FILE;
-#if defined(__linux__)
-    {
-        char resolved_path[ MAXPATHLEN ], *temp;
-
-        temp = realpath(filename, resolved_path);
-        if (temp && strstart(temp, "/dev/sg", NULL)) {
-            bs->sg = 1;
-        }
-    }
-#endif
 
     ret = raw_open_common(bs, options, flags, 0, &local_err);
     if (ret < 0) {
@@ -2133,6 +2155,9 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
         }
         return ret;
     }
+
+    /* Since this does ioctl the device must be already opened */
+    bs->sg = hdev_is_sg(bs);
 
     if (flags & BDRV_O_RDWR) {
         ret = check_hdev_writable(s);
@@ -2162,16 +2187,12 @@ static int fd_open(BlockDriverState *bs)
         (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->fd_open_time) >= FD_OPEN_TIMEOUT) {
         qemu_close(s->fd);
         s->fd = -1;
-#ifdef DEBUG_FLOPPY
-        printf("Floppy closed\n");
-#endif
+        DPRINTF("Floppy closed\n");
     }
     if (s->fd < 0) {
         if (s->fd_got_error &&
             (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - s->fd_error_time) < FD_OPEN_TIMEOUT) {
-#ifdef DEBUG_FLOPPY
-            printf("No floppy (open delayed)\n");
-#endif
+            DPRINTF("No floppy (open delayed)\n");
             return -EIO;
         }
         s->fd = qemu_open(bs->filename, s->open_flags & ~O_NONBLOCK);
@@ -2180,14 +2201,10 @@ static int fd_open(BlockDriverState *bs)
             s->fd_got_error = 1;
             if (last_media_present)
                 s->fd_media_changed = 1;
-#ifdef DEBUG_FLOPPY
-            printf("No floppy\n");
-#endif
+            DPRINTF("No floppy\n");
             return -EIO;
         }
-#ifdef DEBUG_FLOPPY
-        printf("Floppy opened\n");
-#endif
+        DPRINTF("Floppy opened\n");
     }
     if (!last_media_present)
         s->fd_media_changed = 1;
@@ -2455,9 +2472,7 @@ static int floppy_media_changed(BlockDriverState *bs)
     fd_open(bs);
     ret = s->fd_media_changed;
     s->fd_media_changed = 0;
-#ifdef DEBUG_FLOPPY
-    printf("Floppy changed=%d\n", ret);
-#endif
+    DPRINTF("Floppy changed=%d\n", ret);
     return ret;
 }
 

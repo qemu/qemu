@@ -1453,13 +1453,17 @@
 # @fat-type:    #optional FAT type: 12, 16 or 32
 # @floppy:      #optional whether to export a floppy image (true) or
 #               partitioned hard disk (false; default)
+# @label:       #optional set the volume label, limited to 11 bytes. FAT16 and
+#               FAT32 traditionally have some restrictions on labels, which are
+#               ignored by most operating systems. Defaults to "QEMU VVFAT".
+#               (since 2.4)
 # @rw:          #optional whether to allow write operations (default: false)
 #
 # Since: 1.7
 ##
 { 'struct': 'BlockdevOptionsVVFAT',
   'data': { 'dir': 'str', '*fat-type': 'int', '*floppy': 'bool',
-            '*rw': 'bool' } }
+            '*label': 'str', '*rw': 'bool' } }
 
 ##
 # @BlockdevOptionsGenericFormat
