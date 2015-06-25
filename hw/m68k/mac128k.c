@@ -12,15 +12,14 @@
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
 
-#define KERNEL_LOAD_ADDR 0x400000
-//#define AN5206_MBAR_ADDR1 0x10000000
-//#define AN5206_RAMBAR_ADDR1 0x20000000
+#define ROM_LOAD_ADDR 0x400000
+#define MAX_ROM_SIZE 0x20000
 
 /* Board init.  */
 
 static void mac128k_init(MachineState *machine)
 {
-    ram_addr_t ram_size = machine->ram_size;
+    ram_addr_t ram_size = 0x20000;//machine->ram_size;
     const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     M68kCPU *cpu;
@@ -29,7 +28,9 @@ static void mac128k_init(MachineState *machine)
     hwaddr entry;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
+    MemoryRegion *rom = g_new(MemoryRegion, 1);
+    uint8_t header[16];
+    FILE *f;
 
     if (!cpu_model) {
         cpu_model = "m68000";
@@ -42,32 +43,38 @@ static void mac128k_init(MachineState *machine)
 
     /* Initialize CPU registers.  */
     env->vbr = 0;
-    /* TODO: allow changing MBAR and RAMBAR.  */
-    //env->mbar = AN5206_MBAR_ADDR1 | 1;
-    //env->rambar0 = AN5206_RAMBAR_ADDR1 | 1;
 
-    /* DRAM at address zero */
+    /* RAM at address zero */
     memory_region_allocate_system_memory(ram, NULL, "mac128k.ram", ram_size);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
-    /* Internal SRAM.  */
-    memory_region_init_ram(sram, NULL, "mac128k.sram", 512, &error_abort);
-    vmstate_register_ram_global(sram);
-    //memory_region_add_subregion(address_space_mem, AN5206_RAMBAR_ADDR1, sram);
-
-    //mcf5206_init(address_space_mem, AN5206_MBAR_ADDR1, cpu);
+    /* ROM */
+    memory_region_init_ram(rom, NULL, "mac128k.rom", MAX_ROM_SIZE, &error_abort);
+    memory_region_add_subregion(address_space_mem, ROM_LOAD_ADDR, rom);
+    memory_region_set_readonly(rom, true);
 
     /* Load kernel.  */
     if (kernel_filename) {
         kernel_size = load_image_targphys(kernel_filename,
-                                          KERNEL_LOAD_ADDR,
-                                          ram_size - KERNEL_LOAD_ADDR);
-        entry = KERNEL_LOAD_ADDR;
+                                          ROM_LOAD_ADDR,
+                                          MAX_ROM_SIZE);
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
             exit(1);
         }
+
+        /* load the kernel header */
+        f = fopen(kernel_filename, "rb");
+        if (!f ||
+            fread(header, 1, MIN(ARRAY_SIZE(header), kernel_size), f) !=
+            MIN(ARRAY_SIZE(header), kernel_size)) {
+            fprintf(stderr, "qemu: could not load kernel '%s': %s\n",
+                    kernel_filename, strerror(errno));
+            exit(1);
+        }
+        fclose(f);
+        entry = ldl_p(header + 4);
     } else {
         entry = 0;
     }
