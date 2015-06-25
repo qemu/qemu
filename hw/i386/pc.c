@@ -334,6 +334,41 @@ typedef struct pc_cmos_init_late_arg {
     BusState *idebus[2];
 } pc_cmos_init_late_arg;
 
+typedef struct check_fdc_state {
+    ISADevice *floppy;
+    bool multiple;
+} CheckFdcState;
+
+static int check_fdc(Object *obj, void *opaque)
+{
+    CheckFdcState *state = opaque;
+    Object *fdc;
+    uint32_t iobase;
+    Error *local_err = NULL;
+
+    fdc = object_dynamic_cast(obj, TYPE_ISA_FDC);
+    if (!fdc) {
+        return 0;
+    }
+
+    iobase = object_property_get_int(obj, "iobase", &local_err);
+    if (local_err || iobase != 0x3f0) {
+        error_free(local_err);
+        return 0;
+    }
+
+    if (state->floppy) {
+        state->multiple = true;
+    } else {
+        state->floppy = ISA_DEVICE(obj);
+    }
+    return 0;
+}
+
+static const char * const fdc_container_path[] = {
+    "/unattached", "/peripheral", "/peripheral-anon"
+};
+
 static void pc_cmos_init_late(void *opaque)
 {
     pc_cmos_init_late_arg *arg = opaque;
@@ -342,6 +377,8 @@ static void pc_cmos_init_late(void *opaque)
     int8_t heads, sectors;
     int val;
     int i, trans;
+    Object *container;
+    CheckFdcState state = { 0 };
 
     val = 0;
     if (ide_get_geometry(arg->idebus[0], 0,
@@ -370,6 +407,23 @@ static void pc_cmos_init_late(void *opaque)
         }
     }
     rtc_set_memory(s, 0x39, val);
+
+    /*
+     * Locate the FDC at IO address 0x3f0, and configure the CMOS registers
+     * accordingly.
+     */
+    for (i = 0; i < ARRAY_SIZE(fdc_container_path); i++) {
+        container = container_get(qdev_get_machine(), fdc_container_path[i]);
+        object_child_foreach(container, check_fdc, &state);
+    }
+
+    if (state.multiple) {
+        error_report("warning: multiple floppy disk controllers with "
+                     "iobase=0x3f0 have been found;\n"
+                     "the one being picked for CMOS setup might not reflect "
+                     "your intent");
+    }
+    pc_cmos_init_floppy(s, state.floppy);
 
     qemu_unregister_reset(pc_cmos_init_late, opaque);
 }
@@ -440,9 +494,8 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     val |= 0x02; /* FPU is there */
     val |= 0x04; /* PS/2 mouse installed */
     rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
-    pc_cmos_init_floppy(s, floppy);
 
-    /* hard drives */
+    /* hard drives and FDC */
     arg.rtc_state = s;
     arg.idebus[0] = idebus0;
     arg.idebus[1] = idebus1;
