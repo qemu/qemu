@@ -532,8 +532,6 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     if (incoming_posn == -1) {
         void * map_ptr;
 
-        s->max_peer = 0;
-
         if (check_shm_size(s, incoming_fd, &err) == -1) {
             error_report_err(err);
             close(incoming_fd);
@@ -722,6 +720,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
     Error *local_err = NULL;
+
+    s->max_peer = -1;
 
     if (s->sizearg == NULL) {
         s->ivshmem_size = 4 << 20; /* 4 MB default */
