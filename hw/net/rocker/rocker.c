@@ -96,7 +96,7 @@ World *rocker_get_world(Rocker *r, enum rocker_world_type type)
 
 RockerSwitch *qmp_query_rocker(const char *name, Error **errp)
 {
-    RockerSwitch *rocker = g_malloc0(sizeof(*rocker));
+    RockerSwitch *rocker;
     Rocker *r;
 
     r = rocker_find(name);
@@ -106,6 +106,7 @@ RockerSwitch *qmp_query_rocker(const char *name, Error **errp)
         return NULL;
     }
 
+    rocker = g_new0(RockerSwitch, 1);
     rocker->name = g_strdup(r->name);
     rocker->id = r->switch_id;
     rocker->ports = r->fp_ports;
