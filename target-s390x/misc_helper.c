@@ -233,11 +233,8 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
         }
         iplb = g_malloc0(sizeof(struct IplParameterBlock));
         cpu_physical_memory_read(addr, iplb, sizeof(struct IplParameterBlock));
-        if (!s390_ipl_update_diag308(iplb)) {
-            env->regs[r1 + 1] = DIAG_308_RC_OK;
-        } else {
-            env->regs[r1 + 1] = DIAG_308_RC_INVALID;
-        }
+        s390_ipl_update_diag308(iplb);
+        env->regs[r1 + 1] = DIAG_308_RC_OK;
         g_free(iplb);
         return;
     case 6:

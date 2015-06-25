@@ -95,6 +95,11 @@ static const VMStateDescription vmstate_ipl = {
      }
 };
 
+static S390IPLState *get_ipl_device(void)
+{
+    return S390_IPL(object_resolve_path_type("", TYPE_S390_IPL, NULL));
+}
+
 static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
 {
     uint64_t dstaddr = *(uint64_t *) opaque;
@@ -251,25 +256,19 @@ out:
     return (uint32_t) (ipl->cssid << 24 | ipl->ssid << 16 | ipl->devno);
 }
 
-int s390_ipl_update_diag308(IplParameterBlock *iplb)
+void s390_ipl_update_diag308(IplParameterBlock *iplb)
 {
-    S390IPLState *ipl;
+    S390IPLState *ipl = get_ipl_device();
 
-    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
-    if (ipl) {
-        ipl->iplb = *iplb;
-        ipl->iplb_valid = true;
-        return 0;
-    }
-    return -1;
+    ipl->iplb = *iplb;
+    ipl->iplb_valid = true;
 }
 
 IplParameterBlock *s390_ipl_get_iplb(void)
 {
-    S390IPLState *ipl;
+    S390IPLState *ipl = get_ipl_device();
 
-    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
-    if (!ipl || !ipl->iplb_valid) {
+    if (!ipl->iplb_valid) {
         return NULL;
     }
     return &ipl->iplb;
@@ -277,9 +276,8 @@ IplParameterBlock *s390_ipl_get_iplb(void)
 
 void s390_reipl_request(void)
 {
-    S390IPLState *ipl;
+    S390IPLState *ipl = get_ipl_device();
 
-    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
     ipl->reipl_requested = true;
     qemu_system_reset_request();
 }
