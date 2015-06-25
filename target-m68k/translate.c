@@ -4187,6 +4187,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(not,       4600, ff00, M68000);
     INSN(undef,     46c0, ffc0, M68000);
     INSN(move_to_sr, 46c0, ffc0, CF_ISA_A);
+    INSN(move_to_sr, 46c0, ffc0, M68000);
     INSN(nbcd,      4800, ffc0, M68000);
     INSN(linkl,     4808, fff8, M68000);
     INSN(pea,       4840, ffc0, CF_ISA_A);
@@ -4195,7 +4196,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(swap,      4840, fff8, M68000);
     INSN(bkpt,      4848, fff8, M68000);
     INSN(movem,     48c0, fbc0, CF_ISA_A);
-    INSN(movem,     48c0, fbc0, M68000);
+    INSN(movem,     4880, fb80, M68000);
     INSN(ext,       4880, fff8, CF_ISA_A);
     INSN(ext,       4880, fff8, M68000);
     INSN(ext,       48c0, fff8, CF_ISA_A);
