@@ -38,6 +38,7 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio.h"
+#include "hw/s390x/storage-keys.h"
 #include "cpu.h"
 
 //#define DEBUG_S390
@@ -164,7 +165,7 @@ void s390_init_ipl_dev(const char *kernel_filename,
     qdev_init_nofail(dev);
 }
 
-void s390_init_cpus(const char *cpu_model, uint8_t *storage_keys)
+void s390_init_cpus(const char *cpu_model)
 {
     int i;
 
@@ -184,7 +185,6 @@ void s390_init_cpus(const char *cpu_model, uint8_t *storage_keys)
         ipi_states[i] = cpu;
         cs->halted = 1;
         cs->exception_index = EXCP_HLT;
-        cpu->env.storage_keys = storage_keys;
     }
 }
 
@@ -264,7 +264,6 @@ static void s390_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     int increment_size = 20;
-    uint8_t *storage_keys;
     void *virtio_region;
     hwaddr virtio_region_len;
     hwaddr virtio_region_start;
@@ -306,11 +305,11 @@ static void s390_init(MachineState *machine)
     cpu_physical_memory_unmap(virtio_region, virtio_region_len, 1,
                               virtio_region_len);
 
-    /* allocate storage keys */
-    storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);
+    /* Initialize storage key device */
+    s390_skeys_init();
 
     /* init CPUs */
-    s390_init_cpus(machine->cpu_model, storage_keys);
+    s390_init_cpus(machine->cpu_model);
 
     /* Create VirtIO network adapters */
     s390_create_virtio_net((BusState *)s390_bus, "virtio-net-s390");

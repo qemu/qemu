@@ -19,6 +19,7 @@
 #include "virtio-ccw.h"
 #include "qemu/config-file.h"
 #include "s390-pci-bus.h"
+#include "hw/s390x/storage-keys.h"
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
@@ -105,7 +106,6 @@ static void ccw_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     sclpMemoryHotplugDev *mhd = init_sclp_memory_hotplug_dev();
-    uint8_t *storage_keys;
     int ret;
     VirtualCssBus *css_bus;
     DeviceState *dev;
@@ -179,11 +179,11 @@ static void ccw_init(MachineState *machine)
         mhd->standby_mem_size = standby_mem_size;
     }
 
-    /* allocate storage keys */
-    storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);
+    /* Initialize storage key device */
+    s390_skeys_init();
 
     /* init CPUs */
-    s390_init_cpus(machine->cpu_model, storage_keys);
+    s390_init_cpus(machine->cpu_model);
 
     if (kvm_enabled()) {
         kvm_s390_enable_css_support(s390_cpu_addr2state(0));
