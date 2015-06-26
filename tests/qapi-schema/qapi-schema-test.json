@@ -128,6 +128,9 @@
 { 'alternate': '__org.qemu_x-Alt',
   'data': { '__org.qemu_x-branch': 'str', 'b': '__org.qemu_x-Base' } }
 { 'event': '__ORG.QEMU_X-EVENT', 'data': '__org.qemu_x-Struct' }
+# FIXME generated qapi_event_send___org_qemu_x_event() has only a
+# parameter for data's member __org_qemu_x_member2, none for its base
+# __org.qemu_x-Base's member __org_qemu_x_member1
 { 'command': '__org.qemu_x-command',
   'data': { 'a': ['__org.qemu_x-Enum'], 'b': ['__org.qemu_x-Struct'],
             'c': '__org.qemu_x-Union2', 'd': '__org.qemu_x-Alt' },
