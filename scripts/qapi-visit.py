@@ -185,12 +185,12 @@ out:
 def generate_visit_enum(name):
     return mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *m, %(c_name)s *obj, const char *name, Error **errp)
 {
-    visit_type_enum(m, (int *)obj, %(name)s_lookup, "%(name)s", name, errp);
+    visit_type_enum(m, (int *)obj, %(c_name)s_lookup, "%(name)s", name, errp);
 }
 ''',
-                 name=c_name(name))
+                 c_name=c_name(name), name=name)
 
 def generate_visit_alternate(name, members):
     ret = mcgen('''
@@ -278,17 +278,17 @@ def generate_visit_union(expr):
 
     ret += mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
     if (err) {
         goto out;
     }
     if (*obj) {
 ''',
-                 name=c_name(name))
+                 c_name=c_name(name), name=name)
 
     if base:
         ret += mcgen('''
