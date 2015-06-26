@@ -24,6 +24,7 @@
 
 #include "net/net.h"
 #include "qemu/fifo8.h"
+#include "hw/net/mii.h"
 
 #define TYPE_AW_EMAC "allwinner-emac"
 #define AW_EMAC(obj) OBJECT_CHECK(AwEmacState, (obj), TYPE_AW_EMAC)
@@ -117,45 +118,6 @@
 #define EMAC_RX_IO_DATA_STATUS_LEN_ERR  (3 << 5)
 #define EMAC_RX_IO_DATA_STATUS_OK       (1 << 7)
 #define EMAC_UNDOCUMENTED_MAGIC         0x0143414d  /* header for RX frames */
-
-/* PHY registers */
-#define MII_BMCR            0
-#define MII_BMSR            1
-#define MII_PHYID1          2
-#define MII_PHYID2          3
-#define MII_ANAR            4
-#define MII_ANLPAR          5
-#define MII_ANER            6
-#define MII_NSR             16
-#define MII_LBREMR          17
-#define MII_REC             18
-#define MII_SNRDR           19
-#define MII_TEST            25
-
-/* PHY registers fields */
-#define MII_BMCR_RESET      (1 << 15)
-#define MII_BMCR_LOOPBACK   (1 << 14)
-#define MII_BMCR_SPEED      (1 << 13)
-#define MII_BMCR_AUTOEN     (1 << 12)
-#define MII_BMCR_FD         (1 << 8)
-
-#define MII_BMSR_100TX_FD   (1 << 14)
-#define MII_BMSR_100TX_HD   (1 << 13)
-#define MII_BMSR_10T_FD     (1 << 12)
-#define MII_BMSR_10T_HD     (1 << 11)
-#define MII_BMSR_MFPS       (1 << 6)
-#define MII_BMSR_AN_COMP    (1 << 5)
-#define MII_BMSR_AUTONEG    (1 << 3)
-#define MII_BMSR_LINK_ST    (1 << 2)
-
-#define MII_ANAR_TXFD       (1 << 8)
-#define MII_ANAR_TX         (1 << 7)
-#define MII_ANAR_10FD       (1 << 6)
-#define MII_ANAR_10         (1 << 5)
-#define MII_ANAR_CSMACD     (1 << 0)
-
-#define RTL8201CP_PHYID1    0x0000
-#define RTL8201CP_PHYID2    0x8201
 
 /* INT CTL and INT STA registers fields */
 #define EMAC_INT_TX_CHAN(x) (1 << (x))
