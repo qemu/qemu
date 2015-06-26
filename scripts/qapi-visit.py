@@ -17,13 +17,23 @@ from qapi import *
 import re
 
 implicit_structs = []
+struct_fields_seen = set()
 
 def generate_visit_implicit_struct(type):
     global implicit_structs
     if type in implicit_structs:
         return ''
     implicit_structs.append(type)
-    return mcgen('''
+    ret = ''
+    if type not in struct_fields_seen:
+        # Need a forward declaration
+        ret += mcgen('''
+
+static void visit_type_%(c_type)s_fields(Visitor *m, %(c_type)s **obj, Error **errp);
+''',
+                     c_type=type_name(type))
+
+    ret += mcgen('''
 
 static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error **errp)
 {
@@ -38,8 +48,11 @@ static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error *
 }
 ''',
                  c_type=type_name(type))
+    return ret
 
 def generate_visit_struct_fields(name, members, base = None):
+    struct_fields_seen.add(name)
+
     ret = ''
 
     if base:
