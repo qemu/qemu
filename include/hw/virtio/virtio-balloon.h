@@ -42,6 +42,7 @@ typedef struct VirtIOBalloon {
     QEMUTimer *stats_timer;
     int64_t stats_last_update;
     int64_t stats_poll_interval;
+    uint32_t host_features;
 } VirtIOBalloon;
 
 #endif

@@ -6,6 +6,7 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "hw/hotplug.h"
+#include "hw/pci/pci.h"
 
 struct SHPCDevice {
     /* Capability offset in device's config space */
@@ -51,7 +52,13 @@ void shpc_device_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                        DeviceState *dev, Error **errp);
 
 extern VMStateInfo shpc_vmstate_info;
-#define SHPC_VMSTATE(_field, _type) \
-    VMSTATE_BUFFER_UNSAFE_INFO(_field, _type, 0, shpc_vmstate_info, 0)
+#define SHPC_VMSTATE(_field, _type,  _test) \
+    VMSTATE_BUFFER_UNSAFE_INFO_TEST(_field, _type, _test, 0, \
+                                    shpc_vmstate_info, 0)
+
+static inline bool shpc_present(const PCIDevice *dev)
+{
+    return dev->cap_present & QEMU_PCI_CAP_SHPC;
+}
 
 #endif
