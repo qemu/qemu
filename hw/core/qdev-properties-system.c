@@ -35,15 +35,15 @@ static void get_pointer(Object *obj, Visitor *v, Property *prop,
 }
 
 static void set_pointer(Object *obj, Visitor *v, Property *prop,
-                        int (*parse)(DeviceState *dev, const char *str,
-                                     void **ptr),
+                        void (*parse)(DeviceState *dev, const char *str,
+                                      void **ptr, const char *propname,
+                                      Error **errp),
                         const char *name, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Error *local_err = NULL;
     void **ptr = qdev_get_prop_ptr(dev, prop);
     char *str;
-    int ret;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
@@ -60,26 +60,29 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
         *ptr = NULL;
         return;
     }
-    ret = parse(dev, str, ptr);
-    error_set_from_qdev_prop_error(errp, ret, dev, prop, str);
+    parse(dev, str, ptr, prop->name, errp);
     g_free(str);
 }
 
 /* --- drive --- */
 
-static int parse_drive(DeviceState *dev, const char *str, void **ptr)
+static void parse_drive(DeviceState *dev, const char *str, void **ptr,
+                        const char *propname, Error **errp)
 {
     BlockBackend *blk;
 
     blk = blk_by_name(str);
     if (!blk) {
-        return -ENOENT;
+        error_setg(errp, "Property '%s.%s' can't find value '%s'",
+                   object_get_typename(OBJECT(dev)), propname, str);
+        return;
     }
     if (blk_attach_dev(blk, dev) < 0) {
-        return -EEXIST;
+        error_setg(errp, "Property '%s.%s' can't take value '%s', it's in use",
+                  object_get_typename(OBJECT(dev)), propname, str);
+        return;
     }
     *ptr = blk;
-    return 0;
 }
 
 static void release_drive(Object *obj, const char *name, void *opaque)
@@ -121,17 +124,21 @@ PropertyInfo qdev_prop_drive = {
 
 /* --- character device --- */
 
-static int parse_chr(DeviceState *dev, const char *str, void **ptr)
+static void parse_chr(DeviceState *dev, const char *str, void **ptr,
+                      const char *propname, Error **errp)
 {
     CharDriverState *chr = qemu_chr_find(str);
     if (chr == NULL) {
-        return -ENOENT;
+        error_setg(errp, "Property '%s.%s' can't find value '%s'",
+                   object_get_typename(OBJECT(dev)), propname, str);
+        return;
     }
     if (qemu_chr_fe_claim(chr) != 0) {
-        return -EEXIST;
+        error_setg(errp, "Property '%s.%s' can't take value '%s', it's in use",
+                  object_get_typename(OBJECT(dev)), propname, str);
+        return;
     }
     *ptr = chr;
-    return 0;
 }
 
 static void release_chr(Object *obj, const char *name, void *opaque)
