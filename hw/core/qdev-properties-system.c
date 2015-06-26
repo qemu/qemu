@@ -78,8 +78,17 @@ static void parse_drive(DeviceState *dev, const char *str, void **ptr,
         return;
     }
     if (blk_attach_dev(blk, dev) < 0) {
-        error_setg(errp, "Property '%s.%s' can't take value '%s', it's in use",
-                  object_get_typename(OBJECT(dev)), propname, str);
+        DriveInfo *dinfo = blk_legacy_dinfo(blk);
+
+        if (dinfo->type != IF_NONE) {
+            error_setg(errp, "Drive '%s' is already in use because "
+                       "it has been automatically connected to another "
+                       "device (did you need 'if=none' in the drive options?)",
+                       str);
+        } else {
+            error_setg(errp, "Drive '%s' is already in use by another device",
+                       str);
+        }
         return;
     }
     *ptr = blk;
