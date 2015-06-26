@@ -13,6 +13,7 @@
 #define __S390_STORAGE_KEYS_H
 
 #include <hw/qdev.h>
+#include "monitor/monitor.h"
 
 #define TYPE_S390_SKEYS "s390-skeys"
 #define S390_SKEYS(obj) \
@@ -52,4 +53,5 @@ void s390_skeys_init(void);
 
 S390SKeysState *s390_get_skeys_device(void);
 
+void hmp_dump_skeys(Monitor *mon, const QDict *qdict);
 #endif /* __S390_STORAGE_KEYS_H */

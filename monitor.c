@@ -82,6 +82,10 @@
 #endif
 #include "hw/lm32/lm32_pic.h"
 
+#if defined(TARGET_S390X)
+#include "hw/s390x/storage-keys.h"
+#endif
+
 /*
  * Supported types:
  *

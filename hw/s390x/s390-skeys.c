@@ -66,6 +66,18 @@ static void write_keys(QEMUFile *f, uint8_t *keys, uint64_t startgfn,
     }
 }
 
+void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
+{
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *err = NULL;
+
+    qmp_dump_skeys(filename, &err);
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+    }
+}
+
 void qmp_dump_skeys(const char *filename, Error **errp)
 {
     S390SKeysState *ss = s390_get_skeys_device();
