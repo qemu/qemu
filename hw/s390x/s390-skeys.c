@@ -11,10 +11,14 @@
 
 #include "hw/boards.h"
 #include "qmp-commands.h"
+#include "migration/qemu-file.h"
 #include "hw/s390x/storage-keys.h"
 #include "qemu/error-report.h"
 
 #define S390_SKEYS_BUFFER_SIZE 131072  /* Room for 128k storage keys */
+#define S390_SKEYS_SAVE_FLAG_EOS 0x01
+#define S390_SKEYS_SAVE_FLAG_SKEYS 0x02
+#define S390_SKEYS_SAVE_FLAG_ERROR 0x04
 
 S390SKeysState *s390_get_skeys_device(void)
 {
@@ -237,6 +241,126 @@ static const TypeInfo qemu_s390_skeys_info = {
     .instance_size = sizeof(S390SKeysClass),
 };
 
+static void s390_storage_keys_save(QEMUFile *f, void *opaque)
+{
+    S390SKeysState *ss = S390_SKEYS(opaque);
+    S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
+    uint64_t pages_left = ram_size / TARGET_PAGE_SIZE;
+    uint64_t read_count, eos = S390_SKEYS_SAVE_FLAG_EOS;
+    vaddr cur_gfn = 0;
+    int error = 0;
+    uint8_t *buf;
+
+    if (!skeyclass->skeys_enabled(ss)) {
+        goto end_stream;
+    }
+
+    buf = g_try_malloc(S390_SKEYS_BUFFER_SIZE);
+    if (!buf) {
+        error_report("storage key save could not allocate memory\n");
+        goto end_stream;
+    }
+
+    /* We only support initial memory. Standby memory is not handled yet. */
+    qemu_put_be64(f, (cur_gfn * TARGET_PAGE_SIZE) | S390_SKEYS_SAVE_FLAG_SKEYS);
+    qemu_put_be64(f, pages_left);
+
+    while (pages_left) {
+        read_count = MIN(pages_left, S390_SKEYS_BUFFER_SIZE);
+
+        if (!error) {
+            error = skeyclass->get_skeys(ss, cur_gfn, read_count, buf);
+            if (error) {
+                /*
+                 * If error: we want to fill the stream with valid data instead
+                 * of stopping early so we pad the stream with 0x00 values and
+                 * use S390_SKEYS_SAVE_FLAG_ERROR to indicate failure to the
+                 * reading side.
+                 */
+                error_report("S390_GET_KEYS error %d\n", error);
+                memset(buf, 0, S390_SKEYS_BUFFER_SIZE);
+                eos = S390_SKEYS_SAVE_FLAG_ERROR;
+            }
+        }
+
+        qemu_put_buffer(f, buf, read_count);
+        cur_gfn += read_count;
+        pages_left -= read_count;
+    }
+
+    g_free(buf);
+end_stream:
+    qemu_put_be64(f, eos);
+}
+
+static int s390_storage_keys_load(QEMUFile *f, void *opaque, int version_id)
+{
+    S390SKeysState *ss = S390_SKEYS(opaque);
+    S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
+    int ret = 0;
+
+    while (!ret) {
+        ram_addr_t addr;
+        int flags;
+
+        addr = qemu_get_be64(f);
+        flags = addr & ~TARGET_PAGE_MASK;
+        addr &= TARGET_PAGE_MASK;
+
+        switch (flags) {
+        case S390_SKEYS_SAVE_FLAG_SKEYS: {
+            const uint64_t total_count = qemu_get_be64(f);
+            uint64_t handled_count = 0, cur_count;
+            uint64_t cur_gfn = addr / TARGET_PAGE_SIZE;
+            uint8_t *buf = g_try_malloc(S390_SKEYS_BUFFER_SIZE);
+
+            if (!buf) {
+                error_report("storage key load could not allocate memory\n");
+                ret = -ENOMEM;
+                break;
+            }
+
+            while (handled_count < total_count) {
+                cur_count = MIN(total_count - handled_count,
+                                S390_SKEYS_BUFFER_SIZE);
+                qemu_get_buffer(f, buf, cur_count);
+
+                ret = skeyclass->set_skeys(ss, cur_gfn, cur_count, buf);
+                if (ret < 0) {
+                    error_report("S390_SET_KEYS error %d\n", ret);
+                    break;
+                }
+                handled_count += cur_count;
+                cur_gfn += cur_count;
+            }
+            g_free(buf);
+            break;
+        }
+        case S390_SKEYS_SAVE_FLAG_ERROR: {
+            error_report("Storage key data is incomplete");
+            ret = -EINVAL;
+            break;
+        }
+        case S390_SKEYS_SAVE_FLAG_EOS:
+            /* normal exit */
+            return 0;
+        default:
+            error_report("Unexpected storage key flag data: %#x", flags);
+            ret = -EINVAL;
+        }
+    }
+
+    return ret;
+}
+
+static void s390_skeys_instance_init(Object *obj)
+{
+    S390SKeysState *ss = S390_SKEYS(obj);
+
+    register_savevm(NULL, TYPE_S390_SKEYS, 0, 1, s390_storage_keys_save,
+                    s390_storage_keys_load, ss);
+}
+
 static void s390_skeys_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -248,6 +372,7 @@ static void s390_skeys_class_init(ObjectClass *oc, void *data)
 static const TypeInfo s390_skeys_info = {
     .name          = TYPE_S390_SKEYS,
     .parent        = TYPE_DEVICE,
+    .instance_init = s390_skeys_instance_init,
     .instance_size = sizeof(S390SKeysState),
     .class_init    = s390_skeys_class_init,
     .class_size    = sizeof(S390SKeysClass),
