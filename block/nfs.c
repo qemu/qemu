@@ -35,6 +35,8 @@
 #include "sysemu/sysemu.h"
 #include <nfsc/libnfs.h>
 
+#define QEMU_NFS_MAX_READAHEAD_SIZE 1048576
+
 typedef struct NFSClient {
     struct nfs_context *context;
     struct nfsfh *fh;
@@ -327,6 +329,11 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
             nfs_set_tcp_syncnt(client->context, val);
 #ifdef LIBNFS_FEATURE_READAHEAD
         } else if (!strcmp(qp->p[i].name, "readahead")) {
+            if (val > QEMU_NFS_MAX_READAHEAD_SIZE) {
+                error_report("NFS Warning: Truncating NFS readahead"
+                             " size to %d", QEMU_NFS_MAX_READAHEAD_SIZE);
+                val = QEMU_NFS_MAX_READAHEAD_SIZE;
+            }
             nfs_set_readahead(client->context, val);
 #endif
         } else {
