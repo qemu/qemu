@@ -533,6 +533,8 @@ void aarch64_cpu_do_interrupt(CPUState *cs)
 
         env->condexec_bits = 0;
     }
+    qemu_log_mask(CPU_LOG_INT, "...with ELR 0x%" PRIx64 "\n",
+                  env->elr_el[new_el]);
 
     pstate_write(env, PSTATE_DAIF | new_mode);
     env->aarch64 = 1;

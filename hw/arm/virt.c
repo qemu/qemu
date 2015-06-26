@@ -956,6 +956,8 @@ static void virt_class_init(ObjectClass *oc, void *data)
     mc->init = machvirt_init;
     mc->max_cpus = 8;
     mc->has_dynamic_sysbus = true;
+    mc->block_default_type = IF_VIRTIO;
+    mc->no_cdrom = 1;
 }
 
 static const TypeInfo machvirt_info = {
