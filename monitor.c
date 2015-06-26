@@ -2881,6 +2881,15 @@ static mon_cmd_t info_cmds[] = {
         .help       = "Show rocker OF-DPA groups",
         .mhandler.cmd = hmp_rocker_of_dpa_groups,
     },
+#if defined(TARGET_S390X)
+    {
+        .name       = "skeys",
+        .args_type  = "addr:l",
+        .params     = "address",
+        .help       = "Display the value of a storage key",
+        .mhandler.cmd = hmp_info_skeys,
+    },
+#endif
     {
         .name       = NULL,
     },

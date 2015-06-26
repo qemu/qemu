@@ -66,6 +66,29 @@ static void write_keys(QEMUFile *f, uint8_t *keys, uint64_t startgfn,
     }
 }
 
+void hmp_info_skeys(Monitor *mon, const QDict *qdict)
+{
+    S390SKeysState *ss = s390_get_skeys_device();
+    S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
+    uint64_t addr = qdict_get_int(qdict, "addr");
+    uint8_t key;
+    int r;
+
+    /* Quick check to see if guest is using storage keys*/
+    if (!skeyclass->skeys_enabled(ss)) {
+        monitor_printf(mon, "Error: This guest is not using storage keys\n");
+        return;
+    }
+
+    r = skeyclass->get_skeys(ss, addr / TARGET_PAGE_SIZE, 1, &key);
+    if (r < 0) {
+        monitor_printf(mon, "Error: %s\n", strerror(-r));
+        return;
+    }
+
+    monitor_printf(mon, "  key: 0x%X\n", key);
+}
+
 void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
 {
     const char *filename = qdict_get_str(qdict, "filename");

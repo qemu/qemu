@@ -1806,6 +1806,8 @@ show roms
 show the TPM device
 @item info memory-devices
 show the memory devices
+@item info skeys
+Display the value of a storage key (s390 only)
 @end table
 ETEXI
 
