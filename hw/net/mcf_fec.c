@@ -413,6 +413,7 @@ static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t si
     uint32_t buf_addr;
     uint8_t *crc_ptr;
     unsigned int buf_len;
+    size_t retsize;
 
     DPRINTF("do_rx len %d\n", size);
     if (!s->rx_enabled) {
@@ -432,6 +433,7 @@ static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t si
         flags |= FEC_BD_LG;
     }
     addr = s->rx_descriptor;
+    retsize = size;
     while (size > 0) {
         mcf_fec_read_bd(&bd, addr);
         if ((bd.flags & FEC_BD_E) == 0) {
@@ -476,7 +478,7 @@ static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t si
     s->rx_descriptor = addr;
     mcf_fec_enable_rx(s);
     mcf_fec_update(s);
-    return size;
+    return retsize;
 }
 
 static const MemoryRegionOps mcf_fec_ops = {
