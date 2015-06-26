@@ -166,6 +166,14 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
 void block_job_yield(BlockJob *job);
 
 /**
+ * block_job_release:
+ * @bs: The block device.
+ *
+ * Release job resources when an error occurred or job completed.
+ */
+void block_job_release(BlockDriverState *bs);
+
+/**
  * block_job_completed:
  * @job: The job being completed.
  * @ret: The status code.

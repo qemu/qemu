@@ -66,15 +66,22 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
 
         block_job_set_speed(job, speed, &local_err);
         if (local_err) {
-            bs->job = NULL;
-            bdrv_op_unblock_all(bs, job->blocker);
-            error_free(job->blocker);
-            g_free(job);
+            block_job_release(bs);
             error_propagate(errp, local_err);
             return NULL;
         }
     }
     return job;
+}
+
+void block_job_release(BlockDriverState *bs)
+{
+    BlockJob *job = bs->job;
+
+    bs->job = NULL;
+    bdrv_op_unblock_all(bs, job->blocker);
+    error_free(job->blocker);
+    g_free(job);
 }
 
 void block_job_completed(BlockJob *job, int ret)
@@ -83,10 +90,7 @@ void block_job_completed(BlockJob *job, int ret)
 
     assert(bs->job == job);
     job->cb(job->opaque, ret);
-    bs->job = NULL;
-    bdrv_op_unblock_all(bs, job->blocker);
-    error_free(job->blocker);
-    g_free(job);
+    block_job_release(bs);
 }
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
