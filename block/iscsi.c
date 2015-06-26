@@ -169,6 +169,19 @@ static inline unsigned exp_random(double mean)
     return -mean * log((double)rand() / RAND_MAX);
 }
 
+/* SCSI_STATUS_TASK_SET_FULL and SCSI_STATUS_TIMEOUT were introduced
+ * in libiscsi 1.10.0 as part of an enum. The LIBISCSI_API_VERSION
+ * macro was introduced in 1.11.0. So use the API_VERSION macro as
+ * a hint that the macros are defined and define them ourselves
+ * otherwise to keep the required libiscsi version at 1.9.0 */
+#if !defined(LIBISCSI_API_VERSION)
+#define QEMU_SCSI_STATUS_TASK_SET_FULL  0x28
+#define QEMU_SCSI_STATUS_TIMEOUT        0x0f000002
+#else
+#define QEMU_SCSI_STATUS_TASK_SET_FULL  SCSI_STATUS_TASK_SET_FULL
+#define QEMU_SCSI_STATUS_TIMEOUT        SCSI_STATUS_TIMEOUT
+#endif
+
 static void
 iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                         void *command_data, void *opaque)
@@ -189,11 +202,12 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 iTask->do_retry = 1;
                 goto out;
             }
-            if (status == SCSI_STATUS_BUSY || status == SCSI_STATUS_TIMEOUT ||
-                status == SCSI_STATUS_TASK_SET_FULL) {
+            if (status == SCSI_STATUS_BUSY ||
+                status == QEMU_SCSI_STATUS_TIMEOUT ||
+                status == QEMU_SCSI_STATUS_TASK_SET_FULL) {
                 unsigned retry_time =
                     exp_random(iscsi_retry_times[iTask->retries - 1]);
-                if (status == SCSI_STATUS_TIMEOUT) {
+                if (status == QEMU_SCSI_STATUS_TIMEOUT) {
                     /* make sure the request is rescheduled AFTER the
                      * reconnect is initiated */
                     retry_time = EVENT_INTERVAL * 2;
@@ -1355,7 +1369,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     QemuOpts *opts;
     Error *local_err = NULL;
     const char *filename;
-    int i, ret = 0;
+    int i, ret = 0, timeout = 0;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -1425,7 +1439,15 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
 
-    iscsi_set_timeout(iscsi, parse_timeout(iscsi_url->target));
+    /* timeout handling is broken in libiscsi before 1.15.0 */
+    timeout = parse_timeout(iscsi_url->target);
+#if defined(LIBISCSI_API_VERSION) && LIBISCSI_API_VERSION >= 20150621
+    iscsi_set_timeout(iscsi, timeout);
+#else
+    if (timeout) {
+        error_report("iSCSI: ignoring timeout value for libiscsi <1.15.0");
+    }
+#endif
 
     if (iscsi_full_connect_sync(iscsi, iscsi_url->portal, iscsi_url->lun) != 0) {
         error_setg(errp, "iSCSI: Failed to connect to LUN : %s",
