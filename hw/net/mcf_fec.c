@@ -8,6 +8,7 @@
 #include "hw/hw.h"
 #include "net/net.h"
 #include "hw/m68k/mcf.h"
+#include "hw/net/mii.h"
 /* For crc32 */
 #include <zlib.h>
 #include "exec/address-spaces.h"
@@ -216,6 +217,51 @@ static void mcf_fec_reset(mcf_fec_state *s)
     s->rfsr = 0x500;
 }
 
+#define MMFR_WRITE_OP	(1 << 28)
+#define MMFR_READ_OP	(2 << 28)
+#define MMFR_PHYADDR(v)	(((v) >> 23) & 0x1f)
+#define MMFR_REGNUM(v)	(((v) >> 18) & 0x1f)
+
+static uint64_t mcf_fec_read_mdio(mcf_fec_state *s)
+{
+    uint64_t v;
+
+    if (s->mmfr & MMFR_WRITE_OP)
+        return s->mmfr;
+    if (MMFR_PHYADDR(s->mmfr) != 1)
+        return s->mmfr |= 0xffff;
+
+    switch (MMFR_REGNUM(s->mmfr)) {
+    case MII_BMCR:
+        v = MII_BMCR_SPEED | MII_BMCR_AUTOEN | MII_BMCR_FD;
+        break;
+    case MII_BMSR:
+        v = MII_BMSR_100TX_FD | MII_BMSR_100TX_HD | MII_BMSR_10T_FD |
+            MII_BMSR_10T_HD | MII_BMSR_MFPS | MII_BMSR_AN_COMP |
+            MII_BMSR_AUTONEG | MII_BMSR_LINK_ST;
+        break;
+    case MII_PHYID1:
+        v = DP83848_PHYID1;
+        break;
+    case MII_PHYID2:
+        v = DP83848_PHYID2;
+        break;
+    case MII_ANAR:
+        v = MII_ANAR_TXFD | MII_ANAR_TX | MII_ANAR_10FD |
+            MII_ANAR_10 | MII_ANAR_CSMACD;
+        break;
+    case MII_ANLPAR:
+        v = MII_ANLPAR_ACK | MII_ANLPAR_TXFD | MII_ANLPAR_TX |
+            MII_ANLPAR_10FD | MII_ANLPAR_10 | MII_ANLPAR_CSMACD;
+        break;
+    default:
+        v = 0xffff;
+        break;
+    }
+    s->mmfr = (s->mmfr & ~0xffff) | v;
+    return s->mmfr;
+}
+
 static uint64_t mcf_fec_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
@@ -226,7 +272,7 @@ static uint64_t mcf_fec_read(void *opaque, hwaddr addr,
     case 0x010: return s->rx_enabled ? (1 << 24) : 0; /* RDAR */
     case 0x014: return 0; /* TDAR */
     case 0x024: return s->ecr;
-    case 0x040: return s->mmfr;
+    case 0x040: return mcf_fec_read_mdio(s);
     case 0x044: return s->mscr;
     case 0x064: return 0; /* MIBC */
     case 0x084: return s->rcr;
@@ -287,8 +333,8 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
         }
         break;
     case 0x040:
-        /* TODO: Implement MII.  */
         s->mmfr = value;
+        s->eir |= FEC_INT_MII;
         break;
     case 0x044:
         s->mscr = value & 0xfe;

@@ -65,7 +65,12 @@
 #define MII_ANLPAR_CSMACD   (1 << 0)
 
 /* List of vendor identifiers */
+/* RealTek 8201 */
 #define RTL8201CP_PHYID1    0x0000
 #define RTL8201CP_PHYID2    0x8201
+
+/* National Semiconductor DP83848 */
+#define DP83848_PHYID1      0x2000
+#define DP83848_PHYID2      0x5c90
 
 #endif /* MII_H */
