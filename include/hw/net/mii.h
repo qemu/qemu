@@ -57,6 +57,13 @@
 #define MII_ANAR_10         (1 << 5)
 #define MII_ANAR_CSMACD     (1 << 0)
 
+#define MII_ANLPAR_ACK      (1 << 14)
+#define MII_ANLPAR_TXFD     (1 << 8)
+#define MII_ANLPAR_TX       (1 << 7)
+#define MII_ANLPAR_10FD     (1 << 6)
+#define MII_ANLPAR_10       (1 << 5)
+#define MII_ANLPAR_CSMACD   (1 << 0)
+
 /* List of vendor identifiers */
 #define RTL8201CP_PHYID1    0x0000
 #define RTL8201CP_PHYID2    0x8201
