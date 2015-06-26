@@ -5361,3 +5361,10 @@ void qmp_rtc_reset_reinjection(Error **errp)
     error_setg(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
 }
 #endif
+
+#ifndef TARGET_S390X
+void qmp_dump_skeys(const char *filename, Error **errp)
+{
+    error_setg(errp, QERR_FEATURE_DISABLED, "dump-skeys");
+}
+#endif

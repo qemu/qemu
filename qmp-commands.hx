@@ -872,6 +872,31 @@ Example:
 
 EQMP
 
+#if defined TARGET_S390X
+    {
+        .name       = "dump-skeys",
+        .args_type  = "filename:F",
+        .mhandler.cmd_new = qmp_marshal_input_dump_skeys,
+    },
+#endif
+
+SQMP
+dump-skeys
+----------
+
+Save guest storage keys to file.
+
+Arguments:
+
+- "filename": file path (json-string)
+
+Example:
+
+-> { "execute": "dump-skeys", "arguments": { "filename": "/tmp/skeys" } }
+<- { "return": {} }
+
+EQMP
+
     {
         .name       = "netdev_add",
         .args_type  = "netdev:O",

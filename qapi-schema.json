@@ -2058,6 +2058,20 @@
   'returns': 'DumpGuestMemoryCapability' }
 
 ##
+# @dump-skeys
+#
+# Dump guest's storage keys
+#
+# @filename: the path to the file to dump to
+#
+# This command is only supported on s390 architecture.
+#
+# Since: 2.5
+##
+{ 'command': 'dump-skeys',
+  'data': { 'filename': 'str' } }
+
+##
 # @netdev_add:
 #
 # Add a network backend.
