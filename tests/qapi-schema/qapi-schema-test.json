@@ -31,7 +31,7 @@
   'data': { 'boolean': 'bool' } }
 
 { 'struct': 'UserDefB',
-  'data': { 'integer': 'int' } }
+  'data': { 'intb': 'int' } }
 
 { 'union': 'UserDefFlatUnion',
   'base': 'UserDefUnionBase',   # intentional forward reference
@@ -40,9 +40,10 @@
             'value2' : 'UserDefB',
             'value3' : 'UserDefB' } }
 # FIXME generated struct UserDefFlatUnion has members for direct base
-# UserDefOne, but lacks members for indirect base UserDefZero
+# UserDefUnionBase, but lacks members for indirect base UserDefZero
 
 { 'struct': 'UserDefUnionBase',
+  'base': 'UserDefZero',
   'data': { 'string': 'str', 'enum1': 'EnumOne' } }
 
 # this variant of UserDefFlatUnion defaults to a union that uses fields with
