@@ -57,18 +57,14 @@ def gen_sync_call(name, args, ret_type):
                 name=c_name(name), args=arglist, retval=retval).rstrip()
     if ret_type:
         ret += "\n" + gen_err_check('local_err')
-        ret += "\n" + mcgen('''
-%(marshal_output_call)s
+        ret += mcgen('''
+
+qmp_marshal_output_%(c_name)s(retval, ret, &local_err);
 ''',
-                            marshal_output_call=gen_marshal_output_call(name, ret_type)).rstrip()
+                            c_name=c_name(name))
     pop_indent()
     return ret.rstrip()
 
-
-def gen_marshal_output_call(name, ret_type):
-    if not ret_type:
-        return ""
-    return "qmp_marshal_output_%s(retval, ret, &local_err);" % c_name(name)
 
 def gen_visitor_input_containers_decl(args):
     ret = ""
