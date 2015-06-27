@@ -29,14 +29,15 @@ def generate_command_decl(name, args, ret_type):
                  ret_type=c_type(ret_type), name=c_name(name),
                  args=arglist).strip()
 
-def gen_err_check(errvar):
-    if errvar:
-        return mcgen('''
-if (local_err) {
+def gen_err_check(err):
+    if not err:
+        return ''
+    return mcgen('''
+if (%(err)s) {
     goto out;
 }
-''')
-    return ''
+''',
+                 err=err)
 
 def gen_sync_call(name, args, ret_type):
     ret = ""
