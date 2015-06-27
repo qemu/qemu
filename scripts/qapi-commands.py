@@ -27,7 +27,7 @@ def generate_command_decl(name, args, ret_type):
 %(ret_type)s qmp_%(name)s(%(args)sError **errp);
 ''',
                  ret_type=c_type(ret_type), name=c_name(name),
-                 args=arglist).strip()
+                 args=arglist)
 
 def gen_err_check(err):
     if not err:
@@ -52,19 +52,17 @@ def gen_sync_call(name, args, ret_type):
     push_indent()
     ret = mcgen('''
 %(retval)sqmp_%(name)s(%(args)s&local_err);
-
 ''',
-                name=c_name(name), args=arglist, retval=retval).rstrip()
+                name=c_name(name), args=arglist, retval=retval)
     if ret_type:
-        ret += "\n" + gen_err_check('local_err')
+        ret += gen_err_check('local_err')
         ret += mcgen('''
 
 qmp_marshal_output_%(c_name)s(retval, ret, &local_err);
 ''',
                             c_name=c_name(name))
     pop_indent()
-    return ret.rstrip()
-
+    return ret
 
 def gen_visitor_input_containers_decl(args):
     ret = ""
@@ -78,7 +76,7 @@ Visitor *v;
 ''')
     pop_indent()
 
-    return ret.rstrip()
+    return ret
 
 def gen_visitor_input_vars_decl(args):
     ret = ""
@@ -101,7 +99,7 @@ bool has_%(argname)s = false;
                          argname=c_name(argname), argtype=c_type(argtype))
 
     pop_indent()
-    return ret.rstrip()
+    return ret
 
 def gen_visitor_input_block(args, dealloc=False):
     ret = ""
@@ -155,7 +153,7 @@ visit_type_%(visitor)s(v, &%(c_name)s, "%(name)s", %(errp)s);
 qapi_dealloc_visitor_cleanup(md);
 ''')
     pop_indent()
-    return ret.rstrip()
+    return ret
 
 def gen_marshal_output(name, ret_type):
     if not ret_type:
@@ -217,26 +215,17 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
                      retval=retval)
 
     if len(args) > 0:
-        ret += mcgen('''
-%(visitor_input_containers_decl)s
-%(visitor_input_vars_decl)s
-
-%(visitor_input_block)s
-
-''',
-                     visitor_input_containers_decl=gen_visitor_input_containers_decl(args),
-                     visitor_input_vars_decl=gen_visitor_input_vars_decl(args),
-                     visitor_input_block=gen_visitor_input_block(args))
+        ret += gen_visitor_input_containers_decl(args)
+        ret += gen_visitor_input_vars_decl(args) + '\n'
+        ret += gen_visitor_input_block(args) + '\n'
     else:
         ret += mcgen('''
 
     (void)args;
 ''')
 
-    ret += mcgen('''
-%(sync_call)s
-''',
-                 sync_call=gen_sync_call(name, args, ret_type))
+    ret += gen_sync_call(name, args, ret_type)
+
     if re.search('^ *goto out\\;', ret, re.MULTILINE):
         ret += mcgen('''
 
@@ -244,11 +233,11 @@ out:
 ''')
     ret += mcgen('''
     error_propagate(errp, local_err);
-%(visitor_input_block_cleanup)s
+''')
+    ret += gen_visitor_input_block(args, dealloc=True)
+    ret += mcgen('''
 }
-''',
-                 visitor_input_block_cleanup=gen_visitor_input_block(args,
-                                                                     dealloc=True))
+''')
     return ret
 
 def gen_registry(commands):
@@ -268,12 +257,13 @@ qmp_register_command("%(name)s", qmp_marshal_input_%(c_name)s, %(opts)s);
     ret = mcgen('''
 static void qmp_init_marshal(void)
 {
-%(registry)s
+''')
+    ret += registry
+    ret += mcgen('''
 }
 
 qapi_init(qmp_init_marshal);
-''',
-                registry=registry.rstrip())
+''')
     return ret
 
 middle_mode = False
@@ -353,7 +343,7 @@ for cmd in commands:
         arglist = cmd['data']
     if cmd.has_key('returns'):
         ret_type = cmd['returns']
-    ret = generate_command_decl(cmd['command'], arglist, ret_type) + "\n"
+    ret = generate_command_decl(cmd['command'], arglist, ret_type)
     fdecl.write(ret)
     if ret_type:
         ret = gen_marshal_output(cmd['command'], ret_type) + "\n"
