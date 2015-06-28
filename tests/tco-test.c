@@ -42,6 +42,7 @@ enum {
 
 typedef struct {
     const char *args;
+    bool noreboot;
     QPCIDevice *dev;
     void *lpc_base;
     void *tco_io_base;
@@ -53,7 +54,9 @@ static void test_init(TestData *d)
     QTestState *qs;
     char *s;
 
-    s = g_strdup_printf("-machine q35 %s", !d->args ? "" : d->args);
+    s = g_strdup_printf("-machine q35 %s %s",
+                        d->noreboot ? "" : "-global ICH9-LPC.noreboot=false",
+                        !d->args ? "" : d->args);
     qs = qtest_start(s);
     qtest_irq_intercept_in(qs, "ioapic");
     g_free(s);
@@ -135,6 +138,7 @@ static void test_tco_defaults(void)
     TestData d;
 
     d.args = NULL;
+    d.noreboot = true;
     test_init(&d);
     g_assert_cmpint(qpci_io_readw(d.dev, d.tco_io_base + TCO_RLD), ==,
                     TCO_RLD_DEFAULT);
@@ -167,6 +171,7 @@ static void test_tco_timeout(void)
     int ret;
 
     d.args = NULL;
+    d.noreboot = true;
     test_init(&d);
 
     stop_tco(&d);
@@ -210,6 +215,7 @@ static void test_tco_max_timeout(void)
     int ret;
 
     d.args = NULL;
+    d.noreboot = true;
     test_init(&d);
 
     stop_tco(&d);
@@ -253,6 +259,7 @@ static void test_tco_second_timeout_pause(void)
     QDict *ad;
 
     td.args = "-watchdog-action pause";
+    td.noreboot = false;
     test_init(&td);
 
     stop_tco(&td);
@@ -277,6 +284,7 @@ static void test_tco_second_timeout_reset(void)
     QDict *ad;
 
     td.args = "-watchdog-action reset";
+    td.noreboot = false;
     test_init(&td);
 
     stop_tco(&td);
@@ -301,6 +309,7 @@ static void test_tco_second_timeout_shutdown(void)
     QDict *ad;
 
     td.args = "-watchdog-action shutdown";
+    td.noreboot = false;
     test_init(&td);
 
     stop_tco(&td);
@@ -325,6 +334,7 @@ static void test_tco_second_timeout_none(void)
     QDict *ad;
 
     td.args = "-watchdog-action none";
+    td.noreboot = false;
     test_init(&td);
 
     stop_tco(&td);
@@ -349,6 +359,7 @@ static void test_tco_ticks_counter(void)
     uint16_t rld;
 
     d.args = NULL;
+    d.noreboot = true;
     test_init(&d);
 
     stop_tco(&d);
@@ -375,6 +386,7 @@ static void test_tco1_control_bits(void)
     uint16_t val;
 
     d.args = NULL;
+    d.noreboot = true;
     test_init(&d);
 
     val = TCO_LOCK;
@@ -394,6 +406,7 @@ static void test_tco1_status_bits(void)
     int ret;
 
     d.args = NULL;
+    d.noreboot = true;
     test_init(&d);
 
     stop_tco(&d);
@@ -421,7 +434,8 @@ static void test_tco2_status_bits(void)
     uint16_t val;
     int ret;
 
-    d.args = "-watchdog-action none";
+    d.args = NULL;
+    d.noreboot = true;
     test_init(&d);
 
     stop_tco(&d);

@@ -46,6 +46,11 @@ typedef struct ICH9LPCState {
     ICH9LPCPMRegs pm;
     uint32_t sci_level; /* track sci level */
 
+    /* 2.24 Pin Straps */
+    struct {
+        bool spkr_hi;
+    } pin_strap;
+
     /* 10.1 Chipset Configuration registers(Memory Space)
      which is pointed by RCBA */
     uint8_t chip_config[ICH9_CC_SIZE];

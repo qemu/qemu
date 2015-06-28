@@ -64,7 +64,7 @@ static void tco_timer_expired(void *opaque)
         tr->tco.sts2 |= TCO_BOOT_STS;
         tr->timeouts_no = 0;
 
-        if (!(gcs & ICH9_CC_GCS_NO_REBOOT)) {
+        if (!lpc->pin_strap.spkr_hi && !(gcs & ICH9_CC_GCS_NO_REBOOT)) {
             watchdog_perform_action();
             tco_timer_stop(tr);
             return;

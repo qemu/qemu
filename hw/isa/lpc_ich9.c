@@ -692,6 +692,11 @@ static const VMStateDescription vmstate_ich9_lpc = {
     }
 };
 
+static Property ich9_lpc_properties[] = {
+    DEFINE_PROP_BOOL("noreboot", ICH9LPCState, pin_strap.spkr_hi, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ich9_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -703,6 +708,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     dc->reset = ich9_lpc_reset;
     k->init = ich9_lpc_init;
     dc->vmsd = &vmstate_ich9_lpc;
+    dc->props = ich9_lpc_properties;
     k->config_write = ich9_lpc_config_write;
     dc->desc = "ICH9 LPC bridge";
     k->vendor_id = PCI_VENDOR_ID_INTEL;
