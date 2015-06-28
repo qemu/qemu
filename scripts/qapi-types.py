@@ -200,13 +200,30 @@ def generate_union(expr, meta):
     ret = mcgen('''
 struct %(name)s
 {
-    %(discriminator_type_name)s %(discriminator)s;
-    union {
+''',
+                name=name)
+    if base:
+        ret += mcgen('''
+    /* Members inherited from %(c_name)s: */
+''',
+                     c_name=c_name(base))
+        base_fields = find_struct(base)['data']
+        ret += generate_struct_fields(base_fields)
+        ret += mcgen('''
+    /* Own members: */
+''')
+    else:
+        assert not discriminator
+        ret += mcgen('''
+    %(discriminator_type_name)s kind;
+''',
+                     discriminator_type_name=c_name(discriminator_type_name))
+
+    ret += mcgen('''
+    union { /* union tag is @%(c_name)s */
         void *data;
 ''',
-                name=name,
-                discriminator=c_name(discriminator or 'kind'),
-                discriminator_type_name=c_name(discriminator_type_name))
+                 c_name=c_name(discriminator or 'kind'))
 
     for key in typeinfo:
         ret += mcgen('''
@@ -217,17 +234,6 @@ struct %(name)s
 
     ret += mcgen('''
     };
-''')
-
-    if base:
-        assert discriminator
-        base_fields = find_struct(base)['data'].copy()
-        del base_fields[discriminator]
-        ret += generate_struct_fields(base_fields)
-    else:
-        assert not discriminator
-
-    ret += mcgen('''
 };
 ''')
     if meta == 'alternate':
