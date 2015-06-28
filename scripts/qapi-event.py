@@ -199,7 +199,6 @@ const char *%(event_enum_name)s_lookup[] = {
 ''',
                 event_enum_name = event_enum_name)
 
-    i = 0
     for string in event_enum_strings:
         ret += mcgen('''
     "%(string)s",

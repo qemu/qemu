@@ -38,7 +38,7 @@ if (local_err) {
 ''')
     return ''
 
-def gen_sync_call(name, args, ret_type, indent=0):
+def gen_sync_call(name, args, ret_type):
     ret = ""
     arglist=""
     retval=""
@@ -48,7 +48,7 @@ def gen_sync_call(name, args, ret_type, indent=0):
         if optional:
             arglist += "has_%s, " % c_name(argname)
         arglist += "%s, " % (c_name(argname))
-    push_indent(indent)
+    push_indent()
     ret = mcgen('''
 %(retval)sqmp_%(name)s(%(args)s&local_err);
 
@@ -60,7 +60,7 @@ def gen_sync_call(name, args, ret_type, indent=0):
 %(marshal_output_call)s
 ''',
                             marshal_output_call=gen_marshal_output_call(name, ret_type)).rstrip()
-    pop_indent(indent)
+    pop_indent()
     return ret.rstrip()
 
 
@@ -69,17 +69,16 @@ def gen_marshal_output_call(name, ret_type):
         return ""
     return "qmp_marshal_output_%s(retval, ret, &local_err);" % c_name(name)
 
-def gen_visitor_input_containers_decl(args, obj):
+def gen_visitor_input_containers_decl(args):
     ret = ""
 
     push_indent()
     if len(args) > 0:
         ret += mcgen('''
-QmpInputVisitor *mi = qmp_input_visitor_new_strict(%(obj)s);
+QmpInputVisitor *mi = qmp_input_visitor_new_strict(QOBJECT(args));
 QapiDeallocVisitor *md;
 Visitor *v;
-''',
-                     obj=obj)
+''')
     pop_indent()
 
     return ret.rstrip()
@@ -161,7 +160,7 @@ qapi_dealloc_visitor_cleanup(md);
     pop_indent()
     return ret.rstrip()
 
-def gen_marshal_output(name, args, ret_type, middle_mode):
+def gen_marshal_output(name, ret_type):
     if not ret_type:
         return ""
 
@@ -194,14 +193,14 @@ out:
 
     return ret
 
-def gen_marshal_input_decl(name, args, ret_type, middle_mode):
+def gen_marshal_input_decl(name, middle_mode):
     ret = 'void qmp_marshal_input_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
     if not middle_mode:
         ret = "static " + ret
     return ret
 
 def gen_marshal_input(name, args, ret_type, middle_mode):
-    hdr = gen_marshal_input_decl(name, args, ret_type, middle_mode)
+    hdr = gen_marshal_input_decl(name, middle_mode)
 
     ret = mcgen('''
 %(header)s
@@ -228,7 +227,7 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
 %(visitor_input_block)s
 
 ''',
-                     visitor_input_containers_decl=gen_visitor_input_containers_decl(args, "QOBJECT(args)"),
+                     visitor_input_containers_decl=gen_visitor_input_containers_decl(args),
                      visitor_input_vars_decl=gen_visitor_input_vars_decl(args),
                      visitor_input_block=gen_visitor_input_block(args))
     else:
@@ -240,7 +239,7 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
     ret += mcgen('''
 %(sync_call)s
 ''',
-                 sync_call=gen_sync_call(name, args, ret_type, indent=4))
+                 sync_call=gen_sync_call(name, args, ret_type))
     if re.search('^ *goto out\\;', ret, re.MULTILINE):
         ret += mcgen('''
 
@@ -360,11 +359,11 @@ for cmd in commands:
     ret = generate_command_decl(cmd['command'], arglist, ret_type) + "\n"
     fdecl.write(ret)
     if ret_type:
-        ret = gen_marshal_output(cmd['command'], arglist, ret_type, middle_mode) + "\n"
+        ret = gen_marshal_output(cmd['command'], ret_type) + "\n"
         fdef.write(ret)
 
     if middle_mode:
-        fdecl.write('%s;\n' % gen_marshal_input_decl(cmd['command'], arglist, ret_type, middle_mode))
+        fdecl.write('%s;\n' % gen_marshal_input_decl(cmd['command'], middle_mode))
 
     ret = gen_marshal_input(cmd['command'], arglist, ret_type, middle_mode) + "\n"
     fdef.write(ret)

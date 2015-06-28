@@ -507,7 +507,6 @@ def check_command(expr, expr_info):
 def check_event(expr, expr_info):
     global events
     name = expr['event']
-    params = expr.get('data')
 
     if name.upper() == 'MAX':
         raise QAPIExprError(expr_info, "Event name 'MAX' cannot be created")
