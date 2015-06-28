@@ -253,7 +253,7 @@ static void pc_q35_init(MachineState *machine)
                          (pc_machine->vmport != ON_OFF_AUTO_ON), 0xff0104);
 
     /* connect pm stuff to lpc */
-    ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pc_machine));
+    ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pc_machine), !mc->no_tco);
 
     /* ahci and SATA device, for q35 1 ahci controller is built-in */
     ahci = pci_create_simple_multifunction(host_bus,
@@ -397,6 +397,7 @@ static void pc_q35_2_4_machine_options(MachineClass *m)
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
     m->no_floppy = 1;
+    m->no_tco = 0;
     m->alias = "q35";
 }
 
@@ -408,6 +409,7 @@ static void pc_q35_2_3_machine_options(MachineClass *m)
 {
     pc_q35_2_4_machine_options(m);
     m->no_floppy = 0;
+    m->no_tco = 1;
     m->alias = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_3);
 }

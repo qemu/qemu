@@ -88,6 +88,7 @@ typedef struct PcPciInfo {
 #define ACPI_PM_PROP_PM_IO_BASE "pm_io_base"
 #define ACPI_PM_PROP_GPE0_BLK "gpe0_blk"
 #define ACPI_PM_PROP_GPE0_BLK_LEN "gpe0_blk_len"
+#define ACPI_PM_PROP_TCO_ENABLED "enable_tco"
 
 struct PcGuestInfo {
     bool isapc_ram_fw;
