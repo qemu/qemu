@@ -702,7 +702,7 @@ static int xen_pt_initfn(PCIDevice *d)
 {
     XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     int rc = 0;
-    uint8_t machine_irq = 0;
+    uint8_t machine_irq = 0, scratch;
     uint16_t cmd = 0;
     int pirq = XEN_PT_UNASSIGNED_PIRQ;
 
@@ -768,7 +768,12 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
     /* Bind interrupt */
-    if (!s->dev.config[PCI_INTERRUPT_PIN]) {
+    rc = xen_host_pci_get_byte(&s->real_device, PCI_INTERRUPT_PIN, &scratch);
+    if (rc) {
+        XEN_PT_ERR(d, "Failed to read PCI_INTERRUPT_PIN! (rc:%d)\n", rc);
+        scratch = 0;
+    }
+    if (!scratch) {
         XEN_PT_LOG(d, "no pin interrupt\n");
         goto out;
     }
@@ -818,8 +823,19 @@ static int xen_pt_initfn(PCIDevice *d)
 
 out:
     if (cmd) {
-        xen_host_pci_set_word(&s->real_device, PCI_COMMAND,
-                              pci_get_word(d->config + PCI_COMMAND) | cmd);
+        uint16_t val;
+
+        rc = xen_host_pci_get_word(&s->real_device, PCI_COMMAND, &val);
+        if (rc) {
+            XEN_PT_ERR(d, "Failed to read PCI_COMMAND! (rc: %d)\n", rc);
+        } else {
+            val |= cmd;
+            rc = xen_host_pci_set_word(&s->real_device, PCI_COMMAND, val);
+            if (rc) {
+                XEN_PT_ERR(d, "Failed to write PCI_COMMAND val=0x%x!(rc: %d)\n",
+                           val, rc);
+            }
+        }
     }
 
     memory_listener_register(&s->memory_listener, &s->dev.bus_master_as);

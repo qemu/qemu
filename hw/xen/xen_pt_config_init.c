@@ -816,15 +816,21 @@ static XenPTRegInfo xen_pt_emu_reg_vendor[] = {
 static inline uint8_t get_capability_version(XenPCIPassthroughState *s,
                                              uint32_t offset)
 {
-    uint8_t flags = pci_get_byte(s->dev.config + offset + PCI_EXP_FLAGS);
-    return flags & PCI_EXP_FLAGS_VERS;
+    uint8_t flag;
+    if (xen_host_pci_get_byte(&s->real_device, offset + PCI_EXP_FLAGS, &flag)) {
+        return 0;
+    }
+    return flag & PCI_EXP_FLAGS_VERS;
 }
 
 static inline uint8_t get_device_type(XenPCIPassthroughState *s,
                                       uint32_t offset)
 {
-    uint8_t flags = pci_get_byte(s->dev.config + offset + PCI_EXP_FLAGS);
-    return (flags & PCI_EXP_FLAGS_TYPE) >> 4;
+    uint8_t flag;
+    if (xen_host_pci_get_byte(&s->real_device, offset + PCI_EXP_FLAGS, &flag)) {
+        return 0;
+    }
+    return (flag & PCI_EXP_FLAGS_TYPE) >> 4;
 }
 
 /* initialize Link Control register */
@@ -873,8 +879,14 @@ static int xen_pt_linkctrl2_reg_init(XenPCIPassthroughState *s,
         reg_field = XEN_PT_INVALID_REG;
     } else {
         /* set Supported Link Speed */
-        uint8_t lnkcap = pci_get_byte(s->dev.config + real_offset - reg->offset
-                                      + PCI_EXP_LNKCAP);
+        uint8_t lnkcap;
+        int rc;
+        rc = xen_host_pci_get_byte(&s->real_device,
+                                   real_offset - reg->offset + PCI_EXP_LNKCAP,
+                                   &lnkcap);
+        if (rc) {
+            return rc;
+        }
         reg_field |= PCI_EXP_LNKCAP_SLS & lnkcap;
     }
 
@@ -1055,13 +1067,15 @@ static int xen_pt_msgctrl_reg_init(XenPCIPassthroughState *s,
                                    XenPTRegInfo *reg, uint32_t real_offset,
                                    uint32_t *data)
 {
-    PCIDevice *d = &s->dev;
     XenPTMSI *msi = s->msi;
-    uint16_t reg_field = 0;
+    uint16_t reg_field;
+    int rc;
 
     /* use I/O device register's value as initial value */
-    reg_field = pci_get_word(d->config + real_offset);
-
+    rc = xen_host_pci_get_word(&s->real_device, real_offset, &reg_field);
+    if (rc) {
+        return rc;
+    }
     if (reg_field & PCI_MSI_FLAGS_ENABLE) {
         XEN_PT_LOG(&s->dev, "MSI already enabled, disabling it first\n");
         xen_host_pci_set_word(&s->real_device, real_offset,
@@ -1427,12 +1441,14 @@ static int xen_pt_msixctrl_reg_init(XenPCIPassthroughState *s,
                                     XenPTRegInfo *reg, uint32_t real_offset,
                                     uint32_t *data)
 {
-    PCIDevice *d = &s->dev;
-    uint16_t reg_field = 0;
+    uint16_t reg_field;
+    int rc;
 
     /* use I/O device register's value as initial value */
-    reg_field = pci_get_word(d->config + real_offset);
-
+    rc = xen_host_pci_get_word(&s->real_device, real_offset, &reg_field);
+    if (rc) {
+        return rc;
+    }
     if (reg_field & PCI_MSIX_FLAGS_ENABLE) {
         XEN_PT_LOG(&s->dev, "MSIX already enabled, disabling it first\n");
         xen_host_pci_set_word(&s->real_device, real_offset,
@@ -1540,8 +1556,7 @@ static int xen_pt_vendor_size_init(XenPCIPassthroughState *s,
                                    const XenPTRegGroupInfo *grp_reg,
                                    uint32_t base_offset, uint8_t *size)
 {
-    *size = pci_get_byte(s->dev.config + base_offset + 0x02);
-    return 0;
+    return xen_host_pci_get_byte(&s->real_device, base_offset + 0x02, size);
 }
 /* get PCI Express Capability Structure register group size */
 static int xen_pt_pcie_size_init(XenPCIPassthroughState *s,
@@ -1620,12 +1635,15 @@ static int xen_pt_msi_size_init(XenPCIPassthroughState *s,
                                 const XenPTRegGroupInfo *grp_reg,
                                 uint32_t base_offset, uint8_t *size)
 {
-    PCIDevice *d = &s->dev;
     uint16_t msg_ctrl = 0;
     uint8_t msi_size = 0xa;
+    int rc;
 
-    msg_ctrl = pci_get_word(d->config + (base_offset + PCI_MSI_FLAGS));
-
+    rc = xen_host_pci_get_word(&s->real_device, base_offset + PCI_MSI_FLAGS,
+                               &msg_ctrl);
+    if (rc) {
+        return rc;
+    }
     /* check if 64-bit address is capable of per-vector masking */
     if (msg_ctrl & PCI_MSI_FLAGS_64BIT) {
         msi_size += 4;
@@ -1776,11 +1794,14 @@ static int xen_pt_ptr_reg_init(XenPCIPassthroughState *s,
                                XenPTRegInfo *reg, uint32_t real_offset,
                                uint32_t *data)
 {
-    int i;
-    uint8_t *config = s->dev.config;
-    uint32_t reg_field = pci_get_byte(config + real_offset);
+    int i, rc;
+    uint8_t reg_field;
     uint8_t cap_id = 0;
 
+    rc = xen_host_pci_get_byte(&s->real_device, real_offset, &reg_field);
+    if (rc) {
+        return rc;
+    }
     /* find capability offset */
     while (reg_field) {
         for (i = 0; xen_pt_emu_reg_grps[i].grp_size != 0; i++) {
@@ -1789,7 +1810,11 @@ static int xen_pt_ptr_reg_init(XenPCIPassthroughState *s,
                 continue;
             }
 
-            cap_id = pci_get_byte(config + reg_field + PCI_CAP_LIST_ID);
+            rc = xen_host_pci_get_byte(&s->real_device,
+                                       reg_field + PCI_CAP_LIST_ID, &cap_id);
+            if (rc) {
+                return rc;
+            }
             if (xen_pt_emu_reg_grps[i].grp_id == cap_id) {
                 if (xen_pt_emu_reg_grps[i].grp_type == XEN_PT_GRP_TYPE_EMU) {
                     goto out;
@@ -1800,7 +1825,11 @@ static int xen_pt_ptr_reg_init(XenPCIPassthroughState *s,
         }
 
         /* next capability */
-        reg_field = pci_get_byte(config + reg_field + PCI_CAP_LIST_NEXT);
+        rc = xen_host_pci_get_byte(&s->real_device,
+                                   reg_field + PCI_CAP_LIST_NEXT, &reg_field);
+        if (rc) {
+            return rc;
+        }
     }
 
 out:
