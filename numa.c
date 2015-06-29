@@ -52,6 +52,28 @@ static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
 int nb_numa_nodes;
 NodeInfo numa_info[MAX_NODES];
 
+void numa_set_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node)
+{
+    struct numa_addr_range *range = g_malloc0(sizeof(*range));
+
+    range->mem_start = addr;
+    range->mem_end = addr + size - 1;
+    QLIST_INSERT_HEAD(&numa_info[node].addr, range, entry);
+}
+
+void numa_unset_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node)
+{
+    struct numa_addr_range *range, *next;
+
+    QLIST_FOREACH_SAFE(range, &numa_info[node].addr, entry, next) {
+        if (addr == range->mem_start && (addr + size - 1) == range->mem_end) {
+            QLIST_REMOVE(range, entry);
+            g_free(range);
+            return;
+        }
+    }
+}
+
 static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
 {
     uint16_t nodenr;
@@ -271,6 +293,10 @@ void parse_numa_opts(MachineClass *mc)
                          " should equal RAM size (0x" RAM_ADDR_FMT ")",
                          numa_total, ram_size);
             exit(1);
+        }
+
+        for (i = 0; i < nb_numa_nodes; i++) {
+            QLIST_INIT(&numa_info[i].addr);
         }
 
         for (i = 0; i < nb_numa_nodes; i++) {

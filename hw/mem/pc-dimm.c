@@ -97,6 +97,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
 
     memory_region_add_subregion(&hpms->mr, addr - hpms->base, mr);
     vmstate_register_ram(mr, dev);
+    numa_set_mem_node_id(addr, memory_region_size(mr), dimm->node);
 
 out:
     error_propagate(errp, local_err);
@@ -105,6 +106,9 @@ out:
 void pc_dimm_memory_unplug(DeviceState *dev, MemoryHotplugState *hpms,
                            MemoryRegion *mr)
 {
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+
+    numa_unset_mem_node_id(dimm->addr, memory_region_size(mr), dimm->node);
     memory_region_del_subregion(&hpms->mr, mr);
     vmstate_unregister_ram(mr, dev);
 }
