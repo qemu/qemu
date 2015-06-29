@@ -5,7 +5,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/m68k/mcf.h"
+#include "hw/m68k/mac128k.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
@@ -14,6 +14,7 @@
 
 #define ROM_LOAD_ADDR 0x400000
 #define MAX_ROM_SIZE 0x20000
+#define IWM_BASE_ADDR 0xDFE1FF // dBase
 
 /* Board init.  */
 
@@ -53,6 +54,8 @@ static void mac128k_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, ROM_LOAD_ADDR, rom);
     memory_region_set_readonly(rom, true);
 
+    iwm_init(address_space_mem, IWM_BASE_ADDR, cpu);
+
     /* Load kernel.  */
     if (kernel_filename) {
         kernel_size = load_image_targphys(kernel_filename,
@@ -78,6 +81,7 @@ static void mac128k_init(MachineState *machine)
     } else {
         entry = 0;
     }
+
     env->pc = entry;
 }
 
