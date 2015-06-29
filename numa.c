@@ -97,6 +97,47 @@ static void numa_set_mem_ranges(void)
     }
 }
 
+/*
+ * Check if @addr falls under NUMA @node.
+ */
+static bool numa_addr_belongs_to_node(ram_addr_t addr, uint32_t node)
+{
+    struct numa_addr_range *range;
+
+    QLIST_FOREACH(range, &numa_info[node].addr, entry) {
+        if (addr >= range->mem_start && addr <= range->mem_end) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/*
+ * Given an address, return the index of the NUMA node to which the
+ * address belongs to.
+ */
+uint32_t numa_get_node(ram_addr_t addr, Error **errp)
+{
+    uint32_t i;
+
+    /* For non NUMA configurations, check if the addr falls under node 0 */
+    if (!nb_numa_nodes) {
+        if (numa_addr_belongs_to_node(addr, 0)) {
+            return 0;
+        }
+    }
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        if (numa_addr_belongs_to_node(addr, i)) {
+            return i;
+        }
+    }
+
+    error_setg(errp, "Address 0x" RAM_ADDR_FMT " doesn't belong to any "
+                "NUMA node", addr);
+    return -1;
+}
+
 static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
 {
     uint16_t nodenr;
