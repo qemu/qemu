@@ -1577,7 +1577,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     }
 
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
-    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &error_abort);
 out:
     error_propagate(errp, local_err);
 }
