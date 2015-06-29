@@ -283,7 +283,7 @@ void bdrv_drain_all(void)
         }
         aio_context_release(aio_context);
 
-        if (!aio_ctxs || !g_slist_find(aio_ctxs, aio_context)) {
+        if (!g_slist_find(aio_ctxs, aio_context)) {
             aio_ctxs = g_slist_prepend(aio_ctxs, aio_context);
         }
     }
