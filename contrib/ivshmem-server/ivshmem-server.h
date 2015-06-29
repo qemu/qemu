@@ -82,8 +82,7 @@ typedef struct IvshmemServer {
  * @server:         A pointer to an uninitialized IvshmemServer structure
  * @unix_sock_path: The pointer to the unix socket file name
  * @shm_path:       Path to the shared memory. The path corresponds to a POSIX
- *                  shm name. To use a real file, for instance in a hugetlbfs,
- *                  it is possible to use /../../abspath/to/file.
+ *                  shm name or a hugetlbfs mount point.
  * @shm_size:       Size of shared memory
  * @n_vectors:      Number of interrupt vectors per client
  * @verbose:        True to enable verbose mode

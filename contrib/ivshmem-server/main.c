@@ -47,9 +47,8 @@ ivshmem_server_usage(const char *name, int code)
                     "     to listen to.\n"
                     "     Default=%s\n", IVSHMEM_SERVER_DEFAULT_UNIX_SOCK_PATH);
     fprintf(stderr, "  -m <shm_path>: path to the shared memory.\n"
-                    "     The path corresponds to a POSIX shm name. To use a\n"
-                    "     real file, for instance in a hugetlbfs, use\n"
-                    "     /../../abspath/to/file.\n"
+                    "     The path corresponds to a POSIX shm name or a\n"
+                    "     hugetlbfs mount point.\n"
                     "     default=%s\n", IVSHMEM_SERVER_DEFAULT_SHM_PATH);
     fprintf(stderr, "  -l <size>: size of shared memory in bytes. The suffix\n"
                     "     K, M and G can be used (ex: 1K means 1024).\n"

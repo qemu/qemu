@@ -12,6 +12,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#ifdef CONFIG_LINUX
+#include <sys/vfs.h>
+#endif
 
 #include "ivshmem-server.h"
 
@@ -271,6 +274,31 @@ ivshmem_server_init(IvshmemServer *server, const char *unix_sock_path,
     return 0;
 }
 
+#ifdef CONFIG_LINUX
+
+#define HUGETLBFS_MAGIC       0x958458f6
+
+static long gethugepagesize(const char *path)
+{
+    struct statfs fs;
+    int ret;
+
+    do {
+        ret = statfs(path, &fs);
+    } while (ret != 0 && errno == EINTR);
+
+    if (ret != 0) {
+        return -1;
+    }
+
+    if (fs.f_type != HUGETLBFS_MAGIC) {
+        return -1;
+    }
+
+    return fs.f_bsize;
+}
+#endif
+
 /* open shm, create and bind to the unix socket */
 int
 ivshmem_server_start(IvshmemServer *server)
@@ -279,7 +307,29 @@ ivshmem_server_start(IvshmemServer *server)
     int shm_fd, sock_fd, ret;
 
     /* open shm file */
-    shm_fd = shm_open(server->shm_path, O_CREAT|O_RDWR, S_IRWXU);
+#ifdef CONFIG_LINUX
+    long hpagesize;
+
+    hpagesize = gethugepagesize(server->shm_path);
+    if (hpagesize < 0 && errno != ENOENT) {
+        IVSHMEM_SERVER_DEBUG(server, "cannot stat shm file %s: %s\n",
+                             server->shm_path, strerror(errno));
+    }
+
+    if (hpagesize > 0) {
+        gchar *filename = g_strdup_printf("%s/ivshmem.XXXXXX", server->shm_path);
+        IVSHMEM_SERVER_DEBUG(server, "Using hugepages: %s\n", server->shm_path);
+        shm_fd = mkstemp(filename);
+        unlink(filename);
+        g_free(filename);
+    } else
+#endif
+    {
+        IVSHMEM_SERVER_DEBUG(server, "Using POSIX shared memory: %s\n",
+                             server->shm_path);
+        shm_fd = shm_open(server->shm_path, O_CREAT|O_RDWR, S_IRWXU);
+    }
+
     if (shm_fd < 0) {
         fprintf(stderr, "cannot open shm file %s: %s\n", server->shm_path,
                 strerror(errno));
