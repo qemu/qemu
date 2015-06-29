@@ -88,7 +88,6 @@ typedef struct IVShmemState {
     MemoryRegion ivshmem;
     uint64_t ivshmem_size; /* size of shared memory region */
     uint32_t ivshmem_64bit;
-    int shm_fd; /* shared memory file descriptor */
 
     Peer *peers;
     int nb_peers; /* how many peers we have space for */
@@ -235,7 +234,7 @@ static uint64_t ivshmem_io_read(void *opaque, hwaddr addr,
 
         case IVPOSITION:
             /* return my VM ID if the memory is mapped */
-            if (s->shm_fd >= 0) {
+            if (memory_region_is_mapped(&s->ivshmem)) {
                 ret = s->vm_id;
             } else {
                 ret = -1;
@@ -355,8 +354,6 @@ static int create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr,
         error_setg_errno(errp, errno, "Failed to mmap shared memory");
         return -1;
     }
-
-    s->shm_fd = fd;
 
     memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s), "ivshmem.bar2",
                                s->ivshmem_size, ptr);
@@ -535,7 +532,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     if (incoming_posn == -1) {
         void * map_ptr;
 
-        if (s->shm_fd >= 0) {
+        if (memory_region_is_mapped(&s->ivshmem)) {
             error_report("shm already initialized");
             close(incoming_fd);
             return;
@@ -564,9 +561,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 
         memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
-        /* only store the fd if it is successfully mapped */
-        s->shm_fd = incoming_fd;
-
+        close(incoming_fd);
         return;
     }
 
@@ -706,8 +701,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         PCI_BASE_ADDRESS_MEM_PREFETCH;
     Error *local_err = NULL;
 
-    s->shm_fd = -1;
-
     if (s->sizearg == NULL) {
         s->ivshmem_size = 4 << 20; /* 4 MB default */
     } else {
@@ -829,6 +822,7 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         }
 
         create_shared_memory_BAR(s, fd, attr, errp);
+        close(fd);
     }
 }
 
@@ -844,7 +838,7 @@ static void pci_ivshmem_exit(PCIDevice *dev)
         error_free(s->migration_blocker);
     }
 
-    if (s->shm_fd >= 0) {
+    if (memory_region_is_mapped(&s->ivshmem)) {
         void *addr = memory_region_get_ram_ptr(&s->ivshmem);
 
         vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
