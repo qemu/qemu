@@ -287,6 +287,7 @@ typedef struct XtensaGdbReg {
     int targno;
     int type;
     int group;
+    unsigned size;
 } XtensaGdbReg;
 
 typedef struct XtensaGdbRegmap {
@@ -336,6 +337,18 @@ typedef struct XtensaConfigList {
     struct XtensaConfigList *next;
 } XtensaConfigList;
 
+#ifdef HOST_WORDS_BIGENDIAN
+enum {
+    FP_F32_HIGH,
+    FP_F32_LOW,
+};
+#else
+enum {
+    FP_F32_LOW,
+    FP_F32_HIGH,
+};
+#endif
+
 typedef struct CPUXtensaState {
     const XtensaConfig *config;
     uint32_t regs[16];
@@ -343,7 +356,10 @@ typedef struct CPUXtensaState {
     uint32_t sregs[256];
     uint32_t uregs[256];
     uint32_t phys_regs[MAX_NAREG];
-    float32 fregs[16];
+    union {
+        float32 f32[2];
+        float64 f64;
+    } fregs[16];
     float_status fp_status;
 
     xtensa_tlb_entry itlb[7][MAX_TLB_WAY_SIZE];

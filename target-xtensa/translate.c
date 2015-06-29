@@ -228,7 +228,7 @@ void xtensa_translate_init(void)
 
     for (i = 0; i < 16; i++) {
         cpu_FR[i] = tcg_global_mem_new_i32(TCG_AREG0,
-                offsetof(CPUXtensaState, fregs[i]),
+                offsetof(CPUXtensaState, fregs[i].f32[FP_F32_LOW]),
                 fregnames[i]);
     }
 
@@ -3206,8 +3206,9 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
 
         for (i = 0; i < 16; ++i) {
             cpu_fprintf(f, "F%02d=%08x (%+10.8e)%c", i,
-                    float32_val(env->fregs[i]),
-                    *(float *)&env->fregs[i], (i % 2) == 1 ? '\n' : ' ');
+                    float32_val(env->fregs[i].f32[FP_F32_LOW]),
+                    *(float *)(env->fregs[i].f32 + FP_F32_LOW),
+                    (i % 2) == 1 ? '\n' : ' ');
         }
     }
 }

@@ -27,7 +27,7 @@
 
 #define XTREG(idx, ofs, bi, sz, al, no, flags, cp, typ, grp, name, \
         a1, a2, a3, a4, a5, a6) \
-    { .targno = (no), .type = (typ), .group = (grp) },
+    { .targno = (no), .type = (typ), .group = (grp), .size = (sz) },
 
 #ifndef XCHAL_HAVE_DIV32
 #define XCHAL_HAVE_DIV32 0
