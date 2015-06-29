@@ -1434,7 +1434,7 @@ static int xen_pt_msixctrl_reg_init(XenPCIPassthroughState *s,
     reg_field = pci_get_word(d->config + real_offset);
 
     if (reg_field & PCI_MSIX_FLAGS_ENABLE) {
-        XEN_PT_LOG(d, "MSIX already enabled, disabling it first\n");
+        XEN_PT_LOG(&s->dev, "MSIX already enabled, disabling it first\n");
         xen_host_pci_set_word(&s->real_device, real_offset,
                               reg_field & ~PCI_MSIX_FLAGS_ENABLE);
     }
