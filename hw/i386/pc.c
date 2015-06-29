@@ -1297,7 +1297,7 @@ FWCfgState *pc_memory_init(MachineState *machine,
             exit(EXIT_FAILURE);
         }
 
-        pcms->hotplug_memory_base =
+        pcms->hotplug_memory.base =
             ROUND_UP(0x100000000ULL + above_4g_mem_size, 1ULL << 30);
 
         if (pcms->enforce_aligned_dimm) {
@@ -1305,17 +1305,17 @@ FWCfgState *pc_memory_init(MachineState *machine,
             hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
         }
 
-        if ((pcms->hotplug_memory_base + hotplug_mem_size) <
+        if ((pcms->hotplug_memory.base + hotplug_mem_size) <
             hotplug_mem_size) {
             error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
                          machine->maxram_size);
             exit(EXIT_FAILURE);
         }
 
-        memory_region_init(&pcms->hotplug_memory, OBJECT(pcms),
+        memory_region_init(&pcms->hotplug_memory.mr, OBJECT(pcms),
                            "hotplug-memory", hotplug_mem_size);
-        memory_region_add_subregion(system_memory, pcms->hotplug_memory_base,
-                                    &pcms->hotplug_memory);
+        memory_region_add_subregion(system_memory, pcms->hotplug_memory.base,
+                                    &pcms->hotplug_memory.mr);
     }
 
     /* Initialize PC system firmware */
@@ -1333,9 +1333,9 @@ FWCfgState *pc_memory_init(MachineState *machine,
     fw_cfg = bochs_bios_init();
     rom_set_fw(fw_cfg);
 
-    if (guest_info->has_reserved_memory && pcms->hotplug_memory_base) {
+    if (guest_info->has_reserved_memory && pcms->hotplug_memory.base) {
         uint64_t *val = g_malloc(sizeof(*val));
-        *val = cpu_to_le64(ROUND_UP(pcms->hotplug_memory_base, 0x1ULL << 30));
+        *val = cpu_to_le64(ROUND_UP(pcms->hotplug_memory.base, 0x1ULL << 30));
         fw_cfg_add_file(fw_cfg, "etc/reserved-memory-end", val, sizeof(*val));
     }
 
@@ -1575,8 +1575,8 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         align = memory_region_get_alignment(mr);
     }
 
-    addr = pc_dimm_get_free_addr(pcms->hotplug_memory_base,
-                                 memory_region_size(&pcms->hotplug_memory),
+    addr = pc_dimm_get_free_addr(pcms->hotplug_memory.base,
+                                 memory_region_size(&pcms->hotplug_memory.mr),
                                  !addr ? NULL : &addr, align,
                                  memory_region_size(mr), &local_err);
     if (local_err) {
@@ -1630,8 +1630,8 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    memory_region_add_subregion(&pcms->hotplug_memory,
-                                addr - pcms->hotplug_memory_base, mr);
+    memory_region_add_subregion(&pcms->hotplug_memory.mr,
+                                addr - pcms->hotplug_memory.base, mr);
     vmstate_register_ram(mr, dev);
 
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
@@ -1677,7 +1677,7 @@ static void pc_dimm_unplug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    memory_region_del_subregion(&pcms->hotplug_memory, mr);
+    memory_region_del_subregion(&pcms->hotplug_memory.mr, mr);
     vmstate_unregister_ram(mr, dev);
 
     object_unparent(OBJECT(dev));
@@ -1766,7 +1766,7 @@ pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v, void *opaque,
                                           const char *name, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
-    int64_t value = memory_region_size(&pcms->hotplug_memory);
+    int64_t value = memory_region_size(&pcms->hotplug_memory.mr);
 
     visit_type_int(v, &value, name, errp);
 }
