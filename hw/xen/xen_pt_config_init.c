@@ -1949,9 +1949,15 @@ static int xen_pt_config_reg_init(XenPCIPassthroughState *s,
         } else
             val = data;
 
+        if (val & ~size_mask) {
+            XEN_PT_ERR(&s->dev,"Offset 0x%04x:0x%04x expands past register size(%d)!\n",
+                       offset, val, reg->size);
+            g_free(reg_entry);
+            return -ENXIO;
+        }
         /* This could be just pci_set_long as we don't modify the bits
-         * past reg->size, but in case this routine is run in parallel
-         * we do not want to over-write other registers. */
+         * past reg->size, but in case this routine is run in parallel or the
+         * init value is larger, we do not want to over-write registers. */
         switch (reg->size) {
         case 1: pci_set_byte(s->dev.config + offset, (uint8_t)val);
                 break;
