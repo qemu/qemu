@@ -645,33 +645,6 @@ static void ivshmem_reset(DeviceState *d)
     ivshmem_use_msix(s);
 }
 
-static uint64_t ivshmem_get_size(IVShmemState * s, Error **errp) {
-
-    uint64_t value;
-    char *ptr;
-
-    value = strtoull(s->sizearg, &ptr, 10);
-    switch (*ptr) {
-        case 0: case 'M': case 'm':
-            value <<= 20;
-            break;
-        case 'G': case 'g':
-            value <<= 30;
-            break;
-        default:
-            error_setg(errp, "invalid ram size: %s", s->sizearg);
-            return 0;
-    }
-
-    /* BARs must be a power of 2 */
-    if (!is_power_of_2(value)) {
-        error_setg(errp, "size must be power of 2");
-        return 0;
-    }
-
-    return value;
-}
-
 static int ivshmem_setup_msi(IVShmemState * s)
 {
     if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
@@ -699,16 +672,17 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     uint8_t *pci_conf;
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
-    Error *local_err = NULL;
 
     if (s->sizearg == NULL) {
         s->ivshmem_size = 4 << 20; /* 4 MB default */
     } else {
-        s->ivshmem_size = ivshmem_get_size(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        char *end;
+        int64_t size = qemu_strtosz(s->sizearg, &end);
+        if (size < 0 || *end != '\0' || !is_power_of_2(size)) {
+            error_setg(errp, "Invalid size %s", s->sizearg);
             return;
         }
+        s->ivshmem_size = size;
     }
 
     fifo8_create(&s->incoming_fifo, sizeof(long));
