@@ -56,6 +56,14 @@ void numa_set_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node)
 {
     struct numa_addr_range *range = g_malloc0(sizeof(*range));
 
+    /*
+     * Memory-less nodes can come here with 0 size in which case,
+     * there is nothing to do.
+     */
+    if (!size) {
+        return;
+    }
+
     range->mem_start = addr;
     range->mem_end = addr + size - 1;
     QLIST_INSERT_HEAD(&numa_info[node].addr, range, entry);
@@ -71,6 +79,21 @@ void numa_unset_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node)
             g_free(range);
             return;
         }
+    }
+}
+
+static void numa_set_mem_ranges(void)
+{
+    int i;
+    ram_addr_t mem_start = 0;
+
+    /*
+     * Deduce start address of each node and use it to store
+     * the address range info in numa_info address range list
+     */
+    for (i = 0; i < nb_numa_nodes; i++) {
+        numa_set_mem_node_id(mem_start, numa_info[i].node_mem, i);
+        mem_start += numa_info[i].node_mem;
     }
 }
 
@@ -299,6 +322,8 @@ void parse_numa_opts(MachineClass *mc)
             QLIST_INIT(&numa_info[i].addr);
         }
 
+        numa_set_mem_ranges();
+
         for (i = 0; i < nb_numa_nodes; i++) {
             if (!bitmap_empty(numa_info[i].node_cpu, MAX_CPUMASK_BITS)) {
                 break;
@@ -323,6 +348,8 @@ void parse_numa_opts(MachineClass *mc)
         }
 
         validate_numa_cpus();
+    } else {
+        numa_set_mem_node_id(0, ram_size, 0);
     }
 }
 
