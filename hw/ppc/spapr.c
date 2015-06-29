@@ -1715,7 +1715,7 @@ static void ppc_spapr_init(MachineState *machine)
      * more than needed for the Linux guests we support. */
     spapr->htab_shift = 18; /* Minimum architected size */
     while (spapr->htab_shift <= 46) {
-        if ((1ULL << (spapr->htab_shift + 7)) >= machine->ram_size) {
+        if ((1ULL << (spapr->htab_shift + 7)) >= machine->maxram_size) {
             break;
         }
         spapr->htab_shift++;
