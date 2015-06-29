@@ -417,4 +417,26 @@ static inline int xen_set_ioreq_server_state(XenXC xc, domid_t dom,
 
 #endif
 
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 460
+static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
+                                               unsigned int space,
+                                               unsigned long idx,
+                                               xen_pfn_t gpfn)
+{
+    return xc_domain_add_to_physmap(xch, domid, space, idx, gpfn);
+}
+#else
+static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
+                                               unsigned int space,
+                                               unsigned long idx,
+                                               xen_pfn_t gpfn)
+{
+    /* In Xen 4.6 rc is -1 and errno contains the error value. */
+    int rc = xc_domain_add_to_physmap(xch, domid, space, idx, gpfn);
+    if (rc == -1)
+        return errno;
+    return rc;
+}
+#endif
+
 #endif /* QEMU_HW_XEN_COMMON_H */
