@@ -26,6 +26,8 @@
 #include "qemu/event_notifier.h"
 #include "qemu/fifo8.h"
 #include "sysemu/char.h"
+#include "sysemu/hostmem.h"
+#include "qapi/visitor.h"
 
 #include "hw/misc/ivshmem.h"
 
@@ -57,6 +59,8 @@
 #define IVSHMEM(obj) \
     OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM)
 
+#define IVSHMEM_MEMDEV_PROP "memdev"
+
 typedef struct Peer {
     int nb_eventfds;
     EventNotifier *eventfds;
@@ -72,6 +76,7 @@ typedef struct IVShmemState {
     PCIDevice parent_obj;
     /*< public >*/
 
+    HostMemoryBackend *hostmem;
     uint32_t intrmask;
     uint32_t intrstatus;
 
@@ -673,7 +678,22 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
         PCI_BASE_ADDRESS_MEM_PREFETCH;
 
-    if (s->sizearg == NULL) {
+    if (!!s->server_chr + !!s->shmobj + !!s->hostmem != 1) {
+        error_setg(errp, "You must specify either a shmobj, a chardev"
+                   " or a hostmem");
+        return;
+    }
+
+    if (s->hostmem) {
+        MemoryRegion *mr;
+
+        if (s->sizearg) {
+            g_warning("size argument ignored with hostmem");
+        }
+
+        mr = host_memory_backend_get_memory(s->hostmem, errp);
+        s->ivshmem_size = memory_region_size(mr);
+    } else if (s->sizearg == NULL) {
         s->ivshmem_size = 4 << 20; /* 4 MB default */
     } else {
         char *end;
@@ -731,7 +751,16 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
 
-    if (s->server_chr != NULL) {
+    if (s->hostmem != NULL) {
+        MemoryRegion *mr;
+
+        IVSHMEM_DPRINTF("using hostmem\n");
+
+        mr = host_memory_backend_get_memory(MEMORY_BACKEND(s->hostmem), errp);
+        vmstate_register_ram(mr, DEVICE(s));
+        memory_region_add_subregion(&s->bar, 0, mr);
+        pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
+    } else if (s->server_chr != NULL) {
         if (strncmp(s->server_chr->filename, "unix:", 5)) {
             error_setg(errp, "chardev is not a unix client socket");
             return;
@@ -739,12 +768,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 
         /* if we get a UNIX socket as the parameter we will talk
          * to the ivshmem server to receive the memory region */
-
-        if (s->shmobj != NULL) {
-            error_setg(errp, "do not specify both 'chardev' "
-                       "and 'shm' with ivshmem");
-            return;
-        }
 
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
@@ -768,11 +791,6 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
     } else {
         /* just map the file immediately, we're not using a server */
         int fd;
-
-        if (s->shmobj == NULL) {
-            error_setg(errp, "Must specify 'chardev' or 'shm' to ivshmem");
-            return;
-        }
 
         IVSHMEM_DPRINTF("using shm_open (shm object = %s)\n", s->shmobj);
 
@@ -813,14 +831,17 @@ static void pci_ivshmem_exit(PCIDevice *dev)
     }
 
     if (memory_region_is_mapped(&s->ivshmem)) {
-        void *addr = memory_region_get_ram_ptr(&s->ivshmem);
+        if (!s->hostmem) {
+            void *addr = memory_region_get_ram_ptr(&s->ivshmem);
+
+            if (munmap(addr, s->ivshmem_size) == -1) {
+                error_report("Failed to munmap shared memory %s",
+                             strerror(errno));
+            }
+        }
 
         vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
         memory_region_del_subregion(&s->bar, &s->ivshmem);
-
-        if (munmap(addr, s->ivshmem_size) == -1) {
-            error_report("Failed to munmap shared memory %s", strerror(errno));
-        }
     }
 
     if (s->eventfd_chr) {
@@ -963,10 +984,37 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     dc->desc = "Inter-VM shared memory";
 }
 
+static void ivshmem_check_memdev_is_busy(Object *obj, const char *name,
+                                         Object *val, Error **errp)
+{
+    MemoryRegion *mr;
+
+    mr = host_memory_backend_get_memory(MEMORY_BACKEND(val), errp);
+    if (memory_region_is_mapped(mr)) {
+        char *path = object_get_canonical_path_component(val);
+        error_setg(errp, "can't use already busy memdev: %s", path);
+        g_free(path);
+    } else {
+        qdev_prop_allow_set_link_before_realize(obj, name, val, errp);
+    }
+}
+
+static void ivshmem_init(Object *obj)
+{
+    IVShmemState *s = IVSHMEM(obj);
+
+    object_property_add_link(obj, IVSHMEM_MEMDEV_PROP, TYPE_MEMORY_BACKEND,
+                             (Object **)&s->hostmem,
+                             ivshmem_check_memdev_is_busy,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
+}
+
 static const TypeInfo ivshmem_info = {
     .name          = TYPE_IVSHMEM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IVShmemState),
+    .instance_init = ivshmem_init,
     .class_init    = ivshmem_class_init,
 };
 

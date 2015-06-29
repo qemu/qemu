@@ -386,6 +386,17 @@ static void test_ivshmem_hotplug(void)
     g_free(opts);
 }
 
+static void test_ivshmem_memdev(void)
+{
+    IVState state;
+
+    /* just for the sake of checking memory-backend property */
+    setup_vm_cmd(&state, "-object memory-backend-ram,size=1M,id=mb1"
+                 " -device ivshmem,memdev=mb1", false);
+
+    qtest_quit(state.qtest);
+}
+
 static void cleanup(void)
 {
     if (tmpshmem) {
@@ -470,6 +481,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ivshmem/pair", test_ivshmem_pair);
     qtest_add_func("/ivshmem/server", test_ivshmem_server);
     qtest_add_func("/ivshmem/hotplug", test_ivshmem_hotplug);
+    qtest_add_func("/ivshmem/memdev", test_ivshmem_memdev);
 
     ret = g_test_run();
 
