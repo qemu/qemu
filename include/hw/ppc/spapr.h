@@ -5,6 +5,7 @@
 #include "hw/boards.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/spapr_drc.h"
+#include "hw/mem/pc-dimm.h"
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
@@ -76,6 +77,7 @@ struct sPAPRMachineState {
 
     /*< public >*/
     char *kvm_type;
+    MemoryHotplugState hotplug_memory;
 };
 
 #define H_SUCCESS         0
@@ -609,5 +611,15 @@ void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
 
 #define SPAPR_MEMORY_BLOCK_SIZE (1 << 28) /* 256MB */
+
+/*
+ * This defines the maximum number of DIMM slots we can have for sPAPR
+ * guest. This is not defined by sPAPR but we are defining it to 32 slots
+ * based on default number of slots provided by PowerPC kernel.
+ */
+#define SPAPR_MAX_RAM_SLOTS     32
+
+/* 1GB alignment for hotplug memory region */
+#define SPAPR_HOTPLUG_MEM_ALIGN (1ULL << 30)
 
 #endif /* !defined (__HW_SPAPR_H__) */

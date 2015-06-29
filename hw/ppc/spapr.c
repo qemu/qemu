@@ -1562,6 +1562,24 @@ static void ppc_spapr_init(MachineState *machine)
         memory_region_add_subregion(sysmem, 0, rma_region);
     }
 
+    /* initialize hotplug memory address space */
+    if (machine->ram_size < machine->maxram_size) {
+        ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
+
+        if (machine->ram_slots > SPAPR_MAX_RAM_SLOTS) {
+            error_report("unsupported amount of memory slots: %"PRIu64,
+                          machine->ram_slots);
+            exit(EXIT_FAILURE);
+        }
+
+        spapr->hotplug_memory.base = ROUND_UP(machine->ram_size,
+                                              SPAPR_HOTPLUG_MEM_ALIGN);
+        memory_region_init(&spapr->hotplug_memory.mr, OBJECT(spapr),
+                           "hotplug-memory", hotplug_mem_size);
+        memory_region_add_subregion(sysmem, spapr->hotplug_memory.base,
+                                    &spapr->hotplug_memory.mr);
+    }
+
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
     if (!filename) {
         error_report("Could not find LPAR rtas '%s'", "spapr-rtas.bin");
