@@ -729,7 +729,7 @@ static int xen_pt_initfn(PCIDevice *d)
 
     /* Initialize virtualized PCI configuration (Extended 256 Bytes) */
     if (xen_host_pci_get_block(&s->real_device, 0, d->config,
-                               PCI_CONFIG_SPACE_SIZE) == -1) {
+                               PCI_CONFIG_SPACE_SIZE) < 0) {
         xen_host_pci_device_put(&s->real_device);
         return -1;
     }
