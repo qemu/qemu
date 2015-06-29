@@ -1102,7 +1102,7 @@ static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
         /* setup MSI pirq for the first time */
         if (!msi->initialized) {
             /* Init physical one */
-            XEN_PT_LOG(&s->dev, "setup MSI\n");
+            XEN_PT_LOG(&s->dev, "setup MSI (register: %x).\n", *val);
             if (xen_pt_msi_setup(s)) {
                 /* We do not broadcast the error to the framework code, so
                  * that MSI errors are contained in MSI emulation code and
@@ -1110,12 +1110,12 @@ static int xen_pt_msgctrl_reg_write(XenPCIPassthroughState *s,
                  * Guest MSI would be actually not working.
                  */
                 *val &= ~PCI_MSI_FLAGS_ENABLE;
-                XEN_PT_WARN(&s->dev, "Can not map MSI.\n");
+                XEN_PT_WARN(&s->dev, "Can not map MSI (register: %x)!\n", *val);
                 return 0;
             }
             if (xen_pt_msi_update(s)) {
                 *val &= ~PCI_MSI_FLAGS_ENABLE;
-                XEN_PT_WARN(&s->dev, "Can not bind MSI\n");
+                XEN_PT_WARN(&s->dev, "Can not bind MSI (register: %x)!\n", *val);
                 return 0;
             }
             msi->initialized = true;
