@@ -1424,8 +1424,7 @@ void cpu_loop (CPUSPARCState *env)
 #ifdef TARGET_PPC
 static inline uint64_t cpu_ppc_get_tb(CPUPPCState *env)
 {
-    /* TO FIX */
-    return 0;
+    return cpu_get_real_ticks();
 }
 
 uint64_t cpu_ppc_load_tbl(CPUPPCState *env)
