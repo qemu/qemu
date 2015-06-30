@@ -8,6 +8,8 @@
 typedef struct {
     M68kCPU *cpu;
     MemoryRegion iomem;
+    /* base address */
+    target_ulong base;
     /* Disk state-control line */
     uint8_t CA0;
     uint8_t CA1;
@@ -25,7 +27,7 @@ static void iwm_writeb(void *opaque, hwaddr offset,
                               uint32_t value)
 {
     iwm_state *s = (iwm_state *)opaque;
-    offset >>= 9;
+    offset = (offset - (s->base & ~TARGET_PAGE_MASK)) >> 9;
     if (offset >= 0xF) {
         hw_error("Bad IWM write offset 0x%x", (int)offset);
     }
@@ -135,9 +137,10 @@ void iwm_init(MemoryRegion *sysmem, uint32_t base, M68kCPU *cpu)
 
     s = (iwm_state *)g_malloc0(sizeof(iwm_state));
 
+    s->base = base;
     memory_region_init_io(&s->iomem, NULL, &iwm_ops, s,
                           "iwm", 0x2000);
-    memory_region_add_subregion(sysmem, base, &s->iomem);
+    memory_region_add_subregion(sysmem, base & TARGET_PAGE_MASK, &s->iomem);
 
     s->Q6 = 1;
     s->Q7 = 0;
