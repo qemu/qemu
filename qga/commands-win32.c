@@ -26,6 +26,8 @@
 #include <setupapi.h>
 #include <initguid.h>
 #endif
+#include <lm.h>
+
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
 #include "qga-qmp-commands.h"
@@ -1192,12 +1194,84 @@ int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
     return -1;
 }
 
+static gchar *
+get_net_error_message(gint error)
+{
+    HMODULE module = NULL;
+    gchar *retval = NULL;
+    wchar_t *msg = NULL;
+    int flags, nchars;
+
+    flags = FORMAT_MESSAGE_ALLOCATE_BUFFER
+        |FORMAT_MESSAGE_IGNORE_INSERTS
+        |FORMAT_MESSAGE_FROM_SYSTEM;
+
+    if (error >= NERR_BASE && error <= MAX_NERR) {
+        module = LoadLibraryExW(L"netmsg.dll", NULL, LOAD_LIBRARY_AS_DATAFILE);
+
+        if (module != NULL) {
+            flags |= FORMAT_MESSAGE_FROM_HMODULE;
+        }
+    }
+
+    FormatMessageW(flags, module, error, 0, (LPWSTR)&msg, 0, NULL);
+
+    if (msg != NULL) {
+        nchars = wcslen(msg);
+
+        if (nchars > 2 && msg[nchars-1] == '\n' && msg[nchars-2] == '\r') {
+            msg[nchars-2] = '\0';
+        }
+
+        retval = g_utf16_to_utf8(msg, -1, NULL, NULL, NULL);
+
+        LocalFree(msg);
+    }
+
+    if (module != NULL) {
+        FreeLibrary(module);
+    }
+
+    return retval;
+}
+
 void qmp_guest_set_user_password(const char *username,
                                  const char *password,
                                  bool crypted,
                                  Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
+    NET_API_STATUS nas;
+    char *rawpasswddata = NULL;
+    size_t rawpasswdlen;
+    wchar_t *user, *wpass;
+    USER_INFO_1003 pi1003 = { 0, };
+
+    if (crypted) {
+        error_setg(errp, QERR_UNSUPPORTED);
+        return;
+    }
+
+    rawpasswddata = (char *)g_base64_decode(password, &rawpasswdlen);
+    rawpasswddata = g_renew(char, rawpasswddata, rawpasswdlen + 1);
+    rawpasswddata[rawpasswdlen] = '\0';
+
+    user = g_utf8_to_utf16(username, -1, NULL, NULL, NULL);
+    wpass = g_utf8_to_utf16(rawpasswddata, -1, NULL, NULL, NULL);
+
+    pi1003.usri1003_password = wpass;
+    nas = NetUserSetInfo(NULL, user,
+                         1003, (LPBYTE)&pi1003,
+                         NULL);
+
+    if (nas != NERR_Success) {
+        gchar *msg = get_net_error_message(nas);
+        error_setg(errp, "failed to set password: %s", msg);
+        g_free(msg);
+    }
+
+    g_free(user);
+    g_free(wpass);
+    g_free(rawpasswddata);
 }
 
 GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
@@ -1225,7 +1299,6 @@ GList *ga_command_blacklist_init(GList *blacklist)
     const char *list_unsupported[] = {
         "guest-suspend-hybrid",
         "guest-get-vcpus", "guest-set-vcpus",
-        "guest-set-user-password",
         "guest-get-memory-blocks", "guest-set-memory-blocks",
         "guest-get-memory-block-size",
         "guest-fsfreeze-freeze-list",
