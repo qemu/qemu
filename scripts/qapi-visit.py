@@ -16,14 +16,13 @@ from ordereddict import OrderedDict
 from qapi import *
 import re
 
-implicit_structs = []
+implicit_structs_seen = set()
 struct_fields_seen = set()
 
 def generate_visit_implicit_struct(type):
-    global implicit_structs
-    if type in implicit_structs:
+    if type in implicit_structs_seen:
         return ''
-    implicit_structs.append(type)
+    implicit_structs_seen.add(type)
     ret = ''
     if type not in struct_fields_seen:
         # Need a forward declaration
