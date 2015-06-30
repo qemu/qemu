@@ -389,8 +389,29 @@ static void guest_file_init(void)
 
 GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 {
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
+    HANDLE vol_h;
+    GuestFilesystemInfoList *new, *ret = NULL;
+    char guid[256];
+
+    vol_h = FindFirstVolume(guid, sizeof(guid));
+    if (vol_h == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to find any volume");
+        return NULL;
+    }
+
+    do {
+        new = g_malloc(sizeof(*ret));
+        new->value = build_guest_fsinfo(guid, errp);
+        new->next = ret;
+        ret = new;
+    } while (FindNextVolume(vol_h, guid, sizeof(guid)));
+
+    if (GetLastError() != ERROR_NO_MORE_FILES) {
+        error_setg_win32(errp, GetLastError(), "failed to find next volume");
+    }
+
+    FindVolumeClose(vol_h);
+    return ret;
 }
 
 /*
@@ -927,7 +948,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
         "guest-set-user-password",
         "guest-get-memory-blocks", "guest-set-memory-blocks",
         "guest-get-memory-block-size",
-        "guest-fsfreeze-freeze-list", "guest-get-fsinfo",
+        "guest-fsfreeze-freeze-list",
         "guest-fstrim", NULL};
     char **p = (char **)list_unsupported;
 
