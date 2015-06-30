@@ -20,6 +20,10 @@
 #include <ws2tcpip.h>
 #include <iptypes.h>
 #include <iphlpapi.h>
+#ifdef CONFIG_QGA_NTDDSCSI
+#include <winioctl.h>
+#include <ntddscsi.h>
+#endif
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
 #include "qga-qmp-commands.h"
@@ -387,6 +391,135 @@ static void guest_file_init(void)
     QTAILQ_INIT(&guest_file_state.filehandles);
 }
 
+#ifdef CONFIG_QGA_NTDDSCSI
+
+static STORAGE_BUS_TYPE win2qemu[] = {
+    [BusTypeUnknown] = GUEST_DISK_BUS_TYPE_UNKNOWN,
+    [BusTypeScsi] = GUEST_DISK_BUS_TYPE_SCSI,
+    [BusTypeAtapi] = GUEST_DISK_BUS_TYPE_IDE,
+    [BusTypeAta] = GUEST_DISK_BUS_TYPE_IDE,
+    [BusType1394] = GUEST_DISK_BUS_TYPE_IEEE1394,
+    [BusTypeSsa] = GUEST_DISK_BUS_TYPE_SSA,
+    [BusTypeFibre] = GUEST_DISK_BUS_TYPE_SSA,
+    [BusTypeUsb] = GUEST_DISK_BUS_TYPE_USB,
+    [BusTypeRAID] = GUEST_DISK_BUS_TYPE_RAID,
+#if (_WIN32_WINNT >= 0x0600)
+    [BusTypeiScsi] = GUEST_DISK_BUS_TYPE_ISCSI,
+    [BusTypeSas] = GUEST_DISK_BUS_TYPE_SAS,
+    [BusTypeSata] = GUEST_DISK_BUS_TYPE_SATA,
+    [BusTypeSd] =  GUEST_DISK_BUS_TYPE_SD,
+    [BusTypeMmc] = GUEST_DISK_BUS_TYPE_MMC,
+#endif
+#if (_WIN32_WINNT >= 0x0601)
+    [BusTypeVirtual] = GUEST_DISK_BUS_TYPE_VIRTUAL,
+    [BusTypeFileBackedVirtual] = GUEST_DISK_BUS_TYPE_FILE_BACKED_VIRTUAL,
+#endif
+};
+
+static GuestDiskBusType find_bus_type(STORAGE_BUS_TYPE bus)
+{
+    if (bus > ARRAY_SIZE(win2qemu) || (int)bus < 0) {
+        return GUEST_DISK_BUS_TYPE_UNKNOWN;
+    }
+    return win2qemu[(int)bus];
+}
+
+static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
+{
+    return NULL;
+}
+
+static int get_disk_bus_type(HANDLE vol_h, Error **errp)
+{
+    STORAGE_PROPERTY_QUERY query;
+    STORAGE_DEVICE_DESCRIPTOR *dev_desc, buf;
+    DWORD received;
+
+    dev_desc = &buf;
+    dev_desc->Size = sizeof(buf);
+    query.PropertyId = StorageDeviceProperty;
+    query.QueryType = PropertyStandardQuery;
+
+    if (!DeviceIoControl(vol_h, IOCTL_STORAGE_QUERY_PROPERTY, &query,
+                         sizeof(STORAGE_PROPERTY_QUERY), dev_desc,
+                         dev_desc->Size, &received, NULL)) {
+        error_setg_win32(errp, GetLastError(), "failed to get bus type");
+        return -1;
+    }
+
+    return dev_desc->BusType;
+}
+
+/* VSS provider works with volumes, thus there is no difference if
+ * the volume consist of spanned disks. Info about the first disk in the
+ * volume is returned for the spanned disk group (LVM) */
+static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
+{
+    GuestDiskAddressList *list = NULL;
+    GuestDiskAddress *disk;
+    SCSI_ADDRESS addr, *scsi_ad;
+    DWORD len;
+    int bus;
+    HANDLE vol_h;
+
+    scsi_ad = &addr;
+    char *name = g_strndup(guid, strlen(guid)-1);
+
+    vol_h = CreateFile(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                       0, NULL);
+    if (vol_h == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to open volume");
+        goto out_free;
+    }
+
+    bus = get_disk_bus_type(vol_h, errp);
+    if (bus < 0) {
+        goto out_close;
+    }
+
+    disk = g_malloc0(sizeof(*disk));
+    disk->bus_type = find_bus_type(bus);
+    if (bus == BusTypeScsi || bus == BusTypeAta || bus == BusTypeRAID
+#if (_WIN32_WINNT >= 0x0600)
+            /* This bus type is not supported before Windows Server 2003 SP1 */
+            || bus == BusTypeSas
+#endif
+        ) {
+        /* We are able to use the same ioctls for different bus types
+         * according to Microsoft docs
+         * https://technet.microsoft.com/en-us/library/ee851589(v=ws.10).aspx */
+        if (DeviceIoControl(vol_h, IOCTL_SCSI_GET_ADDRESS, NULL, 0, scsi_ad,
+                            sizeof(SCSI_ADDRESS), &len, NULL)) {
+            disk->unit = addr.Lun;
+            disk->target = addr.TargetId;
+            disk->bus = addr.PathId;
+            disk->pci_controller = get_pci_info(name, errp);
+        }
+        /* We do not set error in this case, because we still have enough
+         * information about volume. */
+    } else {
+         disk->pci_controller = NULL;
+    }
+
+    list = g_malloc0(sizeof(*list));
+    list->value = disk;
+    list->next = NULL;
+out_close:
+    CloseHandle(vol_h);
+out_free:
+    g_free(name);
+    return list;
+}
+
+#else
+
+static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
+{
+    return NULL;
+}
+
+#endif /* CONFIG_QGA_NTDDSCSI */
+
 static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
 {
     DWORD info_size;
@@ -429,7 +562,7 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
         fs->mountpoint = g_strndup(mnt_point, len);
     }
     fs->type = g_strdup(fs_name);
-    fs->disk = NULL;
+    fs->disk = build_guest_disk_info(guid, errp);;
 free:
     g_free(mnt_point);
     return fs;
