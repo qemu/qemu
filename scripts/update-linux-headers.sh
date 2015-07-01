@@ -31,7 +31,7 @@ fi
 cp_virtio() {
     from=$1
     to=$2
-    virtio=$(find "$from" -name '*virtio*h' -o -name "input.h")
+    virtio=$(find "$from" -name '*virtio*h' -o -name "input.h" -o -name "pci_regs.h")
     if [ "$virtio" ]; then
         rm -rf "$to"
         mkdir -p "$to"
