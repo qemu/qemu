@@ -49,7 +49,7 @@ static const struct timeval VNC_REFRESH_STATS = { 0, 500000 };
 static const struct timeval VNC_REFRESH_LOSSY = { 2, 0 };
 
 #include "vnc_keysym.h"
-#include "crypto/desrfb.h"
+#include "crypto/cipher.h"
 
 static QTAILQ_HEAD(, VncDisplay) vnc_displays =
     QTAILQ_HEAD_INITIALIZER(vnc_displays);
@@ -2517,9 +2517,11 @@ static void make_challenge(VncState *vs)
 static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
 {
     unsigned char response[VNC_AUTH_CHALLENGE_SIZE];
-    int i, j, pwlen;
+    size_t i, pwlen;
     unsigned char key[8];
     time_t now = time(NULL);
+    QCryptoCipher *cipher;
+    Error *err = NULL;
 
     if (!vs->vd->password) {
         VNC_DEBUG("No password configured on server");
@@ -2536,9 +2538,29 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
     pwlen = strlen(vs->vd->password);
     for (i=0; i<sizeof(key); i++)
         key[i] = i<pwlen ? vs->vd->password[i] : 0;
-    deskey(key, EN0);
-    for (j = 0; j < VNC_AUTH_CHALLENGE_SIZE; j += 8)
-        des(response+j, response+j);
+
+    cipher = qcrypto_cipher_new(
+        QCRYPTO_CIPHER_ALG_DES_RFB,
+        QCRYPTO_CIPHER_MODE_ECB,
+        key, G_N_ELEMENTS(key),
+        &err);
+    if (!cipher) {
+        VNC_DEBUG("Cannot initialize cipher %s",
+                  error_get_pretty(err));
+        error_free(err);
+        goto reject;
+    }
+
+    if (qcrypto_cipher_decrypt(cipher,
+                               vs->challenge,
+                               response,
+                               VNC_AUTH_CHALLENGE_SIZE,
+                               &err) < 0) {
+        VNC_DEBUG("Cannot encrypt challenge %s",
+                  error_get_pretty(err));
+        error_free(err);
+        goto reject;
+    }
 
     /* Compare expected vs actual challenge response */
     if (memcmp(response, data, VNC_AUTH_CHALLENGE_SIZE) != 0) {
@@ -3484,12 +3506,20 @@ void vnc_display_open(const char *id, Error **errp)
     }
 
     password = qemu_opt_get_bool(opts, "password", false);
-    if (password && fips_get_state()) {
-        error_setg(errp,
-                   "VNC password auth disabled due to FIPS mode, "
-                   "consider using the VeNCrypt or SASL authentication "
-                   "methods as an alternative");
-        goto fail;
+    if (password) {
+        if (fips_get_state()) {
+            error_setg(errp,
+                       "VNC password auth disabled due to FIPS mode, "
+                       "consider using the VeNCrypt or SASL authentication "
+                       "methods as an alternative");
+            goto fail;
+        }
+        if (!qcrypto_cipher_supports(
+                QCRYPTO_CIPHER_ALG_DES_RFB)) {
+            error_setg(errp,
+                       "Cipher backend does not support DES RFB algorithm");
+            goto fail;
+        }
     }
 
     reverse = qemu_opt_get_bool(opts, "reverse", false);
