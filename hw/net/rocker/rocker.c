@@ -193,11 +193,13 @@ static int tx_consume(Rocker *r, DescInfo *info)
         if (!tlvs[ROCKER_TLV_TX_L3_CSUM_OFF]) {
             return -ROCKER_EINVAL;
         }
+        break;
     case ROCKER_TX_OFFLOAD_TSO:
         if (!tlvs[ROCKER_TLV_TX_TSO_MSS] ||
             !tlvs[ROCKER_TLV_TX_TSO_HDR_LEN]) {
             return -ROCKER_EINVAL;
         }
+        break;
     }
 
     if (tlvs[ROCKER_TLV_TX_L3_CSUM_OFF]) {
