@@ -1052,6 +1052,13 @@ S: Supported
 F: qemu-seccomp.c
 F: include/sysemu/seccomp.h
 
+Cryptography
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Maintained
+F: crypto/
+F: include/crypto/
+F: tests/test-crypto-*
+
 Usermode Emulation
 ------------------
 Overall

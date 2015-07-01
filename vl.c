@@ -121,6 +121,7 @@ int main(int argc, char **argv)
 #include "qom/object_interfaces.h"
 #include "qapi-event.h"
 #include "exec/semihost.h"
+#include "crypto/init.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -2958,6 +2959,7 @@ int main(int argc, char **argv, char **envp)
     uint64_t ram_slots = 0;
     FILE *vmstate_dump_file = NULL;
     Error *main_loop_err = NULL;
+    Error *err = NULL;
 
     qemu_init_cpu_loop();
     qemu_mutex_lock_iothread();
@@ -3001,6 +3003,11 @@ int main(int argc, char **argv, char **envp)
 
     runstate_init();
 
+    if (qcrypto_init(&err) < 0) {
+        fprintf(stderr, "Cannot initialize crypto: %s\n",
+                error_get_pretty(err));
+        exit(1);
+    }
     rtc_clock = QEMU_CLOCK_HOST;
 
     QLIST_INIT (&vm_change_state_head);

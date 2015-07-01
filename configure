@@ -330,6 +330,8 @@ glusterfs_zerofill="no"
 archipelago="no"
 gtk=""
 gtkabi=""
+gnutls=""
+gnutls_hash=""
 vte=""
 tpm="yes"
 libssh2=""
@@ -1118,6 +1120,10 @@ for opt do
   ;;
   --enable-gtk) gtk="yes"
   ;;
+  --disable-gnutls) gnutls="no"
+  ;;
+  --enable-gnutls) gnutls="yes"
+  ;;
   --enable-rdma) rdma="yes"
   ;;
   --disable-rdma) rdma="no"
@@ -1328,6 +1334,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   debug-info      debugging information
   sparse          sparse checker
 
+  gnutls          GNUTLS cryptography support
   sdl             SDL UI
   --with-sdlabi     select preferred SDL ABI 1.2 or 2.0
   gtk             gtk UI
@@ -2114,6 +2121,36 @@ if test "$gtk" != "no"; then
         gtk="no"
     fi
 fi
+
+
+##########################################
+# GNUTLS probe
+
+if test "$gnutls" != "no"; then
+    if $pkg_config --exists "gnutls"; then
+        gnutls_cflags=`$pkg_config --cflags gnutls`
+        gnutls_libs=`$pkg_config --libs gnutls`
+        libs_softmmu="$gnutls_libs $libs_softmmu"
+        libs_tools="$gnutls_libs $libs_tools"
+	QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
+        gnutls="yes"
+
+	# gnutls_hash_init requires >= 2.9.10
+	if $pkg_config --exists "gnutls >= 2.9.10"; then
+            gnutls_hash="yes"
+	else
+	    gnutls_hash="no"
+	fi
+    elif test "$gnutls" = "yes"; then
+	feature_not_found "gnutls" "Install gnutls devel"
+    else
+        gnutls="no"
+        gnutls_hash="no"
+    fi
+else
+    gnutls_hash="no"
+fi
+
 
 ##########################################
 # VTE probe
@@ -4424,6 +4461,8 @@ fi
 echo "pixman            $pixman"
 echo "SDL support       $sdl"
 echo "GTK support       $gtk"
+echo "GNUTLS support    $gnutls"
+echo "GNUTLS hash       $gnutls_hash"
 echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
@@ -4781,6 +4820,12 @@ if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "CONFIG_GTKABI=$gtkabi" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
+fi
+if test "$gnutls" = "yes" ; then
+  echo "CONFIG_GNUTLS=y" >> $config_host_mak
+fi
+if test "$gnutls_hash" = "yes" ; then
+  echo "CONFIG_GNUTLS_HASH=y" >> $config_host_mak
 fi
 if test "$vte" = "yes" ; then
   echo "CONFIG_VTE=y" >> $config_host_mak

@@ -1,0 +1,2 @@
+util-obj-y += init.o
+util-obj-y += hash.o
