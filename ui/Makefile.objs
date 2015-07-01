@@ -1,4 +1,4 @@
-vnc-obj-y += vnc.o d3des.o
+vnc-obj-y += vnc.o
 vnc-obj-y += vnc-enc-zlib.o vnc-enc-hextile.o
 vnc-obj-y += vnc-enc-tight.o vnc-palette.o
 vnc-obj-y += vnc-enc-zrle.o

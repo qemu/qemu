@@ -48,7 +48,7 @@ static const struct timeval VNC_REFRESH_STATS = { 0, 500000 };
 static const struct timeval VNC_REFRESH_LOSSY = { 2, 0 };
 
 #include "vnc_keysym.h"
-#include "d3des.h"
+#include "crypto/desrfb.h"
 
 static QTAILQ_HEAD(, VncDisplay) vnc_displays =
     QTAILQ_HEAD_INITIALIZER(vnc_displays);
