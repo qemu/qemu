@@ -1003,6 +1003,12 @@ def parse_command_line(extra_options = "", extra_long_options = []):
     for oa in opts:
         o, a = oa
         if o in ("-p", "--prefix"):
+            match = re.match('([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
+            if match.end() != len(a):
+                print >>sys.stderr, \
+                    "%s: 'funny character '%s' in argument of --prefix" \
+                    % (sys.argv[0], a[match.end()])
+                sys.exit(1)
             prefix = a
         elif o in ("-o", "--output-dir"):
             output_dir = a + "/"
