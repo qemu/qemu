@@ -2430,7 +2430,8 @@ static int floppy_probe_device(const char *filename)
     struct stat st;
 
     if (strstart(filename, "/dev/fd", NULL) &&
-        !strstart(filename, "/dev/fdset/", NULL)) {
+        !strstart(filename, "/dev/fdset/", NULL) &&
+        !strstart(filename, "/dev/fd/", NULL)) {
         prio = 50;
     }
 
