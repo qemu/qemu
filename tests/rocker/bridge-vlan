@@ -20,8 +20,8 @@ simp ssh tut sw1 --cmd "echo 1 | sudo dd of=/sys/class/net/br0/bridge/vlan_filte
 
 # add both ports to VLAN 57
 
-simp ssh tut sw1 --cmd "sudo /sbin/bridge vlan add vid 57 dev sw1p1 master self"
-simp ssh tut sw1 --cmd "sudo /sbin/bridge vlan add vid 57 dev sw1p2 master self"
+simp ssh tut sw1 --cmd "sudo /sbin/bridge vlan add vid 57 dev sw1p1"
+simp ssh tut sw1 --cmd "sudo /sbin/bridge vlan add vid 57 dev sw1p2"
 
 # turn off learning and flooding in SW
 
