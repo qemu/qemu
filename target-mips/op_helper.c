@@ -661,7 +661,7 @@ static void sync_c0_tcstatus(CPUMIPSState *cpu, int tc,
 
     /* Sync the TASID with EntryHi.  */
     cpu->CP0_EntryHi &= ~0xff;
-    cpu->CP0_EntryHi = tasid;
+    cpu->CP0_EntryHi |= tasid;
 
     compute_hflags(cpu);
 }
