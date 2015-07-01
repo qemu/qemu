@@ -167,8 +167,7 @@ extern const char *%(event_enum_name)s_lookup[];
                         event_enum_name = event_enum_name)
 
     enum_decl = mcgen('''
-typedef enum %(event_enum_name)s
-{
+typedef enum %(event_enum_name)s {
 ''',
                       event_enum_name = event_enum_name)
 

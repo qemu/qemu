@@ -218,6 +218,7 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
         ret += mcgen('''
 
     (void)args;
+
 ''')
 
     ret += gen_sync_call(name, args, ret_type)

@@ -62,6 +62,7 @@ def generate_visit_struct_fields(name, members, base = None):
 static void visit_type_%(name)s_fields(Visitor *m, %(name)s **obj, Error **errp)
 {
     Error *err = NULL;
+
 ''',
                  name=c_name(name))
     push_indent()
