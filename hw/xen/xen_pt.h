@@ -138,7 +138,11 @@ struct XenPTRegInfo {
 struct XenPTReg {
     QLIST_ENTRY(XenPTReg) entries;
     XenPTRegInfo *reg;
-    uint32_t data; /* emulated value */
+    union {
+        uint8_t *byte;
+        uint16_t *half_word;
+        uint32_t *word;
+    } ptr; /* pointer to dev.config. */
 };
 
 typedef const struct XenPTRegGroupInfo XenPTRegGroupInfo;
