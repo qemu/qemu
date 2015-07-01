@@ -336,7 +336,6 @@ vte=""
 tpm="yes"
 libssh2=""
 vhdx=""
-quorum=""
 numa=""
 tcmalloc="no"
 
@@ -1146,10 +1145,6 @@ for opt do
   ;;
   --disable-vhdx) vhdx="no"
   ;;
-  --disable-quorum) quorum="no"
-  ;;
-  --enable-quorum) quorum="yes"
-  ;;
   --disable-numa) numa="no"
   ;;
   --enable-numa) numa="yes"
@@ -1382,7 +1377,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   tpm             TPM support
   libssh2         ssh block device support
   vhdx            support for the Microsoft VHDX image format
-  quorum          quorum block filter support
   numa            libnuma support
   tcmalloc        tcmalloc support
 
@@ -2375,33 +2369,6 @@ EOF
     vnc_tls=no
     vnc_ws=no
   fi
-fi
-
-##########################################
-# Quorum probe (check for gnutls)
-if test "$quorum" != "no" ; then
-cat > $TMPC <<EOF
-#include <gnutls/gnutls.h>
-#include <gnutls/crypto.h>
-int main(void) {char data[4096], digest[32];
-gnutls_hash_fast(GNUTLS_DIG_SHA256, data, 4096, digest);
-return 0;
-}
-EOF
-quorum_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
-quorum_tls_libs=`$pkg_config --libs gnutls 2> /dev/null`
-if compile_prog "$quorum_tls_cflags" "$quorum_tls_libs" ; then
-  qcow_tls=yes
-  libs_softmmu="$quorum_tls_libs $libs_softmmu"
-  libs_tools="$quorum_tls_libs $libs_softmmu"
-  QEMU_CFLAGS="$QEMU_CFLAGS $quorum_tls_cflags"
-  quorum="yes"
-else
-  if test "$quorum" = "yes"; then
-    feature_not_found "gnutls" "gnutls > 2.10.0 required to compile Quorum"
-  fi
-  quorum="no"
-fi
 fi
 
 ##########################################
@@ -4592,7 +4559,6 @@ echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
 echo "QOM debugging     $qom_cast_debug"
 echo "vhdx              $vhdx"
-echo "Quorum            $quorum"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
@@ -5072,10 +5038,6 @@ if test "$libssh2" = "yes" ; then
   echo "CONFIG_LIBSSH2=m" >> $config_host_mak
   echo "LIBSSH2_CFLAGS=$libssh2_cflags" >> $config_host_mak
   echo "LIBSSH2_LIBS=$libssh2_libs" >> $config_host_mak
-fi
-
-if test "$quorum" = "yes" ; then
-  echo "CONFIG_QUORUM=y" >> $config_host_mak
 fi
 
 if test "$vhdx" = "yes" ; then

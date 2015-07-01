@@ -13,8 +13,6 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <gnutls/gnutls.h>
-#include <gnutls/crypto.h>
 #include "block/block_int.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
@@ -24,6 +22,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi-event.h"
+#include "crypto/hash.h"
 
 #define HASH_LENGTH 32
 
@@ -34,7 +33,7 @@
 
 /* This union holds a vote hash value */
 typedef union QuorumVoteValue {
-    char h[HASH_LENGTH];       /* SHA-256 hash */
+    uint8_t h[HASH_LENGTH];    /* SHA-256 hash */
     int64_t l;                 /* simpler 64 bits hash */
 } QuorumVoteValue;
 
@@ -428,25 +427,21 @@ static void quorum_free_vote_list(QuorumVotes *votes)
 
 static int quorum_compute_hash(QuorumAIOCB *acb, int i, QuorumVoteValue *hash)
 {
-    int j, ret;
-    gnutls_hash_hd_t dig;
     QEMUIOVector *qiov = &acb->qcrs[i].qiov;
+    size_t len = sizeof(hash->h);
+    uint8_t *data = hash->h;
 
-    ret = gnutls_hash_init(&dig, GNUTLS_DIG_SHA256);
-
-    if (ret < 0) {
-        return ret;
+    /* XXX - would be nice if we could pass in the Error **
+     * and propagate that back, but this quorum code is
+     * restricted to just errno values currently */
+    if (qcrypto_hash_bytesv(QCRYPTO_HASH_ALG_SHA256,
+                            qiov->iov, qiov->niov,
+                            &data, &len,
+                            NULL) < 0) {
+        return -EINVAL;
     }
 
-    for (j = 0; j < qiov->niov; j++) {
-        ret = gnutls_hash(dig, qiov->iov[j].iov_base, qiov->iov[j].iov_len);
-        if (ret < 0) {
-            break;
-        }
-    }
-
-    gnutls_hash_deinit(dig, (void *) hash);
-    return ret;
+    return 0;
 }
 
 static QuorumVoteVersion *quorum_get_vote_winner(QuorumVotes *votes)
@@ -869,6 +864,12 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     bool *opened;
     int i;
     int ret = 0;
+
+    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA256)) {
+        error_setg(errp,
+                   "SHA256 hash support is required for quorum device");
+        return -EINVAL;
+    }
 
     qdict_flatten(options);
 
