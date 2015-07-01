@@ -2525,7 +2525,6 @@ static void of_dpa_group_fill(void *key, void *value, void *user_data)
             ngroup->has_set_vlan_id = true;
             ngroup->set_vlan_id = ntohs(group->l2_rewrite.vlan_id);
         }
-        break;
         if (memcmp(group->l2_rewrite.src_mac.a, zero_mac.a, ETH_ALEN)) {
             ngroup->has_set_eth_src = true;
             ngroup->set_eth_src =
@@ -2536,6 +2535,7 @@ static void of_dpa_group_fill(void *key, void *value, void *user_data)
             ngroup->set_eth_dst =
                 qemu_mac_strdup_printf(group->l2_rewrite.dst_mac.a);
         }
+        break;
     case ROCKER_OF_DPA_GROUP_TYPE_L2_FLOOD:
     case ROCKER_OF_DPA_GROUP_TYPE_L2_MCAST:
         ngroup->has_vlan_id = true;
