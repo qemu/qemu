@@ -603,7 +603,7 @@ static DescRing *rocker_get_rx_ring_by_pport(Rocker *r,
 }
 
 int rx_produce(World *world, uint32_t pport,
-               const struct iovec *iov, int iovcnt)
+               const struct iovec *iov, int iovcnt, uint8_t copy_to_cpu)
 {
     Rocker *r = world_rocker(world);
     PCIDevice *dev = (PCIDevice *)r;
@@ -644,6 +644,10 @@ int rx_produce(World *world, uint32_t pport,
     if (data_size > frag_max_len) {
         err = -ROCKER_EMSGSIZE;
         goto out;
+    }
+
+    if (copy_to_cpu) {
+        rx_flags |= ROCKER_RX_FLAGS_FWD_OFFLOAD;
     }
 
     /* XXX calc rx flags/csum */

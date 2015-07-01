@@ -250,6 +250,7 @@ enum {
 #define ROCKER_RX_FLAGS_TCP                     (1 << 5)
 #define ROCKER_RX_FLAGS_UDP                     (1 << 6)
 #define ROCKER_RX_FLAGS_TCP_UDP_CSUM_GOOD       (1 << 7)
+#define ROCKER_RX_FLAGS_FWD_OFFLOAD             (1 << 8)
 
 /* Tx msg */
 enum {
