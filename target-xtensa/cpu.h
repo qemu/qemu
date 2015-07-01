@@ -400,6 +400,7 @@ XtensaCPU *cpu_xtensa_init(const char *cpu_model);
 void xtensa_translate_init(void);
 void xtensa_breakpoint_handler(CPUState *cs);
 int cpu_xtensa_exec(CPUXtensaState *s);
+void xtensa_finalize_config(XtensaConfig *config);
 void xtensa_register_core(XtensaConfigList *node);
 void check_interrupts(CPUXtensaState *s);
 void xtensa_irq_init(CPUXtensaState *env);
