@@ -694,7 +694,6 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
-
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         error_setg(errp, "Guest is waiting for an incoming migration");
         return;
@@ -708,6 +707,12 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         *errp = error_copy(migration_blockers->data);
         return;
     }
+
+    /* We are starting a new migration, so we want to start in a clean
+       state.  This change is only needed if previous migration
+       failed/was cancelled.  We don't use migrate_set_state() because
+       we are setting the initial state, not changing it. */
+    s->state = MIGRATION_STATUS_NONE;
 
     s = migrate_init(&params);
 
