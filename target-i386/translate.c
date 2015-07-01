@@ -7515,7 +7515,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 break;
             }
             gen_lea_modrm(env, s, modrm);
-            gen_helper_fxsave(cpu_env, cpu_A0, tcg_const_i32(dflag == MO_64));
+            gen_helper_fxsave(cpu_env, cpu_A0);
             break;
         case 1: /* fxrstor */
             if (mod == 3 || !(s->cpuid_features & CPUID_FXSR) ||
@@ -7526,7 +7526,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 break;
             }
             gen_lea_modrm(env, s, modrm);
-            gen_helper_fxrstor(cpu_env, cpu_A0, tcg_const_i32(dflag == MO_64));
+            gen_helper_fxrstor(cpu_env, cpu_A0);
             break;
         case 2: /* ldmxcsr */
         case 3: /* stmxcsr */
