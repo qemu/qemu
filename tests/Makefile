@@ -231,7 +231,8 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	type-bypass.json type-bypass-no-gen.json type-bypass-bad-gen.json \
 	args-array-empty.json args-array-unknown.json args-int.json \
 	args-unknown.json args-member-unknown.json args-member-array.json \
-	args-member-array-bad.json returns-array-bad.json returns-int.json \
+	args-member-array-bad.json args-alternate.json args-union.json \
+	returns-array-bad.json returns-int.json \
 	returns-unknown.json returns-alternate.json returns-whitelist.json \
 	missing-colon.json missing-comma-list.json missing-comma-object.json \
 	nested-struct-data.json nested-struct-returns.json non-objects.json \

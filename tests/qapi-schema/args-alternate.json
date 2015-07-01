@@ -1,0 +1,3 @@
+# we do not allow alternate arguments
+{ 'alternate': 'Alt', 'data': { 'case1': 'int', 'case2': 'str' } }
+{ 'command': 'oops', 'data': 'Alt' }
