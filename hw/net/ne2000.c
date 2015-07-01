@@ -165,15 +165,6 @@ static int ne2000_buffer_full(NE2000State *s)
     return 0;
 }
 
-int ne2000_can_receive(NetClientState *nc)
-{
-    NE2000State *s = qemu_get_nic_opaque(nc);
-
-    if (s->cmd & E8390_STOP)
-        return 1;
-    return !ne2000_buffer_full(s);
-}
-
 #define MIN_BUF_SIZE 60
 
 ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
@@ -705,7 +696,6 @@ void ne2000_setup_io(NE2000State *s, DeviceState *dev, unsigned size)
 static NetClientInfo net_ne2000_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = ne2000_can_receive,
     .receive = ne2000_receive,
 };
 
