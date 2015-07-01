@@ -240,12 +240,13 @@ static void read_event_data(SCLPEventFacility *ef, SCCB *sccb)
         sclp_active_selection_mask = sclp_cp_receive_mask;
         break;
     case SCLP_SELECTIVE_READ:
-        if (!(sclp_cp_receive_mask & be32_to_cpu(red->mask))) {
+        sclp_active_selection_mask = be32_to_cpu(red->mask);
+        if (!sclp_cp_receive_mask ||
+            (sclp_active_selection_mask & ~sclp_cp_receive_mask)) {
             sccb->h.response_code =
                     cpu_to_be16(SCLP_RC_INVALID_SELECTION_MASK);
             goto out;
         }
-        sclp_active_selection_mask = be32_to_cpu(red->mask);
         break;
     default:
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_FUNCTION);
