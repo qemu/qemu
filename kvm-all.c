@@ -1099,9 +1099,17 @@ static int kvm_irqchip_get_virq(KVMState *s)
     uint32_t *word = s->used_gsi_bitmap;
     int max_words = ALIGN(s->gsi_count, 32) / 32;
     int i, zeroes;
-    bool retry = true;
 
-again:
+    /*
+     * PIC and IOAPIC share the first 16 GSI numbers, thus the available
+     * GSI numbers are more than the number of IRQ route. Allocating a GSI
+     * number can succeed even though a new route entry cannot be added.
+     * When this happens, flush dynamic MSI entries to free IRQ route entries.
+     */
+    if (!s->direct_msi && s->irq_routes->nr == s->gsi_count) {
+        kvm_flush_dynamic_msi_routes(s);
+    }
+
     /* Return the lowest unused GSI in the bitmap */
     for (i = 0; i < max_words; i++) {
         zeroes = ctz32(~word[i]);
@@ -1110,11 +1118,6 @@ again:
         }
 
         return zeroes + i * 32;
-    }
-    if (!s->direct_msi && retry) {
-        retry = false;
-        kvm_flush_dynamic_msi_routes(s);
-        goto again;
     }
     return -ENOSPC;
 
