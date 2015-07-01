@@ -499,7 +499,7 @@ def check_command(expr, expr_info):
 
     check_type(expr_info, "'data' for command '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
-               allow_metas=['union', 'struct'], allow_star=allow_star)
+               allow_metas=['struct'], allow_star=allow_star)
     returns_meta = ['union', 'struct']
     if name in returns_whitelist:
         returns_meta += ['built-in', 'alternate', 'enum']
@@ -517,7 +517,7 @@ def check_event(expr, expr_info):
     events.append(name)
     check_type(expr_info, "'data' for event '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
-               allow_metas=['union', 'struct'])
+               allow_metas=['struct'])
 
 def check_union(expr, expr_info):
     name = expr['union']

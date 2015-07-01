@@ -1,4 +1,0 @@
-[OrderedDict([('union', 'Uni'), ('data', OrderedDict([('case1', 'int'), ('case2', 'str')]))]),
- OrderedDict([('command', 'oops'), ('data', 'Uni')])]
-[{'enum_name': 'UniKind', 'enum_values': None}]
-[]

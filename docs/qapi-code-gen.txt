@@ -405,10 +405,9 @@ Client JSON Protocol command exchange.
 The 'data' argument maps to the "arguments" dictionary passed in as
 part of a Client JSON Protocol command.  The 'data' member is optional
 and defaults to {} (an empty dictionary).  If present, it must be the
-string name of a complex type, a one-element array containing the name
-of a complex type, or a dictionary that declares an anonymous type
-with the same semantics as a 'struct' expression, with one exception
-noted below when 'gen' is used.
+string name of a complex type, or a dictionary that declares an
+anonymous type with the same semantics as a 'struct' expression, with
+one exception noted below when 'gen' is used.
 
 The 'returns' member describes what will appear in the "return" field
 of a Client JSON Protocol reply on successful completion of a command.
