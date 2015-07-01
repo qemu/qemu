@@ -267,7 +267,7 @@ fdecl.write(mcgen('''
 
 exprs = parse_schema(input_file)
 
-event_enum_name = prefix.upper().replace('-', '_') + "QAPIEvent"
+event_enum_name = c_name(prefix + "QAPIEvent", protect=False)
 event_enum_values = []
 event_enum_strings = []
 

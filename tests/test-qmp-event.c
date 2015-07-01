@@ -94,7 +94,7 @@ static bool qdict_cmp_simple(QDict *a, QDict *b)
 
 /* This function is hooked as final emit function, which can verify the
    correctness. */
-static void event_test_emit(TEST_QAPIEvent event, QDict *d, Error **errp)
+static void event_test_emit(test_QAPIEvent event, QDict *d, Error **errp)
 {
     QObject *obj;
     QDict *t;
