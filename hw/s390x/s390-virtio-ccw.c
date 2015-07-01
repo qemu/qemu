@@ -204,9 +204,6 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    mc->name = "s390-ccw-virtio";
-    mc->alias = "s390-ccw";
-    mc->desc = "VirtIO-ccw based S390 machine";
     mc->init = ccw_init;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
@@ -216,7 +213,6 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     mc->no_sdcard = 1;
     mc->use_sclp = 1;
     mc->max_cpus = 255;
-    mc->is_default = 1;
     nc->nmi_monitor_handler = s390_nmi;
 }
 
@@ -272,6 +268,7 @@ static inline void s390_machine_initfn(Object *obj)
 static const TypeInfo ccw_machine_info = {
     .name          = TYPE_S390_CCW_MACHINE,
     .parent        = TYPE_MACHINE,
+    .abstract      = true,
     .instance_size = sizeof(S390CcwMachineState),
     .instance_init = s390_machine_initfn,
     .class_init    = ccw_machine_class_init,
@@ -281,9 +278,26 @@ static const TypeInfo ccw_machine_info = {
     },
 };
 
+static void ccw_machine_2_4_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "s390-ccw-virtio-2.4";
+    mc->alias = "s390-ccw-virtio";
+    mc->desc = "VirtIO-ccw based S390 machine v2.4";
+    mc->is_default = 1;
+}
+
+static const TypeInfo ccw_machine_2_4_info = {
+    .name          = TYPE_S390_CCW_MACHINE "2.4",
+    .parent        = TYPE_S390_CCW_MACHINE,
+    .class_init    = ccw_machine_2_4_class_init,
+};
+
 static void ccw_machine_register_types(void)
 {
     type_register_static(&ccw_machine_info);
+    type_register_static(&ccw_machine_2_4_info);
 }
 
 type_init(ccw_machine_register_types)
