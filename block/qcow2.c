@@ -25,7 +25,6 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include <zlib.h>
-#include "qemu/aes.h"
 #include "block/qcow2.h"
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"

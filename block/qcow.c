@@ -26,7 +26,7 @@
 #include "qemu/module.h"
 #include <zlib.h>
 #include "qapi/qmp/qerror.h"
-#include "qemu/aes.h"
+#include "crypto/aes.h"
 #include "migration/migration.h"
 
 /**************************************************************/

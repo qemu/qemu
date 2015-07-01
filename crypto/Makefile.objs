@@ -1,2 +1,3 @@
 util-obj-y += init.o
 util-obj-y += hash.o
+util-obj-y += aes.o

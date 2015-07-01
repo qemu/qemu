@@ -20,7 +20,6 @@
 #include <math.h>
 #include "cpu.h"
 #include "exec/helper-proto.h"
-#include "qemu/aes.h"
 #include "qemu/host-utils.h"
 #include "exec/cpu_ldst.h"
 

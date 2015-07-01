@@ -19,7 +19,7 @@
 #include "cpu.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
-#include "qemu/aes.h"
+#include "crypto/aes.h"
 
 #include "helper_regs.h"
 /*****************************************************************************/
