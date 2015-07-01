@@ -2127,6 +2127,7 @@ fi
 # GNUTLS probe
 
 gnutls_gcrypt=no
+gnutls_nettle=no
 if test "$gnutls" != "no"; then
     if $pkg_config --exists "gnutls"; then
         gnutls_cflags=`$pkg_config --cflags gnutls`
@@ -2145,14 +2146,25 @@ if test "$gnutls" != "no"; then
 
 	if $pkg_config --exists 'gnutls >= 3.0'; then
 	    gnutls_gcrypt=no
+	    gnutls_nettle=yes
 	elif $pkg_config --exists 'gnutls >= 2.12'; then
 	    case `$pkg_config --libs --static gnutls` in
-		*gcrypt*) gnutls_gcrypt=yes     ;;
-		*nettle*) gnutls_gcrypt=no      ;;
-		*)        gnutls_gcrypt=yes     ;;
+		*gcrypt*)
+		    gnutls_gcrypt=yes
+		    gnutls_nettle=no
+		    ;;
+		*nettle*)
+		    gnutls_gcrypt=no
+		    gnutls_nettle=yes
+		    ;;
+		*)
+		    gnutls_gcrypt=yes
+		    gnutls_nettle=no
+		    ;;
 	    esac
 	else
 	    gnutls_gcrypt=yes
+	    gnutls_nettle=no
 	fi
     elif test "$gnutls" = "yes"; then
 	feature_not_found "gnutls" "Install gnutls devel"
@@ -2173,6 +2185,19 @@ if test "$gnutls_gcrypt" != "no"; then
         QEMU_CFLAGS="$QEMU_CFLAGS $gcrypt_cflags"
     else
         feature_not_found "gcrypt" "Install gcrypt devel"
+    fi
+fi
+
+
+if test "$gnutls_nettle" != "no"; then
+    if $pkg_config --exists "nettle"; then
+        nettle_cflags=`$pkg_config --cflags nettle`
+        nettle_libs=`$pkg_config --libs nettle`
+        libs_softmmu="$nettle_libs $libs_softmmu"
+        libs_tools="$nettle_libs $libs_tools"
+        QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
+    else
+        feature_not_found "nettle" "Install nettle devel"
     fi
 fi
 
@@ -4489,6 +4514,7 @@ echo "GTK support       $gtk"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
 echo "GNUTLS gcrypt     $gnutls_gcrypt"
+echo "GNUTLS nettle     $gnutls_nettle"
 echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
@@ -4855,6 +4881,9 @@ if test "$gnutls_hash" = "yes" ; then
 fi
 if test "$gnutls_gcrypt" = "yes" ; then
   echo "CONFIG_GNUTLS_GCRYPT=y" >> $config_host_mak
+fi
+if test "$gnutls_nettle" = "yes" ; then
+  echo "CONFIG_GNUTLS_NETTLE=y" >> $config_host_mak
 fi
 if test "$vte" = "yes" ; then
   echo "CONFIG_VTE=y" >> $config_host_mak
