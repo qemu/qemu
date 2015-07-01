@@ -246,7 +246,6 @@ vnc_tls=""
 vnc_sasl=""
 vnc_jpeg=""
 vnc_png=""
-vnc_ws=""
 xen=""
 xen_ctrl_version=""
 xen_pci_passthrough=""
@@ -895,10 +894,6 @@ for opt do
   --disable-vnc-png) vnc_png="no"
   ;;
   --enable-vnc-png) vnc_png="yes"
-  ;;
-  --disable-vnc-ws) vnc_ws="no"
-  ;;
-  --enable-vnc-ws) vnc_ws="yes"
   ;;
   --disable-slirp) slirp="no"
   ;;
@@ -2343,7 +2338,7 @@ fi
 
 ##########################################
 # VNC TLS/WS detection
-if test "$vnc" = "yes" -a \( "$vnc_tls" != "no" -o "$vnc_ws" != "no" \) ; then
+if test "$vnc" = "yes" -a "$vnc_tls" != "no" ; then
   cat > $TMPC <<EOF
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
@@ -2354,20 +2349,13 @@ EOF
     if test "$vnc_tls" != "no" ; then
       vnc_tls=yes
     fi
-    if test "$vnc_ws" != "no" ; then
-      vnc_ws=yes
-    fi
     libs_softmmu="$vnc_tls_libs $libs_softmmu"
     QEMU_CFLAGS="$QEMU_CFLAGS $vnc_tls_cflags"
   else
     if test "$vnc_tls" = "yes" ; then
       feature_not_found "vnc-tls" "Install gnutls devel"
     fi
-    if test "$vnc_ws" = "yes" ; then
-      feature_not_found "vnc-ws" "Install gnutls devel"
-    fi
     vnc_tls=no
-    vnc_ws=no
   fi
 fi
 
@@ -4496,7 +4484,6 @@ if test "$vnc" = "yes" ; then
     echo "VNC SASL support  $vnc_sasl"
     echo "VNC JPEG support  $vnc_jpeg"
     echo "VNC PNG support   $vnc_png"
-    echo "VNC WS support    $vnc_ws"
 fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
@@ -4707,10 +4694,6 @@ if test "$vnc_jpeg" = "yes" ; then
 fi
 if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
-fi
-if test "$vnc_ws" = "yes" ; then
-  echo "CONFIG_VNC_WS=y" >> $config_host_mak
-  echo "VNC_WS_CFLAGS=$vnc_ws_cflags" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
