@@ -20,6 +20,7 @@
 
 #include "crypto/cipher.h"
 
+
 static size_t alg_key_len[QCRYPTO_CIPHER_ALG_LAST] = {
     [QCRYPTO_CIPHER_ALG_AES_128] = 16,
     [QCRYPTO_CIPHER_ALG_AES_192] = 24,
@@ -46,4 +47,26 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
     return true;
 }
 
+#if defined(CONFIG_GNUTLS_GCRYPT)
+static uint8_t *
+qcrypto_cipher_munge_des_rfb_key(const uint8_t *key,
+                                 size_t nkey)
+{
+    uint8_t *ret = g_new0(uint8_t, nkey);
+    size_t i;
+    for (i = 0; i < nkey; i++) {
+        uint8_t r = key[i];
+        r = (r & 0xf0) >> 4 | (r & 0x0f) << 4;
+        r = (r & 0xcc) >> 2 | (r & 0x33) << 2;
+        r = (r & 0xaa) >> 1 | (r & 0x55) << 1;
+        ret[i] = r;
+    }
+    return ret;
+}
+#endif /* CONFIG_GNUTLS_GCRYPT */
+
+#ifdef CONFIG_GNUTLS_GCRYPT
+#include "crypto/cipher-gcrypt.c"
+#else
 #include "crypto/cipher-builtin.c"
+#endif
