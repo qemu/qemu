@@ -787,7 +787,13 @@ typedef struct ResourceProps {
  * phys.hi = 0xYYXXXXZZ, where:
  *   0xYY = npt000ss
  *          |||   |
- *          |||   +-- space code: 1 if IO region, 2 if MEM region
+ *          |||   +-- space code
+ *          |||               |
+ *          |||               +  00 if configuration space
+ *          |||               +  01 if IO region,
+ *          |||               +  10 if 32-bit MEM region
+ *          |||               +  11 if 64-bit MEM region
+ *          |||
  *          ||+------ for non-relocatable IO: 1 if aliased
  *          ||        for relocatable IO: 1 if below 64KB
  *          ||        for MEM: 1 if below 1MB
@@ -847,6 +853,8 @@ static void populate_resource_props(PCIDevice *d, ResourceProps *rp)
         reg->phys_hi = cpu_to_be32(dev_id | b_rrrrrrrr(pci_bar(d, i)));
         if (d->io_regions[i].type & PCI_BASE_ADDRESS_SPACE_IO) {
             reg->phys_hi |= cpu_to_be32(b_ss(1));
+        } else if (d->io_regions[i].type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
+            reg->phys_hi |= cpu_to_be32(b_ss(3));
         } else {
             reg->phys_hi |= cpu_to_be32(b_ss(2));
         }
