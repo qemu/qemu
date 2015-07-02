@@ -747,6 +747,60 @@ static AddressSpace *spapr_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
     return &phb->iommu_as;
 }
 
+static char *spapr_phb_vfio_get_loc_code(sPAPRPHBState *sphb,  PCIDevice *pdev)
+{
+    char *path = NULL, *buf = NULL, *host = NULL;
+
+    /* Get the PCI VFIO host id */
+    host = object_property_get_str(OBJECT(pdev), "host", NULL);
+    if (!host) {
+        goto err_out;
+    }
+
+    /* Construct the path of the file that will give us the DT location */
+    path = g_strdup_printf("/sys/bus/pci/devices/%s/devspec", host);
+    g_free(host);
+    if (!path || !g_file_get_contents(path, &buf, NULL, NULL)) {
+        goto err_out;
+    }
+    g_free(path);
+
+    /* Construct and read from host device tree the loc-code */
+    path = g_strdup_printf("/proc/device-tree%s/ibm,loc-code", buf);
+    g_free(buf);
+    if (!path || !g_file_get_contents(path, &buf, NULL, NULL)) {
+        goto err_out;
+    }
+    return buf;
+
+err_out:
+    g_free(path);
+    return NULL;
+}
+
+static char *spapr_phb_get_loc_code(sPAPRPHBState *sphb, PCIDevice *pdev)
+{
+    char *buf;
+    const char *devtype = "qemu";
+    uint32_t busnr = pci_bus_num(PCI_BUS(qdev_get_parent_bus(DEVICE(pdev))));
+
+    if (object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
+        buf = spapr_phb_vfio_get_loc_code(sphb, pdev);
+        if (buf) {
+            return buf;
+        }
+        devtype = "vfio";
+    }
+    /*
+     * For emulated devices and VFIO-failure case, make up
+     * the loc-code.
+     */
+    buf = g_strdup_printf("%s_%s:%04x:%02x:%02x.%x",
+                          devtype, pdev->name, sphb->index, busnr,
+                          PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+    return buf;
+}
+
 /* Macros to operate with address in OF binding to PCI */
 #define b_x(x, p, l)    (((x) & ((1<<(l))-1)) << (p))
 #define b_n(x)          b_x((x), 31, 1) /* 0 if relocatable */
@@ -885,11 +939,12 @@ static void populate_resource_props(PCIDevice *d, ResourceProps *rp)
 
 static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                                        int phb_index, int drc_index,
-                                       const char *drc_name)
+                                       sPAPRPHBState *sphb)
 {
     ResourceProps rp;
     bool is_bridge = false;
-    int pci_status;
+    int pci_status, err;
+    char *buf = NULL;
 
     if (pci_default_read_config(dev, PCI_HEADER_TYPE, 1) ==
         PCI_HEADER_TYPE_BRIDGE) {
@@ -950,7 +1005,18 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
      * processed by OF beforehand
      */
     _FDT(fdt_setprop_string(fdt, offset, "name", "pci"));
-    _FDT(fdt_setprop(fdt, offset, "ibm,loc-code", drc_name, strlen(drc_name)));
+    buf = spapr_phb_get_loc_code(sphb, dev);
+    if (!buf) {
+        error_report("Failed setting the ibm,loc-code");
+        return -1;
+    }
+
+    err = fdt_setprop_string(fdt, offset, "ibm,loc-code", buf);
+    g_free(buf);
+    if (err < 0) {
+        return err;
+    }
+
     _FDT(fdt_setprop_cell(fdt, offset, "ibm,my-drc-index", drc_index));
 
     _FDT(fdt_setprop_cell(fdt, offset, "#address-cells",
@@ -988,7 +1054,7 @@ static int spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
     }
     offset = fdt_add_subnode(fdt, node_offset, nodename);
     ret = spapr_populate_pci_child_dt(dev, fdt, offset, phb->index, drc_index,
-                                      drc_name);
+                                      phb);
     g_assert(!ret);
     if (ret) {
         return 0;
@@ -1004,14 +1070,13 @@ static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     DeviceState *dev = DEVICE(pdev);
     int drc_index = drck->get_index(drc);
-    const char *drc_name = drck->get_name(drc);
     void *fdt = NULL;
     int fdt_start_offset = 0, fdt_size;
 
     if (dev->hotplugged) {
         fdt = create_device_tree(&fdt_size);
         fdt_start_offset = spapr_create_pci_child_dt(phb, pdev,
-                                                     drc_index, drc_name,
+                                                     drc_index, NULL,
                                                      fdt, 0);
         if (!fdt_start_offset) {
             error_setg(errp, "Failed to create pci child device tree node");
