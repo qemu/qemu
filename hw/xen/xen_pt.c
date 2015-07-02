@@ -790,10 +790,11 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
     /* Initialize virtualized PCI configuration (Extended 256 Bytes) */
-    if (xen_host_pci_get_block(&s->real_device, 0, d->config,
-                               PCI_CONFIG_SPACE_SIZE) < 0) {
-        xen_host_pci_device_put(&s->real_device);
-        return -1;
+    rc = xen_host_pci_get_block(&s->real_device, 0, d->config,
+                                PCI_CONFIG_SPACE_SIZE);
+    if (rc < 0) {
+        XEN_PT_ERR(d,"Could not read PCI_CONFIG space! (rc:%d)\n", rc);
+        goto err_out;
     }
 
     s->memory_listener = xen_pt_memory_listener;
@@ -823,17 +824,17 @@ static int xen_pt_initfn(PCIDevice *d)
     xen_pt_register_regions(s, &cmd);
 
     /* reinitialize each config register to be emulated */
-    if (xen_pt_config_init(s)) {
+    rc = xen_pt_config_init(s);
+    if (rc) {
         XEN_PT_ERR(d, "PCI Config space initialisation failed.\n");
-        xen_host_pci_device_put(&s->real_device);
-        return -1;
+        goto err_out;
     }
 
     /* Bind interrupt */
     rc = xen_host_pci_get_byte(&s->real_device, PCI_INTERRUPT_PIN, &scratch);
     if (rc) {
         XEN_PT_ERR(d, "Failed to read PCI_INTERRUPT_PIN! (rc:%d)\n", rc);
-        scratch = 0;
+        goto err_out;
     }
     if (!scratch) {
         XEN_PT_LOG(d, "no pin interrupt\n");
@@ -890,12 +891,14 @@ out:
         rc = xen_host_pci_get_word(&s->real_device, PCI_COMMAND, &val);
         if (rc) {
             XEN_PT_ERR(d, "Failed to read PCI_COMMAND! (rc: %d)\n", rc);
+            goto err_out;
         } else {
             val |= cmd;
             rc = xen_host_pci_set_word(&s->real_device, PCI_COMMAND, val);
             if (rc) {
                 XEN_PT_ERR(d, "Failed to write PCI_COMMAND val=0x%x!(rc: %d)\n",
                            val, rc);
+                goto err_out;
             }
         }
     }
@@ -908,6 +911,11 @@ out:
                s->hostaddr.bus, s->hostaddr.slot, s->hostaddr.function);
 
     return 0;
+
+err_out:
+    xen_pt_destroy(d);
+    assert(rc);
+    return rc;
 }
 
 static void xen_pt_unregister_device(PCIDevice *d)
