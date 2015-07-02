@@ -265,15 +265,18 @@ static size_t create_page_sizes_prop(CPUPPCState *env, uint32_t *prop,
 
 static hwaddr spapr_node0_size(void)
 {
+    MachineState *machine = MACHINE(qdev_get_machine());
+
     if (nb_numa_nodes) {
         int i;
         for (i = 0; i < nb_numa_nodes; ++i) {
             if (numa_info[i].node_mem) {
-                return MIN(pow2floor(numa_info[i].node_mem), ram_size);
+                return MIN(pow2floor(numa_info[i].node_mem),
+                           machine->ram_size);
             }
         }
     }
-    return ram_size;
+    return machine->ram_size;
 }
 
 #define _FDT(exp) \
@@ -649,6 +652,7 @@ static void spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
 
 static int spapr_populate_memory(sPAPRMachineState *spapr, void *fdt)
 {
+    MachineState *machine = MACHINE(spapr);
     hwaddr mem_start, node_size;
     int i, nb_nodes = nb_numa_nodes;
     NodeInfo *nodes = numa_info;
@@ -657,7 +661,7 @@ static int spapr_populate_memory(sPAPRMachineState *spapr, void *fdt)
     /* No NUMA nodes, assume there is just one node with whole RAM */
     if (!nb_numa_nodes) {
         nb_nodes = 1;
-        ramnode.node_mem = ram_size;
+        ramnode.node_mem = machine->ram_size;
         nodes = &ramnode;
     }
 
@@ -665,12 +669,12 @@ static int spapr_populate_memory(sPAPRMachineState *spapr, void *fdt)
         if (!nodes[i].node_mem) {
             continue;
         }
-        if (mem_start >= ram_size) {
+        if (mem_start >= machine->ram_size) {
             node_size = 0;
         } else {
             node_size = nodes[i].node_mem;
-            if (node_size > ram_size - mem_start) {
-                node_size = ram_size - mem_start;
+            if (node_size > machine->ram_size - mem_start) {
+                node_size = machine->ram_size - mem_start;
             }
         }
         if (!mem_start) {
@@ -1374,7 +1378,6 @@ static void spapr_boot_set(void *opaque, const char *boot_device,
 static void ppc_spapr_init(MachineState *machine)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
-    ram_addr_t ram_size = machine->ram_size;
     const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
@@ -1443,7 +1446,7 @@ static void ppc_spapr_init(MachineState *machine)
      * more than needed for the Linux guests we support. */
     spapr->htab_shift = 18; /* Minimum architected size */
     while (spapr->htab_shift <= 46) {
-        if ((1ULL << (spapr->htab_shift + 7)) >= ram_size) {
+        if ((1ULL << (spapr->htab_shift + 7)) >= machine->ram_size) {
             break;
         }
         spapr->htab_shift++;
@@ -1497,9 +1500,8 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     /* allocate RAM */
-    spapr->ram_limit = ram_size;
     memory_region_allocate_system_memory(ram, NULL, "ppc_spapr.ram",
-                                         spapr->ram_limit);
+                                         machine->ram_size);
     memory_region_add_subregion(sysmem, 0, ram);
 
     if (rma_alloc_size && rma) {

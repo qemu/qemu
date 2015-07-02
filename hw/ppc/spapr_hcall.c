@@ -87,6 +87,7 @@ static inline bool valid_pte_index(CPUPPCState *env, target_ulong pte_index)
 static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
+    MachineState *machine = MACHINE(spapr);
     CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
@@ -118,7 +119,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
     raddr = (ptel & HPTE64_R_RPN) & ~((1ULL << page_shift) - 1);
 
-    if (raddr < spapr->ram_limit) {
+    if (raddr < machine->ram_size) {
         /* Regular RAM - should have WIMG=0010 */
         if ((ptel & HPTE64_R_WIMG) != HPTE64_R_M) {
             return H_PARAMETER;

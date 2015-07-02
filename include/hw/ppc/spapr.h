@@ -33,7 +33,6 @@ struct sPAPRMachineState {
     XICSState *icp;
     DeviceState *rtc;
 
-    hwaddr ram_limit;
     void *htab;
     uint32_t htab_shift;
     hwaddr rma_size;
