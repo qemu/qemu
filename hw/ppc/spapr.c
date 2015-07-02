@@ -932,7 +932,7 @@ static void ppc_spapr_reset(void)
     first_ppc_cpu->env.gpr[3] = spapr->fdt_addr;
     first_ppc_cpu->env.gpr[5] = 0;
     first_cpu->halted = 0;
-    first_ppc_cpu->env.nip = spapr->entry_point;
+    first_ppc_cpu->env.nip = SPAPR_ENTRY_POINT;
 
 }
 
@@ -1644,8 +1644,6 @@ static void ppc_spapr_init(MachineState *machine)
         exit(1);
     }
     g_free(filename);
-
-    spapr->entry_point = 0x100;
 
     /* FIXME: Should register things through the MachineState's qdev
      * interface, this is a legacy from the sPAPREnvironment structure
