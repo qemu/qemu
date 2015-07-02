@@ -193,7 +193,7 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
         DeviceState *iter = kid->child;
 
         /* Only look at VTY devices */
-        if (!object_dynamic_cast(OBJECT(iter), "spapr-vty")) {
+        if (!object_dynamic_cast(OBJECT(iter), TYPE_VIO_SPAPR_VTY_DEVICE)) {
             continue;
         }
 
