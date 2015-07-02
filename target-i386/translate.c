@@ -56,6 +56,12 @@
 # define clztl  clz32
 #endif
 
+/* For a switch indexed by MODRM, match all memory operands for a given OP.  */
+#define CASE_MEM_OP(OP) \
+    case (0 << 6) | (OP << 3) | 0 ... (0 << 6) | (OP << 3) | 7: \
+    case (1 << 6) | (OP << 3) | 0 ... (1 << 6) | (OP << 3) | 7: \
+    case (2 << 6) | (OP << 3) | 0 ... (2 << 6) | (OP << 3) | 7
+
 //#define MACRO_TEST   1
 
 /* global register indexes */
@@ -7000,15 +7006,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             goto illegal_op;
         }
         break;
+
     case 0x101:
         modrm = cpu_ldub_code(env, s->pc++);
-        mod = (modrm >> 6) & 3;
-        op = (modrm >> 3) & 7;
-        rm = modrm & 7;
-        switch(op) {
-        case 0: /* sgdt */
-            if (mod == 3)
-                goto illegal_op;
+        switch (modrm) {
+        CASE_MEM_OP(0): /* sgdt */
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_GDTR_READ);
             gen_lea_modrm(env, s, modrm);
             tcg_gen_ld32u_tl(cpu_T0,
@@ -7021,178 +7023,200 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             gen_op_st_v(s, CODE64(s) + MO_32, cpu_T0, cpu_A0);
             break;
-        case 1:
-            if (mod == 3) {
-                switch (rm) {
-                case 0: /* monitor */
-                    if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) ||
-                        s->cpl != 0)
-                        goto illegal_op;
-                    gen_update_cc_op(s);
-                    gen_jmp_im(pc_start - s->cs_base);
-                    tcg_gen_mov_tl(cpu_A0, cpu_regs[R_EAX]);
-                    gen_extu(s->aflag, cpu_A0);
-                    gen_add_A0_ds_seg(s);
-                    gen_helper_monitor(cpu_env, cpu_A0);
-                    break;
-                case 1: /* mwait */
-                    if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) ||
-                        s->cpl != 0)
-                        goto illegal_op;
-                    gen_update_cc_op(s);
-                    gen_jmp_im(pc_start - s->cs_base);
-                    gen_helper_mwait(cpu_env, tcg_const_i32(s->pc - pc_start));
-                    gen_eob(s);
-                    break;
-                case 2: /* clac */
-                    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_SMAP) ||
-                        s->cpl != 0) {
-                        goto illegal_op;
-                    }
-                    gen_helper_clac(cpu_env);
-                    gen_jmp_im(s->pc - s->cs_base);
-                    gen_eob(s);
-                    break;
-                case 3: /* stac */
-                    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_SMAP) ||
-                        s->cpl != 0) {
-                        goto illegal_op;
-                    }
-                    gen_helper_stac(cpu_env);
-                    gen_jmp_im(s->pc - s->cs_base);
-                    gen_eob(s);
-                    break;
-                default:
-                    goto illegal_op;
-                }
-            } else { /* sidt */
-                gen_svm_check_intercept(s, pc_start, SVM_EXIT_IDTR_READ);
-                gen_lea_modrm(env, s, modrm);
-                tcg_gen_ld32u_tl(cpu_T0,
-                                 cpu_env, offsetof(CPUX86State, idt.limit));
-                gen_op_st_v(s, MO_16, cpu_T0, cpu_A0);
-                gen_add_A0_im(s, 2);
-                tcg_gen_ld_tl(cpu_T0,
-                              cpu_env, offsetof(CPUX86State, idt.base));
-                if (dflag == MO_16) {
-                    tcg_gen_andi_tl(cpu_T0, cpu_T0, 0xffffff);
-                }
-                gen_op_st_v(s, CODE64(s) + MO_32, cpu_T0, cpu_A0);
+
+        case 0xc8: /* monitor */
+            if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) || s->cpl != 0) {
+                goto illegal_op;
             }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            tcg_gen_mov_tl(cpu_A0, cpu_regs[R_EAX]);
+            gen_extu(s->aflag, cpu_A0);
+            gen_add_A0_ds_seg(s);
+            gen_helper_monitor(cpu_env, cpu_A0);
             break;
-        case 2: /* lgdt */
-        case 3: /* lidt */
-            if (mod == 3) {
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
-                switch(rm) {
-                case 0: /* VMRUN */
-                    if (!(s->flags & HF_SVME_MASK) || !s->pe)
-                        goto illegal_op;
-                    if (s->cpl != 0) {
-                        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-                        break;
-                    } else {
-                        gen_helper_vmrun(cpu_env, tcg_const_i32(s->aflag - 1),
-                                         tcg_const_i32(s->pc - pc_start));
-                        tcg_gen_exit_tb(0);
-                        s->is_jmp = DISAS_TB_JUMP;
-                    }
-                    break;
-                case 1: /* VMMCALL */
-                    if (!(s->flags & HF_SVME_MASK))
-                        goto illegal_op;
-                    gen_helper_vmmcall(cpu_env);
-                    break;
-                case 2: /* VMLOAD */
-                    if (!(s->flags & HF_SVME_MASK) || !s->pe)
-                        goto illegal_op;
-                    if (s->cpl != 0) {
-                        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-                        break;
-                    } else {
-                        gen_helper_vmload(cpu_env, tcg_const_i32(s->aflag - 1));
-                    }
-                    break;
-                case 3: /* VMSAVE */
-                    if (!(s->flags & HF_SVME_MASK) || !s->pe)
-                        goto illegal_op;
-                    if (s->cpl != 0) {
-                        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-                        break;
-                    } else {
-                        gen_helper_vmsave(cpu_env, tcg_const_i32(s->aflag - 1));
-                    }
-                    break;
-                case 4: /* STGI */
-                    if ((!(s->flags & HF_SVME_MASK) &&
-                         !(s->cpuid_ext3_features & CPUID_EXT3_SKINIT)) || 
-                        !s->pe)
-                        goto illegal_op;
-                    if (s->cpl != 0) {
-                        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-                        break;
-                    } else {
-                        gen_helper_stgi(cpu_env);
-                    }
-                    break;
-                case 5: /* CLGI */
-                    if (!(s->flags & HF_SVME_MASK) || !s->pe)
-                        goto illegal_op;
-                    if (s->cpl != 0) {
-                        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-                        break;
-                    } else {
-                        gen_helper_clgi(cpu_env);
-                    }
-                    break;
-                case 6: /* SKINIT */
-                    if ((!(s->flags & HF_SVME_MASK) && 
-                         !(s->cpuid_ext3_features & CPUID_EXT3_SKINIT)) || 
-                        !s->pe)
-                        goto illegal_op;
-                    gen_helper_skinit(cpu_env);
-                    break;
-                case 7: /* INVLPGA */
-                    if (!(s->flags & HF_SVME_MASK) || !s->pe)
-                        goto illegal_op;
-                    if (s->cpl != 0) {
-                        gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-                        break;
-                    } else {
-                        gen_helper_invlpga(cpu_env,
-                                           tcg_const_i32(s->aflag - 1));
-                    }
-                    break;
-                default:
-                    goto illegal_op;
-                }
-            } else if (s->cpl != 0) {
+
+        case 0xc9: /* mwait */
+            if (!(s->cpuid_ext_features & CPUID_EXT_MONITOR) || s->cpl != 0) {
+                goto illegal_op;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_mwait(cpu_env, tcg_const_i32(s->pc - pc_start));
+            gen_eob(s);
+            break;
+
+        case 0xca: /* clac */
+            if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_SMAP)
+                || s->cpl != 0) {
+                goto illegal_op;
+            }
+            gen_helper_clac(cpu_env);
+            gen_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
+            break;
+
+        case 0xcb: /* stac */
+            if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_SMAP)
+                || s->cpl != 0) {
+                goto illegal_op;
+            }
+            gen_helper_stac(cpu_env);
+            gen_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
+            break;
+
+        CASE_MEM_OP(1): /* sidt */
+            gen_svm_check_intercept(s, pc_start, SVM_EXIT_IDTR_READ);
+            gen_lea_modrm(env, s, modrm);
+            tcg_gen_ld32u_tl(cpu_T0, cpu_env, offsetof(CPUX86State, idt.limit));
+            gen_op_st_v(s, MO_16, cpu_T0, cpu_A0);
+            gen_add_A0_im(s, 2);
+            tcg_gen_ld_tl(cpu_T0, cpu_env, offsetof(CPUX86State, idt.base));
+            if (dflag == MO_16) {
+                tcg_gen_andi_tl(cpu_T0, cpu_T0, 0xffffff);
+            }
+            gen_op_st_v(s, CODE64(s) + MO_32, cpu_T0, cpu_A0);
+            break;
+
+        case 0xd8: /* VMRUN */
+            if (!(s->flags & HF_SVME_MASK) || !s->pe) {
+                goto illegal_op;
+            }
+            if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-            } else {
-                gen_svm_check_intercept(s, pc_start,
-                                        op==2 ? SVM_EXIT_GDTR_WRITE : SVM_EXIT_IDTR_WRITE);
-                gen_lea_modrm(env, s, modrm);
-                gen_op_ld_v(s, MO_16, cpu_T1, cpu_A0);
-                gen_add_A0_im(s, 2);
-                gen_op_ld_v(s, CODE64(s) + MO_32, cpu_T0, cpu_A0);
-                if (dflag == MO_16) {
-                    tcg_gen_andi_tl(cpu_T0, cpu_T0, 0xffffff);
-                }
-                if (op == 2) {
-                    tcg_gen_st_tl(cpu_T0, cpu_env,
-                                  offsetof(CPUX86State, gdt.base));
-                    tcg_gen_st32_tl(cpu_T1, cpu_env,
-                                    offsetof(CPUX86State, gdt.limit));
-                } else {
-                    tcg_gen_st_tl(cpu_T0, cpu_env,
-                                  offsetof(CPUX86State, idt.base));
-                    tcg_gen_st32_tl(cpu_T1, cpu_env,
-                                    offsetof(CPUX86State, idt.limit));
-                }
+                break;
             }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_vmrun(cpu_env, tcg_const_i32(s->aflag - 1),
+                             tcg_const_i32(s->pc - pc_start));
+            tcg_gen_exit_tb(0);
+            s->is_jmp = DISAS_TB_JUMP;
             break;
-        case 4: /* smsw */
+
+        case 0xd9: /* VMMCALL */
+            if (!(s->flags & HF_SVME_MASK)) {
+                goto illegal_op;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_vmmcall(cpu_env);
+            break;
+
+        case 0xda: /* VMLOAD */
+            if (!(s->flags & HF_SVME_MASK) || !s->pe) {
+                goto illegal_op;
+            }
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                break;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_vmload(cpu_env, tcg_const_i32(s->aflag - 1));
+            break;
+
+        case 0xdb: /* VMSAVE */
+            if (!(s->flags & HF_SVME_MASK) || !s->pe) {
+                goto illegal_op;
+            }
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                break;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_vmsave(cpu_env, tcg_const_i32(s->aflag - 1));
+            break;
+
+        case 0xdc: /* STGI */
+            if ((!(s->flags & HF_SVME_MASK)
+                   && !(s->cpuid_ext3_features & CPUID_EXT3_SKINIT))
+                || !s->pe) {
+                goto illegal_op;
+            }
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                break;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_stgi(cpu_env);
+            break;
+
+        case 0xdd: /* CLGI */
+            if (!(s->flags & HF_SVME_MASK) || !s->pe) {
+                goto illegal_op;
+            }
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                break;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_clgi(cpu_env);
+            break;
+
+        case 0xde: /* SKINIT */
+            if ((!(s->flags & HF_SVME_MASK)
+                 && !(s->cpuid_ext3_features & CPUID_EXT3_SKINIT))
+                || !s->pe) {
+                goto illegal_op;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_skinit(cpu_env);
+            break;
+
+        case 0xdf: /* INVLPGA */
+            if (!(s->flags & HF_SVME_MASK) || !s->pe) {
+                goto illegal_op;
+            }
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                break;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_helper_invlpga(cpu_env, tcg_const_i32(s->aflag - 1));
+            break;
+
+        CASE_MEM_OP(2): /* lgdt */
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                break;
+            }
+            gen_svm_check_intercept(s, pc_start, SVM_EXIT_GDTR_WRITE);
+            gen_lea_modrm(env, s, modrm);
+            gen_op_ld_v(s, MO_16, cpu_T1, cpu_A0);
+            gen_add_A0_im(s, 2);
+            gen_op_ld_v(s, CODE64(s) + MO_32, cpu_T0, cpu_A0);
+            if (dflag == MO_16) {
+                tcg_gen_andi_tl(cpu_T0, cpu_T0, 0xffffff);
+            }
+            tcg_gen_st_tl(cpu_T0, cpu_env, offsetof(CPUX86State, gdt.base));
+            tcg_gen_st32_tl(cpu_T1, cpu_env, offsetof(CPUX86State, gdt.limit));
+            break;
+
+        CASE_MEM_OP(3): /* lidt */
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                break;
+            }
+            gen_svm_check_intercept(s, pc_start, SVM_EXIT_IDTR_WRITE);
+            gen_lea_modrm(env, s, modrm);
+            gen_op_ld_v(s, MO_16, cpu_T1, cpu_A0);
+            gen_add_A0_im(s, 2);
+            gen_op_ld_v(s, CODE64(s) + MO_32, cpu_T0, cpu_A0);
+            if (dflag == MO_16) {
+                tcg_gen_andi_tl(cpu_T0, cpu_T0, 0xffffff);
+            }
+            tcg_gen_st_tl(cpu_T0, cpu_env, offsetof(CPUX86State, idt.base));
+            tcg_gen_st32_tl(cpu_T1, cpu_env, offsetof(CPUX86State, idt.limit));
+            break;
+
+        CASE_MEM_OP(4): /* smsw */
             gen_svm_check_intercept(s, pc_start, SVM_EXIT_READ_CR0);
 #if defined TARGET_X86_64 && defined HOST_WORDS_BIGENDIAN
             tcg_gen_ld32u_tl(cpu_T0, cpu_env, offsetof(CPUX86State, cr[0]) + 4);
@@ -7201,70 +7225,70 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
 #endif
             gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 1);
             break;
-        case 6: /* lmsw */
+
+        CASE_MEM_OP(6): /* lmsw */
             if (s->cpl != 0) {
                 gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-            } else {
-                gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0);
-                gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
-                gen_helper_lmsw(cpu_env, cpu_T0);
-                gen_jmp_im(s->pc - s->cs_base);
-                gen_eob(s);
+                break;
             }
+            gen_svm_check_intercept(s, pc_start, SVM_EXIT_WRITE_CR0);
+            gen_ldst_modrm(env, s, modrm, MO_16, OR_TMP0, 0);
+            gen_helper_lmsw(cpu_env, cpu_T0);
+            gen_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
             break;
-        case 7:
-            if (mod != 3) { /* invlpg */
+
+        CASE_MEM_OP(7): /* invlpg */
+            if (s->cpl != 0) {
+                gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
+                break;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            gen_lea_modrm(env, s, modrm);
+            gen_helper_invlpg(cpu_env, cpu_A0);
+            gen_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
+            break;
+
+        case 0xf8: /* swapgs */
+#ifdef TARGET_X86_64
+            if (CODE64(s)) {
                 if (s->cpl != 0) {
                     gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
                 } else {
-                    gen_update_cc_op(s);
-                    gen_jmp_im(pc_start - s->cs_base);
-                    gen_lea_modrm(env, s, modrm);
-                    gen_helper_invlpg(cpu_env, cpu_A0);
-                    gen_jmp_im(s->pc - s->cs_base);
-                    gen_eob(s);
+                    tcg_gen_mov_tl(cpu_T0, cpu_seg_base[R_GS]);
+                    tcg_gen_ld_tl(cpu_seg_base[R_GS], cpu_env,
+                                  offsetof(CPUX86State, kernelgsbase));
+                    tcg_gen_st_tl(cpu_T0, cpu_env,
+                                  offsetof(CPUX86State, kernelgsbase));
                 }
-            } else {
-                switch (rm) {
-                case 0: /* swapgs */
-#ifdef TARGET_X86_64
-                    if (CODE64(s)) {
-                        if (s->cpl != 0) {
-                            gen_exception(s, EXCP0D_GPF, pc_start - s->cs_base);
-                        } else {
-                            tcg_gen_mov_tl(cpu_T0, cpu_seg_base[R_GS]);
-                            tcg_gen_ld_tl(cpu_seg_base[R_GS], cpu_env,
-                                          offsetof(CPUX86State, kernelgsbase));
-                            tcg_gen_st_tl(cpu_T0, cpu_env,
-                                          offsetof(CPUX86State, kernelgsbase));
-                        }
-                        break;
-                    }
+                break;
+            }
 #endif
-                    goto illegal_op;
-                case 1: /* rdtscp */
-                    if (!(s->cpuid_ext2_features & CPUID_EXT2_RDTSCP))
-                        goto illegal_op;
-                    gen_update_cc_op(s);
-                    gen_jmp_im(pc_start - s->cs_base);
-                    if (s->tb->cflags & CF_USE_ICOUNT) {
-                        gen_io_start();
-		    }
-                    gen_helper_rdtscp(cpu_env);
-                    if (s->tb->cflags & CF_USE_ICOUNT) {
-                        gen_io_end();
-                        gen_jmp(s, s->pc - s->cs_base);
-                    }
-                    break;
-                default:
-                    goto illegal_op;
-                }
+            goto illegal_op;
+
+        case 0xf9: /* rdtscp */
+            if (!(s->cpuid_ext2_features & CPUID_EXT2_RDTSCP)) {
+                goto illegal_op;
+            }
+            gen_update_cc_op(s);
+            gen_jmp_im(pc_start - s->cs_base);
+            if (s->tb->cflags & CF_USE_ICOUNT) {
+                gen_io_start();
+            }
+            gen_helper_rdtscp(cpu_env);
+            if (s->tb->cflags & CF_USE_ICOUNT) {
+                gen_io_end();
+                gen_jmp(s, s->pc - s->cs_base);
             }
             break;
+
         default:
             goto illegal_op;
         }
         break;
+
     case 0x108: /* invd */
     case 0x109: /* wbinvd */
         if (s->cpl != 0) {
