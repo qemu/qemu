@@ -29,6 +29,8 @@
 #ifndef GLOFFSCREEN_H_
 #define GLOFFSCREEN_H_
 
+#include <stdbool.h>
+
 #ifdef __APPLE__
 #include <OpenGL/gl.h>
 #elif defined(_WIN32)
@@ -65,31 +67,30 @@ typedef struct _GloContext GloContext;
 #define GLO_FF_DEFAULT (GLO_FF_BITS_24|GLO_FF_DEPTH_24)
 
 /* Change current context */
-extern void glo_set_current(GloContext *context);
+void glo_set_current(GloContext *context);
 
 /* Check GL Extensions */
-extern GLboolean glo_check_extension(
-    const GLubyte *extName, const GLubyte *extString);
-void* glo_get_extension_proc(const GLubyte *extProc);
+bool glo_check_extension(const char* ext_name);
+void* glo_get_extension_proc(const char* extProc);
 
 /* Create an OpenGL context for a certain
  * pixel format. formatflags are from the
  * GLO_ constants */
-extern GloContext *glo_context_create(int formatFlags);
+GloContext *glo_context_create(int formatFlags);
 
 /* Destroy a previouslu created OpenGL context */
-extern void glo_context_destroy(GloContext *context);
+void glo_context_destroy(GloContext *context);
 
 /* Functions to decode the format flags */
-extern int glo_flags_get_depth_bits(int formatFlags);
-extern int glo_flags_get_stencil_bits(int formatFlags);
-extern void glo_flags_get_rgba_bits(int formatFlags, int *rgba);
-extern int glo_flags_get_bytes_per_pixel(int formatFlags);
+int glo_flags_get_depth_bits(int formatFlags);
+int glo_flags_get_stencil_bits(int formatFlags);
+void glo_flags_get_rgba_bits(int formatFlags, int *rgba);
+int glo_flags_get_bytes_per_pixel(int formatFlags);
 /* Score how close the given format flags match. 0=great, >0 not so great */
-extern int glo_flags_score(int formatFlagsExpected, int formatFlagsReal);
+int glo_flags_score(int formatFlagsExpected, int formatFlagsReal);
 
  /* Note that this is top-down, not bottom-up as glReadPixels would do. */
-extern void glo_readpixels(GLenum gl_format, GLenum gl_type,
+void glo_readpixels(GLenum gl_format, GLenum gl_type,
                     unsigned int bytes_per_pixel, unsigned int stride,
                     unsigned int width, unsigned int height, void *data);
  

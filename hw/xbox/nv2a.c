@@ -27,6 +27,7 @@
 #include "qemu/thread.h"
 #include "qapi/qmp/qstring.h"
 #include "gl/gloffscreen.h"
+#include "gl/glextensions.h"
 
 #include "hw/xbox/swizzle.h"
 #include "hw/xbox/u_format_r11g11b10f.h"
@@ -2144,24 +2145,16 @@ static void pgraph_init(PGRAPHState *pg)
     pg->gl_context = glo_context_create(GLO_FF_DEFAULT);
     assert(pg->gl_context);
 
+    glextensions_init();
+
     /* Check context capabilities */
-    const GLubyte *extensions = glGetString(GL_EXTENSIONS);
+    assert(glo_check_extension("GL_EXT_texture_compression_s3tc"));
 
-    assert(glo_check_extension((const GLubyte *)
-                             "GL_EXT_texture_compression_s3tc",
-                             extensions));
+    assert(glo_check_extension("GL_EXT_framebuffer_object"));
 
-    assert(glo_check_extension((const GLubyte *)
-                             "GL_EXT_framebuffer_object",
-                             extensions));
+    assert(glo_check_extension("GL_ARB_texture_rectangle"));
 
-    assert(glo_check_extension((const GLubyte *)
-                             "GL_ARB_texture_rectangle",
-                             extensions));
-
-    assert(glo_check_extension((const GLubyte *)
-                             "GL_ARB_vertex_array_bgra",
-                             extensions));
+    assert(glo_check_extension("GL_ARB_vertex_array_bgra"));
 
     GLint max_vertex_attributes;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_vertex_attributes);

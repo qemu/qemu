@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <dlfcn.h>
 
 #include "qemu-common.h"
 
@@ -68,11 +69,9 @@ GloContext *glo_context_create(int formatFlags)
     return context;
 }
 
-/* Check if an extension is available. */
-GLboolean glo_check_extension(const GLubyte *extName,
-    const GLubyte *extString)
+void* glo_get_extension_proc(const char* ext_proc)
 {
-    return gluCheckExtension(extName, extString);
+    return dlsym(RTLD_NEXT, ext_proc);
 }
 
 /* Set current context */

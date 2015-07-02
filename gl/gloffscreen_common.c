@@ -162,3 +162,22 @@ void glo_readpixels(GLenum gl_format, GLenum gl_type,
     glPixelStorei(GL_PACK_ROW_LENGTH, rl);
     glPixelStorei(GL_PACK_ALIGNMENT, pa);
 }
+
+
+bool glo_check_extension(const char* ext_name)
+{
+    const char *ext_string = (const char *) glGetString(GL_EXTENSIONS);
+    if (!ext_string) {
+        return false;
+    }
+    const char* p = ext_string;
+    const char* end = p + strlen(p);
+    while (p < end) {
+        size_t n = strcspn(p, " ");
+        if ((strlen(ext_name) == n) && (strncmp(ext_name, p, n) == 0)) {
+            return true;
+        }
+        p += (n + 1);
+    }
+    return false;
+}

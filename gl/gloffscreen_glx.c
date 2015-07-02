@@ -112,16 +112,9 @@ GloContext *glo_context_create(int formatFlags)
     return context;
 }
 
-/* Check if an extension is available. */
-GLboolean glo_check_extension(const GLubyte *extName,
-    const GLubyte *extString)
+void* glo_get_extension_proc(const char* ext_proc)
 {
-    return gluCheckExtension(extName, extString);
-}
-
-void* glo_get_extension_proc(const GLubyte *extProc)
-{
-    return glXGetProcAddress(extProc); 
+    return glXGetProcAddress((const GLubyte *)ext_proc);
 }
 
 /* Set current context */
