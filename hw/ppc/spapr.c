@@ -165,6 +165,27 @@ static int spapr_fixup_cpu_smt_dt(void *fdt, int offset, PowerPCCPU *cpu,
     return ret;
 }
 
+static int spapr_fixup_cpu_numa_dt(void *fdt, int offset, CPUState *cs)
+{
+    int ret = 0;
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    int index = ppc_get_vcpu_dt_id(cpu);
+    uint32_t associativity[] = {cpu_to_be32(0x5),
+                                cpu_to_be32(0x0),
+                                cpu_to_be32(0x0),
+                                cpu_to_be32(0x0),
+                                cpu_to_be32(cs->numa_node),
+                                cpu_to_be32(index)};
+
+    /* Advertise NUMA via ibm,associativity */
+    if (nb_numa_nodes > 1) {
+        ret = fdt_setprop(fdt, offset, "ibm,associativity", associativity,
+                          sizeof(associativity));
+    }
+
+    return ret;
+}
+
 static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
 {
     int ret = 0, offset, cpus_offset;
@@ -177,12 +198,6 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
         PowerPCCPU *cpu = POWERPC_CPU(cs);
         DeviceClass *dc = DEVICE_GET_CLASS(cs);
         int index = ppc_get_vcpu_dt_id(cpu);
-        uint32_t associativity[] = {cpu_to_be32(0x5),
-                                    cpu_to_be32(0x0),
-                                    cpu_to_be32(0x0),
-                                    cpu_to_be32(0x0),
-                                    cpu_to_be32(cs->numa_node),
-                                    cpu_to_be32(index)};
 
         if ((index % smt) != 0) {
             continue;
@@ -206,16 +221,13 @@ static int spapr_fixup_cpu_dt(void *fdt, sPAPRMachineState *spapr)
             }
         }
 
-        if (nb_numa_nodes > 1) {
-            ret = fdt_setprop(fdt, offset, "ibm,associativity", associativity,
-                              sizeof(associativity));
-            if (ret < 0) {
-                return ret;
-            }
-        }
-
         ret = fdt_setprop(fdt, offset, "ibm,pft-size",
                           pft_size_prop, sizeof(pft_size_prop));
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = spapr_fixup_cpu_numa_dt(fdt, offset, cs);
         if (ret < 0) {
             return ret;
         }
@@ -302,18 +314,13 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
                                    uint32_t epow_irq)
 {
     void *fdt;
-    CPUState *cs;
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(max_cpus)};
-    int smt = kvmppc_smt_threads();
     unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
-    QemuOpts *opts = qemu_opts_find(qemu_find_opts("smp-opts"), NULL);
-    unsigned sockets = opts ? qemu_opt_get_number(opts, "sockets", 0) : 0;
-    uint32_t cpus_per_socket = sockets ? (smp_cpus / sockets) : 1;
     char *buf;
 
     add_str(hypertas, "hcall-pft");
@@ -396,107 +403,6 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_property_cell(fdt, "qemu,graphic-width", graphic_width)));
     _FDT((fdt_property_cell(fdt, "qemu,graphic-height", graphic_height)));
     _FDT((fdt_property_cell(fdt, "qemu,graphic-depth", graphic_depth)));
-
-    _FDT((fdt_end_node(fdt)));
-
-    /* cpus */
-    _FDT((fdt_begin_node(fdt, "cpus")));
-
-    _FDT((fdt_property_cell(fdt, "#address-cells", 0x1)));
-    _FDT((fdt_property_cell(fdt, "#size-cells", 0x0)));
-
-    CPU_FOREACH(cs) {
-        PowerPCCPU *cpu = POWERPC_CPU(cs);
-        CPUPPCState *env = &cpu->env;
-        DeviceClass *dc = DEVICE_GET_CLASS(cs);
-        PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
-        int index = ppc_get_vcpu_dt_id(cpu);
-        char *nodename;
-        uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
-                           0xffffffff, 0xffffffff};
-        uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
-        uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
-        uint32_t page_sizes_prop[64];
-        size_t page_sizes_prop_size;
-
-        if ((index % smt) != 0) {
-            continue;
-        }
-
-        nodename = g_strdup_printf("%s@%x", dc->fw_name, index);
-
-        _FDT((fdt_begin_node(fdt, nodename)));
-
-        g_free(nodename);
-
-        _FDT((fdt_property_cell(fdt, "reg", index)));
-        _FDT((fdt_property_string(fdt, "device_type", "cpu")));
-
-        _FDT((fdt_property_cell(fdt, "cpu-version", env->spr[SPR_PVR])));
-        _FDT((fdt_property_cell(fdt, "d-cache-block-size",
-                                env->dcache_line_size)));
-        _FDT((fdt_property_cell(fdt, "d-cache-line-size",
-                                env->dcache_line_size)));
-        _FDT((fdt_property_cell(fdt, "i-cache-block-size",
-                                env->icache_line_size)));
-        _FDT((fdt_property_cell(fdt, "i-cache-line-size",
-                                env->icache_line_size)));
-
-        if (pcc->l1_dcache_size) {
-            _FDT((fdt_property_cell(fdt, "d-cache-size", pcc->l1_dcache_size)));
-        } else {
-            fprintf(stderr, "Warning: Unknown L1 dcache size for cpu\n");
-        }
-        if (pcc->l1_icache_size) {
-            _FDT((fdt_property_cell(fdt, "i-cache-size", pcc->l1_icache_size)));
-        } else {
-            fprintf(stderr, "Warning: Unknown L1 icache size for cpu\n");
-        }
-
-        _FDT((fdt_property_cell(fdt, "timebase-frequency", tbfreq)));
-        _FDT((fdt_property_cell(fdt, "clock-frequency", cpufreq)));
-        _FDT((fdt_property_cell(fdt, "ibm,slb-size", env->slb_nr)));
-        _FDT((fdt_property_string(fdt, "status", "okay")));
-        _FDT((fdt_property(fdt, "64-bit", NULL, 0)));
-
-        if (env->spr_cb[SPR_PURR].oea_read) {
-            _FDT((fdt_property(fdt, "ibm,purr", NULL, 0)));
-        }
-
-        if (env->mmu_model & POWERPC_MMU_1TSEG) {
-            _FDT((fdt_property(fdt, "ibm,processor-segment-sizes",
-                               segs, sizeof(segs))));
-        }
-
-        /* Advertise VMX/VSX (vector extensions) if available
-         *   0 / no property == no vector extensions
-         *   1               == VMX / Altivec available
-         *   2               == VSX available */
-        if (env->insns_flags & PPC_ALTIVEC) {
-            uint32_t vmx = (env->insns_flags2 & PPC2_VSX) ? 2 : 1;
-
-            _FDT((fdt_property_cell(fdt, "ibm,vmx", vmx)));
-        }
-
-        /* Advertise DFP (Decimal Floating Point) if available
-         *   0 / no property == no DFP
-         *   1               == DFP available */
-        if (env->insns_flags2 & PPC2_DFP) {
-            _FDT((fdt_property_cell(fdt, "ibm,dfp", 1)));
-        }
-
-        page_sizes_prop_size = create_page_sizes_prop(env, page_sizes_prop,
-                                                      sizeof(page_sizes_prop));
-        if (page_sizes_prop_size) {
-            _FDT((fdt_property(fdt, "ibm,segment-page-sizes",
-                               page_sizes_prop, page_sizes_prop_size)));
-        }
-
-        _FDT((fdt_property_cell(fdt, "ibm,chip-id",
-                                cs->cpu_index / cpus_per_socket)));
-
-        _FDT((fdt_end_node(fdt)));
-    }
 
     _FDT((fdt_end_node(fdt)));
 
@@ -700,6 +606,137 @@ static int spapr_populate_memory(sPAPRMachineState *spapr, void *fdt)
     return 0;
 }
 
+static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
+                                  sPAPRMachineState *spapr)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cs);
+    int index = ppc_get_vcpu_dt_id(cpu);
+    uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
+                       0xffffffff, 0xffffffff};
+    uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
+    uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
+    uint32_t page_sizes_prop[64];
+    size_t page_sizes_prop_size;
+    QemuOpts *opts = qemu_opts_find(qemu_find_opts("smp-opts"), NULL);
+    unsigned sockets = opts ? qemu_opt_get_number(opts, "sockets", 0) : 0;
+    uint32_t cpus_per_socket = sockets ? (smp_cpus / sockets) : 1;
+    uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
+
+    _FDT((fdt_setprop_cell(fdt, offset, "reg", index)));
+    _FDT((fdt_setprop_string(fdt, offset, "device_type", "cpu")));
+
+    _FDT((fdt_setprop_cell(fdt, offset, "cpu-version", env->spr[SPR_PVR])));
+    _FDT((fdt_setprop_cell(fdt, offset, "d-cache-block-size",
+                           env->dcache_line_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "d-cache-line-size",
+                           env->dcache_line_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "i-cache-block-size",
+                           env->icache_line_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "i-cache-line-size",
+                           env->icache_line_size)));
+
+    if (pcc->l1_dcache_size) {
+        _FDT((fdt_setprop_cell(fdt, offset, "d-cache-size",
+                               pcc->l1_dcache_size)));
+    } else {
+        fprintf(stderr, "Warning: Unknown L1 dcache size for cpu\n");
+    }
+    if (pcc->l1_icache_size) {
+        _FDT((fdt_setprop_cell(fdt, offset, "i-cache-size",
+                               pcc->l1_icache_size)));
+    } else {
+        fprintf(stderr, "Warning: Unknown L1 icache size for cpu\n");
+    }
+
+    _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
+    _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", env->slb_nr)));
+    _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
+    _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
+
+    if (env->spr_cb[SPR_PURR].oea_read) {
+        _FDT((fdt_setprop(fdt, offset, "ibm,purr", NULL, 0)));
+    }
+
+    if (env->mmu_model & POWERPC_MMU_1TSEG) {
+        _FDT((fdt_setprop(fdt, offset, "ibm,processor-segment-sizes",
+                          segs, sizeof(segs))));
+    }
+
+    /* Advertise VMX/VSX (vector extensions) if available
+     *   0 / no property == no vector extensions
+     *   1               == VMX / Altivec available
+     *   2               == VSX available */
+    if (env->insns_flags & PPC_ALTIVEC) {
+        uint32_t vmx = (env->insns_flags2 & PPC2_VSX) ? 2 : 1;
+
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,vmx", vmx)));
+    }
+
+    /* Advertise DFP (Decimal Floating Point) if available
+     *   0 / no property == no DFP
+     *   1               == DFP available */
+    if (env->insns_flags2 & PPC2_DFP) {
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,dfp", 1)));
+    }
+
+    page_sizes_prop_size = create_page_sizes_prop(env, page_sizes_prop,
+                                                  sizeof(page_sizes_prop));
+    if (page_sizes_prop_size) {
+        _FDT((fdt_setprop(fdt, offset, "ibm,segment-page-sizes",
+                          page_sizes_prop, page_sizes_prop_size)));
+    }
+
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
+                           cs->cpu_index / cpus_per_socket)));
+
+    _FDT((fdt_setprop(fdt, offset, "ibm,pft-size",
+                      pft_size_prop, sizeof(pft_size_prop))));
+
+    _FDT(spapr_fixup_cpu_numa_dt(fdt, offset, cs));
+
+    _FDT(spapr_fixup_cpu_smt_dt(fdt, offset, cpu,
+                                ppc_get_compat_smt_threads(cpu)));
+}
+
+static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
+{
+    CPUState *cs;
+    int cpus_offset;
+    char *nodename;
+    int smt = kvmppc_smt_threads();
+
+    cpus_offset = fdt_add_subnode(fdt, 0, "cpus");
+    _FDT(cpus_offset);
+    _FDT((fdt_setprop_cell(fdt, cpus_offset, "#address-cells", 0x1)));
+    _FDT((fdt_setprop_cell(fdt, cpus_offset, "#size-cells", 0x0)));
+
+    /*
+     * We walk the CPUs in reverse order to ensure that CPU DT nodes
+     * created by fdt_add_subnode() end up in the right order in FDT
+     * for the guest kernel the enumerate the CPUs correctly.
+     */
+    CPU_FOREACH_REVERSE(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+        int index = ppc_get_vcpu_dt_id(cpu);
+        DeviceClass *dc = DEVICE_GET_CLASS(cs);
+        int offset;
+
+        if ((index % smt) != 0) {
+            continue;
+        }
+
+        nodename = g_strdup_printf("%s@%x", dc->fw_name, index);
+        offset = fdt_add_subnode(fdt, cpus_offset, nodename);
+        g_free(nodename);
+        _FDT(offset);
+        spapr_populate_cpu_dt(cs, fdt, offset, spapr);
+    }
+
+}
+
 static void spapr_finalize_fdt(sPAPRMachineState *spapr,
                                hwaddr fdt_addr,
                                hwaddr rtas_addr,
@@ -745,11 +782,8 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
         fprintf(stderr, "Couldn't set up RTAS device tree properties\n");
     }
 
-    /* Advertise NUMA via ibm,associativity */
-    ret = spapr_fixup_cpu_dt(fdt, spapr);
-    if (ret < 0) {
-        fprintf(stderr, "Couldn't finalize CPU device tree properties\n");
-    }
+    /* cpus */
+    spapr_populate_cpus_dt_node(fdt, spapr);
 
     bootlist = get_boot_devices_list(&cb, true);
     if (cb && bootlist) {
