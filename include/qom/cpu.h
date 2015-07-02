@@ -323,6 +323,8 @@ extern struct CPUTailQ cpus;
 #define CPU_FOREACH(cpu) QTAILQ_FOREACH(cpu, &cpus, node)
 #define CPU_FOREACH_SAFE(cpu, next_cpu) \
     QTAILQ_FOREACH_SAFE(cpu, &cpus, node, next_cpu)
+#define CPU_FOREACH_REVERSE(cpu) \
+    QTAILQ_FOREACH_REVERSE(cpu, &cpus, CPUTailQ, node)
 #define first_cpu QTAILQ_FIRST(&cpus)
 
 DECLARE_TLS(CPUState *, current_cpu);
