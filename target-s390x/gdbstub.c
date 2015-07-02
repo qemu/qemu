@@ -92,6 +92,7 @@ static int cpu_write_ac_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
     switch (n) {
     case S390_A0_REGNUM ... S390_A15_REGNUM:
         env->aregs[n] = ldl_p(mem_buf);
+        cpu_synchronize_post_init(ENV_GET_CPU(env));
         return 4;
     default:
         return 0;

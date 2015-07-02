@@ -588,6 +588,7 @@ int css_do_msch(SubchDev *sch, const SCHIB *orig_schib)
 {
     SCSW *s = &sch->curr_status.scsw;
     PMCW *p = &sch->curr_status.pmcw;
+    uint16_t oldflags;
     int ret;
     SCHIB schib;
 
@@ -610,6 +611,7 @@ int css_do_msch(SubchDev *sch, const SCHIB *orig_schib)
     copy_schib_from_guest(&schib, orig_schib);
     /* Only update the program-modifiable fields. */
     p->intparm = schib.pmcw.intparm;
+    oldflags = p->flags;
     p->flags &= ~(PMCW_FLAGS_MASK_ISC | PMCW_FLAGS_MASK_ENA |
                   PMCW_FLAGS_MASK_LM | PMCW_FLAGS_MASK_MME |
                   PMCW_FLAGS_MASK_MP);
@@ -624,6 +626,12 @@ int css_do_msch(SubchDev *sch, const SCHIB *orig_schib)
     p->chars |= schib.pmcw.chars &
             (PMCW_CHARS_MASK_MBFC | PMCW_CHARS_MASK_CSENSE);
     sch->curr_status.mba = schib.mba;
+
+    /* Has the channel been disabled? */
+    if (sch->disable_cb && (oldflags & PMCW_FLAGS_MASK_ENA) != 0
+        && (p->flags & PMCW_FLAGS_MASK_ENA) == 0) {
+        sch->disable_cb(sch);
+    }
 
     ret = 0;
 
@@ -1464,6 +1472,21 @@ int subch_device_load(SubchDev *s, QEMUFile *f)
     }
     s->ccw_fmt_1 = qemu_get_byte(f);
     s->ccw_no_data_cnt = qemu_get_byte(f);
+    /*
+     * Hack alert. We don't migrate the channel subsystem status (no
+     * device!), but we need to find out if the guest enabled mss/mcss-e.
+     * If the subchannel is enabled, it certainly was able to access it,
+     * so adjust the max_ssid/max_cssid values for relevant ssid/cssid
+     * values. This is not watertight, but better than nothing.
+     */
+    if (s->curr_status.pmcw.flags & PMCW_FLAGS_MASK_ENA) {
+        if (s->ssid) {
+            channel_subsys->max_ssid = MAX_SSID;
+        }
+        if (s->cssid != channel_subsys->default_cssid) {
+            channel_subsys->max_cssid = MAX_CSSID;
+        }
+    }
     return 0;
 }
 
@@ -1482,6 +1505,10 @@ machine_init(css_init);
 void css_reset_sch(SubchDev *sch)
 {
     PMCW *p = &sch->curr_status.pmcw;
+
+    if ((p->flags & PMCW_FLAGS_MASK_ENA) != 0 && sch->disable_cb) {
+        sch->disable_cb(sch);
+    }
 
     p->intparm = 0;
     p->flags &= ~(PMCW_FLAGS_MASK_ISC | PMCW_FLAGS_MASK_ENA |

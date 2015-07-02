@@ -47,6 +47,7 @@ typedef unsigned long long __u64;
 
 /* start.s */
 void disabled_wait(void);
+void consume_sclp_int(void);
 
 /* main.c */
 void virtio_panic(const char *string);
