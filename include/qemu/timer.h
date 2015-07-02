@@ -5,6 +5,8 @@
 #include "qemu-common.h"
 #include "qemu/notify.h"
 
+#define NSEC_PER_SEC 1000000000LL
+
 /* timers */
 
 #define SCALE_MS 1000000

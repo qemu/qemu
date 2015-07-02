@@ -2294,6 +2294,10 @@ By default qemu will use the iSCSI initiator-name
 'iqn.2008-11.org.linux-kvm[:<name>]' but this can also be set from the command
 line or a configuration file.
 
+Since version Qemu 2.4 it is possible to specify a iSCSI request timeout to detect
+stalled requests and force a reestablishment of the session. The timeout
+is specified in seconds. The default is 0 which means no timeout. Libiscsi
+1.15.0 or greater is required for this feature.
 
 Example (without authentication):
 @example
@@ -2321,6 +2325,7 @@ DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
     "-iscsi [user=user][,password=password]\n"
     "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
     "       [,initiator-name=initiator-iqn][,id=target-iqn]\n"
+    "       [,timeout=timeout]\n"
     "                iSCSI session parameters\n", QEMU_ARCH_ALL)
 STEXI
 

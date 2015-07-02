@@ -26,6 +26,7 @@
  *
  */
 #include "cpu.h"
+#include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/ppc/spapr.h"
 #include "qapi-event.h"
@@ -39,8 +40,6 @@ struct sPAPRRTCState {
     SysBusDevice parent_obj;
     int64_t ns_offset;
 };
-
-#define NSEC_PER_SEC    1000000000LL
 
 void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns)
 {

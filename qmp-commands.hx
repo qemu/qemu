@@ -1137,10 +1137,10 @@ Arguments:
             (json-string, optional)
 - "sync": what parts of the disk image should be copied to the destination;
   possibilities include "full" for all the disk, "top" for only the sectors
-  allocated in the topmost image, "dirty-bitmap" for only the dirty sectors in
+  allocated in the topmost image, "incremental" for only the dirty sectors in
   the bitmap, or "none" to only replicate new I/O (MirrorSyncMode).
-- "bitmap": dirty bitmap name for sync==dirty-bitmap. Must be present if sync
-            is "dirty-bitmap", must NOT be present otherwise.
+- "bitmap": dirty bitmap name for sync==incremental. Must be present if sync
+            is "incremental", must NOT be present otherwise.
 - "mode": whether and how QEMU should create a new image
           (NewImageMode, optional, default 'absolute-paths')
 - "speed": the maximum speed, in bytes per second (json-int, optional)
@@ -1503,6 +1503,7 @@ EQMP
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
                       "node-name:s?,replaces:s?,"
                       "on-source-error:s?,on-target-error:s?,"
+                      "unmap:b?,"
                       "granularity:i?,buf-size:i?",
         .mhandler.cmd_new = qmp_marshal_input_drive_mirror,
     },
@@ -1542,6 +1543,8 @@ Arguments:
   (BlockdevOnError, default 'report')
 - "on-target-error": the action to take on an error on the target
   (BlockdevOnError, default 'report')
+- "unmap": whether the target sectors should be discarded where source has only
+  zeroes. (json-bool, optional, default true)
 
 The default value of the granularity is the image cluster size clamped
 between 4096 and 65536, if the image format defines one.  If the format
