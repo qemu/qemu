@@ -828,6 +828,7 @@ typedef struct VertexAttribute {
     unsigned int converted_size;
     unsigned int converted_count;
 
+    GLint gl_count;
     GLenum gl_type;
     GLboolean gl_normalize;
 } VertexAttribute;
@@ -1366,13 +1367,15 @@ static unsigned int pgraph_bind_inline_array(PGRAPHState *pg)
 
             if (!attribute->needs_conversion) {
                 glVertexAttribPointer(i,
-                    attribute->count,
+                    attribute->gl_count,
                     attribute->gl_type,
                     attribute->gl_normalize,
                     attribute->stride,
                     (uint8_t*)pg->inline_array + offset);
             }
 
+            NV2A_DPRINTF("bind inline attribute %d size=%d, count=%d\n",
+                i, attribute->size, attribute->count);
             offset += attribute->size * attribute->count;
         }
     }
@@ -1403,7 +1406,7 @@ static void pgraph_bind_vertex_attributes(NV2AState *d)
                 vertex_data += attribute->offset;
 
                 glVertexAttribPointer(i,
-                    attribute->count,
+                    attribute->gl_count,
                     attribute->gl_type,
                     attribute->gl_normalize,
                     attribute->stride,
@@ -2403,12 +2406,23 @@ static void pgraph_method(NV2AState *d,
                  parameter);
         break;
     case NV097_FLIP_INCREMENT_WRITE: {
+        NV2A_DPRINTF("flip increment write %d -> ",
+            GET_MASK(pg->regs[NV_PGRAPH_SURFACE],
+                          NV_PGRAPH_SURFACE_WRITE_3D));
         SET_MASK(pg->regs[NV_PGRAPH_SURFACE],
                  NV_PGRAPH_SURFACE_WRITE_3D,
                  (GET_MASK(pg->regs[NV_PGRAPH_SURFACE],
                           NV_PGRAPH_SURFACE_WRITE_3D)+1)
                     % GET_MASK(pg->regs[NV_PGRAPH_SURFACE],
                                NV_PGRAPH_SURFACE_MODULO_3D) );
+        NV2A_DPRINTF("%d\n",
+            GET_MASK(pg->regs[NV_PGRAPH_SURFACE],
+                          NV_PGRAPH_SURFACE_WRITE_3D));
+
+        if (glFrameTerminatorGREMEDY) {
+            glFrameTerminatorGREMEDY();
+        }
+
         break;
     }
     case NV097_FLIP_STALL:
@@ -2664,6 +2678,12 @@ static void pgraph_method(NV2AState *d,
         vertex_attribute->stride =
             GET_MASK(parameter, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE);
 
+        NV2A_DPRINTF("vertex data array format=%d, count=%d, stride=%d\n",
+            vertex_attribute->format,
+            vertex_attribute->count,
+            vertex_attribute->stride);
+
+        vertex_attribute->gl_count = vertex_attribute->count;
 
         switch (vertex_attribute->format) {
         case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D:
@@ -2672,7 +2692,7 @@ static void pgraph_method(NV2AState *d,
             vertex_attribute->size = 1;
             assert(vertex_attribute->count == 4);
             // http://www.opengl.org/registry/specs/ARB/vertex_array_bgra.txt
-            vertex_attribute->count = GL_BGRA;
+            vertex_attribute->gl_count = GL_BGRA;
             vertex_attribute->needs_conversion = false;
             break;
         case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL:
@@ -2763,8 +2783,7 @@ static void pgraph_method(NV2AState *d,
                 glDrawArrays(pg->gl_primitive_mode,
                              0, pg->inline_buffer_length);
             } else if (pg->inline_array_length) {
-                unsigned int vertex_size =
-                    pgraph_bind_inline_array(pg);
+                unsigned int vertex_size = pgraph_bind_inline_array(pg);
                 unsigned int index_count =
                     pg->inline_array_length*4 / vertex_size;
                 
@@ -2930,10 +2949,7 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_CLEAR_SURFACE:
-        /* QQQ */
-        NV2A_DPRINTF("------------------CLEAR 0x%x---------------\n", parameter);
-        //glClearColor(1, 0, 0, 1);
-
+        NV2A_DPRINTF("---------PRE CLEAR ------\n");
         GLbitfield gl_mask = 0;
         if (parameter & NV097_CLEAR_SURFACE_Z) {
             gl_mask |= GL_DEPTH_BUFFER_BIT;
