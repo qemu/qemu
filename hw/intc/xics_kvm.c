@@ -368,7 +368,7 @@ static void xics_kvm_set_nr_servers(XICSState *icp, uint32_t nr_servers,
     }
 }
 
-static void rtas_dummy(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_dummy(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                        uint32_t token,
                        uint32_t nargs, target_ulong args,
                        uint32_t nret, target_ulong rets)
