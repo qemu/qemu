@@ -33,14 +33,41 @@
 
 #include "hw/xbox/acpi_xbox.h"
 
-//#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
 # define XBOX_DPRINTF(format, ...)     printf(format, ## __VA_ARGS__)
 #else
 # define XBOX_DPRINTF(format, ...)     do { } while (0)
 #endif
 
+#define XBOX_PM_GPIO_BASE 0xC0
+#define XBOX_PM_GPIO_LEN 26
 
+static uint64_t xbox_pm_gpio_read(void *opaque, hwaddr addr, unsigned width)
+{
+    uint64_t r = 0;
+    switch (addr) {
+    case 0:
+        // field pin from tv encoder?
+        r = 0;
+        break;
+    default:
+        break;
+    }
+    XBOX_DPRINTF("pm gpio read [0x%llx] -> 0x%llx\n", addr, r);
+    return r;
+}
+
+static void xbox_pm_gpio_write(void *opaque, hwaddr addr, uint64_t val,
+                               unsigned width)
+{
+    XBOX_DPRINTF("pm gpio write [0x%llx] = 0x%llx\n", addr, val);
+}
+
+static const MemoryRegionOps xbox_pm_gpio_ops = {
+    .read = xbox_pm_gpio_read,
+    .write = xbox_pm_gpio_write,
+};
 
 static void xbox_pm_update_sci_fn(ACPIREGS *regs)
 {
@@ -48,19 +75,22 @@ static void xbox_pm_update_sci_fn(ACPIREGS *regs)
     //pm_update_sci(pm);
 }
 
-
 #define XBOX_PM_BASE_BAR 0
 
 void xbox_pm_init(PCIDevice *dev, XBOX_PMRegs *pm, qemu_irq sci_irq) {
 
-    memory_region_init(&pm->bar, OBJECT(dev), "xbox-pm-bar", 256);
+    memory_region_init(&pm->io, OBJECT(dev), "xbox-pm", 256);
+
     pci_register_bar(dev, XBOX_PM_BASE_BAR, PCI_BASE_ADDRESS_SPACE_IO,
-                     &pm->bar);
+                     &pm->io);
 
+    acpi_pm_tmr_init(&pm->acpi_regs, xbox_pm_update_sci_fn, &pm->io);
+    acpi_pm1_evt_init(&pm->acpi_regs, xbox_pm_update_sci_fn, &pm->io);
+    acpi_pm1_cnt_init(&pm->acpi_regs, &pm->io, 2);
 
-    acpi_pm_tmr_init(&pm->acpi_regs, xbox_pm_update_sci_fn, &pm->bar);
-    acpi_pm1_evt_init(&pm->acpi_regs, xbox_pm_update_sci_fn, &pm->bar);
-    acpi_pm1_cnt_init(&pm->acpi_regs, &pm->bar, 2);
+    memory_region_init_io(&pm->io_gpio, OBJECT(dev), &xbox_pm_gpio_ops, pm,
+                          "xbox-pm-gpio", XBOX_PM_GPIO_LEN);
+    memory_region_add_subregion(&pm->io, XBOX_PM_GPIO_BASE, &pm->io_gpio);
 
     pm->irq = sci_irq;
 }

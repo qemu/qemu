@@ -23,8 +23,10 @@
 #include "hw/acpi/acpi.h"
 
 typedef struct XBOX_PMRegs {
-	MemoryRegion bar;
     ACPIREGS acpi_regs;
+
+    MemoryRegion io;
+    MemoryRegion io_gpio;
 
     qemu_irq irq;   
 } XBOX_PMRegs;
