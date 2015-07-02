@@ -429,6 +429,7 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
 {
     sPAPRPHBState *sphb;
     sPAPRPHBClass *spc;
+    PCIDevice *pdev;
     uint32_t addr, option;
     uint64_t buid;
     int ret;
@@ -443,6 +444,12 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
 
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
+        goto param_error_exit;
+    }
+
+    pdev = pci_find_device(PCI_HOST_BRIDGE(sphb)->bus,
+                           (addr >> 16) & 0xFF, (addr >> 8) & 0xFF);
+    if (!pdev || !object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
         goto param_error_exit;
     }
 
