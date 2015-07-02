@@ -607,4 +607,6 @@ void spapr_ccs_reset_hook(void *opaque);
 void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
 
+#define SPAPR_MEMORY_BLOCK_SIZE (1 << 28) /* 256MB */
+
 #endif /* !defined (__HW_SPAPR_H__) */

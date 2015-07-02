@@ -29,6 +29,7 @@
 #include "sysemu/char.h"
 #include "hw/qdev.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/cpus.h"
 
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
@@ -651,6 +652,8 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
 {
     int ret;
     int i;
+    uint32_t lrdr_capacity[5];
+    MachineState *machine = MACHINE(qdev_get_machine());
 
     ret = fdt_add_mem_rsv(fdt, rtas_addr, rtas_size);
     if (ret < 0) {
@@ -699,6 +702,19 @@ int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
         }
 
     }
+
+    lrdr_capacity[0] = cpu_to_be32(((uint64_t)machine->maxram_size) >> 32);
+    lrdr_capacity[1] = cpu_to_be32(machine->maxram_size & 0xffffffff);
+    lrdr_capacity[2] = 0;
+    lrdr_capacity[3] = cpu_to_be32(SPAPR_MEMORY_BLOCK_SIZE);
+    lrdr_capacity[4] = cpu_to_be32(max_cpus/smp_threads);
+    ret = qemu_fdt_setprop(fdt, "/rtas", "ibm,lrdr-capacity", lrdr_capacity,
+                     sizeof(lrdr_capacity));
+    if (ret < 0) {
+        fprintf(stderr, "Couldn't add ibm,lrdr-capacity rtas property\n");
+        return ret;
+    }
+
     return 0;
 }
 

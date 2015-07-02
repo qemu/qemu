@@ -284,4 +284,22 @@ struct rtas_event_log_v6_hp {
     } drc;
 } QEMU_PACKED;
 
+== ibm,lrdr-capacity ==
+
+ibm,lrdr-capacity is a property in the /rtas device tree node that identifies
+the dynamic reconfiguration capabilities of the guest. It consists of a triple
+consisting of <phys>, <size> and <maxcpus>.
+
+  <phys>, encoded in BE format represents the maximum address in bytes and
+  hence the maximum memory that can be allocated to the guest.
+
+  <size>, encoded in BE format represents the size increments in which
+  memory can be hot-plugged to the guest.
+
+  <maxcpus>, a BE-encoded integer, represents the maximum number of
+  processors that the guest can have.
+
+pseries guests use this property to note the maximum allowed CPUs for the
+guest.
+
 [1] http://thread.gmane.org/gmane.linux.ports.ppc.embedded/75350/focus=106867
