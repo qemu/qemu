@@ -228,6 +228,10 @@ VIOsPAPRDevice *vty_lookup(sPAPRMachineState *spapr, target_ulong reg)
         return spapr_vty_get_default(spapr->vio_bus);
     }
 
+    if (!object_dynamic_cast(OBJECT(sdev), TYPE_VIO_SPAPR_VTY_DEVICE)) {
+        return NULL;
+    }
+
     return sdev;
 }
 
