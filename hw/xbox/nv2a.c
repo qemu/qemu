@@ -4807,7 +4807,7 @@ static int nv2a_initfn(PCIDevice *dev)
     /* fire up puller */
     qemu_thread_create(&d->pfifo.puller_thread,
                        pfifo_puller_thread,
-                       d, QEMU_THREAD_DETACHED);
+                       d, QEMU_THREAD_JOINABLE);
 
     return 0;
 }
