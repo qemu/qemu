@@ -358,7 +358,7 @@ static const char *cpuid_6_feature_name[] = {
 #define TCG_7_0_EBX_FEATURES (CPUID_7_0_EBX_SMEP | CPUID_7_0_EBX_SMAP | \
           CPUID_7_0_EBX_BMI1 | CPUID_7_0_EBX_BMI2 | CPUID_7_0_EBX_ADX | \
           CPUID_7_0_EBX_PCOMMIT | CPUID_7_0_EBX_CLFLUSHOPT |            \
-          CPUID_7_0_EBX_CLWB)
+          CPUID_7_0_EBX_CLWB | CPUID_7_0_EBX_MPX)
           /* missing:
           CPUID_7_0_EBX_FSGSBASE, CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
           CPUID_7_0_EBX_ERMS, CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
@@ -472,12 +472,7 @@ static const X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 };
 #undef REGISTER
 
-typedef struct ExtSaveArea {
-    uint32_t feature, bits;
-    uint32_t offset, size;
-} ExtSaveArea;
-
-static const ExtSaveArea ext_save_areas[] = {
+const ExtSaveArea x86_ext_save_areas[] = {
     [2] = { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
             .offset = 0x240, .size = 0x100 },
     [3] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
@@ -2476,8 +2471,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
 
         if (count == 0) {
             *ecx = 0x240;
-            for (i = 2; i < ARRAY_SIZE(ext_save_areas); i++) {
-                const ExtSaveArea *esa = &ext_save_areas[i];
+            for (i = 2; i < ARRAY_SIZE(x86_ext_save_areas); i++) {
+                const ExtSaveArea *esa = &x86_ext_save_areas[i];
                 if ((env->features[esa->feature] & esa->bits) == esa->bits
                     && ((ena_mask >> i) & 1) != 0) {
                     if (i < 32) {
@@ -2492,8 +2487,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *ebx = *ecx;
         } else if (count == 1) {
             *eax = env->features[FEAT_XSAVE];
-        } else if (count < ARRAY_SIZE(ext_save_areas)) {
-            const ExtSaveArea *esa = &ext_save_areas[count];
+        } else if (count < ARRAY_SIZE(x86_ext_save_areas)) {
+            const ExtSaveArea *esa = &x86_ext_save_areas[count];
             if ((env->features[esa->feature] & esa->bits) == esa->bits
                 && ((ena_mask >> count) & 1) != 0) {
                 *eax = esa->size;

@@ -678,6 +678,8 @@ void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4)
 
     env->cr[4] = new_cr4;
     env->hflags = hflags;
+
+    cpu_sync_bndcs_hflags(env);
 }
 
 #if defined(CONFIG_USER_ONLY)

@@ -156,6 +156,8 @@
 #define HF_OSFXSR_SHIFT     22 /* CR4.OSFXSR */
 #define HF_SMAP_SHIFT       23 /* CR4.SMAP */
 #define HF_IOBPT_SHIFT      24 /* an io breakpoint enabled */
+#define HF_MPX_EN_SHIFT     25 /* MPX Enabled (CR4+XCR0+BNDCFGx) */
+#define HF_MPX_IU_SHIFT     26 /* BND registers in-use */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -180,6 +182,8 @@
 #define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
 #define HF_SMAP_MASK         (1 << HF_SMAP_SHIFT)
 #define HF_IOBPT_MASK        (1 << HF_IOBPT_SHIFT)
+#define HF_MPX_EN_MASK       (1 << HF_MPX_EN_SHIFT)
+#define HF_MPX_IU_MASK       (1 << HF_MPX_IU_SHIFT)
 
 /* hflags2 */
 
@@ -188,12 +192,14 @@
 #define HF2_NMI_SHIFT            2 /* CPU serving NMI */
 #define HF2_VINTR_SHIFT          3 /* value of V_INTR_MASKING bit */
 #define HF2_SMM_INSIDE_NMI_SHIFT 4 /* CPU serving SMI nested inside NMI */
+#define HF2_MPX_PR_SHIFT         5 /* BNDCFGx.BNDPRESERVE */
 
 #define HF2_GIF_MASK            (1 << HF2_GIF_SHIFT)
 #define HF2_HIF_MASK            (1 << HF2_HIF_SHIFT)
 #define HF2_NMI_MASK            (1 << HF2_NMI_SHIFT)
 #define HF2_VINTR_MASK          (1 << HF2_VINTR_SHIFT)
 #define HF2_SMM_INSIDE_NMI_MASK (1 << HF2_SMM_INSIDE_NMI_SHIFT)
+#define HF2_MPX_PR_MASK         (1 << HF2_MPX_PR_SHIFT)
 
 #define CR0_PE_SHIFT 0
 #define CR0_MP_SHIFT 1
@@ -753,6 +759,10 @@ typedef struct BNDCSReg {
     uint64_t sts;
 } BNDCSReg;
 
+#define BNDCFG_ENABLE       1ULL
+#define BNDCFG_BNDPRESERVE  2ULL
+#define BNDCFG_BDIR_MASK    TARGET_PAGE_MASK
+
 #ifdef HOST_WORDS_BIGENDIAN
 #define ZMM_B(n) _b_ZMMReg[63 - (n)]
 #define ZMM_W(n) _w_ZMMReg[31 - (n)]
@@ -1121,7 +1131,14 @@ void cpu_x86_frstor(CPUX86State *s, target_ulong ptr, int data32);
 int cpu_x86_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
-/* cpuid.c */
+/* cpu.c */
+typedef struct ExtSaveArea {
+    uint32_t feature, bits;
+    uint32_t offset, size;
+} ExtSaveArea;
+
+extern const ExtSaveArea x86_ext_save_areas[];
+
 void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                    uint32_t *eax, uint32_t *ebx,
                    uint32_t *ecx, uint32_t *edx);
@@ -1342,6 +1359,8 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
  */
 void x86_cpu_change_kvm_default(const char *prop, const char *value);
 
+/* mpx_helper.c */
+void cpu_sync_bndcs_hflags(CPUX86State *env);
 
 /* Return name of 32-bit register, from a R_* constant */
 const char *get_register_name_32(unsigned int reg);

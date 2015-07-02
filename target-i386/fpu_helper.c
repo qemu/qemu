@@ -1168,6 +1168,22 @@ static void do_xsave_sse(CPUX86State *env, target_ulong ptr, uintptr_t ra)
     }
 }
 
+static void do_xsave_bndregs(CPUX86State *env, target_ulong addr, uintptr_t ra)
+{
+    int i;
+
+    for (i = 0; i < 4; i++, addr += 16) {
+        cpu_stq_data_ra(env, addr, env->bnd_regs[i].lb, ra);
+        cpu_stq_data_ra(env, addr + 8, env->bnd_regs[i].ub, ra);
+    }
+}
+
+static void do_xsave_bndcsr(CPUX86State *env, target_ulong addr, uintptr_t ra)
+{
+    cpu_stq_data_ra(env, addr, env->bndcs_regs.cfgu, ra);
+    cpu_stq_data_ra(env, addr + 8, env->bndcs_regs.sts, ra);
+}
+
 void helper_fxsave(CPUX86State *env, target_ulong ptr)
 {
     uintptr_t ra = GETPC();
@@ -1192,9 +1208,16 @@ void helper_fxsave(CPUX86State *env, target_ulong ptr)
 
 static uint64_t get_xinuse(CPUX86State *env)
 {
-    /* We don't track XINUSE.  We could calculate it here, but it's
-       probably less work to simply indicate all components in use.  */
-    return -1;
+    uint64_t inuse = -1;
+
+    /* For the most part, we don't track XINUSE.  We could calculate it
+       here for all components, but it's probably less work to simply
+       indicate in use.  That said, the state of BNDREGS is important
+       enough to track in HFLAGS, so we might as well use that here.  */
+    if ((env->hflags & HF_MPX_IU_MASK) == 0) {
+       inuse &= ~XSTATE_BNDREGS;
+    }
+    return inuse;
 }
 
 static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
@@ -1225,6 +1248,14 @@ static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
     }
     if (opt & XSTATE_SSE) {
         do_xsave_sse(env, ptr, ra);
+    }
+    if (opt & XSTATE_BNDREGS) {
+        target_ulong off = x86_ext_save_areas[XSTATE_BNDREGS].offset;
+        do_xsave_bndregs(env, ptr + off, ra);
+    }
+    if (opt & XSTATE_BNDCSR) {
+        target_ulong off = x86_ext_save_areas[XSTATE_BNDCSR].offset;
+        do_xsave_bndcsr(env, ptr + off, ra);
     }
 
     /* Update the XSTATE_BV field.  */
@@ -1289,6 +1320,23 @@ static void do_xrstor_sse(CPUX86State *env, target_ulong ptr, uintptr_t ra)
         env->xmm_regs[i].ZMM_Q(1) = cpu_ldq_data_ra(env, addr + 8, ra);
         addr += 16;
     }
+}
+
+static void do_xrstor_bndregs(CPUX86State *env, target_ulong addr, uintptr_t ra)
+{
+    int i;
+
+    for (i = 0; i < 4; i++, addr += 16) {
+        env->bnd_regs[i].lb = cpu_ldq_data_ra(env, addr, ra);
+        env->bnd_regs[i].ub = cpu_ldq_data_ra(env, addr + 8, ra);
+    }
+}
+
+static void do_xrstor_bndcsr(CPUX86State *env, target_ulong addr, uintptr_t ra)
+{
+    /* FIXME: Extend highest implemented bit of linear address.  */
+    env->bndcs_regs.cfgu = cpu_ldq_data_ra(env, addr, ra);
+    env->bndcs_regs.sts = cpu_ldq_data_ra(env, addr + 8, ra);
 }
 
 void helper_fxrstor(CPUX86State *env, target_ulong ptr)
@@ -1371,6 +1419,25 @@ void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
             memset(env->xmm_regs, 0, sizeof(env->xmm_regs));
         }
     }
+    if (rfbm & XSTATE_BNDREGS) {
+        if (xstate_bv & XSTATE_BNDREGS) {
+            target_ulong off = x86_ext_save_areas[XSTATE_BNDREGS].offset;
+            do_xrstor_bndregs(env, ptr + off, ra);
+            env->hflags |= HF_MPX_IU_MASK;
+        } else {
+            memset(env->bnd_regs, 0, sizeof(env->bnd_regs));
+            env->hflags &= ~HF_MPX_IU_MASK;
+        }
+    }
+    if (rfbm & XSTATE_BNDCSR) {
+        if (xstate_bv & XSTATE_BNDCSR) {
+            target_ulong off = x86_ext_save_areas[XSTATE_BNDCSR].offset;
+            do_xrstor_bndcsr(env, ptr + off, ra);
+        } else {
+            memset(&env->bndcs_regs, 0, sizeof(env->bndcs_regs));
+        }
+        cpu_sync_bndcs_hflags(env);
+    }
 }
 
 uint64_t helper_xgetbv(CPUX86State *env, uint32_t ecx)
@@ -1414,7 +1481,13 @@ void helper_xsetbv(CPUX86State *env, uint32_t ecx, uint64_t mask)
         goto do_gpf;
     }
 
+    /* Disallow enabling only half of MPX.  */
+    if ((mask ^ (mask * (XSTATE_BNDCSR / XSTATE_BNDREGS))) & XSTATE_BNDCSR) {
+        goto do_gpf;
+    }
+
     env->xcr0 = mask;
+    cpu_sync_bndcs_hflags(env);
     return;
 
  do_gpf:

@@ -7633,6 +7633,11 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             tcg_gen_concat_tl_i64(cpu_tmp1_i64, cpu_regs[R_EAX],
                                   cpu_regs[R_EDX]);
             gen_helper_xrstor(cpu_env, cpu_A0, cpu_tmp1_i64);
+            /* XRSTOR is how MPX is enabled, which changes how
+               we translate.  Thus we need to end the TB.  */
+            gen_update_cc_op(s);
+            gen_jmp_im(s->pc - s->cs_base);
+            gen_eob(s);
             break;
 
         CASE_MEM_OP(6): /* xsaveopt / clwb */

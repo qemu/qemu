@@ -2588,41 +2588,44 @@ int kvm_arch_get_registers(CPUState *cs)
 
     ret = kvm_getput_regs(cpu, 0);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_xsave(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_xcrs(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_sregs(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_msrs(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_mp_state(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_apic(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_vcpu_events(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
     ret = kvm_get_debugregs(cpu);
     if (ret < 0) {
-        return ret;
+        goto out;
     }
-    return 0;
+    ret = 0;
+ out:
+    cpu_sync_bndcs_hflags(&cpu->env);
+    return ret;
 }
 
 void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
