@@ -127,6 +127,7 @@ typedef struct DisasContext {
     int cpuid_ext2_features;
     int cpuid_ext3_features;
     int cpuid_7_0_ebx_features;
+    int cpuid_xsave_features;
 } DisasContext;
 
 static void gen_eob(DisasContext *s);
@@ -7634,7 +7635,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_helper_xrstor(cpu_env, cpu_A0, cpu_tmp1_i64);
             break;
 
-        CASE_MEM_OP(6): /* clwb */
+        CASE_MEM_OP(6): /* xsaveopt / clwb */
             if (prefixes & PREFIX_LOCK) {
                 goto illegal_op;
             }
@@ -7644,9 +7645,19 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     goto illegal_op;
                 }
                 gen_nop_modrm(env, s, modrm);
-                break;
+            } else {
+                /* xsaveopt */
+                if ((s->cpuid_ext_features & CPUID_EXT_XSAVE) == 0
+                    || (s->cpuid_xsave_features & CPUID_XSAVE_XSAVEOPT) == 0
+                    || (prefixes & (PREFIX_REPZ | PREFIX_REPNZ))) {
+                    goto illegal_op;
+                }
+                gen_lea_modrm(env, s, modrm);
+                tcg_gen_concat_tl_i64(cpu_tmp1_i64, cpu_regs[R_EAX],
+                                      cpu_regs[R_EDX]);
+                gen_helper_xsaveopt(cpu_env, cpu_A0, cpu_tmp1_i64);
             }
-            goto illegal_op;
+            break;
 
         CASE_MEM_OP(7): /* clflush / clflushopt */
             if (prefixes & PREFIX_LOCK) {
@@ -7868,6 +7879,7 @@ void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
     dc->cpuid_ext2_features = env->features[FEAT_8000_0001_EDX];
     dc->cpuid_ext3_features = env->features[FEAT_8000_0001_ECX];
     dc->cpuid_7_0_ebx_features = env->features[FEAT_7_0_EBX];
+    dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
 #ifdef TARGET_X86_64
     dc->lma = (flags >> HF_LMA_SHIFT) & 1;
     dc->code64 = (flags >> HF_CS64_SHIFT) & 1;

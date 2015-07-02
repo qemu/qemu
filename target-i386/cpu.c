@@ -366,7 +366,9 @@ static const char *cpuid_6_feature_name[] = {
 #define TCG_7_0_ECX_FEATURES 0
 #define TCG_APM_FEATURES 0
 #define TCG_6_EAX_FEATURES CPUID_6_EAX_ARAT
-
+#define TCG_XSAVE_FEATURES (CPUID_XSAVE_XSAVEOPT | CPUID_XSAVE_XGETBV1)
+          /* missing:
+          CPUID_XSAVE_XSAVEC, CPUID_XSAVE_XSAVES */
 
 typedef struct FeatureWordInfo {
     const char **feat_names;
@@ -440,7 +442,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid_eax = 0xd,
         .cpuid_needs_ecx = true, .cpuid_ecx = 1,
         .cpuid_reg = R_EAX,
-        .tcg_features = 0,
+        .tcg_features = TCG_XSAVE_FEATURES,
     },
     [FEAT_6_EAX] = {
         .feat_names = cpuid_6_feature_name,

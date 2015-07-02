@@ -1197,9 +1197,9 @@ static uint64_t get_xinuse(CPUX86State *env)
     return -1;
 }
 
-void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+static void do_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm,
+                     uint64_t inuse, uint64_t opt, uintptr_t ra)
 {
-    uintptr_t ra = GETPC();
     uint64_t old_bv, new_bv;
 
     /* The OS must have enabled XSAVE.  */
@@ -1214,19 +1214,34 @@ void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
 
     /* Never save anything not enabled by XCR0.  */
     rfbm &= env->xcr0;
+    opt &= rfbm;
 
-    if (rfbm & XSTATE_FP) {
+    if (opt & XSTATE_FP) {
         do_xsave_fpu(env, ptr, ra);
     }
     if (rfbm & XSTATE_SSE) {
+        /* Note that saving MXCSR is not suppressed by XSAVEOPT.  */
         do_xsave_mxcsr(env, ptr, ra);
+    }
+    if (opt & XSTATE_SSE) {
         do_xsave_sse(env, ptr, ra);
     }
 
     /* Update the XSTATE_BV field.  */
     old_bv = cpu_ldq_data_ra(env, ptr + 512, ra);
-    new_bv = (old_bv & ~rfbm) | (get_xinuse(env) & rfbm);
+    new_bv = (old_bv & ~rfbm) | (inuse & rfbm);
     cpu_stq_data_ra(env, ptr + 512, new_bv, ra);
+}
+
+void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+{
+    do_xsave(env, ptr, rfbm, get_xinuse(env), -1, GETPC());
+}
+
+void helper_xsaveopt(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+{
+    uint64_t inuse = get_xinuse(env);
+    do_xsave(env, ptr, rfbm, inuse, inuse, GETPC());
 }
 
 static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
@@ -1369,8 +1384,10 @@ uint64_t helper_xgetbv(CPUX86State *env, uint32_t ecx)
     case 0:
         return env->xcr0;
     case 1:
-        /* FIXME: #GP if !CPUID.(EAX=0DH,ECX=1):EAX.XG1[bit 2].  */
-        return env->xcr0 & get_xinuse(env);
+        if (env->features[FEAT_XSAVE] & CPUID_XSAVE_XGETBV1) {
+            return env->xcr0 & get_xinuse(env);
+        }
+        break;
     }
     raise_exception_ra(env, EXCP0D_GPF, GETPC());
 }
