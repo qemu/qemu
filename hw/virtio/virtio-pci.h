@@ -112,9 +112,12 @@ struct VirtIOPCIProxy {
     VirtIOPCIRegion device;
     VirtIOPCIRegion notify;
     MemoryRegion modern_bar;
+    MemoryRegion modern_cfg;
+    AddressSpace modern_as;
     uint32_t legacy_io_bar;
     uint32_t msix_bar;
     uint32_t modern_mem_bar;
+    int config_cap;
     uint32_t flags;
     uint32_t class_code;
     uint32_t nvectors;
