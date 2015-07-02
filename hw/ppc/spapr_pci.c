@@ -50,6 +50,8 @@
 #define RTAS_TYPE_MSI           1
 #define RTAS_TYPE_MSIX          2
 
+#define FDT_NAME_MAX          128
+
 #define _FDT(exp) \
     do { \
         int ret = (exp);                                           \
@@ -973,13 +975,13 @@ static void *spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
     int offset, ret, fdt_size;
     int slot = PCI_SLOT(dev->devfn);
     int func = PCI_FUNC(dev->devfn);
-    char nodename[512];
+    char nodename[FDT_NAME_MAX];
 
     fdt = create_device_tree(&fdt_size);
     if (func != 0) {
-        sprintf(nodename, "pci@%d,%d", slot, func);
+        snprintf(nodename, FDT_NAME_MAX, "pci@%x,%x", slot, func);
     } else {
-        sprintf(nodename, "pci@%d", slot);
+        snprintf(nodename, FDT_NAME_MAX, "pci@%x", slot);
     }
     offset = fdt_add_subnode(fdt, 0, nodename);
     ret = spapr_populate_pci_child_dt(dev, fdt, offset, phb->index, drc_index,
@@ -1489,7 +1491,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           void *fdt)
 {
     int bus_off, i, j, ret;
-    char nodename[256];
+    char nodename[FDT_NAME_MAX];
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
     const uint64_t mmiosize = memory_region_size(&phb->memwindow);
     const uint64_t w32max = (1ULL << 32) - SPAPR_PCI_MEM_WIN_BUS_OFFSET;
@@ -1525,7 +1527,7 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     sPAPRTCETable *tcet;
 
     /* Start populating the FDT */
-    sprintf(nodename, "pci@%" PRIx64, phb->buid);
+    snprintf(nodename, FDT_NAME_MAX, "pci@%" PRIx64, phb->buid);
     bus_off = fdt_add_subnode(fdt, 0, nodename);
     if (bus_off < 0) {
         return bus_off;
