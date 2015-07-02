@@ -900,8 +900,7 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     _FDT(fdt_setprop_cell(fdt, offset, "revision-id",
                           pci_default_read_config(dev, PCI_REVISION_ID, 1)));
     _FDT(fdt_setprop_cell(fdt, offset, "class-code",
-                          pci_default_read_config(dev, PCI_CLASS_DEVICE, 2)
-                            << 8));
+                          pci_default_read_config(dev, PCI_CLASS_PROG, 3)));
     if (pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1)) {
         _FDT(fdt_setprop_cell(fdt, offset, "interrupts",
                  pci_default_read_config(dev, PCI_INTERRUPT_PIN, 1)));
