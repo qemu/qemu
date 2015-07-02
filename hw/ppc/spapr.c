@@ -1467,7 +1467,8 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* Set up Interrupt Controller before we create the VCPUs */
     spapr->icp = xics_system_init(machine,
-                                  smp_cpus * kvmppc_smt_threads() / smp_threads,
+                                  DIV_ROUND_UP(smp_cpus * kvmppc_smt_threads(),
+                                               smp_threads),
                                   XICS_IRQS);
 
     /* init CPUs */
