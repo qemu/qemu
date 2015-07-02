@@ -267,9 +267,7 @@ static target_ulong h_put_tce_indirect(PowerPCCPU *cpu,
     ioba &= page_mask;
 
     for (i = 0; i < npages; ++i, ioba += page_size) {
-        target_ulong off = (tce_list & ~SPAPR_TCE_RW) +
-                                i * sizeof(target_ulong);
-        tce = ldq_be_phys(cs->as, off);
+        tce = ldq_be_phys(cs->as, tce_list + i * sizeof(target_ulong));
 
         ret = put_tce_emu(tcet, ioba, tce);
         if (ret) {
