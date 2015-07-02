@@ -365,4 +365,7 @@ static inline bool cpu_can_do_io(CPUState *cpu)
     return cpu->can_do_io != 0;
 }
 
+#if !defined(CONFIG_USER_ONLY)
+void migration_bitmap_extend(ram_addr_t old, ram_addr_t new);
+#endif
 #endif
