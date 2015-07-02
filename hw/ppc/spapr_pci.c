@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 #include "hw/hw.h"
+#include "hw/sysbus.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
@@ -35,6 +36,7 @@
 #include "qemu/error-report.h"
 #include "qapi/qmp/qerror.h"
 
+#include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/ppc/spapr_drc.h"
 #include "sysemu/device_tree.h"
@@ -966,30 +968,32 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     return 0;
 }
 
+static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
+                                            PCIDevice *pdev);
+
 /* create OF node for pci device and required OF DT properties */
-static void *spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
-                                       int drc_index, const char *drc_name,
-                                       int *dt_offset)
+static int spapr_create_pci_child_dt(sPAPRPHBState *phb, PCIDevice *dev,
+                                     int drc_index, const char *drc_name,
+                                     void *fdt, int node_offset)
 {
-    void *fdt;
-    int offset, ret, fdt_size;
+    int offset, ret;
     int slot = PCI_SLOT(dev->devfn);
     int func = PCI_FUNC(dev->devfn);
     char nodename[FDT_NAME_MAX];
 
-    fdt = create_device_tree(&fdt_size);
     if (func != 0) {
         snprintf(nodename, FDT_NAME_MAX, "pci@%x,%x", slot, func);
     } else {
         snprintf(nodename, FDT_NAME_MAX, "pci@%x", slot);
     }
-    offset = fdt_add_subnode(fdt, 0, nodename);
+    offset = fdt_add_subnode(fdt, node_offset, nodename);
     ret = spapr_populate_pci_child_dt(dev, fdt, offset, phb->index, drc_index,
                                       drc_name);
     g_assert(!ret);
-
-    *dt_offset = offset;
-    return fdt;
+    if (ret) {
+        return 0;
+    }
+    return offset;
 }
 
 static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
@@ -1002,19 +1006,22 @@ static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
     int drc_index = drck->get_index(drc);
     const char *drc_name = drck->get_name(drc);
     void *fdt = NULL;
-    int fdt_start_offset = 0;
+    int fdt_start_offset = 0, fdt_size;
 
-    /* boot-time devices get their device tree node created by SLOF, but for
-     * hotplugged devices we need QEMU to generate it so the guest can fetch
-     * it via RTAS
-     */
     if (dev->hotplugged) {
-        fdt = spapr_create_pci_child_dt(phb, pdev, drc_index, drc_name,
-                                        &fdt_start_offset);
+        fdt = create_device_tree(&fdt_size);
+        fdt_start_offset = spapr_create_pci_child_dt(phb, pdev,
+                                                     drc_index, drc_name,
+                                                     fdt, 0);
+        if (!fdt_start_offset) {
+            error_setg(errp, "Failed to create pci child device tree node");
+            goto out;
+        }
     }
 
     drck->attach(drc, DEVICE(pdev),
                  fdt, fdt_start_offset, !dev->hotplugged, errp);
+out:
     if (*errp) {
         g_free(fdt);
     }
@@ -1054,6 +1061,20 @@ static sPAPRDRConnector *spapr_phb_get_pci_drc(sPAPRPHBState *phb,
                                     (phb->index << 16) |
                                     (busnr << 8) |
                                     pdev->devfn);
+}
+
+static uint32_t spapr_phb_get_pci_drc_index(sPAPRPHBState *phb,
+                                            PCIDevice *pdev)
+{
+    sPAPRDRConnector *drc = spapr_phb_get_pci_drc(phb, pdev);
+    sPAPRDRConnectorClass *drck;
+
+    if (!drc) {
+        return 0;
+    }
+
+    drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+    return drck->get_index(drc);
 }
 
 static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
@@ -1480,6 +1501,87 @@ PCIHostState *spapr_create_phb(sPAPRMachineState *spapr, int index)
     return PCI_HOST_BRIDGE(dev);
 }
 
+typedef struct sPAPRFDT {
+    void *fdt;
+    int node_off;
+    sPAPRPHBState *sphb;
+} sPAPRFDT;
+
+static void spapr_populate_pci_devices_dt(PCIBus *bus, PCIDevice *pdev,
+                                          void *opaque)
+{
+    PCIBus *sec_bus;
+    sPAPRFDT *p = opaque;
+    int offset;
+    sPAPRFDT s_fdt;
+    uint32_t drc_index = spapr_phb_get_pci_drc_index(p->sphb, pdev);
+
+    offset = spapr_create_pci_child_dt(p->sphb, pdev,
+                                       drc_index, NULL,
+                                       p->fdt, p->node_off);
+    if (!offset) {
+        error_report("Failed to create pci child device tree node");
+        return;
+    }
+
+    if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=
+         PCI_HEADER_TYPE_BRIDGE)) {
+        return;
+    }
+
+    sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
+    if (!sec_bus) {
+        return;
+    }
+
+    s_fdt.fdt = p->fdt;
+    s_fdt.node_off = offset;
+    s_fdt.sphb = p->sphb;
+    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                        spapr_populate_pci_devices_dt,
+                        &s_fdt);
+}
+
+static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
+                                           void *opaque)
+{
+    unsigned int *bus_no = opaque;
+    unsigned int primary = *bus_no;
+    unsigned int subordinate = 0xff;
+    PCIBus *sec_bus = NULL;
+
+    if ((pci_default_read_config(pdev, PCI_HEADER_TYPE, 1) !=
+         PCI_HEADER_TYPE_BRIDGE)) {
+        return;
+    }
+
+    (*bus_no)++;
+    pci_default_write_config(pdev, PCI_PRIMARY_BUS, primary, 1);
+    pci_default_write_config(pdev, PCI_SECONDARY_BUS, *bus_no, 1);
+    pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, *bus_no, 1);
+
+    sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(pdev));
+    if (!sec_bus) {
+        return;
+    }
+
+    pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, subordinate, 1);
+    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                        spapr_phb_pci_enumerate_bridge, bus_no);
+    pci_default_write_config(pdev, PCI_SUBORDINATE_BUS, *bus_no, 1);
+}
+
+static void spapr_phb_pci_enumerate(sPAPRPHBState *phb)
+{
+    PCIBus *bus = PCI_HOST_BRIDGE(phb)->bus;
+    unsigned int bus_no = 0;
+
+    pci_for_each_device(bus, pci_bus_num(bus),
+                        spapr_phb_pci_enumerate_bridge,
+                        &bus_no);
+
+}
+
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
                           void *fdt)
@@ -1519,6 +1621,8 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
         cpu_to_be32(b_ddddd(-1)|b_fff(0)), 0x0, 0x0, cpu_to_be32(-1)};
     uint32_t interrupt_map[PCI_SLOT_MAX * PCI_NUM_PINS][7];
     sPAPRTCETable *tcet;
+    PCIBus *bus = PCI_HOST_BRIDGE(phb)->bus;
+    sPAPRFDT s_fdt;
 
     /* Start populating the FDT */
     snprintf(nodename, FDT_NAME_MAX, "pci@%" PRIx64, phb->buid);
@@ -1567,6 +1671,18 @@ int spapr_populate_pci_dt(sPAPRPHBState *phb,
     spapr_dma_dt(fdt, bus_off, "ibm,dma-window",
                  tcet->liobn, tcet->bus_offset,
                  tcet->nb_table << tcet->page_shift);
+
+    /* Walk the bridges and program the bus numbers*/
+    spapr_phb_pci_enumerate(phb);
+    _FDT(fdt_setprop_cell(fdt, bus_off, "qemu,phb-enumerated", 0x1));
+
+    /* Populate tree nodes with PCI devices attached */
+    s_fdt.fdt = fdt;
+    s_fdt.node_off = bus_off;
+    s_fdt.sphb = phb;
+    pci_for_each_device(bus, pci_bus_num(bus),
+                        spapr_populate_pci_devices_dt,
+                        &s_fdt);
 
     ret = spapr_drc_populate_dt(fdt, bus_off, OBJECT(phb),
                                 SPAPR_DR_CONNECTOR_TYPE_PCI);
