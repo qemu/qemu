@@ -494,6 +494,7 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
     return 1;
 }
 
+/* Called with rcu_read_lock() to protect migration_bitmap */
 static inline
 ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
                                                  ram_addr_t start)
@@ -502,26 +503,31 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
     unsigned long nr = base + (start >> TARGET_PAGE_BITS);
     uint64_t mr_size = TARGET_PAGE_ALIGN(memory_region_size(mr));
     unsigned long size = base + (mr_size >> TARGET_PAGE_BITS);
+    unsigned long *bitmap;
 
     unsigned long next;
 
+    bitmap = atomic_rcu_read(&migration_bitmap);
     if (ram_bulk_stage && nr > base) {
         next = nr + 1;
     } else {
-        next = find_next_bit(migration_bitmap, size, nr);
+        next = find_next_bit(bitmap, size, nr);
     }
 
     if (next < size) {
-        clear_bit(next, migration_bitmap);
+        clear_bit(next, bitmap);
         migration_dirty_pages--;
     }
     return (next - base) << TARGET_PAGE_BITS;
 }
 
+/* Called with rcu_read_lock() to protect migration_bitmap */
 static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 {
+    unsigned long *bitmap;
+    bitmap = atomic_rcu_read(&migration_bitmap);
     migration_dirty_pages +=
-        cpu_physical_memory_sync_dirty_bitmap(migration_bitmap, start, length);
+        cpu_physical_memory_sync_dirty_bitmap(bitmap, start, length);
 }
 
 
@@ -1017,10 +1023,15 @@ void free_xbzrle_decoded_buf(void)
 
 static void migration_end(void)
 {
-    if (migration_bitmap) {
+    /* caller have hold iothread lock or is in a bh, so there is
+     * no writing race against this migration_bitmap
+     */
+    unsigned long *bitmap = migration_bitmap;
+    atomic_rcu_set(&migration_bitmap, NULL);
+    if (bitmap) {
         memory_global_dirty_log_stop();
-        g_free(migration_bitmap);
-        migration_bitmap = NULL;
+        synchronize_rcu();
+        g_free(bitmap);
     }
 
     XBZRLE_cache_lock();
