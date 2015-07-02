@@ -697,41 +697,6 @@ static void save_section_footer(QEMUFile *f, SaveStateEntry *se)
     }
 }
 
-/*
- * Read a footer off the wire and check that it matches the expected section
- *
- * Returns: true if the footer was good
- *          false if there is a problem (and calls error_report to say why)
- */
-static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
-{
-    uint8_t read_mark;
-    uint32_t read_section_id;
-
-    if (skip_section_footers) {
-        /* No footer to check */
-        return true;
-    }
-
-    read_mark = qemu_get_byte(f);
-
-    if (read_mark != QEMU_VM_SECTION_FOOTER) {
-        error_report("Missing section footer for %s", se->idstr);
-        return false;
-    }
-
-    read_section_id = qemu_get_be32(f);
-    if (read_section_id != se->section_id) {
-        error_report("Mismatched section id in footer for %s -"
-                     " read 0x%x expected 0x%x",
-                     se->idstr, read_section_id, se->section_id);
-        return false;
-    }
-
-    /* All good */
-    return true;
-}
-
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -1046,6 +1011,41 @@ struct LoadStateEntry {
     int version_id;
 };
 
+/*
+ * Read a footer off the wire and check that it matches the expected section
+ *
+ * Returns: true if the footer was good
+ *          false if there is a problem (and calls error_report to say why)
+ */
+static bool check_section_footer(QEMUFile *f, LoadStateEntry *le)
+{
+    uint8_t read_mark;
+    uint32_t read_section_id;
+
+    if (skip_section_footers) {
+        /* No footer to check */
+        return true;
+    }
+
+    read_mark = qemu_get_byte(f);
+
+    if (read_mark != QEMU_VM_SECTION_FOOTER) {
+        error_report("Missing section footer for %s", le->se->idstr);
+        return false;
+    }
+
+    read_section_id = qemu_get_be32(f);
+    if (read_section_id != le->section_id) {
+        error_report("Mismatched section id in footer for %s -"
+                     " read 0x%x expected 0x%x",
+                     le->se->idstr, read_section_id, le->section_id);
+        return false;
+    }
+
+    /* All good */
+    return true;
+}
+
 void loadvm_free_handlers(MigrationIncomingState *mis)
 {
     LoadStateEntry *le, *new_le;
@@ -1151,7 +1151,7 @@ int qemu_loadvm_state(QEMUFile *f)
                              " device '%s'", instance_id, idstr);
                 goto out;
             }
-            if (!check_section_footer(f, le->se)) {
+            if (!check_section_footer(f, le)) {
                 ret = -EINVAL;
                 goto out;
             }
@@ -1178,7 +1178,7 @@ int qemu_loadvm_state(QEMUFile *f)
                              section_id, le->se->idstr);
                 goto out;
             }
-            if (!check_section_footer(f, le->se)) {
+            if (!check_section_footer(f, le)) {
                 ret = -EINVAL;
                 goto out;
             }
