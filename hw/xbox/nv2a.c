@@ -1290,8 +1290,9 @@ static GraphicsObject* lookup_graphics_object(PGRAPHState *s,
 
 
 static void pgraph_bind_converted_vertex_attributes(NV2AState *d,
+                                                    unsigned int num_elements,
                                                     bool inline_data,
-                                                    unsigned int num_elements)
+                                                    unsigned int inline_stride)
 {
     int i, j;
     PGRAPHState *pg = &d->pgraph;
@@ -1300,10 +1301,13 @@ static void pgraph_bind_converted_vertex_attributes(NV2AState *d,
         VertexAttribute *attribute = &pg->vertex_attributes[i];
         if (attribute->count && attribute->needs_conversion) {
             NV2A_DPRINTF("converted %d\n", i);
+
             uint8_t *data;
+            unsigned int in_stride;
             if (inline_data) {
                 data = (uint8_t*)pg->inline_array
                         + attribute->inline_array_offset;
+                in_stride = inline_stride;
             } else {
                 hwaddr dma_len;
                 if (attribute->dma_select) {
@@ -1314,20 +1318,22 @@ static void pgraph_bind_converted_vertex_attributes(NV2AState *d,
 
                 assert(attribute->offset < dma_len);
                 data += attribute->offset;
+
+                in_stride = attribute->stride;
             }
 
-            unsigned int stride = attribute->converted_size
+            unsigned int out_stride = attribute->converted_size
                                     * attribute->converted_count;
             
             if (num_elements > attribute->converted_elements) {
                 attribute->converted_buffer = g_realloc(
                     attribute->converted_buffer,
-                    num_elements * stride);
+                    num_elements * out_stride);
             }
 
             for (j=attribute->converted_elements; j<num_elements; j++) {
-                uint8_t *in = data + j * attribute->stride;
-                uint8_t *out = attribute->converted_buffer + j * stride;
+                uint8_t *in = data + j * in_stride;
+                uint8_t *out = attribute->converted_buffer + j * out_stride;
 
                 switch (attribute->format) {
                 case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP:
@@ -1345,7 +1351,7 @@ static void pgraph_bind_converted_vertex_attributes(NV2AState *d,
                 attribute->converted_count,
                 attribute->gl_type,
                 attribute->gl_normalize,
-                stride,
+                out_stride,
                 data);
 
         }
@@ -1360,26 +1366,33 @@ static unsigned int pgraph_bind_inline_array(PGRAPHState *pg)
     for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
         VertexAttribute *attribute = &pg->vertex_attributes[i];
         if (attribute->count) {
-
-            glEnableVertexAttribArray(i);
-
             attribute->inline_array_offset = offset;
-
-            if (!attribute->needs_conversion) {
-                glVertexAttribPointer(i,
-                    attribute->gl_count,
-                    attribute->gl_type,
-                    attribute->gl_normalize,
-                    attribute->stride,
-                    (uint8_t*)pg->inline_array + offset);
-            }
 
             NV2A_DPRINTF("bind inline attribute %d size=%d, count=%d\n",
                 i, attribute->size, attribute->count);
             offset += attribute->size * attribute->count;
         }
     }
-    return offset;
+
+    unsigned int total_stride = offset;
+    for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
+        VertexAttribute *attribute = &pg->vertex_attributes[i];
+        if (attribute->count) {
+            glEnableVertexAttribArray(i);
+
+            if (!attribute->needs_conversion) {
+                glVertexAttribPointer(i,
+                    attribute->gl_count,
+                    attribute->gl_type,
+                    attribute->gl_normalize,
+                    total_stride,
+                    (uint8_t*)pg->inline_array
+                        + attribute->inline_array_offset);
+            }
+        }
+    }
+
+    return total_stride;
 }
 
 static void pgraph_bind_vertex_attributes(NV2AState *d)
@@ -2789,9 +2802,9 @@ static void pgraph_method(NV2AState *d,
                 
                 NV2A_DPRINTF("draw inline array %d, %d\n", vertex_size, index_count);
 
-                pgraph_bind_converted_vertex_attributes(d, true, index_count);
-                glDrawArrays(pg->gl_primitive_mode,
-                             0, index_count);
+                pgraph_bind_converted_vertex_attributes(d, index_count,
+                                                        true, vertex_size);
+                glDrawArrays(pg->gl_primitive_mode, 0, index_count);
             } else if (pg->inline_elements_length) {
 
 
@@ -2802,7 +2815,8 @@ static void pgraph_method(NV2AState *d,
                     min_element = MIN(pg->inline_elements[i], min_element);
                 }
 
-                pgraph_bind_converted_vertex_attributes(d, false, max_element+1);
+                pgraph_bind_converted_vertex_attributes(d, max_element+1,
+                                                        false, 0);
                 glDrawElements(pg->gl_primitive_mode,
                                pg->inline_elements_length,
                                GL_UNSIGNED_INT,
@@ -2900,7 +2914,7 @@ static void pgraph_method(NV2AState *d,
         unsigned int count = GET_MASK(parameter, NV097_DRAW_ARRAYS_COUNT)+1;
 
 
-        pgraph_bind_converted_vertex_attributes(d, false, start + count);
+        pgraph_bind_converted_vertex_attributes(d, start + count, false, 0);
         glDrawArrays(pg->gl_primitive_mode, start, count);
 
         break;
