@@ -2245,8 +2245,6 @@ static void pgraph_method(NV2AState *d,
 
     pgraph_method_log(subchannel, object->graphics_class, method, parameter);
 
-    glo_set_current(pg->gl_context);
-
     if (method == NV_SET_OBJECT) {
         subchannel_data->object_instance = parameter;
 
@@ -3094,6 +3092,8 @@ static void* pfifo_puller_thread(void *arg)
     CacheEntry *command;
     RAMHTEntry entry;
 
+    glo_set_current(d->pgraph.gl_context);
+
     while (true) {
         qemu_mutex_lock(&state->cache_lock);
         while (QSIMPLEQ_EMPTY(&state->cache) || !state->pull_enabled) {
@@ -3101,6 +3101,7 @@ static void* pfifo_puller_thread(void *arg)
 
             if (d->exiting) {
                 qemu_mutex_unlock(&state->cache_lock);
+                glo_set_current(NULL);
                 return NULL;
             }
         }
