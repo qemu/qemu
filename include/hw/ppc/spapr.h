@@ -15,11 +15,26 @@ typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
 #define SPAPR_ENTRY_POINT       0x100
 
+typedef struct sPAPRMachineClass sPAPRMachineClass;
 typedef struct sPAPRMachineState sPAPRMachineState;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
 #define SPAPR_MACHINE(obj) \
     OBJECT_CHECK(sPAPRMachineState, (obj), TYPE_SPAPR_MACHINE)
+#define SPAPR_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(sPAPRMachineClass, obj, TYPE_SPAPR_MACHINE)
+#define SPAPR_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(sPAPRMachineClass, klass, TYPE_SPAPR_MACHINE)
+
+/**
+ * sPAPRMachineClass:
+ */
+struct sPAPRMachineClass {
+    /*< private >*/
+    MachineClass parent_class;
+
+    /*< public >*/
+};
 
 /**
  * sPAPRMachineState:

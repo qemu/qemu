@@ -1808,6 +1808,7 @@ static const TypeInfo spapr_machine_info = {
     .abstract      = true,
     .instance_size = sizeof(sPAPRMachineState),
     .instance_init = spapr_machine_initfn,
+    .class_size    = sizeof(sPAPRMachineClass),
     .class_init    = spapr_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
