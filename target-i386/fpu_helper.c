@@ -1190,6 +1190,45 @@ void helper_fxsave(CPUX86State *env, target_ulong ptr)
     }
 }
 
+static uint64_t get_xinuse(CPUX86State *env)
+{
+    /* We don't track XINUSE.  We could calculate it here, but it's
+       probably less work to simply indicate all components in use.  */
+    return -1;
+}
+
+void helper_xsave(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+{
+    uintptr_t ra = GETPC();
+    uint64_t old_bv, new_bv;
+
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, ra);
+    }
+
+    /* The operand must be 64 byte aligned.  */
+    if (ptr & 63) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    /* Never save anything not enabled by XCR0.  */
+    rfbm &= env->xcr0;
+
+    if (rfbm & XSTATE_FP) {
+        do_xsave_fpu(env, ptr, ra);
+    }
+    if (rfbm & XSTATE_SSE) {
+        do_xsave_mxcsr(env, ptr, ra);
+        do_xsave_sse(env, ptr, ra);
+    }
+
+    /* Update the XSTATE_BV field.  */
+    old_bv = cpu_ldq_data_ra(env, ptr + 512, ra);
+    new_bv = (old_bv & ~rfbm) | (get_xinuse(env) & rfbm);
+    cpu_stq_data_ra(env, ptr + 512, new_bv, ra);
+}
+
 static void do_xrstor_fpu(CPUX86State *env, target_ulong ptr, uintptr_t ra)
 {
     int i, fpus, fptag;
@@ -1257,6 +1296,112 @@ void helper_fxrstor(CPUX86State *env, target_ulong ptr)
             do_xrstor_sse(env, ptr, ra);
         }
     }
+}
+
+void helper_xrstor(CPUX86State *env, target_ulong ptr, uint64_t rfbm)
+{
+    uintptr_t ra = GETPC();
+    uint64_t xstate_bv, xcomp_bv0, xcomp_bv1;
+
+    rfbm &= env->xcr0;
+
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, ra);
+    }
+
+    /* The operand must be 64 byte aligned.  */
+    if (ptr & 63) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    xstate_bv = cpu_ldq_data_ra(env, ptr + 512, ra);
+
+    if ((int64_t)xstate_bv < 0) {
+        /* FIXME: Compact form.  */
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    /* Standard form.  */
+
+    /* The XSTATE field must not set bits not present in XCR0.  */
+    if (xstate_bv & ~env->xcr0) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    /* The XCOMP field must be zero.  */
+    xcomp_bv0 = cpu_ldq_data_ra(env, ptr + 520, ra);
+    xcomp_bv1 = cpu_ldq_data_ra(env, ptr + 528, ra);
+    if (xcomp_bv0 || xcomp_bv1) {
+        raise_exception_ra(env, EXCP0D_GPF, ra);
+    }
+
+    if (rfbm & XSTATE_FP) {
+        if (xstate_bv & XSTATE_FP) {
+            do_xrstor_fpu(env, ptr, ra);
+        } else {
+            helper_fninit(env);
+            memset(env->fpregs, 0, sizeof(env->fpregs));
+        }
+    }
+    if (rfbm & XSTATE_SSE) {
+        /* Note that the standard form of XRSTOR loads MXCSR from memory
+           whether or not the XSTATE_BV bit is set.  */
+        do_xrstor_mxcsr(env, ptr, ra);
+        if (xstate_bv & XSTATE_SSE) {
+            do_xrstor_sse(env, ptr, ra);
+        } else {
+            /* ??? When AVX is implemented, we may have to be more
+               selective in the clearing.  */
+            memset(env->xmm_regs, 0, sizeof(env->xmm_regs));
+        }
+    }
+}
+
+uint64_t helper_xgetbv(CPUX86State *env, uint32_t ecx)
+{
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+    }
+
+    switch (ecx) {
+    case 0:
+        return env->xcr0;
+    case 1:
+        /* FIXME: #GP if !CPUID.(EAX=0DH,ECX=1):EAX.XG1[bit 2].  */
+        return env->xcr0 & get_xinuse(env);
+    }
+    raise_exception_ra(env, EXCP0D_GPF, GETPC());
+}
+
+void helper_xsetbv(CPUX86State *env, uint32_t ecx, uint64_t mask)
+{
+    uint32_t dummy, ena_lo, ena_hi;
+    uint64_t ena;
+
+    /* The OS must have enabled XSAVE.  */
+    if (!(env->cr[4] & CR4_OSXSAVE_MASK)) {
+        raise_exception_ra(env, EXCP06_ILLOP, GETPC());
+    }
+
+    /* Only XCR0 is defined at present; the FPU may not be disabled.  */
+    if (ecx != 0 || (mask & XSTATE_FP) == 0) {
+        goto do_gpf;
+    }
+
+    /* Disallow enabling unimplemented features.  */
+    cpu_x86_cpuid(env, 0x0d, 0, &ena_lo, &dummy, &dummy, &ena_hi);
+    ena = ((uint64_t)ena_hi << 32) | ena_lo;
+    if (mask & ~ena) {
+        goto do_gpf;
+    }
+
+    env->xcr0 = mask;
+    return;
+
+ do_gpf:
+    raise_exception_ra(env, EXCP0D_GPF, GETPC());
 }
 
 void cpu_get_fp80(uint64_t *pmant, uint16_t *pexp, floatx80 f)

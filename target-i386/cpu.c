@@ -331,14 +331,14 @@ static const char *cpuid_6_feature_name[] = {
 #define TCG_EXT_FEATURES (CPUID_EXT_SSE3 | CPUID_EXT_PCLMULQDQ | \
           CPUID_EXT_MONITOR | CPUID_EXT_SSSE3 | CPUID_EXT_CX16 | \
           CPUID_EXT_SSE41 | CPUID_EXT_SSE42 | CPUID_EXT_POPCNT | \
+          CPUID_EXT_XSAVE | /* CPUID_EXT_OSXSAVE is dynamic */   \
           CPUID_EXT_MOVBE | CPUID_EXT_AES | CPUID_EXT_HYPERVISOR)
           /* missing:
           CPUID_EXT_DTES64, CPUID_EXT_DSCPL, CPUID_EXT_VMX, CPUID_EXT_SMX,
           CPUID_EXT_EST, CPUID_EXT_TM2, CPUID_EXT_CID, CPUID_EXT_FMA,
           CPUID_EXT_XTPR, CPUID_EXT_PDCM, CPUID_EXT_PCID, CPUID_EXT_DCA,
-          CPUID_EXT_X2APIC, CPUID_EXT_TSC_DEADLINE_TIMER, CPUID_EXT_XSAVE,
-          CPUID_EXT_OSXSAVE, CPUID_EXT_AVX, CPUID_EXT_F16C,
-          CPUID_EXT_RDRAND */
+          CPUID_EXT_X2APIC, CPUID_EXT_TSC_DEADLINE_TIMER, CPUID_EXT_AVX,
+          CPUID_EXT_F16C, CPUID_EXT_RDRAND */
 
 #ifdef TARGET_X86_64
 #define TCG_EXT2_X86_64_FEATURES (CPUID_EXT2_SYSCALL | CPUID_EXT2_LM)
@@ -2323,10 +2323,13 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = (cpu->apic_id << 24) |
                8 << 8; /* CLFLUSH size in quad words, Linux wants it. */
         *ecx = env->features[FEAT_1_ECX];
+        if ((*ecx & CPUID_EXT_XSAVE) && (env->cr[4] & CR4_OSXSAVE_MASK)) {
+            *ecx |= CPUID_EXT_OSXSAVE;
+        }
         *edx = env->features[FEAT_1_EDX];
         if (cs->nr_cores * cs->nr_threads > 1) {
             *ebx |= (cs->nr_cores * cs->nr_threads) << 16;
-            *edx |= 1 << 28;    /* HTT bit */
+            *edx |= CPUID_HT;
         }
         break;
     case 2:
@@ -2450,7 +2453,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     case 0xD: {
         KVMState *s = cs->kvm_state;
-        uint64_t kvm_mask;
+        uint64_t ena_mask;
         int i;
 
         /* Processor Extended State */
@@ -2458,35 +2461,39 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         *ebx = 0;
         *ecx = 0;
         *edx = 0;
-        if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) || !kvm_enabled()) {
+        if (!(env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE)) {
             break;
         }
-        kvm_mask =
-            kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX) |
-            ((uint64_t)kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX) << 32);
+        if (kvm_enabled()) {
+            ena_mask = kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EDX);
+            ena_mask <<= 32;
+            ena_mask |= kvm_arch_get_supported_cpuid(s, 0xd, 0, R_EAX);
+        } else {
+            ena_mask = -1;
+        }
 
         if (count == 0) {
             *ecx = 0x240;
             for (i = 2; i < ARRAY_SIZE(ext_save_areas); i++) {
                 const ExtSaveArea *esa = &ext_save_areas[i];
-                if ((env->features[esa->feature] & esa->bits) == esa->bits &&
-                    (kvm_mask & (1 << i)) != 0) {
+                if ((env->features[esa->feature] & esa->bits) == esa->bits
+                    && ((ena_mask >> i) & 1) != 0) {
                     if (i < 32) {
-                        *eax |= 1 << i;
+                        *eax |= 1u << i;
                     } else {
-                        *edx |= 1 << (i - 32);
+                        *edx |= 1u << (i - 32);
                     }
                     *ecx = MAX(*ecx, esa->offset + esa->size);
                 }
             }
-            *eax |= kvm_mask & (XSTATE_FP | XSTATE_SSE);
+            *eax |= ena_mask & (XSTATE_FP | XSTATE_SSE);
             *ebx = *ecx;
         } else if (count == 1) {
             *eax = env->features[FEAT_XSAVE];
         } else if (count < ARRAY_SIZE(ext_save_areas)) {
             const ExtSaveArea *esa = &ext_save_areas[count];
-            if ((env->features[esa->feature] & esa->bits) == esa->bits &&
-                (kvm_mask & (1 << count)) != 0) {
+            if ((env->features[esa->feature] & esa->bits) == esa->bits
+                && ((ena_mask >> count) & 1) != 0) {
                 *eax = esa->size;
                 *ebx = esa->offset;
             }
