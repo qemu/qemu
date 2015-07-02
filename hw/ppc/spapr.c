@@ -1440,7 +1440,6 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu)
 static void ppc_spapr_init(MachineState *machine)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -1520,11 +1519,11 @@ static void ppc_spapr_init(MachineState *machine)
                                   XICS_IRQS);
 
     /* init CPUs */
-    if (cpu_model == NULL) {
-        cpu_model = kvm_enabled() ? "host" : "POWER7";
+    if (machine->cpu_model == NULL) {
+        machine->cpu_model = kvm_enabled() ? "host" : "POWER7";
     }
     for (i = 0; i < smp_cpus; i++) {
-        cpu = cpu_ppc_init(cpu_model);
+        cpu = cpu_ppc_init(machine->cpu_model);
         if (cpu == NULL) {
             fprintf(stderr, "Unable to find PowerPC CPU definition\n");
             exit(1);
