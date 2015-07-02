@@ -28,7 +28,7 @@ static void iwm_writeb(void *opaque, hwaddr offset,
 {
     iwm_state *s = (iwm_state *)opaque;
     offset = (offset - (s->base & ~TARGET_PAGE_MASK)) >> 9;
-    if (offset >= 0xF) {
+    if (offset > 0xF) {
         hw_error("Bad IWM write offset 0x%x", (int)offset);
     }
     qemu_log("iwm_write\n");
