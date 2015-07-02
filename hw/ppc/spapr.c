@@ -308,7 +308,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     GString *hypertas = g_string_sized_new(256);
     GString *qemu_hypertas = g_string_sized_new(256);
     uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
-    uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
+    uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(max_cpus)};
     int smt = kvmppc_smt_threads();
     unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
     QemuOpts *opts = qemu_opts_find(qemu_find_opts("smp-opts"), NULL);
@@ -1454,7 +1454,7 @@ static void ppc_spapr_init(MachineState *machine)
 
     /* Set up Interrupt Controller before we create the VCPUs */
     spapr->icp = xics_system_init(machine,
-                                  DIV_ROUND_UP(smp_cpus * kvmppc_smt_threads(),
+                                  DIV_ROUND_UP(max_cpus * kvmppc_smt_threads(),
                                                smp_threads),
                                   XICS_IRQS);
 
