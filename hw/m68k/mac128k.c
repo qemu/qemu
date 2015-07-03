@@ -11,11 +11,72 @@
 #include "elf.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"
+#include "ui/console.h"
+#include "ui/pixel_ops.h"
 
 #define ROM_LOAD_ADDR 0x400000
-#define MAX_ROM_SIZE 0x20000
+#define MAX_ROM_SIZE  0x20000
 #define IWM_BASE_ADDR 0xDFE1FF // dBase
 #define VIA_BASE_ADDR 0xEFE1FE // vBase
+#define SCREEN_WIDTH  512
+#define SCREEN_HEIGHT 342
+
+typedef struct {
+    QemuConsole *con;
+    int invalidate;
+} mac_display;
+
+/* Display controller */
+
+typedef void (*drawfn)(void *, uint8_t *, const uint8_t *, int, int);
+
+/*#define DEPTH 8
+#include "hw/display/mac_display_template.h"
+#define DEPTH 15
+#include "hw/display/mac_display_template.h"
+#define DEPTH 16
+#include "hw/display/mac_display_template.h"
+#define DEPTH 32
+#include "hw/display/mac_display_template.h"
+  */
+/*static drawfn draw_line_table[33] = {
+    [0 ... 32]	= NULL,
+    [8]		= draw_line_8,
+    [15]	= draw_line_15,
+    [16]	= draw_line_16,
+    [32]	= draw_line_32,
+};*/
+
+static void mac_update_display(void *opaque)
+{
+    mac_display *s = (mac_display*)opaque;
+    /*DisplaySurface *surface = qemu_console_surface(s->con);
+    uint8_t *dest;
+    int linesize, line;
+    if (!surface_bits_per_pixel(surface)) {
+        return;
+    }
+
+    drawfn draw_line = draw_line_table[surface_bits_per_pixel(surface)];
+    dest = surface_data(surface);
+    linesize = surface_stride(surface);
+    for (line = 0 ; line < SCREEN_HEIGHT ; ++line) {
+        // TODO: read line address and call draw_line fn
+    } */
+    dpy_gfx_update(s->con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    s->invalidate = 0;
+}
+
+static void mac_invalidate_display(void *opaque) {
+    mac_display *s = opaque;
+    s->invalidate = 1;
+}
+
+
+static const GraphicHwOps mac_display_ops = {
+    .invalidate  = mac_invalidate_display,
+    .gfx_update  = mac_update_display,
+};
 
 /* Board init.  */
 
@@ -31,6 +92,7 @@ static void mac128k_init(MachineState *machine)
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *rom = g_new(MemoryRegion, 1);
+    mac_display *display = (mac_display *)g_malloc0(sizeof(mac_display));
     uint8_t header[16];
     FILE *f;
 
@@ -57,6 +119,10 @@ static void mac128k_init(MachineState *machine)
 
     iwm_init(address_space_mem, IWM_BASE_ADDR, cpu);
     sy6522_init(address_space_mem, VIA_BASE_ADDR, cpu);
+
+    /* Display */
+    display->con = graphic_console_init(NULL, 0, &mac_display_ops, display);
+    qemu_console_resize(display->con, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     /* Load kernel.  */
     if (kernel_filename) {
