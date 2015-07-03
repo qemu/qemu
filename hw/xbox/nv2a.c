@@ -2404,7 +2404,6 @@ static void pgraph_method(NV2AState *d,
         break;
     
     case NV097_WAIT_FOR_IDLE:
-        glFinish();
         pgraph_update_surface(d, false);
         break;
 
