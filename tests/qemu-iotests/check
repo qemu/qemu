@@ -330,6 +330,11 @@ do
             fi
 
             reference="$source_iotests/$seq.out"
+            reference_machine="$source_iotests/$seq.$QEMU_DEFAULT_MACHINE.out"
+            if [ -f "$reference_machine" ]; then
+                reference="$reference_machine"
+            fi
+
             if [ "$CACHEMODE" = "none" ]; then
                 [ -f "$source_iotests/$seq.out.nocache" ] && reference="$source_iotests/$seq.out.nocache"
             fi
