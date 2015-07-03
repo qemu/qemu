@@ -889,6 +889,12 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->threshold = qemu_opt_get_number(opts, QUORUM_OPT_VOTE_THRESHOLD, 0);
+    /* and validate it against s->num_children */
+    ret = quorum_valid_threshold(s->threshold, s->num_children, &local_err);
+    if (ret < 0) {
+        goto exit;
+    }
+
     ret = parse_read_pattern(qemu_opt_get(opts, QUORUM_OPT_READ_PATTERN));
     if (ret < 0) {
         error_setg(&local_err, "Please set read-pattern as fifo or quorum");
@@ -897,12 +903,6 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     s->read_pattern = ret;
 
     if (s->read_pattern == QUORUM_READ_PATTERN_QUORUM) {
-        /* and validate it against s->num_children */
-        ret = quorum_valid_threshold(s->threshold, s->num_children, &local_err);
-        if (ret < 0) {
-            goto exit;
-        }
-
         /* is the driver in blkverify mode */
         if (qemu_opt_get_bool(opts, QUORUM_OPT_BLKVERIFY, false) &&
             s->num_children == 2 && s->threshold == 2) {
