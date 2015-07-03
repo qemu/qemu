@@ -167,6 +167,9 @@ class TestSingleDrive(iotests.QMPTestCase):
                         'target image does not match source after mirroring')
 
     def test_medium_not_found(self):
+        if iotests.qemu_default_machine != 'pc':
+            return
+
         result = self.vm.qmp('drive-mirror', device='ide1-cd0', sync='full',
                              target=target_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
@@ -829,6 +832,9 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
     def test_medium_not_found(self):
         if not self.has_quorum():
+            return
+
+        if iotests.qemu_default_machine != 'pc':
             return
 
         result = self.vm.qmp('drive-mirror', device='ide1-cd0', sync='full',
