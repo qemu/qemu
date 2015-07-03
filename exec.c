@@ -478,6 +478,24 @@ static const VMStateDescription vmstate_cpu_common_exception_index = {
     }
 };
 
+static bool cpu_common_crash_occurred_needed(void *opaque)
+{
+    CPUState *cpu = opaque;
+
+    return cpu->crash_occurred;
+}
+
+static const VMStateDescription vmstate_cpu_common_crash_occurred = {
+    .name = "cpu_common/crash_occurred",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = cpu_common_crash_occurred_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(crash_occurred, CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 const VMStateDescription vmstate_cpu_common = {
     .name = "cpu_common",
     .version_id = 1,
@@ -491,6 +509,7 @@ const VMStateDescription vmstate_cpu_common = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_cpu_common_exception_index,
+        &vmstate_cpu_common_crash_occurred,
         NULL
     }
 };
