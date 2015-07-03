@@ -779,7 +779,9 @@ QString* vsh_translate(uint16_t version,
          "  /* Un-screenspace transform */\n"
          "oPos.x = (oPos.x - viewportOffset.x) / viewportScale.x;\n"
          "oPos.y = (oPos.y - viewportOffset.y) / viewportScale.y;\n"
-         "oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
+         "if (clipRange.y != clipRange.x) {\n"
+         "  oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
+         "}\n"
 
          "if (oPos.w <= 0.0) {\n"
             /* undo the perspective divide in the case where the point would be
