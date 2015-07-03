@@ -1796,13 +1796,6 @@ static bool is_special_wait_psw(CPUState *cs)
     return cs->kvm_run->psw_addr == 0xfffUL;
 }
 
-static void guest_panicked(void)
-{
-    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE,
-                                   &error_abort);
-    vm_stop(RUN_STATE_GUEST_PANICKED);
-}
-
 static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
 {
     CPUState *cs = CPU(cpu);
@@ -1811,7 +1804,7 @@ static void unmanageable_intercept(S390CPU *cpu, const char *str, int pswoffset)
                  str, cs->cpu_index, ldq_phys(cs->as, cpu->env.psa + pswoffset),
                  ldq_phys(cs->as, cpu->env.psa + pswoffset + 8));
     s390_cpu_halt(cpu);
-    guest_panicked();
+    qemu_system_guest_panicked();
 }
 
 static int handle_intercept(S390CPU *cpu)
@@ -1844,7 +1837,7 @@ static int handle_intercept(S390CPU *cpu)
                 if (is_special_wait_psw(cs)) {
                     qemu_system_shutdown_request();
                 } else {
-                    guest_panicked();
+                    qemu_system_guest_panicked();
                 }
             }
             r = EXCP_HALTED;
