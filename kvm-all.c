@@ -1889,6 +1889,12 @@ int kvm_cpu_exec(CPUState *cpu)
                 qemu_system_reset_request();
                 ret = EXCP_INTERRUPT;
                 break;
+            case KVM_SYSTEM_EVENT_CRASH:
+                qemu_mutex_lock_iothread();
+                qemu_system_guest_panicked();
+                qemu_mutex_unlock_iothread();
+                ret = 0;
+                break;
             default:
                 DPRINTF("kvm_arch_handle_exit\n");
                 ret = kvm_arch_handle_exit(cpu, run);
