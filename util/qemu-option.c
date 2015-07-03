@@ -180,6 +180,11 @@ void parse_option_size(const char *name, const char *value,
 
     if (value != NULL) {
         sizef = strtod(value, &postfix);
+        if (sizef < 0 || sizef > UINT64_MAX) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
+                             "a non-negative number below 2^64");
+            return;
+        }
         switch (*postfix) {
         case 'T':
             sizef *= 1024;
