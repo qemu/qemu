@@ -15,6 +15,7 @@
 #define ROM_LOAD_ADDR 0x400000
 #define MAX_ROM_SIZE 0x20000
 #define IWM_BASE_ADDR 0xDFE1FF // dBase
+#define VIA_BASE_ADDR 0xEFE1FE // vBase
 
 /* Board init.  */
 
@@ -55,6 +56,7 @@ static void mac128k_init(MachineState *machine)
     memory_region_set_readonly(rom, true);
 
     iwm_init(address_space_mem, IWM_BASE_ADDR, cpu);
+    sy6522_init(address_space_mem, VIA_BASE_ADDR, cpu);
 
     /* Load kernel.  */
     if (kernel_filename) {
