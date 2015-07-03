@@ -95,6 +95,8 @@ struct VirtIOInputClass {
 
 struct VirtIOInputHID {
     VirtIOInput                       parent_obj;
+    char                              *display;
+    uint32_t                          head;
     QemuInputHandler                  *handler;
     QemuInputHandlerState             *hs;
     int                               ledstate;
