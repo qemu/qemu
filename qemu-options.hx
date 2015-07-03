@@ -206,7 +206,7 @@ STEXI
 @item -boot [order=@var{drives}][,once=@var{drives}][,menu=on|off][,splash=@var{sp_name}][,splash-time=@var{sp_time}][,reboot-timeout=@var{rb_timeout}][,strict=on|off]
 @findex -boot
 Specify boot order @var{drives} as a string of drive letters. Valid
-drive letters depend on the target achitecture. The x86 PC uses: a, b
+drive letters depend on the target architecture. The x86 PC uses: a, b
 (floppy 1 and 2), c (first hard disk), d (first CD-ROM), n-p (Etherboot
 from network adapter 1-4), hard disk boot is the default. To apply a
 particular boot order only on the first startup, specify it via
