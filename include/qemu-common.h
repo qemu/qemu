@@ -15,6 +15,7 @@
 #include "qemu/compiler.h"
 #include "config-host.h"
 #include "qemu/typedefs.h"
+#include "qemu/fprintf-fn.h"
 
 #if defined(__arm__) || defined(__sparc__) || defined(__mips__) || defined(__hppa__) || defined(__ia64__)
 #define WORDS_ALIGNED
@@ -84,9 +85,6 @@
 #else
 # error Unknown pointer size
 #endif
-
-typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
 
 #ifdef _WIN32
 #define fsync _commit
