@@ -701,32 +701,10 @@ static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
 static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
 {
     AHCIPortRegs *pr = &ad->port_regs;
-    uint8_t *pio_fis, *cmd_fis;
-    uint64_t tbl_addr;
-    dma_addr_t cmd_len = 0x80;
+    uint8_t *pio_fis;
     IDEState *s = &ad->port.ifs[0];
 
     if (!ad->res_fis || !(pr->cmd & PORT_CMD_FIS_RX)) {
-        return;
-    }
-
-    /* map cmd_fis */
-    tbl_addr = le64_to_cpu(ad->cur_cmd->tbl_addr);
-    cmd_fis = dma_memory_map(ad->hba->as, tbl_addr, &cmd_len,
-                             DMA_DIRECTION_TO_DEVICE);
-
-    if (cmd_fis == NULL) {
-        DPRINTF(ad->port_no, "dma_memory_map failed in ahci_write_fis_pio");
-        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_HBUS_ERR);
-        return;
-    }
-
-    if (cmd_len != 0x80) {
-        DPRINTF(ad->port_no,
-                "dma_memory_map mapped too few bytes in ahci_write_fis_pio");
-        dma_memory_unmap(ad->hba->as, cmd_fis, cmd_len,
-                         DMA_DIRECTION_TO_DEVICE, cmd_len);
-        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_HBUS_ERR);
         return;
     }
 
@@ -745,8 +723,8 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     pio_fis[9] = s->hob_lcyl;
     pio_fis[10] = s->hob_hcyl;
     pio_fis[11] = 0;
-    pio_fis[12] = cmd_fis[12];
-    pio_fis[13] = cmd_fis[13];
+    pio_fis[12] = s->nsector & 0xFF;
+    pio_fis[13] = (s->nsector >> 8) & 0xFF;
     pio_fis[14] = 0;
     pio_fis[15] = s->status;
     pio_fis[16] = len & 255;
@@ -763,9 +741,6 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     }
 
     ahci_trigger_irq(ad->hba, ad, PORT_IRQ_PIOS_FIS);
-
-    dma_memory_unmap(ad->hba->as, cmd_fis, cmd_len,
-                     DMA_DIRECTION_TO_DEVICE, cmd_len);
 }
 
 static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
@@ -773,20 +748,10 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     AHCIPortRegs *pr = &ad->port_regs;
     uint8_t *d2h_fis;
     int i;
-    dma_addr_t cmd_len = 0x80;
-    int cmd_mapped = 0;
     IDEState *s = &ad->port.ifs[0];
 
     if (!ad->res_fis || !(pr->cmd & PORT_CMD_FIS_RX)) {
         return;
-    }
-
-    if (!cmd_fis) {
-        /* map cmd_fis */
-        uint64_t tbl_addr = le64_to_cpu(ad->cur_cmd->tbl_addr);
-        cmd_fis = dma_memory_map(ad->hba->as, tbl_addr, &cmd_len,
-                                 DMA_DIRECTION_TO_DEVICE);
-        cmd_mapped = 1;
     }
 
     d2h_fis = &ad->res_fis[RES_FIS_RFIS];
@@ -804,8 +769,8 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     d2h_fis[9] = s->hob_lcyl;
     d2h_fis[10] = s->hob_hcyl;
     d2h_fis[11] = 0;
-    d2h_fis[12] = cmd_fis[12];
-    d2h_fis[13] = cmd_fis[13];
+    d2h_fis[12] = s->nsector & 0xFF;
+    d2h_fis[13] = (s->nsector >> 8) & 0xFF;
     for (i = 14; i < 20; i++) {
         d2h_fis[i] = 0;
     }
@@ -819,11 +784,6 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
     }
 
     ahci_trigger_irq(ad->hba, ad, PORT_IRQ_D2H_REG_FIS);
-
-    if (cmd_mapped) {
-        dma_memory_unmap(ad->hba->as, cmd_fis, cmd_len,
-                         DMA_DIRECTION_TO_DEVICE, cmd_len);
-    }
 }
 
 static int prdt_tbl_entry_size(const AHCI_SG *tbl)
