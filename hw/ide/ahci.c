@@ -996,6 +996,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
     ncq_tfs->used = 1;
     ncq_tfs->drive = ad;
     ncq_tfs->slot = slot;
+    ncq_tfs->cmd = ncq_fis->command;
     ncq_tfs->lba = ((uint64_t)ncq_fis->lba5 << 40) |
                    ((uint64_t)ncq_fis->lba4 << 32) |
                    ((uint64_t)ncq_fis->lba3 << 24) |
@@ -1047,7 +1048,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
             ncq_tfs->lba, ncq_tfs->lba + ncq_tfs->sector_count - 1,
             ide_state->nb_sectors - 1);
 
-    switch(ncq_fis->command) {
+    switch (ncq_tfs->cmd) {
         case READ_FPDMA_QUEUED:
             DPRINTF(port, "NCQ reading %d sectors from LBA %"PRId64", "
                     "tag %d\n",
