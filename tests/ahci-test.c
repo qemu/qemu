@@ -1200,13 +1200,13 @@ static void test_migrate_ncq(void)
 }
 
 /**
- * DMA Error Test
+ * Halted IO Error Test
  *
  * Simulate an error on first write, Try to write a pattern,
  * Confirm the VM has stopped, resume the VM, verify command
  * has completed, then read back the data and verify.
  */
-static void test_halted_dma(void)
+static void ahci_halted_io_test(uint8_t cmd_read, uint8_t cmd_write)
 {
     AHCIQState *ahci;
     uint8_t port;
@@ -1241,7 +1241,7 @@ static void test_halted_dma(void)
     memwrite(ptr, tx, bufsize);
 
     /* Attempt to write (and fail) */
-    cmd = ahci_guest_io_halt(ahci, port, CMD_WRITE_DMA,
+    cmd = ahci_guest_io_halt(ahci, port, cmd_write,
                              ptr, bufsize, 0);
 
     /* Attempt to resume the command */
@@ -1249,13 +1249,23 @@ static void test_halted_dma(void)
     ahci_free(ahci, ptr);
 
     /* Read back and verify */
-    ahci_io(ahci, port, CMD_READ_DMA, rx, bufsize, 0);
+    ahci_io(ahci, port, cmd_read, rx, bufsize, 0);
     g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
 
     /* Cleanup and go home */
     ahci_shutdown(ahci);
     g_free(rx);
     g_free(tx);
+}
+
+static void test_halted_dma(void)
+{
+    ahci_halted_io_test(CMD_READ_DMA, CMD_WRITE_DMA);
+}
+
+static void test_halted_ncq(void)
+{
+    ahci_halted_io_test(READ_FPDMA_QUEUED, WRITE_FPDMA_QUEUED);
 }
 
 /**
@@ -1677,6 +1687,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ahci/io/ncq/simple", test_ncq_simple);
     qtest_add_func("/ahci/migrate/ncq/simple", test_migrate_ncq);
+    qtest_add_func("/ahci/io/ncq/retry", test_halted_ncq);
 
     ret = g_test_run();
 
