@@ -1043,14 +1043,14 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
 
     DPRINTF(port, "NCQ transfer LBA from %"PRId64" to %"PRId64", "
             "drive max %"PRId64"\n",
-            ncq_tfs->lba, ncq_tfs->lba + ncq_tfs->sector_count - 2,
+            ncq_tfs->lba, ncq_tfs->lba + ncq_tfs->sector_count - 1,
             ide_state->nb_sectors - 1);
 
     switch(ncq_fis->command) {
         case READ_FPDMA_QUEUED:
             DPRINTF(port, "NCQ reading %d sectors from LBA %"PRId64", "
                     "tag %d\n",
-                    ncq_tfs->sector_count-1, ncq_tfs->lba, ncq_tfs->tag);
+                    ncq_tfs->sector_count, ncq_tfs->lba, ncq_tfs->tag);
 
             DPRINTF(port, "tag %d aio read %"PRId64"\n",
                     ncq_tfs->tag, ncq_tfs->lba);
@@ -1063,7 +1063,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
             break;
         case WRITE_FPDMA_QUEUED:
             DPRINTF(port, "NCQ writing %d sectors to LBA %"PRId64", tag %d\n",
-                    ncq_tfs->sector_count-1, ncq_tfs->lba, ncq_tfs->tag);
+                    ncq_tfs->sector_count, ncq_tfs->lba, ncq_tfs->tag);
 
             DPRINTF(port, "tag %d aio write %"PRId64"\n",
                     ncq_tfs->tag, ncq_tfs->lba);
