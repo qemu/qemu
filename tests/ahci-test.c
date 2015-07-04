@@ -1401,6 +1401,17 @@ static void test_reset(void)
     ahci_shutdown(ahci);
 }
 
+static void test_ncq_simple(void)
+{
+    AHCIQState *ahci;
+
+    ahci = ahci_boot_and_enable(NULL);
+    ahci_test_io_rw_simple(ahci, 4096, 0,
+                           READ_FPDMA_QUEUED,
+                           WRITE_FPDMA_QUEUED);
+    ahci_shutdown(ahci);
+}
+
 /******************************************************************************/
 /* AHCI I/O Test Matrix Definitions                                           */
 
@@ -1653,6 +1664,8 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ahci/max", test_max);
     qtest_add_func("/ahci/reset", test_reset);
+
+    qtest_add_func("/ahci/io/ncq/simple", test_ncq_simple);
 
     ret = g_test_run();
 

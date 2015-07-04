@@ -263,20 +263,23 @@ enum {
 /* ATA Commands */
 enum {
     /* DMA */
-    CMD_READ_DMA      = 0xC8,
-    CMD_READ_DMA_EXT  = 0x25,
-    CMD_WRITE_DMA     = 0xCA,
-    CMD_WRITE_DMA_EXT = 0x35,
+    CMD_READ_DMA       = 0xC8,
+    CMD_READ_DMA_EXT   = 0x25,
+    CMD_WRITE_DMA      = 0xCA,
+    CMD_WRITE_DMA_EXT  = 0x35,
     /* PIO */
-    CMD_READ_PIO      = 0x20,
-    CMD_READ_PIO_EXT  = 0x24,
-    CMD_WRITE_PIO     = 0x30,
-    CMD_WRITE_PIO_EXT = 0x34,
+    CMD_READ_PIO       = 0x20,
+    CMD_READ_PIO_EXT   = 0x24,
+    CMD_WRITE_PIO      = 0x30,
+    CMD_WRITE_PIO_EXT  = 0x34,
     /* Misc */
-    CMD_READ_MAX      = 0xF8,
-    CMD_READ_MAX_EXT  = 0x27,
-    CMD_FLUSH_CACHE   = 0xE7,
-    CMD_IDENTIFY      = 0xEC
+    CMD_READ_MAX       = 0xF8,
+    CMD_READ_MAX_EXT   = 0x27,
+    CMD_FLUSH_CACHE    = 0xE7,
+    CMD_IDENTIFY       = 0xEC,
+    /* NCQ */
+    READ_FPDMA_QUEUED  = 0x60,
+    WRITE_FPDMA_QUEUED = 0x61,
 };
 
 /* AHCI Command Header Flags & Masks*/
