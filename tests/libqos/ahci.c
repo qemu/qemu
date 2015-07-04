@@ -781,7 +781,7 @@ void ahci_command_set_offset(AHCICommand *cmd, uint64_t lba_sect)
     RegH2DFIS *fis = &(cmd->fis);
     if (cmd->props->lba28) {
         g_assert_cmphex(lba_sect, <=, 0xFFFFFFF);
-    } else if (cmd->props->lba48) {
+    } else if (cmd->props->lba48 || cmd->props->ncq) {
         g_assert_cmphex(lba_sect, <=, 0xFFFFFFFFFFFF);
     } else {
         /* Can't set offset if we don't know the format. */
