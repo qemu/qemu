@@ -581,6 +581,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     /* reset ncq queue */
     for (i = 0; i < AHCI_MAX_CMDS; i++) {
         NCQTransferState *ncq_tfs = &s->dev[port].ncq_tfs[i];
+        ncq_tfs->halt = false;
         if (!ncq_tfs->used) {
             continue;
         }
@@ -960,12 +961,23 @@ static void ncq_cb(void *opaque, int ret)
     }
 
     if (ret < 0) {
-        ncq_err(ncq_tfs);
+        bool is_read = ncq_tfs->cmd == READ_FPDMA_QUEUED;
+        BlockErrorAction action = blk_get_error_action(ide_state->blk,
+                                                       is_read, -ret);
+        if (action == BLOCK_ERROR_ACTION_STOP) {
+            ncq_tfs->halt = true;
+            ide_state->bus->error_status = IDE_RETRY_HBA;
+        } else if (action == BLOCK_ERROR_ACTION_REPORT) {
+            ncq_err(ncq_tfs);
+        }
+        blk_error_action(ide_state->blk, action, is_read, -ret);
     } else {
         ide_state->status = READY_STAT | SEEK_STAT;
     }
 
-    ncq_finish(ncq_tfs);
+    if (!ncq_tfs->halt) {
+        ncq_finish(ncq_tfs);
+    }
 }
 
 static int is_ncq(uint8_t ata_cmd)
@@ -988,7 +1000,9 @@ static void execute_ncq_command(NCQTransferState *ncq_tfs)
     AHCIDevice *ad = ncq_tfs->drive;
     IDEState *ide_state = &ad->port.ifs[0];
     int port = ad->port_no;
+
     g_assert(is_ncq(ncq_tfs->cmd));
+    ncq_tfs->halt = false;
 
     switch (ncq_tfs->cmd) {
     case READ_FPDMA_QUEUED:
@@ -1319,6 +1333,23 @@ static void ahci_restart_dma(IDEDMA *dma)
 }
 
 /**
+ * IDE/PIO restarts are handled by the core layer, but NCQ commands
+ * need an extra kick from the AHCI HBA.
+ */
+static void ahci_restart(IDEDMA *dma)
+{
+    AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
+    int i;
+
+    for (i = 0; i < AHCI_MAX_CMDS; i++) {
+        NCQTransferState *ncq_tfs = &ad->ncq_tfs[i];
+        if (ncq_tfs->halt) {
+            execute_ncq_command(ncq_tfs);
+        }
+    }
+}
+
+/**
  * Called in DMA R/W chains to read the PRDT, utilizing ahci_populate_sglist.
  * Not currently invoked by PIO R/W chains,
  * which invoke ahci_populate_sglist via ahci_start_transfer.
@@ -1406,6 +1437,7 @@ static void ahci_irq_set(void *opaque, int n, int level)
 
 static const IDEDMAOps ahci_dma_ops = {
     .start_dma = ahci_start_dma,
+    .restart = ahci_restart,
     .restart_dma = ahci_restart_dma,
     .start_transfer = ahci_start_transfer,
     .prepare_buf = ahci_dma_prepare_buf,

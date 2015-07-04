@@ -262,6 +262,7 @@ typedef struct NCQTransferState {
     uint8_t cmd;
     int slot;
     int used;
+    bool halt;
 } NCQTransferState;
 
 struct AHCIDevice {

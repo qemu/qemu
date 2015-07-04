@@ -2371,6 +2371,13 @@ static void ide_restart_bh(void *opaque)
      * called function can set a new error status. */
     bus->error_status = 0;
 
+    /* The HBA has generically asked to be kicked on retry */
+    if (error_status & IDE_RETRY_HBA) {
+        if (s->bus->dma->ops->restart) {
+            s->bus->dma->ops->restart(s->bus->dma);
+        }
+    }
+
     if (error_status & IDE_RETRY_DMA) {
         if (error_status & IDE_RETRY_TRIM) {
             ide_restart_dma(s, IDE_DMA_TRIM);
