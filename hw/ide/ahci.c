@@ -1086,8 +1086,11 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
         DPRINTF(port, "Warn: Unsupported attempt to use Rebuild Assist\n");
     }
 
-    ncq_tfs->sector_count = ((uint16_t)ncq_fis->sector_count_high << 8) |
-                                ncq_fis->sector_count_low;
+    ncq_tfs->sector_count = ((ncq_fis->sector_count_high << 8) |
+                             ncq_fis->sector_count_low);
+    if (!ncq_tfs->sector_count) {
+        ncq_tfs->sector_count = 0x10000;
+    }
     size = ncq_tfs->sector_count * 512;
     ahci_populate_sglist(ad, &ncq_tfs->sglist, size, 0);
 

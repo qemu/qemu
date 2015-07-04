@@ -256,7 +256,7 @@ typedef struct NCQTransferState {
     BlockAIOCB *aiocb;
     QEMUSGList sglist;
     BlockAcctCookie acct;
-    uint16_t sector_count;
+    uint32_t sector_count;
     uint64_t lba;
     uint8_t tag;
     uint8_t cmd;
