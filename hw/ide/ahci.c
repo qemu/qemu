@@ -933,22 +933,10 @@ static void ncq_err(NCQTransferState *ncq_tfs)
     ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
 }
 
-static void ncq_cb(void *opaque, int ret)
+static void ncq_finish(NCQTransferState *ncq_tfs)
 {
-    NCQTransferState *ncq_tfs = (NCQTransferState *)opaque;
-    IDEState *ide_state = &ncq_tfs->drive->port.ifs[0];
-
-    if (ret == -ECANCELED) {
-        return;
-    }
     /* Clear bit for this tag in SActive */
     ncq_tfs->drive->port_regs.scr_act &= ~(1 << ncq_tfs->tag);
-
-    if (ret < 0) {
-        ncq_err(ncq_tfs);
-    } else {
-        ide_state->status = READY_STAT | SEEK_STAT;
-    }
 
     ahci_write_fis_sdb(ncq_tfs->drive->hba, ncq_tfs->drive->port_no,
                        (1 << ncq_tfs->tag));
@@ -960,6 +948,24 @@ static void ncq_cb(void *opaque, int ret)
                     &ncq_tfs->acct);
     qemu_sglist_destroy(&ncq_tfs->sglist);
     ncq_tfs->used = 0;
+}
+
+static void ncq_cb(void *opaque, int ret)
+{
+    NCQTransferState *ncq_tfs = (NCQTransferState *)opaque;
+    IDEState *ide_state = &ncq_tfs->drive->port.ifs[0];
+
+    if (ret == -ECANCELED) {
+        return;
+    }
+
+    if (ret < 0) {
+        ncq_err(ncq_tfs);
+    } else {
+        ide_state->status = READY_STAT | SEEK_STAT;
+    }
+
+    ncq_finish(ncq_tfs);
 }
 
 static int is_ncq(uint8_t ata_cmd)
