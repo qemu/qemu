@@ -857,6 +857,11 @@ void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
     cmd->port = port;
     cmd->slot = ahci_pick_cmd(ahci, port);
 
+    if (cmd->props->ncq) {
+        NCQFIS *nfis = (NCQFIS *)&cmd->fis;
+        nfis->tag = (cmd->slot << 3) & 0xFC;
+    }
+
     /* Create a buffer for the command table */
     prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);
     table_size = CMD_TBL_SIZ(prdtl);
