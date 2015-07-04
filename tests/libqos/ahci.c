@@ -138,12 +138,14 @@ void ahci_clean_mem(AHCIQState *ahci)
     for (port = 0; port < 32; ++port) {
         if (ahci->port[port].fb) {
             ahci_free(ahci, ahci->port[port].fb);
+            ahci->port[port].fb = 0;
         }
         if (ahci->port[port].clb) {
             for (slot = 0; slot < 32; slot++) {
                 ahci_destroy_command(ahci, port, slot);
             }
             ahci_free(ahci, ahci->port[port].clb);
+            ahci->port[port].clb = 0;
         }
     }
 }
@@ -252,7 +254,7 @@ void ahci_hba_enable(AHCIQState *ahci)
         /* Allocate Memory for the Command List Buffer & FIS Buffer */
         /* PxCLB space ... 0x20 per command, as in 4.2.2 p 36 */
         ahci->port[i].clb = ahci_alloc(ahci, num_cmd_slots * 0x20);
-        qmemset(ahci->port[i].clb, 0x00, 0x100);
+        qmemset(ahci->port[i].clb, 0x00, num_cmd_slots * 0x20);
         g_test_message("CLB: 0x%08" PRIx64, ahci->port[i].clb);
         ahci_px_wreg(ahci, i, AHCI_PX_CLB, ahci->port[i].clb);
         g_assert_cmphex(ahci->port[i].clb, ==,
@@ -549,7 +551,7 @@ unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port)
         if (reg & (1 << j)) {
             continue;
         }
-        ahci_destroy_command(ahci, port, i);
+        ahci_destroy_command(ahci, port, j);
         ahci->port[port].next = (j + 1) % 32;
         return j;
     }
