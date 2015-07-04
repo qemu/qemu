@@ -983,6 +983,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
     NCQFrame *ncq_fis = (NCQFrame*)cmd_fis;
     uint8_t tag = ncq_fis->tag >> 3;
     NCQTransferState *ncq_tfs = &ad->ncq_tfs[tag];
+    size_t size;
 
     if (ncq_tfs->used) {
         /* error - already in use */
@@ -999,19 +1000,27 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                    ((uint64_t)ncq_fis->lba2 << 16) |
                    ((uint64_t)ncq_fis->lba1 << 8) |
                    (uint64_t)ncq_fis->lba0;
+    ncq_tfs->tag = tag;
 
-    /* Note: We calculate the sector count, but don't currently rely on it.
-     * The total size of the DMA buffer tells us the transfer size instead. */
     ncq_tfs->sector_count = ((uint16_t)ncq_fis->sector_count_high << 8) |
                                 ncq_fis->sector_count_low;
+    ahci_populate_sglist(ad, &ncq_tfs->sglist, 0);
+    size = ncq_tfs->sector_count * 512;
+
+    if (ncq_tfs->sglist.size < size) {
+        error_report("ahci: PRDT length for NCQ command (0x%zx) "
+                     "is smaller than the requested size (0x%zx)",
+                     ncq_tfs->sglist.size, size);
+        qemu_sglist_destroy(&ncq_tfs->sglist);
+        ncq_err(ncq_tfs);
+        ahci_trigger_irq(ad->hba, ad, PORT_IRQ_OVERFLOW);
+        return;
+    }
 
     DPRINTF(port, "NCQ transfer LBA from %"PRId64" to %"PRId64", "
             "drive max %"PRId64"\n",
             ncq_tfs->lba, ncq_tfs->lba + ncq_tfs->sector_count - 2,
             ide_state->nb_sectors - 1);
-
-    ahci_populate_sglist(ad, &ncq_tfs->sglist, 0);
-    ncq_tfs->tag = tag;
 
     switch(ncq_fis->command) {
         case READ_FPDMA_QUEUED:
@@ -1051,6 +1060,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                         "error: tried to process non-NCQ command as NCQ\n");
             }
             qemu_sglist_destroy(&ncq_tfs->sglist);
+            ncq_err(ncq_tfs);
     }
 }
 
