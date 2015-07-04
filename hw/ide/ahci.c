@@ -1003,6 +1003,25 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                    (uint64_t)ncq_fis->lba0;
     ncq_tfs->tag = tag;
 
+    /* Sanity-check the NCQ packet */
+    if (tag != slot) {
+        DPRINTF(port, "Warn: NCQ slot (%d) did not match the given tag (%d)\n",
+                slot, tag);
+    }
+
+    if (ncq_fis->aux0 || ncq_fis->aux1 || ncq_fis->aux2 || ncq_fis->aux3) {
+        DPRINTF(port, "Warn: Attempt to use NCQ auxiliary fields.\n");
+    }
+    if (ncq_fis->prio || ncq_fis->icc) {
+        DPRINTF(port, "Warn: Unsupported attempt to use PRIO/ICC fields\n");
+    }
+    if (ncq_fis->fua & NCQ_FIS_FUA_MASK) {
+        DPRINTF(port, "Warn: Unsupported attempt to use Force Unit Access\n");
+    }
+    if (ncq_fis->tag & NCQ_FIS_RARC_MASK) {
+        DPRINTF(port, "Warn: Unsupported attempt to use Rebuild Assist\n");
+    }
+
     ncq_tfs->sector_count = ((uint16_t)ncq_fis->sector_count_high << 8) |
                                 ncq_fis->sector_count_low;
     ahci_populate_sglist(ad, &ncq_tfs->sglist, 0);
@@ -1016,6 +1035,10 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
         ncq_err(ncq_tfs);
         ahci_trigger_irq(ad->hba, ad, PORT_IRQ_OVERFLOW);
         return;
+    } else if (ncq_tfs->sglist.size != size) {
+        DPRINTF(port, "Warn: PRDTL (0x%zx)"
+                " does not match requested size (0x%zx)",
+                ncq_tfs->sglist.size, size);
     }
 
     DPRINTF(port, "NCQ transfer LBA from %"PRId64" to %"PRId64", "
