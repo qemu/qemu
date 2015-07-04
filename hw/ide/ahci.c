@@ -922,6 +922,15 @@ out:
     return r;
 }
 
+static void ncq_err(NCQTransferState *ncq_tfs)
+{
+    IDEState *ide_state = &ncq_tfs->drive->port.ifs[0];
+
+    ide_state->error = ABRT_ERR;
+    ide_state->status = READY_STAT | ERR_STAT;
+    ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
+}
+
 static void ncq_cb(void *opaque, int ret)
 {
     NCQTransferState *ncq_tfs = (NCQTransferState *)opaque;
@@ -934,10 +943,7 @@ static void ncq_cb(void *opaque, int ret)
     ncq_tfs->drive->port_regs.scr_act &= ~(1 << ncq_tfs->tag);
 
     if (ret < 0) {
-        /* error */
-        ide_state->error = ABRT_ERR;
-        ide_state->status = READY_STAT | ERR_STAT;
-        ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
+        ncq_err(ncq_tfs);
     } else {
         ide_state->status = READY_STAT | SEEK_STAT;
     }
