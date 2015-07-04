@@ -833,9 +833,8 @@ static int prdt_tbl_entry_size(const AHCI_SG *tbl)
 }
 
 static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
-                                int64_t limit, int32_t offset)
+                                AHCICmdHdr *cmd, int64_t limit, int32_t offset)
 {
-    AHCICmdHdr *cmd = ad->cur_cmd;
     uint16_t opts = le16_to_cpu(cmd->opts);
     uint16_t prdtl = le16_to_cpu(cmd->prdtl);
     uint64_t cfis_addr = le64_to_cpu(cmd->tbl_addr);
@@ -1058,6 +1057,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
     ncq_tfs->used = 1;
     ncq_tfs->drive = ad;
     ncq_tfs->slot = slot;
+    ncq_tfs->cmdh = &((AHCICmdHdr *)ad->lst)[slot];
     ncq_tfs->cmd = ncq_fis->command;
     ncq_tfs->lba = ((uint64_t)ncq_fis->lba5 << 40) |
                    ((uint64_t)ncq_fis->lba4 << 32) |
@@ -1092,7 +1092,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
         ncq_tfs->sector_count = 0x10000;
     }
     size = ncq_tfs->sector_count * 512;
-    ahci_populate_sglist(ad, &ncq_tfs->sglist, size, 0);
+    ahci_populate_sglist(ad, &ncq_tfs->sglist, ncq_tfs->cmdh, size, 0);
 
     if (ncq_tfs->sglist.size < size) {
         error_report("ahci: PRDT length for NCQ command (0x%zx) "
@@ -1362,7 +1362,8 @@ static int32_t ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit)
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
 
-    if (ahci_populate_sglist(ad, &s->sg, limit, s->io_buffer_offset) == -1) {
+    if (ahci_populate_sglist(ad, &s->sg, ad->cur_cmd,
+                             limit, s->io_buffer_offset) == -1) {
         DPRINTF(ad->port_no, "ahci_dma_prepare_buf failed.\n");
         return -1;
     }
@@ -1397,7 +1398,7 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
     uint8_t *p = s->io_buffer + s->io_buffer_index;
     int l = s->io_buffer_size - s->io_buffer_index;
 
-    if (ahci_populate_sglist(ad, &s->sg, l, s->io_buffer_offset)) {
+    if (ahci_populate_sglist(ad, &s->sg, ad->cur_cmd, l, s->io_buffer_offset)) {
         return 0;
     }
 

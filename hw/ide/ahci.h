@@ -254,6 +254,7 @@ typedef struct AHCIDevice AHCIDevice;
 typedef struct NCQTransferState {
     AHCIDevice *drive;
     BlockAIOCB *aiocb;
+    AHCICmdHdr *cmdh;
     QEMUSGList sglist;
     BlockAcctCookie acct;
     uint32_t sector_count;
