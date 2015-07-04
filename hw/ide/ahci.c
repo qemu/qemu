@@ -331,8 +331,7 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
     }
 }
 
-static uint64_t ahci_mem_read(void *opaque, hwaddr addr,
-                              unsigned size)
+static uint64_t ahci_mem_read_32(void *opaque, hwaddr addr)
 {
     AHCIState *s = opaque;
     uint32_t val = 0;
@@ -367,6 +366,30 @@ static uint64_t ahci_mem_read(void *opaque, hwaddr addr,
     return val;
 }
 
+
+/**
+ * AHCI 1.3 section 3 ("HBA Memory Registers")
+ * Support unaligned 8/16/32 bit reads, and 64 bit aligned reads.
+ * Caller is responsible for masking unwanted higher order bytes.
+ */
+static uint64_t ahci_mem_read(void *opaque, hwaddr addr, unsigned size)
+{
+    hwaddr aligned = addr & ~0x3;
+    int ofst = addr - aligned;
+    uint64_t lo = ahci_mem_read_32(opaque, aligned);
+    uint64_t hi;
+
+    /* if < 8 byte read does not cross 4 byte boundary */
+    if (ofst + size <= 4) {
+        return lo >> (ofst * 8);
+    }
+    g_assert_cmpint(size, >, 1);
+
+    /* If the 64bit read is unaligned, we will produce undefined
+     * results. AHCI does not support unaligned 64bit reads. */
+    hi = ahci_mem_read_32(opaque, aligned + 4);
+    return (hi << 32 | lo) >> (ofst * 8);
+}
 
 
 static void ahci_mem_write(void *opaque, hwaddr addr,
