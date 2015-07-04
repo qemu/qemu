@@ -1269,13 +1269,13 @@ static void test_halted_ncq(void)
 }
 
 /**
- * DMA Error Migration Test
+ * IO Error Migration Test
  *
  * Simulate an error on first write, Try to write a pattern,
  * Confirm the VM has stopped, migrate, resume the VM,
  * verify command has completed, then read back the data and verify.
  */
-static void test_migrate_halted_dma(void)
+static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
 {
     AHCIQState *src, *dst;
     uint8_t port;
@@ -1321,14 +1321,14 @@ static void test_migrate_halted_dma(void)
     memwrite(ptr, tx, bufsize);
 
     /* Write, trigger the VM to stop, migrate, then resume. */
-    cmd = ahci_guest_io_halt(src, port, CMD_WRITE_DMA,
+    cmd = ahci_guest_io_halt(src, port, cmd_write,
                              ptr, bufsize, 0);
     ahci_migrate(src, dst, uri);
     ahci_guest_io_resume(dst, cmd);
     ahci_free(dst, ptr);
 
     /* Read back */
-    ahci_io(dst, port, CMD_READ_DMA, rx, bufsize, 0);
+    ahci_io(dst, port, cmd_read, rx, bufsize, 0);
 
     /* Verify TX and RX are identical */
     g_assert_cmphex(memcmp(tx, rx, bufsize), ==, 0);
@@ -1338,6 +1338,16 @@ static void test_migrate_halted_dma(void)
     ahci_shutdown(dst);
     g_free(rx);
     g_free(tx);
+}
+
+static void test_migrate_halted_dma(void)
+{
+    ahci_migrate_halted_io(CMD_READ_DMA, CMD_WRITE_DMA);
+}
+
+static void test_migrate_halted_ncq(void)
+{
+    ahci_migrate_halted_io(READ_FPDMA_QUEUED, WRITE_FPDMA_QUEUED);
 }
 
 /**
@@ -1688,6 +1698,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/io/ncq/simple", test_ncq_simple);
     qtest_add_func("/ahci/migrate/ncq/simple", test_migrate_ncq);
     qtest_add_func("/ahci/io/ncq/retry", test_halted_ncq);
+    qtest_add_func("/ahci/migrate/ncq/halted", test_migrate_halted_ncq);
 
     ret = g_test_run();
 
