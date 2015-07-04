@@ -1521,6 +1521,21 @@ void ahci_reset(AHCIState *s)
     }
 }
 
+static const VMStateDescription vmstate_ncq_tfs = {
+    .name = "ncq state",
+    .version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(sector_count, NCQTransferState),
+        VMSTATE_UINT64(lba, NCQTransferState),
+        VMSTATE_UINT8(tag, NCQTransferState),
+        VMSTATE_UINT8(cmd, NCQTransferState),
+        VMSTATE_UINT8(slot, NCQTransferState),
+        VMSTATE_BOOL(used, NCQTransferState),
+        VMSTATE_BOOL(halt, NCQTransferState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_ahci_device = {
     .name = "ahci port",
     .version_id = 1,
@@ -1546,14 +1561,17 @@ static const VMStateDescription vmstate_ahci_device = {
         VMSTATE_BOOL(done_atapi_packet, AHCIDevice),
         VMSTATE_INT32(busy_slot, AHCIDevice),
         VMSTATE_BOOL(init_d2h_sent, AHCIDevice),
+        VMSTATE_STRUCT_ARRAY(ncq_tfs, AHCIDevice, AHCI_MAX_CMDS,
+                             1, vmstate_ncq_tfs, NCQTransferState),
         VMSTATE_END_OF_LIST()
     },
 };
 
 static int ahci_state_post_load(void *opaque, int version_id)
 {
-    int i;
+    int i, j;
     struct AHCIDevice *ad;
+    NCQTransferState *ncq_tfs;
     AHCIState *s = opaque;
 
     for (i = 0; i < s->ports; i++) {
@@ -1564,6 +1582,37 @@ static int ahci_state_post_load(void *opaque, int version_id)
         if (ahci_cond_start_engines(ad, false) != 0) {
             return -1;
         }
+
+        for (j = 0; j < AHCI_MAX_CMDS; j++) {
+            ncq_tfs = &ad->ncq_tfs[j];
+            ncq_tfs->drive = ad;
+
+            if (ncq_tfs->used != ncq_tfs->halt) {
+                return -1;
+            }
+            if (!ncq_tfs->halt) {
+                continue;
+            }
+            if (!is_ncq(ncq_tfs->cmd)) {
+                return -1;
+            }
+            if (ncq_tfs->slot != ncq_tfs->tag) {
+                return -1;
+            }
+            /* If ncq_tfs->halt is justly set, the engine should be engaged,
+             * and the command list buffer should be mapped. */
+            ncq_tfs->cmdh = get_cmd_header(s, i, ncq_tfs->slot);
+            if (!ncq_tfs->cmdh) {
+                return -1;
+            }
+            ahci_populate_sglist(ncq_tfs->drive, &ncq_tfs->sglist,
+                                 ncq_tfs->cmdh, ncq_tfs->sector_count * 512,
+                                 0);
+            if (ncq_tfs->sector_count != ncq_tfs->sglist.size >> 9) {
+                return -1;
+            }
+        }
+
 
         /*
          * If an error is present, ad->busy_slot will be valid and not -1.
