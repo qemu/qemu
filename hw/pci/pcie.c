@@ -78,7 +78,7 @@ int pcie_cap_init(PCIDevice *dev, uint8_t offset, uint8_t type, uint8_t port)
                  PCI_EXP_LNK_LS_25);
 
     pci_set_word(exp_cap + PCI_EXP_LNKSTA,
-                 PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25);
+                 PCI_EXP_LNK_MLW_1 | PCI_EXP_LNK_LS_25 |PCI_EXP_LNKSTA_DLLLA);
 
     pci_set_long(exp_cap + PCI_EXP_DEVCAP2,
                  PCI_EXP_DEVCAP2_EFF | PCI_EXP_DEVCAP2_EETLPP);
