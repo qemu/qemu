@@ -73,6 +73,22 @@ AHCICommandProp ahci_command_properties[] = {
     { .cmd = CMD_FLUSH_CACHE,   .data = false }
 };
 
+struct AHCICommand {
+    /* Test Management Data */
+    uint8_t name;
+    uint8_t port;
+    uint8_t slot;
+    uint32_t interrupts;
+    uint64_t xbytes;
+    uint32_t prd_size;
+    uint64_t buffer;
+    AHCICommandProp *props;
+    /* Data to be transferred to the guest */
+    AHCICommandHeader header;
+    RegH2DFIS fis;
+    void *atapi_cmd;
+};
+
 /**
  * Allocate space in the guest using information in the AHCIQState object.
  */
@@ -462,13 +478,15 @@ void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
     g_free(pio);
 }
 
-void ahci_port_check_cmd_sanity(AHCIQState *ahci, uint8_t port,
-                                uint8_t slot, size_t buffsize)
+void ahci_port_check_cmd_sanity(AHCIQState *ahci, AHCICommand *cmd)
 {
-    AHCICommandHeader cmd;
+    AHCICommandHeader cmdh;
 
-    ahci_get_command_header(ahci, port, slot, &cmd);
-    g_assert_cmphex(buffsize, ==, cmd.prdbc);
+    ahci_get_command_header(ahci, cmd->port, cmd->slot, &cmdh);
+    /* Physical Region Descriptor Byte Count is not required to work for NCQ. */
+    if (!cmd->props->ncq) {
+        g_assert_cmphex(cmd->xbytes, ==, cmdh.prdbc);
+    }
 }
 
 /* Get the command in #slot of port #port. */
@@ -611,22 +629,6 @@ void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
     ahci_command_verify(ahci, cmd);
     ahci_command_free(cmd);
 }
-
-struct AHCICommand {
-    /* Test Management Data */
-    uint8_t name;
-    uint8_t port;
-    uint8_t slot;
-    uint32_t interrupts;
-    uint64_t xbytes;
-    uint32_t prd_size;
-    uint64_t buffer;
-    AHCICommandProp *props;
-    /* Data to be transferred to the guest */
-    AHCICommandHeader header;
-    RegH2DFIS fis;
-    void *atapi_cmd;
-};
 
 static AHCICommandProp *ahci_command_find(uint8_t command_name)
 {
@@ -901,7 +903,7 @@ void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd)
     ahci_port_check_error(ahci, port);
     ahci_port_check_interrupts(ahci, port, cmd->interrupts);
     ahci_port_check_nonbusy(ahci, port, slot);
-    ahci_port_check_cmd_sanity(ahci, port, slot, cmd->xbytes);
+    ahci_port_check_cmd_sanity(ahci, cmd);
     ahci_port_check_d2h_sanity(ahci, port, slot);
     if (cmd->props->pio) {
         ahci_port_check_pio_sanity(ahci, port, slot, cmd->xbytes);
