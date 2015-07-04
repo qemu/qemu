@@ -273,6 +273,14 @@
 #define NV_PGRAPH_CHEOPS_OFFSET                          0x00000FC4
 #   define NV_PGRAPH_CHEOPS_OFFSET_PROG_LD_PTR                  0x000000FF
 #   define NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR                 0x0000FF00
+#define NV_PGRAPH_BLEND                                  0x00001804
+#   define NV_PGRAPH_BLEND_EQN                                  0x00000007
+#   define NV_PGRAPH_BLEND_EN                                   (1 << 3)
+#   define NV_PGRAPH_BLEND_SFACTOR                              0x000000F0
+#   define NV_PGRAPH_BLEND_DFACTOR                              0x00000F00
+#   define NV_PGRAPH_BLEND_LOGICOP_ENABLE                       (1 << 16)
+#   define NV_PGRAPH_BLEND_LOGICOP                              0x0000F000
+#define NV_PGRAPH_BLENDCOLOR                             0x00001808
 #define NV_PGRAPH_CLEARRECTX                             0x00001864
 #       define NV_PGRAPH_CLEARRECTX_XMIN                          0x00000FFF
 #       define NV_PGRAPH_CLEARRECTX_XMAX                          0x0FFF0000
@@ -540,6 +548,48 @@
 #   define NV097_SET_COMBINER_ALPHA_ICW                       0x00970260
 #   define NV097_SET_COMBINER_SPECULAR_FOG_CW0                0x00970288
 #   define NV097_SET_COMBINER_SPECULAR_FOG_CW1                0x0097028C
+#   define NV097_SET_BLEND_ENABLE                             0x00970304
+#   define NV097_SET_BLEND_FUNC_SFACTOR                       0x00970344
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO                0x0000
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE                 0x0001
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_COLOR           0x0300
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_COLOR 0x0301
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA           0x0302
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_ALPHA 0x0303
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_DST_ALPHA           0x0304
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_ALPHA 0x0305
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_DST_COLOR           0x0306
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_COLOR 0x0307
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA_SATURATE  0x0308
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_COLOR      0x8001
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_COLOR 0x8002
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_ALPHA      0x8003
+#       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_ALPHA 0x8004
+#   define NV097_SET_BLEND_FUNC_DFACTOR                       0x00970348
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_ZERO                0x0000
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_ONE                 0x0001
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_COLOR           0x0300
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_SRC_COLOR 0x0301
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_ALPHA           0x0302
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_SRC_ALPHA 0x0303
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_DST_ALPHA           0x0304
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_DST_ALPHA 0x0305
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_DST_COLOR           0x0306
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_DST_COLOR 0x0307
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_ALPHA_SATURATE  0x0308
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_CONSTANT_COLOR      0x8001
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_CONSTANT_COLOR 0x8002
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_CONSTANT_ALPHA      0x8003
+#       define NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_CONSTANT_ALPHA 0x8004
+#   define NV097_SET_BLEND_COLOR                              0x0097034C
+#   define NV097_SET_BLEND_EQUATION                           0x00970350
+#       define NV097_SET_BLEND_EQUATION_V_FUNC_SUBTRACT           0x800A
+#       define NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT   0x800B
+#       define NV097_SET_BLEND_EQUATION_V_FUNC_ADD                0x8006
+#       define NV097_SET_BLEND_EQUATION_V_MIN                     0x8007
+#       define NV097_SET_BLEND_EQUATION_V_MAX                     0x8008
+#       define NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT_SIGNED 0xF005
+#       define NV097_SET_BLEND_EQUATION_V_FUNC_ADD_SIGNED         0xF006
 #   define NV097_SET_COLOR_MASK                               0x00970358
 #   define NV097_SET_CLIP_MIN                                 0x00970394
 #   define NV097_SET_CLIP_MAX                                 0x00970398
@@ -564,7 +614,9 @@
 #           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP        6
 #       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE            0x000000F0
 #       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE          0xFFFFFF00
-#   define NV097_SET_BEGIN_END                                0x009717fC
+#   define NV097_SET_LOGIC_OP_ENABLE                          0x009717BC
+#   define NV097_SET_LOGIC_OP                                 0x009717C0
+#   define NV097_SET_BEGIN_END                                0x009717FC
 #       define NV097_SET_BEGIN_END_OP_END                         0x00
 #       define NV097_SET_BEGIN_END_OP_POINTS                      0x01
 #       define NV097_SET_BEGIN_END_OP_LINES                       0x02
@@ -685,6 +737,54 @@ static const GLenum kelvin_texture_mag_filter_map[] = {
     GL_LINEAR /* TODO: Convolution filter... */
 };
 
+static const GLenum kelvin_blend_factor_map[] = {
+    GL_ZERO,
+    GL_ONE,
+    GL_SRC_COLOR,
+    GL_ONE_MINUS_SRC_COLOR,
+    GL_SRC_ALPHA,
+    GL_ONE_MINUS_SRC_ALPHA,
+    GL_DST_ALPHA,
+    GL_ONE_MINUS_DST_ALPHA,
+    GL_DST_COLOR,
+    GL_ONE_MINUS_DST_COLOR,
+    GL_SRC_ALPHA_SATURATE,
+    0,
+    GL_CONSTANT_COLOR,
+    GL_ONE_MINUS_CONSTANT_COLOR,
+    GL_CONSTANT_ALPHA,
+    GL_ONE_MINUS_CONSTANT_ALPHA,
+};
+
+static const GLenum kelvin_blend_equation_map[] = {
+    GL_FUNC_SUBTRACT,
+    GL_FUNC_REVERSE_SUBTRACT,
+    GL_FUNC_ADD,
+    GL_MIN,
+    GL_MAX,
+    GL_FUNC_REVERSE_SUBTRACT,
+    GL_FUNC_ADD,
+};
+
+static const GLenum kelvin_blend_logicop_map[] = {
+    GL_CLEAR,
+    GL_AND,
+    GL_AND_REVERSE,
+    GL_COPY,
+    GL_AND_INVERTED,
+    GL_NOOP,
+    GL_XOR,
+    GL_OR,
+    GL_NOR,
+    GL_EQUIV,
+    GL_INVERT,
+    GL_OR_REVERSE,
+    GL_COPY_INVERTED,
+    GL_OR_INVERTED,
+    GL_NAND,
+    GL_SET,
+};
+
 typedef struct ColorFormatInfo {
     unsigned int bytes_per_pixel;
     bool linear;
@@ -765,6 +865,8 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
 #define NV2A_VERTEXSHADER_CONSTANTS 192
 #define NV2A_VERTEXSHADER_ATTRIBUTES 16
 #define NV2A_MAX_TEXTURES 4
+
+#define ARRAYSIZE(x) (sizeof(x)/sizeof(x[0]))
 
 #define GET_MASK(v, mask) (((v) & (mask)) >> (ffs(mask)-1))
 
@@ -2070,6 +2172,7 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
             }
 
             glUseProgram(0);
+            glDisable(GL_BLEND);
 
             int rl, pa;
             glGetIntegerv(GL_UNPACK_ROW_LENGTH, &rl);
@@ -2556,6 +2659,124 @@ static void pgraph_method(NV2AState *d,
         pg->shaders_dirty = true;
         break;
 
+    case NV097_SET_BLEND_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_BLEND], NV_PGRAPH_BLEND_EN, parameter);
+        break;
+
+    case NV097_SET_BLEND_FUNC_SFACTOR: {
+        unsigned int factor;
+        switch (parameter) {
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO:
+            factor = 0; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE:
+            factor = 1; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_COLOR:
+            factor = 2; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_COLOR:
+            factor = 3; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA:
+            factor = 4; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_ALPHA:
+            factor = 5; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_DST_ALPHA:
+            factor = 6; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_ALPHA:
+            factor = 7; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_DST_COLOR:
+            factor = 8; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_COLOR:
+            factor = 9; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA_SATURATE:
+            factor = 10; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_COLOR:
+            factor = 12; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_COLOR:
+            factor = 13; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_ALPHA:
+            factor = 14; break;
+        case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_ALPHA:
+            factor = 15; break;
+        default:
+            assert(false);
+            break;
+        }
+        SET_MASK(pg->regs[NV_PGRAPH_BLEND], NV_PGRAPH_BLEND_SFACTOR, factor);
+
+        break;
+    }
+
+    case NV097_SET_BLEND_FUNC_DFACTOR: {
+        unsigned int factor;
+        switch (parameter) {
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_ZERO:
+            factor = 0; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE:
+            factor = 1; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_COLOR:
+            factor = 2; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_SRC_COLOR:
+            factor = 3; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_ALPHA:
+            factor = 4; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_SRC_ALPHA:
+            factor = 5; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_DST_ALPHA:
+            factor = 6; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_DST_ALPHA:
+            factor = 7; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_DST_COLOR:
+            factor = 8; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_DST_COLOR:
+            factor = 9; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_ALPHA_SATURATE:
+            factor = 10; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_CONSTANT_COLOR:
+            factor = 12; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_CONSTANT_COLOR:
+            factor = 13; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_CONSTANT_ALPHA:
+            factor = 14; break;
+        case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_CONSTANT_ALPHA:
+            factor = 15; break;
+        default:
+            assert(false);
+            break;
+        }
+        SET_MASK(pg->regs[NV_PGRAPH_BLEND], NV_PGRAPH_BLEND_DFACTOR, factor);
+
+        break;
+    }
+
+    case NV097_SET_BLEND_COLOR:
+        pg->regs[NV_PGRAPH_BLENDCOLOR] = parameter;
+        break;
+
+    case NV097_SET_BLEND_EQUATION: {
+        unsigned int equation;
+        switch (parameter) {
+        case NV097_SET_BLEND_EQUATION_V_FUNC_SUBTRACT:
+            equation = 0; break;
+        case NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT:
+            equation = 1; break;
+        case NV097_SET_BLEND_EQUATION_V_FUNC_ADD:
+            equation = 2; break;
+        case NV097_SET_BLEND_EQUATION_V_MIN:
+            equation = 3; break;
+        case NV097_SET_BLEND_EQUATION_V_MAX:
+            equation = 4; break;
+        case NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT_SIGNED:
+            equation = 5; break;
+        case NV097_SET_BLEND_EQUATION_V_FUNC_ADD_SIGNED:
+            equation = 6; break;
+        default:
+            assert(false);
+            break;
+        }
+        SET_MASK(pg->regs[NV_PGRAPH_BLEND], NV_PGRAPH_BLEND_EQN, equation);
+
+        break;
+    }
+
     case NV097_SET_COLOR_MASK:
         pg->color_mask = parameter;
         break;
@@ -2774,6 +2995,16 @@ static void pgraph_method(NV2AState *d,
 
         break;
 
+    case NV097_SET_LOGIC_OP_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_BLEND],
+                 NV_PGRAPH_BLEND_LOGICOP_ENABLE, parameter);
+        break;
+
+    case NV097_SET_LOGIC_OP:
+        SET_MASK(pg->regs[NV_PGRAPH_BLEND],
+                 NV_PGRAPH_BLEND_LOGICOP, parameter & 0xF);
+        break;
+
     case NV097_SET_BEGIN_END:
         if (parameter == NV097_SET_BEGIN_END_OP_END) {
 
@@ -2831,6 +3062,31 @@ static void pgraph_method(NV2AState *d,
             assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
 
             pgraph_update_surface(d, true);
+
+            if (pg->regs[NV_PGRAPH_BLEND] & NV_PGRAPH_BLEND_EN) {
+                glEnable(GL_BLEND);
+                uint32_t sfactor = GET_MASK(pg->regs[NV_PGRAPH_BLEND],
+                                            NV_PGRAPH_BLEND_SFACTOR);
+                uint32_t dfactor = GET_MASK(pg->regs[NV_PGRAPH_BLEND],
+                                            NV_PGRAPH_BLEND_DFACTOR);
+                assert(sfactor < ARRAYSIZE(kelvin_blend_factor_map));
+                assert(dfactor < ARRAYSIZE(kelvin_blend_factor_map));
+                glBlendFunc(kelvin_blend_factor_map[sfactor],
+                            kelvin_blend_factor_map[dfactor]);
+
+                uint32_t equation = GET_MASK(pg->regs[NV_PGRAPH_BLEND],
+                                             NV_PGRAPH_BLEND_EQN);
+                assert(equation < ARRAYSIZE(kelvin_blend_equation_map));
+                glBlendEquation(kelvin_blend_equation_map[equation]);
+
+                uint32_t blend_color = pg->regs[NV_PGRAPH_BLENDCOLOR];
+                glBlendColor( ((blend_color >> 16) & 0xFF) / 255.0f, /* red */
+                              ((blend_color >> 8) & 0xFF) / 255.0f,  /* green */
+                              (blend_color & 0xFF) / 255.0f,         /* blue */
+                              ((blend_color >> 24) & 0xFF) / 255.0f);/* alpha */
+            } else {
+                glDisable(GL_BLEND);
+            }
 
             pgraph_bind_shaders(pg);
 
