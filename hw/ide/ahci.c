@@ -106,8 +106,6 @@ static uint32_t  ahci_port_read(AHCIState *s, int port, int offset)
         val = pr->scr_err;
         break;
     case PORT_SCR_ACT:
-        pr->scr_act &= ~s->dev[port].finished;
-        s->dev[port].finished = 0;
         val = pr->scr_act;
         break;
     case PORT_CMD_ISSUE:
@@ -666,14 +664,14 @@ static void ahci_unmap_clb_address(AHCIDevice *ad)
     ad->lst = NULL;
 }
 
-static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
+static void ahci_write_fis_sdb(AHCIState *s, NCQTransferState *ncq_tfs)
 {
-    AHCIDevice *ad = &s->dev[port];
+    AHCIDevice *ad = ncq_tfs->drive;
     AHCIPortRegs *pr = &ad->port_regs;
     IDEState *ide_state;
     SDBFIS *sdb_fis;
 
-    if (!s->dev[port].res_fis ||
+    if (!ad->res_fis ||
         !(pr->cmd & PORT_CMD_FIS_RX)) {
         return;
     }
@@ -683,19 +681,23 @@ static void ahci_write_fis_sdb(AHCIState *s, int port, uint32_t finished)
 
     sdb_fis->type = SATA_FIS_TYPE_SDB;
     /* Interrupt pending & Notification bit */
-    sdb_fis->flags = (ad->hba->control_regs.irqstatus ? (1 << 6) : 0);
+    sdb_fis->flags = 0x40; /* Interrupt bit, always 1 for NCQ */
     sdb_fis->status = ide_state->status & 0x77;
     sdb_fis->error = ide_state->error;
     /* update SAct field in SDB_FIS */
-    s->dev[port].finished |= finished;
     sdb_fis->payload = cpu_to_le32(ad->finished);
 
     /* Update shadow registers (except BSY 0x80 and DRQ 0x08) */
     pr->tfdata = (ad->port.ifs[0].error << 8) |
         (ad->port.ifs[0].status & 0x77) |
         (pr->tfdata & 0x88);
+    pr->scr_act &= ~ad->finished;
+    ad->finished = 0;
 
-    ahci_trigger_irq(s, ad, PORT_IRQ_SDB_FIS);
+    /* Trigger IRQ if interrupt bit is set (which currently, it always is) */
+    if (sdb_fis->flags & 0x40) {
+        ahci_trigger_irq(s, ad, PORT_IRQ_SDB_FIS);
+    }
 }
 
 static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
@@ -895,11 +897,14 @@ static void ncq_err(NCQTransferState *ncq_tfs)
 
 static void ncq_finish(NCQTransferState *ncq_tfs)
 {
-    /* Clear bit for this tag in SActive */
-    ncq_tfs->drive->port_regs.scr_act &= ~(1 << ncq_tfs->tag);
+    /* If we didn't error out, set our finished bit. Errored commands
+     * do not get a bit set for the SDB FIS ACT register, nor do they
+     * clear the outstanding bit in scr_act (PxSACT). */
+    if (!(ncq_tfs->drive->port_regs.scr_err & (1 << ncq_tfs->tag))) {
+        ncq_tfs->drive->finished |= (1 << ncq_tfs->tag);
+    }
 
-    ahci_write_fis_sdb(ncq_tfs->drive->hba, ncq_tfs->drive->port_no,
-                       (1 << ncq_tfs->tag));
+    ahci_write_fis_sdb(ncq_tfs->drive->hba, ncq_tfs);
 
     DPRINTF(ncq_tfs->drive->port_no, "NCQ transfer tag %d finished\n",
             ncq_tfs->tag);
