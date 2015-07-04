@@ -745,12 +745,15 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     cmd->prd_size = 4096;
     cmd->buffer = 0xabad1dea;
 
-    cmd->interrupts = AHCI_PX_IS_DHRS;
+    if (!cmd->props->ncq) {
+        cmd->interrupts = AHCI_PX_IS_DHRS;
+    }
     /* BUG: We expect the DPS interrupt for data commands */
     /* cmd->interrupts |= props->data ? AHCI_PX_IS_DPS : 0; */
     /* BUG: We expect the DMA Setup interrupt for DMA commands */
     /* cmd->interrupts |= props->dma ? AHCI_PX_IS_DSS : 0; */
     cmd->interrupts |= props->pio ? AHCI_PX_IS_PSS : 0;
+    cmd->interrupts |= props->ncq ? AHCI_PX_IS_SDBS : 0;
 
     command_header_init(cmd);
     command_table_init(cmd);
@@ -934,7 +937,9 @@ void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd)
     ahci_port_check_interrupts(ahci, port, cmd->interrupts);
     ahci_port_check_nonbusy(ahci, port, slot);
     ahci_port_check_cmd_sanity(ahci, cmd);
-    ahci_port_check_d2h_sanity(ahci, port, slot);
+    if (cmd->interrupts & AHCI_PX_IS_DHRS) {
+        ahci_port_check_d2h_sanity(ahci, port, slot);
+    }
     if (cmd->props->pio) {
         ahci_port_check_pio_sanity(ahci, port, slot, cmd->xbytes);
     }
