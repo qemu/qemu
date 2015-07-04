@@ -45,7 +45,7 @@ do { \
 } while (0)
 
 static void check_cmd(AHCIState *s, int port);
-static int handle_cmd(AHCIState *s,int port,int slot);
+static int handle_cmd(AHCIState *s, int port, uint8_t slot);
 static void ahci_reset_port(AHCIState *s, int port);
 static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis);
 static void ahci_init_d2h(AHCIDevice *ad);
@@ -506,7 +506,7 @@ static void ahci_reg_init(AHCIState *s)
 static void check_cmd(AHCIState *s, int port)
 {
     AHCIPortRegs *pr = &s->dev[port].port_regs;
-    int slot;
+    uint8_t slot;
 
     if ((pr->cmd & PORT_CMD_START) && pr->cmd_issue) {
         for (slot = 0; (slot < 32) && pr->cmd_issue; slot++) {
@@ -1039,7 +1039,7 @@ static void execute_ncq_command(NCQTransferState *ncq_tfs)
 
 
 static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
-                                int slot)
+                                uint8_t slot)
 {
     AHCIDevice *ad = &s->dev[port];
     IDEState *ide_state = &ad->port.ifs[0];
@@ -1114,7 +1114,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
 }
 
 static void handle_reg_h2d_fis(AHCIState *s, int port,
-                               int slot, uint8_t *cmd_fis)
+                               uint8_t slot, uint8_t *cmd_fis)
 {
     IDEState *ide_state = &s->dev[port].port.ifs[0];
     AHCICmdHdr *cmd = s->dev[port].cur_cmd;
@@ -1198,7 +1198,7 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
     ide_exec_cmd(&s->dev[port].port, cmd_fis[2]);
 }
 
-static int handle_cmd(AHCIState *s, int port, int slot)
+static int handle_cmd(AHCIState *s, int port, uint8_t slot)
 {
     IDEState *ide_state;
     uint64_t tbl_addr;
