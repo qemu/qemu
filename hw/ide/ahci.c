@@ -49,7 +49,7 @@ static int handle_cmd(AHCIState *s,int port,int slot);
 static void ahci_reset_port(AHCIState *s, int port);
 static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis);
 static void ahci_init_d2h(AHCIDevice *ad);
-static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write);
+static int ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit);
 static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes);
 static bool ahci_map_clb_address(AHCIDevice *ad);
 static bool ahci_map_fis_address(AHCIDevice *ad);
@@ -827,11 +827,12 @@ static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
 
 static int prdt_tbl_entry_size(const AHCI_SG *tbl)
 {
+    /* flags_size is zero-based */
     return (le32_to_cpu(tbl->flags_size) & AHCI_PRDT_SIZE_MASK) + 1;
 }
 
 static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
-                                int32_t offset)
+                                int64_t limit, int32_t offset)
 {
     AHCICmdHdr *cmd = ad->cur_cmd;
     uint16_t opts = le16_to_cpu(cmd->opts);
@@ -881,9 +882,8 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
         AHCI_SG *tbl = (AHCI_SG *)prdt;
         sum = 0;
         for (i = 0; i < prdtl; i++) {
-            /* flags_size is zero-based */
             tbl_entry_size = prdt_tbl_entry_size(&tbl[i]);
-            if (offset <= (sum + tbl_entry_size)) {
+            if (offset < (sum + tbl_entry_size)) {
                 off_idx = i;
                 off_pos = offset - sum;
                 break;
@@ -901,12 +901,13 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
         qemu_sglist_init(sglist, qbus->parent, (prdtl - off_idx),
                          ad->hba->as);
         qemu_sglist_add(sglist, le64_to_cpu(tbl[off_idx].addr) + off_pos,
-                        prdt_tbl_entry_size(&tbl[off_idx]) - off_pos);
+                        MIN(prdt_tbl_entry_size(&tbl[off_idx]) - off_pos,
+                            limit));
 
-        for (i = off_idx + 1; i < prdtl; i++) {
-            /* flags_size is zero-based */
+        for (i = off_idx + 1; i < prdtl && sglist->size < limit; i++) {
             qemu_sglist_add(sglist, le64_to_cpu(tbl[i].addr),
-                            prdt_tbl_entry_size(&tbl[i]));
+                            MIN(prdt_tbl_entry_size(&tbl[i]),
+                                limit - sglist->size));
             if (sglist->size > INT32_MAX) {
                 error_report("AHCI Physical Region Descriptor Table describes "
                              "more than 2 GiB.\n");
@@ -1024,8 +1025,8 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
 
     ncq_tfs->sector_count = ((uint16_t)ncq_fis->sector_count_high << 8) |
                                 ncq_fis->sector_count_low;
-    ahci_populate_sglist(ad, &ncq_tfs->sglist, 0);
     size = ncq_tfs->sector_count * 512;
+    ahci_populate_sglist(ad, &ncq_tfs->sglist, size, 0);
 
     if (ncq_tfs->sglist.size < size) {
         error_report("ahci: PRDT length for NCQ command (0x%zx) "
@@ -1262,7 +1263,7 @@ static void ahci_start_transfer(IDEDMA *dma)
         goto out;
     }
 
-    if (ahci_dma_prepare_buf(dma, is_write)) {
+    if (ahci_dma_prepare_buf(dma, size)) {
         has_sglist = 1;
     }
 
@@ -1312,12 +1313,12 @@ static void ahci_restart_dma(IDEDMA *dma)
  * Not currently invoked by PIO R/W chains,
  * which invoke ahci_populate_sglist via ahci_start_transfer.
  */
-static int32_t ahci_dma_prepare_buf(IDEDMA *dma, int is_write)
+static int32_t ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
 
-    if (ahci_populate_sglist(ad, &s->sg, s->io_buffer_offset) == -1) {
+    if (ahci_populate_sglist(ad, &s->sg, limit, s->io_buffer_offset) == -1) {
         DPRINTF(ad->port_no, "ahci_dma_prepare_buf failed.\n");
         return -1;
     }
@@ -1352,7 +1353,7 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
     uint8_t *p = s->io_buffer + s->io_buffer_index;
     int l = s->io_buffer_size - s->io_buffer_index;
 
-    if (ahci_populate_sglist(ad, &s->sg, s->io_buffer_offset)) {
+    if (ahci_populate_sglist(ad, &s->sg, l, s->io_buffer_offset)) {
         return 0;
     }
 
