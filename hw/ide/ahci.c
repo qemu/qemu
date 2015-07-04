@@ -987,6 +987,7 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
     NCQTransferState *ncq_tfs = &ad->ncq_tfs[tag];
     size_t size;
 
+    g_assert(is_ncq(ncq_fis->command));
     if (ncq_tfs->used) {
         /* error - already in use */
         fprintf(stderr, "%s: tag %d already used\n", __FUNCTION__, tag);
@@ -1049,44 +1050,35 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
             ide_state->nb_sectors - 1);
 
     switch (ncq_tfs->cmd) {
-        case READ_FPDMA_QUEUED:
-            DPRINTF(port, "NCQ reading %d sectors from LBA %"PRId64", "
-                    "tag %d\n",
-                    ncq_tfs->sector_count, ncq_tfs->lba, ncq_tfs->tag);
+    case READ_FPDMA_QUEUED:
+        DPRINTF(port, "NCQ reading %d sectors from LBA %"PRId64", tag %d\n",
+                ncq_tfs->sector_count, ncq_tfs->lba, ncq_tfs->tag);
 
-            DPRINTF(port, "tag %d aio read %"PRId64"\n",
-                    ncq_tfs->tag, ncq_tfs->lba);
+        DPRINTF(port, "tag %d aio read %"PRId64"\n",
+                ncq_tfs->tag, ncq_tfs->lba);
 
-            dma_acct_start(ide_state->blk, &ncq_tfs->acct,
-                           &ncq_tfs->sglist, BLOCK_ACCT_READ);
-            ncq_tfs->aiocb = dma_blk_read(ide_state->blk,
-                                          &ncq_tfs->sglist, ncq_tfs->lba,
-                                          ncq_cb, ncq_tfs);
-            break;
-        case WRITE_FPDMA_QUEUED:
-            DPRINTF(port, "NCQ writing %d sectors to LBA %"PRId64", tag %d\n",
-                    ncq_tfs->sector_count, ncq_tfs->lba, ncq_tfs->tag);
+        dma_acct_start(ide_state->blk, &ncq_tfs->acct,
+                       &ncq_tfs->sglist, BLOCK_ACCT_READ);
+        ncq_tfs->aiocb = dma_blk_read(ide_state->blk, &ncq_tfs->sglist,
+                                      ncq_tfs->lba, ncq_cb, ncq_tfs);
+        break;
+    case WRITE_FPDMA_QUEUED:
+        DPRINTF(port, "NCQ writing %d sectors to LBA %"PRId64", tag %d\n",
+                ncq_tfs->sector_count, ncq_tfs->lba, ncq_tfs->tag);
 
-            DPRINTF(port, "tag %d aio write %"PRId64"\n",
-                    ncq_tfs->tag, ncq_tfs->lba);
+        DPRINTF(port, "tag %d aio write %"PRId64"\n",
+                ncq_tfs->tag, ncq_tfs->lba);
 
-            dma_acct_start(ide_state->blk, &ncq_tfs->acct,
-                           &ncq_tfs->sglist, BLOCK_ACCT_WRITE);
-            ncq_tfs->aiocb = dma_blk_write(ide_state->blk,
-                                           &ncq_tfs->sglist, ncq_tfs->lba,
-                                           ncq_cb, ncq_tfs);
-            break;
-        default:
-            if (is_ncq(cmd_fis[2])) {
-                DPRINTF(port,
-                        "error: unsupported NCQ command (0x%02x) received\n",
-                        cmd_fis[2]);
-            } else {
-                DPRINTF(port,
-                        "error: tried to process non-NCQ command as NCQ\n");
-            }
-            qemu_sglist_destroy(&ncq_tfs->sglist);
-            ncq_err(ncq_tfs);
+        dma_acct_start(ide_state->blk, &ncq_tfs->acct,
+                       &ncq_tfs->sglist, BLOCK_ACCT_WRITE);
+        ncq_tfs->aiocb = dma_blk_write(ide_state->blk, &ncq_tfs->sglist,
+                                       ncq_tfs->lba, ncq_cb, ncq_tfs);
+        break;
+    default:
+        DPRINTF(port, "error: unsupported NCQ command (0x%02x) received\n",
+                ncq_tfs->cmd);
+        qemu_sglist_destroy(&ncq_tfs->sglist);
+        ncq_err(ncq_tfs);
     }
 }
 
