@@ -1372,6 +1372,29 @@ static void test_max(void)
     ahci_shutdown(ahci);
 }
 
+static void test_reset(void)
+{
+    AHCIQState *ahci;
+    int i;
+
+    ahci = ahci_boot(NULL);
+    ahci_test_pci_spec(ahci);
+    ahci_pci_enable(ahci);
+
+    for (i = 0; i < 2; i++) {
+        ahci_test_hba_spec(ahci);
+        ahci_hba_enable(ahci);
+        ahci_test_identify(ahci);
+        ahci_test_io_rw_simple(ahci, 4096, 0,
+                               CMD_READ_DMA_EXT,
+                               CMD_WRITE_DMA_EXT);
+        ahci_set(ahci, AHCI_GHC, AHCI_GHC_HR);
+        ahci_clean_mem(ahci);
+    }
+
+    ahci_shutdown(ahci);
+}
+
 /******************************************************************************/
 /* AHCI I/O Test Matrix Definitions                                           */
 
@@ -1623,6 +1646,7 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/migrate/dma/halted", test_migrate_halted_dma);
 
     qtest_add_func("/ahci/max", test_max);
+    qtest_add_func("/ahci/reset", test_reset);
 
     ret = g_test_run();
 
