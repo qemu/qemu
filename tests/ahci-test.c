@@ -228,6 +228,8 @@ static AHCIQState *ahci_boot_and_enable(const char *cli, ...)
 {
     AHCIQState *ahci;
     va_list ap;
+    uint16_t buff[256];
+    uint8_t port;
 
     if (cli) {
         va_start(ap, cli);
@@ -239,6 +241,10 @@ static AHCIQState *ahci_boot_and_enable(const char *cli, ...)
 
     ahci_pci_enable(ahci);
     ahci_hba_enable(ahci);
+    /* Initialize test device */
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
+    ahci_io(ahci, port, CMD_IDENTIFY, &buff, sizeof(buff), 0);
 
     return ahci;
 }
