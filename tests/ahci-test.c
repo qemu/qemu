@@ -890,26 +890,55 @@ static void ahci_test_io_rw_simple(AHCIQState *ahci, unsigned bufsize,
     g_free(rx);
 }
 
-static void ahci_test_nondata(AHCIQState *ahci, uint8_t ide_cmd)
+static uint8_t ahci_test_nondata(AHCIQState *ahci, uint8_t ide_cmd)
 {
-    uint8_t px;
+    uint8_t port;
     AHCICommand *cmd;
 
     /* Sanitize */
-    px = ahci_port_select(ahci);
-    ahci_port_clear(ahci, px);
+    port = ahci_port_select(ahci);
+    ahci_port_clear(ahci, port);
 
     /* Issue Command */
     cmd = ahci_command_create(ide_cmd);
-    ahci_command_commit(ahci, cmd, px);
+    ahci_command_commit(ahci, cmd, port);
     ahci_command_issue(ahci, cmd);
     ahci_command_verify(ahci, cmd);
     ahci_command_free(cmd);
+
+    return port;
 }
 
 static void ahci_test_flush(AHCIQState *ahci)
 {
     ahci_test_nondata(ahci, CMD_FLUSH_CACHE);
+}
+
+static void ahci_test_max(AHCIQState *ahci)
+{
+    RegD2HFIS *d2h = g_malloc0(0x20);
+    uint64_t nsect;
+    uint8_t port;
+    uint8_t cmd;
+    uint64_t config_sect = TEST_IMAGE_SECTORS - 1;
+
+    if (config_sect > 0xFFFFFF) {
+        cmd = CMD_READ_MAX_EXT;
+    } else {
+        cmd = CMD_READ_MAX;
+    }
+
+    port = ahci_test_nondata(ahci, cmd);
+    memread(ahci->port[port].fb + 0x40, d2h, 0x20);
+    nsect = (uint64_t)d2h->lba_hi[2] << 40 |
+        (uint64_t)d2h->lba_hi[1] << 32 |
+        (uint64_t)d2h->lba_hi[0] << 24 |
+        (uint64_t)d2h->lba_lo[2] << 16 |
+        (uint64_t)d2h->lba_lo[1] << 8 |
+        (uint64_t)d2h->lba_lo[0];
+
+    g_assert_cmphex(nsect, ==, config_sect);
+    g_free(d2h);
 }
 
 
@@ -1334,6 +1363,15 @@ static void test_flush_migrate(void)
     ahci_shutdown(dst);
 }
 
+static void test_max(void)
+{
+    AHCIQState *ahci;
+
+    ahci = ahci_boot_and_enable(NULL);
+    ahci_test_max(ahci);
+    ahci_shutdown(ahci);
+}
+
 /******************************************************************************/
 /* AHCI I/O Test Matrix Definitions                                           */
 
@@ -1583,6 +1621,8 @@ int main(int argc, char **argv)
     qtest_add_func("/ahci/migrate/dma/simple", test_migrate_dma);
     qtest_add_func("/ahci/io/dma/lba28/retry", test_halted_dma);
     qtest_add_func("/ahci/migrate/dma/halted", test_migrate_halted_dma);
+
+    qtest_add_func("/ahci/max", test_max);
 
     ret = g_test_run();
 
