@@ -236,7 +236,8 @@ typedef struct AHCIPortRegs {
 } AHCIPortRegs;
 
 typedef struct AHCICmdHdr {
-    uint32_t    opts;
+    uint16_t    opts;
+    uint16_t    prdtl;
     uint32_t    status;
     uint64_t    tbl_addr;
     uint32_t    reserved[4];

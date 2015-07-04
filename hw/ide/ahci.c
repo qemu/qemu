@@ -834,10 +834,11 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
                                 int32_t offset)
 {
     AHCICmdHdr *cmd = ad->cur_cmd;
-    uint32_t opts = le32_to_cpu(cmd->opts);
-    uint64_t prdt_addr = le64_to_cpu(cmd->tbl_addr) + 0x80;
-    int sglist_alloc_hint = opts >> AHCI_CMD_HDR_PRDT_LEN;
-    dma_addr_t prdt_len = (sglist_alloc_hint * sizeof(AHCI_SG));
+    uint16_t opts = le16_to_cpu(cmd->opts);
+    uint16_t prdtl = le16_to_cpu(cmd->prdtl);
+    uint64_t cfis_addr = le64_to_cpu(cmd->tbl_addr);
+    uint64_t prdt_addr = cfis_addr + 0x80;
+    dma_addr_t prdt_len = (prdtl * sizeof(AHCI_SG));
     dma_addr_t real_prdt_len = prdt_len;
     uint8_t *prdt;
     int i;
@@ -857,7 +858,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
      * request for sector sizes up to 32K.
      */
 
-    if (!sglist_alloc_hint) {
+    if (!prdtl) {
         DPRINTF(ad->port_no, "no sg list given by guest: 0x%08x\n", opts);
         return -1;
     }
@@ -876,10 +877,10 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
     }
 
     /* Get entries in the PRDT, init a qemu sglist accordingly */
-    if (sglist_alloc_hint > 0) {
+    if (prdtl > 0) {
         AHCI_SG *tbl = (AHCI_SG *)prdt;
         sum = 0;
-        for (i = 0; i < sglist_alloc_hint; i++) {
+        for (i = 0; i < prdtl; i++) {
             /* flags_size is zero-based */
             tbl_entry_size = prdt_tbl_entry_size(&tbl[i]);
             if (offset <= (sum + tbl_entry_size)) {
@@ -897,12 +898,12 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
             goto out;
         }
 
-        qemu_sglist_init(sglist, qbus->parent, (sglist_alloc_hint - off_idx),
+        qemu_sglist_init(sglist, qbus->parent, (prdtl - off_idx),
                          ad->hba->as);
         qemu_sglist_add(sglist, le64_to_cpu(tbl[off_idx].addr) + off_pos,
                         prdt_tbl_entry_size(&tbl[off_idx]) - off_pos);
 
-        for (i = off_idx + 1; i < sglist_alloc_hint; i++) {
+        for (i = off_idx + 1; i < prdtl; i++) {
             /* flags_size is zero-based */
             qemu_sglist_add(sglist, le64_to_cpu(tbl[i].addr),
                             prdt_tbl_entry_size(&tbl[i]));
@@ -1069,7 +1070,7 @@ static void handle_reg_h2d_fis(AHCIState *s, int port,
 {
     IDEState *ide_state = &s->dev[port].port.ifs[0];
     AHCICmdHdr *cmd = s->dev[port].cur_cmd;
-    uint32_t opts = le32_to_cpu(cmd->opts);
+    uint16_t opts = le16_to_cpu(cmd->opts);
 
     if (cmd_fis[1] & 0x0F) {
         DPRINTF(port, "Port Multiplier not supported."
@@ -1226,7 +1227,7 @@ static void ahci_start_transfer(IDEDMA *dma)
     IDEState *s = &ad->port.ifs[0];
     uint32_t size = (uint32_t)(s->data_end - s->data_ptr);
     /* write == ram -> device */
-    uint32_t opts = le32_to_cpu(ad->cur_cmd->opts);
+    uint16_t opts = le16_to_cpu(ad->cur_cmd->opts);
     int is_write = opts & AHCI_CMD_WRITE;
     int is_atapi = opts & AHCI_CMD_ATAPI;
     int has_sglist = 0;
