@@ -1116,11 +1116,20 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
     execute_ncq_command(ncq_tfs);
 }
 
+static AHCICmdHdr *get_cmd_header(AHCIState *s, uint8_t port, uint8_t slot)
+{
+    if (port >= s->ports || slot >= AHCI_MAX_CMDS) {
+        return NULL;
+    }
+
+    return s->dev[port].lst ? &((AHCICmdHdr *)s->dev[port].lst)[slot] : NULL;
+}
+
 static void handle_reg_h2d_fis(AHCIState *s, int port,
                                uint8_t slot, uint8_t *cmd_fis)
 {
     IDEState *ide_state = &s->dev[port].port.ifs[0];
-    AHCICmdHdr *cmd = s->dev[port].cur_cmd;
+    AHCICmdHdr *cmd = get_cmd_header(s, port, slot);
     uint16_t opts = le16_to_cpu(cmd->opts);
 
     if (cmd_fis[1] & 0x0F) {
@@ -1219,7 +1228,7 @@ static int handle_cmd(AHCIState *s, int port, uint8_t slot)
         DPRINTF(port, "error: lst not given but cmd handled");
         return -1;
     }
-    cmd = &((AHCICmdHdr *)s->dev[port].lst)[slot];
+    cmd = get_cmd_header(s, port, slot);
     /* remember current slot handle for later */
     s->dev[port].cur_cmd = cmd;
 
@@ -1572,7 +1581,7 @@ static int ahci_state_post_load(void *opaque, int version_id)
             if (ad->busy_slot < 0 || ad->busy_slot >= AHCI_MAX_CMDS) {
                 return -1;
             }
-            ad->cur_cmd = &((AHCICmdHdr *)ad->lst)[ad->busy_slot];
+            ad->cur_cmd = get_cmd_header(s, i, ad->busy_slot);
         }
     }
 
