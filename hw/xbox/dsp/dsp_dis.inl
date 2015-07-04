@@ -723,6 +723,15 @@ static void dis_cmp_imm(dsp_core_t* dsp) {
         xx, registers_name[d ? DSP_REG_B : DSP_REG_A]);
 }
 
+static void dis_cmp_long(dsp_core_t* dsp) {
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+
+    uint32_t d = (dsp->disasm_cur_inst >> 3) & 1;
+    sprintf(dsp->disasm_str_instr, "cmp #$%06x,%s",
+        xxxx, registers_name[d ? DSP_REG_B : DSP_REG_A]);
+}
+
 static void dis_cmpu(dsp_core_t* dsp) {
     uint32_t ggg = (dsp->disasm_cur_inst >> 1) & BITMASK(3);
     uint32_t d = dsp->disasm_cur_inst & 1;
@@ -745,18 +754,10 @@ static void dis_div(dsp_core_t* dsp)
     uint32_t srcreg=DSP_REG_NULL, destreg;
     
     switch((dsp->disasm_cur_inst>>4) & BITMASK(2)) {
-        case 0:
-            srcreg = DSP_REG_X0;
-                break;
-        case 1:
-            srcreg = DSP_REG_Y0;
-                break;
-        case 2:
-            srcreg = DSP_REG_X1;
-                break;
-        case 3:
-            srcreg = DSP_REG_Y1;
-                break;
+    case 0: srcreg = DSP_REG_X0; break;
+    case 1: srcreg = DSP_REG_Y0; break;
+    case 2: srcreg = DSP_REG_X1; break;
+    case 3: srcreg = DSP_REG_Y1; break;
     }
     destreg = DSP_REG_A+((dsp->disasm_cur_inst>>3) & 1);
 
@@ -1710,6 +1711,30 @@ static void dis_move_y_imm(dsp_core_t* dsp) {
     dis_move_xy_imm(dsp, DSP_SPACE_Y);
 }
 
+static void dis_mpyi(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+
+    uint32_t k = (dsp->disasm_cur_inst >> 2) & 1;
+    uint32_t d = (dsp->disasm_cur_inst >> 3) & 1;
+    uint32_t qq = (dsp->disasm_cur_inst >> 4) & BITMASK(2);
+
+    unsigned int srcreg = DSP_REG_NULL;
+    switch (qq) {
+    case 0: srcreg = DSP_REG_X0; break;
+    case 1: srcreg = DSP_REG_Y0; break;
+    case 2: srcreg = DSP_REG_X1; break;
+    case 3: srcreg = DSP_REG_Y1; break;
+    }
+
+    unsigned int destreg = d ? DSP_REG_B : DSP_REG_A;
+
+    sprintf(dsp->disasm_str_instr, "mpyi %s#$%06x,%s,%s",
+        k ? "-" : "+", xxxx,
+        registers_name[srcreg], registers_name[destreg]);
+}
+
 static void dis_norm(dsp_core_t* dsp)
 {
     uint32_t srcreg, destreg;
@@ -1799,6 +1824,15 @@ static void dis_sub_imm(dsp_core_t* dsp)
     uint32_t d = (dsp->disasm_cur_inst >> 3) & 1;
     sprintf(dsp->disasm_str_instr, "sub #$%02x,%s",
         xx, registers_name[d ? DSP_REG_B : DSP_REG_A]);
+}
+
+static void dis_sub_long(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->disasm_cur_inst_len++;
+    uint32_t d = (dsp->disasm_cur_inst >> 3) & 1;
+    sprintf(dsp->disasm_str_instr, "sub #$%06x,%s",
+        xxxx, registers_name[d ? DSP_REG_B : DSP_REG_A]);
 }
 
 static void dis_tcc(dsp_core_t* dsp)
