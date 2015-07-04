@@ -695,19 +695,34 @@ static void command_header_init(AHCICommand *cmd)
 static void command_table_init(AHCICommand *cmd)
 {
     RegH2DFIS *fis = &(cmd->fis);
+    uint16_t sect_count = (cmd->xbytes / AHCI_SECTOR_SIZE);
 
     fis->fis_type = REG_H2D_FIS;
     fis->flags = REG_H2D_FIS_CMD; /* "Command" bit */
     fis->command = cmd->name;
-    cmd->fis.feature_low = 0x00;
-    cmd->fis.feature_high = 0x00;
-    if (cmd->props->lba28 || cmd->props->lba48) {
-        cmd->fis.device = ATA_DEVICE_LBA;
+
+    if (cmd->props->ncq) {
+        NCQFIS *ncqfis = (NCQFIS *)fis;
+        /* NCQ is weird and re-uses FIS frames for unrelated data.
+         * See SATA 3.2, 13.6.4.1 READ FPDMA QUEUED for an example. */
+        ncqfis->sector_low = sect_count & 0xFF;
+        ncqfis->sector_hi = (sect_count >> 8) & 0xFF;
+        ncqfis->device = NCQ_DEVICE_MAGIC;
+        /* Force Unit Access is bit 7 in the device register */
+        ncqfis->tag = 0;  /* bits 3-7 are the NCQ tag */
+        ncqfis->prio = 0; /* bits 6,7 are a prio tag */
+        /* RARC bit is bit 0 of TAG field */
+    } else {
+        fis->feature_low = 0x00;
+        fis->feature_high = 0x00;
+        if (cmd->props->lba28 || cmd->props->lba48) {
+            fis->device = ATA_DEVICE_LBA;
+        }
+        fis->count = (cmd->xbytes / AHCI_SECTOR_SIZE);
     }
-    cmd->fis.count = (cmd->xbytes / AHCI_SECTOR_SIZE);
-    cmd->fis.icc = 0x00;
-    cmd->fis.control = 0x00;
-    memset(cmd->fis.aux, 0x00, ARRAY_SIZE(cmd->fis.aux));
+    fis->icc = 0x00;
+    fis->control = 0x00;
+    memset(fis->aux, 0x00, ARRAY_SIZE(fis->aux));
 }
 
 AHCICommand *ahci_command_create(uint8_t command_name)
@@ -721,6 +736,7 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     g_assert(!(props->lba28 && props->lba48));
     g_assert(!(props->read && props->write));
     g_assert(!props->size || props->data);
+    g_assert(!props->ncq || (props->ncq && props->lba48));
 
     /* Defaults and book-keeping */
     cmd->props = props;
@@ -789,6 +805,8 @@ void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer)
 void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
                             unsigned prd_size)
 {
+    uint16_t sect_count;
+
     /* Each PRD can describe up to 4MiB, and must not be odd. */
     g_assert_cmphex(prd_size, <=, 4096 * 1024);
     g_assert_cmphex(prd_size & 0x01, ==, 0x00);
@@ -796,7 +814,15 @@ void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
         cmd->prd_size = prd_size;
     }
     cmd->xbytes = xbytes;
-    cmd->fis.count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+    sect_count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+
+    if (cmd->props->ncq) {
+        NCQFIS *nfis = (NCQFIS *)&(cmd->fis);
+        nfis->sector_low = sect_count & 0xFF;
+        nfis->sector_hi = (sect_count >> 8) & 0xFF;
+    } else {
+        cmd->fis.count = sect_count;
+    }
     cmd->header.prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);
 }
 

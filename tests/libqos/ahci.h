@@ -291,8 +291,9 @@ enum {
 #define CMDH_PMP      (0xF000)
 
 /* ATA device register masks */
-#define ATA_DEVICE_MAGIC 0xA0
+#define ATA_DEVICE_MAGIC 0xA0 /* used in ata1-3 */
 #define ATA_DEVICE_LBA   0x40
+#define NCQ_DEVICE_MAGIC 0x40 /* for ncq device registers */
 #define ATA_DEVICE_DRIVE 0x10
 #define ATA_DEVICE_HEAD  0x0F
 
@@ -395,6 +396,32 @@ typedef struct RegH2DFIS {
     /* DW4 */
     uint8_t aux[4];
 } __attribute__((__packed__)) RegH2DFIS;
+
+/**
+ * Register host-to-device FIS structure, for NCQ commands.
+ * Actually just a RegH2DFIS, but with fields repurposed.
+ * Repurposed fields are annotated below.
+ */
+typedef struct NCQFIS {
+    /* DW0 */
+    uint8_t fis_type;
+    uint8_t flags;
+    uint8_t command;
+    uint8_t sector_low; /* H2D: Feature 7:0 */
+    /* DW1 */
+    uint8_t lba_lo[3];
+    uint8_t device;
+    /* DW2 */
+    uint8_t lba_hi[3];
+    uint8_t sector_hi; /* H2D: Feature 15:8 */
+    /* DW3 */
+    uint8_t tag;       /* H2D: Count 0:7 */
+    uint8_t prio;      /* H2D: Count 15:8 */
+    uint8_t icc;
+    uint8_t control;
+    /* DW4 */
+    uint8_t aux[4];
+} __attribute__((__packed__)) NCQFIS;
 
 /**
  * Command List entry structure.
