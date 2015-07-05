@@ -964,6 +964,12 @@ typedef struct ShaderState {
     int program_length;
 } ShaderState;
 
+typedef struct ShaderBinding {
+    GLuint gl_program;
+    GLint psh_constant_loc[9][2];
+    GLint vsh_constant_loc[NV2A_VERTEXSHADER_CONSTANTS];
+} ShaderBinding;
+
 typedef struct Surface {
     bool draw_dirty;
     unsigned int pitch;
@@ -1067,7 +1073,7 @@ typedef struct PGRAPHState {
 
     bool shaders_dirty;
     GHashTable *shader_cache;
-    GLuint gl_program;
+    ShaderBinding *shader_binding;
 
     float composite_matrix[16];
     GLint composite_matrix_location;
@@ -1740,12 +1746,11 @@ static gboolean shader_equal(gconstpointer a, gconstpointer b)
     return memcmp(as, bs, sizeof(ShaderState)) == 0;
 }
 
-static GLuint generate_shaders(ShaderState state)
+static ShaderBinding* generate_shaders(ShaderState state)
 {
-    int i;
+    int i, j;
 
     GLuint program = glCreateProgram();
-
 
     /* create the vertex shader */
 
@@ -1902,7 +1907,27 @@ static GLuint generate_shaders(ShaderState state)
         abort();
     }
 
-    return program;
+    ShaderBinding* ret = g_malloc0(sizeof(ShaderBinding));
+    ret->gl_program = program;
+
+    /* lookup fragment shader locations */
+    for (i=0; i<=8; i++) {
+        for (j=0; j<2; j++) {
+            char tmp[8];
+            snprintf(tmp, sizeof(tmp), "c_%d_%d", i, j);
+            ret->psh_constant_loc[i][j] = glGetUniformLocation(program, tmp);
+        }
+    }
+    if (state.vertex_program) {
+        /* lookup vertex shader bindings */
+        for(i = 0; i < NV2A_VERTEXSHADER_CONSTANTS; i++) {
+            char tmp[8];
+            snprintf(tmp, sizeof(tmp), "c[%d]", i);
+            ret->vsh_constant_loc[i] = glGetUniformLocation(program, tmp);
+        }
+    }
+
+    return ret;
 }
 
 static void pgraph_bind_shaders(PGRAPHState *pg)
@@ -1976,21 +2001,21 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             }
         }
 
-        gpointer cached_shader = g_hash_table_lookup(pg->shader_cache, &state);
+        ShaderBinding* cached_shader = g_hash_table_lookup(pg->shader_cache, &state);
         if (cached_shader) {
-            pg->gl_program = (GLuint)cached_shader;
+            pg->shader_binding = cached_shader;
         } else {
-            pg->gl_program = generate_shaders(state);
+            pg->shader_binding = generate_shaders(state);
 
             /* cache it */
             ShaderState *cache_state = g_malloc(sizeof(*cache_state));
             memcpy(cache_state, &state, sizeof(*cache_state));
             g_hash_table_insert(pg->shader_cache, cache_state,
-                                (gpointer)pg->gl_program);
+                                (gpointer)pg->shader_binding);
         }
     }
 
-    glUseProgram(pg->gl_program);
+    glUseProgram(pg->shader_binding->gl_program);
 
 
     /* update combiner constants */
@@ -2007,9 +2032,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
         int j;
         for (j = 0; j < 2; j++) {
-            char tmp[8];
-            snprintf(tmp, sizeof(tmp), "c_%d_%d", i, j);
-            GLint loc = glGetUniformLocation(pg->gl_program, tmp);
+            GLint loc = pg->shader_binding->psh_constant_loc[i][j];
             if (loc != -1) {
                 float value[4];
                 value[0] = (float) ((constant[j] >> 16) & 0xFF) / 255.0f;
@@ -2030,7 +2053,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     if (fixed_function) {
         /* update fixed function composite matrix */
 
-        GLint comLoc = glGetUniformLocation(pg->gl_program, "composite");
+        GLint comLoc = glGetUniformLocation(pg->shader_binding->gl_program, "composite");
         assert(comLoc != -1);
         glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
 
@@ -2054,7 +2077,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             -1.0, 1.0, -m43/m33, 1.0
         };
 
-        GLint viewLoc = glGetUniformLocation(pg->gl_program, "invViewport");
+        GLint viewLoc = glGetUniformLocation(pg->shader_binding->gl_program, "invViewport");
         assert(viewLoc != -1);
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &invViewport[0]);
 
@@ -2064,16 +2087,14 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
             VertexShaderConstant *constant = &pg->constants[i];
 
-            char tmp[8];
-            snprintf(tmp, sizeof(tmp), "c[%d]", i);
-            GLint loc = glGetUniformLocation(pg->gl_program, tmp);
+            GLint loc = pg->shader_binding->vsh_constant_loc[i];
             //assert(loc != -1);
             if (loc != -1) {
                 glUniform4fv(loc, 1, (const GLfloat*)constant->data);
             }
         }
 
-        GLint loc = glGetUniformLocation(pg->gl_program, "clipRange");
+        GLint loc = glGetUniformLocation(pg->shader_binding->gl_program, "clipRange");
         if (loc != -1) {
             glUniform2f(loc, zclip_min, zclip_max);
         }
