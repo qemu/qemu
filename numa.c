@@ -52,6 +52,92 @@ static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
 int nb_numa_nodes;
 NodeInfo numa_info[MAX_NODES];
 
+void numa_set_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node)
+{
+    struct numa_addr_range *range = g_malloc0(sizeof(*range));
+
+    /*
+     * Memory-less nodes can come here with 0 size in which case,
+     * there is nothing to do.
+     */
+    if (!size) {
+        return;
+    }
+
+    range->mem_start = addr;
+    range->mem_end = addr + size - 1;
+    QLIST_INSERT_HEAD(&numa_info[node].addr, range, entry);
+}
+
+void numa_unset_mem_node_id(ram_addr_t addr, uint64_t size, uint32_t node)
+{
+    struct numa_addr_range *range, *next;
+
+    QLIST_FOREACH_SAFE(range, &numa_info[node].addr, entry, next) {
+        if (addr == range->mem_start && (addr + size - 1) == range->mem_end) {
+            QLIST_REMOVE(range, entry);
+            g_free(range);
+            return;
+        }
+    }
+}
+
+static void numa_set_mem_ranges(void)
+{
+    int i;
+    ram_addr_t mem_start = 0;
+
+    /*
+     * Deduce start address of each node and use it to store
+     * the address range info in numa_info address range list
+     */
+    for (i = 0; i < nb_numa_nodes; i++) {
+        numa_set_mem_node_id(mem_start, numa_info[i].node_mem, i);
+        mem_start += numa_info[i].node_mem;
+    }
+}
+
+/*
+ * Check if @addr falls under NUMA @node.
+ */
+static bool numa_addr_belongs_to_node(ram_addr_t addr, uint32_t node)
+{
+    struct numa_addr_range *range;
+
+    QLIST_FOREACH(range, &numa_info[node].addr, entry) {
+        if (addr >= range->mem_start && addr <= range->mem_end) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/*
+ * Given an address, return the index of the NUMA node to which the
+ * address belongs to.
+ */
+uint32_t numa_get_node(ram_addr_t addr, Error **errp)
+{
+    uint32_t i;
+
+    /* For non NUMA configurations, check if the addr falls under node 0 */
+    if (!nb_numa_nodes) {
+        if (numa_addr_belongs_to_node(addr, 0)) {
+            return 0;
+        }
+    }
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        if (numa_addr_belongs_to_node(addr, i)) {
+            return i;
+        }
+    }
+
+    error_setg(errp, "Address 0x" RAM_ADDR_FMT " doesn't belong to any "
+                "NUMA node", addr);
+    return -1;
+}
+
 static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
 {
     uint16_t nodenr;
@@ -274,6 +360,12 @@ void parse_numa_opts(MachineClass *mc)
         }
 
         for (i = 0; i < nb_numa_nodes; i++) {
+            QLIST_INIT(&numa_info[i].addr);
+        }
+
+        numa_set_mem_ranges();
+
+        for (i = 0; i < nb_numa_nodes; i++) {
             if (!bitmap_empty(numa_info[i].node_cpu, MAX_CPUMASK_BITS)) {
                 break;
             }
@@ -297,6 +389,8 @@ void parse_numa_opts(MachineClass *mc)
         }
 
         validate_numa_cpus();
+    } else {
+        numa_set_mem_node_id(0, ram_size, 0);
     }
 }
 

@@ -1509,7 +1509,7 @@ build_srat(GArray *table_data, GArray *linker, PcGuestInfo *guest_info)
      */
     if (hotplugabble_address_space_size) {
         numamem = acpi_data_push(table_data, sizeof *numamem);
-        acpi_build_srat_memory(numamem, pcms->hotplug_memory_base,
+        acpi_build_srat_memory(numamem, pcms->hotplug_memory.base,
                                hotplugabble_address_space_size, 0,
                                MEM_AFFINITY_HOTPLUGGABLE |
                                MEM_AFFINITY_ENABLED);

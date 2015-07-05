@@ -15,14 +15,12 @@
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
 #include "hw/compat.h"
+#include "hw/mem/pc-dimm.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
 /**
  * PCMachineState:
- * @hotplug_memory_base: address in guest RAM address space where hotplug memory
- * address space begins.
- * @hotplug_memory: hotplug memory addess space container
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
  * @enforce_aligned_dimm: check that DIMM's address/size is aligned by
  *                        backend's alignment value if provided
@@ -32,8 +30,7 @@ struct PCMachineState {
     MachineState parent_obj;
 
     /* <public> */
-    ram_addr_t hotplug_memory_base;
-    MemoryRegion hotplug_memory;
+    MemoryHotplugState hotplug_memory;
 
     HotplugHandler *acpi_dev;
     ISADevice *rtc;

@@ -64,7 +64,6 @@
 #include "hw/pci/pci_host.h"
 #include "acpi-build.h"
 #include "hw/mem/pc-dimm.h"
-#include "trace.h"
 #include "qapi/visitor.h"
 #include "qapi-visit.h"
 
@@ -1297,7 +1296,7 @@ FWCfgState *pc_memory_init(MachineState *machine,
             exit(EXIT_FAILURE);
         }
 
-        pcms->hotplug_memory_base =
+        pcms->hotplug_memory.base =
             ROUND_UP(0x100000000ULL + above_4g_mem_size, 1ULL << 30);
 
         if (pcms->enforce_aligned_dimm) {
@@ -1305,17 +1304,17 @@ FWCfgState *pc_memory_init(MachineState *machine,
             hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
         }
 
-        if ((pcms->hotplug_memory_base + hotplug_mem_size) <
+        if ((pcms->hotplug_memory.base + hotplug_mem_size) <
             hotplug_mem_size) {
             error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
                          machine->maxram_size);
             exit(EXIT_FAILURE);
         }
 
-        memory_region_init(&pcms->hotplug_memory, OBJECT(pcms),
+        memory_region_init(&pcms->hotplug_memory.mr, OBJECT(pcms),
                            "hotplug-memory", hotplug_mem_size);
-        memory_region_add_subregion(system_memory, pcms->hotplug_memory_base,
-                                    &pcms->hotplug_memory);
+        memory_region_add_subregion(system_memory, pcms->hotplug_memory.base,
+                                    &pcms->hotplug_memory.mr);
     }
 
     /* Initialize PC system firmware */
@@ -1333,9 +1332,9 @@ FWCfgState *pc_memory_init(MachineState *machine,
     fw_cfg = bochs_bios_init();
     rom_set_fw(fw_cfg);
 
-    if (guest_info->has_reserved_memory && pcms->hotplug_memory_base) {
+    if (guest_info->has_reserved_memory && pcms->hotplug_memory.base) {
         uint64_t *val = g_malloc(sizeof(*val));
-        *val = cpu_to_le64(ROUND_UP(pcms->hotplug_memory_base, 0x1ULL << 30));
+        *val = cpu_to_le64(ROUND_UP(pcms->hotplug_memory.base, 0x1ULL << 30));
         fw_cfg_add_file(fw_cfg, "etc/reserved-memory-end", val, sizeof(*val));
     }
 
@@ -1554,70 +1553,17 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
 static void pc_dimm_plug(HotplugHandler *hotplug_dev,
                          DeviceState *dev, Error **errp)
 {
-    int slot;
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
-    MachineState *machine = MACHINE(hotplug_dev);
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm);
-    uint64_t existing_dimms_capacity = 0;
     uint64_t align = TARGET_PAGE_SIZE;
-    uint64_t addr;
-
-    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
-    if (local_err) {
-        goto out;
-    }
 
     if (memory_region_get_alignment(mr) && pcms->enforce_aligned_dimm) {
         align = memory_region_get_alignment(mr);
     }
-
-    addr = pc_dimm_get_free_addr(pcms->hotplug_memory_base,
-                                 memory_region_size(&pcms->hotplug_memory),
-                                 !addr ? NULL : &addr, align,
-                                 memory_region_size(mr), &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    existing_dimms_capacity = pc_existing_dimms_capacity(&local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    if (existing_dimms_capacity + memory_region_size(mr) >
-        machine->maxram_size - machine->ram_size) {
-        error_setg(&local_err, "not enough space, currently 0x%" PRIx64
-                   " in use of total hot pluggable 0x" RAM_ADDR_FMT,
-                   existing_dimms_capacity,
-                   machine->maxram_size - machine->ram_size);
-        goto out;
-    }
-
-    object_property_set_int(OBJECT(dev), addr, PC_DIMM_ADDR_PROP, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    trace_mhp_pc_dimm_assigned_address(addr);
-
-    slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP, &local_err);
-    if (local_err) {
-        goto out;
-    }
-
-    slot = pc_dimm_get_free_slot(slot == PC_DIMM_UNASSIGNED_SLOT ? NULL : &slot,
-                                 machine->ram_slots, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    object_property_set_int(OBJECT(dev), slot, PC_DIMM_SLOT_PROP, &local_err);
-    if (local_err) {
-        goto out;
-    }
-    trace_mhp_pc_dimm_assigned_slot(slot);
 
     if (!pcms->acpi_dev) {
         error_setg(&local_err,
@@ -1625,17 +1571,13 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    if (kvm_enabled() && !kvm_has_free_slot(machine)) {
-        error_setg(&local_err, "hypervisor has no free memory slots left");
+    pc_dimm_memory_plug(dev, &pcms->hotplug_memory, mr, align, &local_err);
+    if (local_err) {
         goto out;
     }
 
-    memory_region_add_subregion(&pcms->hotplug_memory,
-                                addr - pcms->hotplug_memory_base, mr);
-    vmstate_register_ram(mr, dev);
-
     hhc = HOTPLUG_HANDLER_GET_CLASS(pcms->acpi_dev);
-    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
+    hhc->plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &error_abort);
 out:
     error_propagate(errp, local_err);
 }
@@ -1677,9 +1619,7 @@ static void pc_dimm_unplug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    memory_region_del_subregion(&pcms->hotplug_memory, mr);
-    vmstate_unregister_ram(mr, dev);
-
+    pc_dimm_memory_unplug(dev, &pcms->hotplug_memory, mr);
     object_unparent(OBJECT(dev));
 
  out:
@@ -1766,7 +1706,7 @@ pc_machine_get_hotplug_memory_region_size(Object *obj, Visitor *v, void *opaque,
                                           const char *name, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
-    int64_t value = memory_region_size(&pcms->hotplug_memory);
+    int64_t value = memory_region_size(&pcms->hotplug_memory.mr);
 
     visit_type_int(v, &value, name, errp);
 }
