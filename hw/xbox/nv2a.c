@@ -982,6 +982,23 @@ typedef struct Surface {
     hwaddr offset;
 } Surface;
 
+typedef struct TextureState {
+    unsigned int dimensionality;
+    unsigned int color_format;
+    unsigned int levels;
+    unsigned int width, height;
+
+    unsigned int min_mipmap_level, max_mipmap_level;
+    unsigned int pitch;
+
+    uint64_t data_hash;
+} TextureState;
+
+typedef struct TextureBinding {
+    GLenum gl_target;
+    GLuint gl_texture;
+} TextureBinding;
+
 typedef struct InlineVertexBufferEntry {
     uint32_t position[4];
     uint32_t diffuse;
@@ -1071,9 +1088,9 @@ typedef struct PGRAPHState {
     uint32_t color_mask;
 
     hwaddr dma_a, dma_b;
+    GHashTable *texture_cache;
     bool texture_dirty[NV2A_MAX_TEXTURES];
-    GLuint gl_textures_rect[NV2A_MAX_TEXTURES];
-    GLuint gl_textures[NV2A_MAX_TEXTURES];
+    uint64_t last_texture_hash[NV2A_MAX_TEXTURES];
 
     bool shaders_dirty;
     GHashTable *shader_cache;
@@ -1261,6 +1278,57 @@ static void reg_log_write(int block, hwaddr addr, uint64_t val);
 static void pgraph_method_log(unsigned int subchannel,
                               unsigned int graphics_class,
                               unsigned int method, uint32_t parameter);
+
+static uint64_t fnv_hash(const uint8_t *data, size_t len)
+{
+    /* 64 bit Fowler/Noll/Vo FNV-1a hash code */
+    uint64_t hval = 0xcbf29ce484222325ULL;
+    const uint8_t *dp = data;
+    const uint8_t *de = data + len;
+    while (dp < de) {
+        hval ^= (uint64_t) *dp++;
+        hval += (hval << 1) + (hval << 4) + (hval << 5) +
+            (hval << 7) + (hval << 8) + (hval << 40);
+    }
+
+    return (guint)hval;
+}
+
+static uint64_t fast_hash(const uint8_t *data, size_t len, unsigned int samples)
+{
+// #ifdef __SSE4_2__
+    uint64_t h[4] = {len, 0, 0, 0};
+    assert(samples > 0);
+
+    if (len < 8 || len % 8) {
+        return fnv_hash(data, len);
+    }
+
+    assert(len >= 8 && len % 8 == 0);
+    const uint64_t *dp = (const uint64_t*)data;
+    const uint64_t *de = dp + (len / 8);
+    size_t step = len / 8 / samples;
+    if (step == 0) step = 1;
+
+    while (dp < de - step * 3) {
+        h[0] = __builtin_ia32_crc32di(h[0], dp[step * 0]);
+        h[1] = __builtin_ia32_crc32di(h[1], dp[step * 1]);
+        h[2] = __builtin_ia32_crc32di(h[2], dp[step * 2]);
+        h[3] = __builtin_ia32_crc32di(h[3], dp[step * 3]);
+        dp += step * 4;
+    }
+    if (dp < de - step * 0)
+        h[0] = __builtin_ia32_crc32di(h[0], dp[step * 0]);
+    if (dp < de - step * 1)
+        h[1] = __builtin_ia32_crc32di(h[1], dp[step * 1]);
+    if (dp < de - step * 2)
+        h[2] = __builtin_ia32_crc32di(h[2], dp[step * 2]);
+
+    return h[0] + (h[1] << 10) + (h[2] << 21) + (h[3] << 32);
+// #else
+//     return fnv_hash(data, len);
+// #endif
+}
 
 static void update_irq(NV2AState *d)
 {
@@ -1548,6 +1616,103 @@ static void pgraph_bind_vertex_attributes(NV2AState *d)
     }
 }
 
+/* hash and equality for texture cache hash table */
+static guint texture_state_hash(gconstpointer key)
+{
+    return fnv_hash(key, sizeof(TextureState));
+}
+static gboolean texture_state_equal(gconstpointer a, gconstpointer b)
+{
+    const TextureState *as = a, *bs = b;
+    return memcmp(as, bs, sizeof(TextureState)) == 0;
+}
+
+static TextureBinding load_texture(TextureState s, const uint8_t *texture_data)
+{
+    ColorFormatInfo f = kelvin_color_format_map[s.color_format];
+
+    /* Create a new opengl texture */
+    GLuint gl_texture;
+    glGenTextures(1, &gl_texture);
+
+    GLenum gl_target;
+    if (f.linear) {
+        /* linear textures use unnormalised texcoords.
+         * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
+         * does not allow repeat and mirror wrap modes.
+         *  (or mipmapping, but xbox d3d says 'Non swizzled and non
+         *   compressed textures cannot be mip mapped.')
+         * Not sure if that'll be an issue. */
+        gl_target = GL_TEXTURE_RECTANGLE_ARB;
+    } else {
+        gl_target = GL_TEXTURE_2D;
+    }
+
+    glBindTexture(gl_target, gl_texture);
+
+    if (f.linear) {
+        /* Can't handle retarded strides */
+        assert(s.pitch % f.bytes_per_pixel == 0);
+        glPixelStorei(GL_UNPACK_ROW_LENGTH,
+                      s.pitch / f.bytes_per_pixel);
+
+        glTexImage2D(gl_target, 0, f.gl_internal_format,
+                     s.width, s.height, 0,
+                     f.gl_format, f.gl_type,
+                     texture_data);
+
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    } else {
+
+        glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
+            s.min_mipmap_level);
+        glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
+            s.levels-1);
+
+        unsigned int width = s.width, height = s.height;
+
+        int level;
+        for (level = 0; level < s.levels; level++) {
+            if (f.gl_format == 0) { /* retarded way of indicating compressed */
+                unsigned int block_size;
+                if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
+                    block_size = 8;
+                } else {
+                    block_size = 16;
+                }
+
+                if (width < 4) width = 4;
+                if (height < 4) height = 4;
+
+                glCompressedTexImage2D(gl_target, level, f.gl_internal_format,
+                                       width, height, 0,
+                                       width/4 * height/4 * block_size,
+                                       texture_data);
+            } else {
+                unsigned int pitch = width * f.bytes_per_pixel;
+                uint8_t *unswizzled = g_malloc(height * pitch);
+                unswizzle_rect(texture_data, width, height,
+                               unswizzled, pitch, f.bytes_per_pixel);
+
+                glTexImage2D(gl_target, level, f.gl_internal_format,
+                             width, height, 0,
+                             f.gl_format, f.gl_type,
+                             unswizzled);
+
+                g_free(unswizzled);
+            }
+
+            texture_data += width * height * f.bytes_per_pixel;
+            width /= 2;
+            height /= 2;
+        }
+    }
+
+    return (TextureBinding){
+        .gl_target = gl_target,
+        .gl_texture = gl_texture,
+    };
+}
 
 static void pgraph_bind_textures(NV2AState *d)
 {
@@ -1602,55 +1767,36 @@ static void pgraph_bind_textures(NV2AState *d)
             continue;
         }
 
-
-        NV2A_DPRINTF(" texture %d is format 0x%x, (r %d, %d or %d, %d; %d),"
-                        " filter %x %x, levels %d-%d %d bias %d\n",
-                     i, color_format,
-                     rect_width, rect_height,
-                     1 << log_width, 1 << log_height,
-                     pitch,
-                     min_filter, mag_filter,
-                     min_mipmap_level, max_mipmap_level, levels,
-                     lod_bias);
+        if (pg->texture_dirty[i]) {
+            NV2A_DPRINTF(" texture %d is format 0x%x, (r %d, %d or %d, %d; %d),"
+                            " filter %x %x, levels %d-%d %d bias %d\n",
+                         i, color_format,
+                         rect_width, rect_height,
+                         1 << log_width, 1 << log_height,
+                         pitch,
+                         min_filter, mag_filter,
+                         min_mipmap_level, max_mipmap_level, levels,
+                         lod_bias);
+        }
 
         assert(color_format
                 < sizeof(kelvin_color_format_map)/sizeof(ColorFormatInfo));
         ColorFormatInfo f = kelvin_color_format_map[color_format];
         assert(f.bytes_per_pixel != 0);
 
-        GLenum gl_target;
-        GLuint gl_texture;
         unsigned int width, height;
         if (f.linear) {
-            /* linear textures use unnormalised texcoords.
-             * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
-             * does not allow repeat and mirror wrap modes.
-             *  (or mipmapping, but xbox d3d says 'Non swizzled and non
-             *   compressed textures cannot be mip mapped.')
-             * Not sure if that'll be an issue. */
-            gl_target = GL_TEXTURE_RECTANGLE_ARB;
-            gl_texture = pg->gl_textures_rect[i];
-            
             width = rect_width;
             height = rect_height;
-        } else {
-            gl_target = GL_TEXTURE_2D;
-            gl_texture = pg->gl_textures[i];
 
+        } else {
             width = 1 << log_width;
             height = 1 << log_height;
+
+            if (max_mipmap_level < levels) {
+                levels = max_mipmap_level;
+            }
         }
-
-        glBindTexture(gl_target, gl_texture);
-
-        if (!pg->texture_dirty[i]) continue;
-
-        glTexParameteri(gl_target, GL_TEXTURE_MIN_FILTER,
-            kelvin_texture_min_filter_map[min_filter]);
-        glTexParameteri(gl_target, GL_TEXTURE_MAG_FILTER,
-            kelvin_texture_mag_filter_map[mag_filter]);
-
-        /* load texture data*/
 
         hwaddr dma_len;
         uint8_t *texture_data;
@@ -1662,88 +1808,81 @@ static void pgraph_bind_textures(NV2AState *d)
         assert(offset < dma_len);
         texture_data += offset;
 
-        NV2A_DPRINTF(" - 0x%tx\n", texture_data - d->vram_ptr);
+        uint64_t data_hash = pg->last_texture_hash[i];
+        if (pg->texture_dirty[i]) {
 
-        if (f.linear) {
-            /* Can't handle retarded strides */
-            assert(pitch % f.bytes_per_pixel == 0);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                          pitch / f.bytes_per_pixel);
+            NV2A_DPRINTF(" - 0x%tx\n", texture_data - d->vram_ptr);
 
-            glTexImage2D(gl_target, 0, f.gl_internal_format,
-                         width, height, 0,
-                         f.gl_format, f.gl_type,
-                         texture_data);
+            // compute the new hash
 
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        } else {
-            if (max_mipmap_level < levels) {
-                levels = max_mipmap_level;
-            }
-
-            glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
-                min_mipmap_level);
-            glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
-                levels-1);
-
-
-            int level;
-            for (level = 0; level < levels; level++) {
-                if (f.gl_format == 0) { /* retarded way of indicating compressed */
-                    unsigned int block_size;
-                    if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
-                        block_size = 8;
-                    } else {
-                        block_size = 16;
-                    }
-
-                    if (width < 4) width = 4;
-                    if (height < 4) height = 4;
-
-                    glCompressedTexImage2D(gl_target, level, f.gl_internal_format,
-                                           width, height, 0,
-                                           width/4 * height/4 * block_size,
-                                           texture_data);
-                } else {
-                    unsigned int pitch = width * f.bytes_per_pixel;
-                    uint8_t *unswizzled = g_malloc(height * pitch);
-                    unswizzle_rect(texture_data, width, height,
-                                   unswizzled, pitch, f.bytes_per_pixel);
-
-                    glTexImage2D(gl_target, level, f.gl_internal_format,
-                                 width, height, 0,
-                                 f.gl_format, f.gl_type,
-                                 unswizzled);
-
-                    g_free(unswizzled);
+            size_t length = 0;
+            if (f.linear) {
+                length = height * pitch;
+            } else {
+                unsigned int w = width, h = height;
+                int level;
+                for (level = 0; level < levels; level++) {
+                    length += w * h * f.bytes_per_pixel;
+                    w /= 2;
+                    h /= 2;
                 }
-
-                texture_data += width * height * f.bytes_per_pixel;
-                width /= 2;
-                height /= 2;
             }
-
+            data_hash = fast_hash(texture_data, length, 1000);
         }
 
+        TextureState state = {
+            .dimensionality = dimensionality,
+            .color_format = color_format,
+            .levels = levels,
+            .width = width,
+            .height = height,
+            .min_mipmap_level = min_mipmap_level,
+            .max_mipmap_level = max_mipmap_level,
+            .pitch = pitch,
+            .data_hash = data_hash,
+        };
+
+        GLenum gl_target;
+        GLuint gl_texture;
+
+        gpointer cached_texture =
+            g_hash_table_lookup(pg->texture_cache, &state);
+        if (cached_texture) {
+            // printf("cached texture!\n");
+            TextureBinding *binding = cached_texture;
+            gl_target = binding->gl_target;
+            gl_texture = binding->gl_texture;
+            glBindTexture(gl_target, gl_texture);
+        } else {
+            // printf("new texture %llx!\n", data_hash);
+            TextureBinding binding = load_texture(state, texture_data);
+            // texture is already binded
+            gl_target = binding.gl_target;
+            gl_texture = binding.gl_texture;
+
+            /* cache it */
+            TextureState *cache_state = g_malloc(sizeof(TextureState));
+            memcpy(cache_state, &state, sizeof(TextureState));
+            TextureBinding *cache_binding = g_malloc(sizeof(TextureBinding));
+            memcpy(cache_binding, &binding, sizeof(TextureBinding));
+            g_hash_table_insert(pg->texture_cache, cache_state, cache_binding);
+        }
+
+        glTexParameteri(gl_target, GL_TEXTURE_MIN_FILTER,
+            kelvin_texture_min_filter_map[min_filter]);
+        glTexParameteri(gl_target, GL_TEXTURE_MAG_FILTER,
+            kelvin_texture_mag_filter_map[mag_filter]);
+
         pg->texture_dirty[i] = false;
+        pg->last_texture_hash[i] = data_hash;
     }
 }
 
+/* hash and equality for shader cache hash table */
 static guint shader_hash(gconstpointer key)
 {
-    /* 64 bit Fowler/Noll/Vo FNV-1a hash code */
-    uint64_t hval = 0xcbf29ce484222325ULL;
-    const uint8_t *bp = key;
-    const uint8_t *be = key + sizeof(ShaderState);
-    while (bp < be) {
-        hval ^= (uint64_t) *bp++;
-        hval += (hval << 1) + (hval << 4) + (hval << 5) +
-            (hval << 7) + (hval << 8) + (hval << 40);
-    }
-
-    return (guint)hval;
+    return fnv_hash(key, sizeof(ShaderState));
 }
-
 static gboolean shader_equal(gconstpointer a, gconstpointer b)
 {
     const ShaderState *as = a, *bs = b;
@@ -2280,8 +2419,6 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
 
 static void pgraph_init(PGRAPHState *pg)
 {
-    int i;
-
     qemu_mutex_init(&pg->lock);
     qemu_cond_init(&pg->interrupt_cond);
     qemu_cond_init(&pg->fifo_access_cond);
@@ -2327,12 +2464,8 @@ static void pgraph_init(PGRAPHState *pg)
 
     pg->shaders_dirty = true;
 
-    /* generate textures */
-    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
-        glGenTextures(1, &pg->gl_textures[i]);
-        glGenTextures(1, &pg->gl_textures_rect[i]);
-    }
-
+    pg->texture_cache = g_hash_table_new(
+        texture_state_hash, texture_state_equal);
     pg->shader_cache = g_hash_table_new(shader_hash, shader_equal);
 
     assert(glGetError() == GL_NO_ERROR);
@@ -2342,8 +2475,6 @@ static void pgraph_init(PGRAPHState *pg)
 
 static void pgraph_destroy(PGRAPHState *pg)
 {
-    int i;
-
     qemu_mutex_destroy(&pg->lock);
     qemu_cond_destroy(&pg->interrupt_cond);
     qemu_cond_destroy(&pg->fifo_access_cond);
@@ -2354,10 +2485,8 @@ static void pgraph_destroy(PGRAPHState *pg)
     glDeleteRenderbuffersEXT(1, &pg->gl_renderbuffer);
     glDeleteFramebuffersEXT(1, &pg->gl_framebuffer);
 
-    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
-        glDeleteTextures(1, &pg->gl_textures[i]);
-        glDeleteTextures(1, &pg->gl_textures_rect[i]);
-    }
+    // TODO: clear out shader cached
+    // TODO: clear out texture cache
 
     glo_set_current(NULL);
 
