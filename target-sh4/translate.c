@@ -612,15 +612,11 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x6008:		/* swap.b Rm,Rn */
 	{
-	    TCGv high, low;
-	    high = tcg_temp_new();
-	    tcg_gen_andi_i32(high, REG(B7_4), 0xffff0000);
-	    low = tcg_temp_new();
+            TCGv low = tcg_temp_new();;
 	    tcg_gen_ext16u_i32(low, REG(B7_4));
 	    tcg_gen_bswap16_i32(low, low);
-	    tcg_gen_or_i32(REG(B11_8), high, low);
+            tcg_gen_deposit_i32(REG(B11_8), REG(B7_4), low, 0, 16);
 	    tcg_temp_free(low);
-	    tcg_temp_free(high);
 	}
 	return;
     case 0x6009:		/* swap.w Rm,Rn */
