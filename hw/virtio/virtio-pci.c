@@ -443,6 +443,83 @@ static const MemoryRegionOps virtio_pci_config_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+/* Below are generic functions to do memcpy from/to an address space,
+ * without byteswaps, with input validation.
+ *
+ * As regular address_space_* APIs all do some kind of byteswap at least for
+ * some host/target combinations, we are forced to explicitly convert to a
+ * known-endianness integer value.
+ * It doesn't really matter which endian format to go through, so the code
+ * below selects the endian that causes the least amount of work on the given
+ * host.
+ *
+ * Note: host pointer must be aligned.
+ */
+static
+void virtio_address_space_write(AddressSpace *as, hwaddr addr,
+                                const uint8_t *buf, int len)
+{
+    uint32_t val;
+
+    /* address_space_* APIs assume an aligned address.
+     * As address is under guest control, handle illegal values.
+     */
+    addr &= ~(len - 1);
+
+    /* Make sure caller aligned buf properly */
+    assert(!(((uintptr_t)buf) & (len - 1)));
+
+    switch (len) {
+    case 1:
+        val = pci_get_byte(buf);
+        address_space_stb(as, addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 2:
+        val = pci_get_word(buf);
+        address_space_stw_le(as, addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 4:
+        val = pci_get_long(buf);
+        address_space_stl_le(as, addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    default:
+        /* As length is under guest control, handle illegal values. */
+        break;
+    }
+}
+
+static void
+virtio_address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len)
+{
+    uint32_t val;
+
+    /* address_space_* APIs assume an aligned address.
+     * As address is under guest control, handle illegal values.
+     */
+    addr &= ~(len - 1);
+
+    /* Make sure caller aligned buf properly */
+    assert(!(((uintptr_t)buf) & (len - 1)));
+
+    switch (len) {
+    case 1:
+        val = address_space_ldub(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
+        pci_set_byte(buf, val);
+        break;
+    case 2:
+        val = address_space_lduw_le(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
+        pci_set_word(buf, val);
+        break;
+    case 4:
+        val = address_space_ldl_le(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
+        pci_set_long(buf, val);
+        break;
+    default:
+        /* As length is under guest control, handle illegal values. */
+        break;
+    }
+}
+
 static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
                                 uint32_t val, int len)
 {
@@ -469,10 +546,9 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
         off = le32_to_cpu(cfg->cap.offset);
         len = le32_to_cpu(cfg->cap.length);
 
-        if ((len == 1 || len == 2 || len == 4)) {
-            address_space_write(&proxy->modern_as, off,
-                                MEMTXATTRS_UNSPECIFIED,
-                                cfg->pci_cfg_data, len);
+        if (len <= sizeof cfg->pci_cfg_data) {
+            virtio_address_space_write(&proxy->modern_as, off,
+                                       cfg->pci_cfg_data, len);
         }
     }
 }
@@ -494,10 +570,9 @@ static uint32_t virtio_read_config(PCIDevice *pci_dev,
         off = le32_to_cpu(cfg->cap.offset);
         len = le32_to_cpu(cfg->cap.length);
 
-        if ((len == 1 || len == 2 || len == 4)) {
-            address_space_read(&proxy->modern_as, off,
-                                MEMTXATTRS_UNSPECIFIED,
-                                cfg->pci_cfg_data, len);
+        if (len <= sizeof cfg->pci_cfg_data) {
+            virtio_address_space_read(&proxy->modern_as, off,
+                                      cfg->pci_cfg_data, len);
         }
     }
 
