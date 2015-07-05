@@ -154,6 +154,8 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
     /* If user has passed a time, validate and set it. */
     if (has_time) {
+        GDate date = { 0, };
+
         /* year-2038 will overflow in case time_t is 32bit */
         if (time_ns / 1000000000 != (time_t)(time_ns / 1000000000)) {
             error_setg(errp, "Time %" PRId64 " is too large", time_ns);
@@ -162,6 +164,11 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
         tv.tv_sec = time_ns / 1000000000;
         tv.tv_usec = (time_ns % 1000000000) / 1000;
+        g_date_set_time_t(&date, tv.tv_sec);
+        if (date.year < 1970 || date.year >= 2070) {
+            error_setg_errno(errp, errno, "Invalid time");
+            return;
+        }
 
         ret = settimeofday(&tv, NULL);
         if (ret < 0) {
