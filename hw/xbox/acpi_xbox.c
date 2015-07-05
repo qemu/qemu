@@ -33,7 +33,7 @@
 
 #include "hw/xbox/acpi_xbox.h"
 
-// #define DEBUG
+#define DEBUG
 #ifdef DEBUG
 # define XBOX_DPRINTF(format, ...)     printf(format, ## __VA_ARGS__)
 #else
@@ -43,13 +43,16 @@
 #define XBOX_PM_GPIO_BASE 0xC0
 #define XBOX_PM_GPIO_LEN 26
 
+static int field_pin = 0;
+
 static uint64_t xbox_pm_gpio_read(void *opaque, hwaddr addr, unsigned width)
 {
     uint64_t r = 0;
     switch (addr) {
     case 0:
         // field pin from tv encoder?
-        r = 0;
+        field_pin = (field_pin+1)&1;
+        r = field_pin << 5;
         break;
     default:
         break;
