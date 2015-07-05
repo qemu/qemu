@@ -95,6 +95,9 @@ static const struct {
 #define NV1BA0_PIO_VOICE_ON                              0x00000124
 #   define NV1BA0_PIO_VOICE_ON_HANDLE                       0x0000FFFF
 #define NV1BA0_PIO_VOICE_OFF                             0x00000128
+#define NV1BA0_PIO_VOICE_PAUSE                           0x00000140
+#   define NV1BA0_PIO_VOICE_PAUSE_HANDLE                    0x0000FFFF
+#   define NV1BA0_PIO_VOICE_PAUSE_ACTION                    (1 << 18)
 #define NV1BA0_PIO_SET_CURRENT_VOICE                     0x000002F8
 
 #define SE2FE_IDLE_VOICE                                 0x00008000
@@ -103,6 +106,7 @@ static const struct {
 /* voice structure */
 #define NV_PAVS_SIZE                                     0x00000080
 #define NV_PAVS_VOICE_PAR_STATE                          0x00000054
+#   define NV_PAVS_VOICE_PAR_STATE_PAUSED                   (1 << 18)
 #   define NV_PAVS_VOICE_PAR_STATE_ACTIVE_VOICE             (1 << 21)
 #define NV_PAVS_VOICE_TAR_PITCH_LINK                     0x0000007c
 #   define NV_PAVS_VOICE_TAR_PITCH_LINK_NEXT_VOICE_HANDLE   0x0000FFFF
@@ -172,7 +176,7 @@ static uint32_t voice_get_mask(MCPXAPUState *d,
                                hwaddr offset,
                                uint32_t mask)
 {
-    assert(voice_handle != 0xFFFF);
+    assert(voice_handle < 0xFFFF);
     hwaddr voice = d->regs[NV_PAPU_VPVADDR]
                     + voice_handle * NV_PAVS_SIZE;
     return (ldl_le_phys(voice + offset) & mask) >> (ffs(mask)-1);
@@ -183,7 +187,7 @@ static void voice_set_mask(MCPXAPUState *d,
                            uint32_t mask,
                            uint32_t val)
 {
-    assert(voice_handle != 0xFFFF);
+    assert(voice_handle < 0xFFFF);
     hwaddr voice = d->regs[NV_PAPU_VPVADDR]
                     + voice_handle * NV_PAVS_SIZE;
     uint32_t v = ldl_le_phys(voice + offset) & ~mask;
@@ -327,6 +331,12 @@ static void fe_method(MCPXAPUState *d,
                 NV_PAVS_VOICE_PAR_STATE_ACTIVE_VOICE,
                 0);
         break;
+    case NV1BA0_PIO_VOICE_PAUSE:
+        voice_set_mask(d, argument & NV1BA0_PIO_VOICE_PAUSE_HANDLE,
+                NV_PAVS_VOICE_PAR_STATE,
+                NV_PAVS_VOICE_PAR_STATE_PAUSED,
+                (argument & NV1BA0_PIO_VOICE_PAUSE_ACTION) != 0);
+        break;
     case NV1BA0_PIO_SET_CURRENT_VOICE:
         d->regs[NV_PAPU_FECV] = argument;
         break;
@@ -377,6 +387,7 @@ static void vp_write(void *opaque, hwaddr addr,
     case NV1BA0_PIO_SET_ANTECEDENT_VOICE:
     case NV1BA0_PIO_VOICE_ON:
     case NV1BA0_PIO_VOICE_OFF:
+    case NV1BA0_PIO_VOICE_PAUSE:
     case NV1BA0_PIO_SET_CURRENT_VOICE:
         /* TODO: these should instead be queueing up fe commands */
         fe_method(d, addr, val);
@@ -547,7 +558,7 @@ static void se_frame(void *opaque)
         next = voice_list_regs[list].next;
 
         d->regs[current] = d->regs[top];
-        MCPX_DPRINTF("start current voice %d\n", d->regs[current]);
+        MCPX_DPRINTF("list %d current voice %d\n", list, d->regs[current]);
         while (d->regs[current] != 0xFFFF) {
             d->regs[next] = voice_get_mask(d, d->regs[current],
                 NV_PAVS_VOICE_TAR_PITCH_LINK,
@@ -558,8 +569,8 @@ static void se_frame(void *opaque)
                 MCPX_DPRINTF("voice %d not active...!\n", d->regs[current]);
                 fe_method(d, SE2FE_IDLE_VOICE, d->regs[current]);
             }
+            MCPX_DPRINTF("next voice %d\n", d->regs[next]);
             d->regs[current] = d->regs[next];
-            MCPX_DPRINTF("current voice %d\n", d->regs[current]);
         }
     }
 
