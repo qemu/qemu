@@ -688,18 +688,11 @@ static void _decode_opc(DisasContext * ctx)
 	{
 	    TCGv cmp1 = tcg_temp_new();
 	    TCGv cmp2 = tcg_temp_new();
-	    tcg_gen_xor_i32(cmp1, REG(B7_4), REG(B11_8));
-	    tcg_gen_andi_i32(cmp2, cmp1, 0xff000000);
-            tcg_gen_setcondi_i32(TCG_COND_EQ, cpu_sr_t, cmp2, 0);
-	    tcg_gen_andi_i32(cmp2, cmp1, 0x00ff0000);
-	    tcg_gen_setcondi_i32(TCG_COND_EQ, cmp2, cmp2, 0);
-            tcg_gen_or_i32(cpu_sr_t, cpu_sr_t, cmp2);
-	    tcg_gen_andi_i32(cmp2, cmp1, 0x0000ff00);
-	    tcg_gen_setcondi_i32(TCG_COND_EQ, cmp2, cmp2, 0);
-            tcg_gen_or_i32(cpu_sr_t, cpu_sr_t, cmp2);
-	    tcg_gen_andi_i32(cmp2, cmp1, 0x000000ff);
-	    tcg_gen_setcondi_i32(TCG_COND_EQ, cmp2, cmp2, 0);
-            tcg_gen_or_i32(cpu_sr_t, cpu_sr_t, cmp2);
+            tcg_gen_xor_i32(cmp2, REG(B7_4), REG(B11_8));
+            tcg_gen_subi_i32(cmp1, cmp2, 0x01010101);
+            tcg_gen_andc_i32(cmp1, cmp1, cmp2);
+            tcg_gen_andi_i32(cmp1, cmp1, 0x80808080);
+            tcg_gen_setcondi_i32(TCG_COND_NE, cpu_sr_t, cmp1, 0);
 	    tcg_temp_free(cmp2);
 	    tcg_temp_free(cmp1);
 	}
