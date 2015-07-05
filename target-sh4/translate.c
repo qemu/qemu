@@ -832,37 +832,28 @@ static void _decode_opc(DisasContext * ctx)
 	return;
     case 0x400c:		/* shad Rm,Rn */
 	{
-            TCGLabel *label1 = gen_new_label();
-            TCGLabel *label2 = gen_new_label();
-            TCGLabel *label3 = gen_new_label();
-            TCGLabel *label4 = gen_new_label();
-	    TCGv shift;
-	    tcg_gen_brcondi_i32(TCG_COND_LT, REG(B7_4), 0, label1);
-	    /* Rm positive, shift to the left */
-            shift = tcg_temp_new();
-	    tcg_gen_andi_i32(shift, REG(B7_4), 0x1f);
-	    tcg_gen_shl_i32(REG(B11_8), REG(B11_8), shift);
-	    tcg_temp_free(shift);
-	    tcg_gen_br(label4);
-	    /* Rm negative, shift to the right */
-	    gen_set_label(label1);
-            shift = tcg_temp_new();
-	    tcg_gen_andi_i32(shift, REG(B7_4), 0x1f);
-	    tcg_gen_brcondi_i32(TCG_COND_EQ, shift, 0, label2);
-	    tcg_gen_not_i32(shift, REG(B7_4));
-	    tcg_gen_andi_i32(shift, shift, 0x1f);
-	    tcg_gen_addi_i32(shift, shift, 1);
-	    tcg_gen_sar_i32(REG(B11_8), REG(B11_8), shift);
-	    tcg_temp_free(shift);
-	    tcg_gen_br(label4);
-	    /* Rm = -32 */
-	    gen_set_label(label2);
-	    tcg_gen_brcondi_i32(TCG_COND_LT, REG(B11_8), 0, label3);
-	    tcg_gen_movi_i32(REG(B11_8), 0);
-	    tcg_gen_br(label4);
-	    gen_set_label(label3);
-	    tcg_gen_movi_i32(REG(B11_8), 0xffffffff);
-	    gen_set_label(label4);
+            TCGv t0 = tcg_temp_new();
+            TCGv t1 = tcg_temp_new();
+            TCGv t2 = tcg_temp_new();
+
+            tcg_gen_andi_i32(t0, REG(B7_4), 0x1f);
+
+            /* positive case: shift to the left */
+            tcg_gen_shl_i32(t1, REG(B11_8), t0);
+
+            /* negative case: shift to the right in two steps to
+               correctly handle the -32 case */
+            tcg_gen_xori_i32(t0, t0, 0x1f);
+            tcg_gen_sar_i32(t2, REG(B11_8), t0);
+            tcg_gen_sari_i32(t2, t2, 1);
+
+            /* select between the two cases */
+            tcg_gen_movi_i32(t0, 0);
+            tcg_gen_movcond_i32(TCG_COND_GE, REG(B11_8), REG(B7_4), t0, t1, t2);
+
+            tcg_temp_free(t0);
+            tcg_temp_free(t1);
+            tcg_temp_free(t2);
 	}
 	return;
     case 0x400d:		/* shld Rm,Rn */
