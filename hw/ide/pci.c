@@ -53,10 +53,14 @@ static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
 }
 
 /**
- * Return the number of bytes successfully prepared.
- * -1 on error.
+ * Prepare an sglist based on available PRDs.
+ * @limit: How many bytes to prepare total.
+ *
+ * Returns the number of bytes prepared, -1 on error.
+ * IDEState.io_buffer_size will contain the number of bytes described
+ * by the PRDs, whether or not we added them to the sglist.
  */
-static int32_t bmdma_prepare_buf(IDEDMA *dma, int is_write)
+static int32_t bmdma_prepare_buf(IDEDMA *dma, int32_t limit)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
     IDEState *s = bmdma_active_if(bm);
@@ -75,7 +79,7 @@ static int32_t bmdma_prepare_buf(IDEDMA *dma, int is_write)
             /* end of table (with a fail safe of one page) */
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE) {
-                return s->io_buffer_size;
+                return s->sg.size;
             }
             pci_dma_read(pci_dev, bm->cur_addr, &prd, 8);
             bm->cur_addr += 8;
@@ -90,7 +94,14 @@ static int32_t bmdma_prepare_buf(IDEDMA *dma, int is_write)
         }
         l = bm->cur_prd_len;
         if (l > 0) {
-            qemu_sglist_add(&s->sg, bm->cur_prd_addr, l);
+            uint64_t sg_len;
+
+            /* Don't add extra bytes to the SGList; consume any remaining
+             * PRDs from the guest, but ignore them. */
+            sg_len = MIN(limit - s->sg.size, bm->cur_prd_len);
+            if (sg_len) {
+                qemu_sglist_add(&s->sg, bm->cur_prd_addr, sg_len);
+            }
 
             /* Note: We limit the max transfer to be 2GiB.
              * This should accommodate the largest ATA transaction
