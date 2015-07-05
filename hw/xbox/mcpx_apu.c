@@ -47,8 +47,10 @@
 #define NV_PAPU_SECTL                                    0x00002000
 #   define NV_PAPU_SECTL_XCNTMODE                           0x00000018
 #       define NV_PAPU_SECTL_XCNTMODE_OFF                       0
+#define NV_PAPU_XGSCNT                                   0x0000200C
 #define NV_PAPU_VPVADDR                                  0x0000202C
 #define NV_PAPU_GPSADDR                                  0x00002040
+#define NV_PAPU_EPSADDR                                  0x00002048
 #define NV_PAPU_TVL2D                                    0x00002054
 #define NV_PAPU_CVL2D                                    0x00002058
 #define NV_PAPU_NVL2D                                    0x0000205C
@@ -59,6 +61,7 @@
 #define NV_PAPU_CVLMP                                    0x00002070
 #define NV_PAPU_NVLMP                                    0x00002074
 #define NV_PAPU_GPSMAXSGE                                0x000020D4
+#define NV_PAPU_EPSMAXSGE                                0x000020DC
 
 #define NV_PAPU_GPRST                                    0x0000FFFC
 #define NV_PAPU_GPRST_GPRST                                 (1 << 0)
@@ -66,6 +69,10 @@
 #define NV_PAPU_GPRST_GPNMI                                 (1 << 2)
 #define NV_PAPU_GPRST_GPABORT                               (1 << 3)
 
+#define NV_PAPU_EPXMEM                                   0x00000000
+#define NV_PAPU_EPYMEM                                   0x00006000
+#define NV_PAPU_EPPMEM                                   0x0000A000
+#define NV_PAPU_EPRST                                    0x0000FFFC
 
 static const struct {
     hwaddr top, current, next;
@@ -115,7 +122,7 @@ static const struct {
 
 
 
-// #define DEBUG
+#define DEBUG
 #ifdef DEBUG
 # define MCPX_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
 #else
@@ -144,6 +151,13 @@ typedef struct MCPXAPUState {
         DSPState *dsp;
         uint32_t regs[0x10000];
     } gp;
+
+    /* Encode Processor */
+    struct {
+        MemoryRegion mmio;
+        DSPState *dsp;
+        uint32_t regs[0x10000];
+    } ep;
 
     uint32_t regs[0x20000];
 
@@ -202,6 +216,9 @@ static uint64_t mcpx_apu_read(void *opaque,
 
     uint64_t r = 0;
     switch (addr) {
+    case NV_PAPU_XGSCNT:
+        r = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 100; //???
+        break;
     default:
         if (addr < 0x20000) {
             r = d->regs[addr];
@@ -373,16 +390,13 @@ static const MemoryRegionOps vp_ops = {
     .write = vp_write,
 };
 
-static void gp_scratch_rw(void *opaque, uint8_t* ptr, uint32_t addr, size_t len, bool dir)
+static void scratch_rw(hwaddr sge_base, unsigned int max_sge,
+                       uint8_t* ptr, uint32_t addr, size_t len, bool dir)
 {
-    MCPXAPUState *d = opaque;
-
-    hwaddr sge_base = d->regs[NV_PAPU_GPSADDR];
-
     int i;
     for (i=0; i<len; i++) {
         unsigned int entry = (addr + i) / TARGET_PAGE_SIZE;
-        assert(entry < d->regs[NV_PAPU_GPSMAXSGE]);
+        assert(entry < max_sge);
         uint32_t prd_address = ldl_le_phys(sge_base + entry*4*2);
         uint32_t prd_control = ldl_le_phys(sge_base + entry*4*2 + 1);
 
@@ -393,6 +407,31 @@ static void gp_scratch_rw(void *opaque, uint8_t* ptr, uint32_t addr, size_t len,
         } else {
             ptr[i] = ldub_phys(paddr);
         }
+    }
+}
+
+static void gp_scratch_rw(void *opaque, uint8_t* ptr, uint32_t addr, size_t len, bool dir)
+{
+    MCPXAPUState *d = opaque;
+    scratch_rw(d->regs[NV_PAPU_GPSADDR], d->regs[NV_PAPU_GPSMAXSGE],
+               ptr, addr, len, dir);
+}
+
+static void ep_scratch_rw(void *opaque, uint8_t* ptr, uint32_t addr, size_t len, bool dir)
+{
+    MCPXAPUState *d = opaque;
+    scratch_rw(d->regs[NV_PAPU_EPSADDR], d->regs[NV_PAPU_EPSMAXSGE],
+               ptr, addr, len, dir);
+}
+
+static void proc_rst_write(DSPState *dsp, uint32_t oldval, uint32_t val)
+{
+    if (!(val & NV_PAPU_GPRST_GPRST) || !(val & NV_PAPU_GPRST_GPDSPRST)) {
+        dsp_reset(dsp);
+    } else if ((!(oldval & NV_PAPU_GPRST_GPRST)
+                || !(oldval & NV_PAPU_GPRST_GPDSPRST))
+            && ((val & NV_PAPU_GPRST_GPRST) && (val & NV_PAPU_GPRST_GPDSPRST)) ) {
+        dsp_bootstrap(dsp);
     }
 }
 
@@ -415,13 +454,7 @@ static void gp_write(void *opaque, hwaddr addr,
 
     switch (addr) {
     case NV_PAPU_GPRST:
-        if (!(val & NV_PAPU_GPRST_GPRST) || !(val & NV_PAPU_GPRST_GPDSPRST)) {
-            dsp_reset(d->gp.dsp);
-        } else if ((!(d->gp.regs[NV_PAPU_GPRST] & NV_PAPU_GPRST_GPRST)
-                    || !(d->gp.regs[NV_PAPU_GPRST] & NV_PAPU_GPRST_GPDSPRST))
-                && ((val & NV_PAPU_GPRST_GPRST) && (val & NV_PAPU_GPRST_GPDSPRST)) ) {
-            dsp_bootstrap(d->gp.dsp);
-        }
+        proc_rst_write(d->gp.dsp, d->gp.regs[NV_PAPU_GPRST], val);
         d->gp.regs[NV_PAPU_GPRST] = val;
         break;
     default:
@@ -432,6 +465,71 @@ static void gp_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps gp_ops = {
     .read = gp_read,
     .write = gp_write,
+};
+
+
+/* Encode Processor - encoding DSP */
+static uint64_t ep_read(void *opaque,
+                        hwaddr addr, unsigned int size)
+{
+    MCPXAPUState *d = opaque;
+
+    uint64_t r = 0;
+    switch (addr) {
+    case NV_PAPU_EPXMEM ... NV_PAPU_EPXMEM + 0xC00*4: {
+        uint32_t xaddr = (addr - NV_PAPU_EPXMEM) / 4;
+        r = dsp_read_memory(d->ep.dsp, 'X', xaddr);
+        break;
+    }
+    case NV_PAPU_EPYMEM ... NV_PAPU_EPYMEM + 0x100*4: {
+        uint32_t yaddr = (addr - NV_PAPU_EPYMEM) / 4;
+        r = dsp_read_memory(d->ep.dsp, 'Y', yaddr);
+        break;
+    }
+    case NV_PAPU_EPPMEM ... NV_PAPU_EPPMEM + 0x1000*4: {
+        uint32_t paddr = (addr - NV_PAPU_EPPMEM) / 4;
+        r = dsp_read_memory(d->ep.dsp, 'P', paddr);
+        break;
+    }
+    default:
+        r = d->ep.regs[addr];
+        break;
+    }
+    MCPX_DPRINTF("mcpx apu EP: read [0x%llx] -> 0x%llx\n", addr, r);
+    return r;
+}
+static void ep_write(void *opaque, hwaddr addr,
+                     uint64_t val, unsigned int size)
+{
+    MCPXAPUState *d = opaque;
+
+    MCPX_DPRINTF("mcpx apu EP: [0x%llx] = 0x%llx\n", addr, val);
+
+    switch (addr) {
+    case NV_PAPU_EPXMEM ... NV_PAPU_EPXMEM + 0xC00*4: {
+        assert(false);
+        break;
+    }
+    case NV_PAPU_EPYMEM ... NV_PAPU_EPYMEM + 0x100*4: {
+        assert(false);
+        break;
+    }
+    case NV_PAPU_EPPMEM ... NV_PAPU_EPPMEM + 0x1000*4: {
+        assert(false);
+        break;
+    }
+    case NV_PAPU_EPRST:
+        proc_rst_write(d->ep.dsp, d->ep.regs[NV_PAPU_EPRST], val);
+        d->ep.regs[NV_PAPU_EPRST] = val;
+        break;
+    default:
+        d->ep.regs[addr] = val;
+        break;
+    }
+}
+static const MemoryRegionOps ep_ops = {
+    .read = ep_read,
+    .write = ep_write,
 };
 
 
@@ -449,6 +547,7 @@ static void se_frame(void *opaque)
         next = voice_list_regs[list].next;
 
         d->regs[current] = d->regs[top];
+        MCPX_DPRINTF("start current voice %d\n", d->regs[current]);
         while (d->regs[current] != 0xFFFF) {
             d->regs[next] = voice_get_mask(d, d->regs[current],
                 NV_PAVS_VOICE_TAR_PITCH_LINK,
@@ -460,6 +559,7 @@ static void se_frame(void *opaque)
                 fe_method(d, SE2FE_IDLE_VOICE, d->regs[current]);
             }
             d->regs[current] = d->regs[next];
+            MCPX_DPRINTF("current voice %d\n", d->regs[current]);
         }
     }
 
@@ -468,9 +568,15 @@ static void se_frame(void *opaque)
         dsp_start_frame(d->gp.dsp);
 
         // hax
-        dsp_run(d->gp.dsp, 10000);
+        dsp_run(d->gp.dsp, 1000);
     }
+    if ((d->ep.regs[NV_PAPU_EPRST] & NV_PAPU_GPRST_GPRST)
+        && (d->ep.regs[NV_PAPU_EPRST] & NV_PAPU_GPRST_GPDSPRST)) {
+        dsp_start_frame(d->ep.dsp);
 
+        // hax
+        // dsp_run(d->ep.dsp, 1000);
+    }
 }
 
 
@@ -491,12 +597,17 @@ static int mcpx_apu_initfn(PCIDevice *dev)
                           "mcpx-apu-gp", 0x10000);
     memory_region_add_subregion(&d->mmio, 0x30000, &d->gp.mmio);
 
+    memory_region_init_io(&d->ep.mmio, OBJECT(dev), &ep_ops, d,
+                          "mcpx-apu-ep", 0x10000);
+    memory_region_add_subregion(&d->mmio, 0x50000, &d->ep.mmio);
+
     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
 
     d->se.frame_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, se_frame, d);
 
     d->gp.dsp = dsp_init(d, gp_scratch_rw);
+    d->ep.dsp = dsp_init(d, ep_scratch_rw);
 
     return 0;
 }

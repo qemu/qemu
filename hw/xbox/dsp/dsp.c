@@ -197,36 +197,19 @@ uint32_t dsp_disasm_address(DSPState* dsp, FILE *out, uint32_t lowerAdr, uint32_
     return dsp_pc;
 }
 
-
-/**
- * Get the value from the given (16-bit) DSP memory address / space
- * exactly the same way as in dsp_cpu.c::read_memory() (except for
- * the host/transmit peripheral register values which access has
- * side-effects). Set the mem_str to suitable string for that
- * address / space.
- * Return the value at given address. For valid values AND the return
- * value with BITMASK(24).
- */
-uint32_t dsp_read_memory(DSPState* dsp, uint32_t address, char space_id, const char **mem_str)
+uint32_t dsp_read_memory(DSPState* dsp, char space_id, uint32_t address)
 {
     int space;
 
     switch (space_id) {
     case 'X':
         space = DSP_SPACE_X;
-        if (address >= DSP_PERIPH_BASE) {
-            *mem_str = "X periph";
-        } else {
-            *mem_str = "X ram";
-        }
         break;
     case 'Y':
         space = DSP_SPACE_Y;
-        *mem_str = "Y ram";
         break;
     case 'P':
         space = DSP_SPACE_P;
-        *mem_str = "P ram";
         break;
     default:
         assert(false);
@@ -243,11 +226,10 @@ uint32_t dsp_read_memory(DSPState* dsp, uint32_t address, char space_id, const c
 uint32_t dsp_disasm_memory(DSPState* dsp, uint32_t dsp_memdump_addr, uint32_t dsp_memdump_upper, char space)
 {
     uint32_t mem, value;
-    const char *mem_str;
 
     for (mem = dsp_memdump_addr; mem <= dsp_memdump_upper; mem++) {
-        value = dsp_read_memory(dsp, mem, space, &mem_str);
-        printf("%s:%04x  %06x\n", mem_str, mem, value);
+        value = dsp_read_memory(dsp, space, mem);
+        printf("%04x  %06x\n", mem, value);
     }
     return dsp_memdump_upper+1;
 }
