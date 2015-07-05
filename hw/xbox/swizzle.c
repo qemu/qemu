@@ -72,7 +72,7 @@ static unsigned int get_swizzled_offset(
 }
 
 void swizzle_rect(
-    uint8_t *src_buf,
+    const uint8_t *src_buf,
     unsigned int width,
     unsigned int height,
     uint8_t *dst_buf,
@@ -82,15 +82,16 @@ void swizzle_rect(
     int x, y;
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
-            uint8_t *src = src_buf + (y * pitch + x * bytes_per_pixel);
-            uint8_t *dst = dst_buf + get_swizzled_offset(x, y, width, height, bytes_per_pixel);
+            const uint8_t *src = src_buf+ (y * pitch + x * bytes_per_pixel);
+            uint8_t *dst = dst_buf +
+                get_swizzled_offset(x, y, width, height, bytes_per_pixel);
             memcpy(dst, src, bytes_per_pixel);
         }
     }
 }
 
 void unswizzle_rect(
-    uint8_t *src_buf,
+    const uint8_t *src_buf,
     unsigned int width,
     unsigned int height,
     uint8_t *dst_buf,
@@ -100,7 +101,8 @@ void unswizzle_rect(
     int x, y;
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
-            uint8_t *src = src_buf + get_swizzled_offset(x, y, width, height, bytes_per_pixel);
+            const uint8_t *src = src_buf
+                + get_swizzled_offset(x, y, width, height, bytes_per_pixel);
             uint8_t *dst = dst_buf + (y * pitch + x * bytes_per_pixel);
             memcpy(dst, src, bytes_per_pixel);
         }

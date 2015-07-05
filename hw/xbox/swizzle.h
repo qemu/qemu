@@ -23,7 +23,7 @@
 #define HW_XBOX_SWIZZLE_H
 
 void swizzle_rect(
-    uint8_t *src_buf,
+    const uint8_t *src_buf,
     unsigned int width,
     unsigned int height,
     uint8_t *dst_buf,
@@ -31,7 +31,7 @@ void swizzle_rect(
     unsigned int bytes_per_pixel);
 
  void unswizzle_rect(
-    uint8_t *src_buf,
+    const uint8_t *src_buf,
     unsigned int width,
     unsigned int height,
     uint8_t *dst_buf,
