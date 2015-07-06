@@ -1029,12 +1029,11 @@ typedef struct TextureState {
 
     unsigned int min_mipmap_level, max_mipmap_level;
     unsigned int pitch;
-
-    uint64_t data_hash;
 } TextureState;
 
 typedef struct TextureKey {
     TextureState state;
+    uint64_t data_hash;
     uint8_t* texture_data;
 } TextureKey;
 
@@ -1751,15 +1750,18 @@ static TextureBinding* generate_texture(const TextureState s,
 }
 
 /* functions for texture LRU cache */
-static guint texture_state_hash(gconstpointer key)
+static guint texture_key_hash(gconstpointer key)
 {
     const TextureKey *k = key;
-    return fnv_hash((const uint8_t*)&k->state, sizeof(TextureState));
+    uint64_t state_hash = fnv_hash(
+        (const uint8_t*)&k->state, sizeof(TextureState));
+    return state_hash ^ k->data_hash;
 }
-static gboolean texture_state_equal(gconstpointer a, gconstpointer b)
+static gboolean texture_key_equal(gconstpointer a, gconstpointer b)
 {
     const TextureKey *ak = a, *bk = b;
-    return memcmp(&ak->state, &bk->state, sizeof(TextureState)) == 0;
+    return memcmp(&ak->state, &bk->state, sizeof(TextureState)) == 0
+            && ak->data_hash == bk->data_hash;
 }
 static gpointer texture_key_retrieve(gpointer key, gpointer user_data)
 {
@@ -1903,16 +1905,12 @@ static void pgraph_bind_textures(NV2AState *d)
             .min_mipmap_level = min_mipmap_level,
             .max_mipmap_level = max_mipmap_level,
             .pitch = pitch,
-#ifdef USE_TEXTURE_CACHE
-            .data_hash = fast_hash(texture_data, length, 1000),
-#else
-            .data_hash = 0,
-#endif
         };
 
 #ifdef USE_TEXTURE_CACHE
         TextureKey key = {
             .state = state,
+            .data_hash = fast_hash(texture_data, length, 1000),
             .texture_data = texture_data,
         };
 
@@ -2544,7 +2542,7 @@ static void pgraph_init(PGRAPHState *pg)
     pg->shaders_dirty = true;
 
     pg->texture_cache = g_lru_cache_new(
-        texture_state_hash, texture_state_equal,
+        texture_key_hash, texture_key_equal,
         NULL, texture_key_retrieve,
         texture_key_destroy, texture_binding_destroy,
         NULL, NULL);
