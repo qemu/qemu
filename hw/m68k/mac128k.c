@@ -10,6 +10,7 @@
 #include "hw/loader.h"
 #include "elf.h"
 #include "exec/address-spaces.h"
+#include "exec/ram_addr.h"
 #include "sysemu/qtest.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
@@ -28,9 +29,9 @@ typedef struct {
 
 /* Display controller */
 
-typedef void (*drawfn)(void *, uint8_t *, const uint8_t *, int, int);
+typedef void (*drawfn)(uint8_t *, const uint8_t *, int);
 
-/*#define DEPTH 8
+#define DEPTH 8
 #include "hw/display/mac_display_template.h"
 #define DEPTH 15
 #include "hw/display/mac_display_template.h"
@@ -38,31 +39,35 @@ typedef void (*drawfn)(void *, uint8_t *, const uint8_t *, int, int);
 #include "hw/display/mac_display_template.h"
 #define DEPTH 32
 #include "hw/display/mac_display_template.h"
-  */
-/*static drawfn draw_line_table[33] = {
+
+static drawfn draw_line_table[33] = {
     [0 ... 32]	= NULL,
     [8]		= draw_line_8,
     [15]	= draw_line_15,
     [16]	= draw_line_16,
     [32]	= draw_line_32,
-};*/
+};
 
 static void mac_update_display(void *opaque)
 {
     mac_display *s = (mac_display*)opaque;
-    /*DisplaySurface *surface = qemu_console_surface(s->con);
+    DisplaySurface *surface = qemu_console_surface(s->con);
     uint8_t *dest;
-    int linesize, line;
+    uint8_t *src;
+    int line;
+
     if (!surface_bits_per_pixel(surface)) {
         return;
     }
 
     drawfn draw_line = draw_line_table[surface_bits_per_pixel(surface)];
     dest = surface_data(surface);
-    linesize = surface_stride(surface);
+    src = qemu_get_ram_ptr(0x1a700);
     for (line = 0 ; line < SCREEN_HEIGHT ; ++line) {
-        // TODO: read line address and call draw_line fn
-    } */
+        draw_line(dest, src, SCREEN_WIDTH);
+        dest += surface_stride(surface);
+        src += SCREEN_WIDTH / 8;
+    }
     dpy_gfx_update(s->con, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     s->invalidate = 0;
 }

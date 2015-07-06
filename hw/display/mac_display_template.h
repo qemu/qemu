@@ -43,23 +43,20 @@
 /*
  * 1-bit colour
  */
-static void glue(draw_line_, DEPTH)(void *opaque,
-                uint8_t *d, const uint8_t *s, int width, int deststep)
+static void glue(draw_line_, DEPTH)(uint8_t *d, const uint8_t *s, int width)
 {
-    uint8_t v, r, g, b;
-    int i;
+    uint8_t v, r, g, b, mask;
 
     do {
         v = ldub_p((void *) s);
-        for (i = 0 ; i < 8 ; ++i) {
-            r = (v & 1) * 0xff;
-            g = (v & 1) * 0xff;
-            b = (v & 1) * 0xff;
+        for (mask = 0x80 ; mask ; mask >>= 1) {
+            r = (v & mask) ? 0xff : 0;
+            g = (v & mask) ? 0xff : 0;
+            b = (v & mask) ? 0xff : 0;
             ((PIXEL_TYPE *) d)[0] = glue(rgb_to_pixel, DEPTH)(r, g, b);
             d += BPP;
-            v >>= 1;
         }
-        s ++;
+        ++s;
         width -= 8;
     } while (width > 0);
 }
