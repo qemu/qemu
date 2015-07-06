@@ -7440,6 +7440,47 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             break;
         }
         break;
+    case 0x11a:
+        modrm = cpu_ldub_code(env, s->pc++);
+        if (s->flags & HF_MPX_EN_MASK) {
+            mod = (modrm >> 6) & 3;
+            reg = ((modrm >> 3) & 7) | rex_r;
+            if (prefixes & PREFIX_DATA) {
+                /* bndmov -- from reg/mem */
+                if (reg >= 4 || s->aflag == MO_16) {
+                    goto illegal_op;
+                }
+                if (mod == 3) {
+                    int reg2 = (modrm & 7) | REX_B(s);
+                    if (reg2 >= 4 || (prefixes & PREFIX_LOCK)) {
+                        goto illegal_op;
+                    }
+                    if (s->flags & HF_MPX_IU_MASK) {
+                        tcg_gen_mov_i64(cpu_bndl[reg], cpu_bndl[reg2]);
+                        tcg_gen_mov_i64(cpu_bndu[reg], cpu_bndu[reg2]);
+                    }
+                } else {
+                    gen_lea_modrm(env, s, modrm);
+                    if (CODE64(s)) {
+                        tcg_gen_qemu_ld_i64(cpu_bndl[reg], cpu_A0,
+                                            s->mem_index, MO_LEQ);
+                        tcg_gen_addi_tl(cpu_A0, cpu_A0, 8);
+                        tcg_gen_qemu_ld_i64(cpu_bndu[reg], cpu_A0,
+                                            s->mem_index, MO_LEQ);
+                    } else {
+                        tcg_gen_qemu_ld_i64(cpu_bndl[reg], cpu_A0,
+                                            s->mem_index, MO_LEUL);
+                        tcg_gen_addi_tl(cpu_A0, cpu_A0, 4);
+                        tcg_gen_qemu_ld_i64(cpu_bndu[reg], cpu_A0,
+                                            s->mem_index, MO_LEUL);
+                    }
+                    /* bnd registers are now in-use */
+                    gen_set_hflag(s, HF_MPX_IU_MASK);
+                }
+            }
+        }
+        gen_nop_modrm(env, s, modrm);
+        break;
     case 0x11b:
         modrm = cpu_ldub_code(env, s->pc++);
         if (s->flags & HF_MPX_EN_MASK) {
@@ -7473,11 +7514,41 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 /* bnd registers are now in-use */
                 gen_set_hflag(s, HF_MPX_IU_MASK);
                 break;
+            } else if (prefixes & PREFIX_DATA) {
+                /* bndmov -- to reg/mem */
+                if (reg >= 4 || s->aflag == MO_16) {
+                    goto illegal_op;
+                }
+                if (mod == 3) {
+                    int reg2 = (modrm & 7) | REX_B(s);
+                    if (reg2 >= 4 || (prefixes & PREFIX_LOCK)) {
+                        goto illegal_op;
+                    }
+                    if (s->flags & HF_MPX_IU_MASK) {
+                        tcg_gen_mov_i64(cpu_bndl[reg2], cpu_bndl[reg]);
+                        tcg_gen_mov_i64(cpu_bndu[reg2], cpu_bndu[reg]);
+                    }
+                } else {
+                    gen_lea_modrm(env, s, modrm);
+                    if (CODE64(s)) {
+                        tcg_gen_qemu_st_i64(cpu_bndl[reg], cpu_A0,
+                                            s->mem_index, MO_LEQ);
+                        tcg_gen_addi_tl(cpu_A0, cpu_A0, 8);
+                        tcg_gen_qemu_st_i64(cpu_bndu[reg], cpu_A0,
+                                            s->mem_index, MO_LEQ);
+                    } else {
+                        tcg_gen_qemu_st_i64(cpu_bndl[reg], cpu_A0,
+                                            s->mem_index, MO_LEUL);
+                        tcg_gen_addi_tl(cpu_A0, cpu_A0, 4);
+                        tcg_gen_qemu_st_i64(cpu_bndu[reg], cpu_A0,
+                                            s->mem_index, MO_LEUL);
+                    }
+                }
             }
         }
         gen_nop_modrm(env, s, modrm);
         break;
-    case 0x119: case 0x11a: case 0x11c ... 0x11f: /* nop (multi byte) */
+    case 0x119: case 0x11c ... 0x11f: /* nop (multi byte) */
         modrm = cpu_ldub_code(env, s->pc++);
         gen_nop_modrm(env, s, modrm);
         break;
