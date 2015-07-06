@@ -63,7 +63,7 @@ unsigned long reserved_va = 0xf7000000;
 unsigned long reserved_va;
 #endif
 
-static void usage(void);
+static void usage(int exitcode);
 
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release;
@@ -3700,7 +3700,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
 
 static void handle_arg_help(const char *arg)
 {
-    usage();
+    usage(0);
 }
 
 static void handle_arg_log(const char *arg)
@@ -3726,7 +3726,7 @@ static void handle_arg_set_env(const char *arg)
     r = p = strdup(arg);
     while ((token = strsep(&p, ",")) != NULL) {
         if (envlist_setenv(envlist, token) != 0) {
-            usage();
+            usage(1);
         }
     }
     free(r);
@@ -3738,7 +3738,7 @@ static void handle_arg_unset_env(const char *arg)
     r = p = strdup(arg);
     while ((token = strsep(&p, ",")) != NULL) {
         if (envlist_unsetenv(envlist, token) != 0) {
-            usage();
+            usage(1);
         }
     }
     free(r);
@@ -3754,7 +3754,7 @@ static void handle_arg_stack_size(const char *arg)
     char *p;
     guest_stack_size = strtoul(arg, &p, 0);
     if (guest_stack_size == 0) {
-        usage();
+        usage(1);
     }
 
     if (*p == 'M') {
@@ -3921,7 +3921,7 @@ static const struct qemu_argument arg_table[] = {
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
-static void usage(void)
+static void usage(int exitcode)
 {
     const struct qemu_argument *arginfo;
     int maxarglen;
@@ -3988,7 +3988,7 @@ static void usage(void)
            "Note that if you provide several changes to a single variable\n"
            "the last change will stay in effect.\n");
 
-    exit(1);
+    exit(exitcode);
 }
 
 static int parse_args(int argc, char **argv)
@@ -4027,7 +4027,7 @@ static int parse_args(int argc, char **argv)
             if (!strcmp(r, arginfo->argv)) {
                 if (arginfo->has_arg) {
                     if (optind >= argc) {
-                        usage();
+                        usage(1);
                     }
                     arginfo->handle_opt(argv[optind]);
                     optind++;
@@ -4040,12 +4040,12 @@ static int parse_args(int argc, char **argv)
 
         /* no option matched the current argv */
         if (arginfo->handle_opt == NULL) {
-            usage();
+            usage(1);
         }
     }
 
     if (optind >= argc) {
-        usage();
+        usage(1);
     }
 
     filename = argv[optind];
