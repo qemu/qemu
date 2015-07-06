@@ -26,6 +26,7 @@ int xtensa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
     const XtensaGdbReg *reg = env->config->gdb_regmap.reg + n;
+    unsigned i;
 
     if (n < 0 || n >= env->config->gdb_regmap.num_regs) {
         return 0;
@@ -47,8 +48,16 @@ int xtensa_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
         return gdb_get_reg32(mem_buf, env->uregs[reg->targno & 0xff]);
 
     case 4: /*f*/
-        return gdb_get_reg32(mem_buf, float32_val(env->fregs[reg->targno
-                                                             & 0x0f]));
+        i = reg->targno & 0x0f;
+        switch (reg->size) {
+        case 4:
+            return gdb_get_reg32(mem_buf,
+                                 float32_val(env->fregs[i].f32[FP_F32_LOW]));
+        case 8:
+            return gdb_get_reg64(mem_buf, float64_val(env->fregs[i].f64));
+        default:
+            return 0;
+        }
 
     case 8: /*a*/
         return gdb_get_reg32(mem_buf, env->regs[reg->targno & 0x0f]);
@@ -92,8 +101,16 @@ int xtensa_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
         break;
 
     case 4: /*f*/
-        env->fregs[reg->targno & 0x0f] = make_float32(tmp);
-        break;
+        switch (reg->size) {
+        case 4:
+            env->fregs[reg->targno & 0x0f].f32[FP_F32_LOW] = make_float32(tmp);
+            return 4;
+        case 8:
+            env->fregs[reg->targno & 0x0f].f64 = make_float64(tmp);
+            return 8;
+        default:
+            return 0;
+        }
 
     case 8: /*a*/
         env->regs[reg->targno & 0x0f] = tmp;
