@@ -137,13 +137,14 @@ int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
     return -ENOSYS;
 }
 
-int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
-                                   EventNotifier *rn, int virq)
+int kvm_irqchip_add_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                       EventNotifier *rn, int virq)
 {
     return -ENOSYS;
 }
 
-int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
+int kvm_irqchip_remove_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                          int virq)
 {
     return -ENOSYS;
 }

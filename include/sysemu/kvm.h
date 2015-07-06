@@ -416,9 +416,10 @@ void kvm_irqchip_release_virq(KVMState *s, int virq);
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter);
 
-int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
-                                   EventNotifier *rn, int virq);
-int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq);
+int kvm_irqchip_add_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                       EventNotifier *rn, int virq);
+int kvm_irqchip_remove_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                          int virq);
 void kvm_pc_gsi_handler(void *opaque, int n, int level);
 void kvm_pc_setup_irq_routing(bool pci_enabled);
 void kvm_init_irq_routing(KVMState *s);

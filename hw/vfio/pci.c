@@ -597,7 +597,7 @@ static void vfio_add_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage *msg,
         return;
     }
 
-    if (kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->kvm_interrupt,
+    if (kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, &vector->kvm_interrupt,
                                        NULL, virq) < 0) {
         kvm_irqchip_release_virq(kvm_state, virq);
         event_notifier_cleanup(&vector->kvm_interrupt);
@@ -609,8 +609,8 @@ static void vfio_add_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage *msg,
 
 static void vfio_remove_kvm_msi_virq(VFIOMSIVector *vector)
 {
-    kvm_irqchip_remove_irqfd_notifier(kvm_state, &vector->kvm_interrupt,
-                                      vector->virq);
+    kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, &vector->kvm_interrupt,
+                                          vector->virq);
     kvm_irqchip_release_virq(kvm_state, vector->virq);
     vector->virq = -1;
     event_notifier_cleanup(&vector->kvm_interrupt);

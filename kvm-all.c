@@ -1328,14 +1328,15 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
 }
 #endif /* !KVM_CAP_IRQ_ROUTING */
 
-int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
-                                   EventNotifier *rn, int virq)
+int kvm_irqchip_add_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                       EventNotifier *rn, int virq)
 {
     return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n),
            rn ? event_notifier_get_fd(rn) : -1, virq, true);
 }
 
-int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
+int kvm_irqchip_remove_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                          int virq)
 {
     return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), -1, virq,
            false);
