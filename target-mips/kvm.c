@@ -99,6 +99,8 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
     int r;
     struct kvm_mips_interrupt intr;
 
+    qemu_mutex_lock_iothread();
+
     if ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
             cpu_mips_io_interrupts_pending(cpu)) {
         intr.cpu = -1;
@@ -109,6 +111,8 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
                          __func__, cs->cpu_index, intr.irq);
         }
     }
+
+    qemu_mutex_unlock_iothread();
 }
 
 MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)

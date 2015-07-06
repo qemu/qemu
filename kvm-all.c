@@ -1099,9 +1099,17 @@ static int kvm_irqchip_get_virq(KVMState *s)
     uint32_t *word = s->used_gsi_bitmap;
     int max_words = ALIGN(s->gsi_count, 32) / 32;
     int i, zeroes;
-    bool retry = true;
 
-again:
+    /*
+     * PIC and IOAPIC share the first 16 GSI numbers, thus the available
+     * GSI numbers are more than the number of IRQ route. Allocating a GSI
+     * number can succeed even though a new route entry cannot be added.
+     * When this happens, flush dynamic MSI entries to free IRQ route entries.
+     */
+    if (!s->direct_msi && s->irq_routes->nr == s->gsi_count) {
+        kvm_flush_dynamic_msi_routes(s);
+    }
+
     /* Return the lowest unused GSI in the bitmap */
     for (i = 0; i < max_words; i++) {
         zeroes = ctz32(~word[i]);
@@ -1110,11 +1118,6 @@ again:
         }
 
         return zeroes + i * 32;
-    }
-    if (!s->direct_msi && retry) {
-        retry = false;
-        kvm_flush_dynamic_msi_routes(s);
-        goto again;
     }
     return -ENOSPC;
 
@@ -1752,6 +1755,8 @@ int kvm_cpu_exec(CPUState *cpu)
         return EXCP_HLT;
     }
 
+    qemu_mutex_unlock_iothread();
+
     do {
         MemTxAttrs attrs;
 
@@ -1770,11 +1775,9 @@ int kvm_cpu_exec(CPUState *cpu)
              */
             qemu_cpu_kick_self();
         }
-        qemu_mutex_unlock_iothread();
 
         run_ret = kvm_vcpu_ioctl(cpu, KVM_RUN, 0);
 
-        qemu_mutex_lock_iothread();
         attrs = kvm_arch_post_run(cpu, run);
 
         if (run_ret < 0) {
@@ -1801,6 +1804,7 @@ int kvm_cpu_exec(CPUState *cpu)
         switch (run->exit_reason) {
         case KVM_EXIT_IO:
             DPRINTF("handle_io\n");
+            /* Called outside BQL */
             kvm_handle_io(run->io.port, attrs,
                           (uint8_t *)run + run->io.data_offset,
                           run->io.direction,
@@ -1810,6 +1814,7 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         case KVM_EXIT_MMIO:
             DPRINTF("handle_mmio\n");
+            /* Called outside BQL */
             address_space_rw(&address_space_memory,
                              run->mmio.phys_addr, attrs,
                              run->mmio.data,
@@ -1856,6 +1861,8 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         }
     } while (ret == 0);
+
+    qemu_mutex_lock_iothread();
 
     if (ret < 0) {
         cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_CODE);

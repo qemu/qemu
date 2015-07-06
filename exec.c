@@ -48,6 +48,7 @@
 #endif
 #include "exec/cpu-all.h"
 #include "qemu/rcu_queue.h"
+#include "qemu/main-loop.h"
 #include "exec/cputlb.h"
 #include "translate-all.h"
 
@@ -352,6 +353,18 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
     *xlat = addr + section->offset_within_region;
 
     mr = section->mr;
+
+    /* MMIO registers can be expected to perform full-width accesses based only
+     * on their address, without considering adjacent registers that could
+     * decode to completely different MemoryRegions.  When such registers
+     * exist (e.g. I/O ports 0xcf8 and 0xcf9 on most PC chipsets), MMIO
+     * regions overlap wildly.  For this reason we cannot clamp the accesses
+     * here.
+     *
+     * If the length is small (as is the case for address_space_ldl/stl),
+     * everything works fine.  If the incoming length is large, however,
+     * the caller really has to do the clamping through memory_access_size.
+     */
     if (memory_region_is_ram(mr)) {
         diff = int128_sub(section->size, int128_make64(addr));
         *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
@@ -2316,6 +2329,29 @@ static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
     return l;
 }
 
+static bool prepare_mmio_access(MemoryRegion *mr)
+{
+    bool unlocked = !qemu_mutex_iothread_locked();
+    bool release_lock = false;
+
+    if (unlocked && mr->global_locking) {
+        qemu_mutex_lock_iothread();
+        unlocked = false;
+        release_lock = true;
+    }
+    if (mr->flush_coalesced_mmio) {
+        if (unlocked) {
+            qemu_mutex_lock_iothread();
+        }
+        qemu_flush_coalesced_mmio_buffer();
+        if (unlocked) {
+            qemu_mutex_unlock_iothread();
+        }
+    }
+
+    return release_lock;
+}
+
 MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
                              uint8_t *buf, int len, bool is_write)
 {
@@ -2325,6 +2361,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
     hwaddr addr1;
     MemoryRegion *mr;
     MemTxResult result = MEMTX_OK;
+    bool release_lock = false;
 
     rcu_read_lock();
     while (len > 0) {
@@ -2333,6 +2370,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
 
         if (is_write) {
             if (!memory_access_is_direct(mr, is_write)) {
+                release_lock |= prepare_mmio_access(mr);
                 l = memory_access_size(mr, l, addr1);
                 /* XXX: could force current_cpu to NULL to avoid
                    potential bugs */
@@ -2374,6 +2412,7 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         } else {
             if (!memory_access_is_direct(mr, is_write)) {
                 /* I/O case */
+                release_lock |= prepare_mmio_access(mr);
                 l = memory_access_size(mr, l, addr1);
                 switch (l) {
                 case 8:
@@ -2409,6 +2448,12 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
                 memcpy(buf, ptr, l);
             }
         }
+
+        if (release_lock) {
+            qemu_mutex_unlock_iothread();
+            release_lock = false;
+        }
+
         len -= l;
         buf += l;
         addr += l;
@@ -2458,7 +2503,7 @@ static inline void cpu_physical_memory_write_rom_internal(AddressSpace *as,
 
         if (!(memory_region_is_ram(mr) ||
               memory_region_is_romd(mr))) {
-            /* do nothing */
+            l = memory_access_size(mr, l, addr1);
         } else {
             addr1 += memory_region_get_ram_addr(mr);
             /* ROM/RAM case */
@@ -2735,10 +2780,13 @@ static inline uint32_t address_space_ldl_internal(AddressSpace *as, hwaddr addr,
     hwaddr l = 4;
     hwaddr addr1;
     MemTxResult r;
+    bool release_lock = false;
 
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l, false);
     if (l < 4 || !memory_access_is_direct(mr, false)) {
+        release_lock |= prepare_mmio_access(mr);
+
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val, 4, attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -2770,6 +2818,9 @@ static inline uint32_t address_space_ldl_internal(AddressSpace *as, hwaddr addr,
     }
     if (result) {
         *result = r;
+    }
+    if (release_lock) {
+        qemu_mutex_unlock_iothread();
     }
     rcu_read_unlock();
     return val;
@@ -2823,11 +2874,14 @@ static inline uint64_t address_space_ldq_internal(AddressSpace *as, hwaddr addr,
     hwaddr l = 8;
     hwaddr addr1;
     MemTxResult r;
+    bool release_lock = false;
 
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
                                  false);
     if (l < 8 || !memory_access_is_direct(mr, false)) {
+        release_lock |= prepare_mmio_access(mr);
+
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val, 8, attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -2859,6 +2913,9 @@ static inline uint64_t address_space_ldq_internal(AddressSpace *as, hwaddr addr,
     }
     if (result) {
         *result = r;
+    }
+    if (release_lock) {
+        qemu_mutex_unlock_iothread();
     }
     rcu_read_unlock();
     return val;
@@ -2932,11 +2989,14 @@ static inline uint32_t address_space_lduw_internal(AddressSpace *as,
     hwaddr l = 2;
     hwaddr addr1;
     MemTxResult r;
+    bool release_lock = false;
 
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
                                  false);
     if (l < 2 || !memory_access_is_direct(mr, false)) {
+        release_lock |= prepare_mmio_access(mr);
+
         /* I/O case */
         r = memory_region_dispatch_read(mr, addr1, &val, 2, attrs);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -2968,6 +3028,9 @@ static inline uint32_t address_space_lduw_internal(AddressSpace *as,
     }
     if (result) {
         *result = r;
+    }
+    if (release_lock) {
+        qemu_mutex_unlock_iothread();
     }
     rcu_read_unlock();
     return val;
@@ -3021,11 +3084,14 @@ void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
     hwaddr addr1;
     MemTxResult r;
     uint8_t dirty_log_mask;
+    bool release_lock = false;
 
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
+        release_lock |= prepare_mmio_access(mr);
+
         r = memory_region_dispatch_write(mr, addr1, val, 4, attrs);
     } else {
         addr1 += memory_region_get_ram_addr(mr) & TARGET_PAGE_MASK;
@@ -3039,6 +3105,9 @@ void address_space_stl_notdirty(AddressSpace *as, hwaddr addr, uint32_t val,
     }
     if (result) {
         *result = r;
+    }
+    if (release_lock) {
+        qemu_mutex_unlock_iothread();
     }
     rcu_read_unlock();
 }
@@ -3060,11 +3129,14 @@ static inline void address_space_stl_internal(AddressSpace *as,
     hwaddr l = 4;
     hwaddr addr1;
     MemTxResult r;
+    bool release_lock = false;
 
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l,
                                  true);
     if (l < 4 || !memory_access_is_direct(mr, true)) {
+        release_lock |= prepare_mmio_access(mr);
+
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -3095,6 +3167,9 @@ static inline void address_space_stl_internal(AddressSpace *as,
     }
     if (result) {
         *result = r;
+    }
+    if (release_lock) {
+        qemu_mutex_unlock_iothread();
     }
     rcu_read_unlock();
 }
@@ -3165,10 +3240,13 @@ static inline void address_space_stw_internal(AddressSpace *as,
     hwaddr l = 2;
     hwaddr addr1;
     MemTxResult r;
+    bool release_lock = false;
 
     rcu_read_lock();
     mr = address_space_translate(as, addr, &addr1, &l, true);
     if (l < 2 || !memory_access_is_direct(mr, true)) {
+        release_lock |= prepare_mmio_access(mr);
+
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
@@ -3199,6 +3277,9 @@ static inline void address_space_stw_internal(AddressSpace *as,
     }
     if (result) {
         *result = r;
+    }
+    if (release_lock) {
+        qemu_mutex_unlock_iothread();
     }
     rcu_read_unlock();
 }

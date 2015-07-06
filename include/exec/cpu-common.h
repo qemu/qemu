@@ -13,6 +13,8 @@
 
 #include "qemu/bswap.h"
 #include "qemu/queue.h"
+#include "qemu/fprintf-fn.h"
+#include "qemu/typedefs.h"
 
 /**
  * CPUListState:

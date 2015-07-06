@@ -13,8 +13,8 @@
 
 #include <glib.h>
 
+#include "qemu-common.h"
 #include "cpu.h"
-#include "exec/cpu-all.h"
 #include "sysemu/memory_mapping.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"

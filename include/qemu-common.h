@@ -15,6 +15,7 @@
 #include "qemu/compiler.h"
 #include "config-host.h"
 #include "qemu/typedefs.h"
+#include "qemu/fprintf-fn.h"
 
 #if defined(__arm__) || defined(__sparc__) || defined(__mips__) || defined(__hppa__) || defined(__ia64__)
 #define WORDS_ALIGNED
@@ -84,9 +85,6 @@
 #else
 # error Unknown pointer size
 #endif
-
-typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
-    GCC_FMT_ATTR(2, 3);
 
 #ifdef _WIN32
 #define fsync _commit
@@ -455,6 +453,7 @@ void qemu_hexdump(const char *buf, FILE *fp, const char *prefix, size_t size);
 #define VECTYPE        __vector unsigned char
 #define SPLAT(p)       vec_splat(vec_ld(0, p), 0)
 #define ALL_EQ(v1, v2) vec_all_eq(v1, v2)
+#define VEC_OR(v1, v2) ((v1) | (v2))
 /* altivec.h may redefine the bool macro as vector type.
  * Reset it to POSIX semantics. */
 #define bool _Bool
@@ -463,10 +462,12 @@ void qemu_hexdump(const char *buf, FILE *fp, const char *prefix, size_t size);
 #define VECTYPE        __m128i
 #define SPLAT(p)       _mm_set1_epi8(*(p))
 #define ALL_EQ(v1, v2) (_mm_movemask_epi8(_mm_cmpeq_epi8(v1, v2)) == 0xFFFF)
+#define VEC_OR(v1, v2) (_mm_or_si128(v1, v2))
 #else
 #define VECTYPE        unsigned long
 #define SPLAT(p)       (*(p) * (~0UL / 255))
 #define ALL_EQ(v1, v2) ((v1) == (v2))
+#define VEC_OR(v1, v2) ((v1) | (v2))
 #endif
 
 #define BUFFER_FIND_NONZERO_OFFSET_UNROLL_FACTOR 8

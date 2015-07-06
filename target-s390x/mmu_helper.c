@@ -17,8 +17,8 @@
 
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
-#include "sysemu/kvm.h"
 #include "cpu.h"
+#include "sysemu/kvm.h"
 
 /* #define DEBUG_S390 */
 /* #define DEBUG_S390_PTE */

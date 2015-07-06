@@ -223,6 +223,16 @@ int qemu_add_child_watch(pid_t pid);
 #endif
 
 /**
+ * qemu_mutex_iothread_locked: Return lock status of the main loop mutex.
+ *
+ * The main loop mutex is the coarsest lock in QEMU, and as such it
+ * must always be taken outside other locks.  This function helps
+ * functions take different paths depending on whether the current
+ * thread is running within the main loop mutex.
+ */
+bool qemu_mutex_iothread_locked(void);
+
+/**
  * qemu_mutex_lock_iothread: Lock the main loop mutex.
  *
  * This function locks the main loop mutex.  The mutex is taken by

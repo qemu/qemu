@@ -14,6 +14,7 @@
 #include "exec/memory.h"
 #include "hw/irq.h"
 #include "qemu/notify.h"
+#include "cpu.h"
 
 /* armv7m.c */
 qemu_irq *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,

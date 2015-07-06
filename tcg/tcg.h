@@ -29,6 +29,8 @@
 #include "qemu/bitops.h"
 #include "tcg-target.h"
 
+#define CPU_TEMP_BUF_NLONGS 128
+
 /* Default target word size to pointer size.  */
 #ifndef TCG_TARGET_REG_BITS
 # if UINTPTR_MAX == UINT32_MAX
