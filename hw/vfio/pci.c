@@ -939,7 +939,7 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
     };
     uint64_t size;
     off_t off = 0;
-    size_t bytes;
+    ssize_t bytes;
 
     if (ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info)) {
         error_report("vfio: Error getting ROM info: %m");
