@@ -51,3 +51,11 @@ void cpu_sync_bndcs_hflags(CPUX86State *env)
     env->hflags = hflags;
     env->hflags2 = hflags2;
 }
+
+void helper_bndck(CPUX86State *env, uint32_t fail)
+{
+    if (unlikely(fail)) {
+        env->bndcs_regs.sts = 1;
+        raise_exception_ra(env, EXCP05_BOUND, GETPC());
+    }
+}

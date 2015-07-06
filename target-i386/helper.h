@@ -16,6 +16,8 @@ DEF_HELPER_2(divq_EAX, void, env, tl)
 DEF_HELPER_2(idivq_EAX, void, env, tl)
 #endif
 
+DEF_HELPER_FLAGS_2(bndck, TCG_CALL_NO_WG, void, env, i32)
+
 DEF_HELPER_2(aam, void, env, int)
 DEF_HELPER_2(aad, void, env, int)
 DEF_HELPER_1(aaa, void, env)
