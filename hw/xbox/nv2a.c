@@ -323,6 +323,13 @@
 #define NV_PGRAPH_TEXFILTER0                             0x000019F4
 #   define NV_PGRAPH_TEXFILTER0_MIPMAP_LOD_BIAS                 0x00001FFF
 #   define NV_PGRAPH_TEXFILTER0_MIN                             0x003F0000
+#       define NV_PGRAPH_TEXFILTER0_MIN_BOX_LOD0                    1
+#       define NV_PGRAPH_TEXFILTER0_MIN_TENT_LOD0                   2
+#       define NV_PGRAPH_TEXFILTER0_MIN_BOX_NEARESTLOD              3
+#       define NV_PGRAPH_TEXFILTER0_MIN_TENT_NEARESTLOD             4
+#       define NV_PGRAPH_TEXFILTER0_MIN_BOX_TENT_LOD                5
+#       define NV_PGRAPH_TEXFILTER0_MIN_TENT_TENT_LOD               6
+#       define NV_PGRAPH_TEXFILTER0_MIN_CONVOLUTION_2D_LOD0         7
 #   define NV_PGRAPH_TEXFILTER0_MAG                             0x0F000000
 #define NV_PGRAPH_TEXFILTER1                             0x000019F8
 #define NV_PGRAPH_TEXFILTER2                             0x000019FC
@@ -1885,6 +1892,22 @@ static void pgraph_bind_textures(NV2AState *d)
         assert(binding);
 
         glBindTexture(binding->gl_target, binding->gl_texture);
+
+
+        if (f.linear) {
+            /* somtimes games try to set mipmap min filters on linear textures.
+             * this could indicate a bug... */
+            switch (min_filter) {
+            case NV_PGRAPH_TEXFILTER0_MIN_BOX_NEARESTLOD:
+            case NV_PGRAPH_TEXFILTER0_MIN_BOX_TENT_LOD:
+                min_filter = NV_PGRAPH_TEXFILTER0_MIN_BOX_LOD0;
+                break;
+            case NV_PGRAPH_TEXFILTER0_MIN_TENT_NEARESTLOD:
+            case NV_PGRAPH_TEXFILTER0_MIN_TENT_TENT_LOD:
+                min_filter = NV_PGRAPH_TEXFILTER0_MIN_TENT_LOD0;
+                break;
+            }
+        }
 
         glTexParameteri(binding->gl_target, GL_TEXTURE_MIN_FILTER,
             kelvin_texture_min_filter_map[min_filter]);
