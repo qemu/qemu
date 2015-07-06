@@ -2320,8 +2320,8 @@ else
     glib_req_ver=2.12
 fi
 if $pkg_config --atleast-version=$glib_req_ver gthread-2.0; then
-    glib_cflags=`$pkg_config --cflags gthread-2.0`
-    glib_libs=`$pkg_config --libs gthread-2.0`
+    glib_cflags=`$pkg_config --cflags gobject-2.0 gthread-2.0`
+    glib_libs=`$pkg_config --libs gobject-2.0 gthread-2.0`
     LIBS="$glib_libs $LIBS"
     libs_qga="$glib_libs $libs_qga"
 else

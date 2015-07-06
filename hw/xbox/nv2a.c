@@ -29,6 +29,7 @@
 #include "gl/gloffscreen.h"
 #include "gl/glextensions.h"
 
+#include "hw/xbox/g-lru-cache.h"
 #include "hw/xbox/swizzle.h"
 #include "hw/xbox/u_format_r11g11b10f.h"
 #include "hw/xbox/nv2a_vsh.h"
@@ -994,9 +995,15 @@ typedef struct TextureState {
     uint64_t data_hash;
 } TextureState;
 
+typedef struct TextureKey {
+    TextureState state;
+    uint8_t* texture_data;
+} TextureKey;
+
 typedef struct TextureBinding {
     GLenum gl_target;
     GLuint gl_texture;
+    unsigned int refcnt;
 } TextureBinding;
 
 typedef struct InlineVertexBufferEntry {
@@ -1088,9 +1095,9 @@ typedef struct PGRAPHState {
     uint32_t color_mask;
 
     hwaddr dma_a, dma_b;
-    GHashTable *texture_cache;
+    GLruCache *texture_cache;
     bool texture_dirty[NV2A_MAX_TEXTURES];
-    uint64_t last_texture_hash[NV2A_MAX_TEXTURES];
+    TextureBinding *texture_binding[NV2A_MAX_TEXTURES];
 
     bool shaders_dirty;
     GHashTable *shader_cache;
@@ -1616,18 +1623,8 @@ static void pgraph_bind_vertex_attributes(NV2AState *d)
     }
 }
 
-/* hash and equality for texture cache hash table */
-static guint texture_state_hash(gconstpointer key)
-{
-    return fnv_hash(key, sizeof(TextureState));
-}
-static gboolean texture_state_equal(gconstpointer a, gconstpointer b)
-{
-    const TextureState *as = a, *bs = b;
-    return memcmp(as, bs, sizeof(TextureState)) == 0;
-}
-
-static TextureBinding load_texture(TextureState s, const uint8_t *texture_data)
+static TextureBinding* generate_texture(const TextureState s,
+                                        const uint8_t *texture_data)
 {
     ColorFormatInfo f = kelvin_color_format_map[s.color_format];
 
@@ -1708,10 +1705,46 @@ static TextureBinding load_texture(TextureState s, const uint8_t *texture_data)
         }
     }
 
-    return (TextureBinding){
-        .gl_target = gl_target,
-        .gl_texture = gl_texture,
-    };
+    TextureBinding* ret = g_malloc(sizeof(TextureBinding));
+    ret->gl_target = gl_target;
+    ret->gl_texture = gl_texture;
+    ret->refcnt = 0;
+    return ret;
+}
+
+/* functions for texture LRU cache */
+static guint texture_state_hash(gconstpointer key)
+{
+    const TextureKey *k = key;
+    return fnv_hash((const uint8_t*)&k->state, sizeof(TextureState));
+}
+static gboolean texture_state_equal(gconstpointer a, gconstpointer b)
+{
+    const TextureKey *ak = a, *bk = b;
+    return memcmp(&ak->state, &bk->state, sizeof(TextureState)) == 0;
+}
+static gpointer texture_key_retrieve(gpointer key, gpointer user_data)
+{
+    const TextureKey *k = key;
+    TextureBinding *v = generate_texture(k->state, k->texture_data);
+    v->refcnt++;
+    return v;
+}
+static void texture_key_destroy(gpointer data)
+{
+    printf("qqq key destroy\n");
+    g_free(data);
+}
+static void texture_binding_destroy(gpointer data)
+{
+    TextureBinding *binding = data;
+    assert(binding->refcnt > 0);
+    binding->refcnt--;
+    if (binding->refcnt == 0) {
+        printf("qqq binding destroy\n");
+        glDeleteTextures(1, &binding->gl_texture);
+        g_free(binding);
+    }
 }
 
 static void pgraph_bind_textures(NV2AState *d)
@@ -1767,17 +1800,21 @@ static void pgraph_bind_textures(NV2AState *d)
             continue;
         }
 
-        if (pg->texture_dirty[i]) {
-            NV2A_DPRINTF(" texture %d is format 0x%x, (r %d, %d or %d, %d; %d),"
-                            " filter %x %x, levels %d-%d %d bias %d\n",
-                         i, color_format,
-                         rect_width, rect_height,
-                         1 << log_width, 1 << log_height,
-                         pitch,
-                         min_filter, mag_filter,
-                         min_mipmap_level, max_mipmap_level, levels,
-                         lod_bias);
+        if (!pg->texture_dirty[i]) {
+            glBindTexture(pg->texture_binding[i]->gl_target,
+                          pg->texture_binding[i]->gl_texture);
+            continue;
         }
+
+        NV2A_DPRINTF(" texture %d is format 0x%x, (r %d, %d or %d, %d; %d),"
+                        " filter %x %x, levels %d-%d %d bias %d\n",
+                     i, color_format,
+                     rect_width, rect_height,
+                     1 << log_width, 1 << log_height,
+                     pitch,
+                     min_filter, mag_filter,
+                     min_mipmap_level, max_mipmap_level, levels,
+                     lod_bias);
 
         assert(color_format
                 < sizeof(kelvin_color_format_map)/sizeof(ColorFormatInfo));
@@ -1788,7 +1825,6 @@ static void pgraph_bind_textures(NV2AState *d)
         if (f.linear) {
             width = rect_width;
             height = rect_height;
-
         } else {
             width = 1 << log_width;
             height = 1 << log_height;
@@ -1808,73 +1844,59 @@ static void pgraph_bind_textures(NV2AState *d)
         assert(offset < dma_len);
         texture_data += offset;
 
-        uint64_t data_hash = pg->last_texture_hash[i];
-        if (pg->texture_dirty[i]) {
+        NV2A_DPRINTF(" - 0x%tx\n", texture_data - d->vram_ptr);
 
-            NV2A_DPRINTF(" - 0x%tx\n", texture_data - d->vram_ptr);
+        // compute the new hash
 
-            // compute the new hash
-
-            size_t length = 0;
-            if (f.linear) {
-                length = height * pitch;
-            } else {
-                unsigned int w = width, h = height;
-                int level;
-                for (level = 0; level < levels; level++) {
-                    length += w * h * f.bytes_per_pixel;
-                    w /= 2;
-                    h /= 2;
-                }
+        size_t length = 0;
+        if (f.linear) {
+            length = height * pitch;
+        } else {
+            unsigned int w = width, h = height;
+            int level;
+            for (level = 0; level < levels; level++) {
+                length += w * h * f.bytes_per_pixel;
+                w /= 2;
+                h /= 2;
             }
-            data_hash = fast_hash(texture_data, length, 1000);
         }
+        uint64_t data_hash = fast_hash(texture_data, length, 1000);
 
-        TextureState state = {
-            .dimensionality = dimensionality,
-            .color_format = color_format,
-            .levels = levels,
-            .width = width,
-            .height = height,
-            .min_mipmap_level = min_mipmap_level,
-            .max_mipmap_level = max_mipmap_level,
-            .pitch = pitch,
-            .data_hash = data_hash,
+        TextureKey key = {
+            .state = (TextureState){
+                .dimensionality = dimensionality,
+                .color_format = color_format,
+                .levels = levels,
+                .width = width,
+                .height = height,
+                .min_mipmap_level = min_mipmap_level,
+                .max_mipmap_level = max_mipmap_level,
+                .pitch = pitch,
+                .data_hash = data_hash,
+            },
+            .texture_data = texture_data,
         };
 
-        GLenum gl_target;
-        GLuint gl_texture;
+        gpointer cache_key = g_malloc(sizeof(TextureKey));
+        memcpy(cache_key, &key, sizeof(TextureKey));
 
-        gpointer cached_texture =
-            g_hash_table_lookup(pg->texture_cache, &state);
-        if (cached_texture) {
-            // printf("cached texture!\n");
-            TextureBinding *binding = cached_texture;
-            gl_target = binding->gl_target;
-            gl_texture = binding->gl_texture;
-            glBindTexture(gl_target, gl_texture);
-        } else {
-            // printf("new texture %llx!\n", data_hash);
-            TextureBinding binding = load_texture(state, texture_data);
-            // texture is already binded
-            gl_target = binding.gl_target;
-            gl_texture = binding.gl_texture;
+        gpointer cache_texture = g_lru_cache_get(pg->texture_cache, cache_key);
+        TextureBinding *binding = cache_texture;
+        assert(binding);
 
-            /* cache it */
-            TextureState *cache_state = g_malloc(sizeof(TextureState));
-            memcpy(cache_state, &state, sizeof(TextureState));
-            TextureBinding *cache_binding = g_malloc(sizeof(TextureBinding));
-            memcpy(cache_binding, &binding, sizeof(TextureBinding));
-            g_hash_table_insert(pg->texture_cache, cache_state, cache_binding);
-        }
+        glBindTexture(binding->gl_target, binding->gl_texture);
 
-        glTexParameteri(gl_target, GL_TEXTURE_MIN_FILTER,
+        glTexParameteri(binding->gl_target, GL_TEXTURE_MIN_FILTER,
             kelvin_texture_min_filter_map[min_filter]);
-        glTexParameteri(gl_target, GL_TEXTURE_MAG_FILTER,
+        glTexParameteri(binding->gl_target, GL_TEXTURE_MAG_FILTER,
             kelvin_texture_mag_filter_map[mag_filter]);
 
+        if (pg->texture_binding[i]) {
+            texture_binding_destroy(pg->texture_binding[i]);
+        }
+        binding->refcnt++;
+        pg->texture_binding[i] = binding;
         pg->texture_dirty[i] = false;
-        pg->last_texture_hash[i] = data_hash;
     }
 }
 
@@ -1889,7 +1911,7 @@ static gboolean shader_equal(gconstpointer a, gconstpointer b)
     return memcmp(as, bs, sizeof(ShaderState)) == 0;
 }
 
-static ShaderBinding* generate_shaders(ShaderState state)
+static ShaderBinding* generate_shaders(const ShaderState state)
 {
     int i, j;
 
@@ -2464,8 +2486,13 @@ static void pgraph_init(PGRAPHState *pg)
 
     pg->shaders_dirty = true;
 
-    pg->texture_cache = g_hash_table_new(
-        texture_state_hash, texture_state_equal);
+    pg->texture_cache = g_lru_cache_new(
+        texture_state_hash, texture_state_equal,
+        NULL, texture_key_retrieve,
+        texture_key_destroy, texture_binding_destroy,
+        NULL, NULL);
+    g_lru_cache_set_max_size(pg->texture_cache, 128);
+
     pg->shader_cache = g_hash_table_new(shader_hash, shader_equal);
 
     assert(glGetError() == GL_NO_ERROR);
