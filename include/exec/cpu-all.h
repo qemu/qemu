@@ -183,10 +183,13 @@ extern unsigned long reserved_va;
 
 /* ??? These should be the larger of uintptr_t and target_ulong.  */
 extern uintptr_t qemu_real_host_page_size;
+extern uintptr_t qemu_real_host_page_mask;
 extern uintptr_t qemu_host_page_size;
 extern uintptr_t qemu_host_page_mask;
 
 #define HOST_PAGE_ALIGN(addr) (((addr) + qemu_host_page_size - 1) & qemu_host_page_mask)
+#define REAL_HOST_PAGE_ALIGN(addr) (((addr) + qemu_real_host_page_size - 1) & \
+                                    qemu_real_host_page_mask)
 
 /* same as PROT_xxx */
 #define PAGE_READ      0x0001
