@@ -1271,7 +1271,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     QemuOpts *opts = NULL;
     QDict *snapshot_options;
     BlockDriverState *bs_snapshot;
-    Error *local_err;
+    Error *local_err = NULL;
     int ret;
 
     /* if snapshot, we create a temporary backing file and open it
