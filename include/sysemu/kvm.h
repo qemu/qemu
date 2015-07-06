@@ -152,6 +152,7 @@ extern bool kvm_readonly_mem_allowed;
 #define kvm_halt_in_kernel() (false)
 #define kvm_eventfds_enabled() (false)
 #define kvm_irqfds_enabled() (false)
+#define kvm_resamplefds_enabled() (false)
 #define kvm_msi_via_irqfd_enabled() (false)
 #define kvm_gsi_routing_allowed() (false)
 #define kvm_gsi_direct_mapping() (false)
