@@ -545,16 +545,18 @@ void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot)
     ahci->port[port].prdtl[slot] = 0;
 }
 
-void ahci_write_fis(AHCIQState *ahci, RegH2DFIS *fis, uint64_t addr)
+void ahci_write_fis(AHCIQState *ahci, AHCICommand *cmd)
 {
-    RegH2DFIS tmp = *fis;
+    RegH2DFIS tmp = cmd->fis;
+    uint64_t addr = cmd->header.ctba;
 
-    /* The auxiliary FIS fields are defined per-command and are not
-     * currently implemented in libqos/ahci.o, but may or may not need
-     * to be flipped. */
-
-    /* All other FIS fields are 8 bit and do not need to be flipped. */
-    tmp.count = cpu_to_le16(tmp.count);
+    /* NCQ commands use exclusively 8 bit fields and needs no adjustment.
+     * Only the count field needs to be adjusted for non-NCQ commands.
+     * The auxiliary FIS fields are defined per-command and are not currently
+     * implemented in libqos/ahci.o, but may or may not need to be flipped. */
+    if (!cmd->props->ncq) {
+        tmp.count = cpu_to_le16(tmp.count);
+    }
 
     memwrite(addr, &tmp, sizeof(tmp));
 }
@@ -877,7 +879,7 @@ void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
 
     /* Commit the command header and command FIS */
     ahci_set_command_header(ahci, port, cmd->slot, &(cmd->header));
-    ahci_write_fis(ahci, &(cmd->fis), table_ptr);
+    ahci_write_fis(ahci, cmd);
 
     /* Construct and write the PRDs to the command table */
     g_assert_cmphex(prdtl, ==, cmd->header.prdtl);

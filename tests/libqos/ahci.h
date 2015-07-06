@@ -548,7 +548,7 @@ void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
 void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd);
 void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot);
-void ahci_write_fis(AHCIQState *ahci, RegH2DFIS *fis, uint64_t addr);
+void ahci_write_fis(AHCIQState *ahci, AHCICommand *cmd);
 unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port);
 unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd);
 void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
