@@ -4080,6 +4080,10 @@ static void gen_rfe(DisasContext *s, TCGv_i32 pc, TCGv_i32 cpsr)
 static void gen_nop_hint(DisasContext *s, int val)
 {
     switch (val) {
+    case 1: /* yield */
+        gen_set_pc_im(s, s->pc);
+        s->is_jmp = DISAS_YIELD;
+        break;
     case 3: /* wfi */
         gen_set_pc_im(s, s->pc);
         s->is_jmp = DISAS_WFI;
@@ -11458,6 +11462,9 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
             break;
         case DISAS_WFE:
             gen_helper_wfe(cpu_env);
+            break;
+        case DISAS_YIELD:
+            gen_helper_yield(cpu_env);
             break;
         case DISAS_SWI:
             gen_exception(EXCP_SWI, syn_aa32_svc(dc->svc_imm, dc->thumb),
