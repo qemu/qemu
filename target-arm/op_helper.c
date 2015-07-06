@@ -323,12 +323,24 @@ void HELPER(wfi)(CPUARMState *env)
 
 void HELPER(wfe)(CPUARMState *env)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
-
-    /* Don't actually halt the CPU, just yield back to top
+    /* This is a hint instruction that is semantically different
+     * from YIELD even though we currently implement it identically.
+     * Don't actually halt the CPU, just yield back to top
      * level loop. This is not going into a "low power state"
      * (ie halting until some event occurs), so we never take
      * a configurable trap to a different exception level.
+     */
+    HELPER(yield)(env);
+}
+
+void HELPER(yield)(CPUARMState *env)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    /* This is a non-trappable hint instruction that generally indicates
+     * that the guest is currently busy-looping. Yield control back to the
+     * top level loop so that a more deserving VCPU has a chance to run.
      */
     cs->exception_index = EXCP_YIELD;
     cpu_loop_exit(cs);
