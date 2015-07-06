@@ -439,6 +439,7 @@ static void add_stage_code(struct PixelShader *ps,
         qstring_append_fmt(ps->code, "%s.%s = %s(%s);\n",
                            qstring_get_str(ab_dest), write_mask, caster, qstring_get_str(ab_mapping));
     } else {
+        QDECREF(ab_dest);
         QINCREF(ab_mapping);
         ab_dest = ab_mapping;
     }
@@ -447,6 +448,7 @@ static void add_stage_code(struct PixelShader *ps,
         qstring_append_fmt(ps->code, "%s.%s = %s(%s);\n",
                            qstring_get_str(cd_dest), write_mask, caster, qstring_get_str(cd_mapping));
     } else {
+        QDECREF(cd_dest);
         QINCREF(cd_mapping);
         cd_dest = cd_mapping;
     }
