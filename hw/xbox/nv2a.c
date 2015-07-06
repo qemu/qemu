@@ -279,7 +279,37 @@
 #   define NV_PGRAPH_BLEND_EQN                                  0x00000007
 #   define NV_PGRAPH_BLEND_EN                                   (1 << 3)
 #   define NV_PGRAPH_BLEND_SFACTOR                              0x000000F0
+#       define NV_PGRAPH_BLEND_SFACTOR_ZERO                         0
+#       define NV_PGRAPH_BLEND_SFACTOR_ONE                          1
+#       define NV_PGRAPH_BLEND_SFACTOR_SRC_COLOR                    2
+#       define NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_SRC_COLOR          3
+#       define NV_PGRAPH_BLEND_SFACTOR_SRC_ALPHA                    4
+#       define NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_SRC_ALPHA          5
+#       define NV_PGRAPH_BLEND_SFACTOR_DST_ALPHA                    6
+#       define NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_DST_ALPHA          7
+#       define NV_PGRAPH_BLEND_SFACTOR_DST_COLOR                    8
+#       define NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_DST_COLOR          9
+#       define NV_PGRAPH_BLEND_SFACTOR_SRC_ALPHA_SATURATE           10
+#       define NV_PGRAPH_BLEND_SFACTOR_CONSTANT_COLOR               12
+#       define NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_CONSTANT_COLOR     13
+#       define NV_PGRAPH_BLEND_SFACTOR_CONSTANT_ALPHA               14
+#       define NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_CONSTANT_ALPHA     15
 #   define NV_PGRAPH_BLEND_DFACTOR                              0x00000F00
+#       define NV_PGRAPH_BLEND_DFACTOR_ZERO                         0
+#       define NV_PGRAPH_BLEND_DFACTOR_ONE                          1
+#       define NV_PGRAPH_BLEND_DFACTOR_SRC_COLOR                    2
+#       define NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_SRC_COLOR          3
+#       define NV_PGRAPH_BLEND_DFACTOR_SRC_ALPHA                    4
+#       define NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_SRC_ALPHA          5
+#       define NV_PGRAPH_BLEND_DFACTOR_DST_ALPHA                    6
+#       define NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_DST_ALPHA          7
+#       define NV_PGRAPH_BLEND_DFACTOR_DST_COLOR                    8
+#       define NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_DST_COLOR          9
+#       define NV_PGRAPH_BLEND_DFACTOR_SRC_ALPHA_SATURATE           10
+#       define NV_PGRAPH_BLEND_DFACTOR_CONSTANT_COLOR               12
+#       define NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_CONSTANT_COLOR     13
+#       define NV_PGRAPH_BLEND_DFACTOR_CONSTANT_ALPHA               14
+#       define NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_CONSTANT_ALPHA     15
 #   define NV_PGRAPH_BLEND_LOGICOP_ENABLE                       (1 << 16)
 #   define NV_PGRAPH_BLEND_LOGICOP                              0x0000F000
 #define NV_PGRAPH_BLENDCOLOR                             0x00001808
@@ -2875,35 +2905,35 @@ static void pgraph_method(NV2AState *d,
         unsigned int factor;
         switch (parameter) {
         case NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO:
-            factor = 0; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_ZERO; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE:
-            factor = 1; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_ONE; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_COLOR:
-            factor = 2; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_SRC_COLOR; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_COLOR:
-            factor = 3; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_SRC_COLOR; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA:
-            factor = 4; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_SRC_ALPHA; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_ALPHA:
-            factor = 5; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_SRC_ALPHA; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_DST_ALPHA:
-            factor = 6; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_DST_ALPHA; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_ALPHA:
-            factor = 7; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_DST_ALPHA; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_DST_COLOR:
-            factor = 8; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_DST_COLOR; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_COLOR:
-            factor = 9; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_DST_COLOR; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA_SATURATE:
-            factor = 10; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_SRC_ALPHA_SATURATE; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_COLOR:
-            factor = 12; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_CONSTANT_COLOR; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_COLOR:
-            factor = 13; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_CONSTANT_COLOR; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_ALPHA:
-            factor = 14; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_CONSTANT_ALPHA; break;
         case NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_ALPHA:
-            factor = 15; break;
+            factor = NV_PGRAPH_BLEND_SFACTOR_ONE_MINUS_CONSTANT_ALPHA; break;
         default:
             assert(false);
             break;
@@ -2917,35 +2947,35 @@ static void pgraph_method(NV2AState *d,
         unsigned int factor;
         switch (parameter) {
         case NV097_SET_BLEND_FUNC_DFACTOR_V_ZERO:
-            factor = 0; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_ZERO; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE:
-            factor = 1; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_ONE; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_COLOR:
-            factor = 2; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_SRC_COLOR; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_SRC_COLOR:
-            factor = 3; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_SRC_COLOR; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_ALPHA:
-            factor = 4; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_SRC_ALPHA; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_SRC_ALPHA:
-            factor = 5; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_SRC_ALPHA; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_DST_ALPHA:
-            factor = 6; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_DST_ALPHA; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_DST_ALPHA:
-            factor = 7; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_DST_ALPHA; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_DST_COLOR:
-            factor = 8; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_DST_COLOR; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_DST_COLOR:
-            factor = 9; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_DST_COLOR; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_SRC_ALPHA_SATURATE:
-            factor = 10; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_SRC_ALPHA_SATURATE; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_CONSTANT_COLOR:
-            factor = 12; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_CONSTANT_COLOR; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_CONSTANT_COLOR:
-            factor = 13; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_CONSTANT_COLOR; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_CONSTANT_ALPHA:
-            factor = 14; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_CONSTANT_ALPHA; break;
         case NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_CONSTANT_ALPHA:
-            factor = 15; break;
+            factor = NV_PGRAPH_BLEND_DFACTOR_ONE_MINUS_CONSTANT_ALPHA; break;
         default:
             assert(false);
             break;
