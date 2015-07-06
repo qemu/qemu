@@ -3883,6 +3883,8 @@ struct qemu_argument {
 static const struct qemu_argument arg_table[] = {
     {"h",          "",                 false, handle_arg_help,
      "",           "print this help"},
+    {"help",       "",                 false, handle_arg_help,
+     "",           ""},
     {"g",          "QEMU_GDB",         true,  handle_arg_gdb,
      "port",       "wait gdb connection to 'port'"},
     {"L",          "QEMU_LD_PREFIX",   true,  handle_arg_ld_prefix,
