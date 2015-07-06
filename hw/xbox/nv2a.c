@@ -2514,7 +2514,7 @@ static void pgraph_init(PGRAPHState *pg)
         NULL, texture_key_retrieve,
         texture_key_destroy, texture_binding_destroy,
         NULL, NULL);
-    g_lru_cache_set_max_size(pg->texture_cache, 128);
+    g_lru_cache_set_max_size(pg->texture_cache, 512);
 
     pg->shader_cache = g_hash_table_new(shader_hash, shader_equal);
 
