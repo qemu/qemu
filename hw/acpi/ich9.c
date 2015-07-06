@@ -192,7 +192,7 @@ static void pm_reset(void *opaque)
     acpi_pm_tmr_reset(&pm->acpi_regs);
     acpi_gpe_reset(&pm->acpi_regs);
 
-    if (kvm_enabled()) {
+    if (!pm->smm_enabled) {
         /* Mark SMM as already inited to prevent SMM from running. KVM does not
          * support SMM mode. */
         pm->smi_en |= ICH9_PMIO_SMI_EN_APMC_EN;
@@ -209,7 +209,7 @@ static void pm_powerdown_req(Notifier *n, void *opaque)
     acpi_pm1_evt_power_down(&pm->acpi_regs);
 }
 
-void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
+void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm, bool smm_enabled,
                   qemu_irq sci_irq)
 {
     memory_region_init(&pm->io, OBJECT(lpc_pci), "ich9-pm", ICH9_PMIO_SIZE);
@@ -231,6 +231,7 @@ void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
                           "acpi-smi", 8);
     memory_region_add_subregion(&pm->io, ICH9_PMIO_SMI_EN, &pm->io_smi);
 
+    pm->smm_enabled = smm_enabled;
     pm->irq = sci_irq;
     qemu_register_reset(pm_reset, pm);
     pm->powerdown_notifier.notify = pm_powerdown_req;

@@ -357,11 +357,13 @@ static void ich9_set_sci(void *opaque, int irq_num, int level)
     }
 }
 
-void ich9_lpc_pm_init(PCIDevice *lpc_pci)
+void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(lpc_pci);
+    qemu_irq sci_irq;
 
-    ich9_pm_init(lpc_pci, &lpc->pm, qemu_allocate_irq(ich9_set_sci, lpc, 0));
+    sci_irq = qemu_allocate_irq(ich9_set_sci, lpc, 0);
+    ich9_pm_init(lpc_pci, &lpc->pm, smm_enabled, sci_irq);
     ich9_lpc_reset(&lpc->d.qdev);
 }
 
@@ -375,6 +377,9 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
     acpi_pm1_cnt_update(&lpc->pm.acpi_regs,
                         val == ICH9_APM_ACPI_ENABLE,
                         val == ICH9_APM_ACPI_DISABLE);
+    if (val == ICH9_APM_ACPI_ENABLE || val == ICH9_APM_ACPI_DISABLE) {
+        return;
+    }
 
     /* SMI_EN = PMBASE + 30. SMI control and enable register */
     if (lpc->pm.smi_en & ICH9_PMIO_SMI_EN_APMC_EN) {

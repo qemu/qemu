@@ -1768,6 +1768,48 @@ static void pc_machine_set_vmport(Object *obj, Visitor *v, void *opaque,
     visit_type_OnOffAuto(v, &pcms->vmport, name, errp);
 }
 
+bool pc_machine_is_smm_enabled(PCMachineState *pcms)
+{
+    bool smm_available = false;
+
+    if (pcms->smm == ON_OFF_AUTO_OFF) {
+        return false;
+    }
+
+    if (tcg_enabled() || qtest_enabled()) {
+        smm_available = true;
+    } else if (kvm_enabled()) {
+        smm_available = kvm_has_smm();
+    }
+
+    if (smm_available) {
+        return true;
+    }
+
+    if (pcms->smm == ON_OFF_AUTO_ON) {
+        error_report("System Management Mode not supported by this hypervisor.");
+        exit(1);
+    }
+    return false;
+}
+
+static void pc_machine_get_smm(Object *obj, Visitor *v, void *opaque,
+                              const char *name, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+    OnOffAuto smm = pcms->smm;
+
+    visit_type_OnOffAuto(v, &smm, name, errp);
+}
+
+static void pc_machine_set_smm(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    visit_type_OnOffAuto(v, &pcms->smm, name, errp);
+}
+
 static bool pc_machine_get_aligned_dimm(Object *obj, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1790,6 +1832,15 @@ static void pc_machine_initfn(Object *obj)
                         NULL, NULL, NULL);
     object_property_set_description(obj, PC_MACHINE_MAX_RAM_BELOW_4G,
                                     "Maximum ram below the 4G boundary (32bit boundary)",
+                                    NULL);
+
+    pcms->smm = ON_OFF_AUTO_AUTO;
+    object_property_add(obj, PC_MACHINE_SMM, "OnOffAuto",
+                        pc_machine_get_smm,
+                        pc_machine_set_smm,
+                        NULL, NULL, NULL);
+    object_property_set_description(obj, PC_MACHINE_SMM,
+                                    "Enable SMM (pc & q35)",
                                     NULL);
 
     pcms->vmport = ON_OFF_AUTO_AUTO;

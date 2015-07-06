@@ -72,7 +72,7 @@ typedef struct PIIX4PMState {
 
     qemu_irq irq;
     qemu_irq smi_irq;
-    int kvm_enabled;
+    int smm_enabled;
     Notifier machine_ready;
     Notifier powerdown_notifier;
 
@@ -112,6 +112,9 @@ static void apm_ctrl_changed(uint32_t val, void *arg)
 
     /* ACPI specs 3.0, 4.7.2.5 */
     acpi_pm1_cnt_update(&s->ar, val == ACPI_ENABLE, val == ACPI_DISABLE);
+    if (val == ACPI_ENABLE || val == ACPI_DISABLE) {
+        return;
+    }
 
     if (d->config[0x5b] & (1 << 1)) {
         if (s->smi_irq) {
@@ -319,7 +322,7 @@ static void piix4_reset(void *opaque)
     pci_conf[0x40] = 0x01; /* PM io base read only bit */
     pci_conf[0x80] = 0;
 
-    if (s->kvm_enabled) {
+    if (!s->smm_enabled) {
         /* Mark SMM as already inited (until KVM supports SMM). */
         pci_conf[0x5B] = 0x02;
     }
@@ -450,7 +453,7 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     /* APM */
     apm_init(dev, &s->apm, apm_ctrl_changed, s);
 
-    if (s->kvm_enabled) {
+    if (!s->smm_enabled) {
         /* Mark SMM as already inited to prevent SMM from running.  KVM does not
          * support SMM mode. */
         pci_conf[0x5B] = 0x02;
@@ -501,7 +504,7 @@ Object *piix4_pm_find(void)
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int kvm_enabled, DeviceState **piix4_pm)
+                      int smm_enabled, DeviceState **piix4_pm)
 {
     DeviceState *dev;
     PIIX4PMState *s;
@@ -515,7 +518,7 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     s = PIIX4_PM(dev);
     s->irq = sci_irq;
     s->smi_irq = smi_irq;
-    s->kvm_enabled = kvm_enabled;
+    s->smm_enabled = smm_enabled;
     if (xen_enabled()) {
         s->use_acpi_pci_hotplug = false;
     }
