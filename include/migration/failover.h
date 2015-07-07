@@ -15,6 +15,16 @@
 
 #include "qemu-common.h"
 
+typedef enum COLOFailoverStatus {
+    FAILOVER_STATUS_NONE = 0,
+    FAILOVER_STATUS_REQUEST = 1, /* Request but not handled */
+    FAILOVER_STATUS_HANDLING = 2, /* In the process of handling failover */
+    FAILOVER_STATUS_COMPLETED = 3, /* Finish the failover process */
+} COLOFailoverStatus;
+
+void failover_init_state(void);
+int failover_set_state(int old_state, int new_state);
+int failover_get_state(void);
 void failover_request_active(Error **errp);
 
 #endif
