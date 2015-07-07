@@ -330,6 +330,16 @@
 #define NV_PGRAPH_COMBINESPECFOG0                        0x00001944
 #define NV_PGRAPH_COMBINESPECFOG1                        0x00001948
 #define NV_PGRAPH_CONTROL_0                              0x0000194C
+#   define NV_PGRAPH_CONTROL_0_ZENABLE                          (1 << 14)
+#       define NV_PGRAPH_CONTROL_0_ZFUNC                        0x000F0000
+#       define NV_PGRAPH_CONTROL_0_ZFUNC_NEVER                      0
+#       define NV_PGRAPH_CONTROL_0_ZFUNC_LESS                       1
+#       define NV_PGRAPH_CONTROL_0_ZFUNC_EQUAL                      2
+#       define NV_PGRAPH_CONTROL_0_ZFUNC_LEQUAL                     3
+#       define NV_PGRAPH_CONTROL_0_ZFUNC_GREATER                    4
+#       define NV_PGRAPH_CONTROL_0_ZFUNC_NOTEQUAL                   5
+#       define NV_PGRAPH_CONTROL_0_ZFUNC_GEQUAL                     6
+#       define NV_PGRAPH_CONTROL_0_ZFUNC_ALWAYS                     7
 #   define NV_PGRAPH_CONTROL_0_STENCIL_WRITE_ENABLE             (1 << 25)
 #define NV_PGRAPH_SETUPRASTER                            0x00001990
 #   define NV_PGRAPH_SETUPRASTER_Z_FORMAT                       (1 << 29)
@@ -597,6 +607,7 @@
 #       define NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE            (1 << 0)
 #       define NV097_SET_CONTROL0_Z_FORMAT                        (1 << 12)
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
+#   define NV097_SET_DEPTH_TEST_ENABLE                        0x0097030C
 #   define NV097_SET_BLEND_FUNC_SFACTOR                       0x00970344
 #       define NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO                0x0000
 #       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE                 0x0001
@@ -638,6 +649,7 @@
 #       define NV097_SET_BLEND_EQUATION_V_MAX                     0x8008
 #       define NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT_SIGNED 0xF005
 #       define NV097_SET_BLEND_EQUATION_V_FUNC_ADD_SIGNED         0xF006
+#   define NV097_SET_DEPTH_FUNC                               0x00970354
 #   define NV097_SET_COLOR_MASK                               0x00970358
 #   define NV097_SET_DEPTH_MASK                               0x0097035c
 #   define NV097_SET_STENCIL_MASK                             0x00970360
@@ -769,7 +781,7 @@ static const GLenum kelvin_primitive_map[] = {
     GL_POLYGON,
 };
 
-static const GLenum kelvin_texture_min_filter_map[] = {
+static const GLenum pgraph_texture_min_filter_map[] = {
     0,
     GL_NEAREST,
     GL_LINEAR,
@@ -780,7 +792,7 @@ static const GLenum kelvin_texture_min_filter_map[] = {
     GL_LINEAR, /* TODO: Convolution filter... */
 };
 
-static const GLenum kelvin_texture_mag_filter_map[] = {
+static const GLenum pgraph_texture_mag_filter_map[] = {
     0,
     GL_NEAREST,
     GL_LINEAR,
@@ -788,7 +800,7 @@ static const GLenum kelvin_texture_mag_filter_map[] = {
     GL_LINEAR /* TODO: Convolution filter... */
 };
 
-static const GLenum kelvin_blend_factor_map[] = {
+static const GLenum pgraph_blend_factor_map[] = {
     GL_ZERO,
     GL_ONE,
     GL_SRC_COLOR,
@@ -807,7 +819,7 @@ static const GLenum kelvin_blend_factor_map[] = {
     GL_ONE_MINUS_CONSTANT_ALPHA,
 };
 
-static const GLenum kelvin_blend_equation_map[] = {
+static const GLenum pgraph_blend_equation_map[] = {
     GL_FUNC_SUBTRACT,
     GL_FUNC_REVERSE_SUBTRACT,
     GL_FUNC_ADD,
@@ -817,7 +829,7 @@ static const GLenum kelvin_blend_equation_map[] = {
     GL_FUNC_ADD,
 };
 
-static const GLenum kelvin_blend_logicop_map[] = {
+static const GLenum pgraph_blend_logicop_map[] = {
     GL_CLEAR,
     GL_AND,
     GL_AND_REVERSE,
@@ -834,6 +846,17 @@ static const GLenum kelvin_blend_logicop_map[] = {
     GL_OR_INVERTED,
     GL_NAND,
     GL_SET,
+};
+
+static const GLenum pgraph_depth_func_map[] = {
+    GL_NEVER,
+    GL_LESS,
+    GL_EQUAL,
+    GL_LEQUAL,
+    GL_GREATER,
+    GL_NOTEQUAL,
+    GL_GEQUAL,
+    GL_ALWAYS,
 };
 
 typedef struct ColorFormatInfo {
@@ -1972,9 +1995,9 @@ static void pgraph_bind_textures(NV2AState *d)
         }
 
         glTexParameteri(binding->gl_target, GL_TEXTURE_MIN_FILTER,
-            kelvin_texture_min_filter_map[min_filter]);
+            pgraph_texture_min_filter_map[min_filter]);
         glTexParameteri(binding->gl_target, GL_TEXTURE_MAG_FILTER,
-            kelvin_texture_mag_filter_map[mag_filter]);
+            pgraph_texture_mag_filter_map[mag_filter]);
 
         if (pg->texture_binding[i]) {
             texture_binding_destroy(pg->texture_binding[i]);
@@ -3050,6 +3073,11 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(pg->regs[NV_PGRAPH_BLEND], NV_PGRAPH_BLEND_EN, parameter);
         break;
 
+    case NV097_SET_DEPTH_TEST_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0], NV_PGRAPH_CONTROL_0_ZENABLE,
+                 parameter);
+        break;
+
     case NV097_SET_BLEND_FUNC_SFACTOR: {
         unsigned int factor;
         switch (parameter) {
@@ -3163,6 +3191,11 @@ static void pgraph_method(NV2AState *d,
 
         break;
     }
+
+    case NV097_SET_DEPTH_FUNC:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0], NV_PGRAPH_CONTROL_0_ZFUNC,
+                 parameter & 0xF);
+        break;
 
     case NV097_SET_COLOR_MASK:
         pg->color_mask = parameter;
@@ -3462,15 +3495,15 @@ static void pgraph_method(NV2AState *d,
                                             NV_PGRAPH_BLEND_SFACTOR);
                 uint32_t dfactor = GET_MASK(pg->regs[NV_PGRAPH_BLEND],
                                             NV_PGRAPH_BLEND_DFACTOR);
-                assert(sfactor < ARRAYSIZE(kelvin_blend_factor_map));
-                assert(dfactor < ARRAYSIZE(kelvin_blend_factor_map));
-                glBlendFunc(kelvin_blend_factor_map[sfactor],
-                            kelvin_blend_factor_map[dfactor]);
+                assert(sfactor < ARRAYSIZE(pgraph_blend_factor_map));
+                assert(dfactor < ARRAYSIZE(pgraph_blend_factor_map));
+                glBlendFunc(pgraph_blend_factor_map[sfactor],
+                            pgraph_blend_factor_map[dfactor]);
 
                 uint32_t equation = GET_MASK(pg->regs[NV_PGRAPH_BLEND],
                                              NV_PGRAPH_BLEND_EQN);
-                assert(equation < ARRAYSIZE(kelvin_blend_equation_map));
-                glBlendEquation(kelvin_blend_equation_map[equation]);
+                assert(equation < ARRAYSIZE(pgraph_blend_equation_map));
+                glBlendEquation(pgraph_blend_equation_map[equation]);
 
                 uint32_t blend_color = pg->regs[NV_PGRAPH_BLENDCOLOR];
                 glBlendColor( ((blend_color >> 16) & 0xFF) / 255.0f, /* red */
@@ -3479,6 +3512,17 @@ static void pgraph_method(NV2AState *d,
                               ((blend_color >> 24) & 0xFF) / 255.0f);/* alpha */
             } else {
                 glDisable(GL_BLEND);
+            }
+
+            if (pg->regs[NV_PGRAPH_CONTROL_0] & NV_PGRAPH_CONTROL_0_ZENABLE) {
+                glEnable(GL_DEPTH_TEST);
+
+                uint32_t depth_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                                               NV_PGRAPH_CONTROL_0_ZFUNC);
+                assert(depth_func < ARRAYSIZE(pgraph_depth_func_map));
+                glDepthFunc(pgraph_depth_func_map[depth_func]);
+            } else {
+                glDisable(GL_DEPTH_TEST);
             }
 
             pgraph_bind_shaders(pg);
