@@ -2404,6 +2404,8 @@ static void pgraph_update_framebuffer(NV2AState *d)
     bool shape_changed = memcmp(&pg->surface_shape, &pg->last_surface_shape,
                                 sizeof(SurfaceShape)) != 0;
     if (!shape_changed) return;
+    if (!pg->surface_shape.color_format && !pg->surface_shape.zeta_format)
+        return;
 
     printf("framebuffer shape changed\n");
 
@@ -2509,9 +2511,6 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
     unsigned int width, height;
     pgraph_get_surface_dimensions(d, &width, &height);
 
-    if (upload) {
-        pgraph_update_framebuffer(d);
-    }
 
     if (pg->surface_shape.color_format != 0 && pg->color_mask
         && (upload || pg->surface_color.draw_dirty)) {
@@ -2656,6 +2655,10 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
             g_free(buf);
         }
 
+    }
+
+    if (!upload) {
+        pgraph_update_framebuffer(d);
     }
 }
 
