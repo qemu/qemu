@@ -415,6 +415,7 @@ typedef enum FeatureWord {
     FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
     FEAT_SVM,           /* CPUID[8000_000A].EDX */
     FEAT_XSAVE,         /* CPUID[EAX=0xd,ECX=1].EAX */
+    FEAT_6_EAX,         /* CPUID[6].EAX */
     FEATURE_WORDS,
 } FeatureWord;
 
@@ -579,6 +580,8 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_XSAVE_XSAVEC     (1U << 1)
 #define CPUID_XSAVE_XGETBV1    (1U << 2)
 #define CPUID_XSAVE_XSAVES     (1U << 3)
+
+#define CPUID_6_EAX_ARAT       (1U << 2)
 
 /* CPUID[0x80000007].EDX flags: */
 #define CPUID_APM_INVTSC       (1U << 8)
@@ -959,7 +962,7 @@ typedef struct CPUX86State {
     uint8_t has_error_code;
     uint32_t sipi_vector;
     bool tsc_valid;
-    int tsc_khz;
+    int64_t tsc_khz;
     void *kvm_xsave_buf;
 
     uint64_t mcg_cap;
