@@ -222,6 +222,7 @@ static RAMBlock *last_seen_block;
 static RAMBlock *last_sent_block;
 static ram_addr_t last_offset;
 static unsigned long *migration_bitmap;
+static QemuMutex migration_bitmap_mutex;
 static uint64_t migration_dirty_pages;
 static uint32_t last_version;
 static bool ram_bulk_stage;
@@ -494,6 +495,7 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
     return 1;
 }
 
+/* Called with rcu_read_lock() to protect migration_bitmap */
 static inline
 ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
                                                  ram_addr_t start)
@@ -502,26 +504,31 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
     unsigned long nr = base + (start >> TARGET_PAGE_BITS);
     uint64_t mr_size = TARGET_PAGE_ALIGN(memory_region_size(mr));
     unsigned long size = base + (mr_size >> TARGET_PAGE_BITS);
+    unsigned long *bitmap;
 
     unsigned long next;
 
+    bitmap = atomic_rcu_read(&migration_bitmap);
     if (ram_bulk_stage && nr > base) {
         next = nr + 1;
     } else {
-        next = find_next_bit(migration_bitmap, size, nr);
+        next = find_next_bit(bitmap, size, nr);
     }
 
     if (next < size) {
-        clear_bit(next, migration_bitmap);
+        clear_bit(next, bitmap);
         migration_dirty_pages--;
     }
     return (next - base) << TARGET_PAGE_BITS;
 }
 
+/* Called with rcu_read_lock() to protect migration_bitmap */
 static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 {
+    unsigned long *bitmap;
+    bitmap = atomic_rcu_read(&migration_bitmap);
     migration_dirty_pages +=
-        cpu_physical_memory_sync_dirty_bitmap(migration_bitmap, start, length);
+        cpu_physical_memory_sync_dirty_bitmap(bitmap, start, length);
 }
 
 
@@ -563,11 +570,13 @@ static void migration_bitmap_sync(void)
     trace_migration_bitmap_sync_start();
     address_space_sync_dirty_bitmap(&address_space_memory);
 
+    qemu_mutex_lock(&migration_bitmap_mutex);
     rcu_read_lock();
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
         migration_bitmap_sync_range(block->mr->ram_addr, block->used_length);
     }
     rcu_read_unlock();
+    qemu_mutex_unlock(&migration_bitmap_mutex);
 
     trace_migration_bitmap_sync_end(migration_dirty_pages
                                     - num_dirty_pages_init);
@@ -1017,10 +1026,15 @@ void free_xbzrle_decoded_buf(void)
 
 static void migration_end(void)
 {
-    if (migration_bitmap) {
+    /* caller have hold iothread lock or is in a bh, so there is
+     * no writing race against this migration_bitmap
+     */
+    unsigned long *bitmap = migration_bitmap;
+    atomic_rcu_set(&migration_bitmap, NULL);
+    if (bitmap) {
         memory_global_dirty_log_stop();
-        g_free(migration_bitmap);
-        migration_bitmap = NULL;
+        synchronize_rcu();
+        g_free(bitmap);
     }
 
     XBZRLE_cache_lock();
@@ -1051,6 +1065,30 @@ static void reset_ram_globals(void)
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
 
+void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
+{
+    /* called in qemu main thread, so there is
+     * no writing race against this migration_bitmap
+     */
+    if (migration_bitmap) {
+        unsigned long *old_bitmap = migration_bitmap, *bitmap;
+        bitmap = bitmap_new(new);
+
+        /* prevent migration_bitmap content from being set bit
+         * by migration_bitmap_sync_range() at the same time.
+         * it is safe to migration if migration_bitmap is cleared bit
+         * at the same time.
+         */
+        qemu_mutex_lock(&migration_bitmap_mutex);
+        bitmap_copy(bitmap, old_bitmap, old);
+        bitmap_set(bitmap, old, new - old);
+        atomic_rcu_set(&migration_bitmap, bitmap);
+        qemu_mutex_unlock(&migration_bitmap_mutex);
+        migration_dirty_pages += new - old;
+        synchronize_rcu();
+        g_free(old_bitmap);
+    }
+}
 
 /* Each of ram_save_setup, ram_save_iterate and ram_save_complete has
  * long-running RCU critical section.  When rcu-reclaims in the code
@@ -1067,6 +1105,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     dirty_rate_high_cnt = 0;
     bitmap_sync_count = 0;
     migration_bitmap_sync_init();
+    qemu_mutex_init(&migration_bitmap_mutex);
 
     if (migrate_use_xbzrle()) {
         XBZRLE_cache_lock();
@@ -1477,6 +1516,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                                 error_report_err(local_err);
                             }
                         }
+                        ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,
+                                              block->idstr);
                         break;
                     }
                 }
@@ -1545,7 +1586,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             break;
         default:
             if (flags & RAM_SAVE_FLAG_HOOK) {
-                ram_control_load_hook(f, flags);
+                ram_control_load_hook(f, RAM_CONTROL_HOOK, NULL);
             } else {
                 error_report("Unknown combination of migration flags: %#x",
                              flags);

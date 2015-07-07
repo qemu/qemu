@@ -1191,6 +1191,7 @@ qemu_loadvm_state_section_partend(uint32_t section_id) "%u"
 qemu_loadvm_state_section_startfull(uint32_t section_id, const char *idstr, uint32_t instance_id, uint32_t version_id) "%u(%s) %u %u"
 savevm_section_start(const char *id, unsigned int section_id) "%s, section_id %u"
 savevm_section_end(const char *id, unsigned int section_id, int ret) "%s, section_id %u -> %d"
+savevm_section_skip(const char *id, unsigned int section_id) "%s, section_id %u"
 savevm_state_begin(void) ""
 savevm_state_header(void) ""
 savevm_state_iterate(void) ""
@@ -1403,10 +1404,13 @@ migrate_fd_error(void) ""
 migrate_fd_cancel(void) ""
 migrate_pending(uint64_t size, uint64_t max) "pending size %" PRIu64 " max %" PRIu64
 migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %g max_size %" PRId64
+migrate_state_too_big(void) ""
+migrate_global_state_post_load(const char *state) "loaded state: %s"
+migrate_global_state_pre_save(const char *state) "saved state: %s"
 
 # migration/rdma.c
-qemu_dma_accept_incoming_migration(void) ""
-qemu_dma_accept_incoming_migration_accepted(void) ""
+qemu_rdma_accept_incoming_migration(void) ""
+qemu_rdma_accept_incoming_migration_accepted(void) ""
 qemu_rdma_accept_pin_state(bool pin) "%d"
 qemu_rdma_accept_pin_verbsc(void *verbs) "Verbs context after listen: %p"
 qemu_rdma_block_for_wrid_miss(const char *wcompstr, int wcomp, const char *gcompstr, uint64_t req) "A Wanted wrid %s (%d) but got %s (%" PRIu64 ")"
@@ -1433,13 +1437,14 @@ qemu_rdma_register_and_get_keys(uint64_t len, void *start) "Registering %" PRIu6
 qemu_rdma_registration_handle_compress(int64_t length, int index, int64_t offset) "Zapping zero chunk: %" PRId64 " bytes, index %d, offset %" PRId64
 qemu_rdma_registration_handle_finished(void) ""
 qemu_rdma_registration_handle_ram_blocks(void) ""
+qemu_rdma_registration_handle_ram_blocks_loop(const char *name, uint64_t offset, uint64_t length, void *local_host_addr, unsigned int src_index) "%s: @%" PRIx64 "/%" PRIu64 " host:@%p src_index: %u"
 qemu_rdma_registration_handle_register(int requests) "%d requests"
 qemu_rdma_registration_handle_register_loop(int req, int index, uint64_t addr, uint64_t chunks) "Registration request (%d): index %d, current_addr %" PRIu64 " chunks: %" PRIu64
 qemu_rdma_registration_handle_register_rkey(int rkey) "%x"
 qemu_rdma_registration_handle_unregister(int requests) "%d requests"
 qemu_rdma_registration_handle_unregister_loop(int count, int index, uint64_t chunk) "Unregistration request (%d): index %d, chunk %" PRIu64
 qemu_rdma_registration_handle_unregister_success(uint64_t chunk) "%" PRIu64
-qemu_rdma_registration_handle_wait(uint64_t flags) "Waiting for next request %" PRIu64
+qemu_rdma_registration_handle_wait(void) ""
 qemu_rdma_registration_start(uint64_t flags) "%" PRIu64
 qemu_rdma_registration_stop(uint64_t flags) "%" PRIu64
 qemu_rdma_registration_stop_ram(void) ""
@@ -1458,8 +1463,9 @@ qemu_rdma_write_one_recvregres(int mykey, int theirkey, uint64_t chunk) "Receive
 qemu_rdma_write_one_sendreg(uint64_t chunk, int len, int index, int64_t offset) "Sending registration request chunk %" PRIu64 " for %d bytes, index: %d, offset: %" PRId64
 qemu_rdma_write_one_top(uint64_t chunks, uint64_t size) "Writing %" PRIu64 " chunks, (%" PRIu64 " MB)"
 qemu_rdma_write_one_zero(uint64_t chunk, int len, int index, int64_t offset) "Entire chunk is zero, sending compress: %" PRIu64 " for %d bytes, index: %d, offset: %" PRId64
-rdma_add_block(int block, uint64_t addr, uint64_t offset, uint64_t len, uint64_t end, uint64_t bits, int chunks) "Added Block: %d, addr: %" PRIu64 ", offset: %" PRIu64 " length: %" PRIu64 " end: %" PRIu64 " bits %" PRIu64 " chunks %d"
-rdma_delete_block(int block, uint64_t addr, uint64_t offset, uint64_t len, uint64_t end, uint64_t bits, int chunks) "Deleted Block: %d, addr: %" PRIu64 ", offset: %" PRIu64 " length: %" PRIu64 " end: %" PRIu64 " bits %" PRIu64 " chunks %d"
+rdma_add_block(const char *block_name, int block, uint64_t addr, uint64_t offset, uint64_t len, uint64_t end, uint64_t bits, int chunks) "Added Block: '%s':%d, addr: %" PRIu64 ", offset: %" PRIu64 " length: %" PRIu64 " end: %" PRIu64 " bits %" PRIu64 " chunks %d"
+rdma_block_notification_handle(const char *name, int index) "%s at %d"
+rdma_delete_block(void *block, uint64_t addr, uint64_t offset, uint64_t len, uint64_t end, uint64_t bits, int chunks) "Deleted Block: %p, addr: %" PRIu64 ", offset: %" PRIu64 " length: %" PRIu64 " end: %" PRIu64 " bits %" PRIu64 " chunks %d"
 rdma_start_incoming_migration(void) ""
 rdma_start_incoming_migration_after_dest_init(void) ""
 rdma_start_incoming_migration_after_rdma_listen(void) ""

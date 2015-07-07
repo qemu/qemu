@@ -129,7 +129,7 @@ void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
     int ret = 0;
 
     if (f->ops->before_ram_iterate) {
-        ret = f->ops->before_ram_iterate(f, f->opaque, flags);
+        ret = f->ops->before_ram_iterate(f, f->opaque, flags, NULL);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -141,24 +141,30 @@ void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
     int ret = 0;
 
     if (f->ops->after_ram_iterate) {
-        ret = f->ops->after_ram_iterate(f, f->opaque, flags);
+        ret = f->ops->after_ram_iterate(f, f->opaque, flags, NULL);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
     }
 }
 
-void ram_control_load_hook(QEMUFile *f, uint64_t flags)
+void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data)
 {
     int ret = -EINVAL;
 
     if (f->ops->hook_ram_load) {
-        ret = f->ops->hook_ram_load(f, f->opaque, flags);
+        ret = f->ops->hook_ram_load(f, f->opaque, flags, data);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
     } else {
-        qemu_file_set_error(f, ret);
+        /*
+         * Hook is a hook specifically requested by the source sending a flag
+         * that expects there to be a hook on the destination.
+         */
+        if (flags == RAM_CONTROL_HOOK) {
+            qemu_file_set_error(f, ret);
+        }
     }
 }
 

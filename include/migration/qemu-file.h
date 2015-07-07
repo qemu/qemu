@@ -63,16 +63,20 @@ typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
 /*
  * This function provides hooks around different
  * stages of RAM migration.
+ * 'opaque' is the backend specific data in QEMUFile
+ * 'data' is call specific data associated with the 'flags' value
  */
-typedef int (QEMURamHookFunc)(QEMUFile *f, void *opaque, uint64_t flags);
+typedef int (QEMURamHookFunc)(QEMUFile *f, void *opaque, uint64_t flags,
+                              void *data);
 
 /*
  * Constants used by ram_control_* hooks
  */
-#define RAM_CONTROL_SETUP    0
-#define RAM_CONTROL_ROUND    1
-#define RAM_CONTROL_HOOK     2
-#define RAM_CONTROL_FINISH   3
+#define RAM_CONTROL_SETUP     0
+#define RAM_CONTROL_ROUND     1
+#define RAM_CONTROL_HOOK      2
+#define RAM_CONTROL_FINISH    3
+#define RAM_CONTROL_BLOCK_REG 4
 
 /*
  * This function allows override of where the RAM page

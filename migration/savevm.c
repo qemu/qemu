@@ -246,11 +246,55 @@ typedef struct SaveStateEntry {
 typedef struct SaveState {
     QTAILQ_HEAD(, SaveStateEntry) handlers;
     int global_section_id;
+    bool skip_configuration;
+    uint32_t len;
+    const char *name;
 } SaveState;
 
 static SaveState savevm_state = {
     .handlers = QTAILQ_HEAD_INITIALIZER(savevm_state.handlers),
     .global_section_id = 0,
+    .skip_configuration = false,
+};
+
+void savevm_skip_configuration(void)
+{
+    savevm_state.skip_configuration = true;
+}
+
+
+static void configuration_pre_save(void *opaque)
+{
+    SaveState *state = opaque;
+    const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
+
+    state->len = strlen(current_name);
+    state->name = current_name;
+}
+
+static int configuration_post_load(void *opaque, int version_id)
+{
+    SaveState *state = opaque;
+    const char *current_name = MACHINE_GET_CLASS(current_machine)->name;
+
+    if (strncmp(state->name, current_name, state->len) != 0) {
+        error_report("Machine type received is '%s' and local is '%s'",
+                     state->name, current_name);
+        return -EINVAL;
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_configuration = {
+    .name = "configuration",
+    .version_id = 1,
+    .post_load = configuration_post_load,
+    .pre_save = configuration_pre_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(len, SaveState),
+        VMSTATE_VBUFFER_ALLOC_UINT32(name, SaveState, 0, NULL, 0, len),
+        VMSTATE_END_OF_LIST()
+    },
 };
 
 static void dump_vmstate_vmsd(FILE *out_file,
@@ -653,41 +697,6 @@ static void save_section_footer(QEMUFile *f, SaveStateEntry *se)
     }
 }
 
-/*
- * Read a footer off the wire and check that it matches the expected section
- *
- * Returns: true if the footer was good
- *          false if there is a problem (and calls error_report to say why)
- */
-static bool check_section_footer(QEMUFile *f, SaveStateEntry *se)
-{
-    uint8_t read_mark;
-    uint32_t read_section_id;
-
-    if (skip_section_footers) {
-        /* No footer to check */
-        return true;
-    }
-
-    read_mark = qemu_get_byte(f);
-
-    if (read_mark != QEMU_VM_SECTION_FOOTER) {
-        error_report("Missing section footer for %s", se->idstr);
-        return false;
-    }
-
-    read_section_id = qemu_get_be32(f);
-    if (read_section_id != se->section_id) {
-        error_report("Mismatched section id in footer for %s -"
-                     " read 0x%x expected 0x%x",
-                     se->idstr, read_section_id, se->section_id);
-        return false;
-    }
-
-    /* All good */
-    return true;
-}
-
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -721,6 +730,11 @@ void qemu_savevm_state_begin(QEMUFile *f,
             continue;
         }
         se->ops->set_params(params, se->opaque);
+    }
+
+    if (!savevm_state.skip_configuration) {
+        qemu_put_byte(f, QEMU_VM_CONFIGURATION);
+        vmstate_save_state(f, &vmstate_configuration, &savevm_state, 0);
     }
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
@@ -836,6 +850,11 @@ void qemu_savevm_state_complete(QEMUFile *f)
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
             continue;
         }
+        if (se->vmsd && !vmstate_save_needed(se->vmsd, se->opaque)) {
+            trace_savevm_section_skip(se->idstr, se->section_id);
+            continue;
+        }
+
         trace_savevm_section_start(se->idstr, se->section_id);
 
         json_start_object(vmdesc, NULL);
@@ -949,6 +968,9 @@ static int qemu_save_device_state(QEMUFile *f)
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
             continue;
         }
+        if (se->vmsd && !vmstate_save_needed(se->vmsd, se->opaque)) {
+            continue;
+        }
 
         save_section_header(f, se, QEMU_VM_SECTION_FULL);
 
@@ -989,6 +1011,41 @@ struct LoadStateEntry {
     int version_id;
 };
 
+/*
+ * Read a footer off the wire and check that it matches the expected section
+ *
+ * Returns: true if the footer was good
+ *          false if there is a problem (and calls error_report to say why)
+ */
+static bool check_section_footer(QEMUFile *f, LoadStateEntry *le)
+{
+    uint8_t read_mark;
+    uint32_t read_section_id;
+
+    if (skip_section_footers) {
+        /* No footer to check */
+        return true;
+    }
+
+    read_mark = qemu_get_byte(f);
+
+    if (read_mark != QEMU_VM_SECTION_FOOTER) {
+        error_report("Missing section footer for %s", le->se->idstr);
+        return false;
+    }
+
+    read_section_id = qemu_get_be32(f);
+    if (read_section_id != le->section_id) {
+        error_report("Mismatched section id in footer for %s -"
+                     " read 0x%x expected 0x%x",
+                     le->se->idstr, read_section_id, le->section_id);
+        return false;
+    }
+
+    /* All good */
+    return true;
+}
+
 void loadvm_free_handlers(MigrationIncomingState *mis)
 {
     LoadStateEntry *le, *new_le;
@@ -1027,6 +1084,18 @@ int qemu_loadvm_state(QEMUFile *f)
     if (v != QEMU_VM_FILE_VERSION) {
         error_report("Unsupported migration stream version");
         return -ENOTSUP;
+    }
+
+    if (!savevm_state.skip_configuration) {
+        if (qemu_get_byte(f) != QEMU_VM_CONFIGURATION) {
+            error_report("Configuration section missing");
+            return -EINVAL;
+        }
+        ret = vmstate_load_state(f, &vmstate_configuration, &savevm_state, 0);
+
+        if (ret) {
+            return ret;
+        }
     }
 
     while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
@@ -1082,7 +1151,7 @@ int qemu_loadvm_state(QEMUFile *f)
                              " device '%s'", instance_id, idstr);
                 goto out;
             }
-            if (!check_section_footer(f, le->se)) {
+            if (!check_section_footer(f, le)) {
                 ret = -EINVAL;
                 goto out;
             }
@@ -1109,7 +1178,7 @@ int qemu_loadvm_state(QEMUFile *f)
                              section_id, le->se->idstr);
                 goto out;
             }
-            if (!check_section_footer(f, le->se)) {
+            if (!check_section_footer(f, le)) {
                 ret = -EINVAL;
                 goto out;
             }
@@ -1127,16 +1196,35 @@ int qemu_loadvm_state(QEMUFile *f)
      * Try to read in the VMDESC section as well, so that dumping tools that
      * intercept our migration stream have the chance to see it.
      */
-    if (qemu_get_byte(f) == QEMU_VM_VMDESCRIPTION) {
-        uint32_t size = qemu_get_be32(f);
-        uint8_t *buf = g_malloc(0x1000);
 
-        while (size > 0) {
-            uint32_t read_chunk = MIN(size, 0x1000);
-            qemu_get_buffer(f, buf, read_chunk);
-            size -= read_chunk;
+    /* We've got to be careful; if we don't read the data and just shut the fd
+     * then the sender can error if we close while it's still sending.
+     * We also mustn't read data that isn't there; some transports (RDMA)
+     * will stall waiting for that data when the source has already closed.
+     */
+    if (should_send_vmdesc()) {
+        uint8_t *buf;
+        uint32_t size;
+        section_type = qemu_get_byte(f);
+
+        if (section_type != QEMU_VM_VMDESCRIPTION) {
+            error_report("Expected vmdescription section, but got %d",
+                         section_type);
+            /*
+             * It doesn't seem worth failing at this point since
+             * we apparently have an otherwise valid VM state
+             */
+        } else {
+            buf = g_malloc(0x1000);
+            size = qemu_get_be32(f);
+
+            while (size > 0) {
+                uint32_t read_chunk = MIN(size, 0x1000);
+                qemu_get_buffer(f, buf, read_chunk);
+                size -= read_chunk;
+            }
+            g_free(buf);
         }
-        g_free(buf);
     }
 
     cpu_synchronize_all_post_init();

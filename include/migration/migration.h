@@ -34,6 +34,7 @@
 #define QEMU_VM_SECTION_FULL         0x04
 #define QEMU_VM_SUBSECTION           0x05
 #define QEMU_VM_VMDESCRIPTION        0x06
+#define QEMU_VM_CONFIGURATION        0x07
 #define QEMU_VM_SECTION_FOOTER       0x7e
 
 struct MigrationParams {
@@ -176,10 +177,11 @@ bool migrate_use_compression(void);
 int migrate_compress_level(void);
 int migrate_compress_threads(void);
 int migrate_decompress_threads(void);
+bool migrate_use_events(void);
 
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
 void ram_control_after_iterate(QEMUFile *f, uint64_t flags);
-void ram_control_load_hook(QEMUFile *f, uint64_t flags);
+void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data);
 
 /* Whenever this is found in the data stream, the flags
  * will be passed to ram_control_load_hook in the incoming-migration
@@ -197,4 +199,7 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
 
 void ram_mig_init(void);
 void savevm_skip_section_footers(void);
+void register_global_state(void);
+void global_state_set_optional(void);
+void savevm_skip_configuration(void);
 #endif

@@ -573,8 +573,14 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_DEBUG, RUN_STATE_RUNNING },
     { RUN_STATE_DEBUG, RUN_STATE_FINISH_MIGRATE },
 
-    { RUN_STATE_INMIGRATE, RUN_STATE_RUNNING },
+    { RUN_STATE_INMIGRATE, RUN_STATE_INTERNAL_ERROR },
+    { RUN_STATE_INMIGRATE, RUN_STATE_IO_ERROR },
     { RUN_STATE_INMIGRATE, RUN_STATE_PAUSED },
+    { RUN_STATE_INMIGRATE, RUN_STATE_RUNNING },
+    { RUN_STATE_INMIGRATE, RUN_STATE_SHUTDOWN },
+    { RUN_STATE_INMIGRATE, RUN_STATE_SUSPENDED },
+    { RUN_STATE_INMIGRATE, RUN_STATE_WATCHDOG },
+    { RUN_STATE_INMIGRATE, RUN_STATE_GUEST_PANICKED },
 
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_PAUSED },
     { RUN_STATE_INTERNAL_ERROR, RUN_STATE_FINISH_MIGRATE },
@@ -632,6 +638,18 @@ static bool runstate_valid_transitions[RUN_STATE_MAX][RUN_STATE_MAX];
 bool runstate_check(RunState state)
 {
     return current_run_state == state;
+}
+
+bool runstate_store(char *str, size_t size)
+{
+    const char *state = RunState_lookup[current_run_state];
+    size_t len = strlen(state) + 1;
+
+    if (len > size) {
+        return false;
+    }
+    memcpy(str, state, len);
+    return true;
 }
 
 static void runstate_init(void)
@@ -4606,6 +4624,7 @@ int main(int argc, char **argv, char **envp)
         return 0;
     }
 
+    register_global_state();
     if (incoming) {
         Error *local_err = NULL;
         qemu_start_incoming_migration(incoming, &local_err);
