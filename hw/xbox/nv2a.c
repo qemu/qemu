@@ -3594,6 +3594,7 @@ static void pgraph_context_switch(NV2AState *d, unsigned int channel_id)
 }
 
 static void pgraph_wait_fifo_access(NV2AState *d) {
+    if (d->pgraph.fifo_access) return;
     qemu_mutex_lock(&d->pgraph.lock);
     while (!d->pgraph.fifo_access) {
         qemu_cond_wait(&d->pgraph.fifo_access_cond, &d->pgraph.lock);
