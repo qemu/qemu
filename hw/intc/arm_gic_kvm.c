@@ -570,6 +570,12 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
      */
     i += (GIC_INTERNAL * s->num_cpu);
     qdev_init_gpio_in(dev, kvm_arm_gic_set_irq, i);
+
+    for (i = 0; i < s->num_irq - GIC_INTERNAL; i++) {
+        qemu_irq irq = qdev_get_gpio_in(dev, i);
+        kvm_irqchip_set_qemuirq_gsi(kvm_state, irq, i);
+    }
+
     /* We never use our outbound IRQ/FIQ lines but provide them so that
      * we maintain the same interface as the non-KVM GIC.
      */

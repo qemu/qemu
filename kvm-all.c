@@ -35,6 +35,7 @@
 #include "exec/address-spaces.h"
 #include "qemu/event_notifier.h"
 #include "trace.h"
+#include "hw/irq.h"
 
 #include "hw/boards.h"
 
@@ -84,6 +85,7 @@ struct KVMState
      * unsigned, and treating them as signed here can break things */
     unsigned irq_set_ioctl;
     unsigned int sigmask_len;
+    GHashTable *gsimap;
 #ifdef KVM_CAP_IRQ_ROUTING
     struct kvm_irq_routing *irq_routes;
     int nr_allocated_irq_routes;
@@ -1332,17 +1334,47 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
 }
 #endif /* !KVM_CAP_IRQ_ROUTING */
 
-int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
-                                   EventNotifier *rn, int virq)
+int kvm_irqchip_add_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                       EventNotifier *rn, int virq)
 {
     return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n),
            rn ? event_notifier_get_fd(rn) : -1, virq, true);
 }
 
-int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n, int virq)
+int kvm_irqchip_remove_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
+                                          int virq)
 {
     return kvm_irqchip_assign_irqfd(s, event_notifier_get_fd(n), -1, virq,
            false);
+}
+
+int kvm_irqchip_add_irqfd_notifier(KVMState *s, EventNotifier *n,
+                                   EventNotifier *rn, qemu_irq irq)
+{
+    gpointer key, gsi;
+    gboolean found = g_hash_table_lookup_extended(s->gsimap, irq, &key, &gsi);
+
+    if (!found) {
+        return -ENXIO;
+    }
+    return kvm_irqchip_add_irqfd_notifier_gsi(s, n, rn, GPOINTER_TO_INT(gsi));
+}
+
+int kvm_irqchip_remove_irqfd_notifier(KVMState *s, EventNotifier *n,
+                                      qemu_irq irq)
+{
+    gpointer key, gsi;
+    gboolean found = g_hash_table_lookup_extended(s->gsimap, irq, &key, &gsi);
+
+    if (!found) {
+        return -ENXIO;
+    }
+    return kvm_irqchip_remove_irqfd_notifier_gsi(s, n, GPOINTER_TO_INT(gsi));
+}
+
+void kvm_irqchip_set_qemuirq_gsi(KVMState *s, qemu_irq irq, int gsi)
+{
+    g_hash_table_insert(s->gsimap, irq, GINT_TO_POINTER(gsi));
 }
 
 static void kvm_irqchip_create(MachineState *machine, KVMState *s)
@@ -1380,6 +1412,8 @@ static void kvm_irqchip_create(MachineState *machine, KVMState *s)
     kvm_halt_in_kernel_allowed = true;
 
     kvm_init_irq_routing(s);
+
+    s->gsimap = g_hash_table_new(g_direct_hash, g_direct_equal);
 }
 
 /* Find number of supported CPUs using the recommended
