@@ -1138,6 +1138,7 @@ typedef struct ShaderBinding {
 
 typedef struct Surface {
     bool draw_dirty;
+    bool buffer_dirty;
     unsigned int pitch;
 
     hwaddr offset;
@@ -2514,15 +2515,15 @@ static void pgraph_update_surface(NV2AState *d,
     color = color && pgraph_color_write_enabled(pg);
     zeta = zeta && pgraph_zeta_write_enabled(pg);
 
-    bool framebuffer_change = false;
     if (upload && pgraph_framebuffer_dirty(pg)) {
         assert(!pg->surface_color.draw_dirty);
         assert(!pg->surface_zeta.draw_dirty);
 
-        framebuffer_change = true;
+        pg->surface_color.buffer_dirty = true;
+        pg->surface_zeta.buffer_dirty = true;
+
         memcpy(&pg->last_surface_shape, &pg->surface_shape,
                sizeof(SurfaceShape));
-        glViewport(0, 0, width, height);
     }
 
     if (color && (upload || pg->surface_color.draw_dirty)) {
@@ -2575,7 +2576,7 @@ static void pgraph_update_surface(NV2AState *d,
                                                pg->surface_color.pitch
                                                  * height,
                                                DIRTY_MEMORY_NV2A)
-                || framebuffer_change)) {
+                || pg->surface_color.buffer_dirty)) {
             /* surface modified (or moved) by the cpu.
              * copy it into the opengl renderbuffer */
             assert(!pg->surface_color.draw_dirty);
@@ -2617,32 +2618,9 @@ static void pgraph_update_surface(NV2AState *d,
                                    pg->gl_color_buffer, 0);
             assert(glCheckFramebufferStatus(GL_FRAMEBUFFER)
                    == GL_FRAMEBUFFER_COMPLETE);
-#if 0
-            glUseProgram(0);
-            glDisable(GL_BLEND);
-            glColorMask(true, true, true, true);
 
-            int rl, pa;
-            glGetIntegerv(GL_UNPACK_ROW_LENGTH, &rl);
-            glGetIntegerv(GL_UNPACK_ALIGNMENT, &pa);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                          pg->surface_color.pitch / f.bytes_per_pixel);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            pg->surface_color.buffer_dirty = false;
 
-            /* glDrawPixels is crazy deprecated, but there really isn't
-             * an easy alternative */
-
-            glWindowPos2i(0, height);
-            glPixelZoom(1, -1);
-            glDrawPixels(width,
-                         height,
-                         f.gl_format, f.gl_type,
-                         buf);
-            assert(glGetError() == GL_NO_ERROR);
-
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, rl);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, pa);
-#endif
             uint8_t *out = color_data + pg->surface_color.offset + 64;
             NV2A_DPRINTF("upload_surface 0x%llx - 0x%llx, "
                           "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
@@ -2766,7 +2744,7 @@ static void pgraph_update_surface(NV2AState *d,
             buf = g_malloc(height * pg->surface_zeta.pitch);
         }
 
-        if (upload && framebuffer_change) {
+        if (upload && pg->surface_zeta.buffer_dirty) {
             /* surface modified (or moved) by the cpu.
              * copy it into the opengl renderbuffer */
             assert(!pg->surface_zeta.draw_dirty);
@@ -2798,6 +2776,7 @@ static void pgraph_update_surface(NV2AState *d,
             glGenTextures(1, &pg->gl_zeta_buffer);
             glBindTexture(GL_TEXTURE_2D, pg->gl_zeta_buffer);
 
+
             glPixelStorei(GL_UNPACK_ROW_LENGTH,
                           pg->surface_zeta.pitch / bytes_per_pixel);
             glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format,
@@ -2813,10 +2792,12 @@ static void pgraph_update_surface(NV2AState *d,
 
             assert(glCheckFramebufferStatus(GL_FRAMEBUFFER)
                 == GL_FRAMEBUFFER_COMPLETE);
+
+            pg->surface_zeta.buffer_dirty = false;
         }
 
         if (!upload && pg->surface_zeta.draw_dirty) {
-            /* read the opengl renderbuffer into the surface */
+            /* read the opengl framebuffer into the surface */
 
             glo_readpixels(gl_format, gl_type,
                            bytes_per_pixel, pg->surface_zeta.pitch,
