@@ -156,3 +156,11 @@ void helper_bndstx32(CPUX86State *env, target_ulong base, target_ulong ptr,
     cpu_stl_data_ra(env, bte + 4, ub, ra);
     cpu_stl_data_ra(env, bte + 8, ptr, ra);
 }
+
+void helper_bnd_jmp(CPUX86State *env)
+{
+    if (!(env->hflags2 & HF2_MPX_PR_MASK)) {
+        memset(env->bnd_regs, 0, sizeof(env->bnd_regs));
+        env->hflags &= ~HF_MPX_IU_MASK;
+    }
+}

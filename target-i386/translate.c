@@ -2406,6 +2406,19 @@ static void gen_reset_hflag(DisasContext *s, uint32_t mask)
     }
 }
 
+/* Clear BND registers during legacy branches.  */
+static void gen_bnd_jmp(DisasContext *s)
+{
+    /* Do nothing if BND prefix present, MPX is disabled, or if the
+       BNDREGs are known to be in INIT state already.  The helper
+       itself will check BNDPRESERVE at runtime.  */
+    if ((s->prefix & PREFIX_REPNZ) == 0
+        && (s->flags & HF_MPX_EN_MASK) == 0
+        && (s->flags & HF_MPX_IU_MASK) == 0) {
+        gen_helper_bnd_jmp(cpu_env);
+    }
+}
+
 /* generate a generic end of block. Trace exception is also generated
    if needed */
 static void gen_eob(DisasContext *s)
@@ -4795,6 +4808,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             tcg_gen_movi_tl(cpu_T1, next_eip);
             gen_push_v(s, cpu_T1);
             gen_op_jmp_v(cpu_T0);
+            gen_bnd_jmp(s);
             gen_eob(s);
             break;
         case 3: /* lcall Ev */
@@ -4820,6 +4834,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 tcg_gen_ext16u_tl(cpu_T0, cpu_T0);
             }
             gen_op_jmp_v(cpu_T0);
+            gen_bnd_jmp(s);
             gen_eob(s);
             break;
         case 5: /* ljmp Ev */
@@ -6201,6 +6216,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_stack_update(s, val + (1 << ot));
         /* Note that gen_pop_T0 uses a zero-extending load.  */
         gen_op_jmp_v(cpu_T0);
+        gen_bnd_jmp(s);
         gen_eob(s);
         break;
     case 0xc3: /* ret */
@@ -6208,6 +6224,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         gen_pop_update(s, ot);
         /* Note that gen_pop_T0 uses a zero-extending load.  */
         gen_op_jmp_v(cpu_T0);
+        gen_bnd_jmp(s);
         gen_eob(s);
         break;
     case 0xca: /* lret im */
@@ -6274,6 +6291,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             tcg_gen_movi_tl(cpu_T0, next_eip);
             gen_push_v(s, cpu_T0);
+            gen_bnd_jmp(s);
             gen_jmp(s, tval);
         }
         break;
@@ -6303,6 +6321,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         } else if (!CODE64(s)) {
             tval &= 0xffffffff;
         }
+        gen_bnd_jmp(s);
         gen_jmp(s, tval);
         break;
     case 0xea: /* ljmp im */
@@ -6342,6 +6361,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         if (dflag == MO_16) {
             tval &= 0xffff;
         }
+        gen_bnd_jmp(s);
         gen_jcc(s, b, tval, next_eip);
         break;
 
