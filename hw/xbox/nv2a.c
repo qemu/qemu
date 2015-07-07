@@ -346,6 +346,32 @@
 #   define NV_PGRAPH_CONTROL_0_RED_WRITE_ENABLE                 (1 << 27)
 #   define NV_PGRAPH_CONTROL_0_GREEN_WRITE_ENABLE               (1 << 28)
 #   define NV_PGRAPH_CONTROL_0_BLUE_WRITE_ENABLE                (1 << 29)
+#define NV_PGRAPH_CONTROL_1                              0x00001950
+#   define NV_PGRAPH_CONTROL_1_STENCIL_TEST_ENABLE              (1 << 0)
+#   define NV_PGRAPH_CONTROL_1_STENCIL_FUNC                     0x000000F0
+#       define NV_PGRAPH_CONTROL_1_STENCIL_FUNC_NEVER               0
+#       define NV_PGRAPH_CONTROL_1_STENCIL_FUNC_LESS                1
+#       define NV_PGRAPH_CONTROL_1_STENCIL_FUNC_EQUAL               2
+#       define NV_PGRAPH_CONTROL_1_STENCIL_FUNC_LEQUAL              3
+#       define NV_PGRAPH_CONTROL_1_STENCIL_FUNC_GREATER             4
+#       define NV_PGRAPH_CONTROL_1_STENCIL_FUNC_NOTEQUAL            5
+#       define NV_PGRAPH_CONTROL_1_STENCIL_FUNC_GEQUAL              6
+#       define NV_PGRAPH_CONTROL_1_STENCIL_FUNC_ALWAYS              7
+#   define NV_PGRAPH_CONTROL_1_STENCIL_REF                      0x0000FF00
+#   define NV_PGRAPH_CONTROL_1_STENCIL_MASK_READ                0x00FF0000
+#   define NV_PGRAPH_CONTROL_1_STENCIL_MASK_WRITE               0xFF000000
+#define NV_PGRAPH_CONTROL_2                              0x00001954
+#   define NV_PGRAPH_CONTROL_2_STENCIL_OP_FAIL                  0x0000000F
+#   define NV_PGRAPH_CONTROL_2_STENCIL_OP_ZFAIL                 0x000000F0
+#   define NV_PGRAPH_CONTROL_2_STENCIL_OP_ZPASS                 0x00000F00
+#       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_KEEP                1
+#       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_ZERO                2
+#       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_REPLACE             3
+#       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCRSAT             4
+#       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECRSAT             5
+#       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INVERT              6
+#       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCR                7
+#       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECR                8
 #define NV_PGRAPH_SETUPRASTER                            0x00001990
 #   define NV_PGRAPH_SETUPRASTER_Z_FORMAT                       (1 << 29)
 #define NV_PGRAPH_SHADERCTL                              0x00001998
@@ -613,6 +639,7 @@
 #       define NV097_SET_CONTROL0_Z_FORMAT                        (1 << 12)
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
 #   define NV097_SET_DEPTH_TEST_ENABLE                        0x0097030C
+#   define NV097_SET_STENCIL_TEST_ENABLE                      0x0097032c
 #   define NV097_SET_BLEND_FUNC_SFACTOR                       0x00970344
 #       define NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO                0x0000
 #       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE                 0x0001
@@ -660,8 +687,22 @@
 #       define NV097_SET_COLOR_MASK_GREEN_WRITE_ENABLE            (1 << 8)
 #       define NV097_SET_COLOR_MASK_RED_WRITE_ENABLE              (1 << 16)
 #       define NV097_SET_COLOR_MASK_ALPHA_WRITE_ENABLE            (1 << 24)
-#   define NV097_SET_DEPTH_MASK                               0x0097035c
+#   define NV097_SET_DEPTH_MASK                               0x0097035C
 #   define NV097_SET_STENCIL_MASK                             0x00970360
+#   define NV097_SET_STENCIL_FUNC                             0x00970364
+#   define NV097_SET_STENCIL_FUNC_REF                         0x00970368
+#   define NV097_SET_STENCIL_FUNC_MASK                        0x0097036C
+#   define NV097_SET_STENCIL_OP_FAIL                          0x00970370
+#   define NV097_SET_STENCIL_OP_ZFAIL                         0x00970374
+#   define NV097_SET_STENCIL_OP_ZPASS                         0x00970378
+#       define NV097_SET_STENCIL_OP_V_KEEP                        0x1E00
+#       define NV097_SET_STENCIL_OP_V_ZERO                        0x0000
+#       define NV097_SET_STENCIL_OP_V_REPLACE                     0x1E01
+#       define NV097_SET_STENCIL_OP_V_INCRSAT                     0x1E02
+#       define NV097_SET_STENCIL_OP_V_DECRSAT                     0x1E03
+#       define NV097_SET_STENCIL_OP_V_INVERT                      0x150A
+#       define NV097_SET_STENCIL_OP_V_INCR                        0x8507
+#       define NV097_SET_STENCIL_OP_V_DECR                        0x8508
 #   define NV097_SET_CLIP_MIN                                 0x00970394
 #   define NV097_SET_CLIP_MAX                                 0x00970398
 #   define NV097_SET_COMPOSITE_MATRIX                         0x00970680
@@ -866,6 +907,28 @@ static const GLenum pgraph_depth_func_map[] = {
     GL_NOTEQUAL,
     GL_GEQUAL,
     GL_ALWAYS,
+};
+
+static const GLenum pgraph_stencil_func_map[] = {
+    GL_NEVER,
+    GL_LESS,
+    GL_EQUAL,
+    GL_LEQUAL,
+    GL_GREATER,
+    GL_NOTEQUAL,
+    GL_GEQUAL,
+    GL_ALWAYS,
+};
+
+static const GLenum pgraph_stencil_op_map[] = {
+    GL_KEEP,
+    GL_ZERO,
+    GL_REPLACE,
+    GL_INCR,
+    GL_DECR,
+    GL_INVERT,
+    GL_INCR_WRAP,
+    GL_DECR_WRAP,
 };
 
 typedef struct ColorFormatInfo {
@@ -2794,6 +2857,33 @@ static void pgraph_destroy(PGRAPHState *pg)
     glo_context_destroy(pg->gl_context);
 }
 
+static unsigned int kelvin_map_stencil_op(uint32_t parameter)
+{
+    unsigned int op;
+    switch (parameter) {
+    case NV097_SET_STENCIL_OP_V_KEEP:
+        op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_KEEP; break;
+    case NV097_SET_STENCIL_OP_V_ZERO:
+        op = NV097_SET_STENCIL_OP_V_ZERO; break;
+    case NV097_SET_STENCIL_OP_V_REPLACE:
+        op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_REPLACE; break;
+    case NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCRSAT:
+        op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCRSAT; break;
+    case NV097_SET_STENCIL_OP_V_DECRSAT:
+        op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECRSAT; break;
+    case NV097_SET_STENCIL_OP_V_INVERT:
+        op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INVERT; break;
+    case NV097_SET_STENCIL_OP_V_INCR:
+        op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCR; break;
+    case NV097_SET_STENCIL_OP_V_DECR:
+        op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECR; break;
+    default:
+        assert(false);
+        break;
+    }
+    return op;
+}
+
 static void pgraph_method(NV2AState *d,
                           unsigned int subchannel,
                           unsigned int method,
@@ -3133,6 +3223,10 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0], NV_PGRAPH_CONTROL_0_ZENABLE,
                  parameter);
         break;
+    case NV097_SET_STENCIL_TEST_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                 NV_PGRAPH_CONTROL_1_STENCIL_TEST_ENABLE, parameter);
+        break;
 
     case NV097_SET_BLEND_FUNC_SFACTOR: {
         unsigned int factor;
@@ -3273,8 +3367,35 @@ static void pgraph_method(NV2AState *d,
                  NV_PGRAPH_CONTROL_0_ZWRITEENABLE, parameter);
         break;
     case NV097_SET_STENCIL_MASK:
-        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
-                 NV_PGRAPH_CONTROL_0_STENCIL_WRITE_ENABLE, parameter);
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                 NV_PGRAPH_CONTROL_1_STENCIL_MASK_WRITE, parameter);
+        break;
+    case NV097_SET_STENCIL_FUNC:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                 NV_PGRAPH_CONTROL_1_STENCIL_FUNC, parameter & 0xF);
+        break;
+    case NV097_SET_STENCIL_FUNC_REF:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                 NV_PGRAPH_CONTROL_1_STENCIL_REF, parameter);
+        break;
+    case NV097_SET_STENCIL_FUNC_MASK:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                 NV_PGRAPH_CONTROL_1_STENCIL_MASK_READ, parameter);
+        break;
+    case NV097_SET_STENCIL_OP_FAIL:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_2],
+                 NV_PGRAPH_CONTROL_2_STENCIL_OP_FAIL,
+                 kelvin_map_stencil_op(parameter));
+        break;
+    case NV097_SET_STENCIL_OP_ZFAIL:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_2],
+                 NV_PGRAPH_CONTROL_2_STENCIL_OP_ZFAIL,
+                 kelvin_map_stencil_op(parameter));
+        break;
+    case NV097_SET_STENCIL_OP_ZPASS:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_2],
+                 NV_PGRAPH_CONTROL_2_STENCIL_OP_ZPASS,
+                 kelvin_map_stencil_op(parameter));
         break;
 
     case NV097_SET_CLIP_MIN:
@@ -3502,6 +3623,11 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_BEGIN_END: {
+        bool depth_test =
+            pg->regs[NV_PGRAPH_CONTROL_0] & NV_PGRAPH_CONTROL_0_ZENABLE;
+        bool stencil_test = pg->regs[NV_PGRAPH_CONTROL_1]
+                                & NV_PGRAPH_CONTROL_1_STENCIL_TEST_ENABLE;
+
         if (parameter == NV097_SET_BEGIN_END_OP_END) {
 
             if (pg->inline_buffer_length) {
@@ -3561,6 +3687,15 @@ static void pgraph_method(NV2AState *d,
 
             uint32_t control_0 = pg->regs[NV_PGRAPH_CONTROL_0];
 
+            bool alpha = control_0 & NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE;
+            bool red = control_0 & NV_PGRAPH_CONTROL_0_RED_WRITE_ENABLE;
+            bool green = control_0 & NV_PGRAPH_CONTROL_0_GREEN_WRITE_ENABLE;
+            bool blue = control_0 & NV_PGRAPH_CONTROL_0_BLUE_WRITE_ENABLE;
+            glColorMask(red, green, blue, alpha);
+            glDepthMask(!!(control_0 & NV_PGRAPH_CONTROL_0_ZWRITEENABLE));
+            glStencilMask(GET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                                   NV_PGRAPH_CONTROL_1_STENCIL_MASK_WRITE));
+
             if (pg->regs[NV_PGRAPH_BLEND] & NV_PGRAPH_BLEND_EN) {
                 glEnable(GL_BLEND);
                 uint32_t sfactor = GET_MASK(pg->regs[NV_PGRAPH_BLEND],
@@ -3586,15 +3721,7 @@ static void pgraph_method(NV2AState *d,
                 glDisable(GL_BLEND);
             }
 
-            bool alpha = control_0 & NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE;
-            bool red = control_0 & NV_PGRAPH_CONTROL_0_RED_WRITE_ENABLE;
-            bool green = control_0 & NV_PGRAPH_CONTROL_0_GREEN_WRITE_ENABLE;
-            bool blue = control_0 & NV_PGRAPH_CONTROL_0_BLUE_WRITE_ENABLE;
-            glColorMask(red, green, blue, alpha);
-
-            glDepthMask(!!(control_0 & NV_PGRAPH_CONTROL_0_ZWRITEENABLE));
-
-            if (pg->regs[NV_PGRAPH_CONTROL_0] & NV_PGRAPH_CONTROL_0_ZENABLE) {
+            if (depth_test) {
                 glEnable(GL_DEPTH_TEST);
 
                 uint32_t depth_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
@@ -3603,6 +3730,45 @@ static void pgraph_method(NV2AState *d,
                 glDepthFunc(pgraph_depth_func_map[depth_func]);
             } else {
                 glDisable(GL_DEPTH_TEST);
+            }
+
+            if (stencil_test) {
+                glEnable(GL_STENCIL_TEST);
+
+                uint32_t stencil_mask = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                                        NV_PGRAPH_CONTROL_1_STENCIL_MASK_WRITE);
+                uint32_t stencil_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                                            NV_PGRAPH_CONTROL_1_STENCIL_FUNC);
+                uint32_t stencil_ref = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                                            NV_PGRAPH_CONTROL_1_STENCIL_REF);
+                uint32_t func_mask = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
+                                        NV_PGRAPH_CONTROL_1_STENCIL_MASK_READ);
+                uint32_t op_fail = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_2],
+                                        NV_PGRAPH_CONTROL_2_STENCIL_OP_FAIL);
+                uint32_t op_zfail = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_2],
+                                        NV_PGRAPH_CONTROL_2_STENCIL_OP_ZFAIL);
+                uint32_t op_zpass = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_2],
+                                        NV_PGRAPH_CONTROL_2_STENCIL_OP_ZPASS);
+
+                assert(stencil_func < ARRAYSIZE(pgraph_stencil_func_map));
+                assert(op_fail < ARRAYSIZE(pgraph_stencil_op_map));
+                assert(op_zfail < ARRAYSIZE(pgraph_stencil_op_map));
+                assert(op_zpass < ARRAYSIZE(pgraph_stencil_op_map));
+                
+                glStencilMask(stencil_mask);
+
+                glStencilFunc(
+                    pgraph_stencil_func_map[stencil_func],
+                    stencil_ref,
+                    func_mask);
+
+                glStencilOp(
+                    pgraph_stencil_op_map[op_fail],
+                    pgraph_stencil_op_map[op_zfail],
+                    pgraph_stencil_op_map[op_zpass]);
+
+            } else {
+                glDisable(GL_STENCIL_TEST);
             }
 
             pgraph_bind_shaders(pg);
@@ -3619,7 +3785,7 @@ static void pgraph_method(NV2AState *d,
             pg->inline_buffer_length = 0;
         }
 
-        pgraph_set_surface_dirty(pg, true, true);
+        pgraph_set_surface_dirty(pg, true, depth_test || stencil_test);
         break;
     }
     CASE_4(NV097_SET_TEXTURE_OFFSET, 64):
