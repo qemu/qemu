@@ -871,7 +871,7 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
 }
 
 static Property virtio_gpu_properties[] = {
-    DEFINE_VIRTIO_GPU_PROPERTIES(VirtIOGPU, conf),
+    DEFINE_PROP_UINT32("max_outputs", VirtIOGPU, conf.max_outputs, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
