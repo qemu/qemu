@@ -2643,6 +2643,8 @@ static void x86_cpu_reset(CPUState *s)
     X86CPU *cpu = X86_CPU(s);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
     CPUX86State *env = &cpu->env;
+    target_ulong cr4;
+    uint64_t xcr0;
     int i;
 
     xcc->parent_reset(s);
@@ -2702,7 +2704,8 @@ static void x86_cpu_reset(CPUState *s)
     cpu_set_fpuc(env, 0x37f);
 
     env->mxcsr = 0x1f80;
-    env->xstate_bv = XSTATE_FP | XSTATE_SSE;
+    /* All units are in INIT state.  */
+    env->xstate_bv = 0;
 
     env->pat = 0x0007040600070406ULL;
     env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
@@ -2713,7 +2716,24 @@ static void x86_cpu_reset(CPUState *s)
     cpu_breakpoint_remove_all(s, BP_CPU);
     cpu_watchpoint_remove_all(s, BP_CPU);
 
-    env->xcr0 = 1;
+    cr4 = 0;
+    xcr0 = XSTATE_FP;
+
+#ifdef CONFIG_USER_ONLY
+    /* Enable all the features for user-mode.  */
+    if (env->features[FEAT_1_EDX] & CPUID_SSE) {
+        xcr0 |= XSTATE_SSE;
+    }
+    if (env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_MPX) {
+        xcr0 |= XSTATE_BNDREGS | XSTATE_BNDCSR;
+    }
+    if (env->features[FEAT_1_ECX] & CPUID_EXT_XSAVE) {
+        cr4 |= CR4_OSFXSR_MASK | CR4_OSXSAVE_MASK;
+    }
+#endif
+
+    env->xcr0 = xcr0;
+    cpu_x86_update_cr4(env, cr4);
 
     /*
      * SDM 11.11.5 requires:
