@@ -2580,8 +2580,6 @@ static void pgraph_method(NV2AState *d,
 
     PGRAPHState *pg = &d->pgraph;
 
-    qemu_mutex_lock(&pg->lock);
-
     assert(pg->channel_valid);
     subchannel_data = &pg->subchannel_data[subchannel];
     object = &subchannel_data->object;
@@ -2598,7 +2596,6 @@ static void pgraph_method(NV2AState *d,
     if (method == NV_SET_OBJECT) {
         subchannel_data->object_instance = parameter;
 
-        qemu_mutex_unlock(&pg->lock);
         //qemu_mutex_lock_iothread();
         load_graphics_object(d, parameter, object);
         //qemu_mutex_unlock_iothread();
@@ -3563,43 +3560,37 @@ static void pgraph_method(NV2AState *d,
                      object->graphics_class, method);
         break;
     }
-    qemu_mutex_unlock(&d->pgraph.lock);
-
 }
 
 
 static void pgraph_context_switch(NV2AState *d, unsigned int channel_id)
 {
     bool valid;
-    qemu_mutex_lock(&d->pgraph.lock);
     valid = d->pgraph.channel_valid && d->pgraph.channel_id == channel_id;
     if (!valid) {
         d->pgraph.trapped_channel_id = channel_id;
     }
-    qemu_mutex_unlock(&d->pgraph.lock);
     if (!valid) {
         NV2A_DPRINTF("puller needs to switch to ch %d\n", channel_id);
-        
+
+        qemu_mutex_unlock(&d->pgraph.lock);
         qemu_mutex_lock_iothread();
         d->pgraph.pending_interrupts |= NV_PGRAPH_INTR_CONTEXT_SWITCH;
         update_irq(d);
-        qemu_mutex_unlock_iothread();
 
         qemu_mutex_lock(&d->pgraph.lock);
+        qemu_mutex_unlock_iothread();
+
         while (d->pgraph.pending_interrupts & NV_PGRAPH_INTR_CONTEXT_SWITCH) {
             qemu_cond_wait(&d->pgraph.interrupt_cond, &d->pgraph.lock);
         }
-        qemu_mutex_unlock(&d->pgraph.lock);
     }
 }
 
 static void pgraph_wait_fifo_access(NV2AState *d) {
-    if (d->pgraph.fifo_access) return;
-    qemu_mutex_lock(&d->pgraph.lock);
     while (!d->pgraph.fifo_access) {
         qemu_cond_wait(&d->pgraph.fifo_access_cond, &d->pgraph.lock);
     }
-    qemu_mutex_unlock(&d->pgraph.lock);
 }
 
 static void* pfifo_puller_thread(void *arg)
@@ -3622,6 +3613,8 @@ static void* pfifo_puller_thread(void *arg)
         }
         QSIMPLEQ_CONCAT(&state->working_cache, &state->cache);
         qemu_mutex_unlock(&state->cache_lock);
+
+        qemu_mutex_lock(&d->pgraph.lock);
 
         while (!QSIMPLEQ_EMPTY(&state->working_cache)) {
             CacheEntry * command = QSIMPLEQ_FIRST(&state->working_cache);
@@ -3675,7 +3668,7 @@ static void* pfifo_puller_thread(void *arg)
                 case ENGINE_GRAPHICS:
                     pgraph_wait_fifo_access(d);
                     pgraph_method(d, command->subchannel,
-                                       command->method, parameter);
+                                  command->method, parameter);
                     break;
                 default:
                     assert(false);
@@ -3689,6 +3682,8 @@ static void* pfifo_puller_thread(void *arg)
 
             g_free(command);
         }
+
+        qemu_mutex_unlock(&d->pgraph.lock);
     }
 
     return NULL;
