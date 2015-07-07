@@ -1213,8 +1213,8 @@ typedef struct Cache1State {
     /* The actual command queue */
     QemuMutex cache_lock;
     QemuCond cache_cond;
-    int cache_size;
     QSIMPLEQ_HEAD(, CacheEntry) cache;
+    QSIMPLEQ_HEAD(, CacheEntry) working_cache;
 } Cache1State;
 
 typedef struct ChannelControl {
@@ -3605,8 +3605,6 @@ static void* pfifo_puller_thread(void *arg)
 {
     NV2AState *d = arg;
     Cache1State *state = &d->pfifo.cache1;
-    CacheEntry *command;
-    RAMHTEntry entry;
 
     glo_set_current(d->pgraph.gl_context);
 
@@ -3621,72 +3619,75 @@ static void* pfifo_puller_thread(void *arg)
                 return NULL;
             }
         }
-        command = QSIMPLEQ_FIRST(&state->cache);
-        QSIMPLEQ_REMOVE_HEAD(&state->cache, entry);
-        state->cache_size--;
+        QSIMPLEQ_CONCAT(&state->working_cache, &state->cache);
         qemu_mutex_unlock(&state->cache_lock);
 
-        if (command->method == 0) {
-            //qemu_mutex_lock_iothread();
-            entry = ramht_lookup(d, command->parameter);
-            assert(entry.valid);
+        while (!QSIMPLEQ_EMPTY(&state->working_cache)) {
+            CacheEntry * command = QSIMPLEQ_FIRST(&state->working_cache);
+            QSIMPLEQ_REMOVE_HEAD(&state->working_cache, entry);
 
-            assert(entry.channel_id == state->channel_id);
-            //qemu_mutex_unlock_iothread();
-
-            switch (entry.engine) {
-            case ENGINE_GRAPHICS:
-                pgraph_context_switch(d, entry.channel_id);
-                pgraph_wait_fifo_access(d);
-                pgraph_method(d, command->subchannel, 0, entry.instance);
-                break;
-            default:
-                assert(false);
-                break;
-            }
-
-            /* the engine is bound to the subchannel */
-            qemu_mutex_lock(&state->cache_lock);
-            state->bound_engines[command->subchannel] = entry.engine;
-            state->last_engine = entry.engine;
-            qemu_mutex_unlock(&state->cache_lock);
-        } else if (command->method >= 0x100) {
-            /* method passed to engine */
-
-            uint32_t parameter = command->parameter;
-
-            /* methods that take objects.
-             * TODO: Check this range is correct for the nv2a */
-            if (command->method >= 0x180 && command->method < 0x200) {
-                //qemu_mutex_lock_iothread();
-                entry = ramht_lookup(d, parameter);
+            if (command->method == 0) {
+                // qemu_mutex_lock_iothread();
+                RAMHTEntry entry = ramht_lookup(d, command->parameter);
                 assert(entry.valid);
+
                 assert(entry.channel_id == state->channel_id);
-                parameter = entry.instance;
-                //qemu_mutex_unlock_iothread();
+                // qemu_mutex_unlock_iothread();
+
+                switch (entry.engine) {
+                case ENGINE_GRAPHICS:
+                    pgraph_context_switch(d, entry.channel_id);
+                    pgraph_wait_fifo_access(d);
+                    pgraph_method(d, command->subchannel, 0, entry.instance);
+                    break;
+                default:
+                    assert(false);
+                    break;
+                }
+
+                /* the engine is bound to the subchannel */
+                qemu_mutex_lock(&state->cache_lock);
+                state->bound_engines[command->subchannel] = entry.engine;
+                state->last_engine = entry.engine;
+                qemu_mutex_unlock(&state->cache_lock);
+            } else if (command->method >= 0x100) {
+                /* method passed to engine */
+
+                uint32_t parameter = command->parameter;
+
+                /* methods that take objects.
+                 * TODO: Check this range is correct for the nv2a */
+                if (command->method >= 0x180 && command->method < 0x200) {
+                    //qemu_mutex_lock_iothread();
+                    RAMHTEntry entry = ramht_lookup(d, parameter);
+                    assert(entry.valid);
+                    assert(entry.channel_id == state->channel_id);
+                    parameter = entry.instance;
+                    //qemu_mutex_unlock_iothread();
+                }
+
+                // qemu_mutex_lock(&state->cache_lock);
+                enum FIFOEngine engine = state->bound_engines[command->subchannel];
+                // qemu_mutex_unlock(&state->cache_lock);
+
+                switch (engine) {
+                case ENGINE_GRAPHICS:
+                    pgraph_wait_fifo_access(d);
+                    pgraph_method(d, command->subchannel,
+                                       command->method, parameter);
+                    break;
+                default:
+                    assert(false);
+                    break;
+                }
+
+                // qemu_mutex_lock(&state->cache_lock);
+                state->last_engine = state->bound_engines[command->subchannel];
+                // qemu_mutex_unlock(&state->cache_lock);
             }
 
-            qemu_mutex_lock(&state->cache_lock);
-            enum FIFOEngine engine = state->bound_engines[command->subchannel];
-            qemu_mutex_unlock(&state->cache_lock);
-
-            switch (engine) {
-            case ENGINE_GRAPHICS:
-                pgraph_wait_fifo_access(d);
-                pgraph_method(d, command->subchannel,
-                                   command->method, parameter);
-                break;
-            default:
-                assert(false);
-                break;
-            }
-
-            qemu_mutex_lock(&state->cache_lock);
-            state->last_engine = state->bound_engines[command->subchannel];
-            qemu_mutex_unlock(&state->cache_lock);
+            g_free(command);
         }
-
-        g_free(command);
     }
 
     return NULL;
@@ -3751,7 +3752,6 @@ static void pfifo_run_pusher(NV2AState *d) {
             command->parameter = word;
             qemu_mutex_lock(&state->cache_lock);
             QSIMPLEQ_INSERT_TAIL(&state->cache, command, entry);
-            state->cache_size++;
             qemu_cond_signal(&state->cache_cond);
             qemu_mutex_unlock(&state->cache_lock);
 
@@ -5286,6 +5286,7 @@ static int nv2a_initfn(PCIDevice *dev)
     qemu_mutex_init(&d->pfifo.cache1.cache_lock);
     qemu_cond_init(&d->pfifo.cache1.cache_cond);
     QSIMPLEQ_INIT(&d->pfifo.cache1.cache);
+    QSIMPLEQ_INIT(&d->pfifo.cache1.working_cache);
 
     pgraph_init(&d->pgraph);
 
