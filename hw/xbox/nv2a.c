@@ -1255,22 +1255,10 @@ typedef struct NV2AState {
         uint32_t pending_interrupts;
         uint32_t enabled_interrupts;
 
-        hwaddr ramht_address;
-        unsigned int ramht_size;
-        uint32_t ramht_search;
-
-        hwaddr ramfc_address1;
-        hwaddr ramfc_address2;
-        unsigned int ramfc_size;
-
         QemuThread puller_thread;
-
-        /* Weather the fifo chanels are PIO or DMA */
-        uint32_t channel_modes;
-
-        uint32_t channels_pending_push;
-
         Cache1State cache1;
+
+        uint32_t regs[0x2000];
     } pfifo;
 
     struct {
@@ -1407,10 +1395,13 @@ static void update_irq(NV2AState *d)
 
 static uint32_t ramht_hash(NV2AState *d, uint32_t handle)
 {
-    uint32_t hash = 0;
-    /* XXX: Think this is different to what nouveau calculates... */
-    uint32_t bits = ffs(d->pfifo.ramht_size)-2;
+    unsigned int ramht_size =
+        1 << (GET_MASK(d->pfifo.regs[NV_PFIFO_RAMHT], NV_PFIFO_RAMHT_SIZE)+12);
 
+    /* XXX: Think this is different to what nouveau calculates... */
+    unsigned int bits = ffs(ramht_size)-2;
+
+    uint32_t hash = 0;
     while (handle) {
         hash ^= (handle & ((1 << bits) - 1));
         handle >>= bits;
@@ -1423,19 +1414,20 @@ static uint32_t ramht_hash(NV2AState *d, uint32_t handle)
 
 static RAMHTEntry ramht_lookup(NV2AState *d, uint32_t handle)
 {
-    uint32_t hash;
-    uint8_t *entry_ptr;
-    uint32_t entry_handle;
-    uint32_t entry_context;
+    unsigned int ramht_size =
+        1 << (GET_MASK(d->pfifo.regs[NV_PFIFO_RAMHT], NV_PFIFO_RAMHT_SIZE)+12);
 
+    uint32_t hash = ramht_hash(d, handle);
+    assert(hash * 8 < ramht_size);
 
-    hash = ramht_hash(d, handle);
-    assert(hash * 8 < d->pfifo.ramht_size);
+    uint32_t ramht_address =
+        GET_MASK(d->pfifo.regs[NV_PFIFO_RAMHT],
+                 NV_PFIFO_RAMHT_BASE_ADDRESS) << 12;
 
-    entry_ptr = d->ramin_ptr + d->pfifo.ramht_address + hash * 8;
+    uint8_t *entry_ptr = d->ramin_ptr + ramht_address + hash * 8;
 
-    entry_handle = ldl_le_p((uint32_t*)entry_ptr);
-    entry_context = ldl_le_p((uint32_t*)(entry_ptr + 4));
+    uint32_t entry_handle = ldl_le_p((uint32_t*)entry_ptr);
+    uint32_t entry_context = ldl_le_p((uint32_t*)(entry_ptr + 4));
 
     return (RAMHTEntry){
         .handle = entry_handle,
@@ -3722,7 +3714,8 @@ static void pfifo_run_pusher(NV2AState *d) {
     /* only handling DMA for now... */
 
     /* Channel running DMA */
-    assert(d->pfifo.channel_modes & (1 << channel_id));
+    uint32_t channel_modes = d->pfifo.regs[NV_PFIFO_MODE];
+    assert(channel_modes & (1 << channel_id));
     assert(state->mode == FIFO_DMA);
 
     if (!state->dma_push_enabled) return;
@@ -3949,28 +3942,9 @@ static uint64_t pfifo_read(void *opaque,
     case NV_PFIFO_INTR_EN_0:
         r = d->pfifo.enabled_interrupts;
         break;
-    case NV_PFIFO_RAMHT:
-        SET_MASK(r, NV_PFIFO_RAMHT_BASE_ADDRESS, d->pfifo.ramht_address >> 12);
-        SET_MASK(r, NV_PFIFO_RAMHT_SEARCH, d->pfifo.ramht_search);
-        SET_MASK(r, NV_PFIFO_RAMHT_SIZE, ffs(d->pfifo.ramht_size)-13);
-        break;
-    case NV_PFIFO_RAMFC:
-        SET_MASK(r, NV_PFIFO_RAMFC_BASE_ADDRESS1,
-                 d->pfifo.ramfc_address1 >> 10);
-        SET_MASK(r, NV_PFIFO_RAMFC_BASE_ADDRESS2,
-                 d->pfifo.ramfc_address2 >> 10);
-        SET_MASK(r, NV_PFIFO_RAMFC_SIZE, d->pfifo.ramfc_size);
-        break;
     case NV_PFIFO_RUNOUT_STATUS:
         r = NV_PFIFO_RUNOUT_STATUS_LOW_MARK; /* low mark empty */
         break;
-    case NV_PFIFO_MODE:
-        r = d->pfifo.channel_modes;
-        break;
-    case NV_PFIFO_DMA:
-        r = d->pfifo.channels_pending_push;
-        break;
-
     case NV_PFIFO_CACHE1_PUSH0:
         r = d->pfifo.cache1.push_enabled;
         break;
@@ -4043,6 +4017,7 @@ static uint64_t pfifo_read(void *opaque,
         r = d->pfifo.cache1.data_shadow;
         break;
     default:
+        r = d->pfifo.regs[addr];
         break;
     }
 
@@ -4065,25 +4040,6 @@ static void pfifo_write(void *opaque, hwaddr addr,
     case NV_PFIFO_INTR_EN_0:
         d->pfifo.enabled_interrupts = val;
         update_irq(d);
-        break;
-    case NV_PFIFO_RAMHT:
-        d->pfifo.ramht_address =
-            GET_MASK(val, NV_PFIFO_RAMHT_BASE_ADDRESS) << 12;
-        d->pfifo.ramht_size = 1 << (GET_MASK(val, NV_PFIFO_RAMHT_SIZE)+12);
-        d->pfifo.ramht_search = GET_MASK(val, NV_PFIFO_RAMHT_SEARCH);
-        break;
-    case NV_PFIFO_RAMFC:
-        d->pfifo.ramfc_address1 =
-            GET_MASK(val, NV_PFIFO_RAMFC_BASE_ADDRESS1) << 10;
-        d->pfifo.ramfc_address2 =
-            GET_MASK(val, NV_PFIFO_RAMFC_BASE_ADDRESS2) << 10;
-        d->pfifo.ramfc_size = GET_MASK(val, NV_PFIFO_RAMFC_SIZE);
-        break;
-    case NV_PFIFO_MODE:
-        d->pfifo.channel_modes = val;
-        break;
-    case NV_PFIFO_DMA:
-        d->pfifo.channels_pending_push = val;
         break;
 
     case NV_PFIFO_CACHE1_PUSH0:
@@ -4169,6 +4125,7 @@ static void pfifo_write(void *opaque, hwaddr addr,
         d->pfifo.cache1.data_shadow = val;
         break;
     default:
+        d->pfifo.regs[addr] = val;
         break;
     }
 }
@@ -4772,8 +4729,10 @@ static uint64_t user_read(void *opaque,
 
     ChannelControl *control = &d->user.channel_control[channel_id];
 
+    uint32_t channel_modes = d->pfifo.regs[NV_PFIFO_MODE];
+
     uint64_t r = 0;
-    if (d->pfifo.channel_modes & (1 << channel_id)) {
+    if (channel_modes & (1 << channel_id)) {
         /* DMA Mode */
         switch (addr & 0xFFFF) {
         case NV_USER_DMA_PUT:
@@ -4808,7 +4767,8 @@ static void user_write(void *opaque, hwaddr addr,
 
     ChannelControl *control = &d->user.channel_control[channel_id];
 
-    if (d->pfifo.channel_modes & (1 << channel_id)) {
+    uint32_t channel_modes = d->pfifo.regs[NV_PFIFO_MODE];
+    if (channel_modes & (1 << channel_id)) {
         /* DMA Mode */
         switch (addr & 0xFFFF) {
         case NV_USER_DMA_PUT:
