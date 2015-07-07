@@ -340,7 +340,12 @@
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_NOTEQUAL                   5
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_GEQUAL                     6
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_ALWAYS                     7
+#   define NV_PGRAPH_CONTROL_0_ZWRITEENABLE                     (1 << 24)
 #   define NV_PGRAPH_CONTROL_0_STENCIL_WRITE_ENABLE             (1 << 25)
+#   define NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE               (1 << 26)
+#   define NV_PGRAPH_CONTROL_0_RED_WRITE_ENABLE                 (1 << 27)
+#   define NV_PGRAPH_CONTROL_0_GREEN_WRITE_ENABLE               (1 << 28)
+#   define NV_PGRAPH_CONTROL_0_BLUE_WRITE_ENABLE                (1 << 29)
 #define NV_PGRAPH_SETUPRASTER                            0x00001990
 #   define NV_PGRAPH_SETUPRASTER_Z_FORMAT                       (1 << 29)
 #define NV_PGRAPH_SHADERCTL                              0x00001998
@@ -651,6 +656,10 @@
 #       define NV097_SET_BLEND_EQUATION_V_FUNC_ADD_SIGNED         0xF006
 #   define NV097_SET_DEPTH_FUNC                               0x00970354
 #   define NV097_SET_COLOR_MASK                               0x00970358
+#       define NV097_SET_COLOR_MASK_BLUE_WRITE_ENABLE             (1 << 0)
+#       define NV097_SET_COLOR_MASK_GREEN_WRITE_ENABLE            (1 << 8)
+#       define NV097_SET_COLOR_MASK_RED_WRITE_ENABLE              (1 << 16)
+#       define NV097_SET_COLOR_MASK_ALPHA_WRITE_ENABLE            (1 << 24)
 #   define NV097_SET_DEPTH_MASK                               0x0097035c
 #   define NV097_SET_STENCIL_MASK                             0x00970360
 #   define NV097_SET_CLIP_MIN                                 0x00970394
@@ -1186,10 +1195,6 @@ typedef struct PGRAPHState {
     unsigned int surface_type;
     SurfaceShape surface_shape;
     SurfaceShape last_surface_shape;
-
-    uint32_t color_mask;
-    uint32_t depth_mask;
-    uint32_t stencil_mask;
 
     hwaddr dma_a, dma_b;
     GLruCache *texture_cache;
@@ -2397,15 +2402,20 @@ static void pgraph_get_surface_dimensions(NV2AState *d,
     }
 }
 
+static bool pgraph_framebuffer_dirty(PGRAPHState *pg)
+{
+    bool shape_changed = memcmp(&pg->surface_shape, &pg->last_surface_shape,
+                                sizeof(SurfaceShape)) != 0;
+    if (!shape_changed || (!pg->surface_shape.color_format
+            && !pg->surface_shape.zeta_format)) {
+        return false;
+    }
+    return true;
+}
+
 static void pgraph_update_framebuffer(NV2AState *d)
 {
     PGRAPHState *pg = &d->pgraph;
-
-    bool shape_changed = memcmp(&pg->surface_shape, &pg->last_surface_shape,
-                                sizeof(SurfaceShape)) != 0;
-    if (!shape_changed) return;
-    if (!pg->surface_shape.color_format && !pg->surface_shape.zeta_format)
-        return;
 
     printf("framebuffer shape changed\n");
 
@@ -2501,7 +2511,32 @@ static void pgraph_update_framebuffer(NV2AState *d)
     memcpy(&pg->last_surface_shape, &pg->surface_shape, sizeof(SurfaceShape));
 }
 
-static void pgraph_update_surface(NV2AState *d, bool upload)
+static bool pgraph_color_write_enabled(PGRAPHState *pg)
+{
+    return pg->regs[NV_PGRAPH_CONTROL_0] & (
+        NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE
+        | NV_PGRAPH_CONTROL_0_RED_WRITE_ENABLE
+        | NV_PGRAPH_CONTROL_0_GREEN_WRITE_ENABLE
+        | NV_PGRAPH_CONTROL_0_BLUE_WRITE_ENABLE);
+}
+
+static bool pgraph_zeta_write_enabled(PGRAPHState *pg)
+{
+    return pg->regs[NV_PGRAPH_CONTROL_0] & (
+        NV_PGRAPH_CONTROL_0_ZWRITEENABLE
+        | NV_PGRAPH_CONTROL_0_STENCIL_WRITE_ENABLE);
+}
+
+static void pgraph_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta)
+{
+    color = color && pgraph_color_write_enabled(pg);
+    zeta = zeta && pgraph_zeta_write_enabled(pg);
+    pg->surface_color.draw_dirty |= color;
+    pg->surface_zeta.draw_dirty |= zeta;
+}
+
+static void pgraph_update_surface(NV2AState *d,
+                                  bool upload, bool color, bool zeta)
 {
     PGRAPHState *pg = &d->pgraph;
 
@@ -2511,9 +2546,22 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
     unsigned int width, height;
     pgraph_get_surface_dimensions(d, &width, &height);
 
+    // if (!upload) {
+        color = color && pgraph_color_write_enabled(pg);
+        zeta = zeta && pgraph_zeta_write_enabled(pg);
+    // }
 
-    if (pg->surface_shape.color_format != 0 && pg->color_mask
-        && (upload || pg->surface_color.draw_dirty)) {
+    bool framebuffer_change = false;
+    if (upload && pgraph_framebuffer_dirty(pg)) {
+        assert(!pg->surface_color.draw_dirty);
+        pgraph_update_framebuffer(d);
+        pg->surface_zeta.draw_dirty = false;
+        framebuffer_change = true;
+    }
+
+    if (color && (upload || pg->surface_color.draw_dirty)) {
+
+        assert(pg->surface_shape.color_format != 0);
 
         /* There's a bunch of bugs that could cause us to hit this function
          * at the wrong time and get a invalid dma object.
@@ -2555,12 +2603,13 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
             buf = g_malloc(height * pg->surface_color.pitch);
         }
 
-        if (upload && memory_region_test_and_clear_dirty(d->vram,
+        if (upload && (memory_region_test_and_clear_dirty(d->vram,
                                                color_dma.address
                                                  + pg->surface_color.offset,
                                                pg->surface_color.pitch
                                                  * height,
-                                               DIRTY_MEMORY_NV2A)) {
+                                               DIRTY_MEMORY_NV2A)
+                || framebuffer_change)) {
             /* surface modified (or moved) by the cpu.
              * copy it into the opengl renderbuffer */
             assert(!pg->surface_color.draw_dirty);
@@ -2577,6 +2626,7 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
 
             glUseProgram(0);
             glDisable(GL_BLEND);
+            glColorMask(true, true, true, true);
 
             int rl, pa;
             glGetIntegerv(GL_UNPACK_ROW_LENGTH, &rl);
@@ -2655,10 +2705,6 @@ static void pgraph_update_surface(NV2AState *d, bool upload)
             g_free(buf);
         }
 
-    }
-
-    if (!upload) {
-        pgraph_update_framebuffer(d);
     }
 }
 
@@ -2913,7 +2959,7 @@ static void pgraph_method(NV2AState *d,
         break;
     
     case NV097_WAIT_FOR_IDLE:
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
         break;
 
 
@@ -2950,7 +2996,7 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     case NV097_FLIP_STALL:
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         while (true) {
             NV2A_DPRINTF("flip stall read: %d, write: %d, modulo: %d\n",
@@ -2982,7 +3028,7 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_CONTEXT_DMA_COLOR:
         /* try to get any straggling draws in before the surface's changed :/ */
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         pg->dma_color = parameter;
         break;
@@ -3000,7 +3046,7 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_SURFACE_CLIP_HORIZONTAL:
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         pg->surface_shape.clip_x =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_X);
@@ -3008,7 +3054,7 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH);
         break;
     case NV097_SET_SURFACE_CLIP_VERTICAL:
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         pg->surface_shape.clip_y =
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_Y);
@@ -3016,7 +3062,7 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_CLIP_VERTICAL_HEIGHT);
         break;
     case NV097_SET_SURFACE_FORMAT:
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         pg->surface_shape.color_format =
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_COLOR);
@@ -3030,7 +3076,7 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_HEIGHT);
         break;
     case NV097_SET_SURFACE_PITCH:
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         pg->surface_color.pitch =
             GET_MASK(parameter, NV097_SET_SURFACE_PITCH_COLOR);
@@ -3038,12 +3084,12 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_PITCH_ZETA);
         break;
     case NV097_SET_SURFACE_COLOR_OFFSET:
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         pg->surface_color.offset = parameter;
         break;
     case NV097_SET_SURFACE_ZETA_OFFSET:
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         pg->surface_zeta.offset = parameter;
         break;
@@ -3066,7 +3112,7 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_CONTROL0: {
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         bool stencil_write_enable =
             parameter & NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE;
@@ -3207,14 +3253,28 @@ static void pgraph_method(NV2AState *d,
                  parameter & 0xF);
         break;
 
-    case NV097_SET_COLOR_MASK:
-        pg->color_mask = parameter;
+    case NV097_SET_COLOR_MASK: {
+        bool alpha = parameter & NV097_SET_COLOR_MASK_ALPHA_WRITE_ENABLE;
+        bool red = parameter & NV097_SET_COLOR_MASK_RED_WRITE_ENABLE;
+        bool green = parameter & NV097_SET_COLOR_MASK_GREEN_WRITE_ENABLE;
+        bool blue = parameter & NV097_SET_COLOR_MASK_BLUE_WRITE_ENABLE;
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE, alpha);
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_RED_WRITE_ENABLE, red);
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_GREEN_WRITE_ENABLE, green);
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_BLUE_WRITE_ENABLE, blue);
         break;
+    }
     case NV097_SET_DEPTH_MASK:
-        pg->depth_mask = parameter;
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_ZWRITEENABLE, parameter);
         break;
     case NV097_SET_STENCIL_MASK:
-        pg->stencil_mask = parameter;
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_STENCIL_WRITE_ENABLE, parameter);
         break;
 
     case NV097_SET_CLIP_MIN:
@@ -3441,7 +3501,7 @@ static void pgraph_method(NV2AState *d,
                  NV_PGRAPH_BLEND_LOGICOP, parameter & 0xF);
         break;
 
-    case NV097_SET_BEGIN_END:
+    case NV097_SET_BEGIN_END: {
         if (parameter == NV097_SET_BEGIN_END_OP_END) {
 
             if (pg->inline_buffer_length) {
@@ -3497,7 +3557,9 @@ static void pgraph_method(NV2AState *d,
         } else {
             assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
 
-            pgraph_update_surface(d, true);
+            pgraph_update_surface(d, true, true, true);
+
+            uint32_t control_0 = pg->regs[NV_PGRAPH_CONTROL_0];
 
             if (pg->regs[NV_PGRAPH_BLEND] & NV_PGRAPH_BLEND_EN) {
                 glEnable(GL_BLEND);
@@ -3524,6 +3586,14 @@ static void pgraph_method(NV2AState *d,
                 glDisable(GL_BLEND);
             }
 
+            bool alpha = control_0 & NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE;
+            bool red = control_0 & NV_PGRAPH_CONTROL_0_RED_WRITE_ENABLE;
+            bool green = control_0 & NV_PGRAPH_CONTROL_0_GREEN_WRITE_ENABLE;
+            bool blue = control_0 & NV_PGRAPH_CONTROL_0_BLUE_WRITE_ENABLE;
+            glColorMask(red, green, blue, alpha);
+
+            glDepthMask(!!(control_0 & NV_PGRAPH_CONTROL_0_ZWRITEENABLE));
+
             if (pg->regs[NV_PGRAPH_CONTROL_0] & NV_PGRAPH_CONTROL_0_ZENABLE) {
                 glEnable(GL_DEPTH_TEST);
 
@@ -3548,8 +3618,10 @@ static void pgraph_method(NV2AState *d,
             pg->inline_array_length = 0;
             pg->inline_buffer_length = 0;
         }
-        pg->surface_color.draw_dirty = true;
+
+        pgraph_set_surface_dirty(pg, true, true);
         break;
+    }
     CASE_4(NV097_SET_TEXTURE_OFFSET, 64):
         slot = (class_method - NV097_SET_TEXTURE_OFFSET) / 64;
         pg->regs[NV_PGRAPH_TEXOFFSET0 + slot * 4] = parameter;
@@ -3641,7 +3713,7 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_BACK_END_WRITE_SEMAPHORE_RELEASE: {
 
-        pgraph_update_surface(d, false);
+        pgraph_update_surface(d, false, true, true);
 
         //qemu_mutex_unlock(&d->pgraph.lock);
         //qemu_mutex_lock_iothread();
@@ -3676,18 +3748,20 @@ static void pgraph_method(NV2AState *d,
         if (parameter & NV097_CLEAR_SURFACE_STENCIL) {
             gl_mask |= GL_STENCIL_BUFFER_BIT;
         }
-
         if (parameter & (NV097_CLEAR_SURFACE_COLOR)) {
             gl_mask |= GL_COLOR_BUFFER_BIT;
-            pgraph_update_surface(d, true);
 
             uint32_t clear_color = d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE];
             glClearColor( ((clear_color >> 16) & 0xFF) / 255.0f, /* red */
                           ((clear_color >> 8) & 0xFF) / 255.0f,  /* green */
                           (clear_color & 0xFF) / 255.0f,         /* blue */
                           ((clear_color >> 24) & 0xFF) / 255.0f);/* alpha */
-
         }
+
+        bool write_color = (parameter & NV097_CLEAR_SURFACE_COLOR);
+        bool write_zeta =
+            (parameter & (NV097_CLEAR_SURFACE_Z | NV097_CLEAR_SURFACE_STENCIL));
+        pgraph_update_surface(d, true, write_color, write_zeta);
 
         glEnable(GL_SCISSOR_TEST);
 
@@ -3709,10 +3783,7 @@ static void pgraph_method(NV2AState *d,
 
         glDisable(GL_SCISSOR_TEST);
 
-
-        if (parameter & NV097_CLEAR_SURFACE_COLOR) {
-            pg->surface_color.draw_dirty = true;
-        }
+        pgraph_set_surface_dirty(pg, write_color, write_zeta);
         break;
 
     case NV097_SET_CLEAR_RECT_HORIZONTAL:
