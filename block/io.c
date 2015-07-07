@@ -236,12 +236,12 @@ static bool bdrv_requests_pending(BlockDriverState *bs)
 /*
  * Wait for pending requests to complete on a single BlockDriverState subtree
  *
- * See the warning in bdrv_drain_all().  This function can only be called if
- * you are sure nothing can generate I/O because you have op blockers
- * installed.
- *
  * Note that unlike bdrv_drain_all(), the caller must hold the BlockDriverState
  * AioContext.
+ *
+ * Only this BlockDriverState's AioContext is run, so in-flight requests must
+ * not depend on events in other AioContexts.  In that case, use
+ * bdrv_drain_all() instead.
  */
 void bdrv_drain(BlockDriverState *bs)
 {
@@ -260,12 +260,6 @@ void bdrv_drain(BlockDriverState *bs)
  *
  * This function does not flush data to disk, use bdrv_flush_all() for that
  * after calling this function.
- *
- * Note that completion of an asynchronous I/O operation can trigger any
- * number of other I/O operations on other devices---for example a coroutine
- * can be arbitrarily complex and a constant flow of I/O can come until the
- * coroutine is complete.  Because of this, it is not possible to have a
- * function to drain a single device's I/O queue.
  */
 void bdrv_drain_all(void)
 {
@@ -288,6 +282,12 @@ void bdrv_drain_all(void)
         }
     }
 
+    /* Note that completion of an asynchronous I/O operation can trigger any
+     * number of other I/O operations on other devices---for example a
+     * coroutine can submit an I/O request to another device in response to
+     * request completion.  Therefore we must keep looping until there was no
+     * more activity rather than simply draining each device independently.
+     */
     while (busy) {
         busy = false;
 

@@ -1271,7 +1271,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     QemuOpts *opts = NULL;
     QDict *snapshot_options;
     BlockDriverState *bs_snapshot;
-    Error *local_err;
+    Error *local_err = NULL;
     int ret;
 
     /* if snapshot, we create a temporary backing file and open it
@@ -1841,9 +1841,9 @@ void bdrv_close(BlockDriverState *bs)
     if (bs->job) {
         block_job_cancel_sync(bs->job);
     }
-    bdrv_drain_all(); /* complete I/O */
+    bdrv_drain(bs); /* complete I/O */
     bdrv_flush(bs);
-    bdrv_drain_all(); /* in case flush left pending I/O */
+    bdrv_drain(bs); /* in case flush left pending I/O */
     notifier_list_notify(&bs->close_notifiers, bs);
 
     if (bs->drv) {
@@ -3906,7 +3906,7 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
 
 void bdrv_set_aio_context(BlockDriverState *bs, AioContext *new_context)
 {
-    bdrv_drain_all(); /* ensure there are no in-flight requests */
+    bdrv_drain(bs); /* ensure there are no in-flight requests */
 
     bdrv_detach_aio_context(bs);
 

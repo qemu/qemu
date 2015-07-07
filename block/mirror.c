@@ -708,6 +708,8 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
     s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, NULL, errp);
     if (!s->dirty_bitmap) {
+        g_free(s->replaces);
+        block_job_release(bs);
         return;
     }
     bdrv_set_enable_write_cache(s->target, true);

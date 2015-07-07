@@ -239,7 +239,7 @@ int bdrv_snapshot_delete(BlockDriverState *bs,
     }
 
     /* drain all pending i/o before deleting snapshot */
-    bdrv_drain_all();
+    bdrv_drain(bs);
 
     if (drv->bdrv_snapshot_delete) {
         return drv->bdrv_snapshot_delete(bs, snapshot_id, name, errp);
