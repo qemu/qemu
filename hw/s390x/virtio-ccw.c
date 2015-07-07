@@ -1508,12 +1508,12 @@ static int virtio_ccw_load_config(DeviceState *d, QEMUFile *f)
     qemu_get_be16s(f, &vdev->config_vector);
     dev->routes.adapter.ind_offset = qemu_get_be64(f);
     dev->thinint_isc = qemu_get_byte(f);
+    dev->revision = qemu_get_be32(f);
     if (s->thinint_active) {
         return css_register_io_adapter(CSS_IO_ADAPTER_VIRTIO,
                                        dev->thinint_isc, true, false,
                                        &dev->routes.adapter.adapter_id);
     }
-    dev->revision = qemu_get_be32(f);
 
     return 0;
 }
