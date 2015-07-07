@@ -825,6 +825,8 @@ static OfDpaGroup *of_dpa_group_alloc(uint32_t id)
 static void of_dpa_output_l2_interface(OfDpaFlowContext *fc,
                                        OfDpaGroup *group)
 {
+    uint8_t copy_to_cpu = fc->action_set.apply.copy_to_cpu;
+
     if (group->l2_interface.pop_vlan) {
         of_dpa_flow_pkt_strip_vlan(fc);
     }
@@ -837,7 +839,8 @@ static void of_dpa_output_l2_interface(OfDpaFlowContext *fc,
      */
 
     if (group->l2_interface.out_pport == 0) {
-        rx_produce(fc->of_dpa->world, fc->in_pport, fc->iov, fc->iovcnt);
+        rx_produce(fc->of_dpa->world, fc->in_pport, fc->iov, fc->iovcnt,
+                   copy_to_cpu);
     } else if (group->l2_interface.out_pport != fc->in_pport) {
         rocker_port_eg(world_rocker(fc->of_dpa->world),
                        group->l2_interface.out_pport,
@@ -2525,7 +2528,6 @@ static void of_dpa_group_fill(void *key, void *value, void *user_data)
             ngroup->has_set_vlan_id = true;
             ngroup->set_vlan_id = ntohs(group->l2_rewrite.vlan_id);
         }
-        break;
         if (memcmp(group->l2_rewrite.src_mac.a, zero_mac.a, ETH_ALEN)) {
             ngroup->has_set_eth_src = true;
             ngroup->set_eth_src =
@@ -2536,6 +2538,7 @@ static void of_dpa_group_fill(void *key, void *value, void *user_data)
             ngroup->set_eth_dst =
                 qemu_mac_strdup_printf(group->l2_rewrite.dst_mac.a);
         }
+        break;
     case ROCKER_OF_DPA_GROUP_TYPE_L2_FLOOD:
     case ROCKER_OF_DPA_GROUP_TYPE_L2_MCAST:
         ngroup->has_vlan_id = true;

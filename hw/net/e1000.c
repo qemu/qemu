@@ -185,6 +185,9 @@ e1000_link_up(E1000State *s)
 {
     s->mac_reg[STATUS] |= E1000_STATUS_LU;
     s->phy_reg[PHY_STATUS] |= MII_SR_LINK_STATUS;
+
+    /* E1000_STATUS_LU is tested by e1000_can_receive() */
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
 static bool
