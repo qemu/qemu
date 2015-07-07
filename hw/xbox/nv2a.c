@@ -4002,6 +4002,10 @@ static void pgraph_method(NV2AState *d,
             (parameter & (NV097_CLEAR_SURFACE_Z | NV097_CLEAR_SURFACE_STENCIL));
         pgraph_update_surface(d, true, write_color, write_zeta);
 
+        glColorMask(true, true, true, true);
+        glDepthMask(true);
+        glStencilMask(0xff);
+
         glEnable(GL_SCISSOR_TEST);
 
         unsigned int xmin = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTX],
