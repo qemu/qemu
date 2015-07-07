@@ -3847,6 +3847,9 @@ static void pgraph_method(NV2AState *d,
             pgraph_bind_vertex_attributes(d);
 
 
+            unsigned int width, height;
+            pgraph_get_surface_dimensions(d, &width, &height);
+            glViewport(0, 0, width, height);
 
             pg->gl_primitive_mode = kelvin_primitive_map[parameter];
 
