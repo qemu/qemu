@@ -315,6 +315,7 @@ snappy=""
 bzip2=""
 guest_agent=""
 guest_agent_with_vss="no"
+guest_agent_ntddscsi="no"
 guest_agent_msi=""
 vss_win32_sdk=""
 win_sdk="no"
@@ -3820,6 +3821,25 @@ if test "$mingw32" = "yes" -a "$guest_agent" != "no" -a "$guest_agent_with_vss" 
 fi
 
 ##########################################
+# check if mingw environment provides a recent ntddscsi.h
+if test "$mingw32" = "yes" -a "$guest_agent" != "no"; then
+  cat > $TMPC << EOF
+#include <windows.h>
+#include <ntddscsi.h>
+int main(void) {
+#if !defined(IOCTL_SCSI_GET_ADDRESS)
+#error Missing required ioctl definitions
+#endif
+  SCSI_ADDRESS addr = { .Lun = 0, .TargetId = 0, .PathId = 0 };
+  return addr.Lun;
+}
+EOF
+  if compile_prog "" "" ; then
+    guest_agent_ntddscsi=yes
+  fi
+fi
+
+##########################################
 # Guest agent Window MSI  package
 
 if test "$guest_agent" != yes; then
@@ -4489,6 +4509,7 @@ echo "libiscsi support  $libiscsi"
 echo "libnfs support    $libnfs"
 echo "build guest agent $guest_agent"
 echo "QGA VSS support   $guest_agent_with_vss"
+echo "QGA w32 disk info $guest_agent_ntddscsi"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
@@ -4565,6 +4586,9 @@ if test "$mingw32" = "yes" ; then
   if test "$guest_agent_with_vss" = "yes" ; then
     echo "CONFIG_QGA_VSS=y" >> $config_host_mak
     echo "WIN_SDK=\"$win_sdk\"" >> $config_host_mak
+  fi
+  if test "$guest_agent_ntddscsi" = "yes" ; then
+    echo "CONFIG_QGA_NTDDDISK=y" >> $config_host_mak
   fi
   if test "$guest_agent_msi" != "no"; then
     echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak  
