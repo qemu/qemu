@@ -1021,7 +1021,7 @@ typedef struct Surface {
     hwaddr offset;
 } Surface;
 
-typedef struct TextureState {
+typedef struct TextureShape {
     unsigned int dimensionality;
     unsigned int color_format;
     unsigned int levels;
@@ -1029,10 +1029,10 @@ typedef struct TextureState {
 
     unsigned int min_mipmap_level, max_mipmap_level;
     unsigned int pitch;
-} TextureState;
+} TextureShape;
 
 typedef struct TextureKey {
-    TextureState state;
+    TextureShape state;
     uint64_t data_hash;
     uint8_t* texture_data;
 } TextureKey;
@@ -1652,7 +1652,7 @@ static void pgraph_bind_vertex_attributes(NV2AState *d)
     }
 }
 
-static TextureBinding* generate_texture(const TextureState s,
+static TextureBinding* generate_texture(const TextureShape s,
                                         const uint8_t *texture_data)
 {
     ColorFormatInfo f = kelvin_color_format_map[s.color_format];
@@ -1746,13 +1746,13 @@ static guint texture_key_hash(gconstpointer key)
 {
     const TextureKey *k = key;
     uint64_t state_hash = fnv_hash(
-        (const uint8_t*)&k->state, sizeof(TextureState));
+        (const uint8_t*)&k->state, sizeof(TextureShape));
     return state_hash ^ k->data_hash;
 }
 static gboolean texture_key_equal(gconstpointer a, gconstpointer b)
 {
     const TextureKey *ak = a, *bk = b;
-    return memcmp(&ak->state, &bk->state, sizeof(TextureState)) == 0
+    return memcmp(&ak->state, &bk->state, sizeof(TextureShape)) == 0
             && ak->data_hash == bk->data_hash;
 }
 static gpointer texture_key_retrieve(gpointer key, gpointer user_data)
@@ -1888,7 +1888,7 @@ static void pgraph_bind_textures(NV2AState *d)
             }
         }
 
-        TextureState state = {
+        TextureShape state = {
             .dimensionality = dimensionality,
             .color_format = color_format,
             .levels = levels,
