@@ -2215,6 +2215,9 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     int program_start = GET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
                                  NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START);
 
+    ShaderBinding* old_binding = pg->shader_binding;
+    bool binding_changed = false;
+
     if (pg->shaders_dirty) {
         ShaderState state = {
             /* register combier stuff */
@@ -2285,6 +2288,8 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             g_hash_table_insert(pg->shader_cache, cache_state,
                                 (gpointer)pg->shader_binding);
         }
+
+        binding_changed = (pg->shader_binding != old_binding);
     }
 
     glUseProgram(pg->shader_binding->gl_program);
@@ -2358,12 +2363,14 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
         for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
             VertexShaderConstant *constant = &pg->constants[i];
+            if (!constant->dirty && !binding_changed) continue;
 
             GLint loc = pg->shader_binding->vsh_constant_loc[i];
             //assert(loc != -1);
             if (loc != -1) {
                 glUniform4fv(loc, 1, (const GLfloat*)constant->data);
             }
+            constant->dirty = false;
         }
 
         GLint loc = glGetUniformLocation(pg->shader_binding->gl_program, "clipRange");
@@ -3298,8 +3305,8 @@ static void pgraph_method(NV2AState *d,
 
         assert(const_load < NV2A_VERTEXSHADER_CONSTANTS);
         VertexShaderConstant *constant = &pg->constants[const_load];
+        constant->dirty = (parameter != constant->data[slot%4]);
         constant->data[slot%4] = parameter;
-        constant->dirty = true;
 
         if (slot % 4 == 3) {
             SET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
