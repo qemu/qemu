@@ -76,7 +76,7 @@ int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset)
     return 0;
 }
 
-static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
@@ -106,7 +106,7 @@ static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 7, ns);
 }
 
-static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)

@@ -160,7 +160,7 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
 /*
  * CRQ handling
  */
-static target_ulong h_reg_crq(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_reg_crq(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                               target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];
@@ -218,7 +218,7 @@ static target_ulong free_crq(VIOsPAPRDevice *dev)
     return H_SUCCESS;
 }
 
-static target_ulong h_free_crq(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_free_crq(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];
@@ -232,7 +232,7 @@ static target_ulong h_free_crq(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return free_crq(dev);
 }
 
-static target_ulong h_send_crq(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_send_crq(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];
@@ -255,7 +255,7 @@ static target_ulong h_send_crq(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_HARDWARE;
 }
 
-static target_ulong h_enable_crq(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_enable_crq(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                  target_ulong opcode, target_ulong *args)
 {
     target_ulong reg = args[0];
@@ -333,7 +333,7 @@ void spapr_vio_set_bypass(VIOsPAPRDevice *dev, bool bypass)
     dev->tcet->bypass = bypass;
 }
 
-static void rtas_set_tce_bypass(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_set_tce_bypass(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                 uint32_t token,
                                 uint32_t nargs, target_ulong args,
                                 uint32_t nret, target_ulong rets)
@@ -364,7 +364,7 @@ static void rtas_set_tce_bypass(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
 
-static void rtas_quiesce(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_quiesce(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                          uint32_t token,
                          uint32_t nargs, target_ulong args,
                          uint32_t nret, target_ulong rets)
@@ -426,6 +426,7 @@ static void spapr_vio_busdev_reset(DeviceState *qdev)
 
 static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
     char *id;
@@ -491,7 +492,7 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
     pc->realize(dev, errp);
 }
 
-static target_ulong h_vio_signal(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_vio_signal(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                  target_ulong opcode,
                                  target_ulong *args)
 {

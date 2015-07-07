@@ -2,6 +2,7 @@
 #define __HW_SPAPR_H__
 
 #include "sysemu/dma.h"
+#include "hw/boards.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/spapr_drc.h"
 
@@ -12,15 +13,42 @@ typedef struct sPAPRConfigureConnectorState sPAPRConfigureConnectorState;
 typedef struct sPAPREventLogEntry sPAPREventLogEntry;
 
 #define HPTE64_V_HPTE_DIRTY     0x0000000000000040ULL
+#define SPAPR_ENTRY_POINT       0x100
 
-typedef struct sPAPREnvironment {
+typedef struct sPAPRMachineClass sPAPRMachineClass;
+typedef struct sPAPRMachineState sPAPRMachineState;
+
+#define TYPE_SPAPR_MACHINE      "spapr-machine"
+#define SPAPR_MACHINE(obj) \
+    OBJECT_CHECK(sPAPRMachineState, (obj), TYPE_SPAPR_MACHINE)
+#define SPAPR_MACHINE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(sPAPRMachineClass, obj, TYPE_SPAPR_MACHINE)
+#define SPAPR_MACHINE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(sPAPRMachineClass, klass, TYPE_SPAPR_MACHINE)
+
+/**
+ * sPAPRMachineClass:
+ */
+struct sPAPRMachineClass {
+    /*< private >*/
+    MachineClass parent_class;
+
+    /*< public >*/
+};
+
+/**
+ * sPAPRMachineState:
+ */
+struct sPAPRMachineState {
+    /*< private >*/
+    MachineState parent_obj;
+
     struct VIOsPAPRBus *vio_bus;
     QLIST_HEAD(, sPAPRPHBState) phbs;
     struct sPAPRNVRAM *nvram;
     XICSState *icp;
     DeviceState *rtc;
 
-    hwaddr ram_limit;
     void *htab;
     uint32_t htab_shift;
     hwaddr rma_size;
@@ -29,7 +57,6 @@ typedef struct sPAPREnvironment {
     ssize_t rtas_size;
     void *rtas_blob;
     void *fdt_skel;
-    target_ulong entry_point;
     uint64_t rtc_offset; /* Now used only during incoming migration */
     struct PPCTimebase tb;
     bool has_graphics;
@@ -46,7 +73,10 @@ typedef struct sPAPREnvironment {
 
     /* RTAS state */
     QTAILQ_HEAD(, sPAPRConfigureConnectorState) ccs_list;
-} sPAPREnvironment;
+
+    /*< public >*/
+    char *kvm_type;
+};
 
 #define H_SUCCESS         0
 #define H_BUSY            1        /* Hardware busy -- retry later */
@@ -319,8 +349,6 @@ typedef struct sPAPREnvironment {
 #define KVMPPC_H_CAS            (KVMPPC_HCALL_BASE + 0x2)
 #define KVMPPC_HCALL_MAX        KVMPPC_H_CAS
 
-extern sPAPREnvironment *spapr;
-
 typedef struct sPAPRDeviceTreeUpdateHeader {
     uint32_t version_id;
 } sPAPRDeviceTreeUpdateHeader;
@@ -335,7 +363,7 @@ typedef struct sPAPRDeviceTreeUpdateHeader {
     do { } while (0)
 #endif
 
-typedef target_ulong (*spapr_hcall_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+typedef target_ulong (*spapr_hcall_fn)(PowerPCCPU *cpu, sPAPRMachineState *sm,
                                        target_ulong opcode,
                                        target_ulong *args);
 
@@ -490,12 +518,12 @@ static inline void rtas_st_buffer(target_ulong phys, target_ulong phys_len,
     rtas_st_buffer_direct(phys + 2, phys_len - 2, buffer, buffer_len);
 }
 
-typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+typedef void (*spapr_rtas_fn)(PowerPCCPU *cpu, sPAPRMachineState *sm,
                               uint32_t token,
                               uint32_t nargs, target_ulong args,
                               uint32_t nret, target_ulong rets);
 void spapr_rtas_register(int token, const char *name, spapr_rtas_fn fn);
-target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+target_ulong spapr_rtas_call(PowerPCCPU *cpu, sPAPRMachineState *sm,
                              uint32_t token, uint32_t nargs, target_ulong args,
                              uint32_t nret, target_ulong rets);
 int spapr_rtas_device_tree_setup(void *fdt, hwaddr rtas_addr,
@@ -546,9 +574,10 @@ struct sPAPREventLogEntry {
     QTAILQ_ENTRY(sPAPREventLogEntry) next;
 };
 
-void spapr_events_init(sPAPREnvironment *spapr);
+void spapr_events_init(sPAPRMachineState *sm);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
-int spapr_h_cas_compose_response(target_ulong addr, target_ulong size);
+int spapr_h_cas_compose_response(sPAPRMachineState *sm,
+                                 target_ulong addr, target_ulong size);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    uint64_t bus_offset,
                                    uint32_t page_shift,
@@ -577,5 +606,7 @@ void spapr_ccs_reset_hook(void *opaque);
 
 void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
+
+#define SPAPR_MEMORY_BLOCK_SIZE (1 << 28) /* 256MB */
 
 #endif /* !defined (__HW_SPAPR_H__) */

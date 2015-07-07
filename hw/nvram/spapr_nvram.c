@@ -45,7 +45,7 @@ typedef struct sPAPRNVRAM {
 #define DEFAULT_NVRAM_SIZE 65536
 #define MAX_NVRAM_SIZE 1048576
 
-static void rtas_nvram_fetch(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_nvram_fetch(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              uint32_t token, uint32_t nargs,
                              target_ulong args,
                              uint32_t nret, target_ulong rets)
@@ -86,7 +86,7 @@ static void rtas_nvram_fetch(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 1, len);
 }
 
-static void rtas_nvram_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_nvram_store(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              uint32_t token, uint32_t nargs,
                              target_ulong args,
                              uint32_t nret, target_ulong rets)

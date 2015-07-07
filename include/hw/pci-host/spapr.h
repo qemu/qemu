@@ -119,21 +119,23 @@ struct sPAPRPHBVFIOState {
 
 static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+
     return xics_get_qirq(spapr->icp, phb->lsi_table[pin].irq);
 }
 
-PCIHostState *spapr_create_phb(sPAPREnvironment *spapr, int index);
+PCIHostState *spapr_create_phb(sPAPRMachineState *spapr, int index);
 
 int spapr_populate_pci_dt(sPAPRPHBState *phb,
                           uint32_t xics_phandle,
                           void *fdt);
 
-void spapr_pci_msi_init(sPAPREnvironment *spapr, hwaddr addr);
+void spapr_pci_msi_init(sPAPRMachineState *spapr, hwaddr addr);
 
 void spapr_pci_rtas_init(void);
 
-sPAPRPHBState *spapr_pci_find_phb(sPAPREnvironment *spapr, uint64_t buid);
-PCIDevice *spapr_pci_find_dev(sPAPREnvironment *spapr, uint64_t buid,
+sPAPRPHBState *spapr_pci_find_phb(sPAPRMachineState *spapr, uint64_t buid);
+PCIDevice *spapr_pci_find_dev(sPAPRMachineState *spapr, uint64_t buid,
                               uint32_t config_addr);
 
 #endif /* __HW_SPAPR_PCI_H__ */
