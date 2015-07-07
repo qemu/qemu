@@ -523,6 +523,9 @@
 #          minimize migration traffic. The feature is disabled by default.
 #          (since 2.4 )
 #
+# @events: generate events for each migration state change
+#          (since 2.4 )
+#
 # @auto-converge: If enabled, QEMU will automatically throttle down the guest
 #          to speed up convergence of RAM migration. (since 1.6)
 #
@@ -530,7 +533,7 @@
 ##
 { 'enum': 'MigrationCapability',
   'data': ['xbzrle', 'rdma-pin-all', 'auto-converge', 'zero-blocks',
-           'compress'] }
+           'compress', 'events'] }
 
 ##
 # @MigrationCapabilityStatus

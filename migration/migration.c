@@ -205,6 +205,14 @@ void register_global_state(void)
     vmstate_register(NULL, 0, &vmstate_globalstate, &global_state);
 }
 
+static void migrate_generate_event(int new_state)
+{
+    if (migrate_use_events()) {
+        qapi_event_send_migration(new_state, &error_abort);
+        trace_migrate_set_state(new_state);
+    }
+}
+
 /*
  * Called on -incoming with a defer: uri.
  * The migration can be started later after any parameters have been
@@ -511,8 +519,7 @@ void qmp_migrate_set_parameters(bool has_compress_level,
 static void migrate_set_state(MigrationState *s, int old_state, int new_state)
 {
     if (atomic_cmpxchg(&s->state, old_state, new_state) == old_state) {
-        qapi_event_send_migration(new_state, &error_abort);
-        trace_migrate_set_state(new_state);
+        migrate_generate_event(new_state);
     }
 }
 
@@ -860,6 +867,15 @@ int migrate_decompress_threads(void)
     s = migrate_get_current();
 
     return s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
+}
+
+bool migrate_use_events(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_EVENTS];
 }
 
 int migrate_use_xbzrle(void)
