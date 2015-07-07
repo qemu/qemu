@@ -7511,6 +7511,36 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     /* bnd registers are now in-use */
                     gen_set_hflag(s, HF_MPX_IU_MASK);
                 }
+            } else if (mod != 3) {
+                /* bndldx */
+                AddressParts a = gen_lea_modrm_0(env, s, modrm);
+                if (reg >= 4
+                    || (prefixes & PREFIX_LOCK)
+                    || s->aflag == MO_16
+                    || a.base < -1) {
+                    goto illegal_op;
+                }
+                if (a.base >= 0) {
+                    tcg_gen_addi_tl(cpu_A0, cpu_regs[a.base], a.disp);
+                } else {
+                    tcg_gen_movi_tl(cpu_A0, 0);
+                }
+                gen_lea_v_seg(s, s->aflag, cpu_A0, a.def_seg, s->override);
+                if (a.index >= 0) {
+                    tcg_gen_mov_tl(cpu_T0, cpu_regs[a.index]);
+                } else {
+                    tcg_gen_movi_tl(cpu_T0, 0);
+                }
+                if (CODE64(s)) {
+                    gen_helper_bndldx64(cpu_bndl[reg], cpu_env, cpu_A0, cpu_T0);
+                    tcg_gen_ld_i64(cpu_bndu[reg], cpu_env,
+                                   offsetof(CPUX86State, mmx_t0.MMX_Q(0)));
+                } else {
+                    gen_helper_bndldx32(cpu_bndu[reg], cpu_env, cpu_A0, cpu_T0);
+                    tcg_gen_ext32u_i64(cpu_bndl[reg], cpu_bndu[reg]);
+                    tcg_gen_shri_i64(cpu_bndu[reg], cpu_bndu[reg], 32);
+                }
+                gen_set_hflag(s, HF_MPX_IU_MASK);
             }
         }
         gen_nop_modrm(env, s, modrm);
@@ -7585,6 +7615,33 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                         tcg_gen_qemu_st_i64(cpu_bndu[reg], cpu_A0,
                                             s->mem_index, MO_LEUL);
                     }
+                }
+            } else if (mod != 3) {
+                /* bndstx */
+                AddressParts a = gen_lea_modrm_0(env, s, modrm);
+                if (reg >= 4
+                    || (prefixes & PREFIX_LOCK)
+                    || s->aflag == MO_16
+                    || a.base < -1) {
+                    goto illegal_op;
+                }
+                if (a.base >= 0) {
+                    tcg_gen_addi_tl(cpu_A0, cpu_regs[a.base], a.disp);
+                } else {
+                    tcg_gen_movi_tl(cpu_A0, 0);
+                }
+                gen_lea_v_seg(s, s->aflag, cpu_A0, a.def_seg, s->override);
+                if (a.index >= 0) {
+                    tcg_gen_mov_tl(cpu_T0, cpu_regs[a.index]);
+                } else {
+                    tcg_gen_movi_tl(cpu_T0, 0);
+                }
+                if (CODE64(s)) {
+                    gen_helper_bndstx64(cpu_env, cpu_A0, cpu_T0,
+                                        cpu_bndl[reg], cpu_bndu[reg]);
+                } else {
+                    gen_helper_bndstx32(cpu_env, cpu_A0, cpu_T0,
+                                        cpu_bndl[reg], cpu_bndu[reg]);
                 }
             }
         }
