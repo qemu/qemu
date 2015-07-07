@@ -510,7 +510,7 @@ uint32_t HELPER(glue(glue(subx, bits), _cc))(CPUM68KState *env,         \
     env->cc_dest = cpu_m68k_flush_flags(env, op);                       \
     /* !Z is sticky.  */                                                \
     env->cc_dest &= (old_flags | ~CCF_Z);                               \
-    return (op1 & ~((1UL << bits) - 1)) | res;                          \
+    return (op1 & (uint32_t)~((1ULL << bits) - 1)) | res;                          \
 }
 
 HELPER_SUBX(uint8_t, 8, B)
@@ -539,7 +539,7 @@ uint32_t HELPER(glue(glue(addx, bits), _cc))(CPUM68KState *env,         \
     env->cc_dest = cpu_m68k_flush_flags(env, op);                       \
     /* !Z is sticky.  */                                                \
     env->cc_dest &= (old_flags | ~CCF_Z);                               \
-    return (op1 & ~((1UL << bits) - 1)) | res;                          \
+    return (op1 & (uint32_t)~((1ULL << bits) - 1)) | res;                          \
 }
 
 HELPER_ADDX(uint8_t, 8, B)
