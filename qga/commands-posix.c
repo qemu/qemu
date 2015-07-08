@@ -154,6 +154,8 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
     /* If user has passed a time, validate and set it. */
     if (has_time) {
+        GDate date = { 0, };
+
         /* year-2038 will overflow in case time_t is 32bit */
         if (time_ns / 1000000000 != (time_t)(time_ns / 1000000000)) {
             error_setg(errp, "Time %" PRId64 " is too large", time_ns);
@@ -162,6 +164,11 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
         tv.tv_sec = time_ns / 1000000000;
         tv.tv_usec = (time_ns % 1000000000) / 1000;
+        g_date_set_time_t(&date, tv.tv_sec);
+        if (date.year < 1970 || date.year >= 2070) {
+            error_setg_errno(errp, errno, "Invalid time");
+            return;
+        }
 
         ret = settimeofday(&tv, NULL);
         if (ret < 0) {
@@ -1325,18 +1332,18 @@ static void guest_fsfreeze_cleanup(void)
 /*
  * Walk list of mounted file systems in the guest, and trim them.
  */
-void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
+GuestFilesystemTrimResponse *
+qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
+    GuestFilesystemTrimResponse *response;
+    GuestFilesystemTrimResultList *list;
+    GuestFilesystemTrimResult *result;
     int ret = 0;
     FsMountList mounts;
     struct FsMount *mount;
     int fd;
     Error *local_err = NULL;
-    struct fstrim_range r = {
-        .start = 0,
-        .len = -1,
-        .minlen = has_minimum ? minimum : 0,
-    };
+    struct fstrim_range r;
 
     slog("guest-fstrim called");
 
@@ -1344,36 +1351,59 @@ void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
     build_fs_mount_list(&mounts, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        return NULL;
     }
 
+    response = g_malloc0(sizeof(*response));
+
     QTAILQ_FOREACH(mount, &mounts, next) {
+        result = g_malloc0(sizeof(*result));
+        result->path = g_strdup(mount->dirname);
+
+        list = g_malloc0(sizeof(*list));
+        list->value = result;
+        list->next = response->paths;
+        response->paths = list;
+
         fd = qemu_open(mount->dirname, O_RDONLY);
         if (fd == -1) {
-            error_setg_errno(errp, errno, "failed to open %s", mount->dirname);
-            goto error;
+            result->error = g_strdup_printf("failed to open: %s",
+                                            strerror(errno));
+            result->has_error = true;
+            continue;
         }
 
         /* We try to cull filesytems we know won't work in advance, but other
          * filesytems may not implement fstrim for less obvious reasons.  These
-         * will report EOPNOTSUPP; we simply ignore these errors.  Any other
-         * error means an unexpected error, so return it in those cases.  In
-         * some other cases ENOTTY will be reported (e.g. CD-ROMs).
+         * will report EOPNOTSUPP; while in some other cases ENOTTY will be
+         * reported (e.g. CD-ROMs).
+         * Any other error means an unexpected error.
          */
+        r.start = 0;
+        r.len = -1;
+        r.minlen = has_minimum ? minimum : 0;
         ret = ioctl(fd, FITRIM, &r);
         if (ret == -1) {
-            if (errno != ENOTTY && errno != EOPNOTSUPP) {
-                error_setg_errno(errp, errno, "failed to trim %s",
-                                 mount->dirname);
-                close(fd);
-                goto error;
+            result->has_error = true;
+            if (errno == ENOTTY || errno == EOPNOTSUPP) {
+                result->error = g_strdup("trim not supported");
+            } else {
+                result->error = g_strdup_printf("failed to trim: %s",
+                                                strerror(errno));
             }
+            close(fd);
+            continue;
         }
+
+        result->has_minimum = true;
+        result->minimum = r.minlen;
+        result->has_trimmed = true;
+        result->trimmed = r.len;
         close(fd);
     }
 
-error:
     free_fs_mount_list(&mounts);
+    return response;
 }
 #endif /* CONFIG_FSTRIM */
 
@@ -2402,9 +2432,11 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 #endif /* CONFIG_FSFREEZE */
 
 #if !defined(CONFIG_FSTRIM)
-void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
+GuestFilesystemTrimResponse *
+qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
 }
 #endif
 
