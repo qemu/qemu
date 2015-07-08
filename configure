@@ -246,7 +246,6 @@ vnc_tls=""
 vnc_sasl=""
 vnc_jpeg=""
 vnc_png=""
-vnc_ws=""
 xen=""
 xen_ctrl_version=""
 xen_pci_passthrough=""
@@ -331,11 +330,12 @@ glusterfs_zerofill="no"
 archipelago="no"
 gtk=""
 gtkabi=""
+gnutls=""
+gnutls_hash=""
 vte=""
 tpm="yes"
 libssh2=""
 vhdx=""
-quorum=""
 numa=""
 tcmalloc="no"
 
@@ -896,10 +896,6 @@ for opt do
   ;;
   --enable-vnc-png) vnc_png="yes"
   ;;
-  --disable-vnc-ws) vnc_ws="no"
-  ;;
-  --enable-vnc-ws) vnc_ws="yes"
-  ;;
   --disable-slirp) slirp="no"
   ;;
   --disable-uuid) uuid="no"
@@ -1119,6 +1115,10 @@ for opt do
   ;;
   --enable-gtk) gtk="yes"
   ;;
+  --disable-gnutls) gnutls="no"
+  ;;
+  --enable-gnutls) gnutls="yes"
+  ;;
   --enable-rdma) rdma="yes"
   ;;
   --disable-rdma) rdma="no"
@@ -1140,10 +1140,6 @@ for opt do
   --enable-vhdx) vhdx="yes"
   ;;
   --disable-vhdx) vhdx="no"
-  ;;
-  --disable-quorum) quorum="no"
-  ;;
-  --enable-quorum) quorum="yes"
   ;;
   --disable-numa) numa="no"
   ;;
@@ -1329,6 +1325,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   debug-info      debugging information
   sparse          sparse checker
 
+  gnutls          GNUTLS cryptography support
   sdl             SDL UI
   --with-sdlabi     select preferred SDL ABI 1.2 or 2.0
   gtk             gtk UI
@@ -1376,7 +1373,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   tpm             TPM support
   libssh2         ssh block device support
   vhdx            support for the Microsoft VHDX image format
-  quorum          quorum block filter support
   numa            libnuma support
   tcmalloc        tcmalloc support
 
@@ -2116,6 +2112,86 @@ if test "$gtk" != "no"; then
     fi
 fi
 
+
+##########################################
+# GNUTLS probe
+
+gnutls_gcrypt=no
+gnutls_nettle=no
+if test "$gnutls" != "no"; then
+    if $pkg_config --exists "gnutls"; then
+        gnutls_cflags=`$pkg_config --cflags gnutls`
+        gnutls_libs=`$pkg_config --libs gnutls`
+        libs_softmmu="$gnutls_libs $libs_softmmu"
+        libs_tools="$gnutls_libs $libs_tools"
+	QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
+        gnutls="yes"
+
+	# gnutls_hash_init requires >= 2.9.10
+	if $pkg_config --exists "gnutls >= 2.9.10"; then
+            gnutls_hash="yes"
+	else
+	    gnutls_hash="no"
+	fi
+
+	if $pkg_config --exists 'gnutls >= 3.0'; then
+	    gnutls_gcrypt=no
+	    gnutls_nettle=yes
+	elif $pkg_config --exists 'gnutls >= 2.12'; then
+	    case `$pkg_config --libs --static gnutls` in
+		*gcrypt*)
+		    gnutls_gcrypt=yes
+		    gnutls_nettle=no
+		    ;;
+		*nettle*)
+		    gnutls_gcrypt=no
+		    gnutls_nettle=yes
+		    ;;
+		*)
+		    gnutls_gcrypt=yes
+		    gnutls_nettle=no
+		    ;;
+	    esac
+	else
+	    gnutls_gcrypt=yes
+	    gnutls_nettle=no
+	fi
+    elif test "$gnutls" = "yes"; then
+	feature_not_found "gnutls" "Install gnutls devel"
+    else
+        gnutls="no"
+        gnutls_hash="no"
+    fi
+else
+    gnutls_hash="no"
+fi
+
+if test "$gnutls_gcrypt" != "no"; then
+    if has "libgcrypt-config"; then
+        gcrypt_cflags=`libgcrypt-config --cflags`
+        gcrypt_libs=`libgcrypt-config --libs`
+        libs_softmmu="$gcrypt_libs $libs_softmmu"
+        libs_tools="$gcrypt_libs $libs_tools"
+        QEMU_CFLAGS="$QEMU_CFLAGS $gcrypt_cflags"
+    else
+        feature_not_found "gcrypt" "Install gcrypt devel"
+    fi
+fi
+
+
+if test "$gnutls_nettle" != "no"; then
+    if $pkg_config --exists "nettle"; then
+        nettle_cflags=`$pkg_config --cflags nettle`
+        nettle_libs=`$pkg_config --libs nettle`
+        libs_softmmu="$nettle_libs $libs_softmmu"
+        libs_tools="$nettle_libs $libs_tools"
+        QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
+    else
+        feature_not_found "nettle" "Install nettle devel"
+    fi
+fi
+
+
 ##########################################
 # VTE probe
 
@@ -2263,7 +2339,7 @@ fi
 
 ##########################################
 # VNC TLS/WS detection
-if test "$vnc" = "yes" -a \( "$vnc_tls" != "no" -o "$vnc_ws" != "no" \) ; then
+if test "$vnc" = "yes" -a "$vnc_tls" != "no" ; then
   cat > $TMPC <<EOF
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
@@ -2274,48 +2350,14 @@ EOF
     if test "$vnc_tls" != "no" ; then
       vnc_tls=yes
     fi
-    if test "$vnc_ws" != "no" ; then
-      vnc_ws=yes
-    fi
     libs_softmmu="$vnc_tls_libs $libs_softmmu"
     QEMU_CFLAGS="$QEMU_CFLAGS $vnc_tls_cflags"
   else
     if test "$vnc_tls" = "yes" ; then
       feature_not_found "vnc-tls" "Install gnutls devel"
     fi
-    if test "$vnc_ws" = "yes" ; then
-      feature_not_found "vnc-ws" "Install gnutls devel"
-    fi
     vnc_tls=no
-    vnc_ws=no
   fi
-fi
-
-##########################################
-# Quorum probe (check for gnutls)
-if test "$quorum" != "no" ; then
-cat > $TMPC <<EOF
-#include <gnutls/gnutls.h>
-#include <gnutls/crypto.h>
-int main(void) {char data[4096], digest[32];
-gnutls_hash_fast(GNUTLS_DIG_SHA256, data, 4096, digest);
-return 0;
-}
-EOF
-quorum_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
-quorum_tls_libs=`$pkg_config --libs gnutls 2> /dev/null`
-if compile_prog "$quorum_tls_cflags" "$quorum_tls_libs" ; then
-  qcow_tls=yes
-  libs_softmmu="$quorum_tls_libs $libs_softmmu"
-  libs_tools="$quorum_tls_libs $libs_softmmu"
-  QEMU_CFLAGS="$QEMU_CFLAGS $quorum_tls_cflags"
-  quorum="yes"
-else
-  if test "$quorum" = "yes"; then
-    feature_not_found "gnutls" "gnutls > 2.10.0 required to compile Quorum"
-  fi
-  quorum="no"
-fi
 fi
 
 ##########################################
@@ -4445,6 +4487,10 @@ fi
 echo "pixman            $pixman"
 echo "SDL support       $sdl"
 echo "GTK support       $gtk"
+echo "GNUTLS support    $gnutls"
+echo "GNUTLS hash       $gnutls_hash"
+echo "GNUTLS gcrypt     $gnutls_gcrypt"
+echo "GNUTLS nettle     $gnutls_nettle"
 echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
@@ -4459,7 +4505,6 @@ if test "$vnc" = "yes" ; then
     echo "VNC SASL support  $vnc_sasl"
     echo "VNC JPEG support  $vnc_jpeg"
     echo "VNC PNG support   $vnc_png"
-    echo "VNC WS support    $vnc_ws"
 fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
@@ -4523,7 +4568,6 @@ echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
 echo "QOM debugging     $qom_cast_debug"
 echo "vhdx              $vhdx"
-echo "Quorum            $quorum"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
@@ -4676,10 +4720,6 @@ fi
 if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
 fi
-if test "$vnc_ws" = "yes" ; then
-  echo "CONFIG_VNC_WS=y" >> $config_host_mak
-  echo "VNC_WS_CFLAGS=$vnc_ws_cflags" >> $config_host_mak
-fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
 fi
@@ -4806,6 +4846,18 @@ if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "CONFIG_GTKABI=$gtkabi" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
+fi
+if test "$gnutls" = "yes" ; then
+  echo "CONFIG_GNUTLS=y" >> $config_host_mak
+fi
+if test "$gnutls_hash" = "yes" ; then
+  echo "CONFIG_GNUTLS_HASH=y" >> $config_host_mak
+fi
+if test "$gnutls_gcrypt" = "yes" ; then
+  echo "CONFIG_GNUTLS_GCRYPT=y" >> $config_host_mak
+fi
+if test "$gnutls_nettle" = "yes" ; then
+  echo "CONFIG_GNUTLS_NETTLE=y" >> $config_host_mak
 fi
 if test "$vte" = "yes" ; then
   echo "CONFIG_VTE=y" >> $config_host_mak
@@ -4994,10 +5046,6 @@ if test "$libssh2" = "yes" ; then
   echo "CONFIG_LIBSSH2=m" >> $config_host_mak
   echo "LIBSSH2_CFLAGS=$libssh2_cflags" >> $config_host_mak
   echo "LIBSSH2_LIBS=$libssh2_libs" >> $config_host_mak
-fi
-
-if test "$quorum" = "yes" ; then
-  echo "CONFIG_QUORUM=y" >> $config_host_mak
 fi
 
 if test "$vhdx" = "yes" ; then

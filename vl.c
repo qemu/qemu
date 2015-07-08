@@ -121,6 +121,7 @@ int main(int argc, char **argv)
 #include "qom/object_interfaces.h"
 #include "qapi-event.h"
 #include "exec/semihost.h"
+#include "crypto/init.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -2976,6 +2977,7 @@ int main(int argc, char **argv, char **envp)
     uint64_t ram_slots = 0;
     FILE *vmstate_dump_file = NULL;
     Error *main_loop_err = NULL;
+    Error *err = NULL;
 
     qemu_init_cpu_loop();
     qemu_mutex_lock_iothread();
@@ -3019,6 +3021,11 @@ int main(int argc, char **argv, char **envp)
 
     runstate_init();
 
+    if (qcrypto_init(&err) < 0) {
+        fprintf(stderr, "Cannot initialize crypto: %s\n",
+                error_get_pretty(err));
+        exit(1);
+    }
     rtc_clock = QEMU_CLOCK_HOST;
 
     QLIST_INIT (&vm_change_state_head);
@@ -4597,18 +4604,15 @@ int main(int argc, char **argv, char **envp)
 
     qdev_machine_creation_done();
 
-    if (rom_load_all() != 0) {
-        fprintf(stderr, "rom loading failed\n");
-        exit(1);
-    }
-
     /* TODO: once all bus devices are qdevified, this should be done
      * when bus is created by qdev.c */
     qemu_register_reset(qbus_reset_all_fn, sysbus_get_default());
     qemu_run_machine_init_done_notifiers();
 
-    /* Done notifiers can load ROMs */
-    rom_load_done();
+    if (rom_check_and_register_reset() != 0) {
+        fprintf(stderr, "rom check and register reset failed\n");
+        exit(1);
+    }
 
     qemu_system_reset(VMRESET_SILENT);
     if (loadvm) {

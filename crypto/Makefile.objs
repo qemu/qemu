@@ -1,0 +1,5 @@
+util-obj-y += init.o
+util-obj-y += hash.o
+util-obj-y += aes.o
+util-obj-y += desrfb.o
+util-obj-y += cipher.o

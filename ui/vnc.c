@@ -40,6 +40,7 @@
 #include "qemu/osdep.h"
 #include "ui/input.h"
 #include "qapi-event.h"
+#include "crypto/hash.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50
@@ -48,7 +49,7 @@ static const struct timeval VNC_REFRESH_STATS = { 0, 500000 };
 static const struct timeval VNC_REFRESH_LOSSY = { 2, 0 };
 
 #include "vnc_keysym.h"
-#include "d3des.h"
+#include "crypto/cipher.h"
 
 static QTAILQ_HEAD(, VncDisplay) vnc_displays =
     QTAILQ_HEAD_INITIALIZER(vnc_displays);
@@ -355,9 +356,7 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
     info->base->host = g_strdup(host);
     info->base->service = g_strdup(serv);
     info->base->family = inet_netfamily(sa.ss_family);
-#ifdef CONFIG_VNC_WS
     info->base->websocket = client->websocket;
-#endif
 
 #ifdef CONFIG_VNC_TLS
     if (client->tls.session && client->tls.dname) {
@@ -582,12 +581,10 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
             info->server = qmp_query_server_entry(vd->lsock, false,
                                                   info->server);
         }
-#ifdef CONFIG_VNC_WS
         if (vd->lwebsock != -1) {
             info->server = qmp_query_server_entry(vd->lwebsock, true,
                                                   info->server);
         }
-#endif
 
         item = g_new0(VncInfo2List, 1);
         item->value = info;
@@ -1231,10 +1228,8 @@ void vnc_disconnect_finish(VncState *vs)
 
     buffer_free(&vs->input);
     buffer_free(&vs->output);
-#ifdef CONFIG_VNC_WS
     buffer_free(&vs->ws_input);
     buffer_free(&vs->ws_output);
-#endif /* CONFIG_VNC_WS */
 
     qapi_free_VncClientInfo(vs->info);
 
@@ -1413,12 +1408,9 @@ static void vnc_client_write_locked(void *opaque)
     } else
 #endif /* CONFIG_VNC_SASL */
     {
-#ifdef CONFIG_VNC_WS
         if (vs->encode_ws) {
             vnc_client_write_ws(vs);
-        } else
-#endif /* CONFIG_VNC_WS */
-        {
+        } else {
             vnc_client_write_plain(vs);
         }
     }
@@ -1429,11 +1421,7 @@ void vnc_client_write(void *opaque)
     VncState *vs = opaque;
 
     vnc_lock_output(vs);
-    if (vs->output.offset
-#ifdef CONFIG_VNC_WS
-            || vs->ws_output.offset
-#endif
-            ) {
+    if (vs->output.offset || vs->ws_output.offset) {
         vnc_client_write_locked(opaque);
     } else if (vs->csock != -1) {
         qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
@@ -1539,7 +1527,6 @@ void vnc_client_read(void *opaque)
         ret = vnc_client_read_sasl(vs);
     else
 #endif /* CONFIG_VNC_SASL */
-#ifdef CONFIG_VNC_WS
         if (vs->encode_ws) {
             ret = vnc_client_read_ws(vs);
             if (ret == -1) {
@@ -1549,10 +1536,8 @@ void vnc_client_read(void *opaque)
                 vnc_client_error(vs);
                 return;
             }
-        } else
-#endif /* CONFIG_VNC_WS */
-        {
-        ret = vnc_client_read_plain(vs);
+        } else {
+            ret = vnc_client_read_plain(vs);
         }
     if (!ret) {
         if (vs->csock == -1)
@@ -1624,11 +1609,8 @@ void vnc_write_u8(VncState *vs, uint8_t value)
 void vnc_flush(VncState *vs)
 {
     vnc_lock_output(vs);
-    if (vs->csock != -1 && (vs->output.offset
-#ifdef CONFIG_VNC_WS
-                || vs->ws_output.offset
-#endif
-                )) {
+    if (vs->csock != -1 && (vs->output.offset ||
+                            vs->ws_output.offset)) {
         vnc_client_write_locked(vs);
     }
     vnc_unlock_output(vs);
@@ -2535,9 +2517,11 @@ static void make_challenge(VncState *vs)
 static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
 {
     unsigned char response[VNC_AUTH_CHALLENGE_SIZE];
-    int i, j, pwlen;
+    size_t i, pwlen;
     unsigned char key[8];
     time_t now = time(NULL);
+    QCryptoCipher *cipher;
+    Error *err = NULL;
 
     if (!vs->vd->password) {
         VNC_DEBUG("No password configured on server");
@@ -2554,9 +2538,29 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
     pwlen = strlen(vs->vd->password);
     for (i=0; i<sizeof(key); i++)
         key[i] = i<pwlen ? vs->vd->password[i] : 0;
-    deskey(key, EN0);
-    for (j = 0; j < VNC_AUTH_CHALLENGE_SIZE; j += 8)
-        des(response+j, response+j);
+
+    cipher = qcrypto_cipher_new(
+        QCRYPTO_CIPHER_ALG_DES_RFB,
+        QCRYPTO_CIPHER_MODE_ECB,
+        key, G_N_ELEMENTS(key),
+        &err);
+    if (!cipher) {
+        VNC_DEBUG("Cannot initialize cipher %s",
+                  error_get_pretty(err));
+        error_free(err);
+        goto reject;
+    }
+
+    if (qcrypto_cipher_decrypt(cipher,
+                               vs->challenge,
+                               response,
+                               VNC_AUTH_CHALLENGE_SIZE,
+                               &err) < 0) {
+        VNC_DEBUG("Cannot encrypt challenge %s",
+                  error_get_pretty(err));
+        error_free(err);
+        goto reject;
+    }
 
     /* Compare expected vs actual challenge response */
     if (memcmp(response, data, VNC_AUTH_CHALLENGE_SIZE) != 0) {
@@ -3019,7 +3023,6 @@ static void vnc_connect(VncDisplay *vd, int csock,
     VNC_DEBUG("New client on socket %d\n", csock);
     update_displaychangelistener(&vd->dcl, VNC_REFRESH_INTERVAL_BASE);
     qemu_set_nonblock(vs->csock);
-#ifdef CONFIG_VNC_WS
     if (websocket) {
         vs->websocket = 1;
 #ifdef CONFIG_VNC_TLS
@@ -3031,7 +3034,6 @@ static void vnc_connect(VncDisplay *vd, int csock,
             qemu_set_fd_handler(vs->csock, vncws_handshake_read, NULL, vs);
         }
     } else
-#endif /* CONFIG_VNC_WS */
     {
         qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
     }
@@ -3040,10 +3042,7 @@ static void vnc_connect(VncDisplay *vd, int csock,
     vnc_qmp_event(vs, QAPI_EVENT_VNC_CONNECTED);
     vnc_set_share_mode(vs, VNC_SHARE_MODE_CONNECTING);
 
-#ifdef CONFIG_VNC_WS
-    if (!vs->websocket)
-#endif
-    {
+    if (!vs->websocket) {
         vnc_init_state(vs);
     }
 
@@ -3099,12 +3098,9 @@ static void vnc_listen_read(void *opaque, bool websocket)
 
     /* Catch-up */
     graphic_hw_update(vs->dcl.con);
-#ifdef CONFIG_VNC_WS
     if (websocket) {
         csock = qemu_accept(vs->lwebsock, (struct sockaddr *)&addr, &addrlen);
-    } else
-#endif /* CONFIG_VNC_WS */
-    {
+    } else {
         csock = qemu_accept(vs->lsock, (struct sockaddr *)&addr, &addrlen);
     }
 
@@ -3119,12 +3115,10 @@ static void vnc_listen_regular_read(void *opaque)
     vnc_listen_read(opaque, false);
 }
 
-#ifdef CONFIG_VNC_WS
 static void vnc_listen_websocket_read(void *opaque)
 {
     vnc_listen_read(opaque, true);
 }
-#endif /* CONFIG_VNC_WS */
 
 static const DisplayChangeListenerOps dcl_ops = {
     .dpy_name             = "vnc",
@@ -3150,9 +3144,7 @@ void vnc_display_init(const char *id)
     QTAILQ_INSERT_TAIL(&vnc_displays, vs, next);
 
     vs->lsock = -1;
-#ifdef CONFIG_VNC_WS
     vs->lwebsock = -1;
-#endif
 
     QTAILQ_INIT(&vs->clients);
     vs->expires = TIME_MAX;
@@ -3186,14 +3178,12 @@ static void vnc_display_close(VncDisplay *vs)
         close(vs->lsock);
         vs->lsock = -1;
     }
-#ifdef CONFIG_VNC_WS
     vs->ws_enabled = false;
     if (vs->lwebsock != -1) {
         qemu_set_fd_handler(vs->lwebsock, NULL, NULL, NULL);
         close(vs->lwebsock);
         vs->lwebsock = -1;
     }
-#endif /* CONFIG_VNC_WS */
     vs->auth = VNC_AUTH_INVALID;
     vs->subauth = VNC_AUTH_INVALID;
 #ifdef CONFIG_VNC_TLS
@@ -3516,12 +3506,20 @@ void vnc_display_open(const char *id, Error **errp)
     }
 
     password = qemu_opt_get_bool(opts, "password", false);
-    if (password && fips_get_state()) {
-        error_setg(errp,
-                   "VNC password auth disabled due to FIPS mode, "
-                   "consider using the VeNCrypt or SASL authentication "
-                   "methods as an alternative");
-        goto fail;
+    if (password) {
+        if (fips_get_state()) {
+            error_setg(errp,
+                       "VNC password auth disabled due to FIPS mode, "
+                       "consider using the VeNCrypt or SASL authentication "
+                       "methods as an alternative");
+            goto fail;
+        }
+        if (!qcrypto_cipher_supports(
+                QCRYPTO_CIPHER_ALG_DES_RFB)) {
+            error_setg(errp,
+                       "Cipher backend does not support DES RFB algorithm");
+            goto fail;
+        }
     }
 
     reverse = qemu_opt_get_bool(opts, "reverse", false);
@@ -3579,13 +3577,12 @@ void vnc_display_open(const char *id, Error **errp)
 
     websocket = qemu_opt_get(opts, "websocket");
     if (websocket) {
-#ifdef CONFIG_VNC_WS
         vs->ws_enabled = true;
         qemu_opt_set(wsopts, "port", websocket, &error_abort);
-#else /* ! CONFIG_VNC_WS */
-        error_setg(errp, "Websockets protocol requires gnutls support");
-        goto fail;
-#endif /* ! CONFIG_VNC_WS */
+        if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA1)) {
+            error_setg(errp, "SHA1 hash support is required for websockets");
+            goto fail;
+        }
     }
 
 #ifdef CONFIG_VNC_JPEG
@@ -3668,9 +3665,7 @@ void vnc_display_open(const char *id, Error **errp)
         /* connect to viewer */
         int csock;
         vs->lsock = -1;
-#ifdef CONFIG_VNC_WS
         vs->lwebsock = -1;
-#endif
         if (strncmp(vnc, "unix:", 5) == 0) {
             csock = unix_connect(vnc+5, errp);
         } else {
@@ -3693,7 +3688,6 @@ void vnc_display_open(const char *id, Error **errp)
             if (vs->lsock < 0) {
                 goto fail;
             }
-#ifdef CONFIG_VNC_WS
             if (vs->ws_enabled) {
                 vs->lwebsock = inet_listen_opts(wsopts, 0, errp);
                 if (vs->lwebsock < 0) {
@@ -3704,16 +3698,13 @@ void vnc_display_open(const char *id, Error **errp)
                     goto fail;
                 }
             }
-#endif /* CONFIG_VNC_WS */
         }
         vs->enabled = true;
         qemu_set_fd_handler(vs->lsock, vnc_listen_regular_read, NULL, vs);
-#ifdef CONFIG_VNC_WS
         if (vs->ws_enabled) {
             qemu_set_fd_handler(vs->lwebsock, vnc_listen_websocket_read,
                                 NULL, vs);
         }
-#endif /* CONFIG_VNC_WS */
     }
     qemu_opts_del(sopts);
     qemu_opts_del(wsopts);
@@ -3723,9 +3714,7 @@ fail:
     qemu_opts_del(sopts);
     qemu_opts_del(wsopts);
     vs->enabled = false;
-#ifdef CONFIG_VNC_WS
     vs->ws_enabled = false;
-#endif /* CONFIG_VNC_WS */
 }
 
 void vnc_display_add_client(const char *id, int csock, bool skipauth)

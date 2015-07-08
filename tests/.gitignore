@@ -10,6 +10,8 @@ rcutorture
 test-aio
 test-bitops
 test-coroutine
+test-crypto-cipher
+test-crypto-hash
 test-cutils
 test-hbitmap
 test-int128

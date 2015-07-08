@@ -108,9 +108,7 @@ typedef struct VncDisplay VncDisplay;
 #ifdef CONFIG_VNC_SASL
 #include "vnc-auth-sasl.h"
 #endif
-#ifdef CONFIG_VNC_WS
 #include "vnc-ws.h"
-#endif
 
 struct VncRectStat
 {
@@ -156,10 +154,8 @@ struct VncDisplay
     int connections_limit;
     VncSharePolicy share_policy;
     int lsock;
-#ifdef CONFIG_VNC_WS
     int lwebsock;
     bool ws_enabled;
-#endif
     DisplaySurface *ds;
     DisplayChangeListener dcl;
     kbd_layout_t *kbd_layout;
@@ -294,21 +290,17 @@ struct VncState
 #ifdef CONFIG_VNC_SASL
     VncStateSASL sasl;
 #endif
-#ifdef CONFIG_VNC_WS
     bool encode_ws;
     bool websocket;
-#endif /* CONFIG_VNC_WS */
 
     VncClientInfo *info;
 
     Buffer output;
     Buffer input;
-#ifdef CONFIG_VNC_WS
     Buffer ws_input;
     Buffer ws_output;
     size_t ws_payload_remain;
     WsMask ws_payload_mask;
-#endif
     /* current output mode information */
     VncWritePixels *write_pixels;
     PixelFormat client_pf;

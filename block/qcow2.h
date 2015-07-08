@@ -25,7 +25,7 @@
 #ifndef BLOCK_QCOW2_H
 #define BLOCK_QCOW2_H
 
-#include "qemu/aes.h"
+#include "crypto/cipher.h"
 #include "block/coroutine.h"
 
 //#define DEBUG_ALLOC
@@ -253,10 +253,8 @@ typedef struct BDRVQcowState {
 
     CoMutex lock;
 
-    uint32_t crypt_method; /* current crypt method, 0 if no key yet */
+    QCryptoCipher *cipher; /* current cipher, NULL if no key yet */
     uint32_t crypt_method_header;
-    AES_KEY aes_encrypt_key;
-    AES_KEY aes_decrypt_key;
     uint64_t snapshots_offset;
     int snapshots_size;
     unsigned int nb_snapshots;
@@ -536,10 +534,9 @@ int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index);
 void qcow2_l2_cache_reset(BlockDriverState *bs);
 int qcow2_decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
-void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
-                     uint8_t *out_buf, const uint8_t *in_buf,
-                     int nb_sectors, int enc,
-                     const AES_KEY *key);
+int qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
+                          uint8_t *out_buf, const uint8_t *in_buf,
+                          int nb_sectors, bool enc, Error **errp);
 
 int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
     int *num, uint64_t *cluster_offset);

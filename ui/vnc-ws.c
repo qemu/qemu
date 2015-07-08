@@ -20,6 +20,7 @@
 
 #include "vnc.h"
 #include "qemu/main-loop.h"
+#include "crypto/hash.h"
 
 #ifdef CONFIG_VNC_TLS
 #include "qemu/sockets.h"
@@ -203,24 +204,21 @@ static char *vncws_extract_handshake_entry(const char *handshake,
 static void vncws_send_handshake_response(VncState *vs, const char* key)
 {
     char combined_key[WS_CLIENT_KEY_LEN + WS_GUID_LEN + 1];
-    unsigned char hash[SHA1_DIGEST_LEN];
-    size_t hash_size = sizeof(hash);
     char *accept = NULL, *response = NULL;
-    gnutls_datum_t in;
-    int ret;
+    Error *err = NULL;
 
     g_strlcpy(combined_key, key, WS_CLIENT_KEY_LEN + 1);
     g_strlcat(combined_key, WS_GUID, WS_CLIENT_KEY_LEN + WS_GUID_LEN + 1);
 
     /* hash and encode it */
-    in.data = (void *)combined_key;
-    in.size = WS_CLIENT_KEY_LEN + WS_GUID_LEN;
-    ret = gnutls_fingerprint(GNUTLS_DIG_SHA1, &in, hash, &hash_size);
-    if (ret == GNUTLS_E_SUCCESS && hash_size <= SHA1_DIGEST_LEN) {
-        accept = g_base64_encode(hash, hash_size);
-    }
-    if (accept == NULL) {
-        VNC_DEBUG("Hashing Websocket combined key failed\n");
+    if (qcrypto_hash_base64(QCRYPTO_HASH_ALG_SHA1,
+                            combined_key,
+                            WS_CLIENT_KEY_LEN + WS_GUID_LEN,
+                            &accept,
+                            &err) < 0) {
+        VNC_DEBUG("Hashing Websocket combined key failed %s\n",
+                  error_get_pretty(err));
+        error_free(err);
         vnc_client_error(vs);
         return;
     }
