@@ -790,12 +790,7 @@ static int xen_pt_initfn(PCIDevice *d)
     }
 
     /* Initialize virtualized PCI configuration (Extended 256 Bytes) */
-    rc = xen_host_pci_get_block(&s->real_device, 0, d->config,
-                                PCI_CONFIG_SPACE_SIZE);
-    if (rc < 0) {
-        XEN_PT_ERR(d,"Could not read PCI_CONFIG space! (rc:%d)\n", rc);
-        goto err_out;
-    }
+    memset(d->config, 0, PCI_CONFIG_SPACE_SIZE);
 
     s->memory_listener = xen_pt_memory_listener;
     s->io_listener = xen_pt_io_listener;
