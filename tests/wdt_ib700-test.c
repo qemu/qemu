@@ -40,29 +40,29 @@ static QDict *qmp_get_event(const char *name)
 
 static QDict *ib700_program_and_wait(QTestState *s)
 {
-    clock_step(NSEC_PER_SEC * 40);
+    clock_step(NANOSECONDS_PER_SECOND * 40);
     qmp_check_no_event();
 
     /* 2 second limit */
     outb(0x443, 14);
 
     /* Ping */
-    clock_step(NSEC_PER_SEC);
+    clock_step(NANOSECONDS_PER_SECOND);
     qmp_check_no_event();
     outb(0x443, 14);
 
     /* Disable */
-    clock_step(NSEC_PER_SEC);
+    clock_step(NANOSECONDS_PER_SECOND);
     qmp_check_no_event();
     outb(0x441, 1);
-    clock_step(3 * NSEC_PER_SEC);
+    clock_step(3 * NANOSECONDS_PER_SECOND);
     qmp_check_no_event();
 
     /* Enable and let it fire */
     outb(0x443, 13);
-    clock_step(3 * NSEC_PER_SEC);
+    clock_step(3 * NANOSECONDS_PER_SECOND);
     qmp_check_no_event();
-    clock_step(2 * NSEC_PER_SEC);
+    clock_step(2 * NANOSECONDS_PER_SECOND);
     return qmp_get_event("WATCHDOG");
 }
 

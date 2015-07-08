@@ -40,19 +40,19 @@ static void test_leak_bucket(void)
     bkt.level = 1.5;
 
     /* leak an op work of time */
-    throttle_leak_bucket(&bkt, NSEC_PER_SEC / 150);
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 150);
     g_assert(bkt.avg == 150);
     g_assert(bkt.max == 15);
     g_assert(double_cmp(bkt.level, 0.5));
 
     /* leak again emptying the bucket */
-    throttle_leak_bucket(&bkt, NSEC_PER_SEC / 150);
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 150);
     g_assert(bkt.avg == 150);
     g_assert(bkt.max == 15);
     g_assert(double_cmp(bkt.level, 0));
 
     /* check that the bucket level won't go lower */
-    throttle_leak_bucket(&bkt, NSEC_PER_SEC / 150);
+    throttle_leak_bucket(&bkt, NANOSECONDS_PER_SECOND / 150);
     g_assert(bkt.avg == 150);
     g_assert(bkt.max == 15);
     g_assert(double_cmp(bkt.level, 0));
@@ -90,7 +90,7 @@ static void test_compute_wait(void)
     bkt.level = 15.5;
     wait = throttle_compute_wait(&bkt);
     /* time required to do half an operation */
-    result = (int64_t)  NSEC_PER_SEC / 150 / 2;
+    result = (int64_t)  NANOSECONDS_PER_SECOND / 150 / 2;
     g_assert(wait == result);
 }
 

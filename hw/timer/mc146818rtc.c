@@ -56,7 +56,7 @@
 
 #define RTC_REINJECT_ON_ACK_COUNT 20
 #define RTC_CLOCK_RATE            32768
-#define UIP_HOLD_LENGTH           (8 * NSEC_PER_SEC / 32768)
+#define UIP_HOLD_LENGTH           (8 * NANOSECONDS_PER_SECOND / 32768)
 
 #define MC146818_RTC(obj) OBJECT_CHECK(RTCState, (obj), TYPE_MC146818_RTC)
 
@@ -105,7 +105,7 @@ static uint64_t get_guest_rtc_ns(RTCState *s)
     uint64_t guest_rtc;
     uint64_t guest_clock = qemu_clock_get_ns(rtc_clock);
 
-    guest_rtc = s->base_rtc * NSEC_PER_SEC
+    guest_rtc = s->base_rtc * NANOSECONDS_PER_SECOND
                  + guest_clock - s->last_update + s->offset;
     return guest_rtc;
 }
@@ -231,16 +231,17 @@ static void check_update_timer(RTCState *s)
         return;
     }
 
-    guest_nsec = get_guest_rtc_ns(s) % NSEC_PER_SEC;
+    guest_nsec = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
     /* if UF is clear, reprogram to next second */
     next_update_time = qemu_clock_get_ns(rtc_clock)
-        + NSEC_PER_SEC - guest_nsec;
+        + NANOSECONDS_PER_SECOND - guest_nsec;
 
     /* Compute time of next alarm.  One second is already accounted
      * for in next_update_time.
      */
     next_alarm_sec = get_next_alarm(s);
-    s->next_alarm_time = next_update_time + (next_alarm_sec - 1) * NSEC_PER_SEC;
+    s->next_alarm_time = next_update_time +
+                         (next_alarm_sec - 1) * NANOSECONDS_PER_SECOND;
 
     if (s->cmos_data[RTC_REG_C] & REG_C_UF) {
         /* UF is set, but AF is clear.  Program the timer to target
@@ -456,7 +457,7 @@ static void cmos_ioport_write(void *opaque, hwaddr addr,
                 /* if disabling set mode, update the time */
                 if ((s->cmos_data[RTC_REG_B] & REG_B_SET) &&
                     (s->cmos_data[RTC_REG_A] & 0x70) <= 0x20) {
-                    s->offset = get_guest_rtc_ns(s) % NSEC_PER_SEC;
+                    s->offset = get_guest_rtc_ns(s) % NANOSECONDS_PER_SECOND;
                     rtc_set_time(s);
                 }
             }
@@ -580,7 +581,7 @@ static void rtc_update_time(RTCState *s)
     int64_t guest_nsec;
 
     guest_nsec = get_guest_rtc_ns(s);
-    guest_sec = guest_nsec / NSEC_PER_SEC;
+    guest_sec = guest_nsec / NANOSECONDS_PER_SECOND;
     gmtime_r(&guest_sec, &ret);
 
     /* Is SET flag of Register B disabled? */
@@ -608,7 +609,8 @@ static int update_in_progress(RTCState *s)
 
     guest_nsec = get_guest_rtc_ns(s);
     /* UIP bit will be set at last 244us of every second. */
-    if ((guest_nsec % NSEC_PER_SEC) >= (NSEC_PER_SEC - UIP_HOLD_LENGTH)) {
+    if ((guest_nsec % NANOSECONDS_PER_SECOND) >=
+        (NANOSECONDS_PER_SECOND - UIP_HOLD_LENGTH)) {
         return 1;
     }
     return 0;
