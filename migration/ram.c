@@ -2448,7 +2448,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
      * be atomic
      */
     bool postcopy_running = postcopy_state_get() >= POSTCOPY_INCOMING_LISTENING;
-    bool need_flush = false;
 
     seq_iter++;
 
@@ -2483,7 +2482,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             /* After going into COLO, we should load the Page into colo_cache */
             if (ram_cache_enable) {
                 host = colo_cache_from_block_offset(block, addr);
-                need_flush = true;
             } else {
                 host = host_from_ram_block_offset(block, addr);
             }
@@ -2578,9 +2576,6 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 
     rcu_read_unlock();
 
-    if (!ret  && ram_cache_enable && need_flush) {
-        colo_flush_ram_cache();
-    }
     DPRINTF("Completed load of VM with exit code %d seq iteration "
             "%" PRIu64 "\n", ret, seq_iter);
     return ret;

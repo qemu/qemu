@@ -133,7 +133,13 @@ void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
                                            uint64_t *start_list,
                                            uint64_t *length_list);
 
+int qemu_save_ram_precopy(QEMUFile *f);
+int qemu_save_device_state(QEMUFile *f);
+
 int qemu_loadvm_state(QEMUFile *f);
+int qemu_loadvm_state_begin(QEMUFile *f);
+int qemu_load_ram_state(QEMUFile *f);
+int qemu_load_device_state(QEMUFile *f);
 
 typedef enum DisplayType
 {
