@@ -200,6 +200,8 @@ struct PixelShader {
     //uint32_t compare_mode, dot_mapping, input_texture;
 
     bool rect_tex[4];
+    bool alpha_test;
+    enum AlphaFunc alpha_func;
 
     QString *varE, *varF;
     QString *code;
@@ -603,7 +605,27 @@ static QString* psh_convert(struct PixelShader *ps)
         qstring_append_fmt(preflight, "uniform vec4 %s;\n", ps->const_refs[i]);
     }
 
-
+    if (ps->alpha_test && ps->alpha_func != ALPHA_FUNC_ALWAYS) {
+        qstring_append_fmt(preflight, "uniform float alphaRef;\n");
+        if (ps->alpha_func == ALPHA_FUNC_NEVER) {
+            qstring_append(ps->code, "discard;\n");
+        } else {
+            const char* alpha_op;
+            switch (ps->alpha_func) {
+            case ALPHA_FUNC_LESS: alpha_op = "<"; break;
+            case ALPHA_FUNC_EQUAL: alpha_op = "=="; break;
+            case ALPHA_FUNC_LEQUAL: alpha_op = "<="; break;
+            case ALPHA_FUNC_GREATER: alpha_op = ">"; break;
+            case ALPHA_FUNC_NOTEQUAL: alpha_op = "!="; break;
+            case ALPHA_FUNC_GEQUAL: alpha_op = ">="; break;
+            default:
+                assert(false);
+                break;
+            }
+            qstring_append_fmt(ps->code, "if (!(r0.a %s alphaRef)) discard;\n",
+                               alpha_op);
+        }
+    }
 
     QString *final = qstring_new();
     qstring_append(final, qstring_get_str(preflight));
@@ -661,7 +683,8 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
                        /*uint32_t constant_0[8], uint32_t constant_1[8],*/
                        uint32_t final_inputs_0, uint32_t final_inputs_1,
                        /*uint32_t final_constant_0, uint32_t final_constant_1,*/
-                       const bool rect_tex[4])
+                       const bool rect_tex[4],
+                       bool alpha_test, enum AlphaFunc alpha_func)
 {
     int i;
     struct PixelShader ps;
@@ -673,6 +696,9 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
         ps.tex_modes[i] = (shader_stage_program >> (i * 5)) & 0x1F;
         ps.rect_tex[i] = rect_tex[i];
     }
+
+    ps.alpha_test = alpha_test;
+    ps.alpha_func = alpha_func;
 
     ps.input_tex[0] = -1;
     ps.input_tex[1] = 0;

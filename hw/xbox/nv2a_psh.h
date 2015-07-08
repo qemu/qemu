@@ -24,6 +24,17 @@
 
 #include "qapi/qmp/qstring.h"
 
+enum AlphaFunc {
+    ALPHA_FUNC_NEVER,
+    ALPHA_FUNC_LESS,
+    ALPHA_FUNC_EQUAL,
+    ALPHA_FUNC_LEQUAL,
+    ALPHA_FUNC_GREATER,
+    ALPHA_FUNC_NOTEQUAL,
+    ALPHA_FUNC_GEQUAL,
+    ALPHA_FUNC_ALWAYS,
+};
+
 QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
                        uint32_t other_stage_input,
                        const uint32_t rgb_inputs[8],
@@ -33,6 +44,7 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
                        /*uint32_t constant_0[8], uint32_t constant_1[8],*/
                        uint32_t final_inputs_0, uint32_t final_inputs_1,
                        /*uint32_t final_constant_0, uint32_t final_constant_1,*/
-                       const bool rect_tex[4]);
+                       const bool rect_tex[4],
+                       bool alpha_test, enum AlphaFunc alpha_func);
 
 #endif

@@ -330,8 +330,11 @@
 #define NV_PGRAPH_COMBINESPECFOG0                        0x00001944
 #define NV_PGRAPH_COMBINESPECFOG1                        0x00001948
 #define NV_PGRAPH_CONTROL_0                              0x0000194C
+#   define NV_PGRAPH_CONTROL_0_ALPHAREF                         0x000000FF
+#   define NV_PGRAPH_CONTROL_0_ALPHAFUNC                        0x00000F00
+#   define NV_PGRAPH_CONTROL_0_ALPHATESTENABLE                  (1 << 12)
 #   define NV_PGRAPH_CONTROL_0_ZENABLE                          (1 << 14)
-#       define NV_PGRAPH_CONTROL_0_ZFUNC                        0x000F0000
+#   define NV_PGRAPH_CONTROL_0_ZFUNC                            0x000F0000
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_NEVER                      0
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_LESS                       1
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_EQUAL                      2
@@ -637,9 +640,12 @@
 #   define NV097_SET_CONTROL0                                 0x00970290
 #       define NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE            (1 << 0)
 #       define NV097_SET_CONTROL0_Z_FORMAT                        (1 << 12)
+#   define NV097_SET_ALPHA_TEST_ENABLE                        0x00970300
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
 #   define NV097_SET_DEPTH_TEST_ENABLE                        0x0097030C
-#   define NV097_SET_STENCIL_TEST_ENABLE                      0x0097032c
+#   define NV097_SET_STENCIL_TEST_ENABLE                      0x0097032C
+#   define NV097_SET_ALPHA_FUNC                               0x0097033C
+#   define NV097_SET_ALPHA_REF                                0x00970340
 #   define NV097_SET_BLEND_FUNC_SFACTOR                       0x00970344
 #       define NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO                0x0000
 #       define NV097_SET_BLEND_FUNC_SFACTOR_V_ONE                 0x0001
@@ -921,6 +927,7 @@ static const GLenum pgraph_stencil_func_map[] = {
 };
 
 static const GLenum pgraph_stencil_op_map[] = {
+    0,
     GL_KEEP,
     GL_ZERO,
     GL_REPLACE,
@@ -1121,6 +1128,9 @@ typedef struct ShaderState {
     uint32_t alpha_inputs[8], alpha_outputs[8];
 
     bool rect_tex[4];
+
+    bool alpha_test;
+    enum AlphaFunc alpha_func;
 
 
     bool fixed_function;
@@ -2191,7 +2201,8 @@ static ShaderBinding* generate_shaders(const ShaderState state)
                    /* constant_0, constant_1, */
                    state.final_inputs_0, state.final_inputs_1,
                    /* final_constant_0, final_constant_1, */
-                   state.rect_tex);
+                   state.rect_tex,
+                   state.alpha_test, state.alpha_func);
 
     const char *fragment_shader_code_str = qstring_get_str(fragment_shader_code);
 
@@ -2296,6 +2307,11 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             .final_inputs_0 = pg->regs[NV_PGRAPH_COMBINESPECFOG0],
             .final_inputs_1 = pg->regs[NV_PGRAPH_COMBINESPECFOG1],
 
+            .alpha_test = pg->regs[NV_PGRAPH_CONTROL_0]
+                            & NV_PGRAPH_CONTROL_0_ALPHATESTENABLE,
+            .alpha_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                                   NV_PGRAPH_CONTROL_0_ALPHAFUNC),
+
             /* fixed function stuff */
             .fixed_function = fixed_function,
 
@@ -2390,6 +2406,13 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             }
         }
     }
+    GLint alpha_ref_loc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                               "alphaRef");
+    if (alpha_ref_loc != -1) {
+        float alpha_ref = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                                   NV_PGRAPH_CONTROL_0_ALPHAREF) / 255.0;
+        glUniform1f(alpha_ref_loc, alpha_ref);
+    }
 
 
 
@@ -2423,9 +2446,10 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             -1.0, 1.0, -m43/m33, 1.0
         };
 
-        GLint viewLoc = glGetUniformLocation(pg->shader_binding->gl_program, "invViewport");
-        assert(viewLoc != -1);
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &invViewport[0]);
+        GLint view_loc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                              "invViewport");
+        assert(view_loc != -1);
+        glUniformMatrix4fv(view_loc, 1, GL_FALSE, &invViewport[0]);
 
     } else if (vertex_program) {
         /* update vertex program constants */
@@ -2442,7 +2466,8 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             constant->dirty = false;
         }
 
-        GLint loc = glGetUniformLocation(pg->shader_binding->gl_program, "clipRange");
+        GLint loc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                         "clipRange");
         if (loc != -1) {
             glUniform2f(loc, zclip_min, zclip_max);
         }
@@ -2860,8 +2885,6 @@ static void pgraph_init(PGRAPHState *pg)
     /* Check context capabilities */
     assert(glo_check_extension("GL_EXT_texture_compression_s3tc"));
 
-    assert(glo_check_extension("GL_EXT_framebuffer_object"));
-
     assert(glo_check_extension("GL_ARB_texture_rectangle"));
 
     assert(glo_check_extension("GL_ARB_vertex_array_bgra"));
@@ -2870,19 +2893,20 @@ static void pgraph_init(PGRAPHState *pg)
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_vertex_attributes);
     assert(max_vertex_attributes >= NV2A_VERTEXSHADER_ATTRIBUTES);
 
+
     glGenFramebuffers(1, &pg->gl_framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, pg->gl_framebuffer);
 
+    /* need a valid framebuffer to start with */
     glGenTextures(1, &pg->gl_color_buffer);
     glBindTexture(GL_TEXTURE_2D, pg->gl_color_buffer);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 640, 480,
                  0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                            GL_TEXTURE_2D, pg->gl_color_buffer, 0);
+
     assert(glCheckFramebufferStatus(GL_FRAMEBUFFER)
             == GL_FRAMEBUFFER_COMPLETE);
-
-    glViewport(0, 0, 640, 480);
 
     //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 
@@ -2934,10 +2958,10 @@ static unsigned int kelvin_map_stencil_op(uint32_t parameter)
     case NV097_SET_STENCIL_OP_V_KEEP:
         op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_KEEP; break;
     case NV097_SET_STENCIL_OP_V_ZERO:
-        op = NV097_SET_STENCIL_OP_V_ZERO; break;
+        op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_ZERO; break;
     case NV097_SET_STENCIL_OP_V_REPLACE:
         op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_REPLACE; break;
-    case NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCRSAT:
+    case NV097_SET_STENCIL_OP_V_INCRSAT:
         op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCRSAT; break;
     case NV097_SET_STENCIL_OP_V_DECRSAT:
         op = NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECRSAT; break;
@@ -3285,6 +3309,11 @@ static void pgraph_method(NV2AState *d,
                  NV_PGRAPH_SETUPRASTER_Z_FORMAT, z_format);
     }
 
+    case NV097_SET_ALPHA_TEST_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_ALPHATESTENABLE, parameter);
+        pg->shaders_dirty = true;
+        break;
     case NV097_SET_BLEND_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_BLEND], NV_PGRAPH_BLEND_EN, parameter);
         break;
@@ -3297,7 +3326,15 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
                  NV_PGRAPH_CONTROL_1_STENCIL_TEST_ENABLE, parameter);
         break;
-
+    case NV097_SET_ALPHA_FUNC:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_ALPHAFUNC, parameter & 0xF);
+        pg->shaders_dirty = true;
+        break;
+    case NV097_SET_ALPHA_REF:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_ALPHAREF, parameter);
+        break;
     case NV097_SET_BLEND_FUNC_SFACTOR: {
         unsigned int factor;
         switch (parameter) {
@@ -4008,13 +4045,13 @@ static void pgraph_method(NV2AState *d,
 
         glEnable(GL_SCISSOR_TEST);
 
-        unsigned int xmin = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTX],
+        unsigned int xmin = GET_MASK(pg->regs[NV_PGRAPH_CLEARRECTX],
                 NV_PGRAPH_CLEARRECTX_XMIN);
-        unsigned int xmax = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTX],
+        unsigned int xmax = GET_MASK(pg->regs[NV_PGRAPH_CLEARRECTX],
                 NV_PGRAPH_CLEARRECTX_XMAX);
-        unsigned int ymin = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTY],
+        unsigned int ymin = GET_MASK(pg->regs[NV_PGRAPH_CLEARRECTY],
                 NV_PGRAPH_CLEARRECTY_YMIN);
-        unsigned int ymax = GET_MASK(d->pgraph.regs[NV_PGRAPH_CLEARRECTY],
+        unsigned int ymax = GET_MASK(pg->regs[NV_PGRAPH_CLEARRECTY],
                 NV_PGRAPH_CLEARRECTY_YMAX);
         glScissor(xmin, pg->surface_shape.clip_height-ymax,
                   xmax-xmin, ymax-ymin);
