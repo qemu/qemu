@@ -166,7 +166,7 @@
 #define AHCI_CMD_HDR_CMD_FIS_LEN           0x1f
 #define AHCI_CMD_HDR_PRDT_LEN              16
 
-#define SATA_SIGNATURE_CDROM               0xeb140000
+#define SATA_SIGNATURE_CDROM               0xeb140101
 #define SATA_SIGNATURE_DISK                0x00000101
 
 #define AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR 0x20
