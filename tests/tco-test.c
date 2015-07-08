@@ -44,7 +44,6 @@ typedef struct {
     const char *args;
     bool noreboot;
     QPCIDevice *dev;
-    void *lpc_base;
     void *tco_io_base;
 } TestData;
 
@@ -65,22 +64,14 @@ static void test_init(TestData *d)
     d->dev = qpci_device_find(bus, QPCI_DEVFN(0x1f, 0x00));
     g_assert(d->dev != NULL);
 
-    /* map PCI-to-LPC bridge interface BAR */
-    d->lpc_base = qpci_iomap(d->dev, 0, NULL);
-
     qpci_device_enable(d->dev);
 
-    g_assert(d->lpc_base != NULL);
-
     /* set ACPI PM I/O space base address */
-    qpci_config_writel(d->dev, (uintptr_t)d->lpc_base + ICH9_LPC_PMBASE,
-                       PM_IO_BASE_ADDR | 0x1);
+    qpci_config_writel(d->dev, ICH9_LPC_PMBASE, PM_IO_BASE_ADDR | 0x1);
     /* enable ACPI I/O */
-    qpci_config_writeb(d->dev, (uintptr_t)d->lpc_base + ICH9_LPC_ACPI_CTRL,
-                       0x80);
+    qpci_config_writeb(d->dev, ICH9_LPC_ACPI_CTRL, 0x80);
     /* set Root Complex BAR */
-    qpci_config_writel(d->dev, (uintptr_t)d->lpc_base + ICH9_LPC_RCBA,
-                       RCBA_BASE_ADDR | 0x1);
+    qpci_config_writel(d->dev, ICH9_LPC_RCBA, RCBA_BASE_ADDR | 0x1);
 
     d->tco_io_base = (void *)((uintptr_t)PM_IO_BASE_ADDR + 0x60);
 }
