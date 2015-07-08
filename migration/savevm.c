@@ -50,6 +50,7 @@
 #include "qemu/iov.h"
 #include "block/snapshot.h"
 #include "block/qapi.h"
+#include "migration/colo.h"
 
 
 #ifndef ETH_P_RARP
@@ -923,6 +924,10 @@ void qemu_savevm_state_begin(QEMUFile *f,
             break;
         }
     }
+    if (migration_in_colo_state()) {
+        qemu_put_byte(f, QEMU_VM_EOF);
+        qemu_fflush(f);
+    }
 }
 
 /*
@@ -1192,13 +1197,19 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     return ret;
 }
 
-static int qemu_save_device_state(QEMUFile *f)
+void qemu_savevm_live_state(QEMUFile *f)
+{
+    qemu_savevm_state_complete_precopy(f, true);
+    qemu_put_byte(f, QEMU_VM_EOF);
+}
+
+int qemu_save_device_state(QEMUFile *f)
 {
     SaveStateEntry *se;
 
-    qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
-    qemu_put_be32(f, QEMU_VM_FILE_VERSION);
-
+    if (!migration_in_colo_state()) {
+        qemu_savevm_state_header(f);
+    }
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
@@ -1955,6 +1966,51 @@ int qemu_loadvm_state(QEMUFile *f)
     cpu_synchronize_all_post_init();
 
     return ret;
+}
+
+int qemu_loadvm_state_begin(QEMUFile *f)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    Error *local_err = NULL;
+    int ret;
+
+    if (qemu_savevm_state_blocked(&local_err)) {
+        error_report_err(local_err);
+        return -EINVAL;
+    }
+
+    ret = qemu_loadvm_state_main(f, mis);
+    if (ret < 0) {
+        error_report("Failed to loadvm begin work: %d", ret);
+    }
+    return ret;
+}
+
+int qemu_load_ram_state(QEMUFile *f)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    int ret;
+
+    ret = qemu_loadvm_state_main(f, mis);
+    if (ret < 0) {
+        error_report("Failed to load ram state: %d", ret);
+    }
+    return ret;
+}
+
+int qemu_load_device_state(QEMUFile *f)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    int ret;
+
+    ret = qemu_loadvm_state_main(f, mis);
+    if (ret < 0) {
+        error_report("Failed to load device state: %d", ret);
+        return ret;
+    }
+
+    cpu_synchronize_all_post_init();
+    return 0;
 }
 
 void hmp_savevm(Monitor *mon, const QDict *qdict)
