@@ -138,6 +138,7 @@ static void ich9_cc_reset(ICH9LPCState *lpc)
     pci_set_long(c + ICH9_CC_D27IR, ICH9_CC_DIR_DEFAULT);
     pci_set_long(c + ICH9_CC_D26IR, ICH9_CC_DIR_DEFAULT);
     pci_set_long(c + ICH9_CC_D25IR, ICH9_CC_DIR_DEFAULT);
+    pci_set_long(c + ICH9_CC_GCS, ICH9_CC_GCS_DEFAULT);
 
     ich9_cc_update(lpc);
 }
@@ -313,6 +314,16 @@ PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin)
     return route;
 }
 
+void ich9_generate_smi(void)
+{
+    cpu_interrupt(first_cpu, CPU_INTERRUPT_SMI);
+}
+
+void ich9_generate_nmi(void)
+{
+    cpu_interrupt(first_cpu, CPU_INTERRUPT_NMI);
+}
+
 static int ich9_lpc_sci_irq(ICH9LPCState *lpc)
 {
     switch (lpc->d.config[ICH9_LPC_ACPI_CTRL] &
@@ -357,13 +368,13 @@ static void ich9_set_sci(void *opaque, int irq_num, int level)
     }
 }
 
-void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
+void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled, bool enable_tco)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(lpc_pci);
     qemu_irq sci_irq;
 
     sci_irq = qemu_allocate_irq(ich9_set_sci, lpc, 0);
-    ich9_pm_init(lpc_pci, &lpc->pm, smm_enabled, sci_irq);
+    ich9_pm_init(lpc_pci, &lpc->pm, smm_enabled, enable_tco, sci_irq);
     ich9_lpc_reset(&lpc->d.qdev);
 }
 
@@ -681,6 +692,11 @@ static const VMStateDescription vmstate_ich9_lpc = {
     }
 };
 
+static Property ich9_lpc_properties[] = {
+    DEFINE_PROP_BOOL("noreboot", ICH9LPCState, pin_strap.spkr_hi, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ich9_lpc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -692,6 +708,7 @@ static void ich9_lpc_class_init(ObjectClass *klass, void *data)
     dc->reset = ich9_lpc_reset;
     k->init = ich9_lpc_init;
     dc->vmsd = &vmstate_ich9_lpc;
+    dc->props = ich9_lpc_properties;
     k->config_write = ich9_lpc_config_write;
     dc->desc = "ICH9 LPC bridge";
     k->vendor_id = PCI_VENDOR_ID_INTEL;

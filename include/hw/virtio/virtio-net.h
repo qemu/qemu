@@ -21,9 +21,6 @@
 #define VIRTIO_NET(obj) \
         OBJECT_CHECK(VirtIONet, (obj), TYPE_VIRTIO_NET)
 
-#define VIRTIO_NET_F_CTRL_GUEST_OFFLOADS 2 /* Control channel offload
-                                         * configuration support */
-
 #define TX_TIMER_INTERVAL 150000 /* 150 us */
 
 /* Limit the number of packets that can be sent via a single flush
@@ -99,15 +96,6 @@ typedef struct VirtIONet {
     QEMUTimer *announce_timer;
     int announce_counter;
 } VirtIONet;
-
-/*
- * Control network offloads
- *
- * Dynamic offloads are available with the
- * VIRTIO_NET_F_CTRL_GUEST_OFFLOADS feature bit.
- */
-#define VIRTIO_NET_CTRL_GUEST_OFFLOADS   5
-#define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
                                    const char *type);

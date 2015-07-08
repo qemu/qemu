@@ -293,10 +293,81 @@ static void pc_boot_set(void *opaque, const char *boot_device, Error **errp)
     set_boot_dev(opaque, boot_device, errp);
 }
 
+static void pc_cmos_init_floppy(ISADevice *rtc_state, ISADevice *floppy)
+{
+    int val, nb, i;
+    FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
+
+    /* floppy type */
+    if (floppy) {
+        for (i = 0; i < 2; i++) {
+            fd_type[i] = isa_fdc_get_drive_type(floppy, i);
+        }
+    }
+    val = (cmos_get_fd_drive_type(fd_type[0]) << 4) |
+        cmos_get_fd_drive_type(fd_type[1]);
+    rtc_set_memory(rtc_state, 0x10, val);
+
+    val = rtc_get_memory(rtc_state, REG_EQUIPMENT_BYTE);
+    nb = 0;
+    if (fd_type[0] < FDRIVE_DRV_NONE) {
+        nb++;
+    }
+    if (fd_type[1] < FDRIVE_DRV_NONE) {
+        nb++;
+    }
+    switch (nb) {
+    case 0:
+        break;
+    case 1:
+        val |= 0x01; /* 1 drive, ready for boot */
+        break;
+    case 2:
+        val |= 0x41; /* 2 drives, ready for boot */
+        break;
+    }
+    rtc_set_memory(rtc_state, REG_EQUIPMENT_BYTE, val);
+}
+
 typedef struct pc_cmos_init_late_arg {
     ISADevice *rtc_state;
     BusState *idebus[2];
 } pc_cmos_init_late_arg;
+
+typedef struct check_fdc_state {
+    ISADevice *floppy;
+    bool multiple;
+} CheckFdcState;
+
+static int check_fdc(Object *obj, void *opaque)
+{
+    CheckFdcState *state = opaque;
+    Object *fdc;
+    uint32_t iobase;
+    Error *local_err = NULL;
+
+    fdc = object_dynamic_cast(obj, TYPE_ISA_FDC);
+    if (!fdc) {
+        return 0;
+    }
+
+    iobase = object_property_get_int(obj, "iobase", &local_err);
+    if (local_err || iobase != 0x3f0) {
+        error_free(local_err);
+        return 0;
+    }
+
+    if (state->floppy) {
+        state->multiple = true;
+    } else {
+        state->floppy = ISA_DEVICE(obj);
+    }
+    return 0;
+}
+
+static const char * const fdc_container_path[] = {
+    "/unattached", "/peripheral", "/peripheral-anon"
+};
 
 static void pc_cmos_init_late(void *opaque)
 {
@@ -306,6 +377,8 @@ static void pc_cmos_init_late(void *opaque)
     int8_t heads, sectors;
     int val;
     int i, trans;
+    Object *container;
+    CheckFdcState state = { 0 };
 
     val = 0;
     if (ide_get_geometry(arg->idebus[0], 0,
@@ -335,16 +408,32 @@ static void pc_cmos_init_late(void *opaque)
     }
     rtc_set_memory(s, 0x39, val);
 
+    /*
+     * Locate the FDC at IO address 0x3f0, and configure the CMOS registers
+     * accordingly.
+     */
+    for (i = 0; i < ARRAY_SIZE(fdc_container_path); i++) {
+        container = container_get(qdev_get_machine(), fdc_container_path[i]);
+        object_child_foreach(container, check_fdc, &state);
+    }
+
+    if (state.multiple) {
+        error_report("warning: multiple floppy disk controllers with "
+                     "iobase=0x3f0 have been found;\n"
+                     "the one being picked for CMOS setup might not reflect "
+                     "your intent");
+    }
+    pc_cmos_init_floppy(s, state.floppy);
+
     qemu_unregister_reset(pc_cmos_init_late, opaque);
 }
 
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device, MachineState *machine,
-                  ISADevice *floppy, BusState *idebus0, BusState *idebus1,
+                  BusState *idebus0, BusState *idebus1,
                   ISADevice *s)
 {
-    int val, nb, i;
-    FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
+    int val;
     static pc_cmos_init_late_arg arg;
     PCMachineState *pc_machine = PC_MACHINE(machine);
     Error *local_err = NULL;
@@ -401,39 +490,12 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
         exit(1);
     }
 
-    /* floppy type */
-    if (floppy) {
-        for (i = 0; i < 2; i++) {
-            fd_type[i] = isa_fdc_get_drive_type(floppy, i);
-        }
-    }
-    val = (cmos_get_fd_drive_type(fd_type[0]) << 4) |
-        cmos_get_fd_drive_type(fd_type[1]);
-    rtc_set_memory(s, 0x10, val);
-
     val = 0;
-    nb = 0;
-    if (fd_type[0] < FDRIVE_DRV_NONE) {
-        nb++;
-    }
-    if (fd_type[1] < FDRIVE_DRV_NONE) {
-        nb++;
-    }
-    switch (nb) {
-    case 0:
-        break;
-    case 1:
-        val |= 0x01; /* 1 drive, ready for boot */
-        break;
-    case 2:
-        val |= 0x41; /* 2 drives, ready for boot */
-        break;
-    }
     val |= 0x02; /* FPU is there */
     val |= 0x04; /* PS/2 mouse installed */
     rtc_set_memory(s, REG_EQUIPMENT_BYTE, val);
 
-    /* hard drives */
+    /* hard drives and FDC */
     arg.rtc_state = s;
     arg.idebus[0] = idebus0;
     arg.idebus[1] = idebus1;
@@ -1401,7 +1463,6 @@ static const MemoryRegionOps ioportF0_io_ops = {
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
                           bool create_fdctrl,
-                          ISADevice **floppy,
                           bool no_vmport,
                           uint32 hpet_irqs)
 {
@@ -1497,7 +1558,9 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         fd[i] = drive_get(IF_FLOPPY, 0, i);
         create_fdctrl |= !!fd[i];
     }
-    *floppy = create_fdctrl ? fdctrl_init_isa(isa_bus, fd) : NULL;
+    if (create_fdctrl) {
+        fdctrl_init_isa(isa_bus, fd);
+    }
 }
 
 void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus)

@@ -94,7 +94,6 @@ static void pc_init1(MachineState *machine)
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BusState *idebus[MAX_IDE_BUS];
     ISADevice *rtc_state;
-    ISADevice *floppy;
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
@@ -241,7 +240,7 @@ static void pc_init1(MachineState *machine)
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(isa_bus, gsi, &rtc_state, true, &floppy,
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, true,
                          (pc_machine->vmport != ON_OFF_AUTO_ON), 0x4);
 
     pc_nic_init(isa_bus, pci_bus);
@@ -273,7 +272,7 @@ static void pc_init1(MachineState *machine)
     }
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
-                 machine, floppy, idebus[0], idebus[1], rtc_state);
+                 machine, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled()) {
         pci_create_simple(pci_bus, piix3_devfn + 2, "piix3-usb-uhci");

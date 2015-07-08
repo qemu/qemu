@@ -443,11 +443,89 @@ static const MemoryRegionOps virtio_pci_config_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+/* Below are generic functions to do memcpy from/to an address space,
+ * without byteswaps, with input validation.
+ *
+ * As regular address_space_* APIs all do some kind of byteswap at least for
+ * some host/target combinations, we are forced to explicitly convert to a
+ * known-endianness integer value.
+ * It doesn't really matter which endian format to go through, so the code
+ * below selects the endian that causes the least amount of work on the given
+ * host.
+ *
+ * Note: host pointer must be aligned.
+ */
+static
+void virtio_address_space_write(AddressSpace *as, hwaddr addr,
+                                const uint8_t *buf, int len)
+{
+    uint32_t val;
+
+    /* address_space_* APIs assume an aligned address.
+     * As address is under guest control, handle illegal values.
+     */
+    addr &= ~(len - 1);
+
+    /* Make sure caller aligned buf properly */
+    assert(!(((uintptr_t)buf) & (len - 1)));
+
+    switch (len) {
+    case 1:
+        val = pci_get_byte(buf);
+        address_space_stb(as, addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 2:
+        val = pci_get_word(buf);
+        address_space_stw_le(as, addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    case 4:
+        val = pci_get_long(buf);
+        address_space_stl_le(as, addr, val, MEMTXATTRS_UNSPECIFIED, NULL);
+        break;
+    default:
+        /* As length is under guest control, handle illegal values. */
+        break;
+    }
+}
+
+static void
+virtio_address_space_read(AddressSpace *as, hwaddr addr, uint8_t *buf, int len)
+{
+    uint32_t val;
+
+    /* address_space_* APIs assume an aligned address.
+     * As address is under guest control, handle illegal values.
+     */
+    addr &= ~(len - 1);
+
+    /* Make sure caller aligned buf properly */
+    assert(!(((uintptr_t)buf) & (len - 1)));
+
+    switch (len) {
+    case 1:
+        val = address_space_ldub(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
+        pci_set_byte(buf, val);
+        break;
+    case 2:
+        val = address_space_lduw_le(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
+        pci_set_word(buf, val);
+        break;
+    case 4:
+        val = address_space_ldl_le(as, addr, MEMTXATTRS_UNSPECIFIED, NULL);
+        pci_set_long(buf, val);
+        break;
+    default:
+        /* As length is under guest control, handle illegal values. */
+        break;
+    }
+}
+
 static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
                                 uint32_t val, int len)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
+    struct virtio_pci_cfg_cap *cfg;
 
     pci_default_write_config(pci_dev, address, val, len);
 
@@ -456,6 +534,49 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
         virtio_pci_stop_ioeventfd(proxy);
         virtio_set_status(vdev, vdev->status & ~VIRTIO_CONFIG_S_DRIVER_OK);
     }
+
+    if (proxy->config_cap &&
+        ranges_overlap(address, len, proxy->config_cap + offsetof(struct virtio_pci_cfg_cap,
+                                                                  pci_cfg_data),
+                       sizeof cfg->pci_cfg_data)) {
+        uint32_t off;
+        uint32_t len;
+
+        cfg = (void *)(proxy->pci_dev.config + proxy->config_cap);
+        off = le32_to_cpu(cfg->cap.offset);
+        len = le32_to_cpu(cfg->cap.length);
+
+        if (len <= sizeof cfg->pci_cfg_data) {
+            virtio_address_space_write(&proxy->modern_as, off,
+                                       cfg->pci_cfg_data, len);
+        }
+    }
+}
+
+static uint32_t virtio_read_config(PCIDevice *pci_dev,
+                                   uint32_t address, int len)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+    struct virtio_pci_cfg_cap *cfg;
+
+    if (proxy->config_cap &&
+        ranges_overlap(address, len, proxy->config_cap + offsetof(struct virtio_pci_cfg_cap,
+                                                                  pci_cfg_data),
+                       sizeof cfg->pci_cfg_data)) {
+        uint32_t off;
+        uint32_t len;
+
+        cfg = (void *)(proxy->pci_dev.config + proxy->config_cap);
+        off = le32_to_cpu(cfg->cap.offset);
+        len = le32_to_cpu(cfg->cap.length);
+
+        if (len <= sizeof cfg->pci_cfg_data) {
+            virtio_address_space_read(&proxy->modern_as, off,
+                                      cfg->pci_cfg_data, len);
+        }
+    }
+
+    return pci_default_read_config(pci_dev, address, len);
 }
 
 static int kvm_virtio_pci_vq_vector_use(VirtIOPCIProxy *proxy,
@@ -942,7 +1063,7 @@ static int virtio_pci_query_nvectors(DeviceState *d)
     return proxy->nvectors;
 }
 
-static void virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
+static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
                                    struct virtio_pci_cap *cap)
 {
     PCIDevice *dev = &proxy->pci_dev;
@@ -954,6 +1075,8 @@ static void virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
     assert(cap->cap_len >= sizeof *cap);
     memcpy(dev->config + offset + PCI_CAP_FLAGS, &cap->cap_len,
            cap->cap_len - PCI_CAP_FLAGS);
+
+    return offset;
 }
 
 static uint64_t virtio_pci_common_read(void *opaque, hwaddr addr,
@@ -1329,6 +1452,11 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
             .notify_off_multiplier =
                 cpu_to_le32(QEMU_VIRTIO_PCI_QUEUE_MEM_MULT),
         };
+        struct virtio_pci_cfg_cap cfg = {
+            .cap.cap_len = sizeof cfg,
+            .cap.cfg_type = VIRTIO_PCI_CAP_PCI_CFG,
+        };
+        struct virtio_pci_cfg_cap *cfg_mask;
 
         /* TODO: add io access for speed */
 
@@ -1338,11 +1466,19 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         virtio_pci_modern_region_map(proxy, &proxy->isr, &cap);
         virtio_pci_modern_region_map(proxy, &proxy->device, &cap);
         virtio_pci_modern_region_map(proxy, &proxy->notify, &notify.cap);
+
         pci_register_bar(&proxy->pci_dev, proxy->modern_mem_bar,
                          PCI_BASE_ADDRESS_SPACE_MEMORY |
                          PCI_BASE_ADDRESS_MEM_PREFETCH |
                          PCI_BASE_ADDRESS_MEM_TYPE_64,
                          &proxy->modern_bar);
+
+        proxy->config_cap = virtio_pci_add_mem_cap(proxy, &cfg.cap);
+        cfg_mask = (void *)(proxy->pci_dev.wmask + proxy->config_cap);
+        pci_set_byte(&cfg_mask->cap.bar, ~0x0);
+        pci_set_long((uint8_t *)&cfg_mask->cap.offset, ~0x0);
+        pci_set_long((uint8_t *)&cfg_mask->cap.length, ~0x0);
+        pci_set_long(cfg_mask->pci_cfg_data, ~0x0);
     }
 
     if (proxy->nvectors &&
@@ -1354,6 +1490,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     }
 
     proxy->pci_dev.config_write = virtio_write_config;
+    proxy->pci_dev.config_read = virtio_read_config;
 
     if (legacy) {
         size = VIRTIO_PCI_REGION_SIZE(&proxy->pci_dev)
@@ -1424,6 +1561,15 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
                        2 * QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                        VIRTIO_QUEUE_MAX);
 
+    memory_region_init_alias(&proxy->modern_cfg,
+                             OBJECT(proxy),
+                             "virtio-pci-cfg",
+                             &proxy->modern_bar,
+                             0,
+                             memory_region_size(&proxy->modern_bar));
+
+    address_space_init(&proxy->modern_as, &proxy->modern_cfg, "virtio-pci-cfg-as");
+
     virtio_pci_bus_new(&proxy->bus, sizeof(proxy->bus), proxy);
     if (k->realize) {
         k->realize(proxy, errp);
@@ -1432,7 +1578,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
 static void virtio_pci_exit(PCIDevice *pci_dev)
 {
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
+
     msix_uninit_exclusive_bar(pci_dev);
+    address_space_destroy(&proxy->modern_as);
 }
 
 static void virtio_pci_reset(DeviceState *qdev)
