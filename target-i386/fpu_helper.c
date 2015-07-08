@@ -272,7 +272,7 @@ int64_t helper_fistll_ST0(CPUX86State *env)
     old_exp_flags = get_float_exception_flags(&env->fp_status);
     set_float_exception_flags(0, &env->fp_status);
 
-    val = floatx80_to_int32(ST0, &env->fp_status);
+    val = floatx80_to_int64(ST0, &env->fp_status);
     if (get_float_exception_flags(&env->fp_status) & float_flag_invalid) {
         val = 0x8000000000000000ULL;
     }
