@@ -414,7 +414,7 @@ void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
              * 3. merge would exceed maximum transfer length of backend device
              */
             if (sector_num + nb_sectors != req->sector_num ||
-                niov > IOV_MAX - req->qiov.niov ||
+                niov > blk_get_max_iov(blk) - req->qiov.niov ||
                 req->qiov.size / BDRV_SECTOR_SIZE > max_xfer_len ||
                 nb_sectors > max_xfer_len - req->qiov.size / BDRV_SECTOR_SIZE) {
                 submit_requests(blk, mrb, start, num_reqs, niov);
