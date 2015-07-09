@@ -312,7 +312,15 @@ static void cpu_common_initfn(Object *obj)
     CPUState *cpu = CPU(obj);
     CPUClass *cc = CPU_GET_CLASS(obj);
 
+    cpu->cpu_index = -1;
     cpu->gdb_num_regs = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;
+    QTAILQ_INIT(&cpu->breakpoints);
+    QTAILQ_INIT(&cpu->watchpoints);
+}
+
+static void cpu_common_finalize(Object *obj)
+{
+    cpu_exec_exit(CPU(obj));
 }
 
 static int64_t cpu_common_get_arch_id(CPUState *cpu)
@@ -356,6 +364,7 @@ static const TypeInfo cpu_type_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(CPUState),
     .instance_init = cpu_common_initfn,
+    .instance_finalize = cpu_common_finalize,
     .abstract = true,
     .class_size = sizeof(CPUClass),
     .class_init = cpu_class_init,

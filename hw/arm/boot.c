@@ -168,11 +168,11 @@ static void default_write_secondary(ARMCPU *cpu,
 static void default_reset_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
-    CPUARMState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
     address_space_stl_notdirty(&address_space_memory, info->smp_bootreg_addr,
                                0, MEMTXATTRS_UNSPECIFIED, NULL);
-    env->regs[15] = info->smp_loader_start;
+    cpu_set_pc(cs, info->smp_loader_start);
 }
 
 static inline bool have_dtb(const struct arm_boot_info *info)
@@ -445,19 +445,21 @@ fail:
 static void do_cpu_reset(void *opaque)
 {
     ARMCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
     const struct arm_boot_info *info = env->boot_info;
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
     if (info) {
         if (!info->is_linux) {
             /* Jump to the entry point.  */
-            if (env->aarch64) {
-                env->pc = info->entry;
-            } else {
-                env->regs[15] = info->entry & 0xfffffffe;
+            uint64_t entry = info->entry;
+
+            if (!env->aarch64) {
                 env->thumb = info->entry & 1;
+                entry &= 0xfffffffe;
             }
+            cpu_set_pc(cs, entry);
         } else {
             /* If we are booting Linux then we need to check whether we are
              * booting into secure or non-secure state and adjust the state
@@ -487,12 +489,8 @@ static void do_cpu_reset(void *opaque)
                 }
             }
 
-            if (CPU(cpu) == first_cpu) {
-                if (env->aarch64) {
-                    env->pc = info->loader_start;
-                } else {
-                    env->regs[15] = info->loader_start;
-                }
+            if (cs == first_cpu) {
+                cpu_set_pc(cs, info->loader_start);
 
                 if (!have_dtb(info)) {
                     if (old_param) {

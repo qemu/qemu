@@ -119,6 +119,12 @@ static void mb_cpu_reset(CPUState *s)
 #endif
 }
 
+static void mb_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->mach = bfd_arch_microblaze;
+    info->print_insn = print_insn_microblaze;
+}
+
 static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -190,7 +196,7 @@ static void mb_cpu_initfn(Object *obj)
     static bool tcg_initialized;
 
     cs->env_ptr = env;
-    cpu_exec_init(env);
+    cpu_exec_init(cs, &error_abort);
 
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
 
@@ -256,6 +262,8 @@ static void mb_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_mb_cpu;
     dc->props = mb_properties;
     cc->gdb_num_core_regs = 32 + 5;
+
+    cc->disas_set_info = mb_disas_set_info;
 }
 
 static const TypeInfo mb_cpu_type_info = {

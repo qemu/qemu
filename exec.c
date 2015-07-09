@@ -526,29 +526,74 @@ void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as)
 }
 #endif
 
-void cpu_exec_init(CPUArchState *env)
-{
-    CPUState *cpu = ENV_GET_CPU(env);
-    CPUClass *cc = CPU_GET_CLASS(cpu);
-    CPUState *some_cpu;
-    int cpu_index;
+#ifndef CONFIG_USER_ONLY
+static DECLARE_BITMAP(cpu_index_map, MAX_CPUMASK_BITS);
 
-#if defined(CONFIG_USER_ONLY)
-    cpu_list_lock();
-#endif
-    cpu_index = 0;
+static int cpu_get_free_index(Error **errp)
+{
+    int cpu = find_first_zero_bit(cpu_index_map, MAX_CPUMASK_BITS);
+
+    if (cpu >= MAX_CPUMASK_BITS) {
+        error_setg(errp, "Trying to use more CPUs than max of %d",
+                   MAX_CPUMASK_BITS);
+        return -1;
+    }
+
+    bitmap_set(cpu_index_map, cpu, 1);
+    return cpu;
+}
+
+void cpu_exec_exit(CPUState *cpu)
+{
+    if (cpu->cpu_index == -1) {
+        /* cpu_index was never allocated by this @cpu or was already freed. */
+        return;
+    }
+
+    bitmap_clear(cpu_index_map, cpu->cpu_index, 1);
+    cpu->cpu_index = -1;
+}
+#else
+
+static int cpu_get_free_index(Error **errp)
+{
+    CPUState *some_cpu;
+    int cpu_index = 0;
+
     CPU_FOREACH(some_cpu) {
         cpu_index++;
     }
-    cpu->cpu_index = cpu_index;
-    cpu->numa_node = 0;
-    QTAILQ_INIT(&cpu->breakpoints);
-    QTAILQ_INIT(&cpu->watchpoints);
+    return cpu_index;
+}
+
+void cpu_exec_exit(CPUState *cpu)
+{
+}
+#endif
+
+void cpu_exec_init(CPUState *cpu, Error **errp)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    int cpu_index;
+    Error *local_err = NULL;
+
 #ifndef CONFIG_USER_ONLY
     cpu->as = &address_space_memory;
     cpu->thread_id = qemu_get_thread_id();
     cpu_reload_memory_map(cpu);
 #endif
+
+#if defined(CONFIG_USER_ONLY)
+    cpu_list_lock();
+#endif
+    cpu_index = cpu->cpu_index = cpu_get_free_index(&local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+#if defined(CONFIG_USER_ONLY)
+        cpu_list_unlock();
+#endif
+        return;
+    }
     QTAILQ_INSERT_TAIL(&cpus, cpu, node);
 #if defined(CONFIG_USER_ONLY)
     cpu_list_unlock();
@@ -558,7 +603,7 @@ void cpu_exec_init(CPUArchState *env)
     }
 #if defined(CPU_SAVE_VERSION) && !defined(CONFIG_USER_ONLY)
     register_savevm(NULL, "cpu", cpu_index, CPU_SAVE_VERSION,
-                    cpu_save, cpu_load, env);
+                    cpu_save, cpu_load, cpu->env_ptr);
     assert(cc->vmsd == NULL);
     assert(qdev_get_vmsd(DEVICE(cpu)) == NULL);
 #endif
@@ -770,8 +815,7 @@ void cpu_single_step(CPUState *cpu, int enabled)
         } else {
             /* must flush all the translated code to avoid inconsistencies */
             /* XXX: only flush what is necessary */
-            CPUArchState *env = cpu->env_ptr;
-            tb_flush(env);
+            tb_flush(cpu);
         }
     }
 }

@@ -431,7 +431,7 @@ AlphaCPU *cpu_alpha_init(const char *cpu_model);
 #define cpu_init(cpu_model) CPU(cpu_alpha_init(cpu_model))
 
 void alpha_cpu_list(FILE *f, fprintf_function cpu_fprintf);
-int cpu_alpha_exec(CPUAlphaState *s);
+int cpu_alpha_exec(CPUState *cpu);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */

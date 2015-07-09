@@ -92,7 +92,7 @@ void fork_start(void)
 void fork_end(int child)
 {
     if (child) {
-        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
+        gdbserver_fork(thread_cpu);
     }
 }
 
@@ -166,6 +166,8 @@ static void set_idt(int n, unsigned int dpl)
 
 void cpu_loop(CPUX86State *env)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     int trapnr;
     abi_ulong pc;
     //target_siginfo_t info;
@@ -512,7 +514,7 @@ void cpu_loop(CPUSPARCState *env)
     //target_siginfo_t info;
 
     while (1) {
-        trapnr = cpu_sparc_exec (env);
+        trapnr = cpu_sparc_exec(cs);
 
         switch (trapnr) {
 #ifndef TARGET_SPARC64
