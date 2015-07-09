@@ -21,6 +21,7 @@
 
 typedef struct S390SKeysState {
     DeviceState parent_obj;
+    bool migration_enabled;
 
 } S390SKeysState;
 

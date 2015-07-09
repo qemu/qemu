@@ -353,12 +353,39 @@ static int s390_storage_keys_load(QEMUFile *f, void *opaque, int version_id)
     return ret;
 }
 
-static void s390_skeys_instance_init(Object *obj)
+static inline bool s390_skeys_get_migration_enabled(Object *obj, Error **errp)
 {
     S390SKeysState *ss = S390_SKEYS(obj);
 
-    register_savevm(NULL, TYPE_S390_SKEYS, 0, 1, s390_storage_keys_save,
-                    s390_storage_keys_load, ss);
+    return ss->migration_enabled;
+}
+
+static inline void s390_skeys_set_migration_enabled(Object *obj, bool value,
+                                            Error **errp)
+{
+    S390SKeysState *ss = S390_SKEYS(obj);
+
+    /* Prevent double registration of savevm handler */
+    if (ss->migration_enabled == value) {
+        return;
+    }
+
+    ss->migration_enabled = value;
+
+    if (ss->migration_enabled) {
+        register_savevm(NULL, TYPE_S390_SKEYS, 0, 1, s390_storage_keys_save,
+                        s390_storage_keys_load, ss);
+    } else {
+        unregister_savevm(DEVICE(ss), TYPE_S390_SKEYS, ss);
+    }
+}
+
+static void s390_skeys_instance_init(Object *obj)
+{
+    object_property_add_bool(obj, "migration-enabled",
+                             s390_skeys_get_migration_enabled,
+                             s390_skeys_set_migration_enabled, NULL);
+    object_property_set_bool(obj, true, "migration-enabled", NULL);
 }
 
 static void s390_skeys_class_init(ObjectClass *oc, void *data)
