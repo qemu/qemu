@@ -212,10 +212,10 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
 }
 
 #define MIPS_CP0_32(_R, _S)                                     \
-    (KVM_REG_MIPS | KVM_REG_SIZE_U32 | 0x10000 | (8 * (_R) + (_S)))
+    (KVM_REG_MIPS_CP0 | KVM_REG_SIZE_U32 | (8 * (_R) + (_S)))
 
 #define MIPS_CP0_64(_R, _S)                                     \
-    (KVM_REG_MIPS | KVM_REG_SIZE_U64 | 0x10000 | (8 * (_R) + (_S)))
+    (KVM_REG_MIPS_CP0 | KVM_REG_SIZE_U64 | (8 * (_R) + (_S)))
 
 #define KVM_REG_MIPS_CP0_INDEX          MIPS_CP0_32(0, 0)
 #define KVM_REG_MIPS_CP0_CONTEXT        MIPS_CP0_64(4, 0)
@@ -231,17 +231,6 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
 #define KVM_REG_MIPS_CP0_CAUSE          MIPS_CP0_32(13, 0)
 #define KVM_REG_MIPS_CP0_EPC            MIPS_CP0_64(14, 0)
 #define KVM_REG_MIPS_CP0_ERROREPC       MIPS_CP0_64(30, 0)
-
-/* CP0_Count control */
-#define KVM_REG_MIPS_COUNT_CTL          (KVM_REG_MIPS | KVM_REG_SIZE_U64 | \
-                                         0x20000 | 0)
-#define KVM_REG_MIPS_COUNT_CTL_DC       0x00000001      /* master disable */
-/* CP0_Count resume monotonic nanoseconds */
-#define KVM_REG_MIPS_COUNT_RESUME       (KVM_REG_MIPS | KVM_REG_SIZE_U64 | \
-                                         0x20000 | 1)
-/* CP0_Count rate in Hz */
-#define KVM_REG_MIPS_COUNT_HZ           (KVM_REG_MIPS | KVM_REG_SIZE_U64 | \
-                                         0x20000 | 2)
 
 static inline int kvm_mips_put_one_reg(CPUState *cs, uint64_t reg_id,
                                        int32_t *addr)
