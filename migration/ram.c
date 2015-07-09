@@ -1266,9 +1266,10 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
     flush_compressed_data(f);
     ram_control_after_iterate(f, RAM_CONTROL_FINISH);
-    migration_end();
 
     rcu_read_unlock();
+
+    migration_end();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
     return 0;
