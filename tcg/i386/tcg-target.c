@@ -1172,7 +1172,7 @@ static void * const qemu_st_helpers[16] = {
    First argument register is clobbered.  */
 
 static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
-                                    int mem_index, TCGMemOp s_bits,
+                                    int mem_index, TCGMemOp opc,
                                     tcg_insn_unit **label_ptr, int which)
 {
     const TCGReg r0 = TCG_REG_L0;
@@ -1180,6 +1180,8 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     TCGType ttype = TCG_TYPE_I32;
     TCGType htype = TCG_TYPE_I32;
     int trexw = 0, hrexw = 0;
+    int s_mask = (1 << (opc & MO_SIZE)) - 1;
+    bool aligned = (opc & MO_AMASK) == MO_ALIGN || s_mask == 0;
 
     if (TCG_TARGET_REG_BITS == 64) {
         if (TARGET_LONG_BITS == 64) {
@@ -1193,13 +1195,19 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     }
 
     tcg_out_mov(s, htype, r0, addrlo);
-    tcg_out_mov(s, ttype, r1, addrlo);
+    if (aligned) {
+        tcg_out_mov(s, ttype, r1, addrlo);
+    } else {
+        /* For unaligned access check that we don't cross pages using
+           the page address of the last byte.  */
+        tcg_out_modrm_offset(s, OPC_LEA + trexw, r1, addrlo, s_mask);
+    }
 
     tcg_out_shifti(s, SHIFT_SHR + hrexw, r0,
                    TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
     tgen_arithi(s, ARITH_AND + trexw, r1,
-                TARGET_PAGE_MASK | ((1 << s_bits) - 1), 0);
+                TARGET_PAGE_MASK | (aligned ? s_mask : 0), 0);
     tgen_arithi(s, ARITH_AND + hrexw, r0,
                 (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS, 0);
 
@@ -1545,7 +1553,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
     TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     int mem_index;
-    TCGMemOp s_bits;
     tcg_insn_unit *label_ptr[2];
 #endif
 
@@ -1558,9 +1565,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
 
 #if defined(CONFIG_SOFTMMU)
     mem_index = get_mmuidx(oi);
-    s_bits = opc & MO_SIZE;
 
-    tcg_out_tlb_load(s, addrlo, addrhi, mem_index, s_bits,
+    tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
                      label_ptr, offsetof(CPUTLBEntry, addr_read));
 
     /* TLB Hit.  */
@@ -1687,7 +1693,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
     TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     int mem_index;
-    TCGMemOp s_bits;
     tcg_insn_unit *label_ptr[2];
 #endif
 
@@ -1700,9 +1705,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
 
 #if defined(CONFIG_SOFTMMU)
     mem_index = get_mmuidx(oi);
-    s_bits = opc & MO_SIZE;
 
-    tcg_out_tlb_load(s, addrlo, addrhi, mem_index, s_bits,
+    tcg_out_tlb_load(s, addrlo, addrhi, mem_index, opc,
                      label_ptr, offsetof(CPUTLBEntry, addr_write));
 
     /* TLB Hit.  */
