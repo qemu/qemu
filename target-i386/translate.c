@@ -1807,37 +1807,52 @@ static void gen_shifti(DisasContext *s1, int op, TCGMemOp ot, int d, int c)
     }
 }
 
-static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
-{
+/* Decompose an address.  */
+
+typedef struct AddressParts {
+    int def_seg;
+    int base;
+    int index;
+    int scale;
     target_long disp;
-    int havesib, base, index, scale;
-    int mod, rm, code, def_seg, ovr_seg;
-    TCGv sum;
+} AddressParts;
+
+static AddressParts gen_lea_modrm_0(CPUX86State *env, DisasContext *s,
+                                    int modrm)
+{
+    int def_seg, base, index, scale, mod, rm;
+    target_long disp;
+    bool havesib;
 
     def_seg = R_DS;
-    ovr_seg = s->override;
+    index = -1;
+    scale = 0;
+    disp = 0;
+
     mod = (modrm >> 6) & 3;
     rm = modrm & 7;
+    base = rm | REX_B(s);
+
+    if (mod == 3) {
+        /* Normally filtered out earlier, but including this path
+           simplifies multi-byte nop, as well as bndcl, bndcu, bndcn.  */
+        goto done;
+    }
 
     switch (s->aflag) {
     case MO_64:
     case MO_32:
         havesib = 0;
-        base = rm;
-        index = -1;
-        scale = 0;
-
-        if (base == 4) {
-            havesib = 1;
-            code = cpu_ldub_code(env, s->pc++);
+        if (rm == 4) {
+            int code = cpu_ldub_code(env, s->pc++);
             scale = (code >> 6) & 3;
             index = ((code >> 3) & 7) | REX_X(s);
             if (index == 4) {
                 index = -1;  /* no index */
             }
-            base = (code & 7);
+            base = (code & 7) | REX_B(s);
+            havesib = 1;
         }
-        base |= REX_B(s);
 
         switch (mod) {
         case 0:
@@ -1846,10 +1861,9 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
                 disp = (int32_t)cpu_ldl_code(env, s->pc);
                 s->pc += 4;
                 if (CODE64(s) && !havesib) {
+                    base = -2;
                     disp += s->pc + s->rip_offset;
                 }
-            } else {
-                disp = 0;
             }
             break;
         case 1:
@@ -1866,46 +1880,19 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
         if (base == R_ESP && s->popl_esp_hack) {
             disp += s->popl_esp_hack;
         }
-
-        /* Compute the address, with a minimum number of TCG ops.  */
-        TCGV_UNUSED(sum);
-        if (index >= 0) {
-            if (scale == 0) {
-                sum = cpu_regs[index];
-            } else {
-                tcg_gen_shli_tl(cpu_A0, cpu_regs[index], scale);
-                sum = cpu_A0;
-            }
-            if (base >= 0) {
-                tcg_gen_add_tl(cpu_A0, sum, cpu_regs[base]);
-                sum = cpu_A0;
-            }
-        } else if (base >= 0) {
-            sum = cpu_regs[base];
-        }
-        if (TCGV_IS_UNUSED(sum)) {
-            tcg_gen_movi_tl(cpu_A0, disp);
-            sum = cpu_A0;
-        } else if (disp != 0) {
-            tcg_gen_addi_tl(cpu_A0, sum, disp);
-            sum = cpu_A0;
-        }
-
         if (base == R_EBP || base == R_ESP) {
             def_seg = R_SS;
         }
         break;
 
     case MO_16:
-        sum = cpu_A0;
         if (mod == 0) {
             if (rm == 6) {
+                base = -1;
                 disp = cpu_lduw_code(env, s->pc);
                 s->pc += 2;
-                tcg_gen_movi_tl(cpu_A0, disp);
                 break;
             }
-            disp = 0;
         } else if (mod == 1) {
             disp = (int8_t)cpu_ldub_code(env, s->pc++);
         } else {
@@ -1915,37 +1902,37 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
 
         switch (rm) {
         case 0:
-            tcg_gen_add_tl(cpu_A0, cpu_regs[R_EBX], cpu_regs[R_ESI]);
+            base = R_EBX;
+            index = R_ESI;
             break;
         case 1:
-            tcg_gen_add_tl(cpu_A0, cpu_regs[R_EBX], cpu_regs[R_EDI]);
+            base = R_EBX;
+            index = R_EDI;
             break;
         case 2:
-            tcg_gen_add_tl(cpu_A0, cpu_regs[R_EBP], cpu_regs[R_ESI]);
+            base = R_EBP;
+            index = R_ESI;
             def_seg = R_SS;
             break;
         case 3:
-            tcg_gen_add_tl(cpu_A0, cpu_regs[R_EBP], cpu_regs[R_EDI]);
+            base = R_EBP;
+            index = R_EDI;
             def_seg = R_SS;
             break;
         case 4:
-            sum = cpu_regs[R_ESI];
+            base = R_ESI;
             break;
         case 5:
-            sum = cpu_regs[R_EDI];
+            base = R_EDI;
             break;
         case 6:
-            sum = cpu_regs[R_EBP];
+            base = R_EBP;
             def_seg = R_SS;
             break;
         default:
         case 7:
-            sum = cpu_regs[R_EBX];
+            base = R_EBX;
             break;
-        }
-        if (disp != 0) {
-            tcg_gen_addi_tl(cpu_A0, sum, disp);
-            sum = cpu_A0;
         }
         break;
 
@@ -1953,64 +1940,51 @@ static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
         tcg_abort();
     }
 
-    gen_lea_v_seg(s, s->aflag, sum, def_seg, ovr_seg);
+ done:
+    return (AddressParts){ def_seg, base, index, scale, disp };
+}
+
+/* Compute the address, with a minimum number of TCG ops.  */
+static TCGv gen_lea_modrm_1(AddressParts a)
+{
+    TCGv ea;
+
+    TCGV_UNUSED(ea);
+    if (a.index >= 0) {
+        if (a.scale == 0) {
+            ea = cpu_regs[a.index];
+        } else {
+            tcg_gen_shli_tl(cpu_A0, cpu_regs[a.index], a.scale);
+            ea = cpu_A0;
+        }
+        if (a.base >= 0) {
+            tcg_gen_add_tl(cpu_A0, ea, cpu_regs[a.base]);
+            ea = cpu_A0;
+        }
+    } else if (a.base >= 0) {
+        ea = cpu_regs[a.base];
+    }
+    if (TCGV_IS_UNUSED(ea)) {
+        tcg_gen_movi_tl(cpu_A0, a.disp);
+        ea = cpu_A0;
+    } else if (a.disp != 0) {
+        tcg_gen_addi_tl(cpu_A0, ea, a.disp);
+        ea = cpu_A0;
+    }
+
+    return ea;
+}
+
+static void gen_lea_modrm(CPUX86State *env, DisasContext *s, int modrm)
+{
+    AddressParts a = gen_lea_modrm_0(env, s, modrm);
+    TCGv ea = gen_lea_modrm_1(a);
+    gen_lea_v_seg(s, s->aflag, ea, a.def_seg, s->override);
 }
 
 static void gen_nop_modrm(CPUX86State *env, DisasContext *s, int modrm)
 {
-    int mod, rm, base, code;
-
-    mod = (modrm >> 6) & 3;
-    if (mod == 3)
-        return;
-    rm = modrm & 7;
-
-    switch (s->aflag) {
-    case MO_64:
-    case MO_32:
-        base = rm;
-
-        if (base == 4) {
-            code = cpu_ldub_code(env, s->pc++);
-            base = (code & 7);
-        }
-
-        switch (mod) {
-        case 0:
-            if (base == 5) {
-                s->pc += 4;
-            }
-            break;
-        case 1:
-            s->pc++;
-            break;
-        default:
-        case 2:
-            s->pc += 4;
-            break;
-        }
-        break;
-
-    case MO_16:
-        switch (mod) {
-        case 0:
-            if (rm == 6) {
-                s->pc += 2;
-            }
-            break;
-        case 1:
-            s->pc++;
-            break;
-        default:
-        case 2:
-            s->pc += 2;
-            break;
-        }
-        break;
-
-    default:
-        tcg_abort();
-    }
+    (void)gen_lea_modrm_0(env, s, modrm);
 }
 
 /* used for LEA and MOV AX, mem */
@@ -5302,19 +5276,16 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         break;
 
     case 0x8d: /* lea */
-        ot = dflag;
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
         if (mod == 3)
             goto illegal_op;
         reg = ((modrm >> 3) & 7) | rex_r;
-        /* we must ensure that no segment is added */
-        s->override = -1;
-        val = s->addseg;
-        s->addseg = 0;
-        gen_lea_modrm(env, s, modrm);
-        s->addseg = val;
-        gen_op_mov_reg_v(ot, reg, cpu_A0);
+        {
+            AddressParts a = gen_lea_modrm_0(env, s, modrm);
+            TCGv ea = gen_lea_modrm_1(a);
+            gen_op_mov_reg_v(dflag, reg, ea);
+        }
         break;
 
     case 0xa0: /* mov EAX, Ov */
