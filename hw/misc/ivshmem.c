@@ -19,6 +19,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
@@ -68,6 +69,7 @@ typedef struct Peer {
 
 typedef struct MSIVector {
     PCIDevice *pdev;
+    int virq;
 } MSIVector;
 
 typedef struct IVShmemState {
@@ -293,13 +295,73 @@ static void fake_irqfd(void *opaque, const uint8_t *buf, int size) {
     msix_notify(pdev, vector);
 }
 
+static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
+                                 MSIMessage msg)
+{
+    IVShmemState *s = IVSHMEM(dev);
+    EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+    MSIVector *v = &s->msi_vectors[vector];
+    int ret;
+
+    IVSHMEM_DPRINTF("vector unmask %p %d\n", dev, vector);
+
+    ret = kvm_irqchip_update_msi_route(kvm_state, v->virq, msg, dev);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
+}
+
+static void ivshmem_vector_mask(PCIDevice *dev, unsigned vector)
+{
+    IVShmemState *s = IVSHMEM(dev);
+    EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+    int ret;
+
+    IVSHMEM_DPRINTF("vector mask %p %d\n", dev, vector);
+
+    ret = kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, n,
+                                                s->msi_vectors[vector].virq);
+    if (ret != 0) {
+        error_report("remove_irqfd_notifier_gsi failed");
+    }
+}
+
+static void ivshmem_vector_poll(PCIDevice *dev,
+                                unsigned int vector_start,
+                                unsigned int vector_end)
+{
+    IVShmemState *s = IVSHMEM(dev);
+    unsigned int vector;
+
+    IVSHMEM_DPRINTF("vector poll %p %d-%d\n", dev, vector_start, vector_end);
+
+    vector_end = MIN(vector_end, s->vectors);
+
+    for (vector = vector_start; vector < vector_end; vector++) {
+        EventNotifier *notifier = &s->peers[s->vm_id].eventfds[vector];
+
+        if (!msix_is_masked(dev, vector)) {
+            continue;
+        }
+
+        if (event_notifier_test_and_clear(notifier)) {
+            msix_set_pending(dev, vector);
+        }
+    }
+}
+
 static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *n,
                                                   int vector)
 {
     /* create a event character device based on the passed eventfd */
     IVShmemState *s = opaque;
-    CharDriverState * chr;
+    PCIDevice *pdev = PCI_DEVICE(s);
     int eventfd = event_notifier_get_fd(n);
+    CharDriverState *chr;
+
+    s->msi_vectors[vector].pdev = pdev;
 
     chr = qemu_chr_open_eventfd(eventfd);
 
@@ -484,6 +546,58 @@ static bool fifo_update_and_get(IVShmemState *s, const uint8_t *buf, int size,
     return true;
 }
 
+static int ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector)
+{
+    PCIDevice *pdev = PCI_DEVICE(s);
+    MSIMessage msg = msix_get_message(pdev, vector);
+    int ret;
+
+    IVSHMEM_DPRINTF("ivshmem_add_kvm_msi_virq vector:%d\n", vector);
+
+    if (s->msi_vectors[vector].pdev != NULL) {
+        return 0;
+    }
+
+    ret = kvm_irqchip_add_msi_route(kvm_state, msg, pdev);
+    if (ret < 0) {
+        error_report("ivshmem: kvm_irqchip_add_msi_route failed");
+        return -1;
+    }
+
+    s->msi_vectors[vector].virq = ret;
+    s->msi_vectors[vector].pdev = pdev;
+
+    return 0;
+}
+
+static void setup_interrupt(IVShmemState *s, int vector)
+{
+    EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+    bool with_irqfd = kvm_msi_via_irqfd_enabled() &&
+        ivshmem_has_feature(s, IVSHMEM_MSI);
+    PCIDevice *pdev = PCI_DEVICE(s);
+
+    IVSHMEM_DPRINTF("setting up interrupt for vector: %d\n", vector);
+
+    if (!with_irqfd) {
+        IVSHMEM_DPRINTF("with eventfd");
+        s->eventfd_chr[vector] = create_eventfd_chr_device(s, n, vector);
+    } else if (msix_enabled(pdev)) {
+        IVSHMEM_DPRINTF("with irqfd");
+        if (ivshmem_add_kvm_msi_virq(s, vector) < 0) {
+            return;
+        }
+
+        if (!msix_is_masked(pdev, vector)) {
+            kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL,
+                                               s->msi_vectors[vector].virq);
+        }
+    } else {
+        /* it will be delayed until msix is enabled, in write_config */
+        IVSHMEM_DPRINTF("with irqfd, delayed until msix enabled");
+    }
+}
+
 static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
@@ -586,11 +700,10 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     IVSHMEM_DPRINTF("eventfds[%ld][%d] = %d\n", incoming_posn,
                     new_eventfd, incoming_fd);
     event_notifier_init_fd(&peer->eventfds[new_eventfd], incoming_fd);
+    fcntl_setfl(incoming_fd, O_NONBLOCK); /* msix/irqfd poll non block */
 
     if (incoming_posn == s->vm_id) {
-        s->eventfd_chr[new_eventfd] = create_eventfd_chr_device(s,
-                   &s->peers[s->vm_id].eventfds[new_eventfd],
-                   new_eventfd);
+        setup_interrupt(s, new_eventfd);
     }
 
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
@@ -665,10 +778,65 @@ static int ivshmem_setup_msi(IVShmemState * s)
     return 0;
 }
 
-static void ivshmem_write_config(PCIDevice *pci_dev, uint32_t address,
+static void ivshmem_enable_irqfd(IVShmemState *s)
+{
+    PCIDevice *pdev = PCI_DEVICE(s);
+    int i;
+
+    for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
+        ivshmem_add_kvm_msi_virq(s, i);
+    }
+
+    if (msix_set_vector_notifiers(pdev,
+                                  ivshmem_vector_unmask,
+                                  ivshmem_vector_mask,
+                                  ivshmem_vector_poll)) {
+        error_report("ivshmem: msix_set_vector_notifiers failed");
+    }
+}
+
+static void ivshmem_remove_kvm_msi_virq(IVShmemState *s, int vector)
+{
+    IVSHMEM_DPRINTF("ivshmem_remove_kvm_msi_virq vector:%d\n", vector);
+
+    if (s->msi_vectors[vector].pdev == NULL) {
+        return;
+    }
+
+    /* it was cleaned when masked in the frontend. */
+    kvm_irqchip_release_virq(kvm_state, s->msi_vectors[vector].virq);
+
+    s->msi_vectors[vector].pdev = NULL;
+}
+
+static void ivshmem_disable_irqfd(IVShmemState *s)
+{
+    PCIDevice *pdev = PCI_DEVICE(s);
+    int i;
+
+    for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
+        ivshmem_remove_kvm_msi_virq(s, i);
+    }
+
+    msix_unset_vector_notifiers(pdev);
+}
+
+static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,
                                  uint32_t val, int len)
 {
-    pci_default_write_config(pci_dev, address, val, len);
+    IVShmemState *s = IVSHMEM(pdev);
+    int is_enabled, was_enabled = msix_enabled(pdev);
+
+    pci_default_write_config(pdev, address, val, len);
+    is_enabled = msix_enabled(pdev);
+
+    if (kvm_msi_via_irqfd_enabled() && s->vm_id != -1) {
+        if (!was_enabled && is_enabled) {
+            ivshmem_enable_irqfd(s);
+        } else if (was_enabled && !is_enabled) {
+            ivshmem_disable_irqfd(s);
+        }
+    }
 }
 
 static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
