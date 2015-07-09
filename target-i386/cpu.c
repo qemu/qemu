@@ -3021,7 +3021,7 @@ static void x86_cpu_register_feature_bit_props(X86CPU *cpu,
 
     for (i = 1; names[i]; i++) {
         feat2prop(names[i]);
-        object_property_add_alias(obj, names[i], obj, g_strdup(names[0]),
+        object_property_add_alias(obj, names[i], obj, names[0],
                                   &error_abort);
     }
 
