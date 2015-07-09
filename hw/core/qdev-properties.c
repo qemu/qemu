@@ -130,7 +130,7 @@ PropertyInfo qdev_prop_bit = {
 
 static uint64_t qdev_get_prop_mask64(Property *prop)
 {
-    assert(prop->info == &qdev_prop_bit);
+    assert(prop->info == &qdev_prop_bit64);
     return 0x1ull << prop->bitnr;
 }
 

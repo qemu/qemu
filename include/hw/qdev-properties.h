@@ -53,7 +53,7 @@ extern PropertyInfo qdev_prop_arraylen;
         }
 #define DEFINE_PROP_BIT64(_name, _state, _field, _bit, _defval) {       \
         .name      = (_name),                                           \
-        .info      = &(qdev_prop_bit),                                  \
+        .info      = &(qdev_prop_bit64),                                \
         .bitnr    = (_bit),                                             \
         .offset    = offsetof(_state, _field)                           \
             + type_check(uint64_t, typeof_field(_state, _field)),       \
