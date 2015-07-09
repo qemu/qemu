@@ -1853,6 +1853,8 @@ static TextureBinding* generate_texture(const TextureShape s,
                                        width, height, 0,
                                        width/4 * height/4 * block_size,
                                        texture_data);
+
+                texture_data += width/4 * height/4 * block_size;
             } else {
                 unsigned int pitch = width * f.bytes_per_pixel;
                 uint8_t *unswizzled = g_malloc(height * pitch);
@@ -1865,9 +1867,10 @@ static TextureBinding* generate_texture(const TextureShape s,
                              unswizzled);
 
                 g_free(unswizzled);
+
+                texture_data += width * height * f.bytes_per_pixel;
             }
 
-            texture_data += width * height * f.bytes_per_pixel;
             width /= 2;
             height /= 2;
         }
