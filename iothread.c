@@ -18,6 +18,7 @@
 #include "sysemu/iothread.h"
 #include "qmp-commands.h"
 #include "qemu/error-report.h"
+#include "qemu/rcu.h"
 
 typedef ObjectClass IOThreadClass;
 
@@ -30,6 +31,8 @@ static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
     bool blocking;
+
+    rcu_register_thread();
 
     qemu_mutex_lock(&iothread->init_done_lock);
     iothread->thread_id = qemu_get_thread_id();
@@ -45,6 +48,8 @@ static void *iothread_run(void *opaque)
         }
         aio_context_release(iothread->ctx);
     }
+
+    rcu_unregister_thread();
     return NULL;
 }
 

@@ -22,6 +22,7 @@
 #include "block/block.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/sockets.h"
+#include "qemu/rcu.h"
 #include "migration/block.h"
 #include "qemu/thread.h"
 #include "qmp-commands.h"
@@ -917,6 +918,8 @@ static void *migration_thread(void *opaque)
     int64_t start_time = initial_time;
     bool old_vm_running = false;
 
+    rcu_register_thread();
+
     qemu_savevm_state_header(s->file);
     qemu_savevm_state_begin(s->file, &s->params);
 
@@ -1016,6 +1019,7 @@ static void *migration_thread(void *opaque)
     qemu_bh_schedule(s->cleanup_bh);
     qemu_mutex_unlock_iothread();
 
+    rcu_unregister_thread();
     return NULL;
 }
 

@@ -216,6 +216,8 @@ static void *call_rcu_thread(void *opaque)
 {
     struct rcu_head *node;
 
+    rcu_register_thread();
+
     for (;;) {
         int tries = 0;
         int n = atomic_read(&rcu_call_count);
