@@ -354,11 +354,13 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
 
 void qcrypto_cipher_free(QCryptoCipher *cipher)
 {
-    QCryptoCipherBuiltin *ctxt = cipher->opaque;
+    QCryptoCipherBuiltin *ctxt;
+
     if (!cipher) {
         return;
     }
 
+    ctxt = cipher->opaque;
     ctxt->free(cipher);
     g_free(cipher);
 }
