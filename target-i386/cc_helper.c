@@ -378,7 +378,7 @@ void helper_sti_vm(CPUX86State *env)
 {
     env->eflags |= VIF_MASK;
     if (env->eflags & VIP_MASK) {
-        raise_exception(env, EXCP0D_GPF);
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
 }
 #endif
