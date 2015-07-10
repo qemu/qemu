@@ -4841,21 +4841,17 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         case 6: /* div */
             switch(ot) {
             case MO_8:
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_divb_AL(cpu_env, cpu_T[0]);
                 break;
             case MO_16:
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_divw_AX(cpu_env, cpu_T[0]);
                 break;
             default:
             case MO_32:
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_divl_EAX(cpu_env, cpu_T[0]);
                 break;
 #ifdef TARGET_X86_64
             case MO_64:
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_divq_EAX(cpu_env, cpu_T[0]);
                 break;
 #endif
@@ -4864,21 +4860,17 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         case 7: /* idiv */
             switch(ot) {
             case MO_8:
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_idivb_AL(cpu_env, cpu_T[0]);
                 break;
             case MO_16:
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_idivw_AX(cpu_env, cpu_T[0]);
                 break;
             default:
             case MO_32:
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_idivl_EAX(cpu_env, cpu_T[0]);
                 break;
 #ifdef TARGET_X86_64
             case MO_64:
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_idivq_EAX(cpu_env, cpu_T[0]);
                 break;
 #endif
