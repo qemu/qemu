@@ -23,12 +23,16 @@
 #include <nettle/des.h>
 #include <nettle/cbc.h>
 
+#if CONFIG_NETTLE_VERSION_MAJOR < 3
+typedef nettle_crypt_func nettle_cipher_func;
+#endif
+
 typedef struct QCryptoCipherNettle QCryptoCipherNettle;
 struct QCryptoCipherNettle {
     void *ctx_encrypt;
     void *ctx_decrypt;
-    nettle_crypt_func *alg_encrypt;
-    nettle_crypt_func *alg_decrypt;
+    nettle_cipher_func *alg_encrypt;
+    nettle_cipher_func *alg_decrypt;
     uint8_t *iv;
     size_t niv;
 };
@@ -83,8 +87,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         des_set_key(ctx->ctx_encrypt, rfbkey);
         g_free(rfbkey);
 
-        ctx->alg_encrypt = (nettle_crypt_func *)des_encrypt;
-        ctx->alg_decrypt = (nettle_crypt_func *)des_decrypt;
+        ctx->alg_encrypt = (nettle_cipher_func *)des_encrypt;
+        ctx->alg_decrypt = (nettle_cipher_func *)des_decrypt;
 
         ctx->niv = DES_BLOCK_SIZE;
         break;
@@ -98,8 +102,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         aes_set_encrypt_key(ctx->ctx_encrypt, nkey, key);
         aes_set_decrypt_key(ctx->ctx_decrypt, nkey, key);
 
-        ctx->alg_encrypt = (nettle_crypt_func *)aes_encrypt;
-        ctx->alg_decrypt = (nettle_crypt_func *)aes_decrypt;
+        ctx->alg_encrypt = (nettle_cipher_func *)aes_encrypt;
+        ctx->alg_decrypt = (nettle_cipher_func *)aes_decrypt;
 
         ctx->niv = AES_BLOCK_SIZE;
         break;
