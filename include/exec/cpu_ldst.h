@@ -113,25 +113,6 @@
 /* The memory helpers for tcg-generated code need tcg_target_long etc.  */
 #include "tcg.h"
 
-uint8_t helper_ldb_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint16_t helper_ldw_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint32_t helper_ldl_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint64_t helper_ldq_mmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-
-void helper_stb_mmu(CPUArchState *env, target_ulong addr,
-                    uint8_t val, int mmu_idx);
-void helper_stw_mmu(CPUArchState *env, target_ulong addr,
-                    uint16_t val, int mmu_idx);
-void helper_stl_mmu(CPUArchState *env, target_ulong addr,
-                    uint32_t val, int mmu_idx);
-void helper_stq_mmu(CPUArchState *env, target_ulong addr,
-                    uint64_t val, int mmu_idx);
-
-uint8_t helper_ldb_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint16_t helper_ldw_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint32_t helper_ldl_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
-
 #ifdef MMU_MODE0_SUFFIX
 #define CPU_MMU_INDEX 0
 #define MEMSUFFIX MMU_MODE0_SUFFIX

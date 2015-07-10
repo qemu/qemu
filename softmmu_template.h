@@ -329,14 +329,6 @@ WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr,
 }
 #endif /* DATA_SIZE > 1 */
 
-DATA_TYPE
-glue(glue(helper_ld, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
-                                         int mmu_idx)
-{
-    TCGMemOpIdx oi = make_memop_idx(SHIFT, mmu_idx);
-    return helper_te_ld_name (env, addr, oi, GETRA());
-}
-
 #ifndef SOFTMMU_CODE_ACCESS
 
 /* Provide signed versions of the load routines as well.  We can of course
@@ -533,14 +525,6 @@ void helper_be_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,
     glue(glue(st, SUFFIX), _be_p)((uint8_t *)haddr, val);
 }
 #endif /* DATA_SIZE > 1 */
-
-void
-glue(glue(helper_st, SUFFIX), MMUSUFFIX)(CPUArchState *env, target_ulong addr,
-                                         DATA_TYPE val, int mmu_idx)
-{
-    TCGMemOpIdx oi = make_memop_idx(SHIFT, mmu_idx);
-    helper_te_st_name(env, addr, val, oi, GETRA());
-}
 
 #if DATA_SIZE == 1
 /* Probe for whether the specified guest write access is permitted.
