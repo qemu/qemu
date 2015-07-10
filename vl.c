@@ -4615,6 +4615,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     qemu_system_reset(VMRESET_SILENT);
+    register_global_state();
     if (loadvm) {
         if (load_vmstate(loadvm) < 0) {
             autostart = 0;
@@ -4628,7 +4629,6 @@ int main(int argc, char **argv, char **envp)
         return 0;
     }
 
-    register_global_state();
     if (incoming) {
         Error *local_err = NULL;
         qemu_start_incoming_migration(incoming, &local_err);
