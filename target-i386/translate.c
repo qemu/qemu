@@ -5836,8 +5836,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 }
                 break;
             case 0x0c: /* fldenv mem */
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_fldenv(cpu_env, cpu_A0, tcg_const_i32(dflag - 1));
                 break;
             case 0x0d: /* fldcw mem */
@@ -5846,8 +5844,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 gen_helper_fldcw(cpu_env, cpu_tmp2_i32);
                 break;
             case 0x0e: /* fnstenv mem */
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_fstenv(cpu_env, cpu_A0, tcg_const_i32(dflag - 1));
                 break;
             case 0x0f: /* fnstcw mem */
@@ -5856,24 +5852,16 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                                     s->mem_index, MO_LEUW);
                 break;
             case 0x1d: /* fldt mem */
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_fldt_ST0(cpu_env, cpu_A0);
                 break;
             case 0x1f: /* fstpt mem */
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_fstt_ST0(cpu_env, cpu_A0);
                 gen_helper_fpop(cpu_env);
                 break;
             case 0x2c: /* frstor mem */
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_frstor(cpu_env, cpu_A0, tcg_const_i32(dflag - 1));
                 break;
             case 0x2e: /* fnsave mem */
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_fsave(cpu_env, cpu_A0, tcg_const_i32(dflag - 1));
                 break;
             case 0x2f: /* fnstsw mem */
@@ -5882,13 +5870,9 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                                     s->mem_index, MO_LEUW);
                 break;
             case 0x3c: /* fbld */
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_fbld_ST0(cpu_env, cpu_A0);
                 break;
             case 0x3e: /* fbstp */
-                gen_update_cc_op(s);
-                gen_jmp_im(pc_start - s->cs_base);
                 gen_helper_fbst_ST0(cpu_env, cpu_A0);
                 gen_helper_fpop(cpu_env);
                 break;
@@ -5923,8 +5907,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 switch(rm) {
                 case 0: /* fnop */
                     /* check exceptions (FreeBSD FPU probe) */
-                    gen_update_cc_op(s);
-                    gen_jmp_im(pc_start - s->cs_base);
                     gen_helper_fwait(cpu_env);
                     break;
                 default:
@@ -6894,8 +6876,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             (HF_MP_MASK | HF_TS_MASK)) {
             gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
         } else {
-            gen_update_cc_op(s);
-            gen_jmp_im(pc_start - s->cs_base);
             gen_helper_fwait(cpu_env);
         }
         break;
@@ -7725,8 +7705,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 break;
             }
             gen_lea_modrm(env, s, modrm);
-            gen_update_cc_op(s);
-            gen_jmp_im(pc_start - s->cs_base);
             gen_helper_fxsave(cpu_env, cpu_A0, tcg_const_i32(dflag == MO_64));
             break;
         case 1: /* fxrstor */
@@ -7738,8 +7716,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                 break;
             }
             gen_lea_modrm(env, s, modrm);
-            gen_update_cc_op(s);
-            gen_jmp_im(pc_start - s->cs_base);
             gen_helper_fxrstor(cpu_env, cpu_A0, tcg_const_i32(dflag == MO_64));
             break;
         case 2: /* ldmxcsr */
