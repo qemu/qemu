@@ -395,7 +395,7 @@ struct CPUMIPSState {
 #define CP0C0_K23  28
 #define CP0C0_KU   25
 #define CP0C0_MDU  20
-#define CP0C0_MM   17
+#define CP0C0_MM   18
 #define CP0C0_BM   16
 #define CP0C0_BE   15
 #define CP0C0_AT   13
