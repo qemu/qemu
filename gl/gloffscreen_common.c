@@ -29,15 +29,6 @@
 #include "qemu-common.h"
 #include "gloffscreen.h"
 
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-#elif defined(_WIN32)
-#include <GL/gl.h>
-#include <GL/glext.h>
-#else
-#include <GL/gl.h>
-#endif
-
 int glo_flags_get_depth_bits(int formatFlags) {
   switch ( formatFlags & GLO_FF_DEPTH_MASK ) {
     case GLO_FF_DEPTH_16: return 16;
@@ -166,18 +157,12 @@ void glo_readpixels(GLenum gl_format, GLenum gl_type,
 
 bool glo_check_extension(const char* ext_name)
 {
-    const char *ext_string = (const char *) glGetString(GL_EXTENSIONS);
-    if (!ext_string) {
-        return false;
-    }
-    const char* p = ext_string;
-    const char* end = p + strlen(p);
-    while (p < end) {
-        size_t n = strcspn(p, " ");
-        if ((strlen(ext_name) == n) && (strncmp(ext_name, p, n) == 0)) {
-            return true;
-        }
-        p += (n + 1);
+    int i;
+    int num_extensions = GL_NUM_EXTENSIONS;
+    for (i=0; i<num_extensions; i++) {
+      const char* ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
+      if (!ext) break;
+      if (strcmp(ext, ext_name)) return true;
     }
     return false;
 }

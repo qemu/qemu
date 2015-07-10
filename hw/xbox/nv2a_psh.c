@@ -529,42 +529,52 @@ static QString* psh_convert(struct PixelShader *ps)
     int i;
 
     QString *preflight = qstring_new();
-    QString *vars = qstring_new();
+    qstring_append(preflight, "in vec4 oD0;\n");
+    qstring_append(preflight, "in vec4 oD1;\n");
+    qstring_append(preflight, "in vec4 oB0;\n");
+    qstring_append(preflight, "in vec4 oB1;\n");
+    qstring_append(preflight, "in vec4 oFog;\n");
+    qstring_append(preflight, "in vec4 oT0;\n");
+    qstring_append(preflight, "in vec4 oT1;\n");
+    qstring_append(preflight, "in vec4 oT2;\n");
+    qstring_append(preflight, "in vec4 oT3;\n");
+    qstring_append(preflight, "\n");
+    qstring_append(preflight, "out vec4 fragColor;\n");
+    qstring_append(preflight, "\n");
 
-    qstring_append(vars, "vec4 v0 = gl_Color;\n");
-    qstring_append(vars, "vec4 v1 = gl_SecondaryColor;\n");
-    qstring_append(vars, "float fog = gl_FogFragCoord;\n");
+    QString *vars = qstring_new();
+    qstring_append(vars, "vec4 v0 = oD0;\n");
+    qstring_append(vars, "vec4 v1 = oD1;\n");
+    qstring_append(vars, "float fog = oFog.x;\n");
 
     for (i = 0; i < 4; i++) {
         if (ps->tex_modes[i] == PS_TEXTUREMODES_NONE) continue;
 
-        const char *sampler_type;
-        const char *sampler_function;
+        const char *sampler_type = NULL;
 
         switch (ps->tex_modes[i]) {
         case PS_TEXTUREMODES_PROJECT2D:
             if (ps->rect_tex[i]) {
                 sampler_type = "sampler2DRect";
-                sampler_function = "texture2DRect";
             } else {
                 sampler_type = "sampler2D";
-                sampler_function = "texture2D";
             }
-            qstring_append_fmt(vars, "vec4 t%d = %s(texSamp%d, gl_TexCoord[%d].xy);\n",
-                               i, sampler_function, i, i);
+            qstring_append_fmt(vars, "vec4 t%d = textureProj(texSamp%d, oT%d.xyw);\n",
+                               i, i, i);
             break;
         case PS_TEXTUREMODES_PROJECT3D:
             sampler_type = "sampler3D";
-            qstring_append_fmt(vars, "vec4 t%d = texture3D(texSamp%d, gl_TexCoord[%d].xyz);\n",
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, oT%d.xyz);\n",
                                i, i, i);
             break;
         case PS_TEXTUREMODES_CUBEMAP:
             sampler_type = "samplerCube";
-            qstring_append_fmt(vars, "vec4 t%d = textureCube(texSamp%d, gl_TexCoord[%d].xyz);\n",
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, oT%d.xyz);\n",
                                i, i, i);
             break;
         case PS_TEXTUREMODES_PASSTHRU:
-            qstring_append_fmt(vars, "vec4 t%d;\n", i);
+            assert(false);
+            qstring_append_fmt(vars, "vec4 t%d = oT%d;\n", i, i);
             break;
         default:
             printf("%x\n", ps->tex_modes[i]);
@@ -628,11 +638,12 @@ static QString* psh_convert(struct PixelShader *ps)
     }
 
     QString *final = qstring_new();
+    qstring_append(final, "#version 330\n\n");
     qstring_append(final, qstring_get_str(preflight));
     qstring_append(final, "void main() {\n");
     qstring_append(final, qstring_get_str(vars));
     qstring_append(final, qstring_get_str(ps->code));
-    qstring_append(final, "gl_FragColor = r0;\n");
+    qstring_append(final, "fragColor = r0;\n");
     qstring_append(final, "}\n");
 
     QDECREF(preflight);

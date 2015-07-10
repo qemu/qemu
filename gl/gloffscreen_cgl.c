@@ -28,11 +28,9 @@
 
 #include "qemu-common.h"
 
-#include <OpenGL/gl.h>
 #include <OpenGL/OpenGL.h>
 #include <OpenGL/CGLTypes.h>
 #include <OpenGL/CGLCurrent.h>
-#include <GLUT/glut.h>
 
 #include "gloffscreen.h"
 
@@ -51,6 +49,8 @@ GloContext *glo_context_create(int formatFlags)
     /* pixel format attributes */
     CGLPixelFormatAttribute attributes[] = {
         kCGLPFAAccelerated,
+        kCGLPFAOpenGLProfile,
+        (CGLPixelFormatAttribute)kCGLOGLPVersion_GL3_Core,
         (CGLPixelFormatAttribute)0
     };
 

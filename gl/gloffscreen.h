@@ -32,7 +32,8 @@
 #include <stdbool.h>
 
 #ifdef __APPLE__
-#include <OpenGL/gl.h>
+#include <OpenGL/gl3.h>
+#include <OpenGL/glext.h>
 #elif defined(_WIN32)
 #include <GL/glew.h>
 #include <GL/gl.h>
