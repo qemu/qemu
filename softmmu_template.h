@@ -165,9 +165,6 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
 }
 #endif
 
-#ifdef SOFTMMU_CODE_ACCESS
-static __attribute__((unused))
-#endif
 WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr,
                             TCGMemOpIdx oi, uintptr_t retaddr)
 {
@@ -252,9 +249,6 @@ WORD_TYPE helper_le_ld_name(CPUArchState *env, target_ulong addr,
 }
 
 #if DATA_SIZE > 1
-#ifdef SOFTMMU_CODE_ACCESS
-static __attribute__((unused))
-#endif
 WORD_TYPE helper_be_ld_name(CPUArchState *env, target_ulong addr,
                             TCGMemOpIdx oi, uintptr_t retaddr)
 {

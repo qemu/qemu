@@ -56,11 +56,27 @@ glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
     return glue(glue(ld, USUFFIX), _p)(g2h(ptr));
 }
 
+static inline RES_TYPE
+glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
+                                                  target_ulong ptr,
+                                                  uintptr_t retaddr)
+{
+    return glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(env, ptr);
+}
+
 #if DATA_SIZE <= 2
 static inline int
 glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
 {
     return glue(glue(lds, SUFFIX), _p)(g2h(ptr));
+}
+
+static inline int
+glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
+                                                  target_ulong ptr,
+                                                  uintptr_t retaddr)
+{
+    return glue(glue(cpu_lds, SUFFIX), MEMSUFFIX)(env, ptr);
 }
 #endif
 
@@ -70,6 +86,15 @@ glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr,
                                       RES_TYPE v)
 {
     glue(glue(st, SUFFIX), _p)(g2h(ptr), v);
+}
+
+static inline void
+glue(glue(glue(cpu_st, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
+                                                  target_ulong ptr,
+                                                  RES_TYPE v,
+                                                  uintptr_t retaddr)
+{
+    glue(glue(cpu_st, SUFFIX), MEMSUFFIX)(env, ptr, v);
 }
 #endif
 
