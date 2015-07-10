@@ -131,13 +131,14 @@ Skip the creation of the target volume
 Command description:
 
 @table @option
-@item bench [-c @var{count}] [-d @var{depth}] [-f @var{fmt}] [-n] [--pattern=@var{pattern}] [-q] [-s @var{buffer_size}] [-t @var{cache}] [-w] @var{filename}
+@item bench [-c @var{count}] [-d @var{depth}] [-f @var{fmt}] [-n] [-o @var{offset}] [--pattern=@var{pattern}] [-q] [-s @var{buffer_size}] [-t @var{cache}] [-w] @var{filename}
 
 Run a simple sequential I/O benchmark on the specified image. If @code{-w} is
 specified, a write test is performed, otherwise a read test is performed.
 
 A total number of @var{count} I/O requests is performed, each @var{buffer_size}
-bytes in size, and with @var{depth} requests in parallel.
+bytes in size, and with @var{depth} requests in parallel. The first request
+starts at the position given by @var{offset}.
 
 If @code{-n} is specified, the native AIO backend is used if possible. On
 Linux, this option only works if @code{-t none} or @code{-t directsync} is

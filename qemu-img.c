@@ -3515,6 +3515,7 @@ static int img_bench(int argc, char **argv)
     bool is_write = false;
     int count = 75000;
     int depth = 64;
+    int64_t offset = 0;
     size_t bufsize = 4096;
     int pattern = 0;
     int64_t image_size;
@@ -3532,7 +3533,7 @@ static int img_bench(int argc, char **argv)
             {"pattern", required_argument, 0, OPTION_PATTERN},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "hc:d:f:nqs:t:w", long_options, NULL);
+        c = getopt_long(argc, argv, "hc:d:f:no:qs:t:w", long_options, NULL);
         if (c == -1) {
             break;
         }
@@ -3569,6 +3570,19 @@ static int img_bench(int argc, char **argv)
             break;
         case 'n':
             flags |= BDRV_O_NATIVE_AIO;
+            break;
+        case 'o':
+        {
+            char *end;
+            errno = 0;
+            offset = qemu_strtosz_suffix(optarg, &end,
+                                         QEMU_STRTOSZ_DEFSUFFIX_B);
+            if (offset < 0|| *end) {
+                error_report("Invalid offset specified");
+                return 1;
+            }
+            break;
+        }
             break;
         case 'q':
             quiet = true;
@@ -3639,10 +3653,13 @@ static int img_bench(int argc, char **argv)
         .bufsize    = bufsize,
         .nrreq      = depth,
         .n          = count,
+        .offset     = offset,
         .write      = is_write,
     };
-    printf("Sending %d %s requests, %d bytes each, %d in parallel\n",
-           data.n, data.write ? "write" : "read", data.bufsize, data.nrreq);
+    printf("Sending %d %s requests, %d bytes each, %d in parallel "
+           "(starting at offset %" PRId64 ")\n",
+           data.n, data.write ? "write" : "read", data.bufsize, data.nrreq,
+           data.offset);
 
     data.buf = blk_blockalign(blk, data.nrreq * data.bufsize);
     memset(data.buf, pattern, data.nrreq * data.bufsize);
