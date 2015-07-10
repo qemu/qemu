@@ -30,35 +30,6 @@ static inline void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global);
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
-static inline void QEMU_NORETURN do_raise_exception_err(CPUMIPSState *env,
-                                                        uint32_t exception,
-                                                        int error_code,
-                                                        uintptr_t pc)
-{
-    CPUState *cs = CPU(mips_env_get_cpu(env));
-
-    if (exception < EXCP_SC) {
-        qemu_log_mask(CPU_LOG_INT, "%s: %d %d\n",
-                      __func__, exception, error_code);
-    }
-    cs->exception_index = exception;
-    env->error_code = error_code;
-
-    if (pc) {
-        /* now we have a real cpu fault */
-        cpu_restore_state(cs, pc);
-    }
-
-    cpu_loop_exit(cs);
-}
-
-static inline void QEMU_NORETURN do_raise_exception(CPUMIPSState *env,
-                                                    uint32_t exception,
-                                                    uintptr_t pc)
-{
-    do_raise_exception_err(env, exception, 0, pc);
-}
-
 void helper_raise_exception_err(CPUMIPSState *env, uint32_t exception,
                                 int error_code)
 {
@@ -67,27 +38,37 @@ void helper_raise_exception_err(CPUMIPSState *env, uint32_t exception,
 
 void helper_raise_exception(CPUMIPSState *env, uint32_t exception)
 {
+    do_raise_exception(env, exception, GETPC());
+}
+
+void helper_raise_exception_debug(CPUMIPSState *env)
+{
+    do_raise_exception(env, EXCP_DEBUG, 0);
+}
+
+static void raise_exception(CPUMIPSState *env, uint32_t exception)
+{
     do_raise_exception(env, exception, 0);
 }
 
 #if defined(CONFIG_USER_ONLY)
 #define HELPER_LD(name, insn, type)                                     \
 static inline type do_##name(CPUMIPSState *env, target_ulong addr,      \
-                             int mem_idx)                               \
+                             int mem_idx, uintptr_t retaddr)            \
 {                                                                       \
-    return (type) cpu_##insn##_data(env, addr);                         \
+    return (type) cpu_##insn##_data_ra(env, addr, retaddr);             \
 }
 #else
 #define HELPER_LD(name, insn, type)                                     \
 static inline type do_##name(CPUMIPSState *env, target_ulong addr,      \
-                             int mem_idx)                               \
+                             int mem_idx, uintptr_t retaddr)            \
 {                                                                       \
     switch (mem_idx)                                                    \
     {                                                                   \
-    case 0: return (type) cpu_##insn##_kernel(env, addr); break;        \
-    case 1: return (type) cpu_##insn##_super(env, addr); break;         \
+    case 0: return (type) cpu_##insn##_kernel_ra(env, addr, retaddr);   \
+    case 1: return (type) cpu_##insn##_super_ra(env, addr, retaddr);    \
     default:                                                            \
-    case 2: return (type) cpu_##insn##_user(env, addr); break;          \
+    case 2: return (type) cpu_##insn##_user_ra(env, addr, retaddr);     \
     }                                                                   \
 }
 #endif
@@ -100,21 +81,21 @@ HELPER_LD(ld, ldq, int64_t)
 #if defined(CONFIG_USER_ONLY)
 #define HELPER_ST(name, insn, type)                                     \
 static inline void do_##name(CPUMIPSState *env, target_ulong addr,      \
-                             type val, int mem_idx)                     \
+                             type val, int mem_idx, uintptr_t retaddr)  \
 {                                                                       \
-    cpu_##insn##_data(env, addr, val);                                  \
+    cpu_##insn##_data_ra(env, addr, val, retaddr);                      \
 }
 #else
 #define HELPER_ST(name, insn, type)                                     \
 static inline void do_##name(CPUMIPSState *env, target_ulong addr,      \
-                             type val, int mem_idx)                     \
+                             type val, int mem_idx, uintptr_t retaddr)  \
 {                                                                       \
     switch (mem_idx)                                                    \
     {                                                                   \
-    case 0: cpu_##insn##_kernel(env, addr, val); break;                 \
-    case 1: cpu_##insn##_super(env, addr, val); break;                  \
+    case 0: cpu_##insn##_kernel_ra(env, addr, val, retaddr); break;     \
+    case 1: cpu_##insn##_super_ra(env, addr, val, retaddr); break;      \
     default:                                                            \
-    case 2: cpu_##insn##_user(env, addr, val); break;                   \
+    case 2: cpu_##insn##_user_ra(env, addr, val, retaddr); break;       \
     }                                                                   \
 }
 #endif
@@ -293,14 +274,15 @@ target_ulong helper_bitswap(target_ulong rt)
 
 static inline hwaddr do_translate_address(CPUMIPSState *env,
                                                       target_ulong address,
-                                                      int rw)
+                                                      int rw, uintptr_t retaddr)
 {
     hwaddr lladdr;
+    CPUState *cs = CPU(mips_env_get_cpu(env));
 
     lladdr = cpu_mips_translate_address(env, address, rw);
 
     if (lladdr == -1LL) {
-        cpu_loop_exit(CPU(mips_env_get_cpu(env)));
+        cpu_loop_exit_restore(cs, retaddr);
     } else {
         return lladdr;
     }
@@ -311,10 +293,10 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg, int mem_idx)  \
 {                                                                             \
     if (arg & almask) {                                                       \
         env->CP0_BadVAddr = arg;                                              \
-        helper_raise_exception(env, EXCP_AdEL);                               \
+        do_raise_exception(env, EXCP_AdEL, GETPC());                          \
     }                                                                         \
-    env->lladdr = do_translate_address(env, arg, 0);                          \
-    env->llval = do_##insn(env, arg, mem_idx);                                \
+    env->lladdr = do_translate_address(env, arg, 0, GETPC());                 \
+    env->llval = do_##insn(env, arg, mem_idx, GETPC());                       \
     return env->llval;                                                        \
 }
 HELPER_LD_ATOMIC(ll, lw, 0x3)
@@ -331,12 +313,12 @@ target_ulong helper_##name(CPUMIPSState *env, target_ulong arg1,              \
                                                                               \
     if (arg2 & almask) {                                                      \
         env->CP0_BadVAddr = arg2;                                             \
-        helper_raise_exception(env, EXCP_AdES);                               \
+        do_raise_exception(env, EXCP_AdES, GETPC());                          \
     }                                                                         \
-    if (do_translate_address(env, arg2, 1) == env->lladdr) {                  \
-        tmp = do_##ld_insn(env, arg2, mem_idx);                               \
+    if (do_translate_address(env, arg2, 1, GETPC()) == env->lladdr) {         \
+        tmp = do_##ld_insn(env, arg2, mem_idx, GETPC());                      \
         if (tmp == env->llval) {                                              \
-            do_##st_insn(env, arg2, arg1, mem_idx);                           \
+            do_##st_insn(env, arg2, arg1, mem_idx, GETPC());                  \
             return 1;                                                         \
         }                                                                     \
     }                                                                         \
@@ -360,31 +342,43 @@ HELPER_ST_ATOMIC(scd, ld, sd, 0x7)
 void helper_swl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
-    do_sb(env, arg2, (uint8_t)(arg1 >> 24), mem_idx);
+    do_sb(env, arg2, (uint8_t)(arg1 >> 24), mem_idx, GETPC());
 
-    if (GET_LMASK(arg2) <= 2)
-        do_sb(env, GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 16), mem_idx);
+    if (GET_LMASK(arg2) <= 2) {
+        do_sb(env, GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 16), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK(arg2) <= 1)
-        do_sb(env, GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 8), mem_idx);
+    if (GET_LMASK(arg2) <= 1) {
+        do_sb(env, GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 8), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK(arg2) == 0)
-        do_sb(env, GET_OFFSET(arg2, 3), (uint8_t)arg1, mem_idx);
+    if (GET_LMASK(arg2) == 0) {
+        do_sb(env, GET_OFFSET(arg2, 3), (uint8_t)arg1, mem_idx,
+              GETPC());
+    }
 }
 
 void helper_swr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
-    do_sb(env, arg2, (uint8_t)arg1, mem_idx);
+    do_sb(env, arg2, (uint8_t)arg1, mem_idx, GETPC());
 
-    if (GET_LMASK(arg2) >= 1)
-        do_sb(env, GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8), mem_idx);
+    if (GET_LMASK(arg2) >= 1) {
+        do_sb(env, GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK(arg2) >= 2)
-        do_sb(env, GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16), mem_idx);
+    if (GET_LMASK(arg2) >= 2) {
+        do_sb(env, GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK(arg2) == 3)
-        do_sb(env, GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24), mem_idx);
+    if (GET_LMASK(arg2) == 3) {
+        do_sb(env, GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24), mem_idx,
+              GETPC());
+    }
 }
 
 #if defined(TARGET_MIPS64)
@@ -400,55 +394,83 @@ void helper_swr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
 void helper_sdl(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
-    do_sb(env, arg2, (uint8_t)(arg1 >> 56), mem_idx);
+    do_sb(env, arg2, (uint8_t)(arg1 >> 56), mem_idx, GETPC());
 
-    if (GET_LMASK64(arg2) <= 6)
-        do_sb(env, GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 48), mem_idx);
+    if (GET_LMASK64(arg2) <= 6) {
+        do_sb(env, GET_OFFSET(arg2, 1), (uint8_t)(arg1 >> 48), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) <= 5)
-        do_sb(env, GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 40), mem_idx);
+    if (GET_LMASK64(arg2) <= 5) {
+        do_sb(env, GET_OFFSET(arg2, 2), (uint8_t)(arg1 >> 40), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) <= 4)
-        do_sb(env, GET_OFFSET(arg2, 3), (uint8_t)(arg1 >> 32), mem_idx);
+    if (GET_LMASK64(arg2) <= 4) {
+        do_sb(env, GET_OFFSET(arg2, 3), (uint8_t)(arg1 >> 32), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) <= 3)
-        do_sb(env, GET_OFFSET(arg2, 4), (uint8_t)(arg1 >> 24), mem_idx);
+    if (GET_LMASK64(arg2) <= 3) {
+        do_sb(env, GET_OFFSET(arg2, 4), (uint8_t)(arg1 >> 24), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) <= 2)
-        do_sb(env, GET_OFFSET(arg2, 5), (uint8_t)(arg1 >> 16), mem_idx);
+    if (GET_LMASK64(arg2) <= 2) {
+        do_sb(env, GET_OFFSET(arg2, 5), (uint8_t)(arg1 >> 16), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) <= 1)
-        do_sb(env, GET_OFFSET(arg2, 6), (uint8_t)(arg1 >> 8), mem_idx);
+    if (GET_LMASK64(arg2) <= 1) {
+        do_sb(env, GET_OFFSET(arg2, 6), (uint8_t)(arg1 >> 8), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) <= 0)
-        do_sb(env, GET_OFFSET(arg2, 7), (uint8_t)arg1, mem_idx);
+    if (GET_LMASK64(arg2) <= 0) {
+        do_sb(env, GET_OFFSET(arg2, 7), (uint8_t)arg1, mem_idx,
+              GETPC());
+    }
 }
 
 void helper_sdr(CPUMIPSState *env, target_ulong arg1, target_ulong arg2,
                 int mem_idx)
 {
-    do_sb(env, arg2, (uint8_t)arg1, mem_idx);
+    do_sb(env, arg2, (uint8_t)arg1, mem_idx, GETPC());
 
-    if (GET_LMASK64(arg2) >= 1)
-        do_sb(env, GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8), mem_idx);
+    if (GET_LMASK64(arg2) >= 1) {
+        do_sb(env, GET_OFFSET(arg2, -1), (uint8_t)(arg1 >> 8), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) >= 2)
-        do_sb(env, GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16), mem_idx);
+    if (GET_LMASK64(arg2) >= 2) {
+        do_sb(env, GET_OFFSET(arg2, -2), (uint8_t)(arg1 >> 16), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) >= 3)
-        do_sb(env, GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24), mem_idx);
+    if (GET_LMASK64(arg2) >= 3) {
+        do_sb(env, GET_OFFSET(arg2, -3), (uint8_t)(arg1 >> 24), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) >= 4)
-        do_sb(env, GET_OFFSET(arg2, -4), (uint8_t)(arg1 >> 32), mem_idx);
+    if (GET_LMASK64(arg2) >= 4) {
+        do_sb(env, GET_OFFSET(arg2, -4), (uint8_t)(arg1 >> 32), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) >= 5)
-        do_sb(env, GET_OFFSET(arg2, -5), (uint8_t)(arg1 >> 40), mem_idx);
+    if (GET_LMASK64(arg2) >= 5) {
+        do_sb(env, GET_OFFSET(arg2, -5), (uint8_t)(arg1 >> 40), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) >= 6)
-        do_sb(env, GET_OFFSET(arg2, -6), (uint8_t)(arg1 >> 48), mem_idx);
+    if (GET_LMASK64(arg2) >= 6) {
+        do_sb(env, GET_OFFSET(arg2, -6), (uint8_t)(arg1 >> 48), mem_idx,
+              GETPC());
+    }
 
-    if (GET_LMASK64(arg2) == 7)
-        do_sb(env, GET_OFFSET(arg2, -7), (uint8_t)(arg1 >> 56), mem_idx);
+    if (GET_LMASK64(arg2) == 7) {
+        do_sb(env, GET_OFFSET(arg2, -7), (uint8_t)(arg1 >> 56), mem_idx,
+              GETPC());
+    }
 }
 #endif /* TARGET_MIPS64 */
 
@@ -465,13 +487,14 @@ void helper_lwm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
 
         for (i = 0; i < base_reglist; i++) {
             env->active_tc.gpr[multiple_regs[i]] =
-                (target_long)do_lw(env, addr, mem_idx);
+                (target_long)do_lw(env, addr, mem_idx, GETPC());
             addr += 4;
         }
     }
 
     if (do_r31) {
-        env->active_tc.gpr[31] = (target_long)do_lw(env, addr, mem_idx);
+        env->active_tc.gpr[31] = (target_long)do_lw(env, addr, mem_idx,
+                                                    GETPC());
     }
 }
 
@@ -485,13 +508,14 @@ void helper_swm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
         target_ulong i;
 
         for (i = 0; i < base_reglist; i++) {
-            do_sw(env, addr, env->active_tc.gpr[multiple_regs[i]], mem_idx);
+            do_sw(env, addr, env->active_tc.gpr[multiple_regs[i]], mem_idx,
+                  GETPC());
             addr += 4;
         }
     }
 
     if (do_r31) {
-        do_sw(env, addr, env->active_tc.gpr[31], mem_idx);
+        do_sw(env, addr, env->active_tc.gpr[31], mem_idx, GETPC());
     }
 }
 
@@ -506,13 +530,14 @@ void helper_ldm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
         target_ulong i;
 
         for (i = 0; i < base_reglist; i++) {
-            env->active_tc.gpr[multiple_regs[i]] = do_ld(env, addr, mem_idx);
+            env->active_tc.gpr[multiple_regs[i]] = do_ld(env, addr, mem_idx,
+                                                         GETPC());
             addr += 8;
         }
     }
 
     if (do_r31) {
-        env->active_tc.gpr[31] = do_ld(env, addr, mem_idx);
+        env->active_tc.gpr[31] = do_ld(env, addr, mem_idx, GETPC());
     }
 }
 
@@ -526,13 +551,14 @@ void helper_sdm(CPUMIPSState *env, target_ulong addr, target_ulong reglist,
         target_ulong i;
 
         for (i = 0; i < base_reglist; i++) {
-            do_sd(env, addr, env->active_tc.gpr[multiple_regs[i]], mem_idx);
+            do_sd(env, addr, env->active_tc.gpr[multiple_regs[i]], mem_idx,
+                  GETPC());
             addr += 8;
         }
     }
 
     if (do_r31) {
-        do_sd(env, addr, env->active_tc.gpr[31], mem_idx);
+        do_sd(env, addr, env->active_tc.gpr[31], mem_idx, GETPC());
     }
 }
 #endif
@@ -1792,13 +1818,13 @@ target_ulong helper_yield(CPUMIPSState *env, target_ulong arg)
                 env->active_tc.CP0_TCStatus & (1 << CP0TCSt_DT)) {
                 env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
                 env->CP0_VPEControl |= 4 << CP0VPECo_EXCPT;
-                helper_raise_exception(env, EXCP_THREAD);
+                do_raise_exception(env, EXCP_THREAD, GETPC());
             }
         }
     } else if (arg1 == 0) {
         if (0 /* TODO: TC underflow */) {
             env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
-            helper_raise_exception(env, EXCP_THREAD);
+            do_raise_exception(env, EXCP_THREAD, GETPC());
         } else {
             // TODO: Deallocate TC
         }
@@ -1806,7 +1832,7 @@ target_ulong helper_yield(CPUMIPSState *env, target_ulong arg)
         /* Yield qualifier inputs not implemented. */
         env->CP0_VPEControl &= ~(0x7 << CP0VPECo_EXCPT);
         env->CP0_VPEControl |= 2 << CP0VPECo_EXCPT;
-        helper_raise_exception(env, EXCP_THREAD);
+        do_raise_exception(env, EXCP_THREAD, GETPC());
     }
     return env->CP0_YQMask;
 }
@@ -2165,7 +2191,7 @@ target_ulong helper_rdhwr_cpunum(CPUMIPSState *env)
         (env->CP0_HWREna & (1 << 0)))
         return env->CP0_EBase & 0x3ff;
     else
-        helper_raise_exception(env, EXCP_RI);
+        do_raise_exception(env, EXCP_RI, GETPC());
 
     return 0;
 }
@@ -2176,7 +2202,7 @@ target_ulong helper_rdhwr_synci_step(CPUMIPSState *env)
         (env->CP0_HWREna & (1 << 1)))
         return env->SYNCI_Step;
     else
-        helper_raise_exception(env, EXCP_RI);
+        do_raise_exception(env, EXCP_RI, GETPC());
 
     return 0;
 }
@@ -2191,7 +2217,7 @@ target_ulong helper_rdhwr_cc(CPUMIPSState *env)
         return (int32_t)cpu_mips_get_count(env);
 #endif
     } else {
-        helper_raise_exception(env, EXCP_RI);
+        do_raise_exception(env, EXCP_RI, GETPC());
     }
 
     return 0;
@@ -2203,7 +2229,7 @@ target_ulong helper_rdhwr_ccres(CPUMIPSState *env)
         (env->CP0_HWREna & (1 << 3)))
         return env->CCRes;
     else
-        helper_raise_exception(env, EXCP_RI);
+        do_raise_exception(env, EXCP_RI, GETPC());
 
     return 0;
 }
@@ -2240,7 +2266,9 @@ void helper_wait(CPUMIPSState *env)
 
     cs->halted = 1;
     cpu_reset_interrupt(cs, CPU_INTERRUPT_WAKE);
-    helper_raise_exception(env, EXCP_HLT);
+    /* Last instruction in the block, PC was updated before
+       - no need to recover PC and icount */
+    raise_exception(env, EXCP_HLT);
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -2301,9 +2329,9 @@ void mips_cpu_unassigned_access(CPUState *cs, hwaddr addr,
     }
 
     if (is_exec) {
-        helper_raise_exception(env, EXCP_IBE);
+        raise_exception(env, EXCP_IBE);
     } else {
-        helper_raise_exception(env, EXCP_DBE);
+        raise_exception(env, EXCP_DBE);
     }
 }
 #endif /* !CONFIG_USER_ONLY */
@@ -2338,7 +2366,7 @@ target_ulong helper_cfc1(CPUMIPSState *env, uint32_t reg)
                 arg1 = (int32_t)
                        ((env->CP0_Status & (1  << CP0St_FR)) >> CP0St_FR);
             } else {
-                helper_raise_exception(env, EXCP_RI);
+                do_raise_exception(env, EXCP_RI, GETPC());
             }
         }
         break;
@@ -2381,7 +2409,7 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
             env->CP0_Status &= ~(1 << CP0St_FR);
             compute_hflags(env);
         } else {
-            helper_raise_exception(env, EXCP_RI);
+            do_raise_exception(env, EXCP_RI, GETPC());
         }
         break;
     case 4:
@@ -2393,7 +2421,7 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
             env->CP0_Status |= (1 << CP0St_FR);
             compute_hflags(env);
         } else {
-            helper_raise_exception(env, EXCP_RI);
+            do_raise_exception(env, EXCP_RI, GETPC());
         }
         break;
     case 5:
