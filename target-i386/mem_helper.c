@@ -60,13 +60,14 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
     int eflags;
 
     eflags = cpu_cc_compute_all(env, CC_OP);
-    d = cpu_ldq_data(env, a0);
+    d = cpu_ldq_data_ra(env, a0, GETPC());
     if (d == (((uint64_t)env->regs[R_EDX] << 32) | (uint32_t)env->regs[R_EAX])) {
-        cpu_stq_data(env, a0, ((uint64_t)env->regs[R_ECX] << 32) | (uint32_t)env->regs[R_EBX]);
+        cpu_stq_data_ra(env, a0, ((uint64_t)env->regs[R_ECX] << 32)
+                                  | (uint32_t)env->regs[R_EBX], GETPC());
         eflags |= CC_Z;
     } else {
         /* always do the store */
-        cpu_stq_data(env, a0, d);
+        cpu_stq_data_ra(env, a0, d, GETPC());
         env->regs[R_EDX] = (uint32_t)(d >> 32);
         env->regs[R_EAX] = (uint32_t)d;
         eflags &= ~CC_Z;
@@ -81,19 +82,19 @@ void helper_cmpxchg16b(CPUX86State *env, target_ulong a0)
     int eflags;
 
     if ((a0 & 0xf) != 0) {
-        raise_exception(env, EXCP0D_GPF);
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     eflags = cpu_cc_compute_all(env, CC_OP);
-    d0 = cpu_ldq_data(env, a0);
-    d1 = cpu_ldq_data(env, a0 + 8);
+    d0 = cpu_ldq_data_ra(env, a0, GETPC());
+    d1 = cpu_ldq_data_ra(env, a0 + 8, GETPC());
     if (d0 == env->regs[R_EAX] && d1 == env->regs[R_EDX]) {
-        cpu_stq_data(env, a0, env->regs[R_EBX]);
-        cpu_stq_data(env, a0 + 8, env->regs[R_ECX]);
+        cpu_stq_data_ra(env, a0, env->regs[R_EBX], GETPC());
+        cpu_stq_data_ra(env, a0 + 8, env->regs[R_ECX], GETPC());
         eflags |= CC_Z;
     } else {
         /* always do the store */
-        cpu_stq_data(env, a0, d0);
-        cpu_stq_data(env, a0 + 8, d1);
+        cpu_stq_data_ra(env, a0, d0, GETPC());
+        cpu_stq_data_ra(env, a0 + 8, d1, GETPC());
         env->regs[R_EDX] = d1;
         env->regs[R_EAX] = d0;
         eflags &= ~CC_Z;
@@ -106,11 +107,11 @@ void helper_boundw(CPUX86State *env, target_ulong a0, int v)
 {
     int low, high;
 
-    low = cpu_ldsw_data(env, a0);
-    high = cpu_ldsw_data(env, a0 + 2);
+    low = cpu_ldsw_data_ra(env, a0, GETPC());
+    high = cpu_ldsw_data_ra(env, a0 + 2, GETPC());
     v = (int16_t)v;
     if (v < low || v > high) {
-        raise_exception(env, EXCP05_BOUND);
+        raise_exception_ra(env, EXCP05_BOUND, GETPC());
     }
 }
 
@@ -118,10 +119,10 @@ void helper_boundl(CPUX86State *env, target_ulong a0, int v)
 {
     int low, high;
 
-    low = cpu_ldl_data(env, a0);
-    high = cpu_ldl_data(env, a0 + 4);
+    low = cpu_ldl_data_ra(env, a0, GETPC());
+    high = cpu_ldl_data_ra(env, a0 + 4, GETPC());
     if (v < low || v > high) {
-        raise_exception(env, EXCP05_BOUND);
+        raise_exception_ra(env, EXCP05_BOUND, GETPC());
     }
 }
 
@@ -141,11 +142,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
         X86CPU *cpu = X86_CPU(cs);
         CPUX86State *env = &cpu->env;
 
-        if (retaddr) {
-            /* now we have a real cpu fault */
-            cpu_restore_state(cs, retaddr);
-        }
-        raise_exception_err(env, cs->exception_index, env->error_code);
+        raise_exception_err_ra(env, cs->exception_index, env->error_code, retaddr);
     }
 }
 #endif
