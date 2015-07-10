@@ -90,6 +90,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                               int cflags);
 void cpu_exec_init(CPUState *cpu, Error **errp);
 void QEMU_NORETURN cpu_loop_exit(CPUState *cpu);
+void QEMU_NORETURN cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc);
 
 #if !defined(CONFIG_USER_ONLY)
 bool qemu_in_vcpu_thread(void);
