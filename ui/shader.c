@@ -29,21 +29,42 @@
 
 /* ---------------------------------------------------------------------- */
 
-void qemu_gl_run_texture_blit(GLint texture_blit_prog)
+GLuint qemu_gl_init_texture_blit(GLint texture_blit_prog)
 {
-    GLfloat in_position[] = {
+    static const GLfloat in_position[] = {
         -1, -1,
         1,  -1,
         -1,  1,
         1,   1,
     };
     GLint l_position;
+    GLuint vao, buffer;
 
-    glUseProgram(texture_blit_prog);
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    /* this is the VBO that holds the vertex data */
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(in_position), in_position,
+                 GL_STATIC_DRAW);
+
     l_position = glGetAttribLocation(texture_blit_prog, "in_position");
-    glVertexAttribPointer(l_position, 2, GL_FLOAT, GL_FALSE, 0, in_position);
+    glVertexAttribPointer(l_position, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(l_position);
-    glDrawArrays(GL_TRIANGLE_STRIP, l_position, 4);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    return vao;
+}
+
+void qemu_gl_run_texture_blit(GLint texture_blit_prog,
+                              GLint texture_blit_vao)
+{
+    glUseProgram(texture_blit_prog);
+    glBindVertexArray(texture_blit_vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 /* ---------------------------------------------------------------------- */
