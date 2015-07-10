@@ -819,6 +819,8 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
     wi.func = func;
     wi.data = data;
     wi.free = false;
+
+    qemu_mutex_lock(&cpu->work_mutex);
     if (cpu->queued_work_first == NULL) {
         cpu->queued_work_first = &wi;
     } else {
@@ -827,9 +829,10 @@ void run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
     cpu->queued_work_last = &wi;
     wi.next = NULL;
     wi.done = false;
+    qemu_mutex_unlock(&cpu->work_mutex);
 
     qemu_cpu_kick(cpu);
-    while (!wi.done) {
+    while (!atomic_mb_read(&wi.done)) {
         CPUState *self_cpu = current_cpu;
 
         qemu_cond_wait(&qemu_work_cond, &qemu_global_mutex);
@@ -850,6 +853,8 @@ void async_run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
     wi->func = func;
     wi->data = data;
     wi->free = true;
+
+    qemu_mutex_lock(&cpu->work_mutex);
     if (cpu->queued_work_first == NULL) {
         cpu->queued_work_first = wi;
     } else {
@@ -858,6 +863,7 @@ void async_run_on_cpu(CPUState *cpu, void (*func)(void *data), void *data)
     cpu->queued_work_last = wi;
     wi->next = NULL;
     wi->done = false;
+    qemu_mutex_unlock(&cpu->work_mutex);
 
     qemu_cpu_kick(cpu);
 }
@@ -870,15 +876,23 @@ static void flush_queued_work(CPUState *cpu)
         return;
     }
 
-    while ((wi = cpu->queued_work_first)) {
+    qemu_mutex_lock(&cpu->work_mutex);
+    while (cpu->queued_work_first != NULL) {
+        wi = cpu->queued_work_first;
         cpu->queued_work_first = wi->next;
+        if (!cpu->queued_work_first) {
+            cpu->queued_work_last = NULL;
+        }
+        qemu_mutex_unlock(&cpu->work_mutex);
         wi->func(wi->data);
-        wi->done = true;
+        qemu_mutex_lock(&cpu->work_mutex);
         if (wi->free) {
             g_free(wi);
+        } else {
+            atomic_mb_set(&wi->done, true);
         }
     }
-    cpu->queued_work_last = NULL;
+    qemu_mutex_unlock(&cpu->work_mutex);
     qemu_cond_broadcast(&qemu_work_cond);
 }
 

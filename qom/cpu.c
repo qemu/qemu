@@ -316,6 +316,7 @@ static void cpu_common_initfn(Object *obj)
 
     cpu->cpu_index = -1;
     cpu->gdb_num_regs = cpu->gdb_num_g_regs = cc->gdb_num_core_regs;
+    qemu_mutex_init(&cpu->work_mutex);
     QTAILQ_INIT(&cpu->breakpoints);
     QTAILQ_INIT(&cpu->watchpoints);
 }
