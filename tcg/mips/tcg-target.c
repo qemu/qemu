@@ -983,9 +983,11 @@ static int tcg_out_call_iarg_reg2(TCGContext *s, int i, TCGReg al, TCGReg ah)
 /* Perform the tlb comparison operation.  The complete host address is
    placed in BASE.  Clobbers AT, T0, A0.  */
 static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
-                             TCGReg addrh, int mem_index, TCGMemOp s_bits,
+                             TCGReg addrh, TCGMemOpIdx oi,
                              tcg_insn_unit *label_ptr[2], bool is_load)
 {
+    TCGMemOp s_bits = get_memop(oi) & MO_SIZE;
+    int mem_index = get_mmuidx(oi);
     int cmp_off
         = (is_load
            ? offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
@@ -1209,8 +1211,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     tcg_insn_unit *label_ptr[2];
-    int mem_index;
-    TCGMemOp s_bits;
 #endif
     /* Note that we've eliminated V0 from the output registers,
        so we won't overwrite the base register during loading.  */
@@ -1224,11 +1224,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     opc = get_memop(oi);
 
 #if defined(CONFIG_SOFTMMU)
-    mem_index = get_mmuidx(oi);
-    s_bits = opc & MO_SIZE;
-
-    tcg_out_tlb_load(s, base, addr_regl, addr_regh, mem_index,
-                     s_bits, label_ptr, 1);
+    tcg_out_tlb_load(s, base, addr_regl, addr_regh, oi, label_ptr, 1);
     tcg_out_qemu_ld_direct(s, data_regl, data_regh, base, opc);
     add_qemu_ldst_label(s, 1, oi, data_regl, data_regh, addr_regl, addr_regh,
                         s->code_ptr, label_ptr);
@@ -1294,8 +1290,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     tcg_insn_unit *label_ptr[2];
-    int mem_index;
-    TCGMemOp s_bits;
 #endif
 
     data_regl = *args++;
@@ -1306,14 +1300,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     opc = get_memop(oi);
 
 #if defined(CONFIG_SOFTMMU)
-    mem_index = get_mmuidx(oi);
-    s_bits = opc & 3;
-
     /* Note that we eliminated the helper's address argument,
        so we can reuse that for the base.  */
     base = (TARGET_LONG_BITS == 32 ? TCG_REG_A1 : TCG_REG_A2);
-    tcg_out_tlb_load(s, base, addr_regl, addr_regh, mem_index,
-                     s_bits, label_ptr, 0);
+    tcg_out_tlb_load(s, base, addr_regl, addr_regh, oi, label_ptr, 0);
     tcg_out_qemu_st_direct(s, data_regl, data_regh, base, opc);
     add_qemu_ldst_label(s, 0, oi, data_regl, data_regh, addr_regl, addr_regh,
                         s->code_ptr, label_ptr);
