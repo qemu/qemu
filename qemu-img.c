@@ -53,6 +53,7 @@ enum {
     OPTION_BACKING_CHAIN = 257,
     OPTION_OBJECT = 258,
     OPTION_IMAGE_OPTS = 259,
+    OPTION_PATTERN = 260,
 };
 
 typedef enum OutputFormat {
@@ -3462,6 +3463,7 @@ out_no_progress:
 typedef struct BenchData {
     BlockBackend *blk;
     uint64_t image_size;
+    bool write;
     int bufsize;
     int nrreq;
     int n;
@@ -3487,8 +3489,13 @@ static void bench_cb(void *opaque, int ret)
     }
 
     while (b->n > b->in_flight && b->in_flight < b->nrreq) {
-        acb = blk_aio_preadv(b->blk, b->offset, b->qiov, 0,
-                             bench_cb, b);
+        if (b->write) {
+            acb = blk_aio_pwritev(b->blk, b->offset, b->qiov, 0,
+                                  bench_cb, b);
+        } else {
+            acb = blk_aio_preadv(b->blk, b->offset, b->qiov, 0,
+                                 bench_cb, b);
+        }
         if (!acb) {
             error_report("Failed to issue request");
             exit(EXIT_FAILURE);
@@ -3505,9 +3512,11 @@ static int img_bench(int argc, char **argv)
     const char *fmt = NULL, *filename;
     bool quiet = false;
     bool image_opts = false;
+    bool is_write = false;
     int count = 75000;
     int depth = 64;
     size_t bufsize = 4096;
+    int pattern = 0;
     int64_t image_size;
     BlockBackend *blk = NULL;
     BenchData data = {};
@@ -3520,9 +3529,10 @@ static int img_bench(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"pattern", required_argument, 0, OPTION_PATTERN},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, "hc:d:f:nqs:t:", long_options, NULL);
+        c = getopt_long(argc, argv, "hc:d:f:nqs:t:w", long_options, NULL);
         if (c == -1) {
             break;
         }
@@ -3585,6 +3595,21 @@ static int img_bench(int argc, char **argv)
                 goto out;
             }
             break;
+        case 'w':
+            flags |= BDRV_O_RDWR;
+            is_write = true;
+            break;
+        case OPTION_PATTERN:
+        {
+            char *end;
+            errno = 0;
+            pattern = strtoul(optarg, &end, 0);
+            if (errno || *end || pattern > 0xff) {
+                error_report("Invalid pattern byte specified");
+                return 1;
+            }
+            break;
+        }
         case OPTION_IMAGE_OPTS:
             image_opts = true;
             break;
@@ -3614,11 +3639,14 @@ static int img_bench(int argc, char **argv)
         .bufsize    = bufsize,
         .nrreq      = depth,
         .n          = count,
+        .write      = is_write,
     };
-    printf("Sending %d requests, %d bytes each, %d in parallel\n",
-        data.n, data.bufsize, data.nrreq);
+    printf("Sending %d %s requests, %d bytes each, %d in parallel\n",
+           data.n, data.write ? "write" : "read", data.bufsize, data.nrreq);
 
     data.buf = blk_blockalign(blk, data.nrreq * data.bufsize);
+    memset(data.buf, pattern, data.nrreq * data.bufsize);
+
     data.qiov = g_new(QEMUIOVector, data.nrreq);
     for (i = 0; i < data.nrreq; i++) {
         qemu_iovec_init(&data.qiov[i], 1);
