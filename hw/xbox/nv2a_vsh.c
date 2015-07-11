@@ -525,8 +525,6 @@ static QString* decode_token(const uint32_t *shader_token)
 }
 
 static const char* vsh_header =
-    "#version 330\n"
-    "\n"
     "in vec4 v0;\n"
     "in vec4 v1;\n"
     "in vec4 v2;\n"
@@ -562,20 +560,20 @@ static const char* vsh_header =
     "vec4 R11 = vec4(0.0,0.0,0.0,1.0);\n"
     "vec4 R12 = vec4(0.0,0.0,0.0,1.0);\n"
     "\n"
+
     "#define oPos R12\n" /* opos is a mirror of R12 */
-    "noperspective out vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "noperspective out vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
-    "noperspective out vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "noperspective out vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
     "vec4 oPts = vec4(0.0,0.0,0.0,1.0);\n"
-    "noperspective out vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
-    "noperspective out vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "noperspective out vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
-    "noperspective out vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
-    "noperspective out vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
+    "vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
     "\n"
-    "noperspective out float oPos_w;\n"
-    "\n"
+
 
     /* All constants in 1 array declaration */
    "uniform vec4 c[192];\n"
@@ -744,11 +742,25 @@ static const char* vsh_header =
 
 QString* vsh_translate(uint16_t version,
                        const uint32_t *tokens,
-                       unsigned int length)
+                       unsigned int length,
+                       char output_prefix)
 {
-    QString *body = qstring_from_str("\n");
-    QString *header = qstring_from_str(vsh_header);
 
+    QString* header = qstring_from_str("#version 330\n\n");
+
+    qstring_append_fmt(header, "noperspective out float %cPos_w;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cD0;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cD1;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cB0;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cB1;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cFog;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cT0;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cT1;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cT2;\n", output_prefix);
+    qstring_append_fmt(header, "noperspective out vec4 %cT3;\n", output_prefix);
+    qstring_append(header, vsh_header);
+
+    QString *body = qstring_from_str("\n");
 
     bool has_final = false;
     for (int slot=0; slot<length; slot++) {
@@ -770,6 +782,22 @@ QString* vsh_translate(uint16_t version,
     }
     assert(has_final);
 
+    qstring_append_fmt(body,
+        "if (oPos.w == 0.0 || isinf(oPos.w)) {\n"
+        "  %cPos_w = 1.0;"
+        "} else {\n"
+        "  %cPos_w = 1.0 / oPos.w;\n"
+        "}\n"
+        , output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cD0 = oD0 * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cD1 = oD1 * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cB0 = oB0 * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cB1 = oB1 * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cFog = oFog * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cT0 = oT0 * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cT1 = oT1 * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cT2 = oT2 * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cT3 = oT3 * %cPos_w;\n", output_prefix, output_prefix);
 
     qstring_append(body,
         /* the shaders leave the result in screen space, while
@@ -777,19 +805,6 @@ QString* vsh_translate(uint16_t version,
          * Use the magic viewport constants for now,
          * but they're not necessarily present...
         */
-
-        "oPos_w = 1.0/oPos.w;\n"
-        "oD0 /= oPos.w;\n"
-        "oD1 /= oPos.w;\n"
-        "oB0 /= oPos.w;\n"
-        "oB1 /= oPos.w;\n"
-        "oFog /= oPos.w;\n"
-        "oT0 /= oPos.w;\n"
-        "oT1 /= oPos.w;\n"
-        "oT2 /= oPos.w;\n"
-        "oT3 /= oPos.w;\n"
-        "\n"
-
 
          "  /* Un-screenspace transform */\n"
          "oPos.x = (oPos.x - viewportOffset.x) / viewportScale.x;\n"

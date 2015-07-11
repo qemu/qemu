@@ -1317,6 +1317,8 @@ typedef struct PGRAPHState {
     InlineVertexBufferEntry inline_buffer[NV2A_MAX_BATCH_LENGTH];
     GLuint gl_inline_buffer_buffer;
 
+    GLuint gl_element_buffer;
+
     GLuint gl_vertex_array;
 
     uint32_t regs[0x2000];
@@ -2102,42 +2104,58 @@ static gboolean shader_equal(gconstpointer a, gconstpointer b)
     return memcmp(as, bs, sizeof(ShaderState)) == 0;
 }
 
+static void generate_geometry_shader_pass_vertex(QString* s, const char* v)
+{
+    qstring_append_fmt(s, "        gD0 = vD0[%s];\n", v);
+    qstring_append_fmt(s, "        gD1 = vD1[%s];\n", v);
+    qstring_append_fmt(s, "        gB0 = vB0[%s];\n", v);
+    qstring_append_fmt(s, "        gB1 = vB1[%s];\n", v);
+    qstring_append_fmt(s, "        gFog = vFog[%s];\n", v);
+    qstring_append_fmt(s, "        gT0 = vT0[%s];\n", v);
+    qstring_append_fmt(s, "        gT1 = vT1[%s];\n", v);
+    qstring_append_fmt(s, "        gT2 = vT2[%s];\n", v);
+    qstring_append_fmt(s, "        gT3 = vT3[%s];\n", v);
+    qstring_append_fmt(s, "        gPos_w = vPos_w[%s];\n", v);
+    qstring_append_fmt(s, "        gl_Position = gl_in[%s].gl_Position;\n", v);
+    qstring_append(s,     "        EmitVertex();\n");
+}
+
 static QString* generate_geometry_shader(unsigned int primitive_mode)
 {
-    int in_verticies, out_verticies;
-    switch (primitive_mode) {
-    case NV097_SET_BEGIN_END_OP_QUADS:
-        in_verticies = 4;
-        out_verticies = 6;
-        break;
-    default:
-        in_verticies = 3;
-        out_verticies = 3;
-        break;
-    }
     QString* s = qstring_new();
     qstring_append(s, "#version 330\n");
     qstring_append(s, "\n");
-    if (primitive_mode == NV097_SET_BEGIN_END_OP_QUADS) {
+    switch (primitive_mode) {
+    // case NV097_SET_BEGIN_END_OP_POINTS:
+    //     qstring_append(s, "layout(points) in;\n");
+    //     qstring_append(s, "layout(points, max_vertices = 1) out;\n");
+    //     break;
+    // case NV097_SET_BEGIN_END_OP_LINES:
+    // case NV097_SET_BEGIN_END_OP_LINE_STRIP:
+    //     qstring_append(s, "layout(lines) in;")
+    //     qstring_append(s, "layout(line_strip, max_vertices = 6) out;\n");
+    case NV097_SET_BEGIN_END_OP_QUADS:
         qstring_append(s, "layout(lines_adjacency) in;\n");
         qstring_append(s, "layout(triangle_strip, max_vertices = 6) out;\n");
-    } else {
+        break;
+    default:
         qstring_append(s, "layout(triangles) in;\n");
         qstring_append(s, "layout(triangle_strip, max_vertices = 3) out;\n");
+        break;
     }
     qstring_append(s, "\n");
-    qstring_append_fmt(s, "noperspective in vec4 oD0[%d];\n", in_verticies);
-    qstring_append_fmt(s, "noperspective in vec4 oD1[%d];\n", in_verticies);
-    qstring_append_fmt(s, "noperspective in vec4 oB0[%d];\n", in_verticies);
-    qstring_append_fmt(s, "noperspective in vec4 oB1[%d];\n", in_verticies);
-    qstring_append_fmt(s, "noperspective in vec4 oFog[%d];\n", in_verticies);
-    qstring_append_fmt(s, "noperspective in vec4 oT0[%d];\n", in_verticies);
-    qstring_append_fmt(s, "noperspective in vec4 oT1[%d];\n", in_verticies);
-    qstring_append_fmt(s, "noperspective in vec4 oT2[%d];\n", in_verticies);
-    qstring_append_fmt(s, "noperspective in vec4 oT3[%d];\n", in_verticies);
+    qstring_append(s, "noperspective in float vPos_w[];\n");
+    qstring_append(s, "noperspective in vec4 vD0[];\n");
+    qstring_append(s, "noperspective in vec4 vD1[];\n");
+    qstring_append(s, "noperspective in vec4 vB0[];\n");
+    qstring_append(s, "noperspective in vec4 vB1[];\n");
+    qstring_append(s, "noperspective in vec4 vFog[];\n");
+    qstring_append(s, "noperspective in vec4 vT0[];\n");
+    qstring_append(s, "noperspective in vec4 vT1[];\n");
+    qstring_append(s, "noperspective in vec4 vT2[];\n");
+    qstring_append(s, "noperspective in vec4 vT3[];\n");
     qstring_append(s, "\n");
-    qstring_append_fmt(s, "noperspective in float oPos_w[%d];\n", in_verticies);
-    qstring_append(s, "\n");
+    qstring_append(s, "noperspective out float gPos_w;\n");
     qstring_append(s, "noperspective out vec4 gD0;\n");
     qstring_append(s, "noperspective out vec4 gD1;\n");
     qstring_append(s, "noperspective out vec4 gB0;\n");
@@ -2148,28 +2166,25 @@ static QString* generate_geometry_shader(unsigned int primitive_mode)
     qstring_append(s, "noperspective out vec4 gT2;\n");
     qstring_append(s, "noperspective out vec4 gT3;\n");
     qstring_append(s, "\n");
-    qstring_append(s, "noperspective out vec3 gCor;\n");
-    qstring_append(s, "\n");
     qstring_append(s, "void main() {\n");
-    qstring_append(s, "    for (int i = 0; i < 3; i++) {\n");
-    qstring_append(s, "        gD0 = oD0[i];\n");
-    qstring_append(s, "        gD1 = oD1[i];\n");
-    qstring_append(s, "        gB0 = oB0[i];\n");
-    qstring_append(s, "        gB1 = oB1[i];\n");
-    qstring_append(s, "        gFog = oFog[i];\n");
-    qstring_append(s, "        gT0 = oT0[i];\n");
-    qstring_append(s, "        gT1 = oT1[i];\n");
-    qstring_append(s, "        gT2 = oT2[i];\n");
-    qstring_append(s, "        gT3 = oT3[i];\n");
-    qstring_append(s, "\n");
-    qstring_append(s, "        gCor = vec3(0.0);\n");
-    qstring_append(s, "        gCor[i] = oPos_w[i];\n");
-    qstring_append(s, "\n");
-    qstring_append(s, "        gl_Position = gl_in[i].gl_Position;\n");
-    qstring_append(s, "        EmitVertex();\n");
-    qstring_append(s, "    }\n");
-    qstring_append(s, "\n");
-    qstring_append(s, "    EndPrimitive();\n");
+    switch (primitive_mode) {
+    case NV097_SET_BEGIN_END_OP_QUADS:
+        generate_geometry_shader_pass_vertex(s, "0");
+        generate_geometry_shader_pass_vertex(s, "1");
+        generate_geometry_shader_pass_vertex(s, "2");
+        qstring_append(s, "EndPrimitive();\n");
+        generate_geometry_shader_pass_vertex(s, "0");
+        generate_geometry_shader_pass_vertex(s, "2");
+        generate_geometry_shader_pass_vertex(s, "3");
+        qstring_append(s, "EndPrimitive();\n");
+        break;
+    default:
+        generate_geometry_shader_pass_vertex(s, "0");
+        generate_geometry_shader_pass_vertex(s, "1");
+        generate_geometry_shader_pass_vertex(s, "2");
+        qstring_append(s, "EndPrimitive();\n");
+        break;
+    }
     qstring_append(s, "}\n");
 
     return s;
@@ -2178,16 +2193,20 @@ static QString* generate_geometry_shader(unsigned int primitive_mode)
 static ShaderBinding* generate_shaders(const ShaderState state)
 {
     int i, j;
+    GLint compiled = 0;
+
+    bool with_geom = state.primitive_mode == NV097_SET_BEGIN_END_OP_QUADS;
+    char v_prefix = with_geom ? 'v' : 'g';
 
     GLuint program = glCreateProgram();
 
     /* create the vertex shader */
 
     QString *vertex_shader_code = NULL;
-    const char *vertex_shader_code_str = NULL;
     if (state.fixed_function) {
         /* generate vertex shader mimicking fixed function */
-        vertex_shader_code_str =
+        vertex_shader_code = qstring_new();
+        qstring_append(vertex_shader_code, 
 "#version 330\n"
 "\n"
 "in vec4 position;\n"
@@ -2199,18 +2218,30 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 "in vec4 multiTexCoord1;\n"
 "in vec4 multiTexCoord2;\n"
 "in vec4 multiTexCoord3;\n"
-"\n"
-"noperspective out vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
-"noperspective out vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
-"noperspective out vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
-"noperspective out vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
-"noperspective out vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
-"noperspective out vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
-"noperspective out vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
-"noperspective out vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
-"noperspective out vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
-"\n"
-"noperspective out float oPos_w;\n"
+"\n");
+
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out float %cPos_w;\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cD0 = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cD1 = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cB0 = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cB1 = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cFog = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cT0 = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cT1 = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cT2 = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "noperspective out vec4 %cT3 = vec4(0.0,0.0,0.0,1.0);\n", v_prefix);
+
+    qstring_append(vertex_shader_code,
 "\n"
 "uniform mat4 composite;\n"
 "uniform mat4 invViewport;\n"
@@ -2220,23 +2251,36 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 //"   gl_Position = position * composite;\n"
 //"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
 //"   gl_Position.y = -(gl_Position.y - 240.0) / 240.0;\n"
-"   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n"
-"   oPos_w = gl_Position.w;\n"
-"   oD0 = diffuse;\n"
-"   oT0 = multiTexCoord0;\n"
-"   oT1 = multiTexCoord1;\n"
-"   oT2 = multiTexCoord2;\n"
-"   oT3 = multiTexCoord3;\n"
-"}\n";
+"   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n");
+
+    qstring_append_fmt(vertex_shader_code,
+        "%cPos_w = 1.0/gl_Position.w;\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "%cD0 = diffuse;\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "%cT0 = multiTexCoord0;\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "%cT1 = multiTexCoord1;\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "%cT2 = multiTexCoord2;\n", v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "%cT3 = multiTexCoord3;\n", v_prefix);
+
+    qstring_append(vertex_shader_code, "}\n");
 
     } else if (state.vertex_program) {
         vertex_shader_code = vsh_translate(VSH_VERSION_XVS,
                                            (uint32_t*)state.program_data,
-                                           state.program_length);
-        vertex_shader_code_str = qstring_get_str(vertex_shader_code);
+                                           state.program_length,
+                                           v_prefix);
+        
+    } else {
+        assert(false);
     }
 
-    if (vertex_shader_code_str) {
+    if (vertex_shader_code) {
+        const char* vertex_shader_code_str = qstring_get_str(vertex_shader_code);
+
         GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
         glAttachShader(program, vertex_shader);
 
@@ -2246,7 +2290,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
         NV2A_DPRINTF("bind new vertex shader, code:\n%s\n", vertex_shader_code_str);
 
         /* Check it compiled */
-        GLint compiled = 0;
+        compiled = 0;
         glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &compiled);
         if (!compiled) {
             GLchar log[1024];
@@ -2255,10 +2299,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
             abort();
         }
 
-        if (vertex_shader_code) {
-            QDECREF(vertex_shader_code);
-            vertex_shader_code = NULL;
-        }
+        QDECREF(vertex_shader_code);
     }
 
 
@@ -2305,7 +2346,6 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     glCompileShader(fragment_shader);
 
     /* Check it compiled */
-    GLint compiled = 0;
     glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &compiled);
     if (!compiled) {
         GLchar log[1024];
@@ -2317,31 +2357,32 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     QDECREF(fragment_shader_code);
 
 
+    if (with_geom) {
+        GLuint geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);
+        glAttachShader(program, geometry_shader);
 
-    // GLuint geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);
-    // glAttachShader(program, geometry_shader);
+        QString* geometry_shader_code =
+            generate_geometry_shader(state.primitive_mode);
+        const char* geometry_shader_code_str =
+             qstring_get_str(geometry_shader_code);
 
-    // QString* geometry_shader_code =
-    //     generate_geometry_shader(state.primitive_mode);
-    // const char* geometry_shader_code_str =
-    //      qstring_get_str(geometry_shader_code);
+        NV2A_DPRINTF("bind geometry shader, code:\n%s\n", geometry_shader_code_str);
 
-    // NV2A_DPRINTF("bind geometry shader, code:\n%s\n", geometry_shader_code_str);
+        glShaderSource(geometry_shader, 1, &geometry_shader_code_str, 0);
+        glCompileShader(geometry_shader);
 
-    // glShaderSource(geometry_shader, 1, &geometry_shader_code_str, 0);
-    // glCompileShader(geometry_shader);
+        /* Check it compiled */
+        compiled = 0;
+        glGetShaderiv(geometry_shader, GL_COMPILE_STATUS, &compiled);
+        if (!compiled) {
+            GLchar log[2048];
+            glGetShaderInfoLog(geometry_shader, 2048, NULL, log);
+            fprintf(stderr, "nv2a: geometry shader compilation failed: %s\n", log);
+            abort();
+        }
 
-    // /* Check it compiled */
-    // compiled = 0;
-    // glGetShaderiv(geometry_shader, GL_COMPILE_STATUS, &compiled);
-    // if (!compiled) {
-    //     GLchar log[2048];
-    //     glGetShaderInfoLog(geometry_shader, 2048, NULL, log);
-    //     fprintf(stderr, "nv2a: geometry shader compilation failed: %s\n", log);
-    //     abort();
-    // }
-
-    // QDECREF(geometry_shader_code);
+        QDECREF(geometry_shader_code);
+    }
 
 
     /* link the program */
@@ -3041,6 +3082,7 @@ static void pgraph_init(PGRAPHState *pg)
     }
     glGenBuffers(1, &pg->gl_inline_array_buffer);
     glGenBuffers(1, &pg->gl_inline_buffer_buffer);
+    glGenBuffers(1, &pg->gl_element_buffer);
 
     glGenVertexArrays(1, &pg->gl_vertex_array);
     glBindVertexArray(pg->gl_vertex_array);
@@ -3894,9 +3936,7 @@ static void pgraph_method(NV2AState *d,
 
                 pgraph_bind_vertex_attributes(d, max_element+1, false, 0);
 
-                GLuint element_buffer;
-                glGenBuffers(1, &element_buffer);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pg->gl_element_buffer);
                 glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                              pg->inline_elements_length*4,
                              pg->inline_elements,
@@ -3907,7 +3947,6 @@ static void pgraph_method(NV2AState *d,
                                GL_UNSIGNED_INT,
                                (void*)0);
 
-                glDeleteBuffers(1, &element_buffer);
             }/* else {
                 assert(false);
             }*/
