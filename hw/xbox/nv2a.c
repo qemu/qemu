@@ -1478,7 +1478,7 @@ static uint64_t fnv_hash(const uint8_t *data, size_t len)
 
 static uint64_t fast_hash(const uint8_t *data, size_t len, unsigned int samples)
 {
-// #ifdef __SSE4_2__
+#ifdef __SSE4_2__
     uint64_t h[4] = {len, 0, 0, 0};
     assert(samples > 0);
 
@@ -1507,9 +1507,9 @@ static uint64_t fast_hash(const uint8_t *data, size_t len, unsigned int samples)
         h[2] = __builtin_ia32_crc32di(h[2], dp[step * 2]);
 
     return h[0] + (h[1] << 10) + (h[2] << 21) + (h[3] << 32);
-// #else
-//     return fnv_hash(data, len);
-// #endif
+#else
+    return fnv_hash(data, len);
+#endif
 }
 
 static void update_irq(NV2AState *d)
