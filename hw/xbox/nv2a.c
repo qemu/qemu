@@ -199,7 +199,7 @@
 #   define NV_PGRAPH_INTR_ERROR                              (1 << 20)
 #   define NV_PGRAPH_INTR_SINGLE_STEP                        (1 << 24)
 #define NV_PGRAPH_NSOURCE                                0x00000108
-#   define NV_PGRAPH_NSOURCE_NOTIFICATION                     (1 << 0) 
+#   define NV_PGRAPH_NSOURCE_NOTIFICATION                     (1 << 0)
 #define NV_PGRAPH_INTR_EN                                0x00000140
 #   define NV_PGRAPH_INTR_EN_NOTIFY                           (1 << 0)
 #   define NV_PGRAPH_INTR_EN_MISSING_HW                       (1 << 4)
@@ -1225,7 +1225,7 @@ typedef struct GraphicsObject {
     uint8_t graphics_class;
     union {
         ContextSurfaces2DState context_surfaces_2d;
-        
+
         ImageBlitState image_blit;
 
         KelvinState kelvin;
@@ -1378,7 +1378,7 @@ typedef struct ChannelControl {
 typedef struct NV2AState {
     PCIDevice dev;
     qemu_irq irq;
-    
+
     bool exiting;
 
     VGACommonState vga;
@@ -1695,7 +1695,7 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
 
                 unsigned int out_stride = attribute->converted_size
                                         * attribute->converted_count;
-                
+
                 if (num_elements > attribute->converted_elements) {
                     attribute->converted_buffer = g_realloc(
                         attribute->converted_buffer,
@@ -2729,7 +2729,7 @@ static void pgraph_update_surface(NV2AState *d,
 
         hwaddr color_len;
         uint8_t *color_data = nv_dma_map(d, pg->dma_color, &color_len);
-        
+
         assert(pg->surface_shape.color_format
                 < sizeof(kelvin_surface_color_format_map)
                     / sizeof(SurfaceColorFormatInfo));
@@ -2883,7 +2883,7 @@ static void pgraph_update_surface(NV2AState *d,
 
         hwaddr zeta_len;
         uint8_t *zeta_data = nv_dma_map(d, pg->dma_zeta, &zeta_len);
-        
+
         unsigned int bytes_per_pixel;
         GLenum gl_internal_format, gl_format, gl_type, gl_attachment;
         switch (pg->surface_shape.zeta_format) {
@@ -3220,7 +3220,7 @@ static void pgraph_method(NV2AState *d,
         image_blit->height = parameter >> 16;
 
         /* I guess this kicks it off? */
-        if (image_blit->operation == NV09F_SET_OPERATION_SRCCOPY) { 
+        if (image_blit->operation == NV09F_SET_OPERATION_SRCCOPY) {
             GraphicsObject *context_surfaces_obj =
                 lookup_graphics_object(pg, image_blit->context_surfaces);
             assert(context_surfaces_obj);
@@ -3263,7 +3263,7 @@ static void pgraph_method(NV2AState *d,
                 uint8_t *source_row = source
                     + (image_blit->in_y + y) * context_surfaces->source_pitch
                     + image_blit->in_x * bytes_per_pixel;
-                
+
                 uint8_t *dest_row = dest
                     + (image_blit->out_y + y) * context_surfaces->dest_pitch
                     + image_blit->out_x * bytes_per_pixel;
@@ -3289,6 +3289,7 @@ static void pgraph_method(NV2AState *d,
         if (parameter != 0) {
             assert(!(pg->pending_interrupts & NV_PGRAPH_INTR_NOTIFY));
 
+
             pg->trapped_channel_id = pg->channel_id;
             pg->trapped_subchannel = subchannel;
             pg->trapped_method = method;
@@ -3307,7 +3308,7 @@ static void pgraph_method(NV2AState *d,
             }
         }
         break;
-    
+
     case NV097_WAIT_FOR_IDLE:
         pgraph_update_surface(d, false, true, true);
         break;
@@ -3363,7 +3364,7 @@ static void pgraph_method(NV2AState *d,
         }
         NV2A_DPRINTF("flip stall done\n");
         break;
-    
+
     case NV097_SET_CONTEXT_DMA_NOTIFIES:
         kelvin->dma_notifies = parameter;
         break;
@@ -3768,7 +3769,7 @@ static void pgraph_method(NV2AState *d,
         slot = (class_method - NV097_SET_VERTEX4F) / 4;
 
         assert(pg->inline_buffer_length < NV2A_MAX_BATCH_LENGTH);
-        
+
         InlineVertexBufferEntry *entry =
             &pg->inline_buffer[pg->inline_buffer_length];
 
@@ -4027,7 +4028,7 @@ static void pgraph_method(NV2AState *d,
                 assert(op_fail < ARRAYSIZE(pgraph_stencil_op_map));
                 assert(op_zfail < ARRAYSIZE(pgraph_stencil_op_map));
                 assert(op_zpass < ARRAYSIZE(pgraph_stencil_op_map));
-                
+
                 glStencilFunc(
                     pgraph_stencil_func_map[stencil_func],
                     stencil_ref,
@@ -4068,7 +4069,7 @@ static void pgraph_method(NV2AState *d,
         break;
     CASE_4(NV097_SET_TEXTURE_FORMAT, 64): {
         slot = (class_method - NV097_SET_TEXTURE_FORMAT) / 64;
-        
+
         bool dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA) == 2;
         unsigned int dimensionality =
@@ -4155,7 +4156,7 @@ static void pgraph_method(NV2AState *d,
         //qemu_mutex_lock_iothread();
 
         hwaddr semaphore_dma_len;
-        uint8_t *semaphore_data = nv_dma_map(d, kelvin->dma_semaphore, 
+        uint8_t *semaphore_data = nv_dma_map(d, kelvin->dma_semaphore,
                                              &semaphore_dma_len);
         assert(kelvin->semaphore_offset < semaphore_dma_len);
         semaphore_data += kelvin->semaphore_offset;
@@ -4819,7 +4820,7 @@ static void pfifo_write(void *opaque, hwaddr addr,
              && !d->pfifo.cache1.pull_enabled) {
             d->pfifo.cache1.pull_enabled = true;
 
-            /* the puller thread should wake up */        
+            /* the puller thread should wake up */
             qemu_cond_signal(&d->pfifo.cache1.cache_cond);
         } else if (!(val & NV_PFIFO_CACHE1_PULL0_ACCESS)
                      && d->pfifo.cache1.pull_enabled) {
@@ -5141,7 +5142,7 @@ static uint64_t pgraph_read(void *opaque,
         SET_MASK(r, NV_PGRAPH_CTX_USER_CHANNEL_3D,
                  d->pgraph.context[d->pgraph.channel_id].channel_3d);
         SET_MASK(r, NV_PGRAPH_CTX_USER_CHANNEL_3D_VALID, 1);
-        SET_MASK(r, NV_PGRAPH_CTX_USER_SUBCH, 
+        SET_MASK(r, NV_PGRAPH_CTX_USER_SUBCH,
                  d->pgraph.context[d->pgraph.channel_id].subchannel << 13);
         SET_MASK(r, NV_PGRAPH_CTX_USER_CHID, d->pgraph.channel_id);
         break;
@@ -5752,7 +5753,7 @@ static void pgraph_method_log(unsigned int subchannel,
     static unsigned int count = 0;
     if (last == 0x1800 && method != last) {
         NV2A_DPRINTF("pgraph method (%d) 0x%x * %d\n",
-                        subchannel, last, count);  
+                        subchannel, last, count);
     }
     if (method != 0x1800) {
         const char* method_name = NULL;
@@ -6061,10 +6062,6 @@ static void nv2a_register(void)
     type_register_static(&nv2a_info);
 }
 type_init(nv2a_register);
-
-
-
-
 
 void nv2a_init(PCIBus *bus, int devfn, MemoryRegion *ram)
 {
