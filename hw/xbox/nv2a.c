@@ -832,7 +832,7 @@ static const GLenum kelvin_primitive_map[] = {
     GL_TRIANGLES,
     GL_TRIANGLE_STRIP,
     GL_TRIANGLE_FAN,
-    GL_QUADS,
+    GL_LINES_ADJACENCY, // GL_QUADS,
     // GL_QUAD_STRIP,
     // GL_POLYGON,
 };
@@ -1137,9 +1137,13 @@ typedef struct ShaderState {
 
     bool fixed_function;
 
+    /* vertex program */
     bool vertex_program;
     uint32_t program_data[NV2A_MAX_TRANSFORM_PROGRAM_LENGTH][VSH_TOKEN_SIZE];
     int program_length;
+
+    /* primitive format for geomotry shader */
+    unsigned int primitive_mode;  
 } ShaderState;
 
 typedef struct ShaderBinding {
@@ -1277,7 +1281,6 @@ typedef struct PGRAPHState {
     bool texture_dirty[NV2A_MAX_TEXTURES];
     TextureBinding *texture_binding[NV2A_MAX_TEXTURES];
 
-    bool shaders_dirty;
     GHashTable *shader_cache;
     ShaderBinding *shader_binding;
 
@@ -1292,6 +1295,7 @@ typedef struct PGRAPHState {
 
     hwaddr dma_vertex_a, dma_vertex_b;
 
+    unsigned int primitive_mode;
     GLenum gl_primitive_mode;
 
     bool enable_vertex_program_write;
@@ -2098,6 +2102,79 @@ static gboolean shader_equal(gconstpointer a, gconstpointer b)
     return memcmp(as, bs, sizeof(ShaderState)) == 0;
 }
 
+static QString* generate_geometry_shader(unsigned int primitive_mode)
+{
+    int in_verticies, out_verticies;
+    switch (primitive_mode) {
+    case NV097_SET_BEGIN_END_OP_QUADS:
+        in_verticies = 4;
+        out_verticies = 6;
+        break;
+    default:
+        in_verticies = 3;
+        out_verticies = 3;
+        break;
+    }
+    QString* s = qstring_new();
+    qstring_append(s, "#version 330\n");
+    qstring_append(s, "\n");
+    if (primitive_mode == NV097_SET_BEGIN_END_OP_QUADS) {
+        qstring_append(s, "layout(lines_adjacency) in;\n");
+        qstring_append(s, "layout(triangle_strip, max_vertices = 6) out;\n");
+    } else {
+        qstring_append(s, "layout(triangles) in;\n");
+        qstring_append(s, "layout(triangle_strip, max_vertices = 3) out;\n");
+    }
+    qstring_append(s, "\n");
+    qstring_append_fmt(s, "noperspective in vec4 oD0[%d];\n", in_verticies);
+    qstring_append_fmt(s, "noperspective in vec4 oD1[%d];\n", in_verticies);
+    qstring_append_fmt(s, "noperspective in vec4 oB0[%d];\n", in_verticies);
+    qstring_append_fmt(s, "noperspective in vec4 oB1[%d];\n", in_verticies);
+    qstring_append_fmt(s, "noperspective in vec4 oFog[%d];\n", in_verticies);
+    qstring_append_fmt(s, "noperspective in vec4 oT0[%d];\n", in_verticies);
+    qstring_append_fmt(s, "noperspective in vec4 oT1[%d];\n", in_verticies);
+    qstring_append_fmt(s, "noperspective in vec4 oT2[%d];\n", in_verticies);
+    qstring_append_fmt(s, "noperspective in vec4 oT3[%d];\n", in_verticies);
+    qstring_append(s, "\n");
+    qstring_append_fmt(s, "noperspective in float oPos_w[%d];\n", in_verticies);
+    qstring_append(s, "\n");
+    qstring_append(s, "noperspective out vec4 gD0;\n");
+    qstring_append(s, "noperspective out vec4 gD1;\n");
+    qstring_append(s, "noperspective out vec4 gB0;\n");
+    qstring_append(s, "noperspective out vec4 gB1;\n");
+    qstring_append(s, "noperspective out vec4 gFog;\n");
+    qstring_append(s, "noperspective out vec4 gT0;\n");
+    qstring_append(s, "noperspective out vec4 gT1;\n");
+    qstring_append(s, "noperspective out vec4 gT2;\n");
+    qstring_append(s, "noperspective out vec4 gT3;\n");
+    qstring_append(s, "\n");
+    qstring_append(s, "noperspective out vec3 gCor;\n");
+    qstring_append(s, "\n");
+    qstring_append(s, "void main() {\n");
+    qstring_append(s, "    for (int i = 0; i < 3; i++) {\n");
+    qstring_append(s, "        gD0 = oD0[i];\n");
+    qstring_append(s, "        gD1 = oD1[i];\n");
+    qstring_append(s, "        gB0 = oB0[i];\n");
+    qstring_append(s, "        gB1 = oB1[i];\n");
+    qstring_append(s, "        gFog = oFog[i];\n");
+    qstring_append(s, "        gT0 = oT0[i];\n");
+    qstring_append(s, "        gT1 = oT1[i];\n");
+    qstring_append(s, "        gT2 = oT2[i];\n");
+    qstring_append(s, "        gT3 = oT3[i];\n");
+    qstring_append(s, "\n");
+    qstring_append(s, "        gCor = vec3(0.0);\n");
+    qstring_append(s, "        gCor[i] = oPos_w[i];\n");
+    qstring_append(s, "\n");
+    qstring_append(s, "        gl_Position = gl_in[i].gl_Position;\n");
+    qstring_append(s, "        EmitVertex();\n");
+    qstring_append(s, "    }\n");
+    qstring_append(s, "\n");
+    qstring_append(s, "    EndPrimitive();\n");
+    qstring_append(s, "}\n");
+
+    return s;
+}
+
 static ShaderBinding* generate_shaders(const ShaderState state)
 {
     int i, j;
@@ -2123,16 +2200,18 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 "in vec4 multiTexCoord2;\n"
 "in vec4 multiTexCoord3;\n"
 "\n"
-"out vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
-"out vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
-"out vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
-"out vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
-"out vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
-"out vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
-"out vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
-"out vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
-"out vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
-
+"noperspective out vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
+"noperspective out vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
+"noperspective out vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
+"noperspective out vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
+"noperspective out vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
+"noperspective out vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
+"noperspective out vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
+"noperspective out vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
+"noperspective out vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
+"\n"
+"noperspective out float oPos_w;\n"
+"\n"
 "uniform mat4 composite;\n"
 "uniform mat4 invViewport;\n"
 "void main() {\n"
@@ -2142,6 +2221,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 //"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
 //"   gl_Position.y = -(gl_Position.y - 240.0) / 240.0;\n"
 "   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n"
+"   oPos_w = gl_Position.w;\n"
 "   oD0 = diffuse;\n"
 "   oT0 = multiTexCoord0;\n"
 "   oT1 = multiTexCoord1;\n"
@@ -2238,13 +2318,39 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 
 
 
+    // GLuint geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);
+    // glAttachShader(program, geometry_shader);
+
+    // QString* geometry_shader_code =
+    //     generate_geometry_shader(state.primitive_mode);
+    // const char* geometry_shader_code_str =
+    //      qstring_get_str(geometry_shader_code);
+
+    // NV2A_DPRINTF("bind geometry shader, code:\n%s\n", geometry_shader_code_str);
+
+    // glShaderSource(geometry_shader, 1, &geometry_shader_code_str, 0);
+    // glCompileShader(geometry_shader);
+
+    // /* Check it compiled */
+    // compiled = 0;
+    // glGetShaderiv(geometry_shader, GL_COMPILE_STATUS, &compiled);
+    // if (!compiled) {
+    //     GLchar log[2048];
+    //     glGetShaderInfoLog(geometry_shader, 2048, NULL, log);
+    //     fprintf(stderr, "nv2a: geometry shader compilation failed: %s\n", log);
+    //     abort();
+    // }
+
+    // QDECREF(geometry_shader_code);
+
+
     /* link the program */
     glLinkProgram(program);
     GLint linked = 0;
     glGetProgramiv(program, GL_LINK_STATUS, &linked);
     if(!linked) {
-        GLchar log[1024];
-        glGetProgramInfoLog(program, 1024, NULL, log);
+        GLchar log[2048];
+        glGetProgramInfoLog(program, 2048, NULL, log);
         fprintf(stderr, "nv2a: shader linking failed: %s\n", log);
         abort();
     }
@@ -2311,84 +2417,83 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     ShaderBinding* old_binding = pg->shader_binding;
     bool binding_changed = false;
 
-    if (pg->shaders_dirty) {
-        ShaderState state = {
-            /* register combier stuff */
-            .combiner_control = pg->regs[NV_PGRAPH_COMBINECTL],
-            .shader_stage_program = pg->regs[NV_PGRAPH_SHADERPROG],
-            .other_stage_input = pg->regs[NV_PGRAPH_SHADERCTL],
-            .final_inputs_0 = pg->regs[NV_PGRAPH_COMBINESPECFOG0],
-            .final_inputs_1 = pg->regs[NV_PGRAPH_COMBINESPECFOG1],
+    ShaderState state = {
+        /* register combier stuff */
+        .combiner_control = pg->regs[NV_PGRAPH_COMBINECTL],
+        .shader_stage_program = pg->regs[NV_PGRAPH_SHADERPROG],
+        .other_stage_input = pg->regs[NV_PGRAPH_SHADERCTL],
+        .final_inputs_0 = pg->regs[NV_PGRAPH_COMBINESPECFOG0],
+        .final_inputs_1 = pg->regs[NV_PGRAPH_COMBINESPECFOG1],
 
-            .alpha_test = pg->regs[NV_PGRAPH_CONTROL_0]
-                            & NV_PGRAPH_CONTROL_0_ALPHATESTENABLE,
-            .alpha_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
-                                   NV_PGRAPH_CONTROL_0_ALPHAFUNC),
+        .alpha_test = pg->regs[NV_PGRAPH_CONTROL_0]
+                        & NV_PGRAPH_CONTROL_0_ALPHATESTENABLE,
+        .alpha_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                               NV_PGRAPH_CONTROL_0_ALPHAFUNC),
 
-            /* fixed function stuff */
-            .fixed_function = fixed_function,
+        /* fixed function stuff */
+        .fixed_function = fixed_function,
 
-            /* vertex program stuff */
-            .vertex_program = vertex_program,
-        };
+        /* vertex program stuff */
+        .vertex_program = vertex_program,
 
-        state.program_length = 0;
-        memset(state.program_data, 0, sizeof(state.program_data));
+        /* geometry shader stuff */
+        .primitive_mode = pg->primitive_mode,
+    };
 
-        if (vertex_program) {
-            // copy in vertex program tokens
-            for (i = program_start;
-                    i < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH;
-                    i++) {
-                uint32_t *cur_token = (uint32_t*)&pg->program_data[i];
-                memcpy(&state.program_data[state.program_length],
-                       cur_token,
-                       VSH_TOKEN_SIZE * sizeof(uint32_t));
-                state.program_length++;
+    state.program_length = 0;
+    memset(state.program_data, 0, sizeof(state.program_data));
 
-                if (vsh_get_field(cur_token, FLD_FINAL)) {
-                    break;
-                }
+    if (vertex_program) {
+        // copy in vertex program tokens
+        for (i = program_start; i < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH; i++) {
+            uint32_t *cur_token = (uint32_t*)&pg->program_data[i];
+            memcpy(&state.program_data[state.program_length],
+                   cur_token,
+                   VSH_TOKEN_SIZE * sizeof(uint32_t));
+            state.program_length++;
+
+            if (vsh_get_field(cur_token, FLD_FINAL)) {
+                break;
             }
         }
-
-        for (i = 0; i < 8; i++) {
-            state.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
-            state.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
-            state.alpha_inputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAI0 + i * 4];
-            state.alpha_outputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAO0 + i * 4];
-            //constant_0[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR0 + i * 4];
-            //constant_1[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
-        }
-
-        for (i = 0; i < 4; i++) {
-            state.rect_tex[i] = false;
-            bool enabled = GET_MASK(pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4],
-                                    NV_PGRAPH_TEXCTL0_0_ENABLE);
-            unsigned int color_format =
-                GET_MASK(pg->regs[NV_PGRAPH_TEXFMT0 + i*4],
-                         NV_PGRAPH_TEXFMT0_COLOR);
-
-            if (enabled && kelvin_color_format_map[color_format].linear) {
-                state.rect_tex[i] = true;
-            }
-        }
-
-        ShaderBinding* cached_shader = g_hash_table_lookup(pg->shader_cache, &state);
-        if (cached_shader) {
-            pg->shader_binding = cached_shader;
-        } else {
-            pg->shader_binding = generate_shaders(state);
-
-            /* cache it */
-            ShaderState *cache_state = g_malloc(sizeof(*cache_state));
-            memcpy(cache_state, &state, sizeof(*cache_state));
-            g_hash_table_insert(pg->shader_cache, cache_state,
-                                (gpointer)pg->shader_binding);
-        }
-
-        binding_changed = (pg->shader_binding != old_binding);
     }
+
+    for (i = 0; i < 8; i++) {
+        state.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
+        state.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
+        state.alpha_inputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAI0 + i * 4];
+        state.alpha_outputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAO0 + i * 4];
+        //constant_0[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR0 + i * 4];
+        //constant_1[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
+    }
+
+    for (i = 0; i < 4; i++) {
+        state.rect_tex[i] = false;
+        bool enabled = GET_MASK(pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4],
+                                NV_PGRAPH_TEXCTL0_0_ENABLE);
+        unsigned int color_format =
+            GET_MASK(pg->regs[NV_PGRAPH_TEXFMT0 + i*4],
+                     NV_PGRAPH_TEXFMT0_COLOR);
+
+        if (enabled && kelvin_color_format_map[color_format].linear) {
+            state.rect_tex[i] = true;
+        }
+    }
+
+    ShaderBinding* cached_shader = g_hash_table_lookup(pg->shader_cache, &state);
+    if (cached_shader) {
+        pg->shader_binding = cached_shader;
+    } else {
+        pg->shader_binding = generate_shaders(state);
+
+        /* cache it */
+        ShaderState *cache_state = g_malloc(sizeof(*cache_state));
+        memcpy(cache_state, &state, sizeof(*cache_state));
+        g_hash_table_insert(pg->shader_cache, cache_state,
+                            (gpointer)pg->shader_binding);
+    }
+
+    binding_changed = (pg->shader_binding != old_binding);
 
     glUseProgram(pg->shader_binding->gl_program);
 
@@ -2486,7 +2591,6 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
     }
 
-    pg->shaders_dirty = false;
 }
 
 static void pgraph_get_surface_dimensions(NV2AState *d,
@@ -2922,8 +3026,6 @@ static void pgraph_init(PGRAPHState *pg)
 
     //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 
-    pg->shaders_dirty = true;
-
     pg->texture_cache = g_lru_cache_new(
         texture_key_hash, texture_key_equal,
         NULL, texture_key_retrieve,
@@ -3304,17 +3406,14 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_COMBINER_ALPHA_ICW + 28:
         slot = (class_method - NV097_SET_COMBINER_ALPHA_ICW) / 4;
         pg->regs[NV_PGRAPH_COMBINEALPHAI0 + slot*4] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_SPECULAR_FOG_CW0:
         pg->regs[NV_PGRAPH_COMBINESPECFOG0] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_SPECULAR_FOG_CW1:
         pg->regs[NV_PGRAPH_COMBINESPECFOG1] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_CONTROL0: {
@@ -3334,7 +3433,6 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_ALPHA_TEST_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                  NV_PGRAPH_CONTROL_0_ALPHATESTENABLE, parameter);
-        pg->shaders_dirty = true;
         break;
     case NV097_SET_BLEND_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_BLEND], NV_PGRAPH_BLEND_EN, parameter);
@@ -3351,7 +3449,6 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_ALPHA_FUNC:
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                  NV_PGRAPH_CONTROL_0_ALPHAFUNC, parameter & 0xF);
-        pg->shaders_dirty = true;
         break;
     case NV097_SET_ALPHA_REF:
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
@@ -3554,28 +3651,24 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_COMBINER_FACTOR0 + 28:
         slot = (class_method - NV097_SET_COMBINER_FACTOR0) / 4;
         pg->regs[NV_PGRAPH_COMBINEFACTOR0 + slot*4] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_FACTOR1 ...
             NV097_SET_COMBINER_FACTOR1 + 28:
         slot = (class_method - NV097_SET_COMBINER_FACTOR1) / 4;
         pg->regs[NV_PGRAPH_COMBINEFACTOR1 + slot*4] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_ALPHA_OCW ...
             NV097_SET_COMBINER_ALPHA_OCW + 28:
         slot = (class_method - NV097_SET_COMBINER_ALPHA_OCW) / 4;
         pg->regs[NV_PGRAPH_COMBINEALPHAO0 + slot*4] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_COLOR_ICW ...
             NV097_SET_COMBINER_COLOR_ICW + 28:
         slot = (class_method - NV097_SET_COMBINER_COLOR_ICW) / 4;
         pg->regs[NV_PGRAPH_COMBINECOLORI0 + slot*4] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_VIEWPORT_SCALE ...
@@ -3598,7 +3691,6 @@ static void pgraph_method(NV2AState *d,
 
         assert(program_load < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH);
         pg->program_data[program_load][slot%4] = parameter;
-        pg->shaders_dirty = true;
 
         if (slot % 4 == 3) {
             SET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
@@ -3758,7 +3850,6 @@ static void pgraph_method(NV2AState *d,
                                 & NV_PGRAPH_CONTROL_1_STENCIL_TEST_ENABLE;
 
         if (parameter == NV097_SET_BEGIN_END_OP_END) {
-            if (pg->gl_primitive_mode == GL_QUADS) break;
             if (pg->inline_buffer_length) {
 
                 // pgraph_bind_vertex_attributes(...)
@@ -3825,6 +3916,10 @@ static void pgraph_method(NV2AState *d,
             assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
 
             pgraph_update_surface(d, true, true, depth_test || stencil_test);
+
+            assert(parameter < ARRAYSIZE(kelvin_primitive_map));
+            pg->primitive_mode = parameter;
+            pg->gl_primitive_mode = kelvin_primitive_map[parameter];
 
             uint32_t control_0 = pg->regs[NV_PGRAPH_CONTROL_0];
 
@@ -3909,17 +4004,15 @@ static void pgraph_method(NV2AState *d,
             }
 
             pgraph_bind_shaders(pg);
-
             pgraph_bind_textures(d);
+
+            //glDisableVertexAttribArray(NV2A_VERTEX_ATTR_DIFFUSE);
+            //glVertexAttrib4f(NV2A_VERTEX_ATTR_DIFFUSE, 1.0, 1.0, 1.0, 1.0);
 
 
             unsigned int width, height;
             pgraph_get_surface_dimensions(d, &width, &height);
             glViewport(0, 0, width, height);
-
-            assert(parameter < ARRAYSIZE(kelvin_primitive_map));
-            pg->gl_primitive_mode = kelvin_primitive_map[parameter];
-            if (pg->gl_primitive_mode == GL_QUADS) break;
 
             pg->inline_elements_length = 0;
             pg->inline_array_length = 0;
@@ -3959,13 +4052,11 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_V, log_height);
 
         pg->texture_dirty[slot] = true;
-        pg->shaders_dirty = true;
         break;
     }
     CASE_4(NV097_SET_TEXTURE_CONTROL0, 64):
         slot = (class_method - NV097_SET_TEXTURE_CONTROL0) / 64;
         pg->regs[NV_PGRAPH_TEXCTL0_0 + slot*4] = parameter;
-        pg->shaders_dirty = true;
         break;
     CASE_4(NV097_SET_TEXTURE_CONTROL1, 64):
         slot = (class_method - NV097_SET_TEXTURE_CONTROL1) / 64;
@@ -3996,8 +4087,6 @@ static void pgraph_method(NV2AState *d,
     case NV097_DRAW_ARRAYS: {
         unsigned int start = GET_MASK(parameter, NV097_DRAW_ARRAYS_START_INDEX);
         unsigned int count = GET_MASK(parameter, NV097_DRAW_ARRAYS_COUNT)+1;
-
-        if (pg->gl_primitive_mode == GL_QUADS) break;
 
         pgraph_bind_vertex_attributes(d, start + count, false, 0);
         glDrawArrays(pg->gl_primitive_mode, start, count);
@@ -4109,29 +4198,24 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_SPECULAR_FOG_FACTOR + 4:
         slot = (class_method - NV097_SET_SPECULAR_FOG_FACTOR) / 4;
         pg->regs[NV_PGRAPH_SPECFOGFACTOR0 + slot*4] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_COLOR_OCW ...
             NV097_SET_COMBINER_COLOR_OCW + 28:
         slot = (class_method - NV097_SET_COMBINER_COLOR_OCW) / 4;
         pg->regs[NV_PGRAPH_COMBINECOLORO0 + slot*4] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_COMBINER_CONTROL:
         pg->regs[NV_PGRAPH_COMBINECTL] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_SHADER_STAGE_PROGRAM:
         pg->regs[NV_PGRAPH_SHADERPROG] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_SHADER_OTHER_STAGE_INPUT:
         pg->regs[NV_PGRAPH_SHADERCTL] = parameter;
-        pg->shaders_dirty = true;
         break;
 
     case NV097_SET_TRANSFORM_EXECUTION_MODE:
@@ -4152,7 +4236,6 @@ static void pgraph_method(NV2AState *d,
         assert(parameter < NV2A_MAX_TRANSFORM_PROGRAM_LENGTH);
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
                  NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START, parameter);
-        pg->shaders_dirty = true;
         break;
     case NV097_SET_TRANSFORM_CONSTANT_LOAD:
         assert(parameter < NV2A_VERTEXSHADER_CONSTANTS);
@@ -5595,7 +5678,7 @@ static const char* nv2a_method_names[] = {};
 static void reg_log_read(int block, hwaddr addr, uint64_t val) {
     if (blocktable[block].name) {
         hwaddr naddr = blocktable[block].offset + addr;
-        if (naddr < ARARYSIZE(nv2a_reg_names) && nv2a_reg_names[naddr]) {
+        if (naddr < ARRAY_SIZE(nv2a_reg_names) && nv2a_reg_names[naddr]) {
             NV2A_DPRINTF("%s: read [%s] -> 0x%" PRIx64 "\n",
                     blocktable[block].name, nv2a_reg_names[naddr], val);
         } else {

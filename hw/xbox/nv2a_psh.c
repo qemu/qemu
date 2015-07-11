@@ -529,20 +529,35 @@ static QString* psh_convert(struct PixelShader *ps)
     int i;
 
     QString *preflight = qstring_new();
-    qstring_append(preflight, "in vec4 oD0;\n");
-    qstring_append(preflight, "in vec4 oD1;\n");
-    qstring_append(preflight, "in vec4 oB0;\n");
-    qstring_append(preflight, "in vec4 oB1;\n");
-    qstring_append(preflight, "in vec4 oFog;\n");
-    qstring_append(preflight, "in vec4 oT0;\n");
-    qstring_append(preflight, "in vec4 oT1;\n");
-    qstring_append(preflight, "in vec4 oT2;\n");
-    qstring_append(preflight, "in vec4 oT3;\n");
+    qstring_append(preflight, "noperspective in vec4 oD0;\n");
+    qstring_append(preflight, "noperspective in vec4 oD1;\n");
+    qstring_append(preflight, "noperspective in vec4 oB0;\n");
+    qstring_append(preflight, "noperspective in vec4 oB1;\n");
+    qstring_append(preflight, "noperspective in vec4 oFog;\n");
+    qstring_append(preflight, "noperspective in vec4 oT0;\n");
+    qstring_append(preflight, "noperspective in vec4 oT1;\n");
+    qstring_append(preflight, "noperspective in vec4 oT2;\n");
+    qstring_append(preflight, "noperspective in vec4 oT3;\n");
+    qstring_append(preflight, "\n");
+    qstring_append(preflight, "noperspective in float oPos_w;\n");
+    // qstring_append(preflight, "noperspective in vec3 gCor;\n");
     qstring_append(preflight, "\n");
     qstring_append(preflight, "out vec4 fragColor;\n");
     qstring_append(preflight, "\n");
 
     QString *vars = qstring_new();
+    // qstring_append(vars, "float pFactor = gCor[0]+gCor[1]+gCor[2];\n");
+    qstring_append(vars, "float pFactor = oPos_w;\n");
+    qstring_append(vars, "vec4 pD0 = oD0 / pFactor;\n");
+    qstring_append(vars, "vec4 pD1 = oD1 / pFactor;\n");
+    qstring_append(vars, "vec4 pB0 = oB0 / pFactor;\n");
+    qstring_append(vars, "vec4 pB1 = oB1 / pFactor;\n");
+    qstring_append(vars, "vec4 pFog = oFog / pFactor;\n");
+    qstring_append(vars, "vec4 pT0 = oT0 / pFactor;\n");
+    qstring_append(vars, "vec4 pT1 = oT1 / pFactor;\n");
+    qstring_append(vars, "vec4 pT2 = oT2 / pFactor;\n");
+    qstring_append(vars, "vec4 pT3 = oT3 / pFactor;\n");
+    qstring_append(vars, "\n");
     qstring_append(vars, "vec4 v0 = oD0;\n");
     qstring_append(vars, "vec4 v1 = oD1;\n");
     qstring_append(vars, "float fog = oFog.x;\n");
@@ -559,22 +574,22 @@ static QString* psh_convert(struct PixelShader *ps)
             } else {
                 sampler_type = "sampler2D";
             }
-            qstring_append_fmt(vars, "vec4 t%d = textureProj(texSamp%d, oT%d.xyw);\n",
+            qstring_append_fmt(vars, "vec4 t%d = textureProj(texSamp%d, pT%d.xyw);\n",
                                i, i, i);
             break;
         case PS_TEXTUREMODES_PROJECT3D:
             sampler_type = "sampler3D";
-            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, oT%d.xyz);\n",
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xyz);\n",
                                i, i, i);
             break;
         case PS_TEXTUREMODES_CUBEMAP:
             sampler_type = "samplerCube";
-            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, oT%d.xyz);\n",
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xyz);\n",
                                i, i, i);
             break;
         case PS_TEXTUREMODES_PASSTHRU:
             assert(false);
-            qstring_append_fmt(vars, "vec4 t%d = oT%d;\n", i, i);
+            qstring_append_fmt(vars, "vec4 t%d = pT%d;\n", i, i);
             break;
         default:
             printf("%x\n", ps->tex_modes[i]);

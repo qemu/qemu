@@ -563,16 +563,18 @@ static const char* vsh_header =
     "vec4 R12 = vec4(0.0,0.0,0.0,1.0);\n"
     "\n"
     "#define oPos R12\n" /* opos is a mirror of R12 */
-    "out vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "out vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
-    "out vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "out vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
     "vec4 oPts = vec4(0.0,0.0,0.0,1.0);\n"
-    "out vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
-    "out vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "out vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
-    "out vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
-    "out vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
+    "noperspective out vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
+    "\n"
+    "noperspective out float oPos_w;\n"
     "\n"
 
     /* All constants in 1 array declaration */
@@ -775,6 +777,19 @@ QString* vsh_translate(uint16_t version,
          * Use the magic viewport constants for now,
          * but they're not necessarily present...
         */
+
+        "oPos_w = 1.0/oPos.w;\n"
+        "oD0 /= oPos.w;\n"
+        "oD1 /= oPos.w;\n"
+        "oB0 /= oPos.w;\n"
+        "oB1 /= oPos.w;\n"
+        "oFog /= oPos.w;\n"
+        "oT0 /= oPos.w;\n"
+        "oT1 /= oPos.w;\n"
+        "oT2 /= oPos.w;\n"
+        "oT3 /= oPos.w;\n"
+        "\n"
+
 
          "  /* Un-screenspace transform */\n"
          "oPos.x = (oPos.x - viewportOffset.x) / viewportScale.x;\n"
