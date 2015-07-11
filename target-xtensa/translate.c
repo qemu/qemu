@@ -1972,6 +1972,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             break;
 
         case 10: /*FP0*/
+            /*DEPBITS*/
+            if (option_enabled(dc, XTENSA_OPTION_DEPBITS)) {
+                if (!gen_window_check2(dc, RRR_S, RRR_T)) {
+                    break;
+                }
+                tcg_gen_deposit_i32(cpu_R[RRR_T], cpu_R[RRR_T], cpu_R[RRR_S],
+                                    OP2, RRR_R + 1);
+                break;
+            }
+
             HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
             switch (OP2) {
             case 0: /*ADD.Sf*/
@@ -2106,6 +2116,16 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             break;
 
         case 11: /*FP1*/
+            /*DEPBITS*/
+            if (option_enabled(dc, XTENSA_OPTION_DEPBITS)) {
+                if (!gen_window_check2(dc, RRR_S, RRR_T)) {
+                    break;
+                }
+                tcg_gen_deposit_i32(cpu_R[RRR_T], cpu_R[RRR_T], cpu_R[RRR_S],
+                                    OP2 + 16, RRR_R + 1);
+                break;
+            }
+
             HAS_OPTION(XTENSA_OPTION_FP_COPROCESSOR);
 
 #define gen_compare(rel, br, a, b) \
