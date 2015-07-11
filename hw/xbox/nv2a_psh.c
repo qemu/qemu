@@ -544,6 +544,7 @@ static QString* psh_convert(struct PixelShader *ps)
     qstring_append(preflight, "out vec4 fragColor;\n");
     qstring_append(preflight, "\n");
 
+    /* calculate perspective-correct inputs */
     QString *vars = qstring_new();
     qstring_append(vars, "float pFactor = gPos_w;\n");
     qstring_append(vars, "vec4 pD0 = gD0 / pFactor;\n");

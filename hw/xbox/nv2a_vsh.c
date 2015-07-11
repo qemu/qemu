@@ -782,6 +782,9 @@ QString* vsh_translate(uint16_t version,
     }
     assert(has_final);
 
+    /* pre-divide and output the generated W so we can do persepctive correct
+     * interpolation manually. OpenGL can't, since we give it a W of 1 to work
+     * around the perspective divide */
     qstring_append_fmt(body,
         "if (oPos.w == 0.0 || isinf(oPos.w)) {\n"
         "  %cPos_w = 1.0;"
@@ -801,27 +804,30 @@ QString* vsh_translate(uint16_t version,
 
     qstring_append(body,
         /* the shaders leave the result in screen space, while
-         * opengl expects it in clip coordinates.
-         * Use the magic viewport constants for now,
-         * but they're not necessarily present...
-        */
+         * opengl expects it in clip space.
+         */
 
-         "  /* Un-screenspace transform */\n"
-         "oPos.x = (oPos.x - viewportOffset.x) / viewportScale.x;\n"
-         "oPos.y = (oPos.y - viewportOffset.y) / viewportScale.y;\n"
-         "if (clipRange.y != clipRange.x) {\n"
-         "  oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
-         "}\n"
-
-         "if (oPos.w <= 0.0) {\n"
-            /* undo the perspective divide in the case where the point would be
-             * clipped so opengl can clip it correctly */
-         "  oPos.xyz *= oPos.w;\n"
-         "} else {\n"
-         "  oPos.w = 1.0;\n"
+        /* Use magic viewport constants to translate xyz back into clip space
+         * TODO: Are they always present?
+         */
+        "oPos.x = (oPos.x - viewportOffset.x) / viewportScale.x;\n"
+        "oPos.y = (oPos.y - viewportOffset.y) / viewportScale.y;\n"
+        "if (clipRange.y != clipRange.x) {\n"
+        "  oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
         "}\n"
 
-        "  /* Set outputs */\n"
+        /* Correct for the perspective divide */
+        "if (oPos.w <= 0.0) {\n"
+            /* undo the perspective divide in the case where the point would be
+             * clipped so opengl can clip it correctly */
+        "  oPos.xyz *= oPos.w;\n"
+        "} else {\n"
+            /* we don't want the OpenGL perspective divide to happen, but we
+             * can't multiply by W because it could be meaningless here */
+        "  oPos.w = 1.0;\n"
+        "}\n"
+
+        /* Set outputs */
         "  gl_Position = oPos;\n"
         "  gl_PointSize = oPts.x;\n"
         "\n"

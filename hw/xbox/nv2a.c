@@ -1143,7 +1143,7 @@ typedef struct ShaderState {
     int program_length;
 
     /* primitive format for geomotry shader */
-    unsigned int primitive_mode;  
+    unsigned int primitive_mode;
 } ShaderState;
 
 typedef struct ShaderBinding {
@@ -2122,25 +2122,17 @@ static void generate_geometry_shader_pass_vertex(QString* s, const char* v)
 
 static QString* generate_geometry_shader(unsigned int primitive_mode)
 {
+    /* generate a geometry shader to support deprecated primitive types */
     QString* s = qstring_new();
     qstring_append(s, "#version 330\n");
     qstring_append(s, "\n");
     switch (primitive_mode) {
-    // case NV097_SET_BEGIN_END_OP_POINTS:
-    //     qstring_append(s, "layout(points) in;\n");
-    //     qstring_append(s, "layout(points, max_vertices = 1) out;\n");
-    //     break;
-    // case NV097_SET_BEGIN_END_OP_LINES:
-    // case NV097_SET_BEGIN_END_OP_LINE_STRIP:
-    //     qstring_append(s, "layout(lines) in;")
-    //     qstring_append(s, "layout(line_strip, max_vertices = 6) out;\n");
     case NV097_SET_BEGIN_END_OP_QUADS:
         qstring_append(s, "layout(lines_adjacency) in;\n");
         qstring_append(s, "layout(triangle_strip, max_vertices = 6) out;\n");
         break;
     default:
-        qstring_append(s, "layout(triangles) in;\n");
-        qstring_append(s, "layout(triangle_strip, max_vertices = 3) out;\n");
+        assert(false);
         break;
     }
     qstring_append(s, "\n");
@@ -2179,10 +2171,7 @@ static QString* generate_geometry_shader(unsigned int primitive_mode)
         qstring_append(s, "EndPrimitive();\n");
         break;
     default:
-        generate_geometry_shader_pass_vertex(s, "0");
-        generate_geometry_shader_pass_vertex(s, "1");
-        generate_geometry_shader_pass_vertex(s, "2");
-        qstring_append(s, "EndPrimitive();\n");
+        assert(false);
         break;
     }
     qstring_append(s, "}\n");
@@ -2206,7 +2195,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     if (state.fixed_function) {
         /* generate vertex shader mimicking fixed function */
         vertex_shader_code = qstring_new();
-        qstring_append(vertex_shader_code, 
+        qstring_append(vertex_shader_code,
 "#version 330\n"
 "\n"
 "in vec4 position;\n"
@@ -2214,10 +2203,12 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 "in vec4 diffuse;\n"
 "in vec4 specular;\n"
 "in float fogCoord;\n"
-"in vec4 multiTexCoord0;\n"
-"in vec4 multiTexCoord1;\n"
-"in vec4 multiTexCoord2;\n"
-"in vec4 multiTexCoord3;\n"
+"in vec4 backDiffuse;\n"
+"in vec4 backSpecular;\n"
+"in vec4 texture0;\n"
+"in vec4 texture1;\n"
+"in vec4 texture2;\n"
+"in vec4 texture3;\n"
 "\n");
 
     qstring_append_fmt(vertex_shader_code,
@@ -2256,15 +2247,21 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     qstring_append_fmt(vertex_shader_code,
         "%cPos_w = 1.0/gl_Position.w;\n", v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cD0 = diffuse;\n", v_prefix);
+        "%cD0 = diffuse * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT0 = multiTexCoord0;\n", v_prefix);
+        "%cD1 = specular * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT1 = multiTexCoord1;\n", v_prefix);
+        "%cB0 = backDiffuse * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT2 = multiTexCoord2;\n", v_prefix);
+        "%cB1 = backSpecular * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT3 = multiTexCoord3;\n", v_prefix);
+        "%cT0 = texture0 * %cPos_w;\n", v_prefix, v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "%cT1 = texture1 * %cPos_w;\n", v_prefix, v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "%cT2 = texture2 * %cPos_w;\n", v_prefix, v_prefix);
+    qstring_append_fmt(vertex_shader_code,
+        "%cT3 = texture3 * %cPos_w;\n", v_prefix, v_prefix);
 
     qstring_append(vertex_shader_code, "}\n");
 
@@ -2273,7 +2270,6 @@ static ShaderBinding* generate_shaders(const ShaderState state)
                                            (uint32_t*)state.program_data,
                                            state.program_length,
                                            v_prefix);
-        
     } else {
         assert(false);
     }
@@ -2309,10 +2305,12 @@ static ShaderBinding* generate_shaders(const ShaderState state)
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_DIFFUSE, "diffuse");
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_SPECULAR, "specular");
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_FOG, "fog");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE0, "multiTexCoord0");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE1, "multiTexCoord1");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE2, "multiTexCoord2");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE3, "multiTexCoord3");
+        glBindAttribLocation(program, NV2A_VERTEX_ATTR_BACK_DIFFUSE, "backDiffuse");
+        glBindAttribLocation(program, NV2A_VERTEX_ATTR_BACK_SPECULAR, "backSpecular");
+        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE0, "texture0");
+        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE1, "texture1");
+        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE2, "texture2");
+        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE3, "texture3");
     } else if (state.vertex_program) {
         /* Bind attributes for transform program*/
         char tmp[8];
@@ -2320,6 +2318,8 @@ static ShaderBinding* generate_shaders(const ShaderState state)
             snprintf(tmp, sizeof(tmp), "v%d", i);
             glBindAttribLocation(program, i, tmp);
         }
+    } else {
+        assert(false);
     }
 
 
