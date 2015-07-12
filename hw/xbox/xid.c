@@ -67,6 +67,12 @@ typedef struct XIDGamepadReport {
     int16_t sThumbRY;
 } QEMU_PACKED XIDGamepadReport;
 
+typedef struct XIDGamepadOutputReport {
+    uint8_t report_id; //FIXME: is this correct?
+    uint8_t length;
+    uint16_t left_actuator_strength;
+    uint16_t right_actuator_strength;
+} QEMU_PACKED XIDGamepadOutputReport;
 
 
 typedef struct USBXIDState {
@@ -77,6 +83,7 @@ typedef struct USBXIDState {
 
     QEMUPutKbdEntry *kbd_entry;
     XIDGamepadReport in_state;
+    XIDGamepadOutputReport out_state;
 } USBXIDState;
 
 static const USBDescIface desc_iface_xbox_gamepad = {
@@ -215,19 +222,29 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
 {
     USBXIDState *s = DO_UPCAST(USBXIDState, dev, dev);
 
-    DPRINTF("xid handle_control %x %x\n", request, value);
-
+    static unsigned int pid = 0;
+    static size_t bytes = 0;
+    DPRINTF("xid handle_control 0x%x 0x%x, packet %zu, byte %d\n", request, value, ++pid, bytes += length);
+#if 0
+    if ((request == USB_REQ_SET_CONFIGURATION) && (value == 1)) {
+        /* The OpenXDK code will try to set configuration 1 on every read */
+        DPRINTF("xid handled by configuration hack\n");
+        return;
+    }
+#endif
     int ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
+        DPRINTF("xid handled by usb_desc_handle_control: %d\n",ret);
         return;
     }
 
     switch (request) {
     /* HID requests */
     case ClassInterfaceRequest | HID_GET_REPORT:
-        DPRINTF("xid GET_REPORT %x\n", value);
+        DPRINTF("xid GET_REPORT 0x%x\n", value);
         if (value == 0x100) { /* input */
             assert(s->in_state.bLength <= length);
+//            s->in_state.bReportId++; FIXME: Like this?
             memcpy(data, &s->in_state, s->in_state.bLength);
             p->actual_length = s->in_state.bLength;
         } else {
@@ -235,12 +252,24 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
         }
         break;
     case ClassInterfaceOutRequest | HID_SET_REPORT:
-        DPRINTF("xid SET_REPORT %x\n", value);
-        assert(false);
+        DPRINTF("xid SET_REPORT 0x%x\n", value);
+        if (value == 0x200) { /* output */
+            /* Read length, then the entire packet */
+            memcpy(&s->out_state, data, sizeof(s->out_state));
+            assert(s->out_state.length == sizeof(s->out_state));
+            assert(s->out_state.length <= length);
+            //FIXME: Check actuator endianess
+            printf("Set rumble power to 0x%x, 0x%x\n",
+                   s->out_state.left_actuator_strength,
+                   s->out_state.right_actuator_strength);
+            p->actual_length = s->out_state.length;
+        } else {
+            assert(false);
+        }
         break;
     /* XID requests */
-    case InterfaceRequestVendor | USB_REQ_GET_DESCRIPTOR:
-        DPRINTF("xid GET_DESCRIPTOR %x\n", value);
+    case VendorInterfaceRequest | USB_REQ_GET_DESCRIPTOR:
+        DPRINTF("xid GET_DESCRIPTOR 0x%x\n", value);
         if (value == 0x4200) {
             assert(s->xid_desc->bLength <= length);
             memcpy(data, s->xid_desc, s->xid_desc->bLength);
@@ -249,11 +278,21 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
             assert(false);
         }
         break;
-    case InterfaceRequestVendor | XID_GET_CAPABILITIES:
-        DPRINTF("xid XID_GET_CAPABILITIES %x\n", value);
-        // assert(false);
+    case VendorInterfaceRequest | XID_GET_CAPABILITIES:
+        DPRINTF("xid XID_GET_CAPABILITIES 0x%x\n", value);
+        //FIXME: !
+        p->status = USB_RET_STALL;
+        //assert(false);
+        break;
+    case ((USB_DIR_IN|USB_TYPE_CLASS|USB_RECIP_DEVICE)<<8) | 0x06:
+        DPRINTF("xid unknown xpad request 1: value = 0x%x\n", value);
+        memset(data, 0x00, length);
+        //FIXME: Intended for the hub: usbd_get_hub_descriptor, UT_READ_CLASS?!
+        p->status = USB_RET_STALL;
+        //assert(false);
         break;
     default:
+        DPRINTF("xid USB stalled on request 0x%x value 0x%x\n", request, value);
         p->status = USB_RET_STALL;
         assert(false);
         break;
@@ -264,7 +303,7 @@ static void usb_xid_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBXIDState *s = DO_UPCAST(USBXIDState, dev, dev);
 
-    DPRINTF("xid handle_data %x %d %zx\n", p->pid, p->ep->nr, p->iov.size);
+    DPRINTF("xid handle_data 0x%x %d 0x%zx\n", p->pid, p->ep->nr, p->iov.size);
 
     switch (p->pid) {
     case USB_TOKEN_IN:
@@ -274,7 +313,11 @@ static void usb_xid_handle_data(USBDevice *dev, USBPacket *p)
             assert(false);
         }
         break;
+    case USB_TOKEN_OUT:
+        p->status = USB_RET_STALL;
+        break;
     default:
+        p->status = USB_RET_STALL;
         assert(false);
         break;
     }
@@ -303,6 +346,7 @@ static int usb_xbox_gamepad_initfn(USBDevice *dev)
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, 2);
 
     s->in_state.bLength = sizeof(s->in_state);
+    s->out_state.length = sizeof(s->out_state);
     s->kbd_entry = qemu_add_kbd_event_handler(xbox_gamepad_keyboard_event, s);
     s->xid_desc = &desc_xid_xbox_gamepad;
 
