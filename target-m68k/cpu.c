@@ -61,6 +61,11 @@ static void m68k_cpu_reset(CPUState *s)
     tlb_flush(s, 1);
 }
 
+static void m68k_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->print_insn = print_insn_m68k;
+}
+
 /* CPU models */
 
 static ObjectClass *m68k_cpu_class_by_name(const char *cpu_model)
@@ -208,10 +213,12 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
 #endif
     cc->cpu_exec_enter = m68k_cpu_exec_enter;
     cc->cpu_exec_exit = m68k_cpu_exec_exit;
+    cc->disas_set_info = m68k_cpu_disas_set_info;
 
-    dc->vmsd = &vmstate_m68k_cpu;
     cc->gdb_num_core_regs = 18;
     cc->gdb_core_xml_file = "cf-core.xml";
+
+    dc->vmsd = &vmstate_m68k_cpu;
 
     /*
      * Reason: m68k_cpu_initfn() calls cpu_exec_init(), which saves
