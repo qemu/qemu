@@ -381,8 +381,8 @@ static QString* decode_opcode_input(const uint32_t *shader_token,
 static QString* decode_opcode(const uint32_t *shader_token,
                               VshOutputMux out_mux,
                               uint32_t mask,
-                              const char* opcode,
-                              QString *inputs)
+                              const char *opcode,
+                              const char *inputs)
 {
     QString *ret = qstring_new();
     int reg_num = vsh_get_field(shader_token, FLD_OUT_R);
@@ -399,21 +399,11 @@ static QString* decode_opcode(const uint32_t *shader_token,
         reg_num = 1;
     }
 
-    if (mask > 0) {
-        if (strcmp(opcode, mac_opcode[MAC_ARL]) == 0) {
-            qstring_append(ret, "  ARL(a0");
-            qstring_append(ret, qstring_get_str(inputs));
-            qstring_append(ret, ";\n");
-        } else {
-            qstring_append(ret, "  ");
-            qstring_append(ret, opcode);
-            qstring_append(ret, "(");
-            qstring_append(ret, "R");
-            qstring_append_int(ret, reg_num);
-            qstring_append(ret, mask_str[mask]);
-            qstring_append(ret, qstring_get_str(inputs));
-            qstring_append(ret, ");\n");
-        }
+    if (strcmp(opcode, mac_opcode[MAC_ARL]) == 0) {
+        qstring_append_fmt(ret, "  ARL(A0%s);\n", inputs);
+    } else if (mask > 0) {
+        qstring_append_fmt(ret, "  %s(R%d%s%s);\n",
+                           opcode, reg_num, mask_str[mask], inputs);
     }
 
     /* See if we must add a muxed opcode too: */
@@ -439,7 +429,7 @@ static QString* decode_opcode(const uint32_t *shader_token,
         qstring_append(ret,
             mask_str[
                 vsh_get_field(shader_token, FLD_OUT_O_MASK)]);
-        qstring_append(ret, qstring_get_str(inputs));
+        qstring_append(ret, inputs);
         qstring_append(ret, ");\n");
     }
 
@@ -493,7 +483,7 @@ static QString* decode_token(const uint32_t *shader_token)
                             OMUX_MAC,
                             vsh_get_field(shader_token, FLD_OUT_MAC_MASK),
                             mac_opcode[mac],
-                            inputs_mac);
+                            qstring_get_str(inputs_mac));
         QDECREF(inputs_mac);
     } else {
         ret = qstring_new();
@@ -511,7 +501,7 @@ static QString* decode_token(const uint32_t *shader_token)
                           OMUX_ILU,
                           vsh_get_field(shader_token, FLD_OUT_ILU_MASK),
                           ilu_opcode[ilu],
-                          inputs_c);
+                          qstring_get_str(inputs_c));
 
         qstring_append(ret, qstring_get_str(ilu_op));
 
