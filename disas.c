@@ -214,11 +214,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
         s.info.mach = bfd_mach_i386_i386;
     }
     s.info.print_insn = print_insn_i386;
-#elif defined(TARGET_SPARC)
-    s.info.print_insn = print_insn_sparc;
-#ifdef TARGET_SPARC64
-    s.info.mach = bfd_mach_sparc_v9b;
-#endif
 #elif defined(TARGET_PPC)
     if ((flags >> 16) & 1) {
         s.info.endian = BFD_ENDIAN_LITTLE;
@@ -423,11 +418,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
     s.info.print_insn = print_insn_i386;
 #elif defined(TARGET_ALPHA)
     s.info.print_insn = print_insn_alpha;
-#elif defined(TARGET_SPARC)
-    s.info.print_insn = print_insn_sparc;
-#ifdef TARGET_SPARC64
-    s.info.mach = bfd_mach_sparc_v9b;
-#endif
 #elif defined(TARGET_PPC)
     if (flags & 0xFFFF) {
         /* If we have a precise definition of the instruction set, use it. */

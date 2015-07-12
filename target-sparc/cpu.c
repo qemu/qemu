@@ -90,6 +90,14 @@ static bool sparc_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     return false;
 }
 
+static void cpu_sparc_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->print_insn = print_insn_sparc;
+#ifdef TARGET_SPARC64
+    info->mach = bfd_mach_sparc_v9b;
+#endif
+}
+
 static int cpu_sparc_register(SPARCCPU *cpu, const char *cpu_model)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
@@ -848,6 +856,7 @@ static void sparc_cpu_class_init(ObjectClass *oc, void *data)
     cc->do_unaligned_access = sparc_cpu_do_unaligned_access;
     cc->get_phys_page_debug = sparc_cpu_get_phys_page_debug;
 #endif
+    cc->disas_set_info = cpu_sparc_disas_set_info;
 
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
     cc->gdb_num_core_regs = 86;
