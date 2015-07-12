@@ -840,6 +840,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
 #       define NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY            0x000000F0
 #       define NV097_SET_TEXTURE_FORMAT_COLOR                     0x0000FF00
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8             0x00
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5       0x02
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5       0x03
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4       0x04
@@ -855,6 +856,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8             0x19
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8 0x1E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8 0x24
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8           0x28
 # define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED 0x2E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED 0x30
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8B8G8R8       0x3A
@@ -1038,6 +1040,8 @@ typedef struct ColorFormatInfo {
 } ColorFormatInfo;
 
 static const ColorFormatInfo kelvin_color_format_map[66] = {
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8] =
+        {1, false, GL_LUMINANCE8, GL_LUMINANCE, GL_UNSIGNED_BYTE},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5] =
         {2, false, GL_RGB5_A1, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5] =
@@ -1071,6 +1075,10 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
          {GL_ZERO, GL_ZERO, GL_ZERO, GL_RED}},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
         {4, true, GL_RGB8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
+
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8] =
+        {2, false, GL_RG8, GL_RG, GL_UNSIGNED_BYTE},
+
     /* TODO: format conversion */
     [NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8] =
         {4, false, GL_RGBA8,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
@@ -2010,6 +2018,22 @@ static TextureBinding* generate_texture(const TextureShape s,
                 uint8_t *converted = convert_texture_data(s, unswizzled,
                                                           palette_data,
                                                           width, height, pitch);
+
+                if (s.color_format == NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8) {
+                  data = g_malloc(height * pitch * 4);
+                  unsigned int y;
+                  for(y = 0; y < height; y++) {
+                    unsigned int x;
+                    for(x = 0; x < pitch; x++) {
+                      uint8_t* pixel = &data[(y * pitch + x) * 4];
+                      //FIXME: Steal format conversion from video stuff above
+                      pixel[0] = 255;
+                      pixel[1] = 0;
+                      pixel[2] = 255;
+                      pixel[3] = 128;
+                    }
+                  }
+                }
 
                 glTexImage2D(gl_target, level, f.gl_internal_format,
                              width, height, 0,
