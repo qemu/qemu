@@ -230,9 +230,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
     s.info.disassembler_options = (char *)"any";
     s.info.print_insn = print_insn_ppc;
-#elif defined(TARGET_ALPHA)
-    s.info.mach = bfd_mach_alpha_ev6;
-    s.info.print_insn = print_insn_alpha;
 #endif
     if (s.info.print_insn == NULL) {
         s.info.print_insn = print_insn_od_target;
@@ -404,8 +401,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
         s.info.mach = bfd_mach_i386_i386;
     }
     s.info.print_insn = print_insn_i386;
-#elif defined(TARGET_ALPHA)
-    s.info.print_insn = print_insn_alpha;
 #elif defined(TARGET_PPC)
     if (flags & 0xFFFF) {
         /* If we have a precise definition of the instruction set, use it. */
