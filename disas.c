@@ -249,9 +249,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
 #elif defined(TARGET_ALPHA)
     s.info.mach = bfd_mach_alpha_ev6;
     s.info.print_insn = print_insn_alpha;
-#elif defined(TARGET_MOXIE)
-    s.info.mach = bfd_arch_moxie;
-    s.info.print_insn = print_insn_moxie;
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
     s.info.print_insn = print_insn_lm32;
@@ -459,9 +456,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
 #elif defined(TARGET_SH4)
     s.info.mach = bfd_mach_sh4;
     s.info.print_insn = print_insn_sh;
-#elif defined(TARGET_MOXIE)
-    s.info.mach = bfd_arch_moxie;
-    s.info.print_insn = print_insn_moxie;
 #elif defined(TARGET_LM32)
     s.info.mach = bfd_mach_lm32;
     s.info.print_insn = print_insn_lm32;
