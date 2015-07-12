@@ -52,8 +52,8 @@ GloContext *glo_context_create(int formatFlags)
 
     if (!initialized) {    
         x_display = XOpenDisplay(0);     
-	      printf("gloffscreen: GLX_VERSION = %s\n", glXGetClientString(x_display, GLX_VERSION));
-	      printf("gloffscreen: GLX_VENDOR = %s\n", glXGetClientString(x_display, GLX_VENDOR));
+        printf("gloffscreen: GLX_VERSION = %s\n", glXGetClientString(x_display, GLX_VERSION));
+        printf("gloffscreen: GLX_VENDOR = %s\n", glXGetClientString(x_display, GLX_VENDOR));
     } else {
         printf("gloffscreen already inited\n");
         exit(EXIT_FAILURE);
@@ -95,17 +95,51 @@ GloContext *glo_context_create(int formatFlags)
 #endif
 
     /* Create GLX context */
-    context->glx_context = glXCreateNewContext(x_display, configs[0], GLX_RGBA_TYPE, NULL, True);
+
+    /* FIXME: Check for "GLX_ARB_create_context" extension*/
+    #define GLX_CONTEXT_MAJOR_VERSION_ARB     0x2091
+    #define GLX_CONTEXT_MINOR_VERSION_ARB     0x2092
+    #define GLX_CONTEXT_PROFILE_MASK_ARB     0x9126
+    #define GLX_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
+    typedef GLXContext (*GLXCREATECONTEXTATTRIBSARBPROC)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
+    GLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = (GLXCREATECONTEXTATTRIBSARBPROC) glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
+    if (glXCreateContextAttribsARB == NULL) return NULL;
+    int context_attribute_list[] = {
+        GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+        GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+        GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+        None
+    };
+    context->glx_context = glXCreateContextAttribsARB(x_display, configs[0], 0, True, context_attribute_list);
+    if (context->glx_context == NULL) {
+      assert(0);
+    }
+    XSync(x_display, False);
     if (context->glx_context == NULL) return NULL;
     glo_set_current(context);
 
     if (!initialized) {
         /* Initialize glew */
+        glewExperimental = GL_TRUE;
         if (GLEW_OK != glewInit()) {
             /* GLEW failed! */
-            printf("Glew init failed.");
+            printf("GLEW init failed.");
             exit(1);
         }
+
+        /* Get rid of GLEW errors */
+        while(glGetError() != GL_NO_ERROR);
+
+        GLint major, minor;
+        glGetIntegerv(GL_MAJOR_VERSION, &major);
+        glGetIntegerv(GL_MINOR_VERSION, &minor);
+        printf("GL %d.%d\n",major,minor);
+#if 0
+        if (GLEW_VERSION_3_3) {
+            printf("OpenGL 3.3 Core not supported!\n");
+            exit(1);
+        }
+#endif
     }
 
     initialized = true;
@@ -132,6 +166,6 @@ void glo_context_destroy(GloContext *context)
 {
     if (!context) { return; }
     glo_set_current(NULL);
-   	glXDestroyContext(x_display, context->glx_context);
+    glXDestroyContext(x_display, context->glx_context);
 }
 
