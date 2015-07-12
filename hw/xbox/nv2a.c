@@ -3820,7 +3820,7 @@ static void pgraph_method(NV2AState *d,
             break;
         case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1:
             vertex_attribute->gl_type = GL_SHORT;
-            vertex_attribute->gl_normalize = GL_FALSE;
+            vertex_attribute->gl_normalize = GL_TRUE;
             vertex_attribute->size = 2;
             vertex_attribute->needs_conversion = false;
             break;
