@@ -230,12 +230,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
     s.info.disassembler_options = (char *)"any";
     s.info.print_insn = print_insn_ppc;
-#elif defined(TARGET_MIPS)
-#ifdef TARGET_WORDS_BIGENDIAN
-    s.info.print_insn = print_insn_big_mips;
-#else
-    s.info.print_insn = print_insn_little_mips;
-#endif
 #elif defined(TARGET_ALPHA)
     s.info.mach = bfd_mach_alpha_ev6;
     s.info.print_insn = print_insn_alpha;
@@ -427,12 +421,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
         s.info.endian = BFD_ENDIAN_LITTLE;
     }
     s.info.print_insn = print_insn_ppc;
-#elif defined(TARGET_MIPS)
-#ifdef TARGET_WORDS_BIGENDIAN
-    s.info.print_insn = print_insn_big_mips;
-#else
-    s.info.print_insn = print_insn_little_mips;
-#endif
 #endif
     if (!s.info.print_insn) {
         monitor_printf(mon, "0x" TARGET_FMT_lx
