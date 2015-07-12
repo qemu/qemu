@@ -2092,6 +2092,7 @@ static void pgraph_bind_textures(NV2AState *d)
         uint32_t ctl_1 = pg->regs[NV_PGRAPH_TEXCTL1_0 + i*4];
         uint32_t fmt = pg->regs[NV_PGRAPH_TEXFMT0 + i*4];
         uint32_t filter = pg->regs[NV_PGRAPH_TEXFILTER0 + i*4];
+        uint32_t palette =  pg->regs[NV_PGRAPH_TEXPALETTE0 + i*4];
 
         bool enabled = GET_MASK(ctl_0, NV_PGRAPH_TEXCTL0_0_ENABLE);
         unsigned int min_mipmap_level =
@@ -2125,8 +2126,7 @@ static void pgraph_bind_textures(NV2AState *d)
 
         unsigned int offset = pg->regs[NV_PGRAPH_TEXOFFSET0 + i*4];
 
-        uint32_t palette =  pg->regs[NV_PGRAPH_TEXPALETTE0 + i*4];
-        unsigned int palette_dma_select =
+        bool palette_dma_select =
             GET_MASK(palette, NV_PGRAPH_TEXPALETTE0_CONTEXT_DMA);
         unsigned int palette_length_index =
             GET_MASK(palette, NV_PGRAPH_TEXPALETTE0_LENGTH);
@@ -4346,7 +4346,8 @@ static void pgraph_method(NV2AState *d,
         pg->texture_dirty[slot] = true;
         break;
     CASE_4(NV097_SET_TEXTURE_PALETTE, 64): {
-        slot = (class_method - NV097_SET_TEXTURE_IMAGE_RECT) / 64;
+        slot = (class_method - NV097_SET_TEXTURE_PALETTE) / 64;
+        
         bool dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA) == 1;
         unsigned int length =
@@ -4362,7 +4363,6 @@ static void pgraph_method(NV2AState *d,
         pg->texture_dirty[slot] = true;
         break;
     }
-
     case NV097_ARRAY_ELEMENT16:
         assert(pg->inline_elements_length < NV2A_MAX_BATCH_LENGTH);
         pg->inline_elements[
