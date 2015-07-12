@@ -1876,6 +1876,9 @@ static TextureBinding* generate_texture(const TextureShape s,
     }
 
     glBindTexture(gl_target, gl_texture);
+    char label[256];
+    sprintf(label, "NV2A { Format: 0x%02X%s, Width: %i }",s.color_format,f.linear?"":" (SZ)",s.width);
+    glObjectLabel(GL_TEXTURE, gl_texture, strlen(label), label);
 
     if (f.linear) {
         /* Can't handle retarded strides */
@@ -3339,6 +3342,12 @@ static void pgraph_method(NV2AState *d,
 
         /* I guess this kicks it off? */
         if (image_blit->operation == NV09F_SET_OPERATION_SRCCOPY) {
+
+            char message[256];
+            sprintf(message,"NV2A: NV09F_SET_OPERATION_SRCCOPY");
+            glEnable(GL_DEBUG_OUTPUT); //FIXME: Elsewhere
+            glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, strlen(message), message);
+
             GraphicsObject *context_surfaces_obj =
                 lookup_graphics_object(pg, image_blit->context_surfaces);
             assert(context_surfaces_obj);
