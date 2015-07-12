@@ -131,6 +131,12 @@ static void lm32_cpu_reset(CPUState *s)
     tlb_flush(s, 1);
 }
 
+static void lm32_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->mach = bfd_mach_lm32;
+    info->print_insn = print_insn_lm32;
+}
+
 static void lm32_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -275,6 +281,7 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = 32 + 7;
     cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = lm32_debug_excp_handler;
+    cc->disas_set_info = lm32_cpu_disas_set_info;
 
     /*
      * Reason: lm32_cpu_initfn() calls cpu_exec_init(), which saves

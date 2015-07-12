@@ -242,9 +242,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
 #elif defined(TARGET_ALPHA)
     s.info.mach = bfd_mach_alpha_ev6;
     s.info.print_insn = print_insn_alpha;
-#elif defined(TARGET_LM32)
-    s.info.mach = bfd_mach_lm32;
-    s.info.print_insn = print_insn_lm32;
 #endif
     if (s.info.print_insn == NULL) {
         s.info.print_insn = print_insn_od_target;
@@ -442,9 +439,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
 #elif defined(TARGET_SH4)
     s.info.mach = bfd_mach_sh4;
     s.info.print_insn = print_insn_sh;
-#elif defined(TARGET_LM32)
-    s.info.mach = bfd_mach_lm32;
-    s.info.print_insn = print_insn_lm32;
 #endif
     if (!s.info.print_insn) {
         monitor_printf(mon, "0x" TARGET_FMT_lx
