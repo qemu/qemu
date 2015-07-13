@@ -434,6 +434,17 @@
 #define NV_PGRAPH_TEXOFFSET1                             0x00001A28
 #define NV_PGRAPH_TEXOFFSET2                             0x00001A2C
 #define NV_PGRAPH_TEXOFFSET3                             0x00001A30
+#define NV_PGRAPH_TEXPALETTE0                            0x00001A34
+#   define NV_PGRAPH_TEXPALETTE0_CONTEXT_DMA                    (1 << 0)
+#   define NV_PGRAPH_TEXPALETTE0_LENGTH                         0x0000000C
+#       define NV_PGRAPH_TEXPALETTE0_LENGTH_256                     0
+#       define NV_PGRAPH_TEXPALETTE0_LENGTH_128                     1
+#       define NV_PGRAPH_TEXPALETTE0_LENGTH_64                      2
+#       define NV_PGRAPH_TEXPALETTE0_LENGTH_32                      3
+#   define NV_PGRAPH_TEXPALETTE0_OFFSET                         0xFFFFFFC0
+#define NV_PGRAPH_TEXPALETTE1                            0x00001A38
+#define NV_PGRAPH_TEXPALETTE2                            0x00001A3C
+#define NV_PGRAPH_TEXPALETTE3                            0x00001A40
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 #define NV_PGRAPH_ZCLIPMAX                               0x00001ABC
 #define NV_PGRAPH_ZCLIPMIN                               0x00001A90
@@ -795,6 +806,14 @@
 #   define NV097_SET_TEXTURE_IMAGE_RECT                       0x00971B1C
 #       define NV097_SET_TEXTURE_IMAGE_RECT_WIDTH                 0xFFFF0000
 #       define NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT                0x0000FFFF
+#   define NV097_SET_TEXTURE_PALETTE                          0x00971B20
+#       define NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA              (1 << 0)
+#       define NV097_SET_TEXTURE_PALETTE_LENGTH                   0x0000000C
+#         define NV097_SET_TEXTURE_PALETTE_LENGTH_256               0
+#         define NV097_SET_TEXTURE_PALETTE_LENGTH_128               1
+#         define NV097_SET_TEXTURE_PALETTE_LENGTH_64                2
+#         define NV097_SET_TEXTURE_PALETTE_LENGTH_32                3
+#       define NV097_SET_TEXTURE_PALETTE_OFFSET                   0xFFFFFFC0
 #   define NV097_SET_SEMAPHORE_OFFSET                         0x00971D6C
 #   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00971D70
 #   define NV097_SET_ZSTENCIL_CLEAR_VALUE                     0x00971D8C
@@ -961,9 +980,9 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
         {4, false, GL_RGB8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
 
-    /* TODO: 8-bit palettized textures */
+    /* paletted texture */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8] =
-        {1, false, GL_R8, GL_RED, GL_UNSIGNED_BYTE},
+        {1, false, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5] =
         {4, false, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, 0, GL_RGBA},
@@ -1184,6 +1203,7 @@ typedef struct TextureKey {
     TextureShape state;
     uint64_t data_hash;
     uint8_t* texture_data;
+    uint8_t* palette_data;
 } TextureKey;
 
 typedef struct TextureBinding {
@@ -1810,8 +1830,31 @@ static unsigned int pgraph_bind_inline_array(NV2AState *d)
     return index_count;
 }
 
+static uint8_t* convert_texture_data(const TextureShape s,
+                                     uint8_t *data,
+                                     const uint8_t *palette_data,
+                                     unsigned int width, unsigned int height,
+                                     unsigned int pitch)
+{
+    if (s.color_format == NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8) {
+        uint8_t* converted_data = g_malloc(width * height * 4);
+        int x, y;
+        for (y = 0; y < height; y++) {
+            for (x = 0; x < width; x++) {
+                uint8_t index = data[y * pitch + x];
+                uint32_t color = *(uint32_t*)(palette_data + index * 4);
+                *(uint32_t*)(converted_data + y * width * 4 + x * 4) = color;
+            }
+        }
+        return converted_data;
+    } else {
+        return data;
+    }
+}
+
 static TextureBinding* generate_texture(const TextureShape s,
-                                        const uint8_t *texture_data)
+                                        const uint8_t *texture_data,
+                                        const uint8_t *palette_data)
 {
     ColorFormatInfo f = kelvin_color_format_map[s.color_format];
 
@@ -1880,11 +1923,18 @@ static TextureBinding* generate_texture(const TextureShape s,
                 unswizzle_rect(texture_data, width, height,
                                unswizzled, pitch, f.bytes_per_pixel);
 
+                uint8_t *converted = convert_texture_data(s, unswizzled,
+                                                          palette_data,
+                                                          width, height, pitch);
+
                 glTexImage2D(gl_target, level, f.gl_internal_format,
                              width, height, 0,
                              f.gl_format, f.gl_type,
-                             unswizzled);
+                             converted);
 
+                if (converted != unswizzled) {
+                    g_free(converted);
+                }
                 g_free(unswizzled);
 
                 texture_data += width * height * f.bytes_per_pixel;
@@ -1925,7 +1975,9 @@ static gboolean texture_key_equal(gconstpointer a, gconstpointer b)
 static gpointer texture_key_retrieve(gpointer key, gpointer user_data)
 {
     const TextureKey *k = key;
-    TextureBinding *v = generate_texture(k->state, k->texture_data);
+    TextureBinding *v = generate_texture(k->state,
+                                         k->texture_data,
+                                         k->palette_data);
     return v;
 }
 static void texture_key_destroy(gpointer data)
@@ -1987,6 +2039,23 @@ static void pgraph_bind_textures(NV2AState *d)
 
         unsigned int offset = pg->regs[NV_PGRAPH_TEXOFFSET0 + i*4];
 
+        uint32_t palette =  pg->regs[NV_PGRAPH_TEXPALETTE0 + i*4];
+        unsigned int palette_dma_select =
+            GET_MASK(palette, NV_PGRAPH_TEXPALETTE0_CONTEXT_DMA);
+        unsigned int palette_length_index =
+            GET_MASK(palette, NV_PGRAPH_TEXPALETTE0_LENGTH);
+        unsigned int palette_offset =
+            palette & NV_PGRAPH_TEXPALETTE0_OFFSET;
+
+        unsigned int palette_length = 0;
+        switch (palette_length_index) {
+        case NV_PGRAPH_TEXPALETTE0_LENGTH_256: palette_length = 256; break;
+        case NV_PGRAPH_TEXPALETTE0_LENGTH_128: palette_length = 128; break;
+        case NV_PGRAPH_TEXPALETTE0_LENGTH_64: palette_length = 64; break;
+        case NV_PGRAPH_TEXPALETTE0_LENGTH_32: palette_length = 32; break;
+        default: assert(false); break;
+        }
+
         if (dimensionality != 2) continue;
 
         glActiveTexture(GL_TEXTURE0 + i);
@@ -2039,6 +2108,16 @@ static void pgraph_bind_textures(NV2AState *d)
         assert(offset < dma_len);
         texture_data += offset;
 
+        hwaddr palette_dma_len;
+        uint8_t *palette_data;
+        if (palette_dma_select) {
+            palette_data = nv_dma_map(d, pg->dma_b, &palette_dma_len);
+        } else {
+            palette_data = nv_dma_map(d, pg->dma_a, &palette_dma_len);
+        }
+        assert(palette_offset < palette_dma_len);
+        palette_data += palette_offset;
+
         NV2A_DPRINTF(" - 0x%tx\n", texture_data - d->vram_ptr);
 
         size_t length = 0;
@@ -2068,8 +2147,10 @@ static void pgraph_bind_textures(NV2AState *d)
 #ifdef USE_TEXTURE_CACHE
         TextureKey key = {
             .state = state,
-            .data_hash = fast_hash(texture_data, length, 1000),
+            .data_hash = fast_hash(texture_data, length, 1000)
+                            ^ fnv_hash(palette_data, palette_length),
             .texture_data = texture_data,
+            .palette_data = palette_data,
         };
 
         gpointer cache_key = g_malloc(sizeof(TextureKey));
@@ -2079,7 +2160,8 @@ static void pgraph_bind_textures(NV2AState *d)
         assert(binding);
         binding->refcnt++;
 #else
-        TextureBinding *binding = generate_texture(state, texture_data);
+        TextureBinding *binding = generate_texture(state,
+                                                   texture_data, palette_data);
 #endif
 
         glBindTexture(binding->gl_target, binding->gl_texture);
@@ -4147,6 +4229,23 @@ static void pgraph_method(NV2AState *d,
         pg->regs[NV_PGRAPH_TEXIMAGERECT0 + slot * 4] = parameter;
         pg->texture_dirty[slot] = true;
         break;
+    CASE_4(NV097_SET_TEXTURE_PALETTE, 64): {
+        slot = (class_method - NV097_SET_TEXTURE_IMAGE_RECT) / 64;
+        bool dma_select =
+            GET_MASK(parameter, NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA) == 1;
+        unsigned int length =
+            GET_MASK(parameter, NV097_SET_TEXTURE_PALETTE_LENGTH);
+        unsigned int offset =
+            GET_MASK(parameter, NV097_SET_TEXTURE_PALETTE_OFFSET);
+
+        uint32_t *reg = &pg->regs[NV_PGRAPH_TEXPALETTE0 + slot * 4];
+        SET_MASK(*reg, NV_PGRAPH_TEXPALETTE0_CONTEXT_DMA, dma_select);
+        SET_MASK(*reg, NV_PGRAPH_TEXPALETTE0_LENGTH, length);
+        SET_MASK(*reg, NV_PGRAPH_TEXPALETTE0_OFFSET, offset);
+
+        pg->texture_dirty[slot] = true;
+        break;
+    }
 
     case NV097_ARRAY_ELEMENT16:
         assert(pg->inline_elements_length < NV2A_MAX_BATCH_LENGTH);
