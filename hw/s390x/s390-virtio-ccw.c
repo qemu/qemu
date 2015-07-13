@@ -25,6 +25,7 @@
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
 #include "hw/compat.h"
+#include "ipl.h"
 #include "hw/s390x/s390-virtio-ccw.h"
 
 static const char *const reset_dev_types[] = {
@@ -317,7 +318,12 @@ static const TypeInfo ccw_machine_info = {
     type_init(ccw_machine_register_##suffix)
 
 #define CCW_COMPAT_2_6 \
-        HW_COMPAT_2_6
+        HW_COMPAT_2_6 \
+        {\
+            .driver   = TYPE_S390_IPL,\
+            .property = "iplbext_migration",\
+            .value    = "off",\
+        },
 
 #define CCW_COMPAT_2_5 \
         CCW_COMPAT_2_6 \

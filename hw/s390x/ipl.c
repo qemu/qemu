@@ -30,6 +30,24 @@
 #define ZIPL_IMAGE_START                0x009000UL
 #define IPL_PSW_MASK                    (PSW_MASK_32 | PSW_MASK_64)
 
+static bool iplb_extended_needed(void *opaque)
+{
+    S390IPLState *ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
+
+    return ipl->iplbext_migration;
+}
+
+static const VMStateDescription vmstate_iplb_extended = {
+    .name = "ipl/iplb_extended",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .needed = iplb_extended_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8_ARRAY(reserved_ext, IplParameterBlock, 4096 - 200),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_iplb = {
     .name = "ipl/iplb",
     .version_id = 0,
@@ -39,6 +57,10 @@ static const VMStateDescription vmstate_iplb = {
         VMSTATE_UINT16(devno, IplParameterBlock),
         VMSTATE_UINT8_ARRAY(reserved2, IplParameterBlock, 88),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_iplb_extended,
+        NULL
     }
 };
 
@@ -181,6 +203,8 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_STRING("cmdline", S390IPLState, cmdline),
     DEFINE_PROP_STRING("firmware", S390IPLState, firmware),
     DEFINE_PROP_BOOL("enforce_bios", S390IPLState, enforce_bios, false),
+    DEFINE_PROP_BOOL("iplbext_migration", S390IPLState, iplbext_migration,
+                     true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

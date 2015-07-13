@@ -15,11 +15,59 @@
 #include "hw/qdev.h"
 #include "cpu.h"
 
-typedef struct IplParameterBlock {
-      uint8_t  reserved1[110];
-      uint16_t devno;
-      uint8_t  reserved2[88];
-} IplParameterBlock;
+struct IplBlockCcw {
+    uint8_t  reserved0[86];
+    uint16_t devno;
+    uint8_t  vm_flags;
+    uint8_t  reserved3[3];
+    uint32_t vm_parm_len;
+    uint8_t  nss_name[8];
+    uint8_t  vm_parm[64];
+    uint8_t  reserved4[8];
+} QEMU_PACKED;
+typedef struct IplBlockCcw IplBlockCcw;
+
+struct IplBlockFcp {
+    uint8_t  reserved1[305 - 1];
+    uint8_t  opt;
+    uint8_t  reserved2[3];
+    uint16_t reserved3;
+    uint16_t devno;
+    uint8_t  reserved4[4];
+    uint64_t wwpn;
+    uint64_t lun;
+    uint32_t bootprog;
+    uint8_t  reserved5[12];
+    uint64_t br_lba;
+    uint32_t scp_data_len;
+    uint8_t  reserved6[260];
+    uint8_t  scp_data[];
+} QEMU_PACKED;
+typedef struct IplBlockFcp IplBlockFcp;
+
+union IplParameterBlock {
+    struct {
+        uint32_t len;
+        uint8_t  reserved0[3];
+        uint8_t  version;
+        uint32_t blk0_len;
+        uint8_t  pbt;
+        uint8_t  flags;
+        uint16_t reserved01;
+        uint8_t  loadparm[8];
+        union {
+            IplBlockCcw ccw;
+            IplBlockFcp fcp;
+        };
+    } QEMU_PACKED;
+    struct {
+        uint8_t  reserved1[110];
+        uint16_t devno;
+        uint8_t  reserved2[88];
+        uint8_t  reserved_ext[4096 - 200];
+    } QEMU_PACKED;
+} QEMU_PACKED;
+typedef union IplParameterBlock IplParameterBlock;
 
 void s390_ipl_update_diag308(IplParameterBlock *iplb);
 void s390_ipl_prepare_cpu(S390CPU *cpu);
@@ -47,7 +95,10 @@ struct S390IPLState {
     uint8_t cssid;
     uint8_t ssid;
     uint16_t devno;
+    bool iplbext_migration;
 };
 typedef struct S390IPLState S390IPLState;
+
+#define S390_IPLB_MIN_CCW_LEN 200
 
 #endif
