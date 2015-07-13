@@ -1041,7 +1041,8 @@ typedef struct ColorFormatInfo {
 
 static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8] =
-        {1, false, GL_R8, GL_RED, GL_UNSIGNED_BYTE}, /* FIXME: luminance, not red */
+        {1, false, GL_R8, GL_RED, GL_UNSIGNED_BYTE,
+         {GL_RED, GL_RED, GL_RED, GL_RED}},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5] =
         {2, false, GL_RGB5_A1, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5] =
