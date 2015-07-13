@@ -1955,14 +1955,16 @@ static uint8_t* convert_texture_data(const TextureShape s,
             }
         }
         return converted_data;
-    } else if (s.color_format == NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8) {
+    } else if (s.color_format
+                   == NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8) {
         uint8_t* converted_data = g_malloc(width * height * 4);
         int x, y;
         for (y = 0; y < height; y++) {
             uint8_t* line = &data[y * s.width * 2];
             for (x = 0; x < width; x++) {
                 uint8_t* pixel = &converted_data[(y * s.width + x) * 4];
-                convert_yuy2_to_rgb(line,x,&pixel[0],&pixel[1],&pixel[2]); /* FIXME: Actually needs uyvy? */
+                /* FIXME: Actually needs uyvy? */
+                convert_yuy2_to_rgb(line,x,&pixel[0],&pixel[1],&pixel[2]);
                 pixel[3] = 255;
           }
         }
