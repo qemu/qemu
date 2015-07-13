@@ -30,6 +30,7 @@
 
 #include <GL/glew.h>
 #include <GL/glx.h>
+#include <GL/glxext.h>
 #include <GL/glut.h>
 #include <X11/Xlib.h>
 
@@ -52,8 +53,8 @@ GloContext *glo_context_create(int formatFlags)
 
     if (!initialized) {    
         x_display = XOpenDisplay(0);     
-	      printf("gloffscreen: GLX_VERSION = %s\n", glXGetClientString(x_display, GLX_VERSION));
-	      printf("gloffscreen: GLX_VENDOR = %s\n", glXGetClientString(x_display, GLX_VENDOR));
+        printf("gloffscreen: GLX_VERSION = %s\n", glXGetClientString(x_display, GLX_VERSION));
+        printf("gloffscreen: GLX_VENDOR = %s\n", glXGetClientString(x_display, GLX_VENDOR));
     } else {
         printf("gloffscreen already inited\n");
         exit(EXIT_FAILURE);
@@ -95,17 +96,35 @@ GloContext *glo_context_create(int formatFlags)
 #endif
 
     /* Create GLX context */
-    context->glx_context = glXCreateNewContext(x_display, configs[0], GLX_RGBA_TYPE, NULL, True);
+    PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB =
+        (PFNGLXCREATECONTEXTATTRIBSARBPROC)
+            glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
+    if (glXCreateContextAttribsARB == NULL) {
+        fprintf(stderr,"GLX doesn't support ARB_create_context extension.\n");
+        exit(EXIT_FAILURE);
+    }
+    int context_attribute_list[] = {
+        GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
+        GLX_CONTEXT_MINOR_VERSION_ARB, 3,
+        GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+        None
+    };
+    context->glx_context = glXCreateContextAttribsARB(x_display, configs[0], 0, True, context_attribute_list);
+    XSync(x_display, False);
     if (context->glx_context == NULL) return NULL;
     glo_set_current(context);
 
     if (!initialized) {
         /* Initialize glew */
+        glewExperimental = GL_TRUE;
         if (GLEW_OK != glewInit()) {
             /* GLEW failed! */
-            printf("Glew init failed.");
-            exit(1);
+            fprintf(stderr,"GLEW init failed.\n");
+            exit(EXIT_FAILURE);
         }
+
+        /* Get rid of GLEW errors */
+        while(glGetError() != GL_NO_ERROR);
     }
 
     initialized = true;
@@ -132,6 +151,6 @@ void glo_context_destroy(GloContext *context)
 {
     if (!context) { return; }
     glo_set_current(NULL);
-   	glXDestroyContext(x_display, context->glx_context);
+    glXDestroyContext(x_display, context->glx_context);
 }
 
