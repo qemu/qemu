@@ -106,7 +106,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 # define NV2A_GL_DGROUP_END() \
     gl_debug_group_end()
 # define NV2A_GL_DLABEL(target, name, format, ...)  \
-    gl_debug_label(target, name, "nv2a: " format, ## __VA_ARGS__)
+    gl_debug_label(target, name, "nv2a: { " format " }", ## __VA_ARGS__)
 
 #else
 # define NV2A_GL_DPRINTF(cc, format, ...)          do { } while (0)
@@ -1956,7 +1956,7 @@ static TextureBinding* generate_texture(const TextureShape s,
     glBindTexture(gl_target, gl_texture);
 
     NV2A_GL_DLABEL(GL_TEXTURE, gl_texture,
-                   "NV2A { Format: 0x%02X%s, Width: %i }",
+                   "format: 0x%02X%s, width: %i",
                    s.color_format, f.linear ? "" : " (SZ)", s.width);
 
     if (f.linear) {
