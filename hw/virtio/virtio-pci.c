@@ -546,7 +546,8 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
         off = le32_to_cpu(cfg->cap.offset);
         len = le32_to_cpu(cfg->cap.length);
 
-        if (len <= sizeof cfg->pci_cfg_data) {
+        if (len == 1 || len == 2 || len == 4) {
+            assert(len <= sizeof cfg->pci_cfg_data);
             virtio_address_space_write(&proxy->modern_as, off,
                                        cfg->pci_cfg_data, len);
         }
@@ -570,7 +571,8 @@ static uint32_t virtio_read_config(PCIDevice *pci_dev,
         off = le32_to_cpu(cfg->cap.offset);
         len = le32_to_cpu(cfg->cap.length);
 
-        if (len <= sizeof cfg->pci_cfg_data) {
+        if (len == 1 || len == 2 || len == 4) {
+            assert(len <= sizeof cfg->pci_cfg_data);
             virtio_address_space_read(&proxy->modern_as, off,
                                       cfg->pci_cfg_data, len);
         }

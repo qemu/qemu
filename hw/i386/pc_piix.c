@@ -492,7 +492,7 @@ DEFINE_I440FX_MACHINE(v2_4, "pc-i440fx-2.4", NULL,
 
 static void pc_i440fx_2_3_machine_options(MachineClass *m)
 {
-    pc_i440fx_machine_options(m);
+    pc_i440fx_2_4_machine_options(m);
     m->alias = NULL;
     m->is_default = 0;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_3);
