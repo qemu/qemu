@@ -4491,8 +4491,9 @@ static void pgraph_method(NV2AState *d,
         unsigned int ymax = GET_MASK(pg->regs[NV_PGRAPH_CLEARRECTY],
                 NV_PGRAPH_CLEARRECTY_YMAX);
 
-        /* FIXME: Maybe "pg->surface_shape.clip_height-ymax" instead of ymin? */
-        glScissor(xmin, ymin, xmax-xmin+1, ymax-ymin+1);
+        /* FIXME: Should this really be inverted instead of ymin? */
+        glScissor(xmin, pg->surface_shape.clip_height-ymax,
+                  xmax-xmin+1, ymax-ymin+1);
 
         NV2A_DPRINTF("------------------CLEAR 0x%x %d,%d - %d,%d  %x---------------\n",
             parameter, xmin, ymin, xmax, ymax, d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE]);
