@@ -44,6 +44,77 @@
 # define NV2A_DPRINTF(format, ...)       do { } while (0)
 #endif
 
+#define DEBUG_NV2A_GL
+#ifdef DEBUG_NV2A_GL
+
+static void gl_debug_message(bool cc, const char *fmt, ...)
+{
+    size_t n;
+    char buffer[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    n = vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    assert(n <= sizeof(buffer));
+    va_end(ap);
+    glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER,
+                         0, GL_DEBUG_SEVERITY_NOTIFICATION, n, buffer);
+    if (cc) {
+        fwrite(buffer, sizeof(char), n, stdout);
+        fputc('\n', stdout);
+    }
+}
+
+static void gl_debug_group_begin(const char *fmt, ...)
+{
+    size_t n;
+    char buffer[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    n = vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    assert(n <= sizeof(buffer));
+    va_end(ap);
+
+    /* Check for errors before entering group */
+    assert(glGetError() == GL_NO_ERROR);
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, n, buffer);
+}
+
+static void gl_debug_group_end(void)
+{
+    /* Check for errors when leaving group */
+    assert(glGetError() == GL_NO_ERROR);
+    glPopDebugGroup();
+}
+
+static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
+{
+    size_t n;
+    char buffer[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    n = vsnprintf(buffer, sizeof(buffer), fmt, ap);
+    assert(n <= sizeof(buffer));
+    va_end(ap);
+
+    glObjectLabel(target, name, n, buffer);
+}
+
+# define NV2A_GL_DPRINTF(cc, format, ...) \
+    gl_debug_message(cc, "nv2a: " format, ## __VA_ARGS__)
+# define NV2A_GL_DGROUP_BEGIN(format, ...) \
+    gl_debug_group_begin("nv2a: " format, ## __VA_ARGS__)
+# define NV2A_GL_DGROUP_END() \
+    gl_debug_group_end()
+# define NV2A_GL_DLABEL(target, name, format, ...)  \
+    gl_debug_label(target, name, "nv2a: " format, ## __VA_ARGS__)
+
+#else
+# define NV2A_GL_DPRINTF(cc, format, ...)          do { } while (0)
+# define NV2A_GL_DGROUP_BEGIN(format, ...)         do { } while (0)
+# define NV2A_GL_DGROUP_END()                      do { } while (0)
+# define NV2A_GL_DLABEL(target, name, format, ...) do { } while (0)
+#endif
+
 #define USE_TEXTURE_CACHE
 
 #define NV_NUM_BLOCKS 21
@@ -1703,6 +1774,12 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
     int i, j;
     PGRAPHState *pg = &d->pgraph;
 
+    if (inline_data) {
+        NV2A_GL_DGROUP_BEGIN("%s (num_elements: %d inline stride: %d)",
+                             __func__, num_elements, inline_stride);
+    } else {
+        NV2A_GL_DGROUP_BEGIN("%s (num_elements: %d)", __func__, num_elements);
+    }
 
     for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
         VertexAttribute *attribute = &pg->vertex_attributes[i];
@@ -1794,6 +1871,7 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
             glVertexAttrib4ubv(i, (GLubyte *)&attribute->inline_value);
         }
     }
+    NV2A_GL_DGROUP_END();
 }
 
 static unsigned int pgraph_bind_inline_array(NV2AState *d)
@@ -1876,9 +1954,10 @@ static TextureBinding* generate_texture(const TextureShape s,
     }
 
     glBindTexture(gl_target, gl_texture);
-    char label[256];
-    sprintf(label, "NV2A { Format: 0x%02X%s, Width: %i }",s.color_format,f.linear?"":" (SZ)",s.width);
-    glObjectLabel(GL_TEXTURE, gl_texture, strlen(label), label);
+
+    NV2A_GL_DLABEL(GL_TEXTURE, gl_texture,
+                   "NV2A { Format: 0x%02X%s, Width: %i }",
+                   s.color_format, f.linear ? "" : " (SZ)", s.width);
 
     if (f.linear) {
         /* Can't handle retarded strides */
@@ -2002,6 +2081,8 @@ static void pgraph_bind_textures(NV2AState *d)
 {
     int i;
     PGRAPHState *pg = &d->pgraph;
+
+    NV2A_GL_DGROUP_BEGIN("%s", __func__);
 
     for (i=0; i<NV2A_MAX_TEXTURES; i++) {
 
@@ -2196,6 +2277,7 @@ static void pgraph_bind_textures(NV2AState *d)
         pg->texture_binding[i] = binding;
         pg->texture_dirty[i] = false;
     }
+    NV2A_GL_DGROUP_END();
 }
 
 /* hash and equality for shader cache hash table */
@@ -2560,6 +2642,10 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     int program_start = GET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
                                  NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START);
 
+    NV2A_GL_DGROUP_BEGIN("%s (VP: %s FFP: %s)", __func__,
+                         vertex_program ? "yes" : "no",
+                         fixed_function ? "yes" : "no");
+
     ShaderBinding* old_binding = pg->shader_binding;
     bool binding_changed = false;
 
@@ -2736,7 +2822,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             glUniform2f(loc, zclip_min, zclip_max);
         }
     }
-
+    NV2A_GL_DGROUP_END();
 }
 
 static void pgraph_get_surface_dimensions(NV2AState *d,
@@ -3156,6 +3242,10 @@ static void pgraph_init(NV2AState *d)
     pg->gl_context = glo_context_create(GLO_FF_DEFAULT);
     assert(pg->gl_context);
 
+#ifdef DEBUG_NV2A_GL
+    glEnable(GL_DEBUG_OUTPUT);
+#endif
+
     glextensions_init();
 
     assert(glo_check_extension("GL_EXT_texture_compression_s3tc"));
@@ -3343,10 +3433,7 @@ static void pgraph_method(NV2AState *d,
         /* I guess this kicks it off? */
         if (image_blit->operation == NV09F_SET_OPERATION_SRCCOPY) {
 
-            char message[256];
-            sprintf(message,"NV2A: NV09F_SET_OPERATION_SRCCOPY");
-            glEnable(GL_DEBUG_OUTPUT); //FIXME: Elsewhere
-            glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER, 0, GL_DEBUG_SEVERITY_NOTIFICATION, strlen(message), message);
+            NV2A_GL_DPRINTF(false, "NV2A: NV09F_SET_OPERATION_SRCCOPY");
 
             GraphicsObject *context_surfaces_obj =
                 lookup_graphics_object(pg, image_blit->context_surfaces);
@@ -4078,8 +4165,9 @@ static void pgraph_method(NV2AState *d,
             }/* else {
                 assert(false);
             }*/
-            assert(glGetError() == GL_NO_ERROR);
+            NV2A_GL_DGROUP_END();
         } else {
+            NV2A_GL_DGROUP_BEGIN("NV097_SET_BEGIN_END: 0x%x", parameter);
             assert(parameter <= NV097_SET_BEGIN_END_OP_POLYGON);
 
             pgraph_update_surface(d, true, true, depth_test || stencil_test);
@@ -4429,8 +4517,8 @@ static void pgraph_method(NV2AState *d,
         break;
 
     default:
-        NV2A_DPRINTF("    unhandled  (0x%02x 0x%08x)\n",
-                     object->graphics_class, method);
+        NV2A_GL_DPRINTF(true, "    unhandled  (0x%02x 0x%08x)",
+                        object->graphics_class, method);
         break;
     }
 }
@@ -5896,8 +5984,8 @@ static void pgraph_method_log(unsigned int subchannel,
     static unsigned int last = 0;
     static unsigned int count = 0;
     if (last == 0x1800 && method != last) {
-        NV2A_DPRINTF("pgraph method (%d) 0x%x * %d\n",
-                        subchannel, last, count);
+        NV2A_DPRINTF("pgraph method (%d) 0x%x * %d",
+                     subchannel, last, count);
     }
     if (method != 0x1800) {
         const char* method_name = NULL;
@@ -5917,10 +6005,10 @@ static void pgraph_method_log(unsigned int subchannel,
         }
         if (method_name) {
             NV2A_DPRINTF("pgraph method (%d): %s (0x%x)\n",
-                     subchannel, method_name, parameter);
+                         subchannel, method_name, parameter);
         } else {
             NV2A_DPRINTF("pgraph method (%d): 0x%x -> 0x%04x (0x%x)\n",
-                     subchannel, graphics_class, method, parameter);
+                         subchannel, graphics_class, method, parameter);
         }
 
     }
