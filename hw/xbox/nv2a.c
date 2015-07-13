@@ -4371,7 +4371,7 @@ static void pgraph_method(NV2AState *d,
         break;
     CASE_4(NV097_SET_TEXTURE_PALETTE, 64): {
         slot = (class_method - NV097_SET_TEXTURE_PALETTE) / 64;
-        
+
         bool dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA) == 1;
         unsigned int length =
