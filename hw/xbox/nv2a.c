@@ -1665,12 +1665,12 @@ static void pgraph_update_memory_buffer(NV2AState *d, hwaddr addr, hwaddr size,
 
     hwaddr end = TARGET_PAGE_ALIGN(addr + size);
     addr &= TARGET_PAGE_MASK;
+    assert(end < memory_region_size(d->vram));
     if (f || memory_region_test_and_clear_dirty(d->vram,
                                                 addr,
                                                 end - addr,
                                                 DIRTY_MEMORY_NV2A)) {
-        glBufferSubData(GL_ARRAY_BUFFER, addr, end - addr,
-                            d->vram_ptr + addr);
+        glBufferSubData(GL_ARRAY_BUFFER, addr, end - addr, d->vram_ptr + addr);
     }
 }
 
@@ -3861,7 +3861,7 @@ static void pgraph_method(NV2AState *d,
             vertex_attribute->needs_conversion = false;
             break;
         case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S32K:
-            vertex_attribute->gl_type = GL_UNSIGNED_SHORT;
+            vertex_attribute->gl_type = GL_SHORT;
             vertex_attribute->gl_normalize = GL_FALSE;
             vertex_attribute->size = 2;
             vertex_attribute->needs_conversion = false;
