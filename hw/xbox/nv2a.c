@@ -1982,6 +1982,8 @@ static TextureBinding* generate_texture(const TextureShape s,
 
         int level;
         for (level = 0; level < s.levels; level++) {
+            if (width < 1) width = 1;
+            if (height < 1) height = 1;
             if (f.gl_format == 0) { /* retarded way of indicating compressed */
                 unsigned int block_size;
                 if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
