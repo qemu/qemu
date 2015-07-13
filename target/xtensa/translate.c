@@ -2813,10 +2813,10 @@ static void translate_wur(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_mov_i32(cpu_UR[par[0]], arg[0].in);
 }
 
-static void translate_wur_fcr(DisasContext *dc, const OpcodeArg arg[],
-                              const uint32_t par[])
+static void translate_wur_fpu2k_fcr(DisasContext *dc, const OpcodeArg arg[],
+                                    const uint32_t par[])
 {
-    gen_helper_wur_fcr(cpu_env, arg[0].in);
+    gen_helper_wur_fpu2k_fcr(cpu_env, arg[0].in);
 }
 
 static void translate_wur_fsr(DisasContext *dc, const OpcodeArg arg[],
@@ -5583,7 +5583,7 @@ static const XtensaOpcodeOps core_ops[] = {
         .par = (const uint32_t[]){EXPSTATE},
     }, {
         .name = "wur.fcr",
-        .translate = translate_wur_fcr,
+        .translate = translate_wur_fpu2k_fcr,
         .par = (const uint32_t[]){FCR},
         .coprocessor = 0x1,
     }, {
@@ -6331,11 +6331,11 @@ static void translate_abs_s(DisasContext *dc, const OpcodeArg arg[],
     gen_helper_abs_s(arg[0].out, arg[1].in);
 }
 
-static void translate_add_s(DisasContext *dc, const OpcodeArg arg[],
-                            const uint32_t par[])
+static void translate_fpu2k_add_s(DisasContext *dc, const OpcodeArg arg[],
+                                  const uint32_t par[])
 {
-    gen_helper_add_s(arg[0].out, cpu_env,
-                     arg[1].in, arg[2].in);
+    gen_helper_fpu2k_add_s(arg[0].out, cpu_env,
+                           arg[1].in, arg[2].in);
 }
 
 enum {
@@ -6373,9 +6373,9 @@ static void translate_float_s(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 scale = tcg_const_i32(-arg[2].imm);
 
     if (par[0]) {
-        gen_helper_uitof(arg[0].out, cpu_env, arg[1].in, scale);
+        gen_helper_uitof_s(arg[0].out, cpu_env, arg[1].in, scale);
     } else {
-        gen_helper_itof(arg[0].out, cpu_env, arg[1].in, scale);
+        gen_helper_itof_s(arg[0].out, cpu_env, arg[1].in, scale);
     }
     tcg_temp_free(scale);
 }
@@ -6387,11 +6387,11 @@ static void translate_ftoi_s(DisasContext *dc, const OpcodeArg arg[],
     TCGv_i32 scale = tcg_const_i32(arg[2].imm);
 
     if (par[1]) {
-        gen_helper_ftoui(arg[0].out, arg[1].in,
-                         rounding_mode, scale);
+        gen_helper_ftoui_s(arg[0].out, arg[1].in,
+                           rounding_mode, scale);
     } else {
-        gen_helper_ftoi(arg[0].out, arg[1].in,
-                        rounding_mode, scale);
+        gen_helper_ftoi_s(arg[0].out, arg[1].in,
+                          rounding_mode, scale);
     }
     tcg_temp_free(rounding_mode);
     tcg_temp_free(scale);
@@ -6433,11 +6433,11 @@ static void translate_ldstx(DisasContext *dc, const OpcodeArg arg[],
     tcg_temp_free(addr);
 }
 
-static void translate_madd_s(DisasContext *dc, const OpcodeArg arg[],
-                             const uint32_t par[])
+static void translate_fpu2k_madd_s(DisasContext *dc, const OpcodeArg arg[],
+                                   const uint32_t par[])
 {
-    gen_helper_madd_s(arg[0].out, cpu_env,
-                      arg[0].in, arg[1].in, arg[2].in);
+    gen_helper_fpu2k_madd_s(arg[0].out, cpu_env,
+                            arg[0].in, arg[1].in, arg[2].in);
 }
 
 static void translate_mov_s(DisasContext *dc, const OpcodeArg arg[],
@@ -6471,18 +6471,18 @@ static void translate_movp_s(DisasContext *dc, const OpcodeArg arg[],
     tcg_temp_free(zero);
 }
 
-static void translate_mul_s(DisasContext *dc, const OpcodeArg arg[],
-                            const uint32_t par[])
+static void translate_fpu2k_mul_s(DisasContext *dc, const OpcodeArg arg[],
+                                  const uint32_t par[])
 {
-    gen_helper_mul_s(arg[0].out, cpu_env,
-                     arg[1].in, arg[2].in);
+    gen_helper_fpu2k_mul_s(arg[0].out, cpu_env,
+                           arg[1].in, arg[2].in);
 }
 
-static void translate_msub_s(DisasContext *dc, const OpcodeArg arg[],
-                             const uint32_t par[])
+static void translate_fpu2k_msub_s(DisasContext *dc, const OpcodeArg arg[],
+                                   const uint32_t par[])
 {
-    gen_helper_msub_s(arg[0].out, cpu_env,
-                      arg[0].in, arg[1].in, arg[2].in);
+    gen_helper_fpu2k_msub_s(arg[0].out, cpu_env,
+                            arg[0].in, arg[1].in, arg[2].in);
 }
 
 static void translate_neg_s(DisasContext *dc, const OpcodeArg arg[],
@@ -6497,11 +6497,11 @@ static void translate_rfr_s(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_mov_i32(arg[0].out, arg[1].in);
 }
 
-static void translate_sub_s(DisasContext *dc, const OpcodeArg arg[],
-                            const uint32_t par[])
+static void translate_fpu2k_sub_s(DisasContext *dc, const OpcodeArg arg[],
+                                  const uint32_t par[])
 {
-    gen_helper_sub_s(arg[0].out, cpu_env,
-                     arg[1].in, arg[2].in);
+    gen_helper_fpu2k_sub_s(arg[0].out, cpu_env,
+                           arg[1].in, arg[2].in);
 }
 
 static void translate_wfr_s(DisasContext *dc, const OpcodeArg arg[],
@@ -6517,7 +6517,7 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .coprocessor = 0x1,
     }, {
         .name = "add.s",
-        .translate = translate_add_s,
+        .translate = translate_fpu2k_add_s,
         .coprocessor = 0x1,
     }, {
         .name = "ceil.s",
@@ -6560,7 +6560,7 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .coprocessor = 0x1,
     }, {
         .name = "madd.s",
-        .translate = translate_madd_s,
+        .translate = translate_fpu2k_madd_s,
         .coprocessor = 0x1,
     }, {
         .name = "mov.s",
@@ -6598,11 +6598,11 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .coprocessor = 0x1,
     }, {
         .name = "msub.s",
-        .translate = translate_msub_s,
+        .translate = translate_fpu2k_msub_s,
         .coprocessor = 0x1,
     }, {
         .name = "mul.s",
-        .translate = translate_mul_s,
+        .translate = translate_fpu2k_mul_s,
         .coprocessor = 0x1,
     }, {
         .name = "neg.s",
@@ -6658,7 +6658,7 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .coprocessor = 0x1,
     }, {
         .name = "sub.s",
-        .translate = translate_sub_s,
+        .translate = translate_fpu2k_sub_s,
         .coprocessor = 0x1,
     }, {
         .name = "trunc.s",
