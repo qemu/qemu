@@ -1922,7 +1922,8 @@ static uint8_t cliptobyte(int x)
     return (uint8_t)((x < 0) ? 0 : ((x > 255) ? 255 : x));
 }
 
-static void convert_yuy2_to_rgb(uint8_t* line, unsigned int ix, uint8_t* r, uint8_t* g, uint8_t* b) {
+static void convert_yuy2_to_rgb(const uint8_t *line, unsigned int ix,
+                                uint8_t *r, uint8_t *g, uint8_t* b) {
     int c, d, e;
     c = (int)line[ix * 2] - 16;
     if (ix % 2) {
@@ -1932,14 +1933,13 @@ static void convert_yuy2_to_rgb(uint8_t* line, unsigned int ix, uint8_t* r, uint
         d = (int)line[ix * 2 + 1] - 128;
         e = (int)line[ix * 2 + 3] - 128;
     }
-    if (r) { *r = cliptobyte((298 * c + 409 * e + 128) >> 8); }
-    if (g) { *g = cliptobyte((298 * c - 100 * d - 208 * e + 128) >> 8); }
-    if (b) { *b = cliptobyte((298 * c + 516 * d + 128) >> 8); }
-    return;
+    *r = cliptobyte((298 * c + 409 * e + 128) >> 8);
+    *g = cliptobyte((298 * c - 100 * d - 208 * e + 128) >> 8);
+    *b = cliptobyte((298 * c + 516 * d + 128) >> 8);
 }
 
 static uint8_t* convert_texture_data(const TextureShape s,
-                                     uint8_t *data,
+                                     const uint8_t *data,
                                      const uint8_t *palette_data,
                                      unsigned int width, unsigned int height,
                                      unsigned int pitch)
@@ -1960,17 +1960,17 @@ static uint8_t* convert_texture_data(const TextureShape s,
         uint8_t* converted_data = g_malloc(width * height * 4);
         int x, y;
         for (y = 0; y < height; y++) {
-            uint8_t* line = &data[y * s.width * 2];
+            const uint8_t* line = &data[y * s.width * 2];
             for (x = 0; x < width; x++) {
                 uint8_t* pixel = &converted_data[(y * s.width + x) * 4];
                 /* FIXME: Actually needs uyvy? */
-                convert_yuy2_to_rgb(line,x,&pixel[0],&pixel[1],&pixel[2]);
+                convert_yuy2_to_rgb(line, x, &pixel[0], &pixel[1], &pixel[2]);
                 pixel[3] = 255;
           }
         }
         return converted_data;
     } else {
-        return data;
+        return NULL;
     }
 }
 
@@ -2016,9 +2016,9 @@ static TextureBinding* generate_texture(const TextureShape s,
         glTexImage2D(gl_target, 0, f.gl_internal_format,
                      s.width, s.height, 0,
                      f.gl_format, f.gl_type,
-                     converted);
+                     converted ? converted : texture_data);
 
-        if (converted != texture_data) {
+        if (converted) {
           g_free(converted);
         }
 
@@ -2066,9 +2066,9 @@ static TextureBinding* generate_texture(const TextureShape s,
                 glTexImage2D(gl_target, level, f.gl_internal_format,
                              width, height, 0,
                              f.gl_format, f.gl_type,
-                             converted);
+                             converted ? converted : unswizzled);
 
-                if (converted != unswizzled) {
+                if (converted) {
                     g_free(converted);
                 }
                 g_free(unswizzled);
@@ -6176,9 +6176,8 @@ static void nv2a_overlay_draw_line(VGACommonState *vga, uint8_t *line, int y)
         int ix = in_s + x;
         if (ix >= in_width) break;
 
-        // YUY2 to RGB
         uint8_t r,g,b;
-        convert_yuy2_to_rgb(in_line,ix,&r,&g,&b);
+        convert_yuy2_to_rgb(in_line, ix, &r, &g, &b);
 
         unsigned int pixel = vga->rgb_to_pixel(r, g, b);
         switch (surf_bpp) {
