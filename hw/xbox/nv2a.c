@@ -1110,7 +1110,7 @@ typedef struct VertexAttribute {
     GLenum gl_type;
     GLboolean gl_normalize;
 
-    GLuint gl_buffer;
+    GLuint gl_converted_buffer;
 } VertexAttribute;
 
 typedef struct VertexShaderConstant {
@@ -1318,6 +1318,7 @@ typedef struct PGRAPHState {
     GLuint gl_inline_buffer_buffer;
 
     GLuint gl_element_buffer;
+    GLuint gl_memory_buffer;
 
     GLuint gl_vertex_array;
 
@@ -1657,6 +1658,21 @@ static GraphicsObject* lookup_graphics_object(PGRAPHState *s,
     return NULL;
 }
 
+static void pgraph_update_memory_buffer(NV2AState *d, hwaddr addr, hwaddr size,
+                                        bool f)
+{
+    glBindBuffer(GL_ARRAY_BUFFER, d->pgraph.gl_memory_buffer);
+
+    hwaddr end = TARGET_PAGE_ALIGN(addr + size);
+    addr &= TARGET_PAGE_MASK;
+    if (f || memory_region_test_and_clear_dirty(d->vram,
+                                                addr,
+                                                end - addr,
+                                                DIRTY_MEMORY_NV2A)) {
+        glBufferSubData(GL_ARRAY_BUFFER, addr, end - addr,
+                            d->vram_ptr + addr);
+    }
+}
 
 static void pgraph_bind_vertex_attributes(NV2AState *d,
                                           unsigned int num_elements,
@@ -1718,7 +1734,7 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
 
                 attribute->converted_elements = num_elements;
 
-                glBindBuffer(GL_ARRAY_BUFFER, attribute->gl_buffer);
+                glBindBuffer(GL_ARRAY_BUFFER, attribute->gl_converted_buffer);
                 glBufferData(GL_ARRAY_BUFFER,
                              num_elements * out_stride,
                              data,
@@ -1739,19 +1755,16 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
                                       inline_stride,
                                       (void*)attribute->inline_array_offset);
             } else {
-
-                glBindBuffer(GL_ARRAY_BUFFER, attribute->gl_buffer);
-                glBufferData(GL_ARRAY_BUFFER,
-                             num_elements * attribute->stride,
-                             data,
-                             GL_DYNAMIC_DRAW);
-
+                hwaddr addr = data - d->vram_ptr;
+                pgraph_update_memory_buffer(d, addr,
+                                            num_elements * attribute->stride,
+                                            false);
                 glVertexAttribPointer(i,
                     attribute->gl_count,
                     attribute->gl_type,
                     attribute->gl_normalize,
                     attribute->stride,
-                    (void*)0);
+                    (void*)addr);
             }
             glEnableVertexAttribArray(i);
         } else {
@@ -2802,6 +2815,10 @@ static void pgraph_update_surface(NV2AState *d,
             assert(glCheckFramebufferStatus(GL_FRAMEBUFFER)
                    == GL_FRAMEBUFFER_COMPLETE);
 
+            pgraph_update_memory_buffer(d, color_dma.address
+                                            + pg->surface_color.offset,
+                                        pg->surface_color.pitch * height, true);
+
             pg->surface_color.buffer_dirty = false;
 
             uint8_t *out = color_data + pg->surface_color.offset + 64;
@@ -2841,6 +2858,10 @@ static void pgraph_update_surface(NV2AState *d,
                                            pg->surface_color.pitch
                                                 * height,
                                            DIRTY_MEMORY_VGA);
+
+            pgraph_update_memory_buffer(d, color_dma.address
+                                            + pg->surface_color.offset,
+                                        pg->surface_color.pitch * height, true);
 
             pg->surface_color.draw_dirty = false;
 
@@ -3027,9 +3048,11 @@ static void pgraph_update_surface(NV2AState *d,
 }
 
 
-static void pgraph_init(PGRAPHState *pg)
+static void pgraph_init(NV2AState *d)
 {
     int i;
+
+    PGRAPHState *pg = &d->pgraph;
 
     qemu_mutex_init(&pg->lock);
     qemu_cond_init(&pg->interrupt_cond);
@@ -3078,11 +3101,18 @@ static void pgraph_init(PGRAPHState *pg)
 
 
     for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
-        glGenBuffers(1, &pg->vertex_attributes[i].gl_buffer);
+        glGenBuffers(1, &pg->vertex_attributes[i].gl_converted_buffer);
     }
     glGenBuffers(1, &pg->gl_inline_array_buffer);
     glGenBuffers(1, &pg->gl_inline_buffer_buffer);
     glGenBuffers(1, &pg->gl_element_buffer);
+
+    glGenBuffers(1, &pg->gl_memory_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, pg->gl_memory_buffer);
+    glBufferData(GL_ARRAY_BUFFER,
+                 memory_region_size(d->vram),
+                 NULL,
+                 GL_DYNAMIC_DRAW);
 
     glGenVertexArrays(1, &pg->gl_vertex_array);
     glBindVertexArray(pg->gl_vertex_array);
@@ -5948,6 +5978,7 @@ static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
     d->ramin_ptr = memory_region_get_ram_ptr(&d->ramin);
 
     memory_region_set_log(d->vram, true, DIRTY_MEMORY_NV2A);
+    memory_region_set_dirty(d->vram, 0, memory_region_size(d->vram));
 
     /* hacky. swap out vga's vram */
     memory_region_destroy(&d->vga.vram);
@@ -5955,6 +5986,14 @@ static void nv2a_init_memory(NV2AState *d, MemoryRegion *ram)
                              d->vram, 0, memory_region_size(d->vram));
     d->vga.vram_ptr = memory_region_get_ram_ptr(&d->vga.vram);
     vga_dirty_log_start(&d->vga);
+
+
+    pgraph_init(d);
+
+    /* fire up puller */
+    qemu_thread_create(&d->pfifo.puller_thread,
+                       pfifo_puller_thread,
+                       d, QEMU_THREAD_JOINABLE);
 }
 
 static int nv2a_initfn(PCIDevice *dev)
@@ -6009,13 +6048,6 @@ static int nv2a_initfn(PCIDevice *dev)
     qemu_cond_init(&d->pfifo.cache1.cache_cond);
     QSIMPLEQ_INIT(&d->pfifo.cache1.cache);
     QSIMPLEQ_INIT(&d->pfifo.cache1.working_cache);
-
-    pgraph_init(&d->pgraph);
-
-    /* fire up puller */
-    qemu_thread_create(&d->pfifo.puller_thread,
-                       pfifo_puller_thread,
-                       d, QEMU_THREAD_JOINABLE);
 
     return 0;
 }
