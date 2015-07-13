@@ -3044,6 +3044,10 @@ static void pgraph_init(PGRAPHState *pg)
     glextensions_init();
 
     /* Check context capabilities */
+    GLint major, minor;
+    glGetIntegerv(GL_MAJOR_VERSION, &major);
+    glGetIntegerv(GL_MINOR_VERSION, &minor);
+    assert(major == 3 && minor == 3);
     assert(glo_check_extension("GL_EXT_texture_compression_s3tc"));
 
     GLint max_vertex_attributes;

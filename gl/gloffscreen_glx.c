@@ -125,17 +125,6 @@ GloContext *glo_context_create(int formatFlags)
 
         /* Get rid of GLEW errors */
         while(glGetError() != GL_NO_ERROR);
-
-        GLint major, minor;
-        glGetIntegerv(GL_MAJOR_VERSION, &major);
-        glGetIntegerv(GL_MINOR_VERSION, &minor);
-        printf("GL %d.%d\n",major,minor);
-#if 0
-        if (GLEW_VERSION_3_3) {
-            printf("OpenGL 3.3 Core not supported!\n");
-            exit(1);
-        }
-#endif
     }
 
     initialized = true;
