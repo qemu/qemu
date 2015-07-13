@@ -44,7 +44,7 @@
 # define NV2A_DPRINTF(format, ...)       do { } while (0)
 #endif
 
-#define DEBUG_NV2A_GL
+// #define DEBUG_NV2A_GL
 #ifdef DEBUG_NV2A_GL
 
 static void gl_debug_message(bool cc, const char *fmt, ...)
