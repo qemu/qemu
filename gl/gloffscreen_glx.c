@@ -30,6 +30,7 @@
 
 #include <GL/glew.h>
 #include <GL/glx.h>
+#include <GL/glxext.h>
 #include <GL/glut.h>
 #include <X11/Xlib.h>
 
@@ -95,15 +96,13 @@ GloContext *glo_context_create(int formatFlags)
 #endif
 
     /* Create GLX context */
-
-    /* FIXME: Check for "GLX_ARB_create_context" extension*/
-    #define GLX_CONTEXT_MAJOR_VERSION_ARB     0x2091
-    #define GLX_CONTEXT_MINOR_VERSION_ARB     0x2092
-    #define GLX_CONTEXT_PROFILE_MASK_ARB     0x9126
-    #define GLX_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
-    typedef GLXContext (*GLXCREATECONTEXTATTRIBSARBPROC)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
-    GLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB = (GLXCREATECONTEXTATTRIBSARBPROC) glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
-    if (glXCreateContextAttribsARB == NULL) return NULL;
+    PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribsARB =
+        (PFNGLXCREATECONTEXTATTRIBSARBPROC)
+            glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
+    if (glXCreateContextAttribsARB == NULL) {
+        printf("GLX doesn't support ARB_create_context extension.\n");
+        exit(1);
+    }
     int context_attribute_list[] = {
         GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
         GLX_CONTEXT_MINOR_VERSION_ARB, 3,
@@ -111,9 +110,6 @@ GloContext *glo_context_create(int formatFlags)
         None
     };
     context->glx_context = glXCreateContextAttribsARB(x_display, configs[0], 0, True, context_attribute_list);
-    if (context->glx_context == NULL) {
-      assert(0);
-    }
     XSync(x_display, False);
     if (context->glx_context == NULL) return NULL;
     glo_set_current(context);
@@ -123,7 +119,7 @@ GloContext *glo_context_create(int formatFlags)
         glewExperimental = GL_TRUE;
         if (GLEW_OK != glewInit()) {
             /* GLEW failed! */
-            printf("GLEW init failed.");
+            printf("GLEW init failed.\n");
             exit(1);
         }
 
