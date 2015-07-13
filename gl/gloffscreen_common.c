@@ -134,15 +134,15 @@ void glo_readpixels(GLenum gl_format, GLenum gl_type,
     /* Faster buffer flip */
     GLubyte *b = (GLubyte *) data;
     GLubyte *c = &((GLubyte *) data)[stride * (height - 1)];
-    GLubyte *tmp = (GLubyte *) g_malloc(stride);
+    GLubyte *tmp = (GLubyte *) g_malloc(width * bytes_per_pixel);
     int irow;
 
     glReadPixels(0, 0, width, height, gl_format, gl_type, data);
 
     for (irow = 0; irow < height / 2; irow++) {
-        memcpy(tmp, b, stride);
-        memcpy(b, c, stride);
-        memcpy(c, tmp, stride);
+        memcpy(tmp, b, width * bytes_per_pixel);
+        memcpy(b, c, width * bytes_per_pixel);
+        memcpy(c, tmp, width * bytes_per_pixel);
         b += stride;
         c -= stride;
     }
