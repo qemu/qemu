@@ -1835,7 +1835,7 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
                 glBindBuffer(GL_ARRAY_BUFFER, attribute->gl_converted_buffer);
                 glBufferData(GL_ARRAY_BUFFER,
                              num_elements * out_stride,
-                             data,
+                             attribute->converted_buffer,
                              GL_DYNAMIC_DRAW);
 
                 glVertexAttribPointer(i,
