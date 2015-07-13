@@ -100,8 +100,8 @@ GloContext *glo_context_create(int formatFlags)
         (PFNGLXCREATECONTEXTATTRIBSARBPROC)
             glXGetProcAddress((const GLubyte*)"glXCreateContextAttribsARB");
     if (glXCreateContextAttribsARB == NULL) {
-        printf("GLX doesn't support ARB_create_context extension.\n");
-        exit(1);
+        fprintf(stderr,"GLX doesn't support ARB_create_context extension.\n");
+        exit(EXIT_FAILURE);
     }
     int context_attribute_list[] = {
         GLX_CONTEXT_MAJOR_VERSION_ARB, 3,
@@ -119,8 +119,8 @@ GloContext *glo_context_create(int formatFlags)
         glewExperimental = GL_TRUE;
         if (GLEW_OK != glewInit()) {
             /* GLEW failed! */
-            printf("GLEW init failed.\n");
-            exit(1);
+            fprintf(stderr,"GLEW init failed.\n");
+            exit(EXIT_FAILURE);
         }
 
         /* Get rid of GLEW errors */
