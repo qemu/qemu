@@ -840,6 +840,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
 #       define NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY            0x000000F0
 #       define NV097_SET_TEXTURE_FORMAT_COLOR                     0x0000FF00
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8             0x00
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5       0x02
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5       0x03
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4       0x04
@@ -855,6 +856,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8             0x19
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8 0x1E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8 0x24
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8           0x28
 # define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED 0x2E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED 0x30
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8B8G8R8       0x3A
@@ -1038,6 +1040,9 @@ typedef struct ColorFormatInfo {
 } ColorFormatInfo;
 
 static const ColorFormatInfo kelvin_color_format_map[66] = {
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8] =
+        {1, false, GL_R8, GL_RED, GL_UNSIGNED_BYTE,
+         {GL_RED, GL_RED, GL_RED, GL_RED}},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5] =
         {2, false, GL_RGB5_A1, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5] =
@@ -1071,9 +1076,13 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
          {GL_ZERO, GL_ZERO, GL_ZERO, GL_RED}},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
         {4, true, GL_RGB8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
+
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8] =
+        {2, false, GL_RG8, GL_RG, GL_UNSIGNED_BYTE},
+
     /* TODO: format conversion */
     [NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8] =
-        {4, false, GL_RGBA8,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {2, true, GL_RGBA8,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED] =
         {4, true, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED] =
@@ -1908,8 +1917,29 @@ static unsigned int pgraph_bind_inline_array(NV2AState *d)
     return index_count;
 }
 
+static uint8_t cliptobyte(int x)
+{
+    return (uint8_t)((x < 0) ? 0 : ((x > 255) ? 255 : x));
+}
+
+static void convert_yuy2_to_rgb(const uint8_t *line, unsigned int ix,
+                                uint8_t *r, uint8_t *g, uint8_t* b) {
+    int c, d, e;
+    c = (int)line[ix * 2] - 16;
+    if (ix % 2) {
+        d = (int)line[ix * 2 - 1] - 128;
+        e = (int)line[ix * 2 + 1] - 128;
+    } else {
+        d = (int)line[ix * 2 + 1] - 128;
+        e = (int)line[ix * 2 + 3] - 128;
+    }
+    *r = cliptobyte((298 * c + 409 * e + 128) >> 8);
+    *g = cliptobyte((298 * c - 100 * d - 208 * e + 128) >> 8);
+    *b = cliptobyte((298 * c + 516 * d + 128) >> 8);
+}
+
 static uint8_t* convert_texture_data(const TextureShape s,
-                                     uint8_t *data,
+                                     const uint8_t *data,
                                      const uint8_t *palette_data,
                                      unsigned int width, unsigned int height,
                                      unsigned int pitch)
@@ -1925,8 +1955,22 @@ static uint8_t* convert_texture_data(const TextureShape s,
             }
         }
         return converted_data;
+    } else if (s.color_format
+                   == NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8) {
+        uint8_t* converted_data = g_malloc(width * height * 4);
+        int x, y;
+        for (y = 0; y < height; y++) {
+            const uint8_t* line = &data[y * s.width * 2];
+            for (x = 0; x < width; x++) {
+                uint8_t* pixel = &converted_data[(y * s.width + x) * 4];
+                /* FIXME: Actually needs uyvy? */
+                convert_yuy2_to_rgb(line, x, &pixel[0], &pixel[1], &pixel[2]);
+                pixel[3] = 255;
+          }
+        }
+        return converted_data;
     } else {
-        return data;
+        return NULL;
     }
 }
 
@@ -1965,10 +2009,18 @@ static TextureBinding* generate_texture(const TextureShape s,
         glPixelStorei(GL_UNPACK_ROW_LENGTH,
                       s.pitch / f.bytes_per_pixel);
 
+        uint8_t *converted = convert_texture_data(s, texture_data,
+                                                  palette_data,
+                                                  s.width, s.height, s.pitch);
+
         glTexImage2D(gl_target, 0, f.gl_internal_format,
                      s.width, s.height, 0,
                      f.gl_format, f.gl_type,
-                     texture_data);
+                     converted ? converted : texture_data);
+
+        if (converted) {
+          g_free(converted);
+        }
 
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     } else {
@@ -2014,9 +2066,9 @@ static TextureBinding* generate_texture(const TextureShape s,
                 glTexImage2D(gl_target, level, f.gl_internal_format,
                              width, height, 0,
                              f.gl_format, f.gl_type,
-                             converted);
+                             converted ? converted : unswizzled);
 
-                if (converted != unswizzled) {
+                if (converted) {
                     g_free(converted);
                 }
                 g_free(unswizzled);
@@ -2092,6 +2144,7 @@ static void pgraph_bind_textures(NV2AState *d)
         uint32_t ctl_1 = pg->regs[NV_PGRAPH_TEXCTL1_0 + i*4];
         uint32_t fmt = pg->regs[NV_PGRAPH_TEXFMT0 + i*4];
         uint32_t filter = pg->regs[NV_PGRAPH_TEXFILTER0 + i*4];
+        uint32_t palette =  pg->regs[NV_PGRAPH_TEXPALETTE0 + i*4];
 
         bool enabled = GET_MASK(ctl_0, NV_PGRAPH_TEXCTL0_0_ENABLE);
         unsigned int min_mipmap_level =
@@ -2125,8 +2178,7 @@ static void pgraph_bind_textures(NV2AState *d)
 
         unsigned int offset = pg->regs[NV_PGRAPH_TEXOFFSET0 + i*4];
 
-        uint32_t palette =  pg->regs[NV_PGRAPH_TEXPALETTE0 + i*4];
-        unsigned int palette_dma_select =
+        bool palette_dma_select =
             GET_MASK(palette, NV_PGRAPH_TEXPALETTE0_CONTEXT_DMA);
         unsigned int palette_length_index =
             GET_MASK(palette, NV_PGRAPH_TEXPALETTE0_LENGTH);
@@ -4346,7 +4398,8 @@ static void pgraph_method(NV2AState *d,
         pg->texture_dirty[slot] = true;
         break;
     CASE_4(NV097_SET_TEXTURE_PALETTE, 64): {
-        slot = (class_method - NV097_SET_TEXTURE_IMAGE_RECT) / 64;
+        slot = (class_method - NV097_SET_TEXTURE_PALETTE) / 64;
+
         bool dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA) == 1;
         unsigned int length =
@@ -4362,7 +4415,6 @@ static void pgraph_method(NV2AState *d,
         pg->texture_dirty[slot] = true;
         break;
     }
-
     case NV097_ARRAY_ELEMENT16:
         assert(pg->inline_elements_length < NV2A_MAX_BATCH_LENGTH);
         pg->inline_elements[
@@ -6065,11 +6117,6 @@ static void pgraph_method_log(unsigned int subchannel,
     last = method;
 }
 
-static uint8_t cliptobyte(int x)
-{
-    return (uint8_t)((x < 0) ? 0 : ((x > 255) ? 255 : x));
-}
-
 static void nv2a_overlay_draw_line(VGACommonState *vga, uint8_t *line, int y)
 {
     NV2A_DPRINTF("nv2a_overlay_draw_line\n");
@@ -6129,20 +6176,8 @@ static void nv2a_overlay_draw_line(VGACommonState *vga, uint8_t *line, int y)
         int ix = in_s + x;
         if (ix >= in_width) break;
 
-        // YUY2 to RGB
-        int c, d, e;
-        c = (int)in_line[ix * 2] - 16;
-        if (ix % 2) {
-            d = (int)in_line[ix * 2 - 1] - 128;
-            e = (int)in_line[ix * 2 + 1] - 128;
-        } else {
-            d = (int)in_line[ix * 2 + 1] - 128;
-            e = (int)in_line[ix * 2 + 3] - 128;
-        }
-        int r, g, b;
-        r = cliptobyte((298 * c + 409 * e + 128) >> 8);
-        g = cliptobyte((298 * c - 100 * d - 208 * e + 128) >> 8);
-        b = cliptobyte((298 * c + 516 * d + 128) >> 8);
+        uint8_t r,g,b;
+        convert_yuy2_to_rgb(in_line, ix, &r, &g, &b);
 
         unsigned int pixel = vga->rgb_to_pixel(r, g, b);
         switch (surf_bpp) {
