@@ -71,6 +71,7 @@ struct MilkymistVgafbState {
     SysBusDevice parent_obj;
 
     MemoryRegion regs_region;
+    MemoryRegionSection fbsection;
     QemuConsole *con;
 
     int invalidate;
@@ -91,6 +92,7 @@ static void vgafb_update_display(void *opaque)
     MilkymistVgafbState *s = opaque;
     SysBusDevice *sbd;
     DisplaySurface *surface = qemu_console_surface(s->con);
+    int src_width;
     int first = 0;
     int last = 0;
     drawfn fn;
@@ -129,11 +131,18 @@ static void vgafb_update_display(void *opaque)
         break;
     }
 
-    framebuffer_update_display(surface, sysbus_address_space(sbd),
-                               s->regs[R_BASEADDRESS] + s->fb_offset,
+    src_width = s->regs[R_HRES] * 2;
+    if (s->invalidate) {
+        framebuffer_update_memory_section(&s->fbsection,
+                                          sysbus_address_space(sbd),
+                                          s->regs[R_BASEADDRESS] + s->fb_offset,
+                                          s->regs[R_VRES], src_width);
+    }
+
+    framebuffer_update_display(surface, &s->fbsection,
                                s->regs[R_HRES],
                                s->regs[R_VRES],
-                               s->regs[R_HRES] * 2,
+                               src_width,
                                dest_width,
                                0,
                                s->invalidate,
