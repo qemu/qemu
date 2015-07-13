@@ -587,7 +587,6 @@ static QString* psh_convert(struct PixelShader *ps)
                                i, i, i);
             break;
         case PS_TEXTUREMODES_PASSTHRU:
-            assert(false);
             qstring_append_fmt(vars, "vec4 t%d = pT%d;\n", i, i);
             break;
         default:
