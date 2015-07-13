@@ -581,7 +581,8 @@ struct sPAPREventLogEntry {
 void spapr_events_init(sPAPRMachineState *sm);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 int spapr_h_cas_compose_response(sPAPRMachineState *sm,
-                                 target_ulong addr, target_ulong size);
+                                 target_ulong addr, target_ulong size,
+                                 bool cpu_update, bool memory_update);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    uint64_t bus_offset,
                                    uint32_t page_shift,
@@ -622,5 +623,17 @@ int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
 
 /* 1GB alignment for hotplug memory region */
 #define SPAPR_HOTPLUG_MEM_ALIGN (1ULL << 30)
+
+/*
+ * Number of 32 bit words in each LMB list entry in ibm,dynamic-memory
+ * property under ibm,dynamic-reconfiguration-memory node.
+ */
+#define SPAPR_DR_LMB_LIST_ENTRY_SIZE 6
+
+/*
+ * This flag value defines the LMB as assigned in ibm,dynamic-memory
+ * property under ibm,dynamic-reconfiguration-memory node.
+ */
+#define SPAPR_LMB_FLAGS_ASSIGNED 0x00000008
 
 #endif /* !defined (__HW_SPAPR_H__) */

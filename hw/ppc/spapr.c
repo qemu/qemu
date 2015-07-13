@@ -504,44 +504,7 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     return fdt;
 }
 
-int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
-                                 target_ulong addr, target_ulong size)
-{
-    void *fdt, *fdt_skel;
-    sPAPRDeviceTreeUpdateHeader hdr = { .version_id = 1 };
-
-    size -= sizeof(hdr);
-
-    /* Create sceleton */
-    fdt_skel = g_malloc0(size);
-    _FDT((fdt_create(fdt_skel, size)));
-    _FDT((fdt_begin_node(fdt_skel, "")));
-    _FDT((fdt_end_node(fdt_skel)));
-    _FDT((fdt_finish(fdt_skel)));
-    fdt = g_malloc0(size);
-    _FDT((fdt_open_into(fdt_skel, fdt, size)));
-    g_free(fdt_skel);
-
-    /* Fix skeleton up */
-    _FDT((spapr_fixup_cpu_dt(fdt, spapr)));
-
-    /* Pack resulting tree */
-    _FDT((fdt_pack(fdt)));
-
-    if (fdt_totalsize(fdt) + sizeof(hdr) > size) {
-        trace_spapr_cas_failed(size);
-        return -1;
-    }
-
-    cpu_physical_memory_write(addr, &hdr, sizeof(hdr));
-    cpu_physical_memory_write(addr + sizeof(hdr), fdt, fdt_totalsize(fdt));
-    trace_spapr_cas_continue(fdt_totalsize(fdt) + sizeof(hdr));
-    g_free(fdt);
-
-    return 0;
-}
-
-static void spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
+static int spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
                                        hwaddr size)
 {
     uint32_t associativity[] = {
@@ -564,6 +527,7 @@ static void spapr_populate_memory_node(void *fdt, int nodeid, hwaddr start,
                       sizeof(mem_reg_property))));
     _FDT((fdt_setprop(fdt, off, "ibm,associativity", associativity,
                       sizeof(associativity))));
+    return off;
 }
 
 static int spapr_populate_memory(sPAPRMachineState *spapr, void *fdt)
@@ -595,7 +559,6 @@ static int spapr_populate_memory(sPAPRMachineState *spapr, void *fdt)
         }
         if (!mem_start) {
             /* ppc_spapr_init() checks for rma_size <= node0_size already */
-            spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
             mem_start += spapr->rma_size;
             node_size -= spapr->rma_size;
         }
@@ -745,6 +708,154 @@ static void spapr_populate_cpus_dt_node(void *fdt, sPAPRMachineState *spapr)
 
 }
 
+/*
+ * Adds ibm,dynamic-reconfiguration-memory node.
+ * Refer to docs/specs/ppc-spapr-hotplug.txt for the documentation
+ * of this device tree node.
+ */
+static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
+{
+    MachineState *machine = MACHINE(spapr);
+    int ret, i, offset;
+    uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
+    uint32_t prop_lmb_size[] = {0, cpu_to_be32(lmb_size)};
+    uint32_t nr_rma_lmbs = spapr->rma_size/lmb_size;
+    uint32_t nr_lmbs = machine->maxram_size/lmb_size - nr_rma_lmbs;
+    uint32_t nr_assigned_lmbs = machine->ram_size/lmb_size - nr_rma_lmbs;
+    uint32_t *int_buf, *cur_index, buf_len;
+
+    /* Allocate enough buffer size to fit in ibm,dynamic-memory */
+    buf_len = nr_lmbs * SPAPR_DR_LMB_LIST_ENTRY_SIZE * sizeof(uint32_t) +
+                sizeof(uint32_t);
+    cur_index = int_buf = g_malloc0(buf_len);
+
+    offset = fdt_add_subnode(fdt, 0, "ibm,dynamic-reconfiguration-memory");
+
+    ret = fdt_setprop(fdt, offset, "ibm,lmb-size", prop_lmb_size,
+                    sizeof(prop_lmb_size));
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = fdt_setprop_cell(fdt, offset, "ibm,memory-flags-mask", 0xff);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = fdt_setprop_cell(fdt, offset, "ibm,memory-preservation-time", 0x0);
+    if (ret < 0) {
+        goto out;
+    }
+
+    /* ibm,dynamic-memory */
+    int_buf[0] = cpu_to_be32(nr_lmbs);
+    cur_index++;
+    for (i = 0; i < nr_lmbs; i++) {
+        sPAPRDRConnector *drc;
+        sPAPRDRConnectorClass *drck;
+        uint64_t addr;
+        uint32_t *dynamic_memory = cur_index;
+
+        if (i < nr_assigned_lmbs) {
+            addr = (i + nr_rma_lmbs) * lmb_size;
+        } else {
+            addr = (i - nr_assigned_lmbs) * lmb_size +
+                    spapr->hotplug_memory.base;
+        }
+        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                       addr/lmb_size);
+        g_assert(drc);
+        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+        dynamic_memory[0] = cpu_to_be32(addr >> 32);
+        dynamic_memory[1] = cpu_to_be32(addr & 0xffffffff);
+        dynamic_memory[2] = cpu_to_be32(drck->get_index(drc));
+        dynamic_memory[3] = cpu_to_be32(0); /* reserved */
+        dynamic_memory[4] = cpu_to_be32(numa_get_node(addr, NULL));
+        if (addr < machine->ram_size ||
+                    memory_region_present(get_system_memory(), addr)) {
+            dynamic_memory[5] = cpu_to_be32(SPAPR_LMB_FLAGS_ASSIGNED);
+        } else {
+            dynamic_memory[5] = cpu_to_be32(0);
+        }
+
+        cur_index += SPAPR_DR_LMB_LIST_ENTRY_SIZE;
+    }
+    ret = fdt_setprop(fdt, offset, "ibm,dynamic-memory", int_buf, buf_len);
+    if (ret < 0) {
+        goto out;
+    }
+
+    /* ibm,associativity-lookup-arrays */
+    cur_index = int_buf;
+    int_buf[0] = cpu_to_be32(nb_numa_nodes);
+    int_buf[1] = cpu_to_be32(4); /* Number of entries per associativity list */
+    cur_index += 2;
+    for (i = 0; i < nb_numa_nodes; i++) {
+        uint32_t associativity[] = {
+            cpu_to_be32(0x0),
+            cpu_to_be32(0x0),
+            cpu_to_be32(0x0),
+            cpu_to_be32(i)
+        };
+        memcpy(cur_index, associativity, sizeof(associativity));
+        cur_index += 4;
+    }
+    ret = fdt_setprop(fdt, offset, "ibm,associativity-lookup-arrays", int_buf,
+            (cur_index - int_buf) * sizeof(uint32_t));
+out:
+    g_free(int_buf);
+    return ret;
+}
+
+int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
+                                 target_ulong addr, target_ulong size,
+                                 bool cpu_update, bool memory_update)
+{
+    void *fdt, *fdt_skel;
+    sPAPRDeviceTreeUpdateHeader hdr = { .version_id = 1 };
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(qdev_get_machine());
+
+    size -= sizeof(hdr);
+
+    /* Create sceleton */
+    fdt_skel = g_malloc0(size);
+    _FDT((fdt_create(fdt_skel, size)));
+    _FDT((fdt_begin_node(fdt_skel, "")));
+    _FDT((fdt_end_node(fdt_skel)));
+    _FDT((fdt_finish(fdt_skel)));
+    fdt = g_malloc0(size);
+    _FDT((fdt_open_into(fdt_skel, fdt, size)));
+    g_free(fdt_skel);
+
+    /* Fixup cpu nodes */
+    if (cpu_update) {
+        _FDT((spapr_fixup_cpu_dt(fdt, spapr)));
+    }
+
+    /* Generate memory nodes or ibm,dynamic-reconfiguration-memory node */
+    if (memory_update && smc->dr_lmb_enabled) {
+        _FDT((spapr_populate_drconf_memory(spapr, fdt)));
+    } else {
+        _FDT((spapr_populate_memory(spapr, fdt)));
+    }
+
+    /* Pack resulting tree */
+    _FDT((fdt_pack(fdt)));
+
+    if (fdt_totalsize(fdt) + sizeof(hdr) > size) {
+        trace_spapr_cas_failed(size);
+        return -1;
+    }
+
+    cpu_physical_memory_write(addr, &hdr, sizeof(hdr));
+    cpu_physical_memory_write(addr + sizeof(hdr), fdt, fdt_totalsize(fdt));
+    trace_spapr_cas_continue(fdt_totalsize(fdt) + sizeof(hdr));
+    g_free(fdt);
+
+    return 0;
+}
+
 static void spapr_finalize_fdt(sPAPRMachineState *spapr,
                                hwaddr fdt_addr,
                                hwaddr rtas_addr,
@@ -763,10 +874,23 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
     /* open out the base tree into a temp buffer for the final tweaks */
     _FDT((fdt_open_into(spapr->fdt_skel, fdt, FDT_MAX_SIZE)));
 
-    ret = spapr_populate_memory(spapr, fdt);
-    if (ret < 0) {
-        fprintf(stderr, "couldn't setup memory nodes in fdt\n");
-        exit(1);
+    /*
+     * Add memory@0 node to represent RMA. Rest of the memory is either
+     * represented by memory nodes or ibm,dynamic-reconfiguration-memory
+     * node later during ibm,client-architecture-support call.
+     *
+     * If NUMA is configured, ensure that memory@0 ends up in the
+     * first memory-less node.
+     */
+    if (nb_numa_nodes) {
+        for (i = 0; i < nb_numa_nodes; ++i) {
+            if (numa_info[i].node_mem) {
+                spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
+                break;
+            }
+        }
+    } else {
+        spapr_populate_memory_node(fdt, 0, 0, spapr->rma_size);
     }
 
     ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
