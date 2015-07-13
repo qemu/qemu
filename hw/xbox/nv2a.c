@@ -1082,7 +1082,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
 
     /* TODO: format conversion */
     [NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8] =
-        {4, false, GL_RGBA8,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
+        {2, true, GL_RGBA8,  GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED] =
         {4, true, GL_DEPTH24_STENCIL8, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED] =
@@ -1917,6 +1917,27 @@ static unsigned int pgraph_bind_inline_array(NV2AState *d)
     return index_count;
 }
 
+static uint8_t cliptobyte(int x)
+{
+    return (uint8_t)((x < 0) ? 0 : ((x > 255) ? 255 : x));
+}
+
+static void convert_yuy2_to_rgb(uint8_t* line, unsigned int ix, uint8_t* r, uint8_t* g, uint8_t* b) {
+    int c, d, e;
+    c = (int)line[ix * 2] - 16;
+    if (ix % 2) {
+        d = (int)line[ix * 2 - 1] - 128;
+        e = (int)line[ix * 2 + 1] - 128;
+    } else {
+        d = (int)line[ix * 2 + 1] - 128;
+        e = (int)line[ix * 2 + 3] - 128;
+    }
+    if (r) { *r = cliptobyte((298 * c + 409 * e + 128) >> 8); }
+    if (g) { *g = cliptobyte((298 * c - 100 * d - 208 * e + 128) >> 8); }
+    if (b) { *b = cliptobyte((298 * c + 516 * d + 128) >> 8); }
+    return;
+}
+
 static uint8_t* convert_texture_data(const TextureShape s,
                                      uint8_t *data,
                                      const uint8_t *palette_data,
@@ -1932,6 +1953,18 @@ static uint8_t* convert_texture_data(const TextureShape s,
                 uint32_t color = *(uint32_t*)(palette_data + index * 4);
                 *(uint32_t*)(converted_data + y * width * 4 + x * 4) = color;
             }
+        }
+        return converted_data;
+    } else if (s.color_format == NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8) {
+        uint8_t* converted_data = g_malloc(width * height * 4);
+        int x, y;
+        for (y = 0; y < height; y++) {
+            uint8_t* line = &data[y * s.width * 2];
+            for (x = 0; x < width; x++) {
+                uint8_t* pixel = &converted_data[(y * s.width + x) * 4];
+                convert_yuy2_to_rgb(line,x,&pixel[0],&pixel[1],&pixel[2]); /* FIXME: Actually needs uyvy? */
+                pixel[3] = 255;
+          }
         }
         return converted_data;
     } else {
@@ -1974,10 +2007,18 @@ static TextureBinding* generate_texture(const TextureShape s,
         glPixelStorei(GL_UNPACK_ROW_LENGTH,
                       s.pitch / f.bytes_per_pixel);
 
+        uint8_t *converted = convert_texture_data(s, texture_data,
+                                                  palette_data,
+                                                  s.width, s.height, s.pitch);
+
         glTexImage2D(gl_target, 0, f.gl_internal_format,
                      s.width, s.height, 0,
                      f.gl_format, f.gl_type,
-                     texture_data);
+                     converted);
+
+        if (converted != texture_data) {
+          g_free(converted);
+        }
 
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
     } else {
@@ -2019,22 +2060,6 @@ static TextureBinding* generate_texture(const TextureShape s,
                 uint8_t *converted = convert_texture_data(s, unswizzled,
                                                           palette_data,
                                                           width, height, pitch);
-
-                if (s.color_format == NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8) {
-                  data = g_malloc(height * pitch * 4);
-                  unsigned int y;
-                  for(y = 0; y < height; y++) {
-                    unsigned int x;
-                    for(x = 0; x < pitch; x++) {
-                      uint8_t* pixel = &data[(y * pitch + x) * 4];
-                      //FIXME: Steal format conversion from video stuff above
-                      pixel[0] = 255;
-                      pixel[1] = 0;
-                      pixel[2] = 255;
-                      pixel[3] = 128;
-                    }
-                  }
-                }
 
                 glTexImage2D(gl_target, level, f.gl_internal_format,
                              width, height, 0,
@@ -6090,11 +6115,6 @@ static void pgraph_method_log(unsigned int subchannel,
     last = method;
 }
 
-static uint8_t cliptobyte(int x)
-{
-    return (uint8_t)((x < 0) ? 0 : ((x > 255) ? 255 : x));
-}
-
 static void nv2a_overlay_draw_line(VGACommonState *vga, uint8_t *line, int y)
 {
     NV2A_DPRINTF("nv2a_overlay_draw_line\n");
@@ -6155,19 +6175,8 @@ static void nv2a_overlay_draw_line(VGACommonState *vga, uint8_t *line, int y)
         if (ix >= in_width) break;
 
         // YUY2 to RGB
-        int c, d, e;
-        c = (int)in_line[ix * 2] - 16;
-        if (ix % 2) {
-            d = (int)in_line[ix * 2 - 1] - 128;
-            e = (int)in_line[ix * 2 + 1] - 128;
-        } else {
-            d = (int)in_line[ix * 2 + 1] - 128;
-            e = (int)in_line[ix * 2 + 3] - 128;
-        }
-        int r, g, b;
-        r = cliptobyte((298 * c + 409 * e + 128) >> 8);
-        g = cliptobyte((298 * c - 100 * d - 208 * e + 128) >> 8);
-        b = cliptobyte((298 * c + 516 * d + 128) >> 8);
+        uint8_t r,g,b;
+        convert_yuy2_to_rgb(in_line,ix,&r,&g,&b);
 
         unsigned int pixel = vga->rgb_to_pixel(r, g, b);
         switch (surf_bpp) {
