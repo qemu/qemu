@@ -4320,12 +4320,13 @@ static void pgraph_method(NV2AState *d,
             (parameter & (NV097_CLEAR_SURFACE_Z | NV097_CLEAR_SURFACE_STENCIL));
 
         if (write_zeta) {
-            uint32_t clear_zstencil = d->pgraph.regs[NV_PGRAPH_ZSTENCILCLEARVALUE];
+            uint32_t clear_zstencil =
+                d->pgraph.regs[NV_PGRAPH_ZSTENCILCLEARVALUE];
             GLint gl_clear_stencil;
             GLdouble gl_clear_depth;
             switch(pg->surface_shape.zeta_format) {
                 case NV097_SET_SURFACE_FORMAT_ZETA_Z16:
-                    //FIXME: Remove bit for stencil clear?
+                    /* FIXME: Remove bit for stencil clear? */
                     gl_clear_depth = (clear_zstencil & 0xFFFF) / (double)0xFFFF;
                     break;
                 case NV097_SET_SURFACE_FORMAT_ZETA_Z24S8:
@@ -4348,10 +4349,14 @@ static void pgraph_method(NV2AState *d,
         }
         if (write_color) {
             gl_mask |= GL_COLOR_BUFFER_BIT;
-            glColorMask((parameter & NV097_CLEAR_SURFACE_R)?GL_TRUE:GL_FALSE,
-                        (parameter & NV097_CLEAR_SURFACE_G)?GL_TRUE:GL_FALSE,
-                        (parameter & NV097_CLEAR_SURFACE_B)?GL_TRUE:GL_FALSE,
-                        (parameter & NV097_CLEAR_SURFACE_A)?GL_TRUE:GL_FALSE);
+            glColorMask((parameter & NV097_CLEAR_SURFACE_R)
+                             ? GL_TRUE : GL_FALSE,
+                        (parameter & NV097_CLEAR_SURFACE_G)
+                             ? GL_TRUE : GL_FALSE,
+                        (parameter & NV097_CLEAR_SURFACE_B)
+                             ? GL_TRUE : GL_FALSE,
+                        (parameter & NV097_CLEAR_SURFACE_A)
+                             ? GL_TRUE : GL_FALSE);
             uint32_t clear_color = d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE];
             glClearColor( ((clear_color >> 16) & 0xFF) / 255.0f, /* red */
                           ((clear_color >> 8) & 0xFF) / 255.0f,  /* green */
@@ -4371,8 +4376,9 @@ static void pgraph_method(NV2AState *d,
                 NV_PGRAPH_CLEARRECTY_YMIN);
         unsigned int ymax = GET_MASK(pg->regs[NV_PGRAPH_CLEARRECTY],
                 NV_PGRAPH_CLEARRECTY_YMAX);
-        glScissor(xmin, /*pg->surface_shape.clip_height-ymax*/ymin,
-                  xmax-xmin+1, ymax-ymin+1);
+
+        /* FIXME: Maybe "pg->surface_shape.clip_height-ymax" instead of ymin? */
+        glScissor(xmin, ymin, xmax-xmin+1, ymax-ymin+1);
 
         NV2A_DPRINTF("------------------CLEAR 0x%x %d,%d - %d,%d  %x---------------\n",
             parameter, xmin, ymin, xmax, ymax, d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE]);
@@ -4380,11 +4386,6 @@ static void pgraph_method(NV2AState *d,
         glClear(gl_mask);
 
         glDisable(GL_SCISSOR_TEST);
-
-        //FIXME: Masks are bad now
-        glDepthMask(GL_TRUE);
-        glStencilMask(0xff);
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
         pgraph_set_surface_dirty(pg, write_color, write_zeta);
         break;
