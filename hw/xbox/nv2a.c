@@ -448,6 +448,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECR                8
 #define NV_PGRAPH_SETUPRASTER                            0x00001990
 #   define NV_PGRAPH_SETUPRASTER_Z_FORMAT                       (1 << 29)
+#define NV_PGRAPH_SHADERCLIPMODE                         0x00001994
 #define NV_PGRAPH_SHADERCTL                              0x00001998
 #define NV_PGRAPH_SHADERPROG                             0x0000199C
 #define NV_PGRAPH_SPECFOGFACTOR0                         0x000019AC
@@ -457,9 +458,10 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #define NV_PGRAPH_TEXADDRESS2                            0x000019C4
 #define NV_PGRAPH_TEXADDRESS3                            0x000019C8
 #define NV_PGRAPH_TEXCTL0_0                              0x000019CC
-#   define NV_PGRAPH_TEXCTL0_0_ENABLE                           (1 << 30)
-#   define NV_PGRAPH_TEXCTL0_0_MIN_LOD_CLAMP                    0x3FFC0000
+#   define NV_PGRAPH_TEXCTL0_0_ALPHAKILLEN                      (1 << 2)
 #   define NV_PGRAPH_TEXCTL0_0_MAX_LOD_CLAMP                    0x0003FFC0
+#   define NV_PGRAPH_TEXCTL0_0_MIN_LOD_CLAMP                    0x3FFC0000
+#   define NV_PGRAPH_TEXCTL0_0_ENABLE                           (1 << 30)
 #define NV_PGRAPH_TEXCTL0_1                              0x000019D0
 #define NV_PGRAPH_TEXCTL0_2                              0x000019D4
 #define NV_PGRAPH_TEXCTL0_3                              0x000019D8
@@ -816,6 +818,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE          0xFFFFFF00
 #   define NV097_SET_LOGIC_OP_ENABLE                          0x009717BC
 #   define NV097_SET_LOGIC_OP                                 0x009717C0
+#   define NV097_SET_SHADER_CLIP_PLANE_MODE                   0x009717F8
 #   define NV097_SET_BEGIN_END                                0x009717FC
 #       define NV097_SET_BEGIN_END_OP_END                         0x00
 #       define NV097_SET_BEGIN_END_OP_POINTS                      0x01
@@ -889,6 +892,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_64                2
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_32                3
 #       define NV097_SET_TEXTURE_PALETTE_OFFSET                   0xFFFFFFC0
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_MAT                 0x00971B28
 #   define NV097_SET_SEMAPHORE_OFFSET                         0x00971D6C
 #   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00971D70
 #   define NV097_SET_ZSTENCIL_CLEAR_VALUE                     0x00971D8C
@@ -1232,6 +1236,8 @@ typedef struct ShaderState {
     uint32_t alpha_inputs[8], alpha_outputs[8];
 
     bool rect_tex[4];
+    bool compare_mode[4][4];
+    bool alphakill[4];
 
     bool alpha_test;
     enum AlphaFunc alpha_func;
@@ -1389,7 +1395,7 @@ typedef struct PGRAPHState {
     ShaderBinding *shader_binding;
 
     float composite_matrix[16];
-    GLint composite_matrix_location;
+    float texture_bump_matrix[4];
 
     GloContext *gl_context;
     GLuint gl_framebuffer;
@@ -2580,6 +2586,8 @@ static ShaderBinding* generate_shaders(const ShaderState state)
                    state.final_inputs_0, state.final_inputs_1,
                    /* final_constant_0, final_constant_1, */
                    state.rect_tex,
+                   state.compare_mode,
+                   state.alphakill,
                    state.alpha_test, state.alpha_func);
 
     const char *fragment_shader_code_str = qstring_get_str(fragment_shader_code);
@@ -2767,6 +2775,15 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         if (enabled && kelvin_color_format_map[color_format].linear) {
             state.rect_tex[i] = true;
         }
+
+        int j;
+        for(j = 0; j < 4; j++) {
+            /* compare_mode[i][j] = stage i, component j { s,t,r,q } */
+            state.compare_mode[i][j] =
+                (pg->regs[NV_PGRAPH_SHADERCLIPMODE] >> (4 * i + j)) & 1;
+        }
+        state.alphakill[i] = GET_MASK(pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4],
+                                      NV_PGRAPH_TEXCTL0_0_ALPHAKILLEN);
     }
 
     ShaderBinding* cached_shader = g_hash_table_lookup(pg->shader_cache, &state);
@@ -2821,7 +2838,13 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         glUniform1f(alpha_ref_loc, alpha_ref);
     }
 
-
+    GLint tex_bump_mat_loc = glGetUniformLocation(
+                                 pg->shader_binding->gl_program,
+                                 "texBumpMat");
+    if (tex_bump_mat_loc != -1) {
+        glUniformMatrix2fv(tex_bump_mat_loc, 1, GL_FALSE,
+                           pg->texture_bump_matrix);
+    }
 
     float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
     float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
@@ -2829,7 +2852,8 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     if (fixed_function) {
         /* update fixed function composite matrix */
 
-        GLint comLoc = glGetUniformLocation(pg->shader_binding->gl_program, "composite");
+        GLint comLoc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                            "composite");
         assert(comLoc != -1);
         glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
 
@@ -4438,6 +4462,13 @@ static void pgraph_method(NV2AState *d,
         pg->texture_dirty[slot] = true;
         break;
     }
+
+    case NV097_SET_TEXTURE_SET_BUMP_ENV_MAT ...
+            NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0xc:
+        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_MAT) / 4;
+        pg->texture_bump_matrix[slot] = *(float*)&parameter;
+        break;
+
     case NV097_ARRAY_ELEMENT16:
         assert(pg->inline_elements_length < NV2A_MAX_BATCH_LENGTH);
         pg->inline_elements[
@@ -4620,6 +4651,10 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_SPECULAR_FOG_FACTOR + 4:
         slot = (class_method - NV097_SET_SPECULAR_FOG_FACTOR) / 4;
         pg->regs[NV_PGRAPH_SPECFOGFACTOR0 + slot*4] = parameter;
+        break;
+
+    case NV097_SET_SHADER_CLIP_PLANE_MODE:
+        pg->regs[NV_PGRAPH_SHADERCLIPMODE] = parameter;
         break;
 
     case NV097_SET_COMBINER_COLOR_OCW ...

@@ -197,9 +197,12 @@ struct PixelShader {
     struct FCInputInfo final_input;
     int tex_modes[4], input_tex[4];
 
-    //uint32_t compare_mode, dot_mapping, input_texture;
+    //uint32_t dot_mapping, input_texture;
 
     bool rect_tex[4];
+    bool compare_mode[4][4];
+    bool alphakill[4];
+
     bool alpha_test;
     enum AlphaFunc alpha_func;
 
@@ -561,6 +564,7 @@ static QString* psh_convert(struct PixelShader *ps)
     qstring_append(vars, "vec4 v1 = pD1;\n");
     qstring_append(vars, "float fog = pFog.x;\n");
 
+    bool bumpenvmap = false;
     for (i = 0; i < 4; i++) {
 
         const char *sampler_type = NULL;
@@ -607,22 +611,21 @@ static QString* psh_convert(struct PixelShader *ps)
         case PS_TEXTUREMODES_BUMPENVMAP:
             assert(!ps->rect_tex[i]);
             sampler_type = "sampler2D";
-            qstring_append_fmt(vars, "  mat2 texBumpMat%d = mat2(1.0,0.0,0.0,1.0);\n",
-                               i); /* FIXME: Uniform and fill */
+            bumpenvmap = true;
+            assert(false); /* FIXME: Untested */
             qstring_append_fmt(vars, "  vec4 t%d = texture(texSamp%d, pT%d.xy + t%d.rg * texBumpMat%d);\n",
                                i, i, i, ps->input_tex[i], i);
             break;
         case PS_TEXTUREMODES_CLIPPLANE: {
             int j;
+            assert(false); /* FIXME: Untested */
             qstring_append_fmt(vars, "  vec4 t%d = vec4(0.0); /* PS_TEXTUREMODES_CLIPPLANE */\n",
                                i);
-#if 0 /* FIXME: Compare mode missing! */
             for (j = 0; j < 4; j++) {
                 qstring_append_fmt(vars, "  if(pT%d.%c %s 0.0) { discard; };\n",
                                    i, "xyzw"[j],
                                    ps->compare_mode[i][j] ? ">=" : "<");
             }
-#endif
             break;
         }
         case PS_TEXTUREMODES_DOTPRODUCT:
@@ -637,7 +640,18 @@ static QString* psh_convert(struct PixelShader *ps)
         
         if (sampler_type != NULL) {
             qstring_append_fmt(preflight, "uniform %s texSamp%d;\n", sampler_type, i);
+
+            /* As this means a texture fetch does happen, do alphakill */
+            if (ps->alphakill[i]) {
+                assert(false); /* FIXME: Untested */
+                qstring_append_fmt(vars, "  if (t%d.a == 0.0) { discard; };\n",
+                                   i);
+            }
         }
+    }
+
+    if (bumpenvmap) {
+      qstring_append(preflight, "  uniform mat2 texBumpMat\n");
     }
 
     ps->code = qstring_new();
@@ -748,6 +762,8 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
                        uint32_t final_inputs_0, uint32_t final_inputs_1,
                        /*uint32_t final_constant_0, uint32_t final_constant_1,*/
                        const bool rect_tex[4],
+                       const bool compare_mode[4][4],
+                       const bool alphakill[4],
                        bool alpha_test, enum AlphaFunc alpha_func)
 {
     int i;

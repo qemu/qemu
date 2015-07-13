@@ -45,6 +45,8 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
                        uint32_t final_inputs_0, uint32_t final_inputs_1,
                        /*uint32_t final_constant_0, uint32_t final_constant_1,*/
                        const bool rect_tex[4],
+                       const bool compare_mode[4][4],
+                       const bool alphakill[4],
                        bool alpha_test, enum AlphaFunc alpha_func);
 
 #endif
