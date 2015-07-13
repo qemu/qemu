@@ -222,19 +222,11 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
 {
     USBXIDState *s = DO_UPCAST(USBXIDState, dev, dev);
 
-    static unsigned int pid = 0;
-    static size_t bytes = 0;
-    DPRINTF("xid handle_control 0x%x 0x%x, packet %zu, byte %d\n", request, value, ++pid, bytes += length);
-#if 0
-    if ((request == USB_REQ_SET_CONFIGURATION) && (value == 1)) {
-        /* The OpenXDK code will try to set configuration 1 on every read */
-        DPRINTF("xid handled by configuration hack\n");
-        return;
-    }
-#endif
+    DPRINTF("xid handle_control 0x%x 0x%x\n", request, value);
+
     int ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
-        DPRINTF("xid handled by usb_desc_handle_control: %d\n",ret);
+        DPRINTF("xid handled by usb_desc_handle_control: %d\n", ret);
         return;
     }
 
@@ -244,7 +236,7 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
         DPRINTF("xid GET_REPORT 0x%x\n", value);
         if (value == 0x100) { /* input */
             assert(s->in_state.bLength <= length);
-//            s->in_state.bReportId++; FIXME: Like this?
+//          s->in_state.bReportId++; /* FIXME: I'm not sure if bReportId is just a counter */
             memcpy(data, &s->in_state, s->in_state.bLength);
             p->actual_length = s->in_state.bLength;
         } else {
@@ -259,9 +251,9 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
             assert(s->out_state.length == sizeof(s->out_state));
             assert(s->out_state.length <= length);
             //FIXME: Check actuator endianess
-            printf("Set rumble power to 0x%x, 0x%x\n",
-                   s->out_state.left_actuator_strength,
-                   s->out_state.right_actuator_strength);
+            DPRINTF("Set rumble power to 0x%x, 0x%x\n",
+                    s->out_state.left_actuator_strength,
+                    s->out_state.right_actuator_strength);
             p->actual_length = s->out_state.length;
         } else {
             assert(false);
