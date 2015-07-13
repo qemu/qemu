@@ -4411,15 +4411,49 @@ static void pgraph_method(NV2AState *d,
     case NV097_CLEAR_SURFACE:
         NV2A_DPRINTF("---------PRE CLEAR ------\n");
         GLbitfield gl_mask = 0;
-        if (parameter & NV097_CLEAR_SURFACE_Z) {
-            gl_mask |= GL_DEPTH_BUFFER_BIT;
-        }
-        if (parameter & NV097_CLEAR_SURFACE_STENCIL) {
-            gl_mask |= GL_STENCIL_BUFFER_BIT;
-        }
-        if (parameter & (NV097_CLEAR_SURFACE_COLOR)) {
-            gl_mask |= GL_COLOR_BUFFER_BIT;
 
+        bool write_color = (parameter & NV097_CLEAR_SURFACE_COLOR);
+        bool write_zeta =
+            (parameter & (NV097_CLEAR_SURFACE_Z | NV097_CLEAR_SURFACE_STENCIL));
+
+        if (write_zeta) {
+            uint32_t clear_zstencil =
+                d->pgraph.regs[NV_PGRAPH_ZSTENCILCLEARVALUE];
+            GLint gl_clear_stencil;
+            GLdouble gl_clear_depth;
+            switch(pg->surface_shape.zeta_format) {
+                case NV097_SET_SURFACE_FORMAT_ZETA_Z16:
+                    /* FIXME: Remove bit for stencil clear? */
+                    gl_clear_depth = (clear_zstencil & 0xFFFF) / (double)0xFFFF;
+                    break;
+                case NV097_SET_SURFACE_FORMAT_ZETA_Z24S8:
+                    gl_clear_stencil = clear_zstencil & 0xFF;
+                    gl_clear_depth = (clear_zstencil >> 8) / (double)0xFFFFFF;
+                    break;
+                default:
+                    assert(0);
+            }
+            if (parameter & NV097_CLEAR_SURFACE_Z) {
+                gl_mask |= GL_DEPTH_BUFFER_BIT;
+                glDepthMask(GL_TRUE);
+                glClearDepth(gl_clear_depth);
+            }
+            if (parameter & NV097_CLEAR_SURFACE_STENCIL) {
+                gl_mask |= GL_STENCIL_BUFFER_BIT;
+                glStencilMask(0xff);
+                glClearStencil(gl_clear_stencil);            
+            }
+        }
+        if (write_color) {
+            gl_mask |= GL_COLOR_BUFFER_BIT;
+            glColorMask((parameter & NV097_CLEAR_SURFACE_R)
+                             ? GL_TRUE : GL_FALSE,
+                        (parameter & NV097_CLEAR_SURFACE_G)
+                             ? GL_TRUE : GL_FALSE,
+                        (parameter & NV097_CLEAR_SURFACE_B)
+                             ? GL_TRUE : GL_FALSE,
+                        (parameter & NV097_CLEAR_SURFACE_A)
+                             ? GL_TRUE : GL_FALSE);
             uint32_t clear_color = d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE];
             glClearColor( ((clear_color >> 16) & 0xFF) / 255.0f, /* red */
                           ((clear_color >> 8) & 0xFF) / 255.0f,  /* green */
@@ -4427,14 +4461,7 @@ static void pgraph_method(NV2AState *d,
                           ((clear_color >> 24) & 0xFF) / 255.0f);/* alpha */
         }
 
-        bool write_color = (parameter & NV097_CLEAR_SURFACE_COLOR);
-        bool write_zeta =
-            (parameter & (NV097_CLEAR_SURFACE_Z | NV097_CLEAR_SURFACE_STENCIL));
         pgraph_update_surface(d, true, write_color, write_zeta);
-
-        glColorMask(true, true, true, true);
-        glDepthMask(true);
-        glStencilMask(0xff);
 
         glEnable(GL_SCISSOR_TEST);
 
@@ -4446,8 +4473,9 @@ static void pgraph_method(NV2AState *d,
                 NV_PGRAPH_CLEARRECTY_YMIN);
         unsigned int ymax = GET_MASK(pg->regs[NV_PGRAPH_CLEARRECTY],
                 NV_PGRAPH_CLEARRECTY_YMAX);
-        glScissor(xmin, pg->surface_shape.clip_height-ymax,
-                  xmax-xmin, ymax-ymin);
+
+        /* FIXME: Maybe "pg->surface_shape.clip_height-ymax" instead of ymin? */
+        glScissor(xmin, ymin, xmax-xmin+1, ymax-ymin+1);
 
         NV2A_DPRINTF("------------------CLEAR 0x%x %d,%d - %d,%d  %x---------------\n",
             parameter, xmin, ymin, xmax, ymax, d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE]);
