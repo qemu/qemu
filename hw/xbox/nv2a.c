@@ -2978,13 +2978,22 @@ static void pgraph_update_surface(NV2AState *d,
             glGenTextures(1, &pg->gl_color_buffer);
             glBindTexture(GL_TEXTURE_2D, pg->gl_color_buffer);
 
-            glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                          pg->surface_color.pitch / f.bytes_per_pixel);
+            /* This is VRAM so we can't do this inplace! */
+            uint8_t *flipped_buf = g_malloc(width * height * f.bytes_per_pixel);
+            unsigned int irow;
+            for (irow = 0; irow < height; irow++) {
+                memcpy(&flipped_buf[width * (height - irow - 1)
+                                         * f.bytes_per_pixel],
+                       &buf[pg->surface_color.pitch * irow],
+                       width * f.bytes_per_pixel);
+            }
+
             glTexImage2D(GL_TEXTURE_2D, 0, f.gl_internal_format,
                          width, height, 0,
                          f.gl_format, f.gl_type,
-                         buf);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                         flipped_buf);
+
+            g_free(flipped_buf);
 
             glFramebufferTexture2D(GL_FRAMEBUFFER,
                                    GL_COLOR_ATTACHMENT0,
@@ -3159,14 +3168,22 @@ static void pgraph_update_surface(NV2AState *d,
             glGenTextures(1, &pg->gl_zeta_buffer);
             glBindTexture(GL_TEXTURE_2D, pg->gl_zeta_buffer);
 
+            /* This is VRAM so we can't do this inplace! */
+            uint8_t *flipped_buf = g_malloc(width * height * bytes_per_pixel);
+            unsigned int irow;
+            for (irow = 0; irow < height; irow++) {
+                memcpy(&flipped_buf[width * (height - irow - 1)
+                                         * bytes_per_pixel],
+                       &buf[pg->surface_zeta.pitch * irow],
+                       width * bytes_per_pixel);
+            }
 
-            glPixelStorei(GL_UNPACK_ROW_LENGTH,
-                          pg->surface_zeta.pitch / bytes_per_pixel);
             glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format,
                          width, height, 0,
                          gl_format, gl_type,
-                         buf);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                         flipped_buf);
+
+            g_free(flipped_buf);
 
             glFramebufferTexture2D(GL_FRAMEBUFFER,
                                    gl_attachment,
