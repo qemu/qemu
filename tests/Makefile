@@ -434,6 +434,7 @@ tests/test-rcu-list$(EXESUF): tests/test-rcu-list.o $(test-util-obj-y)
 
 tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	hw/core/qdev.o hw/core/qdev-properties.o hw/core/hotplug.o\
+	hw/core/bus.o \
 	hw/core/irq.o \
 	hw/core/fw-path-provider.o \
 	$(test-qapi-obj-y)
