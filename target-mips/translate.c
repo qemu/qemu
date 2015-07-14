@@ -9552,6 +9552,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_cmp_s(ctx, func-48, ft, fs, cc);
             opn = condnames[func-48];
         }
+        optype = CMPOP;
         break;
     case OPC_ADD_D:
         check_cp1_registers(ctx, fs | ft | fd);
@@ -10036,6 +10037,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_cmp_d(ctx, func-48, ft, fs, cc);
             opn = condnames[func-48];
         }
+        optype = CMPOP;
         break;
     case OPC_CVT_S_D:
         check_cp1_registers(ctx, fs);
@@ -10461,6 +10463,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_cmp_ps(ctx, func-48, ft, fs, cc);
             opn = condnames[func-48];
         }
+        optype = CMPOP;
         break;
     default:
         MIPS_INVAL(opn);
