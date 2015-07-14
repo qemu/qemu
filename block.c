@@ -1102,12 +1102,46 @@ static int bdrv_fill_options(QDict **options, const char **pfilename,
     return 0;
 }
 
+static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
+                                    BlockDriverState *child_bs,
+                                    const BdrvChildRole *child_role)
+{
+    BdrvChild *child = g_new(BdrvChild, 1);
+    *child = (BdrvChild) {
+        .bs     = child_bs,
+        .role   = child_role,
+    };
+
+    QLIST_INSERT_HEAD(&parent_bs->children, child, next);
+
+    return child;
+}
+
+static void bdrv_detach_child(BdrvChild *child)
+{
+    QLIST_REMOVE(child, next);
+    g_free(child);
+}
+
+void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
+{
+    BlockDriverState *child_bs = child->bs;
+
+    if (child->bs->inherits_from == parent) {
+        child->bs->inherits_from = NULL;
+    }
+
+    bdrv_detach_child(child);
+    bdrv_unref(child_bs);
+}
+
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 {
 
     if (bs->backing_hd) {
         assert(bs->backing_blocker);
         bdrv_op_unblock_all(bs->backing_hd, bs->backing_blocker);
+        bdrv_detach_child(bs->backing_child);
     } else if (backing_hd) {
         error_setg(&bs->backing_blocker,
                    "node is used as backing hd of '%s'",
@@ -1118,8 +1152,10 @@ void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
     if (!backing_hd) {
         error_free(bs->backing_blocker);
         bs->backing_blocker = NULL;
+        bs->backing_child = NULL;
         goto out;
     }
+    bs->backing_child = bdrv_attach_child(bs, backing_hd, &child_backing);
     bs->open_flags &= ~BDRV_O_NO_BACKING;
     pstrcpy(bs->backing_file, sizeof(bs->backing_file), backing_hd->filename);
     pstrcpy(bs->backing_format, sizeof(bs->backing_format),
@@ -1202,6 +1238,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         error_free(local_err);
         goto free_exit;
     }
+
     bdrv_set_backing_hd(bs, backing_hd);
 
 free_exit:
@@ -1214,7 +1251,7 @@ free_exit:
  * device's options.
  *
  * If allow_none is true, no image will be opened if filename is false and no
- * BlockdevRef is given. *pbs will remain unchanged and 0 will be returned.
+ * BlockdevRef is given. NULL will be returned, but errp remains unset.
  *
  * bdrev_key specifies the key for the image's BlockdevRef in the options QDict.
  * That QDict has to be flattened; therefore, if the BlockdevRef is a QDict
@@ -1222,6 +1259,56 @@ free_exit:
  * BlockdevRef.
  *
  * The BlockdevRef will be removed from the options QDict.
+ */
+BdrvChild *bdrv_open_child(const char *filename,
+                           QDict *options, const char *bdref_key,
+                           BlockDriverState* parent,
+                           const BdrvChildRole *child_role,
+                           bool allow_none, Error **errp)
+{
+    BdrvChild *c = NULL;
+    BlockDriverState *bs;
+    QDict *image_options;
+    int ret;
+    char *bdref_key_dot;
+    const char *reference;
+
+    assert(child_role != NULL);
+
+    bdref_key_dot = g_strdup_printf("%s.", bdref_key);
+    qdict_extract_subqdict(options, &image_options, bdref_key_dot);
+    g_free(bdref_key_dot);
+
+    reference = qdict_get_try_str(options, bdref_key);
+    if (!filename && !reference && !qdict_size(image_options)) {
+        if (!allow_none) {
+            error_setg(errp, "A block device must be specified for \"%s\"",
+                       bdref_key);
+        }
+        QDECREF(image_options);
+        goto done;
+    }
+
+    bs = NULL;
+    ret = bdrv_open_inherit(&bs, filename, reference, image_options, 0,
+                            parent, child_role, NULL, errp);
+    if (ret < 0) {
+        goto done;
+    }
+
+    c = bdrv_attach_child(parent, bs, child_role);
+
+done:
+    qdict_del(options, bdref_key);
+    return c;
+}
+
+/*
+ * This is a version of bdrv_open_child() that returns 0/-EINVAL instead of
+ * a BdrvChild object.
+ *
+ * If allow_none is true, no image will be opened if filename is false and no
+ * BlockdevRef is given. *pbs will remain unchanged and 0 will be returned.
  *
  * To conform with the behavior of bdrv_open(), *pbs has to be NULL.
  */
@@ -1230,37 +1317,24 @@ int bdrv_open_image(BlockDriverState **pbs, const char *filename,
                     BlockDriverState* parent, const BdrvChildRole *child_role,
                     bool allow_none, Error **errp)
 {
-    QDict *image_options;
-    int ret;
-    char *bdref_key_dot;
-    const char *reference;
+    Error *local_err = NULL;
+    BdrvChild *c;
 
     assert(pbs);
     assert(*pbs == NULL);
 
-    bdref_key_dot = g_strdup_printf("%s.", bdref_key);
-    qdict_extract_subqdict(options, &image_options, bdref_key_dot);
-    g_free(bdref_key_dot);
-
-    reference = qdict_get_try_str(options, bdref_key);
-    if (!filename && !reference && !qdict_size(image_options)) {
-        if (allow_none) {
-            ret = 0;
-        } else {
-            error_setg(errp, "A block device must be specified for \"%s\"",
-                       bdref_key);
-            ret = -EINVAL;
-        }
-        QDECREF(image_options);
-        goto done;
+    c = bdrv_open_child(filename, options, bdref_key, parent, child_role,
+                        allow_none, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -EINVAL;
     }
 
-    ret = bdrv_open_inherit(pbs, filename, reference, image_options, 0,
-                            parent, child_role, NULL, errp);
+    if (c != NULL) {
+        *pbs = c->bs;
+    }
 
-done:
-    qdict_del(options, bdref_key);
-    return ret;
+    return 0;
 }
 
 int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
@@ -1328,19 +1402,6 @@ out:
     return ret;
 }
 
-static void bdrv_attach_child(BlockDriverState *parent_bs,
-                              BlockDriverState *child_bs,
-                              const BdrvChildRole *child_role)
-{
-    BdrvChild *child = g_new(BdrvChild, 1);
-    *child = (BdrvChild) {
-        .bs     = child_bs,
-        .role   = child_role,
-    };
-
-    QLIST_INSERT_HEAD(&parent_bs->children, child, next);
-}
-
 /*
  * Opens a disk image (raw, qcow2, vmdk, ...)
  *
@@ -1393,9 +1454,6 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
             return -ENODEV;
         }
         bdrv_ref(bs);
-        if (child_role) {
-            bdrv_attach_child(parent, bs, child_role);
-        }
         *pbs = bs;
         return 0;
     }
@@ -1538,10 +1596,6 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
                    "Guest must be stopped for opening of encrypted image");
         ret = -EBUSY;
         goto close_and_fail;
-    }
-
-    if (child_role) {
-        bdrv_attach_child(parent, bs, child_role);
     }
 
     QDECREF(options);
@@ -1849,20 +1903,23 @@ void bdrv_close(BlockDriverState *bs)
     if (bs->drv) {
         BdrvChild *child, *next;
 
-        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
-            if (child->bs->inherits_from == bs) {
-                child->bs->inherits_from = NULL;
-            }
-            QLIST_REMOVE(child, next);
-            g_free(child);
-        }
+        bs->drv->bdrv_close(bs);
 
         if (bs->backing_hd) {
             BlockDriverState *backing_hd = bs->backing_hd;
             bdrv_set_backing_hd(bs, NULL);
             bdrv_unref(backing_hd);
         }
-        bs->drv->bdrv_close(bs);
+
+        QLIST_FOREACH_SAFE(child, &bs->children, next, next) {
+            /* TODO Remove bdrv_unref() from drivers' close function and use
+             * bdrv_unref_child() here */
+            if (child->bs->inherits_from == bs) {
+                child->bs->inherits_from = NULL;
+            }
+            bdrv_detach_child(child);
+        }
+
         g_free(bs->opaque);
         bs->opaque = NULL;
         bs->drv = NULL;
@@ -2116,7 +2173,6 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     /* The contents of 'tmp' will become bs_top, as we are
      * swapping bs_new and bs_top contents. */
     bdrv_set_backing_hd(bs_top, bs_new);
-    bdrv_attach_child(bs_top, bs_new, &child_backing);
 }
 
 static void bdrv_delete(BlockDriverState *bs)

@@ -207,9 +207,21 @@ static void nvme_rw_cb(void *opaque, int ret)
     } else {
         req->status = NVME_INTERNAL_DEV_ERROR;
     }
-
-    qemu_sglist_destroy(&req->qsg);
+    if (req->has_sg) {
+        qemu_sglist_destroy(&req->qsg);
+    }
     nvme_enqueue_req_completion(cq, req);
+}
+
+static uint16_t nvme_flush(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
+    NvmeRequest *req)
+{
+    req->has_sg = false;
+    block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
+         BLOCK_ACCT_FLUSH);
+    req->aiocb = blk_aio_flush(n->conf.blk, nvme_rw_cb, req);
+
+    return NVME_NO_COMPLETE;
 }
 
 static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
@@ -235,6 +247,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     }
     assert((nlb << data_shift) == req->qsg.size);
 
+    req->has_sg = true;
     dma_acct_start(n->conf.blk, &req->acct, &req->qsg,
                    is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
     req->aiocb = is_write ?
@@ -256,7 +269,7 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     ns = &n->namespaces[nsid - 1];
     switch (cmd->opcode) {
     case NVME_CMD_FLUSH:
-        return NVME_SUCCESS;
+        return nvme_flush(n, ns, cmd, req);
     case NVME_CMD_WRITE:
     case NVME_CMD_READ:
         return nvme_rw(n, ns, cmd, req);
@@ -474,26 +487,32 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
 static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
+    uint32_t result;
 
     switch (dw10) {
-    case NVME_NUMBER_OF_QUEUES:
-        req->cqe.result =
-            cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
-        break;
     case NVME_VOLATILE_WRITE_CACHE:
-        req->cqe.result = cpu_to_le32(1);
+        result = blk_enable_write_cache(n->conf.blk);
+        break;
+    case NVME_NUMBER_OF_QUEUES:
+        result = cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
         break;
     default:
         return NVME_INVALID_FIELD | NVME_DNR;
     }
+
+    req->cqe.result = result;
     return NVME_SUCCESS;
 }
 
 static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
+    uint32_t dw11 = le32_to_cpu(cmd->cdw11);
 
     switch (dw10) {
+    case NVME_VOLATILE_WRITE_CACHE:
+        blk_set_enable_write_cache(n->conf.blk, dw11 & 1);
+        break;
     case NVME_NUMBER_OF_QUEUES:
         req->cqe.result =
             cpu_to_le32((n->num_queues - 1) | ((n->num_queues - 1) << 16));
@@ -818,6 +837,9 @@ static int nvme_init(PCIDevice *pci_dev)
     id->psd[0].mp = cpu_to_le16(0x9c4);
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);
+    if (blk_enable_write_cache(n->conf.blk)) {
+        id->vwc = 1;
+    }
 
     n->bar.cap = 0;
     NVME_CAP_SET_MQES(n->bar.cap, 0x7ff);
