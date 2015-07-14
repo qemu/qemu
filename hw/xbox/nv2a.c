@@ -1036,7 +1036,7 @@ typedef struct ColorFormatInfo {
     GLint gl_internal_format;
     GLenum gl_format;
     GLenum gl_type;
-    GLenum swizzle_mask[4];
+    GLenum gl_swizzle_mask[4];
 } ColorFormatInfo;
 
 static const ColorFormatInfo kelvin_color_format_map[66] = {
@@ -2081,10 +2081,10 @@ static TextureBinding* generate_texture(const TextureShape s,
         }
     }
 
-    if (f.swizzle_mask[0] != 0 || f.swizzle_mask[1] != 0
-        || f.swizzle_mask[2] != 0 || f.swizzle_mask[3] != 0) {
+    if (f.gl_swizzle_mask[0] != 0 || f.gl_swizzle_mask[1] != 0
+        || f.gl_swizzle_mask[2] != 0 || f.gl_swizzle_mask[3] != 0) {
         glTexParameteriv(gl_target, GL_TEXTURE_SWIZZLE_RGBA,
-                         (const GLint *)f.swizzle_mask);
+                         (const GLint *)f.gl_swizzle_mask);
     }
 
     TextureBinding* ret = g_malloc(sizeof(TextureBinding));
