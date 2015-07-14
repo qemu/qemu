@@ -1717,8 +1717,8 @@ static void *nv_dma_map(NV2AState *d, hwaddr dma_obj_address, hwaddr *len)
     DMAObject dma = nv_dma_load(d, dma_obj_address);
 
     /* TODO: Handle targets and classes properly */
-    // NV2A_DPRINTF("dma_map %x, %x, %llx %llx\n",
-    //              dma.dma_class, dma.dma_target, dma.address, dma.limit);
+    NV2A_DPRINTF("dma_map %x, %x, %llx %llx\n",
+                 dma.dma_class, dma.dma_target, dma.address, dma.limit);
     // assert(dma.address + dma.limit < memory_region_size(d->vram));
     *len = dma.limit;
     return d->vram_ptr + dma.address;
@@ -5678,7 +5678,7 @@ static void pcrtc_write(void *opaque, hwaddr addr,
         update_irq(d);
         break;
     case NV_PCRTC_START:
-        val &= 0x03FFFFFF;
+        val &= 0x07FFFFFF;
         assert(val < memory_region_size(d->vram));
         d->pcrtc.start = val;
 
