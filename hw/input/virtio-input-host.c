@@ -11,6 +11,7 @@
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/virtio-input.h"
 
+#include <sys/ioctl.h>
 #include "standard-headers/linux/input.h"
 
 /* ----------------------------------------------------------------- */

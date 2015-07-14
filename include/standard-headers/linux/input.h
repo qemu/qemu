@@ -10,7 +10,6 @@
 
 
 #include <sys/time.h>
-#include <sys/ioctl.h>
 #include <sys/types.h>
 #include "standard-headers/linux/types.h"
 

@@ -56,6 +56,7 @@ cp_virtio() {
                 -e 's/__bitwise__//' \
                 -e 's/__attribute__((packed))/QEMU_PACKED/' \
                 -e 's/__inline__/inline/' \
+                -e '/sys\/ioctl.h/d' \
                 "$f" > "$to/$header";
         done
     fi
