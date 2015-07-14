@@ -40,6 +40,13 @@ static void wdt_diag288_reset(DeviceState *dev)
     timer_del(diag288->timer);
 }
 
+static void diag288_reset(void *opaque)
+{
+    DeviceState *diag288 = opaque;
+
+    wdt_diag288_reset(diag288);
+}
+
 static void diag288_timer_expired(void *dev)
 {
     qemu_log_mask(CPU_LOG_RESET, "Watchdog timer expired.\n");
@@ -80,6 +87,7 @@ static void wdt_diag288_realize(DeviceState *dev, Error **errp)
 {
     DIAG288State *diag288 = DIAG288(dev);
 
+    qemu_register_reset(diag288_reset, diag288);
     diag288->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, diag288_timer_expired,
                                   dev);
 }

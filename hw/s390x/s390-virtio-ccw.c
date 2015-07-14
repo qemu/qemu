@@ -36,7 +36,7 @@ typedef struct S390CcwMachineState {
 
 void io_subsystem_reset(void)
 {
-    DeviceState *css, *sclp, *flic;
+    DeviceState *css, *sclp, *flic, *diag288;
 
     css = DEVICE(object_resolve_path_type("", "virtual-css-bridge", NULL));
     if (css) {
@@ -50,6 +50,10 @@ void io_subsystem_reset(void)
     flic = DEVICE(object_resolve_path_type("", "s390-flic", NULL));
     if (flic) {
         qdev_reset_all(flic);
+    }
+    diag288 = DEVICE(object_resolve_path_type("", "diag288", NULL));
+    if (diag288) {
+        qdev_reset_all(diag288);
     }
 }
 
