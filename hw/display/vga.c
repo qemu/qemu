@@ -1689,7 +1689,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         height != s->last_height ||
         s->last_depth != depth ||
         s->enable_overlay != s->last_enable_overlay) {
-        if (!s->enable_overlay && (depth == 32 || (depth == 16 && !byteswap))) {
+        if (!s->enable_overlay && (depth == 32 || (false && depth == 16 && !byteswap))) {
             surface = qemu_create_displaysurface_from(disp_width,
                     height, depth, s->line_offset,
                     s->vram_ptr + (s->start_addr * 4), byteswap);
