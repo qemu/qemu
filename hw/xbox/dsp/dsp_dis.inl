@@ -53,7 +53,7 @@ static const char* disasm_opcodes_alu[256] = {
     "move"     , "tfr b,a", "addr b,a", "tst a", "undefined", "cmp b,a"  , "subr b,a", "cmpm b,a",
     "undefined", "tfr a,b", "addr a,b", "tst b", "undefined", "cmp a,b"  , "subr a,b", "cmpm a,b",
     "add b,a"  , "rnd a"  , "addl b,a", "clr a", "sub b,a"  , "undefined", "subl b,a", "not a",
-    "add a,b"  , "rnd b"  , "addl a,b", "clr b", "sub a,b"  , "undefined", "subl a,b", "not b",
+    "add a,b"  , "rnd b"  , "addl a,b", "clr b", "sub a,b"  , "max a,b", "subl a,b", "not b",
     "add x,a"  , "adc x,a", "asr a" , "lsr a", "sub x,a"  , "sbc x,a"  , "abs a" , "ror a",
     "add x,b"  , "adc x,b", "asr b" , "lsr b", "sub x,b"  , "sbc x,b"  , "abs b" , "ror b",
     "add y,a"  , "adc y,a", "asl a" , "lsl a", "sub y,a"  , "sbc y,a"  , "neg a" , "rol a",

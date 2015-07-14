@@ -5056,6 +5056,31 @@ static void emu_tst_b(dsp_core_t* dsp)
     dsp->registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_V);
 }
 
+static void emu_max(dsp_core_t* dsp)
+{
+    uint32_t source[3], dest[3];
+
+    dest[2] = dsp->registers[DSP_REG_A0];
+    dest[1] = dsp->registers[DSP_REG_A1];
+    dest[0] = dsp->registers[DSP_REG_A2];
+
+    source[2] = dsp->registers[DSP_REG_B0];
+    source[1] = dsp->registers[DSP_REG_B1];
+    source[0] = dsp->registers[DSP_REG_B2];
+
+    dsp_sub56(source, dest);
+    bool pass = ((dest[0] & (1<<7))
+        || (dest[0] == 0 && dest[1] == 0 && dest[2] == 0));
+
+    if (pass) {
+        dsp->registers[DSP_REG_B0] = dsp->registers[DSP_REG_A2];
+        dsp->registers[DSP_REG_B1] = dsp->registers[DSP_REG_A1];
+        dsp->registers[DSP_REG_B2] = dsp->registers[DSP_REG_A0];
+    }
+
+    dsp->registers[DSP_REG_SR] &= BITMASK(16)-(1<<DSP_SR_C);
+    dsp->registers[DSP_REG_SR] |= pass<<DSP_SR_C;
+}
 
 
 static const emu_func_t opcodes_alu[256] = {
@@ -5063,7 +5088,7 @@ static const emu_func_t opcodes_alu[256] = {
     emu_move     , emu_tfr_b_a, emu_addr_b_a, emu_tst_a, emu_undefined, emu_cmp_b_a, emu_subr_a, emu_cmpm_b_a,
     emu_undefined, emu_tfr_a_b, emu_addr_a_b, emu_tst_b, emu_undefined, emu_cmp_a_b, emu_subr_b, emu_cmpm_a_b,
     emu_add_b_a, emu_rnd_a, emu_addl_b_a, emu_clr_a, emu_sub_b_a, emu_undefined, emu_subl_a, emu_not_a,
-    emu_add_a_b, emu_rnd_b, emu_addl_a_b, emu_clr_b, emu_sub_a_b, emu_undefined, emu_subl_b, emu_not_b,
+    emu_add_a_b, emu_rnd_b, emu_addl_a_b, emu_clr_b, emu_sub_a_b, emu_max, emu_subl_b, emu_not_b,
     emu_add_x_a, emu_adc_x_a, emu_asr_a, emu_lsr_a, emu_sub_x_a, emu_sbc_x_a, emu_abs_a, emu_ror_a,
     emu_add_x_b, emu_adc_x_b, emu_asr_b, emu_lsr_b, emu_sub_x_b, emu_sbc_x_b, emu_abs_b, emu_ror_b,
     emu_add_y_a, emu_adc_y_a, emu_asl_a, emu_lsl_a, emu_sub_y_a, emu_sbc_y_a, emu_neg_a, emu_rol_a,
