@@ -2551,7 +2551,7 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
         goto reject;
     }
 
-    if (qcrypto_cipher_decrypt(cipher,
+    if (qcrypto_cipher_encrypt(cipher,
                                vs->challenge,
                                response,
                                VNC_AUTH_CHALLENGE_SIZE,
