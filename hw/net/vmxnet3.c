@@ -885,6 +885,63 @@ vmxnet3_get_next_rx_descr(VMXNET3State *s, bool is_head,
     }
 }
 
+/* In case packet was csum offloaded (either NEEDS_CSUM or DATA_VALID),
+ * the implementation always passes an RxCompDesc with a "Checksum
+ * calculated and found correct" to the OS (cnc=0 and tuc=1, see
+ * vmxnet3_rx_update_descr). This emulates the observed ESXi behavior.
+ *
+ * Therefore, if packet has the NEEDS_CSUM set, we must calculate
+ * and place a fully computed checksum into the tcp/udp header.
+ * Otherwise, the OS driver will receive a checksum-correct indication
+ * (CHECKSUM_UNNECESSARY), but with the actual tcp/udp checksum field
+ * having just the pseudo header csum value.
+ *
+ * While this is not a problem if packet is destined for local delivery,
+ * in the case the host OS performs forwarding, it will forward an
+ * incorrectly checksummed packet.
+ */
+static void vmxnet3_rx_need_csum_calculate(struct VmxnetRxPkt *pkt,
+                                           const void *pkt_data,
+                                           size_t pkt_len)
+{
+    struct virtio_net_hdr *vhdr;
+    bool isip4, isip6, istcp, isudp;
+    uint8_t *data;
+    int len;
+
+    if (!vmxnet_rx_pkt_has_virt_hdr(pkt)) {
+        return;
+    }
+
+    vhdr = vmxnet_rx_pkt_get_vhdr(pkt);
+    if (!VMXNET_FLAG_IS_SET(vhdr->flags, VIRTIO_NET_HDR_F_NEEDS_CSUM)) {
+        return;
+    }
+
+    vmxnet_rx_pkt_get_protocols(pkt, &isip4, &isip6, &isudp, &istcp);
+    if (!(isip4 || isip6) || !(istcp || isudp)) {
+        return;
+    }
+
+    vmxnet3_dump_virt_hdr(vhdr);
+
+    /* Validate packet len: csum_start + scum_offset + length of csum field */
+    if (pkt_len < (vhdr->csum_start + vhdr->csum_offset + 2)) {
+        VMW_PKPRN("packet len:%d < csum_start(%d) + csum_offset(%d) + 2, "
+                  "cannot calculate checksum",
+                  len, vhdr->csum_start, vhdr->csum_offset);
+        return;
+    }
+
+    data = (uint8_t *)pkt_data + vhdr->csum_start;
+    len = pkt_len - vhdr->csum_start;
+    /* Put the checksum obtained into the packet */
+    stw_be_p(data + vhdr->csum_offset, net_raw_checksum(data, len));
+
+    vhdr->flags &= ~VIRTIO_NET_HDR_F_NEEDS_CSUM;
+    vhdr->flags |= VIRTIO_NET_HDR_F_DATA_VALID;
+}
+
 static void vmxnet3_rx_update_descr(struct VmxnetRxPkt *pkt,
     struct Vmxnet3_RxCompDesc *rxcd)
 {
@@ -1898,6 +1955,7 @@ vmxnet3_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 
     if (vmxnet3_rx_filter_may_indicate(s, buf, size)) {
         vmxnet_rx_pkt_set_protocols(s->rx_pkt, buf, size);
+        vmxnet3_rx_need_csum_calculate(s->rx_pkt, buf, size);
         vmxnet_rx_pkt_attach_data(s->rx_pkt, buf, size, s->rx_vlan_stripping);
         bytes_indicated = vmxnet3_indicate_packet(s) ? size : -1;
         if (bytes_indicated < size) {
