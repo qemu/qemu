@@ -735,12 +735,28 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
          * we point to the kernel args.
          */
         if (have_dtb(info)) {
-            /* Place the DTB after the initrd in memory. Note that some
-             * kernels will trash anything in the 4K page the initrd
-             * ends in, so make sure the DTB isn't caught up in that.
-             */
-            hwaddr dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size,
-                                             4096);
+            hwaddr align;
+            hwaddr dtb_start;
+
+            if (elf_machine == EM_AARCH64) {
+                /*
+                 * Some AArch64 kernels on early bootup map the fdt region as
+                 *
+                 *   [ ALIGN_DOWN(fdt, 2MB) ... ALIGN_DOWN(fdt, 2MB) + 2MB ]
+                 *
+                 * Let's play safe and prealign it to 2MB to give us some space.
+                 */
+                align = 2 * 1024 * 1024;
+            } else {
+                /*
+                 * Some 32bit kernels will trash anything in the 4K page the
+                 * initrd ends in, so make sure the DTB isn't caught up in that.
+                 */
+                align = 4096;
+            }
+
+            /* Place the DTB after the initrd in memory with alignment. */
+            dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size, align);
             if (load_dtb(dtb_start, info, 0) < 0) {
                 exit(1);
             }

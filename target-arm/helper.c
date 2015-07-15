@@ -2752,6 +2752,7 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
       .access = PL3_RW, .writefn = vbar_write, .resetvalue = 0,
       .fieldoffset = offsetof(CPUARMState, cp15.mvbar) },
     { .name = "SCTLR_EL3", .state = ARM_CP_STATE_AA64,
+      .type = ARM_CP_ALIAS, /* reset handled by AArch32 view */
       .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 0, .opc2 = 0,
       .access = PL3_RW, .raw_writefn = raw_write, .writefn = sctlr_write,
       .fieldoffset = offsetof(CPUARMState, cp15.sctlr_el[3]) },
