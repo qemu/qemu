@@ -2186,6 +2186,10 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             }
 
             hlen = IP_HEADER_LENGTH(ip);
+            if (hlen < sizeof(ip_header) || hlen > eth_payload_len) {
+                goto skip_offload;
+            }
+
             ip_protocol = ip->ip_p;
             ip_data_len = be16_to_cpu(ip->ip_len) - hlen;
 
@@ -2193,17 +2197,10 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             {
                 DPRINTF("+++ C+ mode need IP checksum\n");
 
-                if (hlen<sizeof(ip_header) || hlen>eth_payload_len) {/* min header length */
-                    /* bad packet header len */
-                    /* or packet too short */
-                }
-                else
-                {
-                    ip->ip_sum = 0;
-                    ip->ip_sum = ip_checksum(ip, hlen);
-                    DPRINTF("+++ C+ mode IP header len=%d checksum=%04x\n",
-                        hlen, ip->ip_sum);
-                }
+                ip->ip_sum = 0;
+                ip->ip_sum = ip_checksum(ip, hlen);
+                DPRINTF("+++ C+ mode IP header len=%d checksum=%04x\n",
+                    hlen, ip->ip_sum);
             }
 
             if ((txdw0 & CP_TX_LGSEN) && ip_protocol == IP_PROTO_TCP)
