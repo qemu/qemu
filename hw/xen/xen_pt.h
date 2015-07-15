@@ -40,6 +40,9 @@ typedef struct XenPCIPassthroughState XenPCIPassthroughState;
 #define XEN_PT_DEVICE(obj) \
     OBJECT_CHECK(XenPCIPassthroughState, (obj), TYPE_XEN_PT_DEVICE)
 
+uint32_t igd_read_opregion(XenPCIPassthroughState *s);
+void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val);
+
 /* function type for config reg */
 typedef int (*xen_pt_conf_reg_init)
     (XenPCIPassthroughState *, XenPTRegInfo *, uint32_t real_offset,
@@ -66,8 +69,9 @@ typedef int (*xen_pt_conf_byte_read)
 #define XEN_PT_BAR_ALLF 0xFFFFFFFF
 #define XEN_PT_BAR_UNMAPPED (-1)
 
-#define PCI_CAP_MAX 48
+#define XEN_PCI_CAP_MAX 48
 
+#define XEN_PCI_INTEL_OPREGION 0xfc
 
 typedef enum {
     XEN_PT_GRP_TYPE_HARDWIRED = 0,  /* 0 Hardwired reg group */

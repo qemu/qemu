@@ -552,6 +552,22 @@ static int xen_pt_exp_rom_bar_reg_write(XenPCIPassthroughState *s,
     return 0;
 }
 
+static int xen_pt_intel_opregion_read(XenPCIPassthroughState *s,
+                                      XenPTReg *cfg_entry,
+                                      uint32_t *value, uint32_t valid_mask)
+{
+    *value = igd_read_opregion(s);
+    return 0;
+}
+
+static int xen_pt_intel_opregion_write(XenPCIPassthroughState *s,
+                                       XenPTReg *cfg_entry, uint32_t *value,
+                                       uint32_t dev_value, uint32_t valid_mask)
+{
+    igd_write_opregion(s, *value);
+    return 0;
+}
+
 /* Header Type0 reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_header0[] = {
     /* Vendor ID reg */
@@ -1492,6 +1508,19 @@ static XenPTRegInfo xen_pt_emu_reg_msix[] = {
     },
 };
 
+static XenPTRegInfo xen_pt_emu_reg_igd_opregion[] = {
+    /* Intel IGFX OpRegion reg */
+    {
+        .offset     = 0x0,
+        .size       = 4,
+        .init_val   = 0,
+        .u.dw.read   = xen_pt_intel_opregion_read,
+        .u.dw.write  = xen_pt_intel_opregion_write,
+    },
+    {
+        .size = 0,
+    },
+};
 
 /****************************
  * Capabilities
@@ -1729,6 +1758,14 @@ static const XenPTRegGroupInfo xen_pt_emu_reg_grps[] = {
         .size_init   = xen_pt_msix_size_init,
         .emu_regs = xen_pt_emu_reg_msix,
     },
+    /* Intel IGD Opregion group */
+    {
+        .grp_id      = XEN_PCI_INTEL_OPREGION,
+        .grp_type    = XEN_PT_GRP_TYPE_EMU,
+        .grp_size    = 0x4,
+        .size_init   = xen_pt_reg_grp_size_init,
+        .emu_regs    = xen_pt_emu_reg_igd_opregion,
+    },
     {
         .grp_size = 0,
     },
@@ -1779,7 +1816,7 @@ out:
 static uint8_t find_cap_offset(XenPCIPassthroughState *s, uint8_t cap)
 {
     uint8_t id;
-    unsigned max_cap = PCI_CAP_MAX;
+    unsigned max_cap = XEN_PCI_CAP_MAX;
     uint8_t pos = PCI_CAPABILITY_LIST;
     uint8_t status = 0;
 
@@ -1858,7 +1895,8 @@ int xen_pt_config_init(XenPCIPassthroughState *s)
         uint32_t reg_grp_offset = 0;
         XenPTRegGroup *reg_grp_entry = NULL;
 
-        if (xen_pt_emu_reg_grps[i].grp_id != 0xFF) {
+        if (xen_pt_emu_reg_grps[i].grp_id != 0xFF
+            && xen_pt_emu_reg_grps[i].grp_id != XEN_PCI_INTEL_OPREGION) {
             if (xen_pt_hide_dev_cap(&s->real_device,
                                     xen_pt_emu_reg_grps[i].grp_id)) {
                 continue;
@@ -1869,6 +1907,15 @@ int xen_pt_config_init(XenPCIPassthroughState *s)
             if (!reg_grp_offset) {
                 continue;
             }
+        }
+
+        /*
+         * By default we will trap up to 0x40 in the cfg space.
+         * If an intel device is pass through we need to trap 0xfc,
+         * therefore the size should be 0xff.
+         */
+        if (xen_pt_emu_reg_grps[i].grp_id == XEN_PCI_INTEL_OPREGION) {
+            reg_grp_offset = XEN_PCI_INTEL_OPREGION;
         }
 
         reg_grp_entry = g_new0(XenPTRegGroup, 1);

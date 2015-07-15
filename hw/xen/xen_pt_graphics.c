@@ -5,6 +5,11 @@
 #include "xen-host-pci-device.h"
 #include "hw/xen/xen_backend.h"
 
+static unsigned long igd_guest_opregion;
+static unsigned long igd_host_opregion;
+
+#define XEN_PCI_INTEL_OPREGION_MASK 0xfff
+
 typedef struct VGARegion {
     int type;           /* Memory or port I/O */
     uint64_t guest_base_addr;
@@ -81,6 +86,7 @@ int xen_pt_register_vga_regions(XenHostPCIDevice *dev)
 int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev)
 {
     int i = 0;
+    int ret = 0;
 
     if (!is_igd_vga_passthrough(dev)) {
         return 0;
@@ -104,6 +110,17 @@ int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev)
                     vga_args[i].type == IORESOURCE_IO ? "ioport" : "memory",
                     vga_args[i].rc);
             return vga_args[i].rc;
+        }
+    }
+
+    if (igd_guest_opregion) {
+        ret = xc_domain_memory_mapping(xen_xc, xen_domid,
+                (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT),
+                (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
+                3,
+                DPCI_REMOVE_MAPPING);
+        if (ret) {
+            return ret;
         }
     }
 
@@ -187,4 +204,69 @@ int xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev)
     /* Currently we fixed this address as a primary for legacy BIOS. */
     cpu_physical_memory_rw(0xc0000, bios, bios_size, 1);
     return 0;
+}
+
+uint32_t igd_read_opregion(XenPCIPassthroughState *s)
+{
+    uint32_t val = 0;
+
+    if (!igd_guest_opregion) {
+        return val;
+    }
+
+    val = igd_guest_opregion;
+
+    XEN_PT_LOG(&s->dev, "Read opregion val=%x\n", val);
+    return val;
+}
+
+#define XEN_PCI_INTEL_OPREGION_PAGES 0x3
+#define XEN_PCI_INTEL_OPREGION_ENABLE_ACCESSED 0x1
+void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val)
+{
+    int ret;
+
+    if (igd_guest_opregion) {
+        XEN_PT_LOG(&s->dev, "opregion register already been set, ignoring %x\n",
+                   val);
+        return;
+    }
+
+    /* We just work with LE. */
+    xen_host_pci_get_block(&s->real_device, XEN_PCI_INTEL_OPREGION,
+            (uint8_t *)&igd_host_opregion, 4);
+    igd_guest_opregion = (unsigned long)(val & ~XEN_PCI_INTEL_OPREGION_MASK)
+                            | (igd_host_opregion & XEN_PCI_INTEL_OPREGION_MASK);
+
+    ret = xc_domain_iomem_permission(xen_xc, xen_domid,
+            (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
+            XEN_PCI_INTEL_OPREGION_PAGES,
+            XEN_PCI_INTEL_OPREGION_ENABLE_ACCESSED);
+
+    if (ret) {
+        XEN_PT_ERR(&s->dev, "[%d]:Can't enable to access IGD host opregion:"
+                    " 0x%lx.\n", ret,
+                    (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT)),
+        igd_guest_opregion = 0;
+        return;
+    }
+
+    ret = xc_domain_memory_mapping(xen_xc, xen_domid,
+            (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT),
+            (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
+            XEN_PCI_INTEL_OPREGION_PAGES,
+            DPCI_ADD_MAPPING);
+
+    if (ret) {
+        XEN_PT_ERR(&s->dev, "[%d]:Can't map IGD host opregion:0x%lx to"
+                    " guest opregion:0x%lx.\n", ret,
+                    (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
+                    (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT));
+        igd_guest_opregion = 0;
+        return;
+    }
+
+    XEN_PT_LOG(&s->dev, "Map OpRegion: 0x%lx -> 0x%lx\n",
+                    (unsigned long)(igd_host_opregion >> XC_PAGE_SHIFT),
+                    (unsigned long)(igd_guest_opregion >> XC_PAGE_SHIFT));
 }
