@@ -1109,10 +1109,10 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp s_bits,
 #endif /* CONFIG_SOFTMMU */
 
 static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp memop, TCGType ext,
-                                   TCGReg data_r, TCGReg addr_r, TCGReg off_r)
+                                   TCGReg data_r, TCGReg addr_r,
+                                   TCGType otype, TCGReg off_r)
 {
     const TCGMemOp bswap = memop & MO_BSWAP;
-    const TCGType otype = TCG_TYPE_I64;
 
     switch (memop & MO_SSIZE) {
     case MO_UB:
@@ -1165,10 +1165,10 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp memop, TCGType ext,
 }
 
 static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp memop,
-                                   TCGReg data_r, TCGReg addr_r, TCGReg off_r)
+                                   TCGReg data_r, TCGReg addr_r,
+                                   TCGType otype, TCGReg off_r)
 {
     const TCGMemOp bswap = memop & MO_BSWAP;
-    const TCGType otype = TCG_TYPE_I64;
 
     switch (memop & MO_SIZE) {
     case MO_8:
@@ -1210,12 +1210,15 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
     tcg_insn_unit *label_ptr;
 
     tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 1);
-    tcg_out_qemu_ld_direct(s, memop, ext, data_reg, addr_reg, TCG_REG_X1);
+    tcg_out_qemu_ld_direct(s, memop, ext, data_reg, addr_reg,
+                           TCG_TYPE_I64, TCG_REG_X1);
     add_qemu_ldst_label(s, true, oi, ext, data_reg, addr_reg,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
-    tcg_out_qemu_ld_direct(s, memop, ext, data_reg, addr_reg,
-                           GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR);
+    const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
+    tcg_out_qemu_ld_direct(s, memop, ext, data_reg,
+                           GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
+                           otype, addr_reg);
 #endif /* CONFIG_SOFTMMU */
 }
 
@@ -1229,12 +1232,15 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
     tcg_insn_unit *label_ptr;
 
     tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 0);
-    tcg_out_qemu_st_direct(s, memop, data_reg, addr_reg, TCG_REG_X1);
+    tcg_out_qemu_st_direct(s, memop, data_reg, addr_reg,
+                           TCG_TYPE_I64, TCG_REG_X1);
     add_qemu_ldst_label(s, false, oi, s_bits == MO_64, data_reg, addr_reg,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
-    tcg_out_qemu_st_direct(s, memop, data_reg, addr_reg,
-                           GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR);
+    const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
+    tcg_out_qemu_st_direct(s, memop, data_reg,
+                           GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
+                           otype, addr_reg);
 #endif /* CONFIG_SOFTMMU */
 }
 
