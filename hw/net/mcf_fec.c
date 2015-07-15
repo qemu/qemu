@@ -397,12 +397,6 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
     mcf_fec_update(s);
 }
 
-static int mcf_fec_can_receive(NetClientState *nc)
-{
-    mcf_fec_state *s = qemu_get_nic_opaque(nc);
-    return s->rx_enabled;
-}
-
 static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     mcf_fec_state *s = qemu_get_nic_opaque(nc);
@@ -417,7 +411,7 @@ static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t si
 
     DPRINTF("do_rx len %d\n", size);
     if (!s->rx_enabled) {
-        fprintf(stderr, "mcf_fec_receive: Unexpected packet\n");
+        return -1;
     }
     /* 4 bytes for the CRC.  */
     size += 4;
@@ -490,7 +484,6 @@ static const MemoryRegionOps mcf_fec_ops = {
 static NetClientInfo net_mcf_fec_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = mcf_fec_can_receive,
     .receive = mcf_fec_receive,
 };
 
