@@ -2160,27 +2160,29 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             size_t   eth_payload_len  = 0;
 
             int proto = be16_to_cpu(*(uint16_t *)(saved_buffer + 12));
-            if (proto == ETH_P_IP)
+            if (proto != ETH_P_IP)
             {
-                DPRINTF("+++ C+ mode has IP packet\n");
-
-                /* not aligned */
-                eth_payload_data = saved_buffer + ETH_HLEN;
-                eth_payload_len  = saved_size   - ETH_HLEN;
-
-                ip = (ip_header*)eth_payload_data;
-
-                if (IP_HEADER_VERSION(ip) != IP_HEADER_VERSION_4) {
-                    DPRINTF("+++ C+ mode packet has bad IP version %d "
-                        "expected %d\n", IP_HEADER_VERSION(ip),
-                        IP_HEADER_VERSION_4);
-                    ip = NULL;
-                } else {
-                    hlen = IP_HEADER_LENGTH(ip);
-                    ip_protocol = ip->ip_p;
-                    ip_data_len = be16_to_cpu(ip->ip_len) - hlen;
-                }
+                goto skip_offload;
             }
+
+            DPRINTF("+++ C+ mode has IP packet\n");
+
+            /* not aligned */
+            eth_payload_data = saved_buffer + ETH_HLEN;
+            eth_payload_len  = saved_size   - ETH_HLEN;
+
+            ip = (ip_header*)eth_payload_data;
+
+            if (IP_HEADER_VERSION(ip) != IP_HEADER_VERSION_4) {
+                DPRINTF("+++ C+ mode packet has bad IP version %d "
+                    "expected %d\n", IP_HEADER_VERSION(ip),
+                    IP_HEADER_VERSION_4);
+                goto skip_offload;
+            }
+
+            hlen = IP_HEADER_LENGTH(ip);
+            ip_protocol = ip->ip_p;
+            ip_data_len = be16_to_cpu(ip->ip_len) - hlen;
 
             if (ip)
             {
@@ -2377,6 +2379,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             }
         }
 
+skip_offload:
         /* update tally counter */
         ++s->tally_counters.TxOk;
 
