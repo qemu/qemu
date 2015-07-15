@@ -261,6 +261,9 @@ static CCW1 copy_ccw_from_guest(hwaddr addr, bool fmt1)
         ret.flags = tmp0.flags;
         ret.count = be16_to_cpu(tmp0.count);
         ret.cda = be16_to_cpu(tmp0.cda1) | (tmp0.cda0 << 16);
+        if ((ret.cmd_code & 0x0f) == CCW_CMD_TIC) {
+            ret.cmd_code &= 0x0f;
+        }
     }
     return ret;
 }
