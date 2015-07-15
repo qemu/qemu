@@ -431,7 +431,7 @@ static void coroutine_fn backup_run(void *opaque)
 
     if (job->sync_bitmap) {
         BdrvDirtyBitmap *bm;
-        if (ret < 0) {
+        if (ret < 0 || block_job_is_cancelled(&job->common)) {
             /* Merge the successor back into the parent, delete nothing. */
             bm = bdrv_reclaim_dirty_bitmap(bs, job->sync_bitmap, NULL);
             assert(bm);
