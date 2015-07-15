@@ -338,13 +338,6 @@ static void etsec_reset(DeviceState *d)
         MII_SR_100X_FD_CAPS     | MII_SR_100T4_CAPS;
 }
 
-static int etsec_can_receive(NetClientState *nc)
-{
-    eTSEC *etsec = qemu_get_nic_opaque(nc);
-
-    return etsec->rx_buffer_len == 0;
-}
-
 static ssize_t etsec_receive(NetClientState *nc,
                              const uint8_t  *buf,
                              size_t          size)
@@ -355,8 +348,7 @@ static ssize_t etsec_receive(NetClientState *nc,
     fprintf(stderr, "%s receive size:%d\n", etsec->nic->nc.name, size);
     qemu_hexdump(buf, stderr, "", size);
 #endif
-    etsec_rx_ring_write(etsec, buf, size);
-    return size;
+    return etsec_rx_ring_write(etsec, buf, size);
 }
 
 
@@ -370,7 +362,6 @@ static void etsec_set_link_status(NetClientState *nc)
 static NetClientInfo net_etsec_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = etsec_can_receive,
     .receive = etsec_receive,
     .link_status_changed = etsec_set_link_status,
 };
