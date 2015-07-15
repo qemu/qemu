@@ -77,6 +77,12 @@ static void virtio_rng_process(VirtIORNG *vrng)
         return;
     }
 
+    if (vrng->activate_timer) {
+        timer_mod(vrng->rate_limit_timer,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
+        vrng->activate_timer = false;
+    }
+
     if (vrng->quota_remaining < 0) {
         quota = 0;
     } else {
@@ -138,8 +144,7 @@ static void check_rate_limit(void *opaque)
 
     vrng->quota_remaining = vrng->conf.max_bytes;
     virtio_rng_process(vrng);
-    timer_mod(vrng->rate_limit_timer,
-                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
+    vrng->activate_timer = true;
 }
 
 static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
@@ -195,13 +200,9 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
 
     vrng->vq = virtio_add_queue(vdev, 8, handle_input);
     vrng->quota_remaining = vrng->conf.max_bytes;
-
     vrng->rate_limit_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                check_rate_limit, vrng);
-
-    timer_mod(vrng->rate_limit_timer,
-                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + vrng->conf.period_ms);
-
+    vrng->activate_timer = true;
     register_savevm(dev, "virtio-rng", -1, 1, virtio_rng_save,
                     virtio_rng_load, vrng);
 }
