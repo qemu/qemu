@@ -40,7 +40,6 @@
  * http://download.intel.com/design/chipsets/datashts/29054901.pdf
  */
 
-#define TYPE_I440FX_PCI_HOST_BRIDGE "i440FX-pcihost"
 #define I440FX_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(I440FXState, (obj), TYPE_I440FX_PCI_HOST_BRIDGE)
 
@@ -95,7 +94,6 @@ typedef struct PIIX3State {
 #define PIIX3_PCI_DEVICE(obj) \
     OBJECT_CHECK(PIIX3State, (obj), TYPE_PIIX3_PCI_DEVICE)
 
-#define TYPE_I440FX_PCI_DEVICE "i440FX"
 #define I440FX_PCI_DEVICE(obj) \
     OBJECT_CHECK(PCII440FXState, (obj), TYPE_I440FX_PCI_DEVICE)
 
@@ -305,7 +303,8 @@ static void i440fx_realize(PCIDevice *dev, Error **errp)
     dev->config[I440FX_SMRAM] = 0x02;
 }
 
-PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
+PCIBus *i440fx_init(const char *host_type, const char *pci_type,
+                    PCII440FXState **pi440fx_state,
                     int *piix3_devfn,
                     ISABus **isa_bus, qemu_irq *pic,
                     MemoryRegion *address_space_mem,
@@ -325,7 +324,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     unsigned i;
     I440FXState *i440fx;
 
-    dev = qdev_create(NULL, TYPE_I440FX_PCI_HOST_BRIDGE);
+    dev = qdev_create(NULL, host_type);
     s = PCI_HOST_BRIDGE(dev);
     b = pci_bus_new(dev, NULL, pci_address_space,
                     address_space_io, 0, TYPE_PCI_BUS);
@@ -333,7 +332,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     object_property_add_child(qdev_get_machine(), "i440fx", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 
-    d = pci_create_simple(b, 0, TYPE_I440FX_PCI_DEVICE);
+    d = pci_create_simple(b, 0, pci_type);
     *pi440fx_state = I440FX_PCI_DEVICE(d);
     f = *pi440fx_state;
     f->system_memory = address_space_mem;

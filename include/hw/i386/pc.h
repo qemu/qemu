@@ -219,7 +219,11 @@ extern int no_hpet;
 struct PCII440FXState;
 typedef struct PCII440FXState PCII440FXState;
 
-PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn,
+#define TYPE_I440FX_PCI_HOST_BRIDGE "i440FX-pcihost"
+#define TYPE_I440FX_PCI_DEVICE "i440FX"
+
+PCIBus *i440fx_init(const char *host_type, const char *pci_type,
+                    PCII440FXState **pi440fx_state, int *piix_devfn,
                     ISABus **isa_bus, qemu_irq *pic,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
