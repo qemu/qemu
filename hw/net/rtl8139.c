@@ -2191,7 +2191,12 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             }
 
             ip_protocol = ip->ip_p;
-            ip_data_len = be16_to_cpu(ip->ip_len) - hlen;
+
+            ip_data_len = be16_to_cpu(ip->ip_len);
+            if (ip_data_len < hlen || ip_data_len > eth_payload_len) {
+                goto skip_offload;
+            }
+            ip_data_len -= hlen;
 
             if (txdw0 & CP_TX_IPCS)
             {
