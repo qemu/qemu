@@ -76,7 +76,8 @@ static bool has_reserved_memory = true;
 static bool kvmclock_enabled = true;
 
 /* PC hardware initialisation */
-static void pc_init1(MachineState *machine)
+static void pc_init1(MachineState *machine,
+                     const char *host_type, const char *pci_type)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
@@ -196,8 +197,8 @@ static void pc_init1(MachineState *machine)
     }
 
     if (pci_enabled) {
-        pci_bus = i440fx_init(TYPE_I440FX_PCI_HOST_BRIDGE,
-                              TYPE_I440FX_PCI_DEVICE,
+        pci_bus = i440fx_init(host_type,
+                              pci_type,
                               &i440fx_state, &piix3_devfn, &isa_bus, gsi,
                               system_memory, system_io, machine->ram_size,
                               pcms->below_4g_mem_size,
@@ -416,7 +417,7 @@ static void pc_init_isa(MachineState *machine)
     }
     x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
-    pc_init1(machine);
+    pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, TYPE_I440FX_PCI_DEVICE);
 }
 
 #ifdef CONFIG_XEN
@@ -424,7 +425,7 @@ static void pc_xen_hvm_init(MachineState *machine)
 {
     PCIBus *bus;
 
-    pc_init1(machine);
+    pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, TYPE_I440FX_PCI_DEVICE);
 
     bus = pci_find_primary_bus();
     if (bus != NULL) {
@@ -440,7 +441,8 @@ static void pc_xen_hvm_init(MachineState *machine)
         if (compat) { \
             compat(machine); \
         } \
-        pc_init1(machine); \
+        pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, \
+                 TYPE_I440FX_PCI_DEVICE); \
     } \
     DEFINE_PC_MACHINE(suffix, name, pc_init_##suffix, optionfn)
 
