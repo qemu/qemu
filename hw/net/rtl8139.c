@@ -2210,6 +2210,11 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
             if ((txdw0 & CP_TX_LGSEN) && ip_protocol == IP_PROTO_TCP)
             {
+                /* Large enough for the TCP header? */
+                if (ip_data_len < sizeof(tcp_header)) {
+                    goto skip_offload;
+                }
+
                 int large_send_mss = (txdw0 >> 16) & CP_TC_LGSEN_MSS_MASK;
 
                 DPRINTF("+++ C+ mode offloaded task TSO MTU=%d IP data %d "
