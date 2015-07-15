@@ -312,10 +312,8 @@ static const MemoryRegionOps enet_mem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int eth_can_rx(NetClientState *nc)
+static int eth_can_rx(XgmacState *s)
 {
-    XgmacState *s = qemu_get_nic_opaque(nc);
-
     /* RX enabled?  */
     return s->regs[DMA_CONTROL] & DMA_CONTROL_SR;
 }
@@ -329,6 +327,9 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     struct desc bd;
     ssize_t ret;
 
+    if (!eth_can_rx(s)) {
+        return -1;
+    }
     unicast = ~buf[0] & 0x1;
     broadcast = memcmp(buf, sa_bcast, 6) == 0;
     multicast = !unicast && !broadcast;
@@ -371,7 +372,6 @@ out:
 static NetClientInfo net_xgmac_enet_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = eth_can_rx,
     .receive = eth_rx,
 };
 
