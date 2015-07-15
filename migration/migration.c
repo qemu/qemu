@@ -110,7 +110,7 @@ typedef struct {
 
 static GlobalState global_state;
 
-static int global_state_store(void)
+int global_state_store(void)
 {
     if (!runstate_store((char *)global_state.runstate,
                         sizeof(global_state.runstate))) {
