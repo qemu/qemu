@@ -1327,9 +1327,86 @@ static void virtio_net_tx_bh(void *opaque)
     }
 }
 
+static void virtio_net_add_queue(VirtIONet *n, int index)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+
+    n->vqs[index].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);
+    if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
+        n->vqs[index].tx_vq =
+            virtio_add_queue(vdev, 256, virtio_net_handle_tx_timer);
+        n->vqs[index].tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
+                                              virtio_net_tx_timer,
+                                              &n->vqs[index]);
+    } else {
+        n->vqs[index].tx_vq =
+            virtio_add_queue(vdev, 256, virtio_net_handle_tx_bh);
+        n->vqs[index].tx_bh = qemu_bh_new(virtio_net_tx_bh, &n->vqs[index]);
+    }
+
+    n->vqs[index].tx_waiting = 0;
+    n->vqs[index].n = n;
+}
+
+static void virtio_net_del_queue(VirtIONet *n, int index)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    VirtIONetQueue *q = &n->vqs[index];
+    NetClientState *nc = qemu_get_subqueue(n->nic, index);
+
+    qemu_purge_queued_packets(nc);
+
+    virtio_del_queue(vdev, index * 2);
+    if (q->tx_timer) {
+        timer_del(q->tx_timer);
+        timer_free(q->tx_timer);
+    } else {
+        qemu_bh_delete(q->tx_bh);
+    }
+    virtio_del_queue(vdev, index * 2 + 1);
+}
+
+static void virtio_net_change_num_queues(VirtIONet *n, int new_max_queues)
+{
+    VirtIODevice *vdev = VIRTIO_DEVICE(n);
+    int old_num_queues = virtio_get_num_queues(vdev);
+    int new_num_queues = new_max_queues * 2 + 1;
+    int i;
+
+    assert(old_num_queues >= 3);
+    assert(old_num_queues % 2 == 1);
+
+    if (old_num_queues == new_num_queues) {
+        return;
+    }
+
+    /*
+     * We always need to remove and add ctrl vq if
+     * old_num_queues != new_num_queues. Remove ctrl_vq first,
+     * and then we only enter one of the following too loops.
+     */
+    virtio_del_queue(vdev, old_num_queues - 1);
+
+    for (i = new_num_queues - 1; i < old_num_queues - 1; i += 2) {
+        /* new_num_queues < old_num_queues */
+        virtio_net_del_queue(n, i / 2);
+    }
+
+    for (i = old_num_queues - 1; i < new_num_queues - 1; i += 2) {
+        /* new_num_queues > old_num_queues */
+        virtio_net_add_queue(n, i / 2);
+    }
+
+    /* add ctrl_vq last */
+    n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
+}
+
 static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue)
 {
+    int max = multiqueue ? n->max_queues : 1;
+
     n->multiqueue = multiqueue;
+    virtio_net_change_num_queues(n, max);
 
     virtio_net_set_queues(n);
 }
@@ -1604,21 +1681,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
     }
 
     for (i = 0; i < n->max_queues; i++) {
-        n->vqs[i].rx_vq = virtio_add_queue(vdev, 256, virtio_net_handle_rx);
-        if (n->net_conf.tx && !strcmp(n->net_conf.tx, "timer")) {
-            n->vqs[i].tx_vq =
-                virtio_add_queue(vdev, 256, virtio_net_handle_tx_timer);
-            n->vqs[i].tx_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
-                                              virtio_net_tx_timer,
-                                              &n->vqs[i]);
-        } else {
-            n->vqs[i].tx_vq =
-                virtio_add_queue(vdev, 256, virtio_net_handle_tx_bh);
-            n->vqs[i].tx_bh = qemu_bh_new(virtio_net_tx_bh, &n->vqs[i]);
-        }
-
-        n->vqs[i].tx_waiting = 0;
-        n->vqs[i].n = n;
+        virtio_net_add_queue(n, i);
     }
 
     n->ctrl_vq = virtio_add_queue(vdev, 64, virtio_net_handle_ctrl);
@@ -1672,7 +1735,7 @@ static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIONet *n = VIRTIO_NET(dev);
-    int i;
+    int i, max_queues;
 
     /* This will stop vhost backend if appropriate. */
     virtio_net_set_status(vdev, 0);
@@ -1687,18 +1750,9 @@ static void virtio_net_device_unrealize(DeviceState *dev, Error **errp)
     g_free(n->mac_table.macs);
     g_free(n->vlans);
 
-    for (i = 0; i < n->max_queues; i++) {
-        VirtIONetQueue *q = &n->vqs[i];
-        NetClientState *nc = qemu_get_subqueue(n->nic, i);
-
-        qemu_purge_queued_packets(nc);
-
-        if (q->tx_timer) {
-            timer_del(q->tx_timer);
-            timer_free(q->tx_timer);
-        } else if (q->tx_bh) {
-            qemu_bh_delete(q->tx_bh);
-        }
+    max_queues = n->multiqueue ? n->max_queues : 1;
+    for (i = 0; i < max_queues; i++) {
+        virtio_net_del_queue(n, i);
     }
 
     timer_del(n->announce_timer);
