@@ -56,6 +56,7 @@
 
 #include "hw/pci/pci.h"
 #include "hw/xen/xen.h"
+#include "hw/i386/pc.h"
 #include "hw/xen/xen_backend.h"
 #include "xen_pt.h"
 #include "qemu/range.h"
@@ -684,6 +685,17 @@ static const MemoryListener xen_pt_io_listener = {
     .priority = 10,
 };
 
+static void
+xen_igd_passthrough_isa_bridge_create(XenPCIPassthroughState *s,
+                                      XenHostPCIDevice *dev)
+{
+    uint16_t gpu_dev_id;
+    PCIDevice *d = &s->dev;
+
+    gpu_dev_id = dev->device_id;
+    igd_passthrough_isa_bridge_create(d->bus, gpu_dev_id);
+}
+
 /* init */
 
 static int xen_pt_initfn(PCIDevice *d)
@@ -728,11 +740,21 @@ static int xen_pt_initfn(PCIDevice *d)
     /* Setup VGA bios for passthrough GFX */
     if ((s->real_device.domain == 0) && (s->real_device.bus == 0) &&
         (s->real_device.dev == 2) && (s->real_device.func == 0)) {
+        if (!is_igd_vga_passthrough(&s->real_device)) {
+            XEN_PT_ERR(d, "Need to enable igd-passthru if you're trying"
+                       " to passthrough IGD GFX.\n");
+            xen_host_pci_device_put(&s->real_device);
+            return -1;
+        }
+
         if (xen_pt_setup_vga(s, &s->real_device) < 0) {
             XEN_PT_ERR(d, "Setup VGA BIOS of passthrough GFX failed!\n");
             xen_host_pci_device_put(&s->real_device);
             return -1;
         }
+
+        /* Register ISA bridge for passthrough GFX. */
+        xen_igd_passthrough_isa_bridge_create(s, &s->real_device);
     }
 
     /* Handle real device's MMIO/PIO BARs */
