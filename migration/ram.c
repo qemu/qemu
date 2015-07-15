@@ -382,16 +382,16 @@ void migrate_compress_threads_create(void)
  */
 static size_t save_page_header(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
 {
-    size_t size;
+    size_t size, len;
 
     qemu_put_be64(f, offset);
     size = 8;
 
     if (!(offset & RAM_SAVE_FLAG_CONTINUE)) {
-        qemu_put_byte(f, strlen(block->idstr));
-        qemu_put_buffer(f, (uint8_t *)block->idstr,
-                        strlen(block->idstr));
-        size += 1 + strlen(block->idstr);
+        len = strlen(block->idstr);
+        qemu_put_byte(f, len);
+        qemu_put_buffer(f, (uint8_t *)block->idstr, len);
+        size += 1 + len;
     }
     return size;
 }

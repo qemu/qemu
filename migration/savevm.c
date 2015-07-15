@@ -1315,6 +1315,12 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
     }
 
     saved_vm_running = runstate_is_running();
+
+    ret = global_state_store();
+    if (ret) {
+        monitor_printf(mon, "Error saving global state\n");
+        return;
+    }
     vm_stop(RUN_STATE_SAVE_VM);
 
     memset(sn, 0, sizeof(*sn));

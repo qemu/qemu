@@ -104,11 +104,13 @@ typedef struct {
     bool optional;
     uint32_t size;
     uint8_t runstate[100];
+    RunState state;
+    bool received;
 } GlobalState;
 
 static GlobalState global_state;
 
-static int global_state_store(void)
+int global_state_store(void)
 {
     if (!runstate_store((char *)global_state.runstate,
                         sizeof(global_state.runstate))) {
@@ -119,9 +121,14 @@ static int global_state_store(void)
     return 0;
 }
 
-static char *global_state_get_runstate(void)
+static bool global_state_received(void)
 {
-    return (char *)global_state.runstate;
+    return global_state.received;
+}
+
+static RunState global_state_get_runstate(void)
+{
+    return global_state.state;
 }
 
 void global_state_set_optional(void)
@@ -154,26 +161,25 @@ static bool global_state_needed(void *opaque)
 static int global_state_post_load(void *opaque, int version_id)
 {
     GlobalState *s = opaque;
-    int ret = 0;
+    Error *local_err = NULL;
+    int r;
     char *runstate = (char *)s->runstate;
 
+    s->received = true;
     trace_migrate_global_state_post_load(runstate);
 
-    if (strcmp(runstate, "running") != 0) {
-        Error *local_err = NULL;
-        int r = qapi_enum_parse(RunState_lookup, runstate, RUN_STATE_MAX,
+    r = qapi_enum_parse(RunState_lookup, runstate, RUN_STATE_MAX,
                                 -1, &local_err);
 
-        if (r == -1) {
-            if (local_err) {
-                error_report_err(local_err);
-            }
-            return -EINVAL;
+    if (r == -1) {
+        if (local_err) {
+            error_report_err(local_err);
         }
-        ret = vm_stop_force_state(r);
+        return -EINVAL;
     }
+    s->state = r;
 
-   return ret;
+    return 0;
 }
 
 static void global_state_pre_save(void *opaque)
@@ -202,6 +208,7 @@ void register_global_state(void)
 {
     /* We would use it independently that we receive it */
     strcpy((char *)&global_state.runstate, "");
+    global_state.received = false;
     vmstate_register(NULL, 0, &vmstate_globalstate, &global_state);
 }
 
@@ -209,7 +216,6 @@ static void migrate_generate_event(int new_state)
 {
     if (migrate_use_events()) {
         qapi_event_send_migration(new_state, &error_abort);
-        trace_migrate_set_state(new_state);
     }
 }
 
@@ -283,20 +289,19 @@ static void process_incoming_migration_co(void *opaque)
         exit(EXIT_FAILURE);
     }
 
-    /* runstate == "" means that we haven't received it through the
-     * wire, so we obey autostart.  runstate == runing means that we
-     * need to run it, we need to make sure that we do it after
-     * everything else has finished.  Every other state change is done
-     * at the post_load function */
+    /* If global state section was not received or we are in running
+       state, we need to obey autostart. Any other state is set with
+       runstate_set. */
 
-    if (strcmp(global_state_get_runstate(), "running") == 0) {
-        vm_start();
-    } else if (strcmp(global_state_get_runstate(), "") == 0) {
+    if (!global_state_received() ||
+        global_state_get_runstate() == RUN_STATE_RUNNING) {
         if (autostart) {
             vm_start();
         } else {
             runstate_set(RUN_STATE_PAUSED);
         }
+    } else {
+        runstate_set(global_state_get_runstate());
     }
     migrate_decompress_threads_join();
 }
@@ -522,6 +527,7 @@ void qmp_migrate_set_parameters(bool has_compress_level,
 static void migrate_set_state(MigrationState *s, int old_state, int new_state)
 {
     if (atomic_cmpxchg(&s->state, old_state, new_state) == old_state) {
+        trace_migrate_set_state(new_state);
         migrate_generate_event(new_state);
     }
 }
