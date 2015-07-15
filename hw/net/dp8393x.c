@@ -327,9 +327,14 @@ static void dp8393x_do_stop_timer(dp8393xState *s)
     dp8393x_update_wt_regs(s);
 }
 
+static int dp8393x_can_receive(NetClientState *nc);
+
 static void dp8393x_do_receiver_enable(dp8393xState *s)
 {
     s->regs[SONIC_CR] &= ~SONIC_CR_RXDIS;
+    if (dp8393x_can_receive(s->nic->ncs)) {
+        qemu_flush_queued_packets(qemu_get_queue(s->nic));
+    }
 }
 
 static void dp8393x_do_receiver_disable(dp8393xState *s)
@@ -569,6 +574,9 @@ static void dp8393x_write(void *opaque, hwaddr addr, uint64_t data,
                 dp8393x_do_read_rra(s);
             }
             dp8393x_update_irq(s);
+            if (dp8393x_can_receive(s->nic->ncs)) {
+                qemu_flush_queued_packets(qemu_get_queue(s->nic));
+            }
             break;
         /* Ignore least significant bit */
         case SONIC_RSA:
