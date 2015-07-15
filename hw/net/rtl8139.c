@@ -2239,6 +2239,11 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
                 int tcp_hlen = TCP_HEADER_DATA_OFFSET(p_tcp_hdr);
 
+                /* Invalid TCP data offset? */
+                if (tcp_hlen < sizeof(tcp_header) || tcp_hlen > ip_data_len) {
+                    goto skip_offload;
+                }
+
                 /* ETH_MTU = ip header len + tcp header len + payload */
                 int tcp_data_len = ip_data_len - tcp_hlen;
                 int tcp_chunk_size = ETH_MTU - hlen - tcp_hlen;
