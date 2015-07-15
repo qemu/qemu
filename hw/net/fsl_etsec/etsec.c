@@ -342,13 +342,22 @@ static ssize_t etsec_receive(NetClientState *nc,
                              const uint8_t  *buf,
                              size_t          size)
 {
+    ssize_t ret;
     eTSEC *etsec = qemu_get_nic_opaque(nc);
 
 #if defined(HEX_DUMP)
     fprintf(stderr, "%s receive size:%d\n", etsec->nic->nc.name, size);
     qemu_hexdump(buf, stderr, "", size);
 #endif
-    return etsec_rx_ring_write(etsec, buf, size);
+    /* Flush is unnecessary as are already in receiving path */
+    etsec->need_flush = false;
+    ret = etsec_rx_ring_write(etsec, buf, size);
+    if (ret == 0) {
+        /* The packet will be queued, let's flush it when buffer is avilable
+         * again. */
+        etsec->need_flush = true;
+    }
+    return ret;
 }
 
 

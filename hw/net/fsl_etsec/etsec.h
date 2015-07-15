@@ -144,6 +144,8 @@ typedef struct eTSEC {
     QEMUBH *bh;
     struct ptimer_state *ptimer;
 
+    /* Whether we should flush the rx queue when buffer becomes available. */
+    bool need_flush;
 } eTSEC;
 
 #define TYPE_ETSEC_COMMON "eTSEC"

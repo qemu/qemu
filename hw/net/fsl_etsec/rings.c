@@ -646,6 +646,9 @@ void etsec_walk_rx_ring(eTSEC *etsec, int ring_nbr)
     } else {
         etsec->rx_buffer_len = 0;
         etsec->rx_buffer     = NULL;
+        if (etsec->need_flush) {
+            qemu_flush_queued_packets(qemu_get_queue(etsec->nic));
+        }
     }
 
     RING_DEBUG("eTSEC End of ring_write: remaining_data:%zu\n", remaining_data);
