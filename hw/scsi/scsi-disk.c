@@ -765,6 +765,9 @@ static inline bool media_is_dvd(SCSIDiskState *s)
     if (!blk_is_inserted(s->qdev.conf.blk)) {
         return false;
     }
+    if (s->tray_open) {
+        return false;
+    }
     blk_get_geometry(s->qdev.conf.blk, &nb_sectors);
     return nb_sectors > CD_MAX_SECTORS;
 }
@@ -776,6 +779,9 @@ static inline bool media_is_cd(SCSIDiskState *s)
         return false;
     }
     if (!blk_is_inserted(s->qdev.conf.blk)) {
+        return false;
+    }
+    if (s->tray_open) {
         return false;
     }
     blk_get_geometry(s->qdev.conf.blk, &nb_sectors);
@@ -975,7 +981,15 @@ static int scsi_get_configuration(SCSIDiskState *s, uint8_t *outbuf)
     if (s->qdev.type != TYPE_ROM) {
         return -1;
     }
-    current = media_is_dvd(s) ? MMC_PROFILE_DVD_ROM : MMC_PROFILE_CD_ROM;
+
+    if (media_is_dvd(s)) {
+        current = MMC_PROFILE_DVD_ROM;
+    } else if (media_is_cd(s)) {
+        current = MMC_PROFILE_CD_ROM;
+    } else {
+        current = MMC_PROFILE_NONE;
+    }
+
     memset(outbuf, 0, 40);
     stl_be_p(&outbuf[0], 36); /* Bytes after the data length field */
     stw_be_p(&outbuf[6], current);
