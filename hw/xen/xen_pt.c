@@ -502,6 +502,7 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s, uint16_t *cmd)
                    d->rom.size, d->rom.base_addr);
     }
 
+    xen_pt_register_vga_regions(d);
     return 0;
 }
 
@@ -801,6 +802,7 @@ out:
 static void xen_pt_unregister_device(PCIDevice *d)
 {
     XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
+    XenHostPCIDevice *host_dev = &s->real_device;
     uint8_t machine_irq = s->machine_irq;
     uint8_t intx = xen_pt_pci_intx(s);
     int rc;
@@ -843,6 +845,8 @@ static void xen_pt_unregister_device(PCIDevice *d)
 
     /* delete all emulated config registers */
     xen_pt_config_delete(s);
+
+    xen_pt_unregister_vga_regions(host_dev);
 
     memory_listener_unregister(&s->memory_listener);
     memory_listener_unregister(&s->io_listener);

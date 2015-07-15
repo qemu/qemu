@@ -305,5 +305,13 @@ static inline bool xen_pt_has_msix_mapping(XenPCIPassthroughState *s, int bar)
     return s->msix && s->msix->bar_index == bar;
 }
 
-
+extern bool has_igd_gfx_passthru;
+static inline bool is_igd_vga_passthrough(XenHostPCIDevice *dev)
+{
+    return (has_igd_gfx_passthru
+            && ((dev->class_code >> 0x8) == PCI_CLASS_DISPLAY_VGA));
+}
+int xen_pt_register_vga_regions(XenHostPCIDevice *dev);
+int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev);
+int xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev);
 #endif /* !XEN_PT_H */
