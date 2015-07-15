@@ -739,6 +739,90 @@ static const TypeInfo i440fx_info = {
     .class_init    = i440fx_class_init,
 };
 
+/* IGD Passthrough Host Bridge. */
+typedef struct {
+    uint8_t offset;
+    uint8_t len;
+} IGDHostInfo;
+
+/* Here we just expose minimal host bridge offset subset. */
+static const IGDHostInfo igd_host_bridge_infos[] = {
+    {0x08, 2},  /* revision id */
+    {0x2c, 2},  /* sybsystem vendor id */
+    {0x2e, 2},  /* sybsystem id */
+    {0x50, 2},  /* SNB: processor graphics control register */
+    {0x52, 2},  /* processor graphics control register */
+    {0xa4, 4},  /* SNB: graphics base of stolen memory */
+    {0xa8, 4},  /* SNB: base of GTT stolen memory */
+};
+
+static int host_pci_config_read(int pos, int len, uint32_t val)
+{
+    char path[PATH_MAX];
+    int config_fd;
+    ssize_t size = sizeof(path);
+    /* Access real host bridge. */
+    int rc = snprintf(path, size, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/%s",
+                      0, 0, 0, 0, "config");
+
+    if (rc >= size || rc < 0) {
+        return -ENODEV;
+    }
+
+    config_fd = open(path, O_RDWR);
+    if (config_fd < 0) {
+        return -ENODEV;
+    }
+
+    if (lseek(config_fd, pos, SEEK_SET) != pos) {
+        return -errno;
+    }
+    do {
+        rc = read(config_fd, (uint8_t *)&val, len);
+    } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
+    if (rc != len) {
+        return -errno;
+    }
+
+    return 0;
+}
+
+static int igd_pt_i440fx_initfn(struct PCIDevice *pci_dev)
+{
+    uint32_t val = 0;
+    int rc, i, num;
+    int pos, len;
+
+    num = ARRAY_SIZE(igd_host_bridge_infos);
+    for (i = 0; i < num; i++) {
+        pos = igd_host_bridge_infos[i].offset;
+        len = igd_host_bridge_infos[i].len;
+        rc = host_pci_config_read(pos, len, val);
+        if (rc) {
+            return -ENODEV;
+        }
+        pci_default_write_config(pci_dev, pos, val, len);
+    }
+
+    return 0;
+}
+
+static void igd_passthrough_i440fx_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = igd_pt_i440fx_initfn;
+    dc->desc = "IGD Passthrough Host bridge";
+}
+
+static const TypeInfo igd_passthrough_i440fx_info = {
+    .name          = TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE,
+    .parent        = TYPE_I440FX_PCI_DEVICE,
+    .instance_size = sizeof(PCII440FXState),
+    .class_init    = igd_passthrough_i440fx_class_init,
+};
+
 static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
                                                 PCIBus *rootbus)
 {
@@ -780,6 +864,7 @@ static const TypeInfo i440fx_pcihost_info = {
 static void i440fx_register_types(void)
 {
     type_register_static(&i440fx_info);
+    type_register_static(&igd_passthrough_i440fx_info);
     type_register_static(&piix3_pci_type_info);
     type_register_static(&piix3_info);
     type_register_static(&piix3_xen_info);
