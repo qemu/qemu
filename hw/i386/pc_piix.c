@@ -50,7 +50,8 @@
 #include "cpu.h"
 #include "qemu/error-report.h"
 #ifdef CONFIG_XEN
-#  include <xen/hvm/hvm_info_table.h>
+#include <xen/hvm/hvm_info_table.h>
+#include "hw/xen/xen_pt.h"
 #endif
 #include "migration/migration.h"
 
@@ -421,11 +422,21 @@ static void pc_init_isa(MachineState *machine)
 }
 
 #ifdef CONFIG_XEN
+static void pc_xen_hvm_init_pci(MachineState *machine)
+{
+    const char *pci_type = has_igd_gfx_passthru ?
+                TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE : TYPE_I440FX_PCI_DEVICE;
+
+    pc_init1(machine,
+             TYPE_I440FX_PCI_HOST_BRIDGE,
+             pci_type);
+}
+
 static void pc_xen_hvm_init(MachineState *machine)
 {
     PCIBus *bus;
 
-    pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, TYPE_I440FX_PCI_DEVICE);
+    pc_xen_hvm_init_pci(machine);
 
     bus = pci_find_primary_bus();
     if (bus != NULL) {
