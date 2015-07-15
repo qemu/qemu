@@ -725,6 +725,16 @@ static int xen_pt_initfn(PCIDevice *d)
     s->memory_listener = xen_pt_memory_listener;
     s->io_listener = xen_pt_io_listener;
 
+    /* Setup VGA bios for passthrough GFX */
+    if ((s->real_device.domain == 0) && (s->real_device.bus == 0) &&
+        (s->real_device.dev == 2) && (s->real_device.func == 0)) {
+        if (xen_pt_setup_vga(s, &s->real_device) < 0) {
+            XEN_PT_ERR(d, "Setup VGA BIOS of passthrough GFX failed!\n");
+            xen_host_pci_device_put(&s->real_device);
+            return -1;
+        }
+    }
+
     /* Handle real device's MMIO/PIO BARs */
     xen_pt_register_regions(s, &cmd);
 
