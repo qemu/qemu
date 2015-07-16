@@ -24,6 +24,15 @@
 
 #include "qapi/qmp/qstring.h"
 
+enum Texgen {
+    TEXGEN_DISABLE,
+    TEXGEN_EYE_LINEAR,
+    TEXGEN_OBJECT_LINEAR,
+    TEXGEN_SPHERE_MAP,
+    TEXGEN_NORMAL_MAP,
+    TEXGEN_REFLECTION_MAP,
+};
+
 // vs.1.1, not an official value
 #define VSH_VERSION_VS                     0xF078
 

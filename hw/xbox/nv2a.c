@@ -337,12 +337,45 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN                (1 << 0)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
 #define NV_PGRAPH_CSV0_D                                 0x00000FB4
-#   define NV_PGRAPH_CSV0_D_MODE                                0xC0000000
 #   define NV_PGRAPH_CSV0_D_RANGE_MODE                          (1 << 18)
+#   define NV_PGRAPH_CSV0_D_TEXGEN_REF                          (1 << 20)
+#       define NV_PGRAPH_CSV0_D_TEXGEN_REF_LOCAL_VIEWER             0
+#       define NV_PGRAPH_CSV0_D_TEXGEN_REF_INFINITE_VIEWER          1
+#   define NV_PGRAPH_CSV0_D_MODE                                0xC0000000
+#   define NV_PGRAPH_CSV0_D_SKIN                                0x1C000000
+#       define NV_PGRAPH_CSV0_D_SKIN_OFF                            0
+#       define NV_PGRAPH_CSV0_D_SKIN_2G                             1
+#       define NV_PGRAPH_CSV0_D_SKIN_2                              2
+#       define NV_PGRAPH_CSV0_D_SKIN_3G                             3
+#       define NV_PGRAPH_CSV0_D_SKIN_3                              4
+#       define NV_PGRAPH_CSV0_D_SKIN_4G                             5
+#       define NV_PGRAPH_CSV0_D_SKIN_4                              6
 #define NV_PGRAPH_CSV0_C                                 0x00000FB8
 #   define NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START                0x0000FF00
 #define NV_PGRAPH_CSV1_B                                 0x00000FBC
 #define NV_PGRAPH_CSV1_A                                 0x00000FC0
+#   define NV_PGRAPH_CSV1_A_T0_ENABLE                           (1 << 0)
+#   define NV_PGRAPH_CSV1_A_T0_MODE                             (1 << 1)
+#   define NV_PGRAPH_CSV1_A_T0_TEXTURE                          (1 << 2)
+#       define NV_PGRAPH_CSV1_A_T0_TEXTURE_2D                       0
+#       define NV_PGRAPH_CSV1_A_T0_TEXTURE_3D                       1
+#   define NV_PGRAPH_CSV1_A_T0_S                                0x00000070
+#       define NV_PGRAPH_CSV1_A_T0_S_DISABLE                        0
+#       define NV_PGRAPH_CSV1_A_T0_S_NORMAL_MAP                     4
+#       define NV_PGRAPH_CSV1_A_T0_S_REFLECTION_MAP                 5
+#       define NV_PGRAPH_CSV1_A_T0_S_EYE_LINEAR                     1
+#       define NV_PGRAPH_CSV1_A_T0_S_OBJECT_LINEAR                  2
+#       define NV_PGRAPH_CSV1_A_T0_S_SPHERE_MAP                     3
+#   define NV_PGRAPH_CSV1_A_T0_T                                0x00000380
+#   define NV_PGRAPH_CSV1_A_T0_R                                0x00001C00
+#   define NV_PGRAPH_CSV1_A_T0_Q                                0x0000E000
+#   define NV_PGRAPH_CSV1_A_T1_ENABLE                           (1 << 16)
+#   define NV_PGRAPH_CSV1_A_T1_MODE                             (1 << 17)
+#   define NV_PGRAPH_CSV1_A_T1_TEXTURE                          (1 << 18)
+#   define NV_PGRAPH_CSV1_A_T1_S                                0x00700000
+#   define NV_PGRAPH_CSV1_A_T1_T                                0x03800000
+#   define NV_PGRAPH_CSV1_A_T1_R                                0x1C000000
+#   define NV_PGRAPH_CSV1_A_T1_Q                                0xE0000000
 #define NV_PGRAPH_CHEOPS_OFFSET                          0x00000FC4
 #   define NV_PGRAPH_CHEOPS_OFFSET_PROG_LD_PTR                  0x000000FF
 #   define NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR                 0x0000FF00
@@ -807,7 +840,20 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_STENCIL_OP_V_DECR                        0x8508
 #   define NV097_SET_CLIP_MIN                                 0x00970394
 #   define NV097_SET_CLIP_MAX                                 0x00970398
+#   define NV097_SET_TEXGEN_S                                 0x009703C0
+#       define NV097_SET_TEXGEN_S_DISABLE                         0x0000
+#       define NV097_SET_TEXGEN_S_EYE_LINEAR                      0x2400
+#       define NV097_SET_TEXGEN_S_OBJECT_LINEAR                   0x2401
+#       define NV097_SET_TEXGEN_S_SPHERE_MAP                      0x2402
+#       define NV097_SET_TEXGEN_S_REFLECTION_MAP                  0x8512
+#       define NV097_SET_TEXGEN_S_NORMAL_MAP                      0x8511
+#   define NV097_SET_TEXGEN_T                                 0x009703C4
+#   define NV097_SET_TEXGEN_R                                 0x009703C8
+#   define NV097_SET_TEXGEN_Q                                 0x009703CC
 #   define NV097_SET_COMPOSITE_MATRIX                         0x00970680
+#   define NV097_SET_TEXGEN_VIEW_MODEL                        0x009709CC
+#       define NV097_SET_TEXGEN_VIEW_MODEL_LOCAL_VIEWER           0
+#       define NV097_SET_TEXGEN_VIEW_MODEL_INFINITE_VIEWER        1
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
 #   define NV097_SET_COMBINER_FACTOR0                         0x00970A60
 #   define NV097_SET_COMBINER_FACTOR1                         0x00970A80
@@ -1266,6 +1312,7 @@ typedef struct ShaderState {
     bool alpha_test;
     enum AlphaFunc alpha_func;
 
+    enum Texgen texgen[4][4];
 
     bool fixed_function;
 
@@ -2820,6 +2867,20 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
     }
 
+    /* Texgen */
+    for (i = 0; i < 4; i++) {
+        unsigned int reg = (i < 2) ? NV_PGRAPH_CSV1_A : NV_PGRAPH_CSV1_B;
+        for (j = 0; j < 4; j++) {
+            unsigned int masks[] = {
+                (i % 2) ? NV_PGRAPH_CSV1_A_T1_S : NV_PGRAPH_CSV1_A_T0_S,
+                (i % 2) ? NV_PGRAPH_CSV1_A_T1_T : NV_PGRAPH_CSV1_A_T0_T,
+                (i % 2) ? NV_PGRAPH_CSV1_A_T1_R : NV_PGRAPH_CSV1_A_T0_R,
+                (i % 2) ? NV_PGRAPH_CSV1_A_T1_Q : NV_PGRAPH_CSV1_A_T0_Q
+            };
+            state.texgen[i][j] = GET_MASK(pg->regs[reg], masks[j]);
+        }
+    }
+
     for (i = 0; i < 8; i++) {
         state.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
         state.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
@@ -3520,6 +3581,33 @@ static unsigned int kelvin_map_stencil_op(uint32_t parameter)
     return op;
 }
 
+static unsigned int kelvin_map_texgen(uint32_t parameter, unsigned int channel)
+{
+    assert(channel < 4);
+    unsigned int texgen;
+    switch (parameter) {
+    case NV097_SET_TEXGEN_S_DISABLE:
+        texgen = NV_PGRAPH_CSV1_A_T0_S_DISABLE; break;
+    case NV097_SET_TEXGEN_S_EYE_LINEAR:
+        texgen = NV_PGRAPH_CSV1_A_T0_S_EYE_LINEAR; break;
+    case NV097_SET_TEXGEN_S_OBJECT_LINEAR:
+        texgen = NV_PGRAPH_CSV1_A_T0_S_OBJECT_LINEAR; break;
+    case NV097_SET_TEXGEN_S_SPHERE_MAP:
+        assert(channel < 2);
+        texgen = NV_PGRAPH_CSV1_A_T0_S_SPHERE_MAP; break;
+    case NV097_SET_TEXGEN_S_REFLECTION_MAP:
+        assert(channel < 3);
+        texgen = NV_PGRAPH_CSV1_A_T0_S_REFLECTION_MAP; break;
+    case NV097_SET_TEXGEN_S_NORMAL_MAP:
+        assert(channel < 3);
+        texgen = NV_PGRAPH_CSV1_A_T0_S_NORMAL_MAP; break;
+    default:
+        assert(false);
+        break;
+    }
+    return texgen;
+}
+
 static void pgraph_method(NV2AState *d,
                           unsigned int subchannel,
                           unsigned int method,
@@ -4057,10 +4145,52 @@ static void pgraph_method(NV2AState *d,
         pg->regs[NV_PGRAPH_ZCLIPMAX] = parameter;
         break;
 
+    CASE_4(NV097_SET_TEXGEN_S, 16): {
+        slot = (class_method - NV097_SET_TEXGEN_S) / 16;
+        unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
+                                      : NV_PGRAPH_CSV1_B;
+        unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_S
+                                       : NV_PGRAPH_CSV1_A_T0_S;
+        SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 0));
+        break;
+    }
+    CASE_4(NV097_SET_TEXGEN_T, 16): {
+        slot = (class_method - NV097_SET_TEXGEN_T) / 16;
+        unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
+                                      : NV_PGRAPH_CSV1_B;
+        unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_T
+                                       : NV_PGRAPH_CSV1_A_T0_T;
+        SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 1));
+        break;
+    }
+    CASE_4(NV097_SET_TEXGEN_R, 16): {
+        slot = (class_method - NV097_SET_TEXGEN_R) / 16;
+        unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
+                                      : NV_PGRAPH_CSV1_B;
+        unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_R
+                                       : NV_PGRAPH_CSV1_A_T0_R;
+        SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 2));
+        break;
+    }
+    CASE_4(NV097_SET_TEXGEN_Q, 16): {
+        slot = (class_method - NV097_SET_TEXGEN_Q) / 16;
+        unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
+                                      : NV_PGRAPH_CSV1_B;
+        unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_Q
+                                       : NV_PGRAPH_CSV1_A_T0_Q;
+        SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 3));
+        break;
+    }
+
     case NV097_SET_COMPOSITE_MATRIX ...
             NV097_SET_COMPOSITE_MATRIX + 0x3c:
         slot = (class_method - NV097_SET_COMPOSITE_MATRIX) / 4;
         pg->composite_matrix[slot] = *(float*)&parameter;
+        break;
+
+    case NV097_SET_TEXGEN_VIEW_MODEL:
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_TEXGEN_REF,
+                 parameter);
         break;
 
     case NV097_SET_VIEWPORT_OFFSET ...
