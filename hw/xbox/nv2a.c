@@ -2644,6 +2644,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 
     qstring_append(vertex_shader_code,
 "\n"
+/* FIXME: Add these uniforms using code when they are used */
 "uniform mat4 texMat0;\n"
 "uniform mat4 texMat1;\n"
 "uniform mat4 texMat2;\n"
@@ -2656,7 +2657,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 "uniform mat4 invModelViewMat1;\n"
 "uniform mat4 invModelViewMat2;\n"
 "uniform mat4 invModelViewMat3;\n"
-"uniform mat4 projectionMat;\n"
+"uniform mat4 projectionMat; /* FIXME: when is this used? */\n"
 "uniform mat4 compositeMat;\n"
 "uniform mat4 invViewport;\n"
 "\n"
