@@ -1337,12 +1337,12 @@ typedef struct ShaderState {
     bool alphakill[4];
 
     bool alpha_test;
-    enum AlphaFunc alpha_func;
+    enum PshAlphaFunc alpha_func;
 
     bool texture_matrix_enable[4];
-    enum Texgen texgen[4][4];
+    enum VshTexgen texgen[4][4];
 
-    enum Skinning skinning;
+    enum VshSkinning skinning;
 
     bool normalization;
 

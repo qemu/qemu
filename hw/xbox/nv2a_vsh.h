@@ -24,7 +24,7 @@
 
 #include "qapi/qmp/qstring.h"
 
-enum Texgen {
+enum VshTexgen {
     TEXGEN_DISABLE,
     TEXGEN_EYE_LINEAR,
     TEXGEN_OBJECT_LINEAR,
@@ -33,7 +33,7 @@ enum Texgen {
     TEXGEN_REFLECTION_MAP,
 };
 
-enum Skinning {
+enum VshSkinning {
     SKINNING_OFF,
     SKINNING_1WEIGHTS,
     SKINNING_2WEIGHTS,

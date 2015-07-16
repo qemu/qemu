@@ -204,7 +204,7 @@ struct PixelShader {
     bool alphakill[4];
 
     bool alpha_test;
-    enum AlphaFunc alpha_func;
+    enum PshAlphaFunc alpha_func;
 
     QString *varE, *varF;
     QString *code;
@@ -769,7 +769,7 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
                        const bool rect_tex[4],
                        const bool compare_mode[4][4],
                        const bool alphakill[4],
-                       bool alpha_test, enum AlphaFunc alpha_func)
+                       bool alpha_test, enum PshAlphaFunc alpha_func)
 {
     int i;
     struct PixelShader ps;
