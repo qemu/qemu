@@ -2690,7 +2690,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     if (count == 0) {
         qstring_append(vertex_shader_code, "vec4 tPosition = position;\n");
         /* FIXME: Is the normal still transformed? */
-        qstring_append(vertex_shader_code, "vec3 tNormal = (invModelViewMat0 * vec4(normal, 0.0)).xyz;\n");
+        qstring_append(vertex_shader_code, "vec3 tNormal = (vec4(normal, 0.0) * invModelViewMat0).xyz;\n");
     } else {
         qstring_append(vertex_shader_code, "vec4 tPosition = vec4(0.0);\n");
         qstring_append(vertex_shader_code, "vec3 tNormal = vec3(0.0);\n");
@@ -2698,9 +2698,10 @@ static ShaderBinding* generate_shaders(const ShaderState state)
             /* Tweening */
             if (count == 2) {
                 qstring_append(vertex_shader_code,
-                    "tPosition += mix(position * modelViewMat1,"
-                    "                 position * modelViewMat0, weight.x);\n");
-
+                    "tPosition += mix(position * modelViewMat1,\n"
+                    "                 position * modelViewMat0, weight.x);\n"
+                    "tNormal += mix((vec4(normal, 0.0) * invModelViewMat1).xyz,\n"
+                    "               (vec4(normal, 0.0) * invModelViewMat0).xyz, weight.x);\n");
             } else {
                 /* FIXME: Not sure how blend weights are calculated */
                 assert(false);
@@ -2711,7 +2712,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
                 char c = "xyzw"[i];
                 qstring_append_fmt(vertex_shader_code, "tPosition += position * modelViewMat%d * weight.%c;\n",
                                    i, c);
-                qstring_append_fmt(vertex_shader_code, "tNormal += (invModelViewMat%d * vec4(normal, 0.0) * weight.%c).xyz;\n",
+                qstring_append_fmt(vertex_shader_code, "tNormal += (vec4(normal, 0.0) * invModelViewMat%d * weight.%c).xyz;\n",
                                    i, c);
             }
             assert(false); /* FIXME: Untested */
