@@ -2688,21 +2688,22 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     qstring_append_fmt(vertex_shader_code, "/* Skinning mode %d */\n",
                        state.skinning);
     if (count == 0) {
-        qstring_append(vertex_shader_code, "vec4 tPosition = position * modelViewMat0;\n");
+        qstring_append(vertex_shader_code, "vec4 tPosition = position;\n");
+        /* FIXME: Is the normal still transformed? */
         qstring_append(vertex_shader_code, "vec3 tNormal = (invModelViewMat0 * vec4(normal, 0.0)).xyz;\n");
     } else {
         qstring_append(vertex_shader_code, "vec4 tPosition = vec4(0.0);\n");
         qstring_append(vertex_shader_code, "vec3 tNormal = vec3(0.0);\n");
         if (mix) {
             /* Tweening */
-            /*
-                This should *probably* be something like:
-                if (count == 2) {
-                    pos = mix(position*modelViewMat0,position*modelViewMat1,weight.x)
-                }
-                Not sure about higher amount of matrices.
-            /*
-            assert(false);
+            if (count == 2) {
+                qstring_append(vertex_shader_code, "tPosition += mix(position * modelViewMat1,"
+                                                   "                 position * modelViewMat0, weight.x);\n");
+
+            } else {
+                /* FIXME: Not sure how blend weights are calculated */
+                assert(false);
+            }
         } else {
             /* Individual matrices */
             for (i = 0; i < count; i++) {
@@ -2774,11 +2775,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     }
 
     qstring_append(vertex_shader_code,
-#if 0
-"   gl_Position = position * modelViewMat0 * projectionMat;\n"
-#else
-"   gl_Position = invViewport * (position * compositeMat);\n"
-#endif
+"   gl_Position = invViewport * (tPosition * compositeMat);\n"
 /* temp hack: the composite matrix includes the view transform... */
 //"   gl_Position = position * compositeMat;\n"
 //"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
