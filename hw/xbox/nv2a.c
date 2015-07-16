@@ -2097,21 +2097,15 @@ static uint8_t* convert_texture_data(const TextureShape s,
         int x, y;
         for (y = 0; y < height; y++) {
             for (x = 0; x < width; x++) {
-                uint8_t v;
-                uint16_t rgb565 = *(uint16_t*)(data + y * pitch + x * 2);
+                uint16_t rgb655 = *(uint16_t*)(data + y * pitch + x * 2);
                 int8_t *pixel = &converted_data[(y * width + x) * 3];
-                /* FIXME: This is pretty ugly code to extend from
-                 * signed 565 to signed 888 (hopefully)
+                /* Maps 5 bit G and B signed value range to 8 bit
+                 * signed values. R is probably unsigned.
                  */
-                v = (rgb565 & 0xF800) >> 8;
-                pixel[0] = (v & 0x80) ? *(int8_t*)&v * 16 / 0x80
-                                      : ((v & 0x78) * 15) / 0x78;
-                v = (rgb565 & 0x07E0) >> 3;
-                pixel[1] = (v & 0x80) ? *(int8_t*)&v * 32 / 0x80
-                                      : ((v & 0x7C) * 31) / 0x7C;
-                v = (rgb565 & 0x001F) << 3;
-                pixel[2] = (v & 0x80) ? *(int8_t*)&v * 16 / 0x80
-                                      : ((v & 0x78) * 15) / 0x78;
+                rgb655 ^= (1 << 9) | (1 << 4);
+                pixel[0] = ((rgb655 & 0xFC00) >> 10) * 0x7F / 0x3F;
+                pixel[1] = ((rgb655 & 0x03E0) >> 5) * 0xFF / 0x1F - 0x80;
+                pixel[2] = (rgb655 & 0x001F) * 0xFF / 0x1F - 0x80;
             }
         }
         return converted_data;
