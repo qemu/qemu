@@ -283,6 +283,7 @@ typedef struct CCIDBus {
 typedef struct USBCCIDState {
     USBDevice dev;
     USBEndpoint *intr;
+    USBEndpoint *bulk;
     CCIDBus bus;
     CCIDCardState *card;
     BulkIn bulk_in_pending[BULK_IN_PENDING_NUM]; /* circular */
@@ -769,6 +770,7 @@ static void ccid_write_slot_status(USBCCIDState *s, CCID_Header *recv)
     h->b.bError = s->bError;
     h->bClockStatus = CLOCK_STATUS_RUNNING;
     ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
 }
 
 static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
@@ -789,6 +791,7 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
     h->bProtocolNum = s->bProtocolNum;
     h->abProtocolDataStructure = s->abProtocolDataStructure;
     ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
 }
 
 static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
@@ -810,6 +813,7 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     }
     memcpy(p->abData, data, len);
     ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
 }
 
 static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
@@ -1319,6 +1323,7 @@ static void ccid_realize(USBDevice *dev, Error **errp)
                         NULL);
     qbus_set_hotplug_handler(BUS(&s->bus), DEVICE(dev), &error_abort);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, CCID_INT_IN_EP);
+    s->bulk = usb_ep_get(dev, USB_TOKEN_IN, CCID_BULK_IN_EP);
     s->card = NULL;
     s->migration_state = MIGRATION_NONE;
     s->migration_target_ip = 0;
