@@ -873,6 +873,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8             0x19
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8 0x1E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8 0x24
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5         0x27
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8           0x28
 # define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED 0x2E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED 0x30
@@ -1077,7 +1078,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4] =
         {2, false, GL_RGBA4, GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5] =
-        {2, false, GL_RGB5, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
+        {2, false, GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8] =
         {4, false, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
@@ -1095,7 +1096,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
         {4, false, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 0, GL_RGBA},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G6B5] =
-        {2, true, GL_RGB5, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
+        {2, true, GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
         {4, true, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
@@ -1104,8 +1105,10 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
         {4, true, GL_RGB8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
 
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5] =
+        {2, false, GL_RGB8_SNORM, GL_RGB, GL_BYTE}, /* FIXME: This might be signed */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8] =
-        {2, false, GL_RG8, GL_RG, GL_UNSIGNED_BYTE},
+        {2, false, GL_RG8_SNORM, GL_RG, GL_BYTE}, /* FIXME: This might be signed */
 
     /* TODO: format conversion */
     [NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8] =
@@ -1131,7 +1134,7 @@ static const SurfaceColorFormatInfo kelvin_surface_color_format_map[] = {
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_Z1R5G5B5] =
         {2, GL_RGB5_A1, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5] =
-        {2, GL_RGB5, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
+        {2, GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8] =
         {4, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8] =
@@ -1997,6 +2000,30 @@ static uint8_t* convert_texture_data(const TextureShape s,
                 convert_yuy2_to_rgb(line, x, &pixel[0], &pixel[1], &pixel[2]);
                 pixel[3] = 255;
           }
+        }
+        return converted_data;
+    } else if (s.color_format
+                   == NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5) {
+        uint8_t *converted_data = g_malloc(width * height * 3);
+        int x, y;
+        for (y = 0; y < height; y++) {
+            for (x = 0; x < width; x++) {
+                uint8_t v;
+                uint16_t rgb565 = *(uint16_t*)(data + y * pitch + x * 2);
+                int8_t *pixel = &converted_data[(y * width + x) * 3];
+                /* FIXME: This is pretty ugly code to extend from
+                 * signed 565 to signed 888 (hopefully)
+                 */
+                v = (rgb565 & 0xF800) >> 8;
+                pixel[0] = (v & 0x80) ? *(int8_t*)&v * 16 / 0x80
+                                      : ((v & 0x78) * 15) / 0x78;
+                v = (rgb565 & 0x07E0) >> 3;
+                pixel[1] = (v & 0x80) ? *(int8_t*)&v * 32 / 0x80
+                                      : ((v & 0x7C) * 31) / 0x7C;
+                v = (rgb565 & 0x001F) << 3;
+                pixel[2] = (v & 0x80) ? *(int8_t*)&v * 16 / 0x80
+                                      : ((v & 0x78) * 15) / 0x78;
+            }
         }
         return converted_data;
     } else {
@@ -3385,6 +3412,8 @@ static void pgraph_init(NV2AState *d)
     glextensions_init();
 
     assert(glo_check_extension("GL_EXT_texture_compression_s3tc"));
+    assert(glo_check_extension("GL_EXT_texture_snorm"));
+    assert(glo_check_extension("GL_ARB_ES2_compatibility"));
 
     GLint max_vertex_attributes;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_vertex_attributes);
