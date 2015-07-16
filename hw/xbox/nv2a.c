@@ -1405,6 +1405,7 @@ typedef struct TextureBinding {
 
 typedef struct InlineVertexBufferEntry {
     float position[4];
+    float weight[4];
     float diffuse[4];
     float tex_coord[NV2A_MAX_TEXTURES][4];
 } InlineVertexBufferEntry;
@@ -2607,6 +2608,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 "#version 330\n"
 "\n"
 "in vec4 position;\n"
+"in vec4 weight;\n"
 "in vec3 normal;\n"
 "in vec4 diffuse;\n"
 "in vec4 specular;\n"
@@ -2723,6 +2725,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     if (state.fixed_function) {
         /* bind fixed function vertex attributes */
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_POSITION, "position");
+        glBindAttribLocation(program, NV2A_VERTEX_ATTR_WEIGHT, "weight");
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_DIFFUSE, "diffuse");
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_SPECULAR, "specular");
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_FOG, "fog");
@@ -4599,6 +4602,14 @@ static void pgraph_method(NV2AState *d,
                         sizeof(InlineVertexBufferEntry),
                         (void*)offsetof(InlineVertexBufferEntry, position));
                 glEnableVertexAttribArray(NV2A_VERTEX_ATTR_POSITION);
+
+                glVertexAttribPointer(NV2A_VERTEX_ATTR_WEIGHT,
+                        4,
+                        GL_FLOAT,
+                        GL_FALSE,
+                        sizeof(InlineVertexBufferEntry),
+                        (void*)offsetof(InlineVertexBufferEntry, weight));
+                glEnableVertexAttribArray(NV2A_VERTEX_ATTR_WEIGHT);
 
                 glVertexAttribPointer(NV2A_VERTEX_ATTR_DIFFUSE,
                         4,
