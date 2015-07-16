@@ -866,10 +866,12 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_SET_TEXGEN_T                                 0x009703C4
 #   define NV097_SET_TEXGEN_R                                 0x009703C8
 #   define NV097_SET_TEXGEN_Q                                 0x009703CC
+#   define NV097_SET_TEXTURE_MATRIX_ENABLE                    0x00970420
 #   define NV097_SET_PROJECTION_MATRIX                        0x00970440
 #   define NV097_SET_MODEL_VIEW_MATRIX                        0x00970480
 #   define NV097_SET_INVERSE_MODEL_VIEW_MATRIX                0x00970580
 #   define NV097_SET_COMPOSITE_MATRIX                         0x00970680
+#   define NV097_SET_TEXTURE_MATRIX                           0x009706C0
 #   define NV097_SET_TEXGEN_VIEW_MODEL                        0x009709CC
 #       define NV097_SET_TEXGEN_VIEW_MODEL_LOCAL_VIEWER           0
 #       define NV097_SET_TEXGEN_VIEW_MODEL_INFINITE_VIEWER        1
@@ -1337,6 +1339,7 @@ typedef struct ShaderState {
     bool alpha_test;
     enum AlphaFunc alpha_func;
 
+    bool texture_matrix_enable[4];
     enum Texgen texgen[4][4];
 
     enum Skinning skinning;
@@ -1497,6 +1500,8 @@ typedef struct PGRAPHState {
     float composite_matrix[16];
 
     /* FIXME: These are probably stored in the vshader consts */
+    bool texture_matrix_enable[4];
+    float texture_matrix[4][16]; /* 4 stages with 4x4 matrix each */
     float projection_matrix[16];
     float inverse_model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
     float model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
@@ -2638,6 +2643,10 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     qstring_append(vertex_shader_code,
 "\n"
 "uniform mat4 composite;\n"
+"uniform mat4 texMat0;\n"
+"uniform mat4 texMat1;\n"
+"uniform mat4 texMat2;\n"
+"uniform mat4 texMat3;\n"
 "uniform mat4 modelViewMat0;\n"
 "uniform mat4 modelViewMat1;\n"
 "uniform mat4 modelViewMat2;\n"
@@ -2937,6 +2946,11 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
     }
 
+    /* Texture matrices */
+    for (i = 0; i < 4; i++) {
+        state.texture_matrix_enable[i] = pg->texture_matrix_enable[i];
+    }
+
     for (i = 0; i < 8; i++) {
         state.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
         state.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
@@ -3047,6 +3061,13 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
                              &pg->regs[NV_PGRAPH_BUMPOFFSET1 + (i - 1) * 4]);
             }
 
+        }
+
+        /* Texture matrices */
+        sprintf(name, "texMat%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+        if (loc != -1) {
+            glUniformMatrix4fv(loc, 1, GL_FALSE, pg->texture_matrix[i]);
         }
 
     }
@@ -4298,6 +4319,10 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 3));
         break;
     }
+    CASE_4(NV097_SET_TEXTURE_MATRIX_ENABLE,4):
+        slot = (class_method - NV097_SET_TEXTURE_MATRIX_ENABLE) / 4;
+        pg->texture_matrix_enable[slot] = parameter;
+        break;
 
     case NV097_SET_PROJECTION_MATRIX ...
             NV097_SET_PROJECTION_MATRIX + 0x3c:
@@ -4321,6 +4346,12 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_COMPOSITE_MATRIX + 0x3c:
         slot = (class_method - NV097_SET_COMPOSITE_MATRIX) / 4;
         pg->composite_matrix[slot] = *(float*)&parameter;
+        break;
+
+    case NV097_SET_TEXTURE_MATRIX ...
+            NV097_SET_TEXTURE_MATRIX + 0xfc:
+        slot = (class_method - NV097_SET_TEXTURE_MATRIX) / 4;
+        pg->texture_matrix[slot / 16][slot % 16] = *(float*)&parameter;
         break;
 
     case NV097_SET_TEXGEN_VIEW_MODEL:
