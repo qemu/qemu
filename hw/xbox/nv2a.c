@@ -926,8 +926,8 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_SET_SHADER_STAGE_PROGRAM                     0x00971E70
 #   define NV097_SET_SHADER_OTHER_STAGE_INPUT                 0x00971E78
 #   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
-#       define NV_097_SET_TRANSFORM_EXECUTION_MODE_MODE           0x00000003
-#       define NV_097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE     0xFFFFFFFC
+#       define NV097_SET_TRANSFORM_EXECUTION_MODE_MODE            0x00000003
+#       define NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE      0xFFFFFFFC
 #   define NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN           0x00971E98
 #   define NV097_SET_TRANSFORM_PROGRAM_LOAD                   0x00971E9C
 #   define NV097_SET_TRANSFORM_PROGRAM_START                  0x00971EA0
@@ -2057,7 +2057,7 @@ static TextureBinding* generate_texture(const TextureShape s,
     glBindTexture(gl_target, gl_texture);
 
     NV2A_GL_DLABEL(GL_TEXTURE, gl_texture,
-                   "format: 0x%02X%s, width: %i",
+                   "format: 0x%02X%s, width: %d",
                    s.color_format, f.linear ? "" : " (SZ)", s.width);
 
     if (f.linear) {
@@ -2761,7 +2761,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 
 static void pgraph_bind_shaders(PGRAPHState *pg)
 {
-    int i;
+    int i, j;
 
     bool vertex_program = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
                                    NV_PGRAPH_CSV0_D_MODE) == 2;
@@ -2831,8 +2831,8 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
     for (i = 0; i < 4; i++) {
         state.rect_tex[i] = false;
-        bool enabled = GET_MASK(pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4],
-                                NV_PGRAPH_TEXCTL0_0_ENABLE);
+        bool enabled = pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4]
+                         & NV_PGRAPH_TEXCTL0_0_ENABLE;
         unsigned int color_format =
             GET_MASK(pg->regs[NV_PGRAPH_TEXFMT0 + i*4],
                      NV_PGRAPH_TEXFMT0_COLOR);
@@ -2881,7 +2881,6 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             constant[1] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
         }
 
-        int j;
         for (j = 0; j < 2; j++) {
             GLint loc = pg->shader_binding->psh_constant_loc[i][j];
             if (loc != -1) {
@@ -2919,8 +2918,9 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
         GLint comLoc = glGetUniformLocation(pg->shader_binding->gl_program,
                                             "composite");
-        assert(comLoc != -1);
-        glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
+        if (comLoc != -1) {
+            glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
+        }
 
         /* estimate the viewport by assuming it matches the surface ... */
         float m11 = 0.5 * pg->surface_shape.clip_width;
@@ -2930,7 +2930,6 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         //float m42 = -m22;
         float m43 = zclip_min;
         //float m44 = 1.0;
-
 
         if (m33 == 0.0) {
             m33 = 1.0;
@@ -2944,8 +2943,9 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
         GLint view_loc = glGetUniformLocation(pg->shader_binding->gl_program,
                                               "invViewport");
-        assert(view_loc != -1);
-        glUniformMatrix4fv(view_loc, 1, GL_FALSE, &invViewport[0]);
+        if (view_loc != -1) {
+            glUniformMatrix4fv(view_loc, 1, GL_FALSE, &invViewport[0]);
+        }
 
     } else if (vertex_program) {
         /* update vertex program constants */
@@ -4748,9 +4748,11 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_TRANSFORM_EXECUTION_MODE:
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_MODE,
-                 GET_MASK(parameter, NV_097_SET_TRANSFORM_EXECUTION_MODE_MODE));
+                 GET_MASK(parameter,
+                          NV097_SET_TRANSFORM_EXECUTION_MODE_MODE));
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_RANGE_MODE,
-                 GET_MASK(parameter, NV_097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE));
+                 GET_MASK(parameter,
+                          NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE));
         break;
     case NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN:
         pg->enable_vertex_program_write = parameter;
