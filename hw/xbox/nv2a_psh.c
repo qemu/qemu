@@ -564,7 +564,8 @@ static QString* psh_convert(struct PixelShader *ps)
     qstring_append(vars, "vec4 v1 = pD1;\n");
     qstring_append(vars, "float fog = pFog.x;\n");
 
-    bool bumpenvmap = false;
+    ps->code = qstring_new();
+
     for (i = 0; i < 4; i++) {
 
         const char *sampler_type = NULL;
@@ -608,13 +609,20 @@ static QString* psh_convert(struct PixelShader *ps)
             qstring_append_fmt(vars, "  vec4 t%d = texture(texSamp%d, t%d.gb);\n",
                                i, i, ps->input_tex[i]);
             break;
+        case PS_TEXTUREMODES_BUMPENVMAP_LUM:
+            qstring_append_fmt(preflight, "uniform float bumpScale%d;\n", i);
+            qstring_append_fmt(preflight, "uniform float bumpOffset%d;\n", i);
+            qstring_append_fmt(ps->code, "/* BUMPENVMAP_LUM for stage %d */\n", i);
+            qstring_append_fmt(ps->code, "t%d = t%d * (bumpScale%d * t%d.b + bumpOffset%d);\n",
+                               i, i, i, ps->input_tex[i], i);
+            /* No break here! Extension of BUMPENVMAP */
         case PS_TEXTUREMODES_BUMPENVMAP:
             assert(!ps->rect_tex[i]);
             sampler_type = "sampler2D";
-            bumpenvmap = true;
-            assert(false); /* FIXME: Untested */
-            qstring_append_fmt(vars, "  vec4 t%d = texture(texSamp%d, pT%d.xy + t%d.rg * texBumpMat%d);\n",
-                               i, i, i, ps->input_tex[i], i);
+            qstring_append_fmt(preflight, "uniform mat2 bumpMat%d;\n", i);
+            /* FIXME: Do bumpMat swizzle on CPU before upload */
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xy + t%d.rg * mat2(bumpMat%d[0].xy,bumpMat%d[1].yx));\n",
+                               i, i, i, ps->input_tex[i], i, i);
             break;
         case PS_TEXTUREMODES_CLIPPLANE: {
             int j;
@@ -644,17 +652,12 @@ static QString* psh_convert(struct PixelShader *ps)
             /* As this means a texture fetch does happen, do alphakill */
             if (ps->alphakill[i]) {
                 assert(false); /* FIXME: Untested */
-                qstring_append_fmt(vars, "  if (t%d.a == 0.0) { discard; };\n",
+                qstring_append_fmt(vars, "if (t%d.a == 0.0) { discard; };\n",
                                    i);
             }
         }
     }
 
-    if (bumpenvmap) {
-      qstring_append(preflight, "  uniform mat2 texBumpMat\n");
-    }
-
-    ps->code = qstring_new();
     for (i = 0; i < ps->num_stages; i++) {
         ps->cur_stage = i;
         qstring_append_fmt(ps->code, "// Stage %d\n", i);

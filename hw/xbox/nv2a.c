@@ -418,6 +418,8 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV_PGRAPH_BLEND_LOGICOP_ENABLE                       (1 << 16)
 #   define NV_PGRAPH_BLEND_LOGICOP                              0x0000F000
 #define NV_PGRAPH_BLENDCOLOR                             0x00001808
+#define NV_PGRAPH_BUMPOFFSET1                            0x0000184C
+#define NV_PGRAPH_BUMPSCALE1                             0x00001858
 #define NV_PGRAPH_CLEARRECTX                             0x00001864
 #       define NV_PGRAPH_CLEARRECTX_XMIN                          0x00000FFF
 #       define NV_PGRAPH_CLEARRECTX_XMAX                          0x0FFF0000
@@ -954,6 +956,8 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_32                3
 #       define NV097_SET_TEXTURE_PALETTE_OFFSET                   0xFFFFFFC0
 #   define NV097_SET_TEXTURE_SET_BUMP_ENV_MAT                 0x00971B28
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE               0x00971B38
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET              0x00971B3C
 #   define NV097_SET_SEMAPHORE_OFFSET                         0x00971D6C
 #   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00971D70
 #   define NV097_SET_ZSTENCIL_CLEAR_VALUE                     0x00971D8C
@@ -1470,7 +1474,9 @@ typedef struct PGRAPHState {
     ShaderBinding *shader_binding;
 
     float composite_matrix[16];
-    float texture_bump_matrix[4];
+
+    /* FIXME: Move to NV_PGRAPH_BUMPMAT... */
+    float bump_env_matrix[3][4]; /* 4 stages with 2x2 matrix each */
 
     GloContext *gl_context;
     GLuint gl_framebuffer;
@@ -2970,12 +2976,36 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         glUniform1f(alpha_ref_loc, alpha_ref);
     }
 
-    GLint tex_bump_mat_loc = glGetUniformLocation(
-                                 pg->shader_binding->gl_program,
-                                 "texBumpMat");
-    if (tex_bump_mat_loc != -1) {
-        glUniformMatrix2fv(tex_bump_mat_loc, 1, GL_FALSE,
-                           pg->texture_bump_matrix);
+    /* For each texture stage */
+    for (i = 0; i < 4; i++) {
+        char name[16];
+        GLint loc;
+
+        /* Bump luminance only during stages 1 - 3 */
+        if (i > 0) {
+
+            sprintf(name, "bumpMat%d", i);
+            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+            if (loc != -1) {
+                glUniformMatrix2fv(loc, 1, GL_FALSE, pg->bump_env_matrix[i - 1]);
+            }
+
+            sprintf(name, "bumpScale%d", i);
+            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+            if (loc != -1) {
+                glUniform1fv(loc, 1,
+                             &pg->regs[NV_PGRAPH_BUMPSCALE1 + (i - 1) * 4]);
+            }
+
+            sprintf(name, "bumpOffset%d", i);
+            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+            if (loc != -1) {
+                glUniform1fv(loc, 1,
+                             &pg->regs[NV_PGRAPH_BUMPOFFSET1 + (i - 1) * 4]);
+            }
+
+        }
+
     }
 
     float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
@@ -4677,10 +4707,27 @@ static void pgraph_method(NV2AState *d,
         break;
     }
 
-    case NV097_SET_TEXTURE_SET_BUMP_ENV_MAT ...
-            NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0xc:
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x0, 64):
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x4, 64):
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x8, 64):
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0xc, 64):
         slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_MAT) / 4;
-        pg->texture_bump_matrix[slot] = *(float*)&parameter;
+        assert((slot / 16) > 0);
+        slot -= 16;
+        pg->bump_env_matrix[slot / 16][slot % 4] = *(float*)&parameter;
+        break;
+
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE, 64):
+        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE) / 64;
+        assert(slot > 0);
+        slot--;
+        pg->regs[NV_PGRAPH_BUMPSCALE1 + slot * 4] = parameter;
+        break;
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET, 64):
+        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET) / 64;
+        assert(slot > 0);
+        slot--;
+        pg->regs[NV_PGRAPH_BUMPOFFSET1 + slot * 4] = parameter;
         break;
 
     case NV097_ARRAY_ELEMENT16:
