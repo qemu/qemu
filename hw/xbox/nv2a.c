@@ -454,6 +454,18 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #define NV_PGRAPH_SPECFOGFACTOR0                         0x000019AC
 #define NV_PGRAPH_SPECFOGFACTOR1                         0x000019B0
 #define NV_PGRAPH_TEXADDRESS0                            0x000019BC
+#   define NV_PGRAPH_TEXADDRESS0_ADDRU                          0x00000007
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_WRAP                      1
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_MIRROR                    2
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_CLAMP_TO_EDGE             3
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_BORDER                    4
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_CLAMP_OGL                 5
+#   define NV_PGRAPH_TEXADDRESS0_WRAP_U                         (1 << 4)
+#   define NV_PGRAPH_TEXADDRESS0_ADDRV                          0x00000700
+#   define NV_PGRAPH_TEXADDRESS0_WRAP_V                         (1 << 12)
+#   define NV_PGRAPH_TEXADDRESS0_ADDRP                          0x00070000
+#   define NV_PGRAPH_TEXADDRESS0_WRAP_P                         (1 << 20)
+#   define NV_PGRAPH_TEXADDRESS0_WRAP_Q                         (1 << 24)
 #define NV_PGRAPH_TEXADDRESS1                            0x000019C0
 #define NV_PGRAPH_TEXADDRESS2                            0x000019C4
 #define NV_PGRAPH_TEXADDRESS3                            0x000019C8
@@ -952,6 +964,15 @@ static const GLenum pgraph_texture_mag_filter_map[] = {
     GL_LINEAR,
     0,
     GL_LINEAR /* TODO: Convolution filter... */
+};
+
+static const GLenum pgraph_texture_addr_map[] = {
+    0,
+    GL_REPEAT,
+    GL_MIRRORED_REPEAT,
+    GL_CLAMP_TO_EDGE,
+    GL_CLAMP_TO_BORDER,
+    GL_CLAMP
 };
 
 static const GLenum pgraph_blend_factor_map[] = {
@@ -2153,6 +2174,7 @@ static void pgraph_bind_textures(NV2AState *d)
         uint32_t ctl_1 = pg->regs[NV_PGRAPH_TEXCTL1_0 + i*4];
         uint32_t fmt = pg->regs[NV_PGRAPH_TEXFMT0 + i*4];
         uint32_t filter = pg->regs[NV_PGRAPH_TEXFILTER0 + i*4];
+        uint32_t address =  pg->regs[NV_PGRAPH_TEXADDRESS0 + i*4];
         uint32_t palette =  pg->regs[NV_PGRAPH_TEXPALETTE0 + i*4];
 
         bool enabled = GET_MASK(ctl_0, NV_PGRAPH_TEXCTL0_0_ENABLE);
@@ -2184,6 +2206,10 @@ static void pgraph_bind_textures(NV2AState *d)
             GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MIPMAP_LOD_BIAS);
         unsigned int min_filter = GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MIN);
         unsigned int mag_filter = GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MAG);
+
+        unsigned int addru = GET_MASK(address, NV_PGRAPH_TEXADDRESS0_ADDRU);
+        unsigned int addrv = GET_MASK(address, NV_PGRAPH_TEXADDRESS0_ADDRV);
+        unsigned int addrp = GET_MASK(address, NV_PGRAPH_TEXADDRESS0_ADDRP);
 
         unsigned int offset = pg->regs[NV_PGRAPH_TEXOFFSET0 + i*4];
 
@@ -2333,6 +2359,18 @@ static void pgraph_bind_textures(NV2AState *d)
             pgraph_texture_min_filter_map[min_filter]);
         glTexParameteri(binding->gl_target, GL_TEXTURE_MAG_FILTER,
             pgraph_texture_mag_filter_map[mag_filter]);
+
+        /* Texture wrapping */
+        glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_S,
+            pgraph_texture_addr_map[addru]);
+        if (dimensionality > 1) {
+            glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_T,
+                pgraph_texture_addr_map[addrv]);
+        }
+        if (dimensionality > 2) {
+            glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_R,
+                pgraph_texture_addr_map[addrp]);
+        }
 
         if (pg->texture_binding[i]) {
             texture_binding_destroy(pg->texture_binding[i]);
@@ -3771,6 +3809,10 @@ static void pgraph_method(NV2AState *d,
         pg->regs[NV_PGRAPH_COMBINESPECFOG1] = parameter;
         break;
 
+    CASE_4(NV097_SET_TEXTURE_ADDRESS, 64):
+        slot = (class_method - NV097_SET_TEXTURE_ADDRESS) / 64;
+        pg->regs[NV_PGRAPH_TEXADDRESS0 + slot * 4] = parameter;
+        break;
     case NV097_SET_CONTROL0: {
         pgraph_update_surface(d, false, true, true);
 
