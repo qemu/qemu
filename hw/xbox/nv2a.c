@@ -352,6 +352,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV_PGRAPH_CSV0_D_SKIN_4                              6
 #define NV_PGRAPH_CSV0_C                                 0x00000FB8
 #   define NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START                0x0000FF00
+#   define NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE                (1 << 27)
 #define NV_PGRAPH_CSV1_B                                 0x00000FBC
 #define NV_PGRAPH_CSV1_A                                 0x00000FC0
 #   define NV_PGRAPH_CSV1_A_T0_ENABLE                           (1 << 0)
@@ -840,6 +841,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_STENCIL_OP_V_DECR                        0x8508
 #   define NV097_SET_CLIP_MIN                                 0x00970394
 #   define NV097_SET_CLIP_MAX                                 0x00970398
+#   define NV097_SET_NORMALIZATION_ENABLE                     0x009703A4
 #   define NV097_SET_TEXGEN_S                                 0x009703C0
 #       define NV097_SET_TEXGEN_S_DISABLE                         0x0000
 #       define NV097_SET_TEXGEN_S_EYE_LINEAR                      0x2400
@@ -1313,6 +1315,8 @@ typedef struct ShaderState {
     enum AlphaFunc alpha_func;
 
     enum Texgen texgen[4][4];
+
+    bool normalization;
 
     bool fixed_function;
 
@@ -2839,6 +2843,9 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         .alpha_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                                NV_PGRAPH_CONTROL_0_ALPHAFUNC),
 
+        .normalization = pg->regs[NV_PGRAPH_CSV0_C]
+                           & NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE,
+
         /* fixed function stuff */
         .fixed_function = fixed_function,
 
@@ -4143,6 +4150,12 @@ static void pgraph_method(NV2AState *d,
         break;
     case NV097_SET_CLIP_MAX:
         pg->regs[NV_PGRAPH_ZCLIPMAX] = parameter;
+        break;
+
+    case NV097_SET_NORMALIZATION_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
+                 NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE,
+                 parameter);
         break;
 
     CASE_4(NV097_SET_TEXGEN_S, 16): {
