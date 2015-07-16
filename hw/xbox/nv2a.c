@@ -2697,8 +2697,9 @@ static ShaderBinding* generate_shaders(const ShaderState state)
         if (mix) {
             /* Tweening */
             if (count == 2) {
-                qstring_append(vertex_shader_code, "tPosition += mix(position * modelViewMat1,"
-                                                   "                 position * modelViewMat0, weight.x);\n");
+                qstring_append(vertex_shader_code,
+                    "tPosition += mix(position * modelViewMat1,"
+                    "                 position * modelViewMat0, weight.x);\n");
 
             } else {
                 /* FIXME: Not sure how blend weights are calculated */
@@ -2713,6 +2714,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
                 qstring_append_fmt(vertex_shader_code, "tNormal += (invModelViewMat%d * vec4(normal, 0.0) * weight.%c).xyz;\n",
                                    i, c);
             }
+            assert(false); /* FIXME: Untested */
         }
     }
 
