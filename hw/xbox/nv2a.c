@@ -2975,14 +2975,12 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             state.rect_tex[i] = true;
         }
 
-        int j;
-        for(j = 0; j < 4; j++) {
-            /* compare_mode[i][j] = stage i, component j { s,t,r,q } */
+        for (j = 0; j < 4; j++) {
             state.compare_mode[i][j] =
                 (pg->regs[NV_PGRAPH_SHADERCLIPMODE] >> (4 * i + j)) & 1;
         }
-        state.alphakill[i] = GET_MASK(pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4],
-                                      NV_PGRAPH_TEXCTL0_0_ALPHAKILLEN);
+        state.alphakill[i] = pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4]
+                               & NV_PGRAPH_TEXCTL0_0_ALPHAKILLEN;
     }
 
     ShaderBinding* cached_shader = g_hash_table_lookup(pg->shader_cache, &state);

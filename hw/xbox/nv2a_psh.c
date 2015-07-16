@@ -597,16 +597,19 @@ static QString* psh_convert(struct PixelShader *ps)
         case PS_TEXTUREMODES_PASSTHRU:
             qstring_append_fmt(vars, "vec4 t%d = pT%d;\n", i, i);
             break;
+        case PS_TEXTUREMODES_DOT_RFLCT_SPEC:
+            assert(false);
+            break;
         case PS_TEXTUREMODES_DPNDNT_AR:
             assert(!ps->rect_tex[i]);
             sampler_type = "sampler2D";
-            qstring_append_fmt(vars, "  vec4 t%d = texture(texSamp%d, t%d.ar);\n",
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, t%d.ar);\n",
                                i, i, ps->input_tex[i]);
             break;
         case PS_TEXTUREMODES_DPNDNT_GB:
             assert(!ps->rect_tex[i]);
             sampler_type = "sampler2D";
-            qstring_append_fmt(vars, "  vec4 t%d = texture(texSamp%d, t%d.gb);\n",
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, t%d.gb);\n",
                                i, i, ps->input_tex[i]);
             break;
         case PS_TEXTUREMODES_BUMPENVMAP_LUM:
@@ -626,8 +629,7 @@ static QString* psh_convert(struct PixelShader *ps)
             break;
         case PS_TEXTUREMODES_CLIPPLANE: {
             int j;
-            assert(false); /* FIXME: Untested */
-            qstring_append_fmt(vars, "  vec4 t%d = vec4(0.0); /* PS_TEXTUREMODES_CLIPPLANE */\n",
+            qstring_append_fmt(vars, "vec4 t%d = vec4(0.0); /* PS_TEXTUREMODES_CLIPPLANE */\n",
                                i);
             for (j = 0; j < 4; j++) {
                 qstring_append_fmt(vars, "  if(pT%d.%c %s 0.0) { discard; };\n",
@@ -637,7 +639,7 @@ static QString* psh_convert(struct PixelShader *ps)
             break;
         }
         case PS_TEXTUREMODES_DOTPRODUCT:
-            qstring_append_fmt(vars, "  vec4 t%d = vec4(dot(pT%d.xyz, t%d.rgb));\n",
+            qstring_append_fmt(vars, "vec4 t%d = vec4(dot(pT%d.xyz, t%d.rgb));\n",
                                i, i, ps->input_tex[i]);
             break;
         default:
