@@ -3718,7 +3718,9 @@ static void pgraph_init(NV2AState *d)
 
     glextensions_init();
 
+    /* DXT textures */
     assert(glo_check_extension("GL_EXT_texture_compression_s3tc"));
+    /*  Internal RGB565 texture format */
     assert(glo_check_extension("GL_ARB_ES2_compatibility"));
 
     GLint max_vertex_attributes;
