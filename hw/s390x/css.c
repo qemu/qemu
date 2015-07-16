@@ -290,6 +290,10 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
         ((ccw.cmd_code & 0xf0) != 0)) {
         return -EINVAL;
     }
+    if (!sch->ccw_fmt_1 && (ccw.count == 0) &&
+        (ccw.cmd_code != CCW_CMD_TIC)) {
+        return -EINVAL;
+    }
 
     if (ccw.flags & CCW_FLAG_SUSPEND) {
         return -EINPROGRESS;
