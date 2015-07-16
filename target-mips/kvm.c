@@ -235,10 +235,9 @@ int kvm_mips_set_ipi_interrupt(MIPSCPU *cpu, int irq, int level)
 static inline int kvm_mips_put_one_reg(CPUState *cs, uint64_t reg_id,
                                        int32_t *addr)
 {
-    uint64_t val64 = *addr;
     struct kvm_one_reg cp0reg = {
         .id = reg_id,
-        .addr = (uintptr_t)&val64
+        .addr = (uintptr_t)addr
     };
 
     return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &cp0reg);
@@ -270,18 +269,12 @@ static inline int kvm_mips_put_one_reg64(CPUState *cs, uint64_t reg_id,
 static inline int kvm_mips_get_one_reg(CPUState *cs, uint64_t reg_id,
                                        int32_t *addr)
 {
-    int ret;
-    uint64_t val64 = 0;
     struct kvm_one_reg cp0reg = {
         .id = reg_id,
-        .addr = (uintptr_t)&val64
+        .addr = (uintptr_t)addr
     };
 
-    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &cp0reg);
-    if (ret >= 0) {
-        *addr = val64;
-    }
-    return ret;
+    return kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &cp0reg);
 }
 
 static inline int kvm_mips_get_one_ulreg(CPUState *cs, uint64 reg_id,
@@ -635,12 +628,12 @@ int kvm_arch_put_registers(CPUState *cs, int level)
 
     /* Set the registers based on QEMU's view of things */
     for (i = 0; i < 32; i++) {
-        regs.gpr[i] = env->active_tc.gpr[i];
+        regs.gpr[i] = (int64_t)(target_long)env->active_tc.gpr[i];
     }
 
-    regs.hi = env->active_tc.HI[0];
-    regs.lo = env->active_tc.LO[0];
-    regs.pc = env->active_tc.PC;
+    regs.hi = (int64_t)(target_long)env->active_tc.HI[0];
+    regs.lo = (int64_t)(target_long)env->active_tc.LO[0];
+    regs.pc = (int64_t)(target_long)env->active_tc.PC;
 
     ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
 

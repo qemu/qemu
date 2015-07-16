@@ -2997,7 +2997,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                              (unsigned int)comp->block_idx,
                              rdma->local_ram_blocks.nb_blocks);
                 ret = -EIO;
-                break;
+                goto out;
             }
             block = &(rdma->local_ram_blocks.block[comp->block_idx]);
 
@@ -3092,7 +3092,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                                  (unsigned int)reg->current_index,
                                  rdma->local_ram_blocks.nb_blocks);
                     ret = -ENOENT;
-                    break;
+                    goto out;
                 }
                 block = &(rdma->local_ram_blocks.block[reg->current_index]);
                 if (block->is_ram_block) {
@@ -3102,7 +3102,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                             block->block_name, block->offset,
                             reg->key.current_addr);
                         ret = -ERANGE;
-                        break;
+                        goto out;
                     }
                     host_addr = (block->local_host_addr +
                                 (reg->key.current_addr - block->offset));
@@ -3118,7 +3118,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                             " chunk: %" PRIx64,
                             block->block_name, reg->key.chunk);
                         ret = -ERANGE;
-                        break;
+                        goto out;
                     }
                 }
                 chunk_start = ram_chunk_start(block, chunk);

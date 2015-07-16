@@ -422,6 +422,7 @@ static void realize(DeviceState *d, Error **errp)
         error_free(err);
         object_unref(OBJECT(drc));
     }
+    g_free(child_name);
     DPRINTFN("drc realize complete");
 }
 

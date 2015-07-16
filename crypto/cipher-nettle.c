@@ -23,12 +23,51 @@
 #include <nettle/des.h>
 #include <nettle/cbc.h>
 
+#if CONFIG_NETTLE_VERSION_MAJOR < 3
+typedef nettle_crypt_func nettle_cipher_func;
+
+typedef void *       cipher_ctx_t;
+typedef unsigned     cipher_length_t;
+#else
+typedef const void * cipher_ctx_t;
+typedef size_t       cipher_length_t;
+#endif
+
+static nettle_cipher_func aes_encrypt_wrapper;
+static nettle_cipher_func aes_decrypt_wrapper;
+static nettle_cipher_func des_encrypt_wrapper;
+static nettle_cipher_func des_decrypt_wrapper;
+
+static void aes_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+                                uint8_t *dst, const uint8_t *src)
+{
+    aes_encrypt(ctx, length, dst, src);
+}
+
+static void aes_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+                                uint8_t *dst, const uint8_t *src)
+{
+    aes_encrypt(ctx, length, dst, src);
+}
+
+static void des_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+                                uint8_t *dst, const uint8_t *src)
+{
+    des_encrypt(ctx, length, dst, src);
+}
+
+static void des_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
+                                uint8_t *dst, const uint8_t *src)
+{
+    des_decrypt(ctx, length, dst, src);
+}
+
 typedef struct QCryptoCipherNettle QCryptoCipherNettle;
 struct QCryptoCipherNettle {
     void *ctx_encrypt;
     void *ctx_decrypt;
-    nettle_crypt_func *alg_encrypt;
-    nettle_crypt_func *alg_decrypt;
+    nettle_cipher_func *alg_encrypt;
+    nettle_cipher_func *alg_decrypt;
     uint8_t *iv;
     size_t niv;
 };
@@ -83,8 +122,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         des_set_key(ctx->ctx_encrypt, rfbkey);
         g_free(rfbkey);
 
-        ctx->alg_encrypt = (nettle_crypt_func *)des_encrypt;
-        ctx->alg_decrypt = (nettle_crypt_func *)des_decrypt;
+        ctx->alg_encrypt = des_encrypt_wrapper;
+        ctx->alg_decrypt = des_decrypt_wrapper;
 
         ctx->niv = DES_BLOCK_SIZE;
         break;
@@ -98,8 +137,8 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         aes_set_encrypt_key(ctx->ctx_encrypt, nkey, key);
         aes_set_decrypt_key(ctx->ctx_decrypt, nkey, key);
 
-        ctx->alg_encrypt = (nettle_crypt_func *)aes_encrypt;
-        ctx->alg_decrypt = (nettle_crypt_func *)aes_decrypt;
+        ctx->alg_encrypt = aes_encrypt_wrapper;
+        ctx->alg_decrypt = aes_decrypt_wrapper;
 
         ctx->niv = AES_BLOCK_SIZE;
         break;

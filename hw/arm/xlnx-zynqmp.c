@@ -144,6 +144,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         } else {
             s->boot_cpu_ptr = &s->apu_cpu[i];
         }
+        g_free(name);
 
         object_property_set_int(OBJECT(&s->apu_cpu[i]), GIC_BASE_ADDR,
                                 "reset-cbar", &err);
@@ -181,6 +182,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         } else {
             s->boot_cpu_ptr = &s->rpu_cpu[i];
         }
+        g_free(name);
 
         object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "reset-hivecs",
                                  &err);

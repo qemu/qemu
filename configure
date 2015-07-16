@@ -2183,6 +2183,7 @@ if test "$gnutls_nettle" != "no"; then
     if $pkg_config --exists "nettle"; then
         nettle_cflags=`$pkg_config --cflags nettle`
         nettle_libs=`$pkg_config --libs nettle`
+        nettle_version=`$pkg_config --modversion nettle`
         libs_softmmu="$nettle_libs $libs_softmmu"
         libs_tools="$nettle_libs $libs_tools"
         QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
@@ -4490,7 +4491,7 @@ echo "GTK support       $gtk"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
 echo "GNUTLS gcrypt     $gnutls_gcrypt"
-echo "GNUTLS nettle     $gnutls_nettle"
+echo "GNUTLS nettle     $gnutls_nettle ${gnutls_nettle+($nettle_version)}"
 echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
@@ -4858,6 +4859,7 @@ if test "$gnutls_gcrypt" = "yes" ; then
 fi
 if test "$gnutls_nettle" = "yes" ; then
   echo "CONFIG_GNUTLS_NETTLE=y" >> $config_host_mak
+  echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
 fi
 if test "$vte" = "yes" ; then
   echo "CONFIG_VTE=y" >> $config_host_mak
