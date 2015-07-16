@@ -2659,8 +2659,125 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 "uniform mat4 projectionMat;\n"
 "uniform mat4 compositeMat;\n"
 "uniform mat4 invViewport;\n"
-"void main() {\n"
+"\n"
+"void main() {\n");
+
+    /* Skinning */
+    unsigned int count;
+    bool mix;
+    switch (state.skinning) {
+    case SKINNING_OFF:
+        count = 0; break;
+    case SKINNING_1WEIGHTS:
+        mix = true; count = 2; break;
+    case SKINNING_2WEIGHTS:
+        mix = true; count = 3; break;
+    case SKINNING_3WEIGHTS:
+        mix = true; count = 4; break;
+    case SKINNING_2WEIGHTS2MATRICES:
+        mix = false; count = 2; break;
+    case SKINNING_3WEIGHTS3MATRICES:
+        mix = false; count = 3; break;
+    case SKINNING_4WEIGHTS4MATRICES:
+        mix = false; count = 4; break;
+    default:
+        assert(false);
+        break;
+    }
+    qstring_append_fmt(vertex_shader_code, "/* Skinning mode %d */\n",
+                       state.skinning);
+    if (count == 0) {
+        qstring_append(vertex_shader_code, "vec4 tPosition = position * modelViewMat0;\n");
+        qstring_append(vertex_shader_code, "vec3 tNormal = (invModelViewMat0 * vec4(normal, 0.0)).xyz;\n");
+    } else {
+        qstring_append(vertex_shader_code, "vec4 tPosition = vec4(0.0);\n");
+        qstring_append(vertex_shader_code, "vec3 tNormal = vec3(0.0);\n");
+        if (mix) {
+            /* Tweening */
+            /*
+                This should *probably* be something like:
+                if (count == 2) {
+                    pos = mix(position*modelViewMat0,position*modelViewMat1,weight.x)
+                }
+                Not sure about higher amount of matrices.
+            /*
+            assert(false);
+        } else {
+            /* Individual matrices */
+            for (i = 0; i < count; i++) {
+                char c = "xyzw"[i];
+                qstring_append_fmt(vertex_shader_code, "tPosition += position * modelViewMat%d * weight.%c;\n",
+                                   i, c);
+                qstring_append_fmt(vertex_shader_code, "tNormal += (invModelViewMat%d * vec4(normal, 0.0) * weight.%c).xyz;\n",
+                                   i, c);
+            }
+        }
+    }
+
+    /* Normalization */
+    if (state.normalization) {
+        qstring_append(vertex_shader_code, "tNormal = normalize(tNormal);\n");
+    }
+
+    /* Texgen */
+    for (i = 0; i < 4; i++) {
+        qstring_append_fmt(vertex_shader_code, "/* Texgen for stage %d */\n",
+                           i);
+        qstring_append_fmt(vertex_shader_code, "vec4 tTexture%d;\n",
+                           i);
+        /* Set each component individually */
+        /* FIXME: could be nicer if some channels share the same texgen */
+        for (j = 0; j < 4; j++) {
+            char c = "xyzw"[j];
+            switch (state.texgen[i][j]) {
+            case TEXGEN_DISABLE:
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = texture%d.%c;\n",
+                                   i, c, i, c);
+                break;
+            case TEXGEN_EYE_LINEAR:
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = tPosition.%c;\n",
+                                   i, c, c);
+                break;
+            case TEXGEN_OBJECT_LINEAR:
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = position.%c;\n",
+                                   i, c, c);
+                break;
+            case TEXGEN_SPHERE_MAP:
+                assert(i < 2);  /* Channels S,T only! */
+                assert(false);
+                break;
+            case TEXGEN_REFLECTION_MAP:
+                assert(i < 3); /* Channels S,T,R only! */
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = reflect(???, tNormal).%c;\n",
+                                   i, c, c);
+                assert(false); /* FIXME: Code not complete yet! */
+                break;
+            case TEXGEN_NORMAL_MAP:
+                assert(i < 3); /* Channels S,T,R only! */
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = tNormal.%c;\n",
+                                   i, c, c);
+                break;
+            default:
+                assert(false);
+                break;
+            }
+        }
+    }
+
+    /* Apply texture matrices */
+    for (i = 0; i < 4; i++) {
+        if (state.texture_matrix_enable[i]) {
+            qstring_append_fmt(vertex_shader_code, "tTexture%d = tTexture%d * texMat%d;\n",
+                               i, i, i);
+        }
+    }
+
+    qstring_append(vertex_shader_code,
+#if 0
+"   gl_Position = position * modelViewMat0 * projectionMat;\n"
+#else
 "   gl_Position = invViewport * (position * compositeMat);\n"
+#endif
 /* temp hack: the composite matrix includes the view transform... */
 //"   gl_Position = position * compositeMat;\n"
 //"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
@@ -2678,13 +2795,13 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     qstring_append_fmt(vertex_shader_code,
         "%cB1 = backSpecular * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT0 = texture0 * %cPos_w;\n", v_prefix, v_prefix);
+        "%cT0 = tTexture0 * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT1 = texture1 * %cPos_w;\n", v_prefix, v_prefix);
+        "%cT1 = tTexture1 * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT2 = texture2 * %cPos_w;\n", v_prefix, v_prefix);
+        "%cT2 = tTexture2 * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT3 = texture3 * %cPos_w;\n", v_prefix, v_prefix);
+        "%cT3 = tTexture3 * %cPos_w;\n", v_prefix, v_prefix);
 
     qstring_append(vertex_shader_code, "}\n");
 
