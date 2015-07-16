@@ -2644,7 +2644,6 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 
     qstring_append(vertex_shader_code,
 "\n"
-"uniform mat4 composite;\n"
 "uniform mat4 texMat0;\n"
 "uniform mat4 texMat1;\n"
 "uniform mat4 texMat2;\n"
@@ -2658,11 +2657,12 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 "uniform mat4 invModelViewMat2;\n"
 "uniform mat4 invModelViewMat3;\n"
 "uniform mat4 projectionMat;\n"
+"uniform mat4 compositeMat;\n"
 "uniform mat4 invViewport;\n"
 "void main() {\n"
-"   gl_Position = invViewport * (position * composite);\n"
+"   gl_Position = invViewport * (position * compositeMat);\n"
 /* temp hack: the composite matrix includes the view transform... */
-//"   gl_Position = position * composite;\n"
+//"   gl_Position = position * compositeMat;\n"
 //"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
 //"   gl_Position.y = -(gl_Position.y - 240.0) / 240.0;\n"
 "   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n");
@@ -3107,7 +3107,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         /* update fixed function composite matrix */
 
         GLint comLoc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                            "composite");
+                                            "compositeMat");
         if (comLoc != -1) {
             glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
         }
