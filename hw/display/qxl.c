@@ -271,6 +271,12 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
                     QXL_COOKIE_TYPE_POST_LOAD_MONITORS_CONFIG,
                     0));
     } else {
+#if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
+        if (qxl->max_outputs) {
+            spice_qxl_set_monitors_config_limit(&qxl->ssd.qxl,
+                                                qxl->max_outputs);
+        }
+#endif
         qxl->guest_monitors_config = qxl->ram->monitors_config;
         spice_qxl_monitors_config_async(&qxl->ssd.qxl,
                 qxl->ram->monitors_config,
@@ -991,6 +997,7 @@ static int interface_client_monitors_config(QXLInstance *sin,
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
     QXLRom *rom = memory_region_get_ram_ptr(&qxl->rom_bar);
     int i;
+    unsigned max_outputs = ARRAY_SIZE(rom->client_monitors_config.heads);
 
     if (qxl->revision < 4) {
         trace_qxl_client_monitors_config_unsupported_by_device(qxl->id,
@@ -1013,17 +1020,23 @@ static int interface_client_monitors_config(QXLInstance *sin,
     if (!monitors_config) {
         return 1;
     }
+
+#if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
+    /* limit number of outputs based on setting limit */
+    if (qxl->max_outputs && qxl->max_outputs <= max_outputs) {
+        max_outputs = qxl->max_outputs;
+    }
+#endif
+
     memset(&rom->client_monitors_config, 0,
            sizeof(rom->client_monitors_config));
     rom->client_monitors_config.count = monitors_config->num_of_monitors;
     /* monitors_config->flags ignored */
-    if (rom->client_monitors_config.count >=
-            ARRAY_SIZE(rom->client_monitors_config.heads)) {
+    if (rom->client_monitors_config.count >= max_outputs) {
         trace_qxl_client_monitors_config_capped(qxl->id,
                                 monitors_config->num_of_monitors,
-                                ARRAY_SIZE(rom->client_monitors_config.heads));
-        rom->client_monitors_config.count =
-            ARRAY_SIZE(rom->client_monitors_config.heads);
+                                max_outputs);
+        rom->client_monitors_config.count = max_outputs;
     }
     for (i = 0 ; i < rom->client_monitors_config.count ; ++i) {
         VDAgentMonConfig *monitor = &monitors_config->monitors[i];
@@ -2274,6 +2287,9 @@ static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("vram64_size_mb", PCIQXLDevice, vram_size_mb, -1),
         DEFINE_PROP_UINT32("vgamem_mb", PCIQXLDevice, vgamem_size_mb, 16),
         DEFINE_PROP_INT32("surfaces", PCIQXLDevice, ssd.num_surfaces, 1024),
+#if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
+        DEFINE_PROP_UINT16("max_outputs", PCIQXLDevice, max_outputs, 0),
+#endif
         DEFINE_PROP_END_OF_LIST(),
 };
 
