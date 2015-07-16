@@ -1717,7 +1717,7 @@ static void *nv_dma_map(NV2AState *d, hwaddr dma_obj_address, hwaddr *len)
     DMAObject dma = nv_dma_load(d, dma_obj_address);
 
     /* TODO: Handle targets and classes properly */
-    NV2A_DPRINTF("dma_map %x, %x, %llx %llx\n",
+    NV2A_DPRINTF("dma_map %x, %x, %" HWADDR_PRIx " %" HWADDR_PRIx "\n",
                  dma.dma_class, dma.dma_target, dma.address, dma.limit);
     // assert(dma.address + dma.limit < memory_region_size(d->vram));
     *len = dma.limit;
@@ -1863,7 +1863,7 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
                                       attribute->gl_type,
                                       attribute->gl_normalize,
                                       inline_stride,
-                                      (void*)attribute->inline_array_offset);
+                                      (void*)(uintptr_t)attribute->inline_array_offset);
             } else {
                 hwaddr addr = data - d->vram_ptr;
                 pgraph_update_memory_buffer(d, addr,
@@ -3066,8 +3066,8 @@ static void pgraph_update_surface(NV2AState *d,
             pg->surface_color.buffer_dirty = false;
 
             uint8_t *out = color_data + pg->surface_color.offset + 64;
-            NV2A_DPRINTF("upload_surface 0x%llx - 0x%llx, "
-                          "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
+            NV2A_DPRINTF("upload_surface 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
+                          "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", %d %d, %d %d, %d) - %x %x %x %x\n",
                 color_dma.address, color_dma.address + color_dma.limit,
                 color_dma.address + pg->surface_color.offset,
                 color_dma.address + pg->surface_color.pitch * height,
@@ -3110,8 +3110,8 @@ static void pgraph_update_surface(NV2AState *d,
             pg->surface_color.draw_dirty = false;
 
             uint8_t *out = color_data + pg->surface_color.offset + 64;
-            NV2A_DPRINTF("read_surface 0x%llx - 0x%llx, "
-                          "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
+            NV2A_DPRINTF("read_surface 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
+                          "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", %d %d, %d %d, %d) - %x %x %x %x\n",
                 color_dma.address, color_dma.address + color_dma.limit,
                 color_dma.address + pg->surface_color.offset,
                 color_dma.address + pg->surface_color.pitch
@@ -3280,8 +3280,8 @@ static void pgraph_update_surface(NV2AState *d,
             pg->surface_zeta.draw_dirty = false;
 
             uint8_t *out = zeta_data + pg->surface_zeta.offset + 64;
-            NV2A_DPRINTF("read_surface 0x%llx - 0x%llx, "
-                          "(0x%llx - 0x%llx, %d %d, %d %d, %d) - %x %x %x %x\n",
+            NV2A_DPRINTF("read_surface 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
+                          "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", %d %d, %d %d, %d) - %x %x %x %x\n",
                 zeta_dma.address, zeta_dma.address + zeta_dma.limit,
                 zeta_dma.address + pg->surface_zeta.offset,
                 zeta_dma.address + pg->surface_zeta.pitch
@@ -4834,7 +4834,7 @@ static void pfifo_run_pusher(NV2AState *d) {
 
     dma = nv_dma_map(d, state->dma_instance, &dma_len);
 
-    NV2A_DPRINTF("DMA pusher: max 0x%llx, 0x%llx - 0x%llx\n",
+    NV2A_DPRINTF("DMA pusher: max 0x%" HWADDR_PRIx ", 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx "\n",
                  dma_len, control->dma_get, control->dma_put);
 
     /* based on the convenient pseudocode in envytools */
@@ -4875,12 +4875,12 @@ static void pfifo_run_pusher(NV2AState *d) {
                 /* old jump */
                 state->get_jmp_shadow = control->dma_get;
                 control->dma_get = word & 0x1fffffff;
-                NV2A_DPRINTF("pb OLD_JMP 0x%llx\n", control->dma_get);
+                NV2A_DPRINTF("pb OLD_JMP 0x%" HWADDR_PRIx "\n", control->dma_get);
             } else if ((word & 3) == 1) {
                 /* jump */
                 state->get_jmp_shadow = control->dma_get;
                 control->dma_get = word & 0xfffffffc;
-                NV2A_DPRINTF("pb JMP 0x%llx\n", control->dma_get);
+                NV2A_DPRINTF("pb JMP 0x%" HWADDR_PRIx "\n", control->dma_get);
             } else if ((word & 3) == 2) {
                 /* call */
                 if (state->subroutine_active) {
@@ -4890,7 +4890,7 @@ static void pfifo_run_pusher(NV2AState *d) {
                 state->subroutine_return = control->dma_get;
                 state->subroutine_active = true;
                 control->dma_get = word & 0xfffffffc;
-                NV2A_DPRINTF("pb CALL 0x%llx\n", control->dma_get);
+                NV2A_DPRINTF("pb CALL 0x%" HWADDR_PRIx "\n", control->dma_get);
             } else if (word == 0x00020000) {
                 /* return */
                 if (!state->subroutine_active) {
@@ -4899,7 +4899,7 @@ static void pfifo_run_pusher(NV2AState *d) {
                 }
                 control->dma_get = state->subroutine_return;
                 state->subroutine_active = false;
-                NV2A_DPRINTF("pb RET 0x%llx\n", control->dma_get);
+                NV2A_DPRINTF("pb RET 0x%" HWADDR_PRIx "\n", control->dma_get);
             } else if ((word & 0xe0030003) == 0) {
                 /* increasing methods */
                 state->method = word & 0x1fff;
@@ -4915,7 +4915,7 @@ static void pfifo_run_pusher(NV2AState *d) {
                 state->method_nonincreasing = true;
                 state->dcount = 0;
             } else {
-                NV2A_DPRINTF("pb reserved cmd 0x%llx - 0x%x\n",
+                NV2A_DPRINTF("pb reserved cmd 0x%" HWADDR_PRIx " - 0x%x\n",
                              control->dma_get, word);
                 state->error = NV_PFIFO_CACHE1_DMA_STATE_ERROR_RESERVED_CMD;
                 break;
@@ -4923,7 +4923,7 @@ static void pfifo_run_pusher(NV2AState *d) {
         }
     }
 
-    NV2A_DPRINTF("DMA pusher done: max 0x%llx, 0x%llx - 0x%llx\n",
+    NV2A_DPRINTF("DMA pusher done: max 0x%" HWADDR_PRIx ", 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx "\n",
                  dma_len, control->dma_get, control->dma_put);
 
     if (state->error) {
@@ -5613,7 +5613,7 @@ static void pgraph_write(void *opaque, hwaddr addr,
     case NV_PGRAPH_CHANNEL_CTX_TRIGGER:
 
         if (val & NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN) {
-            NV2A_DPRINTF("PGRAPH: read channel %d context from %llx\n",
+            NV2A_DPRINTF("PGRAPH: read channel %d context from %" HWADDR_PRIx "\n",
                          d->pgraph.channel_id, d->pgraph.context_address);
 
             uint8_t *context_ptr = d->ramin_ptr + d->pgraph.context_address;
@@ -5758,7 +5758,7 @@ static uint64_t pramdac_read(void *opaque,
     /* Surprisingly, QEMU doesn't handle unaligned access for you properly */
     r >>= 32 - 8 * size - 8 * (addr & 3);
 
-    NV2A_DPRINTF("PRAMDAC: read %d [0x%llx] -> %llx\n", size, addr, r);
+    NV2A_DPRINTF("PRAMDAC: read %d [0x%" HWADDR_PRIx "] -> %" HWADDR_PRIx "\n", size, addr, r);
     return r;
 }
 static void pramdac_write(void *opaque, hwaddr addr,
@@ -5815,13 +5815,13 @@ static void prmdio_write(void *opaque, hwaddr addr,
 static uint64_t pramin_read(void *opaque,
                                  hwaddr addr, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRAMIN: read [0x%llx] -> 0x%llx\n", addr, r);
+    NV2A_DPRINTF("nv2a PRAMIN: read [0x%" HWADDR_PRIx "] -> 0x%" HWADDR_PRIx "\n", addr, r);
     return 0;
 }
 static void pramin_write(void *opaque, hwaddr addr,
                               uint64_t val, unsigned int size)
 {
-    NV2A_DPRINTF("nv2a PRAMIN: [0x%llx] = 0x%02llx\n", addr, val);
+    NV2A_DPRINTF("nv2a PRAMIN: [0x%" HWADDR_PRIx "] = 0x%02llx\n", addr, val);
 }*/
 
 
@@ -6104,11 +6104,11 @@ static void reg_log_read(int block, hwaddr addr, uint64_t val) {
             NV2A_DPRINTF("%s: read [%s] -> 0x%" PRIx64 "\n",
                     blocktable[block].name, nv2a_reg_names[naddr], val);
         } else {
-            NV2A_DPRINTF("%s: read [" TARGET_FMT_plx "] -> 0x%" PRIx64 "\n",
+            NV2A_DPRINTF("%s: read [%" HWADDR_PRIx "] -> 0x%" PRIx64 "\n",
                     blocktable[block].name, addr, val);
         }
     } else {
-        NV2A_DPRINTF("(%d?): read [" TARGET_FMT_plx "] -> 0x%" PRIx64 "\n",
+        NV2A_DPRINTF("(%d?): read [%" HWADDR_PRIx "] -> 0x%" PRIx64 "\n",
                 block, addr, val);
     }
 }
@@ -6120,11 +6120,11 @@ static void reg_log_write(int block, hwaddr addr, uint64_t val) {
             NV2A_DPRINTF("%s: [%s] = 0x%" PRIx64 "\n",
                     blocktable[block].name, nv2a_reg_names[naddr], val);
         } else {
-            NV2A_DPRINTF("%s: [" TARGET_FMT_plx "] = 0x%" PRIx64 "\n",
+            NV2A_DPRINTF("%s: [%" HWADDR_PRIx "] = 0x%" PRIx64 "\n",
                     blocktable[block].name, addr, val);
         }
     } else {
-        NV2A_DPRINTF("(%d?): [" TARGET_FMT_plx "] = 0x%" PRIx64 "\n",
+        NV2A_DPRINTF("(%d?): [%" HWADDR_PRIx "] = 0x%" PRIx64 "\n",
                 block, addr, val);
     }
 }
