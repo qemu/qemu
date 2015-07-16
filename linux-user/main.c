@@ -2577,7 +2577,7 @@ done_syscall:
                         code = (trap_instr >> 6) & 0x3f;
                     }
                 } else {
-                    ret = get_user_ual(trap_instr, env->active_tc.PC);
+                    ret = get_user_u32(trap_instr, env->active_tc.PC);
                     if (ret != 0) {
                         goto error;
                     }
@@ -2611,7 +2611,7 @@ done_syscall:
 
                     trap_instr = (instr[0] << 16) | instr[1];
                 } else {
-                    ret = get_user_ual(trap_instr, env->active_tc.PC);
+                    ret = get_user_u32(trap_instr, env->active_tc.PC);
                 }
 
                 if (ret != 0) {

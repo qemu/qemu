@@ -220,6 +220,23 @@ static int copy_argn_to_target(CPUMIPSState *env, int arg_num,
         }                                       \
     } while (0)
 
+#define GET_TARGET_STRINGS_2(p, addr, p2, addr2)        \
+    do {                                                \
+        p = lock_user_string(addr);                     \
+        if (!p) {                                       \
+            gpr[2] = -1;                                \
+            gpr[3] = EFAULT;                            \
+            goto uhi_done;                              \
+        }                                               \
+        p2 = lock_user_string(addr2);                   \
+        if (!p2) {                                      \
+            unlock_user(p, addr, 0);                    \
+            gpr[2] = -1;                                \
+            gpr[3] = EFAULT;                            \
+            goto uhi_done;                              \
+        }                                               \
+    } while (0)
+
 #define FREE_TARGET_STRING(p, gpr)              \
     do {                                        \
         unlock_user(p, gpr, 0);                 \
@@ -322,8 +339,7 @@ void helper_do_semihosting(CPUMIPSState *env)
         FREE_TARGET_STRING(p, gpr[4]);
         break;
     case UHI_assert:
-        GET_TARGET_STRING(p, gpr[4]);
-        GET_TARGET_STRING(p2, gpr[5]);
+        GET_TARGET_STRINGS_2(p, gpr[4], p2, gpr[5]);
         printf("assertion '");
         printf("\"%s\"", p);
         printf("': file \"%s\", line %d\n", p2, (int)gpr[6]);
@@ -341,8 +357,7 @@ void helper_do_semihosting(CPUMIPSState *env)
         break;
 #ifndef _WIN32
     case UHI_link:
-        GET_TARGET_STRING(p, gpr[4]);
-        GET_TARGET_STRING(p2, gpr[5]);
+        GET_TARGET_STRINGS_2(p, gpr[4], p2, gpr[5]);
         gpr[2] = link(p, p2);
         gpr[3] = errno_mips(errno);
         FREE_TARGET_STRING(p2, gpr[5]);
