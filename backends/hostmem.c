@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 #include "sysemu/hostmem.h"
+#include "hw/boards.h"
 #include "qapi/visitor.h"
 #include "qapi-types.h"
 #include "qapi-visit.h"
@@ -222,11 +223,10 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
 static void host_memory_backend_init(Object *obj)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
+    MachineState *machine = MACHINE(qdev_get_machine());
 
-    backend->merge = qemu_opt_get_bool(qemu_get_machine_opts(),
-                                       "mem-merge", true);
-    backend->dump = qemu_opt_get_bool(qemu_get_machine_opts(),
-                                      "dump-guest-core", true);
+    backend->merge = machine_mem_merge(machine);
+    backend->dump = machine_dump_guest_core(machine);
     backend->prealloc = mem_prealloc;
 
     object_property_add_bool(obj, "merge",
