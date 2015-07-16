@@ -531,6 +531,10 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV_PGRAPH_TEXFILTER0_MIN_TENT_TENT_LOD               6
 #       define NV_PGRAPH_TEXFILTER0_MIN_CONVOLUTION_2D_LOD0         7
 #   define NV_PGRAPH_TEXFILTER0_MAG                             0x0F000000
+#   define NV_PGRAPH_TEXFILTER0_ASIGNED                         (1 << 28)
+#   define NV_PGRAPH_TEXFILTER0_RSIGNED                         (1 << 29)
+#   define NV_PGRAPH_TEXFILTER0_GSIGNED                         (1 << 30)
+#   define NV_PGRAPH_TEXFILTER0_BSIGNED                         (1 << 31)
 #define NV_PGRAPH_TEXFILTER1                             0x000019F8
 #define NV_PGRAPH_TEXFILTER2                             0x000019FC
 #define NV_PGRAPH_TEXFILTER3                             0x00001A00
@@ -944,6 +948,10 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS           0x00001FFF
 #       define NV097_SET_TEXTURE_FILTER_MIN                       0x00FF0000
 #       define NV097_SET_TEXTURE_FILTER_MAG                       0x0F000000
+#       define NV097_SET_TEXTURE_FILTER_ASIGNED                   (1 << 28)
+#       define NV097_SET_TEXTURE_FILTER_RSIGNED                   (1 << 29)
+#       define NV097_SET_TEXTURE_FILTER_GSIGNED                   (1 << 30)
+#       define NV097_SET_TEXTURE_FILTER_BSIGNED                   (1 << 31)
 #   define NV097_SET_TEXTURE_IMAGE_RECT                       0x00971B1C
 #       define NV097_SET_TEXTURE_IMAGE_RECT_WIDTH                 0xFFFF0000
 #       define NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT                0x0000FFFF
@@ -2313,6 +2321,11 @@ static void pgraph_bind_textures(NV2AState *d)
         default: assert(false); break;
         }
 
+        /* Check for unsupported features */
+        assert(!(filter & NV_PGRAPH_TEXFILTER0_ASIGNED));
+        assert(!(filter & NV_PGRAPH_TEXFILTER0_RSIGNED));
+        assert(!(filter & NV_PGRAPH_TEXFILTER0_GSIGNED));
+        assert(!(filter & NV_PGRAPH_TEXFILTER0_BSIGNED));
         if (dimensionality != 2) continue;
 
         glActiveTexture(GL_TEXTURE0 + i);
