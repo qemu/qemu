@@ -33,6 +33,16 @@ enum Texgen {
     TEXGEN_REFLECTION_MAP,
 };
 
+enum Skinning {
+    SKINNING_OFF,
+    SKINNING_1WEIGHTS,
+    SKINNING_2WEIGHTS,
+    SKINNING_3WEIGHTS,
+    SKINNING_2WEIGHTS2MATRICES,
+    SKINNING_3WEIGHTS3MATRICES,
+    SKINNING_4WEIGHTS4MATRICES,
+};
+
 // vs.1.1, not an official value
 #define VSH_VERSION_VS                     0xF078
 

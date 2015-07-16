@@ -779,6 +779,14 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_SET_ALPHA_TEST_ENABLE                        0x00970300
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
 #   define NV097_SET_DEPTH_TEST_ENABLE                        0x0097030C
+#   define NV097_SET_SKIN_MODE                                0x00970328
+#       define NV097_SET_SKIN_MODE_OFF                            0
+#       define NV097_SET_SKIN_MODE_2G                             1
+#       define NV097_SET_SKIN_MODE_2                              2
+#       define NV097_SET_SKIN_MODE_3G                             3
+#       define NV097_SET_SKIN_MODE_3                              4
+#       define NV097_SET_SKIN_MODE_4G                             5
+#       define NV097_SET_SKIN_MODE_4                              6
 #   define NV097_SET_STENCIL_TEST_ENABLE                      0x0097032C
 #   define NV097_SET_ALPHA_FUNC                               0x0097033C
 #   define NV097_SET_ALPHA_REF                                0x00970340
@@ -1327,6 +1335,8 @@ typedef struct ShaderState {
     enum AlphaFunc alpha_func;
 
     enum Texgen texgen[4][4];
+
+    enum Skinning skinning;
 
     bool normalization;
 
@@ -2862,6 +2872,9 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         .alpha_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                                NV_PGRAPH_CONTROL_0_ALPHAFUNC),
 
+        .skinning = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
+                             NV_PGRAPH_CSV0_D_SKIN),
+
         .normalization = pg->regs[NV_PGRAPH_CSV0_C]
                            & NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE,
 
@@ -4004,6 +4017,10 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_DEPTH_TEST_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0], NV_PGRAPH_CONTROL_0_ZENABLE,
+                 parameter);
+        break;
+    case NV097_SET_SKIN_MODE:
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_SKIN,
                  parameter);
         break;
     case NV097_SET_STENCIL_TEST_ENABLE:
