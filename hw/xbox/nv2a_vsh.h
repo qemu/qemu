@@ -24,6 +24,25 @@
 
 #include "qapi/qmp/qstring.h"
 
+enum VshTexgen {
+    TEXGEN_DISABLE,
+    TEXGEN_EYE_LINEAR,
+    TEXGEN_OBJECT_LINEAR,
+    TEXGEN_SPHERE_MAP,
+    TEXGEN_NORMAL_MAP,
+    TEXGEN_REFLECTION_MAP,
+};
+
+enum VshSkinning {
+    SKINNING_OFF,
+    SKINNING_1WEIGHTS,
+    SKINNING_2WEIGHTS,
+    SKINNING_3WEIGHTS,
+    SKINNING_2WEIGHTS2MATRICES,
+    SKINNING_3WEIGHTS3MATRICES,
+    SKINNING_4WEIGHTS4MATRICES,
+};
+
 // vs.1.1, not an official value
 #define VSH_VERSION_VS                     0xF078
 

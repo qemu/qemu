@@ -337,12 +337,46 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN                (1 << 0)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
 #define NV_PGRAPH_CSV0_D                                 0x00000FB4
-#   define NV_PGRAPH_CSV0_D_MODE                                0xC0000000
 #   define NV_PGRAPH_CSV0_D_RANGE_MODE                          (1 << 18)
+#   define NV_PGRAPH_CSV0_D_TEXGEN_REF                          (1 << 20)
+#       define NV_PGRAPH_CSV0_D_TEXGEN_REF_LOCAL_VIEWER             0
+#       define NV_PGRAPH_CSV0_D_TEXGEN_REF_INFINITE_VIEWER          1
+#   define NV_PGRAPH_CSV0_D_MODE                                0xC0000000
+#   define NV_PGRAPH_CSV0_D_SKIN                                0x1C000000
+#       define NV_PGRAPH_CSV0_D_SKIN_OFF                            0
+#       define NV_PGRAPH_CSV0_D_SKIN_2G                             1
+#       define NV_PGRAPH_CSV0_D_SKIN_2                              2
+#       define NV_PGRAPH_CSV0_D_SKIN_3G                             3
+#       define NV_PGRAPH_CSV0_D_SKIN_3                              4
+#       define NV_PGRAPH_CSV0_D_SKIN_4G                             5
+#       define NV_PGRAPH_CSV0_D_SKIN_4                              6
 #define NV_PGRAPH_CSV0_C                                 0x00000FB8
 #   define NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START                0x0000FF00
+#   define NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE                (1 << 27)
 #define NV_PGRAPH_CSV1_B                                 0x00000FBC
 #define NV_PGRAPH_CSV1_A                                 0x00000FC0
+#   define NV_PGRAPH_CSV1_A_T0_ENABLE                           (1 << 0)
+#   define NV_PGRAPH_CSV1_A_T0_MODE                             (1 << 1)
+#   define NV_PGRAPH_CSV1_A_T0_TEXTURE                          (1 << 2)
+#       define NV_PGRAPH_CSV1_A_T0_TEXTURE_2D                       0
+#       define NV_PGRAPH_CSV1_A_T0_TEXTURE_3D                       1
+#   define NV_PGRAPH_CSV1_A_T0_S                                0x00000070
+#       define NV_PGRAPH_CSV1_A_T0_S_DISABLE                        0
+#       define NV_PGRAPH_CSV1_A_T0_S_NORMAL_MAP                     4
+#       define NV_PGRAPH_CSV1_A_T0_S_REFLECTION_MAP                 5
+#       define NV_PGRAPH_CSV1_A_T0_S_EYE_LINEAR                     1
+#       define NV_PGRAPH_CSV1_A_T0_S_OBJECT_LINEAR                  2
+#       define NV_PGRAPH_CSV1_A_T0_S_SPHERE_MAP                     3
+#   define NV_PGRAPH_CSV1_A_T0_T                                0x00000380
+#   define NV_PGRAPH_CSV1_A_T0_R                                0x00001C00
+#   define NV_PGRAPH_CSV1_A_T0_Q                                0x0000E000
+#   define NV_PGRAPH_CSV1_A_T1_ENABLE                           (1 << 16)
+#   define NV_PGRAPH_CSV1_A_T1_MODE                             (1 << 17)
+#   define NV_PGRAPH_CSV1_A_T1_TEXTURE                          (1 << 18)
+#   define NV_PGRAPH_CSV1_A_T1_S                                0x00700000
+#   define NV_PGRAPH_CSV1_A_T1_T                                0x03800000
+#   define NV_PGRAPH_CSV1_A_T1_R                                0x1C000000
+#   define NV_PGRAPH_CSV1_A_T1_Q                                0xE0000000
 #define NV_PGRAPH_CHEOPS_OFFSET                          0x00000FC4
 #   define NV_PGRAPH_CHEOPS_OFFSET_PROG_LD_PTR                  0x000000FF
 #   define NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR                 0x0000FF00
@@ -384,6 +418,8 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV_PGRAPH_BLEND_LOGICOP_ENABLE                       (1 << 16)
 #   define NV_PGRAPH_BLEND_LOGICOP                              0x0000F000
 #define NV_PGRAPH_BLENDCOLOR                             0x00001808
+#define NV_PGRAPH_BUMPOFFSET1                            0x0000184C
+#define NV_PGRAPH_BUMPSCALE1                             0x00001858
 #define NV_PGRAPH_CLEARRECTX                             0x00001864
 #       define NV_PGRAPH_CLEARRECTX_XMIN                          0x00000FFF
 #       define NV_PGRAPH_CLEARRECTX_XMAX                          0x0FFF0000
@@ -448,18 +484,32 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECR                8
 #define NV_PGRAPH_SETUPRASTER                            0x00001990
 #   define NV_PGRAPH_SETUPRASTER_Z_FORMAT                       (1 << 29)
+#define NV_PGRAPH_SHADERCLIPMODE                         0x00001994
 #define NV_PGRAPH_SHADERCTL                              0x00001998
 #define NV_PGRAPH_SHADERPROG                             0x0000199C
 #define NV_PGRAPH_SPECFOGFACTOR0                         0x000019AC
 #define NV_PGRAPH_SPECFOGFACTOR1                         0x000019B0
 #define NV_PGRAPH_TEXADDRESS0                            0x000019BC
+#   define NV_PGRAPH_TEXADDRESS0_ADDRU                          0x00000007
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_WRAP                      1
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_MIRROR                    2
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_CLAMP_TO_EDGE             3
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_BORDER                    4
+#       define NV_PGRAPH_TEXADDRESS0_ADDRU_CLAMP_OGL                 5
+#   define NV_PGRAPH_TEXADDRESS0_WRAP_U                         (1 << 4)
+#   define NV_PGRAPH_TEXADDRESS0_ADDRV                          0x00000700
+#   define NV_PGRAPH_TEXADDRESS0_WRAP_V                         (1 << 12)
+#   define NV_PGRAPH_TEXADDRESS0_ADDRP                          0x00070000
+#   define NV_PGRAPH_TEXADDRESS0_WRAP_P                         (1 << 20)
+#   define NV_PGRAPH_TEXADDRESS0_WRAP_Q                         (1 << 24)
 #define NV_PGRAPH_TEXADDRESS1                            0x000019C0
 #define NV_PGRAPH_TEXADDRESS2                            0x000019C4
 #define NV_PGRAPH_TEXADDRESS3                            0x000019C8
 #define NV_PGRAPH_TEXCTL0_0                              0x000019CC
-#   define NV_PGRAPH_TEXCTL0_0_ENABLE                           (1 << 30)
-#   define NV_PGRAPH_TEXCTL0_0_MIN_LOD_CLAMP                    0x3FFC0000
+#   define NV_PGRAPH_TEXCTL0_0_ALPHAKILLEN                      (1 << 2)
 #   define NV_PGRAPH_TEXCTL0_0_MAX_LOD_CLAMP                    0x0003FFC0
+#   define NV_PGRAPH_TEXCTL0_0_MIN_LOD_CLAMP                    0x3FFC0000
+#   define NV_PGRAPH_TEXCTL0_0_ENABLE                           (1 << 30)
 #define NV_PGRAPH_TEXCTL0_1                              0x000019D0
 #define NV_PGRAPH_TEXCTL0_2                              0x000019D4
 #define NV_PGRAPH_TEXCTL0_3                              0x000019D8
@@ -481,6 +531,10 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV_PGRAPH_TEXFILTER0_MIN_TENT_TENT_LOD               6
 #       define NV_PGRAPH_TEXFILTER0_MIN_CONVOLUTION_2D_LOD0         7
 #   define NV_PGRAPH_TEXFILTER0_MAG                             0x0F000000
+#   define NV_PGRAPH_TEXFILTER0_ASIGNED                         (1 << 28)
+#   define NV_PGRAPH_TEXFILTER0_RSIGNED                         (1 << 29)
+#   define NV_PGRAPH_TEXFILTER0_GSIGNED                         (1 << 30)
+#   define NV_PGRAPH_TEXFILTER0_BSIGNED                         (1 << 31)
 #define NV_PGRAPH_TEXFILTER1                             0x000019F8
 #define NV_PGRAPH_TEXFILTER2                             0x000019FC
 #define NV_PGRAPH_TEXFILTER3                             0x00001A00
@@ -725,6 +779,14 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_SET_ALPHA_TEST_ENABLE                        0x00970300
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
 #   define NV097_SET_DEPTH_TEST_ENABLE                        0x0097030C
+#   define NV097_SET_SKIN_MODE                                0x00970328
+#       define NV097_SET_SKIN_MODE_OFF                            0
+#       define NV097_SET_SKIN_MODE_2G                             1
+#       define NV097_SET_SKIN_MODE_2                              2
+#       define NV097_SET_SKIN_MODE_3G                             3
+#       define NV097_SET_SKIN_MODE_3                              4
+#       define NV097_SET_SKIN_MODE_4G                             5
+#       define NV097_SET_SKIN_MODE_4                              6
 #   define NV097_SET_STENCIL_TEST_ENABLE                      0x0097032C
 #   define NV097_SET_ALPHA_FUNC                               0x0097033C
 #   define NV097_SET_ALPHA_REF                                0x00970340
@@ -793,7 +855,26 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_STENCIL_OP_V_DECR                        0x8508
 #   define NV097_SET_CLIP_MIN                                 0x00970394
 #   define NV097_SET_CLIP_MAX                                 0x00970398
+#   define NV097_SET_NORMALIZATION_ENABLE                     0x009703A4
+#   define NV097_SET_TEXGEN_S                                 0x009703C0
+#       define NV097_SET_TEXGEN_S_DISABLE                         0x0000
+#       define NV097_SET_TEXGEN_S_EYE_LINEAR                      0x2400
+#       define NV097_SET_TEXGEN_S_OBJECT_LINEAR                   0x2401
+#       define NV097_SET_TEXGEN_S_SPHERE_MAP                      0x2402
+#       define NV097_SET_TEXGEN_S_REFLECTION_MAP                  0x8512
+#       define NV097_SET_TEXGEN_S_NORMAL_MAP                      0x8511
+#   define NV097_SET_TEXGEN_T                                 0x009703C4
+#   define NV097_SET_TEXGEN_R                                 0x009703C8
+#   define NV097_SET_TEXGEN_Q                                 0x009703CC
+#   define NV097_SET_TEXTURE_MATRIX_ENABLE                    0x00970420
+#   define NV097_SET_PROJECTION_MATRIX                        0x00970440
+#   define NV097_SET_MODEL_VIEW_MATRIX                        0x00970480
+#   define NV097_SET_INVERSE_MODEL_VIEW_MATRIX                0x00970580
 #   define NV097_SET_COMPOSITE_MATRIX                         0x00970680
+#   define NV097_SET_TEXTURE_MATRIX                           0x009706C0
+#   define NV097_SET_TEXGEN_VIEW_MODEL                        0x009709CC
+#       define NV097_SET_TEXGEN_VIEW_MODEL_LOCAL_VIEWER           0
+#       define NV097_SET_TEXGEN_VIEW_MODEL_INFINITE_VIEWER        1
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
 #   define NV097_SET_COMBINER_FACTOR0                         0x00970A60
 #   define NV097_SET_COMBINER_FACTOR1                         0x00970A80
@@ -816,6 +897,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE          0xFFFFFF00
 #   define NV097_SET_LOGIC_OP_ENABLE                          0x009717BC
 #   define NV097_SET_LOGIC_OP                                 0x009717C0
+#   define NV097_SET_SHADER_CLIP_PLANE_MODE                   0x009717F8
 #   define NV097_SET_BEGIN_END                                0x009717FC
 #       define NV097_SET_BEGIN_END_OP_END                         0x00
 #       define NV097_SET_BEGIN_END_OP_POINTS                      0x01
@@ -858,6 +940,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8             0x19
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8 0x1E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8 0x24
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5         0x27
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8           0x28
 # define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED 0x2E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED 0x30
@@ -878,6 +961,10 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS           0x00001FFF
 #       define NV097_SET_TEXTURE_FILTER_MIN                       0x00FF0000
 #       define NV097_SET_TEXTURE_FILTER_MAG                       0x0F000000
+#       define NV097_SET_TEXTURE_FILTER_ASIGNED                   (1 << 28)
+#       define NV097_SET_TEXTURE_FILTER_RSIGNED                   (1 << 29)
+#       define NV097_SET_TEXTURE_FILTER_GSIGNED                   (1 << 30)
+#       define NV097_SET_TEXTURE_FILTER_BSIGNED                   (1 << 31)
 #   define NV097_SET_TEXTURE_IMAGE_RECT                       0x00971B1C
 #       define NV097_SET_TEXTURE_IMAGE_RECT_WIDTH                 0xFFFF0000
 #       define NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT                0x0000FFFF
@@ -889,6 +976,9 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_64                2
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_32                3
 #       define NV097_SET_TEXTURE_PALETTE_OFFSET                   0xFFFFFFC0
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_MAT                 0x00971B28
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE               0x00971B38
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET              0x00971B3C
 #   define NV097_SET_SEMAPHORE_OFFSET                         0x00971D6C
 #   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00971D70
 #   define NV097_SET_ZSTENCIL_CLEAR_VALUE                     0x00971D8C
@@ -909,8 +999,8 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_SET_SHADER_STAGE_PROGRAM                     0x00971E70
 #   define NV097_SET_SHADER_OTHER_STAGE_INPUT                 0x00971E78
 #   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
-#       define NV_097_SET_TRANSFORM_EXECUTION_MODE_MODE           0x00000003
-#       define NV_097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE     0xFFFFFFFC
+#       define NV097_SET_TRANSFORM_EXECUTION_MODE_MODE            0x00000003
+#       define NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE      0xFFFFFFFC
 #   define NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN           0x00971E98
 #   define NV097_SET_TRANSFORM_PROGRAM_LOAD                   0x00971E9C
 #   define NV097_SET_TRANSFORM_PROGRAM_START                  0x00971EA0
@@ -948,6 +1038,15 @@ static const GLenum pgraph_texture_mag_filter_map[] = {
     GL_LINEAR,
     0,
     GL_LINEAR /* TODO: Convolution filter... */
+};
+
+static const GLenum pgraph_texture_addr_map[] = {
+    0,
+    GL_REPEAT,
+    GL_MIRRORED_REPEAT,
+    GL_CLAMP_TO_EDGE,
+    GL_CLAMP_TO_BORDER,
+    GL_CLAMP
 };
 
 static const GLenum pgraph_blend_factor_map[] = {
@@ -1052,7 +1151,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4] =
         {2, false, GL_RGBA4, GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5] =
-        {2, false, GL_RGB5, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
+        {2, false, GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8] =
         {4, false, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8] =
@@ -1070,7 +1169,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
         {4, false, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT, 0, GL_RGBA},
 
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G6B5] =
-        {2, true, GL_RGB5, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
+        {2, true, GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8] =
         {4, true, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
@@ -1079,8 +1178,10 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
         {4, true, GL_RGB8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
 
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5] =
+        {2, false, GL_RGB8_SNORM, GL_RGB, GL_BYTE}, /* FIXME: This might be signed */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8] =
-        {2, false, GL_RG8, GL_RG, GL_UNSIGNED_BYTE},
+        {2, false, GL_RG8_SNORM, GL_RG, GL_BYTE}, /* FIXME: This might be signed */
 
     /* TODO: format conversion */
     [NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8] =
@@ -1106,7 +1207,7 @@ static const SurfaceColorFormatInfo kelvin_surface_color_format_map[] = {
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_Z1R5G5B5] =
         {2, GL_RGB5_A1, GL_BGRA, GL_UNSIGNED_SHORT_1_5_5_5_REV},
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5] =
-        {2, GL_RGB5, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
+        {2, GL_RGB565, GL_RGB, GL_UNSIGNED_SHORT_5_6_5},
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8] =
         {4, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8] =
@@ -1232,10 +1333,18 @@ typedef struct ShaderState {
     uint32_t alpha_inputs[8], alpha_outputs[8];
 
     bool rect_tex[4];
+    bool compare_mode[4][4];
+    bool alphakill[4];
 
     bool alpha_test;
-    enum AlphaFunc alpha_func;
+    enum PshAlphaFunc alpha_func;
 
+    bool texture_matrix_enable[4];
+    enum VshTexgen texgen[4][4];
+
+    enum VshSkinning skinning;
+
+    bool normalization;
 
     bool fixed_function;
 
@@ -1296,6 +1405,7 @@ typedef struct TextureBinding {
 
 typedef struct InlineVertexBufferEntry {
     float position[4];
+    float weight[4];
     float diffuse[4];
     float tex_coord[NV2A_MAX_TEXTURES][4];
 } InlineVertexBufferEntry;
@@ -1389,7 +1499,16 @@ typedef struct PGRAPHState {
     ShaderBinding *shader_binding;
 
     float composite_matrix[16];
-    GLint composite_matrix_location;
+
+    /* FIXME: These are probably stored in the vshader consts */
+    bool texture_matrix_enable[4];
+    float texture_matrix[4][16]; /* 4 stages with 4x4 matrix each */
+    float projection_matrix[16];
+    float inverse_model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
+    float model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
+
+    /* FIXME: Move to NV_PGRAPH_BUMPMAT... */
+    float bump_env_matrix[3][4]; /* 4 stages with 2x2 matrix each */
 
     GloContext *gl_context;
     GLuint gl_framebuffer;
@@ -1972,6 +2091,24 @@ static uint8_t* convert_texture_data(const TextureShape s,
           }
         }
         return converted_data;
+    } else if (s.color_format
+                   == NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5) {
+        uint8_t *converted_data = g_malloc(width * height * 3);
+        int x, y;
+        for (y = 0; y < height; y++) {
+            for (x = 0; x < width; x++) {
+                uint16_t rgb655 = *(uint16_t*)(data + y * pitch + x * 2);
+                int8_t *pixel = &converted_data[(y * width + x) * 3];
+                /* Maps 5 bit G and B signed value range to 8 bit
+                 * signed values. R is probably unsigned.
+                 */
+                rgb655 ^= (1 << 9) | (1 << 4);
+                pixel[0] = ((rgb655 & 0xFC00) >> 10) * 0x7F / 0x3F;
+                pixel[1] = ((rgb655 & 0x03E0) >> 5) * 0xFF / 0x1F - 0x80;
+                pixel[2] = (rgb655 & 0x001F) * 0xFF / 0x1F - 0x80;
+            }
+        }
+        return converted_data;
     } else {
         return NULL;
     }
@@ -2003,7 +2140,7 @@ static TextureBinding* generate_texture(const TextureShape s,
     glBindTexture(gl_target, gl_texture);
 
     NV2A_GL_DLABEL(GL_TEXTURE, gl_texture,
-                   "format: 0x%02X%s, width: %i",
+                   "format: 0x%02X%s, width: %d",
                    s.color_format, f.linear ? "" : " (SZ)", s.width);
 
     if (f.linear) {
@@ -2147,6 +2284,7 @@ static void pgraph_bind_textures(NV2AState *d)
         uint32_t ctl_1 = pg->regs[NV_PGRAPH_TEXCTL1_0 + i*4];
         uint32_t fmt = pg->regs[NV_PGRAPH_TEXFMT0 + i*4];
         uint32_t filter = pg->regs[NV_PGRAPH_TEXFILTER0 + i*4];
+        uint32_t address =  pg->regs[NV_PGRAPH_TEXADDRESS0 + i*4];
         uint32_t palette =  pg->regs[NV_PGRAPH_TEXPALETTE0 + i*4];
 
         bool enabled = GET_MASK(ctl_0, NV_PGRAPH_TEXCTL0_0_ENABLE);
@@ -2179,6 +2317,10 @@ static void pgraph_bind_textures(NV2AState *d)
         unsigned int min_filter = GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MIN);
         unsigned int mag_filter = GET_MASK(filter, NV_PGRAPH_TEXFILTER0_MAG);
 
+        unsigned int addru = GET_MASK(address, NV_PGRAPH_TEXADDRESS0_ADDRU);
+        unsigned int addrv = GET_MASK(address, NV_PGRAPH_TEXADDRESS0_ADDRV);
+        unsigned int addrp = GET_MASK(address, NV_PGRAPH_TEXADDRESS0_ADDRP);
+
         unsigned int offset = pg->regs[NV_PGRAPH_TEXOFFSET0 + i*4];
 
         bool palette_dma_select =
@@ -2197,6 +2339,11 @@ static void pgraph_bind_textures(NV2AState *d)
         default: assert(false); break;
         }
 
+        /* Check for unsupported features */
+        assert(!(filter & NV_PGRAPH_TEXFILTER0_ASIGNED));
+        assert(!(filter & NV_PGRAPH_TEXFILTER0_RSIGNED));
+        assert(!(filter & NV_PGRAPH_TEXFILTER0_GSIGNED));
+        assert(!(filter & NV_PGRAPH_TEXFILTER0_BSIGNED));
         if (dimensionality != 2) continue;
 
         glActiveTexture(GL_TEXTURE0 + i);
@@ -2328,6 +2475,18 @@ static void pgraph_bind_textures(NV2AState *d)
         glTexParameteri(binding->gl_target, GL_TEXTURE_MAG_FILTER,
             pgraph_texture_mag_filter_map[mag_filter]);
 
+        /* Texture wrapping */
+        glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_S,
+            pgraph_texture_addr_map[addru]);
+        if (dimensionality > 1) {
+            glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_T,
+                pgraph_texture_addr_map[addrv]);
+        }
+        if (dimensionality > 2) {
+            glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_R,
+                pgraph_texture_addr_map[addrp]);
+        }
+
         if (pg->texture_binding[i]) {
             texture_binding_destroy(pg->texture_binding[i]);
         }
@@ -2443,6 +2602,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 "#version 330\n"
 "\n"
 "in vec4 position;\n"
+"in vec4 weight;\n"
 "in vec3 normal;\n"
 "in vec4 diffuse;\n"
 "in vec4 specular;\n"
@@ -2478,12 +2638,148 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 
     qstring_append(vertex_shader_code,
 "\n"
-"uniform mat4 composite;\n"
+/* FIXME: Add these uniforms using code when they are used */
+"uniform mat4 texMat0;\n"
+"uniform mat4 texMat1;\n"
+"uniform mat4 texMat2;\n"
+"uniform mat4 texMat3;\n"
+"uniform mat4 modelViewMat0;\n"
+"uniform mat4 modelViewMat1;\n"
+"uniform mat4 modelViewMat2;\n"
+"uniform mat4 modelViewMat3;\n"
+"uniform mat4 invModelViewMat0;\n"
+"uniform mat4 invModelViewMat1;\n"
+"uniform mat4 invModelViewMat2;\n"
+"uniform mat4 invModelViewMat3;\n"
+"uniform mat4 projectionMat; /* FIXME: when is this used? */\n"
+"uniform mat4 compositeMat;\n"
 "uniform mat4 invViewport;\n"
-"void main() {\n"
-"   gl_Position = invViewport * (position * composite);\n"
+"\n"
+"void main() {\n");
+
+    /* Skinning */
+    unsigned int count;
+    bool mix;
+    switch (state.skinning) {
+    case SKINNING_OFF:
+        count = 0; break;
+    case SKINNING_1WEIGHTS:
+        mix = true; count = 2; break;
+    case SKINNING_2WEIGHTS:
+        mix = true; count = 3; break;
+    case SKINNING_3WEIGHTS:
+        mix = true; count = 4; break;
+    case SKINNING_2WEIGHTS2MATRICES:
+        mix = false; count = 2; break;
+    case SKINNING_3WEIGHTS3MATRICES:
+        mix = false; count = 3; break;
+    case SKINNING_4WEIGHTS4MATRICES:
+        mix = false; count = 4; break;
+    default:
+        assert(false);
+        break;
+    }
+    qstring_append_fmt(vertex_shader_code, "/* Skinning mode %d */\n",
+                       state.skinning);
+    if (count == 0) {
+        qstring_append(vertex_shader_code, "vec4 tPosition = position * modelViewMat0;\n");
+        /* FIXME: Is the normal still transformed? */
+        qstring_append(vertex_shader_code, "vec3 tNormal = (vec4(normal, 0.0) * invModelViewMat0).xyz;\n");
+    } else {
+        qstring_append(vertex_shader_code, "vec4 tPosition = vec4(0.0);\n");
+        qstring_append(vertex_shader_code, "vec3 tNormal = vec3(0.0);\n");
+        if (mix) {
+            /* Tweening */
+            if (count == 2) {
+                qstring_append(vertex_shader_code,
+                    "tPosition += mix(position * modelViewMat1,\n"
+                    "                 position * modelViewMat0, weight.x);\n"
+                    "tNormal += mix((vec4(normal, 0.0) * invModelViewMat1).xyz,\n"
+                    "               (vec4(normal, 0.0) * invModelViewMat0).xyz, weight.x);\n");
+            } else {
+                /* FIXME: Not sure how blend weights are calculated */
+                assert(false);
+            }
+        } else {
+            /* Individual matrices */
+            for (i = 0; i < count; i++) {
+                char c = "xyzw"[i];
+                qstring_append_fmt(vertex_shader_code, "tPosition += position * modelViewMat%d * weight.%c;\n",
+                                   i, c);
+                qstring_append_fmt(vertex_shader_code, "tNormal += (vec4(normal, 0.0) * invModelViewMat%d * weight.%c).xyz;\n",
+                                   i, c);
+            }
+            assert(false); /* FIXME: Untested */
+        }
+    }
+
+    /* Normalization */
+    if (state.normalization) {
+        qstring_append(vertex_shader_code, "tNormal = normalize(tNormal);\n");
+    }
+
+    /* Texgen */
+    for (i = 0; i < 4; i++) {
+        qstring_append_fmt(vertex_shader_code, "/* Texgen for stage %d */\n",
+                           i);
+        qstring_append_fmt(vertex_shader_code, "vec4 tTexture%d;\n",
+                           i);
+        /* Set each component individually */
+        /* FIXME: could be nicer if some channels share the same texgen */
+        for (j = 0; j < 4; j++) {
+            char c = "xyzw"[j];
+            switch (state.texgen[i][j]) {
+            case TEXGEN_DISABLE:
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = texture%d.%c;\n",
+                                   i, c, i, c);
+                break;
+            case TEXGEN_EYE_LINEAR:
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = tPosition.%c;\n",
+                                   i, c, c);
+                break;
+            case TEXGEN_OBJECT_LINEAR:
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = position.%c;\n",
+                                   i, c, c);
+                break;
+            case TEXGEN_SPHERE_MAP:
+                assert(i < 2);  /* Channels S,T only! */
+                assert(false);
+                break;
+            case TEXGEN_REFLECTION_MAP:
+                assert(i < 3); /* Channels S,T,R only! */
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = reflect(???, tNormal).%c;\n",
+                                   i, c, c);
+                assert(false); /* FIXME: Code not complete yet! */
+                break;
+            case TEXGEN_NORMAL_MAP:
+                assert(i < 3); /* Channels S,T,R only! */
+                qstring_append_fmt(vertex_shader_code, "tTexture%d.%c = tNormal.%c;\n",
+                                   i, c, c);
+                break;
+            default:
+                assert(false);
+                break;
+            }
+        }
+    }
+
+    /* Apply texture matrices */
+    for (i = 0; i < 4; i++) {
+        if (state.texture_matrix_enable[i]) {
+            qstring_append_fmt(vertex_shader_code, "tTexture%d = tTexture%d * texMat%d;\n",
+                               i, i, i);
+        }
+    }
+
+    /* If skinning is off the composite matrix already includes the MV matrix */
+    if (state.skinning == SKINNING_OFF) {
+        qstring_append(vertex_shader_code, "tPosition = position;\n");
+    }
+
+    qstring_append(vertex_shader_code,
+"   gl_Position = invViewport * (tPosition * compositeMat);\n"
 /* temp hack: the composite matrix includes the view transform... */
-//"   gl_Position = position * composite;\n"
+//"   gl_Position = position * compositeMat;\n"
 //"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
 //"   gl_Position.y = -(gl_Position.y - 240.0) / 240.0;\n"
 "   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n");
@@ -2499,13 +2795,13 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     qstring_append_fmt(vertex_shader_code,
         "%cB1 = backSpecular * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT0 = texture0 * %cPos_w;\n", v_prefix, v_prefix);
+        "%cT0 = tTexture0 * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT1 = texture1 * %cPos_w;\n", v_prefix, v_prefix);
+        "%cT1 = tTexture1 * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT2 = texture2 * %cPos_w;\n", v_prefix, v_prefix);
+        "%cT2 = tTexture2 * %cPos_w;\n", v_prefix, v_prefix);
     qstring_append_fmt(vertex_shader_code,
-        "%cT3 = texture3 * %cPos_w;\n", v_prefix, v_prefix);
+        "%cT3 = tTexture3 * %cPos_w;\n", v_prefix, v_prefix);
 
     qstring_append(vertex_shader_code, "}\n");
 
@@ -2546,6 +2842,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     if (state.fixed_function) {
         /* bind fixed function vertex attributes */
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_POSITION, "position");
+        glBindAttribLocation(program, NV2A_VERTEX_ATTR_WEIGHT, "weight");
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_DIFFUSE, "diffuse");
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_SPECULAR, "specular");
         glBindAttribLocation(program, NV2A_VERTEX_ATTR_FOG, "fog");
@@ -2580,6 +2877,8 @@ static ShaderBinding* generate_shaders(const ShaderState state)
                    state.final_inputs_0, state.final_inputs_1,
                    /* final_constant_0, final_constant_1, */
                    state.rect_tex,
+                   state.compare_mode,
+                   state.alphakill,
                    state.alpha_test, state.alpha_func);
 
     const char *fragment_shader_code_str = qstring_get_str(fragment_shader_code);
@@ -2688,7 +2987,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
 
 static void pgraph_bind_shaders(PGRAPHState *pg)
 {
-    int i;
+    int i, j;
 
     bool vertex_program = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
                                    NV_PGRAPH_CSV0_D_MODE) == 2;
@@ -2719,6 +3018,12 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         .alpha_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                                NV_PGRAPH_CONTROL_0_ALPHAFUNC),
 
+        .skinning = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
+                             NV_PGRAPH_CSV0_D_SKIN),
+
+        .normalization = pg->regs[NV_PGRAPH_CSV0_C]
+                           & NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE,
+
         /* fixed function stuff */
         .fixed_function = fixed_function,
 
@@ -2747,6 +3052,25 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
     }
 
+    /* Texgen */
+    for (i = 0; i < 4; i++) {
+        unsigned int reg = (i < 2) ? NV_PGRAPH_CSV1_A : NV_PGRAPH_CSV1_B;
+        for (j = 0; j < 4; j++) {
+            unsigned int masks[] = {
+                (i % 2) ? NV_PGRAPH_CSV1_A_T1_S : NV_PGRAPH_CSV1_A_T0_S,
+                (i % 2) ? NV_PGRAPH_CSV1_A_T1_T : NV_PGRAPH_CSV1_A_T0_T,
+                (i % 2) ? NV_PGRAPH_CSV1_A_T1_R : NV_PGRAPH_CSV1_A_T0_R,
+                (i % 2) ? NV_PGRAPH_CSV1_A_T1_Q : NV_PGRAPH_CSV1_A_T0_Q
+            };
+            state.texgen[i][j] = GET_MASK(pg->regs[reg], masks[j]);
+        }
+    }
+
+    /* Texture matrices */
+    for (i = 0; i < 4; i++) {
+        state.texture_matrix_enable[i] = pg->texture_matrix_enable[i];
+    }
+
     for (i = 0; i < 8; i++) {
         state.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
         state.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
@@ -2758,8 +3082,8 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
     for (i = 0; i < 4; i++) {
         state.rect_tex[i] = false;
-        bool enabled = GET_MASK(pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4],
-                                NV_PGRAPH_TEXCTL0_0_ENABLE);
+        bool enabled = pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4]
+                         & NV_PGRAPH_TEXCTL0_0_ENABLE;
         unsigned int color_format =
             GET_MASK(pg->regs[NV_PGRAPH_TEXFMT0 + i*4],
                      NV_PGRAPH_TEXFMT0_COLOR);
@@ -2767,6 +3091,13 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         if (enabled && kelvin_color_format_map[color_format].linear) {
             state.rect_tex[i] = true;
         }
+
+        for (j = 0; j < 4; j++) {
+            state.compare_mode[i][j] =
+                (pg->regs[NV_PGRAPH_SHADERCLIPMODE] >> (4 * i + j)) & 1;
+        }
+        state.alphakill[i] = pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4]
+                               & NV_PGRAPH_TEXCTL0_0_ALPHAKILLEN;
     }
 
     ShaderBinding* cached_shader = g_hash_table_lookup(pg->shader_cache, &state);
@@ -2799,7 +3130,6 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             constant[1] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
         }
 
-        int j;
         for (j = 0; j < 2; j++) {
             GLint loc = pg->shader_binding->psh_constant_loc[i][j];
             if (loc != -1) {
@@ -2821,7 +3151,71 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         glUniform1f(alpha_ref_loc, alpha_ref);
     }
 
+    /* For each texture stage */
+    for (i = 0; i < 4; i++) {
+        char name[16];
+        GLint loc;
 
+        /* Bump luminance only during stages 1 - 3 */
+        if (i > 0) {
+
+            sprintf(name, "bumpMat%d", i);
+            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+            if (loc != -1) {
+                glUniformMatrix2fv(loc, 1, GL_FALSE, pg->bump_env_matrix[i - 1]);
+            }
+
+            sprintf(name, "bumpScale%d", i);
+            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+            if (loc != -1) {
+                glUniform1fv(loc, 1,
+                             &pg->regs[NV_PGRAPH_BUMPSCALE1 + (i - 1) * 4]);
+            }
+
+            sprintf(name, "bumpOffset%d", i);
+            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+            if (loc != -1) {
+                glUniform1fv(loc, 1,
+                             &pg->regs[NV_PGRAPH_BUMPOFFSET1 + (i - 1) * 4]);
+            }
+
+        }
+
+        /* Texture matrices */
+        sprintf(name, "texMat%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+        if (loc != -1) {
+            glUniformMatrix4fv(loc, 1, GL_FALSE, pg->texture_matrix[i]);
+        }
+
+    }
+
+    /* For each vertex weight */
+    for (i = 0; i < 4; i++) {
+        char name[16];
+        GLint loc;
+
+        sprintf(name, "modelViewMat%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+        if (loc != -1) {
+            glUniformMatrix4fv(loc, 1, GL_FALSE,
+                               pg->model_view_matrix[i]);
+        }
+
+        sprintf(name, "invModelViewMat%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+        if (loc != -1) {
+            glUniformMatrix4fv(loc, 1, GL_FALSE,
+                               pg->inverse_model_view_matrix[i]);
+        }
+
+    }
+
+    GLint projLoc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                     "projectionMat");
+    if (projLoc != -1) {
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, pg->projection_matrix);
+    }
 
     float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
     float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
@@ -2829,9 +3223,11 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     if (fixed_function) {
         /* update fixed function composite matrix */
 
-        GLint comLoc = glGetUniformLocation(pg->shader_binding->gl_program, "composite");
-        assert(comLoc != -1);
-        glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
+        GLint comLoc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                            "compositeMat");
+        if (comLoc != -1) {
+            glUniformMatrix4fv(comLoc, 1, GL_FALSE, pg->composite_matrix);
+        }
 
         /* estimate the viewport by assuming it matches the surface ... */
         float m11 = 0.5 * pg->surface_shape.clip_width;
@@ -2841,7 +3237,6 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         //float m42 = -m22;
         float m43 = zclip_min;
         //float m44 = 1.0;
-
 
         if (m33 == 0.0) {
             m33 = 1.0;
@@ -2855,8 +3250,9 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
         GLint view_loc = glGetUniformLocation(pg->shader_binding->gl_program,
                                               "invViewport");
-        assert(view_loc != -1);
-        glUniformMatrix4fv(view_loc, 1, GL_FALSE, &invViewport[0]);
+        if (view_loc != -1) {
+            glUniformMatrix4fv(view_loc, 1, GL_FALSE, &invViewport[0]);
+        }
 
     } else if (vertex_program) {
         /* update vertex program constants */
@@ -3322,7 +3718,10 @@ static void pgraph_init(NV2AState *d)
 
     glextensions_init();
 
+    /* DXT textures */
     assert(glo_check_extension("GL_EXT_texture_compression_s3tc"));
+    /*  Internal RGB565 texture format */
+    assert(glo_check_extension("GL_ARB_ES2_compatibility"));
 
     GLint max_vertex_attributes;
     glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_vertex_attributes);
@@ -3427,6 +3826,33 @@ static unsigned int kelvin_map_stencil_op(uint32_t parameter)
         break;
     }
     return op;
+}
+
+static unsigned int kelvin_map_texgen(uint32_t parameter, unsigned int channel)
+{
+    assert(channel < 4);
+    unsigned int texgen;
+    switch (parameter) {
+    case NV097_SET_TEXGEN_S_DISABLE:
+        texgen = NV_PGRAPH_CSV1_A_T0_S_DISABLE; break;
+    case NV097_SET_TEXGEN_S_EYE_LINEAR:
+        texgen = NV_PGRAPH_CSV1_A_T0_S_EYE_LINEAR; break;
+    case NV097_SET_TEXGEN_S_OBJECT_LINEAR:
+        texgen = NV_PGRAPH_CSV1_A_T0_S_OBJECT_LINEAR; break;
+    case NV097_SET_TEXGEN_S_SPHERE_MAP:
+        assert(channel < 2);
+        texgen = NV_PGRAPH_CSV1_A_T0_S_SPHERE_MAP; break;
+    case NV097_SET_TEXGEN_S_REFLECTION_MAP:
+        assert(channel < 3);
+        texgen = NV_PGRAPH_CSV1_A_T0_S_REFLECTION_MAP; break;
+    case NV097_SET_TEXGEN_S_NORMAL_MAP:
+        assert(channel < 3);
+        texgen = NV_PGRAPH_CSV1_A_T0_S_NORMAL_MAP; break;
+    default:
+        assert(false);
+        break;
+    }
+    return texgen;
 }
 
 static void pgraph_method(NV2AState *d,
@@ -3747,6 +4173,10 @@ static void pgraph_method(NV2AState *d,
         pg->regs[NV_PGRAPH_COMBINESPECFOG1] = parameter;
         break;
 
+    CASE_4(NV097_SET_TEXTURE_ADDRESS, 64):
+        slot = (class_method - NV097_SET_TEXTURE_ADDRESS) / 64;
+        pg->regs[NV_PGRAPH_TEXADDRESS0 + slot * 4] = parameter;
+        break;
     case NV097_SET_CONTROL0: {
         pgraph_update_surface(d, false, true, true);
 
@@ -3771,6 +4201,10 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_DEPTH_TEST_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0], NV_PGRAPH_CONTROL_0_ZENABLE,
+                 parameter);
+        break;
+    case NV097_SET_SKIN_MODE:
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_SKIN,
                  parameter);
         break;
     case NV097_SET_STENCIL_TEST_ENABLE:
@@ -3962,10 +4396,86 @@ static void pgraph_method(NV2AState *d,
         pg->regs[NV_PGRAPH_ZCLIPMAX] = parameter;
         break;
 
+    case NV097_SET_NORMALIZATION_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
+                 NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE,
+                 parameter);
+        break;
+
+    CASE_4(NV097_SET_TEXGEN_S, 16): {
+        slot = (class_method - NV097_SET_TEXGEN_S) / 16;
+        unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
+                                      : NV_PGRAPH_CSV1_B;
+        unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_S
+                                       : NV_PGRAPH_CSV1_A_T0_S;
+        SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 0));
+        break;
+    }
+    CASE_4(NV097_SET_TEXGEN_T, 16): {
+        slot = (class_method - NV097_SET_TEXGEN_T) / 16;
+        unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
+                                      : NV_PGRAPH_CSV1_B;
+        unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_T
+                                       : NV_PGRAPH_CSV1_A_T0_T;
+        SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 1));
+        break;
+    }
+    CASE_4(NV097_SET_TEXGEN_R, 16): {
+        slot = (class_method - NV097_SET_TEXGEN_R) / 16;
+        unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
+                                      : NV_PGRAPH_CSV1_B;
+        unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_R
+                                       : NV_PGRAPH_CSV1_A_T0_R;
+        SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 2));
+        break;
+    }
+    CASE_4(NV097_SET_TEXGEN_Q, 16): {
+        slot = (class_method - NV097_SET_TEXGEN_Q) / 16;
+        unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
+                                      : NV_PGRAPH_CSV1_B;
+        unsigned int mask = (slot % 2) ? NV_PGRAPH_CSV1_A_T1_Q
+                                       : NV_PGRAPH_CSV1_A_T0_Q;
+        SET_MASK(pg->regs[reg], mask, kelvin_map_texgen(parameter, 3));
+        break;
+    }
+    CASE_4(NV097_SET_TEXTURE_MATRIX_ENABLE,4):
+        slot = (class_method - NV097_SET_TEXTURE_MATRIX_ENABLE) / 4;
+        pg->texture_matrix_enable[slot] = parameter;
+        break;
+
+    case NV097_SET_PROJECTION_MATRIX ...
+            NV097_SET_PROJECTION_MATRIX + 0x3c:
+        slot = (class_method - NV097_SET_PROJECTION_MATRIX) / 4;
+        pg->projection_matrix[slot] = *(float*)&parameter;
+        break;
+
+    case NV097_SET_MODEL_VIEW_MATRIX ...
+            NV097_SET_MODEL_VIEW_MATRIX + 0xfc:
+        slot = (class_method - NV097_SET_MODEL_VIEW_MATRIX) / 4;
+        pg->model_view_matrix[slot / 16][slot % 16] = *(float*)&parameter;
+        break;
+
+    case NV097_SET_INVERSE_MODEL_VIEW_MATRIX ...
+            NV097_SET_INVERSE_MODEL_VIEW_MATRIX + 0xfc:
+        slot = (class_method - NV097_SET_INVERSE_MODEL_VIEW_MATRIX) / 4;
+        pg->inverse_model_view_matrix[slot / 16][slot % 16] = *(float*)&parameter;
+        break;
+
     case NV097_SET_COMPOSITE_MATRIX ...
             NV097_SET_COMPOSITE_MATRIX + 0x3c:
         slot = (class_method - NV097_SET_COMPOSITE_MATRIX) / 4;
         pg->composite_matrix[slot] = *(float*)&parameter;
+        break;
+
+    case NV097_SET_TEXTURE_MATRIX ...
+            NV097_SET_TEXTURE_MATRIX + 0xfc:
+        slot = (class_method - NV097_SET_TEXTURE_MATRIX) / 4;
+        pg->texture_matrix[slot / 16][slot % 16] = *(float*)&parameter;
+        break;
+
+    case NV097_SET_TEXGEN_VIEW_MODEL:
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_TEXGEN_REF,
+                 parameter);
         break;
 
     case NV097_SET_VIEWPORT_OFFSET ...
@@ -4209,6 +4719,14 @@ static void pgraph_method(NV2AState *d,
                         (void*)offsetof(InlineVertexBufferEntry, position));
                 glEnableVertexAttribArray(NV2A_VERTEX_ATTR_POSITION);
 
+                glVertexAttribPointer(NV2A_VERTEX_ATTR_WEIGHT,
+                        4,
+                        GL_FLOAT,
+                        GL_FALSE,
+                        sizeof(InlineVertexBufferEntry),
+                        (void*)offsetof(InlineVertexBufferEntry, weight));
+                glEnableVertexAttribArray(NV2A_VERTEX_ATTR_WEIGHT);
+
                 glVertexAttribPointer(NV2A_VERTEX_ATTR_DIFFUSE,
                         4,
                         GL_FLOAT,
@@ -4438,6 +4956,30 @@ static void pgraph_method(NV2AState *d,
         pg->texture_dirty[slot] = true;
         break;
     }
+
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x0, 64):
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x4, 64):
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x8, 64):
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0xc, 64):
+        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_MAT) / 4;
+        assert((slot / 16) > 0);
+        slot -= 16;
+        pg->bump_env_matrix[slot / 16][slot % 4] = *(float*)&parameter;
+        break;
+
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE, 64):
+        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE) / 64;
+        assert(slot > 0);
+        slot--;
+        pg->regs[NV_PGRAPH_BUMPSCALE1 + slot * 4] = parameter;
+        break;
+    CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET, 64):
+        slot = (class_method - NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET) / 64;
+        assert(slot > 0);
+        slot--;
+        pg->regs[NV_PGRAPH_BUMPOFFSET1 + slot * 4] = parameter;
+        break;
+
     case NV097_ARRAY_ELEMENT16:
         assert(pg->inline_elements_length < NV2A_MAX_BATCH_LENGTH);
         pg->inline_elements[
@@ -4622,6 +5164,10 @@ static void pgraph_method(NV2AState *d,
         pg->regs[NV_PGRAPH_SPECFOGFACTOR0 + slot*4] = parameter;
         break;
 
+    case NV097_SET_SHADER_CLIP_PLANE_MODE:
+        pg->regs[NV_PGRAPH_SHADERCLIPMODE] = parameter;
+        break;
+
     case NV097_SET_COMBINER_COLOR_OCW ...
             NV097_SET_COMBINER_COLOR_OCW + 28:
         slot = (class_method - NV097_SET_COMBINER_COLOR_OCW) / 4;
@@ -4642,9 +5188,11 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_TRANSFORM_EXECUTION_MODE:
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_MODE,
-                 GET_MASK(parameter, NV_097_SET_TRANSFORM_EXECUTION_MODE_MODE));
+                 GET_MASK(parameter,
+                          NV097_SET_TRANSFORM_EXECUTION_MODE_MODE));
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_RANGE_MODE,
-                 GET_MASK(parameter, NV_097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE));
+                 GET_MASK(parameter,
+                          NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE));
         break;
     case NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN:
         pg->enable_vertex_program_write = parameter;

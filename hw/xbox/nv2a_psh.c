@@ -197,11 +197,14 @@ struct PixelShader {
     struct FCInputInfo final_input;
     int tex_modes[4], input_tex[4];
 
-    //uint32_t compare_mode, dot_mapping, input_texture;
+    //uint32_t dot_mapping, input_texture;
 
     bool rect_tex[4];
+    bool compare_mode[4][4];
+    bool alphakill[4];
+
     bool alpha_test;
-    enum AlphaFunc alpha_func;
+    enum PshAlphaFunc alpha_func;
 
     QString *varE, *varF;
     QString *code;
@@ -561,12 +564,17 @@ static QString* psh_convert(struct PixelShader *ps)
     qstring_append(vars, "vec4 v1 = pD1;\n");
     qstring_append(vars, "float fog = pFog.x;\n");
 
+    ps->code = qstring_new();
+
     for (i = 0; i < 4; i++) {
-        if (ps->tex_modes[i] == PS_TEXTUREMODES_NONE) continue;
 
         const char *sampler_type = NULL;
 
         switch (ps->tex_modes[i]) {
+        case PS_TEXTUREMODES_NONE:
+            qstring_append_fmt(vars, "vec4 t%d = vec4(0.0); /* PS_TEXTUREMODES_NONE */\n",
+                               i);
+            break;
         case PS_TEXTUREMODES_PROJECT2D:
             if (ps->rect_tex[i]) {
                 sampler_type = "sampler2DRect";
@@ -578,16 +586,61 @@ static QString* psh_convert(struct PixelShader *ps)
             break;
         case PS_TEXTUREMODES_PROJECT3D:
             sampler_type = "sampler3D";
-            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xyz);\n",
+            qstring_append_fmt(vars, "vec4 t%d = textureProj(texSamp%d, pT%d.xyzw);\n",
                                i, i, i);
             break;
         case PS_TEXTUREMODES_CUBEMAP:
             sampler_type = "samplerCube";
-            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xyz);\n",
-                               i, i, i);
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xyz / pT%d.w);\n",
+                               i, i, i, i);
             break;
         case PS_TEXTUREMODES_PASSTHRU:
             qstring_append_fmt(vars, "vec4 t%d = pT%d;\n", i, i);
+            break;
+        case PS_TEXTUREMODES_DOT_RFLCT_SPEC:
+            assert(false);
+            break;
+        case PS_TEXTUREMODES_DPNDNT_AR:
+            assert(!ps->rect_tex[i]);
+            sampler_type = "sampler2D";
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, t%d.ar);\n",
+                               i, i, ps->input_tex[i]);
+            break;
+        case PS_TEXTUREMODES_DPNDNT_GB:
+            assert(!ps->rect_tex[i]);
+            sampler_type = "sampler2D";
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, t%d.gb);\n",
+                               i, i, ps->input_tex[i]);
+            break;
+        case PS_TEXTUREMODES_BUMPENVMAP_LUM:
+            qstring_append_fmt(preflight, "uniform float bumpScale%d;\n", i);
+            qstring_append_fmt(preflight, "uniform float bumpOffset%d;\n", i);
+            qstring_append_fmt(ps->code, "/* BUMPENVMAP_LUM for stage %d */\n", i);
+            qstring_append_fmt(ps->code, "t%d = t%d * (bumpScale%d * t%d.b + bumpOffset%d);\n",
+                               i, i, i, ps->input_tex[i], i);
+            /* No break here! Extension of BUMPENVMAP */
+        case PS_TEXTUREMODES_BUMPENVMAP:
+            assert(!ps->rect_tex[i]);
+            sampler_type = "sampler2D";
+            qstring_append_fmt(preflight, "uniform mat2 bumpMat%d;\n", i);
+            /* FIXME: Do bumpMat swizzle on CPU before upload */
+            qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, pT%d.xy + t%d.rg * mat2(bumpMat%d[0].xy,bumpMat%d[1].yx));\n",
+                               i, i, i, ps->input_tex[i], i, i);
+            break;
+        case PS_TEXTUREMODES_CLIPPLANE: {
+            int j;
+            qstring_append_fmt(vars, "vec4 t%d = vec4(0.0); /* PS_TEXTUREMODES_CLIPPLANE */\n",
+                               i);
+            for (j = 0; j < 4; j++) {
+                qstring_append_fmt(vars, "  if(pT%d.%c %s 0.0) { discard; };\n",
+                                   i, "xyzw"[j],
+                                   ps->compare_mode[i][j] ? ">=" : "<");
+            }
+            break;
+        }
+        case PS_TEXTUREMODES_DOTPRODUCT:
+            qstring_append_fmt(vars, "vec4 t%d = vec4(dot(pT%d.xyz, t%d.rgb));\n",
+                               i, i, ps->input_tex[i]);
             break;
         default:
             printf("%x\n", ps->tex_modes[i]);
@@ -595,12 +648,18 @@ static QString* psh_convert(struct PixelShader *ps)
             break;
         }
         
-        if (ps->tex_modes[i] != PS_TEXTUREMODES_PASSTHRU) {
+        if (sampler_type != NULL) {
             qstring_append_fmt(preflight, "uniform %s texSamp%d;\n", sampler_type, i);
+
+            /* As this means a texture fetch does happen, do alphakill */
+            if (ps->alphakill[i]) {
+                assert(false); /* FIXME: Untested */
+                qstring_append_fmt(vars, "if (t%d.a == 0.0) { discard; };\n",
+                                   i);
+            }
         }
     }
 
-    ps->code = qstring_new();
     for (i = 0; i < ps->num_stages; i++) {
         ps->cur_stage = i;
         qstring_append_fmt(ps->code, "// Stage %d\n", i);
@@ -708,7 +767,9 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
                        uint32_t final_inputs_0, uint32_t final_inputs_1,
                        /*uint32_t final_constant_0, uint32_t final_constant_1,*/
                        const bool rect_tex[4],
-                       bool alpha_test, enum AlphaFunc alpha_func)
+                       const bool compare_mode[4][4],
+                       const bool alphakill[4],
+                       bool alpha_test, enum PshAlphaFunc alpha_func)
 {
     int i;
     struct PixelShader ps;

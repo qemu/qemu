@@ -748,6 +748,11 @@ QString* vsh_translate(uint16_t version,
     qstring_append_fmt(header, "noperspective out vec4 %cT1;\n", output_prefix);
     qstring_append_fmt(header, "noperspective out vec4 %cT2;\n", output_prefix);
     qstring_append_fmt(header, "noperspective out vec4 %cT3;\n", output_prefix);
+    qstring_append(header, "\n"
+                           "uniform mat4 texMat0;\n"
+                           "uniform mat4 texMat1;\n"
+                           "uniform mat4 texMat2;\n"
+                           "uniform mat4 texMat3;\n");
     qstring_append(header, vsh_header);
 
     QString *body = qstring_from_str("\n");
