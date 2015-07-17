@@ -2760,7 +2760,7 @@ void qmp_drive_mirror(const char *device, const char *target,
             goto out;
         }
 
-        to_replace_bs = check_to_replace_node(replaces, &local_err);
+        to_replace_bs = check_to_replace_node(bs, replaces, &local_err);
 
         if (!to_replace_bs) {
             error_propagate(errp, local_err);

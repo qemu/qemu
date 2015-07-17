@@ -4077,7 +4077,8 @@ bool bdrv_is_first_non_filter(BlockDriverState *candidate)
     return false;
 }
 
-BlockDriverState *check_to_replace_node(const char *node_name, Error **errp)
+BlockDriverState *check_to_replace_node(BlockDriverState *parent_bs,
+                                        const char *node_name, Error **errp)
 {
     BlockDriverState *to_replace_bs = bdrv_find_node(node_name);
     AioContext *aio_context;
@@ -4100,7 +4101,7 @@ BlockDriverState *check_to_replace_node(const char *node_name, Error **errp)
      * Another benefit is that this tests exclude backing files which are
      * blocked by the backing blockers.
      */
-    if (!bdrv_is_first_non_filter(to_replace_bs)) {
+    if (!bdrv_recurse_is_first_non_filter(parent_bs, to_replace_bs)) {
         error_setg(errp, "Only top most non filter can be replaced");
         to_replace_bs = NULL;
         goto out;
