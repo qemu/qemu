@@ -47,7 +47,7 @@ static void aes_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
 static void aes_decrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
                                 uint8_t *dst, const uint8_t *src)
 {
-    aes_encrypt(ctx, length, dst, src);
+    aes_decrypt(ctx, length, dst, src);
 }
 
 static void des_encrypt_wrapper(cipher_ctx_t ctx, cipher_length_t length,
