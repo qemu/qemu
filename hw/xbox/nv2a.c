@@ -918,7 +918,9 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_INLINE_ARRAY                                 0x00971818
 #   define NV097_SET_VERTEX_DATA2F_M                          0x00971880
 #   define NV097_SET_VERTEX_DATA4F_M                          0x00971A00
+#   define NV097_SET_VERTEX_DATA2S                            0x00971900
 #   define NV097_SET_VERTEX_DATA4UB                           0x00971940
+#   define NV097_SET_VERTEX_DATA4S_M                          0x00971980
 #   define NV097_SET_TEXTURE_OFFSET                           0x00971B00
 #   define NV097_SET_TEXTURE_FORMAT                           0x00971B04
 #       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
@@ -5027,7 +5029,6 @@ static void pgraph_method(NV2AState *d,
         }
         break;
     }
-
     case NV097_SET_VERTEX_DATA4F_M ...
             NV097_SET_VERTEX_DATA4F_M + 0xfc: {
         slot = (class_method - NV097_SET_VERTEX_DATA4F_M) / 4;
@@ -5041,7 +5042,27 @@ static void pgraph_method(NV2AState *d,
         }
         break;
     }
-
+    case NV097_SET_VERTEX_DATA2S ...
+            NV097_SET_VERTEX_DATA2S + 0x3c: {
+        slot = (class_method - NV097_SET_VERTEX_DATA2S) / 4;
+        assert(false); /* FIXME: Untested! */
+        VertexAttribute *attribute = &pg->vertex_attributes[slot];
+        allocate_inline_buffer_vertices(pg, slot);
+        /* FIXME: Is mapping to [-1,+1] correct? */
+        parameter ^= 0x80008000;
+        attribute->inline_value[0] = ((parameter & 0xFFFF)
+                                          / 65535.0f - 0.5f) * 2.0f;
+        attribute->inline_value[1] = ((parameter >> 16)
+                                          / 65535.0f - 0.5f) * 2.0f;
+        /* FIXME: Should these really be set to 0.0 and 1.0 ? Conditions? */
+        attribute->inline_value[2] = 0.0;
+        attribute->inline_value[3] = 1.0;
+        if (slot == 0) {
+            finish_inline_buffer_vertex(pg);
+            assert(false); /* FIXME: Untested */
+        }
+        break;
+    }
     case NV097_SET_VERTEX_DATA4UB ...
             NV097_SET_VERTEX_DATA4UB + 0x3c: {
         slot = (class_method - NV097_SET_VERTEX_DATA4UB) / 4;
@@ -5052,6 +5073,26 @@ static void pgraph_method(NV2AState *d,
         attribute->inline_value[2] = ((parameter >> 16) & 0xFF) / 255.0;
         attribute->inline_value[3] = ((parameter >> 24) & 0xFF) / 255.0;
         if (slot == 0) {
+            finish_inline_buffer_vertex(pg);
+            assert(false); /* FIXME: Untested */
+        }
+        break;
+    }
+    case NV097_SET_VERTEX_DATA4S_M ...
+            NV097_SET_VERTEX_DATA4S_M + 0x7c: {
+        slot = (class_method - NV097_SET_VERTEX_DATA4S_M) / 4;
+        unsigned int part = slot % 2;
+        slot /= 2;
+        assert(false); /* FIXME: Untested! */
+        VertexAttribute *attribute = &pg->vertex_attributes[slot];
+        allocate_inline_buffer_vertices(pg, slot);
+        /* FIXME: Is mapping to [-1,+1] correct? */
+        parameter ^= 0x80008000;
+        attribute->inline_value[part * 2 + 0] = ((parameter & 0xFFFF)
+                                                     / 65535.0f - 0.5f) * 2.0f;
+        attribute->inline_value[part * 2 + 1] = ((parameter >> 16)
+                                                     / 65535.0f - 0.5f) * 2.0f;
+        if ((slot == 0) && (part == 1)) {
             finish_inline_buffer_vertex(pg);
             assert(false); /* FIXME: Untested */
         }
