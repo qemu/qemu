@@ -1046,7 +1046,7 @@ static const GLenum pgraph_texture_addr_map[] = {
     GL_MIRRORED_REPEAT,
     GL_CLAMP_TO_EDGE,
     GL_CLAMP_TO_BORDER,
-    GL_CLAMP
+    // GL_CLAMP
 };
 
 static const GLenum pgraph_blend_factor_map[] = {
@@ -2476,13 +2476,16 @@ static void pgraph_bind_textures(NV2AState *d)
             pgraph_texture_mag_filter_map[mag_filter]);
 
         /* Texture wrapping */
+        assert(addru < ARRAYSIZE(pgraph_texture_addr_map));
         glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_S,
             pgraph_texture_addr_map[addru]);
         if (dimensionality > 1) {
+            assert(addrv < ARRAYSIZE(pgraph_texture_addr_map));
             glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_T,
                 pgraph_texture_addr_map[addrv]);
         }
         if (dimensionality > 2) {
+            assert(addrp < ARRAYSIZE(pgraph_texture_addr_map));
             glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_R,
                 pgraph_texture_addr_map[addrp]);
         }
