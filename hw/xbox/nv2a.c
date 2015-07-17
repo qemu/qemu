@@ -3156,26 +3156,26 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
     /* For each texture stage */
     for (i = 0; i < 4; i++) {
-        char name[16];
+        char name[32];
         GLint loc;
 
         /* Bump luminance only during stages 1 - 3 */
         if (i > 0) {
 
-            sprintf(name, "bumpMat%d", i);
+            snprintf(name, sizeof(name), "bumpMat%d", i);
             loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
             if (loc != -1) {
                 glUniformMatrix2fv(loc, 1, GL_FALSE, pg->bump_env_matrix[i - 1]);
             }
 
-            sprintf(name, "bumpScale%d", i);
+            snprintf(name, sizeof(name), "bumpScale%d", i);
             loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
             if (loc != -1) {
                 glUniform1f(loc, *(float*)&pg->regs[
                                 NV_PGRAPH_BUMPSCALE1 + (i - 1) * 4]);
             }
 
-            sprintf(name, "bumpOffset%d", i);
+            snprintf(name, sizeof(name), "bumpOffset%d", i);
             loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
             if (loc != -1) {
                 glUniform1f(loc, *(float*)&pg->regs[
@@ -3185,7 +3185,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
 
         /* Texture matrices */
-        sprintf(name, "texMat%d", i);
+        snprintf(name, sizeof(name), "texMat%d", i);
         loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
         if (loc != -1) {
             glUniformMatrix4fv(loc, 1, GL_FALSE, pg->texture_matrix[i]);
@@ -3195,17 +3195,17 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
     /* For each vertex weight */
     for (i = 0; i < 4; i++) {
-        char name[16];
+        char name[32];
         GLint loc;
 
-        sprintf(name, "modelViewMat%d", i);
+        snprintf(name, sizeof(name), "modelViewMat%d", i);
         loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
         if (loc != -1) {
             glUniformMatrix4fv(loc, 1, GL_FALSE,
                                pg->model_view_matrix[i]);
         }
 
-        sprintf(name, "invModelViewMat%d", i);
+        snprintf(name, sizeof(name), "invModelViewMat%d", i);
         loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
         if (loc != -1) {
             glUniformMatrix4fv(loc, 1, GL_FALSE,
