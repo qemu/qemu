@@ -3858,6 +3858,36 @@ static unsigned int kelvin_map_texgen(uint32_t parameter, unsigned int channel)
     return texgen;
 }
 
+static void finish_inline_vertex(PGRAPHState *pg)
+{
+    int i;
+
+    assert(pg->inline_buffer_length < NV2A_MAX_BATCH_LENGTH);
+
+    InlineVertexBufferEntry *entry =
+        &pg->inline_buffer[pg->inline_buffer_length];
+
+    memcpy(entry->position,
+           pg->vertex_attributes[NV2A_VERTEX_ATTR_POSITION].inline_value,
+           sizeof(float) * 4);
+
+    memcpy(entry->weight,
+           pg->vertex_attributes[NV2A_VERTEX_ATTR_WEIGHT].inline_value,
+           sizeof(float) * 4);
+
+    memcpy(entry->diffuse,
+           pg->vertex_attributes[NV2A_VERTEX_ATTR_DIFFUSE].inline_value,
+           sizeof(float) * 4);
+
+    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
+        memcpy(entry->tex_coord[i],
+               pg->vertex_attributes[NV2A_VERTEX_ATTR_TEXTURE0+i].inline_value,
+               sizeof(float)*4);
+    }
+
+    pg->inline_buffer_length++;
+}
+
 static void pgraph_method(NV2AState *d,
                           unsigned int subchannel,
                           unsigned int method,
@@ -4566,28 +4596,10 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_VERTEX4F ...
             NV097_SET_VERTEX4F + 12: {
-
         slot = (class_method - NV097_SET_VERTEX4F) / 4;
-
-        assert(pg->inline_buffer_length < NV2A_MAX_BATCH_LENGTH);
-
-        InlineVertexBufferEntry *entry =
-            &pg->inline_buffer[pg->inline_buffer_length];
-
-        entry->position[slot] = *(float*)&parameter;
+        pg->vertex_attributes[NV2A_VERTEX_ATTR_POSITION].inline_value[slot] = *(float*)&parameter;
         if (slot == 3) {
-            memcpy(entry->diffuse,
-                   pg->vertex_attributes[NV2A_VERTEX_ATTR_DIFFUSE].inline_value,
-                   sizeof(float)*4);
-
-            for (i=0; i<NV2A_MAX_TEXTURES; i++) {
-                memcpy(entry->tex_coord[i],
-                       pg->vertex_attributes[NV2A_VERTEX_ATTR_TEXTURE0+i]
-                                            .inline_value,
-                       sizeof(float)*4);
-            }
-
-            pg->inline_buffer_length++;
+            finish_inline_vertex(pg);
         }
         break;
     }
@@ -5018,6 +5030,9 @@ static void pgraph_method(NV2AState *d,
         pg->vertex_attributes[slot].inline_value[part] = *(float*)&parameter;
         pg->vertex_attributes[slot].inline_value[2] = 0.0;
         pg->vertex_attributes[slot].inline_value[3] = 1.0;
+        if ((slot == 0) && (part == 1)) {
+            finish_inline_vertex(pg);
+        }
         break;
     }
 
@@ -5027,6 +5042,9 @@ static void pgraph_method(NV2AState *d,
         unsigned int part =
             ((class_method - NV097_SET_VERTEX_DATA4F_M) % 16) / 4;
         pg->vertex_attributes[slot].inline_value[part] = *(float*)&parameter;
+        if ((slot == 0) && (part == 3)) {
+            finish_inline_vertex(pg);
+        }
         break;
     }
 
@@ -5041,6 +5059,9 @@ static void pgraph_method(NV2AState *d,
             ((parameter >> 16) & 0xFF) / 255.0;
         pg->vertex_attributes[slot].inline_value[3] =
             ((parameter >> 24) & 0xFF) / 255.0;
+        if (slot == 0) {
+            finish_inline_vertex(pg);
+        }
         break;
 
     case NV097_SET_SEMAPHORE_OFFSET:
