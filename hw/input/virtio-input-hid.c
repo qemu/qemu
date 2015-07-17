@@ -308,6 +308,7 @@ static void virtio_input_hid_handle_status(VirtIOInput *vinput,
 static Property virtio_input_hid_properties[] = {
     DEFINE_PROP_STRING("display", VirtIOInputHID, display),
     DEFINE_PROP_UINT32("head", VirtIOInputHID, head, 0),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void virtio_input_hid_class_init(ObjectClass *klass, void *data)
