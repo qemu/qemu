@@ -283,6 +283,7 @@ typedef struct CCIDBus {
 typedef struct USBCCIDState {
     USBDevice dev;
     USBEndpoint *intr;
+    USBEndpoint *bulk;
     CCIDBus bus;
     CCIDCardState *card;
     BulkIn bulk_in_pending[BULK_IN_PENDING_NUM]; /* circular */
@@ -769,6 +770,7 @@ static void ccid_write_slot_status(USBCCIDState *s, CCID_Header *recv)
     h->b.bError = s->bError;
     h->bClockStatus = CLOCK_STATUS_RUNNING;
     ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
 }
 
 static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
@@ -789,6 +791,7 @@ static void ccid_write_parameters(USBCCIDState *s, CCID_Header *recv)
     h->bProtocolNum = s->bProtocolNum;
     h->abProtocolDataStructure = s->abProtocolDataStructure;
     ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
 }
 
 static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
@@ -810,6 +813,7 @@ static void ccid_write_data_block(USBCCIDState *s, uint8_t slot, uint8_t seq,
     }
     memcpy(p->abData, data, len);
     ccid_reset_error_status(s);
+    usb_wakeup(s->bulk, 0);
 }
 
 static void ccid_report_error_failed(USBCCIDState *s, uint8_t error)
@@ -1184,7 +1188,7 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
                                   uint8_t *apdu, uint32_t len)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev);
+    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
     Answer *answer;
 
@@ -1207,7 +1211,7 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
 void ccid_card_card_removed(CCIDCardState *card)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev);
+    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
 
     ccid_on_slot_change(s, false);
@@ -1218,7 +1222,7 @@ void ccid_card_card_removed(CCIDCardState *card)
 int ccid_card_ccid_attach(CCIDCardState *card)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev);
+    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
 
     DPRINTF(s, 1, "CCID Attach\n");
@@ -1231,7 +1235,7 @@ int ccid_card_ccid_attach(CCIDCardState *card)
 void ccid_card_ccid_detach(CCIDCardState *card)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev);
+    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
 
     DPRINTF(s, 1, "CCID Detach\n");
@@ -1244,7 +1248,7 @@ void ccid_card_ccid_detach(CCIDCardState *card)
 void ccid_card_card_error(CCIDCardState *card, uint64_t error)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev);
+    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
 
     s->bmCommandStatus = COMMAND_STATUS_FAILED;
@@ -1263,7 +1267,7 @@ void ccid_card_card_error(CCIDCardState *card, uint64_t error)
 void ccid_card_card_inserted(CCIDCardState *card)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev);
+    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
 
     s->bmCommandStatus = COMMAND_STATUS_NO_ERROR;
@@ -1275,7 +1279,7 @@ static int ccid_card_exit(DeviceState *qdev)
 {
     int ret = 0;
     CCIDCardState *card = CCID_CARD(qdev);
-    USBDevice *dev = USB_DEVICE(qdev);
+    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
 
     if (ccid_card_inserted(s)) {
@@ -1289,7 +1293,7 @@ static int ccid_card_exit(DeviceState *qdev)
 static int ccid_card_init(DeviceState *qdev)
 {
     CCIDCardState *card = CCID_CARD(qdev);
-    USBDevice *dev = USB_DEVICE(qdev);
+    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
     int ret = 0;
 
@@ -1319,6 +1323,7 @@ static void ccid_realize(USBDevice *dev, Error **errp)
                         NULL);
     qbus_set_hotplug_handler(BUS(&s->bus), DEVICE(dev), &error_abort);
     s->intr = usb_ep_get(dev, USB_TOKEN_IN, CCID_INT_IN_EP);
+    s->bulk = usb_ep_get(dev, USB_TOKEN_IN, CCID_BULK_IN_EP);
     s->card = NULL;
     s->migration_state = MIGRATION_NONE;
     s->migration_target_ip = 0;
