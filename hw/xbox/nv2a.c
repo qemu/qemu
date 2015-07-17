@@ -2098,7 +2098,7 @@ static uint8_t* convert_texture_data(const TextureShape s,
         for (y = 0; y < height; y++) {
             for (x = 0; x < width; x++) {
                 uint16_t rgb655 = *(uint16_t*)(data + y * pitch + x * 2);
-                int8_t *pixel = &converted_data[(y * width + x) * 3];
+                int8_t *pixel = (int8_t*)&converted_data[(y * width + x) * 3];
                 /* Maps 5 bit G and B signed value range to 8 bit
                  * signed values. R is probably unsigned.
                  */
@@ -3168,15 +3168,15 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             sprintf(name, "bumpScale%d", i);
             loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
             if (loc != -1) {
-                glUniform1fv(loc, 1,
-                             &pg->regs[NV_PGRAPH_BUMPSCALE1 + (i - 1) * 4]);
+                glUniform1f(loc, *(float*)&pg->regs[
+                                NV_PGRAPH_BUMPSCALE1 + (i - 1) * 4]);
             }
 
             sprintf(name, "bumpOffset%d", i);
             loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
             if (loc != -1) {
-                glUniform1fv(loc, 1,
-                             &pg->regs[NV_PGRAPH_BUMPOFFSET1 + (i - 1) * 4]);
+                glUniform1f(loc, *(float*)&pg->regs[
+                                NV_PGRAPH_BUMPOFFSET1 + (i - 1) * 4]);
             }
 
         }
