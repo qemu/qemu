@@ -451,6 +451,7 @@ static void usb_host_req_complete_iso(struct libusb_transfer *transfer)
     }
     if (xfer->ring->ep->pid == USB_TOKEN_IN) {
         QTAILQ_INSERT_TAIL(&xfer->ring->copy, xfer, next);
+        usb_wakeup(xfer->ring->ep, 0);
     } else {
         QTAILQ_INSERT_TAIL(&xfer->ring->unused, xfer, next);
     }
