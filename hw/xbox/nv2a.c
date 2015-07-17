@@ -2682,7 +2682,7 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     qstring_append_fmt(vertex_shader_code, "/* Skinning mode %d */\n",
                        state.skinning);
     if (count == 0) {
-        qstring_append(vertex_shader_code, "vec4 tPosition = position;\n");
+        qstring_append(vertex_shader_code, "vec4 tPosition = position * modelViewMat0;\n");
         /* FIXME: Is the normal still transformed? */
         qstring_append(vertex_shader_code, "vec3 tNormal = (vec4(normal, 0.0) * invModelViewMat0).xyz;\n");
     } else {
@@ -2769,6 +2769,11 @@ static ShaderBinding* generate_shaders(const ShaderState state)
             qstring_append_fmt(vertex_shader_code, "tTexture%d = tTexture%d * texMat%d;\n",
                                i, i, i);
         }
+    }
+
+    /* If skinning is off the composite matrix already includes the MV matrix */
+    if (state.skinning == SKINNING_OFF) {
+        qstring_append(vertex_shader_code, "tPosition = position;\n");
     }
 
     qstring_append(vertex_shader_code,
