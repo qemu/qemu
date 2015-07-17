@@ -483,6 +483,17 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCR                7
 #       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECR                8
 #define NV_PGRAPH_SETUPRASTER                            0x00001990
+#   define NV_PGRAPH_SETUPRASTER_FRONTFACEMODE                  0x00000003
+#       define NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_FILL             0
+#       define NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_POINT            1
+#       define NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_LINE             2
+#   define NV_PGRAPH_SETUPRASTER_BACKFACEMODE                   0x0000000C
+#   define NV_PGRAPH_SETUPRASTER_CULLCTRL                       0x00600000
+#       define NV_PGRAPH_SETUPRASTER_CULLCTRL_FRONT                 1
+#       define NV_PGRAPH_SETUPRASTER_CULLCTRL_BACK                  2
+#       define NV_PGRAPH_SETUPRASTER_CULLCTRL_FRONT_AND_BACK        3
+#   define NV_PGRAPH_SETUPRASTER_FRONTFACE                      (1 << 23)
+#   define NV_PGRAPH_SETUPRASTER_CULLENABLE                     (1 << 28)
 #   define NV_PGRAPH_SETUPRASTER_Z_FORMAT                       (1 << 29)
 #define NV_PGRAPH_SHADERCLIPMODE                         0x00001994
 #define NV_PGRAPH_SHADERCTL                              0x00001998
@@ -778,6 +789,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_CONTROL0_Z_FORMAT                        (1 << 12)
 #   define NV097_SET_ALPHA_TEST_ENABLE                        0x00970300
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
+#   define NV097_SET_CULL_FACE_ENABLE                         0x00970308
 #   define NV097_SET_DEPTH_TEST_ENABLE                        0x0097030C
 #   define NV097_SET_SKIN_MODE                                0x00970328
 #       define NV097_SET_SKIN_MODE_OFF                            0
@@ -853,8 +865,20 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_STENCIL_OP_V_INVERT                      0x150A
 #       define NV097_SET_STENCIL_OP_V_INCR                        0x8507
 #       define NV097_SET_STENCIL_OP_V_DECR                        0x8508
+#   define NV097_SET_FRONT_POLYGON_MODE                       0x0097038C
+#       define NV097_SET_FRONT_POLYGON_MODE_V_POINT               0x1B00
+#       define NV097_SET_FRONT_POLYGON_MODE_V_LINE                0x1B01
+#       define NV097_SET_FRONT_POLYGON_MODE_V_FILL                0x1B02
+#   define NV097_SET_BACK_POLYGON_MODE                        0x00970390
 #   define NV097_SET_CLIP_MIN                                 0x00970394
 #   define NV097_SET_CLIP_MAX                                 0x00970398
+#   define NV097_SET_CULL_FACE                                0x0097039C
+#       define NV097_SET_CULL_FACE_V_FRONT                         0x404
+#       define NV097_SET_CULL_FACE_V_BACK                          0x405
+#       define NV097_SET_CULL_FACE_V_FRONT_AND_BACK                0x408
+#   define NV097_SET_FRONT_FACE                               0x009703A0
+#       define NV097_SET_FRONT_FACE_V_CW                           0x900
+#       define NV097_SET_FRONT_FACE_V_CCW                          0x901
 #   define NV097_SET_NORMALIZATION_ENABLE                     0x009703A4
 #   define NV097_SET_TEXGEN_S                                 0x009703C0
 #       define NV097_SET_TEXGEN_S_DISABLE                         0x0000
@@ -1097,6 +1121,19 @@ static const GLenum pgraph_blend_logicop_map[] = {
     GL_OR_INVERTED,
     GL_NAND,
     GL_SET,
+};
+
+static const GLenum pgraph_cull_face_map[] = {
+    0,
+    GL_FRONT,
+    GL_BACK,
+    GL_FRONT_AND_BACK
+};
+
+static const GLenum pgraph_polygon_mode_map[] = {
+    GL_FILL,
+    GL_POINT,
+    GL_LINE
 };
 
 static const GLenum pgraph_depth_func_map[] = {
@@ -3827,6 +3864,23 @@ static unsigned int kelvin_map_stencil_op(uint32_t parameter)
     return op;
 }
 
+static unsigned int kelvin_map_polygon_mode(uint32_t parameter)
+{
+    unsigned int mode;
+    switch (parameter) {
+    case NV097_SET_FRONT_POLYGON_MODE_V_POINT:
+        mode = NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_POINT; break;
+    case NV097_SET_FRONT_POLYGON_MODE_V_LINE:
+        mode = NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_LINE; break;
+    case NV097_SET_FRONT_POLYGON_MODE_V_FILL:
+        mode = NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_FILL; break;
+    default:
+        assert(false);
+        break;
+    }
+    return mode;
+}
+
 static unsigned int kelvin_map_texgen(uint32_t parameter, unsigned int channel)
 {
     assert(channel < 4);
@@ -4236,7 +4290,11 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_BLEND_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_BLEND], NV_PGRAPH_BLEND_EN, parameter);
         break;
-
+    case NV097_SET_CULL_FACE_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                 NV_PGRAPH_SETUPRASTER_CULLENABLE,
+                 parameter);
+        break;
     case NV097_SET_DEPTH_TEST_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0], NV_PGRAPH_CONTROL_0_ZENABLE,
                  parameter);
@@ -4427,13 +4485,56 @@ static void pgraph_method(NV2AState *d,
                  kelvin_map_stencil_op(parameter));
         break;
 
+    case NV097_SET_FRONT_POLYGON_MODE:
+        SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                 NV_PGRAPH_SETUPRASTER_FRONTFACEMODE,
+                 kelvin_map_polygon_mode(parameter));
+        break;
+    case NV097_SET_BACK_POLYGON_MODE:
+        SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                 NV_PGRAPH_SETUPRASTER_BACKFACEMODE,
+                 kelvin_map_polygon_mode(parameter));
+        break;
     case NV097_SET_CLIP_MIN:
         pg->regs[NV_PGRAPH_ZCLIPMIN] = parameter;
         break;
     case NV097_SET_CLIP_MAX:
         pg->regs[NV_PGRAPH_ZCLIPMAX] = parameter;
         break;
-
+    case NV097_SET_CULL_FACE: {
+        unsigned int face;
+        switch (parameter) {
+        case NV097_SET_CULL_FACE_V_FRONT:
+            face = NV_PGRAPH_SETUPRASTER_CULLCTRL_FRONT; break;
+        case NV097_SET_CULL_FACE_V_BACK:
+            face = NV_PGRAPH_SETUPRASTER_CULLCTRL_BACK; break;
+        case NV097_SET_CULL_FACE_V_FRONT_AND_BACK:
+            face = NV_PGRAPH_SETUPRASTER_CULLCTRL_FRONT_AND_BACK; break;
+        default:
+            assert(false);
+            break;
+        }
+        SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                 NV_PGRAPH_SETUPRASTER_CULLCTRL,
+                 face);
+        break;
+    }
+    case NV097_SET_FRONT_FACE: {
+        bool ccw;
+        switch (parameter) {
+        case NV097_SET_FRONT_FACE_V_CW:
+            ccw = false; break;
+        case NV097_SET_FRONT_FACE_V_CCW:
+            ccw = true; break;
+        default:
+            assert(false);
+            break;
+        }
+        SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                 NV_PGRAPH_SETUPRASTER_FRONTFACE,
+                 ccw ? 1 : 0);
+        break;
+    }
     case NV097_SET_NORMALIZATION_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
                  NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE,
@@ -4829,6 +4930,34 @@ static void pgraph_method(NV2AState *d,
             } else {
                 glDisable(GL_BLEND);
             }
+
+            /* Face culling */
+            if (pg->regs[NV_PGRAPH_SETUPRASTER]
+                    & NV_PGRAPH_SETUPRASTER_CULLENABLE) {
+                uint32_t cull_face = GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                                              NV_PGRAPH_SETUPRASTER_CULLCTRL);
+                assert(cull_face < ARRAYSIZE(pgraph_cull_face_map));
+                glCullFace(pgraph_cull_face_map[cull_face]);
+                glEnable(GL_CULL_FACE);
+            } else {
+                glDisable(GL_CULL_FACE);
+            }
+
+            /* Front-face select */
+            glFrontFace(pg->regs[NV_PGRAPH_SETUPRASTER]
+                            & NV_PGRAPH_SETUPRASTER_FRONTFACE
+                                ? GL_CCW : GL_CW);
+
+            /* Polygon mode */
+            uint32_t front_mode = GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                                           NV_PGRAPH_SETUPRASTER_FRONTFACEMODE);
+            uint32_t back_mode =  GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                                           NV_PGRAPH_SETUPRASTER_BACKFACEMODE);
+            /* FIXME: GL3+ only supports GL_FRONT_AND_BACK, how to handle? */
+            assert(front_mode == back_mode);
+            assert(front_mode < ARRAYSIZE(pgraph_polygon_mode_map));
+            glPolygonMode(GL_FRONT_AND_BACK,
+                          pgraph_polygon_mode_map[front_mode]);
 
             if (depth_test) {
                 glEnable(GL_DEPTH_TEST);
