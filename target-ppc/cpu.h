@@ -1189,7 +1189,6 @@ extern const struct VMStateDescription vmstate_ppc_cpu;
 PowerPCCPU *cpu_ppc_init(const char *cpu_model);
 void ppc_translate_init(void);
 void gen_update_current_nip(void *opaque);
-int cpu_ppc_exec (CPUState *s);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -1268,7 +1267,6 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val);
 
 #define cpu_init(cpu_model) CPU(cpu_ppc_init(cpu_model))
 
-#define cpu_exec cpu_ppc_exec
 #define cpu_signal_handler cpu_ppc_signal_handler
 #define cpu_list ppc_cpu_list
 

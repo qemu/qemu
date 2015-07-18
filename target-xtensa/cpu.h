@@ -416,7 +416,6 @@ int xtensa_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void xtensa_cpu_do_unaligned_access(CPUState *cpu, vaddr addr,
                                     int is_write, int is_user, uintptr_t retaddr);
 
-#define cpu_exec cpu_xtensa_exec
 #define cpu_signal_handler cpu_xtensa_signal_handler
 #define cpu_list xtensa_cpu_list
 
@@ -432,7 +431,6 @@ XtensaCPU *cpu_xtensa_init(const char *cpu_model);
 
 void xtensa_translate_init(void);
 void xtensa_breakpoint_handler(CPUState *cs);
-int cpu_xtensa_exec(CPUState *cpu);
 void xtensa_finalize_config(XtensaConfig *config);
 void xtensa_register_core(XtensaConfigList *node);
 void check_interrupts(CPUXtensaState *s);
