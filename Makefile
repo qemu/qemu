@@ -135,7 +135,7 @@ endif
 	 else \
 	  mv $@.tmp $@; \
 	  cp -p $@ $@.old; \
-	 fi, "  GEN  $@");
+	 fi, "  GEN   $@");
 
 defconfig:
 	rm -f config-all-devices.mak $(SUBDIR_DEVICES_MAK)
