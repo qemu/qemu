@@ -472,6 +472,29 @@ int qemu_strtoll(const char *nptr, const char **endptr, int base,
 }
 
 /**
+ * Converts ASCII string to an unsigned long long integer.
+ *
+ * See qemu_strtol() documentation for more info.
+ */
+int qemu_strtoull(const char *nptr, const char **endptr, int base,
+                  uint64_t *result)
+{
+    char *p;
+    int err = 0;
+    if (!nptr) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        err = -EINVAL;
+    } else {
+        errno = 0;
+        *result = strtoull(nptr, &p, base);
+        err = check_strtox_error(endptr, p, errno);
+    }
+    return err;
+}
+
+/**
  * parse_uint:
  *
  * @s: String to parse
