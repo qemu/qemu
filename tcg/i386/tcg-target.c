@@ -1178,8 +1178,8 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
     const TCGReg r0 = TCG_REG_L0;
     const TCGReg r1 = TCG_REG_L1;
     TCGType ttype = TCG_TYPE_I32;
-    TCGType htype = TCG_TYPE_I32;
-    int trexw = 0, hrexw = 0;
+    TCGType tlbtype = TCG_TYPE_I32;
+    int trexw = 0, hrexw = 0, tlbrexw = 0;
     int s_mask = (1 << (opc & MO_SIZE)) - 1;
     bool aligned = (opc & MO_AMASK) == MO_ALIGN || s_mask == 0;
 
@@ -1189,12 +1189,15 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
             trexw = P_REXW;
         }
         if (TCG_TYPE_PTR == TCG_TYPE_I64) {
-            htype = TCG_TYPE_I64;
             hrexw = P_REXW;
+            if (TARGET_PAGE_BITS + CPU_TLB_BITS > 32) {
+                tlbtype = TCG_TYPE_I64;
+                tlbrexw = P_REXW;
+            }
         }
     }
 
-    tcg_out_mov(s, htype, r0, addrlo);
+    tcg_out_mov(s, tlbtype, r0, addrlo);
     if (aligned) {
         tcg_out_mov(s, ttype, r1, addrlo);
     } else {
@@ -1203,12 +1206,12 @@ static inline void tcg_out_tlb_load(TCGContext *s, TCGReg addrlo, TCGReg addrhi,
         tcg_out_modrm_offset(s, OPC_LEA + trexw, r1, addrlo, s_mask);
     }
 
-    tcg_out_shifti(s, SHIFT_SHR + hrexw, r0,
+    tcg_out_shifti(s, SHIFT_SHR + tlbrexw, r0,
                    TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
 
     tgen_arithi(s, ARITH_AND + trexw, r1,
                 TARGET_PAGE_MASK | (aligned ? s_mask : 0), 0);
-    tgen_arithi(s, ARITH_AND + hrexw, r0,
+    tgen_arithi(s, ARITH_AND + tlbrexw, r0,
                 (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS, 0);
 
     tcg_out_modrm_sib_offset(s, OPC_LEA + hrexw, r0, TCG_AREG0, r0, 0,
