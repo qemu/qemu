@@ -1245,6 +1245,10 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_PLATFORM (NULL)
 #endif
 
+#ifndef ELF_MACHINE
+#define ELF_MACHINE ELF_ARCH
+#endif
+
 #ifndef ELF_HWCAP
 #define ELF_HWCAP 0
 #endif
