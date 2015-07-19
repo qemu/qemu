@@ -416,6 +416,38 @@ int qemu_strtol(const char *nptr, const char **endptr, int base,
     }
     return err;
 }
+
+/**
+ * Converts ASCII string to an unsigned long integer.
+ *
+ * If string contains a negative number, value will be converted to
+ * the unsigned representation of the signed value, unless the original
+ * (nonnegated) value would overflow, in this case, it will set @result
+ * to ULONG_MAX, and return ERANGE.
+ *
+ * The same behavior holds, for qemu_strtoull() but sets @result to
+ * ULLONG_MAX instead of ULONG_MAX.
+ *
+ * See qemu_strtol() documentation for more info.
+ */
+int qemu_strtoul(const char *nptr, const char **endptr, int base,
+                 unsigned long *result)
+{
+    char *p;
+    int err = 0;
+    if (!nptr) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        err = -EINVAL;
+    } else {
+        errno = 0;
+        *result = strtoul(nptr, &p, base);
+        err = check_strtox_error(endptr, p, errno);
+    }
+    return err;
+}
+
 /**
  * parse_uint:
  *

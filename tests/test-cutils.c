@@ -516,6 +516,292 @@ static void test_qemu_strtol_full_max(void)
     g_assert_cmpint(err, ==, 0);
     g_assert_cmpint(res, ==, LONG_MAX);
 }
+
+static void test_qemu_strtoul_correct(void)
+{
+    const char *str = "12345 foo";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 12345);
+    g_assert(endptr == str + 5);
+}
+
+static void test_qemu_strtoul_null(void)
+{
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(NULL, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, -EINVAL);
+    g_assert(endptr == NULL);
+}
+
+static void test_qemu_strtoul_empty(void)
+{
+    const char *str = "";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0);
+    g_assert(endptr == str);
+}
+
+static void test_qemu_strtoul_whitespace(void)
+{
+    const char *str = "  \t  ";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0);
+    g_assert(endptr == str);
+}
+
+static void test_qemu_strtoul_invalid(void)
+{
+    const char *str = "   xxxx  \t abc";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert(endptr == str);
+}
+
+static void test_qemu_strtoul_trailing(void)
+{
+    const char *str = "123xxx";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 123);
+    g_assert(endptr == str + 3);
+}
+
+static void test_qemu_strtoul_octal(void)
+{
+    const char *str = "0123";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 8, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0123);
+    g_assert(endptr == str + strlen(str));
+
+    res = 999;
+    endptr = &f;
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0123);
+    g_assert(endptr == str + strlen(str));
+}
+
+static void test_qemu_strtoul_decimal(void)
+{
+    const char *str = "0123";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 10, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 123);
+    g_assert(endptr == str + strlen(str));
+
+    str = "123";
+    res = 999;
+    endptr = &f;
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 123);
+    g_assert(endptr == str + strlen(str));
+}
+
+static void test_qemu_strtoul_hex(void)
+{
+    const char *str = "0123";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 16, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0x123);
+    g_assert(endptr == str + strlen(str));
+
+    str = "0x123";
+    res = 999;
+    endptr = &f;
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0x123);
+    g_assert(endptr == str + strlen(str));
+}
+
+static void test_qemu_strtoul_max(void)
+{
+    const char *str = g_strdup_printf("%lu", ULONG_MAX);
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, ULONG_MAX);
+    g_assert(endptr == str + strlen(str));
+}
+
+static void test_qemu_strtoul_overflow(void)
+{
+    const char *str = "99999999999999999999999999999999999999999999";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpint(res, ==, ULONG_MAX);
+    g_assert(endptr == str + strlen(str));
+}
+
+static void test_qemu_strtoul_underflow(void)
+{
+    const char *str = "-99999999999999999999999999999999999999999999";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err  = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, -ERANGE);
+    g_assert_cmpint(res, ==, -1ul);
+    g_assert(endptr == str + strlen(str));
+}
+
+static void test_qemu_strtoul_negative(void)
+{
+    const char *str = "  \t -321";
+    char f = 'X';
+    const char *endptr = &f;
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, &endptr, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, -321ul);
+    g_assert(endptr == str + strlen(str));
+}
+
+static void test_qemu_strtoul_full_correct(void)
+{
+    const char *str = "123";
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, NULL, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 123);
+}
+
+static void test_qemu_strtoul_full_null(void)
+{
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(NULL, NULL, 0, &res);
+
+    g_assert_cmpint(err, ==, -EINVAL);
+}
+
+static void test_qemu_strtoul_full_empty(void)
+{
+    const char *str = "";
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, NULL, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, 0);
+}
+static void test_qemu_strtoul_full_negative(void)
+{
+    const char *str = " \t -321";
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, NULL, 0, &res);
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, -321ul);
+}
+
+static void test_qemu_strtoul_full_trailing(void)
+{
+    const char *str = "123xxx";
+    unsigned long res;
+    int err;
+
+    err = qemu_strtoul(str, NULL, 0, &res);
+
+    g_assert_cmpint(err, ==, -EINVAL);
+}
+
+static void test_qemu_strtoul_full_max(void)
+{
+    const char *str = g_strdup_printf("%lu", ULONG_MAX);
+    unsigned long res = 999;
+    int err;
+
+    err = qemu_strtoul(str, NULL, 0, &res);
+
+    g_assert_cmpint(err, ==, 0);
+    g_assert_cmpint(res, ==, ULONG_MAX);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -565,6 +851,38 @@ int main(int argc, char **argv)
                     test_qemu_strtol_full_trailing);
     g_test_add_func("/cutils/qemu_strtol_full/max",
                     test_qemu_strtol_full_max);
+
+    /* qemu_strtoul() tests */
+    g_test_add_func("/cutils/qemu_strtoul/correct", test_qemu_strtoul_correct);
+    g_test_add_func("/cutils/qemu_strtoul/null", test_qemu_strtoul_null);
+    g_test_add_func("/cutils/qemu_strtoul/empty", test_qemu_strtoul_empty);
+    g_test_add_func("/cutils/qemu_strtoul/whitespace",
+                    test_qemu_strtoul_whitespace);
+    g_test_add_func("/cutils/qemu_strtoul/invalid", test_qemu_strtoul_invalid);
+    g_test_add_func("/cutils/qemu_strtoul/trailing",
+                    test_qemu_strtoul_trailing);
+    g_test_add_func("/cutils/qemu_strtoul/octal", test_qemu_strtoul_octal);
+    g_test_add_func("/cutils/qemu_strtoul/decimal", test_qemu_strtoul_decimal);
+    g_test_add_func("/cutils/qemu_strtoul/hex", test_qemu_strtoul_hex);
+    g_test_add_func("/cutils/qemu_strtoul/max", test_qemu_strtoul_max);
+    g_test_add_func("/cutils/qemu_strtoul/overflow",
+                    test_qemu_strtoul_overflow);
+    g_test_add_func("/cutils/qemu_strtoul/underflow",
+                    test_qemu_strtoul_underflow);
+    g_test_add_func("/cutils/qemu_strtoul/negative",
+                    test_qemu_strtoul_negative);
+    g_test_add_func("/cutils/qemu_strtoul_full/correct",
+                    test_qemu_strtoul_full_correct);
+    g_test_add_func("/cutils/qemu_strtoul_full/null",
+                    test_qemu_strtoul_full_null);
+    g_test_add_func("/cutils/qemu_strtoul_full/empty",
+                    test_qemu_strtoul_full_empty);
+    g_test_add_func("/cutils/qemu_strtoul_full/negative",
+                    test_qemu_strtoul_full_negative);
+    g_test_add_func("/cutils/qemu_strtoul_full/trailing",
+                    test_qemu_strtoul_full_trailing);
+    g_test_add_func("/cutils/qemu_strtoul_full/max",
+                    test_qemu_strtoul_full_max);
 
     return g_test_run();
 }
