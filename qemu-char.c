@@ -807,7 +807,8 @@ static gboolean io_watch_poll_prepare(GSource *source, gint *timeout_)
     }
 
     if (now_active) {
-        iwp->src = g_io_create_watch(iwp->channel, G_IO_IN | G_IO_ERR | G_IO_HUP);
+        iwp->src = g_io_create_watch(iwp->channel,
+                                     G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL);
         g_source_set_callback(iwp->src, iwp->fd_read, iwp->opaque, NULL);
         g_source_attach(iwp->src, NULL);
     } else {
@@ -2856,12 +2857,6 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     uint8_t buf[READ_BUF_LEN];
     int len, size;
 
-    if (cond & G_IO_HUP) {
-        /* connection closed */
-        tcp_chr_disconnect(chr);
-        return TRUE;
-    }
-
     if (!s->connected || s->max_size <= 0) {
         return TRUE;
     }
@@ -2869,7 +2864,9 @@ static gboolean tcp_chr_read(GIOChannel *chan, GIOCondition cond, void *opaque)
     if (len > s->max_size)
         len = s->max_size;
     size = tcp_chr_recv(chr, (void *)buf, len);
-    if (size == 0) {
+    if (size == 0 ||
+        (size < 0 &&
+         socket_error() != EAGAIN && socket_error() != EWOULDBLOCK)) {
         /* connection closed */
         tcp_chr_disconnect(chr);
     } else if (size > 0) {
