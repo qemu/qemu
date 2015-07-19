@@ -1965,6 +1965,17 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                 }
                 break;
 
+            case 5: /*S32N*/
+                if (gen_window_check2(dc, RRI4_S, RRI4_T)) {
+                    TCGv_i32 addr = tcg_temp_new_i32();
+
+                    tcg_gen_addi_i32(addr, cpu_R[RRI4_S], RRI4_IMM4 << 2);
+                    gen_load_store_alignment(dc, 2, addr, false);
+                    tcg_gen_qemu_st32(cpu_R[RRI4_T], addr, dc->cring);
+                    tcg_temp_free(addr);
+                }
+                break;
+
             default:
                 RESERVED();
                 break;
