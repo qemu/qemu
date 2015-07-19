@@ -359,6 +359,64 @@ int64_t strtosz(const char *nptr, char **end)
 }
 
 /**
+ * Helper function for qemu_strto*l() functions.
+ */
+static int check_strtox_error(const char **next, char *endptr,
+                              int err)
+{
+    if (!next && *endptr) {
+        return -EINVAL;
+    }
+    if (next) {
+        *next = endptr;
+    }
+    return -err;
+}
+
+/**
+ * QEMU wrappers for strtol(), strtoll(), strtoul(), strotull() C functions.
+ *
+ * Convert ASCII string @nptr to a long integer value
+ * from the given @base. Parameters @nptr, @endptr, @base
+ * follows same semantics as strtol() C function.
+ *
+ * Unlike from strtol() function, if @endptr is not NULL, this
+ * function will return -EINVAL whenever it cannot fully convert
+ * the string in @nptr with given @base to a long. This function returns
+ * the result of the conversion only through the @result parameter.
+ *
+ * If NULL is passed in @endptr, then the whole string in @ntpr
+ * is a number otherwise it returns -EINVAL.
+ *
+ * RETURN VALUE
+ * Unlike from strtol() function, this wrapper returns either
+ * -EINVAL or the errno set by strtol() function (e.g -ERANGE).
+ * If the conversion overflows, -ERANGE is returned, and @result
+ * is set to the max value of the desired type
+ * (e.g. LONG_MAX, LLONG_MAX, ULONG_MAX, ULLONG_MAX). If the case
+ * of underflow, -ERANGE is returned, and @result is set to the min
+ * value of the desired type. For strtol(), strtoll(), @result is set to
+ * LONG_MIN, LLONG_MIN, respectively, and for strtoul(), strtoull() it
+ * is set to 0.
+ */
+int qemu_strtol(const char *nptr, const char **endptr, int base,
+                long *result)
+{
+    char *p;
+    int err = 0;
+    if (!nptr) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        err = -EINVAL;
+    } else {
+        errno = 0;
+        *result = strtol(nptr, &p, base);
+        err = check_strtox_error(endptr, p, errno);
+    }
+    return err;
+}
+/**
  * parse_uint:
  *
  * @s: String to parse

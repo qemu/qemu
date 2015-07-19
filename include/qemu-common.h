@@ -203,6 +203,8 @@ int qemu_fls(int i);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
+int qemu_strtol(const char *nptr, const char **endptr, int base,
+                long *result);
 
 int parse_uint(const char *s, unsigned long long *value, char **endptr,
                int base);
