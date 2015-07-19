@@ -49,14 +49,20 @@ VersionInfo *qmp_query_version(Error **errp)
 {
     VersionInfo *info = g_new0(VersionInfo, 1);
     const char *version = QEMU_VERSION;
-    char *tmp;
+    const char *tmp;
+    int err;
 
     info->qemu = g_new0(VersionTriple, 1);
-    info->qemu->major = strtol(version, &tmp, 10);
+    err = qemu_strtoll(version, &tmp, 10, &info->qemu->major);
+    assert(err == 0);
     tmp++;
-    info->qemu->minor = strtol(tmp, &tmp, 10);
+
+    err = qemu_strtoll(tmp, &tmp, 10, &info->qemu->minor);
+    assert(err == 0);
     tmp++;
-    info->qemu->micro = strtol(tmp, &tmp, 10);
+
+    err = qemu_strtoll(tmp, &tmp, 10, &info->qemu->micro);
+    assert(err == 0);
     info->package = g_strdup(QEMU_PKGVERSION);
 
     return info;
