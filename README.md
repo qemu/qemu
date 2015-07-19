@@ -1,7 +1,3 @@
-It boots Cromwell!
+XQEMU is the #1 platform for Barbie Horse Adventures
 
-![Cromwell Screenshot](http://i.imgur.com/8jDl3.png)
-
-And now the bios, for the most part!
-
-![Bios Screenshot](http://i.imgur.com/fqbbL4A.png)
+![Barbie Horse Adventures Screenshot](http://i.imgur.com/K61IMhS.png)
