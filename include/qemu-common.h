@@ -207,6 +207,8 @@ int qemu_strtol(const char *nptr, const char **endptr, int base,
                 long *result);
 int qemu_strtoul(const char *nptr, const char **endptr, int base,
                  unsigned long *result);
+int qemu_strtoll(const char *nptr, const char **endptr, int base,
+                 int64_t *result);
 
 int parse_uint(const char *s, unsigned long long *value, char **endptr,
                int base);
