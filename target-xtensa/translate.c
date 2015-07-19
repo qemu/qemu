@@ -1943,7 +1943,8 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
             switch (OP2) {
             case 0: /*L32E*/
                 HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                if (gen_check_privilege(dc)) {
+                if (gen_check_privilege(dc) &&
+                    gen_window_check2(dc, RRR_S, RRR_T)) {
                     TCGv_i32 addr = tcg_temp_new_i32();
                     tcg_gen_addi_i32(addr, cpu_R[RRR_S],
                             (0xffffffc0 | (RRR_R << 2)));
@@ -1954,7 +1955,8 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
 
             case 4: /*S32E*/
                 HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                if (gen_check_privilege(dc)) {
+                if (gen_check_privilege(dc) &&
+                    gen_window_check2(dc, RRR_S, RRR_T)) {
                     TCGv_i32 addr = tcg_temp_new_i32();
                     tcg_gen_addi_i32(addr, cpu_R[RRR_S],
                             (0xffffffc0 | (RRR_R << 2)));
