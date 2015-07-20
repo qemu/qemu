@@ -104,6 +104,11 @@ static void mac128k_init(MachineState *machine)
     if (!cpu_model) {
         cpu_model = "m68000";
     }
+
+    /* RAM at address zero */
+    memory_region_allocate_system_memory(ram, NULL, "mac128k.ram", ram_size);
+    memory_region_add_subregion(address_space_mem, 0, ram);
+
     cpu = cpu_m68k_init(cpu_model);
     if (!cpu) {
         hw_error("Unable to find m68k CPU definition\n");
@@ -112,10 +117,6 @@ static void mac128k_init(MachineState *machine)
 
     /* Initialize CPU registers.  */
     env->vbr = 0;
-
-    /* RAM at address zero */
-    memory_region_allocate_system_memory(ram, NULL, "mac128k.ram", ram_size);
-    memory_region_add_subregion(address_space_mem, 0, ram);
 
     /* ROM */
     memory_region_init_ram(rom, NULL, "mac128k.rom", MAX_ROM_SIZE, &error_abort);
