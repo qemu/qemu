@@ -279,8 +279,13 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             break;
         case PORT_CMD:
             /* Block any Read-only fields from being set;
-             * including LIST_ON and FIS_ON. */
-            pr->cmd = (pr->cmd & PORT_CMD_RO_MASK) | (val & ~PORT_CMD_RO_MASK);
+             * including LIST_ON and FIS_ON.
+             * The spec requires to set ICC bits to zero after the ICC change
+             * is done. We don't support ICC state changes, therefore always
+             * force the ICC bits to zero.
+             */
+            pr->cmd = (pr->cmd & PORT_CMD_RO_MASK) |
+                      (val & ~(PORT_CMD_RO_MASK|PORT_CMD_ICC_MASK));
 
             /* Check FIS RX and CLB engines, allow transition to false: */
             ahci_cond_start_engines(&s->dev[port], true);
