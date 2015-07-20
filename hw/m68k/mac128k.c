@@ -11,6 +11,8 @@
 #include "elf.h"
 #include "exec/address-spaces.h"
 #include "exec/ram_addr.h"
+#include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 #include "sysemu/qtest.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
@@ -151,7 +153,9 @@ static void mac128k_init(MachineState *machine)
             exit(1);
         }
         fclose(f);
+        /* TODO: Remove this after fixing ROM mapping */
         entry = ldl_p(header + 4);
+        cpu_stl_kernel(env, 4, entry);
     } else {
         entry = 0;
     }
