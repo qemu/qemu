@@ -273,8 +273,7 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
     } else {
 #if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
         if (qxl->max_outputs) {
-            spice_qxl_set_monitors_config_limit(&qxl->ssd.qxl,
-                                                qxl->max_outputs);
+            spice_qxl_set_max_monitors(&qxl->ssd.qxl, qxl->max_outputs);
         }
 #endif
         qxl->guest_monitors_config = qxl->ram->monitors_config;
