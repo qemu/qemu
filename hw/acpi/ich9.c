@@ -206,9 +206,6 @@ const VMStateDescription vmstate_ich9_pm = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_memhp_state,
-        NULL
-    },
-    .subsections = (const VMStateDescription*[]) {
         &vmstate_tco_io_state,
         NULL
     }

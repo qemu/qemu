@@ -1963,14 +1963,13 @@ The hubport netdev lets you connect a NIC to a QEMU "vlan" instead of a single
 netdev.  @code{-net} and @code{-device} with parameter @option{vlan} create the
 required hub automatically.
 
-@item -netdev vhost-user,chardev=@var{id}[,vhostforce=on|off][,queues=n]
+@item -netdev vhost-user,chardev=@var{id}[,vhostforce=on|off]
 
 Establish a vhost-user netdev, backed by a chardev @var{id}. The chardev should
 be a unix domain socket backed one. The vhost-user uses a specifically defined
 protocol to pass vhost ioctl replacement messages to an application on the other
 end of the socket. On non-MSIX guests, the feature can be forced with
-@var{vhostforce}. Use 'queues=@var{n}' to specify the number of queues to
-be created for multiqueue vhost-user.
+@var{vhostforce}.
 
 Example:
 @example

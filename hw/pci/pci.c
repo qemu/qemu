@@ -2101,12 +2101,10 @@ static void pci_del_option_rom(PCIDevice *pdev)
 }
 
 /*
- * if !offset
- * Reserve space and add capability to the linked list in pci config space
- *
  * if offset = 0,
  * Find and reserve space and add capability to the linked list
- * in pci config space */
+ * in pci config space
+ */
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size)
 {

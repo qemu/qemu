@@ -120,39 +120,35 @@ static void net_vhost_user_event(void *opaque, int event)
     case CHR_EVENT_OPENED:
         vhost_user_start(s);
         net_vhost_link_down(s, false);
-        error_report("chardev \"%s\" went up", s->nc.info_str);
+        error_report("chardev \"%s\" went up", s->chr->label);
         break;
     case CHR_EVENT_CLOSED:
         net_vhost_link_down(s, true);
         vhost_user_stop(s);
-        error_report("chardev \"%s\" went down", s->nc.info_str);
+        error_report("chardev \"%s\" went down", s->chr->label);
         break;
     }
 }
 
 static int net_vhost_user_init(NetClientState *peer, const char *device,
-                               const char *name, CharDriverState *chr,
-                               uint32_t queues)
+                               const char *name, CharDriverState *chr)
 {
     NetClientState *nc;
     VhostUserState *s;
-    int i;
 
-    for (i = 0; i < queues; i++) {
-        nc = qemu_new_net_client(&net_vhost_user_info, peer, device, name);
+    nc = qemu_new_net_client(&net_vhost_user_info, peer, device, name);
 
-        snprintf(nc->info_str, sizeof(nc->info_str), "vhost-user%d to %s",
-                 i, chr->label);
+    snprintf(nc->info_str, sizeof(nc->info_str), "vhost-user to %s",
+             chr->label);
 
-        s = DO_UPCAST(VhostUserState, nc, nc);
+    s = DO_UPCAST(VhostUserState, nc, nc);
 
-        /* We don't provide a receive callback */
-        s->nc.receive_disabled = 1;
-        s->chr = chr;
-        s->nc.queue_index = i;
+    /* We don't provide a receive callback */
+    s->nc.receive_disabled = 1;
+    s->chr = chr;
 
-        qemu_chr_add_handlers(s->chr, NULL, NULL, net_vhost_user_event, s);
-    }
+    qemu_chr_add_handlers(s->chr, NULL, NULL, net_vhost_user_event, s);
+
     return 0;
 }
 
@@ -230,7 +226,6 @@ static int net_vhost_check_net(void *opaque, QemuOpts *opts, Error **errp)
 int net_init_vhost_user(const NetClientOptions *opts, const char *name,
                         NetClientState *peer, Error **errp)
 {
-    uint32_t queues;
     const NetdevVhostUserOptions *vhost_user_opts;
     CharDriverState *chr;
 
@@ -248,12 +243,6 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
         return -1;
     }
 
-    /* number of queues for multiqueue */
-    if (vhost_user_opts->has_queues) {
-        queues = vhost_user_opts->queues;
-    } else {
-        queues = 1;
-    }
 
-    return net_vhost_user_init(peer, "vhost_user", name, chr, queues);
+    return net_vhost_user_init(peer, "vhost_user", name, chr);
 }
