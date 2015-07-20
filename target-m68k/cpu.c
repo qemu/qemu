@@ -23,7 +23,7 @@
 #include "migration/vmstate.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
-
+#include "hw/hw.h"
 
 static void m68k_cpu_set_pc(CPUState *cs, vaddr value)
 {
@@ -62,6 +62,15 @@ static void m68k_cpu_reset(CPUState *s)
 
     env->pc = cpu_ldl_kernel(env, 4);
 }
+
+#ifndef CONFIG_USER_ONLY
+/* TODO: remove me, when reset over QOM tree is implemented */
+static void m68k_cpu_machine_reset_cb(void *opaque)
+{
+    M68kCPU *cpu = opaque;
+    cpu_reset(CPU(cpu));
+}
+#endif
 
 /* CPU models */
 
@@ -209,6 +218,10 @@ static void m68k_cpu_realizefn(DeviceState *dev, Error **errp)
     M68kCPUClass *mcc = M68K_CPU_GET_CLASS(dev);
 
     m68k_cpu_init_gdb(cpu);
+
+#ifndef CONFIG_USER_ONLY
+    qemu_register_reset(m68k_cpu_machine_reset_cb, cpu);
+#endif
 
     cpu_reset(cs);
     qemu_init_vcpu(cs);
