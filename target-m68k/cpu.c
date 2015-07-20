@@ -21,6 +21,8 @@
 #include "cpu.h"
 #include "qemu-common.h"
 #include "migration/vmstate.h"
+#include "exec/helper-proto.h"
+#include "exec/cpu_ldst.h"
 
 
 static void m68k_cpu_set_pc(CPUState *cs, vaddr value)
@@ -56,9 +58,9 @@ static void m68k_cpu_reset(CPUState *s)
     m68k_switch_sp(env);
 
     env->cc_op = CC_OP_FLAGS;
-    /* TODO: We should set PC from the interrupt vector.  */
-    env->pc = 0;
     tlb_flush(s, 1);
+
+    env->pc = cpu_ldl_kernel(env, 4);
 }
 
 /* CPU models */
