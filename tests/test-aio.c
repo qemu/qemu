@@ -331,7 +331,7 @@ static void test_wait_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 1 };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb);
-    g_assert(!aio_poll(ctx, false));
+    while (aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 1);
 
@@ -356,7 +356,7 @@ static void test_flush_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 10, .auto_set = true };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb);
-    g_assert(!aio_poll(ctx, false));
+    while (aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 10);
 
@@ -669,7 +669,7 @@ static void test_source_wait_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 1 };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb);
-    g_assert(g_main_context_iteration(NULL, false));
+    while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 1);
 
@@ -694,7 +694,7 @@ static void test_source_flush_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 10, .auto_set = true };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb);
-    g_assert(g_main_context_iteration(NULL, false));
+    while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 10);
 
