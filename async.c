@@ -203,6 +203,8 @@ aio_ctx_check(GSource *source)
     QEMUBH *bh;
 
     atomic_and(&ctx->notify_me, ~1);
+    event_notifier_test_and_clear(&ctx->notifier);
+
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
             return true;
@@ -279,6 +281,10 @@ static void aio_rfifolock_cb(void *opaque)
     aio_notify(opaque);
 }
 
+static void event_notifier_dummy_cb(EventNotifier *e)
+{
+}
+
 AioContext *aio_context_new(Error **errp)
 {
     int ret;
@@ -293,7 +299,7 @@ AioContext *aio_context_new(Error **errp)
     g_source_set_can_recurse(&ctx->source, true);
     aio_set_event_notifier(ctx, &ctx->notifier,
                            (EventNotifierHandler *)
-                           event_notifier_test_and_clear);
+                           event_notifier_dummy_cb);
     ctx->thread_pool = NULL;
     qemu_mutex_init(&ctx->bh_lock);
     rfifolock_init(&ctx->lock, aio_rfifolock_cb, ctx);
