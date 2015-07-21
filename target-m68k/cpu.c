@@ -58,9 +58,13 @@ static void m68k_cpu_reset(CPUState *s)
     m68k_switch_sp(env);
 
     env->cc_op = CC_OP_FLAGS;
-    tlb_flush(s, 1);
+    env->pc = 0;
+    env->vbr = 0;
+    /* Exception handler will read starting PC  
+       after resetting all devices */
+    s->exception_index = EXCP_RESET;
 
-    env->pc = cpu_ldl_kernel(env, 4);
+    tlb_flush(s, 1);
 }
 
 #ifndef CONFIG_USER_ONLY

@@ -108,26 +108,30 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
 
     vector = cs->exception_index << 2;
 
-    sp = env->aregs[7];
+    if (cs->exception_index != EXCP_RESET) {
+        sp = env->aregs[7];
 
-    fmt |= 0x40000000;
-    fmt |= (sp & 3) << 28;
-    fmt |= vector << 16;
-    fmt |= env->sr;
+        fmt |= 0x40000000;
+        fmt |= (sp & 3) << 28;
+        fmt |= vector << 16;
+        fmt |= env->sr;
 
-    env->sr |= SR_S;
-    if (is_hw) {
-        env->sr = (env->sr & ~SR_I) | (env->pending_level << SR_I_SHIFT);
-        env->sr &= ~SR_M;
+        env->sr |= SR_S;
+        if (is_hw) {
+            env->sr = (env->sr & ~SR_I) | (env->pending_level << SR_I_SHIFT);
+            env->sr &= ~SR_M;
+        }
+        m68k_switch_sp(env);
+
+        /* ??? This could cause MMU faults.  */
+        sp &= ~3;
+        sp -= 4;
+        cpu_stl_kernel(env, sp, retaddr);
+        sp -= 4;
+        cpu_stl_kernel(env, sp, fmt);
+    } else {
+        sp = cpu_ldl_kernel(env, env->vbr + vector - 4);
     }
-    m68k_switch_sp(env);
-
-    /* ??? This could cause MMU faults.  */
-    sp &= ~3;
-    sp -= 4;
-    cpu_stl_kernel(env, sp, retaddr);
-    sp -= 4;
-    cpu_stl_kernel(env, sp, fmt);
     env->aregs[7] = sp;
     /* Jump to vector.  */
     env->pc = cpu_ldl_kernel(env, env->vbr + vector);
