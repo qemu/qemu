@@ -238,6 +238,12 @@ static uint64_t s390_update_iplstate(S390IPLState *ipl)
             ipl->cssid = ccw_dev->sch->cssid;
             ipl->ssid = ccw_dev->sch->ssid;
             ipl->devno = ccw_dev->sch->devno;
+            ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
+            ipl->iplb.blk0_len =
+                cpu_to_be32(S390_IPLB_MIN_CCW_LEN - S390_IPLB_HEADER_LEN);
+            ipl->iplb.pbt = S390_IPL_TYPE_CCW;
+            ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
+            ipl->iplb_valid = true;
             goto out;
         }
     }
@@ -292,6 +298,7 @@ static void s390_ipl_reset(DeviceState *dev)
 
     if (!ipl->reipl_requested) {
         ipl->iplb_valid = false;
+        memset(&ipl->iplb, 0, sizeof(IplParameterBlock));
     }
     ipl->reipl_requested = false;
 }

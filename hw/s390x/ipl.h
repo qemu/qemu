@@ -102,6 +102,7 @@ typedef struct S390IPLState S390IPLState;
 #define S390_IPL_TYPE_FCP 0x00
 #define S390_IPL_TYPE_CCW 0x02
 
+#define S390_IPLB_HEADER_LEN 8
 #define S390_IPLB_MIN_CCW_LEN 200
 #define S390_IPLB_MIN_FCP_LEN 384
 
