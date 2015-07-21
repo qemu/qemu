@@ -99,7 +99,7 @@ QEMUTimerList *timerlist_new(QEMUClockType type,
     QEMUClock *clock = qemu_clock_ptr(type);
 
     timer_list = g_malloc0(sizeof(QEMUTimerList));
-    qemu_event_init(&timer_list->timers_done_ev, false);
+    qemu_event_init(&timer_list->timers_done_ev, true);
     timer_list->clock = clock;
     timer_list->notify_cb = cb;
     timer_list->notify_opaque = opaque;
