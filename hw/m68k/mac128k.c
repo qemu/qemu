@@ -5,7 +5,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/m68k/mac128k.h"
+#include "mac128k.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
