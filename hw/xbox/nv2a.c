@@ -5050,11 +5050,10 @@ static void pgraph_method(NV2AState *d,
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
         pgraph_allocate_inline_buffer_vertices(pg, slot);
         /* FIXME: Is mapping to [-1,+1] correct? */
-        parameter ^= 0x80008000;
-        attribute->inline_value[0] = ((parameter & 0xFFFF)
-                                          / 65535.0f - 0.5f) * 2.0f;
-        attribute->inline_value[1] = ((parameter >> 16)
-                                          / 65535.0f - 0.5f) * 2.0f;
+        attribute->inline_value[0] = ((int16_t)(parameter & 0xFFFF) * 2.0 + 1)
+                                         / 65535.0;
+        attribute->inline_value[1] = ((int16_t)(parameter >> 16) * 2.0 + 1)
+                                         / 65535.0;
         /* FIXME: Should these really be set to 0.0 and 1.0 ? Conditions? */
         attribute->inline_value[2] = 0.0;
         attribute->inline_value[3] = 1.0;
@@ -5088,11 +5087,10 @@ static void pgraph_method(NV2AState *d,
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
         pgraph_allocate_inline_buffer_vertices(pg, slot);
         /* FIXME: Is mapping to [-1,+1] correct? */
-        parameter ^= 0x80008000;
-        attribute->inline_value[part * 2 + 0] = ((parameter & 0xFFFF)
-                                                     / 65535.0f - 0.5f) * 2.0f;
-        attribute->inline_value[part * 2 + 1] = ((parameter >> 16)
-                                                     / 65535.0f - 0.5f) * 2.0f;
+        attribute->inline_value[part * 2 + 0] = ((int16_t)(parameter & 0xFFFF)
+                                                     * 2.0 + 1) / 65535.0;
+        attribute->inline_value[part * 2 + 1] = ((int16_t)(parameter >> 16)
+                                                     * 2.0 + 1) / 65535.0;
         if ((slot == 0) && (part == 1)) {
             pgraph_finish_inline_buffer_vertex(pg);
             assert(false); /* FIXME: Untested */
