@@ -1160,7 +1160,7 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
 int kvm_s390_cpu_restart(S390CPU *cpu);
 int kvm_s390_get_memslot_count(KVMState *s);
-void kvm_s390_clear_cmma_callback(void *opaque);
+void kvm_s390_cmma_reset(void);
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
 void kvm_s390_reset_vcpu(S390CPU *cpu);
 int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
@@ -1190,7 +1190,7 @@ static inline int kvm_s390_cpu_restart(S390CPU *cpu)
 {
     return -ENOSYS;
 }
-static inline void kvm_s390_clear_cmma_callback(void *opaque)
+static inline void kvm_s390_cmma_reset(void)
 {
 }
 static inline int kvm_s390_get_memslot_count(KVMState *s)
@@ -1229,11 +1229,10 @@ static inline int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
     return 0;
 }
 
-static inline void cmma_reset(S390CPU *cpu)
+static inline void s390_cmma_reset(void)
 {
     if (kvm_enabled()) {
-        CPUState *cs = CPU(cpu);
-        kvm_s390_clear_cmma_callback(cs->kvm_state);
+        kvm_s390_cmma_reset();
     }
 }
 

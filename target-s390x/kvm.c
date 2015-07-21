@@ -173,16 +173,15 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
     return kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
 }
 
-void kvm_s390_clear_cmma_callback(void *opaque)
+void kvm_s390_cmma_reset(void)
 {
     int rc;
-    KVMState *s = opaque;
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_MEM_CTRL,
         .attr = KVM_S390_VM_MEM_CLR_CMMA,
     };
 
-    rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+    rc = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
     trace_kvm_clear_cmma(rc);
 }
 
@@ -200,9 +199,6 @@ static void kvm_s390_enable_cmma(KVMState *s)
     }
 
     rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
-    if (!rc) {
-        qemu_register_reset(kvm_s390_clear_cmma_callback, s);
-    }
     trace_kvm_enable_cmma(rc);
 }
 
