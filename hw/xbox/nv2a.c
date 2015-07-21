@@ -918,7 +918,9 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_INLINE_ARRAY                                 0x00971818
 #   define NV097_SET_VERTEX_DATA2F_M                          0x00971880
 #   define NV097_SET_VERTEX_DATA4F_M                          0x00971A00
+#   define NV097_SET_VERTEX_DATA2S                            0x00971900
 #   define NV097_SET_VERTEX_DATA4UB                           0x00971940
+#   define NV097_SET_VERTEX_DATA4S_M                          0x00971980
 #   define NV097_SET_TEXTURE_OFFSET                           0x00971B00
 #   define NV097_SET_TEXTURE_FORMAT                           0x00971B04
 #       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
@@ -1309,11 +1311,14 @@ typedef struct VertexAttribute {
     unsigned int converted_size;
     unsigned int converted_count;
 
+    float *inline_buffer;
+
     GLint gl_count;
     GLenum gl_type;
     GLboolean gl_normalize;
 
     GLuint gl_converted_buffer;
+    GLuint gl_inline_buffer;
 } VertexAttribute;
 
 typedef struct VertexShaderConstant {
@@ -1402,13 +1407,6 @@ typedef struct TextureBinding {
     GLuint gl_texture;
     unsigned int refcnt;
 } TextureBinding;
-
-typedef struct InlineVertexBufferEntry {
-    float position[4];
-    float weight[4];
-    float diffuse[4];
-    float tex_coord[NV2A_MAX_TEXTURES][4];
-} InlineVertexBufferEntry;
 
 typedef struct KelvinState {
     hwaddr dma_notifies;
@@ -1537,8 +1535,6 @@ typedef struct PGRAPHState {
     uint32_t inline_elements[NV2A_MAX_BATCH_LENGTH];
 
     unsigned int inline_buffer_length;
-    InlineVertexBufferEntry inline_buffer[NV2A_MAX_BATCH_LENGTH];
-    GLuint gl_inline_buffer_buffer;
 
     GLuint gl_element_buffer;
     GLuint gl_memory_buffer;
@@ -3759,9 +3755,9 @@ static void pgraph_init(NV2AState *d)
 
     for (i=0; i<NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
         glGenBuffers(1, &pg->vertex_attributes[i].gl_converted_buffer);
+        glGenBuffers(1, &pg->vertex_attributes[i].gl_inline_buffer);
     }
     glGenBuffers(1, &pg->gl_inline_array_buffer);
-    glGenBuffers(1, &pg->gl_inline_buffer_buffer);
     glGenBuffers(1, &pg->gl_element_buffer);
 
     glGenBuffers(1, &pg->gl_memory_buffer);
@@ -3856,6 +3852,45 @@ static unsigned int kelvin_map_texgen(uint32_t parameter, unsigned int channel)
         break;
     }
     return texgen;
+}
+
+static void pgraph_allocate_inline_buffer_vertices(PGRAPHState *pg,
+                                                   unsigned int attr)
+{
+    int i;
+    VertexAttribute *attribute = &pg->vertex_attributes[attr];
+
+    if (attribute->inline_buffer || pg->inline_buffer_length == 0) {
+        return;
+    }
+
+    /* Now upload the previous attribute value */
+    attribute->inline_buffer = g_malloc(NV2A_MAX_BATCH_LENGTH
+                                                  * sizeof(float) * 4);
+    for (i = 0; i < pg->inline_buffer_length; i++) {
+        memcpy(&attribute->inline_buffer[i * 4],
+               attribute->inline_value,
+               sizeof(float) * 4);
+    }
+}
+
+static void pgraph_finish_inline_buffer_vertex(PGRAPHState *pg)
+{
+    int i;
+
+    assert(pg->inline_buffer_length < NV2A_MAX_BATCH_LENGTH);
+
+    for (i = 0; i < NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
+        VertexAttribute *attribute = &pg->vertex_attributes[i];
+        if (attribute->inline_buffer) {
+            memcpy(&attribute->inline_buffer[
+                      pg->inline_buffer_length * 4],
+                   attribute->inline_value,
+                   sizeof(float) * 4);
+        }
+    }
+
+    pg->inline_buffer_length++;
 }
 
 static void pgraph_method(NV2AState *d,
@@ -4566,28 +4601,13 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_VERTEX4F ...
             NV097_SET_VERTEX4F + 12: {
-
         slot = (class_method - NV097_SET_VERTEX4F) / 4;
-
-        assert(pg->inline_buffer_length < NV2A_MAX_BATCH_LENGTH);
-
-        InlineVertexBufferEntry *entry =
-            &pg->inline_buffer[pg->inline_buffer_length];
-
-        entry->position[slot] = *(float*)&parameter;
+        VertexAttribute *attribute =
+            &pg->vertex_attributes[NV2A_VERTEX_ATTR_POSITION];
+        pgraph_allocate_inline_buffer_vertices(pg, NV2A_VERTEX_ATTR_POSITION);
+        attribute->inline_value[slot] = *(float*)&parameter;
         if (slot == 3) {
-            memcpy(entry->diffuse,
-                   pg->vertex_attributes[NV2A_VERTEX_ATTR_DIFFUSE].inline_value,
-                   sizeof(float)*4);
-
-            for (i=0; i<NV2A_MAX_TEXTURES; i++) {
-                memcpy(entry->tex_coord[i],
-                       pg->vertex_attributes[NV2A_VERTEX_ATTR_TEXTURE0+i]
-                                            .inline_value,
-                       sizeof(float)*4);
-            }
-
-            pg->inline_buffer_length++;
+            pgraph_finish_inline_buffer_vertex(pg);
         }
         break;
     }
@@ -4705,48 +4725,31 @@ static void pgraph_method(NV2AState *d,
         if (parameter == NV097_SET_BEGIN_END_OP_END) {
             if (pg->inline_buffer_length) {
 
-                // pgraph_bind_vertex_attributes(...)
+                for (i = 0; i < NV2A_VERTEXSHADER_ATTRIBUTES; i++) {
+                    VertexAttribute *attribute = &pg->vertex_attributes[i];
 
-                glBindBuffer(GL_ARRAY_BUFFER, pg->gl_inline_buffer_buffer);
-                glBufferData(GL_ARRAY_BUFFER,
-                             pg->inline_buffer_length
-                                * sizeof(InlineVertexBufferEntry),
-                             pg->inline_buffer,
-                             GL_DYNAMIC_DRAW);
+                    if (attribute->inline_buffer) {
 
-                glVertexAttribPointer(NV2A_VERTEX_ATTR_POSITION,
-                        4,
-                        GL_FLOAT,
-                        GL_FALSE,
-                        sizeof(InlineVertexBufferEntry),
-                        (void*)offsetof(InlineVertexBufferEntry, position));
-                glEnableVertexAttribArray(NV2A_VERTEX_ATTR_POSITION);
+                        glBindBuffer(GL_ARRAY_BUFFER,
+                                     attribute->gl_inline_buffer);
+                        glBufferData(GL_ARRAY_BUFFER,
+                                     pg->inline_buffer_length
+                                        * sizeof(float) * 4,
+                                     attribute->inline_buffer,
+                                     GL_DYNAMIC_DRAW);
 
-                glVertexAttribPointer(NV2A_VERTEX_ATTR_WEIGHT,
-                        4,
-                        GL_FLOAT,
-                        GL_FALSE,
-                        sizeof(InlineVertexBufferEntry),
-                        (void*)offsetof(InlineVertexBufferEntry, weight));
-                glEnableVertexAttribArray(NV2A_VERTEX_ATTR_WEIGHT);
+                        /* Clear buffer for next batch */
+                        g_free(attribute->inline_buffer);
+                        attribute->inline_buffer = NULL;
 
-                glVertexAttribPointer(NV2A_VERTEX_ATTR_DIFFUSE,
-                        4,
-                        GL_FLOAT,
-                        GL_FALSE,
-                        sizeof(InlineVertexBufferEntry),
-                        (void*)offsetof(InlineVertexBufferEntry, diffuse));
-                glEnableVertexAttribArray(NV2A_VERTEX_ATTR_DIFFUSE);
+                        glVertexAttribPointer(i, 4, GL_FLOAT, GL_FALSE, 0, 0);
+                        glEnableVertexAttribArray(i);
+                    } else {
+                        glDisableVertexAttribArray(i);
 
-                for (i=0; i<NV2A_MAX_TEXTURES; i++) {
-                    glVertexAttribPointer(NV2A_VERTEX_ATTR_TEXTURE0+i,
-                            4,
-                            GL_FLOAT,
-                            GL_FALSE,
-                            sizeof(InlineVertexBufferEntry),
-                            (void*)(offsetof(InlineVertexBufferEntry, tex_coord)
-                                        + i*sizeof(float)*4));
-                    glEnableVertexAttribArray(NV2A_VERTEX_ATTR_TEXTURE0+i);
+                        glVertexAttrib4fv(i, attribute->inline_value);
+                    }
+
                 }
 
                 glDrawArrays(pg->gl_primitive_mode,
@@ -4887,6 +4890,7 @@ static void pgraph_method(NV2AState *d,
             pg->inline_elements_length = 0;
             pg->inline_array_length = 0;
             pg->inline_buffer_length = 0;
+
         }
 
         pgraph_set_surface_dirty(pg, true, depth_test || stencil_test);
@@ -5012,36 +5016,87 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_VERTEX_DATA2F_M ...
             NV097_SET_VERTEX_DATA2F_M + 0x7c: {
-        slot = (class_method - NV097_SET_VERTEX_DATA2F_M) / 8;
-        unsigned int part =
-            ((class_method - NV097_SET_VERTEX_DATA2F_M) % 8) / 4;
-        pg->vertex_attributes[slot].inline_value[part] = *(float*)&parameter;
-        pg->vertex_attributes[slot].inline_value[2] = 0.0;
-        pg->vertex_attributes[slot].inline_value[3] = 1.0;
+        slot = (class_method - NV097_SET_VERTEX_DATA2F_M) / 4;
+        unsigned int part = slot % 2;
+        slot /= 2;
+        VertexAttribute *attribute = &pg->vertex_attributes[slot];
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
+        attribute->inline_value[part] = *(float*)&parameter;
+        /* FIXME: Should these really be set to 0.0 and 1.0 ? Conditions? */
+        attribute->inline_value[2] = 0.0;
+        attribute->inline_value[3] = 1.0;
+        if ((slot == 0) && (part == 1)) {
+            pgraph_finish_inline_buffer_vertex(pg);
+        }
         break;
     }
-
     case NV097_SET_VERTEX_DATA4F_M ...
             NV097_SET_VERTEX_DATA4F_M + 0xfc: {
-        slot = (class_method - NV097_SET_VERTEX_DATA4F_M) / 16;
-        unsigned int part =
-            ((class_method - NV097_SET_VERTEX_DATA4F_M) % 16) / 4;
-        pg->vertex_attributes[slot].inline_value[part] = *(float*)&parameter;
+        slot = (class_method - NV097_SET_VERTEX_DATA4F_M) / 4;
+        unsigned int part = slot % 4;
+        slot /= 4;
+        VertexAttribute *attribute = &pg->vertex_attributes[slot];
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
+        attribute->inline_value[part] = *(float*)&parameter;
+        if ((slot == 0) && (part == 3)) {
+            pgraph_finish_inline_buffer_vertex(pg);
+        }
         break;
     }
-
-    case NV097_SET_VERTEX_DATA4UB ...
-            NV097_SET_VERTEX_DATA4UB + 0x3c:
-        slot = (class_method - NV097_SET_VERTEX_DATA4UB) / 4;
-        pg->vertex_attributes[slot].inline_value[0] =
-            (parameter & 0xFF) / 255.0;
-        pg->vertex_attributes[slot].inline_value[1] =
-            ((parameter >> 8) & 0xFF) / 255.0;
-        pg->vertex_attributes[slot].inline_value[2] =
-            ((parameter >> 16) & 0xFF) / 255.0;
-        pg->vertex_attributes[slot].inline_value[3] =
-            ((parameter >> 24) & 0xFF) / 255.0;
+    case NV097_SET_VERTEX_DATA2S ...
+            NV097_SET_VERTEX_DATA2S + 0x3c: {
+        slot = (class_method - NV097_SET_VERTEX_DATA2S) / 4;
+        assert(false); /* FIXME: Untested! */
+        VertexAttribute *attribute = &pg->vertex_attributes[slot];
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
+        /* FIXME: Is mapping to [-1,+1] correct? */
+        attribute->inline_value[0] = ((int16_t)(parameter & 0xFFFF) * 2.0 + 1)
+                                         / 65535.0;
+        attribute->inline_value[1] = ((int16_t)(parameter >> 16) * 2.0 + 1)
+                                         / 65535.0;
+        /* FIXME: Should these really be set to 0.0 and 1.0 ? Conditions? */
+        attribute->inline_value[2] = 0.0;
+        attribute->inline_value[3] = 1.0;
+        if (slot == 0) {
+            pgraph_finish_inline_buffer_vertex(pg);
+            assert(false); /* FIXME: Untested */
+        }
         break;
+    }
+    case NV097_SET_VERTEX_DATA4UB ...
+            NV097_SET_VERTEX_DATA4UB + 0x3c: {
+        slot = (class_method - NV097_SET_VERTEX_DATA4UB) / 4;
+        VertexAttribute *attribute = &pg->vertex_attributes[slot];
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
+        attribute->inline_value[0] = (parameter & 0xFF) / 255.0;
+        attribute->inline_value[1] = ((parameter >> 8) & 0xFF) / 255.0;
+        attribute->inline_value[2] = ((parameter >> 16) & 0xFF) / 255.0;
+        attribute->inline_value[3] = ((parameter >> 24) & 0xFF) / 255.0;
+        if (slot == 0) {
+            pgraph_finish_inline_buffer_vertex(pg);
+            assert(false); /* FIXME: Untested */
+        }
+        break;
+    }
+    case NV097_SET_VERTEX_DATA4S_M ...
+            NV097_SET_VERTEX_DATA4S_M + 0x7c: {
+        slot = (class_method - NV097_SET_VERTEX_DATA4S_M) / 4;
+        unsigned int part = slot % 2;
+        slot /= 2;
+        assert(false); /* FIXME: Untested! */
+        VertexAttribute *attribute = &pg->vertex_attributes[slot];
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
+        /* FIXME: Is mapping to [-1,+1] correct? */
+        attribute->inline_value[part * 2 + 0] = ((int16_t)(parameter & 0xFFFF)
+                                                     * 2.0 + 1) / 65535.0;
+        attribute->inline_value[part * 2 + 1] = ((int16_t)(parameter >> 16)
+                                                     * 2.0 + 1) / 65535.0;
+        if ((slot == 0) && (part == 1)) {
+            pgraph_finish_inline_buffer_vertex(pg);
+            assert(false); /* FIXME: Untested */
+        }
+        break;
+    }
 
     case NV097_SET_SEMAPHORE_OFFSET:
         kelvin->semaphore_offset = parameter;
