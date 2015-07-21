@@ -338,7 +338,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         }
 
         if (first) {
-            event_notifier_test_and_clear(&ctx->notifier);
+            aio_notify_accept(ctx);
             progress |= aio_bh_poll(ctx);
             first = false;
         }

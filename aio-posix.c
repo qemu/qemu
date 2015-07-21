@@ -276,7 +276,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         aio_context_acquire(ctx);
     }
 
-    event_notifier_test_and_clear(&ctx->notifier);
+    aio_notify_accept(ctx);
 
     /* if we have any readable fds, dispatch event */
     if (ret > 0) {

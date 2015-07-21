@@ -99,7 +99,19 @@ struct AioContext {
      */
     int walking_bh;
 
-    /* Used for aio_notify.  */
+    /* Used by aio_notify.
+     *
+     * "notified" is used to avoid expensive event_notifier_test_and_clear
+     * calls.  When it is clear, the EventNotifier is clear, or one thread
+     * is going to clear "notified" before processing more events.  False
+     * positives are possible, i.e. "notified" could be set even though the
+     * EventNotifier is clear.
+     *
+     * Note that event_notifier_set *cannot* be optimized the same way.  For
+     * more information on the problem that would result, see "#ifdef BUG2"
+     * in the docs/aio_notify_accept.promela formal model.
+     */
+    bool notified;
     EventNotifier notifier;
 
     /* Thread pool for performing work and receiving completion callbacks */
@@ -172,6 +184,24 @@ QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
  * a bottom half calls it already.
  */
 void aio_notify(AioContext *ctx);
+
+/**
+ * aio_notify_accept: Acknowledge receiving an aio_notify.
+ *
+ * aio_notify() uses an EventNotifier in order to wake up a sleeping
+ * aio_poll() or g_main_context_iteration().  Calls to aio_notify() are
+ * usually rare, but the AioContext has to clear the EventNotifier on
+ * every aio_poll() or g_main_context_iteration() in order to avoid
+ * busy waiting.  This event_notifier_test_and_clear() cannot be done
+ * using the usual aio_context_set_event_notifier(), because it must
+ * be done before processing all events (file descriptors, bottom halves,
+ * timers).
+ *
+ * aio_notify_accept() is an optimized event_notifier_test_and_clear()
+ * that is specific to an AioContext's notifier; it is used internally
+ * to clear the EventNotifier only if aio_notify() had been called.
+ */
+void aio_notify_accept(AioContext *ctx);
 
 /**
  * aio_bh_poll: Poll bottom halves for an AioContext.

@@ -203,7 +203,7 @@ aio_ctx_check(GSource *source)
     QEMUBH *bh;
 
     atomic_and(&ctx->notify_me, ~1);
-    event_notifier_test_and_clear(&ctx->notifier);
+    aio_notify_accept(ctx);
 
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
@@ -267,6 +267,14 @@ void aio_notify(AioContext *ctx)
     smp_mb();
     if (ctx->notify_me) {
         event_notifier_set(&ctx->notifier);
+        atomic_mb_set(&ctx->notified, true);
+    }
+}
+
+void aio_notify_accept(AioContext *ctx)
+{
+    if (atomic_xchg(&ctx->notified, false)) {
+        event_notifier_test_and_clear(&ctx->notifier);
     }
 }
 
