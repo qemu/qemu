@@ -2797,7 +2797,10 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
 #ifdef MSG_CMSG_CLOEXEC
     flags |= MSG_CMSG_CLOEXEC;
 #endif
-    ret = recvmsg(s->fd, &msg, flags);
+    do {
+        ret = recvmsg(s->fd, &msg, flags);
+    } while (ret == -1 && errno == EINTR);
+
     if (ret > 0 && s->is_unix) {
         unix_process_msgfd(chr, &msg);
     }
@@ -2808,7 +2811,13 @@ static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
 static ssize_t tcp_chr_recv(CharDriverState *chr, char *buf, size_t len)
 {
     TCPCharDriver *s = chr->opaque;
-    return qemu_recv(s->fd, buf, len, 0);
+    ssize_t ret;
+
+    do {
+        ret = qemu_recv(s->fd, buf, len, 0);
+    } while (ret == -1 && socket_error() == EINTR);
+
+    return ret;
 }
 #endif
 
