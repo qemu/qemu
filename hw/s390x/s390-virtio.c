@@ -40,6 +40,7 @@
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/s390-virtio.h"
 #include "hw/s390x/storage-keys.h"
+#include "hw/s390x/ipl.h"
 #include "cpu.h"
 
 //#define DEBUG_S390
@@ -314,6 +315,17 @@ void s390_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+void s390_machine_reset(void)
+{
+    S390CPU *ipl_cpu = S390_CPU(qemu_get_cpu(0));
+
+    qemu_devices_reset();
+
+    /* all cpus are stopped - configure and start the ipl cpu only */
+    s390_ipl_prepare_cpu(ipl_cpu);
+    s390_cpu_set_state(CPU_STATE_OPERATING, ipl_cpu);
+}
+
 static void s390_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -322,6 +334,7 @@ static void s390_machine_class_init(ObjectClass *oc, void *data)
     mc->alias = "s390";
     mc->desc = "VirtIO based S390 machine";
     mc->init = s390_init;
+    mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
     mc->max_cpus = 255;
     mc->no_serial = 1;
