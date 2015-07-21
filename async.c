@@ -184,6 +184,8 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 {
     AioContext *ctx = (AioContext *) source;
 
+    atomic_or(&ctx->notify_me, 1);
+
     /* We assume there is no timeout already supplied */
     *timeout = qemu_timeout_ns_to_ms(aio_compute_timeout(ctx));
 
@@ -200,6 +202,7 @@ aio_ctx_check(GSource *source)
     AioContext *ctx = (AioContext *) source;
     QEMUBH *bh;
 
+    atomic_and(&ctx->notify_me, ~1);
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
             return true;
@@ -254,23 +257,13 @@ ThreadPool *aio_get_thread_pool(AioContext *ctx)
     return ctx->thread_pool;
 }
 
-void aio_set_dispatching(AioContext *ctx, bool dispatching)
-{
-    ctx->dispatching = dispatching;
-    if (!dispatching) {
-        /* Write ctx->dispatching before reading e.g. bh->scheduled.
-         * Optimization: this is only needed when we're entering the "unsafe"
-         * phase where other threads must call event_notifier_set.
-         */
-        smp_mb();
-    }
-}
-
 void aio_notify(AioContext *ctx)
 {
-    /* Write e.g. bh->scheduled before reading ctx->dispatching.  */
+    /* Write e.g. bh->scheduled before reading ctx->notify_me.  Pairs
+     * with atomic_or in aio_ctx_prepare or atomic_add in aio_poll.
+     */
     smp_mb();
-    if (!ctx->dispatching) {
+    if (ctx->notify_me) {
         event_notifier_set(&ctx->notifier);
     }
 }

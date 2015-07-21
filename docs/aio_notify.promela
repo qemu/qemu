@@ -1,5 +1,5 @@
 /*
- * This model describes the interaction between aio_set_dispatching()
+ * This model describes the interaction between ctx->notify_me
  * and aio_notify().
  *
  * Author: Paolo Bonzini <pbonzini@redhat.com>
@@ -14,57 +14,53 @@
  *     spin -a docs/aio_notify.promela
  *     gcc -O2 pan.c
  *     ./a.out -a
+ *
+ * To verify it (with a bug planted in the model):
+ *     spin -a -DBUG docs/aio_notify.promela
+ *     gcc -O2 pan.c
+ *     ./a.out -a
  */
 
 #define MAX   4
 #define LAST  (1 << (MAX - 1))
 #define FINAL ((LAST << 1) - 1)
 
-bool dispatching;
+bool notify_me;
 bool event;
 
-int req, done;
+int req;
+int done;
 
 active proctype waiter()
 {
-     int fetch, blocking;
+    int fetch;
 
-     do
-        :: done != FINAL -> {
-            // Computing "blocking" is separate from execution of the
-            // "bottom half"
-            blocking = (req == 0);
+    do
+        :: true -> {
+            notify_me++;
 
-            // This is our "bottom half"
+            if
+#ifndef BUG
+                :: (req > 0) -> skip;
+#endif
+                :: else ->
+                    // Wait for a nudge from the other side
+                    do
+                        :: event == 1 -> { event = 0; break; }
+                    od;
+            fi;
+
+            notify_me--;
+
             atomic { fetch = req; req = 0; }
             done = done | fetch;
-
-            // Wait for a nudge from the other side
-            do
-                :: event == 1 -> { event = 0; break; }
-                :: !blocking  -> break;
-            od;
-
-            dispatching = 1;
-
-            // If you are simulating this model, you may want to add
-            // something like this here:
-            //
-            //      int foo; foo++; foo++; foo++;
-            //
-            // This only wastes some time and makes it more likely
-            // that the notifier process hits the "fast path".
-
-            dispatching = 0;
         }
-        :: else -> break;
     od
 }
 
 active proctype notifier()
 {
     int next = 1;
-    int sets = 0;
 
     do
         :: next <= LAST -> {
@@ -74,8 +70,8 @@ active proctype notifier()
 
             // aio_notify
             if
-                :: dispatching == 0 -> sets++; event = 1;
-                :: else             -> skip;
+                :: notify_me == 1 -> event = 1;
+                :: else           -> printf("Skipped event_notifier_set\n"); skip;
             fi;
 
             // Test both synchronous and asynchronous delivery
@@ -86,19 +82,12 @@ active proctype notifier()
                 :: 1 -> skip;
             fi;
         }
-        :: else -> break;
     od;
-    printf("Skipped %d event_notifier_set\n", MAX - sets);
 }
 
-#define p (done == FINAL)
-
-never  {
-    do
-        :: 1                      // after an arbitrarily long prefix
-        :: p -> break             // p becomes true
-    od;
-    do
-        :: !p -> accept: break    // it then must remains true forever after
-    od
+never { /* [] done < FINAL */
+accept_init:
+        do
+        :: done < FINAL -> skip;
+        od;
 }
