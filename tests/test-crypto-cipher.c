@@ -226,12 +226,10 @@ static void test_cipher(const void *opaque)
     const QCryptoCipherTestData *data = opaque;
 
     QCryptoCipher *cipher;
-    Error *err = NULL;
     uint8_t *key, *iv, *ciphertext, *plaintext, *outtext;
     size_t nkey, niv, nciphertext, nplaintext;
     char *outtexthex;
 
-    g_test_message("foo");
     nkey = unhex_string(data->key, &key);
     niv = unhex_string(data->iv, &iv);
     nciphertext = unhex_string(data->ciphertext, &ciphertext);
@@ -244,27 +242,41 @@ static void test_cipher(const void *opaque)
     cipher = qcrypto_cipher_new(
         data->alg, data->mode,
         key, nkey,
-        &err);
+        &error_abort);
     g_assert(cipher != NULL);
-    g_assert(err == NULL);
 
 
     if (iv) {
         g_assert(qcrypto_cipher_setiv(cipher,
                                       iv, niv,
-                                      &err) == 0);
-        g_assert(err == NULL);
+                                      &error_abort) == 0);
     }
     g_assert(qcrypto_cipher_encrypt(cipher,
                                     plaintext,
                                     outtext,
                                     nplaintext,
-                                    &err) == 0);
-    g_assert(err == NULL);
+                                    &error_abort) == 0);
 
     outtexthex = hex_string(outtext, nciphertext);
 
     g_assert_cmpstr(outtexthex, ==, data->ciphertext);
+
+    g_free(outtexthex);
+
+    if (iv) {
+        g_assert(qcrypto_cipher_setiv(cipher,
+                                      iv, niv,
+                                      &error_abort) == 0);
+    }
+    g_assert(qcrypto_cipher_decrypt(cipher,
+                                    ciphertext,
+                                    outtext,
+                                    nplaintext,
+                                    &error_abort) == 0);
+
+    outtexthex = hex_string(outtext, nplaintext);
+
+    g_assert_cmpstr(outtexthex, ==, data->plaintext);
 
     g_free(outtext);
     g_free(outtexthex);
