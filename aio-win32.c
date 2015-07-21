@@ -284,11 +284,6 @@ bool aio_poll(AioContext *ctx, bool blocking)
     int timeout;
 
     aio_context_acquire(ctx);
-    have_select_revents = aio_prepare(ctx);
-    if (have_select_revents) {
-        blocking = false;
-    }
-
     was_dispatching = ctx->dispatching;
     progress = false;
 
@@ -304,6 +299,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
      */
     aio_set_dispatching(ctx, !blocking);
 
+    have_select_revents = aio_prepare(ctx);
+
     ctx->walking_handlers++;
 
     /* fill fd sets */
@@ -317,12 +314,18 @@ bool aio_poll(AioContext *ctx, bool blocking)
     ctx->walking_handlers--;
     first = true;
 
-    /* wait until next event */
-    while (count > 0) {
+    /* ctx->notifier is always registered.  */
+    assert(count > 0);
+
+    /* Multiple iterations, all of them non-blocking except the first,
+     * may be necessary to process all pending events.  After the first
+     * WaitForMultipleObjects call ctx->notify_me will be decremented.
+     */
+    do {
         HANDLE event;
         int ret;
 
-        timeout = blocking
+        timeout = blocking && !have_select_revents
             ? qemu_timeout_ns_to_ms(aio_compute_timeout(ctx)) : 0;
         if (timeout) {
             aio_context_release(ctx);
@@ -351,7 +354,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
         blocking = false;
 
         progress |= aio_dispatch_handlers(ctx, event);
-    }
+    } while (count > 0);
 
     progress |= timerlistgroup_run_timers(&ctx->tlg);
 
