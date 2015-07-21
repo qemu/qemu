@@ -42,7 +42,7 @@ public:
         stream_ = stream;
     }
 
-    void SetPrintf(int (*printf_fn)(FILE *, const char *, ...)) {
+    void SetPrintf(fprintf_function printf_fn) {
         printf_ = printf_fn;
     }
 
@@ -53,7 +53,7 @@ protected:
     }
 
 private:
-    int (*printf_)(FILE *, const char *, ...);
+    fprintf_function printf_;
     FILE *stream_;
 };
 

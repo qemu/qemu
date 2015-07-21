@@ -17,7 +17,7 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
     abort();
 }
 
-bool write_list_to_kvmstate(ARMCPU *cpu)
+bool write_list_to_kvmstate(ARMCPU *cpu, int level)
 {
     abort();
 }

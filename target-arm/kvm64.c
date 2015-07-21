@@ -139,6 +139,34 @@ bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
     }
 }
 
+typedef struct CPRegStateLevel {
+    uint64_t regidx;
+    int level;
+} CPRegStateLevel;
+
+/* All system registers not listed in the following table are assumed to be
+ * of the level KVM_PUT_RUNTIME_STATE. If a register should be written less
+ * often, you must add it to this table with a state of either
+ * KVM_PUT_RESET_STATE or KVM_PUT_FULL_STATE.
+ */
+static const CPRegStateLevel non_runtime_cpregs[] = {
+    { KVM_REG_ARM_TIMER_CNT, KVM_PUT_FULL_STATE },
+};
+
+int kvm_arm_cpreg_level(uint64_t regidx)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(non_runtime_cpregs); i++) {
+        const CPRegStateLevel *l = &non_runtime_cpregs[i];
+        if (l->regidx == regidx) {
+            return l->level;
+        }
+    }
+
+    return KVM_PUT_RUNTIME_STATE;
+}
+
 #define AARCH64_CORE_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
                  KVM_REG_ARM_CORE | KVM_REG_ARM_CORE_REG(x))
 
@@ -280,7 +308,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
-    if (!write_list_to_kvmstate(cpu)) {
+    if (!write_list_to_kvmstate(cpu, level)) {
         return EINVAL;
     }
 

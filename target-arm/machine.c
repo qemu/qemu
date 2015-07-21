@@ -251,7 +251,7 @@ static int cpu_post_load(void *opaque, int version_id)
     }
 
     if (kvm_enabled()) {
-        if (!write_list_to_kvmstate(cpu)) {
+        if (!write_list_to_kvmstate(cpu, KVM_PUT_FULL_STATE)) {
             return -1;
         }
         /* Note that it's OK for the TCG side not to know about
