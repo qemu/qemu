@@ -35,26 +35,23 @@ typedef struct S390CcwMachineState {
     bool dea_key_wrap;
 } S390CcwMachineState;
 
+static const char *const reset_dev_types[] = {
+    "virtual-css-bridge",
+    "s390-sclp-event-facility",
+    "s390-flic",
+    "diag288",
+};
+
 void subsystem_reset(void)
 {
-    DeviceState *css, *sclp, *flic, *diag288;
+    DeviceState *dev;
+    int i;
 
-    css = DEVICE(object_resolve_path_type("", "virtual-css-bridge", NULL));
-    if (css) {
-        qdev_reset_all(css);
-    }
-    sclp = DEVICE(object_resolve_path_type("",
-                  "s390-sclp-event-facility", NULL));
-    if (sclp) {
-        qdev_reset_all(sclp);
-    }
-    flic = DEVICE(object_resolve_path_type("", "s390-flic", NULL));
-    if (flic) {
-        qdev_reset_all(flic);
-    }
-    diag288 = DEVICE(object_resolve_path_type("", "diag288", NULL));
-    if (diag288) {
-        qdev_reset_all(diag288);
+    for (i = 0; i < ARRAY_SIZE(reset_dev_types); i++) {
+        dev = DEVICE(object_resolve_path_type("", reset_dev_types[i], NULL));
+        if (dev) {
+            qdev_reset_all(dev);
+        }
     }
 }
 
