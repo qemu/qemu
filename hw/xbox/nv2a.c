@@ -3854,7 +3854,8 @@ static unsigned int kelvin_map_texgen(uint32_t parameter, unsigned int channel)
     return texgen;
 }
 
-static void allocate_inline_buffer_vertices(PGRAPHState *pg, unsigned int attr)
+static void pgraph_allocate_inline_buffer_vertices(PGRAPHState *pg,
+                                                   unsigned int attr)
 {
     int i;
     VertexAttribute *attribute = &pg->vertex_attributes[attr];
@@ -3873,7 +3874,7 @@ static void allocate_inline_buffer_vertices(PGRAPHState *pg, unsigned int attr)
     }
 }
 
-static void finish_inline_buffer_vertex(PGRAPHState *pg)
+static void pgraph_finish_inline_buffer_vertex(PGRAPHState *pg)
 {
     int i;
 
@@ -4603,10 +4604,10 @@ static void pgraph_method(NV2AState *d,
         slot = (class_method - NV097_SET_VERTEX4F) / 4;
         VertexAttribute *attribute =
             &pg->vertex_attributes[NV2A_VERTEX_ATTR_POSITION];
-        allocate_inline_buffer_vertices(pg, NV2A_VERTEX_ATTR_POSITION);
+        pgraph_allocate_inline_buffer_vertices(pg, NV2A_VERTEX_ATTR_POSITION);
         attribute->inline_value[slot] = *(float*)&parameter;
         if (slot == 3) {
-            finish_inline_buffer_vertex(pg);
+            pgraph_finish_inline_buffer_vertex(pg);
         }
         break;
     }
@@ -5019,13 +5020,13 @@ static void pgraph_method(NV2AState *d,
         unsigned int part = slot % 2;
         slot /= 2;
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
-        allocate_inline_buffer_vertices(pg, slot);
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
         attribute->inline_value[part] = *(float*)&parameter;
         /* FIXME: Should these really be set to 0.0 and 1.0 ? Conditions? */
         attribute->inline_value[2] = 0.0;
         attribute->inline_value[3] = 1.0;
         if ((slot == 0) && (part == 1)) {
-            finish_inline_buffer_vertex(pg);
+            pgraph_finish_inline_buffer_vertex(pg);
         }
         break;
     }
@@ -5035,10 +5036,10 @@ static void pgraph_method(NV2AState *d,
         unsigned int part = slot % 4;
         slot /= 4;
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
-        allocate_inline_buffer_vertices(pg, slot);
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
         attribute->inline_value[part] = *(float*)&parameter;
         if ((slot == 0) && (part == 3)) {
-            finish_inline_buffer_vertex(pg);
+            pgraph_finish_inline_buffer_vertex(pg);
         }
         break;
     }
@@ -5047,7 +5048,7 @@ static void pgraph_method(NV2AState *d,
         slot = (class_method - NV097_SET_VERTEX_DATA2S) / 4;
         assert(false); /* FIXME: Untested! */
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
-        allocate_inline_buffer_vertices(pg, slot);
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
         /* FIXME: Is mapping to [-1,+1] correct? */
         parameter ^= 0x80008000;
         attribute->inline_value[0] = ((parameter & 0xFFFF)
@@ -5058,7 +5059,7 @@ static void pgraph_method(NV2AState *d,
         attribute->inline_value[2] = 0.0;
         attribute->inline_value[3] = 1.0;
         if (slot == 0) {
-            finish_inline_buffer_vertex(pg);
+            pgraph_finish_inline_buffer_vertex(pg);
             assert(false); /* FIXME: Untested */
         }
         break;
@@ -5067,13 +5068,13 @@ static void pgraph_method(NV2AState *d,
             NV097_SET_VERTEX_DATA4UB + 0x3c: {
         slot = (class_method - NV097_SET_VERTEX_DATA4UB) / 4;
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
-        allocate_inline_buffer_vertices(pg, slot);
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
         attribute->inline_value[0] = (parameter & 0xFF) / 255.0;
         attribute->inline_value[1] = ((parameter >> 8) & 0xFF) / 255.0;
         attribute->inline_value[2] = ((parameter >> 16) & 0xFF) / 255.0;
         attribute->inline_value[3] = ((parameter >> 24) & 0xFF) / 255.0;
         if (slot == 0) {
-            finish_inline_buffer_vertex(pg);
+            pgraph_finish_inline_buffer_vertex(pg);
             assert(false); /* FIXME: Untested */
         }
         break;
@@ -5085,7 +5086,7 @@ static void pgraph_method(NV2AState *d,
         slot /= 2;
         assert(false); /* FIXME: Untested! */
         VertexAttribute *attribute = &pg->vertex_attributes[slot];
-        allocate_inline_buffer_vertices(pg, slot);
+        pgraph_allocate_inline_buffer_vertices(pg, slot);
         /* FIXME: Is mapping to [-1,+1] correct? */
         parameter ^= 0x80008000;
         attribute->inline_value[part * 2 + 0] = ((parameter & 0xFFFF)
@@ -5093,7 +5094,7 @@ static void pgraph_method(NV2AState *d,
         attribute->inline_value[part * 2 + 1] = ((parameter >> 16)
                                                      / 65535.0f - 0.5f) * 2.0f;
         if ((slot == 0) && (part == 1)) {
-            finish_inline_buffer_vertex(pg);
+            pgraph_finish_inline_buffer_vertex(pg);
             assert(false); /* FIXME: Untested */
         }
         break;
