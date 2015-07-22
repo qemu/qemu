@@ -25,6 +25,10 @@
 /* A guest should never accept this.  It implies negotiation is broken. */
 #define VIRTIO_F_BAD_FEATURE		30
 
+#define VIRTIO_LEGACY_FEATURES ((0x1ULL << VIRTIO_F_BAD_FEATURE) | \
+                                (0x1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) | \
+                                (0x1ULL << VIRTIO_F_ANY_LAYOUT))
+
 struct VirtQueue;
 
 static inline hwaddr vring_align(hwaddr addr,
