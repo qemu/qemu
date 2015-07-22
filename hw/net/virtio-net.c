@@ -1777,8 +1777,6 @@ static void virtio_net_instance_init(Object *obj)
 }
 
 static Property virtio_net_properties[] = {
-    DEFINE_PROP_BIT("any_layout", VirtIONet, host_features,
-                    VIRTIO_F_ANY_LAYOUT, true),
     DEFINE_PROP_BIT("csum", VirtIONet, host_features, VIRTIO_NET_F_CSUM, true),
     DEFINE_PROP_BIT("guest_csum", VirtIONet, host_features,
                     VIRTIO_NET_F_GUEST_CSUM, true),

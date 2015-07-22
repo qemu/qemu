@@ -731,6 +731,7 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features)
     virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
     virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
     virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
+    virtio_clear_feature(&features, VIRTIO_F_ANY_LAYOUT);
 
     if (s->conf.config_wce) {
         virtio_add_feature(&features, VIRTIO_BLK_F_CONFIG_WCE);
