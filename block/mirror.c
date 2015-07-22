@@ -388,7 +388,7 @@ static void coroutine_fn mirror_run(void *opaque)
     MirrorBlockJob *s = opaque;
     MirrorExitData *data;
     BlockDriverState *bs = s->common.bs;
-    int64_t sector_num, end, sectors_per_chunk, length;
+    int64_t sector_num, end, length;
     uint64_t last_pause_ns;
     BlockDriverInfo bdi;
     char backing_filename[2]; /* we only need 2 characters because we are only
@@ -442,7 +442,6 @@ static void coroutine_fn mirror_run(void *opaque)
         goto immediate_exit;
     }
 
-    sectors_per_chunk = s->granularity >> BDRV_SECTOR_BITS;
     mirror_free_init(s);
 
     last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
@@ -450,7 +449,9 @@ static void coroutine_fn mirror_run(void *opaque)
         /* First part, loop on the sectors and initialize the dirty bitmap.  */
         BlockDriverState *base = s->base;
         for (sector_num = 0; sector_num < end; ) {
-            int64_t next = (sector_num | (sectors_per_chunk - 1)) + 1;
+            /* Just to make sure we are not exceeding int limit. */
+            int nb_sectors = MIN(INT_MAX >> BDRV_SECTOR_BITS,
+                                 end - sector_num);
             int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
             if (now - last_pause_ns > SLICE_TIME) {
@@ -462,8 +463,7 @@ static void coroutine_fn mirror_run(void *opaque)
                 goto immediate_exit;
             }
 
-            ret = bdrv_is_allocated_above(bs, base,
-                                          sector_num, next - sector_num, &n);
+            ret = bdrv_is_allocated_above(bs, base, sector_num, nb_sectors, &n);
 
             if (ret < 0) {
                 goto immediate_exit;
@@ -472,10 +472,8 @@ static void coroutine_fn mirror_run(void *opaque)
             assert(n > 0);
             if (ret == 1) {
                 bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);
-                sector_num = next;
-            } else {
-                sector_num += n;
             }
+            sector_num += n;
         }
     }
 

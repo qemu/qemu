@@ -63,10 +63,30 @@ struct AioContext {
      */
     int walking_handlers;
 
-    /* Used to avoid unnecessary event_notifier_set calls in aio_notify.
-     * Writes protected by lock or BQL, reads are lockless.
+    /* Used to avoid unnecessary event_notifier_set calls in aio_notify;
+     * accessed with atomic primitives.  If this field is 0, everything
+     * (file descriptors, bottom halves, timers) will be re-evaluated
+     * before the next blocking poll(), thus the event_notifier_set call
+     * can be skipped.  If it is non-zero, you may need to wake up a
+     * concurrent aio_poll or the glib main event loop, making
+     * event_notifier_set necessary.
+     *
+     * Bit 0 is reserved for GSource usage of the AioContext, and is 1
+     * between a call to aio_ctx_check and the next call to aio_ctx_dispatch.
+     * Bits 1-31 simply count the number of active calls to aio_poll
+     * that are in the prepare or poll phase.
+     *
+     * The GSource and aio_poll must use a different mechanism because
+     * there is no certainty that a call to GSource's prepare callback
+     * (via g_main_context_prepare) is indeed followed by check and
+     * dispatch.  It's not clear whether this would be a bug, but let's
+     * play safe and allow it---it will just cause extra calls to
+     * event_notifier_set until the next call to dispatch.
+     *
+     * Instead, the aio_poll calls include both the prepare and the
+     * dispatch phase, hence a simple counter is enough for them.
      */
-    bool dispatching;
+    uint32_t notify_me;
 
     /* lock to protect between bh's adders and deleter */
     QemuMutex bh_lock;
@@ -79,7 +99,19 @@ struct AioContext {
      */
     int walking_bh;
 
-    /* Used for aio_notify.  */
+    /* Used by aio_notify.
+     *
+     * "notified" is used to avoid expensive event_notifier_test_and_clear
+     * calls.  When it is clear, the EventNotifier is clear, or one thread
+     * is going to clear "notified" before processing more events.  False
+     * positives are possible, i.e. "notified" could be set even though the
+     * EventNotifier is clear.
+     *
+     * Note that event_notifier_set *cannot* be optimized the same way.  For
+     * more information on the problem that would result, see "#ifdef BUG2"
+     * in the docs/aio_notify_accept.promela formal model.
+     */
+    bool notified;
     EventNotifier notifier;
 
     /* Thread pool for performing work and receiving completion callbacks */
@@ -88,9 +120,6 @@ struct AioContext {
     /* TimerLists for calling timers - one per clock type */
     QEMUTimerListGroup tlg;
 };
-
-/* Used internally to synchronize aio_poll against qemu_bh_schedule.  */
-void aio_set_dispatching(AioContext *ctx, bool dispatching);
 
 /**
  * aio_context_new: Allocate a new AioContext.
@@ -155,6 +184,24 @@ QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque);
  * a bottom half calls it already.
  */
 void aio_notify(AioContext *ctx);
+
+/**
+ * aio_notify_accept: Acknowledge receiving an aio_notify.
+ *
+ * aio_notify() uses an EventNotifier in order to wake up a sleeping
+ * aio_poll() or g_main_context_iteration().  Calls to aio_notify() are
+ * usually rare, but the AioContext has to clear the EventNotifier on
+ * every aio_poll() or g_main_context_iteration() in order to avoid
+ * busy waiting.  This event_notifier_test_and_clear() cannot be done
+ * using the usual aio_context_set_event_notifier(), because it must
+ * be done before processing all events (file descriptors, bottom halves,
+ * timers).
+ *
+ * aio_notify_accept() is an optimized event_notifier_test_and_clear()
+ * that is specific to an AioContext's notifier; it is used internally
+ * to clear the EventNotifier only if aio_notify() had been called.
+ */
+void aio_notify_accept(AioContext *ctx);
 
 /**
  * aio_bh_poll: Poll bottom halves for an AioContext.
