@@ -10,7 +10,7 @@
 #include "hw/hw.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
-#include "hw/m68k/mac128k.h"
+#include "mac128k.h"
 
 /* register offsets */
 enum

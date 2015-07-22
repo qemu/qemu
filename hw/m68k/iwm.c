@@ -3,7 +3,7 @@
  */
 
 #include "hw/hw.h"
-#include "hw/m68k/mac128k.h"
+#include "mac128k.h"
 
 typedef struct {
     M68kCPU *cpu;
