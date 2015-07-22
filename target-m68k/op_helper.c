@@ -57,14 +57,20 @@ static void do_rte(CPUM68KState *env)
 {
     uint32_t sp;
     uint32_t fmt;
+    int offset = 4;
 
     sp = env->aregs[7];
-    fmt = cpu_ldl_kernel(env, sp);
-    env->pc = cpu_ldl_kernel(env, sp + 4);
+    if (m68k_feature(env, M68K_FEATURE_M68000)) {
+        fmt = cpu_lduw_kernel(env, sp);
+        offset = 2;
+    } else {
+        fmt = cpu_ldl_kernel(env, sp);
+    }
+    env->pc = cpu_ldl_kernel(env, sp + offset);
     sp |= (fmt >> 28) & 3;
     env->sr = fmt & 0xffff;
     m68k_switch_sp(env);
-    env->aregs[7] = sp + 8;
+    env->aregs[7] = sp + 4 + offset;
 }
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
@@ -127,8 +133,14 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
         sp &= ~3;
         sp -= 4;
         cpu_stl_kernel(env, sp, retaddr);
-        sp -= 4;
-        cpu_stl_kernel(env, sp, fmt);
+        if (m68k_feature(env, M68K_FEATURE_M68000)) {
+            /* Store only SR for 68000 */
+            sp -= 2;
+            cpu_stw_kernel(env, sp, fmt);
+        } else {
+            sp -= 4;
+            cpu_stl_kernel(env, sp, fmt);
+        }
     } else {
         sp = cpu_ldl_kernel(env, env->vbr + vector - 4);
     }
