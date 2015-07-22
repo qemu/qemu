@@ -2520,7 +2520,7 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
     size_t i, pwlen;
     unsigned char key[8];
     time_t now = time(NULL);
-    QCryptoCipher *cipher;
+    QCryptoCipher *cipher = NULL;
     Error *err = NULL;
 
     if (!vs->vd->password) {
@@ -2573,6 +2573,8 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
 
         start_client_init(vs);
     }
+
+    qcrypto_cipher_free(cipher);
     return 0;
 
 reject:
@@ -2584,6 +2586,7 @@ reject:
     }
     vnc_flush(vs);
     vnc_client_error(vs);
+    qcrypto_cipher_free(cipher);
     return 0;
 }
 
