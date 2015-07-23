@@ -519,7 +519,16 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
                      "future QEMU versions.\n",
                      bs->filename);
     }
-#endif
+#else
+    if (bdrv_flags & BDRV_O_NATIVE_AIO) {
+        error_printf("WARNING: aio=native was specified for '%s', but "
+                     "is not supported in this build. Falling back to "
+                     "aio=threads.\n"
+                     "         This will become an error condition in "
+                     "future QEMU versions.\n",
+                     bs->filename);
+    }
+#endif /* !defined(CONFIG_LINUX_AIO) */
 
     s->has_discard = true;
     s->has_write_zeroes = true;
