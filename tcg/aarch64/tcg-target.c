@@ -1204,18 +1204,18 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
                             TCGMemOpIdx oi, TCGType ext)
 {
     TCGMemOp memop = get_memop(oi);
+    const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
 #ifdef CONFIG_SOFTMMU
     unsigned mem_index = get_mmuidx(oi);
     TCGMemOp s_bits = memop & MO_SIZE;
     tcg_insn_unit *label_ptr;
 
     tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 1);
-    tcg_out_qemu_ld_direct(s, memop, ext, data_reg, addr_reg,
-                           TCG_TYPE_I64, TCG_REG_X1);
+    tcg_out_qemu_ld_direct(s, memop, ext, data_reg,
+                           TCG_REG_X1, otype, addr_reg);
     add_qemu_ldst_label(s, true, oi, ext, data_reg, addr_reg,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
-    const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
     tcg_out_qemu_ld_direct(s, memop, ext, data_reg,
                            GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
                            otype, addr_reg);
@@ -1226,18 +1226,18 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
                             TCGMemOpIdx oi)
 {
     TCGMemOp memop = get_memop(oi);
+    const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
 #ifdef CONFIG_SOFTMMU
     unsigned mem_index = get_mmuidx(oi);
     TCGMemOp s_bits = memop & MO_SIZE;
     tcg_insn_unit *label_ptr;
 
     tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 0);
-    tcg_out_qemu_st_direct(s, memop, data_reg, addr_reg,
-                           TCG_TYPE_I64, TCG_REG_X1);
+    tcg_out_qemu_st_direct(s, memop, data_reg,
+                           TCG_REG_X1, otype, addr_reg);
     add_qemu_ldst_label(s, false, oi, s_bits == MO_64, data_reg, addr_reg,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
-    const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
     tcg_out_qemu_st_direct(s, memop, data_reg,
                            GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
                            otype, addr_reg);
