@@ -411,7 +411,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         bdrv_flags |= BDRV_O_NO_FLUSH;
     }
 
-#ifdef CONFIG_LINUX_AIO
     if ((buf = qemu_opt_get(opts, "aio")) != NULL) {
         if (!strcmp(buf, "native")) {
             bdrv_flags |= BDRV_O_NATIVE_AIO;
@@ -422,7 +421,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
            goto early_err;
         }
     }
-#endif
 
     if ((buf = qemu_opt_get(opts, "format")) != NULL) {
         if (is_help_option(buf)) {
