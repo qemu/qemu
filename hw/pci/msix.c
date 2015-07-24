@@ -314,9 +314,7 @@ int msix_init_exclusive_bar(PCIDevice *dev, unsigned short nentries,
         bar_size = bar_pba_offset + bar_pba_size;
     }
 
-    if (bar_size & (bar_size - 1)) {
-        bar_size = 1 << qemu_fls(bar_size);
-    }
+    bar_size = pow2ceil(bar_size);
 
     name = g_strdup_printf("%s-msix", dev->name);
     memory_region_init(&dev->msix_exclusive_bar, OBJECT(dev), name, bar_size);

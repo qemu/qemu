@@ -2071,9 +2071,7 @@ static void pci_add_option_rom(PCIDevice *pdev, bool is_default_rom,
         g_free(path);
         return;
     }
-    if (size & (size - 1)) {
-        size = 1 << qemu_fls(size);
-    }
+    size = pow2ceil(size);
 
     vmsd = qdev_get_vmsd(DEVICE(pdev));
 
