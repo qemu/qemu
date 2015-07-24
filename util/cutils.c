@@ -145,11 +145,6 @@ time_t mktimegm(struct tm *tm)
     return t;
 }
 
-int qemu_fls(int i)
-{
-    return 32 - clz32(i);
-}
-
 /*
  * Make sure data goes on disk, but if possible do not bother to
  * write out the inode just for timestamp updates.
