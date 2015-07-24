@@ -1337,7 +1337,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   vnc-sasl        SASL encryption for VNC server
   vnc-jpeg        JPEG lossy compression for VNC server
   vnc-png         PNG compression for VNC server
-  vnc-ws          Websockets support for VNC server
   cocoa           Cocoa UI (Mac OS X only)
   virtfs          VirtFS
   xen             xen backend driver support
