@@ -2680,7 +2680,7 @@ DISAS_INSN(from_mac)
     if (s->env->macsr & MACSR_FI) {
         gen_helper_get_macf(rx, cpu_env, acc);
     } else if ((s->env->macsr & MACSR_OMC) == 0) {
-        tcg_gen_trunc_i64_i32(rx, acc);
+        tcg_gen_extrl_i64_i32(rx, acc);
     } else if (s->env->macsr & MACSR_SU) {
         gen_helper_get_macs(rx, acc);
     } else {

@@ -540,14 +540,14 @@ static inline void gen_madd32_d(TCGv ret, TCGv r1, TCGv r2, TCGv r3)
     tcg_gen_mul_i64(t1, t1, t3);
     tcg_gen_add_i64(t1, t2, t1);
 
-    tcg_gen_trunc_i64_i32(ret, t1);
+    tcg_gen_extrl_i64_i32(ret, t1);
     /* calc V
        t1 > 0x7fffffff */
     tcg_gen_setcondi_i64(TCG_COND_GT, t3, t1, 0x7fffffffLL);
     /* t1 < -0x80000000 */
     tcg_gen_setcondi_i64(TCG_COND_LT, t2, t1, -0x80000000LL);
     tcg_gen_or_i64(t2, t2, t3);
-    tcg_gen_trunc_i64_i32(cpu_PSW_V, t2);
+    tcg_gen_extrl_i64_i32(cpu_PSW_V, t2);
     tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
     /* Calc SV bit */
     tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
@@ -621,7 +621,7 @@ gen_maddu64_d(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
     /* only the add overflows, if t2 < t1
        calc V bit */
     tcg_gen_setcond_i64(TCG_COND_LTU, t2, t2, t1);
-    tcg_gen_trunc_i64_i32(cpu_PSW_V, t2);
+    tcg_gen_extrl_i64_i32(cpu_PSW_V, t2);
     tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
     /* Calc SV bit */
     tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
@@ -1110,12 +1110,12 @@ gen_madd32_q(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, uint32_t n,
     tcg_gen_sari_i64(t2, t2, up_shift);
 
     tcg_gen_add_i64(t3, t1, t2);
-    tcg_gen_trunc_i64_i32(temp3, t3);
+    tcg_gen_extrl_i64_i32(temp3, t3);
     /* calc v bit */
     tcg_gen_setcondi_i64(TCG_COND_GT, t1, t3, 0x7fffffffLL);
     tcg_gen_setcondi_i64(TCG_COND_LT, t2, t3, -0x80000000LL);
     tcg_gen_or_i64(t1, t1, t2);
-    tcg_gen_trunc_i64_i32(cpu_PSW_V, t1);
+    tcg_gen_extrl_i64_i32(cpu_PSW_V, t1);
     tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
     /* We produce an overflow on the host if the mul before was
        (0x80000000 * 0x80000000) << 1). If this is the
@@ -1356,14 +1356,14 @@ static inline void gen_msub32_d(TCGv ret, TCGv r1, TCGv r2, TCGv r3)
     tcg_gen_mul_i64(t1, t1, t3);
     tcg_gen_sub_i64(t1, t2, t1);
 
-    tcg_gen_trunc_i64_i32(ret, t1);
+    tcg_gen_extrl_i64_i32(ret, t1);
     /* calc V
        t2 > 0x7fffffff */
     tcg_gen_setcondi_i64(TCG_COND_GT, t3, t1, 0x7fffffffLL);
     /* result < -0x80000000 */
     tcg_gen_setcondi_i64(TCG_COND_LT, t2, t1, -0x80000000LL);
     tcg_gen_or_i64(t2, t2, t3);
-    tcg_gen_trunc_i64_i32(cpu_PSW_V, t2);
+    tcg_gen_extrl_i64_i32(cpu_PSW_V, t2);
     tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
 
     /* Calc SV bit */
@@ -1445,7 +1445,7 @@ gen_msubu64_d(TCGv ret_low, TCGv ret_high, TCGv r1, TCGv r2_low, TCGv r2_high,
     tcg_gen_extr_i64_i32(ret_low, ret_high, t3);
     /* calc V bit, only the sub can overflow, if t1 > t2 */
     tcg_gen_setcond_i64(TCG_COND_GTU, t1, t1, t2);
-    tcg_gen_trunc_i64_i32(cpu_PSW_V, t1);
+    tcg_gen_extrl_i64_i32(cpu_PSW_V, t1);
     tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
     /* Calc SV bit */
     tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
@@ -1973,12 +1973,12 @@ gen_msub32_q(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, uint32_t n,
     tcg_gen_add_i64(t2, t2, t4);
 
     tcg_gen_sub_i64(t3, t1, t2);
-    tcg_gen_trunc_i64_i32(temp3, t3);
+    tcg_gen_extrl_i64_i32(temp3, t3);
     /* calc v bit */
     tcg_gen_setcondi_i64(TCG_COND_GT, t1, t3, 0x7fffffffLL);
     tcg_gen_setcondi_i64(TCG_COND_LT, t2, t3, -0x80000000LL);
     tcg_gen_or_i64(t1, t1, t2);
-    tcg_gen_trunc_i64_i32(cpu_PSW_V, t1);
+    tcg_gen_extrl_i64_i32(cpu_PSW_V, t1);
     tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
     /* Calc SV bit */
     tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);

@@ -2007,7 +2007,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_REG_31(rb);
             t32 = tcg_temp_new_i32();
             va = load_gpr(ctx, ra);
-            tcg_gen_trunc_i64_i32(t32, va);
+            tcg_gen_extrl_i64_i32(t32, va);
             gen_helper_memory_to_s(vc, t32);
             tcg_temp_free_i32(t32);
             break;
@@ -2027,7 +2027,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             REQUIRE_REG_31(rb);
             t32 = tcg_temp_new_i32();
             va = load_gpr(ctx, ra);
-            tcg_gen_trunc_i64_i32(t32, va);
+            tcg_gen_extrl_i64_i32(t32, va);
             gen_helper_memory_to_f(vc, t32);
             tcg_temp_free_i32(t32);
             break;

@@ -164,7 +164,7 @@ static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
         TCGv_i64 t = tcg_temp_new_i64();
 
         tcg_gen_shri_i64(t, cpu_fpr[src / 2], 32);
-        tcg_gen_trunc_i64_i32(ret, t);
+        tcg_gen_extrl_i64_i32(ret, t);
         tcg_temp_free_i64(t);
 
         return ret;
@@ -379,8 +379,8 @@ static TCGv_i32 gen_add32_carry32(void)
 #if TARGET_LONG_BITS == 64
     cc_src1_32 = tcg_temp_new_i32();
     cc_src2_32 = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(cc_src1_32, cpu_cc_dst);
-    tcg_gen_trunc_i64_i32(cc_src2_32, cpu_cc_src);
+    tcg_gen_extrl_i64_i32(cc_src1_32, cpu_cc_dst);
+    tcg_gen_extrl_i64_i32(cc_src2_32, cpu_cc_src);
 #else
     cc_src1_32 = cpu_cc_dst;
     cc_src2_32 = cpu_cc_src;
@@ -405,8 +405,8 @@ static TCGv_i32 gen_sub32_carry32(void)
 #if TARGET_LONG_BITS == 64
     cc_src1_32 = tcg_temp_new_i32();
     cc_src2_32 = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(cc_src1_32, cpu_cc_src);
-    tcg_gen_trunc_i64_i32(cc_src2_32, cpu_cc_src2);
+    tcg_gen_extrl_i64_i32(cc_src1_32, cpu_cc_src);
+    tcg_gen_extrl_i64_i32(cc_src2_32, cpu_cc_src2);
 #else
     cc_src1_32 = cpu_cc_src;
     cc_src2_32 = cpu_cc_src2;
@@ -2254,11 +2254,11 @@ static void gen_fmovs(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
        the later.  */
     c32 = tcg_temp_new_i32();
     if (cmp->is_bool) {
-        tcg_gen_trunc_i64_i32(c32, cmp->c1);
+        tcg_gen_extrl_i64_i32(c32, cmp->c1);
     } else {
         TCGv_i64 c64 = tcg_temp_new_i64();
         tcg_gen_setcond_i64(cmp->cond, c64, cmp->c1, cmp->c2);
-        tcg_gen_trunc_i64_i32(c32, c64);
+        tcg_gen_extrl_i64_i32(c32, c64);
         tcg_temp_free_i64(c64);
     }
 

@@ -279,7 +279,7 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
                 tcg_gen_extu_i32_i64(ta, cpu_R[ra]);
                 tcg_gen_extu_i32_i64(tb, cpu_R[rb]);
                 tcg_gen_add_i64(td, ta, tb);
-                tcg_gen_trunc_i64_i32(res, td);
+                tcg_gen_extrl_i64_i32(res, td);
                 tcg_gen_shri_i64(td, td, 31);
                 tcg_gen_andi_i64(td, td, 0x3);
                 /* Jump to lab when no overflow.  */
@@ -324,7 +324,7 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
                 tcg_gen_shri_i64(tcy, tcy, 10);
                 tcg_gen_add_i64(td, ta, tb);
                 tcg_gen_add_i64(td, td, tcy);
-                tcg_gen_trunc_i64_i32(res, td);
+                tcg_gen_extrl_i64_i32(res, td);
                 tcg_gen_shri_i64(td, td, 32);
                 tcg_gen_andi_i64(td, td, 0x3);
                 /* Jump to lab when no overflow.  */
@@ -366,7 +366,7 @@ static void dec_calc(DisasContext *dc, uint32_t insn)
                 tcg_gen_extu_i32_i64(ta, cpu_R[ra]);
                 tcg_gen_extu_i32_i64(tb, cpu_R[rb]);
                 tcg_gen_sub_i64(td, ta, tb);
-                tcg_gen_trunc_i64_i32(res, td);
+                tcg_gen_extrl_i64_i32(res, td);
                 tcg_gen_shri_i64(td, td, 31);
                 tcg_gen_andi_i64(td, td, 0x3);
                 /* Jump to lab when no overflow.  */
@@ -779,9 +779,9 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
             tcg_gen_ext_i32_i64(t1, dst);
             tcg_gen_concat_i32_i64(t2, maclo, machi);
             tcg_gen_add_i64(t2, t2, t1);
-            tcg_gen_trunc_i64_i32(maclo, t2);
+            tcg_gen_extrl_i64_i32(maclo, t2);
             tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_i32(machi, t2);
+            tcg_gen_extrl_i64_i32(machi, t2);
             tcg_temp_free_i32(dst);
             tcg_temp_free(ttmp);
             tcg_temp_free_i64(t1);
@@ -898,7 +898,7 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
                 TCGv_i32 sr_ove = tcg_temp_local_new_i32();
                 tcg_gen_extu_i32_i64(ta, cpu_R[ra]);
                 tcg_gen_addi_i64(td, ta, sign_extend(I16, 16));
-                tcg_gen_trunc_i64_i32(res, td);
+                tcg_gen_extrl_i64_i32(res, td);
                 tcg_gen_shri_i64(td, td, 32);
                 tcg_gen_andi_i64(td, td, 0x3);
                 /* Jump to lab when no overflow.  */
@@ -934,7 +934,7 @@ static void dec_misc(DisasContext *dc, uint32_t insn)
             tcg_gen_extu_i32_i64(tcy, sr_cy);
             tcg_gen_addi_i64(td, ta, sign_extend(I16, 16));
             tcg_gen_add_i64(td, td, tcy);
-            tcg_gen_trunc_i64_i32(res, td);
+            tcg_gen_extrl_i64_i32(res, td);
             tcg_gen_shri_i64(td, td, 32);
             tcg_gen_andi_i64(td, td, 0x3);
             /* Jump to lab when no overflow.  */
@@ -1073,9 +1073,9 @@ static void dec_mac(DisasContext *dc, uint32_t insn)
             tcg_gen_ext_i32_i64(t1, t0);
             tcg_gen_concat_i32_i64(t2, maclo, machi);
             tcg_gen_add_i64(t2, t2, t1);
-            tcg_gen_trunc_i64_i32(maclo, t2);
+            tcg_gen_extrl_i64_i32(maclo, t2);
             tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_i32(machi, t2);
+            tcg_gen_extrl_i64_i32(machi, t2);
             tcg_temp_free_i32(t0);
             tcg_temp_free_i64(t1);
             tcg_temp_free_i64(t2);
@@ -1092,9 +1092,9 @@ static void dec_mac(DisasContext *dc, uint32_t insn)
             tcg_gen_ext_i32_i64(t1, t0);
             tcg_gen_concat_i32_i64(t2, maclo, machi);
             tcg_gen_sub_i64(t2, t2, t1);
-            tcg_gen_trunc_i64_i32(maclo, t2);
+            tcg_gen_extrl_i64_i32(maclo, t2);
             tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_i32(machi, t2);
+            tcg_gen_extrl_i64_i32(machi, t2);
             tcg_temp_free_i32(t0);
             tcg_temp_free_i64(t1);
             tcg_temp_free_i64(t2);
