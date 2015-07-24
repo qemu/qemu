@@ -68,7 +68,6 @@ typedef struct Peer {
 
 typedef struct EventfdEntry {
     PCIDevice *pdev;
-    int vector;
 } EventfdEntry;
 
 typedef struct IVShmemState {
@@ -287,9 +286,11 @@ static void fake_irqfd(void *opaque, const uint8_t *buf, int size) {
 
     EventfdEntry *entry = opaque;
     PCIDevice *pdev = entry->pdev;
+    IVShmemState *s = IVSHMEM(pdev);
+    int vector = entry - s->eventfd_table;
 
-    IVSHMEM_DPRINTF("interrupt on vector %p %d\n", pdev, entry->vector);
-    msix_notify(pdev, entry->vector);
+    IVSHMEM_DPRINTF("interrupt on vector %p %d\n", pdev, vector);
+    msix_notify(pdev, vector);
 }
 
 static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *n,
@@ -311,7 +312,6 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
     /* if MSI is supported we need multiple interrupts */
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
         s->eventfd_table[vector].pdev = PCI_DEVICE(s);
-        s->eventfd_table[vector].vector = vector;
 
         qemu_chr_add_handlers(chr, ivshmem_can_receive, fake_irqfd,
                       ivshmem_event, &s->eventfd_table[vector]);
