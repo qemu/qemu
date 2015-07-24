@@ -1505,9 +1505,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     if (legacy) {
         size = VIRTIO_PCI_REGION_SIZE(&proxy->pci_dev)
             + virtio_bus_get_vdev_config_len(bus);
-        if (size & (size - 1)) {
-            size = 1 << qemu_fls(size);
-        }
+        size = pow2ceil(size);
 
         memory_region_init_io(&proxy->bar, OBJECT(proxy),
                               &virtio_pci_config_ops,
