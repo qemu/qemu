@@ -1517,7 +1517,7 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
                     memory_region_name(&quirk->mem),
                     vdev->vbasedev.name);
 
-            return quirk->data.address_match ^ 0x10000000U;
+            return quirk->data.address_match ^ 0x80000000U;
         }
         break;
     case 0: /* data */
@@ -1558,7 +1558,7 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
     switch (addr) {
     case 4: /* address */
         if ((data & 0x7fff0000) == 0x10000) {
-            if (data & 0x10000000U &&
+            if (data & 0x80000000U &&
                 vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX) {
 
                 trace_vfio_rtl8168_window_quirk_write_table(
@@ -1566,11 +1566,9 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
                         vdev->vbasedev.name);
 
                 memory_region_dispatch_write(&vdev->pdev.msix_table_mmio,
-                                             (hwaddr)(quirk->data.address_match
-                                                      & 0xfff),
-                                             data,
-                                             size,
-                                             MEMTXATTRS_UNSPECIFIED);
+                                             (hwaddr)(data & 0xfff),
+                                             (uint64_t)quirk->data.address_mask,
+                                             size, MEMTXATTRS_UNSPECIFIED);
             }
 
             quirk->data.flags = 1;
@@ -3751,7 +3749,6 @@ static Property vfio_pci_dev_properties[] = {
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
     DEFINE_PROP_BIT("x-req", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_REQ_BIT, true),
-    DEFINE_PROP_INT32("bootindex", VFIOPCIDevice, bootindex, -1),
     DEFINE_PROP_BOOL("x-mmap", VFIOPCIDevice, vbasedev.allow_mmap, true),
     /*
      * TODO - support passed fds... is this necessary?
