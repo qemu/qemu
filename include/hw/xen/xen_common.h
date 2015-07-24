@@ -186,6 +186,15 @@ static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
 }
 #endif
 
+/* Xen before 4.6 */
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 460
+
+#ifndef HVM_IOREQSRV_BUFIOREQ_ATOMIC
+#define HVM_IOREQSRV_BUFIOREQ_ATOMIC 2
+#endif
+
+#endif
+
 /* Xen before 4.5 */
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 450
 
@@ -370,7 +379,8 @@ static inline void xen_unmap_pcidev(XenXC xc, domid_t dom,
 static inline int xen_create_ioreq_server(XenXC xc, domid_t dom,
                                           ioservid_t *ioservid)
 {
-    int rc = xc_hvm_create_ioreq_server(xc, dom, 1, ioservid);
+    int rc = xc_hvm_create_ioreq_server(xc, dom, HVM_IOREQSRV_BUFIOREQ_ATOMIC,
+                                        ioservid);
 
     if (rc == 0) {
         trace_xen_ioreq_server_create(*ioservid);
