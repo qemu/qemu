@@ -399,6 +399,8 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
     path = 0x80;
 
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
+        s->cstat = 0;
+        s->dstat = 0;
         /* Look at the orb and try to execute the channel program. */
         assert(orb != NULL); /* resume does not pass an orb */
         p->intparm = orb->intparm;
