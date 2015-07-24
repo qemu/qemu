@@ -805,7 +805,7 @@ static int nvme_init(PCIDevice *pci_dev)
 
     n->num_namespaces = 1;
     n->num_queues = 64;
-    n->reg_size = 1 << qemu_fls(0x1004 + 2 * (n->num_queues + 1) * 4);
+    n->reg_size = pow2ceil(0x1004 + 2 * (n->num_queues + 1) * 4);
     n->ns_size = bs_size / (uint64_t)n->num_namespaces;
 
     n->namespaces = g_new0(NvmeNamespace, n->num_namespaces);
