@@ -2116,10 +2116,26 @@ fi
 ##########################################
 # GNUTLS probe
 
+gnutls_works() {
+    # Unfortunately some distros have bad pkg-config information for gnutls
+    # such that it claims to exist but you get a compiler error if you try
+    # to use the options returned by --libs. Specifically, Ubuntu for --static
+    # builds doesn't work:
+    # https://bugs.launchpad.net/ubuntu/+source/gnutls26/+bug/1478035
+    #
+    # So sanity check the cflags/libs before assuming gnutls can be used.
+    if ! $pkg_config --exists "gnutls"; then
+        return 1
+    fi
+
+    write_c_skeleton
+    compile_prog "$($pkg_config --cflags gnutls)" "$($pkg_config --libs gnutls)"
+}
+
 gnutls_gcrypt=no
 gnutls_nettle=no
 if test "$gnutls" != "no"; then
-    if $pkg_config --exists "gnutls"; then
+    if gnutls_works; then
         gnutls_cflags=`$pkg_config --cflags gnutls`
         gnutls_libs=`$pkg_config --libs gnutls`
         libs_softmmu="$gnutls_libs $libs_softmmu"
