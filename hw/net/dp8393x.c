@@ -643,11 +643,6 @@ static int dp8393x_receive_filter(dp8393xState *s, const uint8_t * buf,
     static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     int i;
 
-    /* Check for runt packet (remember that checksum is not there) */
-    if (size < 64 - 4) {
-        return (s->regs[SONIC_RCR] & SONIC_RCR_RNT) ? 0 : -1;
-    }
-
     /* Check promiscuous mode */
     if ((s->regs[SONIC_RCR] & SONIC_RCR_PRO) && (buf[0] & 1) == 0) {
         return 0;
