@@ -1210,7 +1210,7 @@ static void *file_ram_alloc(RAMBlock *block,
     unlink(filename);
     g_free(filename);
 
-    memory = (memory+hpagesize-1) & ~(hpagesize-1);
+    memory = ROUND_UP(memory, hpagesize);
 
     /*
      * ftruncate is not supported by hugetlbfs in older
