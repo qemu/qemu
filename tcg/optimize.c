@@ -205,7 +205,7 @@ static void tcg_opt_gen_movi(TCGContext *s, TCGOp *op, TCGArg *args,
     temps[dst].state = TCG_TEMP_CONST;
     temps[dst].val = val;
     mask = val;
-    if (TCG_TARGET_REG_BITS > 32 && new_op == INDEX_op_mov_i32) {
+    if (TCG_TARGET_REG_BITS > 32 && new_op == INDEX_op_movi_i32) {
         /* High bits of the destination are now garbage.  */
         mask |= ~0xffffffffull;
     }
