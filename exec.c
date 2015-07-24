@@ -954,7 +954,10 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
             iotlb |= PHYS_SECTION_ROM;
         }
     } else {
-        iotlb = section - section->address_space->dispatch->map.sections;
+        AddressSpaceDispatch *d;
+
+        d = atomic_rcu_read(&section->address_space->dispatch);
+        iotlb = section - d->map.sections;
         iotlb += xlat;
     }
 

@@ -440,7 +440,7 @@ translator cannot deduce statically).
 @section Direct block chaining
 
 After each translated basic block is executed, QEMU uses the simulated
-Program Counter (PC) and other cpu state informations (such as the CS
+Program Counter (PC) and other cpu state information (such as the CS
 segment base value) to find the next basic block.
 
 In order to accelerate the most common cases where the new simulated PC

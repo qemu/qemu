@@ -180,6 +180,7 @@ struct MemoryRegion {
     bool warning_printed; /* For reservations */
     bool flush_coalesced_mmio;
     bool global_locking;
+    uint8_t vga_logging_count;
     MemoryRegion *alias;
     hwaddr alias_offset;
     int32_t priority;
