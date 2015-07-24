@@ -457,11 +457,11 @@ gen_add64_d(TCGv_i64 ret, TCGv_i64 r1, TCGv_i64 r2)
     tcg_gen_xor_i64(t1, result, r1);
     tcg_gen_xor_i64(t0, r1, r2);
     tcg_gen_andc_i64(t1, t1, t0);
-    tcg_gen_trunc_shr_i64_i32(cpu_PSW_V, t1, 32);
+    tcg_gen_extrh_i64_i32(cpu_PSW_V, t1);
     /* calc SV bit */
     tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
     /* calc AV/SAV bits */
-    tcg_gen_trunc_shr_i64_i32(temp, result, 32);
+    tcg_gen_extrh_i64_i32(temp, result);
     tcg_gen_add_tl(cpu_PSW_AV, temp, temp);
     tcg_gen_xor_tl(cpu_PSW_AV, temp, cpu_PSW_AV);
     /* calc SAV */
@@ -1273,7 +1273,7 @@ gen_madd64_q(TCGv rl, TCGv rh, TCGv arg1_low, TCGv arg1_high, TCGv arg2,
     tcg_gen_xor_i64(t3, t4, t1);
     tcg_gen_xor_i64(t2, t1, t2);
     tcg_gen_andc_i64(t3, t3, t2);
-    tcg_gen_trunc_shr_i64_i32(cpu_PSW_V, t3, 32);
+    tcg_gen_extrh_i64_i32(cpu_PSW_V, t3);
     /* We produce an overflow on the host if the mul before was
        (0x80000000 * 0x80000000) << 1). If this is the
        case, we negate the ovf. */
@@ -1630,11 +1630,11 @@ gen_sub64_d(TCGv_i64 ret, TCGv_i64 r1, TCGv_i64 r2)
     tcg_gen_xor_i64(t1, result, r1);
     tcg_gen_xor_i64(t0, r1, r2);
     tcg_gen_and_i64(t1, t1, t0);
-    tcg_gen_trunc_shr_i64_i32(cpu_PSW_V, t1, 32);
+    tcg_gen_extrh_i64_i32(cpu_PSW_V, t1);
     /* calc SV bit */
     tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
     /* calc AV/SAV bits */
-    tcg_gen_trunc_shr_i64_i32(temp, result, 32);
+    tcg_gen_extrh_i64_i32(temp, result);
     tcg_gen_add_tl(cpu_PSW_AV, temp, temp);
     tcg_gen_xor_tl(cpu_PSW_AV, temp, cpu_PSW_AV);
     /* calc SAV */
@@ -2126,7 +2126,7 @@ gen_msub64_q(TCGv rl, TCGv rh, TCGv arg1_low, TCGv arg1_high, TCGv arg2,
     tcg_gen_xor_i64(t3, t4, t1);
     tcg_gen_xor_i64(t2, t1, t2);
     tcg_gen_and_i64(t3, t3, t2);
-    tcg_gen_trunc_shr_i64_i32(cpu_PSW_V, t3, 32);
+    tcg_gen_extrh_i64_i32(cpu_PSW_V, t3);
     /* We produce an overflow on the host if the mul before was
        (0x80000000 * 0x80000000) << 1). If this is the
        case, we negate the ovf. */

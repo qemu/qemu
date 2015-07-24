@@ -1737,28 +1737,28 @@ void tcg_gen_muls2_i64(TCGv_i64 rl, TCGv_i64 rh, TCGv_i64 arg1, TCGv_i64 arg2)
 
 /* Size changing operations.  */
 
-void tcg_gen_trunc_shr_i64_i32(TCGv_i32 ret, TCGv_i64 arg, unsigned count)
+void tcg_gen_extrl_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
 {
-    tcg_debug_assert(count < 64);
     if (TCG_TARGET_REG_BITS == 32) {
-        if (count >= 32) {
-            tcg_gen_shri_i32(ret, TCGV_HIGH(arg), count - 32);
-        } else if (count == 0) {
-            tcg_gen_mov_i32(ret, TCGV_LOW(arg));
-        } else {
-            TCGv_i64 t = tcg_temp_new_i64();
-            tcg_gen_shri_i64(t, arg, count);
-            tcg_gen_mov_i32(ret, TCGV_LOW(t));
-            tcg_temp_free_i64(t);
-        }
-    } else if (TCG_TARGET_HAS_trunc_shr_i64_i32) {
-        tcg_gen_op3(&tcg_ctx, INDEX_op_trunc_shr_i64_i32,
-                    GET_TCGV_I32(ret), GET_TCGV_I64(arg), count);
-    } else if (count == 0) {
+        tcg_gen_mov_i32(ret, TCGV_LOW(arg));
+    } else if (TCG_TARGET_HAS_extrl_i64_i32) {
+        tcg_gen_op2(&tcg_ctx, INDEX_op_extrl_i64_i32,
+                    GET_TCGV_I32(ret), GET_TCGV_I64(arg));
+    } else {
         tcg_gen_mov_i32(ret, MAKE_TCGV_I32(GET_TCGV_I64(arg)));
+    }
+}
+
+void tcg_gen_extrh_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
+{
+    if (TCG_TARGET_REG_BITS == 32) {
+        tcg_gen_mov_i32(ret, TCGV_HIGH(arg));
+    } else if (TCG_TARGET_HAS_extrh_i64_i32) {
+        tcg_gen_op2(&tcg_ctx, INDEX_op_extrh_i64_i32,
+                    GET_TCGV_I32(ret), GET_TCGV_I64(arg));
     } else {
         TCGv_i64 t = tcg_temp_new_i64();
-        tcg_gen_shri_i64(t, arg, count);
+        tcg_gen_shri_i64(t, arg, 32);
         tcg_gen_mov_i32(ret, MAKE_TCGV_I32(GET_TCGV_I64(t)));
         tcg_temp_free_i64(t);
     }
@@ -1818,8 +1818,8 @@ void tcg_gen_extr_i64_i32(TCGv_i32 lo, TCGv_i32 hi, TCGv_i64 arg)
         tcg_gen_mov_i32(lo, TCGV_LOW(arg));
         tcg_gen_mov_i32(hi, TCGV_HIGH(arg));
     } else {
-        tcg_gen_trunc_shr_i64_i32(lo, arg, 0);
-        tcg_gen_trunc_shr_i64_i32(hi, arg, 32);
+        tcg_gen_extrl_i64_i32(lo, arg);
+        tcg_gen_extrh_i64_i32(hi, arg);
     }
 }
 

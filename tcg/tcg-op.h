@@ -684,7 +684,8 @@ static inline void tcg_gen_neg_i64(TCGv_i64 ret, TCGv_i64 arg)
 void tcg_gen_extu_i32_i64(TCGv_i64 ret, TCGv_i32 arg);
 void tcg_gen_ext_i32_i64(TCGv_i64 ret, TCGv_i32 arg);
 void tcg_gen_concat_i32_i64(TCGv_i64 dest, TCGv_i32 low, TCGv_i32 high);
-void tcg_gen_trunc_shr_i64_i32(TCGv_i32 ret, TCGv_i64 arg, unsigned int c);
+void tcg_gen_extrl_i64_i32(TCGv_i32 ret, TCGv_i64 arg);
+void tcg_gen_extrh_i64_i32(TCGv_i32 ret, TCGv_i64 arg);
 void tcg_gen_extr_i64_i32(TCGv_i32 lo, TCGv_i32 hi, TCGv_i64 arg);
 void tcg_gen_extr32_i64(TCGv_i64 lo, TCGv_i64 hi, TCGv_i64 arg);
 
@@ -695,7 +696,7 @@ static inline void tcg_gen_concat32_i64(TCGv_i64 ret, TCGv_i64 lo, TCGv_i64 hi)
 
 static inline void tcg_gen_trunc_i64_i32(TCGv_i32 ret, TCGv_i64 arg)
 {
-    tcg_gen_trunc_shr_i64_i32(ret, arg, 0);
+    tcg_gen_extrl_i64_i32(ret, arg);
 }
 
 /* QEMU specific operations.  */
