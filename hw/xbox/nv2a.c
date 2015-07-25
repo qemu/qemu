@@ -261,9 +261,19 @@
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
 #define NV_PGRAPH_CSV0_D                                 0x00000FB4
 #   define NV_PGRAPH_CSV0_D_RANGE_MODE                          (1 << 18)
+#   define NV_PGRAPH_CSV0_D_FOGENABLE                           (1 << 19)
 #   define NV_PGRAPH_CSV0_D_TEXGEN_REF                          (1 << 20)
 #       define NV_PGRAPH_CSV0_D_TEXGEN_REF_LOCAL_VIEWER             0
 #       define NV_PGRAPH_CSV0_D_TEXGEN_REF_INFINITE_VIEWER          1
+#   define NV_PGRAPH_CSV0_D_FOG_MODE                            (1 << 21)
+#       define NV_PGRAPH_CSV0_D_FOG_MODE_LINEAR                     0
+#       define NV_PGRAPH_CSV0_D_FOG_MODE_EXP                        1
+#   define NV_PGRAPH_CSV0_D_FOGGENMODE                          0x01C00000
+#       define NV_PGRAPH_CSV0_D_FOGGENMODE_SPEC_ALPHA               0
+#       define NV_PGRAPH_CSV0_D_FOGGENMODE_RADIAL                   1
+#       define NV_PGRAPH_CSV0_D_FOGGENMODE_PLANAR                   2
+#       define NV_PGRAPH_CSV0_D_FOGGENMODE_ABS_PLANAR               3
+#       define NV_PGRAPH_CSV0_D_FOGGENMODE_FOG_X                    4
 #   define NV_PGRAPH_CSV0_D_MODE                                0xC0000000
 #   define NV_PGRAPH_CSV0_D_SKIN                                0x1C000000
 #       define NV_PGRAPH_CSV0_D_SKIN_OFF                            0
@@ -405,6 +415,22 @@
 #       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INVERT              6
 #       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_INCR                7
 #       define NV_PGRAPH_CONTROL_2_STENCIL_OP_V_DECR                8
+#define NV_PGRAPH_CONTROL_3                              0x00001958
+#   define NV_PGRAPH_CONTROL_3_FOGENABLE                        (1 << 8)
+#   define NV_PGRAPH_CONTROL_3_FOG_MODE                         0x00070000
+#       define NV_PGRAPH_CONTROL_3_FOG_MODE_LINEAR                  0
+#       define NV_PGRAPH_CONTROL_3_FOG_MODE_EXP                     1
+#       define NV_PGRAPH_CONTROL_3_FOG_MODE_EXP2                    3
+#       define NV_PGRAPH_CONTROL_3_FOG_MODE_EXP_ABS                 5
+#       define NV_PGRAPH_CONTROL_3_FOG_MODE_EXP2_ABS                7
+#       define NV_PGRAPH_CONTROL_3_FOG_MODE_LINEAR_ABS              4
+#define NV_PGRAPH_FOGCOLOR                               0x00001980
+#   define NV_PGRAPH_FOGCOLOR_RED                               0x00FF0000
+#   define NV_PGRAPH_FOGCOLOR_GREEN                             0x0000FF00
+#   define NV_PGRAPH_FOGCOLOR_BLUE                              0x000000FF
+#   define NV_PGRAPH_FOGCOLOR_ALPHA                             0xFF000000
+#define NV_PGRAPH_FOGPARAM0                              0x00001984
+#define NV_PGRAPH_FOGPARAM1                              0x00001988
 #define NV_PGRAPH_SETUPRASTER                            0x00001990
 #   define NV_PGRAPH_SETUPRASTER_FRONTFACEMODE                  0x00000003
 #       define NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_FILL             0
@@ -716,6 +742,25 @@
 #   define NV097_SET_CONTROL0                                 0x00970290
 #       define NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE            (1 << 0)
 #       define NV097_SET_CONTROL0_Z_FORMAT                        (1 << 12)
+#   define NV097_SET_FOG_MODE                                 0x0097029C
+#       define NV097_SET_FOG_MODE_V_LINEAR                        0x2601
+#       define NV097_SET_FOG_MODE_V_EXP                           0x800
+#       define NV097_SET_FOG_MODE_V_EXP2                          0x801
+#       define NV097_SET_FOG_MODE_V_EXP_ABS                       0x802
+#       define NV097_SET_FOG_MODE_V_EXP2_ABS                      0x803
+#       define NV097_SET_FOG_MODE_V_LINEAR_ABS                    0x804
+#   define NV097_SET_FOG_GEN_MODE                             0x009702A0
+#       define NV097_SET_FOG_GEN_MODE_V_SPEC_ALPHA                0
+#       define NV097_SET_FOG_GEN_MODE_V_RADIAL                    1
+#       define NV097_SET_FOG_GEN_MODE_V_PLANAR                    2
+#       define NV097_SET_FOG_GEN_MODE_V_ABS_PLANAR                3
+#       define NV097_SET_FOG_GEN_MODE_V_FOG_X                     6
+#   define NV097_SET_FOG_ENABLE                               0x009702A4
+#   define NV097_SET_FOG_COLOR                                0x009702A8
+#       define NV097_SET_FOG_COLOR_RED                            0x000000FF
+#       define NV097_SET_FOG_COLOR_GREEN                          0x0000FF00
+#       define NV097_SET_FOG_COLOR_BLUE                           0x00FF0000
+#       define NV097_SET_FOG_COLOR_ALPHA                          0xFF000000
 #   define NV097_SET_ALPHA_TEST_ENABLE                        0x00970300
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
 #   define NV097_SET_CULL_FACE_ENABLE                         0x00970308
@@ -825,9 +870,11 @@
 #   define NV097_SET_INVERSE_MODEL_VIEW_MATRIX                0x00970580
 #   define NV097_SET_COMPOSITE_MATRIX                         0x00970680
 #   define NV097_SET_TEXTURE_MATRIX                           0x009706C0
+#   define NV097_SET_FOG_PARAMS                               0x009709C0
 #   define NV097_SET_TEXGEN_VIEW_MODEL                        0x009709CC
 #       define NV097_SET_TEXGEN_VIEW_MODEL_LOCAL_VIEWER           0
 #       define NV097_SET_TEXGEN_VIEW_MODEL_INFINITE_VIEWER        1
+#   define NV097_SET_FOG_PLANE                                0x009709D0
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
 #   define NV097_SET_COMBINER_FACTOR0                         0x00970A60
 #   define NV097_SET_COMBINER_FACTOR1                         0x00970A80
@@ -1451,6 +1498,9 @@ typedef struct PGRAPHState {
     float projection_matrix[16];
     float inverse_model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
     float model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
+
+    /* FIXME: Also in vshader consts? */
+    float fog_plane[4];
 
     /* FIXME: Move to NV_PGRAPH_BUMPMAT... */
     float bump_env_matrix[3][4]; /* 4 stages with 2x2 matrix each */
@@ -3907,6 +3957,71 @@ static void pgraph_method(NV2AState *d,
         break;
     }
 
+    case NV097_SET_FOG_MODE: {
+        /* FIXME: There is also NV_PGRAPH_CSV0_D_FOG_MODE */
+        unsigned int mode;
+        switch (parameter) {
+        case NV097_SET_FOG_MODE_V_LINEAR:
+            mode = NV_PGRAPH_CONTROL_3_FOG_MODE_LINEAR; break;
+        case NV097_SET_FOG_MODE_V_EXP:
+            mode = NV_PGRAPH_CONTROL_3_FOG_MODE_EXP; break;
+        case NV097_SET_FOG_MODE_V_EXP2:
+            mode = NV_PGRAPH_CONTROL_3_FOG_MODE_EXP2; break;
+        case NV097_SET_FOG_MODE_V_EXP_ABS:
+            mode = NV_PGRAPH_CONTROL_3_FOG_MODE_EXP_ABS; break;
+        case NV097_SET_FOG_MODE_V_EXP2_ABS:
+            mode = NV_PGRAPH_CONTROL_3_FOG_MODE_EXP2_ABS; break;
+        case NV097_SET_FOG_MODE_V_LINEAR_ABS:
+            mode = NV_PGRAPH_CONTROL_3_FOG_MODE_LINEAR_ABS; break;
+        default:
+            assert(false);
+            break;
+        }
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_3], NV_PGRAPH_CONTROL_3_FOG_MODE,
+                 mode);
+        break;
+    }
+    case NV097_SET_FOG_GEN_MODE: {
+        unsigned int mode;
+        switch (parameter) {
+        case NV097_SET_FOG_GEN_MODE_V_SPEC_ALPHA:
+            mode = NV_PGRAPH_CSV0_D_FOGGENMODE_SPEC_ALPHA; break;
+        case NV097_SET_FOG_GEN_MODE_V_RADIAL:
+            mode = NV_PGRAPH_CSV0_D_FOGGENMODE_RADIAL; break;
+        case NV097_SET_FOG_GEN_MODE_V_PLANAR:
+            mode = NV_PGRAPH_CSV0_D_FOGGENMODE_PLANAR; break;
+        case NV097_SET_FOG_GEN_MODE_V_ABS_PLANAR:
+            mode = NV_PGRAPH_CSV0_D_FOGGENMODE_ABS_PLANAR; break;
+        case NV097_SET_FOG_GEN_MODE_V_FOG_X:
+            mode = NV_PGRAPH_CSV0_D_FOGGENMODE_FOG_X; break;
+        default:
+            assert(false);
+            break;
+        }
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_FOGGENMODE, mode);
+        break;
+    }
+    case NV097_SET_FOG_ENABLE:
+/*
+      FIXME: There is also:
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_FOGENABLE,
+             parameter);
+*/
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_3], NV_PGRAPH_CONTROL_3_FOGENABLE,
+             parameter);
+        break;
+    case NV097_SET_FOG_COLOR: {
+        /* PGRAPH channels are ARGB, parameter channels are ABGR */
+        uint8_t red = GET_MASK(parameter, NV097_SET_FOG_COLOR_RED);
+        uint8_t green = GET_MASK(parameter, NV097_SET_FOG_COLOR_GREEN);
+        uint8_t blue = GET_MASK(parameter, NV097_SET_FOG_COLOR_BLUE);
+        uint8_t alpha = GET_MASK(parameter, NV097_SET_FOG_COLOR_ALPHA);
+        SET_MASK(pg->regs[NV_PGRAPH_FOGCOLOR], NV_PGRAPH_FOGCOLOR_RED, red);
+        SET_MASK(pg->regs[NV_PGRAPH_FOGCOLOR], NV_PGRAPH_FOGCOLOR_GREEN, green);
+        SET_MASK(pg->regs[NV_PGRAPH_FOGCOLOR], NV_PGRAPH_FOGCOLOR_BLUE, blue);
+        SET_MASK(pg->regs[NV_PGRAPH_FOGCOLOR], NV_PGRAPH_FOGCOLOR_ALPHA, alpha);
+        break;
+    }
     case NV097_SET_ALPHA_TEST_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                  NV_PGRAPH_CONTROL_0_ALPHATESTENABLE, parameter);
@@ -4240,9 +4355,20 @@ static void pgraph_method(NV2AState *d,
         pg->texture_matrix[slot / 16][slot % 16] = *(float*)&parameter;
         break;
 
+    case NV097_SET_FOG_PARAMS ...
+            NV097_SET_FOG_PARAMS + 8:
+        slot = (class_method - NV097_SET_FOG_PARAMS) / 4;
+        pg->regs[NV_PGRAPH_FOGPARAM0 + slot*4] = parameter;
+        break;
     case NV097_SET_TEXGEN_VIEW_MODEL:
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_TEXGEN_REF,
                  parameter);
+        break;
+
+    case NV097_SET_FOG_PLANE ...
+            NV097_SET_FOG_PLANE + 12:
+        slot = (class_method - NV097_SET_FOG_PLANE) / 4;
+        pg->fog_plane[slot] = *(float*)&parameter;
         break;
 
     case NV097_SET_VIEWPORT_OFFSET ...
