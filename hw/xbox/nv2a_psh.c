@@ -281,7 +281,7 @@ static QString* get_var(struct PixelShader *ps, int reg, bool is_dest)
         }
         break;
     case PS_REGISTER_FOG:
-        return qstring_from_str("clamp(pFog, 0.0, 1.0)");
+        return qstring_from_str("pFog");
     case PS_REGISTER_V0:
         return qstring_from_str("v0");
     case PS_REGISTER_V1:
@@ -546,7 +546,7 @@ static QString* psh_convert(struct PixelShader *ps)
     qstring_append(vars, "vec4 pD1 = vtx.D1 / vtx.inv_w;\n");
     qstring_append(vars, "vec4 pB0 = vtx.B0 / vtx.inv_w;\n");
     qstring_append(vars, "vec4 pB1 = vtx.B1 / vtx.inv_w;\n");
-    qstring_append(vars, "vec4 pFog = vtx.Fog / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pFog = clamp(vtx.Fog / vtx.inv_w, 0.0, 1.0);\n");
     qstring_append(vars, "vec4 pT0 = vtx.T0 / vtx.inv_w;\n");
     qstring_append(vars, "vec4 pT1 = vtx.T1 / vtx.inv_w;\n");
     qstring_append(vars, "vec4 pT2 = vtx.T2 / vtx.inv_w;\n");
@@ -554,7 +554,6 @@ static QString* psh_convert(struct PixelShader *ps)
     qstring_append(vars, "\n");
     qstring_append(vars, "vec4 v0 = pD0;\n");
     qstring_append(vars, "vec4 v1 = pD1;\n");
-    qstring_append(vars, "float fog = pFog.x;\n");
 
     ps->code = qstring_new();
 
