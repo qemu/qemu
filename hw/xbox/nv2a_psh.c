@@ -280,9 +280,8 @@ static QString* get_var(struct PixelShader *ps, int reg, bool is_dest)
             return qstring_from_str("c_0_1");
         }
         break;
-    case PS_REGISTER_FOG: // TODO
-        //return qstring_from_str("fog");
-        return qstring_from_str("vec4(1.0)");
+    case PS_REGISTER_FOG:
+        return qstring_from_str("clamp(pFog, 0.0, 1.0)");
     case PS_REGISTER_V0:
         return qstring_from_str("v0");
     case PS_REGISTER_V1:

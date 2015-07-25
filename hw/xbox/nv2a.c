@@ -2838,6 +2838,21 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
     }
 
+    /* Fog */
+    state.fog_enable = pg->regs[NV_PGRAPH_CONTROL_3]
+                           & NV_PGRAPH_CONTROL_3_FOGENABLE;
+    if (state.fog_enable) {
+        /*FIXME: Use CSV0_D? */
+        state.fog_mode = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_3],
+                                  NV_PGRAPH_CONTROL_3_FOG_MODE);
+        state.foggen = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
+                                NV_PGRAPH_CSV0_D_FOGGENMODE);
+    } else {
+        /* FIXME: Do we still pass the fogmode? */
+        state.fog_mode = 0;
+        state.foggen = 0;
+    }
+
     /* Texture matrices */
     for (i = 0; i < 4; i++) {
         state.texture_matrix_enable[i] = pg->texture_matrix_enable[i];
@@ -2960,6 +2975,39 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             glUniformMatrix4fv(loc, 1, GL_FALSE, pg->texture_matrix[i]);
         }
 
+    }
+
+    /* Fog */
+    {
+        GLint loc;
+        uint32_t fog_color = pg->regs[NV_PGRAPH_FOGCOLOR];
+        loc  = glGetUniformLocation(pg->shader_binding->gl_program, "fogColor");
+        if (loc != -1) {
+            glUniform4f(loc,
+                        GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_RED) / 255.0,
+                        GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_GREEN) / 255.0,
+                        GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_BLUE) / 255.0,
+                        GET_MASK(fog_color, NV_PGRAPH_FOGCOLOR_ALPHA) / 255.0);
+        }
+
+        /* FIXME: PGRAPH regs have a 16 byte stride in emulation! can't just
+         *        upload this as an array =(
+         */
+        loc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                   "fogParam[0]");
+        if (loc != -1) {
+            glUniform1f(loc, *(float*)&pg->regs[NV_PGRAPH_FOGPARAM0]);
+        }
+        loc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                   "fogParam[1]");
+        if (loc != -1) {
+            glUniform1f(loc, *(float*)&pg->regs[NV_PGRAPH_FOGPARAM1]);
+        }
+
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, "fogPlane");
+        if (loc != -1) {
+            glUniform4fv(loc, 1, pg->fog_plane);
+        }
     }
 
     /* For each vertex weight */
@@ -4358,7 +4406,11 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_FOG_PARAMS ...
             NV097_SET_FOG_PARAMS + 8:
         slot = (class_method - NV097_SET_FOG_PARAMS) / 4;
-        pg->regs[NV_PGRAPH_FOGPARAM0 + slot*4] = parameter;
+        if (slot < 2) {
+            pg->regs[NV_PGRAPH_FOGPARAM0 + slot*4] = parameter;
+        } else {
+            /* FIXME: No idea where slot = 2 is */
+        }
         break;
     case NV097_SET_TEXGEN_VIEW_MODEL:
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_TEXGEN_REF,
@@ -6783,7 +6835,7 @@ static void pgraph_method_log(unsigned int subchannel,
     static unsigned int last = 0;
     static unsigned int count = 0;
     if (last == 0x1800 && method != last) {
-        NV2A_DPRINTF("pgraph method (%d) 0x%x * %d",
+        NV2A_GL_DPRINTF(true, "pgraph method (%d) 0x%x * %d",
                      subchannel, last, count);
     }
     if (method != 0x1800) {

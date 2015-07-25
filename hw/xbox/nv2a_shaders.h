@@ -65,6 +65,10 @@ typedef struct ShaderState {
     bool texture_matrix_enable[4];
     enum VshTexgen texgen[4][4];
 
+    bool fog_enable;
+    enum VshFoggen foggen;
+    enum VshFogMode fog_mode;
+
     enum VshSkinning skinning;
 
     bool normalization;

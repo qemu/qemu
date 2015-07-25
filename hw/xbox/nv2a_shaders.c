@@ -115,6 +115,9 @@ static QString* generate_fixed_function(const ShaderState state,
     qstring_append(s,
 "\n"
 /* FIXME: Add these uniforms using code when they are used */
+"uniform vec4 fogColor;\n"
+"uniform vec4 fogPlane;\n"
+"uniform float fogParam[2];\n"
 "uniform mat4 texMat0;\n"
 "uniform mat4 texMat1;\n"
 "uniform mat4 texMat2;\n"
@@ -255,6 +258,85 @@ static QString* generate_fixed_function(const ShaderState state,
         }
     }
 
+    /* Fog */
+    if (state.fog_enable) {
+
+        /* From: https://www.opengl.org/registry/specs/NV/fog_distance.txt */
+        switch(state.foggen) {
+        case FOGGEN_SPEC_ALPHA:
+            assert(false); /* FIXME: Do this before or after calculations in VSH? */
+            if (state.fixed_function) {
+                /* FIXME: Do we have to clamp here? */
+                qstring_append(s, "float fogDistance = clamp(specular.a, 0.0, 1.0);\n");
+            } else if (state.vertex_program) {
+                qstring_append(s, "float fogDistance = oD1.a;\n");
+            } else {
+                assert(false);
+            }
+            break;
+        case FOGGEN_RADIAL:
+            qstring_append(s, "float fogDistance = length(tPosition.xyz)");
+            break;
+        case FOGGEN_PLANAR:
+        case FOGGEN_ABS_PLANAR:
+            qstring_append(s, "float fogDistance = dot(fogPlane.xyz,tPosition.xyz)+fogPlane.w;\n");
+            if (state.foggen == FOGGEN_ABS_PLANAR) {
+                qstring_append(s, "fogDistance = abs(fogDistance);\n");
+            }
+            break;
+        case FOGGEN_FOG_X:
+            if (state.fixed_function) {
+                qstring_append(s, "float fogDistance = fogCoord;\n");
+            } else if (state.vertex_program) {
+                qstring_append(s, "float fogDistance = oFog.x;\n");
+            } else {
+                assert(false);
+            }
+            break;
+        default:
+            assert(false);
+            break;
+        }
+
+        switch (state.fog_mode) {
+        case FOG_MODE_LINEAR:
+        case FOG_MODE_LINEAR_ABS:
+            qstring_append(s, "float fogFactor = fogDistance * fogParam[1] + fogParam[0];\n");
+            qstring_append(s, "fogFactor -= 1.0;\n"); /* FIXME: WHHYYY?!! */
+            break;
+        case FOG_MODE_EXP:
+        case FOG_MODE_EXP_ABS:
+            assert(false); /* FIXME: fogParam[0] and fogParam[0] ?? */
+            qstring_append(s, "float fogFactor = exp(fogDistance);\n");
+            break;
+        case FOG_MODE_EXP2:
+        case FOG_MODE_EXP2_ABS:
+            assert(false); /* FIXME: fogParam[0] and fogParam[0] ?? */
+            qstring_append(s, "float fogFactor = exp(fogDistance * fogDistance);\n");
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        /* Calculate absolute for the modes which need it */
+        switch (state.fog_mode) {
+        case FOG_MODE_LINEAR_ABS:
+        case FOG_MODE_EXP_ABS:
+        case FOG_MODE_EXP2_ABS:
+            qstring_append(s, "fogFactor = abs(fogFactor);\n");
+            break;
+        default:
+            break;
+        }
+        /* FIXME: What about fog alpha?! */
+        qstring_append(s, "vec4 tFog = vec4(fogColor.rgb, fogFactor);\n");
+    } else {
+        /* FIXME: Is the fog still calculated / passed somehow?!
+         * Maybe vec4(fogColor, fogCoord) ?
+         */
+        qstring_append(s, "vec4 tFog = vec4(0.0);\n");
+    }
+
     /* If skinning is off the composite matrix already includes the MV matrix */
     if (state.skinning == SKINNING_OFF) {
         qstring_append(s, "tPosition = position;\n");
@@ -273,7 +355,7 @@ static QString* generate_fixed_function(const ShaderState state,
     qstring_append(s, "vtx.D1 = specular * vtx.inv_w;\n");
     qstring_append(s, "vtx.B0 = backDiffuse * vtx.inv_w;\n");
     qstring_append(s, "vtx.B1 = backSpecular * vtx.inv_w;\n");
-    qstring_append(s, "vtx.Fog = vec4(0.0,0.0,0.0,1.0) * vtx.inv_w;\n");
+    qstring_append(s, "vtx.Fog = tFog * vtx.inv_w;\n");
     qstring_append(s, "vtx.T0 = tTexture0 *  vtx.inv_w;\n");
     qstring_append(s, "vtx.T1 = tTexture1 * vtx.inv_w;\n");
     qstring_append(s, "vtx.T2 = tTexture2 * vtx.inv_w;\n");
