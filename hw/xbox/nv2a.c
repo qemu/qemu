@@ -912,6 +912,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_SET_VIEWPORT_SCALE                           0x00970AF0
 #   define NV097_SET_TRANSFORM_PROGRAM                        0x00970B00
 #   define NV097_SET_TRANSFORM_CONSTANT                       0x00970B80
+#   define NV097_SET_VERTEX3F                                 0x00971500
 #   define NV097_SET_VERTEX4F                                 0x00971518
 #   define NV097_SET_VERTEX_DATA_ARRAY_OFFSET                 0x00971720
 #   define NV097_SET_VERTEX_DATA_ARRAY_FORMAT                 0x00971760
@@ -4772,6 +4773,20 @@ static void pgraph_method(NV2AState *d,
         if (slot % 4 == 3) {
             SET_MASK(pg->regs[NV_PGRAPH_CHEOPS_OFFSET],
                      NV_PGRAPH_CHEOPS_OFFSET_CONST_LD_PTR, const_load+1);
+        }
+        break;
+    }
+
+    case NV097_SET_VERTEX3F ...
+            NV097_SET_VERTEX3F + 8: {
+        slot = (class_method - NV097_SET_VERTEX3F) / 4;
+        VertexAttribute *attribute =
+            &pg->vertex_attributes[NV2A_VERTEX_ATTR_POSITION];
+        pgraph_allocate_inline_buffer_vertices(pg, NV2A_VERTEX_ATTR_POSITION);
+        attribute->inline_value[slot] = *(float*)&parameter;
+        attribute->inline_value[3] = 1.0f;
+        if (slot == 2) {
+            pgraph_finish_inline_buffer_vertex(pg);
         }
         break;
     }
