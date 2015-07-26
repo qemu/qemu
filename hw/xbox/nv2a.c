@@ -2109,18 +2109,16 @@ static void upload_gl_texture(GLenum gl_target,
 
         int level;
         for (level = 0; level < s.levels; level++) {
-            if (width < 1) width = 1;
-            if (height < 1) height = 1;
             if (f.gl_format == 0) { /* compressed */
+
+                width = MAX(width, 4); height = MAX(height, 4);
+
                 unsigned int block_size;
                 if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
                     block_size = 8;
                 } else {
                     block_size = 16;
                 }
-
-                if (width < 4) width = 4;
-                if (height < 4) height = 4;
 
                 glCompressedTexImage2D(gl_target, level, f.gl_internal_format,
                                        width, height, 0,
@@ -2129,6 +2127,9 @@ static void upload_gl_texture(GLenum gl_target,
 
                 texture_data += width/4 * height/4 * block_size;
             } else {
+
+                width = MAX(width, 1); height = MAX(height, 1);
+
                 unsigned int pitch = width * f.bytes_per_pixel;
                 uint8_t *unswizzled = g_malloc(height * pitch);
                 unswizzle_rect(texture_data, width, height,
@@ -2455,8 +2456,41 @@ static void pgraph_bind_textures(NV2AState *d)
             height = 1 << log_height;
             depth = 1 << log_depth;
 
-            if (max_mipmap_level < levels) {
-                levels = max_mipmap_level;
+            /* FIXME: What about 3D mipmaps? */
+            levels = MIN(levels, max_mipmap_level + 1);
+            if (f.gl_format != 0) {
+                /* Xbox / GL goes down to 1x? or ?x1:
+                 * >> Level 0: 32 x 4
+                 *    Level 1: 16 x 2
+                 *    Level 2: 8 x 1
+                 *    Level 3: 4 x 1
+                 *    Level 4: 2 x 1
+                 *    Level 5: 1 x 1
+                 */
+                levels = MIN(levels, MAX(log_width, log_height) + 1);
+            } else {
+                /* Compressed textures are handled differently in OpenGL.
+                 * While the other mipmaps are the same in Xbox and OpenGL, DXT
+                 * textures on Xbox can have smaller mipmaps too (probably).
+                 * https://msdn.microsoft.com/en-us/library/windows/desktop/bb694531%28v=vs.85%29.aspx
+                 * (Virtual Size versus Physical Size)
+                 *
+                 * GL Compressed goes down to 4x? or ?x4 and same size:
+                 * >> Level 0: 64 x 8
+                 *    Level 1: 32 x 4
+                 *    Level 2: 16 x 4 << BAD SIZE!
+                 * >> Level 0: 16 x 16
+                 *    Level 1: 8 x 8
+                 *    Level 2: 4 x 4 << OK!
+                 *
+                 * This behaviour was tested with MESA 10.6.2, GL 3.3 Core
+                 * It doesn't report errors but the read texels will be black.
+                 */
+                if (log_width < 2 || log_height < 2) {
+                    levels = 0;
+                } else {
+                    levels = MIN(levels, MIN(log_width, log_height) - 1);
+                }
             }
         }
 
@@ -2491,11 +2525,28 @@ static void pgraph_bind_textures(NV2AState *d)
             if (dimensionality >= 2) {
                 unsigned int w = width, h = height;
                 int level;
-                for (level = 0; level < levels; level++) {
-                    /* FIXME: This is wrong for compressed textures and textures with 1x? non-square mipmaps */
-                    length += w * h * f.bytes_per_pixel;
-                    w /= 2;
-                    h /= 2;
+                if (f.gl_format != 0) {
+                    for (level = 0; level < levels; level++) {
+                        w = MAX(w, 1); h = MAX(h, 1);
+                        length += w * h * f.bytes_per_pixel;
+                        w /= 2;
+                        h /= 2;
+                    }
+                } else {
+                    /* Compressed textures are a bit different */
+                    unsigned int block_size;
+                    if (f.gl_internal_format ==
+                            GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
+                        block_size = 8;
+                    } else {
+                        block_size = 16;
+                    }
+
+                    for (level = 0; level < levels; level++) {
+                        w = MAX(w, 4); h = MAX(h, 4);
+                        length += w/4 * h/4 * block_size;
+                        w /= 2; h /= 2;
+                    }
                 }
                 if (cubemap) {
                     assert(dimensionality == 2);
