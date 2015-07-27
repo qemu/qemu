@@ -239,7 +239,7 @@ static QString* generate_fixed_function(const ShaderState state,
     }
 
     /* Texgen */
-    for (i = 0; i < 4 /* NV2A_MAX_TEXTURES */; i++) {
+    for (i = 0; i < 4 /* FIXME: NV2A_MAX_TEXTURES */; i++) {
         qstring_append_fmt(s, "/* Texgen for stage %d */\n",
                            i);
         qstring_append_fmt(s, "vec4 tTexture%d;\n",
@@ -258,21 +258,23 @@ static QString* generate_fixed_function(const ShaderState state,
             case TEXGEN_EYE_LINEAR:
                 qstring_append_fmt(s, "tTexture%d.%c = dot(tTexPlane%c%d, tPosition);\n",
                                    i, c, cSuffix, i);
+assert(false); /* Untested */
                 break;
             case TEXGEN_OBJECT_LINEAR:
                 qstring_append_fmt(s, "tTexture%d.%c = dot(texPlane%c%d, position);\n",
                                    i, c, cSuffix, i);
+assert(false); /* Untested */
                 break;
             case TEXGEN_SPHERE_MAP:
                 assert(i < 2);  /* Channels S,T only! */
                 qstring_append(s, "{\n");
-                /* FIXME: r and m only have to be calculated once */
+                /* FIXME: u, r and m only have to be calculated once */
                 qstring_append(s, "  vec3 u = normalize(tPosition.xyz);\n");
                 //FIXME: tNormal before or after normalization? Always normalize?
                 qstring_append(s, "  vec3 r = reflect(u, tNormal);\n");
 
                 /* FIXME: This would consume 1 division fewer and *might* be
-                 *        faster than `length`:
+                 *        faster than length:
                  *   // [z=1/(2*x) => z=1/x*0.5]
                  *   vec3 ro = r + vec3(0.0, 0.0, 1.0);
                  *   float m = inversesqrt(dot(ro,ro))*0.5;
@@ -282,6 +284,7 @@ static QString* generate_fixed_function(const ShaderState state,
                 qstring_append_fmt(s, "  tTexture%d.%c = r.%c * invM + 0.5;\n",
                                    i, c, c);
                 qstring_append(s, "}\n");
+assert(false); /* Untested */
                 break;
             case TEXGEN_REFLECTION_MAP:
                 assert(i < 3); /* Channels S,T,R only! */
