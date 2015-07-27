@@ -118,7 +118,7 @@ static int vhost_scsi_start(VHostSCSI *s)
      * enabling/disabling irqfd.
      */
     for (i = 0; i < s->dev.nvqs; i++) {
-        vhost_virtqueue_mask(&s->dev, vdev, i, false);
+        vhost_virtqueue_mask(&s->dev, vdev, s->dev.vq_index + i, false);
     }
 
     return ret;
