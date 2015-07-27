@@ -343,9 +343,11 @@ static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
     CASE_OP_32_64(ext16u):
         return (uint16_t)x;
 
+    case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         return (int32_t)x;
 
+    case INDEX_op_extu_i32_i64:
     case INDEX_op_ext32u_i64:
         return (uint32_t)x;
 
@@ -837,6 +839,15 @@ void tcg_optimize(TCGContext *s)
             mask = temps[args[1]].mask & mask;
             break;
 
+        case INDEX_op_ext_i32_i64:
+            if ((temps[args[1]].mask & 0x80000000) != 0) {
+                break;
+            }
+        case INDEX_op_extu_i32_i64:
+            /* We do not compute affected as it is a size changing op.  */
+            mask = (uint32_t)temps[args[1]].mask;
+            break;
+
         CASE_OP_32_64(andc):
             /* Known-zeros does not imply known-ones.  Therefore unless
                args[2] is constant, we can't infer anything from it.  */
@@ -1015,6 +1026,8 @@ void tcg_optimize(TCGContext *s)
         CASE_OP_32_64(ext16u):
         case INDEX_op_ext32s_i64:
         case INDEX_op_ext32u_i64:
+        case INDEX_op_ext_i32_i64:
+        case INDEX_op_extu_i32_i64:
             if (temp_is_const(args[1])) {
                 tmp = do_constant_folding(opc, temps[args[1]].val, 0);
                 tcg_opt_gen_movi(s, op, args, args[0], tmp);
