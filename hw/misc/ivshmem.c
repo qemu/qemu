@@ -66,9 +66,9 @@ typedef struct Peer {
     EventNotifier *eventfds;
 } Peer;
 
-typedef struct EventfdEntry {
+typedef struct MSIVector {
     PCIDevice *pdev;
-} EventfdEntry;
+} MSIVector;
 
 typedef struct IVShmemState {
     /*< private >*/
@@ -99,7 +99,7 @@ typedef struct IVShmemState {
     int vm_id;
     uint32_t vectors;
     uint32_t features;
-    EventfdEntry *eventfd_table;
+    MSIVector *msi_vectors;
 
     Error *migration_blocker;
 
@@ -284,10 +284,10 @@ static void ivshmem_event(void *opaque, int event)
 
 static void fake_irqfd(void *opaque, const uint8_t *buf, int size) {
 
-    EventfdEntry *entry = opaque;
+    MSIVector *entry = opaque;
     PCIDevice *pdev = entry->pdev;
     IVShmemState *s = IVSHMEM(pdev);
-    int vector = entry - s->eventfd_table;
+    int vector = entry - s->msi_vectors;
 
     IVSHMEM_DPRINTF("interrupt on vector %p %d\n", pdev, vector);
     msix_notify(pdev, vector);
@@ -311,10 +311,10 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
 
     /* if MSI is supported we need multiple interrupts */
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        s->eventfd_table[vector].pdev = PCI_DEVICE(s);
+        s->msi_vectors[vector].pdev = PCI_DEVICE(s);
 
         qemu_chr_add_handlers(chr, ivshmem_can_receive, fake_irqfd,
-                      ivshmem_event, &s->eventfd_table[vector]);
+                      ivshmem_event, &s->msi_vectors[vector]);
     } else {
         qemu_chr_add_handlers(chr, ivshmem_can_receive, ivshmem_receive,
                       ivshmem_event, s);
@@ -659,7 +659,7 @@ static int ivshmem_setup_msi(IVShmemState * s)
     IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
 
     /* allocate QEMU char devices for receiving interrupts */
-    s->eventfd_table = g_malloc0(s->vectors * sizeof(EventfdEntry));
+    s->msi_vectors = g_malloc0(s->vectors * sizeof(MSIVector));
 
     ivshmem_use_msix(s);
     return 0;
@@ -864,7 +864,7 @@ static void pci_ivshmem_exit(PCIDevice *dev)
         msix_uninit_exclusive_bar(dev);
     }
 
-    g_free(s->eventfd_table);
+    g_free(s->msi_vectors);
 }
 
 static bool test_msix(void *opaque, int version_id)
