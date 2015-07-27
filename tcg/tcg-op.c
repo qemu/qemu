@@ -1751,8 +1751,8 @@ void tcg_gen_trunc_shr_i64_i32(TCGv_i32 ret, TCGv_i64 arg, unsigned count)
             tcg_gen_mov_i32(ret, TCGV_LOW(t));
             tcg_temp_free_i64(t);
         }
-    } else if (TCG_TARGET_HAS_trunc_shr_i32) {
-        tcg_gen_op3i_i32(INDEX_op_trunc_shr_i32, ret,
+    } else if (TCG_TARGET_HAS_trunc_shr_i64_i32) {
+        tcg_gen_op3i_i32(INDEX_op_trunc_shr_i64_i32, ret,
                          MAKE_TCGV_I32(GET_TCGV_I64(arg)), count);
     } else if (count == 0) {
         tcg_gen_mov_i32(ret, MAKE_TCGV_I32(GET_TCGV_I64(arg)));
