@@ -362,7 +362,6 @@ static void nbd_client_closed(NBDClient *client)
         state = TERMINATE;
     }
     nbd_update_server_fd_handler(server_fd);
-    qemu_notify_event();
     nbd_client_put(client);
 }
 
