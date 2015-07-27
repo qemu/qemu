@@ -2531,7 +2531,7 @@ static QString* generate_geometry_shader(unsigned int primitive_mode)
     switch (primitive_mode) {
     case NV097_SET_BEGIN_END_OP_QUADS:
         qstring_append(s, "layout(lines_adjacency) in;\n");
-        qstring_append(s, "layout(triangle_strip, max_vertices = 6) out;\n");
+        qstring_append(s, "layout(triangle_strip, max_vertices = 4) out;\n");
         break;
     default:
         assert(false);
@@ -2565,11 +2565,8 @@ static QString* generate_geometry_shader(unsigned int primitive_mode)
     case NV097_SET_BEGIN_END_OP_QUADS:
         generate_geometry_shader_pass_vertex(s, "0");
         generate_geometry_shader_pass_vertex(s, "1");
-        generate_geometry_shader_pass_vertex(s, "2");
-        qstring_append(s, "EndPrimitive();\n");
-        generate_geometry_shader_pass_vertex(s, "0");
-        generate_geometry_shader_pass_vertex(s, "2");
         generate_geometry_shader_pass_vertex(s, "3");
+        generate_geometry_shader_pass_vertex(s, "2");
         qstring_append(s, "EndPrimitive();\n");
         break;
     default:
