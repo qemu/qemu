@@ -529,6 +529,10 @@ int qcow2_check_metadata_overlap(BlockDriverState *bs, int ign, int64_t offset,
 int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
                                   int64_t size);
 
+int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
+                                BlockDriverAmendStatusCB *status_cb,
+                                void *cb_opaque, Error **errp);
+
 /* qcow2-cluster.c functions */
 int qcow2_grow_l1_table(BlockDriverState *bs, uint64_t min_size,
                         bool exact_size);
