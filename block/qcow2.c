@@ -3006,20 +3006,13 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
         desc++;
     }
 
-    if (new_version != old_version) {
-        if (new_version > old_version) {
-            /* Upgrade */
-            s->qcow_version = new_version;
-            ret = qcow2_update_header(bs);
-            if (ret < 0) {
-                s->qcow_version = old_version;
-                return ret;
-            }
-        } else {
-            ret = qcow2_downgrade(bs, new_version, status_cb, cb_opaque);
-            if (ret < 0) {
-                return ret;
-            }
+    /* Upgrade first (some features may require compat=1.1) */
+    if (new_version > old_version) {
+        s->qcow_version = new_version;
+        ret = qcow2_update_header(bs);
+        if (ret < 0) {
+            s->qcow_version = old_version;
+            return ret;
         }
     }
 
@@ -3034,7 +3027,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
 
     if (s->use_lazy_refcounts != lazy_refcounts) {
         if (lazy_refcounts) {
-            if (s->qcow_version < 3) {
+            if (new_version < 3) {
                 error_report("Lazy refcounts only supported with compatibility "
                              "level 1.1 and above (use compat=1.1 or greater)");
                 return -EINVAL;
@@ -3065,6 +3058,14 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
 
     if (new_size) {
         ret = bdrv_truncate(bs, new_size);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    /* Downgrade last (so unsupported features can be removed before) */
+    if (new_version < old_version) {
+        ret = qcow2_downgrade(bs, new_version, status_cb, cb_opaque);
         if (ret < 0) {
             return ret;
         }
