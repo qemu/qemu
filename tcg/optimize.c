@@ -35,14 +35,8 @@
         glue(glue(case INDEX_op_, x), _i32):    \
         glue(glue(case INDEX_op_, x), _i64)
 
-typedef enum {
-    TCG_TEMP_UNDEF = 0,
-    TCG_TEMP_CONST,
-    TCG_TEMP_COPY,
-} tcg_temp_state;
-
 struct tcg_temp_info {
-    tcg_temp_state state;
+    bool is_const;
     uint16_t prev_copy;
     uint16_t next_copy;
     tcg_target_ulong val;
@@ -54,27 +48,22 @@ static TCGTempSet temps_used;
 
 static inline bool temp_is_const(TCGArg arg)
 {
-    return temps[arg].state == TCG_TEMP_CONST;
+    return temps[arg].is_const;
 }
 
 static inline bool temp_is_copy(TCGArg arg)
 {
-    return temps[arg].state == TCG_TEMP_COPY;
+    return temps[arg].next_copy != arg;
 }
 
-/* Reset TEMP's state to TCG_TEMP_UNDEF.  If TEMP only had one copy, remove
-   the copy flag from the left temp.  */
+/* Reset TEMP's state, possibly removing the temp for the list of copies.  */
 static void reset_temp(TCGArg temp)
 {
-    if (temp_is_copy(temp)) {
-        if (temps[temp].prev_copy == temps[temp].next_copy) {
-            temps[temps[temp].next_copy].state = TCG_TEMP_UNDEF;
-        } else {
-            temps[temps[temp].next_copy].prev_copy = temps[temp].prev_copy;
-            temps[temps[temp].prev_copy].next_copy = temps[temp].next_copy;
-        }
-    }
-    temps[temp].state = TCG_TEMP_UNDEF;
+    temps[temps[temp].next_copy].prev_copy = temps[temp].prev_copy;
+    temps[temps[temp].prev_copy].next_copy = temps[temp].next_copy;
+    temps[temp].next_copy = temp;
+    temps[temp].prev_copy = temp;
+    temps[temp].is_const = false;
     temps[temp].mask = -1;
 }
 
@@ -88,7 +77,9 @@ static void reset_all_temps(int nb_temps)
 static void init_temp_info(TCGArg temp)
 {
     if (!test_bit(temp, temps_used.l)) {
-        temps[temp].state = TCG_TEMP_UNDEF;
+        temps[temp].next_copy = temp;
+        temps[temp].prev_copy = temp;
+        temps[temp].is_const = false;
         temps[temp].mask = -1;
         set_bit(temp, temps_used.l);
     }
@@ -218,7 +209,7 @@ static void tcg_opt_gen_movi(TCGContext *s, TCGOp *op, TCGArg *args,
     op->opc = new_op;
 
     reset_temp(dst);
-    temps[dst].state = TCG_TEMP_CONST;
+    temps[dst].is_const = true;
     temps[dst].val = val;
     mask = val;
     if (TCG_TARGET_REG_BITS > 32 && new_op == INDEX_op_movi_i32) {
@@ -260,16 +251,11 @@ static void tcg_opt_gen_mov(TCGContext *s, TCGOp *op, TCGArg *args,
     assert(!temp_is_const(src));
 
     if (s->temps[src].type == s->temps[dst].type) {
-        if (!temp_is_copy(src)) {
-            temps[src].state = TCG_TEMP_COPY;
-            temps[src].next_copy = src;
-            temps[src].prev_copy = src;
-        }
-        temps[dst].state = TCG_TEMP_COPY;
         temps[dst].next_copy = temps[src].next_copy;
         temps[dst].prev_copy = src;
         temps[temps[dst].next_copy].prev_copy = dst;
         temps[src].next_copy = dst;
+        temps[dst].is_const = false;
     }
 
     args[0] = dst;
