@@ -146,8 +146,10 @@ typedef struct WriteEventData {
 
 typedef struct ReadEventData {
     SCCBHeader h;
-    EventBufferHeader ebh;
-    uint32_t mask;
+    union {
+        uint32_t mask;
+        EventBufferHeader ebh;
+    };
 } QEMU_PACKED ReadEventData;
 
 typedef struct SCLPEvent {
