@@ -89,7 +89,8 @@ static void virtio_gpu_set_config(VirtIODevice *vdev, const uint8_t *config)
     }
 }
 
-static uint64_t virtio_gpu_get_features(VirtIODevice *vdev, uint64_t features)
+static uint64_t virtio_gpu_get_features(VirtIODevice *vdev, uint64_t features,
+                                        Error **errp)
 {
     return features;
 }

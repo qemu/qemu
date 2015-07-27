@@ -629,7 +629,8 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
 }
 
 static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
-                                         uint64_t requested_features)
+                                         uint64_t requested_features,
+                                         Error **errp)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 

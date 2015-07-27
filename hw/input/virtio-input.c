@@ -166,7 +166,8 @@ static void virtio_input_set_config(VirtIODevice *vdev,
     virtio_notify_config(vdev);
 }
 
-static uint64_t virtio_input_get_features(VirtIODevice *vdev, uint64_t f)
+static uint64_t virtio_input_get_features(VirtIODevice *vdev, uint64_t f,
+                                          Error **errp)
 {
     return f;
 }

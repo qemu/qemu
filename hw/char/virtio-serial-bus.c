@@ -500,7 +500,8 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
-static uint64_t get_features(VirtIODevice *vdev, uint64_t features)
+static uint64_t get_features(VirtIODevice *vdev, uint64_t features,
+                             Error **errp)
 {
     VirtIOSerial *vser;
 

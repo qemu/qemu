@@ -104,7 +104,7 @@ static void handle_input(VirtIODevice *vdev, VirtQueue *vq)
     virtio_rng_process(vrng);
 }
 
-static uint64_t get_features(VirtIODevice *vdev, uint64_t f)
+static uint64_t get_features(VirtIODevice *vdev, uint64_t f, Error **errp)
 {
     return f;
 }

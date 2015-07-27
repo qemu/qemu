@@ -310,7 +310,8 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     trace_virtio_balloon_set_config(dev->actual, oldactual);
 }
 
-static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f)
+static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
+                                            Error **errp)
 {
     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
     f |= dev->host_features;

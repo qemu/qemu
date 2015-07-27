@@ -153,7 +153,8 @@ static void vhost_scsi_stop(VHostSCSI *s)
 }
 
 static uint64_t vhost_scsi_get_features(VirtIODevice *vdev,
-                                        uint64_t features)
+                                        uint64_t features,
+                                        Error **errp)
 {
     VHostSCSI *s = VHOST_SCSI(vdev);
 
