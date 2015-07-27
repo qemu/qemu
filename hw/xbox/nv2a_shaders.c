@@ -72,7 +72,43 @@ static QString* generate_geometry_shader(enum ShaderPrimitiveMode primitive_mode
     return s;
 }
 
+static void pgraph_append_skinning_code(QString* str, bool mix,
+                                        unsigned int count, const char* type,
+                                        const char* output, const char* input,
+                                        const char* matrix, const char* swizzle)
+{
 
+    if (count == 0) {
+        qstring_append_fmt(str, "%s %s = (%s * %s0).%s;\n",
+                           type, output, input, matrix, swizzle);
+    } else {
+        qstring_append_fmt(str, "%s %s = %s(0.0);\n", type, output, type);
+        if (mix) {
+            /* Tweening */
+            if (count == 2) {
+                qstring_append_fmt(str,
+                                   "%s += mix((%s * %s1).%s,\n"
+                                   "          (%s * %s0).%s, weight.x);\n",
+                                   output,
+                                   input, matrix, swizzle,
+                                   input, matrix, swizzle);
+            } else {
+                /* FIXME: Not sure how blend weights are calculated */
+                assert(false);
+            }
+        } else {
+            /* Individual matrices */
+            int i;
+            for (i = 0; i < count; i++) {
+                char c = "xyzw"[i];
+                qstring_append_fmt(str, "%s += (%s * %s%d * weight.%c).%s;\n",
+                                   output, input, matrix, i, c,
+                                   swizzle);
+            }
+            assert(false); /* FIXME: Untested */
+        }
+    }
+}
 
 static QString* generate_fixed_function(const ShaderState state,
                                         char out_prefix)
@@ -154,7 +190,7 @@ static QString* generate_fixed_function(const ShaderState state,
     bool mix;
     switch (state.skinning) {
     case SKINNING_OFF:
-        count = 0; break;
+        mix = false; count = 0; break;
     case SKINNING_1WEIGHTS:
         mix = true; count = 2; break;
     case SKINNING_2WEIGHTS:
@@ -173,37 +209,27 @@ static QString* generate_fixed_function(const ShaderState state,
     }
     qstring_append_fmt(s, "/* Skinning mode %d */\n",
                        state.skinning);
-    if (count == 0) {
-        qstring_append(s, "vec4 tPosition = position * modelViewMat0;\n");
-        /* FIXME: Is the normal still transformed? */
-        qstring_append(s, "vec3 tNormal = (vec4(normal, 0.0) * invModelViewMat0).xyz;\n");
-    } else {
-        qstring_append(s, "vec4 tPosition = vec4(0.0);\n");
-        qstring_append(s, "vec3 tNormal = vec3(0.0);\n");
-        if (mix) {
-            /* Tweening */
-            if (count == 2) {
-                qstring_append(s,
-                    "tPosition += mix(position * modelViewMat1,\n"
-                    "                 position * modelViewMat0, weight.x);\n"
-                    "tNormal += mix((vec4(normal, 0.0) * invModelViewMat1).xyz,\n"
-                    "               (vec4(normal, 0.0) * invModelViewMat0).xyz, weight.x);\n");
-            } else {
-                /* FIXME: Not sure how blend weights are calculated */
-                assert(false);
-            }
-        } else {
-            /* Individual matrices */
-            for (i = 0; i < count; i++) {
-                char c = "xyzw"[i];
-                qstring_append_fmt(s,
-                    "tPosition += position * modelViewMat%d * weight.%c;\n",
-                    i, c);
-                qstring_append_fmt(s,
-                    "tNormal += (vec4(normal, 0.0) * invModelViewMat%d * weight.%c).xyz;\n",
-                    i, c);
-            }
-            assert(false); /* FIXME: Untested */
+
+    pgraph_append_skinning_code(s, mix, count, "vec4",
+                                "tPosition", "position",
+                                "modelViewMat", "xyzw");
+    pgraph_append_skinning_code(s, mix, count, "vec3",
+                                "tNormal", "vec4(normal, 0.0)",
+                                "invModelViewMat", "xyz");
+
+    for(i = 0; i < 4 /* FIXME: NV2A_MAX_TEXTURES*/; i++) {
+        for(j = 0; j < 4; j++) {
+
+            /* FIXME: Only do these if necessary */
+
+            char output[16];
+            char input[16];
+            char cSuffix = "STRQ"[j];
+            snprintf(output, sizeof(output), "tTexPlane%c%d", cSuffix, i);
+            snprintf(input, sizeof(input), "texPlane%c%d", cSuffix, i);
+            pgraph_append_skinning_code(s, mix, count,
+                                        "vec4", output, input,
+                                        "invModelViewMat", "xyzw");
         }
     }
 
@@ -213,7 +239,7 @@ static QString* generate_fixed_function(const ShaderState state,
     }
 
     /* Texgen */
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 4 /* NV2A_MAX_TEXTURES */; i++) {
         qstring_append_fmt(s, "/* Texgen for stage %d */\n",
                            i);
         qstring_append_fmt(s, "vec4 tTexture%d;\n",
@@ -221,24 +247,15 @@ static QString* generate_fixed_function(const ShaderState state,
         /* Set each component individually */
         /* FIXME: could be nicer if some channels share the same texgen */
         for (j = 0; j < 4; j++) {
+            /* TODO: TexGen View Model missing! */
             char c = "xyzw"[j];
-            char cSuffix = "STRQ"[i];
+            char cSuffix = "STRQ"[j];
             switch (state.texgen[i][j]) {
             case TEXGEN_DISABLE:
                 qstring_append_fmt(s, "tTexture%d.%c = texture%d.%c;\n",
                                    i, c, i, c);
                 break;
             case TEXGEN_EYE_LINEAR:
-
-/* FIXME: This might not have to be done? {
- *     FIXME: calculate tTexPlane[STRQ][0-3] - I guess this happens skinned?
- *            tTexPlane[STRQ][0-3] = texPlane[STRQ][0-3] * invModelViewMat[%d or 0?!] probably
- * }
- */
-
-                qstring_append_fmt(s, "vec4 tTexPlane%c%d = texPlane%c%d * invModelViewMat0;\n",
-                                   cSuffix, i, cSuffix, i);
-
                 qstring_append_fmt(s, "tTexture%d.%c = dot(tTexPlane%c%d, tPosition);\n",
                                    i, c, cSuffix, i);
                 break;
@@ -254,11 +271,12 @@ static QString* generate_fixed_function(const ShaderState state,
                 //FIXME: tNormal before or after normalization? Always normalize?
                 qstring_append(s, "  vec3 r = reflect(u, tNormal);\n");
 
-/* FIXME: This would consume 1 division fewer and *might* be faster than length:
- *   // [z=1/(2*x) => z=1/x*0.5]
- *   vec3 ro = r + vec3(0.0, 0.0, 1.0);
- *   float m = inversesqrt(dot(ro,ro))*0.5;
- */
+                /* FIXME: This would consume 1 division fewer and *might* be
+                 *        faster than `length`:
+                 *   // [z=1/(2*x) => z=1/x*0.5]
+                 *   vec3 ro = r + vec3(0.0, 0.0, 1.0);
+                 *   float m = inversesqrt(dot(ro,ro))*0.5;
+                 */
 
                 qstring_append(s, "  float invM = 1.0 / (2.0 * length(r + vec3(0.0, 0.0, 1.0)));\n");
                 qstring_append_fmt(s, "  tTexture%d.%c = r.%c * invM + 0.5;\n",
