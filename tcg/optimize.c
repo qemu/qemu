@@ -230,11 +230,6 @@ static void tcg_opt_gen_mov(TCGContext *s, TCGOp *op, TCGArg *args,
         return;
     }
 
-    if (temp_is_const(src)) {
-        tcg_opt_gen_movi(s, op, args, dst, temps[src].val);
-        return;
-    }
-
     TCGOpcode new_op = op_to_mov(op->opc);
     tcg_target_ulong mask;
 
@@ -248,14 +243,13 @@ static void tcg_opt_gen_mov(TCGContext *s, TCGOp *op, TCGArg *args,
     }
     temps[dst].mask = mask;
 
-    assert(!temp_is_const(src));
-
     if (s->temps[src].type == s->temps[dst].type) {
         temps[dst].next_copy = temps[src].next_copy;
         temps[dst].prev_copy = src;
         temps[temps[dst].next_copy].prev_copy = dst;
         temps[src].next_copy = dst;
-        temps[dst].is_const = false;
+        temps[dst].is_const = temps[src].is_const;
+        temps[dst].val = temps[src].val;
     }
 
     args[0] = dst;
