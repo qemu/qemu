@@ -1920,6 +1920,9 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
         }
         ots->val_type = TEMP_VAL_CONST;
         ots->val = ts->val;
+        if (IS_DEAD_ARG(1)) {
+            temp_dead(s, args[1]);
+        }
     } else {
         /* The code in the first if block should have moved the
            temp to a register. */
