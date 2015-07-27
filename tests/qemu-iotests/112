@@ -180,6 +180,115 @@ $QEMU_IMG snapshot -c foo "$TEST_IMG"
 # leaked (refcount=UINT64_MAX reference=1)
 _check_test_img
 
+echo
+echo '=== Amend from refcount_bits=16 to refcount_bits=1 ==='
+echo
+
+_make_test_img 64M
+print_refcount_bits
+
+$QEMU_IO -c 'write 16M 32M' "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG amend -o refcount_bits=1 "$TEST_IMG"
+_check_test_img
+print_refcount_bits
+
+echo
+echo '=== Amend from refcount_bits=1 to refcount_bits=64 ==='
+echo
+
+$QEMU_IMG amend -o refcount_bits=64 "$TEST_IMG"
+_check_test_img
+print_refcount_bits
+
+echo
+echo '=== Amend to compat=0.10 ==='
+echo
+
+# Should not work because refcount_bits needs to be 16 for compat=0.10
+$QEMU_IMG amend -o compat=0.10 "$TEST_IMG"
+print_refcount_bits
+# Should work
+$QEMU_IMG amend -o compat=0.10,refcount_bits=16 "$TEST_IMG"
+_check_test_img
+print_refcount_bits
+
+# Get back to compat=1.1 and refcount_bits=16
+$QEMU_IMG amend -o compat=1.1 "$TEST_IMG"
+print_refcount_bits
+# Should not work
+$QEMU_IMG amend -o refcount_bits=32,compat=0.10 "$TEST_IMG"
+print_refcount_bits
+
+echo
+echo '=== Amend with snapshot ==='
+echo
+
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+# Just to have different refcounts across the image
+$QEMU_IO -c 'write 0 16M' "$TEST_IMG" | _filter_qemu_io
+
+# Should not work (may work in the future by first decreasing all refcounts so
+# they fit into the target range by copying them)
+$QEMU_IMG amend -o refcount_bits=1 "$TEST_IMG"
+_check_test_img
+print_refcount_bits
+
+# Should work
+$QEMU_IMG amend -o refcount_bits=2 "$TEST_IMG"
+_check_test_img
+print_refcount_bits
+
+echo
+echo '=== Testing too many references for check ==='
+echo
+
+IMGOPTS="$IMGOPTS,refcount_bits=1" _make_test_img 64M
+print_refcount_bits
+
+# This cluster should be created at 0x50000
+$QEMU_IO -c 'write 0 64k' "$TEST_IMG" | _filter_qemu_io
+# Now make the second L2 entry (the L2 table should be at 0x40000) point to that
+# cluster, so we have two references
+poke_file "$TEST_IMG" $((0x40008)) "\x80\x00\x00\x00\x00\x05\x00\x00"
+
+# This should say "please use amend"
+_check_test_img -r all
+
+# So we do that
+$QEMU_IMG amend -o refcount_bits=2 "$TEST_IMG"
+print_refcount_bits
+
+# And try again
+_check_test_img -r all
+
+echo
+echo '=== Multiple walks necessary during amend ==='
+echo
+
+IMGOPTS="$IMGOPTS,refcount_bits=1,cluster_size=512" _make_test_img 64k
+
+# Cluster 0 is the image header, clusters 1 to 4 are used by the L1 table, a
+# single L2 table, the reftable and a single refblock. This creates 58 data
+# clusters (actually, the L2 table is created here, too), so in total there are
+# then 63 used clusters in the image. With a refcount width of 64, one refblock
+# describes 64 clusters (512 bytes / 64 bits/entry = 64 entries), so this will
+# make the first refblock in the amended image have exactly one free entry.
+$QEMU_IO -c "write 0 $((58 * 512))" "$TEST_IMG" | _filter_qemu_io
+
+# Now change the refcount width; since the first new refblock will have exactly
+# one free entry, that entry will be used to store its own reference. No other
+# refblocks are needed, so then the new reftable will be allocated; since the
+# first new refblock is completely filled up, this will require a new refblock
+# which is why the refcount width changing function will need to run through
+# everything one more time until the allocations are stable.
+# Having more walks than usual should be visible as regressing progress (from
+# 66.67 % (2/3 walks) to 50.00 % (2/4 walks)).
+$QEMU_IMG amend -o refcount_bits=64 -p "$TEST_IMG" | tr '\r' '\n' \
+                                                   | grep -A 1 '66.67'
+print_refcount_bits
+
+_check_test_img
+
 
 # success, all done
 echo '*** done'

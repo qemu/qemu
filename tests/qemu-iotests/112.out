@@ -81,4 +81,75 @@ Leaked cluster 6 refcount=1 reference=0
 
 2 leaked clusters were found on the image.
 This means waste of disk space, but no harm to data.
+
+=== Amend from refcount_bits=16 to refcount_bits=1 ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 16
+wrote 33554432/33554432 bytes at offset 16777216
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+refcount bits: 1
+
+=== Amend from refcount_bits=1 to refcount_bits=64 ===
+
+No errors were found on the image.
+refcount bits: 64
+
+=== Amend to compat=0.10 ===
+
+qemu-img: compat=0.10 requires refcount_bits=16
+qemu-img: Error while amending options: Operation not supported
+refcount bits: 64
+No errors were found on the image.
+refcount bits: 16
+refcount bits: 16
+qemu-img: Different refcount widths than 16 bits require compatibility level 1.1 or above (use compat=1.1 or greater)
+qemu-img: Error while amending options: Invalid argument
+refcount bits: 16
+
+=== Amend with snapshot ===
+
+wrote 16777216/16777216 bytes at offset 0
+16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Cannot decrease refcount entry width to 1 bits: Cluster at offset 0x50000 has a refcount of 2
+qemu-img: Error while amending options: Invalid argument
+No errors were found on the image.
+refcount bits: 16
+No errors were found on the image.
+refcount bits: 2
+
+=== Testing too many references for check ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+refcount bits: 1
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+ERROR: overflow cluster offset=0x50000
+Use qemu-img amend to increase the refcount entry width or qemu-img convert to create a clean copy if the image cannot be opened for writing
+
+1 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+refcount bits: 2
+ERROR cluster 5 refcount=1 reference=2
+Repairing cluster 5 refcount=1 reference=2
+Repairing OFLAG_COPIED data cluster: l2_entry=8000000000050000 refcount=2
+Repairing OFLAG_COPIED data cluster: l2_entry=8000000000050000 refcount=2
+The following inconsistencies were found and repaired:
+
+    0 leaked clusters
+    3 corruptions
+
+Double checking the fixed image now...
+No errors were found on the image.
+
+=== Multiple walks necessary during amend ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
+wrote 29696/29696 bytes at offset 0
+29 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+    (66.67/100%)
+    (50.00/100%)
+refcount bits: 64
+No errors were found on the image.
 *** done
