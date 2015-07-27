@@ -2964,11 +2964,11 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             } else if (!strcmp(compat, "1.1")) {
                 new_version = 3;
             } else {
-                fprintf(stderr, "Unknown compatibility level %s.\n", compat);
+                error_report("Unknown compatibility level %s", compat);
                 return -EINVAL;
             }
         } else if (!strcmp(desc->name, BLOCK_OPT_PREALLOC)) {
-            fprintf(stderr, "Cannot change preallocation mode.\n");
+            error_report("Cannot change preallocation mode");
             return -ENOTSUP;
         } else if (!strcmp(desc->name, BLOCK_OPT_SIZE)) {
             new_size = qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 0);
@@ -2981,16 +2981,14 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                                         !!s->cipher);
 
             if (encrypt != !!s->cipher) {
-                fprintf(stderr, "Changing the encryption flag is not "
-                        "supported.\n");
+                error_report("Changing the encryption flag is not supported");
                 return -ENOTSUP;
             }
         } else if (!strcmp(desc->name, BLOCK_OPT_CLUSTER_SIZE)) {
             cluster_size = qemu_opt_get_size(opts, BLOCK_OPT_CLUSTER_SIZE,
                                              cluster_size);
             if (cluster_size != s->cluster_size) {
-                fprintf(stderr, "Changing the cluster size is not "
-                        "supported.\n");
+                error_report("Changing the cluster size is not supported");
                 return -ENOTSUP;
             }
         } else if (!strcmp(desc->name, BLOCK_OPT_LAZY_REFCOUNTS)) {
@@ -3037,8 +3035,8 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     if (s->use_lazy_refcounts != lazy_refcounts) {
         if (lazy_refcounts) {
             if (s->qcow_version < 3) {
-                fprintf(stderr, "Lazy refcounts only supported with compatibility "
-                        "level 1.1 and above (use compat=1.1 or greater)\n");
+                error_report("Lazy refcounts only supported with compatibility "
+                             "level 1.1 and above (use compat=1.1 or greater)");
                 return -EINVAL;
             }
             s->compatible_features |= QCOW2_COMPAT_LAZY_REFCOUNTS;
