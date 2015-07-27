@@ -2202,8 +2202,15 @@ static uint64_t megasas_queue_read(void *opaque, hwaddr addr,
     return 0;
 }
 
+static void megasas_queue_write(void *opaque, hwaddr addr,
+                               uint64_t val, unsigned size)
+{
+    return;
+}
+
 static const MemoryRegionOps megasas_queue_ops = {
     .read = megasas_queue_read,
+    .write = megasas_queue_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 8,
