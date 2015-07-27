@@ -1293,7 +1293,6 @@ int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
     kroute.u.adapter.adapter_id = adapter->adapter_id;
 
     kvm_add_routing_entry(s, &kroute);
-    kvm_irqchip_commit_routes(s);
 
     return virq;
 }
