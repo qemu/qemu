@@ -736,7 +736,6 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
             error_setg(errp, "Please set scsi=off for virtio-blk devices in order to use virtio 1.0");
             return 0;
         }
-        virtio_add_feature(&features, VIRTIO_F_ANY_LAYOUT);
     } else {
         virtio_clear_feature(&features, VIRTIO_F_ANY_LAYOUT);
         virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
