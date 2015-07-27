@@ -737,6 +737,7 @@ QString* vsh_translate(uint16_t version,
     qstring_append(header, STRUCT_VERTEX_DATA);
     qstring_append_fmt(header, "noperspective out VertexData %c_vtx;\n", out_prefix);
     qstring_append_fmt(header, "#define vtx %c_vtx", out_prefix);
+
     qstring_append(header, "\n"
                            "uniform mat4 texMat0;\n"
                            "uniform mat4 texMat1;\n"
@@ -780,7 +781,7 @@ QString* vsh_translate(uint16_t version,
     qstring_append(body, "vtx.D1 = clamp(oD1, 0.0, 1.0) * vtx.inv_w;\n");
     qstring_append(body, "vtx.B0 = clamp(oB0, 0.0, 1.0) * vtx.inv_w;\n");
     qstring_append(body, "vtx.B1 = clamp(oB1, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(body, "vtx.Fog = oFog * vtx.inv_w;\n");
+    qstring_append(body, "vtx.Fog = oFog.x * vtx.inv_w;\n");
     qstring_append(body, "vtx.T0 = oT0 * vtx.inv_w;\n");
     qstring_append(body, "vtx.T1 = oT1 * vtx.inv_w;\n");
     qstring_append(body, "vtx.T2 = oT2 * vtx.inv_w;\n");

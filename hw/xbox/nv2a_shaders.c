@@ -329,12 +329,11 @@ static QString* generate_fixed_function(const ShaderState state,
             break;
         }
         /* FIXME: What about fog alpha?! */
-        qstring_append(s, "vec4 tFog = vec4(fogColor.rgb, fogFactor);\n");
+        qstring_append(s, "float tFog = fogFactor;\n");
     } else {
         /* FIXME: Is the fog still calculated / passed somehow?!
-         * Maybe vec4(fogColor, fogCoord) ?
          */
-        qstring_append(s, "vec4 tFog = vec4(0.0);\n");
+        qstring_append(s, "float tFog = 0.0;\n");
     }
 
     /* If skinning is off the composite matrix already includes the MV matrix */

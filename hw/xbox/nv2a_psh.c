@@ -539,6 +539,7 @@ static QString* psh_convert(struct PixelShader *ps)
     qstring_append(preflight, "\n");
     qstring_append(preflight, "out vec4 fragColor;\n");
     qstring_append(preflight, "\n");
+    qstring_append(preflight, "uniform vec4 fogColor;\n");
 
     /* calculate perspective-correct inputs */
     QString *vars = qstring_new();
@@ -546,7 +547,7 @@ static QString* psh_convert(struct PixelShader *ps)
     qstring_append(vars, "vec4 pD1 = vtx.D1 / vtx.inv_w;\n");
     qstring_append(vars, "vec4 pB0 = vtx.B0 / vtx.inv_w;\n");
     qstring_append(vars, "vec4 pB1 = vtx.B1 / vtx.inv_w;\n");
-    qstring_append(vars, "vec4 pFog = clamp(vtx.Fog / vtx.inv_w, 0.0, 1.0);\n");
+    qstring_append(vars, "vec4 pFog = vec4(fogColor.rgb, clamp(vtx.Fog / vtx.inv_w, 0.0, 1.0));\n");
     qstring_append(vars, "vec4 pT0 = vtx.T0 / vtx.inv_w;\n");
     qstring_append(vars, "vec4 pT1 = vtx.T1 / vtx.inv_w;\n");
     qstring_append(vars, "vec4 pT2 = vtx.T2 / vtx.inv_w;\n");
