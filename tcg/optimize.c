@@ -50,6 +50,7 @@ struct tcg_temp_info {
 };
 
 static struct tcg_temp_info temps[TCG_MAX_TEMPS];
+static TCGTempSet temps_used;
 
 /* Reset TEMP's state to TCG_TEMP_UNDEF.  If TEMP only had one copy, remove
    the copy flag from the left temp.  */
@@ -65,6 +66,22 @@ static void reset_temp(TCGArg temp)
     }
     temps[temp].state = TCG_TEMP_UNDEF;
     temps[temp].mask = -1;
+}
+
+/* Reset all temporaries, given that there are NB_TEMPS of them.  */
+static void reset_all_temps(int nb_temps)
+{
+    bitmap_zero(temps_used.l, nb_temps);
+}
+
+/* Initialize and activate a temporary.  */
+static void init_temp_info(TCGArg temp)
+{
+    if (!test_bit(temp, temps_used.l)) {
+        temps[temp].state = TCG_TEMP_UNDEF;
+        temps[temp].mask = -1;
+        set_bit(temp, temps_used.l);
+    }
 }
 
 static TCGOp *insert_op_before(TCGContext *s, TCGOp *old_op,
@@ -96,16 +113,6 @@ static TCGOp *insert_op_before(TCGContext *s, TCGOp *old_op,
     old_op->prev = oi;
 
     return new_op;
-}
-
-/* Reset all temporaries, given that there are NB_TEMPS of them.  */
-static void reset_all_temps(int nb_temps)
-{
-    int i;
-    for (i = 0; i < nb_temps; i++) {
-        temps[i].state = TCG_TEMP_UNDEF;
-        temps[i].mask = -1;
-    }
 }
 
 static int op_bits(TCGOpcode op)
@@ -598,12 +605,24 @@ void tcg_optimize(TCGContext *s)
         const TCGOpDef *def = &tcg_op_defs[opc];
 
         oi_next = op->next;
+
+        /* Count the arguments, and initialize the temps that are
+           going to be used */
         if (opc == INDEX_op_call) {
             nb_oargs = op->callo;
             nb_iargs = op->calli;
+            for (i = 0; i < nb_oargs + nb_iargs; i++) {
+                tmp = args[i];
+                if (tmp != TCG_CALL_DUMMY_ARG) {
+                    init_temp_info(tmp);
+                }
+            }
         } else {
             nb_oargs = def->nb_oargs;
             nb_iargs = def->nb_iargs;
+            for (i = 0; i < nb_oargs + nb_iargs; i++) {
+                init_temp_info(args[i]);
+            }
         }
 
         /* Do copy propagation */
@@ -1299,7 +1318,9 @@ void tcg_optimize(TCGContext *s)
             if (!(args[nb_oargs + nb_iargs + 1]
                   & (TCG_CALL_NO_READ_GLOBALS | TCG_CALL_NO_WRITE_GLOBALS))) {
                 for (i = 0; i < nb_globals; i++) {
-                    reset_temp(i);
+                    if (test_bit(i, temps_used.l)) {
+                        reset_temp(i);
+                    }
                 }
             }
             goto do_reset_output;
