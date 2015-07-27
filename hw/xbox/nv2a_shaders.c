@@ -115,6 +115,22 @@ static QString* generate_fixed_function(const ShaderState state,
     qstring_append(s,
 "\n"
 /* FIXME: Add these uniforms using code when they are used */
+"uniform vec4 texPlaneS0;\n"
+"uniform vec4 texPlaneT0;\n"
+"uniform vec4 texPlaneQ0;\n"
+"uniform vec4 texPlaneR0;\n"
+"uniform vec4 texPlaneS1;\n"
+"uniform vec4 texPlaneT1;\n"
+"uniform vec4 texPlaneQ1;\n"
+"uniform vec4 texPlaneR1;\n"
+"uniform vec4 texPlaneS2;\n"
+"uniform vec4 texPlaneT2;\n"
+"uniform vec4 texPlaneQ2;\n"
+"uniform vec4 texPlaneR2;\n"
+"uniform vec4 texPlaneS3;\n"
+"uniform vec4 texPlaneT3;\n"
+"uniform vec4 texPlaneQ3;\n"
+"uniform vec4 texPlaneR3;\n"
 "uniform mat4 texMat0;\n"
 "uniform mat4 texMat1;\n"
 "uniform mat4 texMat2;\n"
@@ -206,37 +222,62 @@ static QString* generate_fixed_function(const ShaderState state,
         /* FIXME: could be nicer if some channels share the same texgen */
         for (j = 0; j < 4; j++) {
             char c = "xyzw"[j];
+            char cSuffix = "STRQ"[i];
             switch (state.texgen[i][j]) {
             case TEXGEN_DISABLE:
-                qstring_append_fmt(s,
-                                   "tTexture%d.%c = texture%d.%c;\n",
+                qstring_append_fmt(s, "tTexture%d.%c = texture%d.%c;\n",
                                    i, c, i, c);
                 break;
             case TEXGEN_EYE_LINEAR:
-                qstring_append_fmt(s,
-                                   "tTexture%d.%c = tPosition.%c;\n",
-                                   i, c, c);
+
+/* FIXME: This might not have to be done? {
+ *     FIXME: calculate tTexPlane[STRQ][0-3] - I guess this happens skinned?
+ *            tTexPlane[STRQ][0-3] = texPlane[STRQ][0-3] * invModelViewMat[%d or 0?!] probably
+ * }
+ */
+
+                qstring_append_fmt(s, "vec4 tTexPlane%c%d = texPlane%c%d * invModelViewMat0;\n",
+                                   cSuffix, i, cSuffix, i);
+
+                qstring_append_fmt(s, "tTexture%d.%c = dot(tTexPlane%c%d, tPosition);\n",
+                                   i, c, cSuffix, i);
                 break;
             case TEXGEN_OBJECT_LINEAR:
-                qstring_append_fmt(s,
-                                   "tTexture%d.%c = position.%c;\n",
-                                   i, c, c);
+                qstring_append_fmt(s, "tTexture%d.%c = dot(texPlane%c%d, position);\n",
+                                   i, c, cSuffix, i);
                 break;
             case TEXGEN_SPHERE_MAP:
                 assert(i < 2);  /* Channels S,T only! */
-                assert(false);
+                qstring_append(s, "{\n");
+                /* FIXME: r and m only have to be calculated once */
+                qstring_append(s, "  vec3 u = normalize(tPosition.xyz);\n");
+                //FIXME: tNormal before or after normalization? Always normalize?
+                qstring_append(s, "  vec3 r = reflect(u, tNormal);\n");
+
+/* FIXME: This would consume 1 division fewer and *might* be faster than length:
+ *   // [z=1/(2*x) => z=1/x*0.5]
+ *   vec3 ro = r + vec3(0.0, 0.0, 1.0);
+ *   float m = inversesqrt(dot(ro,ro))*0.5;
+ */
+
+                qstring_append(s, "  float invM = 1.0 / (2.0 * length(r + vec3(0.0, 0.0, 1.0)));\n");
+                qstring_append_fmt(s, "  tTexture%d.%c = r.%c * invM + 0.5;\n",
+                                   i, c, c);
+                qstring_append(s, "}\n");
                 break;
             case TEXGEN_REFLECTION_MAP:
                 assert(i < 3); /* Channels S,T,R only! */
-                qstring_append_fmt(s,
-                                   "tTexture%d.%c = reflect(???, tNormal).%c;\n",
+                qstring_append(s, "{\n");
+                /* FIXME: u and r only have to be calculated once, can share the one from SPHERE_MAP */
+                qstring_append(s, "  vec3 u = normalize(tPosition.xyz);\n");
+                qstring_append(s, "  vec3 r = reflect(u, tNormal);\n");
+                qstring_append_fmt(s, "  tTexture%d.%c = r.%c;\n",
                                    i, c, c);
-                assert(false); /* FIXME: Code not complete yet! */
+                qstring_append(s, "}\n");
                 break;
             case TEXGEN_NORMAL_MAP:
                 assert(i < 3); /* Channels S,T,R only! */
-                qstring_append_fmt(s,
-                                   "tTexture%d.%c = tNormal.%c;\n",
+                qstring_append_fmt(s, "tTexture%d.%c = tNormal.%c;\n",
                                    i, c, c);
                 break;
             default:
