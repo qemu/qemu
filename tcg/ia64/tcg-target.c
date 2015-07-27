@@ -2148,9 +2148,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16u_i64:
         tcg_out_ext(s, OPC_ZXT2_I29, args[0], args[1]);
         break;
+    case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         tcg_out_ext(s, OPC_SXT4_I29, args[0], args[1]);
         break;
+    case INDEX_op_extu_i32_i64:
     case INDEX_op_ext32u_i64:
         tcg_out_ext(s, OPC_ZXT4_I29, args[0], args[1]);
         break;
@@ -2301,6 +2303,8 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_ext16u_i64, { "r", "rZ"} },
     { INDEX_op_ext32s_i64, { "r", "rZ"} },
     { INDEX_op_ext32u_i64, { "r", "rZ"} },
+    { INDEX_op_ext_i32_i64, { "r", "rZ" } },
+    { INDEX_op_extu_i32_i64, { "r", "rZ" } },
 
     { INDEX_op_bswap16_i64, { "r", "rZ" } },
     { INDEX_op_bswap32_i64, { "r", "rZ" } },

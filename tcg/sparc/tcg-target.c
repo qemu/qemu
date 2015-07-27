@@ -1407,9 +1407,11 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_divu_i64:
         c = ARITH_UDIVX;
         goto gen_arith;
+    case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         tcg_out_arithi(s, a0, a1, 0, SHIFT_SRA);
         break;
+    case INDEX_op_extu_i32_i64:
     case INDEX_op_ext32u_i64:
         tcg_out_arithi(s, a0, a1, 0, SHIFT_SRL);
         break;
@@ -1531,8 +1533,10 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_neg_i64, { "R", "RJ" } },
     { INDEX_op_not_i64, { "R", "RJ" } },
 
-    { INDEX_op_ext32s_i64, { "R", "r" } },
-    { INDEX_op_ext32u_i64, { "R", "r" } },
+    { INDEX_op_ext32s_i64, { "R", "R" } },
+    { INDEX_op_ext32u_i64, { "R", "R" } },
+    { INDEX_op_ext_i32_i64, { "R", "r" } },
+    { INDEX_op_extu_i32_i64, { "R", "r" } },
     { INDEX_op_trunc_shr_i64_i32,  { "r", "R" } },
 
     { INDEX_op_brcond_i64, { "RZ", "RJ" } },

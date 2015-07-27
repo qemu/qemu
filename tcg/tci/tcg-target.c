@@ -210,6 +210,8 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #if TCG_TARGET_HAS_ext32u_i64
     { INDEX_op_ext32u_i64, { R, R } },
 #endif
+    { INDEX_op_ext_i32_i64, { R, R } },
+    { INDEX_op_extu_i32_i64, { R, R } },
 #if TCG_TARGET_HAS_bswap16_i64
     { INDEX_op_bswap16_i64, { R, R } },
 #endif
@@ -701,6 +703,8 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_ext16u_i64:   /* Optional (TCG_TARGET_HAS_ext16u_i64). */
     case INDEX_op_ext32s_i64:   /* Optional (TCG_TARGET_HAS_ext32s_i64). */
     case INDEX_op_ext32u_i64:   /* Optional (TCG_TARGET_HAS_ext32u_i64). */
+    case INDEX_op_ext_i32_i64:
+    case INDEX_op_extu_i32_i64:
 #endif /* TCG_TARGET_REG_BITS == 64 */
     case INDEX_op_neg_i32:      /* Optional (TCG_TARGET_HAS_neg_i32). */
     case INDEX_op_not_i32:      /* Optional (TCG_TARGET_HAS_not_i32). */
