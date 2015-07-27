@@ -787,10 +787,10 @@ QString* vsh_translate(uint16_t version,
         "  %cPos_w = 1.0 / oPos.w;\n"
         "}\n"
         , output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cD0 = oD0 * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cD1 = oD1 * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cB0 = oB0 * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cB1 = oB1 * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cD0 = clamp(oD0, 0.0, 1.0) * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cD1 = clamp(oD1, 0.0, 1.0) * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cB0 = clamp(oB0, 0.0, 1.0) * %cPos_w;\n", output_prefix, output_prefix);
+    qstring_append_fmt(body, "%cB1 = clamp(oB1, 0.0, 1.0) * %cPos_w;\n", output_prefix, output_prefix);
     qstring_append_fmt(body, "%cFog = oFog * %cPos_w;\n", output_prefix, output_prefix);
     qstring_append_fmt(body, "%cT0 = oT0 * %cPos_w;\n", output_prefix, output_prefix);
     qstring_append_fmt(body, "%cT1 = oT1 * %cPos_w;\n", output_prefix, output_prefix);
