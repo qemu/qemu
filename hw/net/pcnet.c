@@ -995,15 +995,6 @@ static int pcnet_tdte_poll(PCNetState *s)
     return !!(CSR_CXST(s) & 0x8000);
 }
 
-int pcnet_can_receive(NetClientState *nc)
-{
-    PCNetState *s = qemu_get_nic_opaque(nc);
-    if (CSR_STOP(s) || CSR_SPND(s))
-        return 0;
-
-    return sizeof(s->buffer)-16;
-}
-
 #define MIN_BUF_SIZE 60
 
 ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)

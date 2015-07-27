@@ -828,7 +828,6 @@ milkymist_minimac2_mdio_write(uint8_t phy_addr, uint8_t addr, uint16_t value) "p
 milkymist_minimac2_mdio_read(uint8_t phy_addr, uint8_t addr, uint16_t value) "phy_addr %02x addr %02x value %04x"
 milkymist_minimac2_tx_frame(uint32_t length) "length %u"
 milkymist_minimac2_rx_frame(const void *buf, uint32_t length) "buf %p length %u"
-milkymist_minimac2_drop_rx_frame(const void *buf) "buf %p"
 milkymist_minimac2_rx_transfer(const void *buf, uint32_t length) "buf %p length %d"
 milkymist_minimac2_raise_irq_rx(void) "Raise IRQ RX"
 milkymist_minimac2_lower_irq_rx(void) "Lower IRQ RX"

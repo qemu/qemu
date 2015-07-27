@@ -1268,6 +1268,10 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
     uint8_t *in_buf = s->in_buf;
     size_t total_size = size;
 
+    if (!s->dev.config) {
+        return -1;
+    }
+
     if (is_rndis(s)) {
         if (s->rndis_state != RNDIS_DATA_INITIALIZED) {
             return -1;
@@ -1309,21 +1313,6 @@ static ssize_t usbnet_receive(NetClientState *nc, const uint8_t *buf, size_t siz
     return size;
 }
 
-static int usbnet_can_receive(NetClientState *nc)
-{
-    USBNetState *s = qemu_get_nic_opaque(nc);
-
-    if (!s->dev.config) {
-        return 0;
-    }
-
-    if (is_rndis(s) && s->rndis_state != RNDIS_DATA_INITIALIZED) {
-        return 1;
-    }
-
-    return !s->in_len;
-}
-
 static void usbnet_cleanup(NetClientState *nc)
 {
     USBNetState *s = qemu_get_nic_opaque(nc);
@@ -1343,7 +1332,6 @@ static void usb_net_handle_destroy(USBDevice *dev)
 static NetClientInfo net_usbnet_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = usbnet_can_receive,
     .receive = usbnet_receive,
     .cleanup = usbnet_cleanup,
 };
