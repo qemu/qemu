@@ -2933,6 +2933,75 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
     return 0;
 }
 
+typedef enum Qcow2AmendOperation {
+    /* This is the value Qcow2AmendHelperCBInfo::last_operation will be
+     * statically initialized to so that the helper CB can discern the first
+     * invocation from an operation change */
+    QCOW2_NO_OPERATION = 0,
+
+    QCOW2_DOWNGRADING,
+} Qcow2AmendOperation;
+
+typedef struct Qcow2AmendHelperCBInfo {
+    /* The code coordinating the amend operations should only modify
+     * these four fields; the rest will be managed by the CB */
+    BlockDriverAmendStatusCB *original_status_cb;
+    void *original_cb_opaque;
+
+    Qcow2AmendOperation current_operation;
+
+    /* Total number of operations to perform (only set once) */
+    int total_operations;
+
+    /* The following fields are managed by the CB */
+
+    /* Number of operations completed */
+    int operations_completed;
+
+    /* Cumulative offset of all completed operations */
+    int64_t offset_completed;
+
+    Qcow2AmendOperation last_operation;
+    int64_t last_work_size;
+} Qcow2AmendHelperCBInfo;
+
+static void qcow2_amend_helper_cb(BlockDriverState *bs,
+                                  int64_t operation_offset,
+                                  int64_t operation_work_size, void *opaque)
+{
+    Qcow2AmendHelperCBInfo *info = opaque;
+    int64_t current_work_size;
+    int64_t projected_work_size;
+
+    if (info->current_operation != info->last_operation) {
+        if (info->last_operation != QCOW2_NO_OPERATION) {
+            info->offset_completed += info->last_work_size;
+            info->operations_completed++;
+        }
+
+        info->last_operation = info->current_operation;
+    }
+
+    assert(info->total_operations > 0);
+    assert(info->operations_completed < info->total_operations);
+
+    info->last_work_size = operation_work_size;
+
+    current_work_size = info->offset_completed + operation_work_size;
+
+    /* current_work_size is the total work size for (operations_completed + 1)
+     * operations (which includes this one), so multiply it by the number of
+     * operations not covered and divide it by the number of operations
+     * covered to get a projection for the operations not covered */
+    projected_work_size = current_work_size * (info->total_operations -
+                                               info->operations_completed - 1)
+                                            / (info->operations_completed + 1);
+
+    info->original_status_cb(bs, info->offset_completed + operation_offset,
+                             current_work_size + projected_work_size,
+                             info->original_cb_opaque);
+}
+
 static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
                                BlockDriverAmendStatusCB *status_cb,
                                void *cb_opaque)
@@ -2947,6 +3016,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     bool encrypt;
     int ret;
     QemuOptDesc *desc = opts->list->desc;
+    Qcow2AmendHelperCBInfo helper_cb_info;
 
     while (desc && desc->name) {
         if (!qemu_opt_find(opts, desc->name)) {
@@ -3005,6 +3075,12 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
 
         desc++;
     }
+
+    helper_cb_info = (Qcow2AmendHelperCBInfo){
+        .original_status_cb = status_cb,
+        .original_cb_opaque = cb_opaque,
+        .total_operations = (new_version < old_version)
+    };
 
     /* Upgrade first (some features may require compat=1.1) */
     if (new_version > old_version) {
@@ -3065,7 +3141,9 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
 
     /* Downgrade last (so unsupported features can be removed before) */
     if (new_version < old_version) {
-        ret = qcow2_downgrade(bs, new_version, status_cb, cb_opaque);
+        helper_cb_info.current_operation = QCOW2_DOWNGRADING;
+        ret = qcow2_downgrade(bs, new_version, &qcow2_amend_helper_cb,
+                              &helper_cb_info);
         if (ret < 0) {
             return ret;
         }
