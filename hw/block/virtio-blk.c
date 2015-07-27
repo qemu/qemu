@@ -731,7 +731,6 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
     virtio_add_feature(&features, VIRTIO_BLK_F_GEOMETRY);
     virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
     virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
-    virtio_clear_feature(&features, VIRTIO_F_ANY_LAYOUT);
     if (__virtio_has_feature(features, VIRTIO_F_VERSION_1)) {
         if (s->conf.scsi) {
             error_setg(errp, "Please set scsi=off for virtio-blk devices in order to use virtio 1.0");
@@ -739,6 +738,7 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
         }
         virtio_add_feature(&features, VIRTIO_F_ANY_LAYOUT);
     } else {
+        virtio_clear_feature(&features, VIRTIO_F_ANY_LAYOUT);
         virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
     }
 
