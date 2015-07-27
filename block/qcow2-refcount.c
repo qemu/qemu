@@ -1345,6 +1345,9 @@ static int inc_refcounts(BlockDriverState *bs,
         if (refcount == s->refcount_max) {
             fprintf(stderr, "ERROR: overflow cluster offset=0x%" PRIx64
                     "\n", cluster_offset);
+            fprintf(stderr, "Use qemu-img amend to increase the refcount entry "
+                    "width or qemu-img convert to create a clean copy if the "
+                    "image cannot be opened for writing\n");
             res->corruptions++;
             continue;
         }
