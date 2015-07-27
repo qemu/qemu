@@ -2885,13 +2885,7 @@ static int qcow2_downgrade(BlockDriverState *bs, int target_version,
     }
 
     if (s->refcount_order != 4) {
-        /* we would have to convert the image to a refcount_order == 4 image
-         * here; however, since qemu (at the time of writing this) does not
-         * support anything different than 4 anyway, there is no point in doing
-         * so right now; however, we should error out (if qemu supports this in
-         * the future and this code has not been adapted) */
-        error_report("qcow2_downgrade: Image refcount orders other than 4 are "
-                     "currently not supported.");
+        error_report("compat=0.10 requires refcount_bits=16");
         return -ENOTSUP;
     }
 
@@ -2939,6 +2933,7 @@ typedef enum Qcow2AmendOperation {
      * invocation from an operation change */
     QCOW2_NO_OPERATION = 0,
 
+    QCOW2_CHANGING_REFCOUNT_ORDER,
     QCOW2_DOWNGRADING,
 } Qcow2AmendOperation;
 
@@ -3014,6 +3009,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
     const char *compat = NULL;
     uint64_t cluster_size = s->cluster_size;
     bool encrypt;
+    int refcount_bits = s->refcount_bits;
     int ret;
     QemuOptDesc *desc = opts->list->desc;
     Qcow2AmendHelperCBInfo helper_cb_info;
@@ -3065,8 +3061,16 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             lazy_refcounts = qemu_opt_get_bool(opts, BLOCK_OPT_LAZY_REFCOUNTS,
                                                lazy_refcounts);
         } else if (!strcmp(desc->name, BLOCK_OPT_REFCOUNT_BITS)) {
-            error_report("Cannot change refcount entry width");
-            return -ENOTSUP;
+            refcount_bits = qemu_opt_get_number(opts, BLOCK_OPT_REFCOUNT_BITS,
+                                                refcount_bits);
+
+            if (refcount_bits <= 0 || refcount_bits > 64 ||
+                !is_power_of_2(refcount_bits))
+            {
+                error_report("Refcount width must be a power of two and may "
+                             "not exceed 64 bits");
+                return -EINVAL;
+            }
         } else {
             /* if this point is reached, this probably means a new option was
              * added without having it covered here */
@@ -3080,6 +3084,7 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
         .original_status_cb = status_cb,
         .original_cb_opaque = cb_opaque,
         .total_operations = (new_version < old_version)
+                          + (s->refcount_bits != refcount_bits)
     };
 
     /* Upgrade first (some features may require compat=1.1) */
@@ -3088,6 +3093,27 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
         ret = qcow2_update_header(bs);
         if (ret < 0) {
             s->qcow_version = old_version;
+            return ret;
+        }
+    }
+
+    if (s->refcount_bits != refcount_bits) {
+        int refcount_order = ctz32(refcount_bits);
+        Error *local_error = NULL;
+
+        if (new_version < 3 && refcount_bits != 16) {
+            error_report("Different refcount widths than 16 bits require "
+                         "compatibility level 1.1 or above (use compat=1.1 or "
+                         "greater)");
+            return -EINVAL;
+        }
+
+        helper_cb_info.current_operation = QCOW2_CHANGING_REFCOUNT_ORDER;
+        ret = qcow2_change_refcount_order(bs, refcount_order,
+                                          &qcow2_amend_helper_cb,
+                                          &helper_cb_info, &local_error);
+        if (ret < 0) {
+            error_report_err(local_error);
             return ret;
         }
     }
