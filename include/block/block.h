@@ -306,9 +306,9 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
  * block driver; total_work_size may change during the course of the amendment
  * operation */
 typedef void BlockDriverAmendStatusCB(BlockDriverState *bs, int64_t offset,
-                                      int64_t total_work_size);
+                                      int64_t total_work_size, void *opaque);
 int bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts,
-                       BlockDriverAmendStatusCB *status_cb);
+                       BlockDriverAmendStatusCB *status_cb, void *cb_opaque);
 
 /* external snapshots */
 bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,

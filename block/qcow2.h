@@ -553,7 +553,8 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors);
 
 int qcow2_expand_zero_clusters(BlockDriverState *bs,
-                               BlockDriverAmendStatusCB *status_cb);
+                               BlockDriverAmendStatusCB *status_cb,
+                               void *cb_opaque);
 
 /* qcow2-snapshot.c functions */
 int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info);

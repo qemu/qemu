@@ -4068,12 +4068,12 @@ void bdrv_remove_aio_context_notifier(BlockDriverState *bs,
 }
 
 int bdrv_amend_options(BlockDriverState *bs, QemuOpts *opts,
-                       BlockDriverAmendStatusCB *status_cb)
+                       BlockDriverAmendStatusCB *status_cb, void *cb_opaque)
 {
     if (!bs->drv->bdrv_amend_options) {
         return -ENOTSUP;
     }
-    return bs->drv->bdrv_amend_options(bs, opts, status_cb);
+    return bs->drv->bdrv_amend_options(bs, opts, status_cb, cb_opaque);
 }
 
 /* This function will be called by the bdrv_recurse_is_first_non_filter method
