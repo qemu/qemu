@@ -117,7 +117,7 @@ static int qcrypto_cipher_decrypt_aes(QCryptoCipher *cipher,
         uint8_t *outptr = out;
         while (len) {
             if (len > AES_BLOCK_SIZE) {
-                AES_decrypt(inptr, outptr, &ctxt->state.aes.encrypt_key);
+                AES_decrypt(inptr, outptr, &ctxt->state.aes.decrypt_key);
                 inptr += AES_BLOCK_SIZE;
                 outptr += AES_BLOCK_SIZE;
                 len -= AES_BLOCK_SIZE;
@@ -126,15 +126,15 @@ static int qcrypto_cipher_decrypt_aes(QCryptoCipher *cipher,
                 memcpy(tmp1, inptr, len);
                 /* Fill with 0 to avoid valgrind uninitialized reads */
                 memset(tmp1 + len, 0, sizeof(tmp1) - len);
-                AES_decrypt(tmp1, tmp2, &ctxt->state.aes.encrypt_key);
+                AES_decrypt(tmp1, tmp2, &ctxt->state.aes.decrypt_key);
                 memcpy(outptr, tmp2, len);
                 len = 0;
             }
         }
     } else {
         AES_cbc_encrypt(in, out, len,
-                        &ctxt->state.aes.encrypt_key,
-                        ctxt->state.aes.iv, 1);
+                        &ctxt->state.aes.decrypt_key,
+                        ctxt->state.aes.iv, 0);
     }
 
     return 0;
