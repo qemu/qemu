@@ -763,6 +763,10 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_SURFACE_FORMAT_TYPE                      0x00000F00
 #           define NV097_SET_SURFACE_FORMAT_TYPE_PITCH                     0x1
 #           define NV097_SET_SURFACE_FORMAT_TYPE_SWIZZLE                   0x2
+#       define NV097_SET_SURFACE_FORMAT_ANTI_ALIASING             0x0000F000
+#           define NV097_SET_SURFACE_FORMAT_ANTI_ALIASING_CENTER_1         0
+#           define NV097_SET_SURFACE_FORMAT_ANTI_ALIASING_CENTER_CORNER_2  1
+#           define NV097_SET_SURFACE_FORMAT_ANTI_ALIASING_SQUARE_OFFSET_4  2
 #       define NV097_SET_SURFACE_FORMAT_WIDTH                     0x00FF0000
 #       define NV097_SET_SURFACE_FORMAT_HEIGHT                    0xFF000000
 #   define NV097_SET_SURFACE_PITCH                            0x0097020C
@@ -1383,6 +1387,7 @@ typedef struct SurfaceShape {
     unsigned int log_width, log_height;
     unsigned int clip_x, clip_y;
     unsigned int clip_width, clip_height;
+    unsigned int anti_aliasing;
 } SurfaceShape;
 
 typedef struct TextureShape {
@@ -2984,6 +2989,39 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     return ret;
 }
 
+static unsigned int pgraph_apply_anti_aliasing_factor(PGRAPHState *pg,
+                                                      unsigned int *width,
+                                                      unsigned int *height) {
+    switch (pg->surface_shape.anti_aliasing) {
+    case NV097_SET_SURFACE_FORMAT_ANTI_ALIASING_CENTER_1:
+        break;
+    case NV097_SET_SURFACE_FORMAT_ANTI_ALIASING_CENTER_CORNER_2:
+        if (width) { *width *= 2; }
+        break;
+    case NV097_SET_SURFACE_FORMAT_ANTI_ALIASING_SQUARE_OFFSET_4:
+        if (width) { *width *= 2; }
+        if (height) { *height *= 2; }
+        break;
+    default:
+        assert(false);
+        break;
+    }
+}
+
+static void pgraph_get_surface_dimensions(PGRAPHState *pg,
+                                          unsigned int *width,
+                                          unsigned int *height)
+{
+    bool swizzle = (pg->surface_type == NV097_SET_SURFACE_FORMAT_TYPE_SWIZZLE);
+    if (swizzle) {
+        *width = 1 << pg->surface_shape.log_width;
+        *height = 1 << pg->surface_shape.log_height;
+    } else {
+        *width = pg->surface_shape.clip_width;
+        *height = pg->surface_shape.clip_height;
+    }
+}
+
 static void pgraph_bind_shaders(PGRAPHState *pg)
 {
     int i, j;
@@ -3229,6 +3267,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
 
         /* estimate the viewport by assuming it matches the surface ... */
+        //FIXME: Get surface dimensions?
         float m11 = 0.5 * pg->surface_shape.clip_width;
         float m22 = -0.5 * pg->surface_shape.clip_height;
         float m33 = zclip_max - zclip_min;
@@ -3277,21 +3316,6 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     NV2A_GL_DGROUP_END();
 }
 
-static void pgraph_get_surface_dimensions(NV2AState *d,
-                                          unsigned int *width,
-                                          unsigned int *height)
-{
-    bool swizzle = (d->pgraph.surface_type
-                        == NV097_SET_SURFACE_FORMAT_TYPE_SWIZZLE);
-    if (swizzle) {
-        *width = 1 << d->pgraph.surface_shape.log_width;
-        *height = 1 << d->pgraph.surface_shape.log_height;
-    } else {
-        *width = d->pgraph.surface_shape.clip_width;
-        *height = d->pgraph.surface_shape.clip_height;
-    }
-}
-
 static bool pgraph_framebuffer_dirty(PGRAPHState *pg)
 {
     bool shape_changed = memcmp(&pg->surface_shape, &pg->last_surface_shape,
@@ -3336,7 +3360,8 @@ static void pgraph_update_surface(NV2AState *d,
                                           NV_PGRAPH_SETUPRASTER_Z_FORMAT);
 
     unsigned int width, height;
-    pgraph_get_surface_dimensions(d, &width, &height);
+    pgraph_get_surface_dimensions(pg, &width, &height);
+    pgraph_apply_anti_aliasing_factor(pg, &width, &height);
 
     color = color && pgraph_color_write_enabled(pg);
     zeta = zeta && pgraph_zeta_write_enabled(pg);
@@ -4173,6 +4198,8 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_ZETA);
         pg->surface_type =
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_TYPE);
+        pg->surface_shape.anti_aliasing =
+            GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_ANTI_ALIASING);
         pg->surface_shape.log_width =
             GET_MASK(parameter, NV097_SET_SURFACE_FORMAT_WIDTH);
         pg->surface_shape.log_height =
@@ -4884,7 +4911,8 @@ static void pgraph_method(NV2AState *d,
 
 
             unsigned int width, height;
-            pgraph_get_surface_dimensions(d, &width, &height);
+            pgraph_get_surface_dimensions(pg, &width, &height);
+            pgraph_apply_anti_aliasing_factor(pg, &width, &height);
             glViewport(0, 0, width, height);
 
             pg->inline_elements_length = 0;
@@ -5181,7 +5209,6 @@ static void pgraph_method(NV2AState *d,
                           (clear_color & 0xFF) / 255.0f,         /* blue */
                           ((clear_color >> 24) & 0xFF) / 255.0f);/* alpha */
         }
-
         pgraph_update_surface(d, true, write_color, write_zeta);
 
         glEnable(GL_SCISSOR_TEST);
@@ -5195,9 +5222,17 @@ static void pgraph_method(NV2AState *d,
         unsigned int ymax = GET_MASK(pg->regs[NV_PGRAPH_CLEARRECTY],
                 NV_PGRAPH_CLEARRECTY_YMAX);
 
+        unsigned int scissor_x = xmin;
+        unsigned int scissor_y = pg->surface_shape.clip_height-ymax;
+
+        unsigned int scissor_width = xmax-xmin+1;
+        unsigned int scissor_height = ymax-ymin+1;
+
+        pgraph_apply_anti_aliasing_factor(pg, &scissor_x, &scissor_y);
+        pgraph_apply_anti_aliasing_factor(pg, &scissor_width, &scissor_height);
+
         /* FIXME: Should this really be inverted instead of ymin? */
-        glScissor(xmin, pg->surface_shape.clip_height-ymax,
-                  xmax-xmin+1, ymax-ymin+1);
+        glScissor(scissor_x, scissor_y, scissor_width, scissor_height);
 
         NV2A_DPRINTF("------------------CLEAR 0x%x %d,%d - %d,%d  %x---------------\n",
             parameter, xmin, ymin, xmax, ymax, d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE]);
