@@ -1432,7 +1432,6 @@ void helper_mttc0_status(CPUMIPSState *env, target_ulong arg1)
 
 void helper_mtc0_intctl(CPUMIPSState *env, target_ulong arg1)
 {
-    /* vectored interrupts not implemented, no performance counters. */
     env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000003e0) | (arg1 & 0x000003e0);
 }
 
@@ -1473,7 +1472,6 @@ target_ulong helper_mftc0_ebase(CPUMIPSState *env)
 
 void helper_mtc0_ebase(CPUMIPSState *env, target_ulong arg1)
 {
-    /* vectored interrupts not implemented */
     env->CP0_EBase = (env->CP0_EBase & ~0x3FFFF000) | (arg1 & 0x3FFFF000);
 }
 
