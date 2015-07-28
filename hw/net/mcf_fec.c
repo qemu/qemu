@@ -196,12 +196,14 @@ static void mcf_fec_do_tx(mcf_fec_state *s)
 
 static void mcf_fec_enable_rx(mcf_fec_state *s)
 {
+    NetClientState *nc = qemu_get_queue(s->nic);
     mcf_fec_bd bd;
 
     mcf_fec_read_bd(&bd, s->rx_descriptor);
     s->rx_enabled = ((bd.flags & FEC_BD_E) != 0);
-    if (!s->rx_enabled)
-        DPRINTF("RX buffer full\n");
+    if (s->rx_enabled) {
+        qemu_flush_queued_packets(nc);
+    }
 }
 
 static void mcf_fec_reset(mcf_fec_state *s)
@@ -397,6 +399,32 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
     mcf_fec_update(s);
 }
 
+static int mcf_fec_have_receive_space(mcf_fec_state *s, size_t want)
+{
+    mcf_fec_bd bd;
+    uint32_t addr;
+
+    /* Walk descriptor list to determine if we have enough buffer */
+    addr = s->rx_descriptor;
+    while (want > 0) {
+        mcf_fec_read_bd(&bd, addr);
+        if ((bd.flags & FEC_BD_E) == 0) {
+            return 0;
+        }
+        if (want < s->emrbr) {
+            return 1;
+        }
+        want -= s->emrbr;
+        /* Advance to the next descriptor.  */
+        if ((bd.flags & FEC_BD_W) != 0) {
+            addr = s->erdsr;
+        } else {
+            addr += 8;
+        }
+    }
+    return 0;
+}
+
 static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     mcf_fec_state *s = qemu_get_nic_opaque(nc);
@@ -426,18 +454,14 @@ static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t si
     if (size > (s->rcr >> 16)) {
         flags |= FEC_BD_LG;
     }
+    /* Check if we have enough space in current descriptors */
+    if (!mcf_fec_have_receive_space(s, size)) {
+        return 0;
+    }
     addr = s->rx_descriptor;
     retsize = size;
     while (size > 0) {
         mcf_fec_read_bd(&bd, addr);
-        if ((bd.flags & FEC_BD_E) == 0) {
-            /* No descriptors available.  Bail out.  */
-            /* FIXME: This is wrong.  We should probably either save the
-               remainder for when more RX buffers are available, or
-               flag an error.  */
-            fprintf(stderr, "mcf_fec: Lost end of frame\n");
-            break;
-        }
         buf_len = (size <= s->emrbr) ? size: s->emrbr;
         bd.length = buf_len;
         size -= buf_len;
