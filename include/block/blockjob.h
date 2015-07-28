@@ -70,6 +70,9 @@ typedef struct BlockJobDriver {
      * never both.
      */
     void (*abort)(BlockJob *job);
+
+    /** Optional callback for job types that support checkpoint. */
+    void (*do_checkpoint)(BlockJob *job, Error **errp);
 } BlockJobDriver;
 
 /**
@@ -442,5 +445,14 @@ void block_job_txn_unref(BlockJobTxn *txn);
  * to release the reference that is automatically grabbed here.
  */
 void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
+
+/**
+ * block_job_do_checkpoint:
+ * @job: The job.
+ * @errp: Error object.
+ *
+ * Do block checkpoint on the specified job.
+ */
+void block_job_do_checkpoint(BlockJob *job, Error **errp);
 
 #endif

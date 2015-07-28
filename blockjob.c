@@ -533,3 +533,14 @@ void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job)
     QLIST_INSERT_HEAD(&txn->jobs, job, txn_list);
     block_job_txn_ref(txn);
 }
+
+void block_job_do_checkpoint(BlockJob *job, Error **errp)
+{
+    if (!job->driver->do_checkpoint) {
+        error_setg(errp, "The job %s doesn't support block checkpoint",
+                   BlockJobType_lookup[job->driver->job_type]);
+        return;
+    }
+
+    job->driver->do_checkpoint(job, errp);
+}
