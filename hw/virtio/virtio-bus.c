@@ -54,7 +54,8 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
 
     /* Get the features of the plugged device. */
     assert(vdc->get_features != NULL);
-    vdev->host_features = vdc->get_features(vdev, vdev->host_features);
+    vdev->host_features = vdc->get_features(vdev, vdev->host_features,
+                                            errp);
 }
 
 /* Reset the virtio_bus */

@@ -629,7 +629,8 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
 }
 
 static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
-                                         uint64_t requested_features)
+                                         uint64_t requested_features,
+                                         Error **errp)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
@@ -953,8 +954,6 @@ static Property virtio_scsi_properties[] = {
                                                   0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSI, parent_obj.conf.cmd_per_lun,
                                                   128),
-    DEFINE_PROP_BIT("any_layout", VirtIOSCSI, host_features,
-                                              VIRTIO_F_ANY_LAYOUT, true),
     DEFINE_PROP_BIT("hotplug", VirtIOSCSI, host_features,
                                            VIRTIO_SCSI_F_HOTPLUG, true),
     DEFINE_PROP_BIT("param_change", VirtIOSCSI, host_features,

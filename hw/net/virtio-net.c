@@ -446,7 +446,8 @@ static void virtio_net_set_queues(VirtIONet *n)
 
 static void virtio_net_set_multiqueue(VirtIONet *n, int multiqueue);
 
-static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features)
+static uint64_t virtio_net_get_features(VirtIODevice *vdev, uint64_t features,
+                                        Error **errp)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     NetClientState *nc = qemu_get_queue(n->nic);
@@ -1777,8 +1778,6 @@ static void virtio_net_instance_init(Object *obj)
 }
 
 static Property virtio_net_properties[] = {
-    DEFINE_PROP_BIT("any_layout", VirtIONet, host_features,
-                    VIRTIO_F_ANY_LAYOUT, true),
     DEFINE_PROP_BIT("csum", VirtIONet, host_features, VIRTIO_NET_F_CSUM, true),
     DEFINE_PROP_BIT("guest_csum", VirtIONet, host_features,
                     VIRTIO_NET_F_GUEST_CSUM, true),

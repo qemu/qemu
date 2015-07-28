@@ -25,6 +25,10 @@
 /* A guest should never accept this.  It implies negotiation is broken. */
 #define VIRTIO_F_BAD_FEATURE		30
 
+#define VIRTIO_LEGACY_FEATURES ((0x1ULL << VIRTIO_F_BAD_FEATURE) | \
+                                (0x1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) | \
+                                (0x1ULL << VIRTIO_F_ANY_LAYOUT))
+
 struct VirtQueue;
 
 static inline hwaddr vring_align(hwaddr addr,
@@ -97,7 +101,9 @@ typedef struct VirtioDeviceClass {
     /* This is what a VirtioDevice must implement */
     DeviceRealize realize;
     DeviceUnrealize unrealize;
-    uint64_t (*get_features)(VirtIODevice *vdev, uint64_t requested_features);
+    uint64_t (*get_features)(VirtIODevice *vdev,
+                             uint64_t requested_features,
+                             Error **errp);
     uint64_t (*bad_features)(VirtIODevice *vdev);
     void (*set_features)(VirtIODevice *vdev, uint64_t val);
     int (*validate_features)(VirtIODevice *vdev);
@@ -214,7 +220,9 @@ typedef struct VirtIORNGConf VirtIORNGConf;
     DEFINE_PROP_BIT64("event_idx", _state, _field,        \
                       VIRTIO_RING_F_EVENT_IDX, true),     \
     DEFINE_PROP_BIT64("notify_on_empty", _state, _field,  \
-                      VIRTIO_F_NOTIFY_ON_EMPTY, true)
+                      VIRTIO_F_NOTIFY_ON_EMPTY, true), \
+    DEFINE_PROP_BIT64("any_layout", _state, _field, \
+                      VIRTIO_F_ANY_LAYOUT, true)
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n);
 hwaddr virtio_queue_get_avail_addr(VirtIODevice *vdev, int n);
