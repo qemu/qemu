@@ -231,6 +231,19 @@ aio_ctx_finalize(GSource     *source)
     AioContext *ctx = (AioContext *) source;
 
     thread_pool_free(ctx->thread_pool);
+
+    qemu_mutex_lock(&ctx->bh_lock);
+    while (ctx->first_bh) {
+        QEMUBH *next = ctx->first_bh->next;
+
+        /* qemu_bh_delete() must have been called on BHs in this AioContext */
+        assert(ctx->first_bh->deleted);
+
+        g_free(ctx->first_bh);
+        ctx->first_bh = next;
+    }
+    qemu_mutex_unlock(&ctx->bh_lock);
+
     aio_set_event_notifier(ctx, &ctx->notifier, NULL);
     event_notifier_cleanup(&ctx->notifier);
     rfifolock_destroy(&ctx->lock);
