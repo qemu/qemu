@@ -221,9 +221,9 @@ static void pm_reset(void *opaque)
     acpi_pm_tmr_reset(&pm->acpi_regs);
     acpi_gpe_reset(&pm->acpi_regs);
 
+    pm->smi_en = 0;
     if (!pm->smm_enabled) {
-        /* Mark SMM as already inited to prevent SMM from running. KVM does not
-         * support SMM mode. */
+        /* Mark SMM as already inited to prevent SMM from running. */
         pm->smi_en |= ICH9_PMIO_SMI_EN_APMC_EN;
     }
     pm->smi_en_wmask = ~0;

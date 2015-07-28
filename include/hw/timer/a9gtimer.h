@@ -37,7 +37,7 @@
 #define R_CONTROL_TIMER_ENABLE      (1 << 0)
 #define R_CONTROL_COMP_ENABLE       (1 << 1)
 #define R_CONTROL_IRQ_ENABLE        (1 << 2)
-#define R_CONTROL_AUTO_INCREMENT    (1 << 2)
+#define R_CONTROL_AUTO_INCREMENT    (1 << 3)
 #define R_CONTROL_PRESCALER_SHIFT   8
 #define R_CONTROL_PRESCALER_LEN     8
 #define R_CONTROL_PRESCALER_MASK    (((1 << R_CONTROL_PRESCALER_LEN) - 1) << \
