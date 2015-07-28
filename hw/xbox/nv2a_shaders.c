@@ -279,7 +279,7 @@ static QString* generate_fixed_function(const ShaderState state,
             break;
         case FOGGEN_PLANAR:
         case FOGGEN_ABS_PLANAR:
-            qstring_append(s, "float fogDistance = dot(fogPlane.xyz,tPosition.xyz)+fogPlane.w;\n");
+            qstring_append(s, "float fogDistance = dot(fogPlane.xyz, tPosition.xyz) + fogPlane.w;\n");
             if (state.foggen == FOGGEN_ABS_PLANAR) {
                 qstring_append(s, "fogDistance = abs(fogDistance);\n");
             }
@@ -298,21 +298,40 @@ static QString* generate_fixed_function(const ShaderState state,
             break;
         }
 
+        //FIXME: Do this per pixel?
         switch (state.fog_mode) {
         case FOG_MODE_LINEAR:
         case FOG_MODE_LINEAR_ABS:
-            qstring_append(s, "float fogFactor = fogDistance * fogParam[1] + fogParam[0];\n");
+
+            /* f = (end - d) / (end - start)
+             *    fogParam[1] = 1 / (end - start)
+             *    fogParam[0] = 1 + end * fogParam[1];
+             */
+
+            qstring_append(s, "float fogFactor = fogParam[0] + fogDistance * fogParam[1];\n");
             qstring_append(s, "fogFactor -= 1.0;\n"); /* FIXME: WHHYYY?!! */
             break;
         case FOG_MODE_EXP:
         case FOG_MODE_EXP_ABS:
-            assert(false); /* FIXME: fogParam[0] and fogParam[0] ?? */
-            qstring_append(s, "float fogFactor = exp(fogDistance);\n");
+
+            /* f = 1 / (e^(d * density))
+             *    fogParam[1] = -density / (2 * ln(256))
+             *    fogParam[0] = 1.5
+             */
+
+            qstring_append(s, "float fogFactor = fogParam[0] + exp(fogDistance * fogParam[1] * 2.0 * 5.5452);\n");
+            qstring_append(s, "fogFactor -= 1.5;\n"); /* FIXME: WHHYYY?!! */
             break;
         case FOG_MODE_EXP2:
         case FOG_MODE_EXP2_ABS:
-            assert(false); /* FIXME: fogParam[0] and fogParam[0] ?? */
-            qstring_append(s, "float fogFactor = exp(fogDistance * fogDistance);\n");
+
+            /* f = 1 / (e^((d * density)^2))
+             *    fogParam[1] = -density / (2 * sqrt(ln(256)))
+             *    fogParam[0] = 1.5
+             */
+
+            qstring_append(s, "float fogFactor = fogParam[0] + exp(-fogDistance * fogDistance * fogParam[1] * fogParam[1] * 4.0 * 5.5452);\n");
+            qstring_append(s, "fogFactor -= 1.5;\n"); /* FIXME: WHHYYY?!! */
             break;
         default:
             assert(false);
