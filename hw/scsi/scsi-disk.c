@@ -1683,6 +1683,10 @@ static void scsi_write_same_complete(void *opaque, int ret)
     if (data->iov.iov_len) {
         block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
                          data->iov.iov_len, BLOCK_ACCT_WRITE);
+        /* blk_aio_write doesn't like the qiov size being different from
+         * nb_sectors, make sure they match.
+         */
+        qemu_iovec_init_external(&data->qiov, &data->iov, 1);
         r->req.aiocb = blk_aio_writev(s->qdev.conf.blk, data->sector,
                                       &data->qiov, data->iov.iov_len / 512,
                                       scsi_write_same_complete, data);
