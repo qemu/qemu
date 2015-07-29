@@ -79,8 +79,10 @@ int aio_bh_poll(AioContext *ctx)
          * aio_notify again if necessary.
          */
         if (!bh->deleted && atomic_xchg(&bh->scheduled, 0)) {
-            if (!bh->idle)
+            /* Idle BHs and the notify BH don't count as progress */
+            if (!bh->idle && bh != ctx->notify_dummy_bh) {
                 ret = 1;
+            }
             bh->idle = 0;
             bh->cb(bh->opaque);
         }
@@ -230,7 +232,21 @@ aio_ctx_finalize(GSource     *source)
 {
     AioContext *ctx = (AioContext *) source;
 
+    qemu_bh_delete(ctx->notify_dummy_bh);
     thread_pool_free(ctx->thread_pool);
+
+    qemu_mutex_lock(&ctx->bh_lock);
+    while (ctx->first_bh) {
+        QEMUBH *next = ctx->first_bh->next;
+
+        /* qemu_bh_delete() must have been called on BHs in this AioContext */
+        assert(ctx->first_bh->deleted);
+
+        g_free(ctx->first_bh);
+        ctx->first_bh = next;
+    }
+    qemu_mutex_unlock(&ctx->bh_lock);
+
     aio_set_event_notifier(ctx, &ctx->notifier, NULL);
     event_notifier_cleanup(&ctx->notifier);
     rfifolock_destroy(&ctx->lock);
@@ -285,8 +301,15 @@ static void aio_timerlist_notify(void *opaque)
 
 static void aio_rfifolock_cb(void *opaque)
 {
+    AioContext *ctx = opaque;
+
     /* Kick owner thread in case they are blocked in aio_poll() */
-    aio_notify(opaque);
+    qemu_bh_schedule(ctx->notify_dummy_bh);
+}
+
+static void notify_dummy_bh(void *opaque)
+{
+    /* Do nothing, we were invoked just to force the event loop to iterate */
 }
 
 static void event_notifier_dummy_cb(EventNotifier *e)
@@ -312,6 +335,8 @@ AioContext *aio_context_new(Error **errp)
     qemu_mutex_init(&ctx->bh_lock);
     rfifolock_init(&ctx->lock, aio_rfifolock_cb, ctx);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
+
+    ctx->notify_dummy_bh = aio_bh_new(ctx, notify_dummy_bh, NULL);
 
     return ctx;
 }
