@@ -126,7 +126,8 @@
               Property="cmd"
               Impersonate="no"
               Return="check"
-              ></CustomAction>
+              >
+    </CustomAction>
     <?endif?>
 
     <Feature Id="QEMUFeature" Title="QEMU Guest Agent" Level="1">

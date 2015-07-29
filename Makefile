@@ -295,7 +295,7 @@ qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a
 ifdef QEMU_GA_MSI_ENABLED
 QEMU_GA_MSI=qemu-ga-$(ARCH).msi
 
-msi: ${QEMU_GA_MSI}
+msi: $(QEMU_GA_MSI)
 
 $(QEMU_GA_MSI): qemu-ga.exe
 
