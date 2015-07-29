@@ -2182,7 +2182,7 @@ static TextureBinding* generate_texture(const TextureShape s,
                    s.color_format, f.linear ? "" : " (SZ)", s.width);
 
     if (f.linear) {
-        /* Can't handle retarded strides */
+        /* Can't handle strides unaligned to pixels */
         assert(s.pitch % f.bytes_per_pixel == 0);
         glPixelStorei(GL_UNPACK_ROW_LENGTH,
                       s.pitch / f.bytes_per_pixel);
@@ -2214,7 +2214,7 @@ static TextureBinding* generate_texture(const TextureShape s,
         for (level = 0; level < s.levels; level++) {
             if (width < 1) width = 1;
             if (height < 1) height = 1;
-            if (f.gl_format == 0) { /* retarded way of indicating compressed */
+            if (f.gl_format == 0) { /* compressed */
                 unsigned int block_size;
                 if (f.gl_internal_format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) {
                     block_size = 8;

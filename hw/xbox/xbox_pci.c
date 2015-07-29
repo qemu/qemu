@@ -339,7 +339,7 @@ static void xbox_lpc_reset(DeviceState *dev)
          *
          * We need to be able to disable it at runtime, and
          * it shouldn't be visible ontop of the bios mirrors. It'll have to
-         * be a retarded hack.
+         * be a hack.
          *
          * Be lazy for now and just write it ontop of the bios.
          *
