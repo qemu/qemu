@@ -277,6 +277,7 @@ static void vhost_scsi_unrealize(DeviceState *dev, Error **errp)
     /* This will stop vhost backend. */
     vhost_scsi_set_status(vdev, 0);
 
+    vhost_dev_cleanup(&s->dev);
     g_free(s->dev.vqs);
 
     virtio_scsi_common_unrealize(dev, errp);
