@@ -1105,7 +1105,7 @@ static void tcg_out_qemu_st_slow_path(TCGContext *s, TCGLabelQemuLdst *l)
 static void tcg_out_qemu_ld_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                                    TCGReg base, TCGMemOp opc)
 {
-    switch (opc) {
+    switch (opc & (MO_SSIZE | MO_BSWAP)) {
     case MO_UB:
         tcg_out_opc_imm(s, OPC_LBU, datalo, base, 0);
         break;
@@ -1195,7 +1195,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
 static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
                                    TCGReg base, TCGMemOp opc)
 {
-    switch (opc) {
+    switch (opc & (MO_SIZE | MO_BSWAP)) {
     case MO_8:
         tcg_out_opc_imm(s, OPC_SB, datalo, base, 0);
         break;
