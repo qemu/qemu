@@ -115,6 +115,10 @@ out:
 
 
 def generate_visit_struct_body(name):
+    # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
+    # *obj, but then visit_type_FOO_fields() fails, we should clean up *obj
+    # rather than leaving it non-NULL. As currently written, the caller must
+    # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
     ret = mcgen('''
     Error *err = NULL;
 

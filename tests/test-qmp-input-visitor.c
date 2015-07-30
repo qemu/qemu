@@ -636,6 +636,8 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
 
     visit_type_TestStruct(v, &p, NULL, &err);
     g_assert(err);
+    /* FIXME - a failed parse should not leave a partially-allocated p
+     * for us to clean up; this could cause callers to leak memory. */
     g_assert(p->string == NULL);
 
     error_free(err);
