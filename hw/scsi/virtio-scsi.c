@@ -217,6 +217,11 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     assert(req->elem.in_num <= ARRAY_SIZE(req->elem.in_sg));
     assert(req->elem.out_num <= ARRAY_SIZE(req->elem.out_sg));
 
+    virtqueue_map_sg(req->elem.in_sg, req->elem.in_addr,
+                     req->elem.in_num, 1);
+    virtqueue_map_sg(req->elem.out_sg, req->elem.out_addr,
+                     req->elem.out_num, 0);
+
     if (virtio_scsi_parse_req(req, sizeof(VirtIOSCSICmdReq) + vs->cdb_size,
                               sizeof(VirtIOSCSICmdResp) + vs->sense_size) < 0) {
         error_report("invalid SCSI request migration data");
