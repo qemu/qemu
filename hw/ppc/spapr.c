@@ -1329,6 +1329,8 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
     if (section_hdr) {
         /* First section, just the hash shift */
         if (spapr->htab_shift != section_hdr) {
+            error_report("htab_shift mismatch: source %d target %d",
+                         section_hdr, spapr->htab_shift);
             return -EINVAL;
         }
         return 0;
