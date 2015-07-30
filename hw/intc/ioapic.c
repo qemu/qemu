@@ -98,7 +98,9 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
             /* level triggered */
             if (level) {
                 s->irr |= mask;
-                ioapic_service(s);
+                if (!(entry & IOAPIC_LVT_REMOTE_IRR)) {
+                    ioapic_service(s);
+                }
             } else {
                 s->irr &= ~mask;
             }
