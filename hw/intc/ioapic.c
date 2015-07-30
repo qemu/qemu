@@ -156,14 +156,12 @@ ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
         }
         switch (s->ioregsel) {
         case IOAPIC_REG_ID:
+        case IOAPIC_REG_ARB:
             val = s->id << IOAPIC_ID_SHIFT;
             break;
         case IOAPIC_REG_VER:
             val = IOAPIC_VERSION |
                 ((IOAPIC_NUM_PINS - 1) << IOAPIC_VER_ENTRIES_SHIFT);
-            break;
-        case IOAPIC_REG_ARB:
-            val = 0;
             break;
         default:
             index = (s->ioregsel - IOAPIC_REG_REDTBL_BASE) >> 1;
