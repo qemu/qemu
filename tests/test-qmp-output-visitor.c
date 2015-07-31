@@ -437,7 +437,7 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     Error *err = NULL;
 
     UserDefFlatUnion *tmp = g_malloc0(sizeof(UserDefFlatUnion));
-    tmp->kind = ENUM_ONE_VALUE1;
+    tmp->enum1 = ENUM_ONE_VALUE1;
     tmp->string = g_strdup("str");
     tmp->value1 = g_malloc0(sizeof(UserDefA));
     /* TODO when generator bug is fixed: tmp->integer = 41; */

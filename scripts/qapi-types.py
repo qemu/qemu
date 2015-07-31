@@ -200,11 +200,12 @@ def generate_union(expr, meta):
     ret = mcgen('''
 struct %(name)s
 {
-    %(discriminator_type_name)s kind;
+    %(discriminator_type_name)s %(discriminator)s;
     union {
         void *data;
 ''',
                 name=name,
+                discriminator=c_name(discriminator or 'kind'),
                 discriminator_type_name=c_name(discriminator_type_name))
 
     for key in typeinfo:

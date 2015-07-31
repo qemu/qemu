@@ -313,7 +313,7 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
     g_assert(err == NULL);
-    g_assert_cmpint(tmp->kind, ==, ENUM_ONE_VALUE1);
+    g_assert_cmpint(tmp->enum1, ==, ENUM_ONE_VALUE1);
     g_assert_cmpstr(tmp->string, ==, "str");
     /* TODO g_assert_cmpint(tmp->integer, ==, 41); */
     g_assert_cmpint(tmp->value1->boolean, ==, true);

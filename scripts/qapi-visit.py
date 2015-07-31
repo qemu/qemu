@@ -288,20 +288,23 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
                      name=c_name(name))
 
     if not discriminator:
+        tag = 'kind'
         disc_key = "type"
     else:
+        tag = discriminator
         disc_key = discriminator
     ret += mcgen('''
-        visit_type_%(disc_type)s(m, &(*obj)->kind, "%(disc_key)s", &err);
+        visit_type_%(disc_type)s(m, &(*obj)->%(c_tag)s, "%(disc_key)s", &err);
         if (err) {
             goto out_obj;
         }
         if (!visit_start_union(m, !!(*obj)->data, &err) || err) {
             goto out_obj;
         }
-        switch ((*obj)->kind) {
+        switch ((*obj)->%(c_tag)s) {
 ''',
                  disc_type = disc_type,
+                 c_tag=c_name(tag),
                  disc_key = disc_key)
 
     for key in members:
