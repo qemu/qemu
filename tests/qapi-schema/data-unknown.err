@@ -1,1 +1,0 @@
-tests/qapi-schema/data-unknown.json:2: 'data' for command 'oops' uses unknown type 'NoSuchType'
