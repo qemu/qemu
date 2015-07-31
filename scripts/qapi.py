@@ -341,6 +341,8 @@ def discriminator_find_enum_define(expr):
 
     return find_enum(discriminator_type)
 
+# FIXME should enforce "other than downstream extensions [...], all
+# names should begin with a letter".
 valid_name = re.compile('^[a-zA-Z_][a-zA-Z0-9_.-]*$')
 def check_name(expr_info, source, name, allow_optional = False,
                enum_member = False):
@@ -367,6 +369,8 @@ def check_name(expr_info, source, name, allow_optional = False,
 def add_name(name, info, meta, implicit = False):
     global all_names
     check_name(info, "'%s'" % meta, name)
+    # FIXME should reject names that differ only in '_' vs. '.'
+    # vs. '-', because they're liable to clash in generated C.
     if name in all_names:
         raise QAPIExprError(info,
                             "%s '%s' is already defined"
