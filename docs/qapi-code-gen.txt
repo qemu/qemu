@@ -394,7 +394,7 @@ following example objects:
 === Commands ===
 
 Usage: { 'command': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
-         '*returns': TYPE-NAME-OR-DICT,
+         '*returns': TYPE-NAME,
          '*gen': false, '*success-response': false }
 
 Commands are defined by using a dictionary containing several members,
@@ -415,14 +415,13 @@ The member is optional from the command declaration; if absent, the
 "return" field will be an empty dictionary.  If 'returns' is present,
 it must be the string name of a complex or built-in type, a
 one-element array containing the name of a complex or built-in type,
-or a dictionary that declares an anonymous type with the same
-semantics as a 'struct' expression, with one exception noted below
-when 'gen' is used.  Although it is permitted to have the 'returns'
-member name a built-in type or an array of built-in types, any command
-that does this cannot be extended to return additional information in
-the future; thus, new commands should strongly consider returning a
-dictionary-based type or an array of dictionaries, even if the
-dictionary only contains one field at the present.
+with one exception noted below when 'gen' is used.  Although it is
+permitted to have the 'returns' member name a built-in type or an
+array of built-in types, any command that does this cannot be extended
+to return additional information in the future; thus, new commands
+should strongly consider returning a dictionary-based type or an array
+of dictionaries, even if the dictionary only contains one field at the
+present.
 
 All commands in Client JSON Protocol use a dictionary to report
 failure, with no way to specify that in QAPI.  Where the error return

@@ -504,7 +504,7 @@ def check_command(expr, expr_info):
     if name in returns_whitelist:
         returns_meta += ['built-in', 'alternate', 'enum']
     check_type(expr_info, "'returns' for command '%s'" % name,
-               expr.get('returns'), allow_array=True, allow_dict=True,
+               expr.get('returns'), allow_array=True,
                allow_optional=True, allow_metas=returns_meta,
                allow_star=allow_star)
 

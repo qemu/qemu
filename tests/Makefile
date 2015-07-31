@@ -232,10 +232,10 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	args-array-empty.json args-array-unknown.json args-int.json \
 	args-unknown.json args-member-unknown.json args-member-array.json \
 	args-member-array-bad.json args-alternate.json args-union.json \
-	returns-array-bad.json returns-int.json \
+	returns-array-bad.json returns-int.json returns-dict.json \
 	returns-unknown.json returns-alternate.json returns-whitelist.json \
 	missing-colon.json missing-comma-list.json missing-comma-object.json \
-	nested-struct-data.json nested-struct-returns.json non-objects.json \
+	nested-struct-data.json non-objects.json \
 	qapi-schema-test.json quoted-structural-chars.json \
 	trailing-comma-list.json trailing-comma-object.json \
 	unclosed-list.json unclosed-object.json unclosed-string.json \
