@@ -1925,6 +1925,19 @@
             '*read-pattern': 'QuorumReadPattern' } }
 
 ##
+# @ReplicationMode
+#
+# An enumeration of replication modes.
+#
+# @primary: Primary mode, the vm's state will be sent to secondary QEMU.
+#
+# @secondary: Secondary mode, receive the vm's state from primary QEMU.
+#
+# Since: 2.5
+##
+{ 'enum' : 'ReplicationMode', 'data' : [ 'primary', 'secondary' ] }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.
