@@ -308,6 +308,20 @@ struct BlockDriver {
     void (*bdrv_del_child)(BlockDriverState *parent, BlockDriverState *child,
                            Error **errp);
 
+    void (*bdrv_start_replication)(BlockDriverState *bs, ReplicationMode mode,
+                                   Error **errp);
+    /* Drop Disk buffer when doing checkpoint. */
+    void (*bdrv_do_checkpoint)(BlockDriverState *bs, Error **errp);
+    /*
+     * After failover, we should flush Disk buffer into secondary disk
+     * and stop block replication.
+     *
+     * If the guest is shutdown, we should drop Disk buffer and stop
+     * block representation.
+     */
+    void (*bdrv_stop_replication)(BlockDriverState *bs, bool failover,
+                                  Error **errp);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 
