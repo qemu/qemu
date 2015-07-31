@@ -169,6 +169,7 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
     Object *obj = NULL;
     QObject *o;
 
+    pm->cpu_hp_io_base = 0;
     pm->pcihp_io_base = 0;
     pm->pcihp_io_len = 0;
     if (piix) {
