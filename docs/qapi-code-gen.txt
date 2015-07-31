@@ -742,7 +742,7 @@ Example:
     static void qmp_marshal_input_my_command(QDict *args, QObject **ret, Error **errp)
     {
         Error *local_err = NULL;
-        UserDefOne *retval = NULL;
+        UserDefOne *retval;
         QmpInputVisitor *mi = qmp_input_visitor_new_strict(QOBJECT(args));
         QapiDeallocVisitor *md;
         Visitor *v;

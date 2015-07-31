@@ -205,14 +205,10 @@ def gen_marshal_input(name, args, ret_type, middle_mode):
                 header=hdr)
 
     if ret_type:
-        if is_c_ptr(ret_type):
-            retval = "    %s retval = NULL;" % c_type(ret_type)
-        else:
-            retval = "    %s retval;" % c_type(ret_type)
         ret += mcgen('''
-%(retval)s
+    %(c_type)s retval;
 ''',
-                     retval=retval)
+                     c_type=c_type(ret_type))
 
     if len(args) > 0:
         ret += gen_visitor_input_containers_decl(args)
