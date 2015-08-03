@@ -2118,7 +2118,11 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
 
             DPRINTF("+++ C+ mode has IP packet\n");
 
-            /* not aligned */
+            /* Note on memory alignment: eth_payload_data is 16-bit aligned
+             * since saved_buffer is allocated with g_malloc() and ETH_HLEN is
+             * even.  32-bit accesses must use ldl/stl wrappers to avoid
+             * unaligned accesses.
+             */
             eth_payload_data = saved_buffer + ETH_HLEN;
             eth_payload_len  = saved_size   - ETH_HLEN;
 
@@ -2215,7 +2219,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     }
 
                     DPRINTF("+++ C+ mode TSO TCP seqno %08x\n",
-                        be32_to_cpu(p_tcp_hdr->th_seq));
+                            ldl_be_p(&p_tcp_hdr->th_seq));
 
                     /* add 4 TCP pseudoheader fields */
                     /* copy IP source and destination fields */
@@ -2271,7 +2275,8 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                         0, (uint8_t *) dot1q_buffer);
 
                     /* add transferred count to TCP sequence number */
-                    p_tcp_hdr->th_seq = cpu_to_be32(chunk_size + be32_to_cpu(p_tcp_hdr->th_seq));
+                    stl_be_p(&p_tcp_hdr->th_seq,
+                             chunk_size + ldl_be_p(&p_tcp_hdr->th_seq));
                     ++send_count;
                 }
 
