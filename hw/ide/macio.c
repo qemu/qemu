@@ -208,6 +208,33 @@ static void pmac_dma_write(BlockBackend *blk,
                               cb, io);
 }
 
+static void pmac_dma_trim(BlockBackend *blk,
+                        int64_t offset, int bytes,
+                        void (*cb)(void *opaque, int ret), void *opaque)
+{
+    DBDMA_io *io = opaque;
+    MACIOIDEState *m = io->opaque;
+    IDEState *s = idebus_active_if(&m->bus);
+    dma_addr_t dma_addr, dma_len;
+    void *mem;
+
+    qemu_iovec_destroy(&io->iov);
+    qemu_iovec_init(&io->iov, io->len / MACIO_PAGE_SIZE + 1);
+
+    dma_addr = io->addr;
+    dma_len = io->len;
+    mem = dma_memory_map(&address_space_memory, dma_addr, &dma_len,
+                         DMA_DIRECTION_TO_DEVICE);
+
+    qemu_iovec_add(&io->iov, mem, io->len);
+    s->io_buffer_size -= io->len;
+    s->io_buffer_index += io->len;
+    io->len = 0;
+
+    m->aiocb = ide_issue_trim(blk, (offset >> 9), &io->iov, (bytes >> 9),
+                              cb, io);
+}
+
 static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
 {
     DBDMA_io *io = opaque;
@@ -313,6 +340,7 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
         pmac_dma_write(s->blk, offset, io->len, pmac_ide_transfer_cb, io);
         break;
     case IDE_DMA_TRIM:
+        pmac_dma_trim(s->blk, offset, io->len, pmac_ide_transfer_cb, io);
         break;
     }
 
