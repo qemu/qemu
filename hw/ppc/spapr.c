@@ -724,6 +724,7 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     uint32_t nr_lmbs = machine->maxram_size/lmb_size - nr_rma_lmbs;
     uint32_t nr_assigned_lmbs = machine->ram_size/lmb_size - nr_rma_lmbs;
     uint32_t *int_buf, *cur_index, buf_len;
+    int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
 
     /* Allocate enough buffer size to fit in ibm,dynamic-memory */
     buf_len = nr_lmbs * SPAPR_DR_LMB_LIST_ENTRY_SIZE * sizeof(uint32_t) +
@@ -789,10 +790,10 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
 
     /* ibm,associativity-lookup-arrays */
     cur_index = int_buf;
-    int_buf[0] = cpu_to_be32(nb_numa_nodes);
+    int_buf[0] = cpu_to_be32(nr_nodes);
     int_buf[1] = cpu_to_be32(4); /* Number of entries per associativity list */
     cur_index += 2;
-    for (i = 0; i < nb_numa_nodes; i++) {
+    for (i = 0; i < nr_nodes; i++) {
         uint32_t associativity[] = {
             cpu_to_be32(0x0),
             cpu_to_be32(0x0),
