@@ -56,6 +56,7 @@
 #include "sysemu/dma.h"
 #include "qemu/timer.h"
 #include "net/net.h"
+#include "net/eth.h"
 #include "hw/loader.h"
 #include "sysemu/sysemu.h"
 #include "qemu/iov.h"
@@ -75,7 +76,6 @@
 #define ETHER_ADDR_LEN 6
 #define ETHER_TYPE_LEN 2
 #define ETH_HLEN (ETHER_ADDR_LEN * 2 + ETHER_TYPE_LEN)
-#define ETH_P_IP    0x0800      /* Internet Protocol packet */
 #define ETH_P_8021Q 0x8100      /* 802.1Q VLAN Extended Header  */
 #define ETH_MTU     1500
 
@@ -1868,54 +1868,7 @@ static int rtl8139_transmit_one(RTL8139State *s, int descriptor)
 }
 
 /* structures and macros for task offloading */
-typedef struct ip_header
-{
-    uint8_t  ip_ver_len;    /* version and header length */
-    uint8_t  ip_tos;        /* type of service */
-    uint16_t ip_len;        /* total length */
-    uint16_t ip_id;         /* identification */
-    uint16_t ip_off;        /* fragment offset field */
-    uint8_t  ip_ttl;        /* time to live */
-    uint8_t  ip_p;          /* protocol */
-    uint16_t ip_sum;        /* checksum */
-    uint32_t ip_src,ip_dst; /* source and dest address */
-} ip_header;
-
-#define IP_HEADER_VERSION_4 4
-#define IP_HEADER_VERSION(ip) ((ip->ip_ver_len >> 4)&0xf)
 #define IP_HEADER_LENGTH(ip) (((ip->ip_ver_len)&0xf) << 2)
-
-typedef struct tcp_header
-{
-    uint16_t th_sport;		/* source port */
-    uint16_t th_dport;		/* destination port */
-    uint32_t th_seq;			/* sequence number */
-    uint32_t th_ack;			/* acknowledgement number */
-    uint16_t th_offset_flags; /* data offset, reserved 6 bits, TCP protocol flags */
-    uint16_t th_win;			/* window */
-    uint16_t th_sum;			/* checksum */
-    uint16_t th_urp;			/* urgent pointer */
-} tcp_header;
-
-typedef struct udp_header
-{
-    uint16_t uh_sport; /* source port */
-    uint16_t uh_dport; /* destination port */
-    uint16_t uh_ulen;  /* udp length */
-    uint16_t uh_sum;   /* udp checksum */
-} udp_header;
-
-typedef struct ip_pseudo_header
-{
-    uint32_t ip_src;
-    uint32_t ip_dst;
-    uint8_t  zeros;
-    uint8_t  ip_proto;
-    uint16_t ip_payload;
-} ip_pseudo_header;
-
-#define IP_PROTO_TCP 6
-#define IP_PROTO_UDP 17
 
 #define TCP_HEADER_DATA_OFFSET(tcp) (((be16_to_cpu(tcp->th_offset_flags) >> 12)&0xf) << 2)
 #define TCP_FLAGS_ONLY(flags) ((flags)&0x3f)
@@ -2151,12 +2104,12 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             DPRINTF("+++ C+ mode offloaded task checksum\n");
 
             /* Large enough for Ethernet and IP headers? */
-            if (saved_size < ETH_HLEN + sizeof(ip_header)) {
+            if (saved_size < ETH_HLEN + sizeof(struct ip_header)) {
                 goto skip_offload;
             }
 
             /* ip packet header */
-            ip_header *ip = NULL;
+            struct ip_header *ip = NULL;
             int hlen = 0;
             uint8_t  ip_protocol = 0;
             uint16_t ip_data_len = 0;
@@ -2176,7 +2129,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             eth_payload_data = saved_buffer + ETH_HLEN;
             eth_payload_len  = saved_size   - ETH_HLEN;
 
-            ip = (ip_header*)eth_payload_data;
+            ip = (struct ip_header*)eth_payload_data;
 
             if (IP_HEADER_VERSION(ip) != IP_HEADER_VERSION_4) {
                 DPRINTF("+++ C+ mode packet has bad IP version %d "
@@ -2186,7 +2139,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             }
 
             hlen = IP_HEADER_LENGTH(ip);
-            if (hlen < sizeof(ip_header) || hlen > eth_payload_len) {
+            if (hlen < sizeof(struct ip_header) || hlen > eth_payload_len) {
                 goto skip_offload;
             }
 
