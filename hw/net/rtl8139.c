@@ -73,10 +73,8 @@
 #define MOD2(input, size) \
     ( ( input ) & ( size - 1 )  )
 
-#define ETHER_ADDR_LEN 6
 #define ETHER_TYPE_LEN 2
-#define ETH_HLEN (ETHER_ADDR_LEN * 2 + ETHER_TYPE_LEN)
-#define ETH_P_8021Q 0x8100      /* 802.1Q VLAN Extended Header  */
+#define ETH_HLEN (ETH_ALEN * 2 + ETHER_TYPE_LEN)
 #define ETH_MTU     1500
 
 #define VLAN_TCI_LEN 2
@@ -1016,8 +1014,8 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
 
         /* write VLAN info to descriptor variables. */
         if (s->CpCmd & CPlusRxVLAN && be16_to_cpup((uint16_t *)
-                &buf[ETHER_ADDR_LEN * 2]) == ETH_P_8021Q) {
-            dot1q_buf = &buf[ETHER_ADDR_LEN * 2];
+                &buf[ETH_ALEN * 2]) == ETH_P_VLAN) {
+            dot1q_buf = &buf[ETH_ALEN * 2];
             size -= VLAN_HLEN;
             /* if too small buffer, use the tailroom added duing expansion */
             if (size < MIN_BUF_SIZE) {
@@ -1058,10 +1056,10 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
 
         /* receive/copy to target memory */
         if (dot1q_buf) {
-            pci_dma_write(d, rx_addr, buf, 2 * ETHER_ADDR_LEN);
-            pci_dma_write(d, rx_addr + 2 * ETHER_ADDR_LEN,
-                          buf + 2 * ETHER_ADDR_LEN + VLAN_HLEN,
-                          size - 2 * ETHER_ADDR_LEN);
+            pci_dma_write(d, rx_addr, buf, 2 * ETH_ALEN);
+            pci_dma_write(d, rx_addr + 2 * ETH_ALEN,
+                          buf + 2 * ETH_ALEN + VLAN_HLEN,
+                          size - 2 * ETH_ALEN);
         } else {
             pci_dma_write(d, rx_addr, buf, size);
         }
@@ -1783,12 +1781,12 @@ static void rtl8139_transfer_frame(RTL8139State *s, uint8_t *buf, int size,
         return;
     }
 
-    if (dot1q_buf && size >= ETHER_ADDR_LEN * 2) {
+    if (dot1q_buf && size >= ETH_ALEN * 2) {
         iov = (struct iovec[3]) {
-            { .iov_base = buf, .iov_len = ETHER_ADDR_LEN * 2 },
+            { .iov_base = buf, .iov_len = ETH_ALEN * 2 },
             { .iov_base = (void *) dot1q_buf, .iov_len = VLAN_HLEN },
-            { .iov_base = buf + ETHER_ADDR_LEN * 2,
-                .iov_len = size - ETHER_ADDR_LEN * 2 },
+            { .iov_base = buf + ETH_ALEN * 2,
+                .iov_len = size - ETH_ALEN * 2 },
         };
 
         memcpy(vlan_iov, iov, sizeof(vlan_iov));
@@ -1868,16 +1866,11 @@ static int rtl8139_transmit_one(RTL8139State *s, int descriptor)
 }
 
 /* structures and macros for task offloading */
-#define IP_HEADER_LENGTH(ip) (((ip->ip_ver_len)&0xf) << 2)
-
 #define TCP_HEADER_DATA_OFFSET(tcp) (((be16_to_cpu(tcp->th_offset_flags) >> 12)&0xf) << 2)
 #define TCP_FLAGS_ONLY(flags) ((flags)&0x3f)
 #define TCP_HEADER_FLAGS(tcp) TCP_FLAGS_ONLY(be16_to_cpu(tcp->th_offset_flags))
 
 #define TCP_HEADER_CLEAR_FLAGS(tcp, off) ((tcp)->th_offset_flags &= cpu_to_be16(~TCP_FLAGS_ONLY(off)))
-
-#define TCP_FLAG_FIN  0x01
-#define TCP_FLAG_PUSH 0x08
 
 /* produces ones' complement sum of data */
 static uint16_t ones_complement_sum(uint8_t *data, size_t len)
@@ -2087,7 +2080,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                 bswap16(txdw1 & CP_TX_VLAN_TAG_MASK));
 
             dot1q_buffer = (uint16_t *) dot1q_buffer_space;
-            dot1q_buffer[0] = cpu_to_be16(ETH_P_8021Q);
+            dot1q_buffer[0] = cpu_to_be16(ETH_P_VLAN);
             /* BE + le_to_cpu() + ~cpu_to_le()~ = BE */
             dot1q_buffer[1] = cpu_to_le16(txdw1 & CP_TX_VLAN_TAG_MASK);
         } else {
@@ -2138,7 +2131,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                 goto skip_offload;
             }
 
-            hlen = IP_HEADER_LENGTH(ip);
+            hlen = IP_HDR_GET_LEN(ip);
             if (hlen < sizeof(struct ip_header) || hlen > eth_payload_len) {
                 goto skip_offload;
             }
@@ -2240,7 +2233,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
                     /* keep PUSH and FIN flags only for the last frame */
                     if (!is_last_frame)
                     {
-                        TCP_HEADER_CLEAR_FLAGS(p_tcp_hdr, TCP_FLAG_PUSH|TCP_FLAG_FIN);
+                        TCP_HEADER_CLEAR_FLAGS(p_tcp_hdr, TH_PUSH | TH_FIN);
                     }
 
                     /* recalculate TCP checksum */
