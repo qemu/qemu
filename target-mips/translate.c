@@ -4750,48 +4750,53 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
     gen_load_gpr(t1, rs);
     switch (opc) {
     case OPC_EXT:
-        if (lsb + msb > 31)
+        if (lsb + msb > 31) {
             goto fail;
+        }
         tcg_gen_shri_tl(t0, t1, lsb);
         if (msb != 31) {
-            tcg_gen_andi_tl(t0, t0, (1 << (msb + 1)) - 1);
+            tcg_gen_andi_tl(t0, t0, (1U << (msb + 1)) - 1);
         } else {
             tcg_gen_ext32s_tl(t0, t0);
         }
         break;
 #if defined(TARGET_MIPS64)
-    case OPC_DEXTM:
-        tcg_gen_shri_tl(t0, t1, lsb);
-        if (msb != 31) {
-            tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1 + 32)) - 1);
-        }
-        break;
     case OPC_DEXTU:
-        tcg_gen_shri_tl(t0, t1, lsb + 32);
-        tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
-        break;
+        lsb += 32;
+        goto do_dext;
+    case OPC_DEXTM:
+        msb += 32;
+        goto do_dext;
     case OPC_DEXT:
+    do_dext:
+        if (lsb + msb > 63) {
+            goto fail;
+        }
         tcg_gen_shri_tl(t0, t1, lsb);
-        tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
+        if (msb != 63) {
+            tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
+        }
         break;
 #endif
     case OPC_INS:
-        if (lsb > msb)
+        if (lsb > msb) {
             goto fail;
+        }
         gen_load_gpr(t0, rt);
         tcg_gen_deposit_tl(t0, t0, t1, lsb, msb - lsb + 1);
         tcg_gen_ext32s_tl(t0, t0);
         break;
 #if defined(TARGET_MIPS64)
-    case OPC_DINSM:
-        gen_load_gpr(t0, rt);
-        tcg_gen_deposit_tl(t0, t0, t1, lsb, msb + 32 - lsb + 1);
-        break;
     case OPC_DINSU:
-        gen_load_gpr(t0, rt);
-        tcg_gen_deposit_tl(t0, t0, t1, lsb + 32, msb - lsb + 1);
-        break;
+        lsb += 32;
+        /* FALLTHRU */
+    case OPC_DINSM:
+        msb += 32;
+        /* FALLTHRU */
     case OPC_DINS:
+        if (lsb > msb) {
+            goto fail;
+        }
         gen_load_gpr(t0, rt);
         tcg_gen_deposit_tl(t0, t0, t1, lsb, msb - lsb + 1);
         break;
