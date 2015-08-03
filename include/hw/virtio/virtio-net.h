@@ -48,7 +48,6 @@ typedef struct VirtIONetQueue {
     int tx_waiting;
     struct {
         VirtQueueElement elem;
-        ssize_t len;
     } async_tx;
     struct VirtIONet *n;
 } VirtIONetQueue;
