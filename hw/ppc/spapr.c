@@ -560,6 +560,7 @@ static int spapr_populate_memory(sPAPRMachineState *spapr, void *fdt)
         }
         if (!mem_start) {
             /* ppc_spapr_init() checks for rma_size <= node0_size already */
+            spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
             mem_start += spapr->rma_size;
             node_size -= spapr->rma_size;
         }
@@ -720,9 +721,7 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     int ret, i, offset;
     uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
     uint32_t prop_lmb_size[] = {0, cpu_to_be32(lmb_size)};
-    uint32_t nr_rma_lmbs = spapr->rma_size/lmb_size;
-    uint32_t nr_lmbs = machine->maxram_size/lmb_size - nr_rma_lmbs;
-    uint32_t nr_assigned_lmbs = machine->ram_size/lmb_size - nr_rma_lmbs;
+    uint32_t nr_lmbs = (machine->maxram_size - machine->ram_size)/lmb_size;
     uint32_t *int_buf, *cur_index, buf_len;
     int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
 
@@ -755,15 +754,9 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     for (i = 0; i < nr_lmbs; i++) {
         sPAPRDRConnector *drc;
         sPAPRDRConnectorClass *drck;
-        uint64_t addr;
+        uint64_t addr = i * lmb_size + spapr->hotplug_memory.base;;
         uint32_t *dynamic_memory = cur_index;
 
-        if (i < nr_assigned_lmbs) {
-            addr = (i + nr_rma_lmbs) * lmb_size;
-        } else {
-            addr = (i - nr_assigned_lmbs) * lmb_size +
-                    spapr->hotplug_memory.base;
-        }
         drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
                                        addr/lmb_size);
         g_assert(drc);
@@ -838,8 +831,6 @@ int spapr_h_cas_compose_response(sPAPRMachineState *spapr,
     /* Generate memory nodes or ibm,dynamic-reconfiguration-memory node */
     if (memory_update && smc->dr_lmb_enabled) {
         _FDT((spapr_populate_drconf_memory(spapr, fdt)));
-    } else {
-        _FDT((spapr_populate_memory(spapr, fdt)));
     }
 
     /* Pack resulting tree */
@@ -877,23 +868,10 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
     /* open out the base tree into a temp buffer for the final tweaks */
     _FDT((fdt_open_into(spapr->fdt_skel, fdt, FDT_MAX_SIZE)));
 
-    /*
-     * Add memory@0 node to represent RMA. Rest of the memory is either
-     * represented by memory nodes or ibm,dynamic-reconfiguration-memory
-     * node later during ibm,client-architecture-support call.
-     *
-     * If NUMA is configured, ensure that memory@0 ends up in the
-     * first memory-less node.
-     */
-    if (nb_numa_nodes) {
-        for (i = 0; i < nb_numa_nodes; ++i) {
-            if (numa_info[i].node_mem) {
-                spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
-                break;
-            }
-        }
-    } else {
-        spapr_populate_memory_node(fdt, 0, 0, spapr->rma_size);
+    ret = spapr_populate_memory(spapr, fdt);
+    if (ret < 0) {
+        fprintf(stderr, "couldn't setup memory nodes in fdt\n");
+        exit(1);
     }
 
     ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
@@ -1600,21 +1578,14 @@ static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
 {
     MachineState *machine = MACHINE(spapr);
     uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
-    uint32_t nr_rma_lmbs = spapr->rma_size/lmb_size;
-    uint32_t nr_lmbs = machine->maxram_size/lmb_size - nr_rma_lmbs;
-    uint32_t nr_assigned_lmbs = machine->ram_size/lmb_size - nr_rma_lmbs;
+    uint32_t nr_lmbs = (machine->maxram_size - machine->ram_size)/lmb_size;
     int i;
 
     for (i = 0; i < nr_lmbs; i++) {
         sPAPRDRConnector *drc;
         uint64_t addr;
 
-        if (i < nr_assigned_lmbs) {
-            addr = (i + nr_rma_lmbs) * lmb_size;
-        } else {
-            addr = (i - nr_assigned_lmbs) * lmb_size +
-                    spapr->hotplug_memory.base;
-        }
+        addr = i * lmb_size + spapr->hotplug_memory.base;
         drc = spapr_dr_connector_new(OBJECT(spapr), SPAPR_DR_CONNECTOR_TYPE_LMB,
                                      addr/lmb_size);
         qemu_register_reset(spapr_drc_reset, drc);
