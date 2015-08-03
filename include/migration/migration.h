@@ -203,4 +203,5 @@ void register_global_state(void);
 void global_state_set_optional(void);
 void savevm_skip_configuration(void);
 int global_state_store(void);
+void global_state_store_running(void);
 #endif
