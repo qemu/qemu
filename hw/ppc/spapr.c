@@ -2062,9 +2062,9 @@ static void spapr_add_lmbs(DeviceState *dev, uint64_t addr, uint64_t size,
 
         drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
         drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, errp);
-        spapr_hotplug_req_add_by_index(drc);
         addr += SPAPR_MEMORY_BLOCK_SIZE;
     }
+    spapr_hotplug_req_add_by_count(SPAPR_DR_CONNECTOR_TYPE_LMB, nr_lmbs);
 }
 
 static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
