@@ -127,10 +127,6 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
     /* effective address (modified for KVM T&E kernel segments) */
     target_ulong address = real_address;
 
-#if 0
-    qemu_log("user mode %d h %08x\n", user_mode, env->hflags);
-#endif
-
 #define USEG_LIMIT      0x7FFFFFFFUL
 #define KSEG0_BASE      0x80000000UL
 #define KSEG1_BASE      0xA0000000UL
@@ -227,11 +223,6 @@ static int get_physical_address (CPUMIPSState *env, hwaddr *physical,
             ret = TLBRET_BADADDR;
         }
     }
-#if 0
-    qemu_log(TARGET_FMT_lx " %d %d => %" HWADDR_PRIx " %d (%d)\n",
-            address, rw, access_type, *physical, *prot, ret);
-#endif
-
     return ret;
 }
 #endif
@@ -487,14 +478,16 @@ void mips_cpu_do_interrupt(CPUState *cs)
     int cause = -1;
     const char *name;
 
-    if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
+    if (qemu_loglevel_mask(CPU_LOG_INT)
+        && cs->exception_index != EXCP_EXT_INTERRUPT) {
         if (cs->exception_index < 0 || cs->exception_index > EXCP_LAST) {
             name = "unknown";
         } else {
             name = excp_names[cs->exception_index];
         }
 
-        qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " %s exception\n",
+        qemu_log("%s enter: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx
+                 " %s exception\n",
                  __func__, env->active_tc.PC, env->CP0_EPC, name);
     }
     if (cs->exception_index == EXCP_EXT_INTERRUPT &&
@@ -747,16 +740,15 @@ void mips_cpu_do_interrupt(CPUState *cs)
         env->CP0_Cause = (env->CP0_Cause & ~(0x1f << CP0Ca_EC)) | (cause << CP0Ca_EC);
         break;
     default:
-        qemu_log("Invalid MIPS exception %d. Exiting\n", cs->exception_index);
-        printf("Invalid MIPS exception %d. Exiting\n", cs->exception_index);
-        exit(1);
+        abort();
     }
-    if (qemu_log_enabled() && cs->exception_index != EXCP_EXT_INTERRUPT) {
+    if (qemu_loglevel_mask(CPU_LOG_INT)
+        && cs->exception_index != EXCP_EXT_INTERRUPT) {
         qemu_log("%s: PC " TARGET_FMT_lx " EPC " TARGET_FMT_lx " cause %d\n"
-                "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
-                __func__, env->active_tc.PC, env->CP0_EPC, cause,
-                env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
-                env->CP0_DEPC);
+                 "    S %08x C %08x A " TARGET_FMT_lx " D " TARGET_FMT_lx "\n",
+                 __func__, env->active_tc.PC, env->CP0_EPC, cause,
+                 env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
+                 env->CP0_DEPC);
     }
 #endif
     cs->exception_index = EXCP_NONE;
