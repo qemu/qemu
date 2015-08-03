@@ -1394,6 +1394,7 @@ void qmp_xen_save_devices_state(const char *filename, Error **errp)
 
     saved_vm_running = runstate_is_running();
     vm_stop(RUN_STATE_SAVE_VM);
+    global_state_store_running();
 
     f = qemu_fopen(filename, "wb");
     if (!f) {

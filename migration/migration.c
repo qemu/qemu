@@ -122,6 +122,13 @@ int global_state_store(void)
     return 0;
 }
 
+void global_state_store_running(void)
+{
+    const char *state = RunState_lookup[RUN_STATE_RUNNING];
+    strncpy((char *)global_state.runstate,
+           state, sizeof(global_state.runstate));
+}
+
 static bool global_state_received(void)
 {
     return global_state.received;
