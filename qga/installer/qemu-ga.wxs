@@ -58,13 +58,9 @@
       />
     <Media Id="1" Cabinet="qemu_ga.$(env.QEMU_GA_VERSION).cab" EmbedCab="yes" />
     <Property Id="WHSLogo">1</Property>
-    <Property Id="PREVIOUSVERSIONSINSTALLED" />
-    <Upgrade Id="{EB6B8302-C06E-4bec-ADAC-932C68A3A98D}">
-      <UpgradeVersion
-        Minimum="1.0.0.0" Maximum="$(env.QEMU_GA_VERSION)"
-        Property="PREVIOUSVERSIONSINSTALLED"
-        IncludeMinimum="yes" IncludeMaximum="no" />
-    </Upgrade>
+    <MajorUpgrade
+      DowngradeErrorMessage="Error: A newer version of QEMU guest agent is already installed."
+      />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="$(var.GaProgramFilesFolder)" Name="QEMU Guest Agent">
@@ -125,6 +121,7 @@
     </Directory>
 
     <Property Id="cmd" Value="cmd.exe"/>
+    <Property Id="REINSTALLMODE" Value="amus"/>
 
     <?ifdef var.InstallVss?>
     <CustomAction Id="RegisterCom"
@@ -161,10 +158,9 @@
     </Feature>
 
     <InstallExecuteSequence>
-      <RemoveExistingProducts Before="InstallInitialize" />
       <?ifdef var.InstallVss?>
-      <Custom Action="RegisterCom" After="InstallServices">NOT Installed</Custom>
       <Custom Action="UnRegisterCom" After="StopServices">Installed</Custom>
+      <Custom Action="RegisterCom" After="InstallServices">NOT REMOVE</Custom>
       <?endif?>
     </InstallExecuteSequence>
   </Product>
