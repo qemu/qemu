@@ -111,9 +111,9 @@
 
     <Property Id="cmd" Value="cmd.exe"/>
 
-    <?ifdef var.InstallVss ?>
+    <?ifdef var.InstallVss?>
     <CustomAction Id="RegisterCom"
-             ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s vss-install'
+              ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s vss-install'
               Execute="deferred"
               Property="cmd"
               Impersonate="no"
@@ -137,7 +137,7 @@
 
     <InstallExecuteSequence>
       <RemoveExistingProducts Before="InstallInitialize" />
-      <?ifdef var.InstallVss ?>
+      <?ifdef var.InstallVss?>
       <Custom Action="RegisterCom" After="InstallServices">NOT Installed</Custom>
       <Custom Action="UnRegisterCom" After="StopServices">Installed</Custom>
       <?endif?>
