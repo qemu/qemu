@@ -1390,7 +1390,7 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *dest)
 static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
                                    TCGReg base, TCGReg index, int disp)
 {
-    switch (opc) {
+    switch (opc & (MO_SSIZE | MO_BSWAP)) {
     case MO_UB:
         tcg_out_insn(s, RXY, LLGC, data, base, index, disp);
         break;
@@ -1449,7 +1449,7 @@ static void tcg_out_qemu_ld_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
 static void tcg_out_qemu_st_direct(TCGContext *s, TCGMemOp opc, TCGReg data,
                                    TCGReg base, TCGReg index, int disp)
 {
-    switch (opc) {
+    switch (opc & (MO_SIZE | MO_BSWAP)) {
     case MO_UB:
         if (disp >= 0 && disp < 0x1000) {
             tcg_out_insn(s, RX, STC, data, base, index, disp);
