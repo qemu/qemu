@@ -37,9 +37,9 @@
 
 typedef struct Qcow2CachedTable {
     int64_t  offset;
-    bool     dirty;
     uint64_t lru_counter;
     int      ref;
+    bool     dirty;
 } Qcow2CachedTable;
 
 struct Qcow2Cache {
