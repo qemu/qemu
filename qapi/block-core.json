@@ -1592,6 +1592,10 @@
 # @refcount-cache-size:   #optional the maximum size of the refcount block cache
 #                         in bytes (since 2.2)
 #
+# @cache-clean-interval:  #optional clean unused entries in the L2 and refcount
+#                         caches. The interval is in seconds. The default value
+#                         is 0 and it disables this feature (since 2.5)
+#
 # Since: 1.7
 ##
 { 'struct': 'BlockdevOptionsQcow2',
@@ -1603,7 +1607,8 @@
             '*overlap-check': 'Qcow2OverlapChecks',
             '*cache-size': 'int',
             '*l2-cache-size': 'int',
-            '*refcount-cache-size': 'int' } }
+            '*refcount-cache-size': 'int',
+            '*cache-clean-interval': 'int' } }
 
 
 ##
