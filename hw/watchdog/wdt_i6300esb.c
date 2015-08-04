@@ -136,7 +136,7 @@ static void i6300esb_restart_timer(I6300State *d, int stage)
      * multiply here can exceed 64-bits, before we divide by 33MHz, so
      * we use a higher-precision intermediate result.
      */
-    timeout = muldiv64(get_ticks_per_sec(), timeout, 33000000);
+    timeout = muldiv64(timeout, get_ticks_per_sec(), 33000000);
 
     i6300esb_debug("stage %d, timeout %" PRIi64 "\n", d->stage, timeout);
 
