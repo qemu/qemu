@@ -865,12 +865,6 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     int i;
     int ret = 0;
 
-    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA256)) {
-        error_setg(errp,
-                   "SHA256 hash support is required for quorum device");
-        return -EINVAL;
-    }
-
     qdict_flatten(options);
 
     /* count how many different children are present */
@@ -1061,6 +1055,10 @@ static BlockDriver bdrv_quorum = {
 
 static void bdrv_quorum_init(void)
 {
+    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA256)) {
+        /* SHA256 hash support is required for quorum device */
+        return;
+    }
     bdrv_register(&bdrv_quorum);
 }
 
