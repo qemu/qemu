@@ -351,6 +351,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .property = "xlevel",\
             .value    = stringify(0x8000000a),\
         },{\
+            .driver   = "IvyBridge" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
             .driver   = "Haswell" "-" TYPE_X86_CPU,\
             .property = "xlevel",\
             .value    = stringify(0x8000000a),\
