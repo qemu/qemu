@@ -337,6 +337,12 @@ static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
         return false;
     }
 
+    if (throttle_max_is_missing_limit(cfg)) {
+        error_setg(errp, "bps_max/iops_max require corresponding"
+                         " bps/iops values");
+        return false;
+    }
+
     return true;
 }
 

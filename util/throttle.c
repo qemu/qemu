@@ -300,6 +300,21 @@ bool throttle_is_valid(ThrottleConfig *cfg)
     return !invalid;
 }
 
+/* check if bps_max/iops_max is used without bps/iops
+ * @cfg: the throttling configuration to inspect
+ */
+bool throttle_max_is_missing_limit(ThrottleConfig *cfg)
+{
+    int i;
+
+    for (i = 0; i < BUCKETS_COUNT; i++) {
+        if (cfg->buckets[i].max && !cfg->buckets[i].avg) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* fix bucket parameters */
 static void throttle_fix_bucket(LeakyBucket *bkt)
 {

@@ -114,6 +114,8 @@ bool throttle_conflicting(ThrottleConfig *cfg);
 
 bool throttle_is_valid(ThrottleConfig *cfg);
 
+bool throttle_max_is_missing_limit(ThrottleConfig *cfg);
+
 void throttle_config(ThrottleState *ts,
                      ThrottleTimers *tt,
                      ThrottleConfig *cfg);
