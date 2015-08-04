@@ -260,6 +260,12 @@
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_READ_IN                (1 << 0)
 #   define NV_PGRAPH_CHANNEL_CTX_TRIGGER_WRITE_OUT              (1 << 1)
 #define NV_PGRAPH_CSV0_D                                 0x00000FB4
+#   define NV_PGRAPH_CSV0_D_LIGHTS                              0x0000FFFF
+#   define NV_PGRAPH_CSV0_D_LIGHT0                              0x00000003
+#       define NV_PGRAPH_CSV0_D_LIGHT0_OFF                          0
+#       define NV_PGRAPH_CSV0_D_LIGHT0_INFINITE                     1
+#       define NV_PGRAPH_CSV0_D_LIGHT0_LOCAL                        2
+#       define NV_PGRAPH_CSV0_D_LIGHT0_SPOT                         3
 #   define NV_PGRAPH_CSV0_D_RANGE_MODE                          (1 << 18)
 #   define NV_PGRAPH_CSV0_D_FOGENABLE                           (1 << 19)
 #   define NV_PGRAPH_CSV0_D_TEXGEN_REF                          (1 << 20)
@@ -286,6 +292,7 @@
 #define NV_PGRAPH_CSV0_C                                 0x00000FB8
 #   define NV_PGRAPH_CSV0_C_CHEOPS_PROGRAM_START                0x0000FF00
 #   define NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE                (1 << 27)
+#   define NV_PGRAPH_CSV0_C_LIGHTING                            (1 << 31)
 #define NV_PGRAPH_CSV1_B                                 0x00000FBC
 #define NV_PGRAPH_CSV1_A                                 0x00000FC0
 #   define NV_PGRAPH_CSV1_A_T0_ENABLE                           (1 << 0)
@@ -765,6 +772,7 @@
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
 #   define NV097_SET_CULL_FACE_ENABLE                         0x00970308
 #   define NV097_SET_DEPTH_TEST_ENABLE                        0x0097030C
+#   define NV097_SET_LIGHTING_ENABLE                          0x00970314
 #   define NV097_SET_SKIN_MODE                                0x00970328
 #       define NV097_SET_SKIN_MODE_OFF                            0
 #       define NV097_SET_SKIN_MODE_2G                             1
@@ -854,6 +862,11 @@
 #       define NV097_SET_FRONT_FACE_V_CW                           0x900
 #       define NV097_SET_FRONT_FACE_V_CCW                          0x901
 #   define NV097_SET_NORMALIZATION_ENABLE                     0x009703A4
+#   define NV097_SET_LIGHT_ENABLE_MASK                        0x009703BC
+#           define NV097_SET_LIGHT_ENABLE_MASK_LIGHT0_OFF           0
+#           define NV097_SET_LIGHT_ENABLE_MASK_LIGHT0_INFINITE      1
+#           define NV097_SET_LIGHT_ENABLE_MASK_LIGHT0_LOCAL         2
+#           define NV097_SET_LIGHT_ENABLE_MASK_LIGHT0_SPOT          3
 #   define NV097_SET_TEXGEN_S                                 0x009703C0
 #       define NV097_SET_TEXGEN_S_DISABLE                         0x0000
 #       define NV097_SET_TEXGEN_S_EYE_LINEAR                      0x2400
@@ -879,6 +892,7 @@
 #       define NV097_SET_TEXGEN_VIEW_MODEL_LOCAL_VIEWER           0
 #       define NV097_SET_TEXGEN_VIEW_MODEL_INFINITE_VIEWER        1
 #   define NV097_SET_FOG_PLANE                                0x009709D0
+#   define NV097_SET_SCENE_AMBIENT_COLOR                      0x00970A10
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
 #   define NV097_SET_COMBINER_FACTOR0                         0x00970A60
 #   define NV097_SET_COMBINER_FACTOR1                         0x00970A80
@@ -888,6 +902,19 @@
 #   define NV097_SET_TRANSFORM_PROGRAM                        0x00970B00
 #   define NV097_SET_TRANSFORM_CONSTANT                       0x00970B80
 #   define NV097_SET_VERTEX3F                                 0x00971500
+#   define NV097_SET_BACK_LIGHT_AMBIENT_COLOR                 0x00970C00
+#   define NV097_SET_BACK_LIGHT_DIFFUSE_COLOR                 0x00970C0C
+#   define NV097_SET_BACK_LIGHT_SPECULAR_COLOR                0x00970C18
+#   define NV097_SET_LIGHT_AMBIENT_COLOR                      0x00971000
+#   define NV097_SET_LIGHT_DIFFUSE_COLOR                      0x0097100C
+#   define NV097_SET_LIGHT_SPECULAR_COLOR                     0x00971018
+#   define NV097_SET_LIGHT_LOCAL_RANGE                        0x00971024
+#   define NV097_SET_LIGHT_INFINITE_HALF_VECTOR               0x00971028
+#   define NV097_SET_LIGHT_INFINITE_DIRECTION                 0x00971034
+#   define NV097_SET_LIGHT_SPOT_FALLOFF                       0x00971040
+#   define NV097_SET_LIGHT_SPOT_DIRECTION                     0x0097104C
+#   define NV097_SET_LIGHT_LOCAL_POSITION                     0x0097105C
+#   define NV097_SET_LIGHT_LOCAL_ATTENUATION                  0x00971068
 #   define NV097_SET_VERTEX4F                                 0x00971518
 #   define NV097_SET_VERTEX_DATA_ARRAY_OFFSET                 0x00971720
 #   define NV097_SET_VERTEX_DATA_ARRAY_FORMAT                 0x00971760
@@ -1540,6 +1567,22 @@ typedef struct PGRAPHState {
 
     /* FIXME: Also in vshader consts? */
     float fog_plane[4];
+
+    /* FIXME: These are probably stored in the vshader consts */
+    float scene_ambient_color[3];
+    float back_light_ambient_color[NV2A_MAX_LIGHTS][3];
+    float back_light_diffuse_color[NV2A_MAX_LIGHTS][3];
+    float back_light_specular_color[NV2A_MAX_LIGHTS][3];
+    float light_ambient_color[NV2A_MAX_LIGHTS][3];
+    float light_diffuse_color[NV2A_MAX_LIGHTS][3];
+    float light_specular_color[NV2A_MAX_LIGHTS][3];
+    float light_local_range[NV2A_MAX_LIGHTS];
+    float light_infinite_half_vector[NV2A_MAX_LIGHTS][3];
+    float light_infinite_direction[NV2A_MAX_LIGHTS][3];
+    float light_spot_falloff[NV2A_MAX_LIGHTS][3];
+    float light_spot_direction[NV2A_MAX_LIGHTS][4];
+    float light_local_position[NV2A_MAX_LIGHTS][3];
+    float light_local_attenuation[NV2A_MAX_LIGHTS][3];
 
     /* FIXME: Move to NV_PGRAPH_BUMPMAT... */
     float bump_env_matrix[NV2A_MAX_TEXTURES-1][4]; /* 3 allowed stages with 2x2 matrix each */
@@ -2836,6 +2879,9 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         .skinning = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
                              NV_PGRAPH_CSV0_D_SKIN),
 
+        .lighting = GET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
+                             NV_PGRAPH_CSV0_C_LIGHTING),
+
         .normalization = pg->regs[NV_PGRAPH_CSV0_C]
                            & NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE,
 
@@ -2899,6 +2945,14 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     /* Texture matrices */
     for (i = 0; i < 4; i++) {
         state.texture_matrix_enable[i] = pg->texture_matrix_enable[i];
+    }
+
+    /* Lighting */
+    if (state.lighting) {
+        for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
+            state.light[i] = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
+                                      NV_PGRAPH_CSV0_D_LIGHT0 << (i * 2));
+        }
     }
 
     for (i = 0; i < 8; i++) {
@@ -3088,6 +3142,84 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
                                      "projectionMat");
     if (projLoc != -1) {
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, pg->projection_matrix);
+    }
+
+    /* FIXME: Only do this if lighting is allowed? I'd believe lighting works
+     *        with both FFP and VPs.
+     */
+    GLint ambLoc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                    "sceneAmbientColor");
+    if (ambLoc != -1) {
+        glUniform3fv(ambLoc, 1, pg->scene_ambient_color);
+    }
+    for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
+        GLint loc;
+        char tmp[64];
+        snprintf(tmp, sizeof(tmp), "backLightAmbientColor%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->back_light_ambient_color[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "backLightDiffuseColor%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->back_light_diffuse_color[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "backLightSpecularColor%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->back_light_specular_color[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightAmbientColor%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->light_ambient_color[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightDiffuseColor%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->light_diffuse_color[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightSpecularColor%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->light_specular_color[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightLocalRange%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform1f(loc, pg->light_local_range[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightInfiniteHalfVector%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->light_infinite_half_vector[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightInfiniteDirection%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->light_infinite_direction[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightSpotFalloff%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->light_spot_falloff[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightSpotDirection%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform4fv(loc, 1, pg->light_spot_direction[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightLocalPosition%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->light_local_position[i]);
+        }
+        snprintf(tmp, sizeof(tmp), "lightLocalAttenuation%d", i);
+        loc = glGetUniformLocation(pg->shader_binding->gl_program, tmp);
+        if (loc != -1) {
+            glUniform3fv(loc, 1, pg->light_local_attenuation[i]);
+        }
     }
 
     float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
@@ -4139,6 +4271,10 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0], NV_PGRAPH_CONTROL_0_ZENABLE,
                  parameter);
         break;
+    case NV097_SET_LIGHTING_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_CSV0_C], NV_PGRAPH_CSV0_C_LIGHTING,
+                 parameter);
+        break;
     case NV097_SET_SKIN_MODE:
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_SKIN,
                  parameter);
@@ -4385,6 +4521,12 @@ static void pgraph_method(NV2AState *d,
                  parameter);
         break;
 
+    case NV097_SET_LIGHT_ENABLE_MASK:
+        SET_MASK(d->pgraph.regs[NV_PGRAPH_CSV0_D],
+                 NV_PGRAPH_CSV0_D_LIGHTS,
+                 parameter);
+        break;
+
     CASE_4(NV097_SET_TEXGEN_S, 16): {
         slot = (class_method - NV097_SET_TEXGEN_S) / 16;
         unsigned int reg = (slot < 2) ? NV_PGRAPH_CSV1_A
@@ -4486,6 +4628,12 @@ static void pgraph_method(NV2AState *d,
         pg->fog_plane[slot] = *(float*)&parameter;
         break;
 
+    case NV097_SET_SCENE_AMBIENT_COLOR ...
+            NV097_SET_SCENE_AMBIENT_COLOR + 8:
+        slot = (class_method - NV097_SET_SCENE_AMBIENT_COLOR) / 4;
+        pg->scene_ambient_color[slot] = *(float*)&parameter;
+        break;
+
     case NV097_SET_VIEWPORT_OFFSET ...
             NV097_SET_VIEWPORT_OFFSET + 12:
 
@@ -4579,6 +4727,98 @@ static void pgraph_method(NV2AState *d,
         attribute->inline_value[3] = 1.0f;
         if (slot == 2) {
             pgraph_finish_inline_buffer_vertex(pg);
+        }
+        break;
+    }
+
+    /* Handles NV097_SET_BACK_LIGHT_* */
+    case NV097_SET_BACK_LIGHT_AMBIENT_COLOR ...
+            NV097_SET_BACK_LIGHT_SPECULAR_COLOR + 0x1C8: {
+        slot = (class_method - NV097_SET_BACK_LIGHT_AMBIENT_COLOR) / 4;
+        unsigned int part = NV097_SET_BACK_LIGHT_AMBIENT_COLOR / 4 + slot % 16;
+        slot /= 16; /* [Light index] */
+        assert(slot < 8);
+        switch(part * 4) {
+        case NV097_SET_BACK_LIGHT_AMBIENT_COLOR ...
+                NV097_SET_BACK_LIGHT_AMBIENT_COLOR + 8:
+            part -= NV097_SET_BACK_LIGHT_AMBIENT_COLOR / 4;
+            pg->back_light_ambient_color[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_BACK_LIGHT_DIFFUSE_COLOR ...
+                NV097_SET_BACK_LIGHT_DIFFUSE_COLOR + 8:
+            part -= NV097_SET_BACK_LIGHT_DIFFUSE_COLOR / 4;
+            pg->back_light_diffuse_color[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_BACK_LIGHT_SPECULAR_COLOR ...
+                NV097_SET_BACK_LIGHT_SPECULAR_COLOR + 8:
+            part -= NV097_SET_BACK_LIGHT_SPECULAR_COLOR / 4;
+            pg->back_light_specular_color[slot][part] = *(float*)&parameter;
+            break;
+        default:
+            assert(false);
+            break;
+        }
+        break;
+    }
+    /* Handles all the light source props except for NV097_SET_BACK_LIGHT_* */
+    case NV097_SET_LIGHT_AMBIENT_COLOR ...
+            NV097_SET_LIGHT_LOCAL_ATTENUATION + 0x38C: {
+        slot = (class_method - NV097_SET_LIGHT_AMBIENT_COLOR) / 4;
+        unsigned int part = NV097_SET_LIGHT_AMBIENT_COLOR / 4 + slot % 32;
+        slot /= 32; /* [Light index] */
+        assert(slot < 8);
+        switch(part * 4) {
+        case NV097_SET_LIGHT_AMBIENT_COLOR ...
+                NV097_SET_LIGHT_AMBIENT_COLOR + 8:
+            part -= NV097_SET_LIGHT_AMBIENT_COLOR / 4;
+            pg->light_ambient_color[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_DIFFUSE_COLOR ...
+               NV097_SET_LIGHT_DIFFUSE_COLOR + 8:
+            part -= NV097_SET_LIGHT_DIFFUSE_COLOR / 4;
+            pg->light_diffuse_color[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_SPECULAR_COLOR ...
+                NV097_SET_LIGHT_SPECULAR_COLOR + 8:
+            part -= NV097_SET_LIGHT_SPECULAR_COLOR / 4;
+            pg->light_specular_color[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_LOCAL_RANGE:
+            pg->light_local_range[slot] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_INFINITE_HALF_VECTOR ...
+                NV097_SET_LIGHT_INFINITE_HALF_VECTOR + 8:
+            part -= NV097_SET_LIGHT_INFINITE_HALF_VECTOR / 4;
+            pg->light_infinite_half_vector[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_INFINITE_DIRECTION ...
+                NV097_SET_LIGHT_INFINITE_DIRECTION + 8:
+            part -= NV097_SET_LIGHT_INFINITE_DIRECTION / 4;
+            pg->light_infinite_direction[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_SPOT_FALLOFF ...
+                NV097_SET_LIGHT_SPOT_FALLOFF + 8:
+            part -= NV097_SET_LIGHT_SPOT_FALLOFF / 4;
+            pg->light_spot_falloff[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_SPOT_DIRECTION ...
+                NV097_SET_LIGHT_SPOT_DIRECTION + 12:
+            part -= NV097_SET_LIGHT_SPOT_DIRECTION / 4;
+            pg->light_spot_direction[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_LOCAL_POSITION ...
+                NV097_SET_LIGHT_LOCAL_POSITION + 8:
+            part -= NV097_SET_LIGHT_LOCAL_POSITION / 4;
+            pg->light_local_position[slot][part] = *(float*)&parameter;
+            break;
+        case NV097_SET_LIGHT_LOCAL_ATTENUATION ...
+                NV097_SET_LIGHT_LOCAL_ATTENUATION + 8:
+            part -= NV097_SET_LIGHT_LOCAL_ATTENUATION / 4;
+            pg->light_local_attenuation[slot][part] = *(float*)&parameter;
+            break;
+        default:
+            assert(false);
+            break;
         }
         break;
     }

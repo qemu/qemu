@@ -116,8 +116,9 @@ static QString* generate_fixed_function(const ShaderState state,
     int i, j;
 
     /* generate vertex shader mimicking fixed function */
+    QString* h = qstring_new();
     QString* s = qstring_new();
-    qstring_append(s,
+    qstring_append(h,
 "#version 330\n"
 "\n"
 "#define position      v0\n"
@@ -139,16 +140,16 @@ static QString* generate_fixed_function(const ShaderState state,
 "\n");
 
     for(i = 0; i < 16; i++) {
-        qstring_append_fmt(s, "in vec4 v%d;\n", i);
+        qstring_append_fmt(h, "in vec4 v%d;\n", i);
     }
 
-    qstring_append(s, "\n"
+    qstring_append(h, "\n"
                       STRUCT_VERTEX_DATA);
-    qstring_append_fmt(s, "noperspective out VertexData %c_vtx;\n", out_prefix);
-    qstring_append_fmt(s, "#define vtx %c_vtx", out_prefix);
+    qstring_append_fmt(h, "noperspective out VertexData %c_vtx;\n", out_prefix);
+    qstring_append_fmt(h, "#define vtx %c_vtx", out_prefix);
 
 
-    qstring_append(s,
+    qstring_append(h,
 "\n"
 /* FIXME: Add these uniforms using code when they are used */
 "uniform vec4 fogColor;\n"
@@ -185,8 +186,7 @@ static QString* generate_fixed_function(const ShaderState state,
 "uniform mat4 projectionMat; /* FIXME: when is this used? */\n"
 "uniform mat4 compositeMat;\n"
 "uniform mat4 invViewport;\n"
-"\n"
-"void main() {\n");
+"\n");
 
     /* Skinning */
     unsigned int count;
@@ -303,6 +303,101 @@ static QString* generate_fixed_function(const ShaderState state,
         }
     }
 
+    /* Lighting */
+    if (state.lighting) {
+
+        //FIXME: Do 2 passes if we want 2 sided-lighting?
+        qstring_append_fmt(h, "uniform vec3 sceneAmbientColor;\n");
+        qstring_append(s, "vec4 tD0 = vec4(sceneAmbientColor, diffuse.a);\n");
+        qstring_append(s, "vec4 tD1 = vec4(0.0, 0.0, 0.0, specular.a);\n");
+        for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
+            if (state.light[i] == LIGHT_OFF) {
+                continue;
+            }
+
+            qstring_append_fmt(h,
+                "uniform vec3 lightAmbientColor%d;\n"
+                "uniform vec3 lightDiffuseColor%d;\n"
+                "uniform vec3 lightSpecularColor%d;\n",
+                i, i, i);
+
+            /* FIXME: It seems that we only have to handle the surface colors if
+             *        they are not part of the material [= vertex colors].
+             *        If they are material the cpu will premultiply light
+             *        colors
+             */
+
+            qstring_append_fmt(s, "/* Light %d */ {\n", i);
+
+            qstring_append_fmt(h,
+                "uniform float lightLocalRange%d;\n", i);
+
+            if (state.light[i] == LIGHT_LOCAL
+                    || state.light[i] == LIGHT_SPOT) {
+
+                qstring_append_fmt(h,
+                    "uniform vec3 lightLocalPosition%d;\n"
+                    "uniform vec3 lightAttenuation%d;\n",
+                    i, i);
+                qstring_append_fmt(s,
+                    "  float distance = distance(lightLocalPosition%d, tPosition.xyz);\n"
+                    "  float attenuation = 1.0 / (lightAttenuation%d.x\n"
+                    "                               + lightAttenuation%d.y * distance\n"
+                    "                               + lightAttenuation%d.z * distance * distance);\n",
+                    i, i, i, i);
+
+            }
+
+            switch(state.light[i]) {
+            case LIGHT_INFINITE:
+
+                /* lightLocalRange will be 1e+30 here */
+
+                qstring_append_fmt(h,
+                    "uniform vec3 lightInfiniteHalfVector%d;\n"
+                    "uniform vec3 lightInfiniteDirection%d;\n",
+                    i, i);
+                qstring_append_fmt(s,
+                    "  float L = dot(tNormal, lightInfiniteDirection%d);\n"
+                    "  float attenuation = max(L, 0.0);\n",
+                    i);
+
+                /* FIXME: Do specular */
+
+                /* FIXME: tBackDiffuse */
+
+                break;
+            case LIGHT_LOCAL:
+                /* Everything done already */
+                break;
+            case LIGHT_SPOT:
+                qstring_append_fmt(h,
+                    "uniform vec3 lightSpotFalloff%d;\n"
+                    "uniform vec4 lightSpotDirection%d;\n",
+                    i, i);
+                assert(false);
+                /*FIXME: calculate falloff */
+                break;
+            default:
+                assert(false);
+                break;
+            }
+
+            qstring_append_fmt(s,
+                "  float highlight = 0.0;\n"
+                "  vec3 lightDiffuse = attenuation * lightDiffuseColor%d;\n"
+                "  vec3 lightSpecular = highlight * lightSpecularColor%d;\n"
+                "  tD0.xyz += lightAmbientColor%d;\n" /* FIXME: Clamp? */
+                "  tD0.xyz += diffuse.xyz * lightDiffuse;\n"
+                "  tD1.xyz += specular.xyz * lightSpecular;\n"
+                "}\n",
+                i, i, i);
+        }
+    } else {
+        qstring_append(s, "vec4 tD0 = diffuse;\n");
+        qstring_append(s, "vec4 tD1 = specular;\n");
+    }
+
     /* Fog */
     if (state.fog_enable) {
 
@@ -414,8 +509,8 @@ static QString* generate_fixed_function(const ShaderState state,
     "   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n");
 
     qstring_append(s, "vtx.inv_w = 1.0/gl_Position.w;\n");
-    qstring_append(s, "vtx.D0 = diffuse * vtx.inv_w;\n");
-    qstring_append(s, "vtx.D1 = specular * vtx.inv_w;\n");
+    qstring_append(s, "vtx.D0 = tD0 * vtx.inv_w;\n");
+    qstring_append(s, "vtx.D1 = tD1 * vtx.inv_w;\n");
     qstring_append(s, "vtx.B0 = backDiffuse * vtx.inv_w;\n");
     qstring_append(s, "vtx.B1 = backSpecular * vtx.inv_w;\n");
     qstring_append(s, "vtx.Fog = tFog * vtx.inv_w;\n");
@@ -424,9 +519,13 @@ static QString* generate_fixed_function(const ShaderState state,
     qstring_append(s, "vtx.T2 = tTexture2 * vtx.inv_w;\n");
     qstring_append(s, "vtx.T3 = tTexture3 * vtx.inv_w;\n");
 
-    qstring_append(s, "}\n");
+    qstring_append(h,"void main() {\n");
+    qstring_append(h, qstring_get_str(s));
+    qstring_append(h, "}\n");
 
-    return s;
+    QDECREF(s);
+
+    return h;
 }
 
 static GLuint create_gl_shader(GLenum gl_shader_type,
@@ -475,12 +574,12 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
     /* create the vertex shader */
 
-    QString *vertex_shader_code = NULL;
+    QString *s = NULL;
     if (state.fixed_function) {
-        vertex_shader_code = generate_fixed_function(state, vtx_prefix);
+        s = generate_fixed_function(state, vtx_prefix);
 
     } else if (state.vertex_program) {
-        vertex_shader_code = vsh_translate(VSH_VERSION_XVS,
+        s = vsh_translate(VSH_VERSION_XVS,
                                            (uint32_t*)state.program_data,
                                            state.program_length,
                                            vtx_prefix);
@@ -488,15 +587,15 @@ ShaderBinding* generate_shaders(const ShaderState state)
         assert(false);
     }
 
-    if (vertex_shader_code) {
-        const char* vertex_shader_code_str = qstring_get_str(vertex_shader_code);
+    if (s) {
+        const char* s_str = qstring_get_str(s);
 
         GLuint vertex_shader = create_gl_shader(GL_VERTEX_SHADER,
-                                                vertex_shader_code_str,
+                                                s_str,
                                                 "vertex shader");
         glAttachShader(program, vertex_shader);
 
-        QDECREF(vertex_shader_code);
+        QDECREF(s);
     }
 
 
