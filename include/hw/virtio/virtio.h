@@ -272,6 +272,12 @@ static inline bool virtio_has_feature(VirtIODevice *vdev, unsigned int fbit)
     return __virtio_has_feature(vdev->guest_features, fbit);
 }
 
+static inline bool virtio_host_has_feature(VirtIODevice *vdev,
+                                           unsigned int fbit)
+{
+    return __virtio_has_feature(vdev->host_features, fbit);
+}
+
 static inline bool virtio_is_big_endian(VirtIODevice *vdev)
 {
     if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
