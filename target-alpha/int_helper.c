@@ -58,20 +58,33 @@ uint64_t helper_zap(uint64_t val, uint64_t mask)
     return helper_zapnot(val, ~mask);
 }
 
-uint64_t helper_cmpbge(uint64_t op1, uint64_t op2)
+uint64_t helper_cmpbge(uint64_t a, uint64_t b)
 {
-    uint8_t opa, opb, res;
-    int i;
+    uint64_t mask = 0x00ff00ff00ff00ffULL;
+    uint64_t test = 0x0100010001000100ULL;
+    uint64_t al, ah, bl, bh, cl, ch;
 
-    res = 0;
-    for (i = 0; i < 8; i++) {
-        opa = op1 >> (i * 8);
-        opb = op2 >> (i * 8);
-        if (opa >= opb) {
-            res |= 1 << i;
-        }
-    }
-    return res;
+    /* Separate the bytes to avoid false positives.  */
+    al = a & mask;
+    bl = b & mask;
+    ah = (a >> 8) & mask;
+    bh = (b >> 8) & mask;
+
+    /* "Compare".  If a byte in B is greater than a byte in A,
+       it will clear the test bit.  */
+    cl = ((al | test) - bl) & test;
+    ch = ((ah | test) - bh) & test;
+
+    /* Fold all of the test bits into a contiguous set.  */
+    /* ch=.......a...............c...............e...............g........ */
+    /* cl=.......b...............d...............f...............h........ */
+    cl += ch << 1;
+    /* cl=......ab..............cd..............ef..............gh........ */
+    cl |= cl << 14;
+    /* cl=......abcd............cdef............efgh............gh........ */
+    cl |= cl << 28;
+    /* cl=......abcdefgh........cdefgh..........efgh............gh........ */
+    return cl >> 50;
 }
 
 uint64_t helper_minub8(uint64_t op1, uint64_t op2)
