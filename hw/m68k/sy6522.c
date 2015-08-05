@@ -265,8 +265,9 @@ static void rtc_reset(rtc_state *rtc)
 {
     uint64_t now = qemu_clock_get_ns(rtc_clock);
     uint8_t i;
-    for (i = 0; i < 4; ++i)
-    rtc->sec_reg[i] = (now >> (32 + 8 * i)) & 0xFF; 
+    for (i = 0; i < 4; ++i) {
+        rtc->sec_reg[i] = (now >> (32 + 8 * i)) & 0xFF; 
+    }
     rtc->wr_pr_reg = 0x80;
     timer_mod_ns(rtc->timer, now + get_ticks_per_sec()); 
 }
