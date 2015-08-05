@@ -58,6 +58,20 @@ uint64_t helper_zap(uint64_t val, uint64_t mask)
     return helper_zapnot(val, ~mask);
 }
 
+uint64_t helper_cmpbe0(uint64_t a)
+{
+    uint64_t m = 0x7f7f7f7f7f7f7f7fULL;
+    uint64_t c = ~(((a & m) + m) | a | m);
+    /* a.......b.......c.......d.......e.......f.......g.......h....... */
+    c |= c << 7;
+    /* ab......bc......cd......de......ef......fg......gh......h....... */
+    c |= c << 14;
+    /* abcd....bcde....cdef....defg....efgh....fgh.....gh......h....... */
+    c |= c << 28;
+    /* abcdefghbcdefgh.cdefgh..defgh...efgh....fgh.....gh......h....... */
+    return c >> 56;
+}
+
 uint64_t helper_cmpbge(uint64_t a, uint64_t b)
 {
     uint64_t mask = 0x00ff00ff00ff00ffULL;
