@@ -688,6 +688,16 @@ void tap_fd_set_vnet_hdr_len(int fd, int len)
 {
 }
 
+int tap_fd_set_vnet_le(int fd, int is_le)
+{
+    return -EINVAL;
+}
+
+int tap_fd_set_vnet_be(int fd, int is_be)
+{
+    return -EINVAL;
+}
+
 static void tap_using_vnet_hdr(NetClientState *nc, bool using_vnet_hdr)
 {
 }
@@ -752,8 +762,9 @@ static int tap_win32_init(NetClientState *peer, const char *model,
 }
 
 int net_init_tap(const NetClientOptions *opts, const char *name,
-                 NetClientState *peer)
+                 NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     const NetdevTapOptions *tap;
 
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_TAP);

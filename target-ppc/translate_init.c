@@ -8927,7 +8927,15 @@ static void ppc_cpu_realizefn(DeviceState *dev, Error **errp)
                    smp_threads, kvm_enabled() ? "KVM" : "TCG");
         return;
     }
+#endif
 
+    cpu_exec_init(cs, &local_err);
+    if (local_err != NULL) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+#if !defined(CONFIG_USER_ONLY)
     cpu->cpu_dt_id = (cs->cpu_index / smp_threads) * max_smt
         + (cs->cpu_index % smp_threads);
 #endif
@@ -9140,6 +9148,8 @@ static void ppc_cpu_unrealizefn(DeviceState *dev, Error **errp)
     CPUPPCState *env = &cpu->env;
     opc_handler_t **table;
     int i, j;
+
+    cpu_exec_exit(CPU(dev));
 
     for (i = 0; i < PPC_CPU_OPCODES_LEN; i++) {
         if (env->opcodes[i] == &invalid_handler) {
@@ -9633,8 +9643,6 @@ static void ppc_cpu_initfn(Object *obj)
     CPUPPCState *env = &cpu->env;
 
     cs->env_ptr = env;
-    cpu_exec_init(env);
-    cpu->cpu_dt_id = cs->cpu_index;
 
     env->msr_mask = pcc->msr_mask;
     env->mmu_model = pcc->mmu_model;

@@ -169,6 +169,7 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
     PCIIDEState *pci_ide;
     DriveInfo *di;
     int i;
+    IDEDevice *idedev;
 
     pci_ide = PCI_IDE(dev);
 
@@ -181,6 +182,12 @@ int pci_piix3_xen_ide_unplug(DeviceState *dev)
                 blk_detach_dev(blk, ds);
             }
             pci_ide->bus[di->bus].ifs[di->unit].blk = NULL;
+            if (!(i % 2)) {
+                idedev = pci_ide->bus[di->bus].master;
+            } else {
+                idedev = pci_ide->bus[di->bus].slave;
+            }
+            idedev->conf.blk = NULL;
             blk_unref(blk);
         }
     }

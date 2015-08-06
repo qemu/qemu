@@ -133,9 +133,8 @@ static void n800_mmc_cs_cb(void *opaque, int line, int level)
 
 static void n8x0_gpio_setup(struct n800_s *s)
 {
-    qemu_irq *mmc_cs = qemu_allocate_irqs(n800_mmc_cs_cb, s->mpu->mmc, 1);
-    qdev_connect_gpio_out(s->mpu->gpio, N8X0_MMC_CS_GPIO, mmc_cs[0]);
-
+    qdev_connect_gpio_out(s->mpu->gpio, N8X0_MMC_CS_GPIO,
+                          qemu_allocate_irq(n800_mmc_cs_cb, s->mpu->mmc, 0));
     qemu_irq_lower(qdev_get_gpio_in(s->mpu->gpio, N800_BAT_COVER_GPIO));
 }
 

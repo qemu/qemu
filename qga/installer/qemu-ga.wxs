@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?ifndef env.QEMU_GA_VERSION ?>
+    <?error Environment variable QEMU_GA_VERSION undefined?>
+  <?endif?>
+
+  <?ifndef env.QEMU_GA_DISTRO ?>
+    <?error Environment variable QEMU_GA_DISTRO undefined?>
+  <?endif?>
+
+  <?ifndef env.QEMU_GA_MANUFACTURER ?>
+    <?error Environment variable QEMU_GA_MANUFACTURER undefined?>
+  <?endif?>
+
+  <?ifndef var.Arch?>
+    <?error Define Arch to 32 or 64?>
+  <?endif?>
+
+  <?ifndef var.Mingw_bin?>
+    <?if $(var.Arch) = "64"?>
+      <?define Mingw_bin=/usr/x86_64-w64-mingw32/sys-root/mingw/bin ?>
+    <?endif?>
+    <?if $(var.Arch) = "32"?>
+      <?define Mingw_bin=/usr/i686-w64-mingw32/sys-root/mingw/bin ?>
+    <?endif?>
+  <?endif?>
+
+  <?if $(var.Arch) = "64"?>
+    <?define ArchLib=libgcc_s_seh-1.dll?>
+    <?define GaProgramFilesFolder="ProgramFiles64Folder" ?>
+  <?endif?>
+
+  <?if $(var.Arch) = "32"?>
+    <?define ArchLib=libgcc_s_sjlj-1.dll?>
+    <?define GaProgramFilesFolder="ProgramFilesFolder" ?>
+  <?endif?>
+
+  <?ifndef var.ArchLib ?>
+    <?error Unexpected Arch value $(var.Arch)?>
+  <?endif?>
+
+  <Product
+    Name="QEMU guest agent"
+    Id="*"
+    UpgradeCode="{EB6B8302-C06E-4bec-ADAC-932C68A3A98D}"
+    Manufacturer="$(env.QEMU_GA_MANUFACTURER)"
+    Version="$(env.QEMU_GA_VERSION)"
+    Language="1033">
+    <?if $(var.Arch) = 32 ?>
+    <Condition Message="Error: 32-bit version of Qemu GA can not be installed on 64-bit Windows.">NOT VersionNT64</Condition>
+    <?endif?>
+    <Package
+      Manufacturer="$(env.QEMU_GA_MANUFACTURER)"
+      InstallerVersion="200"
+      Languages="1033"
+      Compressed="yes"
+      InstallScope="perMachine"
+      />
+    <Media Id="1" Cabinet="qemu_ga.$(env.QEMU_GA_VERSION).cab" EmbedCab="yes" />
+    <Property Id="WHSLogo">1</Property>
+    <Property Id="PREVIOUSVERSIONSINSTALLED" />
+    <Upgrade Id="{EB6B8302-C06E-4bec-ADAC-932C68A3A98D}">
+      <UpgradeVersion
+        Minimum="1.0.0.0" Maximum="$(env.QEMU_GA_VERSION)"
+        Property="PREVIOUSVERSIONSINSTALLED"
+        IncludeMinimum="yes" IncludeMaximum="no" />
+    </Upgrade>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="$(var.GaProgramFilesFolder)" Name="QEMU Guest Agent">
+        <Directory Id="qemu_ga_directory" Name="Qemu-ga">
+          <Component Id="qemu_ga" Guid="{908B7199-DE2A-4dc6-A8D0-27A5AE444FEA}">
+            <File Id="qemu_ga.exe" Name="qemu-ga.exe" Source="../../qemu-ga.exe" KeyPath="yes" DiskId="1"/>
+            <?ifdef var.InstallVss ?>
+            <File Id="qga_vss.dll" Name="qga-vss.dll" Source="../vss-win32/qga-vss.dll" KeyPath="no" DiskId="1"/>
+            <File Id="qga_vss.tlb" Name="qga-vss.tlb" Source="../vss-win32/qga-vss.tlb" KeyPath="no" DiskId="1"/>
+            <?endif?>
+            <File Id="iconv.dll" Name="iconv.dll" Source="$(var.Mingw_bin)/iconv.dll" KeyPath="no" DiskId="1"/>
+            <File Id="libgcc_arch_lib" Name="$(var.ArchLib)" Source="$(var.Mingw_bin)/$(var.ArchLib)" KeyPath="no" DiskId="1"/>
+            <File Id="libglib_2.0_0.dll" Name="libglib-2.0-0.dll" Source="$(var.Mingw_bin)/libglib-2.0-0.dll" KeyPath="no" DiskId="1"/>
+            <File Id="libintl_8.dll" Name="libintl-8.dll" Source="$(var.Mingw_bin)/libintl-8.dll" KeyPath="no" DiskId="1"/>
+            <File Id="libssp_0.dll" Name="libssp-0.dll" Source="$(var.Mingw_bin)/libssp-0.dll" KeyPath="no" DiskId="1"/>
+            <File Id="libwinpthread_1.dll" Name="libwinpthread-1.dll" Source="$(var.Mingw_bin)/libwinpthread-1.dll" KeyPath="no" DiskId="1"/>
+            <ServiceInstall
+              Id="ServiceInstaller"
+              Type="ownProcess"
+              Vital="yes"
+              Name="QEMU-GA"
+              DisplayName="QEMU Guest Agent"
+              Description="QEMU Guest Agent"
+              Start="auto"
+              Account="LocalSystem"
+              ErrorControl="ignore"
+              Interactive="no"
+              Arguments="-d"
+              >
+            </ServiceInstall>
+            <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="QEMU-GA" Wait="no" />
+          </Component>
+
+          <Component Id="registry_entries" Guid="d075d109-51ca-11e3-9f8b-000c29858960">
+            <RegistryKey Root="HKLM"
+                         Key="Software\$(env.QEMU_GA_MANUFACTURER)\$(env.QEMU_GA_DISTRO)\Tools\QemuGA">
+              <RegistryValue Type="string" Name="ProductID" Value="fb0a0d66-c7fb-4e2e-a16b-c4a3bfe8d13b" />
+              <RegistryValue Type="string" Name="Version" Value="$(env.QEMU_GA_VERSION)" />
+            </RegistryKey>
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Property Id="cmd" Value="cmd.exe"/>
+
+    <?ifdef var.InstallVss ?>
+    <CustomAction Id="RegisterCom"
+             ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s vss-install'
+              Execute="deferred"
+              Property="cmd"
+              Impersonate="no"
+              Return="check"
+              >
+    </CustomAction>
+    <CustomAction Id="UnRegisterCom"
+              ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s vss-uninstall'
+              Execute="deferred"
+              Property="cmd"
+              Impersonate="no"
+              Return="check"
+              ></CustomAction>
+    <?endif?>
+
+    <Feature Id="QEMUFeature" Title="QEMU Guest Agent" Level="1">
+      <ComponentRef Id="qemu_ga" />
+      <ComponentRef Id="registry_entries" />
+    </Feature>
+
+    <InstallExecuteSequence>
+      <RemoveExistingProducts Before="InstallInitialize" />
+      <?ifdef var.InstallVss ?>
+      <Custom Action="RegisterCom" After="InstallServices">NOT Installed</Custom>
+      <Custom Action="UnRegisterCom" After="StopServices">Installed</Custom>
+      <?endif?>
+    </InstallExecuteSequence>
+  </Product>
+</Wix>

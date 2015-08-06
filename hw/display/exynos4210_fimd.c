@@ -337,7 +337,7 @@ static inline void fimd_swap_data(unsigned int swap_ctl, uint64_t *data)
     if (swap_ctl & FIMD_WINCON_SWAP_BITS) {
         res = 0;
         for (i = 0; i < 64; i++) {
-            if (x & (1ULL << (64 - i))) {
+            if (x & (1ULL << (63 - i))) {
                 res |= (1ULL << i);
             }
         }
@@ -1109,6 +1109,12 @@ static inline int fimd_get_buffer_id(Exynos4210fimdWindow *w)
     }
 }
 
+static void exynos4210_fimd_invalidate(void *opaque)
+{
+    Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;
+    s->invalidate = true;
+}
+
 /* Updates specified window's MemorySection based on values of WINCON,
  * VIDOSDA, VIDOSDB, VIDWADDx and SHADOWCON registers */
 static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
@@ -1136,7 +1142,11 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
     /* TODO: add .exit and unref the region there.  Not needed yet since sysbus
      * does not support hot-unplug.
      */
-    memory_region_unref(w->mem_section.mr);
+    if (w->mem_section.mr) {
+        memory_region_set_log(w->mem_section.mr, false, DIRTY_MEMORY_VGA);
+        memory_region_unref(w->mem_section.mr);
+    }
+
     w->mem_section = memory_region_find(sysbus_address_space(sbd),
                                         fb_start_addr, w->fb_len);
     assert(w->mem_section.mr);
@@ -1162,6 +1172,8 @@ static void fimd_update_memory_section(Exynos4210fimdState *s, unsigned win)
         cpu_physical_memory_unmap(w->host_fb_addr, fb_mapped_len, 0, 0);
         goto error_return;
     }
+    memory_region_set_log(w->mem_section.mr, true, DIRTY_MEMORY_VGA);
+    exynos4210_fimd_invalidate(s);
     return;
 
 error_return:
@@ -1222,12 +1234,6 @@ static void exynos4210_fimd_update_irq(Exynos4210fimdState *s)
     } else {
         qemu_irq_lower(s->irq[2]);
     }
-}
-
-static void exynos4210_fimd_invalidate(void *opaque)
-{
-    Exynos4210fimdState *s = (Exynos4210fimdState *)opaque;
-    s->invalidate = true;
 }
 
 static void exynos4210_update_resolution(Exynos4210fimdState *s)

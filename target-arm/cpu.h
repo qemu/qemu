@@ -197,6 +197,7 @@ typedef struct CPUARMState {
             uint64_t sctlr_el[4];
         };
         uint64_t cpacr_el1; /* Architectural feature access control register */
+        uint64_t cptr_el[4];  /* ARMv8 feature trap registers */
         uint32_t c1_xscaleauxcr; /* XScale auxiliary control register.  */
         uint64_t sder; /* Secure debug enable register. */
         uint32_t nsacr; /* Non-secure access control register. */
@@ -283,6 +284,9 @@ typedef struct CPUARMState {
             };
             uint64_t par_el[4];
         };
+
+        uint32_t c6_rgnr;
+
         uint32_t c9_insn; /* Cache lockdown registers.  */
         uint32_t c9_data;
         uint64_t c9_pmcr; /* performance monitor control register */
@@ -383,7 +387,6 @@ typedef struct CPUARMState {
         uint32_t control;
         int current_sp;
         int exception;
-        int pending_exception;
     } v7m;
 
     /* Information associated with an exception about to be taken:
@@ -396,6 +399,7 @@ typedef struct CPUARMState {
         uint32_t syndrome; /* AArch64 format syndrome register */
         uint32_t fsr; /* AArch32 format fault status register info */
         uint64_t vaddress; /* virtual addr associated with exception, if any */
+        uint32_t target_el; /* EL the exception should be targeted for */
         /* If we implement EL2 we will also need to store information
          * about the intermediate physical address for stage 2 faults.
          */
@@ -481,6 +485,13 @@ typedef struct CPUARMState {
     /* Internal CPU feature flags.  */
     uint64_t features;
 
+    /* PMSAv7 MPU */
+    struct {
+        uint32_t *drbar;
+        uint32_t *drsr;
+        uint32_t *dracr;
+    } pmsav7;
+
     void *nvic;
     const struct arm_boot_info *boot_info;
 } CPUARMState;
@@ -488,7 +499,7 @@ typedef struct CPUARMState {
 #include "cpu-qom.h"
 
 ARMCPU *cpu_arm_init(const char *cpu_model);
-int cpu_arm_exec(CPUARMState *s);
+int cpu_arm_exec(CPUState *cpu);
 uint32_t do_arm_semihosting(CPUARMState *env);
 void aarch64_sync_32_to_64(CPUARMState *env);
 void aarch64_sync_64_to_32(CPUARMState *env);
@@ -503,8 +514,6 @@ static inline bool is_a64(CPUARMState *env)
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_arm_signal_handler(int host_signum, void *pinfo,
                            void *puc);
-int arm_cpu_handle_mmu_fault(CPUState *cpu, vaddr address, int rw,
-                             int mmu_idx);
 
 /**
  * pmccntr_sync
@@ -551,6 +560,7 @@ void pmccntr_sync(CPUARMState *env);
 #define SCTLR_DT      (1U << 16) /* up to ??, RAO in v6 and v7 */
 #define SCTLR_nTWI    (1U << 16) /* v8 onward */
 #define SCTLR_HA      (1U << 17)
+#define SCTLR_BR      (1U << 17) /* PMSA only */
 #define SCTLR_IT      (1U << 18) /* up to ??, RAO in v6 and v7 */
 #define SCTLR_nTWE    (1U << 18) /* v8 onward */
 #define SCTLR_WXN     (1U << 19)
@@ -568,6 +578,10 @@ void pmccntr_sync(CPUARMState *env);
 #define SCTLR_TRE     (1U << 28)
 #define SCTLR_AFE     (1U << 29)
 #define SCTLR_TE      (1U << 30)
+
+#define CPTR_TCPAC    (1U << 31)
+#define CPTR_TTA      (1U << 20)
+#define CPTR_TFP      (1U << 10)
 
 #define CPSR_M (0x1fU)
 #define CPSR_T (1U << 5)
@@ -886,6 +900,7 @@ enum arm_features {
     ARM_FEATURE_V8_SHA1, /* implements SHA1 part of v8 Crypto Extensions */
     ARM_FEATURE_V8_SHA256, /* implements SHA256 part of v8 Crypto Extensions */
     ARM_FEATURE_V8_PMULL, /* implements PMULL part of v8 Crypto Extensions */
+    ARM_FEATURE_THUMB_DSP, /* DSP insns supported in the Thumb encodings */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -1001,7 +1016,8 @@ static inline bool access_secure_reg(CPUARMState *env)
                        (_val))
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
-unsigned int arm_excp_target_el(CPUState *cs, unsigned int excp_idx);
+uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
+                                 uint32_t cur_el, bool secure);
 
 /* Interface between CPU and Interrupt controller.  */
 void armv7m_nvic_set_pending(void *opaque, int irq);
@@ -1111,8 +1127,8 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
  * old must have the OVERRIDE bit set.
  * ALIAS indicates that this register is an alias view of some underlying
  * state which is also visible via another register, and that the other
- * register is handling migration; registers marked ALIAS will not be migrated
- * but may have their state set by syncing of register state from KVM.
+ * register is handling migration and reset; registers marked ALIAS will not be
+ * migrated but may have their state set by syncing of register state from KVM.
  * NO_RAW indicates that this register has no underlying state and does not
  * support raw access for state saving/loading; it will not be used for either
  * migration or KVM state synchronization. (Typically this is for "registers"
@@ -1252,7 +1268,8 @@ typedef enum CPAccessResult {
     /* Access fails due to a configurable trap or enable which would
      * result in a categorized exception syndrome giving information about
      * the failing instruction (ie syndrome category 0x3, 0x4, 0x5, 0x6,
-     * 0xc or 0x18).
+     * 0xc or 0x18). The exception is taken to the usual target EL (EL1 or
+     * PL1 if in EL0, otherwise to the current EL).
      */
     CP_ACCESS_TRAP = 1,
     /* Access fails and results in an exception syndrome 0x0 ("uncategorized").
@@ -1260,6 +1277,9 @@ typedef enum CPAccessResult {
      * result in this failure is specifically defined by the architecture.
      */
     CP_ACCESS_TRAP_UNCATEGORIZED = 2,
+    /* As CP_ACCESS_TRAP, but for traps directly to EL2 or EL3 */
+    CP_ACCESS_TRAP_EL2 = 3,
+    CP_ACCESS_TRAP_EL3 = 4,
 } CPAccessResult;
 
 /* Access functions for coprocessor registers. These cannot fail and
@@ -1483,11 +1503,11 @@ bool write_cpustate_to_list(ARMCPU *cpu);
 #  define TARGET_VIRT_ADDR_SPACE_BITS 32
 #endif
 
-static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx)
+static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
+                                     unsigned int target_el)
 {
     CPUARMState *env = cs->env_ptr;
     unsigned int cur_el = arm_current_el(env);
-    unsigned int target_el = arm_excp_target_el(cs, excp_idx);
     bool secure = arm_is_secure(env);
     uint32_t scr;
     uint32_t hcr;
@@ -1728,6 +1748,13 @@ static inline bool arm_singlestep_active(CPUARMState *env)
 #define ARM_TBFLAG_AARCH64_STATE_MASK  (1U << ARM_TBFLAG_AARCH64_STATE_SHIFT)
 #define ARM_TBFLAG_MMUIDX_SHIFT 28
 #define ARM_TBFLAG_MMUIDX_MASK (0x7 << ARM_TBFLAG_MMUIDX_SHIFT)
+#define ARM_TBFLAG_SS_ACTIVE_SHIFT 27
+#define ARM_TBFLAG_SS_ACTIVE_MASK (1 << ARM_TBFLAG_SS_ACTIVE_SHIFT)
+#define ARM_TBFLAG_PSTATE_SS_SHIFT 26
+#define ARM_TBFLAG_PSTATE_SS_MASK (1 << ARM_TBFLAG_PSTATE_SS_SHIFT)
+/* Target EL if we take a floating-point-disabled exception */
+#define ARM_TBFLAG_FPEXC_EL_SHIFT 24
+#define ARM_TBFLAG_FPEXC_EL_MASK (0x3 << ARM_TBFLAG_FPEXC_EL_SHIFT)
 
 /* Bit usage when in AArch32 state: */
 #define ARM_TBFLAG_THUMB_SHIFT      0
@@ -1742,37 +1769,31 @@ static inline bool arm_singlestep_active(CPUARMState *env)
 #define ARM_TBFLAG_CONDEXEC_MASK    (0xff << ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE_SHIFT 16
 #define ARM_TBFLAG_BSWAP_CODE_MASK  (1 << ARM_TBFLAG_BSWAP_CODE_SHIFT)
-#define ARM_TBFLAG_CPACR_FPEN_SHIFT 17
-#define ARM_TBFLAG_CPACR_FPEN_MASK  (1 << ARM_TBFLAG_CPACR_FPEN_SHIFT)
-#define ARM_TBFLAG_SS_ACTIVE_SHIFT 18
-#define ARM_TBFLAG_SS_ACTIVE_MASK (1 << ARM_TBFLAG_SS_ACTIVE_SHIFT)
-#define ARM_TBFLAG_PSTATE_SS_SHIFT 19
-#define ARM_TBFLAG_PSTATE_SS_MASK (1 << ARM_TBFLAG_PSTATE_SS_SHIFT)
 /* We store the bottom two bits of the CPAR as TB flags and handle
  * checks on the other bits at runtime
  */
-#define ARM_TBFLAG_XSCALE_CPAR_SHIFT 20
+#define ARM_TBFLAG_XSCALE_CPAR_SHIFT 17
 #define ARM_TBFLAG_XSCALE_CPAR_MASK (3 << ARM_TBFLAG_XSCALE_CPAR_SHIFT)
 /* Indicates whether cp register reads and writes by guest code should access
  * the secure or nonsecure bank of banked registers; note that this is not
  * the same thing as the current security state of the processor!
  */
-#define ARM_TBFLAG_NS_SHIFT         22
+#define ARM_TBFLAG_NS_SHIFT         19
 #define ARM_TBFLAG_NS_MASK          (1 << ARM_TBFLAG_NS_SHIFT)
 
-/* Bit usage when in AArch64 state */
-#define ARM_TBFLAG_AA64_FPEN_SHIFT  2
-#define ARM_TBFLAG_AA64_FPEN_MASK   (1 << ARM_TBFLAG_AA64_FPEN_SHIFT)
-#define ARM_TBFLAG_AA64_SS_ACTIVE_SHIFT 3
-#define ARM_TBFLAG_AA64_SS_ACTIVE_MASK (1 << ARM_TBFLAG_AA64_SS_ACTIVE_SHIFT)
-#define ARM_TBFLAG_AA64_PSTATE_SS_SHIFT 4
-#define ARM_TBFLAG_AA64_PSTATE_SS_MASK (1 << ARM_TBFLAG_AA64_PSTATE_SS_SHIFT)
+/* Bit usage when in AArch64 state: currently we have no A64 specific bits */
 
 /* some convenience accessor macros */
 #define ARM_TBFLAG_AARCH64_STATE(F) \
     (((F) & ARM_TBFLAG_AARCH64_STATE_MASK) >> ARM_TBFLAG_AARCH64_STATE_SHIFT)
 #define ARM_TBFLAG_MMUIDX(F) \
     (((F) & ARM_TBFLAG_MMUIDX_MASK) >> ARM_TBFLAG_MMUIDX_SHIFT)
+#define ARM_TBFLAG_SS_ACTIVE(F) \
+    (((F) & ARM_TBFLAG_SS_ACTIVE_MASK) >> ARM_TBFLAG_SS_ACTIVE_SHIFT)
+#define ARM_TBFLAG_PSTATE_SS(F) \
+    (((F) & ARM_TBFLAG_PSTATE_SS_MASK) >> ARM_TBFLAG_PSTATE_SS_SHIFT)
+#define ARM_TBFLAG_FPEXC_EL(F) \
+    (((F) & ARM_TBFLAG_FPEXC_EL_MASK) >> ARM_TBFLAG_FPEXC_EL_SHIFT)
 #define ARM_TBFLAG_THUMB(F) \
     (((F) & ARM_TBFLAG_THUMB_MASK) >> ARM_TBFLAG_THUMB_SHIFT)
 #define ARM_TBFLAG_VECLEN(F) \
@@ -1785,54 +1806,82 @@ static inline bool arm_singlestep_active(CPUARMState *env)
     (((F) & ARM_TBFLAG_CONDEXEC_MASK) >> ARM_TBFLAG_CONDEXEC_SHIFT)
 #define ARM_TBFLAG_BSWAP_CODE(F) \
     (((F) & ARM_TBFLAG_BSWAP_CODE_MASK) >> ARM_TBFLAG_BSWAP_CODE_SHIFT)
-#define ARM_TBFLAG_CPACR_FPEN(F) \
-    (((F) & ARM_TBFLAG_CPACR_FPEN_MASK) >> ARM_TBFLAG_CPACR_FPEN_SHIFT)
-#define ARM_TBFLAG_SS_ACTIVE(F) \
-    (((F) & ARM_TBFLAG_SS_ACTIVE_MASK) >> ARM_TBFLAG_SS_ACTIVE_SHIFT)
-#define ARM_TBFLAG_PSTATE_SS(F) \
-    (((F) & ARM_TBFLAG_PSTATE_SS_MASK) >> ARM_TBFLAG_PSTATE_SS_SHIFT)
 #define ARM_TBFLAG_XSCALE_CPAR(F) \
     (((F) & ARM_TBFLAG_XSCALE_CPAR_MASK) >> ARM_TBFLAG_XSCALE_CPAR_SHIFT)
-#define ARM_TBFLAG_AA64_FPEN(F) \
-    (((F) & ARM_TBFLAG_AA64_FPEN_MASK) >> ARM_TBFLAG_AA64_FPEN_SHIFT)
-#define ARM_TBFLAG_AA64_SS_ACTIVE(F) \
-    (((F) & ARM_TBFLAG_AA64_SS_ACTIVE_MASK) >> ARM_TBFLAG_AA64_SS_ACTIVE_SHIFT)
-#define ARM_TBFLAG_AA64_PSTATE_SS(F) \
-    (((F) & ARM_TBFLAG_AA64_PSTATE_SS_MASK) >> ARM_TBFLAG_AA64_PSTATE_SS_SHIFT)
 #define ARM_TBFLAG_NS(F) \
     (((F) & ARM_TBFLAG_NS_MASK) >> ARM_TBFLAG_NS_SHIFT)
+
+/* Return the exception level to which FP-disabled exceptions should
+ * be taken, or 0 if FP is enabled.
+ */
+static inline int fp_exception_el(CPUARMState *env)
+{
+    int fpen;
+    int cur_el = arm_current_el(env);
+
+    /* CPACR and the CPTR registers don't exist before v6, so FP is
+     * always accessible
+     */
+    if (!arm_feature(env, ARM_FEATURE_V6)) {
+        return 0;
+    }
+
+    /* The CPACR controls traps to EL1, or PL1 if we're 32 bit:
+     * 0, 2 : trap EL0 and EL1/PL1 accesses
+     * 1    : trap only EL0 accesses
+     * 3    : trap no accesses
+     */
+    fpen = extract32(env->cp15.cpacr_el1, 20, 2);
+    switch (fpen) {
+    case 0:
+    case 2:
+        if (cur_el == 0 || cur_el == 1) {
+            /* Trap to PL1, which might be EL1 or EL3 */
+            if (arm_is_secure(env) && !arm_el_is_aa64(env, 3)) {
+                return 3;
+            }
+            return 1;
+        }
+        if (cur_el == 3 && !is_a64(env)) {
+            /* Secure PL1 running at EL3 */
+            return 3;
+        }
+        break;
+    case 1:
+        if (cur_el == 0) {
+            return 1;
+        }
+        break;
+    case 3:
+        break;
+    }
+
+    /* For the CPTR registers we don't need to guard with an ARM_FEATURE
+     * check because zero bits in the registers mean "don't trap".
+     */
+
+    /* CPTR_EL2 : present in v7VE or v8 */
+    if (cur_el <= 2 && extract32(env->cp15.cptr_el[2], 10, 1)
+        && !arm_is_secure_below_el3(env)) {
+        /* Trap FP ops at EL2, NS-EL1 or NS-EL0 to EL2 */
+        return 2;
+    }
+
+    /* CPTR_EL3 : present in v8 */
+    if (extract32(env->cp15.cptr_el[3], 10, 1)) {
+        /* Trap all FP ops to EL3 */
+        return 3;
+    }
+
+    return 0;
+}
 
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
-    int fpen;
-
-    if (arm_feature(env, ARM_FEATURE_V6)) {
-        fpen = extract32(env->cp15.cpacr_el1, 20, 2);
-    } else {
-        /* CPACR doesn't exist before v6, so VFP is always accessible */
-        fpen = 3;
-    }
-
     if (is_a64(env)) {
         *pc = env->pc;
         *flags = ARM_TBFLAG_AARCH64_STATE_MASK;
-        if (fpen == 3 || (fpen == 1 && arm_current_el(env) != 0)) {
-            *flags |= ARM_TBFLAG_AA64_FPEN_MASK;
-        }
-        /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
-         * states defined in the ARM ARM for software singlestep:
-         *  SS_ACTIVE   PSTATE.SS   State
-         *     0            x       Inactive (the TB flag for SS is always 0)
-         *     1            0       Active-pending
-         *     1            1       Active-not-pending
-         */
-        if (arm_singlestep_active(env)) {
-            *flags |= ARM_TBFLAG_AA64_SS_ACTIVE_MASK;
-            if (env->pstate & PSTATE_SS) {
-                *flags |= ARM_TBFLAG_AA64_PSTATE_SS_MASK;
-            }
-        }
     } else {
         *pc = env->regs[15];
         *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
@@ -1847,27 +1896,31 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
             || arm_el_is_aa64(env, 1)) {
             *flags |= ARM_TBFLAG_VFPEN_MASK;
         }
-        if (fpen == 3 || (fpen == 1 && arm_current_el(env) != 0)) {
-            *flags |= ARM_TBFLAG_CPACR_FPEN_MASK;
-        }
-        /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
-         * states defined in the ARM ARM for software singlestep:
-         *  SS_ACTIVE   PSTATE.SS   State
-         *     0            x       Inactive (the TB flag for SS is always 0)
-         *     1            0       Active-pending
-         *     1            1       Active-not-pending
-         */
-        if (arm_singlestep_active(env)) {
-            *flags |= ARM_TBFLAG_SS_ACTIVE_MASK;
-            if (env->uncached_cpsr & PSTATE_SS) {
-                *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
-            }
-        }
         *flags |= (extract32(env->cp15.c15_cpar, 0, 2)
                    << ARM_TBFLAG_XSCALE_CPAR_SHIFT);
     }
 
     *flags |= (cpu_mmu_index(env) << ARM_TBFLAG_MMUIDX_SHIFT);
+    /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
+     * states defined in the ARM ARM for software singlestep:
+     *  SS_ACTIVE   PSTATE.SS   State
+     *     0            x       Inactive (the TB flag for SS is always 0)
+     *     1            0       Active-pending
+     *     1            1       Active-not-pending
+     */
+    if (arm_singlestep_active(env)) {
+        *flags |= ARM_TBFLAG_SS_ACTIVE_MASK;
+        if (is_a64(env)) {
+            if (env->pstate & PSTATE_SS) {
+                *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
+            }
+        } else {
+            if (env->uncached_cpsr & PSTATE_SS) {
+                *flags |= ARM_TBFLAG_PSTATE_SS_MASK;
+            }
+        }
+    }
+    *flags |= fp_exception_el(env) << ARM_TBFLAG_FPEXC_EL_SHIFT;
 
     *cs_base = 0;
 }

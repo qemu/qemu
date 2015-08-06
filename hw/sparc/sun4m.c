@@ -124,7 +124,7 @@ void DMA_register_channel (int nchan,
 static void fw_cfg_boot_set(void *opaque, const char *boot_device,
                             Error **errp)
 {
-    fw_cfg_add_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
+    fw_cfg_modify_i16(opaque, FW_CFG_BOOT_DEVICE, boot_device[0]);
 }
 
 static void nvram_init(Nvram *nvram, uint8_t *macaddr,
@@ -897,7 +897,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
         espdma_irq, ledma_irq;
     qemu_irq esp_reset, dma_enable;
     qemu_irq fdc_tc;
-    qemu_irq *cpu_halt;
     unsigned long kernel_size;
     DriveInfo *fd[MAX_FD];
     FWCfgState *fw_cfg;
@@ -1024,9 +1023,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     escc_init(hwdef->serial_base, slavio_irq[15], slavio_irq[15],
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
-    cpu_halt = qemu_allocate_irqs(cpu_halt_signal, NULL, 1);
     if (hwdef->apc_base) {
-        apc_init(hwdef->apc_base, cpu_halt[0]);
+        apc_init(hwdef->apc_base, qemu_allocate_irq(cpu_halt_signal, NULL, 0));
     }
 
     if (hwdef->fd_base) {
@@ -1036,7 +1034,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
         sun4m_fdctrl_init(slavio_irq[22], hwdef->fd_base, fd,
                           &fdc_tc);
     } else {
-        fdc_tc = *qemu_allocate_irqs(dummy_fdc_tc, NULL, 1);
+        fdc_tc = qemu_allocate_irq(dummy_fdc_tc, NULL, 0);
     }
 
     slavio_misc_init(hwdef->slavio_base, hwdef->aux1_base, hwdef->aux2_base,

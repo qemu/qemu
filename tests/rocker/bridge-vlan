@@ -9,8 +9,8 @@ while ! simp ssh tut h2 --cmd "ping -c 1 localhost >/dev/null"; do sleep 1; done
 # configure a 2-port bridge
 
 simp ssh tut sw1 --cmd "sudo /sbin/ip link add name br0 type bridge"
-simp ssh tut sw1 --cmd "sudo /sbin/ip link set dev swp1 master br0"
-simp ssh tut sw1 --cmd "sudo /sbin/ip link set dev swp2 master br0"
+simp ssh tut sw1 --cmd "sudo /sbin/ip link set dev sw1p1 master br0"
+simp ssh tut sw1 --cmd "sudo /sbin/ip link set dev sw1p2 master br0"
 
 # turn off vlan default_pvid on br0
 # turn on vlan filtering on br0
@@ -20,37 +20,32 @@ simp ssh tut sw1 --cmd "echo 1 | sudo dd of=/sys/class/net/br0/bridge/vlan_filte
 
 # add both ports to VLAN 57
 
-simp ssh tut sw1 --cmd "sudo /sbin/bridge vlan add vid 57 dev swp1 master"
-simp ssh tut sw1 --cmd "sudo /sbin/bridge vlan add vid 57 dev swp2 master"
+simp ssh tut sw1 --cmd "sudo /sbin/bridge vlan add vid 57 dev sw1p1"
+simp ssh tut sw1 --cmd "sudo /sbin/bridge vlan add vid 57 dev sw1p2"
 
 # turn off learning and flooding in SW
 
-simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev swp1 learning off"
-simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev swp2 learning off"
+simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev sw1p1 learning off"
+simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev sw1p2 learning off"
 
-simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev swp1 flood off"
-simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev swp2 flood off"
-
-# turn on learning in HW
-
-simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev swp1 learning on self"
-simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev swp2 learning on self"
+simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev sw1p1 flood off"
+simp ssh tut sw1 --cmd "sudo /sbin/bridge link set dev sw1p2 flood off"
 
 # bring up bridge and ports
 
 simp ssh tut sw1 --cmd "sudo ifconfig br0 up"
-simp ssh tut sw1 --cmd "sudo ifconfig swp1 up"
-simp ssh tut sw1 --cmd "sudo ifconfig swp2 up"
+simp ssh tut sw1 --cmd "sudo ifconfig sw1p1 up"
+simp ssh tut sw1 --cmd "sudo ifconfig sw1p2 up"
 
 # config IP on host VLANs
 
-simp ssh tut h1 --cmd "sudo vconfig add swp1 57 >/dev/null 2>&1"
-simp ssh tut h1 --cmd "sudo ifconfig swp1 up"
-simp ssh tut h1 --cmd "sudo ifconfig swp1.57 11.0.0.1/24"
+simp ssh tut h1 --cmd "sudo vconfig add sw1p1 57 >/dev/null 2>&1"
+simp ssh tut h1 --cmd "sudo ifconfig sw1p1 up"
+simp ssh tut h1 --cmd "sudo ifconfig sw1p1.57 11.0.0.1/24"
 
-simp ssh tut h2 --cmd "sudo vconfig add swp1 57 >/dev/null 2>&1"
-simp ssh tut h2 --cmd "sudo ifconfig swp1 up"
-simp ssh tut h2 --cmd "sudo ifconfig swp1.57 11.0.0.2/24"
+simp ssh tut h2 --cmd "sudo vconfig add sw1p1 57 >/dev/null 2>&1"
+simp ssh tut h2 --cmd "sudo ifconfig sw1p1 up"
+simp ssh tut h2 --cmd "sudo ifconfig sw1p1.57 11.0.0.2/24"
 
 # test...
 

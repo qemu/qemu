@@ -108,6 +108,8 @@ static void *rcu_q_reader(void *arg)
     long long n_reads_local = 0;
     struct list_element *el;
 
+    rcu_register_thread();
+
     *(struct rcu_reader_data **)arg = &rcu_reader;
     atomic_inc(&nthreadsrunning);
     while (goflag == GOFLAG_INIT) {
@@ -129,6 +131,8 @@ static void *rcu_q_reader(void *arg)
     qemu_mutex_lock(&counts_mutex);
     n_reads += n_reads_local;
     qemu_mutex_unlock(&counts_mutex);
+
+    rcu_unregister_thread();
     return NULL;
 }
 

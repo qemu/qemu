@@ -409,7 +409,7 @@ bool write_kvmstate_to_list(ARMCPU *cpu)
     return ok;
 }
 
-bool write_list_to_kvmstate(ARMCPU *cpu)
+bool write_list_to_kvmstate(ARMCPU *cpu, int level)
 {
     CPUState *cs = CPU(cpu);
     int i;
@@ -420,6 +420,10 @@ bool write_list_to_kvmstate(ARMCPU *cpu)
         uint64_t regidx = cpu->cpreg_indexes[i];
         uint32_t v32;
         int ret;
+
+        if (kvm_arm_cpreg_level(regidx) > level) {
+            continue;
+        }
 
         r.id = regidx;
         switch (regidx & KVM_REG_SIZE_MASK) {
@@ -599,4 +603,9 @@ int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
                              uint64_t address, uint32_t data)
 {
     return 0;
+}
+
+int kvm_arch_msi_data_to_gsi(uint32_t data)
+{
+    return (data - 32) & 0xffff;
 }

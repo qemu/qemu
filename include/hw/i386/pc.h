@@ -15,14 +15,12 @@
 #include "hw/pci/pci.h"
 #include "hw/boards.h"
 #include "hw/compat.h"
+#include "hw/mem/pc-dimm.h"
 
 #define HPET_INTCAP "hpet-intcap"
 
 /**
  * PCMachineState:
- * @hotplug_memory_base: address in guest RAM address space where hotplug memory
- * address space begins.
- * @hotplug_memory: hotplug memory addess space container
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
  * @enforce_aligned_dimm: check that DIMM's address/size is aligned by
  *                        backend's alignment value if provided
@@ -32,14 +30,14 @@ struct PCMachineState {
     MachineState parent_obj;
 
     /* <public> */
-    ram_addr_t hotplug_memory_base;
-    MemoryRegion hotplug_memory;
+    MemoryHotplugState hotplug_memory;
 
     HotplugHandler *acpi_dev;
     ISADevice *rtc;
 
     uint64_t max_ram_below_4g;
     OnOffAuto vmport;
+    OnOffAuto smm;
     bool enforce_aligned_dimm;
 };
 
@@ -47,6 +45,7 @@ struct PCMachineState {
 #define PC_MACHINE_MEMHP_REGION_SIZE "hotplug-memory-region-size"
 #define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 #define PC_MACHINE_VMPORT           "vmport"
+#define PC_MACHINE_SMM              "smm"
 #define PC_MACHINE_ENFORCE_ALIGNED_DIMM "enforce-aligned-dimm"
 
 /**
@@ -73,8 +72,6 @@ typedef struct PCMachineClass PCMachineClass;
 #define PC_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(PCMachineClass, (klass), TYPE_PC_MACHINE)
 
-void qemu_register_pc_machine(QEMUMachine *m);
-
 /* PC-style peripherals (also used by other machines).  */
 
 typedef struct PcPciInfo {
@@ -91,6 +88,7 @@ typedef struct PcPciInfo {
 #define ACPI_PM_PROP_PM_IO_BASE "pm_io_base"
 #define ACPI_PM_PROP_GPE0_BLK "gpe0_blk"
 #define ACPI_PM_PROP_GPE0_BLK_LEN "gpe0_blk_len"
+#define ACPI_PM_PROP_TCO_ENABLED "enable_tco"
 
 struct PcGuestInfo {
     bool isapc_ram_fw;
@@ -160,6 +158,7 @@ void i8042_setup_a20_line(ISADevice *dev, qemu_irq *a20_out);
 /* pc.c */
 extern int fd_bootchk;
 
+bool pc_machine_is_smm_enabled(PCMachineState *pcms);
 void pc_register_ferr_irq(qemu_irq irq);
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
@@ -195,23 +194,22 @@ FWCfgState *pc_memory_init(MachineState *machine,
                            MemoryRegion *rom_memory,
                            MemoryRegion **ram_memory,
                            PcGuestInfo *guest_info);
-qemu_irq *pc_allocate_cpu_irq(void);
+qemu_irq pc_allocate_cpu_irq(void);
 DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
                           ISADevice **rtc_state,
-                          ISADevice **floppy,
+                          bool create_fdctrl,
                           bool no_vmport,
                           uint32 hpet_irqs);
 void pc_init_ne2k_isa(ISABus *bus, NICInfo *nd);
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device, MachineState *machine,
-                  ISADevice *floppy, BusState *ide0, BusState *ide1,
+                  BusState *ide0, BusState *ide1,
                   ISADevice *s);
 void pc_nic_init(ISABus *isa_bus, PCIBus *pci_bus);
 void pc_pci_device_init(PCIBus *pci_bus);
 
 typedef void (*cpu_set_smm_t)(int smm, void *arg);
-void cpu_smm_register(cpu_set_smm_t callback, void *arg);
 
 void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
@@ -219,8 +217,7 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name);
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int kvm_enabled, FWCfgState *fw_cfg,
-                      DeviceState **piix4_pm);
+                      int smm_enabled, DeviceState **piix4_pm);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 
 /* hpet.c */
@@ -295,8 +292,96 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
+#define PC_COMPAT_2_3 \
+        HW_COMPAT_2_3 \
+        {\
+            .driver   = TYPE_X86_CPU,\
+            .property = "arat",\
+            .value    = "off",\
+        },{\
+            .driver   = "qemu64" "-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(4),\
+        },{\
+            .driver   = "kvm64" "-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(5),\
+        },{\
+            .driver   = "pentium3" "-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(2),\
+        },{\
+            .driver   = "n270" "-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(5),\
+        },{\
+            .driver   = "Conroe" "-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(4),\
+        },{\
+            .driver   = "Penryn" "-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(4),\
+        },{\
+            .driver   = "Nehalem" "-" TYPE_X86_CPU,\
+            .property = "level",\
+            .value    = stringify(4),\
+        },{\
+            .driver   = "n270" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "Penryn" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "Conroe" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "Nehalem" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "Westmere" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "SandyBridge" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "IvyBridge" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "Haswell" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "Haswell-noTSX" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "Broadwell" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },{\
+            .driver   = "Broadwell-noTSX" "-" TYPE_X86_CPU,\
+            .property = "xlevel",\
+            .value    = stringify(0x8000000a),\
+        },
+
+#define PC_COMPAT_2_2 \
+        PC_COMPAT_2_3 \
+        HW_COMPAT_2_2
+
+#define PC_COMPAT_2_1 \
+        PC_COMPAT_2_2 \
+        HW_COMPAT_2_1
+
 #define PC_COMPAT_2_0 \
-        HW_COMPAT_2_1, \
+        PC_COMPAT_2_1 \
         {\
             .driver   = "virtio-scsi-pci",\
             .property = "any_layout",\
@@ -353,10 +438,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "ioh3420",\
             .property = COMPAT_PROP_PCP,\
             .value    = "off",\
-        }
+        },
 
 #define PC_COMPAT_1_7 \
-        PC_COMPAT_2_0, \
+        PC_COMPAT_2_0 \
         {\
             .driver   = TYPE_USB_DEVICE,\
             .property = "msos-desc",\
@@ -371,10 +456,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "hpet",\
             .property = HPET_INTCAP,\
             .value    = stringify(4),\
-        }
+        },
 
 #define PC_COMPAT_1_6 \
-        PC_COMPAT_1_7, \
+        PC_COMPAT_1_7 \
         {\
             .driver   = "e1000",\
             .property = "mitigation",\
@@ -395,10 +480,10 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "q35-pcihost",\
             .property = "short_root_bus",\
             .value    = stringify(1),\
-        }
+        },
 
 #define PC_COMPAT_1_5 \
-        PC_COMPAT_1_6, \
+        PC_COMPAT_1_6 \
         {\
             .driver   = "Conroe-" TYPE_X86_CPU,\
             .property = "model",\
@@ -439,31 +524,31 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "q35-pcihost",\
             .property = "short_root_bus",\
             .value    = stringify(0),\
-        }
+        },
 
 #define PC_COMPAT_1_4 \
-        PC_COMPAT_1_5, \
+        PC_COMPAT_1_5 \
         {\
             .driver   = "scsi-hd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "scsi-cd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "scsi-disk",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-hd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-cd",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "ide-drive",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
@@ -471,7 +556,7 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "virtio-blk-pci",\
             .property = "discard_granularity",\
             .value    = stringify(0),\
-	},{\
+        },{\
             .driver   = "virtio-serial-pci",\
             .property = "vectors",\
             /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
@@ -504,14 +589,45 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "486-" TYPE_X86_CPU,\
             .property = "model",\
             .value    = stringify(0),\
-        }
+        },
 
-#define PC_COMMON_MACHINE_OPTIONS \
-    .default_boot_order = "cad"
+static inline void pc_common_machine_options(MachineClass *m)
+{
+    m->default_boot_order = "cad";
+}
 
-#define PC_DEFAULT_MACHINE_OPTIONS \
-    PC_COMMON_MACHINE_OPTIONS, \
-    .hot_add_cpu = pc_hot_add_cpu, \
-    .max_cpus = 255
+static inline void pc_default_machine_options(MachineClass *m)
+{
+    pc_common_machine_options(m);
+    m->hot_add_cpu = pc_hot_add_cpu;
+    m->max_cpus = 255;
+}
+
+#define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
+    static void pc_machine_##suffix##_class_init(ObjectClass *oc, void *data) \
+    { \
+        MachineClass *mc = MACHINE_CLASS(oc); \
+        optsfn(mc); \
+        mc->name = namestr; \
+        mc->init = initfn; \
+    } \
+    static const TypeInfo pc_machine_type_##suffix = { \
+        .name       = namestr TYPE_MACHINE_SUFFIX, \
+        .parent     = TYPE_PC_MACHINE, \
+        .class_init = pc_machine_##suffix##_class_init, \
+    }; \
+    static void pc_machine_init_##suffix(void) \
+    { \
+        type_register(&pc_machine_type_##suffix); \
+    } \
+    machine_init(pc_machine_init_##suffix)
+
+#define SET_MACHINE_COMPAT(m, COMPAT) do { \
+    static GlobalProperty props[] = { \
+        COMPAT \
+        { /* end of list */ } \
+    }; \
+    (m)->compat_props = props; \
+} while (0)
 
 #endif

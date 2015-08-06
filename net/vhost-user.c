@@ -50,7 +50,6 @@ static int vhost_user_start(VhostUserState *s)
     options.backend_type = VHOST_BACKEND_TYPE_USER;
     options.net_backend = &s->nc;
     options.opaque = s->chr;
-    options.force = true;
 
     s->vhost_net = vhost_net_init(&options);
 
@@ -153,8 +152,9 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
     return 0;
 }
 
-static int net_vhost_chardev_opts(const char *name, const char *value,
-                                  void *opaque)
+static int net_vhost_chardev_opts(void *opaque,
+                                  const char *name, const char *value,
+                                  Error **errp)
 {
     VhostUserChardevProps *props = opaque;
 
@@ -165,33 +165,34 @@ static int net_vhost_chardev_opts(const char *name, const char *value,
     } else if (strcmp(name, "server") == 0) {
         props->is_server = true;
     } else {
-        error_report("vhost-user does not support a chardev"
-                     " with the following option:\n %s = %s",
-                     name, value);
+        error_setg(errp,
+                   "vhost-user does not support a chardev with option %s=%s",
+                   name, value);
         return -1;
     }
     return 0;
 }
 
-static CharDriverState *net_vhost_parse_chardev(const NetdevVhostUserOptions *opts)
+static CharDriverState *net_vhost_parse_chardev(
+    const NetdevVhostUserOptions *opts, Error **errp)
 {
     CharDriverState *chr = qemu_chr_find(opts->chardev);
     VhostUserChardevProps props;
 
     if (chr == NULL) {
-        error_report("chardev \"%s\" not found", opts->chardev);
+        error_setg(errp, "chardev \"%s\" not found", opts->chardev);
         return NULL;
     }
 
     /* inspect chardev opts */
     memset(&props, 0, sizeof(props));
-    if (qemu_opt_foreach(chr->opts, net_vhost_chardev_opts, &props, true) != 0) {
+    if (qemu_opt_foreach(chr->opts, net_vhost_chardev_opts, &props, errp)) {
         return NULL;
     }
 
     if (!props.is_socket || !props.is_unix) {
-        error_report("chardev \"%s\" is not a unix socket",
-                     opts->chardev);
+        error_setg(errp, "chardev \"%s\" is not a unix socket",
+                   opts->chardev);
         return NULL;
     }
 
@@ -200,7 +201,7 @@ static CharDriverState *net_vhost_parse_chardev(const NetdevVhostUserOptions *op
     return chr;
 }
 
-static int net_vhost_check_net(QemuOpts *opts, void *opaque)
+static int net_vhost_check_net(void *opaque, QemuOpts *opts, Error **errp)
 {
     const char *name = opaque;
     const char *driver, *netdev;
@@ -215,7 +216,7 @@ static int net_vhost_check_net(QemuOpts *opts, void *opaque)
 
     if (strcmp(netdev, name) == 0 &&
         strncmp(driver, virtio_name, strlen(virtio_name)) != 0) {
-        error_report("vhost-user requires frontend driver virtio-net-*");
+        error_setg(errp, "vhost-user requires frontend driver virtio-net-*");
         return -1;
     }
 
@@ -223,7 +224,7 @@ static int net_vhost_check_net(QemuOpts *opts, void *opaque)
 }
 
 int net_init_vhost_user(const NetClientOptions *opts, const char *name,
-                        NetClientState *peer)
+                        NetClientState *peer, Error **errp)
 {
     const NetdevVhostUserOptions *vhost_user_opts;
     CharDriverState *chr;
@@ -231,15 +232,14 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
     vhost_user_opts = opts->vhost_user;
 
-    chr = net_vhost_parse_chardev(vhost_user_opts);
+    chr = net_vhost_parse_chardev(vhost_user_opts, errp);
     if (!chr) {
-        error_report("No suitable chardev found");
         return -1;
     }
 
     /* verify net frontend */
     if (qemu_opts_foreach(qemu_find_opts("device"), net_vhost_check_net,
-                          (char *)name, true) == -1) {
+                          (char *)name, errp)) {
         return -1;
     }
 

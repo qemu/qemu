@@ -55,6 +55,8 @@ typedef bool (HasVnetHdrLen)(NetClientState *, int);
 typedef void (UsingVnetHdr)(NetClientState *, bool);
 typedef void (SetOffload)(NetClientState *, int, int, int, int, int);
 typedef void (SetVnetHdrLen)(NetClientState *, int);
+typedef int (SetVnetLE)(NetClientState *, bool);
+typedef int (SetVnetBE)(NetClientState *, bool);
 
 typedef struct NetClientInfo {
     NetClientOptionsKind type;
@@ -73,6 +75,8 @@ typedef struct NetClientInfo {
     UsingVnetHdr *using_vnet_hdr;
     SetOffload *set_offload;
     SetVnetHdrLen *set_vnet_hdr_len;
+    SetVnetLE *set_vnet_le;
+    SetVnetBE *set_vnet_be;
 } NetClientInfo;
 
 struct NetClientState {
@@ -139,6 +143,8 @@ void qemu_using_vnet_hdr(NetClientState *nc, bool enable);
 void qemu_set_offload(NetClientState *nc, int csum, int tso4, int tso6,
                       int ecn, int ufo);
 void qemu_set_vnet_hdr_len(NetClientState *nc, int len);
+int qemu_set_vnet_le(NetClientState *nc, bool is_le);
+int qemu_set_vnet_be(NetClientState *nc, bool is_be);
 void qemu_macaddr_default_if_unset(MACAddr *macaddr);
 int qemu_show_nic_models(const char *arg, const char *const *models);
 void qemu_check_nic_model(NICInfo *nd, const char *model);
@@ -191,7 +197,7 @@ void net_cleanup(void);
 void hmp_host_net_add(Monitor *mon, const QDict *qdict);
 void hmp_host_net_remove(Monitor *mon, const QDict *qdict);
 void netdev_add(QemuOpts *opts, Error **errp);
-int qmp_netdev_add(Monitor *mon, const QDict *qdict, QObject **ret);
+void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp);
 
 int net_hub_id_for_client(NetClientState *nc, int *id);
 NetClientState *net_hub_port_find(int hub_id);

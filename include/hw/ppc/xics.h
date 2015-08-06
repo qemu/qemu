@@ -109,6 +109,7 @@ struct ICPState {
     uint8_t pending_priority;
     uint8_t mfrr;
     qemu_irq output;
+    bool cap_irq_xics_enabled;
 };
 
 #define TYPE_ICS "ics"

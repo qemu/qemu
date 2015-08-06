@@ -26,6 +26,7 @@
  *
  */
 #include "cpu.h"
+#include "qemu/timer.h"
 #include "sysemu/sysemu.h"
 #include "hw/ppc/spapr.h"
 #include "qapi-event.h"
@@ -40,8 +41,6 @@ struct sPAPRRTCState {
     int64_t ns_offset;
 };
 
-#define NSEC_PER_SEC    1000000000LL
-
 void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns)
 {
     sPAPRRTCState *rtc = SPAPR_RTC(dev);
@@ -52,7 +51,7 @@ void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns)
     assert(rtc);
 
     guest_ns = host_ns + rtc->ns_offset;
-    guest_s = guest_ns / NSEC_PER_SEC;
+    guest_s = guest_ns / NANOSECONDS_PER_SECOND;
 
     if (tm) {
         gmtime_r(&guest_s, tm);
@@ -72,12 +71,12 @@ int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset)
 
     rtc = SPAPR_RTC(dev);
 
-    rtc->ns_offset = legacy_offset * NSEC_PER_SEC;
+    rtc->ns_offset = legacy_offset * NANOSECONDS_PER_SECOND;
 
     return 0;
 }
 
-static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
@@ -107,7 +106,7 @@ static void rtas_get_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     rtas_st(rets, 7, ns);
 }
 
-static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                  uint32_t token, uint32_t nargs,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
@@ -147,7 +146,7 @@ static void rtas_set_time_of_day(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     host_ns = qemu_clock_get_ns(rtc_clock);
 
-    rtc->ns_offset = (new_s * NSEC_PER_SEC) - host_ns;
+    rtc->ns_offset = (new_s * NANOSECONDS_PER_SECOND) - host_ns;
 
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
 }
@@ -169,7 +168,7 @@ static void spapr_rtc_realize(DeviceState *dev, Error **errp)
     qemu_get_timedate(&tm, 0);
     host_s = mktimegm(&tm);
     rtc_ns = qemu_clock_get_ns(rtc_clock);
-    rtc->ns_offset = host_s * NSEC_PER_SEC - rtc_ns;
+    rtc->ns_offset = host_s * NANOSECONDS_PER_SECOND - rtc_ns;
 
     object_property_add_tm(OBJECT(rtc), "date", spapr_rtc_qom_date, NULL);
 }

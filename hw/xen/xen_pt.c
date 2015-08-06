@@ -125,7 +125,7 @@ int xen_pt_bar_offset_to_index(uint32_t offset)
 
 static uint32_t xen_pt_pci_read_config(PCIDevice *d, uint32_t addr, int len)
 {
-    XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     uint32_t val = 0;
     XenPTRegGroup *reg_grp_entry = NULL;
     XenPTReg *reg_entry = NULL;
@@ -230,15 +230,16 @@ exit:
 static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
                                     uint32_t val, int len)
 {
-    XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     int index = 0;
     XenPTRegGroup *reg_grp_entry = NULL;
     int rc = 0;
-    uint32_t read_val = 0;
+    uint32_t read_val = 0, wb_mask;
     int emul_len = 0;
     XenPTReg *reg_entry = NULL;
     uint32_t find_addr = addr;
     XenPTRegInfo *reg = NULL;
+    bool wp_flag = false;
 
     if (xen_pt_pci_config_access_check(d, addr, len)) {
         return;
@@ -248,10 +249,18 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
 
     /* check unused BAR register */
     index = xen_pt_bar_offset_to_index(addr);
-    if ((index >= 0) && (val > 0 && val < XEN_PT_BAR_ALLF) &&
-        (s->bases[index].bar_flag == XEN_PT_BAR_FLAG_UNUSED)) {
-        XEN_PT_WARN(d, "Guest attempt to set address to unused Base Address "
-                    "Register. (addr: 0x%02x, len: %d)\n", addr, len);
+    if ((index >= 0) && (val != 0)) {
+        uint32_t chk = val;
+
+        if (index == PCI_ROM_SLOT)
+            chk |= (uint32_t)~PCI_ROM_ADDRESS_MASK;
+
+        if ((chk != XEN_PT_BAR_ALLF) &&
+            (s->bases[index].bar_flag == XEN_PT_BAR_FLAG_UNUSED)) {
+            XEN_PT_WARN(d, "Guest attempt to set address to unused "
+                        "Base Address Register. (addr: 0x%02x, len: %d)\n",
+                        addr, len);
+        }
     }
 
     /* find register group entry */
@@ -271,10 +280,17 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     if (rc < 0) {
         XEN_PT_ERR(d, "pci_read_block failed. return value: %d.\n", rc);
         memset(&read_val, 0xff, len);
+        wb_mask = 0;
+    } else {
+        wb_mask = 0xFFFFFFFF >> ((4 - len) << 3);
     }
 
     /* pass directly to the real device for passthrough type register group */
     if (reg_grp_entry == NULL) {
+        if (!s->permissive) {
+            wb_mask = 0;
+            wp_flag = true;
+        }
         goto out;
     }
 
@@ -295,9 +311,17 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
             uint32_t real_offset = reg_grp_entry->base_offset + reg->offset;
             uint32_t valid_mask = 0xFFFFFFFF >> ((4 - emul_len) << 3);
             uint8_t *ptr_val = NULL;
+            uint32_t wp_mask = reg->emu_mask | reg->ro_mask;
 
             valid_mask <<= (find_addr - real_offset) << 3;
             ptr_val = (uint8_t *)&val + (real_offset & 3);
+            if (!s->permissive) {
+                wp_mask |= reg->res_mask;
+            }
+            if (wp_mask == (0xFFFFFFFF >> ((4 - reg->size) << 3))) {
+                wb_mask &= ~((wp_mask >> ((find_addr - real_offset) << 3))
+                             << ((len - emul_len) << 3));
+            }
 
             /* do emulation based on register size */
             switch (reg->size) {
@@ -339,6 +363,16 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
         } else {
             /* nothing to do with passthrough type register,
              * continue to find next byte */
+            if (!s->permissive) {
+                wb_mask &= ~(0xff << ((len - emul_len) << 3));
+                /* Unused BARs will make it here, but we don't want to issue
+                 * warnings for writes to them (bogus writes get dealt with
+                 * above).
+                 */
+                if (index < 0) {
+                    wp_flag = true;
+                }
+            }
             emul_len--;
             find_addr++;
         }
@@ -350,10 +384,26 @@ static void xen_pt_pci_write_config(PCIDevice *d, uint32_t addr,
     memory_region_transaction_commit();
 
 out:
-    if (!(reg && reg->no_wb)) {
+    if (wp_flag && !s->permissive_warned) {
+        s->permissive_warned = true;
+        xen_pt_log(d, "Write-back to unknown field 0x%02x (partially) inhibited (0x%0*x)\n",
+                   addr, len * 2, wb_mask);
+        xen_pt_log(d, "If the device doesn't work, try enabling permissive mode\n");
+        xen_pt_log(d, "(unsafe) and if it helps report the problem to xen-devel\n");
+    }
+    for (index = 0; wb_mask; index += len) {
         /* unknown regs are passed through */
-        rc = xen_host_pci_set_block(&s->real_device, addr,
-                                    (uint8_t *)&val, len);
+        while (!(wb_mask & 0xff)) {
+            index++;
+            wb_mask >>= 8;
+        }
+        len = 0;
+        do {
+            len++;
+            wb_mask >>= 8;
+        } while (wb_mask & 0xff);
+        rc = xen_host_pci_set_block(&s->real_device, addr + index,
+                                    (uint8_t *)&val + index, len);
 
         if (rc < 0) {
             XEN_PT_ERR(d, "pci_write_block failed. return value: %d.\n", rc);
@@ -565,8 +615,8 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
                                       guest_port, machine_port, size,
                                       op);
         if (rc) {
-            XEN_PT_ERR(d, "%s ioport mapping failed! (rc: %i)\n",
-                       adding ? "create new" : "remove old", rc);
+            XEN_PT_ERR(d, "%s ioport mapping failed! (err: %i)\n",
+                       adding ? "create new" : "remove old", errno);
         }
     } else {
         pcibus_t guest_addr = sec->offset_within_address_space;
@@ -579,8 +629,8 @@ static void xen_pt_region_update(XenPCIPassthroughState *s,
                                       XEN_PFN(size + XC_PAGE_SIZE - 1),
                                       op);
         if (rc) {
-            XEN_PT_ERR(d, "%s mem mapping failed! (rc: %i)\n",
-                       adding ? "create new" : "remove old", rc);
+            XEN_PT_ERR(d, "%s mem mapping failed! (err: %i)\n",
+                       adding ? "create new" : "remove old", errno);
         }
     }
 }
@@ -637,7 +687,7 @@ static const MemoryListener xen_pt_io_listener = {
 
 static int xen_pt_initfn(PCIDevice *d)
 {
-    XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     int rc = 0;
     uint8_t machine_irq = 0;
     uint16_t cmd = 0;
@@ -694,14 +744,11 @@ static int xen_pt_initfn(PCIDevice *d)
     rc = xc_physdev_map_pirq(xen_xc, xen_domid, machine_irq, &pirq);
 
     if (rc < 0) {
-        XEN_PT_ERR(d, "Mapping machine irq %u to pirq %i failed, (rc: %d)\n",
-                   machine_irq, pirq, rc);
+        XEN_PT_ERR(d, "Mapping machine irq %u to pirq %i failed, (err: %d)\n",
+                   machine_irq, pirq, errno);
 
         /* Disable PCI intx assertion (turn on bit10 of devctl) */
-        xen_host_pci_set_word(&s->real_device,
-                              PCI_COMMAND,
-                              pci_get_word(s->dev.config + PCI_COMMAND)
-                              | PCI_COMMAND_INTX_DISABLE);
+        cmd |= PCI_COMMAND_INTX_DISABLE;
         machine_irq = 0;
         s->machine_irq = 0;
     } else {
@@ -719,19 +766,17 @@ static int xen_pt_initfn(PCIDevice *d)
                                        PCI_SLOT(d->devfn),
                                        e_intx);
         if (rc < 0) {
-            XEN_PT_ERR(d, "Binding of interrupt %i failed! (rc: %d)\n",
-                       e_intx, rc);
+            XEN_PT_ERR(d, "Binding of interrupt %i failed! (err: %d)\n",
+                       e_intx, errno);
 
             /* Disable PCI intx assertion (turn on bit10 of devctl) */
-            xen_host_pci_set_word(&s->real_device, PCI_COMMAND,
-                                  *(uint16_t *)(&s->dev.config[PCI_COMMAND])
-                                  | PCI_COMMAND_INTX_DISABLE);
+            cmd |= PCI_COMMAND_INTX_DISABLE;
             xen_pt_mapped_machine_irq[machine_irq]--;
 
             if (xen_pt_mapped_machine_irq[machine_irq] == 0) {
                 if (xc_physdev_unmap_pirq(xen_xc, xen_domid, machine_irq)) {
                     XEN_PT_ERR(d, "Unmapping of machine interrupt %i failed!"
-                               " (rc: %d)\n", machine_irq, rc);
+                               " (err: %d)\n", machine_irq, errno);
                 }
             }
             s->machine_irq = 0;
@@ -755,7 +800,7 @@ out:
 
 static void xen_pt_unregister_device(PCIDevice *d)
 {
-    XenPCIPassthroughState *s = DO_UPCAST(XenPCIPassthroughState, dev, d);
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     uint8_t machine_irq = s->machine_irq;
     uint8_t intx = xen_pt_pci_intx(s);
     int rc;
@@ -769,9 +814,9 @@ static void xen_pt_unregister_device(PCIDevice *d)
                                      0 /* isa_irq */);
         if (rc < 0) {
             XEN_PT_ERR(d, "unbinding of interrupt INT%c failed."
-                       " (machine irq: %i, rc: %d)"
+                       " (machine irq: %i, err: %d)"
                        " But bravely continuing on..\n",
-                       'a' + intx, machine_irq, rc);
+                       'a' + intx, machine_irq, errno);
         }
     }
 
@@ -789,9 +834,9 @@ static void xen_pt_unregister_device(PCIDevice *d)
             rc = xc_physdev_unmap_pirq(xen_xc, xen_domid, machine_irq);
 
             if (rc < 0) {
-                XEN_PT_ERR(d, "unmapping of interrupt %i failed. (rc: %d)"
+                XEN_PT_ERR(d, "unmapping of interrupt %i failed. (err: %d)"
                            " But bravely continuing on..\n",
-                           machine_irq, rc);
+                           machine_irq, errno);
             }
         }
     }
@@ -807,6 +852,7 @@ static void xen_pt_unregister_device(PCIDevice *d)
 
 static Property xen_pci_passthrough_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("hostaddr", XenPCIPassthroughState, hostaddr),
+    DEFINE_PROP_BOOL("permissive", XenPCIPassthroughState, permissive, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -825,7 +871,7 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
 };
 
 static const TypeInfo xen_pci_passthrough_info = {
-    .name = "xen-pci-passthrough",
+    .name = TYPE_XEN_PT_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XenPCIPassthroughState),
     .class_init = xen_pci_passthrough_class_init,

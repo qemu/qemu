@@ -20,7 +20,6 @@
  */
 
 #include "hw/platform-bus.h"
-#include "monitor/monitor.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 

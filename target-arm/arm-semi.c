@@ -27,6 +27,7 @@
 #include <time.h>
 
 #include "cpu.h"
+#include "exec/semihost.h"
 #ifdef CONFIG_USER_ONLY
 #include "qemu.h"
 
@@ -435,15 +436,19 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             size_t input_size;
             size_t output_size;
             int status = 0;
+#if !defined(CONFIG_USER_ONLY)
+            const char *cmdline;
+#endif
             GET_ARG(0);
             GET_ARG(1);
             input_size = arg1;
             /* Compute the size of the output string.  */
 #if !defined(CONFIG_USER_ONLY)
-            output_size = strlen(ts->boot_info->kernel_filename)
-                        + 1  /* Separating space.  */
-                        + strlen(ts->boot_info->kernel_cmdline)
-                        + 1; /* Terminating null byte.  */
+            cmdline = semihosting_get_cmdline();
+            if (cmdline == NULL) {
+                cmdline = ""; /* Default to an empty line. */
+            }
+            output_size = strlen(cmdline) + 1; /* Count terminating 0. */
 #else
             unsigned int i;
 
@@ -474,9 +479,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
 
             /* Copy the command-line arguments.  */
 #if !defined(CONFIG_USER_ONLY)
-            pstrcpy(output_buffer, output_size, ts->boot_info->kernel_filename);
-            pstrcat(output_buffer, output_size, " ");
-            pstrcat(output_buffer, output_size, ts->boot_info->kernel_cmdline);
+            pstrcpy(output_buffer, output_size, cmdline);
 #else
             if (output_size == 1) {
                 /* Empty command-line.  */

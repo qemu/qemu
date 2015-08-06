@@ -115,59 +115,18 @@ uint64_t HELPER(divu64)(CPUS390XState *env, uint64_t ah, uint64_t al,
     return ret;
 }
 
-/* absolute value 32-bit */
-uint32_t HELPER(abs_i32)(int32_t val)
-{
-    if (val < 0) {
-        return -val;
-    } else {
-        return val;
-    }
-}
-
-/* negative absolute value 32-bit */
-int32_t HELPER(nabs_i32)(int32_t val)
-{
-    if (val < 0) {
-        return val;
-    } else {
-        return -val;
-    }
-}
-
-/* absolute value 64-bit */
-uint64_t HELPER(abs_i64)(int64_t val)
-{
-    HELPER_LOG("%s: val 0x%" PRIx64 "\n", __func__, val);
-
-    if (val < 0) {
-        return -val;
-    } else {
-        return val;
-    }
-}
-
-/* negative absolute value 64-bit */
-int64_t HELPER(nabs_i64)(int64_t val)
-{
-    if (val < 0) {
-        return val;
-    } else {
-        return -val;
-    }
-}
-
 /* count leading zeros, for find leftmost one */
 uint64_t HELPER(clz)(uint64_t v)
 {
     return clz64(v);
 }
 
-uint64_t HELPER(cvd)(int32_t bin)
+uint64_t HELPER(cvd)(int32_t reg)
 {
     /* positive 0 */
     uint64_t dec = 0x0c;
-    int shift = 4;
+    int64_t bin = reg;
+    int shift;
 
     if (bin < 0) {
         bin = -bin;
@@ -175,9 +134,7 @@ uint64_t HELPER(cvd)(int32_t bin)
     }
 
     for (shift = 4; (shift < 64) && bin; shift += 4) {
-        int current_number = bin % 10;
-
-        dec |= (current_number) << shift;
+        dec |= (bin % 10) << shift;
         bin /= 10;
     }
 

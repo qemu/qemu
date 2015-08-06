@@ -25,10 +25,8 @@
 
 //#define DEBUG
 
-#define MAX_STRUCTS 128
-
-/* XXX: make it dynamic */
-StructEntry struct_entries[MAX_STRUCTS];
+static unsigned int max_struct_entries;
+StructEntry *struct_entries;
 
 static const argtype *thunk_type_next_ptr(const argtype *type_ptr);
 
@@ -70,6 +68,7 @@ void thunk_register_struct(int id, const char *name, const argtype *types)
     StructEntry *se;
     int nb_fields, offset, max_align, align, size, i, j;
 
+    assert(id < max_struct_entries);
     se = struct_entries + id;
 
     /* first we count the number of fields */
@@ -117,6 +116,8 @@ void thunk_register_struct_direct(int id, const char *name,
                                   const StructEntry *se1)
 {
     StructEntry *se;
+
+    assert(id < max_struct_entries);
     se = struct_entries + id;
     *se = *se1;
     se->name = name;
@@ -244,6 +245,7 @@ const argtype *thunk_convert(void *dst, const void *src,
             const argtype *field_types;
             const int *dst_offsets, *src_offsets;
 
+            assert(*type_ptr < max_struct_entries);
             se = struct_entries + *type_ptr++;
             if (se->convert[0] != NULL) {
                 /* specific conversion is needed */
@@ -314,3 +316,9 @@ int thunk_type_align_array(const argtype *type_ptr, int is_host)
     return thunk_type_align(type_ptr, is_host);
 }
 #endif /* ndef NO_THUNK_TYPE_SIZE */
+
+void thunk_init(unsigned int max_structs)
+{
+    max_struct_entries = max_structs;
+    struct_entries = g_new0(StructEntry, max_structs);
+}

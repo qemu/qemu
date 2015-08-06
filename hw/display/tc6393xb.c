@@ -571,7 +571,7 @@ TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
     s->irq = irq;
     s->gpio_in = qemu_allocate_irqs(tc6393xb_gpio_set, s, TC6393XB_GPIOS);
 
-    s->l3v = *qemu_allocate_irqs(tc6393xb_l3v, s, 1);
+    s->l3v = qemu_allocate_irq(tc6393xb_l3v, s, 0);
     s->blanked = 1;
 
     s->sub_irqs = qemu_allocate_irqs(tc6393xb_sub_irq, s, TC6393XB_NR_IRQS);

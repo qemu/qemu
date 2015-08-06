@@ -339,26 +339,47 @@ static int count_contiguous_free_clusters(uint64_t nb_clusters, uint64_t *l2_tab
 /* The crypt function is compatible with the linux cryptoloop
    algorithm for < 4 GB images. NOTE: out_buf == in_buf is
    supported */
-void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
-                           uint8_t *out_buf, const uint8_t *in_buf,
-                           int nb_sectors, int enc,
-                           const AES_KEY *key)
+int qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
+                          uint8_t *out_buf, const uint8_t *in_buf,
+                          int nb_sectors, bool enc,
+                          Error **errp)
 {
     union {
         uint64_t ll[2];
         uint8_t b[16];
     } ivec;
     int i;
+    int ret;
 
     for(i = 0; i < nb_sectors; i++) {
         ivec.ll[0] = cpu_to_le64(sector_num);
         ivec.ll[1] = 0;
-        AES_cbc_encrypt(in_buf, out_buf, 512, key,
-                        ivec.b, enc);
+        if (qcrypto_cipher_setiv(s->cipher,
+                                 ivec.b, G_N_ELEMENTS(ivec.b),
+                                 errp) < 0) {
+            return -1;
+        }
+        if (enc) {
+            ret = qcrypto_cipher_encrypt(s->cipher,
+                                         in_buf,
+                                         out_buf,
+                                         512,
+                                         errp);
+        } else {
+            ret = qcrypto_cipher_decrypt(s->cipher,
+                                         in_buf,
+                                         out_buf,
+                                         512,
+                                         errp);
+        }
+        if (ret < 0) {
+            return -1;
+        }
         sector_num++;
         in_buf += 512;
         out_buf += 512;
     }
+    return 0;
 }
 
 static int coroutine_fn copy_sectors(BlockDriverState *bs,
@@ -401,10 +422,15 @@ static int coroutine_fn copy_sectors(BlockDriverState *bs,
     }
 
     if (bs->encrypted) {
-        assert(s->crypt_method);
-        qcow2_encrypt_sectors(s, start_sect + n_start,
-                        iov.iov_base, iov.iov_base, n, 1,
-                        &s->aes_encrypt_key);
+        Error *err = NULL;
+        assert(s->cipher);
+        if (qcow2_encrypt_sectors(s, start_sect + n_start,
+                                  iov.iov_base, iov.iov_base, n,
+                                  true, &err) < 0) {
+            ret = -EIO;
+            error_free(err);
+            goto out;
+        }
     }
 
     ret = qcow2_pre_write_overlap_check(bs, 0,

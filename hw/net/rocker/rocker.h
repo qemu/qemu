@@ -77,7 +77,7 @@ int rocker_event_link_changed(Rocker *r, uint32_t pport, bool link_up);
 int rocker_event_mac_vlan_seen(Rocker *r, uint32_t pport, uint8_t *addr,
                                uint16_t vlan_id);
 int rx_produce(World *world, uint32_t pport,
-               const struct iovec *iov, int iovcnt);
+               const struct iovec *iov, int iovcnt, uint8_t copy_to_cpu);
 int rocker_port_eg(Rocker *r, uint32_t pport,
                    const struct iovec *iov, int iovcnt);
 

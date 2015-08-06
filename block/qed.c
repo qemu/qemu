@@ -407,8 +407,8 @@ static int bdrv_qed_open(BlockDriverState *bs, QDict *options, int flags,
         char buf[64];
         snprintf(buf, sizeof(buf), "%" PRIx64,
             s->header.features & ~QED_FEATURE_MASK);
-        error_set(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
-            bdrv_get_device_or_node_name(bs), "QED", buf);
+        error_setg(errp, QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+                   bdrv_get_device_or_node_name(bs), "QED", buf);
         return -ENOTSUP;
     }
     if (!qed_is_cluster_size_valid(s->header.cluster_size)) {

@@ -285,6 +285,9 @@ uint64_t guest_alloc(QGuestAllocator *allocator, size_t size)
 
 void guest_free(QGuestAllocator *allocator, uint64_t addr)
 {
+    if (!addr) {
+        return;
+    }
     mlist_free(allocator, addr);
     if (allocator->opts & ALLOC_PARANOID) {
         mlist_check(allocator);

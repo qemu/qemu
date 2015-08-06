@@ -3,6 +3,11 @@
 # Always point to the root of the build tree (needs GNU make).
 BUILD_DIR=$(CURDIR)
 
+# Before including a proper config-host.mak, assume we are in the source tree
+SRC_PATH=.
+
+UNCHECKED_GOALS := %clean TAGS cscope ctags
+
 # All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
@@ -38,7 +43,7 @@ config-host.mak: $(SRC_PATH)/configure
 	fi
 else
 config-host.mak:
-ifneq ($(filter-out %clean,$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
+ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 	@echo "Please call configure before running make!"
 	@exit 1
 endif
@@ -74,7 +79,7 @@ Makefile: ;
 configure: ;
 
 .PHONY: all clean cscope distclean dvi html info install install-doc \
-	pdf recurse-all speed test dist
+	pdf recurse-all speed test dist msi
 
 $(call set-vpath, $(SRC_PATH))
 
@@ -130,7 +135,7 @@ endif
 	 else \
 	  mv $@.tmp $@; \
 	  cp -p $@ $@.old; \
-	 fi, "  GEN  $@");
+	 fi, "  GEN   $@");
 
 defconfig:
 	rm -f config-all-devices.mak $(SUBDIR_DEVICES_MAK)
@@ -287,10 +292,32 @@ $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a
 	$(call LINK, $^)
 
+ifdef QEMU_GA_MSI_ENABLED
+QEMU_GA_MSI=qemu-ga-$(ARCH).msi
+
+msi: ${QEMU_GA_MSI}
+
+$(QEMU_GA_MSI): qemu-ga.exe
+
+ifdef QEMU_GA_MSI_WITH_VSS
+$(QEMU_GA_MSI): qga/vss-win32/qga-vss.dll
+endif
+
+$(QEMU_GA_MSI): config-host.mak
+
+$(QEMU_GA_MSI):  qga/installer/qemu-ga.wxs
+	$(call quiet-command,QEMU_GA_VERSION="$(QEMU_GA_VERSION)" QEMU_GA_MANUFACTURER="$(QEMU_GA_MANUFACTURER)" QEMU_GA_DISTRO="$(QEMU_GA_DISTRO)" \
+	wixl -o $@ $(QEMU_GA_MSI_ARCH) $(QEMU_GA_MSI_WITH_VSS) $(QEMU_GA_MSI_MINGW_DLL_PATH) $<, "  WIXL  $@")
+else
+msi:
+	@echo MSI build not configured or dependency resolution failed (reconfigure with --enable-guest-agent-msi option)
+endif
+
 clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
+	rm -f *.msi
 	find . \( -name '*.l[oa]' -o -name '*.so' -o -name '*.dll' -o -name '*.mo' -o -name '*.[oda]' \) -type f -exec rm {} +
 	rm -f $(filter-out %.tlb,$(TOOLS)) $(HELPERS-y) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -f fsdev/*.pod
@@ -342,7 +369,7 @@ bepo    cz
 
 ifdef INSTALL_BLOBS
 BLOBS=bios.bin bios-256k.bin sgabios.bin vgabios.bin vgabios-cirrus.bin \
-vgabios-stdvga.bin vgabios-vmware.bin vgabios-qxl.bin \
+vgabios-stdvga.bin vgabios-vmware.bin vgabios-qxl.bin vgabios-virtio.bin \
 acpi-dsdt.aml q35-acpi-dsdt.aml \
 ppc_rom.bin openbios-sparc32 openbios-sparc64 openbios-ppc QEMU,tcx.bin QEMU,cgthree.bin \
 pxe-e1000.rom pxe-eepro100.rom pxe-ne2k_pci.rom \
@@ -389,13 +416,8 @@ ifneq (,$(findstring qemu-ga,$(TOOLS)))
 endif
 endif
 
-install-confdir:
-	$(INSTALL_DIR) "$(DESTDIR)$(qemu_confdir)"
 
-install-sysconfig: install-datadir install-confdir
-	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(qemu_confdir)"
-
-install: all $(if $(BUILD_DOCS),install-doc) install-sysconfig \
+install: all $(if $(BUILD_DOCS),install-doc) \
 install-datadir install-localstatedir
 ifneq ($(TOOLS),)
 	$(call install-prog,$(TOOLS),$(DESTDIR)$(bindir))
@@ -432,15 +454,20 @@ endif
 test speed: all
 	$(MAKE) -C tests/tcg $@
 
+.PHONY: ctags
+ctags:
+	rm -f $@
+	find "$(SRC_PATH)" -name '*.[hc]' -exec ctags --append {} +
+
 .PHONY: TAGS
 TAGS:
 	rm -f $@
 	find "$(SRC_PATH)" -name '*.[hc]' -exec etags --append {} +
 
 cscope:
-	rm -f ./cscope.*
-	find "$(SRC_PATH)" -name "*.[chsS]" -print | sed 's,^\./,,' > ./cscope.files
-	cscope -b
+	rm -f "$(SRC_PATH)"/cscope.*
+	find "$(SRC_PATH)/" -name "*.[chsS]" -print | sed 's,^\./,,' > "$(SRC_PATH)/cscope.files"
+	cscope -b -i"$(SRC_PATH)/cscope.files"
 
 # opengl shader programs
 ui/shader/%-vert.h: $(SRC_PATH)/ui/shader/%.vert $(SRC_PATH)/scripts/shaderinclude.pl
@@ -583,7 +610,7 @@ endif # CONFIG_WIN
 
 # Add a dependency on the generated files, so that they are always
 # rebuilt before other object files
-ifneq ($(filter-out %clean,$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
+ifneq ($(filter-out $(UNCHECKED_GOALS),$(MAKECMDGOALS)),$(if $(MAKECMDGOALS),,fail))
 Makefile: $(GENERATED_HEADERS)
 endif
 

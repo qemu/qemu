@@ -254,16 +254,13 @@ static void to_json(const QObject *obj, QString *str, int pretty, int indent)
     case QTYPE_QBOOL: {
         QBool *val = qobject_to_qbool(obj);
 
-        if (qbool_get_int(val)) {
+        if (qbool_get_bool(val)) {
             qstring_append(str, "true");
         } else {
             qstring_append(str, "false");
         }
         break;
     }
-    case QTYPE_QERROR:
-        /* XXX: should QError be emitted? */
-        break;
     default:
         abort();
     }

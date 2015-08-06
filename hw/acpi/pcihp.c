@@ -45,7 +45,6 @@
 # define ACPI_PCIHP_DPRINTF(format, ...)     do { } while (0)
 #endif
 
-#define ACPI_PCI_HOTPLUG_STATUS 2
 #define ACPI_PCIHP_ADDR 0xae00
 #define ACPI_PCIHP_SIZE 0x0014
 #define ACPI_PCIHP_LEGACY_SIZE 0x000f
@@ -202,8 +201,7 @@ void acpi_pcihp_device_plug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
 
     s->acpi_pcihp_pci_status[bsel].up |= (1U << slot);
 
-    ar->gpe.sts[0] |= ACPI_PCI_HOTPLUG_STATUS;
-    acpi_update_sci(ar, irq);
+    acpi_send_gpe_event(ar, irq, ACPI_PCI_HOTPLUG_STATUS);
 }
 
 void acpi_pcihp_device_unplug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
@@ -220,8 +218,7 @@ void acpi_pcihp_device_unplug_cb(ACPIREGS *ar, qemu_irq irq, AcpiPciHpState *s,
 
     s->acpi_pcihp_pci_status[bsel].down |= (1U << slot);
 
-    ar->gpe.sts[0] |= ACPI_PCI_HOTPLUG_STATUS;
-    acpi_update_sci(ar, irq);
+    acpi_send_gpe_event(ar, irq, ACPI_PCI_HOTPLUG_STATUS);
 }
 
 static uint64_t pci_read(void *opaque, hwaddr addr, unsigned int size)

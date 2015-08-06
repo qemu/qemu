@@ -2545,10 +2545,10 @@ void helper_rfm(CPUTriCoreState *env)
     env->PC = (env->gpr_a[11] & ~0x1);
     /* ICR.IE = PCXI.PIE; */
     env->ICR = (env->ICR & ~MASK_ICR_IE) |
-               ((env->PCXI & ~MASK_PCXI_PIE) >> 15);
+               ((env->PCXI & MASK_PCXI_PIE) >> 15);
     /* ICR.CCPN = PCXI.PCPN; */
     env->ICR = (env->ICR & ~MASK_ICR_CCPN) |
-               ((env->PCXI & ~MASK_PCXI_PCPN) >> 24);
+               ((env->PCXI & MASK_PCXI_PCPN) >> 24);
     /* {PCXI, PSW, A[10], A[11]} = M(DCX, 4 * word); */
     env->PCXI = cpu_ldl_data(env, env->DCX);
     psw_write(env, cpu_ldl_data(env, env->DCX+4));

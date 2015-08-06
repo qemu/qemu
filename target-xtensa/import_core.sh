@@ -22,8 +22,7 @@ mkdir -p "$TARGET"
 tar -xf "$OVERLAY" -C "$TARGET" --strip-components=1 \
     --xform='s/core/core-isa/' config/core.h
 tar -xf "$OVERLAY" -O gdb/xtensa-config.c | \
-    sed -n '1,/*\//p;/pc/,/a15/p' > "$TARGET"/gdb-config.c
-NUM_REGS=$(grep XTREG "$TARGET"/gdb-config.c | wc -l)
+    sed -n '1,/*\//p;/XTREG/,/XTREG_END/p' > "$TARGET"/gdb-config.c
 
 cat <<EOF > "${TARGET}.c"
 #include "cpu.h"
@@ -34,10 +33,9 @@ cat <<EOF > "${TARGET}.c"
 #include "core-$NAME/core-isa.h"
 #include "overlay_tool.h"
 
-static const XtensaConfig $NAME __attribute__((unused)) = {
+static XtensaConfig $NAME __attribute__((unused)) = {
     .name = "$NAME",
     .gdb_regmap = {
-        .num_regs = $NUM_REGS,
         .reg = {
 #include "core-$NAME/gdb-config.c"
         }

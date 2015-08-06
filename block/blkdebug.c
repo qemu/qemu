@@ -216,10 +216,9 @@ static int get_event_by_name(const char *name, BlkDebugEvent *event)
 struct add_rule_data {
     BDRVBlkdebugState *s;
     int action;
-    Error **errp;
 };
 
-static int add_rule(QemuOpts *opts, void *opaque)
+static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
 {
     struct add_rule_data *d = opaque;
     BDRVBlkdebugState *s = d->s;
@@ -230,10 +229,10 @@ static int add_rule(QemuOpts *opts, void *opaque)
     /* Find the right event for the rule */
     event_name = qemu_opt_get(opts, "event");
     if (!event_name) {
-        error_setg(d->errp, "Missing event name for rule");
+        error_setg(errp, "Missing event name for rule");
         return -1;
     } else if (get_event_by_name(event_name, &event) < 0) {
-        error_setg(d->errp, "Invalid event name \"%s\"", event_name);
+        error_setg(errp, "Invalid event name \"%s\"", event_name);
         return -1;
     }
 
@@ -319,8 +318,7 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
 
     d.s = s;
     d.action = ACTION_INJECT_ERROR;
-    d.errp = &local_err;
-    qemu_opts_foreach(&inject_error_opts, add_rule, &d, 1);
+    qemu_opts_foreach(&inject_error_opts, add_rule, &d, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -328,7 +326,7 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
     }
 
     d.action = ACTION_SET_STATE;
-    qemu_opts_foreach(&set_state_opts, add_rule, &d, 1);
+    qemu_opts_foreach(&set_state_opts, add_rule, &d, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -431,7 +429,7 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
     /* Open the backing file */
     assert(bs->file == NULL);
     ret = bdrv_open_image(&bs->file, qemu_opt_get(opts, "x-image"), options, "image",
-                          flags | BDRV_O_PROTOCOL, false, &local_err);
+                          bs, &child_file, false, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;

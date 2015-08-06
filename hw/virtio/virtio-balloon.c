@@ -310,9 +310,12 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
     trace_virtio_balloon_set_config(dev->actual, oldactual);
 }
 
-static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
+static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
+                                            Error **errp)
 {
-    f |= (1 << VIRTIO_BALLOON_F_STATS_VQ);
+    VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
+    f |= dev->host_features;
+    virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
     return f;
 }
 
@@ -396,14 +399,6 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
 
     register_savevm(dev, "virtio-balloon", -1, 1,
                     virtio_balloon_save, virtio_balloon_load, s);
-
-    object_property_add(OBJECT(dev), "guest-stats", "guest statistics",
-                        balloon_stats_get_all, NULL, NULL, s, NULL);
-
-    object_property_add(OBJECT(dev), "guest-stats-polling-interval", "int",
-                        balloon_stats_get_poll_interval,
-                        balloon_stats_set_poll_interval,
-                        NULL, s, NULL);
 }
 
 static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
@@ -417,7 +412,22 @@ static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
     virtio_cleanup(vdev);
 }
 
+static void virtio_balloon_instance_init(Object *obj)
+{
+    VirtIOBalloon *s = VIRTIO_BALLOON(obj);
+
+    object_property_add(obj, "guest-stats", "guest statistics",
+                        balloon_stats_get_all, NULL, NULL, s, NULL);
+
+    object_property_add(obj, "guest-stats-polling-interval", "int",
+                        balloon_stats_get_poll_interval,
+                        balloon_stats_set_poll_interval,
+                        NULL, s, NULL);
+}
+
 static Property virtio_balloon_properties[] = {
+    DEFINE_PROP_BIT("deflate-on-oom", VirtIOBalloon, host_features,
+                    VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -441,6 +451,7 @@ static const TypeInfo virtio_balloon_info = {
     .name = TYPE_VIRTIO_BALLOON,
     .parent = TYPE_VIRTIO_DEVICE,
     .instance_size = sizeof(VirtIOBalloon),
+    .instance_init = virtio_balloon_instance_init,
     .class_init = virtio_balloon_class_init,
 };
 

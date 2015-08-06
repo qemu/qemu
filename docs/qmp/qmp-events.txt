@@ -473,6 +473,20 @@ Example:
 { "timestamp": {"seconds": 1290688046, "microseconds": 417172},
   "event": "SPICE_MIGRATE_COMPLETED" }
 
+MIGRATION
+---------
+
+Emitted when a migration event happens
+
+Data: None.
+
+ - "status": migration status
+     See MigrationStatus in ~/qapi-schema.json for possible values
+
+Example:
+
+{"timestamp": {"seconds": 1432121972, "microseconds": 744001},
+ "event": "MIGRATION", "data": {"status": "completed"}}
 
 STOP
 ----

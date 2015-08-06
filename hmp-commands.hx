@@ -178,8 +178,7 @@ ETEXI
         .args_type  = "id:B",
         .params     = "device",
         .help       = "remove host block device",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = hmp_drive_del,
+        .mhandler.cmd = hmp_drive_del,
     },
 
 STEXI
@@ -654,8 +653,7 @@ ETEXI
         .args_type  = "device:O",
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_device_add,
+        .mhandler.cmd = hmp_device_add,
         .command_completion = device_add_completion,
     },
 
@@ -1011,17 +1009,16 @@ ETEXI
         .name       = "client_migrate_info",
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
-        .help       = "send migration info to spice/vnc client",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = client_migrate_info,
+        .help       = "set migration information for remote display",
+        .mhandler.cmd = hmp_client_migrate_info,
     },
 
 STEXI
 @item client_migrate_info @var{protocol} @var{hostname} @var{port} @var{tls-port} @var{cert-subject}
 @findex client_migrate_info
-Set the spice/vnc connection info for the migration target.  The spice/vnc
-server will ask the spice/vnc client to automatically reconnect using the
-new parameters (if specified) once the vm migration finished successfully.
+Set migration information for remote display.  This makes the server
+ask the client to automatically reconnect using the new parameters
+once migration finished successfully.  Only implemented for SPICE.
 ETEXI
 
     {
@@ -1186,8 +1183,7 @@ ETEXI
                       "<error_status> = error string or 32bit\n\t\t\t"
                       "<tlb header> = 32bit x 4\n\t\t\t"
                       "<tlb header prefix> = 32bit x 4",
-        .user_print  = pcie_aer_inject_error_print,
-        .mhandler.cmd_new = hmp_pcie_aer_inject_error,
+        .mhandler.cmd = hmp_pcie_aer_inject_error,
     },
 
 STEXI
@@ -1800,6 +1796,30 @@ ETEXI
 STEXI
 @item info trace-events
 show available trace events and their state
+ETEXI
+
+STEXI
+@item rocker @var{name}
+@findex rocker
+Show Rocker(s)
+ETEXI
+
+STEXI
+@item rocker_ports @var{name}
+@findex rocker_ports
+Show Rocker ports
+ETEXI
+
+STEXI
+@item rocker_of_dpa_flows @var{name} [@var{tbl_id}]
+@findex rocker_of_dpa_flows
+Show Rocker OF-DPA flow tables
+ETEXI
+
+STEXI
+@item rocker_of_dpa_groups @var{name} [@var{type}]
+@findex rocker_of_dpa_groups
+Show Rocker OF-DPA groups
 ETEXI
 
 STEXI

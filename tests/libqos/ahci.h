@@ -263,20 +263,23 @@ enum {
 /* ATA Commands */
 enum {
     /* DMA */
-    CMD_READ_DMA      = 0xC8,
-    CMD_READ_DMA_EXT  = 0x25,
-    CMD_WRITE_DMA     = 0xCA,
-    CMD_WRITE_DMA_EXT = 0x35,
+    CMD_READ_DMA       = 0xC8,
+    CMD_READ_DMA_EXT   = 0x25,
+    CMD_WRITE_DMA      = 0xCA,
+    CMD_WRITE_DMA_EXT  = 0x35,
     /* PIO */
-    CMD_READ_PIO      = 0x20,
-    CMD_READ_PIO_EXT  = 0x24,
-    CMD_WRITE_PIO     = 0x30,
-    CMD_WRITE_PIO_EXT = 0x34,
+    CMD_READ_PIO       = 0x20,
+    CMD_READ_PIO_EXT   = 0x24,
+    CMD_WRITE_PIO      = 0x30,
+    CMD_WRITE_PIO_EXT  = 0x34,
     /* Misc */
-    CMD_READ_MAX      = 0xF8,
-    CMD_READ_MAX_EXT  = 0x27,
-    CMD_FLUSH_CACHE   = 0xE7,
-    CMD_IDENTIFY      = 0xEC
+    CMD_READ_MAX       = 0xF8,
+    CMD_READ_MAX_EXT   = 0x27,
+    CMD_FLUSH_CACHE    = 0xE7,
+    CMD_IDENTIFY       = 0xEC,
+    /* NCQ */
+    READ_FPDMA_QUEUED  = 0x60,
+    WRITE_FPDMA_QUEUED = 0x61,
 };
 
 /* AHCI Command Header Flags & Masks*/
@@ -291,8 +294,9 @@ enum {
 #define CMDH_PMP      (0xF000)
 
 /* ATA device register masks */
-#define ATA_DEVICE_MAGIC 0xA0
+#define ATA_DEVICE_MAGIC 0xA0 /* used in ata1-3 */
 #define ATA_DEVICE_LBA   0x40
+#define NCQ_DEVICE_MAGIC 0x40 /* for ncq device registers */
 #define ATA_DEVICE_DRIVE 0x10
 #define ATA_DEVICE_HEAD  0x0F
 
@@ -395,6 +399,32 @@ typedef struct RegH2DFIS {
     /* DW4 */
     uint8_t aux[4];
 } __attribute__((__packed__)) RegH2DFIS;
+
+/**
+ * Register host-to-device FIS structure, for NCQ commands.
+ * Actually just a RegH2DFIS, but with fields repurposed.
+ * Repurposed fields are annotated below.
+ */
+typedef struct NCQFIS {
+    /* DW0 */
+    uint8_t fis_type;
+    uint8_t flags;
+    uint8_t command;
+    uint8_t sector_low; /* H2D: Feature 7:0 */
+    /* DW1 */
+    uint8_t lba_lo[3];
+    uint8_t device;
+    /* DW2 */
+    uint8_t lba_hi[3];
+    uint8_t sector_hi; /* H2D: Feature 15:8 */
+    /* DW3 */
+    uint8_t tag;       /* H2D: Count 0:7 */
+    uint8_t prio;      /* H2D: Count 15:8 */
+    uint8_t icc;
+    uint8_t control;
+    /* DW4 */
+    uint8_t aux[4];
+} __attribute__((__packed__)) NCQFIS;
 
 /**
  * Command List entry structure.
@@ -512,14 +542,13 @@ void ahci_port_check_nonbusy(AHCIQState *ahci, uint8_t port, uint8_t slot);
 void ahci_port_check_d2h_sanity(AHCIQState *ahci, uint8_t port, uint8_t slot);
 void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
                                 uint8_t slot, size_t buffsize);
-void ahci_port_check_cmd_sanity(AHCIQState *ahci, uint8_t port,
-                                uint8_t slot, size_t buffsize);
+void ahci_port_check_cmd_sanity(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_get_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd);
 void ahci_set_command_header(AHCIQState *ahci, uint8_t port,
                              uint8_t slot, AHCICommandHeader *cmd);
 void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot);
-void ahci_write_fis(AHCIQState *ahci, RegH2DFIS *fis, uint64_t addr);
+void ahci_write_fis(AHCIQState *ahci, AHCICommand *cmd);
 unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port);
 unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd);
 void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,

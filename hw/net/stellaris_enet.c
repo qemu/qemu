@@ -228,8 +228,7 @@ static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, si
     if ((s->rctl & SE_RCTL_RXEN) == 0)
         return -1;
     if (s->np >= 31) {
-        DPRINTF("Packet dropped\n");
-        return -1;
+        return 0;
     }
 
     DPRINTF("Received packet len=%zu\n", size);
@@ -260,13 +259,8 @@ static ssize_t stellaris_enet_receive(NetClientState *nc, const uint8_t *buf, si
     return size;
 }
 
-static int stellaris_enet_can_receive(NetClientState *nc)
+static int stellaris_enet_can_receive(stellaris_enet_state *s)
 {
-    stellaris_enet_state *s = qemu_get_nic_opaque(nc);
-
-    if ((s->rctl & SE_RCTL_RXEN) == 0)
-        return 1;
-
     return (s->np < 31);
 }
 
@@ -307,6 +301,9 @@ static uint64_t stellaris_enet_read(void *opaque, hwaddr offset,
                 s->next_packet = 0;
             s->np--;
             DPRINTF("RX done np=%d\n", s->np);
+            if (!s->np && stellaris_enet_can_receive(s)) {
+                qemu_flush_queued_packets(qemu_get_queue(s->nic));
+            }
         }
         return val;
     }
@@ -454,7 +451,6 @@ static void stellaris_enet_reset(stellaris_enet_state *s)
 static NetClientInfo net_stellaris_enet_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = stellaris_enet_can_receive,
     .receive = stellaris_enet_receive,
 };
 

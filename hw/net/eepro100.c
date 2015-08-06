@@ -1617,16 +1617,6 @@ static const MemoryRegionOps eepro100_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int nic_can_receive(NetClientState *nc)
-{
-    EEPRO100State *s = qemu_get_nic_opaque(nc);
-    TRACE(RXTX, logout("%p\n", s));
-    return get_ru_state(s) == ru_ready;
-#if 0
-    return !eepro100_buffer_full(s);
-#endif
-}
-
 static ssize_t nic_receive(NetClientState *nc, const uint8_t * buf, size_t size)
 {
     /* TODO:
@@ -1844,7 +1834,6 @@ static void pci_nic_uninit(PCIDevice *pci_dev)
 static NetClientInfo net_eepro100_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = nic_can_receive,
     .receive = nic_receive,
 };
 

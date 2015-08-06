@@ -125,14 +125,13 @@ void tlb_flush_page(CPUState *cpu, target_ulong addr)
    can be detected */
 void tlb_protect_code(ram_addr_t ram_addr)
 {
-    cpu_physical_memory_reset_dirty(ram_addr, TARGET_PAGE_SIZE,
-                                    DIRTY_MEMORY_CODE);
+    cpu_physical_memory_test_and_clear_dirty(ram_addr, TARGET_PAGE_SIZE,
+                                             DIRTY_MEMORY_CODE);
 }
 
 /* update the TLB so that writes in physical page 'phys_addr' are no longer
    tested for self modifying code */
-void tlb_unprotect_code_phys(CPUState *cpu, ram_addr_t ram_addr,
-                             target_ulong vaddr)
+void tlb_unprotect_code(ram_addr_t ram_addr)
 {
     cpu_physical_memory_set_dirty_flag(ram_addr, DIRTY_MEMORY_CODE);
 }

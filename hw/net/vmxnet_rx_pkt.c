@@ -92,9 +92,6 @@ void vmxnet_rx_pkt_attach_data(struct VmxnetRxPkt *pkt, const void *data,
     }
 
     pkt->tci = tci;
-
-    eth_get_protocols(data, len, &pkt->isip4, &pkt->isip6,
-        &pkt->isudp, &pkt->istcp);
 }
 
 void vmxnet_rx_pkt_dump(struct VmxnetRxPkt *pkt)
@@ -129,6 +126,15 @@ size_t vmxnet_rx_pkt_get_total_len(struct VmxnetRxPkt *pkt)
     assert(pkt);
 
     return pkt->tot_len;
+}
+
+void vmxnet_rx_pkt_set_protocols(struct VmxnetRxPkt *pkt, const void *data,
+                                 size_t len)
+{
+    assert(pkt);
+
+    eth_get_protocols(data, len, &pkt->isip4, &pkt->isip6,
+        &pkt->isudp, &pkt->istcp);
 }
 
 void vmxnet_rx_pkt_get_protocols(struct VmxnetRxPkt *pkt,

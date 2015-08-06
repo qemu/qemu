@@ -44,6 +44,18 @@ struct S390xElfFpregsetStruct {
 
 typedef struct S390xElfFpregsetStruct S390xElfFpregset;
 
+struct S390xElfVregsLoStruct {
+    uint64_t vregs[16];
+} QEMU_PACKED;
+
+typedef struct S390xElfVregsLoStruct S390xElfVregsLo;
+
+struct S390xElfVregsHiStruct {
+    uint64_t vregs[16][2];
+} QEMU_PACKED;
+
+typedef struct S390xElfVregsHiStruct S390xElfVregsHi;
+
 typedef struct noteStruct {
     Elf64_Nhdr hdr;
     char name[5];
@@ -51,6 +63,8 @@ typedef struct noteStruct {
     union {
         S390xElfPrstatus prstatus;
         S390xElfFpregset fpregset;
+        S390xElfVregsLo vregslo;
+        S390xElfVregsHi vregshi;
         uint32_t prefix;
         uint64_t timer;
         uint64_t todcmp;
@@ -78,14 +92,38 @@ static void s390x_write_elf64_prstatus(Note *note, S390CPU *cpu)
 static void s390x_write_elf64_fpregset(Note *note, S390CPU *cpu)
 {
     int i;
+    CPUS390XState *cs = &cpu->env;
 
     note->hdr.n_type = cpu_to_be32(NT_FPREGSET);
     note->contents.fpregset.fpc = cpu_to_be32(cpu->env.fpc);
     for (i = 0; i <= 15; i++) {
-        note->contents.fpregset.fprs[i] = cpu_to_be64(cpu->env.fregs[i].ll);
+        note->contents.fpregset.fprs[i] = cpu_to_be64(get_freg(cs, i)->ll);
     }
 }
 
+static void s390x_write_elf64_vregslo(Note *note, S390CPU *cpu)
+{
+    int i;
+
+    note->hdr.n_type = cpu_to_be32(NT_S390_VXRS_LOW);
+    for (i = 0; i <= 15; i++) {
+        note->contents.vregslo.vregs[i] = cpu_to_be64(cpu->env.vregs[i][1].ll);
+    }
+}
+
+static void s390x_write_elf64_vregshi(Note *note, S390CPU *cpu)
+{
+    int i;
+    S390xElfVregsHi *temp_vregshi;
+
+    temp_vregshi = &note->contents.vregshi;
+
+    note->hdr.n_type = cpu_to_be32(NT_S390_VXRS_HIGH);
+    for (i = 0; i <= 15; i++) {
+        temp_vregshi->vregs[i][0] = cpu_to_be64(cpu->env.vregs[i + 16][0].ll);
+        temp_vregshi->vregs[i][1] = cpu_to_be64(cpu->env.vregs[i + 16][1].ll);
+    }
+}
 
 static void s390x_write_elf64_timer(Note *note, S390CPU *cpu)
 {
@@ -134,6 +172,8 @@ static const struct NoteFuncDescStruct {
     {sizeof(((Note *)0)->contents.timer),    s390x_write_elf64_timer},
     {sizeof(((Note *)0)->contents.todcmp),   s390x_write_elf64_todcmp},
     {sizeof(((Note *)0)->contents.todpreg),  s390x_write_elf64_todpreg},
+    {sizeof(((Note *)0)->contents.vregslo),  s390x_write_elf64_vregslo},
+    {sizeof(((Note *)0)->contents.vregshi),  s390x_write_elf64_vregshi},
     { 0, NULL}
 };
 

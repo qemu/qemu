@@ -1202,6 +1202,15 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         space += CMSG_SPACE(len);
         if (space > msgh->msg_controllen) {
             space -= CMSG_SPACE(len);
+            /* This is a QEMU bug, since we allocated the payload
+             * area ourselves (unlike overflow in host-to-target
+             * conversion, which is just the guest giving us a buffer
+             * that's too small). It can't happen for the payload types
+             * we currently support; if it becomes an issue in future
+             * we would need to improve our allocation strategy to
+             * something more intelligent than "twice the size of the
+             * target buffer we're reading from".
+             */
             gemu_log("Host cmsg overflow\n");
             break;
         }
@@ -1219,17 +1228,18 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
             int *target_fd = (int *)target_data;
             int i, numfds = len / sizeof(int);
 
-            for (i = 0; i < numfds; i++)
-                fd[i] = tswap32(target_fd[i]);
+            for (i = 0; i < numfds; i++) {
+                __get_user(fd[i], target_fd + i);
+            }
         } else if (cmsg->cmsg_level == SOL_SOCKET
                &&  cmsg->cmsg_type == SCM_CREDENTIALS) {
             struct ucred *cred = (struct ucred *)data;
             struct target_ucred *target_cred =
                 (struct target_ucred *)target_data;
 
-            __put_user(target_cred->pid, &cred->pid);
-            __put_user(target_cred->uid, &cred->uid);
-            __put_user(target_cred->gid, &cred->gid);
+            __get_user(cred->pid, &target_cred->pid);
+            __get_user(cred->uid, &target_cred->uid);
+            __get_user(cred->gid, &target_cred->gid);
         } else {
             gemu_log("Unsupported ancillary data: %d/%d\n",
                                         cmsg->cmsg_level, cmsg->cmsg_type);
@@ -1267,11 +1277,16 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         void *target_data = TARGET_CMSG_DATA(target_cmsg);
 
         int len = cmsg->cmsg_len - CMSG_ALIGN(sizeof (struct cmsghdr));
+        int tgt_len, tgt_space;
 
-        space += TARGET_CMSG_SPACE(len);
-        if (space > msg_controllen) {
-            space -= TARGET_CMSG_SPACE(len);
-            gemu_log("Target cmsg overflow\n");
+        /* We never copy a half-header but may copy half-data;
+         * this is Linux's behaviour in put_cmsg(). Note that
+         * truncation here is a guest problem (which we report
+         * to the guest via the CTRUNC bit), unlike truncation
+         * in target_to_host_cmsg, which is a QEMU bug.
+         */
+        if (msg_controllen < sizeof(struct cmsghdr)) {
+            target_msgh->msg_flags |= tswap32(MSG_CTRUNC);
             break;
         }
 
@@ -1281,8 +1296,35 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
             target_cmsg->cmsg_level = tswap32(cmsg->cmsg_level);
         }
         target_cmsg->cmsg_type = tswap32(cmsg->cmsg_type);
-        target_cmsg->cmsg_len = tswapal(TARGET_CMSG_LEN(len));
 
+        tgt_len = TARGET_CMSG_LEN(len);
+
+        /* Payload types which need a different size of payload on
+         * the target must adjust tgt_len here.
+         */
+        switch (cmsg->cmsg_level) {
+        case SOL_SOCKET:
+            switch (cmsg->cmsg_type) {
+            case SO_TIMESTAMP:
+                tgt_len = sizeof(struct target_timeval);
+                break;
+            default:
+                break;
+            }
+        default:
+            break;
+        }
+
+        if (msg_controllen < tgt_len) {
+            target_msgh->msg_flags |= tswap32(MSG_CTRUNC);
+            tgt_len = msg_controllen;
+        }
+
+        /* We must now copy-and-convert len bytes of payload
+         * into tgt_len bytes of destination space. Bear in mind
+         * that in both source and destination we may be dealing
+         * with a truncated value!
+         */
         switch (cmsg->cmsg_level) {
         case SOL_SOCKET:
             switch (cmsg->cmsg_type) {
@@ -1290,10 +1332,11 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
             {
                 int *fd = (int *)data;
                 int *target_fd = (int *)target_data;
-                int i, numfds = len / sizeof(int);
+                int i, numfds = tgt_len / sizeof(int);
 
-                for (i = 0; i < numfds; i++)
-                    target_fd[i] = tswap32(fd[i]);
+                for (i = 0; i < numfds; i++) {
+                    __put_user(fd[i], target_fd + i);
+                }
                 break;
             }
             case SO_TIMESTAMP:
@@ -1302,12 +1345,14 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 struct target_timeval *target_tv =
                     (struct target_timeval *)target_data;
 
-                if (len != sizeof(struct timeval))
+                if (len != sizeof(struct timeval) ||
+                    tgt_len != sizeof(struct target_timeval)) {
                     goto unimplemented;
+                }
 
                 /* copy struct timeval to target */
-                target_tv->tv_sec = tswapal(tv->tv_sec);
-                target_tv->tv_usec = tswapal(tv->tv_usec);
+                __put_user(tv->tv_sec, &target_tv->tv_sec);
+                __put_user(tv->tv_usec, &target_tv->tv_usec);
                 break;
             }
             case SCM_CREDENTIALS:
@@ -1330,9 +1375,19 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         unimplemented:
             gemu_log("Unsupported ancillary data: %d/%d\n",
                                         cmsg->cmsg_level, cmsg->cmsg_type);
-            memcpy(target_data, data, len);
+            memcpy(target_data, data, MIN(len, tgt_len));
+            if (tgt_len > len) {
+                memset(target_data + len, 0, tgt_len - len);
+            }
         }
 
+        target_cmsg->cmsg_len = tswapal(tgt_len);
+        tgt_space = TARGET_CMSG_SPACE(tgt_len);
+        if (msg_controllen < tgt_space) {
+            tgt_space = msg_controllen;
+        }
+        msg_controllen -= tgt_space;
+        space += tgt_space;
         cmsg = CMSG_NXTHDR(msgh, cmsg);
         target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
     }
@@ -3277,6 +3332,7 @@ static abi_long do_ipc(unsigned int call, abi_long first,
 #define STRUCT_SPECIAL(name) STRUCT_ ## name,
 enum {
 #include "syscall_types.h"
+STRUCT_MAX
 };
 #undef STRUCT
 #undef STRUCT_SPECIAL
@@ -3290,7 +3346,7 @@ enum {
 typedef struct IOCTLEntry IOCTLEntry;
 
 typedef abi_long do_ioctl_fn(const IOCTLEntry *ie, uint8_t *buf_temp,
-                             int fd, abi_long cmd, abi_long arg);
+                             int fd, int cmd, abi_long arg);
 
 struct IOCTLEntry {
     int target_cmd;
@@ -3316,7 +3372,7 @@ struct IOCTLEntry {
                             / sizeof(struct fiemap_extent))
 
 static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
-                                       int fd, abi_long cmd, abi_long arg)
+                                       int fd, int cmd, abi_long arg)
 {
     /* The parameter for this ioctl is a struct fiemap followed
      * by an array of struct fiemap_extent whose size is set
@@ -3397,7 +3453,7 @@ static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
 #endif
 
 static abi_long do_ioctl_ifconf(const IOCTLEntry *ie, uint8_t *buf_temp,
-                                int fd, abi_long cmd, abi_long arg)
+                                int fd, int cmd, abi_long arg)
 {
     const argtype *arg_type = ie->arg_type;
     int target_size;
@@ -3491,7 +3547,7 @@ static abi_long do_ioctl_ifconf(const IOCTLEntry *ie, uint8_t *buf_temp,
 }
 
 static abi_long do_ioctl_dm(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
-                            abi_long cmd, abi_long arg)
+                            int cmd, abi_long arg)
 {
     void *argptr;
     struct dm_ioctl *host_dm;
@@ -3716,7 +3772,7 @@ out:
 }
 
 static abi_long do_ioctl_blkpg(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
-                               abi_long cmd, abi_long arg)
+                               int cmd, abi_long arg)
 {
     void *argptr;
     int target_size;
@@ -3769,7 +3825,7 @@ out:
 }
 
 static abi_long do_ioctl_rt(const IOCTLEntry *ie, uint8_t *buf_temp,
-                                int fd, abi_long cmd, abi_long arg)
+                                int fd, int cmd, abi_long arg)
 {
     const argtype *arg_type = ie->arg_type;
     const StructEntry *se;
@@ -3832,7 +3888,7 @@ static abi_long do_ioctl_rt(const IOCTLEntry *ie, uint8_t *buf_temp,
 }
 
 static abi_long do_ioctl_kdsigaccept(const IOCTLEntry *ie, uint8_t *buf_temp,
-                                     int fd, abi_long cmd, abi_long arg)
+                                     int fd, int cmd, abi_long arg)
 {
     int sig = target_to_host_signal(arg);
     return get_errno(ioctl(fd, ie->host_cmd, sig));
@@ -3849,7 +3905,7 @@ static IOCTLEntry ioctl_entries[] = {
 
 /* ??? Implement proper locking for ioctls.  */
 /* do_ioctl() Must return target values and target errnos. */
-static abi_long do_ioctl(int fd, abi_long cmd, abi_long arg)
+static abi_long do_ioctl(int fd, int cmd, abi_long arg)
 {
     const IOCTLEntry *ie;
     const argtype *arg_type;
@@ -4878,6 +4934,8 @@ void syscall_init(void)
     const argtype *arg_type;
     int size;
     int i;
+
+    thunk_init(STRUCT_MAX);
 
 #define STRUCT(name, ...) thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def);
 #define STRUCT_SPECIAL(name) thunk_register_struct_direct(STRUCT_ ## name, #name, &struct_ ## name ## _def);

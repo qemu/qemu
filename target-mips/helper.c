@@ -565,34 +565,30 @@ void mips_cpu_do_interrupt(CPUState *cs)
         break;
     case EXCP_EXT_INTERRUPT:
         cause = 0;
-        if (env->CP0_Cause & (1 << CP0Ca_IV))
-            offset = 0x200;
+        if (env->CP0_Cause & (1 << CP0Ca_IV)) {
+            uint32_t spacing = (env->CP0_IntCtl >> CP0IntCtl_VS) & 0x1f;
 
-        if (env->CP0_Config3 & ((1 << CP0C3_VInt) | (1 << CP0C3_VEIC))) {
-            /* Vectored Interrupts.  */
-            unsigned int spacing;
-            unsigned int vector;
-            unsigned int pending = (env->CP0_Cause & CP0Ca_IP_mask) >> 8;
+            if ((env->CP0_Status & (1 << CP0St_BEV)) || spacing == 0) {
+                offset = 0x200;
+            } else {
+                uint32_t vector = 0;
+                uint32_t pending = (env->CP0_Cause & CP0Ca_IP_mask) >> CP0Ca_IP;
 
-            pending &= env->CP0_Status >> 8;
-            /* Compute the Vector Spacing.  */
-            spacing = (env->CP0_IntCtl >> CP0IntCtl_VS) & ((1 << 6) - 1);
-            spacing <<= 5;
-
-            if (env->CP0_Config3 & (1 << CP0C3_VInt)) {
-                /* For VInt mode, the MIPS computes the vector internally.  */
-                for (vector = 7; vector > 0; vector--) {
-                    if (pending & (1 << vector)) {
-                        /* Found it.  */
-                        break;
+                if (env->CP0_Config3 & (1 << CP0C3_VEIC)) {
+                    /* For VEIC mode, the external interrupt controller feeds
+                     * the vector through the CP0Cause IP lines.  */
+                    vector = pending;
+                } else {
+                    /* Vectored Interrupts
+                     * Mask with Status.IM7-IM0 to get enabled interrupts. */
+                    pending &= (env->CP0_Status >> CP0St_IM) & 0xff;
+                    /* Find the highest-priority interrupt. */
+                    while (pending >>= 1) {
+                        vector++;
                     }
                 }
-            } else {
-                /* For VEIC mode, the external interrupt controller feeds the
-                   vector through the CP0Cause IP lines.  */
-                vector = pending;
+                offset = 0x200 + (vector * (spacing << 5));
             }
-            offset = 0x200 + vector * spacing;
         }
         goto set_EPC;
     case EXCP_LTLBL:

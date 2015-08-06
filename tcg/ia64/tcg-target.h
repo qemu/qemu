@@ -26,6 +26,8 @@
 #define TCG_TARGET_IA64 1
 
 #define TCG_TARGET_INSN_UNIT_SIZE 16
+#define TCG_TARGET_TLB_DISPLACEMENT_BITS 21
+
 typedef struct {
     uint64_t lo __attribute__((aligned(16)));
     uint64_t hi;

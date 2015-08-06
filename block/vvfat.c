@@ -30,6 +30,7 @@
 #include "migration/migration.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
 
 #ifndef S_IWGRP
 #define S_IWGRP 0
@@ -322,6 +323,7 @@ typedef struct BDRVVVFATState {
 
     int fat_type; /* 16 or 32 */
     array_t fat,directory,mapping;
+    char volume_label[11];
 
     unsigned int cluster_size;
     unsigned int sectors_per_cluster;
@@ -859,7 +861,7 @@ static int init_directories(BDRVVVFATState* s,
     {
 	direntry_t* entry=array_get_next(&(s->directory));
 	entry->attributes=0x28; /* archive | volume label */
-        memcpy(entry->name, "QEMU VVFAT ", sizeof(entry->name));
+        memcpy(entry->name, s->volume_label, sizeof(entry->name));
     }
 
     /* Now build FAT, and write back information into directory */
@@ -968,7 +970,8 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->u.fat16.signature=0x29;
     bootsector->u.fat16.id=cpu_to_le32(0xfabe1afd);
 
-    memcpy(bootsector->u.fat16.volume_label,"QEMU VVFAT ",11);
+    memcpy(bootsector->u.fat16.volume_label, s->volume_label,
+           sizeof(bootsector->u.fat16.volume_label));
     memcpy(bootsector->fat_type,(s->fat_type==12?"FAT12   ":s->fat_type==16?"FAT16   ":"FAT32   "),8);
     bootsector->magic[0]=0x55; bootsector->magic[1]=0xaa;
 
@@ -1006,6 +1009,11 @@ static QemuOptsList runtime_opts = {
             .name = "floppy",
             .type = QEMU_OPT_BOOL,
             .help = "Create a floppy rather than a hard disk image",
+        },
+        {
+            .name = "label",
+            .type = QEMU_OPT_STRING,
+            .help = "Use a volume label other than QEMU VVFAT",
         },
         {
             .name = "rw",
@@ -1059,8 +1067,8 @@ static void vvfat_parse_filename(const char *filename, QDict *options,
     /* Fill in the options QDict */
     qdict_put(options, "dir", qstring_from_str(filename));
     qdict_put(options, "fat-type", qint_from_int(fat_type));
-    qdict_put(options, "floppy", qbool_from_int(floppy));
-    qdict_put(options, "rw", qbool_from_int(rw));
+    qdict_put(options, "floppy", qbool_from_bool(floppy));
+    qdict_put(options, "rw", qbool_from_bool(rw));
 }
 
 static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
@@ -1069,7 +1077,7 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVVVFATState *s = bs->opaque;
     int cyls, heads, secs;
     bool floppy;
-    const char *dirname;
+    const char *dirname, *label;
     QemuOpts *opts;
     Error *local_err = NULL;
     int ret;
@@ -1095,6 +1103,18 @@ static int vvfat_open(BlockDriverState *bs, QDict *options, int flags,
 
     s->fat_type = qemu_opt_get_number(opts, "fat-type", 0);
     floppy = qemu_opt_get_bool(opts, "floppy", false);
+
+    memset(s->volume_label, ' ', sizeof(s->volume_label));
+    label = qemu_opt_get(opts, "label");
+    if (label) {
+        size_t label_length = strlen(label);
+        if (label_length > 11) {
+            error_setg(errp, "vvfat label cannot be longer than 11 bytes");
+            ret = -EINVAL;
+            goto fail;
+        }
+        memcpy(s->volume_label, label, label_length);
+    }
 
     if (floppy) {
         /* 1.44MB or 2.88MB floppy.  2.88MB can be FAT12 (default) or FAT16. */

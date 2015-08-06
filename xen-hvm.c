@@ -87,12 +87,6 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 #endif
 
 #define BUFFER_IO_MAX_DELAY  100
-/* Leave some slack so that hvmloader does not complain about lack of
- * memory at boot time ("Could not allocate order=0 extent").
- * Once hvmloader is modified to cope with that situation without
- * printing warning messages, QEMU_SPARE_PAGES can be removed.
- */
-#define QEMU_SPARE_PAGES 16
 
 typedef struct XenPhysmap {
     hwaddr start_addr;
@@ -250,8 +244,6 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
     unsigned long nr_pfn;
     xen_pfn_t *pfn_list;
     int i;
-    xc_domaininfo_t info;
-    unsigned long free_pages;
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
         /* RAM already populated in Xen */
@@ -274,22 +266,6 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
         pfn_list[i] = (ram_addr >> TARGET_PAGE_BITS) + i;
     }
 
-    if ((xc_domain_getinfolist(xen_xc, xen_domid, 1, &info) != 1) ||
-        (info.domain != xen_domid)) {
-        hw_error("xc_domain_getinfolist failed");
-    }
-    free_pages = info.max_pages - info.tot_pages;
-    if (free_pages > QEMU_SPARE_PAGES) {
-        free_pages -= QEMU_SPARE_PAGES;
-    } else {
-        free_pages = 0;
-    }
-    if ((free_pages < nr_pfn) &&
-        (xc_domain_setmaxmem(xen_xc, xen_domid,
-                             ((info.max_pages + nr_pfn - free_pages)
-                              << (XC_PAGE_SHIFT - 10))) < 0)) {
-        hw_error("xc_domain_setmaxmem failed");
-    }
     if (xc_domain_populate_physmap_exact(xen_xc, xen_domid, nr_pfn, 0, 0, pfn_list)) {
         hw_error("xen: failed to populate ram at " RAM_ADDR_FMT, ram_addr);
     }
@@ -488,7 +464,7 @@ static void xen_set_memory(struct MemoryListener *listener,
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
     hwaddr start_addr = section->offset_within_address_space;
     ram_addr_t size = int128_get64(section->size);
-    bool log_dirty = memory_region_is_logging(section->mr);
+    bool log_dirty = memory_region_is_logging(section->mr, DIRTY_MEMORY_VGA);
     hvmmem_type_t mem_type;
 
     if (section->mr == &ram_memory) {
@@ -646,21 +622,27 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
 }
 
 static void xen_log_start(MemoryListener *listener,
-                          MemoryRegionSection *section)
+                          MemoryRegionSection *section,
+                          int old, int new)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
 
-    xen_sync_dirty_bitmap(state, section->offset_within_address_space,
-                          int128_get64(section->size));
+    if (new & ~old & (1 << DIRTY_MEMORY_VGA)) {
+        xen_sync_dirty_bitmap(state, section->offset_within_address_space,
+                              int128_get64(section->size));
+    }
 }
 
-static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section)
+static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section,
+                         int old, int new)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
 
-    state->log_for_dirtybit = NULL;
-    /* Disable dirty bit tracking */
-    xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
+    if (old & ~new & (1 << DIRTY_MEMORY_VGA)) {
+        state->log_for_dirtybit = NULL;
+        /* Disable dirty bit tracking */
+        xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
+    }
 }
 
 static void xen_log_sync(MemoryListener *listener, MemoryRegionSection *section)

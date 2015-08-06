@@ -17,8 +17,8 @@
 
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
-#include "sysemu/kvm.h"
 #include "cpu.h"
+#include "sysemu/kvm.h"
 
 /* #define DEBUG_S390 */
 /* #define DEBUG_S390_PTE */
@@ -358,7 +358,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
     /* Convert real address -> absolute address */
     *raddr = mmu_real2abs(env, *raddr);
 
-    if (*raddr <= ram_size) {
+    if (*raddr < ram_size) {
         sk = &env->storage_keys[*raddr / TARGET_PAGE_SIZE];
         if (*flags & PAGE_READ) {
             *sk |= SK_R;

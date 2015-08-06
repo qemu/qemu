@@ -35,15 +35,15 @@ static void get_pointer(Object *obj, Visitor *v, Property *prop,
 }
 
 static void set_pointer(Object *obj, Visitor *v, Property *prop,
-                        int (*parse)(DeviceState *dev, const char *str,
-                                     void **ptr),
+                        void (*parse)(DeviceState *dev, const char *str,
+                                      void **ptr, const char *propname,
+                                      Error **errp),
                         const char *name, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Error *local_err = NULL;
     void **ptr = qdev_get_prop_ptr(dev, prop);
     char *str;
-    int ret;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
@@ -60,26 +60,38 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
         *ptr = NULL;
         return;
     }
-    ret = parse(dev, str, ptr);
-    error_set_from_qdev_prop_error(errp, ret, dev, prop, str);
+    parse(dev, str, ptr, prop->name, errp);
     g_free(str);
 }
 
 /* --- drive --- */
 
-static int parse_drive(DeviceState *dev, const char *str, void **ptr)
+static void parse_drive(DeviceState *dev, const char *str, void **ptr,
+                        const char *propname, Error **errp)
 {
     BlockBackend *blk;
 
     blk = blk_by_name(str);
     if (!blk) {
-        return -ENOENT;
+        error_setg(errp, "Property '%s.%s' can't find value '%s'",
+                   object_get_typename(OBJECT(dev)), propname, str);
+        return;
     }
     if (blk_attach_dev(blk, dev) < 0) {
-        return -EEXIST;
+        DriveInfo *dinfo = blk_legacy_dinfo(blk);
+
+        if (dinfo->type != IF_NONE) {
+            error_setg(errp, "Drive '%s' is already in use because "
+                       "it has been automatically connected to another "
+                       "device (did you need 'if=none' in the drive options?)",
+                       str);
+        } else {
+            error_setg(errp, "Drive '%s' is already in use by another device",
+                       str);
+        }
+        return;
     }
     *ptr = blk;
-    return 0;
 }
 
 static void release_drive(Object *obj, const char *name, void *opaque)
@@ -121,17 +133,21 @@ PropertyInfo qdev_prop_drive = {
 
 /* --- character device --- */
 
-static int parse_chr(DeviceState *dev, const char *str, void **ptr)
+static void parse_chr(DeviceState *dev, const char *str, void **ptr,
+                      const char *propname, Error **errp)
 {
     CharDriverState *chr = qemu_chr_find(str);
     if (chr == NULL) {
-        return -ENOENT;
+        error_setg(errp, "Property '%s.%s' can't find value '%s'",
+                   object_get_typename(OBJECT(dev)), propname, str);
+        return;
     }
     if (qemu_chr_fe_claim(chr) != 0) {
-        return -EEXIST;
+        error_setg(errp, "Property '%s.%s' can't take value '%s', it's in use",
+                  object_get_typename(OBJECT(dev)), propname, str);
+        return;
     }
     *ptr = chr;
-    return 0;
 }
 
 static void release_chr(Object *obj, const char *name, void *opaque)
@@ -326,8 +342,8 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 
     hubport = net_hub_port_find(id);
     if (!hubport) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  name, prop->info->name);
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   name, prop->info->name);
         return;
     }
     *ptr = hubport;
@@ -389,7 +405,7 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
     nd->instantiated = 1;
 }
 
-static int qdev_add_one_global(QemuOpts *opts, void *opaque)
+static int qdev_add_one_global(void *opaque, QemuOpts *opts, Error **errp)
 {
     GlobalProperty *g;
 
@@ -404,5 +420,6 @@ static int qdev_add_one_global(QemuOpts *opts, void *opaque)
 
 void qemu_add_globals(void)
 {
-    qemu_opts_foreach(qemu_find_opts("global"), qdev_add_one_global, NULL, 0);
+    qemu_opts_foreach(qemu_find_opts("global"),
+                      qdev_add_one_global, NULL, NULL);
 }

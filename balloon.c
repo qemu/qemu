@@ -24,12 +24,13 @@
  * THE SOFTWARE.
  */
 
-#include "monitor/monitor.h"
+#include "qemu-common.h"
 #include "exec/cpu-common.h"
 #include "sysemu/kvm.h"
 #include "sysemu/balloon.h"
 #include "trace.h"
 #include "qmp-commands.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 
 static QEMUBalloonEvent *balloon_event_fn;
@@ -96,7 +97,7 @@ void qmp_balloon(int64_t target, Error **errp)
     }
 
     if (target <= 0) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "target", "a size");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "target", "a size");
         return;
     }
 

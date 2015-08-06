@@ -21,7 +21,6 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "monitor/monitor.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "hw/virtio/virtio.h"
@@ -44,6 +43,8 @@
 #define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
+
+#define VIRTIO_S390_QUEUE_MAX 64
 
 static void virtio_s390_bus_new(VirtioBusState *bus, size_t bus_size,
                                 VirtIOS390Device *dev);
@@ -139,8 +140,6 @@ static void s390_virtio_device_init(VirtIOS390Device *dev,
 
     bus->dev_offs += dev_len;
 
-    dev->host_features = virtio_bus_get_vdev_features(&dev->bus,
-                                                      dev->host_features);
     s390_virtio_device_sync(dev);
     s390_virtio_reset_idx(dev);
     if (dev->qdev.hotplugged) {
@@ -354,7 +353,7 @@ static ram_addr_t s390_virtio_device_num_vq(VirtIOS390Device *dev)
     VirtIODevice *vdev = dev->vdev;
     int num_vq;
 
-    for (num_vq = 0; num_vq < VIRTIO_PCI_QUEUE_MAX; num_vq++) {
+    for (num_vq = 0; num_vq < VIRTIO_S390_QUEUE_MAX; num_vq++) {
         if (!virtio_queue_get_num(vdev, num_vq)) {
             break;
         }
@@ -433,7 +432,8 @@ void s390_virtio_device_sync(VirtIOS390Device *dev)
     cur_offs += num_vq * VIRTIO_VQCONFIG_LEN;
 
     /* Sync feature bitmap */
-    address_space_stl_le(&address_space_memory, cur_offs, dev->host_features,
+    address_space_stl_le(&address_space_memory, cur_offs,
+                         dev->vdev->host_features,
                          MEMTXATTRS_UNSPECIFIED, NULL);
 
     dev->feat_offs = cur_offs + dev->feat_len;
@@ -476,7 +476,7 @@ VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
     QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
         VirtIOS390Device *dev = (VirtIOS390Device *)kid->child;
 
-        for(i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
+        for (i = 0; i < VIRTIO_S390_QUEUE_MAX; i++) {
             if (!virtio_queue_get_addr(dev->vdev, i))
                 break;
             if (virtio_queue_get_addr(dev->vdev, i) == mem) {
@@ -528,10 +528,17 @@ static void virtio_s390_notify(DeviceState *d, uint16_t vector)
     s390_virtio_irq(0, token);
 }
 
-static unsigned virtio_s390_get_features(DeviceState *d)
+static void virtio_s390_device_plugged(DeviceState *d, Error **errp)
 {
     VirtIOS390Device *dev = to_virtio_s390_device(d);
-    return dev->host_features;
+    VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+    int n = virtio_get_num_queues(vdev);
+
+    if (n > VIRTIO_S390_QUEUE_MAX) {
+        error_setg(errp, "The nubmer of virtqueues %d "
+                   "exceeds s390 limit %d", n,
+                   VIRTIO_S390_QUEUE_MAX);
+    }
 }
 
 /**************** S390 Virtio Bus Device Descriptions *******************/
@@ -626,16 +633,10 @@ static void s390_virtio_busdev_reset(DeviceState *dev)
     virtio_reset(_dev->vdev);
 }
 
-static Property virtio_s390_properties[] = {
-    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOS390Device, host_features),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    dc->props = virtio_s390_properties;
     dc->realize = s390_virtio_busdev_realize;
     dc->bus_type = TYPE_S390_VIRTIO_BUS;
     dc->reset = s390_virtio_busdev_reset;
@@ -733,7 +734,7 @@ static void virtio_s390_bus_class_init(ObjectClass *klass, void *data)
     BusClass *bus_class = BUS_CLASS(klass);
     bus_class->max_dev = 1;
     k->notify = virtio_s390_notify;
-    k->get_features = virtio_s390_get_features;
+    k->device_plugged = virtio_s390_device_plugged;
 }
 
 static const TypeInfo virtio_s390_bus_info = {

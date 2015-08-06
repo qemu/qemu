@@ -40,6 +40,7 @@ static const VMStateDescription vmstate_vfp = {
     .name = "cpu/vfp",
     .version_id = 3,
     .minimum_version_id = 3,
+    .needed = vfp_needed,
     .fields = (VMStateField[]) {
         VMSTATE_FLOAT64_ARRAY(env.vfp.regs, ARMCPU, 64),
         /* The xregs array is a little awkward because element 1 (FPSCR)
@@ -72,6 +73,7 @@ static const VMStateDescription vmstate_iwmmxt = {
     .name = "cpu/iwmmxt",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = iwmmxt_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64_ARRAY(env.iwmmxt.regs, ARMCPU, 16),
         VMSTATE_UINT32_ARRAY(env.iwmmxt.cregs, ARMCPU, 16),
@@ -91,6 +93,7 @@ static const VMStateDescription vmstate_m = {
     .name = "cpu/m",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = m_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.v7m.other_sp, ARMCPU),
         VMSTATE_UINT32(env.v7m.vecbase, ARMCPU),
@@ -114,9 +117,43 @@ static const VMStateDescription vmstate_thumb2ee = {
     .name = "cpu/thumb2ee",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = thumb2ee_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(env.teecr, ARMCPU),
         VMSTATE_UINT32(env.teehbr, ARMCPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool pmsav7_needed(void *opaque)
+{
+    ARMCPU *cpu = opaque;
+    CPUARMState *env = &cpu->env;
+
+    return arm_feature(env, ARM_FEATURE_MPU) &&
+           arm_feature(env, ARM_FEATURE_V7);
+}
+
+static bool pmsav7_rgnr_vmstate_validate(void *opaque, int version_id)
+{
+    ARMCPU *cpu = opaque;
+
+    return cpu->env.cp15.c6_rgnr < cpu->pmsav7_dregion;
+}
+
+static const VMStateDescription vmstate_pmsav7 = {
+    .name = "cpu/pmsav7",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pmsav7_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_VARRAY_UINT32(env.pmsav7.drbar, ARMCPU, pmsav7_dregion, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(env.pmsav7.drsr, ARMCPU, pmsav7_dregion, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_VARRAY_UINT32(env.pmsav7.dracr, ARMCPU, pmsav7_dregion, 0,
+                              vmstate_info_uint32, uint32_t),
+        VMSTATE_VALIDATE("rgnr is valid", pmsav7_rgnr_vmstate_validate),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -214,7 +251,7 @@ static int cpu_post_load(void *opaque, int version_id)
     }
 
     if (kvm_enabled()) {
-        if (!write_list_to_kvmstate(cpu)) {
+        if (!write_list_to_kvmstate(cpu, KVM_PUT_FULL_STATE)) {
             return -1;
         }
         /* Note that it's OK for the TCG side not to know about
@@ -282,21 +319,12 @@ const VMStateDescription vmstate_arm_cpu = {
         VMSTATE_BOOL(powered_off, ARMCPU),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_vfp,
-            .needed = vfp_needed,
-        } , {
-            .vmsd = &vmstate_iwmmxt,
-            .needed = iwmmxt_needed,
-        } , {
-            .vmsd = &vmstate_m,
-            .needed = m_needed,
-        } , {
-            .vmsd = &vmstate_thumb2ee,
-            .needed = thumb2ee_needed,
-        } , {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_vfp,
+        &vmstate_iwmmxt,
+        &vmstate_m,
+        &vmstate_thumb2ee,
+        &vmstate_pmsav7,
+        NULL
     }
 };

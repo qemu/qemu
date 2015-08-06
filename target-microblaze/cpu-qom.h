@@ -56,8 +56,20 @@ typedef struct MicroBlazeCPUClass {
 typedef struct MicroBlazeCPU {
     /*< private >*/
     CPUState parent_obj;
-    uint32_t base_vectors;
+
     /*< public >*/
+
+    /* Microblaze Configuration Settings */
+    struct {
+        bool stackprot;
+        uint32_t base_vectors;
+        uint8_t use_fpu;
+        bool use_mmu;
+        bool dcache_writeback;
+        bool endi;
+        char *version;
+        uint8_t pvr;
+    } cfg;
 
     CPUMBState env;
 } MicroBlazeCPU;

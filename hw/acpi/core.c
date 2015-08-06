@@ -22,6 +22,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/acpi/acpi.h"
+#include "hw/nvram/fw_cfg.h"
 #include "qemu/config-file.h"
 #include "qapi/opts-visitor.h"
 #include "qapi/dealloc-visitor.h"
@@ -527,6 +528,7 @@ void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci,
     ar->tmr.timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, acpi_pm_tmr_timer, ar);
     memory_region_init_io(&ar->tmr.io, memory_region_owner(parent),
                           &acpi_pm_tmr_ops, ar, "acpi-tmr", 4);
+    memory_region_clear_global_locking(&ar->tmr.io);
     memory_region_add_subregion(parent, 8, &ar->tmr.io);
 }
 
@@ -592,14 +594,26 @@ static const MemoryRegionOps acpi_pm_cnt_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent, uint8_t s4_val)
+void acpi_pm1_cnt_init(ACPIREGS *ar, MemoryRegion *parent,
+                       bool disable_s3, bool disable_s4, uint8_t s4_val)
 {
+    FWCfgState *fw_cfg;
+
     ar->pm1.cnt.s4_val = s4_val;
     ar->wakeup.notify = acpi_notify_wakeup;
     qemu_register_wakeup_notifier(&ar->wakeup);
     memory_region_init_io(&ar->pm1.cnt.io, memory_region_owner(parent),
                           &acpi_pm_cnt_ops, ar, "acpi-cnt", 2);
     memory_region_add_subregion(parent, 4, &ar->pm1.cnt.io);
+
+    fw_cfg = fw_cfg_find();
+    if (fw_cfg) {
+        uint8_t suspend[6] = {128, 0, 0, 129, 128, 128};
+        suspend[3] = 1 | ((!disable_s3) << 7);
+        suspend[4] = s4_val | ((!disable_s4) << 7);
+
+        fw_cfg_add_file(fw_cfg, "etc/system-states", g_memdup(suspend, 6), 6);
+    }
 }
 
 void acpi_pm1_cnt_reset(ACPIREGS *ar)
@@ -664,6 +678,13 @@ uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
     }
 
     return val;
+}
+
+void acpi_send_gpe_event(ACPIREGS *ar, qemu_irq irq,
+                         AcpiGPEStatusBits status)
+{
+    ar->gpe.sts[0] |= status;
+    acpi_update_sci(ar, irq);
 }
 
 void acpi_update_sci(ACPIREGS *regs, qemu_irq irq)

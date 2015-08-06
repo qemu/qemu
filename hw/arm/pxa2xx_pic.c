@@ -232,7 +232,7 @@ static void pxa2xx_pic_cp_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
 #define REGINFO_FOR_PIC_CP(NAME, CRN) \
     { .name = NAME, .cp = 6, .crn = CRN, .crm = 0, .opc1 = 0, .opc2 = 0, \
-      .access = PL1_RW, \
+      .access = PL1_RW, .type = ARM_CP_IO, \
       .readfn = pxa2xx_pic_cp_read, .writefn = pxa2xx_pic_cp_write }
 
 static const ARMCPRegInfo pxa_pic_cp_reginfo[] = {

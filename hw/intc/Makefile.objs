@@ -11,6 +11,7 @@ common-obj-$(CONFIG_SLAVIO) += slavio_intctl.o
 common-obj-$(CONFIG_IOAPIC) += ioapic_common.o
 common-obj-$(CONFIG_ARM_GIC) += arm_gic_common.o
 common-obj-$(CONFIG_ARM_GIC) += arm_gic.o
+common-obj-$(CONFIG_ARM_GIC) += arm_gicv2m.o
 common-obj-$(CONFIG_OPENPIC) += openpic.o
 
 obj-$(CONFIG_APIC) += apic.o apic_common.o

@@ -628,8 +628,9 @@ static void virtio_scsi_set_config(VirtIODevice *vdev,
     vs->cdb_size = virtio_ldl_p(vdev, &scsiconf->cdb_size);
 }
 
-static uint32_t virtio_scsi_get_features(VirtIODevice *vdev,
-                                         uint32_t requested_features)
+static uint64_t virtio_scsi_get_features(VirtIODevice *vdev,
+                                         uint64_t requested_features,
+                                         Error **errp)
 {
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
 
@@ -830,10 +831,10 @@ void virtio_scsi_common_realize(DeviceState *dev, Error **errp,
                 sizeof(VirtIOSCSIConfig));
 
     if (s->conf.num_queues == 0 ||
-            s->conf.num_queues > VIRTIO_PCI_QUEUE_MAX - 2) {
+            s->conf.num_queues > VIRTIO_QUEUE_MAX - 2) {
         error_setg(errp, "Invalid number of queues (= %" PRIu32 "), "
                          "must be a positive integer less than %d.",
-                   s->conf.num_queues, VIRTIO_PCI_QUEUE_MAX - 2);
+                   s->conf.num_queues, VIRTIO_QUEUE_MAX - 2);
         virtio_cleanup(vdev);
         return;
     }
@@ -948,8 +949,15 @@ static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 }
 
 static Property virtio_scsi_properties[] = {
-    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOSCSI, parent_obj.conf),
-    DEFINE_VIRTIO_SCSI_FEATURES(VirtIOSCSI, host_features),
+    DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues, 1),
+    DEFINE_PROP_UINT32("max_sectors", VirtIOSCSI, parent_obj.conf.max_sectors,
+                                                  0xFFFF),
+    DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSI, parent_obj.conf.cmd_per_lun,
+                                                  128),
+    DEFINE_PROP_BIT("hotplug", VirtIOSCSI, host_features,
+                                           VIRTIO_SCSI_F_HOTPLUG, true),
+    DEFINE_PROP_BIT("param_change", VirtIOSCSI, host_features,
+                                                VIRTIO_SCSI_F_CHANGE, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

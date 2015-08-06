@@ -14,6 +14,7 @@
  */
 
 #include "qemu-common.h"
+#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
 #include "sysemu/char.h"
@@ -24,6 +25,7 @@
 #include "hw/qdev.h"
 #include "sysemu/blockdev.h"
 #include "qom/qom-qobject.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp-input-visitor.h"
 #include "hw/boards.h"
@@ -132,13 +134,13 @@ void qmp_cpu_add(int64_t id, Error **errp)
    defined in the VNC subsystem */
 VncInfo *qmp_query_vnc(Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+    error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
     return NULL;
 };
 
 VncInfo2List *qmp_query_vnc_servers(Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+    error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
     return NULL;
 };
 #endif
@@ -206,7 +208,8 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
         if (ambiguous) {
             error_setg(errp, "Path '%s' is ambiguous", path);
         } else {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                      "Device '%s' not found", path);
         }
         return NULL;
     }
@@ -226,55 +229,37 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 }
 
 /* FIXME: teach qapi about how to pass through Visitors */
-int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret)
+void qmp_qom_set(QDict *qdict, QObject **ret, Error **errp)
 {
     const char *path = qdict_get_str(qdict, "path");
     const char *property = qdict_get_str(qdict, "property");
     QObject *value = qdict_get(qdict, "value");
-    Error *local_err = NULL;
     Object *obj;
 
     obj = object_resolve_path(path, NULL);
     if (!obj) {
-        error_set(&local_err, QERR_DEVICE_NOT_FOUND, path);
-        goto out;
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", path);
+        return;
     }
 
-    object_property_set_qobject(obj, value, property, &local_err);
-
-out:
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
+    object_property_set_qobject(obj, value, property, errp);
 }
 
-int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret)
+void qmp_qom_get(QDict *qdict, QObject **ret, Error **errp)
 {
     const char *path = qdict_get_str(qdict, "path");
     const char *property = qdict_get_str(qdict, "property");
-    Error *local_err = NULL;
     Object *obj;
 
     obj = object_resolve_path(path, NULL);
     if (!obj) {
-        error_set(&local_err, QERR_DEVICE_NOT_FOUND, path);
-        goto out;
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", path);
+        return;
     }
 
-    *ret = object_property_get_qobject(obj, property, &local_err);
-
-out:
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
+    *ret = object_property_get_qobject(obj, property, errp);
 }
 
 void qmp_set_password(const char *protocol, const char *password,
@@ -292,7 +277,7 @@ void qmp_set_password(const char *protocol, const char *password,
         } else if (strcmp(connected, "keep") == 0) {
             /* nothing */
         } else {
-            error_set(errp, QERR_INVALID_PARAMETER, "connected");
+            error_setg(errp, QERR_INVALID_PARAMETER, "connected");
             return;
         }
     }
@@ -304,7 +289,7 @@ void qmp_set_password(const char *protocol, const char *password,
         rc = qemu_spice_set_passwd(password, fail_if_connected,
                                    disconnect_if_connected);
         if (rc != 0) {
-            error_set(errp, QERR_SET_PASSWD_FAILED);
+            error_setg(errp, QERR_SET_PASSWD_FAILED);
         }
         return;
     }
@@ -312,19 +297,19 @@ void qmp_set_password(const char *protocol, const char *password,
     if (strcmp(protocol, "vnc") == 0) {
         if (fail_if_connected || disconnect_if_connected) {
             /* vnc supports "connected=keep" only */
-            error_set(errp, QERR_INVALID_PARAMETER, "connected");
+            error_setg(errp, QERR_INVALID_PARAMETER, "connected");
             return;
         }
         /* Note that setting an empty password will not disable login through
          * this interface. */
         rc = vnc_display_password(NULL, password);
         if (rc < 0) {
-            error_set(errp, QERR_SET_PASSWD_FAILED);
+            error_setg(errp, QERR_SET_PASSWD_FAILED);
         }
         return;
     }
 
-    error_set(errp, QERR_INVALID_PARAMETER, "protocol");
+    error_setg(errp, QERR_INVALID_PARAMETER, "protocol");
 }
 
 void qmp_expire_password(const char *protocol, const char *whenstr,
@@ -349,7 +334,7 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
         }
         rc = qemu_spice_set_pw_expire(when);
         if (rc != 0) {
-            error_set(errp, QERR_SET_PASSWD_FAILED);
+            error_setg(errp, QERR_SET_PASSWD_FAILED);
         }
         return;
     }
@@ -357,19 +342,19 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
     if (strcmp(protocol, "vnc") == 0) {
         rc = vnc_display_pw_expire(NULL, when);
         if (rc != 0) {
-            error_set(errp, QERR_SET_PASSWD_FAILED);
+            error_setg(errp, QERR_SET_PASSWD_FAILED);
         }
         return;
     }
 
-    error_set(errp, QERR_INVALID_PARAMETER, "protocol");
+    error_setg(errp, QERR_INVALID_PARAMETER, "protocol");
 }
 
 #ifdef CONFIG_VNC
 void qmp_change_vnc_password(const char *password, Error **errp)
 {
     if (vnc_display_password(NULL, password) < 0) {
-        error_set(errp, QERR_SET_PASSWD_FAILED);
+        error_setg(errp, QERR_SET_PASSWD_FAILED);
     }
 }
 
@@ -387,7 +372,7 @@ static void qmp_change_vnc_listen(const char *target, Error **errp)
     if (opts) {
         qemu_opts_del(opts);
     }
-    opts = vnc_parse_func(target);
+    opts = vnc_parse(target, errp);
     if (!opts) {
         return;
     }
@@ -400,7 +385,7 @@ static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
 {
     if (strcmp(target, "passwd") == 0 || strcmp(target, "password") == 0) {
         if (!has_arg) {
-            error_set(errp, QERR_MISSING_PARAMETER, "password");
+            error_setg(errp, QERR_MISSING_PARAMETER, "password");
         } else {
             qmp_change_vnc_password(arg, errp);
         }
@@ -411,12 +396,12 @@ static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
 #else
 void qmp_change_vnc_password(const char *password, Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+    error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
 }
 static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
                            Error **errp)
 {
-    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+    error_setg(errp, QERR_FEATURE_DISABLED, "vnc");
 }
 #endif /* !CONFIG_VNC */
 
@@ -518,14 +503,14 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
 
     klass = object_class_by_name(typename);
     if (klass == NULL) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, typename);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", typename);
         return NULL;
     }
 
     klass = object_class_dynamic_cast(klass, TYPE_DEVICE);
     if (klass == NULL) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  "name", TYPE_DEVICE);
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "name", TYPE_DEVICE);
         return NULL;
     }
 
@@ -651,7 +636,7 @@ void object_add(const char *type, const char *id, const QDict *qdict,
         }
     }
 
-    object_property_add_child(container_get(object_get_root(), "/objects"),
+    object_property_add_child(object_get_objects_root(),
                               id, obj, &local_err);
     if (local_err) {
         goto out;
@@ -659,7 +644,7 @@ void object_add(const char *type, const char *id, const QDict *qdict,
 
     user_creatable_complete(obj, &local_err);
     if (local_err) {
-        object_property_del(container_get(object_get_root(), "/objects"),
+        object_property_del(object_get_objects_root(),
                             id, &error_abort);
         goto out;
     }
@@ -670,35 +655,25 @@ out:
     object_unref(obj);
 }
 
-int qmp_object_add(Monitor *mon, const QDict *qdict, QObject **ret)
+void qmp_object_add(QDict *qdict, QObject **ret, Error **errp)
 {
     const char *type = qdict_get_str(qdict, "qom-type");
     const char *id = qdict_get_str(qdict, "id");
     QObject *props = qdict_get(qdict, "props");
     const QDict *pdict = NULL;
-    Error *local_err = NULL;
     QmpInputVisitor *qiv;
 
     if (props) {
         pdict = qobject_to_qdict(props);
         if (!pdict) {
-            error_set(&local_err, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
-            goto out;
+            error_setg(errp, QERR_INVALID_PARAMETER_TYPE, "props", "dict");
+            return;
         }
     }
 
     qiv = qmp_input_visitor_new(props);
-    object_add(type, id, pdict, qmp_input_get_visitor(qiv), &local_err);
+    object_add(type, id, pdict, qmp_input_get_visitor(qiv), errp);
     qmp_input_visitor_cleanup(qiv);
-
-out:
-    if (local_err) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
 }
 
 void qmp_object_del(const char *id, Error **errp)
@@ -706,7 +681,7 @@ void qmp_object_del(const char *id, Error **errp)
     Object *container;
     Object *obj;
 
-    container = container_get(object_get_root(), "/objects");
+    container = object_get_objects_root();
     obj = object_resolve_path_component(container, id);
     if (!obj) {
         error_setg(errp, "object id not found");

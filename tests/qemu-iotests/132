@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+#
+# Test mirror with unmap
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import time
+import os
+import iotests
+from iotests import qemu_img, qemu_io
+
+test_img = os.path.join(iotests.test_dir, 'test.img')
+target_img = os.path.join(iotests.test_dir, 'target.img')
+
+class TestSingleDrive(iotests.QMPTestCase):
+    image_len = 2 * 1024 * 1024 # MB
+
+    def setUp(self):
+        # Write data to the image so we can compare later
+        qemu_img('create', '-f', iotests.imgfmt, test_img, str(TestSingleDrive.image_len))
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P0x5d 0 2M', test_img)
+
+        self.vm = iotests.VM().add_drive(test_img, 'discard=unmap')
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        try:
+            os.remove(target_img)
+        except OSError:
+            pass
+
+    def test_mirror_discard(self):
+        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
+                             target=target_img)
+        self.assert_qmp(result, 'return', {})
+        self.vm.hmp_qemu_io('drive0', 'discard 0 64k')
+        self.complete_and_wait('drive0')
+        self.vm.shutdown()
+        self.assertTrue(iotests.compare_images(test_img, target_img),
+                        'target image does not match source after mirroring')
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['raw', 'qcow2'])

@@ -30,6 +30,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/host-utils.h"
 #include "audio.h"
+#include "trace.h"
 
 #define AUDIO_CAP "oss"
 #include "audio_int.h"
@@ -37,6 +38,16 @@
 #if defined OSS_GETVERSION && defined SNDCTL_DSP_POLICY
 #define USE_DSP_POLICY
 #endif
+
+typedef struct OSSConf {
+    int try_mmap;
+    int nfrags;
+    int fragsize;
+    const char *devpath_out;
+    const char *devpath_in;
+    int exclusive;
+    int policy;
+} OSSConf;
 
 typedef struct OSSVoiceOut {
     HWVoiceOut hw;
@@ -47,6 +58,7 @@ typedef struct OSSVoiceOut {
     int fragsize;
     int mmapped;
     int pending;
+    OSSConf *conf;
 } OSSVoiceOut;
 
 typedef struct OSSVoiceIn {
@@ -55,27 +67,8 @@ typedef struct OSSVoiceIn {
     int fd;
     int nfrags;
     int fragsize;
+    OSSConf *conf;
 } OSSVoiceIn;
-
-static struct {
-    int try_mmap;
-    int nfrags;
-    int fragsize;
-    const char *devpath_out;
-    const char *devpath_in;
-    int debug;
-    int exclusive;
-    int policy;
-} conf = {
-    .try_mmap = 0,
-    .nfrags = 4,
-    .fragsize = 4096,
-    .devpath_out = "/dev/dsp",
-    .devpath_in = "/dev/dsp",
-    .debug = 0,
-    .exclusive = 0,
-    .policy = 5
-};
 
 struct oss_params {
     int freq;
@@ -138,18 +131,18 @@ static void oss_helper_poll_in (void *opaque)
     audio_run ("oss_poll_in");
 }
 
-static int oss_poll_out (HWVoiceOut *hw)
+static void oss_poll_out (HWVoiceOut *hw)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
 
-    return qemu_set_fd_handler (oss->fd, NULL, oss_helper_poll_out, NULL);
+    qemu_set_fd_handler (oss->fd, NULL, oss_helper_poll_out, NULL);
 }
 
-static int oss_poll_in (HWVoiceIn *hw)
+static void oss_poll_in (HWVoiceIn *hw)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
 
-    return qemu_set_fd_handler (oss->fd, oss_helper_poll_in, NULL, NULL);
+    qemu_set_fd_handler (oss->fd, oss_helper_poll_in, NULL, NULL);
 }
 
 static int oss_write (SWVoiceOut *sw, void *buf, int len)
@@ -272,18 +265,18 @@ static int oss_get_version (int fd, int *version, const char *typ)
 #endif
 
 static int oss_open (int in, struct oss_params *req,
-                     struct oss_params *obt, int *pfd)
+                     struct oss_params *obt, int *pfd, OSSConf* conf)
 {
     int fd;
-    int oflags = conf.exclusive ? O_EXCL : 0;
+    int oflags = conf->exclusive ? O_EXCL : 0;
     audio_buf_info abinfo;
     int fmt, freq, nchannels;
     int setfragment = 1;
-    const char *dspname = in ? conf.devpath_in : conf.devpath_out;
+    const char *dspname = in ? conf->devpath_in : conf->devpath_out;
     const char *typ = in ? "ADC" : "DAC";
 
     /* Kludge needed to have working mmap on Linux */
-    oflags |= conf.try_mmap ? O_RDWR : (in ? O_RDONLY : O_WRONLY);
+    oflags |= conf->try_mmap ? O_RDWR : (in ? O_RDONLY : O_WRONLY);
 
     fd = open (dspname, oflags | O_NONBLOCK);
     if (-1 == fd) {
@@ -317,20 +310,18 @@ static int oss_open (int in, struct oss_params *req,
     }
 
 #ifdef USE_DSP_POLICY
-    if (conf.policy >= 0) {
+    if (conf->policy >= 0) {
         int version;
 
         if (!oss_get_version (fd, &version, typ)) {
-            if (conf.debug) {
-                dolog ("OSS version = %#x\n", version);
-            }
+            trace_oss_version(version);
 
             if (version >= 0x040000) {
-                int policy = conf.policy;
+                int policy = conf->policy;
                 if (ioctl (fd, SNDCTL_DSP_POLICY, &policy)) {
                     oss_logerr2 (errno, typ,
                                  "Failed to set timing policy to %d\n",
-                                 conf.policy);
+                                 conf->policy);
                     goto err;
                 }
                 setfragment = 0;
@@ -458,19 +449,12 @@ static int oss_run_out (HWVoiceOut *hw, int live)
         }
 
         if (abinfo.bytes > bufsize) {
-            if (conf.debug) {
-                dolog ("warning: Invalid available size, size=%d bufsize=%d\n"
-                       "please report your OS/audio hw to av1474@comtv.ru\n",
-                       abinfo.bytes, bufsize);
-            }
+            trace_oss_invalid_available_size(abinfo.bytes, bufsize);
             abinfo.bytes = bufsize;
         }
 
         if (abinfo.bytes < 0) {
-            if (conf.debug) {
-                dolog ("warning: Invalid available size, size=%d bufsize=%d\n",
-                       abinfo.bytes, bufsize);
-            }
+            trace_oss_invalid_available_size(abinfo.bytes, bufsize);
             return 0;
         }
 
@@ -510,7 +494,8 @@ static void oss_fini_out (HWVoiceOut *hw)
     }
 }
 
-static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
+static int oss_init_out(HWVoiceOut *hw, struct audsettings *as,
+                        void *drv_opaque)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     struct oss_params req, obt;
@@ -519,16 +504,17 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
     int fd;
     audfmt_e effective_fmt;
     struct audsettings obt_as;
+    OSSConf *conf = drv_opaque;
 
     oss->fd = -1;
 
     req.fmt = aud_to_ossfmt (as->fmt, as->endianness);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
-    req.fragsize = conf.fragsize;
-    req.nfrags = conf.nfrags;
+    req.fragsize = conf->fragsize;
+    req.nfrags = conf->nfrags;
 
-    if (oss_open (0, &req, &obt, &fd)) {
+    if (oss_open (0, &req, &obt, &fd, conf)) {
         return -1;
     }
 
@@ -555,7 +541,7 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
     hw->samples = (obt.nfrags * obt.fragsize) >> hw->info.shift;
 
     oss->mmapped = 0;
-    if (conf.try_mmap) {
+    if (conf->try_mmap) {
         oss->pcm_buf = mmap (
             NULL,
             hw->samples << hw->info.shift,
@@ -615,6 +601,7 @@ static int oss_init_out (HWVoiceOut *hw, struct audsettings *as)
     }
 
     oss->fd = fd;
+    oss->conf = conf;
     return 0;
 }
 
@@ -634,7 +621,8 @@ static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
             va_end (ap);
 
             ldebug ("enabling voice\n");
-            if (poll_mode && oss_poll_out (hw)) {
+            if (poll_mode) {
+                oss_poll_out (hw);
                 poll_mode = 0;
             }
             hw->poll_mode = poll_mode;
@@ -676,7 +664,7 @@ static int oss_ctl_out (HWVoiceOut *hw, int cmd, ...)
     return 0;
 }
 
-static int oss_init_in (HWVoiceIn *hw, struct audsettings *as)
+static int oss_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
 {
     OSSVoiceIn *oss = (OSSVoiceIn *) hw;
     struct oss_params req, obt;
@@ -685,15 +673,16 @@ static int oss_init_in (HWVoiceIn *hw, struct audsettings *as)
     int fd;
     audfmt_e effective_fmt;
     struct audsettings obt_as;
+    OSSConf *conf = drv_opaque;
 
     oss->fd = -1;
 
     req.fmt = aud_to_ossfmt (as->fmt, as->endianness);
     req.freq = as->freq;
     req.nchannels = as->nchannels;
-    req.fragsize = conf.fragsize;
-    req.nfrags = conf.nfrags;
-    if (oss_open (1, &req, &obt, &fd)) {
+    req.fragsize = conf->fragsize;
+    req.nfrags = conf->nfrags;
+    if (oss_open (1, &req, &obt, &fd, conf)) {
         return -1;
     }
 
@@ -727,6 +716,7 @@ static int oss_init_in (HWVoiceIn *hw, struct audsettings *as)
     }
 
     oss->fd = fd;
+    oss->conf = conf;
     return 0;
 }
 
@@ -828,7 +818,8 @@ static int oss_ctl_in (HWVoiceIn *hw, int cmd, ...)
             poll_mode = va_arg (ap, int);
             va_end (ap);
 
-            if (poll_mode && oss_poll_in (hw)) {
+            if (poll_mode) {
+                oss_poll_in (hw);
                 poll_mode = 0;
             }
             hw->poll_mode = poll_mode;
@@ -845,71 +836,79 @@ static int oss_ctl_in (HWVoiceIn *hw, int cmd, ...)
     return 0;
 }
 
+static OSSConf glob_conf = {
+    .try_mmap = 0,
+    .nfrags = 4,
+    .fragsize = 4096,
+    .devpath_out = "/dev/dsp",
+    .devpath_in = "/dev/dsp",
+    .exclusive = 0,
+    .policy = 5
+};
+
 static void *oss_audio_init (void)
 {
-    if (access(conf.devpath_in, R_OK | W_OK) < 0 ||
-        access(conf.devpath_out, R_OK | W_OK) < 0) {
+    OSSConf *conf = g_malloc(sizeof(OSSConf));
+    *conf = glob_conf;
+
+    if (access(conf->devpath_in, R_OK | W_OK) < 0 ||
+        access(conf->devpath_out, R_OK | W_OK) < 0) {
+        g_free(conf);
         return NULL;
     }
-    return &conf;
+    return conf;
 }
 
 static void oss_audio_fini (void *opaque)
 {
-    (void) opaque;
+    g_free(opaque);
 }
 
 static struct audio_option oss_options[] = {
     {
         .name  = "FRAGSIZE",
         .tag   = AUD_OPT_INT,
-        .valp  = &conf.fragsize,
+        .valp  = &glob_conf.fragsize,
         .descr = "Fragment size in bytes"
     },
     {
         .name  = "NFRAGS",
         .tag   = AUD_OPT_INT,
-        .valp  = &conf.nfrags,
+        .valp  = &glob_conf.nfrags,
         .descr = "Number of fragments"
     },
     {
         .name  = "MMAP",
         .tag   = AUD_OPT_BOOL,
-        .valp  = &conf.try_mmap,
+        .valp  = &glob_conf.try_mmap,
         .descr = "Try using memory mapped access"
     },
     {
         .name  = "DAC_DEV",
         .tag   = AUD_OPT_STR,
-        .valp  = &conf.devpath_out,
+        .valp  = &glob_conf.devpath_out,
         .descr = "Path to DAC device"
     },
     {
         .name  = "ADC_DEV",
         .tag   = AUD_OPT_STR,
-        .valp  = &conf.devpath_in,
+        .valp  = &glob_conf.devpath_in,
         .descr = "Path to ADC device"
     },
     {
         .name  = "EXCLUSIVE",
         .tag   = AUD_OPT_BOOL,
-        .valp  = &conf.exclusive,
+        .valp  = &glob_conf.exclusive,
         .descr = "Open device in exclusive mode (vmix wont work)"
     },
 #ifdef USE_DSP_POLICY
     {
         .name  = "POLICY",
         .tag   = AUD_OPT_INT,
-        .valp  = &conf.policy,
+        .valp  = &glob_conf.policy,
         .descr = "Set the timing policy of the device, -1 to use fragment mode",
     },
 #endif
-    {
-        .name  = "DEBUG",
-        .tag   = AUD_OPT_BOOL,
-        .valp  = &conf.debug,
-        .descr = "Turn on some debugging messages"
-    },
     { /* End of list */ }
 };
 

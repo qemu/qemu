@@ -92,7 +92,7 @@ static void openrisc_cpu_initfn(Object *obj)
     static int inited;
 
     cs->env_ptr = &cpu->env;
-    cpu_exec_init(&cpu->env);
+    cpu_exec_init(cs, &error_abort);
 
 #ifndef CONFIG_USER_ONLY
     cpu_openrisc_mmu_init(cpu);

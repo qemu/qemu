@@ -32,7 +32,7 @@ ssize_t world_ingress(World *world, uint32_t pport,
         return world->ops->ig(world, pport, iov, iovcnt);
     }
 
-    return iov_size(iov, iovcnt);
+    return -1;
 }
 
 int world_do_cmd(World *world, DescInfo *info,

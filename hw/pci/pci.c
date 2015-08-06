@@ -30,6 +30,7 @@
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/loader.h"
+#include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "qmp-commands.h"
 #include "trace.h"
@@ -88,9 +89,28 @@ static void pci_bus_unrealize(BusState *qbus, Error **errp)
     vmstate_unregister(NULL, &vmstate_pcibus, bus);
 }
 
+static bool pcibus_is_root(PCIBus *bus)
+{
+    return !bus->parent_dev;
+}
+
+static int pcibus_num(PCIBus *bus)
+{
+    if (pcibus_is_root(bus)) {
+        return 0; /* pci host bridge */
+    }
+    return bus->parent_dev->config[PCI_SECONDARY_BUS];
+}
+
+static uint16_t pcibus_numa_node(PCIBus *bus)
+{
+    return NUMA_NODE_UNASSIGNED;
+}
+
 static void pci_bus_class_init(ObjectClass *klass, void *data)
 {
     BusClass *k = BUS_CLASS(klass);
+    PCIBusClass *pbc = PCI_BUS_CLASS(klass);
 
     k->print_dev = pcibus_dev_print;
     k->get_dev_path = pcibus_get_dev_path;
@@ -98,12 +118,17 @@ static void pci_bus_class_init(ObjectClass *klass, void *data)
     k->realize = pci_bus_realize;
     k->unrealize = pci_bus_unrealize;
     k->reset = pcibus_reset;
+
+    pbc->is_root = pcibus_is_root;
+    pbc->bus_num = pcibus_num;
+    pbc->numa_node = pcibus_numa_node;
 }
 
 static const TypeInfo pci_bus_info = {
     .name = TYPE_PCI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(PCIBus),
+    .class_size = sizeof(PCIBusClass),
     .class_init = pci_bus_class_init,
 };
 
@@ -123,7 +148,7 @@ static uint16_t pci_default_sub_device_id = PCI_SUBDEVICE_ID_QEMU;
 
 static QLIST_HEAD(, PCIHostState) pci_host_bridges;
 
-static int pci_bar(PCIDevice *d, int reg)
+int pci_bar(PCIDevice *d, int reg)
 {
     uint8_t type;
 
@@ -278,7 +303,10 @@ PCIBus *pci_device_root_bus(const PCIDevice *d)
 {
     PCIBus *bus = d->bus;
 
-    while ((d = bus->parent_dev) != NULL) {
+    while (!pci_bus_is_root(bus)) {
+        d = bus->parent_dev;
+        assert(d != NULL);
+
         bus = d->bus;
     }
 
@@ -291,7 +319,6 @@ const char *pci_root_bus_path(PCIDevice *dev)
     PCIHostState *host_bridge = PCI_HOST_BRIDGE(rootbus->qbus.parent);
     PCIHostBridgeClass *hc = PCI_HOST_BRIDGE_GET_CLASS(host_bridge);
 
-    assert(!rootbus->parent_dev);
     assert(host_bridge->bus == rootbus);
 
     if (hc->root_bus_path) {
@@ -325,7 +352,7 @@ bool pci_bus_is_express(PCIBus *bus)
 
 bool pci_bus_is_root(PCIBus *bus)
 {
-    return !bus->parent_dev;
+    return PCI_BUS_GET_CLASS(bus)->is_root(bus);
 }
 
 void pci_bus_new_inplace(PCIBus *bus, size_t bus_size, DeviceState *parent,
@@ -379,9 +406,12 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 
 int pci_bus_num(PCIBus *s)
 {
-    if (pci_bus_is_root(s))
-        return 0;       /* pci host bridge */
-    return s->parent_dev->config[PCI_SECONDARY_BUS];
+    return PCI_BUS_GET_CLASS(s)->bus_num(s);
+}
+
+int pci_bus_numa_node(PCIBus *bus)
+{
+    return PCI_BUS_GET_CLASS(bus)->numa_node(bus);
 }
 
 static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
@@ -398,6 +428,10 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
     for (i = 0; i < size; ++i) {
         if ((config[i] ^ s->config[i]) &
             s->cmask[i] & ~s->wmask[i] & ~s->w1cmask[i]) {
+            error_report("%s: Bad config data: i=0x%x read: %x device: %x "
+                         "cmask: %x wmask: %x w1cmask:%x", __func__,
+                         i, config[i], s->config[i],
+                         s->cmask[i], s->wmask[i], s->w1cmask[i]);
             g_free(config);
             return -EINVAL;
         }
@@ -1576,7 +1610,8 @@ PciInfoList *qmp_query_pci(Error **errp)
 
     QLIST_FOREACH(host_bridge, &pci_host_bridges, next) {
         info = g_malloc0(sizeof(*info));
-        info->value = qmp_query_pci_bus(host_bridge->bus, 0);
+        info->value = qmp_query_pci_bus(host_bridge->bus,
+                                        pci_bus_num(host_bridge->bus));
 
         /* XXX: waiting for the qapi to support GSList */
         if (!cur_item) {
@@ -1668,6 +1703,8 @@ PCIDevice *pci_vga_init(PCIBus *bus)
         return pci_create_simple(bus, -1, "VGA");
     case VGA_VMWARE:
         return pci_create_simple(bus, -1, "vmware-svga");
+    case VGA_VIRTIO:
+        return pci_create_simple(bus, -1, "virtio-vga");
     case VGA_NONE:
     default: /* Other non-PCI types. Checking for unsupported types is already
                 done in vl.c. */
@@ -1681,8 +1718,26 @@ static bool pci_secondary_bus_in_range(PCIDevice *dev, int bus_num)
 {
     return !(pci_get_word(dev->config + PCI_BRIDGE_CONTROL) &
              PCI_BRIDGE_CTL_BUS_RESET) /* Don't walk the bus if it's reset. */ &&
-        dev->config[PCI_SECONDARY_BUS] < bus_num &&
+        dev->config[PCI_SECONDARY_BUS] <= bus_num &&
         bus_num <= dev->config[PCI_SUBORDINATE_BUS];
+}
+
+/* Whether a given bus number is in a range of a root bus */
+static bool pci_root_bus_in_range(PCIBus *bus, int bus_num)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(bus->devices); ++i) {
+        PCIDevice *dev = bus->devices[i];
+
+        if (dev && PCI_DEVICE_GET_CLASS(dev)->is_bridge) {
+            if (pci_secondary_bus_in_range(dev, bus_num)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
@@ -1706,12 +1761,18 @@ static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
     /* try child bus */
     for (; bus; bus = sec) {
         QLIST_FOREACH(sec, &bus->child, sibling) {
-            assert(!pci_bus_is_root(sec));
-            if (sec->parent_dev->config[PCI_SECONDARY_BUS] == bus_num) {
+            if (pci_bus_num(sec) == bus_num) {
                 return sec;
             }
-            if (pci_secondary_bus_in_range(sec->parent_dev, bus_num)) {
-                break;
+            /* PXB buses assumed to be children of bus 0 */
+            if (pci_bus_is_root(sec)) {
+                if (pci_root_bus_in_range(sec, bus_num)) {
+                    break;
+                }
+            } else {
+                if (pci_secondary_bus_in_range(sec->parent_dev, bus_num)) {
+                    break;
+                }
             }
         }
     }
@@ -2040,12 +2101,10 @@ static void pci_del_option_rom(PCIDevice *pdev)
 }
 
 /*
- * if !offset
- * Reserve space and add capability to the linked list in pci config space
- *
  * if offset = 0,
  * Find and reserve space and add capability to the linked list
- * in pci config space */
+ * in pci config space
+ */
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size)
 {

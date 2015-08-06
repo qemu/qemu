@@ -67,11 +67,11 @@ static int glue (dsound_lock_, TYPE) (
     LPVOID *p2p,
     DWORD *blen1p,
     DWORD *blen2p,
-    int entire
+    int entire,
+    dsound *s
     )
 {
     HRESULT hr;
-    int i;
     LPVOID p1 = NULL, p2 = NULL;
     DWORD blen1 = 0, blen2 = 0;
     DWORD flag;
@@ -81,37 +81,18 @@ static int glue (dsound_lock_, TYPE) (
 #else
     flag = entire ? DSBLOCK_ENTIREBUFFER : 0;
 #endif
-    for (i = 0; i < conf.lock_retries; ++i) {
-        hr = glue (IFACE, _Lock) (
-            buf,
-            pos,
-            len,
-            &p1,
-            &blen1,
-            &p2,
-            &blen2,
-            flag
-            );
+    hr = glue(IFACE, _Lock)(buf, pos, len, &p1, &blen1, &p2, &blen2, flag);
 
-        if (FAILED (hr)) {
+    if (FAILED (hr)) {
 #ifndef DSBTYPE_IN
-            if (hr == DSERR_BUFFERLOST) {
-                if (glue (dsound_restore_, TYPE) (buf)) {
-                    dsound_logerr (hr, "Could not lock " NAME "\n");
-                    goto fail;
-                }
-                continue;
+        if (hr == DSERR_BUFFERLOST) {
+            if (glue (dsound_restore_, TYPE) (buf, s)) {
+                dsound_logerr (hr, "Could not lock " NAME "\n");
             }
-#endif
-            dsound_logerr (hr, "Could not lock " NAME "\n");
             goto fail;
         }
-
-        break;
-    }
-
-    if (i == conf.lock_retries) {
-        dolog ("%d attempts to lock " NAME " failed\n", i);
+#endif
+        dsound_logerr (hr, "Could not lock " NAME "\n");
         goto fail;
     }
 
@@ -174,16 +155,19 @@ static void dsound_fini_out (HWVoiceOut *hw)
 }
 
 #ifdef DSBTYPE_IN
-static int dsound_init_in (HWVoiceIn *hw, struct audsettings *as)
+static int dsound_init_in(HWVoiceIn *hw, struct audsettings *as,
+                          void *drv_opaque)
 #else
-static int dsound_init_out (HWVoiceOut *hw, struct audsettings *as)
+static int dsound_init_out(HWVoiceOut *hw, struct audsettings *as,
+                           void *drv_opaque)
 #endif
 {
     int err;
     HRESULT hr;
-    dsound *s = &glob_dsound;
+    dsound *s = drv_opaque;
     WAVEFORMATEX wfx;
     struct audsettings obt_as;
+    DSoundConf *conf = &s->conf;
 #ifdef DSBTYPE_IN
     const char *typ = "ADC";
     DSoundVoiceIn *ds = (DSoundVoiceIn *) hw;
@@ -210,7 +194,7 @@ static int dsound_init_out (HWVoiceOut *hw, struct audsettings *as)
     bd.dwSize = sizeof (bd);
     bd.lpwfxFormat = &wfx;
 #ifdef DSBTYPE_IN
-    bd.dwBufferBytes = conf.bufsize_in;
+    bd.dwBufferBytes = conf->bufsize_in;
     hr = IDirectSoundCapture_CreateCaptureBuffer (
         s->dsound_capture,
         &bd,
@@ -219,7 +203,7 @@ static int dsound_init_out (HWVoiceOut *hw, struct audsettings *as)
         );
 #else
     bd.dwFlags = DSBCAPS_STICKYFOCUS | DSBCAPS_GETCURRENTPOSITION2;
-    bd.dwBufferBytes = conf.bufsize_out;
+    bd.dwBufferBytes = conf->bufsize_out;
     hr = IDirectSound_CreateSoundBuffer (
         s->dsound,
         &bd,
@@ -269,6 +253,7 @@ static int dsound_init_out (HWVoiceOut *hw, struct audsettings *as)
             );
     }
     hw->samples = bc.dwBufferBytes >> hw->info.shift;
+    ds->s = s;
 
 #ifdef DEBUG_DSOUND
     dolog ("caps %ld, desc %ld\n",

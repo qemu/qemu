@@ -88,6 +88,8 @@ extern int spapr_vio_signal(VIOsPAPRDevice *dev, target_ulong mode);
 
 static inline qemu_irq spapr_vio_qirq(VIOsPAPRDevice *dev)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+
     return xics_get_qirq(spapr->icp, dev->irq);
 }
 
@@ -126,7 +128,7 @@ static inline int spapr_vio_dma_set(VIOsPAPRDevice *dev, uint64_t taddr,
 
 int spapr_vio_send_crq(VIOsPAPRDevice *dev, uint8_t *crq);
 
-VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg);
+VIOsPAPRDevice *vty_lookup(sPAPRMachineState *spapr, target_ulong reg);
 void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len);
 void spapr_vty_create(VIOsPAPRBus *bus, CharDriverState *chardev);
 void spapr_vlan_create(VIOsPAPRBus *bus, NICInfo *nd);

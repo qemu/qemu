@@ -1,5 +1,7 @@
 # -*- Mode: makefile -*-
 
+BUILD_DIR?=$(CURDIR)/..
+
 include ../config-host.mak
 include config-target.mak
 include config-devices.mak
@@ -129,11 +131,11 @@ ifdef CONFIG_SOFTMMU
 obj-y += arch_init.o cpus.o monitor.o gdbstub.o balloon.o ioport.o numa.o
 obj-y += qtest.o bootdevice.o
 obj-y += hw/
-obj-$(CONFIG_FDT) += device_tree.o
 obj-$(CONFIG_KVM) += kvm-all.o
-obj-y += memory.o savevm.o cputlb.o
+obj-y += memory.o cputlb.o
 obj-y += memory_mapping.o
 obj-y += dump.o
+obj-y += migration/ram.o migration/savevm.o
 LIBS := $(libs_softmmu) $(LIBS)
 
 # xen support

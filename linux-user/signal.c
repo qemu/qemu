@@ -2348,7 +2348,7 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 
 		/* Flush instruction space. */
 		//flush_sig_insns(current->mm, (unsigned long) &(sf->insns[0]));
-                //		tb_flush(env);
+                //		tb_flush(CPU(sparc_env_get_cpu(env)));
 	}
         unlock_user(sf, sf_addr, sizeof(struct target_signal_frame));
 	return;
@@ -4098,7 +4098,7 @@ static void save_sigregs(CPUS390XState *env, target_sigregs *sregs)
      */
     //save_fp_regs(&current->thread.fp_regs); FIXME
     for (i = 0; i < 16; i++) {
-        __put_user(env->fregs[i].ll, &sregs->fpregs.fprs[i]);
+        __put_user(get_freg(env, i)->ll, &sregs->fpregs.fprs[i]);
     }
 }
 
@@ -4239,7 +4239,7 @@ restore_sigregs(CPUS390XState *env, target_sigregs *sc)
         __get_user(env->aregs[i], &sc->regs.acrs[i]);
     }
     for (i = 0; i < 16; i++) {
-        __get_user(env->fregs[i].ll, &sc->fpregs.fprs[i]);
+        __get_user(get_freg(env, i)->ll, &sc->fpregs.fprs[i]);
     }
 
     return err;

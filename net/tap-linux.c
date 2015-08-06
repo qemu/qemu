@@ -37,7 +37,7 @@
 #define PATH_NET_TUN "/dev/net/tun"
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required)
+             int vnet_hdr_required, int mq_required, Error **errp)
 {
     struct ifreq ifr;
     int fd, ret;
@@ -46,7 +46,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
 
     TFR(fd = open(PATH_NET_TUN, O_RDWR));
     if (fd < 0) {
-        error_report("could not open %s: %m", PATH_NET_TUN);
+        error_setg_errno(errp, errno, "could not open %s", PATH_NET_TUN);
         return -1;
     }
     memset(&ifr, 0, sizeof(ifr));
@@ -70,8 +70,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         }
 
         if (vnet_hdr_required && !*vnet_hdr) {
-            error_report("vnet_hdr=1 requested, but no kernel "
-                         "support for IFF_VNET_HDR available");
+            error_setg(errp, "vnet_hdr=1 requested, but no kernel "
+                       "support for IFF_VNET_HDR available");
             close(fd);
             return -1;
         }
@@ -86,8 +86,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
 
     if (mq_required) {
         if (!(features & IFF_MULTI_QUEUE)) {
-            error_report("multiqueue required, but no kernel "
-                         "support for IFF_MULTI_QUEUE available");
+            error_setg(errp, "multiqueue required, but no kernel "
+                       "support for IFF_MULTI_QUEUE available");
             close(fd);
             return -1;
         } else {
@@ -102,9 +102,11 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     ret = ioctl(fd, TUNSETIFF, (void *) &ifr);
     if (ret != 0) {
         if (ifname[0] != '\0') {
-            error_report("could not configure %s (%s): %m", PATH_NET_TUN, ifr.ifr_name);
+            error_setg_errno(errp, errno, "could not configure %s (%s)",
+                             PATH_NET_TUN, ifr.ifr_name);
         } else {
-            error_report("could not configure %s: %m", PATH_NET_TUN);
+            error_setg_errno(errp, errno, "could not configure %s",
+                             PATH_NET_TUN);
         }
         close(fd);
         return -1;
@@ -126,7 +128,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
  */
 #define TAP_DEFAULT_SNDBUF 0
 
-int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
+void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
 {
     int sndbuf;
 
@@ -139,10 +141,8 @@ int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
     }
 
     if (ioctl(fd, TUNSETSNDBUF, &sndbuf) == -1 && tap->has_sndbuf) {
-        error_report("TUNSETSNDBUF ioctl failed: %s", strerror(errno));
-        return -1;
+        error_setg_errno(errp, errno, "TUNSETSNDBUF ioctl failed");
     }
-    return 0;
 }
 
 int tap_probe_vnet_hdr(int fd)
@@ -196,6 +196,40 @@ void tap_fd_set_vnet_hdr_len(int fd, int len)
                 strerror(errno));
         abort();
     }
+}
+
+int tap_fd_set_vnet_le(int fd, int is_le)
+{
+    int arg = is_le ? 1 : 0;
+
+    if (!ioctl(fd, TUNSETVNETLE, &arg)) {
+        return 0;
+    }
+
+    /* Check if our kernel supports TUNSETVNETLE */
+    if (errno == EINVAL) {
+        return -errno;
+    }
+
+    error_report("TUNSETVNETLE ioctl() failed: %s.\n", strerror(errno));
+    abort();
+}
+
+int tap_fd_set_vnet_be(int fd, int is_be)
+{
+    int arg = is_be ? 1 : 0;
+
+    if (!ioctl(fd, TUNSETVNETBE, &arg)) {
+        return 0;
+    }
+
+    /* Check if our kernel supports TUNSETVNETBE */
+    if (errno == EINVAL) {
+        return -errno;
+    }
+
+    error_report("TUNSETVNETBE ioctl() failed: %s.\n", strerror(errno));
+    abort();
 }
 
 void tap_fd_set_offload(int fd, int csum, int tso4,

@@ -1,6 +1,8 @@
 DEF_HELPER_3(raise_exception_err, noreturn, env, i32, int)
 DEF_HELPER_2(raise_exception, noreturn, env, i32)
 
+DEF_HELPER_1(do_semihosting, void, env)
+
 #ifdef TARGET_MIPS64
 DEF_HELPER_4(sdl, void, env, tl, tl, int)
 DEF_HELPER_4(sdr, void, env, tl, tl, int)
@@ -348,6 +350,7 @@ DEF_HELPER_1(tlbinvf, void, env)
 DEF_HELPER_1(di, tl, env)
 DEF_HELPER_1(ei, tl, env)
 DEF_HELPER_1(eret, void, env)
+DEF_HELPER_1(eretnc, void, env)
 DEF_HELPER_1(deret, void, env)
 #endif /* !CONFIG_USER_ONLY */
 DEF_HELPER_1(rdhwr_cpunum, tl, env)
@@ -931,5 +934,11 @@ DEF_HELPER_4(msa_ftint_u_df, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_ffint_s_df, void, env, i32, i32, i32)
 DEF_HELPER_4(msa_ffint_u_df, void, env, i32, i32, i32)
 
-DEF_HELPER_5(msa_ld_df, void, env, i32, i32, i32, s32)
-DEF_HELPER_5(msa_st_df, void, env, i32, i32, i32, s32)
+#define MSALDST_PROTO(type)                         \
+DEF_HELPER_3(msa_ld_ ## type, void, env, i32, tl)   \
+DEF_HELPER_3(msa_st_ ## type, void, env, i32, tl)
+MSALDST_PROTO(b)
+MSALDST_PROTO(h)
+MSALDST_PROTO(w)
+MSALDST_PROTO(d)
+#undef MSALDST_PROTO

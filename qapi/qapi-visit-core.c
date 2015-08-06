@@ -89,7 +89,7 @@ void visit_get_next_type(Visitor *v, int *obj, const int *qtypes,
     }
 }
 
-void visit_type_enum(Visitor *v, int *obj, const char *strings[],
+void visit_type_enum(Visitor *v, int *obj, const char * const strings[],
                      const char *kind, const char *name, Error **errp)
 {
     v->type_enum(v, obj, strings, kind, name, errp);
@@ -110,8 +110,8 @@ void visit_type_uint8(Visitor *v, uint8_t *obj, const char *name, Error **errp)
         value = *obj;
         v->type_int(v, &value, name, errp);
         if (value < 0 || value > UINT8_MAX) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                      "uint8_t");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "uint8_t");
             return;
         }
         *obj = value;
@@ -128,8 +128,8 @@ void visit_type_uint16(Visitor *v, uint16_t *obj, const char *name, Error **errp
         value = *obj;
         v->type_int(v, &value, name, errp);
         if (value < 0 || value > UINT16_MAX) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                      "uint16_t");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "uint16_t");
             return;
         }
         *obj = value;
@@ -146,8 +146,8 @@ void visit_type_uint32(Visitor *v, uint32_t *obj, const char *name, Error **errp
         value = *obj;
         v->type_int(v, &value, name, errp);
         if (value < 0 || value > UINT32_MAX) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                      "uint32_t");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "uint32_t");
             return;
         }
         *obj = value;
@@ -177,8 +177,8 @@ void visit_type_int8(Visitor *v, int8_t *obj, const char *name, Error **errp)
         value = *obj;
         v->type_int(v, &value, name, errp);
         if (value < INT8_MIN || value > INT8_MAX) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                      "int8_t");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "int8_t");
             return;
         }
         *obj = value;
@@ -195,8 +195,8 @@ void visit_type_int16(Visitor *v, int16_t *obj, const char *name, Error **errp)
         value = *obj;
         v->type_int(v, &value, name, errp);
         if (value < INT16_MIN || value > INT16_MAX) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                      "int16_t");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "int16_t");
             return;
         }
         *obj = value;
@@ -213,8 +213,8 @@ void visit_type_int32(Visitor *v, int32_t *obj, const char *name, Error **errp)
         value = *obj;
         v->type_int(v, &value, name, errp);
         if (value < INT32_MIN || value > INT32_MAX) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                      "int32_t");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "int32_t");
             return;
         }
         *obj = value;
@@ -260,7 +260,7 @@ void visit_type_number(Visitor *v, double *obj, const char *name, Error **errp)
     v->type_number(v, obj, name, errp);
 }
 
-void output_type_enum(Visitor *v, int *obj, const char *strings[],
+void output_type_enum(Visitor *v, int *obj, const char * const strings[],
                       const char *kind, const char *name,
                       Error **errp)
 {
@@ -271,7 +271,7 @@ void output_type_enum(Visitor *v, int *obj, const char *strings[],
     assert(strings);
     while (strings[i++] != NULL);
     if (value < 0 || value >= i - 1) {
-        error_set(errp, QERR_INVALID_PARAMETER, name ? name : "null");
+        error_setg(errp, QERR_INVALID_PARAMETER, name ? name : "null");
         return;
     }
 
@@ -279,7 +279,7 @@ void output_type_enum(Visitor *v, int *obj, const char *strings[],
     visit_type_str(v, &enum_str, name, errp);
 }
 
-void input_type_enum(Visitor *v, int *obj, const char *strings[],
+void input_type_enum(Visitor *v, int *obj, const char * const strings[],
                      const char *kind, const char *name,
                      Error **errp)
 {
@@ -303,7 +303,7 @@ void input_type_enum(Visitor *v, int *obj, const char *strings[],
     }
 
     if (strings[value] == NULL) {
-        error_set(errp, QERR_INVALID_PARAMETER, enum_str);
+        error_setg(errp, QERR_INVALID_PARAMETER, enum_str);
         g_free(enum_str);
         return;
     }

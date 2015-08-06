@@ -79,8 +79,10 @@ int aio_bh_poll(AioContext *ctx)
          * aio_notify again if necessary.
          */
         if (!bh->deleted && atomic_xchg(&bh->scheduled, 0)) {
-            if (!bh->idle)
+            /* Idle BHs and the notify BH don't count as progress */
+            if (!bh->idle && bh != ctx->notify_dummy_bh) {
                 ret = 1;
+            }
             bh->idle = 0;
             bh->cb(bh->opaque);
         }
@@ -184,6 +186,8 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 {
     AioContext *ctx = (AioContext *) source;
 
+    atomic_or(&ctx->notify_me, 1);
+
     /* We assume there is no timeout already supplied */
     *timeout = qemu_timeout_ns_to_ms(aio_compute_timeout(ctx));
 
@@ -199,6 +203,9 @@ aio_ctx_check(GSource *source)
 {
     AioContext *ctx = (AioContext *) source;
     QEMUBH *bh;
+
+    atomic_and(&ctx->notify_me, ~1);
+    aio_notify_accept(ctx);
 
     for (bh = ctx->first_bh; bh; bh = bh->next) {
         if (!bh->deleted && bh->scheduled) {
@@ -225,7 +232,21 @@ aio_ctx_finalize(GSource     *source)
 {
     AioContext *ctx = (AioContext *) source;
 
+    qemu_bh_delete(ctx->notify_dummy_bh);
     thread_pool_free(ctx->thread_pool);
+
+    qemu_mutex_lock(&ctx->bh_lock);
+    while (ctx->first_bh) {
+        QEMUBH *next = ctx->first_bh->next;
+
+        /* qemu_bh_delete() must have been called on BHs in this AioContext */
+        assert(ctx->first_bh->deleted);
+
+        g_free(ctx->first_bh);
+        ctx->first_bh = next;
+    }
+    qemu_mutex_unlock(&ctx->bh_lock);
+
     aio_set_event_notifier(ctx, &ctx->notifier, NULL);
     event_notifier_cleanup(&ctx->notifier);
     rfifolock_destroy(&ctx->lock);
@@ -254,30 +275,45 @@ ThreadPool *aio_get_thread_pool(AioContext *ctx)
     return ctx->thread_pool;
 }
 
-void aio_set_dispatching(AioContext *ctx, bool dispatching)
+void aio_notify(AioContext *ctx)
 {
-    ctx->dispatching = dispatching;
-    if (!dispatching) {
-        /* Write ctx->dispatching before reading e.g. bh->scheduled.
-         * Optimization: this is only needed when we're entering the "unsafe"
-         * phase where other threads must call event_notifier_set.
-         */
-        smp_mb();
+    /* Write e.g. bh->scheduled before reading ctx->notify_me.  Pairs
+     * with atomic_or in aio_ctx_prepare or atomic_add in aio_poll.
+     */
+    smp_mb();
+    if (ctx->notify_me) {
+        event_notifier_set(&ctx->notifier);
+        atomic_mb_set(&ctx->notified, true);
     }
 }
 
-void aio_notify(AioContext *ctx)
+void aio_notify_accept(AioContext *ctx)
 {
-    /* Write e.g. bh->scheduled before reading ctx->dispatching.  */
-    smp_mb();
-    if (!ctx->dispatching) {
-        event_notifier_set(&ctx->notifier);
+    if (atomic_xchg(&ctx->notified, false)) {
+        event_notifier_test_and_clear(&ctx->notifier);
     }
 }
 
 static void aio_timerlist_notify(void *opaque)
 {
     aio_notify(opaque);
+}
+
+static void aio_rfifolock_cb(void *opaque)
+{
+    AioContext *ctx = opaque;
+
+    /* Kick owner thread in case they are blocked in aio_poll() */
+    qemu_bh_schedule(ctx->notify_dummy_bh);
+}
+
+static void notify_dummy_bh(void *opaque)
+{
+    /* Do nothing, we were invoked just to force the event loop to iterate */
+}
+
+static void event_notifier_dummy_cb(EventNotifier *e)
+{
 }
 
 AioContext *aio_context_new(Error **errp)
@@ -294,11 +330,13 @@ AioContext *aio_context_new(Error **errp)
     g_source_set_can_recurse(&ctx->source, true);
     aio_set_event_notifier(ctx, &ctx->notifier,
                            (EventNotifierHandler *)
-                           event_notifier_test_and_clear);
+                           event_notifier_dummy_cb);
     ctx->thread_pool = NULL;
     qemu_mutex_init(&ctx->bh_lock);
-    rfifolock_init(&ctx->lock, NULL, NULL);
+    rfifolock_init(&ctx->lock, aio_rfifolock_cb, ctx);
     timerlistgroup_init(&ctx->tlg, aio_timerlist_notify, ctx);
+
+    ctx->notify_dummy_bh = aio_bh_new(ctx, notify_dummy_bh, NULL);
 
     return ctx;
 }

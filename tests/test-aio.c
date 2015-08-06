@@ -97,17 +97,8 @@ static void event_ready_cb(EventNotifier *e)
 
 /* Tests using aio_*.  */
 
-static void test_notify(void)
-{
-    g_assert(!aio_poll(ctx, false));
-    aio_notify(ctx);
-    g_assert(!aio_poll(ctx, true));
-    g_assert(!aio_poll(ctx, false));
-}
-
 typedef struct {
     QemuMutex start_lock;
-    EventNotifier notifier;
     bool thread_acquired;
 } AcquireTestData;
 
@@ -119,8 +110,6 @@ static void *test_acquire_thread(void *opaque)
     qemu_mutex_lock(&data->start_lock);
     qemu_mutex_unlock(&data->start_lock);
 
-    g_usleep(500000);
-    event_notifier_set(&data->notifier);
     aio_context_acquire(ctx);
     aio_context_release(ctx);
 
@@ -129,19 +118,20 @@ static void *test_acquire_thread(void *opaque)
     return NULL;
 }
 
-static void dummy_notifier_read(EventNotifier *n)
+static void dummy_notifier_read(EventNotifier *unused)
 {
-    event_notifier_test_and_clear(n);
+    g_assert(false); /* should never be invoked */
 }
 
 static void test_acquire(void)
 {
     QemuThread thread;
+    EventNotifier notifier;
     AcquireTestData data;
 
     /* Dummy event notifier ensures aio_poll() will block */
-    event_notifier_init(&data.notifier, false);
-    aio_set_event_notifier(ctx, &data.notifier, dummy_notifier_read);
+    event_notifier_init(&notifier, false);
+    aio_set_event_notifier(ctx, &notifier, dummy_notifier_read);
     g_assert(!aio_poll(ctx, false)); /* consume aio_notify() */
 
     qemu_mutex_init(&data.start_lock);
@@ -155,13 +145,12 @@ static void test_acquire(void)
     /* Block in aio_poll(), let other thread kick us and acquire context */
     aio_context_acquire(ctx);
     qemu_mutex_unlock(&data.start_lock); /* let the thread run */
-    g_assert(aio_poll(ctx, true));
-    g_assert(!data.thread_acquired);
+    g_assert(!aio_poll(ctx, true));
     aio_context_release(ctx);
 
     qemu_thread_join(&thread);
-    aio_set_event_notifier(ctx, &data.notifier, NULL);
-    event_notifier_cleanup(&data.notifier);
+    aio_set_event_notifier(ctx, &notifier, NULL);
+    event_notifier_cleanup(&notifier);
 
     g_assert(data.thread_acquired);
 }
@@ -334,7 +323,7 @@ static void test_wait_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 1 };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb);
-    g_assert(!aio_poll(ctx, false));
+    while (aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 1);
 
@@ -359,7 +348,7 @@ static void test_flush_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 10, .auto_set = true };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb);
-    g_assert(!aio_poll(ctx, false));
+    while (aio_poll(ctx, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 10);
 
@@ -496,14 +485,6 @@ static void test_timer_schedule(void)
  *   non-blocking loop like "while (g_main_context_iteration(NULL, false)"
  *   works well, and that's what I am using.
  */
-
-static void test_source_notify(void)
-{
-    while (g_main_context_iteration(NULL, false));
-    aio_notify(ctx);
-    g_assert(g_main_context_iteration(NULL, true));
-    g_assert(!g_main_context_iteration(NULL, false));
-}
 
 static void test_source_flush(void)
 {
@@ -672,7 +653,7 @@ static void test_source_wait_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 1 };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb);
-    g_assert(g_main_context_iteration(NULL, false));
+    while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 1);
 
@@ -697,7 +678,7 @@ static void test_source_flush_event_notifier(void)
     EventNotifierTestData data = { .n = 0, .active = 10, .auto_set = true };
     event_notifier_init(&data.e, false);
     aio_set_event_notifier(ctx, &data.e, event_ready_cb);
-    g_assert(g_main_context_iteration(NULL, false));
+    while (g_main_context_iteration(NULL, false));
     g_assert_cmpint(data.n, ==, 0);
     g_assert_cmpint(data.active, ==, 10);
 
@@ -833,7 +814,6 @@ int main(int argc, char **argv)
     while (g_main_context_iteration(NULL, false));
 
     g_test_init(&argc, &argv, NULL);
-    g_test_add_func("/aio/notify",                  test_notify);
     g_test_add_func("/aio/acquire",                 test_acquire);
     g_test_add_func("/aio/bh/schedule",             test_bh_schedule);
     g_test_add_func("/aio/bh/schedule10",           test_bh_schedule10);
@@ -848,7 +828,6 @@ int main(int argc, char **argv)
     g_test_add_func("/aio/event/flush",             test_flush_event_notifier);
     g_test_add_func("/aio/timer/schedule",          test_timer_schedule);
 
-    g_test_add_func("/aio-gsource/notify",                  test_source_notify);
     g_test_add_func("/aio-gsource/flush",                   test_source_flush);
     g_test_add_func("/aio-gsource/bh/schedule",             test_source_bh_schedule);
     g_test_add_func("/aio-gsource/bh/schedule10",           test_source_bh_schedule10);

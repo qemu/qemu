@@ -22,7 +22,7 @@
 #include "hw/pci/msix.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
-#include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "qemu/event_notifier.h"
 #include "qemu/fifo8.h"
 #include "sysemu/char.h"
@@ -698,7 +698,6 @@ static void ivshmem_write_config(PCIDevice *pci_dev, uint32_t address,
 				 uint32_t val, int len)
 {
     pci_default_write_config(pci_dev, address, val, len);
-    msix_write_config(pci_dev, address, val, len);
 }
 
 static int pci_ivshmem_init(PCIDevice *dev)

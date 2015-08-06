@@ -99,7 +99,7 @@ QEMUTimerList *timerlist_new(QEMUClockType type,
     QEMUClock *clock = qemu_clock_ptr(type);
 
     timer_list = g_malloc0(sizeof(QEMUTimerList));
-    qemu_event_init(&timer_list->timers_done_ev, false);
+    qemu_event_init(&timer_list->timers_done_ev, true);
     timer_list->clock = clock;
     timer_list->notify_cb = cb;
     timer_list->notify_opaque = opaque;
@@ -573,7 +573,7 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
         now = get_clock_realtime();
         last = clock->last;
         clock->last = now;
-        if (now < last) {
+        if (now < last || now > (last + get_max_clock_jump())) {
             notifier_list_notify(&clock->reset_notifiers, &now);
         }
         return now;

@@ -96,6 +96,20 @@ bool tpm_backend_get_tpm_established_flag(TPMBackend *s)
     return k->ops->get_tpm_established_flag(s);
 }
 
+int tpm_backend_reset_tpm_established_flag(TPMBackend *s, uint8_t locty)
+{
+    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+
+    return k->ops->reset_tpm_established_flag(s, locty);
+}
+
+TPMVersion tpm_backend_get_tpm_version(TPMBackend *s)
+{
+    TPMBackendClass *k = TPM_BACKEND_GET_CLASS(s);
+
+    return k->ops->get_tpm_version(s);
+}
+
 static bool tpm_backend_prop_get_opened(Object *obj, Error **errp)
 {
     TPMBackend *s = TPM_BACKEND(obj);
@@ -119,7 +133,7 @@ static void tpm_backend_prop_set_opened(Object *obj, bool value, Error **errp)
     }
 
     if (!value && s->opened) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, QERR_PERMISSION_DENIED);
         return;
     }
 

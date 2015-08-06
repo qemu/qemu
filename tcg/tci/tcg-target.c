@@ -782,9 +782,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out_r(s, *args++);
         }
         tcg_out_i(s, *args++);
-#ifdef CONFIG_SOFTMMU
-        tcg_out_i(s, *args);
-#endif
         break;
     case INDEX_op_qemu_st_i64:
         tcg_out_r(s, *args++);
@@ -796,9 +793,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out_r(s, *args++);
         }
         tcg_out_i(s, *args++);
-#ifdef CONFIG_SOFTMMU
-        tcg_out_i(s, *args);
-#endif
         break;
     case INDEX_op_mov_i32:  /* Always emitted via tcg_out_mov.  */
     case INDEX_op_mov_i64:

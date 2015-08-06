@@ -27,7 +27,8 @@
 
 #define XTREG(idx, ofs, bi, sz, al, no, flags, cp, typ, grp, name, \
         a1, a2, a3, a4, a5, a6) \
-    { .targno = (no), .type = (typ), .group = (grp) },
+    { .targno = (no), .type = (typ), .group = (grp), .size = (sz) },
+#define XTREG_END { .targno = -1 },
 
 #ifndef XCHAL_HAVE_DIV32
 #define XCHAL_HAVE_DIV32 0
@@ -316,6 +317,7 @@
         static XtensaConfigList node = { \
             .config = &core, \
         }; \
+        xtensa_finalize_config(&core); \
         xtensa_register_core(&node); \
     }
 #else

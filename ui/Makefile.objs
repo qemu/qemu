@@ -1,10 +1,10 @@
-vnc-obj-y += vnc.o d3des.o
+vnc-obj-y += vnc.o
 vnc-obj-y += vnc-enc-zlib.o vnc-enc-hextile.o
 vnc-obj-y += vnc-enc-tight.o vnc-palette.o
 vnc-obj-y += vnc-enc-zrle.o
 vnc-obj-$(CONFIG_VNC_TLS) += vnc-tls.o vnc-auth-vencrypt.o
 vnc-obj-$(CONFIG_VNC_SASL) += vnc-auth-sasl.o
-vnc-obj-$(CONFIG_VNC_WS) += vnc-ws.o
+vnc-obj-y += vnc-ws.o
 vnc-obj-y += vnc-jobs.o
 
 common-obj-y += keymaps.o console.o cursor.o qemu-pixman.o
@@ -30,11 +30,17 @@ sdl.mo-cflags := $(SDL_CFLAGS)
 ifeq ($(CONFIG_OPENGL),y)
 common-obj-y += shader.o
 common-obj-y += console-gl.o
+common-obj-y += egl-helpers.o
+common-obj-$(CONFIG_GTK) += gtk-egl.o
 endif
 
 gtk.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS)
+gtk-egl.o-cflags := $(GTK_CFLAGS) $(VTE_CFLAGS) $(OPENGL_CFLAGS)
 shader.o-cflags += $(OPENGL_CFLAGS)
 console-gl.o-cflags += $(OPENGL_CFLAGS)
+egl-helpers.o-cflags += $(OPENGL_CFLAGS)
 
+gtk-egl.o-libs += $(OPENGL_LIBS)
 shader.o-libs += $(OPENGL_LIBS)
 console-gl.o-libs += $(OPENGL_LIBS)
+egl-helpers.o-libs += $(OPENGL_LIBS)

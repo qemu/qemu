@@ -129,7 +129,6 @@ typedef struct DisasContext {
     uint32_t fpcr;
     struct TranslationBlock *tb;
     int singlestep_enabled;
-    int is_mem;
     TCGv_i64 mactmp;
     int done_mac;
 } DisasContext;
@@ -179,7 +178,6 @@ static inline TCGv gen_load(DisasContext * s, int opsize, TCGv addr, int sign)
 {
     TCGv tmp;
     int index = IS_USER(s);
-    s->is_mem = 1;
     tmp = tcg_temp_new_i32();
     switch(opsize) {
     case OS_BYTE:
@@ -209,7 +207,6 @@ static inline TCGv_i64 gen_load64(DisasContext * s, TCGv addr)
 {
     TCGv_i64 tmp;
     int index = IS_USER(s);
-    s->is_mem = 1;
     tmp = tcg_temp_new_i64();
     tcg_gen_qemu_ldf64(tmp, addr, index);
     gen_throws_exception = gen_last_qop;
@@ -220,7 +217,6 @@ static inline TCGv_i64 gen_load64(DisasContext * s, TCGv addr)
 static inline void gen_store(DisasContext *s, int opsize, TCGv addr, TCGv val)
 {
     int index = IS_USER(s);
-    s->is_mem = 1;
     switch(opsize) {
     case OS_BYTE:
         tcg_gen_qemu_st8(val, addr, index);
@@ -241,7 +237,6 @@ static inline void gen_store(DisasContext *s, int opsize, TCGv addr, TCGv val)
 static inline void gen_store64(DisasContext *s, TCGv addr, TCGv_i64 val)
 {
     int index = IS_USER(s);
-    s->is_mem = 1;
     tcg_gen_qemu_stf64(val, addr, index);
     gen_throws_exception = gen_last_qop;
 }
@@ -297,8 +292,7 @@ static TCGv gen_addr_index(uint16_t ext, TCGv tmp)
 
 /* Handle a base + index + displacement effective addresss.
    A NULL_QREG base means pc-relative.  */
-static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, int opsize,
-                            TCGv base)
+static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
 {
     uint32_t offset;
     uint16_t ext;
@@ -529,7 +523,7 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
         return tmp;
     case 6: /* Indirect index + displacement.  */
         reg = AREG(insn, 0);
-        return gen_lea_indexed(env, s, opsize, reg);
+        return gen_lea_indexed(env, s, reg);
     case 7: /* Other */
         switch (insn & 7) {
         case 0: /* Absolute short.  */
@@ -545,7 +539,7 @@ static TCGv gen_lea(CPUM68KState *env, DisasContext *s, uint16_t insn,
             s->pc += 2;
             return tcg_const_i32(offset);
         case 3: /* pc index+displacement.  */
-            return gen_lea_indexed(env, s, opsize, NULL_QREG);
+            return gen_lea_indexed(env, s, NULL_QREG);
         case 4: /* Immediate.  */
         default:
             return NULL_QREG;
@@ -1995,8 +1989,8 @@ DISAS_INSN(move_from_usp)
         gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
         return;
     }
-    /* TODO: Implement USP.  */
-    gen_exception(s, s->pc - 2, EXCP_ILLEGAL);
+    tcg_gen_ld_i32(AREG(insn, 0), cpu_env,
+                   offsetof(CPUM68KState, sp[M68K_USP]));
 }
 
 DISAS_INSN(move_to_usp)
@@ -2005,8 +1999,8 @@ DISAS_INSN(move_to_usp)
         gen_exception(s, s->pc - 2, EXCP_PRIVILEGE);
         return;
     }
-    /* TODO: Implement USP.  */
-    gen_exception(s, s->pc - 2, EXCP_ILLEGAL);
+    tcg_gen_st_i32(AREG(insn, 0), cpu_env,
+                   offsetof(CPUM68KState, sp[M68K_USP]));
 }
 
 DISAS_INSN(halt)
@@ -2227,7 +2221,6 @@ DISAS_INSN(fpu)
             mask = 0x80;
             for (i = 0; i < 8; i++) {
                 if (ext & mask) {
-                    s->is_mem = 1;
                     dest = FREG(i, 0);
                     if (ext & (1 << 13)) {
                         /* store */
@@ -2999,7 +2992,6 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     dc->singlestep_enabled = cs->singlestep_enabled;
     dc->fpcr = env->fpcr;
     dc->user = (env->sr & SR_S) == 0;
-    dc->is_mem = 0;
     dc->done_mac = 0;
     lj = -1;
     num_insns = 0;
@@ -3077,7 +3069,7 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(env, pc_start, dc->pc - pc_start, 0);
+        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
         qemu_log("\n");
     }
 #endif

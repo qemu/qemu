@@ -13,10 +13,21 @@
 
 #include "exec/memory.h"
 #include "hw/irq.h"
+#include "qemu/notify.h"
+#include "cpu.h"
 
 /* armv7m.c */
 qemu_irq *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
                       const char *kernel_filename, const char *cpu_model);
+
+/*
+ * struct used as a parameter of the arm_load_kernel machine init
+ * done notifier
+ */
+typedef struct {
+    Notifier notifier; /* actual notifier */
+    ARMCPU *cpu; /* handle to the first cpu object */
+} ArmLoadKernelNotifier;
 
 /* arm_boot.c */
 struct arm_boot_info {
@@ -64,6 +75,8 @@ struct arm_boot_info {
      * the user it should implement this hook.
      */
     void (*modify_dtb)(const struct arm_boot_info *info, void *fdt);
+    /* machine init done notifier executing arm_load_dtb */
+    ArmLoadKernelNotifier load_kernel_notifier;
     /* Used internally by arm_boot.c */
     int is_linux;
     hwaddr initrd_start;
@@ -75,6 +88,22 @@ struct arm_boot_info {
      */
     bool firmware_loaded;
 };
+
+/**
+ * arm_load_kernel - Loads memory with everything needed to boot
+ *
+ * @cpu: handle to the first CPU object
+ * @info: handle to the boot info struct
+ * Registers a machine init done notifier that copies to memory
+ * everything needed to boot, depending on machine and user options:
+ * kernel image, boot loaders, initrd, dtb. Also registers the CPU
+ * reset handler.
+ *
+ * In case the machine file supports the platform bus device and its
+ * dynamically instantiable sysbus devices, this function must be called
+ * before sysbus-fdt arm_register_platform_bus_fdt_creator. Indeed the
+ * machine init done notifiers are called in registration reverse order.
+ */
 void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info);
 
 /* Multiplication factor to convert from system clock ticks to qemu timer

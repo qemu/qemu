@@ -27,7 +27,8 @@
 #define XLNX_ZYNQMP(obj) OBJECT_CHECK(XlnxZynqMPState, (obj), \
                                        TYPE_XLNX_ZYNQMP)
 
-#define XLNX_ZYNQMP_NUM_CPUS 4
+#define XLNX_ZYNQMP_NUM_APU_CPUS 4
+#define XLNX_ZYNQMP_NUM_RPU_CPUS 2
 #define XLNX_ZYNQMP_NUM_GEMS 4
 #define XLNX_ZYNQMP_NUM_UARTS 2
 
@@ -47,11 +48,15 @@ typedef struct XlnxZynqMPState {
     DeviceState parent_obj;
 
     /*< public >*/
-    ARMCPU cpu[XLNX_ZYNQMP_NUM_CPUS];
+    ARMCPU apu_cpu[XLNX_ZYNQMP_NUM_APU_CPUS];
+    ARMCPU rpu_cpu[XLNX_ZYNQMP_NUM_RPU_CPUS];
     GICState gic;
     MemoryRegion gic_mr[XLNX_ZYNQMP_GIC_REGIONS][XLNX_ZYNQMP_GIC_ALIASES];
     CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];
     CadenceUARTState uart[XLNX_ZYNQMP_NUM_UARTS];
+
+    char *boot_cpu;
+    ARMCPU *boot_cpu_ptr;
 }  XlnxZynqMPState;
 
 #define XLNX_ZYNQMP_H

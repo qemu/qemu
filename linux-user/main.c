@@ -130,7 +130,7 @@ void fork_end(int child)
         pthread_cond_init(&exclusive_cond, NULL);
         pthread_cond_init(&exclusive_resume, NULL);
         pthread_mutex_init(&tcg_ctx.tb_ctx.tb_lock, NULL);
-        gdbserver_fork((CPUArchState *)thread_cpu->env_ptr);
+        gdbserver_fork(thread_cpu);
     } else {
         pthread_mutex_unlock(&exclusive_lock);
         pthread_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
@@ -215,10 +215,6 @@ void cpu_list_unlock(void)
 /***********************************************************/
 /* CPUX86 core interface */
 
-void cpu_smm_update(CPUX86State *env)
-{
-}
-
 uint64_t cpu_get_tsc(CPUX86State *env)
 {
     return cpu_get_real_ticks();
@@ -284,7 +280,7 @@ void cpu_loop(CPUX86State *env)
 
     for(;;) {
         cpu_exec_start(cs);
-        trapnr = cpu_x86_exec(env);
+        trapnr = cpu_x86_exec(cs);
         cpu_exec_end(cs);
         switch(trapnr) {
         case 0x80:
@@ -678,7 +674,7 @@ void cpu_loop(CPUARMState *env)
 
     for(;;) {
         cpu_exec_start(cs);
-        trapnr = cpu_arm_exec(env);
+        trapnr = cpu_arm_exec(cs);
         cpu_exec_end(cs);
         switch(trapnr) {
         case EXCP_UDEF:
@@ -1009,7 +1005,7 @@ void cpu_loop(CPUARMState *env)
 
     for (;;) {
         cpu_exec_start(cs);
-        trapnr = cpu_arm_exec(env);
+        trapnr = cpu_arm_exec(cs);
         cpu_exec_end(cs);
 
         switch (trapnr) {
@@ -1088,7 +1084,7 @@ void cpu_loop(CPUUniCore32State *env)
 
     for (;;) {
         cpu_exec_start(cs);
-        trapnr = uc32_cpu_exec(env);
+        trapnr = uc32_cpu_exec(cs);
         cpu_exec_end(cs);
         switch (trapnr) {
         case UC32_EXCP_PRIV:
@@ -1289,7 +1285,7 @@ void cpu_loop (CPUSPARCState *env)
 
     while (1) {
         cpu_exec_start(cs);
-        trapnr = cpu_sparc_exec (env);
+        trapnr = cpu_sparc_exec(cs);
         cpu_exec_end(cs);
 
         /* Compute PSR before exposing state.  */
@@ -1428,8 +1424,7 @@ void cpu_loop (CPUSPARCState *env)
 #ifdef TARGET_PPC
 static inline uint64_t cpu_ppc_get_tb(CPUPPCState *env)
 {
-    /* TO FIX */
-    return 0;
+    return cpu_get_real_ticks();
 }
 
 uint64_t cpu_ppc_load_tbl(CPUPPCState *env)
@@ -1570,7 +1565,7 @@ void cpu_loop(CPUPPCState *env)
 
     for(;;) {
         cpu_exec_start(cs);
-        trapnr = cpu_ppc_exec(env);
+        trapnr = cpu_ppc_exec(cs);
         cpu_exec_end(cs);
         switch(trapnr) {
         case POWERPC_EXCP_NONE:
@@ -2422,7 +2417,7 @@ void cpu_loop(CPUMIPSState *env)
 
     for(;;) {
         cpu_exec_start(cs);
-        trapnr = cpu_mips_exec(env);
+        trapnr = cpu_mips_exec(cs);
         cpu_exec_end(cs);
         switch(trapnr) {
         case EXCP_SYSCALL:
@@ -2582,7 +2577,7 @@ done_syscall:
                         code = (trap_instr >> 6) & 0x3f;
                     }
                 } else {
-                    ret = get_user_ual(trap_instr, env->active_tc.PC);
+                    ret = get_user_u32(trap_instr, env->active_tc.PC);
                     if (ret != 0) {
                         goto error;
                     }
@@ -2616,7 +2611,7 @@ done_syscall:
 
                     trap_instr = (instr[0] << 16) | instr[1];
                 } else {
-                    ret = get_user_ual(trap_instr, env->active_tc.PC);
+                    ret = get_user_u32(trap_instr, env->active_tc.PC);
                 }
 
                 if (ret != 0) {
@@ -2659,7 +2654,7 @@ void cpu_loop(CPUOpenRISCState *env)
 
     for (;;) {
         cpu_exec_start(cs);
-        trapnr = cpu_exec(env);
+        trapnr = cpu_openrisc_exec(cs);
         cpu_exec_end(cs);
         gdbsig = 0;
 
@@ -2749,7 +2744,7 @@ void cpu_loop(CPUSH4State *env)
 
     while (1) {
         cpu_exec_start(cs);
-        trapnr = cpu_sh4_exec (env);
+        trapnr = cpu_sh4_exec(cs);
         cpu_exec_end(cs);
 
         switch (trapnr) {
@@ -2811,7 +2806,7 @@ void cpu_loop(CPUCRISState *env)
     
     while (1) {
         cpu_exec_start(cs);
-        trapnr = cpu_cris_exec (env);
+        trapnr = cpu_cris_exec(cs);
         cpu_exec_end(cs);
         switch (trapnr) {
         case 0xaa:
@@ -2872,7 +2867,7 @@ void cpu_loop(CPUMBState *env)
     
     while (1) {
         cpu_exec_start(cs);
-        trapnr = cpu_mb_exec (env);
+        trapnr = cpu_mb_exec(cs);
         cpu_exec_end(cs);
         switch (trapnr) {
         case 0xaa:
@@ -2977,7 +2972,7 @@ void cpu_loop(CPUM68KState *env)
 
     for(;;) {
         cpu_exec_start(cs);
-        trapnr = cpu_m68k_exec(env);
+        trapnr = cpu_m68k_exec(cs);
         cpu_exec_end(cs);
         switch(trapnr) {
         case EXCP_ILLEGAL:
@@ -3116,7 +3111,7 @@ void cpu_loop(CPUAlphaState *env)
 
     while (1) {
         cpu_exec_start(cs);
-        trapnr = cpu_alpha_exec (env);
+        trapnr = cpu_alpha_exec(cs);
         cpu_exec_end(cs);
 
         /* All of the traps imply a transition through PALcode, which
@@ -3304,7 +3299,7 @@ void cpu_loop(CPUS390XState *env)
 
     while (1) {
         cpu_exec_start(cs);
-        trapnr = cpu_s390x_exec(env);
+        trapnr = cpu_s390x_exec(cs);
         cpu_exec_end(cs);
         switch (trapnr) {
         case EXCP_INTERRUPT:
@@ -3463,8 +3458,8 @@ CPUArchState *cpu_copy(CPUArchState *env)
     /* Clone all break/watchpoints.
        Note: Once we support ptrace with hw-debug register access, make sure
        BP_CPU break/watchpoints are handled correctly on clone. */
-    QTAILQ_INIT(&cpu->breakpoints);
-    QTAILQ_INIT(&cpu->watchpoints);
+    QTAILQ_INIT(&new_cpu->breakpoints);
+    QTAILQ_INIT(&new_cpu->watchpoints);
     QTAILQ_FOREACH(bp, &cpu->breakpoints, entry) {
         cpu_breakpoint_insert(new_cpu, bp->pc, bp->flags, NULL);
     }
@@ -3929,6 +3924,8 @@ int main(int argc, char **argv, char **envp)
 # else
         cpu_model = "750";
 # endif
+#elif defined TARGET_SH4
+        cpu_model = TYPE_SH7785_CPU;
 #else
         cpu_model = "any";
 #endif

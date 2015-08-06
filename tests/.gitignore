@@ -5,10 +5,13 @@ check-qjson
 check-qlist
 check-qstring
 check-qom-interface
+check-qom-proplist
 rcutorture
 test-aio
 test-bitops
 test-coroutine
+test-crypto-cipher
+test-crypto-hash
 test-cutils
 test-hbitmap
 test-int128

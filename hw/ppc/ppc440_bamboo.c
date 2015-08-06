@@ -159,7 +159,6 @@ static void main_cpu_reset(void *opaque)
 static void bamboo_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -184,10 +183,10 @@ static void bamboo_init(MachineState *machine)
     int i;
 
     /* Setup CPU. */
-    if (cpu_model == NULL) {
-        cpu_model = "440EP";
+    if (machine->cpu_model == NULL) {
+        machine->cpu_model = "440EP";
     }
-    cpu = cpu_ppc_init(cpu_model);
+    cpu = cpu_ppc_init(machine->cpu_model);
     if (cpu == NULL) {
         fprintf(stderr, "Unable to initialize CPU!\n");
         exit(1);

@@ -281,9 +281,6 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
     i = min_lru_index;
     trace_qcow2_cache_get_replace_entry(qemu_coroutine_self(),
                                         c == s->l2_table_cache, i);
-    if (i < 0) {
-        return i;
-    }
 
     ret = qcow2_cache_entry_flush(bs, c, i);
     if (ret < 0) {

@@ -279,30 +279,25 @@ bool aio_poll(AioContext *ctx, bool blocking)
 {
     AioHandler *node;
     HANDLE events[MAXIMUM_WAIT_OBJECTS + 1];
-    bool was_dispatching, progress, have_select_revents, first;
+    bool progress, have_select_revents, first;
     int count;
     int timeout;
 
     aio_context_acquire(ctx);
-    have_select_revents = aio_prepare(ctx);
-    if (have_select_revents) {
-        blocking = false;
-    }
-
-    was_dispatching = ctx->dispatching;
     progress = false;
 
     /* aio_notify can avoid the expensive event_notifier_set if
      * everything (file descriptors, bottom halves, timers) will
      * be re-evaluated before the next blocking poll().  This is
      * already true when aio_poll is called with blocking == false;
-     * if blocking == true, it is only true after poll() returns.
-     *
-     * If we're in a nested event loop, ctx->dispatching might be true.
-     * In that case we can restore it just before returning, but we
-     * have to clear it now.
+     * if blocking == true, it is only true after poll() returns,
+     * so disable the optimization now.
      */
-    aio_set_dispatching(ctx, !blocking);
+    if (blocking) {
+        atomic_add(&ctx->notify_me, 2);
+    }
+
+    have_select_revents = aio_prepare(ctx);
 
     ctx->walking_handlers++;
 
@@ -317,26 +312,36 @@ bool aio_poll(AioContext *ctx, bool blocking)
     ctx->walking_handlers--;
     first = true;
 
-    /* wait until next event */
-    while (count > 0) {
+    /* ctx->notifier is always registered.  */
+    assert(count > 0);
+
+    /* Multiple iterations, all of them non-blocking except the first,
+     * may be necessary to process all pending events.  After the first
+     * WaitForMultipleObjects call ctx->notify_me will be decremented.
+     */
+    do {
         HANDLE event;
         int ret;
 
-        timeout = blocking
+        timeout = blocking && !have_select_revents
             ? qemu_timeout_ns_to_ms(aio_compute_timeout(ctx)) : 0;
         if (timeout) {
             aio_context_release(ctx);
         }
         ret = WaitForMultipleObjects(count, events, FALSE, timeout);
+        if (blocking) {
+            assert(first);
+            atomic_sub(&ctx->notify_me, 2);
+        }
         if (timeout) {
             aio_context_acquire(ctx);
         }
-        aio_set_dispatching(ctx, true);
 
-        if (first && aio_bh_poll(ctx)) {
-            progress = true;
+        if (first) {
+            aio_notify_accept(ctx);
+            progress |= aio_bh_poll(ctx);
+            first = false;
         }
-        first = false;
 
         /* if we have any signaled events, dispatch event */
         event = NULL;
@@ -351,11 +356,10 @@ bool aio_poll(AioContext *ctx, bool blocking)
         blocking = false;
 
         progress |= aio_dispatch_handlers(ctx, event);
-    }
+    } while (count > 0);
 
     progress |= timerlistgroup_run_timers(&ctx->tlg);
 
-    aio_set_dispatching(ctx, was_dispatching);
     aio_context_release(ctx);
     return progress;
 }

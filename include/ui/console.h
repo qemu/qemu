@@ -5,13 +5,12 @@
 #include "qom/object.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu/notify.h"
-#include "monitor/monitor.h"
+#include "qemu/typedefs.h"
 #include "qapi-types.h"
 #include "qapi/error.h"
 
 #ifdef CONFIG_OPENGL
-# include <GLES2/gl2.h>
-# include <GLES2/gl2ext.h>
+# include <epoxy/gl.h>
 #endif
 
 /* keyboard/mouse support */
@@ -242,10 +241,6 @@ void dpy_text_resize(QemuConsole *con, int w, int h);
 void dpy_mouse_set(QemuConsole *con, int x, int y, int on);
 void dpy_cursor_define(QemuConsole *con, QEMUCursor *cursor);
 bool dpy_cursor_define_supported(QemuConsole *con);
-void dpy_gfx_update_dirty(QemuConsole *con,
-                          MemoryRegion *address_space,
-                          uint64_t base,
-                          bool invalidate);
 bool dpy_gfx_check_format(QemuConsole *con,
                           pixman_format_code_t format);
 
@@ -374,8 +369,8 @@ char *vnc_display_local_addr(const char *id);
 #ifdef CONFIG_VNC
 int vnc_display_password(const char *id, const char *password);
 int vnc_display_pw_expire(const char *id, time_t expires);
-QemuOpts *vnc_parse_func(const char *str);
-int vnc_init_func(QemuOpts *opts, void *opaque);
+QemuOpts *vnc_parse(const char *str, Error **errp);
+int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp);
 #else
 static inline int vnc_display_password(const char *id, const char *password)
 {
@@ -394,7 +389,7 @@ void curses_display_init(DisplayState *ds, int full_screen);
 int index_from_key(const char *key);
 
 /* gtk.c */
-void early_gtk_display_init(void);
+void early_gtk_display_init(int opengl);
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover);
 
 #endif

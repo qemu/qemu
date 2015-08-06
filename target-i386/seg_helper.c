@@ -1144,7 +1144,7 @@ static void handle_even_inj(CPUX86State *env, int intno, int is_int,
                             int error_code, int is_hw, int rm)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
-    uint32_t event_inj = ldl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
+    uint32_t event_inj = x86_ldl_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
                                                           control.event_inj));
 
     if (!(event_inj & SVM_EVTINJ_VALID)) {
@@ -1158,11 +1158,11 @@ static void handle_even_inj(CPUX86State *env, int intno, int is_int,
         event_inj = intno | type | SVM_EVTINJ_VALID;
         if (!rm && exception_has_error_code(intno)) {
             event_inj |= SVM_EVTINJ_VALID_ERR;
-            stl_phys(cs->as, env->vm_vmcb + offsetof(struct vmcb,
+            x86_stl_phys(cs, env->vm_vmcb + offsetof(struct vmcb,
                                              control.event_inj_err),
                      error_code);
         }
-        stl_phys(cs->as,
+        x86_stl_phys(cs,
                  env->vm_vmcb + offsetof(struct vmcb, control.event_inj),
                  event_inj);
     }
@@ -1240,11 +1240,11 @@ static void do_interrupt_all(X86CPU *cpu, int intno, int is_int,
 #if !defined(CONFIG_USER_ONLY)
     if (env->hflags & HF_SVMI_MASK) {
         CPUState *cs = CPU(cpu);
-        uint32_t event_inj = ldl_phys(cs->as, env->vm_vmcb +
+        uint32_t event_inj = x86_ldl_phys(cs, env->vm_vmcb +
                                       offsetof(struct vmcb,
                                                control.event_inj));
 
-        stl_phys(cs->as,
+        x86_stl_phys(cs,
                  env->vm_vmcb + offsetof(struct vmcb, control.event_inj),
                  event_inj & ~SVM_EVTINJ_VALID);
     }
@@ -1339,7 +1339,7 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             int intno;
             /* FIXME: this should respect TPR */
             cpu_svm_check_intercept_param(env, SVM_EXIT_VINTR, 0);
-            intno = ldl_phys(cs->as, env->vm_vmcb
+            intno = x86_ldl_phys(cs, env->vm_vmcb
                              + offsetof(struct vmcb, control.int_vector));
             qemu_log_mask(CPU_LOG_TB_IN_ASM,
                           "Servicing virtual hardware INT=0x%02x\n", intno);

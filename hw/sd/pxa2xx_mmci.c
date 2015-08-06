@@ -48,7 +48,6 @@ struct PXA2xxMMCIState {
     int resp_len;
 
     int cmdreq;
-    int ac_width;
 };
 
 #define MMC_STRPCL	0x00	/* MMC Clock Start/Stop register */
@@ -215,7 +214,7 @@ static void pxa2xx_mmci_wakequeues(PXA2xxMMCIState *s)
     pxa2xx_mmci_fifo_update(s);
 }
 
-static uint32_t pxa2xx_mmci_read(void *opaque, hwaddr offset)
+static uint64_t pxa2xx_mmci_read(void *opaque, hwaddr offset, unsigned size)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
     uint32_t ret;
@@ -257,8 +256,8 @@ static uint32_t pxa2xx_mmci_read(void *opaque, hwaddr offset)
         return 0;
     case MMC_RXFIFO:
         ret = 0;
-        while (s->ac_width -- && s->rx_len) {
-            ret |= s->rx_fifo[s->rx_start ++] << (s->ac_width << 3);
+        while (size-- && s->rx_len) {
+            ret |= s->rx_fifo[s->rx_start++] << (size << 3);
             s->rx_start &= 0x1f;
             s->rx_len --;
         }
@@ -277,7 +276,7 @@ static uint32_t pxa2xx_mmci_read(void *opaque, hwaddr offset)
 }
 
 static void pxa2xx_mmci_write(void *opaque,
-                hwaddr offset, uint32_t value)
+                              hwaddr offset, uint64_t value, unsigned size)
 {
     PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
 
@@ -370,9 +369,9 @@ static void pxa2xx_mmci_write(void *opaque,
         break;
 
     case MMC_TXFIFO:
-        while (s->ac_width -- && s->tx_len < 0x20)
+        while (size-- && s->tx_len < 0x20)
             s->tx_fifo[(s->tx_start + (s->tx_len ++)) & 0x1f] =
-                    (value >> (s->ac_width << 3)) & 0xff;
+                    (value >> (size << 3)) & 0xff;
         s->intreq &= ~INT_TXFIFO_REQ;
         pxa2xx_mmci_fifo_update(s);
         break;
@@ -386,60 +385,9 @@ static void pxa2xx_mmci_write(void *opaque,
     }
 }
 
-static uint32_t pxa2xx_mmci_readb(void *opaque, hwaddr offset)
-{
-    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
-    s->ac_width = 1;
-    return pxa2xx_mmci_read(opaque, offset);
-}
-
-static uint32_t pxa2xx_mmci_readh(void *opaque, hwaddr offset)
-{
-    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
-    s->ac_width = 2;
-    return pxa2xx_mmci_read(opaque, offset);
-}
-
-static uint32_t pxa2xx_mmci_readw(void *opaque, hwaddr offset)
-{
-    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
-    s->ac_width = 4;
-    return pxa2xx_mmci_read(opaque, offset);
-}
-
-static void pxa2xx_mmci_writeb(void *opaque,
-                hwaddr offset, uint32_t value)
-{
-    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
-    s->ac_width = 1;
-    pxa2xx_mmci_write(opaque, offset, value);
-}
-
-static void pxa2xx_mmci_writeh(void *opaque,
-                hwaddr offset, uint32_t value)
-{
-    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
-    s->ac_width = 2;
-    pxa2xx_mmci_write(opaque, offset, value);
-}
-
-static void pxa2xx_mmci_writew(void *opaque,
-                hwaddr offset, uint32_t value)
-{
-    PXA2xxMMCIState *s = (PXA2xxMMCIState *) opaque;
-    s->ac_width = 4;
-    pxa2xx_mmci_write(opaque, offset, value);
-}
-
 static const MemoryRegionOps pxa2xx_mmci_ops = {
-    .old_mmio = {
-        .read = { pxa2xx_mmci_readb,
-                  pxa2xx_mmci_readh,
-                  pxa2xx_mmci_readw, },
-        .write = { pxa2xx_mmci_writeb,
-                   pxa2xx_mmci_writeh,
-                   pxa2xx_mmci_writew, },
-    },
+    .read = pxa2xx_mmci_read,
+    .write = pxa2xx_mmci_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

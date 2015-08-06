@@ -63,16 +63,20 @@ typedef ssize_t (QEMUFileWritevBufferFunc)(void *opaque, struct iovec *iov,
 /*
  * This function provides hooks around different
  * stages of RAM migration.
+ * 'opaque' is the backend specific data in QEMUFile
+ * 'data' is call specific data associated with the 'flags' value
  */
-typedef int (QEMURamHookFunc)(QEMUFile *f, void *opaque, uint64_t flags);
+typedef int (QEMURamHookFunc)(QEMUFile *f, void *opaque, uint64_t flags,
+                              void *data);
 
 /*
  * Constants used by ram_control_* hooks
  */
-#define RAM_CONTROL_SETUP    0
-#define RAM_CONTROL_ROUND    1
-#define RAM_CONTROL_HOOK     2
-#define RAM_CONTROL_FINISH   3
+#define RAM_CONTROL_SETUP     0
+#define RAM_CONTROL_ROUND     1
+#define RAM_CONTROL_HOOK      2
+#define RAM_CONTROL_FINISH    3
+#define RAM_CONTROL_BLOCK_REG 4
 
 /*
  * This function allows override of where the RAM page
@@ -157,7 +161,7 @@ static inline void qemu_put_ubyte(QEMUFile *f, unsigned int v)
 void qemu_put_be16(QEMUFile *f, unsigned int v);
 void qemu_put_be32(QEMUFile *f, unsigned int v);
 void qemu_put_be64(QEMUFile *f, uint64_t v);
-int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset);
+int qemu_peek_buffer(QEMUFile *f, uint8_t **buf, int size, size_t offset);
 int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size);
 ssize_t qemu_put_compression_data(QEMUFile *f, const uint8_t *p, size_t size,
                                   int level);
@@ -312,4 +316,7 @@ static inline void qemu_get_sbe64s(QEMUFile *f, int64_t *pv)
 {
     qemu_get_be64s(f, (uint64_t *)pv);
 }
+
+size_t qemu_get_counted_string(QEMUFile *f, char buf[256]);
+
 #endif

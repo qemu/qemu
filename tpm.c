@@ -13,11 +13,11 @@
  */
 #include "config-host.h"
 
-#include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/tpm_backend.h"
 #include "sysemu/tpm.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "qmp-commands.h"
 
 static QLIST_HEAD(, TPMBackend) tpm_backends =
@@ -140,21 +140,21 @@ static int configure_tpm(QemuOpts *opts)
 
     id = qemu_opts_id(opts);
     if (id == NULL) {
-        qerror_report(QERR_MISSING_PARAMETER, "id");
+        error_report(QERR_MISSING_PARAMETER, "id");
         return 1;
     }
 
     value = qemu_opt_get(opts, "type");
     if (!value) {
-        qerror_report(QERR_MISSING_PARAMETER, "type");
+        error_report(QERR_MISSING_PARAMETER, "type");
         tpm_display_backend_drivers();
         return 1;
     }
 
     be = tpm_get_backend_driver(value);
     if (be == NULL) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "type",
-                      "a TPM backend type");
+        error_report(QERR_INVALID_PARAMETER_VALUE,
+                     "type", "a TPM backend type");
         tpm_display_backend_drivers();
         return 1;
     }
@@ -182,7 +182,7 @@ static int configure_tpm(QemuOpts *opts)
     return 0;
 }
 
-static int tpm_init_tpmdev(QemuOpts *opts, void *dummy)
+static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
 {
     return configure_tpm(opts);
 }
@@ -208,12 +208,11 @@ void tpm_cleanup(void)
 int tpm_init(void)
 {
     if (qemu_opts_foreach(qemu_find_opts("tpmdev"),
-                          tpm_init_tpmdev, NULL, 1) != 0) {
+                          tpm_init_tpmdev, NULL, NULL)) {
         return -1;
     }
 
     atexit(tpm_cleanup);
-
     return 0;
 }
 
@@ -229,7 +228,7 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
         tpm_display_backend_drivers();
         return -1;
     }
-    opts = qemu_opts_parse(opts_list, optarg, 1);
+    opts = qemu_opts_parse_noisily(opts_list, optarg, true);
     if (!opts) {
         return -1;
     }

@@ -1,10 +1,12 @@
 /*
  * QEMU throttling infrastructure
  *
- * Copyright (C) Nodalink, SARL. 2013
+ * Copyright (C) Nodalink, EURL. 2013-2014
+ * Copyright (C) Igalia, S.L. 2015
  *
- * Author:
- *   Benoît Canet <benoit.canet@irqsave.net>
+ * Authors:
+ *   Benoît Canet <benoit.canet@nodalink.com>
+ *   Alberto Garcia <berto@igalia.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -26,8 +28,6 @@
 #include <stdint.h>
 #include "qemu-common.h"
 #include "qemu/timer.h"
-
-#define NANOSECONDS_PER_SECOND  1000000000.0
 
 typedef enum {
     THROTTLE_BPS_TOTAL,
@@ -65,14 +65,17 @@ typedef struct ThrottleConfig {
 typedef struct ThrottleState {
     ThrottleConfig cfg;       /* configuration */
     int64_t previous_leak;    /* timestamp of the last leak done */
-    QEMUTimer * timers[2];    /* timers used to do the throttling */
+} ThrottleState;
+
+typedef struct ThrottleTimers {
+    QEMUTimer *timers[2];     /* timers used to do the throttling */
     QEMUClockType clock_type; /* the clock used */
 
     /* Callbacks */
     QEMUTimerCB *read_timer_cb;
     QEMUTimerCB *write_timer_cb;
     void *timer_opaque;
-} ThrottleState;
+} ThrottleTimers;
 
 /* operations on single leaky buckets */
 void throttle_leak_bucket(LeakyBucket *bkt, int64_t delta);
@@ -86,20 +89,23 @@ bool throttle_compute_timer(ThrottleState *ts,
                             int64_t *next_timestamp);
 
 /* init/destroy cycle */
-void throttle_init(ThrottleState *ts,
-                   AioContext *aio_context,
-                   QEMUClockType clock_type,
-                   void (read_timer)(void *),
-                   void (write_timer)(void *),
-                   void *timer_opaque);
+void throttle_init(ThrottleState *ts);
 
-void throttle_destroy(ThrottleState *ts);
+void throttle_timers_init(ThrottleTimers *tt,
+                          AioContext *aio_context,
+                          QEMUClockType clock_type,
+                          QEMUTimerCB *read_timer_cb,
+                          QEMUTimerCB *write_timer_cb,
+                          void *timer_opaque);
 
-void throttle_detach_aio_context(ThrottleState *ts);
+void throttle_timers_destroy(ThrottleTimers *tt);
 
-void throttle_attach_aio_context(ThrottleState *ts, AioContext *new_context);
+void throttle_timers_detach_aio_context(ThrottleTimers *tt);
 
-bool throttle_have_timer(ThrottleState *ts);
+void throttle_timers_attach_aio_context(ThrottleTimers *tt,
+                                        AioContext *new_context);
+
+bool throttle_timers_are_initialized(ThrottleTimers *tt);
 
 /* configuration */
 bool throttle_enabled(ThrottleConfig *cfg);
@@ -108,12 +114,16 @@ bool throttle_conflicting(ThrottleConfig *cfg);
 
 bool throttle_is_valid(ThrottleConfig *cfg);
 
-void throttle_config(ThrottleState *ts, ThrottleConfig *cfg);
+void throttle_config(ThrottleState *ts,
+                     ThrottleTimers *tt,
+                     ThrottleConfig *cfg);
 
 void throttle_get_config(ThrottleState *ts, ThrottleConfig *cfg);
 
 /* usage */
-bool throttle_schedule_timer(ThrottleState *ts, bool is_write);
+bool throttle_schedule_timer(ThrottleState *ts,
+                             ThrottleTimers *tt,
+                             bool is_write);
 
 void throttle_account(ThrottleState *ts, bool is_write, uint64_t size);
 

@@ -2,6 +2,7 @@
 # Common libraries for tools and emulators
 stub-obj-y = stubs/
 util-obj-y = util/ qobject/ qapi/ qapi-types.o qapi-visit.o qapi-event.o
+util-obj-y += crypto/
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
@@ -75,6 +76,8 @@ common-obj-y += backends/
 common-obj-$(CONFIG_SECCOMP) += qemu-seccomp.o
 
 common-obj-$(CONFIG_SMARTCARD_NSS) += $(libcacard-y)
+
+common-obj-$(CONFIG_FDT) += device_tree.o
 
 ######################################################################
 # qapi

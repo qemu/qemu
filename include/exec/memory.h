@@ -23,7 +23,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "qemu-common.h"
 #include "exec/cpu-common.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
@@ -180,6 +179,8 @@ struct MemoryRegion {
     bool rom_device;
     bool warning_printed; /* For reservations */
     bool flush_coalesced_mmio;
+    bool global_locking;
+    uint8_t vga_logging_count;
     MemoryRegion *alias;
     hwaddr alias_offset;
     int32_t priority;
@@ -206,8 +207,10 @@ struct MemoryListener {
     void (*region_add)(MemoryListener *listener, MemoryRegionSection *section);
     void (*region_del)(MemoryListener *listener, MemoryRegionSection *section);
     void (*region_nop)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*log_start)(MemoryListener *listener, MemoryRegionSection *section);
-    void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_start)(MemoryListener *listener, MemoryRegionSection *section,
+                      int old, int new);
+    void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section,
+                     int old, int new);
     void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_global_start)(MemoryListener *listener);
     void (*log_global_stop)(MemoryListener *listener);
@@ -591,11 +594,23 @@ const char *memory_region_name(const MemoryRegion *mr);
 /**
  * memory_region_is_logging: return whether a memory region is logging writes
  *
- * Returns %true if the memory region is logging writes
+ * Returns %true if the memory region is logging writes for the given client
+ *
+ * @mr: the memory region being queried
+ * @client: the client being queried
+ */
+bool memory_region_is_logging(MemoryRegion *mr, uint8_t client);
+
+/**
+ * memory_region_get_dirty_log_mask: return the clients for which a
+ * memory region is logging writes.
+ *
+ * Returns a bitmap of clients, in which the DIRTY_MEMORY_* constants
+ * are the bit indices.
  *
  * @mr: the memory region being queried
  */
-bool memory_region_is_logging(MemoryRegion *mr);
+uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr);
 
 /**
  * memory_region_is_rom: check whether a memory region is ROM
@@ -647,8 +662,7 @@ void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize,
  *
  * @mr: the memory region being updated.
  * @log: whether dirty logging is to be enabled or disabled.
- * @client: the user of the logging information; %DIRTY_MEMORY_MIGRATION or
- *          %DIRTY_MEMORY_VGA.
+ * @client: the user of the logging information; %DIRTY_MEMORY_VGA only.
  */
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client);
 
@@ -810,6 +824,31 @@ void memory_region_set_flush_coalesced(MemoryRegion *mr);
  * @mr: the memory region to be updated.
  */
 void memory_region_clear_flush_coalesced(MemoryRegion *mr);
+
+/**
+ * memory_region_set_global_locking: Declares the access processing requires
+ *                                   QEMU's global lock.
+ *
+ * When this is invoked, accesses to the memory region will be processed while
+ * holding the global lock of QEMU. This is the default behavior of memory
+ * regions.
+ *
+ * @mr: the memory region to be updated.
+ */
+void memory_region_set_global_locking(MemoryRegion *mr);
+
+/**
+ * memory_region_clear_global_locking: Declares that access processing does
+ *                                     not depend on the QEMU global lock.
+ *
+ * By clearing this property, accesses to the memory region will be processed
+ * outside of QEMU's global lock (unless the lock is held on when issuing the
+ * access request). In this case, the device model implementing the access
+ * handlers is responsible for synchronization of concurrency.
+ *
+ * @mr: the memory region to be updated.
+ */
+void memory_region_clear_global_locking(MemoryRegion *mr);
 
 /**
  * memory_region_add_eventfd: Request an eventfd to be triggered when a word

@@ -168,11 +168,11 @@ static void default_write_secondary(ARMCPU *cpu,
 static void default_reset_secondary(ARMCPU *cpu,
                                     const struct arm_boot_info *info)
 {
-    CPUARMState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
 
     address_space_stl_notdirty(&address_space_memory, info->smp_bootreg_addr,
                                0, MEMTXATTRS_UNSPECIFIED, NULL);
-    env->regs[15] = info->smp_loader_start;
+    cpu_set_pc(cs, info->smp_loader_start);
 }
 
 static inline bool have_dtb(const struct arm_boot_info *info)
@@ -445,19 +445,21 @@ fail:
 static void do_cpu_reset(void *opaque)
 {
     ARMCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
     const struct arm_boot_info *info = env->boot_info;
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
     if (info) {
         if (!info->is_linux) {
             /* Jump to the entry point.  */
-            if (env->aarch64) {
-                env->pc = info->entry;
-            } else {
-                env->regs[15] = info->entry & 0xfffffffe;
+            uint64_t entry = info->entry;
+
+            if (!env->aarch64) {
                 env->thumb = info->entry & 1;
+                entry &= 0xfffffffe;
             }
+            cpu_set_pc(cs, entry);
         } else {
             /* If we are booting Linux then we need to check whether we are
              * booting into secure or non-secure state and adjust the state
@@ -487,12 +489,8 @@ static void do_cpu_reset(void *opaque)
                 }
             }
 
-            if (CPU(cpu) == first_cpu) {
-                if (env->aarch64) {
-                    env->pc = info->loader_start;
-                } else {
-                    env->regs[15] = info->loader_start;
-                }
+            if (cs == first_cpu) {
+                cpu_set_pc(cs, info->loader_start);
 
                 if (!have_dtb(info)) {
                     if (old_param) {
@@ -557,7 +555,7 @@ static void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
     fw_cfg_add_bytes(fw_cfg, data_key, data, size);
 }
 
-void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
+static void arm_load_kernel_notify(Notifier *notifier, void *data)
 {
     CPUState *cs;
     int kernel_size;
@@ -568,15 +566,11 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
     hwaddr entry, kernel_load_offset;
     int big_endian;
     static const ARMInsnFixup *primary_loader;
-
-    /* CPU objects (unlike devices) are not automatically reset on system
-     * reset, so we must always register a handler to do so. If we're
-     * actually loading a kernel, the handler is also responsible for
-     * arranging that we start it correctly.
-     */
-    for (cs = CPU(cpu); cs; cs = CPU_NEXT(cs)) {
-        qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
-    }
+    ArmLoadKernelNotifier *n = DO_UPCAST(ArmLoadKernelNotifier,
+                                         notifier, notifier);
+    ARMCPU *cpu = n->cpu;
+    struct arm_boot_info *info =
+        container_of(n, struct arm_boot_info, load_kernel_notifier);
 
     /* Load the kernel.  */
     if (!info->kernel_filename || info->firmware_loaded) {
@@ -741,12 +735,28 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
          * we point to the kernel args.
          */
         if (have_dtb(info)) {
-            /* Place the DTB after the initrd in memory. Note that some
-             * kernels will trash anything in the 4K page the initrd
-             * ends in, so make sure the DTB isn't caught up in that.
-             */
-            hwaddr dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size,
-                                             4096);
+            hwaddr align;
+            hwaddr dtb_start;
+
+            if (elf_machine == EM_AARCH64) {
+                /*
+                 * Some AArch64 kernels on early bootup map the fdt region as
+                 *
+                 *   [ ALIGN_DOWN(fdt, 2MB) ... ALIGN_DOWN(fdt, 2MB) + 2MB ]
+                 *
+                 * Let's play safe and prealign it to 2MB to give us some space.
+                 */
+                align = 2 * 1024 * 1024;
+            } else {
+                /*
+                 * Some 32bit kernels will trash anything in the 4K page the
+                 * initrd ends in, so make sure the DTB isn't caught up in that.
+                 */
+                align = 4096;
+            }
+
+            /* Place the DTB after the initrd in memory with alignment. */
+            dtb_start = QEMU_ALIGN_UP(info->initrd_start + initrd_size, align);
             if (load_dtb(dtb_start, info, 0) < 0) {
                 exit(1);
             }
@@ -773,5 +783,23 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
 
     for (cs = CPU(cpu); cs; cs = CPU_NEXT(cs)) {
         ARM_CPU(cs)->env.boot_info = info;
+    }
+}
+
+void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
+{
+    CPUState *cs;
+
+    info->load_kernel_notifier.cpu = cpu;
+    info->load_kernel_notifier.notifier.notify = arm_load_kernel_notify;
+    qemu_add_machine_init_done_notifier(&info->load_kernel_notifier.notifier);
+
+    /* CPU objects (unlike devices) are not automatically reset on system
+     * reset, so we must always register a handler to do so. If we're
+     * actually loading a kernel, the handler is also responsible for
+     * arranging that we start it correctly.
+     */
+    for (cs = CPU(cpu); cs; cs = CPU_NEXT(cs)) {
+        qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
     }
 }

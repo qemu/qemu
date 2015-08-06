@@ -54,63 +54,67 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 #define HELPER_LOG(x...)
 #endif
 
+/* Reduce the length so that addr + len doesn't cross a page boundary.  */
+static inline uint64_t adj_len_to_page(uint64_t len, uint64_t addr)
+{
 #ifndef CONFIG_USER_ONLY
-static void mvc_fast_memset(CPUS390XState *env, uint32_t l, uint64_t dest,
-                            uint8_t byte)
-{
-    S390CPU *cpu = s390_env_get_cpu(env);
-    hwaddr dest_phys;
-    hwaddr len = l;
-    void *dest_p;
-    uint64_t asc = env->psw.mask & PSW_MASK_ASC;
-    int flags;
-
-    if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags, true)) {
-        cpu_stb_data(env, dest, byte);
-        cpu_abort(CPU(cpu), "should never reach here");
+    if ((addr & ~TARGET_PAGE_MASK) + len - 1 >= TARGET_PAGE_SIZE) {
+        return -addr & ~TARGET_PAGE_MASK;
     }
-    dest_phys |= dest & ~TARGET_PAGE_MASK;
-
-    dest_p = cpu_physical_memory_map(dest_phys, &len, 1);
-
-    memset(dest_p, byte, len);
-
-    cpu_physical_memory_unmap(dest_p, 1, len, len);
-}
-
-static void mvc_fast_memmove(CPUS390XState *env, uint32_t l, uint64_t dest,
-                             uint64_t src)
-{
-    S390CPU *cpu = s390_env_get_cpu(env);
-    hwaddr dest_phys;
-    hwaddr src_phys;
-    hwaddr len = l;
-    void *dest_p;
-    void *src_p;
-    uint64_t asc = env->psw.mask & PSW_MASK_ASC;
-    int flags;
-
-    if (mmu_translate(env, dest, 1, asc, &dest_phys, &flags, true)) {
-        cpu_stb_data(env, dest, 0);
-        cpu_abort(CPU(cpu), "should never reach here");
-    }
-    dest_phys |= dest & ~TARGET_PAGE_MASK;
-
-    if (mmu_translate(env, src, 0, asc, &src_phys, &flags, true)) {
-        cpu_ldub_data(env, src);
-        cpu_abort(CPU(cpu), "should never reach here");
-    }
-    src_phys |= src & ~TARGET_PAGE_MASK;
-
-    dest_p = cpu_physical_memory_map(dest_phys, &len, 1);
-    src_p = cpu_physical_memory_map(src_phys, &len, 0);
-
-    memmove(dest_p, src_p, len);
-
-    cpu_physical_memory_unmap(dest_p, 1, len, len);
-    cpu_physical_memory_unmap(src_p, 0, len, len);
-}
 #endif
+    return len;
+}
+
+static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
+                        uint32_t l)
+{
+    int mmu_idx = cpu_mmu_index(env);
+
+    while (l > 0) {
+        void *p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, mmu_idx);
+        if (p) {
+            /* Access to the whole page in write mode granted.  */
+            int l_adj = adj_len_to_page(l, dest);
+            memset(p, byte, l_adj);
+            dest += l_adj;
+            l -= l_adj;
+        } else {
+            /* We failed to get access to the whole page. The next write
+               access will likely fill the QEMU TLB for the next iteration.  */
+            cpu_stb_data(env, dest, byte);
+            dest++;
+            l--;
+        }
+    }
+}
+
+static void fast_memmove(CPUS390XState *env, uint64_t dest, uint64_t src,
+                         uint32_t l)
+{
+    int mmu_idx = cpu_mmu_index(env);
+
+    while (l > 0) {
+        void *src_p = tlb_vaddr_to_host(env, src, MMU_DATA_LOAD, mmu_idx);
+        void *dest_p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, mmu_idx);
+        if (src_p && dest_p) {
+            /* Access to both whole pages granted.  */
+            int l_adj = adj_len_to_page(l, src);
+            l_adj = adj_len_to_page(l_adj, dest);
+            memmove(dest_p, src_p, l_adj);
+            src += l_adj;
+            dest += l_adj;
+            l -= l_adj;
+        } else {
+            /* We failed to get access to one or both whole pages. The next
+               read or write access will likely fill the QEMU TLB for the
+               next iteration.  */
+            cpu_stb_data(env, dest, cpu_ldub_data(env, src));
+            src++;
+            dest++;
+            l--;
+        }
+    }
+}
 
 /* and on array */
 uint32_t HELPER(nc)(CPUS390XState *env, uint32_t l, uint64_t dest,
@@ -143,19 +147,11 @@ uint32_t HELPER(xc)(CPUS390XState *env, uint32_t l, uint64_t dest,
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
                __func__, l, dest, src);
 
-#ifndef CONFIG_USER_ONLY
     /* xor with itself is the same as memset(0) */
-    if ((l > 32) && (src == dest) &&
-        (src & TARGET_PAGE_MASK) == ((src + l) & TARGET_PAGE_MASK)) {
-        mvc_fast_memset(env, l + 1, dest, 0);
-        return 0;
-    }
-#else
     if (src == dest) {
-        memset(g2h(dest), 0, l + 1);
+        fast_memset(env, dest, 0, l + 1);
         return 0;
     }
-#endif
 
     for (i = 0; i <= l; i++) {
         x = cpu_ldub_data(env, dest + i) ^ cpu_ldub_data(env, src + i);
@@ -191,44 +187,25 @@ uint32_t HELPER(oc)(CPUS390XState *env, uint32_t l, uint64_t dest,
 void HELPER(mvc)(CPUS390XState *env, uint32_t l, uint64_t dest, uint64_t src)
 {
     int i = 0;
-    int x = 0;
-    uint32_t l_64 = (l + 1) / 8;
 
     HELPER_LOG("%s l %d dest %" PRIx64 " src %" PRIx64 "\n",
                __func__, l, dest, src);
 
-#ifndef CONFIG_USER_ONLY
-    if ((l > 32) &&
-        (src & TARGET_PAGE_MASK) == ((src + l) & TARGET_PAGE_MASK) &&
-        (dest & TARGET_PAGE_MASK) == ((dest + l) & TARGET_PAGE_MASK)) {
-        if (dest == (src + 1)) {
-            mvc_fast_memset(env, l + 1, dest, cpu_ldub_data(env, src));
-            return;
-        } else if ((src & TARGET_PAGE_MASK) != (dest & TARGET_PAGE_MASK)) {
-            mvc_fast_memmove(env, l + 1, dest, src);
-            return;
-        }
-    }
-#else
+    /* mvc with source pointing to the byte after the destination is the
+       same as memset with the first source byte */
     if (dest == (src + 1)) {
-        memset(g2h(dest), cpu_ldub_data(env, src), l + 1);
-        return;
-    } else {
-        memmove(g2h(dest), g2h(src), l + 1);
+        fast_memset(env, dest, cpu_ldub_data(env, src), l + 1);
         return;
     }
-#endif
 
-    /* handle the parts that fit into 8-byte loads/stores */
-    if (dest != (src + 1)) {
-        for (i = 0; i < l_64; i++) {
-            cpu_stq_data(env, dest + x, cpu_ldq_data(env, src + x));
-            x += 8;
-        }
+    /* mvc and memmove do not behave the same when areas overlap! */
+    if ((dest < src) || (src + l < dest)) {
+        fast_memmove(env, dest, src, l + 1);
+        return;
     }
 
-    /* slow version crossing pages with byte accesses */
-    for (i = x; i <= l; i++) {
+    /* slow version with byte accesses which always work */
+    for (i = 0; i <= l; i++) {
         cpu_stb_data(env, dest + i, cpu_ldub_data(env, src + i));
     }
 }
@@ -395,11 +372,7 @@ void HELPER(mvpg)(CPUS390XState *env, uint64_t r0, uint64_t r1, uint64_t r2)
 {
     /* XXX missing r0 handling */
     env->cc_op = 0;
-#ifdef CONFIG_USER_ONLY
-    memmove(g2h(r1), g2h(r2), TARGET_PAGE_SIZE);
-#else
-    mvc_fast_memmove(env, TARGET_PAGE_SIZE, r1, r2);
-#endif
+    fast_memmove(env, r1, r2, TARGET_PAGE_SIZE);
 }
 
 /* string copy (c is string terminator) */
@@ -510,6 +483,10 @@ uint32_t HELPER(ex)(CPUS390XState *env, uint32_t cc, uint64_t v1,
             helper_tr(env, l, get_address(env, 0, b1, d1),
                       get_address(env, 0, b2, d2));
             break;
+        case 0xd00:
+            cc = helper_trt(env, l, get_address(env, 0, b1, d1),
+                            get_address(env, 0, b2, d2));
+            break;
         default:
             goto abort;
         }
@@ -574,7 +551,7 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint64_t dest = get_address_31fix(env, r1);
     uint64_t srclen = env->regs[r2 + 1] & 0xffffff;
     uint64_t src = get_address_31fix(env, r2);
-    uint8_t pad = src >> 24;
+    uint8_t pad = env->regs[r2 + 1] >> 24;
     uint8_t v;
     uint32_t cc;
 
@@ -801,15 +778,81 @@ void HELPER(tr)(CPUS390XState *env, uint32_t len, uint64_t array,
     }
 }
 
+uint64_t HELPER(tre)(CPUS390XState *env, uint64_t array,
+                     uint64_t len, uint64_t trans)
+{
+    uint8_t end = env->regs[0] & 0xff;
+    uint64_t l = len;
+    uint64_t i;
+
+    if (!(env->psw.mask & PSW_MASK_64)) {
+        array &= 0x7fffffff;
+        l = (uint32_t)l;
+    }
+
+    /* Lest we fail to service interrupts in a timely manner, limit the
+       amount of work we're willing to do.  For now, let's cap at 8k.  */
+    if (l > 0x2000) {
+        l = 0x2000;
+        env->cc_op = 3;
+    } else {
+        env->cc_op = 0;
+    }
+
+    for (i = 0; i < l; i++) {
+        uint8_t byte, new_byte;
+
+        byte = cpu_ldub_data(env, array + i);
+
+        if (byte == end) {
+            env->cc_op = 1;
+            break;
+        }
+
+        new_byte = cpu_ldub_data(env, trans + byte);
+        cpu_stb_data(env, array + i, new_byte);
+    }
+
+    env->retxl = len - i;
+    return array + i;
+}
+
+uint32_t HELPER(trt)(CPUS390XState *env, uint32_t len, uint64_t array,
+                     uint64_t trans)
+{
+    uint32_t cc = 0;
+    int i;
+
+    for (i = 0; i <= len; i++) {
+        uint8_t byte = cpu_ldub_data(env, array + i);
+        uint8_t sbyte = cpu_ldub_data(env, trans + byte);
+
+        if (sbyte != 0) {
+            env->regs[1] = array + i;
+            env->regs[2] = (env->regs[2] & ~0xff) | sbyte;
+            cc = (i == len) ? 2 : 1;
+            break;
+        }
+    }
+
+    return cc;
+}
+
 #if !defined(CONFIG_USER_ONLY)
 void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    bool PERchanged = false;
     int i;
     uint64_t src = a2;
+    uint64_t val;
 
     for (i = r1;; i = (i + 1) % 16) {
-        env->cregs[i] = cpu_ldq_data(env, src);
+        val = cpu_ldq_data(env, src);
+        if (env->cregs[i] != val && i >= 9 && i <= 11) {
+            PERchanged = true;
+        }
+        env->cregs[i] = val;
         HELPER_LOG("load ctl %d from 0x%" PRIx64 " == 0x%" PRIx64 "\n",
                    i, src, env->cregs[i]);
         src += sizeof(uint64_t);
@@ -819,23 +862,36 @@ void HELPER(lctlg)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
         }
     }
 
+    if (PERchanged && env->psw.mask & PSW_MASK_PER) {
+        s390_cpu_recompute_watchpoints(CPU(cpu));
+    }
+
     tlb_flush(CPU(cpu), 1);
 }
 
 void HELPER(lctl)(CPUS390XState *env, uint32_t r1, uint64_t a2, uint32_t r3)
 {
     S390CPU *cpu = s390_env_get_cpu(env);
+    bool PERchanged = false;
     int i;
     uint64_t src = a2;
+    uint32_t val;
 
     for (i = r1;; i = (i + 1) % 16) {
-        env->cregs[i] = (env->cregs[i] & 0xFFFFFFFF00000000ULL) |
-            cpu_ldl_data(env, src);
+        val = cpu_ldl_data(env, src);
+        if ((uint32_t)env->cregs[i] != val && i >= 9 && i <= 11) {
+            PERchanged = true;
+        }
+        env->cregs[i] = (env->cregs[i] & 0xFFFFFFFF00000000ULL) | val;
         src += sizeof(uint32_t);
 
         if (i == r3) {
             break;
         }
+    }
+
+    if (PERchanged && env->psw.mask & PSW_MASK_PER) {
+        s390_cpu_recompute_watchpoints(CPU(cpu));
     }
 
     tlb_flush(CPU(cpu), 1);
@@ -952,59 +1008,46 @@ uint32_t HELPER(csp)(CPUS390XState *env, uint32_t r1, uint64_t r2)
     return cc;
 }
 
-static uint32_t mvc_asc(CPUS390XState *env, int64_t l, uint64_t a1,
-                        uint64_t mode1, uint64_t a2, uint64_t mode2)
+uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
-    CPUState *cs = CPU(s390_env_get_cpu(env));
-    target_ulong src, dest;
-    int flags, cc = 0, i;
+    int cc = 0, i;
 
-    if (!l) {
-        return 0;
-    } else if (l > 256) {
+    HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
+               __func__, l, a1, a2);
+
+    if (l > 256) {
         /* max 256 */
         l = 256;
         cc = 3;
     }
 
-    if (mmu_translate(env, a1, 1, mode1, &dest, &flags, true)) {
-        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-    }
-    dest |= a1 & ~TARGET_PAGE_MASK;
-
-    if (mmu_translate(env, a2, 0, mode2, &src, &flags, true)) {
-        cpu_loop_exit(CPU(s390_env_get_cpu(env)));
-    }
-    src |= a2 & ~TARGET_PAGE_MASK;
-
     /* XXX replace w/ memcpy */
     for (i = 0; i < l; i++) {
-        /* XXX be more clever */
-        if ((((dest + i) & TARGET_PAGE_MASK) != (dest & TARGET_PAGE_MASK)) ||
-            (((src + i) & TARGET_PAGE_MASK) != (src & TARGET_PAGE_MASK))) {
-            mvc_asc(env, l - i, a1 + i, mode1, a2 + i, mode2);
-            break;
-        }
-        stb_phys(cs->as, dest + i, ldub_phys(cs->as, src + i));
+        cpu_stb_secondary(env, a1 + i, cpu_ldub_primary(env, a2 + i));
     }
 
     return cc;
 }
 
-uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
-{
-    HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
-               __func__, l, a1, a2);
-
-    return mvc_asc(env, l, a1, PSW_ASC_SECONDARY, a2, PSW_ASC_PRIMARY);
-}
-
 uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
+    int cc = 0, i;
+
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
                __func__, l, a1, a2);
 
-    return mvc_asc(env, l, a1, PSW_ASC_PRIMARY, a2, PSW_ASC_SECONDARY);
+    if (l > 256) {
+        /* max 256 */
+        l = 256;
+        cc = 3;
+    }
+
+    /* XXX replace w/ memcpy */
+    for (i = 0; i < l; i++) {
+        cpu_stb_primary(env, a1 + i, cpu_ldub_secondary(env, a2 + i));
+    }
+
+    return cc;
 }
 
 /* invalidate pte */
@@ -1063,6 +1106,14 @@ void HELPER(stura)(CPUS390XState *env, uint64_t addr, uint64_t v1)
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
     stl_phys(cs->as, get_address(env, 0, 0, addr), (uint32_t)v1);
+
+    if ((env->psw.mask & PSW_MASK_PER) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE_REAL)) {
+        /* PSW is saved just before calling the helper.  */
+        env->per_address = env->psw.addr;
+        env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
+    }
 }
 
 void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
@@ -1070,6 +1121,14 @@ void HELPER(sturg)(CPUS390XState *env, uint64_t addr, uint64_t v1)
     CPUState *cs = CPU(s390_env_get_cpu(env));
 
     stq_phys(cs->as, get_address(env, 0, 0, addr), v1);
+
+    if ((env->psw.mask & PSW_MASK_PER) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE) &&
+        (env->cregs[9] & PER_CR9_EVENT_STORE_REAL)) {
+        /* PSW is saved just before calling the helper.  */
+        env->per_address = env->psw.addr;
+        env->per_perc_atmid = PER_CODE_EVENT_STORE_REAL | get_per_atmid(env);
+    }
 }
 
 /* load real address */

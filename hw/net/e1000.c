@@ -185,6 +185,9 @@ e1000_link_up(E1000State *s)
 {
     s->mac_reg[STATUS] |= E1000_STATUS_LU;
     s->phy_reg[PHY_STATUS] |= MII_SR_LINK_STATUS;
+
+    /* E1000_STATUS_LU is tested by e1000_can_receive() */
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
 }
 
 static bool
@@ -1370,6 +1373,7 @@ static const VMStateDescription vmstate_e1000_mit_state = {
     .name = "e1000/mit_state",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = e1000_mit_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(mac_reg[RDTR], E1000State),
         VMSTATE_UINT32(mac_reg[RADV], E1000State),
@@ -1457,13 +1461,9 @@ static const VMStateDescription vmstate_e1000 = {
         VMSTATE_UINT32_SUB_ARRAY(mac_reg, E1000State, VFTA, 128),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_e1000_mit_state,
-            .needed = e1000_mit_state_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_e1000_mit_state,
+        NULL
     }
 };
 

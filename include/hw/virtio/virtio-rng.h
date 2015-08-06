@@ -44,16 +44,7 @@ typedef struct VirtIORNG {
      */
     QEMUTimer *rate_limit_timer;
     int64_t quota_remaining;
+    bool activate_timer;
 } VirtIORNG;
-
-/* Set a default rate limit of 2^47 bytes per minute or roughly 2TB/s.  If
-   you have an entropy source capable of generating more entropy than this
-   and you can pass it through via virtio-rng, then hats off to you.  Until
-   then, this is unlimited for all practical purposes.
-*/
-#define DEFINE_VIRTIO_RNG_PROPERTIES(_state, _conf_field)                    \
-        DEFINE_PROP_UINT64("max-bytes", _state, _conf_field.max_bytes,       \
-                           INT64_MAX),                                       \
-        DEFINE_PROP_UINT32("period", _state, _conf_field.period_ms, 1 << 16)
 
 #endif

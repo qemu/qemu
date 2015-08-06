@@ -5,8 +5,6 @@
 #include "hw/acpi/acpi.h"
 #include "migration/vmstate.h"
 
-#define ACPI_MEMORY_HOTPLUG_STATUS 8
-
 /**
  * MemStatus:
  * @is_removing: the memory device in slot has been requested to be ejected.

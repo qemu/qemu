@@ -15,7 +15,6 @@
  *
  */
 
-#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 
 #include "hw/s390x/sclp.h"

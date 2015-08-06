@@ -60,8 +60,8 @@ void qdict_cmp_do_simple(const char *key, QObject *obj1, void *opaque)
 
     switch (qobject_type(obj1)) {
     case QTYPE_QBOOL:
-        d->result = (qbool_get_int(qobject_to_qbool(obj1)) ==
-                     qbool_get_int(qobject_to_qbool(obj2)));
+        d->result = (qbool_get_bool(qobject_to_qbool(obj1)) ==
+                     qbool_get_bool(qobject_to_qbool(obj2)));
         return;
     case QTYPE_QINT:
         d->result = (qint_get_int(qobject_to_qint(obj1)) ==

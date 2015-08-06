@@ -22,7 +22,8 @@ typedef struct DisasContext {
 #endif
     ARMMMUIdx mmu_idx; /* MMU index to use for normal loads/stores */
     bool ns;        /* Use non-secure CPREG bank on access */
-    bool cpacr_fpen; /* FP enabled via CPACR.FPEN */
+    int fp_excp_el; /* FP exception EL or 0 if enabled */
+    bool el3_is_aa64;  /* Flag indicating whether EL3 is AArch64 or not */
     bool vfp_enabled; /* FP enabled via FPSCR.EN */
     int vec_len;
     int vec_stride;
@@ -73,6 +74,20 @@ static inline int get_mem_index(DisasContext *s)
     return s->mmu_idx;
 }
 
+/* Function used to determine the target exception EL when otherwise not known
+ * or default.
+ */
+static inline int default_exception_el(DisasContext *s)
+{
+    /* If we are coming from secure EL0 in a system with a 32-bit EL3, then
+     * there is no secure EL1, so we route exceptions to EL3.  Otherwise,
+     * exceptions can only be routed to ELs above 1, so we target the higher of
+     * 1 or the current EL.
+     */
+    return (s->mmu_idx == ARMMMUIdx_S1SE0 && !s->el3_is_aa64)
+            ? 3 : MAX(1, s->current_el);
+}
+
 /* target-specific extra values for is_jmp */
 /* These instructions trap after executing, so the A32/T32 decoder must
  * defer them until after the conditional execution state has been updated.
@@ -88,6 +103,7 @@ static inline int get_mem_index(DisasContext *s)
 #define DISAS_WFE 7
 #define DISAS_HVC 8
 #define DISAS_SMC 9
+#define DISAS_YIELD 10
 
 #ifdef TARGET_AARCH64
 void a64_translate_init(void);

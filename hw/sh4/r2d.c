@@ -127,7 +127,7 @@ static void r2d_fpga_irq_set(void *opaque, int n, int level)
     update_irl(fpga);
 }
 
-static uint32_t r2d_fpga_read(void *opaque, hwaddr addr)
+static uint64_t r2d_fpga_read(void *opaque, hwaddr addr, unsigned int size)
 {
     r2d_fpga_t *s = opaque;
 
@@ -146,7 +146,7 @@ static uint32_t r2d_fpga_read(void *opaque, hwaddr addr)
 }
 
 static void
-r2d_fpga_write(void *opaque, hwaddr addr, uint32_t value)
+r2d_fpga_write(void *opaque, hwaddr addr, uint64_t value, unsigned int size)
 {
     r2d_fpga_t *s = opaque;
 
@@ -170,10 +170,10 @@ r2d_fpga_write(void *opaque, hwaddr addr, uint32_t value)
 }
 
 static const MemoryRegionOps r2d_fpga_ops = {
-    .old_mmio = {
-        .read = { r2d_fpga_read, r2d_fpga_read, NULL, },
-        .write = { r2d_fpga_write, r2d_fpga_write, NULL, },
-    },
+    .read = r2d_fpga_read,
+    .write = r2d_fpga_write,
+    .impl.min_access_size = 2,
+    .impl.max_access_size = 2,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 

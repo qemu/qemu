@@ -128,8 +128,8 @@ static void add_machine_test_cases(void)
         g_assert(qstr);
         mname = qstring_get_str(qstr);
         if (!is_blacklisted(arch, mname)) {
-            path = g_strdup_printf("/%s/qom/%s", arch, mname);
-            g_test_add_data_func(path, mname, test_machine);
+            path = g_strdup_printf("qom/%s", mname);
+            qtest_add_data_func(path, mname, test_machine);
         }
     }
     qtest_end();

@@ -74,7 +74,7 @@ const argtype *thunk_convert(void *dst, const void *src,
                              const argtype *type_ptr, int to_host);
 #ifndef NO_THUNK_TYPE_SIZE
 
-extern StructEntry struct_entries[];
+extern StructEntry *struct_entries;
 
 int thunk_type_size_array(const argtype *type_ptr, int is_host);
 int thunk_type_align_array(const argtype *type_ptr, int is_host);
@@ -185,5 +185,7 @@ unsigned int target_to_host_bitmask(unsigned int x86_mask,
                                     const bitmask_transtbl * trans_tbl);
 unsigned int host_to_target_bitmask(unsigned int alpha_mask,
                                     const bitmask_transtbl * trans_tbl);
+
+void thunk_init(unsigned int max_structs);
 
 #endif

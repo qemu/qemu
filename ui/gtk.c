@@ -339,7 +339,7 @@ static void gd_update_geometry_hints(VirtualConsole *vc)
     gtk_window_set_geometry_hints(geo_window, geo_widget, &geo, mask);
 }
 
-static void gd_update_windowsize(VirtualConsole *vc)
+void gd_update_windowsize(VirtualConsole *vc)
 {
     GtkDisplayState *s = vc->s;
 
@@ -581,6 +581,33 @@ static void gd_switch(DisplayChangeListener *dcl,
     }
 }
 
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name             = "gtk",
+    .dpy_gfx_update       = gd_update,
+    .dpy_gfx_switch       = gd_switch,
+    .dpy_gfx_check_format = qemu_pixman_check_format,
+    .dpy_refresh          = gd_refresh,
+    .dpy_mouse_set        = gd_mouse_set,
+    .dpy_cursor_define    = gd_cursor_define,
+};
+
+
+#if defined(CONFIG_OPENGL)
+
+/** DisplayState Callbacks (opengl version) **/
+
+static const DisplayChangeListenerOps dcl_egl_ops = {
+    .dpy_name             = "gtk-egl",
+    .dpy_gfx_update       = gd_egl_update,
+    .dpy_gfx_switch       = gd_egl_switch,
+    .dpy_gfx_check_format = console_gl_check_format,
+    .dpy_refresh          = gd_egl_refresh,
+    .dpy_mouse_set        = gd_mouse_set,
+    .dpy_cursor_define    = gd_cursor_define,
+};
+
+#endif
+
 /** QEMU Events **/
 
 static void gd_change_runstate(void *opaque, int running, RunState state)
@@ -636,6 +663,13 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
     int mx, my;
     int ww, wh;
     int fbw, fbh;
+
+#if defined(CONFIG_OPENGL)
+    if (vc->gfx.gls) {
+        gd_egl_draw(vc);
+        return TRUE;
+    }
+#endif
 
     if (!gtk_widget_get_realized(widget)) {
         return FALSE;
@@ -1676,16 +1710,6 @@ static GtkWidget *gd_create_menu_machine(GtkDisplayState *s)
     return machine_menu;
 }
 
-static const DisplayChangeListenerOps dcl_ops = {
-    .dpy_name             = "gtk",
-    .dpy_gfx_update       = gd_update,
-    .dpy_gfx_switch       = gd_switch,
-    .dpy_gfx_check_format = qemu_pixman_check_format,
-    .dpy_refresh          = gd_refresh,
-    .dpy_mouse_set        = gd_mouse_set,
-    .dpy_cursor_define    = gd_cursor_define,
-};
-
 static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
                               QemuConsole *con, int idx,
                               GSList *group, GtkWidget *view_menu)
@@ -1713,7 +1737,29 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook),
                              vc->tab_item, gtk_label_new(vc->label));
 
-    vc->gfx.dcl.ops = &dcl_ops;
+#if defined(CONFIG_OPENGL)
+    if (display_opengl) {
+        /*
+         * gtk_widget_set_double_buffered() was deprecated in 3.14.
+         * It is required for opengl rendering on X11 though.  A
+         * proper replacement (native opengl support) is only
+         * available in 3.16+.  Silence the warning if possible.
+         */
+#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+        gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
+#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
+#pragma GCC diagnostic pop
+#endif
+        vc->gfx.dcl.ops = &dcl_egl_ops;
+    } else
+#endif
+    {
+        vc->gfx.dcl.ops = &dcl_ops;
+    }
+
     vc->gfx.dcl.con = con;
     register_displaychangelistener(&vc->gfx.dcl);
 
@@ -1871,12 +1917,18 @@ static void gd_set_keycode_type(GtkDisplayState *s)
 #endif
 }
 
+static gboolean gtkinit;
+
 void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 {
     GtkDisplayState *s = g_malloc0(sizeof(*s));
     char *filename;
+    GdkDisplay *window_display;
 
-    gtk_init(NULL, NULL);
+    if (!gtkinit) {
+        fprintf(stderr, "gtk initialization failed\n");
+        exit(1);
+    }
 
     s->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 #if GTK_CHECK_VERSION(3, 2, 0)
@@ -1893,7 +1945,9 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     bindtextdomain("qemu", CONFIG_QEMU_LOCALEDIR);
     textdomain("qemu");
 
-    s->null_cursor = gdk_cursor_new(GDK_BLANK_CURSOR);
+    window_display = gtk_widget_get_display(s->window);
+    s->null_cursor = gdk_cursor_new_for_display(window_display,
+                                                GDK_BLANK_CURSOR);
 
     s->mouse_mode_notifier.notify = gd_mouse_mode_change;
     qemu_add_mouse_mode_change_notifier(&s->mouse_mode_notifier);
@@ -1954,8 +2008,28 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
     gd_set_keycode_type(s);
 }
 
-void early_gtk_display_init(void)
+void early_gtk_display_init(int opengl)
 {
+    gtkinit = gtk_init_check(NULL, NULL);
+    if (!gtkinit) {
+        /* don't exit yet, that'll break -help */
+        return;
+    }
+
+    switch (opengl) {
+    case -1: /* default */
+    case 0:  /* off */
+        break;
+    case 1: /* on */
+#if defined(CONFIG_OPENGL)
+        gtk_egl_init();
+#endif
+        break;
+    default:
+        g_assert_not_reached();
+        break;
+    }
+
 #if defined(CONFIG_VTE)
     register_vc_handler(gd_vc_handler);
 #endif

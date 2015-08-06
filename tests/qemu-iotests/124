@@ -125,7 +125,7 @@ class TestIncrementalBackup(iotests.QMPTestCase):
 
         event = self.vm.event_wait(name="BLOCK_JOB_COMPLETED",
                                    match={'data': {'device': kwargs['device']}})
-        self.assertIsNotNone(event)
+        self.assertNotEqual(event, None)
 
         try:
             failure = self.dictpath(event, 'data/error')
@@ -187,7 +187,7 @@ class TestIncrementalBackup(iotests.QMPTestCase):
 
         target = self.prepare_backup(bitmap, parent)
         res = self.do_qmp_backup(device=bitmap.drive['id'],
-                                 sync='dirty-bitmap', bitmap=bitmap.name,
+                                 sync='incremental', bitmap=bitmap.name,
                                  format=bitmap.drive['fmt'], target=target,
                                  mode='existing')
         if not res:
@@ -325,7 +325,7 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.files.append(self.err_img)
         result = self.vm.qmp('drive-backup', device=self.drives[0]['id'],
-                             sync='dirty-bitmap', format=self.drives[0]['fmt'],
+                             sync='incremental', format=self.drives[0]['fmt'],
                              target=self.err_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
@@ -334,7 +334,7 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
         self.files.append(self.err_img)
         result = self.vm.qmp('drive-backup', device=self.drives[0]['id'],
-                             sync='dirty-bitmap', bitmap='unknown',
+                             sync='incremental', bitmap='unknown',
                              format=self.drives[0]['fmt'], target=self.err_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
 

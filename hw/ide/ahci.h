@@ -127,7 +127,7 @@
 #define PORT_CMD_SPIN_UP          (1 << 1) /* Spin up device */
 #define PORT_CMD_START            (1 << 0) /* Enable port DMA engine */
 
-#define PORT_CMD_ICC_MASK         (0xf << 28) /* i/f ICC state mask */
+#define PORT_CMD_ICC_MASK        (0xfU << 28) /* i/f ICC state mask */
 #define PORT_CMD_ICC_ACTIVE       (0x1 << 28) /* Put i/f in active state */
 #define PORT_CMD_ICC_PARTIAL      (0x2 << 28) /* Put i/f in partial state */
 #define PORT_CMD_ICC_SLUMBER      (0x6 << 28) /* Put i/f in slumber state */
@@ -166,7 +166,7 @@
 #define AHCI_CMD_HDR_CMD_FIS_LEN           0x1f
 #define AHCI_CMD_HDR_PRDT_LEN              16
 
-#define SATA_SIGNATURE_CDROM               0xeb140000
+#define SATA_SIGNATURE_CDROM               0xeb140101
 #define SATA_SIGNATURE_DISK                0x00000101
 
 #define AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR 0x20
@@ -194,6 +194,9 @@
 #define NCQ_NON_DATA                       0x63
 #define RECEIVE_FPDMA_QUEUED               0x65
 #define SEND_FPDMA_QUEUED                  0x64
+
+#define NCQ_FIS_FUA_MASK                   0x80
+#define NCQ_FIS_RARC_MASK                  0x01
 
 #define RES_FIS_DSFIS                      0x00
 #define RES_FIS_PSFIS                      0x20
@@ -233,7 +236,8 @@ typedef struct AHCIPortRegs {
 } AHCIPortRegs;
 
 typedef struct AHCICmdHdr {
-    uint32_t    opts;
+    uint16_t    opts;
+    uint16_t    prdtl;
     uint32_t    status;
     uint64_t    tbl_addr;
     uint32_t    reserved[4];
@@ -250,13 +254,16 @@ typedef struct AHCIDevice AHCIDevice;
 typedef struct NCQTransferState {
     AHCIDevice *drive;
     BlockAIOCB *aiocb;
+    AHCICmdHdr *cmdh;
     QEMUSGList sglist;
     BlockAcctCookie acct;
-    uint16_t sector_count;
+    uint32_t sector_count;
     uint64_t lba;
     uint8_t tag;
-    int slot;
-    int used;
+    uint8_t cmd;
+    uint8_t slot;
+    bool used;
+    bool halt;
 } NCQTransferState;
 
 struct AHCIDevice {
@@ -312,27 +319,39 @@ extern const VMStateDescription vmstate_ahci;
     .offset     = vmstate_offset_value(_state, _field, AHCIState),   \
 }
 
+/**
+ * NCQFrame is the same as a Register H2D FIS (described in SATA 3.2),
+ * but some fields have been re-mapped and re-purposed, as seen in
+ * SATA 3.2 section 13.6.4.1 ("READ FPDMA QUEUED")
+ *
+ * cmd_fis[3], feature 7:0, becomes sector count 7:0.
+ * cmd_fis[7], device 7:0, uses bit 7 as the Force Unit Access bit.
+ * cmd_fis[11], feature 15:8, becomes sector count 15:8.
+ * cmd_fis[12], count 7:0, becomes the NCQ TAG (7:3) and RARC bit (0)
+ * cmd_fis[13], count 15:8, becomes the priority value (7:6)
+ * bytes 16-19 become an le32 "auxiliary" field.
+ */
 typedef struct NCQFrame {
     uint8_t fis_type;
     uint8_t c;
     uint8_t command;
-    uint8_t sector_count_low;
+    uint8_t sector_count_low;  /* (feature 7:0) */
     uint8_t lba0;
     uint8_t lba1;
     uint8_t lba2;
-    uint8_t fua;
+    uint8_t fua;               /* (device 7:0) */
     uint8_t lba3;
     uint8_t lba4;
     uint8_t lba5;
-    uint8_t sector_count_high;
-    uint8_t tag;
-    uint8_t reserved5;
-    uint8_t reserved6;
+    uint8_t sector_count_high; /* (feature 15:8) */
+    uint8_t tag;               /* (count 0:7) */
+    uint8_t prio;              /* (count 15:8) */
+    uint8_t icc;
     uint8_t control;
-    uint8_t reserved7;
-    uint8_t reserved8;
-    uint8_t reserved9;
-    uint8_t reserved10;
+    uint8_t aux0;
+    uint8_t aux1;
+    uint8_t aux2;
+    uint8_t aux3;
 } QEMU_PACKED NCQFrame;
 
 typedef struct SDBFIS {

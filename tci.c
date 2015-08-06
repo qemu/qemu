@@ -1107,7 +1107,7 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
             oi = tci_read_i(&tb_ptr);
-            switch (get_memop(oi)) {
+            switch (get_memop(oi) & (MO_BSWAP | MO_SSIZE)) {
             case MO_UB:
                 tmp32 = qemu_ld_ub;
                 break;
@@ -1144,7 +1144,7 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             }
             taddr = tci_read_ulong(&tb_ptr);
             oi = tci_read_i(&tb_ptr);
-            switch (get_memop(oi)) {
+            switch (get_memop(oi) & (MO_BSWAP | MO_SSIZE)) {
             case MO_UB:
                 tmp64 = qemu_ld_ub;
                 break;
@@ -1193,7 +1193,7 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             t0 = tci_read_r(&tb_ptr);
             taddr = tci_read_ulong(&tb_ptr);
             oi = tci_read_i(&tb_ptr);
-            switch (get_memop(oi)) {
+            switch (get_memop(oi) & (MO_BSWAP | MO_SIZE)) {
             case MO_UB:
                 qemu_st_b(t0);
                 break;
@@ -1217,7 +1217,7 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
             tmp64 = tci_read_r64(&tb_ptr);
             taddr = tci_read_ulong(&tb_ptr);
             oi = tci_read_i(&tb_ptr);
-            switch (get_memop(oi)) {
+            switch (get_memop(oi) & (MO_BSWAP | MO_SIZE)) {
             case MO_UB:
                 qemu_st_b(tmp64);
                 break;

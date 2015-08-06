@@ -85,7 +85,8 @@ int event_notifier_get_fd(EventNotifier *e)
 int event_notifier_set_handler(EventNotifier *e,
                                EventNotifierHandler *handler)
 {
-    return qemu_set_fd_handler(e->rfd, (IOHandler *)handler, NULL, e);
+    qemu_set_fd_handler(e->rfd, (IOHandler *)handler, NULL, e);
+    return 0;
 }
 
 int event_notifier_set(EventNotifier *e)

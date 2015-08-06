@@ -67,6 +67,7 @@ void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict);
 void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict);
 void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict);
 void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict);
+void hmp_client_migrate_info(Monitor *mon, const QDict *qdict);
 void hmp_set_password(Monitor *mon, const QDict *qdict);
 void hmp_expire_password(Monitor *mon, const QDict *qdict);
 void hmp_eject(Monitor *mon, const QDict *qdict);
@@ -79,6 +80,7 @@ void hmp_block_job_pause(Monitor *mon, const QDict *qdict);
 void hmp_block_job_resume(Monitor *mon, const QDict *qdict);
 void hmp_block_job_complete(Monitor *mon, const QDict *qdict);
 void hmp_migrate(Monitor *mon, const QDict *qdict);
+void hmp_device_add(Monitor *mon, const QDict *qdict);
 void hmp_device_del(Monitor *mon, const QDict *qdict);
 void hmp_dump_guest_memory(Monitor *mon, const QDict *qdict);
 void hmp_netdev_add(Monitor *mon, const QDict *qdict);
@@ -122,5 +124,9 @@ void host_net_remove_completion(ReadLineState *rs, int nb_args,
                                 const char *str);
 void delvm_completion(ReadLineState *rs, int nb_args, const char *str);
 void loadvm_completion(ReadLineState *rs, int nb_args, const char *str);
+void hmp_rocker(Monitor *mon, const QDict *qdict);
+void hmp_rocker_ports(Monitor *mon, const QDict *qdict);
+void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict);
+void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict);
 
 #endif

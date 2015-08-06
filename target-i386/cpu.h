@@ -180,15 +180,17 @@
 
 /* hflags2 */
 
-#define HF2_GIF_SHIFT        0 /* if set CPU takes interrupts */
-#define HF2_HIF_SHIFT        1 /* value of IF_MASK when entering SVM */
-#define HF2_NMI_SHIFT        2 /* CPU serving NMI */
-#define HF2_VINTR_SHIFT      3 /* value of V_INTR_MASKING bit */
+#define HF2_GIF_SHIFT            0 /* if set CPU takes interrupts */
+#define HF2_HIF_SHIFT            1 /* value of IF_MASK when entering SVM */
+#define HF2_NMI_SHIFT            2 /* CPU serving NMI */
+#define HF2_VINTR_SHIFT          3 /* value of V_INTR_MASKING bit */
+#define HF2_SMM_INSIDE_NMI_SHIFT 4 /* CPU serving SMI nested inside NMI */
 
-#define HF2_GIF_MASK          (1 << HF2_GIF_SHIFT)
-#define HF2_HIF_MASK          (1 << HF2_HIF_SHIFT)
-#define HF2_NMI_MASK          (1 << HF2_NMI_SHIFT)
-#define HF2_VINTR_MASK        (1 << HF2_VINTR_SHIFT)
+#define HF2_GIF_MASK            (1 << HF2_GIF_SHIFT)
+#define HF2_HIF_MASK            (1 << HF2_HIF_SHIFT)
+#define HF2_NMI_MASK            (1 << HF2_NMI_SHIFT)
+#define HF2_VINTR_MASK          (1 << HF2_VINTR_SHIFT)
+#define HF2_SMM_INSIDE_NMI_MASK (1 << HF2_SMM_INSIDE_NMI_SHIFT)
 
 #define CR0_PE_SHIFT 0
 #define CR0_MP_SHIFT 1
@@ -305,13 +307,14 @@
 #define MSR_IA32_APICBASE               0x1b
 #define MSR_IA32_APICBASE_BSP           (1<<8)
 #define MSR_IA32_APICBASE_ENABLE        (1<<11)
-#define MSR_IA32_APICBASE_BASE          (0xfffff<<12)
+#define MSR_IA32_APICBASE_BASE          (0xfffffU<<12)
 #define MSR_IA32_FEATURE_CONTROL        0x0000003a
 #define MSR_TSC_ADJUST                  0x0000003b
 #define MSR_IA32_TSCDEADLINE            0x6e0
 
 #define MSR_P6_PERFCTR0                 0xc1
 
+#define MSR_IA32_SMBASE                 0x9e
 #define MSR_MTRRcap                     0xfe
 #define MSR_MTRRcap_VCNT                8
 #define MSR_MTRRcap_FIXRANGE_SUPPORT    (1 << 8)
@@ -412,6 +415,7 @@ typedef enum FeatureWord {
     FEAT_KVM,           /* CPUID[4000_0001].EAX (KVM_CPUID_FEATURES) */
     FEAT_SVM,           /* CPUID[8000_000A].EDX */
     FEAT_XSAVE,         /* CPUID[EAX=0xd,ECX=1].EAX */
+    FEAT_6_EAX,         /* CPUID[6].EAX */
     FEATURE_WORDS,
 } FeatureWord;
 
@@ -576,6 +580,8 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_XSAVE_XSAVEC     (1U << 1)
 #define CPUID_XSAVE_XGETBV1    (1U << 2)
 #define CPUID_XSAVE_XSAVES     (1U << 3)
+
+#define CPUID_6_EAX_ARAT       (1U << 2)
 
 /* CPUID[0x80000007].EDX flags: */
 #define CPUID_APM_INVTSC       (1U << 8)
@@ -956,7 +962,7 @@ typedef struct CPUX86State {
     uint8_t has_error_code;
     uint32_t sipi_vector;
     bool tsc_valid;
-    int tsc_khz;
+    int64_t tsc_khz;
     void *kvm_xsave_buf;
 
     uint64_t mcg_cap;
@@ -981,7 +987,7 @@ typedef struct CPUX86State {
 
 X86CPU *cpu_x86_init(const char *cpu_model);
 X86CPU *cpu_x86_create(const char *cpu_model, Error **errp);
-int cpu_x86_exec(CPUX86State *s);
+int cpu_x86_exec(CPUState *cpu);
 void x86_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void x86_cpudef_setup(void);
 int cpu_x86_support_mca_broadcast(CPUX86State *env);
@@ -1105,6 +1111,18 @@ int x86_cpu_handle_mmu_fault(CPUState *cpu, vaddr addr,
                              int is_write, int mmu_idx);
 void x86_cpu_set_a20(X86CPU *cpu, int a20_state);
 
+#ifndef CONFIG_USER_ONLY
+uint8_t x86_ldub_phys(CPUState *cs, hwaddr addr);
+uint32_t x86_lduw_phys(CPUState *cs, hwaddr addr);
+uint32_t x86_ldl_phys(CPUState *cs, hwaddr addr);
+uint64_t x86_ldq_phys(CPUState *cs, hwaddr addr);
+void x86_stb_phys(CPUState *cs, hwaddr addr, uint8_t val);
+void x86_stl_phys_notdirty(CPUState *cs, hwaddr addr, uint32_t val);
+void x86_stw_phys(CPUState *cs, hwaddr addr, uint32_t val);
+void x86_stl_phys(CPUState *cs, hwaddr addr, uint32_t val);
+void x86_stq_phys(CPUState *cs, hwaddr addr, uint64_t val);
+#endif
+
 static inline bool hw_local_breakpoint_enabled(unsigned long dr7, int index)
 {
     return (dr7 >> (index * 2)) & 1;
@@ -1143,7 +1161,6 @@ void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
 
 /* hw/pc.c */
-void cpu_smm_update(CPUX86State *env);
 uint64_t cpu_get_tsc(CPUX86State *env);
 
 #define TARGET_PAGE_BITS 12
@@ -1292,6 +1309,11 @@ static inline void cpu_load_efer(CPUX86State *env, uint64_t val)
     }
 }
 
+static inline MemTxAttrs cpu_get_mem_attrs(CPUX86State *env)
+{
+    return ((MemTxAttrs) { .secure = (env->hflags & HF_SMM_MASK) != 0 });
+}
+
 /* fpu_helper.c */
 void cpu_set_mxcsr(CPUX86State *env, uint32_t val);
 void cpu_set_fpuc(CPUX86State *env, uint16_t val);
@@ -1304,7 +1326,9 @@ void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
 /* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 
+/* smm_helper.c */
 void do_smm_enter(X86CPU *cpu);
+void cpu_smm_update(X86CPU *cpu);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 

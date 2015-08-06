@@ -109,7 +109,13 @@ qemu_irq sysbus_get_connected_irq(SysBusDevice *dev, int n)
 
 void sysbus_connect_irq(SysBusDevice *dev, int n, qemu_irq irq)
 {
+    SysBusDeviceClass *sbd = SYS_BUS_DEVICE_GET_CLASS(dev);
+
     qdev_connect_gpio_out_named(DEVICE(dev), SYSBUS_DEVICE_GPIO_IRQ, n, irq);
+
+    if (sbd->connect_irq_notifier) {
+        sbd->connect_irq_notifier(dev, irq);
+    }
 }
 
 /* Check whether an MMIO region exists */
@@ -281,19 +287,26 @@ static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 static char *sysbus_get_fw_dev_path(DeviceState *dev)
 {
     SysBusDevice *s = SYS_BUS_DEVICE(dev);
-    char path[40];
-    int off;
-
-    off = snprintf(path, sizeof(path), "%s", qdev_fw_name(dev));
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(s);
+    /* for the explicit unit address fallback case: */
+    char *addr, *fw_dev_path;
 
     if (s->num_mmio) {
-        snprintf(path + off, sizeof(path) - off, "@"TARGET_FMT_plx,
-                 s->mmio[0].addr);
-    } else if (s->num_pio) {
-        snprintf(path + off, sizeof(path) - off, "@i%04x", s->pio[0]);
+        return g_strdup_printf("%s@" TARGET_FMT_plx, qdev_fw_name(dev),
+                               s->mmio[0].addr);
     }
-
-    return g_strdup(path);
+    if (s->num_pio) {
+        return g_strdup_printf("%s@i%04x", qdev_fw_name(dev), s->pio[0]);
+    }
+    if (sbc->explicit_ofw_unit_address) {
+        addr = sbc->explicit_ofw_unit_address(s);
+        if (addr) {
+            fw_dev_path = g_strdup_printf("%s@%s", qdev_fw_name(dev), addr);
+            g_free(addr);
+            return fw_dev_path;
+        }
+    }
+    return g_strdup(qdev_fw_name(dev));
 }
 
 void sysbus_add_io(SysBusDevice *dev, hwaddr addr,

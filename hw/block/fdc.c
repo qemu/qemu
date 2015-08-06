@@ -324,7 +324,7 @@ static void fd_revalidate(FDrive *drv)
 /* Intel 82078 floppy disk controller emulation          */
 
 static void fdctrl_reset(FDCtrl *fdctrl, int do_irq);
-static void fdctrl_reset_fifo(FDCtrl *fdctrl);
+static void fdctrl_to_command_phase(FDCtrl *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
 static void fdctrl_raise_irq(FDCtrl *fdctrl);
@@ -495,6 +495,33 @@ enum {
     FD_DIR_DSKCHG   = 0x80,
 };
 
+/*
+ * See chapter 5.0 "Controller phases" of the spec:
+ *
+ * Command phase:
+ * The host writes a command and its parameters into the FIFO. The command
+ * phase is completed when all parameters for the command have been supplied,
+ * and execution phase is entered.
+ *
+ * Execution phase:
+ * Data transfers, either DMA or non-DMA. For non-DMA transfers, the FIFO
+ * contains the payload now, otherwise it's unused. When all bytes of the
+ * required data have been transferred, the state is switched to either result
+ * phase (if the command produces status bytes) or directly back into the
+ * command phase for the next command.
+ *
+ * Result phase:
+ * The host reads out the FIFO, which contains one or more result bytes now.
+ */
+enum {
+    /* Only for migration: reconstruct phase from registers like qemu 2.3 */
+    FD_PHASE_RECONSTRUCT    = 0,
+
+    FD_PHASE_COMMAND        = 1,
+    FD_PHASE_EXECUTION      = 2,
+    FD_PHASE_RESULT         = 3,
+};
+
 #define FD_MULTI_TRACK(state) ((state) & FD_STATE_MULTI)
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
@@ -504,6 +531,7 @@ struct FDCtrl {
     /* Controller state */
     QEMUTimer *result_timer;
     int dma_chann;
+    uint8_t phase;
     /* Controller's identification */
     uint8_t version;
     /* HW */
@@ -671,6 +699,7 @@ static const VMStateDescription vmstate_fdrive_media_changed = {
     .name = "fdrive/media_changed",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdrive_media_changed_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(media_changed, FDrive),
         VMSTATE_END_OF_LIST()
@@ -688,6 +717,7 @@ static const VMStateDescription vmstate_fdrive_media_rate = {
     .name = "fdrive/media_rate",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdrive_media_rate_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(media_rate, FDrive),
         VMSTATE_END_OF_LIST()
@@ -705,6 +735,7 @@ static const VMStateDescription vmstate_fdrive_perpendicular = {
     .name = "fdrive/perpendicular",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdrive_perpendicular_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(perpendicular, FDrive),
         VMSTATE_END_OF_LIST()
@@ -728,21 +759,35 @@ static const VMStateDescription vmstate_fdrive = {
         VMSTATE_UINT8(sect, FDrive),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_fdrive_media_changed,
-            .needed = &fdrive_media_changed_needed,
-        } , {
-            .vmsd = &vmstate_fdrive_media_rate,
-            .needed = &fdrive_media_rate_needed,
-        } , {
-            .vmsd = &vmstate_fdrive_perpendicular,
-            .needed = &fdrive_perpendicular_needed,
-        } , {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_fdrive_media_changed,
+        &vmstate_fdrive_media_rate,
+        &vmstate_fdrive_perpendicular,
+        NULL
     }
 };
+
+/*
+ * Reconstructs the phase from register values according to the logic that was
+ * implemented in qemu 2.3. This is the default value that is used if the phase
+ * subsection is not present on migration.
+ *
+ * Don't change this function to reflect newer qemu versions, it is part of
+ * the migration ABI.
+ */
+static int reconstruct_phase(FDCtrl *fdctrl)
+{
+    if (fdctrl->msr & FD_MSR_NONDMA) {
+        return FD_PHASE_EXECUTION;
+    } else if ((fdctrl->msr & FD_MSR_RQM) == 0) {
+        /* qemu 2.3 disabled RQM only during DMA transfers */
+        return FD_PHASE_EXECUTION;
+    } else if (fdctrl->msr & FD_MSR_DIO) {
+        return FD_PHASE_RESULT;
+    } else {
+        return FD_PHASE_COMMAND;
+    }
+}
 
 static void fdc_pre_save(void *opaque)
 {
@@ -751,12 +796,24 @@ static void fdc_pre_save(void *opaque)
     s->dor_vmstate = s->dor | GET_CUR_DRV(s);
 }
 
+static int fdc_pre_load(void *opaque)
+{
+    FDCtrl *s = opaque;
+    s->phase = FD_PHASE_RECONSTRUCT;
+    return 0;
+}
+
 static int fdc_post_load(void *opaque, int version_id)
 {
     FDCtrl *s = opaque;
 
     SET_CUR_DRV(s, s->dor_vmstate & FD_DOR_SELMASK);
     s->dor = s->dor_vmstate & ~FD_DOR_SELMASK;
+
+    if (s->phase == FD_PHASE_RECONSTRUCT) {
+        s->phase = reconstruct_phase(s);
+    }
+
     return 0;
 }
 
@@ -771,6 +828,7 @@ static const VMStateDescription vmstate_fdc_reset_sensei = {
     .name = "fdc/reset_sensei",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdc_reset_sensei_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(reset_sensei, FDCtrl),
         VMSTATE_END_OF_LIST()
@@ -788,8 +846,27 @@ static const VMStateDescription vmstate_fdc_result_timer = {
     .name = "fdc/result_timer",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fdc_result_timer_needed,
     .fields = (VMStateField[]) {
         VMSTATE_TIMER_PTR(result_timer, FDCtrl),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool fdc_phase_needed(void *opaque)
+{
+    FDCtrl *fdctrl = opaque;
+
+    return reconstruct_phase(fdctrl) != fdctrl->phase;
+}
+
+static const VMStateDescription vmstate_fdc_phase = {
+    .name = "fdc/phase",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = fdc_phase_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(phase, FDCtrl),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -799,6 +876,7 @@ static const VMStateDescription vmstate_fdc = {
     .version_id = 2,
     .minimum_version_id = 2,
     .pre_save = fdc_pre_save,
+    .pre_load = fdc_pre_load,
     .post_load = fdc_post_load,
     .fields = (VMStateField[]) {
         /* Controller State */
@@ -831,16 +909,11 @@ static const VMStateDescription vmstate_fdc = {
                              vmstate_fdrive, FDrive),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_fdc_reset_sensei,
-            .needed = fdc_reset_sensei_needed,
-        } , {
-            .vmsd = &vmstate_fdc_result_timer,
-            .needed = fdc_result_timer_needed,
-        } , {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_fdc_reset_sensei,
+        &vmstate_fdc_result_timer,
+        &vmstate_fdc_phase,
+        NULL
     }
 };
 
@@ -918,7 +991,7 @@ static void fdctrl_reset(FDCtrl *fdctrl, int do_irq)
     fdctrl->data_dir = FD_DIR_WRITE;
     for (i = 0; i < MAX_FD; i++)
         fd_recalibrate(&fdctrl->drives[i]);
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     if (do_irq) {
         fdctrl->status0 |= FD_SR0_RDYCHG;
         fdctrl_raise_irq(fdctrl);
@@ -1134,17 +1207,22 @@ static uint32_t fdctrl_read_dir(FDCtrl *fdctrl)
     return retval;
 }
 
-/* FIFO state control */
-static void fdctrl_reset_fifo(FDCtrl *fdctrl)
+/* Clear the FIFO and update the state for receiving the next command */
+static void fdctrl_to_command_phase(FDCtrl *fdctrl)
 {
+    fdctrl->phase = FD_PHASE_COMMAND;
     fdctrl->data_dir = FD_DIR_WRITE;
     fdctrl->data_pos = 0;
+    fdctrl->data_len = 1; /* Accept command byte, adjust for params later */
     fdctrl->msr &= ~(FD_MSR_CMDBUSY | FD_MSR_DIO);
+    fdctrl->msr |= FD_MSR_RQM;
 }
 
-/* Set FIFO status for the host to read */
-static void fdctrl_set_fifo(FDCtrl *fdctrl, int fifo_len)
+/* Update the state to allow the guest to read out the command status.
+ * @fifo_len is the number of result bytes to be read out. */
+static void fdctrl_to_result_phase(FDCtrl *fdctrl, int fifo_len)
 {
+    fdctrl->phase = FD_PHASE_RESULT;
     fdctrl->data_dir = FD_DIR_READ;
     fdctrl->data_len = fifo_len;
     fdctrl->data_pos = 0;
@@ -1157,7 +1235,7 @@ static void fdctrl_unimplemented(FDCtrl *fdctrl, int direction)
     qemu_log_mask(LOG_UNIMP, "fdc: unimplemented command 0x%02x\n",
                   fdctrl->fifo[0]);
     fdctrl->fifo[0] = FD_SR0_INVCMD;
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 /* Seek to next sector
@@ -1238,7 +1316,7 @@ static void fdctrl_stop_transfer(FDCtrl *fdctrl, uint8_t status0,
     fdctrl->msr |= FD_MSR_RQM | FD_MSR_DIO;
     fdctrl->msr &= ~FD_MSR_NONDMA;
 
-    fdctrl_set_fifo(fdctrl, 7);
+    fdctrl_to_result_phase(fdctrl, 7);
     fdctrl_raise_irq(fdctrl);
 }
 
@@ -1352,7 +1430,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         }
     }
     FLOPPY_DPRINTF("start non-DMA transfer\n");
-    fdctrl->msr |= FD_MSR_NONDMA;
+    fdctrl->msr |= FD_MSR_NONDMA | FD_MSR_RQM;
     if (direction != FD_DIR_WRITE)
         fdctrl->msr |= FD_MSR_DIO;
     /* IO based transfer: calculate len */
@@ -1505,9 +1583,16 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
         FLOPPY_DPRINTF("error: controller not ready for reading\n");
         return 0;
     }
+
+    /* If data_len spans multiple sectors, the current position in the FIFO
+     * wraps around while fdctrl->data_pos is the real position in the whole
+     * request. */
     pos = fdctrl->data_pos;
     pos %= FD_SECTOR_LEN;
-    if (fdctrl->msr & FD_MSR_NONDMA) {
+
+    switch (fdctrl->phase) {
+    case FD_PHASE_EXECUTION:
+        assert(fdctrl->msr & FD_MSR_NONDMA);
         if (pos == 0) {
             if (fdctrl->data_pos != 0)
                 if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
@@ -1523,20 +1608,28 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
                 memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
             }
         }
-    }
-    retval = fdctrl->fifo[pos];
-    if (++fdctrl->data_pos == fdctrl->data_len) {
-        fdctrl->data_pos = 0;
-        /* Switch from transfer mode to status mode
-         * then from status mode to command mode
-         */
-        if (fdctrl->msr & FD_MSR_NONDMA) {
+
+        if (++fdctrl->data_pos == fdctrl->data_len) {
+            fdctrl->msr &= ~FD_MSR_RQM;
             fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
-        } else {
-            fdctrl_reset_fifo(fdctrl);
+        }
+        break;
+
+    case FD_PHASE_RESULT:
+        assert(!(fdctrl->msr & FD_MSR_NONDMA));
+        if (++fdctrl->data_pos == fdctrl->data_len) {
+            fdctrl->msr &= ~FD_MSR_RQM;
+            fdctrl_to_command_phase(fdctrl);
             fdctrl_reset_irq(fdctrl);
         }
+        break;
+
+    case FD_PHASE_COMMAND:
+    default:
+        abort();
     }
+
+    retval = fdctrl->fifo[pos];
     FLOPPY_DPRINTF("data register: 0x%02x\n", retval);
 
     return retval;
@@ -1606,7 +1699,7 @@ static void fdctrl_handle_lock(FDCtrl *fdctrl, int direction)
 {
     fdctrl->lock = (fdctrl->fifo[0] & 0x80) ? 1 : 0;
     fdctrl->fifo[0] = fdctrl->lock << 4;
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
@@ -1631,20 +1724,20 @@ static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
         (cur_drv->perpendicular << 2);
     fdctrl->fifo[8] = fdctrl->config;
     fdctrl->fifo[9] = fdctrl->precomp_trk;
-    fdctrl_set_fifo(fdctrl, 10);
+    fdctrl_to_result_phase(fdctrl, 10);
 }
 
 static void fdctrl_handle_version(FDCtrl *fdctrl, int direction)
 {
     /* Controller's version */
     fdctrl->fifo[0] = fdctrl->version;
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_partid(FDCtrl *fdctrl, int direction)
 {
     fdctrl->fifo[0] = 0x41; /* Stepping 1 */
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_restore(FDCtrl *fdctrl, int direction)
@@ -1667,7 +1760,7 @@ static void fdctrl_handle_restore(FDCtrl *fdctrl, int direction)
     fdctrl->config = fdctrl->fifo[11];
     fdctrl->precomp_trk = fdctrl->fifo[12];
     fdctrl->pwrd = fdctrl->fifo[13];
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
@@ -1697,7 +1790,7 @@ static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
     fdctrl->fifo[12] = fdctrl->pwrd;
     fdctrl->fifo[13] = 0;
     fdctrl->fifo[14] = 0;
-    fdctrl_set_fifo(fdctrl, 15);
+    fdctrl_to_result_phase(fdctrl, 15);
 }
 
 static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
@@ -1746,7 +1839,7 @@ static void fdctrl_handle_specify(FDCtrl *fdctrl, int direction)
     else
         fdctrl->dor |= FD_DOR_DMAEN;
     /* No result back */
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_sense_drive_status(FDCtrl *fdctrl, int direction)
@@ -1762,7 +1855,7 @@ static void fdctrl_handle_sense_drive_status(FDCtrl *fdctrl, int direction)
         (cur_drv->head << 2) |
         GET_CUR_DRV(fdctrl) |
         0x28;
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
@@ -1772,7 +1865,7 @@ static void fdctrl_handle_recalibrate(FDCtrl *fdctrl, int direction)
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     fd_recalibrate(cur_drv);
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     /* Raise Interrupt */
     fdctrl->status0 |= FD_SR0_SEEK;
     fdctrl_raise_irq(fdctrl);
@@ -1788,7 +1881,7 @@ static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
         fdctrl->reset_sensei--;
     } else if (!(fdctrl->sra & FD_SRA_INTPEND)) {
         fdctrl->fifo[0] = FD_SR0_INVCMD;
-        fdctrl_set_fifo(fdctrl, 1);
+        fdctrl_to_result_phase(fdctrl, 1);
         return;
     } else {
         fdctrl->fifo[0] =
@@ -1797,7 +1890,7 @@ static void fdctrl_handle_sense_interrupt_status(FDCtrl *fdctrl, int direction)
     }
 
     fdctrl->fifo[1] = cur_drv->track;
-    fdctrl_set_fifo(fdctrl, 2);
+    fdctrl_to_result_phase(fdctrl, 2);
     fdctrl_reset_irq(fdctrl);
     fdctrl->status0 = FD_SR0_RDYCHG;
 }
@@ -1808,7 +1901,7 @@ static void fdctrl_handle_seek(FDCtrl *fdctrl, int direction)
 
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     /* The seek command just sends step pulses to the drive and doesn't care if
      * there is a medium inserted of if it's banging the head against the drive.
      */
@@ -1825,7 +1918,7 @@ static void fdctrl_handle_perpendicular_mode(FDCtrl *fdctrl, int direction)
     if (fdctrl->fifo[1] & 0x80)
         cur_drv->perpendicular = fdctrl->fifo[1] & 0x7;
     /* No result back */
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_configure(FDCtrl *fdctrl, int direction)
@@ -1833,20 +1926,20 @@ static void fdctrl_handle_configure(FDCtrl *fdctrl, int direction)
     fdctrl->config = fdctrl->fifo[2];
     fdctrl->precomp_trk =  fdctrl->fifo[3];
     /* No result back */
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_powerdown_mode(FDCtrl *fdctrl, int direction)
 {
     fdctrl->pwrd = fdctrl->fifo[1];
     fdctrl->fifo[0] = fdctrl->fifo[1];
-    fdctrl_set_fifo(fdctrl, 1);
+    fdctrl_to_result_phase(fdctrl, 1);
 }
 
 static void fdctrl_handle_option(FDCtrl *fdctrl, int direction)
 {
     /* No result back */
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
 }
 
 static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direction)
@@ -1862,15 +1955,15 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
             fdctrl->fifo[0] = fdctrl->fifo[1];
             fdctrl->fifo[2] = 0;
             fdctrl->fifo[3] = 0;
-            fdctrl_set_fifo(fdctrl, 4);
+            fdctrl_to_result_phase(fdctrl, 4);
         } else {
-            fdctrl_reset_fifo(fdctrl);
+            fdctrl_to_command_phase(fdctrl);
         }
     } else if (fdctrl->data_len > 7) {
         /* ERROR */
         fdctrl->fifo[0] = 0x80 |
             (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
-        fdctrl_set_fifo(fdctrl, 1);
+        fdctrl_to_result_phase(fdctrl, 1);
     }
 }
 
@@ -1887,7 +1980,7 @@ static void fdctrl_handle_relative_seek_in(FDCtrl *fdctrl, int direction)
         fd_seek(cur_drv, cur_drv->head,
                 cur_drv->track + fdctrl->fifo[2], cur_drv->sect, 1);
     }
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     /* Raise Interrupt */
     fdctrl->status0 |= FD_SR0_SEEK;
     fdctrl_raise_irq(fdctrl);
@@ -1905,20 +1998,25 @@ static void fdctrl_handle_relative_seek_out(FDCtrl *fdctrl, int direction)
         fd_seek(cur_drv, cur_drv->head,
                 cur_drv->track - fdctrl->fifo[2], cur_drv->sect, 1);
     }
-    fdctrl_reset_fifo(fdctrl);
+    fdctrl_to_command_phase(fdctrl);
     /* Raise Interrupt */
     fdctrl->status0 |= FD_SR0_SEEK;
     fdctrl_raise_irq(fdctrl);
 }
 
-static const struct {
+/*
+ * Handlers for the execution phase of each command
+ */
+typedef struct FDCtrlCommand {
     uint8_t value;
     uint8_t mask;
     const char* name;
     int parameters;
     void (*handler)(FDCtrl *fdctrl, int direction);
     int direction;
-} handlers[] = {
+} FDCtrlCommand;
+
+static const FDCtrlCommand handlers[] = {
     { FD_CMD_READ, 0x1f, "READ", 8, fdctrl_start_transfer, FD_DIR_READ },
     { FD_CMD_WRITE, 0x3f, "WRITE", 8, fdctrl_start_transfer, FD_DIR_WRITE },
     { FD_CMD_SEEK, 0xff, "SEEK", 2, fdctrl_handle_seek },
@@ -1955,9 +2053,19 @@ static const struct {
 /* Associate command to an index in the 'handlers' array */
 static uint8_t command_to_handler[256];
 
+static const FDCtrlCommand *get_command(uint8_t cmd)
+{
+    int idx;
+
+    idx = command_to_handler[cmd];
+    FLOPPY_DPRINTF("%s command\n", handlers[idx].name);
+    return &handlers[idx];
+}
+
 static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
 {
     FDrive *cur_drv;
+    const FDCtrlCommand *cmd;
     uint32_t pos;
 
     /* Reset mode */
@@ -1970,12 +2078,27 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         return;
     }
     fdctrl->dsr &= ~FD_DSR_PWRDOWN;
-    /* Is it write command time ? */
-    if (fdctrl->msr & FD_MSR_NONDMA) {
+
+    FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
+
+    /* If data_len spans multiple sectors, the current position in the FIFO
+     * wraps around while fdctrl->data_pos is the real position in the whole
+     * request. */
+    pos = fdctrl->data_pos++;
+    pos %= FD_SECTOR_LEN;
+    fdctrl->fifo[pos] = value;
+
+    if (fdctrl->data_pos == fdctrl->data_len) {
+        fdctrl->msr &= ~FD_MSR_RQM;
+    }
+
+    switch (fdctrl->phase) {
+    case FD_PHASE_EXECUTION:
+        /* For DMA requests, RQM should be cleared during execution phase, so
+         * we would have errored out above. */
+        assert(fdctrl->msr & FD_MSR_NONDMA);
+
         /* FIFO data write */
-        pos = fdctrl->data_pos++;
-        pos %= FD_SECTOR_LEN;
-        fdctrl->fifo[pos] = value;
         if (pos == FD_SECTOR_LEN - 1 ||
             fdctrl->data_pos == fdctrl->data_len) {
             cur_drv = get_cur_drv(fdctrl);
@@ -1983,45 +2106,54 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
                 < 0) {
                 FLOPPY_DPRINTF("error writing sector %d\n",
                                fd_sector(cur_drv));
-                return;
+                break;
             }
             if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
                 FLOPPY_DPRINTF("error seeking to next sector %d\n",
                                fd_sector(cur_drv));
-                return;
+                break;
             }
         }
-        /* Switch from transfer mode to status mode
-         * then from status mode to command mode
-         */
-        if (fdctrl->data_pos == fdctrl->data_len)
-            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
-        return;
-    }
-    if (fdctrl->data_pos == 0) {
-        /* Command */
-        pos = command_to_handler[value & 0xff];
-        FLOPPY_DPRINTF("%s command\n", handlers[pos].name);
-        fdctrl->data_len = handlers[pos].parameters + 1;
-        fdctrl->msr |= FD_MSR_CMDBUSY;
-    }
 
-    FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
-    pos = fdctrl->data_pos++;
-    pos %= FD_SECTOR_LEN;
-    fdctrl->fifo[pos] = value;
-    if (fdctrl->data_pos == fdctrl->data_len) {
-        /* We now have all parameters
-         * and will be able to treat the command
-         */
-        if (fdctrl->data_state & FD_STATE_FORMAT) {
-            fdctrl_format_sector(fdctrl);
-            return;
+        /* Switch to result phase when done with the transfer */
+        if (fdctrl->data_pos == fdctrl->data_len) {
+            fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+        }
+        break;
+
+    case FD_PHASE_COMMAND:
+        assert(!(fdctrl->msr & FD_MSR_NONDMA));
+        assert(fdctrl->data_pos < FD_SECTOR_LEN);
+
+        if (pos == 0) {
+            /* The first byte specifies the command. Now we start reading
+             * as many parameters as this command requires. */
+            cmd = get_command(value);
+            fdctrl->data_len = cmd->parameters + 1;
+            if (cmd->parameters) {
+                fdctrl->msr |= FD_MSR_RQM;
+            }
+            fdctrl->msr |= FD_MSR_CMDBUSY;
         }
 
-        pos = command_to_handler[fdctrl->fifo[0] & 0xff];
-        FLOPPY_DPRINTF("treat %s command\n", handlers[pos].name);
-        (*handlers[pos].handler)(fdctrl, handlers[pos].direction);
+        if (fdctrl->data_pos == fdctrl->data_len) {
+            /* We have all parameters now, execute the command */
+            fdctrl->phase = FD_PHASE_EXECUTION;
+
+            if (fdctrl->data_state & FD_STATE_FORMAT) {
+                fdctrl_format_sector(fdctrl);
+                break;
+            }
+
+            cmd = get_command(fdctrl->fifo[0]);
+            FLOPPY_DPRINTF("Calling handler for '%s'\n", cmd->name);
+            cmd->handler(fdctrl, cmd->direction);
+        }
+        break;
+
+    case FD_PHASE_RESULT:
+    default:
+        abort();
     }
 }
 

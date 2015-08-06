@@ -34,11 +34,14 @@
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "block/blockjob.h"
+#include "block/throttle-groups.h"
 #include "monitor/monitor.h"
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qapi/qmp/types.h"
 #include "qapi-visit.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi/util.h"
 #include "sysemu/sysemu.h"
@@ -173,7 +176,7 @@ static int drive_index_to_unit_id(BlockInterfaceType type, int index)
 
 QemuOpts *drive_def(const char *optstr)
 {
-    return qemu_opts_parse(qemu_find_opts("drive"), optstr, 0);
+    return qemu_opts_parse_noisily(qemu_find_opts("drive"), optstr, false);
 }
 
 QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
@@ -357,6 +360,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     const char *id;
     bool has_driver_specific_opts;
     BlockdevDetectZeroesOptions detect_zeroes;
+    const char *throttling_group;
 
     /* Check common options by copying from bs_opts to opts, all other options
      * stay in bs_opts for processing by bdrv_open(). */
@@ -391,13 +395,13 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         }
     }
 
-    if (qemu_opt_get_bool(opts, "cache.writeback", true)) {
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true)) {
         bdrv_flags |= BDRV_O_CACHE_WB;
     }
-    if (qemu_opt_get_bool(opts, "cache.direct", false)) {
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
         bdrv_flags |= BDRV_O_NOCACHE;
     }
-    if (qemu_opt_get_bool(opts, "cache.no-flush", false)) {
+    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
         bdrv_flags |= BDRV_O_NO_FLUSH;
     }
 
@@ -458,6 +462,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         qemu_opt_get_number(opts, "throttling.iops-write-max", 0);
 
     cfg.op_size = qemu_opt_get_number(opts, "throttling.iops-size", 0);
+
+    throttling_group = qemu_opt_get(opts, "throttling.group");
 
     if (!check_throttle_config(&cfg, &error)) {
         error_propagate(errp, error);
@@ -547,7 +553,10 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     /* disk I/O throttling */
     if (throttle_enabled(&cfg)) {
-        bdrv_io_limits_enable(bs);
+        if (!throttling_group) {
+            throttling_group = blk_name(blk);
+        }
+        bdrv_io_limits_enable(bs, throttling_group);
         bdrv_set_io_limits(bs, &cfg);
     }
 
@@ -711,6 +720,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
 
         { "iops_size",      "throttling.iops-size" },
 
+        { "group",          "throttling.group" },
+
         { "readonly",       "read-only" },
     };
 
@@ -733,16 +744,16 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         }
 
         /* Specific options take precedence */
-        if (!qemu_opt_get(all_opts, "cache.writeback")) {
-            qemu_opt_set_bool(all_opts, "cache.writeback",
+        if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_WB)) {
+            qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_WB,
                               !!(flags & BDRV_O_CACHE_WB), &error_abort);
         }
-        if (!qemu_opt_get(all_opts, "cache.direct")) {
-            qemu_opt_set_bool(all_opts, "cache.direct",
+        if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_DIRECT)) {
+            qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_DIRECT,
                               !!(flags & BDRV_O_NOCACHE), &error_abort);
         }
-        if (!qemu_opt_get(all_opts, "cache.no-flush")) {
-            qemu_opt_set_bool(all_opts, "cache.no-flush",
+        if (!qemu_opt_get(all_opts, BDRV_OPT_CACHE_NO_FLUSH)) {
+            qemu_opt_set_bool(all_opts, BDRV_OPT_CACHE_NO_FLUSH,
                               !!(flags & BDRV_O_NO_FLUSH), &error_abort);
         }
         qemu_opt_unset(all_opts, "cache");
@@ -933,7 +944,7 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type)
         devopts = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
                                    &error_abort);
         if (arch_type == QEMU_ARCH_S390X) {
-            qemu_opt_set(devopts, "driver", "virtio-blk-s390", &error_abort);
+            qemu_opt_set(devopts, "driver", "virtio-blk-ccw", &error_abort);
         } else {
             qemu_opt_set(devopts, "driver", "virtio-blk-pci", &error_abort);
         }
@@ -1102,7 +1113,8 @@ SnapshotInfo *qmp_blockdev_snapshot_delete_internal_sync(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return NULL;
     }
     bs = blk_bs(blk);
@@ -1291,7 +1303,8 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     /* 2. check for validation */
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -1301,7 +1314,7 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     aio_context_acquire(state->aio_context);
 
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 
@@ -1442,7 +1455,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     /* start processing */
     drv = bdrv_find_format(format);
     if (!drv) {
-        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+        error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
         return;
     }
 
@@ -1469,7 +1482,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     aio_context_acquire(state->aio_context);
 
     if (!bdrv_is_inserted(state->old_bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 
@@ -1480,13 +1493,13 @@ static void external_snapshot_prepare(BlkTransactionState *common,
 
     if (!bdrv_is_read_only(state->old_bs)) {
         if (bdrv_flush(state->old_bs)) {
-            error_set(errp, QERR_IO_ERROR);
+            error_setg(errp, QERR_IO_ERROR);
             return;
         }
     }
 
     if (!bdrv_is_first_non_filter(state->old_bs)) {
-        error_set(errp, QERR_FEATURE_DISABLED, "snapshot");
+        error_setg(errp, QERR_FEATURE_DISABLED, "snapshot");
         return;
     }
 
@@ -1571,7 +1584,8 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
 
     blk = blk_by_name(backup->device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, backup->device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", backup->device);
         return;
     }
     bs = blk_bs(blk);
@@ -1841,7 +1855,8 @@ void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
 
@@ -1901,7 +1916,8 @@ void qmp_change_blockdev(const char *device, const char *filename,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -1912,7 +1928,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
     if (format) {
         drv = bdrv_find_whitelisted_format(format, bs->read_only);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }
@@ -1951,7 +1967,9 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
                                bool has_iops_wr_max,
                                int64_t iops_wr_max,
                                bool has_iops_size,
-                               int64_t iops_size, Error **errp)
+                               int64_t iops_size,
+                               bool has_group,
+                               const char *group, Error **errp)
 {
     ThrottleConfig cfg;
     BlockDriverState *bs;
@@ -1960,7 +1978,8 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2004,14 +2023,19 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (!bs->io_limits_enabled && throttle_enabled(&cfg)) {
-        bdrv_io_limits_enable(bs);
-    } else if (bs->io_limits_enabled && !throttle_enabled(&cfg)) {
-        bdrv_io_limits_disable(bs);
-    }
-
-    if (bs->io_limits_enabled) {
+    if (throttle_enabled(&cfg)) {
+        /* Enable I/O limits if they're not enabled yet, otherwise
+         * just update the throttling group. */
+        if (!bs->io_limits_enabled) {
+            bdrv_io_limits_enable(bs, has_group ? group : device);
+        } else if (has_group) {
+            bdrv_io_limits_update_group(bs, group);
+        }
+        /* Set the new throttling configuration */
         bdrv_set_io_limits(bs, &cfg);
+    } else if (bs->io_limits_enabled) {
+        /* If all throttling settings are set to 0, disable I/O limits */
+        bdrv_io_limits_disable(bs);
     }
 
     aio_context_release(aio_context);
@@ -2113,7 +2137,7 @@ void qmp_block_dirty_bitmap_clear(const char *node, const char *name,
     aio_context_release(aio_context);
 }
 
-int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void hmp_drive_del(Monitor *mon, const QDict *qdict)
 {
     const char *id = qdict_get_str(qdict, "id");
     BlockBackend *blk;
@@ -2124,14 +2148,14 @@ int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     blk = blk_by_name(id);
     if (!blk) {
         error_report("Device '%s' not found", id);
-        return -1;
+        return;
     }
     bs = blk_bs(blk);
 
     if (!blk_legacy_dinfo(blk)) {
         error_report("Deleting device added with blockdev-add"
                      " is not supported");
-        return -1;
+        return;
     }
 
     aio_context = bdrv_get_aio_context(bs);
@@ -2140,12 +2164,9 @@ int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
         error_report_err(local_err);
         aio_context_release(aio_context);
-        return -1;
+        return;
     }
 
-    /* quiesce block driver; prevent further io */
-    bdrv_drain_all();
-    bdrv_flush(bs);
     bdrv_close(bs);
 
     /* if we have a device attached to this BlockDriverState
@@ -2163,7 +2184,6 @@ int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     aio_context_release(aio_context);
-    return 0;
 }
 
 void qmp_block_resize(bool has_device, const char *device,
@@ -2187,17 +2207,17 @@ void qmp_block_resize(bool has_device, const char *device,
     aio_context_acquire(aio_context);
 
     if (!bdrv_is_first_non_filter(bs)) {
-        error_set(errp, QERR_FEATURE_DISABLED, "resize");
+        error_setg(errp, QERR_FEATURE_DISABLED, "resize");
         goto out;
     }
 
     if (size < 0) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
         goto out;
     }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_RESIZE, NULL)) {
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+        error_setg(errp, QERR_DEVICE_IN_USE, device);
         goto out;
     }
 
@@ -2209,16 +2229,16 @@ void qmp_block_resize(bool has_device, const char *device,
     case 0:
         break;
     case -ENOMEDIUM:
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         break;
     case -ENOTSUP:
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         break;
     case -EACCES:
         error_setg(errp, "Device '%s' is read only", device);
         break;
     case -EBUSY:
-        error_set(errp, QERR_DEVICE_IN_USE, device);
+        error_setg(errp, QERR_DEVICE_IN_USE, device);
         break;
     default:
         error_setg_errno(errp, -ret, "Could not resize");
@@ -2276,7 +2296,8 @@ void qmp_block_stream(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2291,7 +2312,7 @@ void qmp_block_stream(const char *device,
     if (has_base) {
         base_bs = bdrv_find_backing_image(bs, base);
         if (base_bs == NULL) {
-            error_set(errp, QERR_BASE_NOT_FOUND, base);
+            error_setg(errp, QERR_BASE_NOT_FOUND, base);
             goto out;
         }
         assert(bdrv_get_aio_context(base_bs) == aio_context);
@@ -2350,16 +2371,14 @@ void qmp_block_commit(const char *device,
      *  scenario in which all optional arguments are omitted. */
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
-    /* drain all i/o before commits */
-    bdrv_drain_all();
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_COMMIT_SOURCE, errp)) {
         goto out;
@@ -2388,7 +2407,7 @@ void qmp_block_commit(const char *device,
     }
 
     if (base_bs == NULL) {
-        error_set(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
+        error_setg(errp, QERR_BASE_NOT_FOUND, base ? base : "NULL");
         goto out;
     }
 
@@ -2462,7 +2481,8 @@ void qmp_drive_backup(const char *device, const char *target,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2473,7 +2493,7 @@ void qmp_drive_backup(const char *device, const char *target,
     /* Although backup_run has this check too, we need to use bs->drv below, so
      * do an early check redundantly. */
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         goto out;
     }
 
@@ -2483,7 +2503,7 @@ void qmp_drive_backup(const char *device, const char *target,
     if (format) {
         drv = bdrv_find_format(format);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }
@@ -2619,8 +2639,6 @@ out:
     aio_context_release(aio_context);
 }
 
-#define DEFAULT_MIRROR_BUF_SIZE   (10 << 20)
-
 void qmp_drive_mirror(const char *device, const char *target,
                       bool has_format, const char *format,
                       bool has_node_name, const char *node_name,
@@ -2632,6 +2650,7 @@ void qmp_drive_mirror(const char *device, const char *target,
                       bool has_buf_size, int64_t buf_size,
                       bool has_on_source_error, BlockdevOnError on_source_error,
                       bool has_on_target_error, BlockdevOnError on_target_error,
+                      bool has_unmap, bool unmap,
                       Error **errp)
 {
     BlockBackend *blk;
@@ -2661,22 +2680,27 @@ void qmp_drive_mirror(const char *device, const char *target,
         granularity = 0;
     }
     if (!has_buf_size) {
-        buf_size = DEFAULT_MIRROR_BUF_SIZE;
+        buf_size = 0;
+    }
+    if (!has_unmap) {
+        unmap = true;
     }
 
     if (granularity != 0 && (granularity < 512 || granularity > 1048576 * 64)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
-                  "a value in range [512B, 64MB]");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
+                   "a value in range [512B, 64MB]");
         return;
     }
     if (granularity & (granularity - 1)) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "granularity", "power of 2");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "granularity",
+                   "power of 2");
         return;
     }
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -2685,7 +2709,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     aio_context_acquire(aio_context);
 
     if (!bdrv_is_inserted(bs)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         goto out;
     }
 
@@ -2695,7 +2719,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     if (format) {
         drv = bdrv_find_format(format);
         if (!drv) {
-            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
             goto out;
         }
     }
@@ -2802,6 +2826,7 @@ void qmp_drive_mirror(const char *device, const char *target,
                  has_replaces ? replaces : NULL,
                  speed, granularity, buf_size, sync,
                  on_source_error, on_target_error,
+                 unmap,
                  block_job_cb, bs, &local_err);
     if (local_err != NULL) {
         bdrv_unref(target_bs);
@@ -2942,7 +2967,8 @@ void qmp_change_backing_file(const char *device,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     bs = blk_bs(blk);
@@ -3106,15 +3132,15 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },{
-            .name = "cache.writeback",
+            .name = BDRV_OPT_CACHE_WB,
             .type = QEMU_OPT_BOOL,
             .help = "enables writeback mode for any caches",
         },{
-            .name = "cache.direct",
+            .name = BDRV_OPT_CACHE_DIRECT,
             .type = QEMU_OPT_BOOL,
             .help = "enables use of O_DIRECT (bypass the host page cache)",
         },{
-            .name = "cache.no-flush",
+            .name = BDRV_OPT_CACHE_NO_FLUSH,
             .type = QEMU_OPT_BOOL,
             .help = "ignore any flush requests for the device",
         },{
@@ -3189,6 +3215,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "throttling.iops-size",
             .type = QEMU_OPT_NUMBER,
             .help = "when limiting by iops max size of an I/O in bytes",
+        },{
+            .name = "throttling.group",
+            .type = QEMU_OPT_STRING,
+            .help = "name of the block throttling group",
         },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,

@@ -84,9 +84,10 @@ static inline bool valid_pte_index(CPUPPCState *env, target_ulong pte_index)
     return true;
 }
 
-static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_enter(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                             target_ulong opcode, target_ulong *args)
 {
+    MachineState *machine = MACHINE(spapr);
     CPUPPCState *env = &cpu->env;
     target_ulong flags = args[0];
     target_ulong pte_index = args[1];
@@ -118,7 +119,7 @@ static target_ulong h_enter(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
     raddr = (ptel & HPTE64_R_RPN) & ~((1ULL << page_shift) - 1);
 
-    if (raddr < spapr->ram_limit) {
+    if (raddr < machine->ram_size) {
         /* Regular RAM - should have WIMG=0010 */
         if ((ptel & HPTE64_R_WIMG) != HPTE64_R_M) {
             return H_PARAMETER;
@@ -205,7 +206,7 @@ static RemoveResult remove_hpte(CPUPPCState *env, target_ulong ptex,
     return REMOVE_SUCCESS;
 }
 
-static target_ulong h_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                              target_ulong opcode, target_ulong *args)
 {
     CPUPPCState *env = &cpu->env;
@@ -252,7 +253,7 @@ static target_ulong h_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
 
 #define H_BULK_REMOVE_MAX_BATCH        4
 
-static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                   target_ulong opcode, target_ulong *args)
 {
     CPUPPCState *env = &cpu->env;
@@ -299,7 +300,7 @@ static target_ulong h_bulk_remove(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_protect(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_protect(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                               target_ulong opcode, target_ulong *args)
 {
     CPUPPCState *env = &cpu->env;
@@ -337,7 +338,7 @@ static target_ulong h_protect(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_read(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_read(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     CPUPPCState *env = &cpu->env;
@@ -367,7 +368,7 @@ static target_ulong h_read(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_set_dabr(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                target_ulong opcode, target_ulong *args)
 {
     /* FIXME: actually implement this */
@@ -506,7 +507,7 @@ static target_ulong deregister_dtl(CPUPPCState *env, target_ulong addr)
     return H_SUCCESS;
 }
 
-static target_ulong h_register_vpa(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_register_vpa(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     target_ulong flags = args[0];
@@ -551,7 +552,7 @@ static target_ulong h_register_vpa(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return ret;
 }
 
-static target_ulong h_cede(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_cede(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     CPUPPCState *env = &cpu->env;
@@ -567,7 +568,7 @@ static target_ulong h_cede(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_rtas(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_rtas(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     target_ulong rtas_r3 = args[0];
@@ -579,7 +580,7 @@ static target_ulong h_rtas(PowerPCCPU *cpu, sPAPREnvironment *spapr,
                            nret, rtas_r3 + 12 + 4*nargs);
 }
 
-static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
@@ -603,7 +604,7 @@ static target_ulong h_logical_load(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_PARAMETER;
 }
 
-static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
@@ -629,7 +630,7 @@ static target_ulong h_logical_store(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_PARAMETER;
 }
 
-static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
     CPUState *cs = CPU(cpu);
@@ -698,14 +699,14 @@ static target_ulong h_logical_memop(PowerPCCPU *cpu, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_logical_icbi(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_logical_icbi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     /* Nothing to do on emulation, KVM will trap this in the kernel */
     return H_SUCCESS;
 }
 
-static target_ulong h_logical_dcbf(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_logical_dcbf(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     /* Nothing to do on emulation, KVM will trap this in the kernel */
@@ -788,7 +789,7 @@ static target_ulong h_set_mode_resource_addr_trans_mode(PowerPCCPU *cpu,
     return H_SUCCESS;
 }
 
-static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPREnvironment *spapr,
+static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                target_ulong opcode, target_ulong *args)
 {
     target_ulong resource = args[1];
@@ -828,7 +829,7 @@ static void do_set_compat(void *arg)
     ((cpuver) == CPU_POWERPC_LOGICAL_2_07) ? 2070 : 0)
 
 static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
-                                                  sPAPREnvironment *spapr,
+                                                  sPAPRMachineState *spapr,
                                                   target_ulong opcode,
                                                   target_ulong *args)
 {
@@ -921,7 +922,7 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
         return H_SUCCESS;
     }
 
-    if (spapr_h_cas_compose_response(args[1], args[2])) {
+    if (spapr_h_cas_compose_response(spapr, args[1], args[2])) {
         qemu_system_reset_request();
     }
 
@@ -952,6 +953,8 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
 target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
                              target_ulong *args)
 {
+    sPAPRMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
+
     if ((opcode <= MAX_HCALL_OPCODE)
         && ((opcode & 0x3) == 0)) {
         spapr_hcall_fn fn = papr_hypercall_table[opcode / 4];

@@ -41,6 +41,24 @@ typedef struct SysBusDeviceClass {
     /*< public >*/
 
     int (*init)(SysBusDevice *dev);
+
+    /*
+     * Let the sysbus device format its own non-PIO, non-MMIO unit address.
+     *
+     * Sometimes a class of SysBusDevices has neither MMIO nor PIO resources,
+     * yet instances of it would like to distinguish themselves, in
+     * OpenFirmware device paths, from other instances of the same class on the
+     * sysbus. For that end we expose this callback.
+     *
+     * The implementation is not supposed to change *@dev, or incur other
+     * observable change.
+     *
+     * The function returns a dynamically allocated string. On error, NULL
+     * should be returned; the unit address portion of the OFW node will be
+     * omitted then. (This is not considered a fatal error.)
+     */
+    char *(*explicit_ofw_unit_address)(const SysBusDevice *dev);
+    void (*connect_irq_notifier)(SysBusDevice *dev, qemu_irq irq);
 } SysBusDeviceClass;
 
 struct SysBusDevice {

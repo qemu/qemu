@@ -28,7 +28,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #include "qemu/option.h"
 #include "qapi/error.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi-types.h"
 
 extern QemuOptsList socket_optslist;

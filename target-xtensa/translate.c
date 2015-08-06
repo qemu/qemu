@@ -37,6 +37,7 @@
 #include "qemu/log.h"
 #include "sysemu/sysemu.h"
 #include "exec/cpu_ldst.h"
+#include "exec/semihost.h"
 
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
@@ -227,7 +228,7 @@ void xtensa_translate_init(void)
 
     for (i = 0; i < 16; i++) {
         cpu_FR[i] = tcg_global_mem_new_i32(TCG_AREG0,
-                offsetof(CPUXtensaState, fregs[i]),
+                offsetof(CPUXtensaState, fregs[i].f32[FP_F32_LOW]),
                 fregnames[i]);
     }
 
@@ -1216,7 +1217,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                         break;
 
                     case 1: /*SIMCALL*/
-                        if (semihosting_enabled) {
+                        if (semihosting_enabled()) {
                             if (gen_check_privilege(dc)) {
                                 gen_helper_simcall(cpu_env);
                             }
@@ -3137,7 +3138,7 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(env, pc_start, dc.pc - pc_start, 0);
+        log_target_disas(cs, pc_start, dc.pc - pc_start, 0);
         qemu_log("\n");
     }
 #endif
@@ -3205,8 +3206,9 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
 
         for (i = 0; i < 16; ++i) {
             cpu_fprintf(f, "F%02d=%08x (%+10.8e)%c", i,
-                    float32_val(env->fregs[i]),
-                    *(float *)&env->fregs[i], (i % 2) == 1 ? '\n' : ' ');
+                    float32_val(env->fregs[i].f32[FP_F32_LOW]),
+                    *(float *)(env->fregs[i].f32 + FP_F32_LOW),
+                    (i % 2) == 1 ? '\n' : ' ');
         }
     }
 }

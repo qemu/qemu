@@ -420,6 +420,7 @@ Other properties for front-panel ports are available via DMA CMD descriptors:
 		LEARNING	1	MAC address learning on port
 						1 = enabled
 						0 = disabled
+		PHYS_NAME	<var>	Physical port name (string)
 
 	Set PORT_SETTINGS descriptor:
 
@@ -636,6 +637,7 @@ The TLVs for Rx descriptor buffer are:
 				  (1 << 5): TCP packet
 				  (1 << 6): UDP packet
 				  (1 << 7): TCP/UDP csum good
+				  (1 << 8): Offload forward
 	RX_CSUM		2	IP calculated checksum:
 				  IPv4: IP payload csum
 				  IPv6: header and payload csum
@@ -643,6 +645,9 @@ The TLVs for Rx descriptor buffer are:
 	RX_FRAG_ADDR	8	DMA address of packet fragment
 	RX_FRAG_MAX_LEN	2	Packet maximum fragment length
 	RX_FRAG_LEN	2	Actual packet fragment length after receive
+
+Offload forward RX_FLAG indicates the device has already forwarded the packet
+so the host CPU should not also forward the packet.
 
 Possible status return codes in descriptor on completion are:
 

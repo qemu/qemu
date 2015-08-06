@@ -93,6 +93,16 @@ $QEMU_IO -c "open -o l2-cache-size=1M,refcount-cache-size=0.25M $TEST_IMG" \
          -c 'read -P 42 0 64k' \
     | _filter_qemu_io
 
+echo
+echo '=== Testing minimal L2 cache and COW ==='
+echo
+
+$QEMU_IMG snapshot -c foo "$TEST_IMG"
+# This requires a COW operation, which accesses two L2 tables simultaneously
+# (COW source and destination), so there must be enough space in the cache to
+# place both tables there (and qemu should not crash)
+$QEMU_IO -c "open -o cache-size=0 $TEST_IMG" -c 'write 0 64k' | _filter_qemu_io
+
 # success, all done
 echo '*** done'
 rm -f $seq.full

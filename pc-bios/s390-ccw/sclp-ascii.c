@@ -24,6 +24,7 @@ static int sclp_service_call(unsigned int command, void *sccb)
                 "       srl     %0,28"
                 : "=&d" (cc) : "d" (command), "a" (__pa(sccb))
                 : "cc", "memory");
+        consume_sclp_int();
         if (cc == 3)
                 return -EIO;
         if (cc == 2)

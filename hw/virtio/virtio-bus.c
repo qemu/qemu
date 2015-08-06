@@ -38,19 +38,24 @@ do { printf("virtio_bus: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
 /* A VirtIODevice is being plugged */
-int virtio_bus_device_plugged(VirtIODevice *vdev)
+void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
 {
     DeviceState *qdev = DEVICE(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(qdev));
     VirtioBusState *bus = VIRTIO_BUS(qbus);
     VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
+
     DPRINTF("%s: plug device.\n", qbus->name);
 
     if (klass->device_plugged != NULL) {
-        klass->device_plugged(qbus->parent);
+        klass->device_plugged(qbus->parent, errp);
     }
 
-    return 0;
+    /* Get the features of the plugged device. */
+    assert(vdc->get_features != NULL);
+    vdev->host_features = vdc->get_features(vdev, vdev->host_features,
+                                            errp);
 }
 
 /* Reset the virtio_bus */
@@ -94,19 +99,6 @@ size_t virtio_bus_get_vdev_config_len(VirtioBusState *bus)
     VirtIODevice *vdev = virtio_bus_get_device(bus);
     assert(vdev != NULL);
     return vdev->config_len;
-}
-
-/* Get the features of the plugged device. */
-uint32_t virtio_bus_get_vdev_features(VirtioBusState *bus,
-                                    uint32_t requested_features)
-{
-    VirtIODevice *vdev = virtio_bus_get_device(bus);
-    VirtioDeviceClass *k;
-
-    assert(vdev != NULL);
-    k = VIRTIO_DEVICE_GET_CLASS(vdev);
-    assert(k->get_features != NULL);
-    return k->get_features(vdev, requested_features);
 }
 
 /* Get bad features of the plugged device. */

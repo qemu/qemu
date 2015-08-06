@@ -72,6 +72,21 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type)
     }
 }
 
+static CPUState *get_cpu_by_id(uint64_t id)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        ARMCPU *armcpu = ARM_CPU(cpu);
+
+        if (armcpu->mp_affinity == id) {
+            return cpu;
+        }
+    }
+
+    return NULL;
+}
+
 void arm_handle_psci_call(ARMCPU *cpu)
 {
     /*
@@ -121,7 +136,7 @@ void arm_handle_psci_call(ARMCPU *cpu)
 
         switch (param[2]) {
         case 0:
-            target_cpu_state = qemu_get_cpu(mpidr & 0xff);
+            target_cpu_state = get_cpu_by_id(mpidr);
             if (!target_cpu_state) {
                 ret = QEMU_PSCI_RET_INVALID_PARAMS;
                 break;
@@ -153,7 +168,7 @@ void arm_handle_psci_call(ARMCPU *cpu)
         context_id = param[3];
 
         /* change to the cpu we are powering up */
-        target_cpu_state = qemu_get_cpu(mpidr & 0xff);
+        target_cpu_state = get_cpu_by_id(mpidr);
         if (!target_cpu_state) {
             ret = QEMU_PSCI_RET_INVALID_PARAMS;
             break;
