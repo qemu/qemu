@@ -72,9 +72,7 @@ enum {
     WS_OPCODE_PONG = 0xA
 };
 
-#ifdef CONFIG_VNC_TLS
 void vncws_tls_handshake_io(void *opaque);
-#endif /* CONFIG_VNC_TLS */
 void vncws_handshake_read(void *opaque);
 long vnc_client_write_ws(VncState *vs);
 long vnc_client_read_ws(VncState *vs);

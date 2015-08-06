@@ -1217,8 +1217,9 @@ By definition the Websocket port is 5700+@var{display}. If @var{host} is
 specified connections will only be allowed from this host.
 As an alternative the Websocket port could be specified by using
 @code{websocket}=@var{port}.
-TLS encryption for the Websocket connection is supported if the required
-certificates are specified with the VNC option @option{x509}.
+If no TLS credentials are provided, the websocket connection runs in
+unencrypted mode. If TLS credentials are provided, the websocket connection
+requires encrypted client connections.
 
 @item password
 
@@ -1239,12 +1240,29 @@ date and time).
 You can also use keywords "now" or "never" for the expiration time to
 allow <protocol> password to expire immediately or never expire.
 
+@item tls-creds=@var{ID}
+
+Provides the ID of a set of TLS credentials to use to secure the
+VNC server. They will apply to both the normal VNC server socket
+and the websocket socket (if enabled). Setting TLS credentials
+will cause the VNC server socket to enable the VeNCrypt auth
+mechanism.  The credentials should have been previously created
+using the @option{-object tls-creds} argument.
+
+The @option{tls-creds} parameter obsoletes the @option{tls},
+@option{x509}, and @option{x509verify} options, and as such
+it is not permitted to set both new and old type options at
+the same time.
+
 @item tls
 
 Require that client use TLS when communicating with the VNC server. This
 uses anonymous TLS credentials so is susceptible to a man-in-the-middle
 attack. It is recommended that this option be combined with either the
 @option{x509} or @option{x509verify} options.
+
+This option is now deprecated in favor of using the @option{tls-creds}
+argument.
 
 @item x509=@var{/path/to/certificate/dir}
 
@@ -1254,6 +1272,9 @@ to the client. It is recommended that a password be set on the VNC server
 to provide authentication of the client when this is used. The path following
 this option specifies where the x509 certificates are to be loaded from.
 See the @ref{vnc_security} section for details on generating certificates.
+
+This option is now deprecated in favour of using the @option{tls-creds}
+argument.
 
 @item x509verify=@var{/path/to/certificate/dir}
 
@@ -1267,6 +1288,9 @@ to set a password on the VNC server as a second authentication layer. The
 path following this option specifies where the x509 certificates are to
 be loaded from. See the @ref{vnc_security} section for details on generating
 certificates.
+
+This option is now deprecated in favour of using the @option{tls-creds}
+argument.
 
 @item sasl
 
