@@ -343,6 +343,7 @@ static QString* generate_fixed_function(const ShaderState state,
                 qstring_append_fmt(s,
                     "  vec3 VP = lightLocalPosition%d - tPosition.xyz/tPosition.w;\n"
                     "  float d = length(VP);\n"
+//FIXME: if (d > lightLocalRange) { .. don't process this light .. } /* inclusive?! */ - what about directional lights?
                     "  VP = normalize(VP);\n"
                     "  float attenuation = 1.0 / (lightLocalAttenuation%d.x\n"
                     "                               + lightLocalAttenuation%d.y * d\n"
