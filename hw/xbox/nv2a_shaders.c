@@ -337,13 +337,19 @@ static QString* generate_fixed_function(const ShaderState state,
 
                 qstring_append_fmt(h,
                     "uniform vec3 lightLocalPosition%d;\n"
-                    "uniform vec3 lightAttenuation%d;\n",
+                    "uniform vec3 lightLocalAttenuation%d;\n",
                     i, i);
+                qstring_append_fmt(s,"vec3 eye = vec3(0.0);\n"); /*FIXME: Uniform?! */
                 qstring_append_fmt(s,
-                    "  float distance = distance(lightLocalPosition%d, tPosition.xyz);\n"
-                    "  float attenuation = 1.0 / (lightAttenuation%d.x\n"
-                    "                               + lightAttenuation%d.y * distance\n"
-                    "                               + lightAttenuation%d.z * distance * distance);\n",
+                    "  vec3 VP = lightLocalPosition%d - tPosition.xyz/tPosition.w;\n"
+                    "  float d = length(VP);\n"
+                    "  VP = normalize(VP);\n"
+                    "  float attenuation = 1.0 / (lightLocalAttenuation%d.x\n"
+                    "                               + lightLocalAttenuation%d.y * d\n"
+                    "                               + lightLocalAttenuation%d.z * d * d);\n"
+                    "  vec3 halfVector = normalize(VP + eye);\n"
+                    "  float nDotVP = max(0.0, dot(tNormal, VP));\n"
+                    "  float nDotHV = max(0.0, dot(tNormal, halfVector));\n",
                     i, i, i, i);
 
             }
@@ -358,9 +364,10 @@ static QString* generate_fixed_function(const ShaderState state,
                     "uniform vec3 lightInfiniteDirection%d;\n",
                     i, i);
                 qstring_append_fmt(s,
-                    "  float L = dot(tNormal, lightInfiniteDirection%d);\n"
-                    "  float attenuation = max(L, 0.0);\n",
-                    i);
+                    "  float attenuation = 1.0;\n"
+                    "  float nDotVP = max(0.0, dot(tNormal, normalize(vec3(lightInfiniteDirection%d))));\n"
+                    "  float nDotHV = max(0.0, dot(tNormal, vec3(lightInfiniteHalfVector%d)));\n",
+                    i, i);
 
                 /* FIXME: Do specular */
 
@@ -384,19 +391,33 @@ static QString* generate_fixed_function(const ShaderState state,
             }
 
             qstring_append_fmt(s,
-                "  float highlight = 0.0;\n"
-                "  vec3 lightDiffuse = attenuation * lightDiffuseColor%d;\n"
-                "  vec3 lightSpecular = highlight * lightSpecularColor%d;\n"
-                "  tD0.xyz += lightAmbientColor%d;\n" /* FIXME: Clamp? */
-                "  tD0.xyz += diffuse.xyz * lightDiffuse;\n"
-                "  tD1.xyz += specular.xyz * lightSpecular;\n"
-                "}\n",
+                "  float pf;\n"
+                "  if (nDotVP == 0.0) {\n"
+                "    pf = 0.0;\n"
+                "  } else {\n"
+                "    pf = pow(nDotHV, /* specular(l, m, n, l1, m1, n1) */ 0.001);\n"
+                "  }\n"
+                "  vec3 lightAmbient = lightAmbientColor%d * attenuation;\n"
+                "  vec3 lightDiffuse = lightDiffuseColor%d * attenuation * nDotVP;\n"
+                "  vec3 lightSpecular = lightSpecularColor%d * pf;\n",
                 i, i, i);
+
+            qstring_append(s,
+                "  tD0.xyz += lightAmbient;\n");
+
+            qstring_append(s,
+                "  tD0.xyz += diffuse.xyz * lightDiffuse;\n");
+
+            qstring_append(s,
+                "  tD1.xyz += specular.xyz * lightSpecular;\n"
+                "}\n");
         }
     } else {
         qstring_append(s, "vec4 tD0 = diffuse;\n");
         qstring_append(s, "vec4 tD1 = specular;\n");
     }
+    qstring_append(s, "vec4 tB0 = backDiffuse;\n");
+    qstring_append(s, "vec4 tB1 = backSpecular;\n");
 
     /* Fog */
     if (state.fog_enable) {
@@ -509,10 +530,10 @@ static QString* generate_fixed_function(const ShaderState state,
     "   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n");
 
     qstring_append(s, "vtx.inv_w = 1.0/gl_Position.w;\n");
-    qstring_append(s, "vtx.D0 = tD0 * vtx.inv_w;\n");
-    qstring_append(s, "vtx.D1 = tD1 * vtx.inv_w;\n");
-    qstring_append(s, "vtx.B0 = backDiffuse * vtx.inv_w;\n");
-    qstring_append(s, "vtx.B1 = backSpecular * vtx.inv_w;\n");
+    qstring_append(s, "vtx.D0 = clamp(tD0, 0.0, 1.0) * vtx.inv_w;\n");
+    qstring_append(s, "vtx.D1 = clamp(tD1, 0.0, 1.0) * vtx.inv_w;\n");
+    qstring_append(s, "vtx.B0 = clamp(tB0, 0.0, 1.0) * vtx.inv_w;\n");
+    qstring_append(s, "vtx.B1 = clamp(tB1, 0.0, 1.0) * vtx.inv_w;\n");
     qstring_append(s, "vtx.Fog = tFog * vtx.inv_w;\n");
     qstring_append(s, "vtx.T0 = tTexture0 *  vtx.inv_w;\n");
     qstring_append(s, "vtx.T1 = tTexture1 * vtx.inv_w;\n");
