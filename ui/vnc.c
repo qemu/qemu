@@ -1268,7 +1268,7 @@ void vnc_disconnect_finish(VncState *vs)
     g_free(vs);
 }
 
-int vnc_client_io_error(VncState *vs, int ret, int last_errno)
+ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, int last_errno)
 {
     if (ret == 0 || ret == -1) {
         if (ret == -1) {
@@ -1284,7 +1284,7 @@ int vnc_client_io_error(VncState *vs, int ret, int last_errno)
             }
         }
 
-        VNC_DEBUG("Closing down client sock: ret %d, errno %d\n",
+        VNC_DEBUG("Closing down client sock: ret %zd, errno %d\n",
                   ret, ret < 0 ? last_errno : 0);
         vnc_disconnect_start(vs);
 
@@ -1301,11 +1301,11 @@ void vnc_client_error(VncState *vs)
 }
 
 #ifdef CONFIG_VNC_TLS
-static long vnc_client_write_tls(gnutls_session_t *session,
-                                 const uint8_t *data,
-                                 size_t datalen)
+static ssize_t vnc_client_write_tls(gnutls_session_t *session,
+                                    const uint8_t *data,
+                                    size_t datalen)
 {
-    long ret = gnutls_write(*session, data, datalen);
+    ssize_t ret = gnutls_write(*session, data, datalen);
     if (ret < 0) {
         if (ret == GNUTLS_E_AGAIN) {
             errno = EAGAIN;
@@ -1333,9 +1333,9 @@ static long vnc_client_write_tls(gnutls_session_t *session,
  * the requested 'datalen' if the socket would block. Returns
  * -1 on error, and disconnects the client socket.
  */
-long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
+ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
 {
-    long ret;
+    ssize_t ret;
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
         ret = vnc_client_write_tls(&vs->tls.session, data, datalen);
@@ -1360,9 +1360,9 @@ long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen)
  * the buffered output data if the socket would block. Returns
  * -1 on error, and disconnects the client socket.
  */
-static long vnc_client_write_plain(VncState *vs)
+static ssize_t vnc_client_write_plain(VncState *vs)
 {
-    long ret;
+    ssize_t ret;
 
 #ifdef CONFIG_VNC_SASL
     VNC_DEBUG("Write Plain: Pending output %p size %zd offset %zd. Wait SSF %d\n",
@@ -1436,10 +1436,10 @@ void vnc_read_when(VncState *vs, VncReadEvent *func, size_t expecting)
 }
 
 #ifdef CONFIG_VNC_TLS
-static long vnc_client_read_tls(gnutls_session_t *session, uint8_t *data,
-                                size_t datalen)
+static ssize_t vnc_client_read_tls(gnutls_session_t *session, uint8_t *data,
+                                   size_t datalen)
 {
-    long ret = gnutls_read(*session, data, datalen);
+    ssize_t ret = gnutls_read(*session, data, datalen);
     if (ret < 0) {
         if (ret == GNUTLS_E_AGAIN) {
             errno = EAGAIN;
@@ -1467,9 +1467,9 @@ static long vnc_client_read_tls(gnutls_session_t *session, uint8_t *data,
  * the requested 'datalen' if the socket would block. Returns
  * -1 on error, and disconnects the client socket.
  */
-long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
+ssize_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
 {
-    long ret;
+    ssize_t ret;
 #ifdef CONFIG_VNC_TLS
     if (vs->tls.session) {
         ret = vnc_client_read_tls(&vs->tls.session, data, datalen);
@@ -1492,9 +1492,9 @@ long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen)
  * Returns the number of bytes read. Returns -1 on error, and
  * disconnects the client socket.
  */
-static long vnc_client_read_plain(VncState *vs)
+static ssize_t vnc_client_read_plain(VncState *vs)
 {
-    int ret;
+    ssize_t ret;
     VNC_DEBUG("Read plain %p size %zd offset %zd\n",
               vs->input.buffer, vs->input.capacity, vs->input.offset);
     buffer_reserve(&vs->input, 4096);
@@ -1520,7 +1520,7 @@ static void vnc_jobs_bh(void *opaque)
 void vnc_client_read(void *opaque)
 {
     VncState *vs = opaque;
-    long ret;
+    ssize_t ret;
 
 #ifdef CONFIG_VNC_SASL
     if (vs->sasl.conn && vs->sasl.runSSF)
