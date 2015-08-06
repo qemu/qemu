@@ -539,8 +539,11 @@
 #define NV_PGRAPH_TEXPALETTE2                            0x00001A3C
 #define NV_PGRAPH_TEXPALETTE3                            0x00001A40
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
-#define NV_PGRAPH_ZCLIPMAX                               0x00001ABC
 #define NV_PGRAPH_ZCLIPMIN                               0x00001A90
+#define NV_PGRAPH_EYEVEC0                                0x00001AAC
+#define NV_PGRAPH_EYEVEC1                                0x00001AB0
+#define NV_PGRAPH_EYEVEC2                                0x00001AB4
+#define NV_PGRAPH_ZCLIPMAX                               0x00001ABC
 
 
 #define NV_PCRTC_INTR_0                                  0x00000100
@@ -894,6 +897,7 @@
 #   define NV097_SET_FOG_PLANE                                0x009709D0
 #   define NV097_SET_SCENE_AMBIENT_COLOR                      0x00970A10
 #   define NV097_SET_VIEWPORT_OFFSET                          0x00970A20
+#   define NV097_SET_EYE_POSITION                             0x00970A50
 #   define NV097_SET_COMBINER_FACTOR0                         0x00970A60
 #   define NV097_SET_COMBINER_FACTOR1                         0x00970A80
 #   define NV097_SET_COMBINER_ALPHA_OCW                       0x00970AA0
@@ -937,6 +941,7 @@
 #       define NV097_GET_REPORT_OFFSET                            0x00FFFFFF
 #       define NV097_GET_REPORT_TYPE                              0xFF000000
 #           define NV097_GET_REPORT_TYPE_ZPASS_PIXEL_CNT              1
+#   define NV097_SET_EYE_DIRECTION                            0x009717E0
 #   define NV097_SET_SHADER_CLIP_PLANE_MODE                   0x009717F8
 #   define NV097_SET_BEGIN_END                                0x009717FC
 #       define NV097_SET_BEGIN_END_OP_END                         0x00
@@ -956,6 +961,7 @@
 #       define NV097_DRAW_ARRAYS_COUNT                            0xFF000000
 #       define NV097_DRAW_ARRAYS_START_INDEX                      0x00FFFFFF
 #   define NV097_INLINE_ARRAY                                 0x00971818
+#   define NV097_SET_EYE_VECTOR                               0x0097181C
 #   define NV097_SET_VERTEX_DATA2F_M                          0x00971880
 #   define NV097_SET_VERTEX_DATA4F_M                          0x00971A00
 #   define NV097_SET_VERTEX_DATA2S                            0x00971900
@@ -1583,6 +1589,10 @@ typedef struct PGRAPHState {
     float light_spot_direction[NV2A_MAX_LIGHTS][4];
     float light_local_position[NV2A_MAX_LIGHTS][3];
     float light_local_attenuation[NV2A_MAX_LIGHTS][3];
+
+    /* FIXME: These are probably stored in the vshader consts */
+    float eye_position[4];
+    float eye_direction[3];
 
     /* FIXME: Move to NV_PGRAPH_BUMPMAT... */
     float bump_env_matrix[NV2A_MAX_TEXTURES-1][4]; /* 3 allowed stages with 2x2 matrix each */
@@ -3144,11 +3154,30 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, pg->projection_matrix);
     }
 
+    GLint eyeVecLoc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                           "eyeVector");
+    if (eyeVecLoc != -1) {
+        glUniform3f(eyeVecLoc, *(float*)&pg->regs[NV_PGRAPH_EYEVEC0],
+                               *(float*)&pg->regs[NV_PGRAPH_EYEVEC1],
+                               *(float*)&pg->regs[NV_PGRAPH_EYEVEC2]);
+    }
+    GLint eyePosLoc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                           "eyePosition");
+    if (eyePosLoc != -1) {
+        glUniform4fv(eyePosLoc, 1, pg->eye_position);
+    }
+    GLint eyeDirLoc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                           "eyeDirection");
+    if (eyeDirLoc != -1) {
+        glUniform3fv(eyeDirLoc, 1, pg->eye_direction);
+    }
+
     /* FIXME: Only do this if lighting is allowed? I'd believe lighting works
      *        with both FFP and VPs.
      */
+    NV2A_GL_DGROUP_BEGIN("Lighting uniforms");
     GLint ambLoc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                    "sceneAmbientColor");
+                                        "sceneAmbientColor");
     if (ambLoc != -1) {
         glUniform3fv(ambLoc, 1, pg->scene_ambient_color);
     }
@@ -3221,6 +3250,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
             glUniform3fv(loc, 1, pg->light_local_attenuation[i]);
         }
     }
+    NV2A_GL_DGROUP_END();
 
     float zclip_max = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMAX];
     float zclip_min = *(float*)&pg->regs[NV_PGRAPH_ZCLIPMIN];
@@ -4644,6 +4674,11 @@ static void pgraph_method(NV2AState *d,
         pg->constants[59].dirty = true;
         break;
 
+    case NV097_SET_EYE_POSITION ...
+            NV097_SET_EYE_POSITION + 12:
+        slot = (class_method - NV097_SET_EYE_POSITION) / 4;
+        pg->eye_position[slot] = *(float*)&parameter;
+        break;
     case NV097_SET_COMBINER_FACTOR0 ...
             NV097_SET_COMBINER_FACTOR0 + 28:
         slot = (class_method - NV097_SET_COMBINER_FACTOR0) / 4;
@@ -5000,6 +5035,12 @@ static void pgraph_method(NV2AState *d,
 
         break;
     }
+
+    case NV097_SET_EYE_DIRECTION ...
+            NV097_SET_EYE_DIRECTION + 8:
+        slot = (class_method - NV097_SET_EYE_DIRECTION) / 4;
+        pg->eye_direction[slot] = *(float*)&parameter;
+        break;
 
     case NV097_SET_BEGIN_END: {
         bool depth_test =
@@ -5405,6 +5446,11 @@ static void pgraph_method(NV2AState *d,
         assert(pg->inline_array_length < NV2A_MAX_BATCH_LENGTH);
         pg->inline_array[
             pg->inline_array_length++] = parameter;
+        break;
+    case NV097_SET_EYE_VECTOR ...
+            NV097_SET_EYE_VECTOR + 8:
+        slot = (class_method - NV097_SET_EYE_VECTOR) / 4;
+        pg->regs[NV_PGRAPH_EYEVEC0 + slot * 4] = parameter;
         break;
 
     case NV097_SET_VERTEX_DATA2F_M ...

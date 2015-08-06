@@ -335,11 +335,13 @@ static QString* generate_fixed_function(const ShaderState state,
             if (state.light[i] == LIGHT_LOCAL
                     || state.light[i] == LIGHT_SPOT) {
 
+                qstring_append(h,
+                    "uniform vec4 eyePosition;\n");
+
                 qstring_append_fmt(h,
                     "uniform vec3 lightLocalPosition%d;\n"
                     "uniform vec3 lightLocalAttenuation%d;\n",
                     i, i);
-                qstring_append_fmt(s,"vec3 eye = vec3(0.0);\n"); /*FIXME: Uniform?! */
                 qstring_append_fmt(s,
                     "  vec3 VP = lightLocalPosition%d - tPosition.xyz/tPosition.w;\n"
                     "  float d = length(VP);\n"
@@ -348,7 +350,7 @@ static QString* generate_fixed_function(const ShaderState state,
                     "  float attenuation = 1.0 / (lightLocalAttenuation%d.x\n"
                     "                               + lightLocalAttenuation%d.y * d\n"
                     "                               + lightLocalAttenuation%d.z * d * d);\n"
-                    "  vec3 halfVector = normalize(VP + eye);\n"
+                    "  vec3 halfVector = normalize(VP + eyePosition.xyz / eyePosition.w);\n" /* FIXME: Not sure if eyePosition is correct */
                     "  float nDotVP = max(0.0, dot(tNormal, VP));\n"
                     "  float nDotHV = max(0.0, dot(tNormal, halfVector));\n",
                     i, i, i, i);
