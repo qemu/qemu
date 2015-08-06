@@ -74,7 +74,7 @@
  *
  * We load our kernel at 4M, leaving space for SLOF initial image
  */
-#define FDT_MAX_SIZE            0x40000
+#define FDT_MAX_SIZE            0x100000
 #define RTAS_MAX_SIZE           0x10000
 #define RTAS_MAX_ADDR           0x80000000 /* RTAS must stay below that */
 #define FW_MAX_SIZE             0x400000
@@ -85,8 +85,6 @@
 #define MIN_RMA_SLOF            128UL
 
 #define TIMEBASE_FREQ           512000000ULL
-
-#define MAX_CPUS                255
 
 #define PHANDLE_XICP            0x00001111
 
@@ -1859,7 +1857,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->init = ppc_spapr_init;
     mc->reset = ppc_spapr_reset;
     mc->block_default_type = IF_SCSI;
-    mc->max_cpus = MAX_CPUS;
+    mc->max_cpus = MAX_CPUMASK_BITS;
     mc->no_parallel = 1;
     mc->default_boot_order = "";
     mc->default_ram_size = 512 * M_BYTE;
