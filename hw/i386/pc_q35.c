@@ -276,8 +276,9 @@ static void pc_q35_init(MachineState *machine)
                                     0xb100),
                       8, NULL, 0);
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
-                 machine, idebus[0], idebus[1], rtc_state);
+    pc_cmos_init(pcms,
+                 below_4g_mem_size, above_4g_mem_size, machine->boot_order,
+                 idebus[0], idebus[1], rtc_state);
 
     /* the rest devices to which pci devfn is automatically assigned */
     pc_vga_init(isa_bus, host_bus);

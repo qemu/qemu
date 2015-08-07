@@ -428,14 +428,14 @@ static void pc_cmos_init_late(void *opaque)
     qemu_unregister_reset(pc_cmos_init_late, opaque);
 }
 
-void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                  const char *boot_device, MachineState *machine,
+void pc_cmos_init(PCMachineState *pcms,
+                  ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
+                  const char *boot_device,
                   BusState *idebus0, BusState *idebus1,
                   ISADevice *s)
 {
     int val;
     static pc_cmos_init_late_arg arg;
-    PCMachineState *pcms = PC_MACHINE(machine);
     Error *local_err = NULL;
 
     /* various important CMOS locations needed by PC/Bochs bios */
@@ -476,12 +476,12 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     /* set the number of CPU */
     rtc_set_memory(s, 0x5f, smp_cpus - 1);
 
-    object_property_add_link(OBJECT(machine), "rtc_state",
+    object_property_add_link(OBJECT(pcms), "rtc_state",
                              TYPE_ISA_DEVICE,
                              (Object **)&pcms->rtc,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
-    object_property_set_link(OBJECT(machine), OBJECT(s),
+    object_property_set_link(OBJECT(pcms), OBJECT(s),
                              "rtc_state", &error_abort);
 
     set_boot_dev(s, boot_device, &local_err);
