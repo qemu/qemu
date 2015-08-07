@@ -551,6 +551,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #define NV_PGRAPH_TEXFILTER3                             0x00001A00
 #define NV_PGRAPH_TEXFMT0                                0x00001A04
 #   define NV_PGRAPH_TEXFMT0_CONTEXT_DMA                        (1 << 1)
+#   define NV_PGRAPH_TEXFMT0_CUBEMAPENABLE                      (1 << 2)
 #   define NV_PGRAPH_TEXFMT0_DIMENSIONALITY                     0x000000C0
 #   define NV_PGRAPH_TEXFMT0_COLOR                              0x00007F00
 #   define NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS                      0x000F0000
@@ -952,6 +953,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_SET_TEXTURE_OFFSET                           0x00971B00
 #   define NV097_SET_TEXTURE_FORMAT                           0x00971B04
 #       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
+#       define NV097_SET_TEXTURE_FORMAT_CUBEMAP_ENABLE            (1 << 2)
 #       define NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY            0x000000F0
 #       define NV097_SET_TEXTURE_FORMAT_COLOR                     0x0000FF00
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8             0x00
@@ -1428,10 +1430,11 @@ typedef struct SurfaceShape {
 } SurfaceShape;
 
 typedef struct TextureShape {
+    bool cubemap;
     unsigned int dimensionality;
     unsigned int color_format;
     unsigned int levels;
-    unsigned int width, height;
+    unsigned int width, height, depth;
 
     unsigned int min_mipmap_level, max_mipmap_level;
     unsigned int pitch;
@@ -2152,36 +2155,21 @@ static uint8_t* convert_texture_data(const TextureShape s,
     }
 }
 
-static TextureBinding* generate_texture(const TextureShape s,
-                                        const uint8_t *texture_data,
-                                        const uint8_t *palette_data)
+void pgraph_upload_gl_texture(GLenum gl_target,
+                              const TextureShape s,
+                              const uint8_t *texture_data,
+                              const uint8_t *palette_data)
 {
     ColorFormatInfo f = kelvin_color_format_map[s.color_format];
 
-    /* Create a new opengl texture */
-    GLuint gl_texture;
-    glGenTextures(1, &gl_texture);
-
-    GLenum gl_target;
-    if (f.linear) {
-        /* linear textures use unnormalised texcoords.
-         * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
-         * does not allow repeat and mirror wrap modes.
-         *  (or mipmapping, but xbox d3d says 'Non swizzled and non
-         *   compressed textures cannot be mip mapped.')
-         * Not sure if that'll be an issue. */
-        gl_target = GL_TEXTURE_RECTANGLE;
-    } else {
-        gl_target = GL_TEXTURE_2D;
-    }
-
-    glBindTexture(gl_target, gl_texture);
-
-    NV2A_GL_DLABEL(GL_TEXTURE, gl_texture,
-                   "format: 0x%02X%s, width: %d",
-                   s.color_format, f.linear ? "" : " (SZ)", s.width);
-
-    if (f.linear) {
+    switch(gl_target) {
+    case GL_TEXTURE_1D:
+        assert(false);
+        break;
+    case GL_TEXTURE_3D:
+        assert(false);
+        break;
+    case GL_TEXTURE_RECTANGLE: {
         /* Can't handle strides unaligned to pixels */
         assert(s.pitch % f.bytes_per_pixel == 0);
         glPixelStorei(GL_UNPACK_ROW_LENGTH,
@@ -2201,12 +2189,15 @@ static TextureBinding* generate_texture(const TextureShape s,
         }
 
         glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    } else {
-
-        glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
-            s.min_mipmap_level);
-        glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
-            s.levels-1);
+        break;
+    }
+    case GL_TEXTURE_2D:
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_X:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_X:
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_Y:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_Y:
+    case GL_TEXTURE_CUBE_MAP_POSITIVE_Z:
+    case GL_TEXTURE_CUBE_MAP_NEGATIVE_Z: {
 
         unsigned int width = s.width, height = s.height;
 
@@ -2257,6 +2248,96 @@ static TextureBinding* generate_texture(const TextureShape s,
             width /= 2;
             height /= 2;
         }
+
+        break;
+    }
+    default:
+        assert(false);
+        break;
+    }
+}
+
+static TextureBinding* generate_texture(const TextureShape s,
+                                        const uint8_t *texture_data,
+                                        const uint8_t *palette_data)
+{
+    ColorFormatInfo f = kelvin_color_format_map[s.color_format];
+
+    /* Create a new opengl texture */
+    GLuint gl_texture;
+    glGenTextures(1, &gl_texture);
+
+    GLenum gl_target;
+    if (s.cubemap) {
+        assert(f.linear == false);
+        assert(s.dimensionality == 2);
+        gl_target = GL_TEXTURE_CUBE_MAP;
+    } else {
+        if (f.linear) {
+            /* linear textures use unnormalised texcoords.
+             * GL_TEXTURE_RECTANGLE_ARB conveniently also does, but
+             * does not allow repeat and mirror wrap modes.
+             *  (or mipmapping, but xbox d3d says 'Non swizzled and non
+             *   compressed textures cannot be mip mapped.')
+             * Not sure if that'll be an issue. */
+
+            /* FIXME: GLSL 330 provides us with textureSize()! Use that? */
+            gl_target = GL_TEXTURE_RECTANGLE;
+            assert(s.dimensionality == 2);
+        } else {
+            switch(s.dimensionality) {
+            case 1: gl_target = GL_TEXTURE_1D; break;
+            case 2: gl_target = GL_TEXTURE_2D; break;
+            case 3: gl_target = GL_TEXTURE_3D; break;
+            default:
+                assert(false);
+                break;
+            }
+        }
+    }
+
+    glBindTexture(gl_target, gl_texture);
+
+    NV2A_GL_DLABEL(GL_TEXTURE, gl_texture,
+                   "format: 0x%02X%s, %d dimensions%s, width: %d, height: %d, depth: %d",
+                   s.color_format, f.linear ? "" : " (SZ)",
+                   s.dimensionality, s.cubemap ? " (Cubemap)" : "",
+                   s.width, s.height, s.depth);
+
+    if (gl_target == GL_TEXTURE_CUBE_MAP) {
+
+        size_t length = 0;
+        unsigned int w = s.width, h = s.height;
+        int level;
+        for (level = 0; level < s.levels; level++) {
+            /* FIXME: This is wrong for compressed textures and textures with 1x? non-square mipmaps */
+            length += w * h * f.bytes_per_pixel;
+            w /= 2;
+            h /= 2;
+        }
+
+        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+                                 s, texture_data + 0 * length, palette_data);
+        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+                                 s, texture_data + 1 * length, palette_data);
+        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+                                 s, texture_data + 2 * length, palette_data);
+        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+                                 s, texture_data + 3 * length, palette_data);
+        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+                                 s, texture_data + 4 * length, palette_data);
+        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                                 s, texture_data + 5 * length, palette_data);
+    } else {
+        pgraph_upload_gl_texture(gl_target, s, texture_data, palette_data);
+    }
+
+    /* Linear textures don't support mipmapping */
+    if (!f.linear) {
+        glTexParameteri(gl_target, GL_TEXTURE_BASE_LEVEL,
+            s.min_mipmap_level);
+        glTexParameteri(gl_target, GL_TEXTURE_MAX_LEVEL,
+            s.levels - 1);
     }
 
     if (f.gl_swizzle_mask[0] != 0 || f.gl_swizzle_mask[1] != 0
@@ -2336,12 +2417,15 @@ static void pgraph_bind_textures(NV2AState *d)
 
         unsigned int dma_select =
             GET_MASK(fmt, NV_PGRAPH_TEXFMT0_CONTEXT_DMA);
+        bool cubemap =
+            GET_MASK(fmt, NV_PGRAPH_TEXFMT0_CUBEMAPENABLE);
         unsigned int dimensionality =
             GET_MASK(fmt, NV_PGRAPH_TEXFMT0_DIMENSIONALITY);
         unsigned int color_format = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_COLOR);
         unsigned int levels = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS);
         unsigned int log_width = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_BASE_SIZE_U);
         unsigned int log_height = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_BASE_SIZE_V);
+        unsigned int log_depth = GET_MASK(fmt, NV_PGRAPH_TEXFMT0_BASE_SIZE_P);
 
         unsigned int rect_width =
             GET_MASK(pg->regs[NV_PGRAPH_TEXIMAGERECT0 + i*4],
@@ -2386,8 +2470,11 @@ static void pgraph_bind_textures(NV2AState *d)
 
         glActiveTexture(GL_TEXTURE0 + i);
         if (!enabled) {
-            glBindTexture(GL_TEXTURE_2D, 0);
+            glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
             glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+            glBindTexture(GL_TEXTURE_1D, 0);
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glBindTexture(GL_TEXTURE_3D, 0);
             continue;
         }
 
@@ -2397,12 +2484,13 @@ static void pgraph_bind_textures(NV2AState *d)
             continue;
         }
 
-        NV2A_DPRINTF(" texture %d is format 0x%x, (r %d, %d or %d, %d; %d),"
+        NV2A_DPRINTF(" texture %d is format 0x%x, (r %d, %d or %d, %d, %d; %d%s),"
                         " filter %x %x, levels %d-%d %d bias %d\n",
                      i, color_format,
                      rect_width, rect_height,
-                     1 << log_width, 1 << log_height,
+                     1 << log_width, 1 << log_height, 1 << log_depth,
                      pitch,
+                     cubemap ? "; cubemap" : "",
                      min_filter, mag_filter,
                      min_mipmap_level, max_mipmap_level, levels,
                      lod_bias);
@@ -2411,13 +2499,16 @@ static void pgraph_bind_textures(NV2AState *d)
         ColorFormatInfo f = kelvin_color_format_map[color_format];
         assert(f.bytes_per_pixel != 0);
 
-        unsigned int width, height;
+        unsigned int width, height, depth;
         if (f.linear) {
+            assert(dimensionality == 2);
             width = rect_width;
             height = rect_height;
+            depth = 1;
         } else {
             width = 1 << log_width;
             height = 1 << log_height;
+            depth = 1 << log_depth;
 
             if (max_mipmap_level < levels) {
                 levels = max_mipmap_level;
@@ -2448,23 +2539,37 @@ static void pgraph_bind_textures(NV2AState *d)
 
         size_t length = 0;
         if (f.linear) {
+            assert(cubemap == false);
+            assert(dimensionality == 2);
             length = height * pitch;
         } else {
-            unsigned int w = width, h = height;
-            int level;
-            for (level = 0; level < levels; level++) {
-                length += w * h * f.bytes_per_pixel;
-                w /= 2;
-                h /= 2;
+            if (dimensionality >= 2) {
+                unsigned int w = width, h = height;
+                int level;
+                for (level = 0; level < levels; level++) {
+                    /* FIXME: This is wrong for compressed textures and textures with 1x? non-square mipmaps */
+                    length += w * h * f.bytes_per_pixel;
+                    w /= 2;
+                    h /= 2;
+                }
+                if (cubemap) {
+                    assert(dimensionality == 2);
+                    length *= 6;
+                }
+                if (dimensionality >= 3) {
+                    length *= depth;
+                }
             }
         }
 
         TextureShape state = {
+            .cubemap = cubemap,
             .dimensionality = dimensionality,
             .color_format = color_format,
             .levels = levels,
             .width = width,
             .height = height,
+            .depth = depth,
             .min_mipmap_level = min_mipmap_level,
             .max_mipmap_level = max_mipmap_level,
             .pitch = pitch,
@@ -5060,6 +5165,8 @@ static void pgraph_method(NV2AState *d,
 
         bool dma_select =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA) == 2;
+        bool cubemap =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CUBEMAP_ENABLE);
         unsigned int dimensionality =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY);
         unsigned int color_format =
@@ -5070,14 +5177,18 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BASE_SIZE_U);
         unsigned int log_height =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BASE_SIZE_V);
+        unsigned int log_depth =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BASE_SIZE_P);
 
         uint32_t *reg = &pg->regs[NV_PGRAPH_TEXFMT0 + slot * 4];
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_CONTEXT_DMA, dma_select);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_CUBEMAPENABLE, cubemap);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_DIMENSIONALITY, dimensionality);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_COLOR, color_format);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS, levels);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_U, log_width);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_V, log_height);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_P, log_height);
 
         pg->texture_dirty[slot] = true;
         break;
