@@ -429,8 +429,6 @@ static void pc_cmos_init_late(void *opaque)
 }
 
 void pc_cmos_init(PCMachineState *pcms,
-                  ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
-                  const char *boot_device,
                   BusState *idebus0, BusState *idebus1,
                   ISADevice *s)
 {
@@ -442,12 +440,12 @@ void pc_cmos_init(PCMachineState *pcms,
 
     /* memory size */
     /* base memory (first MiB) */
-    val = MIN(ram_size / 1024, 640);
+    val = MIN(pcms->below_4g_mem_size / 1024, 640);
     rtc_set_memory(s, 0x15, val);
     rtc_set_memory(s, 0x16, val >> 8);
     /* extended memory (next 64MiB) */
-    if (ram_size > 1024 * 1024) {
-        val = (ram_size - 1024 * 1024) / 1024;
+    if (pcms->below_4g_mem_size > 1024 * 1024) {
+        val = (pcms->below_4g_mem_size - 1024 * 1024) / 1024;
     } else {
         val = 0;
     }
@@ -458,8 +456,8 @@ void pc_cmos_init(PCMachineState *pcms,
     rtc_set_memory(s, 0x30, val);
     rtc_set_memory(s, 0x31, val >> 8);
     /* memory between 16MiB and 4GiB */
-    if (ram_size > 16 * 1024 * 1024) {
-        val = (ram_size - 16 * 1024 * 1024) / 65536;
+    if (pcms->below_4g_mem_size > 16 * 1024 * 1024) {
+        val = (pcms->below_4g_mem_size - 16 * 1024 * 1024) / 65536;
     } else {
         val = 0;
     }
@@ -468,7 +466,7 @@ void pc_cmos_init(PCMachineState *pcms,
     rtc_set_memory(s, 0x34, val);
     rtc_set_memory(s, 0x35, val >> 8);
     /* memory above 4GiB */
-    val = above_4g_mem_size / 65536;
+    val = pcms->above_4g_mem_size / 65536;
     rtc_set_memory(s, 0x5b, val);
     rtc_set_memory(s, 0x5c, val >> 8);
     rtc_set_memory(s, 0x5d, val >> 16);
@@ -484,7 +482,7 @@ void pc_cmos_init(PCMachineState *pcms,
     object_property_set_link(OBJECT(pcms), OBJECT(s),
                              "rtc_state", &error_abort);
 
-    set_boot_dev(s, boot_device, &local_err);
+    set_boot_dev(s, MACHINE(pcms)->boot_order, &local_err);
     if (local_err) {
         error_report_err(local_err);
         exit(1);
