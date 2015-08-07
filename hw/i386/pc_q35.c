@@ -171,7 +171,6 @@ static void pc_q35_init(MachineState *machine)
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         pc_memory_init(pcms, get_system_memory(),
-                       pcms->below_4g_mem_size, pcms->above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     }
 

@@ -1285,8 +1285,6 @@ FWCfgState *xen_load_linux(PCMachineState *pcms,
 
 FWCfgState *pc_memory_init(PCMachineState *pcms,
                            MemoryRegion *system_memory,
-                           ram_addr_t below_4g_mem_size,
-                           ram_addr_t above_4g_mem_size,
                            MemoryRegion *rom_memory,
                            MemoryRegion **ram_memory,
                            PcGuestInfo *guest_info)
@@ -1297,7 +1295,8 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
     FWCfgState *fw_cfg;
     MachineState *machine = MACHINE(pcms);
 
-    assert(machine->ram_size == below_4g_mem_size + above_4g_mem_size);
+    assert(machine->ram_size == pcms->below_4g_mem_size +
+                                pcms->above_4g_mem_size);
 
     linux_boot = (machine->kernel_filename != NULL);
 
@@ -1311,16 +1310,17 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
     *ram_memory = ram;
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
     memory_region_init_alias(ram_below_4g, NULL, "ram-below-4g", ram,
-                             0, below_4g_mem_size);
+                             0, pcms->below_4g_mem_size);
     memory_region_add_subregion(system_memory, 0, ram_below_4g);
-    e820_add_entry(0, below_4g_mem_size, E820_RAM);
-    if (above_4g_mem_size > 0) {
+    e820_add_entry(0, pcms->below_4g_mem_size, E820_RAM);
+    if (pcms->above_4g_mem_size > 0) {
         ram_above_4g = g_malloc(sizeof(*ram_above_4g));
         memory_region_init_alias(ram_above_4g, NULL, "ram-above-4g", ram,
-                                 below_4g_mem_size, above_4g_mem_size);
+                                 pcms->below_4g_mem_size,
+                                 pcms->above_4g_mem_size);
         memory_region_add_subregion(system_memory, 0x100000000ULL,
                                     ram_above_4g);
-        e820_add_entry(0x100000000ULL, above_4g_mem_size, E820_RAM);
+        e820_add_entry(0x100000000ULL, pcms->above_4g_mem_size, E820_RAM);
     }
 
     if (!guest_info->has_reserved_memory &&
@@ -1353,7 +1353,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
         }
 
         pcms->hotplug_memory.base =
-            ROUND_UP(0x100000000ULL + above_4g_mem_size, 1ULL << 30);
+            ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, 1ULL << 30);
 
         if (pcms->enforce_aligned_dimm) {
             /* size hotplug region assuming 1G page max alignment per slot */
