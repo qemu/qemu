@@ -22,7 +22,27 @@
 #ifndef HW_XBOX_SWIZZLE_H
 #define HW_XBOX_SWIZZLE_H
 
-void swizzle_rect(
+void swizzle_box(
+    const uint8_t *src_buf,
+    unsigned int width,
+    unsigned int height,
+    unsigned int depth,
+    uint8_t *dst_buf,
+    unsigned int row_pitch,
+    unsigned int slice_pitch,
+    unsigned int bytes_per_pixel);
+
+void unswizzle_box(
+    const uint8_t *src_buf,
+    unsigned int width,
+    unsigned int height,
+    unsigned int depth,
+    uint8_t *dst_buf,
+    unsigned int row_pitch,
+    unsigned int slice_pitch,
+    unsigned int bytes_per_pixel);
+
+void unswizzle_rect(
     const uint8_t *src_buf,
     unsigned int width,
     unsigned int height,
@@ -30,7 +50,7 @@ void swizzle_rect(
     unsigned int pitch,
     unsigned int bytes_per_pixel);
 
- void unswizzle_rect(
+void swizzle_rect(
     const uint8_t *src_buf,
     unsigned int width,
     unsigned int height,
