@@ -82,7 +82,6 @@ static void pc_init1(MachineState *machine)
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
     int i;
-    ram_addr_t below_4g_mem_size, above_4g_mem_size;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     PCII440FXState *i440fx_state;
@@ -128,14 +127,15 @@ static void pc_init1(MachineState *machine)
     }
 
     if (machine->ram_size >= lowmem) {
-        above_4g_mem_size = machine->ram_size - lowmem;
-        below_4g_mem_size = lowmem;
+        pcms->above_4g_mem_size = machine->ram_size - lowmem;
+        pcms->below_4g_mem_size = lowmem;
     } else {
-        above_4g_mem_size = 0;
-        below_4g_mem_size = machine->ram_size;
+        pcms->above_4g_mem_size = 0;
+        pcms->below_4g_mem_size = machine->ram_size;
     }
 
-    if (xen_enabled() && xen_hvm_init(&below_4g_mem_size, &above_4g_mem_size,
+    if (xen_enabled() && xen_hvm_init(&pcms->below_4g_mem_size,
+                                      &pcms->above_4g_mem_size,
                                       &ram_memory) != 0) {
         fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
         exit(1);
@@ -160,7 +160,8 @@ static void pc_init1(MachineState *machine)
         rom_memory = system_memory;
     }
 
-    guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
+    guest_info = pc_guest_info_init(pcms->below_4g_mem_size,
+                                    pcms->above_4g_mem_size);
 
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->legacy_acpi_table_size = legacy_acpi_table_size;
@@ -179,14 +180,14 @@ static void pc_init1(MachineState *machine)
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         pc_memory_init(pcms, system_memory,
-                       below_4g_mem_size, above_4g_mem_size,
+                       pcms->below_4g_mem_size, pcms->above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     } else if (machine->kernel_filename != NULL) {
         /* For xen HVM direct kernel boot, load linux here */
         xen_load_linux(machine->kernel_filename,
                        machine->kernel_cmdline,
                        machine->initrd_filename,
-                       below_4g_mem_size,
+                       pcms->below_4g_mem_size,
                        guest_info);
     }
 
@@ -202,8 +203,8 @@ static void pc_init1(MachineState *machine)
     if (pci_enabled) {
         pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, &isa_bus, gsi,
                               system_memory, system_io, machine->ram_size,
-                              below_4g_mem_size,
-                              above_4g_mem_size,
+                              pcms->below_4g_mem_size,
+                              pcms->above_4g_mem_size,
                               pci_memory, ram_memory);
     } else {
         pci_bus = NULL;
@@ -272,7 +273,8 @@ static void pc_init1(MachineState *machine)
     }
 
     pc_cmos_init(pcms,
-                 below_4g_mem_size, above_4g_mem_size, machine->boot_order,
+                 pcms->below_4g_mem_size, pcms->above_4g_mem_size,
+                 machine->boot_order,
                  idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled()) {

@@ -66,7 +66,6 @@ static bool has_reserved_memory = true;
 static void pc_q35_init(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
-    ram_addr_t below_4g_mem_size, above_4g_mem_size;
     Q35PCIHost *q35_host;
     PCIHostState *phb;
     PCIBus *host_bus;
@@ -119,14 +118,15 @@ static void pc_q35_init(MachineState *machine)
     }
 
     if (machine->ram_size >= lowmem) {
-        above_4g_mem_size = machine->ram_size - lowmem;
-        below_4g_mem_size = lowmem;
+        pcms->above_4g_mem_size = machine->ram_size - lowmem;
+        pcms->below_4g_mem_size = lowmem;
     } else {
-        above_4g_mem_size = 0;
-        below_4g_mem_size = machine->ram_size;
+        pcms->above_4g_mem_size = 0;
+        pcms->below_4g_mem_size = machine->ram_size;
     }
 
-    if (xen_enabled() && xen_hvm_init(&below_4g_mem_size, &above_4g_mem_size,
+    if (xen_enabled() && xen_hvm_init(&pcms->below_4g_mem_size,
+                                      &pcms->above_4g_mem_size,
                                       &ram_memory) != 0) {
         fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
         exit(1);
@@ -151,7 +151,8 @@ static void pc_q35_init(MachineState *machine)
         rom_memory = get_system_memory();
     }
 
-    guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
+    guest_info = pc_guest_info_init(pcms->below_4g_mem_size,
+                                    pcms->above_4g_mem_size);
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->has_reserved_memory = has_reserved_memory;
@@ -171,7 +172,7 @@ static void pc_q35_init(MachineState *machine)
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         pc_memory_init(pcms, get_system_memory(),
-                       below_4g_mem_size, above_4g_mem_size,
+                       pcms->below_4g_mem_size, pcms->above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     }
 
@@ -193,8 +194,8 @@ static void pc_q35_init(MachineState *machine)
     q35_host->mch.pci_address_space = pci_memory;
     q35_host->mch.system_memory = get_system_memory();
     q35_host->mch.address_space_io = get_system_io();
-    q35_host->mch.below_4g_mem_size = below_4g_mem_size;
-    q35_host->mch.above_4g_mem_size = above_4g_mem_size;
+    q35_host->mch.below_4g_mem_size = pcms->below_4g_mem_size;
+    q35_host->mch.above_4g_mem_size = pcms->above_4g_mem_size;
     q35_host->mch.guest_info = guest_info;
     /* pci */
     qdev_init_nofail(DEVICE(q35_host));
@@ -277,7 +278,8 @@ static void pc_q35_init(MachineState *machine)
                       8, NULL, 0);
 
     pc_cmos_init(pcms,
-                 below_4g_mem_size, above_4g_mem_size, machine->boot_order,
+                 pcms->below_4g_mem_size, pcms->above_4g_mem_size,
+                 machine->boot_order,
                  idebus[0], idebus[1], rtc_state);
 
     /* the rest devices to which pci devfn is automatically assigned */
