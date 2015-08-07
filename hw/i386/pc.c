@@ -1189,15 +1189,14 @@ void pc_guest_info_machine_done(Notifier *notifier, void *data)
     acpi_setup(&guest_info_state->info);
 }
 
-PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
-                                ram_addr_t above_4g_mem_size)
+PcGuestInfo *pc_guest_info_init(PCMachineState *pcms)
 {
     PcGuestInfoState *guest_info_state = g_malloc0(sizeof *guest_info_state);
     PcGuestInfo *guest_info = &guest_info_state->info;
     int i, j;
 
-    guest_info->ram_size_below_4g = below_4g_mem_size;
-    guest_info->ram_size = below_4g_mem_size + above_4g_mem_size;
+    guest_info->ram_size_below_4g = pcms->below_4g_mem_size;
+    guest_info->ram_size = pcms->below_4g_mem_size + pcms->above_4g_mem_size;
     guest_info->apic_id_limit = pc_apic_id_limit(max_cpus);
     guest_info->apic_xrupt_override = kvm_allows_irq0_override();
     guest_info->numa_nodes = nb_numa_nodes;

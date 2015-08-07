@@ -151,8 +151,7 @@ static void pc_q35_init(MachineState *machine)
         rom_memory = get_system_memory();
     }
 
-    guest_info = pc_guest_info_init(pcms->below_4g_mem_size,
-                                    pcms->above_4g_mem_size);
+    guest_info = pc_guest_info_init(pcms);
     guest_info->isapc_ram_fw = false;
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->has_reserved_memory = has_reserved_memory;

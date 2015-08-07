@@ -160,8 +160,7 @@ static void pc_init1(MachineState *machine)
         rom_memory = system_memory;
     }
 
-    guest_info = pc_guest_info_init(pcms->below_4g_mem_size,
-                                    pcms->above_4g_mem_size);
+    guest_info = pc_guest_info_init(pcms);
 
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->legacy_acpi_table_size = legacy_acpi_table_size;

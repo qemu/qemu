@@ -165,8 +165,7 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge);
 void pc_hot_add_cpu(const int64_t id, Error **errp);
 void pc_acpi_init(const char *default_dsdt);
 
-PcGuestInfo *pc_guest_info_init(ram_addr_t below_4g_mem_size,
-                                ram_addr_t above_4g_mem_size);
+PcGuestInfo *pc_guest_info_init(PCMachineState *pcms);
 
 void pc_set_legacy_acpi_data_size(void);
 
