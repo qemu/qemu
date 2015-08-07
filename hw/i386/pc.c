@@ -1886,39 +1886,39 @@ static void pc_machine_initfn(Object *obj)
 
     object_property_add(obj, PC_MACHINE_MEMHP_REGION_SIZE, "int",
                         pc_machine_get_hotplug_memory_region_size,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 
     pcms->max_ram_below_4g = 1ULL << 32; /* 4G */
     object_property_add(obj, PC_MACHINE_MAX_RAM_BELOW_4G, "size",
                         pc_machine_get_max_ram_below_4g,
                         pc_machine_set_max_ram_below_4g,
-                        NULL, NULL, NULL);
+                        NULL, NULL, &error_abort);
     object_property_set_description(obj, PC_MACHINE_MAX_RAM_BELOW_4G,
                                     "Maximum ram below the 4G boundary (32bit boundary)",
-                                    NULL);
+                                    &error_abort);
 
     pcms->smm = ON_OFF_AUTO_AUTO;
     object_property_add(obj, PC_MACHINE_SMM, "OnOffAuto",
                         pc_machine_get_smm,
                         pc_machine_set_smm,
-                        NULL, NULL, NULL);
+                        NULL, NULL, &error_abort);
     object_property_set_description(obj, PC_MACHINE_SMM,
                                     "Enable SMM (pc & q35)",
-                                    NULL);
+                                    &error_abort);
 
     pcms->vmport = ON_OFF_AUTO_AUTO;
     object_property_add(obj, PC_MACHINE_VMPORT, "OnOffAuto",
                         pc_machine_get_vmport,
                         pc_machine_set_vmport,
-                        NULL, NULL, NULL);
+                        NULL, NULL, &error_abort);
     object_property_set_description(obj, PC_MACHINE_VMPORT,
                                     "Enable vmport (pc & q35)",
-                                    NULL);
+                                    &error_abort);
 
     pcms->enforce_aligned_dimm = true;
     object_property_add_bool(obj, PC_MACHINE_ENFORCE_ALIGNED_DIMM,
                              pc_machine_get_aligned_dimm,
-                             NULL, NULL);
+                             NULL, &error_abort);
 }
 
 static unsigned pc_cpu_index_to_socket_id(unsigned cpu_index)
