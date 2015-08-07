@@ -435,7 +435,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 {
     int val;
     static pc_cmos_init_late_arg arg;
-    PCMachineState *pc_machine = PC_MACHINE(machine);
+    PCMachineState *pcms = PC_MACHINE(machine);
     Error *local_err = NULL;
 
     /* various important CMOS locations needed by PC/Bochs bios */
@@ -478,7 +478,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 
     object_property_add_link(OBJECT(machine), "rtc_state",
                              TYPE_ISA_DEVICE,
-                             (Object **)&pc_machine->rtc,
+                             (Object **)&pcms->rtc,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
     object_property_set_link(OBJECT(machine), OBJECT(s),

@@ -78,7 +78,7 @@ static bool kvmclock_enabled = true;
 /* PC hardware initialisation */
 static void pc_init1(MachineState *machine)
 {
-    PCMachineState *pc_machine = PC_MACHINE(machine);
+    PCMachineState *pcms = PC_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
     int i;
@@ -117,13 +117,13 @@ static void pc_init1(MachineState *machine)
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(qemu limit, user limit).
      */
-    if (lowmem > pc_machine->max_ram_below_4g) {
-        lowmem = pc_machine->max_ram_below_4g;
+    if (lowmem > pcms->max_ram_below_4g) {
+        lowmem = pcms->max_ram_below_4g;
         if (machine->ram_size - lowmem > lowmem &&
             lowmem & ((1ULL << 30) - 1)) {
             error_report("Warning: Large machine and max_ram_below_4g(%"PRIu64
                          ") not a multiple of 1G; possible bad performance.",
-                         pc_machine->max_ram_below_4g);
+                         pcms->max_ram_below_4g);
         }
     }
 
@@ -234,14 +234,14 @@ static void pc_init1(MachineState *machine)
 
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
 
-    assert(pc_machine->vmport != ON_OFF_AUTO_MAX);
-    if (pc_machine->vmport == ON_OFF_AUTO_AUTO) {
-        pc_machine->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
+    assert(pcms->vmport != ON_OFF_AUTO_MAX);
+    if (pcms->vmport == ON_OFF_AUTO_AUTO) {
+        pcms->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
     }
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, true,
-                         (pc_machine->vmport != ON_OFF_AUTO_ON), 0x4);
+                         (pcms->vmport != ON_OFF_AUTO_ON), 0x4);
 
     pc_nic_init(isa_bus, pci_bus);
 
@@ -286,13 +286,13 @@ static void pc_init1(MachineState *machine)
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], smi_irq,
-                              pc_machine_is_smm_enabled(pc_machine),
+                              pc_machine_is_smm_enabled(pcms),
                               &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);
 
         object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                                  TYPE_HOTPLUG_HANDLER,
-                                 (Object **)&pc_machine->acpi_dev,
+                                 (Object **)&pcms->acpi_dev,
                                  object_property_allow_set_link,
                                  OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
         object_property_set_link(OBJECT(machine), OBJECT(piix4_pm),

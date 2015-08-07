@@ -65,7 +65,7 @@ static bool has_reserved_memory = true;
 /* PC hardware initialisation */
 static void pc_q35_init(MachineState *machine)
 {
-    PCMachineState *pc_machine = PC_MACHINE(machine);
+    PCMachineState *pcms = PC_MACHINE(machine);
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     Q35PCIHost *q35_host;
     PCIHostState *phb;
@@ -108,13 +108,13 @@ static void pc_q35_init(MachineState *machine)
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(qemu limit, user limit).
      */
-    if (lowmem > pc_machine->max_ram_below_4g) {
-        lowmem = pc_machine->max_ram_below_4g;
+    if (lowmem > pcms->max_ram_below_4g) {
+        lowmem = pcms->max_ram_below_4g;
         if (machine->ram_size - lowmem > lowmem &&
             lowmem & ((1ULL << 30) - 1)) {
             error_report("Warning: Large machine and max_ram_below_4g(%"PRIu64
                          ") not a multiple of 1G; possible bad performance.",
-                         pc_machine->max_ram_below_4g);
+                         pcms->max_ram_below_4g);
         }
     }
 
@@ -207,7 +207,7 @@ static void pc_q35_init(MachineState *machine)
 
     object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                              TYPE_HOTPLUG_HANDLER,
-                             (Object **)&pc_machine->acpi_dev,
+                             (Object **)&pcms->acpi_dev,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
     object_property_set_link(OBJECT(machine), OBJECT(lpc),
@@ -242,17 +242,17 @@ static void pc_q35_init(MachineState *machine)
 
     pc_register_ferr_irq(gsi[13]);
 
-    assert(pc_machine->vmport != ON_OFF_AUTO_MAX);
-    if (pc_machine->vmport == ON_OFF_AUTO_AUTO) {
-        pc_machine->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
+    assert(pcms->vmport != ON_OFF_AUTO_MAX);
+    if (pcms->vmport == ON_OFF_AUTO_AUTO) {
+        pcms->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
     }
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, !mc->no_floppy,
-                         (pc_machine->vmport != ON_OFF_AUTO_ON), 0xff0104);
+                         (pcms->vmport != ON_OFF_AUTO_ON), 0xff0104);
 
     /* connect pm stuff to lpc */
-    ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pc_machine), !mc->no_tco);
+    ich9_lpc_pm_init(lpc, pc_machine_is_smm_enabled(pcms), !mc->no_tco);
 
     /* ahci and SATA device, for q35 1 ahci controller is built-in */
     ahci = pci_create_simple_multifunction(host_bus,
