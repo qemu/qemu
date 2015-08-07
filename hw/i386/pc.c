@@ -809,11 +809,8 @@ static long get_file_size(FILE *f)
     return size;
 }
 
-static void load_linux(FWCfgState *fw_cfg,
-                       const char *kernel_filename,
-                       const char *initrd_filename,
-                       const char *kernel_cmdline,
-                       hwaddr max_ram_size)
+static void load_linux(PCMachineState *pcms,
+                       FWCfgState *fw_cfg)
 {
     uint16_t protocol;
     int setup_size, kernel_size, initrd_size = 0, cmdline_size;
@@ -822,6 +819,10 @@ static void load_linux(FWCfgState *fw_cfg,
     hwaddr real_addr, prot_addr, cmdline_addr, initrd_addr = 0;
     FILE *f;
     char *vmode;
+    MachineState *machine = MACHINE(pcms);
+    const char *kernel_filename = machine->kernel_filename;
+    const char *initrd_filename = machine->initrd_filename;
+    const char *kernel_cmdline = machine->kernel_cmdline;
 
     /* Align to 16 bytes as a paranoia measure */
     cmdline_size = (strlen(kernel_cmdline)+16) & ~15;
@@ -886,8 +887,8 @@ static void load_linux(FWCfgState *fw_cfg,
         initrd_max = 0x37ffffff;
     }
 
-    if (initrd_max >= max_ram_size - acpi_data_size) {
-        initrd_max = max_ram_size - acpi_data_size - 1;
+    if (initrd_max >= pcms->below_4g_mem_size - acpi_data_size) {
+        initrd_max = pcms->below_4g_mem_size - acpi_data_size - 1;
     }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
@@ -1263,22 +1264,18 @@ void pc_acpi_init(const char *default_dsdt)
     }
 }
 
-FWCfgState *xen_load_linux(const char *kernel_filename,
-                           const char *kernel_cmdline,
-                           const char *initrd_filename,
-                           ram_addr_t below_4g_mem_size,
+FWCfgState *xen_load_linux(PCMachineState *pcms,
                            PcGuestInfo *guest_info)
 {
     int i;
     FWCfgState *fw_cfg;
 
-    assert(kernel_filename != NULL);
+    assert(MACHINE(pcms)->kernel_filename != NULL);
 
     fw_cfg = fw_cfg_init_io(BIOS_CFG_IOPORT);
     rom_set_fw(fw_cfg);
 
-    load_linux(fw_cfg, kernel_filename, initrd_filename,
-               kernel_cmdline, below_4g_mem_size);
+    load_linux(pcms, fw_cfg);
     for (i = 0; i < nb_option_roms; i++) {
         assert(!strcmp(option_rom[i].name, "linuxboot.bin") ||
                !strcmp(option_rom[i].name, "multiboot.bin"));
@@ -1400,8 +1397,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
     }
 
     if (linux_boot) {
-        load_linux(fw_cfg, machine->kernel_filename, machine->initrd_filename,
-                   machine->kernel_cmdline, below_4g_mem_size);
+        load_linux(pcms, fw_cfg);
     }
 
     for (i = 0; i < nb_option_roms; i++) {

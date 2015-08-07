@@ -183,11 +183,7 @@ static void pc_init1(MachineState *machine)
                        rom_memory, &ram_memory, guest_info);
     } else if (machine->kernel_filename != NULL) {
         /* For xen HVM direct kernel boot, load linux here */
-        xen_load_linux(machine->kernel_filename,
-                       machine->kernel_cmdline,
-                       machine->initrd_filename,
-                       pcms->below_4g_mem_size,
-                       guest_info);
+        xen_load_linux(pcms, guest_info);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
