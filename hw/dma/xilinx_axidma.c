@@ -133,7 +133,7 @@ struct XilinxAXIDMA {
 };
 
 /*
- * Helper calls to extract info from desriptors and other trivial
+ * Helper calls to extract info from descriptors and other trivial
  * state from regs.
  */
 static inline int stream_desc_sof(struct SDesc *d)

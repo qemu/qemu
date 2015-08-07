@@ -588,9 +588,9 @@ int kvm_s390_set_clock(uint8_t *tod_high, uint64_t *tod_low)
  * @addr:      the logical start address in guest memory
  * @ar:        the access register number
  * @hostbuf:   buffer in host memory. NULL = do only checks w/o copying
- * @len:       length that should be transfered
+ * @len:       length that should be transferred
  * @is_write:  true = write, false = read
- * Returns:    0 on success, non-zero if an exception or error occured
+ * Returns:    0 on success, non-zero if an exception or error occurred
  *
  * Use KVM ioctl to read/write from/to guest memory. An access exception
  * is injected into the vCPU in case of translation errors.
