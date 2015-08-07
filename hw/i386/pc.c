@@ -1289,7 +1289,7 @@ FWCfgState *xen_load_linux(const char *kernel_filename,
     return fw_cfg;
 }
 
-FWCfgState *pc_memory_init(MachineState *machine,
+FWCfgState *pc_memory_init(PCMachineState *pcms,
                            MemoryRegion *system_memory,
                            ram_addr_t below_4g_mem_size,
                            ram_addr_t above_4g_mem_size,
@@ -1301,7 +1301,7 @@ FWCfgState *pc_memory_init(MachineState *machine,
     MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
     FWCfgState *fw_cfg;
-    PCMachineState *pcms = PC_MACHINE(machine);
+    MachineState *machine = MACHINE(pcms);
 
     assert(machine->ram_size == below_4g_mem_size + above_4g_mem_size);
 

@@ -178,7 +178,7 @@ static void pc_init1(MachineState *machine)
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
-        pc_memory_init(machine, system_memory,
+        pc_memory_init(pcms, system_memory,
                        below_4g_mem_size, above_4g_mem_size,
                        rom_memory, &ram_memory, guest_info);
     } else if (machine->kernel_filename != NULL) {

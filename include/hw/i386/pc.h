@@ -185,7 +185,7 @@ FWCfgState *xen_load_linux(const char *kernel_filename,
                            const char *initrd_filename,
                            ram_addr_t below_4g_mem_size,
                            PcGuestInfo *guest_info);
-FWCfgState *pc_memory_init(MachineState *machine,
+FWCfgState *pc_memory_init(PCMachineState *pcms,
                            MemoryRegion *system_memory,
                            ram_addr_t below_4g_mem_size,
                            ram_addr_t above_4g_mem_size,
