@@ -3407,6 +3407,30 @@ static void pgraph_update_surface(NV2AState *d,
         pg->surface_color.buffer_dirty = true;
         pg->surface_zeta.buffer_dirty = true;
 
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_2D,
+                               0, 0);
+
+        if (pg->gl_color_buffer) {
+            glDeleteTextures(1, &pg->gl_color_buffer);
+            pg->gl_color_buffer = 0;
+        }
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               GL_DEPTH_ATTACHMENT,
+                               GL_TEXTURE_2D,
+                               0, 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               GL_DEPTH_STENCIL_ATTACHMENT,
+                               GL_TEXTURE_2D,
+                               0, 0);
+
+        if (pg->gl_zeta_buffer) {
+            glDeleteTextures(1, &pg->gl_zeta_buffer);
+            pg->gl_zeta_buffer = 0;
+        }
+
         memcpy(&pg->last_surface_shape, &pg->surface_shape,
                sizeof(SurfaceShape));
     }
