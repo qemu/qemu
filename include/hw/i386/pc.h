@@ -699,12 +699,6 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .value = "off",\
         },
 
-static inline void pc_default_machine_options(MachineClass *m)
-{
-    m->hot_add_cpu = pc_hot_add_cpu;
-    m->max_cpus = 255;
-}
-
 #define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
     static void pc_machine_##suffix##_class_init(ObjectClass *oc, void *data) \
     { \

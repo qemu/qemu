@@ -363,7 +363,6 @@ static void pc_compat_1_4(MachineState *machine)
 
 static void pc_q35_machine_options(MachineClass *m)
 {
-    pc_default_machine_options(m);
     m->family = "pc_q35";
     m->desc = "Standard PC (Q35 + ICH9, 2009)";
     m->hot_add_cpu = pc_hot_add_cpu;

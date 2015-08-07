@@ -449,7 +449,6 @@ static void pc_xen_hvm_init(MachineState *machine)
 
 static void pc_i440fx_machine_options(MachineClass *m)
 {
-    pc_default_machine_options(m);
     m->family = "pc_piix";
     m->desc = "Standard PC (i440FX + PIIX, 1996)";
     m->hot_add_cpu = pc_hot_add_cpu;
