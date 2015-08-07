@@ -2,6 +2,7 @@
 #define HW_PC_H
 
 #include "qemu-common.h"
+#include "qemu/typedefs.h"
 #include "exec/memory.h"
 #include "hw/boards.h"
 #include "hw/isa/isa.h"
@@ -60,9 +61,6 @@ struct PCMachineClass {
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
 };
-
-typedef struct PCMachineState PCMachineState;
-typedef struct PCMachineClass PCMachineClass;
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
 #define PC_MACHINE(obj) \
