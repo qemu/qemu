@@ -2104,15 +2104,19 @@ static void convert_yuy2_to_rgb(const uint8_t *line, unsigned int ix,
 static uint8_t* convert_texture_data(const TextureShape s,
                                      const uint8_t *data,
                                      const uint8_t *palette_data,
-                                     unsigned int width, unsigned int height,
-                                     unsigned int pitch)
+                                     unsigned int width,
+                                     unsigned int height,
+                                     unsigned int depth,
+                                     unsigned int row_pitch,
+                                     unsigned int slice_pitch)
 {
     if (s.color_format == NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8) {
+        assert(depth == 1); /* FIXME */
         uint8_t* converted_data = g_malloc(width * height * 4);
         int x, y;
         for (y = 0; y < height; y++) {
             for (x = 0; x < width; x++) {
-                uint8_t index = data[y * pitch + x];
+                uint8_t index = data[y * row_pitch + x];
                 uint32_t color = *(uint32_t*)(palette_data + index * 4);
                 *(uint32_t*)(converted_data + y * width * 4 + x * 4) = color;
             }
@@ -2120,6 +2124,7 @@ static uint8_t* convert_texture_data(const TextureShape s,
         return converted_data;
     } else if (s.color_format
                    == NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8) {
+        assert(depth == 1); /* FIXME */
         uint8_t* converted_data = g_malloc(width * height * 4);
         int x, y;
         for (y = 0; y < height; y++) {
@@ -2134,11 +2139,12 @@ static uint8_t* convert_texture_data(const TextureShape s,
         return converted_data;
     } else if (s.color_format
                    == NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5) {
+        assert(depth == 1); /* FIXME */
         uint8_t *converted_data = g_malloc(width * height * 3);
         int x, y;
         for (y = 0; y < height; y++) {
             for (x = 0; x < width; x++) {
-                uint16_t rgb655 = *(uint16_t*)(data + y * pitch + x * 2);
+                uint16_t rgb655 = *(uint16_t*)(data + y * row_pitch + x * 2);
                 int8_t *pixel = (int8_t*)&converted_data[(y * width + x) * 3];
                 /* Maps 5 bit G and B signed value range to 8 bit
                  * signed values. R is probably unsigned.
@@ -2155,18 +2161,15 @@ static uint8_t* convert_texture_data(const TextureShape s,
     }
 }
 
-void pgraph_upload_gl_texture(GLenum gl_target,
-                              const TextureShape s,
-                              const uint8_t *texture_data,
-                              const uint8_t *palette_data)
+static void pgraph_upload_gl_texture(GLenum gl_target,
+                                     const TextureShape s,
+                                     const uint8_t *texture_data,
+                                     const uint8_t *palette_data)
 {
     ColorFormatInfo f = kelvin_color_format_map[s.color_format];
 
     switch(gl_target) {
     case GL_TEXTURE_1D:
-        assert(false);
-        break;
-    case GL_TEXTURE_3D:
         assert(false);
         break;
     case GL_TEXTURE_RECTANGLE: {
@@ -2177,7 +2180,8 @@ void pgraph_upload_gl_texture(GLenum gl_target,
 
         uint8_t *converted = convert_texture_data(s, texture_data,
                                                   palette_data,
-                                                  s.width, s.height, s.pitch);
+                                                  s.width, s.height, 1,
+                                                  s.pitch, 0);
 
         glTexImage2D(gl_target, 0, f.gl_internal_format,
                      s.width, s.height, 0,
@@ -2230,7 +2234,8 @@ void pgraph_upload_gl_texture(GLenum gl_target,
 
                 uint8_t *converted = convert_texture_data(s, unswizzled,
                                                           palette_data,
-                                                          width, height, pitch);
+                                                          width, height, 1,
+                                                          pitch, 0);
 
                 glTexImage2D(gl_target, level, f.gl_internal_format,
                              width, height, 0,
@@ -2249,6 +2254,45 @@ void pgraph_upload_gl_texture(GLenum gl_target,
             height /= 2;
         }
 
+        break;
+    }
+    case GL_TEXTURE_3D: {
+
+        unsigned int width = s.width, height = s.height, depth = s.depth;
+
+        assert(f.gl_format != 0); /* FIXME: compressed not supported yet */
+        assert(f.linear == false);
+
+        int level;
+        for (level = 0; level < s.levels; level++) {
+
+            unsigned int row_pitch = width * f.bytes_per_pixel;
+            unsigned int slice_pitch = row_pitch * height;
+            uint8_t *unswizzled = g_malloc(slice_pitch * depth);
+            unswizzle_box(texture_data, width, height, depth, unswizzled,
+                           row_pitch, slice_pitch, f.bytes_per_pixel);
+
+            uint8_t *converted = convert_texture_data(s, unswizzled,
+                                                      palette_data,
+                                                      width, height, depth,
+                                                      row_pitch, slice_pitch);
+
+            glTexImage3D(gl_target, level, f.gl_internal_format,
+                         width, height, depth, 0,
+                         f.gl_format, f.gl_type,
+                         converted ? converted : unswizzled);
+
+            if (converted) {
+                g_free(converted);
+            }
+            g_free(unswizzled);
+
+            texture_data += width * height * depth * f.bytes_per_pixel;
+
+            width /= 2;
+            height /= 2;
+            depth /= 2;
+        }
         break;
     }
     default:
@@ -2466,7 +2510,6 @@ static void pgraph_bind_textures(NV2AState *d)
         assert(!(filter & NV_PGRAPH_TEXFILTER0_RSIGNED));
         assert(!(filter & NV_PGRAPH_TEXFILTER0_GSIGNED));
         assert(!(filter & NV_PGRAPH_TEXFILTER0_BSIGNED));
-        if (dimensionality != 2) continue;
 
         glActiveTexture(GL_TEXTURE0 + i);
         if (!enabled) {
