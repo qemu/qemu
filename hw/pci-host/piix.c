@@ -117,6 +117,11 @@ struct PCII440FXState {
 #define I440FX_PAM_SIZE 7
 #define I440FX_SMRAM    0x72
 
+/* Older coreboot versions (4.0 and older) read a config register that doesn't
+ * exist in real hardware, to get the RAM size from QEMU.
+ */
+#define I440FX_COREBOOT_RAM_SIZE 0x57
+
 static void piix3_set_irq(void *opaque, int pirq, int level);
 static PCIINTxRoute piix3_route_intx_pin_to_irq(void *opaque, int pci_intx);
 static void piix3_write_config_xen(PCIDevice *dev,
@@ -394,7 +399,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state,
     if (ram_size > 255) {
         ram_size = 255;
     }
-    d->config[0x57] = ram_size;
+    d->config[I440FX_COREBOOT_RAM_SIZE] = ram_size;
 
     i440fx_update_memory_mappings(f);
 
