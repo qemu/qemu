@@ -374,11 +374,111 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_2 \
         PC_COMPAT_2_3 \
-        HW_COMPAT_2_2
+        HW_COMPAT_2_2 \
+        {\
+            .driver = "kvm64" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "kvm32" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Conroe" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Penryn" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Nehalem" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Westmere" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "SandyBridge" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Haswell" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Broadwell" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Opteron_G1" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Opteron_G2" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Opteron_G3" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Opteron_G4" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Opteron_G5" "-" TYPE_X86_CPU,\
+            .property = "vme",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Haswell" "-" TYPE_X86_CPU,\
+            .property = "f16c",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Haswell" "-" TYPE_X86_CPU,\
+            .property = "rdrand",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Broadwell" "-" TYPE_X86_CPU,\
+            .property = "f16c",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Broadwell" "-" TYPE_X86_CPU,\
+            .property = "rdrand",\
+            .value = "off",\
+        },
 
 #define PC_COMPAT_2_1 \
         PC_COMPAT_2_2 \
-        HW_COMPAT_2_1
+        HW_COMPAT_2_1 \
+        {\
+            .driver = "coreduo" "-" TYPE_X86_CPU,\
+            .property = "vmx",\
+            .value = "on",\
+        },\
+        {\
+            .driver = "core2duo" "-" TYPE_X86_CPU,\
+            .property = "vmx",\
+            .value = "on",\
+        },
 
 #define PC_COMPAT_2_0 \
         PC_COMPAT_2_1 \
@@ -589,6 +689,16 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "486-" TYPE_X86_CPU,\
             .property = "model",\
             .value    = stringify(0),\
+        },\
+        {\
+            .driver = "n270" "-" TYPE_X86_CPU,\
+            .property = "movbe",\
+            .value = "off",\
+        },\
+        {\
+            .driver = "Westmere" "-" TYPE_X86_CPU,\
+            .property = "pclmulqdq",\
+            .value = "off",\
         },
 
 static inline void pc_common_machine_options(MachineClass *m)

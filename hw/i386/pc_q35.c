@@ -302,24 +302,6 @@ static void pc_compat_2_2(MachineState *machine)
 {
     pc_compat_2_3(machine);
     rsdp_in_ram = false;
-    x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Conroe", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Penryn", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Nehalem", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Westmere", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("SandyBridge", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Haswell", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Broadwell", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G1", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G2", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G3", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G4", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G5", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
-    x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
-    x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
-    x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
     machine->suppress_vmdesc = true;
 }
 
@@ -330,8 +312,6 @@ static void pc_compat_2_1(MachineState *machine)
     pc_compat_2_2(machine);
     pcms->enforce_aligned_dimm = false;
     smbios_uuid_encoded = false;
-    x86_cpu_compat_set_features("coreduo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
-    x86_cpu_compat_set_features("core2duo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
     x86_cpu_compat_kvm_no_autodisable(FEAT_8000_0001_ECX, CPUID_EXT3_SVM);
 }
 
@@ -367,8 +347,6 @@ static void pc_compat_1_5(MachineState *machine)
 static void pc_compat_1_4(MachineState *machine)
 {
     pc_compat_1_5(machine);
-    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
 }
 
 #define DEFINE_Q35_MACHINE(suffix, name, compatfn, optionfn) \
