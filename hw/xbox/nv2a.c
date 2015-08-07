@@ -750,6 +750,7 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #   define NV097_SET_CONTEXT_DMA_VERTEX_A                     0x0097019C
 #   define NV097_SET_CONTEXT_DMA_VERTEX_B                     0x009701A0
 #   define NV097_SET_CONTEXT_DMA_SEMAPHORE                    0x009701A4
+#   define NV097_SET_CONTEXT_DMA_REPORT                       0x009701A8
 #   define NV097_SET_SURFACE_CLIP_HORIZONTAL                  0x00970200
 #       define NV097_SET_SURFACE_CLIP_HORIZONTAL_X                0x0000FFFF
 #       define NV097_SET_SURFACE_CLIP_HORIZONTAL_WIDTH            0xFFFF0000
@@ -925,6 +926,14 @@ static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
 #       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE          0xFFFFFF00
 #   define NV097_SET_LOGIC_OP_ENABLE                          0x009717BC
 #   define NV097_SET_LOGIC_OP                                 0x009717C0
+#   define NV097_CLEAR_REPORT_VALUE                           0x009717C8
+#       define NV097_CLEAR_REPORT_VALUE_TYPE                      0xFFFFFFFF
+#           define NV097_CLEAR_REPORT_VALUE_TYPE_ZPASS_PIXEL_CNT      1
+#   define NV097_SET_ZPASS_PIXEL_COUNT_ENABLE                 0x009717CC
+#   define NV097_GET_REPORT                                   0x009717D0
+#       define NV097_GET_REPORT_OFFSET                            0x00FFFFFF
+#       define NV097_GET_REPORT_TYPE                              0xFF000000
+#           define NV097_GET_REPORT_TYPE_ZPASS_PIXEL_CNT              1
 #   define NV097_SET_SHADER_CLIP_PLANE_MODE                   0x009717F8
 #   define NV097_SET_BEGIN_END                                0x009717FC
 #       define NV097_SET_BEGIN_END_OP_END                         0x00
@@ -1555,6 +1564,12 @@ typedef struct PGRAPHState {
     GLuint gl_color_buffer, gl_zeta_buffer;
     GraphicsSubchannel subchannel_data[NV2A_NUM_SUBCHANNELS];
 
+    hwaddr dma_report;
+    hwaddr report_offset;
+    bool zpass_pixel_count_enable;
+    unsigned int zpass_pixel_count_result;
+    unsigned int gl_zpass_pixel_count_query_count;
+    GLuint* gl_zpass_pixel_count_queries;
 
     hwaddr dma_vertex_a, dma_vertex_b;
 
@@ -4223,6 +4238,9 @@ static void pgraph_method(NV2AState *d,
     case NV097_SET_CONTEXT_DMA_SEMAPHORE:
         kelvin->dma_semaphore = parameter;
         break;
+    case NV097_SET_CONTEXT_DMA_REPORT:
+        pg->dma_report = parameter;
+        break;
 
     case NV097_SET_SURFACE_CLIP_HORIZONTAL:
         pgraph_update_surface(d, false, true, true);
@@ -4841,6 +4859,65 @@ static void pgraph_method(NV2AState *d,
                  NV_PGRAPH_BLEND_LOGICOP, parameter & 0xF);
         break;
 
+    case NV097_CLEAR_REPORT_VALUE:
+        /* FIXME: Does this have a value in parameter? Also does this (also?) modify
+         *        the report memory block?
+         */
+        if (pg->gl_zpass_pixel_count_query_count) {
+            glDeleteQueries(pg->gl_zpass_pixel_count_query_count,
+                            pg->gl_zpass_pixel_count_queries);
+            pg->gl_zpass_pixel_count_query_count = 0;
+        }
+        pg->zpass_pixel_count_result = 0;
+        break;
+
+    case NV097_SET_ZPASS_PIXEL_COUNT_ENABLE:
+        pg->zpass_pixel_count_enable = parameter;
+        break;
+
+    case NV097_GET_REPORT: {
+        /* FIXME: This was first intended to be watchpoint-based. However,
+         *        qemu / kvm only supports virtual-address watchpoints.
+         *        This'll do for now, but accuracy and performance with other
+         *        approaches could be better
+         */
+        uint8_t type = GET_MASK(parameter, NV097_GET_REPORT_TYPE);
+        assert(type == NV097_GET_REPORT_TYPE_ZPASS_PIXEL_CNT);
+        hwaddr offset = GET_MASK(parameter, NV097_GET_REPORT_OFFSET);
+
+        uint64_t timestamp = 0x0011223344556677; /* FIXME: Update timestamp?! */
+        uint32_t done = 0;
+
+        /* FIXME: Multisampling affects this (both: OGL and Xbox GPU),
+         *        not sure if CLEARs also count
+         */
+        /* FIXME: What about clipping regions etc? */
+        for(i = 0; i < pg->gl_zpass_pixel_count_query_count; i++) {
+            GLuint gl_query_result;
+            glGetQueryObjectuiv(pg->gl_zpass_pixel_count_queries[i],
+                                GL_QUERY_RESULT,
+                                &gl_query_result);
+            pg->zpass_pixel_count_result += gl_query_result;
+        }
+        if (pg->gl_zpass_pixel_count_query_count) {
+            glDeleteQueries(pg->gl_zpass_pixel_count_query_count,
+                            pg->gl_zpass_pixel_count_queries);
+        }
+        pg->gl_zpass_pixel_count_query_count = 0;
+
+        hwaddr report_dma_len;
+        uint8_t *report_data = nv_dma_map(d, pg->dma_report,
+                                             &report_dma_len);
+        assert(offset < report_dma_len);
+        report_data += offset;
+
+        stq_le_p((uint64_t*)&report_data[0], timestamp);
+        stl_le_p((uint32_t*)&report_data[8], pg->zpass_pixel_count_result);
+        stl_le_p((uint32_t*)&report_data[12], done);
+
+        break;
+    }
+
     case NV097_SET_BEGIN_END: {
         bool depth_test =
             pg->regs[NV_PGRAPH_CONTROL_0] & NV_PGRAPH_CONTROL_0_ZENABLE;
@@ -4908,6 +4985,12 @@ static void pgraph_method(NV2AState *d,
             }/* else {
                 assert(false);
             }*/
+
+            /* End of visibility testing */
+            if (pg->zpass_pixel_count_enable) {
+                glEndQuery(GL_SAMPLES_PASSED);
+            }
+
             NV2A_GL_DGROUP_END();
         } else {
             NV2A_GL_DGROUP_BEGIN("NV097_SET_BEGIN_END: 0x%x", parameter);
@@ -5044,6 +5127,19 @@ static void pgraph_method(NV2AState *d,
             pg->inline_elements_length = 0;
             pg->inline_array_length = 0;
             pg->inline_buffer_length = 0;
+
+            /* Visibility testing */
+            if (pg->zpass_pixel_count_enable) {
+                GLuint gl_query;
+                glGenQueries(1, &gl_query);
+                pg->gl_zpass_pixel_count_query_count++;
+                pg->gl_zpass_pixel_count_queries = g_realloc(
+                    pg->gl_zpass_pixel_count_queries,
+                    sizeof(GLuint) * pg->gl_zpass_pixel_count_query_count);
+                pg->gl_zpass_pixel_count_queries[
+                    pg->gl_zpass_pixel_count_query_count - 1] = gl_query;
+                glBeginQuery(GL_SAMPLES_PASSED, gl_query);
+            }
 
         }
 
