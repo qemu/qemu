@@ -138,7 +138,7 @@ static void tempsensor_clkedge(struct tempsensor_t *s,
                     s->count = 16;
 
                     if ((s->regs[0] & 0xff) == 0) {
-                        /* 25 degrees celcius.  */
+                        /* 25 degrees celsius.  */
                         s->shiftreg = 0x0b9f;
                     } else if ((s->regs[0] & 0xff) == 0xff) {
                         /* Sensor ID, 0x8100 LM70.  */

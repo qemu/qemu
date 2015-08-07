@@ -613,7 +613,7 @@ static const struct s390_operand s390_operands[] =
       names of the instruction format that you can find in the principals
       of operation.
    2) the last part of the definition (y in INSTR_x_y) gives you an idea
-      which operands the binary represenation of the instruction has.
+      which operands the binary representation of the instruction has.
       The meanings of the letters in y are:
       a - access register
       c - control register
@@ -627,7 +627,7 @@ static const struct s390_operand s390_operands[] =
       m - mode field, 4 bit
       0 - operand skipped.
       The order of the letters reflects the layout of the format in
-      storage and not the order of the paramaters of the instructions.
+      storage and not the order of the parameters of the instructions.
       The use of the letters is not a 100% match with the PoP but it is
       quite close.
 

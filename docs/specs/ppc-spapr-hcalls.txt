@@ -41,8 +41,8 @@ When the guest runs in "real mode" (in powerpc lingua this means
 with MMU disabled, ie guest effective == guest physical), it only
 has access to a subset of memory and no IOs.
 
-PAPR provides a set of hypervisor calls to perform cachable or
-non-cachable accesses to any guest physical addresses that the
+PAPR provides a set of hypervisor calls to perform cacheable or
+non-cacheable accesses to any guest physical addresses that the
 guest can use in order to access IO devices while in real mode.
 
 This is typically used by the firmware running in the guest.
