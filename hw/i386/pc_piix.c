@@ -887,7 +887,6 @@ DEFINE_I440FX_MACHINE(v0_10, "pc-0.10", pc_compat_0_13,
 
 static void isapc_machine_options(MachineClass *m)
 {
-    pc_common_machine_options(m);
     m->desc = "ISA-only PC";
     m->max_cpus = 1;
 }
@@ -899,7 +898,6 @@ DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
 #ifdef CONFIG_XEN
 static void xenfv_machine_options(MachineClass *m)
 {
-    pc_common_machine_options(m);
     m->desc = "Xen Fully-virtualized PC";
     m->max_cpus = HVM_MAX_VCPUS;
     m->default_machine_opts = "accel=xen";
