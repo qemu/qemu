@@ -3025,7 +3025,7 @@ void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;
-        tcg_gen_insn_start(dc->pc);
+        tcg_gen_insn_start(dc->pc, dc->cc_op);
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
@@ -3119,5 +3119,9 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 void restore_state_to_opc(CPUM68KState *env, TranslationBlock *tb,
                           target_ulong *data)
 {
+    int cc_op = data[1];
     env->pc = data[0];
+    if (cc_op != CC_OP_DYNAMIC) {
+        env->cc_op = cc_op;
+    }
 }

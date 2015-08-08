@@ -281,8 +281,6 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
 #else
     cc->get_phys_page_debug = m68k_cpu_get_phys_page_debug;
 #endif
-    cc->cpu_exec_enter = m68k_cpu_exec_enter;
-    cc->cpu_exec_exit = m68k_cpu_exec_exit;
     cc->disas_set_info = m68k_cpu_disas_set_info;
 
     cc->gdb_num_core_regs = 18;
