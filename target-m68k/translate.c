@@ -59,9 +59,10 @@ static TCGv cpu_aregs[8];
 static TCGv_i64 cpu_fregs[8];
 static TCGv_i64 cpu_macc[4];
 
-#define DREG(insn, pos) cpu_dregs[((insn) >> (pos)) & 7]
-#define AREG(insn, pos) cpu_aregs[((insn) >> (pos)) & 7]
-#define FREG(insn, pos) cpu_fregs[((insn) >> (pos)) & 7]
+#define REG(insn, pos) (((insn) >> (pos)) & 7)
+#define DREG(insn, pos) cpu_dregs[REG(insn, pos)]
+#define AREG(insn, pos) cpu_aregs[REG(insn, pos)]
+#define FREG(insn, pos) cpu_fregs[REG(insn, pos)]
 #define MACREG(acc) cpu_macc[acc]
 #define QREG_SP cpu_aregs[7]
 
