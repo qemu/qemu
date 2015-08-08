@@ -133,7 +133,7 @@ typedef struct DisasContext {
     target_ulong insn_pc; /* Start of the current instruction.  */
     target_ulong pc;
     int is_jmp;
-    int cc_op;
+    CCOp cc_op; /* Current CC operation */
     int user;
     uint32_t fpcr;
     struct TranslationBlock *tb;
@@ -174,6 +174,53 @@ typedef void (*disas_proc)(CPUM68KState *env, DisasContext *s, uint16_t insn);
     static void disas_##name(CPUM68KState *env, DisasContext *s,        \
                              uint16_t insn)
 #endif
+
+enum {
+    USES_CC_DST  = 1,
+    USES_CC_SRC  = 2,
+};
+
+static const uint8_t cc_op_live[CC_OP_NB] = {
+    [CC_OP_DYNAMIC] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_FLAGS] = USES_CC_DST,
+    [CC_OP_LOGICB ... CC_OP_LOGIC] = USES_CC_DST,
+    [CC_OP_ADDB ... CC_OP_ADD] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_SUBB ... CC_OP_SUB] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_ADDXB ... CC_OP_ADDX] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_SUBXB ... CC_OP_SUBX] = USES_CC_DST | USES_CC_SRC,
+    [CC_OP_SHIFTB ... CC_OP_SHIFT] = USES_CC_DST | USES_CC_SRC,
+};
+
+static void set_cc_op(DisasContext *s, CCOp op)
+{
+    int dead;
+
+    if (s->cc_op == op) {
+        return;
+    }
+
+    /* Discard CC computation that will no longer be used.  */
+
+    dead = cc_op_live[s->cc_op] & ~cc_op_live[op];
+    if (dead & USES_CC_DST) {
+        tcg_gen_discard_i32(QREG_CC_DEST);
+    }
+    if (dead & USES_CC_SRC) {
+        tcg_gen_discard_i32(QREG_CC_SRC);
+    }
+    if (s->cc_op == CC_OP_DYNAMIC) {
+        tcg_gen_discard_i32(QREG_CC_OP);
+    }
+    s->cc_op = op;
+}
+
+/* Update the CPU env CC_OP state.  */
+static inline void update_cc_op(DisasContext *s)
+{
+    if (s->cc_op != CC_OP_DYNAMIC) {
+        tcg_gen_movi_i32(QREG_CC_OP, s->cc_op);
+    }
+}
 
 /* Generate a load from the specified address.  Narrow values are
    sign extended to full register width.  */
@@ -411,31 +458,28 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
     return add;
 }
 
-/* Update the CPU env CC_OP state.  */
-static inline void gen_flush_cc_op(DisasContext *s)
-{
-    if (s->cc_op != CC_OP_DYNAMIC)
-        tcg_gen_movi_i32(QREG_CC_OP, s->cc_op);
-}
-
 /* Evaluate all the CC flags.  */
+
 static inline void gen_flush_flags(DisasContext *s)
 {
     if (s->cc_op == CC_OP_FLAGS)
         return;
-    gen_flush_cc_op(s);
-    gen_helper_flush_flags(QREG_CC_DEST, cpu_env, QREG_CC_OP);
-    s->cc_op = CC_OP_FLAGS;
+    if (s->cc_op == CC_OP_DYNAMIC) {
+        gen_helper_flush_flags(QREG_CC_DEST, cpu_env, QREG_CC_OP);
+    } else {
+        gen_helper_flush_flags(QREG_CC_DEST, cpu_env, tcg_const_i32(s->cc_op));
+    }
+    set_cc_op(s, CC_OP_FLAGS);
 }
 
 #define SET_CC_OP(opsize, op) do { \
     switch (opsize) { \
     case OS_BYTE: \
-        s->cc_op = CC_OP_##op##B; break; \
+        set_cc_op(s, CC_OP_##op##B); break; \
     case OS_WORD: \
-        s->cc_op = CC_OP_##op##W; break; \
+        set_cc_op(s, CC_OP_##op##W); break; \
     case OS_LONG: \
-        s->cc_op = CC_OP_##op; break; \
+        set_cc_op(s, CC_OP_##op); break; \
     default: \
         abort(); \
     } \
@@ -719,7 +763,7 @@ static void gen_jmpcc(DisasContext *s, int cond, TCGLabel *l1)
     /* TODO: Optimize compare/branch pairs rather than always flushing
        flag state to CC_OP_FLAGS.  */
     gen_flush_flags(s);
-    gen_flush_cc_op(s);
+    update_cc_op(s);
     switch (cond) {
     case 0: /* T */
         tcg_gen_br(l1);
@@ -836,7 +880,7 @@ DISAS_INSN(scc)
 /* Force a TB lookup after an instruction that changes the CPU state.  */
 static void gen_lookup_tb(DisasContext *s)
 {
-    gen_flush_cc_op(s);
+    update_cc_op(s);
     tcg_gen_movi_i32(QREG_PC, s->pc);
     s->is_jmp = DISAS_UPDATE;
 }
@@ -844,7 +888,7 @@ static void gen_lookup_tb(DisasContext *s)
 /* Generate a jump to an immediate address.  */
 static void gen_jmp_im(DisasContext *s, uint32_t dest)
 {
-    gen_flush_cc_op(s);
+    update_cc_op(s);
     tcg_gen_movi_i32(QREG_PC, dest);
     s->is_jmp = DISAS_JUMP;
 }
@@ -852,14 +896,14 @@ static void gen_jmp_im(DisasContext *s, uint32_t dest)
 /* Generate a jump to the address in qreg DEST.  */
 static void gen_jmp(DisasContext *s, TCGv dest)
 {
-    gen_flush_cc_op(s);
+    update_cc_op(s);
     tcg_gen_mov_i32(QREG_PC, dest);
     s->is_jmp = DISAS_JUMP;
 }
 
 static void gen_exception(DisasContext *s, uint32_t where, int nr)
 {
-    gen_flush_cc_op(s);
+    update_cc_op(s);
     gen_jmp_im(s, where);
     gen_helper_raise_exception(cpu_env, tcg_const_i32(nr));
 }
@@ -977,7 +1021,7 @@ DISAS_INSN(divw)
     tcg_gen_ext16u_i32(tmp, QREG_DIV1);
     tcg_gen_shli_i32(src, QREG_DIV2, 16);
     tcg_gen_or_i32(reg, tmp, src);
-    s->cc_op = CC_OP_FLAGS;
+    set_cc_op(s, CC_OP_FLAGS);
 }
 
 DISAS_INSN(divl)
@@ -1009,7 +1053,7 @@ DISAS_INSN(divl)
         /* rem */
         tcg_gen_mov_i32 (reg, QREG_DIV2);
     }
-    s->cc_op = CC_OP_FLAGS;
+    set_cc_op(s, CC_OP_FLAGS);
 }
 
 DISAS_INSN(addsub)
@@ -1034,11 +1078,11 @@ DISAS_INSN(addsub)
     if (add) {
         tcg_gen_add_i32(dest, tmp, src);
         tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src);
-        s->cc_op = CC_OP_ADD;
+        set_cc_op(s, CC_OP_ADD);
     } else {
         tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, tmp, src);
         tcg_gen_sub_i32(dest, tmp, src);
-        s->cc_op = CC_OP_SUB;
+        set_cc_op(s, CC_OP_SUB);
     }
     gen_update_cc_add(dest, src);
     if (insn & 0x100) {
@@ -1225,7 +1269,6 @@ DISAS_INSN(bitop_im)
         DEST_EA(env, insn, opsize, tmp, &addr);
     }
 }
-
 DISAS_INSN(arith_im)
 {
     int op;
@@ -1252,14 +1295,14 @@ DISAS_INSN(arith_im)
         tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, tcg_const_i32(im));
         tcg_gen_subi_i32(dest, dest, im);
         gen_update_cc_add(dest, tcg_const_i32(im));
-        s->cc_op = CC_OP_SUB;
+        set_cc_op(s, CC_OP_SUB);
         break;
     case 3: /* addi */
         tcg_gen_mov_i32(dest, src1);
         tcg_gen_addi_i32(dest, dest, im);
         gen_update_cc_add(dest, tcg_const_i32(im));
         tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, tcg_const_i32(im));
-        s->cc_op = CC_OP_ADD;
+        set_cc_op(s, CC_OP_ADD);
         break;
     case 5: /* eori */
         tcg_gen_xori_i32(dest, src1, im);
@@ -1269,7 +1312,7 @@ DISAS_INSN(arith_im)
         tcg_gen_mov_i32(dest, src1);
         tcg_gen_subi_i32(dest, dest, im);
         gen_update_cc_add(dest, tcg_const_i32(im));
-        s->cc_op = CC_OP_SUB;
+        set_cc_op(s, CC_OP_SUB);
         break;
     default:
         abort();
@@ -1384,10 +1427,9 @@ DISAS_INSN(neg)
     src1 = tcg_temp_new();
     tcg_gen_mov_i32(src1, reg);
     tcg_gen_neg_i32(reg, src1);
-    s->cc_op = CC_OP_SUB;
     gen_update_cc_add(reg, src1);
     tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, tcg_const_i32(0), src1);
-    s->cc_op = CC_OP_SUB;
+    set_cc_op(s, CC_OP_SUB);
 }
 
 static void gen_set_sr_im(DisasContext *s, uint16_t val, int ccr_only)
@@ -1397,6 +1439,7 @@ static void gen_set_sr_im(DisasContext *s, uint16_t val, int ccr_only)
     if (!ccr_only) {
         gen_helper_set_sr(cpu_env, tcg_const_i32(val & 0xff00));
     }
+    set_cc_op(s, CC_OP_FLAGS);
 }
 
 static void gen_set_sr(DisasContext *s, TCGv val, int ccr_only)
@@ -1628,11 +1671,11 @@ DISAS_INSN(addsubq)
         if (insn & 0x0100) {
             tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src2);
             tcg_gen_subi_i32(dest, dest, val);
-            s->cc_op = CC_OP_SUB;
+            set_cc_op(s, CC_OP_SUB);
         } else {
             tcg_gen_addi_i32(dest, dest, val);
             tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src2);
-            s->cc_op = CC_OP_ADD;
+            set_cc_op(s, CC_OP_ADD);
         }
         gen_update_cc_add(dest, src2);
     }
@@ -1678,11 +1721,14 @@ DISAS_INSN(branch)
         /* Bcc */
         l1 = gen_new_label();
         gen_jmpcc(s, ((insn >> 8) & 0xf) ^ 1, l1);
+        update_cc_op(s);
         gen_jmp_tb(s, 1, base + offset);
         gen_set_label(l1);
+        update_cc_op(s);
         gen_jmp_tb(s, 0, s->pc);
     } else {
         /* Unconditional branch.  */
+        update_cc_op(s);
         gen_jmp_tb(s, 0, base + offset);
     }
 }
@@ -1858,7 +1904,6 @@ DISAS_INSN(addx)
     reg = DREG(insn, 9);
     src = DREG(insn, 0);
     gen_helper_addx_cc(reg, cpu_env, reg, src);
-    s->cc_op = CC_OP_FLAGS;
 }
 
 /* TODO: This could be implemented without helper functions.  */
@@ -1883,7 +1928,7 @@ DISAS_INSN(shift_im)
             gen_helper_sar_cc(reg, cpu_env, reg, shift);
         }
     }
-    s->cc_op = CC_OP_SHIFT;
+    set_cc_op(s, CC_OP_SHIFT);
 }
 
 DISAS_INSN(shift_reg)
@@ -1904,7 +1949,7 @@ DISAS_INSN(shift_reg)
             gen_helper_sar_cc(reg, cpu_env, reg, shift);
         }
     }
-    s->cc_op = CC_OP_SHIFT;
+    set_cc_op(s, CC_OP_SHIFT);
 }
 
 DISAS_INSN(ff1)
@@ -2716,7 +2761,7 @@ DISAS_INSN(macsr_to_ccr)
 {
     tcg_gen_movi_i32(QREG_CC_X, 0);
     tcg_gen_andi_i32(QREG_CC_DEST, QREG_MACSR, 0xf);
-    s->cc_op = CC_OP_FLAGS;
+    set_cc_op(s, CC_OP_FLAGS);
 }
 
 DISAS_INSN(to_mac)
@@ -3047,20 +3092,20 @@ void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
     if (unlikely(cs->singlestep_enabled)) {
         /* Make sure the pc is updated, and raise a debug exception.  */
         if (!dc->is_jmp) {
-            gen_flush_cc_op(dc);
+            update_cc_op(dc);
             tcg_gen_movi_i32(QREG_PC, dc->pc);
         }
         gen_helper_raise_exception(cpu_env, tcg_const_i32(EXCP_DEBUG));
     } else {
         switch(dc->is_jmp) {
         case DISAS_NEXT:
-            gen_flush_cc_op(dc);
+            update_cc_op(dc);
             gen_jmp_tb(dc, 0, dc->pc);
             break;
         default:
         case DISAS_JUMP:
         case DISAS_UPDATE:
-            gen_flush_cc_op(dc);
+            update_cc_op(dc);
             /* indicate that the hash table must be used to find the next TB */
             tcg_gen_exit_tb(0);
             break;

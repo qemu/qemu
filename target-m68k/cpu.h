@@ -167,7 +167,7 @@ int cpu_m68k_signal_handler(int host_signum, void *pinfo,
  * using this information. Condition codes are not generated if they
  * are only needed for conditional branches.
  */
-enum {
+typedef enum {
     CC_OP_DYNAMIC, /* Use env->cc_op  */
     CC_OP_FLAGS, /* CC_DEST = CVZN, CC_SRC = unused */
     CC_OP_LOGICB, /* CC_DEST = result, CC_SRC = unused */
@@ -188,7 +188,8 @@ enum {
     CC_OP_SHIFTB, /* CC_DEST = result, CC_SRC = carry */
     CC_OP_SHIFTW, /* CC_DEST = result, CC_SRC = carry */
     CC_OP_SHIFT, /* CC_DEST = result, CC_SRC = carry */
-};
+    CC_OP_NB,
+} CCOp;
 
 #define CCF_C 0x01
 #define CCF_V 0x02
