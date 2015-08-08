@@ -3023,9 +3023,10 @@ static ShaderBinding* generate_shaders(const ShaderState state)
     return ret;
 }
 
-static unsigned int pgraph_apply_anti_aliasing_factor(PGRAPHState *pg,
-                                                      unsigned int *width,
-                                                      unsigned int *height) {
+static void pgraph_apply_anti_aliasing_factor(PGRAPHState *pg,
+                                              unsigned int *width,
+                                              unsigned int *height)
+{
     switch (pg->surface_shape.anti_aliasing) {
     case NV097_SET_SURFACE_FORMAT_ANTI_ALIASING_CENTER_1:
         break;
