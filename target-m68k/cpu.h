@@ -30,6 +30,14 @@
 #include "cpu-qom.h"
 #include "fpu/softfloat.h"
 
+#define OS_BYTE     0
+#define OS_WORD     1
+#define OS_LONG     2
+#define OS_SINGLE   3
+#define OS_DOUBLE   4
+#define OS_EXTENDED 5
+#define OS_PACKED   6
+
 #define MAX_QREGS 32
 
 #define EXCP_ACCESS         2   /* Access (MMU) error.  */
