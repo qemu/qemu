@@ -22,6 +22,7 @@
  * Based on acpi-dsdt.dsl, but heavily modified for q35 chipset.
  */
 
+
 ACPI_EXTRACT_ALL_CODE Q35AcpiDsdtAmlCode
 
 DefinitionBlock (
