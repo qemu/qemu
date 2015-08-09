@@ -294,6 +294,14 @@ static void machine_init_notify(Notifier *notifier, void *data)
     foreach_dynamic_sysbus_device(error_on_sysbus_device, NULL);
 }
 
+static void machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    /* Default 128 MB as guest ram size */
+    mc->default_ram_size = 128 * M_BYTE;
+}
+
 static void machine_initfn(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
@@ -463,6 +471,7 @@ static const TypeInfo machine_info = {
     .parent = TYPE_OBJECT,
     .abstract = true,
     .class_size = sizeof(MachineClass),
+    .class_init    = machine_class_init,
     .instance_size = sizeof(MachineState),
     .instance_init = machine_initfn,
     .instance_finalize = machine_finalize,

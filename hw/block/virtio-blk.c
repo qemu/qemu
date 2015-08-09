@@ -499,8 +499,7 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 
     iov_discard_front(&iov, &out_num, sizeof(req->out));
 
-    if (in_num < 1 ||
-        in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
+    if (in_iov[in_num - 1].iov_len < sizeof(struct virtio_blk_inhdr)) {
         error_report("virtio-blk request inhdr too short");
         exit(1);
     }
@@ -651,16 +650,21 @@ static void virtio_blk_dma_restart_cb(void *opaque, int running,
 static void virtio_blk_reset(VirtIODevice *vdev)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
-
-    if (s->dataplane) {
-        virtio_blk_data_plane_stop(s->dataplane);
-    }
+    AioContext *ctx;
 
     /*
      * This should cancel pending requests, but can't do nicely until there
      * are per-device request lists.
      */
-    blk_drain_all();
+    ctx = blk_get_aio_context(s->blk);
+    aio_context_acquire(ctx);
+    blk_drain(s->blk);
+
+    if (s->dataplane) {
+        virtio_blk_data_plane_stop(s->dataplane);
+    }
+    aio_context_release(ctx);
+
     blk_set_enable_write_cache(s->blk, s->original_wce);
 }
 
@@ -718,7 +722,8 @@ static void virtio_blk_set_config(VirtIODevice *vdev, const uint8_t *config)
     aio_context_release(blk_get_aio_context(s->blk));
 }
 
-static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
+static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
+                                        Error **errp)
 {
     VirtIOBlock *s = VIRTIO_BLK(vdev);
 
@@ -726,7 +731,15 @@ static uint32_t virtio_blk_get_features(VirtIODevice *vdev, uint32_t features)
     virtio_add_feature(&features, VIRTIO_BLK_F_GEOMETRY);
     virtio_add_feature(&features, VIRTIO_BLK_F_TOPOLOGY);
     virtio_add_feature(&features, VIRTIO_BLK_F_BLK_SIZE);
-    virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
+    if (__virtio_has_feature(features, VIRTIO_F_VERSION_1)) {
+        if (s->conf.scsi) {
+            error_setg(errp, "Please set scsi=off for virtio-blk devices in order to use virtio 1.0");
+            return 0;
+        }
+    } else {
+        virtio_clear_feature(&features, VIRTIO_F_ANY_LAYOUT);
+        virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
+    }
 
     if (s->conf.config_wce) {
         virtio_add_feature(&features, VIRTIO_BLK_F_CONFIG_WCE);

@@ -716,8 +716,8 @@ static void ide_dma_cb(void *opaque, int ret)
 
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        assert(s->io_buffer_size == s->sg.size);
-        dma_buf_commit(s, s->io_buffer_size);
+        assert(n * 512 == s->sg.size);
+        dma_buf_commit(s, s->sg.size);
         sector_num += n;
         ide_set_sector(s, sector_num);
         s->nsector -= n;
@@ -734,7 +734,7 @@ static void ide_dma_cb(void *opaque, int ret)
     n = s->nsector;
     s->io_buffer_index = 0;
     s->io_buffer_size = n * 512;
-    if (s->bus->dma->ops->prepare_buf(s->bus->dma, ide_cmd_is_read(s)) < 512) {
+    if (s->bus->dma->ops->prepare_buf(s->bus->dma, s->io_buffer_size) < 512) {
         /* The PRDs were too short. Reset the Active bit, but don't raise an
          * interrupt. */
         s->status = READY_STAT | SEEK_STAT;
@@ -2021,11 +2021,17 @@ void ide_data_writew(void *opaque, uint32_t addr, uint32_t val)
     }
 
     p = s->data_ptr;
+    if (p + 2 > s->data_end) {
+        return;
+    }
+
     *(uint16_t *)p = le16_to_cpu(val);
     p += 2;
     s->data_ptr = p;
-    if (p >= s->data_end)
+    if (p >= s->data_end) {
+        s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
+    }
 }
 
 uint32_t ide_data_readw(void *opaque, uint32_t addr)
@@ -2042,11 +2048,17 @@ uint32_t ide_data_readw(void *opaque, uint32_t addr)
     }
 
     p = s->data_ptr;
+    if (p + 2 > s->data_end) {
+        return 0;
+    }
+
     ret = cpu_to_le16(*(uint16_t *)p);
     p += 2;
     s->data_ptr = p;
-    if (p >= s->data_end)
+    if (p >= s->data_end) {
+        s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
+    }
     return ret;
 }
 
@@ -2063,11 +2075,17 @@ void ide_data_writel(void *opaque, uint32_t addr, uint32_t val)
     }
 
     p = s->data_ptr;
+    if (p + 4 > s->data_end) {
+        return;
+    }
+
     *(uint32_t *)p = le32_to_cpu(val);
     p += 4;
     s->data_ptr = p;
-    if (p >= s->data_end)
+    if (p >= s->data_end) {
+        s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
+    }
 }
 
 uint32_t ide_data_readl(void *opaque, uint32_t addr)
@@ -2084,11 +2102,17 @@ uint32_t ide_data_readl(void *opaque, uint32_t addr)
     }
 
     p = s->data_ptr;
+    if (p + 4 > s->data_end) {
+        return 0;
+    }
+
     ret = cpu_to_le32(*(uint32_t *)p);
     p += 4;
     s->data_ptr = p;
-    if (p >= s->data_end)
+    if (p >= s->data_end) {
+        s->status &= ~DRQ_STAT;
         s->end_transfer_func(s);
+    }
     return ret;
 }
 
@@ -2326,7 +2350,7 @@ static void ide_nop(IDEDMA *dma)
 {
 }
 
-static int32_t ide_nop_int32(IDEDMA *dma, int x)
+static int32_t ide_nop_int32(IDEDMA *dma, int32_t l)
 {
     return 0;
 }
@@ -2370,6 +2394,13 @@ static void ide_restart_bh(void *opaque)
      * request may fail again, and this case can only be distinguished if the
      * called function can set a new error status. */
     bus->error_status = 0;
+
+    /* The HBA has generically asked to be kicked on retry */
+    if (error_status & IDE_RETRY_HBA) {
+        if (s->bus->dma->ops->restart) {
+            s->bus->dma->ops->restart(s->bus->dma);
+        }
+    }
 
     if (error_status & IDE_RETRY_DMA) {
         if (error_status & IDE_RETRY_TRIM) {
@@ -2561,6 +2592,7 @@ static const VMStateDescription vmstate_ide_atapi_gesn_state = {
     .name ="ide_drive/atapi/gesn_state",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = ide_atapi_gesn_needed,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(events.new_media, IDEState),
         VMSTATE_BOOL(events.eject_request, IDEState),
@@ -2572,6 +2604,7 @@ static const VMStateDescription vmstate_ide_tray_state = {
     .name = "ide_drive/tray_state",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = ide_tray_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(tray_open, IDEState),
         VMSTATE_BOOL(tray_locked, IDEState),
@@ -2585,6 +2618,7 @@ static const VMStateDescription vmstate_ide_drive_pio_state = {
     .minimum_version_id = 1,
     .pre_save = ide_drive_pio_pre_save,
     .post_load = ide_drive_pio_post_load,
+    .needed = ide_drive_pio_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(req_nb_sectors, IDEState),
         VMSTATE_VARRAY_INT32(io_buffer, IDEState, io_buffer_total_len, 1,
@@ -2626,19 +2660,11 @@ const VMStateDescription vmstate_ide_drive = {
         VMSTATE_UINT8_V(cdrom_changed, IDEState, 3),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection []) {
-        {
-            .vmsd = &vmstate_ide_drive_pio_state,
-            .needed = ide_drive_pio_state_needed,
-        }, {
-            .vmsd = &vmstate_ide_tray_state,
-            .needed = ide_tray_state_needed,
-        }, {
-            .vmsd = &vmstate_ide_atapi_gesn_state,
-            .needed = ide_atapi_gesn_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_ide_drive_pio_state,
+        &vmstate_ide_tray_state,
+        &vmstate_ide_atapi_gesn_state,
+        NULL
     }
 };
 
@@ -2646,6 +2672,7 @@ static const VMStateDescription vmstate_ide_error_status = {
     .name ="ide_bus/error",
     .version_id = 2,
     .minimum_version_id = 1,
+    .needed = ide_error_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(error_status, IDEBus),
         VMSTATE_INT64_V(retry_sector_num, IDEBus, 2),
@@ -2664,13 +2691,9 @@ const VMStateDescription vmstate_ide_bus = {
         VMSTATE_UINT8(unit, IDEBus),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection []) {
-        {
-            .vmsd = &vmstate_ide_error_status,
-            .needed = ide_error_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_ide_error_status,
+        NULL
     }
 };
 

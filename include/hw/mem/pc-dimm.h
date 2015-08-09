@@ -70,6 +70,17 @@ typedef struct PCDIMMDeviceClass {
     MemoryRegion *(*get_memory_region)(PCDIMMDevice *dimm);
 } PCDIMMDeviceClass;
 
+/**
+ * MemoryHotplugState:
+ * @base: address in guest RAM address space where hotplug memory
+ * address space begins.
+ * @mr: hotplug memory address space container
+ */
+typedef struct MemoryHotplugState {
+    ram_addr_t base;
+    MemoryRegion mr;
+} MemoryHotplugState;
+
 uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
                                uint64_t address_space_size,
                                uint64_t *hint, uint64_t align, uint64_t size,
@@ -79,4 +90,8 @@ int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp);
 
 int qmp_pc_dimm_device_list(Object *obj, void *opaque);
 uint64_t pc_existing_dimms_capacity(Error **errp);
+void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
+                         MemoryRegion *mr, uint64_t align, Error **errp);
+void pc_dimm_memory_unplug(DeviceState *dev, MemoryHotplugState *hpms,
+                           MemoryRegion *mr);
 #endif

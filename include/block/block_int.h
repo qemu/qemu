@@ -31,8 +31,6 @@
 #include "block/coroutine.h"
 #include "qemu/timer.h"
 #include "qapi-types.h"
-#include "qapi/qmp/qerror.h"
-#include "monitor/monitor.h"
 #include "qemu/hbitmap.h"
 #include "block/snapshot.h"
 #include "qemu/main-loop.h"
@@ -331,6 +329,19 @@ typedef struct BdrvAioNotifier {
     QLIST_ENTRY(BdrvAioNotifier) list;
 } BdrvAioNotifier;
 
+struct BdrvChildRole {
+    int (*inherit_flags)(int parent_flags);
+};
+
+extern const BdrvChildRole child_file;
+extern const BdrvChildRole child_format;
+
+struct BdrvChild {
+    BlockDriverState *bs;
+    const BdrvChildRole *role;
+    QLIST_ENTRY(BdrvChild) next;
+};
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please
@@ -369,6 +380,7 @@ struct BlockDriverState {
     char exact_filename[PATH_MAX];
 
     BlockDriverState *backing_hd;
+    BdrvChild *backing_child;
     BlockDriverState *file;
 
     NotifierList close_notifiers;
@@ -380,9 +392,14 @@ struct BlockDriverState {
     unsigned int serialising_in_flight;
 
     /* I/O throttling */
-    ThrottleState throttle_state;
     CoQueue      throttled_reqs[2];
     bool         io_limits_enabled;
+    /* The following fields are protected by the ThrottleGroup lock.
+     * See the ThrottleGroup documentation for details. */
+    ThrottleState *throttle_state;
+    ThrottleTimers throttle_timers;
+    unsigned       pending_reqs[2];
+    QLIST_ENTRY(BlockDriverState) round_robin;
 
     /* I/O stats (display with "info blockstats"). */
     BlockAcctStats stats;
@@ -424,6 +441,12 @@ struct BlockDriverState {
 
     /* long-running background operation */
     BlockJob *job;
+
+    /* The node that this node inherited default options from (and a reopen on
+     * which can affect this node by changing these defaults). This is always a
+     * parent node of this node. */
+    BlockDriverState *inherits_from;
+    QLIST_HEAD(, BdrvChild) children;
 
     QDict *options;
     BlockdevDetectZeroesOptions detect_zeroes;
@@ -591,6 +614,7 @@ void commit_active_start(BlockDriverState *bs, BlockDriverState *base,
  * @mode: Whether to collapse all images in the chain to the target.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
+ * @unmap: Whether to unmap target where source sectors only contain zeroes.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
  * @errp: Error object.
@@ -605,6 +629,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
                   int64_t speed, uint32_t granularity, int64_t buf_size,
                   MirrorSyncMode mode, BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
+                  bool unmap,
                   BlockCompletionFunc *cb,
                   void *opaque, Error **errp);
 
@@ -614,7 +639,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  * @target: Block device to write to.
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
  * @sync_mode: What parts of the disk image should be copied to the destination.
- * @sync_bitmap: The dirty bitmap if sync_mode is MIRROR_SYNC_MODE_DIRTY_BITMAP.
+ * @sync_bitmap: The dirty bitmap if sync_mode is MIRROR_SYNC_MODE_INCREMENTAL.
  * @on_source_error: The action to take upon error reading from the source.
  * @on_target_error: The action to take upon error writing to the target.
  * @cb: Completion function for the job.
@@ -639,7 +664,5 @@ bool blk_dev_is_medium_locked(BlockBackend *blk);
 void blk_dev_resize_cb(BlockBackend *blk);
 
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
-void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
-                      int nr_sectors);
 
 #endif /* BLOCK_INT_H */

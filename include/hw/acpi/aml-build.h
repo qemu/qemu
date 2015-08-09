@@ -36,49 +36,49 @@ struct Aml {
 typedef struct Aml Aml;
 
 typedef enum {
-    aml_decode10 = 0,
-    aml_decode16 = 1,
+    AML_DECODE10 = 0,
+    AML_DECODE16 = 1,
 } AmlIODecode;
 
 typedef enum {
-    aml_any_acc = 0,
-    aml_byte_acc = 1,
-    aml_word_acc = 2,
-    aml_dword_acc = 3,
-    aml_qword_acc = 4,
-    aml_buffer_acc = 5,
+    AML_ANY_ACC = 0,
+    AML_BYTE_ACC = 1,
+    AML_WORD_ACC = 2,
+    AML_DWORD_ACC = 3,
+    AML_QWORD_ACC = 4,
+    AML_BUFFER_ACC = 5,
 } AmlAccessType;
 
 typedef enum {
-    aml_preserve = 0,
-    aml_write_as_ones = 1,
-    aml_write_as_zeros = 2,
+    AML_PRESERVE = 0,
+    AML_WRITE_AS_ONES = 1,
+    AML_WRITE_AS_ZEROS = 2,
 } AmlUpdateRule;
 
 typedef enum {
-    aml_system_memory = 0x00,
-    aml_system_io = 0x01,
+    AML_SYSTEM_MEMORY = 0X00,
+    AML_SYSTEM_IO = 0X01,
 } AmlRegionSpace;
 
 typedef enum {
-    aml_memory_range = 0,
-    aml_io_range = 1,
-    aml_bus_number_range = 2,
+    AML_MEMORY_RANGE = 0,
+    AML_IO_RANGE = 1,
+    AML_BUS_NUMBER_RANGE = 2,
 } AmlResourceType;
 
 typedef enum {
-    aml_sub_decode = 1 << 1,
-    aml_pos_decode = 0
+    AML_SUB_DECODE = 1 << 1,
+    AML_POS_DECODE = 0
 } AmlDecode;
 
 typedef enum {
-    aml_max_fixed = 1 << 3,
-    aml_max_not_fixed = 0,
+    AML_MAX_FIXED = 1 << 3,
+    AML_MAX_NOT_FIXED = 0,
 } AmlMaxFixed;
 
 typedef enum {
-    aml_min_fixed = 1 << 2,
-    aml_min_not_fixed = 0
+    AML_MIN_FIXED = 1 << 2,
+    AML_MIN_NOT_FIXED = 0
 } AmlMinFixed;
 
 /*
@@ -86,9 +86,9 @@ typedef enum {
  * _RNG field definition
  */
 typedef enum {
-    aml_isa_only = 1,
-    aml_non_isa_only = 2,
-    aml_entire_range = 3,
+    AML_ISA_ONLY = 1,
+    AML_NON_ISA_ONLY = 2,
+    AML_ENTIRE_RANGE = 3,
 } AmlISARanges;
 
 /*
@@ -96,20 +96,58 @@ typedef enum {
  * _MEM field definition
  */
 typedef enum {
-    aml_non_cacheable = 0,
-    aml_cacheable = 1,
-    aml_write_combining = 2,
-    aml_prefetchable = 3,
-} AmlCacheble;
+    AML_NON_CACHEABLE = 0,
+    AML_CACHEABLE = 1,
+    AML_WRITE_COMBINING = 2,
+    AML_PREFETCHABLE = 3,
+} AmlCacheable;
 
 /*
  * ACPI 1.0b: Table 6-25 Memory Resource Flag (Resource Type = 0) Definitions
  * _RW field definition
  */
 typedef enum {
-    aml_ReadOnly = 0,
-    aml_ReadWrite = 1,
+    AML_READ_ONLY = 0,
+    AML_READ_WRITE = 1,
 } AmlReadAndWrite;
+
+/*
+ * ACPI 5.0: Table 6-187 Extended Interrupt Descriptor Definition
+ * Interrupt Vector Flags Bits[0] Consumer/Producer
+ */
+typedef enum {
+    AML_CONSUMER_PRODUCER = 0,
+    AML_CONSUMER = 1,
+} AmlConsumerAndProducer;
+
+/*
+ * ACPI 5.0: Table 6-187 Extended Interrupt Descriptor Definition
+ * _HE field definition
+ */
+typedef enum {
+    AML_LEVEL = 0,
+    AML_EDGE = 1,
+} AmlLevelAndEdge;
+
+/*
+ * ACPI 5.0: Table 6-187 Extended Interrupt Descriptor Definition
+ * _LL field definition
+ */
+typedef enum {
+    AML_ACTIVE_HIGH = 0,
+    AML_ACTIVE_LOW = 1,
+} AmlActiveHighAndLow;
+
+/*
+ * ACPI 5.0: Table 6-187 Extended Interrupt Descriptor Definition
+ * _SHR field definition
+ */
+typedef enum {
+    AML_EXCLUSIVE = 0,
+    AML_SHARED = 1,
+    AML_EXCLUSIVE_AND_WAKE = 2,
+    AML_SHARED_AND_WAKE = 3,
+} AmlShared;
 
 typedef
 struct AcpiBuildTables {
@@ -163,11 +201,24 @@ Aml *aml_int(const uint64_t val);
 Aml *aml_arg(int pos);
 Aml *aml_store(Aml *val, Aml *target);
 Aml *aml_and(Aml *arg1, Aml *arg2);
+Aml *aml_or(Aml *arg1, Aml *arg2);
+Aml *aml_shiftleft(Aml *arg1, Aml *count);
+Aml *aml_shiftright(Aml *arg1, Aml *count);
+Aml *aml_lless(Aml *arg1, Aml *arg2);
+Aml *aml_add(Aml *arg1, Aml *arg2);
+Aml *aml_increment(Aml *arg);
+Aml *aml_index(Aml *arg1, Aml *idx);
 Aml *aml_notify(Aml *arg1, Aml *arg2);
 Aml *aml_call1(const char *method, Aml *arg1);
 Aml *aml_call2(const char *method, Aml *arg1, Aml *arg2);
 Aml *aml_call3(const char *method, Aml *arg1, Aml *arg2, Aml *arg3);
 Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4);
+Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
+                        AmlReadAndWrite read_and_write);
+Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
+                   AmlLevelAndEdge level_and_edge,
+                   AmlActiveHighAndLow high_and_low, AmlShared shared,
+                   uint32_t irq);
 Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len);
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
@@ -177,6 +228,7 @@ Aml *aml_named_field(const char *name, unsigned length);
 Aml *aml_reserved_field(unsigned length);
 Aml *aml_local(int num);
 Aml *aml_string(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
+Aml *aml_lnot(Aml *arg);
 Aml *aml_equal(Aml *arg1, Aml *arg2);
 Aml *aml_processor(uint8_t proc_id, uint32_t pblk_addr, uint8_t pblk_len,
                    const char *name_format, ...) GCC_FMT_ATTR(4, 5);
@@ -190,14 +242,19 @@ Aml *aml_word_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
                  uint16_t addr_gran, uint16_t addr_min,
                  uint16_t addr_max, uint16_t addr_trans,
                  uint16_t len);
+Aml *aml_dword_io(AmlMinFixed min_fixed, AmlMaxFixed max_fixed,
+                 AmlDecode dec, AmlISARanges isa_ranges,
+                 uint32_t addr_gran, uint32_t addr_min,
+                 uint32_t addr_max, uint32_t addr_trans,
+                 uint32_t len);
 Aml *aml_dword_memory(AmlDecode dec, AmlMinFixed min_fixed,
-                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
                       uint32_t addr_gran, uint32_t addr_min,
                       uint32_t addr_max, uint32_t addr_trans,
                       uint32_t len);
 Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
-                      AmlMaxFixed max_fixed, AmlCacheble cacheable,
+                      AmlMaxFixed max_fixed, AmlCacheable cacheable,
                       AmlReadAndWrite read_and_write,
                       uint64_t addr_gran, uint64_t addr_min,
                       uint64_t addr_max, uint64_t addr_trans,
@@ -208,11 +265,16 @@ Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_device(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_method(const char *name, int arg_count);
 Aml *aml_if(Aml *predicate);
+Aml *aml_else(void);
+Aml *aml_while(Aml *predicate);
 Aml *aml_package(uint8_t num_elements);
-Aml *aml_buffer(void);
+Aml *aml_buffer(int buffer_size, uint8_t *byte_list);
 Aml *aml_resource_template(void);
 Aml *aml_field(const char *name, AmlAccessType type, AmlUpdateRule rule);
+Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_varpackage(uint32_t num_elements);
+Aml *aml_touuid(const char *uuid);
+Aml *aml_unicode(const char *str);
 
 void
 build_header(GArray *linker, GArray *table_data,
@@ -222,5 +284,7 @@ unsigned acpi_data_len(GArray *table);
 void acpi_add_table(GArray *table_offsets, GArray *table_data);
 void acpi_build_tables_init(AcpiBuildTables *tables);
 void acpi_build_tables_cleanup(AcpiBuildTables *tables, bool mfre);
+void
+build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets);
 
 #endif

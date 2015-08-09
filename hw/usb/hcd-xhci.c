@@ -2222,8 +2222,6 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
         if (xfer->running_retry) {
             DPRINTF("xhci: xfer nacked, stopping schedule\n");
             epctx->retry = xfer;
-            timer_mod(epctx->kick_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-                      epctx->interval * 125000);
             break;
         }
     }

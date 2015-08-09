@@ -933,7 +933,7 @@ static void rom_reset(void *unused)
     }
 }
 
-int rom_load_all(void)
+int rom_check_and_register_reset(void)
 {
     hwaddr addr = 0;
     MemoryRegionSection section;
@@ -957,12 +957,8 @@ int rom_load_all(void)
         memory_region_unref(section.mr);
     }
     qemu_register_reset(rom_reset, NULL);
-    return 0;
-}
-
-void rom_load_done(void)
-{
     roms_loaded = 1;
+    return 0;
 }
 
 void rom_set_fw(FWCfgState *f)

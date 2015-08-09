@@ -391,22 +391,23 @@ static int kbd_outport_post_load(void *opaque, int version_id)
     return 0;
 }
 
-static const VMStateDescription vmstate_kbd_outport = {
-    .name = "pckbd_outport",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .post_load = kbd_outport_post_load,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8(outport, KBDState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static bool kbd_outport_needed(void *opaque)
 {
     KBDState *s = opaque;
     return s->outport != kbd_outport_default(s);
 }
+
+static const VMStateDescription vmstate_kbd_outport = {
+    .name = "pckbd_outport",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = kbd_outport_post_load,
+    .needed = kbd_outport_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(outport, KBDState),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static int kbd_post_load(void *opaque, int version_id)
 {
@@ -430,12 +431,9 @@ static const VMStateDescription vmstate_kbd = {
         VMSTATE_UINT8(pending, KBDState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_kbd_outport,
-            .needed = kbd_outport_needed,
-        },
-        VMSTATE_END_OF_LIST()
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_kbd_outport,
+        NULL
     }
 };
 

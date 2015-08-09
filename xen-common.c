@@ -12,6 +12,7 @@
 #include "qmp-commands.h"
 #include "sysemu/char.h"
 #include "sysemu/accel.h"
+#include "migration/migration.h"
 
 //#define DEBUG_XEN
 
@@ -118,6 +119,10 @@ static int xen_init(MachineState *ms)
         return -1;
     }
     qemu_add_vm_change_state_handler(xen_change_state_handler, NULL);
+
+    global_state_set_optional();
+    savevm_skip_configuration();
+    savevm_skip_section_footers();
 
     return 0;
 }

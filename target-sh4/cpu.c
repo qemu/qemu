@@ -61,7 +61,8 @@ static void superh_cpu_reset(CPUState *s)
     env->fpscr = FPSCR_PR; /* value for userspace according to the kernel */
     set_float_rounding_mode(float_round_nearest_even, &env->fp_status); /* ?! */
 #else
-    env->sr = SR_MD | SR_RB | SR_BL | SR_I3 | SR_I2 | SR_I1 | SR_I0;
+    env->sr = (1u << SR_MD) | (1u << SR_RB) | (1u << SR_BL) |
+              (1u << SR_I3) | (1u << SR_I2) | (1u << SR_I1) | (1u << SR_I0);
     env->fpscr = FPSCR_DN | FPSCR_RM_ZERO; /* CPU reset value according to SH4 manual */
     set_float_rounding_mode(float_round_to_zero, &env->fp_status);
     set_flush_to_zero(1, &env->fp_status);
@@ -247,7 +248,7 @@ static void superh_cpu_initfn(Object *obj)
     CPUSH4State *env = &cpu->env;
 
     cs->env_ptr = env;
-    cpu_exec_init(env);
+    cpu_exec_init(cs, &error_abort);
 
     env->movcal_backup_tail = &(env->movcal_backup);
 

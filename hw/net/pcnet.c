@@ -995,15 +995,6 @@ static int pcnet_tdte_poll(PCNetState *s)
     return !!(CSR_CXST(s) & 0x8000);
 }
 
-int pcnet_can_receive(NetClientState *nc)
-{
-    PCNetState *s = qemu_get_nic_opaque(nc);
-    if (CSR_STOP(s) || CSR_SPND(s))
-        return 0;
-
-    return sizeof(s->buffer)-16;
-}
-
 #define MIN_BUF_SIZE 60
 
 ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
@@ -1241,6 +1232,14 @@ static void pcnet_transmit(PCNetState *s)
         }
 
         bcnt = 4096 - GET_FIELD(tmd.length, TMDL, BCNT);
+
+        /* if multi-tmd packet outsizes s->buffer then skip it silently.
+           Note: this is not what real hw does */
+        if (s->xmit_pos + bcnt > sizeof(s->buffer)) {
+            s->xmit_pos = -1;
+            goto txdone;
+        }
+
         s->phys_mem_read(s->dma_opaque, PHYSADDR(s, tmd.tbadr),
                          s->buffer + s->xmit_pos, bcnt, CSR_BSWP(s));
         s->xmit_pos += bcnt;

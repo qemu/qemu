@@ -11,19 +11,17 @@ typedef struct VhostNetOptions {
     VhostBackendType backend_type;
     NetClientState *net_backend;
     void *opaque;
-    bool force;
 } VhostNetOptions;
 
 struct vhost_net *vhost_net_init(VhostNetOptions *options);
 
-bool vhost_net_query(VHostNetState *net, VirtIODevice *dev);
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs, int total_queues);
 void vhost_net_stop(VirtIODevice *dev, NetClientState *ncs, int total_queues);
 
 void vhost_net_cleanup(VHostNetState *net);
 
-unsigned vhost_net_get_features(VHostNetState *net, unsigned features);
-void vhost_net_ack_features(VHostNetState *net, unsigned features);
+uint64_t vhost_net_get_features(VHostNetState *net, uint64_t features);
+void vhost_net_ack_features(VHostNetState *net, uint64_t features);
 
 bool vhost_net_virtqueue_pending(VHostNetState *net, int n);
 void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,

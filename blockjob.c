@@ -29,6 +29,7 @@
 #include "block/block.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qjson.h"
 #include "block/coroutine.h"
 #include "qmp-commands.h"
@@ -42,7 +43,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     BlockJob *job;
 
     if (bs->job) {
-        error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
+        error_setg(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
         return NULL;
     }
     bdrv_ref(bs);
@@ -65,15 +66,22 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
 
         block_job_set_speed(job, speed, &local_err);
         if (local_err) {
-            bs->job = NULL;
-            bdrv_op_unblock_all(bs, job->blocker);
-            error_free(job->blocker);
-            g_free(job);
+            block_job_release(bs);
             error_propagate(errp, local_err);
             return NULL;
         }
     }
     return job;
+}
+
+void block_job_release(BlockDriverState *bs)
+{
+    BlockJob *job = bs->job;
+
+    bs->job = NULL;
+    bdrv_op_unblock_all(bs, job->blocker);
+    error_free(job->blocker);
+    g_free(job);
 }
 
 void block_job_completed(BlockJob *job, int ret)
@@ -82,10 +90,7 @@ void block_job_completed(BlockJob *job, int ret)
 
     assert(bs->job == job);
     job->cb(job->opaque, ret);
-    bs->job = NULL;
-    bdrv_op_unblock_all(bs, job->blocker);
-    error_free(job->blocker);
-    g_free(job);
+    block_job_release(bs);
 }
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
@@ -93,7 +98,7 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
     Error *local_err = NULL;
 
     if (!job->driver->set_speed) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         return;
     }
     job->driver->set_speed(job, speed, &local_err);
@@ -108,8 +113,8 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 void block_job_complete(BlockJob *job, Error **errp)
 {
     if (job->pause_count || job->cancelled || !job->driver->complete) {
-        error_set(errp, QERR_BLOCK_JOB_NOT_READY,
-                  bdrv_get_device_name(job->bs));
+        error_setg(errp, QERR_BLOCK_JOB_NOT_READY,
+                   bdrv_get_device_name(job->bs));
         return;
     }
 

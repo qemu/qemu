@@ -42,7 +42,7 @@ static void *vring_map(MemoryRegion **mr, hwaddr phys, hwaddr len,
     }
 
     /* Ignore regions with dirty logging, we cannot mark them dirty */
-    if (memory_region_is_logging(section.mr)) {
+    if (memory_region_get_dirty_log_mask(section.mr)) {
         goto out;
     }
 
@@ -153,7 +153,8 @@ bool vring_should_notify(VirtIODevice *vdev, Vring *vring)
         return true;
     }
 
-    return vring_need_event(vring_used_event(&vring->vr), new, old);
+    return vring_need_event(virtio_tswap16(vdev, vring_used_event(&vring->vr)),
+                            new, old);
 }
 
 
@@ -402,7 +403,8 @@ int vring_pop(VirtIODevice *vdev, Vring *vring,
     /* On success, increment avail index. */
     vring->last_avail_idx++;
     if (virtio_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX)) {
-        vring_avail_event(&vring->vr) = vring->last_avail_idx;
+        vring_avail_event(&vring->vr) =
+            virtio_tswap16(vdev, vring->last_avail_idx);
     }
 
     return head;

@@ -65,7 +65,7 @@ static void xlnx_ep108_init(MachineState *machine)
     xlnx_ep108_binfo.kernel_cmdline = machine->kernel_cmdline;
     xlnx_ep108_binfo.initrd_filename = machine->initrd_filename;
     xlnx_ep108_binfo.loader_start = 0;
-    arm_load_kernel(&s->soc.cpu[0], &xlnx_ep108_binfo);
+    arm_load_kernel(s->soc.boot_cpu_ptr, &xlnx_ep108_binfo);
 }
 
 static QEMUMachine xlnx_ep108_machine = {

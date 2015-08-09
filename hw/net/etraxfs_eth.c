@@ -520,11 +520,6 @@ static int eth_match_groupaddr(ETRAXFSEthState *eth, const unsigned char *sa)
     return match;
 }
 
-static int eth_can_receive(NetClientState *nc)
-{
-    return 1;
-}
-
 static ssize_t eth_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {
     unsigned char sa_bcast[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -584,7 +579,6 @@ static const MemoryRegionOps eth_ops = {
 static NetClientInfo net_etraxfs_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = eth_can_receive,
     .receive = eth_receive,
     .link_status_changed = eth_set_link,
 };

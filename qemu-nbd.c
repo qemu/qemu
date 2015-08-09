@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "block/snapshot.h"
 #include "qapi/util.h"
+#include "qapi/qmp/qstring.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -53,6 +54,7 @@ static int persistent = 0;
 static enum { RUNNING, TERMINATE, TERMINATING, TERMINATED } state;
 static int shared = 1;
 static int nb_fds;
+static int server_fd;
 
 static void usage(const char *name)
 {
@@ -340,7 +342,7 @@ out:
     return (void *) EXIT_FAILURE;
 }
 
-static int nbd_can_accept(void *opaque)
+static int nbd_can_accept(void)
 {
     return nb_fds < shared;
 }
@@ -351,19 +353,21 @@ static void nbd_export_closed(NBDExport *exp)
     state = TERMINATED;
 }
 
+static void nbd_update_server_fd_handler(int fd);
+
 static void nbd_client_closed(NBDClient *client)
 {
     nb_fds--;
     if (nb_fds == 0 && !persistent && state == RUNNING) {
         state = TERMINATE;
     }
+    nbd_update_server_fd_handler(server_fd);
     qemu_notify_event();
     nbd_client_put(client);
 }
 
 static void nbd_accept(void *opaque)
 {
-    int server_fd = (uintptr_t) opaque;
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
 
@@ -380,9 +384,19 @@ static void nbd_accept(void *opaque)
 
     if (nbd_client_new(exp, fd, nbd_client_closed)) {
         nb_fds++;
+        nbd_update_server_fd_handler(server_fd);
     } else {
         shutdown(fd, 2);
         close(fd);
+    }
+}
+
+static void nbd_update_server_fd_handler(int fd)
+{
+    if (nbd_can_accept()) {
+        qemu_set_fd_handler(fd, nbd_accept, NULL, (void *)(uintptr_t)fd);
+    } else {
+        qemu_set_fd_handler(fd, NULL, NULL, NULL);
     }
 }
 
@@ -536,7 +550,8 @@ int main(int argc, char **argv)
             break;
         case 'l':
             if (strstart(optarg, SNAPSHOT_OPT_BASE, NULL)) {
-                sn_opts = qemu_opts_parse(&internal_snapshot_opts, optarg, 0);
+                sn_opts = qemu_opts_parse_noisily(&internal_snapshot_opts,
+                                                  optarg, false);
                 if (!sn_opts) {
                     errx(EXIT_FAILURE, "Failed in parsing snapshot param `%s'",
                          optarg);
@@ -761,8 +776,8 @@ int main(int argc, char **argv)
         memset(&client_thread, 0, sizeof(client_thread));
     }
 
-    qemu_set_fd_handler2(fd, nbd_can_accept, nbd_accept, NULL,
-                         (void *)(uintptr_t)fd);
+    server_fd = fd;
+    nbd_update_server_fd_handler(fd);
 
     /* now when the initialization is (almost) complete, chdir("/")
      * to free any busy filesystems */

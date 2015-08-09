@@ -9,7 +9,7 @@
  */
 
 #include "qemu-common.h"
-#include "monitor/monitor.h"
+#include "qemu/error-report.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "sysemu/char.h"

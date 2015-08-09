@@ -1239,10 +1239,15 @@ int scsi_cdb_length(uint8_t *buf) {
 int scsi_req_parse_cdb(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf)
 {
     int rc;
+    int len;
 
     cmd->lba = -1;
-    cmd->len = scsi_cdb_length(buf);
+    len = scsi_cdb_length(buf);
+    if (len < 0) {
+        return -1;
+    }
 
+    cmd->len = len;
     switch (dev->type) {
     case TYPE_TAPE:
         rc = scsi_req_stream_xfer(cmd, dev, buf);
@@ -1968,6 +1973,7 @@ static const VMStateDescription vmstate_scsi_sense_state = {
     .name = "SCSIDevice/sense",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = scsi_sense_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8_SUB_ARRAY(sense, SCSIDevice,
                                 SCSI_SENSE_BUF_SIZE_OLD,
@@ -1998,13 +2004,9 @@ const VMStateDescription vmstate_scsi_device = {
         },
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection []) {
-        {
-            .vmsd = &vmstate_scsi_sense_state,
-            .needed = scsi_sense_state_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_scsi_sense_state,
+        NULL
     }
 };
 

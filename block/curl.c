@@ -22,8 +22,10 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "block/block_int.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
 #include <curl/curl.h>
 
 // #define DEBUG_CURL
@@ -297,6 +299,18 @@ static void curl_multi_check_completion(BDRVCURLState *s)
             /* ACBs for successful messages get completed in curl_read_cb */
             if (msg->data.result != CURLE_OK) {
                 int i;
+                static int errcount = 100;
+
+                /* Don't lose the original error message from curl, since
+                 * it contains extra data.
+                 */
+                if (errcount > 0) {
+                    error_report("curl: %s", state->errmsg);
+                    if (--errcount == 0) {
+                        error_report("curl: further errors suppressed");
+                    }
+                }
+
                 for (i = 0; i < CURL_NUM_ACB; i++) {
                     CURLAIOCB *acb = state->acb[i];
 
@@ -304,7 +318,7 @@ static void curl_multi_check_completion(BDRVCURLState *s)
                         continue;
                     }
 
-                    acb->common.cb(acb->common.opaque, -EIO);
+                    acb->common.cb(acb->common.opaque, -EPROTO);
                     qemu_aio_unref(acb);
                     state->acb[i] = NULL;
                 }

@@ -280,14 +280,12 @@ static int sp804_init(SysBusDevice *sbd)
 {
     DeviceState *dev = DEVICE(sbd);
     SP804State *s = SP804(dev);
-    qemu_irq *qi;
 
-    qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
     sysbus_init_irq(sbd, &s->irq);
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
-    s->timer[0]->irq = qi[0];
-    s->timer[1]->irq = qi[1];
+    s->timer[0]->irq = qemu_allocate_irq(sp804_set_irq, s, 0);
+    s->timer[1]->irq = qemu_allocate_irq(sp804_set_irq, s, 1);
     memory_region_init_io(&s->iomem, OBJECT(s), &sp804_ops, s,
                           "sp804", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);

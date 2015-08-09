@@ -13,16 +13,16 @@
  * See the COPYING file in the top-level directory.
  */
 
-#include <gnutls/gnutls.h>
-#include <gnutls/crypto.h>
 #include "block/block_int.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 #include "qapi-event.h"
+#include "crypto/hash.h"
 
 #define HASH_LENGTH 32
 
@@ -33,7 +33,7 @@
 
 /* This union holds a vote hash value */
 typedef union QuorumVoteValue {
-    char h[HASH_LENGTH];       /* SHA-256 hash */
+    uint8_t h[HASH_LENGTH];    /* SHA-256 hash */
     int64_t l;                 /* simpler 64 bits hash */
 } QuorumVoteValue;
 
@@ -427,25 +427,21 @@ static void quorum_free_vote_list(QuorumVotes *votes)
 
 static int quorum_compute_hash(QuorumAIOCB *acb, int i, QuorumVoteValue *hash)
 {
-    int j, ret;
-    gnutls_hash_hd_t dig;
     QEMUIOVector *qiov = &acb->qcrs[i].qiov;
+    size_t len = sizeof(hash->h);
+    uint8_t *data = hash->h;
 
-    ret = gnutls_hash_init(&dig, GNUTLS_DIG_SHA256);
-
-    if (ret < 0) {
-        return ret;
+    /* XXX - would be nice if we could pass in the Error **
+     * and propagate that back, but this quorum code is
+     * restricted to just errno values currently */
+    if (qcrypto_hash_bytesv(QCRYPTO_HASH_ALG_SHA256,
+                            qiov->iov, qiov->niov,
+                            &data, &len,
+                            NULL) < 0) {
+        return -EINVAL;
     }
 
-    for (j = 0; j < qiov->niov; j++) {
-        ret = gnutls_hash(dig, qiov->iov[j].iov_base, qiov->iov[j].iov_len);
-        if (ret < 0) {
-            break;
-        }
-    }
-
-    gnutls_hash_deinit(dig, (void *) hash);
-    return ret;
+    return 0;
 }
 
 static QuorumVoteVersion *quorum_get_vote_winner(QuorumVotes *votes)
@@ -800,8 +796,8 @@ static int quorum_valid_threshold(int threshold, int num_children, Error **errp)
 {
 
     if (threshold < 1) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  "vote-threshold", "value >= 1");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "vote-threshold", "value >= 1");
         return -ERANGE;
     }
 
@@ -866,25 +862,18 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     Error *local_err = NULL;
     QemuOpts *opts = NULL;
     bool *opened;
-    QDict *sub = NULL;
-    QList *list = NULL;
-    const QListEntry *lentry;
     int i;
     int ret = 0;
 
     qdict_flatten(options);
-    qdict_extract_subqdict(options, &sub, "children.");
-    qdict_array_split(sub, &list);
 
-    if (qdict_size(sub)) {
-        error_setg(&local_err, "Invalid option children.%s",
-                   qdict_first(sub)->key);
+    /* count how many different children are present */
+    s->num_children = qdict_array_entries(options, "children.");
+    if (s->num_children < 0) {
+        error_setg(&local_err, "Option children is not a valid array");
         ret = -EINVAL;
         goto exit;
     }
-
-    /* count how many different children are present */
-    s->num_children = qlist_size(list);
     if (s->num_children < 2) {
         error_setg(&local_err,
                    "Number of provided children must be greater than 1");
@@ -937,37 +926,17 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     s->bs = g_new0(BlockDriverState *, s->num_children);
     opened = g_new0(bool, s->num_children);
 
-    for (i = 0, lentry = qlist_first(list); lentry;
-         lentry = qlist_next(lentry), i++) {
-        QDict *d;
-        QString *string;
+    for (i = 0; i < s->num_children; i++) {
+        char indexstr[32];
+        ret = snprintf(indexstr, 32, "children.%d", i);
+        assert(ret < 32);
 
-        switch (qobject_type(lentry->value))
-        {
-            /* List of options */
-            case QTYPE_QDICT:
-                d = qobject_to_qdict(lentry->value);
-                QINCREF(d);
-                ret = bdrv_open(&s->bs[i], NULL, NULL, d, flags, NULL,
-                                &local_err);
-                break;
-
-            /* QMP reference */
-            case QTYPE_QSTRING:
-                string = qobject_to_qstring(lentry->value);
-                ret = bdrv_open(&s->bs[i], NULL, qstring_get_str(string), NULL,
-                                flags, NULL, &local_err);
-                break;
-
-            default:
-                error_setg(&local_err, "Specification of child block device %i "
-                           "is invalid", i);
-                ret = -EINVAL;
-        }
-
+        ret = bdrv_open_image(&s->bs[i], NULL, options, indexstr, bs,
+                              &child_format, false, &local_err);
         if (ret < 0) {
             goto close_exit;
         }
+
         opened[i] = true;
     }
 
@@ -990,8 +959,6 @@ exit:
     if (local_err) {
         error_propagate(errp, local_err);
     }
-    QDECREF(list);
-    QDECREF(sub);
     return ret;
 }
 
@@ -1053,9 +1020,9 @@ static void quorum_refresh_filename(BlockDriverState *bs)
     qdict_put_obj(opts, QUORUM_OPT_VOTE_THRESHOLD,
                   QOBJECT(qint_from_int(s->threshold)));
     qdict_put_obj(opts, QUORUM_OPT_BLKVERIFY,
-                  QOBJECT(qbool_from_int(s->is_blkverify)));
+                  QOBJECT(qbool_from_bool(s->is_blkverify)));
     qdict_put_obj(opts, QUORUM_OPT_REWRITE,
-                  QOBJECT(qbool_from_int(s->rewrite_corrupted)));
+                  QOBJECT(qbool_from_bool(s->rewrite_corrupted)));
     qdict_put_obj(opts, "children", QOBJECT(children));
 
     bs->full_open_options = opts;
@@ -1088,6 +1055,10 @@ static BlockDriver bdrv_quorum = {
 
 static void bdrv_quorum_init(void)
 {
+    if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA256)) {
+        /* SHA256 hash support is required for quorum device */
+        return;
+    }
     bdrv_register(&bdrv_quorum);
 }
 

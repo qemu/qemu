@@ -27,6 +27,7 @@
 #include "exec/address-spaces.h"
 #include "exec/memory-internal.h"
 #include "qemu/rcu.h"
+#include "exec/tb-hash.h"
 
 /* -icount align implementation. */
 
@@ -226,10 +227,9 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
 
 /* Execute the code without caching the generated code. An interpreter
    could be used if available. */
-static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
+static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
                              TranslationBlock *orig_tb)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     TranslationBlock *tb;
     target_ulong pc = orig_tb->pc;
     target_ulong cs_base = orig_tb->cs_base;
@@ -253,12 +253,12 @@ static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
     tb_free(tb);
 }
 
-static TranslationBlock *tb_find_slow(CPUArchState *env,
+static TranslationBlock *tb_find_slow(CPUState *cpu,
                                       target_ulong pc,
                                       target_ulong cs_base,
                                       uint64_t flags)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb, **ptb1;
     unsigned int h;
     tb_page_addr_t phys_pc, phys_page1;
@@ -310,9 +310,9 @@ static TranslationBlock *tb_find_slow(CPUArchState *env,
     return tb;
 }
 
-static inline TranslationBlock *tb_find_fast(CPUArchState *env)
+static inline TranslationBlock *tb_find_fast(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
+    CPUArchState *env = (CPUArchState *)cpu->env_ptr;
     TranslationBlock *tb;
     target_ulong cs_base, pc;
     int flags;
@@ -324,14 +324,13 @@ static inline TranslationBlock *tb_find_fast(CPUArchState *env)
     tb = cpu->tb_jmp_cache[tb_jmp_cache_hash_func(pc)];
     if (unlikely(!tb || tb->pc != pc || tb->cs_base != cs_base ||
                  tb->flags != flags)) {
-        tb = tb_find_slow(env, pc, cs_base, flags);
+        tb = tb_find_slow(cpu, pc, cs_base, flags);
     }
     return tb;
 }
 
-static void cpu_handle_debug_exception(CPUArchState *env)
+static void cpu_handle_debug_exception(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUWatchpoint *wp;
 
@@ -348,12 +347,12 @@ static void cpu_handle_debug_exception(CPUArchState *env)
 
 volatile sig_atomic_t exit_request;
 
-int cpu_exec(CPUArchState *env)
+int cpu_exec(CPUState *cpu)
 {
-    CPUState *cpu = ENV_GET_CPU(env);
     CPUClass *cc = CPU_GET_CLASS(cpu);
 #ifdef TARGET_I386
     X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUArchState *env = &x86_cpu->env;
 #endif
     int ret, interrupt_request;
     TranslationBlock *tb;
@@ -406,7 +405,7 @@ int cpu_exec(CPUArchState *env)
                     /* exit request from the cpu execution loop */
                     ret = cpu->exception_index;
                     if (ret == EXCP_DEBUG) {
-                        cpu_handle_debug_exception(env);
+                        cpu_handle_debug_exception(cpu);
                     }
                     cpu->exception_index = -1;
                     break;
@@ -482,7 +481,7 @@ int cpu_exec(CPUArchState *env)
                 }
                 spin_lock(&tcg_ctx.tb_ctx.tb_lock);
                 have_tb_lock = true;
-                tb = tb_find_fast(env);
+                tb = tb_find_fast(cpu);
                 /* Note: we do it here to avoid a gcc bug on Mac OS X when
                    doing it in tb_find_slow */
                 if (tcg_ctx.tb_ctx.tb_invalidated_flag) {
@@ -542,7 +541,7 @@ int cpu_exec(CPUArchState *env)
                             if (insns_left > 0) {
                                 /* Execute remaining instructions.  */
                                 tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-                                cpu_exec_nocache(env, insns_left, tb);
+                                cpu_exec_nocache(cpu, insns_left, tb);
                                 align_clocks(&sc, cpu);
                             }
                             cpu->exception_index = EXCP_INTERRUPT;
@@ -566,11 +565,11 @@ int cpu_exec(CPUArchState *env)
             /* Reload env after longjmp - the compiler may have smashed all
              * local variables as longjmp is marked 'noreturn'. */
             cpu = current_cpu;
-            env = cpu->env_ptr;
             cc = CPU_GET_CLASS(cpu);
             cpu->can_do_io = 1;
 #ifdef TARGET_I386
             x86_cpu = X86_CPU(cpu);
+            env = &x86_cpu->env;
 #endif
             if (have_tb_lock) {
                 spin_unlock(&tcg_ctx.tb_ctx.tb_lock);

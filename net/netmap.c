@@ -132,26 +132,16 @@ error:
     return -1;
 }
 
-/* Tell the event-loop if the netmap backend can send packets
-   to the frontend. */
-static int netmap_can_send(void *opaque)
-{
-    NetmapState *s = opaque;
-
-    return qemu_can_send_packet(&s->nc);
-}
-
 static void netmap_send(void *opaque);
 static void netmap_writable(void *opaque);
 
 /* Set the event-loop handlers for the netmap backend. */
 static void netmap_update_fd_handler(NetmapState *s)
 {
-    qemu_set_fd_handler2(s->me.fd,
-                         s->read_poll  ? netmap_can_send : NULL,
-                         s->read_poll  ? netmap_send     : NULL,
-                         s->write_poll ? netmap_writable : NULL,
-                         s);
+    qemu_set_fd_handler(s->me.fd,
+                        s->read_poll ? netmap_send : NULL,
+                        s->write_poll ? netmap_writable : NULL,
+                        s);
 }
 
 /* Update the read handler. */
@@ -317,7 +307,7 @@ static void netmap_send(void *opaque)
 
     /* Keep sending while there are available packets into the netmap
        RX ring and the forwarding path towards the peer is open. */
-    while (!nm_ring_empty(ring) && qemu_can_send_packet(&s->nc)) {
+    while (!nm_ring_empty(ring)) {
         uint32_t i;
         uint32_t idx;
         bool morefrag;
@@ -446,8 +436,9 @@ static NetClientInfo net_netmap_info = {
  * ... -net netmap,ifname="..."
  */
 int net_init_netmap(const NetClientOptions *opts,
-        const char *name, NetClientState *peer)
+                    const char *name, NetClientState *peer, Error **errp)
 {
+    /* FIXME error_setg(errp, ...) on failure */
     const NetdevNetmapOptions *netmap_opts = opts->netmap;
     NetClientState *nc;
     NetmapPriv me;

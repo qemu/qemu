@@ -64,20 +64,6 @@
 #define SPI_IRQ             4
 #define UART16550_IRQ       5
 
-static void machine_cpu_reset(MicroBlazeCPU *cpu)
-{
-    CPUMBState *env = &cpu->env;
-
-    env->pvr.regs[10] = 0x0e000000; /* virtex 6 */
-    /* setup pvr to match kernel setting */
-    env->pvr.regs[5] |= PVR5_DCACHE_WRITEBACK_MASK;
-    env->pvr.regs[0] |= PVR0_USE_FPU_MASK | PVR0_ENDI;
-    env->pvr.regs[0] = (env->pvr.regs[0] & ~PVR0_VERSION_MASK) | (0x14 << 8);
-    env->pvr.regs[2] ^= PVR2_USE_FPU2_MASK;
-    env->pvr.regs[4] = 0xc56b8000;
-    env->pvr.regs[5] = 0xc56be000;
-}
-
 static void
 petalogix_ml605_init(MachineState *machine)
 {
@@ -95,6 +81,13 @@ petalogix_ml605_init(MachineState *machine)
 
     /* init CPUs */
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
+    /* Use FPU but don't use floating point conversion and square
+     * root instructions
+     */
+    object_property_set_int(OBJECT(cpu), 1, "use-fpu", &error_abort);
+    object_property_set_bool(OBJECT(cpu), true, "dcache-writeback",
+                             &error_abort);
+    object_property_set_bool(OBJECT(cpu), true, "endianness", &error_abort);
     object_property_set_bool(OBJECT(cpu), true, "realized", &error_abort);
 
     /* Attach emulated BRAM through the LMB.  */
@@ -201,10 +194,15 @@ petalogix_ml605_init(MachineState *machine)
         }
     }
 
+    /* setup PVR to match kernel settings */
+    cpu->env.pvr.regs[4] = 0xc56b8000;
+    cpu->env.pvr.regs[5] = 0xc56be000;
+    cpu->env.pvr.regs[10] = 0x0e000000; /* virtex 6 */
+
     microblaze_load_kernel(cpu, MEMORY_BASEADDR, ram_size,
                            machine->initrd_filename,
                            BINARY_DEVICE_TREE_FILE,
-                           machine_cpu_reset);
+                           NULL);
 
 }
 

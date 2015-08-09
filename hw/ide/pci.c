@@ -53,10 +53,14 @@ static void bmdma_start_dma(IDEDMA *dma, IDEState *s,
 }
 
 /**
- * Return the number of bytes successfully prepared.
- * -1 on error.
+ * Prepare an sglist based on available PRDs.
+ * @limit: How many bytes to prepare total.
+ *
+ * Returns the number of bytes prepared, -1 on error.
+ * IDEState.io_buffer_size will contain the number of bytes described
+ * by the PRDs, whether or not we added them to the sglist.
  */
-static int32_t bmdma_prepare_buf(IDEDMA *dma, int is_write)
+static int32_t bmdma_prepare_buf(IDEDMA *dma, int32_t limit)
 {
     BMDMAState *bm = DO_UPCAST(BMDMAState, dma, dma);
     IDEState *s = bmdma_active_if(bm);
@@ -75,7 +79,7 @@ static int32_t bmdma_prepare_buf(IDEDMA *dma, int is_write)
             /* end of table (with a fail safe of one page) */
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE) {
-                return s->io_buffer_size;
+                return s->sg.size;
             }
             pci_dma_read(pci_dev, bm->cur_addr, &prd, 8);
             bm->cur_addr += 8;
@@ -90,7 +94,14 @@ static int32_t bmdma_prepare_buf(IDEDMA *dma, int is_write)
         }
         l = bm->cur_prd_len;
         if (l > 0) {
-            qemu_sglist_add(&s->sg, bm->cur_prd_addr, l);
+            uint64_t sg_len;
+
+            /* Don't add extra bytes to the SGList; consume any remaining
+             * PRDs from the guest, but ignore them. */
+            sg_len = MIN(limit - s->sg.size, bm->cur_prd_len);
+            if (sg_len) {
+                qemu_sglist_add(&s->sg, bm->cur_prd_addr, sg_len);
+            }
 
             /* Note: We limit the max transfer to be 2GiB.
              * This should accommodate the largest ATA transaction
@@ -350,6 +361,7 @@ static const VMStateDescription vmstate_bmdma_current = {
     .name = "ide bmdma_current",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = ide_bmdma_current_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(cur_addr, BMDMAState),
         VMSTATE_UINT32(cur_prd_last, BMDMAState),
@@ -363,6 +375,7 @@ static const VMStateDescription vmstate_bmdma_status = {
     .name ="ide bmdma/status",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = ide_bmdma_status_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(status, BMDMAState),
         VMSTATE_END_OF_LIST()
@@ -383,16 +396,10 @@ static const VMStateDescription vmstate_bmdma = {
         VMSTATE_UINT8(migration_retry_unit, BMDMAState),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection []) {
-        {
-            .vmsd = &vmstate_bmdma_current,
-            .needed = ide_bmdma_current_needed,
-        }, {
-            .vmsd = &vmstate_bmdma_status,
-            .needed = ide_bmdma_status_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_bmdma_current,
+        &vmstate_bmdma_status,
+        NULL
     }
 };
 
@@ -452,8 +459,6 @@ static const struct IDEDMAOps bmdma_ops = {
 
 void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d)
 {
-    qemu_irq *irq;
-
     if (bus->dma == &bm->dma) {
         return;
     }
@@ -461,8 +466,7 @@ void bmdma_init(IDEBus *bus, BMDMAState *bm, PCIIDEState *d)
     bm->dma.ops = &bmdma_ops;
     bus->dma = &bm->dma;
     bm->irq = bus->irq;
-    irq = qemu_allocate_irqs(bmdma_irq, bm, 1);
-    bus->irq = *irq;
+    bus->irq = qemu_allocate_irq(bmdma_irq, bm, 0);
     bm->pci_dev = d;
 }
 

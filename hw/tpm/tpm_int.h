@@ -29,6 +29,7 @@ struct TPMState {
 
     char *backend;
     TPMBackend *be_driver;
+    TPMVersion be_tpm_version;
 };
 
 #define TPM(obj) OBJECT_CHECK(TPMState, (obj), TYPE_TPM_TIS)
@@ -64,5 +65,11 @@ struct tpm_resp_hdr {
 
 #define TPM_ORD_ContinueSelfTest  0x53
 #define TPM_ORD_GetTicks          0xf1
+
+
+/* TPM2 defines */
+#define TPM2_ST_NO_SESSIONS       0x8001
+
+#define TPM2_CC_ReadClock         0x00000181
 
 #endif /* TPM_TPM_INT_H */

@@ -176,17 +176,22 @@ static void fb_update_display(void *opaque)
         dest_width *= 4;
         break;
     default:
-        hw_error("milkymist_vgafb: bad color depth\n");
+        hw_error("bcm2835_fb: bad color depth\n");
         break;
     }
 
-
-
     fn = draw_line_src16;
 
+    if (bcm2835_fb.invalidate) {
+        framebuffer_update_memory_section(&bcm2835_fb.fbsection,
+                                          sysbus_address_space(&s->busdev),
+                                          bcm2835_fb.base,
+                                          bcm2835_fb.yres, 
+                                          src_width);                
+    }
+
     framebuffer_update_display(surface,
-        sysbus_address_space(&s->busdev),
-        bcm2835_fb.base,
+        &bcm2835_fb.fbsection,
         bcm2835_fb.xres,
         bcm2835_fb.yres,
         src_width,

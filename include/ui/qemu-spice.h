@@ -26,7 +26,6 @@
 
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "monitor/monitor.h"
 
 extern int using_spice;
 
@@ -54,7 +53,6 @@ static inline CharDriverState *qemu_chr_open_spice_port(const char *name)
 #endif
 
 #else  /* CONFIG_SPICE */
-#include "monitor/monitor.h"
 
 #define using_spice 0
 #define spice_displays 0

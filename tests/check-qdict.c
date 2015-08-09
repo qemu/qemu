@@ -152,6 +152,28 @@ static void qdict_get_try_str_test(void)
     QDECREF(tests_dict);
 }
 
+static void qdict_defaults_test(void)
+{
+    QDict *dict, *copy;
+
+    dict = qdict_new();
+    copy = qdict_new();
+
+    qdict_set_default_str(dict, "foo", "abc");
+    qdict_set_default_str(dict, "foo", "def");
+    g_assert_cmpstr(qdict_get_str(dict, "foo"), ==, "abc");
+    qdict_set_default_str(dict, "bar", "ghi");
+
+    qdict_copy_default(copy, dict, "foo");
+    g_assert_cmpstr(qdict_get_str(copy, "foo"), ==, "abc");
+    qdict_set_default_str(copy, "bar", "xyz");
+    qdict_copy_default(copy, dict, "bar");
+    g_assert_cmpstr(qdict_get_str(copy, "bar"), ==, "xyz");
+
+    QDECREF(copy);
+    QDECREF(dict);
+}
+
 static void qdict_haskey_not_test(void)
 {
     QDict *tests_dict = qdict_new();
@@ -444,6 +466,49 @@ static void qdict_array_split_test(void)
     QDECREF(test_dict);
 }
 
+static void qdict_array_entries_test(void)
+{
+    QDict *dict = qdict_new();
+
+    g_assert_cmpint(qdict_array_entries(dict, "foo."), ==, 0);
+
+    qdict_put(dict, "bar", qint_from_int(0));
+    qdict_put(dict, "baz.0", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, "foo."), ==, 0);
+
+    qdict_put(dict, "foo.1", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, "foo."), ==, -EINVAL);
+    qdict_put(dict, "foo.0", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, "foo."), ==, 2);
+    qdict_put(dict, "foo.bar", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, "foo."), ==, -EINVAL);
+    qdict_del(dict, "foo.bar");
+
+    qdict_put(dict, "foo.2.a", qint_from_int(0));
+    qdict_put(dict, "foo.2.b", qint_from_int(0));
+    qdict_put(dict, "foo.2.c", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, "foo."), ==, 3);
+    g_assert_cmpint(qdict_array_entries(dict, ""), ==, -EINVAL);
+
+    QDECREF(dict);
+
+    dict = qdict_new();
+    qdict_put(dict, "1", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, ""), ==, -EINVAL);
+    qdict_put(dict, "0", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, ""), ==, 2);
+    qdict_put(dict, "bar", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, ""), ==, -EINVAL);
+    qdict_del(dict, "bar");
+
+    qdict_put(dict, "2.a", qint_from_int(0));
+    qdict_put(dict, "2.b", qint_from_int(0));
+    qdict_put(dict, "2.c", qint_from_int(0));
+    g_assert_cmpint(qdict_array_entries(dict, ""), ==, 3);
+
+    QDECREF(dict);
+}
+
 static void qdict_join_test(void)
 {
     QDict *dict1, *dict2;
@@ -663,6 +728,7 @@ int main(int argc, char **argv)
     g_test_add_func("/public/get_try_int", qdict_get_try_int_test);
     g_test_add_func("/public/get_str", qdict_get_str_test);
     g_test_add_func("/public/get_try_str", qdict_get_try_str_test);
+    g_test_add_func("/public/defaults", qdict_defaults_test);
     g_test_add_func("/public/haskey_not", qdict_haskey_not_test);
     g_test_add_func("/public/haskey", qdict_haskey_test);
     g_test_add_func("/public/del", qdict_del_test);
@@ -670,6 +736,7 @@ int main(int argc, char **argv)
     g_test_add_func("/public/iterapi", qdict_iterapi_test);
     g_test_add_func("/public/flatten", qdict_flatten_test);
     g_test_add_func("/public/array_split", qdict_array_split_test);
+    g_test_add_func("/public/array_entries", qdict_array_entries_test);
     g_test_add_func("/public/join", qdict_join_test);
 
     g_test_add_func("/errors/put_exists", qdict_put_exists_test);

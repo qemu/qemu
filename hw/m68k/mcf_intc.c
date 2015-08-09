@@ -102,6 +102,20 @@ static void mcf_intc_write(void *opaque, hwaddr addr,
     case 0x0c:
         s->imr = (s->imr & 0xffffffff00000000ull) | (uint32_t)val;
         break;
+    case 0x1c:
+        if (val & 0x40) {
+            s->imr = ~0ull;
+        } else {
+            s->imr |= (0x1ull << (val & 0x3f));
+        }
+        break;
+    case 0x1d:
+        if (val & 0x40) {
+            s->imr = 0ull;
+        } else {
+            s->imr &= ~(0x1ull << (val & 0x3f));
+        }
+        break;
     default:
         hw_error("mcf_intc_write: Bad write offset %d\n", offset);
         break;

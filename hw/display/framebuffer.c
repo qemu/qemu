@@ -21,12 +21,40 @@
 #include "ui/console.h"
 #include "framebuffer.h"
 
+void framebuffer_update_memory_section(
+    MemoryRegionSection *mem_section,
+    MemoryRegion *root,
+    hwaddr base,
+    unsigned rows,
+    unsigned src_width)
+{
+    hwaddr src_len = (hwaddr)rows * src_width;
+
+    if (mem_section->mr) {
+        memory_region_set_log(mem_section->mr, false, DIRTY_MEMORY_VGA);
+        memory_region_unref(mem_section->mr);
+        mem_section->mr = NULL;
+    }
+
+    *mem_section = memory_region_find(root, base, src_len);
+    if (!mem_section->mr) {
+        return;
+    }
+
+    if (int128_get64(mem_section->size) < src_len ||
+            !memory_region_is_ram(mem_section->mr)) {
+        memory_region_unref(mem_section->mr);
+        mem_section->mr = NULL;
+        return;
+    }
+
+    memory_region_set_log(mem_section->mr, true, DIRTY_MEMORY_VGA);
+}
+
 /* Render an image from a shared memory framebuffer.  */
-   
 void framebuffer_update_display(
     DisplaySurface *ds,
-    MemoryRegion *address_space,
-    hwaddr base,
+    MemoryRegionSection *mem_section,
     int cols, /* Width in pixels.  */
     int rows, /* Height in pixels.  */
     int src_width, /* Length of source line, in bytes.  */
@@ -41,47 +69,33 @@ void framebuffer_update_display(
     hwaddr src_len;
     uint8_t *dest;
     uint8_t *src;
-    uint8_t *src_base;
     int first, last = 0;
     int dirty;
     int i;
     ram_addr_t addr;
-    MemoryRegionSection mem_section;
     MemoryRegion *mem;
 
     i = *first_row;
     *first_row = -1;
     src_len = src_width * rows;
 
-    mem_section = memory_region_find(address_space, base, src_len);
-    mem = mem_section.mr;
-    if (int128_get64(mem_section.size) != src_len ||
-            !memory_region_is_ram(mem_section.mr)) {
-        goto out;
+    mem = mem_section->mr;
+    if (!mem) {
+        return;
     }
-    assert(mem);
-    assert(mem_section.offset_within_address_space == base);
-
     memory_region_sync_dirty_bitmap(mem);
-    src_base = cpu_physical_memory_map(base, &src_len, 0);
-    /* If we can't map the framebuffer then bail.  We could try harder,
-       but it's not really worth it as dirty flag tracking will probably
-       already have failed above.  */
-    if (!src_base)
-        goto out;
-    if (src_len != src_width * rows) {
-        cpu_physical_memory_unmap(src_base, src_len, 0, 0);
-        goto out;
-    }
-    src = src_base;
+
+    addr = mem_section->offset_within_region;
+    src = memory_region_get_ram_ptr(mem) + addr;
+
     dest = surface_data(ds);
-    if (dest_col_pitch < 0)
+    if (dest_col_pitch < 0) {
         dest -= dest_col_pitch * (cols - 1);
+    }
     if (dest_row_pitch < 0) {
         dest -= dest_row_pitch * (rows - 1);
     }
     first = -1;
-    addr = mem_section.offset_within_region;
 
     addr += i * src_width;
     src += i * src_width;
@@ -100,14 +114,11 @@ void framebuffer_update_display(
         src += src_width;
         dest += dest_row_pitch;
     }
-    cpu_physical_memory_unmap(src_base, src_len, 0, 0);
     if (first < 0) {
-        goto out;
+        return;
     }
-    memory_region_reset_dirty(mem, mem_section.offset_within_region, src_len,
+    memory_region_reset_dirty(mem, mem_section->offset_within_region, src_len,
                               DIRTY_MEMORY_VGA);
     *first_row = first;
     *last_row = last;
-out:
-    memory_region_unref(mem);
 }

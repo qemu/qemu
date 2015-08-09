@@ -184,6 +184,23 @@ static void hbitmap_test_reset(TestHBitmapData *data,
     }
 }
 
+static void hbitmap_test_reset_all(TestHBitmapData *data)
+{
+    size_t n;
+
+    hbitmap_reset_all(data->hb);
+
+    n = (data->size + BITS_PER_LONG - 1) / BITS_PER_LONG;
+    if (n == 0) {
+        n = 1;
+    }
+    memset(data->bits, 0, n * sizeof(unsigned long));
+
+    if (data->granularity == 0) {
+        hbitmap_test_check(data, 0);
+    }
+}
+
 static void hbitmap_test_check_get(TestHBitmapData *data)
 {
     uint64_t count = 0;
@@ -362,6 +379,26 @@ static void test_hbitmap_reset(TestHBitmapData *data,
     hbitmap_test_reset(data, 0, L2);
     hbitmap_test_reset(data, L3, L3);
     hbitmap_test_set(data, L3 / 2, L3);
+}
+
+static void test_hbitmap_reset_all(TestHBitmapData *data,
+                                   const void *unused)
+{
+    hbitmap_test_init(data, L3 * 2, 0);
+    hbitmap_test_set(data, L1 - 1, L1 + 2);
+    hbitmap_test_reset_all(data);
+    hbitmap_test_set(data, 0, L1 * 3);
+    hbitmap_test_reset_all(data);
+    hbitmap_test_set(data, L2, L1);
+    hbitmap_test_reset_all(data);
+    hbitmap_test_set(data, L2, L3 - L2 + 1);
+    hbitmap_test_reset_all(data);
+    hbitmap_test_set(data, L3 - 1, 3);
+    hbitmap_test_reset_all(data);
+    hbitmap_test_set(data, 0, L3 * 2);
+    hbitmap_test_reset_all(data);
+    hbitmap_test_set(data, L3 / 2, L3);
+    hbitmap_test_reset_all(data);
 }
 
 static void test_hbitmap_granularity(TestHBitmapData *data,
@@ -627,6 +664,7 @@ int main(int argc, char **argv)
     hbitmap_test_add("/hbitmap/set/overlap", test_hbitmap_set_overlap);
     hbitmap_test_add("/hbitmap/reset/empty", test_hbitmap_reset_empty);
     hbitmap_test_add("/hbitmap/reset/general", test_hbitmap_reset);
+    hbitmap_test_add("/hbitmap/reset/all", test_hbitmap_reset_all);
     hbitmap_test_add("/hbitmap/granularity", test_hbitmap_granularity);
 
     hbitmap_test_add("/hbitmap/truncate/nop", test_hbitmap_truncate_nop);

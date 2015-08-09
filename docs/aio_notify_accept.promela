@@ -1,0 +1,152 @@
+/*
+ * This model describes the interaction between ctx->notified
+ * and ctx->notifier.
+ *
+ * Author: Paolo Bonzini <pbonzini@redhat.com>
+ *
+ * This file is in the public domain.  If you really want a license,
+ * the WTFPL will do.
+ *
+ * To verify the buggy version:
+ *     spin -a -DBUG1 docs/aio_notify_bug.promela
+ *     gcc -O2 pan.c
+ *     ./a.out -a -f
+ * (or -DBUG2)
+ *
+ * To verify the fixed version:
+ *     spin -a docs/aio_notify_bug.promela
+ *     gcc -O2 pan.c
+ *     ./a.out -a -f
+ *
+ * Add -DCHECK_REQ to test an alternative invariant and the
+ * "notify_me" optimization.
+ */
+
+int notify_me;
+bool notified;
+bool event;
+bool req;
+bool notifier_done;
+
+#ifdef CHECK_REQ
+#define USE_NOTIFY_ME 1
+#else
+#define USE_NOTIFY_ME 0
+#endif
+
+#ifdef BUG
+#error Please define BUG1 or BUG2 instead.
+#endif
+
+active proctype notifier()
+{
+    do
+        :: true -> {
+            req = 1;
+            if
+               :: !USE_NOTIFY_ME || notify_me ->
+#if defined BUG1
+                   /* CHECK_REQ does not detect this bug! */
+                   notified = 1;
+                   event = 1;
+#elif defined BUG2
+                   if
+                      :: !notified -> event = 1;
+                      :: else -> skip;
+                   fi;
+                   notified = 1;
+#else
+                   event = 1;
+                   notified = 1;
+#endif
+               :: else -> skip;
+            fi
+        }
+        :: true -> break;
+    od;
+    notifier_done = 1;
+}
+
+#define AIO_POLL                                                    \
+    notify_me++;                                                    \
+    if                                                              \
+        :: !req -> {                                                \
+            if                                                      \
+                :: event -> skip;                                   \
+            fi;                                                     \
+        }                                                           \
+        :: else -> skip;                                            \
+    fi;                                                             \
+    notify_me--;                                                    \
+                                                                    \
+    atomic { old = notified; notified = 0; }                        \
+    if                                                              \
+       :: old -> event = 0;                                         \
+       :: else -> skip;                                             \
+    fi;                                                             \
+                                                                    \
+    req = 0;
+
+active proctype waiter()
+{
+    bool old;
+
+    do
+       :: true -> AIO_POLL;
+    od;
+}
+
+/* Same as waiter(), but disappears after a while.  */
+active proctype temporary_waiter()
+{
+    bool old;
+
+    do
+       :: true -> AIO_POLL;
+       :: true -> break;
+    od;
+}
+
+#ifdef CHECK_REQ
+never {
+    do
+        :: req -> goto accept_if_req_not_eventually_false;
+        :: true -> skip;
+    od;
+
+accept_if_req_not_eventually_false:
+    if
+        :: req -> goto accept_if_req_not_eventually_false;
+    fi;
+    assert(0);
+}
+
+#else
+/* There must be infinitely many transitions of event as long
+ * as the notifier does not exit.
+ *
+ * If event stayed always true, the waiters would be busy looping.
+ * If event stayed always false, the waiters would be sleeping
+ * forever.
+ */
+never {
+    do
+        :: !event    -> goto accept_if_event_not_eventually_true;
+        :: event     -> goto accept_if_event_not_eventually_false;
+        :: true      -> skip;
+    od;
+
+accept_if_event_not_eventually_true:
+    if
+        :: !event && notifier_done  -> do :: true -> skip; od;
+        :: !event && !notifier_done -> goto accept_if_event_not_eventually_true;
+    fi;
+    assert(0);
+
+accept_if_event_not_eventually_false:
+    if
+        :: event     -> goto accept_if_event_not_eventually_false;
+    fi;
+    assert(0);
+}
+#endif

@@ -179,6 +179,7 @@ enum {
     ROCKER_TLV_CMD_PORT_SETTINGS_MACADDR,       /* binary */
     ROCKER_TLV_CMD_PORT_SETTINGS_MODE,          /* u8 */
     ROCKER_TLV_CMD_PORT_SETTINGS_LEARNING,      /* u8 */
+    ROCKER_TLV_CMD_PORT_SETTINGS_PHYS_NAME,     /* binary */
 
     __ROCKER_TLV_CMD_PORT_SETTINGS_MAX,
     ROCKER_TLV_CMD_PORT_SETTINGS_MAX = __ROCKER_TLV_CMD_PORT_SETTINGS_MAX - 1,
@@ -249,6 +250,7 @@ enum {
 #define ROCKER_RX_FLAGS_TCP                     (1 << 5)
 #define ROCKER_RX_FLAGS_UDP                     (1 << 6)
 #define ROCKER_RX_FLAGS_TCP_UDP_CSUM_GOOD       (1 << 7)
+#define ROCKER_RX_FLAGS_FWD_OFFLOAD             (1 << 8)
 
 /* Tx msg */
 enum {

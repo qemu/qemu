@@ -220,7 +220,7 @@ typedef struct IOIntCode {
 #define IOINST_SCHID_SSID(_schid)  ((_schid & 0x00060000) >> 17)
 #define IOINST_SCHID_NR(_schid)    (_schid & 0x0000ffff)
 
-#define IO_INT_WORD_ISC(_int_word) ((_int_word & 0x38000000) >> 24)
+#define IO_INT_WORD_ISC(_int_word) ((_int_word & 0x38000000) >> 27)
 #define ISC_TO_ISC_BITS(_isc)      ((0x80 >> _isc) << 24)
 
 #define IO_INT_WORD_AI 0x80000000

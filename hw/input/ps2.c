@@ -677,6 +677,7 @@ static const VMStateDescription vmstate_ps2_keyboard_ledstate = {
     .version_id = 3,
     .minimum_version_id = 2,
     .post_load = ps2_kbd_ledstate_post_load,
+    .needed = ps2_keyboard_ledstate_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(ledstate, PS2KbdState),
         VMSTATE_END_OF_LIST()
@@ -717,13 +718,9 @@ static const VMStateDescription vmstate_ps2_keyboard = {
         VMSTATE_INT32_V(scancode_set, PS2KbdState,3),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection []) {
-        {
-            .vmsd = &vmstate_ps2_keyboard_ledstate,
-            .needed = ps2_keyboard_ledstate_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_ps2_keyboard_ledstate,
+        NULL
     }
 };
 

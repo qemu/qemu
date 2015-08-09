@@ -41,9 +41,24 @@ struct fp_port {
     NICConf conf;
 };
 
+char *fp_port_get_name(FpPort *port)
+{
+    return port->name;
+}
+
 bool fp_port_get_link_up(FpPort *port)
 {
     return !qemu_get_queue(port->nic)->link_down;
+}
+
+void fp_port_get_info(FpPort *port, RockerPortList *info)
+{
+    info->value->name = g_strdup(port->name);
+    info->value->enabled = port->enabled;
+    info->value->link_up = fp_port_get_link_up(port);
+    info->value->speed = port->speed;
+    info->value->duplex = port->duplex;
+    info->value->autoneg = port->autoneg;
 }
 
 void fp_port_get_macaddr(FpPort *port, MACAddr *macaddr)
@@ -110,17 +125,20 @@ int fp_port_eg(FpPort *port, const struct iovec *iov, int iovcnt)
     return ROCKER_OK;
 }
 
-static int fp_port_can_receive(NetClientState *nc)
-{
-    FpPort *port = qemu_get_nic_opaque(nc);
-
-    return port->enabled;
-}
-
 static ssize_t fp_port_receive_iov(NetClientState *nc, const struct iovec *iov,
                                    int iovcnt)
 {
     FpPort *port = qemu_get_nic_opaque(nc);
+
+    /* If the port is disabled, we want to drop this pkt
+     * now rather than queing it for later.  We don't want
+     * any stale pkts getting into the device when the port
+     * transitions to enabled.
+     */
+
+    if (!port->enabled) {
+        return -1;
+    }
 
     return world_ingress(port->world, port->pport, iov, iovcnt);
 }
@@ -150,7 +168,6 @@ static void fp_port_set_link_status(NetClientState *nc)
 static NetClientInfo fp_port_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = fp_port_can_receive,
     .receive = fp_port_receive,
     .receive_iov = fp_port_receive_iov,
     .cleanup = fp_port_cleanup,
@@ -173,8 +190,19 @@ bool fp_port_enabled(FpPort *port)
     return port->enabled;
 }
 
+static void fp_port_set_link(FpPort *port, bool up)
+{
+    NetClientState *nc = qemu_get_queue(port->nic);
+
+    if (up == nc->link_down) {
+        nc->link_down = !up;
+        nc->info->link_status_changed(nc);
+    }
+}
+
 void fp_port_enable(FpPort *port)
 {
+    fp_port_set_link(port, true);
     port->enabled = true;
     DPRINTF("port %d enabled\n", port->index);
 }
@@ -182,6 +210,7 @@ void fp_port_enable(FpPort *port)
 void fp_port_disable(FpPort *port)
 {
     port->enabled = false;
+    fp_port_set_link(port, false);
     DPRINTF("port %d disabled\n", port->index);
 }
 
@@ -201,7 +230,7 @@ FpPort *fp_port_alloc(Rocker *r, char *sw_name,
 
     /* front-panel switch port names are 1-based */
 
-    port->name = g_strdup_printf("%s.%d", sw_name, port->pport);
+    port->name = g_strdup_printf("%sp%d", sw_name, port->pport);
 
     memcpy(port->conf.macaddr.a, start_mac, sizeof(port->conf.macaddr.a));
     port->conf.macaddr.a[5] += index;

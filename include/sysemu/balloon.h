@@ -14,7 +14,6 @@
 #ifndef _QEMU_BALLOON_H
 #define _QEMU_BALLOON_H
 
-#include "monitor/monitor.h"
 #include "qapi-types.h"
 
 typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);

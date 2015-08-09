@@ -19,6 +19,7 @@
 #include "block/block.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
 
 #define BACKUP_CLUSTER_BITS 16
@@ -37,7 +38,7 @@ typedef struct CowRequest {
 typedef struct BackupBlockJob {
     BlockJob common;
     BlockDriverState *target;
-    /* bitmap for sync=dirty-bitmap */
+    /* bitmap for sync=incremental */
     BdrvDirtyBitmap *sync_bitmap;
     MirrorSyncMode sync_mode;
     RateLimit limit;
@@ -197,7 +198,7 @@ static void backup_set_speed(BlockJob *job, int64_t speed, Error **errp)
     BackupBlockJob *s = container_of(job, BackupBlockJob, common);
 
     if (speed < 0) {
-        error_set(errp, QERR_INVALID_PARAMETER, "speed");
+        error_setg(errp, QERR_INVALID_PARAMETER, "speed");
         return;
     }
     ratelimit_set_speed(&s->limit, speed / BDRV_SECTOR_SIZE, SLICE_TIME);
@@ -364,7 +365,7 @@ static void coroutine_fn backup_run(void *opaque)
             qemu_coroutine_yield();
             job->common.busy = true;
         }
-    } else if (job->sync_mode == MIRROR_SYNC_MODE_DIRTY_BITMAP) {
+    } else if (job->sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         ret = backup_run_incremental(job);
     } else {
         /* Both FULL and TOP SYNC_MODE's require copying.. */
@@ -430,7 +431,7 @@ static void coroutine_fn backup_run(void *opaque)
 
     if (job->sync_bitmap) {
         BdrvDirtyBitmap *bm;
-        if (ret < 0) {
+        if (ret < 0 || block_job_is_cancelled(&job->common)) {
             /* Merge the successor back into the parent, delete nothing. */
             bm = bdrv_reclaim_dirty_bitmap(bs, job->sync_bitmap, NULL);
             assert(bm);
@@ -472,7 +473,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
     if ((on_source_error == BLOCKDEV_ON_ERROR_STOP ||
          on_source_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
         !bdrv_iostatus_is_enabled(bs)) {
-        error_set(errp, QERR_INVALID_PARAMETER, "on-source-error");
+        error_setg(errp, QERR_INVALID_PARAMETER, "on-source-error");
         return;
     }
 
@@ -496,10 +497,10 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
 
-    if (sync_mode == MIRROR_SYNC_MODE_DIRTY_BITMAP) {
+    if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
         if (!sync_bitmap) {
             error_setg(errp, "must provide a valid bitmap name for "
-                             "\"dirty-bitmap\" sync mode");
+                             "\"incremental\" sync mode");
             return;
         }
 
@@ -534,7 +535,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
     job->on_target_error = on_target_error;
     job->target = target;
     job->sync_mode = sync_mode;
-    job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_DIRTY_BITMAP ?
+    job->sync_bitmap = sync_mode == MIRROR_SYNC_MODE_INCREMENTAL ?
                        sync_bitmap : NULL;
     job->common.len = len;
     job->common.co = qemu_coroutine_create(backup_run);

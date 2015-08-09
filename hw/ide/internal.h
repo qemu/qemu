@@ -324,7 +324,7 @@ typedef void EndTransferFunc(IDEState *);
 typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockCompletionFunc *);
 typedef void DMAVoidFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
-typedef int32_t DMAInt32Func(IDEDMA *, int);
+typedef int32_t DMAInt32Func(IDEDMA *, int32_t len);
 typedef void DMAu32Func(IDEDMA *, uint32_t);
 typedef void DMAStopFunc(IDEDMA *, bool);
 typedef void DMARestartFunc(void *, int, RunState);
@@ -436,6 +436,7 @@ struct IDEDMAOps {
     DMAInt32Func *prepare_buf;
     DMAu32Func *commit_buf;
     DMAIntFunc *rw_buf;
+    DMAVoidFunc *restart;
     DMAVoidFunc *restart_dma;
     DMAStopFunc *set_inactive;
     DMAVoidFunc *cmd_done;
@@ -499,6 +500,7 @@ struct IDEDevice {
 #define IDE_RETRY_READ  0x20
 #define IDE_RETRY_FLUSH 0x40
 #define IDE_RETRY_TRIM 0x80
+#define IDE_RETRY_HBA  0x100
 
 static inline IDEState *idebus_active_if(IDEBus *bus)
 {

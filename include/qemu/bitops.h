@@ -16,6 +16,7 @@
 #include <assert.h>
 
 #include "host-utils.h"
+#include "atomic.h"
 
 #define BITS_PER_BYTE           CHAR_BIT
 #define BITS_PER_LONG           (sizeof (unsigned long) * BITS_PER_BYTE)
@@ -36,6 +37,19 @@ static inline void set_bit(long nr, unsigned long *addr)
     unsigned long *p = addr + BIT_WORD(nr);
 
     *p  |= mask;
+}
+
+/**
+ * set_bit_atomic - Set a bit in memory atomically
+ * @nr: the bit to set
+ * @addr: the address to start counting from
+ */
+static inline void set_bit_atomic(long nr, unsigned long *addr)
+{
+    unsigned long mask = BIT_MASK(nr);
+    unsigned long *p = addr + BIT_WORD(nr);
+
+    atomic_or(p, mask);
 }
 
 /**

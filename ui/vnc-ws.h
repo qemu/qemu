@@ -21,8 +21,6 @@
 #ifndef __QEMU_UI_VNC_WS_H
 #define __QEMU_UI_VNC_WS_H
 
-#include <gnutls/gnutls.h>
-
 #define B64LEN(__x) (((__x + 2) / 3) * 12 / 3)
 #define SHA1_DIGEST_LEN 20
 

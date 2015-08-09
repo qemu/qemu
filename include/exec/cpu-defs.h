@@ -27,6 +27,7 @@
 #include <inttypes.h>
 #include "qemu/osdep.h"
 #include "qemu/queue.h"
+#include "tcg-target.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
 #endif
@@ -55,23 +56,7 @@ typedef uint64_t target_ulong;
 #error TARGET_LONG_SIZE undefined
 #endif
 
-#define EXCP_INTERRUPT 	0x10000 /* async interruption */
-#define EXCP_HLT        0x10001 /* hlt instruction reached */
-#define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
-#define EXCP_HALTED     0x10003 /* cpu is halted (waiting for external event) */
-#define EXCP_YIELD      0x10004 /* cpu wants to yield timeslice to another */
-
-/* Only the bottom TB_JMP_PAGE_BITS of the jump cache hash bits vary for
-   addresses on the same page.  The top bits are the same.  This allows
-   TLB invalidation to quickly clear a subset of the hash table.  */
-#define TB_JMP_PAGE_BITS (TB_JMP_CACHE_BITS / 2)
-#define TB_JMP_PAGE_SIZE (1 << TB_JMP_PAGE_BITS)
-#define TB_JMP_ADDR_MASK (TB_JMP_PAGE_SIZE - 1)
-#define TB_JMP_PAGE_MASK (TB_JMP_CACHE_SIZE - TB_JMP_PAGE_SIZE)
-
 #if !defined(CONFIG_USER_ONLY)
-#define CPU_TLB_BITS 8
-#define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 /* use a fully associative victim tlb of 8 entries */
 #define CPU_VTLB_SIZE 8
 
@@ -80,6 +65,38 @@ typedef uint64_t target_ulong;
 #else
 #define CPU_TLB_ENTRY_BITS 5
 #endif
+
+/* TCG_TARGET_TLB_DISPLACEMENT_BITS is used in CPU_TLB_BITS to ensure that
+ * the TLB is not unnecessarily small, but still small enough for the
+ * TLB lookup instruction sequence used by the TCG target.
+ *
+ * TCG will have to generate an operand as large as the distance between
+ * env and the tlb_table[NB_MMU_MODES - 1][0].addend.  For simplicity,
+ * the TCG targets just round everything up to the next power of two, and
+ * count bits.  This works because: 1) the size of each TLB is a largish
+ * power of two, 2) and because the limit of the displacement is really close
+ * to a power of two, 3) the offset of tlb_table[0][0] inside env is smaller
+ * than the size of a TLB.
+ *
+ * For example, the maximum displacement 0xFFF0 on PPC and MIPS, but TCG
+ * just says "the displacement is 16 bits".  TCG_TARGET_TLB_DISPLACEMENT_BITS
+ * then ensures that tlb_table at least 0x8000 bytes large ("not unnecessarily
+ * small": 2^15).  The operand then will come up smaller than 0xFFF0 without
+ * any particular care, because the TLB for a single MMU mode is larger than
+ * 0x10000-0xFFF0=16 bytes.  In the end, the maximum value of the operand
+ * could be something like 0xC000 (the offset of the last TLB table) plus
+ * 0x18 (the offset of the addend field in each TLB entry) plus the offset
+ * of tlb_table inside env (which is non-trivial but not huge).
+ */
+#define CPU_TLB_BITS                                             \
+    MIN(8,                                                       \
+        TCG_TARGET_TLB_DISPLACEMENT_BITS - CPU_TLB_ENTRY_BITS -  \
+        (NB_MMU_MODES <= 1 ? 0 :                                 \
+         NB_MMU_MODES <= 2 ? 1 :                                 \
+         NB_MMU_MODES <= 4 ? 2 :                                 \
+         NB_MMU_MODES <= 8 ? 3 : 4))
+
+#define CPU_TLB_SIZE (1 << CPU_TLB_BITS)
 
 typedef struct CPUTLBEntry {
     /* bit TARGET_LONG_BITS to TARGET_PAGE_BITS : virtual address
@@ -130,7 +147,6 @@ typedef struct CPUIOTLBEntry {
 #endif
 
 
-#define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     /* soft mmu support */                                              \
     CPU_COMMON_TLB                                                      \

@@ -21,10 +21,6 @@
 #include "hw/pci/msi.h"
 #include "qemu/range.h"
 
-/* Eventually those constants should go to Linux pci_regs.h */
-#define PCI_MSI_PENDING_32      0x10
-#define PCI_MSI_PENDING_64      0x14
-
 /* PCI_MSI_ADDRESS_LO */
 #define PCI_MSI_ADDRESS_LO_MASK         (~0x3)
 
@@ -291,8 +287,16 @@ void msi_notify(PCIDevice *dev, unsigned int vector)
                    "notify vector 0x%x"
                    " address: 0x%"PRIx64" data: 0x%"PRIx32"\n",
                    vector, msg.address, msg.data);
+    msi_send_message(dev, msg);
+}
+
+void msi_send_message(PCIDevice *dev, MSIMessage msg)
+{
+    MemTxAttrs attrs = {};
+
+    attrs.stream_id = (pci_bus_num(dev->bus) << 8) | dev->devfn;
     address_space_stl_le(&dev->bus_master_as, msg.address, msg.data,
-                         MEMTXATTRS_UNSPECIFIED, NULL);
+                         attrs, NULL);
 }
 
 /* Normally called by pci_default_write_config(). */

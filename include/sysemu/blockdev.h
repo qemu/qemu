@@ -66,5 +66,5 @@ DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type);
 void qmp_change_blockdev(const char *device, const char *filename,
                          const char *format, Error **errp);
 void hmp_commit(Monitor *mon, const QDict *qdict);
-int hmp_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
+void hmp_drive_del(Monitor *mon, const QDict *qdict);
 #endif

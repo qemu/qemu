@@ -1980,17 +1980,6 @@ gen_msub32_q(TCGv ret, TCGv arg1, TCGv arg2, TCGv arg3, uint32_t n,
     tcg_gen_or_i64(t1, t1, t2);
     tcg_gen_trunc_i64_i32(cpu_PSW_V, t1);
     tcg_gen_shli_tl(cpu_PSW_V, cpu_PSW_V, 31);
-    /* We produce an overflow on the host if the mul before was
-       (0x80000000 * 0x80000000) << 1). If this is the
-       case, we negate the ovf. */
-    if (n == 1) {
-        tcg_gen_setcondi_tl(TCG_COND_EQ, temp, arg2, 0x80000000);
-        tcg_gen_setcond_tl(TCG_COND_EQ, temp2, arg2, arg3);
-        tcg_gen_and_tl(temp, temp, temp2);
-        tcg_gen_shli_tl(temp, temp, 31);
-        /* negate v bit, if special condition */
-        tcg_gen_xor_tl(cpu_PSW_V, cpu_PSW_V, temp);
-    }
     /* Calc SV bit */
     tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
     /* Calc AV/SAV bits */
@@ -5287,7 +5276,7 @@ static void decode_bol_opc(CPUTriCoreState *env, DisasContext *ctx, int32_t op1)
         break;
     case OPC1_32_BOL_ST_H_LONGOFF:
         if (tricore_feature(env, TRICORE_FEATURE_16)) {
-            gen_offset_ld(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LESW);
+            gen_offset_st(ctx, cpu_gpr_d[r1], cpu_gpr_a[r2], address, MO_LESW);
         } else {
             /* raise illegal opcode trap */
         }
@@ -6451,8 +6440,8 @@ static void decode_rr_divide(CPUTriCoreState *env, DisasContext *ctx)
         /* sv */
         tcg_gen_or_tl(cpu_PSW_SV, cpu_PSW_SV, cpu_PSW_V);
         /* write result */
-        tcg_gen_mov_tl(cpu_gpr_d[r3+1], temp3);
         tcg_gen_shli_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], 16);
+        tcg_gen_mov_tl(cpu_gpr_d[r3+1], temp3);
         tcg_temp_free(temp);
         tcg_temp_free(temp2);
         tcg_temp_free(temp3);
@@ -8335,7 +8324,7 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(env, pc_start, ctx.pc - pc_start, 0);
+        log_target_disas(cs, pc_start, ctx.pc - pc_start, 0);
         qemu_log("\n");
     }
 #endif

@@ -25,7 +25,6 @@
 #include "qemu/timer.h"
 #include "qemu/queue.h"
 #include "qemu/atomic.h"
-#include "monitor/monitor.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
@@ -272,6 +271,11 @@ static void qxl_spice_monitors_config_async(PCIQXLDevice *qxl, int replay)
                     QXL_COOKIE_TYPE_POST_LOAD_MONITORS_CONFIG,
                     0));
     } else {
+#if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
+        if (qxl->max_outputs) {
+            spice_qxl_set_max_monitors(&qxl->ssd.qxl, qxl->max_outputs);
+        }
+#endif
         qxl->guest_monitors_config = qxl->ram->monitors_config;
         spice_qxl_monitors_config_async(&qxl->ssd.qxl,
                 qxl->ram->monitors_config,
@@ -503,6 +507,10 @@ static void interface_set_compression_level(QXLInstance *sin, int level)
 static void interface_set_mm_time(QXLInstance *sin, uint32_t mm_time)
 {
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
+
+    if (!qemu_spice_display_is_running(&qxl->ssd)) {
+        return;
+    }
 
     trace_qxl_interface_set_mm_time(qxl->id, mm_time);
     qxl->shadow_rom.mm_clock = cpu_to_le32(mm_time);
@@ -988,6 +996,7 @@ static int interface_client_monitors_config(QXLInstance *sin,
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
     QXLRom *rom = memory_region_get_ram_ptr(&qxl->rom_bar);
     int i;
+    unsigned max_outputs = ARRAY_SIZE(rom->client_monitors_config.heads);
 
     if (qxl->revision < 4) {
         trace_qxl_client_monitors_config_unsupported_by_device(qxl->id,
@@ -1010,17 +1019,23 @@ static int interface_client_monitors_config(QXLInstance *sin,
     if (!monitors_config) {
         return 1;
     }
+
+#if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
+    /* limit number of outputs based on setting limit */
+    if (qxl->max_outputs && qxl->max_outputs <= max_outputs) {
+        max_outputs = qxl->max_outputs;
+    }
+#endif
+
     memset(&rom->client_monitors_config, 0,
            sizeof(rom->client_monitors_config));
     rom->client_monitors_config.count = monitors_config->num_of_monitors;
     /* monitors_config->flags ignored */
-    if (rom->client_monitors_config.count >=
-            ARRAY_SIZE(rom->client_monitors_config.heads)) {
+    if (rom->client_monitors_config.count >= max_outputs) {
         trace_qxl_client_monitors_config_capped(qxl->id,
                                 monitors_config->num_of_monitors,
-                                ARRAY_SIZE(rom->client_monitors_config.heads));
-        rom->client_monitors_config.count =
-            ARRAY_SIZE(rom->client_monitors_config.heads);
+                                max_outputs);
+        rom->client_monitors_config.count = max_outputs;
     }
     for (i = 0 ; i < rom->client_monitors_config.count ; ++i) {
         VDAgentMonConfig *monitor = &monitors_config->monitors[i];
@@ -2216,6 +2231,7 @@ static VMStateDescription qxl_vmstate_monitors_config = {
     .name               = "qxl/monitors-config",
     .version_id         = 1,
     .minimum_version_id = 1,
+    .needed = qxl_monitors_config_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(guest_monitors_config, PCIQXLDevice),
         VMSTATE_END_OF_LIST()
@@ -2249,13 +2265,9 @@ static VMStateDescription qxl_vmstate = {
         VMSTATE_UINT64(guest_cursor, PCIQXLDevice),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &qxl_vmstate_monitors_config,
-            .needed = qxl_monitors_config_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &qxl_vmstate_monitors_config,
+        NULL
     }
 };
 
@@ -2274,6 +2286,9 @@ static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("vram64_size_mb", PCIQXLDevice, vram_size_mb, -1),
         DEFINE_PROP_UINT32("vgamem_mb", PCIQXLDevice, vgamem_size_mb, 16),
         DEFINE_PROP_INT32("surfaces", PCIQXLDevice, ssd.num_surfaces, 1024),
+#if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
+        DEFINE_PROP_UINT16("max_outputs", PCIQXLDevice, max_outputs, 0),
+#endif
         DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -29,6 +29,7 @@
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "sysemu/kvm.h"
+#include "exec/semihost.h"
 
 #include "trace-tcg.h"
 
@@ -868,8 +869,10 @@ enum {
 enum {
     OPC_MFC0     = (0x00 << 21) | OPC_CP0,
     OPC_DMFC0    = (0x01 << 21) | OPC_CP0,
+    OPC_MFHC0    = (0x02 << 21) | OPC_CP0,
     OPC_MTC0     = (0x04 << 21) | OPC_CP0,
     OPC_DMTC0    = (0x05 << 21) | OPC_CP0,
+    OPC_MTHC0    = (0x06 << 21) | OPC_CP0,
     OPC_MFTR     = (0x08 << 21) | OPC_CP0,
     OPC_RDPGPR   = (0x0A << 21) | OPC_CP0,
     OPC_MFMC0    = (0x0B << 21) | OPC_CP0,
@@ -1414,6 +1417,7 @@ typedef struct DisasContext {
     int32_t CP0_Config1;
     /* Routine used to access memory */
     int mem_idx;
+    TCGMemOp default_tcg_memop_mask;
     uint32_t hflags, saved_hflags;
     int bstate;
     target_ulong btarget;
@@ -1423,6 +1427,10 @@ typedef struct DisasContext {
     int ie;
     bool bi;
     bool bp;
+    uint64_t PAMask;
+    bool mvh;
+    int CP0_LLAddr_shift;
+    bool ps;
 } DisasContext;
 
 enum {
@@ -1557,15 +1565,80 @@ static inline void gen_store_srsgpr (int from, int to)
     }
 }
 
-/* Floating point register moves. */
-static void gen_load_fpr32(TCGv_i32 t, int reg)
+/* Tests */
+static inline void gen_save_pc(target_ulong pc)
 {
+    tcg_gen_movi_tl(cpu_PC, pc);
+}
+
+static inline void save_cpu_state(DisasContext *ctx, int do_save_pc)
+{
+    LOG_DISAS("hflags %08x saved %08x\n", ctx->hflags, ctx->saved_hflags);
+    if (do_save_pc && ctx->pc != ctx->saved_pc) {
+        gen_save_pc(ctx->pc);
+        ctx->saved_pc = ctx->pc;
+    }
+    if (ctx->hflags != ctx->saved_hflags) {
+        tcg_gen_movi_i32(hflags, ctx->hflags);
+        ctx->saved_hflags = ctx->hflags;
+        switch (ctx->hflags & MIPS_HFLAG_BMASK_BASE) {
+        case MIPS_HFLAG_BR:
+            break;
+        case MIPS_HFLAG_BC:
+        case MIPS_HFLAG_BL:
+        case MIPS_HFLAG_B:
+            tcg_gen_movi_tl(btarget, ctx->btarget);
+            break;
+        }
+    }
+}
+
+static inline void restore_cpu_state(CPUMIPSState *env, DisasContext *ctx)
+{
+    ctx->saved_hflags = ctx->hflags;
+    switch (ctx->hflags & MIPS_HFLAG_BMASK_BASE) {
+    case MIPS_HFLAG_BR:
+        break;
+    case MIPS_HFLAG_BC:
+    case MIPS_HFLAG_BL:
+    case MIPS_HFLAG_B:
+        ctx->btarget = env->btarget;
+        break;
+    }
+}
+
+static inline void generate_exception_err(DisasContext *ctx, int excp, int err)
+{
+    TCGv_i32 texcp = tcg_const_i32(excp);
+    TCGv_i32 terr = tcg_const_i32(err);
+    save_cpu_state(ctx, 1);
+    gen_helper_raise_exception_err(cpu_env, texcp, terr);
+    tcg_temp_free_i32(terr);
+    tcg_temp_free_i32(texcp);
+}
+
+static inline void generate_exception(DisasContext *ctx, int excp)
+{
+    save_cpu_state(ctx, 1);
+    gen_helper_0e0i(raise_exception, excp);
+}
+
+/* Floating point register moves. */
+static void gen_load_fpr32(DisasContext *ctx, TCGv_i32 t, int reg)
+{
+    if (ctx->hflags & MIPS_HFLAG_FRE) {
+        generate_exception(ctx, EXCP_RI);
+    }
     tcg_gen_trunc_i64_i32(t, fpu_f64[reg]);
 }
 
-static void gen_store_fpr32(TCGv_i32 t, int reg)
+static void gen_store_fpr32(DisasContext *ctx, TCGv_i32 t, int reg)
 {
-    TCGv_i64 t64 = tcg_temp_new_i64();
+    TCGv_i64 t64;
+    if (ctx->hflags & MIPS_HFLAG_FRE) {
+        generate_exception(ctx, EXCP_RI);
+    }
+    t64 = tcg_temp_new_i64();
     tcg_gen_extu_i32_i64(t64, t);
     tcg_gen_deposit_i64(fpu_f64[reg], fpu_f64[reg], t64, 0, 32);
     tcg_temp_free_i64(t64);
@@ -1579,7 +1652,7 @@ static void gen_load_fpr32h(DisasContext *ctx, TCGv_i32 t, int reg)
         tcg_gen_trunc_i64_i32(t, t64);
         tcg_temp_free_i64(t64);
     } else {
-        gen_load_fpr32(t, reg | 1);
+        gen_load_fpr32(ctx, t, reg | 1);
     }
 }
 
@@ -1591,7 +1664,7 @@ static void gen_store_fpr32h(DisasContext *ctx, TCGv_i32 t, int reg)
         tcg_gen_deposit_i64(fpu_f64[reg], fpu_f64[reg], t64, 32, 32);
         tcg_temp_free_i64(t64);
     } else {
-        gen_store_fpr32(t, reg | 1);
+        gen_store_fpr32(ctx, t, reg | 1);
     }
 }
 
@@ -1626,66 +1699,6 @@ static inline int get_fp_bit (int cc)
         return 23;
 }
 
-/* Tests */
-static inline void gen_save_pc(target_ulong pc)
-{
-    tcg_gen_movi_tl(cpu_PC, pc);
-}
-
-static inline void save_cpu_state (DisasContext *ctx, int do_save_pc)
-{
-    LOG_DISAS("hflags %08x saved %08x\n", ctx->hflags, ctx->saved_hflags);
-    if (do_save_pc && ctx->pc != ctx->saved_pc) {
-        gen_save_pc(ctx->pc);
-        ctx->saved_pc = ctx->pc;
-    }
-    if (ctx->hflags != ctx->saved_hflags) {
-        tcg_gen_movi_i32(hflags, ctx->hflags);
-        ctx->saved_hflags = ctx->hflags;
-        switch (ctx->hflags & MIPS_HFLAG_BMASK_BASE) {
-        case MIPS_HFLAG_BR:
-            break;
-        case MIPS_HFLAG_BC:
-        case MIPS_HFLAG_BL:
-        case MIPS_HFLAG_B:
-            tcg_gen_movi_tl(btarget, ctx->btarget);
-            break;
-        }
-    }
-}
-
-static inline void restore_cpu_state (CPUMIPSState *env, DisasContext *ctx)
-{
-    ctx->saved_hflags = ctx->hflags;
-    switch (ctx->hflags & MIPS_HFLAG_BMASK_BASE) {
-    case MIPS_HFLAG_BR:
-        break;
-    case MIPS_HFLAG_BC:
-    case MIPS_HFLAG_BL:
-    case MIPS_HFLAG_B:
-        ctx->btarget = env->btarget;
-        break;
-    }
-}
-
-static inline void
-generate_exception_err (DisasContext *ctx, int excp, int err)
-{
-    TCGv_i32 texcp = tcg_const_i32(excp);
-    TCGv_i32 terr = tcg_const_i32(err);
-    save_cpu_state(ctx, 1);
-    gen_helper_raise_exception_err(cpu_env, texcp, terr);
-    tcg_temp_free_i32(terr);
-    tcg_temp_free_i32(texcp);
-}
-
-static inline void
-generate_exception (DisasContext *ctx, int excp)
-{
-    save_cpu_state(ctx, 1);
-    gen_helper_0e0i(raise_exception, excp);
-}
-
 /* Addresses computation */
 static inline void gen_op_addr_add (DisasContext *ctx, TCGv ret, TCGv arg0, TCGv arg1)
 {
@@ -1710,6 +1723,15 @@ static target_long addr_add(DisasContext *ctx, target_long base,
     }
 #endif
     return sum;
+}
+
+static inline void gen_move_low32(TCGv ret, TCGv_i64 arg)
+{
+#if defined(TARGET_MIPS64)
+    tcg_gen_ext32s_tl(ret, arg);
+#else
+    tcg_gen_trunc_i64_tl(ret, arg);
+#endif
 }
 
 static inline void check_cp0_enabled(DisasContext *ctx)
@@ -1805,6 +1827,16 @@ static inline void check_insn_opc_removed(DisasContext *ctx, int flags)
     }
 }
 
+/* This code generates a "reserved instruction" exception if the
+   CPU does not support 64-bit paired-single (PS) floating point data type */
+static inline void check_ps(DisasContext *ctx)
+{
+    if (unlikely(!ctx->ps)) {
+        generate_exception(ctx, EXCP_RI);
+    }
+    check_cp1_64bitmode(ctx);
+}
+
 #ifdef TARGET_MIPS64
 /* This code generates a "reserved instruction" exception if 64-bit
    instructions are not enabled. */
@@ -1815,11 +1847,20 @@ static inline void check_mips_64(DisasContext *ctx)
 }
 #endif
 
+#ifndef CONFIG_USER_ONLY
+static inline void check_mvh(DisasContext *ctx)
+{
+    if (unlikely(!ctx->mvh)) {
+        generate_exception(ctx, EXCP_RI);
+    }
+}
+#endif
+
 /* Define small wrappers for gen_load_fpr* so that we have a uniform
    calling interface for 32 and 64-bit FPRs.  No sense in changing
    all callers for gen_load_fpr32 when we need the CTX parameter for
    this one use.  */
-#define gen_ldcmp_fpr32(ctx, x, y) gen_load_fpr32(x, y)
+#define gen_ldcmp_fpr32(ctx, x, y) gen_load_fpr32(ctx, x, y)
 #define gen_ldcmp_fpr64(ctx, x, y) gen_load_fpr64(ctx, x, y)
 #define FOP_CONDS(type, abs, fmt, ifmt, bits)                                 \
 static inline void gen_cmp ## type ## _ ## fmt(DisasContext *ctx, int n,      \
@@ -1829,7 +1870,7 @@ static inline void gen_cmp ## type ## _ ## fmt(DisasContext *ctx, int n,      \
     TCGv_i##bits fp1 = tcg_temp_new_i##bits ();                               \
     switch (ifmt) {                                                           \
     case FMT_PS:                                                              \
-        check_cp1_64bitmode(ctx);                                             \
+        check_ps(ctx);                                                        \
         break;                                                                \
     case FMT_D:                                                               \
         if (abs) {                                                            \
@@ -1963,7 +2004,7 @@ static inline void gen_r6_cmp_ ## fmt(DisasContext * ctx, int n,        \
 }
 
 FOP_CONDNS(d, FMT_D, 64, gen_store_fpr64(ctx, fp0, fd))
-FOP_CONDNS(s, FMT_S, 32, gen_store_fpr32(fp0, fd))
+FOP_CONDNS(s, FMT_S, 32, gen_store_fpr32(ctx, fp0, fd))
 #undef FOP_CONDNS
 #undef gen_ldcmp_fpr32
 #undef gen_ldcmp_fpr64
@@ -2081,12 +2122,14 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_LWU:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUL |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "lwu";
         break;
     case OPC_LD:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEQ |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "ld";
         break;
@@ -2099,6 +2142,9 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LDL:
         t1 = tcg_temp_new();
+        /* Do a byte access to possibly trigger a page
+           fault with the unaligned address.  */
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 7);
 #ifndef TARGET_WORDS_BIGENDIAN
         tcg_gen_xori_tl(t1, t1, 7);
@@ -2120,6 +2166,9 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LDR:
         t1 = tcg_temp_new();
+        /* Do a byte access to possibly trigger a page
+           fault with the unaligned address.  */
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 7);
 #ifdef TARGET_WORDS_BIGENDIAN
         tcg_gen_xori_tl(t1, t1, 7);
@@ -2157,17 +2206,20 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         opn = "lwpc";
         break;
     case OPC_LW:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "lw";
         break;
     case OPC_LH:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESW |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "lh";
         break;
     case OPC_LHU:
-        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUW);
+        tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TEUW |
+                           ctx->default_tcg_memop_mask);
         gen_store_gpr(t0, rt);
         opn = "lhu";
         break;
@@ -2183,6 +2235,9 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LWL:
         t1 = tcg_temp_new();
+        /* Do a byte access to possibly trigger a page
+           fault with the unaligned address.  */
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 3);
 #ifndef TARGET_WORDS_BIGENDIAN
         tcg_gen_xori_tl(t1, t1, 3);
@@ -2205,6 +2260,9 @@ static void gen_ld(DisasContext *ctx, uint32_t opc,
         break;
     case OPC_LWR:
         t1 = tcg_temp_new();
+        /* Do a byte access to possibly trigger a page
+           fault with the unaligned address.  */
+        tcg_gen_qemu_ld_tl(t1, t0, ctx->mem_idx, MO_UB);
         tcg_gen_andi_tl(t1, t0, 3);
 #ifdef TARGET_WORDS_BIGENDIAN
         tcg_gen_xori_tl(t1, t1, 3);
@@ -2251,7 +2309,8 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
     switch (opc) {
 #if defined(TARGET_MIPS64)
     case OPC_SD:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEQ |
+                           ctx->default_tcg_memop_mask);
         opn = "sd";
         break;
     case OPC_SDL:
@@ -2266,11 +2325,13 @@ static void gen_st (DisasContext *ctx, uint32_t opc, int rt,
         break;
 #endif
     case OPC_SW:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUL |
+                           ctx->default_tcg_memop_mask);
         opn = "sw";
         break;
     case OPC_SH:
-        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUW);
+        tcg_gen_qemu_st_tl(t1, t0, ctx->mem_idx, MO_TEUW |
+                           ctx->default_tcg_memop_mask);
         opn = "sh";
         break;
     case OPC_SB:
@@ -2347,8 +2408,9 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_LWC1:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            tcg_gen_qemu_ld_i32(fp0, t0, ctx->mem_idx, MO_TESL);
-            gen_store_fpr32(fp0, ft);
+            tcg_gen_qemu_ld_i32(fp0, t0, ctx->mem_idx, MO_TESL |
+                                ctx->default_tcg_memop_mask);
+            gen_store_fpr32(ctx, fp0, ft);
             tcg_temp_free_i32(fp0);
         }
         opn = "lwc1";
@@ -2356,8 +2418,9 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_SWC1:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, ft);
-            tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL);
+            gen_load_fpr32(ctx, fp0, ft);
+            tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL |
+                                ctx->default_tcg_memop_mask);
             tcg_temp_free_i32(fp0);
         }
         opn = "swc1";
@@ -2365,7 +2428,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
     case OPC_LDC1:
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
-            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_ld_i64(fp0, t0, ctx->mem_idx, MO_TEQ |
+                                ctx->default_tcg_memop_mask);
             gen_store_fpr64(ctx, fp0, ft);
             tcg_temp_free_i64(fp0);
         }
@@ -2375,7 +2439,8 @@ static void gen_flt_ldst (DisasContext *ctx, uint32_t opc, int ft,
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             gen_load_fpr64(ctx, fp0, ft);
-            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ);
+            tcg_gen_qemu_st_i64(fp0, t0, ctx->mem_idx, MO_TEQ |
+                                ctx->default_tcg_memop_mask);
             tcg_temp_free_i64(fp0);
         }
         opn = "sdc1";
@@ -3156,45 +3221,46 @@ static inline void gen_r6_ld(target_long addr, int reg, int memidx,
     tcg_temp_free(t0);
 }
 
-static inline void gen_pcrel(DisasContext *ctx, int rs, int16_t imm)
+static inline void gen_pcrel(DisasContext *ctx, int opc, target_ulong pc,
+                             int rs)
 {
     target_long offset;
     target_long addr;
 
-    switch (MASK_OPC_PCREL_TOP2BITS(ctx->opcode)) {
+    switch (MASK_OPC_PCREL_TOP2BITS(opc)) {
     case OPC_ADDIUPC:
         if (rs != 0) {
             offset = sextract32(ctx->opcode << 2, 0, 21);
-            addr = addr_add(ctx, ctx->pc, offset);
+            addr = addr_add(ctx, pc, offset);
             tcg_gen_movi_tl(cpu_gpr[rs], addr);
         }
         break;
     case R6_OPC_LWPC:
         offset = sextract32(ctx->opcode << 2, 0, 21);
-        addr = addr_add(ctx, ctx->pc, offset);
+        addr = addr_add(ctx, pc, offset);
         gen_r6_ld(addr, rs, ctx->mem_idx, MO_TESL);
         break;
 #if defined(TARGET_MIPS64)
     case OPC_LWUPC:
         check_mips_64(ctx);
         offset = sextract32(ctx->opcode << 2, 0, 21);
-        addr = addr_add(ctx, ctx->pc, offset);
+        addr = addr_add(ctx, pc, offset);
         gen_r6_ld(addr, rs, ctx->mem_idx, MO_TEUL);
         break;
 #endif
     default:
-        switch (MASK_OPC_PCREL_TOP5BITS(ctx->opcode)) {
+        switch (MASK_OPC_PCREL_TOP5BITS(opc)) {
         case OPC_AUIPC:
             if (rs != 0) {
-                offset = imm << 16;
-                addr = addr_add(ctx, ctx->pc, offset);
+                offset = sextract32(ctx->opcode, 0, 16) << 16;
+                addr = addr_add(ctx, pc, offset);
                 tcg_gen_movi_tl(cpu_gpr[rs], addr);
             }
             break;
         case OPC_ALUIPC:
             if (rs != 0) {
-                offset = imm << 16;
-                addr = ~0xFFFF & addr_add(ctx, ctx->pc, offset);
+                offset = sextract32(ctx->opcode, 0, 16) << 16;
+                addr = ~0xFFFF & addr_add(ctx, pc, offset);
                 tcg_gen_movi_tl(cpu_gpr[rs], addr);
             }
             break;
@@ -3205,7 +3271,7 @@ static inline void gen_pcrel(DisasContext *ctx, int rs, int16_t imm)
         case R6_OPC_LDPC + (3 << 16):
             check_mips_64(ctx);
             offset = sextract32(ctx->opcode << 3, 0, 21);
-            addr = addr_add(ctx, (ctx->pc & ~0x7), offset);
+            addr = addr_add(ctx, (pc & ~0x7), offset);
             gen_r6_ld(addr, rs, ctx->mem_idx, MO_TEQ);
             break;
 #endif
@@ -4684,48 +4750,53 @@ static void gen_bitops (DisasContext *ctx, uint32_t opc, int rt,
     gen_load_gpr(t1, rs);
     switch (opc) {
     case OPC_EXT:
-        if (lsb + msb > 31)
+        if (lsb + msb > 31) {
             goto fail;
+        }
         tcg_gen_shri_tl(t0, t1, lsb);
         if (msb != 31) {
-            tcg_gen_andi_tl(t0, t0, (1 << (msb + 1)) - 1);
+            tcg_gen_andi_tl(t0, t0, (1U << (msb + 1)) - 1);
         } else {
             tcg_gen_ext32s_tl(t0, t0);
         }
         break;
 #if defined(TARGET_MIPS64)
-    case OPC_DEXTM:
-        tcg_gen_shri_tl(t0, t1, lsb);
-        if (msb != 31) {
-            tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1 + 32)) - 1);
-        }
-        break;
     case OPC_DEXTU:
-        tcg_gen_shri_tl(t0, t1, lsb + 32);
-        tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
-        break;
+        lsb += 32;
+        goto do_dext;
+    case OPC_DEXTM:
+        msb += 32;
+        goto do_dext;
     case OPC_DEXT:
+    do_dext:
+        if (lsb + msb > 63) {
+            goto fail;
+        }
         tcg_gen_shri_tl(t0, t1, lsb);
-        tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
+        if (msb != 63) {
+            tcg_gen_andi_tl(t0, t0, (1ULL << (msb + 1)) - 1);
+        }
         break;
 #endif
     case OPC_INS:
-        if (lsb > msb)
+        if (lsb > msb) {
             goto fail;
+        }
         gen_load_gpr(t0, rt);
         tcg_gen_deposit_tl(t0, t0, t1, lsb, msb - lsb + 1);
         tcg_gen_ext32s_tl(t0, t0);
         break;
 #if defined(TARGET_MIPS64)
-    case OPC_DINSM:
-        gen_load_gpr(t0, rt);
-        tcg_gen_deposit_tl(t0, t0, t1, lsb, msb + 32 - lsb + 1);
-        break;
     case OPC_DINSU:
-        gen_load_gpr(t0, rt);
-        tcg_gen_deposit_tl(t0, t0, t1, lsb + 32, msb - lsb + 1);
-        break;
+        lsb += 32;
+        /* FALLTHRU */
+    case OPC_DINSM:
+        msb += 32;
+        /* FALLTHRU */
     case OPC_DINS:
+        if (lsb > msb) {
+            goto fail;
+        }
         gen_load_gpr(t0, rt);
         tcg_gen_deposit_tl(t0, t0, t1, lsb, msb - lsb + 1);
         break;
@@ -4813,8 +4884,148 @@ static void gen_bshfl (DisasContext *ctx, uint32_t op2, int rt, int rd)
     tcg_temp_free(t0);
 }
 
+static void gen_lsa(DisasContext *ctx, int opc, int rd, int rs, int rt,
+                    int imm2)
+{
+    TCGv t0;
+    TCGv t1;
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+    gen_load_gpr(t0, rs);
+    gen_load_gpr(t1, rt);
+    tcg_gen_shli_tl(t0, t0, imm2 + 1);
+    tcg_gen_add_tl(cpu_gpr[rd], t0, t1);
+    if (opc == OPC_LSA) {
+        tcg_gen_ext32s_tl(cpu_gpr[rd], cpu_gpr[rd]);
+    }
+
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+
+    return;
+}
+
+static void gen_align(DisasContext *ctx, int opc, int rd, int rs, int rt,
+                      int bp)
+{
+    TCGv t0;
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rt);
+    if (bp == 0) {
+        tcg_gen_mov_tl(cpu_gpr[rd], t0);
+    } else {
+        TCGv t1 = tcg_temp_new();
+        gen_load_gpr(t1, rs);
+        switch (opc) {
+        case OPC_ALIGN:
+            {
+                TCGv_i64 t2 = tcg_temp_new_i64();
+                tcg_gen_concat_tl_i64(t2, t1, t0);
+                tcg_gen_shri_i64(t2, t2, 8 * (4 - bp));
+                gen_move_low32(cpu_gpr[rd], t2);
+                tcg_temp_free_i64(t2);
+            }
+            break;
+#if defined(TARGET_MIPS64)
+        case OPC_DALIGN:
+            tcg_gen_shli_tl(t0, t0, 8 * bp);
+            tcg_gen_shri_tl(t1, t1, 8 * (8 - bp));
+            tcg_gen_or_tl(cpu_gpr[rd], t1, t0);
+            break;
+#endif
+        }
+        tcg_temp_free(t1);
+    }
+
+    tcg_temp_free(t0);
+}
+
+static void gen_bitswap(DisasContext *ctx, int opc, int rd, int rt)
+{
+    TCGv t0;
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    gen_load_gpr(t0, rt);
+    switch (opc) {
+    case OPC_BITSWAP:
+        gen_helper_bitswap(cpu_gpr[rd], t0);
+        break;
+#if defined(TARGET_MIPS64)
+    case OPC_DBITSWAP:
+        gen_helper_dbitswap(cpu_gpr[rd], t0);
+        break;
+#endif
+    }
+    tcg_temp_free(t0);
+}
+
 #ifndef CONFIG_USER_ONLY
 /* CP0 (MMU and control) */
+static inline void gen_mthc0_entrylo(TCGv arg, target_ulong off)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(t0, arg);
+    tcg_gen_ld_i64(t1, cpu_env, off);
+#if defined(TARGET_MIPS64)
+    tcg_gen_deposit_i64(t1, t1, t0, 30, 32);
+#else
+    tcg_gen_concat32_i64(t1, t1, t0);
+#endif
+    tcg_gen_st_i64(t1, cpu_env, off);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t0);
+}
+
+static inline void gen_mthc0_store64(TCGv arg, target_ulong off)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+
+    tcg_gen_ext_tl_i64(t0, arg);
+    tcg_gen_ld_i64(t1, cpu_env, off);
+    tcg_gen_concat32_i64(t1, t1, t0);
+    tcg_gen_st_i64(t1, cpu_env, off);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t0);
+}
+
+static inline void gen_mfhc0_entrylo(TCGv arg, target_ulong off)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(t0, cpu_env, off);
+#if defined(TARGET_MIPS64)
+    tcg_gen_shri_i64(t0, t0, 30);
+#else
+    tcg_gen_shri_i64(t0, t0, 32);
+#endif
+    gen_move_low32(arg, t0);
+    tcg_temp_free_i64(t0);
+}
+
+static inline void gen_mfhc0_load64(TCGv arg, target_ulong off, int shift)
+{
+    TCGv_i64 t0 = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(t0, cpu_env, off);
+    tcg_gen_shri_i64(t0, t0, 32 + shift);
+    gen_move_low32(arg, t0);
+    tcg_temp_free_i64(t0);
+}
+
 static inline void gen_mfc0_load32 (TCGv arg, target_ulong off)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
@@ -4843,6 +5054,140 @@ static inline void gen_mtc0_store64 (TCGv arg, target_ulong off)
 {
     tcg_gen_ext32s_tl(arg, arg);
     tcg_gen_st_tl(arg, cpu_env, off);
+}
+
+static void gen_mfhc0(DisasContext *ctx, TCGv arg, int reg, int sel)
+{
+    const char *rn = "invalid";
+
+    if (!(ctx->hflags & MIPS_HFLAG_ELPA)) {
+        goto mfhc0_read_zero;
+    }
+
+    switch (reg) {
+    case 2:
+        switch (sel) {
+        case 0:
+            gen_mfhc0_entrylo(arg, offsetof(CPUMIPSState, CP0_EntryLo0));
+            rn = "EntryLo0";
+            break;
+        default:
+            goto mfhc0_read_zero;
+        }
+        break;
+    case 3:
+        switch (sel) {
+        case 0:
+            gen_mfhc0_entrylo(arg, offsetof(CPUMIPSState, CP0_EntryLo1));
+            rn = "EntryLo1";
+            break;
+        default:
+            goto mfhc0_read_zero;
+        }
+        break;
+    case 17:
+        switch (sel) {
+        case 0:
+            gen_mfhc0_load64(arg, offsetof(CPUMIPSState, lladdr),
+                             ctx->CP0_LLAddr_shift);
+            rn = "LLAddr";
+            break;
+        default:
+            goto mfhc0_read_zero;
+        }
+        break;
+    case 28:
+        switch (sel) {
+        case 0:
+        case 2:
+        case 4:
+        case 6:
+            gen_mfhc0_load64(arg, offsetof(CPUMIPSState, CP0_TagLo), 0);
+            rn = "TagLo";
+            break;
+        default:
+            goto mfhc0_read_zero;
+        }
+        break;
+    default:
+        goto mfhc0_read_zero;
+    }
+
+    (void)rn; /* avoid a compiler warning */
+    LOG_DISAS("mfhc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    return;
+
+mfhc0_read_zero:
+    LOG_DISAS("mfhc0 %s (reg %d sel %d)\n", rn, reg, sel);
+    tcg_gen_movi_tl(arg, 0);
+}
+
+static void gen_mthc0(DisasContext *ctx, TCGv arg, int reg, int sel)
+{
+    const char *rn = "invalid";
+    uint64_t mask = ctx->PAMask >> 36;
+
+    if (!(ctx->hflags & MIPS_HFLAG_ELPA)) {
+        goto mthc0_nop;
+    }
+
+    switch (reg) {
+    case 2:
+        switch (sel) {
+        case 0:
+            tcg_gen_andi_tl(arg, arg, mask);
+            gen_mthc0_entrylo(arg, offsetof(CPUMIPSState, CP0_EntryLo0));
+            rn = "EntryLo0";
+            break;
+        default:
+            goto mthc0_nop;
+        }
+        break;
+    case 3:
+        switch (sel) {
+        case 0:
+            tcg_gen_andi_tl(arg, arg, mask);
+            gen_mthc0_entrylo(arg, offsetof(CPUMIPSState, CP0_EntryLo1));
+            rn = "EntryLo1";
+            break;
+        default:
+            goto mthc0_nop;
+        }
+        break;
+    case 17:
+        switch (sel) {
+        case 0:
+            /* LLAddr is read-only (the only exception is bit 0 if LLB is
+               supported); the CP0_LLAddr_rw_bitmask does not seem to be
+               relevant for modern MIPS cores supporting MTHC0, therefore
+               treating MTHC0 to LLAddr as NOP. */
+            rn = "LLAddr";
+            break;
+        default:
+            goto mthc0_nop;
+        }
+        break;
+    case 28:
+        switch (sel) {
+        case 0:
+        case 2:
+        case 4:
+        case 6:
+            tcg_gen_andi_tl(arg, arg, mask);
+            gen_mthc0_store64(arg, offsetof(CPUMIPSState, CP0_TagLo));
+            rn = "TagLo";
+            break;
+        default:
+            goto mthc0_nop;
+        }
+        break;
+    default:
+        goto mthc0_nop;
+    }
+
+    (void)rn; /* avoid a compiler warning */
+mthc0_nop:
+    LOG_DISAS("mthc0 %s (reg %d sel %d)\n", rn, reg, sel);
 }
 
 static inline void gen_mfc0_unimplemented(DisasContext *ctx, TCGv arg)
@@ -4943,17 +5288,20 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case 2:
         switch (sel) {
         case 0:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo0));
+            {
+                TCGv_i64 tmp = tcg_temp_new_i64();
+                tcg_gen_ld_i64(tmp, cpu_env,
+                               offsetof(CPUMIPSState, CP0_EntryLo0));
 #if defined(TARGET_MIPS64)
-            if (ctx->rxi) {
-                TCGv tmp = tcg_temp_new();
-                tcg_gen_andi_tl(tmp, arg, (3ull << CP0EnLo_XI));
-                tcg_gen_shri_tl(tmp, tmp, 32);
-                tcg_gen_or_tl(arg, arg, tmp);
-                tcg_temp_free(tmp);
-            }
+                if (ctx->rxi) {
+                    /* Move RI/XI fields to bits 31:30 */
+                    tcg_gen_shri_tl(arg, tmp, CP0EnLo_XI);
+                    tcg_gen_deposit_tl(tmp, tmp, arg, 30, 2);
+                }
 #endif
-            tcg_gen_ext32s_tl(arg, arg);
+                gen_move_low32(arg, tmp);
+                tcg_temp_free_i64(tmp);
+            }
             rn = "EntryLo0";
             break;
         case 1:
@@ -4998,17 +5346,20 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
     case 3:
         switch (sel) {
         case 0:
-            tcg_gen_ld_tl(arg, cpu_env, offsetof(CPUMIPSState, CP0_EntryLo1));
+            {
+                TCGv_i64 tmp = tcg_temp_new_i64();
+                tcg_gen_ld_i64(tmp, cpu_env,
+                               offsetof(CPUMIPSState, CP0_EntryLo1));
 #if defined(TARGET_MIPS64)
-            if (ctx->rxi) {
-                TCGv tmp = tcg_temp_new();
-                tcg_gen_andi_tl(tmp, arg, (3ull << CP0EnLo_XI));
-                tcg_gen_shri_tl(tmp, tmp, 32);
-                tcg_gen_or_tl(arg, arg, tmp);
-                tcg_temp_free(tmp);
-            }
+                if (ctx->rxi) {
+                    /* Move RI/XI fields to bits 31:30 */
+                    tcg_gen_shri_tl(arg, tmp, CP0EnLo_XI);
+                    tcg_gen_deposit_tl(tmp, tmp, arg, 30, 2);
+                }
 #endif
-            tcg_gen_ext32s_tl(arg, arg);
+                gen_move_low32(arg, tmp);
+                tcg_temp_free_i64(tmp);
+            }
             rn = "EntryLo1";
             break;
         default:
@@ -5418,7 +5769,12 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         case 2:
         case 4:
         case 6:
-            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_TagLo));
+            {
+                TCGv_i64 tmp = tcg_temp_new_i64();
+                tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUMIPSState, CP0_TagLo));
+                gen_move_low32(arg, tmp);
+                tcg_temp_free_i64(tmp);
+            }
             rn = "TagLo";
             break;
         case 1:
@@ -5661,6 +6017,7 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
             check_insn(ctx, ISA_MIPS32R2);
             gen_helper_mtc0_pagegrain(cpu_env, arg);
             rn = "PageGrain";
+            ctx->bstate = BS_STOP;
             break;
         default:
             goto cp0_unimplemented;
@@ -7557,7 +7914,7 @@ static void gen_mftr(CPUMIPSState *env, DisasContext *ctx, int rt, int rd,
         if (h == 0) {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, rt);
+            gen_load_fpr32(ctx, fp0, rt);
             tcg_gen_ext_i32_tl(t0, fp0);
             tcg_temp_free_i32(fp0);
         } else {
@@ -7756,7 +8113,7 @@ static void gen_mttr(CPUMIPSState *env, DisasContext *ctx, int rd, int rt,
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
             tcg_gen_trunc_tl_i32(fp0, t0);
-            gen_store_fpr32(fp0, rd);
+            gen_store_fpr32(ctx, fp0, rd);
             tcg_temp_free_i32(fp0);
         } else {
             TCGv_i32 fp0 = tcg_temp_new_i32();
@@ -7841,6 +8198,25 @@ static void gen_cp0 (CPUMIPSState *env, DisasContext *ctx, uint32_t opc, int rt,
         opn = "dmtc0";
         break;
 #endif
+    case OPC_MFHC0:
+        check_mvh(ctx);
+        if (rt == 0) {
+            /* Treat as NOP. */
+            return;
+        }
+        gen_mfhc0(ctx, cpu_gpr[rt], rd, ctx->opcode & 0x7);
+        opn = "mfhc0";
+        break;
+    case OPC_MTHC0:
+        check_mvh(ctx);
+        {
+            TCGv t0 = tcg_temp_new();
+            gen_load_gpr(t0, rt);
+            gen_mthc0(ctx, t0, rd, ctx->opcode & 0x7);
+            tcg_temp_free(t0);
+        }
+        opn = "mthc0";
+        break;
     case OPC_MFTR:
         check_insn(ctx, ASE_MT);
         if (rd == 0) {
@@ -7899,16 +8275,26 @@ static void gen_cp0 (CPUMIPSState *env, DisasContext *ctx, uint32_t opc, int rt,
             goto die;
         gen_helper_tlbr(cpu_env);
         break;
-    case OPC_ERET:
-        opn = "eret";
-        check_insn(ctx, ISA_MIPS2);
+    case OPC_ERET: /* OPC_ERETNC */
         if ((ctx->insn_flags & ISA_MIPS32R6) &&
             (ctx->hflags & MIPS_HFLAG_BMASK)) {
             MIPS_DEBUG("CTI in delay / forbidden slot");
             goto die;
+        } else {
+            int bit_shift = (ctx->hflags & MIPS_HFLAG_M16) ? 16 : 6;
+            if (ctx->opcode & (1 << bit_shift)) {
+                /* OPC_ERETNC */
+                opn = "eretnc";
+                check_insn(ctx, ISA_MIPS32R5);
+                gen_helper_eretnc(cpu_env);
+            } else {
+                /* OPC_ERET */
+                opn = "eret";
+                check_insn(ctx, ISA_MIPS2);
+                gen_helper_eret(cpu_env);
+            }
+            ctx->bstate = BS_EXCP;
         }
-        gen_helper_eret(cpu_env);
-        ctx->bstate = BS_EXCP;
         break;
     case OPC_DERET:
         opn = "deret";
@@ -8074,7 +8460,8 @@ static void gen_compute_branch1(DisasContext *ctx, uint32_t op,
 
 /* R6 CP1 Branches */
 static void gen_compute_branch1_r6(DisasContext *ctx, uint32_t op,
-                                   int32_t ft, int32_t offset)
+                                   int32_t ft, int32_t offset,
+                                   int delayslot_size)
 {
     target_ulong btarget;
     const char *opn = "cp1 cond branch";
@@ -8117,7 +8504,15 @@ static void gen_compute_branch1_r6(DisasContext *ctx, uint32_t op,
     MIPS_DEBUG("%s: cond %02x target " TARGET_FMT_lx, opn,
                ctx->hflags, btarget);
     ctx->btarget = btarget;
-    ctx->hflags |= MIPS_HFLAG_BDS32;
+
+    switch (delayslot_size) {
+    case 2:
+        ctx->hflags |= MIPS_HFLAG_BDS16;
+        break;
+    case 4:
+        ctx->hflags |= MIPS_HFLAG_BDS32;
+        break;
+    }
 
 out:
     tcg_temp_free_i64(t0);
@@ -8346,7 +8741,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             tcg_gen_ext_i32_tl(t0, fp0);
             tcg_temp_free_i32(fp0);
         }
@@ -8359,7 +8754,7 @@ static void gen_cp1 (DisasContext *ctx, uint32_t opc, int rt, int fs)
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
             tcg_gen_trunc_tl_i32(fp0, t0);
-            gen_store_fpr32(fp0, fs);
+            gen_store_fpr32(ctx, fp0, fs);
             tcg_temp_free_i32(fp0);
         }
         opn = "mtc1";
@@ -8457,7 +8852,8 @@ static void gen_movci (DisasContext *ctx, int rd, int rs, int cc, int tf)
     gen_set_label(l1);
 }
 
-static inline void gen_movcf_s (int fs, int fd, int cc, int tf)
+static inline void gen_movcf_s(DisasContext *ctx, int fs, int fd, int cc,
+                               int tf)
 {
     int cond;
     TCGv_i32 t0 = tcg_temp_new_i32();
@@ -8470,8 +8866,8 @@ static inline void gen_movcf_s (int fs, int fd, int cc, int tf)
 
     tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc));
     tcg_gen_brcondi_i32(cond, t0, 0, l1);
-    gen_load_fpr32(t0, fs);
-    gen_store_fpr32(t0, fd);
+    gen_load_fpr32(ctx, t0, fs);
+    gen_store_fpr32(ctx, t0, fd);
     gen_set_label(l1);
     tcg_temp_free_i32(t0);
 }
@@ -8513,8 +8909,8 @@ static inline void gen_movcf_ps(DisasContext *ctx, int fs, int fd,
 
     tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc));
     tcg_gen_brcondi_i32(cond, t0, 0, l1);
-    gen_load_fpr32(t0, fs);
-    gen_store_fpr32(t0, fd);
+    gen_load_fpr32(ctx, t0, fs);
+    gen_store_fpr32(ctx, t0, fd);
     gen_set_label(l1);
 
     tcg_gen_andi_i32(t0, fpu_fcr31, 1 << get_fp_bit(cc+1));
@@ -8532,9 +8928,9 @@ static void gen_sel_s(DisasContext *ctx, enum fopcode op1, int fd, int ft,
     TCGv_i32 fp0 = tcg_temp_new_i32();
     TCGv_i32 fp1 = tcg_temp_new_i32();
     TCGv_i32 fp2 = tcg_temp_new_i32();
-    gen_load_fpr32(fp0, fd);
-    gen_load_fpr32(fp1, ft);
-    gen_load_fpr32(fp2, fs);
+    gen_load_fpr32(ctx, fp0, fd);
+    gen_load_fpr32(ctx, fp1, ft);
+    gen_load_fpr32(ctx, fp2, fs);
 
     switch (op1) {
     case OPC_SEL_S:
@@ -8555,7 +8951,7 @@ static void gen_sel_s(DisasContext *ctx, enum fopcode op1, int fd, int ft,
         break;
     }
 
-    gen_store_fpr32(fp0, fd);
+    gen_store_fpr32(ctx, fp0, fd);
     tcg_temp_free_i32(fp2);
     tcg_temp_free_i32(fp1);
     tcg_temp_free_i32(fp0);
@@ -8641,18 +9037,17 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
     };
     enum { BINOP, CMPOP, OTHEROP } optype = OTHEROP;
     uint32_t func = ctx->opcode & 0x3f;
-
     switch (op1) {
     case OPC_ADD_S:
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_helper_float_add_s(fp0, cpu_env, fp0, fp1);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "add.s";
@@ -8663,11 +9058,11 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_helper_float_sub_s(fp0, cpu_env, fp0, fp1);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "sub.s";
@@ -8678,11 +9073,11 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_helper_float_mul_s(fp0, cpu_env, fp0, fp1);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "mul.s";
@@ -8693,11 +9088,11 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_helper_float_div_s(fp0, cpu_env, fp0, fp1);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "div.s";
@@ -8707,9 +9102,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_sqrt_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "sqrt.s";
@@ -8718,9 +9113,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_abs_s(fp0, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "abs.s";
@@ -8729,8 +9124,8 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_store_fpr32(fp0, fd);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "mov.s";
@@ -8739,9 +9134,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_chs_s(fp0, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "neg.s";
@@ -8752,7 +9147,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp32 = tcg_temp_new_i32();
             TCGv_i64 fp64 = tcg_temp_new_i64();
 
-            gen_load_fpr32(fp32, fs);
+            gen_load_fpr32(ctx, fp32, fs);
             gen_helper_float_roundl_s(fp64, cpu_env, fp32);
             tcg_temp_free_i32(fp32);
             gen_store_fpr64(ctx, fp64, fd);
@@ -8766,7 +9161,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp32 = tcg_temp_new_i32();
             TCGv_i64 fp64 = tcg_temp_new_i64();
 
-            gen_load_fpr32(fp32, fs);
+            gen_load_fpr32(ctx, fp32, fs);
             gen_helper_float_truncl_s(fp64, cpu_env, fp32);
             tcg_temp_free_i32(fp32);
             gen_store_fpr64(ctx, fp64, fd);
@@ -8780,7 +9175,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp32 = tcg_temp_new_i32();
             TCGv_i64 fp64 = tcg_temp_new_i64();
 
-            gen_load_fpr32(fp32, fs);
+            gen_load_fpr32(ctx, fp32, fs);
             gen_helper_float_ceill_s(fp64, cpu_env, fp32);
             tcg_temp_free_i32(fp32);
             gen_store_fpr64(ctx, fp64, fd);
@@ -8794,7 +9189,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp32 = tcg_temp_new_i32();
             TCGv_i64 fp64 = tcg_temp_new_i64();
 
-            gen_load_fpr32(fp32, fs);
+            gen_load_fpr32(ctx, fp32, fs);
             gen_helper_float_floorl_s(fp64, cpu_env, fp32);
             tcg_temp_free_i32(fp32);
             gen_store_fpr64(ctx, fp64, fd);
@@ -8806,9 +9201,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_roundw_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "round.w.s";
@@ -8817,9 +9212,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_truncw_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "trunc.w.s";
@@ -8828,9 +9223,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_ceilw_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "ceil.w.s";
@@ -8839,9 +9234,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_floorw_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "floor.w.s";
@@ -8863,7 +9258,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         break;
     case OPC_MOVCF_S:
         check_insn_opc_removed(ctx, ISA_MIPS32R6);
-        gen_movcf_s(fs, fd, (ft >> 2) & 0x7, ft & 0x1);
+        gen_movcf_s(ctx, fs, fd, (ft >> 2) & 0x7, ft & 0x1);
         opn = "movcf.s";
         break;
     case OPC_MOVZ_S:
@@ -8876,8 +9271,8 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
                 tcg_gen_brcondi_tl(TCG_COND_NE, cpu_gpr[ft], 0, l1);
             }
             fp0 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
-            gen_store_fpr32(fp0, fd);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
             gen_set_label(l1);
         }
@@ -8892,8 +9287,8 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             if (ft != 0) {
                 tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_gpr[ft], 0, l1);
                 fp0 = tcg_temp_new_i32();
-                gen_load_fpr32(fp0, fs);
-                gen_store_fpr32(fp0, fd);
+                gen_load_fpr32(ctx, fp0, fs);
+                gen_store_fpr32(ctx, fp0, fd);
                 tcg_temp_free_i32(fp0);
                 gen_set_label(l1);
             }
@@ -8905,9 +9300,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_recip_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "recip.s";
@@ -8917,9 +9312,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_rsqrt_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "rsqrt.s";
@@ -8930,11 +9325,11 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
             TCGv_i32 fp2 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
-            gen_load_fpr32(fp2, fd);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
+            gen_load_fpr32(ctx, fp2, fd);
             gen_helper_float_maddf_s(fp2, cpu_env, fp0, fp1, fp2);
-            gen_store_fpr32(fp2, fd);
+            gen_store_fpr32(ctx, fp2, fd);
             tcg_temp_free_i32(fp2);
             tcg_temp_free_i32(fp1);
             tcg_temp_free_i32(fp0);
@@ -8947,11 +9342,11 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
             TCGv_i32 fp2 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
-            gen_load_fpr32(fp2, fd);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
+            gen_load_fpr32(ctx, fp2, fd);
             gen_helper_float_msubf_s(fp2, cpu_env, fp0, fp1, fp2);
-            gen_store_fpr32(fp2, fd);
+            gen_store_fpr32(ctx, fp2, fd);
             tcg_temp_free_i32(fp2);
             tcg_temp_free_i32(fp1);
             tcg_temp_free_i32(fp0);
@@ -8962,9 +9357,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         check_insn(ctx, ISA_MIPS32R6);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_rint_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
             opn = "rint.s";
         }
@@ -8973,9 +9368,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         check_insn(ctx, ISA_MIPS32R6);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_class_s(fp0, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
             opn = "class.s";
         }
@@ -8986,10 +9381,10 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
             TCGv_i32 fp2 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_helper_float_min_s(fp2, cpu_env, fp0, fp1);
-            gen_store_fpr32(fp2, fd);
+            gen_store_fpr32(ctx, fp2, fd);
             tcg_temp_free_i32(fp2);
             tcg_temp_free_i32(fp1);
             tcg_temp_free_i32(fp0);
@@ -9001,11 +9396,11 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
                 TCGv_i32 fp0 = tcg_temp_new_i32();
                 TCGv_i32 fp1 = tcg_temp_new_i32();
 
-                gen_load_fpr32(fp0, fs);
-                gen_load_fpr32(fp1, ft);
+                gen_load_fpr32(ctx, fp0, fs);
+                gen_load_fpr32(ctx, fp1, ft);
                 gen_helper_float_recip2_s(fp0, cpu_env, fp0, fp1);
                 tcg_temp_free_i32(fp1);
-                gen_store_fpr32(fp0, fd);
+                gen_store_fpr32(ctx, fp0, fd);
                 tcg_temp_free_i32(fp0);
             }
             opn = "recip2.s";
@@ -9017,10 +9412,10 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
             TCGv_i32 fp2 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_helper_float_mina_s(fp2, cpu_env, fp0, fp1);
-            gen_store_fpr32(fp2, fd);
+            gen_store_fpr32(ctx, fp2, fd);
             tcg_temp_free_i32(fp2);
             tcg_temp_free_i32(fp1);
             tcg_temp_free_i32(fp0);
@@ -9031,9 +9426,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             {
                 TCGv_i32 fp0 = tcg_temp_new_i32();
 
-                gen_load_fpr32(fp0, fs);
+                gen_load_fpr32(ctx, fp0, fs);
                 gen_helper_float_recip1_s(fp0, cpu_env, fp0);
-                gen_store_fpr32(fp0, fd);
+                gen_store_fpr32(ctx, fp0, fd);
                 tcg_temp_free_i32(fp0);
             }
             opn = "recip1.s";
@@ -9044,10 +9439,10 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             /* OPC_MAX_S */
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_helper_float_max_s(fp1, cpu_env, fp0, fp1);
-            gen_store_fpr32(fp1, fd);
+            gen_store_fpr32(ctx, fp1, fd);
             tcg_temp_free_i32(fp1);
             tcg_temp_free_i32(fp0);
             opn = "max.s";
@@ -9057,9 +9452,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             {
                 TCGv_i32 fp0 = tcg_temp_new_i32();
 
-                gen_load_fpr32(fp0, fs);
+                gen_load_fpr32(ctx, fp0, fs);
                 gen_helper_float_rsqrt1_s(fp0, cpu_env, fp0);
-                gen_store_fpr32(fp0, fd);
+                gen_store_fpr32(ctx, fp0, fd);
                 tcg_temp_free_i32(fp0);
             }
             opn = "rsqrt1.s";
@@ -9070,10 +9465,10 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             /* OPC_MAXA_S */
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_helper_float_maxa_s(fp1, cpu_env, fp0, fp1);
-            gen_store_fpr32(fp1, fd);
+            gen_store_fpr32(ctx, fp1, fd);
             tcg_temp_free_i32(fp1);
             tcg_temp_free_i32(fp0);
             opn = "maxa.s";
@@ -9084,11 +9479,11 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
                 TCGv_i32 fp0 = tcg_temp_new_i32();
                 TCGv_i32 fp1 = tcg_temp_new_i32();
 
-                gen_load_fpr32(fp0, fs);
-                gen_load_fpr32(fp1, ft);
+                gen_load_fpr32(ctx, fp0, fs);
+                gen_load_fpr32(ctx, fp1, ft);
                 gen_helper_float_rsqrt2_s(fp0, cpu_env, fp0, fp1);
                 tcg_temp_free_i32(fp1);
-                gen_store_fpr32(fp0, fd);
+                gen_store_fpr32(ctx, fp0, fd);
                 tcg_temp_free_i32(fp0);
             }
             opn = "rsqrt2.s";
@@ -9100,7 +9495,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp32 = tcg_temp_new_i32();
             TCGv_i64 fp64 = tcg_temp_new_i64();
 
-            gen_load_fpr32(fp32, fs);
+            gen_load_fpr32(ctx, fp32, fs);
             gen_helper_float_cvtd_s(fp64, cpu_env, fp32);
             tcg_temp_free_i32(fp32);
             gen_store_fpr64(ctx, fp64, fd);
@@ -9112,9 +9507,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_cvtw_s(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "cvt.w.s";
@@ -9125,7 +9520,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp32 = tcg_temp_new_i32();
             TCGv_i64 fp64 = tcg_temp_new_i64();
 
-            gen_load_fpr32(fp32, fs);
+            gen_load_fpr32(ctx, fp32, fs);
             gen_helper_float_cvtl_s(fp64, cpu_env, fp32);
             tcg_temp_free_i32(fp32);
             gen_store_fpr64(ctx, fp64, fd);
@@ -9134,15 +9529,14 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "cvt.l.s";
         break;
     case OPC_CVT_PS_S:
-        check_insn_opc_removed(ctx, ISA_MIPS32R6);
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp64 = tcg_temp_new_i64();
             TCGv_i32 fp32_0 = tcg_temp_new_i32();
             TCGv_i32 fp32_1 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp32_0, fs);
-            gen_load_fpr32(fp32_1, ft);
+            gen_load_fpr32(ctx, fp32_0, fs);
+            gen_load_fpr32(ctx, fp32_1, ft);
             tcg_gen_concat_i32_i64(fp64, fp32_1, fp32_0);
             tcg_temp_free_i32(fp32_1);
             tcg_temp_free_i32(fp32_0);
@@ -9175,6 +9569,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_cmp_s(ctx, func-48, ft, fs, cc);
             opn = condnames[func-48];
         }
+        optype = CMPOP;
         break;
     case OPC_ADD_D:
         check_cp1_registers(ctx, fs | ft | fd);
@@ -9344,7 +9739,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_load_fpr64(ctx, fp64, fs);
             gen_helper_float_roundw_d(fp32, cpu_env, fp64);
             tcg_temp_free_i64(fp64);
-            gen_store_fpr32(fp32, fd);
+            gen_store_fpr32(ctx, fp32, fd);
             tcg_temp_free_i32(fp32);
         }
         opn = "round.w.d";
@@ -9358,7 +9753,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_load_fpr64(ctx, fp64, fs);
             gen_helper_float_truncw_d(fp32, cpu_env, fp64);
             tcg_temp_free_i64(fp64);
-            gen_store_fpr32(fp32, fd);
+            gen_store_fpr32(ctx, fp32, fd);
             tcg_temp_free_i32(fp32);
         }
         opn = "trunc.w.d";
@@ -9372,7 +9767,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_load_fpr64(ctx, fp64, fs);
             gen_helper_float_ceilw_d(fp32, cpu_env, fp64);
             tcg_temp_free_i64(fp64);
-            gen_store_fpr32(fp32, fd);
+            gen_store_fpr32(ctx, fp32, fd);
             tcg_temp_free_i32(fp32);
         }
         opn = "ceil.w.d";
@@ -9386,7 +9781,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_load_fpr64(ctx, fp64, fs);
             gen_helper_float_floorw_d(fp32, cpu_env, fp64);
             tcg_temp_free_i64(fp64);
-            gen_store_fpr32(fp32, fd);
+            gen_store_fpr32(ctx, fp32, fd);
             tcg_temp_free_i32(fp32);
         }
         opn = "floor.w.d";
@@ -9659,6 +10054,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_cmp_d(ctx, func-48, ft, fs, cc);
             opn = condnames[func-48];
         }
+        optype = CMPOP;
         break;
     case OPC_CVT_S_D:
         check_cp1_registers(ctx, fs);
@@ -9669,7 +10065,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_load_fpr64(ctx, fp64, fs);
             gen_helper_float_cvts_d(fp32, cpu_env, fp64);
             tcg_temp_free_i64(fp64);
-            gen_store_fpr32(fp32, fd);
+            gen_store_fpr32(ctx, fp32, fd);
             tcg_temp_free_i32(fp32);
         }
         opn = "cvt.s.d";
@@ -9683,7 +10079,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_load_fpr64(ctx, fp64, fs);
             gen_helper_float_cvtw_d(fp32, cpu_env, fp64);
             tcg_temp_free_i64(fp64);
-            gen_store_fpr32(fp32, fd);
+            gen_store_fpr32(ctx, fp32, fd);
             tcg_temp_free_i32(fp32);
         }
         opn = "cvt.w.d";
@@ -9704,9 +10100,9 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_cvts_w(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "cvt.s.w";
@@ -9717,7 +10113,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             TCGv_i32 fp32 = tcg_temp_new_i32();
             TCGv_i64 fp64 = tcg_temp_new_i64();
 
-            gen_load_fpr32(fp32, fs);
+            gen_load_fpr32(ctx, fp32, fs);
             gen_helper_float_cvtd_w(fp64, cpu_env, fp32);
             tcg_temp_free_i32(fp32);
             gen_store_fpr64(ctx, fp64, fd);
@@ -9734,7 +10130,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_load_fpr64(ctx, fp64, fs);
             gen_helper_float_cvts_l(fp32, cpu_env, fp64);
             tcg_temp_free_i64(fp64);
-            gen_store_fpr32(fp32, fd);
+            gen_store_fpr32(ctx, fp32, fd);
             tcg_temp_free_i32(fp32);
         }
         opn = "cvt.s.l";
@@ -9752,8 +10148,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "cvt.d.l";
         break;
     case OPC_CVT_PS_PW:
-        check_insn_opc_removed(ctx, ISA_MIPS32R6);
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -9765,7 +10160,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "cvt.ps.pw";
         break;
     case OPC_ADD_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -9780,7 +10175,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "add.ps";
         break;
     case OPC_SUB_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -9795,7 +10190,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "sub.ps";
         break;
     case OPC_MUL_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -9810,7 +10205,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "mul.ps";
         break;
     case OPC_ABS_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -9822,7 +10217,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "abs.ps";
         break;
     case OPC_MOV_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -9833,7 +10228,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "mov.ps";
         break;
     case OPC_NEG_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -9845,12 +10240,12 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "neg.ps";
         break;
     case OPC_MOVCF_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         gen_movcf_ps(ctx, fs, fd, (ft >> 2) & 0x7, ft & 0x1);
         opn = "movcf.ps";
         break;
     case OPC_MOVZ_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGLabel *l1 = gen_new_label();
             TCGv_i64 fp0;
@@ -9866,7 +10261,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "movz.ps";
         break;
     case OPC_MOVN_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGLabel *l1 = gen_new_label();
             TCGv_i64 fp0;
@@ -9883,7 +10278,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "movn.ps";
         break;
     case OPC_ADDR_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -9898,7 +10293,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "addr.ps";
         break;
     case OPC_MULR_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -9913,7 +10308,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "mulr.ps";
         break;
     case OPC_RECIP2_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -9928,7 +10323,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "recip2.ps";
         break;
     case OPC_RECIP1_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -9940,7 +10335,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "recip1.ps";
         break;
     case OPC_RSQRT1_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -9952,7 +10347,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "rsqrt1.ps";
         break;
     case OPC_RSQRT2_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -9973,13 +10368,13 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
 
             gen_load_fpr32h(ctx, fp0, fs);
             gen_helper_float_cvts_pu(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "cvt.s.pu";
         break;
     case OPC_CVT_PW_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
 
@@ -9995,37 +10390,37 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_helper_float_cvts_pl(fp0, cpu_env, fp0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "cvt.s.pl";
         break;
     case OPC_PLL_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
             gen_store_fpr32h(ctx, fp0, fd);
-            gen_store_fpr32(fp1, fd);
+            gen_store_fpr32(ctx, fp1, fd);
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
         }
         opn = "pll.ps";
         break;
     case OPC_PLU_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32h(ctx, fp1, ft);
-            gen_store_fpr32(fp1, fd);
+            gen_store_fpr32(ctx, fp1, fd);
             gen_store_fpr32h(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
@@ -10033,14 +10428,14 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "plu.ps";
         break;
     case OPC_PUL_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
             gen_load_fpr32h(ctx, fp0, fs);
-            gen_load_fpr32(fp1, ft);
-            gen_store_fpr32(fp1, fd);
+            gen_load_fpr32(ctx, fp1, ft);
+            gen_store_fpr32(ctx, fp1, fd);
             gen_store_fpr32h(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
@@ -10048,14 +10443,14 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
         opn = "pul.ps";
         break;
     case OPC_PUU_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
             TCGv_i32 fp1 = tcg_temp_new_i32();
 
             gen_load_fpr32h(ctx, fp0, fs);
             gen_load_fpr32h(ctx, fp1, ft);
-            gen_store_fpr32(fp1, fd);
+            gen_store_fpr32(ctx, fp1, fd);
             gen_store_fpr32h(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
@@ -10085,6 +10480,7 @@ static void gen_farith (DisasContext *ctx, enum fopcode op1,
             gen_cmp_ps(ctx, func-48, ft, fs, cc);
             opn = condnames[func-48];
         }
+        optype = CMPOP;
         break;
     default:
         MIPS_INVAL(opn);
@@ -10130,7 +10526,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
 
             tcg_gen_qemu_ld_tl(t0, t0, ctx->mem_idx, MO_TESL);
             tcg_gen_trunc_tl_i32(fp0, t0);
-            gen_store_fpr32(fp0, fd);
+            gen_store_fpr32(ctx, fp0, fd);
             tcg_temp_free_i32(fp0);
         }
         opn = "lwxc1";
@@ -10162,7 +10558,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
         check_cop1x(ctx);
         {
             TCGv_i32 fp0 = tcg_temp_new_i32();
-            gen_load_fpr32(fp0, fs);
+            gen_load_fpr32(ctx, fp0, fs);
             tcg_gen_qemu_st_i32(fp0, t0, ctx->mem_idx, MO_TEUL);
             tcg_temp_free_i32(fp0);
         }
@@ -10207,7 +10603,7 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
 
     switch (opc) {
     case OPC_ALNV_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv t0 = tcg_temp_local_new();
             TCGv_i32 fp = tcg_temp_new_i32();
@@ -10219,23 +10615,23 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
             tcg_gen_andi_tl(t0, t0, 0x7);
 
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 0, l1);
-            gen_load_fpr32(fp, fs);
+            gen_load_fpr32(ctx, fp, fs);
             gen_load_fpr32h(ctx, fph, fs);
-            gen_store_fpr32(fp, fd);
+            gen_store_fpr32(ctx, fp, fd);
             gen_store_fpr32h(ctx, fph, fd);
             tcg_gen_br(l2);
             gen_set_label(l1);
             tcg_gen_brcondi_tl(TCG_COND_NE, t0, 4, l2);
             tcg_temp_free(t0);
 #ifdef TARGET_WORDS_BIGENDIAN
-            gen_load_fpr32(fp, fs);
+            gen_load_fpr32(ctx, fp, fs);
             gen_load_fpr32h(ctx, fph, ft);
             gen_store_fpr32h(ctx, fp, fd);
-            gen_store_fpr32(fph, fd);
+            gen_store_fpr32(ctx, fph, fd);
 #else
             gen_load_fpr32h(ctx, fph, fs);
-            gen_load_fpr32(fp, ft);
-            gen_store_fpr32(fph, fd);
+            gen_load_fpr32(ctx, fp, ft);
+            gen_store_fpr32(ctx, fph, fd);
             gen_store_fpr32h(ctx, fp, fd);
 #endif
             gen_set_label(l2);
@@ -10251,13 +10647,13 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
             TCGv_i32 fp1 = tcg_temp_new_i32();
             TCGv_i32 fp2 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
-            gen_load_fpr32(fp2, fr);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
+            gen_load_fpr32(ctx, fp2, fr);
             gen_helper_float_madd_s(fp2, cpu_env, fp0, fp1, fp2);
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp2, fd);
+            gen_store_fpr32(ctx, fp2, fd);
             tcg_temp_free_i32(fp2);
         }
         opn = "madd.s";
@@ -10282,7 +10678,7 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
         opn = "madd.d";
         break;
     case OPC_MADD_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -10306,13 +10702,13 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
             TCGv_i32 fp1 = tcg_temp_new_i32();
             TCGv_i32 fp2 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
-            gen_load_fpr32(fp2, fr);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
+            gen_load_fpr32(ctx, fp2, fr);
             gen_helper_float_msub_s(fp2, cpu_env, fp0, fp1, fp2);
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp2, fd);
+            gen_store_fpr32(ctx, fp2, fd);
             tcg_temp_free_i32(fp2);
         }
         opn = "msub.s";
@@ -10337,7 +10733,7 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
         opn = "msub.d";
         break;
     case OPC_MSUB_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -10361,13 +10757,13 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
             TCGv_i32 fp1 = tcg_temp_new_i32();
             TCGv_i32 fp2 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
-            gen_load_fpr32(fp2, fr);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
+            gen_load_fpr32(ctx, fp2, fr);
             gen_helper_float_nmadd_s(fp2, cpu_env, fp0, fp1, fp2);
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp2, fd);
+            gen_store_fpr32(ctx, fp2, fd);
             tcg_temp_free_i32(fp2);
         }
         opn = "nmadd.s";
@@ -10392,7 +10788,7 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
         opn = "nmadd.d";
         break;
     case OPC_NMADD_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -10416,13 +10812,13 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
             TCGv_i32 fp1 = tcg_temp_new_i32();
             TCGv_i32 fp2 = tcg_temp_new_i32();
 
-            gen_load_fpr32(fp0, fs);
-            gen_load_fpr32(fp1, ft);
-            gen_load_fpr32(fp2, fr);
+            gen_load_fpr32(ctx, fp0, fs);
+            gen_load_fpr32(ctx, fp1, ft);
+            gen_load_fpr32(ctx, fp2, fr);
             gen_helper_float_nmsub_s(fp2, cpu_env, fp0, fp1, fp2);
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
-            gen_store_fpr32(fp2, fd);
+            gen_store_fpr32(ctx, fp2, fd);
             tcg_temp_free_i32(fp2);
         }
         opn = "nmsub.s";
@@ -10447,7 +10843,7 @@ static void gen_flt3_arith (DisasContext *ctx, uint32_t opc,
         opn = "nmsub.d";
         break;
     case OPC_NMSUB_PS:
-        check_cp1_64bitmode(ctx);
+        check_ps(ctx);
         {
             TCGv_i64 fp0 = tcg_temp_new_i64();
             TCGv_i64 fp1 = tcg_temp_new_i64();
@@ -10611,6 +11007,243 @@ static void gen_branch(DisasContext *ctx, int insn_bytes)
             abort();
         }
     }
+}
+
+/* Compact Branches */
+static void gen_compute_compact_branch(DisasContext *ctx, uint32_t opc,
+                                       int rs, int rt, int32_t offset)
+{
+    int bcond_compute = 0;
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
+    int m16_lowbit = (ctx->hflags & MIPS_HFLAG_M16) != 0;
+
+    if (ctx->hflags & MIPS_HFLAG_BMASK) {
+#ifdef MIPS_DEBUG_DISAS
+        LOG_DISAS("Branch in delay / forbidden slot at PC 0x" TARGET_FMT_lx
+                  "\n", ctx->pc);
+#endif
+        generate_exception(ctx, EXCP_RI);
+        goto out;
+    }
+
+    /* Load needed operands and calculate btarget */
+    switch (opc) {
+    /* compact branch */
+    case OPC_BOVC: /* OPC_BEQZALC, OPC_BEQC */
+    case OPC_BNVC: /* OPC_BNEZALC, OPC_BNEC */
+        gen_load_gpr(t0, rs);
+        gen_load_gpr(t1, rt);
+        bcond_compute = 1;
+        ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
+        if (rs <= rt && rs == 0) {
+            /* OPC_BEQZALC, OPC_BNEZALC */
+            tcg_gen_movi_tl(cpu_gpr[31], ctx->pc + 4 + m16_lowbit);
+        }
+        break;
+    case OPC_BLEZC: /* OPC_BGEZC, OPC_BGEC */
+    case OPC_BGTZC: /* OPC_BLTZC, OPC_BLTC */
+        gen_load_gpr(t0, rs);
+        gen_load_gpr(t1, rt);
+        bcond_compute = 1;
+        ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
+        break;
+    case OPC_BLEZALC: /* OPC_BGEZALC, OPC_BGEUC */
+    case OPC_BGTZALC: /* OPC_BLTZALC, OPC_BLTUC */
+        if (rs == 0 || rs == rt) {
+            /* OPC_BLEZALC, OPC_BGEZALC */
+            /* OPC_BGTZALC, OPC_BLTZALC */
+            tcg_gen_movi_tl(cpu_gpr[31], ctx->pc + 4 + m16_lowbit);
+        }
+        gen_load_gpr(t0, rs);
+        gen_load_gpr(t1, rt);
+        bcond_compute = 1;
+        ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
+        break;
+    case OPC_BC:
+    case OPC_BALC:
+        ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
+        break;
+    case OPC_BEQZC:
+    case OPC_BNEZC:
+        if (rs != 0) {
+            /* OPC_BEQZC, OPC_BNEZC */
+            gen_load_gpr(t0, rs);
+            bcond_compute = 1;
+            ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
+        } else {
+            /* OPC_JIC, OPC_JIALC */
+            TCGv tbase = tcg_temp_new();
+            TCGv toffset = tcg_temp_new();
+
+            gen_load_gpr(tbase, rt);
+            tcg_gen_movi_tl(toffset, offset);
+            gen_op_addr_add(ctx, btarget, tbase, toffset);
+            tcg_temp_free(tbase);
+            tcg_temp_free(toffset);
+        }
+        break;
+    default:
+        MIPS_INVAL("Compact branch/jump");
+        generate_exception(ctx, EXCP_RI);
+        goto out;
+    }
+
+    if (bcond_compute == 0) {
+        /* Uncoditional compact branch */
+        switch (opc) {
+        case OPC_JIALC:
+            tcg_gen_movi_tl(cpu_gpr[31], ctx->pc + 4 + m16_lowbit);
+            /* Fallthrough */
+        case OPC_JIC:
+            ctx->hflags |= MIPS_HFLAG_BR;
+            break;
+        case OPC_BALC:
+            tcg_gen_movi_tl(cpu_gpr[31], ctx->pc + 4 + m16_lowbit);
+            /* Fallthrough */
+        case OPC_BC:
+            ctx->hflags |= MIPS_HFLAG_B;
+            break;
+        default:
+            MIPS_INVAL("Compact branch/jump");
+            generate_exception(ctx, EXCP_RI);
+            goto out;
+        }
+
+        /* Generating branch here as compact branches don't have delay slot */
+        gen_branch(ctx, 4);
+    } else {
+        /* Conditional compact branch */
+        TCGLabel *fs = gen_new_label();
+        save_cpu_state(ctx, 0);
+
+        switch (opc) {
+        case OPC_BLEZALC: /* OPC_BGEZALC, OPC_BGEUC */
+            if (rs == 0 && rt != 0) {
+                /* OPC_BLEZALC */
+                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LE), t1, 0, fs);
+            } else if (rs != 0 && rt != 0 && rs == rt) {
+                /* OPC_BGEZALC */
+                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GE), t1, 0, fs);
+            } else {
+                /* OPC_BGEUC */
+                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_GEU), t0, t1, fs);
+            }
+            break;
+        case OPC_BGTZALC: /* OPC_BLTZALC, OPC_BLTUC */
+            if (rs == 0 && rt != 0) {
+                /* OPC_BGTZALC */
+                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GT), t1, 0, fs);
+            } else if (rs != 0 && rt != 0 && rs == rt) {
+                /* OPC_BLTZALC */
+                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LT), t1, 0, fs);
+            } else {
+                /* OPC_BLTUC */
+                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_LTU), t0, t1, fs);
+            }
+            break;
+        case OPC_BLEZC: /* OPC_BGEZC, OPC_BGEC */
+            if (rs == 0 && rt != 0) {
+                /* OPC_BLEZC */
+                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LE), t1, 0, fs);
+            } else if (rs != 0 && rt != 0 && rs == rt) {
+                /* OPC_BGEZC */
+                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GE), t1, 0, fs);
+            } else {
+                /* OPC_BGEC */
+                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_GE), t0, t1, fs);
+            }
+            break;
+        case OPC_BGTZC: /* OPC_BLTZC, OPC_BLTC */
+            if (rs == 0 && rt != 0) {
+                /* OPC_BGTZC */
+                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GT), t1, 0, fs);
+            } else if (rs != 0 && rt != 0 && rs == rt) {
+                /* OPC_BLTZC */
+                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LT), t1, 0, fs);
+            } else {
+                /* OPC_BLTC */
+                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_LT), t0, t1, fs);
+            }
+            break;
+        case OPC_BOVC: /* OPC_BEQZALC, OPC_BEQC */
+        case OPC_BNVC: /* OPC_BNEZALC, OPC_BNEC */
+            if (rs >= rt) {
+                /* OPC_BOVC, OPC_BNVC */
+                TCGv t2 = tcg_temp_new();
+                TCGv t3 = tcg_temp_new();
+                TCGv t4 = tcg_temp_new();
+                TCGv input_overflow = tcg_temp_new();
+
+                gen_load_gpr(t0, rs);
+                gen_load_gpr(t1, rt);
+                tcg_gen_ext32s_tl(t2, t0);
+                tcg_gen_setcond_tl(TCG_COND_NE, input_overflow, t2, t0);
+                tcg_gen_ext32s_tl(t3, t1);
+                tcg_gen_setcond_tl(TCG_COND_NE, t4, t3, t1);
+                tcg_gen_or_tl(input_overflow, input_overflow, t4);
+
+                tcg_gen_add_tl(t4, t2, t3);
+                tcg_gen_ext32s_tl(t4, t4);
+                tcg_gen_xor_tl(t2, t2, t3);
+                tcg_gen_xor_tl(t3, t4, t3);
+                tcg_gen_andc_tl(t2, t3, t2);
+                tcg_gen_setcondi_tl(TCG_COND_LT, t4, t2, 0);
+                tcg_gen_or_tl(t4, t4, input_overflow);
+                if (opc == OPC_BOVC) {
+                    /* OPC_BOVC */
+                    tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_NE), t4, 0, fs);
+                } else {
+                    /* OPC_BNVC */
+                    tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_EQ), t4, 0, fs);
+                }
+                tcg_temp_free(input_overflow);
+                tcg_temp_free(t4);
+                tcg_temp_free(t3);
+                tcg_temp_free(t2);
+            } else if (rs < rt && rs == 0) {
+                /* OPC_BEQZALC, OPC_BNEZALC */
+                if (opc == OPC_BEQZALC) {
+                    /* OPC_BEQZALC */
+                    tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_EQ), t1, 0, fs);
+                } else {
+                    /* OPC_BNEZALC */
+                    tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_NE), t1, 0, fs);
+                }
+            } else {
+                /* OPC_BEQC, OPC_BNEC */
+                if (opc == OPC_BEQC) {
+                    /* OPC_BEQC */
+                    tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_EQ), t0, t1, fs);
+                } else {
+                    /* OPC_BNEC */
+                    tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_NE), t0, t1, fs);
+                }
+            }
+            break;
+        case OPC_BEQZC:
+            tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_EQ), t0, 0, fs);
+            break;
+        case OPC_BNEZC:
+            tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_NE), t0, 0, fs);
+            break;
+        default:
+            MIPS_INVAL("Compact conditional branch/jump");
+            generate_exception(ctx, EXCP_RI);
+            goto out;
+        }
+
+        /* Generating branch here as compact branches don't have delay slot */
+        gen_goto_tb(ctx, 1, ctx->btarget);
+        gen_set_label(fs);
+
+        ctx->hflags |= MIPS_HFLAG_FBNSLOT;
+        MIPS_DEBUG("Compact conditional branch");
+    }
+
+out:
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
 }
 
 /* ISA extensions (ASEs) */
@@ -11278,6 +11911,15 @@ static int decode_extended_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
     return 4;
 }
 
+static inline bool is_uhi(int sdbbp_code)
+{
+#ifdef CONFIG_USER_ONLY
+    return false;
+#else
+    return semihosting_enabled() && sdbbp_code == 1;
+#endif
+}
+
 static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
 {
     int rx, ry;
@@ -11577,13 +12219,13 @@ static int decode_mips16_opc (CPUMIPSState *env, DisasContext *ctx)
             }
             break;
         case RR_SDBBP:
-            /* XXX: not clear which exception should be raised
-             *      when in debug mode...
-             */
-            check_insn(ctx, ISA_MIPS32);
-            if (!(ctx->hflags & MIPS_HFLAG_DM)) {
-                generate_exception(ctx, EXCP_DBp);
+            if (is_uhi(extract32(ctx->opcode, 5, 6))) {
+                gen_helper_do_semihosting(cpu_env);
             } else {
+                /* XXX: not clear which exception should be raised
+                 *      when in debug mode...
+                 */
+                check_insn(ctx, ISA_MIPS32);
                 generate_exception(ctx, EXCP_DBp);
             }
             break;
@@ -11767,6 +12409,8 @@ enum {
     LBU16 = 0x02,
     MOVE16 = 0x03,
     ADDI32 = 0x04,
+    R6_LUI = 0x04,
+    AUI = 0x04,
     LBU32 = 0x05,
     SB32 = 0x06,
     LB32 = 0x07,
@@ -11789,54 +12433,86 @@ enum {
     POOL32S = 0x16,  /* MIPS64 */
     DADDIU32 = 0x17, /* MIPS64 */
 
-    /* 0x1f is reserved */
     POOL32C = 0x18,
     LWGP16 = 0x19,
     LW16 = 0x1a,
     POOL16E = 0x1b,
     XORI32 = 0x1c,
     JALS32 = 0x1d,
+    BOVC = 0x1d,
+    BEQC = 0x1d,
+    BEQZALC = 0x1d,
     ADDIUPC = 0x1e,
+    PCREL = 0x1e,
+    BNVC = 0x1f,
+    BNEC = 0x1f,
+    BNEZALC = 0x1f,
 
-    /* 0x20 is reserved */
-    RES_20 = 0x20,
+    R6_BEQZC = 0x20,
+    JIC = 0x20,
     POOL16F = 0x21,
     SB16 = 0x22,
     BEQZ16 = 0x23,
+    BEQZC16 = 0x23,
     SLTI32 = 0x24,
     BEQ32 = 0x25,
+    BC = 0x25,
     SWC132 = 0x26,
     LWC132 = 0x27,
 
-    /* 0x28 and 0x29 are reserved */
-    RES_28 = 0x28,
+    /* 0x29 is reserved */
     RES_29 = 0x29,
+    R6_BNEZC = 0x28,
+    JIALC = 0x28,
     SH16 = 0x2a,
     BNEZ16 = 0x2b,
+    BNEZC16 = 0x2b,
     SLTIU32 = 0x2c,
     BNE32 = 0x2d,
+    BALC = 0x2d,
     SDC132 = 0x2e,
     LDC132 = 0x2f,
 
-    /* 0x30 and 0x31 are reserved */
-    RES_30 = 0x30,
+    /* 0x31 is reserved */
     RES_31 = 0x31,
+    BLEZALC = 0x30,
+    BGEZALC = 0x30,
+    BGEUC = 0x30,
     SWSP16 = 0x32,
     B16 = 0x33,
+    BC16 = 0x33,
     ANDI32 = 0x34,
     J32 = 0x35,
+    BGTZC = 0x35,
+    BLTZC = 0x35,
+    BLTC = 0x35,
     SD32 = 0x36, /* MIPS64 */
     LD32 = 0x37, /* MIPS64 */
 
-    /* 0x38 and 0x39 are reserved */
-    RES_38 = 0x38,
+    /* 0x39 is reserved */
     RES_39 = 0x39,
+    BGTZALC = 0x38,
+    BLTZALC = 0x38,
+    BLTUC = 0x38,
     SW16 = 0x3a,
     LI16 = 0x3b,
     JALX32 = 0x3c,
     JAL32 = 0x3d,
+    BLEZC = 0x3d,
+    BGEZC = 0x3d,
+    BGEC = 0x3d,
     SW32 = 0x3e,
     LW32 = 0x3f
+};
+
+/* PCREL Instructions perform PC-Relative address calculation. bits 20..16 */
+enum {
+    ADDIUPC_00 = 0x00,
+    ADDIUPC_07 = 0x07,
+    AUIPC = 0x1e,
+    ALUIPC = 0x1f,
+    LWPC_08 = 0x08,
+    LWPC_0F = 0x0F,
 };
 
 /* POOL32A encoding of minor opcode field */
@@ -11848,6 +12524,8 @@ enum {
     SRL32 = 0x1,
     SRA = 0x2,
     ROTR = 0x3,
+    SELEQZ = 0x5,
+    SELNEZ = 0x6,
 
     SLLV = 0x0,
     SRLV = 0x1,
@@ -11866,11 +12544,21 @@ enum {
     SLTU = 0xe,
 
     MOVN = 0x0,
+    R6_MUL  = 0x0,
     MOVZ = 0x1,
+    MUH  = 0x1,
+    MULU = 0x2,
+    MUHU = 0x3,
     LWXS = 0x4,
+    R6_DIV  = 0x4,
+    MOD  = 0x5,
+    R6_DIVU = 0x6,
+    MODU = 0x7,
 
     /* The following can be distinguished by their lower 6 bits. */
     INS = 0x0c,
+    LSA = 0x0f,
+    ALIGN = 0x1f,
     EXT = 0x2c,
     POOL32AXF = 0x3c
 };
@@ -11923,6 +12611,7 @@ enum {
     /* end of microMIPS32 DSP */
 
     /* bits 15..12 for 0x2c */
+    BITSWAP = 0x0,
     SEB = 0x2,
     SEH = 0x3,
     CLO = 0x4,
@@ -11949,7 +12638,10 @@ enum {
     /* bits 15..12 for 0x3c */
     JALR = 0x0,
     JR = 0x0,                   /* alias */
+    JALRC = 0x0,
+    JRC = 0x0,
     JALR_HB = 0x1,
+    JALRC_HB = 0x1,
     JALRS = 0x4,
     JALRS_HB = 0x5,
 
@@ -11962,6 +12654,8 @@ enum {
     TLBR = 0x1,
     TLBWI = 0x2,
     TLBWR = 0x3,
+    TLBINV = 0x4,
+    TLBINVF = 0x5,
     WAIT = 0x9,
     IRET = 0xd,
     DERET = 0xe,
@@ -12031,32 +12725,39 @@ enum {
 enum {
     /* These are the bit 7..6 values */
     ADD_FMT = 0x0,
-    MOVN_FMT = 0x0,
 
     SUB_FMT = 0x1,
-    MOVZ_FMT = 0x1,
 
     MUL_FMT = 0x2,
 
     DIV_FMT = 0x3,
 
     /* These are the bit 8..6 values */
+    MOVN_FMT = 0x0,
     RSQRT2_FMT = 0x0,
     MOVF_FMT = 0x0,
+    RINT_FMT = 0x0,
+    SELNEZ_FMT = 0x0,
 
+    MOVZ_FMT = 0x1,
     LWXC1 = 0x1,
     MOVT_FMT = 0x1,
+    CLASS_FMT = 0x1,
+    SELEQZ_FMT = 0x1,
 
     PLL_PS = 0x2,
     SWXC1 = 0x2,
+    SEL_FMT = 0x2,
 
     PLU_PS = 0x3,
     LDXC1 = 0x3,
 
+    MOVN_FMT_04 = 0x4,
     PUL_PS = 0x4,
     SDXC1 = 0x4,
     RECIP2_FMT = 0x4,
 
+    MOVZ_FMT_05 = 0x05,
     PUU_PS = 0x5,
     LUXC1 = 0x5,
 
@@ -12064,8 +12765,10 @@ enum {
     SUXC1 = 0x6,
     ADDR_PS = 0x6,
     PREFX = 0x6,
+    MADDF_FMT = 0x6,
 
     MULR_PS = 0x7,
+    MSUBF_FMT = 0x7,
 
     MADD_S = 0x01,
     MADD_D = 0x09,
@@ -12082,10 +12785,17 @@ enum {
     NMSUB_D = 0x2a,
     NMSUB_PS = 0x32,
 
+    MIN_FMT = 0x3,
+    MAX_FMT = 0xb,
+    MINA_FMT = 0x23,
+    MAXA_FMT = 0x2b,
     POOL32FXF = 0x3b,
 
     CABS_COND_FMT = 0x1c,              /* MIPS3D */
-    C_COND_FMT = 0x3c
+    C_COND_FMT = 0x3c,
+
+    CMP_CONDN_S = 0x5,
+    CMP_CONDN_D = 0x15
 };
 
 /* POOL32Fxf encoding of minor opcode extension field */
@@ -12138,10 +12848,15 @@ enum {
     BGTZ = 0x06,
     BEQZC = 0x07,
     TLTI = 0x08,
+    BC1EQZC = 0x08,
     TGEI = 0x09,
+    BC1NEZC = 0x09,
     TLTIU = 0x0a,
+    BC2EQZC = 0x0a,
     TGEIU = 0x0b,
+    BC2NEZC = 0x0a,
     TNEI = 0x0c,
+    R6_SYNCI = 0x0c,
     LUI = 0x0d,
     TEQI = 0x0e,
     SYNCI = 0x10,
@@ -12192,6 +12907,26 @@ enum {
     BREAK16 = 0x28,
     SDBBP16 = 0x2c,
     JRADDIUSP = 0x30
+};
+
+/* R6 POOL16C encoding of minor opcode field (bits 0..5) */
+
+enum {
+    R6_NOT16    = 0x00,
+    R6_AND16    = 0x01,
+    R6_LWM16    = 0x02,
+    R6_JRC16    = 0x03,
+    MOVEP       = 0x04,
+    MOVEP_07    = 0x07,
+    R6_XOR16    = 0x08,
+    R6_OR16     = 0x09,
+    R6_SWM16    = 0x0a,
+    JALRC16     = 0x0b,
+    MOVEP_0C    = 0x0c,
+    MOVEP_0F    = 0x0f,
+    JRCADDIUSP  = 0x13,
+    R6_BREAK16  = 0x1b,
+    R6_SDBBP16  = 0x3b
 };
 
 /* POOL16D encoding of minor opcode field */
@@ -12432,13 +13167,13 @@ static void gen_pool16c_insn(DisasContext *ctx)
         generate_exception(ctx, EXCP_BREAK);
         break;
     case SDBBP16:
-        /* XXX: not clear which exception should be raised
-         *      when in debug mode...
-         */
-        check_insn(ctx, ISA_MIPS32);
-        if (!(ctx->hflags & MIPS_HFLAG_DM)) {
-            generate_exception(ctx, EXCP_DBp);
+        if (is_uhi(extract32(ctx->opcode, 0, 4))) {
+            gen_helper_do_semihosting(cpu_env);
         } else {
+            /* XXX: not clear which exception should be raised
+             *      when in debug mode...
+             */
+            check_insn(ctx, ISA_MIPS32);
             generate_exception(ctx, EXCP_DBp);
         }
         break;
@@ -12450,6 +13185,114 @@ static void gen_pool16c_insn(DisasContext *ctx)
             gen_arith_imm(ctx, OPC_ADDIU, 29, 29, imm << 2);
             /* Let normal delay slot handling in our caller take us
                to the branch target.  */
+        }
+        break;
+    default:
+        generate_exception(ctx, EXCP_RI);
+        break;
+    }
+}
+
+static inline void gen_movep(DisasContext *ctx, int enc_dest, int enc_rt,
+                             int enc_rs)
+{
+    int rd, rs, re, rt;
+    static const int rd_enc[] = { 5, 5, 6, 4, 4, 4, 4, 4 };
+    static const int re_enc[] = { 6, 7, 7, 21, 22, 5, 6, 7 };
+    static const int rs_rt_enc[] = { 0, 17, 2, 3, 16, 18, 19, 20 };
+    rd = rd_enc[enc_dest];
+    re = re_enc[enc_dest];
+    rs = rs_rt_enc[enc_rs];
+    rt = rs_rt_enc[enc_rt];
+    if (rs) {
+        tcg_gen_mov_tl(cpu_gpr[rd], cpu_gpr[rs]);
+    } else {
+        tcg_gen_movi_tl(cpu_gpr[rd], 0);
+    }
+    if (rt) {
+        tcg_gen_mov_tl(cpu_gpr[re], cpu_gpr[rt]);
+    } else {
+        tcg_gen_movi_tl(cpu_gpr[re], 0);
+    }
+}
+
+static void gen_pool16c_r6_insn(DisasContext *ctx)
+{
+    int rt = mmreg((ctx->opcode >> 7) & 0x7);
+    int rs = mmreg((ctx->opcode >> 4) & 0x7);
+
+    switch (ctx->opcode & 0xf) {
+    case R6_NOT16:
+        gen_logic(ctx, OPC_NOR, rt, rs, 0);
+        break;
+    case R6_AND16:
+        gen_logic(ctx, OPC_AND, rt, rt, rs);
+        break;
+    case R6_LWM16:
+        {
+            int lwm_converted = 0x11 + extract32(ctx->opcode, 8, 2);
+            int offset = extract32(ctx->opcode, 4, 4);
+            gen_ldst_multiple(ctx, LWM32, lwm_converted, 29, offset << 2);
+        }
+        break;
+    case R6_JRC16: /* JRCADDIUSP */
+        if ((ctx->opcode >> 4) & 1) {
+            /* JRCADDIUSP */
+            int imm = extract32(ctx->opcode, 5, 5);
+            gen_compute_branch(ctx, OPC_JR, 2, 31, 0, 0, 0);
+            gen_arith_imm(ctx, OPC_ADDIU, 29, 29, imm << 2);
+        } else {
+            /* JRC16 */
+            int rs = extract32(ctx->opcode, 5, 5);
+            gen_compute_branch(ctx, OPC_JR, 2, rs, 0, 0, 0);
+        }
+        break;
+    case MOVEP ... MOVEP_07:
+    case MOVEP_0C ... MOVEP_0F:
+        {
+            int enc_dest = uMIPS_RD(ctx->opcode);
+            int enc_rt = uMIPS_RS2(ctx->opcode);
+            int enc_rs = (ctx->opcode & 3) | ((ctx->opcode >> 1) & 4);
+            gen_movep(ctx, enc_dest, enc_rt, enc_rs);
+        }
+        break;
+    case R6_XOR16:
+        gen_logic(ctx, OPC_XOR, rt, rt, rs);
+        break;
+    case R6_OR16:
+        gen_logic(ctx, OPC_OR, rt, rt, rs);
+        break;
+    case R6_SWM16:
+        {
+            int swm_converted = 0x11 + extract32(ctx->opcode, 8, 2);
+            int offset = extract32(ctx->opcode, 4, 4);
+            gen_ldst_multiple(ctx, SWM32, swm_converted, 29, offset << 2);
+        }
+        break;
+    case JALRC16: /* BREAK16, SDBBP16 */
+        switch (ctx->opcode & 0x3f) {
+        case JALRC16:
+        case JALRC16 + 0x20:
+            /* JALRC16 */
+            gen_compute_branch(ctx, OPC_JALR, 2, (ctx->opcode >> 5) & 0x1f,
+                               31, 0, 0);
+            break;
+        case R6_BREAK16:
+            /* BREAK16 */
+            generate_exception(ctx, EXCP_BREAK);
+            break;
+        case R6_SDBBP16:
+            /* SDBBP16 */
+            if (is_uhi(extract32(ctx->opcode, 6, 4))) {
+                gen_helper_do_semihosting(cpu_env);
+            } else {
+                if (ctx->hflags & MIPS_HFLAG_SBRI) {
+                    generate_exception(ctx, EXCP_RI);
+                } else {
+                    generate_exception(ctx, EXCP_DBp);
+                }
+            }
+            break;
         }
         break;
     default:
@@ -12629,6 +13472,10 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
         break;
     case 0x2c:
         switch (minor) {
+        case BITSWAP:
+            check_insn(ctx, ISA_MIPS32R6);
+            gen_bitswap(ctx, OPC_BITSWAP, rs, rt);
+            break;
         case SEB:
             gen_bshfl(ctx, OPC_SEB, rs, rt);
             break;
@@ -12651,15 +13498,19 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             gen_bshfl(ctx, OPC_WSBH, rs, rt);
             break;
         case MULT:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_MULT;
             goto do_mul;
         case MULTU:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_MULTU;
             goto do_mul;
         case DIV:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_DIV;
             goto do_div;
         case DIVU:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_DIVU;
             goto do_div;
         do_div:
@@ -12667,15 +13518,19 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             gen_muldiv(ctx, mips32_op, 0, rs, rt);
             break;
         case MADD:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_MADD;
             goto do_mul;
         case MADDU:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_MADDU;
             goto do_mul;
         case MSUB:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_MSUB;
             goto do_mul;
         case MSUBU:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_MSUBU;
         do_mul:
             check_insn(ctx, ISA_MIPS32);
@@ -12701,13 +13556,20 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
         break;
     case 0x3c:
         switch (minor) {
-        case JALR:
-        case JALR_HB:
-            gen_compute_branch(ctx, OPC_JALR, 4, rs, rt, 0, 4);
-            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+        case JALR:    /* JALRC */
+        case JALR_HB: /* JALRC_HB */
+            if (ctx->insn_flags & ISA_MIPS32R6) {
+                /* JALRC, JALRC_HB */
+                gen_compute_branch(ctx, OPC_JALR, 4, rs, rt, 0, 0);
+            } else {
+                /* JALR, JALR_HB */
+                gen_compute_branch(ctx, OPC_JALR, 4, rs, rt, 0, 4);
+                ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+            }
             break;
         case JALRS:
         case JALRS_HB:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_JALR, 4, rs, rt, 0, 2);
             ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
             break;
@@ -12720,12 +13582,12 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
         case RDPGPR:
             check_cp0_enabled(ctx);
             check_insn(ctx, ISA_MIPS32R2);
-            gen_load_srsgpr(rt, rs);
+            gen_load_srsgpr(rs, rt);
             break;
         case WRPGPR:
             check_cp0_enabled(ctx);
             check_insn(ctx, ISA_MIPS32R2);
-            gen_store_srsgpr(rt, rs);
+            gen_store_srsgpr(rs, rt);
             break;
         default:
             goto pool32axf_invalid;
@@ -12745,6 +13607,12 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             goto do_cp0;
         case TLBWR:
             mips32_op = OPC_TLBWR;
+            goto do_cp0;
+        case TLBINV:
+            mips32_op = OPC_TLBINV;
+            goto do_cp0;
+        case TLBINVF:
+            mips32_op = OPC_TLBINVF;
             goto do_cp0;
         case WAIT:
             mips32_op = OPC_WAIT;
@@ -12804,11 +13672,15 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
             ctx->bstate = BS_STOP;
             break;
         case SDBBP:
-            check_insn(ctx, ISA_MIPS32);
-            if (!(ctx->hflags & MIPS_HFLAG_DM)) {
-                generate_exception(ctx, EXCP_DBp);
+            if (is_uhi(extract32(ctx->opcode, 16, 10))) {
+                gen_helper_do_semihosting(cpu_env);
             } else {
-                generate_exception(ctx, EXCP_DBp);
+                check_insn(ctx, ISA_MIPS32);
+                if (ctx->hflags & MIPS_HFLAG_SBRI) {
+                    generate_exception(ctx, EXCP_RI);
+                } else {
+                    generate_exception(ctx, EXCP_DBp);
+                }
             }
             break;
         default:
@@ -12834,6 +13706,7 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs)
         }
         break;
     case 0x35:
+        check_insn_opc_removed(ctx, ISA_MIPS32R6);
         switch (minor) {
         case MFHI32:
             gen_HILO(ctx, OPC_MFHI, 0, rs);
@@ -13106,6 +13979,7 @@ static void gen_pool32fxf(DisasContext *ctx, int rt, int rs)
     case COND_FLOAT_MOV(MOVT, 5):
     case COND_FLOAT_MOV(MOVT, 6):
     case COND_FLOAT_MOV(MOVT, 7):
+        check_insn_opc_removed(ctx, ISA_MIPS32R6);
         gen_movci(ctx, rt, rs, (ctx->opcode >> 13) & 0x7, 1);
         break;
     case COND_FLOAT_MOV(MOVF, 0):
@@ -13116,6 +13990,7 @@ static void gen_pool32fxf(DisasContext *ctx, int rt, int rs)
     case COND_FLOAT_MOV(MOVF, 5):
     case COND_FLOAT_MOV(MOVF, 6):
     case COND_FLOAT_MOV(MOVF, 7):
+        check_insn_opc_removed(ctx, ISA_MIPS32R6);
         gen_movci(ctx, rt, rs, (ctx->opcode >> 13) & 0x7, 0);
         break;
     default:
@@ -13125,8 +14000,7 @@ static void gen_pool32fxf(DisasContext *ctx, int rt, int rs)
     }
 }
 
-static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
-                                    uint16_t insn_hw1)
+static void decode_micromips32_opc(CPUMIPSState *env, DisasContext *ctx)
 {
     int32_t offset;
     uint16_t insn;
@@ -13166,6 +14040,14 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             do_shifti:
                 gen_shift_imm(ctx, mips32_op, rt, rs, rd);
                 break;
+            case SELEQZ:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_cond_move(ctx, OPC_SELEQZ, rd, rs, rt);
+                break;
+            case SELNEZ:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_cond_move(ctx, OPC_SELNEZ, rd, rs, rt);
+                break;
             default:
                 goto pool32a_invalid;
             }
@@ -13187,6 +14069,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                 mips32_op = OPC_SUBU;
                 goto do_arith;
             case MUL:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_MUL;
             do_arith:
                 gen_arith(ctx, mips32_op, rd, rs, rt);
@@ -13238,16 +14121,52 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             minor = (ctx->opcode >> 6) & 0xf;
             switch (minor) {
                 /* Conditional moves */
-            case MOVN:
-                mips32_op = OPC_MOVN;
-                goto do_cmov;
-            case MOVZ:
-                mips32_op = OPC_MOVZ;
-            do_cmov:
-                gen_cond_move(ctx, mips32_op, rd, rs, rt);
+            case MOVN: /* MUL */
+                if (ctx->insn_flags & ISA_MIPS32R6) {
+                    /* MUL */
+                    gen_r6_muldiv(ctx, R6_OPC_MUL, rd, rs, rt);
+                } else {
+                    /* MOVN */
+                    gen_cond_move(ctx, OPC_MOVN, rd, rs, rt);
+                }
                 break;
-            case LWXS:
-                gen_ldxs(ctx, rs, rt, rd);
+            case MOVZ: /* MUH */
+                if (ctx->insn_flags & ISA_MIPS32R6) {
+                    /* MUH */
+                    gen_r6_muldiv(ctx, R6_OPC_MUH, rd, rs, rt);
+                } else {
+                    /* MOVZ */
+                    gen_cond_move(ctx, OPC_MOVZ, rd, rs, rt);
+                }
+                break;
+            case MULU:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_MULU, rd, rs, rt);
+                break;
+            case MUHU:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_MUHU, rd, rs, rt);
+                break;
+            case LWXS: /* DIV */
+                if (ctx->insn_flags & ISA_MIPS32R6) {
+                    /* DIV */
+                    gen_r6_muldiv(ctx, R6_OPC_DIV, rd, rs, rt);
+                } else {
+                    /* LWXS */
+                    gen_ldxs(ctx, rs, rt, rd);
+                }
+                break;
+            case MOD:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_MOD, rd, rs, rt);
+                break;
+            case R6_DIVU:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_DIVU, rd, rs, rt);
+                break;
+            case MODU:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_muldiv(ctx, R6_OPC_MODU, rd, rs, rt);
                 break;
             default:
                 goto pool32a_invalid;
@@ -13256,6 +14175,16 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         case INS:
             gen_bitops(ctx, OPC_INS, rt, rs, rr, rd);
             return;
+        case LSA:
+            check_insn(ctx, ISA_MIPS32R6);
+            gen_lsa(ctx, OPC_LSA, rd, rs, rt,
+                    extract32(ctx->opcode, 9, 2));
+            break;
+        case ALIGN:
+            check_insn(ctx, ISA_MIPS32R6);
+            gen_align(ctx, OPC_ALIGN, rd, rs, rt,
+                      extract32(ctx->opcode, 9, 2));
+            break;
         case EXT:
             gen_bitops(ctx, OPC_EXT, rt, rs, rr, rd);
             return;
@@ -13318,47 +14247,61 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             check_cp1_enabled(ctx);
             switch (minor) {
             case ALNV_PS:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_ALNV_PS;
                 goto do_madd;
             case MADD_S:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_MADD_S;
                 goto do_madd;
             case MADD_D:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_MADD_D;
                 goto do_madd;
             case MADD_PS:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_MADD_PS;
                 goto do_madd;
             case MSUB_S:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_MSUB_S;
                 goto do_madd;
             case MSUB_D:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_MSUB_D;
                 goto do_madd;
             case MSUB_PS:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_MSUB_PS;
                 goto do_madd;
             case NMADD_S:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_NMADD_S;
                 goto do_madd;
             case NMADD_D:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_NMADD_D;
                 goto do_madd;
             case NMADD_PS:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_NMADD_PS;
                 goto do_madd;
             case NMSUB_S:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_NMSUB_S;
                 goto do_madd;
             case NMSUB_D:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_NMSUB_D;
                 goto do_madd;
             case NMSUB_PS:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 mips32_op = OPC_NMSUB_PS;
             do_madd:
                 gen_flt3_arith(ctx, mips32_op, rd, rr, rs, rt);
                 break;
             case CABS_COND_FMT:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 cond = (ctx->opcode >> 6) & 0xf;
                 cc = (ctx->opcode >> 13) & 0x7;
                 fmt = (ctx->opcode >> 10) & 0x3;
@@ -13377,6 +14320,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                 }
                 break;
             case C_COND_FMT:
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 cond = (ctx->opcode >> 6) & 0xf;
                 cc = (ctx->opcode >> 13) & 0x7;
                 fmt = (ctx->opcode >> 10) & 0x3;
@@ -13393,6 +14337,14 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                 default:
                     goto pool32f_invalid;
                 }
+                break;
+            case CMP_CONDN_S:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_cmp_s(ctx, (ctx->opcode >> 6) & 0x1f, rt, rs, rd);
+                break;
+            case CMP_CONDN_D:
+                check_insn(ctx, ISA_MIPS32R6);
+                gen_r6_cmp_d(ctx, (ctx->opcode >> 6) & 0x1f, rt, rs, rd);
                 break;
             case POOL32FXF:
                 gen_pool32fxf(ctx, rt, rs);
@@ -13413,9 +14365,23 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                     mips32_op = OPC_PUU_PS;
                     goto do_ps;
                 case CVT_PS_S:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     mips32_op = OPC_CVT_PS_S;
                 do_ps:
                     gen_farith(ctx, mips32_op, rt, rs, rd, 0);
+                    break;
+                default:
+                    goto pool32f_invalid;
+                }
+                break;
+            case MIN_FMT:
+                check_insn(ctx, ISA_MIPS32R6);
+                switch ((ctx->opcode >> 9) & 0x3) {
+                case FMT_SDPS_S:
+                    gen_farith(ctx, OPC_MIN_S, rt, rs, rd, 0);
+                    break;
+                case FMT_SDPS_D:
+                    gen_farith(ctx, OPC_MIN_D, rt, rs, rd, 0);
                     break;
                 default:
                     goto pool32f_invalid;
@@ -13425,21 +14391,27 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                 /* [LS][WDU]XC1 */
                 switch ((ctx->opcode >> 6) & 0x7) {
                 case LWXC1:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     mips32_op = OPC_LWXC1;
                     goto do_ldst_cp1;
                 case SWXC1:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     mips32_op = OPC_SWXC1;
                     goto do_ldst_cp1;
                 case LDXC1:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     mips32_op = OPC_LDXC1;
                     goto do_ldst_cp1;
                 case SDXC1:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     mips32_op = OPC_SDXC1;
                     goto do_ldst_cp1;
                 case LUXC1:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     mips32_op = OPC_LUXC1;
                     goto do_ldst_cp1;
                 case SUXC1:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     mips32_op = OPC_SUXC1;
                 do_ldst_cp1:
                     gen_flt3_ldst(ctx, mips32_op, rd, rd, rt, rs);
@@ -13448,8 +14420,22 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                     goto pool32f_invalid;
                 }
                 break;
+            case MAX_FMT:
+                check_insn(ctx, ISA_MIPS32R6);
+                switch ((ctx->opcode >> 9) & 0x3) {
+                case FMT_SDPS_S:
+                    gen_farith(ctx, OPC_MAX_S, rt, rs, rd, 0);
+                    break;
+                case FMT_SDPS_D:
+                    gen_farith(ctx, OPC_MAX_D, rt, rs, rd, 0);
+                    break;
+                default:
+                    goto pool32f_invalid;
+                }
+                break;
             case 0x18:
                 /* 3D insns */
+                check_insn_opc_removed(ctx, ISA_MIPS32R6);
                 fmt = (ctx->opcode >> 9) & 0x3;
                 switch ((ctx->opcode >> 6) & 0x7) {
                 case RSQRT2_FMT:
@@ -13495,41 +14481,74 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                 }
                 break;
             case 0x20:
-                /* MOV[FT].fmt and PREFX */
+                /* MOV[FT].fmt, PREFX, RINT.fmt, CLASS.fmt*/
                 cc = (ctx->opcode >> 13) & 0x7;
                 fmt = (ctx->opcode >> 9) & 0x3;
                 switch ((ctx->opcode >> 6) & 0x7) {
-                case MOVF_FMT:
-                    switch (fmt) {
-                    case FMT_SDPS_S:
-                        gen_movcf_s(rs, rt, cc, 0);
-                        break;
-                    case FMT_SDPS_D:
-                        gen_movcf_d(ctx, rs, rt, cc, 0);
-                        break;
-                    case FMT_SDPS_PS:
-                        gen_movcf_ps(ctx, rs, rt, cc, 0);
-                        break;
-                    default:
-                        goto pool32f_invalid;
+                case MOVF_FMT: /* RINT_FMT */
+                    if (ctx->insn_flags & ISA_MIPS32R6) {
+                        /* RINT_FMT */
+                        switch (fmt) {
+                        case FMT_SDPS_S:
+                            gen_farith(ctx, OPC_RINT_S, 0, rt, rs, 0);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_farith(ctx, OPC_RINT_D, 0, rt, rs, 0);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
+                    } else {
+                        /* MOVF_FMT */
+                        switch (fmt) {
+                        case FMT_SDPS_S:
+                            gen_movcf_s(ctx, rs, rt, cc, 0);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_movcf_d(ctx, rs, rt, cc, 0);
+                            break;
+                        case FMT_SDPS_PS:
+                            check_ps(ctx);
+                            gen_movcf_ps(ctx, rs, rt, cc, 0);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
                     }
                     break;
-                case MOVT_FMT:
-                    switch (fmt) {
-                    case FMT_SDPS_S:
-                        gen_movcf_s(rs, rt, cc, 1);
-                        break;
-                    case FMT_SDPS_D:
-                        gen_movcf_d(ctx, rs, rt, cc, 1);
-                        break;
-                    case FMT_SDPS_PS:
-                        gen_movcf_ps(ctx, rs, rt, cc, 1);
-                        break;
-                    default:
-                        goto pool32f_invalid;
+                case MOVT_FMT: /* CLASS_FMT */
+                    if (ctx->insn_flags & ISA_MIPS32R6) {
+                        /* CLASS_FMT */
+                        switch (fmt) {
+                        case FMT_SDPS_S:
+                            gen_farith(ctx, OPC_CLASS_S, 0, rt, rs, 0);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_farith(ctx, OPC_CLASS_D, 0, rt, rs, 0);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
+                    } else {
+                        /* MOVT_FMT */
+                        switch (fmt) {
+                        case FMT_SDPS_S:
+                            gen_movcf_s(ctx, rs, rt, cc, 1);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_movcf_d(ctx, rs, rt, cc, 1);
+                            break;
+                        case FMT_SDPS_PS:
+                            check_ps(ctx);
+                            gen_movcf_ps(ctx, rs, rt, cc, 1);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
                     }
                     break;
                 case PREFX:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     break;
                 default:
                     goto pool32f_invalid;
@@ -13544,11 +14563,38 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                     mips32_op = OPC_##prfx##_D;         \
                     goto do_fpop;                       \
                 case FMT_SDPS_PS:                       \
+                    check_ps(ctx);                      \
                     mips32_op = OPC_##prfx##_PS;        \
                     goto do_fpop;                       \
                 default:                                \
                     goto pool32f_invalid;               \
                 }
+            case MINA_FMT:
+                check_insn(ctx, ISA_MIPS32R6);
+                switch ((ctx->opcode >> 9) & 0x3) {
+                case FMT_SDPS_S:
+                    gen_farith(ctx, OPC_MINA_S, rt, rs, rd, 0);
+                    break;
+                case FMT_SDPS_D:
+                    gen_farith(ctx, OPC_MINA_D, rt, rs, rd, 0);
+                    break;
+                default:
+                    goto pool32f_invalid;
+                }
+                break;
+            case MAXA_FMT:
+                check_insn(ctx, ISA_MIPS32R6);
+                switch ((ctx->opcode >> 9) & 0x3) {
+                case FMT_SDPS_S:
+                    gen_farith(ctx, OPC_MAXA_S, rt, rs, rd, 0);
+                    break;
+                case FMT_SDPS_D:
+                    gen_farith(ctx, OPC_MAXA_D, rt, rs, rd, 0);
+                    break;
+                default:
+                    goto pool32f_invalid;
+                }
+                break;
             case 0x30:
                 /* regular FP ops */
                 switch ((ctx->opcode >> 6) & 0x3) {
@@ -13577,12 +14623,89 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                 break;
             case 0x38:
                 /* cmovs */
-                switch ((ctx->opcode >> 6) & 0x3) {
-                case MOVN_FMT:
+                switch ((ctx->opcode >> 6) & 0x7) {
+                case MOVN_FMT: /* SELNEZ_FMT */
+                    if (ctx->insn_flags & ISA_MIPS32R6) {
+                        /* SELNEZ_FMT */
+                        switch ((ctx->opcode >> 9) & 0x3) {
+                        case FMT_SDPS_S:
+                            gen_sel_s(ctx, OPC_SELNEZ_S, rd, rt, rs);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_sel_d(ctx, OPC_SELNEZ_D, rd, rt, rs);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
+                    } else {
+                        /* MOVN_FMT */
+                        FINSN_3ARG_SDPS(MOVN);
+                    }
+                    break;
+                case MOVN_FMT_04:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     FINSN_3ARG_SDPS(MOVN);
                     break;
-                case MOVZ_FMT:
+                case MOVZ_FMT: /* SELEQZ_FMT */
+                    if (ctx->insn_flags & ISA_MIPS32R6) {
+                        /* SELEQZ_FMT */
+                        switch ((ctx->opcode >> 9) & 0x3) {
+                        case FMT_SDPS_S:
+                            gen_sel_s(ctx, OPC_SELEQZ_S, rd, rt, rs);
+                            break;
+                        case FMT_SDPS_D:
+                            gen_sel_d(ctx, OPC_SELEQZ_D, rd, rt, rs);
+                            break;
+                        default:
+                            goto pool32f_invalid;
+                        }
+                    } else {
+                        /* MOVZ_FMT */
+                        FINSN_3ARG_SDPS(MOVZ);
+                    }
+                    break;
+                case MOVZ_FMT_05:
+                    check_insn_opc_removed(ctx, ISA_MIPS32R6);
                     FINSN_3ARG_SDPS(MOVZ);
+                    break;
+                case SEL_FMT:
+                    check_insn(ctx, ISA_MIPS32R6);
+                    switch ((ctx->opcode >> 9) & 0x3) {
+                    case FMT_SDPS_S:
+                        gen_sel_s(ctx, OPC_SEL_S, rd, rt, rs);
+                        break;
+                    case FMT_SDPS_D:
+                        gen_sel_d(ctx, OPC_SEL_D, rd, rt, rs);
+                        break;
+                    default:
+                        goto pool32f_invalid;
+                    }
+                    break;
+                case MADDF_FMT:
+                    check_insn(ctx, ISA_MIPS32R6);
+                    switch ((ctx->opcode >> 9) & 0x3) {
+                    case FMT_SDPS_S:
+                        mips32_op = OPC_MADDF_S;
+                        goto do_fpop;
+                    case FMT_SDPS_D:
+                        mips32_op = OPC_MADDF_D;
+                        goto do_fpop;
+                    default:
+                        goto pool32f_invalid;
+                    }
+                    break;
+                case MSUBF_FMT:
+                    check_insn(ctx, ISA_MIPS32R6);
+                    switch ((ctx->opcode >> 9) & 0x3) {
+                    case FMT_SDPS_S:
+                        mips32_op = OPC_MSUBF_S;
+                        goto do_fpop;
+                    case FMT_SDPS_D:
+                        mips32_op = OPC_MSUBF_D;
+                        goto do_fpop;
+                    default:
+                        goto pool32f_invalid;
+                    }
                     break;
                 default:
                     goto pool32f_invalid;
@@ -13605,51 +14728,87 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         minor = (ctx->opcode >> 21) & 0x1f;
         switch (minor) {
         case BLTZ:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_BLTZ, 4, rs, -1, imm << 1, 4);
             break;
         case BLTZAL:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_BLTZAL, 4, rs, -1, imm << 1, 4);
             ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
             break;
         case BLTZALS:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_BLTZAL, 4, rs, -1, imm << 1, 2);
             ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
             break;
         case BGEZ:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_BGEZ, 4, rs, -1, imm << 1, 4);
             break;
         case BGEZAL:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_BGEZAL, 4, rs, -1, imm << 1, 4);
             ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
             break;
         case BGEZALS:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_BGEZAL, 4, rs, -1, imm << 1, 2);
             ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
             break;
         case BLEZ:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_BLEZ, 4, rs, -1, imm << 1, 4);
             break;
         case BGTZ:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, OPC_BGTZ, 4, rs, -1, imm << 1, 4);
             break;
 
             /* Traps */
-        case TLTI:
-            mips32_op = OPC_TLTI;
-            goto do_trapi;
-        case TGEI:
-            mips32_op = OPC_TGEI;
-            goto do_trapi;
+        case TLTI: /* BC1EQZC */
+            if (ctx->insn_flags & ISA_MIPS32R6) {
+                /* BC1EQZC */
+                check_cp1_enabled(ctx);
+                gen_compute_branch1_r6(ctx, OPC_BC1EQZ, rs, imm << 1, 0);
+            } else {
+                /* TLTI */
+                mips32_op = OPC_TLTI;
+                goto do_trapi;
+            }
+            break;
+        case TGEI: /* BC1NEZC */
+            if (ctx->insn_flags & ISA_MIPS32R6) {
+                /* BC1NEZC */
+                check_cp1_enabled(ctx);
+                gen_compute_branch1_r6(ctx, OPC_BC1NEZ, rs, imm << 1, 0);
+            } else {
+                /* TGEI */
+                mips32_op = OPC_TGEI;
+                goto do_trapi;
+            }
+            break;
         case TLTIU:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_TLTIU;
             goto do_trapi;
         case TGEIU:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_TGEIU;
             goto do_trapi;
-        case TNEI:
-            mips32_op = OPC_TNEI;
-            goto do_trapi;
+        case TNEI: /* SYNCI */
+            if (ctx->insn_flags & ISA_MIPS32R6) {
+                /* SYNCI */
+                /* Break the TB to be able to sync copied instructions
+                   immediately */
+                ctx->bstate = BS_STOP;
+            } else {
+                /* TNEI */
+                mips32_op = OPC_TNEI;
+                goto do_trapi;
+            }
+            break;
         case TEQI:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_TEQI;
         do_trapi:
             gen_trap(ctx, mips32_op, rs, -1, imm);
@@ -13657,6 +14816,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
 
         case BNEZC:
         case BEQZC:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_compute_branch(ctx, minor == BNEZC ? OPC_BNE : OPC_BEQ,
                                4, rs, 0, imm << 1, 0);
             /* Compact branches don't have a delay slot, so just let
@@ -13664,28 +14824,35 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
                target. */
             break;
         case LUI:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             gen_logic_imm(ctx, OPC_LUI, rs, 0, imm);
             break;
         case SYNCI:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             /* Break the TB to be able to sync copied instructions
                immediately */
             ctx->bstate = BS_STOP;
             break;
         case BC2F:
         case BC2T:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             /* COP2: Not implemented. */
             generate_exception_err(ctx, EXCP_CpU, 2);
             break;
         case BC1F:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = (ctx->opcode & (1 << 16)) ? OPC_BC1FANY2 : OPC_BC1F;
             goto do_cp1branch;
         case BC1T:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = (ctx->opcode & (1 << 16)) ? OPC_BC1TANY2 : OPC_BC1T;
             goto do_cp1branch;
         case BC1ANY4F:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_BC1FANY4;
             goto do_cp1mips3d;
         case BC1ANY4T:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_BC1TANY4;
         do_cp1mips3d:
             check_cop1x(ctx);
@@ -13712,38 +14879,48 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         break;
     case POOL32C:
         minor = (ctx->opcode >> 12) & 0xf;
+        offset = sextract32(ctx->opcode, 0,
+                            (ctx->insn_flags & ISA_MIPS32R6) ? 9 : 12);
         switch (minor) {
         case LWL:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_LWL;
             goto do_ld_lr;
         case SWL:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_SWL;
             goto do_st_lr;
         case LWR:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_LWR;
             goto do_ld_lr;
         case SWR:
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_SWR;
             goto do_st_lr;
 #if defined(TARGET_MIPS64)
         case LDL:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_LDL;
             goto do_ld_lr;
         case SDL:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_SDL;
             goto do_st_lr;
         case LDR:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_LDR;
             goto do_ld_lr;
         case SDR:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
+            check_insn_opc_removed(ctx, ISA_MIPS32R6);
             mips32_op = OPC_SDR;
             goto do_st_lr;
         case LWU:
@@ -13761,23 +14938,27 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             mips32_op = OPC_LL;
             goto do_ld_lr;
         do_ld_lr:
-            gen_ld(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_ld(ctx, mips32_op, rt, rs, offset);
             break;
         do_st_lr:
             gen_st(ctx, mips32_op, rt, rs, SIMM(ctx->opcode, 0, 12));
             break;
         case SC:
-            gen_st_cond(ctx, OPC_SC, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_st_cond(ctx, OPC_SC, rt, rs, offset);
             break;
 #if defined(TARGET_MIPS64)
         case SCD:
             check_insn(ctx, ISA_MIPS3);
             check_mips_64(ctx);
-            gen_st_cond(ctx, OPC_SCD, rt, rs, SIMM(ctx->opcode, 0, 12));
+            gen_st_cond(ctx, OPC_SCD, rt, rs, offset);
             break;
 #endif
         case PREF:
             /* Treat as no-op */
+            if ((ctx->insn_flags & ISA_MIPS32R6) && (rt >= 24)) {
+                /* hint codes 24-31 are reserved and signal RI */
+                generate_exception(ctx, EXCP_RI);
+            }
             break;
         default:
             MIPS_INVAL("pool32c");
@@ -13785,9 +14966,16 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
             break;
         }
         break;
-    case ADDI32:
-        mips32_op = OPC_ADDI;
-        goto do_addi;
+    case ADDI32: /* AUI, LUI */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* AUI, LUI */
+            gen_logic_imm(ctx, OPC_LUI, rt, rs, imm);
+        } else {
+            /* ADDI32 */
+            mips32_op = OPC_ADDI;
+            goto do_addi;
+        }
+        break;
     case ADDIU32:
         mips32_op = OPC_ADDIU;
     do_addi:
@@ -13817,29 +15005,89 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         gen_slt_imm(ctx, mips32_op, rt, rs, imm);
         break;
     case JALX32:
+        check_insn_opc_removed(ctx, ISA_MIPS32R6);
         offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 2;
         gen_compute_branch(ctx, OPC_JALX, 4, rt, rs, offset, 4);
         ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
         break;
-    case JALS32:
-        offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 1;
-        gen_compute_branch(ctx, OPC_JAL, 4, rt, rs, offset, 2);
-        ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+    case JALS32: /* BOVC, BEQC, BEQZALC */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            if (rs >= rt) {
+                /* BOVC */
+                mips32_op = OPC_BOVC;
+            } else if (rs < rt && rs == 0) {
+                /* BEQZALC */
+                mips32_op = OPC_BEQZALC;
+            } else {
+                /* BEQC */
+                mips32_op = OPC_BEQC;
+            }
+            gen_compute_compact_branch(ctx, mips32_op, rs, rt, imm << 1);
+        } else {
+            /* JALS32 */
+            offset = (int32_t)(ctx->opcode & 0x3FFFFFF) << 1;
+            gen_compute_branch(ctx, OPC_JAL, 4, rt, rs, offset, 2);
+            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+        }
         break;
-    case BEQ32:
-        gen_compute_branch(ctx, OPC_BEQ, 4, rt, rs, imm << 1, 4);
+    case BEQ32: /* BC */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* BC */
+            gen_compute_compact_branch(ctx, OPC_BC, 0, 0,
+                                       sextract32(ctx->opcode << 1, 0, 27));
+        } else {
+            /* BEQ32 */
+            gen_compute_branch(ctx, OPC_BEQ, 4, rt, rs, imm << 1, 4);
+        }
         break;
-    case BNE32:
-        gen_compute_branch(ctx, OPC_BNE, 4, rt, rs, imm << 1, 4);
+    case BNE32: /* BALC */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* BALC */
+            gen_compute_compact_branch(ctx, OPC_BALC, 0, 0,
+                                       sextract32(ctx->opcode << 1, 0, 27));
+        } else {
+            /* BNE32 */
+            gen_compute_branch(ctx, OPC_BNE, 4, rt, rs, imm << 1, 4);
+        }
         break;
-    case J32:
-        gen_compute_branch(ctx, OPC_J, 4, rt, rs,
-                           (int32_t)(ctx->opcode & 0x3FFFFFF) << 1, 4);
+    case J32: /* BGTZC, BLTZC, BLTC */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            if (rs == 0 && rt != 0) {
+                /* BGTZC */
+                mips32_op = OPC_BGTZC;
+            } else if (rs != 0 && rt != 0 && rs == rt) {
+                /* BLTZC */
+                mips32_op = OPC_BLTZC;
+            } else {
+                /* BLTC */
+                mips32_op = OPC_BLTC;
+            }
+            gen_compute_compact_branch(ctx, mips32_op, rs, rt, imm << 1);
+        } else {
+            /* J32 */
+            gen_compute_branch(ctx, OPC_J, 4, rt, rs,
+                               (int32_t)(ctx->opcode & 0x3FFFFFF) << 1, 4);
+        }
         break;
-    case JAL32:
-        gen_compute_branch(ctx, OPC_JAL, 4, rt, rs,
-                           (int32_t)(ctx->opcode & 0x3FFFFFF) << 1, 4);
-        ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+    case JAL32: /* BLEZC, BGEZC, BGEC */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            if (rs == 0 && rt != 0) {
+                /* BLEZC */
+                mips32_op = OPC_BLEZC;
+            } else if (rs != 0 && rt != 0 && rs == rt) {
+                /* BGEZC */
+                mips32_op = OPC_BGEZC;
+            } else {
+                /* BGEC */
+                mips32_op = OPC_BGEC;
+            }
+            gen_compute_compact_branch(ctx, mips32_op, rs, rt, imm << 1);
+        } else {
+            /* JAL32 */
+            gen_compute_branch(ctx, OPC_JAL, 4, rt, rs,
+                               (int32_t)(ctx->opcode & 0x3FFFFFF) << 1, 4);
+            ctx->hflags |= MIPS_HFLAG_BDS_STRICT;
+        }
         break;
         /* Floating point (COP1) */
     case LWC132:
@@ -13856,13 +15104,97 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
     do_cop1:
         gen_cop1_ldst(ctx, mips32_op, rt, rs, imm);
         break;
-    case ADDIUPC:
-        {
+    case ADDIUPC: /* PCREL: ADDIUPC, AUIPC, ALUIPC, LWPC */
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            /* PCREL: ADDIUPC, AUIPC, ALUIPC, LWPC */
+            switch ((ctx->opcode >> 16) & 0x1f) {
+            case ADDIUPC_00 ... ADDIUPC_07:
+                gen_pcrel(ctx, OPC_ADDIUPC, ctx->pc & ~0x3, rt);
+                break;
+            case AUIPC:
+                gen_pcrel(ctx, OPC_AUIPC, ctx->pc, rt);
+                break;
+            case ALUIPC:
+                gen_pcrel(ctx, OPC_ALUIPC, ctx->pc, rt);
+                break;
+            case LWPC_08 ... LWPC_0F:
+                gen_pcrel(ctx, R6_OPC_LWPC, ctx->pc & ~0x3, rt);
+                break;
+            default:
+                generate_exception(ctx, EXCP_RI);
+                break;
+            }
+        } else {
+            /* ADDIUPC */
             int reg = mmreg(ZIMM(ctx->opcode, 23, 3));
             int offset = SIMM(ctx->opcode, 0, 23) << 2;
 
             gen_addiupc(ctx, reg, offset, 0, 0);
         }
+        break;
+    case BNVC: /* BNEC, BNEZALC */
+        check_insn(ctx, ISA_MIPS32R6);
+        if (rs >= rt) {
+            /* BNVC */
+            mips32_op = OPC_BNVC;
+        } else if (rs < rt && rs == 0) {
+            /* BNEZALC */
+            mips32_op = OPC_BNEZALC;
+        } else {
+            /* BNEC */
+            mips32_op = OPC_BNEC;
+        }
+        gen_compute_compact_branch(ctx, mips32_op, rs, rt, imm << 1);
+        break;
+    case R6_BNEZC: /* JIALC */
+        check_insn(ctx, ISA_MIPS32R6);
+        if (rt != 0) {
+            /* BNEZC */
+            gen_compute_compact_branch(ctx, OPC_BNEZC, rt, 0,
+                                       sextract32(ctx->opcode << 1, 0, 22));
+        } else {
+            /* JIALC */
+            gen_compute_compact_branch(ctx, OPC_JIALC, 0, rs, imm);
+        }
+        break;
+    case R6_BEQZC: /* JIC */
+        check_insn(ctx, ISA_MIPS32R6);
+        if (rt != 0) {
+            /* BEQZC */
+            gen_compute_compact_branch(ctx, OPC_BEQZC, rt, 0,
+                                       sextract32(ctx->opcode << 1, 0, 22));
+        } else {
+            /* JIC */
+            gen_compute_compact_branch(ctx, OPC_JIC, 0, rs, imm);
+        }
+        break;
+    case BLEZALC: /* BGEZALC, BGEUC */
+        check_insn(ctx, ISA_MIPS32R6);
+        if (rs == 0 && rt != 0) {
+            /* BLEZALC */
+            mips32_op = OPC_BLEZALC;
+        } else if (rs != 0 && rt != 0 && rs == rt) {
+            /* BGEZALC */
+            mips32_op = OPC_BGEZALC;
+        } else {
+            /* BGEUC */
+            mips32_op = OPC_BGEUC;
+        }
+        gen_compute_compact_branch(ctx, mips32_op, rs, rt, imm << 1);
+        break;
+    case BGTZALC: /* BLTZALC, BLTUC */
+        check_insn(ctx, ISA_MIPS32R6);
+        if (rs == 0 && rt != 0) {
+            /* BGTZALC */
+            mips32_op = OPC_BGTZALC;
+        } else if (rs != 0 && rt != 0 && rs == rt) {
+            /* BLTZALC */
+            mips32_op = OPC_BLTZALC;
+        } else {
+            /* BLTUC */
+            mips32_op = OPC_BLTUC;
+        }
+        gen_compute_compact_branch(ctx, mips32_op, rs, rt, imm << 1);
         break;
         /* Loads and stores */
     case LB32:
@@ -13978,8 +15310,14 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
                 opc = OPC_SUBU;
                 break;
             }
-
-            gen_arith(ctx, opc, rd, rs1, rs2);
+            if (ctx->insn_flags & ISA_MIPS32R6) {
+                /* In the Release 6 the register number location in
+                 * the instruction encoding has changed.
+                 */
+                gen_arith(ctx, opc, rs1, rd, rs2);
+            } else {
+                gen_arith(ctx, opc, rd, rs1, rs2);
+            }
         }
         break;
     case POOL16B:
@@ -14003,7 +15341,11 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case POOL16C:
-        gen_pool16c_insn(ctx);
+        if (ctx->insn_flags & ISA_MIPS32R6) {
+            gen_pool16c_r6_insn(ctx);
+        } else {
+            gen_pool16c_insn(ctx);
+        }
         break;
     case LWGP16:
         {
@@ -14015,6 +15357,7 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case POOL16F:
+        check_insn_opc_removed(ctx, ISA_MIPS32R6);
         if (ctx->opcode & 1) {
             generate_exception(ctx, EXCP_RI);
         } else {
@@ -14022,18 +15365,7 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
             int enc_dest = uMIPS_RD(ctx->opcode);
             int enc_rt = uMIPS_RS2(ctx->opcode);
             int enc_rs = uMIPS_RS1(ctx->opcode);
-            int rd, rs, re, rt;
-            static const int rd_enc[] = { 5, 5, 6, 4, 4, 4, 4, 4 };
-            static const int re_enc[] = { 6, 7, 7, 21, 22, 5, 6, 7 };
-            static const int rs_rt_enc[] = { 0, 17, 2, 3, 16, 18, 19, 20 };
-
-            rd = rd_enc[enc_dest];
-            re = re_enc[enc_dest];
-            rs = rs_rt_enc[enc_rs];
-            rt = rs_rt_enc[enc_rt];
-
-            gen_arith(ctx, OPC_ADDU, rd, rs, 0);
-            gen_arith(ctx, OPC_ADDU, re, rt, 0);
+            gen_movep(ctx, enc_dest, enc_rt, enc_rs);
         }
         break;
     case LBU16:
@@ -14140,15 +15472,18 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
             break;
         }
         break;
-    case B16:
+    case B16: /* BC16 */
         gen_compute_branch(ctx, OPC_BEQ, 2, 0, 0,
-                           SIMM(ctx->opcode, 0, 10) << 1, 4);
+                           sextract32(ctx->opcode, 0, 10) << 1,
+                           (ctx->insn_flags & ISA_MIPS32R6) ? 0 : 4);
         break;
-    case BNEZ16:
-    case BEQZ16:
+    case BNEZ16: /* BNEZC16 */
+    case BEQZ16: /* BEQZC16 */
         gen_compute_branch(ctx, op == BNEZ16 ? OPC_BNE : OPC_BEQ, 2,
                            mmreg(uMIPS_RD(ctx->opcode)),
-                           0, SIMM(ctx->opcode, 0, 7) << 1, 4);
+                           0, sextract32(ctx->opcode, 0, 7) << 1,
+                           (ctx->insn_flags & ISA_MIPS32R6) ? 0 : 4);
+
         break;
     case LI16:
         {
@@ -14159,17 +15494,13 @@ static int decode_micromips_opc (CPUMIPSState *env, DisasContext *ctx)
             tcg_gen_movi_tl(cpu_gpr[reg], imm);
         }
         break;
-    case RES_20:
-    case RES_28:
     case RES_29:
-    case RES_30:
     case RES_31:
-    case RES_38:
     case RES_39:
         generate_exception(ctx, EXCP_RI);
         break;
     default:
-        decode_micromips32_opc (env, ctx, op);
+        decode_micromips32_opc(env, ctx);
         return 4;
     }
 
@@ -15905,242 +17236,6 @@ static void gen_mipsdsp_accinsn(DisasContext *ctx, uint32_t op1, uint32_t op2,
 
 /* End MIPSDSP functions. */
 
-/* Compact Branches */
-static void gen_compute_compact_branch(DisasContext *ctx, uint32_t opc,
-                                       int rs, int rt, int32_t offset)
-{
-    int bcond_compute = 0;
-    TCGv t0 = tcg_temp_new();
-    TCGv t1 = tcg_temp_new();
-
-    if (ctx->hflags & MIPS_HFLAG_BMASK) {
-#ifdef MIPS_DEBUG_DISAS
-        LOG_DISAS("Branch in delay / forbidden slot at PC 0x" TARGET_FMT_lx
-                  "\n", ctx->pc);
-#endif
-        generate_exception(ctx, EXCP_RI);
-        goto out;
-    }
-
-    /* Load needed operands and calculate btarget */
-    switch (opc) {
-    /* compact branch */
-    case OPC_BOVC: /* OPC_BEQZALC, OPC_BEQC */
-    case OPC_BNVC: /* OPC_BNEZALC, OPC_BNEC */
-        gen_load_gpr(t0, rs);
-        gen_load_gpr(t1, rt);
-        bcond_compute = 1;
-        ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
-        if (rs <= rt && rs == 0) {
-            /* OPC_BEQZALC, OPC_BNEZALC */
-            tcg_gen_movi_tl(cpu_gpr[31], ctx->pc + 4);
-        }
-        break;
-    case OPC_BLEZC: /* OPC_BGEZC, OPC_BGEC */
-    case OPC_BGTZC: /* OPC_BLTZC, OPC_BLTC */
-        gen_load_gpr(t0, rs);
-        gen_load_gpr(t1, rt);
-        bcond_compute = 1;
-        ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
-        break;
-    case OPC_BLEZALC: /* OPC_BGEZALC, OPC_BGEUC */
-    case OPC_BGTZALC: /* OPC_BLTZALC, OPC_BLTUC */
-        if (rs == 0 || rs == rt) {
-            /* OPC_BLEZALC, OPC_BGEZALC */
-            /* OPC_BGTZALC, OPC_BLTZALC */
-            tcg_gen_movi_tl(cpu_gpr[31], ctx->pc + 4);
-        }
-        gen_load_gpr(t0, rs);
-        gen_load_gpr(t1, rt);
-        bcond_compute = 1;
-        ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
-        break;
-    case OPC_BC:
-    case OPC_BALC:
-        ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
-        break;
-    case OPC_BEQZC:
-    case OPC_BNEZC:
-        if (rs != 0) {
-            /* OPC_BEQZC, OPC_BNEZC */
-            gen_load_gpr(t0, rs);
-            bcond_compute = 1;
-            ctx->btarget = addr_add(ctx, ctx->pc + 4, offset);
-        } else {
-            /* OPC_JIC, OPC_JIALC */
-            TCGv tbase = tcg_temp_new();
-            TCGv toffset = tcg_temp_new();
-
-            gen_load_gpr(tbase, rt);
-            tcg_gen_movi_tl(toffset, offset);
-            gen_op_addr_add(ctx, btarget, tbase, toffset);
-            tcg_temp_free(tbase);
-            tcg_temp_free(toffset);
-        }
-        break;
-    default:
-        MIPS_INVAL("Compact branch/jump");
-        generate_exception(ctx, EXCP_RI);
-        goto out;
-    }
-
-    if (bcond_compute == 0) {
-        /* Uncoditional compact branch */
-        switch (opc) {
-        case OPC_JIALC:
-            tcg_gen_movi_tl(cpu_gpr[31], ctx->pc + 4);
-            /* Fallthrough */
-        case OPC_JIC:
-            ctx->hflags |= MIPS_HFLAG_BR;
-            break;
-        case OPC_BALC:
-            tcg_gen_movi_tl(cpu_gpr[31], ctx->pc + 4);
-            /* Fallthrough */
-        case OPC_BC:
-            ctx->hflags |= MIPS_HFLAG_B;
-            break;
-        default:
-            MIPS_INVAL("Compact branch/jump");
-            generate_exception(ctx, EXCP_RI);
-            goto out;
-        }
-
-        /* Generating branch here as compact branches don't have delay slot */
-        gen_branch(ctx, 4);
-    } else {
-        /* Conditional compact branch */
-        TCGLabel *fs = gen_new_label();
-        save_cpu_state(ctx, 0);
-
-        switch (opc) {
-        case OPC_BLEZALC: /* OPC_BGEZALC, OPC_BGEUC */
-            if (rs == 0 && rt != 0) {
-                /* OPC_BLEZALC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LE), t1, 0, fs);
-            } else if (rs != 0 && rt != 0 && rs == rt) {
-                /* OPC_BGEZALC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GE), t1, 0, fs);
-            } else {
-                /* OPC_BGEUC */
-                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_GEU), t0, t1, fs);
-            }
-            break;
-        case OPC_BGTZALC: /* OPC_BLTZALC, OPC_BLTUC */
-            if (rs == 0 && rt != 0) {
-                /* OPC_BGTZALC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GT), t1, 0, fs);
-            } else if (rs != 0 && rt != 0 && rs == rt) {
-                /* OPC_BLTZALC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LT), t1, 0, fs);
-            } else {
-                /* OPC_BLTUC */
-                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_LTU), t0, t1, fs);
-            }
-            break;
-        case OPC_BLEZC: /* OPC_BGEZC, OPC_BGEC */
-            if (rs == 0 && rt != 0) {
-                /* OPC_BLEZC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LE), t1, 0, fs);
-            } else if (rs != 0 && rt != 0 && rs == rt) {
-                /* OPC_BGEZC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GE), t1, 0, fs);
-            } else {
-                /* OPC_BGEC */
-                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_GE), t0, t1, fs);
-            }
-            break;
-        case OPC_BGTZC: /* OPC_BLTZC, OPC_BLTC */
-            if (rs == 0 && rt != 0) {
-                /* OPC_BGTZC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_GT), t1, 0, fs);
-            } else if (rs != 0 && rt != 0 && rs == rt) {
-                /* OPC_BLTZC */
-                tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_LT), t1, 0, fs);
-            } else {
-                /* OPC_BLTC */
-                tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_LT), t0, t1, fs);
-            }
-            break;
-        case OPC_BOVC: /* OPC_BEQZALC, OPC_BEQC */
-        case OPC_BNVC: /* OPC_BNEZALC, OPC_BNEC */
-            if (rs >= rt) {
-                /* OPC_BOVC, OPC_BNVC */
-                TCGv t2 = tcg_temp_new();
-                TCGv t3 = tcg_temp_new();
-                TCGv t4 = tcg_temp_new();
-                TCGv input_overflow = tcg_temp_new();
-
-                gen_load_gpr(t0, rs);
-                gen_load_gpr(t1, rt);
-                tcg_gen_ext32s_tl(t2, t0);
-                tcg_gen_setcond_tl(TCG_COND_NE, input_overflow, t2, t0);
-                tcg_gen_ext32s_tl(t3, t1);
-                tcg_gen_setcond_tl(TCG_COND_NE, t4, t3, t1);
-                tcg_gen_or_tl(input_overflow, input_overflow, t4);
-
-                tcg_gen_add_tl(t4, t2, t3);
-                tcg_gen_ext32s_tl(t4, t4);
-                tcg_gen_xor_tl(t2, t2, t3);
-                tcg_gen_xor_tl(t3, t4, t3);
-                tcg_gen_andc_tl(t2, t3, t2);
-                tcg_gen_setcondi_tl(TCG_COND_LT, t4, t2, 0);
-                tcg_gen_or_tl(t4, t4, input_overflow);
-                if (opc == OPC_BOVC) {
-                    /* OPC_BOVC */
-                    tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_NE), t4, 0, fs);
-                } else {
-                    /* OPC_BNVC */
-                    tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_EQ), t4, 0, fs);
-                }
-                tcg_temp_free(input_overflow);
-                tcg_temp_free(t4);
-                tcg_temp_free(t3);
-                tcg_temp_free(t2);
-            } else if (rs < rt && rs == 0) {
-                /* OPC_BEQZALC, OPC_BNEZALC */
-                if (opc == OPC_BEQZALC) {
-                    /* OPC_BEQZALC */
-                    tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_EQ), t1, 0, fs);
-                } else {
-                    /* OPC_BNEZALC */
-                    tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_NE), t1, 0, fs);
-                }
-            } else {
-                /* OPC_BEQC, OPC_BNEC */
-                if (opc == OPC_BEQC) {
-                    /* OPC_BEQC */
-                    tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_EQ), t0, t1, fs);
-                } else {
-                    /* OPC_BNEC */
-                    tcg_gen_brcond_tl(tcg_invert_cond(TCG_COND_NE), t0, t1, fs);
-                }
-            }
-            break;
-        case OPC_BEQZC:
-            tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_EQ), t0, 0, fs);
-            break;
-        case OPC_BNEZC:
-            tcg_gen_brcondi_tl(tcg_invert_cond(TCG_COND_NE), t0, 0, fs);
-            break;
-        default:
-            MIPS_INVAL("Compact conditional branch/jump");
-            generate_exception(ctx, EXCP_RI);
-            goto out;
-        }
-
-        /* Generating branch here as compact branches don't have delay slot */
-        gen_goto_tb(ctx, 1, ctx->btarget);
-        gen_set_label(fs);
-
-        ctx->hflags |= MIPS_HFLAG_FBNSLOT;
-        MIPS_DEBUG("Compact conditional branch");
-    }
-
-out:
-    tcg_temp_free(t0);
-    tcg_temp_free(t1);
-}
-
 static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd, sa;
@@ -16154,18 +17249,7 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
     op1 = MASK_SPECIAL(ctx->opcode);
     switch (op1) {
     case OPC_LSA:
-        if (rd != 0) {
-            int imm2 = extract32(ctx->opcode, 6, 3);
-            TCGv t0 = tcg_temp_new();
-            TCGv t1 = tcg_temp_new();
-            gen_load_gpr(t0, rs);
-            gen_load_gpr(t1, rt);
-            tcg_gen_shli_tl(t0, t0, imm2 + 1);
-            tcg_gen_add_tl(t0, t0, t1);
-            tcg_gen_ext32s_tl(cpu_gpr[rd], t0);
-            tcg_temp_free(t1);
-            tcg_temp_free(t0);
-        }
+        gen_lsa(ctx, op1, rd, rs, rt, extract32(ctx->opcode, 6, 2));
         break;
     case OPC_MULT ... OPC_DIVU:
         op2 = MASK_R6_MULDIV(ctx->opcode);
@@ -16201,26 +17285,20 @@ static void decode_opc_special_r6(CPUMIPSState *env, DisasContext *ctx)
         }
         break;
     case R6_OPC_SDBBP:
-        if (ctx->hflags & MIPS_HFLAG_SBRI) {
-            generate_exception(ctx, EXCP_RI);
+        if (is_uhi(extract32(ctx->opcode, 6, 20))) {
+            gen_helper_do_semihosting(cpu_env);
         } else {
-            generate_exception(ctx, EXCP_DBp);
+            if (ctx->hflags & MIPS_HFLAG_SBRI) {
+                generate_exception(ctx, EXCP_RI);
+            } else {
+                generate_exception(ctx, EXCP_DBp);
+            }
         }
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DLSA:
         check_mips_64(ctx);
-        if (rd != 0) {
-            int imm2 = extract32(ctx->opcode, 6, 3);
-            TCGv t0 = tcg_temp_new();
-            TCGv t1 = tcg_temp_new();
-            gen_load_gpr(t0, rs);
-            gen_load_gpr(t1, rt);
-            tcg_gen_shli_tl(t0, t0, imm2 + 1);
-            tcg_gen_add_tl(cpu_gpr[rd], t0, t1);
-            tcg_temp_free(t1);
-            tcg_temp_free(t0);
-        }
+        gen_lsa(ctx, op1, rd, rs, rt, extract32(ctx->opcode, 6, 2));
         break;
     case R6_OPC_DCLO:
     case R6_OPC_DCLZ:
@@ -16574,16 +17652,15 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
         gen_cl(ctx, op1, rd, rs);
         break;
     case OPC_SDBBP:
-        /* XXX: not clear which exception should be raised
-         *      when in debug mode...
-         */
-        check_insn(ctx, ISA_MIPS32);
-        if (!(ctx->hflags & MIPS_HFLAG_DM)) {
-            generate_exception(ctx, EXCP_DBp);
+        if (is_uhi(extract32(ctx->opcode, 6, 20))) {
+            gen_helper_do_semihosting(cpu_env);
         } else {
+            /* XXX: not clear which exception should be raised
+             *      when in debug mode...
+             */
+            check_insn(ctx, ISA_MIPS32);
             generate_exception(ctx, EXCP_DBp);
         }
-        /* Treat as NOP. */
         break;
 #if defined(TARGET_MIPS64)
     case OPC_DCLO:
@@ -16645,35 +17722,15 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
                 /* Treat as NOP. */
                 break;
             }
-            TCGv t0 = tcg_temp_new();
-            gen_load_gpr(t0, rt);
-
             op2 = MASK_BSHFL(ctx->opcode);
             switch (op2) {
             case OPC_ALIGN ... OPC_ALIGN_END:
-                sa &= 3;
-                if (sa == 0) {
-                    tcg_gen_mov_tl(cpu_gpr[rd], t0);
-                } else {
-                    TCGv t1 = tcg_temp_new();
-                    TCGv_i64 t2 = tcg_temp_new_i64();
-                    gen_load_gpr(t1, rs);
-                    tcg_gen_concat_tl_i64(t2, t1, t0);
-                    tcg_gen_shri_i64(t2, t2, 8 * (4 - sa));
-#if defined(TARGET_MIPS64)
-                    tcg_gen_ext32s_i64(cpu_gpr[rd], t2);
-#else
-                    tcg_gen_trunc_i64_i32(cpu_gpr[rd], t2);
-#endif
-                    tcg_temp_free_i64(t2);
-                    tcg_temp_free(t1);
-                }
+                gen_align(ctx, OPC_ALIGN, rd, rs, rt, sa & 3);
                 break;
             case OPC_BITSWAP:
-                gen_helper_bitswap(cpu_gpr[rd], t0);
+                gen_bitswap(ctx, op2, rd, rt);
                 break;
             }
-            tcg_temp_free(t0);
         }
         break;
 #if defined(TARGET_MIPS64)
@@ -16690,29 +17747,16 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
                 /* Treat as NOP. */
                 break;
             }
-            TCGv t0 = tcg_temp_new();
-            gen_load_gpr(t0, rt);
-
             op2 = MASK_DBSHFL(ctx->opcode);
             switch (op2) {
             case OPC_DALIGN ... OPC_DALIGN_END:
-                sa &= 7;
-                if (sa == 0) {
-                    tcg_gen_mov_tl(cpu_gpr[rd], t0);
-                } else {
-                    TCGv t1 = tcg_temp_new();
-                    gen_load_gpr(t1, rs);
-                    tcg_gen_shli_tl(t0, t0, 8 * sa);
-                    tcg_gen_shri_tl(t1, t1, 8 * (8 - sa));
-                    tcg_gen_or_tl(cpu_gpr[rd], t1, t0);
-                    tcg_temp_free(t1);
-                }
+                gen_align(ctx, OPC_DALIGN, rd, rs, rt, sa & 7);
                 break;
             case OPC_DBITSWAP:
-                gen_helper_dbitswap(cpu_gpr[rd], t0);
+                gen_bitswap(ctx, op2, rd, rt);
                 break;
             }
-            tcg_temp_free(t0);
+
         }
         break;
 #endif
@@ -18404,32 +19448,39 @@ static void gen_msa(CPUMIPSState *env, DisasContext *ctx)
             uint8_t wd = (ctx->opcode >> 6) & 0x1f;
             uint8_t df = (ctx->opcode >> 0) & 0x3;
 
-            TCGv_i32 tdf = tcg_const_i32(df);
             TCGv_i32 twd = tcg_const_i32(wd);
-            TCGv_i32 trs = tcg_const_i32(rs);
-            TCGv_i32 ts10 = tcg_const_i32(s10);
+            TCGv taddr = tcg_temp_new();
+            gen_base_offset_addr(ctx, taddr, rs, s10 << df);
 
             switch (MASK_MSA_MINOR(opcode)) {
             case OPC_LD_B:
+                gen_helper_msa_ld_b(cpu_env, twd, taddr);
+                break;
             case OPC_LD_H:
+                gen_helper_msa_ld_h(cpu_env, twd, taddr);
+                break;
             case OPC_LD_W:
+                gen_helper_msa_ld_w(cpu_env, twd, taddr);
+                break;
             case OPC_LD_D:
-                save_cpu_state(ctx, 1);
-                gen_helper_msa_ld_df(cpu_env, tdf, twd, trs, ts10);
+                gen_helper_msa_ld_d(cpu_env, twd, taddr);
                 break;
             case OPC_ST_B:
+                gen_helper_msa_st_b(cpu_env, twd, taddr);
+                break;
             case OPC_ST_H:
+                gen_helper_msa_st_h(cpu_env, twd, taddr);
+                break;
             case OPC_ST_W:
+                gen_helper_msa_st_w(cpu_env, twd, taddr);
+                break;
             case OPC_ST_D:
-                save_cpu_state(ctx, 1);
-                gen_helper_msa_st_df(cpu_env, tdf, twd, trs, ts10);
+                gen_helper_msa_st_d(cpu_env, twd, taddr);
                 break;
             }
 
             tcg_temp_free_i32(twd);
-            tcg_temp_free_i32(tdf);
-            tcg_temp_free_i32(trs);
-            tcg_temp_free_i32(ts10);
+            tcg_temp_free(taddr);
         }
         break;
     default:
@@ -18564,6 +19615,8 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         case OPC_MTC0:
         case OPC_MFTR:
         case OPC_MTTR:
+        case OPC_MFHC0:
+        case OPC_MTHC0:
 #if defined(TARGET_MIPS64)
         case OPC_DMFC0:
         case OPC_DMTC0:
@@ -18802,7 +19855,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
             if (ctx->insn_flags & ISA_MIPS32R6) {
                 /* OPC_BC1EQZ */
                 gen_compute_branch1_r6(ctx, MASK_CP1(ctx->opcode),
-                                rt, imm << 2);
+                                       rt, imm << 2, 4);
             } else {
                 /* OPC_BC1ANY2 */
                 check_cop1x(ctx);
@@ -18815,7 +19868,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
             check_cp1_enabled(ctx);
             check_insn(ctx, ISA_MIPS32R6);
             gen_compute_branch1_r6(ctx, MASK_CP1(ctx->opcode),
-                            rt, imm << 2);
+                                   rt, imm << 2, 4);
             break;
         case OPC_BC1ANY4:
             check_cp1_enabled(ctx);
@@ -18830,8 +19883,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
                                 (rt >> 2) & 0x7, imm << 2);
             break;
         case OPC_PS_FMT:
-            check_cp1_enabled(ctx);
-            check_insn_opc_removed(ctx, ISA_MIPS32R6);
+            check_ps(ctx);
             /* fall through */
         case OPC_S_FMT:
         case OPC_D_FMT:
@@ -19092,7 +20144,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         break;
     case OPC_PCREL:
         check_insn(ctx, ISA_MIPS32R6);
-        gen_pcrel(ctx, rs, imm);
+        gen_pcrel(ctx, ctx->opcode, ctx->pc, rs);
         break;
     default:            /* Invalid */
         MIPS_INVAL("major opcode");
@@ -19134,15 +20186,22 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     ctx.ie = (env->CP0_Config4 >> CP0C4_IE) & 3;
     ctx.bi = (env->CP0_Config3 >> CP0C3_BI) & 1;
     ctx.bp = (env->CP0_Config3 >> CP0C3_BP) & 1;
+    ctx.PAMask = env->PAMask;
+    ctx.mvh = (env->CP0_Config5 >> CP0C5_MVH) & 1;
+    ctx.CP0_LLAddr_shift = env->CP0_LLAddr_shift;
     /* Restore delay slot state from the tb context.  */
     ctx.hflags = (uint32_t)tb->flags; /* FIXME: maybe use 64 bits here? */
     ctx.ulri = (env->CP0_Config3 >> CP0C3_ULRI) & 1;
+    ctx.ps = ((env->active_fpu.fcr0 >> FCR0_PS) & 1) ||
+             (env->insn_flags & (INSN_LOONGSON2E | INSN_LOONGSON2F));
     restore_cpu_state(env, &ctx);
 #ifdef CONFIG_USER_ONLY
         ctx.mem_idx = MIPS_HFLAG_UM;
 #else
         ctx.mem_idx = ctx.hflags & MIPS_HFLAG_KSU;
 #endif
+    ctx.default_tcg_memop_mask = (ctx.insn_flags & ISA_MIPS32R6) ?
+                                 MO_UNALN : MO_ALIGN;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0)
@@ -19202,6 +20261,12 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
                                 MIPS_HFLAG_FBNSLOT))) {
                 /* force to generate branch as there is neither delay nor
                    forbidden slot */
+                is_slot = 1;
+            }
+            if ((ctx.hflags & MIPS_HFLAG_M16) &&
+                (ctx.hflags & MIPS_HFLAG_FBNSLOT)) {
+                /* Force to generate branch as microMIPS R6 doesn't restrict
+                   branches in the forbidden slot. */
                 is_slot = 1;
             }
         }
@@ -19273,7 +20338,7 @@ done_generating:
     LOG_DISAS("\n");
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(env, pc_start, ctx.pc - pc_start, 0);
+        log_target_disas(cs, pc_start, ctx.pc - pc_start, 0);
         qemu_log("\n");
     }
 #endif
@@ -19385,7 +20450,8 @@ void mips_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
 
     cpu_fprintf(f, "CP0 Status  0x%08x Cause   0x%08x EPC    0x" TARGET_FMT_lx "\n",
                 env->CP0_Status, env->CP0_Cause, env->CP0_EPC);
-    cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x" TARGET_FMT_lx "\n",
+    cpu_fprintf(f, "    Config0 0x%08x Config1 0x%08x LLAddr 0x%016"
+                PRIx64 "\n",
                 env->CP0_Config0, env->CP0_Config1, env->lladdr);
     cpu_fprintf(f, "    Config2 0x%08x Config3 0x%08x\n",
                 env->CP0_Config2, env->CP0_Config3);
@@ -19519,7 +20585,6 @@ void cpu_state_reset(CPUMIPSState *env)
     }
 #endif
     env->PABITS = env->cpu_model->PABITS;
-    env->PAMask = (target_ulong)((1ULL << env->cpu_model->PABITS) - 1);
     env->CP0_SRSConf0_rw_bitmask = env->cpu_model->CP0_SRSConf0_rw_bitmask;
     env->CP0_SRSConf0 = env->cpu_model->CP0_SRSConf0;
     env->CP0_SRSConf1_rw_bitmask = env->cpu_model->CP0_SRSConf1_rw_bitmask;
@@ -19640,7 +20705,13 @@ void cpu_state_reset(CPUMIPSState *env)
     compute_hflags(env);
     restore_rounding_mode(env);
     restore_flush_mode(env);
+    restore_pamask(env);
     cs->exception_index = EXCP_NONE;
+
+    if (semihosting_get_argc()) {
+        /* UHI interface can be used to obtain argc and argv */
+        env->active_tc.gpr[4] = -1;
+    }
 }
 
 void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb, int pc_pos)

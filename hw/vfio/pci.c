@@ -597,7 +597,7 @@ static void vfio_add_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage *msg,
         return;
     }
 
-    if (kvm_irqchip_add_irqfd_notifier(kvm_state, &vector->kvm_interrupt,
+    if (kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, &vector->kvm_interrupt,
                                        NULL, virq) < 0) {
         kvm_irqchip_release_virq(kvm_state, virq);
         event_notifier_cleanup(&vector->kvm_interrupt);
@@ -609,8 +609,8 @@ static void vfio_add_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage *msg,
 
 static void vfio_remove_kvm_msi_virq(VFIOMSIVector *vector)
 {
-    kvm_irqchip_remove_irqfd_notifier(kvm_state, &vector->kvm_interrupt,
-                                      vector->virq);
+    kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, &vector->kvm_interrupt,
+                                          vector->virq);
     kvm_irqchip_release_virq(kvm_state, vector->virq);
     vector->virq = -1;
     event_notifier_cleanup(&vector->kvm_interrupt);
@@ -939,7 +939,7 @@ static void vfio_pci_load_rom(VFIOPCIDevice *vdev)
     };
     uint64_t size;
     off_t off = 0;
-    size_t bytes;
+    ssize_t bytes;
 
     if (ioctl(vdev->vbasedev.fd, VFIO_DEVICE_GET_REGION_INFO, &reg_info)) {
         error_report("vfio: Error getting ROM info: %m");
@@ -1517,7 +1517,7 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
                     memory_region_name(&quirk->mem),
                     vdev->vbasedev.name);
 
-            return quirk->data.address_match ^ 0x10000000U;
+            return quirk->data.address_match ^ 0x80000000U;
         }
         break;
     case 0: /* data */
@@ -1558,7 +1558,7 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
     switch (addr) {
     case 4: /* address */
         if ((data & 0x7fff0000) == 0x10000) {
-            if (data & 0x10000000U &&
+            if (data & 0x80000000U &&
                 vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX) {
 
                 trace_vfio_rtl8168_window_quirk_write_table(
@@ -1566,11 +1566,9 @@ static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
                         vdev->vbasedev.name);
 
                 memory_region_dispatch_write(&vdev->pdev.msix_table_mmio,
-                                             (hwaddr)(quirk->data.address_match
-                                                      & 0xfff),
-                                             data,
-                                             size,
-                                             MEMTXATTRS_UNSPECIFIED);
+                                             (hwaddr)(data & 0xfff),
+                                             (uint64_t)quirk->data.address_mask,
+                                             size, MEMTXATTRS_UNSPECIFIED);
             }
 
             quirk->data.flags = 1;
@@ -2252,6 +2250,33 @@ static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
     vdev->msix->pba_offset = pba & ~PCI_MSIX_FLAGS_BIRMASK;
     vdev->msix->entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
 
+    /*
+     * Test the size of the pba_offset variable and catch if it extends outside
+     * of the specified BAR. If it is the case, we need to apply a hardware
+     * specific quirk if the device is known or we have a broken configuration.
+     */
+    if (vdev->msix->pba_offset >=
+        vdev->bars[vdev->msix->pba_bar].region.size) {
+
+        PCIDevice *pdev = &vdev->pdev;
+        uint16_t vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
+        uint16_t device = pci_get_word(pdev->config + PCI_DEVICE_ID);
+
+        /*
+         * Chelsio T5 Virtual Function devices are encoded as 0x58xx for T5
+         * adapters. The T5 hardware returns an incorrect value of 0x8000 for
+         * the VF PBA offset while the BAR itself is only 8k. The correct value
+         * is 0x1000, so we hard code that here.
+         */
+        if (vendor == PCI_VENDOR_ID_CHELSIO && (device & 0xff00) == 0x5800) {
+            vdev->msix->pba_offset = 0x1000;
+        } else {
+            error_report("vfio: Hardware reports invalid configuration, "
+                         "MSIX PBA outside of specified BAR");
+            return -EINVAL;
+        }
+    }
+
     trace_vfio_early_setup_msix(vdev->vbasedev.name, pos,
                                 vdev->msix->table_bar,
                                 vdev->msix->table_offset,
@@ -2388,7 +2413,7 @@ static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
      * potentially insert a direct-mapped subregion before and after it.
      */
     if (vdev->msix && vdev->msix->table_bar == nr) {
-        size = vdev->msix->table_offset & qemu_host_page_mask;
+        size = vdev->msix->table_offset & qemu_real_host_page_mask;
     }
 
     strncat(name, " mmap", sizeof(name) - strlen(name) - 1);
@@ -2401,8 +2426,9 @@ static void vfio_map_bar(VFIOPCIDevice *vdev, int nr)
     if (vdev->msix && vdev->msix->table_bar == nr) {
         uint64_t start;
 
-        start = HOST_PAGE_ALIGN((uint64_t)vdev->msix->table_offset +
-                                (vdev->msix->entries * PCI_MSIX_ENTRY_SIZE));
+        start = REAL_HOST_PAGE_ALIGN((uint64_t)vdev->msix->table_offset +
+                                     (vdev->msix->entries *
+                                      PCI_MSIX_ENTRY_SIZE));
 
         size = start < bar->region.size ? bar->region.size - start : 0;
         strncat(name, " msix-hi", sizeof(name) - strlen(name) - 1);
@@ -3723,7 +3749,6 @@ static Property vfio_pci_dev_properties[] = {
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
     DEFINE_PROP_BIT("x-req", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_REQ_BIT, true),
-    DEFINE_PROP_INT32("bootindex", VFIOPCIDevice, bootindex, -1),
     DEFINE_PROP_BOOL("x-mmap", VFIOPCIDevice, vbasedev.allow_mmap, true),
     /*
      * TODO - support passed fds... is this necessary?

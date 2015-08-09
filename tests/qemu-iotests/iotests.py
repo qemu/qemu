@@ -326,6 +326,29 @@ class QMPTestCase(unittest.TestCase):
         self.assert_no_active_block_jobs()
         return event
 
+    def wait_ready(self, drive='drive0'):
+        '''Wait until a block job BLOCK_JOB_READY event'''
+        f = {'data': {'type': 'mirror', 'device': drive } }
+        event = self.vm.event_wait(name='BLOCK_JOB_READY', match=f)
+
+    def wait_ready_and_cancel(self, drive='drive0'):
+        self.wait_ready(drive=drive)
+        event = self.cancel_and_wait(drive=drive)
+        self.assertEquals(event['event'], 'BLOCK_JOB_COMPLETED')
+        self.assert_qmp(event, 'data/type', 'mirror')
+        self.assert_qmp(event, 'data/offset', event['data']['len'])
+
+    def complete_and_wait(self, drive='drive0', wait_ready=True):
+        '''Complete a block job and wait for it to finish'''
+        if wait_ready:
+            self.wait_ready(drive=drive)
+
+        result = self.vm.qmp('block-job-complete', device=drive)
+        self.assert_qmp(result, 'return', {})
+
+        event = self.wait_until_completed(drive=drive)
+        self.assert_qmp(event, 'data/type', 'mirror')
+
 def notrun(reason):
     '''Skip this test suite'''
     # Each test in qemu-iotests has a number ("seq")

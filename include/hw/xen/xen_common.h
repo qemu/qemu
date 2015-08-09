@@ -195,7 +195,7 @@ static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
 
 #define IOREQ_TYPE_PCI_CONFIG 2
 
-typedef uint32_t ioservid_t;
+typedef uint16_t ioservid_t;
 
 static inline void xen_map_memory_section(XenXC xc, domid_t dom,
                                           ioservid_t ioservid,

@@ -48,13 +48,14 @@ static struct
 static void main_cpu_reset(void *opaque)
 {
     MicroBlazeCPU *cpu = opaque;
+    CPUState *cs = CPU(cpu);
     CPUMBState *env = &cpu->env;
 
-    cpu_reset(CPU(cpu));
+    cpu_reset(cs);
     env->regs[5] = boot_info.cmdline;
     env->regs[6] = boot_info.initrd_start;
     env->regs[7] = boot_info.fdt;
-    env->sregs[SR_PC] = boot_info.bootstrap_pc;
+    cpu_set_pc(cs, boot_info.bootstrap_pc);
     if (boot_info.machine_cpu_reset) {
         boot_info.machine_cpu_reset(cpu);
     }

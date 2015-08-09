@@ -20,6 +20,7 @@ extern hwaddr bcm2835_vcram_base;
 
 typedef struct {
     QemuConsole *con;
+    MemoryRegionSection fbsection;
     int invalidate;
     int lock;
 

@@ -42,36 +42,97 @@ static void cpu_pre_save(void *opaque)
     }
 }
 
+static inline bool fpu_needed(void *opaque)
+{
+    /* This looks odd, but we might want to NOT transfer fprs in the future */
+    return true;
+}
+
 const VMStateDescription vmstate_fpu = {
     .name = "cpu/fpu",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = fpu_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(env.fregs[0].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[1].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[2].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[3].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[4].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[5].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[6].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[7].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[8].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[9].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[10].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[11].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[12].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[13].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[14].ll, S390CPU),
-        VMSTATE_UINT64(env.fregs[15].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[0][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[1][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[2][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[3][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[4][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[5][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[6][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[7][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[8][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[9][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[10][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[11][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[12][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[13][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[14][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[15][0].ll, S390CPU),
         VMSTATE_UINT32(env.fpc, S390CPU),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static inline bool fpu_needed(void *opaque)
-{
-    return true;
-}
+const VMStateDescription vmstate_vregs = {
+    .name = "cpu/vregs",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vregs_needed,
+    .fields = (VMStateField[]) {
+        /* vregs[0][0] -> vregs[15][0] and fregs are overlays */
+        VMSTATE_UINT64(env.vregs[16][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[17][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[18][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[19][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[20][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[21][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[22][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[23][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[24][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[25][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[26][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[27][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[28][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[29][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[30][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[31][0].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[0][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[1][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[2][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[3][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[4][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[5][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[6][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[7][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[8][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[9][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[10][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[11][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[12][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[13][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[14][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[15][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[16][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[17][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[18][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[19][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[20][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[21][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[22][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[23][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[24][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[25][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[26][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[27][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[28][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[29][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[30][1].ll, S390CPU),
+        VMSTATE_UINT64(env.vregs[31][1].ll, S390CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 const VMStateDescription vmstate_s390_cpu = {
     .name = "cpu",
@@ -100,13 +161,10 @@ const VMStateDescription vmstate_s390_cpu = {
         VMSTATE_VBUFFER_UINT32(irqstate, S390CPU, 4, NULL, 0,
                                irqstate_saved_size),
         VMSTATE_END_OF_LIST()
-     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_fpu,
-            .needed = fpu_needed,
-        } , {
-            /* empty */
-        }
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_fpu,
+        &vmstate_vregs,
+        NULL
     },
 };

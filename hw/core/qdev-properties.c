@@ -1,6 +1,7 @@
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
 #include "hw/block/block.h"
 #include "net/hub.h"
@@ -123,6 +124,64 @@ PropertyInfo qdev_prop_bit = {
     .description = "on/off",
     .get   = prop_get_bit,
     .set   = prop_set_bit,
+};
+
+/* Bit64 */
+
+static uint64_t qdev_get_prop_mask64(Property *prop)
+{
+    assert(prop->info == &qdev_prop_bit64);
+    return 0x1ull << prop->bitnr;
+}
+
+static void bit64_prop_set(DeviceState *dev, Property *props, bool val)
+{
+    uint64_t *p = qdev_get_prop_ptr(dev, props);
+    uint64_t mask = qdev_get_prop_mask64(props);
+    if (val) {
+        *p |= mask;
+    } else {
+        *p &= ~mask;
+    }
+}
+
+static void prop_get_bit64(Object *obj, Visitor *v, void *opaque,
+                           const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    uint64_t *p = qdev_get_prop_ptr(dev, prop);
+    bool value = (*p & qdev_get_prop_mask64(prop)) != 0;
+
+    visit_type_bool(v, &value, name, errp);
+}
+
+static void prop_set_bit64(Object *obj, Visitor *v, void *opaque,
+                           const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    Error *local_err = NULL;
+    bool value;
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_bool(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    bit64_prop_set(dev, prop, value);
+}
+
+PropertyInfo qdev_prop_bit64 = {
+    .name  = "bool",
+    .description = "on/off",
+    .get   = prop_get_bit64,
+    .set   = prop_set_bit64,
 };
 
 /* --- bool --- */
@@ -512,8 +571,8 @@ static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
         if (local_err) {
             error_propagate(errp, local_err);
         } else if (value < -1 || value > 255) {
-            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name ? name : "null",
-                      "pci_devfn");
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                       name ? name : "null", "pci_devfn");
         } else {
             *ptr = value;
         }
@@ -582,8 +641,8 @@ static void set_blocksize(Object *obj, Visitor *v, void *opaque,
     }
     /* value of 0 means "unset" */
     if (value && (value < min || value > max)) {
-        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
-                  dev->id?:"", name, (int64_t)value, min, max);
+        error_setg(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+                   dev->id ? : "", name, (int64_t)value, min, max);
         return;
     }
 
@@ -865,8 +924,8 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
         break;
     default:
     case -EINVAL:
-        error_set(errp, QERR_PROPERTY_VALUE_BAD,
-                  object_get_typename(OBJECT(dev)), prop->name, value);
+        error_setg(errp, QERR_PROPERTY_VALUE_BAD,
+                   object_get_typename(OBJECT(dev)), prop->name, value);
         break;
     case -ENOENT:
         error_setg(errp, "Property '%s.%s' can't find value '%s'",

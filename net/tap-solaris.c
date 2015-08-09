@@ -36,7 +36,6 @@
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <net/if.h>
-#include <syslog.h>
 #include <stropts.h>
 #include "qemu/error-report.h"
 
@@ -56,8 +55,10 @@ ssize_t tap_read_packet(int tapfd, uint8_t *buf, int maxlen)
  * Allocate TAP device, returns opened fd.
  * Stores dev name in the first arg(must be large enough).
  */
-static int tap_alloc(char *dev, size_t dev_size)
+static int tap_alloc(char *dev, size_t dev_size, Error **errp)
 {
+    /* FIXME leaks like a sieve on error paths */
+    /* FIXME suspicious: many errors are reported, then ignored */
     int tap_fd, if_fd, ppa = -1;
     static int ip_fd = 0;
     char *ptr;
@@ -83,14 +84,14 @@ static int tap_alloc(char *dev, size_t dev_size)
 
     TFR(ip_fd = open("/dev/udp", O_RDWR, 0));
     if (ip_fd < 0) {
-       syslog(LOG_ERR, "Can't open /dev/ip (actually /dev/udp)");
-       return -1;
+        error_setg(errp, "Can't open /dev/ip (actually /dev/udp)");
+        return -1;
     }
 
     TFR(tap_fd = open("/dev/tap", O_RDWR, 0));
     if (tap_fd < 0) {
-       syslog(LOG_ERR, "Can't open /dev/tap");
-       return -1;
+        error_setg(errp, "Can't open /dev/tap");
+        return -1;
     }
 
     /* Assign a new PPA and get its unit number. */
@@ -99,20 +100,20 @@ static int tap_alloc(char *dev, size_t dev_size)
     strioc_ppa.ic_len = sizeof(ppa);
     strioc_ppa.ic_dp = (char *)&ppa;
     if ((ppa = ioctl (tap_fd, I_STR, &strioc_ppa)) < 0)
-       syslog (LOG_ERR, "Can't assign new interface");
+        error_report("Can't assign new interface");
 
     TFR(if_fd = open("/dev/tap", O_RDWR, 0));
     if (if_fd < 0) {
-       syslog(LOG_ERR, "Can't open /dev/tap (2)");
-       return -1;
+        error_setg(errp, "Can't open /dev/tap (2)");
+        return -1;
     }
     if(ioctl(if_fd, I_PUSH, "ip") < 0){
-       syslog(LOG_ERR, "Can't push IP module");
-       return -1;
+        error_setg(errp, "Can't push IP module");
+        return -1;
     }
 
     if (ioctl(if_fd, SIOCGLIFFLAGS, &ifr) < 0)
-	syslog(LOG_ERR, "Can't get flags\n");
+        error_report("Can't get flags");
 
     snprintf (actual_name, 32, "tap%d", ppa);
     pstrcpy(ifr.lifr_name, sizeof(ifr.lifr_name), actual_name);
@@ -121,22 +122,22 @@ static int tap_alloc(char *dev, size_t dev_size)
     /* Assign ppa according to the unit number returned by tun device */
 
     if (ioctl (if_fd, SIOCSLIFNAME, &ifr) < 0)
-        syslog (LOG_ERR, "Can't set PPA %d", ppa);
+        error_report("Can't set PPA %d", ppa);
     if (ioctl(if_fd, SIOCGLIFFLAGS, &ifr) <0)
-        syslog (LOG_ERR, "Can't get flags\n");
+        error_report("Can't get flags");
     /* Push arp module to if_fd */
     if (ioctl (if_fd, I_PUSH, "arp") < 0)
-        syslog (LOG_ERR, "Can't push ARP module (2)");
+        error_report("Can't push ARP module (2)");
 
     /* Push arp module to ip_fd */
     if (ioctl (ip_fd, I_POP, NULL) < 0)
-        syslog (LOG_ERR, "I_POP failed\n");
+        error_report("I_POP failed");
     if (ioctl (ip_fd, I_PUSH, "arp") < 0)
-        syslog (LOG_ERR, "Can't push ARP module (3)\n");
+        error_report("Can't push ARP module (3)");
     /* Open arp_fd */
     TFR(arp_fd = open ("/dev/tap", O_RDWR, 0));
     if (arp_fd < 0)
-       syslog (LOG_ERR, "Can't open %s\n", "/dev/tap");
+        error_report("Can't open %s", "/dev/tap");
 
     /* Set ifname to arp */
     strioc_if.ic_cmd = SIOCSLIFNAME;
@@ -144,16 +145,16 @@ static int tap_alloc(char *dev, size_t dev_size)
     strioc_if.ic_len = sizeof(ifr);
     strioc_if.ic_dp = (char *)&ifr;
     if (ioctl(arp_fd, I_STR, &strioc_if) < 0){
-        syslog (LOG_ERR, "Can't set ifname to arp\n");
+        error_report("Can't set ifname to arp");
     }
 
     if((ip_muxid = ioctl(ip_fd, I_LINK, if_fd)) < 0){
-       syslog(LOG_ERR, "Can't link TAP device to IP");
-       return -1;
+        error_setg(errp, "Can't link TAP device to IP");
+        return -1;
     }
 
     if ((arp_muxid = ioctl (ip_fd, link_type, arp_fd)) < 0)
-        syslog (LOG_ERR, "Can't link TAP device to ARP");
+        error_report("Can't link TAP device to ARP");
 
     close (if_fd);
 
@@ -166,7 +167,7 @@ static int tap_alloc(char *dev, size_t dev_size)
     {
       ioctl (ip_fd, I_PUNLINK , arp_muxid);
       ioctl (ip_fd, I_PUNLINK, ip_muxid);
-      syslog (LOG_ERR, "Can't set multiplexor id");
+      error_report("Can't set multiplexor id");
     }
 
     snprintf(dev, dev_size, "tap%d", ppa);
@@ -174,13 +175,14 @@ static int tap_alloc(char *dev, size_t dev_size)
 }
 
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required)
+             int vnet_hdr_required, int mq_required, Error **errp)
 {
     char  dev[10]="";
     int fd;
-    if( (fd = tap_alloc(dev, sizeof(dev))) < 0 ){
-       fprintf(stderr, "Cannot allocate TAP device\n");
-       return -1;
+
+    fd = tap_alloc(dev, sizeof(dev), errp);
+    if (fd < 0) {
+        return -1;
     }
     pstrcpy(ifname, ifname_size, dev);
     if (*vnet_hdr) {
@@ -188,8 +190,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         *vnet_hdr = 0;
 
         if (vnet_hdr_required && !*vnet_hdr) {
-            error_report("vnet_hdr=1 requested, but no kernel "
-                         "support for IFF_VNET_HDR available");
+            error_setg(errp, "vnet_hdr=1 requested, but no kernel "
+                       "support for IFF_VNET_HDR available");
             close(fd);
             return -1;
         }
@@ -198,9 +200,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     return fd;
 }
 
-int tap_set_sndbuf(int fd, const NetdevTapOptions *tap)
+void tap_set_sndbuf(int fd, const NetdevTapOptions *tap, Error **errp)
 {
-    return 0;
 }
 
 int tap_probe_vnet_hdr(int fd)
@@ -220,6 +221,16 @@ int tap_probe_vnet_hdr_len(int fd, int len)
 
 void tap_fd_set_vnet_hdr_len(int fd, int len)
 {
+}
+
+int tap_fd_set_vnet_le(int fd, int is_le)
+{
+    return -EINVAL;
+}
+
+int tap_fd_set_vnet_be(int fd, int is_be)
+{
+    return -EINVAL;
 }
 
 void tap_fd_set_offload(int fd, int csum, int tso4,

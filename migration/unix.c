@@ -65,7 +65,7 @@ static void unix_accept_incoming_migration(void *opaque)
         c = qemu_accept(s, (struct sockaddr *)&addr, &addrlen);
         err = errno;
     } while (c < 0 && err == EINTR);
-    qemu_set_fd_handler2(s, NULL, NULL, NULL, NULL);
+    qemu_set_fd_handler(s, NULL, NULL, NULL);
     close(s);
 
     DPRINTF("accepted migration\n");
@@ -98,6 +98,6 @@ void unix_start_incoming_migration(const char *path, Error **errp)
         return;
     }
 
-    qemu_set_fd_handler2(s, NULL, unix_accept_incoming_migration, NULL,
-                         (void *)(intptr_t)s);
+    qemu_set_fd_handler(s, unix_accept_incoming_migration, NULL,
+                        (void *)(intptr_t)s);
 }

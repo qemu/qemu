@@ -51,6 +51,20 @@ static void xtensa_core_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = config->gdb_regmap.num_regs;
 }
 
+void xtensa_finalize_config(XtensaConfig *config)
+{
+    unsigned i, n = 0;
+
+    if (config->gdb_regmap.num_regs) {
+        return;
+    }
+
+    for (i = 0; config->gdb_regmap.reg[i].targno >= 0; ++i) {
+        n += (config->gdb_regmap.reg[i].type != 6);
+    }
+    config->gdb_regmap.num_regs = n;
+}
+
 void xtensa_register_core(XtensaConfigList *node)
 {
     TypeInfo type = {

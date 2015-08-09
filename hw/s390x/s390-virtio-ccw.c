@@ -36,7 +36,7 @@ typedef struct S390CcwMachineState {
 
 void io_subsystem_reset(void)
 {
-    DeviceState *css, *sclp, *flic;
+    DeviceState *css, *sclp, *flic, *diag288;
 
     css = DEVICE(object_resolve_path_type("", "virtual-css-bridge", NULL));
     if (css) {
@@ -50,6 +50,10 @@ void io_subsystem_reset(void)
     flic = DEVICE(object_resolve_path_type("", "s390-flic", NULL));
     if (flic) {
         qdev_reset_all(flic);
+    }
+    diag288 = DEVICE(object_resolve_path_type("", "diag288", NULL));
+    if (diag288) {
+        qdev_reset_all(diag288);
     }
 }
 
@@ -67,7 +71,7 @@ static int virtio_ccw_hcall_notify(const uint64_t *args)
     if (!sch || !css_subch_visible(sch)) {
         return -EINVAL;
     }
-    if (queue >= VIRTIO_PCI_QUEUE_MAX) {
+    if (queue >= VIRTIO_CCW_QUEUE_MAX) {
         return -EINVAL;
     }
     virtio_queue_notify(virtio_ccw_get_vdev(sch), queue);
@@ -204,9 +208,6 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    mc->name = "s390-ccw-virtio";
-    mc->alias = "s390-ccw";
-    mc->desc = "VirtIO-ccw based S390 machine";
     mc->init = ccw_init;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
@@ -271,6 +272,7 @@ static inline void s390_machine_initfn(Object *obj)
 static const TypeInfo ccw_machine_info = {
     .name          = TYPE_S390_CCW_MACHINE,
     .parent        = TYPE_MACHINE,
+    .abstract      = true,
     .instance_size = sizeof(S390CcwMachineState),
     .instance_init = s390_machine_initfn,
     .class_init    = ccw_machine_class_init,
@@ -280,9 +282,26 @@ static const TypeInfo ccw_machine_info = {
     },
 };
 
+static void ccw_machine_2_4_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "s390-ccw-virtio-2.4";
+    mc->alias = "s390-ccw-virtio";
+    mc->desc = "VirtIO-ccw based S390 machine v2.4";
+    mc->is_default = 1;
+}
+
+static const TypeInfo ccw_machine_2_4_info = {
+    .name          = TYPE_S390_CCW_MACHINE "2.4",
+    .parent        = TYPE_S390_CCW_MACHINE,
+    .class_init    = ccw_machine_2_4_class_init,
+};
+
 static void ccw_machine_register_types(void)
 {
     type_register_static(&ccw_machine_info);
+    type_register_static(&ccw_machine_2_4_info);
 }
 
 type_init(ccw_machine_register_types)

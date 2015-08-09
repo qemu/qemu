@@ -12,7 +12,6 @@
 #include "sysemu/blockdev.h"
 #include "sysemu/block-backend.h"
 #include "hw/block/block.h"
-#include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/sysemu.h"
 #include "qmp-commands.h"
@@ -43,7 +42,7 @@ void qmp_nbd_server_start(SocketAddress *addr, Error **errp)
 
     server_fd = socket_listen(addr, errp);
     if (server_fd != -1) {
-        qemu_set_fd_handler2(server_fd, NULL, nbd_accept, NULL, NULL);
+        qemu_set_fd_handler(server_fd, nbd_accept, NULL, NULL);
     }
 }
 
@@ -91,11 +90,12 @@ void qmp_nbd_server_add(const char *device, bool has_writable, bool writable,
 
     blk = blk_by_name(device);
     if (!blk) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
         return;
     }
     if (!blk_is_inserted(blk)) {
-        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
         return;
     }
 
@@ -129,7 +129,7 @@ void qmp_nbd_server_stop(Error **errp)
     }
 
     if (server_fd != -1) {
-        qemu_set_fd_handler2(server_fd, NULL, NULL, NULL, NULL);
+        qemu_set_fd_handler(server_fd, NULL, NULL, NULL);
         close(server_fd);
         server_fd = -1;
     }

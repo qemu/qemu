@@ -50,27 +50,47 @@ typedef struct AHCICommandProp {
 } AHCICommandProp;
 
 AHCICommandProp ahci_command_properties[] = {
-    { .cmd = CMD_READ_PIO,      .data = true,  .pio = true,
-                                .lba28 = true, .read = true },
-    { .cmd = CMD_WRITE_PIO,     .data = true,  .pio = true,
-                                .lba28 = true, .write = true },
-    { .cmd = CMD_READ_PIO_EXT,  .data = true,  .pio = true,
-                                .lba48 = true, .read = true },
-    { .cmd = CMD_WRITE_PIO_EXT, .data = true,  .pio = true,
-                                .lba48 = true, .write = true },
-    { .cmd = CMD_READ_DMA,      .data = true,  .dma = true,
-                                .lba28 = true, .read = true },
-    { .cmd = CMD_WRITE_DMA,     .data = true,  .dma = true,
-                                .lba28 = true, .write = true },
-    { .cmd = CMD_READ_DMA_EXT,  .data = true,  .dma = true,
-                                .lba48 = true, .read = true },
-    { .cmd = CMD_WRITE_DMA_EXT, .data = true,  .dma = true,
-                                .lba48 = true, .write = true },
-    { .cmd = CMD_IDENTIFY,      .data = true,  .pio = true,
-                                .size = 512,   .read = true },
-    { .cmd = CMD_READ_MAX,      .lba28 = true },
-    { .cmd = CMD_READ_MAX_EXT,  .lba48 = true },
-    { .cmd = CMD_FLUSH_CACHE,   .data = false }
+    { .cmd = CMD_READ_PIO,       .data = true,  .pio = true,
+                                 .lba28 = true, .read = true },
+    { .cmd = CMD_WRITE_PIO,      .data = true,  .pio = true,
+                                 .lba28 = true, .write = true },
+    { .cmd = CMD_READ_PIO_EXT,   .data = true,  .pio = true,
+                                 .lba48 = true, .read = true },
+    { .cmd = CMD_WRITE_PIO_EXT,  .data = true,  .pio = true,
+                                 .lba48 = true, .write = true },
+    { .cmd = CMD_READ_DMA,       .data = true,  .dma = true,
+                                 .lba28 = true, .read = true },
+    { .cmd = CMD_WRITE_DMA,      .data = true,  .dma = true,
+                                 .lba28 = true, .write = true },
+    { .cmd = CMD_READ_DMA_EXT,   .data = true,  .dma = true,
+                                 .lba48 = true, .read = true },
+    { .cmd = CMD_WRITE_DMA_EXT,  .data = true,  .dma = true,
+                                 .lba48 = true, .write = true },
+    { .cmd = CMD_IDENTIFY,       .data = true,  .pio = true,
+                                 .size = 512,   .read = true },
+    { .cmd = READ_FPDMA_QUEUED,  .data = true,  .dma = true,
+                                 .lba48 = true, .read = true, .ncq = true },
+    { .cmd = WRITE_FPDMA_QUEUED, .data = true,  .dma = true,
+                                 .lba48 = true, .write = true, .ncq = true },
+    { .cmd = CMD_READ_MAX,       .lba28 = true },
+    { .cmd = CMD_READ_MAX_EXT,   .lba48 = true },
+    { .cmd = CMD_FLUSH_CACHE,    .data = false }
+};
+
+struct AHCICommand {
+    /* Test Management Data */
+    uint8_t name;
+    uint8_t port;
+    uint8_t slot;
+    uint32_t interrupts;
+    uint64_t xbytes;
+    uint32_t prd_size;
+    uint64_t buffer;
+    AHCICommandProp *props;
+    /* Data to be transferred to the guest */
+    AHCICommandHeader header;
+    RegH2DFIS fis;
+    void *atapi_cmd;
 };
 
 /**
@@ -138,12 +158,14 @@ void ahci_clean_mem(AHCIQState *ahci)
     for (port = 0; port < 32; ++port) {
         if (ahci->port[port].fb) {
             ahci_free(ahci, ahci->port[port].fb);
+            ahci->port[port].fb = 0;
         }
         if (ahci->port[port].clb) {
             for (slot = 0; slot < 32; slot++) {
                 ahci_destroy_command(ahci, port, slot);
             }
             ahci_free(ahci, ahci->port[port].clb);
+            ahci->port[port].clb = 0;
         }
     }
 }
@@ -252,7 +274,7 @@ void ahci_hba_enable(AHCIQState *ahci)
         /* Allocate Memory for the Command List Buffer & FIS Buffer */
         /* PxCLB space ... 0x20 per command, as in 4.2.2 p 36 */
         ahci->port[i].clb = ahci_alloc(ahci, num_cmd_slots * 0x20);
-        qmemset(ahci->port[i].clb, 0x00, 0x100);
+        qmemset(ahci->port[i].clb, 0x00, num_cmd_slots * 0x20);
         g_test_message("CLB: 0x%08" PRIx64, ahci->port[i].clb);
         ahci_px_wreg(ahci, i, AHCI_PX_CLB, ahci->port[i].clb);
         g_assert_cmphex(ahci->port[i].clb, ==,
@@ -460,13 +482,15 @@ void ahci_port_check_pio_sanity(AHCIQState *ahci, uint8_t port,
     g_free(pio);
 }
 
-void ahci_port_check_cmd_sanity(AHCIQState *ahci, uint8_t port,
-                                uint8_t slot, size_t buffsize)
+void ahci_port_check_cmd_sanity(AHCIQState *ahci, AHCICommand *cmd)
 {
-    AHCICommandHeader cmd;
+    AHCICommandHeader cmdh;
 
-    ahci_get_command_header(ahci, port, slot, &cmd);
-    g_assert_cmphex(buffsize, ==, cmd.prdbc);
+    ahci_get_command_header(ahci, cmd->port, cmd->slot, &cmdh);
+    /* Physical Region Descriptor Byte Count is not required to work for NCQ. */
+    if (!cmd->props->ncq) {
+        g_assert_cmphex(cmd->xbytes, ==, cmdh.prdbc);
+    }
 }
 
 /* Get the command in #slot of port #port. */
@@ -521,16 +545,18 @@ void ahci_destroy_command(AHCIQState *ahci, uint8_t port, uint8_t slot)
     ahci->port[port].prdtl[slot] = 0;
 }
 
-void ahci_write_fis(AHCIQState *ahci, RegH2DFIS *fis, uint64_t addr)
+void ahci_write_fis(AHCIQState *ahci, AHCICommand *cmd)
 {
-    RegH2DFIS tmp = *fis;
+    RegH2DFIS tmp = cmd->fis;
+    uint64_t addr = cmd->header.ctba;
 
-    /* The auxiliary FIS fields are defined per-command and are not
-     * currently implemented in libqos/ahci.o, but may or may not need
-     * to be flipped. */
-
-    /* All other FIS fields are 8 bit and do not need to be flipped. */
-    tmp.count = cpu_to_le16(tmp.count);
+    /* NCQ commands use exclusively 8 bit fields and needs no adjustment.
+     * Only the count field needs to be adjusted for non-NCQ commands.
+     * The auxiliary FIS fields are defined per-command and are not currently
+     * implemented in libqos/ahci.o, but may or may not need to be flipped. */
+    if (!cmd->props->ncq) {
+        tmp.count = cpu_to_le16(tmp.count);
+    }
 
     memwrite(addr, &tmp, sizeof(tmp));
 }
@@ -549,7 +575,7 @@ unsigned ahci_pick_cmd(AHCIQState *ahci, uint8_t port)
         if (reg & (1 << j)) {
             continue;
         }
-        ahci_destroy_command(ahci, port, i);
+        ahci_destroy_command(ahci, port, j);
         ahci->port[port].next = (j + 1) % 32;
         return j;
     }
@@ -609,22 +635,6 @@ void ahci_guest_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
     ahci_command_verify(ahci, cmd);
     ahci_command_free(cmd);
 }
-
-struct AHCICommand {
-    /* Test Management Data */
-    uint8_t name;
-    uint8_t port;
-    uint8_t slot;
-    uint32_t interrupts;
-    uint64_t xbytes;
-    uint32_t prd_size;
-    uint64_t buffer;
-    AHCICommandProp *props;
-    /* Data to be transferred to the guest */
-    AHCICommandHeader header;
-    RegH2DFIS fis;
-    void *atapi_cmd;
-};
 
 static AHCICommandProp *ahci_command_find(uint8_t command_name)
 {
@@ -691,19 +701,34 @@ static void command_header_init(AHCICommand *cmd)
 static void command_table_init(AHCICommand *cmd)
 {
     RegH2DFIS *fis = &(cmd->fis);
+    uint16_t sect_count = (cmd->xbytes / AHCI_SECTOR_SIZE);
 
     fis->fis_type = REG_H2D_FIS;
     fis->flags = REG_H2D_FIS_CMD; /* "Command" bit */
     fis->command = cmd->name;
-    cmd->fis.feature_low = 0x00;
-    cmd->fis.feature_high = 0x00;
-    if (cmd->props->lba28 || cmd->props->lba48) {
-        cmd->fis.device = ATA_DEVICE_LBA;
+
+    if (cmd->props->ncq) {
+        NCQFIS *ncqfis = (NCQFIS *)fis;
+        /* NCQ is weird and re-uses FIS frames for unrelated data.
+         * See SATA 3.2, 13.6.4.1 READ FPDMA QUEUED for an example. */
+        ncqfis->sector_low = sect_count & 0xFF;
+        ncqfis->sector_hi = (sect_count >> 8) & 0xFF;
+        ncqfis->device = NCQ_DEVICE_MAGIC;
+        /* Force Unit Access is bit 7 in the device register */
+        ncqfis->tag = 0;  /* bits 3-7 are the NCQ tag */
+        ncqfis->prio = 0; /* bits 6,7 are a prio tag */
+        /* RARC bit is bit 0 of TAG field */
+    } else {
+        fis->feature_low = 0x00;
+        fis->feature_high = 0x00;
+        if (cmd->props->lba28 || cmd->props->lba48) {
+            fis->device = ATA_DEVICE_LBA;
+        }
+        fis->count = (cmd->xbytes / AHCI_SECTOR_SIZE);
     }
-    cmd->fis.count = (cmd->xbytes / AHCI_SECTOR_SIZE);
-    cmd->fis.icc = 0x00;
-    cmd->fis.control = 0x00;
-    memset(cmd->fis.aux, 0x00, ARRAY_SIZE(cmd->fis.aux));
+    fis->icc = 0x00;
+    fis->control = 0x00;
+    memset(fis->aux, 0x00, ARRAY_SIZE(fis->aux));
 }
 
 AHCICommand *ahci_command_create(uint8_t command_name)
@@ -717,6 +742,7 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     g_assert(!(props->lba28 && props->lba48));
     g_assert(!(props->read && props->write));
     g_assert(!props->size || props->data);
+    g_assert(!props->ncq || (props->ncq && props->lba48));
 
     /* Defaults and book-keeping */
     cmd->props = props;
@@ -725,12 +751,15 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     cmd->prd_size = 4096;
     cmd->buffer = 0xabad1dea;
 
-    cmd->interrupts = AHCI_PX_IS_DHRS;
+    if (!cmd->props->ncq) {
+        cmd->interrupts = AHCI_PX_IS_DHRS;
+    }
     /* BUG: We expect the DPS interrupt for data commands */
     /* cmd->interrupts |= props->data ? AHCI_PX_IS_DPS : 0; */
     /* BUG: We expect the DMA Setup interrupt for DMA commands */
     /* cmd->interrupts |= props->dma ? AHCI_PX_IS_DSS : 0; */
     cmd->interrupts |= props->pio ? AHCI_PX_IS_PSS : 0;
+    cmd->interrupts |= props->ncq ? AHCI_PX_IS_SDBS : 0;
 
     command_header_init(cmd);
     command_table_init(cmd);
@@ -758,7 +787,7 @@ void ahci_command_set_offset(AHCICommand *cmd, uint64_t lba_sect)
     RegH2DFIS *fis = &(cmd->fis);
     if (cmd->props->lba28) {
         g_assert_cmphex(lba_sect, <=, 0xFFFFFFF);
-    } else if (cmd->props->lba48) {
+    } else if (cmd->props->lba48 || cmd->props->ncq) {
         g_assert_cmphex(lba_sect, <=, 0xFFFFFFFFFFFF);
     } else {
         /* Can't set offset if we don't know the format. */
@@ -785,6 +814,8 @@ void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer)
 void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
                             unsigned prd_size)
 {
+    uint16_t sect_count;
+
     /* Each PRD can describe up to 4MiB, and must not be odd. */
     g_assert_cmphex(prd_size, <=, 4096 * 1024);
     g_assert_cmphex(prd_size & 0x01, ==, 0x00);
@@ -792,7 +823,15 @@ void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
         cmd->prd_size = prd_size;
     }
     cmd->xbytes = xbytes;
-    cmd->fis.count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+    sect_count = (cmd->xbytes / AHCI_SECTOR_SIZE);
+
+    if (cmd->props->ncq) {
+        NCQFIS *nfis = (NCQFIS *)&(cmd->fis);
+        nfis->sector_low = sect_count & 0xFF;
+        nfis->sector_hi = (sect_count >> 8) & 0xFF;
+    } else {
+        cmd->fis.count = sect_count;
+    }
     cmd->header.prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);
 }
 
@@ -824,6 +863,11 @@ void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
     cmd->port = port;
     cmd->slot = ahci_pick_cmd(ahci, port);
 
+    if (cmd->props->ncq) {
+        NCQFIS *nfis = (NCQFIS *)&cmd->fis;
+        nfis->tag = (cmd->slot << 3) & 0xFC;
+    }
+
     /* Create a buffer for the command table */
     prdtl = size_to_prdtl(cmd->xbytes, cmd->prd_size);
     table_size = CMD_TBL_SIZ(prdtl);
@@ -835,7 +879,7 @@ void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
 
     /* Commit the command header and command FIS */
     ahci_set_command_header(ahci, port, cmd->slot, &(cmd->header));
-    ahci_write_fis(ahci, &(cmd->fis), table_ptr);
+    ahci_write_fis(ahci, cmd);
 
     /* Construct and write the PRDs to the command table */
     g_assert_cmphex(prdtl, ==, cmd->header.prdtl);
@@ -878,11 +922,15 @@ void ahci_command_wait(AHCIQState *ahci, AHCICommand *cmd)
     /* We can't rely on STS_BSY until the command has started processing.
      * Therefore, we also use the Command Issue bit as indication of
      * a command in-flight. */
-    while (BITSET(ahci_px_rreg(ahci, cmd->port, AHCI_PX_TFD),
-                  AHCI_PX_TFD_STS_BSY) ||
-           BITSET(ahci_px_rreg(ahci, cmd->port, AHCI_PX_CI), (1 << cmd->slot))) {
+
+#define RSET(REG, MASK) (BITSET(ahci_px_rreg(ahci, cmd->port, (REG)), (MASK)))
+
+    while (RSET(AHCI_PX_TFD, AHCI_PX_TFD_STS_BSY) ||
+           RSET(AHCI_PX_CI, 1 << cmd->slot) ||
+           (cmd->props->ncq && RSET(AHCI_PX_SACT, 1 << cmd->slot))) {
         usleep(50);
     }
+
 }
 
 void ahci_command_issue(AHCIQState *ahci, AHCICommand *cmd)
@@ -899,8 +947,10 @@ void ahci_command_verify(AHCIQState *ahci, AHCICommand *cmd)
     ahci_port_check_error(ahci, port);
     ahci_port_check_interrupts(ahci, port, cmd->interrupts);
     ahci_port_check_nonbusy(ahci, port, slot);
-    ahci_port_check_cmd_sanity(ahci, port, slot, cmd->xbytes);
-    ahci_port_check_d2h_sanity(ahci, port, slot);
+    ahci_port_check_cmd_sanity(ahci, cmd);
+    if (cmd->interrupts & AHCI_PX_IS_DHRS) {
+        ahci_port_check_d2h_sanity(ahci, port, slot);
+    }
     if (cmd->props->pio) {
         ahci_port_check_pio_sanity(ahci, port, slot, cmd->xbytes);
     }

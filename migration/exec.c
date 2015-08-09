@@ -49,7 +49,7 @@ static void exec_accept_incoming_migration(void *opaque)
 {
     QEMUFile *f = opaque;
 
-    qemu_set_fd_handler2(qemu_get_fd(f), NULL, NULL, NULL, NULL);
+    qemu_set_fd_handler(qemu_get_fd(f), NULL, NULL, NULL);
     process_incoming_migration(f);
 }
 
@@ -64,6 +64,6 @@ void exec_start_incoming_migration(const char *command, Error **errp)
         return;
     }
 
-    qemu_set_fd_handler2(qemu_get_fd(f), NULL,
-			 exec_accept_incoming_migration, NULL, f);
+    qemu_set_fd_handler(qemu_get_fd(f), exec_accept_incoming_migration, NULL,
+                        f);
 }

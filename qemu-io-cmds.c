@@ -13,6 +13,7 @@
 #include "block/block.h"
 #include "block/block_int.h" /* for info_f() */
 #include "block/qapi.h"
+#include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
 #include "sysemu/block-backend.h"

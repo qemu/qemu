@@ -862,7 +862,7 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
     int stackprot = 0;
 
     /* All load/stores use ra.  */
-    if (dc->ra == 1) {
+    if (dc->ra == 1 && dc->cpu->cfg.stackprot) {
         stackprot = 1;
     }
 
@@ -875,7 +875,7 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
             return &cpu_R[dc->ra];
         }
 
-        if (dc->rb == 1) {
+        if (dc->rb == 1 && dc->cpu->cfg.stackprot) {
             stackprot = 1;
         }
 
@@ -1411,15 +1411,11 @@ static void dec_rts(DisasContext *dc)
 
 static int dec_check_fpuv2(DisasContext *dc)
 {
-    int r;
-
-    r = dc->cpu->env.pvr.regs[2] & PVR2_USE_FPU2_MASK;
-
-    if (!r && (dc->tb_flags & MSR_EE_FLAG)) {
+    if ((dc->cpu->cfg.use_fpu != 2) && (dc->tb_flags & MSR_EE_FLAG)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_FPU);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
     }
-    return r;
+    return (dc->cpu->cfg.use_fpu == 2) ? 0 : PVR2_USE_FPU2_MASK;
 }
 
 static void dec_fpu(DisasContext *dc)
@@ -1428,7 +1424,7 @@ static void dec_fpu(DisasContext *dc)
 
     if ((dc->tb_flags & MSR_EE_FLAG)
           && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
-          && !((dc->cpu->env.pvr.regs[2] & PVR2_USE_FPU_MASK))) {
+          && (dc->cpu->cfg.use_fpu != 1)) {
         tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
@@ -1855,7 +1851,7 @@ gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("\n");
 #if DISAS_GNU
-        log_target_disas(env, pc_start, dc->pc - pc_start, 0);
+        log_target_disas(cs, pc_start, dc->pc - pc_start, 0);
 #endif
         qemu_log("\nisize=%d osize=%d\n",
                  dc->pc - pc_start, tcg_op_buf_count());

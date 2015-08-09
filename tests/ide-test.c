@@ -339,6 +339,31 @@ static void test_bmdma_short_prdt(void)
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 }
 
+static void test_bmdma_one_sector_short_prdt(void)
+{
+    uint8_t status;
+
+    /* Read 2 sectors but only give 1 sector in PRDT */
+    PrdtEntry prdt[] = {
+        {
+            .addr = 0,
+            .size = cpu_to_le32(0x200 | PRDT_EOT),
+        },
+    };
+
+    /* Normal request */
+    status = send_dma_request(CMD_READ_DMA, 0, 2,
+                              prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, 0);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+
+    /* Abort the request before it completes */
+    status = send_dma_request(CMD_READ_DMA | CMDF_ABORT, 0, 2,
+                              prdt, ARRAY_SIZE(prdt));
+    g_assert_cmphex(status, ==, 0);
+    assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
+}
+
 static void test_bmdma_long_prdt(void)
 {
     uint8_t status;
@@ -592,6 +617,8 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/bmdma/setup", test_bmdma_setup);
     qtest_add_func("/ide/bmdma/simple_rw", test_bmdma_simple_rw);
     qtest_add_func("/ide/bmdma/short_prdt", test_bmdma_short_prdt);
+    qtest_add_func("/ide/bmdma/one_sector_short_prdt",
+                   test_bmdma_one_sector_short_prdt);
     qtest_add_func("/ide/bmdma/long_prdt", test_bmdma_long_prdt);
     qtest_add_func("/ide/bmdma/no_busmaster", test_bmdma_no_busmaster);
     qtest_add_func("/ide/bmdma/teardown", test_bmdma_teardown);

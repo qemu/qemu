@@ -303,8 +303,7 @@ static ssize_t minimac2_rx(NetClientState *nc, const uint8_t *buf, size_t size)
         r_state = R_STATE1;
         rx_buf = s->rx1_buf;
     } else {
-        trace_milkymist_minimac2_drop_rx_frame(buf);
-        return size;
+        return 0;
     }
 
     /* assemble frame */
@@ -354,6 +353,18 @@ minimac2_read(void *opaque, hwaddr addr, unsigned size)
     return r;
 }
 
+static int minimac2_can_rx(MilkymistMinimac2State *s)
+{
+    if (s->regs[R_STATE0] == STATE_LOADED) {
+        return 1;
+    }
+    if (s->regs[R_STATE1] == STATE_LOADED) {
+        return 1;
+    }
+
+    return 0;
+}
+
 static void
 minimac2_write(void *opaque, hwaddr addr, uint64_t value,
                unsigned size)
@@ -387,6 +398,9 @@ minimac2_write(void *opaque, hwaddr addr, uint64_t value,
     case R_STATE1:
         s->regs[addr] = value;
         update_rx_interrupt(s);
+        if (minimac2_can_rx(s)) {
+            qemu_flush_queued_packets(qemu_get_queue(s->nic));
+        }
         break;
     case R_SETUP:
     case R_COUNT0:
@@ -411,20 +425,6 @@ static const MemoryRegionOps minimac2_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int minimac2_can_rx(NetClientState *nc)
-{
-    MilkymistMinimac2State *s = qemu_get_nic_opaque(nc);
-
-    if (s->regs[R_STATE0] == STATE_LOADED) {
-        return 1;
-    }
-    if (s->regs[R_STATE1] == STATE_LOADED) {
-        return 1;
-    }
-
-    return 0;
-}
-
 static void milkymist_minimac2_reset(DeviceState *d)
 {
     MilkymistMinimac2State *s = MILKYMIST_MINIMAC2(d);
@@ -445,7 +445,6 @@ static void milkymist_minimac2_reset(DeviceState *d)
 static NetClientInfo net_milkymist_minimac2_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = minimac2_can_rx,
     .receive = minimac2_rx,
 };
 

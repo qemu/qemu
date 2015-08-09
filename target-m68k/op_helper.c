@@ -20,6 +20,7 @@
 #include "cpu.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
+#include "exec/semihost.h"
 
 #if defined(CONFIG_USER_ONLY)
 
@@ -33,8 +34,6 @@ static inline void do_interrupt_m68k_hardirq(CPUM68KState *env)
 }
 
 #else
-
-extern int semihosting_enabled;
 
 /* Try to fill the TLB and return an exception if error. If retaddr is
    NULL, it means that the function was called in C code (i.e. not
@@ -64,8 +63,8 @@ static void do_rte(CPUM68KState *env)
     env->pc = cpu_ldl_kernel(env, sp + 4);
     sp |= (fmt >> 28) & 3;
     env->sr = fmt & 0xffff;
-    m68k_switch_sp(env);
     env->aregs[7] = sp + 8;
+    m68k_switch_sp(env);
 }
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
@@ -86,7 +85,7 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
             do_rte(env);
             return;
         case EXCP_HALT_INSN:
-            if (semihosting_enabled
+            if (semihosting_enabled()
                     && (env->sr & SR_S) != 0
                     && (env->pc & 3) == 0
                     && cpu_lduw_code(env, env->pc - 4) == 0x4e71
@@ -109,10 +108,7 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
 
     vector = cs->exception_index << 2;
 
-    sp = env->aregs[7];
-
     fmt |= 0x40000000;
-    fmt |= (sp & 3) << 28;
     fmt |= vector << 16;
     fmt |= env->sr;
 
@@ -122,6 +118,8 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
         env->sr &= ~SR_M;
     }
     m68k_switch_sp(env);
+    sp = env->aregs[7];
+    fmt |= (sp & 3) << 28;
 
     /* ??? This could cause MMU faults.  */
     sp &= ~3;

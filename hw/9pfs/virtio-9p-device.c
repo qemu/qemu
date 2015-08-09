@@ -21,7 +21,8 @@
 #include "virtio-9p-coth.h"
 #include "hw/virtio/virtio-access.h"
 
-static uint32_t virtio_9p_get_features(VirtIODevice *vdev, uint32_t features)
+static uint64_t virtio_9p_get_features(VirtIODevice *vdev, uint64_t features,
+                                       Error **errp)
 {
     virtio_add_feature(&features, VIRTIO_9P_MOUNT_TAG);
     return features;
@@ -140,7 +141,8 @@ out:
 /* virtio-9p device */
 
 static Property virtio_9p_properties[] = {
-    DEFINE_VIRTIO_9P_PROPERTIES(V9fsState, fsconf),
+    DEFINE_PROP_STRING("mount_tag", V9fsState, fsconf.tag),
+    DEFINE_PROP_STRING("fsdev", V9fsState, fsconf.fsdev_id),
     DEFINE_PROP_END_OF_LIST(),
 };
 

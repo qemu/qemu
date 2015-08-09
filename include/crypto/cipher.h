@@ -1,0 +1,210 @@
+/*
+ * QEMU Crypto cipher algorithms
+ *
+ * Copyright (c) 2015 Red Hat, Inc.
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+#ifndef QCRYPTO_CIPHER_H__
+#define QCRYPTO_CIPHER_H__
+
+#include "qemu-common.h"
+#include "qapi/error.h"
+
+typedef struct QCryptoCipher QCryptoCipher;
+
+typedef enum {
+    QCRYPTO_CIPHER_ALG_AES_128,
+    QCRYPTO_CIPHER_ALG_AES_192,
+    QCRYPTO_CIPHER_ALG_AES_256,
+    QCRYPTO_CIPHER_ALG_DES_RFB, /* A stupid variant on DES for VNC */
+
+    QCRYPTO_CIPHER_ALG_LAST
+} QCryptoCipherAlgorithm;
+
+typedef enum {
+    QCRYPTO_CIPHER_MODE_ECB,
+    QCRYPTO_CIPHER_MODE_CBC,
+
+    QCRYPTO_CIPHER_MODE_LAST
+} QCryptoCipherMode;
+
+/**
+ * QCryptoCipher:
+ *
+ * The QCryptoCipher object provides a way to perform encryption
+ * and decryption of data, with a standard API, regardless of the
+ * algorithm used. It further isolates the calling code from the
+ * details of the specific underlying implementation, whether
+ * built-in, libgcrypt or nettle.
+ *
+ * Each QCryptoCipher object is capable of performing both
+ * encryption and decryption, and can operate in a number
+ * or modes including ECB, CBC.
+ *
+ * <example>
+ *   <title>Encrypting data with AES-128 in CBC mode</title>
+ *   <programlisting>
+ * QCryptoCipher *cipher;
+ * uint8_t key = ....;
+ * size_t keylen = 16;
+ * uint8_t iv = ....;
+ *
+ * if (!qcrypto_cipher_supports(QCRYPTO_CIPHER_ALG_AES_128)) {
+ *    error_report(errp, "Feature <blah> requires AES cipher support");
+ *    return -1;
+ * }
+ *
+ * cipher = qcrypto_cipher_new(QCRYPTO_CIPHER_ALG_AES_128,
+ *                             QCRYPTO_CIPHER_MODE_CBC,
+ *                             key, keylen,
+ *                             errp);
+ * if (!cipher) {
+ *    return -1;
+ * }
+ *
+ * if (qcrypto_cipher_set_iv(cipher, iv, keylen, errp) < 0) {
+ *    return -1;
+ * }
+ *
+ * if (qcrypto_cipher_encrypt(cipher, rawdata, encdata, datalen, errp) < 0) {
+ *    return -1;
+ * }
+ *
+ * qcrypto_cipher_free(cipher);
+ *   </programlisting>
+ * </example>
+ *
+ */
+
+struct QCryptoCipher {
+    QCryptoCipherAlgorithm alg;
+    QCryptoCipherMode mode;
+    void *opaque;
+};
+
+/**
+ * qcrypto_cipher_supports:
+ * @alg: the cipher algorithm
+ *
+ * Determine if @alg cipher algorithm is supported by the
+ * current configured build
+ *
+ * Returns: true if the algorithm is supported, false otherwise
+ */
+bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg);
+
+
+/**
+ * qcrypto_cipher_new:
+ * @alg: the cipher algorithm
+ * @mode: the cipher usage mode
+ * @key: the private key bytes
+ * @nkey: the length of @key
+ * @errp: pointer to an uninitialized error object
+ *
+ * Creates a new cipher object for encrypting/decrypting
+ * data with the algorithm @alg in the usage mode @mode.
+ *
+ * The @key parameter provides the bytes representing
+ * the encryption/decryption key to use. The @nkey parameter
+ * specifies the length of @key in bytes. Each algorithm has
+ * one or more valid key lengths, and it is an error to provide
+ * a key of the incorrect length.
+ *
+ * The returned cipher object must be released with
+ * qcrypto_cipher_free() when no longer required
+ *
+ * Returns: a new cipher object, or NULL on error
+ */
+QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
+                                  QCryptoCipherMode mode,
+                                  const uint8_t *key, size_t nkey,
+                                  Error **errp);
+
+/**
+ * qcrypto_cipher_free:
+ * @cipher: the cipher object
+ *
+ * Release the memory associated with @cipher that
+ * was previously allocated by qcrypto_cipher_new()
+ */
+void qcrypto_cipher_free(QCryptoCipher *cipher);
+
+/**
+ * qcrypto_cipher_encrypt:
+ * @cipher: the cipher object
+ * @in: buffer holding the plain text input data
+ * @out: buffer to fill with the cipher text output data
+ * @len: the length of @in and @out buffers
+ * @errp: pointer to an uninitialized error object
+ *
+ * Encrypts the plain text stored in @in, filling
+ * @out with the resulting ciphered text. Both the
+ * @in and @out buffers must have the same size,
+ * given by @len.
+ *
+ * Returns: 0 on success, or -1 on error
+ */
+int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
+                           const void *in,
+                           void *out,
+                           size_t len,
+                           Error **errp);
+
+
+/**
+ * qcrypto_cipher_decrypt:
+ * @cipher: the cipher object
+ * @in: buffer holding the cipher text input data
+ * @out: buffer to fill with the plain text output data
+ * @len: the length of @in and @out buffers
+ * @errp: pointer to an uninitialized error object
+ *
+ * Decrypts the cipher text stored in @in, filling
+ * @out with the resulting plain text. Both the
+ * @in and @out buffers must have the same size,
+ * given by @len.
+ *
+ * Returns: 0 on success, or -1 on error
+ */
+int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
+                           const void *in,
+                           void *out,
+                           size_t len,
+                           Error **errp);
+
+/**
+ * qcrypto_cipher_setiv:
+ * @cipher: the cipher object
+ * @iv: the initialization vector bytes
+ * @niv: the length of @iv
+ * @errpr: pointer to an uninitialized error object
+ *
+ * If the @cipher object is setup to use a mode that requires
+ * initialization vectors, this sets the initialization vector
+ * bytes. The @iv data should have the same length as the
+ * cipher key used when originally constructing the cipher
+ * object. It is an error to set an initialization vector
+ * if the cipher mode does not require one.
+ *
+ * Returns: 0 on success, -1 on error
+ */
+int qcrypto_cipher_setiv(QCryptoCipher *cipher,
+                         const uint8_t *iv, size_t niv,
+                         Error **errp);
+
+#endif /* QCRYPTO_CIPHER_H__ */

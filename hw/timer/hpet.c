@@ -27,6 +27,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "ui/console.h"
+#include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "hw/timer/hpet.h"
 #include "hw/sysbus.h"
@@ -283,6 +284,7 @@ static const VMStateDescription vmstate_hpet_rtc_irq_level = {
     .name = "hpet/rtc_irq_level",
     .version_id = 1,
     .minimum_version_id = 1,
+    .needed = hpet_rtc_irq_level_needed,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(rtc_irq_level, HPETState),
         VMSTATE_END_OF_LIST()
@@ -322,13 +324,9 @@ static const VMStateDescription vmstate_hpet = {
                                     vmstate_hpet_timer, HPETTimer),
         VMSTATE_END_OF_LIST()
     },
-    .subsections = (VMStateSubsection[]) {
-        {
-            .vmsd = &vmstate_hpet_rtc_irq_level,
-            .needed = hpet_rtc_irq_level_needed,
-        }, {
-            /* empty */
-        }
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_hpet_rtc_irq_level,
+        NULL
     }
 };
 

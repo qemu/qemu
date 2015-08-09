@@ -26,6 +26,12 @@
 #include "qom/cpu.h"
 #include "qemu/rcu.h"
 
+#define EXCP_INTERRUPT 	0x10000 /* async interruption */
+#define EXCP_HLT        0x10001 /* hlt instruction reached */
+#define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
+#define EXCP_HALTED     0x10003 /* cpu is halted (waiting for external event) */
+#define EXCP_YIELD      0x10004 /* cpu wants to yield timeslice to another */
+
 /* some important defines:
  *
  * WORDS_ALIGNED : if defined, the host cpu can only make word aligned
@@ -177,10 +183,13 @@ extern unsigned long reserved_va;
 
 /* ??? These should be the larger of uintptr_t and target_ulong.  */
 extern uintptr_t qemu_real_host_page_size;
+extern uintptr_t qemu_real_host_page_mask;
 extern uintptr_t qemu_host_page_size;
 extern uintptr_t qemu_host_page_mask;
 
 #define HOST_PAGE_ALIGN(addr) (((addr) + qemu_host_page_size - 1) & qemu_host_page_mask)
+#define REAL_HOST_PAGE_ALIGN(addr) (((addr) + qemu_real_host_page_size - 1) & \
+                                    qemu_real_host_page_mask)
 
 /* same as PROT_xxx */
 #define PAGE_READ      0x0001

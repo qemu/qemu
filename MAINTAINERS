@@ -356,6 +356,13 @@ F: hw/misc/zynq_slcr.c
 F: hw/*/cadence_*
 F: hw/ssi/xilinx_spips.c
 
+ARM ACPI Subsystem
+M: Shannon Zhao <zhaoshenglong@huawei.com>
+M: Shannon Zhao <shannon.zhao@linaro.org>
+S: Maintained
+F: hw/arm/virt-acpi-build.c
+F: include/hw/arm/virt-acpi-build.h
+
 CRIS Machines
 -------------
 Axis Dev88
@@ -486,7 +493,8 @@ F: hw/ppc/prep.c
 F: hw/pci-host/prep.[hc]
 F: hw/isa/pc87312.[hc]
 
-sPAPR
+sPAPR (pseries)
+M: David Gibson <david@gibson.dropbear.id.au>
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Supported
@@ -636,7 +644,19 @@ M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: include/hw/pci/*
 F: hw/pci/*
+
+ACPI
+M: Michael S. Tsirkin <mst@redhat.com>
+M: Igor Mammedov <imammedo@redhat.com>
+S: Supported
+F: include/hw/acpi/*
+F: hw/mem/*
 F: hw/acpi/*
+F: hw/i386/acpi-build.[hc]
+F: hw/i386/*dsl
+F: hw/arm/virt-acpi-build.c
+F: include/hw/arm/virt-acpi-build.h
+F: scripts/acpi*py
 
 ppc4xx
 M: Alexander Graf <agraf@suse.de>
@@ -694,6 +714,7 @@ virtio
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: hw/*/virtio*
+F: net/vhost-user.c
 
 virtio-9p
 M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
@@ -718,6 +739,12 @@ M: Christian Borntraeger <borntraeger@de.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw.[hc]
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
+
+virtio-input
+M: Gerd Hoffmann <kraxel@redhat.com>
+S: Maintained
+F: hw/input/virtio-input*.c
+F: include/hw/virtio/virtio-input.h
 
 virtio-serial
 M: Amit Shah <amit.shah@redhat.com>
@@ -769,7 +796,6 @@ F: hw/net/rocker/
 Subsystems
 ----------
 Audio
-M: Vassili Karpov (malc) <av1474@comtv.ru>
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
 F: audio/
@@ -945,7 +971,10 @@ M: Markus Armbruster <armbru@redhat.com>
 M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Supported
 F: qapi/
+X: qapi/*.json
 F: tests/qapi-schema/
+F: scripts/qapi*
+F: docs/qapi*
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
 QAPI Schema
@@ -953,6 +982,7 @@ M: Eric Blake <eblake@redhat.com>
 M: Markus Armbruster <armbru@redhat.com>
 S: Supported
 F: qapi-schema.json
+F: qapi/*.json
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 
 QObject
@@ -1013,8 +1043,6 @@ M: Amit Shah <amit.shah@redhat.com>
 S: Maintained
 F: include/migration/
 F: migration/
-F: savevm.c
-F: arch_init.c
 F: scripts/vmstate-static-checker.py
 F: tests/vmstate-static-checker-data/
 
@@ -1023,6 +1051,13 @@ M: Eduardo Otubo <eduardo.otubo@profitbricks.com>
 S: Supported
 F: qemu-seccomp.c
 F: include/sysemu/seccomp.h
+
+Cryptography
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Maintained
+F: crypto/
+F: include/crypto/
+F: tests/test-crypto-*
 
 Usermode Emulation
 ------------------
@@ -1134,7 +1169,7 @@ S: Supported
 F: block/vmdk.c
 
 RBD
-M: Josh Durgin <josh.durgin@inktank.com>
+M: Josh Durgin <jdurgin@redhat.com>
 M: Jeff Cody <jcody@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported

@@ -38,6 +38,7 @@
 
 #include "qemu-common.h"
 #include "monitor/monitor.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
 
@@ -888,6 +889,9 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev)
 fail:
     trace_usb_host_open_failure(bus_num, addr);
     if (s->dh != NULL) {
+        usb_host_release_interfaces(s);
+        libusb_reset_device(s->dh);
+        usb_host_attach_kernel(s);
         libusb_close(s->dh);
         s->dh = NULL;
         s->dev = NULL;

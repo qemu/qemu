@@ -8,6 +8,7 @@
 #include "hw/hw.h"
 #include "net/net.h"
 #include "hw/m68k/mcf.h"
+#include "hw/net/mii.h"
 /* For crc32 */
 #include <zlib.h>
 #include "exec/address-spaces.h"
@@ -195,12 +196,14 @@ static void mcf_fec_do_tx(mcf_fec_state *s)
 
 static void mcf_fec_enable_rx(mcf_fec_state *s)
 {
+    NetClientState *nc = qemu_get_queue(s->nic);
     mcf_fec_bd bd;
 
     mcf_fec_read_bd(&bd, s->rx_descriptor);
     s->rx_enabled = ((bd.flags & FEC_BD_E) != 0);
-    if (!s->rx_enabled)
-        DPRINTF("RX buffer full\n");
+    if (s->rx_enabled) {
+        qemu_flush_queued_packets(nc);
+    }
 }
 
 static void mcf_fec_reset(mcf_fec_state *s)
@@ -216,6 +219,51 @@ static void mcf_fec_reset(mcf_fec_state *s)
     s->rfsr = 0x500;
 }
 
+#define MMFR_WRITE_OP	(1 << 28)
+#define MMFR_READ_OP	(2 << 28)
+#define MMFR_PHYADDR(v)	(((v) >> 23) & 0x1f)
+#define MMFR_REGNUM(v)	(((v) >> 18) & 0x1f)
+
+static uint64_t mcf_fec_read_mdio(mcf_fec_state *s)
+{
+    uint64_t v;
+
+    if (s->mmfr & MMFR_WRITE_OP)
+        return s->mmfr;
+    if (MMFR_PHYADDR(s->mmfr) != 1)
+        return s->mmfr |= 0xffff;
+
+    switch (MMFR_REGNUM(s->mmfr)) {
+    case MII_BMCR:
+        v = MII_BMCR_SPEED | MII_BMCR_AUTOEN | MII_BMCR_FD;
+        break;
+    case MII_BMSR:
+        v = MII_BMSR_100TX_FD | MII_BMSR_100TX_HD | MII_BMSR_10T_FD |
+            MII_BMSR_10T_HD | MII_BMSR_MFPS | MII_BMSR_AN_COMP |
+            MII_BMSR_AUTONEG | MII_BMSR_LINK_ST;
+        break;
+    case MII_PHYID1:
+        v = DP83848_PHYID1;
+        break;
+    case MII_PHYID2:
+        v = DP83848_PHYID2;
+        break;
+    case MII_ANAR:
+        v = MII_ANAR_TXFD | MII_ANAR_TX | MII_ANAR_10FD |
+            MII_ANAR_10 | MII_ANAR_CSMACD;
+        break;
+    case MII_ANLPAR:
+        v = MII_ANLPAR_ACK | MII_ANLPAR_TXFD | MII_ANLPAR_TX |
+            MII_ANLPAR_10FD | MII_ANLPAR_10 | MII_ANLPAR_CSMACD;
+        break;
+    default:
+        v = 0xffff;
+        break;
+    }
+    s->mmfr = (s->mmfr & ~0xffff) | v;
+    return s->mmfr;
+}
+
 static uint64_t mcf_fec_read(void *opaque, hwaddr addr,
                              unsigned size)
 {
@@ -226,7 +274,7 @@ static uint64_t mcf_fec_read(void *opaque, hwaddr addr,
     case 0x010: return s->rx_enabled ? (1 << 24) : 0; /* RDAR */
     case 0x014: return 0; /* TDAR */
     case 0x024: return s->ecr;
-    case 0x040: return s->mmfr;
+    case 0x040: return mcf_fec_read_mdio(s);
     case 0x044: return s->mscr;
     case 0x064: return 0; /* MIBC */
     case 0x084: return s->rcr;
@@ -287,8 +335,8 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
         }
         break;
     case 0x040:
-        /* TODO: Implement MII.  */
         s->mmfr = value;
+        s->eir |= FEC_INT_MII;
         break;
     case 0x044:
         s->mscr = value & 0xfe;
@@ -351,10 +399,30 @@ static void mcf_fec_write(void *opaque, hwaddr addr,
     mcf_fec_update(s);
 }
 
-static int mcf_fec_can_receive(NetClientState *nc)
+static int mcf_fec_have_receive_space(mcf_fec_state *s, size_t want)
 {
-    mcf_fec_state *s = qemu_get_nic_opaque(nc);
-    return s->rx_enabled;
+    mcf_fec_bd bd;
+    uint32_t addr;
+
+    /* Walk descriptor list to determine if we have enough buffer */
+    addr = s->rx_descriptor;
+    while (want > 0) {
+        mcf_fec_read_bd(&bd, addr);
+        if ((bd.flags & FEC_BD_E) == 0) {
+            return 0;
+        }
+        if (want < s->emrbr) {
+            return 1;
+        }
+        want -= s->emrbr;
+        /* Advance to the next descriptor.  */
+        if ((bd.flags & FEC_BD_W) != 0) {
+            addr = s->erdsr;
+        } else {
+            addr += 8;
+        }
+    }
+    return 0;
 }
 
 static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t size)
@@ -367,10 +435,11 @@ static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t si
     uint32_t buf_addr;
     uint8_t *crc_ptr;
     unsigned int buf_len;
+    size_t retsize;
 
     DPRINTF("do_rx len %d\n", size);
     if (!s->rx_enabled) {
-        fprintf(stderr, "mcf_fec_receive: Unexpected packet\n");
+        return -1;
     }
     /* 4 bytes for the CRC.  */
     size += 4;
@@ -385,17 +454,14 @@ static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t si
     if (size > (s->rcr >> 16)) {
         flags |= FEC_BD_LG;
     }
+    /* Check if we have enough space in current descriptors */
+    if (!mcf_fec_have_receive_space(s, size)) {
+        return 0;
+    }
     addr = s->rx_descriptor;
+    retsize = size;
     while (size > 0) {
         mcf_fec_read_bd(&bd, addr);
-        if ((bd.flags & FEC_BD_E) == 0) {
-            /* No descriptors available.  Bail out.  */
-            /* FIXME: This is wrong.  We should probably either save the
-               remainder for when more RX buffers are available, or
-               flag an error.  */
-            fprintf(stderr, "mcf_fec: Lost end of frame\n");
-            break;
-        }
         buf_len = (size <= s->emrbr) ? size: s->emrbr;
         bd.length = buf_len;
         size -= buf_len;
@@ -430,7 +496,7 @@ static ssize_t mcf_fec_receive(NetClientState *nc, const uint8_t *buf, size_t si
     s->rx_descriptor = addr;
     mcf_fec_enable_rx(s);
     mcf_fec_update(s);
-    return size;
+    return retsize;
 }
 
 static const MemoryRegionOps mcf_fec_ops = {
@@ -442,7 +508,6 @@ static const MemoryRegionOps mcf_fec_ops = {
 static NetClientInfo net_mcf_fec_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = mcf_fec_can_receive,
     .receive = mcf_fec_receive,
 };
 

@@ -48,7 +48,7 @@
 #define MMU_MODE1_SUFFIX _secondary
 #define MMU_MODE2_SUFFIX _home
 
-#define MMU_USER_IDX 1
+#define MMU_USER_IDX 0
 
 #define MAX_EXT_QUEUE 16
 #define MAX_IO_QUEUE 16
@@ -81,7 +81,11 @@ typedef struct MchkQueue {
 
 typedef struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
-    CPU_DoubleU fregs[16]; /* FP registers */
+    /*
+     * The floating point registers are part of the vector registers.
+     * vregs[0][0] -> vregs[15][0] are 16 floating point registers
+     */
+    CPU_DoubleU vregs[32][2];  /* vector registers */
     uint32_t aregs[16];    /* access registers */
 
     uint32_t fpc;          /* floating-point control register */
@@ -106,6 +110,9 @@ typedef struct CPUS390XState {
 
     uint32_t int_svc_code;
     uint32_t int_svc_ilen;
+
+    uint64_t per_address;
+    uint16_t per_perc_atmid;
 
     uint64_t cregs[16]; /* control registers */
 
@@ -161,6 +168,11 @@ typedef struct CPUS390XState {
     uint8_t sigp_order;
 
 } CPUS390XState;
+
+static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
+{
+    return &cs->vregs[nr][0];
+}
 
 #include "cpu-qom.h"
 #include <sysemu/kvm.h>
@@ -293,13 +305,39 @@ typedef struct CPUS390XState {
 #define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
 
+/* MMU */
+#define MMU_PRIMARY_IDX         0
+#define MMU_SECONDARY_IDX       1
+#define MMU_HOME_IDX            2
+
 static inline int cpu_mmu_index (CPUS390XState *env)
 {
-    if (env->psw.mask & PSW_MASK_PSTATE) {
-        return 1;
+    switch (env->psw.mask & PSW_MASK_ASC) {
+    case PSW_ASC_PRIMARY:
+        return MMU_PRIMARY_IDX;
+    case PSW_ASC_SECONDARY:
+        return MMU_SECONDARY_IDX;
+    case PSW_ASC_HOME:
+        return MMU_HOME_IDX;
+    case PSW_ASC_ACCREG:
+        /* Fallthrough: access register mode is not yet supported */
+    default:
+        abort();
     }
+}
 
-    return 0;
+static inline uint64_t cpu_mmu_idx_to_asc(int mmu_idx)
+{
+    switch (mmu_idx) {
+    case MMU_PRIMARY_IDX:
+        return PSW_ASC_PRIMARY;
+    case MMU_SECONDARY_IDX:
+        return PSW_ASC_SECONDARY;
+    case MMU_HOME_IDX:
+        return PSW_ASC_HOME;
+    default:
+        abort();
+    }
 }
 
 static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
@@ -329,6 +367,45 @@ static inline int get_ilen(uint8_t opc)
     }
 }
 
+/* PER bits from control register 9 */
+#define PER_CR9_EVENT_BRANCH           0x80000000
+#define PER_CR9_EVENT_IFETCH           0x40000000
+#define PER_CR9_EVENT_STORE            0x20000000
+#define PER_CR9_EVENT_STORE_REAL       0x08000000
+#define PER_CR9_EVENT_NULLIFICATION    0x01000000
+#define PER_CR9_CONTROL_BRANCH_ADDRESS 0x00800000
+#define PER_CR9_CONTROL_ALTERATION     0x00200000
+
+/* PER bits from the PER CODE/ATMID/AI in lowcore */
+#define PER_CODE_EVENT_BRANCH          0x8000
+#define PER_CODE_EVENT_IFETCH          0x4000
+#define PER_CODE_EVENT_STORE           0x2000
+#define PER_CODE_EVENT_STORE_REAL      0x0800
+#define PER_CODE_EVENT_NULLIFICATION   0x0100
+
+/* Compute the ATMID field that is stored in the per_perc_atmid lowcore
+   entry when a PER exception is triggered.  */
+static inline uint8_t get_per_atmid(CPUS390XState *env)
+{
+    return ((env->psw.mask & PSW_MASK_64) ?      (1 << 7) : 0) |
+           (                                     (1 << 6)    ) |
+           ((env->psw.mask & PSW_MASK_32) ?      (1 << 5) : 0) |
+           ((env->psw.mask & PSW_MASK_DAT)?      (1 << 4) : 0) |
+           ((env->psw.mask & PSW_ASC_SECONDARY)? (1 << 3) : 0) |
+           ((env->psw.mask & PSW_ASC_ACCREG)?    (1 << 2) : 0);
+}
+
+/* Check if an address is within the PER starting address and the PER
+   ending address.  The address range might loop.  */
+static inline bool get_per_in_range(CPUS390XState *env, uint64_t addr)
+{
+    if (env->cregs[10] <= env->cregs[11]) {
+        return env->cregs[10] <= addr && addr <= env->cregs[11];
+    } else {
+        return env->cregs[10] <= addr || addr <= env->cregs[11];
+    }
+}
+
 #ifndef CONFIG_USER_ONLY
 /* In several cases of runtime exceptions, we havn't recorded the true
    instruction length.  Use these codes when raising exceptions in order
@@ -340,7 +417,7 @@ void trigger_pgm_exception(CPUS390XState *env, uint32_t code, uint32_t ilen);
 
 S390CPU *cpu_s390x_init(const char *cpu_model);
 void s390x_translate_init(void);
-int cpu_s390x_exec(CPUS390XState *s);
+int cpu_s390x_exec(CPUState *cpu);
 
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
@@ -674,6 +751,7 @@ static inline void setcc(S390CPU *cpu, uint64_t cc)
 
     env->psw.mask &= ~(3ull << 44);
     env->psw.mask |= (cc & 3) << 44;
+    env->cc_op = cc;
 }
 
 typedef struct LowCore
@@ -711,14 +789,16 @@ typedef struct LowCore
     uint8_t         pad5[0xf4-0xf0];          /* 0x0f0 */
     uint32_t        external_damage_code;     /* 0x0f4 */
     uint64_t        failing_storage_address;  /* 0x0f8 */
-    uint8_t         pad6[0x120-0x100];        /* 0x100 */
+    uint8_t         pad6[0x110-0x100];        /* 0x100 */
+    uint64_t        per_breaking_event_addr;  /* 0x110 */
+    uint8_t         pad7[0x120-0x118];        /* 0x118 */
     PSW             restart_old_psw;          /* 0x120 */
     PSW             external_old_psw;         /* 0x130 */
     PSW             svc_old_psw;              /* 0x140 */
     PSW             program_old_psw;          /* 0x150 */
     PSW             mcck_old_psw;             /* 0x160 */
     PSW             io_old_psw;               /* 0x170 */
-    uint8_t         pad7[0x1a0-0x180];        /* 0x180 */
+    uint8_t         pad8[0x1a0-0x180];        /* 0x180 */
     PSW             restart_new_psw;          /* 0x1a0 */
     PSW             external_new_psw;         /* 0x1b0 */
     PSW             svc_new_psw;              /* 0x1c0 */
@@ -736,10 +816,10 @@ typedef struct LowCore
     uint64_t        last_update_clock;        /* 0x280 */
     uint64_t        steal_clock;              /* 0x288 */
     PSW             return_mcck_psw;          /* 0x290 */
-    uint8_t         pad8[0xc00-0x2a0];        /* 0x2a0 */
+    uint8_t         pad9[0xc00-0x2a0];        /* 0x2a0 */
     /* System info area */
     uint64_t        save_area[16];            /* 0xc00 */
-    uint8_t         pad9[0xd40-0xc80];        /* 0xc80 */
+    uint8_t         pad10[0xd40-0xc80];       /* 0xc80 */
     uint64_t        kernel_stack;             /* 0xd40 */
     uint64_t        thread_info;              /* 0xd48 */
     uint64_t        async_stack;              /* 0xd50 */
@@ -747,7 +827,7 @@ typedef struct LowCore
     uint64_t        user_asce;                /* 0xd60 */
     uint64_t        panic_stack;              /* 0xd68 */
     uint64_t        user_exec_asce;           /* 0xd70 */
-    uint8_t         pad10[0xdc0-0xd78];       /* 0xd78 */
+    uint8_t         pad11[0xdc0-0xd78];       /* 0xd78 */
 
     /* SMP info area: defined by DJB */
     uint64_t        clock_comparator;         /* 0xdc0 */
@@ -936,6 +1016,7 @@ struct sysib_322 {
 #define SIGP_SET_PREFIX        0x0d
 #define SIGP_STORE_STATUS_ADDR 0x0e
 #define SIGP_SET_ARCH          0x12
+#define SIGP_STORE_ADTL_STATUS 0x17
 
 /* SIGP condition codes */
 #define SIGP_CC_ORDER_CODE_ACCEPTED 0
@@ -966,6 +1047,7 @@ int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
 int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code);
 uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
+void s390_cpu_recompute_watchpoints(CPUState *cs);
 
 int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
                          int len, bool is_write);
@@ -983,6 +1065,11 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 /* Converts ns to s390's clock format */
 static inline uint64_t time2tod(uint64_t ns) {
     return (ns << 9) / 125;
+}
+
+/* Converts s390's clock format to ns */
+static inline uint64_t tod2time(uint64_t t) {
+    return (t * 125) >> 9;
 }
 
 static inline void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
@@ -1059,6 +1146,7 @@ uint32_t set_cc_nz_f128(float128 v);
 
 /* misc_helper.c */
 #ifndef CONFIG_USER_ONLY
+int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3);
 void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3);
 #endif
 void program_interrupt(CPUS390XState *env, uint32_t code, int ilen);
@@ -1173,11 +1261,21 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
                                               uint32_t sch_id, int vq,
                                               bool assign)
 {
-    if (kvm_enabled()) {
-        return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
-    } else {
-        return -ENOSYS;
-    }
+    return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
 }
 
+#ifdef CONFIG_KVM
+static inline bool vregs_needed(void *opaque)
+{
+    if (kvm_enabled()) {
+        return kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS);
+    }
+    return 0;
+}
+#else
+static inline bool vregs_needed(void *opaque)
+{
+    return 0;
+}
+#endif
 #endif

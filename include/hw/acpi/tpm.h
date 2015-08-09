@@ -26,4 +26,9 @@
 #define TPM_TCPA_ACPI_CLASS_CLIENT  0
 #define TPM_TCPA_ACPI_CLASS_SERVER  1
 
+#define TPM2_ACPI_CLASS_CLIENT      0
+#define TPM2_ACPI_CLASS_SERVER      1
+
+#define TPM2_START_METHOD_MMIO      6
+
 #endif /* HW_ACPI_TPM_H */

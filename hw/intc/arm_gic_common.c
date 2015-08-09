@@ -123,7 +123,7 @@ static void arm_gic_common_realize(DeviceState *dev, Error **errp)
 static void arm_gic_common_reset(DeviceState *dev)
 {
     GICState *s = ARM_GIC_COMMON(dev);
-    int i;
+    int i, j;
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < s->num_cpu; i++) {
         if (s->revision == REV_11MPCORE) {
@@ -135,15 +135,30 @@ static void arm_gic_common_reset(DeviceState *dev)
         s->running_irq[i] = 1023;
         s->running_priority[i] = 0x100;
         s->cpu_ctlr[i] = 0;
+        s->bpr[i] = GIC_MIN_BPR;
+        s->abpr[i] = GIC_MIN_ABPR;
+        for (j = 0; j < GIC_INTERNAL; j++) {
+            s->priority1[j][i] = 0;
+        }
+        for (j = 0; j < GIC_NR_SGIS; j++) {
+            s->sgi_pending[j][i] = 0;
+        }
     }
     for (i = 0; i < GIC_NR_SGIS; i++) {
         GIC_SET_ENABLED(i, ALL_CPU_MASK);
         GIC_SET_EDGE_TRIGGER(i);
     }
-    if (s->num_cpu == 1) {
+
+    for (i = 0; i < ARRAY_SIZE(s->priority2); i++) {
+        s->priority2[i] = 0;
+    }
+
+    for (i = 0; i < GIC_MAXIRQ; i++) {
         /* For uniprocessor GICs all interrupts always target the sole CPU */
-        for (i = 0; i < GIC_MAXIRQ; i++) {
+        if (s->num_cpu == 1) {
             s->irq_target[i] = 1;
+        } else {
+            s->irq_target[i] = 0;
         }
     }
     s->ctlr = 0;

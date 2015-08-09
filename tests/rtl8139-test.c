@@ -12,6 +12,7 @@
 #include "libqtest.h"
 #include "libqos/pci-pc.h"
 #include "qemu/osdep.h"
+#include "qemu/timer.h"
 #include "qemu-common.h"
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
@@ -20,7 +21,6 @@ static void nop(void)
 }
 
 #define CLK 33000000
-#define NS_PER_SEC 1000000000ULL
 
 static QPCIBus *pcibus;
 static QPCIDevice *dev;
@@ -86,7 +86,7 @@ static void test_timer(void)
         fatal("time too big %u\n", curr);
     }
     for (cnt = 0; ; ) {
-        clock_step(1 * NS_PER_SEC);
+        clock_step(1 * NANOSECONDS_PER_SECOND);
         prev = curr;
         curr = in_Timer();
 
@@ -125,7 +125,7 @@ static void test_timer(void)
     out_IntrStatus(0x4000);
     curr = in_Timer();
     out_TimerInt(curr + 0.5 * CLK);
-    clock_step(1 * NS_PER_SEC);
+    clock_step(1 * NANOSECONDS_PER_SECOND);
     out_Timer(0);
     if ((in_IntrStatus() & 0x4000) == 0) {
         fatal("we should have an interrupt here!\n");
@@ -137,7 +137,7 @@ static void test_timer(void)
     out_IntrStatus(0x4000);
     curr = in_Timer();
     out_TimerInt(curr + 0.5 * CLK);
-    clock_step(1 * NS_PER_SEC);
+    clock_step(1 * NANOSECONDS_PER_SECOND);
     out_TimerInt(0);
     if ((in_IntrStatus() & 0x4000) == 0) {
         fatal("we should have an interrupt here!\n");
@@ -148,7 +148,7 @@ static void test_timer(void)
     next = curr + 5.0 * CLK;
     out_TimerInt(next);
     for (cnt = 0; ; ) {
-        clock_step(1 * NS_PER_SEC);
+        clock_step(1 * NANOSECONDS_PER_SECOND);
         prev = curr;
         curr = in_Timer();
         diff = (curr-prev) & 0xffffffffu;

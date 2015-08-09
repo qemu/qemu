@@ -30,6 +30,7 @@
 #include <linux/kvm.h>
 #endif
 #include "exec/cpu_ldst.h"
+#include "hw/watchdog/wdt_diag288.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "sysemu/cpus.h"
@@ -61,7 +62,7 @@ void QEMU_NORETURN runtime_exception(CPUS390XState *env, int excp,
     /* Advance past the insn.  */
     t = cpu_ldub_code(env, env->psw.addr);
     env->int_pgm_ilen = t = get_ilen(t);
-    env->psw.addr += 2 * t;
+    env->psw.addr += t;
 
     cpu_loop_exit(cs);
 }
@@ -153,6 +154,34 @@ static int load_normal_reset(S390CPU *cpu)
     return 0;
 }
 
+int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
+{
+    uint64_t func = env->regs[r1];
+    uint64_t timeout = env->regs[r1 + 1];
+    uint64_t action = env->regs[r3];
+    Object *obj;
+    DIAG288State *diag288;
+    DIAG288Class *diag288_class;
+
+    if (r1 % 2 || action != 0) {
+        return -1;
+    }
+
+    /* Timeout must be more than 15 seconds except for timer deletion */
+    if (func != WDT_DIAG288_CANCEL && timeout < 15) {
+        return -1;
+    }
+
+    obj = object_resolve_path_type("", TYPE_WDT_DIAG288, NULL);
+    if (!obj) {
+        return -1;
+    }
+
+    diag288 = DIAG288(obj);
+    diag288_class = DIAG288_GET_CLASS(diag288);
+    return diag288_class->handle_timer(diag288, func, timeout);
+}
+
 #define DIAG_308_RC_OK              0x0001
 #define DIAG_308_RC_NO_CONF         0x0102
 #define DIAG_308_RC_INVALID         0x0402
@@ -176,9 +205,21 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
     switch (subcode) {
     case 0:
         modified_clear_reset(s390_env_get_cpu(env));
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
         break;
     case 1:
         load_normal_reset(s390_env_get_cpu(env));
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
+        break;
+    case 3:
+        s390_reipl_request();
+        if (tcg_enabled()) {
+            cpu_loop_exit(CPU(s390_env_get_cpu(env)));
+        }
         break;
     case 5:
         if ((r1 & 1) || (addr & 0x0fffULL)) {
@@ -225,9 +266,7 @@ void handle_diag_308(CPUS390XState *env, uint64_t r1, uint64_t r3)
 }
 #endif
 
-/* DIAG */
-uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
-                      uint64_t code)
+void HELPER(diag)(CPUS390XState *env, uint32_t r1, uint32_t r3, uint32_t num)
 {
     uint64_t r;
 
@@ -242,6 +281,7 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
         break;
     case 0x308:
         /* ipl */
+        handle_diag_308(env, r1, r3);
         r = 0;
         break;
     default:
@@ -252,8 +292,6 @@ uint64_t HELPER(diag)(CPUS390XState *env, uint32_t num, uint64_t mem,
     if (r) {
         program_interrupt(env, PGM_OPERATION, ILEN_LATER_INC);
     }
-
-    return r;
 }
 
 /* Set Prefix */
@@ -268,7 +306,8 @@ void HELPER(spx)(CPUS390XState *env, uint64_t a1)
     tlb_flush_page(cs, TARGET_PAGE_SIZE);
 }
 
-static inline uint64_t clock_value(CPUS390XState *env)
+/* Store Clock */
+uint64_t HELPER(stck)(CPUS390XState *env)
 {
     uint64_t time;
 
@@ -278,12 +317,6 @@ static inline uint64_t clock_value(CPUS390XState *env)
     return time;
 }
 
-/* Store Clock */
-uint64_t HELPER(stck)(CPUS390XState *env)
-{
-    return clock_value(env);
-}
-
 /* Set Clock Comparator */
 void HELPER(sckc)(CPUS390XState *env, uint64_t time)
 {
@@ -291,19 +324,21 @@ void HELPER(sckc)(CPUS390XState *env, uint64_t time)
         return;
     }
 
-    /* difference between now and then */
-    time -= clock_value(env);
-    /* nanoseconds */
-    time = (time * 125) >> 9;
+    env->ckc = time;
 
-    timer_mod(env->tod_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time);
+    /* difference between origins */
+    time -= env->tod_offset;
+
+    /* nanoseconds */
+    time = tod2time(time);
+
+    timer_mod(env->tod_timer, env->tod_basetime + time);
 }
 
 /* Store Clock Comparator */
 uint64_t HELPER(stckc)(CPUS390XState *env)
 {
-    /* XXX implement */
-    return 0;
+    return env->ckc;
 }
 
 /* Set CPU Timer */
@@ -314,16 +349,17 @@ void HELPER(spt)(CPUS390XState *env, uint64_t time)
     }
 
     /* nanoseconds */
-    time = (time * 125) >> 9;
+    time = tod2time(time);
 
-    timer_mod(env->cpu_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time);
+    env->cputm = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + time;
+
+    timer_mod(env->cpu_timer, env->cputm);
 }
 
 /* Store CPU Timer */
 uint64_t HELPER(stpt)(CPUS390XState *env)
 {
-    /* XXX implement */
-    return 0;
+    return time2tod(env->cputm - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
 }
 
 /* Store System Information */
@@ -494,5 +530,113 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
     }
 
     return cc;
+}
+#endif
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(xsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_xsch(cpu, r1);
+}
+
+void HELPER(csch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_csch(cpu, r1);
+}
+
+void HELPER(hsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_hsch(cpu, r1);
+}
+
+void HELPER(msch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_msch(cpu, r1, inst >> 16);
+}
+
+void HELPER(rchp)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_rchp(cpu, r1);
+}
+
+void HELPER(rsch)(CPUS390XState *env, uint64_t r1)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_rsch(cpu, r1);
+}
+
+void HELPER(ssch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_ssch(cpu, r1, inst >> 16);
+}
+
+void HELPER(stsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_stsch(cpu, r1, inst >> 16);
+}
+
+void HELPER(tsch)(CPUS390XState *env, uint64_t r1, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_tsch(cpu, r1, inst >> 16);
+}
+
+void HELPER(chsc)(CPUS390XState *env, uint64_t inst)
+{
+    S390CPU *cpu = s390_env_get_cpu(env);
+    ioinst_handle_chsc(cpu, inst >> 16);
+}
+#endif
+
+#ifndef CONFIG_USER_ONLY
+void HELPER(per_check_exception)(CPUS390XState *env)
+{
+    CPUState *cs = CPU(s390_env_get_cpu(env));
+
+    if (env->per_perc_atmid) {
+        env->int_pgm_code = PGM_PER;
+        env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, env->per_address));
+
+        cs->exception_index = EXCP_PGM;
+        cpu_loop_exit(cs);
+    }
+}
+
+void HELPER(per_branch)(CPUS390XState *env, uint64_t from, uint64_t to)
+{
+    if ((env->cregs[9] & PER_CR9_EVENT_BRANCH)) {
+        if (!(env->cregs[9] & PER_CR9_CONTROL_BRANCH_ADDRESS)
+            || get_per_in_range(env, to)) {
+            env->per_address = from;
+            env->per_perc_atmid = PER_CODE_EVENT_BRANCH | get_per_atmid(env);
+        }
+    }
+}
+
+void HELPER(per_ifetch)(CPUS390XState *env, uint64_t addr)
+{
+    if ((env->cregs[9] & PER_CR9_EVENT_IFETCH) && get_per_in_range(env, addr)) {
+        env->per_address = addr;
+        env->per_perc_atmid = PER_CODE_EVENT_IFETCH | get_per_atmid(env);
+
+        /* If the instruction has to be nullified, trigger the
+           exception immediately. */
+        if (env->cregs[9] & PER_CR9_EVENT_NULLIFICATION) {
+            CPUState *cs = CPU(s390_env_get_cpu(env));
+
+            env->int_pgm_code = PGM_PER;
+            env->int_pgm_ilen = get_ilen(cpu_ldub_code(env, addr));
+
+            cs->exception_index = EXCP_PGM;
+            cpu_loop_exit(cs);
+        }
+    }
 }
 #endif

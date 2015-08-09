@@ -276,7 +276,7 @@ EQMP
         .args_type  = "device:O",
         .params     = "driver[,prop=value][,...]",
         .help       = "add device, like -device on the command line",
-        .mhandler.cmd_new = do_device_add,
+        .mhandler.cmd_new = qmp_device_add,
     },
 
 SQMP
@@ -686,7 +686,7 @@ Notes:
 
 (1) QEMU must be started with -incoming defer to allow migrate-incoming to
     be used
-(2) The uri format is the same as to -incoming
+(2) The uri format is the same as for -incoming
 
 EQMP
     {
@@ -784,23 +784,23 @@ EQMP
         .name       = "client_migrate_info",
         .args_type  = "protocol:s,hostname:s,port:i?,tls-port:i?,cert-subject:s?",
         .params     = "protocol hostname port tls-port cert-subject",
-        .help       = "send migration info to spice/vnc client",
-        .mhandler.cmd_new = client_migrate_info,
+        .help       = "set migration information for remote display",
+        .mhandler.cmd_new = qmp_marshal_input_client_migrate_info,
     },
 
 SQMP
 client_migrate_info
-------------------
+-------------------
 
-Set the spice/vnc connection info for the migration target.  The spice/vnc
-server will ask the spice/vnc client to automatically reconnect using the
-new parameters (if specified) once the vm migration finished successfully.
+Set migration information for remote display.  This makes the server
+ask the client to automatically reconnect using the new parameters
+once migration finished successfully.  Only implemented for SPICE.
 
 Arguments:
 
-- "protocol":     protocol: "spice" or "vnc" (json-string)
+- "protocol":     must be "spice" (json-string)
 - "hostname":     migration target hostname (json-string)
-- "port":         spice/vnc tcp port for plaintext channels (json-int, optional)
+- "port":         spice tcp port for plaintext channels (json-int, optional)
 - "tls-port":     spice tcp port for tls-secured channels (json-int, optional)
 - "cert-subject": server certificate subject (json-string, optional)
 
@@ -1137,10 +1137,10 @@ Arguments:
             (json-string, optional)
 - "sync": what parts of the disk image should be copied to the destination;
   possibilities include "full" for all the disk, "top" for only the sectors
-  allocated in the topmost image, "dirty-bitmap" for only the dirty sectors in
+  allocated in the topmost image, "incremental" for only the dirty sectors in
   the bitmap, or "none" to only replicate new I/O (MirrorSyncMode).
-- "bitmap": dirty bitmap name for sync==dirty-bitmap. Must be present if sync
-            is "dirty-bitmap", must NOT be present otherwise.
+- "bitmap": dirty bitmap name for sync==incremental. Must be present if sync
+            is "incremental", must NOT be present otherwise.
 - "mode": whether and how QEMU should create a new image
           (NewImageMode, optional, default 'absolute-paths')
 - "speed": the maximum speed, in bytes per second (json-int, optional)
@@ -1503,6 +1503,7 @@ EQMP
         .args_type  = "sync:s,device:B,target:s,speed:i?,mode:s?,format:s?,"
                       "node-name:s?,replaces:s?,"
                       "on-source-error:s?,on-target-error:s?,"
+                      "unmap:b?,"
                       "granularity:i?,buf-size:i?",
         .mhandler.cmd_new = qmp_marshal_input_drive_mirror,
     },
@@ -1542,6 +1543,8 @@ Arguments:
   (BlockdevOnError, default 'report')
 - "on-target-error": the action to take on an error on the target
   (BlockdevOnError, default 'report')
+- "unmap": whether the target sectors should be discarded where source has only
+  zeroes. (json-bool, optional, default true)
 
 The default value of the granularity is the image cluster size clamped
 between 4096 and 65536, if the image format defines one.  If the format
@@ -1853,7 +1856,7 @@ EQMP
 
     {
         .name       = "block_set_io_throttle",
-        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,iops_size:l?",
+        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l,bps_max:l?,bps_rd_max:l?,bps_wr_max:l?,iops_max:l?,iops_rd_max:l?,iops_wr_max:l?,iops_size:l?,group:s?",
         .mhandler.cmd_new = qmp_marshal_input_block_set_io_throttle,
     },
 
@@ -1879,6 +1882,7 @@ Arguments:
 - "iops_rd_max":  read I/O operations max (json-int)
 - "iops_wr_max":  write I/O operations max (json-int)
 - "iops_size":  I/O size in bytes when limiting (json-int)
+- "group": throttle group name (json-string)
 
 Example:
 
@@ -1982,7 +1986,7 @@ EQMP
         .args_type  = "",
         .params     = "",
         .help       = "enable QMP capabilities",
-        .mhandler.cmd_new = do_qmp_capabilities,
+        .mhandler.cmd_new = qmp_capabilities,
     },
 
 SQMP
@@ -3402,6 +3406,7 @@ Enable/Disable migration capabilities
 - "rdma-pin-all": pin all pages when using RDMA during migration
 - "auto-converge": throttle down guest to help convergence of migration
 - "zero-blocks": compress zero blocks during block migration
+- "events": generate events for each migration state change
 
 Arguments:
 
@@ -4165,3 +4170,106 @@ Example:
 <- { "return": {} }
 
 EQMP
+
+    {
+        .name       = "query-rocker",
+        .args_type  = "name:s",
+        .mhandler.cmd_new = qmp_marshal_input_query_rocker,
+    },
+
+SQMP
+Show rocker switch
+------------------
+
+Arguments:
+
+- "name": switch name
+
+Example:
+
+-> { "execute": "query-rocker", "arguments": { "name": "sw1" } }
+<- { "return": {"name": "sw1", "ports": 2, "id": 1327446905938}}
+
+EQMP
+
+    {
+        .name       = "query-rocker-ports",
+        .args_type  = "name:s",
+        .mhandler.cmd_new = qmp_marshal_input_query_rocker_ports,
+    },
+
+SQMP
+Show rocker switch ports
+------------------------
+
+Arguments:
+
+- "name": switch name
+
+Example:
+
+-> { "execute": "query-rocker-ports", "arguments": { "name": "sw1" } }
+<- { "return": [ {"duplex": "full", "enabled": true, "name": "sw1.1",
+                  "autoneg": "off", "link-up": true, "speed": 10000},
+                 {"duplex": "full", "enabled": true, "name": "sw1.2",
+                  "autoneg": "off", "link-up": true, "speed": 10000}
+   ]}
+
+EQMP
+
+    {
+        .name       = "query-rocker-of-dpa-flows",
+        .args_type  = "name:s,tbl-id:i?",
+        .mhandler.cmd_new = qmp_marshal_input_query_rocker_of_dpa_flows,
+    },
+
+SQMP
+Show rocker switch OF-DPA flow tables
+-------------------------------------
+
+Arguments:
+
+- "name": switch name
+- "tbl-id": (optional) flow table ID
+
+Example:
+
+-> { "execute": "query-rocker-of-dpa-flows", "arguments": { "name": "sw1" } }
+<- { "return": [ {"key": {"in-pport": 0, "priority": 1, "tbl-id": 0},
+                  "hits": 138,
+                  "cookie": 0,
+                  "action": {"goto-tbl": 10},
+                  "mask": {"in-pport": 4294901760}
+                 },
+                 {...more...},
+   ]}
+
+EQMP
+
+    {
+        .name       = "query-rocker-of-dpa-groups",
+        .args_type  = "name:s,type:i?",
+        .mhandler.cmd_new = qmp_marshal_input_query_rocker_of_dpa_groups,
+    },
+
+SQMP
+Show rocker OF-DPA group tables
+-------------------------------
+
+Arguments:
+
+- "name": switch name
+- "type": (optional) group type
+
+Example:
+
+-> { "execute": "query-rocker-of-dpa-groups", "arguments": { "name": "sw1" } }
+<- { "return": [ {"type": 0, "out-pport": 2, "pport": 2, "vlan-id": 3841,
+                  "pop-vlan": 1, "id": 251723778},
+                 {"type": 0, "out-pport": 0, "pport": 0, "vlan-id": 3841,
+                  "pop-vlan": 1, "id": 251723776},
+                 {"type": 0, "out-pport": 1, "pport": 1, "vlan-id": 3840,
+                  "pop-vlan": 1, "id": 251658241},
+                 {"type": 0, "out-pport": 0, "pport": 0, "vlan-id": 3840,
+                  "pop-vlan": 1, "id": 251658240}
+   ]}

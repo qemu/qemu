@@ -772,11 +772,19 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
     if (QLIST_EMPTY(&container->group_list)) {
         VFIOAddressSpace *space = container->space;
+        VFIOGuestIOMMU *giommu, *tmp;
 
         if (container->iommu_data.release) {
             container->iommu_data.release(container);
         }
         QLIST_REMOVE(container, next);
+
+        QLIST_FOREACH_SAFE(giommu, &container->giommu_list, giommu_next, tmp) {
+            memory_region_unregister_iommu_notifier(&giommu->n);
+            QLIST_REMOVE(giommu, giommu_next);
+            g_free(giommu);
+        }
+
         trace_vfio_disconnect_container(container->fd);
         close(container->fd);
         g_free(container);

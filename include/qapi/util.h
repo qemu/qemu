@@ -11,7 +11,7 @@
 #ifndef QAPI_UTIL_H
 #define QAPI_UTIL_H
 
-int qapi_enum_parse(const char *lookup[], const char *buf,
+int qapi_enum_parse(const char * const lookup[], const char *buf,
                     int max, int def, Error **errp);
 
 #endif

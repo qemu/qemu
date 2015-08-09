@@ -51,8 +51,6 @@
 #  define LOG_TB(...) do { } while (0)
 #endif
 
-#define NSEC_PER_SEC    1000000000LL
-
 static void cpu_ppc_tb_stop (CPUPPCState *env);
 static void cpu_ppc_tb_start (CPUPPCState *env);
 
@@ -875,8 +873,9 @@ static int timebase_post_load(void *opaque, int version_id)
      */
     host_ns = qemu_clock_get_ns(QEMU_CLOCK_HOST);
     ns_diff = MAX(0, host_ns - tb_remote->time_of_the_day_ns);
-    migration_duration_ns = MIN(NSEC_PER_SEC, ns_diff);
-    migration_duration_tb = muldiv64(migration_duration_ns, freq, NSEC_PER_SEC);
+    migration_duration_ns = MIN(NANOSECONDS_PER_SECOND, ns_diff);
+    migration_duration_tb = muldiv64(migration_duration_ns, freq,
+                                     NANOSECONDS_PER_SECOND);
     guest_tb = tb_remote->guest_timebase + MIN(0, migration_duration_tb);
 
     tb_off_adj = guest_tb - cpu_get_real_ticks();

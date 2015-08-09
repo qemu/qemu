@@ -23,6 +23,7 @@
  */
 #include <zlib.h>
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 #include "block/coroutine.h"
@@ -128,7 +129,7 @@ void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
     int ret = 0;
 
     if (f->ops->before_ram_iterate) {
-        ret = f->ops->before_ram_iterate(f, f->opaque, flags);
+        ret = f->ops->before_ram_iterate(f, f->opaque, flags, NULL);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
@@ -140,24 +141,30 @@ void ram_control_after_iterate(QEMUFile *f, uint64_t flags)
     int ret = 0;
 
     if (f->ops->after_ram_iterate) {
-        ret = f->ops->after_ram_iterate(f, f->opaque, flags);
+        ret = f->ops->after_ram_iterate(f, f->opaque, flags, NULL);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
     }
 }
 
-void ram_control_load_hook(QEMUFile *f, uint64_t flags)
+void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data)
 {
     int ret = -EINVAL;
 
     if (f->ops->hook_ram_load) {
-        ret = f->ops->hook_ram_load(f, f->opaque, flags);
+        ret = f->ops->hook_ram_load(f, f->opaque, flags, data);
         if (ret < 0) {
             qemu_file_set_error(f, ret);
         }
     } else {
-        qemu_file_set_error(f, ret);
+        /*
+         * Hook is a hook specifically requested by the source sending a flag
+         * that expects there to be a hook on the destination.
+         */
+        if (flags == RAM_CONTROL_HOOK) {
+            qemu_file_set_error(f, ret);
+        }
     }
 }
 
@@ -349,14 +356,14 @@ void qemu_file_skip(QEMUFile *f, int size)
 }
 
 /*
- * Read 'size' bytes from file (at 'offset') into buf without moving the
- * pointer.
+ * Read 'size' bytes from file (at 'offset') without moving the
+ * pointer and set 'buf' to point to that data.
  *
  * It will return size bytes unless there was an error, in which case it will
  * return as many as it managed to read (assuming blocking fd's which
  * all current QEMUFile are)
  */
-int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
+int qemu_peek_buffer(QEMUFile *f, uint8_t **buf, int size, size_t offset)
 {
     int pending;
     int index;
@@ -392,7 +399,7 @@ int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
         size = pending;
     }
 
-    memcpy(buf, f->buf + index, size);
+    *buf = f->buf + index;
     return size;
 }
 
@@ -411,11 +418,13 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
 
     while (pending > 0) {
         int res;
+        uint8_t *src;
 
-        res = qemu_peek_buffer(f, buf, MIN(pending, IO_BUF_SIZE), 0);
+        res = qemu_peek_buffer(f, &src, MIN(pending, IO_BUF_SIZE), 0);
         if (res == 0) {
             return done;
         }
+        memcpy(buf, src, res);
         qemu_file_skip(f, res);
         buf += res;
         pending -= res;
@@ -584,4 +593,21 @@ int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src)
         f_src->buf_index = 0;
     }
     return len;
+}
+
+/*
+ * Get a string whose length is determined by a single preceding byte
+ * A preallocated 256 byte buffer must be passed in.
+ * Returns: len on success and a 0 terminated string in the buffer
+ *          else 0
+ *          (Note a 0 length string will return 0 either way)
+ */
+size_t qemu_get_counted_string(QEMUFile *f, char buf[256])
+{
+    size_t len = qemu_get_byte(f);
+    size_t res = qemu_get_buffer(f, (uint8_t *)buf, len);
+
+    buf[res] = 0;
+
+    return res == len ? res : 0;
 }

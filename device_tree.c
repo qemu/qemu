@@ -18,7 +18,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include "config.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"
@@ -242,7 +241,7 @@ uint32_t qemu_fdt_alloc_phandle(void *fdt)
 
     /*
      * We need to find out if the user gave us special instruction at
-     * which phandle id to start allocting phandles.
+     * which phandle id to start allocating phandles.
      */
     if (!phandle) {
         phandle = machine_phandle_start(current_machine);

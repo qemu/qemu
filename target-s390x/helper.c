@@ -112,7 +112,7 @@ int s390_cpu_handle_mmu_fault(CPUState *cs, vaddr orig_vaddr,
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
-    uint64_t asc = env->psw.mask & PSW_MASK_ASC;
+    uint64_t asc = cpu_mmu_idx_to_asc(mmu_idx);
     target_ulong vaddr, raddr;
     int prot;
 
@@ -181,10 +181,16 @@ hwaddr s390_cpu_get_phys_addr_debug(CPUState *cs, vaddr vaddr)
 
 void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr)
 {
+    uint64_t old_mask = env->psw.mask;
+
     env->psw.addr = addr;
     env->psw.mask = mask;
     if (tcg_enabled()) {
         env->cc_op = (mask >> 44) & 3;
+    }
+
+    if ((old_mask ^ mask) & PSW_MASK_PER) {
+        s390_cpu_recompute_watchpoints(CPU(s390_env_get_cpu(env)));
     }
 
     if (mask & PSW_MASK_WAIT) {
@@ -250,25 +256,6 @@ void do_restart_interrupt(CPUS390XState *env)
     load_psw(env, mask, addr);
 }
 
-static void do_svc_interrupt(CPUS390XState *env)
-{
-    uint64_t mask, addr;
-    LowCore *lowcore;
-
-    lowcore = cpu_map_lowcore(env);
-
-    lowcore->svc_code = cpu_to_be16(env->int_svc_code);
-    lowcore->svc_ilen = cpu_to_be16(env->int_svc_ilen);
-    lowcore->svc_old_psw.mask = cpu_to_be64(get_psw_mask(env));
-    lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + env->int_svc_ilen);
-    mask = be64_to_cpu(lowcore->svc_new_psw.mask);
-    addr = be64_to_cpu(lowcore->svc_new_psw.addr);
-
-    cpu_unmap_lowcore(lowcore);
-
-    load_psw(env, mask, addr);
-}
-
 static void do_program_interrupt(CPUS390XState *env)
 {
     uint64_t mask, addr;
@@ -292,12 +279,21 @@ static void do_program_interrupt(CPUS390XState *env)
 
     lowcore = cpu_map_lowcore(env);
 
+    /* Signal PER events with the exception.  */
+    if (env->per_perc_atmid) {
+        env->int_pgm_code |= PGM_PER;
+        lowcore->per_address = cpu_to_be64(env->per_address);
+        lowcore->per_perc_atmid = cpu_to_be16(env->per_perc_atmid);
+        env->per_perc_atmid = 0;
+    }
+
     lowcore->pgm_ilen = cpu_to_be16(ilen);
     lowcore->pgm_code = cpu_to_be16(env->int_pgm_code);
     lowcore->program_old_psw.mask = cpu_to_be64(get_psw_mask(env));
     lowcore->program_old_psw.addr = cpu_to_be64(env->psw.addr);
     mask = be64_to_cpu(lowcore->program_new_psw.mask);
     addr = be64_to_cpu(lowcore->program_new_psw.addr);
+    lowcore->per_breaking_event_addr = cpu_to_be64(env->gbea);
 
     cpu_unmap_lowcore(lowcore);
 
@@ -306,6 +302,33 @@ static void do_program_interrupt(CPUS390XState *env)
             env->psw.addr);
 
     load_psw(env, mask, addr);
+}
+
+static void do_svc_interrupt(CPUS390XState *env)
+{
+    uint64_t mask, addr;
+    LowCore *lowcore;
+
+    lowcore = cpu_map_lowcore(env);
+
+    lowcore->svc_code = cpu_to_be16(env->int_svc_code);
+    lowcore->svc_ilen = cpu_to_be16(env->int_svc_ilen);
+    lowcore->svc_old_psw.mask = cpu_to_be64(get_psw_mask(env));
+    lowcore->svc_old_psw.addr = cpu_to_be64(env->psw.addr + env->int_svc_ilen);
+    mask = be64_to_cpu(lowcore->svc_new_psw.mask);
+    addr = be64_to_cpu(lowcore->svc_new_psw.addr);
+
+    cpu_unmap_lowcore(lowcore);
+
+    load_psw(env, mask, addr);
+
+    /* When a PER event is pending, the PER exception has to happen
+       immediately after the SERVICE CALL one.  */
+    if (env->per_perc_atmid) {
+        env->int_pgm_code = PGM_PER;
+        env->int_pgm_ilen = env->int_svc_ilen;
+        do_program_interrupt(env);
+    }
 }
 
 #define VIRTIO_SUBCODE_64 0x0D00
@@ -445,7 +468,7 @@ static void do_mchk_interrupt(CPUS390XState *env)
     lowcore = cpu_map_lowcore(env);
 
     for (i = 0; i < 16; i++) {
-        lowcore->floating_pt_save_area[i] = cpu_to_be64(env->fregs[i].ll);
+        lowcore->floating_pt_save_area[i] = cpu_to_be64(get_freg(env, i)->ll);
         lowcore->gpregs_save_area[i] = cpu_to_be64(env->regs[i]);
         lowcore->access_regs_save_area[i] = cpu_to_be32(env->aregs[i]);
         lowcore->cregs_save_area[i] = cpu_to_be64(env->cregs[i]);
@@ -556,5 +579,74 @@ bool s390_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         }
     }
     return false;
+}
+
+void s390_cpu_recompute_watchpoints(CPUState *cs)
+{
+    const int wp_flags = BP_CPU | BP_MEM_WRITE | BP_STOP_BEFORE_ACCESS;
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+
+    /* We are called when the watchpoints have changed. First
+       remove them all.  */
+    cpu_watchpoint_remove_all(cs, BP_CPU);
+
+    /* Return if PER is not enabled */
+    if (!(env->psw.mask & PSW_MASK_PER)) {
+        return;
+    }
+
+    /* Return if storage-alteration event is not enabled.  */
+    if (!(env->cregs[9] & PER_CR9_EVENT_STORE)) {
+        return;
+    }
+
+    if (env->cregs[10] == 0 && env->cregs[11] == -1LL) {
+        /* We can't create a watchoint spanning the whole memory range, so
+           split it in two parts.   */
+        cpu_watchpoint_insert(cs, 0, 1ULL << 63, wp_flags, NULL);
+        cpu_watchpoint_insert(cs, 1ULL << 63, 1ULL << 63, wp_flags, NULL);
+    } else if (env->cregs[10] > env->cregs[11]) {
+        /* The address range loops, create two watchpoints.  */
+        cpu_watchpoint_insert(cs, env->cregs[10], -env->cregs[10],
+                              wp_flags, NULL);
+        cpu_watchpoint_insert(cs, 0, env->cregs[11] + 1, wp_flags, NULL);
+
+    } else {
+        /* Default case, create a single watchpoint.  */
+        cpu_watchpoint_insert(cs, env->cregs[10],
+                              env->cregs[11] - env->cregs[10] + 1,
+                              wp_flags, NULL);
+    }
+}
+
+void s390x_cpu_debug_excp_handler(CPUState *cs)
+{
+    S390CPU *cpu = S390_CPU(cs);
+    CPUS390XState *env = &cpu->env;
+    CPUWatchpoint *wp_hit = cs->watchpoint_hit;
+
+    if (wp_hit && wp_hit->flags & BP_CPU) {
+        /* FIXME: When the storage-alteration-space control bit is set,
+           the exception should only be triggered if the memory access
+           is done using an address space with the storage-alteration-event
+           bit set.  We have no way to detect that with the current
+           watchpoint code.  */
+        cs->watchpoint_hit = NULL;
+
+        env->per_address = env->psw.addr;
+        env->per_perc_atmid |= PER_CODE_EVENT_STORE | get_per_atmid(env);
+        /* FIXME: We currently no way to detect the address space used
+           to trigger the watchpoint.  For now just consider it is the
+           current default ASC. This turn to be true except when MVCP
+           and MVCS instrutions are not used.  */
+        env->per_perc_atmid |= env->psw.mask & (PSW_MASK_ASC) >> 46;
+
+        /* Remove all watchpoints to re-execute the code.  A PER exception
+           will be triggered, it will call load_psw which will recompute
+           the watchpoints.  */
+        cpu_watchpoint_remove_all(cs, BP_CPU);
+        cpu_resume_from_signal(cs, NULL);
+    }
 }
 #endif /* CONFIG_USER_ONLY */

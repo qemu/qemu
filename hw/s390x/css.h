@@ -81,6 +81,7 @@ struct SubchDev {
     uint8_t ccw_no_data_cnt;
     /* transport-provided data: */
     int (*ccw_cb) (SubchDev *, CCW1);
+    void (*disable_cb)(SubchDev *);
     SenseId id;
     void *driver_data;
 };

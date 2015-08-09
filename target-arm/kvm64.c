@@ -77,9 +77,13 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
     return true;
 }
 
+#define ARM_MPIDR_HWID_BITMASK 0xFF00FFFFFFULL
+#define ARM_CPU_ID_MPIDR       3, 0, 0, 0, 5
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     int ret;
+    uint64_t mpidr;
     ARMCPU *cpu = ARM_CPU(cs);
 
     if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE ||
@@ -107,6 +111,17 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
 
+    /*
+     * When KVM is in use, PSCI is emulated in-kernel and not by qemu.
+     * Currently KVM has its own idea about MPIDR assignment, so we
+     * override our defaults with what we get from KVM.
+     */
+    ret = kvm_get_one_reg(cs, ARM64_SYS_REG(ARM_CPU_ID_MPIDR), &mpidr);
+    if (ret) {
+        return ret;
+    }
+    cpu->mp_affinity = mpidr & ARM_MPIDR_HWID_BITMASK;
+
     return kvm_arm_init_cpreg_list(cpu);
 }
 
@@ -122,6 +137,34 @@ bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
     default:
         return true;
     }
+}
+
+typedef struct CPRegStateLevel {
+    uint64_t regidx;
+    int level;
+} CPRegStateLevel;
+
+/* All system registers not listed in the following table are assumed to be
+ * of the level KVM_PUT_RUNTIME_STATE. If a register should be written less
+ * often, you must add it to this table with a state of either
+ * KVM_PUT_RESET_STATE or KVM_PUT_FULL_STATE.
+ */
+static const CPRegStateLevel non_runtime_cpregs[] = {
+    { KVM_REG_ARM_TIMER_CNT, KVM_PUT_FULL_STATE },
+};
+
+int kvm_arm_cpreg_level(uint64_t regidx)
+{
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(non_runtime_cpregs); i++) {
+        const CPRegStateLevel *l = &non_runtime_cpregs[i];
+        if (l->regidx == regidx) {
+            return l->level;
+        }
+    }
+
+    return KVM_PUT_RUNTIME_STATE;
 }
 
 #define AARCH64_CORE_REG(x)   (KVM_REG_ARM64 | KVM_REG_SIZE_U64 | \
@@ -265,7 +308,7 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
-    if (!write_list_to_kvmstate(cpu)) {
+    if (!write_list_to_kvmstate(cpu, level)) {
         return EINVAL;
     }
 

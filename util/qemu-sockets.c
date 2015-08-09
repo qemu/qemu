@@ -29,6 +29,9 @@
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0
 #endif
+#ifndef AI_V4MAPPED
+# define AI_V4MAPPED 0
+#endif
 
 /* used temporarily until all users are converted to QemuOpts */
 QemuOptsList socket_optslist = {
@@ -43,6 +46,12 @@ QemuOptsList socket_optslist = {
             .type = QEMU_OPT_STRING,
         },{
             .name = "port",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "localaddr",
+            .type = QEMU_OPT_STRING,
+        },{
+            .name = "localport",
             .type = QEMU_OPT_STRING,
         },{
             .name = "to",
@@ -112,7 +121,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
     int slisten, rc, to, port_min, port_max, p;
 
     memset(&ai,0, sizeof(ai));
-    ai.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
+    ai.ai_flags = AI_PASSIVE;
     ai.ai_family = PF_UNSPEC;
     ai.ai_socktype = SOCK_STREAM;
 
@@ -238,7 +247,7 @@ static void wait_for_connect(void *opaque)
     bool in_progress;
     Error *err = NULL;
 
-    qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
+    qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
 
     do {
         rc = qemu_getsockopt(s->fd, SOL_SOCKET, SO_ERROR, &val, &valsize);
@@ -310,8 +319,7 @@ static int inet_connect_addr(struct addrinfo *addr, bool *in_progress,
 
     if (connect_state != NULL && QEMU_SOCKET_RC_INPROGRESS(rc)) {
         connect_state->fd = sock;
-        qemu_set_fd_handler2(sock, NULL, NULL, wait_for_connect,
-                             connect_state);
+        qemu_set_fd_handler(sock, NULL, wait_for_connect, connect_state);
         *in_progress = true;
     } else if (rc < 0) {
         error_setg_errno(errp, errno, "Failed to connect socket");
@@ -330,7 +338,7 @@ static struct addrinfo *inet_parse_connect_opts(QemuOpts *opts, Error **errp)
 
     memset(&ai, 0, sizeof(ai));
 
-    ai.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
+    ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
     ai.ai_family = PF_UNSPEC;
     ai.ai_socktype = SOCK_STREAM;
 
@@ -430,7 +438,7 @@ int inet_dgram_opts(QemuOpts *opts, Error **errp)
 
     /* lookup peer addr */
     memset(&ai,0, sizeof(ai));
-    ai.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
+    ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
     ai.ai_family = PF_UNSPEC;
     ai.ai_socktype = SOCK_DGRAM;
 
@@ -790,8 +798,7 @@ int unix_connect_opts(QemuOpts *opts, Error **errp,
 
     if (connect_state != NULL && QEMU_SOCKET_RC_INPROGRESS(rc)) {
         connect_state->fd = sock;
-        qemu_set_fd_handler2(sock, NULL, NULL, wait_for_connect,
-                             connect_state);
+        qemu_set_fd_handler(sock, NULL, wait_for_connect, connect_state);
         return sock;
     } else if (rc >= 0) {
         /* non blocking socket immediate success, call callback */

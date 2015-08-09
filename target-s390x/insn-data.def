@@ -34,6 +34,9 @@
     C(0xb34a, AXBR,    RRE,   Z,   0, x2_o, x1, 0, axb, f128)
     C(0xed0a, AEB,     RXE,   Z,   e1, m2_32u, new, e1, aeb, f32)
     C(0xed1a, ADB,     RXE,   Z,   f1_o, m2_64, f1, 0, adb, f64)
+/* ADD HIGH */
+    C(0xb9c8, AHHHR,   RRF_a, HW,  r2_sr32, r3_sr32, new, r1_32h, add, adds32)
+    C(0xb9d8, AHHLR,   RRF_a, HW,  r2_sr32, r3, new, r1_32h, add, adds32)
 /* ADD IMMEDIATE */
     C(0xc209, AFI,     RIL_a, EI,  r1, i2, new, r1_32, add, adds32)
     C(0xeb6a, ASI,     SIY,   GIE, m1_32s, i2, new, m1_32, add, adds32)
@@ -41,6 +44,8 @@
     C(0xc208, AGFI,    RIL_a, EI,  r1, i2, r1, 0, add, adds64)
     C(0xeb7a, AGSI,    SIY,   GIE, m1_64, i2, new, m1_64, add, adds64)
     C(0xecd9, AGHIK,   RIE_d, DO,  r3, i2, r1, 0, add, adds64)
+/* ADD IMMEDIATE HIGH */
+    C(0xcc08, AIH,     RIL_a, HW,  r1_sr32, i2, new, r1_32h, add, adds32)
 /* ADD HALFWORD */
     C(0x4a00, AH,      RX_a,  Z,   r1, m2_16s, new, r1_32, add, adds32)
     C(0xe37a, AHY,     RXY_a, LD,  r1, m2_16s, new, r1_32, add, adds32)
@@ -58,6 +63,9 @@
     C(0xb9ea, ALGRK,   RRF_a, DO,  r2, r3, r1, 0, add, addu64)
     C(0xe30a, ALG,     RXY_a, Z,   r1, m2_64, r1, 0, add, addu64)
     C(0xe31a, ALGF,    RXY_a, Z,   r1, m2_32u, r1, 0, add, addu64)
+/* ADD LOGICAL HIGH */
+    C(0xb9ca, ALHHHR,  RRF_a, HW,  r2_sr32, r3_sr32, new, r1_32h, add, addu32)
+    C(0xb9da, ALHHLR,  RRF_a, HW,  r2_sr32, r3, new, r1_32h, add, addu32)
 /* ADD LOGICAL IMMEDIATE */
     C(0xc20b, ALFI,    RIL_a, EI,  r1, i2_32u, new, r1_32, add, addu32)
     C(0xc20a, ALGFI,   RIL_a, EI,  r1, i2_32u, r1, 0, add, addu64)
@@ -66,6 +74,9 @@
     C(0xecda, ALHSIK,  RIE_d, DO,  r3, i2, new, r1_32, add, addu32)
     C(0xeb7e, ALGSI,   SIY,   GIE, m1_64, i2, new, m1_64, add, addu64)
     C(0xecdb, ALGHSIK, RIE_d, DO,  r3, i2, r1, 0, add, addu64)
+/* ADD LOGICAL WITH SIGNED IMMEDIATE HIGH */
+    C(0xcc0a, ALSIH,   RIL_a, HW,  r1_sr32, i2, new, r1_32h, add, addu32)
+    C(0xcc0b, ALSIHN,  RIL_a, HW,  r1_sr32, i2, new, r1_32h, add, 0)
 /* ADD LOGICAL WITH CARRY */
     C(0xb998, ALCR,    RRE,   Z,   r1, r2, new, r1_32, addc, addc32)
     C(0xb988, ALCGR,   RRE,   Z,   r1, r2, r1, 0, addc, addc64)
@@ -111,6 +122,8 @@
 /* BRANCH RELATIVE ON COUNT */
     C(0xa706, BRCT,    RI_b,  Z,   0, 0, 0, 0, bct32, 0)
     C(0xa707, BRCTG,   RI_b,  Z,   0, 0, 0, 0, bct64, 0)
+/* BRANCH RELATIVE ON COUNT HIGH */
+    C(0xcc06, BRCTH,   RIL_b, HW,  0, 0, 0, 0, bcth, 0)
 /* BRANCH ON INDEX */
     D(0x8600, BXH,     RS_a,  Z,   0, a2, 0, 0, bx32, 0, 0)
     D(0x8700, BXLE,    RS_a,  Z,   0, a2, 0, 0, bx32, 0, 1)
@@ -159,8 +172,14 @@
     C(0xe55c, CHSI,    SIL,   GIE, m1_32s, i2, 0, 0, 0, cmps64)
     C(0xe558, CGHSI,   SIL,   GIE, m1_64, i2, 0, 0, 0, cmps64)
 /* COMPARE HALFWORD RELATIVE LONG */
-    C(0xc605, CHRL,    RIL_a, GIE, r1_o, mri2_32s, 0, 0, 0, cmps32)
-    C(0xc604, CGHRL,   RIL_a, GIE, r1_o, mri2_64, 0, 0, 0, cmps64)
+    C(0xc605, CHRL,    RIL_b, GIE, r1_o, mri2_32s, 0, 0, 0, cmps32)
+    C(0xc604, CGHRL,   RIL_b, GIE, r1_o, mri2_64, 0, 0, 0, cmps64)
+/* COMPARE HIGH */
+    C(0xb9cd, CHHR,    RRE,   HW,  r1_sr32, r2_sr32, 0, 0, 0, cmps32)
+    C(0xb9dd, CHLR,    RRE,   HW,  r1_sr32, r2_o, 0, 0, 0, cmps32)
+    C(0xe3cd, CHF,     RXY_a, HW,  r1_sr32, m2_32s, 0, 0, 0, cmps32)
+/* COMPARE IMMEDIATE HIGH */
+    C(0xcc0d, CIH,     RIL_a, HW,  r1_sr32, i2, 0, 0, 0, cmps32)
 
 /* COMPARE LOGICAL */
     C(0x1500, CLR,     RR_a,  Z,   r1, r2, 0, 0, 0, cmpu32)
@@ -171,6 +190,10 @@
     C(0xe321, CLG,     RXY_a, Z,   r1, m2_64, 0, 0, 0, cmpu64)
     C(0xe331, CLGF,    RXY_a, Z,   r1, m2_32u, 0, 0, 0, cmpu64)
     C(0xd500, CLC,     SS_a,  Z,   la1, a2, 0, 0, clc, 0)
+/* COMPARE LOGICAL HIGH */
+    C(0xb9cf, CLHHR,   RRE,   HW,  r1_sr32, r2_sr32, 0, 0, 0, cmpu32)
+    C(0xb9df, CLHLR,   RRE,   HW,  r1_sr32, r2_o, 0, 0, 0, cmpu32)
+    C(0xe3cf, CLHF,    RXY_a, HW,  r1_sr32, m2_32s, 0, 0, 0, cmpu32)
 /* COMPARE LOGICAL IMMEDIATE */
     C(0xc20f, CLFI,    RIL_a, EI,  r1, i2, 0, 0, 0, cmpu32)
     C(0xc20e, CLGFI,   RIL_a, EI,  r1, i2_32u, 0, 0, 0, cmpu64)
@@ -179,6 +202,8 @@
     C(0xe555, CLHHSI,  SIL,   GIE, m1_16u, i2_16u, 0, 0, 0, cmpu64)
     C(0xe55d, CLFHSI,  SIL,   GIE, m1_32u, i2_16u, 0, 0, 0, cmpu64)
     C(0xe559, CLGHSI,  SIL,   GIE, m1_64, i2_16u, 0, 0, 0, cmpu64)
+/* COMPARE LOGICAL IMMEDIATE HIGH */
+    C(0xcc0f, CLIH,    RIL_a, HW,  r1_sr32, i2, 0, 0, 0, cmpu32)
 /* COMPARE LOGICAL RELATIVE LONG */
     C(0xc60f, CLRL,    RIL_b, GIE, r1_o, mri2_32u, 0, 0, 0, cmpu32)
     C(0xc60a, CLGRL,   RIL_b, GIE, r1_o, mri2_64, 0, 0, 0, cmpu64)
@@ -230,8 +255,10 @@
 /* COMPARE LOGICAL AND TRAP */
     D(0xb973, CLRT,    RRF_c, GIE, r1_32u, r2_32u, 0, 0, ct, 0, 1)
     D(0xb961, CLGRT,   RRF_c, GIE, r1_o, r2_o, 0, 0, ct, 0, 1)
+    D(0xeb23, CLT,     RSY_b, MIE, r1_32u, m2_32u, 0, 0, ct, 0, 1)
+    D(0xeb2b, CLGT,    RSY_b, MIE, r1_o, m2_64, 0, 0, ct, 0, 1)
     D(0xec73, CLFIT,   RIE_a, GIE, r1_32u, i2_32u, 0, 0, ct, 0, 1)
-    D(0xec71, CLGIT,   RIE_a, GIE, r1_o, i2_32u, 0, 0, ct, 0, 0)
+    D(0xec71, CLGIT,   RIE_a, GIE, r1_o, i2_32u, 0, 0, ct, 0, 1)
 
 /* CONVERT TO DECIMAL */
     C(0x4e00, CVD,     RX_a,  Z,   r1_o, a2, 0, 0, cvd, 0)
@@ -336,7 +363,7 @@
 /* LOAD */
     C(0x1800, LR,      RR_a,  Z,   0, r2_o, 0, cond_r1r2_32, mov2, 0)
     C(0x5800, L,       RX_a,  Z,   0, a2, new, r1_32, ld32s, 0)
-    C(0xe358, LY,      RXY_a, Z,   0, a2, new, r1_32, ld32s, 0)
+    C(0xe358, LY,      RXY_a, LD,  0, a2, new, r1_32, ld32s, 0)
     C(0xb904, LGR,     RRE,   Z,   0, r2_o, 0, r1, mov2, 0)
     C(0xb914, LGFR,    RRE,   Z,   0, r2_32s, 0, r1, mov2, 0)
     C(0xe304, LG,      RXY_a, Z,   0, a2, r1, 0, ld64, 0)
@@ -357,6 +384,9 @@
 /* LOAD ADDRESS */
     C(0x4100, LA,      RX_a,  Z,   0, a2, 0, r1, mov2, 0)
     C(0xe371, LAY,     RXY_a, LD,  0, a2, 0, r1, mov2, 0)
+/* LOAD ADDRESS EXTENDED */
+    C(0x5100, LAE,     RX_a,  Z,   0, a2, 0, r1, mov2e, 0)
+    C(0xe375, LAEY,    RXY_a, GIE, 0, a2, 0, r1, mov2e, 0)
 /* LOAD ADDRESS RELATIVE LONG */
     C(0xc000, LARL,    RIL_b, Z,   0, ri2, 0, r1, mov2, 0)
 /* LOAD AND ADD */
@@ -384,11 +414,16 @@
     C(0xb302, LTEBR,   RRE,   Z,   0, e2, 0, cond_e1e2, mov2, f32)
     C(0xb312, LTDBR,   RRE,   Z,   0, f2_o, 0, f1, mov2, f64)
     C(0xb342, LTXBR,   RRE,   Z,   0, x2_o, 0, x1, movx, f128)
+/* LOAD AND TRAP */
+    C(0xe39f, LAT,     RXY_a, LAT, 0, m2_32u, r1, 0, lat, 0)
+    C(0xe385, LGAT,    RXY_a, LAT, 0, a2, r1, 0, lgat, 0)
 /* LOAD BYTE */
     C(0xb926, LBR,     RRE,   EI,  0, r2_8s, 0, r1_32, mov2, 0)
     C(0xb906, LGBR,    RRE,   EI,  0, r2_8s, 0, r1, mov2, 0)
     C(0xe376, LB,      RXY_a, LD,  0, a2, new, r1_32, ld8s, 0)
     C(0xe377, LGB,     RXY_a, LD,  0, a2, r1, 0, ld8s, 0)
+/* LOAD BYTE HIGH */
+    C(0xe3c0, LBH,     RXY_a, HW,  0, a2, new, r1_32h, ld8s, 0)
 /* LOAD COMPLEMENT */
     C(0x1300, LCR,     RR_a,  Z,   0, r2, new, r1_32, neg, neg32)
     C(0xb903, LCGR,    RRE,   Z,   0, r2, r1, 0, neg, neg64)
@@ -403,15 +438,23 @@
     C(0x4800, LH,      RX_a,  Z,   0, a2, new, r1_32, ld16s, 0)
     C(0xe378, LHY,     RXY_a, LD,  0, a2, new, r1_32, ld16s, 0)
     C(0xe315, LGH,     RXY_a, Z,   0, a2, r1, 0, ld16s, 0)
+/* LOAD HALFWORD HIGH */
+    C(0xe3c4, LHH,     RXY_a, HW,  0, a2, new, r1_32h, ld16s, 0)
 /* LOAD HALFWORD IMMEDIATE */
     C(0xa708, LHI,     RI_a,  Z,   0, i2, 0, r1_32, mov2, 0)
     C(0xa709, LGHI,    RI_a,  Z,   0, i2, 0, r1, mov2, 0)
 /* LOAD HALFWORD RELATIVE LONG */
     C(0xc405, LHRL,    RIL_b, GIE, 0, ri2, new, r1_32, ld16s, 0)
     C(0xc404, LGHRL,   RIL_b, GIE, 0, ri2, r1, 0, ld16s, 0)
+/* LOAD HIGH */
+    C(0xe3ca, LFH,     RXY_a, HW,  0, a2, new, r1_32h, ld32u, 0)
+/* LOAG HIGH AND TRAP */
+    C(0xe3c8, LFHAT,   RXY_a, LAT, 0, m2_32u, r1, 0, lfhat, 0)
 /* LOAD LOGICAL */
     C(0xb916, LLGFR,   RRE,   Z,   0, r2_32u, 0, r1, mov2, 0)
     C(0xe316, LLGF,    RXY_a, Z,   0, a2, r1, 0, ld32u, 0)
+/* LOAD LOGICAL AND TRAP */
+    C(0xe39d, LLGFAT,  RXY_a, LAT, 0, a2, r1, 0, llgfat, 0)
 /* LOAD LOGICAL RELATIVE LONG */
     C(0xc40e, LLGFRL,  RIL_b, GIE, 0, ri2, r1, 0, ld32u, 0)
 /* LOAD LOGICAL CHARACTER */
@@ -419,11 +462,15 @@
     C(0xb984, LLGCR,   RRE,   EI,  0, r2_8u, 0, r1, mov2, 0)
     C(0xe394, LLC,     RXY_a, EI,  0, a2, new, r1_32, ld8u, 0)
     C(0xe390, LLGC,    RXY_a, Z,   0, a2, r1, 0, ld8u, 0)
+/* LOAD LOGICAL CHARACTER HIGH */
+    C(0xe3c2, LLCH,    RXY_a, HW,  0, a2, new, r1_32h, ld8u, 0)
 /* LOAD LOGICAL HALFWORD */
     C(0xb995, LLHR,    RRE,   EI,  0, r2_16u, 0, r1_32, mov2, 0)
     C(0xb985, LLGHR,   RRE,   EI,  0, r2_16u, 0, r1, mov2, 0)
     C(0xe395, LLH,     RXY_a, EI,  0, a2, new, r1_32, ld16u, 0)
     C(0xe391, LLGH,    RXY_a, Z,   0, a2, r1, 0, ld16u, 0)
+/* LOAD LOGICAL HALFWORD HIGH */
+    C(0xe3c6, LLHH,    RXY_a, HW,  0, a2, new, r1_32h, ld16u, 0)
 /* LOAD LOGICAL HALFWORD RELATIVE LONG */
     C(0xc402, LLHRL,   RIL_b, GIE, 0, ri2, new, r1_32, ld16u, 0)
     C(0xc406, LLGHRL,  RIL_b, GIE, 0, ri2, r1, 0, ld16u, 0)
@@ -437,6 +484,9 @@
 /* LOAD LOGICAL THIRTY ONE BITS */
     C(0xb917, LLGTR,   RRE,   Z,  0, r2_o, r1, 0, llgt, 0)
     C(0xe317, LLGT,    RXY_a, Z,  0, m2_32u, r1, 0, llgt, 0)
+/* LOAD LOGICAL THIRTY ONE BITS AND TRAP */
+    C(0xe39c, LLGTAT,  RXY_a, LAT, 0, m2_32u, r1, 0, llgtat, 0)
+
 /* LOAD FPR FROM GR */
     C(0xb3c1, LDGR,    RRE,   FPRGR, 0, r2_o, 0, f1, mov2, 0)
 /* LOAD GR FROM FPR */
@@ -448,6 +498,7 @@
     C(0xb301, LNEBR,   RRE,   Z,   0, e2, new, e1, nabsf32, f32)
     C(0xb311, LNDBR,   RRE,   Z,   0, f2_o, f1, 0, nabsf64, f64)
     C(0xb341, LNXBR,   RRE,   Z,   0, x2_o, x1, 0, nabsf128, f128)
+    C(0xb371, LNDFR,   RRE,   FPSSH, 0, f2_o, f1, 0, nabsf64, 0)
 /* LOAD ON CONDITION */
     C(0xb9f2, LOCR,    RRF_c, LOC, r1, r2, new, r1_32, loc, 0)
     C(0xb9e2, LOCGR,   RRF_c, LOC, r1, r2, r1, 0, loc, 0)
@@ -461,6 +512,7 @@
     C(0xb300, LPEBR,   RRE,   Z,   0, e2, new, e1, absf32, f32)
     C(0xb310, LPDBR,   RRE,   Z,   0, f2_o, f1, 0, absf64, f64)
     C(0xb340, LPXBR,   RRE,   Z,   0, x2_o, x1, 0, absf128, f128)
+    C(0xb370, LPDFR,   RRE,   FPSSH, 0, f2_o, f1, 0, absf64, 0)
 /* LOAD REVERSED */
     C(0xb91f, LRVR,    RRE,   Z,   0, r2_32u, new, r1_32, rev32, 0)
     C(0xb90f, LRVGR,   RRE,   Z,   0, r2_o, r1, 0, rev64, 0)
@@ -476,6 +528,10 @@
     C(0xb29d, LFPC,    S,     Z,   0, m2_32u, 0, 0, sfpc, 0)
 /* LOAD FPC AND SIGNAL */
     C(0xb2bd, LFAS,    S,     IEEEE_SIM, 0, m2_32u, 0, 0, sfas, 0)
+/* LOAD FP INTEGER */
+    C(0xb357, FIEBR,   RRF_e, Z,   0, e2, new, e1, fieb, 0)
+    C(0xb35f, FIDBR,   RRF_e, Z,   0, f2_o, f1, 0, fidb, 0)
+    C(0xb347, FIXBR,   RRF_e, Z,   0, x2_o, x1, 0, fixb, 0)
 
 /* LOAD LENGTHENED */
     C(0xb304, LDEBR,   RRE,   Z,   0, e2, f1, 0, ldeb, 0)
@@ -595,8 +651,9 @@
 
 /* ROTATE THEN INSERT SELECTED BITS */
     C(0xec55, RISBG,   RIE_f, GIE, 0, r2, r1, 0, risbg, s64)
-    C(0xec5d, RISBHG,  RIE_f, GIE, 0, r2, r1, 0, risbg, 0)
-    C(0xec51, RISBLG,  RIE_f, GIE, 0, r2, r1, 0, risbg, 0)
+    C(0xec59, RISBGN,  RIE_f, MIE, 0, r2, r1, 0, risbg, 0)
+    C(0xec5d, RISBHG,  RIE_f, HW,  0, r2, r1, 0, risbg, 0)
+    C(0xec51, RISBLG,  RIE_f, HW,  0, r2, r1, 0, risbg, 0)
 /* ROTATE_THEN <OP> SELECTED BITS */
     C(0xec54, RNSBG,   RIE_f, GIE, 0, r2, r1, 0, rosbg, 0)
     C(0xec56, ROSBG,   RIE_f, GIE, 0, r2, r1, 0, rosbg, 0)
@@ -619,7 +676,7 @@
     C(0xb299, SRNM,    S,     Z,   0, 0, 0, 0, srnm, 0)
     C(0xb2b8, SRNMB,   S,     FPE, 0, 0, 0, 0, srnm, 0)
 /* SET DFP ROUNDING MODE */
-    C(0xb2b9, SRNMT,   S,     DFP, 0, 0, 0, 0, srnm, 0)
+    C(0xb2b9, SRNMT,   S,     DFPR, 0, 0, 0, 0, srnm, 0)
 
 /* SHIFT LEFT SINGLE */
     D(0x8b00, SLA,     RS_a,  Z,   r1, sh32, new, r1_32, sla, 0, 31)
@@ -667,15 +724,21 @@
 /* STORE CHARACTER */
     C(0x4200, STC,     RX_a,  Z,   r1_o, a2, 0, 0, st8, 0)
     C(0xe372, STCY,    RXY_a, LD,  r1_o, a2, 0, 0, st8, 0)
+/* STORE CHARACTER HIGH */
+    C(0xe3c3, STCH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st8, 0)
 /* STORE CHARACTERS UNDER MASK */
     D(0xbe00, STCM,    RS_b,  Z,   r1_o, a2, 0, 0, stcm, 0, 0)
     D(0xeb2d, STCMY,   RSY_b, LD,  r1_o, a2, 0, 0, stcm, 0, 0)
-    D(0xeb2c, STCMH,   RSY_b, LD,  r1_o, a2, 0, 0, stcm, 0, 32)
+    D(0xeb2c, STCMH,   RSY_b, Z,   r1_o, a2, 0, 0, stcm, 0, 32)
 /* STORE HALFWORD */
     C(0x4000, STH,     RX_a,  Z,   r1_o, a2, 0, 0, st16, 0)
     C(0xe370, STHY,    RXY_a, LD,  r1_o, a2, 0, 0, st16, 0)
+/* STORE HALFWORD HIGH */
+    C(0xe3c7, STHH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st16, 0)
 /* STORE HALFWORD RELATIVE LONG */
     C(0xc407, STHRL,   RIL_b, GIE, r1_o, ri2, 0, 0, st16, 0)
+/* STORE HIGH */
+    C(0xe3cb, STFH,    RXY_a, HW,  r1_sr32, a2, 0, 0, st32, 0)
 /* STORE ON CONDITION */
     D(0xebf3, STOC,    RSY_b, LOC, 0, 0, 0, 0, soc, 0, 0)
     D(0xebe3, STOCG,   RSY_b, LOC, 0, 0, 0, 0, soc, 0, 1)
@@ -715,6 +778,9 @@
 /* SUBTRACT HALFWORD */
     C(0x4b00, SH,      RX_a,  Z,   r1, m2_16s, new, r1_32, sub, subs32)
     C(0xe37b, SHY,     RXY_a, LD,  r1, m2_16s, new, r1_32, sub, subs32)
+/* SUBTRACT HIGH */
+    C(0xb9c9, SHHHR,   RRF_a, HW,  r2_sr32, r3_sr32, new, r1_32h, sub, subs32)
+    C(0xb9d9, SHHLR,   RRF_a, HW,  r2_sr32, r3, new, r1_32h, sub, subs32)
 /* SUBTRACT LOGICAL */
     C(0x1f00, SLR,     RR_a,  Z,   r1, r2, new, r1_32, sub, subu32)
     C(0xb9fb, SLRK,    RRF_a, DO,  r2, r3, new, r1_32, sub, subu32)
@@ -725,6 +791,9 @@
     C(0xb9eb, SLGRK,   RRF_a, DO,  r2, r3, r1, 0, sub, subu64)
     C(0xe30b, SLG,     RXY_a, Z,   r1, m2_64, r1, 0, sub, subu64)
     C(0xe31b, SLGF,    RXY_a, Z,   r1, m2_32u, r1, 0, sub, subu64)
+/* SUBTRACT LOCICAL HIGH */
+    C(0xb9cb, SLHHHR,  RRF_a, HW,  r2_sr32, r3_sr32, new, r1_32h, sub, subu32)
+    C(0xb9db, SLHHLR,  RRF_a, HW,  r2_sr32, r3, new, r1_32h, sub, subu32)
 /* SUBTRACT LOGICAL IMMEDIATE */
     C(0xc205, SLFI,    RIL_a, EI,  r1, i2_32u, new, r1_32, sub, subu32)
     C(0xc204, SLGFI,   RIL_a, EI,  r1, i2_32u, r1, 0, sub, subu64)
@@ -752,6 +821,10 @@
 
 /* TRANSLATE */
     C(0xdc00, TR,      SS_a,  Z,   la1, a2, 0, 0, tr, 0)
+/* TRANSLATE AND TEST */
+    C(0xdd00, TRT,     SS_a,  Z,   la1, a2, 0, 0, trt, 0)
+/* TRANSLATE EXTENDED */
+    C(0xb2a5, TRE,     RRE,   Z,   0, r2, r1_P, 0, tre, 0)
 
 /* UNPACK */
     /* Really format SS_b, but we pack both lengths into one argument
@@ -762,7 +835,7 @@
 /* COMPARE AND SWAP AND PURGE */
     C(0xb250, CSP,     RRE,   Z,   0, ra2, 0, 0, csp, 0)
 /* DIAGNOSE (KVM hypercall) */
-    C(0x8300, DIAG,    RX_a,  Z,   0, 0, 0, 0, diag, 0)
+    C(0x8300, DIAG,    RSI,   Z,   0, 0, 0, 0, diag, 0)
 /* INSERT STORAGE KEY EXTENDED */
     C(0xb229, ISKE,    RRE,   Z,   0, r2_o, new, r1_8, iske, 0)
 /* INVALIDATE PAGE TABLE ENTRY */
@@ -812,7 +885,7 @@
     C(0xae00, SIGP,    RS_a,  Z,   r3_o, a2, 0, 0, sigp, 0)
 /* STORE CLOCK */
     C(0xb205, STCK,    S,     Z,   la2, 0, new, m1_64, stck, 0)
-    C(0xb27c, STCKF,   S,     Z,   la2, 0, new, m1_64, stck, 0)
+    C(0xb27c, STCKF,   S,     SCF, la2, 0, new, m1_64, stck, 0)
 /* STORE CLOCK EXTENDED */
     C(0xb278, STCKE,   S,     Z,   0, a2, 0, 0, stcke, 0)
 /* STORE CLOCK COMPARATOR */
@@ -842,17 +915,17 @@
 /* TEST PROTECTION */
     C(0xe501, TPROT,   SSE,   Z,   la1, a2, 0, 0, tprot, 0)
 
-/* I/O Instructions.  For each we simply indicate non-operation.  */
-    C(0xb276, XSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
-    C(0xb230, CSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
-    C(0xb231, HSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
-    C(0xb232, MSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
-    C(0xb23b, RCHP,    S,     Z,   0, 0, 0, 0, subchannel, 0)
-    C(0xb238, RSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
-    C(0xb233, SSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
-    C(0xb234, STSCH,   S,     Z,   0, 0, 0, 0, subchannel, 0)
-    C(0xb235, TSCH,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+/* CCW I/O Instructions */
+    C(0xb276, XSCH,    S,     Z,   0, 0, 0, 0, xsch, 0)
+    C(0xb230, CSCH,    S,     Z,   0, 0, 0, 0, csch, 0)
+    C(0xb231, HSCH,    S,     Z,   0, 0, 0, 0, hsch, 0)
+    C(0xb232, MSCH,    S,     Z,   0, insn, 0, 0, msch, 0)
+    C(0xb23b, RCHP,    S,     Z,   0, 0, 0, 0, rchp, 0)
+    C(0xb238, RSCH,    S,     Z,   0, 0, 0, 0, rsch, 0)
+    C(0xb233, SSCH,    S,     Z,   0, insn, 0, 0, ssch, 0)
+    C(0xb234, STSCH,   S,     Z,   0, insn, 0, 0, stsch, 0)
+    C(0xb235, TSCH,    S,     Z,   0, insn, 0, 0, tsch, 0)
     /* ??? Not listed in PoO ninth edition, but there's a linux driver that
        uses it: "A CHSC subchannel is usually present on LPAR only."  */
-    C(0xb25f, CHSC,    S,     Z,   0, 0, 0, 0, subchannel, 0)
+    C(0xb25f, CHSC,  RRE,     Z,   0, insn, 0, 0, chsc, 0)
 #endif /* CONFIG_USER_ONLY */

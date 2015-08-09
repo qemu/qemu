@@ -2,8 +2,8 @@
 multiseat howto (with some multihead coverage)
 ==============================================
 
-host side
----------
+host devices
+------------
 
 First you must compile qemu with a user interface supporting
 multihead/multiseat and input event routing.  Right now this
@@ -40,6 +40,19 @@ usb mouse, both connected to the xhci and linked to the display.
 The "display=video2" sets up the input routing.  Any input coming from
 the window which belongs to the video.2 display adapter will be routed
 to these input devices.
+
+Starting with qemu 2.4 and linux kernel 4.1 you can also use virtio
+for the input devices, using this ...
+
+	-device pci-bridge,addr=12.0,chassis_nr=2,id=head.2 \
+	-device secondary-vga,bus=head.2,addr=02.0,id=video.2 \
+	-device virtio-keyboard-pci,bus=head.2,addr=03.0,display=video.2 \
+	-device virtio-tablet-pci,bus=head.2,addr=03.0,display=video.2
+
+... instead of xhci and usb hid devices.
+
+host ui
+-------
 
 The sdl2 ui will start up with two windows, one for each display
 device.  The gtk ui will start with a single window and each display
@@ -105,6 +118,26 @@ the devices attached to the seat.
 
 Background info is here:
   http://www.freedesktop.org/wiki/Software/systemd/multiseat/
+
+
+guest side with pci-bridge-seat
+-------------------------------
+
+Qemu version 2.4 and newer has a new pci-bridge-seat device which
+can be used instead of pci-bridge.  Just swap the device name in the
+qemu command line above.  The only difference between the two devices
+is the pci id.  We can match the pci id instead of the device path
+with a nice generic rule now, which simplifies the guest
+configuration:
+
+    [root@fedora ~]# cat /etc/udev/rules.d/70-qemu-pci-bridge-seat.rules
+    SUBSYSTEM=="pci", ATTR{vendor}=="0x1b36", ATTR{device}=="0x000a", \
+            TAG+="seat", ENV{ID_AUTOSEAT}="1"
+
+Patch with this rule has been submitted to upstream udev/systemd, was
+accepted and and should be included in the next systemd release (222).
+So, if your guest has this or a newer version, multiseat will work just
+fine without any manual guest configuration.
 
 Enjoy!
 

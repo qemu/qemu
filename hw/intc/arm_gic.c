@@ -71,7 +71,7 @@ void gic_update(GICState *s)
             || !(s->cpu_ctlr[cpu] & (GICC_CTLR_EN_GRP0 | GICC_CTLR_EN_GRP1))) {
             qemu_irq_lower(s->parent_irq[cpu]);
             qemu_irq_lower(s->parent_fiq[cpu]);
-            return;
+            continue;
         }
         best_prio = 0x100;
         best_irq = 1023;

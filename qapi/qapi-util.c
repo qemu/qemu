@@ -14,7 +14,7 @@
 #include "qapi/error.h"
 #include "qapi/util.h"
 
-int qapi_enum_parse(const char *lookup[], const char *buf,
+int qapi_enum_parse(const char * const lookup[], const char *buf,
                     int max, int def, Error **errp)
 {
     int i;

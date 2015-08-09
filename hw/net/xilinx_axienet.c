@@ -26,7 +26,6 @@
 #include "qemu/log.h"
 #include "net/net.h"
 #include "net/checksum.h"
-#include "qapi/qmp/qerror.h"
 
 #include "hw/stream.h"
 
@@ -402,6 +401,9 @@ struct XilinxAXIEnet {
 
     uint8_t rxapp[CONTROL_PAYLOAD_SIZE];
     uint32_t rxappsize;
+
+    /* Whether axienet_eth_rx_notify should flush incoming queue. */
+    bool need_flush;
 };
 
 static void axienet_rx_reset(XilinxAXIEnet *s)
@@ -659,10 +661,8 @@ static const MemoryRegionOps enet_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static int eth_can_rx(NetClientState *nc)
+static int eth_can_rx(XilinxAXIEnet *s)
 {
-    XilinxAXIEnet *s = qemu_get_nic_opaque(nc);
-
     /* RX enabled?  */
     return !s->rxsize && !axienet_rx_resetting(s) && axienet_rx_enabled(s);
 }
@@ -702,6 +702,10 @@ static void axienet_eth_rx_notify(void *opaque)
         s->rxpos += ret;
         if (!s->rxsize) {
             s->regs[R_IS] |= IS_RX_COMPLETE;
+            if (s->need_flush) {
+                s->need_flush = false;
+                qemu_flush_queued_packets(qemu_get_queue(s->nic));
+            }
         }
     }
     enet_update_irq(s);
@@ -721,6 +725,11 @@ static ssize_t eth_rx(NetClientState *nc, const uint8_t *buf, size_t size)
     int i;
 
     DENET(qemu_log("%s: %zd bytes\n", __func__, size));
+
+    if (!eth_can_rx(s)) {
+        s->need_flush = true;
+        return 0;
+    }
 
     unicast = ~buf[0] & 0x1;
     broadcast = memcmp(buf, sa_bcast, 6) == 0;
@@ -926,7 +935,6 @@ xilinx_axienet_data_stream_push(StreamSlave *obj, uint8_t *buf, size_t size)
 static NetClientInfo net_xilinx_enet_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = eth_can_rx,
     .receive = eth_rx,
 };
 

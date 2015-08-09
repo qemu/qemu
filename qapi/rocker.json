@@ -1,0 +1,286 @@
+##
+# @Rocker:
+#
+# Rocker switch information.
+#
+# @name: switch name
+#
+# @id: switch ID
+#
+# @ports: number of front-panel ports
+#
+# Since: 2.4
+##
+{ 'struct': 'RockerSwitch',
+  'data': { 'name': 'str', 'id': 'uint64', 'ports': 'uint32' } }
+
+##
+# @query-rocker:
+#
+# Return rocker switch information.
+#
+# Returns: @Rocker information
+#
+# Since: 2.4
+##
+{ 'command': 'query-rocker',
+  'data': { 'name': 'str' },
+  'returns': 'RockerSwitch' }
+
+##
+# @RockerPortDuplex:
+#
+# An eumeration of port duplex states.
+#
+# @half: half duplex
+#
+# @full: full duplex
+#
+# Since: 2.4
+##
+{ 'enum': 'RockerPortDuplex', 'data': [ 'half', 'full' ] }
+
+##
+# @RockerPortAutoneg:
+#
+# An eumeration of port autoneg states.
+#
+# @off: autoneg is off
+#
+# @on: autoneg is on
+#
+# Since: 2.4
+##
+{ 'enum': 'RockerPortAutoneg', 'data': [ 'off', 'on' ] }
+
+##
+# @RockerPort:
+#
+# Rocker switch port information.
+#
+# @name: port name
+#
+# @enabled: port is enabled for I/O
+#
+# @link-up: physical link is UP on port
+#
+# @speed: port link speed in Mbps
+#
+# @duplex: port link duplex
+#
+# @autoneg: port link autoneg
+#
+# Since: 2.4
+##
+{ 'struct': 'RockerPort',
+  'data': { 'name': 'str', 'enabled': 'bool', 'link-up': 'bool',
+            'speed': 'uint32', 'duplex': 'RockerPortDuplex',
+            'autoneg': 'RockerPortAutoneg' } }
+
+##
+# @query-rocker-ports:
+#
+# Return rocker switch information.
+#
+# Returns: @Rocker information
+#
+# Since: 2.4
+##
+{ 'command': 'query-rocker-ports',
+  'data': { 'name': 'str' },
+  'returns': ['RockerPort'] }
+
+##
+# @RockerOfDpaFlowKey:
+#
+# Rocker switch OF-DPA flow key
+#
+# @priority: key priority, 0 being lowest priority
+#
+# @tbl-id: flow table ID
+#
+# @in-pport: #optional physical input port
+#
+# @tunnel-id: #optional tunnel ID
+#
+# @vlan-id: #optional VLAN ID
+#
+# @eth-type: #optional Ethernet header type
+#
+# @eth-src: #optional Ethernet header source MAC address
+#
+# @eth-dst: #optional Ethernet header destination MAC address
+#
+# @ip-proto: #optional IP Header protocol field
+#
+# @ip-tos: #optional IP header TOS field
+#
+# @ip-dst: #optional IP header destination address
+#
+# Note: fields are marked #optional to indicate that they may or may not
+# appear in the flow key depending if they're relevant to the flow key.
+#
+# Since: 2.4
+##
+{ 'struct': 'RockerOfDpaFlowKey',
+  'data' : { 'priority': 'uint32', 'tbl-id': 'uint32', '*in-pport': 'uint32',
+             '*tunnel-id': 'uint32', '*vlan-id': 'uint16',
+             '*eth-type': 'uint16', '*eth-src': 'str', '*eth-dst': 'str',
+             '*ip-proto': 'uint8', '*ip-tos': 'uint8', '*ip-dst': 'str' } }
+
+##
+# @RockerOfDpaFlowMask:
+#
+# Rocker switch OF-DPA flow mask
+#
+# @in-pport: #optional physical input port
+#
+# @tunnel-id: #optional tunnel ID
+#
+# @vlan-id: #optional VLAN ID
+#
+# @eth-src: #optional Ethernet header source MAC address
+#
+# @eth-dst: #optional Ethernet header destination MAC address
+#
+# @ip-proto: #optional IP Header protocol field
+#
+# @ip-tos: #optional IP header TOS field
+#
+# Note: fields are marked #optional to indicate that they may or may not
+# appear in the flow mask depending if they're relevant to the flow mask.
+#
+# Since: 2.4
+##
+{ 'struct': 'RockerOfDpaFlowMask',
+  'data' : { '*in-pport': 'uint32', '*tunnel-id': 'uint32',
+             '*vlan-id': 'uint16', '*eth-src': 'str', '*eth-dst': 'str',
+             '*ip-proto': 'uint8', '*ip-tos': 'uint8' } }
+
+##
+# @RockerOfDpaFlowAction:
+#
+# Rocker switch OF-DPA flow action
+#
+# @goto-tbl: #optional next table ID
+#
+# @group-id: #optional group ID
+#
+# @tunnel-lport: #optional tunnel logical port ID
+#
+# @vlan-id: #optional VLAN ID
+#
+# @new-vlan-id: #optional new VLAN ID
+#
+# @out-pport: #optional physical output port
+#
+# Note: fields are marked #optional to indicate that they may or may not
+# appear in the flow action depending if they're relevant to the flow action.
+#
+# Since: 2.4
+##
+{ 'struct': 'RockerOfDpaFlowAction',
+  'data' : { '*goto-tbl': 'uint32', '*group-id': 'uint32',
+             '*tunnel-lport': 'uint32', '*vlan-id': 'uint16',
+             '*new-vlan-id': 'uint16', '*out-pport': 'uint32' } }
+
+##
+# @RockerOfDpaFlow:
+#
+# Rocker switch OF-DPA flow
+#
+# @cookie: flow unique cookie ID
+#
+# @hits: count of matches (hits) on flow
+#
+# @key: flow key
+#
+# @mask: flow mask
+#
+# @action: flow action
+#
+# Since: 2.4
+##
+{ 'struct': 'RockerOfDpaFlow',
+  'data': { 'cookie': 'uint64', 'hits': 'uint64', 'key': 'RockerOfDpaFlowKey',
+            'mask': 'RockerOfDpaFlowMask', 'action': 'RockerOfDpaFlowAction' } }
+
+##
+# @query-rocker-of-dpa-flows:
+#
+# Return rocker OF-DPA flow information.
+#
+# @name: switch name
+#
+# @tbl-id: #optional flow table ID.  If tbl-id is not specified, returns
+# flow information for all tables.
+#
+# Returns: @Rocker OF-DPA flow information
+#
+# Since: 2.4
+##
+{ 'command': 'query-rocker-of-dpa-flows',
+  'data': { 'name': 'str', '*tbl-id': 'uint32' },
+  'returns': ['RockerOfDpaFlow'] }
+
+##
+# @RockerOfDpaGroup:
+#
+# Rocker switch OF-DPA group
+#
+# @id: group unique ID
+#
+# @type: group type
+#
+# @vlan-id: #optional VLAN ID
+#
+# @pport: #optional physical port number
+#
+# @index: #optional group index, unique with group type
+#
+# @out-pport: #optional output physical port number
+#
+# @group-id: #optional next group ID
+#
+# @set-vlan-id: #optional VLAN ID to set
+#
+# @pop-vlan: #optional pop VLAN headr from packet
+#
+# @group-ids: #optional list of next group IDs
+#
+# @set-eth-src: #optional set source MAC address in Ethernet header
+#
+# @set-eth-dst: #optional set destination MAC address in Ethernet header
+#
+# @ttl-check: #optional perform TTL check
+#
+# Note: fields are marked #optional to indicate that they may or may not
+# appear in the group depending if they're relevant to the group type.
+#
+# Since: 2.4
+##
+{ 'struct': 'RockerOfDpaGroup',
+  'data': { 'id': 'uint32',  'type': 'uint8', '*vlan-id': 'uint16',
+            '*pport': 'uint32', '*index': 'uint32', '*out-pport': 'uint32',
+            '*group-id': 'uint32', '*set-vlan-id': 'uint16',
+            '*pop-vlan': 'uint8', '*group-ids': ['uint32'],
+            '*set-eth-src': 'str', '*set-eth-dst': 'str',
+            '*ttl-check': 'uint8' } }
+
+##
+# @query-rocker-of-dpa-groups:
+#
+# Return rocker OF-DPA group information.
+#
+# @name: switch name
+#
+# @type: #optional group type.  If type is not specified, returns
+# group information for all group types.
+#
+# Returns: @Rocker OF-DPA group information
+#
+# Since: 2.4
+##
+{ 'command': 'query-rocker-of-dpa-groups',
+  'data': { 'name': 'str', '*type': 'uint8' },
+  'returns': ['RockerOfDpaGroup'] }

@@ -246,7 +246,6 @@ vnc_tls=""
 vnc_sasl=""
 vnc_jpeg=""
 vnc_png=""
-vnc_ws=""
 xen=""
 xen_ctrl_version=""
 xen_pci_passthrough=""
@@ -285,8 +284,6 @@ sysconfdir="\${prefix}/etc"
 local_statedir="\${prefix}/var"
 confsuffix="/qemu"
 slirp="yes"
-fmod_lib=""
-fmod_inc=""
 oss_lib=""
 bsd="no"
 haiku="no"
@@ -318,6 +315,8 @@ snappy=""
 bzip2=""
 guest_agent=""
 guest_agent_with_vss="no"
+guest_agent_ntddscsi="no"
+guest_agent_msi=""
 vss_win32_sdk=""
 win_sdk="no"
 want_tools="yes"
@@ -332,11 +331,12 @@ glusterfs_zerofill="no"
 archipelago="no"
 gtk=""
 gtkabi=""
+gnutls=""
+gnutls_hash=""
 vte=""
 tpm="yes"
 libssh2=""
 vhdx=""
-quorum=""
 numa=""
 tcmalloc="no"
 
@@ -354,10 +354,10 @@ for opt do
   ;;
   --cpu=*) cpu="$optarg"
   ;;
-  --extra-cflags=*) QEMU_CFLAGS="$optarg $QEMU_CFLAGS"
+  --extra-cflags=*) QEMU_CFLAGS="$QEMU_CFLAGS $optarg"
                     EXTRA_CFLAGS="$optarg"
   ;;
-  --extra-ldflags=*) LDFLAGS="$optarg $LDFLAGS"
+  --extra-ldflags=*) LDFLAGS="$LDFLAGS $optarg"
                      EXTRA_LDFLAGS="$optarg"
   ;;
   --enable-debug-info) debug_info="yes"
@@ -433,6 +433,14 @@ cat > $TMPC <<EOF
 #if !defined($1)
 #error $1 not defined
 #endif
+int main(void) { return 0; }
+EOF
+  compile_object
+}
+
+check_include() {
+cat > $TMPC <<EOF
+#include <$1>
 int main(void) { return 0; }
 EOF
   compile_object
@@ -575,24 +583,28 @@ case $targetos in
 CYGWIN*)
   mingw32="yes"
   QEMU_CFLAGS="-mno-cygwin $QEMU_CFLAGS"
-  audio_possible_drivers="winwave sdl"
-  audio_drv_list="winwave"
+  audio_possible_drivers="sdl"
+  audio_drv_list="sdl"
 ;;
 MINGW32*)
   mingw32="yes"
-  audio_possible_drivers="winwave dsound sdl fmod"
-  audio_drv_list="winwave"
+  audio_possible_drivers="dsound sdl"
+  if check_include dsound.h; then
+    audio_drv_list="dsound"
+  else
+    audio_drv_list=""
+  fi
 ;;
 GNU/kFreeBSD)
   bsd="yes"
   audio_drv_list="oss"
-  audio_possible_drivers="oss sdl esd pa"
+  audio_possible_drivers="oss sdl pa"
 ;;
 FreeBSD)
   bsd="yes"
   make="${MAKE-gmake}"
   audio_drv_list="oss"
-  audio_possible_drivers="oss sdl esd pa"
+  audio_possible_drivers="oss sdl pa"
   # needed for kinfo_getvmmap(3) in libutil.h
   LIBS="-lutil $LIBS"
   netmap=""  # enable netmap autodetect
@@ -602,14 +614,14 @@ DragonFly)
   bsd="yes"
   make="${MAKE-gmake}"
   audio_drv_list="oss"
-  audio_possible_drivers="oss sdl esd pa"
+  audio_possible_drivers="oss sdl pa"
   HOST_VARIANT_DIR="dragonfly"
 ;;
 NetBSD)
   bsd="yes"
   make="${MAKE-gmake}"
   audio_drv_list="oss"
-  audio_possible_drivers="oss sdl esd"
+  audio_possible_drivers="oss sdl"
   oss_lib="-lossaudio"
   HOST_VARIANT_DIR="netbsd"
 ;;
@@ -617,7 +629,7 @@ OpenBSD)
   bsd="yes"
   make="${MAKE-gmake}"
   audio_drv_list="sdl"
-  audio_possible_drivers="sdl esd"
+  audio_possible_drivers="sdl"
   HOST_VARIANT_DIR="openbsd"
 ;;
 Darwin)
@@ -630,7 +642,7 @@ Darwin)
   fi
   cocoa="yes"
   audio_drv_list="coreaudio"
-  audio_possible_drivers="coreaudio sdl fmod"
+  audio_possible_drivers="coreaudio sdl"
   LDFLAGS="-framework CoreFoundation -framework IOKit $LDFLAGS"
   libs_softmmu="-F/System/Library/Frameworks -framework Cocoa -framework IOKit $libs_softmmu"
   # Disable attempts to use ObjectiveC features in os/object.h since they
@@ -685,15 +697,12 @@ Haiku)
 ;;
 *)
   audio_drv_list="oss"
-  audio_possible_drivers="oss alsa sdl esd pa"
+  audio_possible_drivers="oss alsa sdl pa"
   linux="yes"
   linux_user="yes"
   kvm="yes"
   vhost_net="yes"
   vhost_scsi="yes"
-  if [ "$cpu" = "i386" -o "$cpu" = "x86_64" -o "$cpu" = "x32" ] ; then
-    audio_possible_drivers="$audio_possible_drivers fmod"
-  fi
   QEMU_INCLUDES="-I\$(SRC_PATH)/linux-headers -I$(pwd)/linux-headers $QEMU_INCLUDES"
 ;;
 esac
@@ -740,7 +749,7 @@ if test "$mingw32" = "yes" ; then
   sysconfdir="\${prefix}"
   local_statedir=
   confsuffix=""
-  libs_qga="-lws2_32 -lwinmm -lpowrprof $libs_qga"
+  libs_qga="-lws2_32 -lwinmm -lpowrprof -liphlpapi $libs_qga"
 fi
 
 werror=""
@@ -863,10 +872,6 @@ for opt do
   ;;
   --enable-vnc) vnc="yes"
   ;;
-  --fmod-lib=*) fmod_lib="$optarg"
-  ;;
-  --fmod-inc=*) fmod_inc="$optarg"
-  ;;
   --oss-lib=*) oss_lib="$optarg"
   ;;
   --audio-drv-list=*) audio_drv_list="$optarg"
@@ -906,10 +911,6 @@ for opt do
   --disable-vnc-png) vnc_png="no"
   ;;
   --enable-vnc-png) vnc_png="yes"
-  ;;
-  --disable-vnc-ws) vnc_ws="no"
-  ;;
-  --enable-vnc-ws) vnc_ws="yes"
   ;;
   --disable-slirp) slirp="no"
   ;;
@@ -1091,6 +1092,10 @@ for opt do
   ;;
   --disable-guest-agent) guest_agent="no"
   ;;
+  --enable-guest-agent-msi) guest_agent_msi="yes"
+  ;;
+  --disable-guest-agent-msi) guest_agent_msi="no"
+  ;;
   --with-vss-sdk) vss_win32_sdk=""
   ;;
   --with-vss-sdk=*) vss_win32_sdk="$optarg"
@@ -1126,6 +1131,10 @@ for opt do
   ;;
   --enable-gtk) gtk="yes"
   ;;
+  --disable-gnutls) gnutls="no"
+  ;;
+  --enable-gnutls) gnutls="yes"
+  ;;
   --enable-rdma) rdma="yes"
   ;;
   --disable-rdma) rdma="no"
@@ -1147,10 +1156,6 @@ for opt do
   --enable-vhdx) vhdx="yes"
   ;;
   --disable-vhdx) vhdx="no"
-  ;;
-  --disable-quorum) quorum="no"
-  ;;
-  --enable-quorum) quorum="yes"
   ;;
   --disable-numa) numa="no"
   ;;
@@ -1290,29 +1295,10 @@ Advanced options (experts only):
   --sysconfdir=PATH        install config in PATH$confsuffix
   --localstatedir=PATH     install local state in PATH (set at runtime on win32)
   --with-confsuffix=SUFFIX suffix for QEMU data inside datadir/libdir/sysconfdir [$confsuffix]
-  --enable-modules         enable modules support
-  --enable-debug-tcg       enable TCG debugging
-  --disable-debug-tcg      disable TCG debugging (default)
-  --enable-debug-info      enable debugging information (default)
-  --disable-debug-info     disable debugging information
   --enable-debug           enable common debug build options
-  --enable-sparse          enable sparse checker
-  --disable-sparse         disable sparse checker (default)
   --disable-strip          disable stripping binaries
   --disable-werror         disable compilation abort on warning
   --disable-stack-protector disable compiler-provided stack protection
-  --disable-sdl            disable SDL
-  --enable-sdl             enable SDL
-  --with-sdlabi            select preferred SDL ABI 1.2 or 2.0
-  --disable-gtk            disable gtk UI
-  --enable-gtk             enable gtk UI
-  --with-gtkabi            select preferred GTK ABI 2.0 or 3.0
-  --disable-virtfs         disable VirtFS
-  --enable-virtfs          enable VirtFS
-  --disable-vnc            disable VNC
-  --enable-vnc             enable VNC
-  --disable-cocoa          disable Cocoa (Mac OS X only)
-  --enable-cocoa           enable Cocoa (default on Mac OS X)
   --audio-drv-list=LIST    set audio drivers list:
                            Available drivers: $audio_possible_drivers
   --block-drv-whitelist=L  Same as --block-drv-rw-whitelist=L
@@ -1322,119 +1308,88 @@ Advanced options (experts only):
   --block-drv-ro-whitelist=L
                            set block driver read-only whitelist
                            (affects only QEMU, not qemu-img)
-  --disable-xen            disable xen backend driver support
-  --enable-xen             enable xen backend driver support
-  --disable-xen-pci-passthrough
-  --enable-xen-pci-passthrough
-  --disable-brlapi         disable BrlAPI
-  --enable-brlapi          enable BrlAPI
-  --disable-vnc-tls        disable TLS encryption for VNC server
-  --enable-vnc-tls         enable TLS encryption for VNC server
-  --disable-vnc-sasl       disable SASL encryption for VNC server
-  --enable-vnc-sasl        enable SASL encryption for VNC server
-  --disable-vnc-jpeg       disable JPEG lossy compression for VNC server
-  --enable-vnc-jpeg        enable JPEG lossy compression for VNC server
-  --disable-vnc-png        disable PNG compression for VNC server (default)
-  --enable-vnc-png         enable PNG compression for VNC server
-  --disable-vnc-ws         disable Websockets support for VNC server
-  --enable-vnc-ws          enable Websockets support for VNC server
-  --disable-curses         disable curses output
-  --enable-curses          enable curses output
-  --disable-curl           disable curl connectivity
-  --enable-curl            enable curl connectivity
-  --disable-fdt            disable fdt device tree
-  --enable-fdt             enable fdt device tree
-  --disable-bluez          disable bluez stack connectivity
-  --enable-bluez           enable bluez stack connectivity
-  --disable-slirp          disable SLIRP userspace network connectivity
-  --disable-kvm            disable KVM acceleration support
-  --enable-kvm             enable KVM acceleration support
-  --disable-rdma           disable RDMA-based migration support
-  --enable-rdma            enable RDMA-based migration support
-  --enable-tcg-interpreter enable TCG with bytecode interpreter (TCI)
-  --enable-system          enable all system emulation targets
-  --disable-system         disable all system emulation targets
-  --enable-user            enable supported user emulation targets
-  --disable-user           disable all user emulation targets
-  --enable-linux-user      enable all linux usermode emulation targets
-  --disable-linux-user     disable all linux usermode emulation targets
-  --enable-bsd-user        enable all BSD usermode emulation targets
-  --disable-bsd-user       disable all BSD usermode emulation targets
-  --enable-guest-base      enable GUEST_BASE support for usermode
-                           emulation targets
-  --disable-guest-base     disable GUEST_BASE support
-  --enable-pie             build Position Independent Executables
-  --disable-pie            do not build Position Independent Executables
-  --fmod-lib               path to FMOD library
-  --fmod-inc               path to FMOD includes
-  --oss-lib                path to OSS library
-  --cpu=CPU                Build for host CPU [$cpu]
-  --disable-uuid           disable uuid support
-  --enable-uuid            enable uuid support
-  --disable-vde            disable support for vde network
-  --enable-vde             enable support for vde network
-  --disable-netmap         disable support for netmap network
-  --enable-netmap          enable support for netmap network
-  --disable-linux-aio      disable Linux AIO support
-  --enable-linux-aio       enable Linux AIO support
-  --disable-cap-ng         disable libcap-ng support
-  --enable-cap-ng          enable libcap-ng support
-  --disable-attr           disable attr and xattr support
-  --enable-attr            enable attr and xattr support
-  --disable-blobs          disable installing provided firmware blobs
-  --enable-docs            enable documentation build
-  --disable-docs           disable documentation build
-  --disable-vhost-net      disable vhost-net acceleration support
-  --enable-vhost-net       enable vhost-net acceleration support
   --enable-trace-backends=B Set trace backend
                            Available backends: $($python $source_path/scripts/tracetool.py --list-backends)
   --with-trace-file=NAME   Full PATH,NAME of file to store traces
                            Default:trace-<pid>
-  --disable-spice          disable spice
-  --enable-spice           enable spice
-  --enable-rbd             enable building the rados block device (rbd)
-  --disable-libiscsi       disable iscsi support
-  --enable-libiscsi        enable iscsi support
-  --disable-libnfs         disable nfs support
-  --enable-libnfs          enable nfs support
-  --disable-smartcard-nss  disable smartcard nss support
-  --enable-smartcard-nss   enable smartcard nss support
-  --disable-libusb         disable libusb (for usb passthrough)
-  --enable-libusb          enable libusb (for usb passthrough)
-  --disable-usb-redir      disable usb network redirection support
-  --enable-usb-redir       enable usb network redirection support
-  --enable-lzo             enable the support of lzo compression library
-  --enable-snappy          enable the support of snappy compression library
-  --enable-bzip2           enable the support of bzip2 compression library (for
-                           reading bzip2-compressed dmg images)
-  --disable-guest-agent    disable building of the QEMU Guest Agent
-  --enable-guest-agent     enable building of the QEMU Guest Agent
-  --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
-  --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
-  --disable-seccomp        disable seccomp support
-  --enable-seccomp         enable seccomp support
+  --disable-slirp          disable SLIRP userspace network connectivity
+  --enable-tcg-interpreter enable TCG with bytecode interpreter (TCI)
+  --oss-lib                path to OSS library
+  --cpu=CPU                Build for host CPU [$cpu]
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            gthread, ucontext, sigaltstack, windows
-  --disable-coroutine-pool disable coroutine freelist (worse performance)
-  --enable-coroutine-pool  enable coroutine freelist (better performance)
-  --enable-glusterfs       enable GlusterFS backend
-  --disable-glusterfs      disable GlusterFS backend
-  --enable-archipelago     enable Archipelago backend
-  --disable-archipelago    disable Archipelago backend
   --enable-gcov            enable test coverage analysis with gcov
   --gcov=GCOV              use specified gcov [$gcov_tool]
-  --disable-tpm            disable TPM support
-  --enable-tpm             enable TPM support
-  --disable-libssh2        disable ssh block device support
-  --enable-libssh2         enable ssh block device support
-  --disable-vhdx           disable support for the Microsoft VHDX image format
-  --enable-vhdx            enable support for the Microsoft VHDX image format
-  --disable-quorum         disable quorum block filter support
-  --enable-quorum          enable quorum block filter support
-  --disable-numa           disable libnuma support
-  --enable-numa            enable libnuma support
-  --disable-tcmalloc       disable tcmalloc support
-  --enable-tcmalloc        enable tcmalloc support
+  --disable-blobs          disable installing provided firmware blobs
+  --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
+  --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
+
+Optional features, enabled with --enable-FEATURE and
+disabled with --disable-FEATURE, default is enabled if available:
+
+  system          all system emulation targets
+  user            supported user emulation targets
+  linux-user      all linux usermode emulation targets
+  bsd-user        all BSD usermode emulation targets
+  guest-base      GUEST_BASE support for usermode emulation targets
+  docs            build documentation
+  guest-agent     build the QEMU Guest Agent
+  guest-agent-msi build guest agent Windows MSI installation package
+  pie             Position Independent Executables
+  modules         modules support
+  debug-tcg       TCG debugging (default is disabled)
+  debug-info      debugging information
+  sparse          sparse checker
+
+  gnutls          GNUTLS cryptography support
+  sdl             SDL UI
+  --with-sdlabi     select preferred SDL ABI 1.2 or 2.0
+  gtk             gtk UI
+  --with-gtkabi     select preferred GTK ABI 2.0 or 3.0
+  vte             vte support for the gtk UI
+  curses          curses UI
+  vnc             VNC UI support
+  vnc-tls         TLS encryption for VNC server
+  vnc-sasl        SASL encryption for VNC server
+  vnc-jpeg        JPEG lossy compression for VNC server
+  vnc-png         PNG compression for VNC server
+  cocoa           Cocoa UI (Mac OS X only)
+  virtfs          VirtFS
+  xen             xen backend driver support
+  xen-pci-passthrough
+  brlapi          BrlAPI (Braile)
+  curl            curl connectivity
+  fdt             fdt device tree
+  bluez           bluez stack connectivity
+  kvm             KVM acceleration support
+  rdma            RDMA-based migration support
+  uuid            uuid support
+  vde             support for vde network
+  netmap          support for netmap network
+  linux-aio       Linux AIO support
+  cap-ng          libcap-ng support
+  attr            attr and xattr support
+  vhost-net       vhost-net acceleration support
+  spice           spice
+  rbd             rados block device (rbd)
+  libiscsi        iscsi support
+  libnfs          nfs support
+  smartcard-nss   smartcard nss support
+  libusb          libusb (for usb passthrough)
+  usb-redir       usb network redirection support
+  lzo             support of lzo compression library
+  snappy          support of snappy compression library
+  bzip2           support of bzip2 compression library
+                  (for reading bzip2-compressed dmg images)
+  seccomp         seccomp support
+  coroutine-pool  coroutine freelist (better performance)
+  glusterfs       GlusterFS backend
+  archipelago     Archipelago backend
+  tpm             TPM support
+  libssh2         ssh block device support
+  vhdx            support for the Microsoft VHDX image format
+  numa            libnuma support
+  tcmalloc        tcmalloc support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -2173,6 +2128,103 @@ if test "$gtk" != "no"; then
     fi
 fi
 
+
+##########################################
+# GNUTLS probe
+
+gnutls_works() {
+    # Unfortunately some distros have bad pkg-config information for gnutls
+    # such that it claims to exist but you get a compiler error if you try
+    # to use the options returned by --libs. Specifically, Ubuntu for --static
+    # builds doesn't work:
+    # https://bugs.launchpad.net/ubuntu/+source/gnutls26/+bug/1478035
+    #
+    # So sanity check the cflags/libs before assuming gnutls can be used.
+    if ! $pkg_config --exists "gnutls"; then
+        return 1
+    fi
+
+    write_c_skeleton
+    compile_prog "$($pkg_config --cflags gnutls)" "$($pkg_config --libs gnutls)"
+}
+
+gnutls_gcrypt=no
+gnutls_nettle=no
+if test "$gnutls" != "no"; then
+    if gnutls_works; then
+        gnutls_cflags=`$pkg_config --cflags gnutls`
+        gnutls_libs=`$pkg_config --libs gnutls`
+        libs_softmmu="$gnutls_libs $libs_softmmu"
+        libs_tools="$gnutls_libs $libs_tools"
+	QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
+        gnutls="yes"
+
+	# gnutls_hash_init requires >= 2.9.10
+	if $pkg_config --exists "gnutls >= 2.9.10"; then
+            gnutls_hash="yes"
+	else
+	    gnutls_hash="no"
+	fi
+
+	if $pkg_config --exists 'gnutls >= 3.0'; then
+	    gnutls_gcrypt=no
+	    gnutls_nettle=yes
+	elif $pkg_config --exists 'gnutls >= 2.12'; then
+	    case `$pkg_config --libs --static gnutls` in
+		*gcrypt*)
+		    gnutls_gcrypt=yes
+		    gnutls_nettle=no
+		    ;;
+		*nettle*)
+		    gnutls_gcrypt=no
+		    gnutls_nettle=yes
+		    ;;
+		*)
+		    gnutls_gcrypt=yes
+		    gnutls_nettle=no
+		    ;;
+	    esac
+	else
+	    gnutls_gcrypt=yes
+	    gnutls_nettle=no
+	fi
+    elif test "$gnutls" = "yes"; then
+	feature_not_found "gnutls" "Install gnutls devel"
+    else
+        gnutls="no"
+        gnutls_hash="no"
+    fi
+else
+    gnutls_hash="no"
+fi
+
+if test "$gnutls_gcrypt" != "no"; then
+    if has "libgcrypt-config"; then
+        gcrypt_cflags=`libgcrypt-config --cflags`
+        gcrypt_libs=`libgcrypt-config --libs`
+        libs_softmmu="$gcrypt_libs $libs_softmmu"
+        libs_tools="$gcrypt_libs $libs_tools"
+        QEMU_CFLAGS="$QEMU_CFLAGS $gcrypt_cflags"
+    else
+        feature_not_found "gcrypt" "Install gcrypt devel"
+    fi
+fi
+
+
+if test "$gnutls_nettle" != "no"; then
+    if $pkg_config --exists "nettle"; then
+        nettle_cflags=`$pkg_config --cflags nettle`
+        nettle_libs=`$pkg_config --libs nettle`
+        nettle_version=`$pkg_config --modversion nettle`
+        libs_softmmu="$nettle_libs $libs_softmmu"
+        libs_tools="$nettle_libs $libs_tools"
+        QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
+    else
+        feature_not_found "nettle" "Install nettle devel"
+    fi
+fi
+
+
 ##########################################
 # VTE probe
 
@@ -2320,7 +2372,7 @@ fi
 
 ##########################################
 # VNC TLS/WS detection
-if test "$vnc" = "yes" -a \( "$vnc_tls" != "no" -o "$vnc_ws" != "no" \) ; then
+if test "$vnc" = "yes" -a "$vnc_tls" != "no" ; then
   cat > $TMPC <<EOF
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
@@ -2336,48 +2388,14 @@ EOF
     if test "$vnc_tls" != "no" ; then
       vnc_tls=yes
     fi
-    if test "$vnc_ws" != "no" ; then
-      vnc_ws=yes
-    fi
     libs_softmmu="$vnc_tls_libs $libs_softmmu"
     QEMU_CFLAGS="$QEMU_CFLAGS $vnc_tls_cflags"
   else
     if test "$vnc_tls" = "yes" ; then
       feature_not_found "vnc-tls" "Install gnutls devel"
     fi
-    if test "$vnc_ws" = "yes" ; then
-      feature_not_found "vnc-ws" "Install gnutls devel"
-    fi
     vnc_tls=no
-    vnc_ws=no
   fi
-fi
-
-##########################################
-# Quorum probe (check for gnutls)
-if test "$quorum" != "no" ; then
-cat > $TMPC <<EOF
-#include <gnutls/gnutls.h>
-#include <gnutls/crypto.h>
-int main(void) {char data[4096], digest[32];
-gnutls_hash_fast(GNUTLS_DIG_SHA256, data, 4096, digest);
-return 0;
-}
-EOF
-quorum_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
-quorum_tls_libs=`$pkg_config --libs gnutls 2> /dev/null`
-if compile_prog "$quorum_tls_cflags" "$quorum_tls_libs" ; then
-  qcow_tls=yes
-  libs_softmmu="$quorum_tls_libs $libs_softmmu"
-  libs_tools="$quorum_tls_libs $libs_softmmu"
-  QEMU_CFLAGS="$QEMU_CFLAGS $quorum_tls_cflags"
-  quorum="yes"
-else
-  if test "$quorum" = "yes"; then
-    feature_not_found "gnutls" "gnutls > 2.10.0 required to compile Quorum"
-  fi
-  quorum="no"
-fi
 fi
 
 ##########################################
@@ -2644,21 +2662,6 @@ for drv in $audio_drv_list; do
     libs_softmmu="-lasound $libs_softmmu"
     ;;
 
-    fmod)
-    if test -z $fmod_lib || test -z $fmod_inc; then
-        error_exit "You must specify path to FMOD library and headers" \
-            "Example: --fmod-inc=/path/include/fmod --fmod-lib=/path/lib/libfmod-3.74.so"
-    fi
-    audio_drv_probe $drv fmod.h $fmod_lib "return FSOUND_GetVersion();" "-I $fmod_inc"
-    libs_softmmu="$fmod_lib $libs_softmmu"
-    ;;
-
-    esd)
-    audio_drv_probe $drv esd.h -lesd 'return esd_play_stream(0, 0, "", 0);'
-    libs_softmmu="-lesd $libs_softmmu"
-    audio_pt_int="yes"
-    ;;
-
     pa)
     audio_drv_probe $drv pulse/mainloop.h "-lpulse" \
         "pa_mainloop *m = 0; pa_mainloop_free (m); return 0;"
@@ -2681,11 +2684,6 @@ for drv in $audio_drv_list; do
 
     sdl|wav)
     # XXX: Probes for CoreAudio, DirectSound, SDL(?)
-    ;;
-
-    winwave)
-      libs_softmmu="-lwinmm $libs_softmmu"
-      audio_win_int="yes"
     ;;
 
     *)
@@ -3138,9 +3136,11 @@ fi
 if test "$fdt" != "no" ; then
   fdt_libs="-lfdt"
   # explicitly check for libfdt_env.h as it is missing in some stable installs
+  # and test for required functions to make sure we are on a version >= 1.4.0
   cat > $TMPC << EOF
+#include <libfdt.h>
 #include <libfdt_env.h>
-int main(void) { return 0; }
+int main(void) { fdt_get_property_by_offset(0, 0, 0); return 0; }
 EOF
   if compile_prog "" "$fdt_libs" ; then
     # system DTC is good - use it
@@ -3158,7 +3158,7 @@ EOF
     fdt_libs="-L\$(BUILD_DIR)/dtc/libfdt $fdt_libs"
   elif test "$fdt" = "yes" ; then
     # have neither and want - prompt for system/submodule install
-    error_exit "DTC (libfdt) not present. Your options:" \
+    error_exit "DTC (libfdt) version >= 1.4.0 not present. Your options:" \
         "  (1) Preferred: Install the DTC (libfdt) devel package" \
         "  (2) Fetch the DTC submodule, using:" \
         "      git submodule update --init dtc"
@@ -3189,14 +3189,14 @@ else
 fi
 
 if test "$opengl" != "no" ; then
-  opengl_pkgs="gl glesv2"
+  opengl_pkgs="gl glesv2 epoxy egl"
   if $pkg_config $opengl_pkgs x11 && test "$have_glx" = "yes"; then
     opengl_cflags="$($pkg_config --cflags $opengl_pkgs) $x11_cflags"
     opengl_libs="$($pkg_config --libs $opengl_pkgs) $x11_libs"
     opengl=yes
   else
     if test "$opengl" = "yes" ; then
-      feature_not_found "opengl" "Install GL devel (e.g. MESA)"
+      feature_not_found "opengl" "Please install opengl (mesa) devel pkgs: $opengl_pkgs"
     fi
     opengl_cflags=""
     opengl_libs=""
@@ -3910,6 +3910,76 @@ if test "$mingw32" = "yes" -a "$guest_agent" != "no" -a "$guest_agent_with_vss" 
 fi
 
 ##########################################
+# check if mingw environment provides a recent ntddscsi.h
+if test "$mingw32" = "yes" -a "$guest_agent" != "no"; then
+  cat > $TMPC << EOF
+#include <windows.h>
+#include <ntddscsi.h>
+int main(void) {
+#if !defined(IOCTL_SCSI_GET_ADDRESS)
+#error Missing required ioctl definitions
+#endif
+  SCSI_ADDRESS addr = { .Lun = 0, .TargetId = 0, .PathId = 0 };
+  return addr.Lun;
+}
+EOF
+  if compile_prog "" "" ; then
+    guest_agent_ntddscsi=yes
+    libs_qga="-lsetupapi $libs_qga"
+  fi
+fi
+
+##########################################
+# Guest agent Window MSI  package
+
+if test "$guest_agent" != yes; then
+  if test "$guest_agent_msi" = yes; then
+    error_exit "MSI guest agent package requires guest agent enabled"
+  fi
+  guest_agent_msi=no
+elif test "$mingw32" != "yes"; then
+  if test "$guest_agent_msi" = "yes"; then
+    error_exit "MSI guest agent package is available only for MinGW Windows cross-compilation"
+  fi
+  guest_agent_msi=no
+elif ! has wixl; then
+  if test "$guest_agent_msi" = "yes"; then
+    error_exit "MSI guest agent package requires wixl tool installed ( usually from msitools package )"
+  fi
+  guest_agent_msi=no
+fi
+
+if test "$guest_agent_msi" != "no"; then
+  if test "$guest_agent_with_vss" = "yes"; then
+    QEMU_GA_MSI_WITH_VSS="-D InstallVss"
+  fi
+
+  if test "$QEMU_GA_MANUFACTURER" = ""; then
+    QEMU_GA_MANUFACTURER=QEMU
+  fi
+
+  if test "$QEMU_GA_DISTRO" = ""; then
+    QEMU_GA_DISTRO=Linux
+  fi
+
+  if test "$QEMU_GA_VERSION" = ""; then
+      QEMU_GA_VERSION=`cat $source_path/VERSION`
+  fi
+
+  QEMU_GA_MSI_MINGW_DLL_PATH="-D Mingw_dlls=`$pkg_config --variable=prefix glib-2.0`/bin"
+  
+  case "$cpu" in
+  x86_64)
+    QEMU_GA_MSI_ARCH="-a x64 -D Arch=64"
+    ;;
+  i386)
+    QEMU_GA_MSI_ARCH="-D Arch=32"
+    ;;
+  *)
+    error_exit "CPU $cpu not supported for building installation package"
+    ;;
+  esac
+fi
 
 ##########################################
 # check if we have fdatasync
@@ -4463,6 +4533,10 @@ fi
 echo "pixman            $pixman"
 echo "SDL support       $sdl"
 echo "GTK support       $gtk"
+echo "GNUTLS support    $gnutls"
+echo "GNUTLS hash       $gnutls_hash"
+echo "GNUTLS gcrypt     $gnutls_gcrypt"
+echo "GNUTLS nettle     $gnutls_nettle ${gnutls_nettle+($nettle_version)}"
 echo "VTE support       $vte"
 echo "curses support    $curses"
 echo "curl support      $curl"
@@ -4477,7 +4551,6 @@ if test "$vnc" = "yes" ; then
     echo "VNC SASL support  $vnc_sasl"
     echo "VNC JPEG support  $vnc_jpeg"
     echo "VNC PNG support   $vnc_png"
-    echo "VNC WS support    $vnc_ws"
 fi
 if test -n "$sparc_cpu"; then
     echo "Target Sparc Arch $sparc_cpu"
@@ -4528,6 +4601,7 @@ echo "libiscsi support  $libiscsi"
 echo "libnfs support    $libnfs"
 echo "build guest agent $guest_agent"
 echo "QGA VSS support   $guest_agent_with_vss"
+echo "QGA w32 disk info $guest_agent_ntddscsi"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
@@ -4540,7 +4614,6 @@ echo "libssh2 support   $libssh2"
 echo "TPM passthrough   $tpm_passthrough"
 echo "QOM debugging     $qom_cast_debug"
 echo "vhdx              $vhdx"
-echo "Quorum            $quorum"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
@@ -4606,6 +4679,18 @@ if test "$mingw32" = "yes" ; then
     echo "CONFIG_QGA_VSS=y" >> $config_host_mak
     echo "WIN_SDK=\"$win_sdk\"" >> $config_host_mak
   fi
+  if test "$guest_agent_ntddscsi" = "yes" ; then
+    echo "CONFIG_QGA_NTDDDISK=y" >> $config_host_mak
+  fi
+  if test "$guest_agent_msi" != "no"; then
+    echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak  
+    echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
+    echo "QEMU_GA_MSI_WITH_VSS=${QEMU_GA_MSI_WITH_VSS}" >> $config_host_mak
+    echo "QEMU_GA_MSI_ARCH=${QEMU_GA_MSI_ARCH}" >> $config_host_mak
+    echo "QEMU_GA_MANUFACTURER=${QEMU_GA_MANUFACTURER}" >> $config_host_mak
+    echo "QEMU_GA_DISTRO=${QEMU_GA_DISTRO}" >> $config_host_mak
+    echo "QEMU_GA_VERSION=${QEMU_GA_VERSION}" >> $config_host_mak
+  fi
 else
   echo "CONFIG_POSIX=y" >> $config_host_mak
 fi
@@ -4658,9 +4743,6 @@ echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do
     def=CONFIG_`echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]'`
     echo "$def=y" >> $config_host_mak
-    if test "$drv" = "fmod"; then
-        echo "FMOD_CFLAGS=-I$fmod_inc" >> $config_host_mak
-    fi
 done
 if test "$audio_pt_int" = "yes" ; then
   echo "CONFIG_AUDIO_PT_INT=y" >> $config_host_mak
@@ -4684,10 +4766,6 @@ if test "$vnc_jpeg" = "yes" ; then
 fi
 if test "$vnc_png" = "yes" ; then
   echo "CONFIG_VNC_PNG=y" >> $config_host_mak
-fi
-if test "$vnc_ws" = "yes" ; then
-  echo "CONFIG_VNC_WS=y" >> $config_host_mak
-  echo "VNC_WS_CFLAGS=$vnc_ws_cflags" >> $config_host_mak
 fi
 if test "$fnmatch" = "yes" ; then
   echo "CONFIG_FNMATCH=y" >> $config_host_mak
@@ -4807,7 +4885,7 @@ if test "$bluez" = "yes" ; then
   echo "CONFIG_BLUEZ=y" >> $config_host_mak
   echo "BLUEZ_CFLAGS=$bluez_cflags" >> $config_host_mak
 fi
-if test "glib_subprocess" = "yes" ; then
+if test "$glib_subprocess" = "yes" ; then
   echo "CONFIG_HAS_GLIB_SUBPROCESS_TESTS=y" >> $config_host_mak
 fi
 echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
@@ -4815,6 +4893,19 @@ if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "CONFIG_GTKABI=$gtkabi" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
+fi
+if test "$gnutls" = "yes" ; then
+  echo "CONFIG_GNUTLS=y" >> $config_host_mak
+fi
+if test "$gnutls_hash" = "yes" ; then
+  echo "CONFIG_GNUTLS_HASH=y" >> $config_host_mak
+fi
+if test "$gnutls_gcrypt" = "yes" ; then
+  echo "CONFIG_GNUTLS_GCRYPT=y" >> $config_host_mak
+fi
+if test "$gnutls_nettle" = "yes" ; then
+  echo "CONFIG_GNUTLS_NETTLE=y" >> $config_host_mak
+  echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
 fi
 if test "$vte" = "yes" ; then
   echo "CONFIG_VTE=y" >> $config_host_mak
@@ -5003,10 +5094,6 @@ if test "$libssh2" = "yes" ; then
   echo "CONFIG_LIBSSH2=m" >> $config_host_mak
   echo "LIBSSH2_CFLAGS=$libssh2_cflags" >> $config_host_mak
   echo "LIBSSH2_LIBS=$libssh2_libs" >> $config_host_mak
-fi
-
-if test "$quorum" = "yes" ; then
-  echo "CONFIG_QUORUM=y" >> $config_host_mak
 fi
 
 if test "$vhdx" = "yes" ; then
@@ -5323,7 +5410,7 @@ case "$target_name" in
     echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   s390x)
-    gdb_xml_files="s390x-core64.xml s390-acr.xml s390-fpr.xml"
+    gdb_xml_files="s390x-core64.xml s390-acr.xml s390-fpr.xml s390-vx.xml"
   ;;
   tricore)
   ;;

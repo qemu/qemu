@@ -113,7 +113,7 @@ const float16 float16_default_nan = const_float16(0xFE00);
 #if defined(TARGET_SPARC)
 const float32 float32_default_nan = const_float32(0x7FFFFFFF);
 #elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
-      defined(TARGET_XTENSA)
+      defined(TARGET_XTENSA) || defined(TARGET_S390X)
 const float32 float32_default_nan = const_float32(0x7FC00000);
 #elif SNAN_BIT_IS_ONE
 const float32 float32_default_nan = const_float32(0x7FBFFFFF);
@@ -126,7 +126,8 @@ const float32 float32_default_nan = const_float32(0xFFC00000);
 *----------------------------------------------------------------------------*/
 #if defined(TARGET_SPARC)
 const float64 float64_default_nan = const_float64(LIT64( 0x7FFFFFFFFFFFFFFF ));
-#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA)
+#elif defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_ALPHA) || \
+      defined(TARGET_S390X)
 const float64 float64_default_nan = const_float64(LIT64( 0x7FF8000000000000 ));
 #elif SNAN_BIT_IS_ONE
 const float64 float64_default_nan = const_float64(LIT64(0x7FF7FFFFFFFFFFFF));
@@ -155,6 +156,9 @@ const floatx80 floatx80_default_nan
 #if SNAN_BIT_IS_ONE
 #define float128_default_nan_high LIT64(0x7FFF7FFFFFFFFFFF)
 #define float128_default_nan_low  LIT64(0xFFFFFFFFFFFFFFFF)
+#elif defined(TARGET_S390X)
+#define float128_default_nan_high LIT64( 0x7FFF800000000000 )
+#define float128_default_nan_low  LIT64( 0x0000000000000000 )
 #else
 #define float128_default_nan_high LIT64( 0xFFFF800000000000 )
 #define float128_default_nan_low  LIT64( 0x0000000000000000 )

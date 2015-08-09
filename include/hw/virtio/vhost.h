@@ -28,6 +28,12 @@ typedef unsigned long vhost_log_chunk_t;
 #define VHOST_LOG_CHUNK (VHOST_LOG_PAGE * VHOST_LOG_BITS)
 #define VHOST_INVALID_FEATURE_BIT   (0xff)
 
+struct vhost_log {
+    unsigned long long size;
+    int refcnt;
+    vhost_log_chunk_t log[0];
+};
+
 struct vhost_memory;
 struct vhost_dev {
     MemoryListener memory_listener;
@@ -43,19 +49,18 @@ struct vhost_dev {
     unsigned long long backend_features;
     bool started;
     bool log_enabled;
-    vhost_log_chunk_t *log;
     unsigned long long log_size;
     Error *migration_blocker;
-    bool force;
     bool memory_changed;
     hwaddr mem_changed_start_addr;
     hwaddr mem_changed_end_addr;
     const VhostOps *vhost_ops;
     void *opaque;
+    struct vhost_log *log;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
-                   VhostBackendType backend_type, bool force);
+                   VhostBackendType backend_type);
 void vhost_dev_cleanup(struct vhost_dev *hdev);
 bool vhost_dev_query(struct vhost_dev *hdev, VirtIODevice *vdev);
 int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
@@ -72,8 +77,8 @@ bool vhost_virtqueue_pending(struct vhost_dev *hdev, int n);
  */
 void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
                           bool mask);
-unsigned vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
-        unsigned features);
+uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
+                            uint64_t features);
 void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
-        unsigned features);
+                        uint64_t features);
 #endif

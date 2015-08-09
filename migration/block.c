@@ -457,7 +457,7 @@ static int mig_save_device_dirty(QEMUFile *f, BlkMigDevState *bmds,
         blk_mig_lock();
         if (bmds_aio_inflight(bmds, sector)) {
             blk_mig_unlock();
-            bdrv_drain_all();
+            bdrv_drain(bmds->bs);
         } else {
             blk_mig_unlock();
         }

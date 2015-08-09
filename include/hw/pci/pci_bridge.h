@@ -28,6 +28,10 @@
 
 #include "hw/pci/pci.h"
 
+#define PCI_BRIDGE_DEV_PROP_CHASSIS_NR "chassis_nr"
+#define PCI_BRIDGE_DEV_PROP_MSI        "msi"
+#define PCI_BRIDGE_DEV_PROP_SHPC       "shpc"
+
 int pci_bridge_ssvid_init(PCIDevice *dev, uint8_t offset,
                           uint16_t svid, uint16_t ssid);
 

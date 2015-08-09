@@ -18,38 +18,71 @@
  */
 
 #include "cpu.h"
-#include "exec/ioport.h"
 #include "exec/helper-proto.h"
 #include "exec/cpu_ldst.h"
+#include "exec/address-spaces.h"
 
-void helper_outb(uint32_t port, uint32_t data)
+void helper_outb(CPUX86State *env, uint32_t port, uint32_t data)
 {
-    cpu_outb(port, data & 0xff);
+#ifdef CONFIG_USER_ONLY
+    fprintf(stderr, "outb: port=0x%04x, data=%02x\n", port, data);
+#else
+    address_space_stb(&address_space_io, port, data,
+                      cpu_get_mem_attrs(env), NULL);
+#endif
 }
 
-target_ulong helper_inb(uint32_t port)
+target_ulong helper_inb(CPUX86State *env, uint32_t port)
 {
-    return cpu_inb(port);
+#ifdef CONFIG_USER_ONLY
+    fprintf(stderr, "inb: port=0x%04x\n", port);
+    return 0;
+#else
+    return address_space_ldub(&address_space_io, port,
+                              cpu_get_mem_attrs(env), NULL);
+#endif
 }
 
-void helper_outw(uint32_t port, uint32_t data)
+void helper_outw(CPUX86State *env, uint32_t port, uint32_t data)
 {
-    cpu_outw(port, data & 0xffff);
+#ifdef CONFIG_USER_ONLY
+    fprintf(stderr, "outw: port=0x%04x, data=%04x\n", port, data);
+#else
+    address_space_stw(&address_space_io, port, data,
+                      cpu_get_mem_attrs(env), NULL);
+#endif
 }
 
-target_ulong helper_inw(uint32_t port)
+target_ulong helper_inw(CPUX86State *env, uint32_t port)
 {
-    return cpu_inw(port);
+#ifdef CONFIG_USER_ONLY
+    fprintf(stderr, "inw: port=0x%04x\n", port);
+    return 0;
+#else
+    return address_space_lduw(&address_space_io, port,
+                              cpu_get_mem_attrs(env), NULL);
+#endif
 }
 
-void helper_outl(uint32_t port, uint32_t data)
+void helper_outl(CPUX86State *env, uint32_t port, uint32_t data)
 {
-    cpu_outl(port, data);
+#ifdef CONFIG_USER_ONLY
+    fprintf(stderr, "outw: port=0x%04x, data=%08x\n", port, data);
+#else
+    address_space_stl(&address_space_io, port, data,
+                      cpu_get_mem_attrs(env), NULL);
+#endif
 }
 
-target_ulong helper_inl(uint32_t port)
+target_ulong helper_inl(CPUX86State *env, uint32_t port)
 {
-    return cpu_inl(port);
+#ifdef CONFIG_USER_ONLY
+    fprintf(stderr, "inl: port=0x%04x\n", port);
+    return 0;
+#else
+    return address_space_ldl(&address_space_io, port,
+                             cpu_get_mem_attrs(env), NULL);
+#endif
 }
 
 void helper_into(CPUX86State *env, int next_eip_addend)

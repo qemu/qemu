@@ -12,9 +12,8 @@
 from ordereddict import OrderedDict
 from qapi import *
 
-def generate_fwd_struct(name, members, builtin_type=False):
-    if builtin_type:
-        return mcgen('''
+def generate_fwd_builtin(name):
+    return mcgen('''
 
 typedef struct %(name)sList
 {
@@ -25,9 +24,10 @@ typedef struct %(name)sList
     struct %(name)sList *next;
 } %(name)sList;
 ''',
-                     type=c_type(name),
-                     name=name)
+                 type=c_type(name),
+                 name=name)
 
+def generate_fwd_struct(name):
     return mcgen('''
 
 typedef struct %(name)s %(name)s;
@@ -43,7 +43,7 @@ typedef struct %(name)sList
 ''',
                  name=c_name(name))
 
-def generate_fwd_enum_struct(name, members):
+def generate_fwd_enum_struct(name):
     return mcgen('''
 typedef struct %(name)sList
 {
@@ -75,7 +75,6 @@ def generate_struct_fields(members):
 def generate_struct(expr):
 
     structname = expr.get('struct', "")
-    fieldname = expr.get('field', "")
     members = expr['data']
     base = expr.get('base')
 
@@ -98,18 +97,15 @@ struct %(name)s
     char qapi_dummy_field_for_empty_struct;
 ''')
 
-    if len(fieldname):
-        fieldname = " " + fieldname
     ret += mcgen('''
-}%(field)s;
-''',
-            field=fieldname)
+};
+''')
 
     return ret
 
 def generate_enum_lookup(name, values):
     ret = mcgen('''
-const char *%(name)s_lookup[] = {
+const char * const %(name)s_lookup[] = {
 ''',
                 name=c_name(name))
     i = 0
@@ -132,7 +128,7 @@ const char *%(name)s_lookup[] = {
 def generate_enum(name, values):
     name = c_name(name)
     lookup_decl = mcgen('''
-extern const char *%(name)s_lookup[];
+extern const char * const %(name)s_lookup[];
 ''',
                 name=name)
 
@@ -329,30 +325,29 @@ fdecl.write(mcgen('''
 '''))
 
 exprs = parse_schema(input_file)
-exprs = filter(lambda expr: not expr.has_key('gen'), exprs)
 
 fdecl.write(guardstart("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 for typename in builtin_types.keys():
-    fdecl.write(generate_fwd_struct(typename, None, builtin_type=True))
+    fdecl.write(generate_fwd_builtin(typename))
 fdecl.write(guardend("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 
 for expr in exprs:
     ret = "\n"
     if expr.has_key('struct'):
-        ret += generate_fwd_struct(expr['struct'], expr['data'])
+        ret += generate_fwd_struct(expr['struct'])
     elif expr.has_key('enum'):
         ret += generate_enum(expr['enum'], expr['data']) + "\n"
-        ret += generate_fwd_enum_struct(expr['enum'], expr['data'])
+        ret += generate_fwd_enum_struct(expr['enum'])
         fdef.write(generate_enum_lookup(expr['enum'], expr['data']))
     elif expr.has_key('union'):
-        ret += generate_fwd_struct(expr['union'], expr['data']) + "\n"
+        ret += generate_fwd_struct(expr['union']) + "\n"
         enum_define = discriminator_find_enum_define(expr)
         if not enum_define:
             ret += generate_enum('%sKind' % expr['union'], expr['data'].keys())
             fdef.write(generate_enum_lookup('%sKind' % expr['union'],
                                             expr['data'].keys()))
     elif expr.has_key('alternate'):
-        ret += generate_fwd_struct(expr['alternate'], expr['data']) + "\n"
+        ret += generate_fwd_struct(expr['alternate']) + "\n"
         ret += generate_enum('%sKind' % expr['alternate'], expr['data'].keys())
         fdef.write(generate_enum_lookup('%sKind' % expr['alternate'],
                                         expr['data'].keys()))

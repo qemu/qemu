@@ -31,7 +31,7 @@ fi
 cp_virtio() {
     from=$1
     to=$2
-    virtio=$(find "$from" -name '*virtio*h')
+    virtio=$(find "$from" -name '*virtio*h' -o -name "input.h" -o -name "pci_regs.h")
     if [ "$virtio" ]; then
         rm -rf "$to"
         mkdir -p "$to"
@@ -40,6 +40,7 @@ cp_virtio() {
                 grep '#include' "$f" | grep -v -e 'linux/virtio' \
                                              -e 'linux/types' \
                                              -e 'linux/if_ether' \
+                                             -e 'sys/' \
                                              > /dev/null
             then
                 echo "Unexpected #include in input file $f".
@@ -48,12 +49,14 @@ cp_virtio() {
 
             header=$(basename "$f");
             sed -e 's/__u\([0-9][0-9]*\)/uint\1_t/g' \
+                -e 's/__s\([0-9][0-9]*\)/int\1_t/g' \
                 -e 's/__le\([0-9][0-9]*\)/uint\1_t/g' \
                 -e 's/__be\([0-9][0-9]*\)/uint\1_t/g' \
                 -e 's/<linux\/\([^>]*\)>/"standard-headers\/linux\/\1"/' \
                 -e 's/__bitwise__//' \
                 -e 's/__attribute__((packed))/QEMU_PACKED/' \
                 -e 's/__inline__/inline/' \
+                -e '/sys\/ioctl.h/d' \
                 "$f" > "$to/$header";
         done
     fi

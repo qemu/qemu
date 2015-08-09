@@ -18,8 +18,7 @@
 #include "sysemu/iothread.h"
 #include "qmp-commands.h"
 #include "qemu/error-report.h"
-
-#define IOTHREADS_PATH "/objects"
+#include "qemu/rcu.h"
 
 typedef ObjectClass IOThreadClass;
 
@@ -31,15 +30,26 @@ typedef ObjectClass IOThreadClass;
 static void *iothread_run(void *opaque)
 {
     IOThread *iothread = opaque;
+    bool blocking;
+
+    rcu_register_thread();
 
     qemu_mutex_lock(&iothread->init_done_lock);
     iothread->thread_id = qemu_get_thread_id();
     qemu_cond_signal(&iothread->init_done_cond);
     qemu_mutex_unlock(&iothread->init_done_lock);
 
-    while (!atomic_read(&iothread->stopping)) {
-        aio_poll(iothread->ctx, true);
+    while (!iothread->stopping) {
+        aio_context_acquire(iothread->ctx);
+        blocking = true;
+        while (!iothread->stopping && aio_poll(iothread->ctx, blocking)) {
+            /* Progress was made, keep going */
+            blocking = false;
+        }
+        aio_context_release(iothread->ctx);
     }
+
+    rcu_unregister_thread();
     return NULL;
 }
 
@@ -153,7 +163,7 @@ IOThreadInfoList *qmp_query_iothreads(Error **errp)
 {
     IOThreadInfoList *head = NULL;
     IOThreadInfoList **prev = &head;
-    Object *container = container_get(object_get_root(), IOTHREADS_PATH);
+    Object *container = object_get_objects_root();
 
     object_child_foreach(container, query_one_iothread, &prev);
     return head;

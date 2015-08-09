@@ -132,6 +132,14 @@ void hbitmap_set(HBitmap *hb, uint64_t start, uint64_t count);
 void hbitmap_reset(HBitmap *hb, uint64_t start, uint64_t count);
 
 /**
+ * hbitmap_reset_all:
+ * @hb: HBitmap to operate on.
+ *
+ * Reset all bits in an HBitmap.
+ */
+void hbitmap_reset_all(HBitmap *hb);
+
+/**
  * hbitmap_get:
  * @hb: HBitmap to operate on.
  * @item: Bit to query (0-based).

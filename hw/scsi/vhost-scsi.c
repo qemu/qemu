@@ -16,6 +16,7 @@
 
 #include <sys/ioctl.h>
 #include "config.h"
+#include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "monitor/monitor.h"
 #include "migration/migration.h"
@@ -151,8 +152,9 @@ static void vhost_scsi_stop(VHostSCSI *s)
     vhost_dev_disable_notifiers(&s->dev, vdev);
 }
 
-static uint32_t vhost_scsi_get_features(VirtIODevice *vdev,
-                                        uint32_t features)
+static uint64_t vhost_scsi_get_features(VirtIODevice *vdev,
+                                        uint64_t features,
+                                        Error **errp)
 {
     VHostSCSI *s = VHOST_SCSI(vdev);
 
@@ -246,7 +248,7 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     s->dev.backend_features = 0;
 
     ret = vhost_dev_init(&s->dev, (void *)(uintptr_t)vhostfd,
-                         VHOST_BACKEND_TYPE_KERNEL, true);
+                         VHOST_BACKEND_TYPE_KERNEL);
     if (ret < 0) {
         error_setg(errp, "vhost-scsi: vhost initialization failed: %s",
                    strerror(-ret));
@@ -294,7 +296,14 @@ static char *vhost_scsi_get_fw_dev_path(FWPathProvider *p, BusState *bus,
 }
 
 static Property vhost_scsi_properties[] = {
-    DEFINE_VHOST_SCSI_PROPERTIES(VHostSCSI, parent_obj.conf),
+    DEFINE_PROP_STRING("vhostfd", VHostSCSI, parent_obj.conf.vhostfd),
+    DEFINE_PROP_STRING("wwpn", VHostSCSI, parent_obj.conf.wwpn),
+    DEFINE_PROP_UINT32("boot_tpgt", VHostSCSI, parent_obj.conf.boot_tpgt, 0),
+    DEFINE_PROP_UINT32("num_queues", VHostSCSI, parent_obj.conf.num_queues, 1),
+    DEFINE_PROP_UINT32("max_sectors", VHostSCSI, parent_obj.conf.max_sectors,
+                                                 0xFFFF),
+    DEFINE_PROP_UINT32("cmd_per_lun", VHostSCSI, parent_obj.conf.cmd_per_lun,
+                                                 128),
     DEFINE_PROP_END_OF_LIST(),
 };
 

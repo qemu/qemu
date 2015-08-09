@@ -52,7 +52,6 @@ QEMU_PROG: -drive file=TEST_DIR/t.qcow2,driver=qcow2,format=qcow2: Cannot specif
 Testing: -device virtio-scsi-pci -device scsi-hd
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device scsi-hd: drive property not set
-QEMU_PROG: -device scsi-hd: Device 'scsi-hd' could not be initialized
 
 
 === Overriding backing file ===
@@ -128,7 +127,6 @@ QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 Testing: -drive if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
-QEMU_PROG: -drive if=virtio: Device 'virtio-blk-pci' could not be initialized
 
 Testing: -drive if=scsi
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -146,23 +144,19 @@ Testing: -drive if=none,id=disk -device ide-drive,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-drive,drive=disk: Device needs media, but drive is empty
 QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
-QEMU_PROG: -device ide-drive,drive=disk: Device 'ide-drive' could not be initialized
 
 Testing: -drive if=none,id=disk -device ide-hd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-hd,drive=disk: Device needs media, but drive is empty
 QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
-QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device scsi-disk,drive=disk: Device needs media, but drive is empty
-QEMU_PROG: -device scsi-disk,drive=disk: Device 'scsi-disk' could not be initialized
 
 Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device scsi-hd,drive=disk: Device needs media, but drive is empty
-QEMU_PROG: -device scsi-hd,drive=disk: Device 'scsi-hd' could not be initialized
 
 
 === Read-only ===
@@ -204,13 +198,11 @@ Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-dr
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-drive,drive=disk: Can't use a read-only drive
 QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
-QEMU_PROG: -device ide-drive,drive=disk: Device 'ide-drive' could not be initialized
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-hd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: -device ide-hd,drive=disk: Can't use a read-only drive
 QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
-QEMU_PROG: -device ide-hd,drive=disk: Device 'ide-hd' could not be initialized
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -252,9 +244,6 @@ QEMU_PROG: -drive media=cdrom,cache=invalid_value: invalid cache option
 Testing: -drive file=TEST_DIR/t.qcow2,file.driver=file
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
-
-Testing: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,file.driver=qcow2: Block format 'qcow2' used by device '' doesn't support the option 'filename'
 
 
 === Leaving out required options ===

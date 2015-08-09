@@ -28,6 +28,7 @@ bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 int runstate_is_running(void);
 bool runstate_needs_reset(void);
+bool runstate_store(char *str, size_t size);
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 
@@ -84,6 +85,7 @@ void qemu_announce_self(void);
 bool qemu_savevm_state_blocked(Error **errp);
 void qemu_savevm_state_begin(QEMUFile *f,
                              const MigrationParams *params);
+void qemu_savevm_state_header(QEMUFile *f);
 int qemu_savevm_state_iterate(QEMUFile *f);
 void qemu_savevm_state_complete(QEMUFile *f);
 void qemu_savevm_state_cancel(void);
@@ -104,7 +106,7 @@ extern int autostart;
 
 typedef enum {
     VGA_NONE, VGA_STD, VGA_CIRRUS, VGA_VMWARE, VGA_XENFB, VGA_QXL,
-    VGA_TCX, VGA_CG3, VGA_DEVICE
+    VGA_TCX, VGA_CG3, VGA_DEVICE, VGA_VIRTIO,
 } VGAInterfaceType;
 
 extern int vga_interface_type;
@@ -125,7 +127,6 @@ extern int cursor_hide;
 extern int graphic_rotate;
 extern int no_quit;
 extern int no_shutdown;
-extern int semihosting_enabled;
 extern int old_param;
 extern int boot_menu;
 extern bool boot_strict;
@@ -137,6 +138,7 @@ extern const char *mem_path;
 extern int mem_prealloc;
 
 #define MAX_NODES 128
+#define NUMA_NODE_UNASSIGNED MAX_NODES
 
 /* The following shall be true for all CPUs:
  *   cpu->cpu_index < max_cpus <= MAX_CPUMASK_BITS
@@ -161,9 +163,7 @@ extern unsigned int nb_prom_envs;
 void hmp_drive_add(Monitor *mon, const QDict *qdict);
 
 /* pcie aer error injection */
-void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);
-int hmp_pcie_aer_inject_error(Monitor *mon,
-                             const QDict *qdict, QObject **ret_data);
+void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict);
 
 /* serial ports */
 

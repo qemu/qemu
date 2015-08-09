@@ -2,11 +2,10 @@
 #include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "qapi/qmp/qerror.h"
 #include "qapi/error.h"
 #include "qmp-commands.h"
 
-static QemuOptsList *vm_config_groups[32];
+static QemuOptsList *vm_config_groups[48];
 static QemuOptsList *drive_config_groups[4];
 
 static QemuOptsList *find_list(QemuOptsList **lists, const char *group,
@@ -335,7 +334,8 @@ struct ConfigWriteData {
     FILE *fp;
 };
 
-static int config_write_opt(const char *name, const char *value, void *opaque)
+static int config_write_opt(void *opaque, const char *name, const char *value,
+                            Error **errp)
 {
     struct ConfigWriteData *data = opaque;
 
@@ -343,7 +343,7 @@ static int config_write_opt(const char *name, const char *value, void *opaque)
     return 0;
 }
 
-static int config_write_opts(QemuOpts *opts, void *opaque)
+static int config_write_opts(void *opaque, QemuOpts *opts, Error **errp)
 {
     struct ConfigWriteData *data = opaque;
     const char *id = qemu_opts_id(opts);
@@ -353,7 +353,7 @@ static int config_write_opts(QemuOpts *opts, void *opaque)
     } else {
         fprintf(data->fp, "[%s]\n", data->list->name);
     }
-    qemu_opt_foreach(opts, config_write_opt, data, 0);
+    qemu_opt_foreach(opts, config_write_opt, data, NULL);
     fprintf(data->fp, "\n");
     return 0;
 }
@@ -367,7 +367,7 @@ void qemu_config_write(FILE *fp)
     fprintf(fp, "# qemu config file\n\n");
     for (i = 0; lists[i] != NULL; i++) {
         data.list = lists[i];
-        qemu_opts_foreach(data.list, config_write_opts, &data, 0);
+        qemu_opts_foreach(data.list, config_write_opts, &data, NULL);
     }
 }
 

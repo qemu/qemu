@@ -168,6 +168,7 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
     uint64_t computed_size;
+    uint64_t pagetable_size;
     int disk_type = VHD_DYNAMIC;
     int ret;
 
@@ -269,7 +270,17 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
             goto fail;
         }
 
-        s->pagetable = qemu_try_blockalign(bs->file, s->max_table_entries * 4);
+        if (s->max_table_entries > SIZE_MAX / 4 ||
+            s->max_table_entries > (int) INT_MAX / 4) {
+            error_setg(errp, "Max Table Entries too large (%" PRId32 ")",
+                        s->max_table_entries);
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        pagetable_size = (uint64_t) s->max_table_entries * 4;
+
+        s->pagetable = qemu_try_blockalign(bs->file, pagetable_size);
         if (s->pagetable == NULL) {
             ret = -ENOMEM;
             goto fail;
@@ -277,14 +288,13 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
 
         s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
 
-        ret = bdrv_pread(bs->file, s->bat_offset, s->pagetable,
-                         s->max_table_entries * 4);
+        ret = bdrv_pread(bs->file, s->bat_offset, s->pagetable, pagetable_size);
         if (ret < 0) {
             goto fail;
         }
 
         s->free_data_block_offset =
-            (s->bat_offset + (s->max_table_entries * 4) + 511) & ~511;
+            ROUND_UP(s->bat_offset + pagetable_size, 512);
 
         for (i = 0; i < s->max_table_entries; i++) {
             be32_to_cpus(&s->pagetable[i]);

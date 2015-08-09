@@ -983,6 +983,7 @@ static void cmd_start_stop_unit(IDEState *s, uint8_t* buf)
 
     if (pwrcnd) {
         /* eject/load only happens for power condition == 0 */
+        ide_atapi_cmd_ok(s);
         return;
     }
 

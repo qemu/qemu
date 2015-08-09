@@ -263,12 +263,104 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #undef MEMSUFFIX
 #endif /* (NB_MMU_MODES >= 7) */
 
-#if (NB_MMU_MODES > 7)
-/* Note that supporting NB_MMU_MODES == 9 would require
- * changes to at least the ARM TCG backend.
- */
-#error "NB_MMU_MODES > 7 is not supported for now"
-#endif /* (NB_MMU_MODES > 7) */
+#if (NB_MMU_MODES >= 8) && defined(MMU_MODE7_SUFFIX)
+
+#define CPU_MMU_INDEX 7
+#define MEMSUFFIX MMU_MODE7_SUFFIX
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_template.h"
+#undef CPU_MMU_INDEX
+#undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 8) */
+
+#if (NB_MMU_MODES >= 9) && defined(MMU_MODE8_SUFFIX)
+
+#define CPU_MMU_INDEX 8
+#define MEMSUFFIX MMU_MODE8_SUFFIX
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_template.h"
+#undef CPU_MMU_INDEX
+#undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 9) */
+
+#if (NB_MMU_MODES >= 10) && defined(MMU_MODE9_SUFFIX)
+
+#define CPU_MMU_INDEX 9
+#define MEMSUFFIX MMU_MODE9_SUFFIX
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_template.h"
+#undef CPU_MMU_INDEX
+#undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 10) */
+
+#if (NB_MMU_MODES >= 11) && defined(MMU_MODE10_SUFFIX)
+
+#define CPU_MMU_INDEX 10
+#define MEMSUFFIX MMU_MODE10_SUFFIX
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_template.h"
+#undef CPU_MMU_INDEX
+#undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 11) */
+
+#if (NB_MMU_MODES >= 12) && defined(MMU_MODE11_SUFFIX)
+
+#define CPU_MMU_INDEX 11
+#define MEMSUFFIX MMU_MODE11_SUFFIX
+#define DATA_SIZE 1
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 2
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 4
+#include "exec/cpu_ldst_template.h"
+
+#define DATA_SIZE 8
+#include "exec/cpu_ldst_template.h"
+#undef CPU_MMU_INDEX
+#undef MEMSUFFIX
+#endif /* (NB_MMU_MODES >= 12) */
+
+#if (NB_MMU_MODES > 12)
+#error "NB_MMU_MODES > 12 is not supported for now"
+#endif /* (NB_MMU_MODES > 12) */
 
 /* these access are slower, they must be as rare as possible */
 #define CPU_MMU_INDEX (cpu_mmu_index(env))
@@ -307,6 +399,8 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 #undef MEMSUFFIX
 #undef SOFTMMU_CODE_ACCESS
 
+#endif /* defined(CONFIG_USER_ONLY) */
+
 /**
  * tlb_vaddr_to_host:
  * @env: CPUArchState
@@ -325,6 +419,9 @@ uint64_t helper_ldq_cmmu(CPUArchState *env, target_ulong addr, int mmu_idx);
 static inline void *tlb_vaddr_to_host(CPUArchState *env, target_ulong addr,
                                       int access_type, int mmu_idx)
 {
+#if defined(CONFIG_USER_ONLY)
+    return g2h(vaddr);
+#else
     int index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
     CPUTLBEntry *tlbentry = &env->tlb_table[mmu_idx][index];
     target_ulong tlb_addr;
@@ -357,8 +454,7 @@ static inline void *tlb_vaddr_to_host(CPUArchState *env, target_ulong addr,
 
     haddr = addr + env->tlb_table[mmu_idx][index].addend;
     return (void *)haddr;
-}
-
 #endif /* defined(CONFIG_USER_ONLY) */
+}
 
 #endif /* CPU_LDST_H */

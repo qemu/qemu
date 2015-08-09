@@ -140,19 +140,20 @@ static void rng_egd_opened(RngBackend *b, Error **errp)
     RngEgd *s = RNG_EGD(b);
 
     if (s->chr_name == NULL) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  "chardev", "a valid character device");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "chardev", "a valid character device");
         return;
     }
 
     s->chr = qemu_chr_find(s->chr_name);
     if (s->chr == NULL) {
-        error_set(errp, QERR_DEVICE_NOT_FOUND, s->chr_name);
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", s->chr_name);
         return;
     }
 
     if (qemu_chr_fe_claim(s->chr) != 0) {
-        error_set(errp, QERR_DEVICE_IN_USE, s->chr_name);
+        error_setg(errp, QERR_DEVICE_IN_USE, s->chr_name);
         return;
     }
 
@@ -167,7 +168,7 @@ static void rng_egd_set_chardev(Object *obj, const char *value, Error **errp)
     RngEgd *s = RNG_EGD(b);
 
     if (b->opened) {
-        error_set(errp, QERR_PERMISSION_DENIED);
+        error_setg(errp, QERR_PERMISSION_DENIED);
     } else {
         g_free(s->chr_name);
         s->chr_name = g_strdup(value);

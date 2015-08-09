@@ -132,8 +132,8 @@ static int msi_msix_setup(XenPCIPassthroughState *s,
                                      msix_entry, table_base);
         if (rc) {
             XEN_PT_ERR(&s->dev,
-                       "Mapping of MSI%s (rc: %i, vec: %#x, entry %#x)\n",
-                       is_msix ? "-X" : "", rc, gvec, msix_entry);
+                       "Mapping of MSI%s (err: %i, vec: %#x, entry %#x)\n",
+                       is_msix ? "-X" : "", errno, gvec, msix_entry);
             return rc;
         }
     }
@@ -166,12 +166,12 @@ static int msi_msix_update(XenPCIPassthroughState *s,
                                   pirq, gflags, table_addr);
 
     if (rc) {
-        XEN_PT_ERR(d, "Updating of MSI%s failed. (rc: %d)\n",
-                   is_msix ? "-X" : "", rc);
+        XEN_PT_ERR(d, "Updating of MSI%s failed. (err: %d)\n",
+                   is_msix ? "-X" : "", errno);
 
         if (xc_physdev_unmap_pirq(xen_xc, xen_domid, *old_pirq)) {
-            XEN_PT_ERR(d, "Unmapping of MSI%s pirq %d failed.\n",
-                       is_msix ? "-X" : "", *old_pirq);
+            XEN_PT_ERR(d, "Unmapping of MSI%s pirq %d failed. (err: %d)\n",
+                       is_msix ? "-X" : "", *old_pirq, errno);
         }
         *old_pirq = XEN_PT_UNASSIGNED_PIRQ;
     }
@@ -199,8 +199,8 @@ static int msi_msix_disable(XenPCIPassthroughState *s,
                    is_msix ? "-X" : "", pirq, gvec);
         rc = xc_domain_unbind_msi_irq(xen_xc, xen_domid, gvec, pirq, gflags);
         if (rc) {
-            XEN_PT_ERR(d, "Unbinding of MSI%s failed. (pirq: %d, gvec: %#x)\n",
-                       is_msix ? "-X" : "", pirq, gvec);
+            XEN_PT_ERR(d, "Unbinding of MSI%s failed. (err: %d, pirq: %d, gvec: %#x)\n",
+                       is_msix ? "-X" : "", errno, pirq, gvec);
             return rc;
         }
     }
@@ -208,8 +208,8 @@ static int msi_msix_disable(XenPCIPassthroughState *s,
     XEN_PT_LOG(d, "Unmap MSI%s pirq %d\n", is_msix ? "-X" : "", pirq);
     rc = xc_physdev_unmap_pirq(xen_xc, xen_domid, pirq);
     if (rc) {
-        XEN_PT_ERR(d, "Unmapping of MSI%s pirq %d failed. (rc: %i)\n",
-                   is_msix ? "-X" : "", pirq, rc);
+        XEN_PT_ERR(d, "Unmapping of MSI%s pirq %d failed. (err: %i)\n",
+                   is_msix ? "-X" : "", pirq, errno);
         return rc;
     }
 
@@ -385,8 +385,8 @@ int xen_pt_msix_update_remap(XenPCIPassthroughState *s, int bar_index)
             ret = xc_domain_unbind_pt_irq(xen_xc, xen_domid, entry->pirq,
                                           PT_IRQ_TYPE_MSI, 0, 0, 0, 0);
             if (ret) {
-                XEN_PT_ERR(&s->dev, "unbind MSI-X entry %d failed\n",
-                           entry->pirq);
+                XEN_PT_ERR(&s->dev, "unbind MSI-X entry %d failed (err: %d)\n",
+                           entry->pirq, errno);
             }
             entry->updated = true;
         }
@@ -434,11 +434,10 @@ static void pci_msix_write(void *opaque, hwaddr addr,
     XenPCIPassthroughState *s = opaque;
     XenPTMSIX *msix = s->msix;
     XenPTMSIXEntry *entry;
-    int entry_nr, offset;
+    unsigned int entry_nr, offset;
 
     entry_nr = addr / PCI_MSIX_ENTRY_SIZE;
-    if (entry_nr < 0 || entry_nr >= msix->total_entries) {
-        XEN_PT_ERR(&s->dev, "asked MSI-X entry '%i' invalid!\n", entry_nr);
+    if (entry_nr >= msix->total_entries) {
         return;
     }
     entry = &msix->msix_entry[entry_nr];
@@ -460,8 +459,11 @@ static void pci_msix_write(void *opaque, hwaddr addr,
             + PCI_MSIX_ENTRY_VECTOR_CTRL;
 
         if (msix->enabled && !(*vec_ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT)) {
-            XEN_PT_ERR(&s->dev, "Can't update msix entry %d since MSI-X is"
-                       " already enabled.\n", entry_nr);
+            if (!entry->warned) {
+                entry->warned = true;
+                XEN_PT_ERR(&s->dev, "Can't update msix entry %d since MSI-X is"
+                           " already enabled.\n", entry_nr);
+            }
             return;
         }
 

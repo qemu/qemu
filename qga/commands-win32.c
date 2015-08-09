@@ -16,11 +16,22 @@
 #include <powrprof.h>
 #include <stdio.h>
 #include <string.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iptypes.h>
+#include <iphlpapi.h>
+#ifdef CONFIG_QGA_NTDDSCSI
+#include <winioctl.h>
+#include <ntddscsi.h>
+#include <setupapi.h>
+#include <initguid.h>
+#endif
 #include "qga/guest-agent-core.h"
 #include "qga/vss-win32.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/queue.h"
+#include "qemu/host-utils.h"
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
 #define SHTDN_REASON_FLAG_PLANNED 0x80000000
@@ -182,8 +193,8 @@ static void acquire_privilege(const char *name, Error **errp)
         TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY, &token))
     {
         if (!LookupPrivilegeValue(NULL, name, &priv.Privileges[0].Luid)) {
-            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                      "no luid for requested privilege");
+            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                       "no luid for requested privilege");
             goto out;
         }
 
@@ -191,14 +202,14 @@ static void acquire_privilege(const char *name, Error **errp)
         priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
         if (!AdjustTokenPrivileges(token, FALSE, &priv, 0, NULL, 0)) {
-            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                      "unable to acquire requested privilege");
+            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                       "unable to acquire requested privilege");
             goto out;
         }
 
     } else {
-        error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                  "failed to open privilege token");
+        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                   "failed to open privilege token");
     }
 
 out:
@@ -217,8 +228,8 @@ static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
 
     HANDLE thread = CreateThread(NULL, 0, func, opaque, 0, NULL);
     if (!thread) {
-        error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                  "failed to dispatch asynchronous command");
+        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                   "failed to dispatch asynchronous command");
         error_propagate(errp, local_err);
     }
 }
@@ -237,8 +248,8 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
     } else if (strcmp(mode, "reboot") == 0) {
         shutdown_flag |= EWX_REBOOT;
     } else {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
-                  "halt|powerdown|reboot");
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
+                   "halt|powerdown|reboot");
         return;
     }
 
@@ -252,7 +263,7 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
 
     if (!ExitWindowsEx(shutdown_flag, SHTDN_REASON_FLAG_PLANNED)) {
         slog("guest-shutdown failed: %lu", GetLastError());
-        error_set(errp, QERR_UNDEFINED_ERROR);
+        error_setg(errp, QERR_UNDEFINED_ERROR);
     }
 }
 
@@ -382,10 +393,305 @@ static void guest_file_init(void)
     QTAILQ_INIT(&guest_file_state.filehandles);
 }
 
+#ifdef CONFIG_QGA_NTDDSCSI
+
+static STORAGE_BUS_TYPE win2qemu[] = {
+    [BusTypeUnknown] = GUEST_DISK_BUS_TYPE_UNKNOWN,
+    [BusTypeScsi] = GUEST_DISK_BUS_TYPE_SCSI,
+    [BusTypeAtapi] = GUEST_DISK_BUS_TYPE_IDE,
+    [BusTypeAta] = GUEST_DISK_BUS_TYPE_IDE,
+    [BusType1394] = GUEST_DISK_BUS_TYPE_IEEE1394,
+    [BusTypeSsa] = GUEST_DISK_BUS_TYPE_SSA,
+    [BusTypeFibre] = GUEST_DISK_BUS_TYPE_SSA,
+    [BusTypeUsb] = GUEST_DISK_BUS_TYPE_USB,
+    [BusTypeRAID] = GUEST_DISK_BUS_TYPE_RAID,
+#if (_WIN32_WINNT >= 0x0600)
+    [BusTypeiScsi] = GUEST_DISK_BUS_TYPE_ISCSI,
+    [BusTypeSas] = GUEST_DISK_BUS_TYPE_SAS,
+    [BusTypeSata] = GUEST_DISK_BUS_TYPE_SATA,
+    [BusTypeSd] =  GUEST_DISK_BUS_TYPE_SD,
+    [BusTypeMmc] = GUEST_DISK_BUS_TYPE_MMC,
+#endif
+#if (_WIN32_WINNT >= 0x0601)
+    [BusTypeVirtual] = GUEST_DISK_BUS_TYPE_VIRTUAL,
+    [BusTypeFileBackedVirtual] = GUEST_DISK_BUS_TYPE_FILE_BACKED_VIRTUAL,
+#endif
+};
+
+static GuestDiskBusType find_bus_type(STORAGE_BUS_TYPE bus)
+{
+    if (bus > ARRAY_SIZE(win2qemu) || (int)bus < 0) {
+        return GUEST_DISK_BUS_TYPE_UNKNOWN;
+    }
+    return win2qemu[(int)bus];
+}
+
+DEFINE_GUID(GUID_DEVINTERFACE_VOLUME,
+        0x53f5630dL, 0xb6bf, 0x11d0, 0x94, 0xf2,
+        0x00, 0xa0, 0xc9, 0x1e, 0xfb, 0x8b);
+
+static GuestPCIAddress *get_pci_info(char *guid, Error **errp)
+{
+    HDEVINFO dev_info;
+    SP_DEVINFO_DATA dev_info_data;
+    DWORD size = 0;
+    int i;
+    char dev_name[MAX_PATH];
+    char *buffer = NULL;
+    GuestPCIAddress *pci = NULL;
+    char *name = g_strdup(&guid[4]);
+
+    if (!QueryDosDevice(name, dev_name, ARRAY_SIZE(dev_name))) {
+        error_setg_win32(errp, GetLastError(), "failed to get dos device name");
+        goto out;
+    }
+
+    dev_info = SetupDiGetClassDevs(&GUID_DEVINTERFACE_VOLUME, 0, 0,
+                                   DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+    if (dev_info == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to get devices tree");
+        goto out;
+    }
+
+    dev_info_data.cbSize = sizeof(SP_DEVINFO_DATA);
+    for (i = 0; SetupDiEnumDeviceInfo(dev_info, i, &dev_info_data); i++) {
+        DWORD addr, bus, slot, func, dev, data, size2;
+        while (!SetupDiGetDeviceRegistryProperty(dev_info, &dev_info_data,
+                                            SPDRP_PHYSICAL_DEVICE_OBJECT_NAME,
+                                            &data, (PBYTE)buffer, size,
+                                            &size2)) {
+            size = MAX(size, size2);
+            if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
+                g_free(buffer);
+                /* Double the size to avoid problems on
+                 * W2k MBCS systems per KB 888609.
+                 * https://support.microsoft.com/en-us/kb/259695 */
+                buffer = g_malloc(size * 2);
+            } else {
+                error_setg_win32(errp, GetLastError(),
+                        "failed to get device name");
+                goto out;
+            }
+        }
+
+        if (g_strcmp0(buffer, dev_name)) {
+            continue;
+        }
+
+        /* There is no need to allocate buffer in the next functions. The size
+         * is known and ULONG according to
+         * https://support.microsoft.com/en-us/kb/253232
+         * https://msdn.microsoft.com/en-us/library/windows/hardware/ff543095(v=vs.85).aspx
+         */
+        if (!SetupDiGetDeviceRegistryProperty(dev_info, &dev_info_data,
+                   SPDRP_BUSNUMBER, &data, (PBYTE)&bus, size, NULL)) {
+            break;
+        }
+
+        /* The function retrieves the device's address. This value will be
+         * transformed into device function and number */
+        if (!SetupDiGetDeviceRegistryProperty(dev_info, &dev_info_data,
+                   SPDRP_ADDRESS, &data, (PBYTE)&addr, size, NULL)) {
+            break;
+        }
+
+        /* This call returns UINumber of DEVICE_CAPABILITIES structure.
+         * This number is typically a user-perceived slot number. */
+        if (!SetupDiGetDeviceRegistryProperty(dev_info, &dev_info_data,
+                   SPDRP_UI_NUMBER, &data, (PBYTE)&slot, size, NULL)) {
+            break;
+        }
+
+        /* SetupApi gives us the same information as driver with
+         * IoGetDeviceProperty. According to Microsoft
+         * https://support.microsoft.com/en-us/kb/253232
+         * FunctionNumber = (USHORT)((propertyAddress) & 0x0000FFFF);
+         * DeviceNumber = (USHORT)(((propertyAddress) >> 16) & 0x0000FFFF);
+         * SPDRP_ADDRESS is propertyAddress, so we do the same.*/
+
+        func = addr & 0x0000FFFF;
+        dev = (addr >> 16) & 0x0000FFFF;
+        pci = g_malloc0(sizeof(*pci));
+        pci->domain = dev;
+        pci->slot = slot;
+        pci->function = func;
+        pci->bus = bus;
+        break;
+    }
+out:
+    g_free(buffer);
+    g_free(name);
+    return pci;
+}
+
+static int get_disk_bus_type(HANDLE vol_h, Error **errp)
+{
+    STORAGE_PROPERTY_QUERY query;
+    STORAGE_DEVICE_DESCRIPTOR *dev_desc, buf;
+    DWORD received;
+
+    dev_desc = &buf;
+    dev_desc->Size = sizeof(buf);
+    query.PropertyId = StorageDeviceProperty;
+    query.QueryType = PropertyStandardQuery;
+
+    if (!DeviceIoControl(vol_h, IOCTL_STORAGE_QUERY_PROPERTY, &query,
+                         sizeof(STORAGE_PROPERTY_QUERY), dev_desc,
+                         dev_desc->Size, &received, NULL)) {
+        error_setg_win32(errp, GetLastError(), "failed to get bus type");
+        return -1;
+    }
+
+    return dev_desc->BusType;
+}
+
+/* VSS provider works with volumes, thus there is no difference if
+ * the volume consist of spanned disks. Info about the first disk in the
+ * volume is returned for the spanned disk group (LVM) */
+static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
+{
+    GuestDiskAddressList *list = NULL;
+    GuestDiskAddress *disk;
+    SCSI_ADDRESS addr, *scsi_ad;
+    DWORD len;
+    int bus;
+    HANDLE vol_h;
+
+    scsi_ad = &addr;
+    char *name = g_strndup(guid, strlen(guid)-1);
+
+    vol_h = CreateFile(name, 0, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+                       0, NULL);
+    if (vol_h == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to open volume");
+        goto out_free;
+    }
+
+    bus = get_disk_bus_type(vol_h, errp);
+    if (bus < 0) {
+        goto out_close;
+    }
+
+    disk = g_malloc0(sizeof(*disk));
+    disk->bus_type = find_bus_type(bus);
+    if (bus == BusTypeScsi || bus == BusTypeAta || bus == BusTypeRAID
+#if (_WIN32_WINNT >= 0x0600)
+            /* This bus type is not supported before Windows Server 2003 SP1 */
+            || bus == BusTypeSas
+#endif
+        ) {
+        /* We are able to use the same ioctls for different bus types
+         * according to Microsoft docs
+         * https://technet.microsoft.com/en-us/library/ee851589(v=ws.10).aspx */
+        if (DeviceIoControl(vol_h, IOCTL_SCSI_GET_ADDRESS, NULL, 0, scsi_ad,
+                            sizeof(SCSI_ADDRESS), &len, NULL)) {
+            disk->unit = addr.Lun;
+            disk->target = addr.TargetId;
+            disk->bus = addr.PathId;
+            disk->pci_controller = get_pci_info(name, errp);
+        }
+        /* We do not set error in this case, because we still have enough
+         * information about volume. */
+    } else {
+         disk->pci_controller = NULL;
+    }
+
+    list = g_malloc0(sizeof(*list));
+    list->value = disk;
+    list->next = NULL;
+out_close:
+    CloseHandle(vol_h);
+out_free:
+    g_free(name);
+    return list;
+}
+
+#else
+
+static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
+{
+    return NULL;
+}
+
+#endif /* CONFIG_QGA_NTDDSCSI */
+
+static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
+{
+    DWORD info_size;
+    char mnt, *mnt_point;
+    char fs_name[32];
+    char vol_info[MAX_PATH+1];
+    size_t len;
+    GuestFilesystemInfo *fs = NULL;
+
+    GetVolumePathNamesForVolumeName(guid, (LPCH)&mnt, 0, &info_size);
+    if (GetLastError() != ERROR_MORE_DATA) {
+        error_setg_win32(errp, GetLastError(), "failed to get volume name");
+        return NULL;
+    }
+
+    mnt_point = g_malloc(info_size + 1);
+    if (!GetVolumePathNamesForVolumeName(guid, mnt_point, info_size,
+                                         &info_size)) {
+        error_setg_win32(errp, GetLastError(), "failed to get volume name");
+        goto free;
+    }
+
+    len = strlen(mnt_point);
+    mnt_point[len] = '\\';
+    mnt_point[len+1] = 0;
+    if (!GetVolumeInformation(mnt_point, vol_info, sizeof(vol_info), NULL, NULL,
+                              NULL, (LPSTR)&fs_name, sizeof(fs_name))) {
+        if (GetLastError() != ERROR_NOT_READY) {
+            error_setg_win32(errp, GetLastError(), "failed to get volume info");
+        }
+        goto free;
+    }
+
+    fs_name[sizeof(fs_name) - 1] = 0;
+    fs = g_malloc(sizeof(*fs));
+    fs->name = g_strdup(guid);
+    if (len == 0) {
+        fs->mountpoint = g_strdup("System Reserved");
+    } else {
+        fs->mountpoint = g_strndup(mnt_point, len);
+    }
+    fs->type = g_strdup(fs_name);
+    fs->disk = build_guest_disk_info(guid, errp);;
+free:
+    g_free(mnt_point);
+    return fs;
+}
+
 GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
-    return NULL;
+    HANDLE vol_h;
+    GuestFilesystemInfoList *new, *ret = NULL;
+    char guid[256];
+
+    vol_h = FindFirstVolume(guid, sizeof(guid));
+    if (vol_h == INVALID_HANDLE_VALUE) {
+        error_setg_win32(errp, GetLastError(), "failed to find any volume");
+        return NULL;
+    }
+
+    do {
+        GuestFilesystemInfo *info = build_guest_fsinfo(guid, errp);
+        if (info == NULL) {
+            continue;
+        }
+        new = g_malloc(sizeof(*ret));
+        new->value = info;
+        new->next = ret;
+        ret = new;
+    } while (FindNextVolume(vol_h, guid, sizeof(guid)));
+
+    if (GetLastError() != ERROR_NO_MORE_FILES) {
+        error_setg_win32(errp, GetLastError(), "failed to find next volume");
+    }
+
+    FindVolumeClose(vol_h);
+    return ret;
 }
 
 /*
@@ -394,7 +700,7 @@ GuestFilesystemInfoList *qmp_guest_get_fsinfo(Error **errp)
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **errp)
 {
     if (!vss_initialized()) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
@@ -415,7 +721,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **errp)
     Error *local_err = NULL;
 
     if (!vss_initialized()) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
@@ -446,7 +752,7 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
                                        strList *mountpoints,
                                        Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 
     return 0;
 }
@@ -459,7 +765,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
     int i;
 
     if (!vss_initialized()) {
-        error_set(errp, QERR_UNSUPPORTED);
+        error_setg(errp, QERR_UNSUPPORTED);
         return 0;
     }
 
@@ -493,9 +799,11 @@ static void guest_fsfreeze_cleanup(void)
  * Walk list of mounted file systems in the guest, and discard unused
  * areas.
  */
-void qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
+GuestFilesystemTrimResponse *
+qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
 }
 
 typedef enum {
@@ -510,27 +818,27 @@ static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
 
     ZeroMemory(&sys_pwr_caps, sizeof(sys_pwr_caps));
     if (!GetPwrCapabilities(&sys_pwr_caps)) {
-        error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                  "failed to determine guest suspend capabilities");
+        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                   "failed to determine guest suspend capabilities");
         goto out;
     }
 
     switch (mode) {
     case GUEST_SUSPEND_MODE_DISK:
         if (!sys_pwr_caps.SystemS4) {
-            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                      "suspend-to-disk not supported by OS");
+            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                       "suspend-to-disk not supported by OS");
         }
         break;
     case GUEST_SUSPEND_MODE_RAM:
         if (!sys_pwr_caps.SystemS3) {
-            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-                      "suspend-to-ram not supported by OS");
+            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+                       "suspend-to-ram not supported by OS");
         }
         break;
     default:
-        error_set(&local_err, QERR_INVALID_PARAMETER_VALUE, "mode",
-                  "GuestSuspendMode");
+        error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "mode",
+                   "GuestSuspendMode");
     }
 
 out:
@@ -586,13 +894,221 @@ void qmp_guest_suspend_ram(Error **errp)
 
 void qmp_guest_suspend_hybrid(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
+
+static IP_ADAPTER_ADDRESSES *guest_get_adapters_addresses(Error **errp)
+{
+    IP_ADAPTER_ADDRESSES *adptr_addrs = NULL;
+    ULONG adptr_addrs_len = 0;
+    DWORD ret;
+
+    /* Call the first time to get the adptr_addrs_len. */
+    GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX,
+                         NULL, adptr_addrs, &adptr_addrs_len);
+
+    adptr_addrs = g_malloc(adptr_addrs_len);
+    ret = GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX,
+                               NULL, adptr_addrs, &adptr_addrs_len);
+    if (ret != ERROR_SUCCESS) {
+        error_setg_win32(errp, ret, "failed to get adapters addresses");
+        g_free(adptr_addrs);
+        adptr_addrs = NULL;
+    }
+    return adptr_addrs;
+}
+
+static char *guest_wctomb_dup(WCHAR *wstr)
+{
+    char *str;
+    size_t i;
+
+    i = wcslen(wstr) + 1;
+    str = g_malloc(i);
+    WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK,
+                        wstr, -1, str, i, NULL, NULL);
+    return str;
+}
+
+static char *guest_addr_to_str(IP_ADAPTER_UNICAST_ADDRESS *ip_addr,
+                               Error **errp)
+{
+    char addr_str[INET6_ADDRSTRLEN + INET_ADDRSTRLEN];
+    DWORD len;
+    int ret;
+
+    if (ip_addr->Address.lpSockaddr->sa_family == AF_INET ||
+            ip_addr->Address.lpSockaddr->sa_family == AF_INET6) {
+        len = sizeof(addr_str);
+        ret = WSAAddressToString(ip_addr->Address.lpSockaddr,
+                                 ip_addr->Address.iSockaddrLength,
+                                 NULL,
+                                 addr_str,
+                                 &len);
+        if (ret != 0) {
+            error_setg_win32(errp, WSAGetLastError(),
+                "failed address presentation form conversion");
+            return NULL;
+        }
+        return g_strdup(addr_str);
+    }
+    return NULL;
+}
+
+#if (_WIN32_WINNT >= 0x0600)
+static int64_t guest_ip_prefix(IP_ADAPTER_UNICAST_ADDRESS *ip_addr)
+{
+    /* For Windows Vista/2008 and newer, use the OnLinkPrefixLength
+     * field to obtain the prefix.
+     */
+    return ip_addr->OnLinkPrefixLength;
+}
+#else
+/* When using the Windows XP and 2003 build environment, do the best we can to
+ * figure out the prefix.
+ */
+static IP_ADAPTER_INFO *guest_get_adapters_info(void)
+{
+    IP_ADAPTER_INFO *adptr_info = NULL;
+    ULONG adptr_info_len = 0;
+    DWORD ret;
+
+    /* Call the first time to get the adptr_info_len. */
+    GetAdaptersInfo(adptr_info, &adptr_info_len);
+
+    adptr_info = g_malloc(adptr_info_len);
+    ret = GetAdaptersInfo(adptr_info, &adptr_info_len);
+    if (ret != ERROR_SUCCESS) {
+        g_free(adptr_info);
+        adptr_info = NULL;
+    }
+    return adptr_info;
+}
+
+static int64_t guest_ip_prefix(IP_ADAPTER_UNICAST_ADDRESS *ip_addr)
+{
+    int64_t prefix = -1; /* Use for AF_INET6 and unknown/undetermined values. */
+    IP_ADAPTER_INFO *adptr_info, *info;
+    IP_ADDR_STRING *ip;
+    struct in_addr *p;
+
+    if (ip_addr->Address.lpSockaddr->sa_family != AF_INET) {
+        return prefix;
+    }
+    adptr_info = guest_get_adapters_info();
+    if (adptr_info == NULL) {
+        return prefix;
+    }
+
+    /* Match up the passed in ip_addr with one found in adaptr_info.
+     * The matching one in adptr_info will have the netmask.
+     */
+    p = &((struct sockaddr_in *)ip_addr->Address.lpSockaddr)->sin_addr;
+    for (info = adptr_info; info; info = info->Next) {
+        for (ip = &info->IpAddressList; ip; ip = ip->Next) {
+            if (p->S_un.S_addr == inet_addr(ip->IpAddress.String)) {
+                prefix = ctpop32(inet_addr(ip->IpMask.String));
+                goto out;
+            }
+        }
+    }
+out:
+    g_free(adptr_info);
+    return prefix;
+}
+#endif
 
 GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
-    return NULL;
+    IP_ADAPTER_ADDRESSES *adptr_addrs, *addr;
+    IP_ADAPTER_UNICAST_ADDRESS *ip_addr = NULL;
+    GuestNetworkInterfaceList *head = NULL, *cur_item = NULL;
+    GuestIpAddressList *head_addr, *cur_addr;
+    GuestNetworkInterfaceList *info;
+    GuestIpAddressList *address_item = NULL;
+    unsigned char *mac_addr;
+    char *addr_str;
+    WORD wsa_version;
+    WSADATA wsa_data;
+    int ret;
+
+    adptr_addrs = guest_get_adapters_addresses(errp);
+    if (adptr_addrs == NULL) {
+        return NULL;
+    }
+
+    /* Make WSA APIs available. */
+    wsa_version = MAKEWORD(2, 2);
+    ret = WSAStartup(wsa_version, &wsa_data);
+    if (ret != 0) {
+        error_setg_win32(errp, ret, "failed socket startup");
+        goto out;
+    }
+
+    for (addr = adptr_addrs; addr; addr = addr->Next) {
+        info = g_malloc0(sizeof(*info));
+
+        if (cur_item == NULL) {
+            head = cur_item = info;
+        } else {
+            cur_item->next = info;
+            cur_item = info;
+        }
+
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->name = guest_wctomb_dup(addr->FriendlyName);
+
+        if (addr->PhysicalAddressLength != 0) {
+            mac_addr = addr->PhysicalAddress;
+
+            info->value->hardware_address =
+                g_strdup_printf("%02x:%02x:%02x:%02x:%02x:%02x",
+                                (int) mac_addr[0], (int) mac_addr[1],
+                                (int) mac_addr[2], (int) mac_addr[3],
+                                (int) mac_addr[4], (int) mac_addr[5]);
+
+            info->value->has_hardware_address = true;
+        }
+
+        head_addr = NULL;
+        cur_addr = NULL;
+        for (ip_addr = addr->FirstUnicastAddress;
+                ip_addr;
+                ip_addr = ip_addr->Next) {
+            addr_str = guest_addr_to_str(ip_addr, errp);
+            if (addr_str == NULL) {
+                continue;
+            }
+
+            address_item = g_malloc0(sizeof(*address_item));
+
+            if (!cur_addr) {
+                head_addr = cur_addr = address_item;
+            } else {
+                cur_addr->next = address_item;
+                cur_addr = address_item;
+            }
+
+            address_item->value = g_malloc0(sizeof(*address_item->value));
+            address_item->value->ip_address = addr_str;
+            address_item->value->prefix = guest_ip_prefix(ip_addr);
+            if (ip_addr->Address.lpSockaddr->sa_family == AF_INET) {
+                address_item->value->ip_address_type =
+                    GUEST_IP_ADDRESS_TYPE_IPV4;
+            } else if (ip_addr->Address.lpSockaddr->sa_family == AF_INET6) {
+                address_item->value->ip_address_type =
+                    GUEST_IP_ADDRESS_TYPE_IPV6;
+            }
+        }
+        if (head_addr) {
+            info->value->has_ip_addresses = true;
+            info->value->ip_addresses = head_addr;
+        }
+    }
+    WSACleanup();
+out:
+    g_free(adptr_addrs);
+    return head;
 }
 
 int64_t qmp_guest_get_time(Error **errp)
@@ -666,13 +1182,13 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 int64_t qmp_guest_set_vcpus(GuestLogicalProcessorList *vcpus, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return -1;
 }
 
@@ -681,25 +1197,25 @@ void qmp_guest_set_user_password(const char *username,
                                  bool crypted,
                                  Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
 }
 
 GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 GuestMemoryBlockResponseList *
 qmp_guest_set_memory_blocks(GuestMemoryBlockList *mem_blks, Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
 GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 {
-    error_set(errp, QERR_UNSUPPORTED);
+    error_setg(errp, QERR_UNSUPPORTED);
     return NULL;
 }
 
@@ -707,12 +1223,12 @@ GuestMemoryBlockInfo *qmp_guest_get_memory_block_info(Error **errp)
 GList *ga_command_blacklist_init(GList *blacklist)
 {
     const char *list_unsupported[] = {
-        "guest-suspend-hybrid", "guest-network-get-interfaces",
+        "guest-suspend-hybrid",
         "guest-get-vcpus", "guest-set-vcpus",
         "guest-set-user-password",
         "guest-get-memory-blocks", "guest-set-memory-blocks",
         "guest-get-memory-block-size",
-        "guest-fsfreeze-freeze-list", "guest-get-fsinfo",
+        "guest-fsfreeze-freeze-list",
         "guest-fstrim", NULL};
     char **p = (char **)list_unsupported;
 
@@ -721,6 +1237,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
     }
 
     if (!vss_init(true)) {
+        g_debug("vss_init failed, vss commands are going to be disabled");
         const char *list[] = {
             "guest-get-fsinfo", "guest-fsfreeze-status",
             "guest-fsfreeze-freeze", "guest-fsfreeze-thaw", NULL};
