@@ -173,13 +173,23 @@ void cpu_m68k_flush_flags(CPUM68KState *, int);
 enum {
     CC_OP_DYNAMIC, /* Use env->cc_op  */
     CC_OP_FLAGS, /* CC_DEST = CVZN, CC_SRC = unused */
+    CC_OP_LOGICB, /* CC_DEST = result, CC_SRC = unused */
+    CC_OP_LOGICW, /* CC_DEST = result, CC_SRC = unused */
     CC_OP_LOGIC, /* CC_DEST = result, CC_SRC = unused */
+    CC_OP_ADDB,   /* CC_DEST = result, CC_SRC = source */
+    CC_OP_ADDW,   /* CC_DEST = result, CC_SRC = source */
     CC_OP_ADD,   /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SUBB,   /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SUBW,   /* CC_DEST = result, CC_SRC = source */
     CC_OP_SUB,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_CMPB,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_CMPW,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_ADDXB,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_ADDXW,  /* CC_DEST = result, CC_SRC = source */
     CC_OP_ADDX,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SUBXB,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SUBXW,  /* CC_DEST = result, CC_SRC = source */
     CC_OP_SUBX,  /* CC_DEST = result, CC_SRC = source */
+    CC_OP_SHIFTB, /* CC_DEST = result, CC_SRC = carry */
+    CC_OP_SHIFTW, /* CC_DEST = result, CC_SRC = carry */
     CC_OP_SHIFT, /* CC_DEST = result, CC_SRC = carry */
 };
 
