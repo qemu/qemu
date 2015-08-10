@@ -1,6 +1,7 @@
 /*
  * QEMU texture swizzling routines
  *
+ * Copyright (c) 2015 Jannik Vogel
  * Copyright (c) 2013 espes
  * Copyright (c) 2007-2010 The Nouveau Project.
  *

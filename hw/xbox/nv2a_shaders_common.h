@@ -2,7 +2,7 @@
  * QEMU Geforce NV2A shader common definitions
  *
  * Copyright (c) 2015 espes
- * Copyright (c) 2015 JayFoxRox
+ * Copyright (c) 2015 Jannik Vogel
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as

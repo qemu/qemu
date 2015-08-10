@@ -2,6 +2,7 @@
  * QEMU Geforce NV2A pixel shader translation
  *
  * Copyright (c) 2013 espes
+ * Copyright (c) 2015 Jannik Vogel
  *
  * Based on:
  * Cxbx, PixelShader.cpp
