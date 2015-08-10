@@ -90,23 +90,33 @@ static QString* generate_fixed_function(const ShaderState state,
     qstring_append(s,
 "#version 330\n"
 "\n"
-"in vec4 position;\n"
-"in vec4 weight;\n"
-"in vec3 normal;\n"
-"in vec4 diffuse;\n"
-"in vec4 specular;\n"
-"in float fogCoord;\n"
-"in vec4 backDiffuse;\n"
-"in vec4 backSpecular;\n"
-"in vec4 texture0;\n"
-"in vec4 texture1;\n"
-"in vec4 texture2;\n"
-"in vec4 texture3;\n"
+"#define position      v0\n"
+"#define weight        v1\n"
+"#define normal        v2.xyz\n"
+"#define diffuse       v3\n"
+"#define specular      v4\n"
+"#define fogCoord      v5.x\n"
+"#define pointSize     v6\n"
+"#define backDiffuse   v7\n"
+"#define backSpecular  v8\n"
+"#define texture0      v9\n"
+"#define texture1      v10\n"
+"#define texture2      v11\n"
+"#define texture3      v12\n"
+"#define reserved1     v13\n"
+"#define reserved2     v14\n"
+"#define reserved3     v15\n"
 "\n");
 
-    qstring_append(s, STRUCT_VERTEX_DATA);
+    for(i = 0; i < 16; i++) {
+        qstring_append_fmt(s, "in vec4 v%d;\n", i);
+    }
+
+    qstring_append(s, "\n"
+                      STRUCT_VERTEX_DATA);
     qstring_append_fmt(s, "noperspective out VertexData %c_vtx;\n", out_prefix);
     qstring_append_fmt(s, "#define vtx %c_vtx", out_prefix);
+
 
     qstring_append(s,
 "\n"
@@ -330,28 +340,11 @@ ShaderBinding* generate_shaders(const ShaderState state)
     }
 
 
-    if (state.fixed_function) {
-        /* bind fixed function vertex attributes */
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_POSITION, "position");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_WEIGHT, "weight");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_DIFFUSE, "diffuse");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_SPECULAR, "specular");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_FOG, "fog");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_BACK_DIFFUSE, "backDiffuse");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_BACK_SPECULAR, "backSpecular");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE0, "texture0");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE1, "texture1");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE2, "texture2");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE3, "texture3");
-    } else if (state.vertex_program) {
-        /* Bind attributes for transform program*/
-        char tmp[8];
-        for(i = 0; i < 16; i++) {
-            snprintf(tmp, sizeof(tmp), "v%d", i);
-            glBindAttribLocation(program, i, tmp);
-        }
-    } else {
-        assert(false);
+    /* Bind attributes for vertices */
+    char tmp[8];
+    for(i = 0; i < 16; i++) {
+        snprintf(tmp, sizeof(tmp), "v%d", i);
+        glBindAttribLocation(program, i, tmp);
     }
 
 
