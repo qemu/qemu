@@ -1318,6 +1318,7 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
  * this TB.
  *
  * Called with mmap_lock held for user-mode emulation
+ * If called from generated code, iothread mutex must not be held.
  */
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
@@ -1430,7 +1431,9 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 }
 
 #ifdef CONFIG_SOFTMMU
-/* len must be <= 8 and start must be a multiple of len */
+/* len must be <= 8 and start must be a multiple of len.
+ * Called via softmmu_template.h, with iothread mutex not held.
+ */
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 {
     PageDesc *p;
@@ -1579,6 +1582,7 @@ static TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
 }
 
 #if !defined(CONFIG_USER_ONLY)
+/* If called from generated code, iothread mutex must not be held.  */
 void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 {
     ram_addr_t ram_addr;
@@ -1625,7 +1629,10 @@ void tb_check_watchpoint(CPUState *cpu)
 
 #ifndef CONFIG_USER_ONLY
 /* in deterministic execution mode, instructions doing device I/Os
-   must be at the end of the TB */
+ * must be at the end of the TB.
+ *
+ * Called by softmmu_template.h, with iothread mutex not held.
+ */
 void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
 {
 #if defined(TARGET_MIPS) || defined(TARGET_SH4)

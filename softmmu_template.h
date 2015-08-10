@@ -151,6 +151,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     CPUState *cpu = ENV_GET_CPU(env);
     hwaddr physaddr = iotlbentry->addr;
     MemoryRegion *mr = iotlb_to_region(cpu, physaddr, iotlbentry->attrs);
+    bool locked = false;
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
@@ -159,8 +160,15 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(CPUArchState *env,
     }
 
     cpu->mem_io_vaddr = addr;
+    if (mr->global_locking) {
+        qemu_mutex_lock_iothread();
+        locked = true;
+    }
     memory_region_dispatch_read(mr, physaddr, &val, 1 << SHIFT,
                                 iotlbentry->attrs);
+    if (locked) {
+        qemu_mutex_unlock_iothread();
+    }
     return val;
 }
 #endif
@@ -358,6 +366,7 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
     CPUState *cpu = ENV_GET_CPU(env);
     hwaddr physaddr = iotlbentry->addr;
     MemoryRegion *mr = iotlb_to_region(cpu, physaddr, iotlbentry->attrs);
+    bool locked = false;
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     if (mr != &io_mem_rom && mr != &io_mem_notdirty && !cpu->can_do_io) {
@@ -366,8 +375,16 @@ static inline void glue(io_write, SUFFIX)(CPUArchState *env,
 
     cpu->mem_io_vaddr = addr;
     cpu->mem_io_pc = retaddr;
+
+    if (mr->global_locking) {
+        qemu_mutex_lock_iothread();
+        locked = true;
+    }
     memory_region_dispatch_write(mr, physaddr, val, 1 << SHIFT,
                                  iotlbentry->attrs);
+    if (locked) {
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 void helper_le_st_name(CPUArchState *env, target_ulong addr, DATA_TYPE val,

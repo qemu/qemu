@@ -447,6 +447,9 @@ static void patch_instruction(VAPICROMState *s, X86CPU *cpu, target_ulong ip)
     resume_all_vcpus();
 
     if (!kvm_enabled()) {
+        /* Unlock iothread mutex before calling cpu_resume_from_signal.  */
+        qemu_mutex_unlock_iothread();
+
         /* Unlocked by cpu_resume_from_signal.  */
         tb_lock();
         cs->current_tb = NULL;

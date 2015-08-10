@@ -28,6 +28,7 @@
 #include "qemu/rcu.h"
 #include "exec/tb-hash.h"
 #include "exec/log.h"
+#include "qemu/main-loop.h"
 #if defined(TARGET_I386) && !defined(CONFIG_USER_ONLY)
 #include "hw/i386/apic.h"
 #endif
@@ -452,6 +453,8 @@ int cpu_exec(CPUState *cpu)
             for(;;) {
                 interrupt_request = cpu->interrupt_request;
                 if (unlikely(interrupt_request)) {
+                    qemu_mutex_lock_iothread();
+
                     if (unlikely(cpu->singlestep_enabled & SSTEP_NOIRQ)) {
                         /* Mask out external interrupts for this step. */
                         interrupt_request &= ~CPU_INTERRUPT_SSTEP_MASK;
@@ -504,6 +507,11 @@ int cpu_exec(CPUState *cpu)
                            the program flow was changed */
                         next_tb = 0;
                     }
+
+                    if (qemu_mutex_iothread_locked()) {
+                        qemu_mutex_unlock_iothread();
+                    }
+
                 }
                 if (unlikely(cpu->exit_request
                              || replay_has_interrupt())) {
@@ -609,8 +617,12 @@ int cpu_exec(CPUState *cpu)
             g_assert(env == &x86_cpu->env);
 #endif
 #endif /* buggy compiler */
+
             cpu->can_do_io = 1;
             tb_lock_reset();
+            if (qemu_mutex_iothread_locked()) {
+                qemu_mutex_unlock_iothread();
+            }
         }
     } /* for(;;) */
 
