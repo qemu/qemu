@@ -4959,7 +4959,7 @@ static void pgraph_method(NV2AState *d,
 
         pg->draw_arrays_max_count = MAX(pg->draw_arrays_max_count, start + count);
 
-        assert(pg->draw_arrays_length < sizeof(pg->gl_draw_arrays_start) / sizeof(pg->gl_draw_arrays_start[0]));
+        assert(pg->draw_arrays_length < ARRAYSIZE(pg->gl_draw_arrays_start));
 
         /* Attempt to connect primitives */
         if (pg->draw_arrays_length > 0) {
