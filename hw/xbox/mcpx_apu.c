@@ -126,8 +126,8 @@ static const struct {
 
 
 
-#define DEBUG
-#ifdef DEBUG
+// #define MCPX_DEBUG
+#ifdef MCPX_DEBUG
 # define MCPX_DPRINTF(format, ...)       printf(format, ## __VA_ARGS__)
 #else
 # define MCPX_DPRINTF(format, ...)       do { } while (0)
