@@ -99,6 +99,27 @@ struct S390IPLState {
 };
 typedef struct S390IPLState S390IPLState;
 
+#define S390_IPL_TYPE_FCP 0x00
+#define S390_IPL_TYPE_CCW 0x02
+
 #define S390_IPLB_MIN_CCW_LEN 200
+#define S390_IPLB_MIN_FCP_LEN 384
+
+static inline bool iplb_valid_len(IplParameterBlock *iplb)
+{
+    return be32_to_cpu(iplb->len) <= sizeof(IplParameterBlock);
+}
+
+static inline bool iplb_valid_ccw(IplParameterBlock *iplb)
+{
+    return be32_to_cpu(iplb->len) >= S390_IPLB_MIN_CCW_LEN &&
+           iplb->pbt == S390_IPL_TYPE_CCW;
+}
+
+static inline bool iplb_valid_fcp(IplParameterBlock *iplb)
+{
+    return be32_to_cpu(iplb->len) >= S390_IPLB_MIN_FCP_LEN &&
+           iplb->pbt == S390_IPL_TYPE_FCP;
+}
 
 #endif
