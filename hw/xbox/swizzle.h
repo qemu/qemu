@@ -1,6 +1,7 @@
 /*
  * QEMU texture swizzling routines
  *
+ * Copyright (c) 2015 Jannik Vogel
  * Copyright (c) 2013 espes
  *
  * This library is free software; you can redistribute it and/or
