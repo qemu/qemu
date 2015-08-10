@@ -19,15 +19,9 @@
  */
 
 #include "qemu-common.h"
+#include "hw/xbox/nv2a_debug.h"
 #include "hw/xbox/nv2a_shaders_common.h"
 #include "hw/xbox/nv2a_shaders.h"
-
-// #define NV2A_DEBUG
-#ifdef NV2A_DEBUG
-# define NV2A_DPRINTF(format, ...)       printf("nv2a: " format, ## __VA_ARGS__)
-#else
-# define NV2A_DPRINTF(format, ...)       do { } while (0)
-#endif
 
 static void generate_geometry_shader_pass_vertex(QString* s, const char* v)
 {
