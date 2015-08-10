@@ -32,6 +32,7 @@
 
 #include "qapi/qmp/qstring.h"
 
+#include "hw/xbox/nv2a_shaders_common.h"
 #include "hw/xbox/nv2a_psh.h"
 
 /*
@@ -532,33 +533,24 @@ static QString* psh_convert(struct PixelShader *ps)
     int i;
 
     QString *preflight = qstring_new();
-    qstring_append(preflight, "noperspective in vec4 gD0;\n");
-    qstring_append(preflight, "noperspective in vec4 gD1;\n");
-    qstring_append(preflight, "noperspective in vec4 gB0;\n");
-    qstring_append(preflight, "noperspective in vec4 gB1;\n");
-    qstring_append(preflight, "noperspective in vec4 gFog;\n");
-    qstring_append(preflight, "noperspective in vec4 gT0;\n");
-    qstring_append(preflight, "noperspective in vec4 gT1;\n");
-    qstring_append(preflight, "noperspective in vec4 gT2;\n");
-    qstring_append(preflight, "noperspective in vec4 gT3;\n");
-    qstring_append(preflight, "\n");
-    qstring_append(preflight, "noperspective in float gPos_w;\n");
+    qstring_append(preflight, STRUCT_VERTEX_DATA);
+    qstring_append(preflight, "noperspective in VertexData g_vtx;\n");
+    qstring_append(preflight, "#define vtx g_vtx\n");
     qstring_append(preflight, "\n");
     qstring_append(preflight, "out vec4 fragColor;\n");
     qstring_append(preflight, "\n");
 
     /* calculate perspective-correct inputs */
     QString *vars = qstring_new();
-    qstring_append(vars, "float pFactor = gPos_w;\n");
-    qstring_append(vars, "vec4 pD0 = gD0 / pFactor;\n");
-    qstring_append(vars, "vec4 pD1 = gD1 / pFactor;\n");
-    qstring_append(vars, "vec4 pB0 = gB0 / pFactor;\n");
-    qstring_append(vars, "vec4 pB1 = gB1 / pFactor;\n");
-    qstring_append(vars, "vec4 pFog = gFog / pFactor;\n");
-    qstring_append(vars, "vec4 pT0 = gT0 / pFactor;\n");
-    qstring_append(vars, "vec4 pT1 = gT1 / pFactor;\n");
-    qstring_append(vars, "vec4 pT2 = gT2 / pFactor;\n");
-    qstring_append(vars, "vec4 pT3 = gT3 / pFactor;\n");
+    qstring_append(vars, "vec4 pD0 = vtx.D0 / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pD1 = vtx.D1 / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pB0 = vtx.B0 / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pB1 = vtx.B1 / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pFog = vtx.Fog / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pT0 = vtx.T0 / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pT1 = vtx.T1 / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pT2 = vtx.T2 / vtx.inv_w;\n");
+    qstring_append(vars, "vec4 pT3 = vtx.T3 / vtx.inv_w;\n");
     qstring_append(vars, "\n");
     qstring_append(vars, "vec4 v0 = pD0;\n");
     qstring_append(vars, "vec4 v1 = pD1;\n");

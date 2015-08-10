@@ -18,6 +18,9 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef HW_NV2A_SHADERS_H
+#define HW_NV2A_SHADERS_H
+
 #include "qapi/qmp/qstring.h"
 #include "gl/gloffscreen.h"
 
@@ -102,3 +105,4 @@ typedef struct ShaderBinding {
 
 ShaderBinding* generate_shaders(const ShaderState state);
 
+#endif

@@ -30,6 +30,7 @@
 #include <stdbool.h>
 #include <assert.h>
 
+#include "hw/xbox/nv2a_shaders_common.h"
 #include "hw/xbox/nv2a_vsh.h"
 
 #define VSH_D3DSCM_CORRECTION 96
@@ -733,21 +734,13 @@ static const char* vsh_header =
 QString* vsh_translate(uint16_t version,
                        const uint32_t *tokens,
                        unsigned int length,
-                       char output_prefix)
+                       char out_prefix)
 {
 
     QString* header = qstring_from_str("#version 330\n\n");
-
-    qstring_append_fmt(header, "noperspective out float %cPos_w;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cD0;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cD1;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cB0;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cB1;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cFog;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cT0;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cT1;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cT2;\n", output_prefix);
-    qstring_append_fmt(header, "noperspective out vec4 %cT3;\n", output_prefix);
+    qstring_append(header, STRUCT_VERTEX_DATA);
+    qstring_append_fmt(header, "noperspective out VertexData %c_vtx;\n", out_prefix);
+    qstring_append_fmt(header, "#define vtx %c_vtx", out_prefix);
     qstring_append(header, "\n"
                            "uniform mat4 texMat0;\n"
                            "uniform mat4 texMat1;\n"
@@ -780,22 +773,21 @@ QString* vsh_translate(uint16_t version,
     /* pre-divide and output the generated W so we can do persepctive correct
      * interpolation manually. OpenGL can't, since we give it a W of 1 to work
      * around the perspective divide */
-    qstring_append_fmt(body,
+    qstring_append(body,
         "if (oPos.w == 0.0 || isinf(oPos.w)) {\n"
-        "  %cPos_w = 1.0;"
+        "  vtx.inv_w = 1.0;"
         "} else {\n"
-        "  %cPos_w = 1.0 / oPos.w;\n"
-        "}\n"
-        , output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cD0 = clamp(oD0, 0.0, 1.0) * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cD1 = clamp(oD1, 0.0, 1.0) * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cB0 = clamp(oB0, 0.0, 1.0) * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cB1 = clamp(oB1, 0.0, 1.0) * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cFog = oFog * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cT0 = oT0 * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cT1 = oT1 * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cT2 = oT2 * %cPos_w;\n", output_prefix, output_prefix);
-    qstring_append_fmt(body, "%cT3 = oT3 * %cPos_w;\n", output_prefix, output_prefix);
+        "  vtx.inv_w = 1.0 / oPos.w;\n"
+        "}\n");
+    qstring_append(body, "vtx.D0 = clamp(oD0, 0.0, 1.0) * vtx.inv_w;\n");
+    qstring_append(body, "vtx.D1 = clamp(oD1, 0.0, 1.0) * vtx.inv_w;\n");
+    qstring_append(body, "vtx.B0 = clamp(oB0, 0.0, 1.0) * vtx.inv_w;\n");
+    qstring_append(body, "vtx.B1 = clamp(oB1, 0.0, 1.0) * vtx.inv_w;\n");
+    qstring_append(body, "vtx.Fog = oFog * vtx.inv_w;\n");
+    qstring_append(body, "vtx.T0 = oT0 * vtx.inv_w;\n");
+    qstring_append(body, "vtx.T1 = oT1 * vtx.inv_w;\n");
+    qstring_append(body, "vtx.T2 = oT2 * vtx.inv_w;\n");
+    qstring_append(body, "vtx.T3 = oT3 * vtx.inv_w;\n");
 
     qstring_append(body,
         /* the shaders leave the result in screen space, while
