@@ -786,9 +786,6 @@ static unsigned iothread_requesting_mutex;
 
 static QemuThread io_thread;
 
-static QemuThread *tcg_cpu_thread;
-static QemuCond *tcg_halt_cond;
-
 /* cpu creation */
 static QemuCond qemu_cpu_cond;
 /* system init */
@@ -907,15 +904,13 @@ static void qemu_wait_io_event_common(CPUState *cpu)
     cpu->thread_kicked = false;
 }
 
-static void qemu_tcg_wait_io_event(void)
+static void qemu_tcg_wait_io_event(CPUState *cpu)
 {
-    CPUState *cpu;
-
     while (all_cpu_threads_idle()) {
        /* Start accounting real time to the virtual clock if the CPUs
           are idle.  */
         qemu_clock_warp(QEMU_CLOCK_VIRTUAL);
-        qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
+        qemu_cond_wait(cpu->halt_cond, &qemu_global_mutex);
     }
 
     while (iothread_requesting_mutex) {
@@ -1040,7 +1035,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 
     /* wait for initial kick-off after machine start */
     while (first_cpu->stopped) {
-        qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
+        qemu_cond_wait(first_cpu->halt_cond, &qemu_global_mutex);
 
         /* process any pending work */
         CPU_FOREACH(cpu) {
@@ -1061,7 +1056,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
                 qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
             }
         }
-        qemu_tcg_wait_io_event();
+        qemu_tcg_wait_io_event(QTAILQ_FIRST(&cpus));
     }
 
     return NULL;
@@ -1224,6 +1219,8 @@ void resume_all_vcpus(void)
 static void qemu_tcg_init_vcpu(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
+    static QemuCond *tcg_halt_cond;
+    static QemuThread *tcg_cpu_thread;
 
     tcg_cpu_address_space_init(cpu, cpu->as);
 
