@@ -248,7 +248,9 @@ static int encode_search(TranslationBlock *tb, uint8_t *block)
     return p - block;
 }
 
-/* The cpu state corresponding to 'searched_pc' is restored.  */
+/* The cpu state corresponding to 'searched_pc' is restored.
+ * Called with tb_lock held.
+ */
 static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                      uintptr_t searched_pc)
 {
@@ -306,8 +308,10 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
         if (tb->cflags & CF_NOCACHE) {
             /* one-shot translation, invalidate it immediately */
             cpu->current_tb = NULL;
+            tb_lock();
             tb_phys_invalidate(tb, -1);
             tb_free(tb);
+            tb_unlock();
         }
         return true;
     }
@@ -399,6 +403,7 @@ static void page_init(void)
 }
 
 /* If alloc=1:
+ * Called with tb_lock held for system emulation.
  * Called with mmap_lock held for user-mode emulation.
  */
 static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
@@ -754,8 +759,12 @@ bool tcg_enabled(void)
     return tcg_ctx.code_gen_buffer != NULL;
 }
 
-/* Allocate a new translation block. Flush the translation buffer if
-   too many translation blocks or too much generated code. */
+/*
+ * Allocate a new translation block. Flush the translation buffer if
+ * too many translation blocks or too much generated code.
+ *
+ * Called with tb_lock held.
+ */
 static TranslationBlock *tb_alloc(target_ulong pc)
 {
     TranslationBlock *tb;
@@ -769,6 +778,7 @@ static TranslationBlock *tb_alloc(target_ulong pc)
     return tb;
 }
 
+/* Called with tb_lock held.  */
 void tb_free(TranslationBlock *tb)
 {
     /* In practice this is mostly used for single use temporary TB
@@ -874,7 +884,10 @@ static void tb_invalidate_check(target_ulong address)
     }
 }
 
-/* verify that all the pages have correct rights for code */
+/* verify that all the pages have correct rights for code
+ *
+ * Called with tb_lock held.
+ */
 static void tb_page_check(void)
 {
     TranslationBlock *tb;
@@ -985,7 +998,10 @@ static inline void tb_jmp_unlink(TranslationBlock *tb)
     }
 }
 
-/* invalidate one TB */
+/* invalidate one TB
+ *
+ * Called with tb_lock held.
+ */
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
 {
     CPUState *cpu;
@@ -1062,6 +1078,7 @@ static void build_page_bitmap(PageDesc *p)
 
 /* add the tb in the target page and protect it if necessary
  *
+ * Called with tb_lock held.
  * Called with mmap_lock held for user-mode emulation.
  */
 static inline void tb_alloc_page(TranslationBlock *tb,
@@ -1429,7 +1446,9 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
     }
     if (!p->code_bitmap &&
         ++p->code_write_count >= SMC_BITMAP_USE_THRESHOLD) {
-        /* build code bitmap */
+        /* build code bitmap.  FIXME: writes should be protected by
+         * tb_lock, reads by tb_lock or RCU.
+         */
         build_page_bitmap(p);
     }
     if (p->code_bitmap) {
@@ -1571,6 +1590,7 @@ void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr)
 }
 #endif /* !defined(CONFIG_USER_ONLY) */
 
+/* Called with tb_lock held.  */
 void tb_check_watchpoint(CPUState *cpu)
 {
     TranslationBlock *tb;
