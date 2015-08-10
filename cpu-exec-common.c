@@ -23,7 +23,6 @@
 #include "exec/memory-internal.h"
 
 bool exit_request;
-CPUState *tcg_current_cpu;
 
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
