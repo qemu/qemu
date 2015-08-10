@@ -357,9 +357,6 @@ int cpu_exec(CPUState *cpu)
     uintptr_t next_tb;
     SyncClocks sc;
 
-    /* This must be volatile so it is not trashed by longjmp() */
-    volatile bool have_tb_lock = false;
-
     if (cpu->halted) {
         if (!cpu_has_work(cpu)) {
             return EXCP_HALTED;
@@ -468,8 +465,7 @@ int cpu_exec(CPUState *cpu)
                     cpu->exception_index = EXCP_INTERRUPT;
                     cpu_loop_exit(cpu);
                 }
-                spin_lock(&tcg_ctx.tb_ctx.tb_lock);
-                have_tb_lock = true;
+                tb_lock();
                 tb = tb_find_fast(cpu);
                 /* Note: we do it here to avoid a gcc bug on Mac OS X when
                    doing it in tb_find_slow */
@@ -491,8 +487,7 @@ int cpu_exec(CPUState *cpu)
                     tb_add_jump((TranslationBlock *)(next_tb & ~TB_EXIT_MASK),
                                 next_tb & TB_EXIT_MASK, tb);
                 }
-                have_tb_lock = false;
-                spin_unlock(&tcg_ctx.tb_ctx.tb_lock);
+                tb_unlock();
                 if (likely(!cpu->exit_request)) {
                     trace_exec_tb(tb, tb->pc);
                     tc_ptr = tb->tc_ptr;
@@ -558,10 +553,7 @@ int cpu_exec(CPUState *cpu)
             x86_cpu = X86_CPU(cpu);
             env = &x86_cpu->env;
 #endif
-            if (have_tb_lock) {
-                spin_unlock(&tcg_ctx.tb_ctx.tb_lock);
-                have_tb_lock = false;
-            }
+            tb_lock_reset();
         }
     } /* for(;;) */
 

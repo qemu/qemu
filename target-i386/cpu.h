@@ -1318,6 +1318,9 @@ static inline MemTxAttrs cpu_get_mem_attrs(CPUX86State *env)
 void cpu_set_mxcsr(CPUX86State *env, uint32_t val);
 void cpu_set_fpuc(CPUX86State *env, uint16_t val);
 
+/* mem_helper.c */
+void helper_lock_init(void);
+
 /* svm_helper.c */
 void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                                    uint64_t param);

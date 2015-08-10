@@ -128,6 +128,39 @@ static void *l1_map[V_L1_SIZE];
 /* code generation context */
 TCGContext tcg_ctx;
 
+/* translation block context */
+#ifdef CONFIG_USER_ONLY
+__thread int have_tb_lock;
+#endif
+
+void tb_lock(void)
+{
+#ifdef CONFIG_USER_ONLY
+    assert(!have_tb_lock);
+    qemu_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
+    have_tb_lock++;
+#endif
+}
+
+void tb_unlock(void)
+{
+#ifdef CONFIG_USER_ONLY
+    assert(have_tb_lock);
+    have_tb_lock--;
+    qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
+#endif
+}
+
+void tb_lock_reset(void)
+{
+#ifdef CONFIG_USER_ONLY
+    if (have_tb_lock) {
+        qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
+        have_tb_lock = 0;
+    }
+#endif
+}
+
 static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2);
 static TranslationBlock *tb_find_pc(uintptr_t tc_ptr);
@@ -675,6 +708,7 @@ static inline void code_gen_alloc(size_t tb_size)
             CODE_GEN_AVG_BLOCK_SIZE;
     tcg_ctx.tb_ctx.tbs =
             g_malloc(tcg_ctx.code_gen_max_blocks * sizeof(TranslationBlock));
+    qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size

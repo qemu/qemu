@@ -23,17 +23,36 @@
 
 /* broken thread support */
 
-static spinlock_t global_cpu_lock = SPIN_LOCK_UNLOCKED;
+#if defined(CONFIG_USER_ONLY)
+QemuMutex global_cpu_lock;
 
 void helper_lock(void)
 {
-    spin_lock(&global_cpu_lock);
+    qemu_mutex_lock(&global_cpu_lock);
 }
 
 void helper_unlock(void)
 {
-    spin_unlock(&global_cpu_lock);
+    qemu_mutex_unlock(&global_cpu_lock);
 }
+
+void helper_lock_init(void)
+{
+    qemu_mutex_init(&global_cpu_lock);
+}
+#else
+void helper_lock(void)
+{
+}
+
+void helper_unlock(void)
+{
+}
+
+void helper_lock_init(void)
+{
+}
+#endif
 
 void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
 {
