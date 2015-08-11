@@ -19,15 +19,9 @@
  */
 
 #include "qemu-common.h"
+#include "hw/xbox/nv2a_debug.h"
 #include "hw/xbox/nv2a_shaders_common.h"
 #include "hw/xbox/nv2a_shaders.h"
-
-// #define NV2A_DEBUG
-#ifdef NV2A_DEBUG
-# define NV2A_DPRINTF(format, ...)       printf("nv2a: " format, ## __VA_ARGS__)
-#else
-# define NV2A_DPRINTF(format, ...)       do { } while (0)
-#endif
 
 static void generate_geometry_shader_pass_vertex(QString* s, const char* v)
 {
@@ -90,23 +84,33 @@ static QString* generate_fixed_function(const ShaderState state,
     qstring_append(s,
 "#version 330\n"
 "\n"
-"in vec4 position;\n"
-"in vec4 weight;\n"
-"in vec3 normal;\n"
-"in vec4 diffuse;\n"
-"in vec4 specular;\n"
-"in float fogCoord;\n"
-"in vec4 backDiffuse;\n"
-"in vec4 backSpecular;\n"
-"in vec4 texture0;\n"
-"in vec4 texture1;\n"
-"in vec4 texture2;\n"
-"in vec4 texture3;\n"
+"#define position      v0\n"
+"#define weight        v1\n"
+"#define normal        v2.xyz\n"
+"#define diffuse       v3\n"
+"#define specular      v4\n"
+"#define fogCoord      v5.x\n"
+"#define pointSize     v6\n"
+"#define backDiffuse   v7\n"
+"#define backSpecular  v8\n"
+"#define texture0      v9\n"
+"#define texture1      v10\n"
+"#define texture2      v11\n"
+"#define texture3      v12\n"
+"#define reserved1     v13\n"
+"#define reserved2     v14\n"
+"#define reserved3     v15\n"
 "\n");
 
-    qstring_append(s, STRUCT_VERTEX_DATA);
+    for(i = 0; i < 16; i++) {
+        qstring_append_fmt(s, "in vec4 v%d;\n", i);
+    }
+
+    qstring_append(s, "\n"
+                      STRUCT_VERTEX_DATA);
     qstring_append_fmt(s, "noperspective out VertexData %c_vtx;\n", out_prefix);
     qstring_append_fmt(s, "#define vtx %c_vtx", out_prefix);
+
 
     qstring_append(s,
 "\n"
@@ -280,10 +284,42 @@ static QString* generate_fixed_function(const ShaderState state,
     return s;
 }
 
+static GLuint create_gl_shader(GLenum gl_shader_type,
+                               const char *code,
+                               const char *name)
+{
+    GLint compiled = 0;
+
+    NV2A_GL_DGROUP_BEGIN("Creating new %s", name);
+
+    GLuint shader = glCreateShader(gl_shader_type);
+    glShaderSource(shader, 1, &code, 0);
+    glCompileShader(shader);
+
+    /* Check it compiled */
+    compiled = 0;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+    if (!compiled) {
+        GLchar* log;
+        GLint log_length;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+        log = g_malloc(log_length * sizeof(GLchar));
+        glGetShaderInfoLog(shader, log_length, NULL, log);
+        fprintf(stderr, "nv2a: %s compilation failed: %s\n", name, log);
+        g_free(log);
+
+        NV2A_GL_DGROUP_END();
+        abort();
+    }
+
+    NV2A_GL_DGROUP_END();
+
+    return shader;
+}
+
 ShaderBinding* generate_shaders(const ShaderState state)
 {
     int i, j;
-    GLint compiled = 0;
 
     bool with_geom = state.primitive_mode == PRIM_TYPE_QUADS;
     char vtx_prefix = with_geom ? 'v' : 'g';
@@ -308,56 +344,24 @@ ShaderBinding* generate_shaders(const ShaderState state)
     if (vertex_shader_code) {
         const char* vertex_shader_code_str = qstring_get_str(vertex_shader_code);
 
-        GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+        GLuint vertex_shader = create_gl_shader(GL_VERTEX_SHADER,
+                                                vertex_shader_code_str,
+                                                "vertex shader");
         glAttachShader(program, vertex_shader);
-
-        glShaderSource(vertex_shader, 1, &vertex_shader_code_str, 0);
-        glCompileShader(vertex_shader);
-
-        NV2A_DPRINTF("bind new vertex shader, code:\n%s\n", vertex_shader_code_str);
-
-        /* Check it compiled */
-        compiled = 0;
-        glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &compiled);
-        if (!compiled) {
-            GLchar log[1024];
-            glGetShaderInfoLog(vertex_shader, 1024, NULL, log);
-            fprintf(stderr, "nv2a: vertex shader compilation failed: %s\n", log);
-            abort();
-        }
 
         QDECREF(vertex_shader_code);
     }
 
 
-    if (state.fixed_function) {
-        /* bind fixed function vertex attributes */
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_POSITION, "position");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_WEIGHT, "weight");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_DIFFUSE, "diffuse");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_SPECULAR, "specular");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_FOG, "fog");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_BACK_DIFFUSE, "backDiffuse");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_BACK_SPECULAR, "backSpecular");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE0, "texture0");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE1, "texture1");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE2, "texture2");
-        glBindAttribLocation(program, NV2A_VERTEX_ATTR_TEXTURE3, "texture3");
-    } else if (state.vertex_program) {
-        /* Bind attributes for transform program*/
-        char tmp[8];
-        for(i = 0; i < 16; i++) {
-            snprintf(tmp, sizeof(tmp), "v%d", i);
-            glBindAttribLocation(program, i, tmp);
-        }
-    } else {
-        assert(false);
+    /* Bind attributes for vertices */
+    char tmp[8];
+    for(i = 0; i < 16; i++) {
+        snprintf(tmp, sizeof(tmp), "v%d", i);
+        glBindAttribLocation(program, i, tmp);
     }
 
 
     /* generate a fragment shader from register combiners */
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glAttachShader(program, fragment_shader);
 
     QString *fragment_shader_code = psh_translate(state.combiner_control,
                    state.shader_stage_program,
@@ -374,46 +378,24 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
     const char *fragment_shader_code_str = qstring_get_str(fragment_shader_code);
 
-    NV2A_DPRINTF("bind new fragment shader, code:\n%s\n", fragment_shader_code_str);
-
-    glShaderSource(fragment_shader, 1, &fragment_shader_code_str, 0);
-    glCompileShader(fragment_shader);
-
-    /* Check it compiled */
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &compiled);
-    if (!compiled) {
-        GLchar log[1024];
-        glGetShaderInfoLog(fragment_shader, 1024, NULL, log);
-        fprintf(stderr, "nv2a: fragment shader compilation failed: %s\n", log);
-        abort();
-    }
+    GLuint fragment_shader = create_gl_shader(GL_FRAGMENT_SHADER,
+                                              fragment_shader_code_str,
+                                              "fragment shader");
+    glAttachShader(program, fragment_shader);
 
     QDECREF(fragment_shader_code);
 
 
     if (with_geom) {
-        GLuint geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);
-        glAttachShader(program, geometry_shader);
-
         QString* geometry_shader_code =
             generate_geometry_shader(state.primitive_mode);
         const char* geometry_shader_code_str =
              qstring_get_str(geometry_shader_code);
 
-        NV2A_DPRINTF("bind geometry shader, code:\n%s\n", geometry_shader_code_str);
-
-        glShaderSource(geometry_shader, 1, &geometry_shader_code_str, 0);
-        glCompileShader(geometry_shader);
-
-        /* Check it compiled */
-        compiled = 0;
-        glGetShaderiv(geometry_shader, GL_COMPILE_STATUS, &compiled);
-        if (!compiled) {
-            GLchar log[2048];
-            glGetShaderInfoLog(geometry_shader, 2048, NULL, log);
-            fprintf(stderr, "nv2a: geometry shader compilation failed: %s\n", log);
-            abort();
-        }
+        GLuint geometry_shader = create_gl_shader(GL_GEOMETRY_SHADER,
+                                                  geometry_shader_code_str,
+                                                  "geometry shader");
+        glAttachShader(program, geometry_shader);
 
         QDECREF(geometry_shader_code);
     }
