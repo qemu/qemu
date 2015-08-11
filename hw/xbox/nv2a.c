@@ -34,86 +34,9 @@
 #include "hw/xbox/swizzle.h"
 #include "hw/xbox/u_format_r11g11b10f.h"
 #include "hw/xbox/nv2a_shaders.h"
+#include "hw/xbox/nv2a_debug.h"
 
 #include "hw/xbox/nv2a.h"
-
-// #define DEBUG_NV2A
-#ifdef DEBUG_NV2A
-# define NV2A_DPRINTF(format, ...)       printf("nv2a: " format, ## __VA_ARGS__)
-#else
-# define NV2A_DPRINTF(format, ...)       do { } while (0)
-#endif
-
-// #define DEBUG_NV2A_GL
-#ifdef DEBUG_NV2A_GL
-
-static void gl_debug_message(bool cc, const char *fmt, ...)
-{
-    size_t n;
-    char buffer[1024];
-    va_list ap;
-    va_start(ap, fmt);
-    n = vsnprintf(buffer, sizeof(buffer), fmt, ap);
-    assert(n <= sizeof(buffer));
-    va_end(ap);
-    glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER,
-                         0, GL_DEBUG_SEVERITY_NOTIFICATION, n, buffer);
-    if (cc) {
-        fwrite(buffer, sizeof(char), n, stdout);
-        fputc('\n', stdout);
-    }
-}
-
-static void gl_debug_group_begin(const char *fmt, ...)
-{
-    size_t n;
-    char buffer[1024];
-    va_list ap;
-    va_start(ap, fmt);
-    n = vsnprintf(buffer, sizeof(buffer), fmt, ap);
-    assert(n <= sizeof(buffer));
-    va_end(ap);
-
-    /* Check for errors before entering group */
-    assert(glGetError() == GL_NO_ERROR);
-    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, n, buffer);
-}
-
-static void gl_debug_group_end(void)
-{
-    /* Check for errors when leaving group */
-    assert(glGetError() == GL_NO_ERROR);
-    glPopDebugGroup();
-}
-
-static void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
-{
-    size_t n;
-    char buffer[1024];
-    va_list ap;
-    va_start(ap, fmt);
-    n = vsnprintf(buffer, sizeof(buffer), fmt, ap);
-    assert(n <= sizeof(buffer));
-    va_end(ap);
-
-    glObjectLabel(target, name, n, buffer);
-}
-
-# define NV2A_GL_DPRINTF(cc, format, ...) \
-    gl_debug_message(cc, "nv2a: " format, ## __VA_ARGS__)
-# define NV2A_GL_DGROUP_BEGIN(format, ...) \
-    gl_debug_group_begin("nv2a: " format, ## __VA_ARGS__)
-# define NV2A_GL_DGROUP_END() \
-    gl_debug_group_end()
-# define NV2A_GL_DLABEL(target, name, format, ...)  \
-    gl_debug_label(target, name, "nv2a: { " format " }", ## __VA_ARGS__)
-
-#else
-# define NV2A_GL_DPRINTF(cc, format, ...)          do { } while (0)
-# define NV2A_GL_DGROUP_BEGIN(format, ...)         do { } while (0)
-# define NV2A_GL_DGROUP_END()                      do { } while (0)
-# define NV2A_GL_DLABEL(target, name, format, ...) do { } while (0)
-#endif
 
 #define USE_TEXTURE_CACHE
 
@@ -1268,6 +1191,24 @@ static const SurfaceColorFormatInfo kelvin_surface_color_format_map[] = {
     [NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8] =
         {4, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
 };
+
+#define NV2A_VERTEX_ATTR_POSITION       0
+#define NV2A_VERTEX_ATTR_WEIGHT         1
+#define NV2A_VERTEX_ATTR_NORMAL         2
+#define NV2A_VERTEX_ATTR_DIFFUSE        3
+#define NV2A_VERTEX_ATTR_SPECULAR       4
+#define NV2A_VERTEX_ATTR_FOG            5
+#define NV2A_VERTEX_ATTR_POINT_SIZE     6
+#define NV2A_VERTEX_ATTR_BACK_DIFFUSE   7
+#define NV2A_VERTEX_ATTR_BACK_SPECULAR  8
+#define NV2A_VERTEX_ATTR_TEXTURE0       9
+#define NV2A_VERTEX_ATTR_TEXTURE1       10
+#define NV2A_VERTEX_ATTR_TEXTURE2       11
+#define NV2A_VERTEX_ATTR_TEXTURE3       12
+#define NV2A_VERTEX_ATTR_RESERVED1      13
+#define NV2A_VERTEX_ATTR_RESERVED2      14
+#define NV2A_VERTEX_ATTR_RESERVED3      15
+
 
 #define NV2A_CRYSTAL_FREQ 13500000
 #define NV2A_NUM_CHANNELS 32
@@ -4864,7 +4805,7 @@ static void pgraph_method(NV2AState *d,
 
         pg->draw_arrays_max_count = MAX(pg->draw_arrays_max_count, start + count);
 
-        assert(pg->draw_arrays_length < sizeof(pg->gl_draw_arrays_start) / sizeof(pg->gl_draw_arrays_start[0]));
+        assert(pg->draw_arrays_length < ARRAYSIZE(pg->gl_draw_arrays_start));
 
         /* Attempt to connect primitives */
         if (pg->draw_arrays_length > 0) {
