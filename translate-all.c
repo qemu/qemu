@@ -1375,6 +1375,8 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 
 /* add a new TB and link it to the physical page tables. phys_page2 is
  * (-1) to indicate that only one page contains the TB.
+ *
+ * Called with mmap_lock held for user-mode emulation.
  */
 static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2)
@@ -1382,9 +1384,6 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     unsigned int h;
     TranslationBlock **ptb;
 
-    /* Grab the mmap lock to stop another thread invalidating this TB
-       before we are done.  */
-    mmap_lock();
     /* add in the physical hash table */
     h = tb_phys_hash_func(phys_pc);
     ptb = &tcg_ctx.tb_ctx.tb_phys_hash[h];
@@ -1414,7 +1413,6 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 #ifdef DEBUG_TB_CHECK
     tb_page_check();
 #endif
-    mmap_unlock();
 }
 
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
