@@ -72,11 +72,12 @@
 typedef struct PageDesc {
     /* list of TBs intersecting this ram page */
     TranslationBlock *first_tb;
+#ifdef CONFIG_SOFTMMU
     /* in order to optimize self modifying code, we count the number
        of lookups we do to a given page to use a bitmap */
     unsigned int code_write_count;
     unsigned long *code_bitmap;
-#if defined(CONFIG_USER_ONLY)
+#else
     unsigned long flags;
 #endif
 } PageDesc;
@@ -783,9 +784,11 @@ void tb_free(TranslationBlock *tb)
 
 static inline void invalidate_page_bitmap(PageDesc *p)
 {
+#ifdef CONFIG_SOFTMMU
     g_free(p->code_bitmap);
     p->code_bitmap = NULL;
     p->code_write_count = 0;
+#endif
 }
 
 /* Set to NULL all the 'first_tb' fields in all PageDescs. */
@@ -1028,6 +1031,7 @@ void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr)
     tcg_ctx.tb_ctx.tb_phys_invalidate_count++;
 }
 
+#ifdef CONFIG_SOFTMMU
 static void build_page_bitmap(PageDesc *p)
 {
     int n, tb_start, tb_end;
@@ -1056,6 +1060,7 @@ static void build_page_bitmap(PageDesc *p)
         tb = tb->page_next[n];
     }
 }
+#endif
 
 /* add the tb in the target page and protect it if necessary
  *
@@ -1412,6 +1417,7 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
 #endif
 }
 
+#ifdef CONFIG_SOFTMMU
 /* len must be <= 8 and start must be a multiple of len */
 void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 {
@@ -1449,8 +1455,7 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
         tb_invalidate_phys_page_range(start, start + len, 1);
     }
 }
-
-#if !defined(CONFIG_SOFTMMU)
+#else
 /* Called with mmap_lock held.  */
 static void tb_invalidate_phys_page(tb_page_addr_t addr,
                                     uintptr_t pc, void *puc,
