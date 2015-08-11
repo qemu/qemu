@@ -41,6 +41,7 @@
 #   define SEGA_DIMM_SIZE_512M                  2
 #   define SEGA_DIMM_SIZE_1024M                 3
 
+//#define DEBUG_CHIHIRO
 
 typedef struct ChihiroLPCState {
     ISADevice dev;
@@ -63,13 +64,18 @@ static uint64_t chhiro_lpc_io_read(void *opaque, hwaddr addr,
         r = SEGA_DIMM_SIZE_128M;
         break;
     }
+#ifdef DEBUG_CHIHIRO
+    printf("chihiro lpc read [0x%llx] -> 0x%llx\n", addr, r);
+#endif
     return r;
 }
 
 static void chhiro_lpc_io_write(void *opaque, hwaddr addr, uint64_t val,
                                 unsigned size)
 {
-
+#ifdef DEBUG_CHIHIRO
+    printf("chihiro lpc write [0x%llx] = 0x%llx\n", addr, val);
+#endif
 }
 
 static const MemoryRegionOps chihiro_lpc_io_ops = {

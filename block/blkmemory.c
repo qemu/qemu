@@ -28,6 +28,7 @@
 
 #include "block/blkmemory.h"
 
+//#define DEBUG_BLKMEMORY
 
 typedef struct BDRVMemoryState {
     uint64_t size;
@@ -61,7 +62,11 @@ static int memory_read(BlockDriverState *bs, int64_t sector_num,
                        uint8_t *buf, int nb_sectors)
 {
     BDRVMemoryState *s = bs->opaque;
-    
+
+#ifdef DEBUG_BLKMEMORY
+    printf("blkmemory read 0x%llx : %d\n", sector_num, nb_sectors);
+#endif
+
     sector_num = MIN(sector_num, bs->total_sectors - 1);
     size_t size = MIN(s->size - sector_num * BDRV_SECTOR_SIZE,
                       nb_sectors * BDRV_SECTOR_SIZE);
@@ -75,6 +80,10 @@ static int memory_write(BlockDriverState *bs, int64_t sector_num,
                         const uint8_t *buf, int nb_sectors)
 {
     BDRVMemoryState *s = bs->opaque;
+
+#ifdef DEBUG_BLKMEMORY
+    printf("blkmemory write 0x%llx : %d\n", sector_num, nb_sectors);
+#endif
 
     sector_num = MIN(sector_num, bs->total_sectors - 1);
     size_t size = MIN(s->size - sector_num * BDRV_SECTOR_SIZE,
