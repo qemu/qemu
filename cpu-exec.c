@@ -192,6 +192,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, TranslationBlock *itb)
     return next_tb;
 }
 
+#ifndef CONFIG_USER_ONLY
 /* Execute the code without caching the generated code. An interpreter
    could be used if available. */
 static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
@@ -216,6 +217,7 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
     tb_phys_invalidate(tb, -1);
     tb_free(tb);
 }
+#endif
 
 static TranslationBlock *tb_find_physical(CPUState *cpu,
                                           target_ulong pc,
@@ -430,12 +432,14 @@ int cpu_exec(CPUState *cpu)
                     }
 #endif
                 }
+#ifndef CONFIG_USER_ONLY
             } else if (replay_has_exception()
                        && cpu->icount_decr.u16.low + cpu->icount_extra == 0) {
                 /* try to cause an exception pending in the log */
                 cpu_exec_nocache(cpu, 1, tb_find_fast(cpu), true);
                 ret = -1;
                 break;
+#endif
             }
 
             next_tb = 0; /* force lookup of first TB */
@@ -542,6 +546,9 @@ int cpu_exec(CPUState *cpu)
                     case TB_EXIT_ICOUNT_EXPIRED:
                     {
                         /* Instruction counter expired.  */
+#ifdef CONFIG_USER_ONLY
+                        abort();
+#else
                         int insns_left = cpu->icount_decr.u32;
                         if (cpu->icount_extra && insns_left >= 0) {
                             /* Refill decrementer and continue execution.  */
@@ -561,6 +568,7 @@ int cpu_exec(CPUState *cpu)
                             cpu_loop_exit(cpu);
                         }
                         break;
+#endif
                     }
                     default:
                         break;
