@@ -2122,10 +2122,10 @@ static uint8_t* convert_texture_data(const TextureShape s,
     }
 }
 
-static void pgraph_upload_gl_texture(GLenum gl_target,
-                                     const TextureShape s,
-                                     const uint8_t *texture_data,
-                                     const uint8_t *palette_data)
+static void upload_gl_texture(GLenum gl_target,
+                              const TextureShape s,
+                              const uint8_t *texture_data,
+                              const uint8_t *palette_data)
 {
     ColorFormatInfo f = kelvin_color_format_map[s.color_format];
 
@@ -2321,20 +2321,20 @@ static TextureBinding* generate_texture(const TextureShape s,
             h /= 2;
         }
 
-        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_X,
-                                 s, texture_data + 0 * length, palette_data);
-        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-                                 s, texture_data + 1 * length, palette_data);
-        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
-                                 s, texture_data + 2 * length, palette_data);
-        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-                                 s, texture_data + 3 * length, palette_data);
-        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
-                                 s, texture_data + 4 * length, palette_data);
-        pgraph_upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-                                 s, texture_data + 5 * length, palette_data);
+        upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+                          s, texture_data + 0 * length, palette_data);
+        upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+                          s, texture_data + 1 * length, palette_data);
+        upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+                          s, texture_data + 2 * length, palette_data);
+        upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+                          s, texture_data + 3 * length, palette_data);
+        upload_gl_texture(GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+                          s, texture_data + 4 * length, palette_data);
+        upload_gl_texture(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+                          s, texture_data + 5 * length, palette_data);
     } else {
-        pgraph_upload_gl_texture(gl_target, s, texture_data, palette_data);
+        upload_gl_texture(gl_target, s, texture_data, palette_data);
     }
 
     /* Linear textures don't support mipmapping */
