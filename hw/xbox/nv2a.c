@@ -3021,21 +3021,258 @@ static void pgraph_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta)
     pg->surface_zeta.draw_dirty |= zeta;
 }
 
-static void pgraph_update_surface(NV2AState *d,
-                                  bool upload, bool color, bool zeta)
+static void pgraph_update_surface_part(NV2AState *d, bool upload, bool color) {
+    PGRAPHState *pg = &d->pgraph;
+
+    unsigned int width, height;
+    pgraph_get_surface_dimensions(pg, &width, &height);
+    pgraph_apply_anti_aliasing_factor(pg, &width, &height);
+
+    Surface *surface;
+    hwaddr dma_address;
+    GLuint *gl_buffer;
+    unsigned int bytes_per_pixel;
+    GLenum gl_internal_format, gl_format, gl_type, gl_attachment;
+
+    if (color) {
+        surface = &pg->surface_color;
+        dma_address = pg->dma_color;
+        gl_buffer = &pg->gl_color_buffer;
+
+        assert(pg->surface_shape.color_format != 0);
+        assert(pg->surface_shape.color_format
+                < ARRAYSIZE(kelvin_surface_color_format_map));
+        SurfaceColorFormatInfo f =
+            kelvin_surface_color_format_map[pg->surface_shape.color_format];
+        if (f.bytes_per_pixel == 0) {
+            fprintf(stderr, "nv2a: unimplemented color surface format 0x%x\n",
+                    pg->surface_shape.color_format);
+            abort();
+        }
+
+        bytes_per_pixel = f.bytes_per_pixel;
+        gl_internal_format = f.gl_internal_format;
+        gl_format = f.gl_format;
+        gl_type = f.gl_type;
+        gl_attachment = GL_COLOR_ATTACHMENT0;
+
+    } else {
+        surface = &pg->surface_zeta;
+        dma_address = pg->dma_zeta;
+        gl_buffer = &pg->gl_zeta_buffer;
+
+        assert(pg->surface_shape.zeta_format != 0);
+        switch (pg->surface_shape.zeta_format) {
+        case NV097_SET_SURFACE_FORMAT_ZETA_Z16:
+            bytes_per_pixel = 2;
+            gl_format = GL_DEPTH_COMPONENT;
+            gl_attachment = GL_DEPTH_ATTACHMENT;
+            if (pg->surface_shape.z_format) {
+                gl_type = GL_HALF_FLOAT;
+                gl_internal_format = GL_DEPTH_COMPONENT32F;
+            } else {
+                gl_type = GL_UNSIGNED_SHORT;
+                gl_internal_format = GL_DEPTH_COMPONENT16;
+            }
+            break;
+        case NV097_SET_SURFACE_FORMAT_ZETA_Z24S8:
+            bytes_per_pixel = 4;
+            gl_format = GL_DEPTH_STENCIL;
+            gl_attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+            if (pg->surface_shape.z_format) {
+                assert(false);
+                gl_type = GL_FLOAT_32_UNSIGNED_INT_24_8_REV;
+                gl_internal_format = GL_DEPTH32F_STENCIL8;
+            } else {
+                gl_type = GL_UNSIGNED_INT_24_8;
+                gl_internal_format = GL_DEPTH24_STENCIL8;
+            }
+            break;
+        default:
+            assert(false);
+            break;
+        }
+    }
+
+
+    DMAObject dma = nv_dma_load(d, dma_address);
+    /* There's a bunch of bugs that could cause us to hit this function
+     * at the wrong time and get a invalid dma object.
+     * Check that it's sane. */
+    assert(dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
+
+    assert(dma.address + surface->offset != 0);
+    assert(surface->offset <= dma.limit);
+    assert(surface->offset + surface->pitch * height <= dma.limit + 1);
+
+    hwaddr data_len;
+    uint8_t *data = nv_dma_map(d, dma_address, &data_len);
+
+    /* TODO */
+    // assert(pg->surface_clip_x == 0 && pg->surface_clip_y == 0);
+
+    bool swizzle = (pg->surface_type == NV097_SET_SURFACE_FORMAT_TYPE_SWIZZLE);
+
+    uint8_t *buf = data + surface->offset;
+    if (swizzle) {
+        buf = g_malloc(height * surface->pitch);
+    }
+
+    bool dirty = surface->buffer_dirty;
+    if (color) {
+        dirty |= memory_region_test_and_clear_dirty(d->vram,
+                                               dma.address + surface->offset,
+                                               surface->pitch * height,
+                                               DIRTY_MEMORY_NV2A);
+    }
+    if (upload && dirty) {
+        /* surface modified (or moved) by the cpu.
+         * copy it into the opengl renderbuffer */
+        assert(!surface->draw_dirty);
+
+        assert(surface->pitch % bytes_per_pixel == 0);
+
+        if (swizzle) {
+            unswizzle_rect(data + surface->offset,
+                           width, height,
+                           buf,
+                           surface->pitch,
+                           bytes_per_pixel);
+        }
+
+        if (!color) {
+            /* need to clear the depth_stencil and depth attachment for zeta */
+            glFramebufferTexture2D(GL_FRAMEBUFFER,
+                                   GL_DEPTH_ATTACHMENT,
+                                   GL_TEXTURE_2D,
+                                   0, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER,
+                                   GL_DEPTH_STENCIL_ATTACHMENT,
+                                   GL_TEXTURE_2D,
+                                   0, 0);
+        }
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               gl_attachment,
+                               GL_TEXTURE_2D,
+                               0, 0);
+
+        if (*gl_buffer) {
+            glDeleteTextures(1, gl_buffer);
+            *gl_buffer = 0;
+        }
+
+        glGenTextures(1, gl_buffer);
+        glBindTexture(GL_TEXTURE_2D, *gl_buffer);
+
+        /* This is VRAM so we can't do this inplace! */
+        uint8_t *flipped_buf = g_malloc(width * height * bytes_per_pixel);
+        unsigned int irow;
+        for (irow = 0; irow < height; irow++) {
+            memcpy(&flipped_buf[width * (height - irow - 1)
+                                     * bytes_per_pixel],
+                   &buf[surface->pitch * irow],
+                   width * bytes_per_pixel);
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format,
+                     width, height, 0,
+                     gl_format, gl_type,
+                     flipped_buf);
+
+        g_free(flipped_buf);
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER,
+                               gl_attachment,
+                               GL_TEXTURE_2D,
+                               *gl_buffer, 0);
+
+        assert(glCheckFramebufferStatus(GL_FRAMEBUFFER)
+            == GL_FRAMEBUFFER_COMPLETE);
+
+        if (color) {
+            pgraph_update_memory_buffer(d, dma.address + surface->offset,
+                                        surface->pitch * height, true);
+        }
+        surface->buffer_dirty = false;
+
+
+        uint8_t *out = data + surface->offset + 64;
+        NV2A_DPRINTF("upload_surface %s 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
+                      "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
+                        "%d %d, %d %d, %d) - %x %x %x %x\n",
+            color ? "color" : "zeta",
+            dma->address, dma.address + dma.limit,
+            dma->address + surface->offset,
+            dma->address + surface->pitch * height,
+            pg->surface_shape.clip_x, pg->surface_shape.clip_y,
+            pg->surface_shape.clip_width,
+            pg->surface_shape.clip_height,
+            surface->pitch,
+            out[0], out[1], out[2], out[3]);
+
+    }
+
+    if (!upload && surface->draw_dirty) {
+        /* read the opengl framebuffer into the surface */
+
+        glo_readpixels(gl_format, gl_type,
+                       bytes_per_pixel, surface->pitch,
+                       width, height,
+                       buf);
+        assert(glGetError() == GL_NO_ERROR);
+
+        if (swizzle) {
+            swizzle_rect(buf,
+                         width, height,
+                         data + surface->offset,
+                         surface->pitch,
+                         bytes_per_pixel);
+        }
+
+        memory_region_set_client_dirty(d->vram,
+                                       dma.address + surface->offset,
+                                       surface->pitch * height,
+                                       DIRTY_MEMORY_VGA);
+
+        if (color) {
+            pgraph_update_memory_buffer(d, dma.address + surface->offset,
+                                        surface->pitch * height, true);
+        }
+
+        surface->draw_dirty = false;
+
+        uint8_t *out = data + surface->offset + 64;
+        NV2A_DPRINTF("read_surface %s 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
+                      "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
+                        "%d %d, %d %d, %d) - %x %x %x %x\n",
+            color ? "color" : "zeta",
+            dma.address, dma.address + dma.limit,
+            dma.address + surface->offset,
+            dma.address + surface->pitch * pg->surface_shape.clip_height,
+            pg->surface_shape.clip_x, pg->surface_shape.clip_y,
+            pg->surface_shape.clip_width, pg->surface_shape.clip_height,
+            surface->pitch,
+            out[0], out[1], out[2], out[3]);
+
+    }
+
+    if (swizzle) {
+        g_free(buf);
+    }
+}
+
+static void pgraph_update_surface(NV2AState *d, bool upload,
+                                  bool color_write, bool zeta_write)
 {
     PGRAPHState *pg = &d->pgraph;
 
     pg->surface_shape.z_format = GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
                                           NV_PGRAPH_SETUPRASTER_Z_FORMAT);
 
-    unsigned int width, height;
-    pgraph_get_surface_dimensions(pg, &width, &height);
-    pgraph_apply_anti_aliasing_factor(pg, &width, &height);
-
     /* FIXME: Does this apply to CLEARs too? */
-    color = color && pgraph_color_write_enabled(pg);
-    zeta = zeta && pgraph_zeta_write_enabled(pg);
+    color_write = color_write && pgraph_color_write_enabled(pg);
+    zeta_write = zeta_write && pgraph_zeta_write_enabled(pg);
 
     if (upload && pgraph_framebuffer_dirty(pg)) {
         assert(!pg->surface_color.draw_dirty);
@@ -3072,345 +3309,13 @@ static void pgraph_update_surface(NV2AState *d,
                sizeof(SurfaceShape));
     }
 
-    if (color && (upload || pg->surface_color.draw_dirty)) {
-
-        assert(pg->surface_shape.color_format != 0);
-
-        /* There's a bunch of bugs that could cause us to hit this function
-         * at the wrong time and get a invalid dma object.
-         * Check that it's sane. */
-        DMAObject color_dma = nv_dma_load(d, pg->dma_color);
-        assert(color_dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
-
-
-        assert(color_dma.address + pg->surface_color.offset != 0);
-        assert(pg->surface_color.offset <= color_dma.limit);
-        assert(pg->surface_color.offset
-                + pg->surface_color.pitch * height
-                    <= color_dma.limit + 1);
-
-
-        hwaddr color_len;
-        uint8_t *color_data = nv_dma_map(d, pg->dma_color, &color_len);
-
-        assert(pg->surface_shape.color_format
-                < sizeof(kelvin_surface_color_format_map)
-                    / sizeof(SurfaceColorFormatInfo));
-        SurfaceColorFormatInfo f =
-            kelvin_surface_color_format_map[pg->surface_shape.color_format];
-        if (f.bytes_per_pixel == 0) {
-            fprintf(stderr, "nv2a: unimplemented color surface format 0x%x\n",
-                    pg->surface_shape.color_format);
-            abort();
-        }
-
-        /* TODO */
-        // assert(pg->surface_clip_x == 0 && pg->surface_clip_y == 0);
-
-        bool swizzle = (pg->surface_type
-                        == NV097_SET_SURFACE_FORMAT_TYPE_SWIZZLE);
-
-
-        uint8_t *buf = color_data + pg->surface_color.offset;
-        if (swizzle) {
-            buf = g_malloc(height * pg->surface_color.pitch);
-        }
-
-        if (upload && (memory_region_test_and_clear_dirty(d->vram,
-                                               color_dma.address
-                                                 + pg->surface_color.offset,
-                                               pg->surface_color.pitch
-                                                 * height,
-                                               DIRTY_MEMORY_NV2A)
-                || pg->surface_color.buffer_dirty)) {
-            /* surface modified (or moved) by the cpu.
-             * copy it into the opengl renderbuffer */
-            assert(!pg->surface_color.draw_dirty);
-
-            assert(pg->surface_color.pitch % f.bytes_per_pixel == 0);
-
-            if (swizzle) {
-                unswizzle_rect(color_data + pg->surface_color.offset,
-                               width, height,
-                               buf,
-                               pg->surface_color.pitch,
-                               f.bytes_per_pixel);
-            }
-
-            glFramebufferTexture2D(GL_FRAMEBUFFER,
-                                   GL_COLOR_ATTACHMENT0,
-                                   GL_TEXTURE_2D,
-                                   0, 0);
-
-            if (pg->gl_color_buffer) {
-                glDeleteTextures(1, &pg->gl_color_buffer);
-                pg->gl_color_buffer = 0;
-            }
-
-            glGenTextures(1, &pg->gl_color_buffer);
-            glBindTexture(GL_TEXTURE_2D, pg->gl_color_buffer);
-
-            /* This is VRAM so we can't do this inplace! */
-            uint8_t *flipped_buf = g_malloc(width * height * f.bytes_per_pixel);
-            unsigned int irow;
-            for (irow = 0; irow < height; irow++) {
-                memcpy(&flipped_buf[width * (height - irow - 1)
-                                         * f.bytes_per_pixel],
-                       &buf[pg->surface_color.pitch * irow],
-                       width * f.bytes_per_pixel);
-            }
-
-            glTexImage2D(GL_TEXTURE_2D, 0, f.gl_internal_format,
-                         width, height, 0,
-                         f.gl_format, f.gl_type,
-                         flipped_buf);
-
-            g_free(flipped_buf);
-
-            glFramebufferTexture2D(GL_FRAMEBUFFER,
-                                   GL_COLOR_ATTACHMENT0,
-                                   GL_TEXTURE_2D,
-                                   pg->gl_color_buffer, 0);
-            assert(glCheckFramebufferStatus(GL_FRAMEBUFFER)
-                   == GL_FRAMEBUFFER_COMPLETE);
-
-            pgraph_update_memory_buffer(d, color_dma.address
-                                            + pg->surface_color.offset,
-                                        pg->surface_color.pitch * height, true);
-
-            pg->surface_color.buffer_dirty = false;
-
-            uint8_t *out = color_data + pg->surface_color.offset + 64;
-            NV2A_DPRINTF("upload_surface 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
-                          "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", %d %d, %d %d, %d) - %x %x %x %x\n",
-                color_dma.address, color_dma.address + color_dma.limit,
-                color_dma.address + pg->surface_color.offset,
-                color_dma.address + pg->surface_color.pitch * height,
-                pg->surface_shape.clip_x, pg->surface_shape.clip_y,
-                pg->surface_shape.clip_width,
-                pg->surface_shape.clip_height,
-                pg->surface_color.pitch,
-                out[0], out[1], out[2], out[3]);
-
-        }
-
-        if (!upload && pg->surface_color.draw_dirty) {
-            /* read the opengl renderbuffer into the surface */
-
-            glo_readpixels(f.gl_format, f.gl_type,
-                           f.bytes_per_pixel, pg->surface_color.pitch,
-                           width, height,
-                           buf);
-            assert(glGetError() == GL_NO_ERROR);
-
-            if (swizzle) {
-                swizzle_rect(buf,
-                             width, height,
-                             color_data + pg->surface_color.offset,
-                             pg->surface_color.pitch,
-                             f.bytes_per_pixel);
-            }
-
-            memory_region_set_client_dirty(d->vram,
-                                           color_dma.address
-                                                + pg->surface_color.offset,
-                                           pg->surface_color.pitch
-                                                * height,
-                                           DIRTY_MEMORY_VGA);
-
-            pgraph_update_memory_buffer(d, color_dma.address
-                                            + pg->surface_color.offset,
-                                        pg->surface_color.pitch * height, true);
-
-            pg->surface_color.draw_dirty = false;
-
-            uint8_t *out = color_data + pg->surface_color.offset + 64;
-            NV2A_DPRINTF("read_surface 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
-                          "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", %d %d, %d %d, %d) - %x %x %x %x\n",
-                color_dma.address, color_dma.address + color_dma.limit,
-                color_dma.address + pg->surface_color.offset,
-                color_dma.address + pg->surface_color.pitch
-                                        * pg->surface_shape.clip_height,
-                pg->surface_shape.clip_x, pg->surface_shape.clip_y,
-                pg->surface_shape.clip_width, pg->surface_shape.clip_height,
-                pg->surface_color.pitch,
-                out[0], out[1], out[2], out[3]);
-        }
-
-        if (swizzle) {
-            g_free(buf);
-        }
-
+    if (color_write && (upload || pg->surface_color.draw_dirty)) {
+        pgraph_update_surface_part(d, upload, true);
     }
 
 
-    if (zeta && (upload || pg->surface_zeta.draw_dirty)) {
-
-        assert(pg->surface_shape.zeta_format != 0);
-
-        /* There's a bunch of bugs that could cause us to hit this function
-         * at the wrong time and get a invalid dma object.
-         * Check that it's sane. */
-        DMAObject zeta_dma = nv_dma_load(d, pg->dma_zeta);
-        assert(zeta_dma.dma_class == NV_DMA_IN_MEMORY_CLASS);
-
-
-        assert(zeta_dma.address + pg->surface_zeta.offset != 0);
-        assert(pg->surface_zeta.offset <= zeta_dma.limit);
-        assert(pg->surface_zeta.offset + pg->surface_zeta.pitch * height
-                    <= zeta_dma.limit + 1);
-
-
-        hwaddr zeta_len;
-        uint8_t *zeta_data = nv_dma_map(d, pg->dma_zeta, &zeta_len);
-
-        unsigned int bytes_per_pixel;
-        GLenum gl_internal_format, gl_format, gl_type, gl_attachment;
-        switch (pg->surface_shape.zeta_format) {
-        case NV097_SET_SURFACE_FORMAT_ZETA_Z16:
-            bytes_per_pixel = 2;
-            gl_format = GL_DEPTH_COMPONENT;
-            gl_attachment = GL_DEPTH_ATTACHMENT;
-            if (pg->surface_shape.z_format) {
-                gl_type = GL_HALF_FLOAT;
-                gl_internal_format = GL_DEPTH_COMPONENT32F;
-            } else {
-                gl_type = GL_UNSIGNED_SHORT;
-                gl_internal_format = GL_DEPTH_COMPONENT16;
-            }
-            break;
-        case NV097_SET_SURFACE_FORMAT_ZETA_Z24S8:
-            bytes_per_pixel = 4;
-            gl_format = GL_DEPTH_STENCIL;
-            gl_attachment = GL_DEPTH_STENCIL_ATTACHMENT;
-            if (pg->surface_shape.z_format) {
-                assert(false);
-                gl_type = GL_FLOAT_32_UNSIGNED_INT_24_8_REV;
-                gl_internal_format = GL_DEPTH32F_STENCIL8;
-            } else {
-                gl_type = GL_UNSIGNED_INT_24_8;
-                gl_internal_format = GL_DEPTH24_STENCIL8;
-            }
-            break;
-        default:
-            assert(false);
-            break;
-        }
-
-        /* TODO */
-        // assert(pg->surface_clip_x == 0 && pg->surface_clip_y == 0);
-
-        bool swizzle = (pg->surface_type
-                        == NV097_SET_SURFACE_FORMAT_TYPE_SWIZZLE);
-
-        uint8_t *buf = zeta_data + pg->surface_zeta.offset;
-        if (swizzle) {
-            buf = g_malloc(height * pg->surface_zeta.pitch);
-        }
-
-        if (upload && pg->surface_zeta.buffer_dirty) {
-            /* surface modified (or moved) by the cpu.
-             * copy it into the opengl renderbuffer */
-            assert(!pg->surface_zeta.draw_dirty);
-
-            assert(pg->surface_zeta.pitch % bytes_per_pixel == 0);
-
-            if (swizzle) {
-                unswizzle_rect(zeta_data + pg->surface_zeta.offset,
-                               width, height,
-                               buf,
-                               pg->surface_zeta.pitch,
-                               bytes_per_pixel);
-            }
-
-            glFramebufferTexture2D(GL_FRAMEBUFFER,
-                                   GL_DEPTH_ATTACHMENT,
-                                   GL_TEXTURE_2D,
-                                   0, 0);
-            glFramebufferTexture2D(GL_FRAMEBUFFER,
-                                   GL_DEPTH_STENCIL_ATTACHMENT,
-                                   GL_TEXTURE_2D,
-                                   0, 0);
-
-            if (pg->gl_zeta_buffer) {
-                glDeleteTextures(1, &pg->gl_zeta_buffer);
-                pg->gl_zeta_buffer = 0;
-            }
-
-            glGenTextures(1, &pg->gl_zeta_buffer);
-            glBindTexture(GL_TEXTURE_2D, pg->gl_zeta_buffer);
-
-            /* This is VRAM so we can't do this inplace! */
-            uint8_t *flipped_buf = g_malloc(width * height * bytes_per_pixel);
-            unsigned int irow;
-            for (irow = 0; irow < height; irow++) {
-                memcpy(&flipped_buf[width * (height - irow - 1)
-                                         * bytes_per_pixel],
-                       &buf[pg->surface_zeta.pitch * irow],
-                       width * bytes_per_pixel);
-            }
-
-            glTexImage2D(GL_TEXTURE_2D, 0, gl_internal_format,
-                         width, height, 0,
-                         gl_format, gl_type,
-                         flipped_buf);
-
-            g_free(flipped_buf);
-
-            glFramebufferTexture2D(GL_FRAMEBUFFER,
-                                   gl_attachment,
-                                   GL_TEXTURE_2D,
-                                   pg->gl_zeta_buffer, 0);
-
-            assert(glCheckFramebufferStatus(GL_FRAMEBUFFER)
-                == GL_FRAMEBUFFER_COMPLETE);
-
-            pg->surface_zeta.buffer_dirty = false;
-        }
-
-        if (!upload && pg->surface_zeta.draw_dirty) {
-            /* read the opengl framebuffer into the surface */
-
-            glo_readpixels(gl_format, gl_type,
-                           bytes_per_pixel, pg->surface_zeta.pitch,
-                           width, height,
-                           buf);
-            assert(glGetError() == GL_NO_ERROR);
-
-            if (swizzle) {
-                swizzle_rect(buf,
-                             width, height,
-                             zeta_data + pg->surface_zeta.offset,
-                             pg->surface_zeta.pitch,
-                             bytes_per_pixel);
-            }
-
-            memory_region_set_client_dirty(d->vram,
-                                           zeta_dma.address
-                                                + pg->surface_zeta.offset,
-                                           pg->surface_zeta.pitch
-                                                * height,
-                                           DIRTY_MEMORY_VGA);
-
-            pg->surface_zeta.draw_dirty = false;
-
-            uint8_t *out = zeta_data + pg->surface_zeta.offset + 64;
-            NV2A_DPRINTF("read_surface 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
-                          "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", %d %d, %d %d, %d) - %x %x %x %x\n",
-                zeta_dma.address, zeta_dma.address + zeta_dma.limit,
-                zeta_dma.address + pg->surface_zeta.offset,
-                zeta_dma.address + pg->surface_zeta.pitch
-                                        * pg->surface_shape.clip_height,
-                pg->surface_shape.clip_x, pg->surface_shape.clip_y,
-                pg->surface_shape.clip_width, pg->surface_shape.clip_height,
-                pg->surface_zeta.pitch,
-                out[0], out[1], out[2], out[3]);
-        }
-
-        if (swizzle) {
-            g_free(buf);
-        }
-
+    if (zeta_write && (upload || pg->surface_zeta.draw_dirty)) {
+        pgraph_update_surface_part(d, upload, false);
     }
 }
 
