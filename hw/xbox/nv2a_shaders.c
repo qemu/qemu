@@ -284,10 +284,42 @@ static QString* generate_fixed_function(const ShaderState state,
     return s;
 }
 
+static GLuint create_gl_shader(GLenum gl_shader_type,
+                               const char *code,
+                               const char *name)
+{
+    GLint compiled = 0;
+
+    NV2A_GL_DGROUP_BEGIN("Creating new %s", name);
+
+    GLuint shader = glCreateShader(gl_shader_type);
+    glShaderSource(shader, 1, &code, 0);
+    glCompileShader(shader);
+
+    /* Check it compiled */
+    compiled = 0;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+    if (!compiled) {
+        GLchar* log;
+        GLint log_length;
+        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
+        log = g_malloc(log_length * sizeof(GLchar));
+        glGetShaderInfoLog(shader, log_length, NULL, log);
+        fprintf(stderr, "nv2a: %s compilation failed: %s\n", name, log);
+        g_free(log);
+
+        NV2A_GL_DGROUP_END();
+        abort();
+    }
+
+    NV2A_GL_DGROUP_END();
+
+    return shader;
+}
+
 ShaderBinding* generate_shaders(const ShaderState state)
 {
     int i, j;
-    GLint compiled = 0;
 
     bool with_geom = state.primitive_mode == PRIM_TYPE_QUADS;
     char vtx_prefix = with_geom ? 'v' : 'g';
@@ -312,23 +344,10 @@ ShaderBinding* generate_shaders(const ShaderState state)
     if (vertex_shader_code) {
         const char* vertex_shader_code_str = qstring_get_str(vertex_shader_code);
 
-        GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+        GLuint vertex_shader = create_gl_shader(GL_VERTEX_SHADER,
+                                                vertex_shader_code_str,
+                                                "vertex shader");
         glAttachShader(program, vertex_shader);
-
-        glShaderSource(vertex_shader, 1, &vertex_shader_code_str, 0);
-        glCompileShader(vertex_shader);
-
-        NV2A_DPRINTF("bind new vertex shader, code:\n%s\n", vertex_shader_code_str);
-
-        /* Check it compiled */
-        compiled = 0;
-        glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &compiled);
-        if (!compiled) {
-            GLchar log[1024];
-            glGetShaderInfoLog(vertex_shader, 1024, NULL, log);
-            fprintf(stderr, "nv2a: vertex shader compilation failed: %s\n", log);
-            abort();
-        }
 
         QDECREF(vertex_shader_code);
     }
@@ -343,8 +362,6 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
 
     /* generate a fragment shader from register combiners */
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glAttachShader(program, fragment_shader);
 
     QString *fragment_shader_code = psh_translate(state.combiner_control,
                    state.shader_stage_program,
@@ -361,46 +378,24 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
     const char *fragment_shader_code_str = qstring_get_str(fragment_shader_code);
 
-    NV2A_DPRINTF("bind new fragment shader, code:\n%s\n", fragment_shader_code_str);
-
-    glShaderSource(fragment_shader, 1, &fragment_shader_code_str, 0);
-    glCompileShader(fragment_shader);
-
-    /* Check it compiled */
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &compiled);
-    if (!compiled) {
-        GLchar log[1024];
-        glGetShaderInfoLog(fragment_shader, 1024, NULL, log);
-        fprintf(stderr, "nv2a: fragment shader compilation failed: %s\n", log);
-        abort();
-    }
+    GLuint fragment_shader = create_gl_shader(GL_FRAGMENT_SHADER,
+                                              fragment_shader_code_str,
+                                              "fragment shader");
+    glAttachShader(program, fragment_shader);
 
     QDECREF(fragment_shader_code);
 
 
     if (with_geom) {
-        GLuint geometry_shader = glCreateShader(GL_GEOMETRY_SHADER);
-        glAttachShader(program, geometry_shader);
-
         QString* geometry_shader_code =
             generate_geometry_shader(state.primitive_mode);
         const char* geometry_shader_code_str =
              qstring_get_str(geometry_shader_code);
 
-        NV2A_DPRINTF("bind geometry shader, code:\n%s\n", geometry_shader_code_str);
-
-        glShaderSource(geometry_shader, 1, &geometry_shader_code_str, 0);
-        glCompileShader(geometry_shader);
-
-        /* Check it compiled */
-        compiled = 0;
-        glGetShaderiv(geometry_shader, GL_COMPILE_STATUS, &compiled);
-        if (!compiled) {
-            GLchar log[2048];
-            glGetShaderInfoLog(geometry_shader, 2048, NULL, log);
-            fprintf(stderr, "nv2a: geometry shader compilation failed: %s\n", log);
-            abort();
-        }
+        GLuint geometry_shader = create_gl_shader(GL_GEOMETRY_SHADER,
+                                                  geometry_shader_code_str,
+                                                  "geometry shader");
+        glAttachShader(program, geometry_shader);
 
         QDECREF(geometry_shader_code);
     }
