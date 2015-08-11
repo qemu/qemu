@@ -210,6 +210,10 @@ int kvm_set_signal_mask(CPUState *cpu, const sigset_t *sigset);
 int kvm_on_sigbus_vcpu(CPUState *cpu, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 
+/* interface with exec.c */
+
+void phys_mem_set_alloc(void *(*alloc)(size_t, uint64_t *align));
+
 /* internal API */
 
 int kvm_ioctl(KVMState *s, int type, ...);
