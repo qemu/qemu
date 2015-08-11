@@ -374,11 +374,17 @@ void tlb_fill(CPUState *cpu, target_ulong addr, int is_write, int mmu_idx,
 #endif
 
 #if defined(CONFIG_USER_ONLY)
+void mmap_lock(void);
+void mmap_unlock(void);
+
 static inline tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 {
     return addr;
 }
 #else
+static inline void mmap_lock(void) {}
+static inline void mmap_unlock(void) {}
+
 /* cputlb.c */
 tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 #endif

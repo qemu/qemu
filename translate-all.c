@@ -466,11 +466,6 @@ static inline PageDesc *page_find(tb_page_addr_t index)
     return page_find_alloc(index, 0);
 }
 
-#if !defined(CONFIG_USER_ONLY)
-#define mmap_lock() do { } while (0)
-#define mmap_unlock() do { } while (0)
-#endif
-
 #if defined(CONFIG_USER_ONLY)
 /* Currently it is not recommended to allocate big chunks of data in
    user mode. It will change when a dedicated libc will be used.  */
