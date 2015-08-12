@@ -35,6 +35,7 @@ struct sPAPRMachineClass {
     MachineClass parent_class;
 
     /*< public >*/
+    bool dr_lmb_enabled; /* enable dynamic-reconfig/hotplug of LMBs */
 };
 
 /**

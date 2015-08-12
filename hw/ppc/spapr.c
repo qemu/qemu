@@ -61,6 +61,7 @@
 #include "hw/nmi.h"
 
 #include "hw/compat.h"
+#include "qemu-common.h"
 
 #include <libfdt.h>
 
@@ -1446,10 +1447,84 @@ static void spapr_cpu_init(sPAPRMachineState *spapr, PowerPCCPU *cpu)
     qemu_register_reset(spapr_cpu_reset, cpu);
 }
 
+/*
+ * Reset routine for LMB DR devices.
+ *
+ * Unlike PCI DR devices, LMB DR devices explicitly register this reset
+ * routine. Reset for PCI DR devices will be handled by PHB reset routine
+ * when it walks all its children devices. LMB devices reset occurs
+ * as part of spapr_ppc_reset().
+ */
+static void spapr_drc_reset(void *opaque)
+{
+    sPAPRDRConnector *drc = opaque;
+    DeviceState *d = DEVICE(drc);
+
+    if (d) {
+        device_reset(d);
+    }
+}
+
+static void spapr_create_lmb_dr_connectors(sPAPRMachineState *spapr)
+{
+    MachineState *machine = MACHINE(spapr);
+    uint64_t lmb_size = SPAPR_MEMORY_BLOCK_SIZE;
+    uint32_t nr_rma_lmbs = spapr->rma_size/lmb_size;
+    uint32_t nr_lmbs = machine->maxram_size/lmb_size - nr_rma_lmbs;
+    uint32_t nr_assigned_lmbs = machine->ram_size/lmb_size - nr_rma_lmbs;
+    int i;
+
+    for (i = 0; i < nr_lmbs; i++) {
+        sPAPRDRConnector *drc;
+        uint64_t addr;
+
+        if (i < nr_assigned_lmbs) {
+            addr = (i + nr_rma_lmbs) * lmb_size;
+        } else {
+            addr = (i - nr_assigned_lmbs) * lmb_size +
+                    spapr->hotplug_memory.base;
+        }
+        drc = spapr_dr_connector_new(OBJECT(spapr), SPAPR_DR_CONNECTOR_TYPE_LMB,
+                                     addr/lmb_size);
+        qemu_register_reset(spapr_drc_reset, drc);
+    }
+}
+
+/*
+ * If RAM size, maxmem size and individual node mem sizes aren't aligned
+ * to SPAPR_MEMORY_BLOCK_SIZE(256MB), then refuse to start the guest
+ * since we can't support such unaligned sizes with DRCONF_MEMORY.
+ */
+static void spapr_validate_node_memory(MachineState *machine)
+{
+    int i;
+
+    if (machine->maxram_size % SPAPR_MEMORY_BLOCK_SIZE ||
+        machine->ram_size % SPAPR_MEMORY_BLOCK_SIZE) {
+        error_report("Can't support memory configuration where RAM size "
+                     "0x" RAM_ADDR_FMT " or maxmem size "
+                     "0x" RAM_ADDR_FMT " isn't aligned to %llu MB",
+                     machine->ram_size, machine->maxram_size,
+                     SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
+        exit(EXIT_FAILURE);
+    }
+
+    for (i = 0; i < nb_numa_nodes; i++) {
+        if (numa_info[i].node_mem % SPAPR_MEMORY_BLOCK_SIZE) {
+            error_report("Can't support memory configuration where memory size"
+                         " %" PRIx64 " of node %d isn't aligned to %llu MB",
+                         numa_info[i].node_mem, i,
+                         SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(MachineState *machine)
 {
     sPAPRMachineState *spapr = SPAPR_MACHINE(machine);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -1528,6 +1603,10 @@ static void ppc_spapr_init(MachineState *machine)
                                                smp_threads),
                                   XICS_IRQS);
 
+    if (smc->dr_lmb_enabled) {
+        spapr_validate_node_memory(machine);
+    }
+
     /* init CPUs */
     if (machine->cpu_model == NULL) {
         machine->cpu_model = kvm_enabled() ? "host" : "POWER7";
@@ -1576,6 +1655,10 @@ static void ppc_spapr_init(MachineState *machine)
                            "hotplug-memory", hotplug_mem_size);
         memory_region_add_subregion(sysmem, spapr->hotplug_memory.base,
                                     &spapr->hotplug_memory.mr);
+    }
+
+    if (smc->dr_lmb_enabled) {
+        spapr_create_lmb_dr_connectors(spapr);
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
@@ -1851,6 +1934,7 @@ static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
@@ -1865,6 +1949,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->has_dynamic_sysbus = true;
     mc->pci_allow_0_address = true;
 
+    smc->dr_lmb_enabled = false;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
 }
@@ -2014,11 +2099,13 @@ static const TypeInfo spapr_machine_2_4_info = {
 static void spapr_machine_2_5_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(oc);
 
     mc->name = "pseries-2.5";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.5";
     mc->alias = "pseries";
     mc->is_default = 1;
+    smc->dr_lmb_enabled = true;
 }
 
 static const TypeInfo spapr_machine_2_5_info = {
