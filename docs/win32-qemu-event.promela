@@ -1,0 +1,98 @@
+/*
+ * This model describes the implementation of QemuEvent in
+ * util/qemu-thread-win32.c.
+ *
+ * Author: Paolo Bonzini <pbonzini@redhat.com>
+ *
+ * This file is in the public domain.  If you really want a license,
+ * the WTFPL will do.
+ *
+ * To verify it:
+ *     spin -a docs/event.promela
+ *     gcc -O2 pan.c -DSAFETY
+ *     ./a.out
+ */
+
+bool event;
+int value;
+
+/* Primitives for a Win32 event */
+#define RAW_RESET event = false
+#define RAW_SET   event = true
+#define RAW_WAIT  do :: event -> break; od
+
+#if 0
+/* Basic sanity checking: test the Win32 event primitives */
+#define RESET     RAW_RESET
+#define SET       RAW_SET
+#define WAIT      RAW_WAIT
+#else
+/* Full model: layer a userspace-only fast path on top of the RAW_*
+ * primitives.  SET/RESET/WAIT have exactly the same semantics as
+ * RAW_SET/RAW_RESET/RAW_WAIT, but try to avoid invoking them.
+ */
+#define EV_SET 0
+#define EV_FREE 1
+#define EV_BUSY -1
+
+int state = EV_FREE;
+
+int xchg_result;
+#define SET   if :: state != EV_SET ->                                      \
+                    atomic { /* xchg_result=xchg(state, EV_SET) */          \
+                        xchg_result = state;                                \
+                        state = EV_SET;                                     \
+                    }                                                       \
+                    if :: xchg_result == EV_BUSY -> RAW_SET;                \
+                       :: else -> skip;                                     \
+                    fi;                                                     \
+                 :: else -> skip;                                           \
+              fi
+
+#define RESET if :: state == EV_SET -> atomic { state = state | EV_FREE; }  \
+                 :: else            -> skip;                                \
+              fi
+
+int tmp1, tmp2;
+#define WAIT  tmp1 = state;                                                 \
+              if :: tmp1 != EV_SET ->                                       \
+                    if :: tmp1 == EV_FREE ->                                \
+                          RAW_RESET;                                        \
+                          atomic { /* tmp2=cas(state, EV_FREE, EV_BUSY) */  \
+                              tmp2 = state;                                 \
+                              if :: tmp2 == EV_FREE -> state = EV_BUSY;     \
+                                 :: else            -> skip;                \
+                              fi;                                           \
+                          }                                                 \
+                          if :: tmp2 == EV_SET -> tmp1 = EV_SET;            \
+                             :: else           -> tmp1 = EV_BUSY;           \
+                          fi;                                               \
+                       :: else -> skip;                                     \
+                    fi;                                                     \
+                    assert(tmp1 != EV_FREE);                                \
+                    if :: tmp1 == EV_BUSY -> RAW_WAIT;                      \
+                       :: else -> skip;                                     \
+                    fi;                                                     \
+                 :: else -> skip;                                           \
+              fi
+#endif
+
+active proctype waiter()
+{
+     if
+         :: !value ->
+             RESET;
+             if
+                 :: !value -> WAIT;
+                 :: else   -> skip;
+             fi;
+        :: else -> skip;
+    fi;
+    assert(value);
+}
+
+active proctype notifier()
+{
+    value = true;
+    SET;
+}
