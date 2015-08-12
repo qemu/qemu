@@ -720,6 +720,8 @@ static void pc_build_smbios(FWCfgState *fw_cfg)
 {
     uint8_t *smbios_tables, *smbios_anchor;
     size_t smbios_tables_len, smbios_anchor_len;
+    struct smbios_phys_mem_area *mem_array;
+    unsigned i, array_count;
 
     smbios_tables = smbios_get_table_legacy(&smbios_tables_len);
     if (smbios_tables) {
@@ -727,8 +729,22 @@ static void pc_build_smbios(FWCfgState *fw_cfg)
                          smbios_tables, smbios_tables_len);
     }
 
-    smbios_get_tables(&smbios_tables, &smbios_tables_len,
+    /* build the array of physical mem area from e820 table */
+    mem_array = g_malloc0(sizeof(*mem_array) * e820_get_num_entries());
+    for (i = 0, array_count = 0; i < e820_get_num_entries(); i++) {
+        uint64_t addr, len;
+
+        if (e820_get_entry(i, E820_RAM, &addr, &len)) {
+            mem_array[array_count].address = addr;
+            mem_array[array_count].length = len;
+            array_count++;
+        }
+    }
+    smbios_get_tables(mem_array, array_count,
+                      &smbios_tables, &smbios_tables_len,
                       &smbios_anchor, &smbios_anchor_len);
+    g_free(mem_array);
+
     if (smbios_anchor) {
         fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-tables",
                         smbios_tables, smbios_tables_len);

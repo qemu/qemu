@@ -831,10 +831,12 @@ static void smbios_entry_point_setup(void)
     ep.structure_table_address = cpu_to_le32(0);
 }
 
-void smbios_get_tables(uint8_t **tables, size_t *tables_len,
+void smbios_get_tables(const struct smbios_phys_mem_area *mem_array,
+                       const unsigned int mem_array_size,
+                       uint8_t **tables, size_t *tables_len,
                        uint8_t **anchor, size_t *anchor_len)
 {
-    unsigned i, dimm_cnt, instance;
+    unsigned i, dimm_cnt;
 
     if (smbios_legacy) {
         *tables = *anchor = NULL;
@@ -867,11 +869,9 @@ void smbios_get_tables(uint8_t **tables, size_t *tables_len,
             smbios_build_type_17_table(i, GET_DIMM_SZ);
         }
 
-        for (i = 0, instance = 0; i < e820_get_num_entries(); i++) {
-            uint64_t address, length;
-            if (e820_get_entry(i, E820_RAM, &address, &length)) {
-                smbios_build_type_19_table(instance++, address, length);
-            }
+        for (i = 0; i < mem_array_size; i++) {
+            smbios_build_type_19_table(i, mem_array[i].address,
+                                       mem_array[i].length);
         }
 
         smbios_build_type_32_table();
