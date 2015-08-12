@@ -1976,13 +1976,29 @@ static void spapr_machine_2_4_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.4";
     mc->alias = "pseries";
-    mc->is_default = 1;
+    mc->is_default = 0;
 }
 
 static const TypeInfo spapr_machine_2_4_info = {
     .name          = MACHINE_TYPE_NAME("pseries-2.4"),
     .parent        = TYPE_SPAPR_MACHINE,
     .class_init    = spapr_machine_2_4_class_init,
+};
+
+static void spapr_machine_2_5_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "pseries-2.5";
+    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.5";
+    mc->alias = "pseries";
+    mc->is_default = 1;
+}
+
+static const TypeInfo spapr_machine_2_5_info = {
+    .name          = MACHINE_TYPE_NAME("pseries-2.5"),
+    .parent        = TYPE_SPAPR_MACHINE,
+    .class_init    = spapr_machine_2_5_class_init,
 };
 
 static void spapr_machine_register_types(void)
@@ -1992,6 +2008,7 @@ static void spapr_machine_register_types(void)
     type_register_static(&spapr_machine_2_2_info);
     type_register_static(&spapr_machine_2_3_info);
     type_register_static(&spapr_machine_2_4_info);
+    type_register_static(&spapr_machine_2_5_info);
 }
 
 type_init(spapr_machine_register_types)
