@@ -18,7 +18,7 @@
 #include "libqtest.h"
 #include "qemu/compiler.h"
 #include "hw/acpi/acpi-defs.h"
-#include "hw/i386/smbios.h"
+#include "hw/smbios/smbios.h"
 #include "qemu/bitmap.h"
 
 #define MACHINE_PC "pc"

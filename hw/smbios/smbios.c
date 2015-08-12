@@ -19,10 +19,9 @@
 #include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/cpus.h"
-#include "hw/i386/pc.h"
-#include "hw/i386/smbios.h"
+#include "hw/smbios/smbios.h"
 #include "hw/loader.h"
-
+#include "exec/cpu-common.h"
 
 /* legacy structures and constants for <= 2.0 machines */
 struct smbios_header {

@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 #include "hw/isa/isa.h"
 #include "hw/bt.h"
 #include "sysemu/watchdog.h"
-#include "hw/i386/smbios.h"
+#include "hw/smbios/smbios.h"
 #include "hw/xen/xen.h"
 #include "hw/qdev.h"
 #include "hw/loader.h"
