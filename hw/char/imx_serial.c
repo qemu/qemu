@@ -306,15 +306,9 @@ static const struct MemoryRegionOps imx_serial_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int imx_serial_init(SysBusDevice *dev)
+static void imx_serial_realize(DeviceState *dev, Error **errp)
 {
     IMXSerialState *s = IMX_SERIAL(dev);
-
-
-    memory_region_init_io(&s->iomem, OBJECT(s), &imx_serial_ops, s,
-                          "imx-serial", 0x1000);
-    sysbus_init_mmio(dev, &s->iomem);
-    sysbus_init_irq(dev, &s->irq);
 
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, imx_can_receive, imx_receive,
@@ -323,8 +317,17 @@ static int imx_serial_init(SysBusDevice *dev)
         DPRINTF("No char dev for uart at 0x%lx\n",
                 (unsigned long)s->iomem.ram_addr);
     }
+}
 
-    return 0;
+static void imx_serial_init(Object *obj)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
+    IMXSerialState *s = IMX_SERIAL(obj);
+
+    memory_region_init_io(&s->iomem, obj, &imx_serial_ops, s,
+                          TYPE_IMX_SERIAL, 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+    sysbus_init_irq(sbd, &s->irq);
 }
 
 void imx_serial_create(int uart, const hwaddr addr, qemu_irq irq)
@@ -361,7 +364,7 @@ void imx_serial_create(int uart, const hwaddr addr, qemu_irq irq)
 }
 
 
-static Property imx32_serial_properties[] = {
+static Property imx_serial_properties[] = {
     DEFINE_PROP_CHR("chardev", IMXSerialState, chr),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -369,21 +372,21 @@ static Property imx32_serial_properties[] = {
 static void imx_serial_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = imx_serial_init;
+    dc->realize = imx_serial_realize;
     dc->vmsd = &vmstate_imx_serial;
     dc->reset = imx_serial_reset_at_boot;
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
     dc->desc = "i.MX series UART";
-    dc->props = imx32_serial_properties;
+    dc->props = imx_serial_properties;
 }
 
 static const TypeInfo imx_serial_info = {
-    .name = TYPE_IMX_SERIAL,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(IMXSerialState),
-    .class_init = imx_serial_class_init,
+    .name           = TYPE_IMX_SERIAL,
+    .parent         = TYPE_SYS_BUS_DEVICE,
+    .instance_size  = sizeof(IMXSerialState),
+    .instance_init  = imx_serial_init,
+    .class_init     = imx_serial_class_init,
 };
 
 static void imx_serial_register_types(void)
