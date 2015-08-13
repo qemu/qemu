@@ -2519,8 +2519,8 @@ static void *qemu_rdma_data_init(const char *host_port, Error **errp)
  * SEND messages for control only.
  * VM's ram is handled with regular RDMA messages.
  */
-static int qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
-                                int64_t pos, int size)
+static ssize_t qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
+                                    int64_t pos, size_t size)
 {
     QEMUFileRDMA *r = opaque;
     QEMUFile *f = r->file;
@@ -2547,7 +2547,8 @@ static int qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
         r->len = MIN(remaining, RDMA_SEND_INCREMENT);
         remaining -= r->len;
 
-        head.len = r->len;
+        /* Guaranteed to fit due to RDMA_SEND_INCREMENT MIN above */
+        head.len = (uint32_t)r->len;
         head.type = RDMA_CONTROL_QEMU_FILE;
 
         ret = qemu_rdma_exchange_send(rdma, &head, data, NULL, NULL, NULL);
@@ -2564,7 +2565,7 @@ static int qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
 }
 
 static size_t qemu_rdma_fill(RDMAContext *rdma, uint8_t *buf,
-                             int size, int idx)
+                             size_t size, int idx)
 {
     size_t len = 0;
 
@@ -2585,8 +2586,8 @@ static size_t qemu_rdma_fill(RDMAContext *rdma, uint8_t *buf,
  * RDMA links don't use bytestreams, so we have to
  * return bytes to QEMUFile opportunistically.
  */
-static int qemu_rdma_get_buffer(void *opaque, uint8_t *buf,
-                                int64_t pos, int size)
+static ssize_t qemu_rdma_get_buffer(void *opaque, uint8_t *buf,
+                                    int64_t pos, size_t size)
 {
     QEMUFileRDMA *r = opaque;
     RDMAContext *rdma = r->rdma;

@@ -138,14 +138,15 @@ static ssize_t block_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
     return qiov.size;
 }
 
-static int block_put_buffer(void *opaque, const uint8_t *buf,
-                           int64_t pos, int size)
+static ssize_t block_put_buffer(void *opaque, const uint8_t *buf,
+                                int64_t pos, size_t size)
 {
     bdrv_save_vmstate(opaque, buf, pos, size);
     return size;
 }
 
-static int block_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static ssize_t block_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
+                                size_t size)
 {
     return bdrv_load_vmstate(opaque, buf, pos, size);
 }

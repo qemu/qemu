@@ -37,11 +37,11 @@ static int stdio_get_fd(void *opaque)
     return fileno(s->stdio_file);
 }
 
-static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos,
-                            int size)
+static ssize_t stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos,
+                                size_t size)
 {
     QEMUFileStdio *s = opaque;
-    int res;
+    size_t res;
 
     res = fwrite(buf, 1, size, s->stdio_file);
 
@@ -51,11 +51,12 @@ static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos,
     return res;
 }
 
-static int stdio_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static ssize_t stdio_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
+                                size_t size)
 {
     QEMUFileStdio *s = opaque;
     FILE *fp = s->stdio_file;
-    int bytes;
+    ssize_t bytes;
 
     for (;;) {
         clearerr(fp);
