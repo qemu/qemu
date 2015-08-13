@@ -1154,22 +1154,40 @@ static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri)
 
 static CPAccessResult gt_counter_access(CPUARMState *env, int timeridx)
 {
+    unsigned int cur_el = arm_current_el(env);
+    bool secure = arm_is_secure(env);
+
     /* CNT[PV]CT: not visible from PL0 if ELO[PV]CTEN is zero */
-    if (arm_current_el(env) == 0 &&
+    if (cur_el == 0 &&
         !extract32(env->cp15.c14_cntkctl, timeridx, 1)) {
         return CP_ACCESS_TRAP;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL2) &&
+        timeridx == GTIMER_PHYS && !secure && cur_el < 2 &&
+        !extract32(env->cp15.cnthctl_el2, 0, 1)) {
+        return CP_ACCESS_TRAP_EL2;
     }
     return CP_ACCESS_OK;
 }
 
 static CPAccessResult gt_timer_access(CPUARMState *env, int timeridx)
 {
+    unsigned int cur_el = arm_current_el(env);
+    bool secure = arm_is_secure(env);
+
     /* CNT[PV]_CVAL, CNT[PV]_CTL, CNT[PV]_TVAL: not visible from PL0 if
      * EL0[PV]TEN is zero.
      */
-    if (arm_current_el(env) == 0 &&
+    if (cur_el == 0 &&
         !extract32(env->cp15.c14_cntkctl, 9 - timeridx, 1)) {
         return CP_ACCESS_TRAP;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_EL2) &&
+        timeridx == GTIMER_PHYS && !secure && cur_el < 2 &&
+        !extract32(env->cp15.cnthctl_el2, 1, 1)) {
+        return CP_ACCESS_TRAP_EL2;
     }
     return CP_ACCESS_OK;
 }
@@ -2631,6 +2649,9 @@ static const ARMCPRegInfo el3_no_el2_cp_reginfo[] = {
     { .name = "HTTBR", .cp = 15, .opc1 = 4, .crm = 2,
       .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_CONST,
       .resetvalue = 0 },
+    { .name = "CNTHCTL_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 1, .opc2 = 0,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "CNTVOFF_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 0, .opc2 = 3,
       .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
@@ -2749,6 +2770,14 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .type = ARM_CP_NO_RAW, .access = PL2_W,
       .writefn = tlbi_aa64_vaa_write },
 #ifndef CONFIG_USER_ONLY
+    { .name = "CNTHCTL_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 1, .opc2 = 0,
+      /* ARMv7 requires bit 0 and 1 to reset to 1. ARMv8 defines the
+       * reset values as IMPDEF. We choose to reset to 3 to comply with
+       * both ARMv7 and ARMv8.
+       */
+      .access = PL2_RW, .resetvalue = 3,
+      .fieldoffset = offsetof(CPUARMState, cp15.cnthctl_el2) },
     { .name = "CNTVOFF_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 0, .opc2 = 3,
       .access = PL2_RW, .type = ARM_CP_IO, .resetvalue = 0,
