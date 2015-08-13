@@ -114,7 +114,8 @@ typedef struct ARMGenericTimer {
 #define GTIMER_PHYS 0
 #define GTIMER_VIRT 1
 #define GTIMER_HYP  2
-#define NUM_GTIMERS 3
+#define GTIMER_SEC  3
+#define NUM_GTIMERS 4
 
 typedef struct {
     uint64_t raw_tcr;
