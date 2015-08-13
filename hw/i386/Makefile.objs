@@ -1,5 +1,5 @@
 obj-$(CONFIG_KVM) += kvm/
-obj-y += multiboot.o smbios.o
+obj-y += multiboot.o
 obj-y += pc.o pc_piix.o pc_q35.o
 obj-y += pc_sysfw.o
 obj-y += intel_iommu.o
@@ -7,8 +7,14 @@ obj-$(CONFIG_XEN) += ../xenpv/ xen/
 
 obj-y += kvmvapic.o
 obj-y += acpi-build.o
+
+gen-hex-y += hw/i386/acpi-dsdt.hex
+gen-hex-y += hw/i386/q35-acpi-dsdt.hex
+
 hw/i386/acpi-build.o: hw/i386/acpi-build.c \
-	hw/i386/acpi-dsdt.hex hw/i386/q35-acpi-dsdt.hex
+	$(gen-hex-y)
+
+-include $(gen-hex-y:.hex=.d)
 
 iasl-option=$(shell if test -z "`$(1) $(2) 2>&1 > /dev/null`" \
     ; then echo "$(2)"; else echo "$(3)"; fi ;)

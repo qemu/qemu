@@ -28,7 +28,7 @@
 #include "hw/loader.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
-#include "hw/i386/smbios.h"
+#include "hw/smbios/smbios.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_ids.h"
 #include "hw/usb.h"
@@ -78,11 +78,10 @@ static bool kvmclock_enabled = true;
 /* PC hardware initialisation */
 static void pc_init1(MachineState *machine)
 {
-    PCMachineState *pc_machine = PC_MACHINE(machine);
+    PCMachineState *pcms = PC_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
     MemoryRegion *system_io = get_system_io();
     int i;
-    ram_addr_t below_4g_mem_size, above_4g_mem_size;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     PCII440FXState *i440fx_state;
@@ -117,25 +116,26 @@ static void pc_init1(MachineState *machine)
     /* Handle the machine opt max-ram-below-4g.  It is basically doing
      * min(qemu limit, user limit).
      */
-    if (lowmem > pc_machine->max_ram_below_4g) {
-        lowmem = pc_machine->max_ram_below_4g;
+    if (lowmem > pcms->max_ram_below_4g) {
+        lowmem = pcms->max_ram_below_4g;
         if (machine->ram_size - lowmem > lowmem &&
             lowmem & ((1ULL << 30) - 1)) {
             error_report("Warning: Large machine and max_ram_below_4g(%"PRIu64
                          ") not a multiple of 1G; possible bad performance.",
-                         pc_machine->max_ram_below_4g);
+                         pcms->max_ram_below_4g);
         }
     }
 
     if (machine->ram_size >= lowmem) {
-        above_4g_mem_size = machine->ram_size - lowmem;
-        below_4g_mem_size = lowmem;
+        pcms->above_4g_mem_size = machine->ram_size - lowmem;
+        pcms->below_4g_mem_size = lowmem;
     } else {
-        above_4g_mem_size = 0;
-        below_4g_mem_size = machine->ram_size;
+        pcms->above_4g_mem_size = 0;
+        pcms->below_4g_mem_size = machine->ram_size;
     }
 
-    if (xen_enabled() && xen_hvm_init(&below_4g_mem_size, &above_4g_mem_size,
+    if (xen_enabled() && xen_hvm_init(&pcms->below_4g_mem_size,
+                                      &pcms->above_4g_mem_size,
                                       &ram_memory) != 0) {
         fprintf(stderr, "xen hardware virtual machine initialisation failed\n");
         exit(1);
@@ -160,7 +160,7 @@ static void pc_init1(MachineState *machine)
         rom_memory = system_memory;
     }
 
-    guest_info = pc_guest_info_init(below_4g_mem_size, above_4g_mem_size);
+    guest_info = pc_guest_info_init(pcms);
 
     guest_info->has_acpi_build = has_acpi_build;
     guest_info->legacy_acpi_table_size = legacy_acpi_table_size;
@@ -178,16 +178,11 @@ static void pc_init1(MachineState *machine)
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
-        pc_memory_init(machine, system_memory,
-                       below_4g_mem_size, above_4g_mem_size,
+        pc_memory_init(pcms, system_memory,
                        rom_memory, &ram_memory, guest_info);
     } else if (machine->kernel_filename != NULL) {
         /* For xen HVM direct kernel boot, load linux here */
-        xen_load_linux(machine->kernel_filename,
-                       machine->kernel_cmdline,
-                       machine->initrd_filename,
-                       below_4g_mem_size,
-                       guest_info);
+        xen_load_linux(pcms, guest_info);
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
@@ -202,8 +197,8 @@ static void pc_init1(MachineState *machine)
     if (pci_enabled) {
         pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, &isa_bus, gsi,
                               system_memory, system_io, machine->ram_size,
-                              below_4g_mem_size,
-                              above_4g_mem_size,
+                              pcms->below_4g_mem_size,
+                              pcms->above_4g_mem_size,
                               pci_memory, ram_memory);
     } else {
         pci_bus = NULL;
@@ -234,14 +229,14 @@ static void pc_init1(MachineState *machine)
 
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
 
-    assert(pc_machine->vmport != ON_OFF_AUTO_MAX);
-    if (pc_machine->vmport == ON_OFF_AUTO_AUTO) {
-        pc_machine->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
+    assert(pcms->vmport != ON_OFF_AUTO_MAX);
+    if (pcms->vmport == ON_OFF_AUTO_AUTO) {
+        pcms->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
     }
 
     /* init basic PC hardware */
     pc_basic_device_init(isa_bus, gsi, &rtc_state, true,
-                         (pc_machine->vmport != ON_OFF_AUTO_ON), 0x4);
+                         (pcms->vmport != ON_OFF_AUTO_ON), 0x4);
 
     pc_nic_init(isa_bus, pci_bus);
 
@@ -271,8 +266,7 @@ static void pc_init1(MachineState *machine)
         }
     }
 
-    pc_cmos_init(below_4g_mem_size, above_4g_mem_size, machine->boot_order,
-                 machine, idebus[0], idebus[1], rtc_state);
+    pc_cmos_init(pcms, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled()) {
         pci_create_simple(pci_bus, piix3_devfn + 2, "piix3-usb-uhci");
@@ -286,13 +280,13 @@ static void pc_init1(MachineState *machine)
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                               gsi[9], smi_irq,
-                              pc_machine_is_smm_enabled(pc_machine),
+                              pc_machine_is_smm_enabled(pcms),
                               &piix4_pm);
         smbus_eeprom_init(smbus, 8, NULL, 0);
 
         object_property_add_link(OBJECT(machine), PC_MACHINE_ACPI_DEVICE_PROP,
                                  TYPE_HOTPLUG_HANDLER,
-                                 (Object **)&pc_machine->acpi_dev,
+                                 (Object **)&pcms->acpi_dev,
                                  object_property_allow_set_link,
                                  OBJ_PROP_LINK_UNREF_ON_RELEASE, &error_abort);
         object_property_set_link(OBJECT(machine), OBJECT(piix4_pm),
@@ -319,24 +313,6 @@ static void pc_compat_2_2(MachineState *machine)
 {
     pc_compat_2_3(machine);
     rsdp_in_ram = false;
-    x86_cpu_compat_set_features("kvm64", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("kvm32", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Conroe", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Penryn", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Nehalem", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Westmere", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("SandyBridge", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Haswell", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Broadwell", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G1", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G2", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G3", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G4", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Opteron_G5", FEAT_1_EDX, 0, CPUID_VME);
-    x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
-    x86_cpu_compat_set_features("Haswell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
-    x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_F16C);
-    x86_cpu_compat_set_features("Broadwell", FEAT_1_ECX, 0, CPUID_EXT_RDRAND);
     machine->suppress_vmdesc = true;
 }
 
@@ -346,8 +322,6 @@ static void pc_compat_2_1(MachineState *machine)
 
     pc_compat_2_2(machine);
     smbios_uuid_encoded = false;
-    x86_cpu_compat_set_features("coreduo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
-    x86_cpu_compat_set_features("core2duo", FEAT_1_ECX, CPUID_EXT_VMX, 0);
     x86_cpu_compat_kvm_no_autodisable(FEAT_8000_0001_ECX, CPUID_EXT3_SVM);
     pcms->enforce_aligned_dimm = false;
 }
@@ -402,8 +376,6 @@ static void pc_compat_1_5(MachineState *machine)
 static void pc_compat_1_4(MachineState *machine)
 {
     pc_compat_1_5(machine);
-    x86_cpu_compat_set_features("n270", FEAT_1_ECX, 0, CPUID_EXT_MOVBE);
-    x86_cpu_compat_set_features("Westmere", FEAT_1_ECX, 0, CPUID_EXT_PCLMULQDQ);
 }
 
 static void pc_compat_1_3(MachineState *machine)
@@ -471,7 +443,6 @@ static void pc_xen_hvm_init(MachineState *machine)
 
 static void pc_i440fx_machine_options(MachineClass *m)
 {
-    pc_default_machine_options(m);
     m->family = "pc_piix";
     m->desc = "Standard PC (i440FX + PIIX, 1996)";
     m->hot_add_cpu = pc_hot_add_cpu;
@@ -909,7 +880,6 @@ DEFINE_I440FX_MACHINE(v0_10, "pc-0.10", pc_compat_0_13,
 
 static void isapc_machine_options(MachineClass *m)
 {
-    pc_common_machine_options(m);
     m->desc = "ISA-only PC";
     m->max_cpus = 1;
 }
@@ -921,7 +891,6 @@ DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
 #ifdef CONFIG_XEN
 static void xenfv_machine_options(MachineClass *m)
 {
-    pc_common_machine_options(m);
     m->desc = "Xen Fully-virtualized PC";
     m->max_cpus = HVM_MAX_VCPUS;
     m->default_machine_opts = "accel=xen";

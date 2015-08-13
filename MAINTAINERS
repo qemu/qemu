@@ -645,13 +645,15 @@ S: Supported
 F: include/hw/pci/*
 F: hw/pci/*
 
-ACPI
+ACPI/SMBIOS
 M: Michael S. Tsirkin <mst@redhat.com>
 M: Igor Mammedov <imammedo@redhat.com>
 S: Supported
 F: include/hw/acpi/*
+F: include/hw/smbios/*
 F: hw/mem/*
 F: hw/acpi/*
+F: hw/smbios/*
 F: hw/i386/acpi-build.[hc]
 F: hw/i386/*dsl
 F: hw/arm/virt-acpi-build.c
