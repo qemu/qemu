@@ -26,7 +26,7 @@
 //#define DEBUG_SERIAL 1
 #ifdef DEBUG_SERIAL
 #define DPRINTF(fmt, args...) \
-do { printf("imx_serial: " fmt , ##args); } while (0)
+do { printf("%s: " fmt , TYPE_IMX_SERIAL, ##args); } while (0)
 #else
 #define DPRINTF(fmt, args...) do {} while (0)
 #endif
@@ -38,13 +38,13 @@ do { printf("imx_serial: " fmt , ##args); } while (0)
 //#define DEBUG_IMPLEMENTATION 1
 #ifdef DEBUG_IMPLEMENTATION
 #  define IPRINTF(fmt, args...) \
-    do  { fprintf(stderr, "imx_serial: " fmt, ##args); } while (0)
+    do  { fprintf(stderr, "%s: " fmt, TYPE_IMX_SERIAL, ##args); } while (0)
 #else
 #  define IPRINTF(fmt, args...) do {} while (0)
 #endif
 
 static const VMStateDescription vmstate_imx_serial = {
-    .name = "imx-serial",
+    .name = TYPE_IMX_SERIAL,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -164,13 +164,13 @@ static uint64_t imx_serial_read(void *opaque, hwaddr offset,
         return 0x0; /* TODO */
 
     default:
-        IPRINTF("imx_serial_read: bad offset: 0x%x\n", (int)offset);
+        IPRINTF("%s: bad offset: 0x%x\n", __func__, (int)offset);
         return 0;
     }
 }
 
 static void imx_serial_write(void *opaque, hwaddr offset,
-                      uint64_t value, unsigned size)
+                             uint64_t value, unsigned size)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
     unsigned char ch;
@@ -220,25 +220,25 @@ static void imx_serial_write(void *opaque, hwaddr offset,
 
     case 0x25: /* USR1 */
         value &= USR1_AWAKE | USR1_AIRINT | USR1_DTRD | USR1_AGTIM |
-            USR1_FRAMERR | USR1_ESCF | USR1_RTSD | USR1_PARTYER;
+                 USR1_FRAMERR | USR1_ESCF | USR1_RTSD | USR1_PARTYER;
         s->usr1 &= ~value;
         break;
 
     case 0x26: /* USR2 */
-       /*
-        * Writing 1 to some bits clears them; all other
-        * values are ignored
-        */
+        /*
+         * Writing 1 to some bits clears them; all other
+         * values are ignored
+         */
         value &= USR2_ADET | USR2_DTRF | USR2_IDLE | USR2_ACST |
-            USR2_RIDELT | USR2_IRINT | USR2_WAKE |
-            USR2_DCDDELT | USR2_RTSF | USR2_BRCD | USR2_ORE;
+                 USR2_RIDELT | USR2_IRINT | USR2_WAKE |
+                 USR2_DCDDELT | USR2_RTSF | USR2_BRCD | USR2_ORE;
         s->usr2 &= ~value;
         break;
 
-        /*
-         * Linux expects to see what it writes to these registers
-         * We don't currently alter the baud rate
-         */
+    /*
+     * Linux expects to see what it writes to these registers
+     * We don't currently alter the baud rate
+     */
     case 0x29: /* UBIR */
         s->ubrc = value & 0xffff;
         break;
@@ -266,7 +266,7 @@ static void imx_serial_write(void *opaque, hwaddr offset,
         break;
 
     default:
-        IPRINTF("imx_serial_write: Bad offset 0x%x\n", (int)offset);
+        IPRINTF("%s: Bad offset 0x%x\n", __func__, (int)offset);
     }
 }
 
