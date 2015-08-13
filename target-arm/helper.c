@@ -1261,7 +1261,7 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
     }
 }
 
-static void gt_cnt_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+static void gt_timer_reset(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
     int timeridx = ri->opc1 & 1;
@@ -1414,7 +1414,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTP_TVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 2, .opc2 = 0,
       .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL1_RW | PL0_R,
-      .accessfn = gt_ptimer_access,
+      .accessfn = gt_ptimer_access, .resetfn = gt_timer_reset,
       .readfn = gt_tval_read, .writefn = gt_tval_write,
     },
     { .name = "CNTV_TVAL", .cp = 15, .crn = 14, .crm = 3, .opc1 = 0, .opc2 = 0,
@@ -1425,7 +1425,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTV_TVAL_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 3, .opc2 = 0,
       .type = ARM_CP_NO_RAW | ARM_CP_IO, .access = PL1_RW | PL0_R,
-      .accessfn = gt_vtimer_access,
+      .accessfn = gt_vtimer_access, .resetfn = gt_timer_reset,
       .readfn = gt_tval_read, .writefn = gt_tval_write,
     },
     /* The counter itself */
@@ -1437,8 +1437,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTPCT_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 1,
       .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
-      .accessfn = gt_pct_access,
-      .readfn = gt_cnt_read, .resetfn = gt_cnt_reset,
+      .accessfn = gt_pct_access, .readfn = gt_cnt_read,
     },
     { .name = "CNTVCT", .cp = 15, .crm = 14, .opc1 = 1,
       .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
@@ -1448,8 +1447,7 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTVCT_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 2,
       .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
-      .accessfn = gt_vct_access,
-      .readfn = gt_virt_cnt_read, .resetfn = gt_cnt_reset,
+      .accessfn = gt_vct_access, .readfn = gt_virt_cnt_read,
     },
     /* Comparison value, indicating when the timer goes off */
     { .name = "CNTP_CVAL", .cp = 15, .crm = 14, .opc1 = 2,
