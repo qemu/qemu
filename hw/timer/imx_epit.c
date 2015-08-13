@@ -5,22 +5,17 @@
  * Copyright (c) 2011 NICTA Pty Ltd
  * Originally written by Hans Jiang
  * Updated by Peter Chubb
- * Updated by Jean-Christophe Dubois
+ * Updated by Jean-Christophe Dubois <jcd@tribudubois.net>
  *
  * This code is licensed under GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
  *
  */
 
-#include "hw/hw.h"
-#include "qemu/bitops.h"
-#include "qemu/timer.h"
-#include "hw/ptimer.h"
-#include "hw/sysbus.h"
 #include "hw/arm/imx.h"
+#include "hw/timer/imx_epit.h"
+#include "hw/misc/imx_ccm.h"
 #include "qemu/main-loop.h"
-
-#define TYPE_IMX_EPIT "imx.epit"
 
 #define DEBUG_TIMER 0
 #if DEBUG_TIMER
@@ -61,30 +56,6 @@ static char const *imx_epit_reg_name(uint32_t reg)
 #  define IPRINTF(fmt, args...) do {} while (0)
 #endif
 
-#define IMX_EPIT(obj) \
-        OBJECT_CHECK(IMXEPITState, (obj), TYPE_IMX_EPIT)
-
-/*
- * EPIT: Enhanced periodic interrupt timer
- */
-
-#define CR_EN       (1 << 0)
-#define CR_ENMOD    (1 << 1)
-#define CR_OCIEN    (1 << 2)
-#define CR_RLD      (1 << 3)
-#define CR_PRESCALE_SHIFT (4)
-#define CR_PRESCALE_MASK  (0xfff)
-#define CR_SWR      (1 << 16)
-#define CR_IOVW     (1 << 17)
-#define CR_DBGEN    (1 << 18)
-#define CR_WAITEN   (1 << 19)
-#define CR_DOZEN    (1 << 20)
-#define CR_STOPEN   (1 << 21)
-#define CR_CLKSRC_SHIFT (24)
-#define CR_CLKSRC_MASK  (0x3 << CR_CLKSRC_SHIFT)
-
-#define EPIT_TIMER_MAX  0XFFFFFFFFUL
-
 /*
  * Exact clock frequencies vary from board to board.
  * These are typical.
@@ -95,23 +66,6 @@ static const IMXClk imx_epit_clocks[] =  {
     IPG,      /* 10 ipg_clk_highfreq */
     CLK_32k,  /* 11 ipg_clk_32k -- ~32kHz */
 };
-
-typedef struct {
-    SysBusDevice busdev;
-    ptimer_state *timer_reload;
-    ptimer_state *timer_cmp;
-    MemoryRegion iomem;
-    DeviceState *ccm;
-
-    uint32_t cr;
-    uint32_t sr;
-    uint32_t lr;
-    uint32_t cmp;
-    uint32_t cnt;
-
-    uint32_t freq;
-    qemu_irq irq;
-} IMXEPITState;
 
 /*
  * Update interrupt status
