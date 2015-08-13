@@ -180,22 +180,22 @@ static const VshOpcodeParams mac_opcode_params[] = {
 
 static const char* mask_str[] = {
             // xyzw xyzw
-    "",     // 0000 ____
-    ".w",   // 0001 ___w
-    ".z",   // 0010 __z_
-    ".zw",  // 0011 __zw
-    ".y",   // 0100 _y__
-    ".yw",  // 0101 _y_w
-    ".yz",  // 0110 _yz_
-    ".yzw", // 0111 _yzw
-    ".x",   // 1000 x___
-    ".xw",  // 1001 x__w
-    ".xz",  // 1010 x_z_
-    ".xzw", // 1011 x_zw
-    ".xy",  // 1100 xy__
-    ".xyw", // 1101 xy_w
-    ".xyz", // 1110 xyz_
-    ".xyzw" // 1111 xyzw
+    ",",     // 0000 ____
+    ",w",   // 0001 ___w
+    ",z",   // 0010 __z_
+    ",zw",  // 0011 __zw
+    ",y",   // 0100 _y__
+    ",yw",  // 0101 _y_w
+    ",yz",  // 0110 _yz_
+    ",yzw", // 0111 _yzw
+    ",x",   // 1000 x___
+    ",xw",  // 1001 x__w
+    ",xz",  // 1010 x_z_
+    ",xzw", // 1011 x_zw
+    ",xy",  // 1100 xy__
+    ",xyw", // 1101 xy_w
+    ",xyz", // 1110 xyz_
+    ",xyzw" // 1111 xyzw
 };
 
 /* Note: OpenGL seems to be case-sensitive, and requires upper-case opcodes! */
@@ -577,11 +577,6 @@ static const char* vsh_header =
      * http://msdn.microsoft.com/en-us/library/windows/desktop/bb174703%28v=vs.85%29.aspx
      * https://www.opengl.org/registry/specs/NV/vertex_program1_1.txt
      */
-    "/* Converts number of components of rvalue to lvalue */\n"
-    "float _out(float l, vec4 r) { return r.x; }\n"
-    "vec2 _out(vec2 l, vec4 r) { return r.xy; }\n"
-    "vec3 _out(vec3 l, vec4 r) { return r.xyz; }\n"
-    "vec4 _out(vec4 l, vec4 r) { return r.xyzw; }\n"
     "\n"
 //QQQ #ifdef NICE_CODE
     "/* Converts the input to vec4, pads with last component */\n"
@@ -594,49 +589,51 @@ static const char* vsh_header =
 //   "#define _in(v) vec4(v)\n"
 //#endif
     "\n"
-    "#define MOV(dest, src) dest = _out(dest,_MOV(_in(src)))\n"
+    "#define INFINITY (1.0 / 0.0)\n"
+    "\n"
+    "#define MOV(dest, mask, src) dest.mask = _MOV(_in(src)).mask\n"
     "vec4 _MOV(vec4 src)\n"
     "{\n"
     "  return src;\n"
     "}\n"
     "\n"
-    "#define MUL(dest, src0, src1) dest = _out(dest,_MUL(_in(src0), _in(src1)))\n"
+    "#define MUL(dest, mask, src0, src1) dest.mask = _MUL(_in(src0), _in(src1)).mask\n"
     "vec4 _MUL(vec4 src0, vec4 src1)\n" 
     "{\n"
     "  return src0 * src1;\n"
     "}\n"
     "\n"
-    "#define ADD(dest, src0, src1) dest = _out(dest,_ADD(_in(src0), _in(src1)))\n"
+    "#define ADD(dest, mask, src0, src1) dest.mask = _ADD(_in(src0), _in(src1)).mask\n"
     "vec4 _ADD(vec4 src0, vec4 src1)\n" 
     "{\n"
     "  return src0 + src1;\n"
     "}\n"
     "\n"
-    "#define MAD(dest, src0, src1, src2) dest = _out(dest,_MAD(_in(src0), _in(src1), _in(src2)))\n"
+    "#define MAD(dest, mask, src0, src1, src2) dest.mask = _MAD(_in(src0), _in(src1), _in(src2)).mask\n"
     "vec4 _MAD(vec4 src0, vec4 src1, vec4 src2)\n" 
     "{\n"
     "  return src0 * src1 + src2;\n"
     "}\n"
     "\n"
-    "#define DP3(dest, src0, src1) dest = _out(dest,_DP3(_in(src0), _in(src1)))\n"
+    "#define DP3(dest, mask, src0, src1) dest.mask = _DP3(_in(src0), _in(src1)).mask\n"
     "vec4 _DP3(vec4 src0, vec4 src1)\n"
     "{\n"
     "  return vec4(dot(src0.xyz, src1.xyz));\n"
     "}\n"
     "\n"
-    "#define DPH(dest, src0, src1) dest = _out(dest,_DPH(_in(src0), _in(src1)))\n"
+    "#define DPH(dest, mask, src0, src1) dest.mask = _DPH(_in(src0), _in(src1)).mask\n"
     "vec4 _DPH(vec4 src0, vec4 src1)\n"
     "{\n"
     "  return vec4(dot(vec4(src0.xyz, 1.0), src1));\n"
     "}\n"
     "\n"
-    "#define DP4(dest, src0, src1) dest = _out(dest,_DP4(_in(src0), _in(src1)))\n"
+    "#define DP4(dest, mask, src0, src1) dest.mask = _DP4(_in(src0), _in(src1)).mask\n"
     "vec4 _DP4(vec4 src0, vec4 src1)\n"
     "{\n"
     "  return vec4(dot(src0, src1));\n"
     "}\n"
     "\n"
-    "#define DST(dest, src0, src1) dest = _out(dest,_DST(_in(src0), _in(src1)))\n"
+    "#define DST(dest, mask, src0, src1) dest.mask = _DST(_in(src0), _in(src1)).mask\n"
     "vec4 _DST(vec4 src0, vec4 src1)\n"
     "{\n"
     "  return vec4(1.0,\n"
@@ -645,19 +642,19 @@ static const char* vsh_header =
     "              src1.w);\n"
     "}\n"
     "\n"
-    "#define MIN(dest, src0, src1) dest = _out(dest,_MIN(_in(src0), _in(src1)))\n"
+    "#define MIN(dest, mask, src0, src1) dest.mask = _MIN(_in(src0), _in(src1)).mask\n"
     "vec4 _MIN(vec4 src0, vec4 src1)\n"
     "{\n"
     "  return min(src0, src1);\n"
     "}\n"
     "\n"
-    "#define MAX(dest, src0, src1) dest = _out(dest,_MAX(_in(src0), _in(src1)))\n"
+    "#define MAX(dest, mask, src0, src1) dest.mask = _MAX(_in(src0), _in(src1)).mask\n"
     "vec4 _MAX(vec4 src0, vec4 src1)\n"
     "{\n"
     "  return max(src0, src1);\n"
     "}\n"
     "\n"
-    "#define SLT(dest, src0, src1) dest = _out(dest,_SLT(_in(src0), _in(src1)))\n"
+    "#define SLT(dest, mask, src0, src1) dest.mask = _SLT(_in(src0), _in(src1)).mask\n"
     "vec4 _SLT(vec4 src0, vec4 src1)\n"
     "{\n"
     "  return vec4(lessThan(src0, src1));\n"
@@ -669,19 +666,19 @@ static const char* vsh_header =
     "  return int(src);\n"
     "}\n"
     "\n"
-    "#define SGE(dest, src0, src1) dest = _out(dest,_SGE(_in(src0), _in(src1)))\n"
+    "#define SGE(dest, mask, src0, src1) dest.mask = _SGE(_in(src0), _in(src1)).mask\n"
     "vec4 _SGE(vec4 src0, vec4 src1)\n"
     "{\n"
     "  return vec4(greaterThanEqual(src0, src1));\n"
     "}\n"
     "\n"
-    "#define RCP(dest, src) dest = _out(dest,_RCP(_in(src).x))\n"
+    "#define RCP(dest, mask, src) dest.mask = _RCP(_in(src).x).mask\n"
     "vec4 _RCP(float src)\n"
     "{\n"
     "  return vec4(1.0 / src);\n"
     "}\n"
     "\n"
-    "#define RCC(dest, src) dest = _out(dest,_RCC(_in(src).x))\n"
+    "#define RCC(dest, mask, src) dest.mask = _RCC(_in(src).x).mask\n"
     "vec4 _RCC(float src)\n"
     "{\n"
     "  float t = 1.0 / src;\n"
@@ -693,41 +690,41 @@ static const char* vsh_header =
     "  return vec4(t);\n"
     "}\n"
     "\n"
-    "#define RSQ(dest, src) dest = _out(dest,_RSQ(_in(src).x))\n"
+    "#define RSQ(dest, mask, src) dest.mask = _RSQ(_in(src).x).mask\n"
     "vec4 _RSQ(float src)\n"
     "{\n"
-    "  return vec4(inversesqrt(src));\n"
+    "  if (src == 0.0) { return vec4(INFINITY); }\n"
+    "  if (isinf(src)) { return vec4(0.0); }\n"
+    "  return vec4(inversesqrt(abs(src)));\n"
     "}\n"
     "\n"
-    "#define EXP(dest, src) dest = _out(dest,_EXP(_in(src).x))\n"
+    "#define EXP(dest, src) dest.mask = _EXP(_in(src).x).mask\n"
     "vec4 _EXP(float src)\n"
     "{\n"
     "  return vec4(exp2(src));\n"
     "}\n"
     "\n"
-    "#define LOG(dest, src) dest = _out(dest,_LOG(_in(src).x))\n"
+    "#define LOG(dest, mask, src) dest.mask = _LOG(_in(src).x).mask\n"
     "vec4 _LOG(float src)\n"
     "{\n"
     "  return vec4(log2(src));\n"
     "}\n"
     "\n"
-    "#define LIT(dest, src) dest = _out(dest,_LIT(_in(src)))\n"
+    "#define LIT(dest, mask, src) dest.mask = _LIT(_in(src)).mask\n"
     "vec4 _LIT(vec4 src)\n"
     "{\n"
+    "  vec4 s = src;\n"
+    "  float epsilon = 1.0 / 256.0;\n"
+    "  s.w = clamp(s.w, -(128.0 - epsilon), 128.0 - epsilon);\n"
+    "  s.x = max(s.x, 0.0);\n"
+    "  s.y = max(s.y, 0.0);\n"
     "  vec4 t = vec4(1.0, 0.0, 0.0, 1.0);\n"
-    "  float power = src.w;\n"
-#if 0
-    //XXX: Limitation for 8.8 fixed point
-    "  power = max(power, -127.9961);\n"
-    "  power = min(power, 127.9961);\n"
+    "  t.y = s.x;\n"
+#if 1
+    "  t.z = (s.x > 0.0) ? exp2(s.w * log2(s.y)) : 0.0;\n"
+#else
+    "  t.z = (s.x > 0.0) ? pow(s.y, s.w) : 0.0;\n"
 #endif
-    "  if (src.x > 0.0) {\n"
-    "    t.y = src.x;\n"
-    "    if (src.y > 0.0) {\n"
-    //XXX: Allowed approximation is EXP(power * LOG(src.y))
-    "      t.z = pow(src.y, power);\n"
-    "    }\n"
-    "  }\n"
     "  return t;\n"
     "}\n";
 

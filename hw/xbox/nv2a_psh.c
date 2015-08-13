@@ -511,9 +511,9 @@ static void add_final_stage_code(struct PixelShader *ps, struct FCInputInfo fina
     QString *g = get_input_var(ps, final.g, false);
 
     add_var_ref(ps, "r0");
-    qstring_append_fmt(ps->code, "r0.rgb = vec3((%s * %s) + ((1.0 - %s) * %s) + %s);\n",
-                       qstring_get_str(a), qstring_get_str(b),
-                       qstring_get_str(a), qstring_get_str(c), qstring_get_str(d));
+    qstring_append_fmt(ps->code, "r0.rgb = %s + mix(vec3(%s), vec3(%s), vec3(%s));\n",
+                       qstring_get_str(d), qstring_get_str(c),
+                       qstring_get_str(b), qstring_get_str(a));
     qstring_append_fmt(ps->code, "r0.a = %s;\n", qstring_get_str(g));
 
     QDECREF(a);
