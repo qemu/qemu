@@ -70,7 +70,7 @@ static char const *imx_gpt_reg_name(uint32_t reg)
 #endif
 
 static const VMStateDescription vmstate_imx_timer_gpt = {
-    .name = "imx.gpt",
+    .name = TYPE_IMX_GPT,
     .version_id = 3,
     .minimum_version_id = 3,
     .fields = (VMStateField[]) {
@@ -107,7 +107,7 @@ static void imx_gpt_set_freq(IMXGPTState *s)
 {
     uint32_t clksrc = extract32(s->cr, GPT_CR_CLKSRC_SHIFT, 3);
     uint32_t freq = imx_clock_frequency(s->ccm, imx_gpt_clocks[clksrc])
-                                                / (1 + s->pr);
+                    / (1 + s->pr);
     s->freq = freq;
 
     DPRINTF("Setting clksrc %d to frequency %d\n", clksrc, freq);
@@ -134,7 +134,7 @@ static uint32_t imx_gpt_update_count(IMXGPTState *s)
 }
 
 static inline uint32_t imx_gpt_find_limit(uint32_t count, uint32_t reg,
-                                             uint32_t timeout)
+                                          uint32_t timeout)
 {
     if ((count < reg) && (timeout > reg)) {
         timeout = reg;
