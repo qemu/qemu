@@ -2459,7 +2459,9 @@ static void pgraph_bind_textures(NV2AState *d)
             /* FIXME: What about 3D mipmaps? */
             levels = MIN(levels, max_mipmap_level + 1);
             if (f.gl_format != 0) {
-                /* Xbox / GL goes down to 1x? or ?x1:
+                /* Discard mipmap levels that would be smaller than 1x1.
+                 * FIXME: Is this actually needed?
+                 *
                  * >> Level 0: 32 x 4
                  *    Level 1: 16 x 2
                  *    Level 2: 8 x 1
@@ -2469,29 +2471,34 @@ static void pgraph_bind_textures(NV2AState *d)
                  */
                 levels = MIN(levels, MAX(log_width, log_height) + 1);
             } else {
-                /* Compressed textures are handled differently in OpenGL.
-                 * While the other mipmaps are the same in Xbox and OpenGL, DXT
-                 * textures on Xbox can have smaller mipmaps too (probably).
-                 * https://msdn.microsoft.com/en-us/library/windows/desktop/bb694531%28v=vs.85%29.aspx
-                 * (Virtual Size versus Physical Size)
+                /* OpenGL requires DXT textures to always have a width and
+                 * height a multiple of 4. The Xbox and DirectX handles DXT
+                 * textures smaller than 4 by padding the reset of the block.
                  *
-                 * GL Compressed goes down to 4x? or ?x4 and same size:
+                 * See:
+                 * https://msdn.microsoft.com/en-us/library/windows/desktop/bb204843(v=vs.85).aspx
+                 * https://msdn.microsoft.com/en-us/library/windows/desktop/bb694531%28v=vs.85%29.aspx#Virtual_Size
+                 *
+                 * Work around this for now by discarding mipmap levels that
+                 * would result in too-small textures. A correct solution
+                 * will be to decompress these levels manually, or add texture
+                 * sampling logic.
+                 *
                  * >> Level 0: 64 x 8
                  *    Level 1: 32 x 4
-                 *    Level 2: 16 x 4 << BAD SIZE!
+                 *    Level 2: 16 x 2 << Ignored
                  * >> Level 0: 16 x 16
                  *    Level 1: 8 x 8
                  *    Level 2: 4 x 4 << OK!
-                 *
-                 * This behaviour was tested with MESA 10.6.2, GL 3.3 Core
-                 * It doesn't report errors but the read texels will be black.
                  */
                 if (log_width < 2 || log_height < 2) {
-                    levels = 0;
+                    /* Base level is smaller than 4x4... */
+                    levels = 1;
                 } else {
                     levels = MIN(levels, MIN(log_width, log_height) - 1);
                 }
             }
+            assert(levels > 0);
         }
 
         hwaddr dma_len;
