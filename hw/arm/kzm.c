@@ -115,7 +115,7 @@ static void kzm_init(MachineState *machine)
     imx_serial_create(0, 0x43f90000, qdev_get_gpio_in(dev, 45));
     imx_serial_create(1, 0x43f94000, qdev_get_gpio_in(dev, 32));
 
-    ccm = sysbus_create_simple("imx_ccm", 0x53f80000, NULL);
+    ccm = sysbus_create_simple(TYPE_IMX_CCM, 0x53f80000, NULL);
 
     imx_timerp_create(0x53f94000, qdev_get_gpio_in(dev, 28), ccm);
     imx_timerp_create(0x53f98000, qdev_get_gpio_in(dev, 27), ccm);
