@@ -402,6 +402,10 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
         qdev_connect_gpio_out(cpudev, 1,
                               qdev_get_gpio_in(gicdev,
                                                ppibase + ARCH_TIMER_VIRT_IRQ));
+        /* Hypervisor timer.  */
+        qdev_connect_gpio_out(cpudev, 2,
+                              qdev_get_gpio_in(gicdev,
+                                             ppibase + ARCH_TIMER_NS_EL2_IRQ));
 
         sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         sysbus_connect_irq(gicbusdev, i + smp_cpus,
