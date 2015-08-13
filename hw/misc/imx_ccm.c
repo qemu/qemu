@@ -16,11 +16,10 @@
 #define CKIH_FREQ 26000000 /* 26MHz crystal input */
 #define CKIL_FREQ    32768 /* nominal 32khz clock */
 
-
 //#define DEBUG_CCM 1
 #ifdef DEBUG_CCM
 #define DPRINTF(fmt, args...) \
-do { printf("imx_ccm: " fmt , ##args); } while (0)
+do { printf("%s: " fmt , TYPE_IMX_CCM, ##args); } while (0)
 #else
 #define DPRINTF(fmt, args...) do {} while (0)
 #endif
@@ -28,7 +27,7 @@ do { printf("imx_ccm: " fmt , ##args); } while (0)
 static int imx_ccm_post_load(void *opaque, int version_id);
 
 static const VMStateDescription vmstate_imx_ccm = {
-    .name = "imx-ccm",
+    .name = TYPE_IMX_CCM,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -110,7 +109,7 @@ static void update_clocks(IMXCCMState *s)
     s->hsp_clk_freq = s->mcu_clk_freq / (1 + EXTRACT(s->pdr0, HSP));
     s->ipg_clk_freq = s->hsp_clk_freq / (1 + EXTRACT(s->pdr0, IPG));
 
-    DPRINTF("Clocks: mcu %uMHz, HSP %uMHz, IPG %uHz\n",
+    DPRINTF("%s: mcu %uMHz, HSP %uMHz, IPG %uHz\n", __func__,
             s->mcu_clk_freq / 1000000,
             s->hsp_clk_freq / 1000000,
             s->ipg_clk_freq);
@@ -136,7 +135,7 @@ static uint64_t imx_ccm_read(void *opaque, hwaddr offset,
 {
     IMXCCMState *s = (IMXCCMState *)opaque;
 
-    DPRINTF("read(offset=%x)", offset >> 2);
+    DPRINTF("%s(offset=%x)", __func__, offset >> 2);
     switch (offset >> 2) {
     case 0: /* CCMR */
         DPRINTF(" ccmr = 0x%x\n", s->ccmr);
@@ -177,7 +176,7 @@ static void imx_ccm_write(void *opaque, hwaddr offset,
 {
     IMXCCMState *s = (IMXCCMState *)opaque;
 
-    DPRINTF("write(offset=%x, value = %x)\n",
+    DPRINTF("%s(offset=%x, value = %x)\n", __func__,
             offset >> 2, (unsigned int)value);
     switch (offset >> 2) {
     case 0:
