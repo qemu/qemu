@@ -3013,6 +3013,9 @@ static bool pgraph_zeta_write_enabled(PGRAPHState *pg)
 
 static void pgraph_set_surface_dirty(PGRAPHState *pg, bool color, bool zeta)
 {
+    NV2A_DPRINTF("pgraph_set_surface_dirty(%d, %d) -- %d %d\n",
+                 color, zeta,
+                 pgraph_color_write_enabled(pg), pgraph_zeta_write_enabled(pg));
     /* FIXME: Does this apply to CLEARs too? */
     color = color && pgraph_color_write_enabled(pg);
     zeta = zeta && pgraph_zeta_write_enabled(pg);
@@ -3612,7 +3615,7 @@ static void pgraph_method(NV2AState *d,
         /* I guess this kicks it off? */
         if (image_blit->operation == NV09F_SET_OPERATION_SRCCOPY) {
 
-            NV2A_GL_DPRINTF(false, "NV2A: NV09F_SET_OPERATION_SRCCOPY");
+            NV2A_GL_DPRINTF(true, "NV09F_SET_OPERATION_SRCCOPY");
 
             GraphicsObject *context_surfaces_obj =
                 lookup_graphics_object(pg, image_blit->context_surfaces);
@@ -4027,6 +4030,8 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_COLOR_MASK: {
+        pgraph_update_surface(d, false, true, true);
+
         bool alpha = parameter & NV097_SET_COLOR_MASK_ALPHA_WRITE_ENABLE;
         bool red = parameter & NV097_SET_COLOR_MASK_RED_WRITE_ENABLE;
         bool green = parameter & NV097_SET_COLOR_MASK_GREEN_WRITE_ENABLE;
@@ -4042,6 +4047,8 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     case NV097_SET_DEPTH_MASK:
+        pgraph_update_surface(d, false, true, true);
+
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                  NV_PGRAPH_CONTROL_0_ZWRITEENABLE, parameter);
         break;
