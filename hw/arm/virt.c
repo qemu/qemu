@@ -391,20 +391,22 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
     for (i = 0; i < smp_cpus; i++) {
         DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
         int ppibase = NUM_IRQS + i * GIC_INTERNAL + GIC_NR_SGIS;
-        /* physical timer; we wire it up to the non-secure timer's ID,
-         * since a real A15 always has TrustZone but QEMU doesn't.
+        int irq;
+        /* Mapping from the output timer irq lines from the CPU to the
+         * GIC PPI inputs we use for the virt board.
          */
-        qdev_connect_gpio_out(cpudev, 0,
-                              qdev_get_gpio_in(gicdev,
-                                             ppibase + ARCH_TIMER_NS_EL1_IRQ));
-        /* virtual timer */
-        qdev_connect_gpio_out(cpudev, 1,
-                              qdev_get_gpio_in(gicdev,
-                                               ppibase + ARCH_TIMER_VIRT_IRQ));
-        /* Hypervisor timer.  */
-        qdev_connect_gpio_out(cpudev, 2,
-                              qdev_get_gpio_in(gicdev,
-                                             ppibase + ARCH_TIMER_NS_EL2_IRQ));
+        const int timer_irq[] = {
+            [GTIMER_PHYS] = ARCH_TIMER_NS_EL1_IRQ,
+            [GTIMER_VIRT] = ARCH_TIMER_VIRT_IRQ,
+            [GTIMER_HYP]  = ARCH_TIMER_NS_EL2_IRQ,
+            [GTIMER_SEC]  = ARCH_TIMER_S_EL1_IRQ,
+        };
+
+        for (irq = 0; irq < ARRAY_SIZE(timer_irq); irq++) {
+            qdev_connect_gpio_out(cpudev, irq,
+                                  qdev_get_gpio_in(gicdev,
+                                                   ppibase + timer_irq[irq]));
+        }
 
         sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         sysbus_connect_irq(gicbusdev, i + smp_cpus,
