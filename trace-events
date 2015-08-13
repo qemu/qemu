@@ -1420,6 +1420,8 @@ migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, 
 migrate_state_too_big(void) ""
 migrate_global_state_post_load(const char *state) "loaded state: %s"
 migrate_global_state_pre_save(const char *state) "saved state: %s"
+migration_completion_file_err(void) ""
+migration_thread_low_pending(uint64_t pending) "%" PRIu64
 
 # migration/rdma.c
 qemu_rdma_accept_incoming_migration(void) ""

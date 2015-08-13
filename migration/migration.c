@@ -913,6 +913,50 @@ int64_t migrate_xbzrle_cache_size(void)
     return s->xbzrle_cache_size;
 }
 
+/**
+ * migration_completion: Used by migration_thread when there's not much left.
+ *   The caller 'breaks' the loop when this returns.
+ *
+ * @s: Current migration state
+ * @*old_vm_running: Pointer to old_vm_running flag
+ * @*start_time: Pointer to time to update
+ */
+static void migration_completion(MigrationState *s, bool *old_vm_running,
+                                 int64_t *start_time)
+{
+    int ret;
+
+    qemu_mutex_lock_iothread();
+    *start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+    *old_vm_running = runstate_is_running();
+
+    ret = global_state_store();
+    if (!ret) {
+        ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+        if (ret >= 0) {
+            qemu_file_set_rate_limit(s->file, INT64_MAX);
+            qemu_savevm_state_complete(s->file);
+        }
+    }
+    qemu_mutex_unlock_iothread();
+
+    if (ret < 0) {
+        goto fail;
+    }
+
+    if (qemu_file_get_error(s->file)) {
+        trace_migration_completion_file_err();
+        goto fail;
+    }
+
+    migrate_set_state(s, MIGRATION_STATUS_ACTIVE, MIGRATION_STATUS_COMPLETED);
+    return;
+
+fail:
+    migrate_set_state(s, MIGRATION_STATUS_ACTIVE, MIGRATION_STATUS_FAILED);
+}
+
 /* migration thread support */
 
 static void *migration_thread(void *opaque)
@@ -943,34 +987,9 @@ static void *migration_thread(void *opaque)
             if (pending_size && pending_size >= max_size) {
                 qemu_savevm_state_iterate(s->file);
             } else {
-                int ret;
-
-                qemu_mutex_lock_iothread();
-                start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-                qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-                old_vm_running = runstate_is_running();
-
-                ret = global_state_store();
-                if (!ret) {
-                    ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-                    if (ret >= 0) {
-                        qemu_file_set_rate_limit(s->file, INT64_MAX);
-                        qemu_savevm_state_complete(s->file);
-                    }
-                }
-                qemu_mutex_unlock_iothread();
-
-                if (ret < 0) {
-                    migrate_set_state(s, MIGRATION_STATUS_ACTIVE,
-                                      MIGRATION_STATUS_FAILED);
-                    break;
-                }
-
-                if (!qemu_file_get_error(s->file)) {
-                    migrate_set_state(s, MIGRATION_STATUS_ACTIVE,
-                                      MIGRATION_STATUS_COMPLETED);
-                    break;
-                }
+                trace_migration_thread_low_pending(pending_size);
+                migration_completion(s, &old_vm_running, &start_time);
+                break;
             }
         }
 
