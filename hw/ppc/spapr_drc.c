@@ -310,7 +310,7 @@ static void attach(sPAPRDRConnector *drc, DeviceState *d, void *fdt,
     drc->dev = d;
     drc->fdt = fdt;
     drc->fdt_start_offset = fdt_start_offset;
-    drc->configured = false;
+    drc->configured = coldplug;
 
     object_property_add_link(OBJECT(drc), "device",
                              object_get_typename(OBJECT(drc->dev)),
