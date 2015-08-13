@@ -1209,9 +1209,11 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         /* Timer enabled: calculate and set current ISTATUS, irq, and
          * reset timer to when ISTATUS next has to change
          */
+        uint64_t offset = timeridx == GTIMER_VIRT ?
+                                      cpu->env.cp15.cntvoff_el2 : 0;
         uint64_t count = gt_get_countervalue(&cpu->env);
         /* Note that this must be unsigned 64 bit arithmetic: */
-        int istatus = count >= gt->cval;
+        int istatus = count - offset >= gt->cval;
         uint64_t nexttick;
 
         gt->ctl = deposit32(gt->ctl, 2, 1, istatus);
@@ -1222,7 +1224,7 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
             nexttick = UINT64_MAX;
         } else {
             /* Next transition is when we hit cval */
-            nexttick = gt->cval;
+            nexttick = gt->cval + offset;
         }
         /* Note that the desired next expiry time might be beyond the
          * signed-64-bit range of a QEMUTimer -- in this case we just
@@ -1254,6 +1256,11 @@ static uint64_t gt_cnt_read(CPUARMState *env, const ARMCPRegInfo *ri)
     return gt_get_countervalue(env);
 }
 
+static uint64_t gt_virt_cnt_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    return gt_get_countervalue(env) - env->cp15.cntvoff_el2;
+}
+
 static void gt_cval_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
@@ -1266,17 +1273,19 @@ static void gt_cval_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static uint64_t gt_tval_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     int timeridx = ri->crm & 1;
+    uint64_t offset = timeridx == GTIMER_VIRT ? env->cp15.cntvoff_el2 : 0;
 
     return (uint32_t)(env->cp15.c14_timer[timeridx].cval -
-                      gt_get_countervalue(env));
+                      (gt_get_countervalue(env) - offset));
 }
 
 static void gt_tval_write(CPUARMState *env, const ARMCPRegInfo *ri,
                           uint64_t value)
 {
     int timeridx = ri->crm & 1;
+    uint64_t offset = timeridx == GTIMER_VIRT ? env->cp15.cntvoff_el2 : 0;
 
-    env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) +
+    env->cp15.c14_timer[timeridx].cval = gt_get_countervalue(env) - offset +
                                          sextract64(value, 0, 32);
     gt_recalc_timer(arm_env_get_cpu(env), timeridx);
 }
@@ -1299,6 +1308,15 @@ static void gt_ctl_write(CPUARMState *env, const ARMCPRegInfo *ri,
         qemu_set_irq(cpu->gt_timer_outputs[timeridx],
                      (oldval & 4) && !(value & 2));
     }
+}
+
+static void gt_cntvoff_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                              uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    raw_write(env, ri, value);
+    gt_recalc_timer(cpu, GTIMER_VIRT);
 }
 
 void arm_gt_ptimer_cb(void *opaque)
@@ -1407,13 +1425,13 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTVCT", .cp = 15, .crm = 14, .opc1 = 1,
       .access = PL0_R, .type = ARM_CP_64BIT | ARM_CP_NO_RAW | ARM_CP_IO,
       .accessfn = gt_vct_access,
-      .readfn = gt_cnt_read, .resetfn = arm_cp_reset_ignore,
+      .readfn = gt_virt_cnt_read, .resetfn = arm_cp_reset_ignore,
     },
     { .name = "CNTVCT_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 2,
       .access = PL0_R, .type = ARM_CP_NO_RAW | ARM_CP_IO,
       .accessfn = gt_vct_access,
-      .readfn = gt_cnt_read, .resetfn = gt_cnt_reset,
+      .readfn = gt_virt_cnt_read, .resetfn = gt_cnt_reset,
     },
     /* Comparison value, indicating when the timer goes off */
     { .name = "CNTP_CVAL", .cp = 15, .crm = 14, .opc1 = 2,
@@ -2613,6 +2631,12 @@ static const ARMCPRegInfo el3_no_el2_cp_reginfo[] = {
     { .name = "HTTBR", .cp = 15, .opc1 = 4, .crm = 2,
       .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_CONST,
       .resetvalue = 0 },
+    { .name = "CNTVOFF_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 0, .opc2 = 3,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "CNTVOFF", .cp = 15, .opc1 = 4, .crm = 14,
+      .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_CONST,
+      .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -2724,6 +2748,17 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 1,
       .type = ARM_CP_NO_RAW, .access = PL2_W,
       .writefn = tlbi_aa64_vaa_write },
+#ifndef CONFIG_USER_ONLY
+    { .name = "CNTVOFF_EL2", .state = ARM_CP_STATE_AA64,
+      .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 0, .opc2 = 3,
+      .access = PL2_RW, .type = ARM_CP_IO, .resetvalue = 0,
+      .writefn = gt_cntvoff_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.cntvoff_el2) },
+    { .name = "CNTVOFF", .cp = 15, .opc1 = 4, .crm = 14,
+      .access = PL2_RW, .type = ARM_CP_64BIT | ARM_CP_ALIAS | ARM_CP_IO,
+      .writefn = gt_cntvoff_write,
+      .fieldoffset = offsetof(CPUARMState, cp15.cntvoff_el2) },
+#endif
     REGINFO_SENTINEL
 };
 
