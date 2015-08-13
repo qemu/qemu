@@ -270,7 +270,7 @@ int qemu_fclose(QEMUFile *f)
     return ret;
 }
 
-static void add_to_iovec(QEMUFile *f, const uint8_t *buf, int size)
+static void add_to_iovec(QEMUFile *f, const uint8_t *buf, size_t size)
 {
     /* check for adjacent buffer and coalesce them */
     if (f->iovcnt > 0 && buf == f->iov[f->iovcnt - 1].iov_base +
@@ -286,7 +286,7 @@ static void add_to_iovec(QEMUFile *f, const uint8_t *buf, int size)
     }
 }
 
-void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size)
+void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size)
 {
     if (!f->ops->writev_buffer) {
         qemu_put_buffer(f, buf, size);
@@ -301,9 +301,9 @@ void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size)
     add_to_iovec(f, buf, size);
 }
 
-void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
+void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
 {
-    int l;
+    size_t l;
 
     if (f->last_error) {
         return;
@@ -363,10 +363,10 @@ void qemu_file_skip(QEMUFile *f, int size)
  * return as many as it managed to read (assuming blocking fd's which
  * all current QEMUFile are)
  */
-int qemu_peek_buffer(QEMUFile *f, uint8_t **buf, int size, size_t offset)
+size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
 {
-    int pending;
-    int index;
+    ssize_t pending;
+    size_t index;
 
     assert(!qemu_file_is_writable(f));
     assert(offset < IO_BUF_SIZE);
@@ -411,13 +411,13 @@ int qemu_peek_buffer(QEMUFile *f, uint8_t **buf, int size, size_t offset)
  * return as many as it managed to read (assuming blocking fd's which
  * all current QEMUFile are)
  */
-int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
+size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
 {
-    int pending = size;
-    int done = 0;
+    size_t pending = size;
+    size_t done = 0;
 
     while (pending > 0) {
-        int res;
+        size_t res;
         uint8_t *src;
 
         res = qemu_peek_buffer(f, &src, MIN(pending, IO_BUF_SIZE), 0);

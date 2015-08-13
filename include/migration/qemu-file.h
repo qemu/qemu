@@ -126,13 +126,13 @@ int qemu_get_fd(QEMUFile *f);
 int qemu_fclose(QEMUFile *f);
 int64_t qemu_ftell(QEMUFile *f);
 int64_t qemu_ftell_fast(QEMUFile *f);
-void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size);
+void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size);
 void qemu_put_byte(QEMUFile *f, int v);
 /*
  * put_buffer without copying the buffer.
  * The buffer should be available till it is sent asynchronously.
  */
-void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, int size);
+void qemu_put_buffer_async(QEMUFile *f, const uint8_t *buf, size_t size);
 bool qemu_file_mode_is_not_valid(const char *mode);
 bool qemu_file_is_writable(QEMUFile *f);
 
@@ -161,8 +161,8 @@ static inline void qemu_put_ubyte(QEMUFile *f, unsigned int v)
 void qemu_put_be16(QEMUFile *f, unsigned int v);
 void qemu_put_be32(QEMUFile *f, unsigned int v);
 void qemu_put_be64(QEMUFile *f, uint64_t v);
-int qemu_peek_buffer(QEMUFile *f, uint8_t **buf, int size, size_t offset);
-int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size);
+size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset);
+size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size);
 ssize_t qemu_put_compression_data(QEMUFile *f, const uint8_t *p, size_t size,
                                   int level);
 int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src);
@@ -237,7 +237,7 @@ static inline void qemu_get_8s(QEMUFile *f, uint8_t *pv)
 }
 
 // Signed versions for type safety
-static inline void qemu_put_sbuffer(QEMUFile *f, const int8_t *buf, int size)
+static inline void qemu_put_sbuffer(QEMUFile *f, const int8_t *buf, size_t size)
 {
     qemu_put_buffer(f, (const uint8_t *)buf, size);
 }
