@@ -1448,6 +1448,9 @@ static inline bool cp_access_ok(int current_el,
     return (ri->access >> ((current_el * 2) + isread)) & 1;
 }
 
+/* Raw read of a coprocessor register (as needed for migration, etc) */
+uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri);
+
 /**
  * write_list_to_cpustate
  * @cpu: ARMCPU

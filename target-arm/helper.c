@@ -144,7 +144,7 @@ static void *raw_ptr(CPUARMState *env, const ARMCPRegInfo *ri)
     return (char *)env + ri->fieldoffset;
 }
 
-static uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri)
+uint64_t read_raw_cp_reg(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     /* Raw read of a coprocessor register (as needed for migration, etc). */
     if (ri->type & ARM_CP_CONST) {
