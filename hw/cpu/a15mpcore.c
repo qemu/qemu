@@ -75,14 +75,21 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->num_cpu; i++) {
         DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
         int ppibase = s->num_irq - 32 + i * 32;
-        /* physical timer; we wire it up to the non-secure timer's ID,
-         * since a real A15 always has TrustZone but QEMU doesn't.
+        int irq;
+        /* Mapping from the output timer irq lines from the CPU to the
+         * GIC PPI inputs used on the A15:
          */
-        qdev_connect_gpio_out(cpudev, 0,
-                              qdev_get_gpio_in(gicdev, ppibase + 30));
-        /* virtual timer */
-        qdev_connect_gpio_out(cpudev, 1,
-                              qdev_get_gpio_in(gicdev, ppibase + 27));
+        const int timer_irq[] = {
+            [GTIMER_PHYS] = 30,
+            [GTIMER_VIRT] = 27,
+            [GTIMER_HYP]  = 26,
+            [GTIMER_SEC]  = 29,
+        };
+        for (irq = 0; irq < ARRAY_SIZE(timer_irq); irq++) {
+            qdev_connect_gpio_out(cpudev, irq,
+                                  qdev_get_gpio_in(gicdev,
+                                                   ppibase + timer_irq[irq]));
+        }
     }
 
     /* Memory map (addresses are offsets from PERIPHBASE):
