@@ -437,6 +437,9 @@ void memory_region_init_alias(MemoryRegion *mr,
  * memory_region_init_rom_device:  Initialize a ROM memory region.  Writes are
  *                                 handled via callbacks.
  *
+ * If NULL callbacks pointer is given, then I/O space is not supposed to be
+ * handled by QEMU itself. Any access via the memory API will cause an abort().
+ *
  * @mr: the #MemoryRegion to be initialized.
  * @owner: the object that tracks the region's reference count
  * @ops: callbacks for write access handling.
@@ -459,16 +462,21 @@ void memory_region_init_rom_device(MemoryRegion *mr,
  * A reservation region primariy serves debugging purposes.  It claims I/O
  * space that is not supposed to be handled by QEMU itself.  Any access via
  * the memory API will cause an abort().
+ * This function is deprecated. Use memory_region_init_io() with NULL
+ * callbacks instead.
  *
  * @mr: the #MemoryRegion to be initialized
  * @owner: the object that tracks the region's reference count
  * @name: used for debugging; not visible to the user or ABI
  * @size: size of the region.
  */
-void memory_region_init_reservation(MemoryRegion *mr,
-                                    struct Object *owner,
+static inline void memory_region_init_reservation(MemoryRegion *mr,
+                                    Object *owner,
                                     const char *name,
-                                    uint64_t size);
+                                    uint64_t size)
+{
+    memory_region_init_io(mr, owner, NULL, mr, name, size);
+}
 
 /**
  * memory_region_init_iommu: Initialize a memory region that translates
