@@ -11,17 +11,9 @@
 #ifndef IMX_H
 #define IMX_H
 
+#include "hw/misc/imx_ccm.h"
+
 void imx_serial_create(int uart, const hwaddr addr, qemu_irq irq);
-
-typedef enum  {
-    NOCLK,
-    MCU,
-    HSP,
-    IPG,
-    CLK_32k
-} IMXClk;
-
-uint32_t imx_clock_frequency(DeviceState *s, IMXClk clock);
 
 void imx_timerp_create(const hwaddr addr,
                       qemu_irq irq,

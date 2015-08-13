@@ -20,6 +20,7 @@
 
 #include "hw/cpu/a15mpcore.h"
 #include "sysemu/kvm.h"
+#include "kvm_arm.h"
 
 static void a15mp_priv_set_irq(void *opaque, int irq, int level)
 {
@@ -33,16 +34,11 @@ static void a15mp_priv_initfn(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     A15MPPrivState *s = A15MPCORE_PRIV(obj);
     DeviceState *gicdev;
-    const char *gictype = "arm_gic";
-
-    if (kvm_irqchip_in_kernel()) {
-        gictype = "kvm-arm-gic";
-    }
 
     memory_region_init(&s->container, obj, "a15mp-priv-container", 0x8000);
     sysbus_init_mmio(sbd, &s->container);
 
-    object_initialize(&s->gic, sizeof(s->gic), gictype);
+    object_initialize(&s->gic, sizeof(s->gic), gic_class_name());
     gicdev = DEVICE(&s->gic);
     qdev_set_parent_bus(gicdev, sysbus_get_default());
     qdev_prop_set_uint32(gicdev, "revision", 2);
@@ -79,14 +75,21 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < s->num_cpu; i++) {
         DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
         int ppibase = s->num_irq - 32 + i * 32;
-        /* physical timer; we wire it up to the non-secure timer's ID,
-         * since a real A15 always has TrustZone but QEMU doesn't.
+        int irq;
+        /* Mapping from the output timer irq lines from the CPU to the
+         * GIC PPI inputs used on the A15:
          */
-        qdev_connect_gpio_out(cpudev, 0,
-                              qdev_get_gpio_in(gicdev, ppibase + 30));
-        /* virtual timer */
-        qdev_connect_gpio_out(cpudev, 1,
-                              qdev_get_gpio_in(gicdev, ppibase + 27));
+        const int timer_irq[] = {
+            [GTIMER_PHYS] = 30,
+            [GTIMER_VIRT] = 27,
+            [GTIMER_HYP]  = 26,
+            [GTIMER_SEC]  = 29,
+        };
+        for (irq = 0; irq < ARRAY_SIZE(timer_irq); irq++) {
+            qdev_connect_gpio_out(cpudev, irq,
+                                  qdev_get_gpio_in(gicdev,
+                                                   ppibase + timer_irq[irq]));
+        }
     }
 
     /* Memory map (addresses are offsets from PERIPHBASE):

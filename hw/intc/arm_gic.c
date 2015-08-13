@@ -922,12 +922,6 @@ static MemTxResult gic_dist_write(void *opaque, hwaddr offset, uint64_t data,
     }
 }
 
-static const MemoryRegionOps gic_dist_ops = {
-    .read_with_attrs = gic_dist_read,
-    .write_with_attrs = gic_dist_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-};
-
 static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
                                 uint64_t *data, MemTxAttrs attrs)
 {
@@ -1056,10 +1050,17 @@ static MemTxResult gic_do_cpu_write(void *opaque, hwaddr addr,
     return gic_cpu_write(s, id, addr, value, attrs);
 }
 
-static const MemoryRegionOps gic_thiscpu_ops = {
-    .read_with_attrs = gic_thiscpu_read,
-    .write_with_attrs = gic_thiscpu_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+static const MemoryRegionOps gic_ops[2] = {
+    {
+        .read_with_attrs = gic_dist_read,
+        .write_with_attrs = gic_dist_write,
+        .endianness = DEVICE_NATIVE_ENDIAN,
+    },
+    {
+        .read_with_attrs = gic_thiscpu_read,
+        .write_with_attrs = gic_thiscpu_write,
+        .endianness = DEVICE_NATIVE_ENDIAN,
+    }
 };
 
 static const MemoryRegionOps gic_cpu_ops = {
@@ -1068,31 +1069,10 @@ static const MemoryRegionOps gic_cpu_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+/* This function is used by nvic model */
 void gic_init_irqs_and_distributor(GICState *s)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
-    int i;
-
-    i = s->num_irq - GIC_INTERNAL;
-    /* For the GIC, also expose incoming GPIO lines for PPIs for each CPU.
-     * GPIO array layout is thus:
-     *  [0..N-1] SPIs
-     *  [N..N+31] PPIs for CPU 0
-     *  [N+32..N+63] PPIs for CPU 1
-     *   ...
-     */
-    if (s->revision != REV_NVIC) {
-        i += (GIC_INTERNAL * s->num_cpu);
-    }
-    qdev_init_gpio_in(DEVICE(s), gic_set_irq, i);
-    for (i = 0; i < NUM_CPU(s); i++) {
-        sysbus_init_irq(sbd, &s->parent_irq[i]);
-    }
-    for (i = 0; i < NUM_CPU(s); i++) {
-        sysbus_init_irq(sbd, &s->parent_fiq[i]);
-    }
-    memory_region_init_io(&s->iomem, OBJECT(s), &gic_dist_ops, s,
-                          "gic_dist", 0x1000);
+    gic_init_irqs_and_mmio(s, gic_set_irq, gic_ops);
 }
 
 static void arm_gic_realize(DeviceState *dev, Error **errp)
@@ -1110,28 +1090,22 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    gic_init_irqs_and_distributor(s);
+    /* This creates distributor and main CPU interface (s->cpuiomem[0]) */
+    gic_init_irqs_and_mmio(s, gic_set_irq, gic_ops);
 
-    /* Memory regions for the CPU interfaces (NVIC doesn't have these):
-     * a region for "CPU interface for this core", then a region for
-     * "CPU interface for core 0", "for core 1", ...
+    /* Extra core-specific regions for the CPU interfaces. This is
+     * necessary for "franken-GIC" implementations, for example on
+     * Exynos 4.
      * NB that the memory region size of 0x100 applies for the 11MPCore
      * and also cores following the GIC v1 spec (ie A9).
      * GIC v2 defines a larger memory region (0x1000) so this will need
      * to be extended when we implement A15.
      */
-    memory_region_init_io(&s->cpuiomem[0], OBJECT(s), &gic_thiscpu_ops, s,
-                          "gic_cpu", 0x100);
     for (i = 0; i < NUM_CPU(s); i++) {
         s->backref[i] = s;
         memory_region_init_io(&s->cpuiomem[i+1], OBJECT(s), &gic_cpu_ops,
                               &s->backref[i], "gic_cpu", 0x100);
-    }
-    /* Distributor */
-    sysbus_init_mmio(sbd, &s->iomem);
-    /* cpu interfaces (one for "current cpu" plus one per cpu) */
-    for (i = 0; i <= NUM_CPU(s); i++) {
-        sysbus_init_mmio(sbd, &s->cpuiomem[i]);
+        sysbus_init_mmio(sbd, &s->cpuiomem[i+1]);
     }
 }
 

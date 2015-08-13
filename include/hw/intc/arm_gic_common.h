@@ -138,4 +138,7 @@ typedef struct ARMGICCommonClass {
     void (*post_load)(GICState *s);
 } ARMGICCommonClass;
 
+void gic_init_irqs_and_mmio(GICState *s, qemu_irq_handler handler,
+                            const MemoryRegionOps *ops);
+
 #endif

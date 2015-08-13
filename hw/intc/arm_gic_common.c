@@ -84,6 +84,47 @@ static const VMStateDescription vmstate_gic = {
     }
 };
 
+void gic_init_irqs_and_mmio(GICState *s, qemu_irq_handler handler,
+                            const MemoryRegionOps *ops)
+{
+    SysBusDevice *sbd = SYS_BUS_DEVICE(s);
+    int i = s->num_irq - GIC_INTERNAL;
+
+    /* For the GIC, also expose incoming GPIO lines for PPIs for each CPU.
+     * GPIO array layout is thus:
+     *  [0..N-1] SPIs
+     *  [N..N+31] PPIs for CPU 0
+     *  [N+32..N+63] PPIs for CPU 1
+     *   ...
+     */
+    if (s->revision != REV_NVIC) {
+        i += (GIC_INTERNAL * s->num_cpu);
+    }
+    qdev_init_gpio_in(DEVICE(s), handler, i);
+
+    for (i = 0; i < s->num_cpu; i++) {
+        sysbus_init_irq(sbd, &s->parent_irq[i]);
+    }
+    for (i = 0; i < s->num_cpu; i++) {
+        sysbus_init_irq(sbd, &s->parent_fiq[i]);
+    }
+
+    /* Distributor */
+    memory_region_init_io(&s->iomem, OBJECT(s), ops, s, "gic_dist", 0x1000);
+    sysbus_init_mmio(sbd, &s->iomem);
+
+    if (s->revision != REV_NVIC) {
+        /* This is the main CPU interface "for this core". It is always
+         * present because it is required by both software emulation and KVM.
+         * NVIC is not handled here because its CPU interface is different,
+         * neither it can use KVM.
+         */
+        memory_region_init_io(&s->cpuiomem[0], OBJECT(s), ops ? &ops[1] : NULL,
+                              s, "gic_cpu", s->revision == 2 ? 0x1000 : 0x100);
+        sysbus_init_mmio(sbd, &s->cpuiomem[0]);
+    }
+}
+
 static void arm_gic_common_realize(DeviceState *dev, Error **errp)
 {
     GICState *s = ARM_GIC_COMMON(dev);

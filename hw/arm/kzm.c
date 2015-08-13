@@ -22,6 +22,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/char/serial.h"
+#include "hw/intc/imx_avic.h"
 #include "hw/arm/imx.h"
 
     /* Memory map for Kzm Emulation Baseboard:
@@ -106,7 +107,7 @@ static void kzm_init(MachineState *machine)
     memory_region_init_ram(sram, NULL, "kzm.sram", 0x4000, &error_abort);
     memory_region_add_subregion(address_space_mem, 0x1FFFC000, sram);
 
-    dev = sysbus_create_varargs("imx_avic", 0x68000000,
+    dev = sysbus_create_varargs(TYPE_IMX_AVIC, 0x68000000,
                                 qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
                                 qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
                                 NULL);
@@ -114,7 +115,7 @@ static void kzm_init(MachineState *machine)
     imx_serial_create(0, 0x43f90000, qdev_get_gpio_in(dev, 45));
     imx_serial_create(1, 0x43f94000, qdev_get_gpio_in(dev, 32));
 
-    ccm = sysbus_create_simple("imx_ccm", 0x53f80000, NULL);
+    ccm = sysbus_create_simple(TYPE_IMX_CCM, 0x53f80000, NULL);
 
     imx_timerp_create(0x53f94000, qdev_get_gpio_in(dev, 28), ccm);
     imx_timerp_create(0x53f98000, qdev_get_gpio_in(dev, 27), ccm);
