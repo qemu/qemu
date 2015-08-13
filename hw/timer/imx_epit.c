@@ -128,9 +128,9 @@ static void imx_epit_reset(DeviceState *dev)
 
 static uint32_t imx_epit_update_count(IMXEPITState *s)
 {
-     s->cnt = ptimer_get_count(s->timer_reload);
+    s->cnt = ptimer_get_count(s->timer_reload);
 
-     return s->cnt;
+    return s->cnt;
 }
 
 static uint64_t imx_epit_read(void *opaque, hwaddr offset, unsigned size)
@@ -298,13 +298,13 @@ void imx_timerp_create(const hwaddr addr, qemu_irq irq, DeviceState *ccm)
 }
 
 static const MemoryRegionOps imx_epit_ops = {
-  .read = imx_epit_read,
-  .write = imx_epit_write,
-  .endianness = DEVICE_NATIVE_ENDIAN,
+    .read = imx_epit_read,
+    .write = imx_epit_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_imx_timer_epit = {
-    .name = "imx.epit",
+    .name = TYPE_IMX_EPIT,
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
