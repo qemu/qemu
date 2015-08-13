@@ -22,7 +22,7 @@
 
 #ifdef DEBUG_INT
 #define DPRINTF(fmt, args...) \
-do { printf("imx_avic: " fmt , ##args); } while (0)
+do { printf("%s: " fmt , TYPE_IMX_AVIC, ##args); } while (0)
 #else
 #define DPRINTF(fmt, args...) do {} while (0)
 #endif
@@ -34,13 +34,13 @@ do { printf("imx_avic: " fmt , ##args); } while (0)
 #define DEBUG_IMPLEMENTATION 1
 #if DEBUG_IMPLEMENTATION
 #  define IPRINTF(fmt, args...) \
-    do  { fprintf(stderr, "imx_avic: " fmt, ##args); } while (0)
+    do  { fprintf(stderr, "%s: " fmt, TYPE_IMX_AVIC, ##args); } while (0)
 #else
 #  define IPRINTF(fmt, args...) do {} while (0)
 #endif
 
 static const VMStateDescription vmstate_imx_avic = {
-    .name = "imx-avic",
+    .name = TYPE_IMX_AVIC,
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
@@ -53,8 +53,6 @@ static const VMStateDescription vmstate_imx_avic = {
         VMSTATE_END_OF_LIST()
     },
 };
-
-
 
 static inline int imx_avic_prio(IMXAVICState *s, int irq)
 {
@@ -215,7 +213,7 @@ static uint64_t imx_avic_read(void *opaque,
         return 0x4;
 
     default:
-        IPRINTF("imx_avic_read: Bad offset 0x%x\n", (int)offset);
+        IPRINTF("%s: Bad offset 0x%x\n", __func__, (int)offset);
         return 0;
     }
 }
@@ -227,12 +225,12 @@ static void imx_avic_write(void *opaque, hwaddr offset,
 
     /* Vector Registers not yet supported */
     if (offset >= 0x100 && offset <= 0x2fc) {
-        IPRINTF("imx_avic_write to vector register %d ignored\n",
+        IPRINTF("%s to vector register %d ignored\n", __func__,
                 (unsigned int)((offset - 0x100) >> 2));
         return;
     }
 
-    DPRINTF("imx_avic_write(0x%x) = %x\n",
+    DPRINTF("%s(0x%x) = %x\n", __func__,
             (unsigned int)offset>>2, (unsigned int)val);
     switch (offset >> 2) {
     case 0: /* Interrupt Control Register, INTCNTL */
@@ -307,7 +305,7 @@ static void imx_avic_write(void *opaque, hwaddr offset,
         return;
 
     default:
-        IPRINTF("imx_avic_write: Bad offset %x\n", (int)offset);
+        IPRINTF("%s: Bad offset %x\n", __func__, (int)offset);
     }
     imx_avic_update(s);
 }
