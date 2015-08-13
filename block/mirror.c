@@ -60,6 +60,7 @@ typedef struct MirrorBlockJob {
     int sectors_in_flight;
     int ret;
     bool unmap;
+    bool waiting_for_io;
 } MirrorBlockJob;
 
 typedef struct MirrorOp {
@@ -114,11 +115,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
     qemu_iovec_destroy(&op->qiov);
     g_slice_free(MirrorOp, op);
 
-    /* Enter coroutine when it is not sleeping.  The coroutine sleeps to
-     * rate-limit itself.  The coroutine will eventually resume since there is
-     * a sleep timeout so don't wake it early.
-     */
-    if (s->common.busy) {
+    if (s->waiting_for_io) {
         qemu_coroutine_enter(s->common.co, NULL);
     }
 }
@@ -203,7 +200,9 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     /* Wait for I/O to this cluster (from a previous iteration) to be done.  */
     while (test_bit(next_chunk, s->in_flight_bitmap)) {
         trace_mirror_yield_in_flight(s, sector_num, s->in_flight);
+        s->waiting_for_io = true;
         qemu_coroutine_yield();
+        s->waiting_for_io = false;
     }
 
     do {
@@ -239,7 +238,9 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
          */
         while (nb_chunks == 0 && s->buf_free_count < added_chunks) {
             trace_mirror_yield_buf_busy(s, nb_chunks, s->in_flight);
+            s->waiting_for_io = true;
             qemu_coroutine_yield();
+            s->waiting_for_io = false;
         }
         if (s->buf_free_count < nb_chunks + added_chunks) {
             trace_mirror_break_buf_busy(s, nb_chunks, s->in_flight);
@@ -337,7 +338,9 @@ static void mirror_free_init(MirrorBlockJob *s)
 static void mirror_drain(MirrorBlockJob *s)
 {
     while (s->in_flight > 0) {
+        s->waiting_for_io = true;
         qemu_coroutine_yield();
+        s->waiting_for_io = false;
     }
 }
 
@@ -510,7 +513,9 @@ static void coroutine_fn mirror_run(void *opaque)
             if (s->in_flight == MAX_IN_FLIGHT || s->buf_free_count == 0 ||
                 (cnt == 0 && s->in_flight > 0)) {
                 trace_mirror_yield(s, s->in_flight, s->buf_free_count, cnt);
+                s->waiting_for_io = true;
                 qemu_coroutine_yield();
+                s->waiting_for_io = false;
                 continue;
             } else if (cnt != 0) {
                 delay_ns = mirror_iteration(s);
