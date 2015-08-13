@@ -49,6 +49,7 @@
 #include "hw/platform-bus.h"
 #include "hw/arm/fdt.h"
 #include "hw/intc/arm_gic_common.h"
+#include "kvm_arm.h"
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 256
@@ -366,12 +367,10 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
     /* We create a standalone GIC v2 */
     DeviceState *gicdev;
     SysBusDevice *gicbusdev;
-    const char *gictype = "arm_gic";
+    const char *gictype;
     int i;
 
-    if (kvm_irqchip_in_kernel()) {
-        gictype = "kvm-arm-gic";
-    }
+    gictype = gic_class_name();
 
     gicdev = qdev_create(NULL, gictype);
     qdev_prop_set_uint32(gicdev, "revision", 2);

@@ -20,6 +20,7 @@
 
 #include "hw/cpu/a15mpcore.h"
 #include "sysemu/kvm.h"
+#include "kvm_arm.h"
 
 static void a15mp_priv_set_irq(void *opaque, int irq, int level)
 {
@@ -33,16 +34,11 @@ static void a15mp_priv_initfn(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     A15MPPrivState *s = A15MPCORE_PRIV(obj);
     DeviceState *gicdev;
-    const char *gictype = "arm_gic";
-
-    if (kvm_irqchip_in_kernel()) {
-        gictype = "kvm-arm-gic";
-    }
 
     memory_region_init(&s->container, obj, "a15mp-priv-container", 0x8000);
     sysbus_init_mmio(sbd, &s->container);
 
-    object_initialize(&s->gic, sizeof(s->gic), gictype);
+    object_initialize(&s->gic, sizeof(s->gic), gic_class_name());
     gicdev = DEVICE(&s->gic);
     qdev_set_parent_bus(gicdev, sysbus_get_default());
     qdev_prop_set_uint32(gicdev, "revision", 2);

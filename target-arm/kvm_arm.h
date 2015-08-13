@@ -191,4 +191,9 @@ int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu);
 
 #endif
 
+static inline const char *gic_class_name(void)
+{
+    return kvm_irqchip_in_kernel() ? "kvm-arm-gic" : "arm_gic";
+}
+
 #endif
