@@ -355,6 +355,10 @@ static uint64_t bonito_ldma_readl(void *opaque, hwaddr addr,
     uint32_t val;
     PCIBonitoState *s = opaque;
 
+    if (addr >= sizeof(s->bonldma)) {
+        return 0;
+    }
+
     val = ((uint32_t *)(&s->bonldma))[addr/sizeof(uint32_t)];
 
     return val;
@@ -364,6 +368,10 @@ static void bonito_ldma_writel(void *opaque, hwaddr addr,
                                uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
+
+    if (addr >= sizeof(s->bonldma)) {
+        return;
+    }
 
     ((uint32_t *)(&s->bonldma))[addr/sizeof(uint32_t)] = val & 0xffffffff;
 }
@@ -384,6 +392,10 @@ static uint64_t bonito_cop_readl(void *opaque, hwaddr addr,
     uint32_t val;
     PCIBonitoState *s = opaque;
 
+    if (addr >= sizeof(s->boncop)) {
+        return 0;
+    }
+
     val = ((uint32_t *)(&s->boncop))[addr/sizeof(uint32_t)];
 
     return val;
@@ -393,6 +405,10 @@ static void bonito_cop_writel(void *opaque, hwaddr addr,
                               uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
+
+    if (addr >= sizeof(s->boncop)) {
+        return;
+    }
 
     ((uint32_t *)(&s->boncop))[addr/sizeof(uint32_t)] = val & 0xffffffff;
 }
