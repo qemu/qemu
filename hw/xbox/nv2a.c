@@ -3201,9 +3201,9 @@ static void pgraph_update_surface_part(NV2AState *d, bool upload, bool color) {
                       "(0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
                         "%d %d, %d %d, %d) - %x %x %x %x\n",
             color ? "color" : "zeta",
-            dma->address, dma.address + dma.limit,
-            dma->address + surface->offset,
-            dma->address + surface->pitch * height,
+            dma.address, dma.address + dma.limit,
+            dma.address + surface->offset,
+            dma.address + surface->pitch * height,
             pg->surface_shape.clip_x, pg->surface_shape.clip_y,
             pg->surface_shape.clip_width,
             pg->surface_shape.clip_height,
