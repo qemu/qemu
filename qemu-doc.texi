@@ -3021,9 +3021,63 @@ and all other qemu-system-@var{target}.exe compiled for Win32.
 @node Mac OS X
 @section Mac OS X
 
-The Mac OS X patches are not fully merged in QEMU, so you should look
-at the QEMU mailing list archive to have all the necessary
-information.
+System Requirements:
+@itemize
+@item Mac OS 10.5 or higher
+@item The clang compiler shipped with Xcode 4.2 or higher,
+or GCC 4.3 or higher
+@end itemize
+
+Additional Requirements (install in order):
+@enumerate
+@item libffi: @uref{https://sourceware.org/libffi/}
+@item gettext: @uref{http://www.gnu.org/software/gettext/}
+@item glib: @uref{http://ftp.gnome.org/pub/GNOME/sources/glib/}
+@item pkg-config: @uref{http://www.freedesktop.org/wiki/Software/pkg-config/}
+@item autoconf: @uref{http://www.gnu.org/software/autoconf/autoconf.html}
+@item automake: @uref{http://www.gnu.org/software/automake/}
+@item libtool: @uref{http://www.gnu.org/software/libtool/}
+@item pixman: @uref{http://www.pixman.org/}
+@end enumerate
+
+* You may find it easiest to get these from a third-party packager
+such as Homebrew, Macports, or Fink.
+
+After downloading the QEMU source code, double-click it to expand it.
+
+Then configure and make QEMU:
+@example
+./configure
+make
+@end example
+
+If you have a recent version of Mac OS X (OSX 10.7 or better
+with Xcode 4.2 or better) we recommend building QEMU with the
+default compiler provided by Apple, for your version of Mac OS X
+(which will be 'clang'). The configure script will
+automatically pick this.
+
+Note: If after the configure step you see a message like this:
+@example
+ERROR: Your compiler does not support the __thread specifier for
+       Thread-Local Storage (TLS). Please upgrade to a version that does.
+@end example
+You may have to build your own version of gcc from source. Expect that to take
+several hours. More information can be found here:
+@uref{https://gcc.gnu.org/install/} @*
+
+These are some of the third party binaries of gcc available for download:
+@itemize
+@item Homebrew: @uref{http://brew.sh/}
+@item @uref{https://www.litebeam.net/gcc/gcc_472.pkg}
+@item @uref{http://www.macports.org/ports.php?by=name&substr=gcc}
+@end itemize
+
+You can have several versions of GCC on your system. To specify a certain version,
+use the --cc and --cxx options.
+@example
+./configure --cxx=<path of your c++ compiler> --cc=<path of your c compiler> <other options>
+@end example
 
 @node Make targets
 @section Make targets
