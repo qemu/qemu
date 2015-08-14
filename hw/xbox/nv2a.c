@@ -2986,10 +2986,18 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
 
         GLint loc = glGetUniformLocation(pg->shader_binding->gl_program,
-                                         "clipRange");
+                                          "surfaceSize");
+        if (loc != -1) {
+            glUniform2f(loc, pg->surface_shape.clip_width,
+                        pg->surface_shape.clip_height);
+        }
+
+        loc = glGetUniformLocation(pg->shader_binding->gl_program,
+                                   "clipRange");
         if (loc != -1) {
             glUniform2f(loc, zclip_min, zclip_max);
         }
+
     }
     NV2A_GL_DGROUP_END();
 }

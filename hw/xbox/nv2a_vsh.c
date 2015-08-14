@@ -569,9 +569,8 @@ static const char* vsh_header =
     /* All constants in 1 array declaration */
    "uniform vec4 c[192];\n"
    "\n"
-   "#define viewportScale c[58]\n"
-   "#define viewportOffset c[59]\n"
    "uniform vec2 clipRange;\n"
+   "uniform vec2 surfaceSize;\n"
 
     /* See:
      * http://msdn.microsoft.com/en-us/library/windows/desktop/bb174703%28v=vs.85%29.aspx
@@ -772,7 +771,7 @@ QString* vsh_translate(uint16_t version,
      * around the perspective divide */
     qstring_append(body,
         "if (oPos.w == 0.0 || isinf(oPos.w)) {\n"
-        "  vtx.inv_w = 1.0;"
+        "  vtx.inv_w = 1.0;\n"
         "} else {\n"
         "  vtx.inv_w = 1.0 / oPos.w;\n"
         "}\n");
@@ -789,13 +788,10 @@ QString* vsh_translate(uint16_t version,
     qstring_append(body,
         /* the shaders leave the result in screen space, while
          * opengl expects it in clip space.
+         * TODO: the pixel-center co-ordinate differences should handled
          */
-
-        /* Use magic viewport constants to translate xyz back into clip space
-         * TODO: Are they always present?
-         */
-        "oPos.x = (oPos.x - viewportOffset.x) / viewportScale.x;\n"
-        "oPos.y = (oPos.y - viewportOffset.y) / viewportScale.y;\n"
+        "oPos.x = 2.0 * (oPos.x - surfaceSize.x * 0.5) / surfaceSize.x;\n"
+        "oPos.y = -2.0 * (oPos.y - surfaceSize.y * 0.5) / surfaceSize.y;\n"
         "if (clipRange.y != clipRange.x) {\n"
         "  oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
         "}\n"
