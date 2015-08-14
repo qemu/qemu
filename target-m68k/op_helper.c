@@ -63,9 +63,9 @@ static void do_rte(CPUM68KState *env)
     fmt = cpu_ldl_kernel(env, sp);
     env->pc = cpu_ldl_kernel(env, sp + 4);
     sp |= (fmt >> 28) & 3;
-    env->sr = fmt & 0xffff;
     env->aregs[7] = sp + 8;
-    m68k_switch_sp(env);
+
+    helper_set_sr(env, fmt);
 }
 
 static void do_interrupt_all(CPUM68KState *env, int is_hw)
@@ -112,6 +112,7 @@ static void do_interrupt_all(CPUM68KState *env, int is_hw)
     fmt |= 0x40000000;
     fmt |= vector << 16;
     fmt |= env->sr;
+    fmt |= cpu_m68k_get_ccr(env);
 
     env->sr |= SR_S;
     if (is_hw) {

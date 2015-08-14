@@ -132,7 +132,7 @@ void m68k_cpu_init_gdb(M68kCPU *cpu)
     /* TODO: Add [E]MAC registers.  */
 }
 
-uint32_t cpu_m68k_flush_flags(CPUM68KState *env, int op)
+static uint32_t cpu_m68k_flush_flags(CPUM68KState *env, int op)
 {
     int flags;
     uint32_t src;
@@ -270,6 +270,18 @@ set_x:
         g_assert_not_reached();
     }
     return flags;
+}
+
+uint32_t cpu_m68k_get_ccr(CPUM68KState *env)
+{
+    return cpu_m68k_flush_flags(env, env->cc_op) | env->cc_x * CCF_X;
+}
+
+void cpu_m68k_set_ccr(CPUM68KState *env, uint32_t val)
+{
+    env->cc_op = CC_OP_FLAGS;
+    env->cc_dest = val & 0xf;
+    env->cc_x = (val & CCF_X ? 1 : 0);
 }
 
 void HELPER(movec)(CPUM68KState *env, uint32_t reg, uint32_t val)
@@ -466,7 +478,8 @@ uint32_t HELPER(addx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
 
 void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
 {
-    env->sr = val & 0xffff;
+    env->sr = val & 0xffe0;
+    cpu_m68k_set_ccr(env, val);
     m68k_switch_sp(env);
 }
 
