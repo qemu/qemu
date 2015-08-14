@@ -58,7 +58,7 @@ static void m68k_cpu_reset(CPUState *s)
 #endif
     m68k_switch_sp(env);
     /* ??? FP regs should be initialized to NaN.  */
-    env->cc_op = CC_OP_FLAGS;
+    cpu_m68k_set_ccr(env, 0);
     /* TODO: We should set PC from the interrupt vector.  */
     env->pc = 0;
     tlb_flush(s, 1);

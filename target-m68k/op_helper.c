@@ -185,7 +185,6 @@ void HELPER(divu)(CPUM68KState *env, uint32_t word)
     uint32_t den;
     uint32_t quot;
     uint32_t rem;
-    uint32_t flags;
 
     num = env->div1;
     den = env->div2;
@@ -195,16 +194,14 @@ void HELPER(divu)(CPUM68KState *env, uint32_t word)
     }
     quot = num / den;
     rem = num % den;
-    flags = 0;
-    if (word && quot > 0xffff)
-        flags |= CCF_V;
-    if (quot == 0)
-        flags |= CCF_Z;
-    else if ((int32_t)quot < 0)
-        flags |= CCF_N;
+
+    env->cc_v = (word && quot > 0xffff ? -1 : 0);
+    env->cc_z = quot;
+    env->cc_n = quot;
+    env->cc_c = 0;
+
     env->div1 = quot;
     env->div2 = rem;
-    env->cc_dest = flags;
 }
 
 void HELPER(divs)(CPUM68KState *env, uint32_t word)
@@ -213,7 +210,6 @@ void HELPER(divs)(CPUM68KState *env, uint32_t word)
     int32_t den;
     int32_t quot;
     int32_t rem;
-    int32_t flags;
 
     num = env->div1;
     den = env->div2;
@@ -222,14 +218,12 @@ void HELPER(divs)(CPUM68KState *env, uint32_t word)
     }
     quot = num / den;
     rem = num % den;
-    flags = 0;
-    if (word && quot != (int16_t)quot)
-        flags |= CCF_V;
-    if (quot == 0)
-        flags |= CCF_Z;
-    else if (quot < 0)
-        flags |= CCF_N;
+
+    env->cc_v = (word && quot != (int16_t)quot ? -1 : 0);
+    env->cc_z = quot;
+    env->cc_n = quot;
+    env->cc_c = 0;
+
     env->div1 = quot;
     env->div2 = rem;
-    env->cc_dest = flags;
 }

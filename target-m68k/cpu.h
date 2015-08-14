@@ -75,9 +75,11 @@ typedef struct CPUM68KState {
 
     /* Condition flags.  */
     uint32_t cc_op;
-    uint32_t cc_dest;
-    uint32_t cc_src;
-    uint32_t cc_x;
+    uint32_t cc_x; /* always 0/1 */
+    uint32_t cc_n; /* in bit 31 (i.e. negative) */
+    uint32_t cc_v; /* in bit 31, unused, or computed from cc_n and cc_v */
+    uint32_t cc_c; /* either 0/1, unused, or computed from cc_n and cc_v */
+    uint32_t cc_z; /* == 0 or unused */
 
     float64 fregs[8];
     float64 fp_result;
@@ -170,27 +172,23 @@ void cpu_m68k_set_ccr(CPUM68KState *env, uint32_t);
  * are only needed for conditional branches.
  */
 typedef enum {
-    CC_OP_DYNAMIC, /* Use env->cc_op  */
-    CC_OP_FLAGS, /* CC_DEST = CVZN, CC_SRC = unused */
-    CC_OP_LOGICB, /* CC_DEST = result, CC_SRC = unused */
-    CC_OP_LOGICW, /* CC_DEST = result, CC_SRC = unused */
-    CC_OP_LOGIC, /* CC_DEST = result, CC_SRC = unused */
-    CC_OP_ADDB,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_ADDW,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_ADD,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SUBB,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SUBW,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SUB,   /* CC_DEST = result, CC_SRC = source */
-    CC_OP_ADDXB,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_ADDXW,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_ADDX,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SUBXB,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SUBXW,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SUBX,  /* CC_DEST = result, CC_SRC = source */
-    CC_OP_SHIFTB, /* CC_DEST = result, CC_SRC = carry */
-    CC_OP_SHIFTW, /* CC_DEST = result, CC_SRC = carry */
-    CC_OP_SHIFT, /* CC_DEST = result, CC_SRC = carry */
-    CC_OP_NB,
+    /* Translator only -- use env->cc_op.  */
+    CC_OP_DYNAMIC = -1,
+
+    /* Each flag bit computed into cc_[xcnvz].  */
+    CC_OP_FLAGS,
+
+    /* X in cc_x, C = X, N in cc_n, Z in cc_n, V via cc_n/cc_v.  */
+    CC_OP_ADD,
+    CC_OP_SUB,
+
+    /* X in cc_x, {N,Z,C,V} via cc_n/cc_v.  */
+    CC_OP_CMP,
+
+    /* X in cc_x, C = 0, V = 0, N in cc_n, Z in cc_n.  */
+    CC_OP_LOGIC,
+
+    CC_OP_NB
 } CCOp;
 
 #define CCF_C 0x01
