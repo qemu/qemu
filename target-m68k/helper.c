@@ -207,19 +207,12 @@ static uint32_t cpu_m68k_flush_flags(CPUM68KState *env, int op)
         break;
     case CC_OP_LOGICB:
         SET_NZ(dest, int8_t);
-        goto set_x;
         break;
     case CC_OP_LOGICW:
         SET_NZ(dest, int16_t);
-        goto set_x;
         break;
     case CC_OP_LOGIC:
         SET_NZ(dest, int32_t);
-set_x:
-        if (!m68k_feature(env, M68K_FEATURE_M68000)) {
-            /* Unlike m68k, coldfire always clears the overflow bit.  */
-            env->cc_x = 0;
-        }
         break;
     case CC_OP_ADDB:
         SET_FLAGS_ADD(int8_t, uint8_t);
