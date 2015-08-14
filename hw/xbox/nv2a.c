@@ -1154,7 +1154,7 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
         {4, true, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8] =
         {1, false, GL_R8, GL_RED, GL_UNSIGNED_BYTE,
-         {GL_ZERO, GL_ZERO, GL_ZERO, GL_RED}},
+         {GL_ONE, GL_ONE, GL_ONE, GL_RED}},
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8Y8] =
         {2, false, GL_RG8, GL_RG, GL_UNSIGNED_BYTE,
          {GL_BLUE, GL_BLUE, GL_BLUE, GL_RED}},
