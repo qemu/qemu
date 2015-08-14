@@ -1303,6 +1303,7 @@ typedef struct VertexShaderConstant {
 typedef struct Surface {
     bool draw_dirty;
     bool buffer_dirty;
+    bool write_enabled_cache;
     unsigned int pitch;
 
     hwaddr offset;
@@ -3243,6 +3244,7 @@ static void pgraph_update_surface_part(NV2AState *d, bool upload, bool color) {
         }
 
         surface->draw_dirty = false;
+        surface->write_enabled_cache = false;
 
         uint8_t *out = data + surface->offset + 64;
         NV2A_DPRINTF("read_surface %s 0x%" HWADDR_PRIx " - 0x%" HWADDR_PRIx ", "
@@ -3311,12 +3313,14 @@ static void pgraph_update_surface(NV2AState *d, bool upload,
                sizeof(SurfaceShape));
     }
 
-    if (color_write && (upload || pg->surface_color.draw_dirty)) {
+    if ((color_write || (!upload && pg->surface_color.write_enabled_cache))
+        && (upload || pg->surface_color.draw_dirty)) {
         pgraph_update_surface_part(d, upload, true);
     }
 
 
-    if (zeta_write && (upload || pg->surface_zeta.draw_dirty)) {
+    if ((zeta_write || (!upload && pg->surface_zeta.write_enabled_cache))
+        && (upload || pg->surface_zeta.draw_dirty)) {
         pgraph_update_surface_part(d, upload, false);
     }
 }
@@ -4030,7 +4034,7 @@ static void pgraph_method(NV2AState *d,
         break;
 
     case NV097_SET_COLOR_MASK: {
-        pgraph_update_surface(d, false, true, true);
+        pg->surface_color.write_enabled_cache |= pgraph_color_write_enabled(pg);
 
         bool alpha = parameter & NV097_SET_COLOR_MASK_ALPHA_WRITE_ENABLE;
         bool red = parameter & NV097_SET_COLOR_MASK_RED_WRITE_ENABLE;
@@ -4047,7 +4051,7 @@ static void pgraph_method(NV2AState *d,
         break;
     }
     case NV097_SET_DEPTH_MASK:
-        pgraph_update_surface(d, false, true, true);
+        pg->surface_zeta.write_enabled_cache |= pgraph_zeta_write_enabled(pg);
 
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                  NV_PGRAPH_CONTROL_0_ZWRITEENABLE, parameter);
