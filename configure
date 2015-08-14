@@ -956,7 +956,6 @@ for opt do
   ;;
   --enable-cocoa)
       cocoa="yes" ;
-      sdl="no" ;
       audio_drv_list="coreaudio `echo $audio_drv_list | sed s,coreaudio,,g`"
   ;;
   --disable-system) softmmu="no"
@@ -1711,6 +1710,21 @@ else
 fi
 
 ##########################################
+# cocoa implies not SDL or GTK
+# (the cocoa UI code currently assumes it is always the active UI
+# and doesn't interact well with other UI frontend code)
+if test "$cocoa" = "yes"; then
+    if test "$sdl" = "yes"; then
+        error_exit "Cocoa and SDL UIs cannot both be enabled at once"
+    fi
+    if test "$gtk" = "yes"; then
+        error_exit "Cocoa and GTK UIs cannot both be enabled at once"
+    fi
+    gtk=no
+    sdl=no
+fi
+
+##########################################
 # L2TPV3 probe
 
 cat > $TMPC <<EOF
@@ -2287,9 +2301,7 @@ EOF
     if test "$_sdlversion" -lt 121 ; then
       sdl_too_old=yes
     else
-      if test "$cocoa" = "no" ; then
-        sdl=yes
-      fi
+      sdl=yes
     fi
 
     # static link with sdl ? (note: sdl.pc's --static --libs is broken)
