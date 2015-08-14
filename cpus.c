@@ -25,6 +25,7 @@
 /* Needed early for CONFIG_BSD etc. */
 #include "qemu/osdep.h"
 
+#include "qemu/config-file.h"
 #include "monitor/monitor.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/error-report.h"
@@ -146,6 +147,48 @@ typedef struct TimersState {
 } TimersState;
 
 static TimersState timers_state;
+static bool mttcg_enabled;
+
+static QemuOptsList qemu_tcg_opts = {
+    .name = "tcg",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_tcg_opts.head),
+    .desc = {
+        {
+            .name = "mttcg",
+            .type = QEMU_OPT_BOOL,
+            .help = "Enable/disable multi-threaded TCG",
+        },
+        { /* end of list */ }
+    },
+};
+
+static void tcg_register_config(void)
+{
+    qemu_add_opts(&qemu_tcg_opts);
+}
+
+opts_init(tcg_register_config);
+
+static bool default_mttcg_enabled(void)
+{
+    /*
+     * TODO: Check if we have a chance to have MTTCG working on this guest/host.
+     *       Basically is the atomic instruction implemented? Is there any
+     *       memory ordering issue?
+     */
+    return false;
+}
+
+void qemu_tcg_configure(QemuOpts *opts)
+{
+    mttcg_enabled = qemu_opt_get_bool(opts, "mttcg", default_mttcg_enabled());
+}
+
+bool qemu_tcg_mttcg_enabled(void)
+{
+    return mttcg_enabled;
+}
+
 
 int64_t cpu_get_icount_raw(void)
 {

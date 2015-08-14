@@ -3224,6 +3224,20 @@ Attach to existing xen domain.
 xend will use this when starting QEMU (XEN only).
 ETEXI
 
+DEF("tcg", HAS_ARG, QEMU_OPTION_tcg, \
+    "-tcg [mttcg=on|off] control TCG options\n", QEMU_ARCH_ALL)
+STEXI
+@item -tcg
+@findex -tcg
+@table @option
+@item mttcg=[on|off]
+Control multi-threaded TCG. By default QEMU will enable multi-threaded
+emulation for front/back-end combinations that are known to work. The
+user may enable it against the defaults however odd guest behaviour
+may occur.
+@end table
+ETEXI
+
 DEF("no-reboot", 0, QEMU_OPTION_no_reboot, \
     "-no-reboot      exit instead of rebooting\n", QEMU_ARCH_ALL)
 STEXI

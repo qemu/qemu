@@ -2961,7 +2961,8 @@ int main(int argc, char **argv, char **envp)
     const char *boot_once = NULL;
     DisplayState *ds;
     int cyls, heads, secs, translation;
-    QemuOpts *hda_opts = NULL, *opts, *machine_opts, *icount_opts = NULL;
+    QemuOpts *opts, *machine_opts;
+    QemuOpts *hda_opts = NULL, *icount_opts = NULL, *tcg_opts = NULL;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -3750,6 +3751,13 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_no_reboot:
                 no_reboot = 1;
                 break;
+            case QEMU_OPTION_tcg:
+                tcg_opts = qemu_opts_parse_noisily(qemu_find_opts("tcg"),
+                                                   optarg, false);
+                if (!tcg_opts) {
+                    exit(1);
+                }
+                break;
             case QEMU_OPTION_no_shutdown:
                 no_shutdown = 1;
                 break;
@@ -4027,6 +4035,8 @@ int main(int argc, char **argv, char **envp)
      * Best done right after the loop.  Do not insert code here!
      */
     loc_set_none();
+
+    qemu_tcg_configure(tcg_opts);
 
     replay_configure(icount_opts);
 
