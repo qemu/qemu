@@ -20,7 +20,23 @@
 #define GLEXTEENSIONS_H_
 
 #ifdef __APPLE__
+#include "gl/gloffscreen.h"
 extern void (*glFrameTerminatorGREMEDY)(void);
+
+#define GL_DEBUG_SOURCE_APPLICATION       0x824A
+#define GL_DEBUG_TYPE_MARKER              0x8268
+#define GL_DEBUG_SEVERITY_NOTIFICATION    0x826B
+#define GL_DEBUG_OUTPUT                   0x92E0
+
+extern void (*glDebugMessageInsert) (GLenum source, GLenum type, GLuint id,
+                                     GLenum severity, GLsizei length,
+                                     const GLchar *buf);
+extern void (*glPushDebugGroup)(GLenum source, GLuint id, GLsizei length,
+                                const GLchar *message);
+extern void (*glPopDebugGroup)(void);
+extern void (*glObjectLabel)(GLenum identifier, GLuint name, GLsizei length,
+                             const GLchar *label);
+
 #endif
 
 void glextensions_init(void);

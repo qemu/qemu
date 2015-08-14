@@ -26,6 +26,8 @@
 #include <stdarg.h>
 #include <assert.h>
 
+#include "gl/glextensions.h"
+
 void gl_debug_message(bool cc, const char *fmt, ...)
 {
     size_t n;
@@ -35,8 +37,11 @@ void gl_debug_message(bool cc, const char *fmt, ...)
     n = vsnprintf(buffer, sizeof(buffer), fmt, ap);
     assert(n <= sizeof(buffer));
     va_end(ap);
-    glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER,
-                         0, GL_DEBUG_SEVERITY_NOTIFICATION, n, buffer);
+
+    if(glDebugMessageInsert) {
+        glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_MARKER,
+                             0, GL_DEBUG_SEVERITY_NOTIFICATION, n, buffer);
+    }
     if (cc) {
         fwrite(buffer, sizeof(char), n, stdout);
         fputc('\n', stdout);
@@ -55,14 +60,20 @@ void gl_debug_group_begin(const char *fmt, ...)
 
     /* Check for errors before entering group */
     assert(glGetError() == GL_NO_ERROR);
-    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, n, buffer);
+
+    if (glPushDebugGroup) {
+        glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 0, n, buffer);
+    }
 }
 
 void gl_debug_group_end(void)
 {
     /* Check for errors when leaving group */
     assert(glGetError() == GL_NO_ERROR);
-    glPopDebugGroup();
+
+    if (glPopDebugGroup) {
+        glPopDebugGroup();
+    }
 }
 
 void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
@@ -75,7 +86,9 @@ void gl_debug_label(GLenum target, GLuint name, const char *fmt, ...)
     assert(n <= sizeof(buffer));
     va_end(ap);
 
-    glObjectLabel(target, name, n, buffer);
+    if (glObjectLabel) {
+        glObjectLabel(target, name, n, buffer);
+    }
 }
 
 #endif
