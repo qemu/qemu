@@ -771,10 +771,43 @@ static void gen_cc_cond(DisasCompare *c, DisasContext *s, int cond)
 {
     TCGv tmp, tmp2;
     TCGCond tcond;
+    CCOp op = s->cc_op;
 
-    /* TODO: Optimize compare/branch pairs rather than always flushing
-       flag state to CC_OP_FLAGS.  */
-    gen_flush_flags(s);
+    /* The CC_OP_CMP form can handle most normal comparisons directly.  */
+    if (op == CC_OP_CMP) {
+        c->g1 = c->g2 = 1;
+        c->v1 = QREG_CC_N;
+        c->v2 = QREG_CC_V;
+        switch (cond) {
+        case 2: /* HI */
+        case 3: /* LS */
+            tcond = TCG_COND_LEU;
+            goto done;
+        case 4: /* CC */
+        case 5: /* CS */
+            tcond = TCG_COND_LTU;
+            goto done;
+        case 6: /* NE */
+        case 7: /* EQ */
+            tcond = TCG_COND_EQ;
+            goto done;
+        case 10: /* PL */
+        case 11: /* MI */
+            c->g1 = c->g2 = 0;
+            c->v2 = tcg_const_i32(0);
+            c->v1 = tmp = tcg_temp_new();
+            tcg_gen_sub_i32(tmp, QREG_CC_N, QREG_CC_V);
+            /* fallthru */
+        case 12: /* GE */
+        case 13: /* LT */
+            tcond = TCG_COND_LT;
+            goto done;
+        case 14: /* GT */
+        case 15: /* LE */
+            tcond = TCG_COND_LE;
+            goto done;
+        }
+    }
 
     c->g1 = 1;
     c->g2 = 0;
@@ -785,7 +818,72 @@ static void gen_cc_cond(DisasCompare *c, DisasContext *s, int cond)
     case 1: /* F */
         c->v1 = c->v2;
         tcond = TCG_COND_NEVER;
+        goto done;
+    case 14: /* GT (!(Z || (N ^ V))) */
+    case 15: /* LE (Z || (N ^ V)) */
+        /* Logic operations clear V, which simplifies LE to (Z || N),
+           and since Z and N are co-located, this becomes a normal
+           comparison vs N.  */
+        if (op == CC_OP_LOGIC) {
+            c->v1 = QREG_CC_N;
+            tcond = TCG_COND_LE;
+            goto done;
+        }
         break;
+    case 12: /* GE (!(N ^ V)) */
+    case 13: /* LT (N ^ V) */
+        /* Logic operations clear V, which simplifies this to N.  */
+        if (op != CC_OP_LOGIC) {
+            break;
+        }
+        /* fallthru */
+    case 10: /* PL (!N) */
+    case 11: /* MI (N) */
+        /* Several cases represent N normally.  */
+        if (op == CC_OP_ADD || op == CC_OP_SUB || op == CC_OP_LOGIC) {
+            c->v1 = QREG_CC_N;
+            tcond = TCG_COND_LT;
+            goto done;
+        }
+        break;
+    case 6: /* NE (!Z) */
+    case 7: /* EQ (Z) */
+        /* Some cases fold Z into N.  */
+        if (op == CC_OP_ADD || op == CC_OP_SUB || op == CC_OP_LOGIC) {
+            tcond = TCG_COND_EQ;
+            c->v1 = QREG_CC_N;
+            goto done;
+        }
+        break;
+    case 4: /* CC (!C) */
+    case 5: /* CS (C) */
+        /* Some cases fold C into X.  */
+        if (op == CC_OP_ADD || op == CC_OP_SUB) {
+            tcond = TCG_COND_NE;
+            c->v1 = QREG_CC_X;
+            goto done;
+        }
+        /* fallthru */
+    case 8: /* VC (!V) */
+    case 9: /* VS (V) */
+        /* Logic operations clear V and C.  */
+        if (op == CC_OP_LOGIC) {
+            tcond = TCG_COND_NEVER;
+            c->v1 = c->v2;
+            goto done;
+        }
+        break;
+    }
+
+    /* Otherwise, flush flag state to CC_OP_FLAGS.  */
+    gen_flush_flags(s);
+
+    switch (cond) {
+    case 0: /* T */
+    case 1: /* F */
+    default:
+        /* Invalid, or handled above.  */
+        abort();
     case 2: /* HI (!C && !Z) -> !(C || Z)*/
     case 3: /* LS (C || Z) */
         c->v1 = tmp = tcg_temp_new();
@@ -833,10 +931,9 @@ static void gen_cc_cond(DisasCompare *c, DisasContext *s, int cond)
         tcg_temp_free(tmp2);
         tcond = TCG_COND_LT;
         break;
-    default:
-        /* Should ever happen.  */
-        abort();
     }
+
+ done:
     if ((cond & 1) == 0) {
         tcond = tcg_invert_cond(tcond);
     }
