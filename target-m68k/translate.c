@@ -1032,10 +1032,10 @@ DISAS_INSN(addsub)
     }
     if (add) {
         tcg_gen_add_i32(dest, tmp, src);
-        gen_helper_xflag_lt(QREG_CC_X, dest, src);
+        tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src);
         s->cc_op = CC_OP_ADD;
     } else {
-        gen_helper_xflag_lt(QREG_CC_X, tmp, src);
+        tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, tmp, src);
         tcg_gen_sub_i32(dest, tmp, src);
         s->cc_op = CC_OP_SUB;
     }
@@ -1248,7 +1248,7 @@ DISAS_INSN(arith_im)
         break;
     case 2: /* subi */
         tcg_gen_mov_i32(dest, src1);
-        gen_helper_xflag_lt(QREG_CC_X, dest, tcg_const_i32(im));
+        tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, tcg_const_i32(im));
         tcg_gen_subi_i32(dest, dest, im);
         gen_update_cc_add(dest, tcg_const_i32(im));
         s->cc_op = CC_OP_SUB;
@@ -1257,7 +1257,7 @@ DISAS_INSN(arith_im)
         tcg_gen_mov_i32(dest, src1);
         tcg_gen_addi_i32(dest, dest, im);
         gen_update_cc_add(dest, tcg_const_i32(im));
-        gen_helper_xflag_lt(QREG_CC_X, dest, tcg_const_i32(im));
+        tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, tcg_const_i32(im));
         s->cc_op = CC_OP_ADD;
         break;
     case 5: /* eori */
@@ -1387,7 +1387,7 @@ DISAS_INSN(neg)
     tcg_gen_neg_i32(reg, src1);
     s->cc_op = CC_OP_SUB;
     gen_update_cc_add(reg, src1);
-    gen_helper_xflag_lt(QREG_CC_X, tcg_const_i32(0), src1);
+    tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, tcg_const_i32(0), src1);
     s->cc_op = CC_OP_SUB;
 }
 
@@ -1633,12 +1633,12 @@ DISAS_INSN(addsubq)
     } else {
         src2 = tcg_const_i32(val);
         if (insn & 0x0100) {
-            gen_helper_xflag_lt(QREG_CC_X, dest, src2);
+            tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src2);
             tcg_gen_subi_i32(dest, dest, val);
             s->cc_op = CC_OP_SUB;
         } else {
             tcg_gen_addi_i32(dest, dest, val);
-            gen_helper_xflag_lt(QREG_CC_X, dest, src2);
+            tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_X, dest, src2);
             s->cc_op = CC_OP_ADD;
         }
         gen_update_cc_add(dest, src2);

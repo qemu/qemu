@@ -8,7 +8,6 @@ DEF_HELPER_3(subx_cc, i32, env, i32, i32)
 DEF_HELPER_3(shl_cc, i32, env, i32, i32)
 DEF_HELPER_3(shr_cc, i32, env, i32, i32)
 DEF_HELPER_3(sar_cc, i32, env, i32, i32)
-DEF_HELPER_2(xflag_lt, i32, i32, i32)
 DEF_HELPER_2(set_sr, void, env, i32)
 DEF_HELPER_3(movec, void, env, i32, i32)
 

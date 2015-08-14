@@ -464,11 +464,6 @@ uint32_t HELPER(addx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
     return res;
 }
 
-uint32_t HELPER(xflag_lt)(uint32_t a, uint32_t b)
-{
-    return a < b;
-}
-
 void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
 {
     env->sr = val & 0xffff;
