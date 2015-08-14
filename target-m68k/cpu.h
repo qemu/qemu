@@ -158,6 +158,7 @@ M68kCPU *cpu_m68k_init(const char *cpu_model);
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_m68k_signal_handler(int host_signum, void *pinfo,
                            void *puc);
+uint32_t cpu_m68k_flush_flags(CPUM68KState *env, int op);
 
 
 /* Instead of computing the condition codes after each m68k instruction,

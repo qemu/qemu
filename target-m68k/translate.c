@@ -3140,15 +3140,15 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     for (i = 0; i < 8; i++)
       {
         u.d = env->fregs[i];
-        cpu_fprintf (f, "D%d = %08x   A%d = %08x   F%d = %08x%08x (%12g)\n",
-                     i, env->dregs[i], i, env->aregs[i],
-                     i, u.l.upper, u.l.lower, *(double *)&u.d);
+        cpu_fprintf(f, "D%d = %08x   A%d = %08x   F%d = %08x%08x (%12g)\n",
+                    i, env->dregs[i], i, env->aregs[i],
+                    i, u.l.upper, u.l.lower, *(double *)&u.d);
       }
     cpu_fprintf (f, "PC = %08x   ", env->pc);
-    sr = env->sr;
-    cpu_fprintf (f, "SR = %04x %c%c%c%c%c ", sr, (sr & 0x10) ? 'X' : '-',
-                 (sr & CCF_N) ? 'N' : '-', (sr & CCF_Z) ? 'Z' : '-',
-                 (sr & CCF_V) ? 'V' : '-', (sr & CCF_C) ? 'C' : '-');
+    sr = env->sr | cpu_m68k_flush_flags(env, env->cc_op) | env->cc_x * CCF_X;
+    cpu_fprintf(f, "SR = %04x %c%c%c%c%c ", sr, (sr & CCF_X) ? 'X' : '-',
+                (sr & CCF_N) ? 'N' : '-', (sr & CCF_Z) ? 'Z' : '-',
+                (sr & CCF_V) ? 'V' : '-', (sr & CCF_C) ? 'C' : '-');
     cpu_fprintf (f, "FPRESULT = %12g\n", *(double *)&env->fp_result);
 }
 

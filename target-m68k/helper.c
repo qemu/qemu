@@ -132,7 +132,7 @@ void m68k_cpu_init_gdb(M68kCPU *cpu)
     /* TODO: Add [E]MAC registers.  */
 }
 
-static uint32_t cpu_m68k_flush_flags(CPUM68KState *env, int op)
+uint32_t cpu_m68k_flush_flags(CPUM68KState *env, int op)
 {
     int flags;
     uint32_t src;
