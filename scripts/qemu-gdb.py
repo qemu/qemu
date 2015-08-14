@@ -34,3 +34,7 @@ class QemuCommand(gdb.Command):
 QemuCommand()
 coroutine.CoroutineCommand()
 mtree.MtreeCommand()
+
+# Default to silently passing through SIGUSR1, because QEMU sends it
+# to itself a lot.
+gdb.execute('handle SIGUSR1 pass noprint nostop')
