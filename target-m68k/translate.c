@@ -1536,11 +1536,44 @@ DISAS_INSN(move)
 
 DISAS_INSN(negx)
 {
-    TCGv reg;
+    TCGv z;
+    TCGv src;
+    TCGv addr;
+    int opsize;
 
-    gen_flush_flags(s);
-    reg = DREG(insn, 0);
-    gen_helper_subx_cc(reg, cpu_env, tcg_const_i32(0), reg);
+    opsize = insn_opsize(insn);
+    SRC_EA(env, src, opsize, 1, &addr);
+
+    gen_flush_flags(s); /* compute old Z */
+
+    /* Perform substract with borrow.
+     * (X, N) =  -(src + X);
+     */
+
+    z = tcg_const_i32(0);
+    tcg_gen_add2_i32(QREG_CC_N, QREG_CC_X, src, z, QREG_CC_X, z);
+    tcg_gen_sub2_i32(QREG_CC_N, QREG_CC_X, z, z, QREG_CC_N, QREG_CC_X);
+    tcg_temp_free(z);
+    gen_ext(QREG_CC_N, QREG_CC_N, opsize, 1);
+
+    tcg_gen_andi_i32(QREG_CC_X, QREG_CC_X, 1);
+
+    /* Compute signed-overflow for negation.  The normal formula for
+     * subtraction is (res ^ src) & (src ^ dest), but with dest==0
+     * this simplies to res & src.
+     */
+
+    tcg_gen_and_i32(QREG_CC_V, QREG_CC_N, src);
+
+    /* Copy the rest of the results into place.  */
+    tcg_gen_or_i32(QREG_CC_Z, QREG_CC_Z, QREG_CC_N); /* !Z is sticky */
+    tcg_gen_mov_i32(QREG_CC_C, QREG_CC_X);
+
+    set_cc_op(s, CC_OP_FLAGS);
+
+    /* result is in QREG_CC_N */
+
+    DEST_EA(env, insn, opsize, QREG_CC_N, &addr);
 }
 
 DISAS_INSN(lea)
@@ -1975,15 +2008,75 @@ DISAS_INSN(suba)
     tcg_gen_sub_i32(reg, reg, src);
 }
 
-DISAS_INSN(subx)
+static inline void gen_subx(DisasContext *s, TCGv src, TCGv dest, int opsize)
 {
-    TCGv reg;
-    TCGv src;
+    TCGv tmp;
 
-    gen_flush_flags(s);
-    reg = DREG(insn, 9);
-    src = DREG(insn, 0);
-    gen_helper_subx_cc(reg, cpu_env, reg, src);
+    gen_flush_flags(s); /* compute old Z */
+
+    /* Perform substract with borrow.
+     * (X, N) = dest - (src + X);
+     */
+
+    tmp = tcg_const_i32(0);
+    tcg_gen_add2_i32(QREG_CC_N, QREG_CC_X, src, tmp, QREG_CC_X, tmp);
+    tcg_gen_sub2_i32(QREG_CC_N, QREG_CC_X, dest, tmp, QREG_CC_N, QREG_CC_X);
+    gen_ext(QREG_CC_N, QREG_CC_N, opsize, 1);
+    tcg_gen_andi_i32(QREG_CC_X, QREG_CC_X, 1);
+
+    /* Compute signed-overflow for substract.  */
+
+    tcg_gen_xor_i32(QREG_CC_V, QREG_CC_N, dest);
+    tcg_gen_xor_i32(tmp, dest, src);
+    tcg_gen_and_i32(QREG_CC_V, QREG_CC_V, tmp);
+    tcg_temp_free(tmp);
+
+    /* Copy the rest of the results into place.  */
+    tcg_gen_or_i32(QREG_CC_Z, QREG_CC_Z, QREG_CC_N); /* !Z is sticky */
+    tcg_gen_mov_i32(QREG_CC_C, QREG_CC_X);
+
+    set_cc_op(s, CC_OP_FLAGS);
+
+    /* result is in QREG_CC_N */
+}
+
+DISAS_INSN(subx_reg)
+{
+    TCGv dest;
+    TCGv src;
+    int opsize;
+
+    opsize = insn_opsize(insn);
+
+    src = gen_extend(DREG(insn, 0), opsize, 1);
+    dest = gen_extend(DREG(insn, 9), opsize, 1);
+
+    gen_subx(s, src, dest, opsize);
+
+    gen_partset_reg(opsize, DREG(insn, 9), QREG_CC_N);
+}
+
+DISAS_INSN(subx_mem)
+{
+    TCGv src;
+    TCGv addr_src;
+    TCGv dest;
+    TCGv addr_dest;
+    int opsize;
+
+    opsize = insn_opsize(insn);
+
+    addr_src = AREG(insn, 0);
+    tcg_gen_subi_i32(addr_src, addr_src, opsize);
+    src = gen_load(s, opsize, addr_src, 1);
+
+    addr_dest = AREG(insn, 9);
+    tcg_gen_subi_i32(addr_dest, addr_dest, opsize);
+    dest = gen_load(s, opsize, addr_dest, 1);
+
+    gen_subx(s, src, dest, opsize);
+
+    gen_store(s, opsize, addr_dest, QREG_CC_N);
 }
 
 DISAS_INSN(mov3q)
@@ -2102,15 +2195,74 @@ DISAS_INSN(adda)
     tcg_gen_add_i32(reg, reg, src);
 }
 
-DISAS_INSN(addx)
+static inline void gen_addx(DisasContext *s, TCGv src, TCGv dest, int opsize)
 {
-    TCGv reg;
-    TCGv src;
+    TCGv tmp;
 
-    gen_flush_flags(s);
-    reg = DREG(insn, 9);
-    src = DREG(insn, 0);
-    gen_helper_addx_cc(reg, cpu_env, reg, src);
+    gen_flush_flags(s); /* compute old Z */
+
+    /* Perform addition with carry.
+     * (X, N) = src + dest + X;
+     */
+
+    tmp = tcg_const_i32(0);
+    tcg_gen_add2_i32(QREG_CC_N, QREG_CC_X, QREG_CC_X, tmp, dest, tmp);
+    tcg_gen_add2_i32(QREG_CC_N, QREG_CC_X, QREG_CC_N, QREG_CC_X, src, tmp);
+    gen_ext(QREG_CC_N, QREG_CC_N, opsize, 1);
+
+    /* Compute signed-overflow for addition.  */
+
+    tcg_gen_xor_i32(QREG_CC_V, QREG_CC_N, src);
+    tcg_gen_xor_i32(tmp, dest, src);
+    tcg_gen_andc_i32(QREG_CC_V, QREG_CC_V, tmp);
+    tcg_temp_free(tmp);
+
+    /* Copy the rest of the results into place.  */
+    tcg_gen_or_i32(QREG_CC_Z, QREG_CC_Z, QREG_CC_N); /* !Z is sticky */
+    tcg_gen_mov_i32(QREG_CC_C, QREG_CC_X);
+
+    set_cc_op(s, CC_OP_FLAGS);
+
+    /* result is in QREG_CC_N */
+}
+
+DISAS_INSN(addx_reg)
+{
+    TCGv dest;
+    TCGv src;
+    int opsize;
+
+    opsize = insn_opsize(insn);
+
+    dest = gen_extend(DREG(insn, 9), opsize, 1);
+    src = gen_extend(DREG(insn, 0), opsize, 1);
+
+    gen_addx(s, src, dest, opsize);
+
+    gen_partset_reg(opsize, DREG(insn, 9), QREG_CC_N);
+}
+
+DISAS_INSN(addx_mem)
+{
+    TCGv src;
+    TCGv addr_src;
+    TCGv dest;
+    TCGv addr_dest;
+    int opsize;
+
+    opsize = insn_opsize(insn);
+
+    addr_src = AREG(insn, 0);
+    tcg_gen_subi_i32(addr_src, addr_src, opsize_bytes(opsize));
+    src = gen_load(s, opsize, addr_src, 1);
+
+    addr_dest = AREG(insn, 9);
+    tcg_gen_subi_i32(addr_dest, addr_dest, opsize_bytes(opsize));
+    dest = gen_load(s, opsize, addr_dest, 1);
+
+    gen_addx(s, src, dest, opsize);
+
+    gen_store(s, opsize, addr_dest, QREG_CC_N);
 }
 
 /* TODO: This could be implemented without helper functions.  */
@@ -3109,6 +3261,8 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(move,      3000, f000);
     INSN(strldsr,   40e7, ffff, CF_ISA_APLUSC);
     INSN(negx,      4080, fff8, CF_ISA_A);
+    INSN(negx,      4000, ff00, M68000);
+    INSN(undef,     40c0, ffc0, M68000);
     INSN(move_from_sr, 40c0, fff8, CF_ISA_A);
     INSN(move_from_sr, 40c0, ffc0, M68000);
     BASE(lea,       41c0, f1c0);
@@ -3179,7 +3333,10 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(or,        8000, f000);
     BASE(divw,      80c0, f0c0);
     BASE(addsub,    9000, f000);
-    INSN(subx,      9180, f1f8, CF_ISA_A);
+    INSN(undef,     90c0, f0c0, CF_ISA_A);
+    INSN(subx_reg,  9180, f1f8, CF_ISA_A);
+    INSN(subx_reg,  9100, f138, M68000);
+    INSN(subx_mem,  9108, f138, M68000);
     INSN(suba,      91c0, f1c0, CF_ISA_A);
 
     BASE(undef_mac, a000, f000);
@@ -3211,7 +3368,10 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(exg_da,    c188, f1f8, M68000);
     BASE(mulw,      c0c0, f0c0);
     BASE(addsub,    d000, f000);
-    INSN(addx,      d180, f1f8, CF_ISA_A);
+    INSN(undef,     d0c0, f0c0, CF_ISA_A);
+    INSN(addx_reg,      d180, f1f8, CF_ISA_A);
+    INSN(addx_reg,  d100, f138, M68000);
+    INSN(addx_mem,  d108, f138, M68000);
     INSN(adda,      d1c0, f1c0, CF_ISA_A);
     INSN(adda,      d0c0, f0c0, M68000);
     INSN(shift_im,  e080, f0f0, CF_ISA_A);

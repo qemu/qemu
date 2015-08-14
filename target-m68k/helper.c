@@ -277,46 +277,6 @@ uint32_t HELPER(sats)(uint32_t val, uint32_t v)
     return val;
 }
 
-uint32_t HELPER(subx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
-{
-    uint32_t res, new_x;
-
-    if (env->cc_x) {
-        new_x = (op1 <= op2);
-        res = op1 - (op2 + 1);
-    } else {
-        new_x = (op1 < op2);
-        res = op1 - op2;
-    }
-    env->cc_x = new_x;
-    env->cc_c = new_x;
-    env->cc_n = res;
-    env->cc_z |= res; /* !Z is sticky */
-    env->cc_v = (res ^ op1) & (op1 ^ op2);
-
-    return res;
-}
-
-uint32_t HELPER(addx_cc)(CPUM68KState *env, uint32_t op1, uint32_t op2)
-{
-    uint32_t res, new_x;
-
-    if (env->cc_x) {
-        res = op1 + op2 + 1;
-        new_x = (res <= op2);
-    } else {
-        res = op1 + op2;
-        new_x = (res < op2);
-    }
-    env->cc_x = new_x;
-    env->cc_c = new_x;
-    env->cc_n = res;
-    env->cc_z |= res; /* !Z is sticky.  */
-    env->cc_v = (res ^ op1) & ~(op1 ^ op2);
-
-    return res;
-}
-
 void HELPER(set_sr)(CPUM68KState *env, uint32_t val)
 {
     env->sr = val & 0xffe0;
