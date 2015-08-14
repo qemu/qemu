@@ -3506,18 +3506,14 @@ void vnc_display_open(const char *id, Error **errp)
 {
     VncDisplay *vs = vnc_display_find(id);
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
-    QemuOpts *sopts, *wsopts;
+    SocketAddress *saddr = NULL, *wsaddr = NULL;
     const char *share, *device_id;
     QemuConsole *con;
     bool password = false;
     bool reverse = false;
     const char *vnc;
-    const char *has_to;
     char *h;
-    bool has_ipv4 = false;
-    bool has_ipv6 = false;
     const char *credid;
-    const char *websocket;
     bool sasl = false;
 #ifdef CONFIG_VNC_SASL
     int saslErr;
@@ -3539,42 +3535,81 @@ void vnc_display_open(const char *id, Error **errp)
         return;
     }
 
-    sopts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
-    wsopts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
-
     h = strrchr(vnc, ':');
     if (h) {
-        char *host;
         size_t hlen = h - vnc;
 
-        if (vnc[0] == '[' && vnc[hlen - 1] == ']') {
-            host = g_strndup(vnc + 1, hlen - 2);
-        } else {
-            host = g_strndup(vnc, hlen);
+        const char *websocket = qemu_opt_get(opts, "websocket");
+        int to = qemu_opt_get_number(opts, "to", 0);
+        bool has_ipv4 = qemu_opt_get_bool(opts, "ipv4", false);
+        bool has_ipv6 = qemu_opt_get_bool(opts, "ipv6", false);
+
+        saddr = g_new0(SocketAddress, 1);
+        if (websocket) {
+            if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA1)) {
+                error_setg(errp,
+                           "SHA1 hash support is required for websockets");
+                goto fail;
+            }
+
+            wsaddr = g_new0(SocketAddress, 1);
+            vs->ws_enabled = true;
         }
-        qemu_opt_set(sopts, "host", host, &error_abort);
-        qemu_opt_set(wsopts, "host", host, &error_abort);
-        qemu_opt_set(sopts, "port", h+1, &error_abort);
-        g_free(host);
+
+        if (strncmp(vnc, "unix:", 5) == 0) {
+            saddr->kind = SOCKET_ADDRESS_KIND_UNIX;
+            saddr->q_unix = g_new0(UnixSocketAddress, 1);
+            saddr->q_unix->path = g_strdup(vnc + 5);
+
+            if (vs->ws_enabled) {
+                error_setg(errp, "UNIX sockets not supported with websock");
+                goto fail;
+            }
+        } else {
+            unsigned long long baseport;
+            saddr->kind = SOCKET_ADDRESS_KIND_INET;
+            saddr->inet = g_new0(InetSocketAddress, 1);
+            if (vnc[0] == '[' && vnc[hlen - 1] == ']') {
+                saddr->inet->host = g_strndup(vnc + 1, hlen - 2);
+            } else {
+                saddr->inet->host = g_strndup(vnc, hlen);
+            }
+            if (parse_uint_full(h + 1, &baseport, 10) < 0) {
+                error_setg(errp, "can't convert to a number: %s", h + 1);
+                goto fail;
+            }
+            if (baseport > 65535 ||
+                baseport + 5900 > 65535) {
+                error_setg(errp, "port %s out of range", h + 1);
+                goto fail;
+            }
+            saddr->inet->port = g_strdup_printf(
+                "%d", (int)baseport + 5900);
+
+            if (to) {
+                saddr->inet->has_to = true;
+                saddr->inet->to = to;
+            }
+            saddr->inet->ipv4 = saddr->inet->has_ipv4 = has_ipv4;
+            saddr->inet->ipv6 = saddr->inet->has_ipv6 = has_ipv6;
+
+            if (vs->ws_enabled) {
+                wsaddr->kind = SOCKET_ADDRESS_KIND_INET;
+                wsaddr->inet = g_new0(InetSocketAddress, 1);
+                wsaddr->inet->host = g_strdup(saddr->inet->host);
+                wsaddr->inet->port = g_strdup(websocket);
+
+                if (to) {
+                    wsaddr->inet->has_to = true;
+                    wsaddr->inet->to = to;
+                }
+                wsaddr->inet->ipv4 = wsaddr->inet->has_ipv4 = has_ipv4;
+                wsaddr->inet->ipv6 = wsaddr->inet->has_ipv6 = has_ipv6;
+            }
+        }
     } else {
         error_setg(errp, "no vnc port specified");
         goto fail;
-    }
-
-    has_to = qemu_opt_get(opts, "to");
-    has_ipv4 = qemu_opt_get_bool(opts, "ipv4", false);
-    has_ipv6 = qemu_opt_get_bool(opts, "ipv6", false);
-    if (has_to) {
-        qemu_opt_set(sopts, "to", has_to, &error_abort);
-        qemu_opt_set(wsopts, "to", has_to, &error_abort);
-    }
-    if (has_ipv4) {
-        qemu_opt_set(sopts, "ipv4", "on", &error_abort);
-        qemu_opt_set(wsopts, "ipv4", "on", &error_abort);
-    }
-    if (has_ipv6) {
-        qemu_opt_set(sopts, "ipv6", "on", &error_abort);
-        qemu_opt_set(wsopts, "ipv6", "on", &error_abort);
     }
 
     password = qemu_opt_get_bool(opts, "password", false);
@@ -3682,16 +3717,6 @@ void vnc_display_open(const char *id, Error **errp)
     }
     vs->connections_limit = qemu_opt_get_number(opts, "connections", 32);
 
-    websocket = qemu_opt_get(opts, "websocket");
-    if (websocket) {
-        vs->ws_enabled = true;
-        qemu_opt_set(wsopts, "port", websocket, &error_abort);
-        if (!qcrypto_hash_supports(QCRYPTO_HASH_ALG_SHA1)) {
-            error_setg(errp, "SHA1 hash support is required for websockets");
-            goto fail;
-        }
-    }
-
 #ifdef CONFIG_VNC_JPEG
     vs->lossy = qemu_opt_get_bool(opts, "lossy", false);
 #endif
@@ -3725,7 +3750,7 @@ void vnc_display_open(const char *id, Error **errp)
     }
 #endif
 
-    if (vnc_display_setup_auth(vs, password, sasl, websocket, errp) < 0) {
+    if (vnc_display_setup_auth(vs, password, sasl, vs->ws_enabled, errp) < 0) {
         goto fail;
     }
 
@@ -3770,37 +3795,31 @@ void vnc_display_open(const char *id, Error **errp)
         int csock;
         vs->lsock = -1;
         vs->lwebsock = -1;
-        if (strncmp(vnc, "unix:", 5) == 0) {
-            csock = unix_connect(vnc+5, errp);
-        } else {
-            csock = inet_connect(vnc, errp);
+        if (vs->ws_enabled) {
+            error_setg(errp, "Cannot use websockets in reverse mode");
+            goto fail;
         }
+        csock = socket_connect(saddr, errp, NULL, NULL);
         if (csock < 0) {
             goto fail;
         }
+        vs->is_unix = saddr->kind == SOCKET_ADDRESS_KIND_UNIX;
         vnc_connect(vs, csock, false, false);
     } else {
         /* listen for connects */
-        if (strncmp(vnc, "unix:", 5) == 0) {
-            vs->lsock = unix_listen(vnc+5, NULL, 0, errp);
-            if (vs->lsock < 0) {
-                goto fail;
-            }
-            vs->is_unix = true;
-        } else {
-            vs->lsock = inet_listen_opts(sopts, 5900, errp);
-            if (vs->lsock < 0) {
-                goto fail;
-            }
-            if (vs->ws_enabled) {
-                vs->lwebsock = inet_listen_opts(wsopts, 0, errp);
-                if (vs->lwebsock < 0) {
-                    if (vs->lsock != -1) {
-                        close(vs->lsock);
-                        vs->lsock = -1;
-                    }
-                    goto fail;
+        vs->lsock = socket_listen(saddr, errp);
+        if (vs->lsock < 0) {
+            goto fail;
+        }
+        vs->is_unix = saddr->kind == SOCKET_ADDRESS_KIND_UNIX;
+        if (vs->ws_enabled) {
+            vs->lwebsock = socket_listen(wsaddr, errp);
+            if (vs->lwebsock < 0) {
+                if (vs->lsock != -1) {
+                    close(vs->lsock);
+                    vs->lsock = -1;
                 }
+                goto fail;
             }
         }
         vs->enabled = true;
@@ -3810,13 +3829,14 @@ void vnc_display_open(const char *id, Error **errp)
                                 NULL, vs);
         }
     }
-    qemu_opts_del(sopts);
-    qemu_opts_del(wsopts);
+
+    qapi_free_SocketAddress(saddr);
+    qapi_free_SocketAddress(wsaddr);
     return;
 
 fail:
-    qemu_opts_del(sopts);
-    qemu_opts_del(wsopts);
+    qapi_free_SocketAddress(saddr);
+    qapi_free_SocketAddress(wsaddr);
     vs->enabled = false;
     vs->ws_enabled = false;
 }
