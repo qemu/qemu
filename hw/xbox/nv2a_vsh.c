@@ -698,7 +698,7 @@ static const char* vsh_header =
     "  return vec4(inversesqrt(abs(src)));\n"
     "}\n"
     "\n"
-    "#define EXP(dest, src) dest.mask = _EXP(_in(src).x).mask\n"
+    "#define EXP(dest, mask, src) dest.mask = _EXP(_in(src).x).mask\n"
     "vec4 _EXP(float src)\n"
     "{\n"
     "  return vec4(exp2(src));\n"

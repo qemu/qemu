@@ -292,6 +292,8 @@ static GLuint create_gl_shader(GLenum gl_shader_type,
 
     NV2A_GL_DGROUP_BEGIN("Creating new %s", name);
 
+    NV2A_DPRINTF("compile new %s, code:\n%s\n", name, code);
+
     GLuint shader = glCreateShader(gl_shader_type);
     glShaderSource(shader, 1, &code, 0);
     glCompileShader(shader);
