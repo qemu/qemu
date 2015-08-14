@@ -329,6 +329,26 @@ static void test_is_valid(void)
     test_is_valid_for_value(1, true);
 }
 
+static void test_max_is_missing_limit(void)
+{
+    int i;
+
+    for (i = 0; i < BUCKETS_COUNT; i++) {
+        memset(&cfg, 0, sizeof(cfg));
+        cfg.buckets[i].max = 100;
+        cfg.buckets[i].avg = 0;
+        g_assert(throttle_max_is_missing_limit(&cfg));
+
+        cfg.buckets[i].max = 0;
+        cfg.buckets[i].avg = 0;
+        g_assert(!throttle_max_is_missing_limit(&cfg));
+
+        cfg.buckets[i].max = 0;
+        cfg.buckets[i].avg = 100;
+        g_assert(!throttle_max_is_missing_limit(&cfg));
+    }
+}
+
 static void test_have_timer(void)
 {
     /* zero structures */
@@ -591,6 +611,7 @@ int main(int argc, char **argv)
     g_test_add_func("/throttle/config/enabled",     test_enabled);
     g_test_add_func("/throttle/config/conflicting", test_conflicting_config);
     g_test_add_func("/throttle/config/is_valid",    test_is_valid);
+    g_test_add_func("/throttle/config/max",         test_max_is_missing_limit);
     g_test_add_func("/throttle/config_functions",   test_config_functions);
     g_test_add_func("/throttle/accounting",         test_accounting);
     g_test_add_func("/throttle/groups",             test_groups);
