@@ -245,6 +245,10 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
             trace_mirror_break_buf_busy(s, nb_chunks, s->in_flight);
             break;
         }
+        if (IOV_MAX < nb_chunks + added_chunks) {
+            trace_mirror_break_iov_max(s, nb_chunks, added_chunks);
+            break;
+        }
 
         /* We have enough free space to copy these sectors.  */
         bitmap_set(s->in_flight_bitmap, next_chunk, added_chunks);
