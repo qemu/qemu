@@ -904,6 +904,7 @@
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8 0x12
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8             0x19
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8Y8           0x1A
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A4R4G4B4 0x1D
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8 0x1E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8 0x24
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5         0x27
@@ -1158,6 +1159,8 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8Y8] =
         {2, false, GL_RG8, GL_RG, GL_UNSIGNED_BYTE,
          {GL_GREEN, GL_GREEN, GL_GREEN, GL_RED}},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A4R4G4B4] =
+        {2, false, GL_RGBA4, GL_BGRA, GL_UNSIGNED_SHORT_4_4_4_4_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8] =
         {4, true, GL_RGB8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV},
 
@@ -2453,7 +2456,11 @@ static void pgraph_bind_textures(NV2AState *d)
 
         assert(color_format < ARRAYSIZE(kelvin_color_format_map));
         ColorFormatInfo f = kelvin_color_format_map[color_format];
-        assert(f.bytes_per_pixel != 0);
+        if (f.bytes_per_pixel == 0) {
+            fprintf(stderr, "nv2a: unimplemented texture color format 0x%x\n",
+                    color_format);
+            abort();
+        }
 
         unsigned int width, height, depth;
         if (f.linear) {
