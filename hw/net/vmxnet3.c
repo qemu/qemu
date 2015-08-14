@@ -927,9 +927,9 @@ static void vmxnet3_rx_need_csum_calculate(struct VmxnetRxPkt *pkt,
 
     /* Validate packet len: csum_start + scum_offset + length of csum field */
     if (pkt_len < (vhdr->csum_start + vhdr->csum_offset + 2)) {
-        VMW_PKPRN("packet len:%d < csum_start(%d) + csum_offset(%d) + 2, "
+        VMW_PKPRN("packet len:%lu < csum_start(%d) + csum_offset(%d) + 2, "
                   "cannot calculate checksum",
-                  len, vhdr->csum_start, vhdr->csum_offset);
+                  pkt_len, vhdr->csum_start, vhdr->csum_offset);
         return;
     }
 
