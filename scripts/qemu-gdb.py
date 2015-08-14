@@ -16,11 +16,14 @@
 
 import gdb
 
-def isnull(ptr):
-    return ptr == gdb.Value(0).cast(ptr.type)
+import os, sys
 
-def int128(p):
-    return long(p['lo']) + (long(p['hi']) << 64)
+# Annoyingly, gdb doesn't put the directory of scripts onto the
+# module search path. Do it manually.
+
+sys.path.append(os.path.dirname(__file__))
+
+from qemugdb import mtree
 
 def get_fs_base():
     '''Fetch %fs base value using arch_prctl(ARCH_GET_FS)'''
@@ -102,63 +105,6 @@ class CoroutineCommand(gdb.Command):
         coroutine_pointer = gdb.parse_and_eval(argv[0]).cast(gdb.lookup_type('CoroutineUContext').pointer())
         bt_jmpbuf(coroutine_pointer['env']['__jmpbuf'])
 
-class MtreeCommand(gdb.Command):
-    '''Display the memory tree hierarchy'''
-    def __init__(self):
-        gdb.Command.__init__(self, 'qemu mtree', gdb.COMMAND_DATA,
-                             gdb.COMPLETE_NONE)
-        self.queue = []
-    def invoke(self, arg, from_tty):
-        self.seen = set()
-        self.queue_root('address_space_memory')
-        self.queue_root('address_space_io')
-        self.process_queue()
-    def queue_root(self, varname):
-        ptr = gdb.parse_and_eval(varname)['root']
-        self.queue.append(ptr)
-    def process_queue(self):
-        while self.queue:
-            ptr = self.queue.pop(0)
-            if long(ptr) in self.seen:
-                continue
-            self.print_item(ptr)
-    def print_item(self, ptr, offset = gdb.Value(0), level = 0):
-        self.seen.add(long(ptr))
-        addr = ptr['addr']
-        addr += offset
-        size = int128(ptr['size'])
-        alias = ptr['alias']
-        klass = ''
-        if not isnull(alias):
-            klass = ' (alias)'
-        elif not isnull(ptr['ops']):
-            klass = ' (I/O)'
-        elif bool(ptr['ram']):
-            klass = ' (RAM)'
-        gdb.write('%s%016x-%016x %s%s (@ %s)\n'
-                  % ('  ' * level,
-                     long(addr),
-                     long(addr + (size - 1)),
-                     ptr['name'].string(),
-                     klass,
-                     ptr,
-                     ),
-                  gdb.STDOUT)
-        if not isnull(alias):
-            gdb.write('%s    alias: %s@%016x (@ %s)\n' %
-                      ('  ' * level,
-                       alias['name'].string(),
-                       ptr['alias_offset'],
-                       alias,
-                       ),
-                      gdb.STDOUT)
-            self.queue.append(alias)
-        subregion = ptr['subregions']['tqh_first']
-        level += 1
-        while not isnull(subregion):
-            self.print_item(subregion, addr, level)
-            subregion = subregion['subregions_link']['tqe_next']
-
 QemuCommand()
 CoroutineCommand()
-MtreeCommand()
+mtree.MtreeCommand()
