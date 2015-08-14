@@ -458,18 +458,66 @@ static TCGv gen_lea_indexed(CPUM68KState *env, DisasContext *s, TCGv base)
 
 static void gen_flush_flags(DisasContext *s)
 {
-    TCGv tmp;
+    TCGv t0, t1;
 
     switch (s->cc_op) {
     case CC_OP_FLAGS:
         return;
+
+    case CC_OP_ADD:
+        tcg_gen_mov_i32(QREG_CC_C, QREG_CC_X);
+        tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
+        /* Compute signed overflow for addition.  */
+        t0 = tcg_temp_new();
+        t1 = tcg_temp_new();
+        tcg_gen_sub_i32(t0, QREG_CC_N, QREG_CC_V);
+        tcg_gen_xor_i32(t1, QREG_CC_N, QREG_CC_V);
+        tcg_gen_xor_i32(QREG_CC_V, QREG_CC_V, t0);
+        tcg_temp_free(t0);
+        tcg_gen_andc_i32(QREG_CC_V, t1, QREG_CC_V);
+        tcg_temp_free(t1);
+        break;
+
+    case CC_OP_SUB:
+        tcg_gen_mov_i32(QREG_CC_C, QREG_CC_X);
+        tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
+        /* Compute signed overflow for subtraction.  */
+        t0 = tcg_temp_new();
+        t1 = tcg_temp_new();
+        tcg_gen_add_i32(t0, QREG_CC_N, QREG_CC_V);
+        tcg_gen_xor_i32(t1, QREG_CC_N, QREG_CC_V);
+        tcg_gen_xor_i32(QREG_CC_V, QREG_CC_V, t0);
+        tcg_temp_free(t0);
+        tcg_gen_and_i32(QREG_CC_V, QREG_CC_V, t1);
+        tcg_temp_free(t1);
+        break;
+
+    case CC_OP_CMP:
+        tcg_gen_setcond_i32(TCG_COND_LTU, QREG_CC_C, QREG_CC_N, QREG_CC_V);
+        tcg_gen_sub_i32(QREG_CC_Z, QREG_CC_N, QREG_CC_V);
+        /* Compute signed overflow for subtraction.  */
+        t0 = tcg_temp_new();
+        tcg_gen_xor_i32(t0, QREG_CC_Z, QREG_CC_N);
+        tcg_gen_xor_i32(QREG_CC_V, QREG_CC_V, QREG_CC_N);
+        tcg_gen_and_i32(QREG_CC_V, QREG_CC_V, t0);
+        tcg_temp_free(t0);
+        tcg_gen_mov_i32(QREG_CC_N, QREG_CC_Z);
+        break;
+
+    case CC_OP_LOGIC:
+        tcg_gen_mov_i32(QREG_CC_Z, QREG_CC_N);
+        tcg_gen_movi_i32(QREG_CC_C, 0);
+        tcg_gen_movi_i32(QREG_CC_V, 0);
+        break;
+
     case CC_OP_DYNAMIC:
         gen_helper_flush_flags(cpu_env, QREG_CC_OP);
         break;
+
     default:
-        tmp = tcg_const_i32(s->cc_op);
-        gen_helper_flush_flags(cpu_env, tmp);
-        tcg_temp_free(tmp);
+        t0 = tcg_const_i32(s->cc_op);
+        gen_helper_flush_flags(cpu_env, t0);
+        tcg_temp_free(t0);
         break;
     }
 
