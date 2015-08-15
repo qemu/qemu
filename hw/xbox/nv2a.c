@@ -3904,6 +3904,7 @@ static void pgraph_method(NV2AState *d,
         uint32_t z_format = GET_MASK(parameter, NV097_SET_CONTROL0_Z_FORMAT);
         SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
                  NV_PGRAPH_SETUPRASTER_Z_FORMAT, z_format);
+        break;
     }
 
     case NV097_SET_ALPHA_TEST_ENABLE:
