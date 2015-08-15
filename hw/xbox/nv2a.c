@@ -357,6 +357,10 @@
 #   define NV_PGRAPH_BLEND_LOGICOP_ENABLE                       (1 << 16)
 #   define NV_PGRAPH_BLEND_LOGICOP                              0x0000F000
 #define NV_PGRAPH_BLENDCOLOR                             0x00001808
+#define NV_PGRAPH_BORDERCOLOR0                           0x0000180C
+#define NV_PGRAPH_BORDERCOLOR1                           0x00001810
+#define NV_PGRAPH_BORDERCOLOR2                           0x00001814
+#define NV_PGRAPH_BORDERCOLOR3                           0x00001818
 #define NV_PGRAPH_BUMPOFFSET1                            0x0000184C
 #define NV_PGRAPH_BUMPSCALE1                             0x00001858
 #define NV_PGRAPH_CLEARRECTX                             0x00001864
@@ -508,6 +512,9 @@
 #define NV_PGRAPH_TEXFMT0                                0x00001A04
 #   define NV_PGRAPH_TEXFMT0_CONTEXT_DMA                        (1 << 1)
 #   define NV_PGRAPH_TEXFMT0_CUBEMAPENABLE                      (1 << 2)
+#   define NV_PGRAPH_TEXFMT0_BORDER_SOURCE                      (1 << 3)
+#       define NV_PGRAPH_TEXFMT0_BORDER_SOURCE_TEXTURE              0
+#       define NV_PGRAPH_TEXFMT0_BORDER_SOURCE_COLOR                1
 #   define NV_PGRAPH_TEXFMT0_DIMENSIONALITY                     0x000000C0
 #   define NV_PGRAPH_TEXFMT0_COLOR                              0x00007F00
 #   define NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS                      0x000F0000
@@ -975,6 +982,9 @@
 #   define NV097_SET_TEXTURE_FORMAT                           0x00971B04
 #       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
 #       define NV097_SET_TEXTURE_FORMAT_CUBEMAP_ENABLE            (1 << 2)
+#       define NV097_SET_TEXTURE_FORMAT_BORDER_SOURCE             (1 << 3)
+#           define NV097_SET_TEXTURE_FORMAT_BORDER_SOURCE_TEXTURE   0
+#           define NV097_SET_TEXTURE_FORMAT_BORDER_SOURCE_COLOR     1
 #       define NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY            0x000000F0
 #       define NV097_SET_TEXTURE_FORMAT_COLOR                     0x0000FF00
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8             0x00
@@ -1041,6 +1051,7 @@
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_64                2
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_32                3
 #       define NV097_SET_TEXTURE_PALETTE_OFFSET                   0xFFFFFFC0
+#   define NV097_SET_TEXTURE_BORDER_COLOR                     0x00971B24
 #   define NV097_SET_TEXTURE_SET_BUMP_ENV_MAT                 0x00971B28
 #   define NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE               0x00971B38
 #   define NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET              0x00971B3C
@@ -2563,6 +2574,10 @@ static void pgraph_bind_textures(NV2AState *d)
         unsigned int addrv = GET_MASK(address, NV_PGRAPH_TEXADDRESS0_ADDRV);
         unsigned int addrp = GET_MASK(address, NV_PGRAPH_TEXADDRESS0_ADDRP);
 
+        unsigned int border_source = GET_MASK(fmt,
+                                              NV_PGRAPH_TEXFMT0_BORDER_SOURCE);
+        uint32_t border_color = pg->regs[NV_PGRAPH_BORDERCOLOR0 + i*4];
+
         unsigned int offset = pg->regs[NV_PGRAPH_TEXOFFSET0 + i*4];
 
         bool palette_dma_select =
@@ -2811,6 +2826,19 @@ static void pgraph_bind_textures(NV2AState *d)
             assert(addrp < ARRAYSIZE(pgraph_texture_addr_map));
             glTexParameteri(binding->gl_target, GL_TEXTURE_WRAP_R,
                 pgraph_texture_addr_map[addrp]);
+        }
+
+        /* FIXME: Only upload if necessary? [s, t or r = GL_CLAMP_TO_BORDER] */
+        if (border_source == NV_PGRAPH_TEXFMT0_BORDER_SOURCE_COLOR) {
+            GLfloat gl_border_color[] = {
+                /* FIXME: Color channels might be wrong order */
+                ((border_color >> 16) & 0xFF) / 255.0f, /* red */
+                ((border_color >> 8) & 0xFF) / 255.0f,  /* green */
+                (border_color & 0xFF) / 255.0f,         /* blue */
+                ((border_color >> 24) & 0xFF) / 255.0f  /* alpha */
+            };
+            glTexParameterfv(binding->gl_target, GL_TEXTURE_BORDER_COLOR,
+                gl_border_color);
         }
 
         if (pg->texture_binding[i]) {
@@ -5366,6 +5394,8 @@ static void pgraph_method(NV2AState *d,
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA) == 2;
         bool cubemap =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_CUBEMAP_ENABLE);
+        unsigned int border_source =
+            GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_BORDER_SOURCE);
         unsigned int dimensionality =
             GET_MASK(parameter, NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY);
         unsigned int color_format =
@@ -5382,6 +5412,7 @@ static void pgraph_method(NV2AState *d,
         uint32_t *reg = &pg->regs[NV_PGRAPH_TEXFMT0 + slot * 4];
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_CONTEXT_DMA, dma_select);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_CUBEMAPENABLE, cubemap);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BORDER_SOURCE, border_source);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_DIMENSIONALITY, dimensionality);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_COLOR, color_format);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS, levels);
@@ -5428,6 +5459,10 @@ static void pgraph_method(NV2AState *d,
         break;
     }
 
+    CASE_4(NV097_SET_TEXTURE_BORDER_COLOR, 64):
+        slot = (class_method - NV097_SET_TEXTURE_BORDER_COLOR) / 64;
+        pg->regs[NV_PGRAPH_BORDERCOLOR0 + slot * 4] = parameter;
+        break;
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x0, 64):
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x4, 64):
     CASE_4(NV097_SET_TEXTURE_SET_BUMP_ENV_MAT + 0x8, 64):
