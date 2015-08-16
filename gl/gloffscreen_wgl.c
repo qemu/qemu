@@ -33,10 +33,9 @@
 #include <wingdi.h>
 
 #include <GL/glew.h>
+#include <GL/wglew.h>
 #include <GL/gl.h>
-#include <GL/glext.h>
 #include <GL/wglext.h>
-#include <GL/glut.h>
 
 #include "gloffscreen.h"
 
@@ -70,13 +69,6 @@ struct _GloContext {
 
 
 #define GLO_WINDOW_CLASS "QEmuGLClass"
-#define DEFAULT_DEPTH_BUFFER (16)
-
-PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
-PFNWGLGETPBUFFERDCARBPROC wglGetPbufferDCARB;
-PFNWGLRELEASEPBUFFERDCARBPROC wglReleasePbufferDCARB;
-PFNWGLCREATEPBUFFERARBPROC wglCreatePbufferARB;
-PFNWGLDESTROYPBUFFERARBPROC wglDestroyPbufferARB;
 
 /* Initialise gloffscreen */
 static void glo_init(void) {
@@ -84,8 +76,8 @@ static void glo_init(void) {
     PIXELFORMATDESCRIPTOR pfd;
 
     if (glo_inited) {
-        printf("gloffscreen already inited\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "gloffscreen already inited\n");
+        abort();
     }
 
     /* Grab An Instance For Our Window */
@@ -113,11 +105,12 @@ static void glo_init(void) {
         (LPVOID) NULL);
 
     if (!glo.hWnd) {
-        printf("Unable to create window\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Unable to create window\n");
+        abort();
     }
     glo.hDC = GetDC(glo.hWnd);
 
+    /* Create a pixel format */
     memset(&pfd, 0, sizeof(PIXELFORMATDESCRIPTOR));
     pfd.nSize = sizeof(PIXELFORMATDESCRIPTOR);
     pfd.nVersion = 1;
@@ -131,39 +124,27 @@ static void glo_init(void) {
     if (!SetPixelFormat(glo.hDC, pixelFormat, &pfd))
         return;
 
+    /* Create a tempoary OpenGL 2 context */
     glo.hContext = wglCreateContext(glo.hDC);
     if (glo.hContext == NULL) {
-        printf("Unable to create GL context\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Unable to create GL context\n");
+        abort();
     }
     wglMakeCurrent(glo.hDC, glo.hContext);
 
-    wglChoosePixelFormatARB = (PFNWGLCHOOSEPIXELFORMATARBPROC)
-                            wglGetProcAddress("wglChoosePixelFormatARB");
-    wglGetPbufferDCARB = (PFNWGLGETPBUFFERDCARBPROC)
-                            wglGetProcAddress("wglGetPbufferDCARB");
-    wglReleasePbufferDCARB = (PFNWGLRELEASEPBUFFERDCARBPROC)
-                            wglGetProcAddress("wglReleasePbufferDCARB");
-    wglCreatePbufferARB = (PFNWGLCREATEPBUFFERARBPROC)
-                            wglGetProcAddress("wglCreatePbufferARB");
-    wglDestroyPbufferARB = (PFNWGLDESTROYPBUFFERARBPROC)
-                            wglGetProcAddress("wglDestroyPbufferARB");
-
-    if (!wglChoosePixelFormatARB ||
-        !wglGetPbufferDCARB ||
-        !wglReleasePbufferDCARB ||
-        !wglCreatePbufferARB ||
-        !wglDestroyPbufferARB) {
-        printf("Unable to load the required WGL extensions\n");
-        exit(EXIT_FAILURE);
-    }
-
     /* Initialize glew */
-    if (GLEW_OK != glewInit()) {
-        /* GLEW failed! */
-        printf("Glew init failed.");
-        exit(1);
+    if (glewInit() != GLEW_OK) {
+        fprintf(stderr, "Glew init failed.\n");
+        abort();
     }
+
+    if (!WGLEW_ARB_create_context
+        || !WGLEW_ARB_pixel_format
+        || !WGLEW_ARB_pbuffer) {
+        fprintf(stderr, "Unable to load the required WGL extensions\n");
+        abort();
+    }
+
     glo_inited = 1;
 }
 
@@ -189,23 +170,6 @@ static void glo_kill(void) {
  * the GLO_ constants */
 GloContext *glo_context_create(int formatFlags) {
     GloContext *context;
-    /* pixel format attributes */
-    int pf_attri[] = {
-       WGL_SUPPORT_OPENGL_ARB, TRUE,
-       WGL_DRAW_TO_PBUFFER_ARB, TRUE,
-       WGL_RED_BITS_ARB, 8,
-       WGL_GREEN_BITS_ARB, 8,
-       WGL_BLUE_BITS_ARB, 8,
-       WGL_ALPHA_BITS_ARB, 8,
-       WGL_DEPTH_BITS_ARB, 0,
-       WGL_STENCIL_BITS_ARB, 0,
-       WGL_DOUBLE_BUFFER_ARB, FALSE,
-       0                                
-    };
-    float        pf_attrf[] = {0, 0};
-    unsigned int numReturned = 0;
-    int          pb_attr[] = { 0 };
-    int          rgbaBits[4];
 
     if (!glo_inited)
       glo_init();
@@ -214,18 +178,22 @@ GloContext *glo_context_create(int formatFlags) {
     memset(context, 0, sizeof(GloContext));
     context->formatFlags = formatFlags;
 
-    /* set up the surface format from the flags we were given */
-    glo_flags_get_rgba_bits(context->formatFlags, rgbaBits);
-    pf_attri[5]  = rgbaBits[0];
-    pf_attri[7]  = rgbaBits[1];
-    pf_attri[9]  = rgbaBits[2];
-    pf_attri[11] = rgbaBits[3];
-    pf_attri[13] = glo_flags_get_depth_bits(context->formatFlags);
-    pf_attri[15] = glo_flags_get_stencil_bits(context->formatFlags);
+    /* pixel format attributes */
+    const int pf_attri[] = {
+       WGL_DRAW_TO_PBUFFER_ARB, TRUE,
+       WGL_SUPPORT_OPENGL_ARB, TRUE,
+       WGL_DOUBLE_BUFFER_ARB, FALSE,
+       WGL_COLOR_BITS_ARB, 32,
+       WGL_DEPTH_BITS_ARB, 24,
+       WGL_STENCIL_BITS_ARB, 8,
+       0
+    };
+    const float pf_attrf[] = {0, 0};
 
     /* find out what pixel format to use */
+    unsigned int numReturned = 0;
     wglChoosePixelFormatARB(glo.hDC, pf_attri, pf_attrf, 1, 
-                        &context->wglPixelFormat, &numReturned);
+                            &context->wglPixelFormat, &numReturned);
     if (numReturned == 0) {
         printf( "No matching configs found.\n" );
         exit(EXIT_FAILURE);
@@ -233,22 +201,33 @@ GloContext *glo_context_create(int formatFlags) {
 
     /* We create a tiny pbuffer - just so we can make a context of 
      * the right pixel format */
+    const int pb_attr[] = { 0 };
     context->hPBuffer = wglCreatePbufferARB(glo.hDC, context->wglPixelFormat,
-                                             16, 16, pb_attr);
+                                            16, 16, pb_attr);
     if (!context->hPBuffer) {
         printf("Couldn't create the PBuffer\n");
         exit(EXIT_FAILURE);
     }
+
     context->hDC = wglGetPbufferDCARB(context->hPBuffer);
     if (!context->hDC) {
         printf("Couldn't create the DC\n");
         exit(EXIT_FAILURE);
     }
-    context->hContext = wglCreateContext(context->hDC);
+
+    /* Create the context proper */
+    const int ctx_attri[] = {
+        WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+        WGL_CONTEXT_MINOR_VERSION_ARB, 3,
+        WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+        0
+    };
+    context->hContext = wglCreateContextAttribsARB(context->hDC, 0, ctx_attri);
     if (context->hContext == NULL) {
         printf("Unable to create GL context\n");
         exit(EXIT_FAILURE);
     }
+
     glo_set_current(context);
     return context;
 }

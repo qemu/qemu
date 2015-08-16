@@ -34,10 +34,6 @@
 #ifdef __APPLE__
 #include <OpenGL/gl3.h>
 #include <OpenGL/glext.h>
-#elif defined(_WIN32)
-#include <GL/glew.h>
-#include <GL/gl.h>
-#include <GL/glext.h>
 #else
 #include <GL/glew.h>
 #include <GL/gl.h>

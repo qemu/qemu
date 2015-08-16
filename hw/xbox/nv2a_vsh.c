@@ -747,7 +747,8 @@ QString* vsh_translate(uint16_t version,
     QString *body = qstring_from_str("\n");
 
     bool has_final = false;
-    for (int slot=0; slot<length; slot++) {
+    int slot;
+    for (slot=0; slot<length; slot++) {
         const uint32_t* cur_token = &tokens[slot * VSH_TOKEN_SIZE];
         QString *token_str = decode_token(cur_token);
         qstring_append_fmt(body,

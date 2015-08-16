@@ -1235,8 +1235,8 @@ static const SurfaceColorFormatInfo kelvin_surface_color_format_map[] = {
 #define GET_MASK(v, mask) (((v) & (mask)) >> (ffs(mask)-1))
 
 #define SET_MASK(v, mask, val) ({                                    \
-        const typeof(val) __val = (val);                             \
-        const typeof(mask) __mask = (mask);                          \
+        const unsigned int __val = (val);                             \
+        const unsigned int __mask = (mask);                          \
         (v) &= ~(__mask);                                            \
         (v) |= ((__val) << (ffs(__mask)-1)) & (__mask);              \
     })

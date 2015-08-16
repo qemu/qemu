@@ -23,6 +23,13 @@
 #include "qemu/atomic.h"
 #include "sysemu/qtest.h"
 
+#if defined(_WIN64)
+/* Temporary hack for win64 because the include order is broken.
+ * See os-win32.h.
+ */
+# define setjmp(env) _setjmp(env, NULL)
+#endif
+
 bool qemu_cpu_has_work(CPUState *cpu)
 {
     return cpu_has_work(cpu);
