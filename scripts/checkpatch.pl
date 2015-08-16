@@ -152,33 +152,18 @@ our $Sparse	= qr{
 		}x;
 
 # Notes to $Attribute:
-# We need \b after 'init' otherwise 'initconst' will cause a false positive in a check
 our $Attribute	= qr{
 			const|
-			__percpu|
-			__nocast|
-			__safe|
-			__bitwise__|
-			__packed__|
-			__packed2__|
-			__naked|
-			__maybe_unused|
-			__always_unused|
-			__noreturn|
-			__used|
-			__cold|
-			__noclone|
-			__deprecated|
-			__read_mostly|
-			__kprobes|
-			__(?:mem|cpu|dev|)(?:initdata|initconst|init\b)|
-			____cacheline_aligned|
-			____cacheline_aligned_in_smp|
-			____cacheline_internodealigned_in_smp|
-			__weak
+			volatile|
+			QEMU_NORETURN|
+			QEMU_WARN_UNUSED_RESULT|
+			QEMU_SENTINEL|
+			QEMU_ARTIFICIAL|
+			QEMU_PACKED|
+			GCC_FMT_ATTR
 		  }x;
 our $Modifier;
-our $Inline	= qr{inline|__always_inline|noinline};
+our $Inline	= qr{inline};
 our $Member	= qr{->$Ident|\.$Ident|\[[^]]*\]};
 our $Lval	= qr{$Ident(?:$Member)*};
 
@@ -1367,7 +1352,7 @@ sub process {
 # Check for incorrect file permissions
 		if ($line =~ /^new (file )?mode.*[7531]\d{0,2}$/) {
 			my $permhere = $here . "FILE: $realfile\n";
-			if ($realfile =~ /(Makefile|Kconfig|\.c|\.cpp|\.h|\.S|\.tmpl)$/) {
+			if ($realfile =~ /(\bMakefile(?:\.objs)?|\.c|\.cc|\.cpp|\.h|\.mak|\.[sS])$/) {
 				ERROR("do not set execute permissions for source files\n" . $permhere);
 			}
 		}
@@ -1947,9 +1932,14 @@ sub process {
 			ERROR("open brace '{' following $1 go on the same line\n" . $hereprev);
 		}
 
+# ... however, open braces on typedef lines should be avoided.
+		if ($line =~ /^.\s*typedef\s+(enum|union|struct)(?:\s+$Ident\b)?.*[^;]$/) {
+			ERROR("typedefs should be separate from struct declaration\n" . $herecurr);
+		}
+
 # missing space after union, struct or enum definition
 		if ($line =~ /^.\s*(?:typedef\s+)?(enum|union|struct)(?:\s+$Ident)?(?:\s+$Ident)?[=\{]/) {
-		    WARN("missing space after $1 definition\n" . $herecurr);
+		    ERROR("missing space after $1 definition\n" . $herecurr);
 		}
 
 # check for spacing round square brackets; allowed:
@@ -2267,7 +2257,7 @@ sub process {
 		if ($line =~ /^.\s*return\s*(E[A-Z]*)\s*;/) {
 			my $name = $1;
 			if ($name ne 'EOF' && $name ne 'ERROR') {
-				CHK("return of an errno should typically be -ve (return -$1)\n" . $herecurr);
+				WARN("return of an errno should typically be -ve (return -$1)\n" . $herecurr);
 			}
 		}
 
@@ -2671,15 +2661,15 @@ sub process {
 
 # warn about #if 0
 		if ($line =~ /^.\s*\#\s*if\s+0\b/) {
-			CHK("if this code is redundant consider removing it\n" .
+			WARN("if this code is redundant consider removing it\n" .
 				$herecurr);
 		}
 
-# check for needless kfree() checks
+# check for needless g_free() checks
 		if ($prevline =~ /\bif\s*\(([^\)]*)\)/) {
 			my $expr = $1;
-			if ($line =~ /\bkfree\(\Q$expr\E\);/) {
-				WARN("kfree(NULL) is safe this check is probably not required\n" . $hereprev);
+			if ($line =~ /\bg_free\(\Q$expr\E\);/) {
+				WARN("g_free(NULL) is safe this check is probably not required\n" . $hereprev);
 			}
 		}
 # check for needless usb_free_urb() checks
@@ -2726,14 +2716,16 @@ sub process {
 			}
 		}
 # check for memory barriers without a comment.
-		if ($line =~ /\b(mb|rmb|wmb|read_barrier_depends|smp_mb|smp_rmb|smp_wmb|smp_read_barrier_depends)\(/) {
+		if ($line =~ /\b(smp_mb|smp_rmb|smp_wmb|smp_read_barrier_depends)\(/) {
 			if (!ctx_has_comment($first_line, $linenr)) {
-				CHK("memory barrier without comment\n" . $herecurr);
+				WARN("memory barrier without comment\n" . $herecurr);
 			}
 		}
 # check of hardware specific defines
-		if ($line =~ m@^.\s*\#\s*if.*\b(__i386__|__powerpc64__|__sun__|__s390x__)\b@ && $realfile !~ m@include/asm-@) {
-			CHK("architecture specific defines should be avoided\n" .  $herecurr);
+# we have e.g. CONFIG_LINUX and CONFIG_WIN32 for common cases
+# where they might be necessary.
+		if ($line =~ m@^.\s*\#\s*if.*\b__@) {
+			WARN("architecture specific defines should be avoided\n" .  $herecurr);
 		}
 
 # Check that the storage class is at the beginning of a declaration
@@ -2794,9 +2786,13 @@ sub process {
 			}
 		}
 
-# check for pointless casting of kmalloc return
-		if ($line =~ /\*\s*\)\s*k[czm]alloc\b/) {
-			WARN("unnecessary cast may hide bugs, see http://c-faq.com/malloc/mallocnocast.html\n" . $herecurr);
+# check for pointless casting of g_malloc return
+		if ($line =~ /\*\s*\)\s*g_(try)?(m|re)alloc(0?)(_n)?\b/) {
+			if ($2 == 'm') {
+				WARN("unnecessary cast may hide bugs, use g_$1new$3 instead\n" . $herecurr);
+			} else {
+				WARN("unnecessary cast may hide bugs, use g_$1renew$3 instead\n" . $herecurr);
+			}
 		}
 
 # check for gcc specific __FUNCTION__
@@ -2813,54 +2809,37 @@ sub process {
 			WARN("consider using a completion\n" . $herecurr);
 
 		}
-# recommend strict_strto* over simple_strto*
-		if ($line =~ /\bsimple_(strto.*?)\s*\(/) {
-			WARN("consider using strict_$1 in preference to simple_$1\n" . $herecurr);
+# recommend qemu_strto* over strto*
+		if ($line =~ /\b(strto.*?)\s*\(/) {
+			WARN("consider using qemu_$1 in preference to $1\n" . $herecurr);
 		}
-# check for __initcall(), use device_initcall() explicitly please
-		if ($line =~ /^.\s*__initcall\s*\(/) {
-			WARN("please use device_initcall() instead of __initcall()\n" . $herecurr);
+# check for module_init(), use category-specific init macros explicitly please
+		if ($line =~ /^module_init\s*\(/) {
+			WARN("please use block_init(), type_init() etc. instead of module_init()\n" . $herecurr);
 		}
 # check for various ops structs, ensure they are const.
-		my $struct_ops = qr{acpi_dock_ops|
-				address_space_operations|
-				backlight_ops|
-				block_device_operations|
-				dentry_operations|
-				dev_pm_ops|
-				dma_map_ops|
-				extent_io_ops|
-				file_lock_operations|
-				file_operations|
-				hv_ops|
-				ide_dma_ops|
-				intel_dvo_dev_ops|
-				item_operations|
-				iwl_ops|
-				kgdb_arch|
-				kgdb_io|
-				kset_uevent_ops|
-				lock_manager_operations|
-				microcode_ops|
-				mtrr_ops|
-				neigh_ops|
-				nlmsvc_binding|
-				pci_raw_ops|
-				pipe_buf_operations|
-				platform_hibernation_ops|
-				platform_suspend_ops|
-				proto_ops|
-				rpc_pipe_ops|
-				seq_operations|
-				snd_ac97_build_ops|
-				soc_pcmcia_socket_ops|
-				stacktrace_ops|
-				sysfs_ops|
-				tty_operations|
-				usb_mon_operations|
-				wd_ops}x;
+		my $struct_ops = qr{AIOCBInfo|
+				BdrvActionOps|
+				BlockDevOps|
+				BlockJobDriver|
+				DisplayChangeListenerOps|
+				GraphicHwOps|
+				IDEDMAOps|
+				KVMCapabilityInfo|
+				MemoryRegionIOMMUOps|
+				MemoryRegionOps|
+				MemoryRegionPortio|
+				QEMUFileOps|
+				SCSIBusInfo|
+				SCSIReqOps|
+				Spice[A-Z][a-zA-Z0-9]*Interface|
+				TPMDriverOps|
+				USBDesc[A-Z][a-zA-Z0-9]*|
+				VhostOps|
+				VMStateDescription|
+				VMStateInfo}x;
 		if ($line !~ /\bconst\b/ &&
-		    $line =~ /\bstruct\s+($struct_ops)\b/) {
+		    $line =~ /\b($struct_ops)\b/) {
 			WARN("struct $1 should normally be const\n" .
 				$herecurr);
 		}
