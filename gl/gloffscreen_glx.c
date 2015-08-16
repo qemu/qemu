@@ -31,7 +31,6 @@
 #include <GL/glew.h>
 #include <GL/glx.h>
 #include <GL/glxext.h>
-#include <GL/glut.h>
 #include <X11/Xlib.h>
 
 #include "gloffscreen.h"

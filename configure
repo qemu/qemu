@@ -2648,12 +2648,11 @@ libs_softmmu="$libs_softmmu $fdt_libs"
 # opengl probe, used by milkymist-tmu2
 if test "$opengl" != "no" ; then
   if test "$darwin" = "yes" ; then
-    opengl_libs="-framework OpenGL -framework GLUT"
+    opengl_libs="-framework OpenGL"
     cat > $TMPC << EOF
 #include <OpenGL/gl.h>
 #include <OpenGL/CGLTypes.h>
 #include <OpenGL/CGLCurrent.h>
-#include <GLUT/glut.h>
 int main(void) { return GL_VERSION != 0; }
 EOF
   elif test "$mingw32" = "yes" ; then
