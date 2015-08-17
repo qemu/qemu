@@ -1145,13 +1145,9 @@ static inline unsigned int sdhci_get_fifolen(SDHCIState *s)
     }
 }
 
-static void sdhci_initfn(SDHCIState *s)
+static void sdhci_initfn(SDHCIState *s, BlockBackend *blk)
 {
-    DriveInfo *di;
-
-    /* FIXME use a qdev drive property instead of drive_get_next() */
-    di = drive_get_next(IF_SD);
-    s->card = sd_init(di ? blk_by_legacy_dinfo(di) : NULL, false);
+    s->card = sd_init(blk, false);
     if (s->card == NULL) {
         exit(1);
     }
@@ -1215,7 +1211,8 @@ const VMStateDescription sdhci_vmstate = {
 
 /* Capabilities registers provide information on supported features of this
  * specific host controller implementation */
-static Property sdhci_properties[] = {
+static Property sdhci_pci_properties[] = {
+    DEFINE_BLOCK_PROPERTIES(SDHCIState, conf),
     DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
             SDHC_CAPAB_REG_DEFAULT),
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
@@ -1227,7 +1224,7 @@ static void sdhci_pci_realize(PCIDevice *dev, Error **errp)
     SDHCIState *s = PCI_SDHCI(dev);
     dev->config[PCI_CLASS_PROG] = 0x01; /* Standard Host supported DMA */
     dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
-    sdhci_initfn(s);
+    sdhci_initfn(s, s->conf.blk);
     s->buf_maxsz = sdhci_get_fifolen(s);
     s->fifo_buffer = g_malloc0(s->buf_maxsz);
     s->irq = pci_allocate_irq(dev);
@@ -1254,9 +1251,7 @@ static void sdhci_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_SYSTEM_SDHCI;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->vmsd = &sdhci_vmstate;
-    dc->props = sdhci_properties;
-    /* Reason: realize() method uses drive_get_next() */
-    dc->cannot_instantiate_with_device_add_yet = true;
+    dc->props = sdhci_pci_properties;
 }
 
 static const TypeInfo sdhci_pci_info = {
@@ -1266,10 +1261,21 @@ static const TypeInfo sdhci_pci_info = {
     .class_init = sdhci_pci_class_init,
 };
 
+static Property sdhci_sysbus_properties[] = {
+    DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
+            SDHC_CAPAB_REG_DEFAULT),
+    DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void sdhci_sysbus_init(Object *obj)
 {
     SDHCIState *s = SYSBUS_SDHCI(obj);
-    sdhci_initfn(s);
+    DriveInfo *di;
+
+    /* FIXME use a qdev drive property instead of drive_get_next() */
+    di = drive_get_next(IF_SD);
+    sdhci_initfn(s, di ? blk_by_legacy_dinfo(di) : NULL);
 }
 
 static void sdhci_sysbus_finalize(Object *obj)
@@ -1296,7 +1302,7 @@ static void sdhci_sysbus_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &sdhci_vmstate;
-    dc->props = sdhci_properties;
+    dc->props = sdhci_sysbus_properties;
     dc->realize = sdhci_sysbus_realize;
     /* Reason: instance_init() method uses drive_get_next() */
     dc->cannot_instantiate_with_device_add_yet = true;
