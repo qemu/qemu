@@ -19,7 +19,7 @@
 
 static inline bool virtio_access_is_big_endian(VirtIODevice *vdev)
 {
-    if (virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         /* Devices conforming to VIRTIO 1.0 or later are always LE. */
         return false;
     }

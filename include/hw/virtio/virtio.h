@@ -261,26 +261,27 @@ static inline void virtio_clear_feature(uint64_t *features, unsigned int fbit)
     *features &= ~(1ULL << fbit);
 }
 
-static inline bool __virtio_has_feature(uint64_t features, unsigned int fbit)
+static inline bool virtio_has_feature(uint64_t features, unsigned int fbit)
 {
     assert(fbit < 64);
     return !!(features & (1ULL << fbit));
 }
 
-static inline bool virtio_has_feature(VirtIODevice *vdev, unsigned int fbit)
+static inline bool virtio_vdev_has_feature(VirtIODevice *vdev,
+                                           unsigned int fbit)
 {
-    return __virtio_has_feature(vdev->guest_features, fbit);
+    return virtio_has_feature(vdev->guest_features, fbit);
 }
 
 static inline bool virtio_host_has_feature(VirtIODevice *vdev,
                                            unsigned int fbit)
 {
-    return __virtio_has_feature(vdev->host_features, fbit);
+    return virtio_has_feature(vdev->host_features, fbit);
 }
 
 static inline bool virtio_is_big_endian(VirtIODevice *vdev)
 {
-    if (!virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+    if (!virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         assert(vdev->device_endian != VIRTIO_DEVICE_ENDIAN_UNKNOWN);
         return vdev->device_endian == VIRTIO_DEVICE_ENDIAN_BIG;
     }
