@@ -197,7 +197,7 @@ static int vhost_net_set_vnet_endian(VirtIODevice *dev, NetClientState *peer,
 {
     int r = 0;
 
-    if (virtio_has_feature(dev, VIRTIO_F_VERSION_1) ||
+    if (virtio_vdev_has_feature(dev, VIRTIO_F_VERSION_1) ||
         (virtio_legacy_is_cross_endian(dev) && !virtio_is_big_endian(dev))) {
         r = qemu_set_vnet_le(peer, set);
         if (r) {

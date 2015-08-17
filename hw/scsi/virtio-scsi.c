@@ -145,7 +145,7 @@ static int virtio_scsi_parse_req(VirtIOSCSIReq *req,
      *
      * TODO: always disable this workaround for virtio 1.0 devices.
      */
-    if (!virtio_has_feature(vdev, VIRTIO_F_ANY_LAYOUT)) {
+    if (!virtio_vdev_has_feature(vdev, VIRTIO_F_ANY_LAYOUT)) {
         if (req->elem.out_num) {
             req_size = req->elem.out_sg[0].iov_len;
         }
@@ -759,7 +759,7 @@ static void virtio_scsi_change(SCSIBus *bus, SCSIDevice *dev, SCSISense sense)
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
     VirtIODevice *vdev = VIRTIO_DEVICE(s);
 
-    if (virtio_has_feature(vdev, VIRTIO_SCSI_F_CHANGE) &&
+    if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_CHANGE) &&
         dev->type != TYPE_ROM) {
         virtio_scsi_push_event(s, dev, VIRTIO_SCSI_T_PARAM_CHANGE,
                                sense.asc | (sense.ascq << 8));
@@ -783,7 +783,7 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
         aio_context_release(s->ctx);
     }
 
-    if (virtio_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
         virtio_scsi_push_event(s, sd,
                                VIRTIO_SCSI_T_TRANSPORT_RESET,
                                VIRTIO_SCSI_EVT_RESET_RESCAN);
@@ -797,7 +797,7 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     SCSIDevice *sd = SCSI_DEVICE(dev);
 
-    if (virtio_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
+    if (virtio_vdev_has_feature(vdev, VIRTIO_SCSI_F_HOTPLUG)) {
         virtio_scsi_push_event(s, sd,
                                VIRTIO_SCSI_T_TRANSPORT_RESET,
                                VIRTIO_SCSI_EVT_RESET_REMOVED);
