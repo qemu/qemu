@@ -180,8 +180,7 @@ qemu_irq *xen_interrupt_controller_init(void)
 
 /* Memory Ops */
 
-static void xen_ram_init(ram_addr_t *below_4g_mem_size,
-                         ram_addr_t *above_4g_mem_size,
+static void xen_ram_init(PCMachineState *pcms,
                          ram_addr_t ram_size, MemoryRegion **ram_memory_p)
 {
     MemoryRegion *sysmem = get_system_memory();
@@ -198,20 +197,20 @@ static void xen_ram_init(ram_addr_t *below_4g_mem_size,
     }
 
     if (ram_size >= user_lowmem) {
-        *above_4g_mem_size = ram_size - user_lowmem;
-        *below_4g_mem_size = user_lowmem;
+        pcms->above_4g_mem_size = ram_size - user_lowmem;
+        pcms->below_4g_mem_size = user_lowmem;
     } else {
-        *above_4g_mem_size = 0;
-        *below_4g_mem_size = ram_size;
+        pcms->above_4g_mem_size = 0;
+        pcms->below_4g_mem_size = ram_size;
     }
-    if (!*above_4g_mem_size) {
+    if (!pcms->above_4g_mem_size) {
         block_len = ram_size;
     } else {
         /*
          * Xen does not allocate the memory continuously, it keeps a
          * hole of the size computed above or passed in.
          */
-        block_len = (1ULL << 32) + *above_4g_mem_size;
+        block_len = (1ULL << 32) + pcms->above_4g_mem_size;
     }
     memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len,
                            &error_abort);
@@ -229,12 +228,12 @@ static void xen_ram_init(ram_addr_t *below_4g_mem_size,
      */
     memory_region_init_alias(&ram_lo, NULL, "xen.ram.lo",
                              &ram_memory, 0xc0000,
-                             *below_4g_mem_size - 0xc0000);
+                             pcms->below_4g_mem_size - 0xc0000);
     memory_region_add_subregion(sysmem, 0xc0000, &ram_lo);
-    if (*above_4g_mem_size > 0) {
+    if (pcms->above_4g_mem_size > 0) {
         memory_region_init_alias(&ram_hi, NULL, "xen.ram.hi",
                                  &ram_memory, 0x100000000ULL,
-                                 *above_4g_mem_size);
+                                 pcms->above_4g_mem_size);
         memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
     }
 }
@@ -1159,7 +1158,7 @@ static void xen_wakeup_notifier(Notifier *notifier, void *data)
 }
 
 /* return 0 means OK, or -1 means critical issue -- will exit(1) */
-int xen_hvm_init(ram_addr_t *below_4g_mem_size, ram_addr_t *above_4g_mem_size,
+int xen_hvm_init(PCMachineState *pcms,
                  MemoryRegion **ram_memory)
 {
     int i, rc;
@@ -1270,7 +1269,7 @@ int xen_hvm_init(ram_addr_t *below_4g_mem_size, ram_addr_t *above_4g_mem_size,
 
     /* Init RAM management */
     xen_map_cache_init(xen_phys_offset_to_gaddr, state);
-    xen_ram_init(below_4g_mem_size, above_4g_mem_size, ram_size, ram_memory);
+    xen_ram_init(pcms, ram_size, ram_memory);
 
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
