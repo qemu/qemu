@@ -1051,14 +1051,29 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOpIdx oi,
    slow path for the failure case, which will be patched later when finalizing
    the slow path. Generated code returns the host addend in X1,
    clobbers X0,X2,X3,TMP. */
-static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp s_bits,
+static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp opc,
                              tcg_insn_unit **label_ptr, int mem_index,
                              bool is_read)
 {
-    TCGReg base = TCG_AREG0;
     int tlb_offset = is_read ?
         offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
         : offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
+    int s_mask = (1 << (opc & MO_SIZE)) - 1;
+    TCGReg base = TCG_AREG0, x3;
+    uint64_t tlb_mask;
+
+    /* For aligned accesses, we check the first byte and include the alignment
+       bits within the address.  For unaligned access, we check that we don't
+       cross pages using the address of the last byte of the access.  */
+    if ((opc & MO_AMASK) == MO_ALIGN || s_mask == 0) {
+        tlb_mask = TARGET_PAGE_MASK | s_mask;
+        x3 = addr_reg;
+    } else {
+        tcg_out_insn(s, 3401, ADDI, TARGET_LONG_BITS == 64,
+                     TCG_REG_X3, addr_reg, s_mask);
+        tlb_mask = TARGET_PAGE_MASK;
+        x3 = TCG_REG_X3;
+    }
 
     /* Extract the TLB index from the address into X0.
        X0<CPU_TLB_BITS:0> =
@@ -1066,11 +1081,9 @@ static void tcg_out_tlb_read(TCGContext *s, TCGReg addr_reg, TCGMemOp s_bits,
     tcg_out_ubfm(s, TARGET_LONG_BITS == 64, TCG_REG_X0, addr_reg,
                  TARGET_PAGE_BITS, TARGET_PAGE_BITS + CPU_TLB_BITS);
 
-    /* Store the page mask part of the address and the low s_bits into X3.
-       Later this allows checking for equality and alignment at the same time.
-       X3 = addr_reg & (PAGE_MASK | ((1 << s_bits) - 1)) */
-    tcg_out_logicali(s, I3404_ANDI, TARGET_LONG_BITS == 64, TCG_REG_X3,
-                     addr_reg, TARGET_PAGE_MASK | ((1 << s_bits) - 1));
+    /* Store the page mask part of the address into X3.  */
+    tcg_out_logicali(s, I3404_ANDI, TARGET_LONG_BITS == 64,
+                     TCG_REG_X3, x3, tlb_mask);
 
     /* Add any "high bits" from the tlb offset to the env address into X2,
        to take advantage of the LSL12 form of the ADDI instruction.
@@ -1207,10 +1220,9 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
     const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
 #ifdef CONFIG_SOFTMMU
     unsigned mem_index = get_mmuidx(oi);
-    TCGMemOp s_bits = memop & MO_SIZE;
     tcg_insn_unit *label_ptr;
 
-    tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 1);
+    tcg_out_tlb_read(s, addr_reg, memop, &label_ptr, mem_index, 1);
     tcg_out_qemu_ld_direct(s, memop, ext, data_reg,
                            TCG_REG_X1, otype, addr_reg);
     add_qemu_ldst_label(s, true, oi, ext, data_reg, addr_reg,
@@ -1229,14 +1241,13 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
     const TCGType otype = TARGET_LONG_BITS == 64 ? TCG_TYPE_I64 : TCG_TYPE_I32;
 #ifdef CONFIG_SOFTMMU
     unsigned mem_index = get_mmuidx(oi);
-    TCGMemOp s_bits = memop & MO_SIZE;
     tcg_insn_unit *label_ptr;
 
-    tcg_out_tlb_read(s, addr_reg, s_bits, &label_ptr, mem_index, 0);
+    tcg_out_tlb_read(s, addr_reg, memop, &label_ptr, mem_index, 0);
     tcg_out_qemu_st_direct(s, memop, data_reg,
                            TCG_REG_X1, otype, addr_reg);
-    add_qemu_ldst_label(s, false, oi, s_bits == MO_64, data_reg, addr_reg,
-                        s->code_ptr, label_ptr);
+    add_qemu_ldst_label(s, false, oi, (memop & MO_SIZE)== MO_64,
+                        data_reg, addr_reg, s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
     tcg_out_qemu_st_direct(s, memop, data_reg,
                            GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
