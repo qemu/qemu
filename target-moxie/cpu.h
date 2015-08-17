@@ -127,7 +127,7 @@ int cpu_moxie_signal_handler(int host_signum, void *pinfo,
 #define cpu_gen_code cpu_moxie_gen_code
 #define cpu_signal_handler cpu_moxie_signal_handler
 
-static inline int cpu_mmu_index(CPUMoxieState *env)
+static inline int cpu_mmu_index(CPUMoxieState *env, bool ifetch)
 {
     return 0;
 }

@@ -235,7 +235,7 @@ void cpu_load_tlb(CPUSH4State * env);
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
 #define MMU_USER_IDX 1
-static inline int cpu_mmu_index (CPUSH4State *env)
+static inline int cpu_mmu_index (CPUSH4State *env, bool ifetch)
 {
     return (env->sr & (1u << SR_MD)) == 0 ? 1 : 0;
 }

@@ -492,7 +492,7 @@ static inline uint32_t xtensa_replicate_windowstart(CPUXtensaState *env)
 #define MMU_MODE2_SUFFIX _ring2
 #define MMU_MODE3_SUFFIX _ring3
 
-static inline int cpu_mmu_index(CPUXtensaState *env)
+static inline int cpu_mmu_index(CPUXtensaState *env, bool ifetch)
 {
     return xtensa_get_cring(env);
 }

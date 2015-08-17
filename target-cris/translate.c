@@ -1083,7 +1083,7 @@ static inline void cris_prepare_jmp (DisasContext *dc, unsigned int type)
 
 static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
 
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
@@ -1097,7 +1097,7 @@ static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
 static void gen_load(DisasContext *dc, TCGv dst, TCGv addr, 
              unsigned int size, int sign)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
 
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */
@@ -1112,7 +1112,7 @@ static void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
 static void gen_store (DisasContext *dc, TCGv addr, TCGv val,
                unsigned int size)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
 
     /* If we get a fault on a delayslot we must keep the jmp state in
        the cpu-state to be able to re-execute the jmp.  */

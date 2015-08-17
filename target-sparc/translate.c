@@ -5234,7 +5234,7 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
     last_pc = dc->pc;
     dc->npc = (target_ulong) tb->cs_base;
     dc->cc_op = CC_OP_DYNAMIC;
-    dc->mem_idx = cpu_mmu_index(env);
+    dc->mem_idx = cpu_mmu_index(env, false);
     dc->def = env->def;
     dc->fpu_enabled = tb_fpu_enabled(tb->flags);
     dc->address_mask_32bit = tb_am_enabled(tb->flags);

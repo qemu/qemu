@@ -418,7 +418,7 @@ static void dec_msr(DisasContext *dc)
     CPUState *cs = CPU(dc->cpu);
     TCGv t0, t1;
     unsigned int sr, to, rn;
-    int mem_index = cpu_mmu_index(&dc->cpu->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
 
     sr = dc->imm & ((1 << 14) - 1);
     to = dc->imm & (1 << 14);
@@ -730,7 +730,7 @@ static void dec_bit(DisasContext *dc)
     CPUState *cs = CPU(dc->cpu);
     TCGv t0;
     unsigned int op;
-    int mem_index = cpu_mmu_index(&dc->cpu->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
 
     op = dc->ir & ((1 << 9) - 1);
     switch (op) {
@@ -994,7 +994,7 @@ static void dec_load(DisasContext *dc)
      * address and if that succeeds we write into the destination reg.
      */
     v = tcg_temp_new();
-    tcg_gen_qemu_ld_tl(v, *addr, cpu_mmu_index(&dc->cpu->env), mop);
+    tcg_gen_qemu_ld_tl(v, *addr, cpu_mmu_index(&dc->cpu->env, false), mop);
 
     if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
         tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
@@ -1072,7 +1072,7 @@ static void dec_store(DisasContext *dc)
            this compare and the following write to be atomic. For user
            emulation we need to add atomicity between threads.  */
         tval = tcg_temp_new();
-        tcg_gen_qemu_ld_tl(tval, swx_addr, cpu_mmu_index(&dc->cpu->env),
+        tcg_gen_qemu_ld_tl(tval, swx_addr, cpu_mmu_index(&dc->cpu->env, false),
                            MO_TEUL);
         tcg_gen_brcond_tl(TCG_COND_NE, env_res_val, tval, swx_skip);
         write_carryi(dc, 0);
@@ -1123,7 +1123,7 @@ static void dec_store(DisasContext *dc)
                 break;
         }
     }
-    tcg_gen_qemu_st_tl(cpu_R[dc->rd], *addr, cpu_mmu_index(&dc->cpu->env), mop);
+    tcg_gen_qemu_st_tl(cpu_R[dc->rd], *addr, cpu_mmu_index(&dc->cpu->env, false), mop);
 
     /* Verify alignment if needed.  */
     if ((dc->cpu->env.pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
@@ -1219,7 +1219,7 @@ static void dec_bcc(DisasContext *dc)
 static void dec_br(DisasContext *dc)
 {
     unsigned int dslot, link, abs, mbar;
-    int mem_index = cpu_mmu_index(&dc->cpu->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
 
     dslot = dc->ir & (1 << 20);
     abs = dc->ir & (1 << 19);
@@ -1351,7 +1351,7 @@ static inline void do_rte(DisasContext *dc)
 static void dec_rts(DisasContext *dc)
 {
     unsigned int b_bit, i_bit, e_bit;
-    int mem_index = cpu_mmu_index(&dc->cpu->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
 
     i_bit = dc->ir & (1 << 21);
     b_bit = dc->ir & (1 << 22);
@@ -1523,7 +1523,7 @@ static void dec_null(DisasContext *dc)
 /* Insns connected to FSL or AXI stream attached devices.  */
 static void dec_stream(DisasContext *dc)
 {
-    int mem_index = cpu_mmu_index(&dc->cpu->env);
+    int mem_index = cpu_mmu_index(&dc->cpu->env, false);
     TCGv_i32 t_id, t_ctrl;
     int ctrl;
 

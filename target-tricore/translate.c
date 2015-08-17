@@ -8287,7 +8287,7 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
     ctx.tb = tb;
     ctx.singlestep_enabled = cs->singlestep_enabled;
     ctx.bstate = BS_NONE;
-    ctx.mem_idx = cpu_mmu_index(env);
+    ctx.mem_idx = cpu_mmu_index(env, false);
 
     tcg_clear_temp_count();
     gen_tb_start(tb);
