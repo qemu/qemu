@@ -43,27 +43,6 @@
 struct _GloContext;
 typedef struct _GloContext GloContext;
 
-/* Format flags for glo_surface_create */
-#define GLO_FF_ALPHA_MASK  (0x0001)
-#define GLO_FF_NOALPHA     (0x0000)
-#define GLO_FF_ALPHA       (0x0001)
-
-#define GLO_FF_BITS_MASK   (0x00F0)
-#define GLO_FF_BITS_16     (0x0020)
-#define GLO_FF_BITS_24     (0x0030)
-#define GLO_FF_BITS_32     (0x0040)
-
-#define GLO_FF_DEPTH_MASK   (0x0F00)
-#define GLO_FF_DEPTH_16     (0x0100)
-#define GLO_FF_DEPTH_24     (0x0200)
-#define GLO_FF_DEPTH_32     (0x0300)
-
-#define GLO_FF_STENCIL_MASK   (0xF000)
-#define GLO_FF_STENCIL_8      (0x1000)
-
-/* The only currently supported format */
-#define GLO_FF_DEFAULT (GLO_FF_BITS_24|GLO_FF_DEPTH_24)
-
 /* Change current context */
 void glo_set_current(GloContext *context);
 
@@ -71,21 +50,11 @@ void glo_set_current(GloContext *context);
 bool glo_check_extension(const char* ext_name);
 void* glo_get_extension_proc(const char* extProc);
 
-/* Create an OpenGL context for a certain
- * pixel format. formatflags are from the
- * GLO_ constants */
-GloContext *glo_context_create(int formatFlags);
+/* Create an OpenGL context */
+GloContext *glo_context_create(void);
 
 /* Destroy a previouslu created OpenGL context */
 void glo_context_destroy(GloContext *context);
-
-/* Functions to decode the format flags */
-int glo_flags_get_depth_bits(int formatFlags);
-int glo_flags_get_stencil_bits(int formatFlags);
-void glo_flags_get_rgba_bits(int formatFlags, int *rgba);
-int glo_flags_get_bytes_per_pixel(int formatFlags);
-/* Score how close the given format flags match. 0=great, >0 not so great */
-int glo_flags_score(int formatFlagsExpected, int formatFlagsReal);
 
  /* Note that this is top-down, not bottom-up as glReadPixels would do. */
 void glo_readpixels(GLenum gl_format, GLenum gl_type,

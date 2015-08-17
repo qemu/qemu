@@ -40,7 +40,7 @@ struct _GloContext {
 
 /* Create an OpenGL context for a certain pixel format. formatflags are from 
  * the GLO_ constants */
-GloContext *glo_context_create(int formatFlags)
+GloContext *glo_context_create(void)
 {
     CGLError err;
 

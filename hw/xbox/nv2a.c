@@ -3363,7 +3363,7 @@ static void pgraph_init(NV2AState *d)
 
     /* fire up opengl */
 
-    pg->gl_context = glo_context_create(GLO_FF_DEFAULT);
+    pg->gl_context = glo_context_create();
     assert(pg->gl_context);
 
 #ifdef DEBUG_NV2A_GL
