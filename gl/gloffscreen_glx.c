@@ -43,9 +43,8 @@ struct _GloContext {
 static Display* x_display;
 
 
-/* Create an OpenGL context for a certain pixel format. formatflags are from 
- * the GLO_ constants */
-GloContext *glo_context_create(int formatFlags)
+/* Create an OpenGL context */
+GloContext *glo_context_create(void)
 {
 
     static bool initialized = false;
@@ -60,23 +59,22 @@ GloContext *glo_context_create(int formatFlags)
     }
     GloContext *context = (GloContext *)g_malloc0(sizeof(GloContext));
 
-    int rgbaBits[4];
-    glo_flags_get_rgba_bits(formatFlags, rgbaBits);
-
     int fb_attribute_list[] = {
         GLX_RENDER_TYPE, GLX_RGBA_BIT,
-        GLX_RED_SIZE, rgbaBits[0],
-        GLX_GREEN_SIZE, rgbaBits[1],
-        GLX_BLUE_SIZE, rgbaBits[2],
-        GLX_ALPHA_SIZE, rgbaBits[3],
-        GLX_DEPTH_SIZE, glo_flags_get_depth_bits(formatFlags),
-        GLX_STENCIL_SIZE, glo_flags_get_stencil_bits(formatFlags),
+        GLX_RED_SIZE, 8,
+        GLX_GREEN_SIZE, 8,
+        GLX_BLUE_SIZE, 8,
+        GLX_ALPHA_SIZE, 8,
+        GLX_DEPTH_SIZE, 24,
+        GLX_STENCIL_SIZE, 8,
         GLX_DRAWABLE_TYPE, GLX_PBUFFER_BIT,
         None
     };
 
     int nelements;
-    GLXFBConfig* configs = glXChooseFBConfig(x_display, DefaultScreen(x_display), fb_attribute_list, &nelements);
+    GLXFBConfig* configs = glXChooseFBConfig(x_display,
+                                             DefaultScreen(x_display),
+                                             fb_attribute_list, &nelements);
     if (configs == NULL) { return NULL; }
     if (nelements == 0) { return NULL; }
 

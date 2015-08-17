@@ -58,7 +58,6 @@ struct GloMain glo;
 int glo_inited = 0;
 
 struct _GloContext {
-    int                   formatFlags;
     /* Pixel format returned by wglChoosePixelFormat */
     int                   wglPixelFormat;
     /* We need a pbuffer to make a context of the right pixelformat :( */
@@ -166,17 +165,12 @@ static void glo_kill(void) {
     UnregisterClass(GLO_WINDOW_CLASS, glo.hInstance);
 }
 
-/* Create an OpenGL context for a certain pixel format. formatflags are from
- * the GLO_ constants */
-GloContext *glo_context_create(int formatFlags) {
-    GloContext *context;
-
+GloContext *glo_context_create(void) {
     if (!glo_inited)
       glo_init();
 
-    context = (GloContext *)malloc(sizeof(GloContext));
+    GloContext *context = (GloContext *)malloc(sizeof(GloContext));
     memset(context, 0, sizeof(GloContext));
-    context->formatFlags = formatFlags;
 
     /* pixel format attributes */
     const int pf_attri[] = {
