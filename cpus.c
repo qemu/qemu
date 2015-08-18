@@ -1090,6 +1090,12 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
 #ifndef _WIN32
     int err;
 
+    if (!tcg_enabled()) {
+        if (cpu->thread_kicked) {
+            return;
+        }
+        cpu->thread_kicked = true;
+    }
     err = pthread_kill(cpu->thread->thread, SIG_IPI);
     if (err) {
         fprintf(stderr, "qemu:%s: %s", __func__, strerror(err));
@@ -1127,21 +1133,14 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
 void qemu_cpu_kick(CPUState *cpu)
 {
     qemu_cond_broadcast(cpu->halt_cond);
-    if (!tcg_enabled() && !cpu->thread_kicked) {
-        qemu_cpu_kick_thread(cpu);
-        cpu->thread_kicked = true;
-    }
+    qemu_cpu_kick_thread(cpu);
 }
 
 void qemu_cpu_kick_self(void)
 {
 #ifndef _WIN32
     assert(current_cpu);
-
-    if (!current_cpu->thread_kicked) {
-        qemu_cpu_kick_thread(current_cpu);
-        current_cpu->thread_kicked = true;
-    }
+    qemu_cpu_kick_thread(current_cpu);
 #else
     abort();
 #endif
