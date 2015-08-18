@@ -515,7 +515,8 @@ uint32_t HELPER(sigp)(CPUS390XState *env, uint64_t order_code, uint32_t r1,
     /* Remember: Use "R1 or R1 + 1, whichever is the odd-numbered register"
        as parameter (input). Status (output) is always R1. */
 
-    switch (order_code) {
+    /* sigp contains the order code in bit positions 56-63, mask it here. */
+    switch (order_code & 0xff) {
     case SIGP_SET_ARCH:
         /* switch arch */
         break;
