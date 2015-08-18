@@ -493,18 +493,13 @@ int cpu_exec(CPUState *cpu)
                 }
                 have_tb_lock = false;
                 spin_unlock(&tcg_ctx.tb_ctx.tb_lock);
-
-                /* cpu_interrupt might be called while translating the
-                   TB, but before it is linked into a potentially
-                   infinite loop and becomes env->current_tb. Avoid
-                   starting execution if there is a pending interrupt. */
-                cpu->current_tb = tb;
-                barrier();
                 if (likely(!cpu->exit_request)) {
                     trace_exec_tb(tb, tb->pc);
                     tc_ptr = tb->tc_ptr;
                     /* execute the generated code */
+                    cpu->current_tb = tb;
                     next_tb = cpu_tb_exec(cpu, tc_ptr);
+                    cpu->current_tb = NULL;
                     switch (next_tb & TB_EXIT_MASK) {
                     case TB_EXIT_REQUESTED:
                         /* Something asked us to stop executing
@@ -543,7 +538,6 @@ int cpu_exec(CPUState *cpu)
                         break;
                     }
                 }
-                cpu->current_tb = NULL;
                 /* Try to align the host and virtual clocks
                    if the guest is in advance */
                 align_clocks(&sc, cpu);
