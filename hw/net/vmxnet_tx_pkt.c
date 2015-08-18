@@ -142,11 +142,24 @@ static bool vmxnet_tx_pkt_parse_headers(struct VmxnetTxPkt *pkt)
 
     bytes_read = iov_to_buf(pkt->raw, pkt->raw_frags, 0, l2_hdr->iov_base,
                             ETH_MAX_L2_HDR_LEN);
-    if (bytes_read < ETH_MAX_L2_HDR_LEN) {
+    if (bytes_read < sizeof(struct eth_header)) {
         l2_hdr->iov_len = 0;
         return false;
-    } else {
-        l2_hdr->iov_len = eth_get_l2_hdr_length(l2_hdr->iov_base);
+    }
+
+    l2_hdr->iov_len = sizeof(struct eth_header);
+    switch (be16_to_cpu(PKT_GET_ETH_HDR(l2_hdr->iov_base)->h_proto)) {
+    case ETH_P_VLAN:
+        l2_hdr->iov_len += sizeof(struct vlan_header);
+        break;
+    case ETH_P_DVLAN:
+        l2_hdr->iov_len += 2 * sizeof(struct vlan_header);
+        break;
+    }
+
+    if (bytes_read < l2_hdr->iov_len) {
+        l2_hdr->iov_len = 0;
+        return false;
     }
 
     l3_proto = eth_get_l3_proto(l2_hdr->iov_base, l2_hdr->iov_len);

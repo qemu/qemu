@@ -729,9 +729,7 @@ static void vmxnet3_process_tx_queue(VMXNET3State *s, int qidx)
         }
 
         if (txd.eop) {
-            if (!s->skip_current_tx_pkt) {
-                vmxnet_tx_pkt_parse(s->tx_pkt);
-
+            if (!s->skip_current_tx_pkt && vmxnet_tx_pkt_parse(s->tx_pkt)) {
                 if (s->needs_vlan) {
                     vmxnet_tx_pkt_setup_vlan_header(s->tx_pkt, s->tci);
                 }
