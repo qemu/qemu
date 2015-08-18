@@ -663,8 +663,9 @@ static void cpu_handle_guest_debug(CPUState *cpu)
 
 static void cpu_signal(int sig)
 {
-    if (current_cpu) {
-        cpu_exit(current_cpu);
+    CPUState *cpu = atomic_mb_read(&tcg_current_cpu);
+    if (cpu) {
+        cpu_exit(cpu);
     }
     exit_request = 1;
 }

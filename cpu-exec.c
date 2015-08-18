@@ -342,6 +342,7 @@ static void cpu_handle_debug_exception(CPUState *cpu)
 /* main execution loop */
 
 volatile sig_atomic_t exit_request;
+CPUState *tcg_current_cpu;
 
 int cpu_exec(CPUState *cpu)
 {
@@ -368,15 +369,7 @@ int cpu_exec(CPUState *cpu)
     }
 
     current_cpu = cpu;
-
-    /* As long as current_cpu is null, up to the assignment just above,
-     * requests by other threads to exit the execution loop are expected to
-     * be issued using the exit_request global. We must make sure that our
-     * evaluation of the global value is performed past the current_cpu
-     * value transition point, which requires a memory barrier as well as
-     * an instruction scheduling constraint on modern architectures.  */
-    smp_mb();
-
+    atomic_mb_set(&tcg_current_cpu, cpu);
     rcu_read_lock();
 
     if (unlikely(exit_request)) {
@@ -579,5 +572,8 @@ int cpu_exec(CPUState *cpu)
 
     /* fail safe : never use current_cpu outside cpu_exec() */
     current_cpu = NULL;
+
+    /* Does not need atomic_mb_set because a spurious wakeup is okay.  */
+    atomic_set(&tcg_current_cpu, NULL);
     return ret;
 }

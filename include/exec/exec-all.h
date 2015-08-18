@@ -387,6 +387,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 extern int singlestep;
 
 /* cpu-exec.c */
+extern CPUState *tcg_current_cpu;
 extern volatile sig_atomic_t exit_request;
 
 #if !defined(CONFIG_USER_ONLY)
