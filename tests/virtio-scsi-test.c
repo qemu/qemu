@@ -13,6 +13,7 @@
 #include "libqtest.h"
 #include "qemu/osdep.h"
 #include <stdio.h>
+#include "block/scsi.h"
 #include "libqos/virtio.h"
 #include "libqos/virtio-pci.h"
 #include "libqos/pci-pc.h"
@@ -71,40 +72,6 @@ static void qvirtio_scsi_stop(void)
     qtest_end();
 }
 
-static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
-{
-    QVirtIOSCSI *vs;
-    QVirtioPCIDevice *dev;
-    void *addr;
-    int i;
-
-    vs = g_new0(QVirtIOSCSI, 1);
-    vs->alloc = pc_alloc_init();
-    vs->bus = qpci_init_pc();
-
-    dev = qvirtio_pci_device_find(vs->bus, QVIRTIO_SCSI_DEVICE_ID);
-    vs->dev = (QVirtioDevice *)dev;
-    g_assert(dev != NULL);
-    g_assert_cmphex(vs->dev->device_type, ==, QVIRTIO_SCSI_DEVICE_ID);
-
-    qvirtio_pci_device_enable(dev);
-    qvirtio_reset(&qvirtio_pci, vs->dev);
-    qvirtio_set_acknowledge(&qvirtio_pci, vs->dev);
-    qvirtio_set_driver(&qvirtio_pci, vs->dev);
-
-    addr = dev->addr + QVIRTIO_PCI_DEVICE_SPECIFIC_NO_MSIX;
-    vs->num_queues = qvirtio_config_readl(&qvirtio_pci, vs->dev,
-                                          (uint64_t)(uintptr_t)addr);
-
-    g_assert_cmpint(vs->num_queues, <, MAX_NUM_QUEUES);
-
-    for (i = 0; i < vs->num_queues + 2; i++) {
-        vs->vq[i] = qvirtqueue_setup(&qvirtio_pci, vs->dev, vs->alloc, i);
-    }
-
-    return vs;
-}
-
 static void qvirtio_scsi_pci_free(QVirtIOSCSI *vs)
 {
     int i;
@@ -134,7 +101,8 @@ static uint64_t qvirtio_scsi_alloc(QVirtIOSCSI *vs, size_t alloc_size,
 static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
                                       const uint8_t *data_in,
                                       size_t data_in_len,
-                                      uint8_t *data_out, size_t data_out_len)
+                                      uint8_t *data_out, size_t data_out_len,
+                                      QVirtIOSCSICmdResp *resp_out)
 {
     QVirtQueue *vq;
     QVirtIOSCSICmdReq req = { { 0 } };
@@ -174,11 +142,61 @@ static uint8_t virtio_scsi_do_command(QVirtIOSCSI *vs, const uint8_t *cdb,
 
     response = readb(resp_addr + offsetof(QVirtIOSCSICmdResp, response));
 
+    if (resp_out) {
+        memread(resp_addr, resp_out, sizeof(*resp_out));
+    }
+
     guest_free(vs->alloc, req_addr);
     guest_free(vs->alloc, resp_addr);
     guest_free(vs->alloc, data_in_addr);
     guest_free(vs->alloc, data_out_addr);
     return response;
+}
+
+static QVirtIOSCSI *qvirtio_scsi_pci_init(int slot)
+{
+    const uint8_t test_unit_ready_cdb[CDB_SIZE] = {};
+    QVirtIOSCSI *vs;
+    QVirtioPCIDevice *dev;
+    QVirtIOSCSICmdResp resp;
+    void *addr;
+    int i;
+
+    vs = g_new0(QVirtIOSCSI, 1);
+    vs->alloc = pc_alloc_init();
+    vs->bus = qpci_init_pc();
+
+    dev = qvirtio_pci_device_find(vs->bus, QVIRTIO_SCSI_DEVICE_ID);
+    vs->dev = (QVirtioDevice *)dev;
+    g_assert(dev != NULL);
+    g_assert_cmphex(vs->dev->device_type, ==, QVIRTIO_SCSI_DEVICE_ID);
+
+    qvirtio_pci_device_enable(dev);
+    qvirtio_reset(&qvirtio_pci, vs->dev);
+    qvirtio_set_acknowledge(&qvirtio_pci, vs->dev);
+    qvirtio_set_driver(&qvirtio_pci, vs->dev);
+
+    addr = dev->addr + QVIRTIO_PCI_DEVICE_SPECIFIC_NO_MSIX;
+    vs->num_queues = qvirtio_config_readl(&qvirtio_pci, vs->dev,
+                                          (uint64_t)(uintptr_t)addr);
+
+    g_assert_cmpint(vs->num_queues, <, MAX_NUM_QUEUES);
+
+    for (i = 0; i < vs->num_queues + 2; i++) {
+        vs->vq[i] = qvirtqueue_setup(&qvirtio_pci, vs->dev, vs->alloc, i);
+    }
+
+    /* Clear the POWER ON OCCURRED unit attention */
+    g_assert_cmpint(virtio_scsi_do_command(vs, test_unit_ready_cdb,
+                                           NULL, 0, NULL, 0, &resp),
+                    ==, 0);
+    g_assert_cmpint(resp.status, ==, CHECK_CONDITION);
+    g_assert_cmpint(resp.sense[0], ==, 0x70); /* Fixed format sense buffer */
+    g_assert_cmpint(resp.sense[2], ==, UNIT_ATTENTION);
+    g_assert_cmpint(resp.sense[12], ==, 0x29); /* POWER ON */
+    g_assert_cmpint(resp.sense[13], ==, 0x00);
+
+    return vs;
 }
 
 /* Tests only initialization so far. TODO: Replace with functional tests */
@@ -221,9 +239,12 @@ static void hotplug(void)
 static void test_unaligned_write_same(void)
 {
     QVirtIOSCSI *vs;
-    uint8_t buf[512] = { 0 };
-    const uint8_t write_same_cdb[CDB_SIZE] = { 0x41, 0x00, 0x00, 0x00, 0x00,
+    uint8_t buf1[512] = { 0 };
+    uint8_t buf2[512] = { 1 };
+    const uint8_t write_same_cdb_1[CDB_SIZE] = { 0x41, 0x00, 0x00, 0x00, 0x00,
                                                0x01, 0x00, 0x00, 0x02, 0x00 };
+    const uint8_t write_same_cdb_2[CDB_SIZE] = { 0x41, 0x00, 0x00, 0x00, 0x00,
+                                               0x01, 0x00, 0x33, 0x00, 0x00 };
 
     qvirtio_scsi_start("-drive file=blkdebug::null-co://,if=none,id=dr1"
                        ",format=raw,file.align=4k "
@@ -231,7 +252,10 @@ static void test_unaligned_write_same(void)
     vs = qvirtio_scsi_pci_init(PCI_SLOT);
 
     g_assert_cmphex(0, ==,
-        virtio_scsi_do_command(vs, write_same_cdb, NULL, 0, buf, 512));
+        virtio_scsi_do_command(vs, write_same_cdb_1, NULL, 0, buf1, 512, NULL));
+
+    g_assert_cmphex(0, ==,
+        virtio_scsi_do_command(vs, write_same_cdb_2, NULL, 0, buf2, 512, NULL));
 
     qvirtio_scsi_pci_free(vs);
     qvirtio_scsi_stop();

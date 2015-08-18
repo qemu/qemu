@@ -5600,10 +5600,6 @@ if [ "$pixman" = "internal" ]; then
   echo "config-host.h: subdir-pixman" >> $config_host_mak
 fi
 
-if test "$rdma" = "yes" ; then
-echo "CONFIG_RDMA=y" >> $config_host_mak
-fi
-
 if [ "$dtc_internal" = "yes" ]; then
   echo "config-host.h: subdir-dtc" >> $config_host_mak
 fi

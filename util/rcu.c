@@ -47,7 +47,8 @@
 unsigned long rcu_gp_ctr = RCU_GP_LOCKED;
 
 QemuEvent rcu_gp_event;
-static QemuMutex rcu_gp_lock;
+static QemuMutex rcu_registry_lock;
+static QemuMutex rcu_sync_lock;
 
 /*
  * Check whether a quiescent state was crossed between the beginning of
@@ -66,7 +67,7 @@ static inline int rcu_gp_ongoing(unsigned long *ctr)
  */
 __thread struct rcu_reader_data rcu_reader;
 
-/* Protected by rcu_gp_lock.  */
+/* Protected by rcu_registry_lock.  */
 typedef QLIST_HEAD(, rcu_reader_data) ThreadList;
 static ThreadList registry = QLIST_HEAD_INITIALIZER(registry);
 
@@ -114,10 +115,26 @@ static void wait_for_readers(void)
             break;
         }
 
-        /* Wait for one thread to report a quiescent state and
-         * try again.
+        /* Wait for one thread to report a quiescent state and try again.
+         * Release rcu_registry_lock, so rcu_(un)register_thread() doesn't
+         * wait too much time.
+         *
+         * rcu_register_thread() may add nodes to &registry; it will not
+         * wake up synchronize_rcu, but that is okay because at least another
+         * thread must exit its RCU read-side critical section before
+         * synchronize_rcu is done.  The next iteration of the loop will
+         * move the new thread's rcu_reader from &registry to &qsreaders,
+         * because rcu_gp_ongoing() will return false.
+         *
+         * rcu_unregister_thread() may remove nodes from &qsreaders instead
+         * of &registry if it runs during qemu_event_wait.  That's okay;
+         * the node then will not be added back to &registry by QLIST_SWAP
+         * below.  The invariant is that the node is part of one list when
+         * rcu_registry_lock is released.
          */
+        qemu_mutex_unlock(&rcu_registry_lock);
         qemu_event_wait(&rcu_gp_event);
+        qemu_mutex_lock(&rcu_registry_lock);
     }
 
     /* put back the reader list in the registry */
@@ -126,7 +143,8 @@ static void wait_for_readers(void)
 
 void synchronize_rcu(void)
 {
-    qemu_mutex_lock(&rcu_gp_lock);
+    qemu_mutex_lock(&rcu_sync_lock);
+    qemu_mutex_lock(&rcu_registry_lock);
 
     if (!QLIST_EMPTY(&registry)) {
         /* In either case, the atomic_mb_set below blocks stores that free
@@ -149,7 +167,8 @@ void synchronize_rcu(void)
         wait_for_readers();
     }
 
-    qemu_mutex_unlock(&rcu_gp_lock);
+    qemu_mutex_unlock(&rcu_registry_lock);
+    qemu_mutex_unlock(&rcu_sync_lock);
 }
 
 
@@ -273,23 +292,24 @@ void call_rcu1(struct rcu_head *node, void (*func)(struct rcu_head *node))
 void rcu_register_thread(void)
 {
     assert(rcu_reader.ctr == 0);
-    qemu_mutex_lock(&rcu_gp_lock);
+    qemu_mutex_lock(&rcu_registry_lock);
     QLIST_INSERT_HEAD(&registry, &rcu_reader, node);
-    qemu_mutex_unlock(&rcu_gp_lock);
+    qemu_mutex_unlock(&rcu_registry_lock);
 }
 
 void rcu_unregister_thread(void)
 {
-    qemu_mutex_lock(&rcu_gp_lock);
+    qemu_mutex_lock(&rcu_registry_lock);
     QLIST_REMOVE(&rcu_reader, node);
-    qemu_mutex_unlock(&rcu_gp_lock);
+    qemu_mutex_unlock(&rcu_registry_lock);
 }
 
 static void rcu_init_complete(void)
 {
     QemuThread thread;
 
-    qemu_mutex_init(&rcu_gp_lock);
+    qemu_mutex_init(&rcu_registry_lock);
+    qemu_mutex_init(&rcu_sync_lock);
     qemu_event_init(&rcu_gp_event, true);
 
     qemu_event_init(&rcu_call_ready_event, false);
@@ -306,12 +326,14 @@ static void rcu_init_complete(void)
 #ifdef CONFIG_POSIX
 static void rcu_init_lock(void)
 {
-    qemu_mutex_lock(&rcu_gp_lock);
+    qemu_mutex_lock(&rcu_sync_lock);
+    qemu_mutex_lock(&rcu_registry_lock);
 }
 
 static void rcu_init_unlock(void)
 {
-    qemu_mutex_unlock(&rcu_gp_lock);
+    qemu_mutex_unlock(&rcu_registry_lock);
+    qemu_mutex_unlock(&rcu_sync_lock);
 }
 #endif
 

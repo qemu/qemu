@@ -145,7 +145,7 @@ int64_t cpu_get_icount_raw(void)
 
     icount = timers_state.qemu_icount;
     if (cpu) {
-        if (!cpu_can_do_io(cpu)) {
+        if (!cpu->can_do_io) {
             fprintf(stderr, "Bad icount read\n");
             exit(1);
         }

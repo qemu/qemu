@@ -136,7 +136,8 @@ static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
         return;
     }
     if (!s->bh) {
-        s->bh = qemu_bh_new(scsi_dma_restart_bh, s);
+        AioContext *ctx = blk_get_aio_context(s->conf.blk);
+        s->bh = aio_bh_new(ctx, scsi_dma_restart_bh, s);
         qemu_bh_schedule(s->bh);
     }
 }

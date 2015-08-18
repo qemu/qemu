@@ -196,7 +196,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
     }
 #endif /* DEBUG_DISAS */
 
-    cpu->can_do_io = 0;
+    cpu->can_do_io = !use_icount;
     next_tb = tcg_qemu_tb_exec(env, tb_ptr);
     cpu->can_do_io = 1;
     trace_exec_tb_exit((void *) (next_tb & ~TB_EXIT_MASK),
@@ -231,19 +231,15 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
                              TranslationBlock *orig_tb)
 {
     TranslationBlock *tb;
-    target_ulong pc = orig_tb->pc;
-    target_ulong cs_base = orig_tb->cs_base;
-    uint64_t flags = orig_tb->flags;
 
     /* Should never happen.
        We only end up here when an existing TB is too long.  */
     if (max_cycles > CF_COUNT_MASK)
         max_cycles = CF_COUNT_MASK;
 
-    /* tb_gen_code can flush our orig_tb, invalidate it now */
-    tb_phys_invalidate(orig_tb, -1);
-    tb = tb_gen_code(cpu, pc, cs_base, flags,
+    tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
                      max_cycles | CF_NOCACHE);
+    tb->orig_tb = tcg_ctx.tb_ctx.tb_invalidated_flag ? NULL : orig_tb;
     cpu->current_tb = tb;
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);

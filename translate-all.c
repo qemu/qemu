@@ -222,6 +222,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     gen_intermediate_code_pc(env, tb);
 
     if (tb->cflags & CF_USE_ICOUNT) {
+        assert(use_icount);
         /* Reset the cycle counter to the start of the block.  */
         cpu->icount_decr.u16.low += tb->icount;
         /* Clear the IO flag.  */
@@ -1470,7 +1471,7 @@ static void tcg_handle_interrupt(CPUState *cpu, int mask)
 
     if (use_icount) {
         cpu->icount_decr.u16.high = 0xffff;
-        if (!cpu_can_do_io(cpu)
+        if (!cpu->can_do_io
             && (mask & ~old_mask) != 0) {
             cpu_abort(cpu, "Raised interrupt while not in I/O function");
         }
@@ -1533,6 +1534,14 @@ void cpu_io_recompile(CPUState *cpu, uintptr_t retaddr)
     cs_base = tb->cs_base;
     flags = tb->flags;
     tb_phys_invalidate(tb, -1);
+    if (tb->cflags & CF_NOCACHE) {
+        if (tb->orig_tb) {
+            /* Invalidate original TB if this TB was generated in
+             * cpu_exec_nocache() */
+            tb_phys_invalidate(tb->orig_tb, -1);
+        }
+        tb_free(tb);
+    }
     /* FIXME: In theory this could raise an exception.  In practice
        we have already translated the block once so it's probably ok.  */
     tb_gen_code(cpu, pc, cs_base, flags, cflags);

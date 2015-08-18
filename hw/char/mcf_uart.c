@@ -126,7 +126,7 @@ static void mcf_uart_do_tx(mcf_uart_state *s)
 static void mcf_do_command(mcf_uart_state *s, uint8_t cmd)
 {
     /* Misc command.  */
-    switch ((cmd >> 4) & 3) {
+    switch ((cmd >> 4) & 7) {
     case 0: /* No-op.  */
         break;
     case 1: /* Reset mode register pointer.  */
