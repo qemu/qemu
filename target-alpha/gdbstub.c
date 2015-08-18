@@ -30,7 +30,7 @@ int alpha_cpu_gdb_read_register(CPUState *cs, uint8_t *mem_buf, int n)
 
     switch (n) {
     case 0 ... 30:
-        val = env->ir[n];
+        val = cpu_alpha_load_gr(env, n);
         break;
     case 32 ... 62:
         d.d = env->fir[n - 32];
@@ -66,7 +66,7 @@ int alpha_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
 
     switch (n) {
     case 0 ... 30:
-        env->ir[n] = tmp;
+        cpu_alpha_store_gr(env, n, tmp);
         break;
     case 32 ... 62:
         d.ll = tmp;
