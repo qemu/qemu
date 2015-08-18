@@ -663,11 +663,15 @@ static void cpu_handle_guest_debug(CPUState *cpu)
 
 static void cpu_signal(int sig)
 {
-    CPUState *cpu = atomic_mb_read(&tcg_current_cpu);
+    CPUState *cpu;
+    /* Ensure whatever caused the exit has reached the CPU threads before
+     * writing exit_request.
+     */
+    atomic_mb_set(&exit_request, 1);
+    cpu = atomic_mb_read(&tcg_current_cpu);
     if (cpu) {
         cpu_exit(cpu);
     }
-    exit_request = 1;
 }
 
 #ifdef CONFIG_LINUX
@@ -1063,7 +1067,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     }
 
     /* process any pending work */
-    exit_request = 1;
+    atomic_mb_set(&exit_request, 1);
 
     while (1) {
         tcg_exec_all();
@@ -1441,7 +1445,9 @@ static void tcg_exec_all(void)
             break;
         }
     }
-    exit_request = 0;
+
+    /* Pairs with smp_wmb in qemu_cpu_kick.  */
+    atomic_mb_set(&exit_request, 0);
 }
 
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)

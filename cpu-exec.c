@@ -372,7 +372,7 @@ int cpu_exec(CPUState *cpu)
     atomic_mb_set(&tcg_current_cpu, cpu);
     rcu_read_lock();
 
-    if (unlikely(exit_request)) {
+    if (unlikely(atomic_mb_read(&exit_request))) {
         cpu->exit_request = 1;
     }
 
