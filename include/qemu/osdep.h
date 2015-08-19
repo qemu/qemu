@@ -8,6 +8,22 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
+#include <inttypes.h>
+#include <limits.h>
+#include <time.h>
+#include <ctype.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <assert.h>
+#include <signal.h>
+
 #ifdef __OpenBSD__
 #include <sys/signal.h>
 #endif
@@ -19,13 +35,44 @@
 #define WEXITSTATUS(x) (x)
 #endif
 
-#include <sys/time.h>
+#ifdef _WIN32
+#include "sysemu/os-win32.h"
+#endif
+
+#ifdef CONFIG_POSIX
+#include "sysemu/os-posix.h"
+#endif
 
 #if defined(CONFIG_SOLARIS) && CONFIG_SOLARIS_VERSION < 10
 /* [u]int_fast*_t not in <sys/int_types.h> */
 typedef unsigned char           uint_fast8_t;
 typedef unsigned int            uint_fast16_t;
 typedef signed int              int_fast16_t;
+#endif
+
+#ifndef O_LARGEFILE
+#define O_LARGEFILE 0
+#endif
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+#ifndef ENOMEDIUM
+#define ENOMEDIUM ENODEV
+#endif
+#if !defined(ENOTSUP)
+#define ENOTSUP 4096
+#endif
+#if !defined(ECANCELED)
+#define ECANCELED 4097
+#endif
+#if !defined(EMEDIUMTYPE)
+#define EMEDIUMTYPE 4098
+#endif
+#ifndef TIME_MAX
+#define TIME_MAX LONG_MAX
 #endif
 
 #ifndef MIN

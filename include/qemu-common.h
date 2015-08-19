@@ -12,8 +12,7 @@
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 
-#include "qemu/compiler.h"
-#include "config-host.h"
+#include "qemu/osdep.h"
 #include "qemu/typedefs.h"
 #include "qemu/fprintf-fn.h"
 
@@ -23,59 +22,8 @@
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
-/* we put basic includes here to avoid repeating them in device drivers */
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <string.h>
-#include <strings.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <time.h>
-#include <ctype.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <assert.h>
-#include <signal.h>
 #include "glib-compat.h"
 #include "qemu/option.h"
-
-#ifdef _WIN32
-#include "sysemu/os-win32.h"
-#endif
-
-#ifdef CONFIG_POSIX
-#include "sysemu/os-posix.h"
-#endif
-
-#ifndef O_LARGEFILE
-#define O_LARGEFILE 0
-#endif
-#ifndef O_BINARY
-#define O_BINARY 0
-#endif
-#ifndef MAP_ANONYMOUS
-#define MAP_ANONYMOUS MAP_ANON
-#endif
-#ifndef ENOMEDIUM
-#define ENOMEDIUM ENODEV
-#endif
-#if !defined(ENOTSUP)
-#define ENOTSUP 4096
-#endif
-#if !defined(ECANCELED)
-#define ECANCELED 4097
-#endif
-#if !defined(EMEDIUMTYPE)
-#define EMEDIUMTYPE 4098
-#endif
-#ifndef TIME_MAX
-#define TIME_MAX LONG_MAX
-#endif
 
 /* HOST_LONG_BITS is the size of a native pointer in bits. */
 #if UINTPTR_MAX == UINT32_MAX
@@ -97,7 +45,6 @@ extern int64_t max_delay;
 extern int64_t max_advance;
 void dump_drift_info(FILE *f, fprintf_function cpu_fprintf);
 
-#include "qemu/osdep.h"
 #include "qemu/bswap.h"
 
 /* FIXME: Remove NEED_CPU_H.  */
