@@ -18,14 +18,6 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
 
-#ifdef _WIN32
-#include "sysemu/os-win32.h"
-#endif
-
-#ifdef CONFIG_POSIX
-#include "sysemu/os-posix.h"
-#endif
-
 static QMPEventFuncEmit qmp_emit;
 
 void qmp_event_set_func_emit(QMPEventFuncEmit emit)
