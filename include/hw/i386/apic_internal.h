@@ -20,6 +20,7 @@
 #ifndef QEMU_APIC_INTERNAL_H
 #define QEMU_APIC_INTERNAL_H
 
+#include "cpu.h"
 #include "exec/memory.h"
 #include "hw/cpu/icc_bus.h"
 #include "qemu/timer.h"
