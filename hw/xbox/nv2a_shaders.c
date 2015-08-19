@@ -319,7 +319,7 @@ static QString* generate_fixed_function(const ShaderState state,
              *    fogParam[0] = 1.5
              */
 
-            qstring_append(s, "float fogFactor = fogParam[0] + exp(fogDistance * fogParam[1] * 2.0 * 5.5452);\n");
+            qstring_append(s, "float fogFactor = fogParam[0] + exp2(fogDistance * fogParam[1] * 16.0);\n");
             qstring_append(s, "fogFactor -= 1.5;\n"); /* FIXME: WHHYYY?!! */
             break;
         case FOG_MODE_EXP2:
@@ -330,7 +330,7 @@ static QString* generate_fixed_function(const ShaderState state,
              *    fogParam[0] = 1.5
              */
 
-            qstring_append(s, "float fogFactor = fogParam[0] + exp(-fogDistance * fogDistance * fogParam[1] * fogParam[1] * 4.0 * 5.5452);\n");
+            qstring_append(s, "float fogFactor = fogParam[0] + exp2(-fogDistance * fogDistance * fogParam[1] * fogParam[1] * 32.0);\n");
             qstring_append(s, "fogFactor -= 1.5;\n"); /* FIXME: WHHYYY?!! */
             break;
         default:
