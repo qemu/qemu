@@ -318,6 +318,8 @@ static const TCGHelperInfo all_helpers[] = {
 #include "exec/helper-tcg.h"
 };
 
+static int indirect_reg_alloc_order[ARRAY_SIZE(tcg_target_reg_alloc_order)];
+
 void tcg_context_init(TCGContext *s)
 {
     int op, total_args, n, i;
@@ -360,6 +362,21 @@ void tcg_context_init(TCGContext *s)
     }
 
     tcg_target_init(s);
+
+    /* Reverse the order of the saved registers, assuming they're all at
+       the start of tcg_target_reg_alloc_order.  */
+    for (n = 0; n < ARRAY_SIZE(tcg_target_reg_alloc_order); ++n) {
+        int r = tcg_target_reg_alloc_order[n];
+        if (tcg_regset_test_reg(tcg_target_call_clobber_regs, r)) {
+            break;
+        }
+    }
+    for (i = 0; i < n; ++i) {
+        indirect_reg_alloc_order[i] = tcg_target_reg_alloc_order[n - 1 - i];
+    }
+    for (; i < ARRAY_SIZE(tcg_target_reg_alloc_order); ++i) {
+        indirect_reg_alloc_order[i] = tcg_target_reg_alloc_order[i];
+    }
 }
 
 void tcg_prologue_init(TCGContext *s)
@@ -1696,24 +1713,26 @@ static void tcg_reg_free(TCGContext *s, TCGReg reg, TCGRegSet allocated_regs)
 
 /* Allocate a register belonging to reg1 & ~reg2 */
 static TCGReg tcg_reg_alloc(TCGContext *s, TCGRegSet desired_regs,
-                            TCGRegSet allocated_regs)
+                            TCGRegSet allocated_regs, bool rev)
 {
-    int i;
+    int i, n = ARRAY_SIZE(tcg_target_reg_alloc_order);
+    const int *order;
     TCGReg reg;
     TCGRegSet reg_ct;
 
     tcg_regset_andnot(reg_ct, desired_regs, allocated_regs);
+    order = rev ? indirect_reg_alloc_order : tcg_target_reg_alloc_order;
 
     /* first try free registers */
-    for(i = 0; i < ARRAY_SIZE(tcg_target_reg_alloc_order); i++) {
-        reg = tcg_target_reg_alloc_order[i];
+    for(i = 0; i < n; i++) {
+        reg = order[i];
         if (tcg_regset_test_reg(reg_ct, reg) && s->reg_to_temp[reg] == NULL)
             return reg;
     }
 
     /* XXX: do better spill choice */
-    for(i = 0; i < ARRAY_SIZE(tcg_target_reg_alloc_order); i++) {
-        reg = tcg_target_reg_alloc_order[i];
+    for(i = 0; i < n; i++) {
+        reg = order[i];
         if (tcg_regset_test_reg(reg_ct, reg)) {
             tcg_reg_free(s, reg, allocated_regs);
             return reg;
@@ -1734,12 +1753,12 @@ static void temp_load(TCGContext *s, TCGTemp *ts, TCGRegSet desired_regs,
     case TEMP_VAL_REG:
         return;
     case TEMP_VAL_CONST:
-        reg = tcg_reg_alloc(s, desired_regs, allocated_regs);
+        reg = tcg_reg_alloc(s, desired_regs, allocated_regs, ts->indirect_base);
         tcg_out_movi(s, ts->type, reg, ts->val);
         ts->mem_coherent = 0;
         break;
     case TEMP_VAL_MEM:
-        reg = tcg_reg_alloc(s, desired_regs, allocated_regs);
+        reg = tcg_reg_alloc(s, desired_regs, allocated_regs, ts->indirect_base);
         if (ts->indirect_reg) {
             tcg_regset_set_reg(allocated_regs, reg);
             temp_load(s, ts->mem_base,
@@ -1976,7 +1995,7 @@ static void tcg_reg_alloc_mov(TCGContext *s, const TCGOpDef *def,
                    input one. */
                 tcg_regset_set_reg(allocated_regs, ts->reg);
                 ots->reg = tcg_reg_alloc(s, tcg_target_available_regs[otype],
-                                         allocated_regs);
+                                         allocated_regs, ots->indirect_base);
             }
             tcg_out_mov(s, otype, ots->reg, ts->reg);
         }
@@ -2061,7 +2080,8 @@ static void tcg_reg_alloc_op(TCGContext *s,
         allocate_in_reg:
             /* allocate a new register matching the constraint 
                and move the temporary register into it */
-            reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs);
+            reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs,
+                                ts->indirect_base);
             tcg_out_mov(s, ts->type, reg, ts->reg);
         }
         new_args[i] = reg;
@@ -2110,7 +2130,8 @@ static void tcg_reg_alloc_op(TCGContext *s,
                     tcg_regset_test_reg(arg_ct->u.regs, reg)) {
                     goto oarg_end;
                 }
-                reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs);
+                reg = tcg_reg_alloc(s, arg_ct->u.regs, allocated_regs,
+                                    ts->indirect_base);
             }
             tcg_regset_set_reg(allocated_regs, reg);
             /* if a fixed register is used, then a move will be done afterwards */
