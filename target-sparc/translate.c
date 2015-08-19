@@ -57,7 +57,6 @@ static TCGv_i32 cpu_xcc, cpu_asi, cpu_fprs;
 static TCGv cpu_gsr;
 static TCGv cpu_tick_cmpr, cpu_stick_cmpr, cpu_hstick_cmpr;
 static TCGv cpu_hintp, cpu_htba, cpu_hver, cpu_ssr, cpu_ver;
-static TCGv_i32 cpu_softint;
 #else
 static TCGv cpu_wim;
 #endif
@@ -2754,7 +2753,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_store_gpr(dc, rd, cpu_gsr);
                     break;
                 case 0x16: /* Softint */
-                    tcg_gen_ext_i32_tl(cpu_dst, cpu_softint);
+                    tcg_gen_ld32s_tl(cpu_dst, cpu_env,
+                                     offsetof(CPUSPARCState, softint));
                     gen_store_gpr(dc, rd, cpu_dst);
                     break;
                 case 0x17: /* Tick compare */
@@ -5364,7 +5364,6 @@ void gen_intermediate_code_init(CPUSPARCState *env)
         { &cpu_xcc, offsetof(CPUSPARCState, xcc), "xcc" },
         { &cpu_asi, offsetof(CPUSPARCState, asi), "asi" },
         { &cpu_fprs, offsetof(CPUSPARCState, fprs), "fprs" },
-        { &cpu_softint, offsetof(CPUSPARCState, softint), "softint" },
 #else
         { &cpu_wim, offsetof(CPUSPARCState, wim), "wim" },
 #endif
