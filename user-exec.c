@@ -92,8 +92,8 @@ static inline int handle_cpu_signal(uintptr_t pc, unsigned long address,
     int ret;
 
 #if defined(DEBUG_SIGNAL)
-    qemu_printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
-                pc, address, is_write, *(unsigned long *)old_set);
+    printf("qemu: SIGSEGV pc=0x%08lx address=%08lx w=%d oldset=0x%08lx\n",
+           pc, address, is_write, *(unsigned long *)old_set);
 #endif
     /* XXX: locking issue */
     if (is_write && h2g_valid(address)

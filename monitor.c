@@ -678,7 +678,7 @@ static int get_str(char *buf, int buf_size, const char **pp)
                 case '\"':
                     break;
                 default:
-                    qemu_printf("unsupported escape code: '\\%c'\n", c);
+                    printf("unsupported escape code: '\\%c'\n", c);
                     goto fail;
                 }
                 if ((q - buf) < buf_size - 1) {
@@ -692,7 +692,7 @@ static int get_str(char *buf, int buf_size, const char **pp)
             }
         }
         if (*p != '\"') {
-            qemu_printf("unterminated string\n");
+            printf("unterminated string\n");
             goto fail;
         }
         p++;
