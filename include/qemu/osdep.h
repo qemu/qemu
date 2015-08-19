@@ -1,3 +1,27 @@
+/*
+ * OS includes and handling of OS dependencies
+ *
+ * This header exists to pull in some common system headers that
+ * most code in QEMU will want, and to fix up some possible issues with
+ * it (missing defines, Windows weirdness, and so on).
+ *
+ * To avoid getting into possible circular include dependencies, this
+ * file should not include any other QEMU headers, with the exceptions
+ * of config-host.h, compiler.h, os-posix.h and os-win32.h, all of which
+ * are doing a similar job to this file and are under similar constraints.
+ *
+ * This header also contains prototypes for functions defined in
+ * os-*.c and util/oslib-*.c; those would probably be better split
+ * out into separate header files.
+ *
+ * In an ideal world this header would contain only:
+ *  (1) things which everybody needs
+ *  (2) things without which code would work on most platforms but
+ *      fail to compile or misbehave on a minority of host OSes
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ */
 #ifndef QEMU_OSDEP_H
 #define QEMU_OSDEP_H
 
