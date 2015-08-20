@@ -54,7 +54,8 @@
 
 #define MAX_BLK_DEVS                    10
 #define ZIPL_FILENAME                   "s390-zipl.rom"
-#define TYPE_S390_MACHINE               "s390-machine"
+#define S390_MACHINE                    "s390-virtio"
+#define TYPE_S390_MACHINE               MACHINE_TYPE_NAME(S390_MACHINE)
 
 #define S390_TOD_CLOCK_VALUE_MISSING    0x00
 #define S390_TOD_CLOCK_VALUE_PRESENT    0x01
@@ -318,7 +319,7 @@ static void s390_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    mc->name = "s390-virtio";
+    mc->name = S390_MACHINE;
     mc->alias = "s390";
     mc->desc = "VirtIO based S390 machine";
     mc->init = s390_init;
