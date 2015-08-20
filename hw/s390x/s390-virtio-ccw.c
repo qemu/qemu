@@ -258,7 +258,7 @@ static void ccw_machine_2_4_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo ccw_machine_2_4_info = {
-    .name          = TYPE_S390_CCW_MACHINE "2.4",
+    .name          = MACHINE_TYPE_NAME("s390-ccw-virtio-2.4"),
     .parent        = TYPE_S390_CCW_MACHINE,
     .class_init    = ccw_machine_2_4_class_init,
 };
@@ -274,7 +274,7 @@ static void ccw_machine_2_5_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo ccw_machine_2_5_info = {
-    .name          = TYPE_S390_CCW_MACHINE "2.5",
+    .name          = MACHINE_TYPE_NAME("s390-ccw-virtio-2.5"),
     .parent        = TYPE_S390_CCW_MACHINE,
     .class_init    = ccw_machine_2_5_class_init,
 };
