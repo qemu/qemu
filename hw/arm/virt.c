@@ -83,7 +83,8 @@ typedef struct {
     bool highmem;
 } VirtMachineState;
 
-#define TYPE_VIRT_MACHINE   "virt"
+#define VIRT_MACHINE_NAME   "virt"
+#define TYPE_VIRT_MACHINE   MACHINE_TYPE_NAME(VIRT_MACHINE_NAME)
 #define VIRT_MACHINE(obj) \
     OBJECT_CHECK(VirtMachineState, (obj), TYPE_VIRT_MACHINE)
 #define VIRT_MACHINE_GET_CLASS(obj) \
@@ -1073,7 +1074,7 @@ static void virt_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = TYPE_VIRT_MACHINE;
+    mc->name = VIRT_MACHINE_NAME;
     mc->desc = "ARM Virtual Machine",
     mc->init = machvirt_init;
     mc->max_cpus = 8;
