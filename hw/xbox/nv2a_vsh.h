@@ -33,6 +33,27 @@ enum VshTexgen {
     TEXGEN_REFLECTION_MAP,
 };
 
+enum VshFogMode {
+    FOG_MODE_LINEAR,
+    FOG_MODE_EXP,
+    FOG_MODE_ERROR2, /* Doesn't exist */
+    FOG_MODE_EXP2,
+    FOG_MODE_LINEAR_ABS,
+    FOG_MODE_EXP_ABS,
+    FOG_MODE_ERROR6, /* Doesn't exist */
+    FOG_MODE_EXP2_ABS
+};
+
+enum VshFoggen {
+    FOGGEN_SPEC_ALPHA,
+    FOGGEN_RADIAL,
+    FOGGEN_PLANAR,
+    FOGGEN_ABS_PLANAR,
+    FOGGEN_ERROR4,
+    FOGGEN_ERROR5,
+    FOGGEN_FOG_X
+};
+
 enum VshSkinning {
     SKINNING_OFF,
     SKINNING_1WEIGHTS,

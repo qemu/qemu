@@ -27,7 +27,7 @@
                            "  vec4 D1;\n" \
                            "  vec4 B0;\n" \
                            "  vec4 B1;\n" \
-                           "  vec4 Fog;\n" \
+                           "  float Fog;\n" \
                            "  vec4 T0;\n" \
                            "  vec4 T1;\n" \
                            "  vec4 T2;\n" \
