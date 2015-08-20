@@ -454,6 +454,7 @@
 #define NV_PGRAPH_SHADERCLIPMODE                         0x00001994
 #define NV_PGRAPH_SHADERCTL                              0x00001998
 #define NV_PGRAPH_SHADERPROG                             0x0000199C
+#define NV_PGRAPH_SHADOWZSLOPETHRESHOLD                  0x000019A8
 #define NV_PGRAPH_SPECFOGFACTOR0                         0x000019AC
 #define NV_PGRAPH_SPECFOGFACTOR1                         0x000019B0
 #define NV_PGRAPH_TEXADDRESS0                            0x000019BC
@@ -1057,6 +1058,7 @@
 #   define NV097_SET_SPECULAR_FOG_FACTOR                      0x00971E20
 #   define NV097_SET_COMBINER_COLOR_OCW                       0x00971E40
 #   define NV097_SET_COMBINER_CONTROL                         0x00971E60
+#   define NV097_SET_SHADOW_ZSLOPE_THRESHOLD                  0x00971E68
 #   define NV097_SET_SHADER_STAGE_PROGRAM                     0x00971E70
 #   define NV097_SET_SHADER_OTHER_STAGE_INPUT                 0x00971E78
 #   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
@@ -5701,6 +5703,11 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_COMBINER_CONTROL:
         pg->regs[NV_PGRAPH_COMBINECTL] = parameter;
+        break;
+
+    case NV097_SET_SHADOW_ZSLOPE_THRESHOLD:
+        pg->regs[NV_PGRAPH_SHADOWZSLOPETHRESHOLD] = parameter;
+        assert(parameter == 0x7F800000); /* FIXME: Unimplemented */
         break;
 
     case NV097_SET_SHADER_STAGE_PROGRAM:
