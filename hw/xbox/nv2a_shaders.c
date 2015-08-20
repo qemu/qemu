@@ -220,22 +220,6 @@ static QString* generate_fixed_function(const ShaderState state,
                          "tNormal", "vec4(normal, 0.0)",
                          "invModelViewMat", "xyz");
 
-    for(i = 0; i < 4 /* FIXME: NV2A_MAX_TEXTURES*/; i++) {
-        for(j = 0; j < 4; j++) {
-
-            /* FIXME: Only do these if necessary */
-
-            char output[16];
-            char input[16];
-            char cSuffix = "STRQ"[j];
-            snprintf(output, sizeof(output), "tTexPlane%c%d", cSuffix, i);
-            snprintf(input, sizeof(input), "texPlane%c%d", cSuffix, i);
-            append_skinning_code(s, mix, count,
-                                 "vec4", output, input,
-                                 "invModelViewMat", "xyzw");
-        }
-    }
-
     /* Normalization */
     if (state.normalization) {
         qstring_append(s, "tNormal = normalize(tNormal);\n");
@@ -259,9 +243,8 @@ static QString* generate_fixed_function(const ShaderState state,
                                    i, c, i, c);
                 break;
             case TEXGEN_EYE_LINEAR:
-                qstring_append_fmt(s, "tTexture%d.%c = dot(tTexPlane%c%d, tPosition);\n",
+                qstring_append_fmt(s, "tTexture%d.%c = dot(texPlane%c%d, tPosition);\n",
                                    i, c, cSuffix, i);
-                // assert(false); /* Untested */
                 break;
             case TEXGEN_OBJECT_LINEAR:
                 qstring_append_fmt(s, "tTexture%d.%c = dot(texPlane%c%d, position);\n",
