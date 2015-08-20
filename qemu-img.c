@@ -2931,7 +2931,7 @@ static int img_amend(int argc, char **argv)
                 if (!is_valid_option_list(optarg)) {
                     error_report("Invalid option list: %s", optarg);
                     ret = -1;
-                    goto out;
+                    goto out_no_progress;
                 }
                 if (!options) {
                     options = g_strdup(optarg);
@@ -3031,6 +3031,7 @@ static int img_amend(int argc, char **argv)
 out:
     qemu_progress_end();
 
+out_no_progress:
     blk_unref(blk);
     qemu_opts_del(opts);
     qemu_opts_free(create_opts);
