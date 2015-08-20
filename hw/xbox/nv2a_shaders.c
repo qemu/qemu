@@ -72,10 +72,10 @@ static QString* generate_geometry_shader(enum ShaderPrimitiveMode primitive_mode
     return s;
 }
 
-static void pgraph_append_skinning_code(QString* str, bool mix,
-                                        unsigned int count, const char* type,
-                                        const char* output, const char* input,
-                                        const char* matrix, const char* swizzle)
+static void append_skinning_code(QString* str, bool mix,
+                                 unsigned int count, const char* type,
+                                 const char* output, const char* input,
+                                 const char* matrix, const char* swizzle)
 {
 
     if (count == 0) {
@@ -213,12 +213,12 @@ static QString* generate_fixed_function(const ShaderState state,
     qstring_append_fmt(s, "/* Skinning mode %d */\n",
                        state.skinning);
 
-    pgraph_append_skinning_code(s, mix, count, "vec4",
-                                "tPosition", "position",
-                                "modelViewMat", "xyzw");
-    pgraph_append_skinning_code(s, mix, count, "vec3",
-                                "tNormal", "vec4(normal, 0.0)",
-                                "invModelViewMat", "xyz");
+    append_skinning_code(s, mix, count, "vec4",
+                         "tPosition", "position",
+                         "modelViewMat", "xyzw");
+    append_skinning_code(s, mix, count, "vec3",
+                         "tNormal", "vec4(normal, 0.0)",
+                         "invModelViewMat", "xyz");
 
     for(i = 0; i < 4 /* FIXME: NV2A_MAX_TEXTURES*/; i++) {
         for(j = 0; j < 4; j++) {
@@ -230,9 +230,9 @@ static QString* generate_fixed_function(const ShaderState state,
             char cSuffix = "STRQ"[j];
             snprintf(output, sizeof(output), "tTexPlane%c%d", cSuffix, i);
             snprintf(input, sizeof(input), "texPlane%c%d", cSuffix, i);
-            pgraph_append_skinning_code(s, mix, count,
-                                        "vec4", output, input,
-                                        "invModelViewMat", "xyzw");
+            append_skinning_code(s, mix, count,
+                                 "vec4", output, input,
+                                 "invModelViewMat", "xyzw");
         }
     }
 
@@ -261,12 +261,12 @@ static QString* generate_fixed_function(const ShaderState state,
             case TEXGEN_EYE_LINEAR:
                 qstring_append_fmt(s, "tTexture%d.%c = dot(tTexPlane%c%d, tPosition);\n",
                                    i, c, cSuffix, i);
-assert(false); /* Untested */
+                // assert(false); /* Untested */
                 break;
             case TEXGEN_OBJECT_LINEAR:
                 qstring_append_fmt(s, "tTexture%d.%c = dot(texPlane%c%d, position);\n",
                                    i, c, cSuffix, i);
-assert(false); /* Untested */
+                assert(false); /* Untested */
                 break;
             case TEXGEN_SPHERE_MAP:
                 assert(i < 2);  /* Channels S,T only! */
@@ -287,7 +287,7 @@ assert(false); /* Untested */
                 qstring_append_fmt(s, "  tTexture%d.%c = r.%c * invM + 0.5;\n",
                                    i, c, c);
                 qstring_append(s, "}\n");
-assert(false); /* Untested */
+                assert(false); /* Untested */
                 break;
             case TEXGEN_REFLECTION_MAP:
                 assert(i < 3); /* Channels S,T,R only! */
