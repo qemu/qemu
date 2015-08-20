@@ -475,7 +475,7 @@ static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
         aio_poll(client->aio_context, true);
     }
 
-    return (task.ret < 0 ? task.ret : st.st_blocks * st.st_blksize);
+    return (task.ret < 0 ? task.ret : st.st_blocks * 512);
 }
 
 static int nfs_file_truncate(BlockDriverState *bs, int64_t offset)
