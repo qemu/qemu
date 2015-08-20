@@ -541,6 +541,8 @@
 #define NV_PGRAPH_TEXPALETTE3                            0x00001A40
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 #define NV_PGRAPH_ZCLIPMIN                               0x00001A90
+#define NV_PGRAPH_ZOFFSETBIAS                            0x00001AA4
+#define NV_PGRAPH_ZOFFSETFACTOR                          0x00001AA8
 #define NV_PGRAPH_EYEVEC0                                0x00001AAC
 #define NV_PGRAPH_EYEVEC1                                0x00001AB0
 #define NV_PGRAPH_EYEVEC2                                0x00001AB4
@@ -851,6 +853,8 @@
 #       define NV097_SET_STENCIL_OP_V_INVERT                      0x150A
 #       define NV097_SET_STENCIL_OP_V_INCR                        0x8507
 #       define NV097_SET_STENCIL_OP_V_DECR                        0x8508
+#   define NV097_SET_POLYGON_OFFSET_SCALE_FACTOR              0x00970384
+#   define NV097_SET_POLYGON_OFFSET_BIAS                      0x00970388
 #   define NV097_SET_FRONT_POLYGON_MODE                       0x0097038C
 #       define NV097_SET_FRONT_POLYGON_MODE_V_POINT               0x1B00
 #       define NV097_SET_FRONT_POLYGON_MODE_V_LINE                0x1B01
@@ -4518,6 +4522,12 @@ static void pgraph_method(NV2AState *d,
                  kelvin_map_stencil_op(parameter));
         break;
 
+    case NV097_SET_POLYGON_OFFSET_SCALE_FACTOR:
+        pg->regs[NV_PGRAPH_ZOFFSETFACTOR] = parameter;
+        break;
+    case NV097_SET_POLYGON_OFFSET_BIAS:
+        pg->regs[NV_PGRAPH_ZOFFSETBIAS] = parameter;
+        break;
     case NV097_SET_FRONT_POLYGON_MODE:
         SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
                  NV_PGRAPH_SETUPRASTER_FRONTFACEMODE,
@@ -5248,6 +5258,16 @@ static void pgraph_method(NV2AState *d,
             glPolygonMode(GL_FRONT_AND_BACK,
                           pgraph_polygon_mode_map[front_mode]);
 
+            /* Polygon offset */
+            GLfloat zfactor = *(float*)&pg->regs[NV_PGRAPH_ZOFFSETFACTOR];
+            GLfloat zbias = *(float*)&pg->regs[NV_PGRAPH_ZOFFSETBIAS];
+            glEnable(GL_POLYGON_OFFSET_FILL);
+            glEnable(GL_POLYGON_OFFSET_LINE);
+            glEnable(GL_POLYGON_OFFSET_POINT);
+            /* FIXME: Implementation-specific, maybe we should do this in VS? */
+            glPolygonOffset(zfactor, zbias);
+
+            /* Depth testing */
             if (depth_test) {
                 glEnable(GL_DEPTH_TEST);
 
