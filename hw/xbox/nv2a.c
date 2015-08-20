@@ -871,6 +871,10 @@
 #   define NV097_SET_COMPOSITE_MATRIX                         0x00970680
 #   define NV097_SET_TEXTURE_MATRIX                           0x009706C0
 #   define NV097_SET_FOG_PARAMS                               0x009709C0
+#   define NV097_SET_TEXGEN_PLANE_S                           0x00970840
+#   define NV097_SET_TEXGEN_PLANE_T                           0x00970850
+#   define NV097_SET_TEXGEN_PLANE_R                           0x00970860
+#   define NV097_SET_TEXGEN_PLANE_Q                           0x00970870
 #   define NV097_SET_TEXGEN_VIEW_MODEL                        0x009709CC
 #       define NV097_SET_TEXGEN_VIEW_MODEL_LOCAL_VIEWER           0
 #       define NV097_SET_TEXGEN_VIEW_MODEL_INFINITE_VIEWER        1
@@ -1493,8 +1497,9 @@ typedef struct PGRAPHState {
     float composite_matrix[16];
 
     /* FIXME: These are probably stored in the vshader consts */
-    bool texture_matrix_enable[4];
-    float texture_matrix[4][16]; /* 4 stages with 4x4 matrix each */
+    bool texture_matrix_enable[NV2A_MAX_TEXTURES];
+    float texture_matrix[NV2A_MAX_TEXTURES][16]; /* 4 stages with 4x4 matrix each */
+    float texture_plane[NV2A_MAX_TEXTURES][4][4]; /* 4 stages, 4 components + plane for each */
     float projection_matrix[16];
     float inverse_model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
     float model_view_matrix[4][16]; /* 4 weights with 4x4 matrix each */
@@ -1503,7 +1508,7 @@ typedef struct PGRAPHState {
     float fog_plane[4];
 
     /* FIXME: Move to NV_PGRAPH_BUMPMAT... */
-    float bump_env_matrix[3][4]; /* 4 stages with 2x2 matrix each */
+    float bump_env_matrix[NV2A_MAX_TEXTURES-1][4]; /* 3 allowed stages with 2x2 matrix each */
 
     GloContext *gl_context;
     GLuint gl_framebuffer;
@@ -2939,7 +2944,7 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     }
 
     /* For each texture stage */
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < NV2A_MAX_TEXTURES; i++) {
         char name[32];
         GLint loc;
 
@@ -2973,6 +2978,16 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
         if (loc != -1) {
             glUniformMatrix4fv(loc, 1, GL_FALSE, pg->texture_matrix[i]);
+        }
+
+        /* TexGen planes */
+        for(j = 0; j < 4; j++) {
+            char cSuffix = "STRQ"[j];
+            snprintf(name, sizeof(name), "texPlane%c%d", cSuffix, i);
+            loc = glGetUniformLocation(pg->shader_binding->gl_program, name);
+            if (loc != -1) {
+                glUniform4fv(loc, 1, pg->texture_plane[i][j]);
+            }
         }
 
     }
@@ -4412,6 +4427,16 @@ static void pgraph_method(NV2AState *d,
             /* FIXME: No idea where slot = 2 is */
         }
         break;
+
+    /* Handles NV097_SET_TEXGEN_PLANE_S,T,R,Q */
+    case NV097_SET_TEXGEN_PLANE_S ...
+            NV097_SET_TEXGEN_PLANE_S + 0xfc: {
+        slot = (class_method - NV097_SET_TEXGEN_PLANE_S) / 4;
+        unsigned int part = slot % 16;
+        pg->texture_plane[slot / 16][part / 4][part % 4] = *(float*)&parameter;
+        break;
+    }
+
     case NV097_SET_TEXGEN_VIEW_MODEL:
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_D], NV_PGRAPH_CSV0_D_TEXGEN_REF,
                  parameter);
