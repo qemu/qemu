@@ -1452,7 +1452,7 @@ static void qemu_machine_class_init(ObjectClass *oc, void *data)
 
 int qemu_register_machine(QEMUMachine *m)
 {
-    char *name = g_strconcat(m->name, TYPE_MACHINE_SUFFIX, NULL);
+    char *name = g_strdup_printf(MACHINE_TYPE_NAME("%s"), m->name);
     TypeInfo ti = {
         .name       = name,
         .parent     = TYPE_MACHINE,

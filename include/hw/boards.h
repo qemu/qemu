@@ -40,6 +40,12 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
 int qemu_register_machine(QEMUMachine *m);
 
 #define TYPE_MACHINE_SUFFIX "-machine"
+
+/* Machine class name that needs to be used for class-name-based machine
+ * type lookup to work.
+ */
+#define MACHINE_TYPE_NAME(machinename) (machinename TYPE_MACHINE_SUFFIX)
+
 #define TYPE_MACHINE "machine"
 #undef MACHINE  /* BSD defines it and QEMU does not use it */
 #define MACHINE(obj) \
