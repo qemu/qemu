@@ -64,8 +64,9 @@
 #endif
 
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_SH4) \
-    || defined(TARGET_M68K) || defined(TARGET_CRIS) || defined(TARGET_UNICORE32) \
-    || defined(TARGET_S390X) || defined(TARGET_OPENRISC)
+    || defined(TARGET_M68K) || defined(TARGET_CRIS) \
+    || defined(TARGET_UNICORE32) || defined(TARGET_S390X) \
+    || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX)
 
 #define TARGET_IOC_SIZEBITS	14
 #define TARGET_IOC_DIRBITS	2
@@ -365,7 +366,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     || defined(TARGET_PPC) || defined(TARGET_MIPS) || defined(TARGET_SH4) \
     || defined(TARGET_M68K) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) \
     || defined(TARGET_MICROBLAZE) || defined(TARGET_UNICORE32) \
-    || defined(TARGET_S390X) || defined(TARGET_OPENRISC)
+    || defined(TARGET_S390X) || defined(TARGET_OPENRISC) \
+    || defined(TARGET_TILEGX)
 
 #if defined(TARGET_SPARC)
 #define TARGET_SA_NOCLDSTOP    8u
@@ -1871,7 +1873,7 @@ struct target_stat {
     abi_ulong  target_st_ctime_nsec;
     unsigned int __unused[2];
 };
-#elif defined(TARGET_OPENRISC)
+#elif defined(TARGET_OPENRISC) || defined(TARGET_TILEGX)
 
 /* These are the asm-generic versions of the stat and stat64 structures */
 
@@ -2264,7 +2266,9 @@ struct target_flock {
 struct target_flock64 {
 	short  l_type;
 	short  l_whence;
-#if defined(TARGET_PPC) || defined(TARGET_X86_64) || defined(TARGET_MIPS) || defined(TARGET_SPARC) || defined(TARGET_HPPA) || defined (TARGET_MICROBLAZE)
+#if defined(TARGET_PPC) || defined(TARGET_X86_64) || defined(TARGET_MIPS) \
+    || defined(TARGET_SPARC) || defined(TARGET_HPPA) \
+    || defined(TARGET_MICROBLAZE) || defined(TARGET_TILEGX)
         int __pad;
 #endif
 	unsigned long long l_start;

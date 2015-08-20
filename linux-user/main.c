@@ -3412,6 +3412,64 @@ void cpu_loop(CPUS390XState *env)
 
 #endif /* TARGET_S390X */
 
+#ifdef TARGET_TILEGX
+
+static void gen_sigsegv_maperr(CPUTLGState *env, target_ulong addr)
+{
+    target_siginfo_t info;
+
+    info.si_signo = TARGET_SIGSEGV;
+    info.si_errno = 0;
+    info.si_code = TARGET_SEGV_MAPERR;
+    info._sifields._sigfault._addr = addr;
+    queue_signal(env, info.si_signo, &info);
+}
+
+static void gen_sigill_reg(CPUTLGState *env)
+{
+    target_siginfo_t info;
+
+    info.si_signo = TARGET_SIGILL;
+    info.si_errno = 0;
+    info.si_code = TARGET_ILL_PRVREG;
+    info._sifields._sigfault._addr = env->pc;
+    queue_signal(env, info.si_signo, &info);
+}
+
+void cpu_loop(CPUTLGState *env)
+{
+    CPUState *cs = CPU(tilegx_env_get_cpu(env));
+    int trapnr;
+
+    while (1) {
+        cpu_exec_start(cs);
+        trapnr = cpu_tilegx_exec(cs);
+        cpu_exec_end(cs);
+        switch (trapnr) {
+        case TILEGX_EXCP_SYSCALL:
+            env->regs[TILEGX_R_RE] = do_syscall(env, env->regs[TILEGX_R_NR],
+                                                env->regs[0], env->regs[1],
+                                                env->regs[2], env->regs[3],
+                                                env->regs[4], env->regs[5],
+                                                env->regs[6], env->regs[7]);
+            env->regs[TILEGX_R_ERR] = TILEGX_IS_ERRNO(env->regs[TILEGX_R_RE])
+                                                      ? - env->regs[TILEGX_R_RE]
+                                                      : 0;
+            break;
+        case TILEGX_EXCP_REG_IDN_ACCESS:
+        case TILEGX_EXCP_REG_UDN_ACCESS:
+            gen_sigill_reg(env);
+            break;
+        default:
+            fprintf(stderr, "trapnr is %d[0x%x].\n", trapnr, trapnr);
+            g_assert_not_reached();
+        }
+        process_pending_signals(env);
+    }
+}
+
+#endif
+
 THREAD CPUState *thread_cpu;
 
 void task_settid(TaskState *ts)
@@ -4376,6 +4434,17 @@ int main(int argc, char **argv, char **envp)
             }
             env->psw.mask = regs->psw.mask;
             env->psw.addr = regs->psw.addr;
+    }
+#elif defined(TARGET_TILEGX)
+    {
+        int i;
+        for (i = 0; i < TILEGX_R_COUNT; i++) {
+            env->regs[i] = regs->regs[i];
+        }
+        for (i = 0; i < TILEGX_SPR_COUNT; i++) {
+            env->spregs[i] = 0;
+        }
+        env->pc = regs->pc;
     }
 #else
 #error unsupported target CPU
