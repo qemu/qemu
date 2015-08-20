@@ -316,6 +316,14 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->default_ram_size = 128 * M_BYTE;
 }
 
+static void machine_class_base_init(ObjectClass *oc, void *data)
+{
+    if (!object_class_is_abstract(oc)) {
+        const char *cname = object_class_get_name(oc);
+        assert(g_str_has_suffix(cname, TYPE_MACHINE_SUFFIX));
+    }
+}
+
 static void machine_initfn(Object *obj)
 {
     MachineState *ms = MACHINE(obj);
@@ -492,6 +500,7 @@ static const TypeInfo machine_info = {
     .abstract = true,
     .class_size = sizeof(MachineClass),
     .class_init    = machine_class_init,
+    .class_base_init = machine_class_base_init,
     .instance_size = sizeof(MachineState),
     .instance_init = machine_initfn,
     .instance_finalize = machine_finalize,
