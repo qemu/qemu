@@ -1919,7 +1919,6 @@ static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
         { /* end of list */ }
     };
 
-    mc->name = "pseries-2.1";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.1";
     mc->compat_props = compat_props;
 }
@@ -1939,7 +1938,6 @@ static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
     };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = "pseries-2.2";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.2";
     mc->compat_props = compat_props;
 }
@@ -1959,7 +1957,6 @@ static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
     };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = "pseries-2.3";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.3";
     mc->compat_props = compat_props;
 }
@@ -1975,7 +1972,6 @@ static void spapr_machine_2_4_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = "pseries-2.4";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.4";
     mc->alias = "pseries";
     mc->is_default = 1;

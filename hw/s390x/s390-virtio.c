@@ -319,7 +319,6 @@ static void s390_machine_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
 
-    mc->name = S390_MACHINE;
     mc->alias = "s390";
     mc->desc = "VirtIO based S390 machine";
     mc->init = s390_init;
