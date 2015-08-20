@@ -13,12 +13,15 @@ FILESUBTYPE VFT2_UNKNOWN
   {
     BLOCK "040904E4"
     {
-      VALUE "CompanyName", "http://www.qemu-project.org"
+      VALUE "Comments", "patched version by Stefan Weil"
+      VALUE "CompanyName", "http://www.qemu.org/"
       VALUE "FileDescription", "QEMU machine emulators and tools"
-      VALUE "FileVersion", QEMU_VERSION
+      VALUE "FileVersion", __DATE__ ", " __TIME__
+      VALUE "InternalName", "qemu"
       VALUE "LegalCopyright", "Copyright various authors. Released under the GNU General Public License."
       VALUE "LegalTrademarks", "QEMU is a trademark of Fabrice Bellard."
       VALUE "ProductName", "QEMU"
+      VALUE "ProductVersion", QEMU_VERSION
     }
   }
   BLOCK "VarFileInfo"

@@ -767,6 +767,10 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
     const char *p,*pe,*pc;
     Error *local_err = NULL;
 
+    /* Initialize data to 0 to avoid warnings from Valgrind. */
+    memset(option, 0, sizeof(option));
+    memset(value, 0, sizeof(value));
+
     for (p = params; *p != '\0'; p++) {
         pe = strchr(p, '=');
         pc = strchr(p, ',');

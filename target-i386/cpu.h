@@ -628,6 +628,8 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 
 #define EXCP_SYSCALL    0x100 /* only happens in user only emulation
                                  for syscall instruction */
+#define EXCP_VSYSCALL   0x101 /* only happens in user only emulation
+                                 on x86_64 */
 
 /* i386-specific interrupt pending bits.  */
 #define CPU_INTERRUPT_POLL      CPU_INTERRUPT_TGT_EXT_1
@@ -1016,6 +1018,7 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
     /* update the hidden flags */
     {
         if (seg_reg == R_CS) {
+            int cpl = selector & 3;
 #ifdef TARGET_X86_64
             if ((env->hflags & HF_LMA_MASK) && (flags & DESC_L_MASK)) {
                 /* long mode */
@@ -1025,11 +1028,19 @@ static inline void cpu_x86_load_seg_cache(CPUX86State *env,
 #endif
             {
                 /* legacy / compatibility case */
+                if (!(env->cr[0] & CR0_PE_MASK))
+                    cpl = 0;
+                else if (env->eflags & VM_MASK)
+                    cpl = 3;
                 new_hflags = (env->segs[R_CS].flags & DESC_B_MASK)
                     >> (DESC_B_SHIFT - HF_CS32_SHIFT);
                 env->hflags = (env->hflags & ~(HF_CS32_MASK | HF_CS64_MASK)) |
                     new_hflags;
             }
+#if HF_CPL_MASK != 3
+#error HF_CPL_MASK is hardcoded
+#endif
+            env->hflags = (env->hflags & ~HF_CPL_MASK) | cpl;
         }
         if (seg_reg == R_SS) {
             int cpl = (flags >> DESC_DPL_SHIFT) & 3;
@@ -1321,7 +1332,7 @@ void cpu_set_fpuc(CPUX86State *env, uint16_t val);
 /* svm_helper.c */
 void cpu_svm_check_intercept_param(CPUX86State *env1, uint32_t type,
                                    uint64_t param);
-void cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
+void QEMU_NORETURN cpu_vmexit(CPUX86State *nenv, uint32_t exit_code, uint64_t exit_info_1);
 
 /* seg_helper.c */
 void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);

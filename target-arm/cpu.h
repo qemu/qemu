@@ -317,6 +317,7 @@ typedef struct CPUARMState {
             };
             uint64_t mair_el[4];
         };
+        uint64_t c12_vbar; /* vector base address register */
         union { /* vector base address register */
             struct {
                 uint64_t _unused_vbar;
@@ -861,13 +862,17 @@ enum arm_cpu_mode {
  * mapping in linux-user/elfload.c:get_elf_hwcap().
  */
 enum arm_features {
-    ARM_FEATURE_VFP,
+    ARM_FEATURE_VFP,    /* Vector Floating-point. */
     ARM_FEATURE_AUXCR,  /* ARM1026 Auxiliary control register.  */
     ARM_FEATURE_XSCALE, /* Intel XScale extensions.  */
     ARM_FEATURE_IWMMXT, /* Intel iwMMXt extension.  */
     ARM_FEATURE_V6,
     ARM_FEATURE_V6K,
+    ARM_FEATURE_V6_VECBASE,
     ARM_FEATURE_V7,
+    //~ See http://lists.nongnu.org/archive/html/qemu-devel/2009-05/msg01570.html
+    //~ ARM_FEATURE_THUMB,  /* TODO: still unused. */
+    //~ ARM_FEATURE_THUMB1 = ARM_FEATURE_THUMB, /* TODO: still unused. */
     ARM_FEATURE_THUMB2,
     ARM_FEATURE_MPU,    /* Only has Memory Protection Unit, not full MMU.  */
     ARM_FEATURE_VFP3,
@@ -876,6 +881,9 @@ enum arm_features {
     ARM_FEATURE_THUMB_DIV, /* divide supported in Thumb encoding */
     ARM_FEATURE_M, /* Microcontroller profile.  */
     ARM_FEATURE_OMAPCP, /* OMAP specific CP15 ops handling.  */
+    // TODO: long multiply instructions (M variant), standard for v4 and v5.
+    // TODO: enhanced dsp instructions (E variant).
+    // TODO: ARMv5TExP.
     ARM_FEATURE_THUMB2EE,
     ARM_FEATURE_V7MP,    /* v7 Multiprocessing Extensions */
     ARM_FEATURE_V4T,

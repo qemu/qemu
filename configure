@@ -286,6 +286,7 @@ confsuffix="/qemu"
 slirp="yes"
 oss_lib=""
 bsd="no"
+haiku="no"
 linux="no"
 solaris="no"
 profiler="no"
@@ -510,7 +511,11 @@ elif check_define _ARCH_PPC ; then
     cpu="ppc"
   fi
 elif check_define __mips__ ; then
-  cpu="mips"
+  if check_define __mips64 ; then
+    cpu="mips64"
+  else
+    cpu="mips"
+  fi
 elif check_define __ia64__ ; then
   cpu="ia64"
 elif check_define __s390__ ; then
@@ -550,10 +555,16 @@ case "$cpu" in
   ;;
   mips*)
     cpu="mips"
+    if check_define __MIPSEL__ ; then
+      cpu="${cpu}el"
+    fi
   ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
   ;;
+  sh4)
+    cpu="sh4"
+    ;;
   *)
     # This will result in either an error or falling back to TCI later
     ARCH=unknown
@@ -720,6 +731,11 @@ if test "$mingw32" = "yes" ; then
   QEMU_CFLAGS="-DWIN32_LEAN_AND_MEAN -DWINVER=0x501 $QEMU_CFLAGS"
   # enable C99/POSIX format strings (needs mingw32-runtime 3.15 or later)
   QEMU_CFLAGS="-D__USE_MINGW_ANSI_STDIO=1 $QEMU_CFLAGS"
+  # MinGW-w64 needs _POSIX defined.
+  QEMU_CFLAGS="-D_POSIX=1 $QEMU_CFLAGS"
+  # MinGW needs -mthreads for TLS and macro _MT.
+  QEMU_CFLAGS="-mthreads $QEMU_CFLAGS"
+  QEMU_CFLAGS="-I\$(SRC_PATH)/hosts/w32/include $QEMU_CFLAGS"
   LIBS="-lwinmm -lws2_32 -liphlpapi $LIBS"
   write_c_skeleton;
   if compile_prog "" "-liberty" ; then
@@ -1445,6 +1461,7 @@ fi
 gcc_flags="-Wold-style-declaration -Wold-style-definition -Wtype-limits"
 gcc_flags="-Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers $gcc_flags"
 gcc_flags="-Wmissing-include-dirs -Wempty-body -Wnested-externs $gcc_flags"
+gcc_flags="-Wunused-but-set-variable $gcc_flags"
 gcc_flags="-Wendif-labels $gcc_flags"
 gcc_flags="-Wno-initializer-overrides $gcc_flags"
 gcc_flags="-Wno-string-plus-int $gcc_flags"
@@ -2372,8 +2389,13 @@ if test "$vnc" = "yes" -a "$vnc_tls" != "no" ; then
 #include <gnutls/gnutls.h>
 int main(void) { gnutls_session_t s; gnutls_init(&s, GNUTLS_SERVER); return 0; }
 EOF
-  vnc_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
-  vnc_tls_libs=`$pkg_config --libs gnutls 2> /dev/null`
+  if $pkg_config --exists gnutls; then
+    vnc_tls_cflags=`$pkg_config --cflags gnutls 2> /dev/null`
+    vnc_tls_libs=`$pkg_config --libs gnutls 2>/dev/null`
+  else
+    vnc_tls_cflags=
+    vnc_tls_libs=-lgnutls
+  fi
   if compile_prog "$vnc_tls_cflags" "$vnc_tls_libs" ; then
     if test "$vnc_tls" != "no" ; then
       vnc_tls=yes
@@ -2548,6 +2570,7 @@ fi
 if test "$vde" != "no" ; then
   vde_libs="-lvdeplug"
   cat > $TMPC << EOF
+#include <stddef.h>
 #include <libvdeplug.h>
 int main(void)
 {
@@ -3666,6 +3689,14 @@ if test "$docs" != "no" ; then
   fi
 fi
 
+if test "$want_tools" = ""; then
+  if test `expr "$target_list" : ".*softmmu.*"` != 0; then
+    want_tools=yes
+  else
+    want_tools=no
+  fi
+fi
+
 # Search for bswap_32 function
 byteswap_h=no
 cat > $TMPC << EOF
@@ -4130,7 +4161,7 @@ else
 fi
 
 if test "$coroutine_pool" = ""; then
-  if test "$coroutine" = "gthread"; then
+  if test "$coroutine" = "gthread" -o "$coroutine" = "win32"; then
     coroutine_pool=no
   else
     coroutine_pool=yes
@@ -4192,8 +4223,6 @@ int main(void) {
 EOF
 if compile_prog "-Werror" "" ; then
     pragma_diagnostic_available=yes
-else
-    werror=no
 fi
 
 ########################################
@@ -4368,8 +4397,11 @@ else
     POD2MAN="pod2man"
 fi
 
-# Use ASLR, no-SEH and DEP if available
+# Use large addresses, ASLR, no-SEH and DEP if available.
 if test "$mingw32" = "yes" ; then
+    if test "$cpu" = i386; then
+        LDFLAGS="-Wl,--large-address-aware $LDFLAGS"
+    fi
     for flag in --dynamicbase --no-seh --nxcompat; do
         if $ld --help 2>/dev/null | grep ".$flag" >/dev/null 2>/dev/null ; then
             LDFLAGS="-Wl,$flag $LDFLAGS"
@@ -4383,11 +4415,9 @@ qemu_datadir=$datadir$confsuffix
 qemu_localedir="$datadir/locale"
 
 tools=""
-if test "$want_tools" = "yes" ; then
-  tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
-  if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
-    tools="qemu-nbd\$(EXESUF) $tools"
-  fi
+tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
+if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
+  tools="qemu-nbd\$(EXESUF) $tools"
 fi
 if test "$softmmu" = yes ; then
   if test "$virtfs" != no ; then
@@ -4549,7 +4579,7 @@ echo "PIE               $pie"
 echo "vde support       $vde"
 echo "netmap support    $netmap"
 echo "Linux AIO support $linux_aio"
-echo "ATTR/XATTR support $attr"
+echo "(X)ATTR support   $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
 echo "RDMA support      $rdma"
@@ -4647,7 +4677,8 @@ if test "$bigendian" = "yes" ; then
 fi
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
-  rc_version=`cat $source_path/VERSION`
+  echo "CONFIG_INSTALLER=y" >> $config_host_mak
+  rc_version=`cat "$source_path/VERSION"`
   version_major=${rc_version%%.*}
   rc_version=${rc_version#*.}
   version_minor=${rc_version%%.*}
@@ -4757,7 +4788,7 @@ fi
 if test "$xfs" = "yes" ; then
   echo "CONFIG_XFS=y" >> $config_host_mak
 fi
-qemu_version=`head $source_path/VERSION`
+qemu_version=`head "$source_path/VERSION"`
 echo "VERSION=$qemu_version" >>$config_host_mak
 echo "PKGVERSION=$pkgversion" >>$config_host_mak
 echo "SRC_PATH=$source_path" >> $config_host_mak

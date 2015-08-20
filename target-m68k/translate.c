@@ -433,6 +433,8 @@ static inline int opsize_bytes(int opsize)
     default:
         g_assert_not_reached();
     }
+    /* Should never happen. */
+    return -1;
 }
 
 /* Assign value to a register.  If the width is less than the register width
@@ -876,6 +878,8 @@ DISAS_INSN(undef_fpu)
     gen_exception(s, s->pc - 2, EXCP_LINEF);
 }
 
+static void QEMU_NORETURN disas_undef(CPUM68KState *env,
+                                      DisasContext *s, uint16_t insn);
 DISAS_INSN(undef)
 {
     M68kCPU *cpu = m68k_env_get_cpu(env);
@@ -2459,6 +2463,8 @@ DISAS_INSN(fbcc)
     gen_jmp_tb(s, 1, addr + offset);
 }
 
+static void QEMU_NORETURN disas_frestore(CPUM68KState *env,
+                                         DisasContext *s, uint16_t insn);
 DISAS_INSN(frestore)
 {
     M68kCPU *cpu = m68k_env_get_cpu(env);
@@ -2467,6 +2473,8 @@ DISAS_INSN(frestore)
     cpu_abort(CPU(cpu), "FRESTORE not implemented");
 }
 
+static void QEMU_NORETURN disas_fsave(CPUM68KState *env,
+                                      DisasContext *s, uint16_t insn);
 DISAS_INSN(fsave)
 {
     M68kCPU *cpu = m68k_env_get_cpu(env);

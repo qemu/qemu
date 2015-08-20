@@ -3310,6 +3310,10 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     QemuOpts *opts;
     Error *local_err = NULL;
 
+    /* Initialize data to 0 to avoid warnings from Valgrind. */
+    memset(width, 0, sizeof(width));
+    memset(height, 0, sizeof(height));
+
     opts = qemu_opts_create(qemu_find_opts("chardev"), label, 1, &local_err);
     if (local_err) {
         error_report_err(local_err);

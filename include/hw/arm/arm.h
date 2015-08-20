@@ -52,6 +52,7 @@ struct arm_boot_info {
      */
     bool secure_boot;
     int (*atag_board)(const struct arm_boot_info *info, void *p);
+    int32_t atag_revision;
     /* multicore boards that use the default secondary core boot functions
      * can ignore these two function calls. If the default functions won't
      * work, then write_secondary_boot() should write a suitable blob of

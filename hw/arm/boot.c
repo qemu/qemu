@@ -212,6 +212,12 @@ static void set_kernel_args(const struct arm_boot_info *info)
         WRITE_WORD(p, info->initrd_start);
         WRITE_WORD(p, initrd_size);
     }
+    if (info->atag_revision) {
+        /* ATAG REVISION. */
+        WRITE_WORD(p, 3);
+        WRITE_WORD(p, 0x54410007);
+        WRITE_WORD(p, info->atag_revision);
+    }
     if (info->kernel_cmdline && *info->kernel_cmdline) {
         /* ATAG_CMDLINE */
         int cmdline_size;
@@ -661,6 +667,8 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
         MIN(info->ram_size / 2, 128 * 1024 * 1024);
 
     /* Assume that raw images are linux kernels, and ELF images are not.  */
+    /* If the filename contains 'vmlinux', assume ELF images are linux, too. */
+    is_linux = (strstr(info->kernel_filename, "vmlinux") != NULL);
     kernel_size = load_elf(info->kernel_filename, NULL, NULL, &elf_entry,
                            &elf_low_addr, &elf_high_addr, big_endian,
                            elf_machine, 1);

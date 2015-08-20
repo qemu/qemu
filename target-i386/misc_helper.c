@@ -95,7 +95,7 @@ void helper_into(CPUX86State *env, int next_eip_addend)
     }
 }
 
-void helper_single_step(CPUX86State *env)
+void QEMU_NORETURN helper_single_step(CPUX86State *env)
 {
 #ifndef CONFIG_USER_ONLY
     check_hw_breakpoints(env, true);
@@ -235,7 +235,7 @@ void helper_rdtscp(CPUX86State *env)
     env->regs[R_ECX] = (uint32_t)(env->tsc_aux);
 }
 
-void helper_rdpmc(CPUX86State *env)
+void QEMU_NORETURN helper_rdpmc(CPUX86State *env)
 {
     if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
         raise_exception(env, EXCP0D_GPF);
@@ -556,7 +556,7 @@ void helper_rdmsr(CPUX86State *env)
 }
 #endif
 
-static void do_pause(X86CPU *cpu)
+static void QEMU_NORETURN do_pause(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
 
@@ -565,7 +565,7 @@ static void do_pause(X86CPU *cpu)
     cpu_loop_exit(cs);
 }
 
-static void do_hlt(X86CPU *cpu)
+static void QEMU_NORETURN do_hlt(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
@@ -576,7 +576,7 @@ static void do_hlt(X86CPU *cpu)
     cpu_loop_exit(cs);
 }
 
-void helper_hlt(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_hlt(CPUX86State *env, int next_eip_addend)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
 
@@ -595,7 +595,7 @@ void helper_monitor(CPUX86State *env, target_ulong ptr)
     cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0);
 }
 
-void helper_mwait(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_mwait(CPUX86State *env, int next_eip_addend)
 {
     CPUState *cs;
     X86CPU *cpu;
@@ -616,7 +616,7 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
     }
 }
 
-void helper_pause(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_pause(CPUX86State *env, int next_eip_addend)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
 
@@ -626,7 +626,7 @@ void helper_pause(CPUX86State *env, int next_eip_addend)
     do_pause(cpu);
 }
 
-void helper_debug(CPUX86State *env)
+void QEMU_NORETURN helper_debug(CPUX86State *env)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
 

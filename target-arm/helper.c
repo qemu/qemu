@@ -3892,6 +3892,15 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_one_arm_cp_reg(cpu, &auxcr);
     }
 
+    if (arm_feature(env, ARM_FEATURE_V6_VECBASE)) {
+        ARMCPRegInfo v6_vecbase = {
+            .name = "VBAR", .cp = 15, .crn = 12, .crm = 0, .opc1 = 0, .opc2 = 0,
+            .access = PL1_RW,
+            .fieldoffset = offsetof(CPUARMState, cp15.c12_vbar),
+        };
+        define_one_arm_cp_reg(cpu, &v6_vecbase);
+    }
+
     if (arm_feature(env, ARM_FEATURE_CBAR)) {
         if (arm_feature(env, ARM_FEATURE_AARCH64)) {
             /* 32 bit view is [31:18] 0...0 [43:32]. */
@@ -4431,6 +4440,7 @@ void cpsr_write(CPUARMState *env, uint32_t val, uint32_t mask)
      * change the CPSR A/F bits regardless of the SCR.AW/FW bits.
      */
     if (!arm_feature(env, ARM_FEATURE_V8) &&
+        !arm_feature(env, ARM_FEATURE_V6_VECBASE) &&
         arm_feature(env, ARM_FEATURE_EL3) &&
         !arm_feature(env, ARM_FEATURE_EL2) &&
         !arm_is_secure(env)) {
@@ -4572,7 +4582,7 @@ void switch_mode(CPUARMState *env, int mode)
     }
 }
 
-void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
+void QEMU_NORETURN HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
 
@@ -5266,6 +5276,9 @@ void arm_cpu_do_interrupt(CPUState *cs)
     } else if (A32_BANKED_CURRENT_REG_GET(env, sctlr) & SCTLR_V) {
         /* High vectors. When enabled, base address cannot be remapped. */
         addr += 0xffff0000;
+    } else if (arm_feature(env, ARM_FEATURE_V6_VECBASE)) {
+        /* Vector base address */
+        addr += env->cp15.c12_vbar;
     } else {
         /* ARM v7 architectures provide a vector base address register to remap
          * the interrupt vector table.

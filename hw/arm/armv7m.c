@@ -128,13 +128,13 @@ typedef struct {
     uint32_t base;
 } BitBandState;
 
-static int bitband_init(SysBusDevice *dev)
+static int bitband_init(SysBusDevice *sbd)
 {
-    BitBandState *s = BITBAND(dev);
+    BitBandState *s = BITBAND(sbd);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &bitband_ops, &s->base,
                           "bitband", 0x02000000);
-    sysbus_init_mmio(dev, &s->iomem);
+    sysbus_init_mmio(sbd, &s->iomem);
     return 0;
 }
 

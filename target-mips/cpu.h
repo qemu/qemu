@@ -394,6 +394,7 @@ struct CPUMIPSState {
 #define CP0C0_M    31
 #define CP0C0_K23  28
 #define CP0C0_KU   25
+#define CP0C0_SB   21
 #define CP0C0_MDU  20
 #define CP0C0_MM   18
 #define CP0C0_BM   16
@@ -510,6 +511,7 @@ struct CPUMIPSState {
 #define CP0DB_DBp  1
 #define CP0DB_DSS  0
     target_ulong CP0_DEPC;
+    //~ uint32_t CP0_ErrCtl;
     int32_t CP0_Performance0;
     uint64_t CP0_TagLo;
     int32_t CP0_DataLo;
@@ -613,9 +615,9 @@ void r4k_helper_tlbr(CPUMIPSState *env);
 void r4k_helper_tlbinv(CPUMIPSState *env);
 void r4k_helper_tlbinvf(CPUMIPSState *env);
 
-void mips_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
-                                bool is_write, bool is_exec, int unused,
-                                unsigned size);
+void QEMU_NORETURN mips_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
+                                              bool is_write, bool is_exec,
+                                              int unused, unsigned size);
 #endif
 
 void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);

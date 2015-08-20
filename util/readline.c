@@ -310,7 +310,7 @@ static void readline_completion(ReadLineState *rs)
               completion_comp);
         rs->printf_func(rs->opaque, "\n");
         max_width = 0;
-        max_prefix = 0;	
+        max_prefix = 0;
         for(i = 0; i < rs->nb_completions; i++) {
             len = strlen(rs->completions[i]);
             if (i==0) {
@@ -326,7 +326,7 @@ static void readline_completion(ReadLineState *rs)
             if (len > max_width)
                 max_width = len;
         }
-        if (max_prefix > 0) 
+        if (max_prefix > 0)
             for(i = rs->completion_index; i < max_prefix; i++) {
                 readline_insert_char(rs, rs->completions[0][i]);
             }

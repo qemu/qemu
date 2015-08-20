@@ -37,6 +37,45 @@
 /***********************************************************/
 /* Functions missing in mingw */
 
+#if defined(CONFIG_THREAD)
+
+int clock_gettime(clockid_t clock_id, struct timespec *pTimespec)
+{
+  int result = 0;
+  if (clock_id == CLOCK_REALTIME && pTimespec != 0) {
+    DWORD t = GetTickCount();
+    const unsigned cps = 1000;
+    struct timespec ts;
+    ts.tv_sec  = t / cps;
+    ts.tv_nsec = (t % cps) * (1000000000UL / cps);
+    *pTimespec = ts;
+  } else {
+    errno = EINVAL;
+    result = -1;
+  }
+  return result;
+}
+
+int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
+{
+    /* Dummy, do nothing. */
+    return EINVAL;
+}
+
+int sigfillset(sigset_t *set)
+{
+    int result = 0;
+    if (set) {
+        *(set) = (sigset_t)(-1);
+    } else {
+        errno = EINVAL;
+        result = -1;
+    }
+    return result;
+}
+
+#endif /* CONFIG_THREAD */
+
 int setenv(const char *name, const char *value, int overwrite)
 {
     int result = 0;

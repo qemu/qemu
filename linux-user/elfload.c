@@ -2,17 +2,11 @@
 #include <sys/time.h>
 #include <sys/param.h>
 
-#include <stdio.h>
 #include <sys/types.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 
+#include "qemu-common.h"
 #include "qemu.h"
 #include "disas/disas.h"
 
@@ -2408,7 +2402,6 @@ static struct vm_area_struct *vma_next(struct vm_area_struct *);
 static abi_ulong vma_dump_size(const struct vm_area_struct *);
 static int vma_walker(void *priv, target_ulong start, target_ulong end,
                       unsigned long flags);
-
 static void fill_elf_header(struct elfhdr *, int, uint16_t, uint32_t);
 static void fill_note(struct memelfnote *, const char *, int,
                       unsigned int, void *);

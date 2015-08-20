@@ -1527,7 +1527,9 @@ static gboolean gd_vc_in(VteTerminal *terminal, gchar *text, guint size,
     qemu_chr_be_write(vc->vte.chr, (uint8_t  *)text, (unsigned int)size);
     return TRUE;
 }
+#endif
 
+#if defined(CONFIG_VTE)
 static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
                               CharDriverState *chr, int idx,
                               GSList *group, GtkWidget *view_menu)
@@ -1576,6 +1578,12 @@ static GSList *gd_vc_vte_init(GtkDisplayState *s, VirtualConsole *vc,
 
     g_signal_connect(vadjustment, "changed",
                      G_CALLBACK(gd_vc_adjustment_changed), vc);
+
+
+    qemu_chr_be_generic_open(vc->vte.chr);
+    if (vc->vte.chr->init) {
+        vc->vte.chr->init(vc->vte.chr);
+    }
 
     vc->type = GD_VC_VTE;
     vc->tab_item = box;

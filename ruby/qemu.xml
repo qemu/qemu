@@ -1,0 +1,81 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+This is an experimental QEMU configuration file.
+
+It defines devices, boards which integrate these devices, and
+configurations which run QEMU with selected boards.
+
+This file is read by a Ruby script. The same Ruby script allows
+users to select, run and control a QEMU configuration.
+-->
+
+<qemu>
+
+  <devices>
+    <device type="builtin" name="pxa25x" impl="PXA25X" />
+    <device type="builtin" name="ram" impl="RAM" />
+    <device type="plugin"  name="w1ctrlr" impl="w1controller.so" />
+    <device type="python"  name="ds2762" impl="ds2762.py" />
+    <!-- CPU definitions -->
+    <device name="mips 4KEc" emulation="mips" />
+    <device name="mips 4KEc" emulation="mips" />
+  </devices>
+
+  <boards>
+    <board name="sinus-se">
+      <device name="mips 4KEc" endianness="le">
+      <device name="ram" addr="0x14000000" size="16 MiB" />
+      <device name="rom" addr="0x1fc00000" size="4 KiB">
+        <file name="mips_bios.bin" />
+      </device>
+      <device name="flash" addr="0x10000000" size="2 MiB">
+        <file name="flashimage.bin" />
+      </device>
+    </board>
+
+    <board name="pc">
+      <device name="x86">
+      <device name="ram" addr="0x14000000" size="16 MiB" />
+      <device name="rom" addr="0x1fc00000" size="4 KiB">
+        <file name="mips_bios.bin" />
+      </device>
+      <device name="flash" addr="0x10000000" size="2 MiB">
+        <file name="flashimage.bin" />
+      </device>
+    </board>
+
+    <board name="pda">
+      <device name="pxa25x">
+        <param name="cpuid" value="0xaaaaaaaa" />
+      </device>
+      <device name="ram" addr="0xa0000000" size="32M" />
+      <device id="w1" name="w1ctrlr" addr="0x10000000" size="16" irq="67" />
+      <device name="ds2762" parent="w1">
+        <param name="w1addr" value="2" />
+      </device>
+    </board>
+  </boards>
+
+  <configurations>
+    <!-- Embedded board (DSL router). -->
+    <configuration name="sinus-demo">
+      <board name="sinus-se" />
+    </configuration>
+
+    <!-- Sample configuration with two PCs. -->
+    <configuration name="PC Network Demo">
+      <board name="pc" />
+      <board name="pc" />
+    </configuration>
+  </configurations>
+</qemu>
+
+<!--
+   <bus type="PCI", ... >
+      <controller type="EIDE", ... />
+      <controller type="SCSI", ... />
+   </bus>
+   <bus type="USB", ...>
+       ...
+   </bus>
+-->

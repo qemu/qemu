@@ -947,7 +947,7 @@ static void do_interrupt64(CPUX86State *env, int intno, int is_int,
 
 #ifdef TARGET_X86_64
 #if defined(CONFIG_USER_ONLY)
-void helper_syscall(CPUX86State *env, int next_eip_addend)
+void QEMU_NORETURN helper_syscall(CPUX86State *env, int next_eip_addend)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
 

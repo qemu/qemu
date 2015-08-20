@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
-#include <stdlib.h>
+
 #include "cpu.h"
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
@@ -1777,8 +1777,10 @@ target_ulong helper_evpe(CPUMIPSState *env)
 
 void helper_fork(target_ulong arg1, target_ulong arg2)
 {
+    fprintf(stderr, "%s:%u - %s\n", __FILE__, __LINE__, __func__);
     // arg1 = rt, arg2 = rs
-    // TODO: store to TC register
+    // TODO: store to TC register, assert to detect test cases.
+    g_assert_not_reached();
 }
 
 target_ulong helper_yield(CPUMIPSState *env, target_ulong arg)
@@ -2220,16 +2222,18 @@ void helper_pmon(CPUMIPSState *env, int function)
         break;
     case 17:
         break;
+#ifndef CONFIG_USER_ONLY
     case 158:
         {
             unsigned char *fmt = (void *)(uintptr_t)env->active_tc.gpr[4];
             printf("%s", fmt);
         }
         break;
+#endif
     }
 }
 
-void helper_wait(CPUMIPSState *env)
+void QEMU_NORETURN helper_wait(CPUMIPSState *env)
 {
     CPUState *cs = CPU(mips_env_get_cpu(env));
 
@@ -2450,8 +2454,9 @@ void helper_ctc1(CPUMIPSState *env, target_ulong arg1, uint32_t fs, uint32_t rt)
     /* set flush-to-zero mode */
     restore_flush_mode(env);
     set_float_exception_flags(0, &env->active_fpu.fp_status);
-    if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31))
+    if ((GET_FP_ENABLE(env->active_fpu.fcr31) | 0x20) & GET_FP_CAUSE(env->active_fpu.fcr31)) {
         do_raise_exception(env, EXCP_FPE, GETPC());
+    }
 }
 
 int ieee_ex_to_mips(int xcpt)

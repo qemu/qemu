@@ -12,6 +12,7 @@
  *
  */
 
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -570,6 +571,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             abort();
         }
         c = &cpuid_data.entries[cpuid_i++];
+        assert(cpuid_i < 100);
 
         switch (i) {
         case 2: {
@@ -658,6 +660,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
             abort();
         }
         c = &cpuid_data.entries[cpuid_i++];
+        assert(cpuid_i < 100);
 
         c->function = i;
         c->flags = 0;

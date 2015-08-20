@@ -1558,7 +1558,7 @@ static const TypeInfo musicpal_key_info = {
 };
 
 static struct arm_boot_info musicpal_binfo = {
-    .loader_start = 0x0,
+    .loader_start = MP_SRAM_BASE,
     .board_id = 0x20e,
 };
 
@@ -1653,7 +1653,6 @@ static void musicpal_init(MachineState *machine)
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
                               0x5555, 0x2AAA, 0);
 #endif
-
     }
     sysbus_create_simple(TYPE_MV88W8618_FLASHCFG, MP_FLASHCFG_BASE, NULL);
 

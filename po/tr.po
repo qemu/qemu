@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2013-07-05 22:36+0200\n"
+"POT-Creation-Date: 2013-11-16 15:25+0100\n"
 "PO-Revision-Date: 2013-04-22 18:35+0300\n"
 "Last-Translator: Ozan Çağlayan <ozancag@gmail.com>\n"
 "Language-Team: Türkçe <>\n"
@@ -17,46 +17,46 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Gtranslator 2.91.6\n"
 
-#: ui/gtk.c:214
+#: ui/gtk.c:217
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr " - Yakalamayı durdurmak için Ctrl+Alt+G tuşlarına basın"
 
-#: ui/gtk.c:218
+#: ui/gtk.c:221
 msgid " [Paused]"
 msgstr " [Duraklatıldı]"
 
-#: ui/gtk.c:1318
+#: ui/gtk.c:1331
 msgid "_Pause"
 msgstr "_Duraklat"
 
-#: ui/gtk.c:1324
+#: ui/gtk.c:1337
 msgid "_Reset"
 msgstr "_Sıfırla"
 
-#: ui/gtk.c:1327
+#: ui/gtk.c:1340
 msgid "Power _Down"
 msgstr "_Kapat"
 
-#: ui/gtk.c:1381
+#: ui/gtk.c:1398
 msgid "Zoom To _Fit"
 msgstr "Yakınlaş ve Sığ_dır"
 
-#: ui/gtk.c:1387
+#: ui/gtk.c:1404
 msgid "Grab On _Hover"
 msgstr "Ü_zerindeyken Yakala"
 
-#: ui/gtk.c:1390
+#: ui/gtk.c:1407
 msgid "_Grab Input"
 msgstr "Girdiyi _Yakala"
 
-#: ui/gtk.c:1416
+#: ui/gtk.c:1434
 msgid "Show _Tabs"
 msgstr "Se_kmeleri Göster"
 
-#: ui/gtk.c:1430
+#: ui/gtk.c:1448
 msgid "_Machine"
 msgstr "_Makine"
 
-#: ui/gtk.c:1435
+#: ui/gtk.c:1453
 msgid "_View"
 msgstr "_Görüntüle"

@@ -20,7 +20,7 @@ A small cache size will result in high cache miss rate.
 Cache size can be changed before and during migration.
 
 Format
-=======
+======
 
 The compression format performs a XOR between the previous and current content
 of the page, where zero represents an unchanged value.

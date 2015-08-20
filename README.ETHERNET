@@ -1,0 +1,62 @@
+Status Ethernet-Emulation 2010-04-06
+
+host            i386    i386    malta   malta   malta-l malta-l
+target          malta   malta-l malta   malta-l malta   malta-l
+
+i82551
+  (e100)        ok      ok      ?       ?       ?       ?
+  (eepro100)    ?       ?       ?       ?       ?       ?
+i82557b
+  (e100)        ok      ok      ?       ?       ?       ?
+  (eepro100)    ?       ?       ?       ?       ?       ?
+i82559er
+  (e100)        ok      ok      ?       ?       ?       ?
+  (eepro100)    ?       ?       ?       ?       ?       ?
+i82801
+  (e100)        ok      ok      ?       ?       ?       ?
+  (eepro100)    ?       ?       ?       ?       ?       ?
+pcnet
+  (pcnet32)     ok      ok      ?       ?       ?       ?
+ne2k_pci
+  (ne2k-pci)    *8      *8      ?       ?       ?       ?
+rtl8139
+  (8139too)     ok      ok      ?       ?       ?       ?
+  (8139cp)      ?       ?       ?       ?       ?       ?
+dp83816         *9      *9      ?       ?       ?       ?
+e100            *1      *8      ?       ?       ?       ?
+e1000           ok      ok      ?       ?       ?       ?
+virtio          *9      *9      ?       ?       ?       ?
+
+ok) Linux NFS root working
+ ?) not tested
+*1) mdio won't go ready
+*2) bus error when sending dhcp requests
+*3) link down
+*4) wrong mac address (123456 -> 214365)
+*5) eth0 not operational
+*6) dhcp fails
+*7) qdev_prop_set: property "*.mac" not found
+*8) slow, nfs: server not responding
+*9) kill init
+*10) hangs after link up
+*11) Linux NFS root working, unassigned mem read [iowrite8]
+
+crash bei boot und mit ssh 192.168.178.1:
+/home/stefan/src/qemu/repo.or.cz/qemu/bin/x86/mips-softmmu/qemu-system-mips --kernel /tftpboot/malta/boot/vmlinux-2.6.26-2-4kc-malta --initrd /tftpboot/malta/boot/initrd.img-2.6.26-2-4kc-malta --append "debug nohz=off root=/dev/nfs rw ip=::::malta::dhcp nfsroot=10.0.2.2:/tftpboot/malta -bootp abc -tftp /tftpboot/malta" -M malta --cpu 4KEc -m 256 --net nic,model=pcnet --net user,hostname=malta --redir tcp:5800::5800 --redir tcp:5900::5900 --redir tcp:10022::22 --redir tcp:10080::80 -net nic,model=i82551 -net user                           
+
+
+
+
+
+
+
+
+Performance data (old)
+
+i82551          114,119,98, 101, 105 - 120 * 10 ^ 6 bit/s
+ne2k_pci        91,103,101
+dp83816         129,128
+rtl8139         128,128
+pcnet           76
+
+
