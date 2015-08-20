@@ -517,7 +517,7 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo core99_machine_info = {
-    .name          = "mac99-machine",
+    .name          = MACHINE_TYPE_NAME("mac99"),
     .parent        = TYPE_MACHINE,
     .class_init    = core99_machine_class_init,
 };
