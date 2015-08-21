@@ -473,32 +473,52 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(CMOVEQZ, 4, Y0):
     case OE_RRR(CMOVNEZ, 0, X0):
     case OE_RRR(CMOVNEZ, 4, Y0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(CMPEQ, 0, X0):
     case OE_RRR(CMPEQ, 0, X1):
     case OE_RRR(CMPEQ, 3, Y0):
     case OE_RRR(CMPEQ, 3, Y1):
+        tcg_gen_setcond_tl(TCG_COND_EQ, tdest, tsrca, tsrcb);
+        mnemonic = "cmpeq";
+        break;
     case OE_RRR(CMPEXCH4, 0, X1):
     case OE_RRR(CMPEXCH, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(CMPLES, 0, X0):
     case OE_RRR(CMPLES, 0, X1):
     case OE_RRR(CMPLES, 2, Y0):
     case OE_RRR(CMPLES, 2, Y1):
+        tcg_gen_setcond_tl(TCG_COND_LE, tdest, tsrca, tsrcb);
+        mnemonic = "cmples";
+        break;
     case OE_RRR(CMPLEU, 0, X0):
     case OE_RRR(CMPLEU, 0, X1):
     case OE_RRR(CMPLEU, 2, Y0):
     case OE_RRR(CMPLEU, 2, Y1):
+        tcg_gen_setcond_tl(TCG_COND_LEU, tdest, tsrca, tsrcb);
+        mnemonic = "cmpleu";
+        break;
     case OE_RRR(CMPLTS, 0, X0):
     case OE_RRR(CMPLTS, 0, X1):
     case OE_RRR(CMPLTS, 2, Y0):
     case OE_RRR(CMPLTS, 2, Y1):
+        tcg_gen_setcond_tl(TCG_COND_LT, tdest, tsrca, tsrcb);
+        mnemonic = "cmplts";
+        break;
     case OE_RRR(CMPLTU, 0, X0):
     case OE_RRR(CMPLTU, 0, X1):
     case OE_RRR(CMPLTU, 2, Y0):
     case OE_RRR(CMPLTU, 2, Y1):
+        tcg_gen_setcond_tl(TCG_COND_LTU, tdest, tsrca, tsrcb);
+        mnemonic = "cmpltu";
+        break;
     case OE_RRR(CMPNE, 0, X0):
     case OE_RRR(CMPNE, 0, X1):
     case OE_RRR(CMPNE, 3, Y0):
     case OE_RRR(CMPNE, 3, Y1):
+        tcg_gen_setcond_tl(TCG_COND_NE, tdest, tsrca, tsrcb);
+        mnemonic = "cmpne";
+        break;
     case OE_RRR(CMULAF, 0, X0):
     case OE_RRR(CMULA, 0, X0):
     case OE_RRR(CMULFR, 0, X0):
@@ -886,13 +906,25 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         tcg_gen_andi_tl(tdest, tsrca, imm);
         mnemonic = "andi";
         break;
+    case OE(CMPEQI_OPCODE_Y0, 0, Y0):
+    case OE(CMPEQI_OPCODE_Y1, 0, Y1):
     case OE_IM(CMPEQI, X0):
     case OE_IM(CMPEQI, X1):
+        tcg_gen_setcondi_tl(TCG_COND_EQ, tdest, tsrca, imm);
+        mnemonic = "cmpeqi";
+        break;
+    case OE(CMPLTSI_OPCODE_Y0, 0, Y0):
+    case OE(CMPLTSI_OPCODE_Y1, 0, Y1):
     case OE_IM(CMPLTSI, X0):
     case OE_IM(CMPLTSI, X1):
+        tcg_gen_setcondi_tl(TCG_COND_LT, tdest, tsrca, imm);
+        mnemonic = "cmpltsi";
+        break;
     case OE_IM(CMPLTUI, X0):
     case OE_IM(CMPLTUI, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        tcg_gen_setcondi_tl(TCG_COND_LTU, tdest, tsrca, imm);
+        mnemonic = "cmpltui";
+        break;
     case OE_IM(LD1S_ADD, X1):
         memop = MO_SB;
         mnemonic = "ld1s_add";
@@ -1042,11 +1074,6 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         tcg_gen_ext32s_tl(tdest, tdest);
         mnemonic = "addxli";
         break;
-    case OE(CMPEQI_OPCODE_Y0, 0, Y0):
-    case OE(CMPEQI_OPCODE_Y1, 0, Y1):
-    case OE(CMPLTSI_OPCODE_Y0, 0, Y0):
-    case OE(CMPLTSI_OPCODE_Y1, 0, Y1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE(SHL16INSLI_OPCODE_X0, 0, X0):
     case OE(SHL16INSLI_OPCODE_X1, 0, X1):
         tcg_gen_shli_tl(tdest, tsrca, 16);
