@@ -60,6 +60,7 @@ enum {
 typedef enum {
     TILEGX_EXCP_NONE = 0,
     TILEGX_EXCP_SYSCALL = 1,
+    TILEGX_EXCP_SEGV = 2,
     TILEGX_EXCP_OPCODE_UNKNOWN = 0x101,
     TILEGX_EXCP_OPCODE_UNIMPLEMENTED = 0x102,
     TILEGX_EXCP_OPCODE_CMPEXCH = 0x103,
@@ -87,6 +88,7 @@ typedef struct CPUTLGState {
 
 #if defined(CONFIG_USER_ONLY)
     uint32_t excparam;                 /* exception parameter */
+    uint64_t excaddr;                  /* exception address */
 #endif
 
     CPU_COMMON

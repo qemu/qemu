@@ -119,7 +119,10 @@ static void tilegx_cpu_do_interrupt(CPUState *cs)
 static int tilegx_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
                                        int mmu_idx)
 {
-    cpu_dump_state(cs, stderr, fprintf, 0);
+    TileGXCPU *cpu = TILEGX_CPU(cs);
+
+    cs->exception_index = TILEGX_EXCP_SEGV;
+    cpu->env.excaddr = address;
     return 1;
 }
 

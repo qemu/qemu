@@ -3460,6 +3460,9 @@ void cpu_loop(CPUTLGState *env)
         case TILEGX_EXCP_REG_UDN_ACCESS:
             gen_sigill_reg(env);
             break;
+        case TILEGX_EXCP_SEGV:
+            gen_sigsegv_maperr(env, env->excaddr);
+            break;
         default:
             fprintf(stderr, "trapnr is %d[0x%x].\n", trapnr, trapnr);
             g_assert_not_reached();
