@@ -160,6 +160,23 @@ static TCGv dest_gr(DisasContext *dc, unsigned reg)
     return dc->wb[n].val = tcg_temp_new_i64();
 }
 
+static void gen_saturate_op(TCGv tdest, TCGv tsrca, TCGv tsrcb,
+                            void (*operate)(TCGv, TCGv, TCGv))
+{
+    TCGv t0 = tcg_temp_new();
+
+    tcg_gen_ext32s_tl(tdest, tsrca);
+    tcg_gen_ext32s_tl(t0, tsrcb);
+    operate(tdest, tdest, t0);
+
+    tcg_gen_movi_tl(t0, 0x7fffffff);
+    tcg_gen_movcond_tl(TCG_COND_GT, tdest, tdest, t0, t0, tdest);
+    tcg_gen_movi_tl(t0, -0x80000000LL);
+    tcg_gen_movcond_tl(TCG_COND_LT, tdest, tdest, t0, t0, tdest);
+
+    tcg_temp_free(t0);
+}
+
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
                               unsigned dest, unsigned srca)
 {
@@ -277,15 +294,24 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     switch (opext) {
     case OE_RRR(ADDXSC, 0, X0):
     case OE_RRR(ADDXSC, 0, X1):
+        gen_saturate_op(tdest, tsrca, tsrcb, tcg_gen_add_tl);
+        mnemonic = "addxsc";
+        break;
     case OE_RRR(ADDX, 0, X0):
     case OE_RRR(ADDX, 0, X1):
     case OE_RRR(ADDX, 0, Y0):
     case OE_RRR(ADDX, 0, Y1):
+        tcg_gen_add_tl(tdest, tsrca, tsrcb);
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "addx";
+        break;
     case OE_RRR(ADD, 0, X0):
     case OE_RRR(ADD, 0, X1):
     case OE_RRR(ADD, 0, Y0):
     case OE_RRR(ADD, 0, Y1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        tcg_gen_add_tl(tdest, tsrca, tsrcb);
+        mnemonic = "add";
+        break;
     case OE_RRR(AND, 0, X0):
     case OE_RRR(AND, 0, X1):
     case OE_RRR(AND, 5, Y0):
@@ -422,30 +448,58 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(ROTL, 0, X1):
     case OE_RRR(ROTL, 6, Y0):
     case OE_RRR(ROTL, 6, Y1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(SHL1ADDX, 0, X0):
     case OE_RRR(SHL1ADDX, 0, X1):
     case OE_RRR(SHL1ADDX, 7, Y0):
     case OE_RRR(SHL1ADDX, 7, Y1):
+        tcg_gen_shli_tl(tdest, tsrca, 1);
+        tcg_gen_add_tl(tdest, tdest, tsrcb);
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "shl1addx";
+        break;
     case OE_RRR(SHL1ADD, 0, X0):
     case OE_RRR(SHL1ADD, 0, X1):
     case OE_RRR(SHL1ADD, 1, Y0):
     case OE_RRR(SHL1ADD, 1, Y1):
+        tcg_gen_shli_tl(tdest, tsrca, 1);
+        tcg_gen_add_tl(tdest, tdest, tsrcb);
+        mnemonic = "shl1add";
+        break;
     case OE_RRR(SHL2ADDX, 0, X0):
     case OE_RRR(SHL2ADDX, 0, X1):
     case OE_RRR(SHL2ADDX, 7, Y0):
     case OE_RRR(SHL2ADDX, 7, Y1):
+        tcg_gen_shli_tl(tdest, tsrca, 2);
+        tcg_gen_add_tl(tdest, tdest, tsrcb);
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "shl2addx";
+        break;
     case OE_RRR(SHL2ADD, 0, X0):
     case OE_RRR(SHL2ADD, 0, X1):
     case OE_RRR(SHL2ADD, 1, Y0):
     case OE_RRR(SHL2ADD, 1, Y1):
+        tcg_gen_shli_tl(tdest, tsrca, 2);
+        tcg_gen_add_tl(tdest, tdest, tsrcb);
+        mnemonic = "shl2add";
+        break;
     case OE_RRR(SHL3ADDX, 0, X0):
     case OE_RRR(SHL3ADDX, 0, X1):
     case OE_RRR(SHL3ADDX, 7, Y0):
     case OE_RRR(SHL3ADDX, 7, Y1):
+        tcg_gen_shli_tl(tdest, tsrca, 3);
+        tcg_gen_add_tl(tdest, tdest, tsrcb);
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "shl3addx";
+        break;
     case OE_RRR(SHL3ADD, 0, X0):
     case OE_RRR(SHL3ADD, 0, X1):
     case OE_RRR(SHL3ADD, 1, Y0):
     case OE_RRR(SHL3ADD, 1, Y1):
+        tcg_gen_shli_tl(tdest, tsrca, 3);
+        tcg_gen_add_tl(tdest, tdest, tsrcb);
+        mnemonic = "shl3add";
+        break;
     case OE_RRR(SHLX, 0, X0):
     case OE_RRR(SHLX, 0, X1):
     case OE_RRR(SHL, 0, X0):
@@ -471,16 +525,27 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(STNT4, 0, X1):
     case OE_RRR(STNT, 0, X1):
     case OE_RRR(ST, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(SUBXSC, 0, X0):
     case OE_RRR(SUBXSC, 0, X1):
+        gen_saturate_op(tdest, tsrca, tsrcb, tcg_gen_sub_tl);
+        mnemonic = "subxsc";
+        break;
     case OE_RRR(SUBX, 0, X0):
     case OE_RRR(SUBX, 0, X1):
     case OE_RRR(SUBX, 0, Y0):
     case OE_RRR(SUBX, 0, Y1):
+        tcg_gen_sub_tl(tdest, tsrca, tsrcb);
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "subx";
+        break;
     case OE_RRR(SUB, 0, X0):
     case OE_RRR(SUB, 0, X1):
     case OE_RRR(SUB, 0, Y0):
     case OE_RRR(SUB, 0, Y1):
+        tcg_gen_sub_tl(tdest, tsrca, tsrcb);
+        mnemonic = "sub";
+        break;
     case OE_RRR(V1ADDUC, 0, X0):
     case OE_RRR(V1ADDUC, 0, X1):
     case OE_RRR(V1ADD, 0, X0):
@@ -640,11 +705,21 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
     const char *mnemonic;
 
     switch (opext) {
+    case OE(ADDI_OPCODE_Y0, 0, Y0):
+    case OE(ADDI_OPCODE_Y1, 0, Y1):
     case OE_IM(ADDI, X0):
     case OE_IM(ADDI, X1):
+        tcg_gen_addi_tl(tdest, tsrca, imm);
+        mnemonic = "addi";
+        break;
+    case OE(ADDXI_OPCODE_Y0, 0, Y0):
+    case OE(ADDXI_OPCODE_Y1, 0, Y1):
     case OE_IM(ADDXI, X0):
     case OE_IM(ADDXI, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        tcg_gen_addi_tl(tdest, tsrca, imm);
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "addxi";
+        break;
     case OE(ANDI_OPCODE_Y0, 0, Y0):
     case OE(ANDI_OPCODE_Y1, 0, Y1):
     case OE_IM(ANDI, X0):
@@ -752,21 +827,30 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
     case OE_SH(V2SHRSI, X1):
     case OE_SH(V2SHRUI, X0):
     case OE_SH(V2SHRUI, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
 
-    case OE(ADDI_OPCODE_Y0, 0, Y0):
-    case OE(ADDI_OPCODE_Y1, 0, Y1):
     case OE(ADDLI_OPCODE_X0, 0, X0):
     case OE(ADDLI_OPCODE_X1, 0, X1):
-    case OE(ADDXI_OPCODE_Y0, 0, Y0):
-    case OE(ADDXI_OPCODE_Y1, 0, Y1):
+        tcg_gen_addi_tl(tdest, tsrca, imm);
+        mnemonic = "addli";
+        break;
     case OE(ADDXLI_OPCODE_X0, 0, X0):
     case OE(ADDXLI_OPCODE_X1, 0, X1):
+        tcg_gen_addi_tl(tdest, tsrca, imm);
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "addxli";
+        break;
     case OE(CMPEQI_OPCODE_Y0, 0, Y0):
     case OE(CMPEQI_OPCODE_Y1, 0, Y1):
     case OE(CMPLTSI_OPCODE_Y0, 0, Y0):
     case OE(CMPLTSI_OPCODE_Y1, 0, Y1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE(SHL16INSLI_OPCODE_X0, 0, X0):
     case OE(SHL16INSLI_OPCODE_X1, 0, X1):
+        tcg_gen_shli_tl(tdest, tsrca, 16);
+        tcg_gen_ori_tl(tdest, tdest, imm & 0xffff);
+        mnemonic = "shl16insli";
+        break;
 
     default:
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
