@@ -1125,13 +1125,87 @@ static TileExcp gen_bf_opcode_x0(DisasContext *dc, unsigned ext,
                                  unsigned dest, unsigned srca,
                                  unsigned bfs, unsigned bfe)
 {
+    TCGv tdest = dest_gr(dc, dest);
+    TCGv tsrca = load_gr(dc, srca);
+    TCGv tsrcd;
+    int len;
     const char *mnemonic;
+
+    /* The bitfield is either between E and S inclusive,
+       or up from S and down from E inclusive.  */
+    if (bfs <= bfe) {
+        len = bfe - bfs + 1;
+    } else {
+        len = (64 - bfs) + (bfe + 1);
+    }
 
     switch (ext) {
     case BFEXTU_BF_OPCODE_X0:
+        if (bfs == 0 && bfe == 7) {
+            tcg_gen_ext8u_tl(tdest, tsrca);
+        } else if (bfs == 0 && bfe == 15) {
+            tcg_gen_ext16u_tl(tdest, tsrca);
+        } else if (bfs == 0 && bfe == 31) {
+            tcg_gen_ext32u_tl(tdest, tsrca);
+        } else {
+            int rol = 63 - bfe;
+            if (bfs <= bfe) {
+                tcg_gen_shli_tl(tdest, tsrca, rol);
+            } else {
+                tcg_gen_rotli_tl(tdest, tsrca, rol);
+            }
+            tcg_gen_shri_tl(tdest, tdest, (bfs + rol) & 63);
+        }
+        mnemonic = "bfextu";
+        break;
+
     case BFEXTS_BF_OPCODE_X0:
+        if (bfs == 0 && bfe == 7) {
+            tcg_gen_ext8s_tl(tdest, tsrca);
+        } else if (bfs == 0 && bfe == 15) {
+            tcg_gen_ext16s_tl(tdest, tsrca);
+        } else if (bfs == 0 && bfe == 31) {
+            tcg_gen_ext32s_tl(tdest, tsrca);
+        } else {
+            int rol = 63 - bfe;
+            if (bfs <= bfe) {
+                tcg_gen_shli_tl(tdest, tsrca, rol);
+            } else {
+                tcg_gen_rotli_tl(tdest, tsrca, rol);
+            }
+            tcg_gen_sari_tl(tdest, tdest, (bfs + rol) & 63);
+        }
+        mnemonic = "bfexts";
+        break;
+
     case BFINS_BF_OPCODE_X0:
+        tsrcd = load_gr(dc, dest);
+        if (bfs <= bfe) {
+            tcg_gen_deposit_tl(tdest, tsrcd, tsrca, bfs, len);
+        } else {
+            tcg_gen_rotri_tl(tdest, tsrcd, bfs);
+            tcg_gen_deposit_tl(tdest, tdest, tsrca, 0, len);
+            tcg_gen_rotli_tl(tdest, tdest, bfs);
+        }
+        mnemonic = "bfins";
+        break;
+
     case MM_BF_OPCODE_X0:
+        tsrcd = load_gr(dc, dest);
+        if (bfs == 0) {
+            tcg_gen_deposit_tl(tdest, tsrca, tsrcd, 0, len);
+        } else {
+            uint64_t mask = len == 64 ? -1 : rol64((1ULL << len) - 1, bfs);
+            TCGv tmp = tcg_const_tl(mask);
+
+            tcg_gen_and_tl(tdest, tsrcd, tmp);
+            tcg_gen_andc_tl(tmp, tsrca, tmp);
+            tcg_gen_or_tl(tdest, tdest, tmp);
+            tcg_temp_free(tmp);
+        }
+        mnemonic = "mm";
+        break;
+
     default:
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
