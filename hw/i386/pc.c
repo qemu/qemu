@@ -1935,10 +1935,10 @@ static void pc_machine_initfn(Object *obj)
 
 static unsigned pc_cpu_index_to_socket_id(unsigned cpu_index)
 {
-    unsigned pkg_id, core_id, smt_id;
+    X86CPUTopoInfo topo;
     x86_topo_ids_from_idx(smp_cores, smp_threads, cpu_index,
-                          &pkg_id, &core_id, &smt_id);
-    return pkg_id;
+                          &topo);
+    return topo.pkg_id;
 }
 
 static void pc_machine_class_init(ObjectClass *oc, void *data)
