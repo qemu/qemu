@@ -248,27 +248,71 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     TCGv tdest, tsrca;
     const char *mnemonic;
     TCGMemOp memop;
+    TileExcp ret = TILEGX_EXCP_NONE;
 
-    /* Eliminate nops and jumps before doing anything else.  */
+    /* Eliminate instructions with no output before doing anything else.  */
     switch (opext) {
     case OE_RR_Y0(NOP):
     case OE_RR_Y1(NOP):
     case OE_RR_X0(NOP):
     case OE_RR_X1(NOP):
         mnemonic = "nop";
-        goto do_nop;
+        goto done0;
     case OE_RR_Y0(FNOP):
     case OE_RR_Y1(FNOP):
     case OE_RR_X0(FNOP):
     case OE_RR_X1(FNOP):
         mnemonic = "fnop";
-    do_nop:
+        goto done0;
+    case OE_RR_X1(DRAIN):
+        mnemonic = "drain";
+        goto done0;
+    case OE_RR_X1(FLUSHWB):
+        mnemonic = "flushwb";
+        goto done0;
+    case OE_RR_X1(ILL):
+    case OE_RR_Y1(ILL):
+        mnemonic = (dest == 0x1c && srca == 0x25 ? "bpt" : "ill");
+        qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
+    case OE_RR_X1(MF):
+        mnemonic = "mf";
+        goto done0;
+    case OE_RR_X1(NAP):
+        /* ??? This should yield, especially in system mode.  */
+        mnemonic = "nap";
+        goto done0;
+    case OE_RR_X1(SWINT0):
+    case OE_RR_X1(SWINT2):
+    case OE_RR_X1(SWINT3):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+    case OE_RR_X1(SWINT1):
+        ret = TILEGX_EXCP_SYSCALL;
+        mnemonic = "swint1";
+    done0:
         if (srca || dest) {
             return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
         }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
-        return TILEGX_EXCP_NONE;
+        return ret;
 
+    case OE_RR_X1(DTLBPR):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+    case OE_RR_X1(FINV):
+        mnemonic = "finv";
+        goto done1;
+    case OE_RR_X1(FLUSH):
+        mnemonic = "flush";
+        goto done1;
+    case OE_RR_X1(ICOH):
+        mnemonic = "icoh";
+        goto done1;
+    case OE_RR_X1(INV):
+        mnemonic = "inv";
+        goto done1;
+    case OE_RR_X1(WH64):
+        mnemonic = "wh64";
+        goto done1;
     case OE_RR_X1(JRP):
     case OE_RR_Y1(JRP):
         mnemonic = "jrp";
@@ -291,8 +335,12 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         dc->jmp.cond = TCG_COND_ALWAYS;
         dc->jmp.dest = tcg_temp_new();
         tcg_gen_andi_tl(dc->jmp.dest, load_gr(dc, srca), ~7);
+    done1:
+        if (dest) {
+            return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s", mnemonic, reg_names[srca]);
-        return TILEGX_EXCP_NONE;
+        return ret;
     }
 
     tdest = dest_gr(dc, dest);
@@ -309,17 +357,8 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         gen_helper_cnttz(tdest, tsrca);
         mnemonic = "cnttz";
         break;
-    case OE_RR_X1(DRAIN):
-    case OE_RR_X1(DTLBPR):
-    case OE_RR_X1(FINV):
-    case OE_RR_X1(FLUSHWB):
-    case OE_RR_X1(FLUSH):
     case OE_RR_X0(FSINGLE_PACK1):
     case OE_RR_Y0(FSINGLE_PACK1):
-    case OE_RR_X1(ICOH):
-    case OE_RR_X1(ILL):
-    case OE_RR_Y1(ILL):
-    case OE_RR_X1(INV):
     case OE_RR_X1(IRET):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RR_X1(LD1S):
@@ -393,9 +432,6 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         tcg_gen_movi_tl(tdest, dc->pc + TILEGX_BUNDLE_SIZE_IN_BYTES);
         mnemonic = "lnk";
         break;
-    case OE_RR_X1(MF):
-    case OE_RR_X1(NAP):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RR_X0(PCNT):
     case OE_RR_Y0(PCNT):
         gen_helper_pcnt(tdest, tsrca);
@@ -411,10 +447,6 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         tcg_gen_bswap64_tl(tdest, tsrca);
         mnemonic = "revbytes";
         break;
-    case OE_RR_X1(SWINT0):
-    case OE_RR_X1(SWINT1):
-    case OE_RR_X1(SWINT2):
-    case OE_RR_X1(SWINT3):
     case OE_RR_X0(TBLIDXB0):
     case OE_RR_Y0(TBLIDXB0):
     case OE_RR_X0(TBLIDXB1):
@@ -423,14 +455,13 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     case OE_RR_Y0(TBLIDXB2):
     case OE_RR_X0(TBLIDXB3):
     case OE_RR_Y0(TBLIDXB3):
-    case OE_RR_X1(WH64):
     default:
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", mnemonic,
                   reg_names[dest], reg_names[srca]);
-    return TILEGX_EXCP_NONE;
+    return ret;
 }
 
 static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
