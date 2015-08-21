@@ -228,6 +228,20 @@ static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
     return TILEGX_EXCP_NONE;
 }
 
+static TileExcp gen_st_add_opcode(DisasContext *dc, unsigned srca, unsigned srcb,
+                                  int imm, TCGMemOp memop, const char *name)
+{
+    TCGv tsrca = load_gr(dc, srca);
+    TCGv tsrcb = load_gr(dc, srcb);
+
+    tcg_gen_qemu_st_tl(tsrcb, tsrca, dc->mmuidx, memop);
+    tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
+
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %d", name,
+                  reg_names[srca], reg_names[srcb], imm);
+    return TILEGX_EXCP_NONE;
+}
+
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
                               unsigned dest, unsigned srca)
 {
@@ -824,6 +838,7 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
     TCGv tdest = dest_gr(dc, dest);
     TCGv tsrca = load_gr(dc, srca);
     const char *mnemonic;
+    TCGMemOp memop;
 
     switch (opext) {
     case OE(ADDI_OPCODE_Y0, 0, Y0):
@@ -854,21 +869,72 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
     case OE_IM(CMPLTSI, X1):
     case OE_IM(CMPLTUI, X0):
     case OE_IM(CMPLTUI, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_IM(LD1S_ADD, X1):
+        memop = MO_SB;
+        mnemonic = "ld1s_add";
+        goto do_load_add;
     case OE_IM(LD1U_ADD, X1):
+        memop = MO_UB;
+        mnemonic = "ld1u_add";
+        goto do_load_add;
     case OE_IM(LD2S_ADD, X1):
+        memop = MO_TESW;
+        mnemonic = "ld2s_add";
+        goto do_load_add;
     case OE_IM(LD2U_ADD, X1):
+        memop = MO_TEUW;
+        mnemonic = "ld2u_add";
+        goto do_load_add;
     case OE_IM(LD4S_ADD, X1):
+        memop = MO_TESL;
+        mnemonic = "ld4s_add";
+        goto do_load_add;
     case OE_IM(LD4U_ADD, X1):
+        memop = MO_TEUL;
+        mnemonic = "ld4u_add";
+        goto do_load_add;
     case OE_IM(LDNT1S_ADD, X1):
+        memop = MO_SB;
+        mnemonic = "ldnt1s_add";
+        goto do_load_add;
     case OE_IM(LDNT1U_ADD, X1):
+        memop = MO_UB;
+        mnemonic = "ldnt1u_add";
+        goto do_load_add;
     case OE_IM(LDNT2S_ADD, X1):
+        memop = MO_TESW;
+        mnemonic = "ldnt2s_add";
+        goto do_load_add;
     case OE_IM(LDNT2U_ADD, X1):
+        memop = MO_TEUW;
+        mnemonic = "ldnt2u_add";
+        goto do_load_add;
     case OE_IM(LDNT4S_ADD, X1):
+        memop = MO_TESL;
+        mnemonic = "ldnt4s_add";
+        goto do_load_add;
     case OE_IM(LDNT4U_ADD, X1):
+        memop = MO_TEUL;
+        mnemonic = "ldnt4u_add";
+        goto do_load_add;
     case OE_IM(LDNT_ADD, X1):
+        memop = MO_TEQ;
+        mnemonic = "ldnt_add";
+        goto do_load_add;
     case OE_IM(LD_ADD, X1):
+        memop = MO_TEQ;
+        mnemonic = "ldnt_add";
+    do_load_add:
+        tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
+        break;
     case OE_IM(LDNA_ADD, X1):
+        tcg_gen_andi_tl(tdest, tsrca, ~7);
+        tcg_gen_qemu_ld_tl(tdest, tdest, dc->mmuidx, MO_TEQ);
+        tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
+        mnemonic = "ldna_add";
+        break;
     case OE_IM(MFSPR, X1):
     case OE_IM(MTSPR, X1):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
@@ -877,14 +943,6 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         tcg_gen_ori_tl(tdest, tsrca, imm);
         mnemonic = "ori";
         break;
-    case OE_IM(ST1_ADD, X1):
-    case OE_IM(ST2_ADD, X1):
-    case OE_IM(ST4_ADD, X1):
-    case OE_IM(STNT1_ADD, X1):
-    case OE_IM(STNT2_ADD, X1):
-    case OE_IM(STNT4_ADD, X1):
-    case OE_IM(STNT_ADD, X1):
-    case OE_IM(ST_ADD, X1):
     case OE_IM(V1ADDI, X0):
     case OE_IM(V1ADDI, X1):
     case OE_IM(V1CMPEQI, X0):
@@ -1291,6 +1349,26 @@ static TileExcp decode_x1(DisasContext *dc, tilegx_bundle_bits bundle)
 
     case IMM8_OPCODE_X1:
         ext = get_Imm8OpcodeExtension_X1(bundle);
+        imm = (int8_t)get_Dest_Imm8_X1(bundle);
+        srcb = get_SrcB_X1(bundle);
+        switch (ext) {
+        case ST1_ADD_IMM8_OPCODE_X1:
+            return gen_st_add_opcode(dc, srca, srcb, imm, MO_UB, "st1_add");
+        case ST2_ADD_IMM8_OPCODE_X1:
+            return gen_st_add_opcode(dc, srca, srcb, imm, MO_TEUW, "st2_add");
+        case ST4_ADD_IMM8_OPCODE_X1:
+            return gen_st_add_opcode(dc, srca, srcb, imm, MO_TEUL, "st4_add");
+        case STNT1_ADD_IMM8_OPCODE_X1:
+            return gen_st_add_opcode(dc, srca, srcb, imm, MO_UB, "stnt1_add");
+        case STNT2_ADD_IMM8_OPCODE_X1:
+            return gen_st_add_opcode(dc, srca, srcb, imm, MO_TEUW, "stnt2_add");
+        case STNT4_ADD_IMM8_OPCODE_X1:
+            return gen_st_add_opcode(dc, srca, srcb, imm, MO_TEUL, "stnt4_add");
+        case STNT_ADD_IMM8_OPCODE_X1:
+            return gen_st_add_opcode(dc, srca, srcb, imm, MO_TEQ, "stnt_add");
+        case ST_ADD_IMM8_OPCODE_X1:
+            return gen_st_add_opcode(dc, srca, srcb, imm, MO_TEQ, "st_add");
+        }
         imm = (int8_t)get_Imm8_X1(bundle);
         return gen_rri_opcode(dc, OE(opc, ext, X1), dest, srca, imm);
 
