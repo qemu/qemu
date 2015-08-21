@@ -1089,30 +1089,55 @@ static TileExcp gen_branch_opcode_x1(DisasContext *dc, unsigned ext,
     target_ulong tgt = dc->pc + off * TILEGX_BUNDLE_SIZE_IN_BYTES;
     const char *mnemonic;
 
-    switch (ext) {
-    case BEQZT_BRANCH_OPCODE_X1:
+    dc->jmp.dest = tcg_const_tl(tgt);
+    dc->jmp.val1 = tcg_temp_new();
+    tcg_gen_mov_tl(dc->jmp.val1, load_gr(dc, srca));
+
+    /* Note that the "predict taken" opcodes have bit 0 clear.
+       Therefore, fold the two cases together by setting bit 0.  */
+    switch (ext | 1) {
     case BEQZ_BRANCH_OPCODE_X1:
-    case BNEZT_BRANCH_OPCODE_X1:
+        dc->jmp.cond = TCG_COND_EQ;
+        mnemonic = "beqz";
+        break;
     case BNEZ_BRANCH_OPCODE_X1:
-    case BLBC_BRANCH_OPCODE_X1:
-    case BGEZT_BRANCH_OPCODE_X1:
+        dc->jmp.cond = TCG_COND_NE;
+        mnemonic = "bnez";
+        break;
     case BGEZ_BRANCH_OPCODE_X1:
-    case BGTZT_BRANCH_OPCODE_X1:
+        dc->jmp.cond = TCG_COND_GE;
+        mnemonic = "bgez";
+        break;
     case BGTZ_BRANCH_OPCODE_X1:
-    case BLBCT_BRANCH_OPCODE_X1:
-    case BLBST_BRANCH_OPCODE_X1:
-    case BLBS_BRANCH_OPCODE_X1:
-    case BLEZT_BRANCH_OPCODE_X1:
+        dc->jmp.cond = TCG_COND_GT;
+        mnemonic = "bgtz";
+        break;
     case BLEZ_BRANCH_OPCODE_X1:
-    case BLTZT_BRANCH_OPCODE_X1:
+        dc->jmp.cond = TCG_COND_LE;
+        mnemonic = "blez";
+        break;
     case BLTZ_BRANCH_OPCODE_X1:
+        dc->jmp.cond = TCG_COND_LT;
+        mnemonic = "bltz";
+        break;
+    case BLBC_BRANCH_OPCODE_X1:
+        dc->jmp.cond = TCG_COND_EQ;
+        tcg_gen_andi_tl(dc->jmp.val1, dc->jmp.val1, 1);
+        mnemonic = "blbc";
+        break;
+    case BLBS_BRANCH_OPCODE_X1:
+        dc->jmp.cond = TCG_COND_NE;
+        tcg_gen_andi_tl(dc->jmp.val1, dc->jmp.val1, 1);
+        mnemonic = "blbs";
+        break;
     default:
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-        qemu_log("%s %s, " TARGET_FMT_lx " <%s>",
-                 mnemonic, reg_names[srca], tgt, lookup_symbol(tgt));
+        qemu_log("%s%s %s, " TARGET_FMT_lx " <%s>",
+                 mnemonic, ext & 1 ? "" : "t",
+                 reg_names[srca], tgt, lookup_symbol(tgt));
     }
     return TILEGX_EXCP_NONE;
 }
