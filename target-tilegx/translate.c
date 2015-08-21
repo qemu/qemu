@@ -213,12 +213,27 @@ static void gen_dblaligni(TCGv tdest, TCGv tsrca, TCGv tsrcb, int shr)
     tcg_temp_free(t0);
 }
 
+static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
+                              unsigned srcb, TCGMemOp memop, const char *name)
+{
+    if (dest) {
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+    }
+
+    tcg_gen_qemu_st_tl(load_gr(dc, srcb), load_gr(dc, srca),
+		       dc->mmuidx, memop);
+
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", name,
+                  reg_names[srca], reg_names[srcb]);
+    return TILEGX_EXCP_NONE;
+}
 
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
                               unsigned dest, unsigned srca)
 {
     TCGv tdest, tsrca;
     const char *mnemonic;
+    TCGMemOp memop;
 
     /* Eliminate nops before doing anything else.  */
     switch (opext) {
@@ -275,21 +290,70 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     case OE_RR_Y1(JRP):
     case OE_RR_X1(JR):
     case OE_RR_Y1(JR):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RR_X1(LD1S):
+        memop = MO_SB;
+        mnemonic = "ld1s";
+        goto do_load;
     case OE_RR_X1(LD1U):
+        memop = MO_UB;
+        mnemonic = "ld1u";
+        goto do_load;
     case OE_RR_X1(LD2S):
+        memop = MO_TESW;
+        mnemonic = "ld2s";
+        goto do_load;
     case OE_RR_X1(LD2U):
+        memop = MO_TEUW;
+        mnemonic = "ld2u";
+        goto do_load;
     case OE_RR_X1(LD4S):
+        memop = MO_TESL;
+        mnemonic = "ld4s";
+        goto do_load;
     case OE_RR_X1(LD4U):
-    case OE_RR_X1(LDNA):
+        memop = MO_TEUL;
+        mnemonic = "ld4u";
+        goto do_load;
     case OE_RR_X1(LDNT1S):
+        memop = MO_SB;
+        mnemonic = "ldnt1s";
+        goto do_load;
     case OE_RR_X1(LDNT1U):
+        memop = MO_UB;
+        mnemonic = "ldnt1u";
+        goto do_load;
     case OE_RR_X1(LDNT2S):
+        memop = MO_TESW;
+        mnemonic = "ldnt2s";
+        goto do_load;
     case OE_RR_X1(LDNT2U):
+        memop = MO_TEUW;
+        mnemonic = "ldnt2u";
+        goto do_load;
     case OE_RR_X1(LDNT4S):
+        memop = MO_TESL;
+        mnemonic = "ldnt4s";
+        goto do_load;
     case OE_RR_X1(LDNT4U):
+        memop = MO_TEUL;
+        mnemonic = "ldnt4u";
+        goto do_load;
     case OE_RR_X1(LDNT):
+        memop = MO_TEQ;
+        mnemonic = "ldnt";
+        goto do_load;
     case OE_RR_X1(LD):
+        memop = MO_TEQ;
+        mnemonic = "ld";
+    do_load:
+        tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        break;
+    case OE_RR_X1(LDNA):
+        tcg_gen_andi_tl(tdest, tsrca, ~7);
+        tcg_gen_qemu_ld_tl(tdest, tdest, dc->mmuidx, MO_TEQ);
+        mnemonic = "ldna";
+        break;
     case OE_RR_X1(LNK):
     case OE_RR_Y1(LNK):
     case OE_RR_X1(MF):
@@ -583,15 +647,6 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         gen_helper_shufflebytes(tdest, load_gr(dc, dest), tsrca, tsrca);
         mnemonic = "shufflebytes";
         break;
-    case OE_RRR(ST1, 0, X1):
-    case OE_RRR(ST2, 0, X1):
-    case OE_RRR(ST4, 0, X1):
-    case OE_RRR(STNT1, 0, X1):
-    case OE_RRR(STNT2, 0, X1):
-    case OE_RRR(STNT4, 0, X1):
-    case OE_RRR(STNT, 0, X1):
-    case OE_RRR(ST, 0, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(SUBXSC, 0, X0):
     case OE_RRR(SUBXSC, 0, X1):
         gen_saturate_op(tdest, tsrca, tsrcb, tcg_gen_sub_tl);
@@ -1098,27 +1153,55 @@ static TileExcp decode_y2(DisasContext *dc, tilegx_bundle_bits bundle)
     unsigned srca = get_SrcA_Y2(bundle);
     unsigned srcbdest = get_SrcBDest_Y2(bundle);
     const char *mnemonic;
+    TCGMemOp memop;
 
     switch (OEY2(opc, mode)) {
     case OEY2(LD1S_OPCODE_Y2, MODE_OPCODE_YA2):
+        memop = MO_SB;
+        mnemonic = "ld1s";
+        goto do_load;
     case OEY2(LD1U_OPCODE_Y2, MODE_OPCODE_YA2):
+        memop = MO_UB;
+        mnemonic = "ld1u";
+        goto do_load;
     case OEY2(LD2S_OPCODE_Y2, MODE_OPCODE_YA2):
+        memop = MO_TESW;
+        mnemonic = "ld2s";
+        goto do_load;
     case OEY2(LD2U_OPCODE_Y2, MODE_OPCODE_YA2):
+        memop = MO_TEUW;
+        mnemonic = "ld2u";
+        goto do_load;
     case OEY2(LD4S_OPCODE_Y2, MODE_OPCODE_YB2):
+        memop = MO_TESL;
+        mnemonic = "ld4s";
+        goto do_load;
     case OEY2(LD4U_OPCODE_Y2, MODE_OPCODE_YB2):
+        memop = MO_TEUL;
+        mnemonic = "ld4u";
+        goto do_load;
     case OEY2(LD_OPCODE_Y2, MODE_OPCODE_YB2):
+        memop = MO_TEQ;
+        mnemonic = "ld";
+    do_load:
+        tcg_gen_qemu_ld_tl(dest_gr(dc, srcbdest), load_gr(dc, srca),
+                           dc->mmuidx, memop);
+        qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", mnemonic,
+                      reg_names[srcbdest], reg_names[srca]);
+        return TILEGX_EXCP_NONE;
 
     case OEY2(ST1_OPCODE_Y2, MODE_OPCODE_YC2):
+        return gen_st_opcode(dc, 0, srca, srcbdest, MO_UB, "st1");
     case OEY2(ST2_OPCODE_Y2, MODE_OPCODE_YC2):
+        return gen_st_opcode(dc, 0, srca, srcbdest, MO_TEUW, "st2");
     case OEY2(ST4_OPCODE_Y2, MODE_OPCODE_YC2):
+        return gen_st_opcode(dc, 0, srca, srcbdest, MO_TEUL, "st4");
     case OEY2(ST_OPCODE_Y2, MODE_OPCODE_YC2):
+        return gen_st_opcode(dc, 0, srca, srcbdest, MO_TEQ, "st");
 
     default:
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
-    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", mnemonic,
-                  reg_names[srca], reg_names[srcbdest]);
-    return TILEGX_EXCP_NONE;
 }
 
 static TileExcp decode_x0(DisasContext *dc, tilegx_bundle_bits bundle)
@@ -1177,11 +1260,28 @@ static TileExcp decode_x1(DisasContext *dc, tilegx_bundle_bits bundle)
     switch (opc) {
     case RRR_0_OPCODE_X1:
         ext = get_RRROpcodeExtension_X1(bundle);
-        if (ext == UNARY_RRR_0_OPCODE_X1) {
+        srcb = get_SrcB_X1(bundle);
+        switch (ext) {
+        case UNARY_RRR_0_OPCODE_X1:
             ext = get_UnaryOpcodeExtension_X1(bundle);
             return gen_rr_opcode(dc, OE(opc, ext, X1), dest, srca);
+        case ST1_RRR_0_OPCODE_X1:
+            return gen_st_opcode(dc, dest, srca, srcb, MO_UB, "st1");
+        case ST2_RRR_0_OPCODE_X1:
+            return gen_st_opcode(dc, dest, srca, srcb, MO_TEUW, "st2");
+        case ST4_RRR_0_OPCODE_X1:
+            return gen_st_opcode(dc, dest, srca, srcb, MO_TEUL, "st4");
+        case STNT1_RRR_0_OPCODE_X1:
+            return gen_st_opcode(dc, dest, srca, srcb, MO_UB, "stnt1");
+        case STNT2_RRR_0_OPCODE_X1:
+            return gen_st_opcode(dc, dest, srca, srcb, MO_TEUW, "stnt2");
+        case STNT4_RRR_0_OPCODE_X1:
+            return gen_st_opcode(dc, dest, srca, srcb, MO_TEUL, "stnt4");
+        case STNT_RRR_0_OPCODE_X1:
+            return gen_st_opcode(dc, dest, srca, srcb, MO_TEQ, "stnt");
+        case ST_RRR_0_OPCODE_X1:
+            return gen_st_opcode(dc, dest, srca, srcb, MO_TEQ, "st");
         }
-        srcb = get_SrcB_X1(bundle);
         return gen_rrr_opcode(dc, OE(opc, ext, X1), dest, srca, srcb);
 
     case SHIFT_OPCODE_X1:
