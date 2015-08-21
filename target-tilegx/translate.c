@@ -249,7 +249,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     const char *mnemonic;
     TCGMemOp memop;
 
-    /* Eliminate nops before doing anything else.  */
+    /* Eliminate nops and jumps before doing anything else.  */
     switch (opext) {
     case OE_RR_Y0(NOP):
     case OE_RR_Y1(NOP):
@@ -267,6 +267,31 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
             return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
         }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
+        return TILEGX_EXCP_NONE;
+
+    case OE_RR_X1(JRP):
+    case OE_RR_Y1(JRP):
+        mnemonic = "jrp";
+        goto do_jr;
+    case OE_RR_X1(JR):
+    case OE_RR_Y1(JR):
+        mnemonic = "jr";
+        goto do_jr;
+    case OE_RR_X1(JALRP):
+    case OE_RR_Y1(JALRP):
+        mnemonic = "jalrp";
+        goto do_jalr;
+    case OE_RR_X1(JALR):
+    case OE_RR_Y1(JALR):
+        mnemonic = "jalr";
+    do_jalr:
+        tcg_gen_movi_tl(dest_gr(dc, TILEGX_R_LR),
+                        dc->pc + TILEGX_BUNDLE_SIZE_IN_BYTES);
+    do_jr:
+        dc->jmp.cond = TCG_COND_ALWAYS;
+        dc->jmp.dest = tcg_temp_new();
+        tcg_gen_andi_tl(dc->jmp.dest, load_gr(dc, srca), ~7);
+        qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s", mnemonic, reg_names[srca]);
         return TILEGX_EXCP_NONE;
     }
 
@@ -296,14 +321,6 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     case OE_RR_Y1(ILL):
     case OE_RR_X1(INV):
     case OE_RR_X1(IRET):
-    case OE_RR_X1(JALRP):
-    case OE_RR_Y1(JALRP):
-    case OE_RR_X1(JALR):
-    case OE_RR_Y1(JALR):
-    case OE_RR_X1(JRP):
-    case OE_RR_Y1(JRP):
-    case OE_RR_X1(JR):
-    case OE_RR_Y1(JR):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RR_X1(LD1S):
         memop = MO_SB;
@@ -370,6 +387,12 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RR_X1(LNK):
     case OE_RR_Y1(LNK):
+        if (srca) {
+            return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        }
+        tcg_gen_movi_tl(tdest, dc->pc + TILEGX_BUNDLE_SIZE_IN_BYTES);
+        mnemonic = "lnk";
+        break;
     case OE_RR_X1(MF):
     case OE_RR_X1(NAP):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
@@ -1094,18 +1117,19 @@ static TileExcp gen_branch_opcode_x1(DisasContext *dc, unsigned ext,
     return TILEGX_EXCP_NONE;
 }
 
-static TileExcp gen_jump_opcode_x1(DisasContext *dc, unsigned ext,
-                                   int off)
+static TileExcp gen_jump_opcode_x1(DisasContext *dc, unsigned ext, int off)
 {
     target_ulong tgt = dc->pc + off * TILEGX_BUNDLE_SIZE_IN_BYTES;
-    const char *mnemonic;
+    const char *mnemonic = "j";
 
-    switch (ext) {
-    case JAL_JUMP_OPCODE_X1:
-    case J_JUMP_OPCODE_X1:
-    default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+    /* The extension field is 1 bit, therefore we only have JAL and J.  */
+    if (ext == JAL_JUMP_OPCODE_X1) {
+        tcg_gen_movi_tl(dest_gr(dc, TILEGX_R_LR),
+                        dc->pc + TILEGX_BUNDLE_SIZE_IN_BYTES);
+        mnemonic = "jal";
     }
+    dc->jmp.cond = TCG_COND_ALWAYS;
+    dc->jmp.dest = tcg_const_tl(tgt);
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("%s " TARGET_FMT_lx " <%s>",
