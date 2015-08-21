@@ -5308,10 +5308,10 @@ static void pgraph_method(NV2AState *d,
                 NV_PGRAPH_CLEARRECTY_YMAX);
 
         unsigned int scissor_x = xmin;
-        unsigned int scissor_y = pg->surface_shape.clip_height-ymax;
+        unsigned int scissor_y = pg->surface_shape.clip_height - ymax - 1;
 
-        unsigned int scissor_width = xmax-xmin+1;
-        unsigned int scissor_height = ymax-ymin+1;
+        unsigned int scissor_width = xmax - xmin + 1;
+        unsigned int scissor_height = ymax - ymin + 1;
 
         pgraph_apply_anti_aliasing_factor(pg, &scissor_x, &scissor_y);
         pgraph_apply_anti_aliasing_factor(pg, &scissor_width, &scissor_height);
