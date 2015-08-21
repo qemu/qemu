@@ -177,6 +177,43 @@ static void gen_saturate_op(TCGv tdest, TCGv tsrca, TCGv tsrcb,
     tcg_temp_free(t0);
 }
 
+/* Shift the 128-bit value TSRCA:TSRCD right by the number of bytes
+   specified by the bottom 3 bits of TSRCB, and set TDEST to the
+   low 64 bits of the resulting value.  */
+static void gen_dblalign(TCGv tdest, TCGv tsrcd, TCGv tsrca, TCGv tsrcb)
+{
+    TCGv t0 = tcg_temp_new();
+
+    tcg_gen_andi_tl(t0, tsrcb, 7);
+    tcg_gen_shli_tl(t0, t0, 3);
+    tcg_gen_shr_tl(tdest, tsrcd, t0);
+
+    /* We want to do "t0 = tsrca << (64 - t0)".  Two's complement
+       arithmetic on a 6-bit field tells us that 64 - t0 is equal
+       to (t0 ^ 63) + 1.  So we can do the shift in two parts,
+       neither of which will be an invalid shift by 64.  */
+    tcg_gen_xori_tl(t0, t0, 63);
+    tcg_gen_shl_tl(t0, tsrca, t0);
+    tcg_gen_shli_tl(t0, t0, 1);
+    tcg_gen_or_tl(tdest, tdest, t0);
+
+    tcg_temp_free(t0);
+}
+
+/* Similarly, except that the 128-bit value is TSRCA:TSRCB, and the
+   right shift is an immediate.  */
+static void gen_dblaligni(TCGv tdest, TCGv tsrca, TCGv tsrcb, int shr)
+{
+    TCGv t0 = tcg_temp_new();
+
+    tcg_gen_shri_tl(t0, tsrcb, shr);
+    tcg_gen_shli_tl(tdest, tsrca, 64 - shr);
+    tcg_gen_or_tl(tdest, tdest, t0);
+
+    tcg_temp_free(t0);
+}
+
+
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
                               unsigned dest, unsigned srca)
 {
@@ -210,8 +247,14 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     switch (opext) {
     case OE_RR_X0(CNTLZ):
     case OE_RR_Y0(CNTLZ):
+        gen_helper_cntlz(tdest, tsrca);
+        mnemonic = "cntlz";
+        break;
     case OE_RR_X0(CNTTZ):
     case OE_RR_Y0(CNTTZ):
+        gen_helper_cnttz(tdest, tsrca);
+        mnemonic = "cnttz";
+        break;
     case OE_RR_X1(DRAIN):
     case OE_RR_X1(DTLBPR):
     case OE_RR_X1(FINV):
@@ -251,11 +294,17 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     case OE_RR_Y1(LNK):
     case OE_RR_X1(MF):
     case OE_RR_X1(NAP):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RR_X0(PCNT):
     case OE_RR_Y0(PCNT):
+        gen_helper_pcnt(tdest, tsrca);
+        mnemonic = "pcnt";
+        break;
     case OE_RR_X0(REVBITS):
     case OE_RR_Y0(REVBITS):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        gen_helper_revbits(tdest, tsrca);
+        mnemonic = "revbits";
+        break;
     case OE_RR_X0(REVBYTES):
     case OE_RR_Y0(REVBYTES):
         tcg_gen_bswap64_tl(tdest, tsrca);
@@ -358,13 +407,26 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(CMUL, 0, X0):
     case OE_RRR(CRC32_32, 0, X0):
     case OE_RRR(CRC32_8, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(DBLALIGN2, 0, X0):
     case OE_RRR(DBLALIGN2, 0, X1):
+        gen_dblaligni(tdest, tsrca, tsrcb, 16);
+        mnemonic = "dblalign2";
+        break;
     case OE_RRR(DBLALIGN4, 0, X0):
     case OE_RRR(DBLALIGN4, 0, X1):
+        gen_dblaligni(tdest, tsrca, tsrcb, 32);
+        mnemonic = "dblalign4";
+        break;
     case OE_RRR(DBLALIGN6, 0, X0):
     case OE_RRR(DBLALIGN6, 0, X1):
+        gen_dblaligni(tdest, tsrca, tsrcb, 48);
+        mnemonic = "dblalign6";
+        break;
     case OE_RRR(DBLALIGN, 0, X0):
+        gen_dblalign(tdest, load_gr(dc, dest), tsrca, tsrcb);
+        mnemonic = "dblalign";
+        break;
     case OE_RRR(EXCH4, 0, X1):
     case OE_RRR(EXCH, 0, X1):
     case OE_RRR(FDOUBLE_ADDSUB, 0, X0):
@@ -516,7 +578,11 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(SHRU, 0, X1):
     case OE_RRR(SHRU, 6, Y0):
     case OE_RRR(SHRU, 6, Y1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(SHUFFLEBYTES, 0, X0):
+        gen_helper_shufflebytes(tdest, load_gr(dc, dest), tsrca, tsrca);
+        mnemonic = "shufflebytes";
+        break;
     case OE_RRR(ST1, 0, X1):
     case OE_RRR(ST2, 0, X1):
     case OE_RRR(ST4, 0, X1):
