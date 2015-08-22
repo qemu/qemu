@@ -20,8 +20,9 @@
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/smbus.h"
+#include <qemu/config-file.h>
 
-/* 
+/*
  * Hardware is a PIC16LC
  * http://www.xbox-linux.org/wiki/PIC
  */
@@ -68,6 +69,7 @@ static const char* smc_version_string = "P01";
 typedef struct SMBusSMCDevice {
     SMBusDevice smbusdev;
     int versionStringIndex;
+    bool useShortAnimation;
 } SMBusSMCDevice;
 
 static void smc_quick_cmd(SMBusDevice *dev, uint8_t read)
@@ -128,7 +130,7 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
         printf("smc_read_data: addr=0x%02x cmd=0x%02x n=%d\n",
                dev->i2c.address, cmd, n);
     #endif
-    
+
     switch(cmd) {
         case SMC_REG_VER:
             return smc_version_string[
@@ -137,9 +139,11 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
             /* pretend to have a composite av pack plugged in */
             return SMC_REG_AVPACK_COMPOSITE;
 
-        case SMC_REG_SCRATCH:
+        case SMC_REG_SCRATCH: {
+            if (smc->useShortAnimation)
+                return SMC_REG_SCRATCH_SHORT_ANIMATION;
             return 0;
-            // return SMC_REG_SCRATCH_SHORT_ANIMATION;
+        }
 
         /* challenge request:
          * must be non-0 */
@@ -155,15 +159,19 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
         default:
             break;
     }
-    
+
     return 0;
 }
 
 static int smbus_smc_init(SMBusDevice *dev)
 {
+    QemuOpts *opts;
     SMBusSMCDevice *smc = (SMBusSMCDevice *)dev;
-    
+
     smc->versionStringIndex = 0;
+
+    opts = qemu_opts_find(qemu_find_opts("machine"), NULL);
+    smc->useShortAnimation = qemu_opt_get_bool(opts, "short_animation", 0);
 
     return 0;
 }
