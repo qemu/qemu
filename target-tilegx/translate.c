@@ -24,6 +24,7 @@
 #include "tcg-op.h"
 #include "exec/cpu_ldst.h"
 #include "opcode_tilegx.h"
+#include "spr_def_64.h"
 
 #define FMT64X                          "%016" PRIx64
 
@@ -1222,9 +1223,6 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
         mnemonic = "ldna_add";
         break;
-    case OE_IM(MFSPR, X1):
-    case OE_IM(MTSPR, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_IM(ORI, X0):
     case OE_IM(ORI, X1):
         tcg_gen_ori_tl(tdest, tsrca, imm);
@@ -1524,6 +1522,74 @@ static TileExcp gen_jump_opcode_x1(DisasContext *dc, unsigned ext, int off)
     return TILEGX_EXCP_NONE;
 }
 
+typedef struct {
+    const char *name;
+    intptr_t offset;
+    void (*get)(TCGv, TCGv_ptr);
+    void (*put)(TCGv_ptr, TCGv);
+} TileSPR;
+
+static const TileSPR *find_spr(unsigned spr)
+{
+    /* Allow the compiler to construct the binary search tree.  */
+#define D(N, O, G, P) \
+    case SPR_##N: { static const TileSPR x = { #N, O, G, P }; return &x; }
+
+    switch (spr) {
+    D(CMPEXCH_VALUE,
+      offsetof(CPUTLGState, spregs[TILEGX_SPR_CMPEXCH]), 0, 0)
+    D(INTERRUPT_CRITICAL_SECTION,
+      offsetof(CPUTLGState, spregs[TILEGX_SPR_CRITICAL_SEC]), 0, 0)
+    D(SIM_CONTROL,
+      offsetof(CPUTLGState, spregs[TILEGX_SPR_SIM_CONTROL]), 0, 0)
+    }
+
+#undef D
+
+    qemu_log_mask(LOG_UNIMP, "UNIMP SPR %u\n", spr);
+    return NULL;
+}
+
+static TileExcp gen_mtspr_x1(DisasContext *dc, unsigned spr, unsigned srca)
+{
+    const TileSPR *def = find_spr(spr);
+    TCGv tsrca;
+
+    if (def == NULL) {
+        qemu_log_mask(CPU_LOG_TB_IN_ASM, "mtspr spr[%u], %s", spr, reg_names[srca]);
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
+    }
+
+    tsrca = load_gr(dc, srca);
+    if (def->put) {
+        def->put(cpu_env, tsrca);
+    } else {
+        tcg_gen_st_tl(tsrca, cpu_env, def->offset);
+    }
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "mtspr %s, %s", def->name, reg_names[srca]);
+    return TILEGX_EXCP_NONE;
+}
+
+static TileExcp gen_mfspr_x1(DisasContext *dc, unsigned dest, unsigned spr)
+{
+    const TileSPR *def = find_spr(spr);
+    TCGv tdest;
+
+    if (def == NULL) {
+        qemu_log_mask(CPU_LOG_TB_IN_ASM, "mtspr %s, spr[%u]", reg_names[dest], spr);
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
+    }
+
+    tdest = dest_gr(dc, dest);
+    if (def->get) {
+        def->get(tdest, cpu_env);
+    } else {
+        tcg_gen_ld_tl(tdest, cpu_env, def->offset);
+    }
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "mfspr %s, %s", reg_names[dest], def->name);
+    return TILEGX_EXCP_NONE;
+}
+
 static TileExcp decode_y0(DisasContext *dc, tilegx_bundle_bits bundle)
 {
     unsigned opc = get_Opcode_Y0(bundle);
@@ -1778,6 +1844,10 @@ static TileExcp decode_x1(DisasContext *dc, tilegx_bundle_bits bundle)
             return gen_st_add_opcode(dc, srca, srcb, imm, MO_TEQ, "stnt_add");
         case ST_ADD_IMM8_OPCODE_X1:
             return gen_st_add_opcode(dc, srca, srcb, imm, MO_TEQ, "st_add");
+        case MFSPR_IMM8_OPCODE_X1:
+            return gen_mfspr_x1(dc, dest, get_MF_Imm14_X1(bundle));
+        case MTSPR_IMM8_OPCODE_X1:
+            return gen_mtspr_x1(dc, get_MT_Imm14_X1(bundle), srca);
         }
         imm = (int8_t)get_Imm8_X1(bundle);
         return gen_rri_opcode(dc, OE(opc, ext, X1), dest, srca, imm);
