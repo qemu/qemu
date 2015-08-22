@@ -69,6 +69,7 @@ static const char* smc_version_string = "P01";
 typedef struct SMBusSMCDevice {
     SMBusDevice smbusdev;
     int versionStringIndex;
+    bool useShortAnimation;
 } SMBusSMCDevice;
 
 static void smc_quick_cmd(SMBusDevice *dev, uint8_t read)
@@ -139,13 +140,8 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
             return SMC_REG_AVPACK_COMPOSITE;
 
         case SMC_REG_SCRATCH: {
-            /* Skip boot animation if the "short_animation" flag was set. */
-            QemuOpts *opts = qemu_opts_find(qemu_find_opts("machine"), NULL);
-            if (opts && qemu_opt_get_bool(opts, "short_animation", 0))
-            {
+            if (smc->useShortAnimation)
                 return SMC_REG_SCRATCH_SHORT_ANIMATION;
-            }
-
             return 0;
         }
 
@@ -169,9 +165,13 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
 
 static int smbus_smc_init(SMBusDevice *dev)
 {
+    QemuOpts *opts;
     SMBusSMCDevice *smc = (SMBusSMCDevice *)dev;
 
     smc->versionStringIndex = 0;
+
+    opts = qemu_opts_find(qemu_find_opts("machine"), NULL);
+    smc->useShortAnimation = qemu_opt_get_bool(opts, "short_animation", 0);
 
     return 0;
 }
