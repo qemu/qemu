@@ -213,6 +213,38 @@ static void gen_dblaligni(TCGv tdest, TCGv tsrca, TCGv tsrcb, int shr)
     tcg_temp_free(t0);
 }
 
+typedef enum {
+    LU, LS, HU, HS
+} MulHalf;
+
+static void gen_ext_half(TCGv d, TCGv s, MulHalf h)
+{
+    switch (h) {
+    case LU:
+        tcg_gen_ext32u_tl(d, s);
+        break;
+    case LS:
+        tcg_gen_ext32s_tl(d, s);
+        break;
+    case HU:
+        tcg_gen_shri_tl(d, s, 32);
+        break;
+    case HS:
+        tcg_gen_sari_tl(d, s, 32);
+        break;
+    }
+}
+
+static void gen_mul_half(TCGv tdest, TCGv tsrca, TCGv tsrcb,
+                         MulHalf ha, MulHalf hb)
+{
+    TCGv t = tcg_temp_new();
+    gen_ext_half(t, tsrca, ha);
+    gen_ext_half(tdest, tsrcb, hb);
+    tcg_gen_mul_tl(tdest, tdest, t);
+    tcg_temp_free(t);
+}
+
 static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
                               unsigned srcb, TCGMemOp memop, const char *name)
 {
@@ -615,38 +647,118 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(MNZ, 0, X1):
     case OE_RRR(MNZ, 4, Y0):
     case OE_RRR(MNZ, 4, Y1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(MULAX, 0, X0):
     case OE_RRR(MULAX, 3, Y0):
+        tcg_gen_mul_tl(tdest, tsrca, tsrcb);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "mulax";
+        break;
     case OE_RRR(MULA_HS_HS, 0, X0):
     case OE_RRR(MULA_HS_HS, 9, Y0):
+        gen_mul_half(tdest, tsrca, tsrcb, HS, HS);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_hs_hs";
+        break;
     case OE_RRR(MULA_HS_HU, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HS, HU);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_hs_hu";
+        break;
     case OE_RRR(MULA_HS_LS, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HS, LS);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_hs_ls";
+        break;
     case OE_RRR(MULA_HS_LU, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HS, LU);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_hs_lu";
+        break;
     case OE_RRR(MULA_HU_HU, 0, X0):
     case OE_RRR(MULA_HU_HU, 9, Y0):
+        gen_mul_half(tdest, tsrca, tsrcb, HU, HU);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_hu_hu";
+        break;
     case OE_RRR(MULA_HU_LS, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HU, LS);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_hu_ls";
+        break;
     case OE_RRR(MULA_HU_LU, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HU, LU);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_hu_lu";
+        break;
     case OE_RRR(MULA_LS_LS, 0, X0):
     case OE_RRR(MULA_LS_LS, 9, Y0):
+        gen_mul_half(tdest, tsrca, tsrcb, LS, LS);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_ls_ls";
+        break;
     case OE_RRR(MULA_LS_LU, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, LS, LU);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_ls_lu";
+        break;
     case OE_RRR(MULA_LU_LU, 0, X0):
     case OE_RRR(MULA_LU_LU, 9, Y0):
+        gen_mul_half(tdest, tsrca, tsrcb, LU, LU);
+        tcg_gen_add_tl(tdest, tdest, load_gr(dc, dest));
+        mnemonic = "mula_lu_lu";
+        break;
     case OE_RRR(MULX, 0, X0):
     case OE_RRR(MULX, 3, Y0):
+        tcg_gen_mul_tl(tdest, tsrca, tsrcb);
+        tcg_gen_ext32s_tl(tdest, tdest);
+        mnemonic = "mulx";
+        break;
     case OE_RRR(MUL_HS_HS, 0, X0):
     case OE_RRR(MUL_HS_HS, 8, Y0):
+        gen_mul_half(tdest, tsrca, tsrcb, HS, HS);
+        mnemonic = "mul_hs_hs";
+        break;
     case OE_RRR(MUL_HS_HU, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HS, HU);
+        mnemonic = "mul_hs_hu";
+        break;
     case OE_RRR(MUL_HS_LS, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HS, LS);
+        mnemonic = "mul_hs_ls";
+        break;
     case OE_RRR(MUL_HS_LU, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HS, LU);
+        mnemonic = "mul_hs_lu";
+        break;
     case OE_RRR(MUL_HU_HU, 0, X0):
     case OE_RRR(MUL_HU_HU, 8, Y0):
+        gen_mul_half(tdest, tsrca, tsrcb, HU, HU);
+        mnemonic = "mul_hu_hu";
+        break;
     case OE_RRR(MUL_HU_LS, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HU, LS);
+        mnemonic = "mul_hu_ls";
+        break;
     case OE_RRR(MUL_HU_LU, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, HU, LU);
+        mnemonic = "mul_hu_lu";
+        break;
     case OE_RRR(MUL_LS_LS, 0, X0):
     case OE_RRR(MUL_LS_LS, 8, Y0):
+        gen_mul_half(tdest, tsrca, tsrcb, LS, LS);
+        mnemonic = "mul_ls_ls";
+        break;
     case OE_RRR(MUL_LS_LU, 0, X0):
+        gen_mul_half(tdest, tsrca, tsrcb, LS, LU);
+        mnemonic = "mul_ls_lu";
+        break;
     case OE_RRR(MUL_LU_LU, 0, X0):
     case OE_RRR(MUL_LU_LU, 8, Y0):
+        gen_mul_half(tdest, tsrca, tsrcb, LU, LU);
+        mnemonic = "mul_lu_lu";
+        break;
     case OE_RRR(MZ, 0, X0):
     case OE_RRR(MZ, 0, X1):
     case OE_RRR(MZ, 4, Y0):
