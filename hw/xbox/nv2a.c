@@ -1971,13 +1971,17 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
                     }
                 }
 
-                attribute->converted_elements = num_elements;
 
                 glBindBuffer(GL_ARRAY_BUFFER, attribute->gl_converted_buffer);
-                glBufferData(GL_ARRAY_BUFFER,
-                             num_elements * out_stride,
-                             attribute->converted_buffer,
-                             GL_DYNAMIC_DRAW);
+                if (num_elements != attribute->converted_elements) {
+                    glBufferData(GL_ARRAY_BUFFER,
+                                 num_elements * out_stride,
+                                 attribute->converted_buffer,
+                                 GL_DYNAMIC_DRAW);
+                }
+
+                attribute->converted_elements = num_elements;
+
 
                 glVertexAttribPointer(i,
                     attribute->converted_count,
@@ -4613,7 +4617,9 @@ static void pgraph_method(NV2AState *d,
             vertex_attribute->needs_conversion = false;
             break;
         case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP:
-            /* "3 signed, normalized components packed in 32-bits. (11,11,10)" */
+            /* "3 signed, normalized components packed in 32-bits. (11,11,10)"
+             * TODO: This could use ARB_vertex_type_10f_11f_11f_rev where
+             * available. */
             vertex_attribute->size = 4;
             vertex_attribute->gl_type = GL_FLOAT;
             vertex_attribute->gl_normalize = GL_FALSE;
