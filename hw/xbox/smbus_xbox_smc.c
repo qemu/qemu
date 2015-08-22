@@ -20,7 +20,7 @@
 #include "hw/hw.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/smbus.h"
-#include <qemu/config-file.h>
+#include "qemu/config-file.h"
 
 /*
  * Hardware is a PIC16LC
@@ -68,8 +68,8 @@ static const char* smc_version_string = "P01";
 
 typedef struct SMBusSMCDevice {
     SMBusDevice smbusdev;
-    int versionStringIndex;
-    bool useShortAnimation;
+    int version_string_index;
+    uint8_t scratch_reg;
 } SMBusSMCDevice;
 
 static void smc_quick_cmd(SMBusDevice *dev, uint8_t read)
@@ -105,21 +105,21 @@ static void smc_write_data(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len)
 #endif
 
     switch(cmd) {
-        case SMC_REG_VER:
-            /* version string reset */
-            smc->versionStringIndex = buf[0];
-            break;
+    case SMC_REG_VER:
+        /* version string reset */
+        smc->version_string_index = buf[0];
+        break;
 
-        /* challenge response
-         * (http://www.xbox-linux.org/wiki/PIC_Challenge_Handshake_Sequence) */
-        case 0x20:
-            break;
-        case 0x21:
-            break;
+    /* challenge response
+     * (http://www.xbox-linux.org/wiki/PIC_Challenge_Handshake_Sequence) */
+    case 0x20:
+        break;
+    case 0x21:
+        break;
 
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
@@ -132,32 +132,29 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
     #endif
 
     switch(cmd) {
-        case SMC_REG_VER:
-            return smc_version_string[
-                smc->versionStringIndex++%(sizeof(smc_version_string)-1)];
-        case SMC_REG_AVPACK:
-            /* pretend to have a composite av pack plugged in */
-            return SMC_REG_AVPACK_COMPOSITE;
+    case SMC_REG_VER:
+        return smc_version_string[
+            smc->version_string_index++%(sizeof(smc_version_string)-1)];
+    case SMC_REG_AVPACK:
+        /* pretend to have a composite av pack plugged in */
+        return SMC_REG_AVPACK_COMPOSITE;
 
-        case SMC_REG_SCRATCH: {
-            if (smc->useShortAnimation)
-                return SMC_REG_SCRATCH_SHORT_ANIMATION;
-            return 0;
-        }
+    case SMC_REG_SCRATCH:
+        return smc->scratch_reg;
 
-        /* challenge request:
-         * must be non-0 */
-        case 0x1c:
-            return 0x52;
-        case 0x1d:
-            return 0x72;
-        case 0x1e:
-            return 0xea;
-        case 0x1f:
-            return 0x46;
+    /* challenge request:
+     * must be non-0 */
+    case 0x1c:
+        return 0x52;
+    case 0x1d:
+        return 0x72;
+    case 0x1e:
+        return 0xea;
+    case 0x1f:
+        return 0x46;
 
-        default:
-            break;
+    default:
+        break;
     }
 
     return 0;
@@ -168,10 +165,13 @@ static int smbus_smc_init(SMBusDevice *dev)
     QemuOpts *opts;
     SMBusSMCDevice *smc = (SMBusSMCDevice *)dev;
 
-    smc->versionStringIndex = 0;
+    smc->version_string_index = 0;
+    smc->scratch_reg = 0;
 
     opts = qemu_opts_find(qemu_find_opts("machine"), NULL);
-    smc->useShortAnimation = qemu_opt_get_bool(opts, "short_animation", 0);
+    if (opts && qemu_opt_get_bool(opts, "short_animation", 0)) {
+        smc->scratch_reg = SMC_REG_SCRATCH_SHORT_ANIMATION;
+    }
 
     return 0;
 }
