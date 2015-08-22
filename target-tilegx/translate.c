@@ -643,11 +643,15 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(FSINGLE_MUL2, 0, X0):
     case OE_RRR(FSINGLE_PACK2, 0, X0):
     case OE_RRR(FSINGLE_SUB1, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(MNZ, 0, X0):
     case OE_RRR(MNZ, 0, X1):
     case OE_RRR(MNZ, 4, Y0):
     case OE_RRR(MNZ, 4, Y1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        t0 = load_zero(dc);
+        tcg_gen_movcond_tl(TCG_COND_NE, tdest, tsrca, t0, tsrcb, t0);
+        mnemonic = "mnz";
+        break;
     case OE_RRR(MULAX, 0, X0):
     case OE_RRR(MULAX, 3, Y0):
         tcg_gen_mul_tl(tdest, tsrca, tsrcb);
@@ -763,7 +767,10 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(MZ, 0, X1):
     case OE_RRR(MZ, 4, Y0):
     case OE_RRR(MZ, 4, Y1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        t0 = load_zero(dc);
+        tcg_gen_movcond_tl(TCG_COND_EQ, tdest, tsrca, t0, tsrcb, t0);
+        mnemonic = "mz";
+        break;
     case OE_RRR(NOR, 0, X0):
     case OE_RRR(NOR, 0, X1):
     case OE_RRR(NOR, 5, Y0):
