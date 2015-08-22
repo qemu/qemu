@@ -503,9 +503,16 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RRR(CMOVEQZ, 0, X0):
     case OE_RRR(CMOVEQZ, 4, Y0):
+        tcg_gen_movcond_tl(TCG_COND_EQ, tdest, tsrca, load_zero(dc),
+                           tsrcb, load_gr(dc, dest));
+        mnemonic = "cmoveqz";
+        break;
     case OE_RRR(CMOVNEZ, 0, X0):
     case OE_RRR(CMOVNEZ, 4, Y0):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        tcg_gen_movcond_tl(TCG_COND_NE, tdest, tsrca, load_zero(dc),
+                           tsrcb, load_gr(dc, dest));
+        mnemonic = "cmovnez";
+        break;
     case OE_RRR(CMPEQ, 0, X0):
     case OE_RRR(CMPEQ, 0, X1):
     case OE_RRR(CMPEQ, 3, Y0):
