@@ -441,9 +441,9 @@ static QemuOptsList qemu_machine_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Chihiro mediaboard filesystem file",
         },{
-            .name = "skipanim",
+            .name = "short_animation",
             .type = QEMU_OPT_BOOL,
-            .help = "Skip boot animation",
+            .help = "Skip Xbox boot animation",
         },
         { /* End of list */ }
     },

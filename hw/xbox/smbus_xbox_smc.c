@@ -139,9 +139,9 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
             return SMC_REG_AVPACK_COMPOSITE;
 
         case SMC_REG_SCRATCH: {
-            /* Skip boot animation if the "skipanim" flag was set. */
+            /* Skip boot animation if the "short_animation" flag was set. */
             QemuOpts *opts = qemu_opts_find(qemu_find_opts("machine"), NULL);
-            if (opts && qemu_opt_get_bool(opts, "skipanim", 0))
+            if (opts && qemu_opt_get_bool(opts, "short_animation", 0))
             {
                 return SMC_REG_SCRATCH_SHORT_ANIMATION;
             }
