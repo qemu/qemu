@@ -93,6 +93,8 @@ typedef struct {
 #define OE_IM(E,XY)    OE(IMM8_OPCODE_##XY, E##_IMM8_OPCODE_##XY, XY)
 #define OE_SH(E,XY)    OE(SHIFT_OPCODE_##XY, E##_SHIFT_OPCODE_##XY, XY)
 
+#define V1_IMM(X)      (((X) & 0xff) * 0x0101010101010101ull)
+
 
 static void gen_exception(DisasContext *dc, TileExcp num)
 {
@@ -243,6 +245,41 @@ static void gen_mul_half(TCGv tdest, TCGv tsrca, TCGv tsrcb,
     gen_ext_half(tdest, tsrcb, hb);
     tcg_gen_mul_tl(tdest, tdest, t);
     tcg_temp_free(t);
+}
+
+/* Equality comparison with zero can be done quickly and efficiently.  */
+static void gen_v1cmpeq0(TCGv v)
+{
+    TCGv m = tcg_const_tl(V1_IMM(0x7f));
+    TCGv c = tcg_temp_new();
+
+    /* ~(((v & m) + m) | m | v).  Sets the msb for each byte == 0.  */
+    tcg_gen_and_tl(c, v, m);
+    tcg_gen_add_tl(c, c, m);
+    tcg_gen_or_tl(c, c, m);
+    tcg_gen_nor_tl(c, c, v);
+    tcg_temp_free(m);
+
+    /* Shift the msb down to form the lsb boolean result.  */
+    tcg_gen_shri_tl(v, c, 7);
+    tcg_temp_free(c);
+}
+
+static void gen_v1cmpne0(TCGv v)
+{
+    TCGv m = tcg_const_tl(V1_IMM(0x7f));
+    TCGv c = tcg_temp_new();
+
+    /* (((v & m) + m) | v) & ~m.  Sets the msb for each byte != 0.  */
+    tcg_gen_and_tl(c, v, m);
+    tcg_gen_add_tl(c, c, m);
+    tcg_gen_or_tl(c, c, v);
+    tcg_gen_andc_tl(c, c, m);
+    tcg_temp_free(m);
+
+    /* Shift the msb down to form the lsb boolean result.  */
+    tcg_gen_shri_tl(v, c, 7);
+    tcg_temp_free(c);
 }
 
 static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
@@ -915,8 +952,13 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V1ADD, 0, X1):
     case OE_RRR(V1ADIFFU, 0, X0):
     case OE_RRR(V1AVGU, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1CMPEQ, 0, X0):
     case OE_RRR(V1CMPEQ, 0, X1):
+        tcg_gen_xor_tl(tdest, tsrca, tsrcb);
+        gen_v1cmpeq0(tdest);
+        mnemonic = "v1cmpeq";
+        break;
     case OE_RRR(V1CMPLES, 0, X0):
     case OE_RRR(V1CMPLES, 0, X1):
     case OE_RRR(V1CMPLEU, 0, X0):
@@ -925,8 +967,13 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V1CMPLTS, 0, X1):
     case OE_RRR(V1CMPLTU, 0, X0):
     case OE_RRR(V1CMPLTU, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1CMPNE, 0, X0):
     case OE_RRR(V1CMPNE, 0, X1):
+        tcg_gen_xor_tl(tdest, tsrca, tsrcb);
+        gen_v1cmpne0(tdest);
+        mnemonic = "v1cmpne";
+        break;
     case OE_RRR(V1DDOTPUA, 0, X0):
     case OE_RRR(V1DDOTPUSA, 0, X0):
     case OE_RRR(V1DDOTPUS, 0, X0):
@@ -1187,6 +1234,10 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
     case OE_IM(V1ADDI, X1):
     case OE_IM(V1CMPEQI, X0):
     case OE_IM(V1CMPEQI, X1):
+        tcg_gen_xori_tl(tdest, tsrca, V1_IMM(imm));
+        gen_v1cmpeq0(tdest);
+        mnemonic = "v1cmpeqi";
+        break;
     case OE_IM(V1CMPLTSI, X0):
     case OE_IM(V1CMPLTSI, X1):
     case OE_IM(V1CMPLTUI, X0):
