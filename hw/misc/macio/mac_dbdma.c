@@ -590,10 +590,11 @@ dbdma_control_write(DBDMA_channel *ch)
     if ((ch->regs[DBDMA_STATUS] & RUN) && !(status & RUN)) {
         /* RUN is cleared */
         status &= ~(ACTIVE|DEAD);
-        if ((status & FLUSH) && ch->flush) {
-            ch->flush(&ch->io);
-            status &= ~FLUSH;
-        }
+    }
+
+    if ((status & FLUSH) && ch->flush) {
+        ch->flush(&ch->io);
+        status &= ~FLUSH;
     }
 
     DBDMA_DPRINTF("    status 0x%08x\n", status);
@@ -602,9 +603,6 @@ dbdma_control_write(DBDMA_channel *ch)
 
     if (status & ACTIVE) {
         DBDMA_kick(dbdma_from_ch(ch));
-    }
-    if ((status & FLUSH) && ch->flush) {
-        ch->flush(&ch->io);
     }
 }
 
