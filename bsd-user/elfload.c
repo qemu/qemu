@@ -1371,7 +1371,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
     info->mmap = 0;
     elf_entry = (abi_ulong) elf_ex.e_entry;
 
-#if defined(CONFIG_USE_GUEST_BASE)
     /*
      * In case where user has not explicitly set the guest_base, we
      * probe here that should we set it automatically.
@@ -1392,7 +1391,6 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
         }
     }
-#endif /* CONFIG_USE_GUEST_BASE */
 
     /* Do this so that we can load the interpreter, if need be.  We will
        change some of these later */

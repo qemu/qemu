@@ -160,16 +160,11 @@ static inline void tswap64s(uint64_t *s)
 /* On some host systems the guest address space is reserved on the host.
  * This allows the guest address space to be offset to a convenient location.
  */
-#if defined(CONFIG_USE_GUEST_BASE)
 extern unsigned long guest_base;
 extern int have_guest_base;
 extern unsigned long reserved_va;
 #define GUEST_BASE guest_base
 #define RESERVED_VA reserved_va
-#else
-#define GUEST_BASE 0ul
-#define RESERVED_VA 0ul
-#endif
 
 #define GUEST_ADDR_MAX (RESERVED_VA ? RESERVED_VA : \
                                     (1ul << TARGET_VIRT_ADDR_SPACE_BITS) - 1)

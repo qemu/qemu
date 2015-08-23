@@ -206,7 +206,6 @@ abi_ulong mmap_next_start = TASK_UNMAPPED_BASE;
 
 unsigned long last_brk;
 
-#ifdef CONFIG_USE_GUEST_BASE
 /* Subroutine of mmap_find_vma, used when we have pre-allocated a chunk
    of guest address space.  */
 static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size)
@@ -253,7 +252,6 @@ static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size)
 
     return addr;
 }
-#endif
 
 /*
  * Find and reserve a free memory area of size 'size'. The search
@@ -276,11 +274,9 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size)
 
     size = HOST_PAGE_ALIGN(size);
 
-#ifdef CONFIG_USE_GUEST_BASE
     if (RESERVED_VA) {
         return mmap_find_vma_reserved(start, size);
     }
-#endif
 
     addr = start;
     wrapped = repeat = 0;

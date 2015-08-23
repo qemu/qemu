@@ -56,11 +56,7 @@ static const int tcg_target_call_oarg_regs[1] = {
 #define TCG_REG_TMP TCG_REG_X30
 
 #ifndef CONFIG_SOFTMMU
-# ifdef CONFIG_USE_GUEST_BASE
-#  define TCG_REG_GUEST_BASE TCG_REG_X28
-# else
-#  define TCG_REG_GUEST_BASE TCG_REG_XZR
-# endif
+#define TCG_REG_GUEST_BASE TCG_REG_X28
 #endif
 
 static inline void reloc_pc26(tcg_insn_unit *code_ptr, tcg_insn_unit *target)
@@ -1809,7 +1805,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_set_frame(s, TCG_REG_SP, TCG_STATIC_CALL_ARGS_SIZE,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
-#if defined(CONFIG_USE_GUEST_BASE)
+#if !defined(CONFIG_SOFTMMU)
     if (GUEST_BASE) {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, GUEST_BASE);
         tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
