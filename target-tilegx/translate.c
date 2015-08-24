@@ -1198,6 +1198,7 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
     TCGv tsrca = load_gr(dc, srca);
     const char *mnemonic;
     TCGMemOp memop;
+    int i2, i3;
 
     switch (opext) {
     case OE(ADDI_OPCODE_Y0, 0, Y0):
@@ -1392,10 +1393,23 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_SH(V1SHLI, X0):
     case OE_SH(V1SHLI, X1):
+        i2 = imm & 7;
+        i3 = 0xff >> i2;
+        tcg_gen_andi_tl(tdest, tsrca, V1_IMM(i3));
+        tcg_gen_shli_tl(tdest, tdest, i2);
+        mnemonic = "v1shli";
+        break;
     case OE_SH(V1SHRSI, X0):
     case OE_SH(V1SHRSI, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_SH(V1SHRUI, X0):
     case OE_SH(V1SHRUI, X1):
+        i2 = imm & 7;
+        i3 = (0xff << i2) & 0xff;
+        tcg_gen_andi_tl(tdest, tsrca, V1_IMM(i3));
+        tcg_gen_shri_tl(tdest, tdest, i2);
+        mnemonic = "v1shrui";
+        break;
     case OE_SH(V2SHLI, X0):
     case OE_SH(V2SHLI, X1):
     case OE_SH(V2SHRSI, X0):
