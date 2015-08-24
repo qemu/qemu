@@ -199,26 +199,31 @@ qcrypto_tls_creds_prop_get_endpoint(Object *obj,
 
 
 static void
+qcrypto_tls_creds_class_init(ObjectClass *oc, void *data)
+{
+    object_class_property_add_bool(oc, "verify-peer",
+                                   qcrypto_tls_creds_prop_get_verify,
+                                   qcrypto_tls_creds_prop_set_verify,
+                                   NULL);
+    object_class_property_add_str(oc, "dir",
+                                  qcrypto_tls_creds_prop_get_dir,
+                                  qcrypto_tls_creds_prop_set_dir,
+                                  NULL);
+    object_class_property_add_enum(oc, "endpoint",
+                                   "QCryptoTLSCredsEndpoint",
+                                   QCryptoTLSCredsEndpoint_lookup,
+                                   qcrypto_tls_creds_prop_get_endpoint,
+                                   qcrypto_tls_creds_prop_set_endpoint,
+                                   NULL);
+}
+
+
+static void
 qcrypto_tls_creds_init(Object *obj)
 {
     QCryptoTLSCreds *creds = QCRYPTO_TLS_CREDS(obj);
 
     creds->verifyPeer = true;
-
-    object_property_add_bool(obj, "verify-peer",
-                             qcrypto_tls_creds_prop_get_verify,
-                             qcrypto_tls_creds_prop_set_verify,
-                             NULL);
-    object_property_add_str(obj, "dir",
-                            qcrypto_tls_creds_prop_get_dir,
-                            qcrypto_tls_creds_prop_set_dir,
-                            NULL);
-    object_property_add_enum(obj, "endpoint",
-                             "QCryptoTLSCredsEndpoint",
-                             QCryptoTLSCredsEndpoint_lookup,
-                             qcrypto_tls_creds_prop_get_endpoint,
-                             qcrypto_tls_creds_prop_set_endpoint,
-                             NULL);
 }
 
 
@@ -237,6 +242,7 @@ static const TypeInfo qcrypto_tls_creds_info = {
     .instance_size = sizeof(QCryptoTLSCreds),
     .instance_init = qcrypto_tls_creds_init,
     .instance_finalize = qcrypto_tls_creds_finalize,
+    .class_init = qcrypto_tls_creds_class_init,
     .class_size = sizeof(QCryptoTLSCredsClass),
     .abstract = true,
 };

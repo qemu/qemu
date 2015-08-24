@@ -804,19 +804,6 @@ qcrypto_tls_creds_x509_init(Object *obj)
     QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
 
     creds->sanityCheck = true;
-
-    object_property_add_bool(obj, "loaded",
-                             qcrypto_tls_creds_x509_prop_get_loaded,
-                             qcrypto_tls_creds_x509_prop_set_loaded,
-                             NULL);
-    object_property_add_bool(obj, "sanity-check",
-                             qcrypto_tls_creds_x509_prop_get_sanity,
-                             qcrypto_tls_creds_x509_prop_set_sanity,
-                             NULL);
-    object_property_add_str(obj, "passwordid",
-                            qcrypto_tls_creds_x509_prop_get_passwordid,
-                            qcrypto_tls_creds_x509_prop_set_passwordid,
-                            NULL);
 }
 
 
@@ -836,6 +823,19 @@ qcrypto_tls_creds_x509_class_init(ObjectClass *oc, void *data)
     UserCreatableClass *ucc = USER_CREATABLE_CLASS(oc);
 
     ucc->complete = qcrypto_tls_creds_x509_complete;
+
+    object_class_property_add_bool(oc, "loaded",
+                                   qcrypto_tls_creds_x509_prop_get_loaded,
+                                   qcrypto_tls_creds_x509_prop_set_loaded,
+                                   NULL);
+    object_class_property_add_bool(oc, "sanity-check",
+                                   qcrypto_tls_creds_x509_prop_get_sanity,
+                                   qcrypto_tls_creds_x509_prop_set_sanity,
+                                   NULL);
+    object_class_property_add_str(oc, "passwordid",
+                                  qcrypto_tls_creds_x509_prop_get_passwordid,
+                                  qcrypto_tls_creds_x509_prop_set_passwordid,
+                                  NULL);
 }
 
 
