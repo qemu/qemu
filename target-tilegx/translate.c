@@ -61,6 +61,7 @@ typedef struct {
     int num_wb;
     int mmuidx;
     bool exit_tb;
+    TileExcp atomic_excp;
 
     struct {
         TCGCond cond;    /* branch condition */
@@ -178,6 +179,32 @@ static void gen_saturate_op(TCGv tdest, TCGv tsrca, TCGv tsrcb,
     tcg_gen_movcond_tl(TCG_COND_LT, tdest, tdest, t0, t0, tdest);
 
     tcg_temp_free(t0);
+}
+
+static void gen_atomic_excp(DisasContext *dc, unsigned dest, TCGv tdest,
+                            TCGv tsrca, TCGv tsrcb, TileExcp excp)
+{
+#ifdef CONFIG_USER_ONLY
+    TCGv_i32 t;
+
+    tcg_gen_st_tl(tsrca, cpu_env, offsetof(CPUTLGState, atomic_srca));
+    tcg_gen_st_tl(tsrcb, cpu_env, offsetof(CPUTLGState, atomic_srcb));
+    t = tcg_const_i32(dest);
+    tcg_gen_st_i32(t, cpu_env, offsetof(CPUTLGState, atomic_dstr));
+    tcg_temp_free_i32(t);
+
+    /* We're going to write the real result in the exception.  But in
+       the meantime we've already created a writeback register, and
+       we don't want that to remain uninitialized.  */
+    tcg_gen_movi_tl(tdest, 0);
+
+    /* Note that we need to delay issuing the exception that implements
+       the atomic operation until after writing back the results of the
+       instruction occupying the X0 pipe.  */
+    dc->atomic_excp = excp;
+#else
+    gen_exception(dc, TILEGX_EXCP_OPCODE_UNIMPLEMENTED);
+#endif
 }
 
 /* Shift the 128-bit value TSRCA:TSRCD right by the number of bytes
@@ -591,8 +618,15 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "cmpeq";
         break;
     case OE_RRR(CMPEXCH4, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_CMPEXCH4);
+        mnemonic = "cmpexch4";
+        break;
     case OE_RRR(CMPEXCH, 0, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_CMPEXCH);
+        mnemonic = "cmpexch";
+        break;
     case OE_RRR(CMPLES, 0, X0):
     case OE_RRR(CMPLES, 0, X1):
     case OE_RRR(CMPLES, 2, Y0):
@@ -658,7 +692,15 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "dblalign";
         break;
     case OE_RRR(EXCH4, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_EXCH4);
+        mnemonic = "exch4";
+        break;
     case OE_RRR(EXCH, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_EXCH);
+        mnemonic = "exch";
+        break;
     case OE_RRR(FDOUBLE_ADDSUB, 0, X0):
     case OE_RRR(FDOUBLE_ADD_FLAGS, 0, X0):
     case OE_RRR(FDOUBLE_MUL_FLAGS, 0, X0):
@@ -667,14 +709,47 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(FDOUBLE_SUB_FLAGS, 0, X0):
     case OE_RRR(FDOUBLE_UNPACK_MAX, 0, X0):
     case OE_RRR(FDOUBLE_UNPACK_MIN, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(FETCHADD4, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_FETCHADD4);
+        mnemonic = "fetchadd4";
+        break;
     case OE_RRR(FETCHADDGEZ4, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_FETCHADDGEZ4);
+        mnemonic = "fetchaddgez4";
+        break;
     case OE_RRR(FETCHADDGEZ, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_FETCHADDGEZ);
+        mnemonic = "fetchaddgez";
+        break;
     case OE_RRR(FETCHADD, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_FETCHADD);
+        mnemonic = "fetchadd";
+        break;
     case OE_RRR(FETCHAND4, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_FETCHAND4);
+        mnemonic = "fetchand4";
+        break;
     case OE_RRR(FETCHAND, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_FETCHAND);
+        mnemonic = "fetchand";
+        break;
     case OE_RRR(FETCHOR4, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_FETCHOR4);
+        mnemonic = "fetchor4";
+        break;
     case OE_RRR(FETCHOR, 0, X1):
+        gen_atomic_excp(dc, dest, tdest, tsrca, tsrcb,
+                        TILEGX_EXCP_OPCODE_FETCHOR);
+        mnemonic = "fetchor";
+        break;
     case OE_RRR(FSINGLE_ADD1, 0, X0):
     case OE_RRR(FSINGLE_ADDSUB2, 0, X0):
     case OE_RRR(FSINGLE_MUL1, 0, X0):
@@ -1936,6 +2011,8 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
         tcg_temp_free_i64(dc->jmp.dest);
         tcg_gen_exit_tb(0);
         dc->exit_tb = true;
+    } else if (dc->atomic_excp != TILEGX_EXCP_NONE) {
+        gen_exception(dc, dc->atomic_excp);
     }
 }
 
@@ -1956,6 +2033,7 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
     dc->pc = pc_start;
     dc->mmuidx = 0;
     dc->exit_tb = false;
+    dc->atomic_excp = TILEGX_EXCP_NONE;
     dc->jmp.cond = TCG_COND_NEVER;
     TCGV_UNUSED_I64(dc->jmp.dest);
     TCGV_UNUSED_I64(dc->jmp.val1);

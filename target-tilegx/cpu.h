@@ -87,7 +87,9 @@ typedef struct CPUTLGState {
     uint64_t pc;                       /* Current pc */
 
 #if defined(CONFIG_USER_ONLY)
-    uint32_t excparam;                 /* exception parameter */
+    uint64_t atomic_srca;              /* Arguments to atomic "exceptions" */
+    uint64_t atomic_srcb;
+    uint32_t atomic_dstr;
     uint64_t excaddr;                  /* exception address */
 #endif
 
