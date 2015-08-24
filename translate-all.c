@@ -122,8 +122,7 @@ uintptr_t qemu_real_host_page_mask;
 uintptr_t qemu_host_page_size;
 uintptr_t qemu_host_page_mask;
 
-/* This is a multi-level map on the virtual address space.
-   The bottom level has pointers to PageDesc.  */
+/* The bottom level has pointers to PageDesc */
 static void *l1_map[V_L1_SIZE];
 
 /* code generation context */
