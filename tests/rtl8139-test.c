@@ -20,7 +20,7 @@ static void nop(void)
 {
 }
 
-#define CLK 33000000
+#define CLK 33333333
 
 static QPCIBus *pcibus;
 static QPCIDevice *dev;
