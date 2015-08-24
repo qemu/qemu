@@ -1432,7 +1432,7 @@ int arch_prctl(int code, unsigned long addr);
 static int guest_base_flags;
 static inline void setup_guest_base_seg(void)
 {
-    if (arch_prctl(ARCH_SET_GS, GUEST_BASE) == 0) {
+    if (arch_prctl(ARCH_SET_GS, guest_base) == 0) {
         guest_base_flags = P_GS;
     }
 }
@@ -1577,7 +1577,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
                         s->code_ptr, label_ptr);
 #else
     {
-        int32_t offset = GUEST_BASE;
+        int32_t offset = guest_base;
         TCGReg base = addrlo;
         int index = -1;
         int seg = 0;
@@ -1586,7 +1586,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
            We can do this with the ADDR32 prefix if we're not using
            a guest base, or when using segmentation.  Otherwise we
            need to zero-extend manually.  */
-        if (GUEST_BASE == 0 || guest_base_flags) {
+        if (guest_base == 0 || guest_base_flags) {
             seg = guest_base_flags;
             offset = 0;
             if (TCG_TARGET_REG_BITS > TARGET_LONG_BITS) {
@@ -1597,8 +1597,8 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is64)
                 tcg_out_ext32u(s, TCG_REG_L0, base);
                 base = TCG_REG_L0;
             }
-            if (offset != GUEST_BASE) {
-                tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_L1, GUEST_BASE);
+            if (offset != guest_base) {
+                tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_L1, guest_base);
                 index = TCG_REG_L1;
                 offset = 0;
             }
@@ -1717,12 +1717,12 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
                         s->code_ptr, label_ptr);
 #else
     {
-        int32_t offset = GUEST_BASE;
+        int32_t offset = guest_base;
         TCGReg base = addrlo;
         int seg = 0;
 
         /* See comment in tcg_out_qemu_ld re zero-extension of addrlo.  */
-        if (GUEST_BASE == 0 || guest_base_flags) {
+        if (guest_base == 0 || guest_base_flags) {
             seg = guest_base_flags;
             offset = 0;
             if (TCG_TARGET_REG_BITS > TARGET_LONG_BITS) {
@@ -1731,12 +1731,12 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is64)
         } else if (TCG_TARGET_REG_BITS == 64) {
             /* ??? Note that we can't use the same SIB addressing scheme
                as for loads, since we require L0 free for bswap.  */
-            if (offset != GUEST_BASE) {
+            if (offset != guest_base) {
                 if (TARGET_LONG_BITS == 32) {
                     tcg_out_ext32u(s, TCG_REG_L0, base);
                     base = TCG_REG_L0;
                 }
-                tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_L1, GUEST_BASE);
+                tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_L1, guest_base);
                 tgen_arithr(s, ARITH_ADD + P_REXW, TCG_REG_L1, base);
                 base = TCG_REG_L1;
                 offset = 0;
@@ -2315,8 +2315,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_opc(s, OPC_RET, 0, 0, 0);
 
 #if !defined(CONFIG_SOFTMMU)
-    /* Try to set up a segment register to point to GUEST_BASE.  */
-    if (GUEST_BASE) {
+    /* Try to set up a segment register to point to guest_base.  */
+    if (guest_base) {
         setup_guest_base_seg();
     }
 #endif

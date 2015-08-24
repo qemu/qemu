@@ -80,10 +80,6 @@
 
 static tcg_insn_unit *tb_ret_addr;
 
-#ifndef GUEST_BASE
-#define GUEST_BASE 0
-#endif
-
 #include "elf.h"
 static bool have_isa_2_06;
 #define HAVE_ISA_2_06  have_isa_2_06
@@ -1619,7 +1615,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
 
     rbase = TCG_REG_R3;
 #else  /* !CONFIG_SOFTMMU */
-    rbase = GUEST_BASE ? TCG_GUEST_BASE_REG : 0;
+    rbase = guest_base ? TCG_GUEST_BASE_REG : 0;
     if (TCG_TARGET_REG_BITS > TARGET_LONG_BITS) {
         tcg_out_ext32u(s, TCG_REG_TMP1, addrlo);
         addrlo = TCG_REG_TMP1;
@@ -1694,7 +1690,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 
     rbase = TCG_REG_R3;
 #else  /* !CONFIG_SOFTMMU */
-    rbase = GUEST_BASE ? TCG_GUEST_BASE_REG : 0;
+    rbase = guest_base ? TCG_GUEST_BASE_REG : 0;
     if (TCG_TARGET_REG_BITS > TARGET_LONG_BITS) {
         tcg_out_ext32u(s, TCG_REG_TMP1, addrlo);
         addrlo = TCG_REG_TMP1;
@@ -1799,8 +1795,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_R0, TCG_REG_R1, FRAME_SIZE+LR_OFFSET);
 
 #ifndef CONFIG_SOFTMMU
-    if (GUEST_BASE) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
+    if (guest_base) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base);
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 #endif

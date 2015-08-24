@@ -954,8 +954,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
               INSN_IMM13(-frame_size));
 
 #ifndef CONFIG_SOFTMMU
-    if (GUEST_BASE != 0) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
+    if (guest_base != 0) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base);
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 #endif
@@ -1144,7 +1144,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
         addr = TCG_REG_T1;
     }
     tcg_out_ldst_rr(s, data, addr,
-                    (GUEST_BASE ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+                    (guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0),
                     qemu_ld_opc[memop & (MO_BSWAP | MO_SSIZE)]);
 #endif /* CONFIG_SOFTMMU */
 }
@@ -1199,7 +1199,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
         addr = TCG_REG_T1;
     }
     tcg_out_ldst_rr(s, data, addr,
-                    (GUEST_BASE ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+                    (guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0),
                     qemu_st_opc[memop & (MO_BSWAP | MO_SIZE)]);
 #endif /* CONFIG_SOFTMMU */
 }

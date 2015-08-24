@@ -49,20 +49,20 @@
 
 #if defined(CONFIG_USER_ONLY)
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
-#define g2h(x) ((void *)((unsigned long)(target_ulong)(x) + GUEST_BASE))
+#define g2h(x) ((void *)((unsigned long)(target_ulong)(x) + guest_base))
 
 #if HOST_LONG_BITS <= TARGET_VIRT_ADDR_SPACE_BITS
 #define h2g_valid(x) 1
 #else
 #define h2g_valid(x) ({ \
-    unsigned long __guest = (unsigned long)(x) - GUEST_BASE; \
+    unsigned long __guest = (unsigned long)(x) - guest_base; \
     (__guest < (1ul << TARGET_VIRT_ADDR_SPACE_BITS)) && \
-    (!RESERVED_VA || (__guest < RESERVED_VA)); \
+    (!reserved_va || (__guest < reserved_va)); \
 })
 #endif
 
 #define h2g_nocheck(x) ({ \
-    unsigned long __ret = (unsigned long)(x) - GUEST_BASE; \
+    unsigned long __ret = (unsigned long)(x) - guest_base; \
     (abi_ulong)__ret; \
 })
 

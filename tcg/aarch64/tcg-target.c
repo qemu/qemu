@@ -30,7 +30,7 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_X20, TCG_REG_X21, TCG_REG_X22, TCG_REG_X23,
     TCG_REG_X24, TCG_REG_X25, TCG_REG_X26, TCG_REG_X27,
-    TCG_REG_X28, /* we will reserve this for GUEST_BASE if configured */
+    TCG_REG_X28, /* we will reserve this for guest_base if configured */
 
     TCG_REG_X8, TCG_REG_X9, TCG_REG_X10, TCG_REG_X11,
     TCG_REG_X12, TCG_REG_X13, TCG_REG_X14, TCG_REG_X15,
@@ -1225,7 +1225,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
     tcg_out_qemu_ld_direct(s, memop, ext, data_reg,
-                           GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
+                           guest_base ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
                            otype, addr_reg);
 #endif /* CONFIG_SOFTMMU */
 }
@@ -1246,7 +1246,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
                         data_reg, addr_reg, s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
     tcg_out_qemu_st_direct(s, memop, data_reg,
-                           GUEST_BASE ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
+                           guest_base ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
                            otype, addr_reg);
 #endif /* CONFIG_SOFTMMU */
 }
@@ -1806,8 +1806,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
 #if !defined(CONFIG_SOFTMMU)
-    if (GUEST_BASE) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, GUEST_BASE);
+    if (guest_base) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, guest_base);
         tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
     }
 #endif

@@ -57,11 +57,6 @@
 #define TCG_GUEST_BASE_REG TCG_REG_R0
 #endif
 
-#ifndef GUEST_BASE
-#define GUEST_BASE 0
-#endif
-
-
 /* All of the following instructions are prefixed with their instruction
    format, and are defined as 8- or 16-bit quantities, even when the two
    halves of the 16-bit quantity may appear 32 bits apart in the insn.
@@ -1638,9 +1633,9 @@ static void tcg_prepare_user_ldst(TCGContext *s, TCGReg *addr_reg,
         tgen_ext32u(s, TCG_TMP0, *addr_reg);
         *addr_reg = TCG_TMP0;
     }
-    if (GUEST_BASE < 0x80000) {
+    if (guest_base < 0x80000) {
         *index_reg = TCG_REG_NONE;
-        *disp = GUEST_BASE;
+        *disp = guest_base;
     } else {
         *index_reg = TCG_GUEST_BASE_REG;
         *disp = 0;
@@ -2349,8 +2344,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                   TCG_STATIC_CALL_ARGS_SIZE + TCG_TARGET_CALL_STACK_OFFSET,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
-    if (GUEST_BASE >= 0x80000) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
+    if (guest_base >= 0x80000) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base);
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 
