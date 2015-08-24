@@ -1148,10 +1148,18 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V4ADDSC, 0, X1):
     case OE_RRR(V4ADD, 0, X0):
     case OE_RRR(V4ADD, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V4INT_H, 0, X0):
     case OE_RRR(V4INT_H, 0, X1):
+        tcg_gen_shri_tl(tdest, tsrcb, 32);
+        tcg_gen_deposit_tl(tdest, tsrca, tdest, 0, 32);
+        mnemonic = "v4int_h";
+        break;
     case OE_RRR(V4INT_L, 0, X0):
     case OE_RRR(V4INT_L, 0, X1):
+        tcg_gen_deposit_tl(tdest, tsrcb, tsrca, 32, 32);
+        mnemonic = "v4int_l";
+        break;
     case OE_RRR(V4PACKSC, 0, X0):
     case OE_RRR(V4PACKSC, 0, X1):
     case OE_RRR(V4SHLSC, 0, X0):
