@@ -298,7 +298,16 @@ static inline void futex_wake(QemuEvent *ev, int n)
 
 static inline void futex_wait(QemuEvent *ev, unsigned val)
 {
-    futex(ev, FUTEX_WAIT, (int) val, NULL, NULL, 0);
+    while (futex(ev, FUTEX_WAIT, (int) val, NULL, NULL, 0)) {
+        switch (errno) {
+        case EWOULDBLOCK:
+            return;
+        case EINTR:
+            break; /* get out of switch and retry */
+        default:
+            abort();
+        }
+    }
 }
 #else
 static inline void futex_wake(QemuEvent *ev, int n)
