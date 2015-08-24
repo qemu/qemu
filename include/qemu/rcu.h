@@ -71,7 +71,7 @@ struct rcu_reader_data {
     /* Data used by reader only */
     unsigned depth;
 
-    /* Data used for registry, protected by rcu_gp_lock */
+    /* Data used for registry, protected by rcu_registry_lock */
     QLIST_ENTRY(rcu_reader_data) node;
 };
 
