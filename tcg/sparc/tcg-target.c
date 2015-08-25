@@ -83,10 +83,8 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 #define TCG_REG_T1  TCG_REG_G1
 #define TCG_REG_T2  TCG_REG_O7
 
-#ifdef CONFIG_USE_GUEST_BASE
+#ifndef CONFIG_SOFTMMU
 # define TCG_GUEST_BASE_REG TCG_REG_I5
-#else
-# define TCG_GUEST_BASE_REG TCG_REG_G0
 #endif
 
 static const int tcg_target_reg_alloc_order[] = {
@@ -955,9 +953,9 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
               INSN_IMM13(-frame_size));
 
-#ifdef CONFIG_USE_GUEST_BASE
-    if (GUEST_BASE != 0) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
+#ifndef CONFIG_SOFTMMU
+    if (guest_base != 0) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base);
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 #endif
@@ -1146,7 +1144,7 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data, TCGReg addr,
         addr = TCG_REG_T1;
     }
     tcg_out_ldst_rr(s, data, addr,
-                    (GUEST_BASE ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+                    (guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0),
                     qemu_ld_opc[memop & (MO_BSWAP | MO_SSIZE)]);
 #endif /* CONFIG_SOFTMMU */
 }
@@ -1201,7 +1199,7 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data, TCGReg addr,
         addr = TCG_REG_T1;
     }
     tcg_out_ldst_rr(s, data, addr,
-                    (GUEST_BASE ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+                    (guest_base ? TCG_GUEST_BASE_REG : TCG_REG_G0),
                     qemu_st_opc[memop & (MO_BSWAP | MO_SIZE)]);
 #endif /* CONFIG_SOFTMMU */
 }
@@ -1407,18 +1405,19 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_divu_i64:
         c = ARITH_UDIVX;
         goto gen_arith;
+    case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         tcg_out_arithi(s, a0, a1, 0, SHIFT_SRA);
         break;
+    case INDEX_op_extu_i32_i64:
     case INDEX_op_ext32u_i64:
         tcg_out_arithi(s, a0, a1, 0, SHIFT_SRL);
         break;
-    case INDEX_op_trunc_shr_i32:
-        if (a2 == 0) {
-            tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
-        } else {
-            tcg_out_arithi(s, a0, a1, a2, SHIFT_SRLX);
-        }
+    case INDEX_op_extrl_i64_i32:
+        tcg_out_mov(s, TCG_TYPE_I32, a0, a1);
+        break;
+    case INDEX_op_extrh_i64_i32:
+        tcg_out_arithi(s, a0, a1, 32, SHIFT_SRLX);
         break;
 
     case INDEX_op_brcond_i64:
@@ -1531,9 +1530,12 @@ static const TCGTargetOpDef sparc_op_defs[] = {
     { INDEX_op_neg_i64, { "R", "RJ" } },
     { INDEX_op_not_i64, { "R", "RJ" } },
 
-    { INDEX_op_ext32s_i64, { "R", "r" } },
-    { INDEX_op_ext32u_i64, { "R", "r" } },
-    { INDEX_op_trunc_shr_i32,  { "r", "R" } },
+    { INDEX_op_ext32s_i64, { "R", "R" } },
+    { INDEX_op_ext32u_i64, { "R", "R" } },
+    { INDEX_op_ext_i32_i64, { "R", "r" } },
+    { INDEX_op_extu_i32_i64, { "R", "r" } },
+    { INDEX_op_extrl_i64_i32,  { "r", "R" } },
+    { INDEX_op_extrh_i64_i32,  { "r", "R" } },
 
     { INDEX_op_brcond_i64, { "RZ", "RJ" } },
     { INDEX_op_setcond_i64, { "R", "RZ", "RJ" } },

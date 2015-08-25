@@ -1756,7 +1756,6 @@ static void probe_guest_base(const char *image_name,
      * it explicitly, and set guest_base appropriately.
      * In case of error we will print a suitable message and exit.
      */
-#if defined(CONFIG_USE_GUEST_BASE)
     const char *errmsg;
     if (!have_guest_base && !reserved_va) {
         unsigned long host_start, real_start, host_size;
@@ -1795,7 +1794,6 @@ static void probe_guest_base(const char *image_name,
 exit_errmsg:
     fprintf(stderr, "%s: %s\n", image_name, errmsg);
     exit(-1);
-#endif
 }
 
 

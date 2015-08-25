@@ -1544,7 +1544,7 @@ static void disas_xtensa_insn(CPUXtensaState *env, DisasContext *dc)
                     TCGv_i64 tmp = tcg_temp_new_i64(); \
                     tcg_gen_extu_i32_i64(tmp, reg); \
                     tcg_gen_##cmd##_i64(v, v, tmp); \
-                    tcg_gen_trunc_i64_i32(cpu_R[RRR_R], v); \
+                    tcg_gen_extrl_i64_i32(cpu_R[RRR_R], v); \
                     tcg_temp_free_i64(v); \
                     tcg_temp_free_i64(tmp); \
                 } while (0)

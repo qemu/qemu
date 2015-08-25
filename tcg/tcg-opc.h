@@ -138,8 +138,14 @@ DEF(rotl_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_rot_i64))
 DEF(rotr_i64, 1, 2, 0, IMPL64 | IMPL(TCG_TARGET_HAS_rot_i64))
 DEF(deposit_i64, 1, 2, 2, IMPL64 | IMPL(TCG_TARGET_HAS_deposit_i64))
 
-DEF(trunc_shr_i32, 1, 1, 1,
-    IMPL(TCG_TARGET_HAS_trunc_shr_i32)
+/* size changing ops */
+DEF(ext_i32_i64, 1, 1, 0, IMPL64)
+DEF(extu_i32_i64, 1, 1, 0, IMPL64)
+DEF(extrl_i64_i32, 1, 1, 0,
+    IMPL(TCG_TARGET_HAS_extrl_i64_i32)
+    | (TCG_TARGET_REG_BITS == 32 ? TCG_OPF_NOT_PRESENT : 0))
+DEF(extrh_i64_i32, 1, 1, 0,
+    IMPL(TCG_TARGET_HAS_extrh_i64_i32)
     | (TCG_TARGET_REG_BITS == 32 ? TCG_OPF_NOT_PRESENT : 0))
 
 DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | IMPL64)

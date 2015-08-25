@@ -40,13 +40,8 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
-#ifdef CONFIG_USE_GUEST_BASE
+#ifndef CONFIG_SOFTMMU
 #define TCG_GUEST_BASE_REG TCG_REG_R55
-#else
-#define TCG_GUEST_BASE_REG TCG_REG_R0
-#endif
-#ifndef GUEST_BASE
-#define GUEST_BASE 0
 #endif
 
 /* Branch registers */
@@ -1765,7 +1760,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args)
     bswap = opc & MO_BSWAP;
 
 #if TARGET_LONG_BITS == 32
-    if (GUEST_BASE != 0) {
+    if (guest_base != 0) {
         tcg_out_bundle(s, mII,
                        INSN_NOP_M,
                        tcg_opc_i29(TCG_REG_P0, OPC_ZXT4_I29,
@@ -1829,7 +1824,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args)
         }
     }
 #else
-    if (GUEST_BASE != 0) {
+    if (guest_base != 0) {
         tcg_out_bundle(s, MmI,
                        tcg_opc_a1 (TCG_REG_P0, OPC_ADD_A1, TCG_REG_R2,
                                    TCG_GUEST_BASE_REG, addr_reg),
@@ -1889,7 +1884,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
     bswap = opc & MO_BSWAP;
 
 #if TARGET_LONG_BITS == 32
-    if (GUEST_BASE != 0) {
+    if (guest_base != 0) {
         tcg_out_bundle(s, mII,
                        INSN_NOP_M,
                        tcg_opc_i29(TCG_REG_P0, OPC_ZXT4_I29,
@@ -1935,7 +1930,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
                    INSN_NOP_M,
                    INSN_NOP_I);
 #else
-    if (GUEST_BASE != 0) {
+    if (guest_base != 0) {
         add_guest_base = tcg_opc_a1 (TCG_REG_P0, OPC_ADD_A1, TCG_REG_R2,
                                      TCG_GUEST_BASE_REG, addr_reg);
         addr_reg = TCG_REG_R2;
@@ -1944,7 +1939,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args)
     }
 
     if (!bswap) {
-        tcg_out_bundle(s, (GUEST_BASE ? MmI : mmI),
+        tcg_out_bundle(s, (guest_base ? MmI : mmI),
                        add_guest_base,
                        tcg_opc_m4 (TCG_REG_P0, opc_st_m4[s_bits],
                                    data_reg, addr_reg),
@@ -2148,9 +2143,11 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16u_i64:
         tcg_out_ext(s, OPC_ZXT2_I29, args[0], args[1]);
         break;
+    case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         tcg_out_ext(s, OPC_SXT4_I29, args[0], args[1]);
         break;
+    case INDEX_op_extu_i32_i64:
     case INDEX_op_ext32u_i64:
         tcg_out_ext(s, OPC_ZXT4_I29, args[0], args[1]);
         break;
@@ -2301,6 +2298,8 @@ static const TCGTargetOpDef ia64_op_defs[] = {
     { INDEX_op_ext16u_i64, { "r", "rZ"} },
     { INDEX_op_ext32s_i64, { "r", "rZ"} },
     { INDEX_op_ext32u_i64, { "r", "rZ"} },
+    { INDEX_op_ext_i32_i64, { "r", "rZ" } },
+    { INDEX_op_extu_i32_i64, { "r", "rZ" } },
 
     { INDEX_op_bswap16_i64, { "r", "rZ" } },
     { INDEX_op_bswap32_i64, { "r", "rZ" } },
@@ -2349,14 +2348,14 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                    tcg_opc_i21(TCG_REG_P0, OPC_MOV_I21,
                                TCG_REG_B6, TCG_REG_R33, 0));
 
-    /* ??? If GUEST_BASE < 0x200000, we could load the register via
+    /* ??? If guest_base < 0x200000, we could load the register via
        an ADDL in the M slot of the next bundle.  */
-    if (GUEST_BASE != 0) {
+    if (guest_base != 0) {
         tcg_out_bundle(s, mlx,
                        INSN_NOP_M,
-                       tcg_opc_l2 (GUEST_BASE),
+                       tcg_opc_l2(guest_base),
                        tcg_opc_x2 (TCG_REG_P0, OPC_MOVL_X2,
-                                   TCG_GUEST_BASE_REG, GUEST_BASE));
+                                   TCG_GUEST_BASE_REG, guest_base));
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 

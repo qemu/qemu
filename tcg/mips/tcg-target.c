@@ -1180,12 +1180,12 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     add_qemu_ldst_label(s, 1, oi, data_regl, data_regh, addr_regl, addr_regh,
                         s->code_ptr, label_ptr);
 #else
-    if (GUEST_BASE == 0 && data_regl != addr_regl) {
+    if (guest_base == 0 && data_regl != addr_regl) {
         base = addr_regl;
-    } else if (GUEST_BASE == (int16_t)GUEST_BASE) {
-        tcg_out_opc_imm(s, OPC_ADDIU, base, addr_regl, GUEST_BASE);
+    } else if (guest_base == (int16_t)guest_base) {
+        tcg_out_opc_imm(s, OPC_ADDIU, base, addr_regl, guest_base);
     } else {
-        tcg_out_movi(s, TCG_TYPE_PTR, base, GUEST_BASE);
+        tcg_out_movi(s, TCG_TYPE_PTR, base, guest_base);
         tcg_out_opc_reg(s, OPC_ADDU, base, base, addr_regl);
     }
     tcg_out_qemu_ld_direct(s, data_regl, data_regh, base, opc);
@@ -1314,14 +1314,14 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     add_qemu_ldst_label(s, 0, oi, data_regl, data_regh, addr_regl, addr_regh,
                         s->code_ptr, label_ptr);
 #else
-    if (GUEST_BASE == 0) {
+    if (guest_base == 0) {
         base = addr_regl;
     } else {
         base = TCG_REG_A0;
-        if (GUEST_BASE == (int16_t)GUEST_BASE) {
-            tcg_out_opc_imm(s, OPC_ADDIU, base, addr_regl, GUEST_BASE);
+        if (guest_base == (int16_t)guest_base) {
+            tcg_out_opc_imm(s, OPC_ADDIU, base, addr_regl, guest_base);
         } else {
-            tcg_out_movi(s, TCG_TYPE_PTR, base, GUEST_BASE);
+            tcg_out_movi(s, TCG_TYPE_PTR, base, guest_base);
             tcg_out_opc_reg(s, OPC_ADDU, base, base, addr_regl);
         }
     }

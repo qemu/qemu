@@ -314,11 +314,17 @@ This operation would be equivalent to
 
   dest = (t1 & ~0x0f00) | ((t2 << 8) & 0x0f00)
 
-* trunc_shr_i32 t0, t1, pos
+* extrl_i64_i32 t0, t1
 
-For 64-bit hosts only, right shift the 64-bit input T1 by POS and
-truncate to 32-bit output T0.  Depending on the host, this may be
-a simple mov/shift, or may require additional canonicalization.
+For 64-bit hosts only, extract the low 32-bits of input T1 and place it
+into 32-bit output T0.  Depending on the host, this may be a simple move,
+or may require additional canonicalization.
+
+* extrh_i64_i32 t0, t1
+
+For 64-bit hosts only, extract the high 32-bits of input T1 and place it
+into 32-bit output T0.  Depending on the host, this may be a simple shift,
+or may require additional canonicalization.
 
 ********* Conditional moves
 
@@ -466,12 +472,24 @@ On a 32 bit target, all 64 bit operations are converted to 32 bits. A
 few specific operations must be implemented to allow it (see add2_i32,
 sub2_i32, brcond2_i32).
 
+On a 64 bit target, the values are transfered between 32 and 64-bit
+registers using the following ops:
+- trunc_shr_i64_i32
+- ext_i32_i64
+- extu_i32_i64
+
+They ensure that the values are correctly truncated or extended when
+moved from a 32-bit to a 64-bit register or vice-versa. Note that the
+trunc_shr_i64_i32 is an optional op. It is not necessary to implement
+it if all the following conditions are met:
+- 64-bit registers can hold 32-bit values
+- 32-bit values in a 64-bit register do not need to stay zero or
+  sign extended
+- all 32-bit TCG ops ignore the high part of 64-bit registers
+
 Floating point operations are not supported in this version. A
 previous incarnation of the code generator had full support of them,
 but it is better to concentrate on integer operations first.
-
-On a 64 bit target, no assumption is made in TCG about the storage of
-the 32 bit values in 64 bit registers.
 
 4.2) Constraints
 

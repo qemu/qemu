@@ -811,7 +811,7 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
     case CC_OP_LTGT0_32:
         c->is_64 = false;
         c->u.s32.a = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(c->u.s32.a, cc_dst);
+        tcg_gen_extrl_i64_i32(c->u.s32.a, cc_dst);
         c->u.s32.b = tcg_const_i32(0);
         break;
     case CC_OP_LTGT_32:
@@ -819,9 +819,9 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
     case CC_OP_SUBU_32:
         c->is_64 = false;
         c->u.s32.a = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(c->u.s32.a, cc_src);
+        tcg_gen_extrl_i64_i32(c->u.s32.a, cc_src);
         c->u.s32.b = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(c->u.s32.b, cc_dst);
+        tcg_gen_extrl_i64_i32(c->u.s32.b, cc_dst);
         break;
 
     case CC_OP_LTGT0_64:
@@ -851,11 +851,11 @@ static void disas_jcc(DisasContext *s, DisasCompare *c, uint32_t mask)
         c->is_64 = false;
         c->u.s32.a = tcg_temp_new_i32();
         c->u.s32.b = tcg_temp_new_i32();
-        tcg_gen_trunc_i64_i32(c->u.s32.a, cc_vr);
+        tcg_gen_extrl_i64_i32(c->u.s32.a, cc_vr);
         if (cond == TCG_COND_EQ || cond == TCG_COND_NE) {
             tcg_gen_movi_i32(c->u.s32.b, 0);
         } else {
-            tcg_gen_trunc_i64_i32(c->u.s32.b, cc_src);
+            tcg_gen_extrl_i64_i32(c->u.s32.b, cc_src);
         }
         break;
 
@@ -1532,7 +1532,7 @@ static ExitStatus op_bct32(DisasContext *s, DisasOps *o)
     store_reg32_i64(r1, t);
     c.u.s32.a = tcg_temp_new_i32();
     c.u.s32.b = tcg_const_i32(0);
-    tcg_gen_trunc_i64_i32(c.u.s32.a, t);
+    tcg_gen_extrl_i64_i32(c.u.s32.a, t);
     tcg_temp_free_i64(t);
 
     return help_branch(s, &c, is_imm, imm, o->in2);
@@ -1556,7 +1556,7 @@ static ExitStatus op_bcth(DisasContext *s, DisasOps *o)
     store_reg32h_i64(r1, t);
     c.u.s32.a = tcg_temp_new_i32();
     c.u.s32.b = tcg_const_i32(0);
-    tcg_gen_trunc_i64_i32(c.u.s32.a, t);
+    tcg_gen_extrl_i64_i32(c.u.s32.a, t);
     tcg_temp_free_i64(t);
 
     return help_branch(s, &c, 1, imm, o->in2);
@@ -1599,8 +1599,8 @@ static ExitStatus op_bx32(DisasContext *s, DisasOps *o)
     tcg_gen_add_i64(t, regs[r1], regs[r3]);
     c.u.s32.a = tcg_temp_new_i32();
     c.u.s32.b = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(c.u.s32.a, t);
-    tcg_gen_trunc_i64_i32(c.u.s32.b, regs[r3 | 1]);
+    tcg_gen_extrl_i64_i32(c.u.s32.a, t);
+    tcg_gen_extrl_i64_i32(c.u.s32.b, regs[r3 | 1]);
     store_reg32_i64(r1, t);
     tcg_temp_free_i64(t);
 
@@ -1905,7 +1905,7 @@ static ExitStatus op_clm(DisasContext *s, DisasOps *o)
 {
     TCGv_i32 m3 = tcg_const_i32(get_field(s->fields, m3));
     TCGv_i32 t1 = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(t1, o->in1);
+    tcg_gen_extrl_i64_i32(t1, o->in1);
     potential_page_fault(s);
     gen_helper_clm(cc_op, cpu_env, t1, m3, o->in2);
     set_cc_static(s);
@@ -1977,7 +1977,7 @@ static ExitStatus op_cs(DisasContext *s, DisasOps *o)
 
     /* Store CC back to cc_op.  Wait until after the store so that any
        exception gets the old cc_op value.  */
-    tcg_gen_trunc_i64_i32(cc_op, cc);
+    tcg_gen_extrl_i64_i32(cc_op, cc);
     tcg_temp_free_i64(cc);
     set_cc_static(s);
     return NO_EXIT;
@@ -2027,7 +2027,7 @@ static ExitStatus op_cdsg(DisasContext *s, DisasOps *o)
     /* Save back state now that we've passed all exceptions.  */
     tcg_gen_mov_i64(regs[r1], outh);
     tcg_gen_mov_i64(regs[r1 + 1], outl);
-    tcg_gen_trunc_i64_i32(cc_op, cc);
+    tcg_gen_extrl_i64_i32(cc_op, cc);
     tcg_temp_free_i64(outh);
     tcg_temp_free_i64(outl);
     tcg_temp_free_i64(cc);
@@ -2051,7 +2051,7 @@ static ExitStatus op_cvd(DisasContext *s, DisasOps *o)
 {
     TCGv_i64 t1 = tcg_temp_new_i64();
     TCGv_i32 t2 = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(t2, o->in1);
+    tcg_gen_extrl_i64_i32(t2, o->in1);
     gen_helper_cvd(t1, t2);
     tcg_temp_free_i32(t2);
     tcg_gen_qemu_st64(t1, o->in2, get_mem_index(s));
@@ -3235,8 +3235,8 @@ static ExitStatus op_rll32(DisasContext *s, DisasOps *o)
     TCGv_i32 t1 = tcg_temp_new_i32();
     TCGv_i32 t2 = tcg_temp_new_i32();
     TCGv_i32 to = tcg_temp_new_i32();
-    tcg_gen_trunc_i64_i32(t1, o->in1);
-    tcg_gen_trunc_i64_i32(t2, o->in2);
+    tcg_gen_extrl_i64_i32(t1, o->in1);
+    tcg_gen_extrl_i64_i32(t2, o->in2);
     tcg_gen_rotl_i32(to, t1, t2);
     tcg_gen_extu_i32_i64(o->out, to);
     tcg_temp_free_i32(t1);

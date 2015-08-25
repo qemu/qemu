@@ -51,16 +51,11 @@
 /* A scratch register that may be be used throughout the backend.  */
 #define TCG_TMP0        TCG_REG_R14
 
-#ifdef CONFIG_USE_GUEST_BASE
+#ifndef CONFIG_SOFTMMU
 #define TCG_GUEST_BASE_REG TCG_REG_R13
 #else
 #define TCG_GUEST_BASE_REG TCG_REG_R0
 #endif
-
-#ifndef GUEST_BASE
-#define GUEST_BASE 0
-#endif
-
 
 /* All of the following instructions are prefixed with their instruction
    format, and are defined as 8- or 16-bit quantities, even when the two
@@ -1504,20 +1499,36 @@ QEMU_BUILD_BUG_ON(offsetof(CPUArchState, tlb_table[NB_MMU_MODES - 1][1])
 static TCGReg tcg_out_tlb_read(TCGContext* s, TCGReg addr_reg, TCGMemOp opc,
                                int mem_index, bool is_ld)
 {
-    TCGMemOp s_bits = opc & MO_SIZE;
-    uint64_t tlb_mask = TARGET_PAGE_MASK | ((1 << s_bits) - 1);
-    int ofs;
+    int s_mask = (1 << (opc & MO_SIZE)) - 1;
+    int ofs, a_off;
+    uint64_t tlb_mask;
+
+    /* For aligned accesses, we check the first byte and include the alignment
+       bits within the address.  For unaligned access, we check that we don't
+       cross pages using the address of the last byte of the access.  */
+    if ((opc & MO_AMASK) == MO_ALIGN || s_mask == 0) {
+        a_off = 0;
+        tlb_mask = TARGET_PAGE_MASK | s_mask;
+    } else {
+        a_off = s_mask;
+        tlb_mask = TARGET_PAGE_MASK;
+    }
 
     if (facilities & FACILITY_GEN_INST_EXT) {
         tcg_out_risbg(s, TCG_REG_R2, addr_reg,
                       64 - CPU_TLB_BITS - CPU_TLB_ENTRY_BITS,
                       63 - CPU_TLB_ENTRY_BITS,
                       64 + CPU_TLB_ENTRY_BITS - TARGET_PAGE_BITS, 1);
-        tgen_andi_risbg(s, TCG_REG_R3, addr_reg, tlb_mask);
+        if (a_off) {
+            tcg_out_insn(s, RX, LA, TCG_REG_R3, addr_reg, TCG_REG_NONE, a_off);
+            tgen_andi(s, TCG_TYPE_TL, TCG_REG_R3, tlb_mask);
+        } else {
+            tgen_andi_risbg(s, TCG_REG_R3, addr_reg, tlb_mask);
+        }
     } else {
         tcg_out_sh64(s, RSY_SRLG, TCG_REG_R2, addr_reg, TCG_REG_NONE,
                      TARGET_PAGE_BITS - CPU_TLB_ENTRY_BITS);
-        tcg_out_movi(s, TCG_TYPE_TL, TCG_REG_R3, addr_reg);
+        tcg_out_insn(s, RX, LA, TCG_REG_R3, addr_reg, TCG_REG_NONE, a_off);
         tgen_andi(s, TCG_TYPE_I64, TCG_REG_R2,
                   (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
         tgen_andi(s, TCG_TYPE_TL, TCG_REG_R3, tlb_mask);
@@ -1622,9 +1633,9 @@ static void tcg_prepare_user_ldst(TCGContext *s, TCGReg *addr_reg,
         tgen_ext32u(s, TCG_TMP0, *addr_reg);
         *addr_reg = TCG_TMP0;
     }
-    if (GUEST_BASE < 0x80000) {
+    if (guest_base < 0x80000) {
         *index_reg = TCG_REG_NONE;
-        *disp = GUEST_BASE;
+        *disp = guest_base;
     } else {
         *index_reg = TCG_GUEST_BASE_REG;
         *disp = 0;
@@ -2090,6 +2101,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16s_i64:
         tgen_ext16s(s, TCG_TYPE_I64, args[0], args[1]);
         break;
+    case INDEX_op_ext_i32_i64:
     case INDEX_op_ext32s_i64:
         tgen_ext32s(s, args[0], args[1]);
         break;
@@ -2099,6 +2111,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_ext16u_i64:
         tgen_ext16u(s, TCG_TYPE_I64, args[0], args[1]);
         break;
+    case INDEX_op_extu_i32_i64:
     case INDEX_op_ext32u_i64:
         tgen_ext32u(s, args[0], args[1]);
         break;
@@ -2251,6 +2264,9 @@ static const TCGTargetOpDef s390_op_defs[] = {
     { INDEX_op_ext32s_i64, { "r", "r" } },
     { INDEX_op_ext32u_i64, { "r", "r" } },
 
+    { INDEX_op_ext_i32_i64, { "r", "r" } },
+    { INDEX_op_extu_i32_i64, { "r", "r" } },
+
     { INDEX_op_bswap16_i64, { "r", "r" } },
     { INDEX_op_bswap32_i64, { "r", "r" } },
     { INDEX_op_bswap64_i64, { "r", "r" } },
@@ -2328,8 +2344,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                   TCG_STATIC_CALL_ARGS_SIZE + TCG_TARGET_CALL_STACK_OFFSET,
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
-    if (GUEST_BASE >= 0x80000) {
-        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
+    if (guest_base >= 0x80000) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, guest_base);
         tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
     }
 

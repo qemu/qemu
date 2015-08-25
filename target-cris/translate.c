@@ -2604,9 +2604,9 @@ static int dec_movem_mr(CPUCRISState *env, DisasContext *dc)
     tcg_temp_free(addr);
 
     for (i = 0; i < (nr >> 1); i++) {
-        tcg_gen_trunc_i64_i32(cpu_R[i * 2], tmp[i]);
+        tcg_gen_extrl_i64_i32(cpu_R[i * 2], tmp[i]);
         tcg_gen_shri_i64(tmp[i], tmp[i], 32);
-        tcg_gen_trunc_i64_i32(cpu_R[i * 2 + 1], tmp[i]);
+        tcg_gen_extrl_i64_i32(cpu_R[i * 2 + 1], tmp[i]);
         tcg_temp_free_i64(tmp[i]);
     }
     if (nr & 1) {
