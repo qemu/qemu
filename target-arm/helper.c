@@ -3936,13 +3936,22 @@ void register_cp_regs_for_features(ARMCPU *cpu)
     }
 
     if (arm_feature(env, ARM_FEATURE_AUXCR)) {
-        ARMCPRegInfo auxcr = {
-            .name = "ACTLR_EL1", .state = ARM_CP_STATE_BOTH,
-            .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 1,
-            .access = PL1_RW, .type = ARM_CP_CONST,
-            .resetvalue = cpu->reset_auxcr
+        ARMCPRegInfo auxcr_reginfo[] = {
+            { .name = "ACTLR_EL1", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 1,
+              .access = PL1_RW, .type = ARM_CP_CONST,
+              .resetvalue = cpu->reset_auxcr },
+            { .name = "ACTLR_EL2", .state = ARM_CP_STATE_BOTH,
+              .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 0, .opc2 = 1,
+              .access = PL2_RW, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            { .name = "ACTLR_EL3", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 6, .crn = 1, .crm = 0, .opc2 = 1,
+              .access = PL3_RW, .type = ARM_CP_CONST,
+              .resetvalue = 0 },
+            REGINFO_SENTINEL
         };
-        define_one_arm_cp_reg(cpu, &auxcr);
+        define_arm_cp_regs(cpu, auxcr_reginfo);
     }
 
     if (arm_feature(env, ARM_FEATURE_CBAR)) {
