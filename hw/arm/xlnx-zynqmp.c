@@ -101,6 +101,21 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     qemu_irq gic_spi[GIC_NUM_SPI_INTR];
     Error *err = NULL;
 
+    /* Create the four OCM banks */
+    for (i = 0; i < XLNX_ZYNQMP_NUM_OCM_BANKS; i++) {
+        char *ocm_name = g_strdup_printf("zynqmp.ocm_ram_bank_%d", i);
+
+        memory_region_init_ram(&s->ocm_ram[i], NULL, ocm_name,
+                               XLNX_ZYNQMP_OCM_RAM_SIZE, &error_abort);
+        vmstate_register_ram_global(&s->ocm_ram[i]);
+        memory_region_add_subregion(get_system_memory(),
+                                    XLNX_ZYNQMP_OCM_RAM_0_ADDRESS +
+                                        i * XLNX_ZYNQMP_OCM_RAM_SIZE,
+                                    &s->ocm_ram[i]);
+
+        g_free(ocm_name);
+    }
+
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-irq", GIC_NUM_SPI_INTR + 32);
     qdev_prop_set_uint32(DEVICE(&s->gic), "revision", 2);
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_APU_CPUS);

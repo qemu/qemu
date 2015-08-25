@@ -32,6 +32,10 @@
 #define XLNX_ZYNQMP_NUM_GEMS 4
 #define XLNX_ZYNQMP_NUM_UARTS 2
 
+#define XLNX_ZYNQMP_NUM_OCM_BANKS 4
+#define XLNX_ZYNQMP_OCM_RAM_0_ADDRESS 0xFFFC0000
+#define XLNX_ZYNQMP_OCM_RAM_SIZE 0x10000
+
 #define XLNX_ZYNQMP_GIC_REGIONS 2
 
 /* ZynqMP maps the ARM GIC regions (GICC, GICD ...) at consecutive 64k offsets
@@ -52,6 +56,8 @@ typedef struct XlnxZynqMPState {
     ARMCPU rpu_cpu[XLNX_ZYNQMP_NUM_RPU_CPUS];
     GICState gic;
     MemoryRegion gic_mr[XLNX_ZYNQMP_GIC_REGIONS][XLNX_ZYNQMP_GIC_ALIASES];
+    MemoryRegion ocm_ram[XLNX_ZYNQMP_NUM_OCM_BANKS];
+
     CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];
     CadenceUARTState uart[XLNX_ZYNQMP_NUM_UARTS];
 

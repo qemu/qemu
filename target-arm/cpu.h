@@ -1284,6 +1284,9 @@ typedef enum CPAccessResult {
     /* As CP_ACCESS_TRAP, but for traps directly to EL2 or EL3 */
     CP_ACCESS_TRAP_EL2 = 3,
     CP_ACCESS_TRAP_EL3 = 4,
+    /* As CP_ACCESS_UNCATEGORIZED, but for traps directly to EL2 or EL3 */
+    CP_ACCESS_TRAP_UNCATEGORIZED_EL2 = 5,
+    CP_ACCESS_TRAP_UNCATEGORIZED_EL3 = 6,
 } CPAccessResult;
 
 /* Access functions for coprocessor registers. These cannot fail and
