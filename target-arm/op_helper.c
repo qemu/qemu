@@ -444,6 +444,14 @@ void HELPER(access_check_cp_reg)(CPUARMState *env, void *rip, uint32_t syndrome)
         target_el = exception_target_el(env);
         syndrome = syn_uncategorized();
         break;
+    case CP_ACCESS_TRAP_UNCATEGORIZED_EL2:
+        target_el = 2;
+        syndrome = syn_uncategorized();
+        break;
+    case CP_ACCESS_TRAP_UNCATEGORIZED_EL3:
+        target_el = 3;
+        syndrome = syn_uncategorized();
+        break;
     default:
         g_assert_not_reached();
     }
