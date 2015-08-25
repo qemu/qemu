@@ -5999,6 +5999,11 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         if (el > 1) {
             ttbr1_valid = false;
         }
+    } else {
+        /* There is no TTBR1 for EL2 */
+        if (el == 2) {
+            ttbr1_valid = false;
+        }
     }
 
     /* Determine whether this address is in the region controlled by
