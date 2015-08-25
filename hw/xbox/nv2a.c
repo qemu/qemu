@@ -4525,7 +4525,7 @@ static void pgraph_method(NV2AState *d,
 
         assert(const_load < NV2A_VERTEXSHADER_CONSTANTS);
         VertexShaderConstant *constant = &pg->constants[const_load];
-        constant->dirty = (parameter != constant->data[slot%4]);
+        constant->dirty |= (parameter != constant->data[slot%4]);
         constant->data[slot%4] = parameter;
 
         if (slot % 4 == 3) {
