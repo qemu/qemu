@@ -567,7 +567,9 @@ static const char* vsh_header =
 
 
     /* All constants in 1 array declaration */
-   "uniform vec4 c[192];\n"
+   "layout(shared) uniform VertexConstants {\n"
+   "  uniform vec4 c[192];\n"
+   "};"
    "\n"
    "uniform vec2 clipRange;\n"
    "uniform vec2 surfaceSize;\n"

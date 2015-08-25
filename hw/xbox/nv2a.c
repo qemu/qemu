@@ -1553,6 +1553,8 @@ typedef struct PGRAPHState {
     GLuint gl_element_buffer;
     GLuint gl_memory_buffer;
 
+    GLuint gl_vertex_constants_buffer;
+
     GLuint gl_vertex_array;
 
     uint32_t regs[0x2000];
@@ -2902,6 +2904,13 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     } else {
         pg->shader_binding = generate_shaders(state);
 
+        /* Bind uniform blocks */
+        if (pg->shader_binding->gl_constants_loc != GL_INVALID_INDEX) {
+            glUniformBlockBinding(pg->shader_binding->gl_program,
+                                  pg->shader_binding->gl_constants_loc,
+                                  0 /* FIXME: Use #define */);
+        }
+
         /* cache it */
         ShaderState *cache_state = g_malloc(sizeof(*cache_state));
         memcpy(cache_state, &state, sizeof(*cache_state));
@@ -3097,18 +3106,6 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     } else if (vertex_program) {
         /* update vertex program constants */
 
-        for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
-            VertexShaderConstant *constant = &pg->constants[i];
-            if (!constant->dirty && !binding_changed) continue;
-
-            GLint loc = pg->shader_binding->vsh_constant_loc[i];
-            //assert(loc != -1);
-            if (loc != -1) {
-                glUniform4fv(loc, 1, (const GLfloat*)constant->data);
-            }
-            constant->dirty = false;
-        }
-
         GLint loc = glGetUniformLocation(pg->shader_binding->gl_program,
                                           "surfaceSize");
         if (loc != -1) {
@@ -3123,6 +3120,23 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
         }
 
     }
+
+    /* Update constants */
+    if (pg->shader_binding->gl_constants_loc != GL_INVALID_INDEX) {
+        /* FIXME: Can be done on buffer creation? */
+        glBindBufferBase(GL_UNIFORM_BUFFER, 0 /* FIXME: Use def */,
+                         pg->gl_vertex_constants_buffer);
+        for (i=0; i<NV2A_VERTEXSHADER_CONSTANTS; i++) {
+            VertexShaderConstant *constant = &pg->constants[i];
+            if (!constant->dirty) continue;
+
+            /* FIXME: Query GL_UNIFORM_ARRAY_STRIDE instead of assuming 16 */
+
+            glBufferSubData(GL_UNIFORM_BUFFER, i * 16, 16, constant->data);
+            constant->dirty = false;
+        }
+    }
+
     NV2A_GL_DGROUP_END();
 }
 
@@ -3531,6 +3545,13 @@ static void pgraph_init(NV2AState *d)
     }
     glGenBuffers(1, &pg->gl_inline_array_buffer);
     glGenBuffers(1, &pg->gl_element_buffer);
+
+    glGenBuffers(1, &pg->gl_vertex_constants_buffer);
+    glBindBuffer(GL_UNIFORM_BUFFER, pg->gl_vertex_constants_buffer);
+    glBufferData(GL_UNIFORM_BUFFER,
+                 16 * NV2A_VERTEXSHADER_CONSTANTS,
+                 NULL,
+                 GL_DYNAMIC_DRAW);
 
     glGenBuffers(1, &pg->gl_memory_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, pg->gl_memory_buffer);

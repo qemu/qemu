@@ -87,7 +87,7 @@ typedef struct ShaderState {
 typedef struct ShaderBinding {
     GLuint gl_program;
     GLint psh_constant_loc[9][2];
-    GLint vsh_constant_loc[NV2A_VERTEXSHADER_CONSTANTS];
+    GLint gl_constants_loc;
 } ShaderBinding;
 
 ShaderBinding* generate_shaders(const ShaderState state);
