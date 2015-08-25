@@ -1849,6 +1849,17 @@ static void ats_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     A32_BANKED_CURRENT_REG_SET(env, par, par64);
 }
 
+static void ats1h_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    int access_type = ri->opc2 & 1;
+    uint64_t par64;
+
+    par64 = do_ats_write(env, value, access_type, ARMMMUIdx_S2NS);
+
+    A32_BANKED_CURRENT_REG_SET(env, par, par64);
+}
+
 static CPAccessResult at_s1e2_access(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     if (arm_current_el(env) == 3 && !(env->cp15.scr_el3 & SCR_NS)) {
@@ -3066,6 +3077,17 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .opc0 = 1, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 1,
       .access = PL2_W, .accessfn = at_s1e2_access,
       .type = ARM_CP_NO_RAW, .writefn = ats_write64 },
+    /* The AArch32 ATS1H* operations are CONSTRAINED UNPREDICTABLE
+     * if EL2 is not implemented; we choose to UNDEF. Behaviour at EL3
+     * with SCR.NS == 0 outside Monitor mode is UNPREDICTABLE; we choose
+     * to behave as if SCR.NS was 1.
+     */
+    { .name = "ATS1HR", .cp = 15, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 0,
+      .access = PL2_W,
+      .writefn = ats1h_write, .type = ARM_CP_NO_RAW },
+    { .name = "ATS1HW", .cp = 15, .opc1 = 4, .crn = 7, .crm = 8, .opc2 = 1,
+      .access = PL2_W,
+      .writefn = ats1h_write, .type = ARM_CP_NO_RAW },
     { .name = "CNTHCTL_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 1, .opc2 = 0,
       /* ARMv7 requires bit 0 and 1 to reset to 1. ARMv8 defines the
