@@ -1612,12 +1612,16 @@ static void property_get_str(Object *obj, Visitor *v, void *opaque,
 {
     StringProperty *prop = opaque;
     char *value;
+    Error *err = NULL;
 
-    value = prop->get(obj, errp);
-    if (value) {
-        visit_type_str(v, &value, name, errp);
-        g_free(value);
+    value = prop->get(obj, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
+
+    visit_type_str(v, &value, name, errp);
+    g_free(value);
 }
 
 static void property_set_str(Object *obj, Visitor *v, void *opaque,
