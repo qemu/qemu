@@ -28,7 +28,6 @@
 #include "exec/memattrs.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
-#include "qemu/tls.h"
 #include "qemu/typedefs.h"
 
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
@@ -333,8 +332,7 @@ extern struct CPUTailQ cpus;
     QTAILQ_FOREACH_REVERSE(cpu, &cpus, CPUTailQ, node)
 #define first_cpu QTAILQ_FIRST(&cpus)
 
-DECLARE_TLS(CPUState *, current_cpu);
-#define current_cpu tls_var(current_cpu)
+extern __thread CPUState *current_cpu;
 
 /**
  * cpu_paging_enabled:
