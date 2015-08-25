@@ -357,6 +357,14 @@ F: hw/misc/zynq_slcr.c
 F: hw/*/cadence_*
 F: hw/ssi/xilinx_spips.c
 
+Xilinx ZynqMP
+M: Alistair Francis <alistair.francis@xilinx.com>
+M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
+S: Maintained
+F: hw/arm/xlnx-zynqmp.c
+F: hw/arm/xlnx-ep108.c
+F: include/hw/arm/xlnx-zynqmp.h
+
 ARM ACPI Subsystem
 M: Shannon Zhao <zhaoshenglong@huawei.com>
 M: Shannon Zhao <shannon.zhao@linaro.org>
