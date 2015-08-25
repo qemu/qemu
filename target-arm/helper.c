@@ -2507,65 +2507,151 @@ static CPAccessResult aa64_cacheop_access(CPUARMState *env,
  * Page D4-1736 (DDI0487A.b)
  */
 
-static void tlbi_aa64_va_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                               uint64_t value)
+static void tlbi_aa64_vmalle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                    uint64_t value)
 {
-    /* Invalidate by VA (AArch64 version) */
     ARMCPU *cpu = arm_env_get_cpu(env);
-    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+    CPUState *cs = CPU(cpu);
 
-    tlb_flush_page(CPU(cpu), pageaddr);
+    if (arm_is_secure_below_el3(env)) {
+        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+    } else {
+        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0, -1);
+    }
 }
 
-static void tlbi_aa64_vaa_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                uint64_t value)
+static void tlbi_aa64_vmalle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                      uint64_t value)
 {
-    /* Invalidate by VA, all ASIDs (AArch64 version) */
-    ARMCPU *cpu = arm_env_get_cpu(env);
-    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+    bool sec = arm_is_secure_below_el3(env);
+    CPUState *other_cs;
 
-    tlb_flush_page(CPU(cpu), pageaddr);
+    CPU_FOREACH(other_cs) {
+        if (sec) {
+            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+        } else {
+            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
+                                ARMMMUIdx_S12NSE0, -1);
+        }
+    }
 }
 
-static void tlbi_aa64_asid_write(CPUARMState *env, const ARMCPRegInfo *ri,
+static void tlbi_aa64_alle1_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  uint64_t value)
+{
+    /* Note that the 'ALL' scope must invalidate both stage 1 and
+     * stage 2 translations, whereas most other scopes only invalidate
+     * stage 1 translations.
+     */
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    if (arm_is_secure_below_el3(env)) {
+        tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+    } else {
+        if (arm_feature(env, ARM_FEATURE_EL2)) {
+            tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0,
+                                ARMMMUIdx_S2NS, -1);
+        } else {
+            tlb_flush_by_mmuidx(cs, ARMMMUIdx_S12NSE1, ARMMMUIdx_S12NSE0, -1);
+        }
+    }
+}
+
+static void tlbi_aa64_alle2_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                  uint64_t value)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+
+    tlb_flush_by_mmuidx(cs, ARMMMUIdx_S1E2, -1);
+}
+
+static void tlbi_aa64_alle1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                    uint64_t value)
+{
+    /* Note that the 'ALL' scope must invalidate both stage 1 and
+     * stage 2 translations, whereas most other scopes only invalidate
+     * stage 1 translations.
+     */
+    bool sec = arm_is_secure_below_el3(env);
+    bool has_el2 = arm_feature(env, ARM_FEATURE_EL2);
+    CPUState *other_cs;
+
+    CPU_FOREACH(other_cs) {
+        if (sec) {
+            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S1SE1, ARMMMUIdx_S1SE0, -1);
+        } else if (has_el2) {
+            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
+                                ARMMMUIdx_S12NSE0, ARMMMUIdx_S2NS, -1);
+        } else {
+            tlb_flush_by_mmuidx(other_cs, ARMMMUIdx_S12NSE1,
+                                ARMMMUIdx_S12NSE0, -1);
+        }
+    }
+}
+
+static void tlbi_aa64_vae1_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                  uint64_t value)
 {
-    /* Invalidate by ASID (AArch64 version) */
+    /* Invalidate by VA, EL1&0 (AArch64 version).
+     * Currently handles all of VAE1, VAAE1, VAALE1 and VALE1,
+     * since we don't support flush-for-specific-ASID-only or
+     * flush-last-level-only.
+     */
     ARMCPU *cpu = arm_env_get_cpu(env);
-    int asid = extract64(value, 48, 16);
-    tlb_flush(CPU(cpu), asid == 0);
+    CPUState *cs = CPU(cpu);
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+
+    if (arm_is_secure_below_el3(env)) {
+        tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1SE1,
+                                 ARMMMUIdx_S1SE0, -1);
+    } else {
+        tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S12NSE1,
+                                 ARMMMUIdx_S12NSE0, -1);
+    }
 }
 
-static void tlbi_aa64_va_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                  uint64_t value)
+static void tlbi_aa64_vae2_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                 uint64_t value)
+{
+    /* Invalidate by VA, EL2
+     * Currently handles both VAE2 and VALE2, since we don't support
+     * flush-last-level-only.
+     */
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+
+    tlb_flush_page_by_mmuidx(cs, pageaddr, ARMMMUIdx_S1E2, -1);
+}
+
+static void tlbi_aa64_vae1is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   uint64_t value)
+{
+    bool sec = arm_is_secure_below_el3(env);
+    CPUState *other_cs;
+    uint64_t pageaddr = sextract64(value << 12, 0, 56);
+
+    CPU_FOREACH(other_cs) {
+        if (sec) {
+            tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1SE1,
+                                     ARMMMUIdx_S1SE0, -1);
+        } else {
+            tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S12NSE1,
+                                     ARMMMUIdx_S12NSE0, -1);
+        }
+    }
+}
+
+static void tlbi_aa64_vae2is_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                                   uint64_t value)
 {
     CPUState *other_cs;
     uint64_t pageaddr = sextract64(value << 12, 0, 56);
 
     CPU_FOREACH(other_cs) {
-        tlb_flush_page(other_cs, pageaddr);
-    }
-}
-
-static void tlbi_aa64_vaa_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                  uint64_t value)
-{
-    CPUState *other_cs;
-    uint64_t pageaddr = sextract64(value << 12, 0, 56);
-
-    CPU_FOREACH(other_cs) {
-        tlb_flush_page(other_cs, pageaddr);
-    }
-}
-
-static void tlbi_aa64_asid_is_write(CPUARMState *env, const ARMCPRegInfo *ri,
-                                  uint64_t value)
-{
-    CPUState *other_cs;
-    int asid = extract64(value, 48, 16);
-
-    CPU_FOREACH(other_cs) {
-        tlb_flush(other_cs, asid == 0);
+        tlb_flush_page_by_mmuidx(other_cs, pageaddr, ARMMMUIdx_S1E2, -1);
     }
 }
 
@@ -2704,59 +2790,59 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "TLBI_VMALLE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbiall_is_write },
+      .writefn = tlbi_aa64_vmalle1is_write },
     { .name = "TLBI_VAE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_va_is_write },
+      .writefn = tlbi_aa64_vae1is_write },
     { .name = "TLBI_ASIDE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_asid_is_write },
+      .writefn = tlbi_aa64_vmalle1is_write },
     { .name = "TLBI_VAAE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 3,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vaa_is_write },
+      .writefn = tlbi_aa64_vae1is_write },
     { .name = "TLBI_VALE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 5,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_va_is_write },
+      .writefn = tlbi_aa64_vae1is_write },
     { .name = "TLBI_VAALE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 3, .opc2 = 7,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vaa_is_write },
+      .writefn = tlbi_aa64_vae1is_write },
     { .name = "TLBI_VMALLE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 0,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbiall_write },
+      .writefn = tlbi_aa64_vmalle1_write },
     { .name = "TLBI_VAE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_va_write },
+      .writefn = tlbi_aa64_vae1_write },
     { .name = "TLBI_ASIDE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_asid_write },
+      .writefn = tlbi_aa64_vmalle1_write },
     { .name = "TLBI_VAAE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 3,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vaa_write },
+      .writefn = tlbi_aa64_vae1_write },
     { .name = "TLBI_VALE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 5,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_va_write },
+      .writefn = tlbi_aa64_vae1_write },
     { .name = "TLBI_VAALE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 8, .crm = 7, .opc2 = 7,
       .access = PL1_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbi_aa64_vaa_write },
+      .writefn = tlbi_aa64_vae1_write },
     { .name = "TLBI_ALLE1IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 4,
       .access = PL2_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbiall_is_write },
+      .writefn = tlbi_aa64_alle1is_write },
     { .name = "TLBI_ALLE1", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 4,
       .access = PL2_W, .type = ARM_CP_NO_RAW,
-      .writefn = tlbiall_write },
+      .writefn = tlbi_aa64_alle1_write },
 #ifndef CONFIG_USER_ONLY
     /* 64 bit address translation operations */
     { .name = "AT_S1E1R", .state = ARM_CP_STATE_AA64,
@@ -3055,15 +3141,15 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "TLBI_ALLE2", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 0,
       .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbiall_write },
+      .writefn = tlbi_aa64_alle2_write },
     { .name = "TLBI_VAE2", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 7, .opc2 = 1,
       .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbi_aa64_vaa_write },
+      .writefn = tlbi_aa64_vae2_write },
     { .name = "TLBI_VAE2IS", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 4, .crn = 8, .crm = 3, .opc2 = 1,
       .type = ARM_CP_NO_RAW, .access = PL2_W,
-      .writefn = tlbi_aa64_vaa_write },
+      .writefn = tlbi_aa64_vae2is_write },
 #ifndef CONFIG_USER_ONLY
     /* Unlike the other EL2-related AT operations, these must
      * UNDEF from EL3 if EL2 is not implemented, which is why we
