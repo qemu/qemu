@@ -22,7 +22,7 @@
 #include "hw/hw.h"
 #include "qemu/timer.h"
 
-#define TIMER_FREQ    (20 * 1000 * 1000)    /* 20MHz */
+#define TIMER_PERIOD 50 /* 50 ns period for 20 MHz timer */
 
 /* The time when TTCR changes */
 static uint64_t last_clk;
@@ -36,8 +36,7 @@ void cpu_openrisc_count_update(OpenRISCCPU *cpu)
         return;
     }
     now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    cpu->env.ttcr += (uint32_t)muldiv64(now - last_clk, TIMER_FREQ,
-                                        get_ticks_per_sec());
+    cpu->env.ttcr += (uint32_t)((now - last_clk) / TIMER_PERIOD);
     last_clk = now;
 }
 
@@ -59,7 +58,7 @@ void cpu_openrisc_timer_update(OpenRISCCPU *cpu)
     } else {
         wait = (cpu->env.ttmr & TTMR_TP) - (cpu->env.ttcr & TTMR_TP);
     }
-    next = now + muldiv64(wait, get_ticks_per_sec(), TIMER_FREQ);
+    next = now + (uint64_t)wait * TIMER_PERIOD;
     timer_mod(cpu->env.timer, next);
 }
 
