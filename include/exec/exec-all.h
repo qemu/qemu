@@ -96,8 +96,46 @@ bool qemu_in_vcpu_thread(void);
 void cpu_reload_memory_map(CPUState *cpu);
 void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as);
 /* cputlb.c */
+/**
+ * tlb_flush_page:
+ * @cpu: CPU whose TLB should be flushed
+ * @addr: virtual address of page to be flushed
+ *
+ * Flush one page from the TLB of the specified CPU, for all
+ * MMU indexes.
+ */
 void tlb_flush_page(CPUState *cpu, target_ulong addr);
+/**
+ * tlb_flush:
+ * @cpu: CPU whose TLB should be flushed
+ * @flush_global: ignored
+ *
+ * Flush the entire TLB for the specified CPU.
+ * The flush_global flag is in theory an indicator of whether the whole
+ * TLB should be flushed, or only those entries not marked global.
+ * In practice QEMU does not implement any global/not global flag for
+ * TLB entries, and the argument is ignored.
+ */
 void tlb_flush(CPUState *cpu, int flush_global);
+/**
+ * tlb_flush_page_by_mmuidx:
+ * @cpu: CPU whose TLB should be flushed
+ * @addr: virtual address of page to be flushed
+ * @...: list of MMU indexes to flush, terminated by a negative value
+ *
+ * Flush one page from the TLB of the specified CPU, for the specified
+ * MMU indexes.
+ */
+void tlb_flush_page_by_mmuidx(CPUState *cpu, target_ulong addr, ...);
+/**
+ * tlb_flush_by_mmuidx:
+ * @cpu: CPU whose TLB should be flushed
+ * @...: list of MMU indexes to flush, terminated by a negative value
+ *
+ * Flush all entries from the TLB of the specified CPU, for the specified
+ * MMU indexes.
+ */
+void tlb_flush_by_mmuidx(CPUState *cpu, ...);
 void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
@@ -113,6 +151,15 @@ static inline void tlb_flush_page(CPUState *cpu, target_ulong addr)
 }
 
 static inline void tlb_flush(CPUState *cpu, int flush_global)
+{
+}
+
+static inline void tlb_flush_page_by_mmuidx(CPUState *cpu,
+                                            target_ulong addr, ...)
+{
+}
+
+static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
 {
 }
 #endif
