@@ -310,6 +310,11 @@ static QString* generate_fixed_function(const ShaderState state,
         qstring_append_fmt(h, "uniform vec3 sceneAmbientColor;\n");
         qstring_append(s, "vec4 tD0 = vec4(sceneAmbientColor, diffuse.a);\n");
         qstring_append(s, "vec4 tD1 = vec4(0.0, 0.0, 0.0, specular.a);\n");
+
+        /* FIXME: Only add if necessary */
+        qstring_append(h,
+            "uniform vec4 eyePosition;\n");
+
         for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
             if (state.light[i] == LIGHT_OFF) {
                 continue;
@@ -334,9 +339,6 @@ static QString* generate_fixed_function(const ShaderState state,
 
             if (state.light[i] == LIGHT_LOCAL
                     || state.light[i] == LIGHT_SPOT) {
-
-                qstring_append(h,
-                    "uniform vec4 eyePosition;\n");
 
                 qstring_append_fmt(h,
                     "uniform vec3 lightLocalPosition%d;\n"
