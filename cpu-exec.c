@@ -341,7 +341,7 @@ static void cpu_handle_debug_exception(CPUState *cpu)
 
 /* main execution loop */
 
-volatile sig_atomic_t exit_request;
+bool exit_request;
 CPUState *tcg_current_cpu;
 
 int cpu_exec(CPUState *cpu)

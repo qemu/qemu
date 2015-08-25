@@ -661,19 +661,6 @@ static void cpu_handle_guest_debug(CPUState *cpu)
     cpu->stopped = true;
 }
 
-static void cpu_signal(int sig)
-{
-    CPUState *cpu;
-    /* Ensure whatever caused the exit has reached the CPU threads before
-     * writing exit_request.
-     */
-    atomic_mb_set(&exit_request, 1);
-    cpu = atomic_mb_read(&tcg_current_cpu);
-    if (cpu) {
-        cpu_exit(cpu);
-    }
-}
-
 #ifdef CONFIG_LINUX
 static void sigbus_reraise(void)
 {
@@ -786,28 +773,10 @@ static void qemu_kvm_init_cpu_signals(CPUState *cpu)
     }
 }
 
-static void qemu_tcg_init_cpu_signals(void)
-{
-    sigset_t set;
-    struct sigaction sigact;
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = cpu_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIG_IPI);
-    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
-}
-
 #else /* _WIN32 */
 static void qemu_kvm_init_cpu_signals(CPUState *cpu)
 {
     abort();
-}
-
-static void qemu_tcg_init_cpu_signals(void)
-{
 }
 #endif /* _WIN32 */
 
@@ -1046,7 +1015,6 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     rcu_register_thread();
 
     qemu_mutex_lock_iothread();
-    qemu_tcg_init_cpu_signals();
     qemu_thread_get_self(cpu->thread);
 
     CPU_FOREACH(cpu) {
@@ -1090,60 +1058,47 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
 #ifndef _WIN32
     int err;
 
-    if (!tcg_enabled()) {
-        if (cpu->thread_kicked) {
-            return;
-        }
-        cpu->thread_kicked = true;
+    if (cpu->thread_kicked) {
+        return;
     }
+    cpu->thread_kicked = true;
     err = pthread_kill(cpu->thread->thread, SIG_IPI);
     if (err) {
         fprintf(stderr, "qemu:%s: %s", __func__, strerror(err));
         exit(1);
     }
 #else /* _WIN32 */
-    if (!qemu_cpu_is_self(cpu)) {
-        CONTEXT tcgContext;
-
-        if (SuspendThread(cpu->hThread) == (DWORD)-1) {
-            fprintf(stderr, "qemu:%s: GetLastError:%lu\n", __func__,
-                    GetLastError());
-            exit(1);
-        }
-
-        /* On multi-core systems, we are not sure that the thread is actually
-         * suspended until we can get the context.
-         */
-        tcgContext.ContextFlags = CONTEXT_CONTROL;
-        while (GetThreadContext(cpu->hThread, &tcgContext) != 0) {
-            continue;
-        }
-
-        cpu_signal(0);
-
-        if (ResumeThread(cpu->hThread) == (DWORD)-1) {
-            fprintf(stderr, "qemu:%s: GetLastError:%lu\n", __func__,
-                    GetLastError());
-            exit(1);
-        }
-    }
+    abort();
 #endif
+}
+
+static void qemu_cpu_kick_no_halt(void)
+{
+    CPUState *cpu;
+    /* Ensure whatever caused the exit has reached the CPU threads before
+     * writing exit_request.
+     */
+    atomic_mb_set(&exit_request, 1);
+    cpu = atomic_mb_read(&tcg_current_cpu);
+    if (cpu) {
+        cpu_exit(cpu);
+    }
 }
 
 void qemu_cpu_kick(CPUState *cpu)
 {
     qemu_cond_broadcast(cpu->halt_cond);
-    qemu_cpu_kick_thread(cpu);
+    if (tcg_enabled()) {
+        qemu_cpu_kick_no_halt();
+    } else {
+        qemu_cpu_kick_thread(cpu);
+    }
 }
 
 void qemu_cpu_kick_self(void)
 {
-#ifndef _WIN32
     assert(current_cpu);
     qemu_cpu_kick_thread(current_cpu);
-#else
-    abort();
-#endif
 }
 
 bool qemu_cpu_is_self(CPUState *cpu)
@@ -1175,7 +1130,7 @@ void qemu_mutex_lock_iothread(void)
         atomic_dec(&iothread_requesting_mutex);
     } else {
         if (qemu_mutex_trylock(&qemu_global_mutex)) {
-            qemu_cpu_kick_thread(first_cpu);
+            qemu_cpu_kick_no_halt();
             qemu_mutex_lock(&qemu_global_mutex);
         }
         atomic_dec(&iothread_requesting_mutex);

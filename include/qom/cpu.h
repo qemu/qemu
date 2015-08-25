@@ -268,7 +268,7 @@ struct CPUState {
     bool created;
     bool stop;
     bool stopped;
-    volatile sig_atomic_t exit_request;
+    bool exit_request;
     uint32_t interrupt_request;
     int singlestep_enabled;
     int64_t icount_extra;
@@ -319,7 +319,7 @@ struct CPUState {
        offset from AREG0.  Leave this field at the end so as to make the
        (absolute value) offset as small as possible.  This reduces code
        size, especially for hosts without large memory offsets.  */
-    volatile sig_atomic_t tcg_exit_req;
+    uint32_t tcg_exit_req;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);

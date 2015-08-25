@@ -386,9 +386,9 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 /* vl.c */
 extern int singlestep;
 
-/* cpu-exec.c */
+/* cpu-exec.c, accessed with atomic_mb_read/atomic_mb_set */
 extern CPUState *tcg_current_cpu;
-extern volatile sig_atomic_t exit_request;
+extern bool exit_request;
 
 #if !defined(CONFIG_USER_ONLY)
 void migration_bitmap_extend(ram_addr_t old, ram_addr_t new);
