@@ -4378,9 +4378,15 @@ elif ! has wixl; then
     error_exit "MSI guest agent package requires wixl tool installed ( usually from msitools package )"
   fi
   guest_agent_msi=no
+else
+  # we support qemu-ga, mingw32, and wixl: default to MSI enabled if it wasn't
+  # disabled explicitly
+  if test "$guest_agent_msi" != "no"; then
+    guest_agent_msi=yes
+  fi
 fi
 
-if test "$guest_agent_msi" != "no"; then
+if test "$guest_agent_msi" = "yes"; then
   if test "$guest_agent_with_vss" = "yes"; then
     QEMU_GA_MSI_WITH_VSS="-D InstallVss"
   fi
@@ -4659,7 +4665,7 @@ if test "$mingw32" = "yes" ; then
   if test "$guest_agent_ntddscsi" = "yes" ; then
     echo "CONFIG_QGA_NTDDDISK=y" >> $config_host_mak
   fi
-  if test "$guest_agent_msi" != "no"; then
+  if test "$guest_agent_msi" = "yes"; then
     echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak  
     echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
     echo "QEMU_GA_MSI_WITH_VSS=${QEMU_GA_MSI_WITH_VSS}" >> $config_host_mak
