@@ -1453,9 +1453,7 @@ static int xhci_ep_nuke_one_xfer(XHCITransfer *t, TRBCCode report)
         t->running_retry = 0;
         killed = 1;
     }
-    if (t->trbs) {
-        g_free(t->trbs);
-    }
+    g_free(t->trbs);
 
     t->trbs = NULL;
     t->trb_count = t->trb_alloced = 0;

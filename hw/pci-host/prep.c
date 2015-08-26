@@ -328,9 +328,7 @@ static void raven_realize(PCIDevice *d, Error **errp)
         if (bios_size < 0 || bios_size > BIOS_SIZE) {
             hw_error("qemu: could not load bios image '%s'\n", s->bios_name);
         }
-        if (filename) {
-            g_free(filename);
-        }
+        g_free(filename);
     }
 }
 

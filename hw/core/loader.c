@@ -594,8 +594,7 @@ static int load_uboot_image(const char *filename, hwaddr *ep, hwaddr *loadaddr,
     ret = hdr->ih_size;
 
 out:
-    if (data)
-        g_free(data);
+    g_free(data);
     close(fd);
     return ret;
 }
