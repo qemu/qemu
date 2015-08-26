@@ -921,22 +921,17 @@ static void ga_print_cmd(QmpCommand *cmd, void *opaque)
     printf("%s\n", qmp_command_name(cmd));
 }
 
-static GList *split_list(gchar *str, const gchar separator)
+static GList *split_list(const gchar *str, const gchar *delim)
 {
     GList *list = NULL;
-    int i, j, len;
+    int i;
+    gchar **strv;
 
-    for (j = 0, i = 0, len = strlen(str); i < len; i++) {
-        if (str[i] == separator) {
-            str[i] = 0;
-            list = g_list_append(list, &str[j]);
-            j = i + 1;
-        }
+    strv = g_strsplit(str, delim, -1);
+    for (i = 0; strv[i]; i++) {
+        list = g_list_prepend(list, strv[i]);
     }
-
-    if (j < i) {
-        list = g_list_append(list, &str[j]);
-    }
+    g_free(strv);
 
     return list;
 }
@@ -1021,7 +1016,7 @@ int main(int argc, char **argv)
                 qmp_for_each_command(ga_print_cmd, NULL);
                 exit(EXIT_SUCCESS);
             }
-            blacklist = g_list_concat(blacklist, split_list(optarg, ','));
+            blacklist = g_list_concat(blacklist, split_list(optarg, ","));
             break;
         }
 #ifdef _WIN32
@@ -1201,6 +1196,7 @@ int main(int argc, char **argv)
     }
 #endif
 
+    g_list_free_full(ga_state->blacklist, g_free);
     ga_command_state_cleanup_all(ga_state->command_state);
     ga_channel_free(ga_state->channel);
 
