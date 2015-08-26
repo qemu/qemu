@@ -793,7 +793,7 @@
 # scheme. Refer to the documentation of the guest operating system
 # in question to determine what is supported.
 #
-# Note all guest operating systems will support use of the
+# Not all guest operating systems will support use of the
 # @crypted flag, as they may require the clear-text password
 #
 # The @password parameter must always be base64 encoded before
