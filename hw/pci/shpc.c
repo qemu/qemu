@@ -1,5 +1,4 @@
 #include "qemu-common.h"
-#include <strings.h>
 #include <stdint.h>
 #include "qemu/range.h"
 #include "qemu/error-report.h"

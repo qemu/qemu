@@ -582,7 +582,6 @@ static const char pvr_register_prefix[] = "rpvr";
 #endif /* MICROBLAZE_OPC */
 
 #include "disas/bfd.h"
-#include <strings.h>
 
 #define get_field_rd(instr) get_field(instr, RD_MASK, RD_LOW)
 #define get_field_r1(instr) get_field(instr, RA_MASK, RA_LOW)
