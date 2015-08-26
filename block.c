@@ -996,13 +996,13 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
  * block driver has been specified explicitly.
  */
 static int bdrv_fill_options(QDict **options, const char **pfilename,
-                             int *flags, BlockDriver *drv, Error **errp)
+                             int *flags, Error **errp)
 {
     const char *filename = *pfilename;
     const char *drvname;
     bool protocol = *flags & BDRV_O_PROTOCOL;
     bool parse_filename = false;
-    BlockDriver *tmp_drv;
+    BlockDriver *drv = NULL;
     Error *local_err = NULL;
 
     /* Parse json: pseudo-protocol */
@@ -1021,15 +1021,15 @@ static int bdrv_fill_options(QDict **options, const char **pfilename,
     }
 
     drvname = qdict_get_try_str(*options, "driver");
-
-    /* If the user has explicitly specified the driver, this choice should
-     * override the BDRV_O_PROTOCOL flag */
-    tmp_drv = drv;
-    if (!tmp_drv && drvname) {
-        tmp_drv = bdrv_find_format(drvname);
-    }
-    if (tmp_drv) {
-        protocol = tmp_drv->bdrv_file_open;
+    if (drvname) {
+        drv = bdrv_find_format(drvname);
+        if (!drv) {
+            error_setg(errp, "Unknown driver '%s'", drvname);
+            return -ENOENT;
+        }
+        /* If the user has explicitly specified the driver, this choice should
+         * override the BDRV_O_PROTOCOL flag */
+        protocol = drv->bdrv_file_open;
     }
 
     if (protocol) {
@@ -1053,33 +1053,18 @@ static int bdrv_fill_options(QDict **options, const char **pfilename,
     /* Find the right block driver */
     filename = qdict_get_try_str(*options, "filename");
 
-    if (drv) {
-        if (drvname) {
-            error_setg(errp, "Driver specified twice");
-            return -EINVAL;
-        }
-        drvname = drv->format_name;
-        qdict_put(*options, "driver", qstring_from_str(drvname));
-    } else {
-        if (!drvname && protocol) {
-            if (filename) {
-                drv = bdrv_find_protocol(filename, parse_filename, errp);
-                if (!drv) {
-                    return -EINVAL;
-                }
-
-                drvname = drv->format_name;
-                qdict_put(*options, "driver", qstring_from_str(drvname));
-            } else {
-                error_setg(errp, "Must specify either driver or file");
+    if (!drvname && protocol) {
+        if (filename) {
+            drv = bdrv_find_protocol(filename, parse_filename, errp);
+            if (!drv) {
                 return -EINVAL;
             }
-        } else if (drvname) {
-            drv = bdrv_find_format(drvname);
-            if (!drv) {
-                error_setg(errp, "Unknown driver '%s'", drvname);
-                return -ENOENT;
-            }
+
+            drvname = drv->format_name;
+            qdict_put(*options, "driver", qstring_from_str(drvname));
+        } else {
+            error_setg(errp, "Must specify either driver or file");
+            return -EINVAL;
         }
     }
 
@@ -1474,7 +1459,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         flags = child_role->inherit_flags(parent->open_flags);
     }
 
-    ret = bdrv_fill_options(&options, &filename, &flags, NULL, &local_err);
+    ret = bdrv_fill_options(&options, &filename, &flags, &local_err);
     if (local_err) {
         goto fail;
     }
