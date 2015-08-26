@@ -658,23 +658,6 @@ static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
 {
     GAChannelMethod channel_method;
 
-    if (method == NULL) {
-        method = "virtio-serial";
-    }
-
-    if (path == NULL) {
-        if (strcmp(method, "virtio-serial") == 0 ) {
-            /* try the default path for the virtio-serial port */
-            path = QGA_VIRTIO_PATH_DEFAULT;
-        } else if (strcmp(method, "isa-serial") == 0){
-            /* try the default path for the serial port - COM1 */
-            path = QGA_SERIAL_PATH_DEFAULT;
-        } else {
-            g_critical("must specify a path for this channel");
-            return false;
-        }
-    }
-
     if (strcmp(method, "virtio-serial") == 0) {
         s->virtio = true; /* virtio requires special handling in some cases */
         channel_method = GA_CHANNEL_VIRTIO_SERIAL;
@@ -1093,6 +1076,23 @@ int main(int argc, char **argv)
 
     if (config->state_dir == NULL) {
         config->state_dir = g_strdup(dfl_pathnames.state_dir);
+    }
+
+    if (config->method == NULL) {
+        config->method = g_strdup("virtio-serial");
+    }
+
+    if (config->channel_path == NULL) {
+        if (strcmp(config->method, "virtio-serial") == 0) {
+            /* try the default path for the virtio-serial port */
+            config->channel_path = g_strdup(QGA_VIRTIO_PATH_DEFAULT);
+        } else if (strcmp(config->method, "isa-serial") == 0) {
+            /* try the default path for the serial port - COM1 */
+            config->channel_path = g_strdup(QGA_SERIAL_PATH_DEFAULT);
+        } else {
+            g_critical("must specify a path for this channel");
+            goto out_bad;
+        }
     }
 
 #ifdef _WIN32
