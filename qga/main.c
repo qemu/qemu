@@ -1059,9 +1059,147 @@ static void config_free(GAConfig *config)
     g_free(config);
 }
 
+static bool check_is_frozen(GAState *s)
+{
+#ifndef _WIN32
+    /* check if a previous instance of qemu-ga exited with filesystems' state
+     * marked as frozen. this could be a stale value (a non-qemu-ga process
+     * or reboot may have since unfrozen them), but better to require an
+     * uneeded unfreeze than to risk hanging on start-up
+     */
+    struct stat st;
+    if (stat(s->state_filepath_isfrozen, &st) == -1) {
+        /* it's okay if the file doesn't exist, but if we can't access for
+         * some other reason, such as permissions, there's a configuration
+         * that needs to be addressed. so just bail now before we get into
+         * more trouble later
+         */
+        if (errno != ENOENT) {
+            g_critical("unable to access state file at path %s: %s",
+                       s->state_filepath_isfrozen, strerror(errno));
+            return EXIT_FAILURE;
+        }
+    } else {
+        g_warning("previous instance appears to have exited with frozen"
+                  " filesystems. deferring logging/pidfile creation and"
+                  " disabling non-fsfreeze-safe commands until"
+                  " guest-fsfreeze-thaw is issued, or filesystems are"
+                  " manually unfrozen and the file %s is removed",
+                  s->state_filepath_isfrozen);
+        return true;
+    }
+#endif
+    return false;
+}
+
+static int run_agent(GAState *s, GAConfig *config)
+{
+    ga_state = s;
+
+    g_log_set_default_handler(ga_log, s);
+    g_log_set_fatal_mask(NULL, G_LOG_LEVEL_ERROR);
+    ga_enable_logging(s);
+
+#ifdef _WIN32
+    /* On win32 the state directory is application specific (be it the default
+     * or a user override). We got past the command line parsing; let's create
+     * the directory (with any intermediate directories). If we run into an
+     * error later on, we won't try to clean up the directory, it is considered
+     * persistent.
+     */
+    if (g_mkdir_with_parents(config->state_dir, S_IRWXU) == -1) {
+        g_critical("unable to create (an ancestor of) the state directory"
+                   " '%s': %s", config->state_dir, strerror(errno));
+        return EXIT_FAILURE;
+    }
+#endif
+
+    if (ga_is_frozen(s)) {
+        if (config->daemonize) {
+            /* delay opening/locking of pidfile till filesystems are unfrozen */
+            s->deferred_options.pid_filepath = config->pid_filepath;
+            become_daemon(NULL);
+        }
+        if (config->log_filepath) {
+            /* delay opening the log file till filesystems are unfrozen */
+            s->deferred_options.log_filepath = config->log_filepath;
+        }
+        ga_disable_logging(s);
+        qmp_for_each_command(ga_disable_non_whitelisted, NULL);
+    } else {
+        if (config->daemonize) {
+            become_daemon(config->pid_filepath);
+        }
+        if (config->log_filepath) {
+            FILE *log_file = ga_open_logfile(config->log_filepath);
+            if (!log_file) {
+                g_critical("unable to open specified log file: %s",
+                           strerror(errno));
+                return EXIT_FAILURE;
+            }
+            s->log_file = log_file;
+        }
+    }
+
+    /* load persistent state from disk */
+    if (!read_persistent_state(&s->pstate,
+                               s->pstate_filepath,
+                               ga_is_frozen(s))) {
+        g_critical("failed to load persistent state");
+        return EXIT_FAILURE;
+    }
+
+    config->blacklist = ga_command_blacklist_init(config->blacklist);
+    if (config->blacklist) {
+        GList *l = config->blacklist;
+        s->blacklist = config->blacklist;
+        do {
+            g_debug("disabling command: %s", (char *)l->data);
+            qmp_disable_command(l->data);
+            l = g_list_next(l);
+        } while (l);
+    }
+    s->command_state = ga_command_state_new();
+    ga_command_state_init(s, s->command_state);
+    ga_command_state_init_all(s->command_state);
+    json_message_parser_init(&s->parser, process_event);
+    ga_state = s;
+#ifndef _WIN32
+    if (!register_signal_handlers()) {
+        g_critical("failed to register signal handlers");
+        return EXIT_FAILURE;
+    }
+#endif
+
+    s->main_loop = g_main_loop_new(NULL, false);
+    if (!channel_init(ga_state, config->method, config->channel_path)) {
+        g_critical("failed to initialize guest agent channel");
+        return EXIT_FAILURE;
+    }
+#ifndef _WIN32
+    g_main_loop_run(ga_state->main_loop);
+#else
+    if (config->daemonize) {
+        SERVICE_TABLE_ENTRY service_table[] = {
+            { (char *)QGA_SERVICE_NAME, service_main }, { NULL, NULL } };
+        StartServiceCtrlDispatcher(service_table);
+    } else {
+        g_main_loop_run(ga_state->main_loop);
+    }
+#endif
+
+    return EXIT_SUCCESS;
+}
+
+static void free_blacklist_entry(gpointer entry, gpointer unused)
+{
+    g_free(entry);
+}
+
 int main(int argc, char **argv)
 {
-    GAState *s;
+    int ret = EXIT_SUCCESS;
+    GAState *s = g_new0(GAState, 1);
     GAConfig *config;
 
     module_call_init(MODULE_INIT_QAPI);
@@ -1091,156 +1229,37 @@ int main(int argc, char **argv)
             config->channel_path = g_strdup(QGA_SERIAL_PATH_DEFAULT);
         } else {
             g_critical("must specify a path for this channel");
-            goto out_bad;
+            ret = EXIT_FAILURE;
+            goto end;
         }
     }
 
-#ifdef _WIN32
-    /* On win32 the state directory is application specific (be it the default
-     * or a user override). We got past the command line parsing; let's create
-     * the directory (with any intermediate directories). If we run into an
-     * error later on, we won't try to clean up the directory, it is considered
-     * persistent.
-     */
-    if (g_mkdir_with_parents(config->state_dir, S_IRWXU) == -1) {
-        g_critical("unable to create (an ancestor of) the state directory"
-                   " '%s': %s", config->state_dir, strerror(errno));
-        return EXIT_FAILURE;
-    }
-#endif
-
-    s = g_malloc0(sizeof(GAState));
     s->log_level = config->log_level;
     s->log_file = stderr;
 #ifdef CONFIG_FSFREEZE
     s->fsfreeze_hook = config->fsfreeze_hook;
 #endif
-    g_log_set_default_handler(ga_log, s);
-    g_log_set_fatal_mask(NULL, G_LOG_LEVEL_ERROR);
-    ga_enable_logging(s);
+    s->pstate_filepath = g_strdup_printf("%s/qga.state", config->state_dir);
     s->state_filepath_isfrozen = g_strdup_printf("%s/qga.state.isfrozen",
                                                  config->state_dir);
-    s->pstate_filepath = g_strdup_printf("%s/qga.state", config->state_dir);
-    s->frozen = false;
+    s->frozen = check_is_frozen(s);
 
-#ifndef _WIN32
-    /* check if a previous instance of qemu-ga exited with filesystems' state
-     * marked as frozen. this could be a stale value (a non-qemu-ga process
-     * or reboot may have since unfrozen them), but better to require an
-     * uneeded unfreeze than to risk hanging on start-up
-     */
-    struct stat st;
-    if (stat(s->state_filepath_isfrozen, &st) == -1) {
-        /* it's okay if the file doesn't exist, but if we can't access for
-         * some other reason, such as permissions, there's a configuration
-         * that needs to be addressed. so just bail now before we get into
-         * more trouble later
-         */
-        if (errno != ENOENT) {
-            g_critical("unable to access state file at path %s: %s",
-                       s->state_filepath_isfrozen, strerror(errno));
-            return EXIT_FAILURE;
-        }
-    } else {
-        g_warning("previous instance appears to have exited with frozen"
-                  " filesystems. deferring logging/pidfile creation and"
-                  " disabling non-fsfreeze-safe commands until"
-                  " guest-fsfreeze-thaw is issued, or filesystems are"
-                  " manually unfrozen and the file %s is removed",
-                  s->state_filepath_isfrozen);
-        s->frozen = true;
-    }
-#endif
+    ret = run_agent(s, config);
 
-    if (ga_is_frozen(s)) {
-        if (config->daemonize) {
-            /* delay opening/locking of pidfile till filesystems are unfrozen */
-            s->deferred_options.pid_filepath = config->pid_filepath;
-            become_daemon(NULL);
-        }
-        if (config->log_filepath) {
-            /* delay opening the log file till filesystems are unfrozen */
-            s->deferred_options.log_filepath = config->log_filepath;
-        }
-        ga_disable_logging(s);
-        qmp_for_each_command(ga_disable_non_whitelisted, NULL);
-    } else {
-        if (config->daemonize) {
-            become_daemon(config->pid_filepath);
-        }
-        if (config->log_filepath) {
-            FILE *log_file = ga_open_logfile(config->log_filepath);
-            if (!log_file) {
-                g_critical("unable to open specified log file: %s",
-                           strerror(errno));
-                goto out_bad;
-            }
-            s->log_file = log_file;
-        }
+end:
+    if (s->command_state) {
+        ga_command_state_cleanup_all(s->command_state);
     }
+    if (s->channel) {
+        ga_channel_free(s->channel);
+    }
+    g_list_foreach(config->blacklist, free_blacklist_entry, NULL);
 
-    /* load persistent state from disk */
-    if (!read_persistent_state(&s->pstate,
-                               s->pstate_filepath,
-                               ga_is_frozen(s))) {
-        g_critical("failed to load persistent state");
-        goto out_bad;
-    }
-
-    config->blacklist = ga_command_blacklist_init(config->blacklist);
-    if (config->blacklist) {
-        GList *l = config->blacklist;
-        s->blacklist = config->blacklist;
-        do {
-            g_debug("disabling command: %s", (char *)l->data);
-            qmp_disable_command(l->data);
-            l = g_list_next(l);
-        } while (l);
-    }
-    s->command_state = ga_command_state_new();
-    ga_command_state_init(s, s->command_state);
-    ga_command_state_init_all(s->command_state);
-    json_message_parser_init(&s->parser, process_event);
-    ga_state = s;
-#ifndef _WIN32
-    if (!register_signal_handlers()) {
-        g_critical("failed to register signal handlers");
-        goto out_bad;
-    }
-#endif
-
-    s->main_loop = g_main_loop_new(NULL, false);
-    if (!channel_init(ga_state, config->method, config->channel_path)) {
-        g_critical("failed to initialize guest agent channel");
-        goto out_bad;
-    }
-#ifndef _WIN32
-    g_main_loop_run(ga_state->main_loop);
-#else
-    if (config->daemonize) {
-        SERVICE_TABLE_ENTRY service_table[] = {
-            { (char *)QGA_SERVICE_NAME, service_main }, { NULL, NULL } };
-        StartServiceCtrlDispatcher(service_table);
-    } else {
-        g_main_loop_run(ga_state->main_loop);
-    }
-#endif
-
-    g_list_free_full(ga_state->blacklist, g_free);
-    ga_command_state_cleanup_all(ga_state->command_state);
-    ga_channel_free(ga_state->channel);
-
-    if (config->daemonize) {
-        unlink(config->pid_filepath);
-    }
-    return 0;
-
-out_bad:
     if (config->daemonize) {
         unlink(config->pid_filepath);
     }
 
     config_free(config);
 
-    return EXIT_FAILURE;
+    return ret;
 }
