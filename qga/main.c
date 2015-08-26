@@ -992,14 +992,14 @@ int main(int argc, char **argv)
             break;
         case 'V':
             printf("QEMU Guest Agent %s\n", QEMU_VERSION);
-            return 0;
+            exit(EXIT_SUCCESS);
         case 'd':
             daemonize = 1;
             break;
         case 'b': {
             if (is_help_option(optarg)) {
                 qmp_for_each_command(ga_print_cmd, NULL);
-                return 0;
+                exit(EXIT_SUCCESS);
             }
             for (j = 0, i = 0, len = strlen(optarg); i < len; i++) {
                 if (optarg[i] == ',') {
@@ -1027,36 +1027,36 @@ int main(int argc, char **argv)
                                   NULL :
                                   state_dir;
                 if (ga_install_vss_provider()) {
-                    return EXIT_FAILURE;
+                    exit(EXIT_FAILURE);
                 }
                 if (ga_install_service(path, log_filepath, fixed_state_dir)) {
-                    return EXIT_FAILURE;
+                    exit(EXIT_FAILURE);
                 }
-                return 0;
+                exit(EXIT_SUCCESS);
             } else if (strcmp(service, "uninstall") == 0) {
                 ga_uninstall_vss_provider();
-                return ga_uninstall_service();
+                exit(ga_uninstall_service());
             } else if (strcmp(service, "vss-install") == 0) {
                 if (ga_install_vss_provider()) {
-                    return EXIT_FAILURE;
+                    exit(EXIT_FAILURE);
                 }
-                return EXIT_SUCCESS;
+                exit(EXIT_SUCCESS);
             } else if (strcmp(service, "vss-uninstall") == 0) {
                 ga_uninstall_vss_provider();
-                return EXIT_SUCCESS;
+                exit(EXIT_SUCCESS);
             } else {
                 printf("Unknown service command.\n");
-                return EXIT_FAILURE;
+                exit(EXIT_FAILURE);
             }
             break;
 #endif
         case 'h':
             usage(argv[0]);
-            return 0;
+            exit(EXIT_SUCCESS);
         case '?':
             g_print("Unknown option, try '%s --help' for more information.\n",
                     argv[0]);
-            return EXIT_FAILURE;
+            exit(EXIT_FAILURE);
         }
     }
 
