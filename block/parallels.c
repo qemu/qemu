@@ -476,7 +476,7 @@ static int parallels_create(const char *filename, QemuOpts *opts, Error **errp)
 
     file = NULL;
     ret = bdrv_open(&file, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_PROTOCOL, NULL, &local_err);
+                    BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return ret;

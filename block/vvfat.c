@@ -2962,7 +2962,7 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     qdict_put(options, "driver", qstring_from_str("qcow"));
     ret = bdrv_open(&s->qcow, s->qcow_filename, NULL, options,
                     BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH,
-                    NULL, errp);
+                    errp);
     if (ret < 0) {
         goto err;
     }

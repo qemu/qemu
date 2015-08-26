@@ -1391,7 +1391,7 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     bs_snapshot = bdrv_new();
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
-                    flags, NULL, &local_err);
+                    flags, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -1637,11 +1637,10 @@ close_and_fail:
 }
 
 int bdrv_open(BlockDriverState **pbs, const char *filename,
-              const char *reference, QDict *options, int flags,
-              BlockDriver *drv, Error **errp)
+              const char *reference, QDict *options, int flags, Error **errp)
 {
     return bdrv_open_inherit(pbs, filename, reference, options, flags, NULL,
-                             NULL, drv, errp);
+                             NULL, NULL, errp);
 }
 
 typedef struct BlockReopenQueueEntry {
@@ -3846,7 +3845,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
 
             bs = NULL;
             ret = bdrv_open(&bs, full_backing, NULL, backing_options,
-                            back_flags, NULL, &local_err);
+                            back_flags, &local_err);
             g_free(full_backing);
             if (ret < 0) {
                 goto out;
