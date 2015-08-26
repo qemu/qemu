@@ -939,7 +939,7 @@ static GList *split_list(const gchar *str, const gchar *delim)
 int main(int argc, char **argv)
 {
     const char *sopt = "hVvdm:p:l:f:F::b:s:t:";
-    const char *method = NULL, *path = NULL;
+    const char *method = NULL, *channel_path = NULL;
     const char *log_filepath = NULL;
     const char *pid_filepath;
 #ifdef CONFIG_FSFREEZE
@@ -985,7 +985,7 @@ int main(int argc, char **argv)
             method = optarg;
             break;
         case 'p':
-            path = optarg;
+            channel_path = optarg;
             break;
         case 'l':
             log_filepath = optarg;
@@ -1035,7 +1035,8 @@ int main(int argc, char **argv)
                 if (ga_install_vss_provider()) {
                     exit(EXIT_FAILURE);
                 }
-                if (ga_install_service(path, log_filepath, fixed_state_dir)) {
+                if (ga_install_service(channel_path, log_filepath,
+                                       fixed_state_dir)) {
                     exit(EXIT_FAILURE);
                 }
                 exit(EXIT_SUCCESS);
@@ -1180,7 +1181,7 @@ int main(int argc, char **argv)
 #endif
 
     s->main_loop = g_main_loop_new(NULL, false);
-    if (!channel_init(ga_state, method, path)) {
+    if (!channel_init(ga_state, method, channel_path)) {
         g_critical("failed to initialize guest agent channel");
         goto out_bad;
     }
