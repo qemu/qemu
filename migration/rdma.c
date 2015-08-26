@@ -778,7 +778,7 @@ static void qemu_rdma_dump_gid(const char *who, struct rdma_cm_id *id)
  *
  *  If the source VM connects with an IPv4 address without knowing that the
  *  destination has bound to '[::]' the migration will unconditionally fail
- *  unless the management software is explicitly listening on the the IPv4
+ *  unless the management software is explicitly listening on the IPv4
  *  address while using a RoCE-based device.
  *
  *  If the source VM connects with an IPv6 address, then we're OK because we can

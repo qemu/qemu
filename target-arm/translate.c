@@ -8500,7 +8500,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 }
                 /* Perform base writeback before the loaded value to
                    ensure correct behavior with overlapping index registers.
-                   ldrd with base writeback is is undefined if the
+                   ldrd with base writeback is undefined if the
                    destination and index registers overlap.  */
                 if (!(insn & (1 << 24))) {
                     gen_add_datah_offset(s, insn, address_offset, addr);

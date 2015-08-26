@@ -81,7 +81,7 @@ void lm32_watchpoint_insert(CPULM32State *env, int idx, target_ulong address,
 
     switch (wp_type) {
     case LM32_WP_DISABLED:
-        /* nothing to to */
+        /* nothing to do */
         break;
     case LM32_WP_READ:
         flags = BP_CPU | BP_STOP_BEFORE_ACCESS | BP_MEM_READ;

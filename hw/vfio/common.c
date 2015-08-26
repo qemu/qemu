@@ -226,7 +226,7 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
     /*
      * Try the mapping, if it fails with EBUSY, unmap the region and try
      * again.  This shouldn't be necessary, but we sometimes see it in
-     * the the VGA ROM space.
+     * the VGA ROM space.
      */
     if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0 ||
         (errno == EBUSY && vfio_dma_unmap(container, iova, size) == 0 &&

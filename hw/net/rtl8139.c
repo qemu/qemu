@@ -43,7 +43,7 @@
  *                                  Added rx/tx buffer reset when enabling rx/tx operation
  *
  *  2010-Feb-04  Frediano Ziglio:   Rewrote timer support using QEMU timer only
- *                                  when strictly needed (required for for
+ *                                  when strictly needed (required for
  *                                  Darwin)
  *  2011-Mar-22  Benjamin Poirier:  Implemented VLAN offloading
  */

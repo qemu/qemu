@@ -56,7 +56,7 @@ void helper_raise_exception(CPUMoxieState *env, int ex)
     /* Stash the address where the exception occurred.  */
     cpu_restore_state(cs, GETPC());
     env->sregs[5] = env->pc;
-    /* Jump the the exception handline routine.  */
+    /* Jump to the exception handline routine.  */
     env->pc = env->sregs[1];
     cpu_loop_exit(cs);
 }

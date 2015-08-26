@@ -498,7 +498,7 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
 
     *cluster_offset = 0;
 
-    /* seek the the l2 offset in the l1 table */
+    /* seek to the l2 offset in the l1 table */
 
     l1_index = offset >> l1_bits;
     if (l1_index >= s->l1_size) {
@@ -612,7 +612,7 @@ static int get_cluster_table(BlockDriverState *bs, uint64_t offset,
     uint64_t *l2_table = NULL;
     int ret;
 
-    /* seek the the l2 offset in the l1 table */
+    /* seek to the l2 offset in the l1 table */
 
     l1_index = offset >> (s->l2_bits + s->cluster_bits);
     if (l1_index >= s->l1_size) {

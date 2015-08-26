@@ -327,7 +327,7 @@ and applet.
 
         int vcard_emul_get_login_count(VCard *card);
 
-    This function returns the the number of remaining login attempts for this
+    This function returns the number of remaining login attempts for this
     card. If the card emulator does not know, or the card does not have a
     way of giving this information, this function returns -1.
 
@@ -421,7 +421,7 @@ functions:
       The vcard is the value returned from vcard_new. The type is the
       card type emulator that this card should presented to the guest as.
       The flags are card type emulator specific options. The certs,
-      cert_len, and keys are all arrays of length cert_count. These are the
+      cert_len, and keys are all arrays of length cert_count. These are
       the same of the parameters xxxx_card_init() accepts.
 
    Finally the card is associated with its reader by the call:

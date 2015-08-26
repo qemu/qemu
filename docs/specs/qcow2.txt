@@ -257,7 +257,7 @@ L2 table entry:
 
               63:   0 for a cluster that is unused or requires COW, 1 if its
                     refcount is exactly one. This information is only accurate
-                    in L2 tables that are reachable from the the active L1
+                    in L2 tables that are reachable from the active L1
                     table.
 
 Standard Cluster Descriptor:
