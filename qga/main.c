@@ -921,6 +921,26 @@ static void ga_print_cmd(QmpCommand *cmd, void *opaque)
     printf("%s\n", qmp_command_name(cmd));
 }
 
+static GList *split_list(gchar *str, const gchar separator)
+{
+    GList *list = NULL;
+    int i, j, len;
+
+    for (j = 0, i = 0, len = strlen(str); i < len; i++) {
+        if (str[i] == separator) {
+            str[i] = 0;
+            list = g_list_append(list, &str[j]);
+            j = i + 1;
+        }
+    }
+
+    if (j < i) {
+        list = g_list_append(list, &str[j]);
+    }
+
+    return list;
+}
+
 int main(int argc, char **argv)
 {
     const char *sopt = "hVvdm:p:l:f:F::b:s:t:";
@@ -953,7 +973,7 @@ int main(int argc, char **argv)
         { "statedir", 1, NULL, 't' },
         { NULL, 0, NULL, 0 }
     };
-    int opt_ind = 0, ch, daemonize = 0, i, j, len;
+    int opt_ind = 0, ch, daemonize = 0;
     GLogLevelFlags log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
     GList *blacklist = NULL;
     GAState *s;
@@ -1001,16 +1021,7 @@ int main(int argc, char **argv)
                 qmp_for_each_command(ga_print_cmd, NULL);
                 exit(EXIT_SUCCESS);
             }
-            for (j = 0, i = 0, len = strlen(optarg); i < len; i++) {
-                if (optarg[i] == ',') {
-                    optarg[i] = 0;
-                    blacklist = g_list_append(blacklist, &optarg[j]);
-                    j = i + 1;
-                }
-            }
-            if (j < i) {
-                blacklist = g_list_append(blacklist, &optarg[j]);
-            }
+            blacklist = g_list_concat(blacklist, split_list(optarg, ','));
             break;
         }
 #ifdef _WIN32
