@@ -1385,11 +1385,13 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
               qstring_from_str("file"));
     qdict_put(snapshot_options, "file.filename",
               qstring_from_str(tmp_filename));
+    qdict_put(snapshot_options, "driver",
+              qstring_from_str("qcow2"));
 
     bs_snapshot = bdrv_new();
 
     ret = bdrv_open(&bs_snapshot, NULL, NULL, snapshot_options,
-                    flags, &bdrv_qcow2, &local_err);
+                    flags, NULL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -3739,7 +3741,6 @@ void bdrv_img_create(const char *filename, const char *fmt,
     const char *backing_fmt, *backing_file;
     int64_t size;
     BlockDriver *drv, *proto_drv;
-    BlockDriver *backing_drv = NULL;
     Error *local_err = NULL;
     int ret = 0;
 
@@ -3813,14 +3814,6 @@ void bdrv_img_create(const char *filename, const char *fmt,
     }
 
     backing_fmt = qemu_opt_get(opts, BLOCK_OPT_BACKING_FMT);
-    if (backing_fmt) {
-        backing_drv = bdrv_find_format(backing_fmt);
-        if (!backing_drv) {
-            error_setg(errp, "Unknown backing file format '%s'",
-                       backing_fmt);
-            goto out;
-        }
-    }
 
     // The size for the image must always be specified, with one exception:
     // If we are using a backing file, we can obtain the size from there
@@ -3831,6 +3824,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
             char *full_backing = g_new0(char, PATH_MAX);
             int64_t size;
             int back_flags;
+            QDict *backing_options = NULL;
 
             bdrv_get_full_backing_filename_from_filename(filename, backing_file,
                                                          full_backing, PATH_MAX,
@@ -3844,9 +3838,15 @@ void bdrv_img_create(const char *filename, const char *fmt,
             back_flags =
                 flags & ~(BDRV_O_RDWR | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING);
 
+            if (backing_fmt) {
+                backing_options = qdict_new();
+                qdict_put(backing_options, "driver",
+                          qstring_from_str(backing_fmt));
+            }
+
             bs = NULL;
-            ret = bdrv_open(&bs, full_backing, NULL, NULL, back_flags,
-                            backing_drv, &local_err);
+            ret = bdrv_open(&bs, full_backing, NULL, backing_options,
+                            back_flags, NULL, &local_err);
             g_free(full_backing);
             if (ret < 0) {
                 goto out;

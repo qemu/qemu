@@ -2926,6 +2926,8 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     QemuOpts *opts = NULL;
     int ret;
     int size = sector2cluster(s, s->sector_count);
+    QDict *options;
+
     s->used_clusters = calloc(size, 1);
 
     array_init(&(s->commits), sizeof(commit_t));
@@ -2956,9 +2958,11 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     }
 
     s->qcow = NULL;
-    ret = bdrv_open(&s->qcow, s->qcow_filename, NULL, NULL,
+    options = qdict_new();
+    qdict_put(options, "driver", qstring_from_str("qcow"));
+    ret = bdrv_open(&s->qcow, s->qcow_filename, NULL, options,
                     BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH,
-                    bdrv_qcow, errp);
+                    NULL, errp);
     if (ret < 0) {
         goto err;
     }
