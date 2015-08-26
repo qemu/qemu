@@ -56,6 +56,7 @@
 #define QGA_FSFREEZE_HOOK_DEFAULT CONFIG_QEMU_CONFDIR "/fsfreeze-hook"
 #endif
 #define QGA_SENTINEL_BYTE 0xFF
+#define QGA_CONF_DEFAULT CONFIG_QEMU_CONFDIR G_DIR_SEPARATOR_S "qemu-ga.conf"
 
 static struct {
     const char *state_dir;
@@ -931,14 +932,78 @@ typedef struct GAConfig {
 #ifdef _WIN32
     const char *service;
 #endif
+    gchar *bliststr; /* blacklist may point to this string */
     GList *blacklist;
     int daemonize;
     GLogLevelFlags log_level;
 } GAConfig;
 
-static GAConfig *config_parse(int argc, char **argv)
+static void config_load(GAConfig *config)
 {
-    GAConfig *config = g_new0(GAConfig, 1);
+    GError *gerr = NULL;
+    GKeyFile *keyfile;
+
+    /* read system config */
+    keyfile = g_key_file_new();
+    if (!g_key_file_load_from_file(keyfile, QGA_CONF_DEFAULT, 0, &gerr)) {
+        goto end;
+    }
+    if (g_key_file_has_key(keyfile, "general", "daemon", NULL)) {
+        config->daemonize =
+            g_key_file_get_boolean(keyfile, "general", "daemon", &gerr);
+    }
+    if (g_key_file_has_key(keyfile, "general", "method", NULL)) {
+        config->method =
+            g_key_file_get_string(keyfile, "general", "method", &gerr);
+    }
+    if (g_key_file_has_key(keyfile, "general", "path", NULL)) {
+        config->channel_path =
+            g_key_file_get_string(keyfile, "general", "path", &gerr);
+    }
+    if (g_key_file_has_key(keyfile, "general", "logfile", NULL)) {
+        config->log_filepath =
+            g_key_file_get_string(keyfile, "general", "logfile", &gerr);
+    }
+    if (g_key_file_has_key(keyfile, "general", "pidfile", NULL)) {
+        config->pid_filepath =
+            g_key_file_get_string(keyfile, "general", "pidfile", &gerr);
+    }
+#ifdef CONFIG_FSFREEZE
+    if (g_key_file_has_key(keyfile, "general", "fsfreeze-hook", NULL)) {
+        config->fsfreeze_hook =
+            g_key_file_get_string(keyfile,
+                                  "general", "fsfreeze-hook", &gerr);
+    }
+#endif
+    if (g_key_file_has_key(keyfile, "general", "statedir", NULL)) {
+        config->state_dir =
+            g_key_file_get_string(keyfile, "general", "statedir", &gerr);
+    }
+    if (g_key_file_has_key(keyfile, "general", "verbose", NULL) &&
+        g_key_file_get_boolean(keyfile, "general", "verbose", &gerr)) {
+        /* enable all log levels */
+        config->log_level = G_LOG_LEVEL_MASK;
+    }
+    if (g_key_file_has_key(keyfile, "general", "blacklist", NULL)) {
+        config->bliststr =
+            g_key_file_get_string(keyfile, "general", "blacklist", &gerr);
+        config->blacklist = g_list_concat(config->blacklist,
+                                          split_list(config->bliststr, ","));
+    }
+
+end:
+    g_key_file_free(keyfile);
+    if (gerr &&
+        !(gerr->domain == G_FILE_ERROR && gerr->code == G_FILE_ERROR_NOENT)) {
+        g_critical("error loading configuration from path: %s, %s",
+                   QGA_CONF_DEFAULT, gerr->message);
+        exit(EXIT_FAILURE);
+    }
+    g_clear_error(&gerr);
+}
+
+static void config_parse(GAConfig *config, int argc, char **argv)
+{
     const char *sopt = "hVvdm:p:l:f:F::b:s:t:D";
     int opt_ind = 0, ch;
     const struct option lopt[] = {
@@ -966,23 +1031,29 @@ static GAConfig *config_parse(int argc, char **argv)
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
         case 'm':
+            g_free(config->method);
             config->method = g_strdup(optarg);
             break;
         case 'p':
+            g_free(config->channel_path);
             config->channel_path = g_strdup(optarg);
             break;
         case 'l':
+            g_free(config->log_filepath);
             config->log_filepath = g_strdup(optarg);
             break;
         case 'f':
+            g_free(config->pid_filepath);
             config->pid_filepath = g_strdup(optarg);
             break;
 #ifdef CONFIG_FSFREEZE
         case 'F':
+            g_free(config->fsfreeze_hook);
             config->fsfreeze_hook = g_strdup(optarg ?: QGA_FSFREEZE_HOOK_DEFAULT);
             break;
 #endif
         case 't':
+            g_free(config->state_dir);
             config->state_dir = g_strdup(optarg);
             break;
         case 'v':
@@ -1042,8 +1113,6 @@ static GAConfig *config_parse(int argc, char **argv)
             exit(EXIT_FAILURE);
         }
     }
-
-    return config;
 }
 
 static void config_free(GAConfig *config)
@@ -1053,6 +1122,7 @@ static void config_free(GAConfig *config)
     g_free(config->pid_filepath);
     g_free(config->state_dir);
     g_free(config->channel_path);
+    g_free(config->bliststr);
 #ifdef CONFIG_FSFREEZE
     g_free(config->fsfreeze_hook);
 #endif
@@ -1200,13 +1270,13 @@ int main(int argc, char **argv)
 {
     int ret = EXIT_SUCCESS;
     GAState *s = g_new0(GAState, 1);
-    GAConfig *config;
+    GAConfig *config = g_new0(GAConfig, 1);
 
     module_call_init(MODULE_INIT_QAPI);
 
     init_dfl_pathnames();
-
-    config = config_parse(argc, argv);
+    config_load(config);
+    config_parse(config, argc, argv);
 
     if (config->pid_filepath == NULL) {
         config->pid_filepath = g_strdup(dfl_pathnames.pidfile);
