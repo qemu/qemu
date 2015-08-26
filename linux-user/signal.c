@@ -22,7 +22,6 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 #include <sys/ucontext.h>
 #include <sys/resource.h>
 

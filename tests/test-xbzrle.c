@@ -16,7 +16,6 @@
 #include <strings.h>
 #include <string.h>
 #include <sys/time.h>
-#include <assert.h>
 #include "qemu-common.h"
 #include "include/migration/migration.h"
 
