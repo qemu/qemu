@@ -939,13 +939,13 @@ static GList *split_list(const gchar *str, const gchar *delim)
 int main(int argc, char **argv)
 {
     const char *sopt = "hVvdm:p:l:f:F::b:s:t:";
-    const char *method = NULL, *channel_path = NULL;
-    const char *log_filepath = NULL;
-    const char *pid_filepath;
+    char *method = NULL, *channel_path = NULL;
+    char *log_filepath = NULL;
+    char *pid_filepath = NULL;
 #ifdef CONFIG_FSFREEZE
-    const char *fsfreeze_hook = NULL;
+    char *fsfreeze_hook = NULL;
 #endif
-    const char *state_dir;
+    char *state_dir = NULL;
 #ifdef _WIN32
     const char *service = NULL;
 #endif
@@ -976,31 +976,28 @@ int main(int argc, char **argv)
     module_call_init(MODULE_INIT_QAPI);
 
     init_dfl_pathnames();
-    pid_filepath = dfl_pathnames.pidfile;
-    state_dir = dfl_pathnames.state_dir;
-
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
         case 'm':
-            method = optarg;
+            method = g_strdup(optarg);
             break;
         case 'p':
-            channel_path = optarg;
+            channel_path = g_strdup(optarg);
             break;
         case 'l':
-            log_filepath = optarg;
+            log_filepath = g_strdup(optarg);
             break;
         case 'f':
-            pid_filepath = optarg;
+            pid_filepath = g_strdup(optarg);
             break;
 #ifdef CONFIG_FSFREEZE
         case 'F':
-            fsfreeze_hook = optarg ? optarg : QGA_FSFREEZE_HOOK_DEFAULT;
+            fsfreeze_hook = g_strdup(optarg ?: QGA_FSFREEZE_HOOK_DEFAULT);
             break;
 #endif
         case 't':
-             state_dir = optarg;
-             break;
+            state_dir = g_strdup(optarg);
+            break;
         case 'v':
             /* enable all log levels */
             log_level = G_LOG_LEVEL_MASK;
@@ -1023,20 +1020,10 @@ int main(int argc, char **argv)
         case 's':
             service = optarg;
             if (strcmp(service, "install") == 0) {
-                const char *fixed_state_dir;
-
-                /* If the user passed the "-t" option, we save that state dir
-                 * in the service. Otherwise we let the service fetch the state
-                 * dir from the environment when it starts.
-                 */
-                fixed_state_dir = (state_dir == dfl_pathnames.state_dir) ?
-                                  NULL :
-                                  state_dir;
                 if (ga_install_vss_provider()) {
                     exit(EXIT_FAILURE);
                 }
-                if (ga_install_service(channel_path, log_filepath,
-                                       fixed_state_dir)) {
+                if (ga_install_service(channel_path, log_filepath, state_dir)) {
                     exit(EXIT_FAILURE);
                 }
                 exit(EXIT_SUCCESS);
@@ -1065,6 +1052,14 @@ int main(int argc, char **argv)
                     argv[0]);
             exit(EXIT_FAILURE);
         }
+    }
+
+    if (pid_filepath == NULL) {
+        pid_filepath = g_strdup(dfl_pathnames.pidfile);
+    }
+
+    if (state_dir == NULL) {
+        state_dir = g_strdup(dfl_pathnames.state_dir);
     }
 
 #ifdef _WIN32
@@ -1210,5 +1205,15 @@ out_bad:
     if (daemonize) {
         unlink(pid_filepath);
     }
+
+    g_free(method);
+    g_free(log_filepath);
+    g_free(pid_filepath);
+    g_free(state_dir);
+    g_free(channel_path);
+#ifdef CONFIG_FSFREEZE
+    g_free(fsfreeze_hook);
+#endif
+
     return EXIT_FAILURE;
 }
