@@ -85,8 +85,7 @@ static QLIST_HEAD(, BlockDriver) bdrv_drivers =
 static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
                              const char *reference, QDict *options, int flags,
                              BlockDriverState *parent,
-                             const BdrvChildRole *child_role,
-                             BlockDriver *drv, Error **errp);
+                             const BdrvChildRole *child_role, Error **errp);
 
 static void bdrv_dirty_bitmap_truncate(BlockDriverState *bs);
 /* If non-zero, use only whitelisted block drivers */
@@ -1227,8 +1226,7 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
     assert(bs->backing_hd == NULL);
     ret = bdrv_open_inherit(&backing_hd,
                             *backing_filename ? backing_filename : NULL,
-                            NULL, options, 0, bs, &child_backing,
-                            NULL, &local_err);
+                            NULL, options, 0, bs, &child_backing, &local_err);
     if (ret < 0) {
         bdrv_unref(backing_hd);
         backing_hd = NULL;
@@ -1291,7 +1289,7 @@ BdrvChild *bdrv_open_child(const char *filename,
 
     bs = NULL;
     ret = bdrv_open_inherit(&bs, filename, reference, image_options, 0,
-                            parent, child_role, NULL, errp);
+                            parent, child_role, errp);
     if (ret < 0) {
         goto done;
     }
@@ -1422,11 +1420,11 @@ out:
 static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
                              const char *reference, QDict *options, int flags,
                              BlockDriverState *parent,
-                             const BdrvChildRole *child_role,
-                             BlockDriver *drv, Error **errp)
+                             const BdrvChildRole *child_role, Error **errp)
 {
     int ret;
     BlockDriverState *file = NULL, *bs;
+    BlockDriver *drv = NULL;
     const char *drvname;
     Error *local_err = NULL;
     int snapshot_flags = 0;
@@ -1476,13 +1474,12 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         flags = child_role->inherit_flags(parent->open_flags);
     }
 
-    ret = bdrv_fill_options(&options, &filename, &flags, drv, &local_err);
+    ret = bdrv_fill_options(&options, &filename, &flags, NULL, &local_err);
     if (local_err) {
         goto fail;
     }
 
     /* Find the right image format driver */
-    drv = NULL;
     drvname = qdict_get_try_str(options, "driver");
     if (drvname) {
         drv = bdrv_find_format(drvname);
@@ -1640,7 +1637,7 @@ int bdrv_open(BlockDriverState **pbs, const char *filename,
               const char *reference, QDict *options, int flags, Error **errp)
 {
     return bdrv_open_inherit(pbs, filename, reference, options, flags, NULL,
-                             NULL, NULL, errp);
+                             NULL, errp);
 }
 
 typedef struct BlockReopenQueueEntry {
