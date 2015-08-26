@@ -323,7 +323,7 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
      * for the case where this GIC supports grouping and the pending interrupt
      * is in the wrong group.
      */
-    irq = gic_get_current_pending_irq(s, cpu, attrs);;
+    irq = gic_get_current_pending_irq(s, cpu, attrs);
 
     if (irq >= GIC_MAXIRQ) {
         DPRINTF("ACK, no pending interrupt or it is hidden: %d\n", irq);

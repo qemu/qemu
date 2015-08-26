@@ -659,7 +659,7 @@ static GuestFilesystemInfo *build_guest_fsinfo(char *guid, Error **errp)
         fs->mountpoint = g_strndup(mnt_point, len);
     }
     fs->type = g_strdup(fs_name);
-    fs->disk = build_guest_disk_info(guid, errp);;
+    fs->disk = build_guest_disk_info(guid, errp);
 free:
     g_free(mnt_point);
     return fs;
