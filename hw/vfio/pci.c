@@ -18,7 +18,6 @@
  *  Copyright (C) 2008, IBM, Muli Ben-Yehuda (muli@il.ibm.com)
  */
 
-#include <dirent.h>
 #include <linux/vfio.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>

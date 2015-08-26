@@ -14,7 +14,6 @@
 #include <glib.h>
 #include <glib/gprintf.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <sys/time.h>
 #include <utime.h>
 #include <sys/uio.h>

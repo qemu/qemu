@@ -51,7 +51,6 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include <arpa/inet.h>
-#include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
 #ifdef CONFIG_BSD
