@@ -34,7 +34,6 @@
 #include "sysemu/char.h"
 
 #include <sys/ioctl.h>
-#include <signal.h>
 #include <usbredirparser.h>
 #include <usbredirfilter.h>
 

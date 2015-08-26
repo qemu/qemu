@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include <signal.h>
 
 #include "qemu/host-utils.h"
 #include "cpu.h"
