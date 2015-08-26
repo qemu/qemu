@@ -936,19 +936,28 @@ static GList *split_list(const gchar *str, const gchar *delim)
     return list;
 }
 
-int main(int argc, char **argv)
-{
-    const char *sopt = "hVvdm:p:l:f:F::b:s:t:";
-    char *method = NULL, *channel_path = NULL;
-    char *log_filepath = NULL;
-    char *pid_filepath = NULL;
+typedef struct GAConfig {
+    char *channel_path;
+    char *method;
+    char *log_filepath;
+    char *pid_filepath;
 #ifdef CONFIG_FSFREEZE
-    char *fsfreeze_hook = NULL;
+    char *fsfreeze_hook;
 #endif
-    char *state_dir = NULL;
+    char *state_dir;
 #ifdef _WIN32
-    const char *service = NULL;
+    const char *service;
 #endif
+    GList *blacklist;
+    int daemonize;
+    GLogLevelFlags log_level;
+} GAConfig;
+
+static GAConfig *config_parse(int argc, char **argv)
+{
+    GAConfig *config = g_new0(GAConfig, 1);
+    const char *sopt = "hVvdm:p:l:f:F::b:s:t:D";
+    int opt_ind = 0, ch;
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -968,74 +977,71 @@ int main(int argc, char **argv)
         { "statedir", 1, NULL, 't' },
         { NULL, 0, NULL, 0 }
     };
-    int opt_ind = 0, ch, daemonize = 0;
-    GLogLevelFlags log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
-    GList *blacklist = NULL;
-    GAState *s;
 
-    module_call_init(MODULE_INIT_QAPI);
+    config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
-    init_dfl_pathnames();
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
         case 'm':
-            method = g_strdup(optarg);
+            config->method = g_strdup(optarg);
             break;
         case 'p':
-            channel_path = g_strdup(optarg);
+            config->channel_path = g_strdup(optarg);
             break;
         case 'l':
-            log_filepath = g_strdup(optarg);
+            config->log_filepath = g_strdup(optarg);
             break;
         case 'f':
-            pid_filepath = g_strdup(optarg);
+            config->pid_filepath = g_strdup(optarg);
             break;
 #ifdef CONFIG_FSFREEZE
         case 'F':
-            fsfreeze_hook = g_strdup(optarg ?: QGA_FSFREEZE_HOOK_DEFAULT);
+            config->fsfreeze_hook = g_strdup(optarg ?: QGA_FSFREEZE_HOOK_DEFAULT);
             break;
 #endif
         case 't':
-            state_dir = g_strdup(optarg);
+            config->state_dir = g_strdup(optarg);
             break;
         case 'v':
             /* enable all log levels */
-            log_level = G_LOG_LEVEL_MASK;
+            config->log_level = G_LOG_LEVEL_MASK;
             break;
         case 'V':
             printf("QEMU Guest Agent %s\n", QEMU_VERSION);
             exit(EXIT_SUCCESS);
         case 'd':
-            daemonize = 1;
+            config->daemonize = 1;
             break;
         case 'b': {
             if (is_help_option(optarg)) {
                 qmp_for_each_command(ga_print_cmd, NULL);
                 exit(EXIT_SUCCESS);
             }
-            blacklist = g_list_concat(blacklist, split_list(optarg, ","));
+            config->blacklist = g_list_concat(config->blacklist,
+                                             split_list(optarg, ","));
             break;
         }
 #ifdef _WIN32
         case 's':
-            service = optarg;
-            if (strcmp(service, "install") == 0) {
+            config->service = optarg;
+            if (strcmp(config->service, "install") == 0) {
                 if (ga_install_vss_provider()) {
                     exit(EXIT_FAILURE);
                 }
-                if (ga_install_service(channel_path, log_filepath, state_dir)) {
+                if (ga_install_service(config->channel_path,
+                                       config->log_filepath, config->state_dir)) {
                     exit(EXIT_FAILURE);
                 }
                 exit(EXIT_SUCCESS);
-            } else if (strcmp(service, "uninstall") == 0) {
+            } else if (strcmp(config->service, "uninstall") == 0) {
                 ga_uninstall_vss_provider();
                 exit(ga_uninstall_service());
-            } else if (strcmp(service, "vss-install") == 0) {
+            } else if (strcmp(config->service, "vss-install") == 0) {
                 if (ga_install_vss_provider()) {
                     exit(EXIT_FAILURE);
                 }
                 exit(EXIT_SUCCESS);
-            } else if (strcmp(service, "vss-uninstall") == 0) {
+            } else if (strcmp(config->service, "vss-uninstall") == 0) {
                 ga_uninstall_vss_provider();
                 exit(EXIT_SUCCESS);
             } else {
@@ -1054,12 +1060,39 @@ int main(int argc, char **argv)
         }
     }
 
-    if (pid_filepath == NULL) {
-        pid_filepath = g_strdup(dfl_pathnames.pidfile);
+    return config;
+}
+
+static void config_free(GAConfig *config)
+{
+    g_free(config->method);
+    g_free(config->log_filepath);
+    g_free(config->pid_filepath);
+    g_free(config->state_dir);
+    g_free(config->channel_path);
+#ifdef CONFIG_FSFREEZE
+    g_free(config->fsfreeze_hook);
+#endif
+    g_free(config);
+}
+
+int main(int argc, char **argv)
+{
+    GAState *s;
+    GAConfig *config;
+
+    module_call_init(MODULE_INIT_QAPI);
+
+    init_dfl_pathnames();
+
+    config = config_parse(argc, argv);
+
+    if (config->pid_filepath == NULL) {
+        config->pid_filepath = g_strdup(dfl_pathnames.pidfile);
     }
 
-    if (state_dir == NULL) {
-        state_dir = g_strdup(dfl_pathnames.state_dir);
+    if (config->state_dir == NULL) {
+        config->state_dir = g_strdup(dfl_pathnames.state_dir);
     }
 
 #ifdef _WIN32
@@ -1069,25 +1102,25 @@ int main(int argc, char **argv)
      * error later on, we won't try to clean up the directory, it is considered
      * persistent.
      */
-    if (g_mkdir_with_parents(state_dir, S_IRWXU) == -1) {
+    if (g_mkdir_with_parents(config->state_dir, S_IRWXU) == -1) {
         g_critical("unable to create (an ancestor of) the state directory"
-                   " '%s': %s", state_dir, strerror(errno));
+                   " '%s': %s", config->state_dir, strerror(errno));
         return EXIT_FAILURE;
     }
 #endif
 
     s = g_malloc0(sizeof(GAState));
-    s->log_level = log_level;
+    s->log_level = config->log_level;
     s->log_file = stderr;
 #ifdef CONFIG_FSFREEZE
-    s->fsfreeze_hook = fsfreeze_hook;
+    s->fsfreeze_hook = config->fsfreeze_hook;
 #endif
     g_log_set_default_handler(ga_log, s);
     g_log_set_fatal_mask(NULL, G_LOG_LEVEL_ERROR);
     ga_enable_logging(s);
     s->state_filepath_isfrozen = g_strdup_printf("%s/qga.state.isfrozen",
-                                                 state_dir);
-    s->pstate_filepath = g_strdup_printf("%s/qga.state", state_dir);
+                                                 config->state_dir);
+    s->pstate_filepath = g_strdup_printf("%s/qga.state", config->state_dir);
     s->frozen = false;
 
 #ifndef _WIN32
@@ -1120,23 +1153,23 @@ int main(int argc, char **argv)
 #endif
 
     if (ga_is_frozen(s)) {
-        if (daemonize) {
+        if (config->daemonize) {
             /* delay opening/locking of pidfile till filesystems are unfrozen */
-            s->deferred_options.pid_filepath = pid_filepath;
+            s->deferred_options.pid_filepath = config->pid_filepath;
             become_daemon(NULL);
         }
-        if (log_filepath) {
+        if (config->log_filepath) {
             /* delay opening the log file till filesystems are unfrozen */
-            s->deferred_options.log_filepath = log_filepath;
+            s->deferred_options.log_filepath = config->log_filepath;
         }
         ga_disable_logging(s);
         qmp_for_each_command(ga_disable_non_whitelisted, NULL);
     } else {
-        if (daemonize) {
-            become_daemon(pid_filepath);
+        if (config->daemonize) {
+            become_daemon(config->pid_filepath);
         }
-        if (log_filepath) {
-            FILE *log_file = ga_open_logfile(log_filepath);
+        if (config->log_filepath) {
+            FILE *log_file = ga_open_logfile(config->log_filepath);
             if (!log_file) {
                 g_critical("unable to open specified log file: %s",
                            strerror(errno));
@@ -1154,14 +1187,15 @@ int main(int argc, char **argv)
         goto out_bad;
     }
 
-    blacklist = ga_command_blacklist_init(blacklist);
-    if (blacklist) {
-        s->blacklist = blacklist;
+    config->blacklist = ga_command_blacklist_init(config->blacklist);
+    if (config->blacklist) {
+        GList *l = config->blacklist;
+        s->blacklist = config->blacklist;
         do {
-            g_debug("disabling command: %s", (char *)blacklist->data);
-            qmp_disable_command(blacklist->data);
-            blacklist = g_list_next(blacklist);
-        } while (blacklist);
+            g_debug("disabling command: %s", (char *)l->data);
+            qmp_disable_command(l->data);
+            l = g_list_next(l);
+        } while (l);
     }
     s->command_state = ga_command_state_new();
     ga_command_state_init(s, s->command_state);
@@ -1176,14 +1210,14 @@ int main(int argc, char **argv)
 #endif
 
     s->main_loop = g_main_loop_new(NULL, false);
-    if (!channel_init(ga_state, method, channel_path)) {
+    if (!channel_init(ga_state, config->method, config->channel_path)) {
         g_critical("failed to initialize guest agent channel");
         goto out_bad;
     }
 #ifndef _WIN32
     g_main_loop_run(ga_state->main_loop);
 #else
-    if (daemonize) {
+    if (config->daemonize) {
         SERVICE_TABLE_ENTRY service_table[] = {
             { (char *)QGA_SERVICE_NAME, service_main }, { NULL, NULL } };
         StartServiceCtrlDispatcher(service_table);
@@ -1196,24 +1230,17 @@ int main(int argc, char **argv)
     ga_command_state_cleanup_all(ga_state->command_state);
     ga_channel_free(ga_state->channel);
 
-    if (daemonize) {
-        unlink(pid_filepath);
+    if (config->daemonize) {
+        unlink(config->pid_filepath);
     }
     return 0;
 
 out_bad:
-    if (daemonize) {
-        unlink(pid_filepath);
+    if (config->daemonize) {
+        unlink(config->pid_filepath);
     }
 
-    g_free(method);
-    g_free(log_filepath);
-    g_free(pid_filepath);
-    g_free(state_dir);
-    g_free(channel_path);
-#ifdef CONFIG_FSFREEZE
-    g_free(fsfreeze_hook);
-#endif
+    config_free(config);
 
     return EXIT_FAILURE;
 }
