@@ -310,7 +310,7 @@ $(QEMU_GA_MSI):  $(SRC_PATH)/qga/installer/qemu-ga.wxs
 	wixl -o $@ $(QEMU_GA_MSI_ARCH) $(QEMU_GA_MSI_WITH_VSS) $(QEMU_GA_MSI_MINGW_DLL_PATH) $<, "  WIXL  $@")
 else
 msi:
-	@echo MSI build not configured or dependency resolution failed (reconfigure with --enable-guest-agent-msi option)
+	@echo "MSI build not configured or dependency resolution failed (reconfigure with --enable-guest-agent-msi option)"
 endif
 
 clean:
