@@ -1460,10 +1460,8 @@ static void spapr_pci_pre_save(void *opaque)
     gpointer key, value;
     int i;
 
-    if (sphb->msi_devs) {
-        g_free(sphb->msi_devs);
-        sphb->msi_devs = NULL;
-    }
+    g_free(sphb->msi_devs);
+    sphb->msi_devs = NULL;
     sphb->msi_devs_num = g_hash_table_size(sphb->msi);
     if (!sphb->msi_devs_num) {
         return;
@@ -1490,10 +1488,8 @@ static int spapr_pci_post_load(void *opaque, int version_id)
                          sizeof(sphb->msi_devs[i].value));
         g_hash_table_insert(sphb->msi, key, value);
     }
-    if (sphb->msi_devs) {
-        g_free(sphb->msi_devs);
-        sphb->msi_devs = NULL;
-    }
+    g_free(sphb->msi_devs);
+    sphb->msi_devs = NULL;
     sphb->msi_devs_num = 0;
 
     return 0;

@@ -1169,10 +1169,8 @@ static void sdhci_uninitfn(SDHCIState *s)
     qemu_free_irq(s->eject_cb);
     qemu_free_irq(s->ro_cb);
 
-    if (s->fifo_buffer) {
-        g_free(s->fifo_buffer);
-        s->fifo_buffer = NULL;
-    }
+    g_free(s->fifo_buffer);
+    s->fifo_buffer = NULL;
 }
 
 const VMStateDescription sdhci_vmstate = {

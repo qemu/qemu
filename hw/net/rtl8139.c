@@ -3391,10 +3391,8 @@ static void pci_rtl8139_uninit(PCIDevice *dev)
 {
     RTL8139State *s = RTL8139(dev);
 
-    if (s->cplus_txbuffer) {
-        g_free(s->cplus_txbuffer);
-        s->cplus_txbuffer = NULL;
-    }
+    g_free(s->cplus_txbuffer);
+    s->cplus_txbuffer = NULL;
     timer_del(s->timer);
     timer_free(s->timer);
     qemu_del_nic(s->nic);

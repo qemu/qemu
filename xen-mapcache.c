@@ -169,10 +169,8 @@ static void xen_remap_bucket(MapCacheEntry *entry,
             exit(-1);
         }
     }
-    if (entry->valid_mapping != NULL) {
-        g_free(entry->valid_mapping);
-        entry->valid_mapping = NULL;
-    }
+    g_free(entry->valid_mapping);
+    entry->valid_mapping = NULL;
 
     for (i = 0; i < nb_pfn; i++) {
         pfns[i] = (address_index << (MCACHE_BUCKET_SHIFT-XC_PAGE_SHIFT)) + i;
