@@ -292,7 +292,7 @@ static char *vhost_scsi_get_fw_dev_path(FWPathProvider *p, BusState *bus,
 {
     VHostSCSI *s = VHOST_SCSI(dev);
     /* format: channel@channel/vhost-scsi@target,lun */
-    return g_strdup_printf("channel@%x/%s@%x,%x", s->channel,
+    return g_strdup_printf("/channel@%x/%s@%x,%x", s->channel,
                            qdev_fw_name(dev), s->target, s->lun);
 }
 
