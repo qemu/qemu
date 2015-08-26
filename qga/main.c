@@ -216,6 +216,8 @@ static void usage(const char *cmd)
 #endif
 "  -b, --blacklist   comma-separated list of RPCs to disable (no spaces, \"?\"\n"
 "                    to list available RPCs)\n"
+"  -D, --dump-conf   dump a qemu-ga config file based on current config\n"
+"                    options / command-line parameters to stdout\n"
 "  -h, --help        display this help and exit\n"
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
@@ -936,6 +938,7 @@ typedef struct GAConfig {
     GList *blacklist;
     int daemonize;
     GLogLevelFlags log_level;
+    int dumpconf;
 } GAConfig;
 
 static void config_load(GAConfig *config)
@@ -1002,6 +1005,58 @@ end:
     g_clear_error(&gerr);
 }
 
+static gchar *list_join(GList *list, const gchar separator)
+{
+    GString *str = g_string_new("");
+
+    while (list) {
+        str = g_string_append(str, (gchar *)list->data);
+        list = g_list_next(list);
+        if (list) {
+            str = g_string_append_c(str, separator);
+        }
+    }
+
+    return g_string_free(str, FALSE);
+}
+
+static void config_dump(GAConfig *config)
+{
+    GError *error = NULL;
+    GKeyFile *keyfile;
+    gchar *tmp;
+
+    keyfile = g_key_file_new();
+    g_assert(keyfile);
+
+    g_key_file_set_boolean(keyfile, "general", "daemon", config->daemonize);
+    g_key_file_set_string(keyfile, "general", "method", config->method);
+    g_key_file_set_string(keyfile, "general", "path", config->channel_path);
+    if (config->log_filepath) {
+        g_key_file_set_string(keyfile, "general", "logfile",
+                              config->log_filepath);
+    }
+    g_key_file_set_string(keyfile, "general", "pidfile", config->pid_filepath);
+#ifdef CONFIG_FSFREEZE
+    if (config->fsfreeze_hook) {
+        g_key_file_set_string(keyfile, "general", "fsfreeze-hook",
+                              config->fsfreeze_hook);
+    }
+#endif
+    g_key_file_set_string(keyfile, "general", "statedir", config->state_dir);
+    g_key_file_set_boolean(keyfile, "general", "verbose",
+                           config->log_level == G_LOG_LEVEL_MASK);
+    tmp = list_join(config->blacklist, ',');
+    g_key_file_set_string(keyfile, "general", "blacklist", tmp);
+    g_free(tmp);
+
+    tmp = g_key_file_to_data(keyfile, NULL, &error);
+    printf("%s", tmp);
+
+    g_free(tmp);
+    g_key_file_free(keyfile);
+}
+
 static void config_parse(GAConfig *config, int argc, char **argv)
 {
     const char *sopt = "hVvdm:p:l:f:F::b:s:t:D";
@@ -1009,6 +1064,7 @@ static void config_parse(GAConfig *config, int argc, char **argv)
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
+        { "dump-conf", 0, NULL, 'D' },
         { "logfile", 1, NULL, 'l' },
         { "pidfile", 1, NULL, 'f' },
 #ifdef CONFIG_FSFREEZE
@@ -1065,6 +1121,9 @@ static void config_parse(GAConfig *config, int argc, char **argv)
             exit(EXIT_SUCCESS);
         case 'd':
             config->daemonize = 1;
+            break;
+        case 'D':
+            config->dumpconf = 1;
             break;
         case 'b': {
             if (is_help_option(optarg)) {
@@ -1313,6 +1372,11 @@ int main(int argc, char **argv)
     s->state_filepath_isfrozen = g_strdup_printf("%s/qga.state.isfrozen",
                                                  config->state_dir);
     s->frozen = check_is_frozen(s);
+
+    if (config->dumpconf) {
+        config_dump(config);
+        goto end;
+    }
 
     ret = run_agent(s, config);
 
