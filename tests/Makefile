@@ -221,7 +221,8 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	comments.json empty.json enum-empty.json enum-missing-data.json \
 	enum-wrong-data.json enum-int-member.json enum-dict-member.json \
 	enum-clash-member.json enum-max-member.json enum-union-clash.json \
-	enum-bad-name.json funny-char.json indented-expr.json \
+	enum-bad-name.json enum-bad-prefix.json \
+	funny-char.json indented-expr.json \
 	missing-type.json bad-ident.json ident-with-escape.json \
 	escape-outside-string.json unknown-escape.json \
 	escape-too-short.json escape-too-big.json unicode-str.json \

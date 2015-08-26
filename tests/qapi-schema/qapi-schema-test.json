@@ -6,6 +6,11 @@
 { 'struct': 'NestedEnumsOne',
   'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
 
+# for testing override of default naming heuristic
+{ 'enum': 'QEnumTwo',
+  'prefix': 'QENUM_TWO',
+  'data': [ 'value1', 'value2' ] }
+
 # for testing nested structs
 { 'struct': 'UserDefOne',
   'base': 'UserDefZero',        # intentional forward reference

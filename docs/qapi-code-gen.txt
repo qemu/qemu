@@ -236,6 +236,7 @@ both fields like this:
 === Enumeration types ===
 
 Usage: { 'enum': STRING, 'data': ARRAY-OF-STRING }
+       { 'enum': STRING, '*prefix': STRING, 'data': ARRAY-OF-STRING }
 
 An enumeration type is a dictionary containing a single 'data' key
 whose value is a list of strings.  An example enumeration is:
@@ -246,6 +247,13 @@ Nothing prevents an empty enumeration, although it is probably not
 useful.  The list of strings should be lower case; if an enum name
 represents multiple words, use '-' between words.  The string 'max' is
 not allowed as an enum value, and values should not be repeated.
+
+The enum constants will be named by using a heuristic to turn the
+type name into a set of underscore separated words. For the example
+above, 'MyEnum' will turn into 'MY_ENUM' giving a constant name
+of 'MY_ENUM_VALUE1' for the first value. If the default heuristic
+does not result in a desirable name, the optional 'prefix' field
+can be used when defining the enum.
 
 The enumeration values are passed as strings over the Client JSON
 Protocol, but are encoded as C enum integral values in generated code.
