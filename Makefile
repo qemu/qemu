@@ -88,7 +88,8 @@ LIBS+=-lz $(LIBS_TOOLS)
 HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
 ifdef BUILD_DOCS
-DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 qmp-commands.txt
+DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
+DOCS+=qmp-commands.txt
 ifdef CONFIG_LINUX
 DOCS+=kvm_stat.1
 endif
@@ -400,6 +401,9 @@ ifneq ($(TOOLS),)
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
 	$(INSTALL_DATA) qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
 endif
+ifneq (,$(findstring qemu-ga,$(TOOLS)))
+	$(INSTALL_DATA) qemu-ga.8 "$(DESTDIR)$(mandir)/man8"
+endif
 endif
 ifdef CONFIG_VIRTFS
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
@@ -538,6 +542,12 @@ qemu-nbd.8: qemu-nbd.texi
 	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
 	  "  GEN   $@")
 
+qemu-ga.8: qemu-ga.texi
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-ga.pod && \
+	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-ga.pod > $@, \
+	  "  GEN   $@")
+
 kvm_stat.1: scripts/kvm/kvm_stat.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< kvm_stat.pod && \
@@ -551,7 +561,7 @@ pdf: qemu-doc.pdf qemu-tech.pdf
 
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi \
-	qemu-monitor.texi qemu-img-cmds.texi
+	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi
 
 ifdef CONFIG_WIN32
 
