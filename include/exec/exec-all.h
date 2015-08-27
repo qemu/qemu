@@ -357,11 +357,7 @@ extern uintptr_t tci_tb_ptr;
    to indicate the compressed mode; subtracting two works around that.  It
    is also the case that there are no host isas that contain a call insn
    smaller than 4 bytes, so we don't worry about special-casing this.  */
-#if defined(CONFIG_TCG_INTERPRETER)
-# define GETPC_ADJ   0
-#else
-# define GETPC_ADJ   2
-#endif
+#define GETPC_ADJ   2
 
 #define GETPC()  (GETRA() - GETPC_ADJ)
 
