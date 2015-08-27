@@ -1,4 +1,5 @@
 io-obj-y = channel.o
+io-obj-y += channel-command.o
 io-obj-y += channel-file.o
 io-obj-y += channel-socket.o
 io-obj-y += channel-tls.o

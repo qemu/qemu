@@ -1858,3 +1858,9 @@ qio_channel_websock_handshake_pending(void *ioc, int status) "Websock handshake 
 qio_channel_websock_handshake_reply(void *ioc) "Websock handshake reply ioc=%p"
 qio_channel_websock_handshake_fail(void *ioc) "Websock handshake fail ioc=%p"
 qio_channel_websock_handshake_complete(void *ioc) "Websock handshake complete ioc=%p"
+
+# io/channel-command.c
+qio_channel_command_new_pid(void *ioc, int writefd, int readfd, int pid) "Command new pid ioc=%p writefd=%d readfd=%d pid=%d"
+qio_channel_command_new_spawn(void *ioc, const char *binary, int flags) "Command new spawn ioc=%p binary=%s flags=%d"
+qio_channel_command_abort(void *ioc, int pid) "Command abort ioc=%p pid=%d"
+qio_channel_command_wait(void *ioc, int pid, int ret, int status) "Command abort ioc=%p pid=%d ret=%d status=%d"
