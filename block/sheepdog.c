@@ -377,6 +377,11 @@ typedef struct BDRVSheepdogState {
     QLIST_HEAD(inflight_aiocb_head, SheepdogAIOCB) inflight_aiocb_head;
 } BDRVSheepdogState;
 
+typedef struct BDRVSheepdogReopenState {
+    int fd;
+    int cache_flags;
+} BDRVSheepdogReopenState;
+
 static const char * sd_strerror(int err)
 {
     int i;
@@ -1484,6 +1489,68 @@ out:
     qemu_opts_del(opts);
     g_free(buf);
     return ret;
+}
+
+static int sd_reopen_prepare(BDRVReopenState *state, BlockReopenQueue *queue,
+                             Error **errp)
+{
+    BDRVSheepdogState *s = state->bs->opaque;
+    BDRVSheepdogReopenState *re_s;
+    int ret = 0;
+
+    re_s = state->opaque = g_new0(BDRVSheepdogReopenState, 1);
+
+    re_s->cache_flags = SD_FLAG_CMD_CACHE;
+    if (state->flags & BDRV_O_NOCACHE) {
+        re_s->cache_flags = SD_FLAG_CMD_DIRECT;
+    }
+
+    re_s->fd = get_sheep_fd(s, errp);
+    if (re_s->fd < 0) {
+        ret = re_s->fd;
+        return ret;
+    }
+
+    return ret;
+}
+
+static void sd_reopen_commit(BDRVReopenState *state)
+{
+    BDRVSheepdogReopenState *re_s = state->opaque;
+    BDRVSheepdogState *s = state->bs->opaque;
+
+    if (s->fd) {
+        aio_set_fd_handler(s->aio_context, s->fd, NULL, NULL, NULL);
+        closesocket(s->fd);
+    }
+
+    s->fd = re_s->fd;
+    s->cache_flags = re_s->cache_flags;
+
+    g_free(state->opaque);
+    state->opaque = NULL;
+
+    return;
+}
+
+static void sd_reopen_abort(BDRVReopenState *state)
+{
+    BDRVSheepdogReopenState *re_s = state->opaque;
+    BDRVSheepdogState *s = state->bs->opaque;
+
+    if (re_s == NULL) {
+        return;
+    }
+
+    if (re_s->fd) {
+        aio_set_fd_handler(s->aio_context, re_s->fd, NULL, NULL, NULL);
+        closesocket(re_s->fd);
+    }
+
+    g_free(state->opaque);
+    state->opaque = NULL;
+
+    return;
 }
 
 static int do_sd_create(BDRVSheepdogState *s, uint32_t *vdi_id, int snapshot,
@@ -2702,6 +2769,9 @@ static BlockDriver bdrv_sheepdog = {
     .instance_size  = sizeof(BDRVSheepdogState),
     .bdrv_needs_filename = true,
     .bdrv_file_open = sd_open,
+    .bdrv_reopen_prepare    = sd_reopen_prepare,
+    .bdrv_reopen_commit     = sd_reopen_commit,
+    .bdrv_reopen_abort      = sd_reopen_abort,
     .bdrv_close     = sd_close,
     .bdrv_create    = sd_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
@@ -2735,6 +2805,9 @@ static BlockDriver bdrv_sheepdog_tcp = {
     .instance_size  = sizeof(BDRVSheepdogState),
     .bdrv_needs_filename = true,
     .bdrv_file_open = sd_open,
+    .bdrv_reopen_prepare    = sd_reopen_prepare,
+    .bdrv_reopen_commit     = sd_reopen_commit,
+    .bdrv_reopen_abort      = sd_reopen_abort,
     .bdrv_close     = sd_close,
     .bdrv_create    = sd_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
@@ -2768,6 +2841,9 @@ static BlockDriver bdrv_sheepdog_unix = {
     .instance_size  = sizeof(BDRVSheepdogState),
     .bdrv_needs_filename = true,
     .bdrv_file_open = sd_open,
+    .bdrv_reopen_prepare    = sd_reopen_prepare,
+    .bdrv_reopen_commit     = sd_reopen_commit,
+    .bdrv_reopen_abort      = sd_reopen_abort,
     .bdrv_close     = sd_close,
     .bdrv_create    = sd_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
