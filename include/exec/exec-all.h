@@ -78,8 +78,6 @@ void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
                           int pc_pos);
 
 void cpu_gen_init(void);
-int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
-                 int *gen_code_size_ptr);
 bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);
 void page_size_init(void);
 
