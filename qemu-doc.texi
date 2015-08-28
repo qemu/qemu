@@ -3062,7 +3062,7 @@ Note: If after the configure step you see a message like this:
 ERROR: Your compiler does not support the __thread specifier for
        Thread-Local Storage (TLS). Please upgrade to a version that does.
 @end example
-You may have to build your own version of gcc from source. Expect that to take
+you may have to build your own version of gcc from source. Expect that to take
 several hours. More information can be found here:
 @uref{https://gcc.gnu.org/install/} @*
 
