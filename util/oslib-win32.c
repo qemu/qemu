@@ -496,3 +496,12 @@ int qemu_read_password(char *buf, int buf_size)
     buf[i] = '\0';
     return 0;
 }
+
+
+pid_t qemu_fork(Error **errp)
+{
+    errno = ENOSYS;
+    error_setg_errno(errp, errno,
+                     "cannot fork child process");
+    return -1;
+}
