@@ -36,6 +36,12 @@ bool migration_incoming_in_colo_state(void)
 
 static void colo_process_checkpoint(MigrationState *s)
 {
+    s->rp_state.from_dst_file = qemu_file_get_return_path(s->to_dst_file);
+    if (!s->rp_state.from_dst_file) {
+        error_report("Open QEMUFile from_dst_file failed");
+        goto out;
+    }
+
     qemu_mutex_lock_iothread();
     vm_start();
     qemu_mutex_unlock_iothread();
@@ -43,8 +49,13 @@ static void colo_process_checkpoint(MigrationState *s)
 
     /*TODO: COLO checkpoint savevm loop*/
 
+out:
     migrate_set_state(&s->state, MIGRATION_STATUS_COLO,
                       MIGRATION_STATUS_COMPLETED);
+
+    if (s->rp_state.from_dst_file) {
+        qemu_fclose(s->rp_state.from_dst_file);
+    }
 }
 
 void migrate_start_colo_process(MigrationState *s)
@@ -63,8 +74,23 @@ void *colo_process_incoming_thread(void *opaque)
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                       MIGRATION_STATUS_COLO);
 
+    mis->to_src_file = qemu_file_get_return_path(mis->from_src_file);
+    if (!mis->to_src_file) {
+        error_report("colo incoming thread: Open QEMUFile to_src_file failed");
+        goto out;
+    }
+    /* Note: We set the fd to unblocked in migration incoming coroutine,
+    *  But here we are in the colo incoming thread, so it is ok to set the
+    *  fd back to blocked.
+    */
+    qemu_file_set_blocking(mis->from_src_file, true);
+
     /* TODO: COLO checkpoint restore loop */
 
+out:
+    if (mis->to_src_file) {
+        qemu_fclose(mis->to_src_file);
+    }
     migration_incoming_exit_colo();
 
     return NULL;
