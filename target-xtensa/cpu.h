@@ -382,7 +382,6 @@ typedef struct CPUXtensaState {
 #include "cpu-qom.h"
 
 #define cpu_exec cpu_xtensa_exec
-#define cpu_gen_code cpu_xtensa_gen_code
 #define cpu_signal_handler cpu_xtensa_signal_handler
 #define cpu_list xtensa_cpu_list
 

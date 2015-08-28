@@ -213,7 +213,6 @@ void register_m68k_insns (CPUM68KState *env);
 #define cpu_init(cpu_model) CPU(cpu_m68k_init(cpu_model))
 
 #define cpu_exec cpu_m68k_exec
-#define cpu_gen_code cpu_m68k_gen_code
 #define cpu_signal_handler cpu_m68k_signal_handler
 #define cpu_list m68k_cpu_list
 

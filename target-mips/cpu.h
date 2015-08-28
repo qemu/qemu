@@ -620,7 +620,6 @@ void mips_cpu_unassigned_access(CPUState *cpu, hwaddr addr,
 void mips_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 
 #define cpu_exec cpu_mips_exec
-#define cpu_gen_code cpu_mips_gen_code
 #define cpu_signal_handler cpu_mips_signal_handler
 #define cpu_list mips_cpu_list
 

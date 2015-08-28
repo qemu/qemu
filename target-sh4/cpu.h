@@ -226,7 +226,6 @@ void cpu_load_tlb(CPUSH4State * env);
 #define cpu_init(cpu_model) CPU(cpu_sh4_init(cpu_model))
 
 #define cpu_exec cpu_sh4_exec
-#define cpu_gen_code cpu_sh4_gen_code
 #define cpu_signal_handler cpu_sh4_signal_handler
 #define cpu_list sh4_cpu_list
 

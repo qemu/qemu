@@ -1601,7 +1601,6 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
 #define cpu_init(cpu_model) CPU(cpu_arm_init(cpu_model))
 
 #define cpu_exec cpu_arm_exec
-#define cpu_gen_code cpu_arm_gen_code
 #define cpu_signal_handler cpu_arm_signal_handler
 #define cpu_list arm_cpu_list
 
