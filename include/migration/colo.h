@@ -37,4 +37,8 @@ COLOMode get_colo_mode(void);
 int colo_init_ram_cache(void);
 void colo_release_ram_cache(void);
 void colo_flush_ram_cache(void);
+
+/* failover */
+void colo_do_failover(MigrationState *s);
+
 #endif
