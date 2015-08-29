@@ -46,6 +46,33 @@ static bool colo_runstate_is_stopped(void)
     return runstate_check(RUN_STATE_COLO) || !runstate_is_running();
 }
 
+static void secondary_vm_do_failover(void)
+{
+    int old_state;
+    MigrationIncomingState *mis = migration_incoming_get_current();
+
+    migrate_set_state(&mis->state, MIGRATION_STATUS_COLO,
+                      MIGRATION_STATUS_COMPLETED);
+
+    if (!autostart) {
+        error_report("\"-S\" qemu option will be ignored in secondary side");
+        /* recover runstate to normal migration finish state */
+        autostart = true;
+    }
+
+    old_state = failover_set_state(FAILOVER_STATUS_HANDLING,
+                                   FAILOVER_STATUS_COMPLETED);
+    if (old_state != FAILOVER_STATUS_HANDLING) {
+        error_report("Serious error while do failover for secondary VM,"
+                     "old_state: %d", old_state);
+        return;
+    }
+    /* For Secondary VM, jump to incoming co */
+    if (mis->migration_incoming_co) {
+        qemu_coroutine_enter(mis->migration_incoming_co, NULL);
+    }
+}
+
 static void primary_vm_do_failover(void)
 {
     MigrationState *s = migrate_get_current();
@@ -74,6 +101,8 @@ void colo_do_failover(MigrationState *s)
 
     if (get_colo_mode() == COLO_MODE_PRIMARY) {
         primary_vm_do_failover();
+    } else {
+        secondary_vm_do_failover();
     }
 }
 
@@ -404,6 +433,12 @@ void *colo_process_incoming_thread(void *opaque)
                 continue;
             }
         }
+
+        if (failover_request_is_active()) {
+            error_report("failover request");
+            goto out;
+        }
+
         /* FIXME: This is unnecessary for periodic checkpoint mode */
         ret = colo_ctl_put(mis->to_src_file, COLO_COMMAND_CHECKPOINT_REPLY, 0);
         if (ret < 0) {
@@ -473,10 +508,11 @@ out:
         qemu_fclose(fb);
     }
     qsb_free(buffer);
-
-    qemu_mutex_lock_iothread();
+    /* Here, we can ensure BH is hold the global lock, and will join colo
+    * incoming thread, so here it is not necessary to lock here again,
+    * or there will be a deadlock error.
+    */
     colo_release_ram_cache();
-    qemu_mutex_unlock_iothread();
 
     if (mis->to_src_file) {
         qemu_fclose(mis->to_src_file);
