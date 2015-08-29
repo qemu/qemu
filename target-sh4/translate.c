@@ -1790,10 +1790,6 @@ static void decode_opc(DisasContext * ctx)
 {
     uint32_t old_flags = ctx->flags;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_insn_start(ctx->pc);
-    }
-
     _decode_opc(ctx);
 
     if (old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
@@ -1876,12 +1872,12 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_instr_start[ii] = 1;
             tcg_ctx.gen_opc_icount[ii] = num_insns;
         }
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+        tcg_gen_insn_start(ctx.pc);
+
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
-#if 0
-	fprintf(stderr, "Loading opcode at address 0x%08x\n", ctx.pc);
-	fflush(stderr);
-#endif
+        }
+
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
 	decode_opc(&ctx);
         num_insns++;

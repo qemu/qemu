@@ -2933,15 +2933,13 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
+        tcg_gen_insn_start(ctx.pc);
+
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
         insn = cpu_ldl_code(env, ctx.pc);
         num_insns++;
-
-	if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-            tcg_gen_insn_start(ctx.pc);
-        }
 
         TCGV_UNUSED_I64(ctx.zero);
         TCGV_UNUSED_I64(ctx.sink);

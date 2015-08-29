@@ -2955,10 +2955,6 @@ static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 {
     uint16_t insn;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_insn_start(s->pc);
-    }
-
     insn = cpu_lduw_code(env, s->pc);
     s->pc += 2;
 
@@ -3025,8 +3021,12 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+        tcg_gen_insn_start(dc->pc);
+
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
+        }
+
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
         num_insns++;

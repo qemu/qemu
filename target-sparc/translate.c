@@ -2482,10 +2482,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     TCGv_i64 cpu_src1_64, cpu_src2_64, cpu_dst_64;
     target_long simm;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_insn_start(dc->pc);
-    }
-
     opc = GET_FIELD(insn, 0, 1);
     rd = GET_FIELD(insn, 2, 6);
 
@@ -5271,8 +5267,12 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
                 tcg_ctx.gen_opc_icount[lj] = num_insns;
             }
         }
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+        tcg_gen_insn_start(dc->pc);
+
+        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
+        }
+
         last_pc = dc->pc;
         insn = cpu_ldl_code(env, dc->pc);
 

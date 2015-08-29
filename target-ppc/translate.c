@@ -11502,6 +11502,8 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
+        tcg_gen_insn_start(ctx.nip);
+
         LOG_DISAS("----------------\n");
         LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
                   ctx.nip, ctx.mem_idx, (int)msr_ir);
@@ -11515,9 +11517,6 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
         LOG_DISAS("translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
                     opc3(ctx.opcode), ctx.le_mode ? "little" : "big");
-        if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-            tcg_gen_insn_start(ctx.nip);
-        }
         ctx.nip += 4;
         table = env->opcodes;
         num_insns++;

@@ -8292,6 +8292,8 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
     tcg_clear_temp_count();
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {
+        tcg_gen_insn_start(ctx.pc);
+
         ctx.opcode = cpu_ldl_code(env, ctx.pc);
         decode_opc(env, &ctx, 0);
 

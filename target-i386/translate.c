@@ -4401,9 +4401,6 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     target_ulong next_eip, tval;
     int rex_w, rex_r;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_insn_start(pc_start);
-    }
     s->pc = pc_start;
     prefixes = 0;
     s->override = -1;
@@ -7962,6 +7959,8 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
+        tcg_gen_insn_start(pc_ptr);
+
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
 

@@ -153,10 +153,6 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
     /* Set the default instruction length.  */
     int length = 2;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_insn_start(ctx->pc);
-    }
-
     /* Examine the 16-bit opcode.  */
     opcode = ctx->opcode;
 
@@ -865,6 +861,8 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
+        tcg_gen_insn_start(ctx.pc);
+
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
         ctx.pc += decode_opc(cpu, &ctx);
         num_insns++;

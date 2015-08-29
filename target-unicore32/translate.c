@@ -1794,10 +1794,6 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
     UniCore32CPU *cpu = uc32_env_get_cpu(env);
     unsigned int insn;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_insn_start(s->pc);
-    }
-
     insn = cpu_ldl_code(env, s->pc);
     s->pc += 4;
 
@@ -1941,6 +1937,7 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
+        tcg_gen_insn_start(dc->pc);
 
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();

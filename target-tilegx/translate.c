@@ -2008,10 +2008,6 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
     }
     dc->num_wb = 0;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_insn_start(dc->pc);
-    }
-
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "  %" PRIx64 ":  { ", dc->pc);
     if (get_Mode(bundle)) {
         notice_excp(dc, bundle, "y0", decode_y0(dc, bundle));
@@ -2100,6 +2096,8 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
+        tcg_gen_insn_start(dc->pc);
+
         translate_one_bundle(dc, cpu_ldq_data(env, dc->pc));
 
         if (dc->exit_tb) {

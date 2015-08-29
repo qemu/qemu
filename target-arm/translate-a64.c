@@ -11103,13 +11103,10 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
+        tcg_gen_insn_start(dc->pc);
 
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
-        }
-
-        if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-            tcg_gen_insn_start(dc->pc);
         }
 
         if (dc->ss_active && !dc->pstate_ss) {
