@@ -34,6 +34,7 @@
 #include "hw/loader.h"
 #include "hw/char/serial.h"
 #include "exec/address-spaces.h"
+#include "elf.h"
 
 #define PHYS_MEM_BASE 0x80000000
 

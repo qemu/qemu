@@ -135,6 +135,9 @@ typedef int64_t  Elf64_Sxword;
 
 #define EM_TILEGX   191 /* TILE-Gx */
 
+#define EM_MOXIE           223     /* Moxie processor family */
+#define EM_MOXIE_OLD       0xFEED
+
 /* This is the info that is needed to parse the dynamic section of the file */
 #define DT_NULL		0
 #define DT_NEEDED	1
