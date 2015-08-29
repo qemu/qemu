@@ -32,7 +32,7 @@ static void colo_failover_bh(void *opaque)
         error_report("Unkown error for failover, old_state=%d", old_state);
         return;
     }
-    /*TODO: Do failover work */
+    colo_do_failover(NULL);
 }
 
 void failover_request_active(Error **errp)
@@ -65,6 +65,11 @@ int failover_set_state(int old_state, int new_state)
 int failover_get_state(void)
 {
     return atomic_read(&failover_state);
+}
+
+bool failover_request_is_active(void)
+{
+    return failover_get_state() != FAILOVER_STATUS_NONE;
 }
 
 void qmp_x_colo_lost_heartbeat(Error **errp)

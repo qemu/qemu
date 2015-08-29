@@ -26,5 +26,6 @@ void failover_init_state(void);
 int failover_set_state(int old_state, int new_state);
 int failover_get_state(void);
 void failover_request_active(Error **errp);
+bool failover_request_is_active(void);
 
 #endif
