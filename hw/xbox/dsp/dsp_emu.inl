@@ -5809,7 +5809,7 @@ static void emu_add_x(dsp_core_t* dsp, uint32_t x, uint32_t d)
 
     uint16_t newsr = dsp_add56(source, dest);
 
-    if ((dsp->cur_inst >> 3) & 1) {
+    if (d) {
         dsp->registers[DSP_REG_B2] = dest[0];
         dsp->registers[DSP_REG_B1] = dest[1];
         dsp->registers[DSP_REG_B0] = dest[2];
@@ -5840,23 +5840,35 @@ static void emu_add_long(dsp_core_t* dsp)
     emu_add_x(dsp, xxxx, d);
 }
 
-static void emu_and_long(dsp_core_t* dsp)
+static void emu_and_x(dsp_core_t* dsp, uint32_t x, uint32_t d)
 {
-    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
-    dsp->cur_inst_len++;
-
     int dstreg;
-    if ((dsp->cur_inst >> 3) & 1) {
+    if (d) {
         dstreg = DSP_REG_B1;
     } else {
         dstreg = DSP_REG_A1;
     }
 
-    dsp->registers[dstreg] &= xxxx;
+    dsp->registers[dstreg] &= x;
 
     dsp->registers[DSP_REG_SR] &= BITMASK(16)-((1<<DSP_SR_N)|(1<<DSP_SR_Z)|(1<<DSP_SR_V));
     dsp->registers[DSP_REG_SR] |= ((dsp->registers[dstreg]>>23) & 1)<<DSP_SR_N;
     dsp->registers[DSP_REG_SR] |= (dsp->registers[dstreg]==0)<<DSP_SR_Z;
+}
+
+static void emu_and_imm(dsp_core_t* dsp)
+{
+    uint32_t xx = (dsp->cur_inst >> 8) & BITMASK(6);
+    uint32_t d = (dsp->cur_inst >> 3) & 1;
+    emu_and_x(dsp, xx, d);
+}
+
+static void emu_and_long(dsp_core_t* dsp)
+{
+    uint32_t xxxx = read_memory_p(dsp, dsp->pc+1);
+    dsp->cur_inst_len++;
+    uint32_t d = (dsp->cur_inst >> 3) & 1;
+    emu_and_x(dsp, xxxx, d);
 }
 
 static void emu_andi(dsp_core_t* dsp)

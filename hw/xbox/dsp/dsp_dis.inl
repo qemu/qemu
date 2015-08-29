@@ -258,6 +258,13 @@ static void dis_add_long(dsp_core_t* dsp)
     sprintf(dsp->disasm_str_instr, "add #$%04x,%s", xxxx, registers_name[accname]);
 }
 
+static void dis_and_imm(dsp_core_t* dsp)
+{
+    uint32_t xx = (dsp->disasm_cur_inst >> 8) & BITMASK(6);
+    uint32_t accname = ((dsp->disasm_cur_inst >> 3) & 1) ? DSP_REG_B : DSP_REG_A;
+    sprintf(dsp->disasm_str_instr, "and #$%02x,%s", xx, registers_name[accname]);
+}
+
 static void dis_and_long(dsp_core_t* dsp)
 {
     dsp->disasm_cur_inst_len++;
