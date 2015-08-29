@@ -19,6 +19,14 @@
 #include "qemu/sockets.h"
 #include "migration/failover.h"
 
+/*
+ * The delay time before qemu begin the procedure of default failover treatment.
+ * Unit: ms
+ * Fix me: This value should be able to change by command
+ * 'migrate-set-parameters'
+ */
+#define DEFAULT_FAILOVER_DELAY 2000
+
 /* colo buffer */
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
@@ -264,6 +272,7 @@ static void colo_process_checkpoint(MigrationState *s)
 {
     QEMUSizedBuffer *buffer = NULL;
     int64_t current_time, checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    int64_t error_time;
     int ret = 0;
     uint64_t value;
 
@@ -322,8 +331,25 @@ static void colo_process_checkpoint(MigrationState *s)
     }
 
 out:
+    current_time = error_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     if (ret < 0) {
         error_report("%s: %s", __func__, strerror(-ret));
+        /* Give users time to get involved in this verdict */
+        while (current_time - error_time <= DEFAULT_FAILOVER_DELAY) {
+            if (failover_request_is_active()) {
+                error_report("Primary VM will take over work");
+                break;
+            }
+            usleep(100 * 1000);
+            current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+        }
+
+        qemu_mutex_lock_iothread();
+        if (!failover_request_is_active()) {
+            error_report("Primary VM will take over work in default");
+            failover_request_active(NULL);
+        }
+        qemu_mutex_unlock_iothread();
     }
 
     qsb_free(buffer);
@@ -384,6 +410,7 @@ void *colo_process_incoming_thread(void *opaque)
     QEMUFile *fb = NULL;
     QEMUSizedBuffer *buffer = NULL; /* Cache incoming device state */
     uint64_t  total_size;
+    int64_t error_time, current_time;
     int ret = 0;
     uint64_t value;
 
@@ -499,9 +526,28 @@ void *colo_process_incoming_thread(void *opaque)
     }
 
 out:
+    current_time = error_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
     if (ret < 0) {
         error_report("colo incoming thread will exit, detect error: %s",
                      strerror(-ret));
+        /* Give users time to get involved in this verdict */
+        while (current_time - error_time <= DEFAULT_FAILOVER_DELAY) {
+            if (failover_request_is_active()) {
+                error_report("Secondary VM will take over work");
+                break;
+            }
+            usleep(100 * 1000);
+            current_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+        }
+        /* check flag again*/
+        if (!failover_request_is_active()) {
+            /*
+            * We assume that Primary VM is still alive according to
+            * heartbeat, just kill Secondary VM
+            */
+            error_report("SVM is going to exit in default!");
+            exit(1);
+        }
     }
 
     if (fb) {
