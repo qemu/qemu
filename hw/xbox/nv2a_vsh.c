@@ -746,6 +746,7 @@ QString* vsh_translate(uint16_t version,
     qstring_append(header, vsh_header);
 
     QString *body = qstring_from_str("\n");
+    qstring_append(body,"  oFog.x = 1.0;\n"); /* FIXME: Use foggen? */
 
     bool has_final = false;
     int slot;

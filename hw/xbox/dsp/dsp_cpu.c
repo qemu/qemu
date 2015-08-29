@@ -162,7 +162,7 @@ static bool match_MMMRRR(uint32_t op)
 static const OpcodeEntry nonparallel_opcodes[] = {
     { "0000000101iiiiii1000d000", "add #xx, D", dis_add_imm, emu_add_imm },
     { "00000001010000001100d000", "add #xxxx, D", dis_add_long, emu_add_long },
-    { "0000000101iiiiii1000d110", "and #xx, D", NULL, NULL },
+    { "0000000101iiiiii1000d110", "and #xx, D", dis_and_imm, emu_and_imm },
     { "00000001010000001100d110", "and #xxxx, D", dis_and_long, emu_and_long },
     { "00000000iiiiiiii101110EE", "andi #xx, D", dis_andi, emu_andi },
     { "0000110000011101SiiiiiiD", "asl #ii, S2, D", dis_asl_imm, emu_asl_imm },
