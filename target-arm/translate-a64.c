@@ -11109,7 +11109,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
         }
 
         if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-            tcg_gen_debug_insn_start(dc->pc);
+            tcg_gen_insn_start(dc->pc);
         }
 
         if (dc->ss_active && !dc->pstate_ss) {

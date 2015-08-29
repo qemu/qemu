@@ -1795,7 +1795,7 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
     unsigned int insn;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(s->pc);
+        tcg_gen_insn_start(s->pc);
     }
 
     insn = cpu_ldl_code(env, s->pc);

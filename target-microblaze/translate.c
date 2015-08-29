@@ -1589,7 +1589,7 @@ static inline void decode(DisasContext *dc, uint32_t ir)
     int i;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(dc->pc);
+        tcg_gen_insn_start(dc->pc);
     }
 
     dc->ir = ir;

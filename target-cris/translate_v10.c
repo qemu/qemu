@@ -1200,7 +1200,7 @@ static unsigned int crisv10_decoder(CPUCRISState *env, DisasContext *dc)
     unsigned int insn_len = 2;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
-        tcg_gen_debug_insn_start(dc->pc);
+        tcg_gen_insn_start(dc->pc);
 
     /* Load a halfword onto the instruction register.  */
     dc->ir = cpu_lduw_code(env, dc->pc);

@@ -154,7 +154,7 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
     int length = 2;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(ctx->pc);
+        tcg_gen_insn_start(ctx->pc);
     }
 
     /* Examine the 16-bit opcode.  */

@@ -2995,8 +2995,8 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
     int i;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(dc->pc);
-        }
+        tcg_gen_insn_start(dc->pc);
+    }
 
     /* Load a halfword onto the instruction register.  */
         dc->ir = cris_fetch(env, dc, dc->pc, 2, 0);

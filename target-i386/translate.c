@@ -4402,7 +4402,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
     int rex_w, rex_r;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(pc_start);
+        tcg_gen_insn_start(pc_start);
     }
     s->pc = pc_start;
     prefixes = 0;

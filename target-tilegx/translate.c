@@ -2009,7 +2009,7 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
     dc->num_wb = 0;
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(dc->pc);
+        tcg_gen_insn_start(dc->pc);
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "  %" PRIx64 ":  { ", dc->pc);

@@ -11516,7 +11516,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
                     opc3(ctx.opcode), ctx.le_mode ? "little" : "big");
         if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-            tcg_gen_debug_insn_start(ctx.nip);
+            tcg_gen_insn_start(ctx.nip);
         }
         ctx.nip += 4;
         table = env->opcodes;

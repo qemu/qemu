@@ -990,7 +990,7 @@ void tcg_dump_ops(TCGContext *s)
         def = &tcg_op_defs[c];
         args = &s->gen_opparam_buf[op->args];
 
-        if (c == INDEX_op_debug_insn_start) {
+        if (c == INDEX_op_insn_start) {
             uint64_t pc;
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
             pc = ((uint64_t)args[1] << 32) | args[0];
@@ -1400,7 +1400,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                 }
             }
             break;
-        case INDEX_op_debug_insn_start:
+        case INDEX_op_insn_start:
             break;
         case INDEX_op_discard:
             /* mark the temporary as dead */
@@ -2359,7 +2359,7 @@ static inline int tcg_gen_code_common(TCGContext *s,
         case INDEX_op_movi_i64:
             tcg_reg_alloc_movi(s, args, dead_args, sync_args);
             break;
-        case INDEX_op_debug_insn_start:
+        case INDEX_op_insn_start:
             break;
         case INDEX_op_discard:
             temp_dead(s, args[0]);

@@ -18905,7 +18905,7 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     }
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(ctx->pc);
+        tcg_gen_insn_start(ctx->pc);
     }
 
     op = MASK_OP_MAJOR(ctx->opcode);
