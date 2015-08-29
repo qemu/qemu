@@ -224,7 +224,7 @@ tcp_newtcpcb(struct socket *so)
 struct tcpcb *tcp_drop(struct tcpcb *tp, int err)
 {
 	DEBUG_CALL("tcp_drop");
-	DEBUG_ARG("tp = %lx", (long)tp);
+	DEBUG_ARG("tp = %p", tp);
 	DEBUG_ARG("errno = %d", errno);
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
@@ -249,7 +249,7 @@ tcp_close(struct tcpcb *tp)
 	register struct mbuf *m;
 
 	DEBUG_CALL("tcp_close");
-	DEBUG_ARG("tp = %lx", (long )tp);
+	DEBUG_ARG("tp = %p", tp);
 
 	/* free the reassembly queue, if any */
 	t = tcpfrag_list_first(tp);
@@ -290,7 +290,7 @@ tcp_sockclosed(struct tcpcb *tp)
 {
 
 	DEBUG_CALL("tcp_sockclosed");
-	DEBUG_ARG("tp = %lx", (long)tp);
+	DEBUG_ARG("tp = %p", tp);
 
 	switch (tp->t_state) {
 
@@ -330,7 +330,7 @@ int tcp_fconnect(struct socket *so)
   int ret=0;
 
   DEBUG_CALL("tcp_fconnect");
-  DEBUG_ARG("so = %lx", (long )so);
+  DEBUG_ARG("so = %p", so);
 
   if( (ret = so->s = qemu_socket(AF_INET,SOCK_STREAM,0)) >= 0) {
     int opt, s=so->s;
@@ -393,7 +393,7 @@ void tcp_connect(struct socket *inso)
     int s, opt;
 
     DEBUG_CALL("tcp_connect");
-    DEBUG_ARG("inso = %lx", (long)inso);
+    DEBUG_ARG("inso = %p", inso);
 
     /*
      * If it's an SS_ACCEPTONCE socket, no need to socreate()
@@ -564,8 +564,8 @@ tcp_emu(struct socket *so, struct mbuf *m)
 	char *bptr;
 
 	DEBUG_CALL("tcp_emu");
-	DEBUG_ARG("so = %lx", (long)so);
-	DEBUG_ARG("m = %lx", (long)m);
+	DEBUG_ARG("so = %p", so);
+	DEBUG_ARG("m = %p", m);
 
 	switch(so->so_emu) {
 		int x, i;
@@ -900,7 +900,7 @@ int tcp_ctl(struct socket *so)
     int do_pty;
 
     DEBUG_CALL("tcp_ctl");
-    DEBUG_ARG("so = %lx", (long )so);
+    DEBUG_ARG("so = %p", so);
 
     if (so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
         /* Check if it's pty_exec */
