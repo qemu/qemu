@@ -297,16 +297,27 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
         break;
     case VendorInterfaceRequest | XID_GET_CAPABILITIES:
         DPRINTF("xid XID_GET_CAPABILITIES 0x%x\n", value);
-        //FIXME: !
+        /* FIXME: ! */
         p->status = USB_RET_STALL;
         //assert(false);
         break;
-    case ((USB_DIR_IN|USB_TYPE_CLASS|USB_RECIP_DEVICE)<<8) | 0x06:
-        DPRINTF("xid unknown xpad request 1: value = 0x%x\n", value);
+    case ((USB_DIR_IN|USB_TYPE_CLASS|USB_RECIP_DEVICE)<<8)
+             | USB_REQ_GET_DESCRIPTOR:
+        /* FIXME: ! */
+        DPRINTF("xid unknown xpad request 0x%x: value = 0x%x\n",
+                request, value);
         memset(data, 0x00, length);
         //FIXME: Intended for the hub: usbd_get_hub_descriptor, UT_READ_CLASS?!
         p->status = USB_RET_STALL;
         //assert(false);
+        break;
+    case ((USB_DIR_OUT|USB_TYPE_STANDARD|USB_RECIP_ENDPOINT)<<8)
+             | USB_REQ_CLEAR_FEATURE:
+        /* FIXME: ! */
+        DPRINTF("xid unknown xpad request 0x%x: value = 0x%x\n",
+                request, value);
+        memset(data, 0x00, length);
+        p->status = USB_RET_STALL;
         break;
     default:
         DPRINTF("xid USB stalled on request 0x%x value 0x%x\n", request, value);
