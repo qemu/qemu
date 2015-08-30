@@ -5369,7 +5369,7 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
-        tcg_gen_insn_start(dc.pc);
+        tcg_gen_insn_start(dc.pc, dc.cc_op);
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
