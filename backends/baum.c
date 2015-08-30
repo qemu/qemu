@@ -303,7 +303,7 @@ static int baum_eat_packet(BaumDriverState *baum, const uint8_t *buf, int len)
                 return 0;
             cur++;
         }
-        DPRINTF("Dropped %d bytes!\n", cur - buf);
+        DPRINTF("Dropped %td bytes!\n", cur - buf);
     }
 
 #define EAT(c) do {\
