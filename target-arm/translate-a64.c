@@ -11090,7 +11090,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
-        tcg_gen_insn_start(dc->pc);
+        tcg_gen_insn_start(dc->pc, 0);
         num_insns++;
 
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {

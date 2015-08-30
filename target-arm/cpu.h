@@ -95,6 +95,7 @@
 struct arm_boot_info;
 
 #define NB_MMU_MODES 7
+#define TARGET_INSN_START_EXTRA_WORDS 1
 
 /* We currently assume float and double are IEEE single and double
    precision respectively.
