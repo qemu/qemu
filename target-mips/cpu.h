@@ -130,6 +130,7 @@ struct CPUMIPSFPUContext {
 };
 
 #define NB_MMU_MODES 3
+#define TARGET_INSN_START_EXTRA_WORDS 2
 
 typedef struct CPUMIPSMVPContext CPUMIPSMVPContext;
 struct CPUMIPSMVPContext {
