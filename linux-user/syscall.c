@@ -4626,8 +4626,9 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         pthread_mutex_unlock(&clone_lock);
     } else {
         /* if no CLONE_VM, we consider it is a fork */
-        if ((flags & ~(CSIGNAL | CLONE_NPTL_FLAGS2)) != 0)
-            return -EINVAL;
+        if ((flags & ~(CSIGNAL | CLONE_NPTL_FLAGS2)) != 0) {
+            return -TARGET_EINVAL;
+        }
         fork_start();
         ret = fork();
         if (ret == 0) {
