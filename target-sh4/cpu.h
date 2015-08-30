@@ -120,6 +120,7 @@ typedef struct tlb_t {
 #define ITLB_SIZE 4
 
 #define NB_MMU_MODES 2
+#define TARGET_INSN_START_EXTRA_WORDS 1
 
 enum sh_features {
     SH_FEATURE_SH4A = 1,

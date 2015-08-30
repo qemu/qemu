@@ -1860,7 +1860,7 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_instr_start[ii] = 1;
             tcg_ctx.gen_opc_icount[ii] = num_insns;
         }
-        tcg_gen_insn_start(ctx.pc);
+        tcg_gen_insn_start(ctx.pc, ctx.flags);
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
