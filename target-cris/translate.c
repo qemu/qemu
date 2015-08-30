@@ -3174,7 +3174,8 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
-        tcg_gen_insn_start(dc->pc);
+        tcg_gen_insn_start(dc->delayed_branch == 1
+                           ? dc->ppc | 1 : dc->pc);
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
