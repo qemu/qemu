@@ -7949,7 +7949,7 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
             tcg_ctx.gen_opc_instr_start[lj] = 1;
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
-        tcg_gen_insn_start(pc_ptr);
+        tcg_gen_insn_start(pc_ptr, dc->cc_op);
         num_insns++;
 
         /* If RF is set, suppress an internally generated breakpoint.  */
