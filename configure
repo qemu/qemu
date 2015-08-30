@@ -302,7 +302,7 @@ trace_backends="nop"
 trace_file="trace"
 spice=""
 rbd=""
-smartcard_nss=""
+smartcard=""
 libusb=""
 usb_redir=""
 opengl=""
@@ -1039,9 +1039,9 @@ for opt do
   ;;
   --enable-xfsctl) xfs="yes"
   ;;
-  --disable-smartcard-nss) smartcard_nss="no"
+  --disable-smartcard) smartcard="no"
   ;;
-  --enable-smartcard-nss) smartcard_nss="yes"
+  --enable-smartcard) smartcard="yes"
   ;;
   --disable-libusb) libusb="no"
   ;;
@@ -1354,7 +1354,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   rbd             rados block device (rbd)
   libiscsi        iscsi support
   libnfs          nfs support
-  smartcard-nss   smartcard nss support
+  smartcard       smartcard support (libcacard)
   libusb          libusb (for usb passthrough)
   usb-redir       usb network redirection support
   lzo             support of lzo compression library
@@ -3810,34 +3810,20 @@ EOF
   fi
 fi
 
-# check for libcacard for smartcard support
+# check for smartcard support
 smartcard_cflags=""
-# TODO - what's the minimal nss version we support?
-if test "$smartcard_nss" != "no"; then
-  cat > $TMPC << EOF
-#include <pk11pub.h>
-int main(void) { PK11_FreeSlot(0); return 0; }
-EOF
-    # FIXME: do not include $glib_* in here
-    nss_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
-    nss_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
-    test_cflags="$nss_cflags"
-    # The header files in nss < 3.13.3 have a bug which causes them to
-    # emit a warning. If we're going to compile QEMU with -Werror, then
-    # test that the headers don't have this bug. Otherwise we would pass
-    # the configure test but fail to compile QEMU later.
-    if test "$werror" = "yes"; then
-        test_cflags="-Werror $test_cflags"
-    fi
-    if test -n "$libtool" &&
-       $pkg_config --atleast-version=3.12.8 nss && \
-      compile_prog "$test_cflags" "$nss_libs"; then
-        smartcard_nss="yes"
+if test "$smartcard" != "no"; then
+    if $pkg_config libcacard; then
+        libcacard_cflags=$($pkg_config --cflags libcacard)
+        libcacard_libs=$($pkg_config --libs libcacard)
+        QEMU_CFLAGS="$QEMU_CFLAGS $libcacard_cflags"
+        libs_softmmu="$libs_softmmu $libcacard_libs"
+        smartcard="yes"
     else
-        if test "$smartcard_nss" = "yes"; then
-            feature_not_found "nss" "Install nss devel >= 3.12.8"
+        if test "$smartcard" = "yes"; then
+            feature_not_found "smartcard" "Install libcacard devel"
         fi
-        smartcard_nss="no"
+        smartcard="no"
     fi
 fi
 
@@ -4618,7 +4604,7 @@ echo "spice support     $spice"
 fi
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
-echo "nss used          $smartcard_nss"
+echo "smartcard support $smartcard"
 echo "libusb            $libusb"
 echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
@@ -4995,10 +4981,8 @@ if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=y" >> $config_host_mak
 fi
 
-if test "$smartcard_nss" = "yes" ; then
-  echo "CONFIG_SMARTCARD_NSS=y" >> $config_host_mak
-  echo "NSS_LIBS=$nss_libs" >> $config_host_mak
-  echo "NSS_CFLAGS=$nss_cflags" >> $config_host_mak
+if test "$smartcard" = "yes" ; then
+  echo "CONFIG_SMARTCARD=y" >> $config_host_mak
 fi
 
 if test "$libusb" = "yes" ; then

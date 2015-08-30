@@ -163,9 +163,6 @@ dummy := $(call unnest-vars,, \
 ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/tests/Makefile
 endif
-ifeq ($(CONFIG_SMARTCARD_NSS),y)
-include $(SRC_PATH)/libcacard/Makefile
-endif
 
 all: $(DOCS) $(TOOLS) $(HELPERS-y) recurse-all modules
 
