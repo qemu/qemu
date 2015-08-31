@@ -237,6 +237,7 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	missing-colon.json missing-comma-list.json missing-comma-object.json \
 	nested-struct-data.json non-objects.json \
 	qapi-schema-test.json quoted-structural-chars.json \
+	leading-comma-list.json leading-comma-object.json \
 	trailing-comma-list.json trailing-comma-object.json \
 	unclosed-list.json unclosed-object.json unclosed-string.json \
 	duplicate-key.json union-invalid-base.json union-bad-branch.json \

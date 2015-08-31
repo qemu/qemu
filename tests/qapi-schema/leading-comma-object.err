@@ -1,0 +1,1 @@
+tests/qapi-schema/leading-comma-object.json:1:3: Expected string or "}"
