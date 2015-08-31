@@ -426,7 +426,6 @@ def check_type(expr_info, source, value, allow_array = False,
                allow_dict = False, allow_optional = False,
                allow_star = False, allow_metas = []):
     global all_names
-    orig_value = value
 
     if value is None:
         return
@@ -444,7 +443,6 @@ def check_type(expr_info, source, value, allow_array = False,
                                 "%s: array type must contain single type name"
                                 % source)
         value = value[0]
-        orig_value = "array of %s" %value
 
     # Check if type name for value is okay
     if isinstance(value, str):
@@ -455,11 +453,11 @@ def check_type(expr_info, source, value, allow_array = False,
         if not value in all_names:
             raise QAPIExprError(expr_info,
                                 "%s uses unknown type '%s'"
-                                % (source, orig_value))
+                                % (source, value))
         if not all_names[value] in allow_metas:
             raise QAPIExprError(expr_info,
                                 "%s cannot use %s type '%s'"
-                                % (source, all_names[value], orig_value))
+                                % (source, all_names[value], value))
         return
 
     if not allow_dict:
