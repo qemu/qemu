@@ -24,6 +24,13 @@
 
 #include "qapi/qmp/qstring.h"
 
+enum VshLight {
+    LIGHT_OFF,
+    LIGHT_INFINITE,
+    LIGHT_LOCAL,
+    LIGHT_SPOT
+};
+
 enum VshTexgen {
     TEXGEN_DISABLE,
     TEXGEN_EYE_LINEAR,

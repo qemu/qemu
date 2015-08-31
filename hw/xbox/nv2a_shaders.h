@@ -29,6 +29,7 @@
 
 #define NV2A_MAX_TRANSFORM_PROGRAM_LENGTH 136
 #define NV2A_VERTEXSHADER_CONSTANTS 192
+#define NV2A_MAX_LIGHTS 8
 
 enum ShaderPrimitiveMode {
     PRIM_TYPE_NONE,
@@ -72,6 +73,9 @@ typedef struct ShaderState {
     enum VshSkinning skinning;
 
     bool normalization;
+
+    bool lighting;
+    enum VshLight light[NV2A_MAX_LIGHTS];
 
     bool fixed_function;
 
