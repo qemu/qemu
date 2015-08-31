@@ -2081,6 +2081,9 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
     if (cs->singlestep_enabled || singlestep) {
         max_insns = 1;
     }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
     gen_tb_start(tb);
 
     while (1) {

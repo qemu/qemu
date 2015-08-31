@@ -2903,6 +2903,9 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
 
     if (in_superpage(&ctx, pc_start)) {
         pc_mask = (1ULL << 41) - 1;

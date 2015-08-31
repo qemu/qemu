@@ -19586,8 +19586,13 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
                                  MO_UNALN : MO_ALIGN;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
+    if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
+
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {

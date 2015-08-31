@@ -824,7 +824,7 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
     target_ulong pc_start;
     int j, lj = -1;
     CPUMoxieState *env = &cpu->env;
-    int num_insns;
+    int num_insns, max_insns;
 
     pc_start = tb->pc;
     ctx.pc = pc_start;
@@ -834,6 +834,13 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
     ctx.singlestep_enabled = 0;
     ctx.bstate = BS_NONE;
     num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0) {
+        max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
 
     gen_tb_start(tb);
     do {
@@ -862,10 +869,12 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
         ctx.pc += decode_opc(cpu, &ctx);
 
+        if (num_insns >= max_insns) {
+            break;
+        }
         if (cs->singlestep_enabled) {
             break;
         }
-
         if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0) {
             break;
         }

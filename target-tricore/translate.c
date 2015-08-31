@@ -8274,13 +8274,24 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
     CPUTriCoreState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
-    int num_insns;
+    int num_insns, max_insns;
 
     if (search_pc) {
         qemu_log("search pc %d\n", search_pc);
     }
 
     num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0) {
+        max_insns = CF_COUNT_MASK;
+    }
+    if (singlestep) {
+        max_insns = 1;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
+
     pc_start = tb->pc;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
@@ -8298,12 +8309,7 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
         ctx.opcode = cpu_ldl_code(env, ctx.pc);
         decode_opc(env, &ctx, 0);
 
-        if (tcg_op_buf_full()) {
-            gen_save_pc(ctx.next_pc);
-            tcg_gen_exit_tb(0);
-            break;
-        }
-        if (singlestep) {
+        if (num_insns >= max_insns || tcg_op_buf_full()) {
             gen_save_pc(ctx.next_pc);
             tcg_gen_exit_tb(0);
             break;
