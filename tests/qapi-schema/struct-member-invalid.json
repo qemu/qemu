@@ -1,3 +1,2 @@
-# FIXME error message "should be a dictionary" is wrong, must be type name
 { 'struct': 'foo',
   'data': { 'a': false } }

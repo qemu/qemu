@@ -462,13 +462,15 @@ def check_type(expr_info, source, value, allow_array = False,
                                 % (source, all_names[value], orig_value))
         return
 
-    # value is a dictionary, check that each member is okay
-    if not isinstance(value, OrderedDict):
-        raise QAPIExprError(expr_info,
-                            "%s should be a dictionary" % source)
     if not allow_dict:
         raise QAPIExprError(expr_info,
                             "%s should be a type name" % source)
+
+    if not isinstance(value, OrderedDict):
+        raise QAPIExprError(expr_info,
+                            "%s should be a dictionary or type name" % source)
+
+    # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
         check_name(expr_info, "Member of %s" % source, key,
                    allow_optional=allow_optional)
