@@ -526,14 +526,6 @@ def check_union(expr, expr_info):
     members = expr['data']
     values = { 'MAX': '(automatic)' }
 
-    # If the object has a member 'base', its value must name a struct,
-    # and there must be a discriminator.
-    if base is not None:
-        if discriminator is None:
-            raise QAPIExprError(expr_info,
-                                "Union '%s' requires a discriminator to go "
-                                "along with base" %name)
-
     # Two types of unions, determined by discriminator.
 
     # With no discriminator it is a simple union.
