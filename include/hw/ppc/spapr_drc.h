@@ -119,13 +119,14 @@ typedef enum {
 } sPAPRDREntitySense;
 
 typedef enum {
-    SPAPR_DR_CC_RESPONSE_NEXT_SIB       = 1, /* currently unused */
-    SPAPR_DR_CC_RESPONSE_NEXT_CHILD     = 2,
-    SPAPR_DR_CC_RESPONSE_NEXT_PROPERTY  = 3,
-    SPAPR_DR_CC_RESPONSE_PREV_PARENT    = 4,
-    SPAPR_DR_CC_RESPONSE_SUCCESS        = 0,
-    SPAPR_DR_CC_RESPONSE_ERROR          = -1,
-    SPAPR_DR_CC_RESPONSE_CONTINUE       = -2,
+    SPAPR_DR_CC_RESPONSE_NEXT_SIB         = 1, /* currently unused */
+    SPAPR_DR_CC_RESPONSE_NEXT_CHILD       = 2,
+    SPAPR_DR_CC_RESPONSE_NEXT_PROPERTY    = 3,
+    SPAPR_DR_CC_RESPONSE_PREV_PARENT      = 4,
+    SPAPR_DR_CC_RESPONSE_SUCCESS          = 0,
+    SPAPR_DR_CC_RESPONSE_ERROR            = -1,
+    SPAPR_DR_CC_RESPONSE_CONTINUE         = -2,
+    SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE = -9003,
 } sPAPRDRCCResponse;
 
 typedef void (spapr_drc_detach_cb)(DeviceState *d, void *opaque);

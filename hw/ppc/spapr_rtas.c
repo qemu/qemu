@@ -522,6 +522,12 @@ static void rtas_ibm_configure_connector(PowerPCCPU *cpu,
 
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
     fdt = drck->get_fdt(drc, NULL);
+    if (!fdt) {
+        DPRINTF("rtas_ibm_configure_connector: Missing FDT for DRC index: %xh\n",
+                drc_index);
+        rc = SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE;
+        goto out;
+    }
 
     ccs = spapr_ccs_find(spapr, drc_index);
     if (!ccs) {
