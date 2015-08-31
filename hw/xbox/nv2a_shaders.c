@@ -718,14 +718,8 @@ ShaderBinding* generate_shaders(const ShaderState state)
             ret->psh_constant_loc[i][j] = glGetUniformLocation(program, tmp);
         }
     }
-    if (state.vertex_program) {
-        /* lookup vertex shader bindings */
-        for(i = 0; i < NV2A_VERTEXSHADER_CONSTANTS; i++) {
-            char tmp[8];
-            snprintf(tmp, sizeof(tmp), "c[%d]", i);
-            ret->vsh_constant_loc[i] = glGetUniformLocation(program, tmp);
-        }
-    }
+
+    ret->gl_constants_loc = glGetUniformBlockIndex(program, "VertexConstants");
 
     return ret;
 }
