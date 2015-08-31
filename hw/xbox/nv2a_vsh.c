@@ -516,36 +516,8 @@ static QString* decode_token(const uint32_t *shader_token)
 }
 
 static const char* vsh_header =
-    "in vec4 v0;\n"
-    "in vec4 v1;\n"
-    "in vec4 v2;\n"
-    "in vec4 v3;\n"
-    "in vec4 v4;\n"
-    "in vec4 v5;\n"
-    "in vec4 v6;\n"
-    "in vec4 v7;\n"
-    "in vec4 v8;\n"
-    "in vec4 v9;\n"
-    "in vec4 v10;\n"
-    "in vec4 v11;\n"
-    "in vec4 v12;\n"
-    "in vec4 v13;\n"
-    "in vec4 v14;\n"
-    "in vec4 v15;\n"
     "\n"
     "int A0 = 0;\n"
-    "\n"
-    "vec4 oPos = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oPts = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
     "\n"
     "vec4 R0 = vec4(0.0,0.0,0.0,0.0);\n"
     "vec4 R1 = vec4(0.0,0.0,0.0,0.0);\n"
@@ -561,15 +533,6 @@ static const char* vsh_header =
     "vec4 R11 = vec4(0.0,0.0,0.0,0.0);\n"
     "#define R12 oPos\n" /* R12 is a mirror of oPos */
     "\n"
-
-
-    /* All constants in 1 array declaration */
-   "layout(shared) uniform VertexConstants {\n"
-   "  uniform vec4 c[192];\n"
-   "};"
-   "\n"
-   "uniform vec2 clipRange;\n"
-   "uniform vec2 surfaceSize;\n"
 
     /* See:
      * http://msdn.microsoft.com/en-us/library/windows/desktop/bb174703%28v=vs.85%29.aspx
@@ -726,30 +689,23 @@ static const char* vsh_header =
     "  return t;\n"
     "}\n";
 
-QString* vsh_translate(uint16_t version,
+void vsh_translate(uint16_t version,
                        const uint32_t *tokens,
                        unsigned int length,
-                       char out_prefix)
+                       QString *header, QString *body)
 {
 
-    QString* header = qstring_from_str("#version 330\n\n");
-    qstring_append(header, STRUCT_VERTEX_DATA);
-    qstring_append_fmt(header, "noperspective out VertexData %c_vtx;\n", out_prefix);
-    qstring_append_fmt(header, "#define vtx %c_vtx", out_prefix);
 
     qstring_append(header, "\n"
-                           "uniform mat4 texMat0;\n"
-                           "uniform mat4 texMat1;\n"
-                           "uniform mat4 texMat2;\n"
-                           "uniform mat4 texMat3;\n");
+                      "uniform mat4 texMat0;\n"
+                      "uniform mat4 texMat1;\n"
+                      "uniform mat4 texMat2;\n"
+                      "uniform mat4 texMat3;\n");
     qstring_append(header, vsh_header);
-
-    QString *body = qstring_from_str("\n");
-    qstring_append(body,"  oFog.x = 1.0;\n"); /* FIXME: Use foggen? */
 
     bool has_final = false;
     int slot;
-    for (slot=0; slot<length; slot++) {
+    for (slot=0; slot < length; slot++) {
         const uint32_t* cur_token = &tokens[slot * VSH_TOKEN_SIZE];
         QString *token_str = decode_token(cur_token);
         qstring_append_fmt(body,
@@ -772,58 +728,35 @@ QString* vsh_translate(uint16_t version,
      * interpolation manually. OpenGL can't, since we give it a W of 1 to work
      * around the perspective divide */
     qstring_append(body,
-        "if (oPos.w == 0.0 || isinf(oPos.w)) {\n"
-        "  vtx.inv_w = 1.0;\n"
-        "} else {\n"
-        "  vtx.inv_w = 1.0 / oPos.w;\n"
-        "}\n");
-    qstring_append(body, "vtx.D0 = clamp(oD0, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(body, "vtx.D1 = clamp(oD1, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(body, "vtx.B0 = clamp(oB0, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(body, "vtx.B1 = clamp(oB1, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(body, "vtx.Fog = oFog.x * vtx.inv_w;\n");
-    qstring_append(body, "vtx.T0 = oT0 * vtx.inv_w;\n");
-    qstring_append(body, "vtx.T1 = oT1 * vtx.inv_w;\n");
-    qstring_append(body, "vtx.T2 = oT2 * vtx.inv_w;\n");
-    qstring_append(body, "vtx.T3 = oT3 * vtx.inv_w;\n");
+        "  if (oPos.w == 0.0 || isinf(oPos.w)) {\n"
+        "    vtx.inv_w = 1.0;\n"
+        "  } else {\n"
+        "    vtx.inv_w = 1.0 / oPos.w;\n"
+        "  }\n");
 
     qstring_append(body,
         /* the shaders leave the result in screen space, while
          * opengl expects it in clip space.
          * TODO: the pixel-center co-ordinate differences should handled
          */
-        "oPos.x = 2.0 * (oPos.x - surfaceSize.x * 0.5) / surfaceSize.x;\n"
-        "oPos.y = -2.0 * (oPos.y - surfaceSize.y * 0.5) / surfaceSize.y;\n"
-        "if (clipRange.y != clipRange.x) {\n"
-        "  oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
-        "}\n"
+        "  oPos.x = 2.0 * (oPos.x - surfaceSize.x * 0.5) / surfaceSize.x;\n"
+        "  oPos.y = -2.0 * (oPos.y - surfaceSize.y * 0.5) / surfaceSize.y;\n"
+        "  if (clipRange.y != clipRange.x) {\n"
+        "    oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
+        "  }\n"
 
         /* Correct for the perspective divide */
-        "if (oPos.w < 0.0) {\n"
+        "  if (oPos.w < 0.0) {\n"
             /* undo the perspective divide in the case where the point would be
              * clipped so opengl can clip it correctly */
-        "  oPos.xyz *= oPos.w;\n"
-        "} else {\n"
+        "    oPos.xyz *= oPos.w;\n"
+        "  } else {\n"
             /* we don't want the OpenGL perspective divide to happen, but we
              * can't multiply by W because it could be meaningless here */
-        "  oPos.w = 1.0;\n"
-        "}\n"
+        "    oPos.w = 1.0;\n"
+        "  }\n"
 
-        /* Set outputs */
-        "  gl_Position = oPos;\n"
-        "  gl_PointSize = oPts.x;\n"
-        "\n"
     );
 
-    QString *ret = qstring_new();
-    qstring_append(ret, qstring_get_str(header));
-    qstring_append(ret,"\n"
-                       "void main(void)\n"
-                       "{\n");
-    qstring_append(ret, qstring_get_str(body));
-    qstring_append(ret,"}\n");
-    QDECREF(header);
-    QDECREF(body);
-    return ret;
 }
 

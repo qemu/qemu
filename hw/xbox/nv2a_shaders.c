@@ -226,17 +226,13 @@ static void append_skinning_code(QString* str, bool mix,
     }
 }
 
-static QString* generate_fixed_function(const ShaderState state,
-                                        char out_prefix)
+static void generate_fixed_function(const ShaderState state,
+                                    QString *header, QString *body)
 {
     int i, j;
 
     /* generate vertex shader mimicking fixed function */
-    QString* h = qstring_new();
-    QString* s = qstring_new();
-    qstring_append(h,
-"#version 330\n"
-"\n"
+    qstring_append(header,
 "#define position      v0\n"
 "#define weight        v1\n"
 "#define normal        v2.xyz\n"
@@ -255,22 +251,8 @@ static QString* generate_fixed_function(const ShaderState state,
 "#define reserved3     v15\n"
 "\n");
 
-    for(i = 0; i < 16; i++) {
-        qstring_append_fmt(h, "in vec4 v%d;\n", i);
-    }
-
-    qstring_append(h, "\n"
-                      STRUCT_VERTEX_DATA);
-    qstring_append_fmt(h, "noperspective out VertexData %c_vtx;\n", out_prefix);
-    qstring_append_fmt(h, "#define vtx %c_vtx", out_prefix);
-
-
-    qstring_append(h,
-"\n"
+    qstring_append(header,
 /* FIXME: Add these uniforms using code when they are used */
-"uniform vec4 fogColor;\n"
-"uniform vec4 fogPlane;\n"
-"uniform float fogParam[2];\n"
 "uniform vec4 texPlaneS0;\n"
 "uniform vec4 texPlaneT0;\n"
 "uniform vec4 texPlaneQ0;\n"
@@ -326,26 +308,24 @@ static QString* generate_fixed_function(const ShaderState state,
         assert(false);
         break;
     }
-    qstring_append_fmt(s, "/* Skinning mode %d */\n",
+    qstring_append_fmt(body, "/* Skinning mode %d */\n",
                        state.skinning);
 
-    append_skinning_code(s, mix, count, "vec4",
+    append_skinning_code(body, mix, count, "vec4",
                          "tPosition", "position",
                          "modelViewMat", "xyzw");
-    append_skinning_code(s, mix, count, "vec3",
+    append_skinning_code(body, mix, count, "vec3",
                          "tNormal", "vec4(normal, 0.0)",
                          "invModelViewMat", "xyz");
 
     /* Normalization */
     if (state.normalization) {
-        qstring_append(s, "tNormal = normalize(tNormal);\n");
+        qstring_append(body, "tNormal = normalize(tNormal);\n");
     }
 
     /* Texgen */
     for (i = 0; i < 4 /* FIXME: NV2A_MAX_TEXTURES */; i++) {
-        qstring_append_fmt(s, "/* Texgen for stage %d */\n",
-                           i);
-        qstring_append_fmt(s, "vec4 tTexture%d;\n",
+        qstring_append_fmt(body, "/* Texgen for stage %d */\n",
                            i);
         /* Set each component individually */
         /* FIXME: could be nicer if some channels share the same texgen */
@@ -355,25 +335,25 @@ static QString* generate_fixed_function(const ShaderState state,
             char cSuffix = "STRQ"[j];
             switch (state.texgen[i][j]) {
             case TEXGEN_DISABLE:
-                qstring_append_fmt(s, "tTexture%d.%c = texture%d.%c;\n",
+                qstring_append_fmt(body, "oT%d.%c = texture%d.%c;\n",
                                    i, c, i, c);
                 break;
             case TEXGEN_EYE_LINEAR:
-                qstring_append_fmt(s, "tTexture%d.%c = dot(texPlane%c%d, tPosition);\n",
+                qstring_append_fmt(body, "oT%d.%c = dot(texPlane%c%d, tPosition);\n",
                                    i, c, cSuffix, i);
                 break;
             case TEXGEN_OBJECT_LINEAR:
-                qstring_append_fmt(s, "tTexture%d.%c = dot(texPlane%c%d, position);\n",
+                qstring_append_fmt(body, "oT%d.%c = dot(texPlane%c%d, position);\n",
                                    i, c, cSuffix, i);
                 assert(false); /* Untested */
                 break;
             case TEXGEN_SPHERE_MAP:
                 assert(i < 2);  /* Channels S,T only! */
-                qstring_append(s, "{\n");
+                qstring_append(body, "{\n");
                 /* FIXME: u, r and m only have to be calculated once */
-                qstring_append(s, "  vec3 u = normalize(tPosition.xyz);\n");
+                qstring_append(body, "  vec3 u = normalize(tPosition.xyz);\n");
                 //FIXME: tNormal before or after normalization? Always normalize?
-                qstring_append(s, "  vec3 r = reflect(u, tNormal);\n");
+                qstring_append(body, "  vec3 r = reflect(u, tNormal);\n");
 
                 /* FIXME: This would consume 1 division fewer and *might* be
                  *        faster than length:
@@ -382,25 +362,25 @@ static QString* generate_fixed_function(const ShaderState state,
                  *   float m = inversesqrt(dot(ro,ro))*0.5;
                  */
 
-                qstring_append(s, "  float invM = 1.0 / (2.0 * length(r + vec3(0.0, 0.0, 1.0)));\n");
-                qstring_append_fmt(s, "  tTexture%d.%c = r.%c * invM + 0.5;\n",
+                qstring_append(body, "  float invM = 1.0 / (2.0 * length(r + vec3(0.0, 0.0, 1.0)));\n");
+                qstring_append_fmt(body, "  oT%d.%c = r.%c * invM + 0.5;\n",
                                    i, c, c);
-                qstring_append(s, "}\n");
+                qstring_append(body, "}\n");
                 assert(false); /* Untested */
                 break;
             case TEXGEN_REFLECTION_MAP:
                 assert(i < 3); /* Channels S,T,R only! */
-                qstring_append(s, "{\n");
+                qstring_append(body, "{\n");
                 /* FIXME: u and r only have to be calculated once, can share the one from SPHERE_MAP */
-                qstring_append(s, "  vec3 u = normalize(tPosition.xyz);\n");
-                qstring_append(s, "  vec3 r = reflect(u, tNormal);\n");
-                qstring_append_fmt(s, "  tTexture%d.%c = r.%c;\n",
+                qstring_append(body, "  vec3 u = normalize(tPosition.xyz);\n");
+                qstring_append(body, "  vec3 r = reflect(u, tNormal);\n");
+                qstring_append_fmt(body, "  oT%d.%c = r.%c;\n",
                                    i, c, c);
-                qstring_append(s, "}\n");
+                qstring_append(body, "}\n");
                 break;
             case TEXGEN_NORMAL_MAP:
                 assert(i < 3); /* Channels S,T,R only! */
-                qstring_append_fmt(s, "tTexture%d.%c = tNormal.%c;\n",
+                qstring_append_fmt(body, "oT%d.%c = tNormal.%c;\n",
                                    i, c, c);
                 break;
             default:
@@ -413,8 +393,8 @@ static QString* generate_fixed_function(const ShaderState state,
     /* Apply texture matrices */
     for (i = 0; i < 4; i++) {
         if (state.texture_matrix_enable[i]) {
-            qstring_append_fmt(s,
-                               "tTexture%d = tTexture%d * texMat%d;\n",
+            qstring_append_fmt(body,
+                               "oT%d = oT%d * texMat%d;\n",
                                i, i, i);
         }
     }
@@ -423,12 +403,12 @@ static QString* generate_fixed_function(const ShaderState state,
     if (state.lighting) {
 
         //FIXME: Do 2 passes if we want 2 sided-lighting?
-        qstring_append_fmt(h, "uniform vec3 sceneAmbientColor;\n");
-        qstring_append(s, "vec4 tD0 = vec4(sceneAmbientColor, diffuse.a);\n");
-        qstring_append(s, "vec4 tD1 = vec4(0.0, 0.0, 0.0, specular.a);\n");
+        qstring_append_fmt(header, "uniform vec3 sceneAmbientColor;\n");
+        qstring_append(body, "oD0 = vec4(sceneAmbientColor, diffuse.a);\n");
+        qstring_append(body, "oD1 = vec4(0.0, 0.0, 0.0, specular.a);\n");
 
         /* FIXME: Only add if necessary */
-        qstring_append(h,
+        qstring_append(header,
             "uniform vec4 eyePosition;\n");
 
         for (i = 0; i < NV2A_MAX_LIGHTS; i++) {
@@ -436,7 +416,7 @@ static QString* generate_fixed_function(const ShaderState state,
                 continue;
             }
 
-            qstring_append_fmt(h,
+            qstring_append_fmt(header,
                 "uniform vec3 lightAmbientColor%d;\n"
                 "uniform vec3 lightDiffuseColor%d;\n"
                 "uniform vec3 lightSpecularColor%d;\n",
@@ -448,19 +428,19 @@ static QString* generate_fixed_function(const ShaderState state,
              *        colors
              */
 
-            qstring_append_fmt(s, "/* Light %d */ {\n", i);
+            qstring_append_fmt(body, "/* Light %d */ {\n", i);
 
-            qstring_append_fmt(h,
+            qstring_append_fmt(header,
                 "uniform float lightLocalRange%d;\n", i);
 
             if (state.light[i] == LIGHT_LOCAL
                     || state.light[i] == LIGHT_SPOT) {
 
-                qstring_append_fmt(h,
+                qstring_append_fmt(header,
                     "uniform vec3 lightLocalPosition%d;\n"
                     "uniform vec3 lightLocalAttenuation%d;\n",
                     i, i);
-                qstring_append_fmt(s,
+                qstring_append_fmt(body,
                     "  vec3 VP = lightLocalPosition%d - tPosition.xyz/tPosition.w;\n"
                     "  float d = length(VP);\n"
 //FIXME: if (d > lightLocalRange) { .. don't process this light .. } /* inclusive?! */ - what about directional lights?
@@ -480,11 +460,11 @@ static QString* generate_fixed_function(const ShaderState state,
 
                 /* lightLocalRange will be 1e+30 here */
 
-                qstring_append_fmt(h,
+                qstring_append_fmt(header,
                     "uniform vec3 lightInfiniteHalfVector%d;\n"
                     "uniform vec3 lightInfiniteDirection%d;\n",
                     i, i);
-                qstring_append_fmt(s,
+                qstring_append_fmt(body,
                     "  float attenuation = 1.0;\n"
                     "  float nDotVP = max(0.0, dot(tNormal, normalize(vec3(lightInfiniteDirection%d))));\n"
                     "  float nDotHV = max(0.0, dot(tNormal, vec3(lightInfiniteHalfVector%d)));\n",
@@ -499,7 +479,7 @@ static QString* generate_fixed_function(const ShaderState state,
                 /* Everything done already */
                 break;
             case LIGHT_SPOT:
-                qstring_append_fmt(h,
+                qstring_append_fmt(header,
                     "uniform vec3 lightSpotFalloff%d;\n"
                     "uniform vec4 lightSpotDirection%d;\n",
                     i, i);
@@ -511,7 +491,7 @@ static QString* generate_fixed_function(const ShaderState state,
                 break;
             }
 
-            qstring_append_fmt(s,
+            qstring_append_fmt(body,
                 "  float pf;\n"
                 "  if (nDotVP == 0.0) {\n"
                 "    pf = 0.0;\n"
@@ -523,22 +503,23 @@ static QString* generate_fixed_function(const ShaderState state,
                 "  vec3 lightSpecular = lightSpecularColor%d * pf;\n",
                 i, i, i);
 
-            qstring_append(s,
-                "  tD0.xyz += lightAmbient;\n");
+            qstring_append(body,
+                "  oD0.xyz += lightAmbient;\n");
 
-            qstring_append(s,
-                "  tD0.xyz += diffuse.xyz * lightDiffuse;\n");
+            qstring_append(body,
+                "  oD0.xyz += diffuse.xyz * lightDiffuse;\n");
 
-            qstring_append(s,
-                "  tD1.xyz += specular.xyz * lightSpecular;\n"
-                "}\n");
+            qstring_append(body,
+                "  oD1.xyz += specular.xyz * lightSpecular;\n");
+
+            qstring_append(body, "}\n");
         }
     } else {
-        qstring_append(s, "vec4 tD0 = diffuse;\n");
-        qstring_append(s, "vec4 tD1 = specular;\n");
+        qstring_append(body, "  oD0 = diffuse;\n");
+        qstring_append(body, "  oD1 = specular;\n");
     }
-    qstring_append(s, "vec4 tB0 = backDiffuse;\n");
-    qstring_append(s, "vec4 tB1 = backSpecular;\n");
+    qstring_append(body, "  oB0 = backDiffuse;\n");
+    qstring_append(body, "  oB1 = backSpecular;\n");
 
     /* Fog */
     if (state.fog_enable) {
@@ -549,28 +530,28 @@ static QString* generate_fixed_function(const ShaderState state,
             assert(false); /* FIXME: Do this before or after calculations in VSH? */
             if (state.fixed_function) {
                 /* FIXME: Do we have to clamp here? */
-                qstring_append(s, "float fogDistance = clamp(specular.a, 0.0, 1.0);\n");
+                qstring_append(body, "  float fogDistance = clamp(specular.a, 0.0, 1.0);\n");
             } else if (state.vertex_program) {
-                qstring_append(s, "float fogDistance = oD1.a;\n");
+                qstring_append(body, "  float fogDistance = oD1.a;\n");
             } else {
                 assert(false);
             }
             break;
         case FOGGEN_RADIAL:
-            qstring_append(s, "float fogDistance = length(tPosition.xyz)");
+            qstring_append(body, "  float fogDistance = length(tPosition.xyz)");
             break;
         case FOGGEN_PLANAR:
         case FOGGEN_ABS_PLANAR:
-            qstring_append(s, "float fogDistance = dot(fogPlane.xyz, tPosition.xyz) + fogPlane.w;\n");
+            qstring_append(body, "  float fogDistance = dot(fogPlane.xyz, tPosition.xyz) + fogPlane.w;\n");
             if (state.foggen == FOGGEN_ABS_PLANAR) {
-                qstring_append(s, "fogDistance = abs(fogDistance);\n");
+                qstring_append(body, "  fogDistance = abs(fogDistance);\n");
             }
             break;
         case FOGGEN_FOG_X:
             if (state.fixed_function) {
-                qstring_append(s, "float fogDistance = fogCoord;\n");
+                qstring_append(body, "  float fogDistance = fogCoord;\n");
             } else if (state.vertex_program) {
-                qstring_append(s, "float fogDistance = oFog.x;\n");
+                qstring_append(body, "  float fogDistance = oFog.x;\n");
             } else {
                 assert(false);
             }
@@ -580,7 +561,94 @@ static QString* generate_fixed_function(const ShaderState state,
             break;
         }
 
-        //FIXME: Do this per pixel?
+    }
+
+    /* If skinning is off the composite matrix already includes the MV matrix */
+    if (state.skinning == SKINNING_OFF) {
+        qstring_append(body, "  tPosition = position;\n");
+    }
+
+    qstring_append(body,
+    "   oPos = invViewport * (tPosition * compositeMat);\n"
+    "   oPos.z = oPos.z * 2.0 - oPos.w;\n");
+
+    qstring_append(body, "  vtx.inv_w = 1.0 / oPos.w;\n");
+
+}
+
+static QString *generate_vertex_shader(const ShaderState state,
+                                       char vtx_prefix)
+{
+    int i;
+    QString *header = qstring_from_str("#version 330\n"
+                                  "\n"
+                                  "uniform vec2 clipRange;\n"
+                                  "uniform vec2 surfaceSize;\n"
+                                  "\n"
+                                  /* All constants in 1 array declaration */
+                                  "layout(shared) uniform VertexConstants {\n"
+                                  "  uniform vec4 c[192];\n"
+                                  "};\n"
+                                  "\n"
+                                  /* FIXME: Most [all?] of these are probably part of the constant space */
+                                  "uniform vec4 fogColor;\n"
+                                  "uniform vec4 fogPlane;\n"
+                                  "uniform float fogParam[2];\n"
+                                  "\n"
+                                  "vec4 oPos = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oPts = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
+                                  "\n"
+                                  STRUCT_VERTEX_DATA);
+    qstring_append_fmt(header, "noperspective out VertexData %c_vtx;\n",
+                       vtx_prefix);
+    qstring_append_fmt(header, "#define vtx %c_vtx\n",
+                       vtx_prefix);
+    qstring_append(header, "\n");
+    for(i = 0; i < 16; i++) {
+        qstring_append_fmt(header, "in vec4 v%d;\n", i);
+    }
+    qstring_append(header, "\n");
+
+    QString *body = qstring_from_str("void main() {\n");
+
+    if (state.fixed_function) {
+        generate_fixed_function(state, header, body);
+
+    } else if (state.vertex_program) {
+        vsh_translate(VSH_VERSION_XVS,
+                      (uint32_t*)state.program_data,
+                      state.program_length,
+                      header, body);
+    } else {
+        assert(false);
+    }
+
+
+    /* Fog */
+
+    if (state.fog_enable) {
+
+        if (state.vertex_program) {
+            /* FIXME: Does foggen do something here? Let's do some tracking..
+             *
+             *   "RollerCoaster Tycoon" has
+             *      state.vertex_program = true; state.foggen == FOGGEN_PLANAR
+             *      but expects oFog.x as fogdistance?! Writes oFog.xyzw = v0.z
+             */
+            qstring_append(body, "  float fogDistance = oFog.x;\n");
+        }
+
+        /* FIXME: Do this per pixel? */
+
         switch (state.fog_mode) {
         case FOG_MODE_LINEAR:
         case FOG_MODE_LINEAR_ABS:
@@ -590,8 +658,8 @@ static QString* generate_fixed_function(const ShaderState state,
              *    fogParam[0] = 1 + end * fogParam[1];
              */
 
-            qstring_append(s, "float fogFactor = fogParam[0] + fogDistance * fogParam[1];\n");
-            qstring_append(s, "fogFactor -= 1.0;\n"); /* FIXME: WHHYYY?!! */
+            qstring_append(body, "  float fogFactor = fogParam[0] + fogDistance * fogParam[1];\n");
+            qstring_append(body, "  fogFactor -= 1.0;\n"); /* FIXME: WHHYYY?!! */
             break;
         case FOG_MODE_EXP:
         case FOG_MODE_EXP_ABS:
@@ -601,8 +669,8 @@ static QString* generate_fixed_function(const ShaderState state,
              *    fogParam[0] = 1.5
              */
 
-            qstring_append(s, "float fogFactor = fogParam[0] + exp2(fogDistance * fogParam[1] * 16.0);\n");
-            qstring_append(s, "fogFactor -= 1.5;\n"); /* FIXME: WHHYYY?!! */
+            qstring_append(body, "  float fogFactor = fogParam[0] + exp2(fogDistance * fogParam[1] * 16.0);\n");
+            qstring_append(body, "  fogFactor -= 1.5;\n"); /* FIXME: WHHYYY?!! */
             break;
         case FOG_MODE_EXP2:
         case FOG_MODE_EXP2_ABS:
@@ -612,8 +680,8 @@ static QString* generate_fixed_function(const ShaderState state,
              *    fogParam[0] = 1.5
              */
 
-            qstring_append(s, "float fogFactor = fogParam[0] + exp2(-fogDistance * fogDistance * fogParam[1] * fogParam[1] * 32.0);\n");
-            qstring_append(s, "fogFactor -= 1.5;\n"); /* FIXME: WHHYYY?!! */
+            qstring_append(body, "  float fogFactor = fogParam[0] + exp2(-fogDistance * fogDistance * fogParam[1] * fogParam[1] * 32.0);\n");
+            qstring_append(body, "  fogFactor -= 1.5;\n"); /* FIXME: WHHYYY?!! */
             break;
         default:
             assert(false);
@@ -624,50 +692,41 @@ static QString* generate_fixed_function(const ShaderState state,
         case FOG_MODE_LINEAR_ABS:
         case FOG_MODE_EXP_ABS:
         case FOG_MODE_EXP2_ABS:
-            qstring_append(s, "fogFactor = abs(fogFactor);\n");
+            qstring_append(body, "  fogFactor = abs(fogFactor);\n");
             break;
         default:
             break;
         }
         /* FIXME: What about fog alpha?! */
-        qstring_append(s, "float tFog = fogFactor;\n");
+        qstring_append(body, "  oFog.xyzw = vec4(fogFactor);\n");
     } else {
         /* FIXME: Is the fog still calculated / passed somehow?!
          */
-        qstring_append(s, "float tFog = 0.0;\n");
+        qstring_append(body, "  oFog.xyzw = vec4(1.0);\n");
     }
 
-    /* If skinning is off the composite matrix already includes the MV matrix */
-    if (state.skinning == SKINNING_OFF) {
-        qstring_append(s, "tPosition = position;\n");
-    }
+    /* Set outputs */
+    qstring_append(body, "\n"
+                      "  vtx.D0 = clamp(oD0, 0.0, 1.0) * vtx.inv_w;\n"
+                      "  vtx.D1 = clamp(oD1, 0.0, 1.0) * vtx.inv_w;\n"
+                      "  vtx.B0 = clamp(oB0, 0.0, 1.0) * vtx.inv_w;\n"
+                      "  vtx.B1 = clamp(oB1, 0.0, 1.0) * vtx.inv_w;\n"
+                      "  vtx.Fog = oFog.x * vtx.inv_w;\n"
+                      "  vtx.T0 = oT0 * vtx.inv_w;\n"
+                      "  vtx.T1 = oT1 * vtx.inv_w;\n"
+                      "  vtx.T2 = oT2 * vtx.inv_w;\n"
+                      "  vtx.T3 = oT3 * vtx.inv_w;\n"
+                      "  gl_Position = oPos;\n"
+                      "  gl_PointSize = oPts.x;\n"
+                      "\n"
+                      "}\n");
 
-    qstring_append(s,
-    "   gl_Position = invViewport * (tPosition * compositeMat);\n"
-/* temp hack: the composite matrix includes the view transform... */
-//"   gl_Position = position * compositeMat;\n"
-//"   gl_Position.x = (gl_Position.x - 320.0) / 320.0;\n"
-//"   gl_Position.y = -(gl_Position.y - 240.0) / 240.0;\n"
-    "   gl_Position.z = gl_Position.z * 2.0 - gl_Position.w;\n");
 
-    qstring_append(s, "vtx.inv_w = 1.0/gl_Position.w;\n");
-    qstring_append(s, "vtx.D0 = clamp(tD0, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(s, "vtx.D1 = clamp(tD1, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(s, "vtx.B0 = clamp(tB0, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(s, "vtx.B1 = clamp(tB1, 0.0, 1.0) * vtx.inv_w;\n");
-    qstring_append(s, "vtx.Fog = tFog * vtx.inv_w;\n");
-    qstring_append(s, "vtx.T0 = tTexture0 *  vtx.inv_w;\n");
-    qstring_append(s, "vtx.T1 = tTexture1 * vtx.inv_w;\n");
-    qstring_append(s, "vtx.T2 = tTexture2 * vtx.inv_w;\n");
-    qstring_append(s, "vtx.T3 = tTexture3 * vtx.inv_w;\n");
+    /* Return combined header + source */
+    qstring_append(header, qstring_get_str(body));
+    QDECREF(body);
+    return header;
 
-    qstring_append(h,"void main() {\n");
-    qstring_append(h, qstring_get_str(s));
-    qstring_append(h, "}\n");
-
-    QDECREF(s);
-
-    return h;
 }
 
 static GLuint create_gl_shader(GLenum gl_shader_type,
@@ -737,28 +796,12 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
     /* create the vertex shader */
 
-    QString *s = NULL;
-    if (state.fixed_function) {
-        s = generate_fixed_function(state, vtx_prefix);
-
-    } else if (state.vertex_program) {
-        s = vsh_translate(VSH_VERSION_XVS, (uint32_t*)state.program_data,
-                                           state.program_length,
-                                           vtx_prefix);
-    } else {
-        assert(false);
-    }
-
-    if (s) {
-        const char* s_str = qstring_get_str(s);
-
-        GLuint vertex_shader = create_gl_shader(GL_VERTEX_SHADER,
-                                                s_str,
-                                                "vertex shader");
-        glAttachShader(program, vertex_shader);
-
-        QDECREF(s);
-    }
+    QString *vertex_shader_code = generate_vertex_shader(state, vtx_prefix);
+    GLuint vertex_shader = create_gl_shader(GL_VERTEX_SHADER,
+                                            qstring_get_str(vertex_shader_code),
+                                            "vertex shader");
+    glAttachShader(program, vertex_shader);
+    QDECREF(vertex_shader_code);
 
 
     /* Bind attributes for vertices */
