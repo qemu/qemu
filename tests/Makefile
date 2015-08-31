@@ -229,12 +229,14 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	redefined-type.json redefined-command.json redefined-builtin.json \
 	redefined-event.json command-int.json bad-data.json event-max.json \
 	type-bypass.json type-bypass-no-gen.json type-bypass-bad-gen.json \
+	args-invalid.json \
 	args-array-empty.json args-array-unknown.json args-int.json \
 	args-unknown.json args-member-unknown.json args-member-array.json \
 	args-member-array-bad.json args-alternate.json args-union.json \
 	returns-array-bad.json returns-int.json returns-dict.json \
 	returns-unknown.json returns-alternate.json returns-whitelist.json \
 	missing-colon.json missing-comma-list.json missing-comma-object.json \
+	struct-data-invalid.json struct-member-invalid.json \
 	nested-struct-data.json non-objects.json \
 	qapi-schema-test.json quoted-structural-chars.json \
 	leading-comma-list.json leading-comma-object.json \

@@ -1,0 +1,3 @@
+# FIXME error "should be a dictionary" is misleading, type name is also fine
+{ 'struct': 'foo',
+  'data': false }
