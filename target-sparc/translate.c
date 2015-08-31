@@ -970,6 +970,31 @@ static void gen_branch_a(DisasContext *dc, target_ulong pc1)
     dc->is_br = 1;
 }
 
+static void gen_branch_n(DisasContext *dc, target_ulong pc1)
+{
+    target_ulong npc = dc->npc;
+
+    if (likely(npc != DYNAMIC_PC)) {
+        dc->pc = npc;
+        dc->jump_pc[0] = pc1;
+        dc->jump_pc[1] = npc + 4;
+        dc->npc = JUMP_PC;
+    } else {
+        TCGv t, z;
+
+        tcg_gen_mov_tl(cpu_pc, cpu_npc);
+
+        tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
+        t = tcg_const_tl(pc1);
+        z = tcg_const_tl(0);
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc, cpu_cond, z, t, cpu_npc);
+        tcg_temp_free(t);
+        tcg_temp_free(z);
+
+        dc->pc = DYNAMIC_PC;
+    }
+}
+
 static inline void gen_generic_branch(DisasContext *dc)
 {
     TCGv npc0 = tcg_const_tl(dc->jump_pc[0]);
@@ -1402,15 +1427,7 @@ static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc)
         if (a) {
             gen_branch_a(dc, target);
         } else {
-            dc->pc = dc->npc;
-            dc->jump_pc[0] = target;
-            if (unlikely(dc->npc == DYNAMIC_PC)) {
-                dc->jump_pc[1] = DYNAMIC_PC;
-                tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
-            } else {
-                dc->jump_pc[1] = dc->npc + 4;
-                dc->npc = JUMP_PC;
-            }
+            gen_branch_n(dc, target);
         }
     }
 }
@@ -1450,15 +1467,7 @@ static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc)
         if (a) {
             gen_branch_a(dc, target);
         } else {
-            dc->pc = dc->npc;
-            dc->jump_pc[0] = target;
-            if (unlikely(dc->npc == DYNAMIC_PC)) {
-                dc->jump_pc[1] = DYNAMIC_PC;
-                tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
-            } else {
-                dc->jump_pc[1] = dc->npc + 4;
-                dc->npc = JUMP_PC;
-            }
+            gen_branch_n(dc, target);
         }
     }
 }
@@ -1478,15 +1487,7 @@ static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
     if (a) {
         gen_branch_a(dc, target);
     } else {
-        dc->pc = dc->npc;
-        dc->jump_pc[0] = target;
-        if (unlikely(dc->npc == DYNAMIC_PC)) {
-            dc->jump_pc[1] = DYNAMIC_PC;
-            tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
-        } else {
-            dc->jump_pc[1] = dc->npc + 4;
-            dc->npc = JUMP_PC;
-        }
+        gen_branch_n(dc, target);
     }
 }
 
