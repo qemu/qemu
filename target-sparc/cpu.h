@@ -230,6 +230,7 @@ typedef struct trap_state {
     uint32_t tt;
 } trap_state;
 #endif
+#define TARGET_INSN_START_EXTRA_WORDS 1
 
 typedef struct sparc_def_t {
     const char *name;

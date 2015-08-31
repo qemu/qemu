@@ -5257,7 +5257,12 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
                 tcg_ctx.gen_opc_icount[lj] = num_insns;
             }
         }
-        tcg_gen_insn_start(dc->pc);
+        if (dc->npc & JUMP_PC) {
+            assert(dc->jump_pc[1] == dc->pc + 4);
+            tcg_gen_insn_start(dc->pc, dc->jump_pc[0] | JUMP_PC);
+        } else {
+            tcg_gen_insn_start(dc->pc, dc->npc);
+        }
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
