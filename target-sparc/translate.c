@@ -65,7 +65,6 @@ static TCGv cpu_wim;
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
 static target_ulong gen_opc_npc[OPC_BUF_SIZE];
-static target_ulong gen_opc_jump_pc[2];
 
 #include "exec/gen-icount.h"
 
@@ -5250,6 +5249,10 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
                     tcg_ctx.gen_opc_instr_start[lj++] = 0;
                 tcg_ctx.gen_opc_pc[lj] = dc->pc;
                 gen_opc_npc[lj] = dc->npc;
+                if (dc->npc & JUMP_PC) {
+                    assert(dc->jump_pc[1] == dc->pc + 4);
+                    gen_opc_npc[lj] = dc->jump_pc[0] | JUMP_PC;
+                }
                 tcg_ctx.gen_opc_instr_start[lj] = 1;
                 tcg_ctx.gen_opc_icount[lj] = num_insns;
             }
@@ -5321,8 +5324,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
 #if 0
         log_page_dump();
 #endif
-        gen_opc_jump_pc[0] = dc->jump_pc[0];
-        gen_opc_jump_pc[1] = dc->jump_pc[1];
     } else {
         tb->size = last_pc + 4 - pc_start;
         tb->icount = num_insns;
@@ -5450,17 +5451,17 @@ void gen_intermediate_code_init(CPUSPARCState *env)
 
 void restore_state_to_opc(CPUSPARCState *env, TranslationBlock *tb, int pc_pos)
 {
-    target_ulong npc;
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    target_ulong pc, npc;
+    env->pc = pc = tcg_ctx.gen_opc_pc[pc_pos];
     npc = gen_opc_npc[pc_pos];
-    if (npc == 1) {
+    if (npc == DYNAMIC_PC) {
         /* dynamic NPC: already stored */
-    } else if (npc == 2) {
+    } else if (npc & JUMP_PC) {
         /* jump PC: use 'cond' and the jump targets of the translation */
         if (env->cond) {
-            env->npc = gen_opc_jump_pc[0];
+            env->npc = npc & ~3;
         } else {
-            env->npc = gen_opc_jump_pc[1];
+            env->npc = pc + 4;
         }
     } else {
         env->npc = npc;
