@@ -128,12 +128,15 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
     ai.ai_family = PF_UNSPEC;
     ai.ai_socktype = SOCK_STREAM;
 
-    if ((qemu_opt_get(opts, "host") == NULL) ||
-        (qemu_opt_get(opts, "port") == NULL)) {
-        error_setg(errp, "host and/or port not specified");
+    if ((qemu_opt_get(opts, "host") == NULL)) {
+        error_setg(errp, "host not specified");
         return -1;
     }
-    pstrcpy(port, sizeof(port), qemu_opt_get(opts, "port"));
+    if (qemu_opt_get(opts, "port") != NULL) {
+        pstrcpy(port, sizeof(port), qemu_opt_get(opts, "port"));
+    } else {
+        port[0] = '\0';
+    }
     addr = qemu_opt_get(opts, "host");
 
     to = qemu_opt_get_number(opts, "to", 0);
@@ -145,6 +148,10 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
     /* lookup */
     if (port_offset) {
         unsigned long long baseport;
+        if (strlen(port) == 0) {
+            error_setg(errp, "port not specified");
+            return -1;
+        }
         if (parse_uint_full(port, &baseport, 10) < 0) {
             error_setg(errp, "can't convert to a number: %s", port);
             return -1;
@@ -156,7 +163,8 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
         }
         snprintf(port, sizeof(port), "%d", (int)baseport + port_offset);
     }
-    rc = getaddrinfo(strlen(addr) ? addr : NULL, port, &ai, &res);
+    rc = getaddrinfo(strlen(addr) ? addr : NULL,
+                     strlen(port) ? port : NULL, &ai, &res);
     if (rc != 0) {
         error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
                    gai_strerror(rc));
