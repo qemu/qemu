@@ -427,13 +427,15 @@ static void spapr_hotplug_req_event(sPAPRDRConnector *drc, uint8_t hp_action)
     hp->hdr.section_length = cpu_to_be16(sizeof(*hp));
     hp->hdr.section_version = 1; /* includes extended modifier */
     hp->hotplug_action = hp_action;
-
+    hp->drc.index = cpu_to_be32(drck->get_index(drc));
+    hp->hotplug_identifier = RTAS_LOG_V6_HP_ID_DRC_INDEX;
 
     switch (drc_type) {
     case SPAPR_DR_CONNECTOR_TYPE_PCI:
-        hp->drc.index = cpu_to_be32(drck->get_index(drc));
-        hp->hotplug_identifier = RTAS_LOG_V6_HP_ID_DRC_INDEX;
         hp->hotplug_type = RTAS_LOG_V6_HP_TYPE_PCI;
+        break;
+    case SPAPR_DR_CONNECTOR_TYPE_LMB:
+        hp->hotplug_type = RTAS_LOG_V6_HP_TYPE_MEMORY;
         break;
     default:
         /* we shouldn't be signaling hotplug events for resources

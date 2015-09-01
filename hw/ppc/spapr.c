@@ -34,6 +34,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
+#include "sysemu/device_tree.h"
 #include "kvm_ppc.h"
 #include "migration/migration.h"
 #include "mmu-hash64.h"
@@ -862,6 +863,7 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
                                hwaddr rtas_size)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(machine);
     const char *boot_device = machine->boot_order;
     int ret, i;
     size_t cb = 0;
@@ -943,6 +945,10 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
 
     if (!spapr->has_graphics) {
         spapr_populate_chosen_stdout(fdt, spapr->vio_bus);
+    }
+
+    if (smc->dr_lmb_enabled) {
+        _FDT(spapr_drc_populate_dt(fdt, 0, NULL, SPAPR_DR_CONNECTOR_TYPE_LMB));
     }
 
     _FDT((fdt_pack(fdt)));
@@ -2055,12 +2061,120 @@ static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
+static void spapr_add_lmbs(DeviceState *dev, uint64_t addr, uint64_t size,
+                           uint32_t node, Error **errp)
+{
+    sPAPRDRConnector *drc;
+    sPAPRDRConnectorClass *drck;
+    uint32_t nr_lmbs = size/SPAPR_MEMORY_BLOCK_SIZE;
+    int i, fdt_offset, fdt_size;
+    void *fdt;
+
+    /*
+     * Check for DRC connectors and send hotplug notification to the
+     * guest only in case of hotplugged memory. This allows cold plugged
+     * memory to be specified at boot time.
+     */
+    if (!dev->hotplugged) {
+        return;
+    }
+
+    for (i = 0; i < nr_lmbs; i++) {
+        drc = spapr_dr_connector_by_id(SPAPR_DR_CONNECTOR_TYPE_LMB,
+                addr/SPAPR_MEMORY_BLOCK_SIZE);
+        g_assert(drc);
+
+        fdt = create_device_tree(&fdt_size);
+        fdt_offset = spapr_populate_memory_node(fdt, node, addr,
+                                                SPAPR_MEMORY_BLOCK_SIZE);
+
+        drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+        drck->attach(drc, dev, fdt, fdt_offset, !dev->hotplugged, errp);
+        spapr_hotplug_req_add_event(drc);
+        addr += SPAPR_MEMORY_BLOCK_SIZE;
+    }
+}
+
+static void spapr_memory_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
+                              uint32_t node, Error **errp)
+{
+    Error *local_err = NULL;
+    sPAPRMachineState *ms = SPAPR_MACHINE(hotplug_dev);
+    PCDIMMDevice *dimm = PC_DIMM(dev);
+    PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
+    MemoryRegion *mr = ddc->get_memory_region(dimm);
+    uint64_t align = memory_region_get_alignment(mr);
+    uint64_t size = memory_region_size(mr);
+    uint64_t addr;
+
+    if (size % SPAPR_MEMORY_BLOCK_SIZE) {
+        error_setg(&local_err, "Hotplugged memory size must be a multiple of "
+                      "%lld MB", SPAPR_MEMORY_BLOCK_SIZE/M_BYTE);
+        goto out;
+    }
+
+    pc_dimm_memory_plug(dev, &ms->hotplug_memory, mr, align, &local_err);
+    if (local_err) {
+        goto out;
+    }
+
+    addr = object_property_get_int(OBJECT(dimm), PC_DIMM_ADDR_PROP, &local_err);
+    if (local_err) {
+        pc_dimm_memory_unplug(dev, &ms->hotplug_memory, mr);
+        goto out;
+    }
+
+    spapr_add_lmbs(dev, addr, size, node, &error_abort);
+
+out:
+    error_propagate(errp, local_err);
+}
+
+static void spapr_machine_device_plug(HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_GET_CLASS(qdev_get_machine());
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        uint32_t node;
+
+        if (!smc->dr_lmb_enabled) {
+            error_setg(errp, "Memory hotplug not supported for this machine");
+            return;
+        }
+        node = object_property_get_int(OBJECT(dev), PC_DIMM_NODE_PROP, errp);
+        if (*errp) {
+            return;
+        }
+
+        spapr_memory_plug(hotplug_dev, dev, node, errp);
+    }
+}
+
+static void spapr_machine_device_unplug(HotplugHandler *hotplug_dev,
+                                      DeviceState *dev, Error **errp)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        error_setg(errp, "Memory hot unplug not supported by sPAPR");
+    }
+}
+
+static HotplugHandler *spapr_get_hotpug_handler(MachineState *machine,
+                                             DeviceState *dev)
+{
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM)) {
+        return HOTPLUG_HANDLER(machine);
+    }
+    return NULL;
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
     NMIClass *nc = NMI_CLASS(oc);
+    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->init = ppc_spapr_init;
     mc->reset = ppc_spapr_reset;
@@ -2072,6 +2186,9 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->kvm_type = spapr_kvm_type;
     mc->has_dynamic_sysbus = true;
     mc->pci_allow_0_address = true;
+    mc->get_hotplug_handler = spapr_get_hotpug_handler;
+    hc->plug = spapr_machine_device_plug;
+    hc->unplug = spapr_machine_device_unplug;
 
     smc->dr_lmb_enabled = false;
     fwc->get_dev_path = spapr_get_fw_dev_path;
@@ -2089,6 +2206,7 @@ static const TypeInfo spapr_machine_info = {
     .interfaces = (InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
         { TYPE_NMI },
+        { TYPE_HOTPLUG_HANDLER },
         { }
     },
 };
