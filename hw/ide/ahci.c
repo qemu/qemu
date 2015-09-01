@@ -46,7 +46,7 @@ do { \
 static void check_cmd(AHCIState *s, int port);
 static int handle_cmd(AHCIState *s, int port, uint8_t slot);
 static void ahci_reset_port(AHCIState *s, int port);
-static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis);
+static void ahci_write_fis_d2h(AHCIDevice *ad);
 static void ahci_init_d2h(AHCIDevice *ad);
 static int ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit);
 static bool ahci_map_clb_address(AHCIDevice *ad);
@@ -538,11 +538,8 @@ static void ahci_check_cmd_bh(void *opaque)
 
 static void ahci_init_d2h(AHCIDevice *ad)
 {
-    uint8_t init_fis[20];
     IDEState *ide_state = &ad->port.ifs[0];
     AHCIPortRegs *pr = &ad->port_regs;
-
-    memset(init_fis, 0, sizeof(init_fis));
 
     /* We're emulating receiving the first Reg H2D Fis from the device;
      * Update the SIG register, but otherwise proceed as normal. */
@@ -551,7 +548,7 @@ static void ahci_init_d2h(AHCIDevice *ad)
         (ide_state->sector << 8) |
         (ide_state->nsector & 0xFF);
 
-    ahci_write_fis_d2h(ad, init_fis);
+    ahci_write_fis_d2h(ad);
 }
 
 static void ahci_set_signature(AHCIDevice *ad, uint32_t sig)
@@ -753,7 +750,7 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     ahci_trigger_irq(ad->hba, ad, PORT_IRQ_PIOS_FIS);
 }
 
-static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis)
+static void ahci_write_fis_d2h(AHCIDevice *ad)
 {
     AHCIPortRegs *pr = &ad->port_regs;
     uint8_t *d2h_fis;
@@ -1401,7 +1398,7 @@ static void ahci_cmd_done(IDEDMA *dma)
     DPRINTF(ad->port_no, "cmd done\n");
 
     /* update d2h status */
-    ahci_write_fis_d2h(ad, NULL);
+    ahci_write_fis_d2h(ad);
 
     if (!ad->check_bh) {
         /* maybe we still have something to process, check later */
