@@ -30,6 +30,7 @@
 #include "hw/fw-path-provider.h"
 #include "elf.h"
 #include "net/net.h"
+#include "sysemu/device_tree.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/cpus.h"
 #include "sysemu/kvm.h"
@@ -831,6 +832,7 @@ static void spapr_finalize_fdt(sPAPRMachineState *spapr,
         exit(1);
     }
 
+    qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
 
     g_free(bootlist);
