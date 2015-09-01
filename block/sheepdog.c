@@ -28,7 +28,6 @@
 #define SD_OP_READ_OBJ       0x02
 #define SD_OP_WRITE_OBJ      0x03
 /* 0x04 is used internally by Sheepdog */
-#define SD_OP_DISCARD_OBJ    0x05
 
 #define SD_OP_NEW_VDI        0x11
 #define SD_OP_LOCK_VDI       0x12
@@ -861,10 +860,6 @@ static void coroutine_fn aio_read_response(void *opaque)
             rsp.result = SD_RES_SUCCESS;
             s->discard_supported = false;
             break;
-        case SD_RES_SUCCESS:
-            idx = data_oid_to_idx(aio_req->oid);
-            s->inode.data_vdi_id[idx] = 0;
-            break;
         default:
             break;
         }
@@ -1179,7 +1174,13 @@ static void coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
         hdr.flags = SD_FLAG_CMD_WRITE | flags;
         break;
     case AIOCB_DISCARD_OBJ:
-        hdr.opcode = SD_OP_DISCARD_OBJ;
+        hdr.opcode = SD_OP_WRITE_OBJ;
+        hdr.flags = SD_FLAG_CMD_WRITE | flags;
+        s->inode.data_vdi_id[data_oid_to_idx(oid)] = 0;
+        offset = offsetof(SheepdogInode,
+                          data_vdi_id[data_oid_to_idx(oid)]);
+        oid = vid_to_vdi_oid(s->inode.vdi_id);
+        wlen = datalen = sizeof(uint32_t);
         break;
     }
 
@@ -2214,7 +2215,9 @@ static int coroutine_fn sd_co_rw_vector(void *p)
         }
 
         aio_req = alloc_aio_req(s, acb, oid, len, offset, flags, create,
-                                old_oid, done);
+                                old_oid,
+                                acb->aiocb_type == AIOCB_DISCARD_OBJ ?
+                                0 : done);
         QLIST_INSERT_HEAD(&s->inflight_aio_head, aio_req, aio_siblings);
 
         add_aio_request(s, aio_req, acb->qiov->iov, acb->qiov->niov,
@@ -2650,15 +2653,23 @@ static coroutine_fn int sd_co_discard(BlockDriverState *bs, int64_t sector_num,
                                       int nb_sectors)
 {
     SheepdogAIOCB *acb;
-    QEMUIOVector dummy;
     BDRVSheepdogState *s = bs->opaque;
     int ret;
+    QEMUIOVector discard_iov;
+    struct iovec iov;
+    uint32_t zero = 0;
 
     if (!s->discard_supported) {
             return 0;
     }
 
-    acb = sd_aio_setup(bs, &dummy, sector_num, nb_sectors);
+    memset(&discard_iov, 0, sizeof(discard_iov));
+    memset(&iov, 0, sizeof(iov));
+    iov.iov_base = &zero;
+    iov.iov_len = sizeof(zero);
+    discard_iov.iov = &iov;
+    discard_iov.niov = 1;
+    acb = sd_aio_setup(bs, &discard_iov, sector_num, nb_sectors);
     acb->aiocb_type = AIOCB_DISCARD_OBJ;
     acb->aio_done_func = sd_finish_aiocb;
 
