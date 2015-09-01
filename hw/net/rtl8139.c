@@ -1146,7 +1146,9 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
 
         /* if receiver buffer is empty then avail == 0 */
 
-        if (avail != 0 && size + 8 >= avail)
+#define RX_ALIGN(x) (((x) + 3) & ~0x3)
+
+        if (avail != 0 && RX_ALIGN(size + 8) >= avail)
         {
             DPRINTF("rx overflow: rx buffer length %d head 0x%04x "
                 "read 0x%04x === available 0x%04x need 0x%04x\n",
@@ -1174,7 +1176,7 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
         rtl8139_write_buffer(s, (uint8_t *)&val, 4);
 
         /* correct buffer write pointer */
-        s->RxBufAddr = MOD2((s->RxBufAddr + 3) & ~0x3, s->RxBufferSize);
+        s->RxBufAddr = MOD2(RX_ALIGN(s->RxBufAddr), s->RxBufferSize);
 
         /* now we can signal we have received something */
 
