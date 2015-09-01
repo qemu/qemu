@@ -34,6 +34,7 @@
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/spapr_vio.h"
 #include "qapi-event.h"
+#include "hw/boards.h"
 
 #include <libfdt.h>
 #include "hw/ppc/spapr_drc.h"
@@ -240,8 +241,14 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
 
     switch (parameter) {
     case RTAS_SYSPARM_SPLPAR_CHARACTERISTICS: {
-        char *param_val = g_strdup_printf("MaxEntCap=%d,MaxPlatProcs=%d",
-                                          max_cpus, smp_cpus);
+        char *param_val = g_strdup_printf("MaxEntCap=%d,"
+                                          "DesMem=%llu,"
+                                          "DesProcs=%d,"
+                                          "MaxPlatProcs=%d",
+                                          max_cpus,
+                                          current_machine->ram_size / M_BYTE,
+                                          smp_cpus,
+                                          max_cpus);
         rtas_st_buffer(buffer, length, (uint8_t *)param_val, strlen(param_val));
         g_free(param_val);
         break;
