@@ -140,7 +140,7 @@ static void rtas_ibm_read_pci_config(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     size = rtas_ld(args, 3);
     addr = rtas_ld(args, 0);
 
@@ -206,7 +206,7 @@ static void rtas_ibm_write_pci_config(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     val = rtas_ld(args, 4);
     size = rtas_ld(args, 3);
     addr = rtas_ld(args, 0);
@@ -269,7 +269,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                 target_ulong rets)
 {
     uint32_t config_addr = rtas_ld(args, 0);
-    uint64_t buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    uint64_t buid = rtas_ldq(args, 1);
     unsigned int func = rtas_ld(args, 3);
     unsigned int req_num = rtas_ld(args, 4); /* 0 == remove all */
     unsigned int seq_num = rtas_ld(args, 5);
@@ -391,7 +391,7 @@ static void rtas_ibm_query_interrupt_source_number(PowerPCCPU *cpu,
                                                    target_ulong rets)
 {
     uint32_t config_addr = rtas_ld(args, 0);
-    uint64_t buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    uint64_t buid = rtas_ldq(args, 1);
     unsigned int intr_src_num = -1, ioa_intr_num = rtas_ld(args, 3);
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
@@ -440,7 +440,7 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     addr = rtas_ld(args, 0);
     option = rtas_ld(args, 3);
 
@@ -484,7 +484,7 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
         goto param_error_exit;
@@ -539,7 +539,7 @@ static void rtas_ibm_read_slot_reset_state2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
         goto param_error_exit;
@@ -584,7 +584,7 @@ static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     option = rtas_ld(args, 3);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
@@ -619,7 +619,7 @@ static void rtas_ibm_configure_pe(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
         goto param_error_exit;
@@ -654,7 +654,7 @@ static void rtas_ibm_slot_error_detail(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
         goto param_error_exit;
