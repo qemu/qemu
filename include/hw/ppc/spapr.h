@@ -353,15 +353,10 @@ typedef struct sPAPRDeviceTreeUpdateHeader {
     uint32_t version_id;
 } sPAPRDeviceTreeUpdateHeader;
 
-/*#define DEBUG_SPAPR_HCALLS*/
-
-#ifdef DEBUG_SPAPR_HCALLS
 #define hcall_dprintf(fmt, ...) \
-    do { fprintf(stderr, "%s: " fmt, __func__, ## __VA_ARGS__); } while (0)
-#else
-#define hcall_dprintf(fmt, ...) \
-    do { } while (0)
-#endif
+    do { \
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: " fmt, __func__, ## __VA_ARGS__); \
+    } while (0)
 
 typedef target_ulong (*spapr_hcall_fn)(PowerPCCPU *cpu, sPAPRMachineState *sm,
                                        target_ulong opcode,

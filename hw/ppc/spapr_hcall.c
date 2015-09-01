@@ -971,7 +971,8 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
         }
     }
 
-    hcall_dprintf("Unimplemented hcall 0x" TARGET_FMT_lx "\n", opcode);
+    qemu_log_mask(LOG_UNIMP, "Unimplemented SPAPR hcall 0x" TARGET_FMT_lx "\n",
+                  opcode);
     return H_FUNCTION;
 }
 
