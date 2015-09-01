@@ -375,6 +375,11 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_property_string(fdt, "vm,uuid", buf)));
     g_free(buf);
 
+    if (qemu_get_vm_name()) {
+        _FDT((fdt_property_string(fdt, "ibm,partition-name",
+                                  qemu_get_vm_name())));
+    }
+
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x2)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x2)));
 
