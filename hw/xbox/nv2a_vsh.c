@@ -802,7 +802,7 @@ QString* vsh_translate(uint16_t version,
         "}\n"
 
         /* Correct for the perspective divide */
-        "if (oPos.w <= 0.0) {\n"
+        "if (oPos.w < 0.0) {\n"
             /* undo the perspective divide in the case where the point would be
              * clipped so opengl can clip it correctly */
         "  oPos.xyz *= oPos.w;\n"
