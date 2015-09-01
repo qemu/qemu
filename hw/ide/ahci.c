@@ -602,10 +602,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     }
 
     s->dev[port].port_state = STATE_RUN;
-    if (!ide_state->blk) {
-        pr->sig = 0;
-        ide_state->status = SEEK_STAT | WRERR_STAT;
-    } else if (ide_state->drive_kind == IDE_CD) {
+    if (ide_state->drive_kind == IDE_CD) {
         pr->sig = SATA_SIGNATURE_CDROM;
         ide_state->lcyl = 0x14;
         ide_state->hcyl = 0xeb;
