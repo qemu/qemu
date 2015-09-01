@@ -31,7 +31,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include "qemu-common.h"
-#include "block/coroutine_int.h"
+#include "qemu/coroutine_int.h"
 
 typedef struct {
     Coroutine base;

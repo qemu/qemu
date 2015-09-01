@@ -23,8 +23,8 @@
  */
 
 #include "qemu-common.h"
-#include "block/coroutine.h"
-#include "block/coroutine_int.h"
+#include "qemu/coroutine.h"
+#include "qemu/coroutine_int.h"
 #include "qemu/queue.h"
 #include "trace.h"
 

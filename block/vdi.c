@@ -53,7 +53,7 @@
 #include "block/block_int.h"
 #include "qemu/module.h"
 #include "migration/migration.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>

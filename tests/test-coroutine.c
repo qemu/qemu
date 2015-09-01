@@ -12,8 +12,8 @@
  */
 
 #include <glib.h>
-#include "block/coroutine.h"
-#include "block/coroutine_int.h"
+#include "qemu/coroutine.h"
+#include "qemu/coroutine_int.h"
 
 /*
  * Check that qemu_in_coroutine() works

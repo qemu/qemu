@@ -18,3 +18,6 @@ util-obj-y += getauxval.o
 util-obj-y += readline.o
 util-obj-y += rfifolock.o
 util-obj-y += rcu.o
+util-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
+util-obj-y += qemu-coroutine-sleep.o
+util-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o

@@ -4,7 +4,7 @@
 #include "block/aio.h"
 #include "qemu-common.h"
 #include "qemu/option.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 #include "block/accounting.h"
 #include "qapi/qmp/qobject.h"
 #include "qapi-types.h"

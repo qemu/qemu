@@ -13,7 +13,7 @@
 #include "fsdev/file-op-9p.h"
 #include "fsdev/virtio-9p-marshal.h"
 #include "qemu/thread.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 
 enum {
     P9_TLERROR = 6,
