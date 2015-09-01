@@ -46,7 +46,7 @@ do { \
 static void check_cmd(AHCIState *s, int port);
 static int handle_cmd(AHCIState *s, int port, uint8_t slot);
 static void ahci_reset_port(AHCIState *s, int port);
-static void ahci_write_fis_d2h(AHCIDevice *ad);
+static bool ahci_write_fis_d2h(AHCIDevice *ad);
 static void ahci_init_d2h(AHCIDevice *ad);
 static int ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit);
 static bool ahci_map_clb_address(AHCIDevice *ad);
@@ -295,7 +295,6 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             if ((pr->cmd & PORT_CMD_FIS_ON) &&
                 !s->dev[port].init_d2h_sent) {
                 ahci_init_d2h(&s->dev[port]);
-                s->dev[port].init_d2h_sent = true;
             }
 
             check_cmd(s, port);
@@ -541,14 +540,19 @@ static void ahci_init_d2h(AHCIDevice *ad)
     IDEState *ide_state = &ad->port.ifs[0];
     AHCIPortRegs *pr = &ad->port_regs;
 
-    /* We're emulating receiving the first Reg H2D Fis from the device;
-     * Update the SIG register, but otherwise proceed as normal. */
-    pr->sig = (ide_state->hcyl << 24) |
-        (ide_state->lcyl << 16) |
-        (ide_state->sector << 8) |
-        (ide_state->nsector & 0xFF);
+    if (ad->init_d2h_sent) {
+        return;
+    }
 
-    ahci_write_fis_d2h(ad);
+    if (ahci_write_fis_d2h(ad)) {
+        ad->init_d2h_sent = true;
+        /* We're emulating receiving the first Reg H2D Fis from the device;
+         * Update the SIG register, but otherwise proceed as normal. */
+        pr->sig = (ide_state->hcyl << 24) |
+            (ide_state->lcyl << 16) |
+            (ide_state->sector << 8) |
+            (ide_state->nsector & 0xFF);
+    }
 }
 
 static void ahci_set_signature(AHCIDevice *ad, uint32_t sig)
@@ -750,7 +754,7 @@ static void ahci_write_fis_pio(AHCIDevice *ad, uint16_t len)
     ahci_trigger_irq(ad->hba, ad, PORT_IRQ_PIOS_FIS);
 }
 
-static void ahci_write_fis_d2h(AHCIDevice *ad)
+static bool ahci_write_fis_d2h(AHCIDevice *ad)
 {
     AHCIPortRegs *pr = &ad->port_regs;
     uint8_t *d2h_fis;
@@ -758,7 +762,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad)
     IDEState *s = &ad->port.ifs[0];
 
     if (!ad->res_fis || !(pr->cmd & PORT_CMD_FIS_RX)) {
-        return;
+        return false;
     }
 
     d2h_fis = &ad->res_fis[RES_FIS_RFIS];
@@ -791,6 +795,7 @@ static void ahci_write_fis_d2h(AHCIDevice *ad)
     }
 
     ahci_trigger_irq(ad->hba, ad, PORT_IRQ_D2H_REG_FIS);
+    return true;
 }
 
 static int prdt_tbl_entry_size(const AHCI_SG *tbl)
