@@ -5251,6 +5251,94 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
         return -TARGET_ENOSYS;
     }
 }
+#if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+static abi_long do_name_to_handle_at(abi_long dirfd, abi_long pathname,
+                                     abi_long handle, abi_long mount_id,
+                                     abi_long flags)
+{
+    struct file_handle *target_fh;
+    struct file_handle *fh;
+    int mid = 0;
+    abi_long ret;
+    char *name;
+    unsigned int size, total_size;
+
+    if (get_user_s32(size, handle)) {
+        return -TARGET_EFAULT;
+    }
+
+    name = lock_user_string(pathname);
+    if (!name) {
+        return -TARGET_EFAULT;
+    }
+
+    total_size = sizeof(struct file_handle) + size;
+    target_fh = lock_user(VERIFY_WRITE, handle, total_size, 0);
+    if (!target_fh) {
+        unlock_user(name, pathname, 0);
+        return -TARGET_EFAULT;
+    }
+
+    fh = g_malloc0(total_size);
+    fh->handle_bytes = size;
+
+    ret = get_errno(name_to_handle_at(dirfd, path(name), fh, &mid, flags));
+    unlock_user(name, pathname, 0);
+
+    /* man name_to_handle_at(2):
+     * Other than the use of the handle_bytes field, the caller should treat
+     * the file_handle structure as an opaque data type
+     */
+
+    memcpy(target_fh, fh, total_size);
+    target_fh->handle_bytes = tswap32(fh->handle_bytes);
+    target_fh->handle_type = tswap32(fh->handle_type);
+    g_free(fh);
+    unlock_user(target_fh, handle, total_size);
+
+    if (put_user_s32(mid, mount_id)) {
+        return -TARGET_EFAULT;
+    }
+
+    return ret;
+
+}
+#endif
+
+#if defined(TARGET_NR_open_by_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+static abi_long do_open_by_handle_at(abi_long mount_fd, abi_long handle,
+                                     abi_long flags)
+{
+    struct file_handle *target_fh;
+    struct file_handle *fh;
+    unsigned int size, total_size;
+    abi_long ret;
+
+    if (get_user_s32(size, handle)) {
+        return -TARGET_EFAULT;
+    }
+
+    total_size = sizeof(struct file_handle) + size;
+    target_fh = lock_user(VERIFY_READ, handle, total_size, 1);
+    if (!target_fh) {
+        return -TARGET_EFAULT;
+    }
+
+    fh = g_malloc0(total_size);
+    memcpy(fh, target_fh, total_size);
+    fh->handle_bytes = size;
+    fh->handle_type = tswap32(target_fh->handle_type);
+
+    ret = get_errno(open_by_handle_at(mount_fd, fh,
+                    target_to_host_bitmask(flags, fcntl_flags_tbl)));
+
+    g_free(fh);
+
+    unlock_user(target_fh, handle, total_size);
+
+    return ret;
+}
+#endif
 
 /* Map host to target signal numbers for the wait family of syscalls.
    Assume all other status bits are the same.  */
@@ -5663,6 +5751,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                                   arg4));
         unlock_user(p, arg2, 0);
         break;
+#if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+    case TARGET_NR_name_to_handle_at:
+        ret = do_name_to_handle_at(arg1, arg2, arg3, arg4, arg5);
+        break;
+#endif
+#if defined(TARGET_NR_open_by_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+    case TARGET_NR_open_by_handle_at:
+        ret = do_open_by_handle_at(arg1, arg2, arg3);
+        break;
+#endif
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
         break;
