@@ -1157,7 +1157,7 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
             s->IntrStatus |= RxOverflow;
             ++s->RxMissed;
             rtl8139_update_irq(s);
-            return size_;
+            return 0;
         }
 
         packet_header |= RxStatusOK;
