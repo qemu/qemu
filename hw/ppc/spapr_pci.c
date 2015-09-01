@@ -375,7 +375,9 @@ out:
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, req_num);
     rtas_st(rets, 2, ++seq_num);
-    rtas_st(rets, 3, ret_intr_type);
+    if (nret > 3) {
+        rtas_st(rets, 3, ret_intr_type);
+    }
 
     trace_spapr_pci_rtas_ibm_change_msi(config_addr, func, req_num, irq);
 }
