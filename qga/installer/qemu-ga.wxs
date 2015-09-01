@@ -42,7 +42,7 @@
   <Product
     Name="QEMU guest agent"
     Id="*"
-    UpgradeCode="{EB6B8302-C06E-4bec-ADAC-932C68A3A98D}"
+    UpgradeCode="{EB6B8302-C06E-4BEC-ADAC-932C68A3A98D}"
     Manufacturer="$(env.QEMU_GA_MANUFACTURER)"
     Version="$(env.QEMU_GA_VERSION)"
     Language="1033">
@@ -58,29 +58,15 @@
       />
     <Media Id="1" Cabinet="qemu_ga.$(env.QEMU_GA_VERSION).cab" EmbedCab="yes" />
     <Property Id="WHSLogo">1</Property>
-    <Property Id="PREVIOUSVERSIONSINSTALLED" />
-    <Upgrade Id="{EB6B8302-C06E-4bec-ADAC-932C68A3A98D}">
-      <UpgradeVersion
-        Minimum="1.0.0.0" Maximum="$(env.QEMU_GA_VERSION)"
-        Property="PREVIOUSVERSIONSINSTALLED"
-        IncludeMinimum="yes" IncludeMaximum="no" />
-    </Upgrade>
+    <MajorUpgrade
+      DowngradeErrorMessage="Error: A newer version of QEMU guest agent is already installed."
+      />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="$(var.GaProgramFilesFolder)" Name="QEMU Guest Agent">
         <Directory Id="qemu_ga_directory" Name="Qemu-ga">
-          <Component Id="qemu_ga" Guid="{908B7199-DE2A-4dc6-A8D0-27A5AE444FEA}">
-            <File Id="qemu_ga.exe" Name="qemu-ga.exe" Source="../../qemu-ga.exe" KeyPath="yes" DiskId="1"/>
-            <?ifdef var.InstallVss ?>
-            <File Id="qga_vss.dll" Name="qga-vss.dll" Source="../vss-win32/qga-vss.dll" KeyPath="no" DiskId="1"/>
-            <File Id="qga_vss.tlb" Name="qga-vss.tlb" Source="../vss-win32/qga-vss.tlb" KeyPath="no" DiskId="1"/>
-            <?endif?>
-            <File Id="iconv.dll" Name="iconv.dll" Source="$(var.Mingw_bin)/iconv.dll" KeyPath="no" DiskId="1"/>
-            <File Id="libgcc_arch_lib" Name="$(var.ArchLib)" Source="$(var.Mingw_bin)/$(var.ArchLib)" KeyPath="no" DiskId="1"/>
-            <File Id="libglib_2.0_0.dll" Name="libglib-2.0-0.dll" Source="$(var.Mingw_bin)/libglib-2.0-0.dll" KeyPath="no" DiskId="1"/>
-            <File Id="libintl_8.dll" Name="libintl-8.dll" Source="$(var.Mingw_bin)/libintl-8.dll" KeyPath="no" DiskId="1"/>
-            <File Id="libssp_0.dll" Name="libssp-0.dll" Source="$(var.Mingw_bin)/libssp-0.dll" KeyPath="no" DiskId="1"/>
-            <File Id="libwinpthread_1.dll" Name="libwinpthread-1.dll" Source="$(var.Mingw_bin)/libwinpthread-1.dll" KeyPath="no" DiskId="1"/>
+          <Component Id="qemu_ga" Guid="{908B7199-DE2A-4DC6-A8D0-27A5AE444FEA}">
+            <File Id="qemu_ga.exe" Name="qemu-ga.exe" Source="$(env.BUILD_DIR)/qemu-ga.exe" KeyPath="yes" DiskId="1"/>
             <ServiceInstall
               Id="ServiceInstaller"
               Type="ownProcess"
@@ -97,8 +83,33 @@
             </ServiceInstall>
             <ServiceControl Id="StartService" Start="install" Stop="both" Remove="uninstall" Name="QEMU-GA" Wait="no" />
           </Component>
-
-          <Component Id="registry_entries" Guid="d075d109-51ca-11e3-9f8b-000c29858960">
+          <?ifdef var.InstallVss?>
+          <Component Id="qga_vss_dll" Guid="{CB19C453-FABB-4BB1-ABAB-6B74F687BFBB}">
+            <File Id="qga_vss.dll" Name="qga-vss.dll" Source="$(env.BUILD_DIR)/qga/vss-win32/qga-vss.dll" KeyPath="yes" DiskId="1"/>
+          </Component>
+          <Component Id="qga_vss_tlb" Guid="{D8D584B1-59C2-4FB7-A91F-636FF7BFA66E}">
+            <File Id="qga_vss.tlb" Name="qga-vss.tlb" Source="$(env.BUILD_DIR)/qga/vss-win32/qga-vss.tlb" KeyPath="yes" DiskId="1"/>
+          </Component>
+          <?endif?>
+          <Component Id="iconv" Guid="{35EE3558-D34B-4F0A-B8BD-430FF0775246}">
+            <File Id="iconv.dll" Name="iconv.dll" Source="$(var.Mingw_bin)/iconv.dll" KeyPath="yes" DiskId="1"/>
+          </Component>
+          <Component Id="libgcc_arch_lib" Guid="{ADD4D07D-4515-4AB6-AF3E-C904961B4BB0}">
+            <File Id="libgcc_arch_lib" Name="$(var.ArchLib)" Source="$(var.Mingw_bin)/$(var.ArchLib)" KeyPath="yes" DiskId="1"/>
+          </Component>
+          <Component Id="libglib" Guid="{D31BFD83-2773-4B65-B45A-E0D2ADA58679}">
+            <File Id="libglib_2.0_0.dll" Name="libglib-2.0-0.dll" Source="$(var.Mingw_bin)/libglib-2.0-0.dll" KeyPath="yes" DiskId="1"/>
+          </Component>
+          <Component Id="libintl" Guid="{A641BC2D-A907-4A94-9149-F30ED430878F}">
+            <File Id="libintl_8.dll" Name="libintl-8.dll" Source="$(var.Mingw_bin)/libintl-8.dll" KeyPath="yes" DiskId="1"/>
+          </Component>
+          <Component Id="libssp" Guid="{7880087B-02B4-4EF6-A5D3-D18F8E3D90E1}">
+            <File Id="libssp_0.dll" Name="libssp-0.dll" Source="$(var.Mingw_bin)/libssp-0.dll" KeyPath="yes" DiskId="1"/>
+          </Component>
+          <Component Id="libwinpthread" Guid="{6C117C78-0F47-4B07-8F34-6BEE11643829}">
+            <File Id="libwinpthread_1.dll" Name="libwinpthread-1.dll" Source="$(var.Mingw_bin)/libwinpthread-1.dll" KeyPath="yes" DiskId="1"/>
+          </Component>
+          <Component Id="registry_entries" Guid="{D075D109-51CA-11E3-9F8B-000C29858960}">
             <RegistryKey Root="HKLM"
                          Key="Software\$(env.QEMU_GA_MANUFACTURER)\$(env.QEMU_GA_DISTRO)\Tools\QemuGA">
               <RegistryValue Type="string" Name="ProductID" Value="fb0a0d66-c7fb-4e2e-a16b-c4a3bfe8d13b" />
@@ -110,10 +121,11 @@
     </Directory>
 
     <Property Id="cmd" Value="cmd.exe"/>
+    <Property Id="REINSTALLMODE" Value="amus"/>
 
-    <?ifdef var.InstallVss ?>
+    <?ifdef var.InstallVss?>
     <CustomAction Id="RegisterCom"
-             ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s vss-install'
+              ExeCommand='/c "[qemu_ga_directory]qemu-ga.exe" -s vss-install'
               Execute="deferred"
               Property="cmd"
               Impersonate="no"
@@ -126,19 +138,29 @@
               Property="cmd"
               Impersonate="no"
               Return="check"
-              ></CustomAction>
+              >
+    </CustomAction>
     <?endif?>
 
     <Feature Id="QEMUFeature" Title="QEMU Guest Agent" Level="1">
       <ComponentRef Id="qemu_ga" />
+      <?ifdef var.InstallVss?>
+      <ComponentRef Id="qga_vss_dll" />
+      <ComponentRef Id="qga_vss_tlb" />
+      <?endif?>
+      <ComponentRef Id="iconv" />
+      <ComponentRef Id="libgcc_arch_lib" />
+      <ComponentRef Id="libglib" />
+      <ComponentRef Id="libintl" />
+      <ComponentRef Id="libssp" />
+      <ComponentRef Id="libwinpthread" />
       <ComponentRef Id="registry_entries" />
     </Feature>
 
     <InstallExecuteSequence>
-      <RemoveExistingProducts Before="InstallInitialize" />
-      <?ifdef var.InstallVss ?>
-      <Custom Action="RegisterCom" After="InstallServices">NOT Installed</Custom>
+      <?ifdef var.InstallVss?>
       <Custom Action="UnRegisterCom" After="StopServices">Installed</Custom>
+      <Custom Action="RegisterCom" After="InstallServices">NOT REMOVE</Custom>
       <?endif?>
     </InstallExecuteSequence>
   </Product>

@@ -88,7 +88,8 @@ LIBS+=-lz $(LIBS_TOOLS)
 HELPERS-$(CONFIG_LINUX) = qemu-bridge-helper$(EXESUF)
 
 ifdef BUILD_DOCS
-DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 qmp-commands.txt
+DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 qemu-ga.8
+DOCS+=qmp-commands.txt
 ifdef CONFIG_LINUX
 DOCS+=kvm_stat.1
 endif
@@ -289,28 +290,27 @@ $(qapi-modules) $(SRC_PATH)/scripts/qapi-commands.py $(qapi-py)
 QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
 $(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
 
-qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a
-	$(call LINK, $^)
+# we require QGA_VSS_PROVIDER files to be built alongside qemu-ga
+# executable since they are shipped together, but we don't want to actually
+# link against them
+qemu-ga$(EXESUF): $(qga-obj-y) libqemuutil.a libqemustub.a $(QGA_VSS_PROVIDER)
+	$(call LINK, $(filter-out $(QGA_VSS_PROVIDER), $^))
 
 ifdef QEMU_GA_MSI_ENABLED
 QEMU_GA_MSI=qemu-ga-$(ARCH).msi
 
-msi: ${QEMU_GA_MSI}
+msi: $(QEMU_GA_MSI)
 
 $(QEMU_GA_MSI): qemu-ga.exe
 
-ifdef QEMU_GA_MSI_WITH_VSS
-$(QEMU_GA_MSI): qga/vss-win32/qga-vss.dll
-endif
-
 $(QEMU_GA_MSI): config-host.mak
 
-$(QEMU_GA_MSI):  qga/installer/qemu-ga.wxs
-	$(call quiet-command,QEMU_GA_VERSION="$(QEMU_GA_VERSION)" QEMU_GA_MANUFACTURER="$(QEMU_GA_MANUFACTURER)" QEMU_GA_DISTRO="$(QEMU_GA_DISTRO)" \
+$(QEMU_GA_MSI):  $(SRC_PATH)/qga/installer/qemu-ga.wxs
+	$(call quiet-command,QEMU_GA_VERSION="$(QEMU_GA_VERSION)" QEMU_GA_MANUFACTURER="$(QEMU_GA_MANUFACTURER)" QEMU_GA_DISTRO="$(QEMU_GA_DISTRO)" BUILD_DIR="$(BUILD_DIR)" \
 	wixl -o $@ $(QEMU_GA_MSI_ARCH) $(QEMU_GA_MSI_WITH_VSS) $(QEMU_GA_MSI_MINGW_DLL_PATH) $<, "  WIXL  $@")
 else
 msi:
-	@echo MSI build not configured or dependency resolution failed (reconfigure with --enable-guest-agent-msi option)
+	@echo "MSI build not configured or dependency resolution failed (reconfigure with --enable-guest-agent-msi option)"
 endif
 
 clean:
@@ -399,6 +399,9 @@ ifneq ($(TOOLS),)
 	$(INSTALL_DATA) qemu-img.1 "$(DESTDIR)$(mandir)/man1"
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
 	$(INSTALL_DATA) qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
+endif
+ifneq (,$(findstring qemu-ga,$(TOOLS)))
+	$(INSTALL_DATA) qemu-ga.8 "$(DESTDIR)$(mandir)/man8"
 endif
 endif
 ifdef CONFIG_VIRTFS
@@ -538,6 +541,12 @@ qemu-nbd.8: qemu-nbd.texi
 	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
 	  "  GEN   $@")
 
+qemu-ga.8: qemu-ga.texi
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-ga.pod && \
+	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-ga.pod > $@, \
+	  "  GEN   $@")
+
 kvm_stat.1: scripts/kvm/kvm_stat.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< kvm_stat.pod && \
@@ -551,7 +560,7 @@ pdf: qemu-doc.pdf qemu-tech.pdf
 
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi \
-	qemu-monitor.texi qemu-img-cmds.texi
+	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi
 
 ifdef CONFIG_WIN32
 

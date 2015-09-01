@@ -732,7 +732,7 @@ if test "$mingw32" = "yes" ; then
   sysconfdir="\${prefix}"
   local_statedir=
   confsuffix=""
-  libs_qga="-lws2_32 -lwinmm -lpowrprof -liphlpapi $libs_qga"
+  libs_qga="-lws2_32 -lwinmm -lpowrprof -liphlpapi -lnetapi32 $libs_qga"
 fi
 
 werror=""
@@ -3851,6 +3851,7 @@ EOF
     guest_agent_with_vss="yes"
     QEMU_CFLAGS="$QEMU_CFLAGS $vss_win32_include"
     libs_qga="-lole32 -loleaut32 -lshlwapi -luuid -lstdc++ -Wl,--enable-stdcall-fixup $libs_qga"
+    qga_vss_provider="qga/vss-win32/qga-vss.dll qga/vss-win32/qga-vss.tlb"
   else
     if test "$vss_win32_sdk" != "" ; then
       echo "ERROR: Please download and install Microsoft VSS SDK:"
@@ -3902,58 +3903,6 @@ EOF
     guest_agent_ntddscsi=yes
     libs_qga="-lsetupapi $libs_qga"
   fi
-fi
-
-##########################################
-# Guest agent Window MSI  package
-
-if test "$guest_agent" != yes; then
-  if test "$guest_agent_msi" = yes; then
-    error_exit "MSI guest agent package requires guest agent enabled"
-  fi
-  guest_agent_msi=no
-elif test "$mingw32" != "yes"; then
-  if test "$guest_agent_msi" = "yes"; then
-    error_exit "MSI guest agent package is available only for MinGW Windows cross-compilation"
-  fi
-  guest_agent_msi=no
-elif ! has wixl; then
-  if test "$guest_agent_msi" = "yes"; then
-    error_exit "MSI guest agent package requires wixl tool installed ( usually from msitools package )"
-  fi
-  guest_agent_msi=no
-fi
-
-if test "$guest_agent_msi" != "no"; then
-  if test "$guest_agent_with_vss" = "yes"; then
-    QEMU_GA_MSI_WITH_VSS="-D InstallVss"
-  fi
-
-  if test "$QEMU_GA_MANUFACTURER" = ""; then
-    QEMU_GA_MANUFACTURER=QEMU
-  fi
-
-  if test "$QEMU_GA_DISTRO" = ""; then
-    QEMU_GA_DISTRO=Linux
-  fi
-
-  if test "$QEMU_GA_VERSION" = ""; then
-      QEMU_GA_VERSION=`cat $source_path/VERSION`
-  fi
-
-  QEMU_GA_MSI_MINGW_DLL_PATH="-D Mingw_dlls=`$pkg_config --variable=prefix glib-2.0`/bin"
-  
-  case "$cpu" in
-  x86_64)
-    QEMU_GA_MSI_ARCH="-a x64 -D Arch=64"
-    ;;
-  i386)
-    QEMU_GA_MSI_ARCH="-D Arch=32"
-    ;;
-  *)
-    error_exit "CPU $cpu not supported for building installation package"
-    ;;
-  esac
 fi
 
 ##########################################
@@ -4396,18 +4345,75 @@ if test "$softmmu" = yes ; then
     fi
   fi
 fi
+
+# Probe for guest agent support/options
+
 if [ "$guest_agent" != "no" ]; then
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" -o "$mingw32" = "yes" ] ; then
       tools="qemu-ga\$(EXESUF) $tools"
-      if [ "$mingw32" = "yes" -a "$guest_agent_with_vss" = "yes" ]; then
-        tools="qga/vss-win32/qga-vss.dll qga/vss-win32/qga-vss.tlb $tools"
-      fi
       guest_agent=yes
   elif [ "$guest_agent" != yes ]; then
       guest_agent=no
   else
       error_exit "Guest agent is not supported on this platform"
   fi
+fi
+
+# Guest agent Window MSI  package
+
+if test "$guest_agent" != yes; then
+  if test "$guest_agent_msi" = yes; then
+    error_exit "MSI guest agent package requires guest agent enabled"
+  fi
+  guest_agent_msi=no
+elif test "$mingw32" != "yes"; then
+  if test "$guest_agent_msi" = "yes"; then
+    error_exit "MSI guest agent package is available only for MinGW Windows cross-compilation"
+  fi
+  guest_agent_msi=no
+elif ! has wixl; then
+  if test "$guest_agent_msi" = "yes"; then
+    error_exit "MSI guest agent package requires wixl tool installed ( usually from msitools package )"
+  fi
+  guest_agent_msi=no
+else
+  # we support qemu-ga, mingw32, and wixl: default to MSI enabled if it wasn't
+  # disabled explicitly
+  if test "$guest_agent_msi" != "no"; then
+    guest_agent_msi=yes
+  fi
+fi
+
+if test "$guest_agent_msi" = "yes"; then
+  if test "$guest_agent_with_vss" = "yes"; then
+    QEMU_GA_MSI_WITH_VSS="-D InstallVss"
+  fi
+
+  if test "$QEMU_GA_MANUFACTURER" = ""; then
+    QEMU_GA_MANUFACTURER=QEMU
+  fi
+
+  if test "$QEMU_GA_DISTRO" = ""; then
+    QEMU_GA_DISTRO=Linux
+  fi
+
+  if test "$QEMU_GA_VERSION" = ""; then
+      QEMU_GA_VERSION=`cat $source_path/VERSION`
+  fi
+
+  QEMU_GA_MSI_MINGW_DLL_PATH="-D Mingw_dlls=`$pkg_config --variable=prefix glib-2.0`/bin"
+
+  case "$cpu" in
+  x86_64)
+    QEMU_GA_MSI_ARCH="-a x64 -D Arch=64"
+    ;;
+  i386)
+    QEMU_GA_MSI_ARCH="-D Arch=32"
+    ;;
+  *)
+    error_exit "CPU $cpu not supported for building installation package"
+    ;;
+  esac
 fi
 
 # Mac OS X ships with a broken assembler
@@ -4577,6 +4583,7 @@ echo "libnfs support    $libnfs"
 echo "build guest agent $guest_agent"
 echo "QGA VSS support   $guest_agent_with_vss"
 echo "QGA w32 disk info $guest_agent_ntddscsi"
+echo "QGA MSI support   $guest_agent_msi"
 echo "seccomp support   $seccomp"
 echo "coroutine backend $coroutine"
 echo "coroutine pool    $coroutine_pool"
@@ -4651,12 +4658,13 @@ if test "$mingw32" = "yes" ; then
   echo "CONFIG_PRODUCTVERSION=$version_major,$version_minor,$version_subminor,$version_micro" >> $config_host_mak
   if test "$guest_agent_with_vss" = "yes" ; then
     echo "CONFIG_QGA_VSS=y" >> $config_host_mak
+    echo "QGA_VSS_PROVIDER=$qga_vss_provider" >> $config_host_mak
     echo "WIN_SDK=\"$win_sdk\"" >> $config_host_mak
   fi
   if test "$guest_agent_ntddscsi" = "yes" ; then
     echo "CONFIG_QGA_NTDDDISK=y" >> $config_host_mak
   fi
-  if test "$guest_agent_msi" != "no"; then
+  if test "$guest_agent_msi" = "yes"; then
     echo "QEMU_GA_MSI_ENABLED=yes" >> $config_host_mak  
     echo "QEMU_GA_MSI_MINGW_DLL_PATH=${QEMU_GA_MSI_MINGW_DLL_PATH}" >> $config_host_mak
     echo "QEMU_GA_MSI_WITH_VSS=${QEMU_GA_MSI_WITH_VSS}" >> $config_host_mak

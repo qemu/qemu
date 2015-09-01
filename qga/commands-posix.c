@@ -2454,7 +2454,7 @@ GList *ga_command_blacklist_init(GList *blacklist)
         char **p = (char **)list;
 
         while (*p) {
-            blacklist = g_list_append(blacklist, *p++);
+            blacklist = g_list_append(blacklist, g_strdup(*p++));
         }
     }
 #endif
@@ -2468,13 +2468,13 @@ GList *ga_command_blacklist_init(GList *blacklist)
         char **p = (char **)list;
 
         while (*p) {
-            blacklist = g_list_append(blacklist, *p++);
+            blacklist = g_list_append(blacklist, g_strdup(*p++));
         }
     }
 #endif
 
 #if !defined(CONFIG_FSTRIM)
-    blacklist = g_list_append(blacklist, (char *)"guest-fstrim");
+    blacklist = g_list_append(blacklist, g_strdup("guest-fstrim"));
 #endif
 
     return blacklist;
