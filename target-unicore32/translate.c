@@ -2129,7 +2129,8 @@ void uc32_cpu_dump_state(CPUState *cs, FILE *f,
     cpu_dump_state_ucf64(env, f, cpu_fprintf, flags);
 }
 
-void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->regs[31] = tcg_ctx.gen_opc_pc[pc_pos];
+    env->regs[31] = data[0];
 }

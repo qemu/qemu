@@ -1928,7 +1928,8 @@ void mb_tcg_init(void)
     }
 }
 
-void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUMBState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->sregs[SR_PC] = tcg_ctx.gen_opc_pc[pc_pos];
+    env->sregs[SR_PC] = data[0];
 }

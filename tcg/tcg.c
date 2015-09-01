@@ -2294,7 +2294,7 @@ static inline int tcg_gen_code_common(TCGContext *s,
                                       tcg_insn_unit *gen_code_buf,
                                       long search_pc)
 {
-    int oi, oi_next;
+    int i, oi, oi_next;
 
 #ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
@@ -2361,6 +2361,15 @@ static inline int tcg_gen_code_common(TCGContext *s,
             tcg_reg_alloc_movi(s, args, dead_args, sync_args);
             break;
         case INDEX_op_insn_start:
+            for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
+                target_ulong a;
+#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
+                a = ((target_ulong)args[i * 2 + 1] << 32) | args[i * 2];
+#else
+                a = args[i];
+#endif
+                s->gen_opc_data[i] = a;
+            }
             break;
         case INDEX_op_discard:
             temp_dead(s, args[0]);

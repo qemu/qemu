@@ -2144,9 +2144,10 @@ void gen_intermediate_code_pc(CPUTLGState *env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(tilegx_env_get_cpu(env), tb, true);
 }
 
-void restore_state_to_opc(CPUTLGState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUTLGState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    env->pc = data[0];
 }
 
 void tilegx_tcg_init(void)

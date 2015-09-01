@@ -1950,8 +1950,9 @@ void gen_intermediate_code_pc(CPUSH4State * env, struct TranslationBlock *tb)
     gen_intermediate_code_internal(sh_env_get_cpu(env), tb, true);
 }
 
-void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
-    env->flags = gen_opc_hflags[pc_pos];
+    env->pc = data[0];
+    env->flags = data[1];
 }

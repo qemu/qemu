@@ -3202,7 +3202,8 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
     }
 }
 
-void restore_state_to_opc(CPUXtensaState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUXtensaState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    env->pc = data[0];
 }

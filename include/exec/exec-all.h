@@ -75,7 +75,7 @@ typedef struct TranslationBlock TranslationBlock;
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
 void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
 void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
-                          int pc_pos);
+                          target_ulong *data);
 
 void cpu_gen_init(void);
 bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);

@@ -20061,18 +20061,19 @@ void cpu_state_reset(CPUMIPSState *env)
     }
 }
 
-void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->active_tc.PC = tcg_ctx.gen_opc_pc[pc_pos];
+    env->active_tc.PC = data[0];
     env->hflags &= ~MIPS_HFLAG_BMASK;
-    env->hflags |= gen_opc_hflags[pc_pos];
+    env->hflags |= data[1];
     switch (env->hflags & MIPS_HFLAG_BMASK_BASE) {
     case MIPS_HFLAG_BR:
         break;
     case MIPS_HFLAG_BC:
     case MIPS_HFLAG_BL:
     case MIPS_HFLAG_B:
-        env->btarget = gen_opc_btarget[pc_pos];
+        env->btarget = data[2];
         break;
     }
 }

@@ -3433,7 +3433,8 @@ void cris_initialize_tcg(void)
     }
 }
 
-void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    env->pc = data[0];
 }

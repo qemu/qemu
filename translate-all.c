@@ -218,7 +218,7 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     }
     cpu->icount_decr.u16.low -= s->gen_opc_icount[j];
 
-    restore_state_to_opc(env, tb, j);
+    restore_state_to_opc(env, tb, s->gen_opc_data);
 
 #ifdef CONFIG_PROFILER
     s->restore_time += profile_getclock() - ti;

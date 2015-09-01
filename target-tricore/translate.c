@@ -8350,9 +8350,10 @@ gen_intermediate_code_pc(CPUTriCoreState *env, struct TranslationBlock *tb)
 }
 
 void
-restore_state_to_opc(CPUTriCoreState *env, TranslationBlock *tb, int pc_pos)
+restore_state_to_opc(CPUTriCoreState *env, TranslationBlock *tb,
+                     target_ulong *data)
 {
-    env->PC = tcg_ctx.gen_opc_pc[pc_pos];
+    env->PC = data[0];
 }
 /*
  *
