@@ -432,6 +432,10 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
     _FDT((fdt_property_cell(fdt, "rtas-event-scan-rate",
                             RTAS_EVENT_SCAN_RATE)));
 
+    if (msi_supported) {
+        _FDT((fdt_property(fdt, "ibm,change-msix-capable", NULL, 0)));
+    }
+
     /*
      * According to PAPR, rtas ibm,os-term does not guarantee a return
      * back to the guest cpu.
