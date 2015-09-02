@@ -118,13 +118,16 @@ class VM(object):
         self._args.append('-monitor')
         self._args.append(args)
 
-    def add_drive(self, path, opts=''):
+    def add_drive(self, path, opts='', interface='virtio'):
         '''Add a virtio-blk drive to the VM'''
-        options = ['if=virtio',
+        options = ['if=%s' % interface,
                    'format=%s' % imgfmt,
                    'cache=%s' % cachemode,
-                   'file=%s' % path,
                    'id=drive%d' % self._num_drives]
+
+        if path is not None:
+            options.append('file=%s' % path)
+
         if opts:
             options.append(opts)
 
