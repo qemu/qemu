@@ -626,8 +626,6 @@ void tcg_prologue_init(TCGContext *s);
 void tcg_func_start(TCGContext *s);
 
 int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf);
-int tcg_gen_code_search_pc(TCGContext *s, tcg_insn_unit *gen_code_buf,
-                           long offset);
 
 void tcg_set_frame(TCGContext *s, int reg, intptr_t start, intptr_t size);
 
