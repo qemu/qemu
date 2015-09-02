@@ -57,20 +57,34 @@ socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
 def qemu_img(*args):
     '''Run qemu-img and return the exit code'''
     devnull = open('/dev/null', 'r+')
-    return subprocess.call(qemu_img_args + list(args), stdin=devnull, stdout=devnull)
+    exitcode = subprocess.call(qemu_img_args + list(args), stdin=devnull, stdout=devnull)
+    if exitcode < 0:
+        sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
+    return exitcode
 
 def qemu_img_verbose(*args):
     '''Run qemu-img without suppressing its output and return the exit code'''
-    return subprocess.call(qemu_img_args + list(args))
+    exitcode = subprocess.call(qemu_img_args + list(args))
+    if exitcode < 0:
+        sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
+    return exitcode
 
 def qemu_img_pipe(*args):
     '''Run qemu-img and return its output'''
-    return subprocess.Popen(qemu_img_args + list(args), stdout=subprocess.PIPE).communicate()[0]
+    subp = subprocess.Popen(qemu_img_args + list(args), stdout=subprocess.PIPE)
+    exitcode = subp.wait()
+    if exitcode < 0:
+        sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
+    return subp.communicate()[0]
 
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
-    return subprocess.Popen(args, stdout=subprocess.PIPE).communicate()[0]
+    subp = subprocess.Popen(args, stdout=subprocess.PIPE)
+    exitcode = subp.wait()
+    if exitcode < 0:
+        sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
+    return subp.communicate()[0]
 
 def compare_images(img1, img2):
     '''Return True if two image files are identical'''
@@ -208,7 +222,9 @@ class VM(object):
         '''Terminate the VM and clean up'''
         if not self._popen is None:
             self._qmp.cmd('quit')
-            self._popen.wait()
+            exitcode = self._popen.wait()
+            if exitcode < 0:
+                sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self._args)))
             os.remove(self._monitor_path)
             os.remove(self._qtest_path)
             os.remove(self._qemu_log_path)
