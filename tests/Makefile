@@ -1,5 +1,7 @@
 export SRC_PATH
 
+qapi-py = $(SRC_PATH)/scripts/qapi.py $(SRC_PATH)/scripts/ordereddict.py
+
 # Get the list of all supported sysemu targets
 SYSEMU_TARGET_LIST := $(subst -softmmu.mak,,$(notdir \
    $(wildcard $(SRC_PATH)/default-configs/*-softmmu.mak)))
@@ -276,47 +278,51 @@ test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/test-opts-visitor.o tests/test-qmp-event.o \
 	tests/rcutorture.o tests/test-rcu-list.o
 
-test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
-		  tests/test-qapi-event.o
-
 $(test-obj-y): QEMU_INCLUDES += -Itests
 QEMU_CFLAGS += -I$(SRC_PATH)/tests
-qom-core-obj = qom/object.o qom/qom-qobject.o qom/container.o qom/object_interfaces.o
 
-tests/check-qint$(EXESUF): tests/check-qint.o libqemuutil.a
-tests/check-qstring$(EXESUF): tests/check-qstring.o libqemuutil.a
-tests/check-qdict$(EXESUF): tests/check-qdict.o libqemuutil.a
-tests/check-qlist$(EXESUF): tests/check-qlist.o libqemuutil.a
-tests/check-qfloat$(EXESUF): tests/check-qfloat.o libqemuutil.a
-tests/check-qjson$(EXESUF): tests/check-qjson.o libqemuutil.a libqemustub.a
-tests/check-qom-interface$(EXESUF): tests/check-qom-interface.o $(qom-core-obj) libqemuutil.a libqemustub.a
-tests/check-qom-proplist$(EXESUF): tests/check-qom-proplist.o $(qom-core-obj) libqemuutil.a libqemustub.a
-tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(block-obj-y) libqemuutil.a libqemustub.a
-tests/test-aio$(EXESUF): tests/test-aio.o $(block-obj-y) libqemuutil.a libqemustub.a
-tests/test-rfifolock$(EXESUF): tests/test-rfifolock.o libqemuutil.a libqemustub.a
-tests/test-throttle$(EXESUF): tests/test-throttle.o $(block-obj-y) libqemuutil.a libqemustub.a
-tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(block-obj-y) libqemuutil.a libqemustub.a
-tests/test-iov$(EXESUF): tests/test-iov.o libqemuutil.a
-tests/test-hbitmap$(EXESUF): tests/test-hbitmap.o libqemuutil.a libqemustub.a
+
+# Deps that are common to various different sets of tests below
+test-util-obj-y = libqemuutil.a libqemustub.a
+test-qom-obj-y = qom/object.o qom/qom-qobject.o \
+	qom/container.o qom/object_interfaces.o \
+	$(test-util-obj-y)
+test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
+	tests/test-qapi-event.o \
+	$(test-qom-obj-y)
+test-block-obj-y = $(block-obj-y) $(test-util-obj-y)
+
+tests/check-qint$(EXESUF): tests/check-qint.o $(test-util-obj-y)
+tests/check-qstring$(EXESUF): tests/check-qstring.o $(test-util-obj-y)
+tests/check-qdict$(EXESUF): tests/check-qdict.o $(test-util-obj-y)
+tests/check-qlist$(EXESUF): tests/check-qlist.o $(test-util-obj-y)
+tests/check-qfloat$(EXESUF): tests/check-qfloat.o $(test-util-obj-y)
+tests/check-qjson$(EXESUF): tests/check-qjson.o $(test-util-obj-y)
+tests/check-qom-interface$(EXESUF): tests/check-qom-interface.o $(test-qom-obj-y)
+tests/check-qom-proplist$(EXESUF): tests/check-qom-proplist.o $(test-qom-obj-y)
+tests/test-coroutine$(EXESUF): tests/test-coroutine.o $(test-block-obj-y)
+tests/test-aio$(EXESUF): tests/test-aio.o $(test-block-obj-y)
+tests/test-rfifolock$(EXESUF): tests/test-rfifolock.o $(test-util-obj-y)
+tests/test-throttle$(EXESUF): tests/test-throttle.o $(test-block-obj-y)
+tests/test-thread-pool$(EXESUF): tests/test-thread-pool.o $(test-block-obj-y)
+tests/test-iov$(EXESUF): tests/test-iov.o $(test-util-obj-y)
+tests/test-hbitmap$(EXESUF): tests/test-hbitmap.o $(test-util-obj-y)
 tests/test-x86-cpuid$(EXESUF): tests/test-x86-cpuid.o
-tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o migration/xbzrle.o page_cache.o libqemuutil.a
+tests/test-xbzrle$(EXESUF): tests/test-xbzrle.o migration/xbzrle.o page_cache.o $(test-util-obj-y)
 tests/test-cutils$(EXESUF): tests/test-cutils.o util/cutils.o
 tests/test-int128$(EXESUF): tests/test-int128.o
-tests/rcutorture$(EXESUF): tests/rcutorture.o libqemuutil.a libqemustub.a
-tests/test-rcu-list$(EXESUF): tests/test-rcu-list.o libqemuutil.a libqemustub.a
+tests/rcutorture$(EXESUF): tests/rcutorture.o $(test-util-obj-y)
+tests/test-rcu-list$(EXESUF): tests/test-rcu-list.o $(test-util-obj-y)
 
 tests/test-qdev-global-props$(EXESUF): tests/test-qdev-global-props.o \
 	hw/core/qdev.o hw/core/qdev-properties.o hw/core/hotplug.o\
 	hw/core/irq.o \
 	hw/core/fw-path-provider.o \
-	$(qom-core-obj) \
-	$(test-qapi-obj-y) \
-	libqemuutil.a libqemustub.a
+	$(test-qapi-obj-y)
 tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 	migration/vmstate.o migration/qemu-file.o migration/qemu-file-buf.o \
         migration/qemu-file-unix.o qjson.o \
-	$(qom-core-obj) \
-	libqemuutil.a libqemustub.a
+	$(test-qom-obj-y)
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
@@ -339,20 +345,20 @@ $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-eve
 		$(gen-out-type) -o tests -p "test-" $<, \
 		"  GEN   $@")
 
-tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
-tests/test-opts-visitor$(EXESUF): tests/test-opts-visitor.o $(test-qapi-obj-y) libqemuutil.a libqemustub.a
+tests/test-string-output-visitor$(EXESUF): tests/test-string-output-visitor.o $(test-qapi-obj-y)
+tests/test-string-input-visitor$(EXESUF): tests/test-string-input-visitor.o $(test-qapi-obj-y)
+tests/test-qmp-event$(EXESUF): tests/test-qmp-event.o $(test-qapi-obj-y)
+tests/test-qmp-output-visitor$(EXESUF): tests/test-qmp-output-visitor.o $(test-qapi-obj-y)
+tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qapi-obj-y)
+tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y)
+tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y)
+tests/test-visitor-serialization$(EXESUF): tests/test-visitor-serialization.o $(test-qapi-obj-y)
+tests/test-opts-visitor$(EXESUF): tests/test-opts-visitor.o $(test-qapi-obj-y)
 
-tests/test-mul64$(EXESUF): tests/test-mul64.o libqemuutil.a
-tests/test-bitops$(EXESUF): tests/test-bitops.o libqemuutil.a
-tests/test-crypto-hash$(EXESUF): tests/test-crypto-hash.o libqemuutil.a libqemustub.a
-tests/test-crypto-cipher$(EXESUF): tests/test-crypto-cipher.o libqemuutil.a libqemustub.a
+tests/test-mul64$(EXESUF): tests/test-mul64.o $(test-util-obj-y)
+tests/test-bitops$(EXESUF): tests/test-bitops.o $(test-util-obj-y)
+tests/test-crypto-hash$(EXESUF): tests/test-crypto-hash.o $(test-util-obj-y)
+tests/test-crypto-cipher$(EXESUF): tests/test-crypto-cipher.o $(test-util-obj-y)
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
 libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o
@@ -415,8 +421,8 @@ tests/usb-hcd-xhci-test$(EXESUF): tests/usb-hcd-xhci-test.o $(libqos-usb-obj-y)
 tests/pc-cpu-test$(EXESUF): tests/pc-cpu-test.o
 tests/vhost-user-test$(EXESUF): tests/vhost-user-test.o qemu-char.o qemu-timer.o $(qtest-obj-y)
 tests/qemu-iotests/socket_scm_helper$(EXESUF): tests/qemu-iotests/socket_scm_helper.o
-tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o libqemuutil.a libqemustub.a
-tests/test-write-threshold$(EXESUF): tests/test-write-threshold.o $(block-obj-y) libqemuutil.a libqemustub.a
+tests/test-qemu-opts$(EXESUF): tests/test-qemu-opts.o $(test-util-obj-y)
+tests/test-write-threshold$(EXESUF): tests/test-write-threshold.o $(test-block-obj-y)
 
 ifeq ($(CONFIG_POSIX),y)
 LIBS += -lutil
@@ -430,7 +436,7 @@ QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TA
 check-qtest-y=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
 endif
 
-qtest-obj-y = tests/libqtest.o libqemuutil.a libqemustub.a
+qtest-obj-y = tests/libqtest.o $(test-util-obj-y)
 $(check-qtest-y): $(qtest-obj-y)
 
 .PHONY: check-help
