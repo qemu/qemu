@@ -8266,19 +8266,13 @@ static void decode_opc(CPUTriCoreState *env, DisasContext *ctx, int *is_branch)
     }
 }
 
-static inline void
-gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
-                              int search_pc)
+void gen_intermediate_code(CPUTriCoreState *env, struct TranslationBlock *tb)
 {
+    TriCoreCPU *cpu = tricore_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUTriCoreState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
     int num_insns, max_insns;
-
-    if (search_pc) {
-        qemu_log("search pc %d\n", search_pc);
-    }
 
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
@@ -8318,12 +8312,9 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
     }
 
     gen_tb_end(tb, num_insns);
-    if (search_pc) {
-        printf("done_generating search pc\n");
-    } else {
-        tb->size = ctx.pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = ctx.pc - pc_start;
+    tb->icount = num_insns;
+
     if (tcg_check_temp_count()) {
         printf("LEAK at %08x\n", env->PC);
     }
@@ -8335,18 +8326,6 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
         qemu_log("\n");
     }
 #endif
-}
-
-void
-gen_intermediate_code(CPUTriCoreState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(tricore_env_get_cpu(env), tb, false);
-}
-
-void
-gen_intermediate_code_pc(CPUTriCoreState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(tricore_env_get_cpu(env), tb, true);
 }
 
 void

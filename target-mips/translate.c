@@ -1359,9 +1359,6 @@ static TCGv_i32 fpu_fcr0, fpu_fcr31;
 static TCGv_i64 fpu_f64[32];
 static TCGv_i64 msa_wr_d[64];
 
-static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
-static target_ulong gen_opc_btarget[OPC_BUF_SIZE];
-
 #include "exec/gen-icount.h"
 
 #define gen_helper_0e0i(name, arg) do {                           \
@@ -19535,23 +19532,17 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static inline void
-gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
-                               bool search_pc)
+void gen_intermediate_code(CPUMIPSState *env, struct TranslationBlock *tb)
 {
+    MIPSCPU *cpu = mips_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
     target_ulong next_page_start;
-    int j, lj = -1;
     int num_insns;
     int max_insns;
     int insn_bytes;
     int is_slot;
-
-    if (search_pc)
-        qemu_log("search pc %d\n", search_pc);
 
     pc_start = tb->pc;
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -19596,19 +19587,6 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[lj] = ctx.pc;
-            gen_opc_hflags[lj] = ctx.hflags & MIPS_HFLAG_BMASK;
-            gen_opc_btarget[lj] = ctx.btarget;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(ctx.pc, ctx.hflags & MIPS_HFLAG_BMASK, ctx.btarget);
         num_insns++;
 
@@ -19709,15 +19687,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
 done_generating:
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j)
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-    } else {
-        tb->size = ctx.pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = ctx.pc - pc_start;
+    tb->icount = num_insns;
+
 #ifdef DEBUG_DISAS
     LOG_DISAS("\n");
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -19726,16 +19698,6 @@ done_generating:
         qemu_log("\n");
     }
 #endif
-}
-
-void gen_intermediate_code (CPUMIPSState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(mips_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc (CPUMIPSState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(mips_env_get_cpu(env), tb, true);
 }
 
 static void fpu_dump_state(CPUMIPSState *env, FILE *f, fprintf_function fpu_fprintf,

@@ -64,8 +64,6 @@ static TCGv cpu_wim;
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
-static target_ulong gen_opc_npc[OPC_BUF_SIZE];
-
 #include "exec/gen-icount.h"
 
 typedef struct DisasContext {
@@ -5208,15 +5206,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     }
 }
 
-static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool spc)
+void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 {
+    SPARCCPU *cpu = sparc_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUSPARCState *env = &cpu->env;
     target_ulong pc_start, last_pc;
     DisasContext dc1, *dc = &dc1;
-    int j, lj = -1;
     int num_insns;
     int max_insns;
     unsigned int insn;
@@ -5245,23 +5240,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
 
     gen_tb_start(tb);
     do {
-        if (spc) {
-            qemu_log("Search PC...\n");
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                tcg_ctx.gen_opc_pc[lj] = dc->pc;
-                gen_opc_npc[lj] = dc->npc;
-                if (dc->npc & JUMP_PC) {
-                    assert(dc->jump_pc[1] == dc->pc + 4);
-                    gen_opc_npc[lj] = dc->jump_pc[0] | JUMP_PC;
-                }
-                tcg_ctx.gen_opc_instr_start[lj] = 1;
-                tcg_ctx.gen_opc_icount[lj] = num_insns;
-            }
-        }
         if (dc->npc & JUMP_PC) {
             assert(dc->jump_pc[1] == dc->pc + 4);
             tcg_gen_insn_start(dc->pc, dc->jump_pc[0] | JUMP_PC);
@@ -5326,18 +5304,9 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
     }
     gen_tb_end(tb, num_insns);
 
-    if (spc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j)
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-#if 0
-        log_page_dump();
-#endif
-    } else {
-        tb->size = last_pc + 4 - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = last_pc + 4 - pc_start;
+    tb->icount = num_insns;
+
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("--------------\n");
@@ -5346,16 +5315,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         qemu_log("\n");
     }
 #endif
-}
-
-void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
-{
-    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUSPARCState * env, TranslationBlock * tb)
-{
-    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, true);
 }
 
 void gen_intermediate_code_init(CPUSPARCState *env)

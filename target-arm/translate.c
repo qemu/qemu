@@ -52,7 +52,6 @@
 #define ARCH(x) do { if (!ENABLE_ARCH_##x) goto illegal_op; } while(0)
 
 #include "translate.h"
-static uint32_t gen_opc_condexec_bits[OPC_BUF_SIZE];
 
 #if defined(CONFIG_USER_ONLY)
 #define IS_USER(s) 1
@@ -11168,16 +11167,12 @@ undef:
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'. If search_pc is TRUE, also generate PC
-   information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(ARMCPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool search_pc)
+   basic block 'tb'.  */
+void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
 {
+    ARMCPU *cpu = arm_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUARMState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
-    int j, lj;
     target_ulong pc_start;
     target_ulong next_page_start;
     int num_insns;
@@ -11189,7 +11184,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
      * the A32/T32 complexity to do with conditional execution/IT blocks/etc.
      */
     if (ARM_TBFLAG_AARCH64_STATE(tb->flags)) {
-        gen_intermediate_code_internal_a64(cpu, tb, search_pc);
+        gen_intermediate_code_a64(cpu, tb);
         return;
     }
 
@@ -11255,7 +11250,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     /* FIXME: cpu_M0 can probably be the same as cpu_V0.  */
     cpu_M0 = tcg_temp_new_i64();
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -11289,10 +11283,9 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
      * (3) if we leave the TB unexpectedly (eg a data abort on a load)
      * then the CPUARMState will be wrong and we need to reset it.
      * This is handled in the same way as restoration of the
-     * PC in these situations: we will be called again with search_pc=1
-     * and generate a mapping of the condexec bits for each PC in
-     * gen_opc_condexec_bits[]. restore_state_to_opc() then uses
-     * this to restore the condexec bits.
+     * PC in these situations; we save the value of the condexec bits
+     * for each PC via tcg_gen_insn_start(), and restore_state_to_opc()
+     * then uses this to restore them after an exception.
      *
      * Note that there are no instructions which can read the condexec
      * bits, and none which can write non-static values to them, so
@@ -11309,18 +11302,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         store_cpu_field(tmp, condexec_bits);
       }
     do {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            gen_opc_condexec_bits[lj] = (dc->condexec_cond << 4) | (dc->condexec_mask >> 1);
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(dc->pc,
                            (dc->condexec_cond << 4) | (dc->condexec_mask >> 1));
         num_insns++;
@@ -11537,25 +11518,8 @@ done_generating:
         qemu_log("\n");
     }
 #endif
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j)
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
-}
-
-void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(arm_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUARMState *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(arm_env_get_cpu(env), tb, true);
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 }
 
 static const char *cpu_mode_names[16] = {

@@ -70,8 +70,6 @@ static TCGv cpu_fregs[32];
 /* internal register indexes */
 static TCGv cpu_flags, cpu_delayed_pc;
 
-static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
-
 #include "exec/gen-icount.h"
 
 void sh4_translate_init(void)
@@ -1816,15 +1814,12 @@ static void decode_opc(DisasContext * ctx)
         gen_store_flags(ctx->flags);
 }
 
-static inline void
-gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
-                               bool search_pc)
+void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
 {
+    SuperHCPU *cpu = sh_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUSH4State *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
-    int i, ii;
     int num_insns;
     int max_insns;
 
@@ -1841,7 +1836,6 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
     ctx.features = env->features;
     ctx.has_movcal = (ctx.flags & TB_FLAG_PENDING_MOVCA);
 
-    ii = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -1853,18 +1847,6 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
 
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE && !tcg_op_buf_full()) {
-        if (search_pc) {
-            i = tcg_op_buf_count();
-            if (ii < i) {
-                ii++;
-                while (ii < i)
-                    tcg_ctx.gen_opc_instr_start[ii++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[ii] = ctx.pc;
-            gen_opc_hflags[ii] = ctx.flags;
-            tcg_ctx.gen_opc_instr_start[ii] = 1;
-            tcg_ctx.gen_opc_icount[ii] = num_insns;
-        }
         tcg_gen_insn_start(ctx.pc, ctx.flags);
         num_insns++;
 
@@ -1921,15 +1903,8 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
 
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        i = tcg_op_buf_count();
-        ii++;
-        while (ii <= i)
-            tcg_ctx.gen_opc_instr_start[ii++] = 0;
-    } else {
-        tb->size = ctx.pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = ctx.pc - pc_start;
+    tb->icount = num_insns;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -1938,16 +1913,6 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
 	qemu_log("\n");
     }
 #endif
-}
-
-void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(sh_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUSH4State * env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(sh_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb,

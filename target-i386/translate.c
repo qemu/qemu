@@ -75,8 +75,6 @@ static TCGv_ptr cpu_ptr0, cpu_ptr1;
 static TCGv_i32 cpu_tmp2_i32, cpu_tmp3_i32;
 static TCGv_i64 cpu_tmp1_i64;
 
-static uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
-
 #include "exec/gen-icount.h"
 
 #ifdef TARGET_X86_64
@@ -7839,17 +7837,13 @@ void optimize_flags_init(void)
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'. If search_pc is TRUE, also generate PC
-   information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(X86CPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool search_pc)
+   basic block 'tb'.  */
+void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
 {
+    X86CPU *cpu = x86_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUX86State *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr;
-    int j, lj;
     uint64_t flags;
     target_ulong pc_start;
     target_ulong cs_base;
@@ -7929,7 +7923,6 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
 
     dc->is_jmp = DISAS_NEXT;
     pc_ptr = pc_start;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -7941,18 +7934,6 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
 
     gen_tb_start(tb);
     for(;;) {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[lj] = pc_ptr;
-            gen_opc_cc_op[lj] = dc->cc_op;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(pc_ptr, dc->cc_op);
         num_insns++;
 
@@ -8015,14 +7996,6 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
 done_generating:
     gen_tb_end(tb, num_insns);
 
-    /* we don't forget to fill the last values */
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j)
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-    }
-
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         int disas_flags;
@@ -8039,20 +8012,8 @@ done_generating:
     }
 #endif
 
-    if (!search_pc) {
-        tb->size = pc_ptr - pc_start;
-        tb->icount = num_insns;
-    }
-}
-
-void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(x86_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUX86State *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(x86_env_get_cpu(env), tb, true);
+    tb->size = pc_ptr - pc_start;
+    tb->icount = num_insns;
 }
 
 void restore_state_to_opc(CPUX86State *env, TranslationBlock *tb,

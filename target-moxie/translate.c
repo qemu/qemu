@@ -815,15 +815,12 @@ static int decode_opc(MoxieCPU *cpu, DisasContext *ctx)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static inline void
-gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
-                               bool search_pc)
+void gen_intermediate_code(CPUMoxieState *env, struct TranslationBlock *tb)
 {
+    MoxieCPU *cpu = moxie_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
     DisasContext ctx;
     target_ulong pc_start;
-    int j, lj = -1;
-    CPUMoxieState *env = &cpu->env;
     int num_insns, max_insns;
 
     pc_start = tb->pc;
@@ -844,18 +841,6 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
 
     gen_tb_start(tb);
     do {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = ctx.pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
 
@@ -900,26 +885,8 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
  done_generating:
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = ctx.pc - pc_start;
-        tb->icount = num_insns;
-    }
-}
-
-void gen_intermediate_code(CPUMoxieState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(moxie_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUMoxieState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(moxie_env_get_cpu(env), tb, true);
+    tb->size = ctx.pc - pc_start;
+    tb->icount = num_insns;
 }
 
 void restore_state_to_opc(CPUMoxieState *env, TranslationBlock *tb,

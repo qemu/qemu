@@ -1033,15 +1033,12 @@ static inline void decode(DisasContext *dc, uint32_t ir)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static inline
-void gen_intermediate_code_internal(LM32CPU *cpu,
-                                    TranslationBlock *tb, bool search_pc)
+void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPULM32State *env = &cpu->env;
     struct DisasContext ctx, *dc = &ctx;
     uint32_t pc_start;
-    int j, lj;
     uint32_t next_page_start;
     int num_insns;
     int max_insns;
@@ -1063,7 +1060,6 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
     }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -1075,18 +1071,6 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
 
     gen_tb_start(tb);
     do {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
 
@@ -1142,16 +1126,8 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
 
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -1161,16 +1137,6 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
                  dc->pc - pc_start, tcg_op_buf_count());
     }
 #endif
-}
-
-void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(lm32_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPULM32State *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(lm32_env_get_cpu(env), tb, true);
 }
 
 void lm32_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,

@@ -2049,17 +2049,14 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
     }
 }
 
-static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool search_pc)
+void gen_intermediate_code(CPUTLGState *env, struct TranslationBlock *tb)
 {
+    TileGXCPU *cpu = tilegx_env_get_cpu(env);
     DisasContext ctx;
     DisasContext *dc = &ctx;
     CPUState *cs = CPU(cpu);
-    CPUTLGState *env = &cpu->env;
     uint64_t pc_start = tb->pc;
     uint64_t next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    int j, lj = -1;
     int num_insns = 0;
     int max_insns = tb->cflags & CF_COUNT_MASK;
 
@@ -2087,18 +2084,6 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
     gen_tb_start(tb);
 
     while (1) {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
 
@@ -2120,28 +2105,10 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
     }
 
     gen_tb_end(tb, num_insns);
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "\n");
-}
-
-void gen_intermediate_code(CPUTLGState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(tilegx_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUTLGState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(tilegx_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUTLGState *env, TranslationBlock *tb,

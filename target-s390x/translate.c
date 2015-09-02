@@ -161,8 +161,6 @@ static char cpu_reg_names[32][4];
 static TCGv_i64 regs[16];
 static TCGv_i64 fregs[16];
 
-static uint8_t gen_opc_cc_op[OPC_BUF_SIZE];
-
 void s390x_translate_init(void)
 {
     int i;
@@ -5319,16 +5317,13 @@ static ExitStatus translate_one(CPUS390XState *env, DisasContext *s)
     return ret;
 }
 
-static inline void gen_intermediate_code_internal(S390CPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool search_pc)
+void gen_intermediate_code(CPUS390XState *env, struct TranslationBlock *tb)
 {
+    S390CPU *cpu = s390_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUS390XState *env = &cpu->env;
     DisasContext dc;
     target_ulong pc_start;
     uint64_t next_page_start;
-    int j, lj = -1;
     int num_insns, max_insns;
     ExitStatus status;
     bool do_debug;
@@ -5359,19 +5354,6 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
     gen_tb_start(tb);
 
     do {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc.pc;
-            gen_opc_cc_op[lj] = dc.cc_op;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(dc.pc, dc.cc_op);
         num_insns++;
 
@@ -5430,16 +5412,8 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
 
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = dc.pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = dc.pc - pc_start;
+    tb->icount = num_insns;
 
 #if defined(S390X_DEBUG_DISAS)
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -5448,16 +5422,6 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
         qemu_log("\n");
     }
 #endif
-}
-
-void gen_intermediate_code (CPUS390XState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(s390_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc (CPUS390XState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(s390_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUS390XState *env, TranslationBlock *tb,

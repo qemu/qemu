@@ -1864,15 +1864,12 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'. If search_pc is TRUE, also generate PC
-   information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
-        TranslationBlock *tb, bool search_pc)
+   basic block 'tb'.  */
+void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUUniCore32State *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
-    int j, lj;
     target_ulong pc_start;
     uint32_t next_page_start;
     int num_insns;
@@ -1894,7 +1891,6 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
     cpu_F0d = tcg_temp_new_i64();
     cpu_F1d = tcg_temp_new_i64();
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
@@ -1914,18 +1910,6 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
 
     gen_tb_start(tb);
     do {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
 
@@ -2039,26 +2023,8 @@ done_generating:
         qemu_log("\n");
     }
 #endif
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
-}
-
-void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(uc32_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUUniCore32State *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(uc32_env_get_cpu(env), tb, true);
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 }
 
 static const char *cpu_mode_names[16] = {

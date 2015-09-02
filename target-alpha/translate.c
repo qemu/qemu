@@ -2858,17 +2858,14 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool search_pc)
+void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
 {
+    AlphaCPU *cpu = alpha_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUAlphaState *env = &cpu->env;
     DisasContext ctx, *ctxp = &ctx;
     target_ulong pc_start;
     target_ulong pc_mask;
     uint32_t insn;
-    int j, lj = -1;
     ExitStatus ret;
     int num_insns;
     int max_insns;
@@ -2915,18 +2912,6 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
 
     gen_tb_start(tb);
     do {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = ctx.pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
 
@@ -2993,16 +2978,8 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
 
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = ctx.pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = ctx.pc - pc_start;
+    tb->icount = num_insns;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -3011,16 +2988,6 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
         qemu_log("\n");
     }
 #endif
-}
-
-void gen_intermediate_code (CPUAlphaState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(alpha_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc (CPUAlphaState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(alpha_env_get_cpu(env), tb, true);
 }
 
 void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb,
