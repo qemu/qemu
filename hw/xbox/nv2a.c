@@ -453,6 +453,7 @@
 #define NV_PGRAPH_SHADERCLIPMODE                         0x00001994
 #define NV_PGRAPH_SHADERCTL                              0x00001998
 #define NV_PGRAPH_SHADERPROG                             0x0000199C
+#define NV_PGRAPH_SHADOWZSLOPETHRESHOLD                  0x000019A8
 #define NV_PGRAPH_SPECFOGFACTOR0                         0x000019AC
 #define NV_PGRAPH_SPECFOGFACTOR1                         0x000019B0
 #define NV_PGRAPH_TEXADDRESS0                            0x000019BC
@@ -539,6 +540,8 @@
 #define NV_PGRAPH_TEXPALETTE3                            0x00001A40
 #define NV_PGRAPH_ZSTENCILCLEARVALUE                     0x00001A88
 #define NV_PGRAPH_ZCLIPMIN                               0x00001A90
+#define NV_PGRAPH_ZOFFSETBIAS                            0x00001AA4
+#define NV_PGRAPH_ZOFFSETFACTOR                          0x00001AA8
 #define NV_PGRAPH_EYEVEC0                                0x00001AAC
 #define NV_PGRAPH_EYEVEC1                                0x00001AB0
 #define NV_PGRAPH_EYEVEC2                                0x00001AB4
@@ -849,6 +852,8 @@
 #       define NV097_SET_STENCIL_OP_V_INVERT                      0x150A
 #       define NV097_SET_STENCIL_OP_V_INCR                        0x8507
 #       define NV097_SET_STENCIL_OP_V_DECR                        0x8508
+#   define NV097_SET_POLYGON_OFFSET_SCALE_FACTOR              0x00970384
+#   define NV097_SET_POLYGON_OFFSET_BIAS                      0x00970388
 #   define NV097_SET_FRONT_POLYGON_MODE                       0x0097038C
 #       define NV097_SET_FRONT_POLYGON_MODE_V_POINT               0x1B00
 #       define NV097_SET_FRONT_POLYGON_MODE_V_LINE                0x1B01
@@ -1056,6 +1061,7 @@
 #   define NV097_SET_SPECULAR_FOG_FACTOR                      0x00971E20
 #   define NV097_SET_COMBINER_COLOR_OCW                       0x00971E40
 #   define NV097_SET_COMBINER_CONTROL                         0x00971E60
+#   define NV097_SET_SHADOW_ZSLOPE_THRESHOLD                  0x00971E68
 #   define NV097_SET_SHADER_STAGE_PROGRAM                     0x00971E70
 #   define NV097_SET_SHADER_OTHER_STAGE_INPUT                 0x00971E78
 #   define NV097_SET_TRANSFORM_EXECUTION_MODE                 0x00971E94
@@ -4522,6 +4528,12 @@ static void pgraph_method(NV2AState *d,
                  kelvin_map_stencil_op(parameter));
         break;
 
+    case NV097_SET_POLYGON_OFFSET_SCALE_FACTOR:
+        pg->regs[NV_PGRAPH_ZOFFSETFACTOR] = parameter;
+        break;
+    case NV097_SET_POLYGON_OFFSET_BIAS:
+        pg->regs[NV_PGRAPH_ZOFFSETBIAS] = parameter;
+        break;
     case NV097_SET_FRONT_POLYGON_MODE:
         SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
                  NV_PGRAPH_SETUPRASTER_FRONTFACEMODE,
@@ -5250,6 +5262,16 @@ static void pgraph_method(NV2AState *d,
             glPolygonMode(GL_FRONT_AND_BACK,
                           pgraph_polygon_mode_map[front_mode]);
 
+            /* Polygon offset */
+            GLfloat zfactor = *(float*)&pg->regs[NV_PGRAPH_ZOFFSETFACTOR];
+            GLfloat zbias = *(float*)&pg->regs[NV_PGRAPH_ZOFFSETBIAS];
+            glEnable(GL_POLYGON_OFFSET_FILL);
+            glEnable(GL_POLYGON_OFFSET_LINE);
+            glEnable(GL_POLYGON_OFFSET_POINT);
+            /* FIXME: Implementation-specific, maybe we should do this in VS? */
+            glPolygonOffset(zfactor, zbias);
+
+            /* Depth testing */
             if (depth_test) {
                 glEnable(GL_DEPTH_TEST);
 
@@ -5705,6 +5727,11 @@ static void pgraph_method(NV2AState *d,
 
     case NV097_SET_COMBINER_CONTROL:
         pg->regs[NV_PGRAPH_COMBINECTL] = parameter;
+        break;
+
+    case NV097_SET_SHADOW_ZSLOPE_THRESHOLD:
+        pg->regs[NV_PGRAPH_SHADOWZSLOPETHRESHOLD] = parameter;
+        assert(parameter == 0x7F800000); /* FIXME: Unimplemented */
         break;
 
     case NV097_SET_SHADER_STAGE_PROGRAM:
