@@ -32,7 +32,6 @@
 
 #include "hw/xbox/g-lru-cache.h"
 #include "hw/xbox/swizzle.h"
-#include "hw/xbox/u_format_r11g11b10f.h"
 #include "hw/xbox/nv2a_shaders.h"
 #include "hw/xbox/nv2a_debug.h"
 
@@ -2051,12 +2050,20 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
                     uint8_t *out = attribute->converted_buffer + j * out_stride;
 
                     switch (attribute->format) {
-                    case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP:
-                        r11g11b10f_to_float3(ldl_le_p((uint32_t*)in),
-                                             (float*)out);
+                    case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP: {
+                        uint32_t p = ldl_le_p((uint32_t*)in);
+                        float *xyz = (float*)out;
+                        xyz[0] = ((int32_t)(((p >>  0) & 0x7FF) << 21) >> 21)
+                                                                      / 1023.0f;
+                        xyz[1] = ((int32_t)(((p >> 11) & 0x7FF) << 21) >> 21)
+                                                                      / 1023.0f;
+                        xyz[2] = ((int32_t)(((p >> 22) & 0x3FF) << 22) >> 22)
+                                                                       / 511.0f;
                         break;
+                    }
                     default:
                         assert(false);
+                        break;
                     }
                 }
 
@@ -2067,9 +2074,8 @@ static void pgraph_bind_vertex_attributes(NV2AState *d,
                                  num_elements * out_stride,
                                  attribute->converted_buffer,
                                  GL_DYNAMIC_DRAW);
+                    attribute->converted_elements = num_elements;
                 }
-
-                attribute->converted_elements = num_elements;
 
 
                 glVertexAttribPointer(i,
@@ -4947,14 +4953,12 @@ static void pgraph_method(NV2AState *d,
             vertex_attribute->needs_conversion = false;
             break;
         case NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP:
-            /* "3 signed, normalized components packed in 32-bits. (11,11,10)"
-             * TODO: This could use ARB_vertex_type_10f_11f_11f_rev where
-             * available. */
+            /* 3 signed, normalized components packed in 32-bits. (11,11,10) */
             vertex_attribute->size = 4;
             vertex_attribute->gl_type = GL_FLOAT;
             vertex_attribute->gl_normalize = GL_FALSE;
             vertex_attribute->needs_conversion = true;
-            vertex_attribute->converted_size = 4;
+            vertex_attribute->converted_size = sizeof(float);
             vertex_attribute->converted_count = 3 * vertex_attribute->count;
             break;
         default:
