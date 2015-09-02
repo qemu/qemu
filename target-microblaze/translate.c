@@ -313,7 +313,6 @@ static void dec_sub(DisasContext *dc)
 static void dec_pattern(DisasContext *dc)
 {
     unsigned int mode;
-    TCGLabel *l1;
 
     if ((dc->tb_flags & MSR_EE_FLAG)
           && (dc->cpu->env.pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
@@ -333,29 +332,15 @@ static void dec_pattern(DisasContext *dc)
         case 2:
             LOG_DIS("pcmpeq r%d r%d r%d\n", dc->rd, dc->ra, dc->rb);
             if (dc->rd) {
-                TCGv t0 = tcg_temp_local_new();
-                l1 = gen_new_label();
-                tcg_gen_movi_tl(t0, 1);
-                tcg_gen_brcond_tl(TCG_COND_EQ,
-                                  cpu_R[dc->ra], cpu_R[dc->rb], l1);
-                tcg_gen_movi_tl(t0, 0);
-                gen_set_label(l1);
-                tcg_gen_mov_tl(cpu_R[dc->rd], t0);
-                tcg_temp_free(t0);
+                tcg_gen_setcond_tl(TCG_COND_EQ, cpu_R[dc->rd],
+                                   cpu_R[dc->ra], cpu_R[dc->rb]);
             }
             break;
         case 3:
             LOG_DIS("pcmpne r%d r%d r%d\n", dc->rd, dc->ra, dc->rb);
-            l1 = gen_new_label();
             if (dc->rd) {
-                TCGv t0 = tcg_temp_local_new();
-                tcg_gen_movi_tl(t0, 1);
-                tcg_gen_brcond_tl(TCG_COND_NE,
-                                  cpu_R[dc->ra], cpu_R[dc->rb], l1);
-                tcg_gen_movi_tl(t0, 0);
-                gen_set_label(l1);
-                tcg_gen_mov_tl(cpu_R[dc->rd], t0);
-                tcg_temp_free(t0);
+                tcg_gen_setcond_tl(TCG_COND_NE, cpu_R[dc->rd],
+                                   cpu_R[dc->ra], cpu_R[dc->rb]);
             }
             break;
         default:
