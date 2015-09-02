@@ -284,9 +284,7 @@ QEMU_CFLAGS += -I$(SRC_PATH)/tests
 
 # Deps that are common to various different sets of tests below
 test-util-obj-y = libqemuutil.a libqemustub.a
-test-qom-obj-y = qom/object.o qom/qom-qobject.o \
-	qom/container.o qom/object_interfaces.o \
-	$(test-util-obj-y)
+test-qom-obj-y = $(qom-obj-y) $(test-util-obj-y)
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 	tests/test-qapi-event.o \
 	$(test-qom-obj-y)

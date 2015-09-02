@@ -154,6 +154,7 @@ dummy := $(call unnest-vars,, \
                 block-obj-m \
                 crypto-obj-y \
                 crypto-aes-obj-y \
+                qom-obj-y \
                 common-obj-y \
                 common-obj-m)
 
@@ -176,6 +177,7 @@ SOFTMMU_SUBDIR_RULES=$(filter %-softmmu,$(SUBDIR_RULES))
 
 $(SOFTMMU_SUBDIR_RULES): $(block-obj-y)
 $(SOFTMMU_SUBDIR_RULES): $(crypto-obj-y)
+$(SOFTMMU_SUBDIR_RULES): $(qom-obj-y)
 $(SOFTMMU_SUBDIR_RULES): config-all-devices.mak
 
 subdir-%:
@@ -230,9 +232,9 @@ util/module.o-cflags = -D'CONFIG_BLOCK_MODULES=$(block-modules)'
 
 qemu-img.o: qemu-img-cmds.h
 
-qemu-img$(EXESUF): qemu-img.o $(block-obj-y) $(crypto-obj-y) libqemuutil.a libqemustub.a
-qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) $(crypto-obj-y) libqemuutil.a libqemustub.a
-qemu-io$(EXESUF): qemu-io.o $(block-obj-y) $(crypto-obj-y) libqemuutil.a libqemustub.a
+qemu-img$(EXESUF): qemu-img.o $(block-obj-y) $(crypto-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
+qemu-nbd$(EXESUF): qemu-nbd.o $(block-obj-y) $(crypto-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
+qemu-io$(EXESUF): qemu-io.o $(block-obj-y) $(crypto-obj-y) $(qom-obj-y) libqemuutil.a libqemustub.a
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o
 

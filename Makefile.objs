@@ -26,6 +26,11 @@ block-obj-m = block/
 crypto-obj-y = crypto/
 crypto-aes-obj-y = crypto/
 
+#######################################################################
+# qom-obj-y is code used by both qemu system emulation and qemu-img
+
+qom-obj-y = qom/
+
 ######################################################################
 # smartcard
 
