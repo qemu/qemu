@@ -36,8 +36,6 @@ struct image_info {
         abi_ulong       start_brk;
         abi_ulong       brk;
         abi_ulong       start_mmap;
-        abi_ulong       mmap;
-        abi_ulong       rss;
         abi_ulong       start_stack;
         abi_ulong       stack_limit;
         abi_ulong       entry;

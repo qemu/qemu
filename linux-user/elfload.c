@@ -1455,7 +1455,6 @@ static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
 
     for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
         if (bprm->page[i]) {
-            info->rss++;
             /* FIXME - check return value of memcpy_to_target() for failure */
             memcpy_to_target(stack_base, bprm->page[i], TARGET_PAGE_SIZE);
             g_free(bprm->page[i]);
@@ -2206,8 +2205,6 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
     char *elf_interpreter = NULL;
 
     info->start_mmap = (abi_ulong)ELF_START_MMAP;
-    info->mmap = 0;
-    info->rss = 0;
 
     load_elf_image(bprm->filename, bprm->fd, info,
                    &elf_interpreter, bprm->buf);
