@@ -535,16 +535,8 @@ static void dec10_reg_scc(DisasContext *dc)
 
     LOG_DIS("s%s $r%u\n", cc_name(cond), dc->src);
 
-    if (cond != CC_A)
-    {
-        TCGLabel *l1 = gen_new_label();
-        gen_tst_cc (dc, cpu_R[dc->src], cond);
-        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_R[dc->src], 0, l1);
-        tcg_gen_movi_tl(cpu_R[dc->src], 1);
-        gen_set_label(l1);
-    } else {
-        tcg_gen_movi_tl(cpu_R[dc->src], 1);
-    }
+    gen_tst_cc(dc, cpu_R[dc->src], cond);
+    tcg_gen_setcondi_tl(TCG_COND_NE, cpu_R[dc->src], cpu_R[dc->src], 0);
 
     cris_cc_mask(dc, 0);
 }

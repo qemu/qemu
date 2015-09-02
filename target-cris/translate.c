@@ -311,7 +311,7 @@ static void t_gen_asr(TCGv d, TCGv a, TCGv b)
 
 static void t_gen_cris_dstep(TCGv d, TCGv a, TCGv b)
 {
-    TCGLabel *l1 = gen_new_label();
+    TCGv t = tcg_temp_new();
 
     /*
      * d <<= 1
@@ -319,9 +319,9 @@ static void t_gen_cris_dstep(TCGv d, TCGv a, TCGv b)
      *    d -= s;
      */
     tcg_gen_shli_tl(d, a, 1);
-    tcg_gen_brcond_tl(TCG_COND_LTU, d, b, l1);
-    tcg_gen_sub_tl(d, d, b);
-    gen_set_label(l1);
+    tcg_gen_sub_tl(t, d, b);
+    tcg_gen_movcond_tl(TCG_COND_GEU, d, d, b, t, d);
+    tcg_temp_free(t);
 }
 
 static void t_gen_cris_mstep(TCGv d, TCGv a, TCGv b, TCGv ccs)
@@ -769,13 +769,7 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         t_gen_cris_mstep(dst, a, b, cpu_PR[PR_CCS]);
         break;
     case CC_OP_BOUND:
-    {
-        TCGLabel *l1 = gen_new_label();
-        tcg_gen_mov_tl(dst, a);
-        tcg_gen_brcond_tl(TCG_COND_LEU, a, b, l1);
-        tcg_gen_mov_tl(dst, b);
-        gen_set_label(l1);
-    }
+        tcg_gen_movcond_tl(TCG_COND_LEU, dst, a, b, a, b);
         break;
     case CC_OP_CMP:
         tcg_gen_sub_tl(dst, a, b);
@@ -1482,15 +1476,8 @@ static int dec_scc_r(CPUCRISState *env, DisasContext *dc)
     LOG_DIS("s%s $r%u\n",
             cc_name(cond), dc->op1);
 
-    if (cond != CC_A) {
-        TCGLabel *l1 = gen_new_label();
-        gen_tst_cc(dc, cpu_R[dc->op1], cond);
-        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_R[dc->op1], 0, l1);
-        tcg_gen_movi_tl(cpu_R[dc->op1], 1);
-        gen_set_label(l1);
-    } else {
-        tcg_gen_movi_tl(cpu_R[dc->op1], 1);
-    }
+    gen_tst_cc(dc, cpu_R[dc->op1], cond);
+    tcg_gen_setcondi_tl(TCG_COND_NE, cpu_R[dc->op1], cpu_R[dc->op1], 0);
 
     cris_cc_mask(dc, 0);
     return 2;
