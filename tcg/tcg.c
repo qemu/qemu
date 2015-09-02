@@ -2294,7 +2294,7 @@ static inline int tcg_gen_code_common(TCGContext *s,
                                       tcg_insn_unit *gen_code_buf,
                                       long search_pc)
 {
-    int i, oi, oi_next;
+    int i, oi, oi_next, num_insns;
 
 #ifdef DEBUG_DISAS
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {
@@ -2338,6 +2338,7 @@ static inline int tcg_gen_code_common(TCGContext *s,
 
     tcg_out_tb_init(s);
 
+    num_insns = -1;
     for (oi = s->gen_first_op_idx; oi >= 0; oi = oi_next) {
         TCGOp * const op = &s->gen_op_buf[oi];
         TCGArg * const args = &s->gen_opparam_buf[op->args];
@@ -2361,6 +2362,10 @@ static inline int tcg_gen_code_common(TCGContext *s,
             tcg_reg_alloc_movi(s, args, dead_args, sync_args);
             break;
         case INDEX_op_insn_start:
+            if (num_insns >= 0) {
+                s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
+            }
+            num_insns++;
             for (i = 0; i < TARGET_INSN_START_WORDS; ++i) {
                 target_ulong a;
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
@@ -2368,7 +2373,7 @@ static inline int tcg_gen_code_common(TCGContext *s,
 #else
                 a = args[i];
 #endif
-                s->gen_opc_data[i] = a;
+                s->gen_insn_data[num_insns][i] = a;
             }
             break;
         case INDEX_op_discard:
@@ -2400,6 +2405,8 @@ static inline int tcg_gen_code_common(TCGContext *s,
         check_regs(s);
 #endif
     }
+    tcg_debug_assert(num_insns >= 0);
+    s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 
     /* Generate TB finalization at the end of block */
     tcg_out_tb_finalize(s);
@@ -2448,24 +2455,26 @@ int tcg_gen_code_search_pc(TCGContext *s, tcg_insn_unit *gen_code_buf,
 void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
 {
     TCGContext *s = &tcg_ctx;
-    int64_t tot;
+    int64_t tb_count = s->tb_count;
+    int64_t tb_div_count = tb_count ? tb_count : 1;
+    int64_t tot = s->interm_time + s->code_time;
 
-    tot = s->interm_time + s->code_time;
     cpu_fprintf(f, "JIT cycles          %" PRId64 " (%0.3f s at 2.4 GHz)\n",
                 tot, tot / 2.4e9);
     cpu_fprintf(f, "translated TBs      %" PRId64 " (aborted=%" PRId64 " %0.1f%%)\n", 
-                s->tb_count, 
-                s->tb_count1 - s->tb_count,
-                s->tb_count1 ? (double)(s->tb_count1 - s->tb_count) / s->tb_count1 * 100.0 : 0);
+                tb_count, s->tb_count1 - tb_count,
+                (double)(s->tb_count1 - s->tb_count)
+                / (s->tb_count1 ? s->tb_count1 : 1) * 100.0);
     cpu_fprintf(f, "avg ops/TB          %0.1f max=%d\n", 
-                s->tb_count ? (double)s->op_count / s->tb_count : 0, s->op_count_max);
+                (double)s->op_count / tb_div_count, s->op_count_max);
     cpu_fprintf(f, "deleted ops/TB      %0.2f\n",
-                s->tb_count ? 
-                (double)s->del_op_count / s->tb_count : 0);
+                (double)s->del_op_count / tb_div_count);
     cpu_fprintf(f, "avg temps/TB        %0.2f max=%d\n",
-                s->tb_count ? 
-                (double)s->temp_count / s->tb_count : 0,
-                s->temp_count_max);
+                (double)s->temp_count / tb_div_count, s->temp_count_max);
+    cpu_fprintf(f, "avg host code/TB    %0.1f\n",
+                (double)s->code_out_len / tb_div_count);
+    cpu_fprintf(f, "avg search data/TB  %0.1f\n",
+                (double)s->search_out_len / tb_div_count);
     
     cpu_fprintf(f, "cycles/op           %0.1f\n", 
                 s->op_count ? (double)tot / s->op_count : 0);
@@ -2473,8 +2482,11 @@ void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
                 s->code_in_len ? (double)tot / s->code_in_len : 0);
     cpu_fprintf(f, "cycles/out byte     %0.1f\n", 
                 s->code_out_len ? (double)tot / s->code_out_len : 0);
-    if (tot == 0)
+    cpu_fprintf(f, "cycles/search byte     %0.1f\n",
+                s->search_out_len ? (double)tot / s->search_out_len : 0);
+    if (tot == 0) {
         tot = 1;
+    }
     cpu_fprintf(f, "  gen_interm time   %0.1f%%\n", 
                 (double)s->interm_time / tot * 100.0);
     cpu_fprintf(f, "  gen_code time     %0.1f%%\n", 

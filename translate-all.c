@@ -168,61 +168,128 @@ void cpu_gen_init(void)
     tcg_context_init(&tcg_ctx); 
 }
 
+/* Encode VAL as a signed leb128 sequence at P.
+   Return P incremented past the encoded value.  */
+static uint8_t *encode_sleb128(uint8_t *p, target_long val)
+{
+    int more, byte;
+
+    do {
+        byte = val & 0x7f;
+        val >>= 7;
+        more = !((val == 0 && (byte & 0x40) == 0)
+                 || (val == -1 && (byte & 0x40) != 0));
+        if (more) {
+            byte |= 0x80;
+        }
+        *p++ = byte;
+    } while (more);
+
+    return p;
+}
+
+/* Decode a signed leb128 sequence at *PP; increment *PP past the
+   decoded value.  Return the decoded value.  */
+static target_long decode_sleb128(uint8_t **pp)
+{
+    uint8_t *p = *pp;
+    target_long val = 0;
+    int byte, shift = 0;
+
+    do {
+        byte = *p++;
+        val |= (target_ulong)(byte & 0x7f) << shift;
+        shift += 7;
+    } while (byte & 0x80);
+    if (shift < TARGET_LONG_BITS && (byte & 0x40)) {
+        val |= -(target_ulong)1 << shift;
+    }
+
+    *pp = p;
+    return val;
+}
+
+/* Encode the data collected about the instructions while compiling TB.
+   Place the data at BLOCK, and return the number of bytes consumed.
+
+   The logical table consisits of TARGET_INSN_START_WORDS target_ulong's,
+   which come from the target's insn_start data, followed by a uintptr_t
+   which comes from the host pc of the end of the code implementing the insn.
+
+   Each line of the table is encoded as sleb128 deltas from the previous
+   line.  The seed for the first line is { tb->pc, 0..., tb->tc_ptr }.
+   That is, the first column is seeded with the guest pc, the last column
+   with the host pc, and the middle columns with zeros.  */
+
+static int encode_search(TranslationBlock *tb, uint8_t *block)
+{
+    uint8_t *p = block;
+    int i, j, n;
+
+    tb->tc_search = block;
+
+    for (i = 0, n = tb->icount; i < n; ++i) {
+        target_ulong prev;
+
+        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+            if (i == 0) {
+                prev = (j == 0 ? tb->pc : 0);
+            } else {
+                prev = tcg_ctx.gen_insn_data[i - 1][j];
+            }
+            p = encode_sleb128(p, tcg_ctx.gen_insn_data[i][j] - prev);
+        }
+        prev = (i == 0 ? 0 : tcg_ctx.gen_insn_end_off[i - 1]);
+        p = encode_sleb128(p, tcg_ctx.gen_insn_end_off[i] - prev);
+    }
+
+    return p - block;
+}
+
 /* The cpu state corresponding to 'searched_pc' is restored.  */
 static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
                                      uintptr_t searched_pc)
 {
+    target_ulong data[TARGET_INSN_START_WORDS] = { tb->pc };
+    uintptr_t host_pc = (uintptr_t)tb->tc_ptr;
     CPUArchState *env = cpu->env_ptr;
-    TCGContext *s = &tcg_ctx;
-    int j;
-    uintptr_t tc_ptr;
+    uint8_t *p = tb->tc_search;
+    int i, j, num_insns = tb->icount;
 #ifdef CONFIG_PROFILER
-    int64_t ti;
+    int64_t ti = profile_getclock();
 #endif
 
-#ifdef CONFIG_PROFILER
-    ti = profile_getclock();
-#endif
-    tcg_func_start(s);
+    if (searched_pc < host_pc) {
+        return -1;
+    }
 
-    gen_intermediate_code_pc(env, tb);
+    /* Reconstruct the stored insn data while looking for the point at
+       which the end of the insn exceeds the searched_pc.  */
+    for (i = 0; i < num_insns; ++i) {
+        for (j = 0; j < TARGET_INSN_START_WORDS; ++j) {
+            data[j] += decode_sleb128(&p);
+        }
+        host_pc += decode_sleb128(&p);
+        if (host_pc > searched_pc) {
+            goto found;
+        }
+    }
+    return -1;
 
+ found:
     if (tb->cflags & CF_USE_ICOUNT) {
         assert(use_icount);
         /* Reset the cycle counter to the start of the block.  */
-        cpu->icount_decr.u16.low += tb->icount;
+        cpu->icount_decr.u16.low += num_insns;
         /* Clear the IO flag.  */
         cpu->can_do_io = 0;
     }
-
-    /* find opc index corresponding to search_pc */
-    tc_ptr = (uintptr_t)tb->tc_ptr;
-    if (searched_pc < tc_ptr)
-        return -1;
-
-    s->tb_next_offset = tb->tb_next_offset;
-#ifdef USE_DIRECT_JUMP
-    s->tb_jmp_offset = tb->tb_jmp_offset;
-    s->tb_next = NULL;
-#else
-    s->tb_jmp_offset = NULL;
-    s->tb_next = tb->tb_next;
-#endif
-    j = tcg_gen_code_search_pc(s, (tcg_insn_unit *)tc_ptr,
-                               searched_pc - tc_ptr);
-    if (j < 0)
-        return -1;
-    /* now find start of instruction before */
-    while (s->gen_opc_instr_start[j] == 0) {
-        j--;
-    }
-    cpu->icount_decr.u16.low -= s->gen_opc_icount[j];
-
-    restore_state_to_opc(env, tb, s->gen_opc_data);
+    cpu->icount_decr.u16.low -= i;
+    restore_state_to_opc(env, tb, data);
 
 #ifdef CONFIG_PROFILER
-    s->restore_time += profile_getclock() - ti;
-    s->restore_count++;
+    tcg_ctx.restore_time += profile_getclock() - ti;
+    tcg_ctx.restore_count++;
 #endif
     return 0;
 }
@@ -969,7 +1036,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb_page_addr_t phys_pc, phys_page2;
     target_ulong virt_page2;
     tcg_insn_unit *gen_code_buf;
-    int gen_code_size;
+    int gen_code_size, search_size;
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
@@ -1025,11 +1092,13 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
 #endif
 
     gen_code_size = tcg_gen_code(&tcg_ctx, gen_code_buf);
+    search_size = encode_search(tb, (void *)gen_code_buf + gen_code_size);
 
 #ifdef CONFIG_PROFILER
     tcg_ctx.code_time += profile_getclock();
     tcg_ctx.code_in_len += tb->size;
     tcg_ctx.code_out_len += gen_code_size;
+    tcg_ctx.search_out_len += search_size;
 #endif
 
 #ifdef DEBUG_DISAS
@@ -1041,8 +1110,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
 #endif
 
-    tcg_ctx.code_gen_ptr = (void *)(((uintptr_t)gen_code_buf +
-            gen_code_size + CODE_GEN_ALIGN - 1) & ~(CODE_GEN_ALIGN - 1));
+    tcg_ctx.code_gen_ptr = (void *)
+        ROUND_UP((uintptr_t)gen_code_buf + gen_code_size + search_size,
+                 CODE_GEN_ALIGN);
 
     /* check next page if needed */
     virt_page2 = (pc + tb->size - 1) & TARGET_PAGE_MASK;

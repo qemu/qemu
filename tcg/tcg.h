@@ -532,6 +532,7 @@ struct TCGContext {
     int64_t del_op_count;
     int64_t code_in_len;
     int64_t code_out_len;
+    int64_t search_out_len;
     int64_t interm_time;
     int64_t code_time;
     int64_t la_time;
@@ -581,7 +582,8 @@ struct TCGContext {
     uint16_t gen_opc_icount[OPC_BUF_SIZE];
     uint8_t gen_opc_instr_start[OPC_BUF_SIZE];
 
-    target_ulong gen_opc_data[TARGET_INSN_START_WORDS];
+    uint16_t gen_insn_end_off[TCG_MAX_INSNS];
+    target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
 };
 
 extern TCGContext tcg_ctx;
