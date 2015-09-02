@@ -439,7 +439,17 @@ _unsupported_imgopts()
 #
 _require_command()
 {
-    eval c=\$$1
+    if [ "$1" = "QEMU" ]; then
+        c=$QEMU_PROG
+    elif [ "$1" = "QEMU_IMG" ]; then
+        c=$QEMU_IMG_PROG
+    elif [ "$1" = "QEMU_IO" ]; then
+        c=$QEMU_IO_PROG
+    elif [ "$1" = "QEMU_NBD" ]; then
+        c=$QEMU_NBD_PROG
+    else
+        eval c=\$$1
+    fi
     [ -x "$c" ] || _notrun "$1 utility required, skipped this test"
 }
 

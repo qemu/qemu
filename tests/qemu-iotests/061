@@ -58,7 +58,8 @@ echo
 echo "=== Testing dirty version downgrade ==="
 echo
 IMGOPTS="compat=1.1,lazy_refcounts=on" _make_test_img 64M
-$QEMU_IO -c "write -P 0x2a 0 128k" -c flush -c abort "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x2a 0 128k" -c flush -c abort "$TEST_IMG" 2>&1 \
+    | _filter_qemu_io
 $PYTHON qcow2.py "$TEST_IMG" dump-header
 $QEMU_IMG amend -o "compat=0.10" "$TEST_IMG"
 $PYTHON qcow2.py "$TEST_IMG" dump-header
@@ -91,7 +92,8 @@ echo
 echo "=== Testing dirty lazy_refcounts=off ==="
 echo
 IMGOPTS="compat=1.1,lazy_refcounts=on" _make_test_img 64M
-$QEMU_IO -c "write -P 0x2a 0 128k" -c flush -c abort "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -P 0x2a 0 128k" -c flush -c abort "$TEST_IMG" 2>&1 \
+    | _filter_qemu_io
 $PYTHON qcow2.py "$TEST_IMG" dump-header
 $QEMU_IMG amend -o "lazy_refcounts=off" "$TEST_IMG"
 $PYTHON qcow2.py "$TEST_IMG" dump-header

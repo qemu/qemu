@@ -31,11 +31,19 @@ import struct
 __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
            'VM', 'QMPTestCase', 'notrun', 'main']
 
-# This will not work if arguments or path contain spaces but is necessary if we
+# This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
-qemu_img_args = os.environ.get('QEMU_IMG', 'qemu-img').strip().split(' ')
-qemu_io_args = os.environ.get('QEMU_IO', 'qemu-io').strip().split(' ')
-qemu_args = os.environ.get('QEMU', 'qemu').strip().split(' ')
+qemu_img_args = [os.environ.get('QEMU_IMG_PROG', 'qemu-img')]
+if os.environ.get('QEMU_IMG_OPTIONS'):
+    qemu_img_args += os.environ['QEMU_IMG_OPTIONS'].strip().split(' ')
+
+qemu_io_args = [os.environ.get('QEMU_IO_PROG', 'qemu-io')]
+if os.environ.get('QEMU_IO_OPTIONS'):
+    qemu_io_args += os.environ['QEMU_IO_OPTIONS'].strip().split(' ')
+
+qemu_args = [os.environ.get('QEMU_PROG', 'qemu')]
+if os.environ.get('QEMU_OPTIONS'):
+    qemu_args += os.environ['QEMU_OPTIONS'].strip().split(' ')
 
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
