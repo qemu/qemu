@@ -1373,66 +1373,69 @@ static bool elf_check_ehdr(struct elfhdr *ehdr)
  * to be put directly into the top of new user memory.
  *
  */
-static abi_ulong copy_elf_strings(int argc,char ** argv, void **page,
-                                  abi_ulong p)
+static abi_ulong copy_elf_strings(int argc, char **argv, char *scratch,
+                                  abi_ulong p, abi_ulong stack_limit)
 {
-    char *tmp, *tmp1, *pag = NULL;
-    int len, offset = 0;
+    char *tmp;
+    int len, offset;
+    abi_ulong top = p;
 
     if (!p) {
         return 0;       /* bullet-proofing */
     }
+
+    offset = ((p - 1) % TARGET_PAGE_SIZE) + 1;
+
     while (argc-- > 0) {
         tmp = argv[argc];
         if (!tmp) {
             fprintf(stderr, "VFS: argc is wrong");
             exit(-1);
         }
-        tmp1 = tmp;
-        while (*tmp++);
-        len = tmp - tmp1;
-        if (p < len) {  /* this shouldn't happen - 128kB */
+        len = strlen(tmp) + 1;
+        tmp += len;
+
+        if (len > (p - stack_limit)) {
             return 0;
         }
         while (len) {
-            --p; --tmp; --len;
-            if (--offset < 0) {
-                offset = p % TARGET_PAGE_SIZE;
-                pag = (char *)page[p/TARGET_PAGE_SIZE];
-                if (!pag) {
-                    pag = g_try_malloc0(TARGET_PAGE_SIZE);
-                    page[p/TARGET_PAGE_SIZE] = pag;
-                    if (!pag)
-                        return 0;
-                }
-            }
-            if (len == 0 || offset == 0) {
-                *(pag + offset) = *tmp;
-            }
-            else {
-                int bytes_to_copy = (len > offset) ? offset : len;
-                tmp -= bytes_to_copy;
-                p -= bytes_to_copy;
-                offset -= bytes_to_copy;
-                len -= bytes_to_copy;
-                memcpy_fromfs(pag + offset, tmp, bytes_to_copy + 1);
+            int bytes_to_copy = (len > offset) ? offset : len;
+            tmp -= bytes_to_copy;
+            p -= bytes_to_copy;
+            offset -= bytes_to_copy;
+            len -= bytes_to_copy;
+
+            memcpy_fromfs(scratch + offset, tmp, bytes_to_copy);
+
+            if (offset == 0) {
+                memcpy_to_target(p, scratch, top - p);
+                top = p;
+                offset = TARGET_PAGE_SIZE;
             }
         }
     }
+    if (offset) {
+        memcpy_to_target(p, scratch + offset, top - p);
+    }
+
     return p;
 }
 
-static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
+/* Older linux kernels provide up to MAX_ARG_PAGES (default: 32) of
+ * argument/environment space. Newer kernels (>2.6.33) allow more,
+ * dependent on stack size, but guarantee at least 32 pages for
+ * backwards compatibility.
+ */
+#define STACK_LOWER_LIMIT (32 * TARGET_PAGE_SIZE)
+
+static abi_ulong setup_arg_pages(struct linux_binprm *bprm,
                                  struct image_info *info)
 {
-    abi_ulong stack_base, size, error, guard;
-    int i;
+    abi_ulong size, error, guard;
 
-    /* Create enough stack to hold everything.  If we don't use
-       it for args, we'll use it for something else.  */
     size = guest_stack_size;
-    if (size < MAX_ARG_PAGES*TARGET_PAGE_SIZE) {
-        size = MAX_ARG_PAGES*TARGET_PAGE_SIZE;
+    if (size < STACK_LOWER_LIMIT) {
+        size = STACK_LOWER_LIMIT;
     }
     guard = TARGET_PAGE_SIZE;
     if (guard < qemu_real_host_page_size) {
@@ -1450,18 +1453,8 @@ static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
     target_mprotect(error, guard, PROT_NONE);
 
     info->stack_limit = error + guard;
-    stack_base = info->stack_limit + size - MAX_ARG_PAGES*TARGET_PAGE_SIZE;
-    p += stack_base;
 
-    for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
-        if (bprm->page[i]) {
-            /* FIXME - check return value of memcpy_to_target() for failure */
-            memcpy_to_target(stack_base, bprm->page[i], TARGET_PAGE_SIZE);
-            g_free(bprm->page[i]);
-        }
-        stack_base += TARGET_PAGE_SIZE;
-    }
-    return p;
+    return info->stack_limit + size - sizeof(void *);
 }
 
 /* Map and zero the bss.  We need to explicitly zero any fractional pages
@@ -2203,6 +2196,7 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
     struct image_info interp_info;
     struct elfhdr elf_ex;
     char *elf_interpreter = NULL;
+    char *scratch;
 
     info->start_mmap = (abi_ulong)ELF_START_MMAP;
 
@@ -2214,17 +2208,23 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
        when we load the interpreter.  */
     elf_ex = *(struct elfhdr *)bprm->buf;
 
-    bprm->p = copy_elf_strings(1, &bprm->filename, bprm->page, bprm->p);
-    bprm->p = copy_elf_strings(bprm->envc,bprm->envp,bprm->page,bprm->p);
-    bprm->p = copy_elf_strings(bprm->argc,bprm->argv,bprm->page,bprm->p);
+    /* Do this so that we can load the interpreter, if need be.  We will
+       change some of these later */
+    bprm->p = setup_arg_pages(bprm, info);
+
+    scratch = g_new0(char, TARGET_PAGE_SIZE);
+    bprm->p = copy_elf_strings(1, &bprm->filename, scratch,
+                               bprm->p, info->stack_limit);
+    bprm->p = copy_elf_strings(bprm->envc, bprm->envp, scratch,
+                               bprm->p, info->stack_limit);
+    bprm->p = copy_elf_strings(bprm->argc, bprm->argv, scratch,
+                               bprm->p, info->stack_limit);
+    g_free(scratch);
+
     if (!bprm->p) {
         fprintf(stderr, "%s: %s\n", bprm->filename, strerror(E2BIG));
         exit(-1);
     }
-
-    /* Do this so that we can load the interpreter, if need be.  We will
-       change some of these later */
-    bprm->p = setup_arg_pages(bprm->p, bprm, info);
 
     if (elf_interpreter) {
         load_elf_interp(elf_interpreter, &interp_info, bprm->buf);
