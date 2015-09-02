@@ -318,6 +318,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "Broadwell-noTSX-" TYPE_X86_CPU,\
             .property = "abm",\
             .value    = "off",\
+        },\
+        {\
+            .driver   = "host" "-" TYPE_X86_CPU,\
+            .property = "host-cache-info",\
+            .value    = "on",\
         },
 
 #define PC_COMPAT_2_3 \
