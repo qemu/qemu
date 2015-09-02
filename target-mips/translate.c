@@ -1647,10 +1647,7 @@ static void gen_store_fpr32(DisasContext *ctx, TCGv_i32 t, int reg)
 static void gen_load_fpr32h(DisasContext *ctx, TCGv_i32 t, int reg)
 {
     if (ctx->hflags & MIPS_HFLAG_F64) {
-        TCGv_i64 t64 = tcg_temp_new_i64();
-        tcg_gen_shri_i64(t64, fpu_f64[reg], 32);
-        tcg_gen_extrl_i64_i32(t, t64);
-        tcg_temp_free_i64(t64);
+        tcg_gen_extrh_i64_i32(t, fpu_f64[reg]);
     } else {
         gen_load_fpr32(ctx, t, reg | 1);
     }
@@ -1725,12 +1722,23 @@ static target_long addr_add(DisasContext *ctx, target_long base,
     return sum;
 }
 
+/* Sign-extract the low 32-bits to a target_long.  */
 static inline void gen_move_low32(TCGv ret, TCGv_i64 arg)
 {
 #if defined(TARGET_MIPS64)
-    tcg_gen_ext32s_tl(ret, arg);
+    tcg_gen_ext32s_i64(ret, arg);
 #else
-    tcg_gen_trunc_i64_tl(ret, arg);
+    tcg_gen_extrl_i64_i32(ret, arg);
+#endif
+}
+
+/* Sign-extract the high 32-bits to a target_long.  */
+static inline void gen_move_high32(TCGv ret, TCGv_i64 arg)
+{
+#if defined(TARGET_MIPS64)
+    tcg_gen_sari_i64(ret, arg, 32);
+#else
+    tcg_gen_extrh_i64_i32(ret, arg);
 #endif
 }
 
@@ -3648,12 +3656,9 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
             tcg_gen_concat_tl_i64(t3, cpu_LO[acc], cpu_HI[acc]);
             tcg_gen_add_i64(t2, t2, t3);
             tcg_temp_free_i64(t3);
-            tcg_gen_trunc_i64_tl(t0, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_tl(t1, t2);
+            gen_move_low32(cpu_LO[acc], t2);
+            gen_move_high32(cpu_HI[acc], t2);
             tcg_temp_free_i64(t2);
-            tcg_gen_ext32s_tl(cpu_LO[acc], t0);
-            tcg_gen_ext32s_tl(cpu_HI[acc], t1);
         }
         opn = "madd";
         break;
@@ -3670,12 +3675,9 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
             tcg_gen_concat_tl_i64(t3, cpu_LO[acc], cpu_HI[acc]);
             tcg_gen_add_i64(t2, t2, t3);
             tcg_temp_free_i64(t3);
-            tcg_gen_trunc_i64_tl(t0, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_tl(t1, t2);
+            gen_move_low32(cpu_LO[acc], t2);
+            gen_move_high32(cpu_HI[acc], t2);
             tcg_temp_free_i64(t2);
-            tcg_gen_ext32s_tl(cpu_LO[acc], t0);
-            tcg_gen_ext32s_tl(cpu_HI[acc], t1);
         }
         opn = "maddu";
         break;
@@ -3690,12 +3692,9 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
             tcg_gen_concat_tl_i64(t3, cpu_LO[acc], cpu_HI[acc]);
             tcg_gen_sub_i64(t2, t3, t2);
             tcg_temp_free_i64(t3);
-            tcg_gen_trunc_i64_tl(t0, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_tl(t1, t2);
+            gen_move_low32(cpu_LO[acc], t2);
+            gen_move_high32(cpu_HI[acc], t2);
             tcg_temp_free_i64(t2);
-            tcg_gen_ext32s_tl(cpu_LO[acc], t0);
-            tcg_gen_ext32s_tl(cpu_HI[acc], t1);
         }
         opn = "msub";
         break;
@@ -3712,12 +3711,9 @@ static void gen_muldiv(DisasContext *ctx, uint32_t opc,
             tcg_gen_concat_tl_i64(t3, cpu_LO[acc], cpu_HI[acc]);
             tcg_gen_sub_i64(t2, t3, t2);
             tcg_temp_free_i64(t3);
-            tcg_gen_trunc_i64_tl(t0, t2);
-            tcg_gen_shri_i64(t2, t2, 32);
-            tcg_gen_trunc_i64_tl(t1, t2);
+            gen_move_low32(cpu_LO[acc], t2);
+            gen_move_high32(cpu_HI[acc], t2);
             tcg_temp_free_i64(t2);
-            tcg_gen_ext32s_tl(cpu_LO[acc], t0);
-            tcg_gen_ext32s_tl(cpu_HI[acc], t1);
         }
         opn = "msubu";
         break;
