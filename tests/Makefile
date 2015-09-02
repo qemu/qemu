@@ -290,7 +290,8 @@ test-qom-obj-y = qom/object.o qom/qom-qobject.o \
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 	tests/test-qapi-event.o \
 	$(test-qom-obj-y)
-test-block-obj-y = $(block-obj-y) $(test-util-obj-y)
+test-crypto-obj-y = $(crypto-obj-y) $(test-util-obj-y)
+test-block-obj-y = $(block-obj-y) $(test-crypto-obj-y)
 
 tests/check-qint$(EXESUF): tests/check-qint.o $(test-util-obj-y)
 tests/check-qstring$(EXESUF): tests/check-qstring.o $(test-util-obj-y)
@@ -357,8 +358,8 @@ tests/test-opts-visitor$(EXESUF): tests/test-opts-visitor.o $(test-qapi-obj-y)
 
 tests/test-mul64$(EXESUF): tests/test-mul64.o $(test-util-obj-y)
 tests/test-bitops$(EXESUF): tests/test-bitops.o $(test-util-obj-y)
-tests/test-crypto-hash$(EXESUF): tests/test-crypto-hash.o $(test-util-obj-y)
-tests/test-crypto-cipher$(EXESUF): tests/test-crypto-cipher.o $(test-util-obj-y)
+tests/test-crypto-hash$(EXESUF): tests/test-crypto-hash.o $(test-crypto-obj-y)
+tests/test-crypto-cipher$(EXESUF): tests/test-crypto-cipher.o $(test-crypto-obj-y)
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
 libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o

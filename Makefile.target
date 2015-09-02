@@ -170,12 +170,16 @@ target-obj-y-save := $(target-obj-y)
 dummy := $(call unnest-vars,.., \
                block-obj-y \
                block-obj-m \
+               crypto-obj-y \
+               crypto-aes-obj-y \
                common-obj-y \
                common-obj-m)
 target-obj-y := $(target-obj-y-save)
 all-obj-y += $(common-obj-y)
 all-obj-y += $(target-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
+all-obj-$(CONFIG_USER_ONLY) += $(crypto-aes-obj-y)
+all-obj-$(CONFIG_SOFTMMU) += $(crypto-obj-y)
 
 $(QEMU_PROG_BUILD): config-devices.mak
 
