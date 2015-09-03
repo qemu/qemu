@@ -393,6 +393,7 @@
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_NOTEQUAL                   5
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_GEQUAL                     6
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_ALWAYS                     7
+#   define NV_PGRAPH_CONTROL_0_DITHERENABLE                     (1 << 22)
 #   define NV_PGRAPH_CONTROL_0_ZWRITEENABLE                     (1 << 24)
 #   define NV_PGRAPH_CONTROL_0_STENCIL_WRITE_ENABLE             (1 << 25)
 #   define NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE               (1 << 26)
@@ -787,6 +788,7 @@
 #   define NV097_SET_BLEND_ENABLE                             0x00970304
 #   define NV097_SET_CULL_FACE_ENABLE                         0x00970308
 #   define NV097_SET_DEPTH_TEST_ENABLE                        0x0097030C
+#   define NV097_SET_DITHER_ENABLE                            0x00970310
 #   define NV097_SET_LIGHTING_ENABLE                          0x00970314
 #   define NV097_SET_SKIN_MODE                                0x00970328
 #       define NV097_SET_SKIN_MODE_OFF                            0
@@ -4368,6 +4370,10 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0], NV_PGRAPH_CONTROL_0_ZENABLE,
                  parameter);
         break;
+    case NV097_SET_DITHER_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_DITHERENABLE, parameter);
+        break;
     case NV097_SET_LIGHTING_ENABLE:
         SET_MASK(pg->regs[NV_PGRAPH_CSV0_C], NV_PGRAPH_CSV0_C_LIGHTING,
                  parameter);
@@ -5384,6 +5390,15 @@ static void pgraph_method(NV2AState *d,
                 glDisable(GL_STENCIL_TEST);
             }
 
+            /* Dither */
+            /* FIXME: GL implementation dependent */
+            if (pg->regs[NV_PGRAPH_CONTROL_0] &
+                    NV_PGRAPH_CONTROL_0_DITHERENABLE) {
+                glEnable(GL_DITHER);
+            } else {
+                glDisable(GL_DITHER);
+            }
+
             pgraph_bind_shaders(pg);
             pgraph_bind_textures(d);
 
@@ -5767,6 +5782,15 @@ static void pgraph_method(NV2AState *d,
 
         NV2A_DPRINTF("------------------CLEAR 0x%x %d,%d - %d,%d  %x---------------\n",
             parameter, xmin, ymin, xmax, ymax, d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE]);
+
+        /* Dither */
+        /* FIXME: Maybe also disable it here? + GL implementation dependent */
+        if (pg->regs[NV_PGRAPH_CONTROL_0] &
+                NV_PGRAPH_CONTROL_0_DITHERENABLE) {
+            glEnable(GL_DITHER);
+        } else {
+            glDisable(GL_DITHER);
+        }
 
         glClear(gl_mask);
 
