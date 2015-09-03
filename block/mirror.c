@@ -644,9 +644,9 @@ static void mirror_complete(BlockJob *job, Error **errp)
     if (s->replaces) {
         AioContext *replace_aio_context;
 
-        s->to_replace = check_to_replace_node(s->replaces, &local_err);
+        s->to_replace = bdrv_find_node(s->replaces);
         if (!s->to_replace) {
-            error_propagate(errp, local_err);
+            error_setg(errp, "Node name '%s' not found", s->replaces);
             return;
         }
 

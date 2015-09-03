@@ -1307,6 +1307,7 @@ F: block/dmg.c
 
 parallels
 M: Stefan Hajnoczi <stefanha@redhat.com>
+M: Denis V. Lunev <den@openvz.org>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/parallels.c
