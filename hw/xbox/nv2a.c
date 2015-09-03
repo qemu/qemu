@@ -443,6 +443,9 @@
 #       define NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_POINT            1
 #       define NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_LINE             2
 #   define NV_PGRAPH_SETUPRASTER_BACKFACEMODE                   0x0000000C
+#   define NV_PGRAPH_SETUPRASTER_POFFSETPOINTENABLE             (1 << 6)
+#   define NV_PGRAPH_SETUPRASTER_POFFSETLINEENABLE              (1 << 7)
+#   define NV_PGRAPH_SETUPRASTER_POFFSETFILLENABLE              (1 << 8)
 #   define NV_PGRAPH_SETUPRASTER_CULLCTRL                       0x00600000
 #       define NV_PGRAPH_SETUPRASTER_CULLCTRL_FRONT                 1
 #       define NV_PGRAPH_SETUPRASTER_CULLCTRL_BACK                  2
@@ -787,6 +790,9 @@
 #       define NV097_SET_SKIN_MODE_4G                             5
 #       define NV097_SET_SKIN_MODE_4                              6
 #   define NV097_SET_STENCIL_TEST_ENABLE                      0x0097032C
+#   define NV097_SET_POLY_OFFSET_POINT_ENABLE                 0x00970330
+#   define NV097_SET_POLY_OFFSET_LINE_ENABLE                  0x00970334
+#   define NV097_SET_POLY_OFFSET_FILL_ENABLE                  0x00970338
 #   define NV097_SET_ALPHA_FUNC                               0x0097033C
 #   define NV097_SET_ALPHA_REF                                0x00970340
 #   define NV097_SET_BLEND_FUNC_SFACTOR                       0x00970344
@@ -4346,6 +4352,18 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_1],
                  NV_PGRAPH_CONTROL_1_STENCIL_TEST_ENABLE, parameter);
         break;
+    case NV097_SET_POLY_OFFSET_POINT_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                 NV_PGRAPH_SETUPRASTER_POFFSETPOINTENABLE, parameter);
+        break;
+    case NV097_SET_POLY_OFFSET_LINE_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                 NV_PGRAPH_SETUPRASTER_POFFSETLINEENABLE, parameter);
+        break;
+    case NV097_SET_POLY_OFFSET_FILL_ENABLE:
+        SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                 NV_PGRAPH_SETUPRASTER_POFFSETFILLENABLE, parameter);
+        break;
     case NV097_SET_ALPHA_FUNC:
         SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
                  NV_PGRAPH_CONTROL_0_ALPHAFUNC, parameter & 0xF);
@@ -5263,13 +5281,33 @@ static void pgraph_method(NV2AState *d,
                           pgraph_polygon_mode_map[front_mode]);
 
             /* Polygon offset */
-            GLfloat zfactor = *(float*)&pg->regs[NV_PGRAPH_ZOFFSETFACTOR];
-            GLfloat zbias = *(float*)&pg->regs[NV_PGRAPH_ZOFFSETBIAS];
-            glEnable(GL_POLYGON_OFFSET_FILL);
-            glEnable(GL_POLYGON_OFFSET_LINE);
-            glEnable(GL_POLYGON_OFFSET_POINT);
-            /* FIXME: Implementation-specific, maybe we should do this in VS? */
-            glPolygonOffset(zfactor, zbias);
+            /* FIXME: GL implementation-specific, maybe do this in VS? */
+            if (pg->regs[NV_PGRAPH_SETUPRASTER] &
+                    NV_PGRAPH_SETUPRASTER_POFFSETFILLENABLE) {
+                glEnable(GL_POLYGON_OFFSET_FILL);
+            } else {
+                glDisable(GL_POLYGON_OFFSET_FILL);
+            }
+            if (pg->regs[NV_PGRAPH_SETUPRASTER] &
+                    NV_PGRAPH_SETUPRASTER_POFFSETLINEENABLE) {
+                glEnable(GL_POLYGON_OFFSET_LINE);
+            } else {
+                glDisable(GL_POLYGON_OFFSET_LINE);
+            }
+            if (pg->regs[NV_PGRAPH_SETUPRASTER] &
+                    NV_PGRAPH_SETUPRASTER_POFFSETPOINTENABLE) {
+                glEnable(GL_POLYGON_OFFSET_POINT);
+            } else {
+                glDisable(GL_POLYGON_OFFSET_POINT);
+            }
+            if (pg->regs[NV_PGRAPH_SETUPRASTER] &
+                    (NV_PGRAPH_SETUPRASTER_POFFSETFILLENABLE |
+                     NV_PGRAPH_SETUPRASTER_POFFSETLINEENABLE |
+                     NV_PGRAPH_SETUPRASTER_POFFSETPOINTENABLE)) {
+                GLfloat zfactor = *(float*)&pg->regs[NV_PGRAPH_ZOFFSETFACTOR];
+                GLfloat zbias = *(float*)&pg->regs[NV_PGRAPH_ZOFFSETBIAS];
+                glPolygonOffset(zfactor, zbias);
+            }
 
             /* Depth testing */
             if (depth_test) {
