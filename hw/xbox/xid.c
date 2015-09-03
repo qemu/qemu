@@ -163,6 +163,11 @@ static const XIDDesc desc_xid_xbox_gamepad = {
 #define GAMEPAD_LEFT_THUMB       14
 #define GAMEPAD_RIGHT_THUMB      15
 
+#define GAMEPAD_LEFT_THUMB_UP    16
+#define GAMEPAD_LEFT_THUMB_DOWN  17
+#define GAMEPAD_LEFT_THUMB_LEFT  18
+#define GAMEPAD_LEFT_THUMB_RIGHT 19
+
 static const int gamepad_mapping[] = {
     [0 ... Q_KEY_CODE_MAX] = -1,
 
@@ -182,6 +187,13 @@ static const int gamepad_mapping[] = {
     [Q_KEY_CODE_X]     = GAMEPAD_B,
     [Q_KEY_CODE_A]     = GAMEPAD_X,
     [Q_KEY_CODE_S]     = GAMEPAD_Y,
+    [Q_KEY_CODE_Q]     = GAMEPAD_LEFT_TRIGGER,
+    [Q_KEY_CODE_W]     = GAMEPAD_RIGHT_TRIGGER,
+
+    [Q_KEY_CODE_U]     = GAMEPAD_LEFT_THUMB_UP,
+    [Q_KEY_CODE_J]     = GAMEPAD_LEFT_THUMB_DOWN,
+    [Q_KEY_CODE_H]     = GAMEPAD_LEFT_THUMB_LEFT,
+    [Q_KEY_CODE_K]     = GAMEPAD_LEFT_THUMB_RIGHT,
 };
 
 static void xbox_gamepad_keyboard_event(void *opaque, int keycode)
@@ -205,6 +217,19 @@ static void xbox_gamepad_keyboard_event(void *opaque, int keycode)
         mask = (1 << (button-GAMEPAD_DPAD_UP));
         s->in_state.wButtons &= ~mask;
         if (!up) s->in_state.wButtons |= mask;
+        break;
+
+    case GAMEPAD_LEFT_THUMB_UP:
+        s->in_state.sThumbLY = up?0:32767;
+        break;
+    case GAMEPAD_LEFT_THUMB_DOWN:
+        s->in_state.sThumbLY = up?0:-32768;
+        break;
+    case GAMEPAD_LEFT_THUMB_LEFT:
+        s->in_state.sThumbLX = up?0:-32768;
+        break;
+    case GAMEPAD_LEFT_THUMB_RIGHT:
+        s->in_state.sThumbLX = up?0:32767;
         break;
     default:
         break;
