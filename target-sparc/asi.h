@@ -144,24 +144,36 @@
  * ASIs, "(4V)" designates SUN4V specific ASIs.  "(NG4)" designates SPARC-T4
  * and later ASIs.
  */
+#define ASI_REAL                0x14 /* Real address, cachable          */
 #define ASI_PHYS_USE_EC		0x14 /* PADDR, E-cachable		*/
+#define ASI_REAL_IO             0x15 /* Real address, non-cachable      */
 #define ASI_PHYS_BYPASS_EC_E	0x15 /* PADDR, E-bit			*/
 #define ASI_BLK_AIUP_4V		0x16 /* (4V) Prim, user, block ld/st	*/
 #define ASI_BLK_AIUS_4V		0x17 /* (4V) Sec, user, block ld/st	*/
+#define ASI_REAL_L              0x1c /* Real address, cachable, LE      */
 #define ASI_PHYS_USE_EC_L	0x1c /* PADDR, E-cachable, little endian*/
+#define ASI_REAL_IO_L           0x1d /* Real address, non-cachable, LE  */
 #define ASI_PHYS_BYPASS_EC_E_L	0x1d /* PADDR, E-bit, little endian	*/
 #define ASI_BLK_AIUP_L_4V	0x1e /* (4V) Prim, user, block, l-endian*/
 #define ASI_BLK_AIUS_L_4V	0x1f /* (4V) Sec, user, block, l-endian	*/
 #define ASI_SCRATCHPAD		0x20 /* (4V) Scratch Pad Registers	*/
 #define ASI_MMU			0x21 /* (4V) MMU Context Registers	*/
+#define ASI_TWINX_AIUP          0x22 /* twin load, primary user         */
+#define ASI_TWINX_AIUS          0x23 /* twin load, secondary user       */
 #define ASI_BLK_INIT_QUAD_LDD_AIUS 0x23 /* (NG) init-store, twin load,
 					 * secondary, user
 					 */
 #define ASI_NUCLEUS_QUAD_LDD	0x24 /* Cachable, qword load		*/
 #define ASI_QUEUE		0x25 /* (4V) Interrupt Queue Registers	*/
+#define ASI_TWINX_REAL          0x26 /* twin load, real, cachable       */
 #define ASI_QUAD_LDD_PHYS_4V	0x26 /* (4V) Physical, qword load	*/
+#define ASI_TWINX_N             0x27 /* twin load, nucleus              */
+#define ASI_TWINX_AIUP_L        0x2a /* twin load, primary user, LE     */
+#define ASI_TWINX_AIUS_L        0x2b /* twin load, secondary user, LE   */
 #define ASI_NUCLEUS_QUAD_LDD_L	0x2c /* Cachable, qword load, l-endian 	*/
+#define ASI_TWINX_REAL_L        0x2e /* twin load, real, cachable, LE   */
 #define ASI_QUAD_LDD_PHYS_L_4V	0x2e /* (4V) Phys, qword load, l-endian	*/
+#define ASI_TWINX_NL            0x2f /* twin load, nucleus, LE          */
 #define ASI_PCACHE_DATA_STATUS	0x30 /* (III) PCache data stat RAM diag	*/
 #define ASI_PCACHE_DATA		0x31 /* (III) PCache data RAM diag	*/
 #define ASI_PCACHE_TAG		0x32 /* (III) PCache tag RAM diag	*/
@@ -267,12 +279,14 @@
 #define ASI_FL16_SL		0xdb /* Secondary, 1 16-bit, fpu ld/st,L*/
 #define ASI_BLK_COMMIT_P	0xe0 /* Primary, blk store commit	*/
 #define ASI_BLK_COMMIT_S	0xe1 /* Secondary, blk store commit	*/
+#define ASI_TWINX_P             0xe2 /* twin load, primary implicit     */
 #define ASI_BLK_INIT_QUAD_LDD_P	0xe2 /* (NG) init-store, twin load,
-				      * primary, implicit
-				      */
+				      * primary, implicit */
+#define ASI_TWINX_S             0xe3 /* twin load, secondary implicit   */
 #define ASI_BLK_INIT_QUAD_LDD_S	0xe3 /* (NG) init-store, twin load,
-				      * secondary, implicit
-				      */
+				      * secondary, implicit */
+#define ASI_TWINX_PL            0xea /* twin load, primary implicit, LE */
+#define ASI_TWINX_SL            0xeb /* twin load, secondary implicit, LE */
 #define ASI_BLK_P		0xf0 /* Primary, blk ld/st		*/
 #define ASI_BLK_S		0xf1 /* Secondary, blk ld/st		*/
 #define ASI_ST_BLKINIT_MRU_P	0xf2 /* (NG4) init-store, twin load,
