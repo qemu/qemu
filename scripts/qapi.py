@@ -1035,11 +1035,12 @@ def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
     c_file = output_dir + prefix + c_file
     h_file = output_dir + prefix + h_file
 
-    try:
-        os.makedirs(output_dir)
-    except os.error, e:
-        if e.errno != errno.EEXIST:
-            raise
+    if output_dir:
+        try:
+            os.makedirs(output_dir)
+        except os.error, e:
+            if e.errno != errno.EEXIST:
+                raise
 
     def maybe_open(really, name, opt):
         if really:
