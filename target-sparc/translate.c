@@ -2016,7 +2016,7 @@ static DisasASI get_asi(DisasContext *dc, int insn)
 }
 
 static void gen_ld_asi(DisasContext *dc, TCGv dst, TCGv addr,
-                       int insn, int size, int sign)
+                       int insn, TCGMemOp memop)
 {
     DisasASI da = get_asi(dc, insn);
 
@@ -2026,8 +2026,8 @@ static void gen_ld_asi(DisasContext *dc, TCGv dst, TCGv addr,
     default:
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_size = tcg_const_i32(size);
-            TCGv_i32 r_sign = tcg_const_i32(sign);
+            TCGv_i32 r_size = tcg_const_i32(1 << (memop & MO_SIZE));
+            TCGv_i32 r_sign = tcg_const_i32(!!(memop & MO_SIGN));
 
             save_state(dc);
 #ifdef TARGET_SPARC64
@@ -2049,7 +2049,7 @@ static void gen_ld_asi(DisasContext *dc, TCGv dst, TCGv addr,
 }
 
 static void gen_st_asi(DisasContext *dc, TCGv src, TCGv addr,
-                       int insn, int size)
+                       int insn, TCGMemOp memop)
 {
     DisasASI da = get_asi(dc, insn);
 
@@ -2059,7 +2059,7 @@ static void gen_st_asi(DisasContext *dc, TCGv src, TCGv addr,
     default:
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
-            TCGv_i32 r_size = tcg_const_i32(size);
+            TCGv_i32 r_size = tcg_const_i32(1 << (memop & MO_SIZE));
 
             save_state(dc);
 #ifdef TARGET_SPARC64
@@ -4833,13 +4833,13 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
                 case 0x10:      /* lda, V9 lduwa, load word alternate */
-                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, 4, 0);
+                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TEUL);
                     break;
                 case 0x11:      /* lduba, load unsigned byte alternate */
-                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, 1, 0);
+                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_UB);
                     break;
                 case 0x12:      /* lduha, load unsigned halfword alternate */
-                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, 2, 0);
+                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TEUW);
                     break;
                 case 0x13:      /* ldda, load double word alternate */
                     if (rd & 1) {
@@ -4848,10 +4848,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     gen_ldda_asi(dc, cpu_val, cpu_addr, insn, rd);
                     goto skip_move;
                 case 0x19:      /* ldsba, load signed byte alternate */
-                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, 1, 1);
+                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_SB);
                     break;
                 case 0x1a:      /* ldsha, load signed halfword alternate */
-                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, 2, 1);
+                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TESW);
                     break;
                 case 0x1d:      /* ldstuba -- XXX: should be atomically */
                     gen_ldstub_asi(dc, cpu_val, cpu_addr, insn);
@@ -4880,10 +4880,10 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_qemu_ld64(cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x18: /* V9 ldswa */
-                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, 4, 1);
+                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TESL);
                     break;
                 case 0x1b: /* V9 ldxa */
-                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, 8, 0);
+                    gen_ld_asi(dc, cpu_val, cpu_addr, insn, MO_TEQ);
                     break;
                 case 0x2d: /* V9 prefetch, no effect */
                     goto skip_move;
@@ -5015,13 +5015,13 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
                 case 0x14: /* sta, V9 stwa, store word alternate */
-                    gen_st_asi(dc, cpu_val, cpu_addr, insn, 4);
+                    gen_st_asi(dc, cpu_val, cpu_addr, insn, MO_TEUL);
                     break;
                 case 0x15: /* stba, store byte alternate */
-                    gen_st_asi(dc, cpu_val, cpu_addr, insn, 1);
+                    gen_st_asi(dc, cpu_val, cpu_addr, insn, MO_UB);
                     break;
                 case 0x16: /* stha, store halfword alternate */
-                    gen_st_asi(dc, cpu_val, cpu_addr, insn, 2);
+                    gen_st_asi(dc, cpu_val, cpu_addr, insn, MO_TEUW);
                     break;
                 case 0x17: /* stda, store double word alternate */
                     if (rd & 1) {
@@ -5036,7 +5036,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_qemu_st64(cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x1e: /* V9 stxa */
-                    gen_st_asi(dc, cpu_val, cpu_addr, insn, 8);
+                    gen_st_asi(dc, cpu_val, cpu_addr, insn, MO_TEQ);
                     break;
 #endif
                 default:
