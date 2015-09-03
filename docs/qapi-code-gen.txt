@@ -300,7 +300,6 @@ an implicit C enum 'NameKind' is created, corresponding to the union
 the union can be named 'max', as this would collide with the implicit
 enum.  The value for each branch can be of any type.
 
-
 A flat union definition specifies a struct as its base, and
 avoids nesting on the wire.  All branches of the union must be
 complex types, and the top-level fields of the union dictionary on
@@ -314,7 +313,7 @@ adding a common field 'readonly', renaming the discriminator to
 something more applicable, and reducing the number of {} required on
 the wire:
 
- { 'enum': 'BlockdevDriver', 'data': [ 'raw', 'qcow2' ] }
+ { 'enum': 'BlockdevDriver', 'data': [ 'file', 'qcow2' ] }
  { 'struct': 'BlockdevCommonOptions',
    'data': { 'driver': 'BlockdevDriver', 'readonly': 'bool' } }
  { 'union': 'BlockdevOptions',
@@ -350,7 +349,7 @@ is identical on the wire to:
  { 'struct': 'Base', 'data': { 'type': 'Enum' } }
  { 'struct': 'Branch1', 'data': { 'data': 'str' } }
  { 'struct': 'Branch2', 'data': { 'data': 'int' } }
- { 'union': 'Flat': 'base': 'Base', 'discriminator': 'type',
+ { 'union': 'Flat', 'base': 'Base', 'discriminator': 'type',
    'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
 
