@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "tcg.h"
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
@@ -428,9 +429,11 @@ static uint64_t leon3_cache_control_ld(CPUSPARCState *env, target_ulong addr,
     return ret;
 }
 
-uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
-                       int sign)
+uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
+                       int asi, uint32_t memop)
 {
+    int size = 1 << (memop & MO_SIZE);
+    int sign = memop & MO_SIGN;
     CPUState *cs = CPU(sparc_env_get_cpu(env));
     uint64_t ret = 0;
 #if defined(DEBUG_MXCC) || defined(DEBUG_ASI)
@@ -698,9 +701,10 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     return ret;
 }
 
-void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
-                   int size)
+void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val,
+                   int asi, uint32_t memop)
 {
+    int size = 1 << (memop & MO_SIZE);
     SPARCCPU *cpu = sparc_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
 
@@ -1097,9 +1101,11 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
 #else /* TARGET_SPARC64 */
 
 #ifdef CONFIG_USER_ONLY
-uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
-                       int sign)
+uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
+                       int asi, uint32_t memop)
 {
+    int size = 1 << (memop & MO_SIZE);
+    int sign = memop & MO_SIGN;
     uint64_t ret = 0;
 #if defined(DEBUG_ASI)
     target_ulong last_addr = addr;
@@ -1205,8 +1211,9 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 }
 
 void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
-                   int asi, int size)
+                   int asi, uint32_t memop)
 {
+    int size = 1 << (memop & MO_SIZE);
 #ifdef DEBUG_ASI
     dump_asi("write", addr, asi, size, val);
 #endif
@@ -1276,9 +1283,11 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 
 #else /* CONFIG_USER_ONLY */
 
-uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
-                       int sign)
+uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr,
+                       int asi, uint32_t memop)
 {
+    int size = 1 << (memop & MO_SIZE);
+    int sign = memop & MO_SIGN;
     CPUState *cs = CPU(sparc_env_get_cpu(env));
     uint64_t ret = 0;
 #if defined(DEBUG_ASI)
@@ -1658,8 +1667,9 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
 }
 
 void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
-                   int asi, int size)
+                   int asi, uint32_t memop)
 {
+    int size = 1 << (memop & MO_SIZE);
     SPARCCPU *cpu = sparc_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
 
@@ -2138,8 +2148,8 @@ void helper_ldda_asi(CPUSPARCState *env, target_ulong addr, int asi)
            a single 64-bit load.  However, LE asis *are* treated
            as two 32-bit loads individually byte swapped.  */
         helper_check_align(env, addr, 0x7);
-        QT0.high = (uint32_t)helper_ld_asi(env, addr, asi, 4, 0);
-        QT0.low = (uint32_t)helper_ld_asi(env, addr + 4, asi, 4, 0);
+        QT0.high = (uint32_t)helper_ld_asi(env, addr, asi, MO_UL);
+        QT0.low = (uint32_t)helper_ld_asi(env, addr + 4, asi, MO_UL);
         return;
     }
 
@@ -2171,7 +2181,7 @@ void helper_ldf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         }
         helper_check_align(env, addr, 0x3f);
         for (i = 0; i < 8; i++, rd += 2, addr += 8) {
-            env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi & 0x8f, 8, 0);
+            env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi & 0x8f, MO_Q);
         }
         return;
 
@@ -2189,7 +2199,7 @@ void helper_ldf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         }
         helper_check_align(env, addr, 0x3f);
         for (i = 0; i < 8; i++, rd += 2, addr += 8) {
-            env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi & 0x19, 8, 0);
+            env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi & 0x19, MO_Q);
         }
         return;
 
@@ -2200,7 +2210,7 @@ void helper_ldf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     switch (size) {
     default:
     case 4:
-        val = helper_ld_asi(env, addr, asi, size, 0);
+        val = helper_ld_asi(env, addr, asi, MO_UL);
         if (rd & 1) {
             env->fpr[rd / 2].l.lower = val;
         } else {
@@ -2208,11 +2218,11 @@ void helper_ldf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         }
         break;
     case 8:
-        env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi, size, 0);
+        env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi, MO_Q);
         break;
     case 16:
-        env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi, 8, 0);
-        env->fpr[rd / 2 + 1].ll = helper_ld_asi(env, addr + 8, asi, 8, 0);
+        env->fpr[rd / 2].ll = helper_ld_asi(env, addr, asi, MO_Q);
+        env->fpr[rd / 2 + 1].ll = helper_ld_asi(env, addr + 8, asi, MO_Q);
         break;
     }
 }
@@ -2238,7 +2248,7 @@ void helper_stf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         }
         helper_check_align(env, addr, 0x3f);
         for (i = 0; i < 8; i++, rd += 2, addr += 8) {
-            helper_st_asi(env, addr, env->fpr[rd / 2].ll, asi & 0x8f, 8);
+            helper_st_asi(env, addr, env->fpr[rd / 2].ll, asi & 0x8f, MO_Q);
         }
 
         return;
@@ -2256,7 +2266,7 @@ void helper_stf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         }
         helper_check_align(env, addr, 0x3f);
         for (i = 0; i < 8; i++, rd += 2, addr += 8) {
-            helper_st_asi(env, addr, env->fpr[rd / 2].ll, asi & 0x19, 8);
+            helper_st_asi(env, addr, env->fpr[rd / 2].ll, asi & 0x19, MO_Q);
         }
 
         return;
@@ -2264,14 +2274,15 @@ void helper_stf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     case ASI_FL16_S: /* 16-bit floating point load secondary */
     case ASI_FL16_PL: /* 16-bit floating point load primary, LE */
     case ASI_FL16_SL: /* 16-bit floating point load secondary, LE */
-        helper_check_align(env, addr, 1);
-        /* Fall through */
+        val = env->fpr[rd / 2].l.lower;
+        helper_st_asi(env, addr, val, asi & 0x8d, MO_UW);
+        return;
     case ASI_FL8_P: /* 8-bit floating point load primary */
     case ASI_FL8_S: /* 8-bit floating point load secondary */
     case ASI_FL8_PL: /* 8-bit floating point load primary, LE */
     case ASI_FL8_SL: /* 8-bit floating point load secondary, LE */
         val = env->fpr[rd / 2].l.lower;
-        helper_st_asi(env, addr, val, asi & 0x8d, ((asi & 2) >> 1) + 1);
+        helper_st_asi(env, addr, val, asi & 0x8d, MO_UB);
         return;
     default:
         helper_check_align(env, addr, 3);
@@ -2286,14 +2297,14 @@ void helper_stf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         } else {
             val = env->fpr[rd / 2].l.upper;
         }
-        helper_st_asi(env, addr, val, asi, size);
+        helper_st_asi(env, addr, val, asi, MO_UL);
         break;
     case 8:
-        helper_st_asi(env, addr, env->fpr[rd / 2].ll, asi, size);
+        helper_st_asi(env, addr, env->fpr[rd / 2].ll, asi, MO_Q);
         break;
     case 16:
-        helper_st_asi(env, addr, env->fpr[rd / 2].ll, asi, 8);
-        helper_st_asi(env, addr + 8, env->fpr[rd / 2 + 1].ll, asi, 8);
+        helper_st_asi(env, addr, env->fpr[rd / 2].ll, asi, MO_Q);
+        helper_st_asi(env, addr + 8, env->fpr[rd / 2 + 1].ll, asi, MO_Q);
         break;
     }
 }
@@ -2304,9 +2315,9 @@ target_ulong helper_casx_asi(CPUSPARCState *env, target_ulong addr,
 {
     target_ulong ret;
 
-    ret = helper_ld_asi(env, addr, asi, 8, 0);
+    ret = helper_ld_asi(env, addr, asi, MO_Q);
     if (val2 == ret) {
-        helper_st_asi(env, addr, val1, asi, 8);
+        helper_st_asi(env, addr, val1, asi, MO_Q);
     }
     return ret;
 }
@@ -2319,10 +2330,10 @@ target_ulong helper_cas_asi(CPUSPARCState *env, target_ulong addr,
     target_ulong ret;
 
     val2 &= 0xffffffffUL;
-    ret = helper_ld_asi(env, addr, asi, 4, 0);
+    ret = helper_ld_asi(env, addr, asi, MO_UL);
     ret &= 0xffffffffUL;
     if (val2 == ret) {
-        helper_st_asi(env, addr, val1 & 0xffffffffUL, asi, 4);
+        helper_st_asi(env, addr, val1 & 0xffffffffUL, asi, MO_UL);
     }
     return ret;
 }
