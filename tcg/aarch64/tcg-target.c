@@ -56,6 +56,11 @@ static const int tcg_target_call_oarg_regs[1] = {
 #define TCG_REG_TMP TCG_REG_X30
 
 #ifndef CONFIG_SOFTMMU
+/* Note that XZR cannot be encoded in the address base register slot,
+   as that actaully encodes SP.  So if we need to zero-extend the guest
+   address, via the address index register slot, we need to load even
+   a zero guest base into a register.  */
+#define USE_GUEST_BASE     (guest_base != 0 || TARGET_LONG_BITS == 32)
 #define TCG_REG_GUEST_BASE TCG_REG_X28
 #endif
 
@@ -1224,9 +1229,13 @@ static void tcg_out_qemu_ld(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
     add_qemu_ldst_label(s, true, oi, ext, data_reg, addr_reg,
                         s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
-    tcg_out_qemu_ld_direct(s, memop, ext, data_reg,
-                           guest_base ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
-                           otype, addr_reg);
+    if (USE_GUEST_BASE) {
+        tcg_out_qemu_ld_direct(s, memop, ext, data_reg,
+                               TCG_REG_GUEST_BASE, otype, addr_reg);
+    } else {
+        tcg_out_qemu_ld_direct(s, memop, ext, data_reg,
+                               addr_reg, TCG_TYPE_I64, TCG_REG_XZR);
+    }
 #endif /* CONFIG_SOFTMMU */
 }
 
@@ -1245,9 +1254,13 @@ static void tcg_out_qemu_st(TCGContext *s, TCGReg data_reg, TCGReg addr_reg,
     add_qemu_ldst_label(s, false, oi, (memop & MO_SIZE)== MO_64,
                         data_reg, addr_reg, s->code_ptr, label_ptr);
 #else /* !CONFIG_SOFTMMU */
-    tcg_out_qemu_st_direct(s, memop, data_reg,
-                           guest_base ? TCG_REG_GUEST_BASE : TCG_REG_XZR,
-                           otype, addr_reg);
+    if (USE_GUEST_BASE) {
+        tcg_out_qemu_st_direct(s, memop, data_reg,
+                               TCG_REG_GUEST_BASE, otype, addr_reg);
+    } else {
+        tcg_out_qemu_st_direct(s, memop, data_reg,
+                               addr_reg, TCG_TYPE_I64, TCG_REG_XZR);
+    }
 #endif /* CONFIG_SOFTMMU */
 }
 
@@ -1806,7 +1819,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 
 #if !defined(CONFIG_SOFTMMU)
-    if (guest_base) {
+    if (USE_GUEST_BASE) {
         tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_GUEST_BASE, guest_base);
         tcg_regset_set_reg(s->reserved_regs, TCG_REG_GUEST_BASE);
     }
