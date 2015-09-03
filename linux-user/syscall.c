@@ -1181,7 +1181,7 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
     abi_long msg_controllen;
     abi_ulong target_cmsg_addr;
-    struct target_cmsghdr *target_cmsg;
+    struct target_cmsghdr *target_cmsg, *target_cmsg_start;
     socklen_t space = 0;
     
     msg_controllen = tswapal(target_msgh->msg_controllen);
@@ -1189,6 +1189,7 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         goto the_end;
     target_cmsg_addr = tswapal(target_msgh->msg_control);
     target_cmsg = lock_user(VERIFY_READ, target_cmsg_addr, msg_controllen, 1);
+    target_cmsg_start = target_cmsg;
     if (!target_cmsg)
         return -TARGET_EFAULT;
 
@@ -1247,7 +1248,8 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         }
 
         cmsg = CMSG_NXTHDR(msgh, cmsg);
-        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
+        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg,
+                                         target_cmsg_start);
     }
     unlock_user(target_cmsg, target_cmsg_addr, 0);
  the_end:
@@ -1261,7 +1263,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
     abi_long msg_controllen;
     abi_ulong target_cmsg_addr;
-    struct target_cmsghdr *target_cmsg;
+    struct target_cmsghdr *target_cmsg, *target_cmsg_start;
     socklen_t space = 0;
 
     msg_controllen = tswapal(target_msgh->msg_controllen);
@@ -1269,6 +1271,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         goto the_end;
     target_cmsg_addr = tswapal(target_msgh->msg_control);
     target_cmsg = lock_user(VERIFY_WRITE, target_cmsg_addr, msg_controllen, 0);
+    target_cmsg_start = target_cmsg;
     if (!target_cmsg)
         return -TARGET_EFAULT;
 
@@ -1382,14 +1385,15 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         }
 
         target_cmsg->cmsg_len = tswapal(tgt_len);
-        tgt_space = TARGET_CMSG_SPACE(tgt_len);
+        tgt_space = TARGET_CMSG_SPACE(len);
         if (msg_controllen < tgt_space) {
             tgt_space = msg_controllen;
         }
         msg_controllen -= tgt_space;
         space += tgt_space;
         cmsg = CMSG_NXTHDR(msgh, cmsg);
-        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
+        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg,
+                                         target_cmsg_start);
     }
     unlock_user(target_cmsg, target_cmsg_addr, space);
  the_end:
