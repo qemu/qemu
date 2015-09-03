@@ -271,6 +271,7 @@ ETEXI
         .params     = "name on|off",
         .help       = "changes status of a specific trace event",
         .mhandler.cmd = hmp_trace_event,
+        .command_completion = trace_event_completion,
     },
 
 STEXI

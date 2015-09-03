@@ -4442,6 +4442,26 @@ void netdev_del_completion(ReadLineState *rs, int nb_args, const char *str)
     }
 }
 
+void trace_event_completion(ReadLineState *rs, int nb_args, const char *str)
+{
+    size_t len;
+
+    len = strlen(str);
+    readline_set_completion_index(rs, len);
+    if (nb_args == 2) {
+        TraceEventID id;
+        for (id = 0; id < trace_event_count(); id++) {
+            const char *event_name = trace_event_get_name(trace_event_id(id));
+            if (!strncmp(str, event_name, len)) {
+                readline_add_completion(rs, event_name);
+            }
+        }
+    } else if (nb_args == 3) {
+        add_completion_option(rs, str, "on");
+        add_completion_option(rs, str, "off");
+    }
+}
+
 void watchdog_action_completion(ReadLineState *rs, int nb_args, const char *str)
 {
     int i;
