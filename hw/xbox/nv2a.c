@@ -5735,10 +5735,66 @@ static void pgraph_method(NV2AState *d,
                         (parameter & NV097_CLEAR_SURFACE_A)
                              ? GL_TRUE : GL_FALSE);
             uint32_t clear_color = d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE];
-            glClearColor( ((clear_color >> 16) & 0xFF) / 255.0f, /* red */
-                          ((clear_color >> 8) & 0xFF) / 255.0f,  /* green */
-                          (clear_color & 0xFF) / 255.0f,         /* blue */
-                          ((clear_color >> 24) & 0xFF) / 255.0f);/* alpha */
+
+            /* Handle RGB */
+            GLfloat red, green, blue;
+            switch(pg->surface_shape.color_format) {
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_Z1R5G5B5:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_O1R5G5B5:
+                red = ((clear_color >> 10) & 0x1F) / 31.0f;
+                green = ((clear_color >> 5) & 0x1F) / 31.0f;
+                blue = (clear_color & 0x1F) / 31.0f;
+                assert(false); /* Untested */
+                break;
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5:
+                red = ((clear_color >> 11) & 0x1F) / 31.0f;
+                green = ((clear_color >> 5) & 0x3F) / 63.0f;
+                blue = (clear_color & 0x1F) / 31.0f;
+                break;
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_O8R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_Z1A7R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_O1A7R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
+                red = ((clear_color >> 16) & 0xFF) / 255.0f;
+                green = ((clear_color >> 8) & 0xFF) / 255.0f;
+                blue = (clear_color & 0xFF) / 255.0f;
+                break;
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_G8B8:
+                /* Xbox D3D doesn't support clearing those */
+            default:
+                red = 1.0f;
+                green = 0.0f;
+                blue = 1.0f;
+                fprintf(stderr, "CLEAR_SURFACE for color_format 0x%x unsupported",
+                        pg->surface_shape.color_format);
+                assert(false);
+                break;
+            }
+
+            /* Handle alpha */
+            GLfloat alpha;
+            switch(pg->surface_shape.color_format) {
+            /* FIXME: CLEAR_SURFACE seems to work like memset, so maybe we
+             *        also have to clear non-alpha bits with alpha value?
+             *        As GL doesn't own those pixels we'd have to do this on
+             *        our own in xbox memory.
+             */
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_Z1A7R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_O1A7R8G8B8:
+                alpha = ((clear_color >> 24) & 0x7F) / 127.0f;
+                assert(false); /* Untested */
+                break;
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
+                alpha = ((clear_color >> 24) & 0xFF) / 255.0f;
+                break;
+            default:
+                alpha = 1.0f;
+                break;
+            }
+
+            glClearColor(red, green, blue, alpha);
         }
         pgraph_update_surface(d, true, write_color, write_zeta);
 
