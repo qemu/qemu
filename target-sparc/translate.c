@@ -1043,6 +1043,17 @@ static inline void save_state(DisasContext *dc)
     save_npc(dc);
 }
 
+static void gen_exception(DisasContext *dc, int which)
+{
+    TCGv_i32 t;
+
+    save_state(dc);
+    t = tcg_const_i32(which);
+    gen_helper_raise_exception(cpu_env, t);
+    tcg_temp_free_i32(t);
+    dc->is_br = 1;
+}
+
 static inline void gen_mov_pc_npc(DisasContext *dc)
 {
     if (dc->npc == JUMP_PC) {
@@ -1633,28 +1644,18 @@ static inline void gen_op_fcmpeq(int fccno)
 }
 #endif
 
-static inline void gen_op_fpexception_im(int fsr_flags)
+static void gen_op_fpexception_im(DisasContext *dc, int fsr_flags)
 {
-    TCGv_i32 r_const;
-
     tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_NMASK);
     tcg_gen_ori_tl(cpu_fsr, cpu_fsr, fsr_flags);
-    r_const = tcg_const_i32(TT_FP_EXCP);
-    gen_helper_raise_exception(cpu_env, r_const);
-    tcg_temp_free_i32(r_const);
+    gen_exception(dc, TT_FP_EXCP);
 }
 
 static int gen_trap_ifnofpu(DisasContext *dc)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (!dc->fpu_enabled) {
-        TCGv_i32 r_const;
-
-        save_state(dc);
-        r_const = tcg_const_i32(TT_NFPU_INSN);
-        gen_helper_raise_exception(cpu_env, r_const);
-        tcg_temp_free_i32(r_const);
-        dc->is_br = 1;
+        gen_exception(dc, TT_NFPU_INSN);
         return 1;
     }
 #endif
@@ -5155,63 +5156,27 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
  jmp_insn:
     goto egress;
  illegal_insn:
-    {
-        TCGv_i32 r_const;
-
-        save_state(dc);
-        r_const = tcg_const_i32(TT_ILL_INSN);
-        gen_helper_raise_exception(cpu_env, r_const);
-        tcg_temp_free_i32(r_const);
-        dc->is_br = 1;
-    }
+    gen_exception(dc, TT_ILL_INSN);
     goto egress;
  unimp_flush:
-    {
-        TCGv_i32 r_const;
-
-        save_state(dc);
-        r_const = tcg_const_i32(TT_UNIMP_FLUSH);
-        gen_helper_raise_exception(cpu_env, r_const);
-        tcg_temp_free_i32(r_const);
-        dc->is_br = 1;
-    }
+    gen_exception(dc, TT_UNIMP_FLUSH);
     goto egress;
 #if !defined(CONFIG_USER_ONLY)
  priv_insn:
-    {
-        TCGv_i32 r_const;
-
-        save_state(dc);
-        r_const = tcg_const_i32(TT_PRIV_INSN);
-        gen_helper_raise_exception(cpu_env, r_const);
-        tcg_temp_free_i32(r_const);
-        dc->is_br = 1;
-    }
+    gen_exception(dc, TT_PRIV_INSN);
     goto egress;
 #endif
  nfpu_insn:
-    save_state(dc);
-    gen_op_fpexception_im(FSR_FTT_UNIMPFPOP);
-    dc->is_br = 1;
+    gen_op_fpexception_im(dc, FSR_FTT_UNIMPFPOP);
     goto egress;
 #if !defined(CONFIG_USER_ONLY) && !defined(TARGET_SPARC64)
  nfq_insn:
-    save_state(dc);
-    gen_op_fpexception_im(FSR_FTT_SEQ_ERROR);
-    dc->is_br = 1;
+    gen_op_fpexception_im(dc, FSR_FTT_SEQ_ERROR);
     goto egress;
 #endif
 #ifndef TARGET_SPARC64
  ncp_insn:
-    {
-        TCGv r_const;
-
-        save_state(dc);
-        r_const = tcg_const_i32(TT_NCP_INSN);
-        gen_helper_raise_exception(cpu_env, r_const);
-        tcg_temp_free(r_const);
-        dc->is_br = 1;
-    }
+    gen_exception(dc, TT_NCP_INSN);
     goto egress;
 #endif
  egress:
