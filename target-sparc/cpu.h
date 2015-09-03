@@ -722,6 +722,7 @@ trap_state* cpu_tsptr(CPUSPARCState* env);
 #define TB_FLAG_MMU_MASK     7
 #define TB_FLAG_FPU_ENABLED  (1 << 4)
 #define TB_FLAG_AM_ENABLED   (1 << 5)
+#define TB_FLAG_ASI_SHIFT    24
 
 static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *pflags)
@@ -739,6 +740,7 @@ static inline void cpu_get_tb_cpu_state(CPUSPARCState *env, target_ulong *pc,
         && (env->fprs & FPRS_FEF)) {
         flags |= TB_FLAG_FPU_ENABLED;
     }
+    flags |= env->asi << TB_FLAG_ASI_SHIFT;
 #else
     if ((env->def->features & CPU_FEATURE_FLOAT) && env->psref) {
         flags |= TB_FLAG_FPU_ENABLED;
