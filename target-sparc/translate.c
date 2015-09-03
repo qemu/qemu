@@ -31,6 +31,7 @@
 
 #include "trace-tcg.h"
 #include "exec/log.h"
+#include "asi.h"
 
 
 #define DEBUG_DISAS
@@ -1999,8 +2000,9 @@ static DisasASI get_asi(DisasContext *dc, int insn)
     } else if (supervisor(dc)
                /* Note that LEON accepts ASI_USERDATA in user mode, for
                   use with CASA.  Also note that previous versions of
-                  QEMU allowed ASI_P for LEON, which is incorrect.  */
-               || (asi == 0xa
+                  QEMU allowed (and old versions of gcc emitted) ASI_P
+                  for LEON, which is incorrect.  */
+               || (asi == ASI_USERDATA
                    && (dc->def->features & CPU_FEATURE_CASA))) {
     } else {
         gen_exception(dc, TT_PRIV_INSN);
