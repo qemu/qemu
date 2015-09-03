@@ -989,7 +989,7 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, uint64_t val, int asi,
             /* addr = dst
                fill 32 bytes with val */
             unsigned int i;
-            uint32_t dst = addr & 7;
+            uint32_t dst = addr & ~7;
 
             for (i = 0; i < 32; i += 8, dst += 8) {
                 cpu_stq_kernel(env, dst, val);
