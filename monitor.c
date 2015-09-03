@@ -82,6 +82,10 @@
 #endif
 #include "hw/lm32/lm32_pic.h"
 
+#if defined(TARGET_S390X)
+#include "hw/s390x/storage-keys.h"
+#endif
+
 /*
  * Supported types:
  *
@@ -2877,6 +2881,15 @@ static mon_cmd_t info_cmds[] = {
         .help       = "Show rocker OF-DPA groups",
         .mhandler.cmd = hmp_rocker_of_dpa_groups,
     },
+#if defined(TARGET_S390X)
+    {
+        .name       = "skeys",
+        .args_type  = "addr:l",
+        .params     = "address",
+        .help       = "Display the value of a storage key",
+        .mhandler.cmd = hmp_info_skeys,
+    },
+#endif
     {
         .name       = NULL,
     },
@@ -5359,5 +5372,12 @@ QemuOptsList qemu_mon_opts = {
 void qmp_rtc_reset_reinjection(Error **errp)
 {
     error_setg(errp, QERR_FEATURE_DISABLED, "rtc-reset-reinjection");
+}
+#endif
+
+#ifndef TARGET_S390X
+void qmp_dump_skeys(const char *filename, Error **errp)
+{
+    error_setg(errp, QERR_FEATURE_DISABLED, "dump-skeys");
 }
 #endif

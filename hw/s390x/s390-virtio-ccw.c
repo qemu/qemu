@@ -19,6 +19,7 @@
 #include "virtio-ccw.h"
 #include "qemu/config-file.h"
 #include "s390-pci-bus.h"
+#include "hw/s390x/storage-keys.h"
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
@@ -105,7 +106,6 @@ static void ccw_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     sclpMemoryHotplugDev *mhd = init_sclp_memory_hotplug_dev();
-    uint8_t *storage_keys;
     int ret;
     VirtualCssBus *css_bus;
     DeviceState *dev;
@@ -179,11 +179,11 @@ static void ccw_init(MachineState *machine)
         mhd->standby_mem_size = standby_mem_size;
     }
 
-    /* allocate storage keys */
-    storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);
+    /* Initialize storage key device */
+    s390_skeys_init();
 
     /* init CPUs */
-    s390_init_cpus(machine->cpu_model, storage_keys);
+    s390_init_cpus(machine->cpu_model);
 
     if (kvm_enabled()) {
         kvm_s390_enable_css_support(s390_cpu_addr2state(0));
@@ -282,14 +282,24 @@ static const TypeInfo ccw_machine_info = {
     },
 };
 
+#define CCW_COMPAT_2_4 \
+        {\
+            .driver   = TYPE_S390_SKEYS,\
+            .property = "migration-enabled",\
+            .value    = "off",\
+        },
+
 static void ccw_machine_2_4_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    static GlobalProperty compat_props[] = {
+        CCW_COMPAT_2_4
+        { /* end of list */ }
+    };
 
     mc->name = "s390-ccw-virtio-2.4";
-    mc->alias = "s390-ccw-virtio";
     mc->desc = "VirtIO-ccw based S390 machine v2.4";
-    mc->is_default = 1;
+    mc->compat_props = compat_props;
 }
 
 static const TypeInfo ccw_machine_2_4_info = {
@@ -298,10 +308,27 @@ static const TypeInfo ccw_machine_2_4_info = {
     .class_init    = ccw_machine_2_4_class_init,
 };
 
+static void ccw_machine_2_5_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->name = "s390-ccw-virtio-2.5";
+    mc->alias = "s390-ccw-virtio";
+    mc->desc = "VirtIO-ccw based S390 machine v2.5";
+    mc->is_default = 1;
+}
+
+static const TypeInfo ccw_machine_2_5_info = {
+    .name          = TYPE_S390_CCW_MACHINE "2.5",
+    .parent        = TYPE_S390_CCW_MACHINE,
+    .class_init    = ccw_machine_2_5_class_init,
+};
+
 static void ccw_machine_register_types(void)
 {
     type_register_static(&ccw_machine_info);
     type_register_static(&ccw_machine_2_4_info);
+    type_register_static(&ccw_machine_2_5_info);
 }
 
 type_init(ccw_machine_register_types)

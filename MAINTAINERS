@@ -569,6 +569,7 @@ F: hw/s390x/css.[hc]
 F: hw/s390x/sclp*.[hc]
 F: hw/s390x/ipl*.[hc]
 F: hw/s390x/*pci*.[hc]
+F: hw/s390x/s390-skeys*.c
 F: include/hw/s390x/
 F: pc-bios/s390-ccw/
 T: git git://github.com/cohuck/qemu virtio-ccw-upstr
