@@ -1329,8 +1329,6 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     case ASI_S:  /* Secondary */
     case ASI_PL: /* Primary LE */
     case ASI_SL: /* Secondary LE */
-    case ASI_BLK_INIT_QUAD_LDD_P: /* UA2007 Primary block init */
-    case ASI_BLK_INIT_QUAD_LDD_S: /* UA2007 Secondary block init */
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
             if (cpu_hypervisor_mode(env)) {
                 switch (size) {
@@ -1443,11 +1441,6 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
             }
             break;
         }
-    case ASI_NUCLEUS_QUAD_LDD:   /* Nucleus quad LDD 128 bit atomic */
-    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
-        /* Only ldda allowed */
-        helper_raise_exception(env, TT_ILL_INSN);
-        return 0;
     case ASI_N:  /* Nucleus */
     case ASI_NL: /* Nucleus Little Endian (LE) */
         {
@@ -1595,6 +1588,25 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
         cpu_unassigned_access(cs, addr, false, false, 1, size);
         ret = 0;
         break;
+
+    case ASI_NUCLEUS_QUAD_LDD:   /* Nucleus quad LDD 128 bit atomic */
+    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
+    case ASI_TWINX_AIUP:   /* As if user primary, twinx */
+    case ASI_TWINX_AIUS:   /* As if user secondary, twinx */
+    case ASI_TWINX_REAL:   /* Real address, twinx */
+    case ASI_TWINX_AIUP_L: /* As if user primary, twinx, LE */
+    case ASI_TWINX_AIUS_L: /* As if user secondary, twinx, LE */
+    case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
+    case ASI_TWINX_N:  /* Nucleus, twinx */
+    case ASI_TWINX_NL: /* Nucleus, twinx, LE */
+    /* ??? From the UA2011 document; overlaps BLK_INIT_QUAD_LDD_* */
+    case ASI_TWINX_P:  /* Primary, twinx */
+    case ASI_TWINX_PL: /* Primary, twinx, LE */
+    case ASI_TWINX_S:  /* Secondary, twinx */
+    case ASI_TWINX_SL: /* Secondary, twinx, LE */
+        /* These are all 128-bit atomic; only ldda (now ldtxa) allowed */
+        helper_raise_exception(env, TT_ILL_INSN);
+        return 0;
     }
 
     /* Convert from little endian */
@@ -1702,8 +1714,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_S:  /* Secondary */
     case ASI_PL: /* Primary LE */
     case ASI_SL: /* Secondary LE */
-    case ASI_BLK_INIT_QUAD_LDD_P: /* UA2007 Primary block init */
-    case ASI_BLK_INIT_QUAD_LDD_S: /* UA2007 Secondary block init */
         if ((asi & 0x80) && (env->pstate & PS_PRIV)) {
             if (cpu_hypervisor_mode(env)) {
                 switch (size) {
@@ -1815,11 +1825,6 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
                 break;
             }
         }
-        return;
-    case ASI_NUCLEUS_QUAD_LDD:   /* Nucleus quad LDD 128 bit atomic */
-    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
-        /* Only ldda allowed */
-        helper_raise_exception(env, TT_ILL_INSN);
         return;
     case ASI_N:  /* Nucleus */
     case ASI_NL: /* Nucleus Little Endian (LE) */
@@ -2001,6 +2006,24 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
     case ASI_INTR_RECEIVE: /* Interrupt data receive */
         env->ivec_status = val & 0x20;
         return;
+    case ASI_NUCLEUS_QUAD_LDD:   /* Nucleus quad LDD 128 bit atomic */
+    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
+    case ASI_TWINX_AIUP:   /* As if user primary, twinx */
+    case ASI_TWINX_AIUS:   /* As if user secondary, twinx */
+    case ASI_TWINX_REAL:   /* Real address, twinx */
+    case ASI_TWINX_AIUP_L: /* As if user primary, twinx, LE */
+    case ASI_TWINX_AIUS_L: /* As if user secondary, twinx, LE */
+    case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
+    case ASI_TWINX_N:  /* Nucleus, twinx */
+    case ASI_TWINX_NL: /* Nucleus, twinx, LE */
+    /* ??? From the UA2011 document; overlaps BLK_INIT_QUAD_LDD_* */
+    case ASI_TWINX_P:  /* Primary, twinx */
+    case ASI_TWINX_PL: /* Primary, twinx, LE */
+    case ASI_TWINX_S:  /* Secondary, twinx */
+    case ASI_TWINX_SL: /* Secondary, twinx, LE */
+        /* Only stda allowed */
+        helper_raise_exception(env, TT_ILL_INSN);
+        return;
     case ASI_DCACHE_DATA: /* D-cache data */
     case ASI_DCACHE_TAG: /* D-cache tag access */
     case ASI_ESTATE_ERROR_EN: /* E-cache error enable */
@@ -2034,8 +2057,11 @@ void helper_st_asi(CPUSPARCState *env, target_ulong addr, target_ulong val,
 }
 #endif /* CONFIG_USER_ONLY */
 
-void helper_ldda_asi(CPUSPARCState *env, target_ulong addr, int asi, int rd)
+/* 128-bit LDDA; result returned in QT0.  */
+void helper_ldda_asi(CPUSPARCState *env, target_ulong addr, int asi)
 {
+    uint64_t h, l;
+
     if ((asi < 0x80 && (env->pstate & PS_PRIV) == 0)
         || (cpu_has_hypervisor(env)
             && asi >= 0x30 && asi < 0x80
@@ -2047,44 +2073,82 @@ void helper_ldda_asi(CPUSPARCState *env, target_ulong addr, int asi, int rd)
 
     switch (asi) {
 #if !defined(CONFIG_USER_ONLY)
-    case ASI_NUCLEUS_QUAD_LDD: /* Nucleus quad LDD 128 bit atomic */
-    case ASI_NUCLEUS_QUAD_LDD_L: /* Nucleus quad LDD 128 bit atomic LE */
+    case ASI_TWINX_AIUP:   /* As if user primary, twinx */
+    case ASI_TWINX_AIUP_L: /* As if user primary, twinx, LE */
         helper_check_align(env, addr, 0xf);
-        if (rd == 0) {
-            env->gregs[1] = cpu_ldq_nucleus(env, addr + 8);
-            if (asi == ASI_NUCLEUS_QUAD_LDD_L) {
-                bswap64s(&env->gregs[1]);
-            }
-        } else if (rd < 8) {
-            env->gregs[rd] = cpu_ldq_nucleus(env, addr);
-            env->gregs[rd + 1] = cpu_ldq_nucleus(env, addr + 8);
-            if (asi == ASI_NUCLEUS_QUAD_LDD_L) {
-                bswap64s(&env->gregs[rd]);
-                bswap64s(&env->gregs[rd + 1]);
-            }
-        } else {
-            env->regwptr[rd - 8] = cpu_ldq_nucleus(env, addr);
-            env->regwptr[rd + 1 - 8] = cpu_ldq_nucleus(env, addr + 8);
-            if (asi == ASI_NUCLEUS_QUAD_LDD_L) {
-                bswap64s(&env->regwptr[rd - 8]);
-                bswap64s(&env->regwptr[rd + 1 - 8]);
-            }
+        h = cpu_ldq_user(env, addr);
+        l = cpu_ldq_user(env, addr + 8);
+        break;
+    case ASI_TWINX_AIUS:   /* As if user secondary, twinx */
+    case ASI_TWINX_AIUS_L: /* As if user secondary, twinx, LE */
+        helper_check_align(env, addr, 0xf);
+        h = cpu_ldq_user_secondary(env, addr);
+        l = cpu_ldq_user_secondary(env, addr + 8);
+        break;
+    case ASI_TWINX_REAL:   /* Real address, twinx */
+    case ASI_TWINX_REAL_L: /* Real address, twinx, LE */
+        helper_check_align(env, addr, 0xf);
+        {
+            CPUState *cs = CPU(sparc_env_get_cpu(env));
+            h = ldq_phys(cs->as, addr);
+            l = ldq_phys(cs->as, addr + 8);
         }
         break;
+    case ASI_NUCLEUS_QUAD_LDD:
+    case ASI_NUCLEUS_QUAD_LDD_L:
+    case ASI_TWINX_N:  /* Nucleus, twinx */
+    case ASI_TWINX_NL: /* Nucleus, twinx, LE */
+        helper_check_align(env, addr, 0xf);
+        h = cpu_ldq_nucleus(env, addr);
+        l = cpu_ldq_nucleus(env, addr + 8);
+        break;
+    case ASI_TWINX_S: /* Secondary, twinx */
+    case ASI_TWINX_SL: /* Secondary, twinx, LE */
+        if (!cpu_hypervisor_mode(env)) {
+            helper_check_align(env, addr, 0xf);
+            if (env->pstate & PS_PRIV) {
+                h = cpu_ldq_kernel_secondary(env, addr);
+                l = cpu_ldq_kernel_secondary(env, addr + 8);
+            } else {
+                h = cpu_ldq_user_secondary(env, addr);
+                l = cpu_ldq_user_secondary(env, addr + 8);
+            }
+            break;
+        }
+        /* fallthru */
+    case ASI_TWINX_P:  /* Primary, twinx */
+    case ASI_TWINX_PL: /* Primary, twinx, LE */
+        helper_check_align(env, addr, 0xf);
+        h = cpu_ldq_data(env, addr);
+        l = cpu_ldq_data(env, addr + 8);
+        break;
+#else
+    case ASI_TWINX_P:  /* Primary, twinx */
+    case ASI_TWINX_PL: /* Primary, twinx, LE */
+    case ASI_TWINX_S:  /* Primary, twinx */
+    case ASI_TWINX_SL: /* Primary, twinx, LE */
+        /* ??? Should be available, but we need to implement
+           an atomic 128-bit load.  */
+        helper_raise_exception(env, TT_PRIV_ACT);
 #endif
     default:
-        helper_check_align(env, addr, 0x3);
-        if (rd == 0) {
-            env->gregs[1] = helper_ld_asi(env, addr + 4, asi, 4, 0);
-        } else if (rd < 8) {
-            env->gregs[rd] = helper_ld_asi(env, addr, asi, 4, 0);
-            env->gregs[rd + 1] = helper_ld_asi(env, addr + 4, asi, 4, 0);
-        } else {
-            env->regwptr[rd - 8] = helper_ld_asi(env, addr, asi, 4, 0);
-            env->regwptr[rd + 1 - 8] = helper_ld_asi(env, addr + 4, asi, 4, 0);
-        }
-        break;
+        /* Non-twinx asi, so this is the legacy ldda insn, which
+           performs two word sized operations.  */
+        /* ??? The UA2011 manual recommends emulating this with
+           a single 64-bit load.  However, LE asis *are* treated
+           as two 32-bit loads individually byte swapped.  */
+        helper_check_align(env, addr, 0x7);
+        QT0.high = (uint32_t)helper_ld_asi(env, addr, asi, 4, 0);
+        QT0.low = (uint32_t)helper_ld_asi(env, addr + 4, asi, 4, 0);
+        return;
     }
+
+    if (asi & 8) {
+        h = bswap64(h);
+        l = bswap64(l);
+    }
+    QT0.high = h;
+    QT0.low = l;
 }
 
 void helper_ldf_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
