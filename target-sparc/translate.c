@@ -1976,97 +1976,161 @@ static inline void gen_ne_fop_QD(DisasContext *dc, int rd, int rs,
 
 /* asi moves */
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
-static TCGv_i32 gen_get_asi(DisasContext *dc, int insn)
-{
-    int asi;
+typedef enum {
+    GET_ASI_HELPER,
+    GET_ASI_EXCP,
+} ASIType;
 
+typedef struct {
+    ASIType type;
+    int asi;
+} DisasASI;
+
+static DisasASI get_asi(DisasContext *dc, int insn)
+{
+    int asi = GET_FIELD(insn, 19, 26);
+    ASIType type = GET_ASI_HELPER;
+
+#ifndef TARGET_SPARC64
+    /* Before v9, all asis are immediate and privileged.  */
     if (IS_IMM) {
-#ifdef TARGET_SPARC64
-        asi = dc->asi;
-#else
         gen_exception(dc, TT_ILL_INSN);
-        asi = 0;
-#endif
+        type = GET_ASI_EXCP;
+    } else if (supervisor(dc)
+               /* Note that LEON accepts ASI_USERDATA in user mode, for
+                  use with CASA.  Also note that previous versions of
+                  QEMU allowed ASI_P for LEON, which is incorrect.  */
+               || (asi == 0xa
+                   && (dc->def->features & CPU_FEATURE_CASA))) {
     } else {
-        asi = GET_FIELD(insn, 19, 26);
+        gen_exception(dc, TT_PRIV_INSN);
+        type = GET_ASI_EXCP;
     }
-    return tcg_const_i32(asi);
+#else
+    if (IS_IMM) {
+        asi = dc->asi;
+    }
+#endif
+
+    return (DisasASI){ type, asi };
 }
 
 static void gen_ld_asi(DisasContext *dc, TCGv dst, TCGv addr,
                        int insn, int size, int sign)
 {
-    TCGv_i32 r_asi, r_size, r_sign;
+    DisasASI da = get_asi(dc, insn);
 
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(size);
-    r_sign = tcg_const_i32(sign);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(size);
+            TCGv_i32 r_sign = tcg_const_i32(sign);
+
+            save_state(dc);
 #ifdef TARGET_SPARC64
-    gen_helper_ld_asi(dst, cpu_env, addr, r_asi, r_size, r_sign);
+            gen_helper_ld_asi(dst, cpu_env, addr, r_asi, r_size, r_sign);
 #else
-    {
-        TCGv_i64 t64 = tcg_temp_new_i64();
-        gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_size, r_sign);
-        tcg_gen_trunc_i64_tl(dst, t64);
-        tcg_temp_free_i64(t64);
-    }
+            {
+                TCGv_i64 t64 = tcg_temp_new_i64();
+                gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_size, r_sign);
+                tcg_gen_trunc_i64_tl(dst, t64);
+                tcg_temp_free_i64(t64);
+            }
 #endif
-    tcg_temp_free_i32(r_sign);
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
+            tcg_temp_free_i32(r_sign);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+        }
+        break;
+    }
 }
 
 static void gen_st_asi(DisasContext *dc, TCGv src, TCGv addr,
                        int insn, int size)
 {
-    TCGv_i32 r_asi, r_size;
+    DisasASI da = get_asi(dc, insn);
 
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(size);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(size);
+
+            save_state(dc);
 #ifdef TARGET_SPARC64
-    gen_helper_st_asi(cpu_env, addr, src, r_asi, r_size);
+            gen_helper_st_asi(cpu_env, addr, src, r_asi, r_size);
 #else
-    {
-        TCGv_i64 t64 = tcg_temp_new_i64();
-        tcg_gen_extu_tl_i64(t64, src);
-        gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_size);
-        tcg_temp_free_i64(t64);
-    }
+            {
+                TCGv_i64 t64 = tcg_temp_new_i64();
+                tcg_gen_extu_tl_i64(t64, src);
+                gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_size);
+                tcg_temp_free_i64(t64);
+            }
 #endif
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+
+            /* A write to a TLB register may alter page maps.  End the TB. */
+            dc->npc = DYNAMIC_PC;
+        }
+        break;
+    }
 }
 
 static void gen_swap_asi(DisasContext *dc, TCGv dst, TCGv src,
                          TCGv addr, int insn)
 {
-    TCGv_i32 r_asi, r_size, r_sign;
-    TCGv_i64 s64, t64 = tcg_temp_new_i64();
+    DisasASI da = get_asi(dc, insn);
 
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(4);
-    r_sign = tcg_const_i32(0);
-    gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_size, r_sign);
-    tcg_temp_free_i32(r_sign);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(4);
+            TCGv_i32 r_sign = tcg_const_i32(0);
+            TCGv_i64 s64, t64;
 
-    s64 = tcg_temp_new_i64();
-    tcg_gen_extu_tl_i64(s64, src);
-    gen_helper_st_asi(cpu_env, addr, s64, r_asi, r_size);
-    tcg_temp_free_i64(s64);
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
+            save_state(dc);
+            t64 = tcg_temp_new_i64();
+            gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_size, r_sign);
+            tcg_temp_free_i32(r_sign);
 
-    tcg_gen_trunc_i64_tl(dst, t64);
-    tcg_temp_free_i64(t64);
+            s64 = tcg_temp_new_i64();
+            tcg_gen_extu_tl_i64(s64, src);
+            gen_helper_st_asi(cpu_env, addr, s64, r_asi, r_size);
+            tcg_temp_free_i64(s64);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+
+            tcg_gen_trunc_i64_tl(dst, t64);
+            tcg_temp_free_i64(t64);
+        }
+        break;
+    }
 }
 
 static void gen_cas_asi(DisasContext *dc, TCGv addr, TCGv val2,
                         int insn, int rd)
 {
-    TCGv val1 = gen_load_gpr(dc, rd);
-    TCGv dst = gen_dest_gpr(dc, rd);
-    TCGv_i32 r_asi = gen_get_asi(dc, insn);
+    DisasASI da = get_asi(dc, insn);
+    TCGv val1, dst;
+    TCGv_i32 r_asi;
 
+    if (da.type == GET_ASI_EXCP) {
+        return;
+    }
+
+    save_state(dc);
+    val1 = gen_load_gpr(dc, rd);
+    dst = gen_dest_gpr(dc, rd);
+    r_asi = tcg_const_i32(da.asi);
     gen_helper_cas_asi(dst, cpu_env, addr, val1, val2, r_asi);
     tcg_temp_free_i32(r_asi);
     gen_store_gpr(dc, rd, dst);
@@ -2074,23 +2138,34 @@ static void gen_cas_asi(DisasContext *dc, TCGv addr, TCGv val2,
 
 static void gen_ldstub_asi(DisasContext *dc, TCGv dst, TCGv addr, int insn)
 {
-    TCGv_i32 r_asi, r_size, r_sign;
-    TCGv_i64 s64, d64 = tcg_temp_new_i64();
+    DisasASI da = get_asi(dc, insn);
 
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(1);
-    r_sign = tcg_const_i32(0);
-    gen_helper_ld_asi(d64, cpu_env, addr, r_asi, r_size, r_sign);
-    tcg_temp_free_i32(r_sign);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(1);
+            TCGv_i32 r_sign = tcg_const_i32(0);
+            TCGv_i64 s64, t64;
 
-    s64 = tcg_const_i64(0xff);
-    gen_helper_st_asi(cpu_env, addr, s64, r_asi, r_size);
-    tcg_temp_free_i64(s64);
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
+            save_state(dc);
+            t64 = tcg_temp_new_i64();
+            gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_size, r_sign);
+            tcg_temp_free_i32(r_sign);
 
-    tcg_gen_trunc_i64_tl(dst, d64);
-    tcg_temp_free_i64(d64);
+            s64 = tcg_const_i64(0xff);
+            gen_helper_st_asi(cpu_env, addr, s64, r_asi, r_size);
+            tcg_temp_free_i64(s64);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+
+            tcg_gen_trunc_i64_tl(dst, t64);
+            tcg_temp_free_i64(t64);
+        }
+        break;
+    }
 }
 #endif
 
@@ -2098,66 +2173,115 @@ static void gen_ldstub_asi(DisasContext *dc, TCGv dst, TCGv addr, int insn)
 static void gen_ldf_asi(DisasContext *dc, TCGv addr,
                         int insn, int size, int rd)
 {
-    TCGv_i32 r_asi, r_size, r_rd;
+    DisasASI da = get_asi(dc, insn);
 
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(size);
-    r_rd = tcg_const_i32(rd);
-    gen_helper_ldf_asi(cpu_env, addr, r_asi, r_size, r_rd);
-    tcg_temp_free_i32(r_rd);
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(size);
+            TCGv_i32 r_rd = tcg_const_i32(rd);
+
+            save_state(dc);
+            gen_helper_ldf_asi(cpu_env, addr, r_asi, r_size, r_rd);
+            tcg_temp_free_i32(r_rd);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+        }
+        break;
+    }
 }
 
 static void gen_stf_asi(DisasContext *dc, TCGv addr,
                         int insn, int size, int rd)
 {
-    TCGv_i32 r_asi, r_size, r_rd;
+    DisasASI da = get_asi(dc, insn);
 
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(size);
-    r_rd = tcg_const_i32(rd);
-    gen_helper_stf_asi(cpu_env, addr, r_asi, r_size, r_rd);
-    tcg_temp_free_i32(r_rd);
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(size);
+            TCGv_i32 r_rd = tcg_const_i32(rd);
+
+            save_state(dc);
+            gen_helper_stf_asi(cpu_env, addr, r_asi, r_size, r_rd);
+            tcg_temp_free_i32(r_rd);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+        }
+        break;
+    }
 }
 
 static void gen_ldda_asi(DisasContext *dc, TCGv hi, TCGv addr,
                          int insn, int rd)
 {
-    TCGv_i32 r_asi, r_rd;
+    DisasASI da = get_asi(dc, insn);
 
-    r_asi = gen_get_asi(dc, insn);
-    r_rd = tcg_const_i32(rd);
-    gen_helper_ldda_asi(cpu_env, addr, r_asi, r_rd);
-    tcg_temp_free_i32(r_rd);
-    tcg_temp_free_i32(r_asi);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_rd = tcg_const_i32(rd);
+
+            save_state(dc);
+            gen_helper_ldda_asi(cpu_env, addr, r_asi, r_rd);
+            tcg_temp_free_i32(r_rd);
+            tcg_temp_free_i32(r_asi);
+        }
+        break;
+    }
 }
 
 static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
                          int insn, int rd)
 {
-    TCGv_i32 r_asi, r_size;
+    DisasASI da = get_asi(dc, insn);
     TCGv lo = gen_load_gpr(dc, rd + 1);
-    TCGv_i64 t64 = tcg_temp_new_i64();
 
-    tcg_gen_concat_tl_i64(t64, lo, hi);
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(8);
-    gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_size);
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
-    tcg_temp_free_i64(t64);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(8);
+            TCGv_i64 t64;
+
+            save_state(dc);
+
+            t64 = tcg_temp_new_i64();
+            tcg_gen_concat_tl_i64(t64, lo, hi);
+            gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_size);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+            tcg_temp_free_i64(t64);
+        }
+        break;
+    }
 }
 
 static void gen_casx_asi(DisasContext *dc, TCGv addr, TCGv val2,
                          int insn, int rd)
 {
+    DisasASI da = get_asi(dc, insn);
     TCGv val1 = gen_load_gpr(dc, rd);
     TCGv dst = gen_dest_gpr(dc, rd);
-    TCGv_i32 r_asi = gen_get_asi(dc, insn);
+    TCGv_i32 r_asi;
 
+    if (da.type == GET_ASI_EXCP) {
+        return;
+    }
+
+    save_state(dc);
+    r_asi = tcg_const_i32(da.asi);
     gen_helper_casx_asi(dst, cpu_env, addr, val1, val2, r_asi);
     tcg_temp_free_i32(r_asi);
     gen_store_gpr(dc, rd, dst);
@@ -2167,46 +2291,64 @@ static void gen_casx_asi(DisasContext *dc, TCGv addr, TCGv val2,
 static void gen_ldda_asi(DisasContext *dc, TCGv hi, TCGv addr,
                          int insn, int rd)
 {
-    TCGv_i32 r_asi, r_size, r_sign;
-    TCGv t;
-    TCGv_i64 t64;
-
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(8);
-    r_sign = tcg_const_i32(0);
-    t64 = tcg_temp_new_i64();
-    gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_size, r_sign);
-    tcg_temp_free_i32(r_sign);
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
-
     /* ??? Work around an apparent bug in Ubuntu gcc 4.8.2-10ubuntu2+12,
        whereby "rd + 1" elicits "error: array subscript is above array".
        Since we have already asserted that rd is even, the semantics
        are unchanged.  */
-    t = gen_dest_gpr(dc, rd | 1);
-    tcg_gen_trunc_i64_tl(t, t64);
-    gen_store_gpr(dc, rd | 1, t);
+    DisasASI da = get_asi(dc, insn);
+    TCGv lo = gen_dest_gpr(dc, rd | 1);
+    TCGv_i64 t64 = tcg_temp_new_i64();
 
-    tcg_gen_shri_i64(t64, t64, 32);
-    tcg_gen_trunc_i64_tl(hi, t64);
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        tcg_temp_free_i64(t64);
+        return;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(8);
+            TCGv_i32 r_sign = tcg_const_i32(0);
+
+            save_state(dc);
+            gen_helper_ld_asi(t64, cpu_env, addr, r_asi, r_size, r_sign);
+            tcg_temp_free_i32(r_sign);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+        }
+        break;
+    }
+
+    tcg_gen_extr_i64_i32(lo, hi, t64);
     tcg_temp_free_i64(t64);
+    gen_store_gpr(dc, rd | 1, lo);
     gen_store_gpr(dc, rd, hi);
 }
 
 static void gen_stda_asi(DisasContext *dc, TCGv hi, TCGv addr,
                          int insn, int rd)
 {
-    TCGv_i32 r_asi, r_size;
+    DisasASI da = get_asi(dc, insn);
     TCGv lo = gen_load_gpr(dc, rd + 1);
     TCGv_i64 t64 = tcg_temp_new_i64();
 
     tcg_gen_concat_tl_i64(t64, lo, hi);
-    r_asi = gen_get_asi(dc, insn);
-    r_size = tcg_const_i32(8);
-    gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_size);
-    tcg_temp_free_i32(r_size);
-    tcg_temp_free_i32(r_asi);
+
+    switch (da.type) {
+    case GET_ASI_EXCP:
+        break;
+    default:
+        {
+            TCGv_i32 r_asi = tcg_const_i32(da.asi);
+            TCGv_i32 r_size = tcg_const_i32(8);
+
+            save_state(dc);
+            gen_helper_st_asi(cpu_env, addr, t64, r_asi, r_size);
+            tcg_temp_free_i32(r_size);
+            tcg_temp_free_i32(r_asi);
+        }
+        break;
+    }
+
     tcg_temp_free_i64(t64);
 }
 #endif
@@ -4691,87 +4833,32 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
                 case 0x10:      /* lda, V9 lduwa, load word alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, 4, 0);
                     break;
                 case 0x11:      /* lduba, load unsigned byte alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, 1, 0);
                     break;
                 case 0x12:      /* lduha, load unsigned halfword alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, 2, 0);
                     break;
                 case 0x13:      /* ldda, load double word alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
+                    if (rd & 1) {
                         goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    if (rd & 1)
-                        goto illegal_insn;
-                    save_state(dc);
+                    }
                     gen_ldda_asi(dc, cpu_val, cpu_addr, insn, rd);
                     goto skip_move;
                 case 0x19:      /* ldsba, load signed byte alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, 1, 1);
                     break;
                 case 0x1a:      /* ldsha, load signed halfword alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, 2, 1);
                     break;
                 case 0x1d:      /* ldstuba -- XXX: should be atomically */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_ldstub_asi(dc, cpu_val, cpu_addr, insn);
                     break;
                 case 0x1f:      /* swapa, swap reg with alt. memory. Also
                                    atomically */
                     CHECK_IU_FEATURE(dc, SWAP);
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     cpu_src1 = gen_load_gpr(dc, rd);
                     gen_swap_asi(dc, cpu_val, cpu_src1, cpu_addr, insn);
                     break;
@@ -4793,11 +4880,9 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_qemu_ld64(cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x18: /* V9 ldswa */
-                    save_state(dc);
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, 4, 1);
                     break;
                 case 0x1b: /* V9 ldxa */
-                    save_state(dc);
                     gen_ld_asi(dc, cpu_val, cpu_addr, insn, 8, 0);
                     break;
                 case 0x2d: /* V9 prefetch, no effect */
@@ -4806,7 +4891,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
                     }
-                    save_state(dc);
                     gen_ldf_asi(dc, cpu_addr, insn, 4, rd);
                     gen_update_fprs_dirty(rd);
                     goto skip_move;
@@ -4814,7 +4898,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
                     }
-                    save_state(dc);
                     gen_ldf_asi(dc, cpu_addr, insn, 8, DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     goto skip_move;
@@ -4825,7 +4908,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
                     }
-                    save_state(dc);
                     gen_ldf_asi(dc, cpu_addr, insn, 16, QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     goto skip_move;
@@ -4933,51 +5015,19 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
                 case 0x14: /* sta, V9 stwa, store word alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_st_asi(dc, cpu_val, cpu_addr, insn, 4);
-                    dc->npc = DYNAMIC_PC;
                     break;
                 case 0x15: /* stba, store byte alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_st_asi(dc, cpu_val, cpu_addr, insn, 1);
-                    dc->npc = DYNAMIC_PC;
                     break;
                 case 0x16: /* stha, store halfword alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
-                        goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    save_state(dc);
                     gen_st_asi(dc, cpu_val, cpu_addr, insn, 2);
-                    dc->npc = DYNAMIC_PC;
                     break;
                 case 0x17: /* stda, store double word alternate */
-#ifndef TARGET_SPARC64
-                    if (IS_IMM)
+                    if (rd & 1) {
                         goto illegal_insn;
-                    if (!supervisor(dc))
-                        goto priv_insn;
-#endif
-                    if (rd & 1)
-                        goto illegal_insn;
-                    else {
-                        save_state(dc);
-                        gen_stda_asi(dc, cpu_val, cpu_addr, insn, rd);
                     }
+                    gen_stda_asi(dc, cpu_val, cpu_addr, insn, rd);
                     break;
 #endif
 #ifdef TARGET_SPARC64
@@ -4986,9 +5036,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     tcg_gen_qemu_st64(cpu_val, cpu_addr, dc->mem_idx);
                     break;
                 case 0x1e: /* V9 stxa */
-                    save_state(dc);
                     gen_st_asi(dc, cpu_val, cpu_addr, insn, 8);
-                    dc->npc = DYNAMIC_PC;
                     break;
 #endif
                 default:
@@ -5105,13 +5153,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x3c: /* V9 or LEON3 casa */
 #ifndef TARGET_SPARC64
                     CHECK_IU_FEATURE(dc, CASA);
-                    if (IS_IMM) {
-                        goto illegal_insn;
-                    }
-                    /* LEON3 allows CASA from user space with ASI 0xa */
-                    if ((GET_FIELD(insn, 19, 26) != 0xa) && !supervisor(dc)) {
-                        goto priv_insn;
-                    }
 #endif
                     rs2 = GET_FIELD(insn, 27, 31);
                     cpu_src2 = gen_load_gpr(dc, rs2);
