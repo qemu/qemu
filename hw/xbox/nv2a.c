@@ -5387,7 +5387,7 @@ static void pgraph_method(NV2AState *d,
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_MIPMAP_LEVELS, levels);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_U, log_width);
         SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_V, log_height);
-        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_P, log_height);
+        SET_MASK(*reg, NV_PGRAPH_TEXFMT0_BASE_SIZE_P, log_depth);
 
         pg->texture_dirty[slot] = true;
         break;
