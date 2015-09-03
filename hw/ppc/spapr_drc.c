@@ -32,7 +32,7 @@
 
 #define DRC_CONTAINER_PATH "/dr-connector"
 #define DRC_INDEX_TYPE_SHIFT 28
-#define DRC_INDEX_ID_MASK (~(~0 << DRC_INDEX_TYPE_SHIFT))
+#define DRC_INDEX_ID_MASK ((1ULL << DRC_INDEX_TYPE_SHIFT) - 1)
 
 static sPAPRDRConnectorTypeShift get_type_shift(sPAPRDRConnectorType type)
 {
