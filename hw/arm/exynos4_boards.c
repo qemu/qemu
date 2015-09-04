@@ -97,10 +97,12 @@ static void lan9215_init(uint32_t base, qemu_irq irq)
 static Exynos4210State *exynos4_boards_init_common(MachineState *machine,
                                                    Exynos4BoardType board_type)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+
     if (smp_cpus != EXYNOS4210_NCPUS && !qtest_enabled()) {
         fprintf(stderr, "%s board supports only %d CPU cores. Ignoring smp_cpus"
                 " value.\n",
-                exynos4_machines[board_type].name, EXYNOS4210_NCPUS);
+                mc->name, EXYNOS4210_NCPUS);
     }
 
     exynos4_board_binfo.ram_size = exynos4_board_ram_size[board_type];
