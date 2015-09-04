@@ -23,60 +23,166 @@
 #include "hw/xbox/nv2a_shaders_common.h"
 #include "hw/xbox/nv2a_shaders.h"
 
-static void generate_geometry_shader_pass_vertex(QString* s, const char* v)
+static QString* generate_geometry_shader(
+                                      enum ShaderPolygonMode polygon_front_mode,
+                                      enum ShaderPolygonMode polygon_back_mode,
+                                      enum ShaderPrimitiveMode primitive_mode,
+                                      GLenum *gl_primitive_mode)
 {
-    qstring_append_fmt(s, "        gl_Position = gl_in[%s].gl_Position;\n", v);
-    qstring_append_fmt(s, "        gl_PointSize = gl_in[%s].gl_PointSize;\n", v);
-    qstring_append_fmt(s, "        g_vtx = v_vtx[%s];\n", v);
-    qstring_append(s,     "        EmitVertex();\n");
-}
 
-static QString* generate_geometry_shader(enum ShaderPrimitiveMode primitive_mode)
-{
+    /* FIXME: Missing support for 2-sided-poly mode */
+    assert(polygon_front_mode == polygon_back_mode);
+    enum ShaderPolygonMode polygon_mode = polygon_front_mode;
+
+    /* POINT mode shouldn't require any special work */
+    if (polygon_mode == POLY_MODE_POINT) {
+        *gl_primitive_mode = GL_POINTS;
+        return NULL;
+    }
+
+    /* Handle LINE and FILL mode */
+    const char *layout_in = NULL;
+    const char *layout_out = NULL;
+    const char *body = NULL;
+    switch (primitive_mode) {
+    case PRIM_TYPE_POINTS: *gl_primitive_mode = GL_POINTS; return NULL;
+    case PRIM_TYPE_LINES: *gl_primitive_mode = GL_LINES; return NULL;
+    case PRIM_TYPE_LINE_LOOP: *gl_primitive_mode = GL_LINE_LOOP; return NULL;
+    case PRIM_TYPE_LINE_STRIP: *gl_primitive_mode = GL_LINE_STRIP; return NULL;
+    case PRIM_TYPE_TRIANGLES:
+        *gl_primitive_mode = GL_TRIANGLES;
+        if (polygon_mode == POLY_MODE_FILL) { return NULL; }
+        assert(polygon_mode == POLY_MODE_LINE);
+        layout_in = "layout(triangles) in;\n";
+        layout_out = "layout(line_strip, max_vertices = 4) out;\n";
+        body = "  emit_vertex(0);\n"
+               "  emit_vertex(1);\n"
+               "  emit_vertex(2);\n"
+               "  emit_vertex(0);\n"
+               "  EndPrimitive();\n";
+        break;
+    case PRIM_TYPE_TRIANGLE_STRIP:
+        *gl_primitive_mode = GL_TRIANGLE_STRIP;
+        if (polygon_mode == POLY_MODE_FILL) { return NULL; }
+        assert(polygon_mode == POLY_MODE_LINE);
+        layout_in = "layout(triangles) in;\n";
+        layout_out = "layout(line_strip, max_vertices = 4) out;\n";
+        /* Imagine a quad made of a tristrip, the comments tell you which
+         * vertex we are using */
+        body = "  if ((gl_PrimitiveIDIn & 1) == 0) {\n"
+               "    if (gl_PrimitiveIDIn == 0) {\n"
+               "      emit_vertex(0);\n" /* bottom right */
+               "    }\n"
+               "    emit_vertex(1);\n" /* top right */
+               "    emit_vertex(2);\n" /* bottom left */
+               "    emit_vertex(0);\n" /* bottom right */
+               "  } else {\n"
+               "    emit_vertex(2);\n" /* bottom left */
+               "    emit_vertex(1);\n" /* top left */
+               "    emit_vertex(0);\n" /* top right */
+               "  }\n"
+               "  EndPrimitive();\n";
+        break;
+    case PRIM_TYPE_TRIANGLE_FAN:
+        *gl_primitive_mode = GL_TRIANGLE_FAN;
+        if (polygon_mode == POLY_MODE_FILL) { return NULL; }
+        assert(polygon_mode == POLY_MODE_LINE);
+        layout_in = "layout(triangles) in;\n";
+        layout_out = "layout(line_strip, max_vertices = 4) out;\n";
+        body = "  if (gl_PrimitiveIDIn == 0) {\n"
+               "    emit_vertex(0);\n"
+               "  }\n"
+               "  emit_vertex(1);\n"
+               "  emit_vertex(2);\n"
+               "  emit_vertex(0);\n"
+               "  EndPrimitive();\n";
+        break;
+    case PRIM_TYPE_QUADS:
+        *gl_primitive_mode = GL_LINES_ADJACENCY;
+        layout_in = "layout(lines_adjacency) in;\n";
+        if (polygon_mode == POLY_MODE_LINE) {
+            layout_out = "layout(line_strip, max_vertices = 5) out;\n";
+            body = "  emit_vertex(0);\n"
+                   "  emit_vertex(1);\n"
+                   "  emit_vertex(2);\n"
+                   "  emit_vertex(3);\n"
+                   "  emit_vertex(0);\n"
+                   "  EndPrimitive();\n";
+        } else if (polygon_mode == POLY_MODE_FILL) {
+            layout_out = "layout(triangle_strip, max_vertices = 4) out;\n";
+            body = "  emit_vertex(0);\n"
+                   "  emit_vertex(1);\n"
+                   "  emit_vertex(3);\n"
+                   "  emit_vertex(2);\n"
+                   "  EndPrimitive();\n";
+        } else {
+            assert(false);
+            return NULL;
+        }
+        break;
+    case PRIM_TYPE_QUAD_STRIP:
+        *gl_primitive_mode = GL_LINE_STRIP_ADJACENCY;
+        layout_in = "layout(lines_adjacency) in;\n";
+        if (polygon_mode == POLY_MODE_LINE) {
+            layout_out = "layout(line_strip, max_vertices = 5) out;\n";
+            body = "  if ((gl_PrimitiveIDIn & 1) != 0) { return; }\n"
+                   "  if (gl_PrimitiveIDIn == 0) {\n"
+                   "    emit_vertex(0);\n"
+                   "  }\n"
+                   "  emit_vertex(1);\n"
+                   "  emit_vertex(3);\n"
+                   "  emit_vertex(2);\n"
+                   "  emit_vertex(0);\n"
+                   "  EndPrimitive();\n";
+        } else if (polygon_mode == POLY_MODE_FILL) {
+            layout_out = "layout(triangle_strip, max_vertices = 4) out;\n";
+            body = "  if ((gl_PrimitiveIDIn & 1) != 0) { return; }\n"
+                   "  emit_vertex(0);\n"
+                   "  emit_vertex(1);\n"
+                   "  emit_vertex(2);\n"
+                   "  emit_vertex(3);\n"
+                   "  EndPrimitive();\n";
+        } else {
+            assert(false);
+            return NULL;
+        }
+        break;
+    case PRIM_TYPE_POLYGON:
+        if (polygon_mode == POLY_MODE_LINE) {
+            *gl_primitive_mode = GL_LINE_LOOP;
+        } else if (polygon_mode == POLY_MODE_FILL) {
+            *gl_primitive_mode = GL_TRIANGLE_FAN;
+        } else {
+            assert(false);
+        }
+        return NULL;
+    default:
+        assert(false);
+        return NULL;
+    }
+
     /* generate a geometry shader to support deprecated primitive types */
-    QString* s = qstring_new();
-    qstring_append(s, "#version 330\n");
-    qstring_append(s, "\n");
-    switch (primitive_mode) {
-    case PRIM_TYPE_QUADS:
-    case PRIM_TYPE_QUAD_STRIP:
-        qstring_append(s, "layout(lines_adjacency) in;\n");
-        qstring_append(s, "layout(triangle_strip, max_vertices = 4) out;\n");
-        break;
-    default:
-        assert(false);
-        break;
-    }
-    qstring_append(s, "\n");
-    qstring_append(s, STRUCT_VERTEX_DATA);
-    qstring_append(s,
-        "noperspective in VertexData v_vtx[];\n");
-    qstring_append(s,
-        "noperspective out VertexData g_vtx;\n");
-    qstring_append(s, "\n");
-
-    qstring_append(s, "void main() {\n");
-    switch (primitive_mode) {
-    case PRIM_TYPE_QUADS:
-        generate_geometry_shader_pass_vertex(s, "0");
-        generate_geometry_shader_pass_vertex(s, "1");
-        generate_geometry_shader_pass_vertex(s, "3");
-        generate_geometry_shader_pass_vertex(s, "2");
-        qstring_append(s, "EndPrimitive();\n");
-        break;
-    case PRIM_TYPE_QUAD_STRIP:
-        qstring_append(s, "if ((gl_PrimitiveIDIn & 1) == 0) {\n");
-        generate_geometry_shader_pass_vertex(s, "0");
-        generate_geometry_shader_pass_vertex(s, "1");
-        generate_geometry_shader_pass_vertex(s, "2");
-        generate_geometry_shader_pass_vertex(s, "3");
-        qstring_append(s, "  EndPrimitive();\n"
-                          "}");
-        break;
-    default:
-        assert(false);
-        break;
-    }
+    assert(layout_in);
+    assert(layout_out);
+    assert(body);
+    QString* s = qstring_from_str("#version 330\n"
+                                  "\n");
+    qstring_append(s, layout_in);
+    qstring_append(s, layout_out);
+    qstring_append(s, "\n"
+                      STRUCT_VERTEX_DATA
+                      "noperspective in VertexData v_vtx[];\n"
+                      "noperspective out VertexData g_vtx;\n"
+                      "\n"
+                      "void emit_vertex(int index) {\n"
+                      "  gl_Position = gl_in[index].gl_Position;\n"
+                      "  gl_PointSize = gl_in[index].gl_PointSize;\n"
+                      "  g_vtx = v_vtx[index];\n"
+                      "  EmitVertex();\n"
+                      "}\n"
+                      "\n"
+                      "void main() {\n");
+    qstring_append(s, body);
     qstring_append(s, "}\n");
 
     return s;
@@ -602,12 +708,32 @@ static GLuint create_gl_shader(GLenum gl_shader_type,
 ShaderBinding* generate_shaders(const ShaderState state)
 {
     int i, j;
-
-    bool with_geom = state.primitive_mode == PRIM_TYPE_QUADS ||
-                     state.primitive_mode == PRIM_TYPE_QUAD_STRIP;
-    char vtx_prefix = with_geom ? 'v' : 'g';
-
+    char vtx_prefix;
     GLuint program = glCreateProgram();
+
+    /* Create an option geometry shader and find primitive type */
+
+    GLenum gl_primitive_mode;
+    QString* geometry_shader_code =
+        generate_geometry_shader(state.polygon_front_mode,
+                                 state.polygon_back_mode,
+                                 state.primitive_mode,
+                                 &gl_primitive_mode);
+    if (geometry_shader_code) {
+        const char* geometry_shader_code_str =
+             qstring_get_str(geometry_shader_code);
+
+        GLuint geometry_shader = create_gl_shader(GL_GEOMETRY_SHADER,
+                                                  geometry_shader_code_str,
+                                                  "geometry shader");
+        glAttachShader(program, geometry_shader);
+
+        QDECREF(geometry_shader_code);
+
+        vtx_prefix = 'v';
+    } else {
+        vtx_prefix = 'g';
+    }
 
     /* create the vertex shader */
 
@@ -616,8 +742,7 @@ ShaderBinding* generate_shaders(const ShaderState state)
         s = generate_fixed_function(state, vtx_prefix);
 
     } else if (state.vertex_program) {
-        s = vsh_translate(VSH_VERSION_XVS,
-                                           (uint32_t*)state.program_data,
+        s = vsh_translate(VSH_VERSION_XVS, (uint32_t*)state.program_data,
                                            state.program_length,
                                            vtx_prefix);
     } else {
@@ -669,21 +794,6 @@ ShaderBinding* generate_shaders(const ShaderState state)
     QDECREF(fragment_shader_code);
 
 
-    if (with_geom) {
-        QString* geometry_shader_code =
-            generate_geometry_shader(state.primitive_mode);
-        const char* geometry_shader_code_str =
-             qstring_get_str(geometry_shader_code);
-
-        GLuint geometry_shader = create_gl_shader(GL_GEOMETRY_SHADER,
-                                                  geometry_shader_code_str,
-                                                  "geometry shader");
-        glAttachShader(program, geometry_shader);
-
-        QDECREF(geometry_shader_code);
-    }
-
-
     /* link the program */
     glLinkProgram(program);
     GLint linked = 0;
@@ -720,6 +830,7 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
     ShaderBinding* ret = g_malloc0(sizeof(ShaderBinding));
     ret->gl_program = program;
+    ret->gl_primitive_mode = gl_primitive_mode;
 
     /* lookup fragment shader locations */
     for (i=0; i<=8; i++) {

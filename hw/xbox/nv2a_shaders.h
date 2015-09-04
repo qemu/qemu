@@ -45,6 +45,12 @@ enum ShaderPrimitiveMode {
     PRIM_TYPE_POLYGON,
 };
 
+enum ShaderPolygonMode {
+    POLY_MODE_FILL,
+    POLY_MODE_POINT,
+    POLY_MODE_LINE,
+};
+
 typedef struct ShaderState {
     /* fragment shader - register combiner stuff */
     uint32_t combiner_control;
@@ -85,11 +91,14 @@ typedef struct ShaderState {
     int program_length;
 
     /* primitive format for geometry shader */
+    enum ShaderPolygonMode polygon_front_mode;
+    enum ShaderPolygonMode polygon_back_mode;
     enum ShaderPrimitiveMode primitive_mode;
 } ShaderState;
 
 typedef struct ShaderBinding {
     GLuint gl_program;
+    GLenum gl_primitive_mode;
     GLint psh_constant_loc[9][2];
     GLint gl_constants_loc;
 } ShaderBinding;
