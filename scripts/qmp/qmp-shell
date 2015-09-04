@@ -29,6 +29,41 @@
 # (QEMU) device_add driver=e1000 id=net1
 # {u'return': {}}
 # (QEMU)
+#
+# key=value pairs also support Python or JSON object literal subset notations,
+# without spaces. Dictionaries/objects {} are supported as are arrays [].
+#
+#    example-command arg-name1={'key':'value','obj'={'prop':"value"}}
+#
+# Both JSON and Python formatting should work, including both styles of
+# string literal quotes. Both paradigms of literal values should work,
+# including null/true/false for JSON and None/True/False for Python.
+#
+#
+# Transactions have the following multi-line format:
+#
+#    transaction(
+#    action-name1 [ arg-name1=arg1 ] ... [arg-nameN=argN ]
+#    ...
+#    action-nameN [ arg-name1=arg1 ] ... [arg-nameN=argN ]
+#    )
+#
+# One line transactions are also supported:
+#
+#    transaction( action-name1 ... )
+#
+# For example:
+#
+#     (QEMU) transaction(
+#     TRANS> block-dirty-bitmap-add node=drive0 name=bitmap1
+#     TRANS> block-dirty-bitmap-clear node=drive0 name=bitmap0
+#     TRANS> )
+#     {"return": {}}
+#     (QEMU)
+#
+# Use the -v and -p options to activate the verbose and pretty-print options,
+# which will echo back the properly formatted JSON-compliant QMP that is being
+# sent to QEMU, which is useful for debugging and documentation generation.
 
 import qmp
 import json

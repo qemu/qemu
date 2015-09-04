@@ -1963,6 +1963,19 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
     qapi_free_MemoryDeviceInfoList(info_list);
 }
 
+void hmp_info_iothreads(Monitor *mon, const QDict *qdict)
+{
+    IOThreadInfoList *info_list = qmp_query_iothreads(NULL);
+    IOThreadInfoList *info;
+
+    for (info = info_list; info; info = info->next) {
+        monitor_printf(mon, "%s: thread_id=%" PRId64 "\n",
+                       info->value->id, info->value->thread_id);
+    }
+
+    qapi_free_IOThreadInfoList(info_list);
+}
+
 void hmp_qom_list(Monitor *mon, const QDict *qdict)
 {
     const char *path = qdict_get_try_str(qdict, "path");

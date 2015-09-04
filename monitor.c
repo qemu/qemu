@@ -2854,6 +2854,13 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.cmd = hmp_info_memory_devices,
     },
     {
+        .name       = "iothreads",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show iothreads",
+        .mhandler.cmd = hmp_info_iothreads,
+    },
+    {
         .name       = "rocker",
         .args_type  = "name:s",
         .params     = "name",
