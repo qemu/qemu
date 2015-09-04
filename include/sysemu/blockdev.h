@@ -20,7 +20,7 @@ void blockdev_auto_del(BlockBackend *blk);
 typedef enum {
     IF_DEFAULT = -1,            /* for use with drive_add() only */
     /*
-     * IF_IDE must be zero, because we want QEMUMachine member
+     * IF_IDE must be zero, because we want MachineClass member
      * block_default_type to default-initialize to IF_IDE
      */
     IF_IDE = 0,

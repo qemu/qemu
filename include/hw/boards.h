@@ -9,35 +9,9 @@
 #include "hw/qdev.h"
 #include "qom/object.h"
 
-
-typedef void QEMUMachineInitFunc(MachineState *ms);
-
-typedef void QEMUMachineResetFunc(void);
-
-typedef void QEMUMachineHotAddCPUFunc(const int64_t id, Error **errp);
-
-typedef int QEMUMachineGetKvmtypeFunc(const char *arg);
-
-struct QEMUMachine {
-    const char *name;
-    const char *desc;
-    QEMUMachineInitFunc *init;
-    QEMUMachineGetKvmtypeFunc *kvm_type;
-    BlockInterfaceType block_default_type;
-    int max_cpus;
-    unsigned int
-        no_sdcard:1,
-        has_dynamic_sysbus:1;
-    int is_default;
-    const char *default_machine_opts;
-    const char *default_boot_order;
-};
-
 void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
                                           const char *name,
                                           uint64_t ram_size);
-
-int qemu_register_machine(QEMUMachine *m);
 
 #define TYPE_MACHINE_SUFFIX "-machine"
 
@@ -69,7 +43,6 @@ bool machine_mem_merge(MachineState *machine);
 
 /**
  * MachineClass:
- * @qemu_machine: #QEMUMachine
  * @get_hotplug_handler: this function is called during bus-less
  *    device hotplug. If defined it returns pointer to an instance
  *    of HotplugHandler object, which handles hotplug operation
