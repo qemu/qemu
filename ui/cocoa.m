@@ -910,7 +910,7 @@ QemuCocoaView *cocoaView;
                   returnCode:returnCode contextInfo:NULL ]; } ];
 #else
         // Compatibility code for pre-10.6, using deprecated method
-        [op beginSheetForDirectory:nil file:nil types:filetypes
+        [op beginSheetForDirectory:nil file:nil types:supportedImageFileTypes
               modalForWindow:normalWindow modalDelegate:self
               didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:NULL];
 #endif
