@@ -1101,9 +1101,9 @@ static const GLenum kelvin_primitive_map[] = {
     GL_TRIANGLES,
     GL_TRIANGLE_STRIP,
     GL_TRIANGLE_FAN,
-    GL_LINES_ADJACENCY, // GL_QUADS,
-    // GL_QUAD_STRIP,
-    // GL_POLYGON,
+    GL_LINES_ADJACENCY, /* QUADS */
+    GL_LINE_STRIP_ADJACENCY, /* QUAD_STRIP */
+    GL_TRIANGLE_FAN /* POLYGON */
 };
 
 static const GLenum pgraph_texture_min_filter_map[] = {
@@ -5329,6 +5329,15 @@ static void pgraph_method(NV2AState *d,
             assert(front_mode < ARRAYSIZE(pgraph_polygon_mode_map));
             glPolygonMode(GL_FRONT_AND_BACK,
                           pgraph_polygon_mode_map[front_mode]);
+            /* FIXME: Line rendering for POLYGON can be done using line loop,
+             *        QUADS and QUAD_STRIP need a geometry shader. Also what
+             *        about the interpolation / provoking vertex for flat
+             *        shaded points / lines?
+             */
+            assert(!((pg->primitive_mode == PRIM_TYPE_QUADS ||
+                      pg->primitive_mode == PRIM_TYPE_QUAD_STRIP ||
+                      pg->primitive_mode == PRIM_TYPE_POLYGON) &&
+                     front_mode == NV_PGRAPH_SETUPRASTER_FRONTFACEMODE_LINE));
 
             /* Polygon offset */
             /* FIXME: GL implementation-specific, maybe do this in VS? */

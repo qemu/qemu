@@ -39,6 +39,7 @@ static QString* generate_geometry_shader(enum ShaderPrimitiveMode primitive_mode
     qstring_append(s, "\n");
     switch (primitive_mode) {
     case PRIM_TYPE_QUADS:
+    case PRIM_TYPE_QUAD_STRIP:
         qstring_append(s, "layout(lines_adjacency) in;\n");
         qstring_append(s, "layout(triangle_strip, max_vertices = 4) out;\n");
         break;
@@ -62,6 +63,15 @@ static QString* generate_geometry_shader(enum ShaderPrimitiveMode primitive_mode
         generate_geometry_shader_pass_vertex(s, "3");
         generate_geometry_shader_pass_vertex(s, "2");
         qstring_append(s, "EndPrimitive();\n");
+        break;
+    case PRIM_TYPE_QUAD_STRIP:
+        qstring_append(s, "if ((gl_PrimitiveIDIn & 1) == 0) {\n");
+        generate_geometry_shader_pass_vertex(s, "0");
+        generate_geometry_shader_pass_vertex(s, "1");
+        generate_geometry_shader_pass_vertex(s, "2");
+        generate_geometry_shader_pass_vertex(s, "3");
+        qstring_append(s, "  EndPrimitive();\n"
+                          "}");
         break;
     default:
         assert(false);
@@ -593,7 +603,8 @@ ShaderBinding* generate_shaders(const ShaderState state)
 {
     int i, j;
 
-    bool with_geom = state.primitive_mode == PRIM_TYPE_QUADS;
+    bool with_geom = state.primitive_mode == PRIM_TYPE_QUADS ||
+                     state.primitive_mode == PRIM_TYPE_QUAD_STRIP;
     char vtx_prefix = with_geom ? 'v' : 'g';
 
     GLuint program = glCreateProgram();
