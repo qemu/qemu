@@ -145,15 +145,10 @@ static void imx25_pdk_init(MachineState *machine)
     }
 }
 
-static QEMUMachine imx25_pdk_machine = {
-    .name = "imx25_pdk",
-    .desc = "ARM i.MX25 PDK board (ARM926)",
-    .init = imx25_pdk_init,
-};
-
-static void imx25_pdk_machine_init(void)
+static void imx25_pdk_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&imx25_pdk_machine);
+    mc->desc = "ARM i.MX25 PDK board (ARM926)";
+    mc->init = imx25_pdk_init;
 }
 
-machine_init(imx25_pdk_machine_init)
+DEFINE_MACHINE("imx25_pdk", imx25_pdk_machine_init)

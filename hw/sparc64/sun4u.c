@@ -965,30 +965,36 @@ static void niagara_init(MachineState *machine)
     sun4uv_init(get_system_memory(), machine, &hwdefs[2]);
 }
 
-static QEMUMachine sun4u_machine = {
-    .name = "sun4u",
-    .desc = "Sun4u platform",
-    .init = sun4u_init,
-    .max_cpus = 1, // XXX for now
-    .is_default = 1,
-    .default_boot_order = "c",
-};
+static void sun4u_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4u platform";
+    mc->init = sun4u_init;
+    mc->max_cpus = 1; /* XXX for now */
+    mc->is_default = 1;
+    mc->default_boot_order = "c";
+}
 
-static QEMUMachine sun4v_machine = {
-    .name = "sun4v",
-    .desc = "Sun4v platform",
-    .init = sun4v_init,
-    .max_cpus = 1, // XXX for now
-    .default_boot_order = "c",
-};
+DEFINE_MACHINE("sun4u", sun4u_machine_init)
 
-static QEMUMachine niagara_machine = {
-    .name = "Niagara",
-    .desc = "Sun4v platform, Niagara",
-    .init = niagara_init,
-    .max_cpus = 1, // XXX for now
-    .default_boot_order = "c",
-};
+static void sun4v_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4v platform";
+    mc->init = sun4v_init;
+    mc->max_cpus = 1; /* XXX for now */
+    mc->default_boot_order = "c";
+}
+
+DEFINE_MACHINE("sun4v", sun4v_machine_init)
+
+static void niagara_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4v platform, Niagara";
+    mc->init = niagara_init;
+    mc->max_cpus = 1; /* XXX for now */
+    mc->default_boot_order = "c";
+}
+
+DEFINE_MACHINE("Niagara", niagara_machine_init)
 
 static void sun4u_register_types(void)
 {
@@ -997,12 +1003,4 @@ static void sun4u_register_types(void)
     type_register_static(&ram_info);
 }
 
-static void sun4u_machine_init(void)
-{
-    qemu_register_machine(&sun4u_machine);
-    qemu_register_machine(&sun4v_machine);
-    qemu_register_machine(&niagara_machine);
-}
-
 type_init(sun4u_register_types)
-machine_init(sun4u_machine_init);

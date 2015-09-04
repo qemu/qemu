@@ -132,17 +132,12 @@ static void openrisc_sim_init(MachineState *machine)
     cpu_openrisc_load_kernel(ram_size, kernel_filename, cpu);
 }
 
-static QEMUMachine openrisc_sim_machine = {
-    .name = "or32-sim",
-    .desc = "or32 simulation",
-    .init = openrisc_sim_init,
-    .max_cpus = 1,
-    .is_default = 1,
-};
-
-static void openrisc_sim_machine_init(void)
+static void openrisc_sim_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&openrisc_sim_machine);
+    mc->desc = "or32 simulation";
+    mc->init = openrisc_sim_init;
+    mc->max_cpus = 1;
+    mc->is_default = 1;
 }
 
-machine_init(openrisc_sim_machine_init);
+DEFINE_MACHINE("or32-sim", openrisc_sim_machine_init)

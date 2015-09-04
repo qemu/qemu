@@ -68,15 +68,10 @@ static void xlnx_ep108_init(MachineState *machine)
     arm_load_kernel(s->soc.boot_cpu_ptr, &xlnx_ep108_binfo);
 }
 
-static QEMUMachine xlnx_ep108_machine = {
-    .name = "xlnx-ep108",
-    .desc = "Xilinx ZynqMP EP108 board",
-    .init = xlnx_ep108_init,
-};
-
-static void xlnx_ep108_machine_init(void)
+static void xlnx_ep108_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&xlnx_ep108_machine);
+    mc->desc = "Xilinx ZynqMP EP108 board";
+    mc->init = xlnx_ep108_init;
 }
 
-machine_init(xlnx_ep108_machine_init);
+DEFINE_MACHINE("xlnx-ep108", xlnx_ep108_machine_init)

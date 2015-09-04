@@ -252,18 +252,13 @@ static void tosa_init(MachineState *machine)
     sl_bootparam_write(SL_PXA_PARAM_BASE);
 }
 
-static QEMUMachine tosapda_machine = {
-    .name = "tosa",
-    .desc = "Tosa PDA (PXA255)",
-    .init = tosa_init,
-};
-
-static void tosapda_machine_init(void)
+static void tosapda_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&tosapda_machine);
+    mc->desc = "Tosa PDA (PXA255)";
+    mc->init = tosa_init;
 }
 
-machine_init(tosapda_machine_init);
+DEFINE_MACHINE("tosa", tosapda_machine_init)
 
 static void tosa_dac_class_init(ObjectClass *klass, void *data)
 {

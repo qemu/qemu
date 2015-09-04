@@ -399,41 +399,39 @@ static void realview_pbx_a9_init(MachineState *machine)
     realview_init(machine, BOARD_PBX_A9);
 }
 
-static QEMUMachine realview_eb_machine = {
-    .name = "realview-eb",
-    .desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)",
-    .init = realview_eb_init,
-    .block_default_type = IF_SCSI,
-};
-
-static QEMUMachine realview_eb_mpcore_machine = {
-    .name = "realview-eb-mpcore",
-    .desc = "ARM RealView Emulation Baseboard (ARM11MPCore)",
-    .init = realview_eb_mpcore_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
-};
-
-static QEMUMachine realview_pb_a8_machine = {
-    .name = "realview-pb-a8",
-    .desc = "ARM RealView Platform Baseboard for Cortex-A8",
-    .init = realview_pb_a8_init,
-};
-
-static QEMUMachine realview_pbx_a9_machine = {
-    .name = "realview-pbx-a9",
-    .desc = "ARM RealView Platform Baseboard Explore for Cortex-A9",
-    .init = realview_pbx_a9_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
-};
-
-static void realview_machine_init(void)
+static void realview_eb_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&realview_eb_machine);
-    qemu_register_machine(&realview_eb_mpcore_machine);
-    qemu_register_machine(&realview_pb_a8_machine);
-    qemu_register_machine(&realview_pbx_a9_machine);
+    mc->desc = "ARM RealView Emulation Baseboard (ARM926EJ-S)";
+    mc->init = realview_eb_init;
+    mc->block_default_type = IF_SCSI;
 }
 
-machine_init(realview_machine_init);
+DEFINE_MACHINE("realview-eb", realview_eb_machine_init)
+
+static void realview_eb_mpcore_machine_init(MachineClass *mc)
+{
+    mc->desc = "ARM RealView Emulation Baseboard (ARM11MPCore)";
+    mc->init = realview_eb_mpcore_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 4;
+}
+
+DEFINE_MACHINE("realview-eb-mpcore", realview_eb_mpcore_machine_init)
+
+static void realview_pb_a8_machine_init(MachineClass *mc)
+{
+    mc->desc = "ARM RealView Platform Baseboard for Cortex-A8";
+    mc->init = realview_pb_a8_init;
+}
+
+DEFINE_MACHINE("realview-pb-a8", realview_pb_a8_machine_init)
+
+static void realview_pbx_a9_machine_init(MachineClass *mc)
+{
+    mc->desc = "ARM RealView Platform Baseboard Explore for Cortex-A9";
+    mc->init = realview_pbx_a9_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 4;
+}
+
+DEFINE_MACHINE("realview-pbx-a9", realview_pbx_a9_machine_init)

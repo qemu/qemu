@@ -1205,23 +1205,19 @@ static const TypeInfo mips_malta_device = {
     .class_init    = mips_malta_class_init,
 };
 
-static QEMUMachine mips_malta_machine = {
-    .name = "malta",
-    .desc = "MIPS Malta Core LV",
-    .init = mips_malta_init,
-    .max_cpus = 16,
-    .is_default = 1,
-};
+static void mips_malta_machine_init(MachineClass *mc)
+{
+    mc->desc = "MIPS Malta Core LV";
+    mc->init = mips_malta_init;
+    mc->max_cpus = 16;
+    mc->is_default = 1;
+}
+
+DEFINE_MACHINE("malta", mips_malta_machine_init)
 
 static void mips_malta_register_types(void)
 {
     type_register_static(&mips_malta_device);
 }
 
-static void mips_malta_machine_init(void)
-{
-    qemu_register_machine(&mips_malta_machine);
-}
-
 type_init(mips_malta_register_types)
-machine_init(mips_malta_machine_init);

@@ -391,27 +391,23 @@ static void vab_init(MachineState *machine)
     versatile_init(machine, 0x25e);
 }
 
-static QEMUMachine versatilepb_machine = {
-    .name = "versatilepb",
-    .desc = "ARM Versatile/PB (ARM926EJ-S)",
-    .init = vpb_init,
-    .block_default_type = IF_SCSI,
-};
-
-static QEMUMachine versatileab_machine = {
-    .name = "versatileab",
-    .desc = "ARM Versatile/AB (ARM926EJ-S)",
-    .init = vab_init,
-    .block_default_type = IF_SCSI,
-};
-
-static void versatile_machine_init(void)
+static void versatilepb_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&versatilepb_machine);
-    qemu_register_machine(&versatileab_machine);
+    mc->desc = "ARM Versatile/PB (ARM926EJ-S)";
+    mc->init = vpb_init;
+    mc->block_default_type = IF_SCSI;
 }
 
-machine_init(versatile_machine_init);
+DEFINE_MACHINE("versatilepb", versatilepb_machine_init)
+
+static void versatileab_machine_init(MachineClass *mc)
+{
+    mc->desc = "ARM Versatile/AB (ARM926EJ-S)";
+    mc->init = vab_init;
+    mc->block_default_type = IF_SCSI;
+}
+
+DEFINE_MACHINE("versatileab", versatileab_machine_init)
 
 static void vpb_sic_class_init(ObjectClass *klass, void *data)
 {

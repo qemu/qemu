@@ -121,22 +121,18 @@ static void verdex_init(MachineState *machine)
                     qdev_get_gpio_in(cpu->gpio, 99));
 }
 
-static QEMUMachine connex_machine = {
-    .name = "connex",
-    .desc = "Gumstix Connex (PXA255)",
-    .init = connex_init,
-};
-
-static QEMUMachine verdex_machine = {
-    .name = "verdex",
-    .desc = "Gumstix Verdex (PXA270)",
-    .init = verdex_init,
-};
-
-static void gumstix_machine_init(void)
+static void connex_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&connex_machine);
-    qemu_register_machine(&verdex_machine);
+    mc->desc = "Gumstix Connex (PXA255)";
+    mc->init = connex_init;
 }
 
-machine_init(gumstix_machine_init);
+DEFINE_MACHINE("connex", connex_machine_init)
+
+static void verdex_machine_init(MachineClass *mc)
+{
+    mc->desc = "Gumstix Verdex (PXA270)";
+    mc->init = verdex_init;
+}
+
+DEFINE_MACHINE("verdex", verdex_machine_init)

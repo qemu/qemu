@@ -168,17 +168,12 @@ static void clipper_init(MachineState *machine)
     }
 }
 
-static QEMUMachine clipper_machine = {
-    .name = "clipper",
-    .desc = "Alpha DP264/CLIPPER",
-    .init = clipper_init,
-    .max_cpus = 4,
-    .is_default = 1,
-};
-
-static void clipper_machine_init(void)
+static void clipper_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&clipper_machine);
+    mc->desc = "Alpha DP264/CLIPPER";
+    mc->init = clipper_init;
+    mc->max_cpus = 4;
+    mc->is_default = 1;
 }
 
-machine_init(clipper_machine_init);
+DEFINE_MACHINE("clipper", clipper_machine_init)

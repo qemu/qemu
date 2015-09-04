@@ -349,24 +349,20 @@ void mips_pica61_init(MachineState *machine)
     mips_jazz_init(machine, JAZZ_PICA61);
 }
 
-static QEMUMachine mips_magnum_machine = {
-    .name = "magnum",
-    .desc = "MIPS Magnum",
-    .init = mips_magnum_init,
-    .block_default_type = IF_SCSI,
-};
-
-static QEMUMachine mips_pica61_machine = {
-    .name = "pica61",
-    .desc = "Acer Pica 61",
-    .init = mips_pica61_init,
-    .block_default_type = IF_SCSI,
-};
-
-static void mips_jazz_machine_init(void)
+static void mips_magnum_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&mips_magnum_machine);
-    qemu_register_machine(&mips_pica61_machine);
+    mc->desc = "MIPS Magnum";
+    mc->init = mips_magnum_init;
+    mc->block_default_type = IF_SCSI;
 }
 
-machine_init(mips_jazz_machine_init);
+DEFINE_MACHINE("magnum", mips_magnum_machine_init)
+
+static void mips_pica61_machine_init(MachineClass *mc)
+{
+    mc->desc = "Acer Pica 61";
+    mc->init = mips_pica61_init;
+    mc->block_default_type = IF_SCSI;
+}
+
+DEFINE_MACHINE("pica61", mips_pica61_machine_init)

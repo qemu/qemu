@@ -1420,81 +1420,99 @@ static void sbook_init(MachineState *machine)
     sun4m_hw_init(&sun4m_hwdefs[8], machine);
 }
 
-static QEMUMachine ss5_machine = {
-    .name = "SS-5",
-    .desc = "Sun4m platform, SPARCstation 5",
-    .init = ss5_init,
-    .block_default_type = IF_SCSI,
-    .is_default = 1,
-    .default_boot_order = "c",
-};
+static void ss5_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCstation 5";
+    mc->init = ss5_init;
+    mc->block_default_type = IF_SCSI;
+    mc->is_default = 1;
+    mc->default_boot_order = "c";
+}
 
-static QEMUMachine ss10_machine = {
-    .name = "SS-10",
-    .desc = "Sun4m platform, SPARCstation 10",
-    .init = ss10_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
-    .default_boot_order = "c",
-};
+DEFINE_MACHINE("SS-5", ss5_machine_init)
 
-static QEMUMachine ss600mp_machine = {
-    .name = "SS-600MP",
-    .desc = "Sun4m platform, SPARCserver 600MP",
-    .init = ss600mp_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
-    .default_boot_order = "c",
-};
+static void ss10_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCstation 10";
+    mc->init = ss10_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 4;
+    mc->default_boot_order = "c";
+}
 
-static QEMUMachine ss20_machine = {
-    .name = "SS-20",
-    .desc = "Sun4m platform, SPARCstation 20",
-    .init = ss20_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
-    .default_boot_order = "c",
-};
+DEFINE_MACHINE("SS-10", ss10_machine_init)
 
-static QEMUMachine voyager_machine = {
-    .name = "Voyager",
-    .desc = "Sun4m platform, SPARCstation Voyager",
-    .init = vger_init,
-    .block_default_type = IF_SCSI,
-    .default_boot_order = "c",
-};
+static void ss600mp_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCserver 600MP";
+    mc->init = ss600mp_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 4;
+    mc->default_boot_order = "c";
+}
 
-static QEMUMachine ss_lx_machine = {
-    .name = "LX",
-    .desc = "Sun4m platform, SPARCstation LX",
-    .init = ss_lx_init,
-    .block_default_type = IF_SCSI,
-    .default_boot_order = "c",
-};
+DEFINE_MACHINE("SS-600MP", ss600mp_machine_init)
 
-static QEMUMachine ss4_machine = {
-    .name = "SS-4",
-    .desc = "Sun4m platform, SPARCstation 4",
-    .init = ss4_init,
-    .block_default_type = IF_SCSI,
-    .default_boot_order = "c",
-};
+static void ss20_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCstation 20";
+    mc->init = ss20_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 4;
+    mc->default_boot_order = "c";
+}
 
-static QEMUMachine scls_machine = {
-    .name = "SPARCClassic",
-    .desc = "Sun4m platform, SPARCClassic",
-    .init = scls_init,
-    .block_default_type = IF_SCSI,
-    .default_boot_order = "c",
-};
+DEFINE_MACHINE("SS-20", ss20_machine_init)
 
-static QEMUMachine sbook_machine = {
-    .name = "SPARCbook",
-    .desc = "Sun4m platform, SPARCbook",
-    .init = sbook_init,
-    .block_default_type = IF_SCSI,
-    .default_boot_order = "c",
-};
+static void voyager_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCstation Voyager";
+    mc->init = vger_init;
+    mc->block_default_type = IF_SCSI;
+    mc->default_boot_order = "c";
+}
+
+DEFINE_MACHINE("Voyager", voyager_machine_init)
+
+static void ss_lx_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCstation LX";
+    mc->init = ss_lx_init;
+    mc->block_default_type = IF_SCSI;
+    mc->default_boot_order = "c";
+}
+
+DEFINE_MACHINE("LX", ss_lx_machine_init)
+
+static void ss4_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCstation 4";
+    mc->init = ss4_init;
+    mc->block_default_type = IF_SCSI;
+    mc->default_boot_order = "c";
+}
+
+DEFINE_MACHINE("SS-4", ss4_machine_init)
+
+static void scls_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCClassic";
+    mc->init = scls_init;
+    mc->block_default_type = IF_SCSI;
+    mc->default_boot_order = "c";
+}
+
+DEFINE_MACHINE("SPARCClassic", scls_machine_init)
+
+static void sbook_machine_init(MachineClass *mc)
+{
+    mc->desc = "Sun4m platform, SPARCbook";
+    mc->init = sbook_init;
+    mc->block_default_type = IF_SCSI;
+    mc->default_boot_order = "c";
+}
+
+DEFINE_MACHINE("SPARCbook", sbook_machine_init)
 
 static void sun4m_register_types(void)
 {
@@ -1504,18 +1522,4 @@ static void sun4m_register_types(void)
     type_register_static(&ram_info);
 }
 
-static void sun4m_machine_init(void)
-{
-    qemu_register_machine(&ss5_machine);
-    qemu_register_machine(&ss10_machine);
-    qemu_register_machine(&ss600mp_machine);
-    qemu_register_machine(&ss20_machine);
-    qemu_register_machine(&voyager_machine);
-    qemu_register_machine(&ss_lx_machine);
-    qemu_register_machine(&ss4_machine);
-    qemu_register_machine(&scls_machine);
-    qemu_register_machine(&sbook_machine);
-}
-
 type_init(sun4m_register_types)
-machine_init(sun4m_machine_init);

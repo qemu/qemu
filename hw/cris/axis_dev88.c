@@ -351,16 +351,11 @@ void axisdev88_init(MachineState *machine)
     }
 }
 
-static QEMUMachine axisdev88_machine = {
-    .name = "axis-dev88",
-    .desc = "AXIS devboard 88",
-    .init = axisdev88_init,
-    .is_default = 1,
-};
-
-static void axisdev88_machine_init(void)
+static void axisdev88_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&axisdev88_machine);
+    mc->desc = "AXIS devboard 88";
+    mc->init = axisdev88_init;
+    mc->is_default = 1;
 }
 
-machine_init(axisdev88_machine_init);
+DEFINE_MACHINE("axis-dev88", axisdev88_machine_init)

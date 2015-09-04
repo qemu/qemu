@@ -130,16 +130,11 @@ static void puv3_init(MachineState *machine)
     puv3_load_kernel(kernel_filename);
 }
 
-static QEMUMachine puv3_machine = {
-    .name = "puv3",
-    .desc = "PKUnity Version-3 based on UniCore32",
-    .init = puv3_init,
-    .is_default = 1,
-};
-
-static void puv3_machine_init(void)
+static void puv3_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&puv3_machine);
+    mc->desc = "PKUnity Version-3 based on UniCore32";
+    mc->init = puv3_init;
+    mc->is_default = 1;
 }
 
-machine_init(puv3_machine_init)
+DEFINE_MACHINE("puv3", puv3_machine_init)

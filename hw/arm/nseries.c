@@ -1413,24 +1413,20 @@ static void n810_init(MachineState *machine)
     n8x0_init(machine, &n810_binfo, 810);
 }
 
-static QEMUMachine n800_machine = {
-    .name = "n800",
-    .desc = "Nokia N800 tablet aka. RX-34 (OMAP2420)",
-    .init = n800_init,
-    .default_boot_order = "",
-};
-
-static QEMUMachine n810_machine = {
-    .name = "n810",
-    .desc = "Nokia N810 tablet aka. RX-44 (OMAP2420)",
-    .init = n810_init,
-    .default_boot_order = "",
-};
-
-static void nseries_machine_init(void)
+static void n800_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&n800_machine);
-    qemu_register_machine(&n810_machine);
+    mc->desc = "Nokia N800 tablet aka. RX-34 (OMAP2420)";
+    mc->init = n800_init;
+    mc->default_boot_order = "";
 }
 
-machine_init(nseries_machine_init);
+DEFINE_MACHINE("n800", n800_machine_init)
+
+static void n810_machine_init(MachineClass *mc)
+{
+    mc->desc = "Nokia N810 tablet aka. RX-44 (OMAP2420)";
+    mc->init = n810_init;
+    mc->default_boot_order = "";
+}
+
+DEFINE_MACHINE("n810", n810_machine_init)

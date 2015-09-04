@@ -428,40 +428,38 @@ static void xtensa_kc705_init(MachineState *machine)
     lx_init(&kc705_board, machine);
 }
 
-static QEMUMachine xtensa_lx60_machine = {
-    .name = "lx60",
-    .desc = "lx60 EVB (" XTENSA_DEFAULT_CPU_MODEL ")",
-    .init = xtensa_lx60_init,
-    .max_cpus = 4,
-};
-
-static QEMUMachine xtensa_lx200_machine = {
-    .name = "lx200",
-    .desc = "lx200 EVB (" XTENSA_DEFAULT_CPU_MODEL ")",
-    .init = xtensa_lx200_init,
-    .max_cpus = 4,
-};
-
-static QEMUMachine xtensa_ml605_machine = {
-    .name = "ml605",
-    .desc = "ml605 EVB (" XTENSA_DEFAULT_CPU_MODEL ")",
-    .init = xtensa_ml605_init,
-    .max_cpus = 4,
-};
-
-static QEMUMachine xtensa_kc705_machine = {
-    .name = "kc705",
-    .desc = "kc705 EVB (" XTENSA_DEFAULT_CPU_MODEL ")",
-    .init = xtensa_kc705_init,
-    .max_cpus = 4,
-};
-
-static void xtensa_lx_machines_init(void)
+static void xtensa_lx60_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&xtensa_lx60_machine);
-    qemu_register_machine(&xtensa_lx200_machine);
-    qemu_register_machine(&xtensa_ml605_machine);
-    qemu_register_machine(&xtensa_kc705_machine);
+    mc->desc = "lx60 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->init = xtensa_lx60_init;
+    mc->max_cpus = 4;
 }
 
-machine_init(xtensa_lx_machines_init);
+DEFINE_MACHINE("lx60", xtensa_lx60_machine_init)
+
+static void xtensa_lx200_machine_init(MachineClass *mc)
+{
+    mc->desc = "lx200 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->init = xtensa_lx200_init;
+    mc->max_cpus = 4;
+}
+
+DEFINE_MACHINE("lx200", xtensa_lx200_machine_init)
+
+static void xtensa_ml605_machine_init(MachineClass *mc)
+{
+    mc->desc = "ml605 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->init = xtensa_ml605_init;
+    mc->max_cpus = 4;
+}
+
+DEFINE_MACHINE("ml605", xtensa_ml605_machine_init)
+
+static void xtensa_kc705_machine_init(MachineClass *mc)
+{
+    mc->desc = "kc705 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->init = xtensa_kc705_init;
+    mc->max_cpus = 4;
+}
+
+DEFINE_MACHINE("kc705", xtensa_kc705_machine_init)

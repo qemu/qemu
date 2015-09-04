@@ -217,22 +217,18 @@ static void sx1_init_v2(MachineState *machine)
     sx1_init(machine, 2);
 }
 
-static QEMUMachine sx1_machine_v2 = {
-    .name = "sx1",
-    .desc = "Siemens SX1 (OMAP310) V2",
-    .init = sx1_init_v2,
-};
-
-static QEMUMachine sx1_machine_v1 = {
-    .name = "sx1-v1",
-    .desc = "Siemens SX1 (OMAP310) V1",
-    .init = sx1_init_v1,
-};
-
-static void sx1_machine_init(void)
+static void sx1_machine_v2_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&sx1_machine_v2);
-    qemu_register_machine(&sx1_machine_v1);
+    mc->desc = "Siemens SX1 (OMAP310) V2";
+    mc->init = sx1_init_v2;
 }
 
-machine_init(sx1_machine_init);
+DEFINE_MACHINE("sx1", sx1_machine_v2_machine_init)
+
+static void sx1_machine_v1_machine_init(MachineClass *mc)
+{
+    mc->desc = "Siemens SX1 (OMAP310) V1";
+    mc->init = sx1_init_v1;
+}
+
+DEFINE_MACHINE("sx1-v1", sx1_machine_v1_machine_init)

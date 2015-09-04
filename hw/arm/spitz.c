@@ -972,39 +972,37 @@ static void terrier_init(MachineState *machine)
     spitz_common_init(machine, terrier, 0x33f);
 }
 
-static QEMUMachine akitapda_machine = {
-    .name = "akita",
-    .desc = "Akita PDA (PXA270)",
-    .init = akita_init,
-};
-
-static QEMUMachine spitzpda_machine = {
-    .name = "spitz",
-    .desc = "Spitz PDA (PXA270)",
-    .init = spitz_init,
-};
-
-static QEMUMachine borzoipda_machine = {
-    .name = "borzoi",
-    .desc = "Borzoi PDA (PXA270)",
-    .init = borzoi_init,
-};
-
-static QEMUMachine terrierpda_machine = {
-    .name = "terrier",
-    .desc = "Terrier PDA (PXA270)",
-    .init = terrier_init,
-};
-
-static void spitz_machine_init(void)
+static void akitapda_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&akitapda_machine);
-    qemu_register_machine(&spitzpda_machine);
-    qemu_register_machine(&borzoipda_machine);
-    qemu_register_machine(&terrierpda_machine);
+    mc->desc = "Akita PDA (PXA270)";
+    mc->init = akita_init;
 }
 
-machine_init(spitz_machine_init);
+DEFINE_MACHINE("akita", akitapda_machine_init)
+
+static void spitzpda_machine_init(MachineClass *mc)
+{
+    mc->desc = "Spitz PDA (PXA270)";
+    mc->init = spitz_init;
+}
+
+DEFINE_MACHINE("spitz", spitzpda_machine_init)
+
+static void borzoipda_machine_init(MachineClass *mc)
+{
+    mc->desc = "Borzoi PDA (PXA270)";
+    mc->init = borzoi_init;
+}
+
+DEFINE_MACHINE("borzoi", borzoipda_machine_init)
+
+static void terrierpda_machine_init(MachineClass *mc)
+{
+    mc->desc = "Terrier PDA (PXA270)";
+    mc->init = terrier_init;
+}
+
+DEFINE_MACHINE("terrier", terrierpda_machine_init)
 
 static bool is_version_0(void *opaque, int version_id)
 {

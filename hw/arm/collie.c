@@ -58,15 +58,10 @@ static void collie_init(MachineState *machine)
     arm_load_kernel(s->cpu, &collie_binfo);
 }
 
-static QEMUMachine collie_machine = {
-    .name = "collie",
-    .desc = "Collie PDA (SA-1110)",
-    .init = collie_init,
-};
-
-static void collie_machine_init(void)
+static void collie_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&collie_machine);
+    mc->desc = "Collie PDA (SA-1110)";
+    mc->init = collie_init;
 }
 
-machine_init(collie_machine_init)
+DEFINE_MACHINE("collie", collie_machine_init)

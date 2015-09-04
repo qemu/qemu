@@ -1709,18 +1709,13 @@ static void musicpal_init(MachineState *machine)
     arm_load_kernel(cpu, &musicpal_binfo);
 }
 
-static QEMUMachine musicpal_machine = {
-    .name = "musicpal",
-    .desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)",
-    .init = musicpal_init,
-};
-
-static void musicpal_machine_init(void)
+static void musicpal_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&musicpal_machine);
+    mc->desc = "Marvell 88w8618 / MusicPal (ARM926EJ-S)";
+    mc->init = musicpal_init;
 }
 
-machine_init(musicpal_machine_init);
+DEFINE_MACHINE("musicpal", musicpal_machine_init)
 
 static void mv88w8618_wlan_class_init(ObjectClass *klass, void *data)
 {

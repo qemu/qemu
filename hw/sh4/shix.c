@@ -87,16 +87,11 @@ static void shix_init(MachineState *machine)
     tc58128_init(s, "shix_linux_nand.bin", NULL);
 }
 
-static QEMUMachine shix_machine = {
-    .name = "shix",
-    .desc = "shix card",
-    .init = shix_init,
-    .is_default = 1,
-};
-
-static void shix_machine_init(void)
+static void shix_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&shix_machine);
+    mc->desc = "shix card";
+    mc->init = shix_init;
+    mc->is_default = 1;
 }
 
-machine_init(shix_machine_init);
+DEFINE_MACHINE("shix", shix_machine_init)
