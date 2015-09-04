@@ -168,6 +168,11 @@ static const XIDDesc desc_xid_xbox_gamepad = {
 #define GAMEPAD_LEFT_THUMB_LEFT  18
 #define GAMEPAD_LEFT_THUMB_RIGHT 19
 
+#define GAMEPAD_RIGHT_THUMB_UP    20
+#define GAMEPAD_RIGHT_THUMB_DOWN  21
+#define GAMEPAD_RIGHT_THUMB_LEFT  22
+#define GAMEPAD_RIGHT_THUMB_RIGHT 23
+
 static const int gamepad_mapping[] = {
     [0 ... Q_KEY_CODE_MAX] = -1,
 
@@ -183,17 +188,27 @@ static const int gamepad_mapping[] = {
     [Q_KEY_CODE_RET]   = GAMEPAD_START,
     [Q_KEY_CODE_BACKSPACE] = GAMEPAD_BACK,
 
-    [Q_KEY_CODE_Z]     = GAMEPAD_A,
-    [Q_KEY_CODE_X]     = GAMEPAD_B,
-    [Q_KEY_CODE_A]     = GAMEPAD_X,
-    [Q_KEY_CODE_S]     = GAMEPAD_Y,
-    [Q_KEY_CODE_Q]     = GAMEPAD_LEFT_TRIGGER,
-    [Q_KEY_CODE_W]     = GAMEPAD_RIGHT_TRIGGER,
+    [Q_KEY_CODE_W]     = GAMEPAD_X,
+    [Q_KEY_CODE_E]     = GAMEPAD_Y,
+    [Q_KEY_CODE_S]     = GAMEPAD_A,
+    [Q_KEY_CODE_D]     = GAMEPAD_B,
+    [Q_KEY_CODE_X]     = GAMEPAD_WHITE,
+    [Q_KEY_CODE_C]     = GAMEPAD_BLACK,
 
-    [Q_KEY_CODE_U]     = GAMEPAD_LEFT_THUMB_UP,
-    [Q_KEY_CODE_J]     = GAMEPAD_LEFT_THUMB_DOWN,
-    [Q_KEY_CODE_H]     = GAMEPAD_LEFT_THUMB_LEFT,
-    [Q_KEY_CODE_K]     = GAMEPAD_LEFT_THUMB_RIGHT,
+    [Q_KEY_CODE_Q]     = GAMEPAD_LEFT_TRIGGER,
+    [Q_KEY_CODE_R]     = GAMEPAD_RIGHT_TRIGGER,
+
+    [Q_KEY_CODE_V]     = GAMEPAD_LEFT_THUMB,
+    [Q_KEY_CODE_T]     = GAMEPAD_LEFT_THUMB_UP,
+    [Q_KEY_CODE_F]     = GAMEPAD_LEFT_THUMB_LEFT,
+    [Q_KEY_CODE_G]     = GAMEPAD_LEFT_THUMB_DOWN,
+    [Q_KEY_CODE_H]     = GAMEPAD_LEFT_THUMB_RIGHT,
+
+    [Q_KEY_CODE_M]     = GAMEPAD_RIGHT_THUMB,
+    [Q_KEY_CODE_I]     = GAMEPAD_RIGHT_THUMB_UP,
+    [Q_KEY_CODE_J]     = GAMEPAD_RIGHT_THUMB_LEFT,
+    [Q_KEY_CODE_K]     = GAMEPAD_RIGHT_THUMB_DOWN,
+    [Q_KEY_CODE_L]     = GAMEPAD_RIGHT_THUMB_RIGHT,
 };
 
 static void xbox_gamepad_keyboard_event(void *opaque, int keycode)
@@ -230,6 +245,19 @@ static void xbox_gamepad_keyboard_event(void *opaque, int keycode)
         break;
     case GAMEPAD_LEFT_THUMB_RIGHT:
         s->in_state.sThumbLX = up?0:32767;
+        break;
+
+    case GAMEPAD_RIGHT_THUMB_UP:
+        s->in_state.sThumbRY = up?0:32767;
+        break;
+    case GAMEPAD_RIGHT_THUMB_DOWN:
+        s->in_state.sThumbRY = up?0:-32768;
+        break;
+    case GAMEPAD_RIGHT_THUMB_LEFT:
+        s->in_state.sThumbRX = up?0:-32768;
+        break;
+    case GAMEPAD_RIGHT_THUMB_RIGHT:
+        s->in_state.sThumbRX = up?0:32767;
         break;
     default:
         break;
