@@ -74,4 +74,22 @@ incompatible_features     0x0
 incompatible_features     0x0
 No errors were found on the image.
 No errors were found on the image.
+
+== Changing lazy_refcounts setting at runtime ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+./common.config: Killed                  ( exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@" )
+incompatible_features     0x1
+ERROR cluster 5 refcount=0 reference=1
+ERROR OFLAG_COPIED data cluster: l2_entry=8000000000050000 refcount=0
+
+2 errors were found on the image.
+Data may be corrupted, or further writes to the image may corrupt it.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+./common.config: Killed                  ( exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@" )
+incompatible_features     0x0
+No errors were found on the image.
 *** done
