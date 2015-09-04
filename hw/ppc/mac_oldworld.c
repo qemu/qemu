@@ -365,7 +365,8 @@ static QEMUMachine heathrow_machine = {
 #ifndef TARGET_PPC64
     .is_default = 1,
 #endif
-    .default_boot_order = "cd", /* TOFIX "cad" when Mac floppy is implemented */
+    /* TOFIX "cad" when Mac floppy is implemented */
+    .default_boot_order = "cd",
     .kvm_type = heathrow_kvm_type,
 };
 
