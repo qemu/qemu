@@ -664,7 +664,7 @@ static const char* vsh_header =
     "#define ARL(dest, src) dest = _ARL(_in(src).x)\n"
     "int _ARL(float src)\n"
     "{\n"
-    "  return int(src);\n"
+    "  return int(floor(src));\n"
     "}\n"
     "\n"
     "#define SGE(dest, mask, src0, src1) dest.mask = _SGE(_in(src0), _in(src1)).mask\n"
