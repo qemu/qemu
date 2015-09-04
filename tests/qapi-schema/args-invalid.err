@@ -1,0 +1,1 @@
+tests/qapi-schema/args-invalid.json:1: 'data' for command 'foo' should be a dictionary or type name

@@ -1,0 +1,4 @@
+# we do not allow union arguments
+# TODO should we support this?
+{ 'union': 'Uni', 'data': { 'case1': 'int', 'case2': 'str' } }
+{ 'command': 'oops', 'data': 'Uni' }

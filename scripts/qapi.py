@@ -341,6 +341,8 @@ def discriminator_find_enum_define(expr):
 
     return find_enum(discriminator_type)
 
+# FIXME should enforce "other than downstream extensions [...], all
+# names should begin with a letter".
 valid_name = re.compile('^[a-zA-Z_][a-zA-Z0-9_.-]*$')
 def check_name(expr_info, source, name, allow_optional = False,
                enum_member = False):
@@ -367,6 +369,8 @@ def check_name(expr_info, source, name, allow_optional = False,
 def add_name(name, info, meta, implicit = False):
     global all_names
     check_name(info, "'%s'" % meta, name)
+    # FIXME should reject names that differ only in '_' vs. '.'
+    # vs. '-', because they're liable to clash in generated C.
     if name in all_names:
         raise QAPIExprError(info,
                             "%s '%s' is already defined"
@@ -422,7 +426,6 @@ def check_type(expr_info, source, value, allow_array = False,
                allow_dict = False, allow_optional = False,
                allow_star = False, allow_metas = []):
     global all_names
-    orig_value = value
 
     if value is None:
         return
@@ -440,7 +443,6 @@ def check_type(expr_info, source, value, allow_array = False,
                                 "%s: array type must contain single type name"
                                 % source)
         value = value[0]
-        orig_value = "array of %s" %value
 
     # Check if type name for value is okay
     if isinstance(value, str):
@@ -451,20 +453,22 @@ def check_type(expr_info, source, value, allow_array = False,
         if not value in all_names:
             raise QAPIExprError(expr_info,
                                 "%s uses unknown type '%s'"
-                                % (source, orig_value))
+                                % (source, value))
         if not all_names[value] in allow_metas:
             raise QAPIExprError(expr_info,
                                 "%s cannot use %s type '%s'"
-                                % (source, all_names[value], orig_value))
+                                % (source, all_names[value], value))
         return
 
-    # value is a dictionary, check that each member is okay
-    if not isinstance(value, OrderedDict):
-        raise QAPIExprError(expr_info,
-                            "%s should be a dictionary" % source)
     if not allow_dict:
         raise QAPIExprError(expr_info,
                             "%s should be a type name" % source)
+
+    if not isinstance(value, OrderedDict):
+        raise QAPIExprError(expr_info,
+                            "%s should be a dictionary or type name" % source)
+
+    # value is a dictionary, check that each member is okay
     for (key, arg) in value.items():
         check_name(expr_info, "Member of %s" % source, key,
                    allow_optional=allow_optional)
@@ -495,26 +499,25 @@ def check_command(expr, expr_info):
 
     check_type(expr_info, "'data' for command '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
-               allow_metas=['union', 'struct'], allow_star=allow_star)
+               allow_metas=['struct'], allow_star=allow_star)
     returns_meta = ['union', 'struct']
     if name in returns_whitelist:
         returns_meta += ['built-in', 'alternate', 'enum']
     check_type(expr_info, "'returns' for command '%s'" % name,
-               expr.get('returns'), allow_array=True, allow_dict=True,
+               expr.get('returns'), allow_array=True,
                allow_optional=True, allow_metas=returns_meta,
                allow_star=allow_star)
 
 def check_event(expr, expr_info):
     global events
     name = expr['event']
-    params = expr.get('data')
 
     if name.upper() == 'MAX':
         raise QAPIExprError(expr_info, "Event name 'MAX' cannot be created")
     events.append(name)
     check_type(expr_info, "'data' for event '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
-               allow_metas=['union', 'struct'])
+               allow_metas=['struct'])
 
 def check_union(expr, expr_info):
     name = expr['union']
@@ -522,14 +525,6 @@ def check_union(expr, expr_info):
     discriminator = expr.get('discriminator')
     members = expr['data']
     values = { 'MAX': '(automatic)' }
-
-    # If the object has a member 'base', its value must name a struct,
-    # and there must be a discriminator.
-    if base is not None:
-        if discriminator is None:
-            raise QAPIExprError(expr_info,
-                                "Union '%s' requires a discriminator to go "
-                                "along with base" %name)
 
     # Two types of unions, determined by discriminator.
 
@@ -943,24 +938,24 @@ def pop_indent(indent_amount=4):
     global indent_level
     indent_level -= indent_amount
 
+# Generate @code with @kwds interpolated.
+# Obey indent_level, and strip eatspace.
 def cgen(code, **kwds):
-    indent = genindent(indent_level)
-    lines = code.split('\n')
-    lines = map(lambda x: indent + x, lines)
-    return '\n'.join(lines) % kwds + '\n'
-
-def mcgen(code, **kwds):
-    raw = cgen('\n'.join(code.split('\n')[1:-1]), **kwds)
+    raw = code % kwds
+    if indent_level:
+        indent = genindent(indent_level)
+        raw = re.subn("^.", indent + r'\g<0>', raw, 0, re.MULTILINE)
+        raw = raw[0]
     return re.sub(re.escape(eatspace) + ' *', '', raw)
 
-def basename(filename):
-    return filename.split("/")[-1]
+def mcgen(code, **kwds):
+    if code[0] == '\n':
+        code = code[1:]
+    return cgen(code, **kwds)
+
 
 def guardname(filename):
-    guard = basename(filename).rsplit(".", 1)[0]
-    for substr in [".", " ", "-"]:
-        guard = guard.replace(substr, "_")
-    return guard.upper() + '_H'
+    return c_name(filename, protect=False).upper()
 
 def guardstart(name):
     return mcgen('''
@@ -1003,6 +998,12 @@ def parse_command_line(extra_options = "", extra_long_options = []):
     for oa in opts:
         o, a = oa
         if o in ("-p", "--prefix"):
+            match = re.match('([A-Za-z_.-][A-Za-z0-9_.-]*)?', a)
+            if match.end() != len(a):
+                print >>sys.stderr, \
+                    "%s: 'funny character '%s' in argument of --prefix" \
+                    % (sys.argv[0], a[match.end()])
+                sys.exit(1)
             prefix = a
         elif o in ("-o", "--output-dir"):
             output_dir = a + "/"
@@ -1030,14 +1031,16 @@ def parse_command_line(extra_options = "", extra_long_options = []):
 
 def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
                 c_comment, h_comment):
+    guard = guardname(prefix + h_file)
     c_file = output_dir + prefix + c_file
     h_file = output_dir + prefix + h_file
 
-    try:
-        os.makedirs(output_dir)
-    except os.error, e:
-        if e.errno != errno.EEXIST:
-            raise
+    if output_dir:
+        try:
+            os.makedirs(output_dir)
+        except os.error, e:
+            if e.errno != errno.EEXIST:
+                raise
 
     def maybe_open(really, name, opt):
         if really:
@@ -1062,7 +1065,7 @@ def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
 #define %(guard)s
 
 ''',
-                      comment = h_comment, guard = guardname(h_file)))
+                      comment = h_comment, guard = guard))
 
     return (fdef, fdecl)
 

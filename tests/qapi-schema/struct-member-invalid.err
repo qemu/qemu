@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-invalid.json:1: Member 'a' of 'data' for struct 'foo' should be a type name

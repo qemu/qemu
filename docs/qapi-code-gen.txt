@@ -163,7 +163,7 @@ The QAPI schema definitions can be modularized using the 'include' directive:
 
 The directive is evaluated recursively, and include paths are relative to the
 file using the directive. Multiple includes of the same file are
-safe.  No other keys should appear in the expression, and the include
+idempotent.  No other keys should appear in the expression, and the include
 value should be a string.
 
 As a matter of style, it is a good idea to have all files be
@@ -300,7 +300,6 @@ an implicit C enum 'NameKind' is created, corresponding to the union
 the union can be named 'max', as this would collide with the implicit
 enum.  The value for each branch can be of any type.
 
-
 A flat union definition specifies a struct as its base, and
 avoids nesting on the wire.  All branches of the union must be
 complex types, and the top-level fields of the union dictionary on
@@ -314,7 +313,7 @@ adding a common field 'readonly', renaming the discriminator to
 something more applicable, and reducing the number of {} required on
 the wire:
 
- { 'enum': 'BlockdevDriver', 'data': [ 'raw', 'qcow2' ] }
+ { 'enum': 'BlockdevDriver', 'data': [ 'file', 'qcow2' ] }
  { 'struct': 'BlockdevCommonOptions',
    'data': { 'driver': 'BlockdevDriver', 'readonly': 'bool' } }
  { 'union': 'BlockdevOptions',
@@ -350,7 +349,7 @@ is identical on the wire to:
  { 'struct': 'Base', 'data': { 'type': 'Enum' } }
  { 'struct': 'Branch1', 'data': { 'data': 'str' } }
  { 'struct': 'Branch2', 'data': { 'data': 'int' } }
- { 'union': 'Flat': 'base': 'Base', 'discriminator': 'type',
+ { 'union': 'Flat', 'base': 'Base', 'discriminator': 'type',
    'data': { 'one': 'Branch1', 'two': 'Branch2' } }
 
 
@@ -394,7 +393,7 @@ following example objects:
 === Commands ===
 
 Usage: { 'command': STRING, '*data': COMPLEX-TYPE-NAME-OR-DICT,
-         '*returns': TYPE-NAME-OR-DICT,
+         '*returns': TYPE-NAME,
          '*gen': false, '*success-response': false }
 
 Commands are defined by using a dictionary containing several members,
@@ -405,10 +404,9 @@ Client JSON Protocol command exchange.
 The 'data' argument maps to the "arguments" dictionary passed in as
 part of a Client JSON Protocol command.  The 'data' member is optional
 and defaults to {} (an empty dictionary).  If present, it must be the
-string name of a complex type, a one-element array containing the name
-of a complex type, or a dictionary that declares an anonymous type
-with the same semantics as a 'struct' expression, with one exception
-noted below when 'gen' is used.
+string name of a complex type, or a dictionary that declares an
+anonymous type with the same semantics as a 'struct' expression, with
+one exception noted below when 'gen' is used.
 
 The 'returns' member describes what will appear in the "return" field
 of a Client JSON Protocol reply on successful completion of a command.
@@ -416,14 +414,13 @@ The member is optional from the command declaration; if absent, the
 "return" field will be an empty dictionary.  If 'returns' is present,
 it must be the string name of a complex or built-in type, a
 one-element array containing the name of a complex or built-in type,
-or a dictionary that declares an anonymous type with the same
-semantics as a 'struct' expression, with one exception noted below
-when 'gen' is used.  Although it is permitted to have the 'returns'
-member name a built-in type or an array of built-in types, any command
-that does this cannot be extended to return additional information in
-the future; thus, new commands should strongly consider returning a
-dictionary-based type or an array of dictionaries, even if the
-dictionary only contains one field at the present.
+with one exception noted below when 'gen' is used.  Although it is
+permitted to have the 'returns' member name a built-in type or an
+array of built-in types, any command that does this cannot be extended
+to return additional information in the future; thus, new commands
+should strongly consider returning a dictionary-based type or an array
+of dictionaries, even if the dictionary only contains one field at the
+present.
 
 All commands in Client JSON Protocol use a dictionary to report
 failure, with no way to specify that in QAPI.  Where the error return
@@ -555,6 +552,7 @@ Example:
         qapi_dealloc_visitor_cleanup(md);
     }
 
+
     void qapi_free_UserDefOne(UserDefOne *obj)
     {
         QapiDeallocVisitor *md;
@@ -569,7 +567,6 @@ Example:
         visit_type_UserDefOne(v, &obj, NULL, NULL);
         qapi_dealloc_visitor_cleanup(md);
     }
-
     $ cat qapi-generated/example-qapi-types.h
 [Uninteresting stuff omitted...]
 
@@ -580,8 +577,7 @@ Example:
 
     typedef struct UserDefOne UserDefOne;
 
-    typedef struct UserDefOneList
-    {
+    typedef struct UserDefOneList {
         union {
             UserDefOne *value;
             uint64_t padding;
@@ -589,10 +585,10 @@ Example:
         struct UserDefOneList *next;
     } UserDefOneList;
 
+
 [Functions on built-in types omitted...]
 
-    struct UserDefOne
-    {
+    struct UserDefOne {
         int64_t integer;
         char *string;
     };
@@ -630,6 +626,7 @@ Example:
     static void visit_type_UserDefOne_fields(Visitor *m, UserDefOne **obj, Error **errp)
     {
         Error *err = NULL;
+
         visit_type_int(m, &(*obj)->integer, "integer", &err);
         if (err) {
             goto out;
@@ -743,7 +740,7 @@ Example:
     static void qmp_marshal_input_my_command(QDict *args, QObject **ret, Error **errp)
     {
         Error *local_err = NULL;
-        UserDefOne *retval = NULL;
+        UserDefOne *retval;
         QmpInputVisitor *mi = qmp_input_visitor_new_strict(QOBJECT(args));
         QapiDeallocVisitor *md;
         Visitor *v;
@@ -769,7 +766,6 @@ Example:
         v = qapi_dealloc_get_visitor(md);
         visit_type_UserDefOne(v, &arg1, "arg1", NULL);
         qapi_dealloc_visitor_cleanup(md);
-        return;
     }
 
     static void qmp_init_marshal(void)
@@ -826,7 +822,7 @@ Example:
         QDECREF(qmp);
     }
 
-    const char *EXAMPLE_QAPIEvent_lookup[] = {
+    const char *example_QAPIEvent_lookup[] = {
         "MY_EVENT",
         NULL,
     };
@@ -843,11 +839,10 @@ Example:
 
     void qapi_event_send_my_event(Error **errp);
 
-    extern const char *EXAMPLE_QAPIEvent_lookup[];
-    typedef enum EXAMPLE_QAPIEvent
-    {
+    extern const char *example_QAPIEvent_lookup[];
+    typedef enum example_QAPIEvent {
         EXAMPLE_QAPI_EVENT_MY_EVENT = 0,
         EXAMPLE_QAPI_EVENT_MAX = 1,
-    } EXAMPLE_QAPIEvent;
+    } example_QAPIEvent;
 
     #endif

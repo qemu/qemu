@@ -7,12 +7,12 @@
   'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
 
 # for testing nested structs
+{ 'struct': 'UserDefOne',
+  'base': 'UserDefZero',        # intentional forward reference
+  'data': { 'string': 'str', '*enum1': 'EnumOne' } }
+
 { 'struct': 'UserDefZero',
   'data': { 'integer': 'int' } }
-
-{ 'struct': 'UserDefOne',
-  'base': 'UserDefZero',
-  'data': { 'string': 'str', '*enum1': 'EnumOne' } }
 
 { 'struct': 'UserDefTwoDictDict',
   'data': { 'userdef': 'UserDefOne', 'string': 'str' } }
@@ -31,30 +31,36 @@
   'data': { 'boolean': 'bool' } }
 
 { 'struct': 'UserDefB',
-  'data': { 'integer': 'int' } }
-
-{ 'struct': 'UserDefC',
-  'data': { 'string1': 'str', 'string2': 'str' } }
-
-{ 'struct': 'UserDefUnionBase',
-  'data': { 'string': 'str', 'enum1': 'EnumOne' } }
+  'data': { 'intb': 'int' } }
 
 { 'union': 'UserDefFlatUnion',
-  'base': 'UserDefUnionBase',
+  'base': 'UserDefUnionBase',   # intentional forward reference
   'discriminator': 'enum1',
-  'data': { 'value1' : 'UserDefA', 'value2' : 'UserDefB', 'value3' : 'UserDefB' } }
+  'data': { 'value1' : 'UserDefA',
+            'value2' : 'UserDefB',
+            'value3' : 'UserDefB' } }
 # FIXME generated struct UserDefFlatUnion has members for direct base
-# UserDefOne, but lacks members for indirect base UserDefZero
+# UserDefUnionBase, but lacks members for indirect base UserDefZero
+
+{ 'struct': 'UserDefUnionBase',
+  'base': 'UserDefZero',
+  'data': { 'string': 'str', 'enum1': 'EnumOne' } }
 
 # this variant of UserDefFlatUnion defaults to a union that uses fields with
 # allocated types to test corner cases in the cleanup/dealloc visitor
 { 'union': 'UserDefFlatUnion2',
   'base': 'UserDefUnionBase',
   'discriminator': 'enum1',
-  'data': { 'value1' : 'UserDefC', 'value2' : 'UserDefB', 'value3' : 'UserDefA' } }
+  'data': { 'value1' : 'UserDefC', # intentional forward reference
+            'value2' : 'UserDefB',
+            'value3' : 'UserDefA' } }
 
 { 'alternate': 'UserDefAlternate',
   'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
+# FIXME only a declaration of visit_type_UserDefAlternateKind() generated
+
+{ 'struct': 'UserDefC',
+  'data': { 'string1': 'str', 'string2': 'str' } }
 
 # for testing native lists
 { 'union': 'UserDefNativeListUnion',
@@ -123,6 +129,9 @@
 { 'alternate': '__org.qemu_x-Alt',
   'data': { '__org.qemu_x-branch': 'str', 'b': '__org.qemu_x-Base' } }
 { 'event': '__ORG.QEMU_X-EVENT', 'data': '__org.qemu_x-Struct' }
+# FIXME generated qapi_event_send___org_qemu_x_event() has only a
+# parameter for data's member __org_qemu_x_member2, none for its base
+# __org.qemu_x-Base's member __org_qemu_x_member1
 { 'command': '__org.qemu_x-command',
   'data': { 'a': ['__org.qemu_x-Enum'], 'b': ['__org.qemu_x-Struct'],
             'c': '__org.qemu_x-Union2', 'd': '__org.qemu_x-Alt' },

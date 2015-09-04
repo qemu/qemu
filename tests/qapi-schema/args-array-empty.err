@@ -1,0 +1,1 @@
+tests/qapi-schema/args-array-empty.json:2: Member 'empty' of 'data' for command 'oops': array type must contain single type name

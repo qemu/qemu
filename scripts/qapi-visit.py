@@ -16,14 +16,23 @@ from ordereddict import OrderedDict
 from qapi import *
 import re
 
-implicit_structs = []
+implicit_structs_seen = set()
+struct_fields_seen = set()
 
 def generate_visit_implicit_struct(type):
-    global implicit_structs
-    if type in implicit_structs:
+    if type in implicit_structs_seen:
         return ''
-    implicit_structs.append(type)
-    return mcgen('''
+    implicit_structs_seen.add(type)
+    ret = ''
+    if type not in struct_fields_seen:
+        # Need a forward declaration
+        ret += mcgen('''
+
+static void visit_type_%(c_type)s_fields(Visitor *m, %(c_type)s **obj, Error **errp);
+''',
+                     c_type=type_name(type))
+
+    ret += mcgen('''
 
 static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error **errp)
 {
@@ -38,9 +47,11 @@ static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error *
 }
 ''',
                  c_type=type_name(type))
+    return ret
 
 def generate_visit_struct_fields(name, members, base = None):
-    substructs = []
+    struct_fields_seen.add(name)
+
     ret = ''
 
     if base:
@@ -51,6 +62,7 @@ def generate_visit_struct_fields(name, members, base = None):
 static void visit_type_%(name)s_fields(Visitor *m, %(name)s **obj, Error **errp)
 {
     Error *err = NULL;
+
 ''',
                  name=c_name(name))
     push_indent()
@@ -103,7 +115,11 @@ out:
     return ret
 
 
-def generate_visit_struct_body(name, members):
+def generate_visit_struct_body(name):
+    # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
+    # *obj, but then visit_type_FOO_fields() fails, we should clean up *obj
+    # rather than leaving it non-NULL. As currently written, the caller must
+    # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
     ret = mcgen('''
     Error *err = NULL;
 
@@ -135,14 +151,14 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
 ''',
                  name=c_name(name))
 
-    ret += generate_visit_struct_body(name, members)
+    ret += generate_visit_struct_body(name)
 
     ret += mcgen('''
 }
 ''')
     return ret
 
-def generate_visit_list(name, members):
+def generate_visit_list(name):
     return mcgen('''
 
 void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, Error **errp)
@@ -171,15 +187,15 @@ out:
 ''',
                 name=type_name(name))
 
-def generate_visit_enum(name, members):
+def generate_visit_enum(name):
     return mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *m, %(c_name)s *obj, const char *name, Error **errp)
 {
-    visit_type_enum(m, (int *)obj, %(name)s_lookup, "%(name)s", name, errp);
+    visit_type_enum(m, (int *)obj, %(c_name)s_lookup, "%(name)s", name, errp);
 }
 ''',
-                 name=c_name(name))
+                 c_name=c_name(name), name=name)
 
 def generate_visit_alternate(name, members):
     ret = mcgen('''
@@ -252,7 +268,7 @@ def generate_visit_union(expr):
     else:
         # There will always be a discriminator in the C switch code, by default
         # it is an enum type generated silently
-        ret = generate_visit_enum(name + 'Kind', members.keys())
+        ret = generate_visit_enum(name + 'Kind')
         disc_type = c_name(name) + 'Kind'
 
     if base:
@@ -267,17 +283,17 @@ def generate_visit_union(expr):
 
     ret += mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
     if (err) {
         goto out;
     }
     if (*obj) {
 ''',
-                 name=c_name(name))
+                 c_name=c_name(name), name=name)
 
     if base:
         ret += mcgen('''
@@ -289,20 +305,23 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
                      name=c_name(name))
 
     if not discriminator:
+        tag = 'kind'
         disc_key = "type"
     else:
+        tag = discriminator
         disc_key = discriminator
     ret += mcgen('''
-        visit_type_%(disc_type)s(m, &(*obj)->kind, "%(disc_key)s", &err);
+        visit_type_%(disc_type)s(m, &(*obj)->%(c_tag)s, "%(disc_key)s", &err);
         if (err) {
             goto out_obj;
         }
         if (!visit_start_union(m, !!(*obj)->data, &err) || err) {
             goto out_obj;
         }
-        switch ((*obj)->kind) {
+        switch ((*obj)->%(c_tag)s) {
 ''',
                  disc_type = disc_type,
+                 c_tag=c_name(tag),
                  disc_key = disc_key)
 
     for key in members:
@@ -340,7 +359,7 @@ out:
 
     return ret
 
-def generate_declaration(name, members, builtin_type=False):
+def generate_declaration(name, builtin_type=False):
     ret = ""
     if not builtin_type:
         name = c_name(name)
@@ -357,7 +376,7 @@ void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, E
 
     return ret
 
-def generate_enum_declaration(name, members):
+def generate_enum_declaration(name):
     ret = mcgen('''
 void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, Error **errp);
 ''',
@@ -365,7 +384,7 @@ void visit_type_%(name)sList(Visitor *m, %(name)sList **obj, const char *name, E
 
     return ret
 
-def generate_decl_enum(name, members):
+def generate_decl_enum(name):
     return mcgen('''
 
 void visit_type_%(name)s(Visitor *m, %(name)s *obj, const char *name, Error **errp);
@@ -433,7 +452,7 @@ exprs = parse_schema(input_file)
 # for built-in types in our header files and simply guard them
 fdecl.write(guardstart("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
 for typename in builtin_types.keys():
-    fdecl.write(generate_declaration(typename, None, builtin_type=True))
+    fdecl.write(generate_declaration(typename, builtin_type=True))
 fdecl.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
 
 # ...this doesn't work for cases where we link in multiple objects that
@@ -441,44 +460,42 @@ fdecl.write(guardend("QAPI_VISIT_BUILTIN_VISITOR_DECL"))
 # over these cases
 if do_builtins:
     for typename in builtin_types.keys():
-        fdef.write(generate_visit_list(typename, None))
+        fdef.write(generate_visit_list(typename))
 
 for expr in exprs:
     if expr.has_key('struct'):
         ret = generate_visit_struct(expr)
-        ret += generate_visit_list(expr['struct'], expr['data'])
+        ret += generate_visit_list(expr['struct'])
         fdef.write(ret)
 
-        ret = generate_declaration(expr['struct'], expr['data'])
+        ret = generate_declaration(expr['struct'])
         fdecl.write(ret)
     elif expr.has_key('union'):
         ret = generate_visit_union(expr)
-        ret += generate_visit_list(expr['union'], expr['data'])
+        ret += generate_visit_list(expr['union'])
         fdef.write(ret)
 
         enum_define = discriminator_find_enum_define(expr)
         ret = ""
         if not enum_define:
-            ret = generate_decl_enum('%sKind' % expr['union'],
-                                     expr['data'].keys())
-        ret += generate_declaration(expr['union'], expr['data'])
+            ret = generate_decl_enum('%sKind' % expr['union'])
+        ret += generate_declaration(expr['union'])
         fdecl.write(ret)
     elif expr.has_key('alternate'):
         ret = generate_visit_alternate(expr['alternate'], expr['data'])
-        ret += generate_visit_list(expr['alternate'], expr['data'])
+        ret += generate_visit_list(expr['alternate'])
         fdef.write(ret)
 
-        ret = generate_decl_enum('%sKind' % expr['alternate'],
-                                 expr['data'].keys())
-        ret += generate_declaration(expr['alternate'], expr['data'])
+        ret = generate_decl_enum('%sKind' % expr['alternate'])
+        ret += generate_declaration(expr['alternate'])
         fdecl.write(ret)
     elif expr.has_key('enum'):
-        ret = generate_visit_list(expr['enum'], expr['data'])
-        ret += generate_visit_enum(expr['enum'], expr['data'])
+        ret = generate_visit_list(expr['enum'])
+        ret += generate_visit_enum(expr['enum'])
         fdef.write(ret)
 
-        ret = generate_decl_enum(expr['enum'], expr['data'])
-        ret += generate_enum_declaration(expr['enum'], expr['data'])
+        ret = generate_decl_enum(expr['enum'])
+        ret += generate_enum_declaration(expr['enum'])
         fdecl.write(ret)
 
 close_output(fdef, fdecl)

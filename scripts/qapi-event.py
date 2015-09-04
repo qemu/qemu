@@ -167,8 +167,7 @@ extern const char *%(event_enum_name)s_lookup[];
                         event_enum_name = event_enum_name)
 
     enum_decl = mcgen('''
-typedef enum %(event_enum_name)s
-{
+typedef enum %(event_enum_name)s {
 ''',
                       event_enum_name = event_enum_name)
 
@@ -199,7 +198,6 @@ const char *%(event_enum_name)s_lookup[] = {
 ''',
                 event_enum_name = event_enum_name)
 
-    i = 0
     for string in event_enum_strings:
         ret += mcgen('''
     "%(string)s",
@@ -267,7 +265,7 @@ fdecl.write(mcgen('''
 
 exprs = parse_schema(input_file)
 
-event_enum_name = prefix.upper().replace('-', '_') + "QAPIEvent"
+event_enum_name = c_name(prefix + "QAPIEvent", protect=False)
 event_enum_values = []
 event_enum_strings = []
 

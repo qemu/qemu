@@ -1,1 +1,0 @@
-tests/qapi-schema/data-member-array-bad.json:2: Member 'member' of 'data' for command 'oops': array type must contain single type name

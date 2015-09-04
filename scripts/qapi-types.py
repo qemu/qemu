@@ -15,8 +15,7 @@ from qapi import *
 def generate_fwd_builtin(name):
     return mcgen('''
 
-typedef struct %(name)sList
-{
+typedef struct %(name)sList {
     union {
         %(type)s value;
         uint64_t padding;
@@ -32,8 +31,7 @@ def generate_fwd_struct(name):
 
 typedef struct %(name)s %(name)s;
 
-typedef struct %(name)sList
-{
+typedef struct %(name)sList {
     union {
         %(name)s *value;
         uint64_t padding;
@@ -45,8 +43,8 @@ typedef struct %(name)sList
 
 def generate_fwd_enum_struct(name):
     return mcgen('''
-typedef struct %(name)sList
-{
+
+typedef struct %(name)sList {
     union {
         %(name)s value;
         uint64_t padding;
@@ -79,8 +77,8 @@ def generate_struct(expr):
     base = expr.get('base')
 
     ret = mcgen('''
-struct %(name)s
-{
+
+struct %(name)s {
 ''',
           name=c_name(structname))
 
@@ -105,10 +103,10 @@ struct %(name)s
 
 def generate_enum_lookup(name, values):
     ret = mcgen('''
-const char * const %(name)s_lookup[] = {
+
+const char *const %(name)s_lookup[] = {
 ''',
                 name=c_name(name))
-    i = 0
     for value in values:
         index = c_enum_const(name, value)
         ret += mcgen('''
@@ -120,7 +118,6 @@ const char * const %(name)s_lookup[] = {
     ret += mcgen('''
     [%(max_index)s] = NULL,
 };
-
 ''',
         max_index=max_index)
     return ret
@@ -128,13 +125,14 @@ const char * const %(name)s_lookup[] = {
 def generate_enum(name, values):
     name = c_name(name)
     lookup_decl = mcgen('''
-extern const char * const %(name)s_lookup[];
+
+extern const char *const %(name)s_lookup[];
 ''',
                 name=name)
 
     enum_decl = mcgen('''
-typedef enum %(name)s
-{
+
+typedef enum %(name)s {
 ''',
                 name=name)
 
@@ -156,7 +154,7 @@ typedef enum %(name)s
 ''',
                  name=name)
 
-    return lookup_decl + enum_decl
+    return enum_decl + lookup_decl
 
 def generate_alternate_qtypes(expr):
 
@@ -164,6 +162,7 @@ def generate_alternate_qtypes(expr):
     members = expr['data']
 
     ret = mcgen('''
+
 const int %(name)s_qtypes[QTYPE_MAX] = {
 ''',
                 name=c_name(name))
@@ -199,14 +198,40 @@ def generate_union(expr, meta):
         discriminator_type_name = '%sKind' % (name)
 
     ret = mcgen('''
-struct %(name)s
-{
+
+struct %(name)s {
+''',
+                name=name)
+    if base:
+        ret += mcgen('''
+    /* Members inherited from %(c_name)s: */
+''',
+                     c_name=c_name(base))
+        base_fields = find_struct(base)['data']
+        ret += generate_struct_fields(base_fields)
+        ret += mcgen('''
+    /* Own members: */
+''')
+    else:
+        assert not discriminator
+        ret += mcgen('''
     %(discriminator_type_name)s kind;
-    union {
+''',
+                     discriminator_type_name=c_name(discriminator_type_name))
+
+    # FIXME: What purpose does data serve, besides preventing a union that
+    # has a branch named 'data'? We use it in qapi-visit.py to decide
+    # whether to bypass the switch statement if visiting the discriminator
+    # failed; but since we 0-initialize structs, and cannot tell what
+    # branch of the union is in use if the discriminator is invalid, there
+    # should not be any data leaks even without a data pointer.  Or, if
+    # 'data' is merely added to guarantee we don't have an empty union,
+    # shouldn't we enforce that at .json parse time?
+    ret += mcgen('''
+    union { /* union tag is @%(c_name)s */
         void *data;
 ''',
-                name=name,
-                discriminator_type_name=c_name(discriminator_type_name))
+                 c_name=c_name(discriminator or 'kind'))
 
     for key in typeinfo:
         ret += mcgen('''
@@ -217,17 +242,6 @@ struct %(name)s
 
     ret += mcgen('''
     };
-''')
-
-    if base:
-        assert discriminator
-        base_fields = find_struct(base)['data'].copy()
-        del base_fields[discriminator]
-        ret += generate_struct_fields(base_fields)
-    else:
-        assert not discriminator
-
-    ret += mcgen('''
 };
 ''')
     if meta == 'alternate':
@@ -314,14 +328,12 @@ fdef.write(mcgen('''
 #include "qapi/dealloc-visitor.h"
 #include "%(prefix)sqapi-types.h"
 #include "%(prefix)sqapi-visit.h"
-
 ''',
                  prefix=prefix))
 
 fdecl.write(mcgen('''
 #include <stdbool.h>
 #include <stdint.h>
-
 '''))
 
 exprs = parse_schema(input_file)
@@ -332,22 +344,22 @@ for typename in builtin_types.keys():
 fdecl.write(guardend("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 
 for expr in exprs:
-    ret = "\n"
+    ret = ""
     if expr.has_key('struct'):
         ret += generate_fwd_struct(expr['struct'])
     elif expr.has_key('enum'):
-        ret += generate_enum(expr['enum'], expr['data']) + "\n"
+        ret += generate_enum(expr['enum'], expr['data'])
         ret += generate_fwd_enum_struct(expr['enum'])
         fdef.write(generate_enum_lookup(expr['enum'], expr['data']))
     elif expr.has_key('union'):
-        ret += generate_fwd_struct(expr['union']) + "\n"
+        ret += generate_fwd_struct(expr['union'])
         enum_define = discriminator_find_enum_define(expr)
         if not enum_define:
             ret += generate_enum('%sKind' % expr['union'], expr['data'].keys())
             fdef.write(generate_enum_lookup('%sKind' % expr['union'],
                                             expr['data'].keys()))
     elif expr.has_key('alternate'):
-        ret += generate_fwd_struct(expr['alternate']) + "\n"
+        ret += generate_fwd_struct(expr['alternate'])
         ret += generate_enum('%sKind' % expr['alternate'], expr['data'].keys())
         fdef.write(generate_enum_lookup('%sKind' % expr['alternate'],
                                         expr['data'].keys()))
@@ -367,34 +379,32 @@ fdecl.write(guardend("QAPI_TYPES_BUILTIN_CLEANUP_DECL"))
 # have the functions defined, so we use -b option to provide control
 # over these cases
 if do_builtins:
-    fdef.write(guardstart("QAPI_TYPES_BUILTIN_CLEANUP_DEF"))
     for typename in builtin_types.keys():
         fdef.write(generate_type_cleanup(typename + "List"))
-    fdef.write(guardend("QAPI_TYPES_BUILTIN_CLEANUP_DEF"))
 
 for expr in exprs:
-    ret = "\n"
+    ret = ""
     if expr.has_key('struct'):
         ret += generate_struct(expr) + "\n"
         ret += generate_type_cleanup_decl(expr['struct'] + "List")
-        fdef.write(generate_type_cleanup(expr['struct'] + "List") + "\n")
+        fdef.write(generate_type_cleanup(expr['struct'] + "List"))
         ret += generate_type_cleanup_decl(expr['struct'])
-        fdef.write(generate_type_cleanup(expr['struct']) + "\n")
+        fdef.write(generate_type_cleanup(expr['struct']))
     elif expr.has_key('union'):
-        ret += generate_union(expr, 'union')
+        ret += generate_union(expr, 'union') + "\n"
         ret += generate_type_cleanup_decl(expr['union'] + "List")
-        fdef.write(generate_type_cleanup(expr['union'] + "List") + "\n")
+        fdef.write(generate_type_cleanup(expr['union'] + "List"))
         ret += generate_type_cleanup_decl(expr['union'])
-        fdef.write(generate_type_cleanup(expr['union']) + "\n")
+        fdef.write(generate_type_cleanup(expr['union']))
     elif expr.has_key('alternate'):
-        ret += generate_union(expr, 'alternate')
+        ret += generate_union(expr, 'alternate') + "\n"
         ret += generate_type_cleanup_decl(expr['alternate'] + "List")
-        fdef.write(generate_type_cleanup(expr['alternate'] + "List") + "\n")
+        fdef.write(generate_type_cleanup(expr['alternate'] + "List"))
         ret += generate_type_cleanup_decl(expr['alternate'])
-        fdef.write(generate_type_cleanup(expr['alternate']) + "\n")
+        fdef.write(generate_type_cleanup(expr['alternate']))
     elif expr.has_key('enum'):
-        ret += generate_type_cleanup_decl(expr['enum'] + "List")
-        fdef.write(generate_type_cleanup(expr['enum'] + "List") + "\n")
+        ret += "\n" + generate_type_cleanup_decl(expr['enum'] + "List")
+        fdef.write(generate_type_cleanup(expr['enum'] + "List"))
     else:
         continue
     fdecl.write(ret)

@@ -1,0 +1,2 @@
+{ 'command': 'foo',
+  'data': false }

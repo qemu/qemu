@@ -1,0 +1,1 @@
+tests/qapi-schema/leading-comma-list.json:2:13: Expected "{", "[", "]", string, boolean or "null"
