@@ -74,8 +74,6 @@ static struct arm_boot_info exynos4_board_binfo = {
     .write_secondary_boot = exynos4210_write_secondary,
 };
 
-static QEMUMachine exynos4_machines[EXYNOS4_NUM_OF_BOARDS];
-
 static void lan9215_init(uint32_t base, qemu_irq irq)
 {
     DeviceState *dev;
@@ -146,25 +144,24 @@ static void smdkc210_init(MachineState *machine)
     arm_load_kernel(ARM_CPU(first_cpu), &exynos4_board_binfo);
 }
 
-static QEMUMachine exynos4_machines[EXYNOS4_NUM_OF_BOARDS] = {
-    [EXYNOS4_BOARD_NURI] = {
-        .name = "nuri",
-        .desc = "Samsung NURI board (Exynos4210)",
-        .init = nuri_init,
-        .max_cpus = EXYNOS4210_NCPUS,
-    },
-    [EXYNOS4_BOARD_SMDKC210] = {
-        .name = "smdkc210",
-        .desc = "Samsung SMDKC210 board (Exynos4210)",
-        .init = smdkc210_init,
-        .max_cpus = EXYNOS4210_NCPUS,
-    },
+static QEMUMachine exynos4_machine_nuri = {
+    .name = "nuri",
+    .desc = "Samsung NURI board (Exynos4210)",
+    .init = nuri_init,
+    .max_cpus = EXYNOS4210_NCPUS,
+};
+
+static QEMUMachine exynos4_machine_smdkc210 = {
+    .name = "smdkc210",
+    .desc = "Samsung SMDKC210 board (Exynos4210)",
+    .init = smdkc210_init,
+    .max_cpus = EXYNOS4210_NCPUS,
 };
 
 static void exynos4_machine_init(void)
 {
-    qemu_register_machine(&exynos4_machines[EXYNOS4_BOARD_NURI]);
-    qemu_register_machine(&exynos4_machines[EXYNOS4_BOARD_SMDKC210]);
+    qemu_register_machine(&exynos4_machine_nuri);
+    qemu_register_machine(&exynos4_machine_smdkc210);
 }
 
 machine_init(exynos4_machine_init);
