@@ -96,6 +96,7 @@
 #define QCOW2_OPT_CACHE_SIZE "cache-size"
 #define QCOW2_OPT_L2_CACHE_SIZE "l2-cache-size"
 #define QCOW2_OPT_REFCOUNT_CACHE_SIZE "refcount-cache-size"
+#define QCOW2_OPT_CACHE_CLEAN_INTERVAL "cache-clean-interval"
 
 typedef struct QCowHeader {
     uint32_t magic;
@@ -239,6 +240,8 @@ typedef struct BDRVQcowState {
 
     Qcow2Cache* l2_table_cache;
     Qcow2Cache* refcount_block_cache;
+    QEMUTimer *cache_clean_timer;
+    unsigned cache_clean_interval;
 
     uint8_t *cluster_cache;
     uint8_t *cluster_data;
@@ -581,6 +584,7 @@ int qcow2_cache_set_dependency(BlockDriverState *bs, Qcow2Cache *c,
     Qcow2Cache *dependency);
 void qcow2_cache_depends_on_flush(Qcow2Cache *c);
 
+void qcow2_cache_clean_unused(BlockDriverState *bs, Qcow2Cache *c);
 int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c);
 
 int qcow2_cache_get(BlockDriverState *bs, Qcow2Cache *c, uint64_t offset,

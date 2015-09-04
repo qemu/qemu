@@ -22,16 +22,24 @@
  * THE SOFTWARE.
  */
 
+/* Needed for CONFIG_MADVISE */
+#include "config-host.h"
+
+#if defined(CONFIG_MADVISE) || defined(CONFIG_POSIX_MADVISE)
+#include <sys/mman.h>
+#endif
+
 #include "block/block_int.h"
 #include "qemu-common.h"
+#include "qemu/osdep.h"
 #include "qcow2.h"
 #include "trace.h"
 
 typedef struct Qcow2CachedTable {
     int64_t  offset;
-    bool     dirty;
     uint64_t lru_counter;
     int      ref;
+    bool     dirty;
 } Qcow2CachedTable;
 
 struct Qcow2Cache {
@@ -41,6 +49,7 @@ struct Qcow2Cache {
     bool                    depends_on_flush;
     void                   *table_array;
     uint64_t                lru_counter;
+    uint64_t                cache_clean_lru_counter;
 };
 
 static inline void *qcow2_cache_get_table_addr(BlockDriverState *bs,
@@ -58,6 +67,56 @@ static inline int qcow2_cache_get_table_idx(BlockDriverState *bs,
     int idx = table_offset / s->cluster_size;
     assert(idx >= 0 && idx < c->size && table_offset % s->cluster_size == 0);
     return idx;
+}
+
+static void qcow2_cache_table_release(BlockDriverState *bs, Qcow2Cache *c,
+                                      int i, int num_tables)
+{
+#if QEMU_MADV_DONTNEED != QEMU_MADV_INVALID
+    BDRVQcowState *s = bs->opaque;
+    void *t = qcow2_cache_get_table_addr(bs, c, i);
+    int align = getpagesize();
+    size_t mem_size = (size_t) s->cluster_size * num_tables;
+    size_t offset = QEMU_ALIGN_UP((uintptr_t) t, align) - (uintptr_t) t;
+    size_t length = QEMU_ALIGN_DOWN(mem_size - offset, align);
+    if (length > 0) {
+        qemu_madvise((uint8_t *) t + offset, length, QEMU_MADV_DONTNEED);
+    }
+#endif
+}
+
+static inline bool can_clean_entry(Qcow2Cache *c, int i)
+{
+    Qcow2CachedTable *t = &c->entries[i];
+    return t->ref == 0 && !t->dirty && t->offset != 0 &&
+        t->lru_counter <= c->cache_clean_lru_counter;
+}
+
+void qcow2_cache_clean_unused(BlockDriverState *bs, Qcow2Cache *c)
+{
+    int i = 0;
+    while (i < c->size) {
+        int to_clean = 0;
+
+        /* Skip the entries that we don't need to clean */
+        while (i < c->size && !can_clean_entry(c, i)) {
+            i++;
+        }
+
+        /* And count how many we can clean in a row */
+        while (i < c->size && can_clean_entry(c, i)) {
+            c->entries[i].offset = 0;
+            c->entries[i].lru_counter = 0;
+            i++;
+            to_clean++;
+        }
+
+        if (to_clean > 0) {
+            qcow2_cache_table_release(bs, c, i - to_clean, to_clean);
+        }
+    }
+
+    c->cache_clean_lru_counter = c->lru_counter;
 }
 
 Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
@@ -236,6 +295,8 @@ int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
         c->entries[i].offset = 0;
         c->entries[i].lru_counter = 0;
     }
+
+    qcow2_cache_table_release(bs, c, 0, c->size);
 
     c->lru_counter = 0;
 

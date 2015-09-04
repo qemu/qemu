@@ -467,6 +467,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Maximum refcount block cache size",
         },
+        {
+            .name = QCOW2_OPT_CACHE_CLEAN_INTERVAL,
+            .type = QEMU_OPT_NUMBER,
+            .help = "Clean unused cache entries after this time (in seconds)",
+        },
         { /* end of list */ }
     },
 };
@@ -481,6 +486,49 @@ static const char *overlap_bool_option_names[QCOW2_OL_MAX_BITNR] = {
     [QCOW2_OL_INACTIVE_L1_BITNR]    = QCOW2_OPT_OVERLAP_INACTIVE_L1,
     [QCOW2_OL_INACTIVE_L2_BITNR]    = QCOW2_OPT_OVERLAP_INACTIVE_L2,
 };
+
+static void cache_clean_timer_cb(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+    BDRVQcowState *s = bs->opaque;
+    qcow2_cache_clean_unused(bs, s->l2_table_cache);
+    qcow2_cache_clean_unused(bs, s->refcount_block_cache);
+    timer_mod(s->cache_clean_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+              (int64_t) s->cache_clean_interval * 1000);
+}
+
+static void cache_clean_timer_init(BlockDriverState *bs, AioContext *context)
+{
+    BDRVQcowState *s = bs->opaque;
+    if (s->cache_clean_interval > 0) {
+        s->cache_clean_timer = aio_timer_new(context, QEMU_CLOCK_VIRTUAL,
+                                             SCALE_MS, cache_clean_timer_cb,
+                                             bs);
+        timer_mod(s->cache_clean_timer, qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
+                  (int64_t) s->cache_clean_interval * 1000);
+    }
+}
+
+static void cache_clean_timer_del(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+    if (s->cache_clean_timer) {
+        timer_del(s->cache_clean_timer);
+        timer_free(s->cache_clean_timer);
+        s->cache_clean_timer = NULL;
+    }
+}
+
+static void qcow2_detach_aio_context(BlockDriverState *bs)
+{
+    cache_clean_timer_del(bs);
+}
+
+static void qcow2_attach_aio_context(BlockDriverState *bs,
+                                     AioContext *new_context)
+{
+    cache_clean_timer_init(bs, new_context);
+}
 
 static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
                              uint64_t *l2_cache_size,
@@ -555,6 +603,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     const char *opt_overlap_check, *opt_overlap_check_template;
     int overlap_check_template = 0;
     uint64_t l2_cache_size, refcount_cache_size;
+    uint64_t cache_clean_interval;
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -848,6 +897,16 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    cache_clean_interval =
+        qemu_opt_get_number(opts, QCOW2_OPT_CACHE_CLEAN_INTERVAL, 0);
+    if (cache_clean_interval > UINT_MAX) {
+        error_setg(errp, "Cache clean interval too big");
+        ret = -EINVAL;
+        goto fail;
+    }
+    s->cache_clean_interval = cache_clean_interval;
+    cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
+
     s->cluster_cache = g_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */
     s->cluster_data = qemu_try_blockalign(bs->file, QCOW_MAX_CRYPT_CLUSTERS
@@ -1013,6 +1072,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_vfree(s->l1_table);
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
+    cache_clean_timer_del(bs);
     if (s->l2_table_cache) {
         qcow2_cache_destroy(bs, s->l2_table_cache);
     }
@@ -1471,6 +1531,7 @@ static void qcow2_close(BlockDriverState *bs)
         }
     }
 
+    cache_clean_timer_del(bs);
     qcow2_cache_destroy(bs, s->l2_table_cache);
     qcow2_cache_destroy(bs, s->refcount_block_cache);
 
@@ -2977,6 +3038,9 @@ BlockDriver bdrv_qcow2 = {
     .create_opts         = &qcow2_create_opts,
     .bdrv_check          = qcow2_check,
     .bdrv_amend_options  = qcow2_amend_options,
+
+    .bdrv_detach_aio_context  = qcow2_detach_aio_context,
+    .bdrv_attach_aio_context  = qcow2_attach_aio_context,
 };
 
 static void bdrv_qcow2_init(void)
