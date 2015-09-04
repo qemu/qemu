@@ -3513,7 +3513,7 @@ DEF("dump-vmstate", HAS_ARG, QEMU_OPTION_dump_vmstate,
     "                Output vmstate information in JSON format to file.\n"
     "                Use the scripts/vmstate-static-checker.py file to\n"
     "                check for possible regressions in migration code\n"
-    "                by comparing two such vmstate dumps.",
+    "                by comparing two such vmstate dumps.\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -dump-vmstate @var{file}
