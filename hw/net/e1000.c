@@ -740,7 +740,8 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
                 memmove(tp->data, tp->header, tp->hdr_len);
                 tp->size = tp->hdr_len;
             }
-        } while (split_size -= bytes);
+            split_size -= bytes;
+        } while (bytes && split_size);
     } else if (!tp->tse && tp->cptse) {
         // context descriptor TSE is not set, while data descriptor TSE is set
         DBGOUT(TXERR, "TCP segmentation error\n");
