@@ -1989,6 +1989,8 @@ typedef enum {
     GET_ASI_EXCP,
     GET_ASI_DIRECT,
     GET_ASI_DTWINX,
+    GET_ASI_BLOCK,
+    GET_ASI_SHORT,
 } ASIType;
 
 typedef struct {
@@ -2055,18 +2057,33 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_AIUPL: /* As if user primary LE */
         case ASI_TWINX_AIUP:
         case ASI_TWINX_AIUP_L:
+        case ASI_BLK_AIUP_4V:
+        case ASI_BLK_AIUP_L_4V:
+        case ASI_BLK_AIUP:
+        case ASI_BLK_AIUPL:
             mem_idx = MMU_USER_IDX;
             break;
         case ASI_AIUS:  /* As if user secondary */
         case ASI_AIUSL: /* As if user secondary LE */
         case ASI_TWINX_AIUS:
         case ASI_TWINX_AIUS_L:
+        case ASI_BLK_AIUS_4V:
+        case ASI_BLK_AIUS_L_4V:
+        case ASI_BLK_AIUS:
+        case ASI_BLK_AIUSL:
             mem_idx = MMU_USER_SECONDARY_IDX;
             break;
         case ASI_S:  /* Secondary */
         case ASI_SL: /* Secondary LE */
         case ASI_TWINX_S:
         case ASI_TWINX_SL:
+        case ASI_BLK_COMMIT_S:
+        case ASI_BLK_S:
+        case ASI_BLK_SL:
+        case ASI_FL8_S:
+        case ASI_FL8_SL:
+        case ASI_FL16_S:
+        case ASI_FL16_SL:
             if (mem_idx == MMU_USER_IDX) {
                 mem_idx = MMU_USER_SECONDARY_IDX;
             } else if (mem_idx == MMU_KERNEL_IDX) {
@@ -2077,6 +2094,13 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_PL: /* Primary LE */
         case ASI_TWINX_P:
         case ASI_TWINX_PL:
+        case ASI_BLK_COMMIT_P:
+        case ASI_BLK_P:
+        case ASI_BLK_PL:
+        case ASI_FL8_P:
+        case ASI_FL8_PL:
+        case ASI_FL16_P:
+        case ASI_FL16_PL:
             break;
         }
         switch (asi) {
@@ -2103,6 +2127,36 @@ static DisasASI get_asi(DisasContext *dc, int insn, TCGMemOp memop)
         case ASI_TWINX_S:
         case ASI_TWINX_SL:
             type = GET_ASI_DTWINX;
+            break;
+        case ASI_BLK_COMMIT_P:
+        case ASI_BLK_COMMIT_S:
+        case ASI_BLK_AIUP_4V:
+        case ASI_BLK_AIUP_L_4V:
+        case ASI_BLK_AIUP:
+        case ASI_BLK_AIUPL:
+        case ASI_BLK_AIUS_4V:
+        case ASI_BLK_AIUS_L_4V:
+        case ASI_BLK_AIUS:
+        case ASI_BLK_AIUSL:
+        case ASI_BLK_S:
+        case ASI_BLK_SL:
+        case ASI_BLK_P:
+        case ASI_BLK_PL:
+            type = GET_ASI_BLOCK;
+            break;
+        case ASI_FL8_S:
+        case ASI_FL8_SL:
+        case ASI_FL8_P:
+        case ASI_FL8_PL:
+            memop = MO_UB;
+            type = GET_ASI_SHORT;
+            break;
+        case ASI_FL16_S:
+        case ASI_FL16_SL:
+        case ASI_FL16_P:
+        case ASI_FL16_PL:
+            memop = MO_TEUW;
+            type = GET_ASI_SHORT;
             break;
         }
         /* The little-endian asis all have bit 3 set.  */
@@ -2309,6 +2363,40 @@ static void gen_ldf_asi(DisasContext *dc, TCGv addr,
         }
         break;
 
+    case GET_ASI_BLOCK:
+        /* Valid for lddfa on aligned registers only.  */
+        if (size == 8 && (rd & 7) == 0) {
+            TCGv eight;
+            int i;
+
+            gen_check_align(addr, 0x3f);
+            gen_address_mask(dc, addr);
+
+            eight = tcg_const_tl(8);
+            for (i = 0; ; ++i) {
+                tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2 + i], addr,
+                                    da.mem_idx, da.memop);
+                if (i == 7) {
+                    break;
+                }
+                tcg_gen_add_tl(addr, addr, eight);
+            }
+            tcg_temp_free(eight);
+        } else {
+            gen_exception(dc, TT_ILL_INSN);
+        }
+        break;
+
+    case GET_ASI_SHORT:
+        /* Valid for lddfa only.  */
+        if (size == 8) {
+            gen_address_mask(dc, addr);
+            tcg_gen_qemu_ld_i64(cpu_fpr[rd / 2], addr, da.mem_idx, da.memop);
+        } else {
+            gen_exception(dc, TT_ILL_INSN);
+        }
+        break;
+
     default:
         {
             TCGv_i32 r_asi = tcg_const_i32(da.asi);
@@ -2352,6 +2440,40 @@ static void gen_stf_asi(DisasContext *dc, TCGv addr,
             break;
         default:
             g_assert_not_reached();
+        }
+        break;
+
+    case GET_ASI_BLOCK:
+        /* Valid for stdfa on aligned registers only.  */
+        if (size == 8 && (rd & 7) == 0) {
+            TCGv eight;
+            int i;
+
+            gen_check_align(addr, 0x3f);
+            gen_address_mask(dc, addr);
+
+            eight = tcg_const_tl(8);
+            for (i = 0; ; ++i) {
+                tcg_gen_qemu_st_i64(cpu_fpr[rd / 2 + i], addr,
+                                    da.mem_idx, da.memop);
+                if (i == 7) {
+                    break;
+                }
+                tcg_gen_add_tl(addr, addr, eight);
+            }
+            tcg_temp_free(eight);
+        } else {
+            gen_exception(dc, TT_ILL_INSN);
+        }
+        break;
+
+    case GET_ASI_SHORT:
+        /* Valid for stdfa only.  */
+        if (size == 8) {
+            gen_address_mask(dc, addr);
+            tcg_gen_qemu_st_i64(cpu_fpr[rd / 2], addr, da.mem_idx, da.memop);
+        } else {
+            gen_exception(dc, TT_ILL_INSN);
         }
         break;
 
