@@ -1091,21 +1091,6 @@
 #   define NV097_SET_TRANSFORM_PROGRAM_START                  0x00971EA0
 #   define NV097_SET_TRANSFORM_CONSTANT_LOAD                  0x00971EA4
 
-
-static const GLenum kelvin_primitive_map[] = {
-    0,
-    GL_POINTS,
-    GL_LINES,
-    GL_LINE_LOOP,
-    GL_LINE_STRIP,
-    GL_TRIANGLES,
-    GL_TRIANGLE_STRIP,
-    GL_TRIANGLE_FAN,
-    GL_LINES_ADJACENCY, // GL_QUADS,
-    // GL_QUAD_STRIP,
-    // GL_POLYGON,
-};
-
 static const GLenum pgraph_texture_min_filter_map[] = {
     0,
     GL_NEAREST,
@@ -1187,12 +1172,6 @@ static const GLenum pgraph_cull_face_map[] = {
     GL_FRONT,
     GL_BACK,
     GL_FRONT_AND_BACK
-};
-
-static const GLenum pgraph_polygon_mode_map[] = {
-    GL_FILL,
-    GL_POINT,
-    GL_LINE
 };
 
 static const GLenum pgraph_depth_func_map[] = {
@@ -1636,7 +1615,6 @@ typedef struct PGRAPHState {
     hwaddr dma_vertex_a, dma_vertex_b;
 
     unsigned int primitive_mode;
-    GLenum gl_primitive_mode;
 
     bool enable_vertex_program_write;
 
@@ -2969,6 +2947,10 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
 
         /* geometry shader stuff */
         .primitive_mode = pg->primitive_mode,
+        .polygon_front_mode = GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                                       NV_PGRAPH_SETUPRASTER_FRONTFACEMODE),
+        .polygon_back_mode = GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
+                                      NV_PGRAPH_SETUPRASTER_BACKFACEMODE),
     };
 
     state.program_length = 0;
@@ -5155,6 +5137,8 @@ static void pgraph_method(NV2AState *d,
 
         if (parameter == NV097_SET_BEGIN_END_OP_END) {
 
+            assert(pg->shader_binding);
+
             if (pg->draw_arrays_length) {
 
                 NV2A_GL_DPRINTF(false, "Draw Arrays");
@@ -5165,7 +5149,7 @@ static void pgraph_method(NV2AState *d,
 
                 pgraph_bind_vertex_attributes(d, pg->draw_arrays_max_count,
                                               false, 0);
-                glMultiDrawArrays(pg->gl_primitive_mode,
+                glMultiDrawArrays(pg->shader_binding->gl_primitive_mode,
                                   pg->gl_draw_arrays_start,
                                   pg->gl_draw_arrays_count,
                                   pg->draw_arrays_length);
@@ -5204,7 +5188,7 @@ static void pgraph_method(NV2AState *d,
 
                 }
 
-                glDrawArrays(pg->gl_primitive_mode,
+                glDrawArrays(pg->shader_binding->gl_primitive_mode,
                              0, pg->inline_buffer_length);
             } else if (pg->inline_array_length) {
 
@@ -5215,7 +5199,8 @@ static void pgraph_method(NV2AState *d,
                 assert(pg->inline_elements_length == 0);
 
                 unsigned int index_count = pgraph_bind_inline_array(d);
-                glDrawArrays(pg->gl_primitive_mode, 0, index_count);
+                glDrawArrays(pg->shader_binding->gl_primitive_mode,
+                             0, index_count);
             } else if (pg->inline_elements_length) {
 
                 NV2A_GL_DPRINTF(false, "Inline Elements");
@@ -5239,7 +5224,7 @@ static void pgraph_method(NV2AState *d,
                              pg->inline_elements,
                              GL_DYNAMIC_DRAW);
 
-                glDrawRangeElements(pg->gl_primitive_mode,
+                glDrawRangeElements(pg->shader_binding->gl_primitive_mode,
                                     min_element, max_element,
                                     pg->inline_elements_length,
                                     GL_UNSIGNED_INT,
@@ -5262,9 +5247,7 @@ static void pgraph_method(NV2AState *d,
 
             pgraph_update_surface(d, true, true, depth_test || stencil_test);
 
-            assert(parameter < ARRAYSIZE(kelvin_primitive_map));
             pg->primitive_mode = parameter;
-            pg->gl_primitive_mode = kelvin_primitive_map[parameter];
 
             uint32_t control_0 = pg->regs[NV_PGRAPH_CONTROL_0];
 
@@ -5318,17 +5301,6 @@ static void pgraph_method(NV2AState *d,
             glFrontFace(pg->regs[NV_PGRAPH_SETUPRASTER]
                             & NV_PGRAPH_SETUPRASTER_FRONTFACE
                                 ? GL_CCW : GL_CW);
-
-            /* Polygon mode */
-            uint32_t front_mode = GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
-                                           NV_PGRAPH_SETUPRASTER_FRONTFACEMODE);
-            uint32_t back_mode =  GET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
-                                           NV_PGRAPH_SETUPRASTER_BACKFACEMODE);
-            /* FIXME: GL3+ only supports GL_FRONT_AND_BACK, how to handle? */
-            assert(front_mode == back_mode);
-            assert(front_mode < ARRAYSIZE(pgraph_polygon_mode_map));
-            glPolygonMode(GL_FRONT_AND_BACK,
-                          pgraph_polygon_mode_map[front_mode]);
 
             /* Polygon offset */
             /* FIXME: GL implementation-specific, maybe do this in VS? */
