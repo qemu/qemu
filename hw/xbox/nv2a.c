@@ -2002,6 +2002,22 @@ static GraphicsObject* lookup_graphics_object(PGRAPHState *s,
     return NULL;
 }
 
+/* 16 bit to [0.0, F16_MAX = 511.9375] */
+static float convert_f16_to_float(uint16_t f16) {
+    if (f16 == 0x0000) { return 0.0; }
+    uint32_t i = (f16 << 11) + 0x3C000000;
+    return *(float*)&i;
+}
+
+/* 24 bit to [0.0, F24_MAX] */
+static float convert_f24_to_float(uint32_t f24) {
+    assert(!(f24 >> 24));
+    f24 &= 0xFFFFFF;
+    if (f24 == 0x000000) { return 0.0; }
+    uint32_t i = f24 << 7;
+    return *(float*)&i;
+}
+
 static void pgraph_update_memory_buffer(NV2AState *d, hwaddr addr, hwaddr size,
                                         bool f)
 {
@@ -5700,18 +5716,39 @@ static void pgraph_method(NV2AState *d,
             uint32_t clear_zstencil =
                 d->pgraph.regs[NV_PGRAPH_ZSTENCILCLEARVALUE];
             GLint gl_clear_stencil;
-            GLdouble gl_clear_depth;
+            GLfloat gl_clear_depth;
+
+            /* FIXME: Put these in some lookup table */
+            const float f16_max = 511.9375f;
+            /* FIXME: 7 bits of mantissa unused. maybe use full buffer? */
+            const float f24_max = 3.4027977E38;
+
             switch(pg->surface_shape.zeta_format) {
-                case NV097_SET_SURFACE_FORMAT_ZETA_Z16:
-                    /* FIXME: Remove bit for stencil clear? */
-                    gl_clear_depth = (clear_zstencil & 0xFFFF) / (double)0xFFFF;
-                    break;
-                case NV097_SET_SURFACE_FORMAT_ZETA_Z24S8:
-                    gl_clear_stencil = clear_zstencil & 0xFF;
-                    gl_clear_depth = (clear_zstencil >> 8) / (double)0xFFFFFF;
-                    break;
-                default:
-                    assert(0);
+            case NV097_SET_SURFACE_FORMAT_ZETA_Z16: {
+                uint16_t z = clear_zstencil & 0xFFFF;
+                /* FIXME: Remove bit for stencil clear? */
+                if (pg->surface_shape.z_format) {
+                    gl_clear_depth = convert_f16_to_float(z) / f16_max;
+                    assert(false); /* FIXME: Untested */
+                } else {
+                    gl_clear_depth = z / (float)0xFFFF;
+                }
+                break;
+            }
+            case NV097_SET_SURFACE_FORMAT_ZETA_Z24S8: {
+                gl_clear_stencil = clear_zstencil & 0xFF;
+                uint32_t z = clear_zstencil >> 8;
+                if (pg->surface_shape.z_format) {
+                    gl_clear_depth = convert_f24_to_float(z) / f24_max;
+                    assert(false); /* FIXME: Untested */
+                } else {
+                    gl_clear_depth = z / (float)0xFFFFFF;
+                }
+                break;
+            }
+            default:
+                assert(false);
+                break;
             }
             if (parameter & NV097_CLEAR_SURFACE_Z) {
                 gl_mask |= GL_DEPTH_BUFFER_BIT;
@@ -5735,10 +5772,66 @@ static void pgraph_method(NV2AState *d,
                         (parameter & NV097_CLEAR_SURFACE_A)
                              ? GL_TRUE : GL_FALSE);
             uint32_t clear_color = d->pgraph.regs[NV_PGRAPH_COLORCLEARVALUE];
-            glClearColor( ((clear_color >> 16) & 0xFF) / 255.0f, /* red */
-                          ((clear_color >> 8) & 0xFF) / 255.0f,  /* green */
-                          (clear_color & 0xFF) / 255.0f,         /* blue */
-                          ((clear_color >> 24) & 0xFF) / 255.0f);/* alpha */
+
+            /* Handle RGB */
+            GLfloat red, green, blue;
+            switch(pg->surface_shape.color_format) {
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_Z1R5G5B5:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_O1R5G5B5:
+                red = ((clear_color >> 10) & 0x1F) / 31.0f;
+                green = ((clear_color >> 5) & 0x1F) / 31.0f;
+                blue = (clear_color & 0x1F) / 31.0f;
+                assert(false); /* Untested */
+                break;
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5:
+                red = ((clear_color >> 11) & 0x1F) / 31.0f;
+                green = ((clear_color >> 5) & 0x3F) / 63.0f;
+                blue = (clear_color & 0x1F) / 31.0f;
+                break;
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_Z8R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X8R8G8B8_O8R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_Z1A7R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_O1A7R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
+                red = ((clear_color >> 16) & 0xFF) / 255.0f;
+                green = ((clear_color >> 8) & 0xFF) / 255.0f;
+                blue = (clear_color & 0xFF) / 255.0f;
+                break;
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_G8B8:
+                /* Xbox D3D doesn't support clearing those */
+            default:
+                red = 1.0f;
+                green = 0.0f;
+                blue = 1.0f;
+                fprintf(stderr, "CLEAR_SURFACE for color_format 0x%x unsupported",
+                        pg->surface_shape.color_format);
+                assert(false);
+                break;
+            }
+
+            /* Handle alpha */
+            GLfloat alpha;
+            switch(pg->surface_shape.color_format) {
+            /* FIXME: CLEAR_SURFACE seems to work like memset, so maybe we
+             *        also have to clear non-alpha bits with alpha value?
+             *        As GL doesn't own those pixels we'd have to do this on
+             *        our own in xbox memory.
+             */
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_Z1A7R8G8B8:
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_X1A7R8G8B8_O1A7R8G8B8:
+                alpha = ((clear_color >> 24) & 0x7F) / 127.0f;
+                assert(false); /* Untested */
+                break;
+            case NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8:
+                alpha = ((clear_color >> 24) & 0xFF) / 255.0f;
+                break;
+            default:
+                alpha = 1.0f;
+                break;
+            }
+
+            glClearColor(red, green, blue, alpha);
         }
         pgraph_update_surface(d, true, write_color, write_zeta);
 
