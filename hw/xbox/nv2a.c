@@ -5691,7 +5691,7 @@ static void pgraph_method(NV2AState *d,
         pg->regs[NV_PGRAPH_COLORCLEARVALUE] = parameter;
         break;
 
-    case NV097_CLEAR_SURFACE:
+    case NV097_CLEAR_SURFACE: {
         NV2A_DPRINTF("---------PRE CLEAR ------\n");
         GLbitfield gl_mask = 0;
 
@@ -5863,6 +5863,7 @@ static void pgraph_method(NV2AState *d,
 
         pgraph_set_surface_dirty(pg, write_color, write_zeta);
         break;
+    }
 
     case NV097_SET_CLEAR_RECT_HORIZONTAL:
         pg->regs[NV_PGRAPH_CLEARRECTX] = parameter;
