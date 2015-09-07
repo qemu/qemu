@@ -50,6 +50,7 @@
 #include "hw/arm/fdt.h"
 #include "hw/intc/arm_gic_common.h"
 #include "kvm_arm.h"
+#include "hw/smbios/smbios.h"
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 256
@@ -788,12 +789,37 @@ static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
     return board->fdt;
 }
 
+static void virt_build_smbios(VirtGuestInfo *guest_info)
+{
+    FWCfgState *fw_cfg = guest_info->fw_cfg;
+    uint8_t *smbios_tables, *smbios_anchor;
+    size_t smbios_tables_len, smbios_anchor_len;
+
+    if (!fw_cfg) {
+        return;
+    }
+
+    smbios_set_defaults("QEMU", "QEMU Virtual Machine",
+                        "1.0", false, true, SMBIOS_ENTRY_POINT_30);
+
+    smbios_get_tables(NULL, 0, &smbios_tables, &smbios_tables_len,
+                      &smbios_anchor, &smbios_anchor_len);
+
+    if (smbios_anchor) {
+        fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-tables",
+                        smbios_tables, smbios_tables_len);
+        fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-anchor",
+                        smbios_anchor, smbios_anchor_len);
+    }
+}
+
 static
 void virt_guest_info_machine_done(Notifier *notifier, void *data)
 {
     VirtGuestInfoState *guest_info_state = container_of(notifier,
                                               VirtGuestInfoState, machine_done);
     virt_acpi_setup(&guest_info_state->info);
+    virt_build_smbios(&guest_info_state->info);
 }
 
 static void machvirt_init(MachineState *machine)

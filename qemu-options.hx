@@ -1412,7 +1412,7 @@ DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
     "-smbios type=17[,loc_pfx=str][,bank=str][,manufacturer=str][,serial=str]\n"
     "               [,asset=str][,part=str][,speed=%d]\n"
     "                specify SMBIOS type 17 fields\n",
-    QEMU_ARCH_I386)
+    QEMU_ARCH_I386 | QEMU_ARCH_ARM)
 STEXI
 @item -smbios file=@var{binary}
 @findex -smbios
