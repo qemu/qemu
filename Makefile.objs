@@ -98,6 +98,9 @@ common-obj-y += hw/
 common-obj-y += qom/
 common-obj-y += disas/
 
+# OpenGl Support
+common-obj-$(CONFIG_OPENGL) += gl/
+
 ######################################################################
 # Resource file for Windows executables
 version-obj-$(CONFIG_WIN32) += $(BUILD_DIR)/version.o

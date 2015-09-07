@@ -1,0 +1,4 @@
+common-obj-y += gloffscreen_common.o glextensions.o
+common-obj-$(CONFIG_WIN32) += gloffscreen_wgl.o
+common-obj-$(CONFIG_DARWIN) += gloffscreen_cgl.o
+common-obj-$(CONFIG_LINUX) += gloffscreen_glx.o
