@@ -331,10 +331,7 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
     switch (irq) {
     case ARM_CPU_VIRQ:
     case ARM_CPU_VFIQ:
-        if (!arm_feature(env, ARM_FEATURE_EL2)) {
-            hw_error("%s: Virtual interrupt line %d with no EL2 support\n",
-                     __func__, irq);
-        }
+        assert(arm_feature(env, ARM_FEATURE_EL2));
         /* fall through */
     case ARM_CPU_IRQ:
     case ARM_CPU_FIQ:
