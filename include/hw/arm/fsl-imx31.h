@@ -23,6 +23,7 @@
 #include "hw/char/imx_serial.h"
 #include "hw/timer/imx_gpt.h"
 #include "hw/timer/imx_epit.h"
+#include "hw/i2c/imx_i2c.h"
 #include "exec/memory.h"
 
 #define TYPE_FSL_IMX31 "fsl,imx31"

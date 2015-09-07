@@ -27,4 +27,7 @@ void i2c_recv(I2CAdapter *i2c, uint8_t addr,
 /* libi2c-omap.c */
 I2CAdapter *omap_i2c_create(uint64_t addr);
 
+/* libi2c-imx.c */
+I2CAdapter *imx_i2c_create(uint64_t addr);
+
 #endif
