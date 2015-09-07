@@ -504,7 +504,7 @@ typedef struct CPUARMState {
 
 ARMCPU *cpu_arm_init(const char *cpu_model);
 int cpu_arm_exec(CPUState *cpu);
-uint32_t do_arm_semihosting(CPUARMState *env);
+target_ulong do_arm_semihosting(CPUARMState *env);
 void aarch64_sync_32_to_64(CPUARMState *env);
 void aarch64_sync_64_to_32(CPUARMState *env);
 

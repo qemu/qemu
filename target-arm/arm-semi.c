@@ -134,7 +134,7 @@ static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 #ifdef CONFIG_USER_ONLY
     TaskState *ts = cs->opaque;
 #endif
-    target_ulong reg0 = env->regs[0];
+    target_ulong reg0 = is_a64(env) ? env->xregs[0] : env->regs[0];
 
     if (ret == (target_ulong)-1) {
 #ifdef CONFIG_USER_ONLY
@@ -158,7 +158,30 @@ static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
             break;
         }
     }
-    env->regs[0] = reg0;
+    if (is_a64(env)) {
+        env->xregs[0] = reg0;
+    } else {
+        env->regs[0] = reg0;
+    }
+}
+
+static target_ulong arm_flen_buf(ARMCPU *cpu)
+{
+    /* Return an address in target memory of 64 bytes where the remote
+     * gdb should write its stat struct. (The format of this structure
+     * is defined by GDB's remote protocol and is not target-specific.)
+     * We put this on the guest's stack just below SP.
+     */
+    CPUARMState *env = &cpu->env;
+    target_ulong sp;
+
+    if (is_a64(env)) {
+        sp = env->xregs[31];
+    } else {
+        sp = env->regs[13];
+    }
+
+    return sp - 64;
 }
 
 static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
@@ -168,8 +191,13 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
     /* The size is always stored in big-endian order, extract
        the value. We assume the size always fit in 32 bits.  */
     uint32_t size;
-    cpu_memory_rw_debug(cs, env->regs[13]-64+32, (uint8_t *)&size, 4, 0);
-    env->regs[0] = be32_to_cpu(size);
+    cpu_memory_rw_debug(cs, arm_flen_buf(cpu) + 32, (uint8_t *)&size, 4, 0);
+    size = be32_to_cpu(size);
+    if (is_a64(env)) {
+        env->xregs[0] = size;
+    } else {
+        env->regs[0] = size;
+    }
 #ifdef CONFIG_USER_ONLY
     ((TaskState *)cs->opaque)->swi_errno = err;
 #else
@@ -193,20 +221,30 @@ static target_ulong arm_gdb_syscall(ARMCPU *cpu, gdb_syscall_complete_cb cb,
      * the callback function.
      */
 
-    return env->regs[0];
+    return is_a64(env) ? env->xregs[0] : env->regs[0];
 }
 
 /* Read the input value from the argument block; fail the semihosting
  * call if the memory read fails.
  */
 #define GET_ARG(n) do {                                 \
-    if (get_user_ual(arg ## n, args + (n) * 4)) {       \
-        return (uint32_t)-1;                            \
+    if (is_a64(env)) {                                  \
+        if (get_user_u64(arg ## n, args + (n) * 8)) {   \
+            return -1;                                  \
+        }                                               \
+    } else {                                            \
+        if (get_user_u32(arg ## n, args + (n) * 4)) {   \
+            return -1;                                  \
+        }                                               \
     }                                                   \
 } while (0)
 
-#define SET_ARG(n, val) put_user_ual(val, args + (n) * 4)
-uint32_t do_arm_semihosting(CPUARMState *env)
+#define SET_ARG(n, val)                                 \
+    (is_a64(env) ?                                      \
+     put_user_u64(val, args + (n) * 8) :                \
+     put_user_u32(val, args + (n) * 4))
+
+target_ulong do_arm_semihosting(CPUARMState *env)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
@@ -222,8 +260,15 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     CPUARMState *ts = env;
 #endif
 
-    nr = env->regs[0];
-    args = env->regs[1];
+    if (is_a64(env)) {
+        /* Note that the syscall number is in W0, not X0 */
+        nr = env->xregs[0] & 0xffffffffU;
+        args = env->xregs[1];
+    } else {
+        nr = env->regs[0];
+        args = env->regs[1];
+    }
+
     switch (nr) {
     case TARGET_SYS_OPEN:
         GET_ARG(0);
@@ -355,7 +400,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         GET_ARG(0);
         if (use_gdb_syscalls()) {
             return arm_gdb_syscall(cpu, arm_semi_flen_cb, "fstat,%x,%x",
-                                   arg0, env->regs[13]-64);
+                                   arg0, arm_flen_buf(cpu));
         } else {
             struct stat buf;
             ret = set_swi_errno(ts, fstat(arg0, &buf));
