@@ -55,7 +55,9 @@ static uint8_t *smbios_tables;
 static size_t smbios_tables_len;
 static unsigned smbios_table_max;
 static unsigned smbios_table_cnt;
-static struct smbios_entry_point ep;
+static SmbiosEntryPointType smbios_ep_type = SMBIOS_ENTRY_POINT_21;
+
+static SmbiosEntryPoint ep;
 
 static int smbios_type4_count = 0;
 static bool smbios_immutable;
@@ -771,11 +773,12 @@ void smbios_set_cpuid(uint32_t version, uint32_t features)
 
 void smbios_set_defaults(const char *manufacturer, const char *product,
                          const char *version, bool legacy_mode,
-                         bool uuid_encoded)
+                         bool uuid_encoded, SmbiosEntryPointType ep_type)
 {
     smbios_have_defaults = true;
     smbios_legacy = legacy_mode;
     smbios_uuid_encoded = uuid_encoded;
+    smbios_ep_type = ep_type;
 
     /* drop unwanted version of command-line file blob(s) */
     if (smbios_legacy) {
@@ -808,26 +811,53 @@ void smbios_set_defaults(const char *manufacturer, const char *product,
 
 static void smbios_entry_point_setup(void)
 {
-    memcpy(ep.anchor_string, "_SM_", 4);
-    memcpy(ep.intermediate_anchor_string, "_DMI_", 5);
-    ep.length = sizeof(struct smbios_entry_point);
-    ep.entry_point_revision = 0; /* formatted_area reserved, per spec v2.1+ */
-    memset(ep.formatted_area, 0, 5);
+    switch (smbios_ep_type) {
+    case SMBIOS_ENTRY_POINT_21:
+        memcpy(ep.ep21.anchor_string, "_SM_", 4);
+        memcpy(ep.ep21.intermediate_anchor_string, "_DMI_", 5);
+        ep.ep21.length = sizeof(struct smbios_21_entry_point);
+        ep.ep21.entry_point_revision = 0; /* formatted_area reserved */
+        memset(ep.ep21.formatted_area, 0, 5);
 
-    /* compliant with smbios spec v2.8 */
-    ep.smbios_major_version = 2;
-    ep.smbios_minor_version = 8;
-    ep.smbios_bcd_revision = 0x28;
+        /* compliant with smbios spec v2.8 */
+        ep.ep21.smbios_major_version = 2;
+        ep.ep21.smbios_minor_version = 8;
+        ep.ep21.smbios_bcd_revision = 0x28;
 
-    /* set during table construction, but BIOS may override: */
-    ep.structure_table_length = cpu_to_le16(smbios_tables_len);
-    ep.max_structure_size = cpu_to_le16(smbios_table_max);
-    ep.number_of_structures = cpu_to_le16(smbios_table_cnt);
+        /* set during table construction, but BIOS may override: */
+        ep.ep21.structure_table_length = cpu_to_le16(smbios_tables_len);
+        ep.ep21.max_structure_size = cpu_to_le16(smbios_table_max);
+        ep.ep21.number_of_structures = cpu_to_le16(smbios_table_cnt);
 
-    /* BIOS must recalculate: */
-    ep.checksum = 0;
-    ep.intermediate_checksum = 0;
-    ep.structure_table_address = cpu_to_le32(0);
+        /* BIOS must recalculate */
+        ep.ep21.checksum = 0;
+        ep.ep21.intermediate_checksum = 0;
+        ep.ep21.structure_table_address = cpu_to_le32(0);
+
+        break;
+    case SMBIOS_ENTRY_POINT_30:
+        memcpy(ep.ep30.anchor_string, "_SM3_", 5);
+        ep.ep30.length = sizeof(struct smbios_30_entry_point);
+        ep.ep30.entry_point_revision = 1;
+        ep.ep30.reserved = 0;
+
+        /* compliant with smbios spec 3.0 */
+        ep.ep30.smbios_major_version = 3;
+        ep.ep30.smbios_minor_version = 0;
+        ep.ep30.smbios_doc_rev = 0;
+
+        /* set during table construct, but BIOS might override */
+        ep.ep30.structure_table_max_size = cpu_to_le32(smbios_tables_len);
+
+        /* BIOS must recalculate */
+        ep.ep30.checksum = 0;
+        ep.ep30.structure_table_address = cpu_to_le64(0);
+
+        break;
+    default:
+        abort();
+        break;
+    }
 }
 
 void smbios_get_tables(const struct smbios_phys_mem_area *mem_array,
@@ -885,7 +915,15 @@ void smbios_get_tables(const struct smbios_phys_mem_area *mem_array,
     *tables = smbios_tables;
     *tables_len = smbios_tables_len;
     *anchor = (uint8_t *)&ep;
-    *anchor_len = sizeof(struct smbios_entry_point);
+
+    /* calculate length based on anchor string */
+    if (!strncmp((char *)&ep, "_SM_", 4)) {
+        *anchor_len = sizeof(struct smbios_21_entry_point);
+    } else if (!strncmp((char *)&ep, "_SM3_", 5)) {
+        *anchor_len = sizeof(struct smbios_30_entry_point);
+    } else {
+        abort();
+    }
 }
 
 static void save_opt(const char **dest, QemuOpts *opts, const char *name)

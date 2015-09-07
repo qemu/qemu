@@ -173,7 +173,8 @@ static void pc_init1(MachineState *machine)
         MachineClass *mc = MACHINE_GET_CLASS(machine);
         /* These values are guest ABI, do not change */
         smbios_set_defaults("QEMU", "Standard PC (i440FX + PIIX, 1996)",
-                            mc->name, smbios_legacy_mode, smbios_uuid_encoded);
+                            mc->name, smbios_legacy_mode, smbios_uuid_encoded,
+                            SMBIOS_ENTRY_POINT_21);
     }
 
     /* allocate ram and load rom/bios */
