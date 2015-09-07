@@ -58,6 +58,7 @@
 #define TARGET_SYS_GET_CMDLINE 0x15
 #define TARGET_SYS_HEAPINFO    0x16
 #define TARGET_SYS_EXIT        0x18
+#define TARGET_SYS_SYNCCACHE   0x19
 
 /* ADP_Stopped_ApplicationExit is used for exit(0),
  * anything else is implemented as exit(1) */
@@ -623,6 +624,15 @@ target_ulong do_arm_semihosting(CPUARMState *env)
         ret = (args == ADP_Stopped_ApplicationExit) ? 0 : 1;
         gdb_exit(env, ret);
         exit(ret);
+    case TARGET_SYS_SYNCCACHE:
+        /* Clean the D-cache and invalidate the I-cache for the specified
+         * virtual address range. This is a nop for us since we don't
+         * implement caches. This is only present on A64.
+         */
+        if (is_a64(env)) {
+            return 0;
+        }
+        /* fall through -- invalid for A32/T32 */
     default:
         fprintf(stderr, "qemu: Unsupported SemiHosting SWI 0x%02x\n", nr);
         cpu_dump_state(cs, stderr, fprintf, 0);
