@@ -619,9 +619,24 @@ target_ulong do_arm_semihosting(CPUARMState *env)
             return 0;
         }
     case TARGET_SYS_EXIT:
-        /* ARM specifies only Stopped_ApplicationExit as normal
-         * exit, everything else is considered an error */
-        ret = (args == ADP_Stopped_ApplicationExit) ? 0 : 1;
+        if (is_a64(env)) {
+            /* The A64 version of this call takes a parameter block,
+             * so the application-exit type can return a subcode which
+             * is the exit status code from the application.
+             */
+            GET_ARG(0);
+            GET_ARG(1);
+
+            if (arg0 == ADP_Stopped_ApplicationExit) {
+                ret = arg1;
+            } else {
+                ret = 1;
+            }
+        } else {
+            /* ARM specifies only Stopped_ApplicationExit as normal
+             * exit, everything else is considered an error */
+            ret = (args == ADP_Stopped_ApplicationExit) ? 0 : 1;
+        }
         gdb_exit(env, ret);
         exit(ret);
     case TARGET_SYS_SYNCCACHE:
