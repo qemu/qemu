@@ -342,7 +342,7 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         }
         break;
     default:
-        hw_error("arm_cpu_set_irq: Bad interrupt line %d\n", irq);
+        g_assert_not_reached();
     }
 }
 
@@ -361,7 +361,7 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
         kvm_irq |= KVM_ARM_IRQ_CPU_FIQ;
         break;
     default:
-        hw_error("arm_cpu_kvm_set_irq: Bad interrupt line %d\n", irq);
+        g_assert_not_reached();
     }
     kvm_irq |= cs->cpu_index << KVM_ARM_IRQ_VCPU_SHIFT;
     kvm_set_irq(kvm_state, kvm_irq, level ? 1 : 0);

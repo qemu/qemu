@@ -4990,7 +4990,7 @@ int bank_number(int mode)
     case ARM_CPU_MODE_MON:
         return 7;
     }
-    hw_error("bank number requested for bad CPSR mode value 0x%x\n", mode);
+    g_assert_not_reached();
 }
 
 void switch_mode(CPUARMState *env, int mode)
