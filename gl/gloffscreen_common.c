@@ -84,7 +84,7 @@ bool glo_check_extension(const char* ext_name)
     for (i=0; i<num_extensions; i++) {
       const char* ext = (const char*)glGetStringi(GL_EXTENSIONS, i);
       if (!ext) break;
-      if (strcmp(ext, ext_name)) return true;
+      if (strcmp(ext, ext_name) == 0) return true;
     }
     return false;
 }
