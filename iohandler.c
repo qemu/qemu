@@ -32,111 +32,30 @@
 #include <sys/wait.h>
 #endif
 
-typedef struct IOHandlerRecord {
-    IOHandler *fd_read;
-    IOHandler *fd_write;
-    void *opaque;
-    QLIST_ENTRY(IOHandlerRecord) next;
-    int fd;
-    int pollfds_idx;
-    bool deleted;
-} IOHandlerRecord;
+/* This context runs on top of main loop. We can't reuse qemu_aio_context
+ * because iohandlers mustn't be polled by aio_poll(qemu_aio_context). */
+static AioContext *iohandler_ctx;
 
-static QLIST_HEAD(, IOHandlerRecord) io_handlers =
-    QLIST_HEAD_INITIALIZER(io_handlers);
+static void iohandler_init(void)
+{
+    if (!iohandler_ctx) {
+        iohandler_ctx = aio_context_new(&error_abort);
+    }
+}
+
+GSource *iohandler_get_g_source(void)
+{
+    iohandler_init();
+    return aio_get_g_source(iohandler_ctx);
+}
 
 void qemu_set_fd_handler(int fd,
                          IOHandler *fd_read,
                          IOHandler *fd_write,
                          void *opaque)
 {
-    IOHandlerRecord *ioh;
-
-    assert(fd >= 0);
-
-    if (!fd_read && !fd_write) {
-        QLIST_FOREACH(ioh, &io_handlers, next) {
-            if (ioh->fd == fd) {
-                ioh->deleted = 1;
-                break;
-            }
-        }
-    } else {
-        QLIST_FOREACH(ioh, &io_handlers, next) {
-            if (ioh->fd == fd)
-                goto found;
-        }
-        ioh = g_malloc0(sizeof(IOHandlerRecord));
-        QLIST_INSERT_HEAD(&io_handlers, ioh, next);
-    found:
-        ioh->fd = fd;
-        ioh->fd_read = fd_read;
-        ioh->fd_write = fd_write;
-        ioh->opaque = opaque;
-        ioh->pollfds_idx = -1;
-        ioh->deleted = 0;
-        qemu_notify_event();
-    }
-}
-
-void qemu_iohandler_fill(GArray *pollfds)
-{
-    IOHandlerRecord *ioh;
-
-    QLIST_FOREACH(ioh, &io_handlers, next) {
-        int events = 0;
-
-        if (ioh->deleted)
-            continue;
-        if (ioh->fd_read) {
-            events |= G_IO_IN | G_IO_HUP | G_IO_ERR;
-        }
-        if (ioh->fd_write) {
-            events |= G_IO_OUT | G_IO_ERR;
-        }
-        if (events) {
-            GPollFD pfd = {
-                .fd = ioh->fd,
-                .events = events,
-            };
-            ioh->pollfds_idx = pollfds->len;
-            g_array_append_val(pollfds, pfd);
-        } else {
-            ioh->pollfds_idx = -1;
-        }
-    }
-}
-
-void qemu_iohandler_poll(GArray *pollfds, int ret)
-{
-    if (ret > 0) {
-        IOHandlerRecord *pioh, *ioh;
-
-        QLIST_FOREACH_SAFE(ioh, &io_handlers, next, pioh) {
-            int revents = 0;
-
-            if (!ioh->deleted && ioh->pollfds_idx != -1) {
-                GPollFD *pfd = &g_array_index(pollfds, GPollFD,
-                                              ioh->pollfds_idx);
-                revents = pfd->revents;
-            }
-
-            if (!ioh->deleted && ioh->fd_read &&
-                (revents & (G_IO_IN | G_IO_HUP | G_IO_ERR))) {
-                ioh->fd_read(ioh->opaque);
-            }
-            if (!ioh->deleted && ioh->fd_write &&
-                (revents & (G_IO_OUT | G_IO_ERR))) {
-                ioh->fd_write(ioh->opaque);
-            }
-
-            /* Do this last in case read/write handlers marked it for deletion */
-            if (ioh->deleted) {
-                QLIST_REMOVE(ioh, next);
-                g_free(ioh);
-            }
-        }
-    }
+    iohandler_init();
+    aio_set_fd_handler(iohandler_ctx, fd, fd_read, fd_write, opaque);
 }
 
 /* reaping of zombies.  right now we're not passing the status to

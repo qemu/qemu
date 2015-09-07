@@ -203,6 +203,7 @@ void qemu_set_fd_handler(int fd,
                          IOHandler *fd_write,
                          void *opaque);
 
+GSource *iohandler_get_g_source(void);
 #ifdef CONFIG_POSIX
 /**
  * qemu_add_child_watch: Register a child process for reaping.
@@ -265,8 +266,6 @@ void qemu_mutex_unlock_iothread(void);
 /* internal interfaces */
 
 void qemu_fd_register(int fd);
-void qemu_iohandler_fill(GArray *pollfds);
-void qemu_iohandler_poll(GArray *pollfds, int rc);
 
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule_idle(QEMUBH *bh);
