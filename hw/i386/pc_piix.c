@@ -449,7 +449,9 @@ static void pc_i440fx_machine_options(MachineClass *m)
 
 static void pc_i440fx_2_4_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_machine_options(m);
+    pcmc->broken_reserved_end = true;
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
     m->alias = "pc";
