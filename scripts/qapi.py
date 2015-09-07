@@ -944,7 +944,9 @@ def cgen(code, **kwds):
     raw = code % kwds
     if indent_level:
         indent = genindent(indent_level)
-        raw = re.subn("^.", indent + r'\g<0>', raw, 0, re.MULTILINE)
+        # re.subn() lacks flags support before Python 2.7, use re.compile()
+        raw = re.subn(re.compile("^.", re.MULTILINE),
+                      indent + r'\g<0>', raw)
         raw = raw[0]
     return re.sub(re.escape(eatspace) + ' *', '', raw)
 
