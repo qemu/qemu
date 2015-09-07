@@ -56,6 +56,7 @@
 #define EXCP_SMC            13   /* Secure Monitor Call */
 #define EXCP_VIRQ           14
 #define EXCP_VFIQ           15
+#define EXCP_SEMIHOST       16   /* semihosting call (A64 only) */
 
 #define ARMV7M_EXCP_RESET   1
 #define ARMV7M_EXCP_NMI     2
@@ -504,7 +505,7 @@ typedef struct CPUARMState {
 
 ARMCPU *cpu_arm_init(const char *cpu_model);
 int cpu_arm_exec(CPUState *cpu);
-uint32_t do_arm_semihosting(CPUARMState *env);
+target_ulong do_arm_semihosting(CPUARMState *env);
 void aarch64_sync_32_to_64(CPUARMState *env);
 void aarch64_sync_64_to_32(CPUARMState *env);
 
@@ -1519,8 +1520,8 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     CPUARMState *env = cs->env_ptr;
     unsigned int cur_el = arm_current_el(env);
     bool secure = arm_is_secure(env);
-    uint32_t scr;
-    uint32_t hcr;
+    bool scr;
+    bool hcr;
     bool pstate_unmasked;
     int8_t unmasked = 0;
 
@@ -1547,7 +1548,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
          * set then FIQs can be masked by CPSR.F when non-secure but only
          * when FIQs are only routed to EL3.
          */
-        scr &= !((env->cp15.scr_el3 & SCR_FW) && !hcr);
+        scr = scr && !((env->cp15.scr_el3 & SCR_FW) && !hcr);
         pstate_unmasked = !(env->daif & PSTATE_F);
         break;
 

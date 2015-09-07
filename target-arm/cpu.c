@@ -331,10 +331,7 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
     switch (irq) {
     case ARM_CPU_VIRQ:
     case ARM_CPU_VFIQ:
-        if (!arm_feature(env, ARM_FEATURE_EL2)) {
-            hw_error("%s: Virtual interrupt line %d with no EL2 support\n",
-                     __func__, irq);
-        }
+        assert(arm_feature(env, ARM_FEATURE_EL2));
         /* fall through */
     case ARM_CPU_IRQ:
     case ARM_CPU_FIQ:
@@ -345,7 +342,7 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         }
         break;
     default:
-        hw_error("arm_cpu_set_irq: Bad interrupt line %d\n", irq);
+        g_assert_not_reached();
     }
 }
 
@@ -364,7 +361,7 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
         kvm_irq |= KVM_ARM_IRQ_CPU_FIQ;
         break;
     default:
-        hw_error("arm_cpu_kvm_set_irq: Bad interrupt line %d\n", irq);
+        g_assert_not_reached();
     }
     kvm_irq |= cs->cpu_index << KVM_ARM_IRQ_VCPU_SHIFT;
     kvm_set_irq(kvm_state, kvm_irq, level ? 1 : 0);
@@ -459,7 +456,7 @@ static void arm_cpu_initfn(Object *obj)
      */
     Aff1 = cs->cpu_index / ARM_CPUS_PER_CLUSTER;
     Aff0 = cs->cpu_index % ARM_CPUS_PER_CLUSTER;
-    cpu->mp_affinity = (Aff1 << 8) | Aff0;
+    cpu->mp_affinity = (Aff1 << ARM_AFF1_SHIFT) | Aff0;
 
 #ifndef CONFIG_USER_ONLY
     /* Our inbound IRQ and FIQ lines */

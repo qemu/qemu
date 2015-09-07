@@ -50,6 +50,7 @@
 #include "hw/arm/fdt.h"
 #include "hw/intc/arm_gic_common.h"
 #include "kvm_arm.h"
+#include "hw/smbios/smbios.h"
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 256
@@ -79,6 +80,7 @@ typedef struct {
 typedef struct {
     MachineState parent;
     bool secure;
+    bool highmem;
 } VirtMachineState;
 
 #define TYPE_VIRT_MACHINE   "virt"
@@ -119,6 +121,8 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_PCIE_PIO] =           { 0x3eff0000, 0x00010000 },
     [VIRT_PCIE_ECAM] =          { 0x3f000000, 0x01000000 },
     [VIRT_MEM] =                { 0x40000000, 30ULL * 1024 * 1024 * 1024 },
+    /* Second PCIe window, 512GB wide at the 512GB boundary */
+    [VIRT_PCIE_MMIO_HIGH] =   { 0x8000000000ULL, 0x8000000000ULL },
 };
 
 static const int a15irqmap[] = {
@@ -284,9 +288,32 @@ static void fdt_add_timer_nodes(const VirtBoardInfo *vbi)
 static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
 {
     int cpu;
+    int addr_cells = 1;
+
+    /*
+     * From Documentation/devicetree/bindings/arm/cpus.txt
+     *  On ARM v8 64-bit systems value should be set to 2,
+     *  that corresponds to the MPIDR_EL1 register size.
+     *  If MPIDR_EL1[63:32] value is equal to 0 on all CPUs
+     *  in the system, #address-cells can be set to 1, since
+     *  MPIDR_EL1[63:32] bits are not used for CPUs
+     *  identification.
+     *
+     *  Here we actually don't know whether our system is 32- or 64-bit one.
+     *  The simplest way to go is to examine affinity IDs of all our CPUs. If
+     *  at least one of them has Aff3 populated, we set #address-cells to 2.
+     */
+    for (cpu = 0; cpu < vbi->smp_cpus; cpu++) {
+        ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(cpu));
+
+        if (armcpu->mp_affinity & ARM_AFF3_MASK) {
+            addr_cells = 2;
+            break;
+        }
+    }
 
     qemu_fdt_add_subnode(vbi->fdt, "/cpus");
-    qemu_fdt_setprop_cell(vbi->fdt, "/cpus", "#address-cells", 0x1);
+    qemu_fdt_setprop_cell(vbi->fdt, "/cpus", "#address-cells", addr_cells);
     qemu_fdt_setprop_cell(vbi->fdt, "/cpus", "#size-cells", 0x0);
 
     for (cpu = vbi->smp_cpus - 1; cpu >= 0; cpu--) {
@@ -303,7 +330,14 @@ static void fdt_add_cpu_nodes(const VirtBoardInfo *vbi)
                                         "enable-method", "psci");
         }
 
-        qemu_fdt_setprop_cell(vbi->fdt, nodename, "reg", armcpu->mp_affinity);
+        if (addr_cells == 2) {
+            qemu_fdt_setprop_u64(vbi->fdt, nodename, "reg",
+                                 armcpu->mp_affinity);
+        } else {
+            qemu_fdt_setprop_cell(vbi->fdt, nodename, "reg",
+                                  armcpu->mp_affinity);
+        }
+
         g_free(nodename);
     }
 }
@@ -666,10 +700,13 @@ static void create_pcie_irq_map(const VirtBoardInfo *vbi, uint32_t gic_phandle,
                            0x7           /* PCI irq */);
 }
 
-static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic)
+static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
+                        bool use_highmem)
 {
     hwaddr base_mmio = vbi->memmap[VIRT_PCIE_MMIO].base;
     hwaddr size_mmio = vbi->memmap[VIRT_PCIE_MMIO].size;
+    hwaddr base_mmio_high = vbi->memmap[VIRT_PCIE_MMIO_HIGH].base;
+    hwaddr size_mmio_high = vbi->memmap[VIRT_PCIE_MMIO_HIGH].size;
     hwaddr base_pio = vbi->memmap[VIRT_PCIE_PIO].base;
     hwaddr size_pio = vbi->memmap[VIRT_PCIE_PIO].size;
     hwaddr base_ecam = vbi->memmap[VIRT_PCIE_ECAM].base;
@@ -706,6 +743,16 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic)
                              mmio_reg, base_mmio, size_mmio);
     memory_region_add_subregion(get_system_memory(), base_mmio, mmio_alias);
 
+    if (use_highmem) {
+        /* Map high MMIO space */
+        MemoryRegion *high_mmio_alias = g_new0(MemoryRegion, 1);
+
+        memory_region_init_alias(high_mmio_alias, OBJECT(dev), "pcie-mmio-high",
+                                 mmio_reg, base_mmio_high, size_mmio_high);
+        memory_region_add_subregion(get_system_memory(), base_mmio_high,
+                                    high_mmio_alias);
+    }
+
     /* Map IO port space */
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_pio);
 
@@ -727,11 +774,23 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic)
 
     qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
                                  2, base_ecam, 2, size_ecam);
-    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "ranges",
-                                 1, FDT_PCI_RANGE_IOPORT, 2, 0,
-                                 2, base_pio, 2, size_pio,
-                                 1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
-                                 2, base_mmio, 2, size_mmio);
+
+    if (use_highmem) {
+        qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "ranges",
+                                     1, FDT_PCI_RANGE_IOPORT, 2, 0,
+                                     2, base_pio, 2, size_pio,
+                                     1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
+                                     2, base_mmio, 2, size_mmio,
+                                     1, FDT_PCI_RANGE_MMIO_64BIT,
+                                     2, base_mmio_high,
+                                     2, base_mmio_high, 2, size_mmio_high);
+    } else {
+        qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "ranges",
+                                     1, FDT_PCI_RANGE_IOPORT, 2, 0,
+                                     2, base_pio, 2, size_pio,
+                                     1, FDT_PCI_RANGE_MMIO, 2, base_mmio,
+                                     2, base_mmio, 2, size_mmio);
+    }
 
     qemu_fdt_setprop_cell(vbi->fdt, nodename, "#interrupt-cells", 1);
     create_pcie_irq_map(vbi, vbi->gic_phandle, irq, nodename);
@@ -788,12 +847,37 @@ static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
     return board->fdt;
 }
 
+static void virt_build_smbios(VirtGuestInfo *guest_info)
+{
+    FWCfgState *fw_cfg = guest_info->fw_cfg;
+    uint8_t *smbios_tables, *smbios_anchor;
+    size_t smbios_tables_len, smbios_anchor_len;
+
+    if (!fw_cfg) {
+        return;
+    }
+
+    smbios_set_defaults("QEMU", "QEMU Virtual Machine",
+                        "1.0", false, true, SMBIOS_ENTRY_POINT_30);
+
+    smbios_get_tables(NULL, 0, &smbios_tables, &smbios_tables_len,
+                      &smbios_anchor, &smbios_anchor_len);
+
+    if (smbios_anchor) {
+        fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-tables",
+                        smbios_tables, smbios_tables_len);
+        fw_cfg_add_file(fw_cfg, "etc/smbios/smbios-anchor",
+                        smbios_anchor, smbios_anchor_len);
+    }
+}
+
 static
 void virt_guest_info_machine_done(Notifier *notifier, void *data)
 {
     VirtGuestInfoState *guest_info_state = container_of(notifier,
                                               VirtGuestInfoState, machine_done);
     virt_acpi_setup(&guest_info_state->info);
+    virt_build_smbios(&guest_info_state->info);
 }
 
 static void machvirt_init(MachineState *machine)
@@ -889,7 +973,7 @@ static void machvirt_init(MachineState *machine)
 
     create_rtc(vbi, pic);
 
-    create_pcie(vbi, pic);
+    create_pcie(vbi, pic, vms->highmem);
 
     /* Create mmio transports, so the user can create virtio backends
      * (which will be automatically plugged in to the transports). If
@@ -904,6 +988,7 @@ static void machvirt_init(MachineState *machine)
     guest_info->fw_cfg = fw_cfg_find();
     guest_info->memmap = vbi->memmap;
     guest_info->irqmap = vbi->irqmap;
+    guest_info->use_highmem = vms->highmem;
     guest_info_state->machine_done.notify = virt_guest_info_machine_done;
     qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
 
@@ -941,6 +1026,20 @@ static void virt_set_secure(Object *obj, bool value, Error **errp)
     vms->secure = value;
 }
 
+static bool virt_get_highmem(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->highmem;
+}
+
+static void virt_set_highmem(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->highmem = value;
+}
+
 static void virt_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -952,6 +1051,15 @@ static void virt_instance_init(Object *obj)
     object_property_set_description(obj, "secure",
                                     "Set on/off to enable/disable the ARM "
                                     "Security Extensions (TrustZone)",
+                                    NULL);
+
+    /* High memory is enabled by default */
+    vms->highmem = true;
+    object_property_add_bool(obj, "highmem", virt_get_highmem,
+                             virt_set_highmem, NULL);
+    object_property_set_description(obj, "highmem",
+                                    "Set on/off to enable/disable using "
+                                    "physical address space above 32 bits",
                                     NULL);
 }
 

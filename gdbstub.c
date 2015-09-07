@@ -1301,9 +1301,8 @@ send_packet:
     %x  - target_ulong argument printed in hex.
     %lx - 64-bit argument printed in hex.
     %s  - string pointer (target_ulong) and length (int) pair.  */
-void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
+void gdb_do_syscallv(gdb_syscall_complete_cb cb, const char *fmt, va_list va)
 {
-    va_list va;
     char *p;
     char *p_end;
     target_ulong addr;
@@ -1317,7 +1316,6 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
 #ifndef CONFIG_USER_ONLY
     vm_stop(RUN_STATE_DEBUG);
 #endif
-    va_start(va, fmt);
     p = s->syscall_buf;
     p_end = &s->syscall_buf[sizeof(s->syscall_buf)];
     *(p++) = 'F';
@@ -1351,7 +1349,6 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
         }
     }
     *p = 0;
-    va_end(va);
 #ifdef CONFIG_USER_ONLY
     put_packet(s, s->syscall_buf);
     gdb_handlesig(s->c_cpu, 0);
@@ -1364,6 +1361,15 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
        being processed.  */
     cpu_exit(s->c_cpu);
 #endif
+}
+
+void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
+{
+    va_list va;
+
+    va_start(va, fmt);
+    gdb_do_syscallv(cb, fmt, va);
+    va_end(va);
 }
 
 static void gdb_read_byte(GDBState *s, int ch)

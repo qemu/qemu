@@ -596,8 +596,7 @@ static const MemoryRegionOps omap_eac_ops = {
 static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk)
 {
-    struct omap_eac_s *s = (struct omap_eac_s *)
-            g_malloc0(sizeof(struct omap_eac_s));
+    struct omap_eac_s *s = g_new0(struct omap_eac_s, 1);
 
     s->irq = irq;
     s->codec.rxdrq = *drq ++;
@@ -788,8 +787,7 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
                 hwaddr channel_base, qemu_irq irq, omap_clk clk,
                 CharDriverState *chr)
 {
-    struct omap_sti_s *s = (struct omap_sti_s *)
-            g_malloc0(sizeof(struct omap_sti_s));
+    struct omap_sti_s *s = g_new0(struct omap_sti_s, 1);
 
     s->irq = irq;
     omap_sti_reset(s);
@@ -1806,8 +1804,7 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
                 qemu_irq mpu_int, qemu_irq dsp_int, qemu_irq iva_int,
                 struct omap_mpu_state_s *mpu)
 {
-    struct omap_prcm_s *s = (struct omap_prcm_s *)
-            g_malloc0(sizeof(struct omap_prcm_s));
+    struct omap_prcm_s *s = g_new0(struct omap_prcm_s, 1);
 
     s->irq[0] = mpu_int;
     s->irq[1] = dsp_int;
@@ -2185,8 +2182,7 @@ static void omap_sysctl_reset(struct omap_sysctl_s *s)
 static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
                 omap_clk iclk, struct omap_mpu_state_s *mpu)
 {
-    struct omap_sysctl_s *s = (struct omap_sysctl_s *)
-            g_malloc0(sizeof(struct omap_sysctl_s));
+    struct omap_sysctl_s *s = g_new0(struct omap_sysctl_s, 1);
 
     s->mpu = mpu;
     omap_sysctl_reset(s);
@@ -2248,8 +2244,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
                 unsigned long sdram_size,
                 const char *core)
 {
-    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
-            g_malloc0(sizeof(struct omap_mpu_state_s));
+    struct omap_mpu_state_s *s = g_new0(struct omap_mpu_state_s, 1);
     qemu_irq dma_irqs[4];
     DriveInfo *dinfo;
     int i;

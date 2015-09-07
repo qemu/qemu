@@ -12,7 +12,6 @@
  *
  */
 
-#include "hw/arm/imx.h"
 #include "hw/timer/imx_gpt.h"
 #include "hw/misc/imx_ccm.h"
 #include "qemu/main-loop.h"
@@ -447,16 +446,6 @@ static void imx_gpt_realize(DeviceState *dev, Error **errp)
 
     bh = qemu_bh_new(imx_gpt_timeout, s);
     s->timer = ptimer_init(bh);
-}
-
-void imx_timerg_create(const hwaddr addr, qemu_irq irq, DeviceState *ccm)
-{
-    IMXGPTState *pp;
-    DeviceState *dev;
-
-    dev = sysbus_create_simple(TYPE_IMX_GPT, addr, irq);
-    pp = IMX_GPT(dev);
-    pp->ccm = ccm;
 }
 
 static void imx_gpt_class_init(ObjectClass *klass, void *data)

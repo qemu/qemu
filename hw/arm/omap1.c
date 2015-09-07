@@ -258,8 +258,7 @@ static struct omap_mpu_timer_s *omap_mpu_timer_init(MemoryRegion *system_memory,
                 hwaddr base,
                 qemu_irq irq, omap_clk clk)
 {
-    struct omap_mpu_timer_s *s = (struct omap_mpu_timer_s *)
-            g_malloc0(sizeof(struct omap_mpu_timer_s));
+    struct omap_mpu_timer_s *s = g_new0(struct omap_mpu_timer_s, 1);
 
     s->irq = irq;
     s->clk = clk;
@@ -388,8 +387,7 @@ static struct omap_watchdog_timer_s *omap_wd_timer_init(MemoryRegion *memory,
                 hwaddr base,
                 qemu_irq irq, omap_clk clk)
 {
-    struct omap_watchdog_timer_s *s = (struct omap_watchdog_timer_s *)
-            g_malloc0(sizeof(struct omap_watchdog_timer_s));
+    struct omap_watchdog_timer_s *s = g_new0(struct omap_watchdog_timer_s, 1);
 
     s->timer.irq = irq;
     s->timer.clk = clk;
@@ -495,8 +493,7 @@ static struct omap_32khz_timer_s *omap_os_timer_init(MemoryRegion *memory,
                 hwaddr base,
                 qemu_irq irq, omap_clk clk)
 {
-    struct omap_32khz_timer_s *s = (struct omap_32khz_timer_s *)
-            g_malloc0(sizeof(struct omap_32khz_timer_s));
+    struct omap_32khz_timer_s *s = g_new0(struct omap_32khz_timer_s, 1);
 
     s->timer.irq = irq;
     s->timer.clk = clk;
@@ -1236,8 +1233,7 @@ static struct omap_tipb_bridge_s *omap_tipb_bridge_init(
     MemoryRegion *memory, hwaddr base,
     qemu_irq abort_irq, omap_clk clk)
 {
-    struct omap_tipb_bridge_s *s = (struct omap_tipb_bridge_s *)
-            g_malloc0(sizeof(struct omap_tipb_bridge_s));
+    struct omap_tipb_bridge_s *s = g_new0(struct omap_tipb_bridge_s, 1);
 
     s->abort = abort_irq;
     omap_tipb_bridge_reset(s);
@@ -2099,8 +2095,7 @@ static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
                 qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
                 omap_clk clk)
 {
-    struct omap_mpuio_s *s = (struct omap_mpuio_s *)
-            g_malloc0(sizeof(struct omap_mpuio_s));
+    struct omap_mpuio_s *s = g_new0(struct omap_mpuio_s, 1);
 
     s->irq = gpio_int;
     s->kbd_irq = kbd_int;
@@ -2292,8 +2287,7 @@ static struct omap_uwire_s *omap_uwire_init(MemoryRegion *system_memory,
                                             qemu_irq dma,
                                             omap_clk clk)
 {
-    struct omap_uwire_s *s = (struct omap_uwire_s *)
-            g_malloc0(sizeof(struct omap_uwire_s));
+    struct omap_uwire_s *s = g_new0(struct omap_uwire_s, 1);
 
     s->txirq = txirq;
     s->rxirq = rxirq;
@@ -2932,8 +2926,7 @@ static struct omap_rtc_s *omap_rtc_init(MemoryRegion *system_memory,
                                         qemu_irq timerirq, qemu_irq alarmirq,
                                         omap_clk clk)
 {
-    struct omap_rtc_s *s = (struct omap_rtc_s *)
-            g_malloc0(sizeof(struct omap_rtc_s));
+    struct omap_rtc_s *s = g_new0(struct omap_rtc_s, 1);
 
     s->irq = timerirq;
     s->alarm = alarmirq;
@@ -3468,8 +3461,7 @@ static struct omap_mcbsp_s *omap_mcbsp_init(MemoryRegion *system_memory,
                                             qemu_irq txirq, qemu_irq rxirq,
                                             qemu_irq *dma, omap_clk clk)
 {
-    struct omap_mcbsp_s *s = (struct omap_mcbsp_s *)
-            g_malloc0(sizeof(struct omap_mcbsp_s));
+    struct omap_mcbsp_s *s = g_new0(struct omap_mcbsp_s, 1);
 
     s->txirq = txirq;
     s->rxirq = rxirq;
@@ -3648,8 +3640,7 @@ static void omap_lpg_clk_update(void *opaque, int line, int on)
 static struct omap_lpg_s *omap_lpg_init(MemoryRegion *system_memory,
                                         hwaddr base, omap_clk clk)
 {
-    struct omap_lpg_s *s = (struct omap_lpg_s *)
-            g_malloc0(sizeof(struct omap_lpg_s));
+    struct omap_lpg_s *s = g_new0(struct omap_lpg_s, 1);
 
     s->tm = timer_new_ms(QEMU_CLOCK_VIRTUAL, omap_lpg_tick, s);
 
@@ -3853,8 +3844,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
                 const char *core)
 {
     int i;
-    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
-            g_malloc0(sizeof(struct omap_mpu_state_s));
+    struct omap_mpu_state_s *s = g_new0(struct omap_mpu_state_s, 1);
     qemu_irq dma_irqs[6];
     DriveInfo *dinfo;
     SysBusDevice *busdev;

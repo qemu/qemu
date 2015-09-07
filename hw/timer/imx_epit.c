@@ -12,7 +12,6 @@
  *
  */
 
-#include "hw/arm/imx.h"
 #include "hw/timer/imx_epit.h"
 #include "hw/misc/imx_ccm.h"
 #include "qemu/main-loop.h"
@@ -285,16 +284,6 @@ static void imx_epit_cmp(void *opaque)
 
     s->sr = 1;
     imx_epit_update_int(s);
-}
-
-void imx_timerp_create(const hwaddr addr, qemu_irq irq, DeviceState *ccm)
-{
-    IMXEPITState *pp;
-    DeviceState *dev;
-
-    dev = sysbus_create_simple(TYPE_IMX_EPIT, addr, irq);
-    pp = IMX_EPIT(dev);
-    pp->ccm = ccm;
 }
 
 static const MemoryRegionOps imx_epit_ops = {

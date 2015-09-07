@@ -58,6 +58,7 @@
 #define TARGET_SYS_GET_CMDLINE 0x15
 #define TARGET_SYS_HEAPINFO    0x16
 #define TARGET_SYS_EXIT        0x18
+#define TARGET_SYS_SYNCCACHE   0x19
 
 /* ADP_Stopped_ApplicationExit is used for exit(0),
  * anything else is implemented as exit(1) */
@@ -134,6 +135,7 @@ static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 #ifdef CONFIG_USER_ONLY
     TaskState *ts = cs->opaque;
 #endif
+    target_ulong reg0 = is_a64(env) ? env->xregs[0] : env->regs[0];
 
     if (ret == (target_ulong)-1) {
 #ifdef CONFIG_USER_ONLY
@@ -141,22 +143,46 @@ static void arm_semi_cb(CPUState *cs, target_ulong ret, target_ulong err)
 #else
 	syscall_err = err;
 #endif
-        env->regs[0] = ret;
+        reg0 = ret;
     } else {
         /* Fixup syscalls that use nonstardard return conventions.  */
-        switch (env->regs[0]) {
+        switch (reg0) {
         case TARGET_SYS_WRITE:
         case TARGET_SYS_READ:
-            env->regs[0] = arm_semi_syscall_len - ret;
+            reg0 = arm_semi_syscall_len - ret;
             break;
         case TARGET_SYS_SEEK:
-            env->regs[0] = 0;
+            reg0 = 0;
             break;
         default:
-            env->regs[0] = ret;
+            reg0 = ret;
             break;
         }
     }
+    if (is_a64(env)) {
+        env->xregs[0] = reg0;
+    } else {
+        env->regs[0] = reg0;
+    }
+}
+
+static target_ulong arm_flen_buf(ARMCPU *cpu)
+{
+    /* Return an address in target memory of 64 bytes where the remote
+     * gdb should write its stat struct. (The format of this structure
+     * is defined by GDB's remote protocol and is not target-specific.)
+     * We put this on the guest's stack just below SP.
+     */
+    CPUARMState *env = &cpu->env;
+    target_ulong sp;
+
+    if (is_a64(env)) {
+        sp = env->xregs[31];
+    } else {
+        sp = env->regs[13];
+    }
+
+    return sp - 64;
 }
 
 static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
@@ -166,8 +192,13 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
     /* The size is always stored in big-endian order, extract
        the value. We assume the size always fit in 32 bits.  */
     uint32_t size;
-    cpu_memory_rw_debug(cs, env->regs[13]-64+32, (uint8_t *)&size, 4, 0);
-    env->regs[0] = be32_to_cpu(size);
+    cpu_memory_rw_debug(cs, arm_flen_buf(cpu) + 32, (uint8_t *)&size, 4, 0);
+    size = be32_to_cpu(size);
+    if (is_a64(env)) {
+        env->xregs[0] = size;
+    } else {
+        env->regs[0] = size;
+    }
 #ifdef CONFIG_USER_ONLY
     ((TaskState *)cs->opaque)->swi_errno = err;
 #else
@@ -175,17 +206,46 @@ static void arm_semi_flen_cb(CPUState *cs, target_ulong ret, target_ulong err)
 #endif
 }
 
+static target_ulong arm_gdb_syscall(ARMCPU *cpu, gdb_syscall_complete_cb cb,
+                                    const char *fmt, ...)
+{
+    va_list va;
+    CPUARMState *env = &cpu->env;
+
+    va_start(va, fmt);
+    gdb_do_syscallv(cb, fmt, va);
+    va_end(va);
+
+    /* FIXME: we are implicitly relying on the syscall completing
+     * before this point, which is not guaranteed. We should
+     * put in an explicit synchronization between this and
+     * the callback function.
+     */
+
+    return is_a64(env) ? env->xregs[0] : env->regs[0];
+}
+
 /* Read the input value from the argument block; fail the semihosting
  * call if the memory read fails.
  */
 #define GET_ARG(n) do {                                 \
-    if (get_user_ual(arg ## n, args + (n) * 4)) {       \
-        return (uint32_t)-1;                            \
+    if (is_a64(env)) {                                  \
+        if (get_user_u64(arg ## n, args + (n) * 8)) {   \
+            return -1;                                  \
+        }                                               \
+    } else {                                            \
+        if (get_user_u32(arg ## n, args + (n) * 4)) {   \
+            return -1;                                  \
+        }                                               \
     }                                                   \
 } while (0)
 
-#define SET_ARG(n, val) put_user_ual(val, args + (n) * 4)
-uint32_t do_arm_semihosting(CPUARMState *env)
+#define SET_ARG(n, val)                                 \
+    (is_a64(env) ?                                      \
+     put_user_u64(val, args + (n) * 8) :                \
+     put_user_u32(val, args + (n) * 4))
+
+target_ulong do_arm_semihosting(CPUARMState *env)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
@@ -201,8 +261,15 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     CPUARMState *ts = env;
 #endif
 
-    nr = env->regs[0];
-    args = env->regs[1];
+    if (is_a64(env)) {
+        /* Note that the syscall number is in W0, not X0 */
+        nr = env->xregs[0] & 0xffffffffU;
+        args = env->xregs[1];
+    } else {
+        nr = env->regs[0];
+        args = env->regs[1];
+    }
+
     switch (nr) {
     case TARGET_SYS_OPEN:
         GET_ARG(0);
@@ -223,9 +290,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             return result_fileno;
         }
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "open,%s,%x,1a4", arg0,
-                           (int)arg2+1, gdb_open_modeflags[arg1]);
-            ret = env->regs[0];
+            ret = arm_gdb_syscall(cpu, arm_semi_cb, "open,%s,%x,1a4", arg0,
+                                  (int)arg2+1, gdb_open_modeflags[arg1]);
         } else {
             ret = set_swi_errno(ts, open(s, open_modeflags[arg1], 0644));
         }
@@ -234,8 +300,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     case TARGET_SYS_CLOSE:
         GET_ARG(0);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "close,%x", arg0);
-            return env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_cb, "close,%x", arg0);
         } else {
             return set_swi_errno(ts, close(arg0));
         }
@@ -248,8 +313,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
               return (uint32_t)-1;
           /* Write to debug console.  stderr is near enough.  */
           if (use_gdb_syscalls()) {
-                gdb_do_syscall(arm_semi_cb, "write,2,%x,1", args);
-                return env->regs[0];
+                return arm_gdb_syscall(cpu, arm_semi_cb, "write,2,%x,1", args);
           } else {
                 return write(STDERR_FILENO, &c, 1);
           }
@@ -260,8 +324,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             return (uint32_t)-1;
         len = strlen(s);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "write,2,%x,%x\n", args, len);
-            ret = env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_cb, "write,2,%x,%x",
+                                   args, len);
         } else {
             ret = write(STDERR_FILENO, s, len);
         }
@@ -274,8 +338,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         len = arg2;
         if (use_gdb_syscalls()) {
             arm_semi_syscall_len = len;
-            gdb_do_syscall(arm_semi_cb, "write,%x,%x,%x", arg0, arg1, len);
-            return env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_cb, "write,%x,%x,%x",
+                                   arg0, arg1, len);
         } else {
             s = lock_user(VERIFY_READ, arg1, len, 1);
             if (!s) {
@@ -295,8 +359,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         len = arg2;
         if (use_gdb_syscalls()) {
             arm_semi_syscall_len = len;
-            gdb_do_syscall(arm_semi_cb, "read,%x,%x,%x", arg0, arg1, len);
-            return env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_cb, "read,%x,%x,%x",
+                                   arg0, arg1, len);
         } else {
             s = lock_user(VERIFY_WRITE, arg1, len, 0);
             if (!s) {
@@ -317,8 +381,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     case TARGET_SYS_ISTTY:
         GET_ARG(0);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "isatty,%x", arg0);
-            return env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_cb, "isatty,%x", arg0);
         } else {
             return isatty(arg0);
         }
@@ -326,8 +389,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         GET_ARG(0);
         GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "lseek,%x,%x,0", arg0, arg1);
-            return env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_cb, "lseek,%x,%x,0",
+                                   arg0, arg1);
         } else {
             ret = set_swi_errno(ts, lseek(arg0, arg1, SEEK_SET));
             if (ret == (uint32_t)-1)
@@ -337,9 +400,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
     case TARGET_SYS_FLEN:
         GET_ARG(0);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_flen_cb, "fstat,%x,%x",
-                           arg0, env->regs[13]-64);
-            return env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_flen_cb, "fstat,%x,%x",
+                                   arg0, arm_flen_buf(cpu));
         } else {
             struct stat buf;
             ret = set_swi_errno(ts, fstat(arg0, &buf));
@@ -354,8 +416,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         GET_ARG(0);
         GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "unlink,%s", arg0, (int)arg1+1);
-            ret = env->regs[0];
+            ret = arm_gdb_syscall(cpu, arm_semi_cb, "unlink,%s",
+                                  arg0, (int)arg1+1);
         } else {
             s = lock_user_string(arg0);
             if (!s) {
@@ -372,9 +434,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         GET_ARG(2);
         GET_ARG(3);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "rename,%s,%s",
-                           arg0, (int)arg1+1, arg2, (int)arg3+1);
-            return env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_cb, "rename,%s,%s",
+                                   arg0, (int)arg1+1, arg2, (int)arg3+1);
         } else {
             char *s2;
             s = lock_user_string(arg0);
@@ -398,8 +459,8 @@ uint32_t do_arm_semihosting(CPUARMState *env)
         GET_ARG(0);
         GET_ARG(1);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "system,%s", arg0, (int)arg1+1);
-            return env->regs[0];
+            return arm_gdb_syscall(cpu, arm_semi_cb, "system,%s",
+                                   arg0, (int)arg1+1);
         } else {
             s = lock_user_string(arg0);
             if (!s) {
@@ -558,11 +619,35 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             return 0;
         }
     case TARGET_SYS_EXIT:
-        /* ARM specifies only Stopped_ApplicationExit as normal
-         * exit, everything else is considered an error */
-        ret = (args == ADP_Stopped_ApplicationExit) ? 0 : 1;
+        if (is_a64(env)) {
+            /* The A64 version of this call takes a parameter block,
+             * so the application-exit type can return a subcode which
+             * is the exit status code from the application.
+             */
+            GET_ARG(0);
+            GET_ARG(1);
+
+            if (arg0 == ADP_Stopped_ApplicationExit) {
+                ret = arg1;
+            } else {
+                ret = 1;
+            }
+        } else {
+            /* ARM specifies only Stopped_ApplicationExit as normal
+             * exit, everything else is considered an error */
+            ret = (args == ADP_Stopped_ApplicationExit) ? 0 : 1;
+        }
         gdb_exit(env, ret);
         exit(ret);
+    case TARGET_SYS_SYNCCACHE:
+        /* Clean the D-cache and invalidate the I-cache for the specified
+         * virtual address range. This is a nop for us since we don't
+         * implement caches. This is only present on A64.
+         */
+        if (is_a64(env)) {
+            return 0;
+        }
+        /* fall through -- invalid for A32/T32 */
     default:
         fprintf(stderr, "qemu: Unsupported SemiHosting SWI 0x%02x\n", nr);
         cpu_dump_state(cs, stderr, fprintf, 0);

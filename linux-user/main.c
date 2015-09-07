@@ -1052,6 +1052,9 @@ void cpu_loop(CPUARMState *env)
                 queue_signal(env, info.si_signo, &info);
             }
             break;
+        case EXCP_SEMIHOST:
+            env->xregs[0] = do_arm_semihosting(env);
+            break;
         default:
             fprintf(stderr, "qemu: unhandled CPU exception 0x%x - aborting\n",
                     trapnr);

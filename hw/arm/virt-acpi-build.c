@@ -159,7 +159,8 @@ static void acpi_dsdt_add_virtio(Aml *scope,
     }
 }
 
-static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap, int irq)
+static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap, int irq,
+                              bool use_highmem)
 {
     Aml *method, *crs, *ifctx, *UUID, *ifctx1, *elsectx, *buf;
     int i, bus_no;
@@ -233,6 +234,17 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap, int irq)
         aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
                      AML_ENTIRE_RANGE, 0x0000, 0x0000, size_pio - 1, base_pio,
                      size_pio));
+
+    if (use_highmem) {
+        hwaddr base_mmio_high = memmap[VIRT_PCIE_MMIO_HIGH].base;
+        hwaddr size_mmio_high = memmap[VIRT_PCIE_MMIO_HIGH].size;
+
+        aml_append(rbuf,
+            aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                             AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
+                             base_mmio_high, base_mmio_high, 0x0000,
+                             size_mmio_high));
+    }
 
     aml_append(method, aml_name_decl("RBUF", rbuf));
     aml_append(method, aml_return(rbuf));
@@ -510,7 +522,8 @@ build_dsdt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info)
     acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);
     acpi_dsdt_add_virtio(scope, &memmap[VIRT_MMIO],
                     (irqmap[VIRT_MMIO] + ARM_SPI_BASE), NUM_VIRTIO_TRANSPORTS);
-    acpi_dsdt_add_pci(scope, memmap, (irqmap[VIRT_PCIE] + ARM_SPI_BASE));
+    acpi_dsdt_add_pci(scope, memmap, (irqmap[VIRT_PCIE] + ARM_SPI_BASE),
+                      guest_info->use_highmem);
 
     aml_append(dsdt, scope);
 

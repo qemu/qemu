@@ -30,6 +30,7 @@
 #include "internals.h"
 #include "qemu/host-utils.h"
 
+#include "exec/semihost.h"
 #include "exec/gen-icount.h"
 
 #include "exec/helper-proto.h"
@@ -1553,8 +1554,27 @@ static void disas_exc(DisasContext *s, uint32_t insn)
             unallocated_encoding(s);
             break;
         }
-        /* HLT */
-        unsupported_encoding(s, insn);
+        /* HLT. This has two purposes.
+         * Architecturally, it is an external halting debug instruction.
+         * Since QEMU doesn't implement external debug, we treat this as
+         * it is required for halting debug disabled: it will UNDEF.
+         * Secondly, "HLT 0xf000" is the A64 semihosting syscall instruction.
+         */
+        if (semihosting_enabled() && imm16 == 0xf000) {
+#ifndef CONFIG_USER_ONLY
+            /* In system mode, don't allow userspace access to semihosting,
+             * to provide some semblance of security (and for consistency
+             * with our 32-bit semihosting).
+             */
+            if (s->current_el == 0) {
+                unsupported_encoding(s, insn);
+                break;
+            }
+#endif
+            gen_exception_internal_insn(s, 0, EXCP_SEMIHOST);
+        } else {
+            unsupported_encoding(s, insn);
+        }
         break;
     case 5:
         if (op2_ll < 1 || op2_ll > 3) {
