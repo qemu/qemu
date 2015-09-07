@@ -1412,7 +1412,9 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
 
     if (guest_info->has_reserved_memory && pcms->hotplug_memory.base) {
         uint64_t *val = g_malloc(sizeof(*val));
-        *val = cpu_to_le64(ROUND_UP(pcms->hotplug_memory.base, 0x1ULL << 30));
+        uint64_t res_mem_end = pcms->hotplug_memory.base +
+                               memory_region_size(&pcms->hotplug_memory.mr);
+        *val = cpu_to_le64(ROUND_UP(res_mem_end, 0x1ULL << 30));
         fw_cfg_add_file(fw_cfg, "etc/reserved-memory-end", val, sizeof(*val));
     }
 
