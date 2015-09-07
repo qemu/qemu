@@ -22,7 +22,9 @@
 #include "hw/virtio/virtio.h"
 
 typedef struct {
-    MemoryRegion *mr;               /* memory region containing the vring */
+    MemoryRegion *mr_desc;          /* memory region for the vring desc */
+    MemoryRegion *mr_avail;         /* memory region for the vring avail */
+    MemoryRegion *mr_used;          /* memory region for the vring used */
     struct vring vr;                /* virtqueue vring mapped to host memory */
     uint16_t last_avail_idx;        /* last processed avail ring index */
     uint16_t last_used_idx;         /* last processed used ring index */

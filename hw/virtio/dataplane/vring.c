@@ -67,22 +67,53 @@ static void vring_unmap(void *buffer, bool is_write)
 /* Map the guest's vring to host memory */
 bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)
 {
-    hwaddr vring_addr = virtio_queue_get_ring_addr(vdev, n);
-    hwaddr vring_size = virtio_queue_get_ring_size(vdev, n);
-    void *vring_ptr;
+    struct vring *vr = &vring->vr;
+    hwaddr addr;
+    hwaddr size;
+    void *ptr;
 
     vring->broken = false;
+    vr->num = virtio_queue_get_num(vdev, n);
 
-    vring_ptr = vring_map(&vring->mr, vring_addr, vring_size, true);
-    if (!vring_ptr) {
-        error_report("Failed to map vring "
-                     "addr %#" HWADDR_PRIx " size %" HWADDR_PRIu,
-                     vring_addr, vring_size);
-        vring->broken = true;
-        return false;
+    addr = virtio_queue_get_desc_addr(vdev, n);
+    size = virtio_queue_get_desc_size(vdev, n);
+    /* Map the descriptor area as read only */
+    ptr = vring_map(&vring->mr_desc, addr, size, false);
+    if (!ptr) {
+        error_report("Failed to map 0x%" HWADDR_PRIx " byte for vring desc "
+                     "at 0x%" HWADDR_PRIx,
+                      size, addr);
+        goto out_err_desc;
     }
+    vr->desc = ptr;
 
-    vring_init(&vring->vr, virtio_queue_get_num(vdev, n), vring_ptr, 4096);
+    addr = virtio_queue_get_avail_addr(vdev, n);
+    size = virtio_queue_get_avail_size(vdev, n);
+    /* Add the size of the used_event_idx */
+    size += sizeof(uint16_t);
+    /* Map the driver area as read only */
+    ptr = vring_map(&vring->mr_avail, addr, size, false);
+    if (!ptr) {
+        error_report("Failed to map 0x%" HWADDR_PRIx " byte for vring avail "
+                     "at 0x%" HWADDR_PRIx,
+                      size, addr);
+        goto out_err_avail;
+    }
+    vr->avail = ptr;
+
+    addr = virtio_queue_get_used_addr(vdev, n);
+    size = virtio_queue_get_used_size(vdev, n);
+    /* Add the size of the avail_event_idx */
+    size += sizeof(uint16_t);
+    /* Map the device area as read-write */
+    ptr = vring_map(&vring->mr_used, addr, size, true);
+    if (!ptr) {
+        error_report("Failed to map 0x%" HWADDR_PRIx " byte for vring used "
+                     "at 0x%" HWADDR_PRIx,
+                      size, addr);
+        goto out_err_used;
+    }
+    vr->used = ptr;
 
     vring->last_avail_idx = virtio_queue_get_last_avail_idx(vdev, n);
     vring->last_used_idx = vring_get_used_idx(vdev, vring);
@@ -92,6 +123,14 @@ bool vring_setup(Vring *vring, VirtIODevice *vdev, int n)
     trace_vring_setup(virtio_queue_get_ring_addr(vdev, n),
                       vring->vr.desc, vring->vr.avail, vring->vr.used);
     return true;
+
+out_err_used:
+    memory_region_unref(vring->mr_avail);
+out_err_avail:
+    memory_region_unref(vring->mr_desc);
+out_err_desc:
+    vring->broken = true;
+    return false;
 }
 
 void vring_teardown(Vring *vring, VirtIODevice *vdev, int n)
@@ -99,7 +138,9 @@ void vring_teardown(Vring *vring, VirtIODevice *vdev, int n)
     virtio_queue_set_last_avail_idx(vdev, n, vring->last_avail_idx);
     virtio_queue_invalidate_signalled_used(vdev, n);
 
-    memory_region_unref(vring->mr);
+    memory_region_unref(vring->mr_desc);
+    memory_region_unref(vring->mr_avail);
+    memory_region_unref(vring->mr_used);
 }
 
 /* Disable guest->host notifies */
