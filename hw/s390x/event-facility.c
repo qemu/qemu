@@ -27,11 +27,11 @@ typedef struct SCLPEventsBus {
 struct SCLPEventFacility {
     SysBusDevice parent_obj;
     SCLPEventsBus sbus;
+    SCLPEvent quiesce_event;
+    SCLPEvent cpu_hotplug_event;
     /* guest' receive mask */
     unsigned int receive_mask;
 };
-
-static SCLPEvent cpu_hotplug;
 
 /* return true if any child has event pending set */
 static bool event_pending(SCLPEventFacility *ef)
@@ -240,12 +240,13 @@ static void read_event_data(SCLPEventFacility *ef, SCCB *sccb)
         sclp_active_selection_mask = sclp_cp_receive_mask;
         break;
     case SCLP_SELECTIVE_READ:
-        if (!(sclp_cp_receive_mask & be32_to_cpu(red->mask))) {
+        sclp_active_selection_mask = be32_to_cpu(red->mask);
+        if (!sclp_cp_receive_mask ||
+            (sclp_active_selection_mask & ~sclp_cp_receive_mask)) {
             sccb->h.response_code =
                     cpu_to_be16(SCLP_RC_INVALID_SELECTION_MASK);
             goto out;
         }
-        sclp_active_selection_mask = be32_to_cpu(red->mask);
         break;
     default:
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INVALID_FUNCTION);
@@ -286,8 +287,26 @@ out:
 
 #define TYPE_SCLP_EVENTS_BUS "s390-sclp-events-bus"
 
+static void sclp_events_bus_realize(BusState *bus, Error **errp)
+{
+    BusChild *kid;
+
+    /* TODO: recursive realization has to be done in common code */
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
+
+        object_property_set_bool(OBJECT(dev), true, "realized", errp);
+        if (*errp) {
+            return;
+        }
+    }
+}
+
 static void sclp_events_bus_class_init(ObjectClass *klass, void *data)
 {
+    BusClass *bc = BUS_CLASS(klass);
+
+    bc->realize = sclp_events_bus_realize;
 }
 
 static const TypeInfo sclp_events_bus_info = {
@@ -324,26 +343,24 @@ static const VMStateDescription vmstate_event_facility = {
      }
 };
 
-static int init_event_facility(SCLPEventFacility *event_facility)
+static void init_event_facility(Object *obj)
 {
-    DeviceState *sdev = DEVICE(event_facility);
-    DeviceState *quiesce;
+    SCLPEventFacility *event_facility = EVENT_FACILITY(obj);
+    DeviceState *sdev = DEVICE(obj);
 
     /* Spawn a new bus for SCLP events */
     qbus_create_inplace(&event_facility->sbus, sizeof(event_facility->sbus),
                         TYPE_SCLP_EVENTS_BUS, sdev, NULL);
 
-    quiesce = qdev_create(&event_facility->sbus.qbus, "sclpquiesce");
-    if (!quiesce) {
-        return -1;
-    }
-    qdev_init_nofail(quiesce);
-
-    object_initialize(&cpu_hotplug, sizeof(cpu_hotplug), TYPE_SCLP_CPU_HOTPLUG);
-    qdev_set_parent_bus(DEVICE(&cpu_hotplug), BUS(&event_facility->sbus));
-    object_property_set_bool(OBJECT(&cpu_hotplug), true, "realized", NULL);
-
-    return 0;
+    object_initialize(&event_facility->quiesce_event, sizeof(SCLPEvent),
+                      TYPE_SCLP_QUIESCE);
+    qdev_set_parent_bus(DEVICE(&event_facility->quiesce_event),
+                        &event_facility->sbus.qbus);
+    object_initialize(&event_facility->cpu_hotplug_event, sizeof(SCLPEvent),
+                      TYPE_SCLP_CPU_HOTPLUG);
+    qdev_set_parent_bus(DEVICE(&event_facility->cpu_hotplug_event),
+                        &event_facility->sbus.qbus);
+    /* the facility will automatically realize the devices via the bus */
 }
 
 static void reset_event_facility(DeviceState *dev)
@@ -362,7 +379,6 @@ static void init_event_facility_class(ObjectClass *klass, void *data)
     dc->reset = reset_event_facility;
     dc->vmsd = &vmstate_event_facility;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
-    k->init = init_event_facility;
     k->command_handler = command_handler;
     k->event_pending = event_pending;
 }
@@ -370,6 +386,7 @@ static void init_event_facility_class(ObjectClass *klass, void *data)
 static const TypeInfo sclp_event_facility_info = {
     .name          = TYPE_SCLP_EVENT_FACILITY,
     .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_init = init_event_facility,
     .instance_size = sizeof(SCLPEventFacility),
     .class_init    = init_event_facility_class,
     .class_size    = sizeof(SCLPEventFacilityClass),

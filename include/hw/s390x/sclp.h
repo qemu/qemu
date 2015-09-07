@@ -163,6 +163,39 @@ typedef struct SCCB {
     char data[SCCB_DATA_LEN];
  } QEMU_PACKED SCCB;
 
+#define TYPE_SCLP "sclp"
+#define SCLP(obj) OBJECT_CHECK(SCLPDevice, (obj), TYPE_SCLP)
+#define SCLP_CLASS(oc) OBJECT_CLASS_CHECK(SCLPDeviceClass, (oc), TYPE_SCLP)
+#define SCLP_GET_CLASS(obj) OBJECT_GET_CLASS(SCLPDeviceClass, (obj), TYPE_SCLP)
+
+typedef struct SCLPEventFacility SCLPEventFacility;
+
+typedef struct SCLPDevice {
+    /* private */
+    DeviceState parent_obj;
+    SCLPEventFacility *event_facility;
+    int increment_size;
+
+    /* public */
+} SCLPDevice;
+
+typedef struct SCLPDeviceClass {
+    /* private */
+    DeviceClass parent_class;
+    void (*read_SCP_info)(SCLPDevice *sclp, SCCB *sccb);
+    void (*read_storage_element0_info)(SCLPDevice *sclp, SCCB *sccb);
+    void (*read_storage_element1_info)(SCLPDevice *sclp, SCCB *sccb);
+    void (*attach_storage_element)(SCLPDevice *sclp, SCCB *sccb,
+                                   uint16_t element);
+    void (*assign_storage)(SCLPDevice *sclp, SCCB *sccb);
+    void (*unassign_storage)(SCLPDevice *sclp, SCCB *sccb);
+    void (*read_cpu_info)(SCLPDevice *sclp, SCCB *sccb);
+
+    /* public */
+    void (*execute)(SCLPDevice *sclp, SCCB *sccb, uint32_t code);
+    void (*service_interrupt)(SCLPDevice *sclp, uint32_t sccb);
+} SCLPDeviceClass;
+
 typedef struct sclpMemoryHotplugDev sclpMemoryHotplugDev;
 
 #define TYPE_SCLP_MEMORY_HOTPLUG_DEV "sclp-memory-hotplug-dev"

@@ -261,6 +261,9 @@ static CCW1 copy_ccw_from_guest(hwaddr addr, bool fmt1)
         ret.flags = tmp0.flags;
         ret.count = be16_to_cpu(tmp0.count);
         ret.cda = be16_to_cpu(tmp0.cda1) | (tmp0.cda0 << 16);
+        if ((ret.cmd_code & 0x0f) == CCW_CMD_TIC) {
+            ret.cmd_code &= 0x0f;
+        }
     }
     return ret;
 }
@@ -285,6 +288,10 @@ static int css_interpret_ccw(SubchDev *sch, hwaddr ccw_addr)
     }
     if (((ccw.cmd_code & 0x0f) == CCW_CMD_TIC) &&
         ((ccw.cmd_code & 0xf0) != 0)) {
+        return -EINVAL;
+    }
+    if (!sch->ccw_fmt_1 && (ccw.count == 0) &&
+        (ccw.cmd_code != CCW_CMD_TIC)) {
         return -EINVAL;
     }
 
@@ -392,6 +399,8 @@ static void sch_handle_start_func(SubchDev *sch, ORB *orb)
     path = 0x80;
 
     if (!(s->ctrl & SCSW_ACTL_SUSP)) {
+        s->cstat = 0;
+        s->dstat = 0;
         /* Look at the orb and try to execute the channel program. */
         assert(orb != NULL); /* resume does not pass an orb */
         p->intparm = orb->intparm;

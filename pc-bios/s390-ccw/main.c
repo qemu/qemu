@@ -38,40 +38,56 @@ void virtio_panic(const char *string)
     while (1) { }
 }
 
-static void virtio_setup(uint64_t dev_info)
+static bool find_dev(struct schib *schib, int dev_no)
 {
-    struct schib schib;
-    int i;
-    int r;
-    bool found = false;
-    bool check_devno = false;
-    uint16_t dev_no = -1;
-
-    if (dev_info != -1) {
-        check_devno = true;
-        dev_no = dev_info & 0xffff;
-        debug_print_int("device no. ", dev_no);
-        blk_schid.ssid = (dev_info >> 16) & 0x3;
-        if (blk_schid.ssid != 0) {
-            debug_print_int("ssid ", blk_schid.ssid);
-            if (enable_mss_facility() != 0) {
-                virtio_panic("Failed to enable mss facility\n");
-            }
-        }
-    }
+    int i, r;
 
     for (i = 0; i < 0x10000; i++) {
         blk_schid.sch_no = i;
-        r = stsch_err(blk_schid, &schib);
-        if (r == 3) {
+        r = stsch_err(blk_schid, schib);
+        if ((r == 3) || (r == -EIO)) {
             break;
         }
-        if (schib.pmcw.dnv) {
-            if (!check_devno || (schib.pmcw.dev == dev_no)) {
-                if (virtio_is_blk(blk_schid)) {
-                    found = true;
-                    break;
-                }
+        if (!schib->pmcw.dnv) {
+            continue;
+        }
+        if (!virtio_is_blk(blk_schid)) {
+            continue;
+        }
+        if ((dev_no < 0) || (schib->pmcw.dev == dev_no)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void virtio_setup(uint64_t dev_info)
+{
+    struct schib schib;
+    int ssid;
+    bool found = false;
+    uint16_t dev_no;
+
+    /*
+     * We unconditionally enable mss support. In every sane configuration,
+     * this will succeed; and even if it doesn't, stsch_err() can deal
+     * with the consequences.
+     */
+    enable_mss_facility();
+
+    if (dev_info != -1) {
+        dev_no = dev_info & 0xffff;
+        debug_print_int("device no. ", dev_no);
+        blk_schid.ssid = (dev_info >> 16) & 0x3;
+        debug_print_int("ssid ", blk_schid.ssid);
+        found = find_dev(&schib, dev_no);
+    } else {
+        for (ssid = 0; ssid < 0x3; ssid++) {
+            blk_schid.ssid = ssid;
+            found = find_dev(&schib, -1);
+            if (found) {
+                break;
             }
         }
     }

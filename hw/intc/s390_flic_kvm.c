@@ -228,6 +228,8 @@ static int kvm_s390_add_adapter_routes(S390FLICState *fs,
         routes->gsi[i] = ret;
         routes->adapter.ind_offset++;
     }
+    kvm_irqchip_commit_routes(kvm_state);
+
     /* Restore passed-in structure to original state. */
     routes->adapter.ind_offset = ind_offset;
     return 0;
