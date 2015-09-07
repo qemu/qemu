@@ -1051,8 +1051,7 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
                 omap_clk fck1, omap_clk fck2, omap_clk ck54m,
                 omap_clk ick1, omap_clk ick2)
 {
-    struct omap_dss_s *s = (struct omap_dss_s *)
-            g_malloc0(sizeof(struct omap_dss_s));
+    struct omap_dss_s *s = g_new0(struct omap_dss_s, 1);
 
     s->irq = irq;
     s->drq = drq;

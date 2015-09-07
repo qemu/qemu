@@ -1588,7 +1588,7 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
     StrongARMState *s;
     int i;
 
-    s = g_malloc0(sizeof(StrongARMState));
+    s = g_new0(StrongARMState, 1);
 
     if (!rev) {
         rev = "sa1110-b5";

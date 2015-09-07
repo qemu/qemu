@@ -157,8 +157,7 @@ static const MemoryRegionOps omap_sdrc_ops = {
 struct omap_sdrc_s *omap_sdrc_init(MemoryRegion *sysmem,
                                    hwaddr base)
 {
-    struct omap_sdrc_s *s = (struct omap_sdrc_s *)
-            g_malloc0(sizeof(struct omap_sdrc_s));
+    struct omap_sdrc_s *s = g_new0(struct omap_sdrc_s, 1);
 
     omap_sdrc_reset(s);
 

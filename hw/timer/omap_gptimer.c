@@ -468,8 +468,7 @@ static const MemoryRegionOps omap_gp_timer_ops = {
 struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk)
 {
-    struct omap_gp_timer_s *s = (struct omap_gp_timer_s *)
-            g_malloc0(sizeof(struct omap_gp_timer_s));
+    struct omap_gp_timer_s *s = g_new0(struct omap_gp_timer_s, 1);
 
     s->ta = ta;
     s->irq = irq;
