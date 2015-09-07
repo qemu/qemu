@@ -37,24 +37,24 @@
 #define SDHC_DEBUG                        0
 #endif
 
-#if SDHC_DEBUG == 0
-    #define DPRINT_L1(fmt, args...)       do { } while (0)
-    #define DPRINT_L2(fmt, args...)       do { } while (0)
-    #define ERRPRINT(fmt, args...)        do { } while (0)
-#elif SDHC_DEBUG == 1
-    #define DPRINT_L1(fmt, args...)       \
-        do {fprintf(stderr, "QEMU SDHC: "fmt, ## args); } while (0)
-    #define DPRINT_L2(fmt, args...)       do { } while (0)
-    #define ERRPRINT(fmt, args...)        \
-        do {fprintf(stderr, "QEMU SDHC ERROR: "fmt, ## args); } while (0)
-#else
-    #define DPRINT_L1(fmt, args...)       \
-        do {fprintf(stderr, "QEMU SDHC: "fmt, ## args); } while (0)
-    #define DPRINT_L2(fmt, args...)       \
-        do {fprintf(stderr, "QEMU SDHC: "fmt, ## args); } while (0)
-    #define ERRPRINT(fmt, args...)        \
-        do {fprintf(stderr, "QEMU SDHC ERROR: "fmt, ## args); } while (0)
-#endif
+#define DPRINT_L1(fmt, args...) \
+    do { \
+        if (SDHC_DEBUG) { \
+            fprintf(stderr, "QEMU SDHC: " fmt, ## args); \
+        } \
+    } while (0)
+#define DPRINT_L2(fmt, args...) \
+    do { \
+        if (SDHC_DEBUG > 1) { \
+            fprintf(stderr, "QEMU SDHC: " fmt, ## args); \
+        } \
+    } while (0)
+#define ERRPRINT(fmt, args...) \
+    do { \
+        if (SDHC_DEBUG) { \
+            fprintf(stderr, "QEMU SDHC ERROR: " fmt, ## args); \
+        } \
+    } while (0)
 
 /* Default SD/MMC host controller features information, which will be
  * presented in CAPABILITIES register of generic SD host controller at reset.
