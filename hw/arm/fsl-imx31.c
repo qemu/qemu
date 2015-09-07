@@ -50,6 +50,11 @@ static void fsl_imx31_init(Object *obj)
         object_initialize(&s->epit[i], sizeof(s->epit[i]), TYPE_IMX_EPIT);
         qdev_set_parent_bus(DEVICE(&s->epit[i]), sysbus_get_default());
     }
+
+    for (i = 0; i < FSL_IMX31_NUM_I2CS; i++) {
+        object_initialize(&s->i2c[i], sizeof(s->i2c[i]), TYPE_IMX_I2C);
+        qdev_set_parent_bus(DEVICE(&s->i2c[i]), sysbus_get_default());
+    }
 }
 
 static void fsl_imx31_realize(DeviceState *dev, Error **errp)
@@ -152,6 +157,31 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->epit[i]), 0,
                            qdev_get_gpio_in(DEVICE(&s->avic),
                                             epit_table[i].irq));
+    }
+
+    /* Initialize all I2C */
+    for (i = 0; i < FSL_IMX31_NUM_I2CS; i++) {
+        static const struct {
+            hwaddr addr;
+            unsigned int irq;
+        } i2c_table[FSL_IMX31_NUM_I2CS] = {
+            { FSL_IMX31_I2C1_ADDR, FSL_IMX31_I2C1_IRQ },
+            { FSL_IMX31_I2C2_ADDR, FSL_IMX31_I2C2_IRQ },
+            { FSL_IMX31_I2C3_ADDR, FSL_IMX31_I2C3_IRQ }
+        };
+
+        /* Initialize the I2C */
+        object_property_set_bool(OBJECT(&s->i2c[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        /* Map I2C memory */
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[i]), 0, i2c_table[i].addr);
+        /* Connect I2C IRQ to PIC */
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&s->avic),
+                                            i2c_table[i].irq));
     }
 
     /* On a real system, the first 16k is a `secure boot rom' */

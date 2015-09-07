@@ -31,6 +31,7 @@
 
 #define FSL_IMX31_NUM_UARTS 2
 #define FSL_IMX31_NUM_EPITS 2
+#define FSL_IMX31_NUM_I2CS 3
 
 typedef struct FslIMX31State {
     /*< private >*/
@@ -43,6 +44,7 @@ typedef struct FslIMX31State {
     IMXSerialState uart[FSL_IMX31_NUM_UARTS];
     IMXGPTState    gpt;
     IMXEPITState   epit[FSL_IMX31_NUM_EPITS];
+    IMXI2CState    i2c[FSL_IMX31_NUM_I2CS];
     MemoryRegion   secure_rom;
     MemoryRegion   rom;
     MemoryRegion   iram;
@@ -57,10 +59,16 @@ typedef struct FslIMX31State {
 #define FSL_IMX31_IRAM_ALIAS_SIZE       0xFFC0000
 #define FSL_IMX31_IRAM_ADDR             0x1FFFC000
 #define FSL_IMX31_IRAM_SIZE             0x4000
+#define FSL_IMX31_I2C1_ADDR             0x43F80000
+#define FSL_IMX31_I2C1_SIZE             0x4000
+#define FSL_IMX31_I2C3_ADDR             0x43F84000
+#define FSL_IMX31_I2C3_SIZE             0x4000
 #define FSL_IMX31_UART1_ADDR            0x43F90000
 #define FSL_IMX31_UART1_SIZE            0x4000
 #define FSL_IMX31_UART2_ADDR            0x43F94000
 #define FSL_IMX31_UART2_SIZE            0x4000
+#define FSL_IMX31_I2C2_ADDR             0x43F98000
+#define FSL_IMX31_I2C2_SIZE             0x4000
 #define FSL_IMX31_CCM_ADDR              0x53F80000
 #define FSL_IMX31_CCM_SIZE              0x4000
 #define FSL_IMX31_GPT_ADDR              0x53F90000
@@ -95,5 +103,8 @@ typedef struct FslIMX31State {
 #define FSL_IMX31_GPT_IRQ               29
 #define FSL_IMX31_UART2_IRQ             32
 #define FSL_IMX31_UART1_IRQ             45
+#define FSL_IMX31_I2C1_IRQ              10
+#define FSL_IMX31_I2C2_IRQ              4
+#define FSL_IMX31_I2C3_IRQ              3
 
 #endif /* FSL_IMX31_H */
