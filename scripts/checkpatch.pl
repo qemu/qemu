@@ -1336,12 +1336,16 @@ sub process {
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|cpp|s|S|pl|py|sh)$/);
 
-#80 column limit
+#90 column limit
 		if ($line =~ /^\+/ &&
 		    !($line =~ /^\+\s*"[^"]*"\s*(?:\s*|,|\)\s*;)\s*$/) &&
 		    $length > 80)
 		{
-			WARN("line over 80 characters\n" . $herecurr);
+			if ($length > 90) {
+				ERROR("line over 90 characters\n" . $herecurr);
+			} else {
+				WARN("line over 80 characters\n" . $herecurr);
+			}
 		}
 
 # check for spaces before a quoted newline
