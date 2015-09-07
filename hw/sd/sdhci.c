@@ -22,6 +22,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <inttypes.h>
 #include "hw/hw.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
@@ -719,7 +720,8 @@ static void sdhci_do_adma(SDHCIState *s)
             break;
         case SDHC_ADMA_ATTR_ACT_LINK:   /* link to next descriptor table */
             s->admasysaddr = dscr.addr;
-            DPRINT_L1("ADMA link: admasysaddr=0x%lx\n", s->admasysaddr);
+            DPRINT_L1("ADMA link: admasysaddr=0x%" PRIx64 "\n",
+                      s->admasysaddr);
             break;
         default:
             s->admasysaddr += dscr.incr;
@@ -727,7 +729,8 @@ static void sdhci_do_adma(SDHCIState *s)
         }
 
         if (dscr.attr & SDHC_ADMA_ATTR_INT) {
-            DPRINT_L1("ADMA interrupt: admasysaddr=0x%lx\n", s->admasysaddr);
+            DPRINT_L1("ADMA interrupt: admasysaddr=0x%" PRIx64 "\n",
+                      s->admasysaddr);
             if (s->norintstsen & SDHC_NISEN_DMA) {
                 s->norintsts |= SDHC_NIS_DMA;
             }
