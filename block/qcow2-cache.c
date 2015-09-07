@@ -55,14 +55,14 @@ struct Qcow2Cache {
 static inline void *qcow2_cache_get_table_addr(BlockDriverState *bs,
                     Qcow2Cache *c, int table)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     return (uint8_t *) c->table_array + (size_t) table * s->cluster_size;
 }
 
 static inline int qcow2_cache_get_table_idx(BlockDriverState *bs,
                   Qcow2Cache *c, void *table)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     ptrdiff_t table_offset = (uint8_t *) table - (uint8_t *) c->table_array;
     int idx = table_offset / s->cluster_size;
     assert(idx >= 0 && idx < c->size && table_offset % s->cluster_size == 0);
@@ -73,7 +73,7 @@ static void qcow2_cache_table_release(BlockDriverState *bs, Qcow2Cache *c,
                                       int i, int num_tables)
 {
 #if QEMU_MADV_DONTNEED != QEMU_MADV_INVALID
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     void *t = qcow2_cache_get_table_addr(bs, c, i);
     int align = getpagesize();
     size_t mem_size = (size_t) s->cluster_size * num_tables;
@@ -121,7 +121,7 @@ void qcow2_cache_clean_unused(BlockDriverState *bs, Qcow2Cache *c)
 
 Qcow2Cache *qcow2_cache_create(BlockDriverState *bs, int num_tables)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     Qcow2Cache *c;
 
     c = g_new0(Qcow2Cache, 1);
@@ -172,7 +172,7 @@ static int qcow2_cache_flush_dependency(BlockDriverState *bs, Qcow2Cache *c)
 
 static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     int ret = 0;
 
     if (!c->entries[i].dirty || !c->entries[i].offset) {
@@ -229,7 +229,7 @@ static int qcow2_cache_entry_flush(BlockDriverState *bs, Qcow2Cache *c, int i)
 
 int qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     int result = 0;
     int ret;
     int i;
@@ -306,7 +306,7 @@ int qcow2_cache_empty(BlockDriverState *bs, Qcow2Cache *c)
 static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
     uint64_t offset, void **table, bool read_from_disk)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     int i;
     int ret;
     int lookup_index;

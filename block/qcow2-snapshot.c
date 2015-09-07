@@ -29,7 +29,7 @@
 
 void qcow2_free_snapshots(BlockDriverState *bs)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     int i;
 
     for(i = 0; i < s->nb_snapshots; i++) {
@@ -43,7 +43,7 @@ void qcow2_free_snapshots(BlockDriverState *bs)
 
 int qcow2_read_snapshots(BlockDriverState *bs)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     QCowSnapshotHeader h;
     QCowSnapshotExtraData extra;
     QCowSnapshot *sn;
@@ -136,7 +136,7 @@ fail:
 /* add at the end of the file a new list of snapshots */
 static int qcow2_write_snapshots(BlockDriverState *bs)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     QCowSnapshot *sn;
     QCowSnapshotHeader h;
     QCowSnapshotExtraData extra;
@@ -278,7 +278,7 @@ fail:
 static void find_new_snapshot_id(BlockDriverState *bs,
                                  char *id_str, int id_str_size)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     QCowSnapshot *sn;
     int i;
     unsigned long id, id_max = 0;
@@ -296,7 +296,7 @@ static int find_snapshot_by_id_and_name(BlockDriverState *bs,
                                         const char *id,
                                         const char *name)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     int i;
 
     if (id && name) {
@@ -338,7 +338,7 @@ static int find_snapshot_by_id_or_name(BlockDriverState *bs,
 /* if no id is provided, a new one is constructed */
 int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     QCowSnapshot *new_snapshot_list = NULL;
     QCowSnapshot *old_snapshot_list = NULL;
     QCowSnapshot sn1, *sn = &sn1;
@@ -461,7 +461,7 @@ fail:
 /* copy the snapshot 'snapshot_name' into the current disk image */
 int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     QCowSnapshot *sn;
     int i, snapshot_index;
     int cur_l1_bytes, sn_l1_bytes;
@@ -587,7 +587,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
                           const char *name,
                           Error **errp)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     QCowSnapshot sn;
     int snapshot_index, ret;
 
@@ -650,7 +650,7 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
 
 int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
 {
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     QEMUSnapshotInfo *sn_tab, *sn_info;
     QCowSnapshot *sn;
     int i;
@@ -683,7 +683,7 @@ int qcow2_snapshot_load_tmp(BlockDriverState *bs,
                             Error **errp)
 {
     int i, snapshot_index;
-    BDRVQcowState *s = bs->opaque;
+    BDRVQcow2State *s = bs->opaque;
     QCowSnapshot *sn;
     uint64_t *new_l1_table;
     int new_l1_bytes;
