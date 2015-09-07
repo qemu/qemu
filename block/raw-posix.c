@@ -670,11 +670,17 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     /* If we cannot use fcntl, or fcntl failed, fall back to qemu_open() */
     if (raw_s->fd == -1) {
-        assert(!(raw_s->open_flags & O_CREAT));
-        raw_s->fd = qemu_open(state->bs->filename, raw_s->open_flags);
-        if (raw_s->fd == -1) {
-            error_setg_errno(errp, errno, "Could not reopen file");
-            ret = -1;
+        const char *normalized_filename = state->bs->filename;
+        ret = raw_normalize_devicepath(&normalized_filename);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Could not normalize device path");
+        } else {
+            assert(!(raw_s->open_flags & O_CREAT));
+            raw_s->fd = qemu_open(normalized_filename, raw_s->open_flags);
+            if (raw_s->fd == -1) {
+                error_setg_errno(errp, errno, "Could not reopen file");
+                ret = -1;
+            }
         }
     }
 
@@ -2313,6 +2319,12 @@ static int hdev_create(const char *filename, QemuOpts *opts,
         strstart(filename, "host_floppy:", &filename);
 
     (void)has_prefix;
+
+    ret = raw_normalize_devicepath(&filename);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not normalize device path");
+        return ret;
+    }
 
     /* Read out options */
     total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),

@@ -42,6 +42,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         iotests.create_image(backing_img, self.image_len)
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
         self.vm = iotests.VM().add_drive(test_img)
+        if iotests.qemu_default_machine == 'pc':
+            self.vm.add_drive(None, 'media=cdrom', 'ide')
         self.vm.launch()
 
     def tearDown(self):
@@ -167,8 +169,11 @@ class TestSingleDrive(iotests.QMPTestCase):
                         'target image does not match source after mirroring')
 
     def test_medium_not_found(self):
-        result = self.vm.qmp('drive-mirror', device='ide1-cd0', sync='full',
-                             target=target_img)
+        if iotests.qemu_default_machine != 'pc':
+            return
+
+        result = self.vm.qmp('drive-mirror', device='drive1', # CD-ROM
+                             sync='full', target=target_img)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_image_not_found(self):
@@ -707,6 +712,9 @@ class TestRepairQuorum(iotests.QMPTestCase):
     def setUp(self):
         self.vm = iotests.VM()
 
+        if iotests.qemu_default_machine == 'pc':
+            self.vm.add_drive(None, 'media=cdrom', 'ide')
+
         # Add each individual quorum images
         for i in self.IMAGES:
             qemu_img('create', '-f', iotests.imgfmt, i,
@@ -831,7 +839,11 @@ class TestRepairQuorum(iotests.QMPTestCase):
         if not self.has_quorum():
             return
 
-        result = self.vm.qmp('drive-mirror', device='ide1-cd0', sync='full',
+        if iotests.qemu_default_machine != 'pc':
+            return
+
+        result = self.vm.qmp('drive-mirror', device='drive0', # CD-ROM
+                             sync='full',
                              node_name='repair0',
                              replaces='img1',
                              target=quorum_repair_img, format=iotests.imgfmt)

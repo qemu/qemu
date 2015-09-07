@@ -231,10 +231,10 @@ FULL_HOST_DETAILS=`_full_platform_details`
 #FULL_MOUNT_OPTIONS=`_scratch_mount_options`
 
 cat <<EOF
-QEMU          -- $QEMU
-QEMU_IMG      -- $QEMU_IMG
-QEMU_IO       -- $QEMU_IO
-QEMU_NBD      -- $QEMU_NBD
+QEMU          -- "$QEMU_PROG" $QEMU_OPTIONS
+QEMU_IMG      -- "$QEMU_IMG_PROG" $QEMU_IMG_OPTIONS
+QEMU_IO       -- "$QEMU_IO_PROG" $QEMU_IO_OPTIONS
+QEMU_NBD      -- "$QEMU_NBD_PROG" $QEMU_NBD_OPTIONS
 IMGFMT        -- $FULL_IMGFMT_DETAILS
 IMGPROTO      -- $FULL_IMGPROTO_DETAILS
 PLATFORM      -- $FULL_HOST_DETAILS
@@ -330,6 +330,11 @@ do
             fi
 
             reference="$source_iotests/$seq.out"
+            reference_machine="$source_iotests/$seq.$QEMU_DEFAULT_MACHINE.out"
+            if [ -f "$reference_machine" ]; then
+                reference="$reference_machine"
+            fi
+
             if [ "$CACHEMODE" = "none" ]; then
                 [ -f "$source_iotests/$seq.out.nocache" ] && reference="$source_iotests/$seq.out.nocache"
             fi

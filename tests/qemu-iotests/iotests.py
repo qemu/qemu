@@ -31,37 +31,60 @@ import struct
 __all__ = ['imgfmt', 'imgproto', 'test_dir' 'qemu_img', 'qemu_io',
            'VM', 'QMPTestCase', 'notrun', 'main']
 
-# This will not work if arguments or path contain spaces but is necessary if we
+# This will not work if arguments contain spaces but is necessary if we
 # want to support the override options that ./check supports.
-qemu_img_args = os.environ.get('QEMU_IMG', 'qemu-img').strip().split(' ')
-qemu_io_args = os.environ.get('QEMU_IO', 'qemu-io').strip().split(' ')
-qemu_args = os.environ.get('QEMU', 'qemu').strip().split(' ')
+qemu_img_args = [os.environ.get('QEMU_IMG_PROG', 'qemu-img')]
+if os.environ.get('QEMU_IMG_OPTIONS'):
+    qemu_img_args += os.environ['QEMU_IMG_OPTIONS'].strip().split(' ')
+
+qemu_io_args = [os.environ.get('QEMU_IO_PROG', 'qemu-io')]
+if os.environ.get('QEMU_IO_OPTIONS'):
+    qemu_io_args += os.environ['QEMU_IO_OPTIONS'].strip().split(' ')
+
+qemu_args = [os.environ.get('QEMU_PROG', 'qemu')]
+if os.environ.get('QEMU_OPTIONS'):
+    qemu_args += os.environ['QEMU_OPTIONS'].strip().split(' ')
 
 imgfmt = os.environ.get('IMGFMT', 'raw')
 imgproto = os.environ.get('IMGPROTO', 'file')
 test_dir = os.environ.get('TEST_DIR', '/var/tmp')
 output_dir = os.environ.get('OUTPUT_DIR', '.')
 cachemode = os.environ.get('CACHEMODE')
+qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
 
 socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
 
 def qemu_img(*args):
     '''Run qemu-img and return the exit code'''
     devnull = open('/dev/null', 'r+')
-    return subprocess.call(qemu_img_args + list(args), stdin=devnull, stdout=devnull)
+    exitcode = subprocess.call(qemu_img_args + list(args), stdin=devnull, stdout=devnull)
+    if exitcode < 0:
+        sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
+    return exitcode
 
 def qemu_img_verbose(*args):
     '''Run qemu-img without suppressing its output and return the exit code'''
-    return subprocess.call(qemu_img_args + list(args))
+    exitcode = subprocess.call(qemu_img_args + list(args))
+    if exitcode < 0:
+        sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
+    return exitcode
 
 def qemu_img_pipe(*args):
     '''Run qemu-img and return its output'''
-    return subprocess.Popen(qemu_img_args + list(args), stdout=subprocess.PIPE).communicate()[0]
+    subp = subprocess.Popen(qemu_img_args + list(args), stdout=subprocess.PIPE)
+    exitcode = subp.wait()
+    if exitcode < 0:
+        sys.stderr.write('qemu-img received signal %i: %s\n' % (-exitcode, ' '.join(qemu_img_args + list(args))))
+    return subp.communicate()[0]
 
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''
     args = qemu_io_args + list(args)
-    return subprocess.Popen(args, stdout=subprocess.PIPE).communicate()[0]
+    subp = subprocess.Popen(args, stdout=subprocess.PIPE)
+    exitcode = subp.wait()
+    if exitcode < 0:
+        sys.stderr.write('qemu-io received signal %i: %s\n' % (-exitcode, ' '.join(args)))
+    return subp.communicate()[0]
 
 def compare_images(img1, img2):
     '''Return True if two image files are identical'''
@@ -117,13 +140,16 @@ class VM(object):
         self._args.append('-monitor')
         self._args.append(args)
 
-    def add_drive(self, path, opts=''):
+    def add_drive(self, path, opts='', interface='virtio'):
         '''Add a virtio-blk drive to the VM'''
-        options = ['if=virtio',
+        options = ['if=%s' % interface,
                    'format=%s' % imgfmt,
                    'cache=%s' % cachemode,
-                   'file=%s' % path,
                    'id=drive%d' % self._num_drives]
+
+        if path is not None:
+            options.append('file=%s' % path)
+
         if opts:
             options.append(opts)
 
@@ -196,7 +222,9 @@ class VM(object):
         '''Terminate the VM and clean up'''
         if not self._popen is None:
             self._qmp.cmd('quit')
-            self._popen.wait()
+            exitcode = self._popen.wait()
+            if exitcode < 0:
+                sys.stderr.write('qemu received signal %i: %s\n' % (-exitcode, ' '.join(self._args)))
             os.remove(self._monitor_path)
             os.remove(self._qtest_path)
             os.remove(self._qemu_log_path)

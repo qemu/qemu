@@ -42,6 +42,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(TestSingleDrive.image_len))
 
         self.vm = iotests.VM().add_drive(test_img).add_drive(blockdev_target_img)
+        if iotests.qemu_default_machine == 'pc':
+            self.vm.add_drive(None, 'media=cdrom', 'ide')
         self.vm.launch()
 
     def tearDown(self):
@@ -104,12 +106,18 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.do_test_pause('blockdev-backup', 'drive1', blockdev_target_img)
 
     def test_medium_not_found(self):
-        result = self.vm.qmp('drive-backup', device='ide1-cd0',
+        if iotests.qemu_default_machine != 'pc':
+            return
+
+        result = self.vm.qmp('drive-backup', device='drive2', # CD-ROM
                              target=target_img, sync='full')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_medium_not_found_blockdev_backup(self):
-        result = self.vm.qmp('blockdev-backup', device='ide1-cd0',
+        if iotests.qemu_default_machine != 'pc':
+            return
+
+        result = self.vm.qmp('blockdev-backup', device='drive2', # CD-ROM
                              target='drive1', sync='full')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
@@ -249,6 +257,8 @@ class TestSingleTransaction(iotests.QMPTestCase):
         qemu_img('create', '-f', iotests.imgfmt, blockdev_target_img, str(TestSingleDrive.image_len))
 
         self.vm = iotests.VM().add_drive(test_img).add_drive(blockdev_target_img)
+        if iotests.qemu_default_machine == 'pc':
+            self.vm.add_drive(None, 'media=cdrom', 'ide')
         self.vm.launch()
 
     def tearDown(self):
@@ -323,9 +333,12 @@ class TestSingleTransaction(iotests.QMPTestCase):
         self.do_test_pause('blockdev-backup', 'drive1', blockdev_target_img)
 
     def do_test_medium_not_found(self, cmd, target):
+        if iotests.qemu_default_machine != 'pc':
+            return
+
         result = self.vm.qmp('transaction', actions=[{
                 'type': cmd,
-                'data': { 'device': 'ide1-cd0',
+                'data': { 'device': 'drive2', # CD-ROM
                           'target': target,
                           'sync': 'full' },
             }

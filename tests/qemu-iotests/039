@@ -47,13 +47,6 @@ _supported_os Linux
 _default_cache_mode "writethrough"
 _supported_cache_modes "writethrough"
 
-_subshell_exec()
-{
-    # Executing crashing commands in a subshell prevents information like the
-    # "Killed" line from being lost
-    (exec "$@")
-}
-
 size=128M
 
 echo
@@ -74,8 +67,8 @@ echo "== Creating a dirty image file =="
 IMGOPTS="compat=1.1,lazy_refcounts=on"
 _make_test_img $size
 
-_subshell_exec $QEMU_IO -c "write -P 0x5a 0 512" \
-                        -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
+$QEMU_IO -c "write -P 0x5a 0 512" \
+         -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
     | _filter_qemu_io
 
 # The dirty bit must be set
@@ -109,8 +102,8 @@ echo "== Opening a dirty image read/write should repair it =="
 IMGOPTS="compat=1.1,lazy_refcounts=on"
 _make_test_img $size
 
-_subshell_exec $QEMU_IO -c "write -P 0x5a 0 512" \
-                        -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
+$QEMU_IO -c "write -P 0x5a 0 512" \
+         -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
     | _filter_qemu_io
 
 # The dirty bit must be set
@@ -127,8 +120,8 @@ echo "== Creating an image file with lazy_refcounts=off =="
 IMGOPTS="compat=1.1,lazy_refcounts=off"
 _make_test_img $size
 
-_subshell_exec $QEMU_IO -c "write -P 0x5a 0 512" \
-                        -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
+$QEMU_IO -c "write -P 0x5a 0 512" \
+         -c "sigraise $(kill -l KILL)" "$TEST_IMG" 2>&1 \
     | _filter_qemu_io
 
 # The dirty bit must not be set since lazy_refcounts=off
