@@ -1520,8 +1520,8 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     CPUARMState *env = cs->env_ptr;
     unsigned int cur_el = arm_current_el(env);
     bool secure = arm_is_secure(env);
-    uint32_t scr;
-    uint32_t hcr;
+    bool scr;
+    bool hcr;
     bool pstate_unmasked;
     int8_t unmasked = 0;
 
@@ -1548,7 +1548,7 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
          * set then FIQs can be masked by CPSR.F when non-secure but only
          * when FIQs are only routed to EL3.
          */
-        scr &= !((env->cp15.scr_el3 & SCR_FW) && !hcr);
+        scr = scr && !((env->cp15.scr_el3 & SCR_FW) && !hcr);
         pstate_unmasked = !(env->daif & PSTATE_F);
         break;
 
