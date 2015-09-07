@@ -260,7 +260,7 @@ uint32_t do_arm_semihosting(CPUARMState *env)
             return (uint32_t)-1;
         len = strlen(s);
         if (use_gdb_syscalls()) {
-            gdb_do_syscall(arm_semi_cb, "write,2,%x,%x\n", args, len);
+            gdb_do_syscall(arm_semi_cb, "write,2,%x,%x", args, len);
             ret = env->regs[0];
         } else {
             ret = write(STDERR_FILENO, s, len);
