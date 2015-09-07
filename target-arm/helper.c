@@ -5324,35 +5324,35 @@ void aarch64_sync_32_to_64(CPUARMState *env)
     }
 
     if (mode == ARM_CPU_MODE_IRQ) {
-        env->xregs[16] = env->regs[13];
-        env->xregs[17] = env->regs[14];
+        env->xregs[16] = env->regs[14];
+        env->xregs[17] = env->regs[13];
     } else {
-        env->xregs[16] = env->banked_r13[bank_number(ARM_CPU_MODE_IRQ)];
-        env->xregs[17] = env->banked_r14[bank_number(ARM_CPU_MODE_IRQ)];
+        env->xregs[16] = env->banked_r14[bank_number(ARM_CPU_MODE_IRQ)];
+        env->xregs[17] = env->banked_r13[bank_number(ARM_CPU_MODE_IRQ)];
     }
 
     if (mode == ARM_CPU_MODE_SVC) {
-        env->xregs[18] = env->regs[13];
-        env->xregs[19] = env->regs[14];
+        env->xregs[18] = env->regs[14];
+        env->xregs[19] = env->regs[13];
     } else {
-        env->xregs[18] = env->banked_r13[bank_number(ARM_CPU_MODE_SVC)];
-        env->xregs[19] = env->banked_r14[bank_number(ARM_CPU_MODE_SVC)];
+        env->xregs[18] = env->banked_r14[bank_number(ARM_CPU_MODE_SVC)];
+        env->xregs[19] = env->banked_r13[bank_number(ARM_CPU_MODE_SVC)];
     }
 
     if (mode == ARM_CPU_MODE_ABT) {
-        env->xregs[20] = env->regs[13];
-        env->xregs[21] = env->regs[14];
+        env->xregs[20] = env->regs[14];
+        env->xregs[21] = env->regs[13];
     } else {
-        env->xregs[20] = env->banked_r13[bank_number(ARM_CPU_MODE_ABT)];
-        env->xregs[21] = env->banked_r14[bank_number(ARM_CPU_MODE_ABT)];
+        env->xregs[20] = env->banked_r14[bank_number(ARM_CPU_MODE_ABT)];
+        env->xregs[21] = env->banked_r13[bank_number(ARM_CPU_MODE_ABT)];
     }
 
     if (mode == ARM_CPU_MODE_UND) {
-        env->xregs[22] = env->regs[13];
-        env->xregs[23] = env->regs[14];
+        env->xregs[22] = env->regs[14];
+        env->xregs[23] = env->regs[13];
     } else {
-        env->xregs[22] = env->banked_r13[bank_number(ARM_CPU_MODE_UND)];
-        env->xregs[23] = env->banked_r14[bank_number(ARM_CPU_MODE_UND)];
+        env->xregs[22] = env->banked_r14[bank_number(ARM_CPU_MODE_UND)];
+        env->xregs[23] = env->banked_r13[bank_number(ARM_CPU_MODE_UND)];
     }
 
     /* Registers x24-x30 are mapped to r8-r14 in FIQ mode.  If we are in FIQ
@@ -5429,35 +5429,35 @@ void aarch64_sync_64_to_32(CPUARMState *env)
     }
 
     if (mode == ARM_CPU_MODE_IRQ) {
-        env->regs[13] = env->xregs[16];
-        env->regs[14] = env->xregs[17];
+        env->regs[14] = env->xregs[16];
+        env->regs[13] = env->xregs[17];
     } else {
-        env->banked_r13[bank_number(ARM_CPU_MODE_IRQ)] = env->xregs[16];
-        env->banked_r14[bank_number(ARM_CPU_MODE_IRQ)] = env->xregs[17];
+        env->banked_r14[bank_number(ARM_CPU_MODE_IRQ)] = env->xregs[16];
+        env->banked_r13[bank_number(ARM_CPU_MODE_IRQ)] = env->xregs[17];
     }
 
     if (mode == ARM_CPU_MODE_SVC) {
-        env->regs[13] = env->xregs[18];
-        env->regs[14] = env->xregs[19];
+        env->regs[14] = env->xregs[18];
+        env->regs[13] = env->xregs[19];
     } else {
-        env->banked_r13[bank_number(ARM_CPU_MODE_SVC)] = env->xregs[18];
-        env->banked_r14[bank_number(ARM_CPU_MODE_SVC)] = env->xregs[19];
+        env->banked_r14[bank_number(ARM_CPU_MODE_SVC)] = env->xregs[18];
+        env->banked_r13[bank_number(ARM_CPU_MODE_SVC)] = env->xregs[19];
     }
 
     if (mode == ARM_CPU_MODE_ABT) {
-        env->regs[13] = env->xregs[20];
-        env->regs[14] = env->xregs[21];
+        env->regs[14] = env->xregs[20];
+        env->regs[13] = env->xregs[21];
     } else {
-        env->banked_r13[bank_number(ARM_CPU_MODE_ABT)] = env->xregs[20];
-        env->banked_r14[bank_number(ARM_CPU_MODE_ABT)] = env->xregs[21];
+        env->banked_r14[bank_number(ARM_CPU_MODE_ABT)] = env->xregs[20];
+        env->banked_r13[bank_number(ARM_CPU_MODE_ABT)] = env->xregs[21];
     }
 
     if (mode == ARM_CPU_MODE_UND) {
-        env->regs[13] = env->xregs[22];
-        env->regs[14] = env->xregs[23];
+        env->regs[14] = env->xregs[22];
+        env->regs[13] = env->xregs[23];
     } else {
-        env->banked_r13[bank_number(ARM_CPU_MODE_UND)] = env->xregs[22];
-        env->banked_r14[bank_number(ARM_CPU_MODE_UND)] = env->xregs[23];
+        env->banked_r14[bank_number(ARM_CPU_MODE_UND)] = env->xregs[22];
+        env->banked_r13[bank_number(ARM_CPU_MODE_UND)] = env->xregs[23];
     }
 
     /* Registers x24-x30 are mapped to r8-r14 in FIQ mode.  If we are in FIQ
