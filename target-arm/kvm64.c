@@ -77,7 +77,6 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUClass *ahcc)
     return true;
 }
 
-#define ARM_MPIDR_HWID_BITMASK 0xFF00FFFFFFULL
 #define ARM_CPU_ID_MPIDR       3, 0, 0, 0, 5
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -120,7 +119,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (ret) {
         return ret;
     }
-    cpu->mp_affinity = mpidr & ARM_MPIDR_HWID_BITMASK;
+    cpu->mp_affinity = mpidr & ARM64_AFFINITY_MASK;
 
     return kvm_arm_init_cpreg_list(cpu);
 }

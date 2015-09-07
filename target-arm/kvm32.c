@@ -181,7 +181,6 @@ int kvm_arm_cpreg_level(uint64_t regidx)
     return KVM_PUT_RUNTIME_STATE;
 }
 
-#define ARM_MPIDR_HWID_BITMASK 0xFFFFFF
 #define ARM_CPU_ID_MPIDR       0, 0, 0, 5
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -234,7 +233,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (ret) {
         return ret;
     }
-    cpu->mp_affinity = mpidr & ARM_MPIDR_HWID_BITMASK;
+    cpu->mp_affinity = mpidr & ARM32_AFFINITY_MASK;
 
     return kvm_arm_init_cpreg_list(cpu);
 }
