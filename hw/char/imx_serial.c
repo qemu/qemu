@@ -21,7 +21,6 @@
 #include "hw/char/imx_serial.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"
-#include "hw/arm/imx.h"
 
 //#define DEBUG_SERIAL 1
 #ifdef DEBUG_SERIAL
@@ -333,40 +332,6 @@ static void imx_serial_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
 }
-
-void imx_serial_create(int uart, const hwaddr addr, qemu_irq irq)
-{
-    DeviceState *dev;
-    SysBusDevice *bus;
-    CharDriverState *chr;
-    const char chr_name[] = "serial";
-    char label[ARRAY_SIZE(chr_name) + 1];
-
-    dev = qdev_create(NULL, TYPE_IMX_SERIAL);
-
-    if (uart >= MAX_SERIAL_PORTS) {
-        hw_error("Cannot assign uart %d: QEMU supports only %d ports\n",
-                 uart, MAX_SERIAL_PORTS);
-    }
-    chr = serial_hds[uart];
-    if (!chr) {
-        snprintf(label, ARRAY_SIZE(label), "%s%d", chr_name, uart);
-        chr = qemu_chr_new(label, "null", NULL);
-        if (!(chr)) {
-            hw_error("Can't assign serial port to imx-uart%d.\n", uart);
-        }
-    }
-
-    qdev_prop_set_chr(dev, "chardev", chr);
-    bus = SYS_BUS_DEVICE(dev);
-    qdev_init_nofail(dev);
-    if (addr != (hwaddr)-1) {
-        sysbus_mmio_map(bus, 0, addr);
-    }
-    sysbus_connect_irq(bus, 0, irq);
-
-}
-
 
 static Property imx_serial_properties[] = {
     DEFINE_PROP_CHR("chardev", IMXSerialState, chr),

@@ -13,131 +13,130 @@
  * i.MX31 SoC
  */
 
-#include "hw/sysbus.h"
-#include "exec/address-spaces.h"
-#include "hw/hw.h"
-#include "hw/arm/arm.h"
-#include "hw/devices.h"
-#include "net/net.h"
-#include "sysemu/sysemu.h"
+#include "hw/arm/fsl-imx31.h"
 #include "hw/boards.h"
+#include "qemu/error-report.h"
+#include "exec/address-spaces.h"
+#include "net/net.h"
+#include "hw/devices.h"
 #include "hw/char/serial.h"
-#include "hw/intc/imx_avic.h"
-#include "hw/arm/imx.h"
+#include "sysemu/qtest.h"
 
-    /* Memory map for Kzm Emulation Baseboard:
-     * 0x00000000-0x00003fff 16k secure ROM       IGNORED
-     * 0x00004000-0x00407fff Reserved             IGNORED
-     * 0x00404000-0x00407fff ROM                  IGNORED
-     * 0x00408000-0x0fffffff Reserved             IGNORED
-     * 0x10000000-0x1fffbfff RAM aliasing         IGNORED
-     * 0x1fffc000-0x1fffffff RAM                  EMULATED
-     * 0x20000000-0x2fffffff Reserved             IGNORED
-     * 0x30000000-0x7fffffff I.MX31 Internal Register Space
-     *   0x43f00000 IO_AREA0
-     *   0x43f90000 UART1                         EMULATED
-     *   0x43f94000 UART2                         EMULATED
-     *   0x68000000 AVIC                          EMULATED
-     *   0x53f80000 CCM                           EMULATED
-     *   0x53f94000 PIT 1                         EMULATED
-     *   0x53f98000 PIT 2                         EMULATED
-     *   0x53f90000 GPT                           EMULATED
-     * 0x80000000-0x87ffffff RAM                  EMULATED
-     * 0x88000000-0x8fffffff RAM Aliasing         EMULATED
-     * 0xa0000000-0xafffffff NAND Flash           IGNORED
-     * 0xb0000000-0xb3ffffff Unavailable          IGNORED
-     * 0xb4000000-0xb4000fff 8-bit free space     IGNORED
-     * 0xb4001000-0xb400100f Board control        IGNORED
-     *  0xb4001003           DIP switch
-     * 0xb4001010-0xb400101f 7-segment LED        IGNORED
-     * 0xb4001020-0xb400102f LED                  IGNORED
-     * 0xb4001030-0xb400103f LED                  IGNORED
-     * 0xb4001040-0xb400104f FPGA, UART           EMULATED
-     * 0xb4001050-0xb400105f FPGA, UART           EMULATED
-     * 0xb4001060-0xb40fffff FPGA                 IGNORED
-     * 0xb6000000-0xb61fffff LAN controller       EMULATED
-     * 0xb6200000-0xb62fffff FPGA NAND Controller IGNORED
-     * 0xb6300000-0xb7ffffff Free                 IGNORED
-     * 0xb8000000-0xb8004fff Memory control registers IGNORED
-     * 0xc0000000-0xc3ffffff PCMCIA/CF            IGNORED
-     * 0xc4000000-0xffffffff Reserved             IGNORED
-     */
+/* Memory map for Kzm Emulation Baseboard:
+ * 0x00000000-0x7fffffff See i.MX31 SOC for support
+ * 0x80000000-0x8fffffff RAM                  EMULATED
+ * 0x90000000-0x9fffffff RAM                  EMULATED
+ * 0xa0000000-0xafffffff Flash                IGNORED
+ * 0xb0000000-0xb3ffffff Unavailable          IGNORED
+ * 0xb4000000-0xb4000fff 8-bit free space     IGNORED
+ * 0xb4001000-0xb400100f Board control        IGNORED
+ *  0xb4001003           DIP switch
+ * 0xb4001010-0xb400101f 7-segment LED        IGNORED
+ * 0xb4001020-0xb400102f LED                  IGNORED
+ * 0xb4001030-0xb400103f LED                  IGNORED
+ * 0xb4001040-0xb400104f FPGA, UART           EMULATED
+ * 0xb4001050-0xb400105f FPGA, UART           EMULATED
+ * 0xb4001060-0xb40fffff FPGA                 IGNORED
+ * 0xb6000000-0xb61fffff LAN controller       EMULATED
+ * 0xb6200000-0xb62fffff FPGA NAND Controller IGNORED
+ * 0xb6300000-0xb7ffffff Free                 IGNORED
+ * 0xb8000000-0xb8004fff Memory control registers IGNORED
+ * 0xc0000000-0xc3ffffff PCMCIA/CF            IGNORED
+ * 0xc4000000-0xffffffff Reserved             IGNORED
+ */
 
-#define KZM_RAMADDRESS (0x80000000)
-#define KZM_FPGA       (0xb4001040)
+typedef struct IMX31KZM {
+    FslIMX31State soc;
+    MemoryRegion ram;
+    MemoryRegion ram_alias;
+} IMX31KZM;
+
+#define KZM_RAM_ADDR            (FSL_IMX31_SDRAM0_ADDR)
+#define KZM_FPGA_ADDR           (FSL_IMX31_CS4_ADDR + 0x1040)
+#define KZM_LAN9118_ADDR        (FSL_IMX31_CS5_ADDR)
 
 static struct arm_boot_info kzm_binfo = {
-    .loader_start = KZM_RAMADDRESS,
+    .loader_start = KZM_RAM_ADDR,
     .board_id = 1722,
 };
 
 static void kzm_init(MachineState *machine)
 {
-    ram_addr_t ram_size = machine->ram_size;
-    const char *cpu_model = machine->cpu_model;
-    const char *kernel_filename = machine->kernel_filename;
-    const char *kernel_cmdline = machine->kernel_cmdline;
-    const char *initrd_filename = machine->initrd_filename;
-    ARMCPU *cpu;
-    MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
-    MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
-    DeviceState *dev;
-    DeviceState *ccm;
+    IMX31KZM *s = g_new0(IMX31KZM, 1);
+    Error *err = NULL;
+    unsigned int ram_size;
+    unsigned int alias_offset;
+    unsigned int i;
 
-    if (!cpu_model) {
-        cpu_model = "arm1136";
-    }
+    object_initialize(&s->soc, sizeof(s->soc), TYPE_FSL_IMX31);
+    object_property_add_child(OBJECT(machine), "soc", OBJECT(&s->soc),
+                              &error_abort);
 
-    cpu = cpu_arm_init(cpu_model);
-    if (!cpu) {
-        fprintf(stderr, "Unable to find CPU definition\n");
+    object_property_set_bool(OBJECT(&s->soc), true, "realized", &err);
+    if (err != NULL) {
+        error_report("%s", error_get_pretty(err));
         exit(1);
     }
 
-    /* On a real system, the first 16k is a `secure boot rom' */
+    /* Check the amount of memory is compatible with the SOC */
+    if (machine->ram_size > (FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE)) {
+        error_report("WARNING: RAM size " RAM_ADDR_FMT " above max supported, "
+                     "reduced to %x", machine->ram_size,
+                     FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE);
+        machine->ram_size = FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE;
+    }
 
-    memory_region_allocate_system_memory(ram, NULL, "kzm.ram", ram_size);
-    memory_region_add_subregion(address_space_mem, KZM_RAMADDRESS, ram);
+    memory_region_allocate_system_memory(&s->ram, NULL, "kzm.ram",
+                                         machine->ram_size);
+    memory_region_add_subregion(get_system_memory(), FSL_IMX31_SDRAM0_ADDR,
+                                &s->ram);
 
-    memory_region_init_alias(ram_alias, NULL, "ram.alias", ram, 0, ram_size);
-    memory_region_add_subregion(address_space_mem, 0x88000000, ram_alias);
+    /* initialize the alias memory if any */
+    for (i = 0, ram_size = machine->ram_size, alias_offset = 0;
+         (i < 2) && ram_size; i++) {
+        unsigned int size;
+        static const struct {
+            hwaddr addr;
+            unsigned int size;
+        } ram[2] = {
+            { FSL_IMX31_SDRAM0_ADDR, FSL_IMX31_SDRAM0_SIZE },
+            { FSL_IMX31_SDRAM1_ADDR, FSL_IMX31_SDRAM1_SIZE },
+        };
 
-    memory_region_init_ram(sram, NULL, "kzm.sram", 0x4000, &error_abort);
-    memory_region_add_subregion(address_space_mem, 0x1FFFC000, sram);
+        size = MIN(ram_size, ram[i].size);
 
-    dev = sysbus_create_varargs(TYPE_IMX_AVIC, 0x68000000,
-                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_IRQ),
-                                qdev_get_gpio_in(DEVICE(cpu), ARM_CPU_FIQ),
-                                NULL);
+        ram_size -= size;
 
-    imx_serial_create(0, 0x43f90000, qdev_get_gpio_in(dev, 45));
-    imx_serial_create(1, 0x43f94000, qdev_get_gpio_in(dev, 32));
+        if (size < ram[i].size) {
+            memory_region_init_alias(&s->ram_alias, NULL, "ram.alias",
+                                     &s->ram, alias_offset, ram[i].size - size);
+            memory_region_add_subregion(get_system_memory(),
+                                        ram[i].addr + size, &s->ram_alias);
+        }
 
-    ccm = sysbus_create_simple(TYPE_IMX_CCM, 0x53f80000, NULL);
-
-    imx_timerp_create(0x53f94000, qdev_get_gpio_in(dev, 28), ccm);
-    imx_timerp_create(0x53f98000, qdev_get_gpio_in(dev, 27), ccm);
-    imx_timerg_create(0x53f90000, qdev_get_gpio_in(dev, 29), ccm);
+        alias_offset += ram[i].size;
+    }
 
     if (nd_table[0].used) {
-        lan9118_init(&nd_table[0], 0xb6000000, qdev_get_gpio_in(dev, 52));
+        lan9118_init(&nd_table[0], KZM_LAN9118_ADDR,
+                     qdev_get_gpio_in(DEVICE(&s->soc.avic), 52));
     }
 
     if (serial_hds[2]) { /* touchscreen */
-        serial_mm_init(address_space_mem, KZM_FPGA+0x10, 0,
-                       qdev_get_gpio_in(dev, 52),
-                       14745600, serial_hds[2],
-                       DEVICE_NATIVE_ENDIAN);
+        serial_mm_init(get_system_memory(), KZM_FPGA_ADDR+0x10, 0,
+                       qdev_get_gpio_in(DEVICE(&s->soc.avic), 52),
+                       14745600, serial_hds[2], DEVICE_NATIVE_ENDIAN);
     }
 
-    kzm_binfo.ram_size = ram_size;
-    kzm_binfo.kernel_filename = kernel_filename;
-    kzm_binfo.kernel_cmdline = kernel_cmdline;
-    kzm_binfo.initrd_filename = initrd_filename;
+    kzm_binfo.ram_size = machine->ram_size;
+    kzm_binfo.kernel_filename = machine->kernel_filename;
+    kzm_binfo.kernel_cmdline = machine->kernel_cmdline;
+    kzm_binfo.initrd_filename = machine->initrd_filename;
     kzm_binfo.nb_cpus = 1;
-    arm_load_kernel(cpu, &kzm_binfo);
+
+    if (!qtest_enabled()) {
+        arm_load_kernel(&s->soc.cpu, &kzm_binfo);
+    }
 }
 
 static QEMUMachine kzm_machine = {
