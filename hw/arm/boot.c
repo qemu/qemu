@@ -10,6 +10,7 @@
 #include "config.h"
 #include "hw/hw.h"
 #include "hw/arm/arm.h"
+#include "hw/arm/linux-boot-if.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
@@ -555,6 +556,20 @@ static void load_image_to_fw_cfg(FWCfgState *fw_cfg, uint16_t size_key,
     fw_cfg_add_bytes(fw_cfg, data_key, data, size);
 }
 
+static int do_arm_linux_init(Object *obj, void *opaque)
+{
+    if (object_dynamic_cast(obj, TYPE_ARM_LINUX_BOOT_IF)) {
+        ARMLinuxBootIf *albif = ARM_LINUX_BOOT_IF(obj);
+        ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_GET_CLASS(obj);
+        struct arm_boot_info *info = opaque;
+
+        if (albifc->arm_linux_init) {
+            albifc->arm_linux_init(albif, info->secure_boot);
+        }
+    }
+    return 0;
+}
+
 static void arm_load_kernel_notify(Notifier *notifier, void *data)
 {
     CPUState *cs;
@@ -778,6 +793,12 @@ static void arm_load_kernel_notify(Notifier *notifier, void *data)
         if (info->nb_cpus > 1) {
             info->write_secondary_boot(cpu, info);
         }
+
+        /* Notify devices which need to fake up firmware initialization
+         * that we're doing a direct kernel boot.
+         */
+        object_child_foreach_recursive(object_get_root(),
+                                       do_arm_linux_init, info);
     }
     info->is_linux = is_linux;
 
@@ -803,3 +824,16 @@ void arm_load_kernel(ARMCPU *cpu, struct arm_boot_info *info)
         qemu_register_reset(do_cpu_reset, ARM_CPU(cs));
     }
 }
+
+static const TypeInfo arm_linux_boot_if_info = {
+    .name = TYPE_ARM_LINUX_BOOT_IF,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(ARMLinuxBootIfClass),
+};
+
+static void arm_linux_boot_register_types(void)
+{
+    type_register_static(&arm_linux_boot_if_info);
+}
+
+type_init(arm_linux_boot_register_types)
