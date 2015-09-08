@@ -272,6 +272,12 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, " %s: %" PRId64,
             MigrationParameter_lookup[MIGRATION_PARAMETER_DECOMPRESS_THREADS],
             params->decompress_threads);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL],
+            params->x_cpu_throttle_initial);
+        monitor_printf(mon, " %s: %" PRId64,
+            MigrationParameter_lookup[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT],
+            params->x_cpu_throttle_increment);
         monitor_printf(mon, "\n");
     }
 
@@ -1221,6 +1227,8 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     bool has_compress_level = false;
     bool has_compress_threads = false;
     bool has_decompress_threads = false;
+    bool has_x_cpu_throttle_initial = false;
+    bool has_x_cpu_throttle_increment = false;
     int i;
 
     for (i = 0; i < MIGRATION_PARAMETER_MAX; i++) {
@@ -1235,10 +1243,18 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
             case MIGRATION_PARAMETER_DECOMPRESS_THREADS:
                 has_decompress_threads = true;
                 break;
+            case MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL:
+                has_x_cpu_throttle_initial = true;
+                break;
+            case MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT:
+                has_x_cpu_throttle_increment = true;
+                break;
             }
             qmp_migrate_set_parameters(has_compress_level, value,
                                        has_compress_threads, value,
                                        has_decompress_threads, value,
+                                       has_x_cpu_throttle_initial, value,
+                                       has_x_cpu_throttle_increment, value,
                                        &err);
             break;
         }
