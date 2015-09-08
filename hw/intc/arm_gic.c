@@ -219,13 +219,39 @@ static uint16_t gic_get_current_pending_irq(GICState *s, int cpu,
     return pending_irq;
 }
 
+static int gic_get_group_priority(GICState *s, int cpu, int irq)
+{
+    /* Return the group priority of the specified interrupt
+     * (which is the top bits of its priority, with the number
+     * of bits masked determined by the applicable binary point register).
+     */
+    int bpr;
+    uint32_t mask;
+
+    if (gic_has_groups(s) &&
+        !(s->cpu_ctlr[cpu] & GICC_CTLR_CBPR) &&
+        GIC_TEST_GROUP(irq, (1 << cpu))) {
+        bpr = s->abpr[cpu];
+    } else {
+        bpr = s->bpr[cpu];
+    }
+
+    /* a BPR of 0 means the group priority bits are [7:1];
+     * a BPR of 1 means they are [7:2], and so on down to
+     * a BPR of 7 meaning no group priority bits at all.
+     */
+    mask = ~0U << ((bpr & 7) + 1);
+
+    return GIC_GET_PRIORITY(irq, cpu) & mask;
+}
+
 static void gic_set_running_irq(GICState *s, int cpu, int irq)
 {
     s->running_irq[cpu] = irq;
     if (irq == 1023) {
         s->running_priority[cpu] = 0x100;
     } else {
-        s->running_priority[cpu] = GIC_GET_PRIORITY(irq, cpu);
+        s->running_priority[cpu] = gic_get_group_priority(s, cpu, irq);
     }
     gic_update(s);
 }
