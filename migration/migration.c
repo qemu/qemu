@@ -29,6 +29,7 @@
 #include "trace.h"
 #include "qapi/util.h"
 #include "qapi-event.h"
+#include "qom/cpu.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration speed throttling */
 
@@ -1069,6 +1070,9 @@ static void *migration_thread(void *opaque)
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
         }
     }
+
+    /* If we enabled cpu throttling for auto-converge, turn it off. */
+    cpu_throttle_stop();
 
     qemu_mutex_lock_iothread();
     if (s->state == MIGRATION_STATUS_COMPLETED) {
