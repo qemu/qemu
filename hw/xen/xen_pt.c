@@ -696,6 +696,68 @@ xen_igd_passthrough_isa_bridge_create(XenPCIPassthroughState *s,
     igd_passthrough_isa_bridge_create(d->bus, gpu_dev_id);
 }
 
+/* destroy. */
+static void xen_pt_destroy(PCIDevice *d) {
+
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
+    XenHostPCIDevice *host_dev = &s->real_device;
+    uint8_t machine_irq = s->machine_irq;
+    uint8_t intx;
+    int rc;
+
+    if (machine_irq && !xen_host_pci_device_closed(&s->real_device)) {
+        intx = xen_pt_pci_intx(s);
+        rc = xc_domain_unbind_pt_irq(xen_xc, xen_domid, machine_irq,
+                                     PT_IRQ_TYPE_PCI,
+                                     pci_bus_num(d->bus),
+                                     PCI_SLOT(s->dev.devfn),
+                                     intx,
+                                     0 /* isa_irq */);
+        if (rc < 0) {
+            XEN_PT_ERR(d, "unbinding of interrupt INT%c failed."
+                       " (machine irq: %i, err: %d)"
+                       " But bravely continuing on..\n",
+                       'a' + intx, machine_irq, errno);
+        }
+    }
+
+    /* N.B. xen_pt_config_delete takes care of freeing them. */
+    if (s->msi) {
+        xen_pt_msi_disable(s);
+    }
+    if (s->msix) {
+        xen_pt_msix_disable(s);
+    }
+
+    if (machine_irq) {
+        xen_pt_mapped_machine_irq[machine_irq]--;
+
+        if (xen_pt_mapped_machine_irq[machine_irq] == 0) {
+            rc = xc_physdev_unmap_pirq(xen_xc, xen_domid, machine_irq);
+
+            if (rc < 0) {
+                XEN_PT_ERR(d, "unmapping of interrupt %i failed. (err: %d)"
+                           " But bravely continuing on..\n",
+                           machine_irq, errno);
+            }
+        }
+        s->machine_irq = 0;
+    }
+
+    /* delete all emulated config registers */
+    xen_pt_config_delete(s);
+
+    xen_pt_unregister_vga_regions(host_dev);
+
+    if (s->listener_set) {
+        memory_listener_unregister(&s->memory_listener);
+        memory_listener_unregister(&s->io_listener);
+        s->listener_set = false;
+    }
+    if (!xen_host_pci_device_closed(&s->real_device)) {
+        xen_host_pci_device_put(&s->real_device);
+    }
+}
 /* init */
 
 static int xen_pt_initfn(PCIDevice *d)
@@ -850,64 +912,7 @@ out:
 
 static void xen_pt_unregister_device(PCIDevice *d)
 {
-    XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
-    XenHostPCIDevice *host_dev = &s->real_device;
-    uint8_t machine_irq = s->machine_irq;
-    uint8_t intx;
-    int rc;
-
-    if (machine_irq && !xen_host_pci_device_closed(&s->real_device)) {
-        intx = xen_pt_pci_intx(s);
-        rc = xc_domain_unbind_pt_irq(xen_xc, xen_domid, machine_irq,
-                                     PT_IRQ_TYPE_PCI,
-                                     pci_bus_num(d->bus),
-                                     PCI_SLOT(s->dev.devfn),
-                                     intx,
-                                     0 /* isa_irq */);
-        if (rc < 0) {
-            XEN_PT_ERR(d, "unbinding of interrupt INT%c failed."
-                       " (machine irq: %i, err: %d)"
-                       " But bravely continuing on..\n",
-                       'a' + intx, machine_irq, errno);
-        }
-    }
-
-    /* N.B. xen_pt_config_delete takes care of freeing them. */
-    if (s->msi) {
-        xen_pt_msi_disable(s);
-    }
-    if (s->msix) {
-        xen_pt_msix_disable(s);
-    }
-
-    if (machine_irq) {
-        xen_pt_mapped_machine_irq[machine_irq]--;
-
-        if (xen_pt_mapped_machine_irq[machine_irq] == 0) {
-            rc = xc_physdev_unmap_pirq(xen_xc, xen_domid, machine_irq);
-
-            if (rc < 0) {
-                XEN_PT_ERR(d, "unmapping of interrupt %i failed. (err: %d)"
-                           " But bravely continuing on..\n",
-                           machine_irq, errno);
-            }
-        }
-        s->machine_irq = 0;
-    }
-
-    /* delete all emulated config registers */
-    xen_pt_config_delete(s);
-
-    xen_pt_unregister_vga_regions(host_dev);
-
-    if (s->listener_set) {
-        memory_listener_unregister(&s->memory_listener);
-        memory_listener_unregister(&s->io_listener);
-        s->listener_set = false;
-    }
-    if (!xen_host_pci_device_closed(&s->real_device)) {
-        xen_host_pci_device_put(&s->real_device);
-    }
+    xen_pt_destroy(d);
 }
 
 static Property xen_pci_passthrough_properties[] = {
