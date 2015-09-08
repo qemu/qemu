@@ -775,21 +775,40 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
     enumerating_types = false;
 }
 
-int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
-                         void *opaque)
+static int do_object_child_foreach(Object *obj,
+                                   int (*fn)(Object *child, void *opaque),
+                                   void *opaque, bool recurse)
 {
     ObjectProperty *prop, *next;
     int ret = 0;
 
     QTAILQ_FOREACH_SAFE(prop, &obj->properties, node, next) {
         if (object_property_is_child(prop)) {
-            ret = fn(prop->opaque, opaque);
+            Object *child = prop->opaque;
+
+            ret = fn(child, opaque);
             if (ret != 0) {
                 break;
+            }
+            if (recurse) {
+                do_object_child_foreach(child, fn, opaque, true);
             }
         }
     }
     return ret;
+}
+
+int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
+                         void *opaque)
+{
+    return do_object_child_foreach(obj, fn, opaque, false);
+}
+
+int object_child_foreach_recursive(Object *obj,
+                                   int (*fn)(Object *child, void *opaque),
+                                   void *opaque)
+{
+    return do_object_child_foreach(obj, fn, opaque, true);
 }
 
 static void object_class_get_list_tramp(ObjectClass *klass, void *opaque)
