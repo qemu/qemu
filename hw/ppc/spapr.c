@@ -1546,6 +1546,7 @@ static void ppc_spapr_init(MachineState *machine)
     if (kvm_enabled()) {
         /* Enable H_LOGICAL_CI_* so SLOF can talk to in-kernel devices */
         kvmppc_enable_logical_ci_hcalls();
+        kvmppc_enable_set_mode_hcall();
     }
 
     /* allocate RAM */

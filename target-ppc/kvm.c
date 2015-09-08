@@ -1953,6 +1953,11 @@ void kvmppc_enable_logical_ci_hcalls(void)
     kvmppc_enable_hcall(kvm_state, H_LOGICAL_CI_STORE);
 }
 
+void kvmppc_enable_set_mode_hcall(void)
+{
+    kvmppc_enable_hcall(kvm_state, H_SET_MODE);
+}
+
 void kvmppc_set_papr(PowerPCCPU *cpu)
 {
     CPUState *cs = CPU(cpu);
