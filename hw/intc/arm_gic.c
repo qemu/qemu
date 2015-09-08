@@ -262,6 +262,7 @@ static void gic_activate_irq(GICState *s, int cpu, int irq)
     }
 
     s->running_priority[cpu] = prio;
+    GIC_SET_ACTIVE(irq, 1 << cpu);
 }
 
 static int gic_get_prio_from_apr_bits(GICState *s, int cpu)
@@ -536,6 +537,7 @@ void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
      */
 
     gic_drop_prio(s, cpu, group);
+    GIC_CLEAR_ACTIVE(irq, cm);
     gic_update(s);
 }
 
