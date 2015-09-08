@@ -392,6 +392,11 @@ error:
     return rc;
 }
 
+bool xen_host_pci_device_closed(XenHostPCIDevice *d)
+{
+    return d->config_fd == -1;
+}
+
 void xen_host_pci_device_put(XenHostPCIDevice *d)
 {
     if (d->config_fd >= 0) {

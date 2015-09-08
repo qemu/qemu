@@ -225,6 +225,7 @@ struct XenPCIPassthroughState {
 
     MemoryListener memory_listener;
     MemoryListener io_listener;
+    bool listener_set;
 };
 
 int xen_pt_config_init(XenPCIPassthroughState *s);
@@ -290,6 +291,7 @@ static inline uint8_t xen_pt_pci_intx(XenPCIPassthroughState *s)
                    " value=%i, acceptable range is 1 - 4\n", r_val);
         r_val = 0;
     } else {
+        /* Note that if s.real_device.config_fd is closed we make 0xff. */
         r_val -= 1;
     }
 

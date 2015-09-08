@@ -840,6 +840,7 @@ out:
 
     memory_listener_register(&s->memory_listener, &s->dev.bus_master_as);
     memory_listener_register(&s->io_listener, &address_space_io);
+    s->listener_set = true;
     XEN_PT_LOG(d,
                "Real physical device %02x:%02x.%d registered successfully!\n",
                s->hostaddr.bus, s->hostaddr.slot, s->hostaddr.function);
@@ -852,10 +853,11 @@ static void xen_pt_unregister_device(PCIDevice *d)
     XenPCIPassthroughState *s = XEN_PT_DEVICE(d);
     XenHostPCIDevice *host_dev = &s->real_device;
     uint8_t machine_irq = s->machine_irq;
-    uint8_t intx = xen_pt_pci_intx(s);
+    uint8_t intx;
     int rc;
 
-    if (machine_irq) {
+    if (machine_irq && !xen_host_pci_device_closed(&s->real_device)) {
+        intx = xen_pt_pci_intx(s);
         rc = xc_domain_unbind_pt_irq(xen_xc, xen_domid, machine_irq,
                                      PT_IRQ_TYPE_PCI,
                                      pci_bus_num(d->bus),
@@ -870,6 +872,7 @@ static void xen_pt_unregister_device(PCIDevice *d)
         }
     }
 
+    /* N.B. xen_pt_config_delete takes care of freeing them. */
     if (s->msi) {
         xen_pt_msi_disable(s);
     }
@@ -889,6 +892,7 @@ static void xen_pt_unregister_device(PCIDevice *d)
                            machine_irq, errno);
             }
         }
+        s->machine_irq = 0;
     }
 
     /* delete all emulated config registers */
@@ -896,10 +900,14 @@ static void xen_pt_unregister_device(PCIDevice *d)
 
     xen_pt_unregister_vga_regions(host_dev);
 
-    memory_listener_unregister(&s->memory_listener);
-    memory_listener_unregister(&s->io_listener);
-
-    xen_host_pci_device_put(&s->real_device);
+    if (s->listener_set) {
+        memory_listener_unregister(&s->memory_listener);
+        memory_listener_unregister(&s->io_listener);
+        s->listener_set = false;
+    }
+    if (!xen_host_pci_device_closed(&s->real_device)) {
+        xen_host_pci_device_put(&s->real_device);
+    }
 }
 
 static Property xen_pci_passthrough_properties[] = {
