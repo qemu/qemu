@@ -447,6 +447,11 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             info->disk->total = blk_mig_bytes_total();
         }
 
+        if (cpu_throttle_active()) {
+            info->has_x_cpu_throttle_percentage = true;
+            info->x_cpu_throttle_percentage = cpu_throttle_get_percentage();
+        }
+
         get_xbzrle_cache_stats(info);
         break;
     case MIGRATION_STATUS_COMPLETED:

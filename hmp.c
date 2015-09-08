@@ -232,6 +232,11 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
                        info->xbzrle_cache->overflow);
     }
 
+    if (info->has_x_cpu_throttle_percentage) {
+        monitor_printf(mon, "cpu throttle percentage: %" PRIu64 "\n",
+                       info->x_cpu_throttle_percentage);
+    }
+
     qapi_free_MigrationInfo(info);
     qapi_free_MigrationCapabilityStatusList(caps);
 }
