@@ -59,8 +59,8 @@ static const VMStateDescription vmstate_gic_irq_state = {
 
 static const VMStateDescription vmstate_gic = {
     .name = "arm_gic",
-    .version_id = 11,
-    .minimum_version_id = 11,
+    .version_id = 12,
+    .minimum_version_id = 12,
     .pre_save = gic_pre_save,
     .post_load = gic_post_load,
     .fields = (VMStateField[]) {
@@ -71,10 +71,8 @@ static const VMStateDescription vmstate_gic = {
         VMSTATE_UINT8_ARRAY(irq_target, GICState, GIC_MAXIRQ),
         VMSTATE_UINT8_2DARRAY(priority1, GICState, GIC_INTERNAL, GIC_NCPU),
         VMSTATE_UINT8_ARRAY(priority2, GICState, GIC_MAXIRQ - GIC_INTERNAL),
-        VMSTATE_UINT16_2DARRAY(last_active, GICState, GIC_MAXIRQ, GIC_NCPU),
         VMSTATE_UINT8_2DARRAY(sgi_pending, GICState, GIC_NR_SGIS, GIC_NCPU),
         VMSTATE_UINT16_ARRAY(priority_mask, GICState, GIC_NCPU),
-        VMSTATE_UINT16_ARRAY(running_irq, GICState, GIC_NCPU),
         VMSTATE_UINT16_ARRAY(running_priority, GICState, GIC_NCPU),
         VMSTATE_UINT16_ARRAY(current_pending, GICState, GIC_NCPU),
         VMSTATE_UINT8_ARRAY(bpr, GICState, GIC_NCPU),
@@ -174,7 +172,6 @@ static void arm_gic_common_reset(DeviceState *dev)
             s->priority_mask[i] = 0;
         }
         s->current_pending[i] = 1023;
-        s->running_irq[i] = 1023;
         s->running_priority[i] = 0x100;
         s->cpu_ctlr[i] = 0;
         s->bpr[i] = GIC_MIN_BPR;
