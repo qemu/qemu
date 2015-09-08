@@ -1044,8 +1044,11 @@ static void virt_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
-    /* EL3 is enabled by default on virt */
-    vms->secure = true;
+    /* EL3 is disabled by default on virt: this makes us consistent
+     * between KVM and TCG for this board, and it also allows us to
+     * boot UEFI blobs which assume no TrustZone support.
+     */
+    vms->secure = false;
     object_property_add_bool(obj, "secure", virt_get_secure,
                              virt_set_secure, NULL);
     object_property_set_description(obj, "secure",
