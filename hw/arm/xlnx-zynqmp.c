@@ -28,6 +28,10 @@
 #define GIC_DIST_ADDR       0xf9010000
 #define GIC_CPU_ADDR        0xf9020000
 
+#define SATA_INTR           133
+#define SATA_ADDR           0xFD0C0000
+#define SATA_NUM_PORTS      2
+
 static const uint64_t gem_addr[XLNX_ZYNQMP_NUM_GEMS] = {
     0xFF0B0000, 0xFF0C0000, 0xFF0D0000, 0xFF0E0000,
 };
@@ -90,6 +94,9 @@ static void xlnx_zynqmp_init(Object *obj)
         object_initialize(&s->uart[i], sizeof(s->uart[i]), TYPE_CADENCE_UART);
         qdev_set_parent_bus(DEVICE(&s->uart[i]), sysbus_get_default());
     }
+
+    object_initialize(&s->sata, sizeof(s->sata), TYPE_SYSBUS_AHCI);
+    qdev_set_parent_bus(DEVICE(&s->sata), sysbus_get_default());
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
@@ -240,6 +247,17 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
                            gic_spi[uart_intr[i]]);
     }
+
+    object_property_set_int(OBJECT(&s->sata), SATA_NUM_PORTS, "num-ports",
+                            &error_abort);
+    object_property_set_bool(OBJECT(&s->sata), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0, SATA_ADDR);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0, gic_spi[SATA_INTR]);
 }
 
 static Property xlnx_zynqmp_props[] = {
