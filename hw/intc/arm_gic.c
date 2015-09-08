@@ -219,15 +219,99 @@ static uint16_t gic_get_current_pending_irq(GICState *s, int cpu,
     return pending_irq;
 }
 
-static void gic_set_running_irq(GICState *s, int cpu, int irq)
+static int gic_get_group_priority(GICState *s, int cpu, int irq)
 {
-    s->running_irq[cpu] = irq;
-    if (irq == 1023) {
-        s->running_priority[cpu] = 0x100;
+    /* Return the group priority of the specified interrupt
+     * (which is the top bits of its priority, with the number
+     * of bits masked determined by the applicable binary point register).
+     */
+    int bpr;
+    uint32_t mask;
+
+    if (gic_has_groups(s) &&
+        !(s->cpu_ctlr[cpu] & GICC_CTLR_CBPR) &&
+        GIC_TEST_GROUP(irq, (1 << cpu))) {
+        bpr = s->abpr[cpu];
     } else {
-        s->running_priority[cpu] = GIC_GET_PRIORITY(irq, cpu);
+        bpr = s->bpr[cpu];
     }
-    gic_update(s);
+
+    /* a BPR of 0 means the group priority bits are [7:1];
+     * a BPR of 1 means they are [7:2], and so on down to
+     * a BPR of 7 meaning no group priority bits at all.
+     */
+    mask = ~0U << ((bpr & 7) + 1);
+
+    return GIC_GET_PRIORITY(irq, cpu) & mask;
+}
+
+static void gic_activate_irq(GICState *s, int cpu, int irq)
+{
+    /* Set the appropriate Active Priority Register bit for this IRQ,
+     * and update the running priority.
+     */
+    int prio = gic_get_group_priority(s, cpu, irq);
+    int preemption_level = prio >> (GIC_MIN_BPR + 1);
+    int regno = preemption_level / 32;
+    int bitno = preemption_level % 32;
+
+    if (gic_has_groups(s) && GIC_TEST_GROUP(irq, (1 << cpu))) {
+        s->nsapr[regno][cpu] &= (1 << bitno);
+    } else {
+        s->apr[regno][cpu] &= (1 << bitno);
+    }
+
+    s->running_priority[cpu] = prio;
+    GIC_SET_ACTIVE(irq, 1 << cpu);
+}
+
+static int gic_get_prio_from_apr_bits(GICState *s, int cpu)
+{
+    /* Recalculate the current running priority for this CPU based
+     * on the set bits in the Active Priority Registers.
+     */
+    int i;
+    for (i = 0; i < GIC_NR_APRS; i++) {
+        uint32_t apr = s->apr[i][cpu] | s->nsapr[i][cpu];
+        if (!apr) {
+            continue;
+        }
+        return (i * 32 + ctz32(apr)) << (GIC_MIN_BPR + 1);
+    }
+    return 0x100;
+}
+
+static void gic_drop_prio(GICState *s, int cpu, int group)
+{
+    /* Drop the priority of the currently active interrupt in the
+     * specified group.
+     *
+     * Note that we can guarantee (because of the requirement to nest
+     * GICC_IAR reads [which activate an interrupt and raise priority]
+     * with GICC_EOIR writes [which drop the priority for the interrupt])
+     * that the interrupt we're being called for is the highest priority
+     * active interrupt, meaning that it has the lowest set bit in the
+     * APR registers.
+     *
+     * If the guest does not honour the ordering constraints then the
+     * behaviour of the GIC is UNPREDICTABLE, which for us means that
+     * the values of the APR registers might become incorrect and the
+     * running priority will be wrong, so interrupts that should preempt
+     * might not do so, and interrupts that should not preempt might do so.
+     */
+    int i;
+
+    for (i = 0; i < GIC_NR_APRS; i++) {
+        uint32_t *papr = group ? &s->nsapr[i][cpu] : &s->apr[i][cpu];
+        if (!*papr) {
+            continue;
+        }
+        /* Clear lowest set bit */
+        *papr &= *papr - 1;
+        break;
+    }
+
+    s->running_priority[cpu] = gic_get_prio_from_apr_bits(s, cpu);
 }
 
 uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
@@ -250,7 +334,6 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
         DPRINTF("ACK, pending interrupt (%d) has insufficient priority\n", irq);
         return 1023;
     }
-    s->last_active[irq][cpu] = s->running_irq[cpu];
 
     if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
         /* Clear pending flags for both level and edge triggered interrupts.
@@ -281,7 +364,8 @@ uint32_t gic_acknowledge_irq(GICState *s, int cpu, MemTxAttrs attrs)
         }
     }
 
-    gic_set_running_irq(s, cpu, irq);
+    gic_activate_irq(s, cpu, irq);
+    gic_update(s);
     DPRINTF("ACK %d\n", irq);
     return ret;
 }
@@ -411,8 +495,9 @@ static uint8_t gic_get_running_priority(GICState *s, int cpu, MemTxAttrs attrs)
 
 void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
 {
-    int update = 0;
     int cm = 1 << cpu;
+    int group;
+
     DPRINTF("EOI %d\n", irq);
     if (irq >= s->num_irq) {
         /* This handles two cases:
@@ -425,8 +510,9 @@ void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
          */
         return;
     }
-    if (s->running_irq[cpu] == 1023)
+    if (s->running_priority[cpu] == 0x100) {
         return; /* No active IRQ.  */
+    }
 
     if (s->revision == REV_11MPCORE || s->revision == REV_NVIC) {
         /* Mark level triggered interrupts as pending if they are still
@@ -435,11 +521,12 @@ void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
             && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
             DPRINTF("Set %d pending mask %x\n", irq, cm);
             GIC_SET_PENDING(irq, cm);
-            update = 1;
         }
     }
 
-    if (s->security_extn && !attrs.secure && !GIC_TEST_GROUP(irq, cm)) {
+    group = gic_has_groups(s) && GIC_TEST_GROUP(irq, cm);
+
+    if (s->security_extn && !attrs.secure && !group) {
         DPRINTF("Non-secure EOI for Group0 interrupt %d ignored\n", irq);
         return;
     }
@@ -449,23 +536,9 @@ void gic_complete_irq(GICState *s, int cpu, int irq, MemTxAttrs attrs)
      * i.e. go ahead and complete the irq anyway.
      */
 
-    if (irq != s->running_irq[cpu]) {
-        /* Complete an IRQ that is not currently running.  */
-        int tmp = s->running_irq[cpu];
-        while (s->last_active[tmp][cpu] != 1023) {
-            if (s->last_active[tmp][cpu] == irq) {
-                s->last_active[tmp][cpu] = s->last_active[irq][cpu];
-                break;
-            }
-            tmp = s->last_active[tmp][cpu];
-        }
-        if (update) {
-            gic_update(s);
-        }
-    } else {
-        /* Complete the current running IRQ.  */
-        gic_set_running_irq(s, cpu, s->last_active[s->running_irq[cpu]][cpu]);
-    }
+    gic_drop_prio(s, cpu, group);
+    GIC_CLEAR_ACTIVE(irq, cm);
+    gic_update(s);
 }
 
 static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
@@ -922,6 +995,68 @@ static MemTxResult gic_dist_write(void *opaque, hwaddr offset, uint64_t data,
     }
 }
 
+static inline uint32_t gic_apr_ns_view(GICState *s, int cpu, int regno)
+{
+    /* Return the Nonsecure view of GICC_APR<regno>. This is the
+     * second half of GICC_NSAPR.
+     */
+    switch (GIC_MIN_BPR) {
+    case 0:
+        if (regno < 2) {
+            return s->nsapr[regno + 2][cpu];
+        }
+        break;
+    case 1:
+        if (regno == 0) {
+            return s->nsapr[regno + 1][cpu];
+        }
+        break;
+    case 2:
+        if (regno == 0) {
+            return extract32(s->nsapr[0][cpu], 16, 16);
+        }
+        break;
+    case 3:
+        if (regno == 0) {
+            return extract32(s->nsapr[0][cpu], 8, 8);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return 0;
+}
+
+static inline void gic_apr_write_ns_view(GICState *s, int cpu, int regno,
+                                         uint32_t value)
+{
+    /* Write the Nonsecure view of GICC_APR<regno>. */
+    switch (GIC_MIN_BPR) {
+    case 0:
+        if (regno < 2) {
+            s->nsapr[regno + 2][cpu] = value;
+        }
+        break;
+    case 1:
+        if (regno == 0) {
+            s->nsapr[regno + 1][cpu] = value;
+        }
+        break;
+    case 2:
+        if (regno == 0) {
+            s->nsapr[0][cpu] = deposit32(s->nsapr[0][cpu], 16, 16, value);
+        }
+        break;
+    case 3:
+        if (regno == 0) {
+            s->nsapr[0][cpu] = deposit32(s->nsapr[0][cpu], 8, 8, value);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
                                 uint64_t *data, MemTxAttrs attrs)
 {
@@ -962,8 +1097,31 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         }
         break;
     case 0xd0: case 0xd4: case 0xd8: case 0xdc:
-        *data = s->apr[(offset - 0xd0) / 4][cpu];
+    {
+        int regno = (offset - 0xd0) / 4;
+
+        if (regno >= GIC_NR_APRS || s->revision != 2) {
+            *data = 0;
+        } else if (s->security_extn && !attrs.secure) {
+            /* NS view of GICC_APR<n> is the top half of GIC_NSAPR<n> */
+            *data = gic_apr_ns_view(s, regno, cpu);
+        } else {
+            *data = s->apr[regno][cpu];
+        }
         break;
+    }
+    case 0xe0: case 0xe4: case 0xe8: case 0xec:
+    {
+        int regno = (offset - 0xe0) / 4;
+
+        if (regno >= GIC_NR_APRS || s->revision != 2 || !gic_has_groups(s) ||
+            (s->security_extn && !attrs.secure)) {
+            *data = 0;
+        } else {
+            *data = s->nsapr[regno][cpu];
+        }
+        break;
+    }
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_read: Bad offset %x\n", (int)offset);
@@ -1001,8 +1159,33 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
         }
         break;
     case 0xd0: case 0xd4: case 0xd8: case 0xdc:
-        qemu_log_mask(LOG_UNIMP, "Writing APR not implemented\n");
+    {
+        int regno = (offset - 0xd0) / 4;
+
+        if (regno >= GIC_NR_APRS || s->revision != 2) {
+            return MEMTX_OK;
+        }
+        if (s->security_extn && !attrs.secure) {
+            /* NS view of GICC_APR<n> is the top half of GIC_NSAPR<n> */
+            gic_apr_write_ns_view(s, regno, cpu, value);
+        } else {
+            s->apr[regno][cpu] = value;
+        }
         break;
+    }
+    case 0xe0: case 0xe4: case 0xe8: case 0xec:
+    {
+        int regno = (offset - 0xe0) / 4;
+
+        if (regno >= GIC_NR_APRS || s->revision != 2) {
+            return MEMTX_OK;
+        }
+        if (!gic_has_groups(s) || (s->security_extn && !attrs.secure)) {
+            return MEMTX_OK;
+        }
+        s->nsapr[regno][cpu] = value;
+        break;
+    }
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_write: Bad offset %x\n", (int)offset);

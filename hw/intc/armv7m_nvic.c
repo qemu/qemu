@@ -185,25 +185,24 @@ static uint32_t nvic_readl(nvic_state *s, uint32_t offset)
         return cpu->midr;
     case 0xd04: /* Interrupt Control State.  */
         /* VECTACTIVE */
-        val = s->gic.running_irq[0];
+        cpu = ARM_CPU(current_cpu);
+        val = cpu->env.v7m.exception;
         if (val == 1023) {
             val = 0;
         } else if (val >= 32) {
             val -= 16;
         }
-        /* RETTOBASE */
-        if (s->gic.running_irq[0] == 1023
-                || s->gic.last_active[s->gic.running_irq[0]][0] == 1023) {
-            val |= (1 << 11);
-        }
         /* VECTPENDING */
         if (s->gic.current_pending[0] != 1023)
             val |= (s->gic.current_pending[0] << 12);
-        /* ISRPENDING */
+        /* ISRPENDING and RETTOBASE */
         for (irq = 32; irq < s->num_irq; irq++) {
             if (s->gic.irq_state[irq].pending) {
                 val |= (1 << 22);
                 break;
+            }
+            if (irq != cpu->env.v7m.exception && s->gic.irq_state[irq].active) {
+                val |= (1 << 11);
             }
         }
         /* PENDSTSET */

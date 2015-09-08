@@ -396,7 +396,7 @@ static void create_v2m(VirtBoardInfo *vbi, qemu_irq *pic)
     fdt_add_v2m_gic_node(vbi);
 }
 
-static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
+static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, bool secure)
 {
     /* We create a standalone GIC v2 */
     DeviceState *gicdev;
@@ -413,6 +413,9 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
      * interrupts; there are always 32 of the former (mandated by GIC spec).
      */
     qdev_prop_set_uint32(gicdev, "num-irq", NUM_IRQS + 32);
+    if (!kvm_irqchip_in_kernel()) {
+        qdev_prop_set_bit(gicdev, "has-security-extensions", secure);
+    }
     qdev_init_nofail(gicdev);
     gicbusdev = SYS_BUS_DEVICE(gicdev);
     sysbus_mmio_map(gicbusdev, 0, vbi->memmap[VIRT_GIC_DIST].base);
@@ -967,7 +970,7 @@ static void machvirt_init(MachineState *machine)
 
     create_flash(vbi);
 
-    create_gic(vbi, pic);
+    create_gic(vbi, pic, vms->secure);
 
     create_uart(vbi, pic);
 
@@ -1044,8 +1047,11 @@ static void virt_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
-    /* EL3 is enabled by default on virt */
-    vms->secure = true;
+    /* EL3 is disabled by default on virt: this makes us consistent
+     * between KVM and TCG for this board, and it also allows us to
+     * boot UEFI blobs which assume no TrustZone support.
+     */
+    vms->secure = false;
     object_property_add_bool(obj, "secure", virt_get_secure,
                              virt_set_secure, NULL);
     object_property_set_description(obj, "secure",

@@ -951,7 +951,7 @@ static void gem_phy_reset(CadenceGEMState *s)
     s->phy_regs[PHY_REG_1000BTSTAT] = 0x7C00;
     s->phy_regs[PHY_REG_EXTSTAT] = 0x3000;
     s->phy_regs[PHY_REG_PHYSPCFC_CTL] = 0x0078;
-    s->phy_regs[PHY_REG_PHYSPCFC_ST] = 0xBC00;
+    s->phy_regs[PHY_REG_PHYSPCFC_ST] = 0x7C00;
     s->phy_regs[PHY_REG_EXT_PHYSPCFC_CTL] = 0x0C60;
     s->phy_regs[PHY_REG_LED] = 0x4100;
     s->phy_regs[PHY_REG_EXT_PHYSPCFC_CTL2] = 0x000A;

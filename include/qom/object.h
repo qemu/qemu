@@ -1494,6 +1494,21 @@ int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
                          void *opaque);
 
 /**
+ * object_child_foreach_recursive:
+ * @obj: the object whose children will be navigated
+ * @fn: the iterator function to be called
+ * @opaque: an opaque value that will be passed to the iterator
+ *
+ * Call @fn passing each child of @obj and @opaque to it, until @fn returns
+ * non-zero. Calls recursively, all child nodes of @obj will also be passed
+ * all the way down to the leaf nodes of the tree. Depth first ordering.
+ *
+ * Returns: The last value returned by @fn, or 0 if there is no child.
+ */
+int object_child_foreach_recursive(Object *obj,
+                                   int (*fn)(Object *child, void *opaque),
+                                   void *opaque);
+/**
  * container_get:
  * @root: root of the #path, e.g., object_get_root()
  * @path: path to the container
