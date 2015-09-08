@@ -11172,7 +11172,11 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     dc->condjmp = 0;
 
     dc->aarch64 = 0;
-    dc->el3_is_aa64 = arm_el_is_aa64(env, 3);
+    /* If we are coming from secure EL0 in a system with a 32-bit EL3, then
+     * there is no secure EL1, so we route exceptions to EL3.
+     */
+    dc->secure_routed_to_el3 = arm_feature(env, ARM_FEATURE_EL3) &&
+                               !arm_el_is_aa64(env, 3);
     dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
     dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
     dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;

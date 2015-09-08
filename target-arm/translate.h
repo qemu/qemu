@@ -23,7 +23,8 @@ typedef struct DisasContext {
     ARMMMUIdx mmu_idx; /* MMU index to use for normal loads/stores */
     bool ns;        /* Use non-secure CPREG bank on access */
     int fp_excp_el; /* FP exception EL or 0 if enabled */
-    bool el3_is_aa64;  /* Flag indicating whether EL3 is AArch64 or not */
+    /* Flag indicating that exceptions from secure mode are routed to EL3. */
+    bool secure_routed_to_el3;
     bool vfp_enabled; /* FP enabled via FPSCR.EN */
     int vec_len;
     int vec_stride;
@@ -84,7 +85,7 @@ static inline int default_exception_el(DisasContext *s)
      * exceptions can only be routed to ELs above 1, so we target the higher of
      * 1 or the current EL.
      */
-    return (s->mmu_idx == ARMMMUIdx_S1SE0 && !s->el3_is_aa64)
+    return (s->mmu_idx == ARMMMUIdx_S1SE0 && s->secure_routed_to_el3)
             ? 3 : MAX(1, s->current_el);
 }
 
