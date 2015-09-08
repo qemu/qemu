@@ -739,7 +739,7 @@ int xics_alloc(XICSState *icp, int src, int irq_hint, bool lsi)
 }
 
 /*
- * Allocate block of consequtive IRQs, returns a number of the first.
+ * Allocate block of consecutive IRQs, and return the number of the first IRQ in the block.
  * If align==true, aligns the first IRQ number to num.
  */
 int xics_alloc_block(XICSState *icp, int src, int num, bool lsi, bool align)

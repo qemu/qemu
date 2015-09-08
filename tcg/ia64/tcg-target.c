@@ -1594,7 +1594,7 @@ static void tcg_out_tb_finalize(TCGContext *s)
         /* The out-of-line thunks are all the same; load the return address
            from B0, load the GP, and branch to the code.  Note that we are
            always post-call, so the register window has rolled, so we're
-           using incomming parameter register numbers, not outgoing.  */
+           using incoming parameter register numbers, not outgoing.  */
         if (dest == NULL) {
             uintptr_t *desc = (uintptr_t *)helpers[x];
             uintptr_t func = desc[0], gp = desc[1], disp;

@@ -889,7 +889,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
                              target=quorum_repair_img, format=iotests.imgfmt)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
-    def test_unexistant_replaces(self):
+    def test_nonexistent_replaces(self):
         if not self.has_quorum():
             return
 

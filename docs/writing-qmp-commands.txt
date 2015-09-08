@@ -122,7 +122,7 @@ There are a few things to be noticed:
 Now a little hack is needed. As we're still using the old QMP server we need
 to add the new command to its internal dispatch table. This step won't be
 required in the near future. Open the qmp-commands.hx file and add the
-following in the botton:
+following at the bottom:
 
     {
         .name       = "hello-world",

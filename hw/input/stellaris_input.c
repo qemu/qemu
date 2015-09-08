@@ -69,7 +69,7 @@ static const VMStateDescription vmstate_stellaris_gamepad = {
     }
 };
 
-/* Returns an array 5 ouput slots.  */
+/* Returns an array of 5 output slots.  */
 void stellaris_gamepad_init(int n, qemu_irq *irq, const int *keycode)
 {
     gamepad_state *s;

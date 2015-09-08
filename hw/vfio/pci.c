@@ -3377,7 +3377,7 @@ static bool vfio_radeon_smc_is_running(VFIOPCIDevice *vdev)
     uint32_t clk, pc_c;
 
     /*
-     * Registers 200h and 204h are index and data registers for acessing
+     * Registers 200h and 204h are index and data registers for accessing
      * indirect configuration registers within the device.
      */
     vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000004, 4);

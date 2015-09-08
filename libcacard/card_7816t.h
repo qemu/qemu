@@ -57,7 +57,7 @@ struct VCardAPDUHeader {
     unsigned char ah_p1;
     unsigned char ah_p2;
     unsigned char ah_Le;
-    unsigned char ah_body[1]; /* indefinate length */
+    unsigned char ah_body[1]; /* indefinite length */
 };
 
 /*

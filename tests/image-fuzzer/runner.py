@@ -301,7 +301,7 @@ if __name__ == '__main__':
         JSON:
 
         '--command' accepts a JSON array of commands. Each command presents
-        an application under test with all its paramaters as a list of strings,
+        an application under test with all its parameters as a list of strings,
         e.g. ["qemu-io", "$test_img", "-c", "write $off $len"].
 
         Supported application aliases: 'qemu-img' and 'qemu-io'.

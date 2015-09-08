@@ -102,9 +102,9 @@ typedef struct DisasContext {
 
     int cc_size_uptodate; /* -1 invalid or last written value.  */
 
-    int cc_x_uptodate;  /* 1 - ccs, 2 - known | X_FLAG. 0 not uptodate.  */
-    int flags_uptodate; /* Wether or not $ccs is uptodate.  */
-    int flagx_known; /* Wether or not flags_x has the x flag known at
+    int cc_x_uptodate;  /* 1 - ccs, 2 - known | X_FLAG. 0 not up-to-date.  */
+    int flags_uptodate; /* Whether or not $ccs is up-to-date.  */
+    int flagx_known; /* Whether or not flags_x has the x flag known at
                 translation time.  */
     int flags_x;
 
