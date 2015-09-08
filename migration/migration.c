@@ -31,7 +31,7 @@
 #include "qapi-event.h"
 #include "qom/cpu.h"
 
-#define MAX_THROTTLE  (32 << 20)      /* Migration speed throttling */
+#define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
 /* Amount of time to allocate to each "chunk" of bandwidth-throttled
  * data. */
