@@ -49,6 +49,8 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
                  *wdtbusdev;
     Error *err = NULL;
     int i;
+    bool has_el3;
+    Object *cpuobj;
 
     scudev = DEVICE(&s->scu);
     qdev_prop_set_uint32(scudev, "num-cpu", s->num_cpu);
@@ -62,6 +64,15 @@ static void a9mp_priv_realize(DeviceState *dev, Error **errp)
     gicdev = DEVICE(&s->gic);
     qdev_prop_set_uint32(gicdev, "num-cpu", s->num_cpu);
     qdev_prop_set_uint32(gicdev, "num-irq", s->num_irq);
+
+    /* Make the GIC's TZ support match the CPUs. We assume that
+     * either all the CPUs have TZ, or none do.
+     */
+    cpuobj = OBJECT(qemu_get_cpu(0));
+    has_el3 = object_property_find(cpuobj, "has_el3", &error_abort) &&
+        object_property_get_bool(cpuobj, "has_el3", &error_abort);
+    qdev_prop_set_bit(gicdev, "has-security-extensions", has_el3);
+
     object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
