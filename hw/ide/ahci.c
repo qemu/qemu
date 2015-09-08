@@ -25,7 +25,6 @@
 #include <hw/pci/msi.h>
 #include <hw/i386/pc.h>
 #include <hw/pci/pci.h>
-#include <hw/sysbus.h>
 
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
@@ -1624,18 +1623,6 @@ const VMStateDescription vmstate_ahci = {
         VMSTATE_END_OF_LIST()
     },
 };
-
-#define TYPE_SYSBUS_AHCI "sysbus-ahci"
-#define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
-
-typedef struct SysbusAHCIState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    /*< public >*/
-
-    AHCIState ahci;
-    uint32_t num_ports;
-} SysbusAHCIState;
 
 static const VMStateDescription vmstate_sysbus_ahci = {
     .name = "sysbus-ahci",

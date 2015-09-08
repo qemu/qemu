@@ -24,6 +24,8 @@
 #ifndef HW_IDE_AHCI_H
 #define HW_IDE_AHCI_H
 
+#include <hw/sysbus.h>
+
 #define AHCI_MEM_BAR_SIZE         0x1000
 #define AHCI_MAX_PORTS            32
 #define AHCI_MAX_SG               168 /* hardware max is 64K */
@@ -368,5 +370,17 @@ void ahci_uninit(AHCIState *s);
 void ahci_reset(AHCIState *s);
 
 void ahci_ide_create_devs(PCIDevice *dev, DriveInfo **hd);
+
+#define TYPE_SYSBUS_AHCI "sysbus-ahci"
+#define SYSBUS_AHCI(obj) OBJECT_CHECK(SysbusAHCIState, (obj), TYPE_SYSBUS_AHCI)
+
+typedef struct SysbusAHCIState {
+    /*< private >*/
+    SysBusDevice parent_obj;
+    /*< public >*/
+
+    AHCIState ahci;
+    uint32_t num_ports;
+} SysbusAHCIState;
 
 #endif /* HW_IDE_AHCI_H */
