@@ -396,7 +396,7 @@ static void create_v2m(VirtBoardInfo *vbi, qemu_irq *pic)
     fdt_add_v2m_gic_node(vbi);
 }
 
-static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
+static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, bool secure)
 {
     /* We create a standalone GIC v2 */
     DeviceState *gicdev;
@@ -413,6 +413,9 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic)
      * interrupts; there are always 32 of the former (mandated by GIC spec).
      */
     qdev_prop_set_uint32(gicdev, "num-irq", NUM_IRQS + 32);
+    if (!kvm_irqchip_in_kernel()) {
+        qdev_prop_set_bit(gicdev, "has-security-extensions", secure);
+    }
     qdev_init_nofail(gicdev);
     gicbusdev = SYS_BUS_DEVICE(gicdev);
     sysbus_mmio_map(gicbusdev, 0, vbi->memmap[VIRT_GIC_DIST].base);
@@ -967,7 +970,7 @@ static void machvirt_init(MachineState *machine)
 
     create_flash(vbi);
 
-    create_gic(vbi, pic);
+    create_gic(vbi, pic, vms->secure);
 
     create_uart(vbi, pic);
 
