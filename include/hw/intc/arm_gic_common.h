@@ -109,6 +109,7 @@ typedef struct GICState {
     uint32_t num_irq;
     uint32_t revision;
     bool security_extn;
+    bool irq_reset_nonsecure; /* configure IRQs as group 1 (NS) on reset? */
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
 } GICState;
 

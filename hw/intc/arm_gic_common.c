@@ -19,6 +19,7 @@
  */
 
 #include "gic_internal.h"
+#include "hw/arm/linux-boot-if.h"
 
 static void gic_pre_save(void *opaque)
 {
@@ -164,12 +165,27 @@ static void arm_gic_common_reset(DeviceState *dev)
 {
     GICState *s = ARM_GIC_COMMON(dev);
     int i, j;
+    int resetprio;
+
+    /* If we're resetting a TZ-aware GIC as if secure firmware
+     * had set it up ready to start a kernel in non-secure,
+     * we need to set interrupt priorities to a "zero for the
+     * NS view" value. This is particularly critical for the
+     * priority_mask[] values, because if they are zero then NS
+     * code cannot ever rewrite the priority to anything else.
+     */
+    if (s->security_extn && s->irq_reset_nonsecure) {
+        resetprio = 0x80;
+    } else {
+        resetprio = 0;
+    }
+
     memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < s->num_cpu; i++) {
         if (s->revision == REV_11MPCORE) {
             s->priority_mask[i] = 0xf0;
         } else {
-            s->priority_mask[i] = 0;
+            s->priority_mask[i] = resetprio;
         }
         s->current_pending[i] = 1023;
         s->running_priority[i] = 0x100;
@@ -177,7 +193,7 @@ static void arm_gic_common_reset(DeviceState *dev)
         s->bpr[i] = GIC_MIN_BPR;
         s->abpr[i] = GIC_MIN_ABPR;
         for (j = 0; j < GIC_INTERNAL; j++) {
-            s->priority1[j][i] = 0;
+            s->priority1[j][i] = resetprio;
         }
         for (j = 0; j < GIC_NR_SGIS; j++) {
             s->sgi_pending[j][i] = 0;
@@ -189,7 +205,7 @@ static void arm_gic_common_reset(DeviceState *dev)
     }
 
     for (i = 0; i < ARRAY_SIZE(s->priority2); i++) {
-        s->priority2[i] = 0;
+        s->priority2[i] = resetprio;
     }
 
     for (i = 0; i < GIC_MAXIRQ; i++) {
@@ -200,7 +216,30 @@ static void arm_gic_common_reset(DeviceState *dev)
             s->irq_target[i] = 0;
         }
     }
+    if (s->security_extn && s->irq_reset_nonsecure) {
+        for (i = 0; i < GIC_MAXIRQ; i++) {
+            GIC_SET_GROUP(i, ALL_CPU_MASK);
+        }
+    }
+
     s->ctlr = 0;
+}
+
+static void arm_gic_common_linux_init(ARMLinuxBootIf *obj,
+                                      bool secure_boot)
+{
+    GICState *s = ARM_GIC_COMMON(obj);
+
+    if (s->security_extn && !secure_boot) {
+        /* We're directly booting a kernel into NonSecure. If this GIC
+         * implements the security extensions then we must configure it
+         * to have all the interrupts be NonSecure (this is a job that
+         * is done by the Secure boot firmware in real hardware, and in
+         * this mode QEMU is acting as a minimalist firmware-and-bootloader
+         * equivalent).
+         */
+        s->irq_reset_nonsecure = true;
+    }
 }
 
 static Property arm_gic_common_properties[] = {
@@ -219,11 +258,13 @@ static Property arm_gic_common_properties[] = {
 static void arm_gic_common_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ARMLinuxBootIfClass *albifc = ARM_LINUX_BOOT_IF_CLASS(klass);
 
     dc->reset = arm_gic_common_reset;
     dc->realize = arm_gic_common_realize;
     dc->props = arm_gic_common_properties;
     dc->vmsd = &vmstate_gic;
+    albifc->arm_linux_init = arm_gic_common_linux_init;
 }
 
 static const TypeInfo arm_gic_common_type = {
@@ -233,6 +274,10 @@ static const TypeInfo arm_gic_common_type = {
     .class_size = sizeof(ARMGICCommonClass),
     .class_init = arm_gic_common_class_init,
     .abstract = true,
+    .interfaces = (InterfaceInfo []) {
+        { TYPE_ARM_LINUX_BOOT_IF },
+        { },
+    },
 };
 
 static void register_types(void)
