@@ -162,12 +162,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         g_free(name);
 
         object_property_set_int(OBJECT(&s->apu_cpu[i]), GIC_BASE_ADDR,
-                                "reset-cbar", &err);
-        if (err) {
-            error_propagate((errp), (err));
-            return;
-        }
-
+                                "reset-cbar", &error_abort);
         object_property_set_bool(OBJECT(&s->apu_cpu[i]), true, "realized",
                                  &err);
         if (err) {
@@ -200,12 +195,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         g_free(name);
 
         object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "reset-hivecs",
-                                 &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
-            return;
-        }
-
+                                 &error_abort);
         object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "realized",
                                  &err);
         if (err) {
