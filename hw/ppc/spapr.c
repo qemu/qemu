@@ -630,9 +630,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
     uint32_t page_sizes_prop[64];
     size_t page_sizes_prop_size;
-    QemuOpts *opts = qemu_opts_find(qemu_find_opts("smp-opts"), NULL);
-    unsigned sockets = opts ? qemu_opt_get_number(opts, "sockets", 0) : 0;
-    uint32_t cpus_per_socket = sockets ? (smp_cpus / sockets) : 1;
+    uint32_t vcpus_per_socket = smp_threads * smp_cores;
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
 
     _FDT((fdt_setprop_cell(fdt, offset, "reg", index)));
@@ -701,7 +699,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     }
 
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
-                           cs->cpu_index / cpus_per_socket)));
+                           cs->cpu_index / vcpus_per_socket)));
 
     _FDT((fdt_setprop(fdt, offset, "ibm,pft-size",
                       pft_size_prop, sizeof(pft_size_prop))));
