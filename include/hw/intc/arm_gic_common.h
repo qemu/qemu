@@ -106,6 +106,7 @@ typedef struct GICState {
      * the GIC.
      */
     uint32_t apr[GIC_NR_APRS][GIC_NCPU];
+    uint32_t nsapr[GIC_NR_APRS][GIC_NCPU];
 
     uint32_t num_cpu;
 

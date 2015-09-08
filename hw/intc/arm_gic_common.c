@@ -59,8 +59,8 @@ static const VMStateDescription vmstate_gic_irq_state = {
 
 static const VMStateDescription vmstate_gic = {
     .name = "arm_gic",
-    .version_id = 10,
-    .minimum_version_id = 10,
+    .version_id = 11,
+    .minimum_version_id = 11,
     .pre_save = gic_pre_save,
     .post_load = gic_post_load,
     .fields = (VMStateField[]) {
@@ -80,6 +80,7 @@ static const VMStateDescription vmstate_gic = {
         VMSTATE_UINT8_ARRAY(bpr, GICState, GIC_NCPU),
         VMSTATE_UINT8_ARRAY(abpr, GICState, GIC_NCPU),
         VMSTATE_UINT32_2DARRAY(apr, GICState, GIC_NR_APRS, GIC_NCPU),
+        VMSTATE_UINT32_2DARRAY(nsapr, GICState, GIC_NR_APRS, GIC_NCPU),
         VMSTATE_END_OF_LIST()
     }
 };

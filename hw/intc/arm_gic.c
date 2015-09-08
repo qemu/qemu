@@ -948,6 +948,68 @@ static MemTxResult gic_dist_write(void *opaque, hwaddr offset, uint64_t data,
     }
 }
 
+static inline uint32_t gic_apr_ns_view(GICState *s, int cpu, int regno)
+{
+    /* Return the Nonsecure view of GICC_APR<regno>. This is the
+     * second half of GICC_NSAPR.
+     */
+    switch (GIC_MIN_BPR) {
+    case 0:
+        if (regno < 2) {
+            return s->nsapr[regno + 2][cpu];
+        }
+        break;
+    case 1:
+        if (regno == 0) {
+            return s->nsapr[regno + 1][cpu];
+        }
+        break;
+    case 2:
+        if (regno == 0) {
+            return extract32(s->nsapr[0][cpu], 16, 16);
+        }
+        break;
+    case 3:
+        if (regno == 0) {
+            return extract32(s->nsapr[0][cpu], 8, 8);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return 0;
+}
+
+static inline void gic_apr_write_ns_view(GICState *s, int cpu, int regno,
+                                         uint32_t value)
+{
+    /* Write the Nonsecure view of GICC_APR<regno>. */
+    switch (GIC_MIN_BPR) {
+    case 0:
+        if (regno < 2) {
+            s->nsapr[regno + 2][cpu] = value;
+        }
+        break;
+    case 1:
+        if (regno == 0) {
+            s->nsapr[regno + 1][cpu] = value;
+        }
+        break;
+    case 2:
+        if (regno == 0) {
+            s->nsapr[0][cpu] = deposit32(s->nsapr[0][cpu], 16, 16, value);
+        }
+        break;
+    case 3:
+        if (regno == 0) {
+            s->nsapr[0][cpu] = deposit32(s->nsapr[0][cpu], 8, 8, value);
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
                                 uint64_t *data, MemTxAttrs attrs)
 {
@@ -988,8 +1050,31 @@ static MemTxResult gic_cpu_read(GICState *s, int cpu, int offset,
         }
         break;
     case 0xd0: case 0xd4: case 0xd8: case 0xdc:
-        *data = s->apr[(offset - 0xd0) / 4][cpu];
+    {
+        int regno = (offset - 0xd0) / 4;
+
+        if (regno >= GIC_NR_APRS || s->revision != 2) {
+            *data = 0;
+        } else if (s->security_extn && !attrs.secure) {
+            /* NS view of GICC_APR<n> is the top half of GIC_NSAPR<n> */
+            *data = gic_apr_ns_view(s, regno, cpu);
+        } else {
+            *data = s->apr[regno][cpu];
+        }
         break;
+    }
+    case 0xe0: case 0xe4: case 0xe8: case 0xec:
+    {
+        int regno = (offset - 0xe0) / 4;
+
+        if (regno >= GIC_NR_APRS || s->revision != 2 || !gic_has_groups(s) ||
+            (s->security_extn && !attrs.secure)) {
+            *data = 0;
+        } else {
+            *data = s->nsapr[regno][cpu];
+        }
+        break;
+    }
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_read: Bad offset %x\n", (int)offset);
@@ -1027,8 +1112,33 @@ static MemTxResult gic_cpu_write(GICState *s, int cpu, int offset,
         }
         break;
     case 0xd0: case 0xd4: case 0xd8: case 0xdc:
-        qemu_log_mask(LOG_UNIMP, "Writing APR not implemented\n");
+    {
+        int regno = (offset - 0xd0) / 4;
+
+        if (regno >= GIC_NR_APRS || s->revision != 2) {
+            return MEMTX_OK;
+        }
+        if (s->security_extn && !attrs.secure) {
+            /* NS view of GICC_APR<n> is the top half of GIC_NSAPR<n> */
+            gic_apr_write_ns_view(s, regno, cpu, value);
+        } else {
+            s->apr[regno][cpu] = value;
+        }
         break;
+    }
+    case 0xe0: case 0xe4: case 0xe8: case 0xec:
+    {
+        int regno = (offset - 0xe0) / 4;
+
+        if (regno >= GIC_NR_APRS || s->revision != 2) {
+            return MEMTX_OK;
+        }
+        if (!gic_has_groups(s) || (s->security_extn && !attrs.secure)) {
+            return MEMTX_OK;
+        }
+        s->nsapr[regno][cpu] = value;
+        break;
+    }
     default:
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gic_cpu_write: Bad offset %x\n", (int)offset);
