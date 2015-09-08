@@ -2162,6 +2162,13 @@ static HotplugHandler *spapr_get_hotpug_handler(MachineState *machine,
     return NULL;
 }
 
+static unsigned spapr_cpu_index_to_socket_id(unsigned cpu_index)
+{
+    /* Allocate to NUMA nodes on a "socket" basis (not that concept of
+     * socket means much for the paravirtualized PAPR platform) */
+    return cpu_index / smp_threads / smp_cores;
+}
+
 static void spapr_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -2183,6 +2190,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     mc->get_hotplug_handler = spapr_get_hotpug_handler;
     hc->plug = spapr_machine_device_plug;
     hc->unplug = spapr_machine_device_unplug;
+    mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
 
     smc->dr_lmb_enabled = false;
     fwc->get_dev_path = spapr_get_fw_dev_path;
