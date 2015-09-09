@@ -856,7 +856,6 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
                                            TRUE);
         } else {
             gd_grab_pointer(vc);
-            gd_update_caption(s);
         }
         return TRUE;
     }
@@ -1095,7 +1094,6 @@ static gboolean gd_win_grab(void *opaque)
     } else {
         gd_grab_pointer(vc);
     }
-    gd_update_caption(vc->s);
     return TRUE;
 }
 
@@ -1278,6 +1276,7 @@ static void gd_grab_keyboard(VirtualConsole *vc)
                       GDK_CURRENT_TIME);
 #endif
     vc->s->kbd_owner = vc;
+    gd_update_caption(vc->s);
     trace_gd_grab(vc->label, "kbd", true);
 }
 
@@ -1295,6 +1294,7 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
 #else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
 #endif
+    gd_update_caption(s);
     trace_gd_grab(vc->label, "kbd", false);
 }
 
@@ -1336,6 +1336,7 @@ static void gd_grab_pointer(VirtualConsole *vc)
                             &vc->s->grab_x_root, &vc->s->grab_y_root, NULL);
 #endif
     vc->s->ptr_owner = vc;
+    gd_update_caption(vc->s);
     trace_gd_grab(vc->label, "ptr", true);
 }
 
@@ -1361,6 +1362,7 @@ static void gd_ungrab_pointer(GtkDisplayState *s)
                              gtk_widget_get_screen(vc->gfx.drawing_area),
                              vc->s->grab_x_root, vc->s->grab_y_root);
 #endif
+    gd_update_caption(s);
     trace_gd_grab(vc->label, "ptr", false);
 }
 
@@ -1377,7 +1379,6 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
         gd_ungrab_pointer(s);
     }
 
-    gd_update_caption(s);
     gd_update_cursor(vc);
 }
 
@@ -1432,7 +1433,6 @@ static gboolean gd_enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
 
     if (gd_grab_on_hover(s)) {
         gd_grab_keyboard(vc);
-        gd_update_caption(s);
     }
     return TRUE;
 }
@@ -1445,7 +1445,6 @@ static gboolean gd_leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
 
     if (gd_grab_on_hover(s)) {
         gd_ungrab_keyboard(s);
-        gd_update_caption(s);
     }
     return TRUE;
 }
