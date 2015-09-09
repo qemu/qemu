@@ -83,6 +83,7 @@ typedef struct DisasContext {
     int n_t32;
     int n_ttl;
 #ifdef TARGET_SPARC64
+    int fprs_dirty;
     int asi;
 #endif
 } DisasContext;
@@ -140,10 +141,16 @@ static inline TCGv get_temp_tl(DisasContext *dc)
     return t;
 }
 
-static inline void gen_update_fprs_dirty(int rd)
+static inline void gen_update_fprs_dirty(DisasContext *dc, int rd)
 {
 #if defined(TARGET_SPARC64)
-    tcg_gen_ori_i32(cpu_fprs, cpu_fprs, (rd < 32) ? 1 : 2);
+    int bit = (rd < 32) ? 1 : 2;
+    /* If we know we've already set this bit within the TB,
+       we can avoid setting it again.  */
+    if (!(dc->fprs_dirty & bit)) {
+        dc->fprs_dirty |= bit;
+        tcg_gen_ori_i32(cpu_fprs, cpu_fprs, bit);
+    }
 #endif
 }
 
@@ -185,7 +192,7 @@ static void gen_store_fpr_F(DisasContext *dc, unsigned int dst, TCGv_i32 v)
     tcg_gen_deposit_i64(cpu_fpr[dst / 2], cpu_fpr[dst / 2], t,
                         (dst & 1 ? 0 : 32), 32);
 #endif
-    gen_update_fprs_dirty(dst);
+    gen_update_fprs_dirty(dc, dst);
 }
 
 static TCGv_i32 gen_dest_fpr_F(DisasContext *dc)
@@ -203,7 +210,7 @@ static void gen_store_fpr_D(DisasContext *dc, unsigned int dst, TCGv_i64 v)
 {
     dst = DFPREG(dst);
     tcg_gen_mov_i64(cpu_fpr[dst / 2], v);
-    gen_update_fprs_dirty(dst);
+    gen_update_fprs_dirty(dc, dst);
 }
 
 static TCGv_i64 gen_dest_fpr_D(DisasContext *dc, unsigned int dst)
@@ -236,14 +243,14 @@ static void gen_op_store_QT0_fpr(unsigned int dst)
 }
 
 #ifdef TARGET_SPARC64
-static void gen_move_Q(unsigned int rd, unsigned int rs)
+static void gen_move_Q(DisasContext *dc, unsigned int rd, unsigned int rs)
 {
     rd = QFPREG(rd);
     rs = QFPREG(rs);
 
     tcg_gen_mov_i64(cpu_fpr[rd / 2], cpu_fpr[rs / 2]);
     tcg_gen_mov_i64(cpu_fpr[rd / 2 + 1], cpu_fpr[rs / 2 + 1]);
-    gen_update_fprs_dirty(rd);
+    gen_update_fprs_dirty(dc, rd);
 }
 #endif
 
@@ -1834,7 +1841,7 @@ static inline void gen_fop_QQ(DisasContext *dc, int rd, int rs,
     gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
-    gen_update_fprs_dirty(QFPREG(rd));
+    gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 
 #ifdef TARGET_SPARC64
@@ -1846,7 +1853,7 @@ static inline void gen_ne_fop_QQ(DisasContext *dc, int rd, int rs,
     gen(cpu_env);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
-    gen_update_fprs_dirty(QFPREG(rd));
+    gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 #endif
 
@@ -1860,7 +1867,7 @@ static inline void gen_fop_QQQ(DisasContext *dc, int rd, int rs1, int rs2,
     gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
-    gen_update_fprs_dirty(QFPREG(rd));
+    gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 
 static inline void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
@@ -1891,7 +1898,7 @@ static inline void gen_fop_QDD(DisasContext *dc, int rd, int rs1, int rs2,
     gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
-    gen_update_fprs_dirty(QFPREG(rd));
+    gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 
 #ifdef TARGET_SPARC64
@@ -1978,7 +1985,7 @@ static inline void gen_ne_fop_QF(DisasContext *dc, int rd, int rs,
     gen(cpu_env, src);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
-    gen_update_fprs_dirty(QFPREG(rd));
+    gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 
 static inline void gen_ne_fop_QD(DisasContext *dc, int rd, int rs,
@@ -1991,7 +1998,7 @@ static inline void gen_ne_fop_QD(DisasContext *dc, int rd, int rs,
     gen(cpu_env, src);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
-    gen_update_fprs_dirty(QFPREG(rd));
+    gen_update_fprs_dirty(dc, QFPREG(rd));
 }
 
 /* asi moves */
@@ -2790,7 +2797,7 @@ static void gen_fmovq(DisasContext *dc, DisasCompare *cmp, int rd, int rs)
     tcg_gen_movcond_i64(cmp->cond, cpu_fpr[qd / 2 + 1], cmp->c1, cmp->c2,
                         cpu_fpr[qs / 2 + 1], cpu_fpr[qd / 2 + 1]);
 
-    gen_update_fprs_dirty(qd);
+    gen_update_fprs_dirty(dc, qd);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -3588,7 +3595,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x3: /* V9 fmovq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_move_Q(rd, rs2);
+                    gen_move_Q(dc, rd, rs2);
                     break;
                 case 0x6: /* V9 fnegd */
                     gen_ne_fop_DD(dc, rd, rs2, gen_helper_fnegd);
@@ -4138,6 +4145,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                             case 0x6: /* V9 wrfprs */
                                 tcg_gen_xor_tl(cpu_tmp0, cpu_src1, cpu_src2);
                                 tcg_gen_trunc_tl_i32(cpu_fprs, cpu_tmp0);
+                                dc->fprs_dirty = 0;
                                 save_state(dc);
                                 gen_op_next_insn();
                                 tcg_gen_exit_tb(0);
@@ -5242,14 +5250,14 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         goto jmp_insn;
                     }
                     gen_ldf_asi(dc, cpu_addr, insn, 4, rd);
-                    gen_update_fprs_dirty(rd);
+                    gen_update_fprs_dirty(dc, rd);
                     goto skip_move;
                 case 0x33: /* V9 lddfa */
                     if (gen_trap_ifnofpu(dc)) {
                         goto jmp_insn;
                     }
                     gen_ldf_asi(dc, cpu_addr, insn, 8, DFPREG(rd));
-                    gen_update_fprs_dirty(DFPREG(rd));
+                    gen_update_fprs_dirty(dc, DFPREG(rd));
                     goto skip_move;
                 case 0x3d: /* V9 prefetcha, no effect */
                     goto skip_move;
@@ -5259,7 +5267,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         goto jmp_insn;
                     }
                     gen_ldf_asi(dc, cpu_addr, insn, 16, QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_update_fprs_dirty(dc, QFPREG(rd));
                     goto skip_move;
 #endif
                 default:
@@ -5311,7 +5319,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                         gen_helper_ldqf(cpu_env, cpu_addr, r_const);
                         tcg_temp_free_i32(r_const);
                         gen_op_store_QT0_fpr(QFPREG(rd));
-                        gen_update_fprs_dirty(QFPREG(rd));
+                        gen_update_fprs_dirty(dc, QFPREG(rd));
                     }
                     break;
                 case 0x23:      /* lddf, load double fpreg */
@@ -5579,6 +5587,7 @@ void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
     dc->address_mask_32bit = tb_am_enabled(tb->flags);
     dc->singlestep = (cs->singlestep_enabled || singlestep);
 #ifdef TARGET_SPARC64
+    dc->fprs_dirty = 0;
     dc->asi = (tb->flags >> TB_FLAG_ASI_SHIFT) & 0xff;
 #endif
 
