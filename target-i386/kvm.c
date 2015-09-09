@@ -33,7 +33,7 @@
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic-msidef.h"
 #include "exec/ioport.h"
-#include <asm/hyperv.h>
+#include "standard-headers/asm-x86/hyperv.h"
 #include "hw/pci/pci.h"
 #include "migration/migration.h"
 #include "exec/memattrs.h"

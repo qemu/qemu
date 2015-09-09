@@ -79,9 +79,6 @@ for arch in $ARCHLIST; do
     for header in kvm.h kvm_para.h; do
         cp "$tmpdir/include/asm/$header" "$output/linux-headers/asm-$arch"
     done
-    if [ $arch = x86 ]; then
-        cp "$tmpdir/include/asm/hyperv.h" "$output/linux-headers/asm-x86"
-    fi
     if [ $arch = powerpc ]; then
         cp "$tmpdir/include/asm/epapr_hcalls.h" "$output/linux-headers/asm-powerpc/"
     fi
@@ -91,6 +88,9 @@ for arch in $ARCHLIST; do
     if [ $arch = s390 ]; then
         cp_portable "$tmpdir/include/asm/kvm_virtio.h" "$output/include/standard-headers/asm-s390/"
         cp_portable "$tmpdir/include/asm/virtio-ccw.h" "$output/include/standard-headers/asm-s390/"
+    fi
+    if [ $arch = x86 ]; then
+        cp_portable "$tmpdir/include/asm/hyperv.h" "$output/include/standard-headers/asm-x86/"
     fi
 done
 
@@ -111,6 +111,9 @@ else
     cp "$linux/COPYING" "$output/linux-headers"
 fi
 
+cat <<EOF >$output/linux-headers/asm-x86/hyperv.h
+#include "standard-headers/asm-x86/hyperv.h"
+EOF
 cat <<EOF >$output/linux-headers/linux/virtio_config.h
 #include "standard-headers/linux/virtio_config.h"
 EOF
