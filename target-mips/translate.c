@@ -19525,7 +19525,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
 #if defined(TARGET_MIPS64)
             /* OPC_DAUI */
             check_mips_64(ctx);
-            if (rt != 0) {
+            if (rs == 0) {
+                generate_exception(ctx, EXCP_RI);
+            } else if (rt != 0) {
                 TCGv t0 = tcg_temp_new();
                 gen_load_gpr(t0, rs);
                 tcg_gen_addi_tl(cpu_gpr[rt], t0, imm << 16);
