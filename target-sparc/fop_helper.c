@@ -19,12 +19,13 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
+#include "exec/exec-all.h"
 #include "exec/helper-proto.h"
 
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
 
-target_ulong helper_check_ieee_exceptions(CPUSPARCState *env)
+static target_ulong do_check_ieee_exceptions(CPUSPARCState *env, uintptr_t ra)
 {
     target_ulong status = get_float_exception_flags(&env->fp_status);
     target_ulong fsr = env->fsr;
@@ -51,12 +52,15 @@ target_ulong helper_check_ieee_exceptions(CPUSPARCState *env)
         }
 
         if ((fsr & FSR_CEXC_MASK) & ((fsr & FSR_TEM_MASK) >> 23)) {
+            CPUState *cs = CPU(sparc_env_get_cpu(env));
+
             /* Unmasked exception, generate a trap.  Note that while
                the helper is marked as NO_WG, we can get away with
                writing to cpu state along the exception path, since
                TCG generated code will never see the write.  */
             env->fsr = fsr | FSR_FTT_IEEE_EXCP;
-            helper_raise_exception(env, TT_FP_EXCP);
+            cs->exception_index = TT_FP_EXCP;
+            cpu_loop_exit_restore(cs, ra);
         } else {
             /* Accumulate exceptions */
             fsr |= (fsr & FSR_CEXC_MASK) << 5;
@@ -64,6 +68,11 @@ target_ulong helper_check_ieee_exceptions(CPUSPARCState *env)
     }
 
     return fsr;
+}
+
+target_ulong helper_check_ieee_exceptions(CPUSPARCState *env)
+{
+    return do_check_ieee_exceptions(env, GETPC());
 }
 
 #define F_HELPER(name, p) void helper_f##name##p(CPUSPARCState *env)
@@ -262,7 +271,7 @@ void helper_fsqrtq(CPUSPARCState *env)
             ret = glue(size, _compare_quiet)(reg1, reg2,                \
                                              &env->fp_status);          \
         }                                                               \
-        fsr = helper_check_ieee_exceptions(env);                        \
+        fsr = do_check_ieee_exceptions(env, GETPC());                   \
         switch (ret) {                                                  \
         case float_relation_unordered:                                  \
             fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                         \
@@ -293,7 +302,7 @@ void helper_fsqrtq(CPUSPARCState *env)
             ret = glue(size, _compare_quiet)(src1, src2,                \
                                              &env->fp_status);          \
         }                                                               \
-        fsr = helper_check_ieee_exceptions(env);                        \
+        fsr = do_check_ieee_exceptions(env, GETPC());                   \
         switch (ret) {                                                  \
         case float_relation_unordered:                                  \
             fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                         \

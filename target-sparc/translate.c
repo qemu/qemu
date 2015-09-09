@@ -3464,7 +3464,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 rs1 = GET_FIELD(insn, 13, 17);
                 rs2 = GET_FIELD(insn, 27, 31);
                 xop = GET_FIELD(insn, 18, 26);
-                save_state(dc);
+
                 switch (xop) {
                 case 0x1: /* fmovs */
                     cpu_src1_32 = gen_load_fpr_F(dc, rs2);
@@ -3639,7 +3639,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 rs1 = GET_FIELD(insn, 13, 17);
                 rs2 = GET_FIELD(insn, 27, 31);
                 xop = GET_FIELD(insn, 18, 26);
-                save_state(dc);
 
 #ifdef TARGET_SPARC64
 #define FMOVR(sz)                                                  \
@@ -5276,7 +5275,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 if (gen_trap_ifnofpu(dc)) {
                     goto jmp_insn;
                 }
-                save_state(dc);
                 switch (xop) {
                 case 0x20:      /* ldf, load fpreg */
                     gen_address_mask(dc, cpu_addr);
@@ -5390,7 +5388,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 if (gen_trap_ifnofpu(dc)) {
                     goto jmp_insn;
                 }
-                save_state(dc);
                 switch (xop) {
                 case 0x24: /* stf, store fpreg */
                     {
@@ -5449,7 +5446,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     goto illegal_insn;
                 }
             } else if (xop > 0x33 && xop < 0x3f) {
-                save_state(dc);
                 switch (xop) {
 #ifdef TARGET_SPARC64
                 case 0x34: /* V9 stfa */
