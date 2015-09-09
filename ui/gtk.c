@@ -1140,10 +1140,6 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
         gtk_widget_hide(s->menu_bar);
         if (vc->type == GD_VC_GFX) {
             gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
-            if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
-                gtk_check_menu_item_set_active
-                    (GTK_CHECK_MENU_ITEM(s->grab_item), TRUE);
-            }
         }
         gtk_window_fullscreen(GTK_WINDOW(s->window));
         s->full_screen = TRUE;
@@ -1156,8 +1152,6 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
             vc->gfx.scale_x = 1.0;
             vc->gfx.scale_y = 1.0;
             gd_update_windowsize(vc);
-            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
-                                           FALSE);
         }
     }
 
