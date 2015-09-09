@@ -5403,17 +5403,14 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     break;
                 case 0x25: /* stfsr, V9 stxfsr */
                     {
-                        TCGv t = get_temp_tl(dc);
-
-                        tcg_gen_ld_tl(t, cpu_env, offsetof(CPUSPARCState, fsr));
 #ifdef TARGET_SPARC64
                         gen_address_mask(dc, cpu_addr);
                         if (rd == 1) {
-                            tcg_gen_qemu_st64(t, cpu_addr, dc->mem_idx);
+                            tcg_gen_qemu_st64(cpu_fsr, cpu_addr, dc->mem_idx);
                             break;
                         }
 #endif
-                        tcg_gen_qemu_st32(t, cpu_addr, dc->mem_idx);
+                        tcg_gen_qemu_st32(cpu_fsr, cpu_addr, dc->mem_idx);
                     }
                     break;
                 case 0x26:
