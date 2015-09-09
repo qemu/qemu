@@ -1150,7 +1150,8 @@ ppm_save(const char *filename, void *display_surface) "%s surface=%p"
 gd_switch(const char *tab, int width, int height) "tab=%s, width=%d, height=%d"
 gd_update(const char *tab, int x, int y, int w, int h) "tab=%s, x=%d, y=%d, w=%d, h=%d"
 gd_key_event(const char *tab, int gdk_keycode, int qemu_keycode, const char *action) "tab=%s, translated GDK keycode %d to QEMU keycode %d (%s)"
-gd_grab(const char *tab, const char *device, bool on) "tab=%s, %s %d"
+gd_grab(const char *tab, const char *device, const char *reason) "tab=%s, dev=%s, reason=%s"
+gd_ungrab(const char *tab, const char *device) "tab=%s, dev=%s"
 
 # ui/vnc.c
 vnc_key_guest_leds(bool caps, bool num, bool scroll) "caps %d, num %d, scroll %d"

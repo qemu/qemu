@@ -165,9 +165,9 @@ struct GtkDisplayState {
     bool ignore_keys;
 };
 
-static void gd_grab_pointer(VirtualConsole *vc);
+static void gd_grab_pointer(VirtualConsole *vc, const char *reason);
 static void gd_ungrab_pointer(GtkDisplayState *s);
-static void gd_grab_keyboard(VirtualConsole *vc);
+static void gd_grab_keyboard(VirtualConsole *vc, const char *reason);
 static void gd_ungrab_keyboard(GtkDisplayState *s);
 
 /** Utility Functions **/
@@ -855,7 +855,7 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                            TRUE);
         } else {
-            gd_grab_pointer(vc);
+            gd_grab_pointer(vc, "relative-mode-click");
         }
         return TRUE;
     }
@@ -1092,7 +1092,7 @@ static gboolean gd_win_grab(void *opaque)
     if (vc->s->ptr_owner) {
         gd_ungrab_pointer(vc->s);
     } else {
-        gd_grab_pointer(vc);
+        gd_grab_pointer(vc, "user-request-detached-tab");
     }
     return TRUE;
 }
@@ -1256,7 +1256,7 @@ static void gd_grab_devices(VirtualConsole *vc, bool grab,
 }
 #endif
 
-static void gd_grab_keyboard(VirtualConsole *vc)
+static void gd_grab_keyboard(VirtualConsole *vc, const char *reason)
 {
     if (vc->s->kbd_owner) {
         if (vc->s->kbd_owner == vc) {
@@ -1277,7 +1277,7 @@ static void gd_grab_keyboard(VirtualConsole *vc)
 #endif
     vc->s->kbd_owner = vc;
     gd_update_caption(vc->s);
-    trace_gd_grab(vc->label, "kbd", true);
+    trace_gd_grab(vc->label, "kbd", reason);
 }
 
 static void gd_ungrab_keyboard(GtkDisplayState *s)
@@ -1295,10 +1295,10 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
 #endif
     gd_update_caption(s);
-    trace_gd_grab(vc->label, "kbd", false);
+    trace_gd_ungrab(vc->label, "kbd");
 }
 
-static void gd_grab_pointer(VirtualConsole *vc)
+static void gd_grab_pointer(VirtualConsole *vc, const char *reason)
 {
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
 
@@ -1337,7 +1337,7 @@ static void gd_grab_pointer(VirtualConsole *vc)
 #endif
     vc->s->ptr_owner = vc;
     gd_update_caption(vc->s);
-    trace_gd_grab(vc->label, "ptr", true);
+    trace_gd_grab(vc->label, "ptr", reason);
 }
 
 static void gd_ungrab_pointer(GtkDisplayState *s)
@@ -1363,7 +1363,7 @@ static void gd_ungrab_pointer(GtkDisplayState *s)
                              vc->s->grab_x_root, vc->s->grab_y_root);
 #endif
     gd_update_caption(s);
-    trace_gd_grab(vc->label, "ptr", false);
+    trace_gd_ungrab(vc->label, "ptr");
 }
 
 static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
@@ -1372,8 +1372,8 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
     VirtualConsole *vc = gd_vc_find_current(s);
 
     if (gd_is_grab_active(s)) {
-        gd_grab_keyboard(vc);
-        gd_grab_pointer(vc);
+        gd_grab_keyboard(vc, "user-request-main-window");
+        gd_grab_pointer(vc, "user-request-main-window");
     } else {
         gd_ungrab_keyboard(s);
         gd_ungrab_pointer(s);
@@ -1432,7 +1432,7 @@ static gboolean gd_enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
     GtkDisplayState *s = vc->s;
 
     if (gd_grab_on_hover(s)) {
-        gd_grab_keyboard(vc);
+        gd_grab_keyboard(vc, "grab-on-hover");
     }
     return TRUE;
 }
