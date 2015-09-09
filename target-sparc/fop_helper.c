@@ -24,43 +24,46 @@
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
 
-static void check_ieee_exceptions(CPUSPARCState *env)
+target_ulong helper_check_ieee_exceptions(CPUSPARCState *env)
 {
-    target_ulong status;
+    target_ulong status = get_float_exception_flags(&env->fp_status);
+    target_ulong fsr = env->fsr;
 
-    status = get_float_exception_flags(&env->fp_status);
-    if (status) {
+    if (unlikely(status)) {
+        /* Keep exception flags clear for next time.  */
+        set_float_exception_flags(0, &env->fp_status);
+
         /* Copy IEEE 754 flags into FSR */
         if (status & float_flag_invalid) {
-            env->fsr |= FSR_NVC;
+            fsr |= FSR_NVC;
         }
         if (status & float_flag_overflow) {
-            env->fsr |= FSR_OFC;
+            fsr |= FSR_OFC;
         }
         if (status & float_flag_underflow) {
-            env->fsr |= FSR_UFC;
+            fsr |= FSR_UFC;
         }
         if (status & float_flag_divbyzero) {
-            env->fsr |= FSR_DZC;
+            fsr |= FSR_DZC;
         }
         if (status & float_flag_inexact) {
-            env->fsr |= FSR_NXC;
+            fsr |= FSR_NXC;
         }
 
-        if ((env->fsr & FSR_CEXC_MASK) & ((env->fsr & FSR_TEM_MASK) >> 23)) {
-            /* Unmasked exception, generate a trap */
-            env->fsr |= FSR_FTT_IEEE_EXCP;
+        if ((fsr & FSR_CEXC_MASK) & ((fsr & FSR_TEM_MASK) >> 23)) {
+            /* Unmasked exception, generate a trap.  Note that while
+               the helper is marked as NO_WG, we can get away with
+               writing to cpu state along the exception path, since
+               TCG generated code will never see the write.  */
+            env->fsr = fsr | FSR_FTT_IEEE_EXCP;
             helper_raise_exception(env, TT_FP_EXCP);
         } else {
             /* Accumulate exceptions */
-            env->fsr |= (env->fsr & FSR_CEXC_MASK) << 5;
+            fsr |= (fsr & FSR_CEXC_MASK) << 5;
         }
     }
-}
 
-static inline void clear_float_exceptions(CPUSPARCState *env)
-{
-    set_float_exception_flags(0, &env->fp_status);
+    return fsr;
 }
 
 #define F_HELPER(name, p) void helper_f##name##p(CPUSPARCState *env)
@@ -69,26 +72,16 @@ static inline void clear_float_exceptions(CPUSPARCState *env)
     float32 helper_f ## name ## s (CPUSPARCState *env, float32 src1, \
                                    float32 src2)                \
     {                                                           \
-        float32 ret;                                            \
-        clear_float_exceptions(env);                            \
-        ret = float32_ ## name (src1, src2, &env->fp_status);   \
-        check_ieee_exceptions(env);                             \
-        return ret;                                             \
+        return float32_ ## name (src1, src2, &env->fp_status);  \
     }                                                           \
     float64 helper_f ## name ## d (CPUSPARCState * env, float64 src1,\
                                    float64 src2)                \
     {                                                           \
-        float64 ret;                                            \
-        clear_float_exceptions(env);                            \
-        ret = float64_ ## name (src1, src2, &env->fp_status);   \
-        check_ieee_exceptions(env);                             \
-        return ret;                                             \
+        return float64_ ## name (src1, src2, &env->fp_status);  \
     }                                                           \
     F_HELPER(name, q)                                           \
     {                                                           \
-        clear_float_exceptions(env);                            \
         QT0 = float128_ ## name (QT0, QT1, &env->fp_status);    \
-        check_ieee_exceptions(env);                             \
     }
 
 F_BINOP(add);
@@ -99,22 +92,16 @@ F_BINOP(div);
 
 float64 helper_fsmuld(CPUSPARCState *env, float32 src1, float32 src2)
 {
-    float64 ret;
-    clear_float_exceptions(env);
-    ret = float64_mul(float32_to_float64(src1, &env->fp_status),
-                      float32_to_float64(src2, &env->fp_status),
-                      &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float64_mul(float32_to_float64(src1, &env->fp_status),
+                       float32_to_float64(src2, &env->fp_status),
+                       &env->fp_status);
 }
 
 void helper_fdmulq(CPUSPARCState *env, float64 src1, float64 src2)
 {
-    clear_float_exceptions(env);
     QT0 = float128_mul(float64_to_float128(src1, &env->fp_status),
                        float64_to_float128(src2, &env->fp_status),
                        &env->fp_status);
-    check_ieee_exceptions(env);
 }
 
 float32 helper_fnegs(float32 src)
@@ -137,48 +124,32 @@ F_HELPER(neg, q)
 /* Integer to float conversion.  */
 float32 helper_fitos(CPUSPARCState *env, int32_t src)
 {
-    /* Inexact error possible converting int to float.  */
-    float32 ret;
-    clear_float_exceptions(env);
-    ret = int32_to_float32(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return int32_to_float32(src, &env->fp_status);
 }
 
 float64 helper_fitod(CPUSPARCState *env, int32_t src)
 {
-    /* No possible exceptions converting int to double.  */
     return int32_to_float64(src, &env->fp_status);
 }
 
 void helper_fitoq(CPUSPARCState *env, int32_t src)
 {
-    /* No possible exceptions converting int to long double.  */
     QT0 = int32_to_float128(src, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
 float32 helper_fxtos(CPUSPARCState *env, int64_t src)
 {
-    float32 ret;
-    clear_float_exceptions(env);
-    ret = int64_to_float32(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return int64_to_float32(src, &env->fp_status);
 }
 
 float64 helper_fxtod(CPUSPARCState *env, int64_t src)
 {
-    float64 ret;
-    clear_float_exceptions(env);
-    ret = int64_to_float64(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return int64_to_float64(src, &env->fp_status);
 }
 
 void helper_fxtoq(CPUSPARCState *env, int64_t src)
 {
-    /* No possible exceptions converting long long to long double.  */
     QT0 = int64_to_float128(src, &env->fp_status);
 }
 #endif
@@ -187,108 +158,64 @@ void helper_fxtoq(CPUSPARCState *env, int64_t src)
 /* floating point conversion */
 float32 helper_fdtos(CPUSPARCState *env, float64 src)
 {
-    float32 ret;
-    clear_float_exceptions(env);
-    ret = float64_to_float32(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float64_to_float32(src, &env->fp_status);
 }
 
 float64 helper_fstod(CPUSPARCState *env, float32 src)
 {
-    float64 ret;
-    clear_float_exceptions(env);
-    ret = float32_to_float64(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float32_to_float64(src, &env->fp_status);
 }
 
 float32 helper_fqtos(CPUSPARCState *env)
 {
-    float32 ret;
-    clear_float_exceptions(env);
-    ret = float128_to_float32(QT1, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float128_to_float32(QT1, &env->fp_status);
 }
 
 void helper_fstoq(CPUSPARCState *env, float32 src)
 {
-    clear_float_exceptions(env);
     QT0 = float32_to_float128(src, &env->fp_status);
-    check_ieee_exceptions(env);
 }
 
 float64 helper_fqtod(CPUSPARCState *env)
 {
-    float64 ret;
-    clear_float_exceptions(env);
-    ret = float128_to_float64(QT1, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float128_to_float64(QT1, &env->fp_status);
 }
 
 void helper_fdtoq(CPUSPARCState *env, float64 src)
 {
-    clear_float_exceptions(env);
     QT0 = float64_to_float128(src, &env->fp_status);
-    check_ieee_exceptions(env);
 }
 
 /* Float to integer conversion.  */
 int32_t helper_fstoi(CPUSPARCState *env, float32 src)
 {
-    int32_t ret;
-    clear_float_exceptions(env);
-    ret = float32_to_int32_round_to_zero(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float32_to_int32_round_to_zero(src, &env->fp_status);
 }
 
 int32_t helper_fdtoi(CPUSPARCState *env, float64 src)
 {
-    int32_t ret;
-    clear_float_exceptions(env);
-    ret = float64_to_int32_round_to_zero(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float64_to_int32_round_to_zero(src, &env->fp_status);
 }
 
 int32_t helper_fqtoi(CPUSPARCState *env)
 {
-    int32_t ret;
-    clear_float_exceptions(env);
-    ret = float128_to_int32_round_to_zero(QT1, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float128_to_int32_round_to_zero(QT1, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
 int64_t helper_fstox(CPUSPARCState *env, float32 src)
 {
-    int64_t ret;
-    clear_float_exceptions(env);
-    ret = float32_to_int64_round_to_zero(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float32_to_int64_round_to_zero(src, &env->fp_status);
 }
 
 int64_t helper_fdtox(CPUSPARCState *env, float64 src)
 {
-    int64_t ret;
-    clear_float_exceptions(env);
-    ret = float64_to_int64_round_to_zero(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float64_to_int64_round_to_zero(src, &env->fp_status);
 }
 
 int64_t helper_fqtox(CPUSPARCState *env)
 {
-    int64_t ret;
-    clear_float_exceptions(env);
-    ret = float128_to_int64_round_to_zero(QT1, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float128_to_int64_round_to_zero(QT1, &env->fp_status);
 }
 #endif
 
@@ -311,87 +238,79 @@ void helper_fabsq(CPUSPARCState *env)
 
 float32 helper_fsqrts(CPUSPARCState *env, float32 src)
 {
-    float32 ret;
-    clear_float_exceptions(env);
-    ret = float32_sqrt(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float32_sqrt(src, &env->fp_status);
 }
 
 float64 helper_fsqrtd(CPUSPARCState *env, float64 src)
 {
-    float64 ret;
-    clear_float_exceptions(env);
-    ret = float64_sqrt(src, &env->fp_status);
-    check_ieee_exceptions(env);
-    return ret;
+    return float64_sqrt(src, &env->fp_status);
 }
 
 void helper_fsqrtq(CPUSPARCState *env)
 {
-    clear_float_exceptions(env);
     QT0 = float128_sqrt(QT1, &env->fp_status);
-    check_ieee_exceptions(env);
 }
 
 #define GEN_FCMP(name, size, reg1, reg2, FS, E)                         \
-    void glue(helper_, name) (CPUSPARCState *env)                       \
+    target_ulong glue(helper_, name) (CPUSPARCState *env)               \
     {                                                                   \
         int ret;                                                        \
-        clear_float_exceptions(env);                                    \
+        target_ulong fsr;                                               \
         if (E) {                                                        \
             ret = glue(size, _compare)(reg1, reg2, &env->fp_status);    \
         } else {                                                        \
             ret = glue(size, _compare_quiet)(reg1, reg2,                \
                                              &env->fp_status);          \
         }                                                               \
-        check_ieee_exceptions(env);                                     \
+        fsr = helper_check_ieee_exceptions(env);                        \
         switch (ret) {                                                  \
         case float_relation_unordered:                                  \
-            env->fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                    \
-            env->fsr |= FSR_NVA;                                        \
+            fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                         \
+            fsr |= FSR_NVA;                                             \
             break;                                                      \
         case float_relation_less:                                       \
-            env->fsr &= ~(FSR_FCC1) << FS;                              \
-            env->fsr |= FSR_FCC0 << FS;                                 \
+            fsr &= ~(FSR_FCC1) << FS;                                   \
+            fsr |= FSR_FCC0 << FS;                                      \
             break;                                                      \
         case float_relation_greater:                                    \
-            env->fsr &= ~(FSR_FCC0) << FS;                              \
-            env->fsr |= FSR_FCC1 << FS;                                 \
+            fsr &= ~(FSR_FCC0) << FS;                                   \
+            fsr |= FSR_FCC1 << FS;                                      \
             break;                                                      \
         default:                                                        \
-            env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                 \
+            fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                      \
             break;                                                      \
         }                                                               \
+        return fsr;                                                     \
     }
 #define GEN_FCMP_T(name, size, FS, E)                                   \
-    void glue(helper_, name)(CPUSPARCState *env, size src1, size src2)  \
+    target_ulong glue(helper_, name)(CPUSPARCState *env, size src1, size src2)\
     {                                                                   \
         int ret;                                                        \
-        clear_float_exceptions(env);                                    \
+        target_ulong fsr;                                               \
         if (E) {                                                        \
             ret = glue(size, _compare)(src1, src2, &env->fp_status);    \
         } else {                                                        \
             ret = glue(size, _compare_quiet)(src1, src2,                \
                                              &env->fp_status);          \
         }                                                               \
-        check_ieee_exceptions(env);                                     \
+        fsr = helper_check_ieee_exceptions(env);                        \
         switch (ret) {                                                  \
         case float_relation_unordered:                                  \
-            env->fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                    \
+            fsr |= (FSR_FCC1 | FSR_FCC0) << FS;                         \
             break;                                                      \
         case float_relation_less:                                       \
-            env->fsr &= ~(FSR_FCC1 << FS);                              \
-            env->fsr |= FSR_FCC0 << FS;                                 \
+            fsr &= ~(FSR_FCC1 << FS);                                   \
+            fsr |= FSR_FCC0 << FS;                                      \
             break;                                                      \
         case float_relation_greater:                                    \
-            env->fsr &= ~(FSR_FCC0 << FS);                              \
-            env->fsr |= FSR_FCC1 << FS;                                 \
+            fsr &= ~(FSR_FCC0 << FS);                                   \
+            fsr |= FSR_FCC1 << FS;                                      \
             break;                                                      \
         default:                                                        \
-            env->fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                 \
+            fsr &= ~((FSR_FCC1 | FSR_FCC0) << FS);                      \
             break;                                                      \
         }                                                               \
+        return fsr;                                                     \
     }
 
 GEN_FCMP_T(fcmps, float32, 0, 0);
@@ -431,11 +350,11 @@ GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
 #undef GEN_FCMP_T
 #undef GEN_FCMP
 
-static inline void set_fsr(CPUSPARCState *env)
+static void set_fsr(CPUSPARCState *env, target_ulong fsr)
 {
     int rnd_mode;
 
-    switch (env->fsr & FSR_RD_MASK) {
+    switch (fsr & FSR_RD_MASK) {
     case FSR_RD_NEAREST:
         rnd_mode = float_round_nearest_even;
         break;
@@ -453,16 +372,20 @@ static inline void set_fsr(CPUSPARCState *env)
     set_float_rounding_mode(rnd_mode, &env->fp_status);
 }
 
-void helper_ldfsr(CPUSPARCState *env, uint32_t new_fsr)
+target_ulong helper_ldfsr(CPUSPARCState *env, target_ulong old_fsr,
+                          uint32_t new_fsr)
 {
-    env->fsr = (new_fsr & FSR_LDFSR_MASK) | (env->fsr & FSR_LDFSR_OLDMASK);
-    set_fsr(env);
+    old_fsr = (new_fsr & FSR_LDFSR_MASK) | (old_fsr & FSR_LDFSR_OLDMASK);
+    set_fsr(env, old_fsr);
+    return old_fsr;
 }
 
 #ifdef TARGET_SPARC64
-void helper_ldxfsr(CPUSPARCState *env, uint64_t new_fsr)
+target_ulong helper_ldxfsr(CPUSPARCState *env, target_ulong old_fsr,
+                           uint64_t new_fsr)
 {
-    env->fsr = (new_fsr & FSR_LDXFSR_MASK) | (env->fsr & FSR_LDXFSR_OLDMASK);
-    set_fsr(env);
+    old_fsr = (new_fsr & FSR_LDXFSR_MASK) | (old_fsr & FSR_LDXFSR_OLDMASK);
+    set_fsr(env, old_fsr);
+    return old_fsr;
 }
 #endif

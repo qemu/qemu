@@ -1518,16 +1518,16 @@ static inline void gen_op_fcmps(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmps(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmps(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 1:
-        gen_helper_fcmps_fcc1(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmps_fcc1(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 2:
-        gen_helper_fcmps_fcc2(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmps_fcc2(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 3:
-        gen_helper_fcmps_fcc3(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmps_fcc3(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     }
 }
@@ -1536,16 +1536,16 @@ static inline void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpd(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmpd(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 1:
-        gen_helper_fcmpd_fcc1(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmpd_fcc1(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 2:
-        gen_helper_fcmpd_fcc2(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmpd_fcc2(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 3:
-        gen_helper_fcmpd_fcc3(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmpd_fcc3(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     }
 }
@@ -1554,16 +1554,16 @@ static inline void gen_op_fcmpq(int fccno)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpq(cpu_env);
+        gen_helper_fcmpq(cpu_fsr, cpu_env);
         break;
     case 1:
-        gen_helper_fcmpq_fcc1(cpu_env);
+        gen_helper_fcmpq_fcc1(cpu_fsr, cpu_env);
         break;
     case 2:
-        gen_helper_fcmpq_fcc2(cpu_env);
+        gen_helper_fcmpq_fcc2(cpu_fsr, cpu_env);
         break;
     case 3:
-        gen_helper_fcmpq_fcc3(cpu_env);
+        gen_helper_fcmpq_fcc3(cpu_fsr, cpu_env);
         break;
     }
 }
@@ -1572,16 +1572,16 @@ static inline void gen_op_fcmpes(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpes(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmpes(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 1:
-        gen_helper_fcmpes_fcc1(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmpes_fcc1(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 2:
-        gen_helper_fcmpes_fcc2(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmpes_fcc2(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 3:
-        gen_helper_fcmpes_fcc3(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmpes_fcc3(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     }
 }
@@ -1590,16 +1590,16 @@ static inline void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmped(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmped(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 1:
-        gen_helper_fcmped_fcc1(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmped_fcc1(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 2:
-        gen_helper_fcmped_fcc2(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmped_fcc2(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     case 3:
-        gen_helper_fcmped_fcc3(cpu_env, r_rs1, r_rs2);
+        gen_helper_fcmped_fcc3(cpu_fsr, cpu_env, r_rs1, r_rs2);
         break;
     }
 }
@@ -1608,16 +1608,16 @@ static inline void gen_op_fcmpeq(int fccno)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpeq(cpu_env);
+        gen_helper_fcmpeq(cpu_fsr, cpu_env);
         break;
     case 1:
-        gen_helper_fcmpeq_fcc1(cpu_env);
+        gen_helper_fcmpeq_fcc1(cpu_fsr, cpu_env);
         break;
     case 2:
-        gen_helper_fcmpeq_fcc2(cpu_env);
+        gen_helper_fcmpeq_fcc2(cpu_fsr, cpu_env);
         break;
     case 3:
-        gen_helper_fcmpeq_fcc3(cpu_env);
+        gen_helper_fcmpeq_fcc3(cpu_fsr, cpu_env);
         break;
     }
 }
@@ -1626,32 +1626,32 @@ static inline void gen_op_fcmpeq(int fccno)
 
 static inline void gen_op_fcmps(int fccno, TCGv r_rs1, TCGv r_rs2)
 {
-    gen_helper_fcmps(cpu_env, r_rs1, r_rs2);
+    gen_helper_fcmps(cpu_fsr, cpu_env, r_rs1, r_rs2);
 }
 
 static inline void gen_op_fcmpd(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
 {
-    gen_helper_fcmpd(cpu_env, r_rs1, r_rs2);
+    gen_helper_fcmpd(cpu_fsr, cpu_env, r_rs1, r_rs2);
 }
 
 static inline void gen_op_fcmpq(int fccno)
 {
-    gen_helper_fcmpq(cpu_env);
+    gen_helper_fcmpq(cpu_fsr, cpu_env);
 }
 
 static inline void gen_op_fcmpes(int fccno, TCGv r_rs1, TCGv r_rs2)
 {
-    gen_helper_fcmpes(cpu_env, r_rs1, r_rs2);
+    gen_helper_fcmpes(cpu_fsr, cpu_env, r_rs1, r_rs2);
 }
 
 static inline void gen_op_fcmped(int fccno, TCGv_i64 r_rs1, TCGv_i64 r_rs2)
 {
-    gen_helper_fcmped(cpu_env, r_rs1, r_rs2);
+    gen_helper_fcmped(cpu_fsr, cpu_env, r_rs1, r_rs2);
 }
 
 static inline void gen_op_fcmpeq(int fccno)
 {
-    gen_helper_fcmpeq(cpu_env);
+    gen_helper_fcmpeq(cpu_fsr, cpu_env);
 }
 #endif
 
@@ -1687,6 +1687,7 @@ static inline void gen_fop_FF(DisasContext *dc, int rd, int rs,
     dst = gen_dest_fpr_F(dc);
 
     gen(dst, cpu_env, src);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_F(dc, rd, dst);
 }
@@ -1714,6 +1715,7 @@ static inline void gen_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
     dst = gen_dest_fpr_F(dc);
 
     gen(dst, cpu_env, src1, src2);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_F(dc, rd, dst);
 }
@@ -1743,6 +1745,7 @@ static inline void gen_fop_DD(DisasContext *dc, int rd, int rs,
     dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_D(dc, rd, dst);
 }
@@ -1772,6 +1775,7 @@ static inline void gen_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
     dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src1, src2);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_D(dc, rd, dst);
 }
@@ -1827,6 +1831,7 @@ static inline void gen_fop_QQ(DisasContext *dc, int rd, int rs,
     gen_op_load_fpr_QT1(QFPREG(rs));
 
     gen(cpu_env);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
     gen_update_fprs_dirty(QFPREG(rd));
@@ -1852,6 +1857,7 @@ static inline void gen_fop_QQQ(DisasContext *dc, int rd, int rs1, int rs2,
     gen_op_load_fpr_QT1(QFPREG(rs2));
 
     gen(cpu_env);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
     gen_update_fprs_dirty(QFPREG(rd));
@@ -1868,6 +1874,7 @@ static inline void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
     dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src1, src2);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_D(dc, rd, dst);
 }
@@ -1881,6 +1888,7 @@ static inline void gen_fop_QDD(DisasContext *dc, int rd, int rs1, int rs2,
     src2 = gen_load_fpr_D(dc, rs2);
 
     gen(cpu_env, src1, src2);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_op_store_QT0_fpr(QFPREG(rd));
     gen_update_fprs_dirty(QFPREG(rd));
@@ -1897,6 +1905,7 @@ static inline void gen_fop_DF(DisasContext *dc, int rd, int rs,
     dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env, src);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_D(dc, rd, dst);
 }
@@ -1926,6 +1935,7 @@ static inline void gen_fop_FD(DisasContext *dc, int rd, int rs,
     dst = gen_dest_fpr_F(dc);
 
     gen(dst, cpu_env, src);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_F(dc, rd, dst);
 }
@@ -1939,6 +1949,7 @@ static inline void gen_fop_FQ(DisasContext *dc, int rd, int rs,
     dst = gen_dest_fpr_F(dc);
 
     gen(dst, cpu_env);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_F(dc, rd, dst);
 }
@@ -1952,6 +1963,7 @@ static inline void gen_fop_DQ(DisasContext *dc, int rd, int rs,
     dst = gen_dest_fpr_D(dc, rd);
 
     gen(dst, cpu_env);
+    gen_helper_check_ieee_exceptions(cpu_fsr, cpu_env);
 
     gen_store_fpr_D(dc, rd, dst);
 }
@@ -5280,7 +5292,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (rd == 1) {
                         TCGv_i64 t64 = tcg_temp_new_i64();
                         tcg_gen_qemu_ld64(t64, cpu_addr, dc->mem_idx);
-                        gen_helper_ldxfsr(cpu_env, t64);
+                        gen_helper_ldxfsr(cpu_fsr, cpu_env, cpu_fsr, t64);
                         tcg_temp_free_i64(t64);
                         break;
                     }
@@ -5289,7 +5301,7 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     t0 = get_temp_tl(dc);
                     tcg_gen_qemu_ld32u(t0, cpu_addr, dc->mem_idx);
                     tcg_gen_trunc_tl_i32(cpu_dst_32, t0);
-                    gen_helper_ldfsr(cpu_env, cpu_dst_32);
+                    gen_helper_ldfsr(cpu_fsr, cpu_env, cpu_fsr, cpu_dst_32);
                     break;
                 case 0x22:      /* ldqf, load quad fpreg */
                     {
