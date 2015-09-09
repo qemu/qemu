@@ -533,26 +533,9 @@ static const char* vsh_header =
     "in vec4 v14;\n"
     "in vec4 v15;\n"
     "\n"
-    //FIXME: What is a0 initialized as?
     "int A0 = 0;\n"
     "\n"
-    //FIXME: I just assumed this is true for all registers?!
-    "vec4 R0 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R1 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R2 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R3 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R4 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R5 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R6 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R7 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R8 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R9 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R10 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R11 = vec4(0.0,0.0,0.0,1.0);\n"
-    "vec4 R12 = vec4(0.0,0.0,0.0,1.0);\n"
-    "\n"
-
-    "#define oPos R12\n" /* opos is a mirror of R12 */
+    "vec4 oPos = vec4(0.0,0.0,0.0,1.0);\n"
     "vec4 oD0 = vec4(0.0,0.0,0.0,1.0);\n"
     "vec4 oD1 = vec4(0.0,0.0,0.0,1.0);\n"
     "vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
@@ -563,6 +546,20 @@ static const char* vsh_header =
     "vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
     "vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
     "vec4 oT3 = vec4(0.0,0.0,0.0,1.0);\n"
+    "\n"
+    "vec4 R0 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R1 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R2 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R3 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R4 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R5 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R6 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R7 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R8 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R9 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R10 = vec4(0.0,0.0,0.0,0.0);\n"
+    "vec4 R11 = vec4(0.0,0.0,0.0,0.0);\n"
+    "#define R12 oPos\n" /* R12 is a mirror of oPos */
     "\n"
 
 
