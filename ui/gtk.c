@@ -1782,6 +1782,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 
     if (dpy_ui_info_supported(vc->gfx.dcl.con)) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->zoom_fit_item));
+        s->free_scale = true;
     }
 
     return group;
