@@ -1,0 +1,9 @@
+QA output created by 138
+
+=== Check on an image with a multiple of 2^32 clusters ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=512
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Check failed: Cannot allocate memory
+*** done
