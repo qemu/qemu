@@ -21,6 +21,7 @@
 
 #include "config.h"
 #include "qemu-common.h"
+#include "standard-headers/asm-x86/hyperv.h"
 
 #ifdef TARGET_X86_64
 #define TARGET_LONG_BITS 64
@@ -908,6 +909,7 @@ typedef struct CPUX86State {
     uint64_t msr_hv_guest_os_id;
     uint64_t msr_hv_vapic;
     uint64_t msr_hv_tsc;
+    uint64_t msr_hv_crash_params[HV_X64_MSR_CRASH_PARAMS];
 
     /* exception/interrupt handling */
     int error_code;
