@@ -39,6 +39,7 @@ cp_virtio() {
             if
                 grep '#include' "$f" | grep -v -e 'linux/virtio' \
                                              -e 'linux/types' \
+                                             -e 'stdint' \
                                              -e 'linux/if_ether' \
                                              -e 'sys/' \
                                              > /dev/null
