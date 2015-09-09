@@ -167,6 +167,8 @@ struct GtkDisplayState {
 
 static void gd_grab_pointer(VirtualConsole *vc);
 static void gd_ungrab_pointer(GtkDisplayState *s);
+static void gd_grab_keyboard(VirtualConsole *vc);
+static void gd_ungrab_keyboard(GtkDisplayState *s);
 
 /** Utility Functions **/
 
@@ -849,7 +851,6 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
     /* implicitly grab the input at the first click in the relative mode */
     if (button->button == 1 && button->type == GDK_BUTTON_PRESS &&
         !qemu_input_is_absolute() && s->ptr_owner != vc) {
-        gd_ungrab_pointer(s);
         if (!vc->window) {
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                            TRUE);
@@ -1259,6 +1260,14 @@ static void gd_grab_devices(VirtualConsole *vc, bool grab,
 
 static void gd_grab_keyboard(VirtualConsole *vc)
 {
+    if (vc->s->kbd_owner) {
+        if (vc->s->kbd_owner == vc) {
+            return;
+        } else {
+            gd_ungrab_keyboard(vc->s);
+        }
+    }
+
 #if GTK_CHECK_VERSION(3, 0, 0)
     gd_grab_devices(vc, true, GDK_SOURCE_KEYBOARD,
                    GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
@@ -1292,6 +1301,15 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
 static void gd_grab_pointer(VirtualConsole *vc)
 {
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
+
+    if (vc->s->ptr_owner) {
+        if (vc->s->ptr_owner == vc) {
+            return;
+        } else {
+            gd_ungrab_pointer(vc->s);
+        }
+    }
+
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
     gd_grab_devices(vc, true, GDK_SOURCE_MOUSE,
@@ -1352,9 +1370,7 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
     VirtualConsole *vc = gd_vc_find_current(s);
 
     if (gd_is_grab_active(s)) {
-        if (!gd_grab_on_hover(s)) {
-            gd_grab_keyboard(vc);
-        }
+        gd_grab_keyboard(vc);
         gd_grab_pointer(vc);
     } else {
         gd_ungrab_keyboard(s);
@@ -1415,7 +1431,6 @@ static gboolean gd_enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
     GtkDisplayState *s = vc->s;
 
     if (gd_grab_on_hover(s)) {
-        gd_ungrab_keyboard(s);
         gd_grab_keyboard(vc);
         gd_update_caption(s);
     }
