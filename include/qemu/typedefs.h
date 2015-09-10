@@ -80,5 +80,6 @@ typedef struct SSIBus SSIBus;
 typedef struct uWireSlave uWireSlave;
 typedef struct VirtIODevice VirtIODevice;
 typedef struct Visitor Visitor;
+typedef struct MonitorDef MonitorDef;
 
 #endif /* QEMU_TYPEDEFS_H */
