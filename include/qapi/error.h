@@ -155,6 +155,13 @@ void error_setg_win32_internal(Error **errp,
  */
 void error_propagate(Error **dst_errp, Error *local_err);
 
+/**
+ * Append a printf-style human-readable explanation to an existing error.
+ * May be called multiple times, and safe if @errp is NULL.
+ */
+void error_append_hint(Error **errp, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
+
 /*
  * Convenience function to report open() failure.
  */

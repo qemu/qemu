@@ -20,6 +20,7 @@ struct Error
     ErrorClass err_class;
     const char *src, *func;
     int line;
+    GString *hint;
 };
 
 Error *error_abort;
@@ -115,6 +116,28 @@ void error_setg_file_open_internal(Error **errp,
                               "Could not open '%s'", filename);
 }
 
+void error_append_hint(Error **errp, const char *fmt, ...)
+{
+    va_list ap;
+    int saved_errno = errno;
+    Error *err;
+
+    if (!errp) {
+        return;
+    }
+    err = *errp;
+    assert(err && errp != &error_abort);
+
+    if (!err->hint) {
+        err->hint = g_string_new(NULL);
+    }
+    va_start(ap, fmt);
+    g_string_append_vprintf(err->hint, fmt, ap);
+    va_end(ap);
+
+    errno = saved_errno;
+}
+
 #ifdef _WIN32
 
 void error_setg_win32_internal(Error **errp,
@@ -151,6 +174,9 @@ Error *error_copy(const Error *err)
     err_new = g_malloc0(sizeof(*err));
     err_new->msg = g_strdup(err->msg);
     err_new->err_class = err->err_class;
+    if (err->hint) {
+        err_new->hint = g_string_new(err->hint->str);
+    }
 
     return err_new;
 }
@@ -168,6 +194,9 @@ const char *error_get_pretty(Error *err)
 void error_report_err(Error *err)
 {
     error_report("%s", error_get_pretty(err));
+    if (err->hint) {
+        error_printf_unless_qmp("%s\n", err->hint->str);
+    }
     error_free(err);
 }
 
@@ -175,6 +204,9 @@ void error_free(Error *err)
 {
     if (err) {
         g_free(err->msg);
+        if (err->hint) {
+            g_string_free(err->hint, true);
+        }
         g_free(err);
     }
 }
