@@ -174,6 +174,9 @@ Error *error_copy(const Error *err)
     err_new = g_malloc0(sizeof(*err));
     err_new->msg = g_strdup(err->msg);
     err_new->err_class = err->err_class;
+    err_new->src = err->src;
+    err_new->line = err->line;
+    err_new->func = err->func;
     if (err->hint) {
         err_new->hint = g_string_new(err->hint->str);
     }
