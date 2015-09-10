@@ -588,7 +588,21 @@ static QString *generate_vertex_shader(const ShaderState state,
                                   "vec4 oB0 = vec4(0.0,0.0,0.0,1.0);\n"
                                   "vec4 oB1 = vec4(0.0,0.0,0.0,1.0);\n"
                                   "vec4 oPts = vec4(0.0,0.0,0.0,1.0);\n"
-                                  "vec4 oFog = vec4(0.0,0.0,0.0,1.0);\n"
+    /* FIXME: NV_vertex_program says: "FOGC is the transformed vertex's fog
+     * coordinate. The register's first floating-point component is interpolated
+     * across the assembled primitive during rasterization and used as the fog
+     * distance to compute per-fragment the fog factor when fog is enabled.
+     * However, if both fog and vertex program mode are enabled, but the FOGC
+     * vertex result register is not written, the fog factor is overridden to
+     * 1.0. The register's other three components are ignored."
+     *
+     * That probably means it will read back as vec4(0.0, 0.0, 0.0, 1.0) but
+     * will be set to 1.0 AFTER the VP if it was never written?
+     * We should test on real hardware..
+     *
+     * We'll force 1.0 for oFog.x for now.
+     */
+                                  "vec4 oFog = vec4(1.0,0.0,0.0,1.0);\n"
                                   "vec4 oT0 = vec4(0.0,0.0,0.0,1.0);\n"
                                   "vec4 oT1 = vec4(0.0,0.0,0.0,1.0);\n"
                                   "vec4 oT2 = vec4(0.0,0.0,0.0,1.0);\n"
