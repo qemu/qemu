@@ -1460,7 +1460,7 @@ hwaddr virtio_queue_get_desc_size(VirtIODevice *vdev, int n)
 hwaddr virtio_queue_get_avail_size(VirtIODevice *vdev, int n)
 {
     return offsetof(VRingAvail, ring) +
-        sizeof(uint64_t) * vdev->vq[n].vring.num;
+        sizeof(uint16_t) * vdev->vq[n].vring.num;
 }
 
 hwaddr virtio_queue_get_used_size(VirtIODevice *vdev, int n)
