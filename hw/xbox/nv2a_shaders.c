@@ -527,15 +527,8 @@ static void generate_fixed_function(const ShaderState state,
         /* From: https://www.opengl.org/registry/specs/NV/fog_distance.txt */
         switch(state.foggen) {
         case FOGGEN_SPEC_ALPHA:
-            assert(false); /* FIXME: Do this before or after calculations in VSH? */
-            if (state.fixed_function) {
-                /* FIXME: Do we have to clamp here? */
-                qstring_append(body, "  float fogDistance = clamp(specular.a, 0.0, 1.0);\n");
-            } else if (state.vertex_program) {
-                qstring_append(body, "  float fogDistance = oD1.a;\n");
-            } else {
-                assert(false);
-            }
+            /* FIXME: Do we have to clamp here? */
+            qstring_append(body, "  float fogDistance = clamp(specular.a, 0.0, 1.0);\n");
             break;
         case FOGGEN_RADIAL:
             qstring_append(body, "  float fogDistance = length(tPosition.xyz)");
@@ -548,13 +541,7 @@ static void generate_fixed_function(const ShaderState state,
             }
             break;
         case FOGGEN_FOG_X:
-            if (state.fixed_function) {
-                qstring_append(body, "  float fogDistance = fogCoord;\n");
-            } else if (state.vertex_program) {
-                qstring_append(body, "  float fogDistance = oFog.x;\n");
-            } else {
-                assert(false);
-            }
+            qstring_append(body, "  float fogDistance = fogCoord;\n");
             break;
         default:
             assert(false);
