@@ -409,6 +409,7 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 #define RTAS_OUT_BUSY               -2
 #define RTAS_OUT_PARAM_ERROR        -3
 #define RTAS_OUT_NOT_SUPPORTED      -3
+#define RTAS_OUT_NO_SUCH_INDICATOR  -3
 #define RTAS_OUT_NOT_AUTHORIZED     -9002
 
 /* RTAS tokens */
