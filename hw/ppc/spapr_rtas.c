@@ -372,12 +372,13 @@ static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     uint32_t sensor_type;
     uint32_t sensor_index;
     uint32_t sensor_state;
+    uint32_t ret = RTAS_OUT_SUCCESS;
     sPAPRDRConnector *drc;
     sPAPRDRConnectorClass *drck;
 
     if (nargs != 3 || nret != 1) {
-        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
-        return;
+        ret = RTAS_OUT_PARAM_ERROR;
+        goto out;
     }
 
     sensor_type = rtas_ld(args, 0);
@@ -393,8 +394,8 @@ static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     if (!drc) {
         DPRINTF("rtas_set_indicator: invalid sensor/DRC index: %xh\n",
                 sensor_index);
-        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
-        return;
+        ret = RTAS_OUT_PARAM_ERROR;
+        goto out;
     }
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
@@ -413,19 +414,20 @@ static void rtas_set_indicator(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                 spapr_ccs_remove(spapr, ccs);
             }
         }
-        drck->set_isolation_state(drc, sensor_state);
+        ret = drck->set_isolation_state(drc, sensor_state);
         break;
     case RTAS_SENSOR_TYPE_DR:
-        drck->set_indicator_state(drc, sensor_state);
+        ret = drck->set_indicator_state(drc, sensor_state);
         break;
     case RTAS_SENSOR_TYPE_ALLOCATION_STATE:
-        drck->set_allocation_state(drc, sensor_state);
+        ret = drck->set_allocation_state(drc, sensor_state);
         break;
     default:
         goto out_unimplemented;
     }
 
-    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
+out:
+    rtas_st(rets, 0, ret);
     return;
 
 out_unimplemented:
@@ -442,13 +444,14 @@ static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 {
     uint32_t sensor_type;
     uint32_t sensor_index;
+    uint32_t sensor_state = 0;
     sPAPRDRConnector *drc;
     sPAPRDRConnectorClass *drck;
-    uint32_t entity_sense;
+    uint32_t ret = RTAS_OUT_SUCCESS;
 
     if (nargs != 2 || nret != 2) {
-        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
-        return;
+        ret = RTAS_OUT_PARAM_ERROR;
+        goto out;
     }
 
     sensor_type = rtas_ld(args, 0);
@@ -458,22 +461,23 @@ static void rtas_get_sensor_state(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         /* currently only DR-related sensors are implemented */
         DPRINTF("rtas_get_sensor_state: sensor/indicator not implemented: %d\n",
                 sensor_type);
-        rtas_st(rets, 0, RTAS_OUT_NOT_SUPPORTED);
-        return;
+        ret = RTAS_OUT_NOT_SUPPORTED;
+        goto out;
     }
 
     drc = spapr_dr_connector_by_index(sensor_index);
     if (!drc) {
         DPRINTF("rtas_get_sensor_state: invalid sensor/DRC index: %xh\n",
                 sensor_index);
-        rtas_st(rets, 0, RTAS_OUT_PARAM_ERROR);
-        return;
+        ret = RTAS_OUT_PARAM_ERROR;
+        goto out;
     }
     drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    entity_sense = drck->entity_sense(drc);
+    ret = drck->entity_sense(drc, &sensor_state);
 
-    rtas_st(rets, 0, RTAS_OUT_SUCCESS);
-    rtas_st(rets, 1, entity_sense);
+out:
+    rtas_st(rets, 0, ret);
+    rtas_st(rets, 1, sensor_state);
 }
 
 /* configure-connector work area offsets, int32_t units for field

@@ -15,6 +15,7 @@
 #include "hw/qdev.h"
 #include "qapi/visitor.h"
 #include "qemu/error-report.h"
+#include "hw/ppc/spapr.h" /* for RTAS return codes */
 
 /* #define DEBUG_SPAPR_DRC */
 
@@ -59,8 +60,8 @@ static uint32_t get_index(sPAPRDRConnector *drc)
             (drc->id & DRC_INDEX_ID_MASK);
 }
 
-static int set_isolation_state(sPAPRDRConnector *drc,
-                               sPAPRDRIsolationState state)
+static uint32_t set_isolation_state(sPAPRDRConnector *drc,
+                                    sPAPRDRIsolationState state)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
@@ -99,19 +100,19 @@ static int set_isolation_state(sPAPRDRConnector *drc,
         drc->configured = false;
     }
 
-    return 0;
+    return RTAS_OUT_SUCCESS;
 }
 
-static int set_indicator_state(sPAPRDRConnector *drc,
-                               sPAPRDRIndicatorState state)
+static uint32_t set_indicator_state(sPAPRDRConnector *drc,
+                                    sPAPRDRIndicatorState state)
 {
     DPRINTFN("drc: %x, set_indicator_state: %x", get_index(drc), state);
     drc->indicator_state = state;
-    return 0;
+    return RTAS_OUT_SUCCESS;
 }
 
-static int set_allocation_state(sPAPRDRConnector *drc,
-                                sPAPRDRAllocationState state)
+static uint32_t set_allocation_state(sPAPRDRConnector *drc,
+                                     sPAPRDRAllocationState state)
 {
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
@@ -137,7 +138,7 @@ static int set_allocation_state(sPAPRDRConnector *drc,
                          drc->detach_cb_opaque, NULL);
         }
     }
-    return 0;
+    return RTAS_OUT_SUCCESS;
 }
 
 static uint32_t get_type(sPAPRDRConnector *drc)
@@ -178,10 +179,8 @@ static void set_configured(sPAPRDRConnector *drc)
  * based on the current allocation/indicator/power states
  * for the DR connector.
  */
-static sPAPRDREntitySense entity_sense(sPAPRDRConnector *drc)
+static uint32_t entity_sense(sPAPRDRConnector *drc, sPAPRDREntitySense *state)
 {
-    sPAPRDREntitySense state;
-
     if (drc->dev) {
         if (drc->type != SPAPR_DR_CONNECTOR_TYPE_PCI &&
             drc->allocation_state == SPAPR_DR_ALLOCATION_STATE_UNUSABLE) {
@@ -190,7 +189,7 @@ static sPAPRDREntitySense entity_sense(sPAPRDRConnector *drc)
              * Otherwise, report the state as USABLE/PRESENT,
              * as we would for PCI.
              */
-            state = SPAPR_DR_ENTITY_SENSE_UNUSABLE;
+            *state = SPAPR_DR_ENTITY_SENSE_UNUSABLE;
         } else {
             /* this assumes all PCI devices are assigned to
              * a 'live insertion' power domain, where QEMU
@@ -198,21 +197,21 @@ static sPAPRDREntitySense entity_sense(sPAPRDRConnector *drc)
              * to the guest. present, non-PCI resources are
              * unaffected by power state.
              */
-            state = SPAPR_DR_ENTITY_SENSE_PRESENT;
+            *state = SPAPR_DR_ENTITY_SENSE_PRESENT;
         }
     } else {
         if (drc->type == SPAPR_DR_CONNECTOR_TYPE_PCI) {
             /* PCI devices, and only PCI devices, use EMPTY
              * in cases where we'd otherwise use UNUSABLE
              */
-            state = SPAPR_DR_ENTITY_SENSE_EMPTY;
+            *state = SPAPR_DR_ENTITY_SENSE_EMPTY;
         } else {
-            state = SPAPR_DR_ENTITY_SENSE_UNUSABLE;
+            *state = SPAPR_DR_ENTITY_SENSE_UNUSABLE;
         }
     }
 
     DPRINTFN("drc: %x, entity_sense: %x", get_index(drc), state);
-    return state;
+    return RTAS_OUT_SUCCESS;
 }
 
 static void prop_get_index(Object *obj, Visitor *v, void *opaque,
@@ -245,7 +244,9 @@ static void prop_get_entity_sense(Object *obj, Visitor *v, void *opaque,
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
     sPAPRDRConnectorClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
-    uint32_t value = (uint32_t)drck->entity_sense(drc);
+    uint32_t value;
+
+    drck->entity_sense(drc, &value);
     visit_type_uint32(v, &value, name, errp);
 }
 
