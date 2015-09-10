@@ -7,6 +7,10 @@ HXCOMM HXCOMM can be used for comments, discarded from both texi and C
 
 STEXI
 @table @option
+@item info @var{subcommand}
+@findex info
+Show various information about the system state.
+@table @option
 ETEXI
 
     {
@@ -734,6 +738,10 @@ STEXI
 @item info skeys @var{address}
 @findex skeys
 Display the value of a storage key (s390 only)
+ETEXI
+
+STEXI
+@end table
 ETEXI
 
 STEXI

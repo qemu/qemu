@@ -344,7 +344,7 @@ qemu-%.tar.bz2:
 	$(SRC_PATH)/scripts/make-release "$(SRC_PATH)" "$(patsubst qemu-%.tar.bz2,%,$@)"
 
 distclean: clean
-	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi
+	rm -f config-host.mak config-host.h* config-host.ld $(DOCS) qemu-options.texi qemu-img-cmds.texi qemu-monitor.texi qemu-monitor-info.texi
 	rm -f config-all-devices.mak config-all-disas.mak config.status
 	rm -f po/*.mo tests/qemu-iotests/common.env
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
@@ -511,13 +511,16 @@ qemu-options.texi: $(SRC_PATH)/qemu-options.hx
 qemu-monitor.texi: $(SRC_PATH)/hmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
+qemu-monitor-info.texi: $(SRC_PATH)/hmp-commands-info.hx
+	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
+
 qmp-commands.txt: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -q < $< > $@,"  GEN   $@")
 
 qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
-qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi
+qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi qemu-monitor-info.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu.pod && \
 	  $(POD2MAN) --section=1 --center=" " --release=" " qemu.pod > $@, \
@@ -560,7 +563,8 @@ pdf: qemu-doc.pdf qemu-tech.pdf
 
 qemu-doc.dvi qemu-doc.html qemu-doc.info qemu-doc.pdf: \
 	qemu-img.texi qemu-nbd.texi qemu-options.texi \
-	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi
+	qemu-monitor.texi qemu-img-cmds.texi qemu-ga.texi \
+	qemu-monitor-info.texi
 
 ifdef CONFIG_WIN32
 
