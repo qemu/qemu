@@ -1950,7 +1950,8 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 
     s->free_scale = FALSE;
 
-    setlocale(LC_ALL, "");
+    /* LC_MESSAGES only. See early_gtk_display_init() for details */
+    setlocale(LC_MESSAGES, "");
     bindtextdomain("qemu", CONFIG_QEMU_LOCALEDIR);
     textdomain("qemu");
 
@@ -2019,6 +2020,24 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 
 void early_gtk_display_init(int opengl)
 {
+    /* The QEMU code relies on the assumption that it's always run in
+     * the C locale. Therefore it is not prepared to deal with
+     * operations that produce different results depending on the
+     * locale, such as printf's formatting of decimal numbers, and
+     * possibly others.
+     *
+     * Since GTK+ calls setlocale() by default -importing the locale
+     * settings from the environment- we must prevent it from doing so
+     * using gtk_disable_setlocale().
+     *
+     * QEMU's GTK+ UI, however, _does_ have translations for some of
+     * the menu items. As a trade-off between a functionally correct
+     * QEMU and a fully internationalized UI we support importing
+     * LC_MESSAGES from the environment (see the setlocale() call
+     * earlier in this file). This allows us to display translated
+     * messages leaving everything else untouched.
+     */
+    gtk_disable_setlocale();
     gtkinit = gtk_init_check(NULL, NULL);
     if (!gtkinit) {
         /* don't exit yet, that'll break -help */
