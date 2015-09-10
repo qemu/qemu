@@ -1338,6 +1338,13 @@ static inline void semihosting_arg_fallback(const char *file, const char *cmd)
     }
 }
 
+/* Now we still need this for compatibility with XEN. */
+bool has_igd_gfx_passthru;
+static void igd_gfx_passthru(void)
+{
+    has_igd_gfx_passthru = current_machine->igd_gfx_passthru;
+}
+
 /***********************************************************/
 /* USB devices */
 
@@ -4527,6 +4534,9 @@ int main(int argc, char **argv, char **envp)
         if (foreach_device_config(DEV_USB, usb_parse) < 0)
             exit(1);
     }
+
+    /* Check if IGD GFX passthrough. */
+    igd_gfx_passthru();
 
     /* init generic devices */
     if (qemu_opts_foreach(qemu_find_opts("device"),

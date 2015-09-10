@@ -75,19 +75,29 @@ static int msi_msix_enable(XenPCIPassthroughState *s,
                            bool enable)
 {
     uint16_t val = 0;
+    int rc;
 
     if (!address) {
         return -1;
     }
 
-    xen_host_pci_get_word(&s->real_device, address, &val);
+    rc = xen_host_pci_get_word(&s->real_device, address, &val);
+    if (rc) {
+        XEN_PT_ERR(&s->dev, "Failed to read MSI/MSI-X register (0x%x), rc:%d\n",
+                   address, rc);
+        return rc;
+    }
     if (enable) {
         val |= flag;
     } else {
         val &= ~flag;
     }
-    xen_host_pci_set_word(&s->real_device, address, val);
-    return 0;
+    rc = xen_host_pci_set_word(&s->real_device, address, val);
+    if (rc) {
+        XEN_PT_ERR(&s->dev, "Failed to write MSI/MSI-X register (0x%x), rc:%d\n",
+                   address, rc);
+    }
+    return rc;
 }
 
 static int msi_msix_setup(XenPCIPassthroughState *s,
@@ -220,7 +230,7 @@ static int msi_msix_disable(XenPCIPassthroughState *s,
  * MSI virtualization functions
  */
 
-int xen_pt_msi_set_enable(XenPCIPassthroughState *s, bool enable)
+static int xen_pt_msi_set_enable(XenPCIPassthroughState *s, bool enable)
 {
     XEN_PT_LOG(&s->dev, "%s MSI.\n", enable ? "enabling" : "disabling");
 
@@ -276,7 +286,7 @@ void xen_pt_msi_disable(XenPCIPassthroughState *s)
         return;
     }
 
-    xen_pt_msi_set_enable(s, false);
+    (void)xen_pt_msi_set_enable(s, false);
 
     msi_msix_disable(s, msi_addr64(msi), msi->data, msi->pirq, false,
                      msi->initialized);

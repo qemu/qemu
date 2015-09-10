@@ -376,6 +376,11 @@ int xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
         goto error;
     }
     d->irq = v;
+    rc = xen_host_pci_get_hex_value(d, "class", &v);
+    if (rc) {
+        goto error;
+    }
+    d->class_code = v;
     d->is_virtfn = xen_host_pci_dev_is_virtfn(d);
 
     return 0;
@@ -385,6 +390,11 @@ error:
         d->config_fd = -1;
     }
     return rc;
+}
+
+bool xen_host_pci_device_closed(XenHostPCIDevice *d)
+{
+    return d->config_fd == -1;
 }
 
 void xen_host_pci_device_put(XenHostPCIDevice *d)

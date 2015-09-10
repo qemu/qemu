@@ -40,6 +40,9 @@ typedef struct XenPCIPassthroughState XenPCIPassthroughState;
 #define XEN_PT_DEVICE(obj) \
     OBJECT_CHECK(XenPCIPassthroughState, (obj), TYPE_XEN_PT_DEVICE)
 
+uint32_t igd_read_opregion(XenPCIPassthroughState *s);
+void igd_write_opregion(XenPCIPassthroughState *s, uint32_t val);
+
 /* function type for config reg */
 typedef int (*xen_pt_conf_reg_init)
     (XenPCIPassthroughState *, XenPTRegInfo *, uint32_t real_offset,
@@ -66,8 +69,9 @@ typedef int (*xen_pt_conf_byte_read)
 #define XEN_PT_BAR_ALLF 0xFFFFFFFF
 #define XEN_PT_BAR_UNMAPPED (-1)
 
-#define PCI_CAP_MAX 48
+#define XEN_PCI_CAP_MAX 48
 
+#define XEN_PCI_INTEL_OPREGION 0xfc
 
 typedef enum {
     XEN_PT_GRP_TYPE_HARDWIRED = 0,  /* 0 Hardwired reg group */
@@ -134,7 +138,11 @@ struct XenPTRegInfo {
 struct XenPTReg {
     QLIST_ENTRY(XenPTReg) entries;
     XenPTRegInfo *reg;
-    uint32_t data; /* emulated value */
+    union {
+        uint8_t *byte;
+        uint16_t *half_word;
+        uint32_t *word;
+    } ptr; /* pointer to dev.config. */
 };
 
 typedef const struct XenPTRegGroupInfo XenPTRegGroupInfo;
@@ -217,6 +225,7 @@ struct XenPCIPassthroughState {
 
     MemoryListener memory_listener;
     MemoryListener io_listener;
+    bool listener_set;
 };
 
 int xen_pt_config_init(XenPCIPassthroughState *s);
@@ -282,6 +291,7 @@ static inline uint8_t xen_pt_pci_intx(XenPCIPassthroughState *s)
                    " value=%i, acceptable range is 1 - 4\n", r_val);
         r_val = 0;
     } else {
+        /* Note that if s.real_device.config_fd is closed we make 0xff. */
         r_val -= 1;
     }
 
@@ -289,7 +299,6 @@ static inline uint8_t xen_pt_pci_intx(XenPCIPassthroughState *s)
 }
 
 /* MSI/MSI-X */
-int xen_pt_msi_set_enable(XenPCIPassthroughState *s, bool en);
 int xen_pt_msi_setup(XenPCIPassthroughState *s);
 int xen_pt_msi_update(XenPCIPassthroughState *d);
 void xen_pt_msi_disable(XenPCIPassthroughState *s);
@@ -305,5 +314,18 @@ static inline bool xen_pt_has_msix_mapping(XenPCIPassthroughState *s, int bar)
     return s->msix && s->msix->bar_index == bar;
 }
 
-
+extern void *pci_assign_dev_load_option_rom(PCIDevice *dev,
+                                            struct Object *owner, int *size,
+                                            unsigned int domain,
+                                            unsigned int bus, unsigned int slot,
+                                            unsigned int function);
+extern bool has_igd_gfx_passthru;
+static inline bool is_igd_vga_passthrough(XenHostPCIDevice *dev)
+{
+    return (has_igd_gfx_passthru
+            && ((dev->class_code >> 0x8) == PCI_CLASS_DISPLAY_VGA));
+}
+int xen_pt_register_vga_regions(XenHostPCIDevice *dev);
+int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev);
+int xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev);
 #endif /* !XEN_PT_H */

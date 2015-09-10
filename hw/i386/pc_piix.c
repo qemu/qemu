@@ -50,7 +50,8 @@
 #include "cpu.h"
 #include "qemu/error-report.h"
 #ifdef CONFIG_XEN
-#  include <xen/hvm/hvm_info_table.h>
+#include <xen/hvm/hvm_info_table.h>
+#include "hw/xen/xen_pt.h"
 #endif
 #include "migration/migration.h"
 
@@ -76,7 +77,8 @@ static bool has_reserved_memory = true;
 static bool kvmclock_enabled = true;
 
 /* PC hardware initialisation */
-static void pc_init1(MachineState *machine)
+static void pc_init1(MachineState *machine,
+                     const char *host_type, const char *pci_type)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
     MemoryRegion *system_memory = get_system_memory();
@@ -194,7 +196,9 @@ static void pc_init1(MachineState *machine)
     }
 
     if (pci_enabled) {
-        pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, &isa_bus, gsi,
+        pci_bus = i440fx_init(host_type,
+                              pci_type,
+                              &i440fx_state, &piix3_devfn, &isa_bus, gsi,
                               system_memory, system_io, machine->ram_size,
                               pcms->below_4g_mem_size,
                               pcms->above_4g_mem_size,
@@ -412,15 +416,25 @@ static void pc_init_isa(MachineState *machine)
     }
     x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
     enable_compat_apic_id_mode();
-    pc_init1(machine);
+    pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, TYPE_I440FX_PCI_DEVICE);
 }
 
 #ifdef CONFIG_XEN
+static void pc_xen_hvm_init_pci(MachineState *machine)
+{
+    const char *pci_type = has_igd_gfx_passthru ?
+                TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE : TYPE_I440FX_PCI_DEVICE;
+
+    pc_init1(machine,
+             TYPE_I440FX_PCI_HOST_BRIDGE,
+             pci_type);
+}
+
 static void pc_xen_hvm_init(MachineState *machine)
 {
     PCIBus *bus;
 
-    pc_init1(machine);
+    pc_xen_hvm_init_pci(machine);
 
     bus = pci_find_primary_bus();
     if (bus != NULL) {
@@ -436,7 +450,8 @@ static void pc_xen_hvm_init(MachineState *machine)
         if (compat) { \
             compat(machine); \
         } \
-        pc_init1(machine); \
+        pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, \
+                 TYPE_I440FX_PCI_DEVICE); \
     } \
     DEFINE_PC_MACHINE(suffix, name, pc_init_##suffix, optionfn)
 
@@ -878,6 +893,118 @@ static void pc_i440fx_0_10_machine_options(MachineClass *m)
 DEFINE_I440FX_MACHINE(v0_10, "pc-0.10", pc_compat_0_13,
                       pc_i440fx_0_10_machine_options);
 
+typedef struct {
+    uint16_t gpu_device_id;
+    uint16_t pch_device_id;
+    uint8_t pch_revision_id;
+} IGDDeviceIDInfo;
+
+/* In real world different GPU should have different PCH. But actually
+ * the different PCH DIDs likely map to different PCH SKUs. We do the
+ * same thing for the GPU. For PCH, the different SKUs are going to be
+ * all the same silicon design and implementation, just different
+ * features turn on and off with fuses. The SW interfaces should be
+ * consistent across all SKUs in a given family (eg LPT). But just same
+ * features may not be supported.
+ *
+ * Most of these different PCH features probably don't matter to the
+ * Gfx driver, but obviously any difference in display port connections
+ * will so it should be fine with any PCH in case of passthrough.
+ *
+ * So currently use one PCH version, 0x8c4e, to cover all HSW(Haswell)
+ * scenarios, 0x9cc3 for BDW(Broadwell).
+ */
+static const IGDDeviceIDInfo igd_combo_id_infos[] = {
+    /* HSW Classic */
+    {0x0402, 0x8c4e, 0x04}, /* HSWGT1D, HSWD_w7 */
+    {0x0406, 0x8c4e, 0x04}, /* HSWGT1M, HSWM_w7 */
+    {0x0412, 0x8c4e, 0x04}, /* HSWGT2D, HSWD_w7 */
+    {0x0416, 0x8c4e, 0x04}, /* HSWGT2M, HSWM_w7 */
+    {0x041E, 0x8c4e, 0x04}, /* HSWGT15D, HSWD_w7 */
+    /* HSW ULT */
+    {0x0A06, 0x8c4e, 0x04}, /* HSWGT1UT, HSWM_w7 */
+    {0x0A16, 0x8c4e, 0x04}, /* HSWGT2UT, HSWM_w7 */
+    {0x0A26, 0x8c4e, 0x06}, /* HSWGT3UT, HSWM_w7 */
+    {0x0A2E, 0x8c4e, 0x04}, /* HSWGT3UT28W, HSWM_w7 */
+    {0x0A1E, 0x8c4e, 0x04}, /* HSWGT2UX, HSWM_w7 */
+    {0x0A0E, 0x8c4e, 0x04}, /* HSWGT1ULX, HSWM_w7 */
+    /* HSW CRW */
+    {0x0D26, 0x8c4e, 0x04}, /* HSWGT3CW, HSWM_w7 */
+    {0x0D22, 0x8c4e, 0x04}, /* HSWGT3CWDT, HSWD_w7 */
+    /* HSW Server */
+    {0x041A, 0x8c4e, 0x04}, /* HSWSVGT2, HSWD_w7 */
+    /* HSW SRVR */
+    {0x040A, 0x8c4e, 0x04}, /* HSWSVGT1, HSWD_w7 */
+    /* BSW */
+    {0x1606, 0x9cc3, 0x03}, /* BDWULTGT1, BDWM_w7 */
+    {0x1616, 0x9cc3, 0x03}, /* BDWULTGT2, BDWM_w7 */
+    {0x1626, 0x9cc3, 0x03}, /* BDWULTGT3, BDWM_w7 */
+    {0x160E, 0x9cc3, 0x03}, /* BDWULXGT1, BDWM_w7 */
+    {0x161E, 0x9cc3, 0x03}, /* BDWULXGT2, BDWM_w7 */
+    {0x1602, 0x9cc3, 0x03}, /* BDWHALOGT1, BDWM_w7 */
+    {0x1612, 0x9cc3, 0x03}, /* BDWHALOGT2, BDWM_w7 */
+    {0x1622, 0x9cc3, 0x03}, /* BDWHALOGT3, BDWM_w7 */
+    {0x162B, 0x9cc3, 0x03}, /* BDWHALO28W, BDWM_w7 */
+    {0x162A, 0x9cc3, 0x03}, /* BDWGT3WRKS, BDWM_w7 */
+    {0x162D, 0x9cc3, 0x03}, /* BDWGT3SRVR, BDWM_w7 */
+};
+
+static void isa_bridge_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    dc->desc        = "ISA bridge faked to support IGD PT";
+    k->vendor_id    = PCI_VENDOR_ID_INTEL;
+    k->class_id     = PCI_CLASS_BRIDGE_ISA;
+};
+
+static TypeInfo isa_bridge_info = {
+    .name          = "igd-passthrough-isa-bridge",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
+    .class_init = isa_bridge_class_init,
+};
+
+static void pt_graphics_register_types(void)
+{
+    type_register_static(&isa_bridge_info);
+}
+type_init(pt_graphics_register_types)
+
+void igd_passthrough_isa_bridge_create(PCIBus *bus, uint16_t gpu_dev_id)
+{
+    struct PCIDevice *bridge_dev;
+    int i, num;
+    uint16_t pch_dev_id = 0xffff;
+    uint8_t pch_rev_id;
+
+    num = ARRAY_SIZE(igd_combo_id_infos);
+    for (i = 0; i < num; i++) {
+        if (gpu_dev_id == igd_combo_id_infos[i].gpu_device_id) {
+            pch_dev_id = igd_combo_id_infos[i].pch_device_id;
+            pch_rev_id = igd_combo_id_infos[i].pch_revision_id;
+        }
+    }
+
+    if (pch_dev_id == 0xffff) {
+        return;
+    }
+
+    /* Currently IGD drivers always need to access PCH by 1f.0. */
+    bridge_dev = pci_create_simple(bus, PCI_DEVFN(0x1f, 0),
+                                   "igd-passthrough-isa-bridge");
+
+    /*
+     * Note that vendor id is always PCI_VENDOR_ID_INTEL.
+     */
+    if (!bridge_dev) {
+        fprintf(stderr, "set igd-passthrough-isa-bridge failed!\n");
+        return;
+    }
+    pci_config_set_device_id(bridge_dev->config, pch_dev_id);
+    pci_config_set_revision(bridge_dev->config, pch_rev_id);
+}
 
 static void isapc_machine_options(MachineClass *m)
 {

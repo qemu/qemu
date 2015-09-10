@@ -186,6 +186,15 @@ static inline int xen_get_vmport_regs_pfn(XenXC xc, domid_t dom,
 }
 #endif
 
+/* Xen before 4.6 */
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 460
+
+#ifndef HVM_IOREQSRV_BUFIOREQ_ATOMIC
+#define HVM_IOREQSRV_BUFIOREQ_ATOMIC 2
+#endif
+
+#endif
+
 /* Xen before 4.5 */
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION < 450
 
@@ -370,7 +379,8 @@ static inline void xen_unmap_pcidev(XenXC xc, domid_t dom,
 static inline int xen_create_ioreq_server(XenXC xc, domid_t dom,
                                           ioservid_t *ioservid)
 {
-    int rc = xc_hvm_create_ioreq_server(xc, dom, 1, ioservid);
+    int rc = xc_hvm_create_ioreq_server(xc, dom, HVM_IOREQSRV_BUFIOREQ_ATOMIC,
+                                        ioservid);
 
     if (rc == 0) {
         trace_xen_ioreq_server_create(*ioservid);
@@ -405,6 +415,28 @@ static inline int xen_set_ioreq_server_state(XenXC xc, domid_t dom,
     return xc_hvm_set_ioreq_server_state(xc, dom, ioservid, enable);
 }
 
+#endif
+
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 460
+static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
+                                               unsigned int space,
+                                               unsigned long idx,
+                                               xen_pfn_t gpfn)
+{
+    return xc_domain_add_to_physmap(xch, domid, space, idx, gpfn);
+}
+#else
+static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
+                                               unsigned int space,
+                                               unsigned long idx,
+                                               xen_pfn_t gpfn)
+{
+    /* In Xen 4.6 rc is -1 and errno contains the error value. */
+    int rc = xc_domain_add_to_physmap(xch, domid, space, idx, gpfn);
+    if (rc == -1)
+        return errno;
+    return rc;
+}
 #endif
 
 #endif /* QEMU_HW_XEN_COMMON_H */

@@ -220,7 +220,13 @@ extern int no_hpet;
 struct PCII440FXState;
 typedef struct PCII440FXState PCII440FXState;
 
-PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn,
+#define TYPE_I440FX_PCI_HOST_BRIDGE "i440FX-pcihost"
+#define TYPE_I440FX_PCI_DEVICE "i440FX"
+
+#define TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE "igd-passthrough-i440FX"
+
+PCIBus *i440fx_init(const char *host_type, const char *pci_type,
+                    PCII440FXState **pi440fx_state, int *piix_devfn,
                     ISABus **isa_bus, qemu_irq *pic,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
@@ -721,4 +727,5 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
     (m)->compat_props = props; \
 } while (0)
 
+extern void igd_passthrough_isa_bridge_create(PCIBus *bus, uint16_t gpu_dev_id);
 #endif

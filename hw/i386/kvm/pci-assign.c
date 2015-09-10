@@ -37,6 +37,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/msi.h"
 #include "kvm_i386.h"
+#include "hw/pci/pci-assign.h"
 
 #define MSIX_PAGE_SIZE 0x1000
 
@@ -47,17 +48,6 @@
 #define IORESOURCE_DMA      0x00000800
 #define IORESOURCE_PREFETCH 0x00002000  /* No side effects */
 #define IORESOURCE_MEM_64   0x00100000
-
-//#define DEVICE_ASSIGNMENT_DEBUG
-
-#ifdef DEVICE_ASSIGNMENT_DEBUG
-#define DEBUG(fmt, ...)                                       \
-    do {                                                      \
-        fprintf(stderr, "%s: " fmt, __func__ , __VA_ARGS__);  \
-    } while (0)
-#else
-#define DEBUG(fmt, ...)
-#endif
 
 typedef struct PCIRegion {
     int type;           /* Memory or port I/O */
@@ -1896,73 +1886,15 @@ static void assign_register_types(void)
 
 type_init(assign_register_types)
 
-/*
- * Scan the assigned devices for the devices that have an option ROM, and then
- * load the corresponding ROM data to RAM. If an error occurs while loading an
- * option ROM, we just ignore that option ROM and continue with the next one.
- */
 static void assigned_dev_load_option_rom(AssignedDevice *dev)
 {
-    char name[32], rom_file[64];
-    FILE *fp;
-    uint8_t val;
-    struct stat st;
-    void *ptr;
+    int size = 0;
 
-    /* If loading ROM from file, pci handles it */
-    if (dev->dev.romfile || !dev->dev.rom_bar) {
-        return;
+    pci_assign_dev_load_option_rom(&dev->dev, OBJECT(dev), &size,
+                                   dev->host.domain, dev->host.bus,
+                                   dev->host.slot, dev->host.function);
+
+    if (!size) {
+        error_report("pci-assign: Invalid ROM.");
     }
-
-    snprintf(rom_file, sizeof(rom_file),
-             "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/rom",
-             dev->host.domain, dev->host.bus, dev->host.slot,
-             dev->host.function);
-
-    if (stat(rom_file, &st)) {
-        return;
-    }
-
-    if (access(rom_file, F_OK)) {
-        error_report("pci-assign: Insufficient privileges for %s", rom_file);
-        return;
-    }
-
-    /* Write "1" to the ROM file to enable it */
-    fp = fopen(rom_file, "r+");
-    if (fp == NULL) {
-        return;
-    }
-    val = 1;
-    if (fwrite(&val, 1, 1, fp) != 1) {
-        goto close_rom;
-    }
-    fseek(fp, 0, SEEK_SET);
-
-    snprintf(name, sizeof(name), "%s.rom",
-            object_get_typename(OBJECT(dev)));
-    memory_region_init_ram(&dev->dev.rom, OBJECT(dev), name, st.st_size,
-                           &error_abort);
-    vmstate_register_ram(&dev->dev.rom, &dev->dev.qdev);
-    ptr = memory_region_get_ram_ptr(&dev->dev.rom);
-    memset(ptr, 0xff, st.st_size);
-
-    if (!fread(ptr, 1, st.st_size, fp)) {
-        error_report("pci-assign: Cannot read from host %s", rom_file);
-        error_printf("Device option ROM contents are probably invalid "
-                     "(check dmesg).\nSkip option ROM probe with rombar=0, "
-                     "or load from file with romfile=\n");
-        goto close_rom;
-    }
-
-    pci_register_bar(&dev->dev, PCI_ROM_SLOT, 0, &dev->dev.rom);
-    dev->dev.has_rom = true;
-close_rom:
-    /* Write "0" to disable ROM */
-    fseek(fp, 0, SEEK_SET);
-    val = 0;
-    if (!fwrite(&val, 1, 1, fp)) {
-        DEBUG("%s\n", "Failed to disable pci-sysfs rom file");
-    }
-    fclose(fp);
 }

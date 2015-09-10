@@ -344,10 +344,10 @@ go_physmap:
         unsigned long idx = pfn + i;
         xen_pfn_t gpfn = start_gpfn + i;
 
-        rc = xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
+        rc = xen_xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
         if (rc) {
             DPRINTF("add_to_physmap MFN %"PRI_xen_pfn" to PFN %"
-                    PRI_xen_pfn" failed: %d\n", idx, gpfn, rc);
+                    PRI_xen_pfn" failed: %d (errno: %d)\n", idx, gpfn, rc, errno);
             return -rc;
         }
     }
@@ -421,10 +421,10 @@ static int xen_remove_from_physmap(XenIOState *state,
         xen_pfn_t idx = start_addr + i;
         xen_pfn_t gpfn = phys_offset + i;
 
-        rc = xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
+        rc = xen_xc_domain_add_to_physmap(xen_xc, xen_domid, XENMAPSPACE_gmfn, idx, gpfn);
         if (rc) {
             fprintf(stderr, "add_to_physmap MFN %"PRI_xen_pfn" to PFN %"
-                    PRI_xen_pfn" failed: %d\n", idx, gpfn, rc);
+                    PRI_xen_pfn" failed: %d (errno: %d)\n", idx, gpfn, rc, errno);
             return -rc;
         }
     }
@@ -813,9 +813,14 @@ static void cpu_ioreq_pio(ioreq_t *req)
 {
     uint32_t i;
 
+    trace_cpu_ioreq_pio(req, req->dir, req->df, req->data_is_ptr, req->addr,
+                         req->data, req->count, req->size);
+
     if (req->dir == IOREQ_READ) {
         if (!req->data_is_ptr) {
             req->data = do_inp(req->addr, req->size);
+            trace_cpu_ioreq_pio_read_reg(req, req->data, req->addr,
+                                         req->size);
         } else {
             uint32_t tmp;
 
@@ -826,6 +831,8 @@ static void cpu_ioreq_pio(ioreq_t *req)
         }
     } else if (req->dir == IOREQ_WRITE) {
         if (!req->data_is_ptr) {
+            trace_cpu_ioreq_pio_write_reg(req, req->data, req->addr,
+                                          req->size);
             do_outp(req->addr, req->size, req->data);
         } else {
             for (i = 0; i < req->count; i++) {
@@ -841,6 +848,9 @@ static void cpu_ioreq_pio(ioreq_t *req)
 static void cpu_ioreq_move(ioreq_t *req)
 {
     uint32_t i;
+
+    trace_cpu_ioreq_move(req, req->dir, req->df, req->data_is_ptr, req->addr,
+                         req->data, req->count, req->size);
 
     if (!req->data_is_ptr) {
         if (req->dir == IOREQ_READ) {
@@ -914,10 +924,17 @@ static void handle_vmport_ioreq(XenIOState *state, ioreq_t *req)
 
 static void handle_ioreq(XenIOState *state, ioreq_t *req)
 {
+    trace_handle_ioreq(req, req->type, req->dir, req->df, req->data_is_ptr,
+                       req->addr, req->data, req->count, req->size);
+
     if (!req->data_is_ptr && (req->dir == IOREQ_WRITE) &&
             (req->size < sizeof (target_ulong))) {
         req->data &= ((target_ulong) 1 << (8 * req->size)) - 1;
     }
+
+    if (req->dir == IOREQ_WRITE)
+        trace_handle_ioreq_write(req, req->type, req->df, req->data_is_ptr,
+                                 req->addr, req->data, req->count, req->size);
 
     switch (req->type) {
         case IOREQ_TYPE_PIO:
@@ -958,23 +975,38 @@ static void handle_ioreq(XenIOState *state, ioreq_t *req)
         default:
             hw_error("Invalid ioreq type 0x%x\n", req->type);
     }
+    if (req->dir == IOREQ_READ) {
+        trace_handle_ioreq_read(req, req->type, req->df, req->data_is_ptr,
+                                req->addr, req->data, req->count, req->size);
+    }
 }
 
 static int handle_buffered_iopage(XenIOState *state)
 {
+    buffered_iopage_t *buf_page = state->buffered_io_page;
     buf_ioreq_t *buf_req = NULL;
     ioreq_t req;
     int qw;
 
-    if (!state->buffered_io_page) {
+    if (!buf_page) {
         return 0;
     }
 
     memset(&req, 0x00, sizeof(req));
 
-    while (state->buffered_io_page->read_pointer != state->buffered_io_page->write_pointer) {
-        buf_req = &state->buffered_io_page->buf_ioreq[
-            state->buffered_io_page->read_pointer % IOREQ_BUFFER_SLOT_NUM];
+    for (;;) {
+        uint32_t rdptr = buf_page->read_pointer, wrptr;
+
+        xen_rmb();
+        wrptr = buf_page->write_pointer;
+        xen_rmb();
+        if (rdptr != buf_page->read_pointer) {
+            continue;
+        }
+        if (rdptr == wrptr) {
+            break;
+        }
+        buf_req = &buf_page->buf_ioreq[rdptr % IOREQ_BUFFER_SLOT_NUM];
         req.size = 1UL << buf_req->size;
         req.count = 1;
         req.addr = buf_req->addr;
@@ -986,15 +1018,14 @@ static int handle_buffered_iopage(XenIOState *state)
         req.data_is_ptr = 0;
         qw = (req.size == 8);
         if (qw) {
-            buf_req = &state->buffered_io_page->buf_ioreq[
-                (state->buffered_io_page->read_pointer + 1) % IOREQ_BUFFER_SLOT_NUM];
+            buf_req = &buf_page->buf_ioreq[(rdptr + 1) %
+                                           IOREQ_BUFFER_SLOT_NUM];
             req.data |= ((uint64_t)buf_req->data) << 32;
         }
 
         handle_ioreq(state, &req);
 
-        xen_mb();
-        state->buffered_io_page->read_pointer += qw ? 2 : 1;
+        atomic_add(&buf_page->read_pointer, qw + 1);
     }
 
     return req.count;
