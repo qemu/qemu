@@ -1324,8 +1324,12 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
 
     write_end_sector = DIV_ROUND_UP(write_offset + write_len, BDRV_SECTOR_SIZE);
 
-    extent->next_cluster_sector = MAX(extent->next_cluster_sector,
-                                      write_end_sector);
+    if (extent->compressed) {
+        extent->next_cluster_sector = write_end_sector;
+    } else {
+        extent->next_cluster_sector = MAX(extent->next_cluster_sector,
+                                          write_end_sector);
+    }
 
     if (ret != write_len) {
         ret = ret < 0 ? ret : -EIO;
