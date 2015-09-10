@@ -361,9 +361,15 @@ int64_t strtosz(const char *nptr, char **end)
 /**
  * Helper function for qemu_strto*l() functions.
  */
-static int check_strtox_error(const char **next, char *endptr,
+static int check_strtox_error(const char *p, char *endptr, const char **next,
                               int err)
 {
+    /* If no conversion was performed, prefer BSD behavior over glibc
+     * behavior.
+     */
+    if (err == 0 && endptr == p) {
+        err = EINVAL;
+    }
     if (!next && *endptr) {
         return -EINVAL;
     }
@@ -412,7 +418,7 @@ int qemu_strtol(const char *nptr, const char **endptr, int base,
     } else {
         errno = 0;
         *result = strtol(nptr, &p, base);
-        err = check_strtox_error(endptr, p, errno);
+        err = check_strtox_error(nptr, p, endptr, errno);
     }
     return err;
 }
@@ -443,7 +449,11 @@ int qemu_strtoul(const char *nptr, const char **endptr, int base,
     } else {
         errno = 0;
         *result = strtoul(nptr, &p, base);
-        err = check_strtox_error(endptr, p, errno);
+        /* Windows returns 1 for negative out-of-range values.  */
+        if (errno == ERANGE) {
+            *result = -1;
+        }
+        err = check_strtox_error(nptr, p, endptr, errno);
     }
     return err;
 }
@@ -466,7 +476,7 @@ int qemu_strtoll(const char *nptr, const char **endptr, int base,
     } else {
         errno = 0;
         *result = strtoll(nptr, &p, base);
-        err = check_strtox_error(endptr, p, errno);
+        err = check_strtox_error(nptr, p, endptr, errno);
     }
     return err;
 }
@@ -489,7 +499,11 @@ int qemu_strtoull(const char *nptr, const char **endptr, int base,
     } else {
         errno = 0;
         *result = strtoull(nptr, &p, base);
-        err = check_strtox_error(endptr, p, errno);
+        /* Windows returns 1 for negative out-of-range values.  */
+        if (errno == ERANGE) {
+            *result = -1;
+        }
+        err = check_strtox_error(nptr, p, endptr, errno);
     }
     return err;
 }

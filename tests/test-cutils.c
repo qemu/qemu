@@ -264,9 +264,7 @@ static void test_qemu_strtol_empty(void)
 
     err = qemu_strtol(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtol_whitespace(void)
@@ -279,9 +277,7 @@ static void test_qemu_strtol_whitespace(void)
 
     err = qemu_strtol(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtol_invalid(void)
@@ -294,9 +290,7 @@ static void test_qemu_strtol_invalid(void)
 
     err = qemu_strtol(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtol_trailing(void)
@@ -478,8 +472,7 @@ static void test_qemu_strtol_full_empty(void)
 
     err =  qemu_strtol(str, NULL, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtol_full_negative(void)
@@ -555,9 +548,7 @@ static void test_qemu_strtoul_empty(void)
 
     err = qemu_strtoul(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoul_whitespace(void)
@@ -570,9 +561,7 @@ static void test_qemu_strtoul_whitespace(void)
 
     err = qemu_strtoul(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoul_invalid(void)
@@ -585,8 +574,7 @@ static void test_qemu_strtoul_invalid(void)
 
     err = qemu_strtoul(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoul_trailing(void)
@@ -765,8 +753,7 @@ static void test_qemu_strtoul_full_empty(void)
 
     err = qemu_strtoul(str, NULL, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 static void test_qemu_strtoul_full_negative(void)
 {
@@ -840,9 +827,7 @@ static void test_qemu_strtoll_empty(void)
 
     err = qemu_strtoll(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoll_whitespace(void)
@@ -855,9 +840,7 @@ static void test_qemu_strtoll_whitespace(void)
 
     err = qemu_strtoll(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoll_invalid(void)
@@ -870,8 +853,7 @@ static void test_qemu_strtoll_invalid(void)
 
     err = qemu_strtoll(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoll_trailing(void)
@@ -1050,8 +1032,7 @@ static void test_qemu_strtoll_full_empty(void)
 
     err = qemu_strtoll(str, NULL, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoll_full_negative(void)
@@ -1128,9 +1109,7 @@ static void test_qemu_strtoull_empty(void)
 
     err = qemu_strtoull(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoull_whitespace(void)
@@ -1143,9 +1122,7 @@ static void test_qemu_strtoull_whitespace(void)
 
     err = qemu_strtoull(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoull_invalid(void)
@@ -1158,8 +1135,7 @@ static void test_qemu_strtoull_invalid(void)
 
     err = qemu_strtoull(str, &endptr, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert(endptr == str);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoull_trailing(void)
@@ -1338,8 +1314,7 @@ static void test_qemu_strtoull_full_empty(void)
 
     err = qemu_strtoull(str, NULL, 0, &res);
 
-    g_assert_cmpint(err, ==, 0);
-    g_assert_cmpint(res, ==, 0);
+    g_assert_cmpint(err, ==, -EINVAL);
 }
 
 static void test_qemu_strtoull_full_negative(void)
