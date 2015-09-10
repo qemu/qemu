@@ -1811,7 +1811,6 @@ show the memory devices
 Display the value of a storage key (s390 only)
 @item info iothreads
 show iothreads
-@end table
 ETEXI
 
 STEXI
@@ -1841,6 +1840,10 @@ STEXI
 @item rocker_of_dpa_groups @var{name} [@var{type}]
 @findex rocker_of_dpa_groups
 Show Rocker OF-DPA groups
+ETEXI
+
+STEXI
+@end table
 ETEXI
 
 STEXI
