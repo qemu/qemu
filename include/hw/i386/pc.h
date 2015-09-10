@@ -59,6 +59,7 @@ struct PCMachineClass {
     MachineClass parent_class;
 
     /*< public >*/
+    bool broken_reserved_end;
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
 };

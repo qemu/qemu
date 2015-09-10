@@ -1154,16 +1154,16 @@ static void pci_update_mappings(PCIDevice *d)
         /* now do the real mapping */
         if (r->addr != PCI_BAR_UNMAPPED) {
             trace_pci_update_mappings_del(d, pci_bus_num(d->bus),
-                                          PCI_FUNC(d->devfn),
                                           PCI_SLOT(d->devfn),
+                                          PCI_FUNC(d->devfn),
                                           i, r->addr, r->size);
             memory_region_del_subregion(r->address_space, r->memory);
         }
         r->addr = new_addr;
         if (r->addr != PCI_BAR_UNMAPPED) {
             trace_pci_update_mappings_add(d, pci_bus_num(d->bus),
-                                          PCI_FUNC(d->devfn),
                                           PCI_SLOT(d->devfn),
+                                          PCI_FUNC(d->devfn),
                                           i, r->addr, r->size);
             memory_region_add_subregion_overlap(r->address_space,
                                                 r->addr, r->memory, 1);
@@ -2383,17 +2383,14 @@ static void pci_device_class_init(ObjectClass *klass, void *data)
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
 {
     PCIBus *bus = PCI_BUS(dev->bus);
+    PCIBus *iommu_bus = bus;
 
-    if (bus->iommu_fn) {
-        return bus->iommu_fn(bus, bus->iommu_opaque, dev->devfn);
+    while(iommu_bus && !iommu_bus->iommu_fn && iommu_bus->parent_dev) {
+        iommu_bus = PCI_BUS(iommu_bus->parent_dev->bus);
     }
-
-    if (bus->parent_dev) {
-        /** We are ignoring the bus master DMA bit of the bridge
-         *  as it would complicate things such as VFIO for no good reason */
-        return pci_device_iommu_address_space(bus->parent_dev);
+    if (iommu_bus && iommu_bus->iommu_fn) {
+        return iommu_bus->iommu_fn(bus, iommu_bus->iommu_opaque, dev->devfn);
     }
-
     return &address_space_memory;
 }
 

@@ -9,7 +9,6 @@
 /* Reserve RAM space for tables: add another order of magnitude. */
 #define ACPI_BUILD_TABLE_MAX_SIZE         0x200000
 
-#define ACPI_BUILD_APPNAME  "Bochs"
 #define ACPI_BUILD_APPNAME6 "BOCHS "
 #define ACPI_BUILD_APPNAME4 "BXPC"
 
