@@ -129,7 +129,8 @@ static int smc91c111_can_receive(smc91c111_state *s)
     if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST)) {
         return 1;
     }
-    if (s->allocated == (1 << NUM_PACKETS) - 1) {
+    if (s->allocated == (1 << NUM_PACKETS) - 1 ||
+        s->rx_fifo_len == NUM_PACKETS) {
         return 0;
     }
     return 1;
@@ -182,6 +183,7 @@ static void smc91c111_pop_rx_fifo(smc91c111_state *s)
     } else {
         s->int_level &= ~INT_RCV;
     }
+    smc91c111_flush_queued_packets(s);
     smc91c111_update(s);
 }
 
