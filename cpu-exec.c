@@ -134,6 +134,15 @@ void cpu_loop_exit(CPUState *cpu)
     siglongjmp(cpu->jmp_env, 1);
 }
 
+void cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc)
+{
+    if (pc) {
+        cpu_restore_state(cpu, pc);
+    }
+    cpu->current_tb = NULL;
+    siglongjmp(cpu->jmp_env, 1);
+}
+
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */

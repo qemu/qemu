@@ -3629,7 +3629,7 @@ FOP_CONDN_S(sne,  (float32_lt(fst1, fst0, &env->active_fpu.fp_status)
 #if !defined(CONFIG_USER_ONLY)
 #define MEMOP_IDX(DF)                                           \
         TCGMemOpIdx oi = make_memop_idx(MO_TE | DF | MO_UNALN,  \
-                                        cpu_mmu_index(env));
+                                        cpu_mmu_index(env, false));
 #else
 #define MEMOP_IDX(DF)
 #endif
@@ -3685,7 +3685,7 @@ void helper_msa_st_ ## TYPE(CPUMIPSState *env, uint32_t wd,             \
                             target_ulong addr)                          \
 {                                                                       \
     wr_t *pwd = &(env->active_fpu.fpr[wd].wr);                          \
-    int mmu_idx = cpu_mmu_index(env);                                   \
+    int mmu_idx = cpu_mmu_index(env, false);				\
     int i;                                                              \
     MEMOP_IDX(DF)                                                       \
     ensure_writable_pages(env, addr, mmu_idx, GETRA());                 \

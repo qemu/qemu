@@ -452,7 +452,7 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     CPUState *cpu = ENV_GET_CPU(env1);
 
     page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    mmu_idx = cpu_mmu_index(env1);
+    mmu_idx = cpu_mmu_index(env1, true);
     if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code !=
                  (addr & TARGET_PAGE_MASK))) {
         cpu_ldub_code(env1, addr);

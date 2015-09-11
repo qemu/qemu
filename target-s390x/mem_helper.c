@@ -69,7 +69,7 @@ static inline uint64_t adj_len_to_page(uint64_t len, uint64_t addr)
 static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
                         uint32_t l)
 {
-    int mmu_idx = cpu_mmu_index(env);
+    int mmu_idx = cpu_mmu_index(env, false);
 
     while (l > 0) {
         void *p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, mmu_idx);
@@ -92,7 +92,7 @@ static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
 static void fast_memmove(CPUS390XState *env, uint64_t dest, uint64_t src,
                          uint32_t l)
 {
-    int mmu_idx = cpu_mmu_index(env);
+    int mmu_idx = cpu_mmu_index(env, false);
 
     while (l > 0) {
         void *src_p = tlb_vaddr_to_host(env, src, MMU_DATA_LOAD, mmu_idx);

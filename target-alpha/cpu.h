@@ -376,7 +376,7 @@ enum {
     PS_USER_MODE = 8
 };
 
-static inline int cpu_mmu_index(CPUAlphaState *env)
+static inline int cpu_mmu_index(CPUAlphaState *env, bool ifetch)
 {
     if (env->pal_mode) {
         return MMU_KERNEL_IDX;
