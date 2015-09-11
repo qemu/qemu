@@ -331,6 +331,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             if (s->rcr & RCR_SOFT_RST) {
                 smc91c111_reset(DEVICE(s));
             }
+            smc91c111_flush_queued_packets(s);
             return;
         case 10: case 11: /* RPCR */
             /* Ignored */
