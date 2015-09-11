@@ -139,10 +139,8 @@ static void hbitmap_test_teardown(TestHBitmapData *data,
         hbitmap_free(data->hb);
         data->hb = NULL;
     }
-    if (data->bits) {
-        g_free(data->bits);
-        data->bits = NULL;
-    }
+    g_free(data->bits);
+    data->bits = NULL;
 }
 
 /* Set a range in the HBitmap and in the shadow "simple" bitmap.

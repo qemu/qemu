@@ -5,9 +5,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: QEMU 1.5.50\n"
+"Project-Id-Version: QEMU 2.3.93\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2013-07-05 22:36+0200\n"
+"POT-Creation-Date: 2015-07-30 07:34+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,46 +16,70 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ui/gtk.c:214
+#: ui/gtk.c:260
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr ""
 
-#: ui/gtk.c:218
+#: ui/gtk.c:264
 msgid " [Paused]"
 msgstr ""
 
-#: ui/gtk.c:1318
+#: ui/gtk.c:1688
 msgid "_Pause"
 msgstr ""
 
-#: ui/gtk.c:1324
+#: ui/gtk.c:1694
 msgid "_Reset"
 msgstr ""
 
-#: ui/gtk.c:1327
+#: ui/gtk.c:1697
 msgid "Power _Down"
 msgstr ""
 
-#: ui/gtk.c:1381
+#: ui/gtk.c:1703
+msgid "_Quit"
+msgstr ""
+
+#: ui/gtk.c:1787
+msgid "_Fullscreen"
+msgstr ""
+
+#: ui/gtk.c:1801
+msgid "Zoom _In"
+msgstr ""
+
+#: ui/gtk.c:1808
+msgid "Zoom _Out"
+msgstr ""
+
+#: ui/gtk.c:1815
+msgid "Best _Fit"
+msgstr ""
+
+#: ui/gtk.c:1822
 msgid "Zoom To _Fit"
 msgstr ""
 
-#: ui/gtk.c:1387
+#: ui/gtk.c:1828
 msgid "Grab On _Hover"
 msgstr ""
 
-#: ui/gtk.c:1390
+#: ui/gtk.c:1831
 msgid "_Grab Input"
 msgstr ""
 
-#: ui/gtk.c:1416
+#: ui/gtk.c:1860
 msgid "Show _Tabs"
 msgstr ""
 
-#: ui/gtk.c:1430
+#: ui/gtk.c:1863
+msgid "Detach Tab"
+msgstr ""
+
+#: ui/gtk.c:1875
 msgid "_Machine"
 msgstr ""
 
-#: ui/gtk.c:1435
+#: ui/gtk.c:1880
 msgid "_View"
 msgstr ""

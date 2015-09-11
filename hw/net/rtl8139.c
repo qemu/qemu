@@ -43,7 +43,7 @@
  *                                  Added rx/tx buffer reset when enabling rx/tx operation
  *
  *  2010-Feb-04  Frediano Ziglio:   Rewrote timer support using QEMU timer only
- *                                  when strictly needed (required for for
+ *                                  when strictly needed (required for
  *                                  Darwin)
  *  2011-Mar-22  Benjamin Poirier:  Implemented VLAN offloading
  */
@@ -3391,10 +3391,8 @@ static void pci_rtl8139_uninit(PCIDevice *dev)
 {
     RTL8139State *s = RTL8139(dev);
 
-    if (s->cplus_txbuffer) {
-        g_free(s->cplus_txbuffer);
-        s->cplus_txbuffer = NULL;
-    }
+    g_free(s->cplus_txbuffer);
+    s->cplus_txbuffer = NULL;
     timer_del(s->timer);
     timer_free(s->timer);
     qemu_del_nic(s->nic);

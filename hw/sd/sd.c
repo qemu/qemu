@@ -412,8 +412,7 @@ static void sd_reset(SDState *sd)
     sd_set_cardstatus(sd);
     sd_set_sdstatus(sd);
 
-    if (sd->wp_groups)
-        g_free(sd->wp_groups);
+    g_free(sd->wp_groups);
     sd->wp_switch = sd->blk ? blk_is_read_only(sd->blk) : false;
     sd->wpgrps_size = sect;
     sd->wp_groups = bitmap_new(sd->wpgrps_size);

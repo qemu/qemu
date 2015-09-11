@@ -12,6 +12,7 @@
 ##
 
 ##
+# @guest-sync-delimited:
 #
 # Echo back a unique integer value, and prepend to response a
 # leading sentinel byte (0xFF) the client can check scan for.
@@ -41,7 +42,7 @@
 # Returns: The unique integer id passed in by the client
 #
 # Since: 1.1
-# ##
+##
 { 'command': 'guest-sync-delimited',
   'data':    { 'id': 'int' },
   'returns': 'int' }

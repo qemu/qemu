@@ -234,10 +234,8 @@ static int fifo_empty_elements_number(Exynos4210UartFIFO *q)
 
 static void fifo_reset(Exynos4210UartFIFO *q)
 {
-    if (q->data != NULL) {
-        g_free(q->data);
-        q->data = NULL;
-    }
+    g_free(q->data);
+    q->data = NULL;
 
     q->data = (uint8_t *)g_malloc0(q->size);
 

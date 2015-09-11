@@ -541,7 +541,7 @@ static void vexpress_common_init(MachineState *machine)
 {
     VexpressMachineState *vms = VEXPRESS_MACHINE(machine);
     VexpressMachineClass *vmc = VEXPRESS_MACHINE_GET_CLASS(machine);
-    VEDBoardInfo *daughterboard = vmc->daughterboard;;
+    VEDBoardInfo *daughterboard = vmc->daughterboard;
     DeviceState *dev, *sysctl, *pl041;
     qemu_irq pic[64];
     uint32_t sys_id;
@@ -762,7 +762,7 @@ static void vexpress_a9_class_init(ObjectClass *oc, void *data)
     mc->name = TYPE_VEXPRESS_A9_MACHINE;
     mc->desc = "ARM Versatile Express for Cortex-A9";
 
-    vmc->daughterboard = &a9_daughterboard;;
+    vmc->daughterboard = &a9_daughterboard;
 }
 
 static void vexpress_a15_class_init(ObjectClass *oc, void *data)

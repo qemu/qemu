@@ -1294,7 +1294,7 @@ static int realloc_refcount_array(BDRVQcowState *s, void **array,
 /*
  * Increases the refcount for a range of clusters in a given refcount table.
  * This is used to construct a temporary refcount table out of L1 and L2 tables
- * which can be compared the the refcount table saved in the image.
+ * which can be compared to the refcount table saved in the image.
  *
  * Modifies the number of errors in res.
  */

@@ -252,9 +252,7 @@ void mips_r4k_init(MachineState *machine)
         fprintf(stderr, "qemu: Warning, could not load MIPS bios '%s'\n",
 		bios_name);
     }
-    if (filename) {
-        g_free(filename);
-    }
+    g_free(filename);
 
     if (kernel_filename) {
         loaderparams.ram_size = ram_size;

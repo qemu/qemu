@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include <signal.h>
 
 #include "cpu.h"
 
@@ -60,7 +59,7 @@ int superh_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 
 int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 {
-    /* For user mode, only U0 area is cachable. */
+    /* For user mode, only U0 area is cacheable. */
     return !(addr & 0x80000000);
 }
 
@@ -826,11 +825,11 @@ int cpu_sh4_is_cached(CPUSH4State * env, target_ulong addr)
 
     /* check area */
     if (env->sr & (1u << SR_MD)) {
-        /* For previledged mode, P2 and P4 area is not cachable. */
+        /* For privileged mode, P2 and P4 area is not cacheable. */
         if ((0xA0000000 <= addr && addr < 0xC0000000) || 0xE0000000 <= addr)
             return 0;
     } else {
-        /* For user mode, only U0 area is cachable. */
+        /* For user mode, only U0 area is cacheable. */
         if (0x80000000 <= addr)
             return 0;
     }

@@ -1396,7 +1396,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                             }
                         }
                     }
-                    /* input arguments are live for preceeding opcodes */
+                    /* input arguments are live for preceding opcodes */
                     for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                         arg = args[i];
                         dead_temps[arg] = 0;
@@ -1542,7 +1542,7 @@ static void tcg_liveness_analysis(TCGContext *s)
                         dead_args |= (1 << i);
                     }
                 }
-                /* input arguments are live for preceeding opcodes */
+                /* input arguments are live for preceding opcodes */
                 for (i = nb_oargs; i < nb_oargs + nb_iargs; i++) {
                     arg = args[i];
                     dead_temps[arg] = 0;

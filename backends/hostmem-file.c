@@ -83,9 +83,7 @@ static void set_mem_path(Object *o, const char *str, Error **errp)
         error_setg(errp, "cannot change property value");
         return;
     }
-    if (fb->mem_path) {
-        g_free(fb->mem_path);
-    }
+    g_free(fb->mem_path);
     fb->mem_path = g_strdup(str);
 }
 

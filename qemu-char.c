@@ -51,7 +51,6 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include <arpa/inet.h>
-#include <dirent.h>
 #include <netdb.h>
 #include <sys/select.h>
 #ifdef CONFIG_BSD
@@ -2711,9 +2710,7 @@ static int tcp_set_msgfds(CharDriverState *chr, int *fds, int num)
     TCPCharDriver *s = chr->opaque;
 
     /* clear old pending fd array */
-    if (s->write_msgfds) {
-        g_free(s->write_msgfds);
-    }
+    g_free(s->write_msgfds);
 
     if (num) {
         s->write_msgfds = g_malloc(num * sizeof(int));

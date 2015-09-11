@@ -33,9 +33,7 @@
 #include "qemu/iov.h"
 #include "sysemu/char.h"
 
-#include <dirent.h>
 #include <sys/ioctl.h>
-#include <signal.h>
 #include <usbredirparser.h>
 #include <usbredirfilter.h>
 

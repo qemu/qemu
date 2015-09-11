@@ -265,9 +265,7 @@ err_bad_io:
 err_no_mem:
 err_bad_attr:
     for (i = 0; i < ROCKER_TX_FRAGS_MAX; i++) {
-        if (iov[i].iov_base) {
-            g_free(iov[i].iov_base);
-        }
+        g_free(iov[i].iov_base);
     }
 
     return err;

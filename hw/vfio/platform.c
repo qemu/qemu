@@ -234,7 +234,7 @@ static void vfio_intp_interrupt(VFIOINTp *intp)
 
     ret = event_notifier_test_and_clear(&intp->interrupt);
     if (!ret) {
-        error_report("Error when clearing fd=%d (ret = %d)\n",
+        error_report("Error when clearing fd=%d (ret = %d)",
                      event_notifier_get_fd(&intp->interrupt), ret);
     }
 

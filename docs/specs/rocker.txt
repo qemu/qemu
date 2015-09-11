@@ -297,7 +297,7 @@ but not fired.  If only partial credits are returned, the interrupt remains
 masked but the device generates an interrupt, signaling the driver that more
 outstanding work is available.
 
-(* this masking is unrelated to to the MSI-X interrupt mask register)
+(* this masking is unrelated to the MSI-X interrupt mask register)
 
 Endianness
 ----------

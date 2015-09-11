@@ -182,7 +182,7 @@ _filter_img_create()
         -e "s# encryption=off##g" \
         -e "s# cluster_size=[0-9]\\+##g" \
         -e "s# table_size=[0-9]\\+##g" \
-        -e "s# compat='[^']*'##g" \
+        -e "s# compat=[^ ]*##g" \
         -e "s# compat6=\\(on\\|off\\)##g" \
         -e "s# static=\\(on\\|off\\)##g" \
         -e "s# zeroed_grain=\\(on\\|off\\)##g" \

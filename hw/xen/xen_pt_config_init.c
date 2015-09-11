@@ -2081,9 +2081,7 @@ void xen_pt_config_delete(XenPCIPassthroughState *s)
     if (s->msix) {
         xen_pt_msix_delete(s);
     }
-    if (s->msi) {
-        g_free(s->msi);
-    }
+    g_free(s->msi);
 
     /* free all register group entry */
     QLIST_FOREACH_SAFE(reg_group, &s->reg_grps, entries, next_grp) {

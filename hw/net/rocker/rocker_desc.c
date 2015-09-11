@@ -136,9 +136,7 @@ bool desc_ring_set_size(DescRing *ring, uint32_t size)
     }
 
     for (i = 0; i < ring->size; i++) {
-        if (ring->info[i].buf) {
-            g_free(ring->info[i].buf);
-        }
+        g_free(ring->info[i].buf);
     }
 
     ring->size = size;
@@ -360,9 +358,7 @@ DescRing *desc_ring_alloc(Rocker *r, int index)
 
 void desc_ring_free(DescRing *ring)
 {
-    if (ring->info) {
-        g_free(ring->info);
-    }
+    g_free(ring->info);
     g_free(ring);
 }
 

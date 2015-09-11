@@ -506,7 +506,7 @@ qemu_irq qdev_get_gpio_out_connector(DeviceState *dev, const char *name, int n)
     return ret;
 }
 
-/* disconnect a GPIO ouput, returning the disconnected input (if any) */
+/* disconnect a GPIO output, returning the disconnected input (if any) */
 
 static qemu_irq qdev_disconnect_gpio_out_named(DeviceState *dev,
                                                const char *name, int n)

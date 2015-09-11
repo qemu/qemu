@@ -1355,9 +1355,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
             }
         }
         if (!bprm->p) {
-            if (elf_interpreter) {
-                free(elf_interpreter);
-            }
+            free(elf_interpreter);
             free (elf_phdata);
             close(bprm->fd);
             return -E2BIG;

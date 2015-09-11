@@ -3,7 +3,7 @@ QA output created by 110
 === Reconstructable filename ===
 
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='t.IMGFMT.base'
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=t.IMGFMT.base
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 64M (67108864 bytes)
@@ -15,5 +15,5 @@ qemu-img: Cannot use relative backing file names for 'json:{"driver": "IMGFMT", 
 
 === Backing name is always relative to the backed image ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file='t.IMGFMT.base'
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=t.IMGFMT.base
 *** done

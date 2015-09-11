@@ -211,7 +211,7 @@ int tap_fd_set_vnet_le(int fd, int is_le)
         return -errno;
     }
 
-    error_report("TUNSETVNETLE ioctl() failed: %s.\n", strerror(errno));
+    error_report("TUNSETVNETLE ioctl() failed: %s.", strerror(errno));
     abort();
 }
 
@@ -228,7 +228,7 @@ int tap_fd_set_vnet_be(int fd, int is_be)
         return -errno;
     }
 
-    error_report("TUNSETVNETBE ioctl() failed: %s.\n", strerror(errno));
+    error_report("TUNSETVNETBE ioctl() failed: %s.", strerror(errno));
     abort();
 }
 

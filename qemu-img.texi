@@ -103,7 +103,7 @@ First image format
 @item -F
 Second image format
 @item -s
-Strict mode - fail on on different image size or sector allocation
+Strict mode - fail on different image size or sector allocation
 @end table
 
 Parameters to convert subcommand:

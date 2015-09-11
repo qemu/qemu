@@ -18,7 +18,6 @@
    along with this file; see the file COPYING.  If not, see
    <http://www.gnu.org/licenses/>. */
 
-#include <assert.h>
 #include <string.h>
 
 #include "disas/bfd.h"

@@ -187,9 +187,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
             g_free(filename);
             return;
         }
-        if (boot_splash_filedata != NULL) {
-            g_free(boot_splash_filedata);
-        }
+        g_free(boot_splash_filedata);
         boot_splash_filedata = (uint8_t *)file_data;
         boot_splash_filedata_size = file_size;
 

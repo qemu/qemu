@@ -151,7 +151,7 @@ typedef struct CPUCRISState {
 	uint32_t sregs[4][16];
 
 	/* Linear feedback shift reg in the mmu. Used to provide pseudo
-	   randomness for the 'hint' the mmu gives to sw for chosing valid
+	   randomness for the 'hint' the mmu gives to sw for choosing valid
 	   sets on TLB refills.  */
 	uint32_t mmu_rand_lfsr;
 

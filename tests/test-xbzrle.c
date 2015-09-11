@@ -13,10 +13,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
 #include <string.h>
 #include <sys/time.h>
-#include <assert.h>
 #include "qemu-common.h"
 #include "include/migration/migration.h"
 

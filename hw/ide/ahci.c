@@ -876,7 +876,7 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
                                 limit - sglist->size));
             if (sglist->size > INT32_MAX) {
                 error_report("AHCI Physical Region Descriptor Table describes "
-                             "more than 2 GiB.\n");
+                             "more than 2 GiB.");
                 qemu_sglist_destroy(sglist);
                 r = -1;
                 goto out;

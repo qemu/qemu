@@ -40,7 +40,7 @@ static int xen_host_pci_sysfs_path(const XenHostPCIDevice *d,
                   d->domain, d->bus, d->dev, d->func, name);
 
     if (rc >= size || rc < 0) {
-        /* The ouput is truncated or an other error is encountered */
+        /* The output is truncated, or some other error was encountered */
         return -ENODEV;
     }
     return 0;

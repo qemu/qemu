@@ -2158,7 +2158,7 @@ static void transfer_memory_block(GuestMemoryBlock *mem_blk, bool sys2memblk,
 
         ga_read_sysfs_file(dirfd, "removable", &removable, 1, &local_err);
         if (local_err) {
-            /* if no 'removable' file, it does't support offline mem blk */
+            /* if no 'removable' file, it doesn't support offline mem blk */
             if (errno == ENOENT) {
                 error_free(local_err);
                 mem_blk->can_offline = false;

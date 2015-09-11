@@ -1012,7 +1012,7 @@ static void dec_load(DisasContext *dc)
     tcg_temp_free(v);
 
     if (ex) { /* lwx */
-        /* no support for for AXI exclusive so always clear C */
+        /* no support for AXI exclusive so always clear C */
         write_carryi(dc, 0);
     }
 

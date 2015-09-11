@@ -135,7 +135,7 @@ configuration:
             TAG+="seat", ENV{ID_AUTOSEAT}="1"
 
 Patch with this rule has been submitted to upstream udev/systemd, was
-accepted and and should be included in the next systemd release (222).
+accepted and should be included in the next systemd release (222).
 So, if your guest has this or a newer version, multiseat will work just
 fine without any manual guest configuration.
 
