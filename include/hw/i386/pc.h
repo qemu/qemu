@@ -291,7 +291,11 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
+#define PC_COMPAT_2_4 \
+        HW_COMPAT_2_4
+
 #define PC_COMPAT_2_3 \
+        PC_COMPAT_2_4 \
         HW_COMPAT_2_3 \
         {\
             .driver   = TYPE_X86_CPU,\
