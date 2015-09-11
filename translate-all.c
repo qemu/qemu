@@ -117,8 +117,6 @@ typedef struct PageDesc {
 
 #define V_L1_SHIFT (L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS - V_L1_BITS)
 
-uintptr_t qemu_real_host_page_size;
-uintptr_t qemu_real_host_page_mask;
 uintptr_t qemu_host_page_size;
 uintptr_t qemu_host_page_mask;
 
