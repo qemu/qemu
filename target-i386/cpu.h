@@ -1341,8 +1341,15 @@ void cpu_smm_update(X86CPU *cpu);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
-void x86_cpu_compat_kvm_no_autoenable(FeatureWord w, uint32_t features);
-void x86_cpu_compat_kvm_no_autodisable(FeatureWord w, uint32_t features);
+/* Change the value of a KVM-specific default
+ *
+ * If value is NULL, no default will be set and the original
+ * value from the CPU model table will be kept.
+ *
+ * It is valid to call this funciton only for properties that
+ * are already present in the kvm_default_props table.
+ */
+void x86_cpu_change_kvm_default(const char *prop, const char *value);
 
 
 /* Return name of 32-bit register, from a R_* constant */
