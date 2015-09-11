@@ -85,6 +85,7 @@ all: $(PROGS) stap
 #########################################################
 # cpu emulator library
 obj-y = exec.o translate-all.o cpu-exec.o
+obj-y += cpu-exec-common.o
 obj-y += tcg/tcg.o tcg/tcg-op.o tcg/optimize.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
 obj-$(CONFIG_TCG_INTERPRETER) += disas/tci.o

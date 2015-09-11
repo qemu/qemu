@@ -25,7 +25,6 @@
 #include "sysemu/qtest.h"
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
-#include "exec/memory-internal.h"
 #include "qemu/rcu.h"
 #include "exec/tb-hash.h"
 
@@ -127,61 +126,6 @@ static void init_delay_params(SyncClocks *sc, const CPUState *cpu)
 {
 }
 #endif /* CONFIG USER ONLY */
-
-void cpu_loop_exit(CPUState *cpu)
-{
-    cpu->current_tb = NULL;
-    siglongjmp(cpu->jmp_env, 1);
-}
-
-void cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc)
-{
-    if (pc) {
-        cpu_restore_state(cpu, pc);
-    }
-    cpu->current_tb = NULL;
-    siglongjmp(cpu->jmp_env, 1);
-}
-
-/* exit the current TB from a signal handler. The host registers are
-   restored in a state compatible with the CPU emulator
- */
-#if defined(CONFIG_SOFTMMU)
-void cpu_resume_from_signal(CPUState *cpu, void *puc)
-{
-    /* XXX: restore cpu registers saved in host registers */
-
-    cpu->exception_index = -1;
-    siglongjmp(cpu->jmp_env, 1);
-}
-
-void cpu_reload_memory_map(CPUState *cpu)
-{
-    AddressSpaceDispatch *d;
-
-    if (qemu_in_vcpu_thread()) {
-        /* Do not let the guest prolong the critical section as much as it
-         * as it desires.
-         *
-         * Currently, this is prevented by the I/O thread's periodinc kicking
-         * of the VCPU thread (iothread_requesting_mutex, qemu_cpu_kick_thread)
-         * but this will go away once TCG's execution moves out of the global
-         * mutex.
-         *
-         * This pair matches cpu_exec's rcu_read_lock()/rcu_read_unlock(), which
-         * only protects cpu->as->dispatch.  Since we reload it below, we can
-         * split the critical section.
-         */
-        rcu_read_unlock();
-        rcu_read_lock();
-    }
-
-    /* The CPU and TLB are protected by the iothread lock.  */
-    d = atomic_rcu_read(&cpu->as->dispatch);
-    cpu->memory_dispatch = d;
-    tlb_flush(cpu, 1);
-}
-#endif
 
 /* Execute a TB, and fix up the CPU state afterwards if necessary */
 static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
@@ -384,9 +328,6 @@ static void cpu_handle_debug_exception(CPUState *cpu)
 }
 
 /* main execution loop */
-
-bool exit_request;
-CPUState *tcg_current_cpu;
 
 int cpu_exec(CPUState *cpu)
 {
