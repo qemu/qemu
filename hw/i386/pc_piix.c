@@ -460,6 +460,8 @@ static void pc_i440fx_machine_options(MachineClass *m)
     m->family = "pc_piix";
     m->desc = "Standard PC (i440FX + PIIX, 1996)";
     m->hot_add_cpu = pc_hot_add_cpu;
+    m->default_machine_opts = "firmware=bios-256k.bin";
+    m->default_display = "std";
 }
 
 static void pc_i440fx_2_4_machine_options(MachineClass *m)
@@ -467,8 +469,6 @@ static void pc_i440fx_2_4_machine_options(MachineClass *m)
     PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_i440fx_machine_options(m);
     pcmc->broken_reserved_end = true;
-    m->default_machine_opts = "firmware=bios-256k.bin";
-    m->default_display = "std";
     m->alias = "pc";
     m->is_default = 1;
 }
