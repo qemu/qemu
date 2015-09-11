@@ -307,11 +307,18 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
     if (!desc) {
         virtio_queue_set_vector(vdev, index, VIRTIO_NO_VECTOR);
     } else {
-        /* Fail if we don't have a big enough queue. */
-        /* TODO: Add interface to handle vring.num changing */
-        if (virtio_queue_get_num(vdev, index) > num) {
+        if (info) {
+            /* virtio-1 allows changing the ring size. */
+            if (virtio_queue_get_num(vdev, index) < num) {
+                /* Fail if we exceed the maximum number. */
+                return -EINVAL;
+            }
+            virtio_queue_set_num(vdev, index, num);
+        } else if (virtio_queue_get_num(vdev, index) > num) {
+            /* Fail if we don't have a big enough queue. */
             return -EINVAL;
         }
+        /* We ignore possible increased num for legacy for compatibility. */
         virtio_queue_set_vector(vdev, index, index);
     }
     /* tell notify handler in case of config change */
