@@ -1120,7 +1120,7 @@ void mips_malta_init(MachineState *machine)
      * regions are not executable.
      */
     memory_region_init_ram(bios_copy, NULL, "bios.1fc", BIOS_SIZE,
-                           &error_abort);
+                           &error_fatal);
     if (!rom_copy(memory_region_get_ram_ptr(bios_copy),
                   FLASH_ADDRESS, BIOS_SIZE)) {
         memcpy(memory_region_get_ram_ptr(bios_copy),

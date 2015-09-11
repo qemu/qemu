@@ -2271,7 +2271,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
                                          s->sdram_size);
     memory_region_add_subregion(sysmem, OMAP2_Q2_BASE, &s->sdram);
     memory_region_init_ram(&s->sram, NULL, "omap2.sram", s->sram_size,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(&s->sram);
     memory_region_add_subregion(sysmem, OMAP2_SRAM_BASE, &s->sram);
 

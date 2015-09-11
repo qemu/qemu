@@ -281,7 +281,7 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
 
     sysram = g_new(MemoryRegion, 1);
     memory_region_init_ram(sysram, NULL, "highbank.sysram", 0x8000,
-                           &error_abort);
+                           &error_fatal);
     memory_region_add_subregion(sysmem, 0xfff88000, sysram);
     if (bios_name != NULL) {
         sysboot_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);

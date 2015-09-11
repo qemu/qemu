@@ -266,7 +266,7 @@ static int integratorcm_init(SysBusDevice *dev)
     s->cm_refcnt_offset = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), 24,
                                    1000);
     memory_region_init_ram(&s->flash, OBJECT(s), "integrator.flash", 0x100000,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(&s->flash);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &integratorcm_ops, s,

@@ -222,7 +222,7 @@ static void mcf5208evb_init(MachineState *machine)
     memory_region_add_subregion(address_space_mem, 0x40000000, ram);
 
     /* Internal SRAM.  */
-    memory_region_init_ram(sram, NULL, "mcf5208.sram", 16384, &error_abort);
+    memory_region_init_ram(sram, NULL, "mcf5208.sram", 16384, &error_fatal);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 

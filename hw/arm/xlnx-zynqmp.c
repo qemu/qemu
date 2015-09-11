@@ -113,7 +113,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         char *ocm_name = g_strdup_printf("zynqmp.ocm_ram_bank_%d", i);
 
         memory_region_init_ram(&s->ocm_ram[i], NULL, ocm_name,
-                               XLNX_ZYNQMP_OCM_RAM_SIZE, &error_abort);
+                               XLNX_ZYNQMP_OCM_RAM_SIZE, &error_fatal);
         vmstate_register_ram_global(&s->ocm_ram[i]);
         memory_region_add_subregion(get_system_memory(),
                                     XLNX_ZYNQMP_OCM_RAM_0_ADDRESS +

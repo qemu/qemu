@@ -174,7 +174,7 @@ mips_mipssim_init(MachineState *machine)
     memory_region_allocate_system_memory(ram, NULL, "mips_mipssim.ram",
                                          ram_size);
     memory_region_init_ram(bios, NULL, "mips_mipssim.bios", BIOS_SIZE,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
 
