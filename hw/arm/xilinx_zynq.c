@@ -156,7 +156,6 @@ static void zynq_init(MachineState *machine)
     DeviceState *dev;
     SysBusDevice *busdev;
     qemu_irq pic[64];
-    Error *err = NULL;
     int n;
 
     if (!cpu_model) {
@@ -171,29 +170,14 @@ static void zynq_init(MachineState *machine)
      * realization.
      */
     if (object_property_find(OBJECT(cpu), "has_el3", NULL)) {
-        object_property_set_bool(OBJECT(cpu), false, "has_el3", &err);
-        if (err) {
-            error_report_err(err);
-            exit(1);
-        }
+        object_property_set_bool(OBJECT(cpu), false, "has_el3", &error_fatal);
     }
 
-    object_property_set_int(OBJECT(cpu), ZYNQ_BOARD_MIDR, "midr", &err);
-    if (err) {
-        error_report_err(err);
-        exit(1);
-    }
-
-    object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar", &err);
-    if (err) {
-        error_report_err(err);
-        exit(1);
-    }
-    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
-    if (err) {
-        error_report_err(err);
-        exit(1);
-    }
+    object_property_set_int(OBJECT(cpu), ZYNQ_BOARD_MIDR, "midr",
+                            &error_fatal);
+    object_property_set_int(OBJECT(cpu), MPCORE_PERIPHBASE, "reset-cbar",
+                            &error_fatal);
+    object_property_set_bool(OBJECT(cpu), true, "realized", &error_fatal);
 
     /* max 2GB ram */
     if (ram_size > 0x80000000) {

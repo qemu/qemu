@@ -433,7 +433,6 @@ void pc_cmos_init(PCMachineState *pcms,
 {
     int val;
     static pc_cmos_init_late_arg arg;
-    Error *local_err = NULL;
 
     /* various important CMOS locations needed by PC/Bochs bios */
 
@@ -481,11 +480,7 @@ void pc_cmos_init(PCMachineState *pcms,
     object_property_set_link(OBJECT(pcms), OBJECT(s),
                              "rtc_state", &error_abort);
 
-    set_boot_dev(s, MACHINE(pcms)->boot_order, &local_err);
-    if (local_err) {
-        error_report_err(local_err);
-        exit(1);
-    }
+    set_boot_dev(s, MACHINE(pcms)->boot_order, &error_fatal);
 
     val = 0;
     val |= 0x02; /* FPU is there */
@@ -1123,7 +1118,6 @@ void pc_cpus_init(PCMachineState *pcms)
     int i;
     X86CPU *cpu = NULL;
     MachineState *machine = MACHINE(pcms);
-    Error *error = NULL;
     unsigned long apic_id_limit;
 
     /* init CPUs */
@@ -1144,11 +1138,7 @@ void pc_cpus_init(PCMachineState *pcms)
 
     for (i = 0; i < smp_cpus; i++) {
         cpu = pc_new_cpu(machine->cpu_model, x86_cpu_apic_id_from_index(i),
-                         &error);
-        if (error) {
-            error_report_err(error);
-            exit(1);
-        }
+                         &error_fatal);
         object_unref(OBJECT(cpu));
     }
 
