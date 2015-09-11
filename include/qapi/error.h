@@ -50,6 +50,9 @@
  * Call a function aborting on errors:
  *     foo(arg, &error_abort);
  *
+ * Call a function treating errors as fatal:
+ *     foo(arg, &error_fatal);
+ *
  * Receive an error and pass it on to the caller:
  *     Error *err = NULL;
  *     foo(arg, &err);
@@ -100,6 +103,7 @@ ErrorClass error_get_class(const Error *err);
  * If @errp is NULL, the error is ignored.  Don't bother creating one
  * then.
  * If @errp is &error_abort, print a suitable message and abort().
+ * If @errp is &error_fatal, print a suitable message and exit(1).
  * If @errp is anything else, *@errp must be NULL.
  * The new error's class is ERROR_CLASS_GENERIC_ERROR, and its
  * human-readable error message is made from printf-style @fmt, ...
@@ -148,6 +152,8 @@ void error_setg_win32_internal(Error **errp,
  * error object.
  * Else, if @dst_errp is &error_abort, print a suitable message and
  * abort().
+ * Else, if @dst_errp is &error_fatal, print a suitable message and
+ * exit(1).
  * Else, if @dst_errp already contains an error, ignore this one: free
  * the error object.
  * Else, move the error object from @local_err to *@dst_errp.
@@ -205,5 +211,10 @@ void error_set_internal(Error **errp,
  * Pass to error_setg() & friends to abort() on error.
  */
 extern Error *error_abort;
+
+/*
+ * Pass to error_setg() & friends to exit(1) on error.
+ */
+extern Error *error_fatal;
 
 #endif
