@@ -49,7 +49,6 @@
 #include "exec/cpu-all.h"
 #include "qemu/rcu_queue.h"
 #include "qemu/main-loop.h"
-#include "exec/cputlb.h"
 #include "translate-all.h"
 
 #include "exec/memory-internal.h"

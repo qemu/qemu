@@ -388,6 +388,24 @@ static inline void mmap_unlock(void) {}
 
 /* cputlb.c */
 tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
+
+void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
+void tlb_set_dirty(CPUState *cpu, target_ulong vaddr);
+
+/* exec.c */
+void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr);
+
+MemoryRegionSection *
+address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr, hwaddr *xlat,
+                                  hwaddr *plen);
+hwaddr memory_region_section_get_iotlb(CPUState *cpu,
+                                       MemoryRegionSection *section,
+                                       target_ulong vaddr,
+                                       hwaddr paddr, hwaddr xlat,
+                                       int prot,
+                                       target_ulong *address);
+bool memory_region_is_unassigned(MemoryRegion *mr);
+
 #endif
 
 /* vl.c */
