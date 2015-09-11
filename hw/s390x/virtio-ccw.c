@@ -468,15 +468,12 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                 NULL);
             if (features.index == 0) {
                 features.features = (uint32_t)vdev->host_features;
-            } else if (features.index == 1) {
-                features.features = (uint32_t)(vdev->host_features >> 32);
+            } else if ((features.index == 1) && (dev->revision >= 1)) {
                 /*
-                 * Don't offer version 1 to the guest if it did not
-                 * negotiate at least revision 1.
+                 * Only offer feature bits beyond 31 if the guest has
+                 * negotiated at least revision 1.
                  */
-                if (dev->revision <= 0) {
-                    features.features &= ~(1 << (VIRTIO_F_VERSION_1 - 32));
-                }
+                features.features = (uint32_t)(vdev->host_features >> 32);
             } else {
                 /* Return zeroes if the guest supports more feature bits. */
                 features.features = 0;
@@ -515,14 +512,12 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 virtio_set_features(vdev,
                                     (vdev->guest_features & 0xffffffff00000000ULL) |
                                     features.features);
-            } else if (features.index == 1) {
+            } else if ((features.index == 1) && (dev->revision >= 1)) {
                 /*
-                 * The guest should not set version 1 if it didn't
-                 * negotiate a revision >= 1.
+                 * If the guest did not negotiate at least revision 1,
+                 * we did not offer it any feature bits beyond 31. Such a
+                 * guest passing us any bit here is therefore buggy.
                  */
-                if (dev->revision <= 0) {
-                    features.features &= ~(1 << (VIRTIO_F_VERSION_1 - 32));
-                }
                 virtio_set_features(vdev,
                                     (vdev->guest_features & 0x00000000ffffffffULL) |
                                     ((uint64_t)features.features << 32));
