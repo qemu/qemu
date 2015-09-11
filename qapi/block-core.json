@@ -219,7 +219,7 @@
 #       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
 #       2.2: 'archipelago' added, 'cow' dropped
 #       2.3: 'host_floppy' deprecated
-#       2.5: 'host_floppy' dropped
+#       2.5: 'host_floppy' dropped, 'replication' added
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -1492,6 +1492,7 @@
 # Drivers that are supported in block device operations.
 #
 # @host_device, @host_cdrom: Since 2.1
+# @replication: Since 2.5
 #
 # Since: 2.0
 ##
@@ -1499,8 +1500,8 @@
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
             'http', 'https', 'null-aio', 'null-co', 'parallels',
-            'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'tftp', 'vdi', 'vhdx',
-            'vmdk', 'vpc', 'vvfat' ] }
+            'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'replication',
+            'tftp', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
 
 ##
 # @BlockdevOptionsBase
@@ -1938,6 +1939,19 @@
 { 'enum' : 'ReplicationMode', 'data' : [ 'primary', 'secondary' ] }
 
 ##
+# @BlockdevOptionsReplication
+#
+# Driver specific block device options for replication
+#
+# @mode: the replication mode
+#
+# Since: 2.5
+##
+{ 'struct': 'BlockdevOptionsReplication',
+  'base': 'BlockdevOptionsGenericFormat',
+  'data': { 'mode': 'ReplicationMode'  } }
+
+##
 # @BlockdevOptions
 #
 # Options for creating a block device.
@@ -1974,6 +1988,7 @@
       'quorum':     'BlockdevOptionsQuorum',
       'raw':        'BlockdevOptionsGenericFormat',
 # TODO rbd: Wait for structured options
+      'replication':'BlockdevOptionsReplication',
 # TODO sheepdog: Wait for structured options
 # TODO ssh: Should take InetSocketAddress for 'host'?
       'tftp':       'BlockdevOptionsFile',
