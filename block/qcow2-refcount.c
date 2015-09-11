@@ -949,11 +949,17 @@ int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size)
 
             if (!offset || ROUND_UP(offset, s->cluster_size) != new_cluster) {
                 offset = new_cluster;
+                free_in_cluster = s->cluster_size;
+            } else {
+                free_in_cluster += s->cluster_size;
             }
         }
 
         assert(offset);
         ret = update_refcount(bs, offset, size, 1, false, QCOW2_DISCARD_NEVER);
+        if (ret < 0) {
+            offset = 0;
+        }
     } while (ret == -EAGAIN);
     if (ret < 0) {
         return ret;
