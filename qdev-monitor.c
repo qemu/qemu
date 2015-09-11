@@ -771,16 +771,26 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
 void qmp_device_del(const char *id, Error **errp)
 {
     Object *obj;
-    char *root_path = object_get_canonical_path(qdev_get_peripheral());
-    char *path = g_strdup_printf("%s/%s", root_path, id);
 
-    g_free(root_path);
-    obj = object_resolve_path_type(path, TYPE_DEVICE, NULL);
-    g_free(path);
+    if (id[0] == '/') {
+        obj = object_resolve_path(id, NULL);
+    } else {
+        char *root_path = object_get_canonical_path(qdev_get_peripheral());
+        char *path = g_strdup_printf("%s/%s", root_path, id);
+
+        g_free(root_path);
+        obj = object_resolve_path_type(path, TYPE_DEVICE, NULL);
+        g_free(path);
+    }
 
     if (!obj) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", id);
+        return;
+    }
+
+    if (!object_dynamic_cast(obj, TYPE_DEVICE)) {
+        error_setg(errp, "%s is not a hotpluggable device", id);
         return;
     }
 

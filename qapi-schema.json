@@ -1951,7 +1951,7 @@
 #
 # Remove a device from a guest
 #
-# @id: the name of the device
+# @id: the name or QOM path of the device
 #
 # Returns: Nothing on success
 #          If @id is not a valid device, DeviceNotFound
