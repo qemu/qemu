@@ -68,7 +68,6 @@
 #include "trace/simple.h"
 #endif
 #include "exec/memory.h"
-#include "exec/cpu_ldst.h"
 #include "qmp-commands.h"
 #include "hmp.h"
 #include "qemu/thread.h"
