@@ -582,7 +582,7 @@ sub statement_block_size {
 	my ($stmt) = @_;
 
 	$stmt =~ s/(^|\n)./$1/g;
-	$stmt =~ s/^\s*{//;
+	$stmt =~ s/^\s*\{//;
 	$stmt =~ s/}\s*$//;
 	$stmt =~ s/^\s*//;
 	$stmt =~ s/\s*$//;
@@ -1479,7 +1479,7 @@ sub process {
 			# 79 or 80 characters, it is no longer possible to add a space and an
 			# opening brace there)
 			if ($#ctx == 0 && $ctx !~ /{\s*/ &&
-			    defined($lines[$ctx_ln - 1]) && $lines[$ctx_ln - 1] =~ /^\+\s*{/ &&
+			    defined($lines[$ctx_ln - 1]) && $lines[$ctx_ln - 1] =~ /^\+\s*\{/ &&
 			    defined($lines[$ctx_ln - 2]) && length($lines[$ctx_ln - 2]) < 80) {
 				ERROR("that open brace { should be on the previous line\n" .
 					"$here\n$ctx\n$rawlines[$ctx_ln - 1]\n");
@@ -1519,7 +1519,7 @@ sub process {
 			my $continuation = 0;
 			my $check = 0;
 			$s =~ s/^.*\bdo\b//;
-			$s =~ s/^\s*{//;
+			$s =~ s/^\s*\{//;
 			if ($s =~ s/^\s*\\//) {
 				$continuation = 1;
 			}
@@ -1618,7 +1618,7 @@ sub process {
 		}
 
 # check for initialisation to aggregates open brace on the next line
-		if ($line =~ /^.\s*{/ &&
+		if ($line =~ /^.\s*\{/ &&
 		    $prevline =~ /(?:^|[^=])=\s*$/) {
 			ERROR("that open brace { should be on the previous line\n" . $hereprev);
 		}
@@ -1693,13 +1693,13 @@ sub process {
 
 # function brace can't be on same line, except for #defines of do while,
 # or if closed on same line
-		if (($line=~/$Type\s*$Ident\(.*\).*\s{/) and
-		    !($line=~/\#\s*define.*do\s{/) and !($line=~/}/)) {
+		if (($line=~/$Type\s*$Ident\(.*\).*\s\{/) and
+		    !($line=~/\#\s*define.*do\s\{/) and !($line=~/}/)) {
 			ERROR("open brace '{' following function declarations go on the next line\n" . $herecurr);
 		}
 
 # open braces for enum, union and struct go on the same line.
-		if ($line =~ /^.\s*{/ &&
+		if ($line =~ /^.\s*\{/ &&
 		    $prevline =~ /^.\s*(?:typedef\s+)?(enum|union|struct)(?:\s+$Ident)?\s*$/) {
 			ERROR("open brace '{' following $1 go on the same line\n" . $hereprev);
 		}
@@ -1853,7 +1853,7 @@ sub process {
                                 # not required when having a single },{ on one line
 				} elsif ($op eq ',') {
 					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/ &&
-                                            ($elements[$n] . $elements[$n + 2]) !~ " *}{") {
+                                            ($elements[$n] . $elements[$n + 2]) !~ " *}\\{") {
 						ERROR("space required after that '$op' $at\n" . $hereptr);
 					}
 
@@ -1953,8 +1953,8 @@ sub process {
 		}
 
 #need space before brace following if, while, etc
-		if (($line =~ /\(.*\){/ && $line !~ /\($Type\){/) ||
-		    $line =~ /do{/) {
+		if (($line =~ /\(.*\)\{/ && $line !~ /\($Type\)\{/) ||
+		    $line =~ /do\{/) {
 			ERROR("space required before the open brace '{'\n" . $herecurr);
 		}
 
@@ -2268,7 +2268,7 @@ sub process {
 					my $spaced_block = $block;
 					$spaced_block =~ s/\n\+/ /g;
 
-					$seen++ if ($spaced_block =~ /^\s*{/);
+					$seen++ if ($spaced_block =~ /^\s*\{/);
 
                                         print "APW: cond<$cond> block<$block> allowed<$allowed>\n"
                                             if $dbg_adv_apw;
