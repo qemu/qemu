@@ -293,8 +293,9 @@ static inline void tlb_set_dirty1(CPUTLBEntry *tlb_entry, target_ulong vaddr)
 
 /* update the TLB corresponding to virtual page vaddr
    so that it is no longer dirty */
-void tlb_set_dirty(CPUArchState *env, target_ulong vaddr)
+void tlb_set_dirty(CPUState *cpu, target_ulong vaddr)
 {
+    CPUArchState *env = cpu->env_ptr;
     int i;
     int mmu_idx;
 

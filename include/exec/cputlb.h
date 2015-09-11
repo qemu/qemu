@@ -26,7 +26,7 @@ void tlb_unprotect_code(ram_addr_t ram_addr);
 void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, uintptr_t start,
                            uintptr_t length);
 void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
-void tlb_set_dirty(CPUArchState *env, target_ulong vaddr);
+void tlb_set_dirty(CPUState *cpu, target_ulong vaddr);
 extern int tlb_flush_count;
 
 /* exec.c */
