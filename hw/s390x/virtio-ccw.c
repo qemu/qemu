@@ -467,7 +467,13 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                 MEMTXATTRS_UNSPECIFIED,
                                                 NULL);
             if (features.index == 0) {
-                features.features = (uint32_t)vdev->host_features;
+                if (dev->revision >= 1) {
+                    /* Don't offer legacy features for modern devices. */
+                    features.features = (uint32_t)
+                        (vdev->host_features & ~VIRTIO_LEGACY_FEATURES);
+                } else {
+                    features.features = (uint32_t)vdev->host_features;
+                }
             } else if ((features.index == 1) && (dev->revision >= 1)) {
                 /*
                  * Only offer feature bits beyond 31 if the guest has
@@ -768,7 +774,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
          * need to fetch it here. Nothing to do for now, though.
          */
         if (dev->revision >= 0 ||
-            revinfo.revision > virtio_ccw_rev_max(vdev)) {
+            revinfo.revision > virtio_ccw_rev_max(dev)) {
             ret = -ENOSYS;
             break;
         }
@@ -1541,6 +1547,10 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
 
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
 
+    if (dev->max_rev >= 1) {
+        virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
+    }
+
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           d->hotplugged, 1);
 }
@@ -1557,6 +1567,8 @@ static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1584,6 +1596,8 @@ static Property virtio_ccw_blk_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1611,6 +1625,8 @@ static Property virtio_ccw_serial_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1638,6 +1654,8 @@ static Property virtio_ccw_balloon_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1665,6 +1683,8 @@ static Property virtio_ccw_scsi_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1691,6 +1711,8 @@ static const TypeInfo virtio_ccw_scsi = {
 #ifdef CONFIG_VHOST_SCSI
 static Property vhost_ccw_scsi_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1729,6 +1751,8 @@ static Property virtio_ccw_rng_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1882,6 +1906,8 @@ static Property virtio_ccw_9p_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
             VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
