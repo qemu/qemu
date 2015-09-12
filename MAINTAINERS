@@ -903,6 +903,14 @@ M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: device_tree.[ch]
 
+Error reporting
+M: Markus Armbruster <armbru@redhat.com>
+S: Supported
+F: include/qapi/error.h
+F: include/qemu/error-report.h
+F: util/error.c
+F: util/qemu-error.c
+
 GDB stub
 L: qemu-devel@nongnu.org
 S: Odd Fixes
