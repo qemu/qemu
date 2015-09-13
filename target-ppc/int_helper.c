@@ -2327,24 +2327,28 @@ void helper_vsbox(ppc_avr_t *r, ppc_avr_t *a)
 
 void helper_vcipher(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
+    ppc_avr_t result;
     int i;
 
     VECTOR_FOR_INORDER_I(i, u32) {
-        r->AVRW(i) = b->AVRW(i) ^
+        result.AVRW(i) = b->AVRW(i) ^
             (AES_Te0[a->AVRB(AES_shifts[4*i + 0])] ^
              AES_Te1[a->AVRB(AES_shifts[4*i + 1])] ^
              AES_Te2[a->AVRB(AES_shifts[4*i + 2])] ^
              AES_Te3[a->AVRB(AES_shifts[4*i + 3])]);
     }
+    *r = result;
 }
 
 void helper_vcipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
+    ppc_avr_t result;
     int i;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        r->AVRB(i) = b->AVRB(i) ^ (AES_sbox[a->AVRB(AES_shifts[i])]);
+        result.AVRB(i) = b->AVRB(i) ^ (AES_sbox[a->AVRB(AES_shifts[i])]);
     }
+    *r = result;
 }
 
 void helper_vncipher(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
@@ -2369,11 +2373,13 @@ void helper_vncipher(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 
 void helper_vncipherlast(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 {
+    ppc_avr_t result;
     int i;
 
     VECTOR_FOR_INORDER_I(i, u8) {
-        r->AVRB(i) = b->AVRB(i) ^ (AES_isbox[a->AVRB(AES_ishifts[i])]);
+        result.AVRB(i) = b->AVRB(i) ^ (AES_isbox[a->AVRB(AES_ishifts[i])]);
     }
+    *r = result;
 }
 
 #define ROTRu32(v, n) (((v) >> (n)) | ((v) << (32-n)))
@@ -2460,16 +2466,19 @@ void helper_vshasigmad(ppc_avr_t *r,  ppc_avr_t *a, uint32_t st_six)
 
 void helper_vpermxor(ppc_avr_t *r,  ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 {
+    ppc_avr_t result;
     int i;
+
     VECTOR_FOR_INORDER_I(i, u8) {
         int indexA = c->u8[i] >> 4;
         int indexB = c->u8[i] & 0xF;
 #if defined(HOST_WORDS_BIGENDIAN)
-        r->u8[i] = a->u8[indexA] ^ b->u8[indexB];
+        result.u8[i] = a->u8[indexA] ^ b->u8[indexB];
 #else
-        r->u8[i] = a->u8[15-indexA] ^ b->u8[15-indexB];
+        result.u8[i] = a->u8[15-indexA] ^ b->u8[15-indexB];
 #endif
     }
+    *r = result;
 }
 
 #undef VECTOR_FOR_INORDER_I
