@@ -33,9 +33,7 @@
 
 #include "trace-tcg.h"
 
-
 #define MIPS_DEBUG_DISAS 0
-//#define MIPS_DEBUG_SIGN_EXTENSIONS
 
 /* MIPS major opcodes */
 #define MASK_OP_MAJOR(op)  (op & (0x3F << 26))
@@ -19800,40 +19798,6 @@ static void fpu_dump_state(CPUMIPSState *env, FILE *f, fprintf_function fpu_fpri
 #undef printfpr
 }
 
-#if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
-/* Debug help: The architecture requires 32bit code to maintain proper
-   sign-extended values on 64bit machines.  */
-
-#define SIGN_EXT_P(val) ((((val) & ~0x7fffffff) == 0) || (((val) & ~0x7fffffff) == ~0x7fffffff))
-
-static void
-cpu_mips_check_sign_extensions (CPUMIPSState *env, FILE *f,
-                                fprintf_function cpu_fprintf,
-                                int flags)
-{
-    int i;
-
-    if (!SIGN_EXT_P(env->active_tc.PC))
-        cpu_fprintf(f, "BROKEN: pc=0x" TARGET_FMT_lx "\n", env->active_tc.PC);
-    if (!SIGN_EXT_P(env->active_tc.HI[0]))
-        cpu_fprintf(f, "BROKEN: HI=0x" TARGET_FMT_lx "\n", env->active_tc.HI[0]);
-    if (!SIGN_EXT_P(env->active_tc.LO[0]))
-        cpu_fprintf(f, "BROKEN: LO=0x" TARGET_FMT_lx "\n", env->active_tc.LO[0]);
-    if (!SIGN_EXT_P(env->btarget))
-        cpu_fprintf(f, "BROKEN: btarget=0x" TARGET_FMT_lx "\n", env->btarget);
-
-    for (i = 0; i < 32; i++) {
-        if (!SIGN_EXT_P(env->active_tc.gpr[i]))
-            cpu_fprintf(f, "BROKEN: %s=0x" TARGET_FMT_lx "\n", regnames[i], env->active_tc.gpr[i]);
-    }
-
-    if (!SIGN_EXT_P(env->CP0_EPC))
-        cpu_fprintf(f, "BROKEN: EPC=0x" TARGET_FMT_lx "\n", env->CP0_EPC);
-    if (!SIGN_EXT_P(env->lladdr))
-        cpu_fprintf(f, "BROKEN: LLAddr=0x" TARGET_FMT_lx "\n", env->lladdr);
-}
-#endif
-
 void mips_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                          int flags)
 {
@@ -19865,9 +19829,6 @@ void mips_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
                 env->CP0_Config4, env->CP0_Config5);
     if (env->hflags & MIPS_HFLAG_FPU)
         fpu_dump_state(env, f, cpu_fprintf, flags);
-#if defined(TARGET_MIPS64) && defined(MIPS_DEBUG_SIGN_EXTENSIONS)
-    cpu_mips_check_sign_extensions(env, f, cpu_fprintf, flags);
-#endif
 }
 
 void mips_tcg_init(void)
