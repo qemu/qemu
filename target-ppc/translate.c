@@ -10670,6 +10670,13 @@ GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 0, PPC_NONE, fl2), \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 2, opc3, 0, PPC_NONE, fl2), \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 3, opc3, 0, PPC_NONE, fl2)
 
+#undef GEN_XX2IFORM
+#define GEN_XX2IFORM(name, opc2, opc3, fl2)                           \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0, opc3, 1, PPC_NONE, fl2), \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 1, opc3, 1, PPC_NONE, fl2), \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 2, opc3, 1, PPC_NONE, fl2), \
+GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 3, opc3, 1, PPC_NONE, fl2)
+
 #undef GEN_XX3_RC_FORM
 #define GEN_XX3_RC_FORM(name, opc2, opc3, fl2)                          \
 GEN_HANDLER2_E(name, #name, 0x3C, opc2 | 0x00, opc3 | 0x00, 0, PPC_NONE, fl2), \
@@ -10731,8 +10738,8 @@ GEN_XX3FORM(xsnmaddadp, 0x04, 0x14, PPC2_VSX),
 GEN_XX3FORM(xsnmaddmdp, 0x04, 0x15, PPC2_VSX),
 GEN_XX3FORM(xsnmsubadp, 0x04, 0x16, PPC2_VSX),
 GEN_XX3FORM(xsnmsubmdp, 0x04, 0x17, PPC2_VSX),
-GEN_XX2FORM(xscmpodp,  0x0C, 0x05, PPC2_VSX),
-GEN_XX2FORM(xscmpudp,  0x0C, 0x04, PPC2_VSX),
+GEN_XX2IFORM(xscmpodp,  0x0C, 0x05, PPC2_VSX),
+GEN_XX2IFORM(xscmpudp,  0x0C, 0x04, PPC2_VSX),
 GEN_XX3FORM(xsmaxdp, 0x00, 0x14, PPC2_VSX),
 GEN_XX3FORM(xsmindp, 0x00, 0x15, PPC2_VSX),
 GEN_XX2FORM(xscvdpsp, 0x12, 0x10, PPC2_VSX),
