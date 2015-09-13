@@ -1022,6 +1022,7 @@
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8 0x24
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5         0x27
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8           0x28
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8B8           0x29
 # define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED 0x2E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED 0x30
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_Y16      0x35
@@ -1029,6 +1030,7 @@
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8G8B8A8       0x3C
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8 0x3F
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_B8G8R8A8 0x40
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R8G8B8A8 0x41
 #       define NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS             0x000F0000
 #       define NV097_SET_TEXTURE_FORMAT_BASE_SIZE_U               0x00F00000
 #       define NV097_SET_TEXTURE_FORMAT_BASE_SIZE_V               0x0F000000
@@ -1283,7 +1285,11 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
         {2, false, GL_RGB8_SNORM, GL_RGB, GL_BYTE}, /* FIXME: This might be signed */
     [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8] =
         {2, false, GL_RG8_SNORM, GL_RG, GL_BYTE, /* FIXME: This might be signed */
-         {GL_RED, GL_GREEN, GL_RED, GL_GREEN}},
+         {GL_ZERO, GL_RED, GL_GREEN, GL_ONE}},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8B8] =
+        {2, false, GL_RG8_SNORM, GL_RG, GL_BYTE, /* FIXME: This might be signed */
+         {GL_RED, GL_ZERO, GL_GREEN, GL_ONE}},
+
 
     /* TODO: format conversion */
     [NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8] =
@@ -1304,7 +1310,9 @@ static const ColorFormatInfo kelvin_color_format_map[66] = {
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8] =
         {4, true, GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV},
     [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_B8G8R8A8] =
-        {4, true, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8}
+        {4, true, GL_RGBA8, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8},
+    [NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R8G8B8A8] =
+        {4, true, GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8}
 };
 
 typedef struct SurfaceColorFormatInfo {
