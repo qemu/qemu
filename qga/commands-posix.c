@@ -235,7 +235,7 @@ static int64_t guest_file_handle_add(FILE *fh, Error **errp)
         return -1;
     }
 
-    gfh = g_malloc0(sizeof(GuestFileHandle));
+    gfh = g_new0(GuestFileHandle, 1);
     gfh->id = handle;
     gfh->fh = fh;
     QTAILQ_INSERT_TAIL(&guest_file_state.filehandles, gfh, next);
@@ -488,7 +488,7 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
         slog("guest-file-read failed, handle: %" PRId64, handle);
     } else {
         buf[read_count] = 0;
-        read_data = g_malloc0(sizeof(GuestFileRead));
+        read_data = g_new0(GuestFileRead, 1);
         read_data->count = read_count;
         read_data->eof = feof(fh);
         if (read_count) {
@@ -533,7 +533,7 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
         error_setg_errno(errp, errno, "failed to write to file");
         slog("guest-file-write failed, handle: %" PRId64, handle);
     } else {
-        write_data = g_malloc0(sizeof(GuestFileWrite));
+        write_data = g_new0(GuestFileWrite, 1);
         write_data->count = write_count;
         write_data->eof = feof(fh);
     }
@@ -678,7 +678,7 @@ static void build_fs_mount_list_from_mtab(FsMountList *mounts, Error **errp)
             continue;
         }
 
-        mount = g_malloc0(sizeof(FsMount));
+        mount = g_new0(FsMount, 1);
         mount->dirname = g_strdup(ment->mnt_dir);
         mount->devtype = g_strdup(ment->mnt_type);
         mount->devmajor = devmajor;
@@ -757,7 +757,7 @@ static void build_fs_mount_list(FsMountList *mounts, Error **errp)
             }
         }
 
-        mount = g_malloc0(sizeof(FsMount));
+        mount = g_new0(FsMount, 1);
         mount->dirname = g_strdup(line + dir_s);
         mount->devtype = g_strdup(dash + type_s);
         mount->devmajor = devmajor;

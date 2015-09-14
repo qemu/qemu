@@ -51,12 +51,12 @@ static void qmp_command_info(QmpCommand *cmd, void *opaque)
     GuestAgentCommandInfo *cmd_info;
     GuestAgentCommandInfoList *cmd_info_list;
 
-    cmd_info = g_malloc0(sizeof(GuestAgentCommandInfo));
+    cmd_info = g_new0(GuestAgentCommandInfo, 1);
     cmd_info->name = g_strdup(qmp_command_name(cmd));
     cmd_info->enabled = qmp_command_is_enabled(cmd);
     cmd_info->success_response = qmp_has_success_response(cmd);
 
-    cmd_info_list = g_malloc0(sizeof(GuestAgentCommandInfoList));
+    cmd_info_list = g_new0(GuestAgentCommandInfoList, 1);
     cmd_info_list->value = cmd_info;
     cmd_info_list->next = info->supported_commands;
     info->supported_commands = cmd_info_list;
@@ -64,7 +64,7 @@ static void qmp_command_info(QmpCommand *cmd, void *opaque)
 
 struct GuestAgentInfo *qmp_guest_info(Error **errp)
 {
-    GuestAgentInfo *info = g_malloc0(sizeof(GuestAgentInfo));
+    GuestAgentInfo *info = g_new0(GuestAgentInfo, 1);
 
     info->version = g_strdup(QEMU_VERSION);
     qmp_for_each_command(qmp_command_info, info);

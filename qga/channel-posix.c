@@ -249,7 +249,7 @@ GIOStatus ga_channel_read(GAChannel *c, gchar *buf, gsize size, gsize *count)
 GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
                           GAChannelCallback cb, gpointer opaque)
 {
-    GAChannel *c = g_malloc0(sizeof(GAChannel));
+    GAChannel *c = g_new0(GAChannel, 1);
     c->event_cb = cb;
     c->user_data = opaque;
 

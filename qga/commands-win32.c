@@ -106,7 +106,7 @@ static int64_t guest_file_handle_add(HANDLE fh, Error **errp)
     if (handle < 0) {
         return -1;
     }
-    gfh = g_malloc0(sizeof(GuestFileHandle));
+    gfh = g_new0(GuestFileHandle, 1);
     gfh->id = handle;
     gfh->fh = fh;
     QTAILQ_INSERT_TAIL(&guest_file_state.filehandles, gfh, next);
@@ -298,7 +298,7 @@ GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
         slog("guest-file-read failed, handle %" PRId64, handle);
     } else {
         buf[read_count] = 0;
-        read_data = g_malloc0(sizeof(GuestFileRead));
+        read_data = g_new0(GuestFileRead, 1);
         read_data->count = (size_t)read_count;
         read_data->eof = read_count == 0;
 
@@ -342,7 +342,7 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
         error_setg_win32(errp, GetLastError(), "failed to write to file");
         slog("guest-file-write-failed, handle: %" PRId64, handle);
     } else {
-        write_data = g_malloc0(sizeof(GuestFileWrite));
+        write_data = g_new0(GuestFileWrite, 1);
         write_data->count = (size_t) write_count;
     }
 
@@ -865,7 +865,7 @@ static DWORD WINAPI do_suspend(LPVOID opaque)
 void qmp_guest_suspend_disk(Error **errp)
 {
     Error *local_err = NULL;
-    GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
+    GuestSuspendMode *mode = g_new(GuestSuspendMode, 1);
 
     *mode = GUEST_SUSPEND_MODE_DISK;
     check_suspend_mode(*mode, &local_err);
@@ -881,7 +881,7 @@ void qmp_guest_suspend_disk(Error **errp)
 void qmp_guest_suspend_ram(Error **errp)
 {
     Error *local_err = NULL;
-    GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
+    GuestSuspendMode *mode = g_new(GuestSuspendMode, 1);
 
     *mode = GUEST_SUSPEND_MODE_RAM;
     check_suspend_mode(*mode, &local_err);
