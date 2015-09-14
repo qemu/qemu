@@ -875,8 +875,8 @@ int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size)
     return offset;
 }
 
-int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
-    int nb_clusters)
+int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
+                                int64_t nb_clusters)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t cluster_index, refcount;
@@ -1259,7 +1259,7 @@ static size_t refcount_array_byte_size(BDRVQcow2State *s, uint64_t entries)
 static int realloc_refcount_array(BDRVQcow2State *s, void **array,
                                   int64_t *size, int64_t new_size)
 {
-    size_t old_byte_size, new_byte_size;
+    int64_t old_byte_size, new_byte_size;
     void *new_ptr;
 
     /* Round to clusters so the array can be directly written to disk */
@@ -1275,13 +1275,17 @@ static int realloc_refcount_array(BDRVQcow2State *s, void **array,
 
     assert(new_byte_size > 0);
 
+    if (new_byte_size > SIZE_MAX) {
+        return -ENOMEM;
+    }
+
     new_ptr = g_try_realloc(*array, new_byte_size);
     if (!new_ptr) {
         return -ENOMEM;
     }
 
     if (new_byte_size > old_byte_size) {
-        memset((void *)((uintptr_t)new_ptr + old_byte_size), 0,
+        memset((char *)new_ptr + old_byte_size, 0,
                new_byte_size - old_byte_size);
     }
 

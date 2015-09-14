@@ -415,7 +415,7 @@ static inline int64_t offset_into_cluster(BDRVQcow2State *s, int64_t offset)
     return offset & (s->cluster_size - 1);
 }
 
-static inline int size_to_clusters(BDRVQcow2State *s, int64_t size)
+static inline uint64_t size_to_clusters(BDRVQcow2State *s, uint64_t size)
 {
     return (size + (s->cluster_size - 1)) >> s->cluster_bits;
 }
@@ -509,8 +509,8 @@ int qcow2_update_cluster_refcount(BlockDriverState *bs, int64_t cluster_index,
                                   enum qcow2_discard_type type);
 
 int64_t qcow2_alloc_clusters(BlockDriverState *bs, uint64_t size);
-int qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
-    int nb_clusters);
+int64_t qcow2_alloc_clusters_at(BlockDriverState *bs, uint64_t offset,
+                                int64_t nb_clusters);
 int64_t qcow2_alloc_bytes(BlockDriverState *bs, int size);
 void qcow2_free_clusters(BlockDriverState *bs,
                           int64_t offset, int64_t size,
