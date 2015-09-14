@@ -1702,7 +1702,22 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
  */
 static inline int arm_debug_target_el(CPUARMState *env)
 {
-    return 1;
+    bool secure = arm_is_secure(env);
+    bool route_to_el2 = false;
+
+    if (arm_feature(env, ARM_FEATURE_EL2) && !secure) {
+        route_to_el2 = env->cp15.hcr_el2 & HCR_TGE ||
+                       env->cp15.mdcr_el2 & (1 << 8);
+    }
+
+    if (route_to_el2) {
+        return 2;
+    } else if (arm_feature(env, ARM_FEATURE_EL3) &&
+               !arm_el_is_aa64(env, 3) && secure) {
+        return 3;
+    } else {
+        return 1;
+    }
 }
 
 static inline bool aa64_generate_debug_exceptions(CPUARMState *env)
