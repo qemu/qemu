@@ -1,0 +1,42 @@
+QA output created by 137
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+=== Try setting valid values for all options ===
+
+wrote 33554432/33554432 bytes at offset 0
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 33554432/33554432 bytes at offset 0
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+discard 33554432/33554432 bytes at offset 0
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 33554432/33554432 bytes at offset 0
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 33554432/33554432 bytes at offset 0
+32 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+=== Try setting some invalid values ===
+
+Parameter 'lazy-refcounts' expects 'on' or 'off'
+cache-size, l2-cache-size and refcount-cache-size may not be set the same time
+l2-cache-size may not exceed cache-size
+refcount-cache-size may not exceed cache-size
+L2 cache size too big
+L2 cache size too big
+Conflicting values for qcow2 options 'overlap-check' ('constant') and 'overlap-check.template' ('all')
+Unsupported value 'blubb' for qcow2 option 'overlap-check'. Allowed are any of the following: none, constant, cached, all
+Unsupported value 'blubb' for qcow2 option 'overlap-check'. Allowed are any of the following: none, constant, cached, all
+Cache clean interval too big
+
+=== Test transaction semantics ===
+
+Unsupported value 'blubb' for qcow2 option 'overlap-check'. Allowed are any of the following: none, constant, cached, all
+wrote 512/512 bytes at offset 0
+512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+./common.config: Killed                  ( exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@" )
+incompatible_features     0x0
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+wrote 65536/65536 bytes at offset 0
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+Parameter 'lazy-refcounts' expects 'on' or 'off'
+qcow2: Marking image as corrupt: Preventing invalid write on metadata (overlaps with qcow2_header); further corruption events will be suppressed
+write failed: Input/output error
+*** done

@@ -1422,9 +1422,8 @@ typedef struct ExternalSnapshotState {
 static void external_snapshot_prepare(BlkTransactionState *common,
                                       Error **errp)
 {
-    BlockDriver *drv;
     int flags, ret;
-    QDict *options = NULL;
+    QDict *options;
     Error *local_err = NULL;
     bool has_device = false;
     const char *device;
@@ -1459,12 +1458,6 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     }
 
     /* start processing */
-    drv = bdrv_find_format(format);
-    if (!drv) {
-        error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
-        return;
-    }
-
     state->old_bs = bdrv_lookup_bs(has_device ? device : NULL,
                                    has_node_name ? node_name : NULL,
                                    &local_err);
@@ -1523,17 +1516,18 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         }
     }
 
+    options = qdict_new();
     if (has_snapshot_node_name) {
-        options = qdict_new();
         qdict_put(options, "node-name",
                   qstring_from_str(snapshot_node_name));
     }
+    qdict_put(options, "driver", qstring_from_str(format));
 
     /* TODO Inherit bs->options or only take explicit options with an
      * extended QMP command? */
     assert(state->new_bs == NULL);
     ret = bdrv_open(&state->new_bs, new_image_file, NULL, options,
-                    flags | BDRV_O_NO_BACKING, drv, &local_err);
+                    flags | BDRV_O_NO_BACKING, &local_err);
     /* We will manually add the backing_hd field to the bs later */
     if (ret != 0) {
         error_propagate(errp, local_err);
@@ -1895,13 +1889,19 @@ void qmp_block_passwd(bool has_device, const char *device,
 
 /* Assumes AioContext is held */
 static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
-                                    int bdrv_flags, BlockDriver *drv,
+                                    int bdrv_flags, const char *format,
                                     const char *password, Error **errp)
 {
     Error *local_err = NULL;
+    QDict *options = NULL;
     int ret;
 
-    ret = bdrv_open(&bs, filename, NULL, NULL, bdrv_flags, drv, &local_err);
+    if (format) {
+        options = qdict_new();
+        qdict_put(options, "driver", qstring_from_str(format));
+    }
+
+    ret = bdrv_open(&bs, filename, NULL, options, bdrv_flags, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
@@ -1916,7 +1916,6 @@ void qmp_change_blockdev(const char *device, const char *filename,
     BlockBackend *blk;
     BlockDriverState *bs;
     AioContext *aio_context;
-    BlockDriver *drv = NULL;
     int bdrv_flags;
     Error *err = NULL;
 
@@ -1931,14 +1930,6 @@ void qmp_change_blockdev(const char *device, const char *filename,
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (format) {
-        drv = bdrv_find_whitelisted_format(format, bs->read_only);
-        if (!drv) {
-            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            goto out;
-        }
-    }
-
     eject_device(blk, 0, &err);
     if (err) {
         error_propagate(errp, err);
@@ -1948,7 +1939,7 @@ void qmp_change_blockdev(const char *device, const char *filename,
     bdrv_flags = bdrv_is_read_only(bs) ? 0 : BDRV_O_RDWR;
     bdrv_flags |= bdrv_is_snapshot(bs) ? BDRV_O_SNAPSHOT : 0;
 
-    qmp_bdrv_open_encrypted(bs, filename, bdrv_flags, drv, NULL, errp);
+    qmp_bdrv_open_encrypted(bs, filename, bdrv_flags, format, NULL, errp);
 
 out:
     aio_context_release(aio_context);
@@ -2466,7 +2457,7 @@ void qmp_drive_backup(const char *device, const char *target,
     BlockDriverState *source = NULL;
     BdrvDirtyBitmap *bmap = NULL;
     AioContext *aio_context;
-    BlockDriver *drv = NULL;
+    QDict *options = NULL;
     Error *local_err = NULL;
     int flags;
     int64_t size;
@@ -2506,13 +2497,6 @@ void qmp_drive_backup(const char *device, const char *target,
     if (!has_format) {
         format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
     }
-    if (format) {
-        drv = bdrv_find_format(format);
-        if (!drv) {
-            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            goto out;
-        }
-    }
 
     /* Early check to avoid creating target */
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
@@ -2540,7 +2524,7 @@ void qmp_drive_backup(const char *device, const char *target,
     }
 
     if (mode != NEW_IMAGE_MODE_EXISTING) {
-        assert(format && drv);
+        assert(format);
         if (source) {
             bdrv_img_create(target, format, source->filename,
                             source->drv->format_name, NULL,
@@ -2556,8 +2540,13 @@ void qmp_drive_backup(const char *device, const char *target,
         goto out;
     }
 
+    if (format) {
+        options = qdict_new();
+        qdict_put(options, "driver", qstring_from_str(format));
+    }
+
     target_bs = NULL;
-    ret = bdrv_open(&target_bs, target, NULL, NULL, flags, drv, &local_err);
+    ret = bdrv_open(&target_bs, target, NULL, options, flags, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;
@@ -2663,9 +2652,8 @@ void qmp_drive_mirror(const char *device, const char *target,
     BlockDriverState *bs;
     BlockDriverState *source, *target_bs;
     AioContext *aio_context;
-    BlockDriver *drv = NULL;
     Error *local_err = NULL;
-    QDict *options = NULL;
+    QDict *options;
     int flags;
     int64_t size;
     int ret;
@@ -2722,13 +2710,6 @@ void qmp_drive_mirror(const char *device, const char *target,
     if (!has_format) {
         format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
     }
-    if (format) {
-        drv = bdrv_find_format(format);
-        if (!drv) {
-            error_setg(errp, QERR_INVALID_BLOCK_FORMAT, format);
-            goto out;
-        }
-    }
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR, errp)) {
         goto out;
@@ -2783,7 +2764,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         && mode != NEW_IMAGE_MODE_EXISTING)
     {
         /* create new image w/o backing file */
-        assert(format && drv);
+        assert(format);
         bdrv_img_create(target, format,
                         NULL, NULL, NULL, size, flags, &local_err, false);
     } else {
@@ -2807,9 +2788,12 @@ void qmp_drive_mirror(const char *device, const char *target,
         goto out;
     }
 
+    options = qdict_new();
     if (has_node_name) {
-        options = qdict_new();
         qdict_put(options, "node-name", qstring_from_str(node_name));
+    }
+    if (format) {
+        qdict_put(options, "driver", qstring_from_str(format));
     }
 
     /* Mirroring takes care of copy-on-write using the source's backing
@@ -2817,7 +2801,7 @@ void qmp_drive_mirror(const char *device, const char *target,
      */
     target_bs = NULL;
     ret = bdrv_open(&target_bs, target, NULL, options,
-                    flags | BDRV_O_NO_BACKING, drv, &local_err);
+                    flags | BDRV_O_NO_BACKING, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;

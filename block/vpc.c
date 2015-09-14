@@ -794,7 +794,7 @@ static int vpc_create(const char *filename, QemuOpts *opts, Error **errp)
         goto out;
     }
     ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
-                    NULL, &local_err);
+                    &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto out;

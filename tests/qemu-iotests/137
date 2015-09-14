@@ -1,0 +1,145 @@
+#!/bin/bash
+#
+# Test qcow2 reopen
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto generic
+_supported_os Linux
+
+
+_make_test_img 64M
+
+echo === Try setting valid values for all options ===
+echo
+
+# Try all options and then check that all of the basic I/O operations still
+# work on this image.
+$QEMU_IO \
+    -c "reopen -o lazy-refcounts=on,pass-discard-request=on" \
+    -c "reopen -o lazy-refcounts=off,pass-discard-request=off" \
+    -c "reopen -o pass-discard-snapshot=on,pass-discard-other=on" \
+    -c "reopen -o pass-discard-snapshot=off,pass-discard-other=off" \
+    -c "reopen -o overlap-check=all" \
+    -c "reopen -o overlap-check=none" \
+    -c "reopen -o overlap-check=cached" \
+    -c "reopen -o overlap-check=constant" \
+    -c "reopen -o overlap-check.template=all" \
+    -c "reopen -o overlap-check.template=none" \
+    -c "reopen -o overlap-check.template=cached" \
+    -c "reopen -o overlap-check.template=constant" \
+    -c "reopen -o overlap-check.main-header=on" \
+    -c "reopen -o overlap-check.main-header=off" \
+    -c "reopen -o overlap-check.active-l1=on" \
+    -c "reopen -o overlap-check.active-l1=off" \
+    -c "reopen -o overlap-check.active-l2=on" \
+    -c "reopen -o overlap-check.active-l2=off" \
+    -c "reopen -o overlap-check.refcount-table=on" \
+    -c "reopen -o overlap-check.refcount-table=off" \
+    -c "reopen -o overlap-check.refcount-block=on" \
+    -c "reopen -o overlap-check.refcount-block=off" \
+    -c "reopen -o overlap-check.snapshot-table=on" \
+    -c "reopen -o overlap-check.snapshot-table=off" \
+    -c "reopen -o overlap-check.inactive-l1=on" \
+    -c "reopen -o overlap-check.inactive-l1=off" \
+    -c "reopen -o overlap-check.inactive-l2=on" \
+    -c "reopen -o overlap-check.inactive-l2=off" \
+    -c "reopen -o cache-size=1M" \
+    -c "reopen -o l2-cache-size=512k" \
+    -c "reopen -o refcount-cache-size=128k" \
+    -c "reopen -o cache-clean-interval=5" \
+    -c "reopen -o cache-clean-interval=0" \
+    -c "reopen -o cache-clean-interval=10" \
+    \
+    -c "write -P 55 0 32M" \
+    -c "read -P 55 0 32M" \
+    -c "discard 0 32M" \
+    -c "write -z 0 32M" \
+    -c "read -P 0 0 32M" \
+    \
+    "$TEST_IMG" | _filter_qemu_io
+
+
+echo
+echo === Try setting some invalid values ===
+echo
+
+$QEMU_IO \
+    -c "reopen -o lazy-refcounts=42" \
+    -c "reopen -o cache-size=1M,l2-cache-size=64k,refcount-cache-size=64k" \
+    -c "reopen -o cache-size=1M,l2-cache-size=2M" \
+    -c "reopen -o cache-size=1M,refcount-cache-size=2M" \
+    -c "reopen -o l2-cache-size=256T" \
+    -c "reopen -o refcount-cache-size=256T" \
+    -c "reopen -o overlap-check=constant,overlap-check.template=all" \
+    -c "reopen -o overlap-check=blubb" \
+    -c "reopen -o overlap-check.template=blubb" \
+    -c "reopen -o cache-clean-interval=-1" \
+    "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo === Test transaction semantics ===
+echo
+
+# Whether lazy-refcounts was actually enabled can easily be tested: Check if
+# the dirty bit is set after a crash
+$QEMU_IO \
+    -c "reopen -o lazy-refcounts=on,overlap-check=blubb" \
+    -c "write -P 0x5a 0 512" \
+    -c "sigraise $(kill -l KILL)" \
+    "$TEST_IMG" 2>&1 | _filter_qemu_io
+
+# The dirty bit must not be set
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+
+# Similarly we can test whether corruption detection has been enabled:
+# Create L1/L2, overwrite first entry in refcount block, allocate something.
+# Disabling the checks should fail, so the corruption must be detected.
+_make_test_img 64M
+$QEMU_IO -c "write 0 64k" "$TEST_IMG" | _filter_qemu_io
+poke_file "$TEST_IMG" "$((0x20000))" "\x00\x00"
+$QEMU_IO \
+    -c "reopen -o overlap-check=none,lazy-refcounts=42" \
+    -c "write 64k 64k" \
+    "$TEST_IMG" 2>&1 | _filter_qemu_io
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0

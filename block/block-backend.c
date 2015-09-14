@@ -126,7 +126,7 @@ BlockBackend *blk_new_open(const char *name, const char *filename,
         return NULL;
     }
 
-    ret = bdrv_open(&blk->bs, filename, reference, options, flags, NULL, errp);
+    ret = bdrv_open(&blk->bs, filename, reference, options, flags, errp);
     if (ret < 0) {
         blk_unref(blk);
         return NULL;

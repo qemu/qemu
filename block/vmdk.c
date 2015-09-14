@@ -1324,8 +1324,12 @@ static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
 
     write_end_sector = DIV_ROUND_UP(write_offset + write_len, BDRV_SECTOR_SIZE);
 
-    extent->next_cluster_sector = MAX(extent->next_cluster_sector,
-                                      write_end_sector);
+    if (extent->compressed) {
+        extent->next_cluster_sector = write_end_sector;
+    } else {
+        extent->next_cluster_sector = MAX(extent->next_cluster_sector,
+                                          write_end_sector);
+    }
 
     if (ret != write_len) {
         ret = ret < 0 ? ret : -EIO;
@@ -1632,7 +1636,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
 
     assert(bs == NULL);
     ret = bdrv_open(&bs, filename, NULL, NULL, BDRV_O_RDWR | BDRV_O_PROTOCOL,
-                    NULL, &local_err);
+                    &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
@@ -1905,8 +1909,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
             ret = -ENOENT;
             goto exit;
         }
-        ret = bdrv_open(&bs, full_backing, NULL, NULL, BDRV_O_NO_BACKING, NULL,
-                        errp);
+        ret = bdrv_open(&bs, full_backing, NULL, NULL, BDRV_O_NO_BACKING, errp);
         g_free(full_backing);
         if (ret != 0) {
             goto exit;
@@ -1977,7 +1980,7 @@ static int vmdk_create(const char *filename, QemuOpts *opts, Error **errp)
     }
     assert(new_bs == NULL);
     ret = bdrv_open(&new_bs, filename, NULL, NULL,
-                    BDRV_O_RDWR | BDRV_O_PROTOCOL, NULL, &local_err);
+                    BDRV_O_RDWR | BDRV_O_PROTOCOL, &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         goto exit;
