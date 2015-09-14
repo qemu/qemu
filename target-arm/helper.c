@@ -6370,7 +6370,9 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     if (arm_el_is_aa64(env, el)) {
         va_size = 64;
         if (el > 1) {
-            tbi = extract64(tcr->raw_tcr, 20, 1);
+            if (mmu_idx != ARMMMUIdx_S2NS) {
+                tbi = extract64(tcr->raw_tcr, 20, 1);
+            }
         } else {
             if (extract64(address, 55, 1)) {
                 tbi = extract64(tcr->raw_tcr, 38, 1);
