@@ -804,6 +804,14 @@ void arm_test_cc(DisasCompare *cmp, int cc)
         tcg_gen_andc_i32(value, cpu_ZF, value);
         break;
 
+    case 14: /* always */
+    case 15: /* always */
+        /* Use the ALWAYS condition, which will fold early.
+         * It doesn't matter what we use for the value.  */
+        cond = TCG_COND_ALWAYS;
+        value = cpu_ZF;
+        goto no_invert;
+
     default:
         fprintf(stderr, "Bad condition code 0x%x\n", cc);
         abort();
@@ -813,6 +821,7 @@ void arm_test_cc(DisasCompare *cmp, int cc)
         cond = tcg_invert_cond(cond);
     }
 
+ no_invert:
     cmp->cond = cond;
     cmp->value = value;
     cmp->value_global = global;
