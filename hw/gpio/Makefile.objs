@@ -5,3 +5,4 @@ common-obj-$(CONFIG_ZAURUS) += zaurus.o
 common-obj-$(CONFIG_E500) += mpc8xxx.o
 
 obj-$(CONFIG_OMAP) += omap_gpio.o
+obj-$(CONFIG_IMX) += imx_gpio.o
