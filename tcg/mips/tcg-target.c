@@ -962,30 +962,34 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
         add_off -= 0x7ff0;
     }
 
-    /* Load the tlb comparator.  */
-    if (TARGET_LONG_BITS == 64) {
-        tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0, cmp_off + LO_OFF);
-        tcg_out_opc_imm(s, OPC_LW, base, TCG_REG_A0, cmp_off + HI_OFF);
-    } else {
-        tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0, cmp_off);
-    }
+    /* Load the (low half) tlb comparator.  */
+    tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0,
+                    cmp_off + (TARGET_LONG_BITS == 64 ? LO_OFF : 0));
 
     /* Mask the page bits, keeping the alignment bits to compare against.
-       In between, load the tlb addend for the fast path.  */
+       In between on 32-bit targets, load the tlb addend for the fast path.  */
     tcg_out_movi(s, TCG_TYPE_I32, TCG_TMP1,
                  TARGET_PAGE_MASK | ((1 << s_bits) - 1));
-    tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0, add_off);
+    if (TARGET_LONG_BITS == 32) {
+        tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0, add_off);
+    }
     tcg_out_opc_reg(s, OPC_AND, TCG_TMP1, TCG_TMP1, addrl);
 
     label_ptr[0] = s->code_ptr;
     tcg_out_opc_br(s, OPC_BNE, TCG_TMP1, TCG_TMP0);
 
+    /* Load and test the high half tlb comparator.  */
     if (TARGET_LONG_BITS == 64) {
         /* delay slot */
-        tcg_out_nop(s);
+        tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0, cmp_off + HI_OFF);
+
+        /* Load the tlb addend for the fast path. We can't do it earlier with
+           64-bit targets or we'll clobber a0 before reading the high half tlb
+           comparator.  */
+        tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0, add_off);
 
         label_ptr[1] = s->code_ptr;
-        tcg_out_opc_br(s, OPC_BNE, addrh, base);
+        tcg_out_opc_br(s, OPC_BNE, addrh, TCG_TMP0);
     }
 
     /* delay slot */
