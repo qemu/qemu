@@ -3038,6 +3038,23 @@ static void disas_bitfield(DisasContext *s, uint32_t insn)
             tcg_gen_sari_i64(tcg_rd, tcg_tmp, ri);
             goto done;
         }
+    } else if (opc == 2) { /* UBFM */
+        if (ri == 0) { /* UXTB, UXTH, plus non-canonical AND */
+            tcg_gen_andi_i64(tcg_rd, tcg_tmp, bitmask64(si + 1));
+            return;
+        }
+        if (si == 63 || (si == 31 && ri <= si)) { /* LSR */
+            if (si == 31) {
+                tcg_gen_ext32u_i64(tcg_tmp, tcg_tmp);
+            }
+            tcg_gen_shri_i64(tcg_rd, tcg_tmp, ri);
+            return;
+        }
+        if (si + 1 == ri && si != bitsize - 1) { /* LSL */
+            int shift = bitsize - 1 - si;
+            tcg_gen_shli_i64(tcg_rd, tcg_tmp, shift);
+            goto done;
+        }
     }
 
     if (opc != 1) { /* SBFM or UBFM */
