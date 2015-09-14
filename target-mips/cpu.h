@@ -1001,7 +1001,12 @@ static inline void cpu_mips_store_status(CPUMIPSState *env, target_ulong val)
 
     if (env->insn_flags & ISA_MIPS32R6) {
         bool has_supervisor = extract32(mask, CP0St_KSU, 2) == 0x3;
-
+#if defined(TARGET_MIPS64)
+        uint32_t ksux = (1 << CP0St_KX) & val;
+        ksux |= (ksux >> 1) & val; /* KX = 0 forces SX to be 0 */
+        ksux |= (ksux >> 1) & val; /* SX = 0 forces UX to be 0 */
+        val = (val & ~(7 << CP0St_UX)) | ksux;
+#endif
         if (has_supervisor && extract32(val, CP0St_KSU, 2) == 0x3) {
             mask &= ~(3 << CP0St_KSU);
         }
