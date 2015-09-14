@@ -370,10 +370,18 @@ static void mirror_exit(BlockJob *job, void *opaque)
         bdrv_swap(s->target, to_replace);
         if (s->common.driver->job_type == BLOCK_JOB_TYPE_COMMIT) {
             /* drop the bs loop chain formed by the swap: break the loop then
-             * trigger the unref from the top one */
-            BlockDriverState *p = backing_bs(s->base);
-            bdrv_set_backing_hd(s->base, NULL);
-            bdrv_unref(p);
+             * trigger the unref */
+            /* FIXME This duplicates bdrv_set_backing_hd(), except for the
+             * actual detach/unref so that the loop can be broken. When
+             * bdrv_swap() gets replaced, this will become sane again. */
+            BlockDriverState *backing = s->base->backing->bs;
+            assert(s->base->backing_blocker);
+            bdrv_op_unblock_all(backing, s->base->backing_blocker);
+            error_free(s->base->backing_blocker);
+            s->base->backing_blocker = NULL;
+            bdrv_detach_child(s->base->backing);
+            s->base->backing = NULL;
+            bdrv_unref(backing);
         }
     }
     if (s->to_replace) {

@@ -2923,6 +2923,7 @@ static BlockDriver vvfat_write_target = {
 static int enable_write_target(BDRVVVFATState *s, Error **errp)
 {
     BlockDriver *bdrv_qcow = NULL;
+    BlockDriverState *backing;
     QemuOpts *opts = NULL;
     int ret;
     int size = sector2cluster(s, s->sector_count);
@@ -2971,7 +2972,10 @@ static int enable_write_target(BDRVVVFATState *s, Error **errp)
     unlink(s->qcow_filename);
 #endif
 
-    bdrv_set_backing_hd(s->bs, bdrv_new());
+    backing = bdrv_new();
+    bdrv_set_backing_hd(s->bs, backing);
+    bdrv_unref(backing);
+
     s->bs->backing->bs->drv = &vvfat_write_target;
     s->bs->backing->bs->opaque = g_new(void *, 1);
     *(void**)s->bs->backing->bs->opaque = s;

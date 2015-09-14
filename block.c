@@ -1094,7 +1094,7 @@ static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     return child;
 }
 
-static void bdrv_detach_child(BdrvChild *child)
+void bdrv_detach_child(BdrvChild *child)
 {
     QLIST_REMOVE(child, next);
     g_free(child);
@@ -1112,13 +1112,20 @@ void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
     bdrv_unref(child_bs);
 }
 
+/*
+ * Sets the backing file link of a BDS. A new reference is created; callers
+ * which don't need their own reference any more must call bdrv_unref().
+ */
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd)
 {
+    if (backing_hd) {
+        bdrv_ref(backing_hd);
+    }
 
     if (bs->backing) {
         assert(bs->backing_blocker);
         bdrv_op_unblock_all(bs->backing->bs, bs->backing_blocker);
-        bdrv_detach_child(bs->backing);
+        bdrv_unref_child(bs, bs->backing);
     } else if (backing_hd) {
         error_setg(&bs->backing_blocker,
                    "node is used as backing hd of '%s'",
@@ -1214,7 +1221,10 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp)
         goto free_exit;
     }
 
+    /* Hook up the backing file link; drop our reference, bs owns the
+     * backing_hd reference now */
     bdrv_set_backing_hd(bs, backing_hd);
+    bdrv_unref(backing_hd);
 
 free_exit:
     g_free(backing_filename);
@@ -1891,11 +1901,7 @@ void bdrv_close(BlockDriverState *bs)
         bs->drv->bdrv_close(bs);
         bs->drv = NULL;
 
-        if (bs->backing) {
-            BlockDriverState *backing_hd = bs->backing->bs;
-            bdrv_set_backing_hd(bs, NULL);
-            bdrv_unref(backing_hd);
-        }
+        bdrv_set_backing_hd(bs, NULL);
 
         if (bs->file != NULL) {
             bdrv_unref_child(bs, bs->file);
@@ -2378,12 +2384,6 @@ BlockDriverState *bdrv_find_base(BlockDriverState *bs)
     return bdrv_find_overlay(bs, NULL);
 }
 
-typedef struct BlkIntermediateStates {
-    BlockDriverState *bs;
-    QSIMPLEQ_ENTRY(BlkIntermediateStates) entry;
-} BlkIntermediateStates;
-
-
 /*
  * Drops images above 'base' up to and including 'top', and sets the image
  * above 'top' to have base as its backing file.
@@ -2416,14 +2416,8 @@ typedef struct BlkIntermediateStates {
 int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
                            BlockDriverState *base, const char *backing_file_str)
 {
-    BlockDriverState *intermediate;
-    BlockDriverState *base_bs = NULL;
     BlockDriverState *new_top_bs = NULL;
-    BlkIntermediateStates *intermediate_state, *next;
     int ret = -EIO;
-
-    QSIMPLEQ_HEAD(states_to_delete, BlkIntermediateStates) states_to_delete;
-    QSIMPLEQ_INIT(&states_to_delete);
 
     if (!top->drv || !base->drv) {
         goto exit;
@@ -2443,48 +2437,22 @@ int bdrv_drop_intermediate(BlockDriverState *active, BlockDriverState *top,
         goto exit;
     }
 
-    intermediate = top;
-
-    /* now we will go down through the list, and add each BDS we find
-     * into our deletion queue, until we hit the 'base'
-     */
-    while (intermediate) {
-        intermediate_state = g_new0(BlkIntermediateStates, 1);
-        intermediate_state->bs = intermediate;
-        QSIMPLEQ_INSERT_TAIL(&states_to_delete, intermediate_state, entry);
-
-        if (backing_bs(intermediate) == base) {
-            base_bs = backing_bs(intermediate);
-            break;
-        }
-        intermediate = backing_bs(intermediate);
-    }
-    if (base_bs == NULL) {
-        /* something went wrong, we did not end at the base. safely
-         * unravel everything, and exit with error */
+    /* Make sure that base is in the backing chain of top */
+    if (!bdrv_chain_contains(top, base)) {
         goto exit;
     }
 
     /* success - we can delete the intermediate states, and link top->base */
-    backing_file_str = backing_file_str ? backing_file_str : base_bs->filename;
+    backing_file_str = backing_file_str ? backing_file_str : base->filename;
     ret = bdrv_change_backing_file(new_top_bs, backing_file_str,
-                                   base_bs->drv ? base_bs->drv->format_name : "");
+                                   base->drv ? base->drv->format_name : "");
     if (ret) {
         goto exit;
     }
-    bdrv_set_backing_hd(new_top_bs, base_bs);
+    bdrv_set_backing_hd(new_top_bs, base);
 
-    QSIMPLEQ_FOREACH_SAFE(intermediate_state, &states_to_delete, entry, next) {
-        /* so that bdrv_close() does not recursively close the chain */
-        bdrv_set_backing_hd(intermediate_state->bs, NULL);
-        bdrv_unref(intermediate_state->bs);
-    }
     ret = 0;
-
 exit:
-    QSIMPLEQ_FOREACH_SAFE(intermediate_state, &states_to_delete, entry, next) {
-        g_free(intermediate_state);
-    }
     return ret;
 }
 

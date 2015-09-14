@@ -52,34 +52,6 @@ static int coroutine_fn stream_populate(BlockDriverState *bs,
     return bdrv_co_copy_on_readv(bs, sector_num, nb_sectors, &qiov);
 }
 
-static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
-                                const char *base_id)
-{
-    BlockDriverState *intermediate;
-    intermediate = backing_bs(top);
-
-    /* Must assign before bdrv_delete() to prevent traversing dangling pointer
-     * while we delete backing image instances.
-     */
-    bdrv_set_backing_hd(top, base);
-
-    while (intermediate) {
-        BlockDriverState *unused;
-
-        /* reached base */
-        if (intermediate == base) {
-            break;
-        }
-
-        unused = intermediate;
-        intermediate = backing_bs(intermediate);
-        bdrv_set_backing_hd(unused, NULL);
-        bdrv_unref(unused);
-    }
-
-    bdrv_refresh_limits(top, NULL);
-}
-
 typedef struct {
     int ret;
     bool reached_end;
@@ -101,7 +73,7 @@ static void stream_complete(BlockJob *job, void *opaque)
             }
         }
         data->ret = bdrv_change_backing_file(job->bs, base_id, base_fmt);
-        close_unused_images(job->bs, base, base_id);
+        bdrv_set_backing_hd(job->bs, base);
     }
 
     g_free(s->backing_file_str);
