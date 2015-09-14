@@ -3117,17 +3117,7 @@ static void disas_extract(DisasContext *s, uint32_t insn)
 
         tcg_rd = cpu_reg(s, rd);
 
-        if (imm) {
-            /* OPTME: we can special case rm==rn as a rotate */
-            tcg_rm = read_cpu_reg(s, rm, sf);
-            tcg_rn = read_cpu_reg(s, rn, sf);
-            tcg_gen_shri_i64(tcg_rm, tcg_rm, imm);
-            tcg_gen_shli_i64(tcg_rn, tcg_rn, bitsize - imm);
-            tcg_gen_or_i64(tcg_rd, tcg_rm, tcg_rn);
-            if (!sf) {
-                tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
-            }
-        } else {
+        if (unlikely(imm == 0)) {
             /* tcg shl_i32/shl_i64 is undefined for 32/64 bit shifts,
              * so an extract from bit 0 is a special case.
              */
@@ -3136,8 +3126,27 @@ static void disas_extract(DisasContext *s, uint32_t insn)
             } else {
                 tcg_gen_ext32u_i64(tcg_rd, cpu_reg(s, rm));
             }
+        } else if (rm == rn) { /* ROR */
+            tcg_rm = cpu_reg(s, rm);
+            if (sf) {
+                tcg_gen_rotri_i64(tcg_rd, tcg_rm, imm);
+            } else {
+                TCGv_i32 tmp = tcg_temp_new_i32();
+                tcg_gen_extrl_i64_i32(tmp, tcg_rm);
+                tcg_gen_rotri_i32(tmp, tmp, imm);
+                tcg_gen_extu_i32_i64(tcg_rd, tmp);
+                tcg_temp_free_i32(tmp);
+            }
+        } else {
+            tcg_rm = read_cpu_reg(s, rm, sf);
+            tcg_rn = read_cpu_reg(s, rn, sf);
+            tcg_gen_shri_i64(tcg_rm, tcg_rm, imm);
+            tcg_gen_shli_i64(tcg_rn, tcg_rn, bitsize - imm);
+            tcg_gen_or_i64(tcg_rd, tcg_rm, tcg_rn);
+            if (!sf) {
+                tcg_gen_ext32u_i64(tcg_rd, tcg_rd);
+            }
         }
-
     }
 }
 
