@@ -53,12 +53,13 @@ static bool mips_cpu_has_work(CPUState *cs)
     CPUMIPSState *env = &cpu->env;
     bool has_work = false;
 
-    /* It is implementation dependent if non-enabled interrupts
-       wake-up the CPU, however most of the implementations only
+    /* Prior to MIPS Release 6 it is implementation dependent if non-enabled
+       interrupts wake-up the CPU, however most of the implementations only
        check for interrupts that can be taken. */
     if ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
         cpu_mips_hw_interrupts_pending(env)) {
-        if (cpu_mips_hw_interrupts_enabled(env)) {
+        if (cpu_mips_hw_interrupts_enabled(env) ||
+            (env->insn_flags & ISA_MIPS32R6)) {
             has_work = true;
         }
     }
