@@ -3015,7 +3015,11 @@ static void disas_bitfield(DisasContext *s, uint32_t insn)
     }
 
     tcg_rd = cpu_reg(s, rd);
-    tcg_tmp = read_cpu_reg(s, rn, sf);
+
+    /* Suppress the zero-extend for !sf.  Since RI and SI are constrained
+       to be smaller than bitsize, we'll never reference data outside the
+       low 32-bits anyway.  */
+    tcg_tmp = read_cpu_reg(s, rn, 1);
 
     /* Recognize the common aliases.  */
     if (opc == 0) { /* SBFM */
