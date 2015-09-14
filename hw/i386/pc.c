@@ -1452,15 +1452,6 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
     return dev;
 }
 
-static void cpu_request_exit(void *opaque, int irq, int level)
-{
-    CPUState *cpu = current_cpu;
-
-    if (cpu && level) {
-        cpu_exit(cpu);
-    }
-}
-
 static const MemoryRegionOps ioport80_io_ops = {
     .write = ioport80_write,
     .read = ioport80_read,
@@ -1495,7 +1486,6 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     qemu_irq rtc_irq = NULL;
     qemu_irq *a20_line;
     ISADevice *i8042, *port92, *vmmouse, *pit = NULL;
-    qemu_irq *cpu_exit_irq;
     MemoryRegion *ioport80_io = g_new(MemoryRegion, 1);
     MemoryRegion *ioportF0_io = g_new(MemoryRegion, 1);
 
@@ -1572,8 +1562,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     port92 = isa_create_simple(isa_bus, "port92");
     port92_init(port92, &a20_line[1]);
 
-    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
-    DMA_init(0, cpu_exit_irq);
+    DMA_init(0);
 
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);

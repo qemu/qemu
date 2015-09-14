@@ -1745,6 +1745,12 @@ void qemu_system_reset(bool report)
     cpu_synchronize_all_post_reset();
 }
 
+void qemu_system_guest_panicked(void)
+{
+    qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, &error_abort);
+    vm_stop(RUN_STATE_GUEST_PANICKED);
+}
+
 void qemu_system_reset_request(void)
 {
     if (no_reboot) {

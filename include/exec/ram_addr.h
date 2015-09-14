@@ -22,6 +22,46 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen/xen.h"
 
+typedef struct RAMBlock RAMBlock;
+
+struct RAMBlock {
+    struct rcu_head rcu;
+    struct MemoryRegion *mr;
+    uint8_t *host;
+    ram_addr_t offset;
+    ram_addr_t used_length;
+    ram_addr_t max_length;
+    void (*resized)(const char*, uint64_t length, void *host);
+    uint32_t flags;
+    /* Protected by iothread lock.  */
+    char idstr[256];
+    /* RCU-enabled, writes protected by the ramlist lock */
+    QLIST_ENTRY(RAMBlock) next;
+    int fd;
+};
+
+static inline void *ramblock_ptr(RAMBlock *block, ram_addr_t offset)
+{
+    assert(offset < block->used_length);
+    assert(block->host);
+    return (char *)block->host + offset;
+}
+
+typedef struct RAMList {
+    QemuMutex mutex;
+    /* Protected by the iothread lock.  */
+    unsigned long *dirty_memory[DIRTY_MEMORY_NUM];
+    RAMBlock *mru_block;
+    /* RCU-enabled, writes protected by the ramlist lock. */
+    QLIST_HEAD(, RAMBlock) blocks;
+    uint32_t version;
+} RAMList;
+extern RAMList ram_list;
+
+ram_addr_t last_ram_offset(void);
+void qemu_mutex_lock_ramlist(void);
+void qemu_mutex_unlock_ramlist(void);
+
 ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
                                     bool share, const char *mem_path,
                                     Error **errp);

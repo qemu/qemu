@@ -226,7 +226,7 @@ struct TranslationBlock {
     struct TranslationBlock *jmp_first;
 };
 
-#include "exec/spinlock.h"
+#include "qemu/thread.h"
 
 typedef struct TBContext TBContext;
 
@@ -236,7 +236,7 @@ struct TBContext {
     TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
     int nb_tbs;
     /* any access to the tbs or the page table must use this lock */
-    spinlock_t tb_lock;
+    QemuMutex tb_lock;
 
     /* statistics */
     int tb_flush_count;
@@ -375,11 +375,17 @@ void tlb_fill(CPUState *cpu, target_ulong addr, int is_write, int mmu_idx,
 #endif
 
 #if defined(CONFIG_USER_ONLY)
+void mmap_lock(void);
+void mmap_unlock(void);
+
 static inline tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 {
     return addr;
 }
 #else
+static inline void mmap_lock(void) {}
+static inline void mmap_unlock(void) {}
+
 /* cputlb.c */
 tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 #endif
@@ -387,8 +393,9 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 /* vl.c */
 extern int singlestep;
 
-/* cpu-exec.c */
-extern volatile sig_atomic_t exit_request;
+/* cpu-exec.c, accessed with atomic_mb_read/atomic_mb_set */
+extern CPUState *tcg_current_cpu;
+extern bool exit_request;
 
 #if !defined(CONFIG_USER_ONLY)
 void migration_bitmap_extend(ram_addr_t old, ram_addr_t new);

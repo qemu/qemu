@@ -122,12 +122,44 @@ uintptr_t qemu_real_host_page_mask;
 uintptr_t qemu_host_page_size;
 uintptr_t qemu_host_page_mask;
 
-/* This is a multi-level map on the virtual address space.
-   The bottom level has pointers to PageDesc.  */
+/* The bottom level has pointers to PageDesc */
 static void *l1_map[V_L1_SIZE];
 
 /* code generation context */
 TCGContext tcg_ctx;
+
+/* translation block context */
+#ifdef CONFIG_USER_ONLY
+__thread int have_tb_lock;
+#endif
+
+void tb_lock(void)
+{
+#ifdef CONFIG_USER_ONLY
+    assert(!have_tb_lock);
+    qemu_mutex_lock(&tcg_ctx.tb_ctx.tb_lock);
+    have_tb_lock++;
+#endif
+}
+
+void tb_unlock(void)
+{
+#ifdef CONFIG_USER_ONLY
+    assert(have_tb_lock);
+    have_tb_lock--;
+    qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
+#endif
+}
+
+void tb_lock_reset(void)
+{
+#ifdef CONFIG_USER_ONLY
+    if (have_tb_lock) {
+        qemu_mutex_unlock(&tcg_ctx.tb_ctx.tb_lock);
+        have_tb_lock = 0;
+    }
+#endif
+}
 
 static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2);
@@ -139,11 +171,13 @@ void cpu_gen_init(void)
 }
 
 /* return non zero if the very first instruction is invalid so that
-   the virtual CPU can trigger an exception.
-
-   '*gen_code_size_ptr' contains the size of the generated code (host
-   code).
-*/
+ * the virtual CPU can trigger an exception.
+ *
+ * '*gen_code_size_ptr' contains the size of the generated code (host
+ * code).
+ *
+ * Called with mmap_lock held for user-mode emulation.
+ */
 int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 {
     TCGContext *s = &tcg_ctx;
@@ -388,6 +422,9 @@ static void page_init(void)
 #endif
 }
 
+/* If alloc=1:
+ * Called with mmap_lock held for user-mode emulation.
+ */
 static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
 {
     PageDesc *pd;
@@ -399,26 +436,26 @@ static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
 
     /* Level 2..N-1.  */
     for (i = V_L1_SHIFT / V_L2_BITS - 1; i > 0; i--) {
-        void **p = *lp;
+        void **p = atomic_rcu_read(lp);
 
         if (p == NULL) {
             if (!alloc) {
                 return NULL;
             }
             p = g_new0(void *, V_L2_SIZE);
-            *lp = p;
+            atomic_rcu_set(lp, p);
         }
 
         lp = p + ((index >> (i * V_L2_BITS)) & (V_L2_SIZE - 1));
     }
 
-    pd = *lp;
+    pd = atomic_rcu_read(lp);
     if (pd == NULL) {
         if (!alloc) {
             return NULL;
         }
         pd = g_new0(PageDesc, V_L2_SIZE);
-        *lp = pd;
+        atomic_rcu_set(lp, pd);
     }
 
     return pd + (index & (V_L2_SIZE - 1));
@@ -428,11 +465,6 @@ static inline PageDesc *page_find(tb_page_addr_t index)
 {
     return page_find_alloc(index, 0);
 }
-
-#if !defined(CONFIG_USER_ONLY)
-#define mmap_lock() do { } while (0)
-#define mmap_unlock() do { } while (0)
-#endif
 
 #if defined(CONFIG_USER_ONLY)
 /* Currently it is not recommended to allocate big chunks of data in
@@ -676,6 +708,7 @@ static inline void code_gen_alloc(size_t tb_size)
             CODE_GEN_AVG_BLOCK_SIZE;
     tcg_ctx.tb_ctx.tbs =
             g_malloc(tcg_ctx.code_gen_max_blocks * sizeof(TranslationBlock));
+    qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -994,6 +1027,7 @@ static void build_page_bitmap(PageDesc *p)
     }
 }
 
+/* Called with mmap_lock held for user mode emulation.  */
 TranslationBlock *tb_gen_code(CPUState *cpu,
                               target_ulong pc, target_ulong cs_base,
                               int flags, int cflags)
@@ -1041,6 +1075,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
  * 'is_cpu_write_access' should be true if called from a real cpu write
  * access: the virtual CPU will exit the current TB if code is modified inside
  * this TB.
+ *
+ * Called with mmap_lock held for user-mode emulation
  */
 void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
 {
@@ -1057,6 +1093,8 @@ void tb_invalidate_phys_range(tb_page_addr_t start, tb_page_addr_t end)
  * 'is_cpu_write_access' should be true if called from a real cpu write
  * access: the virtual CPU will exit the current TB if code is modified inside
  * this TB.
+ *
+ * Called with mmap_lock held for user-mode emulation
  */
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access)
@@ -1205,6 +1243,7 @@ void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 }
 
 #if !defined(CONFIG_SOFTMMU)
+/* Called with mmap_lock held.  */
 static void tb_invalidate_phys_page(tb_page_addr_t addr,
                                     uintptr_t pc, void *puc,
                                     bool locked)
@@ -1274,7 +1313,10 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 }
 #endif
 
-/* add the tb in the target page and protect it if necessary */
+/* add the tb in the target page and protect it if necessary
+ *
+ * Called with mmap_lock held for user-mode emulation.
+ */
 static inline void tb_alloc_page(TranslationBlock *tb,
                                  unsigned int n, tb_page_addr_t page_addr)
 {
@@ -1330,16 +1372,16 @@ static inline void tb_alloc_page(TranslationBlock *tb,
 }
 
 /* add a new TB and link it to the physical page tables. phys_page2 is
-   (-1) to indicate that only one page contains the TB. */
+ * (-1) to indicate that only one page contains the TB.
+ *
+ * Called with mmap_lock held for user-mode emulation.
+ */
 static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
                          tb_page_addr_t phys_page2)
 {
     unsigned int h;
     TranslationBlock **ptb;
 
-    /* Grab the mmap lock to stop another thread invalidating this TB
-       before we are done.  */
-    mmap_lock();
     /* add in the physical hash table */
     h = tb_phys_hash_func(phys_pc);
     ptb = &tcg_ctx.tb_ctx.tb_phys_hash[h];
@@ -1369,7 +1411,6 @@ static void tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
 #ifdef DEBUG_TB_CHECK
     tb_page_check();
 #endif
-    mmap_unlock();
 }
 
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <

@@ -337,6 +337,7 @@ libssh2=""
 vhdx=""
 numa=""
 tcmalloc="no"
+jemalloc="no"
 
 # parse CC options first
 for opt do
@@ -1143,6 +1144,10 @@ for opt do
   ;;
   --enable-tcmalloc) tcmalloc="yes"
   ;;
+  --disable-jemalloc) jemalloc="no"
+  ;;
+  --enable-jemalloc) jemalloc="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1367,6 +1372,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vhdx            support for the Microsoft VHDX image format
   numa            libnuma support
   tcmalloc        tcmalloc support
+  jemalloc        jemalloc support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -3395,6 +3401,11 @@ EOF
   fi
 fi
 
+if test "$tcmalloc" = "yes" && test "$jemalloc" = "yes" ; then
+    echo "ERROR: tcmalloc && jemalloc can't be used at the same time"
+    exit 1
+fi
+
 ##########################################
 # tcmalloc probe
 
@@ -3408,6 +3419,22 @@ EOF
     LIBS="-ltcmalloc $LIBS"
   else
     feature_not_found "tcmalloc" "install gperftools devel"
+  fi
+fi
+
+##########################################
+# jemalloc probe
+
+if test "$jemalloc" = "yes" ; then
+  cat > $TMPC << EOF
+#include <stdlib.h>
+int main(void) { malloc(1); return 0; }
+EOF
+
+  if compile_prog "" "-ljemalloc" ; then
+    LIBS="-ljemalloc $LIBS"
+  else
+    feature_not_found "jemalloc" "install jemalloc devel"
   fi
 fi
 
@@ -4629,6 +4656,7 @@ echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
 echo "NUMA host support $numa"
 echo "tcmalloc support  $tcmalloc"
+echo "jemalloc support  $jemalloc"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -5519,91 +5547,76 @@ fi
 cflags=""
 ldflags=""
 
+disas_config() {
+  echo "CONFIG_${1}_DIS=y" >> $config_target_mak
+  echo "CONFIG_${1}_DIS=y" >> config-all-disas.mak
+}
+
 for i in $ARCH $TARGET_BASE_ARCH ; do
   case "$i" in
   alpha)
-    echo "CONFIG_ALPHA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_ALPHA_DIS=y"  >> config-all-disas.mak
+    disas_config "ALPHA"
   ;;
   aarch64)
     if test -n "${cxx}"; then
-      echo "CONFIG_ARM_A64_DIS=y"  >> $config_target_mak
-      echo "CONFIG_ARM_A64_DIS=y"  >> config-all-disas.mak
+      disas_config "ARM_A64"
     fi
   ;;
   arm)
-    echo "CONFIG_ARM_DIS=y"  >> $config_target_mak
-    echo "CONFIG_ARM_DIS=y"  >> config-all-disas.mak
+    disas_config "ARM"
     if test -n "${cxx}"; then
-      echo "CONFIG_ARM_A64_DIS=y"  >> $config_target_mak
-      echo "CONFIG_ARM_A64_DIS=y"  >> config-all-disas.mak
+      disas_config "ARM_A64"
     fi
   ;;
   cris)
-    echo "CONFIG_CRIS_DIS=y"  >> $config_target_mak
-    echo "CONFIG_CRIS_DIS=y"  >> config-all-disas.mak
+    disas_config "CRIS"
   ;;
   hppa)
-    echo "CONFIG_HPPA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_HPPA_DIS=y"  >> config-all-disas.mak
+    disas_config "HPPA"
   ;;
   i386|x86_64|x32)
-    echo "CONFIG_I386_DIS=y"  >> $config_target_mak
-    echo "CONFIG_I386_DIS=y"  >> config-all-disas.mak
+    disas_config "I386"
   ;;
   ia64*)
-    echo "CONFIG_IA64_DIS=y"  >> $config_target_mak
-    echo "CONFIG_IA64_DIS=y"  >> config-all-disas.mak
+    disas_config "IA64"
   ;;
   lm32)
-    echo "CONFIG_LM32_DIS=y"  >> $config_target_mak
-    echo "CONFIG_LM32_DIS=y"  >> config-all-disas.mak
+    disas_config "LM32"
   ;;
   m68k)
-    echo "CONFIG_M68K_DIS=y"  >> $config_target_mak
-    echo "CONFIG_M68K_DIS=y"  >> config-all-disas.mak
+    disas_config "M68K"
   ;;
   microblaze*)
-    echo "CONFIG_MICROBLAZE_DIS=y"  >> $config_target_mak
-    echo "CONFIG_MICROBLAZE_DIS=y"  >> config-all-disas.mak
+    disas_config "MICROBLAZE"
   ;;
   mips*)
-    echo "CONFIG_MIPS_DIS=y"  >> $config_target_mak
-    echo "CONFIG_MIPS_DIS=y"  >> config-all-disas.mak
+    disas_config "MIPS"
   ;;
   moxie*)
-    echo "CONFIG_MOXIE_DIS=y"  >> $config_target_mak
-    echo "CONFIG_MOXIE_DIS=y"  >> config-all-disas.mak
+    disas_config "MOXIE"
   ;;
   or32)
-    echo "CONFIG_OPENRISC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_OPENRISC_DIS=y"  >> config-all-disas.mak
+    disas_config "OPENRISC"
   ;;
   ppc*)
-    echo "CONFIG_PPC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_PPC_DIS=y"  >> config-all-disas.mak
+    disas_config "PPC"
   ;;
   s390*)
-    echo "CONFIG_S390_DIS=y"  >> $config_target_mak
-    echo "CONFIG_S390_DIS=y"  >> config-all-disas.mak
+    disas_config "S390"
   ;;
   sh4)
-    echo "CONFIG_SH4_DIS=y"  >> $config_target_mak
-    echo "CONFIG_SH4_DIS=y"  >> config-all-disas.mak
+    disas_config "SH4"
   ;;
   sparc*)
-    echo "CONFIG_SPARC_DIS=y"  >> $config_target_mak
-    echo "CONFIG_SPARC_DIS=y"  >> config-all-disas.mak
+    disas_config "SPARC"
   ;;
   xtensa*)
-    echo "CONFIG_XTENSA_DIS=y"  >> $config_target_mak
-    echo "CONFIG_XTENSA_DIS=y"  >> config-all-disas.mak
+    disas_config "XTENSA"
   ;;
   esac
 done
 if test "$tcg_interpreter" = "yes" ; then
-  echo "CONFIG_TCI_DIS=y"  >> $config_target_mak
-  echo "CONFIG_TCI_DIS=y"  >> config-all-disas.mak
+  disas_config "TCI"
 fi
 
 case "$ARCH" in

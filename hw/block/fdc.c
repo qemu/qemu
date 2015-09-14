@@ -1417,7 +1417,7 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
                  * recall us...
                  */
                 DMA_hold_DREQ(fdctrl->dma_chann);
-                DMA_schedule(fdctrl->dma_chann);
+                DMA_schedule();
             } else {
                 /* Start transfer */
                 fdctrl_transfer_handler(fdctrl, fdctrl->dma_chann, 0,

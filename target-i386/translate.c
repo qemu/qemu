@@ -7898,6 +7898,8 @@ void optimize_flags_init(void)
                                          offsetof(CPUX86State, regs[i]),
                                          reg_names[i]);
     }
+
+    helper_lock_init();
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for

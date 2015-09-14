@@ -203,6 +203,14 @@ time_t mktimegm(struct tm *tm);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
 int qemu_parse_fd(const char *param);
+int qemu_strtol(const char *nptr, const char **endptr, int base,
+                long *result);
+int qemu_strtoul(const char *nptr, const char **endptr, int base,
+                 unsigned long *result);
+int qemu_strtoll(const char *nptr, const char **endptr, int base,
+                 int64_t *result);
+int qemu_strtoull(const char *nptr, const char **endptr, int base,
+                  uint64_t *result);
 
 int parse_uint(const char *s, unsigned long long *value, char **endptr,
                int base);

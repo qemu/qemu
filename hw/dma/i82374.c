@@ -38,7 +38,6 @@ do { fprintf(stderr, "i82374 ERROR: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct I82374State {
     uint8_t commands[8];
-    qemu_irq out;
     PortioList port_list;
 } I82374State;
 
@@ -101,7 +100,7 @@ static uint32_t i82374_read_descriptor(void *opaque, uint32_t nport)
 
 static void i82374_realize(I82374State *s, Error **errp)
 {
-    DMA_init(1, &s->out);
+    DMA_init(1);
     memset(s->commands, 0, sizeof(s->commands));
 }
 
@@ -145,8 +144,6 @@ static void i82374_isa_realize(DeviceState *dev, Error **errp)
                     isa->iobase);
 
     i82374_realize(s, errp);
-
-    qdev_init_gpio_out(dev, &s->out, 1);
 }
 
 static Property i82374_properties[] = {

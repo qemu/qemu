@@ -1214,6 +1214,10 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
 
     if (task == NULL || task->status != SCSI_STATUS_GOOD) {
         error_setg(errp, "iSCSI: failed to send readcapacity10 command.");
+    } else if (!iscsilun->block_size ||
+               iscsilun->block_size % BDRV_SECTOR_SIZE) {
+        error_setg(errp, "iSCSI: the target returned an invalid "
+                   "block size of %d.", iscsilun->block_size);
     }
     if (task) {
         scsi_free_scsi_task(task);

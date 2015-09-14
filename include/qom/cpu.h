@@ -28,7 +28,6 @@
 #include "exec/memattrs.h"
 #include "qemu/queue.h"
 #include "qemu/thread.h"
-#include "qemu/tls.h"
 #include "qemu/typedefs.h"
 
 typedef int (*WriteCoreDumpFunction)(const void *buf, size_t size,
@@ -244,6 +243,8 @@ struct kvm_run;
  * @mem_io_pc: Host Program Counter at which the memory was accessed.
  * @mem_io_vaddr: Target virtual address at which the memory was accessed.
  * @kvm_fd: vCPU file descriptor for KVM.
+ * @work_mutex: Lock to prevent multiple access to queued_work_*.
+ * @queued_work_first: First asynchronous work pending.
  *
  * State of one CPU core or thread.
  */
@@ -264,16 +265,18 @@ struct CPUState {
     uint32_t host_tid;
     bool running;
     struct QemuCond *halt_cond;
-    struct qemu_work_item *queued_work_first, *queued_work_last;
     bool thread_kicked;
     bool created;
     bool stop;
     bool stopped;
-    volatile sig_atomic_t exit_request;
+    bool exit_request;
     uint32_t interrupt_request;
     int singlestep_enabled;
     int64_t icount_extra;
     sigjmp_buf jmp_env;
+
+    QemuMutex work_mutex;
+    struct qemu_work_item *queued_work_first, *queued_work_last;
 
     AddressSpace *as;
     struct AddressSpaceDispatch *memory_dispatch;
@@ -320,7 +323,7 @@ struct CPUState {
        offset from AREG0.  Leave this field at the end so as to make the
        (absolute value) offset as small as possible.  This reduces code
        size, especially for hosts without large memory offsets.  */
-    volatile sig_atomic_t tcg_exit_req;
+    uint32_t tcg_exit_req;
 };
 
 QTAILQ_HEAD(CPUTailQ, CPUState);
@@ -333,8 +336,7 @@ extern struct CPUTailQ cpus;
     QTAILQ_FOREACH_REVERSE(cpu, &cpus, CPUTailQ, node)
 #define first_cpu QTAILQ_FIRST(&cpus)
 
-DECLARE_TLS(CPUState *, current_cpu);
-#define current_cpu tls_var(current_cpu)
+extern __thread CPUState *current_cpu;
 
 /**
  * cpu_paging_enabled:

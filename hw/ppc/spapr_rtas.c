@@ -214,7 +214,7 @@ static void rtas_stop_self(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     CPUPPCState *env = &cpu->env;
 
     cs->halted = 1;
-    cpu_exit(cs);
+    qemu_cpu_kick(cs);
     /*
      * While stopping a CPU, the guest calls H_CPPR which
      * effectively disables interrupts on XICS level.

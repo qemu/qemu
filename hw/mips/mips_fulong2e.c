@@ -251,15 +251,6 @@ static void network_init (PCIBus *pci_bus)
     }
 }
 
-static void cpu_request_exit(void *opaque, int irq, int level)
-{
-    CPUState *cpu = current_cpu;
-
-    if (cpu && level) {
-        cpu_exit(cpu);
-    }
-}
-
 static void mips_fulong2e_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
@@ -274,7 +265,6 @@ static void mips_fulong2e_init(MachineState *machine)
     long bios_size;
     int64_t kernel_entry;
     qemu_irq *i8259;
-    qemu_irq *cpu_exit_irq;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     I2CBus *smbus;
@@ -375,8 +365,7 @@ static void mips_fulong2e_init(MachineState *machine)
 
     /* init other devices */
     pit = pit_init(isa_bus, 0x40, 0, NULL);
-    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
-    DMA_init(0, cpu_exit_irq);
+    DMA_init(0);
 
     /* Super I/O */
     isa_create_simple(isa_bus, "i8042");

@@ -7,7 +7,7 @@ include config-target.mak
 include config-devices.mak
 include $(SRC_PATH)/rules.mak
 
-$(call set-vpath, $(SRC_PATH))
+$(call set-vpath, $(SRC_PATH):$(BUILD_DIR))
 ifdef CONFIG_LINUX
 QEMU_CFLAGS += -I../linux-headers
 endif

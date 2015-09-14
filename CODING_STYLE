@@ -87,10 +87,15 @@ Furthermore, it is the QEMU coding style.
 
 5. Declarations
 
-Mixed declarations (interleaving statements and declarations within blocks)
-are not allowed; declarations should be at the beginning of blocks.  In other
-words, the code should not generate warnings if using GCC's
--Wdeclaration-after-statement option.
+Mixed declarations (interleaving statements and declarations within
+blocks) are generally not allowed; declarations should be at the beginning
+of blocks.
+
+Every now and then, an exception is made for declarations inside a
+#ifdef or #ifndef block: if the code looks nicer, such declarations can
+be placed at the top of the block even if there are statements above.
+On the other hand, however, it's often best to move that #ifdef/#ifndef
+block to a separate function altogether.
 
 6. Conditional statements
 

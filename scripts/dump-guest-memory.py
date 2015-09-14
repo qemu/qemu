@@ -118,7 +118,7 @@ shape and this command should mostly work."""
     def qemu_get_ram_block(self, ram_addr):
         ram_blocks = gdb.parse_and_eval("ram_list.blocks")
         for block in self.qlist_foreach(ram_blocks, "next"):
-            if (ram_addr - block["offset"] < block["length"]):
+            if (ram_addr - block["offset"] < block["used_length"]):
                 return block
         raise gdb.GdbError("Bad ram offset %x" % ram_addr)
 

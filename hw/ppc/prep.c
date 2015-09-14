@@ -336,15 +336,6 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
 
 #define NVRAM_SIZE        0x2000
 
-static void cpu_request_exit(void *opaque, int irq, int level)
-{
-    CPUState *cpu = current_cpu;
-
-    if (cpu && level) {
-        cpu_exit(cpu);
-    }
-}
-
 static void ppc_prep_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -626,8 +617,6 @@ static void ppc_prep_init(MachineState *machine)
     cpu = POWERPC_CPU(first_cpu);
     qdev_connect_gpio_out(&pci->qdev, 0,
                           cpu->env.irq_inputs[PPC6xx_INPUT_INT]);
-    qdev_connect_gpio_out(&pci->qdev, 1,
-                          qemu_allocate_irq(cpu_request_exit, NULL, 0));
     sysbus_connect_irq(&pcihost->busdev, 0, qdev_get_gpio_in(&pci->qdev, 9));
     sysbus_connect_irq(&pcihost->busdev, 1, qdev_get_gpio_in(&pci->qdev, 11));
     sysbus_connect_irq(&pcihost->busdev, 2, qdev_get_gpio_in(&pci->qdev, 9));
