@@ -60,7 +60,7 @@ QEMUFile *qemu_fopen_ops(void *opaque, const QEMUFileOps *ops)
 {
     QEMUFile *f;
 
-    f = g_malloc0(sizeof(QEMUFile));
+    f = g_new0(QEMUFile, 1);
 
     f->opaque = opaque;
     f->ops = ops;

@@ -194,7 +194,7 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileSocket));
+    s = g_new0(QEMUFileSocket, 1);
     s->fd = fd;
 
     if (mode[0] == 'r') {
@@ -228,7 +228,7 @@ QEMUFile *qemu_fopen_socket(int fd, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileSocket));
+    s = g_new0(QEMUFileSocket, 1);
     s->fd = fd;
     if (mode[0] == 'w') {
         qemu_set_block(s->fd);

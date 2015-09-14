@@ -440,7 +440,7 @@ QEMUFile *qemu_bufopen(const char *mode, QEMUSizedBuffer *input)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUBuffer));
+    s = g_new0(QEMUBuffer, 1);
     s->qsb = input;
 
     if (s->qsb == NULL) {

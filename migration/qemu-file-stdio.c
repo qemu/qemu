@@ -144,7 +144,7 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileStdio));
+    s = g_new0(QEMUFileStdio, 1);
 
     s->stdio_file = stdio_file;
 
@@ -176,7 +176,7 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileStdio));
+    s = g_new0(QEMUFileStdio, 1);
 
     s->stdio_file = fopen(filename, mode);
     if (!s->stdio_file) {
