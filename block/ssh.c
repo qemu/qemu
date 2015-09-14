@@ -193,7 +193,7 @@ sftp_error_report(BDRVSSHState *s, const char *fs, ...)
 static int parse_uri(const char *filename, QDict *options, Error **errp)
 {
     URI *uri = NULL;
-    QueryParams *qp = NULL;
+    QueryParams *qp;
     int i;
 
     uri = uri_parse(filename);
@@ -249,9 +249,6 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
     return 0;
 
  err:
-    if (qp) {
-      query_params_free(qp);
-    }
     if (uri) {
       uri_free(uri);
     }
