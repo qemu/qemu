@@ -24,6 +24,7 @@
 #include "hw/timer/imx_gpt.h"
 #include "hw/timer/imx_epit.h"
 #include "hw/i2c/imx_i2c.h"
+#include "hw/gpio/imx_gpio.h"
 #include "exec/memory.h"
 
 #define TYPE_FSL_IMX31 "fsl,imx31"
@@ -32,6 +33,7 @@
 #define FSL_IMX31_NUM_UARTS 2
 #define FSL_IMX31_NUM_EPITS 2
 #define FSL_IMX31_NUM_I2CS 3
+#define FSL_IMX31_NUM_GPIOS 3
 
 typedef struct FslIMX31State {
     /*< private >*/
@@ -45,6 +47,7 @@ typedef struct FslIMX31State {
     IMXGPTState    gpt;
     IMXEPITState   epit[FSL_IMX31_NUM_EPITS];
     IMXI2CState    i2c[FSL_IMX31_NUM_I2CS];
+    IMXGPIOState   gpio[FSL_IMX31_NUM_GPIOS];
     MemoryRegion   secure_rom;
     MemoryRegion   rom;
     MemoryRegion   iram;
@@ -77,6 +80,12 @@ typedef struct FslIMX31State {
 #define FSL_IMX31_EPIT1_SIZE            0x4000
 #define FSL_IMX31_EPIT2_ADDR            0x53F98000
 #define FSL_IMX31_EPIT2_SIZE            0x4000
+#define FSL_IMX31_GPIO3_ADDR            0x53FA4000
+#define FSL_IMX31_GPIO3_SIZE            0x4000
+#define FSL_IMX31_GPIO1_ADDR            0x53FCC000
+#define FSL_IMX31_GPIO1_SIZE            0x4000
+#define FSL_IMX31_GPIO2_ADDR            0x53FD0000
+#define FSL_IMX31_GPIO2_SIZE            0x4000
 #define FSL_IMX31_AVIC_ADDR             0x68000000
 #define FSL_IMX31_AVIC_SIZE             0x100
 #define FSL_IMX31_SDRAM0_ADDR           0x80000000
@@ -106,5 +115,8 @@ typedef struct FslIMX31State {
 #define FSL_IMX31_I2C1_IRQ              10
 #define FSL_IMX31_I2C2_IRQ              4
 #define FSL_IMX31_I2C3_IRQ              3
+#define FSL_IMX31_GPIO1_IRQ             52
+#define FSL_IMX31_GPIO2_IRQ             51
+#define FSL_IMX31_GPIO3_IRQ             56
 
 #endif /* FSL_IMX31_H */

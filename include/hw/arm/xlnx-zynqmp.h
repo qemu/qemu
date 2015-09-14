@@ -46,7 +46,7 @@
  * number of memory region aliases.
  */
 
-#define XLNX_ZYNQMP_GIC_REGION_SIZE 0x4000
+#define XLNX_ZYNQMP_GIC_REGION_SIZE 0x1000
 #define XLNX_ZYNQMP_GIC_ALIASES     (0x10000 / XLNX_ZYNQMP_GIC_REGION_SIZE - 1)
 
 typedef struct XlnxZynqMPState {

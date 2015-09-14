@@ -55,6 +55,11 @@ static void fsl_imx31_init(Object *obj)
         object_initialize(&s->i2c[i], sizeof(s->i2c[i]), TYPE_IMX_I2C);
         qdev_set_parent_bus(DEVICE(&s->i2c[i]), sysbus_get_default());
     }
+
+    for (i = 0; i < FSL_IMX31_NUM_GPIOS; i++) {
+        object_initialize(&s->gpio[i], sizeof(s->gpio[i]), TYPE_IMX_GPIO);
+        qdev_set_parent_bus(DEVICE(&s->gpio[i]), sysbus_get_default());
+    }
 }
 
 static void fsl_imx31_realize(DeviceState *dev, Error **errp)
@@ -182,6 +187,31 @@ static void fsl_imx31_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[i]), 0,
                            qdev_get_gpio_in(DEVICE(&s->avic),
                                             i2c_table[i].irq));
+    }
+
+    /* Initialize all GPIOs */
+    for (i = 0; i < FSL_IMX31_NUM_GPIOS; i++) {
+        static const struct {
+            hwaddr addr;
+            unsigned int irq;
+        } gpio_table[FSL_IMX31_NUM_GPIOS] = {
+            { FSL_IMX31_GPIO1_ADDR, FSL_IMX31_GPIO1_IRQ },
+            { FSL_IMX31_GPIO2_ADDR, FSL_IMX31_GPIO2_IRQ },
+            { FSL_IMX31_GPIO3_ADDR, FSL_IMX31_GPIO3_IRQ }
+        };
+
+        object_property_set_bool(OBJECT(&s->gpio[i]), false, "has-edge-sel",
+                                 &error_abort);
+        object_property_set_bool(OBJECT(&s->gpio[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio[i]), 0, gpio_table[i].addr);
+        /* Connect GPIO IRQ to PIC */
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->gpio[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&s->avic),
+                                            gpio_table[i].irq));
     }
 
     /* On a real system, the first 16k is a `secure boot rom' */

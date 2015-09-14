@@ -63,7 +63,21 @@ typedef struct DisasContext {
     TCGv_i64 tmp_a64[TMP_A64_MAX];
 } DisasContext;
 
+typedef struct DisasCompare {
+    TCGCond cond;
+    TCGv_i32 value;
+    bool value_global;
+} DisasCompare;
+
+/* Share the TCG temporaries common between 32 and 64 bit modes.  */
 extern TCGv_ptr cpu_env;
+extern TCGv_i32 cpu_NF, cpu_ZF, cpu_CF, cpu_VF;
+extern TCGv_i64 cpu_exclusive_addr;
+extern TCGv_i64 cpu_exclusive_val;
+#ifdef CONFIG_USER_ONLY
+extern TCGv_i64 cpu_exclusive_test;
+extern TCGv_i32 cpu_exclusive_info;
+#endif
 
 static inline int arm_dc_feature(DisasContext *dc, int feature)
 {
@@ -136,6 +150,9 @@ static inline void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
 }
 #endif
 
+void arm_test_cc(DisasCompare *cmp, int cc);
+void arm_free_cc(DisasCompare *cmp);
+void arm_jump_cc(DisasCompare *cmp, TCGLabel *label);
 void arm_gen_test_cc(int cc, TCGLabel *label);
 
 #endif /* TARGET_ARM_TRANSLATE_H */

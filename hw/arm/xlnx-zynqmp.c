@@ -128,7 +128,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     qdev_prop_set_uint32(DEVICE(&s->gic), "num-cpu", XLNX_ZYNQMP_NUM_APU_CPUS);
     object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
     if (err) {
-        error_propagate((errp), (err));
+        error_propagate(errp, err);
         return;
     }
     assert(ARRAY_SIZE(xlnx_zynqmp_gic_regions) == XLNX_ZYNQMP_GIC_REGIONS);
@@ -173,7 +173,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         object_property_set_bool(OBJECT(&s->apu_cpu[i]), true, "realized",
                                  &err);
         if (err) {
-            error_propagate((errp), (err));
+            error_propagate(errp, err);
             return;
         }
 
@@ -206,7 +206,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         object_property_set_bool(OBJECT(&s->rpu_cpu[i]), true, "realized",
                                  &err);
         if (err) {
-            error_propagate((errp), (err));
+            error_propagate(errp, err);
             return;
         }
     }
@@ -229,7 +229,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         }
         object_property_set_bool(OBJECT(&s->gem[i]), true, "realized", &err);
         if (err) {
-            error_propagate((errp), (err));
+            error_propagate(errp, err);
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem[i]), 0, gem_addr[i]);
@@ -240,7 +240,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < XLNX_ZYNQMP_NUM_UARTS; i++) {
         object_property_set_bool(OBJECT(&s->uart[i]), true, "realized", &err);
         if (err) {
-            error_propagate((errp), (err));
+            error_propagate(errp, err);
             return;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 0, uart_addr[i]);
