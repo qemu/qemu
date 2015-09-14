@@ -4270,7 +4270,7 @@ int main(int argc, char **argv, char **envp)
     }
     target_argv[target_argc] = NULL;
 
-    ts = g_malloc0 (sizeof(TaskState));
+    ts = g_new0(TaskState, 1);
     init_task_state(ts);
     /* build Task State */
     ts->info = info;

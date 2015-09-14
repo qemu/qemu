@@ -4566,7 +4566,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         new_thread_info info;
         pthread_attr_t attr;
 
-        ts = g_malloc0(sizeof(TaskState));
+        ts = g_new0(TaskState, 1);
         init_task_state(ts);
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
