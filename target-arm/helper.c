@@ -5044,17 +5044,7 @@ uint32_t HELPER(udiv)(uint32_t num, uint32_t den)
 
 uint32_t HELPER(rbit)(uint32_t x)
 {
-    x =  ((x & 0xff000000) >> 24)
-       | ((x & 0x00ff0000) >> 8)
-       | ((x & 0x0000ff00) << 8)
-       | ((x & 0x000000ff) << 24);
-    x =  ((x & 0xf0f0f0f0) >> 4)
-       | ((x & 0x0f0f0f0f) << 4);
-    x =  ((x & 0x88888888) >> 3)
-       | ((x & 0x44444444) >> 1)
-       | ((x & 0x22222222) << 1)
-       | ((x & 0x11111111) << 3);
-    return x;
+    return revbit32(x);
 }
 
 #if defined(CONFIG_USER_ONLY)
