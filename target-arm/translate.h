@@ -63,7 +63,15 @@ typedef struct DisasContext {
     TCGv_i64 tmp_a64[TMP_A64_MAX];
 } DisasContext;
 
+/* Share the TCG temporaries common between 32 and 64 bit modes.  */
 extern TCGv_ptr cpu_env;
+extern TCGv_i32 cpu_NF, cpu_ZF, cpu_CF, cpu_VF;
+extern TCGv_i64 cpu_exclusive_addr;
+extern TCGv_i64 cpu_exclusive_val;
+#ifdef CONFIG_USER_ONLY
+extern TCGv_i64 cpu_exclusive_test;
+extern TCGv_i32 cpu_exclusive_info;
+#endif
 
 static inline int arm_dc_feature(DisasContext *dc, int feature)
 {

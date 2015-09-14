@@ -40,16 +40,9 @@
 
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
-static TCGv_i32 cpu_NF, cpu_ZF, cpu_CF, cpu_VF;
 
 /* Load/store exclusive handling */
-static TCGv_i64 cpu_exclusive_addr;
-static TCGv_i64 cpu_exclusive_val;
 static TCGv_i64 cpu_exclusive_high;
-#ifdef CONFIG_USER_ONLY
-static TCGv_i64 cpu_exclusive_test;
-static TCGv_i32 cpu_exclusive_info;
-#endif
 
 static const char *regnames[] = {
     "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7",
@@ -105,23 +98,8 @@ void a64_translate_init(void)
                                           regnames[i]);
     }
 
-    cpu_NF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, NF), "NF");
-    cpu_ZF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, ZF), "ZF");
-    cpu_CF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, CF), "CF");
-    cpu_VF = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUARMState, VF), "VF");
-
-    cpu_exclusive_addr = tcg_global_mem_new_i64(TCG_AREG0,
-        offsetof(CPUARMState, exclusive_addr), "exclusive_addr");
-    cpu_exclusive_val = tcg_global_mem_new_i64(TCG_AREG0,
-        offsetof(CPUARMState, exclusive_val), "exclusive_val");
     cpu_exclusive_high = tcg_global_mem_new_i64(TCG_AREG0,
         offsetof(CPUARMState, exclusive_high), "exclusive_high");
-#ifdef CONFIG_USER_ONLY
-    cpu_exclusive_test = tcg_global_mem_new_i64(TCG_AREG0,
-        offsetof(CPUARMState, exclusive_test), "exclusive_test");
-    cpu_exclusive_info = tcg_global_mem_new_i32(TCG_AREG0,
-        offsetof(CPUARMState, exclusive_info), "exclusive_info");
-#endif
 }
 
 static inline ARMMMUIdx get_a64_user_mem_index(DisasContext *s)
