@@ -6344,7 +6344,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     /* Read an LPAE long-descriptor translation table. */
     MMUFaultType fault_type = translation_fault;
     uint32_t level = 1;
-    uint32_t epd;
+    uint32_t epd = 0;
     int32_t tsz;
     uint32_t tg;
     uint64_t ttbr;
@@ -6438,7 +6438,9 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      */
     if (ttbr_select == 0) {
         ttbr = regime_ttbr(env, mmu_idx, 0);
-        epd = extract32(tcr->raw_tcr, 7, 1);
+        if (el < 2) {
+            epd = extract32(tcr->raw_tcr, 7, 1);
+        }
         tsz = t0sz;
 
         tg = extract32(tcr->raw_tcr, 14, 2);
