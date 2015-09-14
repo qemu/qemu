@@ -58,7 +58,9 @@ static bool mips_cpu_has_work(CPUState *cs)
        check for interrupts that can be taken. */
     if ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
         cpu_mips_hw_interrupts_pending(env)) {
-        has_work = true;
+        if (cpu_mips_hw_interrupts_enabled(env)) {
+            has_work = true;
+        }
     }
 
     /* MIPS-MT has the ability to halt the CPU.  */

@@ -637,23 +637,24 @@ static inline int cpu_mmu_index (CPUMIPSState *env, bool ifetch)
     return env->hflags & MIPS_HFLAG_KSU;
 }
 
-static inline int cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
+static inline bool cpu_mips_hw_interrupts_enabled(CPUMIPSState *env)
 {
-    int32_t pending;
-    int32_t status;
-    int r;
-
-    if (!(env->CP0_Status & (1 << CP0St_IE)) ||
-        (env->CP0_Status & (1 << CP0St_EXL)) ||
-        (env->CP0_Status & (1 << CP0St_ERL)) ||
+    return (env->CP0_Status & (1 << CP0St_IE)) &&
+        !(env->CP0_Status & (1 << CP0St_EXL)) &&
+        !(env->CP0_Status & (1 << CP0St_ERL)) &&
+        !(env->hflags & MIPS_HFLAG_DM) &&
         /* Note that the TCStatus IXMT field is initialized to zero,
            and only MT capable cores can set it to one. So we don't
            need to check for MT capabilities here.  */
-        (env->active_tc.CP0_TCStatus & (1 << CP0TCSt_IXMT)) ||
-        (env->hflags & MIPS_HFLAG_DM)) {
-        /* Interrupts are disabled */
-        return 0;
-    }
+        !(env->active_tc.CP0_TCStatus & (1 << CP0TCSt_IXMT));
+}
+
+/* Check if there is pending and not masked out interrupt */
+static inline bool cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
+{
+    int32_t pending;
+    int32_t status;
+    bool r;
 
     pending = env->CP0_Cause & CP0Ca_IP_mask;
     status = env->CP0_Status & CP0Ca_IP_mask;
@@ -667,7 +668,7 @@ static inline int cpu_mips_hw_interrupts_pending(CPUMIPSState *env)
         /* A MIPS configured with compatibility or VInt (Vectored Interrupts)
            treats the pending lines as individual interrupt lines, the status
            lines are individual masks.  */
-        r = pending & status;
+        r = (pending & status) != 0;
     }
     return r;
 }

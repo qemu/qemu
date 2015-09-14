@@ -759,7 +759,8 @@ bool mips_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         MIPSCPU *cpu = MIPS_CPU(cs);
         CPUMIPSState *env = &cpu->env;
 
-        if (cpu_mips_hw_interrupts_pending(env)) {
+        if (cpu_mips_hw_interrupts_enabled(env) &&
+            cpu_mips_hw_interrupts_pending(env)) {
             /* Raise it */
             cs->exception_index = EXCP_EXT_INTERRUPT;
             env->error_code = 0;
