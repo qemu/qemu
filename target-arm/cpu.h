@@ -386,6 +386,7 @@ typedef struct CPUARMState {
         uint64_t c15_ccnt;
         uint64_t pmccfiltr_el0; /* Performance Monitor Filter Register */
         uint64_t vpidr_el2; /* Virtualization Processor ID Register */
+        uint64_t vmpidr_el2; /* Virtualization Multiprocessor ID Register */
     } cp15;
 
     struct {

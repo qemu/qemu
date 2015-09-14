@@ -2477,6 +2477,12 @@ static uint64_t mpidr_read_val(CPUARMState *env)
 
 static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
+    unsigned int cur_el = arm_current_el(env);
+    bool secure = arm_is_secure(env);
+
+    if (arm_feature(env, ARM_FEATURE_EL2) && !secure && cur_el == 1) {
+        return env->cp15.vmpidr_el2;
+    }
     return mpidr_read_val(env);
 }
 
@@ -4138,6 +4144,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v8_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_EL2)) {
+        uint64_t vmpidr_def = mpidr_read_val(env);
         ARMCPRegInfo vpidr_regs[] = {
             { .name = "VPIDR", .state = ARM_CP_STATE_AA32,
               .cp = 15, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 0,
@@ -4148,6 +4155,16 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .opc0 = 3, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 0,
               .access = PL2_RW, .resetvalue = cpu->midr,
               .fieldoffset = offsetof(CPUARMState, cp15.vpidr_el2) },
+            { .name = "VMPIDR", .state = ARM_CP_STATE_AA32,
+              .cp = 15, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 5,
+              .access = PL2_RW, .accessfn = access_el3_aa32ns,
+              .resetvalue = vmpidr_def,
+              .fieldoffset = offsetof(CPUARMState, cp15.vmpidr_el2) },
+            { .name = "VMPIDR_EL2", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 5,
+              .access = PL2_RW,
+              .resetvalue = vmpidr_def,
+              .fieldoffset = offsetof(CPUARMState, cp15.vmpidr_el2) },
             REGINFO_SENTINEL
         };
         define_arm_cp_regs(cpu, vpidr_regs);
@@ -4166,8 +4183,8 @@ void register_cp_regs_for_features(ARMCPU *cpu)
          * register the no_el2 reginfos.
          */
         if (arm_feature(env, ARM_FEATURE_EL3)) {
-            /* When EL3 exists but not EL2, VPIDR takes the value
-             * of MIDR_EL1.
+            /* When EL3 exists but not EL2, VPIDR and VMPIDR take the value
+             * of MIDR_EL1 and MPIDR_EL1.
              */
             ARMCPRegInfo vpidr_regs[] = {
                 { .name = "VPIDR_EL2", .state = ARM_CP_STATE_BOTH,
@@ -4175,6 +4192,11 @@ void register_cp_regs_for_features(ARMCPU *cpu)
                   .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
                   .type = ARM_CP_CONST, .resetvalue = cpu->midr,
                   .fieldoffset = offsetof(CPUARMState, cp15.vpidr_el2) },
+                { .name = "VMPIDR_EL2", .state = ARM_CP_STATE_BOTH,
+                  .opc0 = 3, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 5,
+                  .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
+                  .type = ARM_CP_NO_RAW,
+                  .writefn = arm_cp_write_ignore, .readfn = mpidr_read },
                 REGINFO_SENTINEL
             };
             define_arm_cp_regs(cpu, vpidr_regs);
