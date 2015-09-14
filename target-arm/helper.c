@@ -2445,6 +2445,18 @@ static const ARMCPRegInfo strongarm_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
+static uint64_t midr_read(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    unsigned int cur_el = arm_current_el(env);
+    bool secure = arm_is_secure(env);
+
+    if (arm_feature(&cpu->env, ARM_FEATURE_EL2) && !secure && cur_el == 1) {
+        return env->cp15.vpidr_el2;
+    }
+    return raw_read(env, ri);
+}
+
 static uint64_t mpidr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
     ARMCPU *cpu = ARM_CPU(arm_env_get_cpu(env));
@@ -4121,6 +4133,19 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         define_arm_cp_regs(cpu, v8_cp_reginfo);
     }
     if (arm_feature(env, ARM_FEATURE_EL2)) {
+        ARMCPRegInfo vpidr_regs[] = {
+            { .name = "VPIDR", .state = ARM_CP_STATE_AA32,
+              .cp = 15, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 0,
+              .access = PL2_RW, .accessfn = access_el3_aa32ns,
+              .resetvalue = cpu->midr,
+              .fieldoffset = offsetof(CPUARMState, cp15.vpidr_el2) },
+            { .name = "VPIDR_EL2", .state = ARM_CP_STATE_AA64,
+              .opc0 = 3, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 0,
+              .access = PL2_RW, .resetvalue = cpu->midr,
+              .fieldoffset = offsetof(CPUARMState, cp15.vpidr_el2) },
+            REGINFO_SENTINEL
+        };
+        define_arm_cp_regs(cpu, vpidr_regs);
         define_arm_cp_regs(cpu, el2_cp_reginfo);
         /* RVBAR_EL2 is only implemented if EL2 is the highest EL */
         if (!arm_feature(env, ARM_FEATURE_EL3)) {
@@ -4136,6 +4161,18 @@ void register_cp_regs_for_features(ARMCPU *cpu)
          * register the no_el2 reginfos.
          */
         if (arm_feature(env, ARM_FEATURE_EL3)) {
+            /* When EL3 exists but not EL2, VPIDR takes the value
+             * of MIDR_EL1.
+             */
+            ARMCPRegInfo vpidr_regs[] = {
+                { .name = "VPIDR_EL2", .state = ARM_CP_STATE_BOTH,
+                  .opc0 = 3, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 0,
+                  .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
+                  .type = ARM_CP_CONST, .resetvalue = cpu->midr,
+                  .fieldoffset = offsetof(CPUARMState, cp15.vpidr_el2) },
+                REGINFO_SENTINEL
+            };
+            define_arm_cp_regs(cpu, vpidr_regs);
             define_arm_cp_regs(cpu, el3_no_el2_cp_reginfo);
         }
     }
@@ -4213,6 +4250,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = CP_ANY,
               .access = PL1_R, .resetvalue = cpu->midr,
               .writefn = arm_cp_write_ignore, .raw_writefn = raw_write,
+              .readfn = midr_read,
               .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid),
               .type = ARM_CP_OVERRIDE },
             /* crn = 0 op1 = 0 crm = 3..7 : currently unassigned; we RAZ. */
@@ -4236,7 +4274,9 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         ARMCPRegInfo id_v8_midr_cp_reginfo[] = {
             { .name = "MIDR_EL1", .state = ARM_CP_STATE_BOTH,
               .opc0 = 3, .opc1 = 0, .crn = 0, .crm = 0, .opc2 = 0,
-              .access = PL1_R, .type = ARM_CP_CONST, .resetvalue = cpu->midr },
+              .access = PL1_R, .type = ARM_CP_NO_RAW, .resetvalue = cpu->midr,
+              .fieldoffset = offsetof(CPUARMState, cp15.c0_cpuid),
+              .readfn = midr_read },
             /* crn = 0 op1 = 0 crm = 0 op2 = 4,7 : AArch32 aliases of MIDR */
             { .name = "MIDR", .type = ARM_CP_ALIAS | ARM_CP_CONST,
               .cp = 15, .crn = 0, .crm = 0, .opc1 = 0, .opc2 = 4,
