@@ -222,6 +222,7 @@ typedef struct CPUARMState {
             };
             uint64_t ttbr1_el[4];
         };
+        uint64_t vttbr_el2; /* Virtualization Translation Table Base.  */
         /* MMU translation table base control. */
         TCR tcr_el[4];
         TCR vtcr_el2; /* Virtualization Translation Control.  */
