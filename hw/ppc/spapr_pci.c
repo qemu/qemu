@@ -957,6 +957,7 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     int pci_status, err;
     char *buf = NULL;
     uint32_t drc_index = spapr_phb_get_pci_drc_index(sphb, dev);
+    uint32_t max_msi, max_msix;
 
     if (pci_default_read_config(dev, PCI_HEADER_TYPE, 1) ==
         PCI_HEADER_TYPE_BRIDGE) {
@@ -1037,8 +1038,15 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                           RESOURCE_CELLS_ADDRESS));
     _FDT(fdt_setprop_cell(fdt, offset, "#size-cells",
                           RESOURCE_CELLS_SIZE));
-    _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi-x",
-                          RESOURCE_CELLS_SIZE));
+
+    max_msi = msi_nr_vectors_allocated(dev);
+    if (max_msi) {
+        _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi", max_msi));
+    }
+    max_msix = dev->msix_entries_nr;
+    if (max_msix) {
+        _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi-x", max_msix));
+    }
 
     populate_resource_props(dev, &rp);
     _FDT(fdt_setprop(fdt, offset, "reg", (uint8_t *)rp.reg, rp.reg_len));
