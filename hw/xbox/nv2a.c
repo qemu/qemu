@@ -1355,7 +1355,7 @@ static const SurfaceColorFormatInfo kelvin_surface_color_format_map[] = {
 #define NV2A_NUM_CHANNELS 32
 #define NV2A_NUM_SUBCHANNELS 8
 
-#define NV2A_MAX_BATCH_LENGTH 0xFFFF
+#define NV2A_MAX_BATCH_LENGTH 0x1FFFF
 #define NV2A_VERTEXSHADER_ATTRIBUTES 16
 #define NV2A_MAX_TEXTURES 4
 
