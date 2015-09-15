@@ -417,30 +417,28 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
 
 /* this function increase the dynamic storage need to store data about other
  * guests */
-static int increase_dynamic_storage(IVShmemState *s, int new_min_size)
+static int resize_peers(IVShmemState *s, int new_min_size)
 {
 
-    int j, old_nb_alloc;
+    int j, old_size;
 
     /* limit number of max peers */
     if (new_min_size <= 0 || new_min_size > IVSHMEM_MAX_PEERS) {
         return -1;
     }
-
-    old_nb_alloc = s->nb_peers;
-
-    if (new_min_size >= s->nb_peers) {
-        /* +1 because #new_min_size is used as last array index */
-        s->nb_peers = new_min_size + 1;
-    } else {
+    if (new_min_size <= s->nb_peers) {
         return 0;
     }
 
+    old_size = s->nb_peers;
+    s->nb_peers = new_min_size;
+
     IVSHMEM_DPRINTF("bumping storage to %d guests\n", s->nb_peers);
+
     s->peers = g_realloc(s->peers, s->nb_peers * sizeof(Peer));
 
     /* zero out new pointers */
-    for (j = old_nb_alloc; j < s->nb_peers; j++) {
+    for (j = old_size; j < s->nb_peers; j++) {
         s->peers[j].eventfds = NULL;
         s->peers[j].nb_eventfds = 0;
     }
@@ -508,8 +506,8 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 
     /* make sure we have enough space for this guest */
     if (incoming_posn >= s->nb_peers) {
-        if (increase_dynamic_storage(s, incoming_posn) < 0) {
-            error_report("increase_dynamic_storage() failed");
+        if (resize_peers(s, incoming_posn + 1) < 0) {
+            error_report("failed to resize peers array");
             if (incoming_fd != -1) {
                 close(incoming_fd);
             }
@@ -812,11 +810,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         }
 
         /* we allocate enough space for 16 guests and grow as needed */
-        s->nb_peers = 16;
+        resize_peers(s, 16);
         s->vm_id = -1;
-
-        /* allocate/initialize space for interrupt handling */
-        s->peers = g_malloc0(s->nb_peers * sizeof(Peer));
 
         pci_register_bar(dev, 2, attr, &s->bar);
 
