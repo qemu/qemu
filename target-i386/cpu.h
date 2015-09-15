@@ -235,6 +235,7 @@
 #define DR7_TYPE_SHIFT  16
 #define DR7_LEN_SHIFT   18
 #define DR7_FIXED_1     0x00000400
+#define DR7_GLOBAL_BP_MASK   0xaa
 #define DR7_LOCAL_BP_MASK    0x55
 #define DR7_MAX_BP           4
 #define DR7_TYPE_BP_INST     0x0
@@ -1154,14 +1155,13 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index)
     return (len == 2) ? 8 : len + 1;
 }
 
-void hw_breakpoint_insert(CPUX86State *env, int index);
-void hw_breakpoint_remove(CPUX86State *env, int index);
 void breakpoint_handler(CPUState *cs);
 
 /* will be suppressed */
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0);
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3);
 void cpu_x86_update_cr4(CPUX86State *env, uint32_t new_cr4);
+void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7);
 
 /* hw/pc.c */
 uint64_t cpu_get_tsc(CPUX86State *env);

@@ -501,13 +501,7 @@ static void switch_tss_ra(CPUX86State *env, int tss_selector,
 #ifndef CONFIG_USER_ONLY
     /* reset local breakpoints */
     if (env->dr[7] & DR7_LOCAL_BP_MASK) {
-        for (i = 0; i < DR7_MAX_BP; i++) {
-            if (hw_local_breakpoint_enabled(env->dr[7], i) &&
-                !hw_global_breakpoint_enabled(env->dr[7], i)) {
-                hw_breakpoint_remove(env, i);
-            }
-        }
-        env->dr[7] &= ~DR7_LOCAL_BP_MASK;
+        cpu_x86_update_dr7(env, env->dr[7] & ~DR7_LOCAL_BP_MASK);
     }
 #endif
 }

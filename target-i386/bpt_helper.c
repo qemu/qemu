@@ -21,7 +21,8 @@
 #include "exec/helper-proto.h"
 
 
-void hw_breakpoint_insert(CPUX86State *env, int index)
+#ifndef CONFIG_USER_ONLY
+static void hw_breakpoint_insert(CPUX86State *env, int index)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
     int type = 0, err = 0;
@@ -55,7 +56,7 @@ void hw_breakpoint_insert(CPUX86State *env, int index)
     }
 }
 
-void hw_breakpoint_remove(CPUX86State *env, int index)
+static void hw_breakpoint_remove(CPUX86State *env, int index)
 {
     CPUState *cs;
 
@@ -78,6 +79,20 @@ void hw_breakpoint_remove(CPUX86State *env, int index)
         break;
     }
 }
+
+void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
+{
+    int i;
+
+    for (i = 0; i < DR7_MAX_BP; i++) {
+        hw_breakpoint_remove(env, i);
+    }
+    env->dr[7] = new_dr7;
+    for (i = 0; i < DR7_MAX_BP; i++) {
+        hw_breakpoint_insert(env, i);
+    }
+}
+#endif
 
 static bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
 {
@@ -161,20 +176,12 @@ void helper_single_step(CPUX86State *env)
 void helper_movl_drN_T0(CPUX86State *env, int reg, target_ulong t0)
 {
 #ifndef CONFIG_USER_ONLY
-    int i;
-
     if (reg < 4) {
         hw_breakpoint_remove(env, reg);
         env->dr[reg] = t0;
         hw_breakpoint_insert(env, reg);
     } else if (reg == 7) {
-        for (i = 0; i < DR7_MAX_BP; i++) {
-            hw_breakpoint_remove(env, i);
-        }
-        env->dr[7] = t0;
-        for (i = 0; i < DR7_MAX_BP; i++) {
-            hw_breakpoint_insert(env, i);
-        }
+        cpu_x86_update_dr7(env, t0);
     } else {
         env->dr[reg] = t0;
     }
