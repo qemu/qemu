@@ -82,14 +82,36 @@ static void hw_breakpoint_remove(CPUX86State *env, int index)
 
 void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
 {
+    target_ulong old_dr7 = env->dr[7];
     int i;
 
-    for (i = 0; i < DR7_MAX_BP; i++) {
-        hw_breakpoint_remove(env, i);
-    }
-    env->dr[7] = new_dr7;
-    for (i = 0; i < DR7_MAX_BP; i++) {
-        hw_breakpoint_insert(env, i);
+    /* If nothing is changing except the global/local enable bits,
+       then we can make the change more efficient.  */
+    if (((old_dr7 ^ new_dr7) & ~0xff) == 0) {
+        /* Fold the global and local enable bits together into the
+           global fields, then xor to show which registers have
+           changed collective enable state.  */
+        int mod = ((old_dr7 | old_dr7 * 2) ^ (new_dr7 | new_dr7 * 2)) & 0xff;
+
+        for (i = 0; i < DR7_MAX_BP; i++) {
+            if ((mod & (2 << i * 2)) && !hw_breakpoint_enabled(new_dr7, i)) {
+                hw_breakpoint_remove(env, i);
+            }
+        }
+        env->dr[7] = new_dr7;
+        for (i = 0; i < DR7_MAX_BP; i++) {
+            if (mod & (2 << i * 2) && hw_breakpoint_enabled(new_dr7, i)) {
+                hw_breakpoint_insert(env, i);
+            }
+        }
+    } else {
+        for (i = 0; i < DR7_MAX_BP; i++) {
+            hw_breakpoint_remove(env, i);
+        }
+        env->dr[7] = new_dr7;
+        for (i = 0; i < DR7_MAX_BP; i++) {
+            hw_breakpoint_insert(env, i);
+        }
     }
 }
 #endif
