@@ -133,6 +133,8 @@ typedef int64_t  Elf64_Sxword;
 
 #define EM_AARCH64  183
 
+#define EM_TILEGX   191 /* TILE-Gx */
+
 /* This is the info that is needed to parse the dynamic section of the file */
 #define DT_NULL		0
 #define DT_NEEDED	1

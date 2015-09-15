@@ -1,0 +1,1 @@
+obj-y += cpu.o translate.o helper.o simd_helper.o

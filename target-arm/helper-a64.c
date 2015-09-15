@@ -70,20 +70,7 @@ uint32_t HELPER(clz32)(uint32_t x)
 
 uint64_t HELPER(rbit64)(uint64_t x)
 {
-    /* assign the correct byte position */
-    x = bswap64(x);
-
-    /* assign the correct nibble position */
-    x = ((x & 0xf0f0f0f0f0f0f0f0ULL) >> 4)
-        | ((x & 0x0f0f0f0f0f0f0f0fULL) << 4);
-
-    /* assign the correct bit position */
-    x = ((x & 0x8888888888888888ULL) >> 3)
-        | ((x & 0x4444444444444444ULL) >> 1)
-        | ((x & 0x2222222222222222ULL) << 1)
-        | ((x & 0x1111111111111111ULL) << 3);
-
-    return x;
+    return revbit64(x);
 }
 
 /* Convert a softfloat float_relation_ (as returned by
