@@ -256,7 +256,7 @@ ssize_t ne2000_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
         if (index <= s->stop)
             avail = s->stop - index;
         else
-            avail = 0;
+            break;
         len = size;
         if (len > avail)
             len = avail;
