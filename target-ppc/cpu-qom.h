@@ -21,7 +21,6 @@
 #define QEMU_PPC_CPU_QOM_H
 
 #include "qom/cpu.h"
-#include "cpu.h"
 
 #ifdef TARGET_PPC64
 #define TYPE_POWERPC_CPU "powerpc64-cpu"

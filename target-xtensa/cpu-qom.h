@@ -30,7 +30,6 @@
 #define QEMU_XTENSA_CPU_QOM_H
 
 #include "qom/cpu.h"
-#include "cpu.h"
 
 #define TYPE_XTENSA_CPU "xtensa-cpu"
 
