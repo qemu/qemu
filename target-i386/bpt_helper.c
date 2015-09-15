@@ -79,7 +79,7 @@ void hw_breakpoint_remove(CPUX86State *env, int index)
     }
 }
 
-bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
+static bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
 {
     target_ulong dr6;
     int reg;
