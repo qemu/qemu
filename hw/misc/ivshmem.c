@@ -34,6 +34,7 @@
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
 #define PCI_DEVICE_ID_IVSHMEM   0x1110
 
+#define IVSHMEM_MAX_PEERS G_MAXUINT16
 #define IVSHMEM_IOEVENTFD   0
 #define IVSHMEM_MSI     1
 
@@ -421,8 +422,8 @@ static int increase_dynamic_storage(IVShmemState *s, int new_min_size)
 
     int j, old_nb_alloc;
 
-    /* check for integer overflow */
-    if (new_min_size >= INT_MAX / sizeof(Peer) - 1 || new_min_size <= 0) {
+    /* limit number of max peers */
+    if (new_min_size <= 0 || new_min_size > IVSHMEM_MAX_PEERS) {
         return -1;
     }
 
