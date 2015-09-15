@@ -563,7 +563,6 @@ int virtio_gpu_create_mapping_iov(struct virtio_gpu_resource_attach_backing *ab,
                           __func__, ab->resource_id, i);
             virtio_gpu_cleanup_mapping_iov(*iov, i);
             g_free(ents);
-            g_free(*iov);
             *iov = NULL;
             return -1;
         }
@@ -580,12 +579,12 @@ void virtio_gpu_cleanup_mapping_iov(struct iovec *iov, uint32_t count)
         cpu_physical_memory_unmap(iov[i].iov_base, iov[i].iov_len, 1,
                                   iov[i].iov_len);
     }
+    g_free(iov);
 }
 
 static void virtio_gpu_cleanup_mapping(struct virtio_gpu_simple_resource *res)
 {
     virtio_gpu_cleanup_mapping_iov(res->iov, res->iov_cnt);
-    g_free(res->iov);
     res->iov = NULL;
     res->iov_cnt = 0;
 }
