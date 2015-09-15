@@ -437,9 +437,8 @@ static int resize_peers(IVShmemState *s, int new_min_size)
 
     s->peers = g_realloc(s->peers, s->nb_peers * sizeof(Peer));
 
-    /* zero out new pointers */
     for (j = old_size; j < s->nb_peers; j++) {
-        s->peers[j].eventfds = NULL;
+        s->peers[j].eventfds = g_new0(EventNotifier, s->vectors);
         s->peers[j].nb_eventfds = 0;
     }
 
@@ -517,8 +516,7 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 
     if (incoming_fd == -1) {
         /* if posn is positive and unseen before then this is our posn*/
-        if ((incoming_posn >= 0) &&
-                            (s->peers[incoming_posn].eventfds == NULL)) {
+        if (incoming_posn >= 0 && s->vm_id == -1) {
             /* receive our posn */
             s->vm_id = incoming_posn;
             return;
@@ -568,11 +566,6 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
     /* each guest has an array of eventfds, and we keep track of how many
      * guests for each VM */
     guest_max_eventfd = s->peers[incoming_posn].nb_eventfds;
-
-    if (guest_max_eventfd == 0) {
-        /* one eventfd per MSI vector */
-        s->peers[incoming_posn].eventfds = g_new(EventNotifier, s->vectors);
-    }
 
     /* this is an eventfd for a particular guest VM */
     IVSHMEM_DPRINTF("eventfds[%ld][%d] = %d\n", incoming_posn,
