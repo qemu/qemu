@@ -165,8 +165,10 @@ struct GtkDisplayState {
     bool ignore_keys;
 };
 
-static void gd_grab_pointer(VirtualConsole *vc);
+static void gd_grab_pointer(VirtualConsole *vc, const char *reason);
 static void gd_ungrab_pointer(GtkDisplayState *s);
+static void gd_grab_keyboard(VirtualConsole *vc, const char *reason);
+static void gd_ungrab_keyboard(GtkDisplayState *s);
 
 /** Utility Functions **/
 
@@ -849,13 +851,11 @@ static gboolean gd_button_event(GtkWidget *widget, GdkEventButton *button,
     /* implicitly grab the input at the first click in the relative mode */
     if (button->button == 1 && button->type == GDK_BUTTON_PRESS &&
         !qemu_input_is_absolute() && s->ptr_owner != vc) {
-        gd_ungrab_pointer(s);
         if (!vc->window) {
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
                                            TRUE);
         } else {
-            gd_grab_pointer(vc);
-            gd_update_caption(s);
+            gd_grab_pointer(vc, "relative-mode-click");
         }
         return TRUE;
     }
@@ -1092,9 +1092,8 @@ static gboolean gd_win_grab(void *opaque)
     if (vc->s->ptr_owner) {
         gd_ungrab_pointer(vc->s);
     } else {
-        gd_grab_pointer(vc);
+        gd_grab_pointer(vc, "user-request-detached-tab");
     }
-    gd_update_caption(vc->s);
     return TRUE;
 }
 
@@ -1141,10 +1140,6 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
         gtk_widget_hide(s->menu_bar);
         if (vc->type == GD_VC_GFX) {
             gtk_widget_set_size_request(vc->gfx.drawing_area, -1, -1);
-            if (qemu_console_is_graphic(vc->gfx.dcl.con)) {
-                gtk_check_menu_item_set_active
-                    (GTK_CHECK_MENU_ITEM(s->grab_item), TRUE);
-            }
         }
         gtk_window_fullscreen(GTK_WINDOW(s->window));
         s->full_screen = TRUE;
@@ -1157,8 +1152,6 @@ static void gd_menu_full_screen(GtkMenuItem *item, void *opaque)
             vc->gfx.scale_x = 1.0;
             vc->gfx.scale_y = 1.0;
             gd_update_windowsize(vc);
-            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(s->grab_item),
-                                           FALSE);
         }
     }
 
@@ -1257,8 +1250,16 @@ static void gd_grab_devices(VirtualConsole *vc, bool grab,
 }
 #endif
 
-static void gd_grab_keyboard(VirtualConsole *vc)
+static void gd_grab_keyboard(VirtualConsole *vc, const char *reason)
 {
+    if (vc->s->kbd_owner) {
+        if (vc->s->kbd_owner == vc) {
+            return;
+        } else {
+            gd_ungrab_keyboard(vc->s);
+        }
+    }
+
 #if GTK_CHECK_VERSION(3, 0, 0)
     gd_grab_devices(vc, true, GDK_SOURCE_KEYBOARD,
                    GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
@@ -1269,7 +1270,8 @@ static void gd_grab_keyboard(VirtualConsole *vc)
                       GDK_CURRENT_TIME);
 #endif
     vc->s->kbd_owner = vc;
-    trace_gd_grab(vc->label, "kbd", true);
+    gd_update_caption(vc->s);
+    trace_gd_grab(vc->label, "kbd", reason);
 }
 
 static void gd_ungrab_keyboard(GtkDisplayState *s)
@@ -1286,12 +1288,22 @@ static void gd_ungrab_keyboard(GtkDisplayState *s)
 #else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
 #endif
-    trace_gd_grab(vc->label, "kbd", false);
+    gd_update_caption(s);
+    trace_gd_ungrab(vc->label, "kbd");
 }
 
-static void gd_grab_pointer(VirtualConsole *vc)
+static void gd_grab_pointer(VirtualConsole *vc, const char *reason)
 {
     GdkDisplay *display = gtk_widget_get_display(vc->gfx.drawing_area);
+
+    if (vc->s->ptr_owner) {
+        if (vc->s->ptr_owner == vc) {
+            return;
+        } else {
+            gd_ungrab_pointer(vc->s);
+        }
+    }
+
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager *mgr = gdk_display_get_device_manager(display);
     gd_grab_devices(vc, true, GDK_SOURCE_MOUSE,
@@ -1318,7 +1330,8 @@ static void gd_grab_pointer(VirtualConsole *vc)
                             &vc->s->grab_x_root, &vc->s->grab_y_root, NULL);
 #endif
     vc->s->ptr_owner = vc;
-    trace_gd_grab(vc->label, "ptr", true);
+    gd_update_caption(vc->s);
+    trace_gd_grab(vc->label, "ptr", reason);
 }
 
 static void gd_ungrab_pointer(GtkDisplayState *s)
@@ -1343,7 +1356,8 @@ static void gd_ungrab_pointer(GtkDisplayState *s)
                              gtk_widget_get_screen(vc->gfx.drawing_area),
                              vc->s->grab_x_root, vc->s->grab_y_root);
 #endif
-    trace_gd_grab(vc->label, "ptr", false);
+    gd_update_caption(s);
+    trace_gd_ungrab(vc->label, "ptr");
 }
 
 static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
@@ -1352,16 +1366,13 @@ static void gd_menu_grab_input(GtkMenuItem *item, void *opaque)
     VirtualConsole *vc = gd_vc_find_current(s);
 
     if (gd_is_grab_active(s)) {
-        if (!gd_grab_on_hover(s)) {
-            gd_grab_keyboard(vc);
-        }
-        gd_grab_pointer(vc);
+        gd_grab_keyboard(vc, "user-request-main-window");
+        gd_grab_pointer(vc, "user-request-main-window");
     } else {
         gd_ungrab_keyboard(s);
         gd_ungrab_pointer(s);
     }
 
-    gd_update_caption(s);
     gd_update_cursor(vc);
 }
 
@@ -1415,9 +1426,7 @@ static gboolean gd_enter_event(GtkWidget *widget, GdkEventCrossing *crossing,
     GtkDisplayState *s = vc->s;
 
     if (gd_grab_on_hover(s)) {
-        gd_ungrab_keyboard(s);
-        gd_grab_keyboard(vc);
-        gd_update_caption(s);
+        gd_grab_keyboard(vc, "grab-on-hover");
     }
     return TRUE;
 }
@@ -1430,7 +1439,6 @@ static gboolean gd_leave_event(GtkWidget *widget, GdkEventCrossing *crossing,
 
     if (gd_grab_on_hover(s)) {
         gd_ungrab_keyboard(s);
-        gd_update_caption(s);
     }
     return TRUE;
 }
@@ -1768,6 +1776,7 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
 
     if (dpy_ui_info_supported(vc->gfx.dcl.con)) {
         gtk_menu_item_activate(GTK_MENU_ITEM(s->zoom_fit_item));
+        s->free_scale = true;
     }
 
     return group;
@@ -1941,7 +1950,8 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 
     s->free_scale = FALSE;
 
-    setlocale(LC_ALL, "");
+    /* LC_MESSAGES only. See early_gtk_display_init() for details */
+    setlocale(LC_MESSAGES, "");
     bindtextdomain("qemu", CONFIG_QEMU_LOCALEDIR);
     textdomain("qemu");
 
@@ -2010,6 +2020,24 @@ void gtk_display_init(DisplayState *ds, bool full_screen, bool grab_on_hover)
 
 void early_gtk_display_init(int opengl)
 {
+    /* The QEMU code relies on the assumption that it's always run in
+     * the C locale. Therefore it is not prepared to deal with
+     * operations that produce different results depending on the
+     * locale, such as printf's formatting of decimal numbers, and
+     * possibly others.
+     *
+     * Since GTK+ calls setlocale() by default -importing the locale
+     * settings from the environment- we must prevent it from doing so
+     * using gtk_disable_setlocale().
+     *
+     * QEMU's GTK+ UI, however, _does_ have translations for some of
+     * the menu items. As a trade-off between a functionally correct
+     * QEMU and a fully internationalized UI we support importing
+     * LC_MESSAGES from the environment (see the setlocale() call
+     * earlier in this file). This allows us to display translated
+     * messages leaving everything else untouched.
+     */
+    gtk_disable_setlocale();
     gtkinit = gtk_init_check(NULL, NULL);
     if (!gtkinit) {
         /* don't exit yet, that'll break -help */
