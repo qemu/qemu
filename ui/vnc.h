@@ -33,6 +33,7 @@
 #include "ui/console.h"
 #include "audio/audio.h"
 #include "qemu/bitmap.h"
+#include "crypto/tlssession.h"
 #include <zlib.h>
 #include <stdbool.h>
 
@@ -101,10 +102,7 @@ typedef void VncSendHextileTile(VncState *vs,
 
 typedef struct VncDisplay VncDisplay;
 
-#ifdef CONFIG_VNC_TLS
-#include "vnc-tls.h"
 #include "vnc-auth-vencrypt.h"
-#endif
 #ifdef CONFIG_VNC_SASL
 #include "vnc-auth-sasl.h"
 #endif
@@ -181,9 +179,8 @@ struct VncDisplay
     bool ws_tls; /* Used by websockets */
     bool lossy;
     bool non_adaptive;
-#ifdef CONFIG_VNC_TLS
-    VncDisplayTLS tls;
-#endif
+    QCryptoTLSCreds *tlscreds;
+    char *tlsaclname;
 #ifdef CONFIG_VNC_SASL
     VncDisplaySASL sasl;
 #endif
@@ -284,9 +281,7 @@ struct VncState
     int auth;
     int subauth; /* Used by VeNCrypt */
     char challenge[VNC_AUTH_CHALLENGE_SIZE];
-#ifdef CONFIG_VNC_TLS
-    VncStateTLS tls;
-#endif
+    QCryptoTLSSession *tls;
 #ifdef CONFIG_VNC_SASL
     VncStateSASL sasl;
 #endif
@@ -513,8 +508,10 @@ enum {
 void vnc_client_read(void *opaque);
 void vnc_client_write(void *opaque);
 
-long vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
-long vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
+ssize_t vnc_client_read_buf(VncState *vs, uint8_t *data, size_t datalen);
+ssize_t vnc_client_write_buf(VncState *vs, const uint8_t *data, size_t datalen);
+ssize_t vnc_tls_pull(char *buf, size_t len, void *opaque);
+ssize_t vnc_tls_push(const char *buf, size_t len, void *opaque);
 
 /* Protocol I/O functions */
 void vnc_write(VncState *vs, const void *data, size_t len);
@@ -533,7 +530,7 @@ uint32_t read_u32(uint8_t *data, size_t offset);
 
 /* Protocol stage functions */
 void vnc_client_error(VncState *vs);
-int vnc_client_io_error(VncState *vs, int ret, int last_errno);
+ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, int last_errno);
 
 void start_client_init(VncState *vs);
 void start_auth_vnc(VncState *vs);

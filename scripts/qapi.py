@@ -634,11 +634,15 @@ def check_alternate(expr, expr_info):
 def check_enum(expr, expr_info):
     name = expr['enum']
     members = expr.get('data')
+    prefix = expr.get('prefix')
     values = { 'MAX': '(automatic)' }
 
     if not isinstance(members, list):
         raise QAPIExprError(expr_info,
                             "Enum '%s' requires an array for 'data'" % name)
+    if prefix is not None and not isinstance(prefix, str):
+        raise QAPIExprError(expr_info,
+                            "Enum '%s' requires a string for 'prefix'" % name)
     for member in members:
         check_name(expr_info, "Member of enum '%s'" %name, member,
                    enum_member=True)
@@ -693,7 +697,7 @@ def check_exprs(exprs):
         expr = expr_elem['expr']
         info = expr_elem['info']
         if expr.has_key('enum'):
-            check_keys(expr_elem, 'enum', ['data'])
+            check_keys(expr_elem, 'enum', ['data'], ['prefix'])
             add_enum(expr['enum'], info, expr['data'])
         elif expr.has_key('union'):
             check_keys(expr_elem, 'union', ['data'],
@@ -813,7 +817,9 @@ def camel_to_upper(value):
         new_name += c
     return new_name.lstrip('_').upper()
 
-def c_enum_const(type_name, const_name):
+def c_enum_const(type_name, const_name, prefix=None):
+    if prefix is not None:
+        type_name = prefix
     return camel_to_upper(type_name + '_' + const_name)
 
 c_name_trans = string.maketrans('.-', '__')

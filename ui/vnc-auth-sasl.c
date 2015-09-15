@@ -525,21 +525,24 @@ void start_auth_sasl(VncState *vs)
         goto authabort;
     }
 
-#ifdef CONFIG_VNC_TLS
     /* Inform SASL that we've got an external SSF layer from TLS/x509 */
     if (vs->auth == VNC_AUTH_VENCRYPT &&
         vs->subauth == VNC_AUTH_VENCRYPT_X509SASL) {
-        gnutls_cipher_algorithm_t cipher;
+        Error *local_err = NULL;
+        int keysize;
         sasl_ssf_t ssf;
 
-        cipher = gnutls_cipher_get(vs->tls.session);
-        if (!(ssf = (sasl_ssf_t)gnutls_cipher_get_key_size(cipher))) {
-            VNC_DEBUG("%s", "cannot TLS get cipher size\n");
+        keysize = qcrypto_tls_session_get_key_size(vs->tls,
+                                                   &local_err);
+        if (keysize < 0) {
+            VNC_DEBUG("cannot TLS get cipher size: %s\n",
+                      error_get_pretty(local_err));
+            error_free(local_err);
             sasl_dispose(&vs->sasl.conn);
             vs->sasl.conn = NULL;
             goto authabort;
         }
-        ssf *= 8; /* tls key size is bytes, sasl wants bits */
+        ssf = keysize * CHAR_BIT; /* tls key size is bytes, sasl wants bits */
 
         err = sasl_setprop(vs->sasl.conn, SASL_SSF_EXTERNAL, &ssf);
         if (err != SASL_OK) {
@@ -549,20 +552,19 @@ void start_auth_sasl(VncState *vs)
             vs->sasl.conn = NULL;
             goto authabort;
         }
-    } else
-#endif /* CONFIG_VNC_TLS */
+    } else {
         vs->sasl.wantSSF = 1;
+    }
 
     memset (&secprops, 0, sizeof secprops);
-    /* Inform SASL that we've got an external SSF layer from TLS */
-    if (vs->vd->is_unix
-#ifdef CONFIG_VNC_TLS
-        /* Disable SSF, if using TLS+x509+SASL only. TLS without x509
-           is not sufficiently strong */
-        || (vs->auth == VNC_AUTH_VENCRYPT &&
-            vs->subauth == VNC_AUTH_VENCRYPT_X509SASL)
-#endif /* CONFIG_VNC_TLS */
-        ) {
+    /* Inform SASL that we've got an external SSF layer from TLS.
+     *
+     * Disable SSF, if using TLS+x509+SASL only. TLS without x509
+     * is not sufficiently strong
+     */
+    if (vs->vd->is_unix ||
+        (vs->auth == VNC_AUTH_VENCRYPT &&
+         vs->subauth == VNC_AUTH_VENCRYPT_X509SASL)) {
         /* If we've got TLS or UNIX domain sock, we don't care about SSF */
         secprops.min_ssf = 0;
         secprops.max_ssf = 0;

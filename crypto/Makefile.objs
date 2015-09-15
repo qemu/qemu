@@ -1,5 +1,12 @@
-util-obj-y += init.o
-util-obj-y += hash.o
-util-obj-y += aes.o
-util-obj-y += desrfb.o
-util-obj-y += cipher.o
+crypto-obj-y = init.o
+crypto-obj-y += hash.o
+crypto-obj-y += aes.o
+crypto-obj-y += desrfb.o
+crypto-obj-y += cipher.o
+crypto-obj-y += tlscreds.o
+crypto-obj-y += tlscredsanon.o
+crypto-obj-y += tlscredsx509.o
+crypto-obj-y += tlssession.o
+
+# Let the userspace emulators avoid linking gnutls/etc
+crypto-aes-obj-y = aes.o

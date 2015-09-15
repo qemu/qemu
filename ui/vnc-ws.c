@@ -22,60 +22,70 @@
 #include "qemu/main-loop.h"
 #include "crypto/hash.h"
 
-#ifdef CONFIG_VNC_TLS
-#include "qemu/sockets.h"
-
 static int vncws_start_tls_handshake(VncState *vs)
 {
-    int ret = gnutls_handshake(vs->tls.session);
+    Error *err = NULL;
 
-    if (ret < 0) {
-        if (!gnutls_error_is_fatal(ret)) {
-            VNC_DEBUG("Handshake interrupted (blocking)\n");
-            if (!gnutls_record_get_direction(vs->tls.session)) {
-                qemu_set_fd_handler(vs->csock, vncws_tls_handshake_io,
-                                    NULL, vs);
-            } else {
-                qemu_set_fd_handler(vs->csock, NULL, vncws_tls_handshake_io,
-                                    vs);
-            }
-            return 0;
-        }
-        VNC_DEBUG("Handshake failed %s\n", gnutls_strerror(ret));
-        vnc_client_error(vs);
-        return -1;
+    if (qcrypto_tls_session_handshake(vs->tls, &err) < 0) {
+        goto error;
     }
 
-    if (vs->vd->tls.x509verify) {
-        if (vnc_tls_validate_certificate(vs) < 0) {
-            VNC_DEBUG("Client verification failed\n");
-            vnc_client_error(vs);
-            return -1;
-        } else {
-            VNC_DEBUG("Client verification passed\n");
+    switch (qcrypto_tls_session_get_handshake_status(vs->tls)) {
+    case QCRYPTO_TLS_HANDSHAKE_COMPLETE:
+        VNC_DEBUG("Handshake done, checking credentials\n");
+        if (qcrypto_tls_session_check_credentials(vs->tls, &err) < 0) {
+            goto error;
         }
-    }
+        VNC_DEBUG("Client verification passed, starting TLS I/O\n");
+        qemu_set_fd_handler(vs->csock, vncws_handshake_read, NULL, vs);
+        break;
 
-    VNC_DEBUG("Handshake done, switching to TLS data mode\n");
-    qemu_set_fd_handler(vs->csock, vncws_handshake_read, NULL, vs);
+    case QCRYPTO_TLS_HANDSHAKE_RECVING:
+        VNC_DEBUG("Handshake interrupted (blocking read)\n");
+        qemu_set_fd_handler(vs->csock, vncws_tls_handshake_io, NULL, vs);
+        break;
+
+    case QCRYPTO_TLS_HANDSHAKE_SENDING:
+        VNC_DEBUG("Handshake interrupted (blocking write)\n");
+        qemu_set_fd_handler(vs->csock, NULL, vncws_tls_handshake_io, vs);
+        break;
+    }
 
     return 0;
+
+ error:
+    VNC_DEBUG("Handshake failed %s\n", error_get_pretty(err));
+    error_free(err);
+    vnc_client_error(vs);
+    return -1;
 }
 
 void vncws_tls_handshake_io(void *opaque)
 {
     VncState *vs = (VncState *)opaque;
+    Error *err = NULL;
 
-    if (!vs->tls.session) {
-        VNC_DEBUG("TLS Websocket setup\n");
-        if (vnc_tls_client_setup(vs, vs->vd->tls.x509cert != NULL) < 0) {
-            return;
-        }
+    vs->tls = qcrypto_tls_session_new(vs->vd->tlscreds,
+                                      NULL,
+                                      vs->vd->tlsaclname,
+                                      QCRYPTO_TLS_CREDS_ENDPOINT_SERVER,
+                                      &err);
+    if (!vs->tls) {
+        VNC_DEBUG("Failed to setup TLS %s\n",
+                  error_get_pretty(err));
+        error_free(err);
+        vnc_client_error(vs);
+        return;
     }
-    VNC_DEBUG("Handshake IO continue\n");
+
+    qcrypto_tls_session_set_callbacks(vs->tls,
+                                      vnc_tls_push,
+                                      vnc_tls_pull,
+                                      vs);
+
+    VNC_DEBUG("Start TLS WS handshake process\n");
     vncws_start_tls_handshake(vs);
 }
-#endif /* CONFIG_VNC_TLS */
 
 void vncws_handshake_read(void *opaque)
 {

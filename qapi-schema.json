@@ -5,6 +5,9 @@
 # QAPI common definitions
 { 'include': 'qapi/common.json' }
 
+# QAPI crypto definitions
+{ 'include': 'qapi/crypto.json' }
+
 # QAPI block definitions
 { 'include': 'qapi/block.json' }
 

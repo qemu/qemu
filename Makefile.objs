@@ -2,7 +2,6 @@
 # Common libraries for tools and emulators
 stub-obj-y = stubs/
 util-obj-y = util/ qobject/ qapi/ qapi-types.o qapi-visit.o qapi-event.o
-util-obj-y += crypto/
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
@@ -21,6 +20,16 @@ block-obj-y += coroutine-$(CONFIG_COROUTINE_BACKEND).o
 
 block-obj-m = block/
 
+#######################################################################
+# crypto-obj-y is code used by both qemu system emulation and qemu-img
+
+crypto-obj-y = crypto/
+crypto-aes-obj-y = crypto/
+
+#######################################################################
+# qom-obj-y is code used by both qemu system emulation and qemu-img
+
+qom-obj-y = qom/
 
 ######################################################################
 # smartcard
