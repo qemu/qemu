@@ -725,9 +725,12 @@ static int spapr_populate_drconf_memory(sPAPRMachineState *spapr, void *fdt)
     uint32_t *int_buf, *cur_index, buf_len;
     int nr_nodes = nb_numa_nodes ? nb_numa_nodes : 1;
 
-    /* Allocate enough buffer size to fit in ibm,dynamic-memory */
-    buf_len = nr_lmbs * SPAPR_DR_LMB_LIST_ENTRY_SIZE * sizeof(uint32_t) +
-                sizeof(uint32_t);
+    /*
+     * Allocate enough buffer size to fit in ibm,dynamic-memory
+     * or ibm,associativity-lookup-arrays
+     */
+    buf_len = MAX(nr_lmbs * SPAPR_DR_LMB_LIST_ENTRY_SIZE + 1, nr_nodes * 4 + 2)
+              * sizeof(uint32_t);
     cur_index = int_buf = g_malloc0(buf_len);
 
     offset = fdt_add_subnode(fdt, 0, "ibm,dynamic-reconfiguration-memory");
