@@ -22,6 +22,33 @@
 
 
 #ifndef CONFIG_USER_ONLY
+static inline bool hw_local_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return (dr7 >> (index * 2)) & 1;
+}
+
+static inline bool hw_global_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return (dr7 >> (index * 2)) & 2;
+
+}
+static inline bool hw_breakpoint_enabled(unsigned long dr7, int index)
+{
+    return hw_global_breakpoint_enabled(dr7, index) ||
+           hw_local_breakpoint_enabled(dr7, index);
+}
+
+static inline int hw_breakpoint_type(unsigned long dr7, int index)
+{
+    return (dr7 >> (DR7_TYPE_SHIFT + (index * 4))) & 3;
+}
+
+static inline int hw_breakpoint_len(unsigned long dr7, int index)
+{
+    int len = ((dr7 >> (DR7_LEN_SHIFT + (index * 4))) & 3);
+    return (len == 2) ? 8 : len + 1;
+}
+
 static void hw_breakpoint_insert(CPUX86State *env, int index)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
@@ -116,7 +143,6 @@ void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
         }
     }
 }
-#endif
 
 static bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
 {
@@ -187,6 +213,7 @@ void breakpoint_handler(CPUState *cs)
         }
     }
 }
+#endif
 
 void helper_single_step(CPUX86State *env)
 {
