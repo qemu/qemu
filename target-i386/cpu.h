@@ -920,7 +920,7 @@ typedef struct CPUX86State {
     int error_code;
     int exception_is_int;
     target_ulong exception_next_eip;
-    target_ulong dr[8]; /* debug registers */
+    target_ulong dr[8]; /* debug registers; note dr4 and dr5 are unused */
     union {
         struct CPUBreakpoint *cpu_breakpoint[4];
         struct CPUWatchpoint *cpu_watchpoint[4];
