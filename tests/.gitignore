@@ -24,6 +24,7 @@ test-cutils
 test-hbitmap
 test-int128
 test-iov
+test-io-channel-buffer
 test-io-channel-command
 test-io-channel-command.fifo
 test-io-channel-file

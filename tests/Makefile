@@ -89,6 +89,7 @@ check-unit-y += tests/test-io-channel-socket$(EXESUF)
 check-unit-y += tests/test-io-channel-file$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-io-channel-tls$(EXESUF)
 check-unit-y += tests/test-io-channel-command$(EXESUF)
+check-unit-y += tests/test-io-channel-buffer$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -484,6 +485,8 @@ tests/test-io-channel-tls$(EXESUF): tests/test-io-channel-tls.o \
 	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o \
 	tests/io-channel-helpers.o $(test-io-obj-y)
 tests/test-io-channel-command$(EXESUF): tests/test-io-channel-command.o \
+        tests/io-channel-helpers.o $(test-io-obj-y)
+tests/test-io-channel-buffer$(EXESUF): tests/test-io-channel-buffer.o \
         tests/io-channel-helpers.o $(test-io-obj-y)
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
