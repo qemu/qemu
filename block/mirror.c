@@ -353,6 +353,11 @@ static void mirror_exit(BlockJob *job, void *opaque)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
     MirrorExitData *data = opaque;
     AioContext *replace_aio_context = NULL;
+    BlockDriverState *src = s->common.bs;
+
+    /* Make sure that the source BDS doesn't go away before we called
+     * block_job_completed(). */
+    bdrv_ref(src);
 
     if (s->to_replace) {
         replace_aio_context = bdrv_get_aio_context(s->to_replace);
@@ -367,22 +372,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
         if (bdrv_get_flags(s->target) != bdrv_get_flags(to_replace)) {
             bdrv_reopen(s->target, bdrv_get_flags(to_replace), NULL);
         }
-        bdrv_swap(s->target, to_replace);
-        if (s->common.driver->job_type == BLOCK_JOB_TYPE_COMMIT) {
-            /* drop the bs loop chain formed by the swap: break the loop then
-             * trigger the unref */
-            /* FIXME This duplicates bdrv_set_backing_hd(), except for the
-             * actual detach/unref so that the loop can be broken. When
-             * bdrv_swap() gets replaced, this will become sane again. */
-            BlockDriverState *backing = s->base->backing->bs;
-            assert(s->base->backing_blocker);
-            bdrv_op_unblock_all(backing, s->base->backing_blocker);
-            error_free(s->base->backing_blocker);
-            s->base->backing_blocker = NULL;
-            bdrv_detach_child(s->base->backing);
-            s->base->backing = NULL;
-            bdrv_unref(backing);
-        }
+        bdrv_replace_in_backing_chain(to_replace, s->target);
     }
     if (s->to_replace) {
         bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
@@ -396,6 +386,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
     bdrv_unref(s->target);
     block_job_completed(&s->common, data->ret);
     g_free(data);
+    bdrv_unref(src);
 }
 
 static void coroutine_fn mirror_run(void *opaque)

@@ -203,6 +203,9 @@ BlockDriverState *bdrv_new(void);
 void bdrv_make_anon(BlockDriverState *bs);
 void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
+void bdrv_replace_in_backing_chain(BlockDriverState *old,
+                                   BlockDriverState *new);
+
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
 BdrvChild *bdrv_open_child(const char *filename,
@@ -513,7 +516,6 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs);
 void bdrv_ref(BlockDriverState *bs);
 void bdrv_unref(BlockDriverState *bs);
 void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child);
-void bdrv_detach_child(BdrvChild *child);
 
 bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp);
 void bdrv_op_block(BlockDriverState *bs, BlockOpType op, Error *reason);

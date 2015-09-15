@@ -1095,7 +1095,7 @@ static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     return child;
 }
 
-void bdrv_detach_child(BdrvChild *child)
+static void bdrv_detach_child(BdrvChild *child)
 {
     QLIST_REMOVE(child, next);
     QLIST_REMOVE(child, next_parent);
@@ -2230,6 +2230,36 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
     /* bs_new is now referenced by its new parents, we don't need the
      * additional reference any more. */
     bdrv_unref(bs_new);
+}
+
+void bdrv_replace_in_backing_chain(BlockDriverState *old, BlockDriverState *new)
+{
+    assert(!bdrv_requests_pending(old));
+    assert(!bdrv_requests_pending(new));
+
+    bdrv_ref(old);
+
+    if (old->blk) {
+        /* As long as these fields aren't in BlockBackend, but in the top-level
+         * BlockDriverState, it's not possible for a BDS to have two BBs.
+         *
+         * We really want to copy the fields from old to new, but we go for a
+         * swap instead so that pointers aren't duplicated and cause trouble.
+         * (Also, bdrv_swap() used to do the same.) */
+        assert(!new->blk);
+        swap_feature_fields(old, new);
+    }
+    change_parent_backing_link(old, new);
+
+    /* Change backing files if a previously independent node is added to the
+     * chain. For active commit, we replace top by its own (indirect) backing
+     * file and don't do anything here so we don't build a loop. */
+    if (new->backing == NULL && !bdrv_chain_contains(backing_bs(old), new)) {
+        bdrv_set_backing_hd(new, backing_bs(old));
+        bdrv_set_backing_hd(old, NULL);
+    }
+
+    bdrv_unref(old);
 }
 
 static void bdrv_delete(BlockDriverState *bs)
