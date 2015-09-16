@@ -75,16 +75,12 @@
 # @SchemaInfo
 #
 # @name: the entity's name, inherited from @base.
-#         Entities defined in the QAPI schema have the name defined in
-#         the schema.  Implicitly defined entities have generated
-#         names.  See docs/qapi-code-gen.txt section "Client JSON
-#         Protocol introspection" for details.
+#        Commands and events have the name defined in the QAPI schema.
+#        Unlike command and event names, type names are not part of
+#        the wire ABI.  Consequently, type names are meaningless
+#        strings here.
 #
 # All references to other SchemaInfo are by name.
-#
-# Command and event names are part of the wire ABI, but type names are
-# not.  Therefore, looking up a type by "well-known" name is wrong.
-# Look up the command or event, then follow the references.
 #
 # @meta-type: the entity's meta type, inherited from @base.
 #

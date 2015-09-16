@@ -40,32 +40,37 @@ def to_c_string(string):
 
 
 class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
-    def __init__(self):
+    def __init__(self, unmask):
+        self._unmask = unmask
         self.defn = None
         self.decl = None
         self._schema = None
         self._jsons = None
         self._used_types = None
+        self._name_map = None
 
     def visit_begin(self, schema):
         self._schema = schema
         self._jsons = []
         self._used_types = []
+        self._name_map = {}
         return QAPISchemaType   # don't visit types for now
 
     def visit_end(self):
         # visit the types that are actually used
+        jsons = self._jsons
+        self._jsons = []
         for typ in self._used_types:
             typ.visit(self)
-        self._jsons.sort()
         # generate C
         # TODO can generate awfully long lines
+        jsons.extend(self._jsons)
         name = prefix + 'qmp_schema_json'
         self.decl = mcgen('''
 extern const char %(c_name)s[];
 ''',
                           c_name=c_name(name))
-        lines = to_json(self._jsons).split('\n')
+        lines = to_json(jsons).split('\n')
         c_string = '\n    '.join([to_c_string(line) for line in lines])
         self.defn = mcgen('''
 const char %(c_name)s[] = %(c_string)s;
@@ -75,6 +80,14 @@ const char %(c_name)s[] = %(c_string)s;
         self._schema = None
         self._jsons = None
         self._used_types = None
+        self._name_map = None
+
+    def _name(self, name):
+        if self._unmask:
+            return name
+        if name not in self._name_map:
+            self._name_map[name] = '%d' % len(self._name_map)
+        return self._name_map[name]
 
     def _use_type(self, typ):
         # Map the various integer types to plain int
@@ -86,9 +99,16 @@ const char %(c_name)s[] = %(c_string)s;
         # Add type to work queue if new
         if typ not in self._used_types:
             self._used_types.append(typ)
-        return typ.name
+        # Clients should examine commands and events, not types.  Hide
+        # type names to reduce the temptation.  Also saves a few
+        # characters.
+        if isinstance(typ, QAPISchemaBuiltinType):
+            return typ.name
+        return self._name(typ.name)
 
     def _gen_json(self, name, mtype, obj):
+        if mtype != 'command' and mtype != 'event' and mtype != 'builtin':
+            name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
         self._jsons.append(obj)
@@ -140,7 +160,16 @@ const char %(c_name)s[] = %(c_string)s;
         arg_type = arg_type or self._schema.the_empty_object_type
         self._gen_json(name, 'event', {'arg-type': self._use_type(arg_type)})
 
-(input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
+# Debugging aid: unmask QAPI schema's type names
+# We normally mask them, because they're not QMP wire ABI
+opt_unmask = False
+
+(input_file, output_dir, do_c, do_h, prefix, opts) = \
+    parse_command_line("u", ["unmask-non-abi-names"])
+
+for o, a in opts:
+    if o in ("-u", "--unmask-non-abi-names"):
+        opt_unmask = True
 
 c_comment = '''
 /*
@@ -176,7 +205,7 @@ fdef.write(mcgen('''
                  prefix=prefix))
 
 schema = QAPISchema(input_file)
-gen = QAPISchemaGenIntrospectVisitor()
+gen = QAPISchemaGenIntrospectVisitor(opt_unmask)
 schema.visit(gen)
 fdef.write(gen.defn)
 fdecl.write(gen.decl)
