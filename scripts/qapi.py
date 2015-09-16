@@ -103,7 +103,7 @@ class QAPIExprError(Exception):
         return error_path(self.info['parent']) + \
             "%s:%d: %s" % (self.info['file'], self.info['line'], self.msg)
 
-class QAPISchema:
+class QAPISchemaParser(object):
 
     def __init__(self, fp, previously_included = [], incl_info = None):
         abs_fname = os.path.abspath(fp.name)
@@ -149,8 +149,8 @@ class QAPISchema:
                 except IOError, e:
                     raise QAPIExprError(expr_info,
                                         '%s: %s' % (e.strerror, include))
-                exprs_include = QAPISchema(fobj, previously_included,
-                                           expr_info)
+                exprs_include = QAPISchemaParser(fobj, previously_included,
+                                                 expr_info)
                 self.exprs.extend(exprs_include.exprs)
             else:
                 expr_elem = {'expr': expr,
@@ -755,7 +755,7 @@ def check_exprs(exprs):
 
 def parse_schema(fname):
     try:
-        schema = QAPISchema(open(fname, "r"))
+        schema = QAPISchemaParser(open(fname, "r"))
         return check_exprs(schema.exprs)
     except (QAPISchemaError, QAPIExprError), e:
         print >>sys.stderr, e
