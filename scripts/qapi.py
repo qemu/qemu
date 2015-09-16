@@ -1442,7 +1442,7 @@ def c_type(value, is_param=False):
         return c_name(value) + pointer_suffix
 
 def is_c_ptr(value):
-    return c_type(value).endswith(pointer_suffix)
+    return value.endswith(pointer_suffix)
 
 def genindent(count):
     ret = ""
