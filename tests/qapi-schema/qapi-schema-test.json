@@ -44,8 +44,8 @@
   'data': { 'value1' : 'UserDefA',
             'value2' : 'UserDefB',
             'value3' : 'UserDefB' } }
-# FIXME generated struct UserDefFlatUnion has members for direct base
-# UserDefUnionBase, but lacks members for indirect base UserDefZero
+# FIXME generated visit_type_UserDefFlatUnion_fields() fails to visit
+# members of indirect base UserDefZero
 
 { 'struct': 'UserDefUnionBase',
   'base': 'UserDefZero',

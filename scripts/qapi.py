@@ -995,7 +995,6 @@ class QAPISchemaObjectTypeVariants(object):
             vseen = dict(seen)
             v.check(schema, self.tag_member.type, vseen)
 
-
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     def __init__(self, name, typ):
         QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
@@ -1003,6 +1002,15 @@ class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     def check(self, schema, tag_type, seen):
         QAPISchemaObjectTypeMember.check(self, schema, [], seen)
         assert self.name in tag_type.values
+
+    # This function exists to support ugly simple union special cases
+    # TODO get rid of them, and drop the function
+    def simple_union_type(self):
+        if isinstance(self.type, QAPISchemaObjectType) and not self.type.info:
+            assert len(self.type.members) == 1
+            assert not self.type.variants
+            return self.type.members[0].type
+        return None
 
 
 class QAPISchemaAlternateType(QAPISchemaType):

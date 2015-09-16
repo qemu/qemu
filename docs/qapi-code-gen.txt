@@ -545,22 +545,6 @@ Example:
     $ cat qapi-generated/example-qapi-types.c
 [Uninteresting stuff omitted...]
 
-    void qapi_free_UserDefOneList(UserDefOneList *obj)
-    {
-        QapiDeallocVisitor *md;
-        Visitor *v;
-
-        if (!obj) {
-            return;
-        }
-
-        md = qapi_dealloc_visitor_new();
-        v = qapi_dealloc_get_visitor(md);
-        visit_type_UserDefOneList(v, &obj, NULL, NULL);
-        qapi_dealloc_visitor_cleanup(md);
-    }
-
-
     void qapi_free_UserDefOne(UserDefOne *obj)
     {
         QapiDeallocVisitor *md;
@@ -575,6 +559,21 @@ Example:
         visit_type_UserDefOne(v, &obj, NULL, NULL);
         qapi_dealloc_visitor_cleanup(md);
     }
+
+    void qapi_free_UserDefOneList(UserDefOneList *obj)
+    {
+        QapiDeallocVisitor *md;
+        Visitor *v;
+
+        if (!obj) {
+            return;
+        }
+
+        md = qapi_dealloc_visitor_new();
+        v = qapi_dealloc_get_visitor(md);
+        visit_type_UserDefOneList(v, &obj, NULL, NULL);
+        qapi_dealloc_visitor_cleanup(md);
+    }
     $ cat qapi-generated/example-qapi-types.h
 [Uninteresting stuff omitted...]
 
@@ -585,24 +584,24 @@ Example:
 
     typedef struct UserDefOne UserDefOne;
 
-    typedef struct UserDefOneList {
-        union {
-            UserDefOne *value;
-            uint64_t padding;
-        };
-        struct UserDefOneList *next;
-    } UserDefOneList;
-
-
-[Functions on built-in types omitted...]
+    typedef struct UserDefOneList UserDefOneList;
 
     struct UserDefOne {
         int64_t integer;
         char *string;
     };
 
-    void qapi_free_UserDefOneList(UserDefOneList *obj);
     void qapi_free_UserDefOne(UserDefOne *obj);
+
+    struct UserDefOneList {
+        union {
+            UserDefOne *value;
+            uint64_t padding;
+        };
+        struct UserDefOneList *next;
+    };
+
+    void qapi_free_UserDefOneList(UserDefOneList *obj);
 
     #endif
 
