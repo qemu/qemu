@@ -2463,8 +2463,8 @@ sub process {
 			WARN("__func__ should be used instead of gcc specific __FUNCTION__\n"  . $herecurr);
 		}
 
-# recommend qemu_strto* over strto*
-		if ($line =~ /\b(strto.*?)\s*\(/) {
+# recommend qemu_strto* over strto* for numeric conversions
+		if ($line =~ /\b(strto[^k].*?)\s*\(/) {
 			WARN("consider using qemu_$1 in preference to $1\n" . $herecurr);
 		}
 # check for module_init(), use category-specific init macros explicitly please
