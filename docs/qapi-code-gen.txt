@@ -471,7 +471,7 @@ try to avoid adding new commands that rely on this, and instead use
 type-safe unions.  For an example of bypass usage:
 
  { 'command': 'netdev_add',
-   'data': {'type': 'str', 'id': 'str', '*props': '**'},
+   'data': {'type': 'str', 'id': 'str'},
    'gen': false }
 
 Normally, the QAPI schema is used to describe synchronous exchanges,

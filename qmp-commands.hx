@@ -917,7 +917,9 @@ Arguments:
 
 Example:
 
--> { "execute": "netdev_add", "arguments": { "type": "user", "id": "netdev1" } }
+-> { "execute": "netdev_add",
+     "arguments": { "type": "user", "id": "netdev1",
+                    "dnssearch": "example.org" } }
 <- { "return": {} }
 
 Note: The supported device options are the same ones supported by the '-netdev'
