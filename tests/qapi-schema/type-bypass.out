@@ -1,4 +1,0 @@
-object :obj-unsafe-arg
-    member arg: any optional=False
-command unsafe :obj-unsafe-arg -> any
-   gen=False success_response=True

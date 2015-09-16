@@ -428,13 +428,10 @@ def is_enum(name):
 
 def check_type(expr_info, source, value, allow_array = False,
                allow_dict = False, allow_optional = False,
-               allow_star = False, allow_metas = []):
+               allow_metas = []):
     global all_names
 
     if value is None:
-        return
-
-    if allow_star and value == '**':
         return
 
     # Check if array type for value is okay
@@ -450,10 +447,6 @@ def check_type(expr_info, source, value, allow_array = False,
 
     # Check if type name for value is okay
     if isinstance(value, str):
-        if value == '**':
-            raise QAPIExprError(expr_info,
-                                "%s uses '**' but did not request 'gen':false"
-                                % source)
         if not value in all_names:
             raise QAPIExprError(expr_info,
                                 "%s uses unknown type '%s'"
@@ -479,7 +472,7 @@ def check_type(expr_info, source, value, allow_array = False,
         # Todo: allow dictionaries to represent default values of
         # an optional argument.
         check_type(expr_info, "Member '%s' of %s" % (key, source), arg,
-                   allow_array=True, allow_star=allow_star,
+                   allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
 
@@ -499,18 +492,16 @@ def check_member_clash(expr_info, base_name, data, source = ""):
 
 def check_command(expr, expr_info):
     name = expr['command']
-    allow_star = expr.has_key('gen')
 
     check_type(expr_info, "'data' for command '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
-               allow_metas=['struct'], allow_star=allow_star)
+               allow_metas=['struct'])
     returns_meta = ['union', 'struct']
     if name in returns_whitelist:
         returns_meta += ['built-in', 'alternate', 'enum']
     check_type(expr_info, "'returns' for command '%s'" % name,
                expr.get('returns'), allow_array=True,
-               allow_optional=True, allow_metas=returns_meta,
-               allow_star=allow_star)
+               allow_optional=True, allow_metas=returns_meta)
 
 def check_event(expr, expr_info):
     global events
@@ -1122,7 +1113,6 @@ class QAPISchema(object):
                   ('bool',   'boolean', 'bool',     'false'),
                   ('any',    'value',   'QObject' + pointer_suffix, 'NULL')]:
             self._def_builtin_type(*t)
-        self._entity_dict['**'] = self.lookup_type('any') # TODO drop this alias
 
     def _make_implicit_enum_type(self, name, values):
         name = name + 'Kind'
@@ -1272,8 +1262,6 @@ class QAPISchema(object):
     def visit(self, visitor):
         visitor.visit_begin(self)
         for name in sorted(self._entity_dict.keys()):
-            if self._entity_dict[name].name != name:
-                continue        # ignore alias TODO drop alias and remove
             self._entity_dict[name].visit(visitor)
         visitor.visit_end()
 

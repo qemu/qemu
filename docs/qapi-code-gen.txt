@@ -111,10 +111,7 @@ and field names within a type, should be all lower case with words
 separated by a hyphen.  However, some existing older commands and
 complex types use underscore; when extending such expressions,
 consistency is preferred over blindly avoiding underscore.  Event
-names should be ALL_CAPS with words separated by underscore.  The
-special string '**' appears for some commands that manually perform
-their own type checking rather than relying on the type-safe code
-produced by the qapi code generators.
+names should be ALL_CAPS with words separated by underscore.
 
 Any name (command, event, type, field, or enum value) beginning with
 "x-" is marked experimental, and may be withdrawn or changed
@@ -461,14 +458,11 @@ which would validate this Client JSON Protocol transaction:
  <= { "return": [ { "value": "one" }, { } ] }
 
 In rare cases, QAPI cannot express a type-safe representation of a
-corresponding Client JSON Protocol command.  In these cases, if the
-command expression includes the key 'gen' with boolean value false,
-then the 'data' or 'returns' member that intends to bypass generated
-type-safety and do its own manual validation should use an inline
-dictionary definition, with a value of '**' rather than a valid type
-name for the keys that the generated code will not validate.  Please
-try to avoid adding new commands that rely on this, and instead use
-type-safe unions.  For an example of bypass usage:
+corresponding Client JSON Protocol command.  You then have to suppress
+generation of a marshalling function by including a key 'gen' with
+boolean value false, and instead write your own function.  Please try
+to avoid adding new commands that rely on this, and instead use
+type-safe unions.  For an example of this usage:
 
  { 'command': 'netdev_add',
    'data': {'type': 'str', 'id': 'str'},
