@@ -7,7 +7,7 @@
  *     Dave Airlie <airlied@redhat.com>
  *     Gerd Hoffmann <kraxel@redhat.com>
  *
- * This work is licensed under the terms of the GNU GPL, version 2.
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
  */
 
