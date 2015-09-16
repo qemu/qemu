@@ -272,7 +272,7 @@ for o, a in opts:
     if o in ("-m", "--middle"):
         middle_mode = True
 
-exprs = parse_schema(input_file)
+exprs = QAPISchema(input_file).get_exprs()
 commands = filter(lambda expr: expr.has_key('command'), exprs)
 commands = filter(lambda expr: not expr.has_key('gen'), commands)
 

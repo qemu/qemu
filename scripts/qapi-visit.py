@@ -446,7 +446,7 @@ fdecl.write(mcgen('''
 ''',
                   prefix=prefix))
 
-exprs = parse_schema(input_file)
+exprs = QAPISchema(input_file).get_exprs()
 
 # to avoid header dependency hell, we always generate declarations
 # for built-in types in our header files and simply guard them

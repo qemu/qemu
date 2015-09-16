@@ -16,7 +16,7 @@ import os
 import sys
 
 try:
-    exprs = parse_schema(sys.argv[1])
+    exprs = QAPISchema(sys.argv[1]).get_exprs()
 except SystemExit:
     raise
 

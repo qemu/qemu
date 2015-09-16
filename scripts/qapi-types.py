@@ -336,7 +336,7 @@ fdecl.write(mcgen('''
 #include <stdint.h>
 '''))
 
-exprs = parse_schema(input_file)
+exprs = QAPISchema(input_file).get_exprs()
 
 fdecl.write(guardstart("QAPI_TYPES_BUILTIN_STRUCT_DECL"))
 for typename in builtin_types.keys():
