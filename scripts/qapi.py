@@ -33,6 +33,7 @@ builtin_types = {
     'uint32':   'QTYPE_QINT',
     'uint64':   'QTYPE_QINT',
     'size':     'QTYPE_QINT',
+    'any':      None,           # any qtype_code possible, actually
 }
 
 # Whitelist of commands allowed to return a non-dictionary
@@ -1102,8 +1103,7 @@ class QAPISchema(object):
     def _def_builtin_type(self, name, json_type, c_type, c_null):
         self._def_entity(QAPISchemaBuiltinType(name, json_type,
                                                c_type, c_null))
-        if name != '**':
-            self._make_array_type(name)         # TODO really needed?
+        self._make_array_type(name)     # TODO really needed?
 
     def _def_predefineds(self):
         for t in [('str',    'string',  'char' + pointer_suffix, 'NULL'),
@@ -1119,8 +1119,9 @@ class QAPISchema(object):
                   ('uint64', 'int',     'uint64_t', '0'),
                   ('size',   'int',     'uint64_t', '0'),
                   ('bool',   'boolean', 'bool',     'false'),
-                  ('**',     'value',   None,       None)]:
+                  ('any',    'value',   'QObject' + pointer_suffix, 'NULL')]:
             self._def_builtin_type(*t)
+        self._entity_dict['**'] = self.lookup_type('any') # TODO drop this alias
 
     def _make_implicit_enum_type(self, name, values):
         name = name + 'Kind'
@@ -1270,6 +1271,8 @@ class QAPISchema(object):
     def visit(self, visitor):
         visitor.visit_begin(self)
         for name in sorted(self._entity_dict.keys()):
+            if self._entity_dict[name].name != name:
+                continue        # ignore alias TODO drop alias and remove
             self._entity_dict[name].visit(visitor)
         visitor.visit_end()
 

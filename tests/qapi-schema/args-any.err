@@ -1,0 +1,1 @@
+tests/qapi-schema/args-any.json:2: 'data' for command 'oops' cannot use built-in type 'any'

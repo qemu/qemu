@@ -327,6 +327,7 @@ fdef.write(mcgen('''
 fdecl.write(mcgen('''
 #include <stdbool.h>
 #include <stdint.h>
+#include "qapi/qmp/qobject.h"
 '''))
 
 schema = QAPISchema(input_file)

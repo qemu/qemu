@@ -1,1 +1,0 @@
-tests/qapi-schema/flat-union-base-star.json:8: Base '**' is not a valid struct

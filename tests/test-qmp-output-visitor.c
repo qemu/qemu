@@ -428,6 +428,57 @@ static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
     qapi_free_UserDefTwoList(head);
 }
 
+static void test_visitor_out_any(TestOutputVisitorData *data,
+                                 const void *unused)
+{
+    QObject *qobj;
+    Error *err = NULL;
+    QInt *qint;
+    QBool *qbool;
+    QString *qstring;
+    QDict *qdict;
+    QObject *obj;
+
+    qobj = QOBJECT(qint_from_int(-42));
+    visit_type_any(data->ov, &qobj, NULL, &err);
+    g_assert(!err);
+    obj = qmp_output_get_qobject(data->qov);
+    g_assert(obj != NULL);
+    g_assert(qobject_type(obj) == QTYPE_QINT);
+    g_assert_cmpint(qint_get_int(qobject_to_qint(obj)), ==, -42);
+    qobject_decref(obj);
+    qobject_decref(qobj);
+
+    qdict = qdict_new();
+    qdict_put(qdict, "integer", qint_from_int(-42));
+    qdict_put(qdict, "boolean", qbool_from_bool(true));
+    qdict_put(qdict, "string", qstring_from_str("foo"));
+    qobj = QOBJECT(qdict);
+    visit_type_any(data->ov, &qobj, NULL, &err);
+    g_assert(!err);
+    obj = qmp_output_get_qobject(data->qov);
+    g_assert(obj != NULL);
+    qdict = qobject_to_qdict(obj);
+    g_assert(qdict);
+    qobj = qdict_get(qdict, "integer");
+    g_assert(qobj);
+    qint = qobject_to_qint(qobj);
+    g_assert(qint);
+    g_assert_cmpint(qint_get_int(qint), ==, -42);
+    qobj = qdict_get(qdict, "boolean");
+    g_assert(qobj);
+    qbool = qobject_to_qbool(qobj);
+    g_assert(qbool);
+    g_assert(qbool_get_bool(qbool) == true);
+    qobj = qdict_get(qdict, "string");
+    g_assert(qobj);
+    qstring = qobject_to_qstring(qobj);
+    g_assert(qstring);
+    g_assert_cmpstr(qstring_get_str(qstring), ==, "foo");
+    qobject_decref(obj);
+    qobject_decref(qobj);
+}
+
 static void test_visitor_out_union_flat(TestOutputVisitorData *data,
                                         const void *unused)
 {
@@ -833,6 +884,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_struct_errors);
     output_visitor_test_add("/visitor/output/list",
                             &out_visitor_data, test_visitor_out_list);
+    output_visitor_test_add("/visitor/output/any",
+                            &out_visitor_data, test_visitor_out_any);
     output_visitor_test_add("/visitor/output/list-qapi-free",
                             &out_visitor_data, test_visitor_out_list_qapi_free);
     output_visitor_test_add("/visitor/output/union-flat",

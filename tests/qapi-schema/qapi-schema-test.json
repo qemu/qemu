@@ -78,7 +78,8 @@
             'number': ['number'],
             'boolean': ['bool'],
             'string': ['str'],
-            'sizes': ['size'] } }
+            'sizes': ['size'],
+            'any': ['any'] } }
 
 # testing commands
 { 'command': 'user_def_cmd', 'data': {} }
@@ -88,6 +89,8 @@
   'returns': 'UserDefTwo' }
 { 'command': 'user_def_cmd3', 'data': {'a': 'int', '*b': 'int' },
   'returns': 'int' }
+# note: command name 'guest-sync' chosen to avoid "cannot use built-in" error
+{ 'command': 'guest-sync', 'data': { 'arg': 'any' }, 'returns': 'any' }
 
 # For testing integer range flattening in opts-visitor. The following schema
 # corresponds to the option format:

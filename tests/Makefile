@@ -239,6 +239,7 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	args-array-empty.json args-array-unknown.json args-int.json \
 	args-unknown.json args-member-unknown.json args-member-array.json \
 	args-member-array-bad.json args-alternate.json args-union.json \
+	args-any.json \
 	returns-array-bad.json returns-int.json returns-dict.json \
 	returns-unknown.json returns-alternate.json returns-whitelist.json \
 	missing-colon.json missing-comma-list.json missing-comma-object.json \
@@ -255,7 +256,7 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	flat-union-invalid-branch-key.json flat-union-reverse-define.json \
 	flat-union-string-discriminator.json union-base-no-discriminator.json \
 	flat-union-bad-discriminator.json flat-union-bad-base.json \
-	flat-union-base-star.json \
+	flat-union-base-any.json \
 	flat-union-array-branch.json flat-union-int-branch.json \
 	flat-union-base-union.json flat-union-branch-clash.json \
 	alternate-nested.json alternate-unknown.json alternate-clash.json \

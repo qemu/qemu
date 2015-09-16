@@ -158,6 +158,7 @@ The following types are predefined, and map to C as follows:
   size      uint64_t   like uint64_t, except StringInputVisitor
                        accepts size suffixes
   bool      bool       JSON true or false
+  any       QObject *  any JSON value
 
 
 === Includes ===

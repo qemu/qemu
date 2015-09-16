@@ -12,8 +12,12 @@ object :obj-__org.qemu_x-command-arg
     member b: __org.qemu_x-StructList optional=False
     member c: __org.qemu_x-Union2 optional=False
     member d: __org.qemu_x-Alt optional=False
+object :obj-anyList-wrapper
+    member data: anyList optional=False
 object :obj-boolList-wrapper
     member data: boolList optional=False
+object :obj-guest-sync-arg
+    member arg: any optional=False
 object :obj-int16List-wrapper
     member data: int16List optional=False
 object :obj-int32List-wrapper
@@ -102,7 +106,8 @@ object UserDefNativeListUnion
     case boolean: :obj-boolList-wrapper
     case string: :obj-strList-wrapper
     case sizes: :obj-sizeList-wrapper
-enum UserDefNativeListUnionKind ['integer', 's8', 's16', 's32', 's64', 'u8', 'u16', 'u32', 'u64', 'number', 'boolean', 'string', 'sizes']
+    case any: :obj-anyList-wrapper
+enum UserDefNativeListUnionKind ['integer', 's8', 's16', 's32', 's64', 'u8', 'u16', 'u32', 'u64', 'number', 'boolean', 'string', 'sizes', 'any']
 object UserDefOne
     base UserDefZero
     member string: str optional=False
@@ -150,6 +155,8 @@ object __org.qemu_x-Union2
     tag __org.qemu_x-member1
     case __org.qemu_x-value: __org.qemu_x-Struct2
 command __org.qemu_x-command :obj-__org.qemu_x-command-arg -> __org.qemu_x-Union1
+   gen=True success_response=True
+command guest-sync :obj-guest-sync-arg -> any
    gen=True success_response=True
 command user_def_cmd None -> None
    gen=True success_response=True

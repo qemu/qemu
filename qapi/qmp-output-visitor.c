@@ -190,6 +190,14 @@ static void qmp_output_type_number(Visitor *v, double *obj, const char *name,
     qmp_output_add(qov, name, qfloat_from_double(*obj));
 }
 
+static void qmp_output_type_any(Visitor *v, QObject **obj, const char *name,
+                                Error **errp)
+{
+    QmpOutputVisitor *qov = to_qov(v);
+    qobject_incref(*obj);
+    qmp_output_add_obj(qov, name, *obj);
+}
+
 QObject *qmp_output_get_qobject(QmpOutputVisitor *qov)
 {
     QObject *obj = qmp_output_first(qov);
@@ -237,6 +245,7 @@ QmpOutputVisitor *qmp_output_visitor_new(void)
     v->visitor.type_bool = qmp_output_type_bool;
     v->visitor.type_str = qmp_output_type_str;
     v->visitor.type_number = qmp_output_type_number;
+    v->visitor.type_any = qmp_output_type_any;
 
     QTAILQ_INIT(&v->stack);
 
