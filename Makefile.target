@@ -85,8 +85,11 @@ all: $(PROGS) stap
 #########################################################
 # cpu emulator library
 obj-y = exec.o translate-all.o cpu-exec.o
+obj-y += translate-common.o
+obj-y += cpu-exec-common.o
 obj-y += tcg/tcg.o tcg/tcg-op.o tcg/optimize.o
 obj-$(CONFIG_TCG_INTERPRETER) += tci.o
+obj-y += tcg/tcg-common.o
 obj-$(CONFIG_TCG_INTERPRETER) += disas/tci.o
 obj-y += fpu/softfloat.o
 obj-y += target-$(TARGET_BASE_ARCH)/
@@ -151,7 +154,7 @@ else
 obj-y += hw/$(TARGET_BASE_ARCH)/
 endif
 
-GENERATED_HEADERS += hmp-commands.h qmp-commands-old.h
+GENERATED_HEADERS += hmp-commands.h hmp-commands-info.h qmp-commands-old.h
 
 endif # CONFIG_SOFTMMU
 
@@ -197,6 +200,9 @@ gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/scripts/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
 
 hmp-commands.h: $(SRC_PATH)/hmp-commands.hx
+	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
+
+hmp-commands-info.h: $(SRC_PATH)/hmp-commands-info.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 qmp-commands-old.h: $(SRC_PATH)/qmp-commands.hx

@@ -3121,6 +3121,7 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("hv-relaxed", X86CPU, hyperv_relaxed_timing, false),
     DEFINE_PROP_BOOL("hv-vapic", X86CPU, hyperv_vapic, false),
     DEFINE_PROP_BOOL("hv-time", X86CPU, hyperv_time, false),
+    DEFINE_PROP_BOOL("hv-crash", X86CPU, hyperv_crash, false),
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, false),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),

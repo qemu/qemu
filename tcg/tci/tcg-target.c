@@ -850,7 +850,7 @@ static void tcg_target_init(TCGContext *s)
 #endif
 
     /* The current code uses uint8_t for tcg operations. */
-    assert(ARRAY_SIZE(tcg_op_defs) <= UINT8_MAX);
+    assert(tcg_op_defs_max <= UINT8_MAX);
 
     /* Registers available for 32 bit operations. */
     tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0,

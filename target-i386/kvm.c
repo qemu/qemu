@@ -33,7 +33,7 @@
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic-msidef.h"
 #include "exec/ioport.h"
-#include <asm/hyperv.h>
+#include "standard-headers/asm-x86/hyperv.h"
 #include "hw/pci/pci.h"
 #include "migration/migration.h"
 #include "exec/memattrs.h"
@@ -80,6 +80,7 @@ static int lm_capable_kernel;
 static bool has_msr_hv_hypercall;
 static bool has_msr_hv_vapic;
 static bool has_msr_hv_tsc;
+static bool has_msr_hv_crash;
 static bool has_msr_mtrr;
 static bool has_msr_xss;
 
@@ -457,7 +458,8 @@ static bool hyperv_enabled(X86CPU *cpu)
     return kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV) > 0 &&
            (hyperv_hypercall_available(cpu) ||
             cpu->hyperv_time  ||
-            cpu->hyperv_relaxed_timing);
+            cpu->hyperv_relaxed_timing ||
+            cpu->hyperv_crash);
 }
 
 static Error *invtsc_mig_blocker;
@@ -523,6 +525,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
             c->eax |= 0x200;
             has_msr_hv_tsc = true;
         }
+        if (cpu->hyperv_crash && has_msr_hv_crash) {
+            c->edx |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
+        }
+
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
         if (cpu->hyperv_relaxed_timing) {
@@ -841,6 +847,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                 }
                 if (kvm_msr_list->indices[i] == MSR_IA32_XSS) {
                     has_msr_xss = true;
+                    continue;
+                }
+                if (kvm_msr_list->indices[i] == HV_X64_MSR_CRASH_CTL) {
+                    has_msr_hv_crash = true;
                     continue;
                 }
             }
@@ -1375,6 +1385,16 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_REFERENCE_TSC,
                               env->msr_hv_tsc);
         }
+        if (has_msr_hv_crash) {
+            int j;
+
+            for (j = 0; j < HV_X64_MSR_CRASH_PARAMS; j++)
+                kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_CRASH_P0 + j,
+                                  env->msr_hv_crash_params[j]);
+
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_CRASH_CTL,
+                              HV_X64_MSR_CRASH_CTL_NOTIFY);
+        }
         if (has_msr_mtrr) {
             kvm_msr_entry_set(&msrs[n++], MSR_MTRRdefType, env->mtrr_deftype);
             kvm_msr_entry_set(&msrs[n++],
@@ -1730,6 +1750,13 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_hv_tsc) {
         msrs[n++].index = HV_X64_MSR_REFERENCE_TSC;
     }
+    if (has_msr_hv_crash) {
+        int j;
+
+        for (j = 0; j < HV_X64_MSR_CRASH_PARAMS; j++) {
+            msrs[n++].index = HV_X64_MSR_CRASH_P0 + j;
+        }
+    }
     if (has_msr_mtrr) {
         msrs[n++].index = MSR_MTRRdefType;
         msrs[n++].index = MSR_MTRRfix64K_00000;
@@ -1876,6 +1903,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_REFERENCE_TSC:
             env->msr_hv_tsc = msrs[i].data;
+            break;
+        case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
+            env->msr_hv_crash_params[index - HV_X64_MSR_CRASH_P0] = msrs[i].data;
             break;
         case MSR_MTRRdefType:
             env->mtrr_deftype = msrs[i].data;

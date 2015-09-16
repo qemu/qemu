@@ -52,12 +52,6 @@ typedef uint64_t (*helper_function)(tcg_target_ulong, tcg_target_ulong,
                                     tcg_target_ulong);
 #endif
 
-/* Targets which don't use GETPC also don't need tci_tb_ptr
-   which makes them a little faster. */
-#if defined(GETPC)
-uintptr_t tci_tb_ptr;
-#endif
-
 static tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
 
 static tcg_target_ulong tci_read_reg(TCGReg index)

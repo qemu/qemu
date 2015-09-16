@@ -1747,6 +1747,9 @@ void qemu_system_reset(bool report)
 
 void qemu_system_guest_panicked(void)
 {
+    if (current_cpu) {
+        current_cpu->crash_occurred = true;
+    }
     qapi_event_send_guest_panicked(GUEST_PANIC_ACTION_PAUSE, &error_abort);
     vm_stop(RUN_STATE_GUEST_PANICKED);
 }

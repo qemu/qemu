@@ -827,10 +827,6 @@ typedef struct PCIEAERErrorName {
  */
 static const struct PCIEAERErrorName pcie_aer_error_list[] = {
     {
-        .name = "TRAIN",
-        .val = PCI_ERR_UNC_TRAIN,
-        .correctable = false,
-    }, {
         .name = "DLP",
         .val = PCI_ERR_UNC_DLP,
         .correctable = false,

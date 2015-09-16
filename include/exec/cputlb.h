@@ -25,23 +25,7 @@ void tlb_protect_code(ram_addr_t ram_addr);
 void tlb_unprotect_code(ram_addr_t ram_addr);
 void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry, uintptr_t start,
                            uintptr_t length);
-void cpu_tlb_reset_dirty_all(ram_addr_t start1, ram_addr_t length);
-void tlb_set_dirty(CPUArchState *env, target_ulong vaddr);
 extern int tlb_flush_count;
-
-/* exec.c */
-void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr);
-
-MemoryRegionSection *
-address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr, hwaddr *xlat,
-                                  hwaddr *plen);
-hwaddr memory_region_section_get_iotlb(CPUState *cpu,
-                                       MemoryRegionSection *section,
-                                       target_ulong vaddr,
-                                       hwaddr paddr, hwaddr xlat,
-                                       int prot,
-                                       target_ulong *address);
-bool memory_region_is_unassigned(MemoryRegion *mr);
 
 #endif
 #endif

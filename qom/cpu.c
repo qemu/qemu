@@ -251,6 +251,7 @@ static void cpu_common_reset(CPUState *cpu)
     cpu->icount_decr.u32 = 0;
     cpu->can_do_io = 1;
     cpu->exception_index = -1;
+    cpu->crash_occurred = false;
     memset(cpu->tb_jmp_cache, 0, TB_JMP_CACHE_SIZE * sizeof(void *));
 }
 

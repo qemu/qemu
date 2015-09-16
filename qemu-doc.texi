@@ -391,6 +391,8 @@ The following commands are available:
 
 @include qemu-monitor.texi
 
+@include qemu-monitor-info.texi
+
 @subsection Integer expressions
 
 The monitor understands integers expressions for every integer

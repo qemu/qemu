@@ -661,6 +661,32 @@ static const VMStateDescription vmstate_msr_hyperv_time = {
     }
 };
 
+static bool hyperv_crash_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    int i;
+
+    for (i = 0; i < HV_X64_MSR_CRASH_PARAMS; i++) {
+        if (env->msr_hv_crash_params[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_crash = {
+    .name = "cpu/msr_hyperv_crash",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = hyperv_crash_enable_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.msr_hv_crash_params,
+                             X86CPU, HV_X64_MSR_CRASH_PARAMS),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool avx512_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -842,6 +868,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_hypercall_hypercall,
         &vmstate_msr_hyperv_vapic,
         &vmstate_msr_hyperv_time,
+        &vmstate_msr_hyperv_crash,
         &vmstate_avx512,
         &vmstate_xss,
         NULL
