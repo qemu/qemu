@@ -1131,12 +1131,6 @@ void nbd_export_close(NBDExport *exp)
     }
     nbd_export_set_name(exp, NULL);
     nbd_export_put(exp);
-    if (exp->blk) {
-        blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
-                                        blk_aio_detach, exp);
-        blk_unref(exp->blk);
-        exp->blk = NULL;
-    }
 }
 
 void nbd_export_get(NBDExport *exp)
@@ -1157,6 +1151,13 @@ void nbd_export_put(NBDExport *exp)
 
         if (exp->close) {
             exp->close(exp);
+        }
+
+        if (exp->blk) {
+            blk_remove_aio_context_notifier(exp->blk, blk_aio_attached,
+                                            blk_aio_detach, exp);
+            blk_unref(exp->blk);
+            exp->blk = NULL;
         }
 
         g_free(exp);
@@ -1303,6 +1304,14 @@ static void nbd_trip(void *opaque)
                     (uint64_t)exp->size, (uint64_t)exp->dev_offset);
         LOG("requested operation past EOF--bad client?");
         goto invalid_request;
+    }
+
+    if (client->closing) {
+        /*
+         * The client may be closed when we are blocked in
+         * nbd_co_receive_request()
+         */
+        goto done;
     }
 
     switch (command) {
