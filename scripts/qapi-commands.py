@@ -17,19 +17,12 @@ import re
 
 
 def gen_command_decl(name, arg_type, ret_type):
-    argstr = ''
-    if arg_type:
-        for memb in arg_type.members:
-            if memb.optional:
-                argstr += 'bool has_%s, ' % c_name(memb.name)
-            argstr += '%s %s, ' % (memb.type.c_type(is_param=True),
-                                   c_name(memb.name))
     return mcgen('''
-%(c_type)s qmp_%(c_name)s(%(args)sError **errp);
+%(c_type)s qmp_%(c_name)s(%(params)s);
 ''',
                  c_type=(ret_type and ret_type.c_type()) or 'void',
                  c_name=c_name(name),
-                 args=argstr)
+                 params=gen_params(arg_type, 'Error **errp'))
 
 
 def gen_err_check(err):

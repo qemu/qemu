@@ -1469,6 +1469,22 @@ extern const char *const %(c_name)s_lookup[];
                  c_name=c_name(name))
     return ret
 
+def gen_params(arg_type, extra):
+    if not arg_type:
+        return extra
+    assert not arg_type.variants
+    ret = ''
+    sep = ''
+    for memb in arg_type.members:
+        ret += sep
+        sep = ', '
+        if memb.optional:
+            ret += 'bool has_%s, ' % c_name(memb.name)
+        ret += '%s %s' % (memb.type.c_type(is_param=True), c_name(memb.name))
+    if extra:
+        ret += sep + extra
+    return ret
+
 #
 # Common command line parsing
 #

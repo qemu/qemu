@@ -15,21 +15,9 @@ from qapi import *
 
 
 def gen_event_send_proto(name, arg_type):
-    api_name = "void qapi_event_send_%s(" % c_name(name).lower()
-    l = len(api_name)
-
-    if arg_type:
-        for m in arg_type.members:
-            if m.optional:
-                api_name += "bool has_%s,\n" % c_name(m.name)
-                api_name += "".ljust(l)
-
-            api_name += "%s %s,\n" % (m.type.c_type(is_param=True),
-                                      c_name(m.name))
-            api_name += "".ljust(l)
-
-    api_name += "Error **errp)"
-    return api_name
+    return 'void qapi_event_send_%(c_name)s(%(param)s)' % {
+        'c_name': c_name(name.lower()),
+        'param': gen_params(arg_type, 'Error **errp')}
 
 
 def gen_event_send_decl(name, arg_type):
