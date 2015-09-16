@@ -74,6 +74,7 @@
 #include "block/qapi.h"
 #include "qapi/qmp-event.h"
 #include "qapi-event.h"
+#include "qmp-introspect.h"
 #include "sysemu/block-backend.h"
 
 /* for hmp_info_irq/pic */
@@ -926,6 +927,21 @@ EventInfoList *qmp_query_events(Error **errp)
     }
 
     return ev_list;
+}
+
+/*
+ * Minor hack: generated marshalling suppressed for this command
+ * ('gen': false in the schema) so we can parse the JSON string
+ * directly into QObject instead of first parsing it with
+ * visit_type_SchemaInfoList() into a SchemaInfoList, then marshal it
+ * to QObject with generated output marshallers, every time.  Instead,
+ * we do it in test-qmp-input-visitor.c, just to make sure
+ * qapi-introspect.py's output actually conforms to the schema.
+ */
+static void qmp_query_qmp_schema(QDict *qdict, QObject **ret_data,
+                                 Error **errp)
+{
+    *ret_data = qobject_from_json(qmp_schema_json);
 }
 
 /* set the current CPU defined by the user */

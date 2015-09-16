@@ -1,3 +1,4 @@
+object :empty
 object :obj-fooA-arg
     member bar1: str optional=False
 command fooA :obj-fooA-arg -> None

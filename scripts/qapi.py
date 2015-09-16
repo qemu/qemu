@@ -788,6 +788,9 @@ class QAPISchemaVisitor(object):
     def visit_object_type(self, name, info, base, members, variants):
         pass
 
+    def visit_object_type_flat(self, name, info, members, variants):
+        pass
+
     def visit_alternate_type(self, name, info, variants):
         pass
 
@@ -943,6 +946,8 @@ class QAPISchemaObjectType(QAPISchemaType):
     def visit(self, visitor):
         visitor.visit_object_type(self.name, self.info,
                                   self.base, self.local_members, self.variants)
+        visitor.visit_object_type_flat(self.name, self.info,
+                                       self.members, self.variants)
 
 
 class QAPISchemaObjectTypeMember(object):
@@ -1113,6 +1118,9 @@ class QAPISchema(object):
                   ('bool',   'boolean', 'bool',     'false'),
                   ('any',    'value',   'QObject' + pointer_suffix, 'NULL')]:
             self._def_builtin_type(*t)
+        self.the_empty_object_type = QAPISchemaObjectType(':empty', None, None,
+                                                          [], None)
+        self._def_entity(self.the_empty_object_type)
 
     def _make_implicit_enum_type(self, name, values):
         name = name + 'Kind'
@@ -1260,9 +1268,10 @@ class QAPISchema(object):
             ent.check(self)
 
     def visit(self, visitor):
-        visitor.visit_begin(self)
+        ignore = visitor.visit_begin(self)
         for name in sorted(self._entity_dict.keys()):
-            self._entity_dict[name].visit(visitor)
+            if not ignore or not isinstance(self._entity_dict[name], ignore):
+                self._entity_dict[name].visit(visitor)
         visitor.visit_end()
 
 

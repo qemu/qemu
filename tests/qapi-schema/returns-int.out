@@ -1,2 +1,3 @@
+object :empty
 command guest-get-time None -> int
    gen=True success_response=True

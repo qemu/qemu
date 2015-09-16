@@ -1,3 +1,4 @@
+object :empty
 alternate Alt
     case value: int
     case string: Enum

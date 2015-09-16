@@ -1,3 +1,4 @@
+object :empty
 command eins None -> None
    gen=True success_response=True
 command zwei None -> None

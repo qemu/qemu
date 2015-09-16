@@ -269,7 +269,8 @@ check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	struct-base-clash.json struct-base-clash-deep.json )
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \
-		     tests/test-qmp-commands.h tests/test-qapi-event.h
+	tests/test-qmp-commands.h tests/test-qapi-event.h \
+	tests/test-qmp-introspect.h
 
 test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
 	tests/check-qlist.o tests/check-qfloat.o tests/check-qjson.o \
@@ -289,7 +290,7 @@ QEMU_CFLAGS += -I$(SRC_PATH)/tests
 test-util-obj-y = libqemuutil.a libqemustub.a
 test-qom-obj-y = $(qom-obj-y) $(test-util-obj-y)
 test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
-	tests/test-qapi-event.o \
+	tests/test-qapi-event.o tests/test-qmp-introspect.o \
 	$(test-qom-obj-y)
 test-crypto-obj-y = $(crypto-obj-y) $(test-qom-obj-y)
 test-block-obj-y = $(block-obj-y) $(test-crypto-obj-y)
@@ -344,6 +345,11 @@ $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-com
 tests/test-qapi-event.c tests/test-qapi-event.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-event.py $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-event.py \
+		$(gen-out-type) -o tests -p "test-" $<, \
+		"  GEN   $@")
+tests/test-qmp-introspect.c tests/test-qmp-introspect.h :\
+$(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-introspect.py $(qapi-py)
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-introspect.py \
 		$(gen-out-type) -o tests -p "test-" $<, \
 		"  GEN   $@")
 

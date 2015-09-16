@@ -1,3 +1,4 @@
+object :empty
 object :obj-EVENT_C-arg
     member a: int optional=True
     member b: UserDefOne optional=True

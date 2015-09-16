@@ -1,3 +1,4 @@
+object :empty
 object :obj-okay-arg
     member member1: intList optional=False
     member member2: defList optional=False

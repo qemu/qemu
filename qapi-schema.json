@@ -17,6 +17,9 @@
 # Tracing commands
 { 'include': 'qapi/trace.json' }
 
+# QAPI introspection
+{ 'include': 'qapi/introspect.json' }
+
 ##
 # @LostTickPolicy:
 #

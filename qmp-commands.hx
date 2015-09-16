@@ -2193,6 +2193,23 @@ EQMP
     },
 
 SQMP
+query-qmp-schema
+----------------
+
+Return the QMP wire schema.  The returned value is a json-array of
+named schema entities.  Entities are commands, events and various
+types.  See docs/qapi-code-gen.txt for information on their structure
+and intended use.
+
+EQMP
+
+    {
+        .name       = "query-qmp-schema",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_query_qmp_schema,
+    },
+
+SQMP
 query-chardev
 -------------
 
