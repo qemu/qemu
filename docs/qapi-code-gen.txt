@@ -140,17 +140,24 @@ must have a value that forms a struct name.
 
 === Built-in Types ===
 
-The following types are built-in to the parser:
-  'str' - arbitrary UTF-8 string
-  'int' - 64-bit signed integer (although the C code may place further
-          restrictions on acceptable range)
-  'number' - floating point number
-  'bool' - JSON value of true or false
-  'int8', 'int16', 'int32', 'int64' - like 'int', but enforce maximum
-                                      bit size
-  'uint8', 'uint16', 'uint32', 'uint64' - unsigned counterparts
-  'size' - like 'uint64', but allows scaled suffix from command line
-           visitor
+The following types are predefined, and map to C as follows:
+
+  Schema    C          JSON
+  str       char *     any JSON string, UTF-8
+  number    double     any JSON number
+  int       int64_t    a JSON number without fractional part
+                       that fits into the C integer type
+  int8      int8_t     likewise
+  int16     int16_t    likewise
+  int32     int32_t    likewise
+  int64     int64_t    likewise
+  uint8     uint8_t    likewise
+  uint16    uint16_t   likewise
+  uint32    uint32_t   likewise
+  uint64    uint64_t   likewise
+  size      uint64_t   like uint64_t, except StringInputVisitor
+                       accepts size suffixes
+  bool      bool       JSON true or false
 
 
 === Includes ===
