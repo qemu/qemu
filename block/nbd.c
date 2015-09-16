@@ -43,7 +43,6 @@
 
 typedef struct BDRVNBDState {
     NbdClientSession client;
-    QemuOpts *socket_opts;
 } BDRVNBDState;
 
 static int nbd_parse_uri(const char *filename, QDict *options)
@@ -190,10 +189,10 @@ out:
     g_free(file);
 }
 
-static void nbd_config(BDRVNBDState *s, QDict *options, char **export,
-                       Error **errp)
+static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options, char **export,
+                                 Error **errp)
 {
-    Error *local_err = NULL;
+    SocketAddress *saddr;
 
     if (qdict_haskey(options, "path") == qdict_haskey(options, "host")) {
         if (qdict_haskey(options, "path")) {
@@ -201,28 +200,37 @@ static void nbd_config(BDRVNBDState *s, QDict *options, char **export,
         } else {
             error_setg(errp, "one of path and host must be specified.");
         }
-        return;
+        return NULL;
     }
 
-    s->client.is_unix = qdict_haskey(options, "path");
-    s->socket_opts = qemu_opts_create(&socket_optslist, NULL, 0,
-                                      &error_abort);
+    saddr = g_new0(SocketAddress, 1);
 
-    qemu_opts_absorb_qdict(s->socket_opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
+    if (qdict_haskey(options, "path")) {
+        saddr->kind = SOCKET_ADDRESS_KIND_UNIX;
+        saddr->q_unix = g_new0(UnixSocketAddress, 1);
+        saddr->q_unix->path = g_strdup(qdict_get_str(options, "path"));
+        qdict_del(options, "path");
+    } else {
+        saddr->kind = SOCKET_ADDRESS_KIND_INET;
+        saddr->inet = g_new0(InetSocketAddress, 1);
+        saddr->inet->host = g_strdup(qdict_get_str(options, "host"));
+        if (!qdict_get_try_str(options, "port")) {
+            saddr->inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
+        } else {
+            saddr->inet->port = g_strdup(qdict_get_str(options, "port"));
+        }
+        qdict_del(options, "host");
+        qdict_del(options, "port");
     }
 
-    if (!qemu_opt_get(s->socket_opts, "port")) {
-        qemu_opt_set_number(s->socket_opts, "port", NBD_DEFAULT_PORT,
-                            &error_abort);
-    }
+    s->client.is_unix = saddr->kind == SOCKET_ADDRESS_KIND_UNIX;
 
     *export = g_strdup(qdict_get_try_str(options, "export"));
     if (*export) {
         qdict_del(options, "export");
     }
+
+    return saddr;
 }
 
 NbdClientSession *nbd_get_client_session(BlockDriverState *bs)
@@ -231,24 +239,22 @@ NbdClientSession *nbd_get_client_session(BlockDriverState *bs)
     return &s->client;
 }
 
-static int nbd_establish_connection(BlockDriverState *bs, Error **errp)
+static int nbd_establish_connection(BlockDriverState *bs,
+                                    SocketAddress *saddr,
+                                    Error **errp)
 {
     BDRVNBDState *s = bs->opaque;
     int sock;
 
-    if (s->client.is_unix) {
-        sock = unix_connect_opts(s->socket_opts, errp, NULL, NULL);
-    } else {
-        sock = inet_connect_opts(s->socket_opts, errp, NULL, NULL);
-        if (sock >= 0) {
-            socket_set_nodelay(sock);
-        }
-    }
+    sock = socket_connect(saddr, errp, NULL, NULL);
 
-    /* Failed to establish connection */
     if (sock < 0) {
         logout("Failed to establish connection to NBD server\n");
         return -EIO;
+    }
+
+    if (!s->client.is_unix) {
+        socket_set_nodelay(sock);
     }
 
     return sock;
@@ -260,19 +266,19 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     BDRVNBDState *s = bs->opaque;
     char *export = NULL;
     int result, sock;
-    Error *local_err = NULL;
+    SocketAddress *saddr;
 
     /* Pop the config into our state object. Exit if invalid. */
-    nbd_config(s, options, &export, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    saddr = nbd_config(s, options, &export, errp);
+    if (!saddr) {
         return -EINVAL;
     }
 
     /* establish TCP connection, return error if it fails
      * TODO: Configurable retry-until-timeout behaviour.
      */
-    sock = nbd_establish_connection(bs, errp);
+    sock = nbd_establish_connection(bs, saddr, errp);
+    qapi_free_SocketAddress(saddr);
     if (sock < 0) {
         g_free(export);
         return sock;
@@ -315,9 +321,6 @@ static int nbd_co_discard(BlockDriverState *bs, int64_t sector_num,
 
 static void nbd_close(BlockDriverState *bs)
 {
-    BDRVNBDState *s = bs->opaque;
-
-    qemu_opts_del(s->socket_opts);
     nbd_client_close(bs);
 }
 
