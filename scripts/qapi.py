@@ -766,17 +766,57 @@ class QAPISchemaEntity(object):
         self.name = name
         self.info = info
 
+    def c_name(self):
+        return c_name(self.name)
+
     def check(self, schema):
         pass
 
 
 class QAPISchemaType(QAPISchemaEntity):
-    pass
+    def c_type(self, is_param=False):
+        return c_name(self.name) + pointer_suffix
+
+    def c_null(self):
+        return 'NULL'
+
+    def json_type(self):
+        pass
+
+    def alternate_qtype(self):
+        json2qtype = {
+            'string':  'QTYPE_QSTRING',
+            'number':  'QTYPE_QFLOAT',
+            'int':     'QTYPE_QINT',
+            'boolean': 'QTYPE_QBOOL',
+            'object':  'QTYPE_QDICT'
+        }
+        return json2qtype.get(self.json_type())
 
 
 class QAPISchemaBuiltinType(QAPISchemaType):
-    def __init__(self, name):
+    def __init__(self, name, json_type, c_type, c_null):
         QAPISchemaType.__init__(self, name, None)
+        assert not c_type or isinstance(c_type, str)
+        assert json_type in ('string', 'number', 'int', 'boolean', 'null',
+                             'value')
+        self._json_type_name = json_type
+        self._c_type_name = c_type
+        self._c_null_val = c_null
+
+    def c_name(self):
+        return self.name
+
+    def c_type(self, is_param=False):
+        if is_param and self.name == 'str':
+            return 'const ' + self._c_type_name
+        return self._c_type_name
+
+    def c_null(self):
+        return self._c_null_val
+
+    def json_type(self):
+        return self._json_type_name
 
 
 class QAPISchemaEnumType(QAPISchemaType):
@@ -791,6 +831,16 @@ class QAPISchemaEnumType(QAPISchemaType):
     def check(self, schema):
         assert len(set(self.values)) == len(self.values)
 
+    def c_type(self, is_param=False):
+        return c_name(self.name)
+
+    def c_null(self):
+        return c_enum_const(self.name, (self.values + ['MAX'])[0],
+                            self.prefix)
+
+    def json_type(self):
+        return 'string'
+
 
 class QAPISchemaArrayType(QAPISchemaType):
     def __init__(self, name, info, element_type):
@@ -802,6 +852,9 @@ class QAPISchemaArrayType(QAPISchemaType):
     def check(self, schema):
         self.element_type = schema.lookup_type(self._element_type_name)
         assert self.element_type
+
+    def json_type(self):
+        return 'array'
 
 
 class QAPISchemaObjectType(QAPISchemaType):
@@ -839,6 +892,17 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self.variants:
             self.variants.check(schema, members, seen)
         self.members = members
+
+    def c_name(self):
+        assert self.info
+        return QAPISchemaType.c_name(self)
+
+    def c_type(self, is_param=False):
+        assert self.info
+        return QAPISchemaType.c_type(self)
+
+    def json_type(self):
+        return 'object'
 
 
 class QAPISchemaObjectTypeMember(object):
@@ -903,6 +967,9 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
     def check(self, schema):
         self.variants.check(schema, [], {})
+
+    def json_type(self):
+        return 'value'
 
 
 class QAPISchemaCommand(QAPISchemaEntity):
@@ -969,15 +1036,28 @@ class QAPISchema(object):
     def lookup_type(self, name):
         return self.lookup_entity(name, QAPISchemaType)
 
-    def _def_builtin_type(self, name):
-        self._def_entity(QAPISchemaBuiltinType(name))
+    def _def_builtin_type(self, name, json_type, c_type, c_null):
+        self._def_entity(QAPISchemaBuiltinType(name, json_type,
+                                               c_type, c_null))
         if name != '**':
             self._make_array_type(name)         # TODO really needed?
 
     def _def_predefineds(self):
-        for t in ['str', 'number', 'int', 'int8', 'int16', 'int32', 'int64',
-                  'uint8', 'uint16', 'uint32', 'uint64', 'size', 'bool', '**']:
-            self._def_builtin_type(t)
+        for t in [('str',    'string',  'char' + pointer_suffix, 'NULL'),
+                  ('number', 'number',  'double',   '0'),
+                  ('int',    'int',     'int64_t',  '0'),
+                  ('int8',   'int',     'int8_t',   '0'),
+                  ('int16',  'int',     'int16_t',  '0'),
+                  ('int32',  'int',     'int32_t',  '0'),
+                  ('int64',  'int',     'int64_t',  '0'),
+                  ('uint8',  'int',     'uint8_t',  '0'),
+                  ('uint16', 'int',     'uint16_t', '0'),
+                  ('uint32', 'int',     'uint32_t', '0'),
+                  ('uint64', 'int',     'uint64_t', '0'),
+                  ('size',   'int',     'uint64_t', '0'),
+                  ('bool',   'boolean', 'bool',     'false'),
+                  ('**',     'value',   None,       None)]:
+            self._def_builtin_type(*t)
 
     def _make_implicit_enum_type(self, name, values):
         name = name + 'Kind'
