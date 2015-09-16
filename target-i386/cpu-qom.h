@@ -90,6 +90,7 @@ typedef struct X86CPU {
     int hyperv_spinlock_attempts;
     bool hyperv_time;
     bool hyperv_crash;
+    bool hyperv_reset;
     bool check_cpuid;
     bool enforce_cpuid;
     bool expose_kvm;

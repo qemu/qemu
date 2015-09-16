@@ -82,6 +82,7 @@ static bool has_msr_hv_hypercall;
 static bool has_msr_hv_vapic;
 static bool has_msr_hv_tsc;
 static bool has_msr_hv_crash;
+static bool has_msr_hv_reset;
 static bool has_msr_mtrr;
 static bool has_msr_xss;
 
@@ -460,7 +461,8 @@ static bool hyperv_enabled(X86CPU *cpu)
            (hyperv_hypercall_available(cpu) ||
             cpu->hyperv_time  ||
             cpu->hyperv_relaxed_timing ||
-            cpu->hyperv_crash);
+            cpu->hyperv_crash ||
+            cpu->hyperv_reset);
 }
 
 static Error *invtsc_mig_blocker;
@@ -529,7 +531,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (cpu->hyperv_crash && has_msr_hv_crash) {
             c->edx |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
         }
-
+        if (cpu->hyperv_reset && has_msr_hv_reset) {
+            c->eax |= HV_X64_MSR_RESET_AVAILABLE;
+        }
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
         if (cpu->hyperv_relaxed_timing) {
@@ -856,6 +860,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                 }
                 if (kvm_msr_list->indices[i] == HV_X64_MSR_CRASH_CTL) {
                     has_msr_hv_crash = true;
+                    continue;
+                }
+                if (kvm_msr_list->indices[i] == HV_X64_MSR_RESET) {
+                    has_msr_hv_reset = true;
                     continue;
                 }
             }
