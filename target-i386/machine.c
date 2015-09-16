@@ -687,6 +687,25 @@ static const VMStateDescription vmstate_msr_hyperv_crash = {
     }
 };
 
+static bool hyperv_runtime_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_hv_runtime != 0;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_runtime = {
+    .name = "cpu/msr_hyperv_runtime",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = hyperv_runtime_enable_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.msr_hv_runtime, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool avx512_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -869,6 +888,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_hyperv_vapic,
         &vmstate_msr_hyperv_time,
         &vmstate_msr_hyperv_crash,
+        &vmstate_msr_hyperv_runtime,
         &vmstate_avx512,
         &vmstate_xss,
         NULL

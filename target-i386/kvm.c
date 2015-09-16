@@ -84,6 +84,7 @@ static bool has_msr_hv_tsc;
 static bool has_msr_hv_crash;
 static bool has_msr_hv_reset;
 static bool has_msr_hv_vpindex;
+static bool has_msr_hv_runtime;
 static bool has_msr_mtrr;
 static bool has_msr_xss;
 
@@ -464,7 +465,8 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_relaxed_timing ||
             cpu->hyperv_crash ||
             cpu->hyperv_reset ||
-            cpu->hyperv_vpindex);
+            cpu->hyperv_vpindex ||
+            cpu->hyperv_runtime);
 }
 
 static Error *invtsc_mig_blocker;
@@ -538,6 +540,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
         if (cpu->hyperv_vpindex && has_msr_hv_vpindex) {
             c->eax |= HV_X64_MSR_VP_INDEX_AVAILABLE;
+        }
+        if (cpu->hyperv_runtime && has_msr_hv_runtime) {
+            c->eax |= HV_X64_MSR_VP_RUNTIME_AVAILABLE;
         }
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
@@ -873,6 +878,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                 }
                 if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_INDEX) {
                     has_msr_hv_vpindex = true;
+                    continue;
+                }
+                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_RUNTIME) {
+                    has_msr_hv_runtime = true;
                     continue;
                 }
             }
@@ -1420,6 +1429,10 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_CRASH_CTL,
                               HV_X64_MSR_CRASH_CTL_NOTIFY);
         }
+        if (has_msr_hv_runtime) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_VP_RUNTIME,
+                              env->msr_hv_runtime);
+        }
         if (has_msr_mtrr) {
             kvm_msr_entry_set(&msrs[n++], MSR_MTRRdefType, env->mtrr_deftype);
             kvm_msr_entry_set(&msrs[n++],
@@ -1785,6 +1798,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             msrs[n++].index = HV_X64_MSR_CRASH_P0 + j;
         }
     }
+    if (has_msr_hv_runtime) {
+        msrs[n++].index = HV_X64_MSR_VP_RUNTIME;
+    }
     if (has_msr_mtrr) {
         msrs[n++].index = MSR_MTRRdefType;
         msrs[n++].index = MSR_MTRRfix64K_00000;
@@ -1937,6 +1953,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
             env->msr_hv_crash_params[index - HV_X64_MSR_CRASH_P0] = msrs[i].data;
+            break;
+        case HV_X64_MSR_VP_RUNTIME:
+            env->msr_hv_runtime = msrs[i].data;
             break;
         case MSR_MTRRdefType:
             env->mtrr_deftype = msrs[i].data;

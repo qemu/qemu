@@ -911,6 +911,7 @@ typedef struct CPUX86State {
     uint64_t msr_hv_vapic;
     uint64_t msr_hv_tsc;
     uint64_t msr_hv_crash_params[HV_X64_MSR_CRASH_PARAMS];
+    uint64_t msr_hv_runtime;
 
     /* exception/interrupt handling */
     int error_code;
