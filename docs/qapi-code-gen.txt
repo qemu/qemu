@@ -598,7 +598,7 @@ Example:
             UserDefOne *value;
             uint64_t padding;
         };
-        struct UserDefOneList *next;
+        UserDefOneList *next;
     };
 
     void qapi_free_UserDefOneList(UserDefOneList *obj);

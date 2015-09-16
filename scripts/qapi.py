@@ -1086,9 +1086,6 @@ class QAPISchema(object):
         self._def_exprs()
         self.check()
 
-    def get_exprs(self):
-        return [expr_elem['expr'] for expr_elem in self.exprs]
-
     def _def_entity(self, ent):
         assert ent.name not in self._entity_dict
         self._entity_dict[ent.name] = ent
@@ -1281,23 +1278,6 @@ class QAPISchema(object):
 # Code generation helpers
 #
 
-def parse_args(typeinfo):
-    if isinstance(typeinfo, str):
-        struct = find_struct(typeinfo)
-        assert struct != None
-        typeinfo = struct['data']
-
-    for member in typeinfo:
-        argname = member
-        argentry = typeinfo[member]
-        optional = False
-        if member.startswith('*'):
-            argname = member[1:]
-            optional = True
-        # Todo: allow argentry to be OrderedDict, for providing the
-        # value of an optional argument.
-        yield (argname, argentry, optional)
-
 def camel_case(name):
     new_name = ''
     first = True
@@ -1380,66 +1360,8 @@ def c_name(name, protect=True):
         return "q_" + name
     return name.translate(c_name_trans)
 
-# Map type @name to the C typedef name for the list form.
-#
-# ['Name'] -> 'NameList', ['x-Foo'] -> 'x_FooList', ['int'] -> 'intList'
-def c_list_type(name):
-    return type_name(name) + 'List'
-
-# Map type @value to the C typedef form.
-#
-# Used for converting 'type' from a 'member':'type' qapi definition
-# into the alphanumeric portion of the type for a generated C parameter,
-# as well as generated C function names.  See c_type() for the rest of
-# the conversion such as adding '*' on pointer types.
-# 'int' -> 'int', '[x-Foo]' -> 'x_FooList', '__a.b_c' -> '__a_b_c'
-def type_name(value):
-    if type(value) == list:
-        return c_list_type(value[0])
-    if value in builtin_types.keys():
-        return value
-    return c_name(value)
-
 eatspace = '\033EATSPACE.'
 pointer_suffix = ' *' + eatspace
-
-# Map type @name to its C type expression.
-# If @is_param, const-qualify the string type.
-#
-# This function is used for computing the full C type of 'member':'name'.
-# A special suffix is added in c_type() for pointer types, and it's
-# stripped in mcgen(). So please notice this when you check the return
-# value of c_type() outside mcgen().
-def c_type(value, is_param=False):
-    if value == 'str':
-        if is_param:
-            return 'const char' + pointer_suffix
-        return 'char' + pointer_suffix
-
-    elif value == 'int':
-        return 'int64_t'
-    elif (value == 'int8' or value == 'int16' or value == 'int32' or
-          value == 'int64' or value == 'uint8' or value == 'uint16' or
-          value == 'uint32' or value == 'uint64'):
-        return value + '_t'
-    elif value == 'size':
-        return 'uint64_t'
-    elif value == 'bool':
-        return 'bool'
-    elif value == 'number':
-        return 'double'
-    elif type(value) == list:
-        return c_list_type(value[0]) + pointer_suffix
-    elif is_enum(value):
-        return c_name(value)
-    elif value == None:
-        return 'void'
-    elif value in events:
-        return camel_case(value) + 'Event' + pointer_suffix
-    else:
-        # complex type name
-        assert isinstance(value, str) and value != ""
-        return c_name(value) + pointer_suffix
 
 def genindent(count):
     ret = ""
@@ -1495,60 +1417,57 @@ def guardend(name):
 ''',
                  name=guardname(name))
 
-def generate_enum_lookup(name, values, prefix=None):
+def gen_enum_lookup(name, values, prefix=None):
     ret = mcgen('''
 
-const char *const %(name)s_lookup[] = {
+const char *const %(c_name)s_lookup[] = {
 ''',
-                name=c_name(name))
+                c_name=c_name(name))
     for value in values:
         index = c_enum_const(name, value, prefix)
         ret += mcgen('''
     [%(index)s] = "%(value)s",
 ''',
-                     index = index, value = value)
+                     index=index, value=value)
 
     max_index = c_enum_const(name, 'MAX', prefix)
     ret += mcgen('''
     [%(max_index)s] = NULL,
 };
 ''',
-        max_index=max_index)
+                 max_index=max_index)
     return ret
 
-def generate_enum(name, values, prefix=None):
-    name = c_name(name)
-    lookup_decl = mcgen('''
-
-extern const char *const %(name)s_lookup[];
-''',
-                name=name)
-
-    enum_decl = mcgen('''
-
-typedef enum %(name)s {
-''',
-                name=name)
-
+def gen_enum(name, values, prefix=None):
     # append automatically generated _MAX value
-    enum_values = values + [ 'MAX' ]
+    enum_values = values + ['MAX']
+
+    ret = mcgen('''
+
+typedef enum %(c_name)s {
+''',
+                c_name=c_name(name))
 
     i = 0
     for value in enum_values:
-        enum_full_value = c_enum_const(name, value, prefix)
-        enum_decl += mcgen('''
-    %(enum_full_value)s = %(i)d,
+        ret += mcgen('''
+    %(c_enum)s = %(i)d,
 ''',
-                     enum_full_value = enum_full_value,
+                     c_enum=c_enum_const(name, value, prefix),
                      i=i)
         i += 1
 
-    enum_decl += mcgen('''
-} %(name)s;
+    ret += mcgen('''
+} %(c_name)s;
 ''',
-                 name=name)
+                 c_name=c_name(name))
 
-    return enum_decl + lookup_decl
+    ret += mcgen('''
+
+extern const char *const %(c_name)s_lookup[];
+''',
+                 c_name=c_name(name))
+    return ret
 
 #
 # Common command line parsing

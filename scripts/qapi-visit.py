@@ -18,18 +18,20 @@ import re
 implicit_structs_seen = set()
 struct_fields_seen = set()
 
-def generate_visit_implicit_struct(type):
-    if type in implicit_structs_seen:
+
+def gen_visit_implicit_struct(typ):
+    if typ in implicit_structs_seen:
         return ''
-    implicit_structs_seen.add(type)
+    implicit_structs_seen.add(typ)
+
     ret = ''
-    if type.name not in struct_fields_seen:
+    if typ.name not in struct_fields_seen:
         # Need a forward declaration
         ret += mcgen('''
 
 static void visit_type_%(c_type)s_fields(Visitor *m, %(c_type)s **obj, Error **errp);
 ''',
-                     c_type=type.c_name())
+                     c_type=typ.c_name())
 
     ret += mcgen('''
 
@@ -45,35 +47,36 @@ static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error *
     error_propagate(errp, err);
 }
 ''',
-                 c_type=type.c_name())
+                 c_type=typ.c_name())
     return ret
 
-def generate_visit_struct_fields(name, members, base = None):
+
+def gen_visit_struct_fields(name, base, members):
     struct_fields_seen.add(name)
 
     ret = ''
 
     if base:
-        ret += generate_visit_implicit_struct(base)
+        ret += gen_visit_implicit_struct(base)
 
     ret += mcgen('''
 
-static void visit_type_%(name)s_fields(Visitor *m, %(name)s **obj, Error **errp)
+static void visit_type_%(c_name)s_fields(Visitor *m, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
 
 ''',
-                 name=c_name(name))
+                 c_name=c_name(name))
     push_indent()
 
     if base:
         ret += mcgen('''
-visit_type_implicit_%(type)s(m, &(*obj)->%(c_name)s, &err);
+visit_type_implicit_%(c_type)s(m, &(*obj)->%(c_name)s, &err);
 if (err) {
     goto out;
 }
 ''',
-                     type=base.c_name(), c_name=c_name('base'))
+                     c_type=base.c_name(), c_name=c_name('base'))
 
     for memb in members:
         if memb.optional:
@@ -85,9 +88,9 @@ if (!err && (*obj)->has_%(c_name)s) {
             push_indent()
 
         ret += mcgen('''
-visit_type_%(type)s(m, &(*obj)->%(c_name)s, "%(name)s", &err);
+visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "%(name)s", &err);
 ''',
-                     type=memb.type.c_name(), c_name=c_name(memb.name),
+                     c_type=memb.type.c_name(), c_name=c_name(memb.name),
                      name=memb.name)
 
         if memb.optional:
@@ -102,7 +105,7 @@ if (err) {
 ''')
 
     pop_indent()
-    if re.search('^ *goto out\\;', ret, re.MULTILINE):
+    if re.search('^ *goto out;', ret, re.MULTILINE):
         ret += mcgen('''
 
 out:
@@ -114,7 +117,7 @@ out:
     return ret
 
 
-def generate_visit_struct_body(name):
+def gen_visit_struct_body(name):
     # FIXME: if *obj is NULL on entry, and visit_start_struct() assigns to
     # *obj, but then visit_type_FOO_fields() fails, we should clean up *obj
     # rather than leaving it non-NULL. As currently written, the caller must
@@ -132,30 +135,30 @@ def generate_visit_struct_body(name):
     error_propagate(errp, err);
 ''',
                 name=name, c_name=c_name(name))
-
     return ret
 
-def gen_visit_struct(name, base, members):
-    ret = generate_visit_struct_fields(name, members, base)
 
+def gen_visit_struct(name, base, members):
+    ret = gen_visit_struct_fields(name, base, members)
     ret += mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
 {
 ''',
-                 name=c_name(name))
+                 c_name=c_name(name))
 
-    ret += generate_visit_struct_body(name)
+    ret += gen_visit_struct_body(name)
 
     ret += mcgen('''
 }
 ''')
     return ret
 
+
 def gen_visit_list(name, element_type):
     return mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
     GenericList *i, **prev;
@@ -168,7 +171,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **e
     for (prev = (GenericList **)obj;
          !err && (i = visit_next_list(m, prev, &err)) != NULL;
          prev = &i) {
-        %(name)s *native_i = (%(name)s *)i;
+        %(c_name)s *native_i = (%(c_name)s *)i;
         visit_type_%(c_elt_type)s(m, &native_i->value, NULL, &err);
     }
 
@@ -179,10 +182,10 @@ out:
     error_propagate(errp, err);
 }
 ''',
-                 name=c_name(name),
-                 c_elt_type=element_type.c_name())
+                 c_name=c_name(name), c_elt_type=element_type.c_name())
 
-def generate_visit_enum(name):
+
+def gen_visit_enum(name):
     return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *m, %(c_name)s *obj, const char *name, Error **errp)
@@ -192,36 +195,36 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s *obj, const char *name, Error 
 ''',
                  c_name=c_name(name), name=name)
 
+
 def gen_visit_alternate(name, variants):
     ret = mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_implicit_struct(m, (void**) obj, sizeof(%(name)s), &err);
+    visit_start_implicit_struct(m, (void**) obj, sizeof(%(c_name)s), &err);
     if (err) {
         goto out;
     }
-    visit_get_next_type(m, (int*) &(*obj)->kind, %(name)s_qtypes, name, &err);
+    visit_get_next_type(m, (int*) &(*obj)->kind, %(c_name)s_qtypes, name, &err);
     if (err) {
         goto out_end;
     }
     switch ((*obj)->kind) {
 ''',
-                name=c_name(name))
+                c_name=c_name(name))
 
     for var in variants.variants:
-        enum_full_value = c_enum_const(variants.tag_member.type.name,
-                                       var.name)
         ret += mcgen('''
-    case %(enum_full_value)s:
+    case %(case)s:
         visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, name, &err);
         break;
 ''',
-                enum_full_value = enum_full_value,
-                c_type=var.type.c_name(),
-                c_name=c_name(var.name))
+                     case=c_enum_const(variants.tag_member.type.name,
+                                       var.name),
+                     c_type=var.type.c_name(),
+                     c_name=c_name(var.name))
 
     ret += mcgen('''
     default:
@@ -238,17 +241,18 @@ out:
 
     return ret
 
+
 def gen_visit_union(name, base, variants):
     ret = ''
 
     if base:
         members = [m for m in base.members if m != variants.tag_member]
-        ret += generate_visit_struct_fields(name, members)
+        ret += gen_visit_struct_fields(name, None, members)
 
     for var in variants.variants:
         # Ugly special case for simple union TODO get rid of it
         if not var.simple_union_type():
-            ret += generate_visit_implicit_struct(var.type)
+            ret += gen_visit_implicit_struct(var.type)
 
     ret += mcgen('''
 
@@ -266,19 +270,19 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
 
     if base:
         ret += mcgen('''
-        visit_type_%(name)s_fields(m, obj, &err);
+        visit_type_%(c_name)s_fields(m, obj, &err);
         if (err) {
             goto out_obj;
         }
 ''',
-                     name=c_name(name))
+                     c_name=c_name(name))
 
-    disc_key = variants.tag_member.name
+    tag_key = variants.tag_member.name
     if not variants.tag_name:
         # we pointlessly use a different key for simple unions
-        disc_key = 'type'
+        tag_key = 'type'
     ret += mcgen('''
-        visit_type_%(disc_type)s(m, &(*obj)->%(c_name)s, "%(disc_key)s", &err);
+        visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "%(name)s", &err);
         if (err) {
             goto out_obj;
         }
@@ -287,30 +291,36 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
         }
         switch ((*obj)->%(c_name)s) {
 ''',
-                 disc_type=variants.tag_member.type.c_name(),
+                 c_type=variants.tag_member.type.c_name(),
                  # TODO ugly special case for simple union
                  # Use same tag name in C as on the wire to get rid of
                  # it, then: c_name=c_name(variants.tag_member.name)
                  c_name=c_name(variants.tag_name or 'kind'),
-                 disc_key = disc_key)
+                 name=tag_key)
 
     for var in variants.variants:
         # TODO ugly special case for simple union
         simple_union_type = var.simple_union_type()
-        if simple_union_type:
-            fmt = 'visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", &err);'
-        else:
-            fmt = 'visit_type_implicit_%(c_type)s(m, &(*obj)->%(c_name)s, &err);'
-
-        enum_full_value = c_enum_const(variants.tag_member.type.name, var.name)
         ret += mcgen('''
-        case %(enum_full_value)s:
-            ''' + fmt + '''
-            break;
+        case %(case)s:
 ''',
-                enum_full_value = enum_full_value,
-                c_type=(simple_union_type or var.type).c_name(),
-                c_name=c_name(var.name))
+                     case=c_enum_const(variants.tag_member.type.name,
+                                       var.name))
+        if simple_union_type:
+            ret += mcgen('''
+            visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", &err);
+''',
+                         c_type=simple_union_type.c_name(),
+                         c_name=c_name(var.name))
+        else:
+            ret += mcgen('''
+            visit_type_implicit_%(c_type)s(m, &(*obj)->%(c_name)s, &err);
+''',
+                         c_type=var.type.c_name(),
+                         c_name=c_name(var.name))
+        ret += mcgen('''
+            break;
+''')
 
     ret += mcgen('''
         default:
@@ -330,6 +340,7 @@ out:
 ''')
 
     return ret
+
 
 def gen_visit_decl(name, scalar=False):
     c_type = c_name(name) + ' *'
@@ -363,7 +374,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
 
     def visit_enum_type(self, name, info, values, prefix):
         self.decl += gen_visit_decl(name, scalar=True)
-        self.defn += generate_visit_enum(name)
+        self.defn += gen_visit_enum(name)
 
     def visit_array_type(self, name, info, element_type):
         decl = gen_visit_decl(name)
@@ -439,7 +450,7 @@ fdef.write(mcgen('''
 #include "qemu-common.h"
 #include "%(prefix)sqapi-visit.h"
 ''',
-                 prefix = prefix))
+                 prefix=prefix))
 
 fdecl.write(mcgen('''
 #include "qapi/visitor.h"
