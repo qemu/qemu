@@ -2758,15 +2758,30 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
     /* TODO: convert to link<> */
     apic = APIC_COMMON(cpu->apic_state);
     apic->cpu = cpu;
+    apic->apicbase = APIC_DEFAULT_ADDRESS | MSR_IA32_APICBASE_ENABLE;
 }
 
 static void x86_cpu_apic_realize(X86CPU *cpu, Error **errp)
 {
+    APICCommonState *apic;
+    static bool apic_mmio_map_once;
+
     if (cpu->apic_state == NULL) {
         return;
     }
     object_property_set_bool(OBJECT(cpu->apic_state), true, "realized",
                              errp);
+
+    /* Map APIC MMIO area */
+    apic = APIC_COMMON(cpu->apic_state);
+    if (!apic_mmio_map_once) {
+        memory_region_add_subregion_overlap(get_system_memory(),
+                                            apic->apicbase &
+                                            MSR_IA32_APICBASE_BASE,
+                                            &apic->io_memory,
+                                            0x1000);
+        apic_mmio_map_once = true;
+     }
 }
 
 static void x86_cpu_machine_done(Notifier *n, void *unused)

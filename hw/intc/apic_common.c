@@ -296,7 +296,6 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
     APICCommonClass *info;
     static DeviceState *vapic;
     static int apic_no;
-    static bool mmio_registered;
 
     if (apic_no >= MAX_APICS) {
         error_setg(errp, "%s initialization failed.",
@@ -307,11 +306,6 @@ static void apic_common_realize(DeviceState *dev, Error **errp)
 
     info = APIC_COMMON_GET_CLASS(s);
     info->realize(dev, errp);
-    if (!mmio_registered) {
-        ICCBus *b = ICC_BUS(qdev_get_parent_bus(dev));
-        memory_region_add_subregion(b->apic_address_space, 0, &s->io_memory);
-        mmio_registered = true;
-    }
 
     /* Note: We need at least 1M to map the VAPIC option ROM */
     if (!vapic && s->vapic_control & VAPIC_ENABLE_MASK &&

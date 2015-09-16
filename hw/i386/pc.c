@@ -1158,13 +1158,6 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
         object_unref(OBJECT(cpu));
     }
 
-    /* map APIC MMIO area if CPU has APIC */
-    if (cpu && cpu->apic_state) {
-        /* XXX: what if the base changes? */
-        sysbus_mmio_map_overlap(SYS_BUS_DEVICE(icc_bridge), 0,
-                                APIC_DEFAULT_ADDRESS, 0x1000);
-    }
-
     /* tell smbios about cpuid version and features */
     smbios_set_cpuid(cpu->env.cpuid_version, cpu->env.features[FEAT_1_EDX]);
 }
