@@ -91,18 +91,12 @@ def gen_visitor_input_vars_decl(args):
 bool has_%(argname)s = false;
 ''',
                              argname=c_name(memb.name))
-            if is_c_ptr(memb.type.c_type()):
-                ret += mcgen('''
-%(argtype)s %(argname)s = NULL;
+            ret += mcgen('''
+%(c_type)s %(c_name)s = %(c_null)s;
 ''',
-                             argname=c_name(memb.name),
-                             argtype=memb.type.c_type())
-            else:
-                ret += mcgen('''
-%(argtype)s %(argname)s = {0};
-''',
-                             argname=c_name(memb.name),
-                             argtype=memb.type.c_type())
+                         c_name=c_name(memb.name),
+                         c_type=memb.type.c_type(),
+                         c_null=memb.type.c_null())
 
     pop_indent()
     return ret

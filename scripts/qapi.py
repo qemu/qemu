@@ -1441,9 +1441,6 @@ def c_type(value, is_param=False):
         assert isinstance(value, str) and value != ""
         return c_name(value) + pointer_suffix
 
-def is_c_ptr(value):
-    return value.endswith(pointer_suffix)
-
 def genindent(count):
     ret = ""
     for i in range(count):
