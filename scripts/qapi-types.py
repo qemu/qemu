@@ -80,61 +80,6 @@ struct %(name)s {
 
     return ret
 
-def generate_enum_lookup(name, values, prefix=None):
-    ret = mcgen('''
-
-const char *const %(name)s_lookup[] = {
-''',
-                name=c_name(name))
-    for value in values:
-        index = c_enum_const(name, value, prefix)
-        ret += mcgen('''
-    [%(index)s] = "%(value)s",
-''',
-                     index = index, value = value)
-
-    max_index = c_enum_const(name, 'MAX', prefix)
-    ret += mcgen('''
-    [%(max_index)s] = NULL,
-};
-''',
-        max_index=max_index)
-    return ret
-
-def generate_enum(name, values, prefix=None):
-    name = c_name(name)
-    lookup_decl = mcgen('''
-
-extern const char *const %(name)s_lookup[];
-''',
-                name=name)
-
-    enum_decl = mcgen('''
-
-typedef enum %(name)s {
-''',
-                name=name)
-
-    # append automatically generated _MAX value
-    enum_values = values + [ 'MAX' ]
-
-    i = 0
-    for value in enum_values:
-        enum_full_value = c_enum_const(name, value, prefix)
-        enum_decl += mcgen('''
-    %(enum_full_value)s = %(i)d,
-''',
-                     enum_full_value = enum_full_value,
-                     i=i)
-        i += 1
-
-    enum_decl += mcgen('''
-} %(name)s;
-''',
-                 name=name)
-
-    return enum_decl + lookup_decl
-
 def gen_alternate_qtypes_decl(name):
     return mcgen('''
 

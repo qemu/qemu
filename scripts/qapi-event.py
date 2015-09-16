@@ -153,63 +153,6 @@ def generate_event_implement(api_name, event_name, params):
 
     return ret
 
-
-# Following are the functions that generate an enum type for all defined
-# events, similar to qapi-types.py. Here we already have enum name and
-# values which were generated before and recorded in event_enum_*. It also
-# works around the issue that "import qapi-types" can't work.
-
-def generate_event_enum_decl(event_enum_name, event_enum_values):
-    lookup_decl = mcgen('''
-
-extern const char *%(event_enum_name)s_lookup[];
-''',
-                        event_enum_name = event_enum_name)
-
-    enum_decl = mcgen('''
-typedef enum %(event_enum_name)s {
-''',
-                      event_enum_name = event_enum_name)
-
-    # append automatically generated _MAX value
-    enum_max_value = c_enum_const(event_enum_name, "MAX")
-    enum_values = event_enum_values + [ enum_max_value ]
-
-    i = 0
-    for value in enum_values:
-        enum_decl += mcgen('''
-    %(value)s = %(i)d,
-''',
-                     value = value,
-                     i = i)
-        i += 1
-
-    enum_decl += mcgen('''
-} %(event_enum_name)s;
-''',
-                       event_enum_name = event_enum_name)
-
-    return lookup_decl + enum_decl
-
-def generate_event_enum_lookup(event_enum_name, event_enum_strings):
-    ret = mcgen('''
-
-const char *%(event_enum_name)s_lookup[] = {
-''',
-                event_enum_name = event_enum_name)
-
-    for string in event_enum_strings:
-        ret += mcgen('''
-    "%(string)s",
-''',
-                     string = string)
-
-    ret += mcgen('''
-    NULL,
-};
-''')
-    return ret
-
 (input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
 
 c_comment = '''
@@ -266,8 +209,7 @@ fdecl.write(mcgen('''
 exprs = QAPISchema(input_file).get_exprs()
 
 event_enum_name = c_name(prefix + "QAPIEvent", protect=False)
-event_enum_values = []
-event_enum_strings = []
+event_names = []
 
 for expr in exprs:
     if expr.has_key('event'):
@@ -286,12 +228,11 @@ for expr in exprs:
         fdef.write(ret)
 
         # Record it, and generate enum later
-        event_enum_values.append(event_enum_value)
-        event_enum_strings.append(event_name)
+        event_names.append(event_name)
 
-ret = generate_event_enum_decl(event_enum_name, event_enum_values)
+ret = generate_enum(event_enum_name, event_names)
 fdecl.write(ret)
-ret = generate_event_enum_lookup(event_enum_name, event_enum_strings)
+ret = generate_enum_lookup(event_enum_name, event_names)
 fdef.write(ret)
 
 close_output(fdef, fdecl)
