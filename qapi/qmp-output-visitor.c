@@ -66,9 +66,13 @@ static QObject *qmp_output_first(QmpOutputVisitor *qov)
 {
     QStackEntry *e = QTAILQ_LAST(&qov->stack, QStack);
 
-    /* FIXME - find a better way to deal with NULL values */
+    /*
+     * FIXME Wrong, because qmp_output_get_qobject() will increment
+     * the refcnt *again*.  We need to think through how visitors
+     * handle null.
+     */
     if (!e) {
-        return NULL;
+        return qnull();
     }
 
     return e->value;

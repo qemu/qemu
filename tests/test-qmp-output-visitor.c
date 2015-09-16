@@ -485,7 +485,8 @@ static void test_visitor_out_empty(TestOutputVisitorData *data,
     QObject *arg;
 
     arg = qmp_output_get_qobject(data->qov);
-    g_assert(!arg);
+    g_assert(qobject_type(arg) == QTYPE_QNULL);
+    qobject_decref(arg);
 }
 
 static void init_native_list(UserDefNativeListUnion *cvalue)
