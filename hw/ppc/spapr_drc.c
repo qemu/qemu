@@ -473,14 +473,17 @@ sPAPRDRConnector *spapr_dr_connector_new(Object *owner,
 {
     sPAPRDRConnector *drc =
         SPAPR_DR_CONNECTOR(object_new(TYPE_SPAPR_DR_CONNECTOR));
+    char *prop_name;
 
     g_assert(type);
 
     drc->type = type;
     drc->id = id;
     drc->owner = owner;
-    object_property_add_child(owner, "dr-connector[*]", OBJECT(drc), NULL);
+    prop_name = g_strdup_printf("dr-connector[%"PRIu32"]", get_index(drc));
+    object_property_add_child(owner, prop_name, OBJECT(drc), NULL);
     object_property_set_bool(OBJECT(drc), true, "realized", NULL);
+    g_free(prop_name);
 
     /* human-readable name for a DRC to encode into the DT
      * description. this is mainly only used within a guest in place
