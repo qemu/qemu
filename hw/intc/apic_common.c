@@ -419,13 +419,12 @@ static Property apic_properties_common[] = {
 
 static void apic_common_class_init(ObjectClass *klass, void *data)
 {
-    ICCDeviceClass *idc = ICC_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_apic_common;
     dc->reset = apic_reset_common;
     dc->props = apic_properties_common;
-    idc->realize = apic_common_realize;
+    dc->realize = apic_common_realize;
     /*
      * Reason: APIC and CPU need to be wired up by
      * x86_cpu_apic_create()
@@ -435,7 +434,7 @@ static void apic_common_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo apic_common_type = {
     .name = TYPE_APIC_COMMON,
-    .parent = TYPE_ICC_DEVICE,
+    .parent = TYPE_DEVICE,
     .instance_size = sizeof(APICCommonState),
     .class_size = sizeof(APICCommonClass),
     .class_init = apic_common_class_init,

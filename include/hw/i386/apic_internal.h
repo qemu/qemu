@@ -22,7 +22,6 @@
 
 #include "cpu.h"
 #include "exec/memory.h"
-#include "hw/cpu/icc_bus.h"
 #include "qemu/timer.h"
 
 /* APIC Local Vector Table */
@@ -135,7 +134,7 @@ typedef struct APICCommonState APICCommonState;
 
 typedef struct APICCommonClass
 {
-    ICCDeviceClass parent_class;
+    DeviceClass parent_class;
 
     DeviceRealize realize;
     void (*set_base)(APICCommonState *s, uint64_t val);
@@ -150,7 +149,9 @@ typedef struct APICCommonClass
 } APICCommonClass;
 
 struct APICCommonState {
-    ICCDevice busdev;
+    /*< private >*/
+    DeviceState parent_obj;
+    /*< public >*/
 
     MemoryRegion io_memory;
     X86CPU *cpu;

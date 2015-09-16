@@ -43,7 +43,6 @@
 
 #include "sysemu/sysemu.h"
 #include "hw/qdev-properties.h"
-#include "hw/cpu/icc_bus.h"
 #ifndef CONFIG_USER_ONLY
 #include "exec/address-spaces.h"
 #include "hw/xen/xen.h"
@@ -2736,7 +2735,6 @@ static void mce_init(X86CPU *cpu)
 #ifndef CONFIG_USER_ONLY
 static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
 {
-    DeviceState *dev = DEVICE(cpu);
     APICCommonState *apic;
     const char *apic_type = "apic";
 
@@ -2746,11 +2744,7 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
         apic_type = "xen-apic";
     }
 
-    cpu->apic_state = qdev_try_create(qdev_get_parent_bus(dev), apic_type);
-    if (cpu->apic_state == NULL) {
-        error_setg(errp, "APIC device '%s' could not be created", apic_type);
-        return;
-    }
+    cpu->apic_state = DEVICE(object_new(apic_type));
 
     object_property_add_child(OBJECT(cpu), "apic",
                               OBJECT(cpu->apic_state), NULL);
@@ -3161,7 +3155,6 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 
     xcc->parent_realize = dc->realize;
     dc->realize = x86_cpu_realizefn;
-    dc->bus_type = TYPE_ICC_BUS;
     dc->props = x86_cpu_properties;
 
     xcc->parent_reset = cc->reset;
