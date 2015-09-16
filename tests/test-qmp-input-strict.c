@@ -167,9 +167,9 @@ static void test_validate_union_flat(TestInputVisitorData *data,
 
     v = validate_test_init(data,
                            "{ 'enum1': 'value1', "
+                           "'integer': 41, "
                            "'string': 'str', "
                            "'boolean': true }");
-    /* TODO when generator bug is fixed, add 'integer': 41 */
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
     g_assert(!err);
@@ -272,7 +272,7 @@ static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
     Visitor *v;
 
     /* test situation where discriminator field ('enum1' here) is missing */
-    v = validate_test_init(data, "{ 'string': 'c', 'string1': 'd', 'string2': 'e' }");
+    v = validate_test_init(data, "{ 'integer': 42, 'string': 'c', 'string1': 'd', 'string2': 'e' }");
 
     visit_type_UserDefFlatUnion2(v, &tmp, NULL, &err);
     g_assert(err);

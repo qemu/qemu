@@ -44,8 +44,6 @@
   'data': { 'value1' : 'UserDefA',
             'value2' : 'UserDefB',
             'value3' : 'UserDefB' } }
-# FIXME generated visit_type_UserDefFlatUnion_fields() fails to visit
-# members of indirect base UserDefZero
 
 { 'struct': 'UserDefUnionBase',
   'base': 'UserDefZero',
@@ -62,7 +60,6 @@
 
 { 'alternate': 'UserDefAlternate',
   'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
-# FIXME only a declaration of visit_type_UserDefAlternateKind() generated
 
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
