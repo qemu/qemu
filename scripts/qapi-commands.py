@@ -62,7 +62,7 @@ def gen_call(name, arg_type, ret_type):
 
 qmp_marshal_output_%(c_name)s(retval, ret, &local_err);
 ''',
-                     c_name=c_name(name))
+                     c_name=ret_type.c_name())
     pop_indent()
     return ret
 
@@ -166,10 +166,10 @@ qapi_dealloc_visitor_cleanup(md);
     return ret
 
 
-def gen_marshal_output(name, ret_type):
+def gen_marshal_output(ret_type):
     return mcgen('''
 
-static void qmp_marshal_output_%(c_cmd_name)s(%(c_type)s ret_in, QObject **ret_out, Error **errp)
+static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, Error **errp)
 {
     Error *local_err = NULL;
     QmpOutputVisitor *mo = qmp_output_visitor_new();
@@ -192,8 +192,7 @@ out:
     qapi_dealloc_visitor_cleanup(md);
 }
 ''',
-                 c_type=ret_type.c_type(), c_cmd_name=c_name(name),
-                 c_name=ret_type.c_name())
+                 c_type=ret_type.c_type(), c_name=ret_type.c_name())
 
 
 def gen_marshal_proto(name):
@@ -272,24 +271,28 @@ class QAPISchemaGenCommandVisitor(QAPISchemaVisitor):
         self.decl = None
         self.defn = None
         self._regy = None
+        self._visited_ret_types = None
 
     def visit_begin(self, schema):
         self.decl = ''
         self.defn = ''
         self._regy = ''
+        self._visited_ret_types = set()
 
     def visit_end(self):
         if not middle_mode:
             self.defn += gen_registry(self._regy)
         self._regy = None
+        self._visited_ret_types = None
 
     def visit_command(self, name, info, arg_type, ret_type,
                       gen, success_response):
         if not gen:
             return
         self.decl += gen_command_decl(name, arg_type, ret_type)
-        if ret_type:
-            self.defn += gen_marshal_output(name, ret_type)
+        if ret_type and ret_type not in self._visited_ret_types:
+            self._visited_ret_types.add(ret_type)
+            self.defn += gen_marshal_output(ret_type)
         if middle_mode:
             self.decl += gen_marshal_decl(name)
         self.defn += gen_marshal(name, arg_type, ret_type)

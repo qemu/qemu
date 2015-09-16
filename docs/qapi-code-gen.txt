@@ -721,7 +721,7 @@ Example:
     $ cat qapi-generated/example-qmp-marshal.c
 [Uninteresting stuff omitted...]
 
-    static void qmp_marshal_output_my_command(UserDefOne *ret_in, QObject **ret_out, Error **errp)
+    static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in, QObject **ret_out, Error **errp)
     {
         Error *local_err = NULL;
         QmpOutputVisitor *mo = qmp_output_visitor_new();
@@ -764,7 +764,7 @@ Example:
             goto out;
         }
 
-        qmp_marshal_output_my_command(retval, ret, &local_err);
+        qmp_marshal_output_UserDefOne(retval, ret, &local_err);
 
     out:
         error_propagate(errp, local_err);
