@@ -1893,8 +1893,8 @@ static void x86_cpu_parse_featurestr(CPUState *cs, char *features,
                 char *err;
                 char num[32];
 
-                tsc_freq = strtosz_suffix_unit(val, &err,
-                                               STRTOSZ_DEFSUFFIX_B, 1000);
+                tsc_freq = qemu_strtosz_suffix_unit(val, &err,
+                                               QEMU_STRTOSZ_DEFSUFFIX_B, 1000);
                 if (tsc_freq < 0 || *err) {
                     error_setg(errp, "bad numerical value %s", val);
                     return;

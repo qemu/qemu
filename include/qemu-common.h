@@ -217,22 +217,23 @@ int parse_uint(const char *s, unsigned long long *value, char **endptr,
 int parse_uint_full(const char *s, unsigned long long *value, int base);
 
 /*
- * strtosz() suffixes used to specify the default treatment of an
- * argument passed to strtosz() without an explicit suffix.
+ * qemu_strtosz() suffixes used to specify the default treatment of an
+ * argument passed to qemu_strtosz() without an explicit suffix.
  * These should be defined using upper case characters in the range
- * A-Z, as strtosz() will use qemu_toupper() on the given argument
+ * A-Z, as qemu_strtosz() will use qemu_toupper() on the given argument
  * prior to comparison.
  */
-#define STRTOSZ_DEFSUFFIX_EB	'E'
-#define STRTOSZ_DEFSUFFIX_PB	'P'
-#define STRTOSZ_DEFSUFFIX_TB	'T'
-#define STRTOSZ_DEFSUFFIX_GB	'G'
-#define STRTOSZ_DEFSUFFIX_MB	'M'
-#define STRTOSZ_DEFSUFFIX_KB	'K'
-#define STRTOSZ_DEFSUFFIX_B	'B'
-int64_t strtosz(const char *nptr, char **end);
-int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix);
-int64_t strtosz_suffix_unit(const char *nptr, char **end,
+#define QEMU_STRTOSZ_DEFSUFFIX_EB 'E'
+#define QEMU_STRTOSZ_DEFSUFFIX_PB 'P'
+#define QEMU_STRTOSZ_DEFSUFFIX_TB 'T'
+#define QEMU_STRTOSZ_DEFSUFFIX_GB 'G'
+#define QEMU_STRTOSZ_DEFSUFFIX_MB 'M'
+#define QEMU_STRTOSZ_DEFSUFFIX_KB 'K'
+#define QEMU_STRTOSZ_DEFSUFFIX_B 'B'
+int64_t qemu_strtosz(const char *nptr, char **end);
+int64_t qemu_strtosz_suffix(const char *nptr, char **end,
+                            const char default_suffix);
+int64_t qemu_strtosz_suffix_unit(const char *nptr, char **end,
                             const char default_suffix, int64_t unit);
 #define K_BYTE     (1ULL << 10)
 #define M_BYTE     (1ULL << 20)

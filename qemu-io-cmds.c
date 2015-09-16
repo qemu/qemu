@@ -136,7 +136,7 @@ static char **breakline(char *input, int *count)
 static int64_t cvtnum(const char *s)
 {
     char *end;
-    return strtosz_suffix(s, &end, STRTOSZ_DEFSUFFIX_B);
+    return qemu_strtosz_suffix(s, &end, QEMU_STRTOSZ_DEFSUFFIX_B);
 }
 
 #define EXABYTES(x)     ((long long)(x) << 60)

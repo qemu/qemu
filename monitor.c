@@ -2697,7 +2697,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                         break;
                     }
                 }
-                val = strtosz(p, &end);
+                val = qemu_strtosz(p, &end);
                 if (val < 0) {
                     monitor_printf(mon, "invalid size\n");
                     goto fail;
