@@ -91,6 +91,7 @@ typedef struct X86CPU {
     bool hyperv_time;
     bool hyperv_crash;
     bool hyperv_reset;
+    bool hyperv_vpindex;
     bool check_cpuid;
     bool enforce_cpuid;
     bool expose_kvm;
