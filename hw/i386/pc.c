@@ -1926,6 +1926,25 @@ static void pc_machine_initfn(Object *obj)
                              NULL, &error_abort);
 }
 
+static void pc_machine_reset(void)
+{
+    CPUState *cs;
+    X86CPU *cpu;
+
+    qemu_devices_reset();
+
+    /* Reset APIC after devices have been reset to cancel
+     * any changes that qemu_devices_reset() might have done.
+     */
+    CPU_FOREACH(cs) {
+        cpu = X86_CPU(cs);
+
+        if (cpu->apic_state) {
+            device_reset(cpu->apic_state);
+        }
+    }
+}
+
 static unsigned pc_cpu_index_to_socket_id(unsigned cpu_index)
 {
     X86CPUTopoInfo topo;
@@ -1947,6 +1966,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "cad";
     mc->hot_add_cpu = pc_hot_add_cpu;
     mc->max_cpus = 255;
+    mc->reset = pc_machine_reset;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
     hc->unplug = pc_machine_device_unplug_cb;
