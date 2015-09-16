@@ -772,6 +772,39 @@ class QAPISchemaEntity(object):
     def check(self, schema):
         pass
 
+    def visit(self, visitor):
+        pass
+
+
+class QAPISchemaVisitor(object):
+    def visit_begin(self, schema):
+        pass
+
+    def visit_end(self):
+        pass
+
+    def visit_builtin_type(self, name, info, json_type):
+        pass
+
+    def visit_enum_type(self, name, info, values, prefix):
+        pass
+
+    def visit_array_type(self, name, info, element_type):
+        pass
+
+    def visit_object_type(self, name, info, base, members, variants):
+        pass
+
+    def visit_alternate_type(self, name, info, variants):
+        pass
+
+    def visit_command(self, name, info, arg_type, ret_type,
+                      gen, success_response):
+        pass
+
+    def visit_event(self, name, info, arg_type):
+        pass
+
 
 class QAPISchemaType(QAPISchemaEntity):
     def c_type(self, is_param=False):
@@ -818,6 +851,9 @@ class QAPISchemaBuiltinType(QAPISchemaType):
     def json_type(self):
         return self._json_type_name
 
+    def visit(self, visitor):
+        visitor.visit_builtin_type(self.name, self.info, self.json_type())
+
 
 class QAPISchemaEnumType(QAPISchemaType):
     def __init__(self, name, info, values, prefix):
@@ -841,6 +877,10 @@ class QAPISchemaEnumType(QAPISchemaType):
     def json_type(self):
         return 'string'
 
+    def visit(self, visitor):
+        visitor.visit_enum_type(self.name, self.info,
+                                self.values, self.prefix)
+
 
 class QAPISchemaArrayType(QAPISchemaType):
     def __init__(self, name, info, element_type):
@@ -855,6 +895,9 @@ class QAPISchemaArrayType(QAPISchemaType):
 
     def json_type(self):
         return 'array'
+
+    def visit(self, visitor):
+        visitor.visit_array_type(self.name, self.info, self.element_type)
 
 
 class QAPISchemaObjectType(QAPISchemaType):
@@ -903,6 +946,10 @@ class QAPISchemaObjectType(QAPISchemaType):
 
     def json_type(self):
         return 'object'
+
+    def visit(self, visitor):
+        visitor.visit_object_type(self.name, self.info,
+                                  self.base, self.local_members, self.variants)
 
 
 class QAPISchemaObjectTypeMember(object):
@@ -971,6 +1018,9 @@ class QAPISchemaAlternateType(QAPISchemaType):
     def json_type(self):
         return 'value'
 
+    def visit(self, visitor):
+        visitor.visit_alternate_type(self.name, self.info, self.variants)
+
 
 class QAPISchemaCommand(QAPISchemaEntity):
     def __init__(self, name, info, arg_type, ret_type, gen, success_response):
@@ -993,6 +1043,11 @@ class QAPISchemaCommand(QAPISchemaEntity):
             self.ret_type = schema.lookup_type(self._ret_type_name)
             assert isinstance(self.ret_type, QAPISchemaType)
 
+    def visit(self, visitor):
+        visitor.visit_command(self.name, self.info,
+                              self.arg_type, self.ret_type,
+                              self.gen, self.success_response)
+
 
 class QAPISchemaEvent(QAPISchemaEntity):
     def __init__(self, name, info, arg_type):
@@ -1006,6 +1061,9 @@ class QAPISchemaEvent(QAPISchemaEntity):
             self.arg_type = schema.lookup_type(self._arg_type_name)
             assert isinstance(self.arg_type, QAPISchemaObjectType)
             assert not self.arg_type.variants   # not implemented
+
+    def visit(self, visitor):
+        visitor.visit_event(self.name, self.info, self.arg_type)
 
 
 class QAPISchema(object):
@@ -1203,6 +1261,12 @@ class QAPISchema(object):
     def check(self):
         for ent in self._entity_dict.values():
             ent.check(self)
+
+    def visit(self, visitor):
+        visitor.visit_begin(self)
+        for name in sorted(self._entity_dict.keys()):
+            self._entity_dict[name].visit(visitor)
+        visitor.visit_end()
 
 
 #
