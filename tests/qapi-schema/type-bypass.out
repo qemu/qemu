@@ -1,3 +1,4 @@
-[OrderedDict([('command', 'unsafe'), ('data', OrderedDict([('arg', '**')])), ('returns', '**'), ('gen', False)])]
-[]
-[]
+object :obj-unsafe-arg
+    member arg: ** optional=False
+command unsafe :obj-unsafe-arg -> **
+   gen=False success_response=True

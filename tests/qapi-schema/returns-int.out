@@ -1,3 +1,2 @@
-[OrderedDict([('command', 'guest-get-time'), ('returns', 'int')])]
-[]
-[]
+command guest-get-time None -> int
+   gen=True success_response=True
