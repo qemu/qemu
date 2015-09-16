@@ -213,7 +213,7 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs)
 }
 
 /* Check if any requests are in-flight (including throttled requests) */
-static bool bdrv_requests_pending(BlockDriverState *bs)
+bool bdrv_requests_pending(BlockDriverState *bs)
 {
     if (!QLIST_EMPTY(&bs->tracked_requests)) {
         return true;

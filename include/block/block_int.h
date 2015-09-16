@@ -667,5 +667,6 @@ bool blk_dev_is_medium_locked(BlockBackend *blk);
 void blk_dev_resize_cb(BlockBackend *blk);
 
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
+bool bdrv_requests_pending(BlockDriverState *bs);
 
 #endif /* BLOCK_INT_H */
