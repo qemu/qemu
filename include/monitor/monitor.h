@@ -42,9 +42,6 @@ void monitor_read_command(Monitor *mon, int show_prompt);
 int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
                           void *opaque);
 
-void qmp_qom_set(QDict *qdict, QObject **ret, Error **errp);
-void qmp_qom_get(QDict *qdict, QObject **ret, Error **errp);
-void qmp_object_add(QDict *qdict, QObject **ret, Error **errp);
 void object_add(const char *type, const char *id, const QDict *qdict,
                 Visitor *v, Error **errp);
 

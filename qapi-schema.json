@@ -1698,8 +1698,7 @@
 ##
 { 'command': 'qom-get',
   'data': { 'path': 'str', 'property': 'str' },
-  'returns': '**',
-  'gen': false }
+  'returns': 'any' }
 
 ##
 # @qom-set:
@@ -1716,8 +1715,7 @@
 # Since: 1.2
 ##
 { 'command': 'qom-set',
-  'data': { 'path': 'str', 'property': 'str', 'value': '**' },
-  'gen': false }
+  'data': { 'path': 'str', 'property': 'str', 'value': 'any' } }
 
 ##
 # @set_password:
@@ -2127,8 +2125,7 @@
 # Since: 2.0
 ##
 { 'command': 'object-add',
-  'data': {'qom-type': 'str', 'id': 'str', '*props': '**'},
-  'gen': false }
+  'data': {'qom-type': 'str', 'id': 'str', '*props': 'any'} }
 
 ##
 # @object-del:

@@ -40,6 +40,7 @@ builtin_types = {
 returns_whitelist = [
     # From QMP:
     'human-monitor-command',
+    'qom-get',
     'query-migrate-cache-size',
     'query-tpm-models',
     'query-tpm-types',

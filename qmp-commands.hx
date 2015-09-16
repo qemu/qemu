@@ -953,7 +953,7 @@ EQMP
     {
         .name       = "object-add",
         .args_type  = "qom-type:s,id:s,props:q?",
-        .mhandler.cmd_new = qmp_object_add,
+        .mhandler.cmd_new = qmp_marshal_object_add,
     },
 
 SQMP
@@ -3575,13 +3575,13 @@ EQMP
     {
         .name       = "qom-set",
 	.args_type  = "path:s,property:s,value:q",
-	.mhandler.cmd_new = qmp_qom_set,
+        .mhandler.cmd_new = qmp_marshal_qom_set,
     },
 
     {
         .name       = "qom-get",
 	.args_type  = "path:s,property:s",
-	.mhandler.cmd_new = qmp_qom_get,
+        .mhandler.cmd_new = qmp_marshal_qom_get,
     },
 
     {

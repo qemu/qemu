@@ -234,12 +234,9 @@ ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
     return props;
 }
 
-/* FIXME: teach qapi about how to pass through Visitors */
-void qmp_qom_set(QDict *qdict, QObject **ret, Error **errp)
+void qmp_qom_set(const char *path, const char *property, QObject *value,
+                 Error **errp)
 {
-    const char *path = qdict_get_str(qdict, "path");
-    const char *property = qdict_get_str(qdict, "property");
-    QObject *value = qdict_get(qdict, "value");
     Object *obj;
 
     obj = object_resolve_path(path, NULL);
@@ -252,20 +249,18 @@ void qmp_qom_set(QDict *qdict, QObject **ret, Error **errp)
     object_property_set_qobject(obj, value, property, errp);
 }
 
-void qmp_qom_get(QDict *qdict, QObject **ret, Error **errp)
+QObject *qmp_qom_get(const char *path, const char *property, Error **errp)
 {
-    const char *path = qdict_get_str(qdict, "path");
-    const char *property = qdict_get_str(qdict, "property");
     Object *obj;
 
     obj = object_resolve_path(path, NULL);
     if (!obj) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                   "Device '%s' not found", path);
-        return;
+        return NULL;
     }
 
-    *ret = object_property_get_qobject(obj, property, errp);
+    return object_property_get_qobject(obj, property, errp);
 }
 
 void qmp_set_password(const char *protocol, const char *password,
@@ -661,11 +656,9 @@ out:
     object_unref(obj);
 }
 
-void qmp_object_add(QDict *qdict, QObject **ret, Error **errp)
+void qmp_object_add(const char *type, const char *id,
+                    bool has_props, QObject *props, Error **errp)
 {
-    const char *type = qdict_get_str(qdict, "qom-type");
-    const char *id = qdict_get_str(qdict, "id");
-    QObject *props = qdict_get(qdict, "props");
     const QDict *pdict = NULL;
     QmpInputVisitor *qiv;
 
