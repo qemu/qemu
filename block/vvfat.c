@@ -985,12 +985,6 @@ static BDRVVVFATState *vvv = NULL;
 static int enable_write_target(BDRVVVFATState *s, Error **errp);
 static int is_consistent(BDRVVVFATState *s);
 
-static void vvfat_rebind(BlockDriverState *bs)
-{
-    BDRVVVFATState *s = bs->opaque;
-    s->bs = bs;
-}
-
 static QemuOptsList runtime_opts = {
     .name = "vvfat",
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
@@ -3012,7 +3006,6 @@ static BlockDriver bdrv_vvfat = {
     .bdrv_parse_filename    = vvfat_parse_filename,
     .bdrv_file_open         = vvfat_open,
     .bdrv_close             = vvfat_close,
-    .bdrv_rebind            = vvfat_rebind,
 
     .bdrv_read              = vvfat_co_read,
     .bdrv_write             = vvfat_co_write,

@@ -117,12 +117,6 @@ struct {                                                                \
         }                                                               \
 } while (/*CONSTCOND*/0)
 
-#define QLIST_FIX_HEAD_PTR(head, field) do {                            \
-        if ((head)->lh_first != NULL) {                                 \
-            (head)->lh_first->field.le_prev = &(head)->lh_first;        \
-        }                                                               \
-} while (/*CONSTCOND*/0)
-
 #define QLIST_INSERT_AFTER(listelm, elm, field) do {                    \
         if (((elm)->field.le_next = (listelm)->field.le_next) != NULL)  \
                 (listelm)->field.le_next->field.le_prev =               \

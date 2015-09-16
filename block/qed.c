@@ -354,12 +354,6 @@ static void qed_cancel_need_check_timer(BDRVQEDState *s)
     timer_del(s->need_check_timer);
 }
 
-static void bdrv_qed_rebind(BlockDriverState *bs)
-{
-    BDRVQEDState *s = bs->opaque;
-    s->bs = bs;
-}
-
 static void bdrv_qed_detach_aio_context(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
@@ -1664,7 +1658,6 @@ static BlockDriver bdrv_qed = {
     .supports_backing         = true,
 
     .bdrv_probe               = bdrv_qed_probe,
-    .bdrv_rebind              = bdrv_qed_rebind,
     .bdrv_open                = bdrv_qed_open,
     .bdrv_close               = bdrv_qed_close,
     .bdrv_reopen_prepare      = bdrv_qed_reopen_prepare,
