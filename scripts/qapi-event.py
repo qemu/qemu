@@ -2,14 +2,15 @@
 # QAPI event generator
 #
 # Copyright (c) 2014 Wenchao Xia
+# Copyright (c) 2015 Red Hat Inc.
 #
 # Authors:
 #  Wenchao Xia <wenchaoqemu@gmail.com>
+#  Markus Armbruster <armbru@redhat.com>
 #
 # This work is licensed under the terms of the GNU GPL, version 2.
 # See the COPYING file in the top-level directory.
 
-from ordereddict import OrderedDict
 from qapi import *
 
 def _generate_event_api_name(event_name, params):
@@ -17,13 +18,13 @@ def _generate_event_api_name(event_name, params):
     l = len(api_name)
 
     if params:
-        for argname, argentry, optional in parse_args(params):
-            if optional:
-                api_name += "bool has_%s,\n" % c_name(argname)
+        for m in params.members:
+            if m.optional:
+                api_name += "bool has_%s,\n" % c_name(m.name)
                 api_name += "".ljust(l)
 
-            api_name += "%s %s,\n" % (c_type(argentry, is_param=True),
-                                      c_name(argname))
+            api_name += "%s %s,\n" % (m.type.c_type(is_param=True),
+                                      c_name(m.name))
             api_name += "".ljust(l)
 
     api_name += "Error **errp)"
@@ -51,7 +52,7 @@ def generate_event_implement(api_name, event_name, params):
 """,
                 api_name = api_name)
 
-    if params:
+    if params and params.members:
         ret += mcgen("""
     QmpOutputVisitor *qov;
     Visitor *v;
@@ -72,7 +73,7 @@ def generate_event_implement(api_name, event_name, params):
                  event_name = event_name)
 
     # step 3: visit the params if params != None
-    if params:
+    if params and params.members:
         ret += mcgen("""
     qov = qmp_output_visitor_new();
     g_assert(qov);
@@ -89,15 +90,15 @@ def generate_event_implement(api_name, event_name, params):
 """,
                 event_name = event_name)
 
-        for argname, argentry, optional in parse_args(params):
-            if optional:
+        for memb in params.members:
+            if memb.optional:
                 ret += mcgen("""
     if (has_%(var)s) {
 """,
-                             var = c_name(argname))
+                             var=c_name(memb.name))
                 push_indent()
 
-            if argentry == "str":
+            if memb.type.name == "str":
                 var_type = "(char **)"
             else:
                 var_type = ""
@@ -109,11 +110,11 @@ def generate_event_implement(api_name, event_name, params):
     }
 """,
                          var_type = var_type,
-                         var = c_name(argname),
-                         type = type_name(argentry),
-                         name = argname)
+                         var=c_name(memb.name),
+                         type=memb.type.c_name(),
+                         name=memb.name)
 
-            if optional:
+            if memb.optional:
                 pop_indent()
                 ret += mcgen("""
     }
@@ -140,7 +141,7 @@ def generate_event_implement(api_name, event_name, params):
                  event_enum_value = c_enum_const(event_enum_name, event_name))
 
     # step 5: clean up
-    if params:
+    if params and params.members:
         ret += mcgen("""
  clean:
     qmp_output_visitor_cleanup(qov);
@@ -152,6 +153,30 @@ def generate_event_implement(api_name, event_name, params):
 """)
 
     return ret
+
+
+class QAPISchemaGenEventVisitor(QAPISchemaVisitor):
+    def __init__(self):
+        self.decl = None
+        self.defn = None
+        self._event_names = None
+
+    def visit_begin(self, schema):
+        self.decl = ''
+        self.defn = ''
+        self._event_names = []
+
+    def visit_end(self):
+        self.decl += generate_enum(event_enum_name, self._event_names)
+        self.defn += generate_enum_lookup(event_enum_name, self._event_names)
+        self._event_names = None
+
+    def visit_event(self, name, info, arg_type):
+        api_name = _generate_event_api_name(name, arg_type)
+        self.decl += generate_event_declaration(api_name)
+        self.defn += generate_event_implement(api_name, name, arg_type)
+        self._event_names.append(name)
+
 
 (input_file, output_dir, do_c, do_h, prefix, dummy) = parse_command_line()
 
@@ -206,32 +231,12 @@ fdecl.write(mcgen('''
 ''',
                   prefix=prefix))
 
-exprs = QAPISchema(input_file).get_exprs()
-
 event_enum_name = c_name(prefix + "QAPIEvent", protect=False)
-event_names = []
 
-for expr in exprs:
-    if expr.has_key('event'):
-        event_name = expr['event']
-        params = expr.get('data')
-        if params and len(params) == 0:
-            params = None
-
-        api_name = _generate_event_api_name(event_name, params)
-        ret = generate_event_declaration(api_name)
-        fdecl.write(ret)
-
-        # We need an enum value per event
-        ret = generate_event_implement(api_name, event_name, params)
-        fdef.write(ret)
-
-        # Record it, and generate enum later
-        event_names.append(event_name)
-
-ret = generate_enum(event_enum_name, event_names)
-fdecl.write(ret)
-ret = generate_enum_lookup(event_enum_name, event_names)
-fdef.write(ret)
+schema = QAPISchema(input_file)
+gen = QAPISchemaGenEventVisitor()
+schema.visit(gen)
+fdef.write(gen.defn)
+fdecl.write(gen.decl)
 
 close_output(fdef, fdecl)
