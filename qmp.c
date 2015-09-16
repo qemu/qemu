@@ -157,9 +157,9 @@ VncInfo2List *qmp_query_vnc_servers(Error **errp)
  * #ifdef CONFIG_SPICE.  Necessary for an accurate query-commands
  * result.  However, the QAPI schema is blissfully unaware of that,
  * and the QAPI code generator happily generates a dead
- * qmp_marshal_input_query_spice() that calls qmp_query_spice().
- * Provide it one, or else linking fails.
- * FIXME Educate the QAPI schema on CONFIG_SPICE.
+ * qmp_marshal_query_spice() that calls qmp_query_spice().  Provide it
+ * one, or else linking fails.  FIXME Educate the QAPI schema on
+ * CONFIG_SPICE.
  */
 SpiceInfo *qmp_query_spice(Error **errp)
 {

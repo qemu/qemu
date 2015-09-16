@@ -127,7 +127,7 @@ following at the bottom:
     {
         .name       = "hello-world",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_input_hello_world,
+        .mhandler.cmd_new = qmp_marshal_hello_world,
     },
 
 You're done. Now build qemu, run it as suggested in the "Testing" section,
@@ -179,7 +179,7 @@ The last step is to update the qmp-commands.hx file:
     {
         .name       = "hello-world",
         .args_type  = "message:s?",
-        .mhandler.cmd_new = qmp_marshal_input_hello_world,
+        .mhandler.cmd_new = qmp_marshal_hello_world,
     },
 
 Notice that the "args_type" member got our "message" argument. The character
@@ -461,7 +461,7 @@ The last step is to add the correspoding entry in the qmp-commands.hx file:
     {
         .name       = "query-alarm-clock",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_input_query_alarm_clock,
+        .mhandler.cmd_new = qmp_marshal_query_alarm_clock,
     },
 
 Time to test the new command. Build qemu, run it as described in the "Testing"
@@ -607,7 +607,7 @@ To test this you have to add the corresponding qmp-commands.hx entry:
     {
         .name       = "query-alarm-methods",
         .args_type  = "",
-        .mhandler.cmd_new = qmp_marshal_input_query_alarm_methods,
+        .mhandler.cmd_new = qmp_marshal_query_alarm_methods,
     },
 
 Now Build qemu, run it as explained in the "Testing" section and try our new

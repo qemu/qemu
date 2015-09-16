@@ -204,7 +204,7 @@ out:
 
 
 def gen_marshal_proto(name):
-    ret = 'void qmp_marshal_input_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
+    ret = 'void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)' % c_name(name)
     if not middle_mode:
         ret = 'static ' + ret
     return ret
@@ -251,7 +251,7 @@ def gen_register_command(name, success_response):
         options = 'QCO_NO_SUCCESS_RESP'
 
     ret = mcgen('''
-qmp_register_command("%(name)s", qmp_marshal_input_%(c_name)s, %(opts)s);
+qmp_register_command("%(name)s", qmp_marshal_%(c_name)s, %(opts)s);
 ''',
                 name=name, c_name=c_name(name),
                 opts=options)

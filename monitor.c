@@ -3912,7 +3912,7 @@ static QObject *get_qmp_greeting(void)
 {
     QObject *ver = NULL;
 
-    qmp_marshal_input_query_version(NULL, &ver, NULL);
+    qmp_marshal_query_version(NULL, &ver, NULL);
     return qobject_from_jsonf("{'QMP':{'version': %p,'capabilities': []}}",ver);
 }
 

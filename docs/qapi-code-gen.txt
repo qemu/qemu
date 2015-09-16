@@ -744,7 +744,7 @@ Example:
         qapi_dealloc_visitor_cleanup(md);
     }
 
-    static void qmp_marshal_input_my_command(QDict *args, QObject **ret, Error **errp)
+    static void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp)
     {
         Error *local_err = NULL;
         UserDefOne *retval;
@@ -777,7 +777,7 @@ Example:
 
     static void qmp_init_marshal(void)
     {
-        qmp_register_command("my-command", qmp_marshal_input_my_command, QCO_NO_OPTIONS);
+        qmp_register_command("my-command", qmp_marshal_my_command, QCO_NO_OPTIONS);
     }
 
     qapi_init(qmp_init_marshal);
