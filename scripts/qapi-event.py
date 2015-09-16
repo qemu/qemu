@@ -137,7 +137,7 @@ def generate_event_implement(api_name, event_name, params):
     emit(%(event_enum_value)s, qmp, &local_err);
 
 """,
-                 event_enum_value = event_enum_value)
+                 event_enum_value = c_enum_const(event_enum_name, event_name))
 
     # step 5: clean up
     if params:
@@ -223,7 +223,6 @@ for expr in exprs:
         fdecl.write(ret)
 
         # We need an enum value per event
-        event_enum_value = c_enum_const(event_enum_name, event_name)
         ret = generate_event_implement(api_name, event_name, params)
         fdef.write(ret)
 
