@@ -220,7 +220,7 @@ void helper_rdtsc(CPUX86State *env)
     uint64_t val;
 
     if ((env->cr[4] & CR4_TSD_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
-        raise_exception(env, EXCP0D_GPF);
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_RDTSC, 0);
 
@@ -238,7 +238,7 @@ void helper_rdtscp(CPUX86State *env)
 void helper_rdpmc(CPUX86State *env)
 {
     if ((env->cr[4] & CR4_PCE_MASK) && ((env->hflags & HF_CPL_MASK) != 0)) {
-        raise_exception(env, EXCP0D_GPF);
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_RDPMC, 0);
 
@@ -589,7 +589,7 @@ void helper_hlt(CPUX86State *env, int next_eip_addend)
 void helper_monitor(CPUX86State *env, target_ulong ptr)
 {
     if ((uint32_t)env->regs[R_ECX] != 0) {
-        raise_exception(env, EXCP0D_GPF);
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     /* XXX: store address? */
     cpu_svm_check_intercept_param(env, SVM_EXIT_MONITOR, 0);
@@ -601,7 +601,7 @@ void helper_mwait(CPUX86State *env, int next_eip_addend)
     X86CPU *cpu;
 
     if ((uint32_t)env->regs[R_ECX] != 0) {
-        raise_exception(env, EXCP0D_GPF);
+        raise_exception_ra(env, EXCP0D_GPF, GETPC());
     }
     cpu_svm_check_intercept_param(env, SVM_EXIT_MWAIT, 0);
     env->eip += next_eip_addend;
