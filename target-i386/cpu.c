@@ -3098,14 +3098,8 @@ static bool x86_cpu_has_work(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
 
-#if !defined(CONFIG_USER_ONLY)
-    if (cs->interrupt_request & CPU_INTERRUPT_POLL) {
-        apic_poll_irq(cpu->apic_state);
-        cpu_reset_interrupt(cs, CPU_INTERRUPT_POLL);
-    }
-#endif
-
-    return ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+    return ((cs->interrupt_request & (CPU_INTERRUPT_HARD |
+                                      CPU_INTERRUPT_POLL)) &&
             (env->eflags & IF_MASK)) ||
            (cs->interrupt_request & (CPU_INTERRUPT_NMI |
                                      CPU_INTERRUPT_INIT |
