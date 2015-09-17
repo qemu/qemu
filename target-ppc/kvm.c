@@ -2489,3 +2489,12 @@ int kvm_arch_msi_data_to_gsi(uint32_t data)
 {
     return data & 0xffff;
 }
+
+int kvmppc_enable_hwrng(void)
+{
+    if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_PPC_HWRNG)) {
+        return -1;
+    }
+
+    return kvmppc_enable_hcall(kvm_state, H_RANDOM);
+}

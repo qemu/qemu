@@ -334,6 +334,7 @@ struct sPAPRMachineState {
 #define H_SET_MPP               0x2D0
 #define H_GET_MPP               0x2D4
 #define H_XIRR_X                0x2FC
+#define H_RANDOM                0x300
 #define H_SET_MODE              0x31C
 #define MAX_HCALL_OPCODE        H_SET_MODE
 
@@ -612,9 +613,12 @@ struct sPAPRConfigureConnectorState {
 void spapr_ccs_reset_hook(void *opaque);
 
 #define TYPE_SPAPR_RTC "spapr-rtc"
+#define TYPE_SPAPR_RNG "spapr-rng"
 
 void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
+
+int spapr_rng_populate_dt(void *fdt);
 
 #define SPAPR_MEMORY_BLOCK_SIZE (1 << 28) /* 256MB */
 
