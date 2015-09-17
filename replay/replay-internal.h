@@ -21,8 +21,18 @@ enum ReplayEvents {
     EVENT_INTERRUPT,
     /* for emulated exceptions */
     EVENT_EXCEPTION,
+    /* for async events */
+    EVENT_ASYNC,
     EVENT_COUNT
 };
+
+/* Asynchronous events IDs */
+
+enum ReplayAsyncEventKind {
+    REPLAY_ASYNC_COUNT
+};
+
+typedef enum ReplayAsyncEventKind ReplayAsyncEventKind;
 
 typedef struct ReplayState {
     /*! Current step - number of processed instructions and timer events. */
@@ -74,5 +84,24 @@ void replay_save_instructions(void);
 /*! Skips async events until some sync event will be found.
     \return true, if event was found */
 bool replay_next_event_is(int event);
+
+/* Asynchronous events queue */
+
+/*! Initializes events' processing internals */
+void replay_init_events(void);
+/*! Clears internal data structures for events handling */
+void replay_finish_events(void);
+/*! Enables storing events in the queue */
+void replay_enable_events(void);
+/*! Flushes events queue */
+void replay_flush_events(void);
+/*! Clears events list before loading new VM state */
+void replay_clear_events(void);
+/*! Returns true if there are any unsaved events in the queue */
+bool replay_has_events(void);
+/*! Saves events from queue into the file */
+void replay_save_events(int checkpoint);
+/*! Read events from the file into the input queue */
+void replay_read_events(int checkpoint);
 
 #endif

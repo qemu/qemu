@@ -1,2 +1,3 @@
 common-obj-y += replay.o
 common-obj-y += replay-internal.o
+common-obj-y += replay-events.o
