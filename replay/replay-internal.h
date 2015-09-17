@@ -33,6 +33,13 @@ int64_t replay_get_qword(void);
 void replay_get_array(uint8_t *buf, size_t *size);
 void replay_get_array_alloc(uint8_t **buf, size_t *size);
 
+/* Mutex functions for protecting replay log file */
+
+void replay_mutex_init(void);
+void replay_mutex_destroy(void);
+void replay_mutex_lock(void);
+void replay_mutex_unlock(void);
+
 /*! Checks error status of the file. */
 void replay_check_error(void);
 

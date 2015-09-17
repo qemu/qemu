@@ -17,6 +17,13 @@
 unsigned int replay_data_kind = -1;
 static unsigned int replay_has_unread_data;
 
+/* Mutex to protect reading and writing events to the log.
+   replay_data_kind and replay_has_unread_data are also protected
+   by this mutex.
+   It also protects replay events queue which stores events to be
+   written or read to the log. */
+static QemuMutex lock;
+
 /* File for replay writing */
 FILE *replay_file;
 
@@ -152,4 +159,24 @@ void replay_finish_event(void)
 {
     replay_has_unread_data = 0;
     replay_fetch_data_kind();
+}
+
+void replay_mutex_init(void)
+{
+    qemu_mutex_init(&lock);
+}
+
+void replay_mutex_destroy(void)
+{
+    qemu_mutex_destroy(&lock);
+}
+
+void replay_mutex_lock(void)
+{
+    qemu_mutex_lock(&lock);
+}
+
+void replay_mutex_unlock(void)
+{
+    qemu_mutex_unlock(&lock);
 }
