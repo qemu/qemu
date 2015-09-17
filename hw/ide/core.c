@@ -591,7 +591,6 @@ static void ide_sector_read_cb(void *opaque, int ret)
     s->nsector -= n;
     /* Allow the guest to read the io_buffer */
     ide_transfer_start(s, s->io_buffer, n * BDRV_SECTOR_SIZE, ide_sector_read);
-    s->io_buffer_offset += 512 * n;
     ide_set_irq(s->bus);
 }
 
@@ -635,11 +634,12 @@ static void ide_sector_read(IDEState *s)
                                  ide_sector_read_cb, s);
 }
 
-static void dma_buf_commit(IDEState *s, uint32_t tx_bytes)
+void dma_buf_commit(IDEState *s, uint32_t tx_bytes)
 {
     if (s->bus->dma->ops->commit_buf) {
         s->bus->dma->ops->commit_buf(s->bus->dma, tx_bytes);
     }
+    s->io_buffer_offset += tx_bytes;
     qemu_sglist_destroy(&s->sg);
 }
 
@@ -842,7 +842,6 @@ static void ide_sector_write_cb(void *opaque, int ret)
         n = s->req_nb_sectors;
     }
     s->nsector -= n;
-    s->io_buffer_offset += 512 * n;
 
     ide_set_sector(s, ide_get_sector(s) + n);
     if (s->nsector == 0) {
