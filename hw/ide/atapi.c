@@ -1169,20 +1169,28 @@ enum {
      * 4.1.8)
      */
     CHECK_READY = 0x02,
+
+    /*
+     * Commands flagged with NONDATA do not in any circumstances return
+     * any data via ide_atapi_cmd_reply. These commands are exempt from
+     * the normal byte_count_limit constraints.
+     * See ATA8-ACS3 "7.21.5 Byte Count Limit"
+     */
+    NONDATA = 0x04,
 };
 
 static const struct {
     void (*handler)(IDEState *s, uint8_t *buf);
     int flags;
 } atapi_cmd_table[0x100] = {
-    [ 0x00 ] = { cmd_test_unit_ready,               CHECK_READY },
+    [ 0x00 ] = { cmd_test_unit_ready,               CHECK_READY | NONDATA },
     [ 0x03 ] = { cmd_request_sense,                 ALLOW_UA },
     [ 0x12 ] = { cmd_inquiry,                       ALLOW_UA },
-    [ 0x1b ] = { cmd_start_stop_unit,               0 }, /* [1] */
-    [ 0x1e ] = { cmd_prevent_allow_medium_removal,  0 },
+    [ 0x1b ] = { cmd_start_stop_unit,               NONDATA }, /* [1] */
+    [ 0x1e ] = { cmd_prevent_allow_medium_removal,  NONDATA },
     [ 0x25 ] = { cmd_read_cdvd_capacity,            CHECK_READY },
     [ 0x28 ] = { cmd_read, /* (10) */               CHECK_READY },
-    [ 0x2b ] = { cmd_seek,                          CHECK_READY },
+    [ 0x2b ] = { cmd_seek,                          CHECK_READY | NONDATA },
     [ 0x43 ] = { cmd_read_toc_pma_atip,             CHECK_READY },
     [ 0x46 ] = { cmd_get_configuration,             ALLOW_UA },
     [ 0x4a ] = { cmd_get_event_status_notification, ALLOW_UA },
@@ -1190,7 +1198,7 @@ static const struct {
     [ 0x5a ] = { cmd_mode_sense, /* (10) */         0 },
     [ 0xa8 ] = { cmd_read, /* (12) */               CHECK_READY },
     [ 0xad ] = { cmd_read_dvd_structure,            CHECK_READY },
-    [ 0xbb ] = { cmd_set_speed,                     0 },
+    [ 0xbb ] = { cmd_set_speed,                     NONDATA },
     [ 0xbd ] = { cmd_mechanism_status,              0 },
     [ 0xbe ] = { cmd_read_cd,                       CHECK_READY },
     /* [1] handler detects and reports not ready condition itself */
@@ -1249,6 +1257,20 @@ void ide_atapi_cmd(IDEState *s)
     {
         ide_atapi_cmd_error(s, NOT_READY, ASC_MEDIUM_NOT_PRESENT);
         return;
+    }
+
+    /* Nondata commands permit the byte_count_limit to be 0.
+     * If this is a data-transferring PIO command and BCL is 0,
+     * we abort at the /ATA/ level, not the ATAPI level.
+     * See ATA8 ACS3 section 7.17.6.49 and 7.21.5 */
+    if (!(atapi_cmd_table[s->io_buffer[0]].flags & NONDATA)) {
+        /* TODO: Check IDENTIFY data word 125 for default BCL (currently 0) */
+        uint16_t byte_count_limit = s->lcyl | (s->hcyl << 8);
+        if (!(byte_count_limit || s->atapi_dma)) {
+            /* TODO: Move abort back into core.c and make static inline again */
+            ide_abort_command(s);
+            return;
+        }
     }
 
     /* Execute the command */
