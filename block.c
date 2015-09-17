@@ -1985,6 +1985,8 @@ static void bdrv_rebind(BlockDriverState *bs)
     }
 }
 
+/* Fields that need to stay with the top-level BDS, no matter whether the
+ * address of the top-level BDS stays the same or not. */
 static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
                                      BlockDriverState *bs_src)
 {
@@ -2020,7 +2022,13 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
 
     /* dirty bitmap */
     bs_dest->dirty_bitmaps      = bs_src->dirty_bitmaps;
+}
 
+/* Fields that only need to be swapped if the contents of BDSes is swapped
+ * rather than pointers being changed in the parents. */
+static void bdrv_move_reference_fields(BlockDriverState *bs_dest,
+                                       BlockDriverState *bs_src)
+{
     /* reference count */
     bs_dest->refcnt             = bs_src->refcnt;
 
@@ -2090,6 +2098,10 @@ void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old)
     bdrv_move_feature_fields(&tmp, bs_old);
     bdrv_move_feature_fields(bs_old, bs_new);
     bdrv_move_feature_fields(bs_new, &tmp);
+
+    bdrv_move_reference_fields(&tmp, bs_old);
+    bdrv_move_reference_fields(bs_old, bs_new);
+    bdrv_move_reference_fields(bs_new, &tmp);
 
     /* bs_new must remain unattached */
     assert(!bs_new->blk);
