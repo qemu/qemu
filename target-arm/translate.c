@@ -11177,7 +11177,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
     CPUState *cs = CPU(cpu);
     CPUARMState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
-    CPUBreakpoint *bp;
     int j, lj;
     target_ulong pc_start;
     target_ulong next_page_start;
@@ -11306,6 +11305,21 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
         store_cpu_field(tmp, condexec_bits);
       }
     do {
+        if (search_pc) {
+            j = tcg_op_buf_count();
+            if (lj < j) {
+                lj++;
+                while (lj < j)
+                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
+            }
+            tcg_ctx.gen_opc_pc[lj] = dc->pc;
+            gen_opc_condexec_bits[lj] = (dc->condexec_cond << 4) | (dc->condexec_mask >> 1);
+            tcg_ctx.gen_opc_instr_start[lj] = 1;
+            tcg_ctx.gen_opc_icount[lj] = num_insns;
+        }
+        tcg_gen_insn_start(dc->pc);
+        num_insns++;
+
 #ifdef CONFIG_USER_ONLY
         /* Intercept jump to the magic kernel page.  */
         if (dc->pc >= 0xffff0000) {
@@ -11326,6 +11340,7 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
 #endif
 
         if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
+            CPUBreakpoint *bp;
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
@@ -11336,20 +11351,6 @@ static inline void gen_intermediate_code_internal(ARMCPU *cpu,
                 }
             }
         }
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            gen_opc_condexec_bits[lj] = (dc->condexec_cond << 4) | (dc->condexec_mask >> 1);
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
-        tcg_gen_insn_start(dc->pc);
-        num_insns++;
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();

@@ -19544,7 +19544,6 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     DisasContext ctx;
     target_ulong pc_start;
     target_ulong next_page_start;
-    CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
     int max_insns;
@@ -19591,20 +19590,6 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == ctx.pc) {
-                    save_cpu_state(&ctx, 1);
-                    ctx.bstate = BS_BRANCH;
-                    gen_helper_raise_exception_debug(cpu_env);
-                    /* Include the breakpoint location or the tb won't
-                     * be flushed when it must be.  */
-                    ctx.pc += 4;
-                    goto done_generating;
-                }
-            }
-        }
-
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -19620,6 +19605,16 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
         }
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+            save_cpu_state(&ctx, 1);
+            ctx.bstate = BS_BRANCH;
+            gen_helper_raise_exception_debug(cpu_env);
+            /* Include the breakpoint location or the tb won't
+             * be flushed when it must be.  */
+            ctx.pc += 4;
+            goto done_generating;
+        }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();

@@ -7849,7 +7849,6 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
     CPUX86State *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
     target_ulong pc_ptr;
-    CPUBreakpoint *bp;
     int j, lj;
     uint64_t flags;
     target_ulong pc_start;
@@ -7938,15 +7937,6 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
 
     gen_tb_start(tb);
     for(;;) {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == pc_ptr &&
-                    !((bp->flags & BP_CPU) && (tb->flags & HF_RF_MASK))) {
-                    gen_debug(dc, pc_ptr - dc->cs_base);
-                    goto done_generating;
-                }
-            }
-        }
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -7962,6 +7952,13 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
         tcg_gen_insn_start(pc_ptr);
         num_insns++;
 
+        /* If RF is set, suppress an internally generated breakpoint.  */
+        if (unlikely(cpu_breakpoint_test(cs, pc_ptr,
+                                         tb->flags & HF_RF_MASK
+                                         ? BP_GDB : BP_ANY))) {
+            gen_debug(dc, pc_ptr - dc->cs_base);
+            goto done_generating;
+        }
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }

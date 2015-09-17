@@ -2868,7 +2868,6 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
     target_ulong pc_start;
     target_ulong pc_mask;
     uint32_t insn;
-    CPUBreakpoint *bp;
     int j, lj = -1;
     ExitStatus ret;
     int num_insns;
@@ -2913,14 +2912,6 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
 
     gen_tb_start(tb);
     do {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == ctx.pc) {
-                    gen_excp(&ctx, EXCP_DEBUG, 0);
-                    break;
-                }
-            }
-        }
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -2936,6 +2927,10 @@ static inline void gen_intermediate_code_internal(AlphaCPU *cpu,
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
 
+        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+            gen_excp(&ctx, EXCP_DEBUG, 0);
+            break;
+        }
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }

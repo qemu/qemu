@@ -5217,7 +5217,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
     CPUSPARCState *env = &cpu->env;
     target_ulong pc_start, last_pc;
     DisasContext dc1, *dc = &dc1;
-    CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
     int max_insns;
@@ -5242,18 +5241,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         max_insns = CF_COUNT_MASK;
     gen_tb_start(tb);
     do {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == dc->pc) {
-                    if (dc->pc != pc_start)
-                        save_state(dc);
-                    gen_helper_debug(cpu_env);
-                    tcg_gen_exit_tb(0);
-                    dc->is_br = 1;
-                    goto exit_gen_loop;
-                }
-            }
-        }
         if (spc) {
             qemu_log("Search PC...\n");
             j = tcg_op_buf_count();
@@ -5269,6 +5256,16 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            if (dc->pc != pc_start) {
+                save_state(dc);
+            }
+            gen_helper_debug(cpu_env);
+            tcg_gen_exit_tb(0);
+            dc->is_br = 1;
+            goto exit_gen_loop;
+        }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();

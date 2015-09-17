@@ -11418,7 +11418,6 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
     target_ulong pc_start;
-    CPUBreakpoint *bp;
     int j, lj = -1;
     int num_insns;
     int max_insns;
@@ -11483,14 +11482,6 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     tcg_clear_temp_count();
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == POWERPC_EXCP_NONE && !tcg_op_buf_full()) {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == ctx.nip) {
-                    gen_debug_exception(ctxp);
-                    break;
-                }
-            }
-        }
         if (unlikely(search_pc)) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -11504,6 +11495,11 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
         }
         tcg_gen_insn_start(ctx.nip);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, ctx.nip, BP_ANY))) {
+            gen_debug_exception(ctxp);
+            break;
+        }
 
         LOG_DISAS("----------------\n");
         LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",

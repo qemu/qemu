@@ -5330,7 +5330,6 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
     uint64_t next_page_start;
     int j, lj = -1;
     int num_insns, max_insns;
-    CPUBreakpoint *bp;
     ExitStatus status;
     bool do_debug;
 
@@ -5373,20 +5372,17 @@ static inline void gen_intermediate_code_internal(S390CPU *cpu,
         tcg_gen_insn_start(dc.pc);
         num_insns++;
 
+        if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
+            status = EXIT_PC_STALE;
+            do_debug = true;
+            break;
+        }
+
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
         status = NO_EXIT;
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == dc.pc) {
-                    status = EXIT_PC_STALE;
-                    do_debug = true;
-                    break;
-                }
-            }
-        }
         if (status == NO_EXIT) {
             status = translate_one(env, &dc);
         }

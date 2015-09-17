@@ -1626,21 +1626,6 @@ static inline void decode(DisasContext *dc, uint32_t ir)
     }
 }
 
-static void check_breakpoint(CPUMBState *env, DisasContext *dc)
-{
-    CPUState *cs = CPU(mb_env_get_cpu(env));
-    CPUBreakpoint *bp;
-
-    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-            if (bp->pc == dc->pc) {
-                t_gen_raise_exception(dc, EXCP_DEBUG);
-                dc->is_jmp = DISAS_UPDATE;
-             }
-        }
-    }
-}
-
 /* generate intermediate code for basic block 'tb'.  */
 static inline void
 gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
@@ -1695,14 +1680,6 @@ gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
     gen_tb_start(tb);
     do
     {
-#if SIM_COMPAT
-        if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-            tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
-            gen_helper_debug();
-        }
-#endif
-        check_breakpoint(env, dc);
-
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -1716,6 +1693,19 @@ gen_intermediate_code_internal(MicroBlazeCPU *cpu, TranslationBlock *tb,
         }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
+
+#if SIM_COMPAT
+        if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+            tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
+            gen_helper_debug();
+        }
+#endif
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            t_gen_raise_exception(dc, EXCP_DEBUG);
+            dc->is_jmp = DISAS_UPDATE;
+            break;
+        }
 
         /* Pretty disas.  */
         LOG_DIS("%8.8x:\t", dc->pc);

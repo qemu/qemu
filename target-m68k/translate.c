@@ -2969,7 +2969,6 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     CPUState *cs = CPU(cpu);
     CPUM68KState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
-    CPUBreakpoint *bp;
     int j, lj;
     target_ulong pc_start;
     int pc_offset;
@@ -2999,17 +2998,6 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == dc->pc) {
-                    gen_exception(dc, dc->pc, EXCP_DEBUG);
-                    dc->is_jmp = DISAS_JUMP;
-                    break;
-                }
-            }
-            if (dc->is_jmp)
-                break;
-        }
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -3023,6 +3011,12 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
         }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            gen_exception(dc, dc->pc, EXCP_DEBUG);
+            dc->is_jmp = DISAS_JUMP;
+            break;
+        }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();

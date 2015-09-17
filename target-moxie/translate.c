@@ -822,7 +822,6 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
     CPUState *cs = CPU(cpu);
     DisasContext ctx;
     target_ulong pc_start;
-    CPUBreakpoint *bp;
     int j, lj = -1;
     CPUMoxieState *env = &cpu->env;
     int num_insns;
@@ -838,17 +837,6 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
 
     gen_tb_start(tb);
     do {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (ctx.pc == bp->pc) {
-                    tcg_gen_movi_i32(cpu_pc, ctx.pc);
-                    gen_helper_debug(cpu_env);
-                    ctx.bstate = BS_EXCP;
-                    goto done_generating;
-                }
-            }
-        }
-
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -863,6 +851,13 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
         }
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+            tcg_gen_movi_i32(cpu_pc, ctx.pc);
+            gen_helper_debug(cpu_env);
+            ctx.bstate = BS_EXCP;
+            goto done_generating;
+        }
 
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
         ctx.pc += decode_opc(cpu, &ctx);

@@ -1872,7 +1872,6 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
     CPUState *cs = CPU(cpu);
     CPUUniCore32State *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
-    CPUBreakpoint *bp;
     int j, lj;
     target_ulong pc_start;
     uint32_t next_page_start;
@@ -1912,19 +1911,6 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
 
     gen_tb_start(tb);
     do {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == dc->pc) {
-                    gen_set_pc_im(dc->pc);
-                    gen_exception(EXCP_DEBUG);
-                    dc->is_jmp = DISAS_JUMP;
-                    /* Advance PC so that clearing the breakpoint will
-                       invalidate this TB.  */
-                    dc->pc += 2; /* FIXME */
-                    goto done_generating;
-                }
-            }
-        }
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -1939,6 +1925,16 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
         }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            gen_set_pc_im(dc->pc);
+            gen_exception(EXCP_DEBUG);
+            dc->is_jmp = DISAS_JUMP;
+            /* Advance PC so that clearing the breakpoint will
+               invalidate this TB.  */
+            dc->pc += 2; /* FIXME */
+            goto done_generating;
+        }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();

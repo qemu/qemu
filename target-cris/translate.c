@@ -3030,23 +3030,6 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
     return insn_len;
 }
 
-static void check_breakpoint(CPUCRISState *env, DisasContext *dc)
-{
-    CPUState *cs = CPU(cris_env_get_cpu(env));
-    CPUBreakpoint *bp;
-
-    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-            if (bp->pc == dc->pc) {
-                cris_evaluate_flags(dc);
-                tcg_gen_movi_tl(env_pc, dc->pc);
-                t_gen_raise_exception(EXCP_DEBUG);
-                dc->is_jmp = DISAS_UPDATE;
-            }
-        }
-    }
-}
-
 #include "translate_v10.c"
 
 /*
@@ -3175,8 +3158,6 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
 
     gen_tb_start(tb);
     do {
-        check_breakpoint(env, dc);
-
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -3195,6 +3176,14 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
         }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            cris_evaluate_flags(dc);
+            tcg_gen_movi_tl(env_pc, dc->pc);
+            t_gen_raise_exception(EXCP_DEBUG);
+            dc->is_jmp = DISAS_UPDATE;
+            break;
+        }
 
         /* Pretty disas.  */
         LOG_DIS("%8.8x:\t", dc->pc);

@@ -1032,22 +1032,6 @@ static inline void decode(DisasContext *dc, uint32_t ir)
     decinfo[dc->opcode](dc);
 }
 
-static void check_breakpoint(CPULM32State *env, DisasContext *dc)
-{
-    CPUState *cs = CPU(lm32_env_get_cpu(env));
-    CPUBreakpoint *bp;
-
-    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-            if (bp->pc == dc->pc) {
-                tcg_gen_movi_tl(cpu_pc, dc->pc);
-                t_gen_raise_exception(dc, EXCP_DEBUG);
-                dc->is_jmp = DISAS_UPDATE;
-             }
-        }
-    }
-}
-
 /* generate intermediate code for basic block 'tb'.  */
 static inline
 void gen_intermediate_code_internal(LM32CPU *cpu,
@@ -1088,8 +1072,6 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
 
     gen_tb_start(tb);
     do {
-        check_breakpoint(env, dc);
-
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -1104,6 +1086,13 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
         }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            tcg_gen_movi_tl(cpu_pc, dc->pc);
+            t_gen_raise_exception(dc, EXCP_DEBUG);
+            dc->is_jmp = DISAS_UPDATE;
+            break;
+        }
 
         /* Pretty disas.  */
         LOG_DIS("%8.8x:\t", dc->pc);

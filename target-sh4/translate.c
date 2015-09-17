@@ -1824,7 +1824,6 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
     CPUSH4State *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
-    CPUBreakpoint *bp;
     int i, ii;
     int num_insns;
     int max_insns;
@@ -1849,17 +1848,6 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
         max_insns = CF_COUNT_MASK;
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE && !tcg_op_buf_full()) {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (ctx.pc == bp->pc) {
-		    /* We have hit a breakpoint - make sure PC is up-to-date */
-		    tcg_gen_movi_i32(cpu_pc, ctx.pc);
-                    gen_helper_debug(cpu_env);
-                    ctx.bstate = BS_BRANCH;
-		    break;
-		}
-	    }
-	}
         if (search_pc) {
             i = tcg_op_buf_count();
             if (ii < i) {
@@ -1874,6 +1862,14 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
         }
         tcg_gen_insn_start(ctx.pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+            /* We have hit a breakpoint - make sure PC is up-to-date */
+            tcg_gen_movi_i32(cpu_pc, ctx.pc);
+            gen_helper_debug(cpu_env);
+            ctx.bstate = BS_BRANCH;
+            break;
+        }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();

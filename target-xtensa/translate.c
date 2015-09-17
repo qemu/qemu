@@ -2984,22 +2984,6 @@ static inline unsigned xtensa_insn_len(CPUXtensaState *env, DisasContext *dc)
     return xtensa_op0_insn_len(OP0);
 }
 
-static void check_breakpoint(CPUXtensaState *env, DisasContext *dc)
-{
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
-    CPUBreakpoint *bp;
-
-    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-            if (bp->pc == dc->pc) {
-                tcg_gen_movi_i32(cpu_pc, dc->pc);
-                gen_exception(dc, EXCP_DEBUG);
-                dc->is_jmp = DISAS_UPDATE;
-             }
-        }
-    }
-}
-
 static void gen_ibreak_check(CPUXtensaState *env, DisasContext *dc)
 {
     unsigned i;
@@ -3062,8 +3046,6 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     }
 
     do {
-        check_breakpoint(env, &dc);
-
         if (search_pc) {
             j = tcg_op_buf_count();
             if (lj < j) {
@@ -3080,6 +3062,13 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         ++insn_count;
 
         ++dc.ccount_delta;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
+            tcg_gen_movi_i32(cpu_pc, dc.pc);
+            gen_exception(&dc, EXCP_DEBUG);
+            dc.is_jmp = DISAS_UPDATE;
+            break;
+        }
 
         if (insn_count == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();

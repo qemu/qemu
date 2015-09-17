@@ -1618,22 +1618,6 @@ static void disas_openrisc_insn(DisasContext *dc, OpenRISCCPU *cpu)
     }
 }
 
-static void check_breakpoint(OpenRISCCPU *cpu, DisasContext *dc)
-{
-    CPUState *cs = CPU(cpu);
-    CPUBreakpoint *bp;
-
-    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-            if (bp->pc == dc->pc) {
-                tcg_gen_movi_tl(cpu_pc, dc->pc);
-                gen_exception(dc, EXCP_DEBUG);
-                dc->is_jmp = DISAS_UPDATE;
-            }
-        }
-    }
-}
-
 static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
                                                   TranslationBlock *tb,
                                                   int search_pc)
@@ -1674,7 +1658,6 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
     gen_tb_start(tb);
 
     do {
-        check_breakpoint(cpu, dc);
         if (search_pc) {
             j = tcg_op_buf_count();
             if (k < j) {
@@ -1689,6 +1672,13 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         }
         tcg_gen_insn_start(dc->pc);
         num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            tcg_gen_movi_tl(cpu_pc, dc->pc);
+            gen_exception(dc, EXCP_DEBUG);
+            dc->is_jmp = DISAS_UPDATE;
+            break;
+        }
 
         if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
