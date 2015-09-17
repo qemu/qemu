@@ -42,6 +42,7 @@
 #include "qemu/seqlock.h"
 #include "qapi-event.h"
 #include "hw/nmi.h"
+#include "sysemu/replay.h"
 
 #ifndef _WIN32
 #include "qemu/compatfd.h"
@@ -1411,6 +1412,28 @@ int vm_stop_force_state(RunState state)
     }
 }
 
+static int64_t tcg_get_icount_limit(void)
+{
+    int64_t deadline;
+
+    if (replay_mode != REPLAY_MODE_PLAY) {
+        deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
+
+        /* Maintain prior (possibly buggy) behaviour where if no deadline
+         * was set (as there is no QEMU_CLOCK_VIRTUAL timer) or it is more than
+         * INT32_MAX nanoseconds ahead, we still use INT32_MAX
+         * nanoseconds.
+         */
+        if ((deadline < 0) || (deadline > INT32_MAX)) {
+            deadline = INT32_MAX;
+        }
+
+        return qemu_icount_round(deadline);
+    } else {
+        return replay_get_instructions();
+    }
+}
+
 static int tcg_cpu_exec(CPUState *cpu)
 {
     int ret;
@@ -1423,24 +1446,12 @@ static int tcg_cpu_exec(CPUState *cpu)
 #endif
     if (use_icount) {
         int64_t count;
-        int64_t deadline;
         int decr;
         timers_state.qemu_icount -= (cpu->icount_decr.u16.low
                                     + cpu->icount_extra);
         cpu->icount_decr.u16.low = 0;
         cpu->icount_extra = 0;
-        deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
-
-        /* Maintain prior (possibly buggy) behaviour where if no deadline
-         * was set (as there is no QEMU_CLOCK_VIRTUAL timer) or it is more than
-         * INT32_MAX nanoseconds ahead, we still use INT32_MAX
-         * nanoseconds.
-         */
-        if ((deadline < 0) || (deadline > INT32_MAX)) {
-            deadline = INT32_MAX;
-        }
-
-        count = qemu_icount_round(deadline);
+        count = tcg_get_icount_limit();
         timers_state.qemu_icount += count;
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;
@@ -1458,6 +1469,7 @@ static int tcg_cpu_exec(CPUState *cpu)
                         + cpu->icount_extra);
         cpu->icount_decr.u32 = 0;
         cpu->icount_extra = 0;
+        replay_account_executed_instructions();
     }
     return ret;
 }

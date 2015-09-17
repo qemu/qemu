@@ -22,5 +22,9 @@ extern ReplayMode replay_mode;
 
 /*! Returns number of executed instructions. */
 uint64_t replay_get_current_step(void);
+/*! Returns number of instructions to execute in replay mode. */
+int replay_get_instructions(void);
+/*! Updates instructions counter in replay mode. */
+void replay_account_executed_instructions(void);
 
 #endif
