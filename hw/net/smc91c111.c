@@ -124,6 +124,25 @@ static void smc91c111_update(smc91c111_state *s)
     qemu_set_irq(s->irq, level);
 }
 
+static int smc91c111_can_receive(smc91c111_state *s)
+{
+    if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST)) {
+        return 1;
+    }
+    if (s->allocated == (1 << NUM_PACKETS) - 1 ||
+        s->rx_fifo_len == NUM_PACKETS) {
+        return 0;
+    }
+    return 1;
+}
+
+static inline void smc91c111_flush_queued_packets(smc91c111_state *s)
+{
+    if (smc91c111_can_receive(s)) {
+        qemu_flush_queued_packets(qemu_get_queue(s->nic));
+    }
+}
+
 /* Try to allocate a packet.  Returns 0x80 on failure.  */
 static int smc91c111_allocate_packet(smc91c111_state *s)
 {
@@ -164,6 +183,7 @@ static void smc91c111_pop_rx_fifo(smc91c111_state *s)
     } else {
         s->int_level &= ~INT_RCV;
     }
+    smc91c111_flush_queued_packets(s);
     smc91c111_update(s);
 }
 
@@ -185,7 +205,7 @@ static void smc91c111_release_packet(smc91c111_state *s, int packet)
     s->allocated &= ~(1 << packet);
     if (s->tx_alloc == 0x80)
         smc91c111_tx_alloc(s);
-    qemu_flush_queued_packets(qemu_get_queue(s->nic));
+    smc91c111_flush_queued_packets(s);
 }
 
 /* Flush the TX FIFO.  */
@@ -311,6 +331,7 @@ static void smc91c111_writeb(void *opaque, hwaddr offset,
             if (s->rcr & RCR_SOFT_RST) {
                 smc91c111_reset(DEVICE(s));
             }
+            smc91c111_flush_queued_packets(s);
             return;
         case 10: case 11: /* RPCR */
             /* Ignored */
@@ -636,15 +657,11 @@ static uint32_t smc91c111_readl(void *opaque, hwaddr offset)
     return val;
 }
 
-static int smc91c111_can_receive(NetClientState *nc)
+static int smc91c111_can_receive_nc(NetClientState *nc)
 {
     smc91c111_state *s = qemu_get_nic_opaque(nc);
 
-    if ((s->rcr & RCR_RXEN) == 0 || (s->rcr & RCR_SOFT_RST))
-        return 1;
-    if (s->allocated == (1 << NUM_PACKETS) - 1)
-        return 0;
-    return 1;
+    return smc91c111_can_receive(s);
 }
 
 static ssize_t smc91c111_receive(NetClientState *nc, const uint8_t *buf, size_t size)
@@ -739,7 +756,7 @@ static const MemoryRegionOps smc91c111_mem_ops = {
 static NetClientInfo net_smc91c111_info = {
     .type = NET_CLIENT_OPTIONS_KIND_NIC,
     .size = sizeof(NICState),
-    .can_receive = smc91c111_can_receive,
+    .can_receive = smc91c111_can_receive_nc,
     .receive = smc91c111_receive,
 };
 
