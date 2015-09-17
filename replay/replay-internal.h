@@ -14,6 +14,20 @@
 
 #include <stdio.h>
 
+enum ReplayEvents {
+    /* for instruction event */
+    EVENT_INSTRUCTION,
+    EVENT_COUNT
+};
+
+typedef struct ReplayState {
+    /*! Current step - number of processed instructions and timer events. */
+    uint64_t current_step;
+    /*! Number of instructions to be executed before other events happen. */
+    int instructions_count;
+} ReplayState;
+extern ReplayState replay_state;
+
 extern unsigned int replay_data_kind;
 
 /* File for replay writing */
@@ -49,5 +63,12 @@ void replay_finish_event(void);
 /*! Reads data type from the file and stores it in the
     replay_data_kind variable. */
 void replay_fetch_data_kind(void);
+
+/*! Saves queued events (like instructions and sound). */
+void replay_save_instructions(void);
+
+/*! Skips async events until some sync event will be found.
+    \return true, if event was found */
+bool replay_next_event_is(int event);
 
 #endif

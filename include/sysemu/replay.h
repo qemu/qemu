@@ -12,8 +12,15 @@
  *
  */
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "qapi-types.h"
 
 extern ReplayMode replay_mode;
+
+/* Processing the instructions */
+
+/*! Returns number of executed instructions. */
+uint64_t replay_get_current_step(void);
 
 #endif
