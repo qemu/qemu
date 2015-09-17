@@ -14,6 +14,7 @@
 #include "sysemu/replay.h"
 #include "replay-internal.h"
 #include "block/aio.h"
+#include "ui/input.h"
 
 typedef struct Event {
     ReplayAsyncEventKind event_kind;
@@ -38,6 +39,13 @@ static void replay_run_event(Event *event)
     switch (event->event_kind) {
     case REPLAY_ASYNC_EVENT_BH:
         aio_bh_call(event->opaque);
+        break;
+    case REPLAY_ASYNC_EVENT_INPUT:
+        qemu_input_event_send_impl(NULL, (InputEvent *)event->opaque);
+        qapi_free_InputEvent((InputEvent *)event->opaque);
+        break;
+    case REPLAY_ASYNC_EVENT_INPUT_SYNC:
+        qemu_input_event_sync_impl();
         break;
     default:
         error_report("Replay: invalid async event ID (%d) in the queue",
@@ -131,6 +139,16 @@ void replay_bh_schedule_event(QEMUBH *bh)
     }
 }
 
+void replay_add_input_event(struct InputEvent *event)
+{
+    replay_add_event(REPLAY_ASYNC_EVENT_INPUT, event, NULL, 0);
+}
+
+void replay_add_input_sync_event(void)
+{
+    replay_add_event(REPLAY_ASYNC_EVENT_INPUT_SYNC, NULL, NULL, 0);
+}
+
 static void replay_save_event(Event *event, int checkpoint)
 {
     if (replay_mode != REPLAY_MODE_PLAY) {
@@ -143,6 +161,11 @@ static void replay_save_event(Event *event, int checkpoint)
         switch (event->event_kind) {
         case REPLAY_ASYNC_EVENT_BH:
             replay_put_qword(event->id);
+            break;
+        case REPLAY_ASYNC_EVENT_INPUT:
+            replay_save_input_event(event->opaque);
+            break;
+        case REPLAY_ASYNC_EVENT_INPUT_SYNC:
             break;
         default:
             error_report("Unknown ID %d of replay event", read_event_kind);
@@ -187,6 +210,16 @@ static Event *replay_read_event(int checkpoint)
             read_id = replay_get_qword();
         }
         break;
+    case REPLAY_ASYNC_EVENT_INPUT:
+        event = g_malloc0(sizeof(Event));
+        event->event_kind = read_event_kind;
+        event->opaque = replay_read_input_event();
+        return event;
+    case REPLAY_ASYNC_EVENT_INPUT_SYNC:
+        event = g_malloc0(sizeof(Event));
+        event->event_kind = read_event_kind;
+        event->opaque = 0;
+        return event;
     default:
         error_report("Unknown ID %d of replay event", read_event_kind);
         exit(1);

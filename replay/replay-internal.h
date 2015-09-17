@@ -42,6 +42,8 @@ enum ReplayEvents {
 
 enum ReplayAsyncEventKind {
     REPLAY_ASYNC_EVENT_BH,
+    REPLAY_ASYNC_EVENT_INPUT,
+    REPLAY_ASYNC_EVENT_INPUT_SYNC,
     REPLAY_ASYNC_COUNT
 };
 
@@ -123,5 +125,16 @@ bool replay_has_events(void);
 void replay_save_events(int checkpoint);
 /*! Read events from the file into the input queue */
 void replay_read_events(int checkpoint);
+
+/* Input events */
+
+/*! Saves input event to the log */
+void replay_save_input_event(InputEvent *evt);
+/*! Reads input event from the log */
+InputEvent *replay_read_input_event(void);
+/*! Adds input event to the queue */
+void replay_add_input_event(struct InputEvent *event);
+/*! Adds input sync event to the queue */
+void replay_add_input_sync_event(void);
 
 #endif

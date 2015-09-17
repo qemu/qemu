@@ -112,5 +112,9 @@ void replay_disable_events(void);
 bool replay_events_enabled(void);
 /*! Adds bottom half event to the queue */
 void replay_bh_schedule_event(QEMUBH *bh);
+/*! Adds input event to the queue */
+void replay_input_event(QemuConsole *src, InputEvent *evt);
+/*! Adds input sync event to the queue */
+void replay_input_sync_event(void);
 
 #endif
