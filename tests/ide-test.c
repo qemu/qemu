@@ -45,6 +45,12 @@
 #define IDE_BASE 0x1f0
 #define IDE_PRIMARY_IRQ 14
 
+#define ATAPI_BLOCK_SIZE 2048
+
+/* How many bytes to receive via ATAPI PIO at one time.
+ * Must be less than 0xFFFF. */
+#define BYTE_COUNT_LIMIT 5120
+
 enum {
     reg_data        = 0x0,
     reg_nsectors    = 0x2,
@@ -80,6 +86,7 @@ enum {
     CMD_WRITE_DMA   = 0xca,
     CMD_FLUSH_CACHE = 0xe7,
     CMD_IDENTIFY    = 0xec,
+    CMD_PACKET      = 0xa0,
 
     CMDF_ABORT      = 0x100,
     CMDF_NO_BM      = 0x200,
@@ -585,6 +592,153 @@ static void test_isa_retry_flush(const char *machine)
     test_retry_flush("isapc");
 }
 
+typedef struct Read10CDB {
+    uint8_t opcode;
+    uint8_t flags;
+    uint32_t lba;
+    uint8_t reserved;
+    uint16_t nblocks;
+    uint8_t control;
+    uint16_t padding;
+} __attribute__((__packed__)) Read10CDB;
+
+static void send_scsi_cdb_read10(uint32_t lba, uint16_t nblocks)
+{
+    Read10CDB pkt = { .padding = 0 };
+    int i;
+
+    /* Construct SCSI CDB packet */
+    pkt.opcode = 0x28;
+    pkt.lba = cpu_to_be32(lba);
+    pkt.nblocks = cpu_to_be16(nblocks);
+
+    /* Send Packet */
+    for (i = 0; i < sizeof(Read10CDB)/2; i++) {
+        outw(IDE_BASE + reg_data, ((uint16_t *)&pkt)[i]);
+    }
+}
+
+static void nsleep(int64_t nsecs)
+{
+    const struct timespec val = { .tv_nsec = nsecs };
+    nanosleep(&val, NULL);
+    clock_set(nsecs);
+}
+
+static uint8_t ide_wait_clear(uint8_t flag)
+{
+    int i;
+    uint8_t data;
+
+    /* Wait with a 5 second timeout */
+    for (i = 0; i <= 12500000; i++) {
+        data = inb(IDE_BASE + reg_status);
+        if (!(data & flag)) {
+            return data;
+        }
+        nsleep(400);
+    }
+    g_assert_not_reached();
+}
+
+static void ide_wait_intr(int irq)
+{
+    int i;
+    bool intr;
+
+    for (i = 0; i <= 12500000; i++) {
+        intr = get_irq(irq);
+        if (intr) {
+            return;
+        }
+        nsleep(400);
+    }
+
+    g_assert_not_reached();
+}
+
+static void cdrom_pio_impl(int nblocks)
+{
+    FILE *fh;
+    int patt_blocks = MAX(16, nblocks);
+    size_t patt_len = ATAPI_BLOCK_SIZE * patt_blocks;
+    char *pattern = g_malloc(patt_len);
+    size_t rxsize = ATAPI_BLOCK_SIZE * nblocks;
+    uint16_t *rx = g_malloc0(rxsize);
+    int i, j;
+    uint8_t data;
+    uint16_t limit;
+
+    /* Prepopulate the CDROM with an interesting pattern */
+    generate_pattern(pattern, patt_len, ATAPI_BLOCK_SIZE);
+    fh = fopen(tmp_path, "w+");
+    fwrite(pattern, ATAPI_BLOCK_SIZE, patt_blocks, fh);
+    fclose(fh);
+
+    ide_test_start("-drive if=none,file=%s,media=cdrom,format=raw,id=sr0,index=0 "
+                   "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
+    qtest_irq_intercept_in(global_qtest, "ioapic");
+
+    /* PACKET command on device 0 */
+    outb(IDE_BASE + reg_device, 0);
+    outb(IDE_BASE + reg_lba_middle, BYTE_COUNT_LIMIT & 0xFF);
+    outb(IDE_BASE + reg_lba_high, (BYTE_COUNT_LIMIT >> 8 & 0xFF));
+    outb(IDE_BASE + reg_command, CMD_PACKET);
+    /* HPD0: Check_Status_A State */
+    nsleep(400);
+    data = ide_wait_clear(BSY);
+    /* HPD1: Send_Packet State */
+    assert_bit_set(data, DRQ | DRDY);
+    assert_bit_clear(data, ERR | DF | BSY);
+
+    /* SCSI CDB (READ10) -- read n*2048 bytes from block 0 */
+    send_scsi_cdb_read10(0, nblocks);
+
+    /* HPD3: INTRQ_Wait */
+    ide_wait_intr(IDE_PRIMARY_IRQ);
+
+    /* HPD2: Check_Status_B */
+    data = ide_wait_clear(BSY);
+    assert_bit_set(data, DRQ | DRDY);
+    assert_bit_clear(data, ERR | DF | BSY);
+
+    /* Read data back: occurs in bursts of 'BYTE_COUNT_LIMIT' bytes.
+     * If BYTE_COUNT_LIMIT is odd, we transfer BYTE_COUNT_LIMIT - 1 bytes.
+     * We allow an odd limit only when the remaining transfer size is
+     * less than BYTE_COUNT_LIMIT. However, SCSI's read10 command can only
+     * request n blocks, so our request size is always even.
+     * For this reason, we assume there is never a hanging byte to fetch. */
+    g_assert(!(rxsize & 1));
+    limit = BYTE_COUNT_LIMIT & ~1;
+    for (i = 0; i < DIV_ROUND_UP(rxsize, limit); i++) {
+        size_t offset = i * (limit / 2);
+        size_t rem = (rxsize / 2) - offset;
+        for (j = 0; j < MIN((limit / 2), rem); j++) {
+            rx[offset + j] = inw(IDE_BASE + reg_data);
+        }
+        ide_wait_intr(IDE_PRIMARY_IRQ);
+    }
+    data = ide_wait_clear(DRQ);
+    assert_bit_set(data, DRDY);
+    assert_bit_clear(data, DRQ | ERR | DF | BSY);
+
+    g_assert_cmpint(memcmp(pattern, rx, rxsize), ==, 0);
+    g_free(pattern);
+    g_free(rx);
+    test_bmdma_teardown();
+}
+
+static void test_cdrom_pio(void)
+{
+    cdrom_pio_impl(1);
+}
+
+static void test_cdrom_pio_large(void)
+{
+    /* Test a few loops of the PIO DRQ mechanism. */
+    cdrom_pio_impl(BYTE_COUNT_LIMIT * 4 / ATAPI_BLOCK_SIZE);
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -627,6 +781,9 @@ int main(int argc, char **argv)
     qtest_add_func("/ide/flush/nodev", test_flush_nodev);
     qtest_add_func("/ide/flush/retry_pci", test_pci_retry_flush);
     qtest_add_func("/ide/flush/retry_isa", test_isa_retry_flush);
+
+    qtest_add_func("/ide/cdrom/pio", test_cdrom_pio);
+    qtest_add_func("/ide/cdrom/pio_large", test_cdrom_pio_large);
 
     ret = g_test_run();
 
