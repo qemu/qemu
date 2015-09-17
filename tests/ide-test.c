@@ -53,6 +53,7 @@
 
 enum {
     reg_data        = 0x0,
+    reg_feature     = 0x1,
     reg_nsectors    = 0x2,
     reg_lba_low     = 0x3,
     reg_lba_middle  = 0x4,
@@ -179,7 +180,8 @@ typedef struct PrdtEntry {
 #define assert_bit_clear(data, mask) g_assert_cmphex((data) & (mask), ==, 0)
 
 static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
-                            PrdtEntry *prdt, int prdt_entries)
+                            PrdtEntry *prdt, int prdt_entries,
+                            void(*post_exec)(uint64_t sector, int nb_sectors))
 {
     QPCIDevice *dev;
     uint16_t bmdma_base;
@@ -196,6 +198,9 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
 
     switch (cmd) {
     case CMD_READ_DMA:
+    case CMD_PACKET:
+        /* Assuming we only test data reads w/ ATAPI, otherwise we need to know
+         * the SCSI command being sent in the packet, too. */
         from_dev = true;
         break;
     case CMD_WRITE_DMA:
@@ -224,13 +229,21 @@ static int send_dma_request(int cmd, uint64_t sector, int nb_sectors,
     outl(bmdma_base + bmreg_prdt, guest_prdt);
 
     /* ATA DMA command */
-    outb(IDE_BASE + reg_nsectors, nb_sectors);
-
-    outb(IDE_BASE + reg_lba_low,    sector & 0xff);
-    outb(IDE_BASE + reg_lba_middle, (sector >> 8) & 0xff);
-    outb(IDE_BASE + reg_lba_high,   (sector >> 16) & 0xff);
+    if (cmd == CMD_PACKET) {
+        /* Enables ATAPI DMA; otherwise PIO is attempted */
+        outb(IDE_BASE + reg_feature, 0x01);
+    } else {
+        outb(IDE_BASE + reg_nsectors, nb_sectors);
+        outb(IDE_BASE + reg_lba_low,    sector & 0xff);
+        outb(IDE_BASE + reg_lba_middle, (sector >> 8) & 0xff);
+        outb(IDE_BASE + reg_lba_high,   (sector >> 16) & 0xff);
+    }
 
     outb(IDE_BASE + reg_command, cmd);
+
+    if (post_exec) {
+        post_exec(sector, nb_sectors);
+    }
 
     /* Start DMA transfer */
     outb(bmdma_base + bmreg_cmd, BM_CMD_START | (from_dev ? BM_CMD_WRITE : 0));
@@ -285,7 +298,8 @@ static void test_bmdma_simple_rw(void)
     memset(buf, 0x55, len);
     memwrite(guest_buf, buf, len);
 
-    status = send_dma_request(CMD_WRITE_DMA, 0, 1, prdt, ARRAY_SIZE(prdt));
+    status = send_dma_request(CMD_WRITE_DMA, 0, 1, prdt,
+                              ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, BM_STS_INTR);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 
@@ -293,14 +307,15 @@ static void test_bmdma_simple_rw(void)
     memset(buf, 0xaa, len);
     memwrite(guest_buf, buf, len);
 
-    status = send_dma_request(CMD_WRITE_DMA, 1, 1, prdt, ARRAY_SIZE(prdt));
+    status = send_dma_request(CMD_WRITE_DMA, 1, 1, prdt,
+                              ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, BM_STS_INTR);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 
     /* Read and verify 0x55 pattern in sector 0 */
     memset(cmpbuf, 0x55, len);
 
-    status = send_dma_request(CMD_READ_DMA, 0, 1, prdt, ARRAY_SIZE(prdt));
+    status = send_dma_request(CMD_READ_DMA, 0, 1, prdt, ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, BM_STS_INTR);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 
@@ -310,7 +325,7 @@ static void test_bmdma_simple_rw(void)
     /* Read and verify 0xaa pattern in sector 1 */
     memset(cmpbuf, 0xaa, len);
 
-    status = send_dma_request(CMD_READ_DMA, 1, 1, prdt, ARRAY_SIZE(prdt));
+    status = send_dma_request(CMD_READ_DMA, 1, 1, prdt, ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, BM_STS_INTR);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 
@@ -335,13 +350,13 @@ static void test_bmdma_short_prdt(void)
 
     /* Normal request */
     status = send_dma_request(CMD_READ_DMA, 0, 1,
-                              prdt, ARRAY_SIZE(prdt));
+                              prdt, ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, 0);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 
     /* Abort the request before it completes */
     status = send_dma_request(CMD_READ_DMA | CMDF_ABORT, 0, 1,
-                              prdt, ARRAY_SIZE(prdt));
+                              prdt, ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, 0);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 }
@@ -360,13 +375,13 @@ static void test_bmdma_one_sector_short_prdt(void)
 
     /* Normal request */
     status = send_dma_request(CMD_READ_DMA, 0, 2,
-                              prdt, ARRAY_SIZE(prdt));
+                              prdt, ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, 0);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 
     /* Abort the request before it completes */
     status = send_dma_request(CMD_READ_DMA | CMDF_ABORT, 0, 2,
-                              prdt, ARRAY_SIZE(prdt));
+                              prdt, ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, 0);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 }
@@ -384,13 +399,13 @@ static void test_bmdma_long_prdt(void)
 
     /* Normal request */
     status = send_dma_request(CMD_READ_DMA, 0, 1,
-                              prdt, ARRAY_SIZE(prdt));
+                              prdt, ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, BM_STS_ACTIVE | BM_STS_INTR);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 
     /* Abort the request before it completes */
     status = send_dma_request(CMD_READ_DMA | CMDF_ABORT, 0, 1,
-                              prdt, ARRAY_SIZE(prdt));
+                              prdt, ARRAY_SIZE(prdt), NULL);
     g_assert_cmphex(status, ==, BM_STS_INTR);
     assert_bit_clear(inb(IDE_BASE + reg_status), DF | ERR);
 }
@@ -406,7 +421,7 @@ static void test_bmdma_no_busmaster(void)
     PrdtEntry prdt[4096] = { };
 
     status = send_dma_request(CMD_READ_DMA | CMDF_NO_BM, 0, 512,
-                              prdt, ARRAY_SIZE(prdt));
+                              prdt, ARRAY_SIZE(prdt), NULL);
 
     /* Not entirely clear what the expected result is, but this is what we get
      * in practice. At least we want to be aware of any changes. */
@@ -602,10 +617,14 @@ typedef struct Read10CDB {
     uint16_t padding;
 } __attribute__((__packed__)) Read10CDB;
 
-static void send_scsi_cdb_read10(uint32_t lba, uint16_t nblocks)
+static void send_scsi_cdb_read10(uint64_t lba, int nblocks)
 {
     Read10CDB pkt = { .padding = 0 };
     int i;
+
+    g_assert_cmpint(lba, <=, UINT32_MAX);
+    g_assert_cmpint(nblocks, <=, UINT16_MAX);
+    g_assert_cmpint(nblocks, >=, 0);
 
     /* Construct SCSI CDB packet */
     pkt.opcode = 0x28;
@@ -739,6 +758,40 @@ static void test_cdrom_pio_large(void)
     cdrom_pio_impl(BYTE_COUNT_LIMIT * 4 / ATAPI_BLOCK_SIZE);
 }
 
+
+static void test_cdrom_dma(void)
+{
+    static const size_t len = ATAPI_BLOCK_SIZE;
+    char *pattern = g_malloc(ATAPI_BLOCK_SIZE * 16);
+    char *rx = g_malloc0(len);
+    uintptr_t guest_buf;
+    PrdtEntry prdt[1];
+    FILE *fh;
+
+    ide_test_start("-drive if=none,file=%s,media=cdrom,format=raw,id=sr0,index=0 "
+                   "-device ide-cd,drive=sr0,bus=ide.0", tmp_path);
+    qtest_irq_intercept_in(global_qtest, "ioapic");
+
+    guest_buf = guest_alloc(guest_malloc, len);
+    prdt[0].addr = cpu_to_le32(guest_buf);
+    prdt[0].size = cpu_to_le32(len | PRDT_EOT);
+
+    generate_pattern(pattern, ATAPI_BLOCK_SIZE * 16, ATAPI_BLOCK_SIZE);
+    fh = fopen(tmp_path, "w+");
+    fwrite(pattern, ATAPI_BLOCK_SIZE, 16, fh);
+    fclose(fh);
+
+    send_dma_request(CMD_PACKET, 0, 1, prdt, 1, send_scsi_cdb_read10);
+
+    /* Read back data from guest memory into local qtest memory */
+    memread(guest_buf, rx, len);
+    g_assert_cmpint(memcmp(pattern, rx, len), ==, 0);
+
+    g_free(pattern);
+    g_free(rx);
+    test_bmdma_teardown();
+}
+
 int main(int argc, char **argv)
 {
     const char *arch = qtest_get_arch();
@@ -784,6 +837,7 @@ int main(int argc, char **argv)
 
     qtest_add_func("/ide/cdrom/pio", test_cdrom_pio);
     qtest_add_func("/ide/cdrom/pio_large", test_cdrom_pio_large);
+    qtest_add_func("/ide/cdrom/dma", test_cdrom_dma);
 
     ret = g_test_run();
 
