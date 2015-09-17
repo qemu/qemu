@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "qapi-types.h"
+#include "qapi/error.h"
 #include "qemu/typedefs.h"
 
 /* replay clock kinds */
@@ -51,6 +52,8 @@ void replay_configure(struct QemuOpts *opts);
 void replay_start(void);
 /*! Closes replay log file and frees other resources. */
 void replay_finish(void);
+/*! Adds replay blocker with the specified error description */
+void replay_add_blocker(Error *reason);
 
 /* Processing the instructions */
 

@@ -23,6 +23,8 @@
 #include "hw/usb.h"
 #include "sysemu/bt.h"
 #include "hw/bt.h"
+#include "qapi/qmp/qerror.h"
+#include "sysemu/replay.h"
 
 struct bt_hci_s {
     uint8_t *(*evt_packet)(void *opaque);
@@ -72,6 +74,8 @@ struct bt_hci_s {
 
     struct HCIInfo info;
     struct bt_device_s device;
+
+    Error *replay_blocker;
 };
 
 #define DEFAULT_RSSI_DBM	20
@@ -2188,6 +2192,9 @@ struct HCIInfo *bt_new_hci(struct bt_scatternet_s *net)
     s->info.bdaddr_set = bt_hci_bdaddr_set;
 
     s->device.handle_destroy = bt_hci_destroy;
+
+    error_setg(&s->replay_blocker, QERR_REPLAY_NOT_SUPPORTED, "-bt hci");
+    replay_add_blocker(s->replay_blocker);
 
     return &s->info;
 }

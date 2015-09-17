@@ -28,6 +28,7 @@ ReplayMode replay_mode = REPLAY_MODE_NONE;
 /* Name of replay file  */
 static char *replay_filename;
 ReplayState replay_state;
+static GSList *replay_blockers;
 
 bool replay_next_event_is(int event)
 {
@@ -289,6 +290,12 @@ void replay_start(void)
         return;
     }
 
+    if (replay_blockers) {
+        error_report("Record/replay: %s",
+                     error_get_pretty(replay_blockers->data));
+        exit(1);
+    }
+
     /* Timer for snapshotting will be set up here. */
 
     replay_enable_events();
@@ -323,4 +330,9 @@ void replay_finish(void)
 
     replay_finish_events();
     replay_mutex_destroy();
+}
+
+void replay_add_blocker(Error *reason)
+{
+    replay_blockers = g_slist_prepend(replay_blockers, reason);
 }

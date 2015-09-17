@@ -123,6 +123,7 @@ int main(int argc, char **argv)
 #include "exec/semihost.h"
 #include "crypto/init.h"
 #include "sysemu/replay.h"
+#include "qapi/qmp/qerror.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -847,7 +848,11 @@ static void configure_rtc(QemuOpts *opts)
         if (!strcmp(value, "utc")) {
             rtc_utc = 1;
         } else if (!strcmp(value, "localtime")) {
+            Error *blocker = NULL;
             rtc_utc = 0;
+            error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED,
+                      "-rtc base=localtime");
+            replay_add_blocker(blocker);
         } else {
             configure_rtc_date_offset(value, 0);
         }
@@ -1256,6 +1261,11 @@ static void smp_parse(QemuOpts *opts)
         exit(1);
     }
 
+    if (smp_cpus > 1 || smp_cores > 1 || smp_threads > 1) {
+        Error *blocker = NULL;
+        error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED, "smp");
+        replay_add_blocker(blocker);
+    }
 }
 
 static void realtime_init(void)
