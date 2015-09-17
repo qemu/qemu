@@ -415,7 +415,11 @@ static void ipl_scsi(void)
     /* The 0-th block (MBR) was already read into sec[] */
 
     sclp_print("Using SCSI scheme.\n");
+    debug_print_int("MBR Version", mbr->version_id);
+    IPL_check(mbr->version_id == 1,
+              "Unknown MBR layout version, assuming version 1");
     debug_print_int("program table", mbr->blockptr.blockno);
+    IPL_assert(mbr->blockptr.blockno, "No Program Table");
 
     /* Parse the program table */
     read_block(mbr->blockptr.blockno, sec,
