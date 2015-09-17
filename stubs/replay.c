@@ -1,5 +1,6 @@
 #include "sysemu/replay.h"
 #include <stdlib.h>
+#include "sysemu/sysemu.h"
 
 ReplayMode replay_mode;
 
@@ -13,4 +14,9 @@ int64_t replay_read_clock(unsigned int kind)
 {
     abort();
     return 0;
+}
+
+bool replay_checkpoint(ReplayCheckpoint checkpoint)
+{
+    return true;
 }

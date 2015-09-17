@@ -26,6 +26,20 @@ enum ReplayClockKind {
 };
 typedef enum ReplayClockKind ReplayClockKind;
 
+/* IDs of the checkpoints */
+enum ReplayCheckpoint {
+    CHECKPOINT_CLOCK_WARP,
+    CHECKPOINT_RESET_REQUESTED,
+    CHECKPOINT_SUSPEND_REQUESTED,
+    CHECKPOINT_CLOCK_VIRTUAL,
+    CHECKPOINT_CLOCK_HOST,
+    CHECKPOINT_CLOCK_VIRTUAL_RT,
+    CHECKPOINT_INIT,
+    CHECKPOINT_RESET,
+    CHECKPOINT_COUNT
+};
+typedef enum ReplayCheckpoint ReplayCheckpoint;
+
 extern ReplayMode replay_mode;
 
 /* Processing the instructions */
@@ -70,6 +84,12 @@ int64_t replay_read_clock(ReplayClockKind kind);
 
 /*! Called when qemu shutdown is requested. */
 void replay_shutdown_request(void);
+/*! Should be called at check points in the execution.
+    These check points are skipped, if they were not met.
+    Saves checkpoint in the SAVE mode and validates in the PLAY mode.
+    Returns 0 in PLAY mode if checkpoint was not found.
+    Returns 1 in all other cases. */
+bool replay_checkpoint(ReplayCheckpoint checkpoint);
 
 /* Asynchronous events queue */
 

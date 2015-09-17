@@ -410,6 +410,18 @@ void qemu_clock_warp(QEMUClockType type)
         return;
     }
 
+    /* Nothing to do if the VM is stopped: QEMU_CLOCK_VIRTUAL timers
+     * do not fire, so computing the deadline does not make sense.
+     */
+    if (!runstate_is_running()) {
+        return;
+    }
+
+    /* warp clock deterministically in record/replay mode */
+    if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP)) {
+        return;
+    }
+
     if (icount_sleep) {
         /*
          * If the CPUs have been sleeping, advance QEMU_CLOCK_VIRTUAL timer now.

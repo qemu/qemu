@@ -29,6 +29,10 @@ enum ReplayEvents {
     /* some of greater codes are reserved for clocks */
     EVENT_CLOCK,
     EVENT_CLOCK_LAST = EVENT_CLOCK + REPLAY_CLOCK_COUNT - 1,
+    /* for checkpoint event */
+    /* some of greater codes are reserved for checkpoints */
+    EVENT_CHECKPOINT,
+    EVENT_CHECKPOINT_LAST = EVENT_CHECKPOINT + CHECKPOINT_COUNT - 1,
     EVENT_COUNT
 };
 
