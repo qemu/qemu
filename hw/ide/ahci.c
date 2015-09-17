@@ -49,7 +49,6 @@ static void ahci_reset_port(AHCIState *s, int port);
 static void ahci_write_fis_d2h(AHCIDevice *ad, uint8_t *cmd_fis);
 static void ahci_init_d2h(AHCIDevice *ad);
 static int ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit);
-static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes);
 static bool ahci_map_clb_address(AHCIDevice *ad);
 static bool ahci_map_fis_address(AHCIDevice *ad);
 static void ahci_unmap_clb_address(AHCIDevice *ad);
@@ -1289,7 +1288,7 @@ out:
     s->data_ptr = s->data_end;
 
     /* Update number of transferred bytes, destroy sglist */
-    ahci_commit_buf(dma, size);
+    dma_buf_commit(s, size);
 
     s->end_transfer_func(s);
 
@@ -1331,9 +1330,8 @@ static void ahci_restart(IDEDMA *dma)
 }
 
 /**
- * Called in DMA R/W chains to read the PRDT, utilizing ahci_populate_sglist.
- * Not currently invoked by PIO R/W chains,
- * which invoke ahci_populate_sglist via ahci_start_transfer.
+ * Called in DMA and PIO R/W chains to read the PRDT.
+ * Not shared with NCQ pathways.
  */
 static int32_t ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit)
 {
@@ -1352,21 +1350,16 @@ static int32_t ahci_dma_prepare_buf(IDEDMA *dma, int32_t limit)
 }
 
 /**
- * Destroys the scatter-gather list,
- * and updates the command header with a bytes-read value.
- * called explicitly via ahci_dma_rw_buf (ATAPI DMA),
- * and ahci_start_transfer (PIO R/W),
- * and called via callback from ide_dma_cb for DMA R/W paths.
+ * Updates the command header with a bytes-read value.
+ * Called via dma_buf_commit, for both DMA and PIO paths.
+ * sglist destruction is handled within dma_buf_commit.
  */
 static void ahci_commit_buf(IDEDMA *dma, uint32_t tx_bytes)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
-    IDEState *s = &ad->port.ifs[0];
 
     tx_bytes += le32_to_cpu(ad->cur_cmd->status);
     ad->cur_cmd->status = cpu_to_le32(tx_bytes);
-
-    qemu_sglist_destroy(&s->sg);
 }
 
 static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
@@ -1387,10 +1380,9 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
     }
 
     /* free sglist, update byte count */
-    ahci_commit_buf(dma, l);
+    dma_buf_commit(s, l);
 
     s->io_buffer_index += l;
-    s->io_buffer_offset += l;
 
     DPRINTF(ad->port_no, "len=%#x\n", l);
 
