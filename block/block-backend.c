@@ -239,6 +239,23 @@ BlockDriverState *blk_bs(BlockBackend *blk)
 }
 
 /*
+ * Changes the BlockDriverState attached to @blk
+ */
+void blk_set_bs(BlockBackend *blk, BlockDriverState *bs)
+{
+    bdrv_ref(bs);
+
+    if (blk->bs) {
+        blk->bs->blk = NULL;
+        bdrv_unref(blk->bs);
+    }
+    assert(bs->blk == NULL);
+
+    blk->bs = bs;
+    bs->blk = blk;
+}
+
+/*
  * Return @blk's DriveInfo if any, else null.
  */
 DriveInfo *blk_legacy_dinfo(BlockBackend *blk)

@@ -659,6 +659,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockCompletionFunc *cb, void *opaque,
                   Error **errp);
 
+void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
+
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);
 void blk_dev_eject_request(BlockBackend *blk, bool force);
