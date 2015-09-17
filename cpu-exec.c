@@ -184,7 +184,7 @@ static inline tcg_target_ulong cpu_tb_exec(CPUState *cpu, uint8_t *tb_ptr)
 /* Execute the code without caching the generated code. An interpreter
    could be used if available. */
 static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
-                             TranslationBlock *orig_tb)
+                             TranslationBlock *orig_tb, bool ignore_icount)
 {
     TranslationBlock *tb;
 
@@ -194,7 +194,8 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
         max_cycles = CF_COUNT_MASK;
 
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
-                     max_cycles | CF_NOCACHE);
+                     max_cycles | CF_NOCACHE
+                         | (ignore_icount ? CF_IGNORE_ICOUNT : 0));
     tb->orig_tb = tcg_ctx.tb_ctx.tb_invalidated_flag ? NULL : orig_tb;
     cpu->current_tb = tb;
     /* execute the generated code */
@@ -519,7 +520,7 @@ int cpu_exec(CPUState *cpu)
                             if (insns_left > 0) {
                                 /* Execute remaining instructions.  */
                                 tb = (TranslationBlock *)(next_tb & ~TB_EXIT_MASK);
-                                cpu_exec_nocache(cpu, insns_left, tb);
+                                cpu_exec_nocache(cpu, insns_left, tb, false);
                                 align_clocks(&sc, cpu);
                             }
                             cpu->exception_index = EXCP_INTERRUPT;

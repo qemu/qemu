@@ -190,6 +190,7 @@ struct TranslationBlock {
 #define CF_LAST_IO     0x8000 /* Last insn may be an IO access.  */
 #define CF_NOCACHE     0x10000 /* To be freed after execution */
 #define CF_USE_ICOUNT  0x20000
+#define CF_IGNORE_ICOUNT 0x40000 /* Do not generate icount code */
 
     void *tc_ptr;    /* pointer to the translated code */
     uint8_t *tc_search;  /* pointer to search data */
