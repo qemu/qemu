@@ -15,9 +15,18 @@
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "sysemu/sysemu.h"
+#include "qemu/error-report.h"
+
+/* Current version of the replay mechanism.
+   Increase it when file format changes. */
+#define REPLAY_VERSION              0xe02002
+/* Size of replay log header */
+#define HEADER_SIZE                 (sizeof(uint32_t) + sizeof(uint64_t))
 
 ReplayMode replay_mode = REPLAY_MODE_NONE;
 
+/* Name of replay file  */
+static char *replay_filename;
 ReplayState replay_state;
 
 bool replay_next_event_is(int event)
@@ -193,4 +202,125 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
 out:
     replay_mutex_unlock();
     return res;
+}
+
+static void replay_enable(const char *fname, int mode)
+{
+    const char *fmode = NULL;
+    assert(!replay_file);
+
+    switch (mode) {
+    case REPLAY_MODE_RECORD:
+        fmode = "wb";
+        break;
+    case REPLAY_MODE_PLAY:
+        fmode = "rb";
+        break;
+    default:
+        fprintf(stderr, "Replay: internal error: invalid replay mode\n");
+        exit(1);
+    }
+
+    atexit(replay_finish);
+
+    replay_mutex_init();
+
+    replay_file = fopen(fname, fmode);
+    if (replay_file == NULL) {
+        fprintf(stderr, "Replay: open %s: %s\n", fname, strerror(errno));
+        exit(1);
+    }
+
+    replay_filename = g_strdup(fname);
+
+    replay_mode = mode;
+    replay_data_kind = -1;
+    replay_state.instructions_count = 0;
+    replay_state.current_step = 0;
+
+    /* skip file header for RECORD and check it for PLAY */
+    if (replay_mode == REPLAY_MODE_RECORD) {
+        fseek(replay_file, HEADER_SIZE, SEEK_SET);
+    } else if (replay_mode == REPLAY_MODE_PLAY) {
+        unsigned int version = replay_get_dword();
+        if (version != REPLAY_VERSION) {
+            fprintf(stderr, "Replay: invalid input log file version\n");
+            exit(1);
+        }
+        /* go to the beginning */
+        fseek(replay_file, HEADER_SIZE, SEEK_SET);
+        replay_fetch_data_kind();
+    }
+
+    replay_init_events();
+}
+
+void replay_configure(QemuOpts *opts)
+{
+    const char *fname;
+    const char *rr;
+    ReplayMode mode = REPLAY_MODE_NONE;
+
+    rr = qemu_opt_get(opts, "rr");
+    if (!rr) {
+        /* Just enabling icount */
+        return;
+    } else if (!strcmp(rr, "record")) {
+        mode = REPLAY_MODE_RECORD;
+    } else if (!strcmp(rr, "replay")) {
+        mode = REPLAY_MODE_PLAY;
+    } else {
+        error_report("Invalid icount rr option: %s", rr);
+        exit(1);
+    }
+
+    fname = qemu_opt_get(opts, "rrfile");
+    if (!fname) {
+        error_report("File name not specified for replay");
+        exit(1);
+    }
+
+    replay_enable(fname, mode);
+}
+
+void replay_start(void)
+{
+    if (replay_mode == REPLAY_MODE_NONE) {
+        return;
+    }
+
+    /* Timer for snapshotting will be set up here. */
+
+    replay_enable_events();
+}
+
+void replay_finish(void)
+{
+    if (replay_mode == REPLAY_MODE_NONE) {
+        return;
+    }
+
+    replay_save_instructions();
+
+    /* finalize the file */
+    if (replay_file) {
+        if (replay_mode == REPLAY_MODE_RECORD) {
+            /* write end event */
+            replay_put_event(EVENT_END);
+
+            /* write header */
+            fseek(replay_file, 0, SEEK_SET);
+            replay_put_dword(REPLAY_VERSION);
+        }
+
+        fclose(replay_file);
+        replay_file = NULL;
+    }
+    if (replay_filename) {
+        g_free(replay_filename);
+        replay_filename = NULL;
+    }
+
+    replay_finish_events();
+    replay_mutex_destroy();
 }

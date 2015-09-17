@@ -20,3 +20,12 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint)
 {
     return true;
 }
+
+bool replay_events_enabled(void)
+{
+    return false;
+}
+
+void replay_finish(void)
+{
+}
