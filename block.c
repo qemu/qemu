@@ -1090,6 +1090,7 @@ static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     };
 
     QLIST_INSERT_HEAD(&parent_bs->children, child, next);
+    QLIST_INSERT_HEAD(&child_bs->parents, child, next_parent);
 
     return child;
 }
@@ -1097,6 +1098,7 @@ static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
 void bdrv_detach_child(BdrvChild *child)
 {
     QLIST_REMOVE(child, next);
+    QLIST_REMOVE(child, next_parent);
     g_free(child);
 }
 
@@ -2038,6 +2040,7 @@ static void bdrv_move_reference_fields(BlockDriverState *bs_dest,
     /* keep the same entry in bdrv_states */
     bs_dest->device_list = bs_src->device_list;
     bs_dest->blk = bs_src->blk;
+    bs_dest->parents = bs_src->parents;
 
     memcpy(bs_dest->op_blockers, bs_src->op_blockers,
            sizeof(bs_dest->op_blockers));
