@@ -1,0 +1,168 @@
+Copyright (c) 2010-2015 Institute for System Programming
+                        of the Russian Academy of Sciences.
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.
+See the COPYING file in the top-level directory.
+
+Record/replay
+-------------
+
+Record/replay functions are used for the reverse execution and deterministic
+replay of qemu execution. This implementation of deterministic replay can
+be used for deterministic debugging of guest code through a gdb remote
+interface.
+
+Execution recording writes a non-deterministic events log, which can be later
+used for replaying the execution anywhere and for unlimited number of times.
+It also supports checkpointing for faster rewinding during reverse debugging.
+Execution replaying reads the log and replays all non-deterministic events
+including external input, hardware clocks, and interrupts.
+
+Deterministic replay has the following features:
+ * Deterministically replays whole system execution and all contents of
+   the memory, state of the hardware devices, clocks, and screen of the VM.
+ * Writes execution log into the file for later replaying for multiple times
+   on different machines.
+ * Supports i386, x86_64, and ARM hardware platforms.
+ * Performs deterministic replay of all operations with keyboard and mouse
+   input devices.
+
+Usage of the record/replay:
+ * First, record the execution, by adding the following arguments to the command line:
+   '-icount shift=7,rr=record,rrfile=replay.bin -net none'.
+   Block devices' images are not actually changed in the recording mode,
+   because all of the changes are written to the temporary overlay file.
+ * Then you can replay it by using another command
+   line option: '-icount shift=7,rr=replay,rrfile=replay.bin -net none'
+ * '-net none' option should also be specified if network replay patches
+   are not applied.
+
+Papers with description of deterministic replay implementation:
+http://www.computer.org/csdl/proceedings/csmr/2012/4666/00/4666a553-abs.html
+http://dl.acm.org/citation.cfm?id=2786805.2803179
+
+Modifications of qemu include:
+ * wrappers for clock and time functions to save their return values in the log
+ * saving different asynchronous events (e.g. system shutdown) into the log
+ * synchronization of the bottom halves execution
+ * synchronization of the threads from thread pool
+ * recording/replaying user input (mouse and keyboard)
+ * adding internal checkpoints for cpu and io synchronization
+
+Non-deterministic events
+------------------------
+
+Our record/replay system is based on saving and replaying non-deterministic
+events (e.g. keyboard input) and simulating deterministic ones (e.g. reading
+from HDD or memory of the VM). Saving only non-deterministic events makes
+log file smaller, simulation faster, and allows using reverse debugging even
+for realtime applications.
+
+The following non-deterministic data from peripheral devices is saved into
+the log: mouse and keyboard input, network packets, audio controller input,
+USB packets, serial port input, and hardware clocks (they are non-deterministic
+too, because their values are taken from the host machine). Inputs from
+simulated hardware, memory of VM, software interrupts, and execution of
+instructions are not saved into the log, because they are deterministic and
+can be replayed by simulating the behavior of virtual machine starting from
+initial state.
+
+We had to solve three tasks to implement deterministic replay: recording
+non-deterministic events, replaying non-deterministic events, and checking
+that there is no divergence between record and replay modes.
+
+We changed several parts of QEMU to make event log recording and replaying.
+Devices' models that have non-deterministic input from external devices were
+changed to write every external event into the execution log immediately.
+E.g. network packets are written into the log when they arrive into the virtual
+network adapter.
+
+All non-deterministic events are coming from these devices. But to
+replay them we need to know at which moments they occur. We specify
+these moments by counting the number of instructions executed between
+every pair of consecutive events.
+
+Instruction counting
+--------------------
+
+QEMU should work in icount mode to use record/replay feature. icount was
+designed to allow deterministic execution in absence of external inputs
+of the virtual machine. We also use icount to control the occurrence of the
+non-deterministic events. The number of instructions elapsed from the last event
+is written to the log while recording the execution. In replay mode we
+can predict when to inject that event using the instruction counter.
+
+Timers
+------
+
+Timers are used to execute callbacks from different subsystems of QEMU
+at the specified moments of time. There are several kinds of timers:
+ * Real time clock. Based on host time and used only for callbacks that
+   do not change the virtual machine state. For this reason real time
+   clock and timers does not affect deterministic replay at all.
+ * Virtual clock. These timers run only during the emulation. In icount
+   mode virtual clock value is calculated using executed instructions counter.
+   That is why it is completely deterministic and does not have to be recorded.
+ * Host clock. This clock is used by device models that simulate real time
+   sources (e.g. real time clock chip). Host clock is the one of the sources
+   of non-determinism. Host clock read operations should be logged to
+   make the execution deterministic.
+ * Real time clock for icount. This clock is similar to real time clock but
+   it is used only for increasing virtual clock while virtual machine is
+   sleeping. Due to its nature it is also non-deterministic as the host clock
+   and has to be logged too.
+
+Checkpoints
+-----------
+
+Replaying of the execution of virtual machine is bound by sources of
+non-determinism. These are inputs from clock and peripheral devices,
+and QEMU thread scheduling. Thread scheduling affect on processing events
+from timers, asynchronous input-output, and bottom halves.
+
+Invocations of timers are coupled with clock reads and changing the state
+of the virtual machine. Reads produce non-deterministic data taken from
+host clock. And VM state changes should preserve their order. Their relative
+order in replay mode must replicate the order of callbacks in record mode.
+To preserve this order we use checkpoints. When a specific clock is processed
+in record mode we save to the log special "checkpoint" event.
+Checkpoints here do not refer to virtual machine snapshots. They are just
+record/replay events used for synchronization.
+
+QEMU in replay mode will try to invoke timers processing in random moment
+of time. That's why we do not process a group of timers until the checkpoint
+event will be read from the log. Such an event allows synchronizing CPU
+execution and timer events.
+
+Another checkpoints application in record/replay is instruction counting
+while the virtual machine is idle. This function (qemu_clock_warp) is called
+from the wait loop. It changes virtual machine state and must be deterministic
+then. That is why we added checkpoint to this function to prevent its
+operation in replay mode when it does not correspond to record mode.
+
+Bottom halves
+-------------
+
+Disk I/O events are completely deterministic in our model, because
+in both record and replay modes we start virtual machine from the same
+disk state. But callbacks that virtual disk controller uses for reading and
+writing the disk may occur at different moments of time in record and replay
+modes.
+
+Reading and writing requests are created by CPU thread of QEMU. Later these
+requests proceed to block layer which creates "bottom halves". Bottom
+halves consist of callback and its parameters. They are processed when
+main loop locks the global mutex. These locks are not synchronized with
+replaying process because main loop also processes the events that do not
+affect the virtual machine state (like user interaction with monitor).
+
+That is why we had to implement saving and replaying bottom halves callbacks
+synchronously to the CPU execution. When the callback is about to execute
+it is added to the queue in the replay module. This queue is written to the
+log when its callbacks are executed. In replay mode callbacks are not processed
+until the corresponding event is read from the events log file.
+
+Sometimes the block layer uses asynchronous callbacks for its internal purposes
+(like reading or writing VM snapshots or disk image cluster tables). In this
+case bottom halves are not marked as "replayable" and do not saved
+into the log.
