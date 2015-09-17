@@ -39,6 +39,7 @@ enum ReplayEvents {
 /* Asynchronous events IDs */
 
 enum ReplayAsyncEventKind {
+    REPLAY_ASYNC_EVENT_BH,
     REPLAY_ASYNC_COUNT
 };
 

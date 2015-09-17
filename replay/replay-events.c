@@ -13,6 +13,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/replay.h"
 #include "replay-internal.h"
+#include "block/aio.h"
 
 typedef struct Event {
     ReplayAsyncEventKind event_kind;
@@ -35,6 +36,9 @@ static bool events_enabled;
 static void replay_run_event(Event *event)
 {
     switch (event->event_kind) {
+    case REPLAY_ASYNC_EVENT_BH:
+        aio_bh_call(event->opaque);
+        break;
     default:
         error_report("Replay: invalid async event ID (%d) in the queue",
                     event->event_kind);
@@ -89,7 +93,6 @@ void replay_clear_events(void)
 }
 
 /*! Adds specified async event to the queue */
-#if 0
 static void replay_add_event(ReplayAsyncEventKind event_kind,
                              void *opaque,
                              void *opaque2, uint64_t id)
@@ -117,7 +120,16 @@ static void replay_add_event(ReplayAsyncEventKind event_kind,
     QTAILQ_INSERT_TAIL(&events_list, event, events);
     replay_mutex_unlock();
 }
-#endif
+
+void replay_bh_schedule_event(QEMUBH *bh)
+{
+    if (replay_mode != REPLAY_MODE_NONE) {
+        uint64_t id = replay_get_current_step();
+        replay_add_event(REPLAY_ASYNC_EVENT_BH, bh, NULL, id);
+    } else {
+        qemu_bh_schedule(bh);
+    }
+}
 
 static void replay_save_event(Event *event, int checkpoint)
 {
@@ -129,10 +141,12 @@ static void replay_save_event(Event *event, int checkpoint)
 
         /* save event-specific data */
         switch (event->event_kind) {
+        case REPLAY_ASYNC_EVENT_BH:
+            replay_put_qword(event->id);
+            break;
         default:
             error_report("Unknown ID %d of replay event", read_event_kind);
             exit(1);
-            break;
         }
     }
 }
@@ -168,6 +182,11 @@ static Event *replay_read_event(int checkpoint)
 
     /* Events that has not to be in the queue */
     switch (read_event_kind) {
+    case REPLAY_ASYNC_EVENT_BH:
+        if (read_id == -1) {
+            read_id = replay_get_qword();
+        }
+        break;
     default:
         error_report("Unknown ID %d of replay event", read_event_kind);
         exit(1);

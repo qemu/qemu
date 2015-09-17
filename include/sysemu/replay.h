@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "qapi-types.h"
+#include "qemu/typedefs.h"
 
 /* replay clock kinds */
 enum ReplayClockKind {
@@ -97,5 +98,7 @@ bool replay_checkpoint(ReplayCheckpoint checkpoint);
 void replay_disable_events(void);
 /*! Returns true when saving events is enabled */
 bool replay_events_enabled(void);
+/*! Adds bottom half event to the queue */
+void replay_bh_schedule_event(QEMUBH *bh);
 
 #endif
