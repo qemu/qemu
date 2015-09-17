@@ -506,6 +506,9 @@ int main_loop_wait(int nonblocking)
     slirp_pollfds_poll(gpollfds, (ret < 0));
 #endif
 
+    /* CPU thread can infinitely wait for event after
+       missing the warp */
+    qemu_clock_warp(QEMU_CLOCK_VIRTUAL);
     qemu_clock_run_all_timers();
 
     return ret;

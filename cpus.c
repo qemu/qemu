@@ -335,7 +335,7 @@ static int64_t qemu_icount_round(int64_t count)
     return (count + (1 << icount_time_shift) - 1) >> icount_time_shift;
 }
 
-static void icount_warp_rt(void *opaque)
+static void icount_warp_rt(void)
 {
     /* The icount_warp_timer is rescheduled soon after vm_clock_warp_start
      * changes from -1 to another value, so the race here is okay.
@@ -368,6 +368,11 @@ static void icount_warp_rt(void *opaque)
     if (qemu_clock_expired(QEMU_CLOCK_VIRTUAL)) {
         qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
     }
+}
+
+static void icount_dummy_timer(void *opaque)
+{
+    (void)opaque;
 }
 
 void qtest_clock_warp(int64_t dest)
@@ -414,7 +419,7 @@ void qemu_clock_warp(QEMUClockType type)
          * the CPU starts running, in case the CPU is woken by an event other
          * than the earliest QEMU_CLOCK_VIRTUAL timer.
          */
-        icount_warp_rt(NULL);
+        icount_warp_rt();
         timer_del(icount_warp_timer);
     }
     if (!all_cpu_threads_idle()) {
@@ -607,7 +612,7 @@ void configure_icount(QemuOpts *opts, Error **errp)
     icount_sleep = qemu_opt_get_bool(opts, "sleep", true);
     if (icount_sleep) {
         icount_warp_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
-                                         icount_warp_rt, NULL);
+                                         icount_dummy_timer, NULL);
     }
 
     icount_align_option = qemu_opt_get_bool(opts, "align", false);
