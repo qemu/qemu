@@ -295,6 +295,10 @@ void replay_start(void)
                      error_get_pretty(replay_blockers->data));
         exit(1);
     }
+    if (!use_icount) {
+        error_report("Please enable icount to use record/replay");
+        exit(1);
+    }
 
     /* Timer for snapshotting will be set up here. */
 

@@ -476,6 +476,12 @@ static QemuOptsList qemu_icount_opts = {
         }, {
             .name = "sleep",
             .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "rr",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "rrfile",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -4014,6 +4020,8 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    replay_configure(icount_opts);
+
     opts = qemu_get_machine_opts();
     optarg = qemu_opt_get(opts, "type");
     if (optarg) {
@@ -4447,9 +4455,10 @@ int main(int argc, char **argv, char **envp)
     }
 
     /* open the virtual block devices */
-    if (snapshot)
-        qemu_opts_foreach(qemu_find_opts("drive"),
-                          drive_enable_snapshot, NULL, NULL);
+    if (snapshot || replay_mode != REPLAY_MODE_NONE) {
+        qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot,
+                          NULL, NULL);
+    }
     if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
                           &machine_class->block_default_type, NULL)) {
         exit(1);
