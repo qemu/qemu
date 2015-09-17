@@ -1873,14 +1873,14 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_icount[ii] = num_insns;
         }
         tcg_gen_insn_start(ctx.pc);
+        num_insns++;
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
 	decode_opc(&ctx);
-        num_insns++;
 	ctx.pc += 2;
 	if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
 	    break;

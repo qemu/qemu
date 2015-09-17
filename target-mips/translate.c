@@ -19619,8 +19619,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         tcg_gen_insn_start(ctx.pc);
+        num_insns++;
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -19658,8 +19659,6 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             gen_branch(&ctx, insn_bytes);
         }
         ctx.pc += insn_bytes;
-
-        num_insns++;
 
         /* Execute a branch and its delay slot as a single instruction.
            This is what GDB expects and is consistent with what the

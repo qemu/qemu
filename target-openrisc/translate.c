@@ -1688,8 +1688,9 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
             tcg_ctx.gen_opc_icount[k] = num_insns;
         }
         tcg_gen_insn_start(dc->pc);
+        num_insns++;
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
         dc->ppc = dc->pc - 4;
@@ -1698,7 +1699,6 @@ static inline void gen_intermediate_code_internal(OpenRISCCPU *cpu,
         tcg_gen_movi_tl(cpu_npc, dc->npc);
         disas_openrisc_insn(dc, cpu);
         dc->pc = dc->npc;
-        num_insns++;
         /* delay slot */
         if (dc->delayed_branch) {
             dc->delayed_branch--;

@@ -11104,8 +11104,9 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         tcg_gen_insn_start(dc->pc);
+        num_insns++;
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -11120,7 +11121,7 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
              * "did not step an insn" case, and so the syndrome ISV and EX
              * bits should be zero.
              */
-            assert(num_insns == 0);
+            assert(num_insns == 1);
             gen_exception(EXCP_UDEF, syn_swstep(dc->ss_same_el, 0, 0),
                           default_exception_el(dc));
             dc->is_jmp = DISAS_EXC;
@@ -11139,7 +11140,6 @@ void gen_intermediate_code_internal_a64(ARMCPU *cpu,
          * Also stop translation when a page boundary is reached.  This
          * ensures prefetch aborts occur at the right place.
          */
-        num_insns++;
     } while (!dc->is_jmp && !tcg_op_buf_full() &&
              !cs->singlestep_enabled &&
              !singlestep &&

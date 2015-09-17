@@ -1103,18 +1103,17 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         tcg_gen_insn_start(dc->pc);
+        num_insns++;
 
         /* Pretty disas.  */
         LOG_DIS("%8.8x:\t", dc->pc);
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
         decode(dc, cpu_ldl_code(env, dc->pc));
         dc->pc += 4;
-        num_insns++;
-
     } while (!dc->is_jmp
          && !tcg_op_buf_full()
          && !cs->singlestep_enabled

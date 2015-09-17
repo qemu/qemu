@@ -3077,10 +3077,11 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
             tcg_ctx.gen_opc_icount[lj] = insn_count;
         }
         tcg_gen_insn_start(dc.pc);
+        ++insn_count;
 
         ++dc.ccount_delta;
 
-        if (insn_count + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (insn_count == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -3101,7 +3102,6 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         }
 
         disas_xtensa_insn(env, &dc);
-        ++insn_count;
         if (dc.icount) {
             tcg_gen_mov_i32(cpu_SR[ICOUNT], dc.next_icount);
         }

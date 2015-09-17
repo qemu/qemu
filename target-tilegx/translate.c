@@ -2097,6 +2097,7 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         tcg_gen_insn_start(dc->pc);
+        num_insns++;
 
         translate_one_bundle(dc, cpu_ldq_data(env, dc->pc));
 
@@ -2105,7 +2106,7 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
             break;
         }
         dc->pc += TILEGX_BUNDLE_SIZE_IN_BYTES;
-        if (++num_insns >= max_insns
+        if (num_insns >= max_insns
             || dc->pc >= next_page_start
             || tcg_op_buf_full()) {
             /* Ending the TB due to TB size or page boundary.  Set PC.  */

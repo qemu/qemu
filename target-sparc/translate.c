@@ -5268,8 +5268,9 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
             }
         }
         tcg_gen_insn_start(dc->pc);
+        num_insns++;
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -5277,7 +5278,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         insn = cpu_ldl_code(env, dc->pc);
 
         disas_sparc_insn(dc, insn);
-        num_insns++;
 
         if (dc->is_br)
             break;

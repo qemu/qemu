@@ -8293,11 +8293,10 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {
         tcg_gen_insn_start(ctx.pc);
+        num_insns++;
 
         ctx.opcode = cpu_ldl_code(env, ctx.pc);
         decode_opc(env, &ctx, 0);
-
-        num_insns++;
 
         if (tcg_op_buf_full()) {
             gen_save_pc(ctx.next_pc);

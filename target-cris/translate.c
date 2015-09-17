@@ -3194,11 +3194,12 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         tcg_gen_insn_start(dc->pc);
+        num_insns++;
 
         /* Pretty disas.  */
         LOG_DIS("%8.8x:\t", dc->pc);
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
         dc->clear_x = 1;
@@ -3210,7 +3211,6 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
             cris_clear_x_flag(dc);
         }
 
-        num_insns++;
         /* Check for delayed branches here. If we do it before
            actually generating any host code, the simulator will just
            loop doing nothing for on this program location.  */

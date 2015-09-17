@@ -862,10 +862,10 @@ gen_intermediate_code_internal(MoxieCPU *cpu, TranslationBlock *tb,
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         tcg_gen_insn_start(ctx.pc);
+        num_insns++;
 
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
         ctx.pc += decode_opc(cpu, &ctx);
-        num_insns++;
 
         if (cs->singlestep_enabled) {
             break;

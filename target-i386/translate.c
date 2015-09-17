@@ -7960,12 +7960,13 @@ static inline void gen_intermediate_code_internal(X86CPU *cpu,
             tcg_ctx.gen_opc_icount[lj] = num_insns;
         }
         tcg_gen_insn_start(pc_ptr);
+        num_insns++;
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
+        }
 
         pc_ptr = disas_insn(env, dc, pc_ptr);
-        num_insns++;
         /* stop translation if indicated */
         if (dc->is_jmp)
             break;
