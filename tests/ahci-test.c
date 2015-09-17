@@ -71,32 +71,6 @@ static void string_bswap16(uint16_t *s, size_t bytes)
     }
 }
 
-static void generate_pattern(void *buffer, size_t len, size_t cycle_len)
-{
-    int i, j;
-    unsigned char *tx = (unsigned char *)buffer;
-    unsigned char p;
-    size_t *sx;
-
-    /* Write an indicative pattern that varies and is unique per-cycle */
-    p = rand() % 256;
-    for (i = 0; i < len; i++) {
-        tx[i] = p++ % 256;
-        if (i % cycle_len == 0) {
-            p = rand() % 256;
-        }
-    }
-
-    /* force uniqueness by writing an id per-cycle */
-    for (i = 0; i < len / cycle_len; i++) {
-        j = i * cycle_len;
-        if (j + sizeof(*sx) <= len) {
-            sx = (size_t *)&tx[j];
-            *sx = i;
-        }
-    }
-}
-
 /**
  * Verify that the transfer did not corrupt our state at all.
  */

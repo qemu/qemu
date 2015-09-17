@@ -212,3 +212,29 @@ void prepare_blkdebug_script(const char *debug_fn, const char *event)
     ret = fclose(debug_file);
     g_assert(ret == 0);
 }
+
+void generate_pattern(void *buffer, size_t len, size_t cycle_len)
+{
+    int i, j;
+    unsigned char *tx = (unsigned char *)buffer;
+    unsigned char p;
+    size_t *sx;
+
+    /* Write an indicative pattern that varies and is unique per-cycle */
+    p = rand() % 256;
+    for (i = 0; i < len; i++) {
+        tx[i] = p++ % 256;
+        if (i % cycle_len == 0) {
+            p = rand() % 256;
+        }
+    }
+
+    /* force uniqueness by writing an id per-cycle */
+    for (i = 0; i < len / cycle_len; i++) {
+        j = i * cycle_len;
+        if (j + sizeof(*sx) <= len) {
+            sx = (size_t *)&tx[j];
+            *sx = i;
+        }
+    }
+}
