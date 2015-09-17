@@ -27,4 +27,21 @@ int replay_get_instructions(void);
 /*! Updates instructions counter in replay mode. */
 void replay_account_executed_instructions(void);
 
+/* Interrupts and exceptions */
+
+/*! Called by exception handler to write or read
+    exception processing events. */
+bool replay_exception(void);
+/*! Used to determine that exception is pending.
+    Does not proceed to the next event in the log. */
+bool replay_has_exception(void);
+/*! Called by interrupt handlers to write or read
+    interrupt processing events.
+    \return true if interrupt should be processed */
+bool replay_interrupt(void);
+/*! Tries to read interrupt event from the file.
+    Returns true, when interrupt request is pending */
+bool replay_has_interrupt(void);
+
+
 #endif

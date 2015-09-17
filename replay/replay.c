@@ -79,3 +79,70 @@ void replay_account_executed_instructions(void)
         replay_mutex_unlock();
     }
 }
+
+bool replay_exception(void)
+{
+    if (replay_mode == REPLAY_MODE_RECORD) {
+        replay_save_instructions();
+        replay_mutex_lock();
+        replay_put_event(EVENT_EXCEPTION);
+        replay_mutex_unlock();
+        return true;
+    } else if (replay_mode == REPLAY_MODE_PLAY) {
+        bool res = replay_has_exception();
+        if (res) {
+            replay_mutex_lock();
+            replay_finish_event();
+            replay_mutex_unlock();
+        }
+        return res;
+    }
+
+    return true;
+}
+
+bool replay_has_exception(void)
+{
+    bool res = false;
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        replay_account_executed_instructions();
+        replay_mutex_lock();
+        res = replay_next_event_is(EVENT_EXCEPTION);
+        replay_mutex_unlock();
+    }
+
+    return res;
+}
+
+bool replay_interrupt(void)
+{
+    if (replay_mode == REPLAY_MODE_RECORD) {
+        replay_save_instructions();
+        replay_mutex_lock();
+        replay_put_event(EVENT_INTERRUPT);
+        replay_mutex_unlock();
+        return true;
+    } else if (replay_mode == REPLAY_MODE_PLAY) {
+        bool res = replay_has_interrupt();
+        if (res) {
+            replay_mutex_lock();
+            replay_finish_event();
+            replay_mutex_unlock();
+        }
+        return res;
+    }
+
+    return true;
+}
+
+bool replay_has_interrupt(void)
+{
+    bool res = false;
+    if (replay_mode == REPLAY_MODE_PLAY) {
+        replay_account_executed_instructions();
+        replay_mutex_lock();
+        res = replay_next_event_is(EVENT_INTERRUPT);
+        replay_mutex_unlock();
+    }
+    return res;
+}

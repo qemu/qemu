@@ -17,6 +17,10 @@
 enum ReplayEvents {
     /* for instruction event */
     EVENT_INSTRUCTION,
+    /* for software interrupt */
+    EVENT_INTERRUPT,
+    /* for emulated exceptions */
+    EVENT_EXCEPTION,
     EVENT_COUNT
 };
 

@@ -10,3 +10,23 @@
  */
 
 #include "sysemu/replay.h"
+
+bool replay_exception(void)
+{
+    return true;
+}
+
+bool replay_has_exception(void)
+{
+    return false;
+}
+
+bool replay_interrupt(void)
+{
+    return true;
+}
+
+bool replay_has_interrupt(void)
+{
+    return false;
+}
