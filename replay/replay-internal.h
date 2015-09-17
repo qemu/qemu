@@ -23,6 +23,10 @@ enum ReplayEvents {
     EVENT_EXCEPTION,
     /* for async events */
     EVENT_ASYNC,
+    /* for clock read/writes */
+    /* some of greater codes are reserved for clocks */
+    EVENT_CLOCK,
+    EVENT_CLOCK_LAST = EVENT_CLOCK + REPLAY_CLOCK_COUNT - 1,
     EVENT_COUNT
 };
 
@@ -35,6 +39,8 @@ enum ReplayAsyncEventKind {
 typedef enum ReplayAsyncEventKind ReplayAsyncEventKind;
 
 typedef struct ReplayState {
+    /*! Cached clock values. */
+    int64_t cached_clock[REPLAY_CLOCK_COUNT];
     /*! Current step - number of processed instructions and timer events. */
     uint64_t current_step;
     /*! Number of instructions to be executed before other events happen. */
@@ -84,6 +90,11 @@ void replay_save_instructions(void);
 /*! Skips async events until some sync event will be found.
     \return true, if event was found */
 bool replay_next_event_is(int event);
+
+/*! Reads next clock value from the file.
+    If clock kind read from the file is different from the parameter,
+    the value is not used. */
+void replay_read_next_clock(unsigned int kind);
 
 /* Asynchronous events queue */
 

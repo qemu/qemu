@@ -16,6 +16,16 @@
 #include <stdint.h>
 #include "qapi-types.h"
 
+/* replay clock kinds */
+enum ReplayClockKind {
+    /* host_clock */
+    REPLAY_CLOCK_HOST,
+    /* virtual_rt_clock */
+    REPLAY_CLOCK_VIRTUAL_RT,
+    REPLAY_CLOCK_COUNT
+};
+typedef enum ReplayClockKind ReplayClockKind;
+
 extern ReplayMode replay_mode;
 
 /* Processing the instructions */
@@ -42,6 +52,19 @@ bool replay_interrupt(void);
 /*! Tries to read interrupt event from the file.
     Returns true, when interrupt request is pending */
 bool replay_has_interrupt(void);
+
+/* Processing clocks and other time sources */
+
+/*! Save the specified clock */
+int64_t replay_save_clock(ReplayClockKind kind, int64_t clock);
+/*! Read the specified clock from the log or return cached data */
+int64_t replay_read_clock(ReplayClockKind kind);
+/*! Saves or reads the clock depending on the current replay mode. */
+#define REPLAY_CLOCK(clock, value)                                      \
+    (replay_mode == REPLAY_MODE_PLAY ? replay_read_clock((clock))       \
+        : replay_mode == REPLAY_MODE_RECORD                             \
+            ? replay_save_clock((clock), (value))                       \
+        : (value))
 
 /* Asynchronous events queue */
 

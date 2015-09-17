@@ -24,6 +24,7 @@
 
 #include "qemu/main-loop.h"
 #include "qemu/timer.h"
+#include "sysemu/replay.h"
 
 #ifdef CONFIG_POSIX
 #include <pthread.h>
@@ -570,15 +571,16 @@ int64_t qemu_clock_get_ns(QEMUClockType type)
             return cpu_get_clock();
         }
     case QEMU_CLOCK_HOST:
-        now = get_clock_realtime();
+        now = REPLAY_CLOCK(REPLAY_CLOCK_HOST, get_clock_realtime());
         last = clock->last;
         clock->last = now;
-        if (now < last || now > (last + get_max_clock_jump())) {
+        if ((now < last || now > (last + get_max_clock_jump()))
+            && replay_mode == REPLAY_MODE_NONE) {
             notifier_list_notify(&clock->reset_notifiers, &now);
         }
         return now;
     case QEMU_CLOCK_VIRTUAL_RT:
-        return cpu_get_clock();
+        return REPLAY_CLOCK(REPLAY_CLOCK_VIRTUAL_RT, cpu_get_clock());
     }
 }
 
