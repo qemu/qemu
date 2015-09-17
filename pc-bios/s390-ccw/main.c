@@ -31,7 +31,7 @@ void write_subsystem_identification(void)
 }
 
 
-void virtio_panic(const char *string)
+void panic(const char *string)
 {
     sclp_print(string);
     disabled_wait();
@@ -93,13 +93,13 @@ static void virtio_setup(uint64_t dev_info)
     }
 
     if (!found) {
-        virtio_panic("No virtio-blk device found!\n");
+        panic("No virtio-blk device found!\n");
     }
 
     virtio_setup_block(blk_schid);
 
     if (!virtio_ipl_disk_is_valid()) {
-        virtio_panic("No valid hard disk detected.\n");
+        panic("No valid hard disk detected.\n");
     }
 }
 
@@ -111,6 +111,6 @@ int main(void)
 
     zipl_load(); /* no return */
 
-    virtio_panic("Failed to load OS from hard disk\n");
+    panic("Failed to load OS from hard disk\n");
     return 0; /* make compiler happy */
 }

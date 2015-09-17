@@ -72,7 +72,7 @@ static void jump_to_IPL_code(uint64_t address)
     asm volatile("lghi 1,1\n\t"
                  "diag 1,1,0x308\n\t"
                  : : : "1", "memory");
-    virtio_panic("\n! IPL returns !\n");
+    panic("\n! IPL returns !\n");
 }
 
 /***********************************************************************
@@ -617,7 +617,7 @@ static IsoBcSection *find_iso_bc_entry(void)
 
     if (!is_iso_bc_valid(e)) {
         /* The validation entry is mandatory */
-        virtio_panic("No valid boot catalog found!\n");
+        panic("No valid boot catalog found!\n");
         return NULL;
     }
 
@@ -633,7 +633,7 @@ static IsoBcSection *find_iso_bc_entry(void)
         }
     }
 
-    virtio_panic("No suitable boot entry found on ISO-9660 media!\n");
+    panic("No suitable boot entry found on ISO-9660 media!\n");
 
     return NULL;
 }
@@ -701,5 +701,5 @@ void zipl_load(void)
      */
     ipl_eckd_cdl();
 
-    virtio_panic("\n* this can never happen *\n");
+    panic("\n* this can never happen *\n");
 }

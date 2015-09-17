@@ -50,7 +50,7 @@ void disabled_wait(void);
 void consume_sclp_int(void);
 
 /* main.c */
-void virtio_panic(const char *string);
+void panic(const char *string);
 void write_subsystem_identification(void);
 extern char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 extern char ring_area[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));

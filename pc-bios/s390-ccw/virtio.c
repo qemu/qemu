@@ -97,7 +97,7 @@ static void virtio_set_status(struct subchannel_id schid,
 {
     unsigned char status = dev_addr;
     if (run_ccw(schid, CCW_CMD_WRITE_STATUS, &status, sizeof(status))) {
-        virtio_panic("Could not write status to host!\n");
+        panic("Could not write status to host!\n");
     }
 }
 
@@ -251,7 +251,7 @@ unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
     sclp_print(".");
     status = virtio_read_many(sec, (void *)addr, sec_num);
     if (status) {
-        virtio_panic("I/O Error");
+        panic("I/O Error");
     }
     addr += sec_num * virtio_get_block_size();
 
@@ -381,10 +381,10 @@ void virtio_setup_block(struct subchannel_id schid)
 
     config.index = 0;
     if (run_ccw(schid, CCW_CMD_READ_VQ_CONF, &config, sizeof(config))) {
-        virtio_panic("Could not get block device VQ configuration\n");
+        panic("Could not get block device VQ configuration\n");
     }
     if (run_ccw(schid, CCW_CMD_READ_CONF, &blk_cfg, sizeof(blk_cfg))) {
-        virtio_panic("Could not get block device configuration\n");
+        panic("Could not get block device configuration\n");
     }
     vring_init(&block, config.num, ring_area,
                KVM_S390_VIRTIO_RING_ALIGN);
