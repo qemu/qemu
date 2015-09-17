@@ -14,6 +14,7 @@
 #include "replay-internal.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
+#include "sysemu/sysemu.h"
 
 ReplayMode replay_mode = REPLAY_MODE_NONE;
 
@@ -34,6 +35,10 @@ bool replay_next_event_is(int event)
             res = true;
         }
         switch (replay_data_kind) {
+        case EVENT_SHUTDOWN:
+            replay_finish_event();
+            qemu_system_shutdown_request();
+            break;
         default:
             /* clock, time_t, checkpoint and other events */
             return res;
@@ -145,4 +150,13 @@ bool replay_has_interrupt(void)
         replay_mutex_unlock();
     }
     return res;
+}
+
+void replay_shutdown_request(void)
+{
+    if (replay_mode == REPLAY_MODE_RECORD) {
+        replay_mutex_lock();
+        replay_put_event(EVENT_SHUTDOWN);
+        replay_mutex_unlock();
+    }
 }

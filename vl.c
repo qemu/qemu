@@ -122,6 +122,7 @@ int main(int argc, char **argv)
 #include "qapi-event.h"
 #include "exec/semihost.h"
 #include "crypto/init.h"
+#include "sysemu/replay.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -1803,6 +1804,7 @@ void qemu_system_killed(int signal, pid_t pid)
 void qemu_system_shutdown_request(void)
 {
     trace_qemu_system_shutdown_request();
+    replay_shutdown_request();
     shutdown_requested = 1;
     qemu_notify_event();
 }

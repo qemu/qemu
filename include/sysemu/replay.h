@@ -66,6 +66,11 @@ int64_t replay_read_clock(ReplayClockKind kind);
             ? replay_save_clock((clock), (value))                       \
         : (value))
 
+/* Events */
+
+/*! Called when qemu shutdown is requested. */
+void replay_shutdown_request(void);
+
 /* Asynchronous events queue */
 
 /*! Disables storing events in the queue */
