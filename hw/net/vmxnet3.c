@@ -1631,6 +1631,11 @@ static void vmxnet3_handle_command(VMXNET3State *s, uint64_t cmd)
         VMW_CBPRN("Set: VMXNET3_CMD_GET_CONF_INTR - interrupt configuration");
         break;
 
+    case VMXNET3_CMD_GET_ADAPTIVE_RING_INFO:
+        VMW_CBPRN("Set: VMXNET3_CMD_GET_ADAPTIVE_RING_INFO - "
+                  "adaptive ring info flags");
+        break;
+
     default:
         VMW_CBPRN("Received unknown command: %" PRIx64, cmd);
         break;
@@ -1668,6 +1673,10 @@ static uint64_t vmxnet3_get_command_status(VMXNET3State *s)
 
     case VMXNET3_CMD_GET_CONF_INTR:
         ret = vmxnet3_get_interrupt_config(s);
+        break;
+
+    case VMXNET3_CMD_GET_ADAPTIVE_RING_INFO:
+        ret = VMXNET3_DISABLE_ADAPTIVE_RING;
         break;
 
     default:

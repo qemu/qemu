@@ -198,8 +198,12 @@ enum {
     VMXNET3_CMD_GET_DID_LO,                               /* 0xF00D0005 */
     VMXNET3_CMD_GET_DID_HI,                               /* 0xF00D0006 */
     VMXNET3_CMD_GET_DEV_EXTRA_INFO,                       /* 0xF00D0007 */
-    VMXNET3_CMD_GET_CONF_INTR                             /* 0xF00D0008 */
+    VMXNET3_CMD_GET_CONF_INTR,                            /* 0xF00D0008 */
+    VMXNET3_CMD_GET_ADAPTIVE_RING_INFO                    /* 0xF00D0009 */
 };
+
+/* Adaptive Ring Info Flags */
+#define VMXNET3_DISABLE_ADAPTIVE_RING 1
 
 /*
  *    Little Endian layout of bitfields -
