@@ -210,7 +210,7 @@ void error_vreport(const char *fmt, va_list ap)
     GTimeVal tv;
     gchar *timestr;
 
-    if (enable_timestamp_msg) {
+    if (enable_timestamp_msg && !cur_mon) {
         g_get_current_time(&tv);
         timestr = g_time_val_to_iso8601(&tv);
         error_printf("%s ", timestr);

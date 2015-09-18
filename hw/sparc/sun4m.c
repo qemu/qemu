@@ -641,7 +641,7 @@ static int idreg_init1(SysBusDevice *dev)
     IDRegState *s = MACIO_ID_REGISTER(dev);
 
     memory_region_init_ram(&s->mem, OBJECT(s),
-                           "sun4m.idreg", sizeof(idreg_data), &error_abort);
+                           "sun4m.idreg", sizeof(idreg_data), &error_fatal);
     vmstate_register_ram_global(&s->mem);
     memory_region_set_readonly(&s->mem, true);
     sysbus_init_mmio(dev, &s->mem);
@@ -688,7 +688,7 @@ static int afx_init1(SysBusDevice *dev)
 {
     AFXState *s = TCX_AFX(dev);
 
-    memory_region_init_ram(&s->mem, OBJECT(s), "sun4m.afx", 4, &error_abort);
+    memory_region_init_ram(&s->mem, OBJECT(s), "sun4m.afx", 4, &error_fatal);
     vmstate_register_ram_global(&s->mem);
     sysbus_init_mmio(dev, &s->mem);
     return 0;
@@ -763,7 +763,7 @@ static int prom_init1(SysBusDevice *dev)
     PROMState *s = OPENPROM(dev);
 
     memory_region_init_ram(&s->prom, OBJECT(s), "sun4m.prom", PROM_SIZE_MAX,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(&s->prom);
     memory_region_set_readonly(&s->prom, true);
     sysbus_init_mmio(dev, &s->prom);

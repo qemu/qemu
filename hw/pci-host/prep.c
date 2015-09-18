@@ -302,7 +302,7 @@ static void raven_realize(PCIDevice *d, Error **errp)
     d->config[0x34] = 0x00; // capabilities_pointer
 
     memory_region_init_ram(&s->bios, OBJECT(s), "bios", BIOS_SIZE,
-                           &error_abort);
+                           &error_fatal);
     memory_region_set_readonly(&s->bios, true);
     memory_region_add_subregion(get_system_memory(), (uint32_t)(-BIOS_SIZE),
                                 &s->bios);

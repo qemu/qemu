@@ -151,13 +151,13 @@ static void realview_init(MachineState *machine,
         low_ram_size = ram_size - 0x20000000;
         ram_size = 0x20000000;
         memory_region_init_ram(ram_lo, NULL, "realview.lowmem", low_ram_size,
-                               &error_abort);
+                               &error_fatal);
         vmstate_register_ram_global(ram_lo);
         memory_region_add_subregion(sysmem, 0x20000000, ram_lo);
     }
 
     memory_region_init_ram(ram_hi, NULL, "realview.highmem", ram_size,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(ram_hi);
     low_ram_size = ram_size;
     if (low_ram_size > 0x10000000)
@@ -353,7 +353,7 @@ static void realview_init(MachineState *machine,
        BootROM happens to be in ROM/flash or in memory that isn't clobbered
        until after Linux boots the secondary CPUs.  */
     memory_region_init_ram(ram_hack, NULL, "realview.hack", 0x1000,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(ram_hack);
     memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, ram_hack);
 

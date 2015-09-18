@@ -2,9 +2,11 @@
  * QEMU Error Objects
  *
  * Copyright IBM, Corp. 2011
+ * Copyright (C) 2011-2015 Red Hat, Inc.
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
+ *  Markus Armbruster <armbru@redhat.com>,
  *
  * This work is licensed under the terms of the GNU LGPL, version 2.  See
  * the COPYING.LIB file in the top-level directory.
@@ -20,16 +22,24 @@ struct Error
     ErrorClass err_class;
     const char *src, *func;
     int line;
+    GString *hint;
 };
 
 Error *error_abort;
+Error *error_fatal;
 
-static void error_do_abort(Error *err)
+static void error_handle_fatal(Error **errp, Error *err)
 {
-    fprintf(stderr, "Unexpected error in %s() at %s:%d:\n",
-            err->func, err->src, err->line);
-    error_report_err(err);
-    abort();
+    if (errp == &error_abort) {
+        fprintf(stderr, "Unexpected error in %s() at %s:%d:\n",
+                err->func, err->src, err->line);
+        error_report_err(err);
+        abort();
+    }
+    if (errp == &error_fatal) {
+        error_report_err(err);
+        exit(1);
+    }
 }
 
 static void error_setv(Error **errp,
@@ -51,10 +61,7 @@ static void error_setv(Error **errp,
     err->line = line;
     err->func = func;
 
-    if (errp == &error_abort) {
-        error_do_abort(err);
-    }
-
+    error_handle_fatal(errp, err);
     *errp = err;
 
     errno = saved_errno;
@@ -115,6 +122,28 @@ void error_setg_file_open_internal(Error **errp,
                               "Could not open '%s'", filename);
 }
 
+void error_append_hint(Error **errp, const char *fmt, ...)
+{
+    va_list ap;
+    int saved_errno = errno;
+    Error *err;
+
+    if (!errp) {
+        return;
+    }
+    err = *errp;
+    assert(err && errp != &error_abort);
+
+    if (!err->hint) {
+        err->hint = g_string_new(NULL);
+    }
+    va_start(ap, fmt);
+    g_string_append_vprintf(err->hint, fmt, ap);
+    va_end(ap);
+
+    errno = saved_errno;
+}
+
 #ifdef _WIN32
 
 void error_setg_win32_internal(Error **errp,
@@ -151,6 +180,12 @@ Error *error_copy(const Error *err)
     err_new = g_malloc0(sizeof(*err));
     err_new->msg = g_strdup(err->msg);
     err_new->err_class = err->err_class;
+    err_new->src = err->src;
+    err_new->line = err->line;
+    err_new->func = err->func;
+    if (err->hint) {
+        err_new->hint = g_string_new(err->hint->str);
+    }
 
     return err_new;
 }
@@ -168,6 +203,9 @@ const char *error_get_pretty(Error *err)
 void error_report_err(Error *err)
 {
     error_report("%s", error_get_pretty(err));
+    if (err->hint) {
+        error_printf_unless_qmp("%s\n", err->hint->str);
+    }
     error_free(err);
 }
 
@@ -175,17 +213,22 @@ void error_free(Error *err)
 {
     if (err) {
         g_free(err->msg);
+        if (err->hint) {
+            g_string_free(err->hint, true);
+        }
         g_free(err);
     }
 }
 
 void error_propagate(Error **dst_errp, Error *local_err)
 {
-    if (local_err && dst_errp == &error_abort) {
-        error_do_abort(local_err);
-    } else if (dst_errp && !*dst_errp) {
+    if (!local_err) {
+        return;
+    }
+    error_handle_fatal(dst_errp, local_err);
+    if (dst_errp && !*dst_errp) {
         *dst_errp = local_err;
-    } else if (local_err) {
+    } else {
         error_free(local_err);
     }
 }

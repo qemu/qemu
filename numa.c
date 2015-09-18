@@ -424,14 +424,14 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
          */
         if (err) {
             error_report_err(err);
-            memory_region_init_ram(mr, owner, name, ram_size, &error_abort);
+            memory_region_init_ram(mr, owner, name, ram_size, &error_fatal);
         }
 #else
         fprintf(stderr, "-mem-path not supported on this host\n");
         exit(1);
 #endif
     } else {
-        memory_region_init_ram(mr, owner, name, ram_size, &error_abort);
+        memory_region_init_ram(mr, owner, name, ram_size, &error_fatal);
     }
     vmstate_register_ram_global(mr);
 }

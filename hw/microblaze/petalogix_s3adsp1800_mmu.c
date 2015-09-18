@@ -71,12 +71,12 @@ petalogix_s3adsp1800_init(MachineState *machine)
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram, NULL,
                            "petalogix_s3adsp1800.lmb_bram", LMB_BRAM_SIZE,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(phys_lmb_bram);
     memory_region_add_subregion(sysmem, 0x00000000, phys_lmb_bram);
 
     memory_region_init_ram(phys_ram, NULL, "petalogix_s3adsp1800.ram",
-                           ram_size, &error_abort);
+                           ram_size, &error_fatal);
     vmstate_register_ram_global(phys_ram);
     memory_region_add_subregion(sysmem, ddr_base, phys_ram);
 

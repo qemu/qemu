@@ -391,7 +391,7 @@ static void a15_daughterboard_init(const VexpressMachineState *vms,
     /* 0x2b0a0000: PL341 dynamic memory controller: not modelled */
     /* 0x2e000000: system SRAM */
     memory_region_init_ram(sram, NULL, "vexpress.a15sram", 0x10000,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, 0x2e000000, sram);
 
@@ -671,13 +671,13 @@ static void vexpress_common_init(MachineState *machine)
 
     sram_size = 0x2000000;
     memory_region_init_ram(sram, NULL, "vexpress.sram", sram_size,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, map[VE_SRAM], sram);
 
     vram_size = 0x800000;
     memory_region_init_ram(vram, NULL, "vexpress.vram", vram_size,
-                           &error_abort);
+                           &error_fatal);
     vmstate_register_ram_global(vram);
     memory_region_add_subregion(sysmem, map[VE_VIDEORAM], vram);
 
