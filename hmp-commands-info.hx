@@ -183,6 +183,20 @@ STEXI
 Show i8259 (PIC) state.
 ETEXI
 
+    {
+        .name       = "pci",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show PCI info",
+        .mhandler.cmd = hmp_info_pci,
+    },
+
+STEXI
+@item info pci
+@findex pci
+Show PCI information.
+ETEXI
+
 #if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC) || \
     defined(TARGET_PPC) || defined(TARGET_XTENSA)
     {
