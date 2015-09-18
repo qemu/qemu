@@ -71,32 +71,6 @@ static void string_bswap16(uint16_t *s, size_t bytes)
     }
 }
 
-static void generate_pattern(void *buffer, size_t len, size_t cycle_len)
-{
-    int i, j;
-    unsigned char *tx = (unsigned char *)buffer;
-    unsigned char p;
-    size_t *sx;
-
-    /* Write an indicative pattern that varies and is unique per-cycle */
-    p = rand() % 256;
-    for (i = j = 0; i < len; i++, j++) {
-        tx[i] = p;
-        if (j % cycle_len == 0) {
-            p = rand() % 256;
-        }
-    }
-
-    /* force uniqueness by writing an id per-cycle */
-    for (i = 0; i < len / cycle_len; i++) {
-        j = i * cycle_len;
-        if (j + sizeof(*sx) <= len) {
-            sx = (size_t *)&tx[j];
-            *sx = i;
-        }
-    }
-}
-
 /**
  * Verify that the transfer did not corrupt our state at all.
  */
@@ -1155,7 +1129,6 @@ static void ahci_migrate_simple(uint8_t cmd_read, uint8_t cmd_write)
     size_t bufsize = 4096;
     unsigned char *tx = g_malloc(bufsize);
     unsigned char *rx = g_malloc0(bufsize);
-    unsigned i;
     const char *uri = "tcp:127.0.0.1:1234";
 
     src = ahci_boot_and_enable("-m 1024 -M q35 "
@@ -1171,9 +1144,7 @@ static void ahci_migrate_simple(uint8_t cmd_read, uint8_t cmd_write)
     ahci_port_clear(src, px);
 
     /* create pattern */
-    for (i = 0; i < bufsize; i++) {
-        tx[i] = (bufsize - i);
-    }
+    generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
 
     /* Write, migrate, then read. */
     ahci_io(src, px, cmd_write, tx, bufsize, 0);
@@ -1213,7 +1184,6 @@ static void ahci_halted_io_test(uint8_t cmd_read, uint8_t cmd_write)
     size_t bufsize = 4096;
     unsigned char *tx = g_malloc(bufsize);
     unsigned char *rx = g_malloc0(bufsize);
-    unsigned i;
     uint64_t ptr;
     AHCICommand *cmd;
 
@@ -1231,11 +1201,8 @@ static void ahci_halted_io_test(uint8_t cmd_read, uint8_t cmd_write)
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
 
-    for (i = 0; i < bufsize; i++) {
-        tx[i] = (bufsize - i);
-    }
-
     /* create DMA source buffer and write pattern */
+    generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
     ptr = ahci_alloc(ahci, bufsize);
     g_assert(ptr);
     memwrite(ptr, tx, bufsize);
@@ -1282,7 +1249,6 @@ static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
     size_t bufsize = 4096;
     unsigned char *tx = g_malloc(bufsize);
     unsigned char *rx = g_malloc0(bufsize);
-    unsigned i;
     uint64_t ptr;
     AHCICommand *cmd;
     const char *uri = "tcp:127.0.0.1:1234";
@@ -1310,10 +1276,7 @@ static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
     /* Initialize and prepare */
     port = ahci_port_select(src);
     ahci_port_clear(src, port);
-
-    for (i = 0; i < bufsize; i++) {
-        tx[i] = (bufsize - i);
-    }
+    generate_pattern(tx, bufsize, AHCI_SECTOR_SIZE);
 
     /* create DMA source buffer and write pattern */
     ptr = ahci_alloc(src, bufsize);
