@@ -292,24 +292,40 @@ static void lm32_uclinux_init(MachineState *machine)
     qemu_register_reset(main_cpu_reset, reset_info);
 }
 
-static QEMUMachine lm32_evr_machine = {
-    .name = "lm32-evr",
-    .desc = "LatticeMico32 EVR32 eval system",
-    .init = lm32_evr_init,
-    .is_default = 1,
+static void lm32_evr_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "LatticeMico32 EVR32 eval system";
+    mc->init = lm32_evr_init;
+    mc->is_default = 1;
+}
+
+static const TypeInfo lm32_evr_type = {
+    .name = MACHINE_TYPE_NAME("lm32-evr"),
+    .parent = TYPE_MACHINE,
+    .class_init = lm32_evr_class_init,
 };
 
-static QEMUMachine lm32_uclinux_machine = {
-    .name = "lm32-uclinux",
-    .desc = "lm32 platform for uClinux and u-boot by Theobroma Systems",
-    .init = lm32_uclinux_init,
-    .is_default = 0,
+static void lm32_uclinux_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "lm32 platform for uClinux and u-boot by Theobroma Systems";
+    mc->init = lm32_uclinux_init;
+    mc->is_default = 0;
+}
+
+static const TypeInfo lm32_uclinux_type = {
+    .name = MACHINE_TYPE_NAME("lm32-uclinux"),
+    .parent = TYPE_MACHINE,
+    .class_init = lm32_uclinux_class_init,
 };
 
 static void lm32_machine_init(void)
 {
-    qemu_register_machine(&lm32_uclinux_machine);
-    qemu_register_machine(&lm32_evr_machine);
+    type_register_static(&lm32_evr_type);
+    type_register_static(&lm32_uclinux_type);
 }
 
-machine_init(lm32_machine_init);
+machine_init(lm32_machine_init)

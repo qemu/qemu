@@ -231,15 +231,10 @@ mips_mipssim_init(MachineState *machine)
         mipsnet_init(0x4200, env->irq[2], &nd_table[0]);
 }
 
-static QEMUMachine mips_mipssim_machine = {
-    .name = "mipssim",
-    .desc = "MIPS MIPSsim platform",
-    .init = mips_mipssim_init,
-};
-
-static void mips_mipssim_machine_init(void)
+static void mips_mipssim_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&mips_mipssim_machine);
+    mc->desc = "MIPS MIPSsim platform";
+    mc->init = mips_mipssim_init;
 }
 
-machine_init(mips_mipssim_machine_init);
+DEFINE_MACHINE("mipssim", mips_mipssim_machine_init)

@@ -188,15 +188,10 @@ static void mainstone_init(MachineState *machine)
     mainstone_common_init(get_system_memory(), machine, mainstone, 0x196);
 }
 
-static QEMUMachine mainstone2_machine = {
-    .name = "mainstone",
-    .desc = "Mainstone II (PXA27x)",
-    .init = mainstone_init,
-};
-
-static void mainstone_machine_init(void)
+static void mainstone2_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&mainstone2_machine);
+    mc->desc = "Mainstone II (PXA27x)";
+    mc->init = mainstone_init;
 }
 
-machine_init(mainstone_machine_init);
+DEFINE_MACHINE("mainstone", mainstone2_machine_init)

@@ -1429,43 +1429,6 @@ void hmp_usb_del(Monitor *mon, const QDict *qdict)
 
 MachineState *current_machine;
 
-/*
- * Transitional class registration/init used for converting from
- * legacy QEMUMachine to MachineClass.
- */
-static void qemu_machine_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-    QEMUMachine *qm = data;
-    mc->name = qm->name;
-    mc->desc = qm->desc;
-    mc->init = qm->init;
-    mc->kvm_type = qm->kvm_type;
-    mc->block_default_type = qm->block_default_type;
-    mc->max_cpus = qm->max_cpus;
-    mc->no_sdcard = qm->no_sdcard;
-    mc->has_dynamic_sysbus = qm->has_dynamic_sysbus;
-    mc->is_default = qm->is_default;
-    mc->default_machine_opts = qm->default_machine_opts;
-    mc->default_boot_order = qm->default_boot_order;
-}
-
-int qemu_register_machine(QEMUMachine *m)
-{
-    char *name = g_strconcat(m->name, TYPE_MACHINE_SUFFIX, NULL);
-    TypeInfo ti = {
-        .name       = name,
-        .parent     = TYPE_MACHINE,
-        .class_init = qemu_machine_class_init,
-        .class_data = (void *)m,
-    };
-
-    type_register(&ti);
-    g_free(name);
-
-    return 0;
-}
-
 static MachineClass *find_machine(const char *name)
 {
     GSList *el, *machines = object_class_get_list(TYPE_MACHINE, false);

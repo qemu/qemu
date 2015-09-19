@@ -252,13 +252,12 @@ static void ccw_machine_2_4_class_init(ObjectClass *oc, void *data)
         { /* end of list */ }
     };
 
-    mc->name = "s390-ccw-virtio-2.4";
     mc->desc = "VirtIO-ccw based S390 machine v2.4";
     mc->compat_props = compat_props;
 }
 
 static const TypeInfo ccw_machine_2_4_info = {
-    .name          = TYPE_S390_CCW_MACHINE "2.4",
+    .name          = MACHINE_TYPE_NAME("s390-ccw-virtio-2.4"),
     .parent        = TYPE_S390_CCW_MACHINE,
     .class_init    = ccw_machine_2_4_class_init,
 };
@@ -267,14 +266,13 @@ static void ccw_machine_2_5_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = "s390-ccw-virtio-2.5";
     mc->alias = "s390-ccw-virtio";
     mc->desc = "VirtIO-ccw based S390 machine v2.5";
     mc->is_default = 1;
 }
 
 static const TypeInfo ccw_machine_2_5_info = {
-    .name          = TYPE_S390_CCW_MACHINE "2.5",
+    .name          = MACHINE_TYPE_NAME("s390-ccw-virtio-2.5"),
     .parent        = TYPE_S390_CCW_MACHINE,
     .class_init    = ccw_machine_2_5_class_init,
 };

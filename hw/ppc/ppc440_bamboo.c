@@ -293,15 +293,10 @@ static void bamboo_init(MachineState *machine)
         kvmppc_init();
 }
 
-static QEMUMachine bamboo_machine = {
-    .name = "bamboo",
-    .desc = "bamboo",
-    .init = bamboo_init,
-};
-
-static void bamboo_machine_init(void)
+static void bamboo_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&bamboo_machine);
+    mc->desc = "bamboo";
+    mc->init = bamboo_init;
 }
 
-machine_init(bamboo_machine_init);
+DEFINE_MACHINE("bamboo", bamboo_machine_init)

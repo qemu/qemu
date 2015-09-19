@@ -115,16 +115,11 @@ static void tricoreboard_init(MachineState *machine)
     tricore_testboard_init(machine, 0x183);
 }
 
-static QEMUMachine ttb_machine = {
-    .name = "tricore_testboard",
-    .desc = "a minimal TriCore board",
-    .init = tricoreboard_init,
-    .is_default = 0,
-};
-
-static void tricore_testboard_machine_init(void)
+static void ttb_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&ttb_machine);
+    mc->desc = "a minimal TriCore board";
+    mc->init = tricoreboard_init;
+    mc->is_default = 0;
 }
 
-machine_init(tricore_testboard_machine_init);
+DEFINE_MACHINE("tricore_testboard", ttb_machine_init)

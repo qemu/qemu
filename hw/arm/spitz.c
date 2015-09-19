@@ -972,39 +972,71 @@ static void terrier_init(MachineState *machine)
     spitz_common_init(machine, terrier, 0x33f);
 }
 
-static QEMUMachine akitapda_machine = {
-    .name = "akita",
-    .desc = "Akita PDA (PXA270)",
-    .init = akita_init,
+static void akitapda_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Akita PDA (PXA270)";
+    mc->init = akita_init;
+}
+
+static const TypeInfo akitapda_type = {
+    .name = MACHINE_TYPE_NAME("akita"),
+    .parent = TYPE_MACHINE,
+    .class_init = akitapda_class_init,
 };
 
-static QEMUMachine spitzpda_machine = {
-    .name = "spitz",
-    .desc = "Spitz PDA (PXA270)",
-    .init = spitz_init,
+static void spitzpda_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Spitz PDA (PXA270)";
+    mc->init = spitz_init;
+}
+
+static const TypeInfo spitzpda_type = {
+    .name = MACHINE_TYPE_NAME("spitz"),
+    .parent = TYPE_MACHINE,
+    .class_init = spitzpda_class_init,
 };
 
-static QEMUMachine borzoipda_machine = {
-    .name = "borzoi",
-    .desc = "Borzoi PDA (PXA270)",
-    .init = borzoi_init,
+static void borzoipda_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Borzoi PDA (PXA270)";
+    mc->init = borzoi_init;
+}
+
+static const TypeInfo borzoipda_type = {
+    .name = MACHINE_TYPE_NAME("borzoi"),
+    .parent = TYPE_MACHINE,
+    .class_init = borzoipda_class_init,
 };
 
-static QEMUMachine terrierpda_machine = {
-    .name = "terrier",
-    .desc = "Terrier PDA (PXA270)",
-    .init = terrier_init,
+static void terrierpda_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Terrier PDA (PXA270)";
+    mc->init = terrier_init;
+}
+
+static const TypeInfo terrierpda_type = {
+    .name = MACHINE_TYPE_NAME("terrier"),
+    .parent = TYPE_MACHINE,
+    .class_init = terrierpda_class_init,
 };
 
 static void spitz_machine_init(void)
 {
-    qemu_register_machine(&akitapda_machine);
-    qemu_register_machine(&spitzpda_machine);
-    qemu_register_machine(&borzoipda_machine);
-    qemu_register_machine(&terrierpda_machine);
+    type_register_static(&akitapda_type);
+    type_register_static(&spitzpda_type);
+    type_register_static(&borzoipda_type);
+    type_register_static(&terrierpda_type);
 }
 
-machine_init(spitz_machine_init);
+machine_init(spitz_machine_init)
 
 static bool is_version_0(void *opaque, int version_id)
 {

@@ -298,15 +298,10 @@ void mips_r4k_init(MachineState *machine)
     isa_create_simple(isa_bus, "i8042");
 }
 
-static QEMUMachine mips_machine = {
-    .name = "mips",
-    .desc = "mips r4k platform",
-    .init = mips_r4k_init,
-};
-
-static void mips_machine_init(void)
+static void mips_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&mips_machine);
+    mc->desc = "mips r4k platform";
+    mc->init = mips_r4k_init;
 }
 
-machine_init(mips_machine_init);
+DEFINE_MACHINE("mips", mips_machine_init)

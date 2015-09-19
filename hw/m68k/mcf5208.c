@@ -294,16 +294,11 @@ static void mcf5208evb_init(MachineState *machine)
     env->pc = entry;
 }
 
-static QEMUMachine mcf5208evb_machine = {
-    .name = "mcf5208evb",
-    .desc = "MCF5206EVB",
-    .init = mcf5208evb_init,
-    .is_default = 1,
-};
-
-static void mcf5208evb_machine_init(void)
+static void mcf5208evb_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&mcf5208evb_machine);
+    mc->desc = "MCF5206EVB";
+    mc->init = mcf5208evb_init;
+    mc->is_default = 1;
 }
 
-machine_init(mcf5208evb_machine_init);
+DEFINE_MACHINE("mcf5208evb", mcf5208evb_machine_init)

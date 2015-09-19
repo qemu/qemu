@@ -255,18 +255,13 @@ static void zynq_init(MachineState *machine)
     arm_load_kernel(ARM_CPU(first_cpu), &zynq_binfo);
 }
 
-static QEMUMachine zynq_machine = {
-    .name = "xilinx-zynq-a9",
-    .desc = "Xilinx Zynq Platform Baseboard for Cortex-A9",
-    .init = zynq_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 1,
-    .no_sdcard = 1,
-};
-
-static void zynq_machine_init(void)
+static void zynq_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&zynq_machine);
+    mc->desc = "Xilinx Zynq Platform Baseboard for Cortex-A9";
+    mc->init = zynq_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 1;
+    mc->no_sdcard = 1;
 }
 
-machine_init(zynq_machine_init);
+DEFINE_MACHINE("xilinx-zynq-a9", zynq_machine_init)

@@ -354,15 +354,10 @@ static void r2d_init(MachineState *machine)
                        SDRAM_BASE + BOOT_PARAMS_OFFSET);
 }
 
-static QEMUMachine r2d_machine = {
-    .name = "r2d",
-    .desc = "r2d-plus board",
-    .init = r2d_init,
-};
-
-static void r2d_machine_init(void)
+static void r2d_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&r2d_machine);
+    mc->desc = "r2d-plus board";
+    mc->init = r2d_init;
 }
 
-machine_init(r2d_machine_init);
+DEFINE_MACHINE("r2d", r2d_machine_init)

@@ -139,15 +139,10 @@ static void kzm_init(MachineState *machine)
     }
 }
 
-static QEMUMachine kzm_machine = {
-    .name = "kzm",
-    .desc = "ARM KZM Emulation Baseboard (ARM1136)",
-    .init = kzm_init,
-};
-
-static void kzm_machine_init(void)
+static void kzm_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&kzm_machine);
+    mc->desc = "ARM KZM Emulation Baseboard (ARM1136)";
+    mc->init = kzm_init;
 }
 
-machine_init(kzm_machine_init)
+DEFINE_MACHINE("kzm", kzm_machine_init)

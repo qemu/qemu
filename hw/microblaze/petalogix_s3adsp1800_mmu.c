@@ -124,16 +124,11 @@ petalogix_s3adsp1800_init(MachineState *machine)
                            NULL);
 }
 
-static QEMUMachine petalogix_s3adsp1800_machine = {
-    .name = "petalogix-s3adsp1800",
-    .desc = "PetaLogix linux refdesign for xilinx Spartan 3ADSP1800",
-    .init = petalogix_s3adsp1800_init,
-    .is_default = 1,
-};
-
-static void petalogix_s3adsp1800_machine_init(void)
+static void petalogix_s3adsp1800_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&petalogix_s3adsp1800_machine);
+    mc->desc = "PetaLogix linux refdesign for xilinx Spartan 3ADSP1800";
+    mc->init = petalogix_s3adsp1800_init;
+    mc->is_default = 1;
 }
 
-machine_init(petalogix_s3adsp1800_machine_init);
+DEFINE_MACHINE("petalogix-s3adsp1800", petalogix_s3adsp1800_machine_init)

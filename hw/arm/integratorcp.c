@@ -619,18 +619,13 @@ static void integratorcp_init(MachineState *machine)
     arm_load_kernel(cpu, &integrator_binfo);
 }
 
-static QEMUMachine integratorcp_machine = {
-    .name = "integratorcp",
-    .desc = "ARM Integrator/CP (ARM926EJ-S)",
-    .init = integratorcp_init,
-};
-
-static void integratorcp_machine_init(void)
+static void integratorcp_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&integratorcp_machine);
+    mc->desc = "ARM Integrator/CP (ARM926EJ-S)";
+    mc->init = integratorcp_init;
 }
 
-machine_init(integratorcp_machine_init);
+DEFINE_MACHINE("integratorcp", integratorcp_machine_init)
 
 static Property core_properties[] = {
     DEFINE_PROP_UINT32("memsz", IntegratorCMState, memsz, 0),

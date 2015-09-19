@@ -206,16 +206,11 @@ petalogix_ml605_init(MachineState *machine)
 
 }
 
-static QEMUMachine petalogix_ml605_machine = {
-    .name = "petalogix-ml605",
-    .desc = "PetaLogix linux refdesign for xilinx ml605 little endian",
-    .init = petalogix_ml605_init,
-    .is_default = 0,
-};
-
-static void petalogix_ml605_machine_init(void)
+static void petalogix_ml605_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&petalogix_ml605_machine);
+    mc->desc = "PetaLogix linux refdesign for xilinx ml605 little endian";
+    mc->init = petalogix_ml605_init;
+    mc->is_default = 0;
 }
 
-machine_init(petalogix_ml605_machine_init);
+DEFINE_MACHINE("petalogix-ml605", petalogix_ml605_machine_init)

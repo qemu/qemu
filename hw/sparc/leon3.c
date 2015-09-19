@@ -216,15 +216,10 @@ static void leon3_generic_hw_init(MachineState *machine)
     }
 }
 
-static QEMUMachine leon3_generic_machine = {
-    .name     = "leon3_generic",
-    .desc     = "Leon-3 generic",
-    .init     = leon3_generic_hw_init,
-};
-
-static void leon3_machine_init(void)
+static void leon3_generic_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&leon3_generic_machine);
+    mc->desc = "Leon-3 generic";
+    mc->init = leon3_generic_hw_init;
 }
 
-machine_init(leon3_machine_init);
+DEFINE_MACHINE("leon3_generic", leon3_generic_machine_init)

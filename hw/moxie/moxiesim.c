@@ -146,16 +146,11 @@ static void moxiesim_init(MachineState *machine)
     }
 }
 
-static QEMUMachine moxiesim_machine = {
-    .name = "moxiesim",
-    .desc = "Moxie simulator platform",
-    .init = moxiesim_init,
-    .is_default = 1,
-};
-
-static void moxie_machine_init(void)
+static void moxiesim_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&moxiesim_machine);
+    mc->desc = "Moxie simulator platform";
+    mc->init = moxiesim_init;
+    mc->is_default = 1;
 }
 
-machine_init(moxie_machine_init)
+DEFINE_MACHINE("moxiesim", moxiesim_machine_init)

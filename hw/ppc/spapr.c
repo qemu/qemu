@@ -1919,13 +1919,12 @@ static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
         { /* end of list */ }
     };
 
-    mc->name = "pseries-2.1";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.1";
     mc->compat_props = compat_props;
 }
 
 static const TypeInfo spapr_machine_2_1_info = {
-    .name          = TYPE_SPAPR_MACHINE "2.1",
+    .name          = MACHINE_TYPE_NAME("pseries-2.1"),
     .parent        = TYPE_SPAPR_MACHINE,
     .class_init    = spapr_machine_2_1_class_init,
     .instance_init = spapr_machine_2_1_instance_init,
@@ -1939,13 +1938,12 @@ static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
     };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = "pseries-2.2";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.2";
     mc->compat_props = compat_props;
 }
 
 static const TypeInfo spapr_machine_2_2_info = {
-    .name          = TYPE_SPAPR_MACHINE "2.2",
+    .name          = MACHINE_TYPE_NAME("pseries-2.2"),
     .parent        = TYPE_SPAPR_MACHINE,
     .class_init    = spapr_machine_2_2_class_init,
     .instance_init = spapr_machine_2_2_instance_init,
@@ -1959,13 +1957,12 @@ static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
     };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = "pseries-2.3";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.3";
     mc->compat_props = compat_props;
 }
 
 static const TypeInfo spapr_machine_2_3_info = {
-    .name          = TYPE_SPAPR_MACHINE "2.3",
+    .name          = MACHINE_TYPE_NAME("pseries-2.3"),
     .parent        = TYPE_SPAPR_MACHINE,
     .class_init    = spapr_machine_2_3_class_init,
     .instance_init = spapr_machine_2_3_instance_init,
@@ -1975,14 +1972,13 @@ static void spapr_machine_2_4_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = "pseries-2.4";
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.4";
     mc->alias = "pseries";
     mc->is_default = 1;
 }
 
 static const TypeInfo spapr_machine_2_4_info = {
-    .name          = TYPE_SPAPR_MACHINE "2.4",
+    .name          = MACHINE_TYPE_NAME("pseries-2.4"),
     .parent        = TYPE_SPAPR_MACHINE,
     .class_init    = spapr_machine_2_4_class_init,
 };

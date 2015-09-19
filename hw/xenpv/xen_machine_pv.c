@@ -93,17 +93,12 @@ static void xen_init_pv(MachineState *machine)
     xen_init_display(xen_domid);
 }
 
-static QEMUMachine xenpv_machine = {
-    .name = "xenpv",
-    .desc = "Xen Para-virtualized PC",
-    .init = xen_init_pv,
-    .max_cpus = 1,
-    .default_machine_opts = "accel=xen",
-};
-
-static void xenpv_machine_init(void)
+static void xenpv_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&xenpv_machine);
+    mc->desc = "Xen Para-virtualized PC";
+    mc->init = xen_init_pv;
+    mc->max_cpus = 1;
+    mc->default_machine_opts = "accel=xen";
 }
 
-machine_init(xenpv_machine_init);
+DEFINE_MACHINE("xenpv", xenpv_machine_init)

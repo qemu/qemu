@@ -104,17 +104,12 @@ static void xtensa_sim_init(MachineState *machine)
     }
 }
 
-static QEMUMachine xtensa_sim_machine = {
-    .name = "sim",
-    .desc = "sim machine (" XTENSA_DEFAULT_CPU_MODEL ")",
-    .is_default = true,
-    .init = xtensa_sim_init,
-    .max_cpus = 4,
-};
-
-static void xtensa_sim_machine_init(void)
+static void xtensa_sim_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&xtensa_sim_machine);
+    mc->desc = "sim machine (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->is_default = true;
+    mc->init = xtensa_sim_init;
+    mc->max_cpus = 4;
 }
 
-machine_init(xtensa_sim_machine_init);
+DEFINE_MACHINE("sim", xtensa_sim_machine_init)

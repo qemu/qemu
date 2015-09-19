@@ -369,10 +369,18 @@ static void ref405ep_init(MachineState *machine)
 #endif
 }
 
-static QEMUMachine ref405ep_machine = {
-    .name = "ref405ep",
-    .desc = "ref405ep",
-    .init = ref405ep_init,
+static void ref405ep_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "ref405ep";
+    mc->init = ref405ep_init;
+}
+
+static const TypeInfo ref405ep_type = {
+    .name = MACHINE_TYPE_NAME("ref405ep"),
+    .parent = TYPE_MACHINE,
+    .class_init = ref405ep_class_init,
 };
 
 /*****************************************************************************/
@@ -665,16 +673,24 @@ static void taihu_405ep_init(MachineState *machine)
 #endif
 }
 
-static QEMUMachine taihu_machine = {
-    .name = "taihu",
-    .desc = "taihu",
-    .init = taihu_405ep_init,
+static void taihu_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "taihu";
+    mc->init = taihu_405ep_init;
+}
+
+static const TypeInfo taihu_type = {
+    .name = MACHINE_TYPE_NAME("taihu"),
+    .parent = TYPE_MACHINE,
+    .class_init = taihu_class_init,
 };
 
 static void ppc405_machine_init(void)
 {
-    qemu_register_machine(&ref405ep_machine);
-    qemu_register_machine(&taihu_machine);
+    type_register_static(&ref405ep_type);
+    type_register_static(&taihu_type);
 }
 
-machine_init(ppc405_machine_init);
+machine_init(ppc405_machine_init)

@@ -168,8 +168,8 @@ typedef struct {
 } VexpressMachineState;
 
 #define TYPE_VEXPRESS_MACHINE   "vexpress"
-#define TYPE_VEXPRESS_A9_MACHINE   "vexpress-a9"
-#define TYPE_VEXPRESS_A15_MACHINE   "vexpress-a15"
+#define TYPE_VEXPRESS_A9_MACHINE   MACHINE_TYPE_NAME("vexpress-a9")
+#define TYPE_VEXPRESS_A15_MACHINE   MACHINE_TYPE_NAME("vexpress-a15")
 #define VEXPRESS_MACHINE(obj) \
     OBJECT_CHECK(VexpressMachineState, (obj), TYPE_VEXPRESS_MACHINE)
 #define VEXPRESS_MACHINE_GET_CLASS(obj) \
@@ -747,7 +747,6 @@ static void vexpress_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = TYPE_VEXPRESS_MACHINE;
     mc->desc = "ARM Versatile Express";
     mc->init = vexpress_common_init;
     mc->block_default_type = IF_SCSI;
@@ -759,7 +758,6 @@ static void vexpress_a9_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     VexpressMachineClass *vmc = VEXPRESS_MACHINE_CLASS(oc);
 
-    mc->name = TYPE_VEXPRESS_A9_MACHINE;
     mc->desc = "ARM Versatile Express for Cortex-A9";
 
     vmc->daughterboard = &a9_daughterboard;
@@ -770,7 +768,6 @@ static void vexpress_a15_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     VexpressMachineClass *vmc = VEXPRESS_MACHINE_CLASS(oc);
 
-    mc->name = TYPE_VEXPRESS_A15_MACHINE;
     mc->desc = "ARM Versatile Express for Cortex-A15";
 
     vmc->daughterboard = &a15_daughterboard;

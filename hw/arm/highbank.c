@@ -391,26 +391,42 @@ static void midway_init(MachineState *machine)
     calxeda_init(machine, CALXEDA_MIDWAY);
 }
 
-static QEMUMachine highbank_machine = {
-    .name = "highbank",
-    .desc = "Calxeda Highbank (ECX-1000)",
-    .init = highbank_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
+static void highbank_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Calxeda Highbank (ECX-1000)";
+    mc->init = highbank_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 4;
+}
+
+static const TypeInfo highbank_type = {
+    .name = MACHINE_TYPE_NAME("highbank"),
+    .parent = TYPE_MACHINE,
+    .class_init = highbank_class_init,
 };
 
-static QEMUMachine midway_machine = {
-    .name = "midway",
-    .desc = "Calxeda Midway (ECX-2000)",
-    .init = midway_init,
-    .block_default_type = IF_SCSI,
-    .max_cpus = 4,
+static void midway_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Calxeda Midway (ECX-2000)";
+    mc->init = midway_init;
+    mc->block_default_type = IF_SCSI;
+    mc->max_cpus = 4;
+}
+
+static const TypeInfo midway_type = {
+    .name = MACHINE_TYPE_NAME("midway"),
+    .parent = TYPE_MACHINE,
+    .class_init = midway_class_init,
 };
 
 static void calxeda_machines_init(void)
 {
-    qemu_register_machine(&highbank_machine);
-    qemu_register_machine(&midway_machine);
+    type_register_static(&highbank_type);
+    type_register_static(&midway_type);
 }
 
-machine_init(calxeda_machines_init);
+machine_init(calxeda_machines_init)

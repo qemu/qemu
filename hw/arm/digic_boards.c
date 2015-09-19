@@ -148,15 +148,10 @@ static void canon_a1100_init(MachineState *machine)
     digic4_board_init(&digic4_board_canon_a1100);
 }
 
-static QEMUMachine canon_a1100 = {
-    .name = "canon-a1100",
-    .desc = "Canon PowerShot A1100 IS",
-    .init = &canon_a1100_init,
-};
-
-static void digic_register_machines(void)
+static void canon_a1100_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&canon_a1100);
+    mc->desc = "Canon PowerShot A1100 IS";
+    mc->init = &canon_a1100_init;
 }
 
-machine_init(digic_register_machines)
+DEFINE_MACHINE("canon-a1100", canon_a1100_machine_init)

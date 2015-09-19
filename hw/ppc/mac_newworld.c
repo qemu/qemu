@@ -508,7 +508,6 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->name = "mac99";
     mc->desc = "Mac99 based PowerMAC";
     mc->init = ppc_core99_init;
     mc->max_cpus = MAX_CPUS;
@@ -517,7 +516,7 @@ static void core99_machine_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo core99_machine_info = {
-    .name          = "mac99-machine",
+    .name          = MACHINE_TYPE_NAME("mac99"),
     .parent        = TYPE_MACHINE,
     .class_init    = core99_machine_class_init,
 };

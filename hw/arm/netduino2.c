@@ -43,15 +43,10 @@ static void netduino2_init(MachineState *machine)
     }
 }
 
-static QEMUMachine netduino2_machine = {
-    .name = "netduino2",
-    .desc = "Netduino 2 Machine",
-    .init = netduino2_init,
-};
-
-static void netduino2_machine_init(void)
+static void netduino2_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&netduino2_machine);
+    mc->desc = "Netduino 2 Machine";
+    mc->init = netduino2_init;
 }
 
-machine_init(netduino2_machine_init);
+DEFINE_MACHINE("netduino2", netduino2_machine_init)

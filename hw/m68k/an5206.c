@@ -89,15 +89,10 @@ static void an5206_init(MachineState *machine)
     env->pc = entry;
 }
 
-static QEMUMachine an5206_machine = {
-    .name = "an5206",
-    .desc = "Arnewsh 5206",
-    .init = an5206_init,
-};
-
-static void an5206_machine_init(void)
+static void an5206_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&an5206_machine);
+    mc->desc = "Arnewsh 5206";
+    mc->init = an5206_init;
 }
 
-machine_init(an5206_machine_init);
+DEFINE_MACHINE("an5206", an5206_machine_init)

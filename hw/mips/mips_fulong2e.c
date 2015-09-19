@@ -381,15 +381,10 @@ static void mips_fulong2e_init(MachineState *machine)
     network_init(pci_bus);
 }
 
-static QEMUMachine mips_fulong2e_machine = {
-    .name = "fulong2e",
-    .desc = "Fulong 2e mini pc",
-    .init = mips_fulong2e_init,
-};
-
-static void mips_fulong2e_machine_init(void)
+static void mips_fulong2e_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&mips_fulong2e_machine);
+    mc->desc = "Fulong 2e mini pc";
+    mc->init = mips_fulong2e_init;
 }
 
-machine_init(mips_fulong2e_machine_init);
+DEFINE_MACHINE("fulong2e", mips_fulong2e_machine_init)

@@ -687,17 +687,12 @@ static void ppc_prep_init(MachineState *machine)
                          graphic_width, graphic_height, graphic_depth);
 }
 
-static QEMUMachine prep_machine = {
-    .name = "prep",
-    .desc = "PowerPC PREP platform",
-    .init = ppc_prep_init,
-    .max_cpus = MAX_CPUS,
-    .default_boot_order = "cad",
-};
-
-static void prep_machine_init(void)
+static void prep_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&prep_machine);
+    mc->desc = "PowerPC PREP platform";
+    mc->init = ppc_prep_init;
+    mc->max_cpus = MAX_CPUS;
+    mc->default_boot_order = "cad";
 }
 
-machine_init(prep_machine_init);
+DEFINE_MACHINE("prep", prep_machine_init)

@@ -1366,25 +1366,41 @@ static void lm3s6965evb_init(MachineState *machine)
     stellaris_init(kernel_filename, cpu_model, &stellaris_boards[1]);
 }
 
-static QEMUMachine lm3s811evb_machine = {
-    .name = "lm3s811evb",
-    .desc = "Stellaris LM3S811EVB",
-    .init = lm3s811evb_init,
+static void lm3s811evb_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Stellaris LM3S811EVB";
+    mc->init = lm3s811evb_init;
+}
+
+static const TypeInfo lm3s811evb_type = {
+    .name = MACHINE_TYPE_NAME("lm3s811evb"),
+    .parent = TYPE_MACHINE,
+    .class_init = lm3s811evb_class_init,
 };
 
-static QEMUMachine lm3s6965evb_machine = {
-    .name = "lm3s6965evb",
-    .desc = "Stellaris LM3S6965EVB",
-    .init = lm3s6965evb_init,
+static void lm3s6965evb_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "Stellaris LM3S6965EVB";
+    mc->init = lm3s6965evb_init;
+}
+
+static const TypeInfo lm3s6965evb_type = {
+    .name = MACHINE_TYPE_NAME("lm3s6965evb"),
+    .parent = TYPE_MACHINE,
+    .class_init = lm3s6965evb_class_init,
 };
 
 static void stellaris_machine_init(void)
 {
-    qemu_register_machine(&lm3s811evb_machine);
-    qemu_register_machine(&lm3s6965evb_machine);
+    type_register_static(&lm3s811evb_type);
+    type_register_static(&lm3s6965evb_type);
 }
 
-machine_init(stellaris_machine_init);
+machine_init(stellaris_machine_init)
 
 static void stellaris_i2c_class_init(ObjectClass *klass, void *data)
 {

@@ -269,15 +269,10 @@ static void palmte_init(MachineState *machine)
     arm_load_kernel(mpu->cpu, &palmte_binfo);
 }
 
-static QEMUMachine palmte_machine = {
-    .name = "cheetah",
-    .desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)",
-    .init = palmte_init,
-};
-
-static void palmte_machine_init(void)
+static void palmte_machine_init(MachineClass *mc)
 {
-    qemu_register_machine(&palmte_machine);
+    mc->desc = "Palm Tungsten|E aka. Cheetah PDA (OMAP310)";
+    mc->init = palmte_init;
 }
 
-machine_init(palmte_machine_init);
+DEFINE_MACHINE("cheetah", palmte_machine_init)
