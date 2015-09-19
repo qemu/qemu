@@ -312,31 +312,6 @@ bool cpu_restore_state(CPUState *cpu, uintptr_t retaddr)
     return false;
 }
 
-#ifdef _WIN32
-static __attribute__((unused)) void map_exec(void *addr, long size)
-{
-    DWORD old_protect;
-    VirtualProtect(addr, size,
-                   PAGE_EXECUTE_READWRITE, &old_protect);
-}
-#else
-static __attribute__((unused)) void map_exec(void *addr, long size)
-{
-    unsigned long start, end, page_size;
-
-    page_size = getpagesize();
-    start = (unsigned long)addr;
-    start &= ~(page_size - 1);
-
-    end = (unsigned long)addr + size;
-    end += page_size - 1;
-    end &= ~(page_size - 1);
-
-    mprotect((void *)start, end - start,
-             PROT_READ | PROT_WRITE | PROT_EXEC);
-}
-#endif
-
 void page_size_init(void)
 {
     /* NOTE: we can always suppose that qemu_host_page_size >=
@@ -473,14 +448,6 @@ static inline PageDesc *page_find(tb_page_addr_t index)
 #define USE_STATIC_CODE_GEN_BUFFER
 #endif
 
-/* ??? Should configure for this, not list operating systems here.  */
-#if (defined(__linux__) \
-    || defined(__FreeBSD__) || defined(__FreeBSD_kernel__) \
-    || defined(__DragonFly__) || defined(__OpenBSD__) \
-    || defined(__NetBSD__))
-# define USE_MMAP
-#endif
-
 /* Minimum size of the code gen buffer.  This number is randomly chosen,
    but not so small that we can't have a fair number of TB's live.  */
 #define MIN_CODE_GEN_BUFFER_SIZE     (1024u * 1024)
@@ -568,22 +535,102 @@ static inline void *split_cross_256mb(void *buf1, size_t size1)
 static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
     __attribute__((aligned(CODE_GEN_ALIGN)));
 
+# ifdef _WIN32
+static inline void do_protect(void *addr, long size, int prot)
+{
+    DWORD old_protect;
+    VirtualProtect(addr, size, prot, &old_protect);
+}
+
+static inline void map_exec(void *addr, long size)
+{
+    do_protect(addr, size, PAGE_EXECUTE_READWRITE);
+}
+
+static inline void map_none(void *addr, long size)
+{
+    do_protect(addr, size, PAGE_NOACCESS);
+}
+# else
+static inline void do_protect(void *addr, long size, int prot)
+{
+    uintptr_t start, end;
+
+    start = (uintptr_t)addr;
+    start &= qemu_real_host_page_mask;
+
+    end = (uintptr_t)addr + size;
+    end = ROUND_UP(end, qemu_real_host_page_size);
+
+    mprotect((void *)start, end - start, prot);
+}
+
+static inline void map_exec(void *addr, long size)
+{
+    do_protect(addr, size, PROT_READ | PROT_WRITE | PROT_EXEC);
+}
+
+static inline void map_none(void *addr, long size)
+{
+    do_protect(addr, size, PROT_NONE);
+}
+# endif /* WIN32 */
+
 static inline void *alloc_code_gen_buffer(void)
 {
     void *buf = static_code_gen_buffer;
+    size_t full_size, size;
+
+    /* The size of the buffer, rounded down to end on a page boundary.  */
+    full_size = (((uintptr_t)buf + sizeof(static_code_gen_buffer))
+                 & qemu_real_host_page_mask) - (uintptr_t)buf;
+
+    /* Reserve a guard page.  */
+    size = full_size - qemu_real_host_page_size;
+
+    /* Honor a command-line option limiting the size of the buffer.  */
+    if (size > tcg_ctx.code_gen_buffer_size) {
+        size = (((uintptr_t)buf + tcg_ctx.code_gen_buffer_size)
+                & qemu_real_host_page_mask) - (uintptr_t)buf;
+    }
+    tcg_ctx.code_gen_buffer_size = size;
+
 #ifdef __mips__
-    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
-        buf = split_cross_256mb(buf, tcg_ctx.code_gen_buffer_size);
+    if (cross_256mb(buf, size)) {
+        buf = split_cross_256mb(buf, size);
+        size = tcg_ctx.code_gen_buffer_size;
     }
 #endif
-    map_exec(buf, tcg_ctx.code_gen_buffer_size);
+
+    map_exec(buf, size);
+    map_none(buf + size, qemu_real_host_page_size);
+    qemu_madvise(buf, size, QEMU_MADV_HUGEPAGE);
+
     return buf;
 }
-#elif defined(USE_MMAP)
+#elif defined(_WIN32)
+static inline void *alloc_code_gen_buffer(void)
+{
+    size_t size = tcg_ctx.code_gen_buffer_size;
+    void *buf1, *buf2;
+
+    /* Perform the allocation in two steps, so that the guard page
+       is reserved but uncommitted.  */
+    buf1 = VirtualAlloc(NULL, size + qemu_real_host_page_size,
+                        MEM_RESERVE, PAGE_NOACCESS);
+    if (buf1 != NULL) {
+        buf2 = VirtualAlloc(buf1, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        assert(buf1 == buf2);
+    }
+
+    return buf1;
+}
+#else
 static inline void *alloc_code_gen_buffer(void)
 {
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
     uintptr_t start = 0;
+    size_t size = tcg_ctx.code_gen_buffer_size;
     void *buf;
 
     /* Constrain the position of the buffer based on the host cpu.
@@ -599,86 +646,70 @@ static inline void *alloc_code_gen_buffer(void)
        Leave the choice of exact location with the kernel.  */
     flags |= MAP_32BIT;
     /* Cannot expect to map more than 800MB in low memory.  */
-    if (tcg_ctx.code_gen_buffer_size > 800u * 1024 * 1024) {
-        tcg_ctx.code_gen_buffer_size = 800u * 1024 * 1024;
+    if (size > 800u * 1024 * 1024) {
+        tcg_ctx.code_gen_buffer_size = size = 800u * 1024 * 1024;
     }
 # elif defined(__sparc__)
     start = 0x40000000ul;
 # elif defined(__s390x__)
     start = 0x90000000ul;
 # elif defined(__mips__)
-    /* ??? We ought to more explicitly manage layout for softmmu too.  */
-#  ifdef CONFIG_USER_ONLY
-    start = 0x68000000ul;
-#  elif _MIPS_SIM == _ABI64
+#  if _MIPS_SIM == _ABI64
     start = 0x128000000ul;
 #  else
     start = 0x08000000ul;
 #  endif
 # endif
 
-    buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
-               PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
+    buf = mmap((void *)start, size + qemu_real_host_page_size,
+               PROT_NONE, flags, -1, 0);
     if (buf == MAP_FAILED) {
         return NULL;
     }
 
 #ifdef __mips__
-    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
+    if (cross_256mb(buf, size)) {
         /* Try again, with the original still mapped, to avoid re-acquiring
            that 256mb crossing.  This time don't specify an address.  */
-        size_t size2, size1 = tcg_ctx.code_gen_buffer_size;
-        void *buf2 = mmap(NULL, size1, PROT_WRITE | PROT_READ | PROT_EXEC,
-                          flags, -1, 0);
-        if (buf2 != MAP_FAILED) {
-            if (!cross_256mb(buf2, size1)) {
+        size_t size2;
+        void *buf2 = mmap(NULL, size + qemu_real_host_page_size,
+                          PROT_NONE, flags, -1, 0);
+        switch (buf2 != MAP_FAILED) {
+        case 1:
+            if (!cross_256mb(buf2, size)) {
                 /* Success!  Use the new buffer.  */
-                munmap(buf, size1);
-                return buf2;
+                munmap(buf, size);
+                break;
             }
             /* Failure.  Work with what we had.  */
-            munmap(buf2, size1);
+            munmap(buf2, size);
+            /* fallthru */
+        default:
+            /* Split the original buffer.  Free the smaller half.  */
+            buf2 = split_cross_256mb(buf, size);
+            size2 = tcg_ctx.code_gen_buffer_size;
+            if (buf == buf2) {
+                munmap(buf + size2 + qemu_real_host_page_size, size - size2);
+            } else {
+                munmap(buf, size - size2);
+            }
+            size = size2;
+            break;
         }
-
-        /* Split the original buffer.  Free the smaller half.  */
-        buf2 = split_cross_256mb(buf, size1);
-        size2 = tcg_ctx.code_gen_buffer_size;
-        munmap(buf + (buf == buf2 ? size2 : 0), size1 - size2);
-        return buf2;
+        buf = buf2;
     }
 #endif
 
+    /* Make the final buffer accessible.  The guard page at the end
+       will remain inaccessible with PROT_NONE.  */
+    mprotect(buf, size, PROT_WRITE | PROT_READ | PROT_EXEC);
+
+    /* Request large pages for the buffer.  */
+    qemu_madvise(buf, size, QEMU_MADV_HUGEPAGE);
+
     return buf;
 }
-#else
-static inline void *alloc_code_gen_buffer(void)
-{
-    void *buf = g_try_malloc(tcg_ctx.code_gen_buffer_size);
-
-    if (buf == NULL) {
-        return NULL;
-    }
-
-#ifdef __mips__
-    if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
-        void *buf2 = g_malloc(tcg_ctx.code_gen_buffer_size);
-        if (buf2 != NULL && !cross_256mb(buf2, size1)) {
-            /* Success!  Use the new buffer.  */
-            free(buf);
-            buf = buf2;
-        } else {
-            /* Failure.  Work with what we had.  Since this is malloc
-               and not mmap, we can't free the other half.  */
-            free(buf2);
-            buf = split_cross_256mb(buf, tcg_ctx.code_gen_buffer_size);
-        }
-    }
-#endif
-
-    map_exec(buf, tcg_ctx.code_gen_buffer_size);
-    return buf;
-}
-#endif /* USE_STATIC_CODE_GEN_BUFFER, USE_MMAP */
+#endif /* USE_STATIC_CODE_GEN_BUFFER, WIN32, POSIX */
 
 static inline void code_gen_alloc(size_t tb_size)
 {
@@ -688,9 +719,6 @@ static inline void code_gen_alloc(size_t tb_size)
         fprintf(stderr, "Could not allocate dynamic translator buffer\n");
         exit(1);
     }
-
-    qemu_madvise(tcg_ctx.code_gen_buffer, tcg_ctx.code_gen_buffer_size,
-                 QEMU_MADV_HUGEPAGE);
 
     /* Estimate a good size for the number of TBs we can support.  We
        still haven't deducted the prologue from the buffer size here,
@@ -708,8 +736,8 @@ static inline void code_gen_alloc(size_t tb_size)
 void tcg_exec_init(unsigned long tb_size)
 {
     cpu_gen_init();
-    code_gen_alloc(tb_size);
     page_init();
+    code_gen_alloc(tb_size);
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
