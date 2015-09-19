@@ -121,18 +121,38 @@ static void verdex_init(MachineState *machine)
                     qdev_get_gpio_in(cpu->gpio, 99));
 }
 
-static void connex_machine_init(MachineClass *mc)
+static void connex_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Gumstix Connex (PXA255)";
     mc->init = connex_init;
 }
 
-DEFINE_MACHINE("connex", connex_machine_init)
+static const TypeInfo connex_type = {
+    .name = MACHINE_TYPE_NAME("connex"),
+    .parent = TYPE_MACHINE,
+    .class_init = connex_class_init,
+};
 
-static void verdex_machine_init(MachineClass *mc)
+static void verdex_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Gumstix Verdex (PXA270)";
     mc->init = verdex_init;
 }
 
-DEFINE_MACHINE("verdex", verdex_machine_init)
+static const TypeInfo verdex_type = {
+    .name = MACHINE_TYPE_NAME("verdex"),
+    .parent = TYPE_MACHINE,
+    .class_init = verdex_class_init,
+};
+
+static void gumstix_machine_init(void)
+{
+    type_register_static(&connex_type);
+    type_register_static(&verdex_type);
+}
+
+machine_init(gumstix_machine_init)

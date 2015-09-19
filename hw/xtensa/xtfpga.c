@@ -428,38 +428,72 @@ static void xtensa_kc705_init(MachineState *machine)
     lx_init(&kc705_board, machine);
 }
 
-static void xtensa_lx60_machine_init(MachineClass *mc)
+static void xtensa_lx60_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "lx60 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_lx60_init;
     mc->max_cpus = 4;
 }
 
-DEFINE_MACHINE("lx60", xtensa_lx60_machine_init)
+static const TypeInfo xtensa_lx60_type = {
+    .name = MACHINE_TYPE_NAME("lx60"),
+    .parent = TYPE_MACHINE,
+    .class_init = xtensa_lx60_class_init,
+};
 
-static void xtensa_lx200_machine_init(MachineClass *mc)
+static void xtensa_lx200_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "lx200 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_lx200_init;
     mc->max_cpus = 4;
 }
 
-DEFINE_MACHINE("lx200", xtensa_lx200_machine_init)
+static const TypeInfo xtensa_lx200_type = {
+    .name = MACHINE_TYPE_NAME("lx200"),
+    .parent = TYPE_MACHINE,
+    .class_init = xtensa_lx200_class_init,
+};
 
-static void xtensa_ml605_machine_init(MachineClass *mc)
+static void xtensa_ml605_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "ml605 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_ml605_init;
     mc->max_cpus = 4;
 }
 
-DEFINE_MACHINE("ml605", xtensa_ml605_machine_init)
+static const TypeInfo xtensa_ml605_type = {
+    .name = MACHINE_TYPE_NAME("ml605"),
+    .parent = TYPE_MACHINE,
+    .class_init = xtensa_ml605_class_init,
+};
 
-static void xtensa_kc705_machine_init(MachineClass *mc)
+static void xtensa_kc705_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "kc705 EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
     mc->init = xtensa_kc705_init;
     mc->max_cpus = 4;
 }
 
-DEFINE_MACHINE("kc705", xtensa_kc705_machine_init)
+static const TypeInfo xtensa_kc705_type = {
+    .name = MACHINE_TYPE_NAME("kc705"),
+    .parent = TYPE_MACHINE,
+    .class_init = xtensa_kc705_class_init,
+};
+
+static void xtensa_lx_machines_init(void)
+{
+    type_register_static(&xtensa_lx60_type);
+    type_register_static(&xtensa_lx200_type);
+    type_register_static(&xtensa_ml605_type);
+    type_register_static(&xtensa_kc705_type);
+}
+
+machine_init(xtensa_lx_machines_init)

@@ -1413,20 +1413,40 @@ static void n810_init(MachineState *machine)
     n8x0_init(machine, &n810_binfo, 810);
 }
 
-static void n800_machine_init(MachineClass *mc)
+static void n800_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Nokia N800 tablet aka. RX-34 (OMAP2420)";
     mc->init = n800_init;
     mc->default_boot_order = "";
 }
 
-DEFINE_MACHINE("n800", n800_machine_init)
+static const TypeInfo n800_type = {
+    .name = MACHINE_TYPE_NAME("n800"),
+    .parent = TYPE_MACHINE,
+    .class_init = n800_class_init,
+};
 
-static void n810_machine_init(MachineClass *mc)
+static void n810_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Nokia N810 tablet aka. RX-44 (OMAP2420)";
     mc->init = n810_init;
     mc->default_boot_order = "";
 }
 
-DEFINE_MACHINE("n810", n810_machine_init)
+static const TypeInfo n810_type = {
+    .name = MACHINE_TYPE_NAME("n810"),
+    .parent = TYPE_MACHINE,
+    .class_init = n810_class_init,
+};
+
+static void nseries_machine_init(void)
+{
+    type_register_static(&n800_type);
+    type_register_static(&n810_type);
+}
+
+machine_init(nseries_machine_init)

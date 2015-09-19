@@ -144,20 +144,40 @@ static void smdkc210_init(MachineState *machine)
     arm_load_kernel(ARM_CPU(first_cpu), &exynos4_board_binfo);
 }
 
-static void exynos4_machine_nuri_machine_init(MachineClass *mc)
+static void nuri_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Samsung NURI board (Exynos4210)";
     mc->init = nuri_init;
     mc->max_cpus = EXYNOS4210_NCPUS;
 }
 
-DEFINE_MACHINE("nuri", exynos4_machine_nuri_machine_init)
+static const TypeInfo nuri_type = {
+    .name = MACHINE_TYPE_NAME("nuri"),
+    .parent = TYPE_MACHINE,
+    .class_init = nuri_class_init,
+};
 
-static void exynos4_machine_smdkc210_machine_init(MachineClass *mc)
+static void smdkc210_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Samsung SMDKC210 board (Exynos4210)";
     mc->init = smdkc210_init;
     mc->max_cpus = EXYNOS4210_NCPUS;
 }
 
-DEFINE_MACHINE("smdkc210", exynos4_machine_smdkc210_machine_init)
+static const TypeInfo smdkc210_type = {
+    .name = MACHINE_TYPE_NAME("smdkc210"),
+    .parent = TYPE_MACHINE,
+    .class_init = smdkc210_class_init,
+};
+
+static void exynos4_machines_init(void)
+{
+    type_register_static(&nuri_type);
+    type_register_static(&smdkc210_type);
+}
+
+machine_init(exynos4_machines_init)

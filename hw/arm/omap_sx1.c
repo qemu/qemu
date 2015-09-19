@@ -217,18 +217,38 @@ static void sx1_init_v2(MachineState *machine)
     sx1_init(machine, 2);
 }
 
-static void sx1_machine_v2_machine_init(MachineClass *mc)
+static void sx1_machine_v2_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Siemens SX1 (OMAP310) V2";
     mc->init = sx1_init_v2;
 }
 
-DEFINE_MACHINE("sx1", sx1_machine_v2_machine_init)
+static const TypeInfo sx1_machine_v2_type = {
+    .name = MACHINE_TYPE_NAME("sx1"),
+    .parent = TYPE_MACHINE,
+    .class_init = sx1_machine_v2_class_init,
+};
 
-static void sx1_machine_v1_machine_init(MachineClass *mc)
+static void sx1_machine_v1_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Siemens SX1 (OMAP310) V1";
     mc->init = sx1_init_v1;
 }
 
-DEFINE_MACHINE("sx1-v1", sx1_machine_v1_machine_init)
+static const TypeInfo sx1_machine_v1_type = {
+    .name = MACHINE_TYPE_NAME("sx1-v1"),
+    .parent = TYPE_MACHINE,
+    .class_init = sx1_machine_v1_class_init,
+};
+
+static void sx1_machine_init(void)
+{
+    type_register_static(&sx1_machine_v1_type);
+    type_register_static(&sx1_machine_v2_type);
+}
+
+machine_init(sx1_machine_init)

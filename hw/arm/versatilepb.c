@@ -391,23 +391,43 @@ static void vab_init(MachineState *machine)
     versatile_init(machine, 0x25e);
 }
 
-static void versatilepb_machine_init(MachineClass *mc)
+static void versatilepb_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "ARM Versatile/PB (ARM926EJ-S)";
     mc->init = vpb_init;
     mc->block_default_type = IF_SCSI;
 }
 
-DEFINE_MACHINE("versatilepb", versatilepb_machine_init)
+static const TypeInfo versatilepb_type = {
+    .name = MACHINE_TYPE_NAME("versatilepb"),
+    .parent = TYPE_MACHINE,
+    .class_init = versatilepb_class_init,
+};
 
-static void versatileab_machine_init(MachineClass *mc)
+static void versatileab_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "ARM Versatile/AB (ARM926EJ-S)";
     mc->init = vab_init;
     mc->block_default_type = IF_SCSI;
 }
 
-DEFINE_MACHINE("versatileab", versatileab_machine_init)
+static const TypeInfo versatileab_type = {
+    .name = MACHINE_TYPE_NAME("versatileab"),
+    .parent = TYPE_MACHINE,
+    .class_init = versatileab_class_init,
+};
+
+static void versatile_machine_init(void)
+{
+    type_register_static(&versatilepb_type);
+    type_register_static(&versatileab_type);
+}
+
+machine_init(versatile_machine_init)
 
 static void vpb_sic_class_init(ObjectClass *klass, void *data)
 {

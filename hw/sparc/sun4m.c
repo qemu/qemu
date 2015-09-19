@@ -1420,8 +1420,10 @@ static void sbook_init(MachineState *machine)
     sun4m_hw_init(&sun4m_hwdefs[8], machine);
 }
 
-static void ss5_machine_init(MachineClass *mc)
+static void ss5_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCstation 5";
     mc->init = ss5_init;
     mc->block_default_type = IF_SCSI;
@@ -1429,10 +1431,16 @@ static void ss5_machine_init(MachineClass *mc)
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("SS-5", ss5_machine_init)
+static const TypeInfo ss5_type = {
+    .name = MACHINE_TYPE_NAME("SS-5"),
+    .parent = TYPE_MACHINE,
+    .class_init = ss5_class_init,
+};
 
-static void ss10_machine_init(MachineClass *mc)
+static void ss10_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCstation 10";
     mc->init = ss10_init;
     mc->block_default_type = IF_SCSI;
@@ -1440,10 +1448,16 @@ static void ss10_machine_init(MachineClass *mc)
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("SS-10", ss10_machine_init)
+static const TypeInfo ss10_type = {
+    .name = MACHINE_TYPE_NAME("SS-10"),
+    .parent = TYPE_MACHINE,
+    .class_init = ss10_class_init,
+};
 
-static void ss600mp_machine_init(MachineClass *mc)
+static void ss600mp_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCserver 600MP";
     mc->init = ss600mp_init;
     mc->block_default_type = IF_SCSI;
@@ -1451,10 +1465,16 @@ static void ss600mp_machine_init(MachineClass *mc)
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("SS-600MP", ss600mp_machine_init)
+static const TypeInfo ss600mp_type = {
+    .name = MACHINE_TYPE_NAME("SS-600MP"),
+    .parent = TYPE_MACHINE,
+    .class_init = ss600mp_class_init,
+};
 
-static void ss20_machine_init(MachineClass *mc)
+static void ss20_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCstation 20";
     mc->init = ss20_init;
     mc->block_default_type = IF_SCSI;
@@ -1462,57 +1482,91 @@ static void ss20_machine_init(MachineClass *mc)
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("SS-20", ss20_machine_init)
+static const TypeInfo ss20_type = {
+    .name = MACHINE_TYPE_NAME("SS-20"),
+    .parent = TYPE_MACHINE,
+    .class_init = ss20_class_init,
+};
 
-static void voyager_machine_init(MachineClass *mc)
+static void voyager_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCstation Voyager";
     mc->init = vger_init;
     mc->block_default_type = IF_SCSI;
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("Voyager", voyager_machine_init)
+static const TypeInfo voyager_type = {
+    .name = MACHINE_TYPE_NAME("Voyager"),
+    .parent = TYPE_MACHINE,
+    .class_init = voyager_class_init,
+};
 
-static void ss_lx_machine_init(MachineClass *mc)
+static void ss_lx_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCstation LX";
     mc->init = ss_lx_init;
     mc->block_default_type = IF_SCSI;
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("LX", ss_lx_machine_init)
+static const TypeInfo ss_lx_type = {
+    .name = MACHINE_TYPE_NAME("LX"),
+    .parent = TYPE_MACHINE,
+    .class_init = ss_lx_class_init,
+};
 
-static void ss4_machine_init(MachineClass *mc)
+static void ss4_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCstation 4";
     mc->init = ss4_init;
     mc->block_default_type = IF_SCSI;
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("SS-4", ss4_machine_init)
+static const TypeInfo ss4_type = {
+    .name = MACHINE_TYPE_NAME("SS-4"),
+    .parent = TYPE_MACHINE,
+    .class_init = ss4_class_init,
+};
 
-static void scls_machine_init(MachineClass *mc)
+static void scls_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCClassic";
     mc->init = scls_init;
     mc->block_default_type = IF_SCSI;
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("SPARCClassic", scls_machine_init)
+static const TypeInfo scls_type = {
+    .name = MACHINE_TYPE_NAME("SPARCClassic"),
+    .parent = TYPE_MACHINE,
+    .class_init = scls_class_init,
+};
 
-static void sbook_machine_init(MachineClass *mc)
+static void sbook_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4m platform, SPARCbook";
     mc->init = sbook_init;
     mc->block_default_type = IF_SCSI;
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("SPARCbook", sbook_machine_init)
+static const TypeInfo sbook_type = {
+    .name = MACHINE_TYPE_NAME("SPARCbook"),
+    .parent = TYPE_MACHINE,
+    .class_init = sbook_class_init,
+};
 
 static void sun4m_register_types(void)
 {
@@ -1522,4 +1576,18 @@ static void sun4m_register_types(void)
     type_register_static(&ram_info);
 }
 
+static void sun4m_machine_init(void)
+{
+    type_register_static(&ss5_type);
+    type_register_static(&ss10_type);
+    type_register_static(&ss600mp_type);
+    type_register_static(&ss20_type);
+    type_register_static(&voyager_type);
+    type_register_static(&ss_lx_type);
+    type_register_static(&ss4_type);
+    type_register_static(&scls_type);
+    type_register_static(&sbook_type);
+}
+
 type_init(sun4m_register_types)
+machine_init(sun4m_machine_init)

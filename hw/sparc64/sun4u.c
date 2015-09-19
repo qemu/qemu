@@ -965,8 +965,10 @@ static void niagara_init(MachineState *machine)
     sun4uv_init(get_system_memory(), machine, &hwdefs[2]);
 }
 
-static void sun4u_machine_init(MachineClass *mc)
+static void sun4u_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4u platform";
     mc->init = sun4u_init;
     mc->max_cpus = 1; /* XXX for now */
@@ -974,27 +976,43 @@ static void sun4u_machine_init(MachineClass *mc)
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("sun4u", sun4u_machine_init)
+static const TypeInfo sun4u_type = {
+    .name = MACHINE_TYPE_NAME("sun4u"),
+    .parent = TYPE_MACHINE,
+    .class_init = sun4u_class_init,
+};
 
-static void sun4v_machine_init(MachineClass *mc)
+static void sun4v_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4v platform";
     mc->init = sun4v_init;
     mc->max_cpus = 1; /* XXX for now */
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("sun4v", sun4v_machine_init)
+static const TypeInfo sun4v_type = {
+    .name = MACHINE_TYPE_NAME("sun4v"),
+    .parent = TYPE_MACHINE,
+    .class_init = sun4v_class_init,
+};
 
-static void niagara_machine_init(MachineClass *mc)
+static void niagara_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Sun4v platform, Niagara";
     mc->init = niagara_init;
     mc->max_cpus = 1; /* XXX for now */
     mc->default_boot_order = "c";
 }
 
-DEFINE_MACHINE("Niagara", niagara_machine_init)
+static const TypeInfo niagara_type = {
+    .name = MACHINE_TYPE_NAME("Niagara"),
+    .parent = TYPE_MACHINE,
+    .class_init = niagara_class_init,
+};
 
 static void sun4u_register_types(void)
 {
@@ -1003,4 +1021,12 @@ static void sun4u_register_types(void)
     type_register_static(&ram_info);
 }
 
+static void sun4u_machine_init(void)
+{
+    type_register_static(&sun4u_type);
+    type_register_static(&sun4v_type);
+    type_register_static(&niagara_type);
+}
+
 type_init(sun4u_register_types)
+machine_init(sun4u_machine_init)

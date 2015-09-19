@@ -972,37 +972,71 @@ static void terrier_init(MachineState *machine)
     spitz_common_init(machine, terrier, 0x33f);
 }
 
-static void akitapda_machine_init(MachineClass *mc)
+static void akitapda_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Akita PDA (PXA270)";
     mc->init = akita_init;
 }
 
-DEFINE_MACHINE("akita", akitapda_machine_init)
+static const TypeInfo akitapda_type = {
+    .name = MACHINE_TYPE_NAME("akita"),
+    .parent = TYPE_MACHINE,
+    .class_init = akitapda_class_init,
+};
 
-static void spitzpda_machine_init(MachineClass *mc)
+static void spitzpda_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Spitz PDA (PXA270)";
     mc->init = spitz_init;
 }
 
-DEFINE_MACHINE("spitz", spitzpda_machine_init)
+static const TypeInfo spitzpda_type = {
+    .name = MACHINE_TYPE_NAME("spitz"),
+    .parent = TYPE_MACHINE,
+    .class_init = spitzpda_class_init,
+};
 
-static void borzoipda_machine_init(MachineClass *mc)
+static void borzoipda_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Borzoi PDA (PXA270)";
     mc->init = borzoi_init;
 }
 
-DEFINE_MACHINE("borzoi", borzoipda_machine_init)
+static const TypeInfo borzoipda_type = {
+    .name = MACHINE_TYPE_NAME("borzoi"),
+    .parent = TYPE_MACHINE,
+    .class_init = borzoipda_class_init,
+};
 
-static void terrierpda_machine_init(MachineClass *mc)
+static void terrierpda_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Terrier PDA (PXA270)";
     mc->init = terrier_init;
 }
 
-DEFINE_MACHINE("terrier", terrierpda_machine_init)
+static const TypeInfo terrierpda_type = {
+    .name = MACHINE_TYPE_NAME("terrier"),
+    .parent = TYPE_MACHINE,
+    .class_init = terrierpda_class_init,
+};
+
+static void spitz_machine_init(void)
+{
+    type_register_static(&akitapda_type);
+    type_register_static(&spitzpda_type);
+    type_register_static(&borzoipda_type);
+    type_register_static(&terrierpda_type);
+}
+
+machine_init(spitz_machine_init)
 
 static bool is_version_0(void *opaque, int version_id)
 {

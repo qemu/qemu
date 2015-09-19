@@ -349,20 +349,40 @@ void mips_pica61_init(MachineState *machine)
     mips_jazz_init(machine, JAZZ_PICA61);
 }
 
-static void mips_magnum_machine_init(MachineClass *mc)
+static void mips_magnum_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "MIPS Magnum";
     mc->init = mips_magnum_init;
     mc->block_default_type = IF_SCSI;
 }
 
-DEFINE_MACHINE("magnum", mips_magnum_machine_init)
+static const TypeInfo mips_magnum_type = {
+    .name = MACHINE_TYPE_NAME("magnum"),
+    .parent = TYPE_MACHINE,
+    .class_init = mips_magnum_class_init,
+};
 
-static void mips_pica61_machine_init(MachineClass *mc)
+static void mips_pica61_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "Acer Pica 61";
     mc->init = mips_pica61_init;
     mc->block_default_type = IF_SCSI;
 }
 
-DEFINE_MACHINE("pica61", mips_pica61_machine_init)
+static const TypeInfo mips_pica61_type = {
+    .name = MACHINE_TYPE_NAME("pica61"),
+    .parent = TYPE_MACHINE,
+    .class_init = mips_pica61_class_init,
+};
+
+static void mips_jazz_machine_init(void)
+{
+    type_register_static(&mips_magnum_type);
+    type_register_static(&mips_pica61_type);
+}
+
+machine_init(mips_jazz_machine_init)
