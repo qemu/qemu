@@ -690,23 +690,15 @@ static inline void code_gen_alloc(size_t tb_size)
     }
 
     qemu_madvise(tcg_ctx.code_gen_buffer, tcg_ctx.code_gen_buffer_size,
-            QEMU_MADV_HUGEPAGE);
+                 QEMU_MADV_HUGEPAGE);
 
-    /* Steal room for the prologue at the end of the buffer.  This ensures
-       (via the MAX_CODE_GEN_BUFFER_SIZE limits above) that direct branches
-       from TB's to the prologue are going to be in range.  It also means
-       that we don't need to mark (additional) portions of the data segment
-       as executable.  */
-    tcg_ctx.code_gen_prologue = tcg_ctx.code_gen_buffer +
-            tcg_ctx.code_gen_buffer_size - 1024;
-    tcg_ctx.code_gen_buffer_size -= 1024;
+    /* Estimate a good size for the number of TBs we can support.  We
+       still haven't deducted the prologue from the buffer size here,
+       but that's minimal and won't affect the estimate much.  */
+    tcg_ctx.code_gen_max_blocks
+        = tcg_ctx.code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
+    tcg_ctx.tb_ctx.tbs = g_new(TranslationBlock, tcg_ctx.code_gen_max_blocks);
 
-    tcg_ctx.code_gen_buffer_max_size = tcg_ctx.code_gen_buffer_size -
-        (TCG_MAX_OP_SIZE * OPC_BUF_SIZE);
-    tcg_ctx.code_gen_max_blocks = tcg_ctx.code_gen_buffer_size /
-            CODE_GEN_AVG_BLOCK_SIZE;
-    tcg_ctx.tb_ctx.tbs =
-            g_malloc(tcg_ctx.code_gen_max_blocks * sizeof(TranslationBlock));
     qemu_mutex_init(&tcg_ctx.tb_ctx.tb_lock);
 }
 
@@ -717,8 +709,6 @@ void tcg_exec_init(unsigned long tb_size)
 {
     cpu_gen_init();
     code_gen_alloc(tb_size);
-    tcg_ctx.code_gen_ptr = tcg_ctx.code_gen_buffer;
-    tcg_register_jit(tcg_ctx.code_gen_buffer, tcg_ctx.code_gen_buffer_size);
     page_init();
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
