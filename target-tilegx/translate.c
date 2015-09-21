@@ -339,6 +339,25 @@ static TileExcp gen_st_add_opcode(DisasContext *dc, unsigned srca, unsigned srcb
     return TILEGX_EXCP_NONE;
 }
 
+static void gen_v4sh(TCGv d64, TCGv a64, TCGv b64,
+                     void (*generate)(TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 al = tcg_temp_new_i32();
+    TCGv_i32 ah = tcg_temp_new_i32();
+    TCGv_i32 bl = tcg_temp_new_i32();
+
+    tcg_gen_extr_i64_i32(al, ah, a64);
+    tcg_gen_extrl_i64_i32(bl, b64);
+    tcg_gen_andi_i32(bl, bl, 31);
+    generate(al, al, bl);
+    generate(ah, ah, bl);
+    tcg_gen_concat_i32_i64(d64, al, ah);
+
+    tcg_temp_free_i32(al);
+    tcg_temp_free_i32(ah);
+    tcg_temp_free_i32(bl);
+}
+
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
                               unsigned dest, unsigned srca)
 {
@@ -1144,12 +1163,22 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V2SADU, 0, X0):
     case OE_RRR(V2SHLSC, 0, X0):
     case OE_RRR(V2SHLSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2SHL, 0, X0):
     case OE_RRR(V2SHL, 0, X1):
+        gen_helper_v2shl(tdest, tsrca, tsrcb);
+        mnemonic = "v2shl";
+        break;
     case OE_RRR(V2SHRS, 0, X0):
     case OE_RRR(V2SHRS, 0, X1):
+        gen_helper_v2shrs(tdest, tsrca, tsrcb);
+        mnemonic = "v2shrs";
+        break;
     case OE_RRR(V2SHRU, 0, X0):
     case OE_RRR(V2SHRU, 0, X1):
+        gen_helper_v2shru(tdest, tsrca, tsrcb);
+        mnemonic = "v2shru";
+        break;
     case OE_RRR(V2SUBSC, 0, X0):
     case OE_RRR(V2SUBSC, 0, X1):
     case OE_RRR(V2SUB, 0, X0):
@@ -1174,12 +1203,22 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V4PACKSC, 0, X1):
     case OE_RRR(V4SHLSC, 0, X0):
     case OE_RRR(V4SHLSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V4SHL, 0, X0):
     case OE_RRR(V4SHL, 0, X1):
+        gen_v4sh(tdest, tsrca, tsrcb, tcg_gen_shl_i32);
+        mnemonic = "v4shl";
+        break;
     case OE_RRR(V4SHRS, 0, X0):
     case OE_RRR(V4SHRS, 0, X1):
+        gen_v4sh(tdest, tsrca, tsrcb, tcg_gen_sar_i32);
+        mnemonic = "v4shrs";
+        break;
     case OE_RRR(V4SHRU, 0, X0):
     case OE_RRR(V4SHRU, 0, X1):
+        gen_v4sh(tdest, tsrca, tsrcb, tcg_gen_shr_i32);
+        mnemonic = "v4shru";
+        break;
     case OE_RRR(V4SUBSC, 0, X0):
     case OE_RRR(V4SUBSC, 0, X1):
     case OE_RRR(V4SUB, 0, X0):
