@@ -419,9 +419,6 @@ if test "$debug_info" = "yes"; then
     LDFLAGS="-g $LDFLAGS"
 fi
 
-test_cflags=""
-test_libs=""
-
 # make source path absolute
 source_path=`cd "$source_path"; pwd`
 
@@ -2362,11 +2359,11 @@ fi
 # libtasn1 - only for the TLS creds/session test suite
 
 tasn1=yes
+tasn1_cflags=""
+tasn1_libs=""
 if $pkg_config --exists "libtasn1"; then
     tasn1_cflags=`$pkg_config --cflags libtasn1`
     tasn1_libs=`$pkg_config --libs libtasn1`
-    test_cflags="$test_cflags $tasn1_cflags"
-    test_libs="$test_libs $tasn1_libs"
 else
     tasn1=no
 fi
@@ -5408,8 +5405,8 @@ echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "DSOSUF=$DSOSUF" >> $config_host_mak
 echo "LDFLAGS_SHARED=$LDFLAGS_SHARED" >> $config_host_mak
 echo "LIBS_QGA+=$libs_qga" >> $config_host_mak
-echo "TEST_LIBS=$test_libs" >> $config_host_mak
-echo "TEST_CFLAGS=$test_cflags" >> $config_host_mak
+echo "TASN1_LIBS=$tasn1_libs" >> $config_host_mak
+echo "TASN1_CFLAGS=$tasn1_cflags" >> $config_host_mak
 echo "POD2MAN=$POD2MAN" >> $config_host_mak
 echo "TRANSLATE_OPT_CFLAGS=$TRANSLATE_OPT_CFLAGS" >> $config_host_mak
 if test "$gcov" = "yes" ; then
