@@ -408,7 +408,8 @@ void qemu_spice_display_switch(SimpleSpiceDisplay *ssd,
 
     if (surface && ssd->surface &&
         surface_width(surface) == pixman_image_get_width(ssd->surface) &&
-        surface_height(surface) == pixman_image_get_height(ssd->surface)) {
+        surface_height(surface) == pixman_image_get_height(ssd->surface) &&
+        surface_format(surface) == pixman_image_get_format(ssd->surface)) {
         /* no-resize fast path: just swap backing store */
         dprint(1, "%s/%d: fast (%dx%d)\n", __func__, ssd->qxl.id,
                surface_width(surface), surface_height(surface));
