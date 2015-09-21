@@ -11,8 +11,6 @@
 
 #define TYPE_HOST_POWERPC_CPU "host-" TYPE_POWERPC_CPU
 
-void kvmppc_init(void);
-
 #ifdef CONFIG_KVM
 
 uint32_t kvmppc_get_tbfreq(void);

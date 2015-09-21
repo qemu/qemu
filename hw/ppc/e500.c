@@ -1048,10 +1048,6 @@ void ppce500_init(MachineState *machine, PPCE500Params *params)
     boot_info->entry = bios_entry;
     boot_info->dt_base = dt_base;
     boot_info->dt_size = dt_size;
-
-    if (kvm_enabled()) {
-        kvmppc_init();
-    }
 }
 
 static int e500_ccsr_initfn(SysBusDevice *dev)

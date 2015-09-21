@@ -200,7 +200,7 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         /* Get rS/rD and rA from faulting opcode */
         env->spr[SPR_DSISR] |= (cpu_ldl_code(env, (env->nip - 4))
                                 & 0x03FF0000) >> 16;
-        goto store_current;
+        goto store_next;
     case POWERPC_EXCP_PROGRAM:   /* Program exception                        */
         switch (env->error_code & ~0xF) {
         case POWERPC_EXCP_FP:

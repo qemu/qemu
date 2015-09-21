@@ -288,9 +288,6 @@ static void bamboo_init(MachineState *machine)
             exit(1);
         }
     }
-
-    if (kvm_enabled())
-        kvmppc_init();
 }
 
 static void bamboo_machine_init(MachineClass *mc)
