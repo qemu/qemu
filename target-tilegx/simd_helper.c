@@ -28,6 +28,19 @@
 #define V2(X)      (((X) & 0xffff) * 0x0001000100010001ull)
 
 
+uint64_t helper_v1multu(uint64_t a, uint64_t b)
+{
+    uint64_t r = 0;
+    int i;
+
+    for (i = 0; i < 64; i += 8) {
+        unsigned ae = extract64(a, i, 8);
+        unsigned be = extract64(b, i, 8);
+        r = deposit64(r, i, 8, ae * be);
+    }
+    return r;
+}
+
 uint64_t helper_v1shl(uint64_t a, uint64_t b)
 {
     uint64_t m;

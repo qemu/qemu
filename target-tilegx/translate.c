@@ -1155,7 +1155,11 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V1MINU, 0, X1):
     case OE_RRR(V1MNZ, 0, X0):
     case OE_RRR(V1MNZ, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1MULTU, 0, X0):
+        gen_helper_v1multu(tdest, tsrca, tsrcb);
+        mnemonic = "v1multu";
+        break;
     case OE_RRR(V1MULUS, 0, X0):
     case OE_RRR(V1MULU, 0, X0):
     case OE_RRR(V1MZ, 0, X0):
