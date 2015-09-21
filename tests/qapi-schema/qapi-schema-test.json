@@ -44,8 +44,6 @@
   'data': { 'value1' : 'UserDefA',
             'value2' : 'UserDefB',
             'value3' : 'UserDefB' } }
-# FIXME generated struct UserDefFlatUnion has members for direct base
-# UserDefUnionBase, but lacks members for indirect base UserDefZero
 
 { 'struct': 'UserDefUnionBase',
   'base': 'UserDefZero',
@@ -62,7 +60,6 @@
 
 { 'alternate': 'UserDefAlternate',
   'data': { 'uda': 'UserDefA', 's': 'str', 'i': 'int' } }
-# FIXME only a declaration of visit_type_UserDefAlternateKind() generated
 
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
@@ -81,7 +78,8 @@
             'number': ['number'],
             'boolean': ['bool'],
             'string': ['str'],
-            'sizes': ['size'] } }
+            'sizes': ['size'],
+            'any': ['any'] } }
 
 # testing commands
 { 'command': 'user_def_cmd', 'data': {} }
@@ -91,6 +89,8 @@
   'returns': 'UserDefTwo' }
 { 'command': 'user_def_cmd3', 'data': {'a': 'int', '*b': 'int' },
   'returns': 'int' }
+# note: command name 'guest-sync' chosen to avoid "cannot use built-in" error
+{ 'command': 'guest-sync', 'data': { 'arg': 'any' }, 'returns': 'any' }
 
 # For testing integer range flattening in opts-visitor. The following schema
 # corresponds to the option format:
@@ -134,9 +134,6 @@
 { 'alternate': '__org.qemu_x-Alt',
   'data': { '__org.qemu_x-branch': 'str', 'b': '__org.qemu_x-Base' } }
 { 'event': '__ORG.QEMU_X-EVENT', 'data': '__org.qemu_x-Struct' }
-# FIXME generated qapi_event_send___org_qemu_x_event() has only a
-# parameter for data's member __org_qemu_x_member2, none for its base
-# __org.qemu_x-Base's member __org_qemu_x_member1
 { 'command': '__org.qemu_x-command',
   'data': { 'a': ['__org.qemu_x-Enum'], 'b': ['__org.qemu_x-Struct'],
             'c': '__org.qemu_x-Union2', 'd': '__org.qemu_x-Alt' },

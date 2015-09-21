@@ -286,6 +286,16 @@ static void qmp_input_type_number(Visitor *v, double *obj, const char *name,
     }
 }
 
+static void qmp_input_type_any(Visitor *v, QObject **obj, const char *name,
+                               Error **errp)
+{
+    QmpInputVisitor *qiv = to_qiv(v);
+    QObject *qobj = qmp_input_get_object(qiv, name, true);
+
+    qobject_incref(qobj);
+    *obj = qobj;
+}
+
 static void qmp_input_optional(Visitor *v, bool *present, const char *name,
                                Error **errp)
 {
@@ -329,6 +339,7 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
     v->visitor.type_bool = qmp_input_type_bool;
     v->visitor.type_str = qmp_input_type_str;
     v->visitor.type_number = qmp_input_type_number;
+    v->visitor.type_any = qmp_input_type_any;
     v->visitor.optional = qmp_input_optional;
     v->visitor.get_next_type = qmp_input_get_next_type;
 

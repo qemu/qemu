@@ -1,0 +1,273 @@
+# -*- Mode: Python -*-
+#
+# QAPI/QMP introspection
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# Authors:
+#  Markus Armbruster <armbru@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the COPYING file in the top-level directory.
+
+##
+# @query-qmp-schema
+#
+# Command query-qmp-schema exposes the QMP wire ABI as an array of
+# SchemaInfo.  This lets QMP clients figure out what commands and
+# events are available in this QEMU, and their parameters and results.
+#
+# However, the SchemaInfo can't reflect all the rules and restrictions
+# that apply to QMP.  It's interface introspection (figuring out
+# what's there), not interface specification.  The specification is in
+# the QAPI schema.
+#
+# Returns: array of @SchemaInfo, where each element describes an
+# entity in the ABI: command, event, type, ...
+#
+# Note: the QAPI schema is also used to help define *internal*
+# interfaces, by defining QAPI types.  These are not part of the QMP
+# wire ABI, and therefore not returned by this command.
+#
+# Since: 2.5
+##
+{ 'command': 'query-qmp-schema',
+  'returns': [ 'SchemaInfo' ],
+  'gen': false }                # just to simplify qmp_query_json()
+
+##
+# @SchemaMetaType
+#
+# This is a @SchemaInfo's meta type, i.e. the kind of entity it
+# describes.
+#
+# @builtin: a predefined type such as 'int' or 'bool'.
+#
+# @enum: an enumeration type
+#
+# @array: an array type
+#
+# @object: an object type (struct or union)
+#
+# @alternate: an alternate type
+#
+# @command: a QMP command
+#
+# @event: a QMP event
+#
+# Since: 2.5
+##
+{ 'enum': 'SchemaMetaType',
+  'data': [ 'builtin', 'enum', 'array', 'object', 'alternate',
+            'command', 'event' ] }
+
+##
+# @SchemaInfoBase
+#
+# Members common to any @SchemaInfo.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoBase',
+  'data': { 'name': 'str', 'meta-type': 'SchemaMetaType' } }
+
+##
+# @SchemaInfo
+#
+# @name: the entity's name, inherited from @base.
+#        Commands and events have the name defined in the QAPI schema.
+#        Unlike command and event names, type names are not part of
+#        the wire ABI.  Consequently, type names are meaningless
+#        strings here.
+#
+# All references to other SchemaInfo are by name.
+#
+# @meta-type: the entity's meta type, inherited from @base.
+#
+# Additional members depend on the value of @meta-type.
+#
+# Since: 2.5
+##
+{ 'union': 'SchemaInfo',
+  'base': 'SchemaInfoBase',
+  'discriminator': 'meta-type',
+  'data': {
+      'builtin': 'SchemaInfoBuiltin',
+      'enum': 'SchemaInfoEnum',
+      'array': 'SchemaInfoArray',
+      'object': 'SchemaInfoObject',
+      'alternate': 'SchemaInfoAlternate',
+      'command': 'SchemaInfoCommand',
+      'event': 'SchemaInfoEvent' } }
+
+##
+# @SchemaInfoBuiltin
+#
+# Additional SchemaInfo members for meta-type 'builtin'.
+#
+# @json-type: the JSON type used for this type on the wire.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoBuiltin',
+  'data': { 'json-type': 'JSONType' } }
+
+##
+# @JSONType
+#
+# The four primitive and two structured types according to RFC 7159
+# section 1, plus 'int' (split off 'number'), plus the obvious top
+# type 'value'.
+#
+# Since: 2.5
+##
+{ 'enum': 'JSONType',
+  'data': [ 'string', 'number', 'int', 'boolean', 'null',
+            'object', 'array', 'value' ] }
+
+##
+# @SchemaInfoEnum
+#
+# Additional SchemaInfo members for meta-type 'enum'.
+#
+# @values: the enumeration type's values.
+#
+# Values of this type are JSON string on the wire.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoEnum',
+  'data': { 'values': ['str'] } }
+
+##
+# @SchemaInfoArray
+#
+# Additional SchemaInfo members for meta-type 'array'.
+#
+# @element-type: the array type's element type.
+#
+# Values of this type are JSON array on the wire.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoArray',
+  'data': { 'element-type': 'str' } }
+
+##
+# @SchemaInfoObject
+#
+# Additional SchemaInfo members for meta-type 'object'.
+#
+# @members: the object type's (non-variant) members.
+#
+# @tag: #optional the name of the member serving as type tag.
+#       An element of @members with this name must exist.
+#
+# @variants: #optional variant members, i.e. additional members that
+#            depend on the type tag's value.  Present exactly when
+#            @tag is present.
+#
+# Values of this type are JSON object on the wire.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoObject',
+  'data': { 'members': [ 'SchemaInfoObjectMember' ],
+            '*tag': 'str',
+            '*variants': [ 'SchemaInfoObjectVariant' ] } }
+
+##
+# @SchemaInfoObjectMember
+#
+# An object member.
+#
+# @name: the member's name, as defined in the QAPI schema.
+#
+# @type: the name of the member's type.
+#
+# @default: #optional default when used as command parameter.
+#           If absent, the parameter is mandatory.
+#           If present, the value must be null.  The parameter is
+#           optional, and behavior when it's missing is not specified
+#           here.
+#           Future extension: if present and non-null, the parameter
+#           is optional, and defaults to this value.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoObjectMember',
+  'data': { 'name': 'str', 'type': 'str', '*default': 'any' } }
+# @default's type must be null or match @type
+
+##
+# @SchemaInfoObjectVariant
+#
+# The variant members for a value of the type tag.
+#
+# @case: a value of the type tag.
+#
+# @type: the name of the object type that provides the variant members
+#        when the type tag has value @case.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoObjectVariant',
+  'data': { 'case': 'str', 'type': 'str' } }
+
+##
+# @SchemaInfoAlternate
+#
+# Additional SchemaInfo members for meta-type 'alternate'.
+#
+# @members: the alternate type's members.
+#           The members' wire encoding is distinct, see
+#           docs/qapi-code-gen.txt section Alternate types.
+#
+# On the wire, this can be any of the members.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoAlternate',
+  'data': { 'members': [ 'SchemaInfoAlternateMember' ] } }
+
+##
+# @SchemaInfoAlternateMember
+#
+# An alternate member.
+#
+# @type: the name of the member's type.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoAlternateMember',
+  'data': { 'type': 'str' } }
+
+##
+# @SchemaInfoCommand
+#
+# Additional SchemaInfo members for meta-type 'command'.
+#
+# @arg-type: the name of the object type that provides the command's
+#            parameters.
+#
+# @ret-type: the name of the command's result type.
+#
+# TODO @success-response (currently irrelevant, because it's QGA, not QMP)
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoCommand',
+  'data': { 'arg-type': 'str', 'ret-type': 'str' } }
+
+##
+# @SchemaInfoEvent
+#
+# Additional SchemaInfo members for meta-type 'event'.
+#
+# @arg-type: the name of the object type that provides the event's
+#            parameters.
+#
+# Since: 2.5
+##
+{ 'struct': 'SchemaInfoEvent',
+  'data': { 'arg-type': 'str' } }

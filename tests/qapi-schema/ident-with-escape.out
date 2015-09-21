@@ -1,3 +1,5 @@
-[OrderedDict([('command', 'fooA'), ('data', OrderedDict([('bar1', 'str')]))])]
-[]
-[]
+object :empty
+object :obj-fooA-arg
+    member bar1: str optional=False
+command fooA :obj-fooA-arg -> None
+   gen=True success_response=True

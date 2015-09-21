@@ -51,6 +51,11 @@ int64_t qmp_user_def_cmd3(int64_t a, bool has_b, int64_t b, Error **errp)
     return a + (has_b ? b : 0);
 }
 
+QObject *qmp_guest_sync(QObject *arg, Error **errp)
+{
+    return arg;
+}
+
 __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
                                               __org_qemu_x_StructList *b,
                                               __org_qemu_x_Union2 *c,

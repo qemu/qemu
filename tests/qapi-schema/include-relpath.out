@@ -1,3 +1,2 @@
-[OrderedDict([('enum', 'Status'), ('data', ['good', 'bad', 'ugly'])])]
-[{'enum_name': 'Status', 'enum_values': ['good', 'bad', 'ugly']}]
-[]
+object :empty
+enum Status ['good', 'bad', 'ugly']

@@ -1,3 +1,5 @@
-[OrderedDict([('command', 'eins')]), OrderedDict([('command', 'zwei')])]
-[]
-[]
+object :empty
+command eins None -> None
+   gen=True success_response=True
+command zwei None -> None
+   gen=True success_response=True

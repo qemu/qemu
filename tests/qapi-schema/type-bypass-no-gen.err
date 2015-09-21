@@ -1,1 +1,0 @@
-tests/qapi-schema/type-bypass-no-gen.json:2: Member 'arg' of 'data' for command 'unsafe' uses '**' but did not request 'gen':false

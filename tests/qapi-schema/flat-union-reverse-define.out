@@ -1,9 +1,13 @@
-[OrderedDict([('union', 'TestUnion'), ('base', 'TestBase'), ('discriminator', 'enum1'), ('data', OrderedDict([('value1', 'TestTypeA'), ('value2', 'TestTypeB')]))]),
- OrderedDict([('struct', 'TestBase'), ('data', OrderedDict([('enum1', 'TestEnum')]))]),
- OrderedDict([('enum', 'TestEnum'), ('data', ['value1', 'value2'])]),
- OrderedDict([('struct', 'TestTypeA'), ('data', OrderedDict([('string', 'str')]))]),
- OrderedDict([('struct', 'TestTypeB'), ('data', OrderedDict([('integer', 'int')]))])]
-[{'enum_name': 'TestEnum', 'enum_values': ['value1', 'value2']}]
-[OrderedDict([('struct', 'TestBase'), ('data', OrderedDict([('enum1', 'TestEnum')]))]),
- OrderedDict([('struct', 'TestTypeA'), ('data', OrderedDict([('string', 'str')]))]),
- OrderedDict([('struct', 'TestTypeB'), ('data', OrderedDict([('integer', 'int')]))])]
+object :empty
+object TestBase
+    member enum1: TestEnum optional=False
+enum TestEnum ['value1', 'value2']
+object TestTypeA
+    member string: str optional=False
+object TestTypeB
+    member integer: int optional=False
+object TestUnion
+    base TestBase
+    tag enum1
+    case value1: TestTypeA
+    case value2: TestTypeB

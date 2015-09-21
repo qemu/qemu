@@ -1,0 +1,2 @@
+# we do not allow an 'any' argument
+{ 'command': 'oops', 'data': 'any' }

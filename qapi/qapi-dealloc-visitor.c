@@ -151,6 +151,14 @@ static void qapi_dealloc_type_number(Visitor *v, double *obj, const char *name,
 {
 }
 
+static void qapi_dealloc_type_anything(Visitor *v, QObject **obj,
+                                       const char *name, Error **errp)
+{
+    if (obj) {
+        qobject_decref(*obj);
+    }
+}
+
 static void qapi_dealloc_type_size(Visitor *v, uint64_t *obj, const char *name,
                                    Error **errp)
 {
@@ -216,6 +224,7 @@ QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
     v->visitor.type_bool = qapi_dealloc_type_bool;
     v->visitor.type_str = qapi_dealloc_type_str;
     v->visitor.type_number = qapi_dealloc_type_number;
+    v->visitor.type_any = qapi_dealloc_type_anything;
     v->visitor.type_size = qapi_dealloc_type_size;
     v->visitor.start_union = qapi_dealloc_start_union;
 

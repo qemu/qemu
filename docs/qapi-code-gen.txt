@@ -111,10 +111,7 @@ and field names within a type, should be all lower case with words
 separated by a hyphen.  However, some existing older commands and
 complex types use underscore; when extending such expressions,
 consistency is preferred over blindly avoiding underscore.  Event
-names should be ALL_CAPS with words separated by underscore.  The
-special string '**' appears for some commands that manually perform
-their own type checking rather than relying on the type-safe code
-produced by the qapi code generators.
+names should be ALL_CAPS with words separated by underscore.
 
 Any name (command, event, type, field, or enum value) beginning with
 "x-" is marked experimental, and may be withdrawn or changed
@@ -140,17 +137,25 @@ must have a value that forms a struct name.
 
 === Built-in Types ===
 
-The following types are built-in to the parser:
-  'str' - arbitrary UTF-8 string
-  'int' - 64-bit signed integer (although the C code may place further
-          restrictions on acceptable range)
-  'number' - floating point number
-  'bool' - JSON value of true or false
-  'int8', 'int16', 'int32', 'int64' - like 'int', but enforce maximum
-                                      bit size
-  'uint8', 'uint16', 'uint32', 'uint64' - unsigned counterparts
-  'size' - like 'uint64', but allows scaled suffix from command line
-           visitor
+The following types are predefined, and map to C as follows:
+
+  Schema    C          JSON
+  str       char *     any JSON string, UTF-8
+  number    double     any JSON number
+  int       int64_t    a JSON number without fractional part
+                       that fits into the C integer type
+  int8      int8_t     likewise
+  int16     int16_t    likewise
+  int32     int32_t    likewise
+  int64     int64_t    likewise
+  uint8     uint8_t    likewise
+  uint16    uint16_t   likewise
+  uint32    uint32_t   likewise
+  uint64    uint64_t   likewise
+  size      uint64_t   like uint64_t, except StringInputVisitor
+                       accepts size suffixes
+  bool      bool       JSON true or false
+  any       QObject *  any JSON value
 
 
 === Includes ===
@@ -453,17 +458,14 @@ which would validate this Client JSON Protocol transaction:
  <= { "return": [ { "value": "one" }, { } ] }
 
 In rare cases, QAPI cannot express a type-safe representation of a
-corresponding Client JSON Protocol command.  In these cases, if the
-command expression includes the key 'gen' with boolean value false,
-then the 'data' or 'returns' member that intends to bypass generated
-type-safety and do its own manual validation should use an inline
-dictionary definition, with a value of '**' rather than a valid type
-name for the keys that the generated code will not validate.  Please
-try to avoid adding new commands that rely on this, and instead use
-type-safe unions.  For an example of bypass usage:
+corresponding Client JSON Protocol command.  You then have to suppress
+generation of a marshalling function by including a key 'gen' with
+boolean value false, and instead write your own function.  Please try
+to avoid adding new commands that rely on this, and instead use
+type-safe unions.  For an example of this usage:
 
  { 'command': 'netdev_add',
-   'data': {'type': 'str', 'id': 'str', '*props': '**'},
+   'data': {'type': 'str', 'id': 'str'},
    'gen': false }
 
 Normally, the QAPI schema is used to describe synchronous exchanges,
@@ -500,13 +502,204 @@ Resulting in this JSON object:
   "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 
 
+== Client JSON Protocol introspection ==
+
+Clients of a Client JSON Protocol commonly need to figure out what
+exactly the server (QEMU) supports.
+
+For this purpose, QMP provides introspection via command
+query-qmp-schema.  QGA currently doesn't support introspection.
+
+query-qmp-schema returns a JSON array of SchemaInfo objects.  These
+objects together describe the wire ABI, as defined in the QAPI schema.
+
+However, the SchemaInfo can't reflect all the rules and restrictions
+that apply to QMP.  It's interface introspection (figuring out what's
+there), not interface specification.  The specification is in the QAPI
+schema.  To understand how QMP is to be used, you need to study the
+QAPI schema.
+
+Like any other command, query-qmp-schema is itself defined in the QAPI
+schema, along with the SchemaInfo type.  This text attempts to give an
+overview how things work.  For details you need to consult the QAPI
+schema.
+
+SchemaInfo objects have common members "name" and "meta-type", and
+additional variant members depending on the value of meta-type.
+
+Each SchemaInfo object describes a wire ABI entity of a certain
+meta-type: a command, event or one of several kinds of type.
+
+SchemaInfo for commands and events have the same name as in the QAPI
+schema.
+
+Command and event names are part of the wire ABI, but type names are
+not.  Therefore, the SchemaInfo for types have auto-generated
+meaningless names.  For readability, the examples in this section use
+meaningful type names instead.
+
+To examine a type, start with a command or event using it, then follow
+references by name.
+
+QAPI schema definitions not reachable that way are omitted.
+
+The SchemaInfo for a command has meta-type "command", and variant
+members "arg-type" and "ret-type".  On the wire, the "arguments"
+member of a client's "execute" command must conform to the object type
+named by "arg-type".  The "return" member that the server passes in a
+success response conforms to the type named by "ret-type".
+
+If the command takes no arguments, "arg-type" names an object type
+without members.  Likewise, if the command returns nothing, "ret-type"
+names an object type without members.
+
+Example: the SchemaInfo for command query-qmp-schema
+
+    { "name": "query-qmp-schema", "meta-type": "command",
+      "arg-type": ":empty", "ret-type": "SchemaInfoList" }
+
+    Type ":empty" is an object type without members, and type
+    "SchemaInfoList" is the array of SchemaInfo type.
+
+The SchemaInfo for an event has meta-type "event", and variant member
+"arg-type".  On the wire, a "data" member that the server passes in an
+event conforms to the object type named by "arg-type".
+
+If the event carries no additional information, "arg-type" names an
+object type without members.  The event may not have a data member on
+the wire then.
+
+Each command or event defined with dictionary-valued 'data' in the
+QAPI schema implicitly defines an object type.
+
+Example: the SchemaInfo for EVENT_C from section Events
+
+    { "name": "EVENT_C", "meta-type": "event",
+      "arg-type": ":obj-EVENT_C-arg" }
+
+    Type ":obj-EVENT_C-arg" is an implicitly defined object type with
+    the two members from the event's definition.
+
+The SchemaInfo for struct and union types has meta-type "object".
+
+The SchemaInfo for a struct type has variant member "members".
+
+The SchemaInfo for a union type additionally has variant members "tag"
+and "variants".
+
+"members" is a JSON array describing the object's common members, if
+any.  Each element is a JSON object with members "name" (the member's
+name), "type" (the name of its type), and optionally "default".  The
+member is optional if "default" is present.  Currently, "default" can
+only have value null.  Other values are reserved for future
+extensions.
+
+Example: the SchemaInfo for MyType from section Struct types
+
+    { "name": "MyType", "meta-type": "object",
+      "members": [
+          { "name": "member1", "type": "str" },
+          { "name": "member2", "type": "int" },
+          { "name": "member3", "type": "str", "default": null } ] }
+
+"tag" is the name of the common member serving as type tag.
+"variants" is a JSON array describing the object's variant members.
+Each element is a JSON object with members "case" (the value of type
+tag this element applies to) and "type" (the name of an object type
+that provides the variant members for this type tag value).
+
+Example: the SchemaInfo for flat union BlockdevOptions from section
+Union types
+
+    { "name": "BlockdevOptions", "meta-type": "object",
+      "members": [
+          { "name": "driver", "type": "BlockdevDriver" },
+          { "name": "readonly", "type": "bool"} ],
+      "tag": "driver",
+      "variants": [
+          { "case": "file", "type": "FileOptions" },
+          { "case": "qcow2", "type": "Qcow2Options" } ] }
+
+Note that base types are "flattened": its members are included in the
+"members" array.
+
+A simple union implicitly defines an enumeration type for its implicit
+discriminator (called "type" on the wire, see section Union types).
+
+A simple union implicitly defines an object type for each of its
+variants.
+
+Example: the SchemaInfo for simple union BlockdevOptions from section
+Union types
+
+    { "name": "BlockdevOptions", "meta-type": "object",
+      "members": [
+          { "name": "kind", "type": "BlockdevOptionsKind" } ],
+      "tag": "type",
+      "variants": [
+          { "case": "file", "type": ":obj-FileOptions-wrapper" },
+          { "case": "qcow2", "type": ":obj-Qcow2Options-wrapper" } ] }
+
+    Enumeration type "BlockdevOptionsKind" and the object types
+    ":obj-FileOptions-wrapper", ":obj-Qcow2Options-wrapper" are
+    implicitly defined.
+
+The SchemaInfo for an alternate type has meta-type "alternate", and
+variant member "members".  "members" is a JSON array.  Each element is
+a JSON object with member "type", which names a type.  Values of the
+alternate type conform to exactly one of its member types.
+
+Example: the SchemaInfo for BlockRef from section Alternate types
+
+    { "name": "BlockRef", "meta-type": "alternate",
+      "members": [
+          { "type": "BlockdevOptions" },
+          { "type": "str" } ] }
+
+The SchemaInfo for an array type has meta-type "array", and variant
+member "element-type", which names the array's element type.  Array
+types are implicitly defined.
+
+Example: the SchemaInfo for ['str']
+
+    { "name": "strList", "meta-type": "array",
+      "element-type": "str" }
+
+The SchemaInfo for an enumeration type has meta-type "enum" and
+variant member "values".
+
+Example: the SchemaInfo for MyEnum from section Enumeration types
+
+    { "name": "MyEnum", "meta-type": "enum",
+      "values": [ "value1", "value2", "value3" ] }
+
+The SchemaInfo for a built-in type has the same name as the type in
+the QAPI schema (see section Built-in Types), with one exception
+detailed below.  It has variant member "json-type" that shows how
+values of this type are encoded on the wire.
+
+Example: the SchemaInfo for str
+
+    { "name": "str", "meta-type": "builtin", "json-type": "string" }
+
+The QAPI schema supports a number of integer types that only differ in
+how they map to C.  They are identical as far as SchemaInfo is
+concerned.  Therefore, they get all mapped to a single type "int" in
+SchemaInfo.
+
+As explained above, type names are not part of the wire ABI.  Not even
+the names of built-in types.  Clients should examine member
+"json-type" instead of hard-coding names of built-in types.
+
+
 == Code generation ==
 
-Schemas are fed into 3 scripts to generate all the code/files that, paired
-with the core QAPI libraries, comprise everything required to take JSON
-commands read in by a Client JSON Protocol server, unmarshal the arguments into
-the underlying C types, call into the corresponding C function, and map the
-response back to a Client JSON Protocol response to be returned to the user.
+Schemas are fed into four scripts to generate all the code/files that,
+paired with the core QAPI libraries, comprise everything required to
+take JSON commands read in by a Client JSON Protocol server, unmarshal
+the arguments into the underlying C types, call into the corresponding
+C function, and map the response back to a Client JSON Protocol
+response to be returned to the user.
 
 As an example, we'll use the following schema, which describes a single
 complex user-defined type (which will produce a C struct, along with a list
@@ -545,22 +738,6 @@ Example:
     $ cat qapi-generated/example-qapi-types.c
 [Uninteresting stuff omitted...]
 
-    void qapi_free_UserDefOneList(UserDefOneList *obj)
-    {
-        QapiDeallocVisitor *md;
-        Visitor *v;
-
-        if (!obj) {
-            return;
-        }
-
-        md = qapi_dealloc_visitor_new();
-        v = qapi_dealloc_get_visitor(md);
-        visit_type_UserDefOneList(v, &obj, NULL, NULL);
-        qapi_dealloc_visitor_cleanup(md);
-    }
-
-
     void qapi_free_UserDefOne(UserDefOne *obj)
     {
         QapiDeallocVisitor *md;
@@ -575,6 +752,21 @@ Example:
         visit_type_UserDefOne(v, &obj, NULL, NULL);
         qapi_dealloc_visitor_cleanup(md);
     }
+
+    void qapi_free_UserDefOneList(UserDefOneList *obj)
+    {
+        QapiDeallocVisitor *md;
+        Visitor *v;
+
+        if (!obj) {
+            return;
+        }
+
+        md = qapi_dealloc_visitor_new();
+        v = qapi_dealloc_get_visitor(md);
+        visit_type_UserDefOneList(v, &obj, NULL, NULL);
+        qapi_dealloc_visitor_cleanup(md);
+    }
     $ cat qapi-generated/example-qapi-types.h
 [Uninteresting stuff omitted...]
 
@@ -585,24 +777,24 @@ Example:
 
     typedef struct UserDefOne UserDefOne;
 
-    typedef struct UserDefOneList {
-        union {
-            UserDefOne *value;
-            uint64_t padding;
-        };
-        struct UserDefOneList *next;
-    } UserDefOneList;
-
-
-[Functions on built-in types omitted...]
+    typedef struct UserDefOneList UserDefOneList;
 
     struct UserDefOne {
         int64_t integer;
         char *string;
     };
 
-    void qapi_free_UserDefOneList(UserDefOneList *obj);
     void qapi_free_UserDefOne(UserDefOne *obj);
+
+    struct UserDefOneList {
+        union {
+            UserDefOne *value;
+            uint64_t padding;
+        };
+        UserDefOneList *next;
+    };
+
+    void qapi_free_UserDefOneList(UserDefOneList *obj);
 
     #endif
 
@@ -722,7 +914,7 @@ Example:
     $ cat qapi-generated/example-qmp-marshal.c
 [Uninteresting stuff omitted...]
 
-    static void qmp_marshal_output_my_command(UserDefOne *ret_in, QObject **ret_out, Error **errp)
+    static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in, QObject **ret_out, Error **errp)
     {
         Error *local_err = NULL;
         QmpOutputVisitor *mo = qmp_output_visitor_new();
@@ -745,7 +937,7 @@ Example:
         qapi_dealloc_visitor_cleanup(md);
     }
 
-    static void qmp_marshal_input_my_command(QDict *args, QObject **ret, Error **errp)
+    static void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp)
     {
         Error *local_err = NULL;
         UserDefOne *retval;
@@ -765,7 +957,7 @@ Example:
             goto out;
         }
 
-        qmp_marshal_output_my_command(retval, ret, &local_err);
+        qmp_marshal_output_UserDefOne(retval, ret, &local_err);
 
     out:
         error_propagate(errp, local_err);
@@ -778,7 +970,7 @@ Example:
 
     static void qmp_init_marshal(void)
     {
-        qmp_register_command("my-command", qmp_marshal_input_my_command, QCO_NO_OPTIONS);
+        qmp_register_command("my-command", qmp_marshal_my_command, QCO_NO_OPTIONS);
     }
 
     qapi_init(qmp_init_marshal);
@@ -830,9 +1022,9 @@ Example:
         QDECREF(qmp);
     }
 
-    const char *example_QAPIEvent_lookup[] = {
-        "MY_EVENT",
-        NULL,
+    const char *const example_QAPIEvent_lookup[] = {
+        [EXAMPLE_QAPI_EVENT_MY_EVENT] = "MY_EVENT",
+        [EXAMPLE_QAPI_EVENT_MAX] = NULL,
     };
     $ cat qapi-generated/example-qapi-event.h
 [Uninteresting stuff omitted...]
@@ -847,10 +1039,45 @@ Example:
 
     void qapi_event_send_my_event(Error **errp);
 
-    extern const char *example_QAPIEvent_lookup[];
     typedef enum example_QAPIEvent {
         EXAMPLE_QAPI_EVENT_MY_EVENT = 0,
         EXAMPLE_QAPI_EVENT_MAX = 1,
     } example_QAPIEvent;
+
+    extern const char *const example_QAPIEvent_lookup[];
+
+    #endif
+
+=== scripts/qapi-introspect.py ===
+
+Used to generate the introspection C code for a schema. The following
+files are created:
+
+$(prefix)qmp-introspect.c - Defines a string holding a JSON
+                            description of the schema.
+$(prefix)qmp-introspect.h - Declares the above string.
+
+Example:
+
+    $ python scripts/qapi-introspect.py --output-dir="qapi-generated"
+    --prefix="example-" example-schema.json
+    $ cat qapi-generated/example-qmp-introspect.c
+[Uninteresting stuff omitted...]
+
+    const char example_qmp_schema_json[] = "["
+        "{\"arg-type\": \"0\", \"meta-type\": \"event\", \"name\": \"MY_EVENT\"}, "
+        "{\"arg-type\": \"1\", \"meta-type\": \"command\", \"name\": \"my-command\", \"ret-type\": \"2\"}, "
+        "{\"members\": [], \"meta-type\": \"object\", \"name\": \"0\"}, "
+        "{\"members\": [{\"name\": \"arg1\", \"type\": \"2\"}], \"meta-type\": \"object\", \"name\": \"1\"}, "
+        "{\"members\": [{\"name\": \"integer\", \"type\": \"int\"}, {\"name\": \"string\", \"type\": \"str\"}], \"meta-type\": \"object\", \"name\": \"2\"}, "
+        "{\"json-type\": \"int\", \"meta-type\": \"builtin\", \"name\": \"int\"}, "
+        "{\"json-type\": \"string\", \"meta-type\": \"builtin\", \"name\": \"str\"}]";
+    $ cat qapi-generated/example-qmp-introspect.h
+[Uninteresting stuff omitted...]
+
+    #ifndef EXAMPLE_QMP_INTROSPECT_H
+    #define EXAMPLE_QMP_INTROSPECT_H
+
+    extern const char example_qmp_schema_json[];
 
     #endif

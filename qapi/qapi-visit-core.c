@@ -260,6 +260,12 @@ void visit_type_number(Visitor *v, double *obj, const char *name, Error **errp)
     v->type_number(v, obj, name, errp);
 }
 
+void visit_type_any(Visitor *v, QObject **obj, const char *name,
+                    Error **errp)
+{
+    v->type_any(v, obj, name, errp);
+}
+
 void output_type_enum(Visitor *v, int *obj, const char * const strings[],
                       const char *kind, const char *name,
                       Error **errp)

@@ -33,12 +33,14 @@ builtin_types = {
     'uint32':   'QTYPE_QINT',
     'uint64':   'QTYPE_QINT',
     'size':     'QTYPE_QINT',
+    'any':      None,           # any qtype_code possible, actually
 }
 
 # Whitelist of commands allowed to return a non-dictionary
 returns_whitelist = [
     # From QMP:
     'human-monitor-command',
+    'qom-get',
     'query-migrate-cache-size',
     'query-tpm-models',
     'query-tpm-types',
@@ -103,7 +105,7 @@ class QAPIExprError(Exception):
         return error_path(self.info['parent']) + \
             "%s:%d: %s" % (self.info['file'], self.info['line'], self.msg)
 
-class QAPISchema:
+class QAPISchemaParser(object):
 
     def __init__(self, fp, previously_included = [], incl_info = None):
         abs_fname = os.path.abspath(fp.name)
@@ -149,8 +151,8 @@ class QAPISchema:
                 except IOError, e:
                     raise QAPIExprError(expr_info,
                                         '%s: %s' % (e.strerror, include))
-                exprs_include = QAPISchema(fobj, previously_included,
-                                           expr_info)
+                exprs_include = QAPISchemaParser(fobj, previously_included,
+                                                 expr_info)
                 self.exprs.extend(exprs_include.exprs)
             else:
                 expr_elem = {'expr': expr,
@@ -302,6 +304,8 @@ class QAPISchema:
 
 #
 # Semantic analysis of schema expressions
+# TODO fold into QAPISchema
+# TODO catching name collisions in generated code would be nice
 #
 
 def find_base_fields(base):
@@ -424,13 +428,10 @@ def is_enum(name):
 
 def check_type(expr_info, source, value, allow_array = False,
                allow_dict = False, allow_optional = False,
-               allow_star = False, allow_metas = []):
+               allow_metas = []):
     global all_names
 
     if value is None:
-        return
-
-    if allow_star and value == '**':
         return
 
     # Check if array type for value is okay
@@ -446,10 +447,6 @@ def check_type(expr_info, source, value, allow_array = False,
 
     # Check if type name for value is okay
     if isinstance(value, str):
-        if value == '**':
-            raise QAPIExprError(expr_info,
-                                "%s uses '**' but did not request 'gen':false"
-                                % source)
         if not value in all_names:
             raise QAPIExprError(expr_info,
                                 "%s uses unknown type '%s'"
@@ -475,7 +472,7 @@ def check_type(expr_info, source, value, allow_array = False,
         # Todo: allow dictionaries to represent default values of
         # an optional argument.
         check_type(expr_info, "Member '%s' of %s" % (key, source), arg,
-                   allow_array=True, allow_star=allow_star,
+                   allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
 
@@ -495,18 +492,16 @@ def check_member_clash(expr_info, base_name, data, source = ""):
 
 def check_command(expr, expr_info):
     name = expr['command']
-    allow_star = expr.has_key('gen')
 
     check_type(expr_info, "'data' for command '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
-               allow_metas=['struct'], allow_star=allow_star)
+               allow_metas=['struct'])
     returns_meta = ['union', 'struct']
     if name in returns_whitelist:
         returns_meta += ['built-in', 'alternate', 'enum']
     check_type(expr_info, "'returns' for command '%s'" % name,
                expr.get('returns'), allow_array=True,
-               allow_optional=True, allow_metas=returns_meta,
-               allow_star=allow_star)
+               allow_optional=True, allow_metas=returns_meta)
 
 def check_event(expr, expr_info):
     global events
@@ -751,36 +746,538 @@ def check_exprs(exprs):
         else:
             assert False, 'unexpected meta type'
 
-    return map(lambda expr_elem: expr_elem['expr'], exprs)
+    return exprs
 
-def parse_schema(fname):
-    try:
-        schema = QAPISchema(open(fname, "r"))
-        return check_exprs(schema.exprs)
-    except (QAPISchemaError, QAPIExprError), e:
-        print >>sys.stderr, e
-        exit(1)
+
+#
+# Schema compiler frontend
+#
+
+class QAPISchemaEntity(object):
+    def __init__(self, name, info):
+        assert isinstance(name, str)
+        self.name = name
+        self.info = info
+
+    def c_name(self):
+        return c_name(self.name)
+
+    def check(self, schema):
+        pass
+
+    def visit(self, visitor):
+        pass
+
+
+class QAPISchemaVisitor(object):
+    def visit_begin(self, schema):
+        pass
+
+    def visit_end(self):
+        pass
+
+    def visit_builtin_type(self, name, info, json_type):
+        pass
+
+    def visit_enum_type(self, name, info, values, prefix):
+        pass
+
+    def visit_array_type(self, name, info, element_type):
+        pass
+
+    def visit_object_type(self, name, info, base, members, variants):
+        pass
+
+    def visit_object_type_flat(self, name, info, members, variants):
+        pass
+
+    def visit_alternate_type(self, name, info, variants):
+        pass
+
+    def visit_command(self, name, info, arg_type, ret_type,
+                      gen, success_response):
+        pass
+
+    def visit_event(self, name, info, arg_type):
+        pass
+
+
+class QAPISchemaType(QAPISchemaEntity):
+    def c_type(self, is_param=False):
+        return c_name(self.name) + pointer_suffix
+
+    def c_null(self):
+        return 'NULL'
+
+    def json_type(self):
+        pass
+
+    def alternate_qtype(self):
+        json2qtype = {
+            'string':  'QTYPE_QSTRING',
+            'number':  'QTYPE_QFLOAT',
+            'int':     'QTYPE_QINT',
+            'boolean': 'QTYPE_QBOOL',
+            'object':  'QTYPE_QDICT'
+        }
+        return json2qtype.get(self.json_type())
+
+
+class QAPISchemaBuiltinType(QAPISchemaType):
+    def __init__(self, name, json_type, c_type, c_null):
+        QAPISchemaType.__init__(self, name, None)
+        assert not c_type or isinstance(c_type, str)
+        assert json_type in ('string', 'number', 'int', 'boolean', 'null',
+                             'value')
+        self._json_type_name = json_type
+        self._c_type_name = c_type
+        self._c_null_val = c_null
+
+    def c_name(self):
+        return self.name
+
+    def c_type(self, is_param=False):
+        if is_param and self.name == 'str':
+            return 'const ' + self._c_type_name
+        return self._c_type_name
+
+    def c_null(self):
+        return self._c_null_val
+
+    def json_type(self):
+        return self._json_type_name
+
+    def visit(self, visitor):
+        visitor.visit_builtin_type(self.name, self.info, self.json_type())
+
+
+class QAPISchemaEnumType(QAPISchemaType):
+    def __init__(self, name, info, values, prefix):
+        QAPISchemaType.__init__(self, name, info)
+        for v in values:
+            assert isinstance(v, str)
+        assert prefix is None or isinstance(prefix, str)
+        self.values = values
+        self.prefix = prefix
+
+    def check(self, schema):
+        assert len(set(self.values)) == len(self.values)
+
+    def c_type(self, is_param=False):
+        return c_name(self.name)
+
+    def c_null(self):
+        return c_enum_const(self.name, (self.values + ['MAX'])[0],
+                            self.prefix)
+
+    def json_type(self):
+        return 'string'
+
+    def visit(self, visitor):
+        visitor.visit_enum_type(self.name, self.info,
+                                self.values, self.prefix)
+
+
+class QAPISchemaArrayType(QAPISchemaType):
+    def __init__(self, name, info, element_type):
+        QAPISchemaType.__init__(self, name, info)
+        assert isinstance(element_type, str)
+        self._element_type_name = element_type
+        self.element_type = None
+
+    def check(self, schema):
+        self.element_type = schema.lookup_type(self._element_type_name)
+        assert self.element_type
+
+    def json_type(self):
+        return 'array'
+
+    def visit(self, visitor):
+        visitor.visit_array_type(self.name, self.info, self.element_type)
+
+
+class QAPISchemaObjectType(QAPISchemaType):
+    def __init__(self, name, info, base, local_members, variants):
+        QAPISchemaType.__init__(self, name, info)
+        assert base is None or isinstance(base, str)
+        for m in local_members:
+            assert isinstance(m, QAPISchemaObjectTypeMember)
+        assert (variants is None or
+                isinstance(variants, QAPISchemaObjectTypeVariants))
+        self._base_name = base
+        self.base = None
+        self.local_members = local_members
+        self.variants = variants
+        self.members = None
+
+    def check(self, schema):
+        assert self.members is not False        # not running in cycles
+        if self.members:
+            return
+        self.members = False                    # mark as being checked
+        if self._base_name:
+            self.base = schema.lookup_type(self._base_name)
+            assert isinstance(self.base, QAPISchemaObjectType)
+            assert not self.base.variants       # not implemented
+            self.base.check(schema)
+            members = list(self.base.members)
+        else:
+            members = []
+        seen = {}
+        for m in members:
+            seen[m.name] = m
+        for m in self.local_members:
+            m.check(schema, members, seen)
+        if self.variants:
+            self.variants.check(schema, members, seen)
+        self.members = members
+
+    def c_name(self):
+        assert self.info
+        return QAPISchemaType.c_name(self)
+
+    def c_type(self, is_param=False):
+        assert self.info
+        return QAPISchemaType.c_type(self)
+
+    def json_type(self):
+        return 'object'
+
+    def visit(self, visitor):
+        visitor.visit_object_type(self.name, self.info,
+                                  self.base, self.local_members, self.variants)
+        visitor.visit_object_type_flat(self.name, self.info,
+                                       self.members, self.variants)
+
+
+class QAPISchemaObjectTypeMember(object):
+    def __init__(self, name, typ, optional):
+        assert isinstance(name, str)
+        assert isinstance(typ, str)
+        assert isinstance(optional, bool)
+        self.name = name
+        self._type_name = typ
+        self.type = None
+        self.optional = optional
+
+    def check(self, schema, all_members, seen):
+        assert self.name not in seen
+        self.type = schema.lookup_type(self._type_name)
+        assert self.type
+        all_members.append(self)
+        seen[self.name] = self
+
+
+class QAPISchemaObjectTypeVariants(object):
+    def __init__(self, tag_name, tag_enum, variants):
+        assert tag_name is None or isinstance(tag_name, str)
+        assert tag_enum is None or isinstance(tag_enum, str)
+        for v in variants:
+            assert isinstance(v, QAPISchemaObjectTypeVariant)
+        self.tag_name = tag_name
+        if tag_name:
+            assert not tag_enum
+            self.tag_member = None
+        else:
+            self.tag_member = QAPISchemaObjectTypeMember('type', tag_enum,
+                                                         False)
+        self.variants = variants
+
+    def check(self, schema, members, seen):
+        if self.tag_name:
+            self.tag_member = seen[self.tag_name]
+        else:
+            self.tag_member.check(schema, members, seen)
+        assert isinstance(self.tag_member.type, QAPISchemaEnumType)
+        for v in self.variants:
+            vseen = dict(seen)
+            v.check(schema, self.tag_member.type, vseen)
+
+class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
+    def __init__(self, name, typ):
+        QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
+
+    def check(self, schema, tag_type, seen):
+        QAPISchemaObjectTypeMember.check(self, schema, [], seen)
+        assert self.name in tag_type.values
+
+    # This function exists to support ugly simple union special cases
+    # TODO get rid of them, and drop the function
+    def simple_union_type(self):
+        if isinstance(self.type, QAPISchemaObjectType) and not self.type.info:
+            assert len(self.type.members) == 1
+            assert not self.type.variants
+            return self.type.members[0].type
+        return None
+
+
+class QAPISchemaAlternateType(QAPISchemaType):
+    def __init__(self, name, info, variants):
+        QAPISchemaType.__init__(self, name, info)
+        assert isinstance(variants, QAPISchemaObjectTypeVariants)
+        assert not variants.tag_name
+        self.variants = variants
+
+    def check(self, schema):
+        self.variants.check(schema, [], {})
+
+    def json_type(self):
+        return 'value'
+
+    def visit(self, visitor):
+        visitor.visit_alternate_type(self.name, self.info, self.variants)
+
+
+class QAPISchemaCommand(QAPISchemaEntity):
+    def __init__(self, name, info, arg_type, ret_type, gen, success_response):
+        QAPISchemaEntity.__init__(self, name, info)
+        assert not arg_type or isinstance(arg_type, str)
+        assert not ret_type or isinstance(ret_type, str)
+        self._arg_type_name = arg_type
+        self.arg_type = None
+        self._ret_type_name = ret_type
+        self.ret_type = None
+        self.gen = gen
+        self.success_response = success_response
+
+    def check(self, schema):
+        if self._arg_type_name:
+            self.arg_type = schema.lookup_type(self._arg_type_name)
+            assert isinstance(self.arg_type, QAPISchemaObjectType)
+            assert not self.arg_type.variants   # not implemented
+        if self._ret_type_name:
+            self.ret_type = schema.lookup_type(self._ret_type_name)
+            assert isinstance(self.ret_type, QAPISchemaType)
+
+    def visit(self, visitor):
+        visitor.visit_command(self.name, self.info,
+                              self.arg_type, self.ret_type,
+                              self.gen, self.success_response)
+
+
+class QAPISchemaEvent(QAPISchemaEntity):
+    def __init__(self, name, info, arg_type):
+        QAPISchemaEntity.__init__(self, name, info)
+        assert not arg_type or isinstance(arg_type, str)
+        self._arg_type_name = arg_type
+        self.arg_type = None
+
+    def check(self, schema):
+        if self._arg_type_name:
+            self.arg_type = schema.lookup_type(self._arg_type_name)
+            assert isinstance(self.arg_type, QAPISchemaObjectType)
+            assert not self.arg_type.variants   # not implemented
+
+    def visit(self, visitor):
+        visitor.visit_event(self.name, self.info, self.arg_type)
+
+
+class QAPISchema(object):
+    def __init__(self, fname):
+        try:
+            self.exprs = check_exprs(QAPISchemaParser(open(fname, "r")).exprs)
+        except (QAPISchemaError, QAPIExprError), err:
+            print >>sys.stderr, err
+            exit(1)
+        self._entity_dict = {}
+        self._def_predefineds()
+        self._def_exprs()
+        self.check()
+
+    def _def_entity(self, ent):
+        assert ent.name not in self._entity_dict
+        self._entity_dict[ent.name] = ent
+
+    def lookup_entity(self, name, typ=None):
+        ent = self._entity_dict.get(name)
+        if typ and not isinstance(ent, typ):
+            return None
+        return ent
+
+    def lookup_type(self, name):
+        return self.lookup_entity(name, QAPISchemaType)
+
+    def _def_builtin_type(self, name, json_type, c_type, c_null):
+        self._def_entity(QAPISchemaBuiltinType(name, json_type,
+                                               c_type, c_null))
+        self._make_array_type(name)     # TODO really needed?
+
+    def _def_predefineds(self):
+        for t in [('str',    'string',  'char' + pointer_suffix, 'NULL'),
+                  ('number', 'number',  'double',   '0'),
+                  ('int',    'int',     'int64_t',  '0'),
+                  ('int8',   'int',     'int8_t',   '0'),
+                  ('int16',  'int',     'int16_t',  '0'),
+                  ('int32',  'int',     'int32_t',  '0'),
+                  ('int64',  'int',     'int64_t',  '0'),
+                  ('uint8',  'int',     'uint8_t',  '0'),
+                  ('uint16', 'int',     'uint16_t', '0'),
+                  ('uint32', 'int',     'uint32_t', '0'),
+                  ('uint64', 'int',     'uint64_t', '0'),
+                  ('size',   'int',     'uint64_t', '0'),
+                  ('bool',   'boolean', 'bool',     'false'),
+                  ('any',    'value',   'QObject' + pointer_suffix, 'NULL')]:
+            self._def_builtin_type(*t)
+        self.the_empty_object_type = QAPISchemaObjectType(':empty', None, None,
+                                                          [], None)
+        self._def_entity(self.the_empty_object_type)
+
+    def _make_implicit_enum_type(self, name, values):
+        name = name + 'Kind'
+        self._def_entity(QAPISchemaEnumType(name, None, values, None))
+        return name
+
+    def _make_array_type(self, element_type):
+        name = element_type + 'List'
+        if not self.lookup_type(name):
+            self._def_entity(QAPISchemaArrayType(name, None, element_type))
+        return name
+
+    def _make_implicit_object_type(self, name, role, members):
+        if not members:
+            return None
+        name = ':obj-%s-%s' % (name, role)
+        if not self.lookup_entity(name, QAPISchemaObjectType):
+            self._def_entity(QAPISchemaObjectType(name, None, None,
+                                                  members, None))
+        return name
+
+    def _def_enum_type(self, expr, info):
+        name = expr['enum']
+        data = expr['data']
+        prefix = expr.get('prefix')
+        self._def_entity(QAPISchemaEnumType(name, info, data, prefix))
+        self._make_array_type(name)     # TODO really needed?
+
+    def _make_member(self, name, typ):
+        optional = False
+        if name.startswith('*'):
+            name = name[1:]
+            optional = True
+        if isinstance(typ, list):
+            assert len(typ) == 1
+            typ = self._make_array_type(typ[0])
+        return QAPISchemaObjectTypeMember(name, typ, optional)
+
+    def _make_members(self, data):
+        return [self._make_member(key, value)
+                for (key, value) in data.iteritems()]
+
+    def _def_struct_type(self, expr, info):
+        name = expr['struct']
+        base = expr.get('base')
+        data = expr['data']
+        self._def_entity(QAPISchemaObjectType(name, info, base,
+                                              self._make_members(data),
+                                              None))
+        self._make_array_type(name)     # TODO really needed?
+
+    def _make_variant(self, case, typ):
+        return QAPISchemaObjectTypeVariant(case, typ)
+
+    def _make_simple_variant(self, case, typ):
+        if isinstance(typ, list):
+            assert len(typ) == 1
+            typ = self._make_array_type(typ[0])
+        typ = self._make_implicit_object_type(typ, 'wrapper',
+                                              [self._make_member('data', typ)])
+        return QAPISchemaObjectTypeVariant(case, typ)
+
+    def _make_tag_enum(self, type_name, variants):
+        return self._make_implicit_enum_type(type_name,
+                                             [v.name for v in variants])
+
+    def _def_union_type(self, expr, info):
+        name = expr['union']
+        data = expr['data']
+        base = expr.get('base')
+        tag_name = expr.get('discriminator')
+        tag_enum = None
+        if tag_name:
+            variants = [self._make_variant(key, value)
+                        for (key, value) in data.iteritems()]
+        else:
+            variants = [self._make_simple_variant(key, value)
+                        for (key, value) in data.iteritems()]
+            tag_enum = self._make_tag_enum(name, variants)
+        self._def_entity(
+            QAPISchemaObjectType(name, info, base,
+                                 self._make_members(OrderedDict()),
+                                 QAPISchemaObjectTypeVariants(tag_name,
+                                                              tag_enum,
+                                                              variants)))
+        self._make_array_type(name)     # TODO really needed?
+
+    def _def_alternate_type(self, expr, info):
+        name = expr['alternate']
+        data = expr['data']
+        variants = [self._make_variant(key, value)
+                    for (key, value) in data.iteritems()]
+        tag_enum = self._make_tag_enum(name, variants)
+        self._def_entity(
+            QAPISchemaAlternateType(name, info,
+                                    QAPISchemaObjectTypeVariants(None,
+                                                                 tag_enum,
+                                                                 variants)))
+        self._make_array_type(name)     # TODO really needed?
+
+    def _def_command(self, expr, info):
+        name = expr['command']
+        data = expr.get('data')
+        rets = expr.get('returns')
+        gen = expr.get('gen', True)
+        success_response = expr.get('success-response', True)
+        if isinstance(data, OrderedDict):
+            data = self._make_implicit_object_type(name, 'arg',
+                                                   self._make_members(data))
+        if isinstance(rets, list):
+            assert len(rets) == 1
+            rets = self._make_array_type(rets[0])
+        self._def_entity(QAPISchemaCommand(name, info, data, rets, gen,
+                                           success_response))
+
+    def _def_event(self, expr, info):
+        name = expr['event']
+        data = expr.get('data')
+        if isinstance(data, OrderedDict):
+            data = self._make_implicit_object_type(name, 'arg',
+                                                   self._make_members(data))
+        self._def_entity(QAPISchemaEvent(name, info, data))
+
+    def _def_exprs(self):
+        for expr_elem in self.exprs:
+            expr = expr_elem['expr']
+            info = expr_elem['info']
+            if 'enum' in expr:
+                self._def_enum_type(expr, info)
+            elif 'struct' in expr:
+                self._def_struct_type(expr, info)
+            elif 'union' in expr:
+                self._def_union_type(expr, info)
+            elif 'alternate' in expr:
+                self._def_alternate_type(expr, info)
+            elif 'command' in expr:
+                self._def_command(expr, info)
+            elif 'event' in expr:
+                self._def_event(expr, info)
+            else:
+                assert False
+
+    def check(self):
+        for ent in self._entity_dict.values():
+            ent.check(self)
+
+    def visit(self, visitor):
+        ignore = visitor.visit_begin(self)
+        for name in sorted(self._entity_dict.keys()):
+            if not ignore or not isinstance(self._entity_dict[name], ignore):
+                self._entity_dict[name].visit(visitor)
+        visitor.visit_end()
+
 
 #
 # Code generation helpers
 #
-
-def parse_args(typeinfo):
-    if isinstance(typeinfo, str):
-        struct = find_struct(typeinfo)
-        assert struct != None
-        typeinfo = struct['data']
-
-    for member in typeinfo:
-        argname = member
-        argentry = typeinfo[member]
-        optional = False
-        if member.startswith('*'):
-            argname = member[1:]
-            optional = True
-        # Todo: allow argentry to be OrderedDict, for providing the
-        # value of an optional argument.
-        yield (argname, argentry, optional)
 
 def camel_case(name):
     new_name = ''
@@ -864,69 +1361,8 @@ def c_name(name, protect=True):
         return "q_" + name
     return name.translate(c_name_trans)
 
-# Map type @name to the C typedef name for the list form.
-#
-# ['Name'] -> 'NameList', ['x-Foo'] -> 'x_FooList', ['int'] -> 'intList'
-def c_list_type(name):
-    return type_name(name) + 'List'
-
-# Map type @value to the C typedef form.
-#
-# Used for converting 'type' from a 'member':'type' qapi definition
-# into the alphanumeric portion of the type for a generated C parameter,
-# as well as generated C function names.  See c_type() for the rest of
-# the conversion such as adding '*' on pointer types.
-# 'int' -> 'int', '[x-Foo]' -> 'x_FooList', '__a.b_c' -> '__a_b_c'
-def type_name(value):
-    if type(value) == list:
-        return c_list_type(value[0])
-    if value in builtin_types.keys():
-        return value
-    return c_name(value)
-
 eatspace = '\033EATSPACE.'
 pointer_suffix = ' *' + eatspace
-
-# Map type @name to its C type expression.
-# If @is_param, const-qualify the string type.
-#
-# This function is used for computing the full C type of 'member':'name'.
-# A special suffix is added in c_type() for pointer types, and it's
-# stripped in mcgen(). So please notice this when you check the return
-# value of c_type() outside mcgen().
-def c_type(value, is_param=False):
-    if value == 'str':
-        if is_param:
-            return 'const char' + pointer_suffix
-        return 'char' + pointer_suffix
-
-    elif value == 'int':
-        return 'int64_t'
-    elif (value == 'int8' or value == 'int16' or value == 'int32' or
-          value == 'int64' or value == 'uint8' or value == 'uint16' or
-          value == 'uint32' or value == 'uint64'):
-        return value + '_t'
-    elif value == 'size':
-        return 'uint64_t'
-    elif value == 'bool':
-        return 'bool'
-    elif value == 'number':
-        return 'double'
-    elif type(value) == list:
-        return c_list_type(value[0]) + pointer_suffix
-    elif is_enum(value):
-        return c_name(value)
-    elif value == None:
-        return 'void'
-    elif value in events:
-        return camel_case(value) + 'Event' + pointer_suffix
-    else:
-        # complex type name
-        assert isinstance(value, str) and value != ""
-        return c_name(value) + pointer_suffix
-
-def is_c_ptr(value):
-    return c_type(value).endswith(pointer_suffix)
 
 def genindent(count):
     ret = ""
@@ -981,6 +1417,74 @@ def guardend(name):
 
 ''',
                  name=guardname(name))
+
+def gen_enum_lookup(name, values, prefix=None):
+    ret = mcgen('''
+
+const char *const %(c_name)s_lookup[] = {
+''',
+                c_name=c_name(name))
+    for value in values:
+        index = c_enum_const(name, value, prefix)
+        ret += mcgen('''
+    [%(index)s] = "%(value)s",
+''',
+                     index=index, value=value)
+
+    max_index = c_enum_const(name, 'MAX', prefix)
+    ret += mcgen('''
+    [%(max_index)s] = NULL,
+};
+''',
+                 max_index=max_index)
+    return ret
+
+def gen_enum(name, values, prefix=None):
+    # append automatically generated _MAX value
+    enum_values = values + ['MAX']
+
+    ret = mcgen('''
+
+typedef enum %(c_name)s {
+''',
+                c_name=c_name(name))
+
+    i = 0
+    for value in enum_values:
+        ret += mcgen('''
+    %(c_enum)s = %(i)d,
+''',
+                     c_enum=c_enum_const(name, value, prefix),
+                     i=i)
+        i += 1
+
+    ret += mcgen('''
+} %(c_name)s;
+''',
+                 c_name=c_name(name))
+
+    ret += mcgen('''
+
+extern const char *const %(c_name)s_lookup[];
+''',
+                 c_name=c_name(name))
+    return ret
+
+def gen_params(arg_type, extra):
+    if not arg_type:
+        return extra
+    assert not arg_type.variants
+    ret = ''
+    sep = ''
+    for memb in arg_type.members:
+        ret += sep
+        sep = ', '
+        if memb.optional:
+            ret += 'bool has_%s, ' % c_name(memb.name)
+        ret += '%s %s' % (memb.type.c_type(is_param=True), c_name(memb.name))
+    if extra:
+        ret += sep + extra
+    return ret
 
 #
 # Common command line parsing

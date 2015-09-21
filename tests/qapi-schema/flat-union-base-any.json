@@ -6,7 +6,7 @@
 { 'struct': 'TestTypeB',
   'data': { 'integer': 'int' } }
 { 'union': 'TestUnion',
-  'base': '**',
+  'base': 'any',
   'discriminator': 'enum1',
   'data': { 'value1': 'TestTypeA',
             'value2': 'TestTypeB' } }

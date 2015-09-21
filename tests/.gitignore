@@ -35,6 +35,7 @@ test-qmp-commands.h
 test-qmp-event
 test-qmp-input-strict
 test-qmp-input-visitor
+test-qmp-introspect.[ch]
 test-qmp-marshal.c
 test-qmp-output-visitor
 test-rcu-list

@@ -1,3 +1,2 @@
-[OrderedDict([('event', 'oops')])]
-[]
-[]
+object :empty
+event oops None

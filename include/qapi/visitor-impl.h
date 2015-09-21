@@ -40,6 +40,8 @@ struct Visitor
     void (*type_str)(Visitor *v, char **obj, const char *name, Error **errp);
     void (*type_number)(Visitor *v, double *obj, const char *name,
                         Error **errp);
+    void (*type_any)(Visitor *v, QObject **obj, const char *name,
+                     Error **errp);
 
     /* May be NULL */
     void (*optional)(Visitor *v, bool *present, const char *name,

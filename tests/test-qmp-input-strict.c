@@ -19,6 +19,9 @@
 #include "test-qapi-types.h"
 #include "test-qapi-visit.h"
 #include "qapi/qmp/types.h"
+#include "test-qmp-introspect.h"
+#include "qmp-introspect.h"
+#include "qapi-visit.h"
 
 typedef struct TestInputVisitorData {
     QObject *obj;
@@ -51,6 +54,30 @@ Visitor *validate_test_init(TestInputVisitorData *data,
     data->obj = qobject_from_jsonv(json_string, &ap);
     va_end(ap);
 
+    g_assert(data->obj != NULL);
+
+    data->qiv = qmp_input_visitor_new_strict(data->obj);
+    g_assert(data->qiv != NULL);
+
+    v = qmp_input_get_visitor(data->qiv);
+    g_assert(v != NULL);
+
+    return v;
+}
+
+/* similar to validate_test_init(), but does not expect a string
+ * literal/format json_string argument and so can be used for
+ * programatically generated strings (and we can't pass in programatically
+ * generated strings via %s format parameters since qobject_from_jsonv()
+ * will wrap those in double-quotes and treat the entire object as a
+ * string)
+ */
+static Visitor *validate_test_init_raw(TestInputVisitorData *data,
+                                       const char *json_string)
+{
+    Visitor *v;
+
+    data->obj = qobject_from_json(json_string);
     g_assert(data->obj != NULL);
 
     data->qiv = qmp_input_visitor_new_strict(data->obj);
@@ -167,9 +194,9 @@ static void test_validate_union_flat(TestInputVisitorData *data,
 
     v = validate_test_init(data,
                            "{ 'enum1': 'value1', "
+                           "'integer': 41, "
                            "'string': 'str', "
                            "'boolean': true }");
-    /* TODO when generator bug is fixed, add 'integer': 41 */
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
     g_assert(!err);
@@ -272,7 +299,7 @@ static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
     Visitor *v;
 
     /* test situation where discriminator field ('enum1' here) is missing */
-    v = validate_test_init(data, "{ 'string': 'c', 'string1': 'd', 'string2': 'e' }");
+    v = validate_test_init(data, "{ 'integer': 42, 'string': 'c', 'string1': 'd', 'string2': 'e' }");
 
     visit_type_UserDefFlatUnion2(v, &tmp, NULL, &err);
     g_assert(err);
@@ -291,6 +318,32 @@ static void test_validate_fail_alternate(TestInputVisitorData *data,
     visit_type_UserDefAlternate(v, &tmp, NULL, &err);
     g_assert(err);
     qapi_free_UserDefAlternate(tmp);
+}
+
+static void do_test_validate_qmp_introspect(TestInputVisitorData *data,
+                                            const char *schema_json)
+{
+    SchemaInfoList *schema = NULL;
+    Error *err = NULL;
+    Visitor *v;
+
+    v = validate_test_init_raw(data, schema_json);
+
+    visit_type_SchemaInfoList(v, &schema, NULL, &err);
+    if (err) {
+        fprintf(stderr, "%s", error_get_pretty(err));
+    }
+    g_assert(!err);
+    g_assert(schema);
+
+    qapi_free_SchemaInfoList(schema);
+}
+
+static void test_validate_qmp_introspect(TestInputVisitorData *data,
+                                           const void *unused)
+{
+    do_test_validate_qmp_introspect(data, test_qmp_schema_json);
+    do_test_validate_qmp_introspect(data, qmp_schema_json);
 }
 
 static void validate_test_add(const char *testpath,
@@ -333,6 +386,8 @@ int main(int argc, char **argv)
                       &testdata, test_validate_fail_alternate);
     validate_test_add("/visitor/input-strict/fail/union-native-list",
                       &testdata, test_validate_fail_union_native_list);
+    validate_test_add("/visitor/input-strict/pass/qmp-introspect",
+                      &testdata, test_validate_qmp_introspect);
 
     g_test_run();
 

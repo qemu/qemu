@@ -1,6 +1,10 @@
-[OrderedDict([('struct', 'Data'), ('data', OrderedDict([('*number', 'int'), ('*name', 'str')]))]),
- OrderedDict([('enum', 'Enum'), ('data', ['hello', 'world'])]),
- OrderedDict([('alternate', 'Alt'), ('data', OrderedDict([('value', 'int'), ('string', 'Enum'), ('struct', 'Data')]))])]
-[{'enum_name': 'Enum', 'enum_values': ['hello', 'world']},
- {'enum_name': 'AltKind', 'enum_values': None}]
-[OrderedDict([('struct', 'Data'), ('data', OrderedDict([('*number', 'int'), ('*name', 'str')]))])]
+object :empty
+alternate Alt
+    case value: int
+    case string: Enum
+    case struct: Data
+enum AltKind ['value', 'string', 'struct']
+object Data
+    member number: int optional=True
+    member name: str optional=True
+enum Enum ['hello', 'world']

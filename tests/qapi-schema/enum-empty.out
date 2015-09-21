@@ -1,3 +1,2 @@
-[OrderedDict([('enum', 'MyEnum'), ('data', [])])]
-[{'enum_name': 'MyEnum', 'enum_values': []}]
-[]
+object :empty
+enum MyEnum []
