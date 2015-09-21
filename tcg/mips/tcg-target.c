@@ -567,6 +567,55 @@ static inline void tcg_out_addi(TCGContext *s, TCGReg reg, TCGArg val)
     }
 }
 
+static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh, TCGReg al,
+                            TCGReg ah, TCGArg bl, TCGArg bh, bool cbl,
+                            bool cbh, bool is_sub)
+{
+    TCGReg th = TCG_TMP1;
+
+    /* If we have a negative constant such that negating it would
+       make the high part zero, we can (usually) eliminate one insn.  */
+    if (cbl && cbh && bh == -1 && bl != 0) {
+        bl = -bl;
+        bh = 0;
+        is_sub = !is_sub;
+    }
+
+    /* By operating on the high part first, we get to use the final
+       carry operation to move back from the temporary.  */
+    if (!cbh) {
+        tcg_out_opc_reg(s, (is_sub ? OPC_SUBU : OPC_ADDU), th, ah, bh);
+    } else if (bh != 0 || ah == rl) {
+        tcg_out_opc_imm(s, OPC_ADDIU, th, ah, (is_sub ? -bh : bh));
+    } else {
+        th = ah;
+    }
+
+    /* Note that tcg optimization should eliminate the bl == 0 case.  */
+    if (is_sub) {
+        if (cbl) {
+            tcg_out_opc_imm(s, OPC_SLTIU, TCG_TMP0, al, bl);
+            tcg_out_opc_imm(s, OPC_ADDIU, rl, al, -bl);
+        } else {
+            tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, al, bl);
+            tcg_out_opc_reg(s, OPC_SUBU, rl, al, bl);
+        }
+        tcg_out_opc_reg(s, OPC_SUBU, rh, th, TCG_TMP0);
+    } else {
+        if (cbl) {
+            tcg_out_opc_imm(s, OPC_ADDIU, rl, al, bl);
+            tcg_out_opc_imm(s, OPC_SLTIU, TCG_TMP0, rl, bl);
+        } else if (rl == al && rl == bl) {
+            tcg_out_opc_sa(s, OPC_SRL, TCG_TMP0, al, 31);
+            tcg_out_opc_reg(s, OPC_ADDU, rl, al, bl);
+        } else {
+            tcg_out_opc_reg(s, OPC_ADDU, rl, al, bl);
+            tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, rl, (rl == bl ? al : bl));
+        }
+        tcg_out_opc_reg(s, OPC_ADDU, rh, th, TCG_TMP0);
+    }
+}
+
 /* Bit 0 set if inversion required; bit 1 set if swapping required.  */
 #define MIPS_CMP_INV  1
 #define MIPS_CMP_SWAP 2
@@ -934,9 +983,11 @@ static int tcg_out_call_iarg_reg2(TCGContext *s, int i, TCGReg al, TCGReg ah)
 /* Perform the tlb comparison operation.  The complete host address is
    placed in BASE.  Clobbers AT, T0, A0.  */
 static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
-                             TCGReg addrh, int mem_index, TCGMemOp s_bits,
+                             TCGReg addrh, TCGMemOpIdx oi,
                              tcg_insn_unit *label_ptr[2], bool is_load)
 {
+    TCGMemOp s_bits = get_memop(oi) & MO_SIZE;
+    int mem_index = get_mmuidx(oi);
     int cmp_off
         = (is_load
            ? offsetof(CPUArchState, tlb_table[mem_index][0].addr_read)
@@ -962,30 +1013,34 @@ static void tcg_out_tlb_load(TCGContext *s, TCGReg base, TCGReg addrl,
         add_off -= 0x7ff0;
     }
 
-    /* Load the tlb comparator.  */
-    if (TARGET_LONG_BITS == 64) {
-        tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0, cmp_off + LO_OFF);
-        tcg_out_opc_imm(s, OPC_LW, base, TCG_REG_A0, cmp_off + HI_OFF);
-    } else {
-        tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0, cmp_off);
-    }
+    /* Load the (low half) tlb comparator.  */
+    tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0,
+                    cmp_off + (TARGET_LONG_BITS == 64 ? LO_OFF : 0));
 
     /* Mask the page bits, keeping the alignment bits to compare against.
-       In between, load the tlb addend for the fast path.  */
+       In between on 32-bit targets, load the tlb addend for the fast path.  */
     tcg_out_movi(s, TCG_TYPE_I32, TCG_TMP1,
                  TARGET_PAGE_MASK | ((1 << s_bits) - 1));
-    tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0, add_off);
+    if (TARGET_LONG_BITS == 32) {
+        tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0, add_off);
+    }
     tcg_out_opc_reg(s, OPC_AND, TCG_TMP1, TCG_TMP1, addrl);
 
     label_ptr[0] = s->code_ptr;
     tcg_out_opc_br(s, OPC_BNE, TCG_TMP1, TCG_TMP0);
 
+    /* Load and test the high half tlb comparator.  */
     if (TARGET_LONG_BITS == 64) {
         /* delay slot */
-        tcg_out_nop(s);
+        tcg_out_opc_imm(s, OPC_LW, TCG_TMP0, TCG_REG_A0, cmp_off + HI_OFF);
+
+        /* Load the tlb addend for the fast path. We can't do it earlier with
+           64-bit targets or we'll clobber a0 before reading the high half tlb
+           comparator.  */
+        tcg_out_opc_imm(s, OPC_LW, TCG_REG_A0, TCG_REG_A0, add_off);
 
         label_ptr[1] = s->code_ptr;
-        tcg_out_opc_br(s, OPC_BNE, addrh, base);
+        tcg_out_opc_br(s, OPC_BNE, addrh, TCG_TMP0);
     }
 
     /* delay slot */
@@ -1156,8 +1211,6 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     tcg_insn_unit *label_ptr[2];
-    int mem_index;
-    TCGMemOp s_bits;
 #endif
     /* Note that we've eliminated V0 from the output registers,
        so we won't overwrite the base register during loading.  */
@@ -1171,11 +1224,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, bool is_64)
     opc = get_memop(oi);
 
 #if defined(CONFIG_SOFTMMU)
-    mem_index = get_mmuidx(oi);
-    s_bits = opc & MO_SIZE;
-
-    tcg_out_tlb_load(s, base, addr_regl, addr_regh, mem_index,
-                     s_bits, label_ptr, 1);
+    tcg_out_tlb_load(s, base, addr_regl, addr_regh, oi, label_ptr, 1);
     tcg_out_qemu_ld_direct(s, data_regl, data_regh, base, opc);
     add_qemu_ldst_label(s, 1, oi, data_regl, data_regh, addr_regl, addr_regh,
                         s->code_ptr, label_ptr);
@@ -1233,55 +1282,6 @@ static void tcg_out_qemu_st_direct(TCGContext *s, TCGReg datalo, TCGReg datahi,
     }
 }
 
-static void tcg_out_addsub2(TCGContext *s, TCGReg rl, TCGReg rh, TCGReg al,
-                            TCGReg ah, TCGArg bl, TCGArg bh, bool cbl,
-                            bool cbh, bool is_sub)
-{
-    TCGReg th = TCG_TMP1;
-
-    /* If we have a negative constant such that negating it would
-       make the high part zero, we can (usually) eliminate one insn.  */
-    if (cbl && cbh && bh == -1 && bl != 0) {
-        bl = -bl;
-        bh = 0;
-        is_sub = !is_sub;
-    }
-
-    /* By operating on the high part first, we get to use the final
-       carry operation to move back from the temporary.  */
-    if (!cbh) {
-        tcg_out_opc_reg(s, (is_sub ? OPC_SUBU : OPC_ADDU), th, ah, bh);
-    } else if (bh != 0 || ah == rl) {
-        tcg_out_opc_imm(s, OPC_ADDIU, th, ah, (is_sub ? -bh : bh));
-    } else {
-        th = ah;
-    }
-
-    /* Note that tcg optimization should eliminate the bl == 0 case.  */
-    if (is_sub) {
-        if (cbl) {
-            tcg_out_opc_imm(s, OPC_SLTIU, TCG_TMP0, al, bl);
-            tcg_out_opc_imm(s, OPC_ADDIU, rl, al, -bl);
-        } else {
-            tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, al, bl);
-            tcg_out_opc_reg(s, OPC_SUBU, rl, al, bl);
-        }
-        tcg_out_opc_reg(s, OPC_SUBU, rh, th, TCG_TMP0);
-    } else {
-        if (cbl) {
-            tcg_out_opc_imm(s, OPC_ADDIU, rl, al, bl);
-            tcg_out_opc_imm(s, OPC_SLTIU, TCG_TMP0, rl, bl);
-        } else if (rl == al && rl == bl) {
-            tcg_out_opc_sa(s, OPC_SRL, TCG_TMP0, al, 31);
-            tcg_out_opc_reg(s, OPC_ADDU, rl, al, bl);
-        } else {
-            tcg_out_opc_reg(s, OPC_ADDU, rl, al, bl);
-            tcg_out_opc_reg(s, OPC_SLTU, TCG_TMP0, rl, (rl == bl ? al : bl));
-        }
-        tcg_out_opc_reg(s, OPC_ADDU, rh, th, TCG_TMP0);
-    }
-}
-
 static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
 {
     TCGReg addr_regl, addr_regh __attribute__((unused));
@@ -1290,8 +1290,6 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     TCGMemOp opc;
 #if defined(CONFIG_SOFTMMU)
     tcg_insn_unit *label_ptr[2];
-    int mem_index;
-    TCGMemOp s_bits;
 #endif
 
     data_regl = *args++;
@@ -1302,14 +1300,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, bool is_64)
     opc = get_memop(oi);
 
 #if defined(CONFIG_SOFTMMU)
-    mem_index = get_mmuidx(oi);
-    s_bits = opc & 3;
-
     /* Note that we eliminated the helper's address argument,
        so we can reuse that for the base.  */
     base = (TARGET_LONG_BITS == 32 ? TCG_REG_A1 : TCG_REG_A2);
-    tcg_out_tlb_load(s, base, addr_regl, addr_regh, mem_index,
-                     s_bits, label_ptr, 0);
+    tcg_out_tlb_load(s, base, addr_regl, addr_regh, oi, label_ptr, 0);
     tcg_out_qemu_st_direct(s, data_regl, data_regh, base, opc);
     add_qemu_ldst_label(s, 0, oi, data_regl, data_regh, addr_regl, addr_regh,
                         s->code_ptr, label_ptr);
