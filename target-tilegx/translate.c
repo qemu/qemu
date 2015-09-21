@@ -96,6 +96,7 @@ typedef struct {
 #define OE_SH(E,XY)    OE(SHIFT_OPCODE_##XY, E##_SHIFT_OPCODE_##XY, XY)
 
 #define V1_IMM(X)      (((X) & 0xff) * 0x0101010101010101ull)
+#define V2_IMM(X)      (((X) & 0xffff) * 0x0001000100010001ull)
 
 
 static void gen_exception(DisasContext *dc, TileExcp num)
@@ -275,6 +276,35 @@ static void gen_mul_half(TCGv tdest, TCGv tsrca, TCGv tsrcb,
     tcg_temp_free(t);
 }
 
+static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
+                              unsigned srcb, TCGMemOp memop, const char *name)
+{
+    if (dest) {
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+    }
+
+    tcg_gen_qemu_st_tl(load_gr(dc, srcb), load_gr(dc, srca),
+		       dc->mmuidx, memop);
+
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", name,
+                  reg_names[srca], reg_names[srcb]);
+    return TILEGX_EXCP_NONE;
+}
+
+static TileExcp gen_st_add_opcode(DisasContext *dc, unsigned srca, unsigned srcb,
+                                  int imm, TCGMemOp memop, const char *name)
+{
+    TCGv tsrca = load_gr(dc, srca);
+    TCGv tsrcb = load_gr(dc, srcb);
+
+    tcg_gen_qemu_st_tl(tsrcb, tsrca, dc->mmuidx, memop);
+    tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
+
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %d", name,
+                  reg_names[srca], reg_names[srcb], imm);
+    return TILEGX_EXCP_NONE;
+}
+
 /* Equality comparison with zero can be done quickly and efficiently.  */
 static void gen_v1cmpeq0(TCGv v)
 {
@@ -310,33 +340,45 @@ static void gen_v1cmpne0(TCGv v)
     tcg_temp_free(c);
 }
 
-static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
-                              unsigned srcb, TCGMemOp memop, const char *name)
+/* Vector addition can be performed via arithmetic plus masking.  It is
+   efficient this way only for 4 or more elements.  */
+static void gen_v12add(TCGv tdest, TCGv tsrca, TCGv tsrcb, uint64_t sign)
 {
-    if (dest) {
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
-    }
+    TCGv tmask = tcg_const_tl(~sign);
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
 
-    tcg_gen_qemu_st_tl(load_gr(dc, srcb), load_gr(dc, srca),
-		       dc->mmuidx, memop);
+    /* ((a & ~sign) + (b & ~sign)) ^ ((a ^ b) & sign).  */
+    tcg_gen_and_tl(t0, tsrca, tmask);
+    tcg_gen_and_tl(t1, tsrcb, tmask);
+    tcg_gen_add_tl(tdest, t0, t1);
+    tcg_gen_xor_tl(t0, tsrca, tsrcb);
+    tcg_gen_andc_tl(t0, t0, tmask);
+    tcg_gen_xor_tl(tdest, tdest, t0);
 
-    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", name,
-                  reg_names[srca], reg_names[srcb]);
-    return TILEGX_EXCP_NONE;
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(tmask);
 }
 
-static TileExcp gen_st_add_opcode(DisasContext *dc, unsigned srca, unsigned srcb,
-                                  int imm, TCGMemOp memop, const char *name)
+/* Similarly for vector subtraction.  */
+static void gen_v12sub(TCGv tdest, TCGv tsrca, TCGv tsrcb, uint64_t sign)
 {
-    TCGv tsrca = load_gr(dc, srca);
-    TCGv tsrcb = load_gr(dc, srcb);
+    TCGv tsign = tcg_const_tl(sign);
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
 
-    tcg_gen_qemu_st_tl(tsrcb, tsrca, dc->mmuidx, memop);
-    tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
+    /* ((a | sign) - (b & ~sign)) ^ ((a ^ ~b) & sign).  */
+    tcg_gen_or_tl(t0, tsrca, tsign);
+    tcg_gen_andc_tl(t1, tsrcb, tsign);
+    tcg_gen_sub_tl(tdest, t0, t1);
+    tcg_gen_eqv_tl(t0, tsrca, tsrcb);
+    tcg_gen_and_tl(t0, t0, tsign);
+    tcg_gen_xor_tl(tdest, tdest, t0);
 
-    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %d", name,
-                  reg_names[srca], reg_names[srcb], imm);
-    return TILEGX_EXCP_NONE;
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(tsign);
 }
 
 static void gen_v4sh(TCGv d64, TCGv a64, TCGv b64,
@@ -356,6 +398,26 @@ static void gen_v4sh(TCGv d64, TCGv a64, TCGv b64,
     tcg_temp_free_i32(al);
     tcg_temp_free_i32(ah);
     tcg_temp_free_i32(bl);
+}
+
+static void gen_v4op(TCGv d64, TCGv a64, TCGv b64,
+                     void (*generate)(TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 al = tcg_temp_new_i32();
+    TCGv_i32 ah = tcg_temp_new_i32();
+    TCGv_i32 bl = tcg_temp_new_i32();
+    TCGv_i32 bh = tcg_temp_new_i32();
+
+    tcg_gen_extr_i64_i32(al, ah, a64);
+    tcg_gen_extr_i64_i32(bl, bh, b64);
+    generate(al, al, bl);
+    generate(ah, ah, bh);
+    tcg_gen_concat_i32_i64(d64, al, ah);
+
+    tcg_temp_free_i32(al);
+    tcg_temp_free_i32(ah);
+    tcg_temp_free_i32(bl);
+    tcg_temp_free_i32(bh);
 }
 
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
@@ -1043,8 +1105,12 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RRR(V1ADDUC, 0, X0):
     case OE_RRR(V1ADDUC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1ADD, 0, X0):
     case OE_RRR(V1ADD, 0, X1):
+        gen_v12add(tdest, tsrca, tsrcb, V1_IMM(0x80));
+        mnemonic = "v1add";
+        break;
     case OE_RRR(V1ADIFFU, 0, X0):
     case OE_RRR(V1AVGU, 0, X0):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
@@ -1114,12 +1180,20 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RRR(V1SUBUC, 0, X0):
     case OE_RRR(V1SUBUC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1SUB, 0, X0):
     case OE_RRR(V1SUB, 0, X1):
+        gen_v12sub(tdest, tsrca, tsrcb, V1_IMM(0x80));
+        mnemonic = "v1sub";
+        break;
     case OE_RRR(V2ADDSC, 0, X0):
     case OE_RRR(V2ADDSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2ADD, 0, X0):
     case OE_RRR(V2ADD, 0, X1):
+        gen_v12add(tdest, tsrca, tsrcb, V2_IMM(0x8000));
+        mnemonic = "v2add";
+        break;
     case OE_RRR(V2ADIFFS, 0, X0):
     case OE_RRR(V2AVGS, 0, X0):
     case OE_RRR(V2CMPEQ, 0, X0):
@@ -1181,13 +1255,20 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RRR(V2SUBSC, 0, X0):
     case OE_RRR(V2SUBSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2SUB, 0, X0):
     case OE_RRR(V2SUB, 0, X1):
+        gen_v12sub(tdest, tsrca, tsrcb, V2_IMM(0x8000));
+        mnemonic = "v2sub";
+        break;
     case OE_RRR(V4ADDSC, 0, X0):
     case OE_RRR(V4ADDSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V4ADD, 0, X0):
     case OE_RRR(V4ADD, 0, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        gen_v4op(tdest, tsrca, tsrcb, tcg_gen_add_i32);
+        mnemonic = "v4add";
+        break;
     case OE_RRR(V4INT_H, 0, X0):
     case OE_RRR(V4INT_H, 0, X1):
         tcg_gen_shri_tl(tdest, tsrcb, 32);
@@ -1221,9 +1302,12 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RRR(V4SUBSC, 0, X0):
     case OE_RRR(V4SUBSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V4SUB, 0, X0):
     case OE_RRR(V4SUB, 0, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        gen_v4op(tdest, tsrca, tsrcb, tcg_gen_sub_i32);
+        mnemonic = "v2sub";
+        break;
     case OE_RRR(XOR, 0, X0):
     case OE_RRR(XOR, 0, X1):
     case OE_RRR(XOR, 5, Y0):
@@ -1364,6 +1448,11 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_IM(V1ADDI, X0):
     case OE_IM(V1ADDI, X1):
+        t0 = tcg_const_tl(V1_IMM(imm));
+        gen_v12add(tdest, tsrca, t0, V1_IMM(0x80));
+        tcg_temp_free(t0);
+        mnemonic = "v1addi";
+        break;
     case OE_IM(V1CMPEQI, X0):
     case OE_IM(V1CMPEQI, X1):
         tcg_gen_xori_tl(tdest, tsrca, V1_IMM(imm));
@@ -1378,8 +1467,14 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
     case OE_IM(V1MAXUI, X1):
     case OE_IM(V1MINUI, X0):
     case OE_IM(V1MINUI, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_IM(V2ADDI, X0):
     case OE_IM(V2ADDI, X1):
+        t0 = tcg_const_tl(V2_IMM(imm));
+        gen_v12add(tdest, tsrca, t0, V2_IMM(0x8000));
+        tcg_temp_free(t0);
+        mnemonic = "v2addi";
+        break;
     case OE_IM(V2CMPEQI, X0):
     case OE_IM(V2CMPEQI, X1):
     case OE_IM(V2CMPLTSI, X0):
