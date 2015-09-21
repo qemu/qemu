@@ -541,8 +541,8 @@ static int get_physical_addr_mmu(CPUXtensaState *env, bool update_tlb,
             wi = ++env->autorefill_idx & 0x3;
             xtensa_tlb_set_entry(env, dtlb, wi, ei, vpn, pte);
             env->sregs[EXCVADDR] = vaddr;
-            qemu_log("%s: autorefill(%08x): %08x -> %08x\n",
-                    __func__, vaddr, vpn, pte);
+            qemu_log_mask(CPU_LOG_MMU, "%s: autorefill(%08x): %08x -> %08x\n",
+                          __func__, vaddr, vpn, pte);
         } else {
             xtensa_tlb_set_entry_mmu(env, &tmp_entry, dtlb, wi, ei, vpn, pte);
             entry = &tmp_entry;
@@ -590,8 +590,8 @@ static int get_pte(CPUXtensaState *env, uint32_t vaddr, uint32_t *pte)
     int ret = get_physical_addr_mmu(env, false, pt_vaddr, 0, 0,
             &paddr, &page_size, &access, false);
 
-    qemu_log("%s: trying autorefill(%08x) -> %08x\n", __func__,
-            vaddr, ret ? ~0 : paddr);
+    qemu_log_mask(CPU_LOG_MMU, "%s: trying autorefill(%08x) -> %08x\n",
+                  __func__, vaddr, ret ? ~0 : paddr);
 
     if (ret == 0) {
         *pte = ldl_phys(cs->as, paddr);
