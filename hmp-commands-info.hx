@@ -128,6 +128,22 @@ STEXI
 Show local APIC state
 ETEXI
 
+#if defined(TARGET_I386)
+    {
+        .name       = "ioapic",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show io apic state",
+        .mhandler.cmd = hmp_info_io_apic,
+    },
+#endif
+
+STEXI
+@item info ioapic
+@findex ioapic
+Show io APIC state
+ETEXI
+
     {
         .name       = "cpus",
         .args_type  = "",
