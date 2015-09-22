@@ -147,4 +147,22 @@ void apic_enable_vapic(DeviceState *d, hwaddr paddr);
 void vapic_report_tpr_access(DeviceState *dev, CPUState *cpu, target_ulong ip,
                              TPRAccess access);
 
+int apic_get_ppr(APICCommonState *s);
+
+static inline void apic_set_bit(uint32_t *tab, int index)
+{
+    int i, mask;
+    i = index >> 5;
+    mask = 1 << (index & 0x1f);
+    tab[i] |= mask;
+}
+
+static inline int apic_get_bit(uint32_t *tab, int index)
+{
+    int i, mask;
+    i = index >> 5;
+    mask = 1 << (index & 0x1f);
+    return !!(tab[i] & mask);
+}
+
 #endif /* !QEMU_APIC_INTERNAL_H */
