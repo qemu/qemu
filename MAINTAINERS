@@ -255,6 +255,12 @@ L: xen-devel@lists.xensource.com
 S: Supported
 F: xen-*
 F: */xen*
+F: hw/char/xen_console.c
+F: hw/display/xenfb.c
+F: hw/net/xen_nic.c
+F: hw/xen/
+F: hw/xenpv/
+F: include/hw/xen/
 
 Hosts:
 ------
