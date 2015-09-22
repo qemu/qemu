@@ -328,11 +328,6 @@ M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/integratorcp.c
 
-Mainstone
-L: qemu-devel@nongnu.org
-S: Orphan
-F: hw/arm/mainstone.c
-
 Musicpal
 M: Jan Kiszka <jan.kiszka@web.de>
 S: Maintained
@@ -353,10 +348,14 @@ M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/realview*
 
-Spitz
+PXA2XX
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
+F: hw/arm/mainstone.c
 F: hw/arm/spitz.c
+F: hw/arm/tosa.c
+F: hw/arm/z2.c
+F: hw/*/pxa2xx*
 
 Stellaris
 M: Peter Maydell <peter.maydell@linaro.org>
