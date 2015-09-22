@@ -672,7 +672,9 @@ PCI
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
 F: include/hw/pci/*
+F: hw/misc/pci-testdev.c
 F: hw/pci/*
+F: hw/pci-bridge/*
 
 ACPI/SMBIOS
 M: Michael S. Tsirkin <mst@redhat.com>
