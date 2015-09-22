@@ -292,6 +292,36 @@ F: hw/*/allwinner*
 F: include/hw/*/allwinner*
 F: hw/arm/cubieboard.c
 
+ARM PrimeCell
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Maintained
+F: hw/char/pl011.c
+F: hw/display/pl110*
+F: hw/dma/pl080.c
+F: hw/dma/pl330.c
+F: hw/gpio/pl061.c
+F: hw/input/pl050.c
+F: hw/intc/pl190.c
+F: hw/sd/pl181.c
+F: hw/timer/pl031.c
+F: include/hw/arm/primecell.h
+
+ARM cores
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Maintained
+F: hw/intc/arm*
+F: hw/intc/gic_internal.h
+F: hw/misc/a9scu.c
+F: hw/misc/arm11scu.c
+F: hw/timer/a9gtimer*
+F: hw/timer/arm_*
+F: include/hw/arm/arm.h
+F: include/hw/intc/arm*
+F: include/hw/misc/a9scu.h
+F: include/hw/misc/arm11scu.h
+F: include/hw/timer/a9gtimer.h
+F: include/hw/timer/arm_mptimer.h
+
 Exynos
 M: Evgeny Voevodin <e.voevodin@samsung.com>
 M: Maksim Kozlov <m.kozlov@samsung.com>
