@@ -208,26 +208,9 @@ static Property s390_ipl_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-/*
- * In addition to updating the iplstate, this function returns:
- * - 0 if system was ipled with external kernel
- * - -1 if no valid boot device was found
- * - ccw id of the boot device otherwise
- */
-static uint64_t s390_update_iplstate(S390IPLState *ipl)
+static bool s390_gen_initial_iplb(S390IPLState *ipl)
 {
     DeviceState *dev_st;
-
-    if (ipl->iplb_valid) {
-        ipl->cssid = 0;
-        ipl->ssid = 0;
-        ipl->devno = ipl->iplb.devno;
-        goto out;
-    }
-
-    if (ipl->kernel) {
-        return 0;
-    }
 
     dev_st = get_boot_device(0);
     if (dev_st) {
@@ -235,23 +218,17 @@ static uint64_t s390_update_iplstate(S390IPLState *ipl)
             OBJECT(qdev_get_parent_bus(dev_st)->parent),
                 TYPE_VIRTIO_CCW_DEVICE);
         if (ccw_dev) {
-            ipl->cssid = ccw_dev->sch->cssid;
-            ipl->ssid = ccw_dev->sch->ssid;
-            ipl->devno = ccw_dev->sch->devno;
             ipl->iplb.len = cpu_to_be32(S390_IPLB_MIN_CCW_LEN);
             ipl->iplb.blk0_len =
                 cpu_to_be32(S390_IPLB_MIN_CCW_LEN - S390_IPLB_HEADER_LEN);
             ipl->iplb.pbt = S390_IPL_TYPE_CCW;
             ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
             ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
-            ipl->iplb_valid = true;
-            goto out;
+            return true;
         }
     }
 
-    return -1;
-out:
-    return (uint32_t) (ipl->cssid << 24 | ipl->ssid << 16 | ipl->devno);
+    return false;
 }
 
 void s390_ipl_update_diag308(IplParameterBlock *iplb)
@@ -289,7 +266,9 @@ void s390_ipl_prepare_cpu(S390CPU *cpu)
 
     if (!ipl->kernel || ipl->iplb_valid) {
         cpu->env.psw.addr = ipl->bios_start_addr;
-        cpu->env.regs[7] = s390_update_iplstate(ipl);
+        if (!ipl->iplb_valid) {
+            ipl->iplb_valid = s390_gen_initial_iplb(ipl);
+        }
     }
 }
 
