@@ -112,6 +112,22 @@ STEXI
 Show the cpu registers.
 ETEXI
 
+#if defined(TARGET_I386)
+    {
+        .name       = "lapic",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show local apic state",
+        .mhandler.cmd = hmp_info_local_apic,
+    },
+#endif
+
+STEXI
+@item info lapic
+@findex lapic
+Show local APIC state
+ETEXI
+
     {
         .name       = "cpus",
         .args_type  = "",
