@@ -708,6 +708,12 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 S: Odd Fixes
 F: hw/char/
 
+Network devices
+M: Jason Wang <jasowang@redhat.com>
+S: Odd Fixes
+F: hw/net/
+T: git git://github.com/jasowang/qemu.git net
+
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
@@ -987,7 +993,7 @@ F: hmp.c
 F: hmp-commands.hx
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
-Network device layer
+Network device backends
 M: Jason Wang <jasowang@redhat.com>
 S: Maintained
 F: net/
