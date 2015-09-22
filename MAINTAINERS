@@ -377,6 +377,8 @@ Real View
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/realview*
+F: hw/intc/realview_gic.c
+F: include/hw/intc/realview_gic.h
 
 PXA2XX
 M: Andrzej Zaborowski <balrogg@gmail.com>
