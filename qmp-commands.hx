@@ -321,11 +321,16 @@ Remove a device.
 
 Arguments:
 
-- "id": the device's ID (json-string)
+- "id": the device's ID or QOM path (json-string)
 
 Example:
 
 -> { "execute": "device_del", "arguments": { "id": "net1" } }
+<- { "return": {} }
+
+Example:
+
+-> { "execute": "device_del", "arguments": { "id": "/machine/peripheral-anon/device[0]" } }
 <- { "return": {} }
 
 EQMP

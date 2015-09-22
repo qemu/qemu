@@ -676,7 +676,8 @@ ETEXI
 STEXI
 @item device_del @var{id}
 @findex device_del
-Remove device @var{id}.
+Remove device @var{id}. @var{id} may be a short ID
+or a QOM object path.
 ETEXI
 
     {
