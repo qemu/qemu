@@ -57,7 +57,7 @@
 #define APIC_INPUT_POLARITY             (1<<13)
 #define APIC_SEND_PENDING               (1<<12)
 
-#define ESR_ILLEGAL_ADDRESS (1 << 7)
+#define APIC_ESR_ILLEGAL_ADDRESS        (1 << 7)
 
 #define APIC_SV_DIRECTED_IO             (1<<12)
 #define APIC_SV_ENABLE                  (1<<8)

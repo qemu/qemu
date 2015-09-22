@@ -723,7 +723,7 @@ static uint32_t apic_mem_readl(void *opaque, hwaddr addr)
         val = s->divide_conf;
         break;
     default:
-        s->esr |= ESR_ILLEGAL_ADDRESS;
+        s->esr |= APIC_ESR_ILLEGAL_ADDRESS;
         val = 0;
         break;
     }
@@ -836,7 +836,7 @@ static void apic_mem_writel(void *opaque, hwaddr addr, uint32_t val)
         }
         break;
     default:
-        s->esr |= ESR_ILLEGAL_ADDRESS;
+        s->esr |= APIC_ESR_ILLEGAL_ADDRESS;
         break;
     }
 }
