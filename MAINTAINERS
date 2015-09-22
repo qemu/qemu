@@ -1142,11 +1142,6 @@ M: Vassili Karpov (malc) <av1474@comtv.ru>
 S: Maintained
 F: tcg/ppc/
 
-PPC64 target
-M: Vassili Karpov (malc) <av1474@comtv.ru>
-S: Maintained
-F: tcg/ppc64/
-
 S390 target
 M: Alexander Graf <agraf@suse.de>
 M: Richard Henderson <rth@twiddle.net>
