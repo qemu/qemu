@@ -559,9 +559,10 @@ struct TCGContext {
     void *code_gen_prologue;
     void *code_gen_buffer;
     size_t code_gen_buffer_size;
-    /* threshold to flush the translated code buffer */
-    size_t code_gen_buffer_max_size;
     void *code_gen_ptr;
+
+    /* Threshold to flush the translated code buffer.  */
+    void *code_gen_highwater;
 
     TBContext tb_ctx;
 

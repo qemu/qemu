@@ -385,9 +385,10 @@ void tcg_prologue_init(TCGContext *s)
     total_size = s->code_gen_buffer_size - prologue_size;
     s->code_gen_buffer_size = total_size;
 
-    /* Compute a high-water mark, at which we voluntarily flush the
-       buffer and start over.  */
-    s->code_gen_buffer_max_size = total_size - TCG_MAX_OP_SIZE * OPC_BUF_SIZE;
+    /* Compute a high-water mark, at which we voluntarily flush the buffer
+       and start over.  The size here is arbitrary, significantly larger
+       than we expect the code generation for any one opcode to require.  */
+    s->code_gen_highwater = s->code_gen_buffer + (total_size - 1024);
 
     tcg_register_jit(s->code_gen_buffer, total_size);
 
@@ -2438,6 +2439,13 @@ int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf)
 #ifndef NDEBUG
         check_regs(s);
 #endif
+        /* Test for (pending) buffer overflow.  The assumption is that any
+           one operation beginning below the high water mark cannot overrun
+           the buffer completely.  Thus we can test for overflow after
+           generating code without having to check during generation.  */
+        if (unlikely(s->code_gen_ptr > s->code_gen_highwater)) {
+            return -1;
+        }
     }
     tcg_debug_assert(num_insns >= 0);
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
