@@ -126,6 +126,7 @@ void hmp_info_irq(Monitor *mon, const QDict *qdict);
 /* ioapic.c */
 
 void kvm_ioapic_dump_state(Monitor *mon, const QDict *qdict);
+void ioapic_dump_state(Monitor *mon, const QDict *qdict);
 
 /* Global System Interrupts */
 
