@@ -120,19 +120,16 @@ efi-rom-%: build-pxe-roms build-efi-roms
 		-ec ipxe/src/bin-x86_64-efi/$(VID)$(DID).efidrv \
 		-o ../pc-bios/efi-$*.rom
 
-build-pxe-roms: ipxe/src/config/local/general.h
-	$(MAKE) -C ipxe/src GITVERSION="" \
+build-pxe-roms:
+	$(MAKE) -C ipxe/src CONFIG=qemu \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin/%.rom,$(pxerom_targets))
 
-build-efi-roms: build-pxe-roms ipxe/src/config/local/general.h
-	$(MAKE) -C ipxe/src GITVERSION="" \
+build-efi-roms: build-pxe-roms
+	$(MAKE) -C ipxe/src CONFIG=qemu \
 		CROSS_COMPILE=$(x86_64_cross_prefix) \
 		$(patsubst %,bin-i386-efi/%.efidrv,$(pxerom_targets)) \
 		$(patsubst %,bin-x86_64-efi/%.efidrv,$(pxerom_targets))
-
-ipxe/src/config/local/%: config.ipxe.%
-	cp $< $@
 
 
 slof:
