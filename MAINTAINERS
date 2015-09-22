@@ -577,6 +577,7 @@ M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Supported
+F: hw/char/sclp*.[hc]
 F: hw/s390x/s390-virtio-ccw.c
 F: hw/s390x/css.[hc]
 F: hw/s390x/sclp*.[hc]
