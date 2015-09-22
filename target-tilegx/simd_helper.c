@@ -23,12 +23,16 @@
 #include "exec/helper-proto.h"
 
 
+/* Broadcast a value to all elements of a vector.  */
+#define V1(X)      (((X) & 0xff) * 0x0101010101010101ull)
+
+
 uint64_t helper_v1shl(uint64_t a, uint64_t b)
 {
     uint64_t m;
 
     b &= 7;
-    m = 0x0101010101010101ULL * (0xff >> b);
+    m = V1(0xff >> b);
     return (a & m) << b;
 }
 
@@ -37,7 +41,7 @@ uint64_t helper_v1shru(uint64_t a, uint64_t b)
     uint64_t m;
 
     b &= 7;
-    m = 0x0101010101010101ULL * ((0xff << b) & 0xff);
+    m = V1(0xff << b);
     return (a & m) >> b;
 }
 
@@ -48,8 +52,7 @@ uint64_t helper_v1shrs(uint64_t a, uint64_t b)
 
     b &= 7;
     for (i = 0; i < 64; i += 8) {
-        int64_t ae = (int8_t)(a >> i);
-        r |= ((ae >> b) & 0xff) << i;
+        r = deposit64(r, i, 8, sextract64(a, i + b, 8 - b));
     }
     return r;
 }
