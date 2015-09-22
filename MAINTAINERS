@@ -703,6 +703,11 @@ L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/ppc/e500*
 
+Character devices
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Odd Fixes
+F: hw/char/
+
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Supported
@@ -887,7 +892,7 @@ F: block/qapi.c
 F: qapi/block*.json
 T: git git://repo.or.cz/qemu/armbru.git block-next
 
-Character Devices
+Character device backends
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: qemu-char.c
