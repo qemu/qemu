@@ -663,6 +663,12 @@ M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/*/omap*
 
+IPack
+M: Alberto Garcia <berto@igalia.com>
+S: Odd Fixes
+F: hw/char/ipoctal232.c
+F: hw/ipack/
+
 PCI
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
