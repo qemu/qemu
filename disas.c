@@ -392,16 +392,6 @@ monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
     return 0;
 }
 
-static int GCC_FMT_ATTR(2, 3)
-monitor_fprintf(FILE *stream, const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    monitor_vprintf((Monitor *)stream, fmt, ap);
-    va_end(ap);
-    return 0;
-}
-
 /* Disassembler for the monitor.
    See target_disas for a description of flags. */
 void monitor_disas(Monitor *mon, CPUState *cpu,
