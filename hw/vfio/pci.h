@@ -155,4 +155,19 @@ typedef struct VFIORomBlacklistEntry {
     uint16_t device_id;
 } VFIORomBlacklistEntry;
 
+uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
+void vfio_pci_write_config(PCIDevice *pdev,
+                           uint32_t addr, uint32_t val, int len);
+
+uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size);
+void vfio_vga_write(void *opaque, hwaddr addr, uint64_t data, unsigned size);
+
+bool vfio_blacklist_opt_rom(VFIOPCIDevice *vdev);
+void vfio_vga_quirk_setup(VFIOPCIDevice *vdev);
+void vfio_vga_quirk_teardown(VFIOPCIDevice *vdev);
+void vfio_vga_quirk_free(VFIOPCIDevice *vdev);
+void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr);
+void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr);
+void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr);
+
 #endif /* HW_VFIO_VFIO_PCI_H */
