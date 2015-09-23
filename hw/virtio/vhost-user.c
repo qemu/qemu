@@ -24,6 +24,8 @@
 #include <linux/vhost.h>
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
+#define VHOST_USER_F_PROTOCOL_FEATURES 30
+#define VHOST_USER_PROTOCOL_FEATURE_MASK 0x0ULL
 
 typedef enum VhostUserRequest {
     VHOST_USER_NONE = 0,
@@ -41,6 +43,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_VRING_KICK = 12,
     VHOST_USER_SET_VRING_CALL = 13,
     VHOST_USER_SET_VRING_ERR = 14,
+    VHOST_USER_GET_PROTOCOL_FEATURES = 15,
+    VHOST_USER_SET_PROTOCOL_FEATURES = 16,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -206,11 +210,13 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 
     switch (msg_request) {
     case VHOST_USER_GET_FEATURES:
+    case VHOST_USER_GET_PROTOCOL_FEATURES:
         need_reply = 1;
         break;
 
     case VHOST_USER_SET_FEATURES:
     case VHOST_USER_SET_LOG_BASE:
+    case VHOST_USER_SET_PROTOCOL_FEATURES:
         msg.u64 = *((__u64 *) arg);
         msg.size = sizeof(m.u64);
         break;
@@ -308,6 +314,7 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 
         switch (msg_request) {
         case VHOST_USER_GET_FEATURES:
+        case VHOST_USER_GET_PROTOCOL_FEATURES:
             if (msg.size != sizeof(m.u64)) {
                 error_report("Received bad msg size.");
                 return -1;
@@ -333,9 +340,33 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
+    unsigned long long features;
+    int err;
+
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     dev->opaque = opaque;
+
+    err = vhost_user_call(dev, VHOST_USER_GET_FEATURES, &features);
+    if (err < 0) {
+        return err;
+    }
+
+    if (virtio_has_feature(features, VHOST_USER_F_PROTOCOL_FEATURES)) {
+        dev->backend_features |= 1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
+
+        err = vhost_user_call(dev, VHOST_USER_GET_PROTOCOL_FEATURES, &features);
+        if (err < 0) {
+            return err;
+        }
+
+        dev->protocol_features = features & VHOST_USER_PROTOCOL_FEATURE_MASK;
+        err = vhost_user_call(dev, VHOST_USER_SET_PROTOCOL_FEATURES,
+                              &dev->protocol_features);
+        if (err < 0) {
+            return err;
+        }
+    }
 
     return 0;
 }

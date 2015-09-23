@@ -152,8 +152,10 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend)
             ? 0 : (1ULL << VHOST_NET_F_VIRTIO_NET_HDR);
         net->backend = r;
+        net->dev.protocol_features = 0;
     } else {
         net->dev.backend_features = 0;
+        net->dev.protocol_features = 0;
         net->backend = -1;
     }
     net->nc = options->net_backend;

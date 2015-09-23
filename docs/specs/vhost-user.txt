@@ -113,6 +113,7 @@ message replies. Most of the requests don't require replies. Here is a list of
 the ones that do:
 
  * VHOST_GET_FEATURES
+ * VHOST_GET_PROTOCOL_FEATURES
  * VHOST_GET_VRING_BASE
 
 There are several messages that the master sends with file descriptors passed
@@ -127,6 +128,13 @@ in the ancillary data:
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
 
+Any protocol extensions are gated by protocol feature bits,
+which allows full backwards compatibility on both master
+and slave.
+As older slaves don't support negotiating protocol features,
+a feature bit was dedicated for this purpose:
+#define VHOST_USER_F_PROTOCOL_FEATURES 30
+
 Message types
 -------------
 
@@ -138,6 +146,8 @@ Message types
       Slave payload: u64
 
       Get from the underlying vhost implementation the features bitmask.
+      Feature bit VHOST_USER_F_PROTOCOL_FEATURES signals slave support for
+      VHOST_USER_GET_PROTOCOL_FEATURES and VHOST_USER_SET_PROTOCOL_FEATURES.
 
  * VHOST_USER_SET_FEATURES
 
@@ -146,6 +156,33 @@ Message types
       Master payload: u64
 
       Enable features in the underlying vhost implementation using a bitmask.
+      Feature bit VHOST_USER_F_PROTOCOL_FEATURES signals slave support for
+      VHOST_USER_GET_PROTOCOL_FEATURES and VHOST_USER_SET_PROTOCOL_FEATURES.
+
+ * VHOST_USER_GET_PROTOCOL_FEATURES
+
+      Id: 15
+      Equivalent ioctl: VHOST_GET_FEATURES
+      Master payload: N/A
+      Slave payload: u64
+
+      Get the protocol feature bitmask from the underlying vhost implementation.
+      Only legal if feature bit VHOST_USER_F_PROTOCOL_FEATURES is present in
+      VHOST_USER_GET_FEATURES.
+      Note: slave that reported VHOST_USER_F_PROTOCOL_FEATURES must support
+      this message even before VHOST_USER_SET_FEATURES was called.
+
+ * VHOST_USER_SET_PROTOCOL_FEATURES
+
+      Id: 16
+      Ioctl: VHOST_SET_FEATURES
+      Master payload: u64
+
+      Enable protocol features in the underlying vhost implementation.
+      Only legal if feature bit VHOST_USER_F_PROTOCOL_FEATURES is present in
+      VHOST_USER_GET_FEATURES.
+      Note: slave that reported VHOST_USER_F_PROTOCOL_FEATURES must support
+      this message even before VHOST_USER_SET_FEATURES was called.
 
  * VHOST_USER_SET_OWNER
 
