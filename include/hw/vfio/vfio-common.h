@@ -35,11 +35,6 @@
     do { } while (0)
 #endif
 
-/* Extra debugging, trap acceleration paths for more logging */
-#define VFIO_ALLOW_KVM_INTX 1
-#define VFIO_ALLOW_KVM_MSI 1
-#define VFIO_ALLOW_KVM_MSIX 1
-
 enum {
     VFIO_DEVICE_TYPE_PCI = 0,
     VFIO_DEVICE_TYPE_PLATFORM = 1,

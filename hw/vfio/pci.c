@@ -167,6 +167,9 @@ typedef struct VFIOPCIDevice {
     bool has_flr;
     bool has_pm_reset;
     bool rom_read_failed;
+    bool no_kvm_intx;
+    bool no_kvm_msi;
+    bool no_kvm_msix;
 } VFIOPCIDevice;
 
 typedef struct VFIORomBlacklistEntry {
@@ -274,7 +277,7 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev)
     int ret, argsz;
     int32_t *pfd;
 
-    if (!VFIO_ALLOW_KVM_INTX || !kvm_irqfds_enabled() ||
+    if (vdev->no_kvm_intx || !kvm_irqfds_enabled() ||
         vdev->intx.route.mode != PCI_INTX_ENABLED ||
         !kvm_resamplefds_enabled()) {
         return;
@@ -571,13 +574,12 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
     return ret;
 }
 
-static void vfio_add_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage *msg,
-                                  bool msix)
+static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
+                                  MSIMessage *msg, bool msix)
 {
     int virq;
 
-    if ((msix && !VFIO_ALLOW_KVM_MSIX) ||
-        (!msix && !VFIO_ALLOW_KVM_MSI) || !msg) {
+    if ((msix && vdev->no_kvm_msix) || (!msix && vdev->no_kvm_msi) || !msg) {
         return;
     }
 
@@ -650,7 +652,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
             vfio_update_kvm_msi_virq(vector, *msg);
         }
     } else {
-        vfio_add_kvm_msi_virq(vector, msg, true);
+        vfio_add_kvm_msi_virq(vdev, vector, msg, true);
     }
 
     /*
@@ -803,7 +805,7 @@ retry:
          * Attempt to enable route through KVM irqchip,
          * default to userspace handling if unavailable.
          */
-        vfio_add_kvm_msi_virq(vector, &msg, false);
+        vfio_add_kvm_msi_virq(vdev, vector, &msg, false);
     }
 
     /* Set interrupt type prior to possible interrupts */
@@ -3729,6 +3731,9 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_BIT("x-req", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_REQ_BIT, true),
     DEFINE_PROP_BOOL("x-mmap", VFIOPCIDevice, vbasedev.allow_mmap, true),
+    DEFINE_PROP_BOOL("x-no-kvm-intx", VFIOPCIDevice, no_kvm_intx, false),
+    DEFINE_PROP_BOOL("x-no-kvm-msi", VFIOPCIDevice, no_kvm_msi, false),
+    DEFINE_PROP_BOOL("x-no-kvm-msix", VFIOPCIDevice, no_kvm_msix, false),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIOPCIDevice, vfiofd_name),
