@@ -227,6 +227,17 @@ static uint64_t migration_dirty_pages;
 static uint32_t last_version;
 static bool ram_bulk_stage;
 
+/* used by the search for pages to send */
+struct PageSearchStatus {
+    /* Current block being searched */
+    RAMBlock    *block;
+    /* Current offset to search from */
+    ram_addr_t   offset;
+    /* Set once we wrap around */
+    bool         complete_round;
+};
+typedef struct PageSearchStatus PageSearchStatus;
+
 struct CompressParam {
     bool start;
     bool done;
@@ -530,7 +541,6 @@ static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
     migration_dirty_pages +=
         cpu_physical_memory_sync_dirty_bitmap(bitmap, start, length);
 }
-
 
 /* Fix me: there are too many global variables used in migration process. */
 static int64_t start_time;
@@ -923,26 +933,30 @@ static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
 static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
                                    uint64_t *bytes_transferred)
 {
-    RAMBlock *block = last_seen_block;
-    ram_addr_t offset = last_offset;
-    bool complete_round = false;
+    PageSearchStatus pss;
     int pages = 0;
 
-    if (!block)
-        block = QLIST_FIRST_RCU(&ram_list.blocks);
+    pss.block = last_seen_block;
+    pss.offset = last_offset;
+    pss.complete_round = false;
+
+    if (!pss.block) {
+        pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
+    }
 
     while (true) {
-        offset = migration_bitmap_find_and_reset_dirty(block, offset);
-        if (complete_round && block == last_seen_block &&
-            offset >= last_offset) {
+        pss.offset = migration_bitmap_find_and_reset_dirty(pss.block,
+                                                           pss.offset);
+        if (pss.complete_round && pss.block == last_seen_block &&
+            pss.offset >= last_offset) {
             break;
         }
-        if (offset >= block->used_length) {
-            offset = 0;
-            block = QLIST_NEXT_RCU(block, next);
-            if (!block) {
-                block = QLIST_FIRST_RCU(&ram_list.blocks);
-                complete_round = true;
+        if (pss.offset >= pss.block->used_length) {
+            pss.offset = 0;
+            pss.block = QLIST_NEXT_RCU(pss.block, next);
+            if (!pss.block) {
+                pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
+                pss.complete_round = true;
                 ram_bulk_stage = false;
                 if (migrate_use_xbzrle()) {
                     /* If xbzrle is on, stop using the data compression at this
@@ -954,23 +968,24 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
             }
         } else {
             if (compression_switch && migrate_use_compression()) {
-                pages = ram_save_compressed_page(f, block, offset, last_stage,
+                pages = ram_save_compressed_page(f, pss.block, pss.offset,
+                                                 last_stage,
                                                  bytes_transferred);
             } else {
-                pages = ram_save_page(f, block, offset, last_stage,
+                pages = ram_save_page(f, pss.block, pss.offset, last_stage,
                                       bytes_transferred);
             }
 
             /* if page is unmodified, continue to the next */
             if (pages > 0) {
-                last_sent_block = block;
+                last_sent_block = pss.block;
                 break;
             }
         }
     }
 
-    last_seen_block = block;
-    last_offset = offset;
+    last_seen_block = pss.block;
+    last_offset = pss.offset;
 
     return pages;
 }
