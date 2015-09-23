@@ -390,29 +390,90 @@ static void vfio_probe_ati_bar2_4000_quirk(VFIOPCIDevice *vdev, int nr)
  * through 0x3d0.  This quirk doesn't seem to be necessary on newer cards
  * that use the I/O port BAR5 window but it doesn't hurt to leave it.
  */
-enum {
-    NV_3D0_NONE = 0,
-    NV_3D0_SELECT,
-    NV_3D0_WINDOW,
-    NV_3D0_READ,
-    NV_3D0_WRITE,
+typedef enum {NONE = 0, SELECT, WINDOW, READ, WRITE} VFIONvidia3d0State;
+static const char *nv3d0_states[] = { "NONE", "SELECT",
+                                      "WINDOW", "READ", "WRITE" };
+
+typedef struct VFIONvidia3d0Quirk {
+    VFIOPCIDevice *vdev;
+    VFIONvidia3d0State state;
+    uint32_t offset;
+} VFIONvidia3d0Quirk;
+
+static uint64_t vfio_nvidia_3d4_quirk_read(void *opaque,
+                                           hwaddr addr, unsigned size)
+{
+    VFIONvidia3d0Quirk *quirk = opaque;
+    VFIOPCIDevice *vdev = quirk->vdev;
+
+    quirk->state = NONE;
+
+    return vfio_vga_read(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+                         addr + 0x14, size);
+}
+
+static void vfio_nvidia_3d4_quirk_write(void *opaque, hwaddr addr,
+                                        uint64_t data, unsigned size)
+{
+    VFIONvidia3d0Quirk *quirk = opaque;
+    VFIOPCIDevice *vdev = quirk->vdev;
+    VFIONvidia3d0State old_state = quirk->state;
+
+    quirk->state = NONE;
+
+    switch (data) {
+    case 0x338:
+        if (old_state == NONE) {
+            quirk->state = SELECT;
+            trace_vfio_quirk_nvidia_3d0_state(vdev->vbasedev.name,
+                                              nv3d0_states[quirk->state]);
+        }
+        break;
+    case 0x538:
+        if (old_state == WINDOW) {
+            quirk->state = READ;
+            trace_vfio_quirk_nvidia_3d0_state(vdev->vbasedev.name,
+                                              nv3d0_states[quirk->state]);
+        }
+        break;
+    case 0x738:
+        if (old_state == WINDOW) {
+            quirk->state = WRITE;
+            trace_vfio_quirk_nvidia_3d0_state(vdev->vbasedev.name,
+                                              nv3d0_states[quirk->state]);
+        }
+        break;
+    }
+
+    vfio_vga_write(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
+                   addr + 0x14, data, size);
+}
+
+static const MemoryRegionOps vfio_nvidia_3d4_quirk = {
+    .read = vfio_nvidia_3d4_quirk_read,
+    .write = vfio_nvidia_3d4_quirk_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
                                            hwaddr addr, unsigned size)
 {
-    VFIOLegacyQuirk *quirk = opaque;
+    VFIONvidia3d0Quirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
-    PCIDevice *pdev = &vdev->pdev;
+    VFIONvidia3d0State old_state = quirk->state;
     uint64_t data = vfio_vga_read(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
-                                  addr + quirk->data.base_offset, size);
+                                  addr + 0x10, size);
 
-    if (quirk->data.flags == NV_3D0_READ && addr == quirk->data.data_offset) {
-        data = vfio_pci_read_config(pdev, quirk->data.address_val, size);
-        trace_vfio_nvidia_3d0_quirk_read(size, data);
+    quirk->state = NONE;
+
+    if (old_state == READ &&
+        (quirk->offset & ~(PCI_CONFIG_SPACE_SIZE - 1)) == 0x1800) {
+        uint8_t offset = quirk->offset & (PCI_CONFIG_SPACE_SIZE - 1);
+
+        data = vfio_pci_read_config(&vdev->pdev, offset, size);
+        trace_vfio_quirk_nvidia_3d0_read(vdev->vbasedev.name,
+                                         offset, size, data);
     }
-
-    quirk->data.flags = NV_3D0_NONE;
 
     return data;
 }
@@ -420,46 +481,30 @@ static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
 static void vfio_nvidia_3d0_quirk_write(void *opaque, hwaddr addr,
                                         uint64_t data, unsigned size)
 {
-    VFIOLegacyQuirk *quirk = opaque;
+    VFIONvidia3d0Quirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
-    PCIDevice *pdev = &vdev->pdev;
+    VFIONvidia3d0State old_state = quirk->state;
 
-    switch (quirk->data.flags) {
-    case NV_3D0_NONE:
-        if (addr == quirk->data.address_offset && data == 0x338) {
-            quirk->data.flags = NV_3D0_SELECT;
-        }
-        break;
-    case NV_3D0_SELECT:
-        quirk->data.flags = NV_3D0_NONE;
-        if (addr == quirk->data.data_offset &&
-            (data & ~quirk->data.address_mask) == quirk->data.address_match) {
-            quirk->data.flags = NV_3D0_WINDOW;
-            quirk->data.address_val = data & quirk->data.address_mask;
-        }
-        break;
-    case NV_3D0_WINDOW:
-        quirk->data.flags = NV_3D0_NONE;
-        if (addr == quirk->data.address_offset) {
-            if (data == 0x538) {
-                quirk->data.flags = NV_3D0_READ;
-            } else if (data == 0x738) {
-                quirk->data.flags = NV_3D0_WRITE;
-            }
-        }
-        break;
-    case NV_3D0_WRITE:
-        quirk->data.flags = NV_3D0_NONE;
-        if (addr == quirk->data.data_offset) {
-            vfio_pci_write_config(pdev, quirk->data.address_val, data, size);
-            trace_vfio_nvidia_3d0_quirk_write(data, size);
+    quirk->state = NONE;
+
+    if (old_state == SELECT) {
+        quirk->offset = (uint32_t)data;
+        quirk->state = WINDOW;
+        trace_vfio_quirk_nvidia_3d0_state(vdev->vbasedev.name,
+                                          nv3d0_states[quirk->state]);
+    } else if (old_state == WRITE) {
+        if ((quirk->offset & ~(PCI_CONFIG_SPACE_SIZE - 1)) == 0x1800) {
+            uint8_t offset = quirk->offset & (PCI_CONFIG_SPACE_SIZE - 1);
+
+            vfio_pci_write_config(&vdev->pdev, offset, data, size);
+            trace_vfio_quirk_nvidia_3d0_write(vdev->vbasedev.name,
+                                              offset, data, size);
             return;
         }
-        break;
     }
 
     vfio_vga_write(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
-                   addr + quirk->data.base_offset, data, size);
+                   addr + 0x10, data, size);
 }
 
 static const MemoryRegionOps vfio_nvidia_3d0_quirk = {
@@ -470,37 +515,34 @@ static const MemoryRegionOps vfio_nvidia_3d0_quirk = {
 
 static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
 {
-    PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
-    VFIOLegacyQuirk *legacy;
+    VFIONvidia3d0Quirk *data;
 
-    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA ||
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID) ||
         !vdev->bars[1].region.size) {
         return;
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->data = legacy = g_malloc0(sizeof(*legacy));
-    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
-    quirk->nr_mem = 1;
-    legacy->vdev = vdev;
-    legacy->data.base_offset = 0x10;
-    legacy->data.address_offset = 4;
-    legacy->data.address_size = 2;
-    legacy->data.address_match = 0x1800;
-    legacy->data.address_mask = PCI_CONFIG_SPACE_SIZE - 1;
-    legacy->data.data_offset = 0;
-    legacy->data.data_size = 4;
+    quirk->data = data = g_malloc0(sizeof(*data));
+    quirk->mem = g_malloc0_n(sizeof(MemoryRegion), 2);
+    quirk->nr_mem = 2;
+    data->vdev = vdev;
 
-    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_nvidia_3d0_quirk,
-                          legacy, "vfio-nvidia-3d0-quirk", 6);
+    memory_region_init_io(&quirk->mem[0], OBJECT(vdev), &vfio_nvidia_3d4_quirk,
+                          data, "vfio-nvidia-3d4-quirk", 2);
     memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
-                                legacy->data.base_offset, quirk->mem);
+                                0x14 /* 0x3c0 + 0x14 */, &quirk->mem[0]);
+
+    memory_region_init_io(&quirk->mem[1], OBJECT(vdev), &vfio_nvidia_3d0_quirk,
+                          data, "vfio-nvidia-3d0-quirk", 2);
+    memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
+                                0x10 /* 0x3c0 + 0x10 */, &quirk->mem[1]);
 
     QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
 
-    trace_vfio_vga_probe_nvidia_3d0_quirk(vdev->vbasedev.name);
+    trace_vfio_quirk_nvidia_3d0_probe(vdev->vbasedev.name);
 }
 
 /*
