@@ -2203,6 +2203,7 @@ static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
     uint16_t ctrl;
     uint32_t table, pba;
     int fd = vdev->vbasedev.fd;
+    VFIOMSIXInfo *msix;
 
     pos = pci_find_capability(&vdev->pdev, PCI_CAP_ID_MSIX);
     if (!pos) {
@@ -2228,21 +2229,19 @@ static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
     table = le32_to_cpu(table);
     pba = le32_to_cpu(pba);
 
-    vdev->msix = g_malloc0(sizeof(*(vdev->msix)));
-    vdev->msix->table_bar = table & PCI_MSIX_FLAGS_BIRMASK;
-    vdev->msix->table_offset = table & ~PCI_MSIX_FLAGS_BIRMASK;
-    vdev->msix->pba_bar = pba & PCI_MSIX_FLAGS_BIRMASK;
-    vdev->msix->pba_offset = pba & ~PCI_MSIX_FLAGS_BIRMASK;
-    vdev->msix->entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
+    msix = g_malloc0(sizeof(*msix));
+    msix->table_bar = table & PCI_MSIX_FLAGS_BIRMASK;
+    msix->table_offset = table & ~PCI_MSIX_FLAGS_BIRMASK;
+    msix->pba_bar = pba & PCI_MSIX_FLAGS_BIRMASK;
+    msix->pba_offset = pba & ~PCI_MSIX_FLAGS_BIRMASK;
+    msix->entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
 
     /*
      * Test the size of the pba_offset variable and catch if it extends outside
      * of the specified BAR. If it is the case, we need to apply a hardware
      * specific quirk if the device is known or we have a broken configuration.
      */
-    if (vdev->msix->pba_offset >=
-        vdev->bars[vdev->msix->pba_bar].region.size) {
-
+    if (msix->pba_offset >= vdev->bars[msix->pba_bar].region.size) {
         PCIDevice *pdev = &vdev->pdev;
         uint16_t vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
         uint16_t device = pci_get_word(pdev->config + PCI_DEVICE_ID);
@@ -2254,18 +2253,18 @@ static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
          * is 0x1000, so we hard code that here.
          */
         if (vendor == PCI_VENDOR_ID_CHELSIO && (device & 0xff00) == 0x5800) {
-            vdev->msix->pba_offset = 0x1000;
+            msix->pba_offset = 0x1000;
         } else {
             error_report("vfio: Hardware reports invalid configuration, "
                          "MSIX PBA outside of specified BAR");
+            g_free(msix);
             return -EINVAL;
         }
     }
 
-    trace_vfio_early_setup_msix(vdev->vbasedev.name, pos,
-                                vdev->msix->table_bar,
-                                vdev->msix->table_offset,
-                                vdev->msix->entries);
+    trace_vfio_early_setup_msix(vdev->vbasedev.name, pos, msix->table_bar,
+                                msix->table_offset, msix->entries);
+    vdev->msix = msix;
 
     return 0;
 }
