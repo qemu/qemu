@@ -1387,7 +1387,7 @@ static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
     sPAPRTCETable *tcet;
     uint32_t nb_table;
 
-    nb_table = SPAPR_PCI_DMA32_SIZE >> SPAPR_TCE_PAGE_SHIFT;
+    nb_table = sphb->dma_win_size >> SPAPR_TCE_PAGE_SHIFT;
     tcet = spapr_tce_new_table(DEVICE(sphb), sphb->dma_liobn,
                                0, SPAPR_TCE_PAGE_SHIFT, nb_table, false);
     if (!tcet) {
@@ -1397,7 +1397,7 @@ static void spapr_phb_finish_realize(sPAPRPHBState *sphb, Error **errp)
     }
 
     /* Register default 32bit DMA window */
-    memory_region_add_subregion(&sphb->iommu_root, 0,
+    memory_region_add_subregion(&sphb->iommu_root, sphb->dma_win_addr,
                                 spapr_tce_get_iommu(tcet));
 }
 
@@ -1430,6 +1430,9 @@ static Property spapr_phb_properties[] = {
                        SPAPR_PCI_IO_WIN_SIZE),
     DEFINE_PROP_BOOL("dynamic-reconfiguration", sPAPRPHBState, dr_enabled,
                      true),
+    /* Default DMA window is 0..1GB */
+    DEFINE_PROP_UINT64("dma_win_addr", sPAPRPHBState, dma_win_addr, 0),
+    DEFINE_PROP_UINT64("dma_win_size", sPAPRPHBState, dma_win_size, 0x40000000),
     DEFINE_PROP_END_OF_LIST(),
 };
 
