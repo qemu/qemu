@@ -1585,6 +1585,13 @@ vfio_quirk_rtl8168_msix_write(const char *name, uint16_t offset, uint64_t val) "
 vfio_quirk_rtl8168_msix_read(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table read[0x%x]: 0x%"PRIx64
 vfio_quirk_rtl8168_probe(const char *name) "%s"
 
+vfio_quirk_ati_bonaire_reset_skipped(const char *name) "%s"
+vfio_quirk_ati_bonaire_reset_no_smc(const char *name) "%s"
+vfio_quirk_ati_bonaire_reset_timeout(const char *name) "%s"
+vfio_quirk_ati_bonaire_reset_done(const char *name) "%s"
+vfio_quirk_ati_bonaire_reset(const char *name) "%s"
+
+
 # hw/vfio/vfio-common.c
 vfio_region_write(const char *name, int index, uint64_t addr, uint64_t data, unsigned size) " (%s:region%d+0x%"PRIx64", 0x%"PRIx64 ", %d)"
 vfio_region_read(char *name, int index, uint64_t addr, unsigned size, uint64_t data) " (%s:region%d+0x%"PRIx64", %d) = 0x%"PRIx64

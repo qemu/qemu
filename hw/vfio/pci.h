@@ -148,5 +148,6 @@ void vfio_vga_quirk_free(VFIOPCIDevice *vdev);
 void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr);
 void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr);
+void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev);
 
 #endif /* HW_VFIO_VFIO_PCI_H */
