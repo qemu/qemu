@@ -301,3 +301,14 @@ Message types
       Bits (0-7) of the payload contain the vring index. Bit 8 is the
       invalid FD flag. This flag is set when there is no file descriptor
       in the ancillary data.
+
+ * VHOST_USER_GET_QUEUE_NUM
+
+      Id: 17
+      Equivalent ioctl: N/A
+      Master payload: N/A
+      Slave payload: u64
+
+      Query how many queues the backend supports. This request should be
+      sent only when VHOST_USER_PROTOCOL_F_MQ is set in quried protocol
+      features by VHOST_USER_GET_PROTOCOL_FEATURES.

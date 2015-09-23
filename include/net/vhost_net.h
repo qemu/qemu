@@ -13,6 +13,7 @@ typedef struct VhostNetOptions {
     void *opaque;
 } VhostNetOptions;
 
+uint64_t vhost_net_get_max_queues(VHostNetState *net);
 struct vhost_net *vhost_net_init(VhostNetOptions *options);
 
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs, int total_queues);
