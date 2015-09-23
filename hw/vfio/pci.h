@@ -150,11 +150,6 @@ typedef struct VFIOPCIDevice {
     bool no_kvm_msix;
 } VFIOPCIDevice;
 
-typedef struct VFIORomBlacklistEntry {
-    uint16_t vendor_id;
-    uint16_t device_id;
-} VFIORomBlacklistEntry;
-
 uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
 void vfio_pci_write_config(PCIDevice *pdev,
                            uint32_t addr, uint32_t val, int len);

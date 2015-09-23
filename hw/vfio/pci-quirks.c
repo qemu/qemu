@@ -14,6 +14,19 @@
 #include "trace.h"
 #include "qemu/range.h"
 
+#define PCI_ANY_ID (~0)
+
+/* Use uin32_t for vendor & device so PCI_ANY_ID expands and cannot match hw */
+static bool vfio_pci_is(VFIOPCIDevice *vdev, uint32_t vendor, uint32_t device)
+{
+    PCIDevice *pdev = &vdev->pdev;
+
+    return (vendor == PCI_ANY_ID ||
+            vendor == pci_get_word(pdev->config + PCI_VENDOR_ID)) &&
+           (device == PCI_ANY_ID ||
+            device == pci_get_word(pdev->config + PCI_DEVICE_ID));
+}
+
 /*
  * List of device ids/vendor ids for which to disable
  * option rom loading. This avoids the guest hangs during rom
@@ -27,28 +40,25 @@
  * your card/environment details and information that could
  * help in debugging to the bug tracking this issue
  */
-static const VFIORomBlacklistEntry romblacklist[] = {
-    /* Broadcom BCM 57810 */
-    { 0x14e4, 0x168e }
+static const struct {
+    uint32_t vendor;
+    uint32_t device;
+} romblacklist[] = {
+    { 0x14e4, 0x168e }, /* Broadcom BCM 57810 */
 };
 
 bool vfio_blacklist_opt_rom(VFIOPCIDevice *vdev)
 {
-    PCIDevice *pdev = &vdev->pdev;
-    uint16_t vendor_id, device_id;
-    int count = 0;
+    int i;
 
-    vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
-    device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
-
-    while (count < ARRAY_SIZE(romblacklist)) {
-        if (romblacklist[count].vendor_id == vendor_id &&
-            romblacklist[count].device_id == device_id) {
-                return true;
+    for (i = 0 ; i < ARRAY_SIZE(romblacklist); i++) {
+        if (vfio_pci_is(vdev, romblacklist[i].vendor, romblacklist[i].device)) {
+            trace_vfio_quirk_rom_blacklisted(vdev->vbasedev.name,
+                                             romblacklist[i].vendor,
+                                             romblacklist[i].device);
+            return true;
         }
-        count++;
     }
-
     return false;
 }
 
