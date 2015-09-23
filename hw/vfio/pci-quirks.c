@@ -27,6 +27,14 @@ static bool vfio_pci_is(VFIOPCIDevice *vdev, uint32_t vendor, uint32_t device)
             device == pci_get_word(pdev->config + PCI_DEVICE_ID));
 }
 
+static bool vfio_is_vga(VFIOPCIDevice *vdev)
+{
+    PCIDevice *pdev = &vdev->pdev;
+    uint16_t class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
+
+    return class == PCI_CLASS_DISPLAY_VGA;
+}
+
 /*
  * List of device ids/vendor ids for which to disable
  * option rom loading. This avoids the guest hangs during rom
@@ -181,6 +189,55 @@ static void vfio_generic_window_quirk_data_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps vfio_generic_window_data_quirk = {
     .read = vfio_generic_window_quirk_data_read,
     .write = vfio_generic_window_quirk_data_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+/*
+ * The generic mirror quirk handles devices which expose PCI config space
+ * through a region within a BAR.  When enabled, reads and writes are
+ * redirected through to emulated PCI config space.  XXX if PCI config space
+ * used memory regions, this could just be an alias.
+ */
+typedef struct VFIOConfigMirrorQuirk {
+    struct VFIOPCIDevice *vdev;
+    uint32_t offset;
+    uint8_t bar;
+    MemoryRegion *mem;
+} VFIOConfigMirrorQuirk;
+
+static uint64_t vfio_generic_quirk_mirror_read(void *opaque,
+                                               hwaddr addr, unsigned size)
+{
+    VFIOConfigMirrorQuirk *mirror = opaque;
+    VFIOPCIDevice *vdev = mirror->vdev;
+    uint64_t data;
+
+    /* Read and discard in case the hardware cares */
+    (void)vfio_region_read(&vdev->bars[mirror->bar].region,
+                           addr + mirror->offset, size);
+
+    data = vfio_pci_read_config(&vdev->pdev, addr, size);
+    trace_vfio_quirk_generic_mirror_read(vdev->vbasedev.name,
+                                         memory_region_name(mirror->mem),
+                                         addr, data);
+    return data;
+}
+
+static void vfio_generic_quirk_mirror_write(void *opaque, hwaddr addr,
+                                            uint64_t data, unsigned size)
+{
+    VFIOConfigMirrorQuirk *mirror = opaque;
+    VFIOPCIDevice *vdev = mirror->vdev;
+
+    vfio_pci_write_config(&vdev->pdev, addr, data, size);
+    trace_vfio_quirk_generic_mirror_write(vdev->vbasedev.name,
+                                          memory_region_name(mirror->mem),
+                                          addr, data);
+}
+
+static const MemoryRegionOps vfio_generic_mirror_quirk = {
+    .read = vfio_generic_quirk_mirror_read,
+    .write = vfio_generic_quirk_mirror_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
@@ -457,40 +514,36 @@ static void vfio_probe_ati_bar4_quirk(VFIOPCIDevice *vdev, int nr)
 }
 
 /*
- * Trap the BAR2 MMIO window to config space as well.
+ * Trap the BAR2 MMIO mirror to config space as well.
  */
-static void vfio_probe_ati_bar2_4000_quirk(VFIOPCIDevice *vdev, int nr)
+static void vfio_probe_ati_bar2_quirk(VFIOPCIDevice *vdev, int nr)
 {
-    PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
-    VFIOLegacyQuirk *legacy;
+    VFIOConfigMirrorQuirk *mirror;
 
     /* Only enable on newer devices where BAR2 is 64bit */
-    if (!vdev->has_vga || nr != 2 || !vdev->bars[2].mem64 ||
-        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_ATI, PCI_ANY_ID) ||
+        !vdev->has_vga || nr != 2 || !vdev->bars[2].mem64) {
         return;
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->data = legacy = g_malloc0(sizeof(*legacy));
-    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    mirror = quirk->data = g_malloc0(sizeof(*mirror));
+    mirror->mem = quirk->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
     quirk->nr_mem = 1;
-    legacy->vdev = vdev;
-    legacy->data.flags = legacy->data.read_flags = legacy->data.write_flags = 1;
-    legacy->data.address_match = 0x4000;
-    legacy->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
-    legacy->data.bar = nr;
+    mirror->vdev = vdev;
+    mirror->offset = 0x4000;
+    mirror->bar = nr;
 
-    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_generic_quirk, legacy,
-                          "vfio-ati-bar2-4000-quirk",
-                          TARGET_PAGE_ALIGN(legacy->data.address_mask + 1));
+    memory_region_init_io(mirror->mem, OBJECT(vdev),
+                          &vfio_generic_mirror_quirk, mirror,
+                          "vfio-ati-bar2-4000-quirk", PCI_CONFIG_SPACE_SIZE);
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          legacy->data.address_match & TARGET_PAGE_MASK,
-                          quirk->mem, 1);
+                                        mirror->offset, mirror->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_probe_ati_bar2_4000_quirk(vdev->vbasedev.name);
+    trace_vfio_quirk_ati_bar2_probe(vdev->vbasedev.name);
 }
 
 /*
@@ -820,120 +873,86 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     trace_vfio_quirk_nvidia_bar5_probe(vdev->vbasedev.name);
 }
 
-static void vfio_nvidia_88000_quirk_write(void *opaque, hwaddr addr,
-                                          uint64_t data, unsigned size)
+/*
+ * Finally, BAR0 itself.  We want to redirect any accesses to either
+ * 0x1800 or 0x88000 through the PCI config space access functions.
+ */
+static void vfio_nvidia_quirk_mirror_write(void *opaque, hwaddr addr,
+                                           uint64_t data, unsigned size)
 {
-    VFIOLegacyQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
+    VFIOConfigMirrorQuirk *mirror = opaque;
+    VFIOPCIDevice *vdev = mirror->vdev;
     PCIDevice *pdev = &vdev->pdev;
-    hwaddr base = quirk->data.address_match & TARGET_PAGE_MASK;
 
-    vfio_generic_quirk_write(opaque, addr, data, size);
+    vfio_generic_quirk_mirror_write(opaque, addr, data, size);
 
     /*
      * Nvidia seems to acknowledge MSI interrupts by writing 0xff to the
      * MSI capability ID register.  Both the ID and next register are
      * read-only, so we allow writes covering either of those to real hw.
-     * NB - only fixed for the 0x88000 MMIO window.
      */
     if ((pdev->cap_present & QEMU_PCI_CAP_MSI) &&
         vfio_range_contained(addr, size, pdev->msi_cap, PCI_MSI_FLAGS)) {
-        vfio_region_write(&vdev->bars[quirk->data.bar].region,
-                          addr + base, data, size);
+        vfio_region_write(&vdev->bars[mirror->bar].region,
+                          addr + mirror->offset, data, size);
+        trace_vfio_quirk_nvidia_bar0_msi_ack(vdev->vbasedev.name);
     }
 }
 
-static const MemoryRegionOps vfio_nvidia_88000_quirk = {
-    .read = vfio_generic_quirk_read,
-    .write = vfio_nvidia_88000_quirk_write,
+static const MemoryRegionOps vfio_nvidia_mirror_quirk = {
+    .read = vfio_generic_quirk_mirror_read,
+    .write = vfio_nvidia_quirk_mirror_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-/*
- * Finally, BAR0 itself.  We want to redirect any accesses to either
- * 0x1800 or 0x88000 through the PCI config space access functions.
- *
- * NB - quirk at a page granularity or else they don't seem to work when
- *      BARs are mmap'd
- *
- * Here's offset 0x88000...
- */
-static void vfio_probe_nvidia_bar0_88000_quirk(VFIOPCIDevice *vdev, int nr)
+static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 {
-    PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
-    VFIOLegacyQuirk *legacy;
-    uint16_t vendor, class;
+    VFIOConfigMirrorQuirk *mirror;
 
-    vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
-    class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
-
-    if (nr != 0 || vendor != PCI_VENDOR_ID_NVIDIA ||
-        class != PCI_CLASS_DISPLAY_VGA) {
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_NVIDIA, PCI_ANY_ID) ||
+        !vfio_is_vga(vdev) || nr != 0) {
         return;
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->data = legacy = g_malloc0(sizeof(*legacy));
-    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    mirror = quirk->data = g_malloc0(sizeof(*mirror));
+    mirror->mem = quirk->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
     quirk->nr_mem = 1;
-    legacy->vdev = vdev;
-    legacy->data.flags = legacy->data.read_flags = legacy->data.write_flags = 1;
-    legacy->data.address_match = 0x88000;
-    legacy->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
-    legacy->data.bar = nr;
+    mirror->vdev = vdev;
+    mirror->offset = 0x88000;
+    mirror->bar = nr;
 
-    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_nvidia_88000_quirk,
-                          legacy, "vfio-nvidia-bar0-88000-quirk",
-                          TARGET_PAGE_ALIGN(legacy->data.address_mask + 1));
+    memory_region_init_io(mirror->mem, OBJECT(vdev),
+                          &vfio_nvidia_mirror_quirk, mirror,
+                          "vfio-nvidia-bar0-88000-mirror-quirk",
+                          PCIE_CONFIG_SPACE_SIZE);
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          legacy->data.address_match & TARGET_PAGE_MASK,
-                          quirk->mem, 1);
+                                        mirror->offset, mirror->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_probe_nvidia_bar0_88000_quirk(vdev->vbasedev.name);
-}
+    /* The 0x1800 offset mirror only seems to get used by legacy VGA */
+    if (vdev->has_vga) {
+        quirk = g_malloc0(sizeof(*quirk));
+        mirror = quirk->data = g_malloc0(sizeof(*mirror));
+        mirror->mem = quirk->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+        quirk->nr_mem = 1;
+        mirror->vdev = vdev;
+        mirror->offset = 0x1800;
+        mirror->bar = nr;
 
-/*
- * And here's the same for BAR0 offset 0x1800...
- */
-static void vfio_probe_nvidia_bar0_1800_quirk(VFIOPCIDevice *vdev, int nr)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-    VFIOLegacyQuirk *legacy;
+        memory_region_init_io(mirror->mem, OBJECT(vdev),
+                              &vfio_nvidia_mirror_quirk, mirror,
+                              "vfio-nvidia-bar0-1800-mirror-quirk",
+                              PCI_CONFIG_SPACE_SIZE);
+        memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+                                            mirror->offset, mirror->mem, 1);
 
-    if (!vdev->has_vga || nr != 0 ||
-        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
-        return;
+        QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
     }
 
-    /* Log the chipset ID */
-    trace_vfio_probe_nvidia_bar0_1800_quirk_id(
-            (unsigned int)(vfio_region_read(&vdev->bars[0].region, 0, 4) >> 20)
-            & 0xff);
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->data = legacy = g_malloc0(sizeof(*legacy));
-    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
-    quirk->nr_mem = 1;
-    legacy->vdev = vdev;
-    legacy->data.flags = legacy->data.read_flags = legacy->data.write_flags = 1;
-    legacy->data.address_match = 0x1800;
-    legacy->data.address_mask = PCI_CONFIG_SPACE_SIZE - 1;
-    legacy->data.bar = nr;
-
-    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_generic_quirk, legacy,
-                          "vfio-nvidia-bar0-1800-quirk",
-                          TARGET_PAGE_ALIGN(legacy->data.address_mask + 1));
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          legacy->data.address_match & TARGET_PAGE_MASK,
-                          quirk->mem, 1);
-
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
-
-    trace_vfio_probe_nvidia_bar0_1800_quirk(vdev->vbasedev.name);
+    trace_vfio_quirk_nvidia_bar0_probe(vdev->vbasedev.name);
 }
 
 /*
@@ -1147,10 +1166,9 @@ void vfio_vga_quirk_free(VFIOPCIDevice *vdev)
 void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
 {
     vfio_probe_ati_bar4_quirk(vdev, nr);
-    vfio_probe_ati_bar2_4000_quirk(vdev, nr);
+    vfio_probe_ati_bar2_quirk(vdev, nr);
     vfio_probe_nvidia_bar5_quirk(vdev, nr);
-    vfio_probe_nvidia_bar0_88000_quirk(vdev, nr);
-    vfio_probe_nvidia_bar0_1800_quirk(vdev, nr);
+    vfio_probe_nvidia_bar0_quirk(vdev, nr);
     vfio_probe_rtl8168_bar2_quirk(vdev, nr);
 }
 
