@@ -1560,6 +1560,10 @@ vfio_initfn(const char *name, int group_id) " (%s) group %d"
 vfio_pci_reset(const char *name) " (%s)"
 vfio_pci_reset_flr(const char *name) "%s FLR/VFIO_DEVICE_RESET"
 vfio_pci_reset_pm(const char *name) "%s PCI PM Reset"
+vfio_pci_emulated_vendor_id(const char *name, uint16_t val) "%s %04x"
+vfio_pci_emulated_device_id(const char *name, uint16_t val) "%s %04x"
+vfio_pci_emulated_sub_vendor_id(const char *name, uint16_t val) "%s %04x"
+vfio_pci_emulated_sub_device_id(const char *name, uint16_t val) "%s %04x"
 
 # hw/vfio/pci-quirks.
 vfio_quirk_rom_blacklisted(const char *name, uint16_t vid, uint16_t did) "%s %04x:%04x"

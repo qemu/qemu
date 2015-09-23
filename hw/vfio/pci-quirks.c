@@ -14,8 +14,6 @@
 #include "trace.h"
 #include "qemu/range.h"
 
-#define PCI_ANY_ID (~0)
-
 /* Use uin32_t for vendor & device so PCI_ANY_ID expands and cannot match hw */
 static bool vfio_pci_is(VFIOPCIDevice *vdev, uint32_t vendor, uint32_t device)
 {

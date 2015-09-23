@@ -20,6 +20,8 @@
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 
+#define PCI_ANY_ID (~0)
+
 struct VFIOPCIDevice;
 
 typedef struct VFIOQuirk {
@@ -116,8 +118,10 @@ typedef struct VFIOPCIDevice {
     EventNotifier err_notifier;
     EventNotifier req_notifier;
     int (*resetfn)(struct VFIOPCIDevice *);
-    uint16_t vendor_id;
-    uint16_t device_id;
+    uint32_t vendor_id;
+    uint32_t device_id;
+    uint32_t sub_vendor_id;
+    uint32_t sub_device_id;
     uint32_t features;
 #define VFIO_FEATURE_ENABLE_VGA_BIT 0
 #define VFIO_FEATURE_ENABLE_VGA (1 << VFIO_FEATURE_ENABLE_VGA_BIT)
