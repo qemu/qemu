@@ -24,12 +24,14 @@ typedef int (*vhost_call)(struct vhost_dev *dev, unsigned long int request,
              void *arg);
 typedef int (*vhost_backend_init)(struct vhost_dev *dev, void *opaque);
 typedef int (*vhost_backend_cleanup)(struct vhost_dev *dev);
+typedef int (*vhost_backend_get_vq_index)(struct vhost_dev *dev, int idx);
 
 typedef struct VhostOps {
     VhostBackendType backend_type;
     vhost_call vhost_call;
     vhost_backend_init vhost_backend_init;
     vhost_backend_cleanup vhost_backend_cleanup;
+    vhost_backend_get_vq_index vhost_backend_get_vq_index;
 } VhostOps;
 
 extern const VhostOps user_ops;
