@@ -1522,14 +1522,14 @@ xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (ad
 pci_cfg_read(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x -> 0x%x"
 pci_cfg_write(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x <- 0x%x"
 
-# hw/vfio/vfio-pci.c
+# hw/vfio/pci.c
 vfio_intx_interrupt(const char *name, char line) " (%s) Pin %c"
-vfio_eoi(const char *name) " (%s) EOI"
-vfio_enable_intx_kvm(const char *name) " (%s) KVM INTx accel enabled"
-vfio_disable_intx_kvm(const char *name) " (%s) KVM INTx accel disabled"
-vfio_update_irq(const char *name, int new_irq, int target_irq) " (%s) IRQ moved %d -> %d"
-vfio_enable_intx(const char *name) " (%s)"
-vfio_disable_intx(const char *name) " (%s)"
+vfio_intx_eoi(const char *name) " (%s) EOI"
+vfio_intx_enable_kvm(const char *name) " (%s) KVM INTx accel enabled"
+vfio_intx_disable_kvm(const char *name) " (%s) KVM INTx accel disabled"
+vfio_intx_update(const char *name, int new_irq, int target_irq) " (%s) IRQ moved %d -> %d"
+vfio_intx_enable(const char *name) " (%s)"
+vfio_intx_disable(const char *name) " (%s)"
 vfio_msi_interrupt(const char *name, int index, uint64_t addr, int data) " (%s) vector %d 0x%"PRIx64"/0x%x"
 vfio_msix_vector_do_use(const char *name, int index) " (%s) vector %d used"
 vfio_msix_vector_release(const char *name, int index) " (%s) vector %d released"

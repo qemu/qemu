@@ -247,7 +247,7 @@ static void vfio_intx_interrupt(void *opaque)
     }
 }
 
-static void vfio_eoi(VFIODevice *vbasedev)
+static void vfio_intx_eoi(VFIODevice *vbasedev)
 {
     VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
 
@@ -255,14 +255,14 @@ static void vfio_eoi(VFIODevice *vbasedev)
         return;
     }
 
-    trace_vfio_eoi(vbasedev->name);
+    trace_vfio_intx_eoi(vbasedev->name);
 
     vdev->intx.pending = false;
     pci_irq_deassert(&vdev->pdev);
     vfio_unmask_single_irqindex(vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 }
 
-static void vfio_enable_intx_kvm(VFIOPCIDevice *vdev)
+static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev)
 {
 #ifdef CONFIG_KVM
     struct kvm_irqfd irqfd = {
@@ -324,7 +324,7 @@ static void vfio_enable_intx_kvm(VFIOPCIDevice *vdev)
 
     vdev->intx.kvm_accel = true;
 
-    trace_vfio_enable_intx_kvm(vdev->vbasedev.name);
+    trace_vfio_intx_enable_kvm(vdev->vbasedev.name);
 
     return;
 
@@ -339,7 +339,7 @@ fail:
 #endif
 }
 
-static void vfio_disable_intx_kvm(VFIOPCIDevice *vdev)
+static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
 {
 #ifdef CONFIG_KVM
     struct kvm_irqfd irqfd = {
@@ -376,11 +376,11 @@ static void vfio_disable_intx_kvm(VFIOPCIDevice *vdev)
     /* If we've missed an event, let it re-fire through QEMU */
     vfio_unmask_single_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 
-    trace_vfio_disable_intx_kvm(vdev->vbasedev.name);
+    trace_vfio_intx_disable_kvm(vdev->vbasedev.name);
 #endif
 }
 
-static void vfio_update_irq(PCIDevice *pdev)
+static void vfio_intx_update(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     PCIINTxRoute route;
@@ -395,10 +395,10 @@ static void vfio_update_irq(PCIDevice *pdev)
         return; /* Nothing changed */
     }
 
-    trace_vfio_update_irq(vdev->vbasedev.name,
-                          vdev->intx.route.irq, route.irq);
+    trace_vfio_intx_update(vdev->vbasedev.name,
+                           vdev->intx.route.irq, route.irq);
 
-    vfio_disable_intx_kvm(vdev);
+    vfio_intx_disable_kvm(vdev);
 
     vdev->intx.route = route;
 
@@ -406,13 +406,13 @@ static void vfio_update_irq(PCIDevice *pdev)
         return;
     }
 
-    vfio_enable_intx_kvm(vdev);
+    vfio_intx_enable_kvm(vdev);
 
     /* Re-enable the interrupt in cased we missed an EOI */
-    vfio_eoi(&vdev->vbasedev);
+    vfio_intx_eoi(&vdev->vbasedev);
 }
 
-static int vfio_enable_intx(VFIOPCIDevice *vdev)
+static int vfio_intx_enable(VFIOPCIDevice *vdev)
 {
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
     int ret, argsz;
@@ -467,21 +467,21 @@ static int vfio_enable_intx(VFIOPCIDevice *vdev)
         return -errno;
     }
 
-    vfio_enable_intx_kvm(vdev);
+    vfio_intx_enable_kvm(vdev);
 
     vdev->interrupt = VFIO_INT_INTx;
 
-    trace_vfio_enable_intx(vdev->vbasedev.name);
+    trace_vfio_intx_enable(vdev->vbasedev.name);
 
     return 0;
 }
 
-static void vfio_disable_intx(VFIOPCIDevice *vdev)
+static void vfio_intx_disable(VFIOPCIDevice *vdev)
 {
     int fd;
 
     timer_del(vdev->intx.mmap_timer);
-    vfio_disable_intx_kvm(vdev);
+    vfio_intx_disable_kvm(vdev);
     vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
     vdev->intx.pending = false;
     pci_irq_deassert(&vdev->pdev);
@@ -493,7 +493,7 @@ static void vfio_disable_intx(VFIOPCIDevice *vdev)
 
     vdev->interrupt = VFIO_INT_NONE;
 
-    trace_vfio_disable_intx(vdev->vbasedev.name);
+    trace_vfio_intx_disable(vdev->vbasedev.name);
 }
 
 /*
@@ -876,7 +876,7 @@ static void vfio_disable_msi_common(VFIOPCIDevice *vdev)
     vdev->nr_vectors = 0;
     vdev->interrupt = VFIO_INT_NONE;
 
-    vfio_enable_intx(vdev);
+    vfio_intx_enable(vdev);
 }
 
 static void vfio_disable_msix(VFIOPCIDevice *vdev)
@@ -2154,7 +2154,7 @@ static void vfio_disable_interrupts(VFIOPCIDevice *vdev)
     }
 
     if (vdev->interrupt == VFIO_INT_INTx) {
-        vfio_disable_intx(vdev);
+        vfio_intx_disable(vdev);
     }
 }
 
@@ -2777,7 +2777,7 @@ static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
 
 static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
 {
-    vfio_enable_intx(vdev);
+    vfio_intx_enable(vdev);
 }
 
 static bool vfio_pci_host_match(PCIHostDeviceAddress *host1,
@@ -3001,7 +3001,7 @@ static void vfio_pci_compute_needs_reset(VFIODevice *vbasedev)
 static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
-    .vfio_eoi = vfio_eoi,
+    .vfio_eoi = vfio_intx_eoi,
 };
 
 static int vfio_populate_device(VFIOPCIDevice *vdev)
@@ -3631,8 +3631,8 @@ static int vfio_initfn(PCIDevice *pdev)
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
         vdev->intx.mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                   vfio_intx_mmap_enable, vdev);
-        pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_update_irq);
-        ret = vfio_enable_intx(vdev);
+        pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_intx_update);
+        ret = vfio_intx_enable(vdev);
         if (ret) {
             goto out_teardown;
         }
