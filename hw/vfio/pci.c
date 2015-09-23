@@ -26,178 +26,18 @@
 #include <unistd.h>
 
 #include "config.h"
-#include "exec/address-spaces.h"
-#include "exec/memory.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
-#include "hw/pci/pci.h"
-#include "qemu-common.h"
 #include "qemu/error-report.h"
-#include "qemu/event_notifier.h"
-#include "qemu/queue.h"
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
+#include "pci.h"
 #include "trace.h"
-#include "hw/vfio/vfio.h"
-#include "hw/vfio/vfio-common.h"
-
-struct VFIOPCIDevice;
-
-typedef struct VFIOQuirk {
-    MemoryRegion mem;
-    struct VFIOPCIDevice *vdev;
-    QLIST_ENTRY(VFIOQuirk) next;
-    struct {
-        uint32_t base_offset:TARGET_PAGE_BITS;
-        uint32_t address_offset:TARGET_PAGE_BITS;
-        uint32_t address_size:3;
-        uint32_t bar:3;
-
-        uint32_t address_match;
-        uint32_t address_mask;
-
-        uint32_t address_val:TARGET_PAGE_BITS;
-        uint32_t data_offset:TARGET_PAGE_BITS;
-        uint32_t data_size:3;
-
-        uint8_t flags;
-        uint8_t read_flags;
-        uint8_t write_flags;
-    } data;
-} VFIOQuirk;
-
-typedef struct VFIOBAR {
-    VFIORegion region;
-    bool ioport;
-    bool mem64;
-    QLIST_HEAD(, VFIOQuirk) quirks;
-} VFIOBAR;
-
-typedef struct VFIOVGARegion {
-    MemoryRegion mem;
-    off_t offset;
-    int nr;
-    QLIST_HEAD(, VFIOQuirk) quirks;
-} VFIOVGARegion;
-
-typedef struct VFIOVGA {
-    off_t fd_offset;
-    int fd;
-    VFIOVGARegion region[QEMU_PCI_VGA_NUM_REGIONS];
-} VFIOVGA;
-
-typedef struct VFIOINTx {
-    bool pending; /* interrupt pending */
-    bool kvm_accel; /* set when QEMU bypass through KVM enabled */
-    uint8_t pin; /* which pin to pull for qemu_set_irq */
-    EventNotifier interrupt; /* eventfd triggered on interrupt */
-    EventNotifier unmask; /* eventfd for unmask on QEMU bypass */
-    PCIINTxRoute route; /* routing info for QEMU bypass */
-    uint32_t mmap_timeout; /* delay to re-enable mmaps after interrupt */
-    QEMUTimer *mmap_timer; /* enable mmaps after periods w/o interrupts */
-} VFIOINTx;
-
-typedef struct VFIOMSIVector {
-    /*
-     * Two interrupt paths are configured per vector.  The first, is only used
-     * for interrupts injected via QEMU.  This is typically the non-accel path,
-     * but may also be used when we want QEMU to handle masking and pending
-     * bits.  The KVM path bypasses QEMU and is therefore higher performance,
-     * but requires masking at the device.  virq is used to track the MSI route
-     * through KVM, thus kvm_interrupt is only available when virq is set to a
-     * valid (>= 0) value.
-     */
-    EventNotifier interrupt;
-    EventNotifier kvm_interrupt;
-    struct VFIOPCIDevice *vdev; /* back pointer to device */
-    int virq;
-    bool use;
-} VFIOMSIVector;
-
-enum {
-    VFIO_INT_NONE = 0,
-    VFIO_INT_INTx = 1,
-    VFIO_INT_MSI  = 2,
-    VFIO_INT_MSIX = 3,
-};
-
-/* Cache of MSI-X setup plus extra mmap and memory region for split BAR map */
-typedef struct VFIOMSIXInfo {
-    uint8_t table_bar;
-    uint8_t pba_bar;
-    uint16_t entries;
-    uint32_t table_offset;
-    uint32_t pba_offset;
-    MemoryRegion mmap_mem;
-    void *mmap;
-} VFIOMSIXInfo;
-
-typedef struct VFIOPCIDevice {
-    PCIDevice pdev;
-    VFIODevice vbasedev;
-    VFIOINTx intx;
-    unsigned int config_size;
-    uint8_t *emulated_config_bits; /* QEMU emulated bits, little-endian */
-    off_t config_offset; /* Offset of config space region within device fd */
-    unsigned int rom_size;
-    off_t rom_offset; /* Offset of ROM region within device fd */
-    void *rom;
-    int msi_cap_size;
-    VFIOMSIVector *msi_vectors;
-    VFIOMSIXInfo *msix;
-    int nr_vectors; /* Number of MSI/MSIX vectors currently in use */
-    int interrupt; /* Current interrupt type */
-    VFIOBAR bars[PCI_NUM_REGIONS - 1]; /* No ROM */
-    VFIOVGA vga; /* 0xa0000, 0x3b0, 0x3c0 */
-    PCIHostDeviceAddress host;
-    EventNotifier err_notifier;
-    EventNotifier req_notifier;
-    int (*resetfn)(struct VFIOPCIDevice *);
-    uint32_t features;
-#define VFIO_FEATURE_ENABLE_VGA_BIT 0
-#define VFIO_FEATURE_ENABLE_VGA (1 << VFIO_FEATURE_ENABLE_VGA_BIT)
-#define VFIO_FEATURE_ENABLE_REQ_BIT 1
-#define VFIO_FEATURE_ENABLE_REQ (1 << VFIO_FEATURE_ENABLE_REQ_BIT)
-    int32_t bootindex;
-    uint8_t pm_cap;
-    bool has_vga;
-    bool pci_aer;
-    bool req_enabled;
-    bool has_flr;
-    bool has_pm_reset;
-    bool rom_read_failed;
-} VFIOPCIDevice;
-
-typedef struct VFIORomBlacklistEntry {
-    uint16_t vendor_id;
-    uint16_t device_id;
-} VFIORomBlacklistEntry;
-
-/*
- * List of device ids/vendor ids for which to disable
- * option rom loading. This avoids the guest hangs during rom
- * execution as noticed with the BCM 57810 card for lack of a
- * more better way to handle such issues.
- * The  user can still override by specifying a romfile or
- * rombar=1.
- * Please see https://bugs.launchpad.net/qemu/+bug/1284874
- * for an analysis of the 57810 card hang. When adding
- * a new vendor id/device id combination below, please also add
- * your card/environment details and information that could
- * help in debugging to the bug tracking this issue
- */
-static const VFIORomBlacklistEntry romblacklist[] = {
-    /* Broadcom BCM 57810 */
-    { 0x14e4, 0x168e }
-};
 
 #define MSIX_CAP_LENGTH 12
 
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
-static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len);
-static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
-                                  uint32_t val, int len);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
 
 /*
@@ -247,7 +87,7 @@ static void vfio_intx_interrupt(void *opaque)
     }
 }
 
-static void vfio_eoi(VFIODevice *vbasedev)
+static void vfio_intx_eoi(VFIODevice *vbasedev)
 {
     VFIOPCIDevice *vdev = container_of(vbasedev, VFIOPCIDevice, vbasedev);
 
@@ -255,14 +95,14 @@ static void vfio_eoi(VFIODevice *vbasedev)
         return;
     }
 
-    trace_vfio_eoi(vbasedev->name);
+    trace_vfio_intx_eoi(vbasedev->name);
 
     vdev->intx.pending = false;
     pci_irq_deassert(&vdev->pdev);
     vfio_unmask_single_irqindex(vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 }
 
-static void vfio_enable_intx_kvm(VFIOPCIDevice *vdev)
+static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev)
 {
 #ifdef CONFIG_KVM
     struct kvm_irqfd irqfd = {
@@ -274,7 +114,7 @@ static void vfio_enable_intx_kvm(VFIOPCIDevice *vdev)
     int ret, argsz;
     int32_t *pfd;
 
-    if (!VFIO_ALLOW_KVM_INTX || !kvm_irqfds_enabled() ||
+    if (vdev->no_kvm_intx || !kvm_irqfds_enabled() ||
         vdev->intx.route.mode != PCI_INTX_ENABLED ||
         !kvm_resamplefds_enabled()) {
         return;
@@ -324,7 +164,7 @@ static void vfio_enable_intx_kvm(VFIOPCIDevice *vdev)
 
     vdev->intx.kvm_accel = true;
 
-    trace_vfio_enable_intx_kvm(vdev->vbasedev.name);
+    trace_vfio_intx_enable_kvm(vdev->vbasedev.name);
 
     return;
 
@@ -339,7 +179,7 @@ fail:
 #endif
 }
 
-static void vfio_disable_intx_kvm(VFIOPCIDevice *vdev)
+static void vfio_intx_disable_kvm(VFIOPCIDevice *vdev)
 {
 #ifdef CONFIG_KVM
     struct kvm_irqfd irqfd = {
@@ -376,11 +216,11 @@ static void vfio_disable_intx_kvm(VFIOPCIDevice *vdev)
     /* If we've missed an event, let it re-fire through QEMU */
     vfio_unmask_single_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
 
-    trace_vfio_disable_intx_kvm(vdev->vbasedev.name);
+    trace_vfio_intx_disable_kvm(vdev->vbasedev.name);
 #endif
 }
 
-static void vfio_update_irq(PCIDevice *pdev)
+static void vfio_intx_update(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     PCIINTxRoute route;
@@ -395,10 +235,10 @@ static void vfio_update_irq(PCIDevice *pdev)
         return; /* Nothing changed */
     }
 
-    trace_vfio_update_irq(vdev->vbasedev.name,
-                          vdev->intx.route.irq, route.irq);
+    trace_vfio_intx_update(vdev->vbasedev.name,
+                           vdev->intx.route.irq, route.irq);
 
-    vfio_disable_intx_kvm(vdev);
+    vfio_intx_disable_kvm(vdev);
 
     vdev->intx.route = route;
 
@@ -406,13 +246,13 @@ static void vfio_update_irq(PCIDevice *pdev)
         return;
     }
 
-    vfio_enable_intx_kvm(vdev);
+    vfio_intx_enable_kvm(vdev);
 
     /* Re-enable the interrupt in cased we missed an EOI */
-    vfio_eoi(&vdev->vbasedev);
+    vfio_intx_eoi(&vdev->vbasedev);
 }
 
-static int vfio_enable_intx(VFIOPCIDevice *vdev)
+static int vfio_intx_enable(VFIOPCIDevice *vdev)
 {
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
     int ret, argsz;
@@ -467,21 +307,21 @@ static int vfio_enable_intx(VFIOPCIDevice *vdev)
         return -errno;
     }
 
-    vfio_enable_intx_kvm(vdev);
+    vfio_intx_enable_kvm(vdev);
 
     vdev->interrupt = VFIO_INT_INTx;
 
-    trace_vfio_enable_intx(vdev->vbasedev.name);
+    trace_vfio_intx_enable(vdev->vbasedev.name);
 
     return 0;
 }
 
-static void vfio_disable_intx(VFIOPCIDevice *vdev)
+static void vfio_intx_disable(VFIOPCIDevice *vdev)
 {
     int fd;
 
     timer_del(vdev->intx.mmap_timer);
-    vfio_disable_intx_kvm(vdev);
+    vfio_intx_disable_kvm(vdev);
     vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX);
     vdev->intx.pending = false;
     pci_irq_deassert(&vdev->pdev);
@@ -493,7 +333,7 @@ static void vfio_disable_intx(VFIOPCIDevice *vdev)
 
     vdev->interrupt = VFIO_INT_NONE;
 
-    trace_vfio_disable_intx(vdev->vbasedev.name);
+    trace_vfio_intx_disable(vdev->vbasedev.name);
 }
 
 /*
@@ -503,33 +343,28 @@ static void vfio_msi_interrupt(void *opaque)
 {
     VFIOMSIVector *vector = opaque;
     VFIOPCIDevice *vdev = vector->vdev;
+    MSIMessage (*get_msg)(PCIDevice *dev, unsigned vector);
+    void (*notify)(PCIDevice *dev, unsigned vector);
+    MSIMessage msg;
     int nr = vector - vdev->msi_vectors;
 
     if (!event_notifier_test_and_clear(&vector->interrupt)) {
         return;
     }
 
-#ifdef DEBUG_VFIO
-    MSIMessage msg;
-
     if (vdev->interrupt == VFIO_INT_MSIX) {
-        msg = msix_get_message(&vdev->pdev, nr);
+        get_msg = msix_get_message;
+        notify = msix_notify;
     } else if (vdev->interrupt == VFIO_INT_MSI) {
-        msg = msi_get_message(&vdev->pdev, nr);
+        get_msg = msi_get_message;
+        notify = msi_notify;
     } else {
         abort();
     }
 
+    msg = get_msg(&vdev->pdev, nr);
     trace_vfio_msi_interrupt(vdev->vbasedev.name, nr, msg.address, msg.data);
-#endif
-
-    if (vdev->interrupt == VFIO_INT_MSIX) {
-        msix_notify(&vdev->pdev, nr);
-    } else if (vdev->interrupt == VFIO_INT_MSI) {
-        msi_notify(&vdev->pdev, nr);
-    } else {
-        error_report("vfio: MSI interrupt receieved, but not enabled?");
-    }
+    notify(&vdev->pdev, nr);
 }
 
 static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
@@ -576,13 +411,12 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
     return ret;
 }
 
-static void vfio_add_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage *msg,
-                                  bool msix)
+static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
+                                  MSIMessage *msg, bool msix)
 {
     int virq;
 
-    if ((msix && !VFIO_ALLOW_KVM_MSIX) ||
-        (!msix && !VFIO_ALLOW_KVM_MSI) || !msg) {
+    if ((msix && vdev->no_kvm_msix) || (!msix && vdev->no_kvm_msi) || !msg) {
         return;
     }
 
@@ -655,7 +489,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
             vfio_update_kvm_msi_virq(vector, *msg);
         }
     } else {
-        vfio_add_kvm_msi_virq(vector, msg, true);
+        vfio_add_kvm_msi_virq(vdev, vector, msg, true);
     }
 
     /*
@@ -747,7 +581,7 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
     }
 }
 
-static void vfio_enable_msix(VFIOPCIDevice *vdev)
+static void vfio_msix_enable(VFIOPCIDevice *vdev)
 {
     vfio_disable_interrupts(vdev);
 
@@ -776,10 +610,10 @@ static void vfio_enable_msix(VFIOPCIDevice *vdev)
         error_report("vfio: msix_set_vector_notifiers failed");
     }
 
-    trace_vfio_enable_msix(vdev->vbasedev.name);
+    trace_vfio_msix_enable(vdev->vbasedev.name);
 }
 
-static void vfio_enable_msi(VFIOPCIDevice *vdev)
+static void vfio_msi_enable(VFIOPCIDevice *vdev)
 {
     int ret, i;
 
@@ -808,7 +642,7 @@ retry:
          * Attempt to enable route through KVM irqchip,
          * default to userspace handling if unavailable.
          */
-        vfio_add_kvm_msi_virq(vector, &msg, false);
+        vfio_add_kvm_msi_virq(vdev, vector, &msg, false);
     }
 
     /* Set interrupt type prior to possible interrupts */
@@ -852,10 +686,10 @@ retry:
         return;
     }
 
-    trace_vfio_enable_msi(vdev->vbasedev.name, vdev->nr_vectors);
+    trace_vfio_msi_enable(vdev->vbasedev.name, vdev->nr_vectors);
 }
 
-static void vfio_disable_msi_common(VFIOPCIDevice *vdev)
+static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
 {
     int i;
 
@@ -876,10 +710,10 @@ static void vfio_disable_msi_common(VFIOPCIDevice *vdev)
     vdev->nr_vectors = 0;
     vdev->interrupt = VFIO_INT_NONE;
 
-    vfio_enable_intx(vdev);
+    vfio_intx_enable(vdev);
 }
 
-static void vfio_disable_msix(VFIOPCIDevice *vdev)
+static void vfio_msix_disable(VFIOPCIDevice *vdev)
 {
     int i;
 
@@ -900,17 +734,17 @@ static void vfio_disable_msix(VFIOPCIDevice *vdev)
         vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
     }
 
-    vfio_disable_msi_common(vdev);
+    vfio_msi_disable_common(vdev);
 
-    trace_vfio_disable_msix(vdev->vbasedev.name);
+    trace_vfio_msix_disable(vdev->vbasedev.name);
 }
 
-static void vfio_disable_msi(VFIOPCIDevice *vdev)
+static void vfio_msi_disable(VFIOPCIDevice *vdev)
 {
     vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSI_IRQ_INDEX);
-    vfio_disable_msi_common(vdev);
+    vfio_msi_disable_common(vdev);
 
-    trace_vfio_disable_msi(vdev->vbasedev.name);
+    trace_vfio_msi_disable(vdev->vbasedev.name);
 }
 
 static void vfio_update_msi(VFIOPCIDevice *vdev)
@@ -1033,26 +867,6 @@ static const MemoryRegionOps vfio_rom_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static bool vfio_blacklist_opt_rom(VFIOPCIDevice *vdev)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    uint16_t vendor_id, device_id;
-    int count = 0;
-
-    vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
-    device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
-
-    while (count < ARRAY_SIZE(romblacklist)) {
-        if (romblacklist[count].vendor_id == vendor_id &&
-            romblacklist[count].device_id == device_id) {
-                return true;
-        }
-        count++;
-    }
-
-    return false;
-}
-
 static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
 {
     uint32_t orig, size = cpu_to_le32((uint32_t)PCI_ROM_ADDRESS_MASK);
@@ -1130,7 +944,7 @@ static void vfio_pci_size_rom(VFIOPCIDevice *vdev)
     vdev->rom_read_failed = false;
 }
 
-static void vfio_vga_write(void *opaque, hwaddr addr,
+void vfio_vga_write(void *opaque, hwaddr addr,
                            uint64_t data, unsigned size)
 {
     VFIOVGARegion *region = opaque;
@@ -1166,7 +980,7 @@ static void vfio_vga_write(void *opaque, hwaddr addr,
     trace_vfio_vga_write(region->offset + addr, data, size);
 }
 
-static uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size)
+uint64_t vfio_vga_read(void *opaque, hwaddr addr, unsigned size)
 {
     VFIOVGARegion *region = opaque;
     VFIOVGA *vga = container_of(region, VFIOVGA, region[region->nr]);
@@ -1212,858 +1026,9 @@ static const MemoryRegionOps vfio_vga_ops = {
 };
 
 /*
- * Device specific quirks
- */
-
-/* Is range1 fully contained within range2?  */
-static bool vfio_range_contained(uint64_t first1, uint64_t len1,
-                                 uint64_t first2, uint64_t len2) {
-    return (first1 >= first2 && first1 + len1 <= first2 + len2);
-}
-
-static bool vfio_flags_enabled(uint8_t flags, uint8_t mask)
-{
-    return (mask && (flags & mask) == mask);
-}
-
-static uint64_t vfio_generic_window_quirk_read(void *opaque,
-                                               hwaddr addr, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-    uint64_t data;
-
-    if (vfio_flags_enabled(quirk->data.flags, quirk->data.read_flags) &&
-        ranges_overlap(addr, size,
-                       quirk->data.data_offset, quirk->data.data_size)) {
-        hwaddr offset = addr - quirk->data.data_offset;
-
-        if (!vfio_range_contained(addr, size, quirk->data.data_offset,
-                                  quirk->data.data_size)) {
-            hw_error("%s: window data read not fully contained: %s",
-                     __func__, memory_region_name(&quirk->mem));
-        }
-
-        data = vfio_pci_read_config(&vdev->pdev,
-                                    quirk->data.address_val + offset, size);
-
-        trace_vfio_generic_window_quirk_read(memory_region_name(&quirk->mem),
-                                             vdev->vbasedev.name,
-                                             quirk->data.bar,
-                                             addr, size, data);
-    } else {
-        data = vfio_region_read(&vdev->bars[quirk->data.bar].region,
-                                addr + quirk->data.base_offset, size);
-    }
-
-    return data;
-}
-
-static void vfio_generic_window_quirk_write(void *opaque, hwaddr addr,
-                                            uint64_t data, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-
-    if (ranges_overlap(addr, size,
-                       quirk->data.address_offset, quirk->data.address_size)) {
-
-        if (addr != quirk->data.address_offset) {
-            hw_error("%s: offset write into address window: %s",
-                     __func__, memory_region_name(&quirk->mem));
-        }
-
-        if ((data & ~quirk->data.address_mask) == quirk->data.address_match) {
-            quirk->data.flags |= quirk->data.write_flags |
-                                 quirk->data.read_flags;
-            quirk->data.address_val = data & quirk->data.address_mask;
-        } else {
-            quirk->data.flags &= ~(quirk->data.write_flags |
-                                   quirk->data.read_flags);
-        }
-    }
-
-    if (vfio_flags_enabled(quirk->data.flags, quirk->data.write_flags) &&
-        ranges_overlap(addr, size,
-                       quirk->data.data_offset, quirk->data.data_size)) {
-        hwaddr offset = addr - quirk->data.data_offset;
-
-        if (!vfio_range_contained(addr, size, quirk->data.data_offset,
-                                  quirk->data.data_size)) {
-            hw_error("%s: window data write not fully contained: %s",
-                     __func__, memory_region_name(&quirk->mem));
-        }
-
-        vfio_pci_write_config(&vdev->pdev,
-                              quirk->data.address_val + offset, data, size);
-        trace_vfio_generic_window_quirk_write(memory_region_name(&quirk->mem),
-                                              vdev->vbasedev.name,
-                                              quirk->data.bar,
-                                              addr, data, size);
-        return;
-    }
-
-    vfio_region_write(&vdev->bars[quirk->data.bar].region,
-                   addr + quirk->data.base_offset, data, size);
-}
-
-static const MemoryRegionOps vfio_generic_window_quirk = {
-    .read = vfio_generic_window_quirk_read,
-    .write = vfio_generic_window_quirk_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static uint64_t vfio_generic_quirk_read(void *opaque,
-                                        hwaddr addr, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-    hwaddr base = quirk->data.address_match & TARGET_PAGE_MASK;
-    hwaddr offset = quirk->data.address_match & ~TARGET_PAGE_MASK;
-    uint64_t data;
-
-    if (vfio_flags_enabled(quirk->data.flags, quirk->data.read_flags) &&
-        ranges_overlap(addr, size, offset, quirk->data.address_mask + 1)) {
-        if (!vfio_range_contained(addr, size, offset,
-                                  quirk->data.address_mask + 1)) {
-            hw_error("%s: read not fully contained: %s",
-                     __func__, memory_region_name(&quirk->mem));
-        }
-
-        data = vfio_pci_read_config(&vdev->pdev, addr - offset, size);
-
-        trace_vfio_generic_quirk_read(memory_region_name(&quirk->mem),
-                                      vdev->vbasedev.name, quirk->data.bar,
-                                      addr + base, size, data);
-    } else {
-        data = vfio_region_read(&vdev->bars[quirk->data.bar].region,
-                                addr + base, size);
-    }
-
-    return data;
-}
-
-static void vfio_generic_quirk_write(void *opaque, hwaddr addr,
-                                     uint64_t data, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-    hwaddr base = quirk->data.address_match & TARGET_PAGE_MASK;
-    hwaddr offset = quirk->data.address_match & ~TARGET_PAGE_MASK;
-
-    if (vfio_flags_enabled(quirk->data.flags, quirk->data.write_flags) &&
-        ranges_overlap(addr, size, offset, quirk->data.address_mask + 1)) {
-        if (!vfio_range_contained(addr, size, offset,
-                                  quirk->data.address_mask + 1)) {
-            hw_error("%s: write not fully contained: %s",
-                     __func__, memory_region_name(&quirk->mem));
-        }
-
-        vfio_pci_write_config(&vdev->pdev, addr - offset, data, size);
-
-        trace_vfio_generic_quirk_write(memory_region_name(&quirk->mem),
-                                       vdev->vbasedev.name, quirk->data.bar,
-                                       addr + base, data, size);
-    } else {
-        vfio_region_write(&vdev->bars[quirk->data.bar].region,
-                          addr + base, data, size);
-    }
-}
-
-static const MemoryRegionOps vfio_generic_quirk = {
-    .read = vfio_generic_quirk_read,
-    .write = vfio_generic_quirk_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-#define PCI_VENDOR_ID_ATI               0x1002
-
-/*
- * Radeon HD cards (HD5450 & HD7850) report the upper byte of the I/O port BAR
- * through VGA register 0x3c3.  On newer cards, the I/O port BAR is always
- * BAR4 (older cards like the X550 used BAR1, but we don't care to support
- * those).  Note that on bare metal, a read of 0x3c3 doesn't always return the
- * I/O port BAR address.  Originally this was coded to return the virtual BAR
- * address only if the physical register read returns the actual BAR address,
- * but users have reported greater success if we return the virtual address
- * unconditionally.
- */
-static uint64_t vfio_ati_3c3_quirk_read(void *opaque,
-                                        hwaddr addr, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-    uint64_t data = vfio_pci_read_config(&vdev->pdev,
-                                         PCI_BASE_ADDRESS_0 + (4 * 4) + 1,
-                                         size);
-    trace_vfio_ati_3c3_quirk_read(data);
-
-    return data;
-}
-
-static const MemoryRegionOps vfio_ati_3c3_quirk = {
-    .read = vfio_ati_3c3_quirk_read,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-
-    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
-        return;
-    }
-
-    /*
-     * As long as the BAR is >= 256 bytes it will be aligned such that the
-     * lower byte is always zero.  Filter out anything else, if it exists.
-     */
-    if (!vdev->bars[4].ioport || vdev->bars[4].region.size < 256) {
-        return;
-    }
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_ati_3c3_quirk, quirk,
-                          "vfio-ati-3c3-quirk", 1);
-    memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
-                                3 /* offset 3 bytes from 0x3c0 */, &quirk->mem);
-
-    QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
-                      quirk, next);
-
-    trace_vfio_vga_probe_ati_3c3_quirk(vdev->vbasedev.name);
-}
-
-/*
- * Newer ATI/AMD devices, including HD5450 and HD7850, have a window to PCI
- * config space through MMIO BAR2 at offset 0x4000.  Nothing seems to access
- * the MMIO space directly, but a window to this space is provided through
- * I/O port BAR4.  Offset 0x0 is the address register and offset 0x4 is the
- * data register.  When the address is programmed to a range of 0x4000-0x4fff
- * PCI configuration space is available.  Experimentation seems to indicate
- * that only read-only access is provided, but we drop writes when the window
- * is enabled to config space nonetheless.
- */
-static void vfio_probe_ati_bar4_window_quirk(VFIOPCIDevice *vdev, int nr)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-
-    if (!vdev->has_vga || nr != 4 ||
-        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
-        return;
-    }
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.address_size = 4;
-    quirk->data.data_offset = 4;
-    quirk->data.data_size = 4;
-    quirk->data.address_match = 0x4000;
-    quirk->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
-    quirk->data.bar = nr;
-    quirk->data.read_flags = quirk->data.write_flags = 1;
-
-    memory_region_init_io(&quirk->mem, OBJECT(vdev),
-                          &vfio_generic_window_quirk, quirk,
-                          "vfio-ati-bar4-window-quirk", 8);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          quirk->data.base_offset, &quirk->mem, 1);
-
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
-
-    trace_vfio_probe_ati_bar4_window_quirk(vdev->vbasedev.name);
-}
-
-#define PCI_VENDOR_ID_REALTEK 0x10ec
-
-/*
- * RTL8168 devices have a backdoor that can access the MSI-X table.  At BAR2
- * offset 0x70 there is a dword data register, offset 0x74 is a dword address
- * register.  According to the Linux r8169 driver, the MSI-X table is addressed
- * when the "type" portion of the address register is set to 0x1.  This appears
- * to be bits 16:30.  Bit 31 is both a write indicator and some sort of
- * "address latched" indicator.  Bits 12:15 are a mask field, which we can
- * ignore because the MSI-X table should always be accessed as a dword (full
- * mask).  Bits 0:11 is offset within the type.
- *
- * Example trace:
- *
- * Read from MSI-X table offset 0
- * vfio: vfio_bar_write(0000:05:00.0:BAR2+0x74, 0x1f000, 4) // store read addr
- * vfio: vfio_bar_read(0000:05:00.0:BAR2+0x74, 4) = 0x8001f000 // latch
- * vfio: vfio_bar_read(0000:05:00.0:BAR2+0x70, 4) = 0xfee00398 // read data
- *
- * Write 0xfee00000 to MSI-X table offset 0
- * vfio: vfio_bar_write(0000:05:00.0:BAR2+0x70, 0xfee00000, 4) // write data
- * vfio: vfio_bar_write(0000:05:00.0:BAR2+0x74, 0x8001f000, 4) // do write
- * vfio: vfio_bar_read(0000:05:00.0:BAR2+0x74, 4) = 0x1f000 // complete
- */
-
-static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
-                                               hwaddr addr, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-
-    switch (addr) {
-    case 4: /* address */
-        if (quirk->data.flags) {
-            trace_vfio_rtl8168_window_quirk_read_fake(
-                    memory_region_name(&quirk->mem),
-                    vdev->vbasedev.name);
-
-            return quirk->data.address_match ^ 0x80000000U;
-        }
-        break;
-    case 0: /* data */
-        if (quirk->data.flags) {
-            uint64_t val;
-
-            trace_vfio_rtl8168_window_quirk_read_table(
-                    memory_region_name(&quirk->mem),
-                    vdev->vbasedev.name);
-
-            if (!(vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX)) {
-                return 0;
-            }
-
-            memory_region_dispatch_read(&vdev->pdev.msix_table_mmio,
-                                        (hwaddr)(quirk->data.address_match
-                                                 & 0xfff),
-                                        &val,
-                                        size,
-                                        MEMTXATTRS_UNSPECIFIED);
-            return val;
-        }
-    }
-
-    trace_vfio_rtl8168_window_quirk_read_direct(memory_region_name(&quirk->mem),
-                                                vdev->vbasedev.name);
-
-    return vfio_region_read(&vdev->bars[quirk->data.bar].region,
-                            addr + 0x70, size);
-}
-
-static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
-                                            uint64_t data, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-
-    switch (addr) {
-    case 4: /* address */
-        if ((data & 0x7fff0000) == 0x10000) {
-            if (data & 0x80000000U &&
-                vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX) {
-
-                trace_vfio_rtl8168_window_quirk_write_table(
-                        memory_region_name(&quirk->mem),
-                        vdev->vbasedev.name);
-
-                memory_region_dispatch_write(&vdev->pdev.msix_table_mmio,
-                                             (hwaddr)(data & 0xfff),
-                                             (uint64_t)quirk->data.address_mask,
-                                             size, MEMTXATTRS_UNSPECIFIED);
-            }
-
-            quirk->data.flags = 1;
-            quirk->data.address_match = data;
-
-            return;
-        }
-        quirk->data.flags = 0;
-        break;
-    case 0: /* data */
-        quirk->data.address_mask = data;
-        break;
-    }
-
-    trace_vfio_rtl8168_window_quirk_write_direct(
-            memory_region_name(&quirk->mem),
-            vdev->vbasedev.name);
-
-    vfio_region_write(&vdev->bars[quirk->data.bar].region,
-                      addr + 0x70, data, size);
-}
-
-static const MemoryRegionOps vfio_rtl8168_window_quirk = {
-    .read = vfio_rtl8168_window_quirk_read,
-    .write = vfio_rtl8168_window_quirk_write,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-        .unaligned = false,
-    },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static void vfio_probe_rtl8168_bar2_window_quirk(VFIOPCIDevice *vdev, int nr)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-
-    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_REALTEK ||
-        pci_get_word(pdev->config + PCI_DEVICE_ID) != 0x8168 || nr != 2) {
-        return;
-    }
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.bar = nr;
-
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_rtl8168_window_quirk,
-                          quirk, "vfio-rtl8168-window-quirk", 8);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                                        0x70, &quirk->mem, 1);
-
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
-
-    trace_vfio_probe_rtl8168_bar2_window_quirk(vdev->vbasedev.name);
-}
-/*
- * Trap the BAR2 MMIO window to config space as well.
- */
-static void vfio_probe_ati_bar2_4000_quirk(VFIOPCIDevice *vdev, int nr)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-
-    /* Only enable on newer devices where BAR2 is 64bit */
-    if (!vdev->has_vga || nr != 2 || !vdev->bars[2].mem64 ||
-        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
-        return;
-    }
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.flags = quirk->data.read_flags = quirk->data.write_flags = 1;
-    quirk->data.address_match = 0x4000;
-    quirk->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
-    quirk->data.bar = nr;
-
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_generic_quirk, quirk,
-                          "vfio-ati-bar2-4000-quirk",
-                          TARGET_PAGE_ALIGN(quirk->data.address_mask + 1));
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          quirk->data.address_match & TARGET_PAGE_MASK,
-                          &quirk->mem, 1);
-
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
-
-    trace_vfio_probe_ati_bar2_4000_quirk(vdev->vbasedev.name);
-}
-
-/*
- * Older ATI/AMD cards like the X550 have a similar window to that above.
- * I/O port BAR1 provides a window to a mirror of PCI config space located
- * in BAR2 at offset 0xf00.  We don't care to support such older cards, but
- * note it for future reference.
- */
-
-#define PCI_VENDOR_ID_NVIDIA                    0x10de
-
-/*
- * Nvidia has several different methods to get to config space, the
- * nouveu project has several of these documented here:
- * https://github.com/pathscale/envytools/tree/master/hwdocs
- *
- * The first quirk is actually not documented in envytools and is found
- * on 10de:01d1 (NVIDIA Corporation G72 [GeForce 7300 LE]).  This is an
- * NV46 chipset.  The backdoor uses the legacy VGA I/O ports to access
- * the mirror of PCI config space found at BAR0 offset 0x1800.  The access
- * sequence first writes 0x338 to I/O port 0x3d4.  The target offset is
- * then written to 0x3d0.  Finally 0x538 is written for a read and 0x738
- * is written for a write to 0x3d4.  The BAR0 offset is then accessible
- * through 0x3d0.  This quirk doesn't seem to be necessary on newer cards
- * that use the I/O port BAR5 window but it doesn't hurt to leave it.
- */
-enum {
-    NV_3D0_NONE = 0,
-    NV_3D0_SELECT,
-    NV_3D0_WINDOW,
-    NV_3D0_READ,
-    NV_3D0_WRITE,
-};
-
-static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
-                                           hwaddr addr, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-    PCIDevice *pdev = &vdev->pdev;
-    uint64_t data = vfio_vga_read(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
-                                  addr + quirk->data.base_offset, size);
-
-    if (quirk->data.flags == NV_3D0_READ && addr == quirk->data.data_offset) {
-        data = vfio_pci_read_config(pdev, quirk->data.address_val, size);
-        trace_vfio_nvidia_3d0_quirk_read(size, data);
-    }
-
-    quirk->data.flags = NV_3D0_NONE;
-
-    return data;
-}
-
-static void vfio_nvidia_3d0_quirk_write(void *opaque, hwaddr addr,
-                                        uint64_t data, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-    PCIDevice *pdev = &vdev->pdev;
-
-    switch (quirk->data.flags) {
-    case NV_3D0_NONE:
-        if (addr == quirk->data.address_offset && data == 0x338) {
-            quirk->data.flags = NV_3D0_SELECT;
-        }
-        break;
-    case NV_3D0_SELECT:
-        quirk->data.flags = NV_3D0_NONE;
-        if (addr == quirk->data.data_offset &&
-            (data & ~quirk->data.address_mask) == quirk->data.address_match) {
-            quirk->data.flags = NV_3D0_WINDOW;
-            quirk->data.address_val = data & quirk->data.address_mask;
-        }
-        break;
-    case NV_3D0_WINDOW:
-        quirk->data.flags = NV_3D0_NONE;
-        if (addr == quirk->data.address_offset) {
-            if (data == 0x538) {
-                quirk->data.flags = NV_3D0_READ;
-            } else if (data == 0x738) {
-                quirk->data.flags = NV_3D0_WRITE;
-            }
-        }
-        break;
-    case NV_3D0_WRITE:
-        quirk->data.flags = NV_3D0_NONE;
-        if (addr == quirk->data.data_offset) {
-            vfio_pci_write_config(pdev, quirk->data.address_val, data, size);
-            trace_vfio_nvidia_3d0_quirk_write(data, size);
-            return;
-        }
-        break;
-    }
-
-    vfio_vga_write(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
-                   addr + quirk->data.base_offset, data, size);
-}
-
-static const MemoryRegionOps vfio_nvidia_3d0_quirk = {
-    .read = vfio_nvidia_3d0_quirk_read,
-    .write = vfio_nvidia_3d0_quirk_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-
-    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA ||
-        !vdev->bars[1].region.size) {
-        return;
-    }
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.base_offset = 0x10;
-    quirk->data.address_offset = 4;
-    quirk->data.address_size = 2;
-    quirk->data.address_match = 0x1800;
-    quirk->data.address_mask = PCI_CONFIG_SPACE_SIZE - 1;
-    quirk->data.data_offset = 0;
-    quirk->data.data_size = 4;
-
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_nvidia_3d0_quirk,
-                          quirk, "vfio-nvidia-3d0-quirk", 6);
-    memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
-                                quirk->data.base_offset, &quirk->mem);
-
-    QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
-                      quirk, next);
-
-    trace_vfio_vga_probe_nvidia_3d0_quirk(vdev->vbasedev.name);
-}
-
-/*
- * The second quirk is documented in envytools.  The I/O port BAR5 is just
- * a set of address/data ports to the MMIO BARs.  The BAR we care about is
- * again BAR0.  This backdoor is apparently a bit newer than the one above
- * so we need to not only trap 256 bytes @0x1800, but all of PCI config
- * space, including extended space is available at the 4k @0x88000.
- */
-enum {
-    NV_BAR5_ADDRESS = 0x1,
-    NV_BAR5_ENABLE = 0x2,
-    NV_BAR5_MASTER = 0x4,
-    NV_BAR5_VALID = 0x7,
-};
-
-static void vfio_nvidia_bar5_window_quirk_write(void *opaque, hwaddr addr,
-                                                uint64_t data, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-
-    switch (addr) {
-    case 0x0:
-        if (data & 0x1) {
-            quirk->data.flags |= NV_BAR5_MASTER;
-        } else {
-            quirk->data.flags &= ~NV_BAR5_MASTER;
-        }
-        break;
-    case 0x4:
-        if (data & 0x1) {
-            quirk->data.flags |= NV_BAR5_ENABLE;
-        } else {
-            quirk->data.flags &= ~NV_BAR5_ENABLE;
-        }
-        break;
-    case 0x8:
-        if (quirk->data.flags & NV_BAR5_MASTER) {
-            if ((data & ~0xfff) == 0x88000) {
-                quirk->data.flags |= NV_BAR5_ADDRESS;
-                quirk->data.address_val = data & 0xfff;
-            } else if ((data & ~0xff) == 0x1800) {
-                quirk->data.flags |= NV_BAR5_ADDRESS;
-                quirk->data.address_val = data & 0xff;
-            } else {
-                quirk->data.flags &= ~NV_BAR5_ADDRESS;
-            }
-        }
-        break;
-    }
-
-    vfio_generic_window_quirk_write(opaque, addr, data, size);
-}
-
-static const MemoryRegionOps vfio_nvidia_bar5_window_quirk = {
-    .read = vfio_generic_window_quirk_read,
-    .write = vfio_nvidia_bar5_window_quirk_write,
-    .valid.min_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static void vfio_probe_nvidia_bar5_window_quirk(VFIOPCIDevice *vdev, int nr)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-
-    if (!vdev->has_vga || nr != 5 ||
-        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
-        return;
-    }
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.read_flags = quirk->data.write_flags = NV_BAR5_VALID;
-    quirk->data.address_offset = 0x8;
-    quirk->data.address_size = 0; /* actually 4, but avoids generic code */
-    quirk->data.data_offset = 0xc;
-    quirk->data.data_size = 4;
-    quirk->data.bar = nr;
-
-    memory_region_init_io(&quirk->mem, OBJECT(vdev),
-                          &vfio_nvidia_bar5_window_quirk, quirk,
-                          "vfio-nvidia-bar5-window-quirk", 16);
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                                        0, &quirk->mem, 1);
-
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
-
-    trace_vfio_probe_nvidia_bar5_window_quirk(vdev->vbasedev.name);
-}
-
-static void vfio_nvidia_88000_quirk_write(void *opaque, hwaddr addr,
-                                          uint64_t data, unsigned size)
-{
-    VFIOQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-    PCIDevice *pdev = &vdev->pdev;
-    hwaddr base = quirk->data.address_match & TARGET_PAGE_MASK;
-
-    vfio_generic_quirk_write(opaque, addr, data, size);
-
-    /*
-     * Nvidia seems to acknowledge MSI interrupts by writing 0xff to the
-     * MSI capability ID register.  Both the ID and next register are
-     * read-only, so we allow writes covering either of those to real hw.
-     * NB - only fixed for the 0x88000 MMIO window.
-     */
-    if ((pdev->cap_present & QEMU_PCI_CAP_MSI) &&
-        vfio_range_contained(addr, size, pdev->msi_cap, PCI_MSI_FLAGS)) {
-        vfio_region_write(&vdev->bars[quirk->data.bar].region,
-                          addr + base, data, size);
-    }
-}
-
-static const MemoryRegionOps vfio_nvidia_88000_quirk = {
-    .read = vfio_generic_quirk_read,
-    .write = vfio_nvidia_88000_quirk_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-/*
- * Finally, BAR0 itself.  We want to redirect any accesses to either
- * 0x1800 or 0x88000 through the PCI config space access functions.
- *
- * NB - quirk at a page granularity or else they don't seem to work when
- *      BARs are mmap'd
- *
- * Here's offset 0x88000...
- */
-static void vfio_probe_nvidia_bar0_88000_quirk(VFIOPCIDevice *vdev, int nr)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-    uint16_t vendor, class;
-
-    vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
-    class = pci_get_word(pdev->config + PCI_CLASS_DEVICE);
-
-    if (nr != 0 || vendor != PCI_VENDOR_ID_NVIDIA ||
-        class != PCI_CLASS_DISPLAY_VGA) {
-        return;
-    }
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.flags = quirk->data.read_flags = quirk->data.write_flags = 1;
-    quirk->data.address_match = 0x88000;
-    quirk->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
-    quirk->data.bar = nr;
-
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_nvidia_88000_quirk,
-                          quirk, "vfio-nvidia-bar0-88000-quirk",
-                          TARGET_PAGE_ALIGN(quirk->data.address_mask + 1));
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          quirk->data.address_match & TARGET_PAGE_MASK,
-                          &quirk->mem, 1);
-
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
-
-    trace_vfio_probe_nvidia_bar0_88000_quirk(vdev->vbasedev.name);
-}
-
-/*
- * And here's the same for BAR0 offset 0x1800...
- */
-static void vfio_probe_nvidia_bar0_1800_quirk(VFIOPCIDevice *vdev, int nr)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-
-    if (!vdev->has_vga || nr != 0 ||
-        pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
-        return;
-    }
-
-    /* Log the chipset ID */
-    trace_vfio_probe_nvidia_bar0_1800_quirk_id(
-            (unsigned int)(vfio_region_read(&vdev->bars[0].region, 0, 4) >> 20)
-            & 0xff);
-
-    quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.flags = quirk->data.read_flags = quirk->data.write_flags = 1;
-    quirk->data.address_match = 0x1800;
-    quirk->data.address_mask = PCI_CONFIG_SPACE_SIZE - 1;
-    quirk->data.bar = nr;
-
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_generic_quirk, quirk,
-                          "vfio-nvidia-bar0-1800-quirk",
-                          TARGET_PAGE_ALIGN(quirk->data.address_mask + 1));
-    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          quirk->data.address_match & TARGET_PAGE_MASK,
-                          &quirk->mem, 1);
-
-    QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
-
-    trace_vfio_probe_nvidia_bar0_1800_quirk(vdev->vbasedev.name);
-}
-
-/*
- * TODO - Some Nvidia devices provide config access to their companion HDA
- * device and even to their parent bridge via these config space mirrors.
- * Add quirks for those regions.
- */
-
-/*
- * Common quirk probe entry points.
- */
-static void vfio_vga_quirk_setup(VFIOPCIDevice *vdev)
-{
-    vfio_vga_probe_ati_3c3_quirk(vdev);
-    vfio_vga_probe_nvidia_3d0_quirk(vdev);
-}
-
-static void vfio_vga_quirk_teardown(VFIOPCIDevice *vdev)
-{
-    VFIOQuirk *quirk;
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
-        QLIST_FOREACH(quirk, &vdev->vga.region[i].quirks, next) {
-            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
-        }
-    }
-}
-
-static void vfio_vga_quirk_free(VFIOPCIDevice *vdev)
-{
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
-        while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
-            VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
-            object_unparent(OBJECT(&quirk->mem));
-            QLIST_REMOVE(quirk, next);
-            g_free(quirk);
-        }
-    }
-}
-
-static void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
-{
-    vfio_probe_ati_bar4_window_quirk(vdev, nr);
-    vfio_probe_ati_bar2_4000_quirk(vdev, nr);
-    vfio_probe_nvidia_bar5_window_quirk(vdev, nr);
-    vfio_probe_nvidia_bar0_88000_quirk(vdev, nr);
-    vfio_probe_nvidia_bar0_1800_quirk(vdev, nr);
-    vfio_probe_rtl8168_bar2_window_quirk(vdev, nr);
-}
-
-static void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
-{
-    VFIOBAR *bar = &vdev->bars[nr];
-    VFIOQuirk *quirk;
-
-    QLIST_FOREACH(quirk, &bar->quirks, next) {
-        memory_region_del_subregion(&bar->region.mem, &quirk->mem);
-    }
-}
-
-static void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr)
-{
-    VFIOBAR *bar = &vdev->bars[nr];
-
-    while (!QLIST_EMPTY(&bar->quirks)) {
-        VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
-        object_unparent(OBJECT(&quirk->mem));
-        QLIST_REMOVE(quirk, next);
-        g_free(quirk);
-    }
-}
-
-/*
  * PCI config space
  */
-static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
+uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     uint32_t emu_bits = 0, emu_val = 0, phys_val = 0, val;
@@ -2096,8 +1061,8 @@ static uint32_t vfio_pci_read_config(PCIDevice *pdev, uint32_t addr, int len)
     return val;
 }
 
-static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
-                                  uint32_t val, int len)
+void vfio_pci_write_config(PCIDevice *pdev,
+                           uint32_t addr, uint32_t val, int len)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
     uint32_t val_le = cpu_to_le32(val);
@@ -2123,11 +1088,11 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
 
         if (!was_enabled) {
             if (is_enabled) {
-                vfio_enable_msi(vdev);
+                vfio_msi_enable(vdev);
             }
         } else {
             if (!is_enabled) {
-                vfio_disable_msi(vdev);
+                vfio_msi_disable(vdev);
             } else {
                 vfio_update_msi(vdev);
             }
@@ -2141,9 +1106,9 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
         is_enabled = msix_enabled(pdev);
 
         if (!was_enabled && is_enabled) {
-            vfio_enable_msix(vdev);
+            vfio_msix_enable(vdev);
         } else if (was_enabled && !is_enabled) {
-            vfio_disable_msix(vdev);
+            vfio_msix_disable(vdev);
         }
     } else {
         /* Write everything to QEMU to keep emulated bits correct */
@@ -2162,17 +1127,17 @@ static void vfio_disable_interrupts(VFIOPCIDevice *vdev)
      * disable MSI/X and then cleanup by disabling INTx.
      */
     if (vdev->interrupt == VFIO_INT_MSIX) {
-        vfio_disable_msix(vdev);
+        vfio_msix_disable(vdev);
     } else if (vdev->interrupt == VFIO_INT_MSI) {
-        vfio_disable_msi(vdev);
+        vfio_msi_disable(vdev);
     }
 
     if (vdev->interrupt == VFIO_INT_INTx) {
-        vfio_disable_intx(vdev);
+        vfio_intx_disable(vdev);
     }
 }
 
-static int vfio_setup_msi(VFIOPCIDevice *vdev, int pos)
+static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos)
 {
     uint16_t ctrl;
     bool msi_64bit, msi_maskbit;
@@ -2188,7 +1153,7 @@ static int vfio_setup_msi(VFIOPCIDevice *vdev, int pos)
     msi_maskbit = !!(ctrl & PCI_MSI_FLAGS_MASKBIT);
     entries = 1 << ((ctrl & PCI_MSI_FLAGS_QMASK) >> 1);
 
-    trace_vfio_setup_msi(vdev->vbasedev.name, pos);
+    trace_vfio_msi_setup(vdev->vbasedev.name, pos);
 
     ret = msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit);
     if (ret < 0) {
@@ -2211,12 +1176,13 @@ static int vfio_setup_msi(VFIOPCIDevice *vdev, int pos)
  * need to first look for where the MSI-X table lives.  So we
  * unfortunately split MSI-X setup across two functions.
  */
-static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
+static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
 {
     uint8_t pos;
     uint16_t ctrl;
     uint32_t table, pba;
     int fd = vdev->vbasedev.fd;
+    VFIOMSIXInfo *msix;
 
     pos = pci_find_capability(&vdev->pdev, PCI_CAP_ID_MSIX);
     if (!pos) {
@@ -2242,49 +1208,44 @@ static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
     table = le32_to_cpu(table);
     pba = le32_to_cpu(pba);
 
-    vdev->msix = g_malloc0(sizeof(*(vdev->msix)));
-    vdev->msix->table_bar = table & PCI_MSIX_FLAGS_BIRMASK;
-    vdev->msix->table_offset = table & ~PCI_MSIX_FLAGS_BIRMASK;
-    vdev->msix->pba_bar = pba & PCI_MSIX_FLAGS_BIRMASK;
-    vdev->msix->pba_offset = pba & ~PCI_MSIX_FLAGS_BIRMASK;
-    vdev->msix->entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
+    msix = g_malloc0(sizeof(*msix));
+    msix->table_bar = table & PCI_MSIX_FLAGS_BIRMASK;
+    msix->table_offset = table & ~PCI_MSIX_FLAGS_BIRMASK;
+    msix->pba_bar = pba & PCI_MSIX_FLAGS_BIRMASK;
+    msix->pba_offset = pba & ~PCI_MSIX_FLAGS_BIRMASK;
+    msix->entries = (ctrl & PCI_MSIX_FLAGS_QSIZE) + 1;
 
     /*
      * Test the size of the pba_offset variable and catch if it extends outside
      * of the specified BAR. If it is the case, we need to apply a hardware
      * specific quirk if the device is known or we have a broken configuration.
      */
-    if (vdev->msix->pba_offset >=
-        vdev->bars[vdev->msix->pba_bar].region.size) {
-
-        PCIDevice *pdev = &vdev->pdev;
-        uint16_t vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
-        uint16_t device = pci_get_word(pdev->config + PCI_DEVICE_ID);
-
+    if (msix->pba_offset >= vdev->bars[msix->pba_bar].region.size) {
         /*
          * Chelsio T5 Virtual Function devices are encoded as 0x58xx for T5
          * adapters. The T5 hardware returns an incorrect value of 0x8000 for
          * the VF PBA offset while the BAR itself is only 8k. The correct value
          * is 0x1000, so we hard code that here.
          */
-        if (vendor == PCI_VENDOR_ID_CHELSIO && (device & 0xff00) == 0x5800) {
-            vdev->msix->pba_offset = 0x1000;
+        if (vdev->vendor_id == PCI_VENDOR_ID_CHELSIO &&
+            (vdev->device_id & 0xff00) == 0x5800) {
+            msix->pba_offset = 0x1000;
         } else {
             error_report("vfio: Hardware reports invalid configuration, "
                          "MSIX PBA outside of specified BAR");
+            g_free(msix);
             return -EINVAL;
         }
     }
 
-    trace_vfio_early_setup_msix(vdev->vbasedev.name, pos,
-                                vdev->msix->table_bar,
-                                vdev->msix->table_offset,
-                                vdev->msix->entries);
+    trace_vfio_msix_early_setup(vdev->vbasedev.name, pos, msix->table_bar,
+                                msix->table_offset, msix->entries);
+    vdev->msix = msix;
 
     return 0;
 }
 
-static int vfio_setup_msix(VFIOPCIDevice *vdev, int pos)
+static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos)
 {
     int ret;
 
@@ -2707,14 +1668,14 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
 
     switch (cap_id) {
     case PCI_CAP_ID_MSI:
-        ret = vfio_setup_msi(vdev, pos);
+        ret = vfio_msi_setup(vdev, pos);
         break;
     case PCI_CAP_ID_EXP:
         vfio_check_pcie_flr(vdev, pos);
         ret = vfio_setup_pcie_cap(vdev, pos, size);
         break;
     case PCI_CAP_ID_MSIX:
-        ret = vfio_setup_msix(vdev, pos);
+        ret = vfio_msix_setup(vdev, pos);
         break;
     case PCI_CAP_ID_PM:
         vfio_check_pm_reset(vdev, pos);
@@ -2792,7 +1753,7 @@ static void vfio_pci_pre_reset(VFIOPCIDevice *vdev)
 
 static void vfio_pci_post_reset(VFIOPCIDevice *vdev)
 {
-    vfio_enable_intx(vdev);
+    vfio_intx_enable(vdev);
 }
 
 static bool vfio_pci_host_match(PCIHostDeviceAddress *host1,
@@ -3016,7 +1977,7 @@ static void vfio_pci_compute_needs_reset(VFIODevice *vbasedev)
 static VFIODeviceOps vfio_pci_ops = {
     .vfio_compute_needs_reset = vfio_pci_compute_needs_reset,
     .vfio_hot_reset_multi = vfio_pci_hot_reset_multi,
-    .vfio_eoi = vfio_eoi,
+    .vfio_eoi = vfio_intx_eoi,
 };
 
 static int vfio_populate_device(VFIOPCIDevice *vdev)
@@ -3351,162 +2312,6 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
-/*
- * AMD Radeon PCI config reset, based on Linux:
- *   drivers/gpu/drm/radeon/ci_smc.c:ci_is_smc_running()
- *   drivers/gpu/drm/radeon/radeon_device.c:radeon_pci_config_reset
- *   drivers/gpu/drm/radeon/ci_smc.c:ci_reset_smc()
- *   drivers/gpu/drm/radeon/ci_smc.c:ci_stop_smc_clock()
- * IDs: include/drm/drm_pciids.h
- * Registers: http://cgit.freedesktop.org/~agd5f/linux/commit/?id=4e2aa447f6f0
- *
- * Bonaire and Hawaii GPUs do not respond to a bus reset.  This is a bug in the
- * hardware that should be fixed on future ASICs.  The symptom of this is that
- * once the accerlated driver loads, Windows guests will bsod on subsequent
- * attmpts to load the driver, such as after VM reset or shutdown/restart.  To
- * work around this, we do an AMD specific PCI config reset, followed by an SMC
- * reset.  The PCI config reset only works if SMC firmware is running, so we
- * have a dependency on the state of the device as to whether this reset will
- * be effective.  There are still cases where we won't be able to kick the
- * device into working, but this greatly improves the usability overall.  The
- * config reset magic is relatively common on AMD GPUs, but the setup and SMC
- * poking is largely ASIC specific.
- */
-static bool vfio_radeon_smc_is_running(VFIOPCIDevice *vdev)
-{
-    uint32_t clk, pc_c;
-
-    /*
-     * Registers 200h and 204h are index and data registers for accessing
-     * indirect configuration registers within the device.
-     */
-    vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000004, 4);
-    clk = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
-    vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000370, 4);
-    pc_c = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
-
-    return (!(clk & 1) && (0x20100 <= pc_c));
-}
-
-/*
- * The scope of a config reset is controlled by a mode bit in the misc register
- * and a fuse, exposed as a bit in another register.  The fuse is the default
- * (0 = GFX, 1 = whole GPU), the misc bit is a toggle, with the forumula
- * scope = !(misc ^ fuse), where the resulting scope is defined the same as
- * the fuse.  A truth table therefore tells us that if misc == fuse, we need
- * to flip the value of the bit in the misc register.
- */
-static void vfio_radeon_set_gfx_only_reset(VFIOPCIDevice *vdev)
-{
-    uint32_t misc, fuse;
-    bool a, b;
-
-    vfio_region_write(&vdev->bars[5].region, 0x200, 0xc00c0000, 4);
-    fuse = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
-    b = fuse & 64;
-
-    vfio_region_write(&vdev->bars[5].region, 0x200, 0xc0000010, 4);
-    misc = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
-    a = misc & 2;
-
-    if (a == b) {
-        vfio_region_write(&vdev->bars[5].region, 0x204, misc ^ 2, 4);
-        vfio_region_read(&vdev->bars[5].region, 0x204, 4); /* flush */
-    }
-}
-
-static int vfio_radeon_reset(VFIOPCIDevice *vdev)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    int i, ret = 0;
-    uint32_t data;
-
-    /* Defer to a kernel implemented reset */
-    if (vdev->vbasedev.reset_works) {
-        return -ENODEV;
-    }
-
-    /* Enable only memory BAR access */
-    vfio_pci_write_config(pdev, PCI_COMMAND, PCI_COMMAND_MEMORY, 2);
-
-    /* Reset only works if SMC firmware is loaded and running */
-    if (!vfio_radeon_smc_is_running(vdev)) {
-        ret = -EINVAL;
-        goto out;
-    }
-
-    /* Make sure only the GFX function is reset */
-    vfio_radeon_set_gfx_only_reset(vdev);
-
-    /* AMD PCI config reset */
-    vfio_pci_write_config(pdev, 0x7c, 0x39d5e86b, 4);
-    usleep(100);
-
-    /* Read back the memory size to make sure we're out of reset */
-    for (i = 0; i < 100000; i++) {
-        if (vfio_region_read(&vdev->bars[5].region, 0x5428, 4) != 0xffffffff) {
-            break;
-        }
-        usleep(1);
-    }
-
-    /* Reset SMC */
-    vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000000, 4);
-    data = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
-    data |= 1;
-    vfio_region_write(&vdev->bars[5].region, 0x204, data, 4);
-
-    /* Disable SMC clock */
-    vfio_region_write(&vdev->bars[5].region, 0x200, 0x80000004, 4);
-    data = vfio_region_read(&vdev->bars[5].region, 0x204, 4);
-    data |= 1;
-    vfio_region_write(&vdev->bars[5].region, 0x204, data, 4);
-
-out:
-    /* Restore PCI command register */
-    vfio_pci_write_config(pdev, PCI_COMMAND, 0, 2);
-
-    return ret;
-}
-
-static void vfio_setup_resetfn(VFIOPCIDevice *vdev)
-{
-    PCIDevice *pdev = &vdev->pdev;
-    uint16_t vendor, device;
-
-    vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
-    device = pci_get_word(pdev->config + PCI_DEVICE_ID);
-
-    switch (vendor) {
-    case 0x1002:
-        switch (device) {
-        /* Bonaire */
-        case 0x6649: /* Bonaire [FirePro W5100] */
-        case 0x6650:
-        case 0x6651:
-        case 0x6658: /* Bonaire XTX [Radeon R7 260X] */
-        case 0x665c: /* Bonaire XT [Radeon HD 7790/8770 / R9 260 OEM] */
-        case 0x665d: /* Bonaire [Radeon R7 200 Series] */
-        /* Hawaii */
-        case 0x67A0: /* Hawaii XT GL [FirePro W9100] */
-        case 0x67A1: /* Hawaii PRO GL [FirePro W8100] */
-        case 0x67A2:
-        case 0x67A8:
-        case 0x67A9:
-        case 0x67AA:
-        case 0x67B0: /* Hawaii XT [Radeon R9 290X] */
-        case 0x67B1: /* Hawaii PRO [Radeon R9 290] */
-        case 0x67B8:
-        case 0x67B9:
-        case 0x67BA:
-        case 0x67BE:
-            vdev->resetfn = vfio_radeon_reset;
-            break;
-        }
-        break;
-    }
-}
-
 static int vfio_initfn(PCIDevice *pdev)
 {
     VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
@@ -3599,6 +2404,54 @@ static int vfio_initfn(PCIDevice *pdev)
     /* QEMU can choose to expose the ROM or not */
     memset(vdev->emulated_config_bits + PCI_ROM_ADDRESS, 0xff, 4);
 
+    /*
+     * The PCI spec reserves vendor ID 0xffff as an invalid value.  The
+     * device ID is managed by the vendor and need only be a 16-bit value.
+     * Allow any 16-bit value for subsystem so they can be hidden or changed.
+     */
+    if (vdev->vendor_id != PCI_ANY_ID) {
+        if (vdev->vendor_id >= 0xffff) {
+            error_report("vfio: Invalid PCI vendor ID provided");
+            return -EINVAL;
+        }
+        vfio_add_emulated_word(vdev, PCI_VENDOR_ID, vdev->vendor_id, ~0);
+        trace_vfio_pci_emulated_vendor_id(vdev->vbasedev.name, vdev->vendor_id);
+    } else {
+        vdev->vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    }
+
+    if (vdev->device_id != PCI_ANY_ID) {
+        if (vdev->device_id > 0xffff) {
+            error_report("vfio: Invalid PCI device ID provided");
+            return -EINVAL;
+        }
+        vfio_add_emulated_word(vdev, PCI_DEVICE_ID, vdev->device_id, ~0);
+        trace_vfio_pci_emulated_device_id(vdev->vbasedev.name, vdev->device_id);
+    } else {
+        vdev->device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
+    }
+
+    if (vdev->sub_vendor_id != PCI_ANY_ID) {
+        if (vdev->sub_vendor_id > 0xffff) {
+            error_report("vfio: Invalid PCI subsystem vendor ID provided");
+            return -EINVAL;
+        }
+        vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_VENDOR_ID,
+                               vdev->sub_vendor_id, ~0);
+        trace_vfio_pci_emulated_sub_vendor_id(vdev->vbasedev.name,
+                                              vdev->sub_vendor_id);
+    }
+
+    if (vdev->sub_device_id != PCI_ANY_ID) {
+        if (vdev->sub_device_id > 0xffff) {
+            error_report("vfio: Invalid PCI subsystem device ID provided");
+            return -EINVAL;
+        }
+        vfio_add_emulated_word(vdev, PCI_SUBSYSTEM_ID, vdev->sub_device_id, ~0);
+        trace_vfio_pci_emulated_sub_device_id(vdev->vbasedev.name,
+                                              vdev->sub_device_id);
+    }
+
     /* QEMU can change multi-function devices to single function, or reverse */
     vdev->emulated_config_bits[PCI_HEADER_TYPE] =
                                               PCI_HEADER_TYPE_MULTI_FUNCTION;
@@ -3620,7 +2473,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     vfio_pci_size_rom(vdev);
 
-    ret = vfio_early_setup_msix(vdev);
+    ret = vfio_msix_early_setup(vdev);
     if (ret) {
         return ret;
     }
@@ -3646,8 +2499,8 @@ static int vfio_initfn(PCIDevice *pdev)
     if (vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1)) {
         vdev->intx.mmap_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                   vfio_intx_mmap_enable, vdev);
-        pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_update_irq);
-        ret = vfio_enable_intx(vdev);
+        pci_device_set_intx_routing_notifier(&vdev->pdev, vfio_intx_update);
+        ret = vfio_intx_enable(vdev);
         if (ret) {
             goto out_teardown;
         }
@@ -3655,7 +2508,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
-    vfio_setup_resetfn(vdev);
+    vfio_setup_resetfn_quirk(vdev);
 
     return 0;
 
@@ -3748,7 +2601,16 @@ static Property vfio_pci_dev_properties[] = {
                     VFIO_FEATURE_ENABLE_VGA_BIT, false),
     DEFINE_PROP_BIT("x-req", VFIOPCIDevice, features,
                     VFIO_FEATURE_ENABLE_REQ_BIT, true),
-    DEFINE_PROP_BOOL("x-mmap", VFIOPCIDevice, vbasedev.allow_mmap, true),
+    DEFINE_PROP_BOOL("x-no-mmap", VFIOPCIDevice, vbasedev.no_mmap, false),
+    DEFINE_PROP_BOOL("x-no-kvm-intx", VFIOPCIDevice, no_kvm_intx, false),
+    DEFINE_PROP_BOOL("x-no-kvm-msi", VFIOPCIDevice, no_kvm_msi, false),
+    DEFINE_PROP_BOOL("x-no-kvm-msix", VFIOPCIDevice, no_kvm_msix, false),
+    DEFINE_PROP_UINT32("x-pci-vendor-id", VFIOPCIDevice, vendor_id, PCI_ANY_ID),
+    DEFINE_PROP_UINT32("x-pci-device-id", VFIOPCIDevice, device_id, PCI_ANY_ID),
+    DEFINE_PROP_UINT32("x-pci-sub-vendor-id", VFIOPCIDevice,
+                       sub_vendor_id, PCI_ANY_ID),
+    DEFINE_PROP_UINT32("x-pci-sub-device-id", VFIOPCIDevice,
+                       sub_device_id, PCI_ANY_ID),
     /*
      * TODO - support passed fds... is this necessary?
      * DEFINE_PROP_STRING("vfiofd", VFIOPCIDevice, vfiofd_name),

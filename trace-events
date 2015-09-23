@@ -1522,56 +1522,30 @@ xen_pv_mmio_write(uint64_t addr) "WARNING: write to Xen PV Device MMIO space (ad
 pci_cfg_read(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x -> 0x%x"
 pci_cfg_write(const char *dev, unsigned devid, unsigned fnid, unsigned offs, unsigned val) "%s %02u:%u @0x%x <- 0x%x"
 
-# hw/vfio/vfio-pci.c
+# hw/vfio/pci.c
 vfio_intx_interrupt(const char *name, char line) " (%s) Pin %c"
-vfio_eoi(const char *name) " (%s) EOI"
-vfio_enable_intx_kvm(const char *name) " (%s) KVM INTx accel enabled"
-vfio_disable_intx_kvm(const char *name) " (%s) KVM INTx accel disabled"
-vfio_update_irq(const char *name, int new_irq, int target_irq) " (%s) IRQ moved %d -> %d"
-vfio_enable_intx(const char *name) " (%s)"
-vfio_disable_intx(const char *name) " (%s)"
+vfio_intx_eoi(const char *name) " (%s) EOI"
+vfio_intx_enable_kvm(const char *name) " (%s) KVM INTx accel enabled"
+vfio_intx_disable_kvm(const char *name) " (%s) KVM INTx accel disabled"
+vfio_intx_update(const char *name, int new_irq, int target_irq) " (%s) IRQ moved %d -> %d"
+vfio_intx_enable(const char *name) " (%s)"
+vfio_intx_disable(const char *name) " (%s)"
 vfio_msi_interrupt(const char *name, int index, uint64_t addr, int data) " (%s) vector %d 0x%"PRIx64"/0x%x"
 vfio_msix_vector_do_use(const char *name, int index) " (%s) vector %d used"
 vfio_msix_vector_release(const char *name, int index) " (%s) vector %d released"
-vfio_enable_msix(const char *name) " (%s)"
-vfio_enable_msi(const char *name, int nr_vectors) " (%s) Enabled %d MSI vectors"
-vfio_disable_msix(const char *name) " (%s)"
-vfio_disable_msi(const char *name) " (%s)"
+vfio_msix_enable(const char *name) " (%s)"
+vfio_msix_disable(const char *name) " (%s)"
+vfio_msi_enable(const char *name, int nr_vectors) " (%s) Enabled %d MSI vectors"
+vfio_msi_disable(const char *name) " (%s)"
 vfio_pci_load_rom(const char *name, unsigned long size, unsigned long offset, unsigned long flags) "Device %s ROM:\n  size: 0x%lx, offset: 0x%lx, flags: 0x%lx"
 vfio_rom_read(const char *name, uint64_t addr, int size, uint64_t data) " (%s, 0x%"PRIx64", 0x%x) = 0x%"PRIx64
 vfio_pci_size_rom(const char *name, int size) "%s ROM size 0x%x"
 vfio_vga_write(uint64_t addr, uint64_t data, int size) " (0x%"PRIx64", 0x%"PRIx64", %d)"
 vfio_vga_read(uint64_t addr, int size, uint64_t data) " (0x%"PRIx64", %d) = 0x%"PRIx64
-# remove ) =
-vfio_generic_window_quirk_read(const char * region_name, const char *name, int index, uint64_t addr, int size, uint64_t data) "%s read(%s:BAR%d+0x%"PRIx64", %d = 0x%"PRIx64
-## remove )
-vfio_generic_window_quirk_write(const char * region_name, const char *name, int index, uint64_t addr, uint64_t data, int size) "%s write(%s:BAR%d+0x%"PRIx64", 0x%"PRIx64", %d"
-# remove ) =
-vfio_generic_quirk_read(const char * region_name, const char *name, int index, uint64_t addr, int size, uint64_t data) "%s read(%s:BAR%d+0x%"PRIx64", %d = 0x%"PRIx64
-# remove )
-vfio_generic_quirk_write(const char * region_name, const char *name, int index, uint64_t addr, uint64_t data, int size) "%s write(%s:BAR%d+0x%"PRIx64", 0x%"PRIx64", %d"
-vfio_ati_3c3_quirk_read(uint64_t data) " (0x3c3, 1) = 0x%"PRIx64
-vfio_vga_probe_ati_3c3_quirk(const char *name) "Enabled ATI/AMD quirk 0x3c3 BAR4for device %s"
-vfio_probe_ati_bar4_window_quirk(const char *name) "Enabled ATI/AMD BAR4 window quirk for device %s"
-#issue with )
-vfio_rtl8168_window_quirk_read_fake(const char *region_name, const char *name) "%s fake read(%s"
-vfio_rtl8168_window_quirk_read_table(const char *region_name, const char *name) "%s MSI-X table read(%s"
-vfio_rtl8168_window_quirk_read_direct(const char *region_name, const char *name) "%s direct read(%s"
-vfio_rtl8168_window_quirk_write_table(const char *region_name, const char *name) "%s MSI-X table write(%s"
-vfio_rtl8168_window_quirk_write_direct(const char *region_name, const char *name) "%s direct write(%s"
-vfio_probe_rtl8168_bar2_window_quirk(const char *name) "Enabled RTL8168 BAR2 window quirk for device %s"
-vfio_probe_ati_bar2_4000_quirk(const char *name) "Enabled ATI/AMD BAR2 0x4000 quirk for device %s"
-vfio_nvidia_3d0_quirk_read(int size, uint64_t data) " (0x3d0, %d) = 0x%"PRIx64
-vfio_nvidia_3d0_quirk_write(uint64_t data, int size) " (0x3d0, 0x%"PRIx64", %d)"
-vfio_vga_probe_nvidia_3d0_quirk(const char *name) "Enabled NVIDIA VGA 0x3d0 quirk for device %s"
-vfio_probe_nvidia_bar5_window_quirk(const char *name) "Enabled NVIDIA BAR5 window quirk for device %s"
-vfio_probe_nvidia_bar0_88000_quirk(const char *name) "Enabled NVIDIA BAR0 0x88000 quirk for device %s"
-vfio_probe_nvidia_bar0_1800_quirk_id(int id) "Nvidia NV%02x"
-vfio_probe_nvidia_bar0_1800_quirk(const char *name) "Enabled NVIDIA BAR0 0x1800 quirk for device %s"
 vfio_pci_read_config(const char *name, int addr, int len, int val) " (%s, @0x%x, len=0x%x) %x"
 vfio_pci_write_config(const char *name, int addr, int val, int len) " (%s, @0x%x, 0x%x, len=0x%x)"
-vfio_setup_msi(const char *name, int pos) "%s PCI MSI CAP @0x%x"
-vfio_early_setup_msix(const char *name, int pos, int table_bar, int offset, int entries) "%s PCI MSI-X CAP @0x%x, BAR %d, offset 0x%x, entries %d"
+vfio_msi_setup(const char *name, int pos) "%s PCI MSI CAP @0x%x"
+vfio_msix_early_setup(const char *name, int pos, int table_bar, int offset, int entries) "%s PCI MSI-X CAP @0x%x, BAR %d, offset 0x%x, entries %d"
 vfio_check_pcie_flr(const char *name) "%s Supports FLR via PCIe cap"
 vfio_check_pm_reset(const char *name) "%s Supports PM reset"
 vfio_check_af_flr(const char *name) "%s Supports FLR via AF cap"
@@ -1586,6 +1560,41 @@ vfio_initfn(const char *name, int group_id) " (%s) group %d"
 vfio_pci_reset(const char *name) " (%s)"
 vfio_pci_reset_flr(const char *name) "%s FLR/VFIO_DEVICE_RESET"
 vfio_pci_reset_pm(const char *name) "%s PCI PM Reset"
+vfio_pci_emulated_vendor_id(const char *name, uint16_t val) "%s %04x"
+vfio_pci_emulated_device_id(const char *name, uint16_t val) "%s %04x"
+vfio_pci_emulated_sub_vendor_id(const char *name, uint16_t val) "%s %04x"
+vfio_pci_emulated_sub_device_id(const char *name, uint16_t val) "%s %04x"
+
+# hw/vfio/pci-quirks.
+vfio_quirk_rom_blacklisted(const char *name, uint16_t vid, uint16_t did) "%s %04x:%04x"
+vfio_quirk_generic_window_address_write(const char *name, const char * region_name, uint64_t data) "%s %s 0x%"PRIx64
+vfio_quirk_generic_window_data_read(const char *name, const char * region_name, uint64_t data) "%s %s 0x%"PRIx64
+vfio_quirk_generic_window_data_write(const char *name, const char * region_name, uint64_t data) "%s %s 0x%"PRIx64
+vfio_quirk_generic_mirror_read(const char *name, const char * region_name, uint64_t addr, uint64_t data) "%s %s 0x%"PRIx64": 0x%"PRIx64
+vfio_quirk_generic_mirror_write(const char *name, const char * region_name, uint64_t addr, uint64_t data) "%s %s 0x%"PRIx64": 0x%"PRIx64
+vfio_quirk_ati_3c3_read(const char *name, uint64_t data) "%s 0x%"PRIx64
+vfio_quirk_ati_3c3_probe(const char *name) "%s"
+vfio_quirk_ati_bar4_probe(const char *name) "%s"
+vfio_quirk_ati_bar2_probe(const char *name) "%s"
+vfio_quirk_nvidia_3d0_state(const char *name, const char *state) "%s %s"
+vfio_quirk_nvidia_3d0_read(const char *name, uint8_t offset, unsigned size, uint64_t val) " (%s, @0x%x, len=0x%x) %"PRIx64
+vfio_quirk_nvidia_3d0_write(const char *name, uint8_t offset, uint64_t data, unsigned size) "(%s, @0x%x, 0x%"PRIx64", len=0x%x)"
+vfio_quirk_nvidia_3d0_probe(const char *name) "%s"
+vfio_quirk_nvidia_bar5_state(const char *name, const char *state) "%s %s"
+vfio_quirk_nvidia_bar5_probe(const char *name) "%s"
+vfio_quirk_nvidia_bar0_msi_ack(const char *name) "%s"
+vfio_quirk_nvidia_bar0_probe(const char *name) "%s"
+vfio_quirk_rtl8168_fake_latch(const char *name, uint64_t val) "%s 0x%"PRIx64
+vfio_quirk_rtl8168_msix_write(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table write[0x%x]: 0x%"PRIx64
+vfio_quirk_rtl8168_msix_read(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table read[0x%x]: 0x%"PRIx64
+vfio_quirk_rtl8168_probe(const char *name) "%s"
+
+vfio_quirk_ati_bonaire_reset_skipped(const char *name) "%s"
+vfio_quirk_ati_bonaire_reset_no_smc(const char *name) "%s"
+vfio_quirk_ati_bonaire_reset_timeout(const char *name) "%s"
+vfio_quirk_ati_bonaire_reset_done(const char *name) "%s"
+vfio_quirk_ati_bonaire_reset(const char *name) "%s"
+
 
 # hw/vfio/vfio-common.c
 vfio_region_write(const char *name, int index, uint64_t addr, uint64_t data, unsigned size) " (%s:region%d+0x%"PRIx64", 0x%"PRIx64 ", %d)"
