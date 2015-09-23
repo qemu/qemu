@@ -750,9 +750,15 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(CMULHR, 0, X0):
     case OE_RRR(CMULH, 0, X0):
     case OE_RRR(CMUL, 0, X0):
-    case OE_RRR(CRC32_32, 0, X0):
-    case OE_RRR(CRC32_8, 0, X0):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+    case OE_RRR(CRC32_32, 0, X0):
+        gen_helper_crc32_32(tdest, tsrca, tsrcb);
+        mnemonic = "crc32_32";
+        break;
+    case OE_RRR(CRC32_8, 0, X0):
+        gen_helper_crc32_8(tdest, tsrca, tsrcb);
+        mnemonic = "crc32_8";
+        break;
     case OE_RRR(DBLALIGN2, 0, X0):
     case OE_RRR(DBLALIGN2, 0, X1):
         gen_dblaligni(tdest, tsrca, tsrcb, 16);

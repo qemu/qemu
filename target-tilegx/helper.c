@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "qemu-common.h"
 #include "exec/helper-proto.h"
+#include <zlib.h> /* For crc32 */
 
 void helper_exception(CPUTLGState *env, uint32_t excp)
 {
@@ -77,4 +78,22 @@ uint64_t helper_shufflebytes(uint64_t dest, uint64_t srca, uint64_t srcb)
     }
 
     return vdst;
+}
+
+uint64_t helper_crc32_8(uint64_t accum, uint64_t input)
+{
+    uint8_t buf = input;
+
+    /* zlib crc32 converts the accumulator and output to one's complement.  */
+    return crc32(accum ^ 0xffffffff, &buf, 1) ^ 0xffffffff;
+}
+
+uint64_t helper_crc32_32(uint64_t accum, uint64_t input)
+{
+    uint8_t buf[4];
+
+    stl_le_p(buf, input);
+
+    /* zlib crc32 converts the accumulator and output to one's complement.  */
+    return crc32(accum ^ 0xffffffff, buf, 4) ^ 0xffffffff;
 }
