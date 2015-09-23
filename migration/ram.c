@@ -917,6 +917,59 @@ static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
     return pages;
 }
 
+/*
+ * Find the next dirty page and update any state associated with
+ * the search process.
+ *
+ * Returns: True if a page is found
+ *
+ * @f: Current migration stream.
+ * @pss: Data about the state of the current dirty page scan.
+ * @*again: Set to false if the search has scanned the whole of RAM
+ */
+static bool find_dirty_block(QEMUFile *f, PageSearchStatus *pss,
+                             bool *again)
+{
+    pss->offset = migration_bitmap_find_and_reset_dirty(pss->block,
+                                                       pss->offset);
+    if (pss->complete_round && pss->block == last_seen_block &&
+        pss->offset >= last_offset) {
+        /*
+         * We've been once around the RAM and haven't found anything.
+         * Give up.
+         */
+        *again = false;
+        return false;
+    }
+    if (pss->offset >= pss->block->used_length) {
+        /* Didn't find anything in this RAM Block */
+        pss->offset = 0;
+        pss->block = QLIST_NEXT_RCU(pss->block, next);
+        if (!pss->block) {
+            /* Hit the end of the list */
+            pss->block = QLIST_FIRST_RCU(&ram_list.blocks);
+            /* Flag that we've looped */
+            pss->complete_round = true;
+            ram_bulk_stage = false;
+            if (migrate_use_xbzrle()) {
+                /* If xbzrle is on, stop using the data compression at this
+                 * point. In theory, xbzrle can do better than compression.
+                 */
+                flush_compressed_data(f);
+                compression_switch = false;
+            }
+        }
+        /* Didn't find anything this time, but try again on the new block */
+        *again = true;
+        return false;
+    } else {
+        /* Can go around again, but... */
+        *again = true;
+        /* We've found something so probably don't need to */
+        return true;
+    }
+}
+
 /**
  * ram_find_and_save_block: Finds a dirty page and sends it to f
  *
@@ -935,6 +988,7 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
 {
     PageSearchStatus pss;
     int pages = 0;
+    bool again, found;
 
     pss.block = last_seen_block;
     pss.offset = last_offset;
@@ -944,29 +998,10 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
         pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
     }
 
-    while (true) {
-        pss.offset = migration_bitmap_find_and_reset_dirty(pss.block,
-                                                           pss.offset);
-        if (pss.complete_round && pss.block == last_seen_block &&
-            pss.offset >= last_offset) {
-            break;
-        }
-        if (pss.offset >= pss.block->used_length) {
-            pss.offset = 0;
-            pss.block = QLIST_NEXT_RCU(pss.block, next);
-            if (!pss.block) {
-                pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
-                pss.complete_round = true;
-                ram_bulk_stage = false;
-                if (migrate_use_xbzrle()) {
-                    /* If xbzrle is on, stop using the data compression at this
-                     * point. In theory, xbzrle can do better than compression.
-                     */
-                    flush_compressed_data(f);
-                    compression_switch = false;
-                }
-            }
-        } else {
+    do {
+        found = find_dirty_block(f, &pss, &again);
+
+        if (found) {
             if (compression_switch && migrate_use_compression()) {
                 pages = ram_save_compressed_page(f, pss.block, pss.offset,
                                                  last_stage,
@@ -979,10 +1014,9 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
             /* if page is unmodified, continue to the next */
             if (pages > 0) {
                 last_sent_block = pss.block;
-                break;
             }
         }
-    }
+    } while (!pages && again);
 
     last_seen_block = pss.block;
     last_offset = pss.offset;
