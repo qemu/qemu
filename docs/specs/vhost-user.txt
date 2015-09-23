@@ -148,7 +148,9 @@ VHOST_USER_GET_PROTOCOL_FEATURES. Master should stop when the number of
 requested queues is bigger than that.
 
 As all queues share one connection, the master uses a unique index for each
-queue in the sent message to identify a specified queue.
+queue in the sent message to identify a specified queue. One queue pair
+is enabled initially. More queues are enabled dynamically, by sending
+message VHOST_USER_SET_VRING_ENABLE.
 
 Message types
 -------------
@@ -327,3 +329,11 @@ Message types
       Query how many queues the backend supports. This request should be
       sent only when VHOST_USER_PROTOCOL_F_MQ is set in quried protocol
       features by VHOST_USER_GET_PROTOCOL_FEATURES.
+
+ * VHOST_USER_SET_VRING_ENABLE
+
+      Id: 18
+      Equivalent ioctl: N/A
+      Master payload: vring state description
+
+      Signal slave to enable or disable corresponding vring.

@@ -422,6 +422,19 @@ VHostNetState *get_vhost_net(NetClientState *nc)
 
     return vhost_net;
 }
+
+int vhost_set_vring_enable(NetClientState *nc, int enable)
+{
+    VHostNetState *net = get_vhost_net(nc);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+
+    if (vhost_ops->vhost_backend_set_vring_enable) {
+        return vhost_ops->vhost_backend_set_vring_enable(&net->dev, enable);
+    }
+
+    return 0;
+}
+
 #else
 uint64_t vhost_net_get_max_queues(VHostNetState *net)
 {
@@ -469,6 +482,11 @@ void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
 }
 
 VHostNetState *get_vhost_net(NetClientState *nc)
+{
+    return 0;
+}
+
+int vhost_set_vring_enable(NetClientState *nc, int enable)
 {
     return 0;
 }

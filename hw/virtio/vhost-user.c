@@ -48,6 +48,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_PROTOCOL_FEATURES = 15,
     VHOST_USER_SET_PROTOCOL_FEATURES = 16,
     VHOST_USER_GET_QUEUE_NUM = 17,
+    VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -290,6 +291,7 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 
     case VHOST_USER_SET_VRING_NUM:
     case VHOST_USER_SET_VRING_BASE:
+    case VHOST_USER_SET_VRING_ENABLE:
         memcpy(&msg.state, arg, sizeof(struct vhost_vring_state));
         msg.size = sizeof(m.state);
         break;
@@ -406,6 +408,22 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     return 0;
 }
 
+static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
+{
+    struct vhost_vring_state state = {
+        .index = dev->vq_index,
+        .num   = enable,
+    };
+
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+
+    if (!(dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MQ))) {
+        return -1;
+    }
+
+    return vhost_user_call(dev, VHOST_USER_SET_VRING_ENABLE, &state);
+}
+
 static int vhost_user_cleanup(struct vhost_dev *dev)
 {
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
@@ -428,4 +446,5 @@ const VhostOps user_ops = {
         .vhost_backend_init = vhost_user_init,
         .vhost_backend_cleanup = vhost_user_cleanup,
         .vhost_backend_get_vq_index = vhost_user_get_vq_index,
+        .vhost_backend_set_vring_enable = vhost_user_set_vring_enable,
 };
