@@ -627,12 +627,27 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RR_X0(TBLIDXB0):
     case OE_RR_Y0(TBLIDXB0):
+        tcg_gen_deposit_tl(tdest, load_gr(dc, dest), tsrca, 2, 8);
+        mnemonic = "tblidxb0";
+        break;
     case OE_RR_X0(TBLIDXB1):
     case OE_RR_Y0(TBLIDXB1):
+        tcg_gen_shri_tl(tdest, tsrca, 8);
+        tcg_gen_deposit_tl(tdest, load_gr(dc, dest), tdest, 2, 8);
+        mnemonic = "tblidxb1";
+        break;
     case OE_RR_X0(TBLIDXB2):
     case OE_RR_Y0(TBLIDXB2):
+        tcg_gen_shri_tl(tdest, tsrca, 16);
+        tcg_gen_deposit_tl(tdest, load_gr(dc, dest), tdest, 2, 8);
+        mnemonic = "tblidxb2";
+        break;
     case OE_RR_X0(TBLIDXB3):
     case OE_RR_Y0(TBLIDXB3):
+        tcg_gen_shri_tl(tdest, tsrca, 24);
+        tcg_gen_deposit_tl(tdest, load_gr(dc, dest), tdest, 2, 8);
+        mnemonic = "tblidxb3";
+        break;
     default:
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
