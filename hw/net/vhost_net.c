@@ -287,7 +287,7 @@ static void vhost_net_stop_one(struct vhost_net *net,
     } else if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER) {
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
             const VhostOps *vhost_ops = net->dev.vhost_ops;
-            int r = vhost_ops->vhost_call(&net->dev, VHOST_RESET_OWNER,
+            int r = vhost_ops->vhost_call(&net->dev, VHOST_RESET_DEVICE,
                                           NULL);
             assert(r >= 0);
         }

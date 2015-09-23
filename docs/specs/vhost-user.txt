@@ -194,10 +194,10 @@ Message types
       as an owner of the session. This can be used on the Slave as a
       "session start" flag.
 
- * VHOST_USER_RESET_OWNER
+ * VHOST_USER_RESET_DEVICE
 
       Id: 4
-      Equivalent ioctl: VHOST_RESET_OWNER
+      Equivalent ioctl: VHOST_RESET_DEVICE
       Master payload: N/A
 
       Issued when a new connection is about to be closed. The Master will no

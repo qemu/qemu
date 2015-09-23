@@ -32,7 +32,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_FEATURES = 1,
     VHOST_USER_SET_FEATURES = 2,
     VHOST_USER_SET_OWNER = 3,
-    VHOST_USER_RESET_OWNER = 4,
+    VHOST_USER_RESET_DEVICE = 4,
     VHOST_USER_SET_MEM_TABLE = 5,
     VHOST_USER_SET_LOG_BASE = 6,
     VHOST_USER_SET_LOG_FD = 7,
@@ -98,7 +98,7 @@ static unsigned long int ioctl_to_vhost_user_request[VHOST_USER_MAX] = {
     VHOST_GET_FEATURES,     /* VHOST_USER_GET_FEATURES */
     VHOST_SET_FEATURES,     /* VHOST_USER_SET_FEATURES */
     VHOST_SET_OWNER,        /* VHOST_USER_SET_OWNER */
-    VHOST_RESET_OWNER,      /* VHOST_USER_RESET_OWNER */
+    VHOST_RESET_DEVICE,      /* VHOST_USER_RESET_DEVICE */
     VHOST_SET_MEM_TABLE,    /* VHOST_USER_SET_MEM_TABLE */
     VHOST_SET_LOG_BASE,     /* VHOST_USER_SET_LOG_BASE */
     VHOST_SET_LOG_FD,       /* VHOST_USER_SET_LOG_FD */
@@ -222,7 +222,7 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
         break;
 
     case VHOST_USER_SET_OWNER:
-    case VHOST_USER_RESET_OWNER:
+    case VHOST_USER_RESET_DEVICE:
         break;
 
     case VHOST_USER_SET_MEM_TABLE:
