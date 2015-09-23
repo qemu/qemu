@@ -19,12 +19,8 @@
 /* Use uin32_t for vendor & device so PCI_ANY_ID expands and cannot match hw */
 static bool vfio_pci_is(VFIOPCIDevice *vdev, uint32_t vendor, uint32_t device)
 {
-    PCIDevice *pdev = &vdev->pdev;
-
-    return (vendor == PCI_ANY_ID ||
-            vendor == pci_get_word(pdev->config + PCI_VENDOR_ID)) &&
-           (device == PCI_ANY_ID ||
-            device == pci_get_word(pdev->config + PCI_DEVICE_ID));
+    return (vendor == PCI_ANY_ID || vendor == vdev->vendor_id) &&
+           (device == PCI_ANY_ID || device == vdev->device_id);
 }
 
 static bool vfio_is_vga(VFIOPCIDevice *vdev)
@@ -1178,15 +1174,9 @@ out:
 
 void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev)
 {
-    PCIDevice *pdev = &vdev->pdev;
-    uint16_t vendor, device;
-
-    vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
-    device = pci_get_word(pdev->config + PCI_DEVICE_ID);
-
-    switch (vendor) {
+    switch (vdev->vendor_id) {
     case 0x1002:
-        switch (device) {
+        switch (vdev->device_id) {
         /* Bonaire */
         case 0x6649: /* Bonaire [FirePro W5100] */
         case 0x6650:

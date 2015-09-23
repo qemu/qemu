@@ -1221,17 +1221,14 @@ static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
      * specific quirk if the device is known or we have a broken configuration.
      */
     if (msix->pba_offset >= vdev->bars[msix->pba_bar].region.size) {
-        PCIDevice *pdev = &vdev->pdev;
-        uint16_t vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
-        uint16_t device = pci_get_word(pdev->config + PCI_DEVICE_ID);
-
         /*
          * Chelsio T5 Virtual Function devices are encoded as 0x58xx for T5
          * adapters. The T5 hardware returns an incorrect value of 0x8000 for
          * the VF PBA offset while the BAR itself is only 8k. The correct value
          * is 0x1000, so we hard code that here.
          */
-        if (vendor == PCI_VENDOR_ID_CHELSIO && (device & 0xff00) == 0x5800) {
+        if (vdev->vendor_id == PCI_VENDOR_ID_CHELSIO &&
+            (vdev->device_id & 0xff00) == 0x5800) {
             msix->pba_offset = 0x1000;
         } else {
             error_report("vfio: Hardware reports invalid configuration, "
@@ -2406,6 +2403,9 @@ static int vfio_initfn(PCIDevice *pdev)
 
     /* QEMU can choose to expose the ROM or not */
     memset(vdev->emulated_config_bits + PCI_ROM_ADDRESS, 0xff, 4);
+
+    vdev->vendor_id = pci_get_word(pdev->config + PCI_VENDOR_ID);
+    vdev->device_id = pci_get_word(pdev->config + PCI_DEVICE_ID);
 
     /* QEMU can change multi-function devices to single function, or reverse */
     vdev->emulated_config_bits[PCI_HEADER_TYPE] =
