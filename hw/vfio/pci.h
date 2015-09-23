@@ -22,10 +22,9 @@
 
 struct VFIOPCIDevice;
 
-typedef struct VFIOQuirk {
-    MemoryRegion mem;
+typedef struct VFIOLegacyQuirk {
     struct VFIOPCIDevice *vdev;
-    QLIST_ENTRY(VFIOQuirk) next;
+    MemoryRegion *mem;
     struct {
         uint32_t base_offset:TARGET_PAGE_BITS;
         uint32_t address_offset:TARGET_PAGE_BITS;
@@ -43,6 +42,13 @@ typedef struct VFIOQuirk {
         uint8_t read_flags;
         uint8_t write_flags;
     } data;
+} VFIOLegacyQuirk;
+
+typedef struct VFIOQuirk {
+    QLIST_ENTRY(VFIOQuirk) next;
+    void *data;
+    int nr_mem;
+    MemoryRegion *mem;
 } VFIOQuirk;
 
 typedef struct VFIOBAR {

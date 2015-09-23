@@ -80,7 +80,7 @@ static bool vfio_flags_enabled(uint8_t flags, uint8_t mask)
 static uint64_t vfio_generic_window_quirk_read(void *opaque,
                                                hwaddr addr, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     uint64_t data;
 
@@ -92,13 +92,13 @@ static uint64_t vfio_generic_window_quirk_read(void *opaque,
         if (!vfio_range_contained(addr, size, quirk->data.data_offset,
                                   quirk->data.data_size)) {
             hw_error("%s: window data read not fully contained: %s",
-                     __func__, memory_region_name(&quirk->mem));
+                     __func__, memory_region_name(quirk->mem));
         }
 
         data = vfio_pci_read_config(&vdev->pdev,
                                     quirk->data.address_val + offset, size);
 
-        trace_vfio_generic_window_quirk_read(memory_region_name(&quirk->mem),
+        trace_vfio_generic_window_quirk_read(memory_region_name(quirk->mem),
                                              vdev->vbasedev.name,
                                              quirk->data.bar,
                                              addr, size, data);
@@ -113,7 +113,7 @@ static uint64_t vfio_generic_window_quirk_read(void *opaque,
 static void vfio_generic_window_quirk_write(void *opaque, hwaddr addr,
                                             uint64_t data, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
 
     if (ranges_overlap(addr, size,
@@ -121,7 +121,7 @@ static void vfio_generic_window_quirk_write(void *opaque, hwaddr addr,
 
         if (addr != quirk->data.address_offset) {
             hw_error("%s: offset write into address window: %s",
-                     __func__, memory_region_name(&quirk->mem));
+                     __func__, memory_region_name(quirk->mem));
         }
 
         if ((data & ~quirk->data.address_mask) == quirk->data.address_match) {
@@ -142,12 +142,12 @@ static void vfio_generic_window_quirk_write(void *opaque, hwaddr addr,
         if (!vfio_range_contained(addr, size, quirk->data.data_offset,
                                   quirk->data.data_size)) {
             hw_error("%s: window data write not fully contained: %s",
-                     __func__, memory_region_name(&quirk->mem));
+                     __func__, memory_region_name(quirk->mem));
         }
 
         vfio_pci_write_config(&vdev->pdev,
                               quirk->data.address_val + offset, data, size);
-        trace_vfio_generic_window_quirk_write(memory_region_name(&quirk->mem),
+        trace_vfio_generic_window_quirk_write(memory_region_name(quirk->mem),
                                               vdev->vbasedev.name,
                                               quirk->data.bar,
                                               addr, data, size);
@@ -167,7 +167,7 @@ static const MemoryRegionOps vfio_generic_window_quirk = {
 static uint64_t vfio_generic_quirk_read(void *opaque,
                                         hwaddr addr, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     hwaddr base = quirk->data.address_match & TARGET_PAGE_MASK;
     hwaddr offset = quirk->data.address_match & ~TARGET_PAGE_MASK;
@@ -178,12 +178,12 @@ static uint64_t vfio_generic_quirk_read(void *opaque,
         if (!vfio_range_contained(addr, size, offset,
                                   quirk->data.address_mask + 1)) {
             hw_error("%s: read not fully contained: %s",
-                     __func__, memory_region_name(&quirk->mem));
+                     __func__, memory_region_name(quirk->mem));
         }
 
         data = vfio_pci_read_config(&vdev->pdev, addr - offset, size);
 
-        trace_vfio_generic_quirk_read(memory_region_name(&quirk->mem),
+        trace_vfio_generic_quirk_read(memory_region_name(quirk->mem),
                                       vdev->vbasedev.name, quirk->data.bar,
                                       addr + base, size, data);
     } else {
@@ -197,7 +197,7 @@ static uint64_t vfio_generic_quirk_read(void *opaque,
 static void vfio_generic_quirk_write(void *opaque, hwaddr addr,
                                      uint64_t data, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     hwaddr base = quirk->data.address_match & TARGET_PAGE_MASK;
     hwaddr offset = quirk->data.address_match & ~TARGET_PAGE_MASK;
@@ -207,12 +207,12 @@ static void vfio_generic_quirk_write(void *opaque, hwaddr addr,
         if (!vfio_range_contained(addr, size, offset,
                                   quirk->data.address_mask + 1)) {
             hw_error("%s: write not fully contained: %s",
-                     __func__, memory_region_name(&quirk->mem));
+                     __func__, memory_region_name(quirk->mem));
         }
 
         vfio_pci_write_config(&vdev->pdev, addr - offset, data, size);
 
-        trace_vfio_generic_quirk_write(memory_region_name(&quirk->mem),
+        trace_vfio_generic_quirk_write(memory_region_name(quirk->mem),
                                        vdev->vbasedev.name, quirk->data.bar,
                                        addr + base, data, size);
     } else {
@@ -242,7 +242,7 @@ static const MemoryRegionOps vfio_generic_quirk = {
 static uint64_t vfio_ati_3c3_quirk_read(void *opaque,
                                         hwaddr addr, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     uint64_t data = vfio_pci_read_config(&vdev->pdev,
                                          PCI_BASE_ADDRESS_0 + (4 * 4) + 1,
@@ -261,6 +261,7 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    VFIOLegacyQuirk *legacy;
 
     if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
         return;
@@ -275,12 +276,15 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
+    legacy = quirk->data = g_malloc0(sizeof(*legacy));
+    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->nr_mem = 1;
+    legacy->vdev = vdev;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_ati_3c3_quirk, quirk,
+    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_ati_3c3_quirk, legacy,
                           "vfio-ati-3c3-quirk", 1);
     memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
-                                3 /* offset 3 bytes from 0x3c0 */, &quirk->mem);
+                                3 /* offset 3 bytes from 0x3c0 */, quirk->mem);
 
     QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
@@ -302,6 +306,7 @@ static void vfio_probe_ati_bar4_window_quirk(VFIOPCIDevice *vdev, int nr)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    VFIOLegacyQuirk *legacy;
 
     if (!vdev->has_vga || nr != 4 ||
         pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
@@ -309,20 +314,23 @@ static void vfio_probe_ati_bar4_window_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.address_size = 4;
-    quirk->data.data_offset = 4;
-    quirk->data.data_size = 4;
-    quirk->data.address_match = 0x4000;
-    quirk->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
-    quirk->data.bar = nr;
-    quirk->data.read_flags = quirk->data.write_flags = 1;
+    quirk->data = legacy = g_malloc0(sizeof(*legacy));
+    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->nr_mem = 1;
+    legacy->vdev = vdev;
+    legacy->data.address_size = 4;
+    legacy->data.data_offset = 4;
+    legacy->data.data_size = 4;
+    legacy->data.address_match = 0x4000;
+    legacy->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
+    legacy->data.bar = nr;
+    legacy->data.read_flags = legacy->data.write_flags = 1;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev),
-                          &vfio_generic_window_quirk, quirk,
+    memory_region_init_io(quirk->mem, OBJECT(vdev),
+                          &vfio_generic_window_quirk, legacy,
                           "vfio-ati-bar4-window-quirk", 8);
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          quirk->data.base_offset, &quirk->mem, 1);
+                          legacy->data.base_offset, quirk->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
@@ -336,6 +344,7 @@ static void vfio_probe_ati_bar2_4000_quirk(VFIOPCIDevice *vdev, int nr)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    VFIOLegacyQuirk *legacy;
 
     /* Only enable on newer devices where BAR2 is 64bit */
     if (!vdev->has_vga || nr != 2 || !vdev->bars[2].mem64 ||
@@ -344,18 +353,21 @@ static void vfio_probe_ati_bar2_4000_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.flags = quirk->data.read_flags = quirk->data.write_flags = 1;
-    quirk->data.address_match = 0x4000;
-    quirk->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
-    quirk->data.bar = nr;
+    quirk->data = legacy = g_malloc0(sizeof(*legacy));
+    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->nr_mem = 1;
+    legacy->vdev = vdev;
+    legacy->data.flags = legacy->data.read_flags = legacy->data.write_flags = 1;
+    legacy->data.address_match = 0x4000;
+    legacy->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
+    legacy->data.bar = nr;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_generic_quirk, quirk,
+    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_generic_quirk, legacy,
                           "vfio-ati-bar2-4000-quirk",
-                          TARGET_PAGE_ALIGN(quirk->data.address_mask + 1));
+                          TARGET_PAGE_ALIGN(legacy->data.address_mask + 1));
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          quirk->data.address_match & TARGET_PAGE_MASK,
-                          &quirk->mem, 1);
+                          legacy->data.address_match & TARGET_PAGE_MASK,
+                          quirk->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
@@ -397,7 +409,7 @@ enum {
 static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
                                            hwaddr addr, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     PCIDevice *pdev = &vdev->pdev;
     uint64_t data = vfio_vga_read(&vdev->vga.region[QEMU_PCI_VGA_IO_HI],
@@ -416,7 +428,7 @@ static uint64_t vfio_nvidia_3d0_quirk_read(void *opaque,
 static void vfio_nvidia_3d0_quirk_write(void *opaque, hwaddr addr,
                                         uint64_t data, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     PCIDevice *pdev = &vdev->pdev;
 
@@ -468,6 +480,7 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    VFIOLegacyQuirk *legacy;
 
     if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA ||
         !vdev->bars[1].region.size) {
@@ -475,19 +488,22 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.base_offset = 0x10;
-    quirk->data.address_offset = 4;
-    quirk->data.address_size = 2;
-    quirk->data.address_match = 0x1800;
-    quirk->data.address_mask = PCI_CONFIG_SPACE_SIZE - 1;
-    quirk->data.data_offset = 0;
-    quirk->data.data_size = 4;
+    quirk->data = legacy = g_malloc0(sizeof(*legacy));
+    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->nr_mem = 1;
+    legacy->vdev = vdev;
+    legacy->data.base_offset = 0x10;
+    legacy->data.address_offset = 4;
+    legacy->data.address_size = 2;
+    legacy->data.address_match = 0x1800;
+    legacy->data.address_mask = PCI_CONFIG_SPACE_SIZE - 1;
+    legacy->data.data_offset = 0;
+    legacy->data.data_size = 4;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_nvidia_3d0_quirk,
-                          quirk, "vfio-nvidia-3d0-quirk", 6);
+    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_nvidia_3d0_quirk,
+                          legacy, "vfio-nvidia-3d0-quirk", 6);
     memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
-                                quirk->data.base_offset, &quirk->mem);
+                                legacy->data.base_offset, quirk->mem);
 
     QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
@@ -512,7 +528,7 @@ enum {
 static void vfio_nvidia_bar5_window_quirk_write(void *opaque, hwaddr addr,
                                                 uint64_t data, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
 
     switch (addr) {
     case 0x0:
@@ -558,6 +574,7 @@ static void vfio_probe_nvidia_bar5_window_quirk(VFIOPCIDevice *vdev, int nr)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    VFIOLegacyQuirk *legacy;
 
     if (!vdev->has_vga || nr != 5 ||
         pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
@@ -565,19 +582,22 @@ static void vfio_probe_nvidia_bar5_window_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.read_flags = quirk->data.write_flags = NV_BAR5_VALID;
-    quirk->data.address_offset = 0x8;
-    quirk->data.address_size = 0; /* actually 4, but avoids generic code */
-    quirk->data.data_offset = 0xc;
-    quirk->data.data_size = 4;
-    quirk->data.bar = nr;
+    quirk->data = legacy = g_malloc0(sizeof(*legacy));
+    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->nr_mem = 1;
+    legacy->vdev = vdev;
+    legacy->data.read_flags = legacy->data.write_flags = NV_BAR5_VALID;
+    legacy->data.address_offset = 0x8;
+    legacy->data.address_size = 0; /* actually 4, but avoids generic code */
+    legacy->data.data_offset = 0xc;
+    legacy->data.data_size = 4;
+    legacy->data.bar = nr;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev),
-                          &vfio_nvidia_bar5_window_quirk, quirk,
+    memory_region_init_io(quirk->mem, OBJECT(vdev),
+                          &vfio_nvidia_bar5_window_quirk, legacy,
                           "vfio-nvidia-bar5-window-quirk", 16);
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                                        0, &quirk->mem, 1);
+                                        0, quirk->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
@@ -587,7 +607,7 @@ static void vfio_probe_nvidia_bar5_window_quirk(VFIOPCIDevice *vdev, int nr)
 static void vfio_nvidia_88000_quirk_write(void *opaque, hwaddr addr,
                                           uint64_t data, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     PCIDevice *pdev = &vdev->pdev;
     hwaddr base = quirk->data.address_match & TARGET_PAGE_MASK;
@@ -626,6 +646,7 @@ static void vfio_probe_nvidia_bar0_88000_quirk(VFIOPCIDevice *vdev, int nr)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    VFIOLegacyQuirk *legacy;
     uint16_t vendor, class;
 
     vendor = pci_get_word(pdev->config + PCI_VENDOR_ID);
@@ -637,18 +658,21 @@ static void vfio_probe_nvidia_bar0_88000_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.flags = quirk->data.read_flags = quirk->data.write_flags = 1;
-    quirk->data.address_match = 0x88000;
-    quirk->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
-    quirk->data.bar = nr;
+    quirk->data = legacy = g_malloc0(sizeof(*legacy));
+    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->nr_mem = 1;
+    legacy->vdev = vdev;
+    legacy->data.flags = legacy->data.read_flags = legacy->data.write_flags = 1;
+    legacy->data.address_match = 0x88000;
+    legacy->data.address_mask = PCIE_CONFIG_SPACE_SIZE - 1;
+    legacy->data.bar = nr;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_nvidia_88000_quirk,
-                          quirk, "vfio-nvidia-bar0-88000-quirk",
-                          TARGET_PAGE_ALIGN(quirk->data.address_mask + 1));
+    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_nvidia_88000_quirk,
+                          legacy, "vfio-nvidia-bar0-88000-quirk",
+                          TARGET_PAGE_ALIGN(legacy->data.address_mask + 1));
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          quirk->data.address_match & TARGET_PAGE_MASK,
-                          &quirk->mem, 1);
+                          legacy->data.address_match & TARGET_PAGE_MASK,
+                          quirk->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
@@ -662,6 +686,7 @@ static void vfio_probe_nvidia_bar0_1800_quirk(VFIOPCIDevice *vdev, int nr)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    VFIOLegacyQuirk *legacy;
 
     if (!vdev->has_vga || nr != 0 ||
         pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_NVIDIA) {
@@ -674,18 +699,21 @@ static void vfio_probe_nvidia_bar0_1800_quirk(VFIOPCIDevice *vdev, int nr)
             & 0xff);
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.flags = quirk->data.read_flags = quirk->data.write_flags = 1;
-    quirk->data.address_match = 0x1800;
-    quirk->data.address_mask = PCI_CONFIG_SPACE_SIZE - 1;
-    quirk->data.bar = nr;
+    quirk->data = legacy = g_malloc0(sizeof(*legacy));
+    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->nr_mem = 1;
+    legacy->vdev = vdev;
+    legacy->data.flags = legacy->data.read_flags = legacy->data.write_flags = 1;
+    legacy->data.address_match = 0x1800;
+    legacy->data.address_mask = PCI_CONFIG_SPACE_SIZE - 1;
+    legacy->data.bar = nr;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_generic_quirk, quirk,
+    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_generic_quirk, legacy,
                           "vfio-nvidia-bar0-1800-quirk",
-                          TARGET_PAGE_ALIGN(quirk->data.address_mask + 1));
+                          TARGET_PAGE_ALIGN(legacy->data.address_mask + 1));
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                          quirk->data.address_match & TARGET_PAGE_MASK,
-                          &quirk->mem, 1);
+                          legacy->data.address_match & TARGET_PAGE_MASK,
+                          quirk->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
@@ -725,7 +753,7 @@ static void vfio_probe_nvidia_bar0_1800_quirk(VFIOPCIDevice *vdev, int nr)
 static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
                                                hwaddr addr, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
     uint64_t val = 0;
 
@@ -755,7 +783,7 @@ static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
 static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
                                             uint64_t data, unsigned size)
 {
-    VFIOQuirk *quirk = opaque;
+    VFIOLegacyQuirk *quirk = opaque;
     VFIOPCIDevice *vdev = quirk->vdev;
 
     switch (addr) {
@@ -809,6 +837,7 @@ static void vfio_probe_rtl8168_bar2_window_quirk(VFIOPCIDevice *vdev, int nr)
 {
     PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
+    VFIOLegacyQuirk *legacy;
 
     if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_REALTEK ||
         pci_get_word(pdev->config + PCI_DEVICE_ID) != 0x8168 || nr != 2) {
@@ -816,13 +845,16 @@ static void vfio_probe_rtl8168_bar2_window_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->vdev = vdev;
-    quirk->data.bar = nr;
+    quirk->data = legacy = g_malloc0(sizeof(*legacy));
+    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->nr_mem = 1;
+    legacy->vdev = vdev;
+    legacy->data.bar = nr;
 
-    memory_region_init_io(&quirk->mem, OBJECT(vdev), &vfio_rtl8168_window_quirk,
-                          quirk, "vfio-rtl8168-window-quirk", 8);
+    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_rtl8168_window_quirk,
+                          legacy, "vfio-rtl8168-window-quirk", 8);
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                                        0x70, &quirk->mem, 1);
+                                        0x70, quirk->mem, 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
@@ -841,24 +873,31 @@ void vfio_vga_quirk_setup(VFIOPCIDevice *vdev)
 void vfio_vga_quirk_teardown(VFIOPCIDevice *vdev)
 {
     VFIOQuirk *quirk;
-    int i;
+    int i, j;
 
     for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
         QLIST_FOREACH(quirk, &vdev->vga.region[i].quirks, next) {
-            memory_region_del_subregion(&vdev->vga.region[i].mem, &quirk->mem);
+            for (j = 0; j < quirk->nr_mem; j++) {
+                memory_region_del_subregion(&vdev->vga.region[i].mem,
+                                            &quirk->mem[j]);
+            }
         }
     }
 }
 
 void vfio_vga_quirk_free(VFIOPCIDevice *vdev)
 {
-    int i;
+    int i, j;
 
     for (i = 0; i < ARRAY_SIZE(vdev->vga.region); i++) {
         while (!QLIST_EMPTY(&vdev->vga.region[i].quirks)) {
             VFIOQuirk *quirk = QLIST_FIRST(&vdev->vga.region[i].quirks);
-            object_unparent(OBJECT(&quirk->mem));
             QLIST_REMOVE(quirk, next);
+            for (j = 0; j < quirk->nr_mem; j++) {
+                object_unparent(OBJECT(&quirk->mem[j]));
+            }
+            g_free(quirk->mem);
+            g_free(quirk->data);
             g_free(quirk);
         }
     }
@@ -878,20 +917,28 @@ void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
     VFIOQuirk *quirk;
+    int i;
 
     QLIST_FOREACH(quirk, &bar->quirks, next) {
-        memory_region_del_subregion(&bar->region.mem, &quirk->mem);
+        for (i = 0; i < quirk->nr_mem; i++) {
+            memory_region_del_subregion(&bar->region.mem, &quirk->mem[i]);
+        }
     }
 }
 
 void vfio_bar_quirk_free(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
+    int i;
 
     while (!QLIST_EMPTY(&bar->quirks)) {
         VFIOQuirk *quirk = QLIST_FIRST(&bar->quirks);
-        object_unparent(OBJECT(&quirk->mem));
         QLIST_REMOVE(quirk, next);
+        for (i = 0; i < quirk->nr_mem; i++) {
+            object_unparent(OBJECT(&quirk->mem[i]));
+        }
+        g_free(quirk->mem);
+        g_free(quirk->data);
         g_free(quirk);
     }
 }
