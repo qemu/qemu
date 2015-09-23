@@ -503,33 +503,28 @@ static void vfio_msi_interrupt(void *opaque)
 {
     VFIOMSIVector *vector = opaque;
     VFIOPCIDevice *vdev = vector->vdev;
+    MSIMessage (*get_msg)(PCIDevice *dev, unsigned vector);
+    void (*notify)(PCIDevice *dev, unsigned vector);
+    MSIMessage msg;
     int nr = vector - vdev->msi_vectors;
 
     if (!event_notifier_test_and_clear(&vector->interrupt)) {
         return;
     }
 
-#ifdef DEBUG_VFIO
-    MSIMessage msg;
-
     if (vdev->interrupt == VFIO_INT_MSIX) {
-        msg = msix_get_message(&vdev->pdev, nr);
+        get_msg = msix_get_message;
+        notify = msix_notify;
     } else if (vdev->interrupt == VFIO_INT_MSI) {
-        msg = msi_get_message(&vdev->pdev, nr);
+        get_msg = msi_get_message;
+        notify = msi_notify;
     } else {
         abort();
     }
 
+    msg = get_msg(&vdev->pdev, nr);
     trace_vfio_msi_interrupt(vdev->vbasedev.name, nr, msg.address, msg.data);
-#endif
-
-    if (vdev->interrupt == VFIO_INT_MSIX) {
-        msix_notify(&vdev->pdev, nr);
-    } else if (vdev->interrupt == VFIO_INT_MSI) {
-        msi_notify(&vdev->pdev, nr);
-    } else {
-        error_report("vfio: MSI interrupt receieved, but not enabled?");
-    }
+    notify(&vdev->pdev, nr);
 }
 
 static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
@@ -747,7 +742,7 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
     }
 }
 
-static void vfio_enable_msix(VFIOPCIDevice *vdev)
+static void vfio_msix_enable(VFIOPCIDevice *vdev)
 {
     vfio_disable_interrupts(vdev);
 
@@ -776,10 +771,10 @@ static void vfio_enable_msix(VFIOPCIDevice *vdev)
         error_report("vfio: msix_set_vector_notifiers failed");
     }
 
-    trace_vfio_enable_msix(vdev->vbasedev.name);
+    trace_vfio_msix_enable(vdev->vbasedev.name);
 }
 
-static void vfio_enable_msi(VFIOPCIDevice *vdev)
+static void vfio_msi_enable(VFIOPCIDevice *vdev)
 {
     int ret, i;
 
@@ -852,10 +847,10 @@ retry:
         return;
     }
 
-    trace_vfio_enable_msi(vdev->vbasedev.name, vdev->nr_vectors);
+    trace_vfio_msi_enable(vdev->vbasedev.name, vdev->nr_vectors);
 }
 
-static void vfio_disable_msi_common(VFIOPCIDevice *vdev)
+static void vfio_msi_disable_common(VFIOPCIDevice *vdev)
 {
     int i;
 
@@ -879,7 +874,7 @@ static void vfio_disable_msi_common(VFIOPCIDevice *vdev)
     vfio_intx_enable(vdev);
 }
 
-static void vfio_disable_msix(VFIOPCIDevice *vdev)
+static void vfio_msix_disable(VFIOPCIDevice *vdev)
 {
     int i;
 
@@ -900,17 +895,17 @@ static void vfio_disable_msix(VFIOPCIDevice *vdev)
         vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX);
     }
 
-    vfio_disable_msi_common(vdev);
+    vfio_msi_disable_common(vdev);
 
-    trace_vfio_disable_msix(vdev->vbasedev.name);
+    trace_vfio_msix_disable(vdev->vbasedev.name);
 }
 
-static void vfio_disable_msi(VFIOPCIDevice *vdev)
+static void vfio_msi_disable(VFIOPCIDevice *vdev)
 {
     vfio_disable_irqindex(&vdev->vbasedev, VFIO_PCI_MSI_IRQ_INDEX);
-    vfio_disable_msi_common(vdev);
+    vfio_msi_disable_common(vdev);
 
-    trace_vfio_disable_msi(vdev->vbasedev.name);
+    trace_vfio_msi_disable(vdev->vbasedev.name);
 }
 
 static void vfio_update_msi(VFIOPCIDevice *vdev)
@@ -2109,11 +2104,11 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
 
         if (!was_enabled) {
             if (is_enabled) {
-                vfio_enable_msi(vdev);
+                vfio_msi_enable(vdev);
             }
         } else {
             if (!is_enabled) {
-                vfio_disable_msi(vdev);
+                vfio_msi_disable(vdev);
             } else {
                 vfio_update_msi(vdev);
             }
@@ -2127,9 +2122,9 @@ static void vfio_pci_write_config(PCIDevice *pdev, uint32_t addr,
         is_enabled = msix_enabled(pdev);
 
         if (!was_enabled && is_enabled) {
-            vfio_enable_msix(vdev);
+            vfio_msix_enable(vdev);
         } else if (was_enabled && !is_enabled) {
-            vfio_disable_msix(vdev);
+            vfio_msix_disable(vdev);
         }
     } else {
         /* Write everything to QEMU to keep emulated bits correct */
@@ -2148,9 +2143,9 @@ static void vfio_disable_interrupts(VFIOPCIDevice *vdev)
      * disable MSI/X and then cleanup by disabling INTx.
      */
     if (vdev->interrupt == VFIO_INT_MSIX) {
-        vfio_disable_msix(vdev);
+        vfio_msix_disable(vdev);
     } else if (vdev->interrupt == VFIO_INT_MSI) {
-        vfio_disable_msi(vdev);
+        vfio_msi_disable(vdev);
     }
 
     if (vdev->interrupt == VFIO_INT_INTx) {
@@ -2158,7 +2153,7 @@ static void vfio_disable_interrupts(VFIOPCIDevice *vdev)
     }
 }
 
-static int vfio_setup_msi(VFIOPCIDevice *vdev, int pos)
+static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos)
 {
     uint16_t ctrl;
     bool msi_64bit, msi_maskbit;
@@ -2174,7 +2169,7 @@ static int vfio_setup_msi(VFIOPCIDevice *vdev, int pos)
     msi_maskbit = !!(ctrl & PCI_MSI_FLAGS_MASKBIT);
     entries = 1 << ((ctrl & PCI_MSI_FLAGS_QMASK) >> 1);
 
-    trace_vfio_setup_msi(vdev->vbasedev.name, pos);
+    trace_vfio_msi_setup(vdev->vbasedev.name, pos);
 
     ret = msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit);
     if (ret < 0) {
@@ -2197,7 +2192,7 @@ static int vfio_setup_msi(VFIOPCIDevice *vdev, int pos)
  * need to first look for where the MSI-X table lives.  So we
  * unfortunately split MSI-X setup across two functions.
  */
-static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
+static int vfio_msix_early_setup(VFIOPCIDevice *vdev)
 {
     uint8_t pos;
     uint16_t ctrl;
@@ -2262,14 +2257,14 @@ static int vfio_early_setup_msix(VFIOPCIDevice *vdev)
         }
     }
 
-    trace_vfio_early_setup_msix(vdev->vbasedev.name, pos, msix->table_bar,
+    trace_vfio_msix_early_setup(vdev->vbasedev.name, pos, msix->table_bar,
                                 msix->table_offset, msix->entries);
     vdev->msix = msix;
 
     return 0;
 }
 
-static int vfio_setup_msix(VFIOPCIDevice *vdev, int pos)
+static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos)
 {
     int ret;
 
@@ -2692,14 +2687,14 @@ static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos)
 
     switch (cap_id) {
     case PCI_CAP_ID_MSI:
-        ret = vfio_setup_msi(vdev, pos);
+        ret = vfio_msi_setup(vdev, pos);
         break;
     case PCI_CAP_ID_EXP:
         vfio_check_pcie_flr(vdev, pos);
         ret = vfio_setup_pcie_cap(vdev, pos, size);
         break;
     case PCI_CAP_ID_MSIX:
-        ret = vfio_setup_msix(vdev, pos);
+        ret = vfio_msix_setup(vdev, pos);
         break;
     case PCI_CAP_ID_PM:
         vfio_check_pm_reset(vdev, pos);
@@ -3605,7 +3600,7 @@ static int vfio_initfn(PCIDevice *pdev)
 
     vfio_pci_size_rom(vdev);
 
-    ret = vfio_early_setup_msix(vdev);
+    ret = vfio_msix_early_setup(vdev);
     if (ret) {
         return ret;
     }
