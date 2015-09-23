@@ -119,13 +119,14 @@ typedef enum {
 } sPAPRDREntitySense;
 
 typedef enum {
-    SPAPR_DR_CC_RESPONSE_NEXT_SIB       = 1, /* currently unused */
-    SPAPR_DR_CC_RESPONSE_NEXT_CHILD     = 2,
-    SPAPR_DR_CC_RESPONSE_NEXT_PROPERTY  = 3,
-    SPAPR_DR_CC_RESPONSE_PREV_PARENT    = 4,
-    SPAPR_DR_CC_RESPONSE_SUCCESS        = 0,
-    SPAPR_DR_CC_RESPONSE_ERROR          = -1,
-    SPAPR_DR_CC_RESPONSE_CONTINUE       = -2,
+    SPAPR_DR_CC_RESPONSE_NEXT_SIB         = 1, /* currently unused */
+    SPAPR_DR_CC_RESPONSE_NEXT_CHILD       = 2,
+    SPAPR_DR_CC_RESPONSE_NEXT_PROPERTY    = 3,
+    SPAPR_DR_CC_RESPONSE_PREV_PARENT      = 4,
+    SPAPR_DR_CC_RESPONSE_SUCCESS          = 0,
+    SPAPR_DR_CC_RESPONSE_ERROR            = -1,
+    SPAPR_DR_CC_RESPONSE_CONTINUE         = -2,
+    SPAPR_DR_CC_RESPONSE_NOT_CONFIGURABLE = -9003,
 } sPAPRDRCCResponse;
 
 typedef void (spapr_drc_detach_cb)(DeviceState *d, void *opaque);
@@ -164,17 +165,17 @@ typedef struct sPAPRDRConnectorClass {
     /*< public >*/
 
     /* accessors for guest-visible (generally via RTAS) DR state */
-    int (*set_isolation_state)(sPAPRDRConnector *drc,
-                               sPAPRDRIsolationState state);
-    int (*set_indicator_state)(sPAPRDRConnector *drc,
-                               sPAPRDRIndicatorState state);
-    int (*set_allocation_state)(sPAPRDRConnector *drc,
-                                sPAPRDRAllocationState state);
+    uint32_t (*set_isolation_state)(sPAPRDRConnector *drc,
+                                    sPAPRDRIsolationState state);
+    uint32_t (*set_indicator_state)(sPAPRDRConnector *drc,
+                                    sPAPRDRIndicatorState state);
+    uint32_t (*set_allocation_state)(sPAPRDRConnector *drc,
+                                     sPAPRDRAllocationState state);
     uint32_t (*get_index)(sPAPRDRConnector *drc);
     uint32_t (*get_type)(sPAPRDRConnector *drc);
     const char *(*get_name)(sPAPRDRConnector *drc);
 
-    sPAPRDREntitySense (*entity_sense)(sPAPRDRConnector *drc);
+    uint32_t (*entity_sense)(sPAPRDRConnector *drc, sPAPRDREntitySense *state);
 
     /* QEMU interfaces for managing FDT/configure-connector */
     const void *(*get_fdt)(sPAPRDRConnector *drc, int *fdt_start_offset);

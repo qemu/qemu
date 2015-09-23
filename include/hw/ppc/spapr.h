@@ -5,6 +5,7 @@
 #include "hw/boards.h"
 #include "hw/ppc/xics.h"
 #include "hw/ppc/spapr_drc.h"
+#include "hw/mem/pc-dimm.h"
 
 struct VIOsPAPRBus;
 struct sPAPRPHBState;
@@ -34,6 +35,7 @@ struct sPAPRMachineClass {
     MachineClass parent_class;
 
     /*< public >*/
+    bool dr_lmb_enabled; /* enable dynamic-reconfig/hotplug of LMBs */
 };
 
 /**
@@ -76,6 +78,7 @@ struct sPAPRMachineState {
 
     /*< public >*/
     char *kvm_type;
+    MemoryHotplugState hotplug_memory;
 };
 
 #define H_SUCCESS         0
@@ -331,6 +334,7 @@ struct sPAPRMachineState {
 #define H_SET_MPP               0x2D0
 #define H_GET_MPP               0x2D4
 #define H_XIRR_X                0x2FC
+#define H_RANDOM                0x300
 #define H_SET_MODE              0x31C
 #define MAX_HCALL_OPCODE        H_SET_MODE
 
@@ -353,15 +357,10 @@ typedef struct sPAPRDeviceTreeUpdateHeader {
     uint32_t version_id;
 } sPAPRDeviceTreeUpdateHeader;
 
-/*#define DEBUG_SPAPR_HCALLS*/
-
-#ifdef DEBUG_SPAPR_HCALLS
 #define hcall_dprintf(fmt, ...) \
-    do { fprintf(stderr, "%s: " fmt, __func__, ## __VA_ARGS__); } while (0)
-#else
-#define hcall_dprintf(fmt, ...) \
-    do { } while (0)
-#endif
+    do { \
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: " fmt, __func__, ## __VA_ARGS__); \
+    } while (0)
 
 typedef target_ulong (*spapr_hcall_fn)(PowerPCCPU *cpu, sPAPRMachineState *sm,
                                        target_ulong opcode,
@@ -414,6 +413,7 @@ int spapr_allocate_irq_block(int num, bool lsi, bool msi);
 #define RTAS_OUT_BUSY               -2
 #define RTAS_OUT_PARAM_ERROR        -3
 #define RTAS_OUT_NOT_SUPPORTED      -3
+#define RTAS_OUT_NO_SUCH_INDICATOR  -3
 #define RTAS_OUT_NOT_AUTHORIZED     -9002
 
 /* RTAS tokens */
@@ -492,6 +492,11 @@ static inline uint64_t ppc64_phys_to_real(uint64_t addr)
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {
     return ldl_be_phys(&address_space_memory, ppc64_phys_to_real(phys + 4*n));
+}
+
+static inline uint64_t rtas_ldq(target_ulong phys, int n)
+{
+    return (uint64_t)rtas_ld(phys, n) << 32 | rtas_ld(phys, n + 1);
 }
 
 static inline void rtas_st(target_ulong phys, int n, uint32_t val)
@@ -577,7 +582,8 @@ struct sPAPREventLogEntry {
 void spapr_events_init(sPAPRMachineState *sm);
 void spapr_events_fdt_skel(void *fdt, uint32_t epow_irq);
 int spapr_h_cas_compose_response(sPAPRMachineState *sm,
-                                 target_ulong addr, target_ulong size);
+                                 target_ulong addr, target_ulong size,
+                                 bool cpu_update, bool memory_update);
 sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    uint64_t bus_offset,
                                    uint32_t page_shift,
@@ -589,8 +595,12 @@ int spapr_dma_dt(void *fdt, int node_off, const char *propname,
 int spapr_tcet_dma_dt(void *fdt, int node_off, const char *propname,
                       sPAPRTCETable *tcet);
 void spapr_pci_switch_vga(bool big_endian);
-void spapr_hotplug_req_add_event(sPAPRDRConnector *drc);
-void spapr_hotplug_req_remove_event(sPAPRDRConnector *drc);
+void spapr_hotplug_req_add_by_index(sPAPRDRConnector *drc);
+void spapr_hotplug_req_remove_by_index(sPAPRDRConnector *drc);
+void spapr_hotplug_req_add_by_count(sPAPRDRConnectorType drc_type,
+                                       uint32_t count);
+void spapr_hotplug_req_remove_by_count(sPAPRDRConnectorType drc_type,
+                                          uint32_t count);
 
 /* rtas-configure-connector state */
 struct sPAPRConfigureConnectorState {
@@ -603,10 +613,35 @@ struct sPAPRConfigureConnectorState {
 void spapr_ccs_reset_hook(void *opaque);
 
 #define TYPE_SPAPR_RTC "spapr-rtc"
+#define TYPE_SPAPR_RNG "spapr-rng"
 
 void spapr_rtc_read(DeviceState *dev, struct tm *tm, uint32_t *ns);
 int spapr_rtc_import_offset(DeviceState *dev, int64_t legacy_offset);
 
+int spapr_rng_populate_dt(void *fdt);
+
 #define SPAPR_MEMORY_BLOCK_SIZE (1 << 28) /* 256MB */
+
+/*
+ * This defines the maximum number of DIMM slots we can have for sPAPR
+ * guest. This is not defined by sPAPR but we are defining it to 32 slots
+ * based on default number of slots provided by PowerPC kernel.
+ */
+#define SPAPR_MAX_RAM_SLOTS     32
+
+/* 1GB alignment for hotplug memory region */
+#define SPAPR_HOTPLUG_MEM_ALIGN (1ULL << 30)
+
+/*
+ * Number of 32 bit words in each LMB list entry in ibm,dynamic-memory
+ * property under ibm,dynamic-reconfiguration-memory node.
+ */
+#define SPAPR_DR_LMB_LIST_ENTRY_SIZE 6
+
+/*
+ * This flag value defines the LMB as assigned in ibm,dynamic-memory
+ * property under ibm,dynamic-reconfiguration-memory node.
+ */
+#define SPAPR_LMB_FLAGS_ASSIGNED 0x00000008
 
 #endif /* !defined (__HW_SPAPR_H__) */

@@ -117,7 +117,7 @@ static int spapr_phb_vfio_eeh_set_option(sPAPRPHBState *sphb,
         phb = PCI_HOST_BRIDGE(sphb);
         pdev = pci_find_device(phb->bus,
                                (addr >> 16) & 0xFF, (addr >> 8) & 0xFF);
-        if (!pdev) {
+        if (!pdev || !object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
             return RTAS_OUT_PARAM_ERROR;
         }
 

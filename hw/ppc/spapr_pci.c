@@ -140,7 +140,7 @@ static void rtas_ibm_read_pci_config(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     size = rtas_ld(args, 3);
     addr = rtas_ld(args, 0);
 
@@ -206,7 +206,7 @@ static void rtas_ibm_write_pci_config(PowerPCCPU *cpu, sPAPRMachineState *spapr,
         return;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     val = rtas_ld(args, 4);
     size = rtas_ld(args, 3);
     addr = rtas_ld(args, 0);
@@ -269,7 +269,7 @@ static void rtas_ibm_change_msi(PowerPCCPU *cpu, sPAPRMachineState *spapr,
                                 target_ulong rets)
 {
     uint32_t config_addr = rtas_ld(args, 0);
-    uint64_t buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    uint64_t buid = rtas_ldq(args, 1);
     unsigned int func = rtas_ld(args, 3);
     unsigned int req_num = rtas_ld(args, 4); /* 0 == remove all */
     unsigned int seq_num = rtas_ld(args, 5);
@@ -375,7 +375,9 @@ out:
     rtas_st(rets, 0, RTAS_OUT_SUCCESS);
     rtas_st(rets, 1, req_num);
     rtas_st(rets, 2, ++seq_num);
-    rtas_st(rets, 3, ret_intr_type);
+    if (nret > 3) {
+        rtas_st(rets, 3, ret_intr_type);
+    }
 
     trace_spapr_pci_rtas_ibm_change_msi(config_addr, func, req_num, irq);
 }
@@ -389,7 +391,7 @@ static void rtas_ibm_query_interrupt_source_number(PowerPCCPU *cpu,
                                                    target_ulong rets)
 {
     uint32_t config_addr = rtas_ld(args, 0);
-    uint64_t buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    uint64_t buid = rtas_ldq(args, 1);
     unsigned int intr_src_num = -1, ioa_intr_num = rtas_ld(args, 3);
     sPAPRPHBState *phb = NULL;
     PCIDevice *pdev = NULL;
@@ -429,7 +431,6 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
 {
     sPAPRPHBState *sphb;
     sPAPRPHBClass *spc;
-    PCIDevice *pdev;
     uint32_t addr, option;
     uint64_t buid;
     int ret;
@@ -438,18 +439,12 @@ static void rtas_ibm_set_eeh_option(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     addr = rtas_ld(args, 0);
     option = rtas_ld(args, 3);
 
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
-        goto param_error_exit;
-    }
-
-    pdev = pci_find_device(PCI_HOST_BRIDGE(sphb)->bus,
-                           (addr >> 16) & 0xFF, (addr >> 8) & 0xFF);
-    if (!pdev || !object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
         goto param_error_exit;
     }
 
@@ -482,7 +477,7 @@ static void rtas_ibm_get_config_addr_info2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
         goto param_error_exit;
@@ -537,7 +532,7 @@ static void rtas_ibm_read_slot_reset_state2(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
         goto param_error_exit;
@@ -582,7 +577,7 @@ static void rtas_ibm_set_slot_reset(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     option = rtas_ld(args, 3);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
@@ -617,7 +612,7 @@ static void rtas_ibm_configure_pe(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
         goto param_error_exit;
@@ -652,7 +647,7 @@ static void rtas_ibm_slot_error_detail(PowerPCCPU *cpu,
         goto param_error_exit;
     }
 
-    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
+    buid = rtas_ldq(args, 1);
     sphb = spapr_pci_find_phb(spapr, buid);
     if (!sphb) {
         goto param_error_exit;
@@ -955,6 +950,7 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
     int pci_status, err;
     char *buf = NULL;
     uint32_t drc_index = spapr_phb_get_pci_drc_index(sphb, dev);
+    uint32_t max_msi, max_msix;
 
     if (pci_default_read_config(dev, PCI_HEADER_TYPE, 1) ==
         PCI_HEADER_TYPE_BRIDGE) {
@@ -1035,8 +1031,15 @@ static int spapr_populate_pci_child_dt(PCIDevice *dev, void *fdt, int offset,
                           RESOURCE_CELLS_ADDRESS));
     _FDT(fdt_setprop_cell(fdt, offset, "#size-cells",
                           RESOURCE_CELLS_SIZE));
-    _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi-x",
-                          RESOURCE_CELLS_SIZE));
+
+    max_msi = msi_nr_vectors_allocated(dev);
+    if (max_msi) {
+        _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi", max_msi));
+    }
+    max_msix = dev->msix_entries_nr;
+    if (max_msix) {
+        _FDT(fdt_setprop_cell(fdt, offset, "ibm,req#msi-x", max_msix));
+    }
 
     populate_resource_props(dev, &rp);
     _FDT(fdt_setprop(fdt, offset, "reg", (uint8_t *)rp.reg, rp.reg_len));
@@ -1177,7 +1180,7 @@ static void spapr_phb_hot_plug_child(HotplugHandler *plug_handler,
         return;
     }
     if (plugged_dev->hotplugged) {
-        spapr_hotplug_req_add_event(drc);
+        spapr_hotplug_req_add_by_index(drc);
     }
 }
 
@@ -1205,7 +1208,7 @@ static void spapr_phb_hot_unplug_child(HotplugHandler *plug_handler,
             error_propagate(errp, local_err);
             return;
         }
-        spapr_hotplug_req_remove_event(drc);
+        spapr_hotplug_req_remove_by_index(drc);
     }
 }
 

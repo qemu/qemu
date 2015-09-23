@@ -808,6 +808,32 @@ static target_ulong h_set_mode(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     return ret;
 }
 
+/*
+ * Return the offset to the requested option vector @vector in the
+ * option vector table @table.
+ */
+static target_ulong cas_get_option_vector(int vector, target_ulong table)
+{
+    int i;
+    char nr_vectors, nr_entries;
+
+    if (!table) {
+        return 0;
+    }
+
+    nr_vectors = (ldl_phys(&address_space_memory, table) >> 24) + 1;
+    if (!vector || vector > nr_vectors) {
+        return 0;
+    }
+    table++; /* skip nr option vectors */
+
+    for (i = 0; i < vector - 1; i++) {
+        nr_entries = ldl_phys(&address_space_memory, table) >> 24;
+        table += nr_entries + 2;
+    }
+    return table;
+}
+
 typedef struct {
     PowerPCCPU *cpu;
     uint32_t cpu_version;
@@ -828,19 +854,22 @@ static void do_set_compat(void *arg)
     ((cpuver) == CPU_POWERPC_LOGICAL_2_06_PLUS) ? 2061 : \
     ((cpuver) == CPU_POWERPC_LOGICAL_2_07) ? 2070 : 0)
 
+#define OV5_DRCONF_MEMORY 0x20
+
 static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
                                                   sPAPRMachineState *spapr,
                                                   target_ulong opcode,
                                                   target_ulong *args)
 {
-    target_ulong list = args[0];
+    target_ulong list = args[0], ov_table;
     PowerPCCPUClass *pcc_ = POWERPC_CPU_GET_CLASS(cpu_);
     CPUState *cs;
-    bool cpu_match = false;
+    bool cpu_match = false, cpu_update = true, memory_update = false;
     unsigned old_cpu_version = cpu_->cpu_version;
     unsigned compat_lvl = 0, cpu_version = 0;
     unsigned max_lvl = get_compat_level(cpu_->max_compat);
     int counter;
+    char ov5_byte2;
 
     /* Parse PVR list */
     for (counter = 0; counter < 512; ++counter) {
@@ -890,8 +919,6 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
         }
     }
 
-    /* For the future use: here @list points to the first capability */
-
     /* Parsing finished */
     trace_spapr_cas_pvr(cpu_->cpu_version, cpu_match,
                         cpu_version, pcc_->pcr_mask);
@@ -915,14 +942,26 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu_,
     }
 
     if (!cpu_version) {
-        return H_SUCCESS;
+        cpu_update = false;
     }
 
+    /* For the future use: here @ov_table points to the first option vector */
+    ov_table = list;
+
+    list = cas_get_option_vector(5, ov_table);
     if (!list) {
         return H_SUCCESS;
     }
 
-    if (spapr_h_cas_compose_response(spapr, args[1], args[2])) {
+    /* @list now points to OV 5 */
+    list += 2;
+    ov5_byte2 = rtas_ld(list, 0) >> 24;
+    if (ov5_byte2 & OV5_DRCONF_MEMORY) {
+        memory_update = true;
+    }
+
+    if (spapr_h_cas_compose_response(spapr, args[1], args[2],
+                                     cpu_update, memory_update)) {
         qemu_system_reset_request();
     }
 
@@ -971,7 +1010,8 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
         }
     }
 
-    hcall_dprintf("Unimplemented hcall 0x" TARGET_FMT_lx "\n", opcode);
+    qemu_log_mask(LOG_UNIMP, "Unimplemented SPAPR hcall 0x" TARGET_FMT_lx "\n",
+                  opcode);
     return H_FUNCTION;
 }
 

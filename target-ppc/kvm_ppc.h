@@ -23,6 +23,7 @@ int kvmppc_get_hasidle(CPUPPCState *env);
 int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level);
 void kvmppc_enable_logical_ci_hcalls(void);
+void kvmppc_enable_set_mode_hcall(void);
 void kvmppc_set_papr(PowerPCCPU *cpu);
 int kvmppc_set_compat(PowerPCCPU *cpu, uint32_t cpu_version);
 void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy);
@@ -53,6 +54,7 @@ void kvmppc_hash64_free_pteg(uint64_t token);
 void kvmppc_hash64_write_pte(CPUPPCState *env, target_ulong pte_index,
                              target_ulong pte0, target_ulong pte1);
 bool kvmppc_has_cap_fixup_hcalls(void);
+int kvmppc_enable_hwrng(void);
 
 #else
 
@@ -107,6 +109,10 @@ static inline int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level)
 }
 
 static inline void kvmppc_enable_logical_ci_hcalls(void)
+{
+}
+
+static inline void kvmppc_enable_set_mode_hcall(void)
 {
 }
 
@@ -246,6 +252,10 @@ static inline bool kvmppc_has_cap_fixup_hcalls(void)
     abort();
 }
 
+static inline int kvmppc_enable_hwrng(void)
+{
+    return -1;
+}
 #endif
 
 #ifndef CONFIG_KVM

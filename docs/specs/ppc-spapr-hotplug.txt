@@ -302,4 +302,52 @@ consisting of <phys>, <size> and <maxcpus>.
 pseries guests use this property to note the maximum allowed CPUs for the
 guest.
 
+== ibm,dynamic-reconfiguration-memory ==
+
+ibm,dynamic-reconfiguration-memory is a device tree node that represents
+dynamically reconfigurable logical memory blocks (LMB). This node
+is generated only when the guest advertises the support for it via
+ibm,client-architecture-support call. Memory that is not dynamically
+reconfigurable is represented by /memory nodes. The properties of this
+node that are of interest to the sPAPR memory hotplug implementation
+in QEMU are described here.
+
+ibm,lmb-size
+
+This 64bit integer defines the size of each dynamically reconfigurable LMB.
+
+ibm,associativity-lookup-arrays
+
+This property defines a lookup array in which the NUMA associativity
+information for each LMB can be found. It is a property encoded array
+that begins with an integer M, the number of associativity lists followed
+by an integer N, the number of entries per associativity list and terminated
+by M associativity lists each of length N integers.
+
+This property provides the same information as given by ibm,associativity
+property in a /memory node. Each assigned LMB has an index value between
+0 and M-1 which is used as an index into this table to select which
+associativity list to use for the LMB. This index value for each LMB
+is defined in ibm,dynamic-memory property.
+
+ibm,dynamic-memory
+
+This property describes the dynamically reconfigurable memory. It is a
+property encoded array that has an integer N, the number of LMBs followed
+by N LMB list entires.
+
+Each LMB list entry consists of the following elements:
+
+- Logical address of the start of the LMB encoded as a 64bit integer. This
+  corresponds to reg property in /memory node.
+- DRC index of the LMB that corresponds to ibm,my-drc-index property
+  in a /memory node.
+- Four bytes reserved for expansion.
+- Associativity list index for the LMB that is used as an index into
+  ibm,associativity-lookup-arrays property described earlier. This
+  is used to retrieve the right associativity list to be used for this
+  LMB.
+- A 32bit flags word. The bit at bit position 0x00000008 defines whether
+  the LMB is assigned to the the partition as of boot time.
+
 [1] http://thread.gmane.org/gmane.linux.ports.ppc.embedded/75350/focus=106867
