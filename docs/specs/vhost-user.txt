@@ -135,6 +135,21 @@ As older slaves don't support negotiating protocol features,
 a feature bit was dedicated for this purpose:
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 
+Multiple queue support
+----------------------
+
+Multiple queue is treated as a protocol extension, hence the slave has to
+implement protocol features first. The multiple queues feature is supported
+only when the protocol feature VHOST_USER_PROTOCOL_F_MQ (bit 0) is set:
+#define VHOST_USER_PROTOCOL_F_MQ    0
+
+The max number of queues the slave supports can be queried with message
+VHOST_USER_GET_PROTOCOL_FEATURES. Master should stop when the number of
+requested queues is bigger than that.
+
+As all queues share one connection, the master uses a unique index for each
+queue in the sent message to identify a specified queue.
+
 Message types
 -------------
 

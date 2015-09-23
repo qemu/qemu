@@ -148,8 +148,11 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         fprintf(stderr, "vhost-net requires net backend to be setup\n");
         goto fail;
     }
+    net->nc = options->net_backend;
 
     net->dev.max_queues = 1;
+    net->dev.nvqs = 2;
+    net->dev.vqs = net->vqs;
 
     if (backend_kernel) {
         r = vhost_net_get_fd(options->net_backend);
@@ -164,11 +167,10 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         net->dev.backend_features = 0;
         net->dev.protocol_features = 0;
         net->backend = -1;
-    }
-    net->nc = options->net_backend;
 
-    net->dev.nvqs = 2;
-    net->dev.vqs = net->vqs;
+        /* vhost-user needs vq_index to initiate a specific queue pair */
+        net->dev.vq_index = net->nc->queue_index * net->dev.nvqs;
+    }
 
     r = vhost_dev_init(&net->dev, options->opaque,
                        options->backend_type);

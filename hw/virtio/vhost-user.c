@@ -187,6 +187,19 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
             0 : -1;
 }
 
+static bool vhost_user_one_time_request(VhostUserRequest request)
+{
+    switch (request) {
+    case VHOST_USER_SET_OWNER:
+    case VHOST_USER_RESET_DEVICE:
+    case VHOST_USER_SET_MEM_TABLE:
+    case VHOST_USER_GET_QUEUE_NUM:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
         void *arg)
 {
@@ -205,6 +218,15 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
         msg_request = vhost_user_request_translate(request);
     } else {
         msg_request = request;
+    }
+
+    /*
+     * For non-vring specific requests, like VHOST_USER_SET_MEM_TABLE,
+     * we just need send it once in the first time. For later such
+     * request, we just ignore it.
+     */
+    if (vhost_user_one_time_request(msg_request) && dev->vq_index != 0) {
+        return 0;
     }
 
     msg.request = msg_request;
