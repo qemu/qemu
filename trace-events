@@ -1550,8 +1550,6 @@ vfio_generic_window_quirk_write(const char * region_name, const char *name, int 
 vfio_generic_quirk_read(const char * region_name, const char *name, int index, uint64_t addr, int size, uint64_t data) "%s read(%s:BAR%d+0x%"PRIx64", %d = 0x%"PRIx64
 # remove )
 vfio_generic_quirk_write(const char * region_name, const char *name, int index, uint64_t addr, uint64_t data, int size) "%s write(%s:BAR%d+0x%"PRIx64", 0x%"PRIx64", %d"
-vfio_ati_3c3_quirk_read(uint64_t data) " (0x3c3, 1) = 0x%"PRIx64
-vfio_vga_probe_ati_3c3_quirk(const char *name) "Enabled ATI/AMD quirk 0x3c3 BAR4for device %s"
 vfio_probe_ati_bar4_window_quirk(const char *name) "Enabled ATI/AMD BAR4 window quirk for device %s"
 #issue with )
 vfio_rtl8168_quirk_read(const char *name, const char *type, uint64_t val) "%s [%s]: 0x%"PRIx64
@@ -1587,6 +1585,8 @@ vfio_pci_reset_pm(const char *name) "%s PCI PM Reset"
 
 # hw/vfio/pci-quirks.
 vfio_quirk_rom_blacklisted(const char *name, uint16_t vid, uint16_t did) "%s %04x:%04x"
+vfio_quirk_ati_3c3_read(const char *name, uint64_t data) "%s 0x%"PRIx64
+vfio_quirk_ati_3c3_probe(const char *name) "%s"
 
 # hw/vfio/vfio-common.c
 vfio_region_write(const char *name, int index, uint64_t addr, uint64_t data, unsigned size) " (%s:region%d+0x%"PRIx64", 0x%"PRIx64 ", %d)"

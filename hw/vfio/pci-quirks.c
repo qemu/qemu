@@ -242,12 +242,11 @@ static const MemoryRegionOps vfio_generic_quirk = {
 static uint64_t vfio_ati_3c3_quirk_read(void *opaque,
                                         hwaddr addr, unsigned size)
 {
-    VFIOLegacyQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
+    VFIOPCIDevice *vdev = opaque;
     uint64_t data = vfio_pci_read_config(&vdev->pdev,
-                                         PCI_BASE_ADDRESS_0 + (4 * 4) + 1,
-                                         size);
-    trace_vfio_ati_3c3_quirk_read(data);
+                                         PCI_BASE_ADDRESS_4 + 1, size);
+
+    trace_vfio_quirk_ati_3c3_read(vdev->vbasedev.name, data);
 
     return data;
 }
@@ -259,29 +258,22 @@ static const MemoryRegionOps vfio_ati_3c3_quirk = {
 
 static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
 {
-    PCIDevice *pdev = &vdev->pdev;
     VFIOQuirk *quirk;
-    VFIOLegacyQuirk *legacy;
-
-    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_ATI) {
-        return;
-    }
 
     /*
      * As long as the BAR is >= 256 bytes it will be aligned such that the
      * lower byte is always zero.  Filter out anything else, if it exists.
      */
-    if (!vdev->bars[4].ioport || vdev->bars[4].region.size < 256) {
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_ATI, PCI_ANY_ID) ||
+        !vdev->bars[4].ioport || vdev->bars[4].region.size < 256) {
         return;
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    legacy = quirk->data = g_malloc0(sizeof(*legacy));
-    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
+    quirk->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
     quirk->nr_mem = 1;
-    legacy->vdev = vdev;
 
-    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_ati_3c3_quirk, legacy,
+    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_ati_3c3_quirk, vdev,
                           "vfio-ati-3c3-quirk", 1);
     memory_region_add_subregion(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].mem,
                                 3 /* offset 3 bytes from 0x3c0 */, quirk->mem);
@@ -289,7 +281,7 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
     QLIST_INSERT_HEAD(&vdev->vga.region[QEMU_PCI_VGA_IO_HI].quirks,
                       quirk, next);
 
-    trace_vfio_vga_probe_ati_3c3_quirk(vdev->vbasedev.name);
+    trace_vfio_quirk_ati_3c3_probe(vdev->vbasedev.name);
 }
 
 /*
