@@ -1554,12 +1554,10 @@ vfio_ati_3c3_quirk_read(uint64_t data) " (0x3c3, 1) = 0x%"PRIx64
 vfio_vga_probe_ati_3c3_quirk(const char *name) "Enabled ATI/AMD quirk 0x3c3 BAR4for device %s"
 vfio_probe_ati_bar4_window_quirk(const char *name) "Enabled ATI/AMD BAR4 window quirk for device %s"
 #issue with )
-vfio_rtl8168_window_quirk_read_fake(const char *region_name, const char *name) "%s fake read(%s"
-vfio_rtl8168_window_quirk_read_table(const char *region_name, const char *name) "%s MSI-X table read(%s"
-vfio_rtl8168_window_quirk_read_direct(const char *region_name, const char *name) "%s direct read(%s"
-vfio_rtl8168_window_quirk_write_table(const char *region_name, const char *name) "%s MSI-X table write(%s"
-vfio_rtl8168_window_quirk_write_direct(const char *region_name, const char *name) "%s direct write(%s"
-vfio_probe_rtl8168_bar2_window_quirk(const char *name) "Enabled RTL8168 BAR2 window quirk for device %s"
+vfio_rtl8168_quirk_read(const char *name, const char *type, uint64_t val) "%s [%s]: 0x%"PRIx64
+vfio_rtl8168_quirk_write(const char *name, uint64_t val) "%s [address]: 0x%"PRIx64
+vfio_rtl8168_quirk_msix(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table write[0x%x]: 0x%"PRIx64
+vfio_rtl8168_quirk_enable(const char *name) "%s"
 vfio_probe_ati_bar2_4000_quirk(const char *name) "Enabled ATI/AMD BAR2 0x4000 quirk for device %s"
 vfio_nvidia_3d0_quirk_read(int size, uint64_t data) " (0x3d0, %d) = 0x%"PRIx64
 vfio_nvidia_3d0_quirk_write(uint64_t data, int size) " (0x3d0, 0x%"PRIx64", %d)"
