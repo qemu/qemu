@@ -276,6 +276,15 @@ static void gen_mul_half(TCGv tdest, TCGv tsrca, TCGv tsrcb,
     tcg_temp_free(t);
 }
 
+static void gen_cmul2(TCGv tdest, TCGv tsrca, TCGv tsrcb, int sh, int rd)
+{
+    TCGv_i32 tsh = tcg_const_i32(sh);
+    TCGv_i32 trd = tcg_const_i32(rd);
+    gen_helper_cmul2(tdest, tsrca, tsrcb, tsh, trd);
+    tcg_temp_free_i32(tsh);
+    tcg_temp_free_i32(trd);
+}
+
 static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
                               unsigned srcb, TCGMemOp memop, const char *name)
 {
@@ -759,13 +768,33 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "cmpne";
         break;
     case OE_RRR(CMULAF, 0, X0):
+        gen_helper_cmulaf(tdest, load_gr(dc, dest), tsrca, tsrcb);
+        mnemonic = "cmulaf";
+        break;
     case OE_RRR(CMULA, 0, X0):
+        gen_helper_cmula(tdest, load_gr(dc, dest), tsrca, tsrcb);
+        mnemonic = "cmula";
+        break;
     case OE_RRR(CMULFR, 0, X0):
+        gen_cmul2(tdest, tsrca, tsrcb, 15, 1 << 14);
+        mnemonic = "cmulfr";
+        break;
     case OE_RRR(CMULF, 0, X0):
+        gen_cmul2(tdest, tsrca, tsrcb, 15, 0);
+        mnemonic = "cmulf";
+        break;
     case OE_RRR(CMULHR, 0, X0):
+        gen_cmul2(tdest, tsrca, tsrcb, 16, 1 << 15);
+        mnemonic = "cmulhr";
+        break;
     case OE_RRR(CMULH, 0, X0):
+        gen_cmul2(tdest, tsrca, tsrcb, 16, 0);
+        mnemonic = "cmulh";
+        break;
     case OE_RRR(CMUL, 0, X0):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        gen_helper_cmula(tdest, load_zero(dc), tsrca, tsrcb);
+        mnemonic = "cmul";
+        break;
     case OE_RRR(CRC32_32, 0, X0):
         gen_helper_crc32_32(tdest, tsrca, tsrcb);
         mnemonic = "crc32_32";

@@ -97,3 +97,43 @@ uint64_t helper_crc32_32(uint64_t accum, uint64_t input)
     /* zlib crc32 converts the accumulator and output to one's complement.  */
     return crc32(accum ^ 0xffffffff, buf, 4) ^ 0xffffffff;
 }
+
+uint64_t helper_cmula(uint64_t srcd, uint64_t srca, uint64_t srcb)
+{
+    uint32_t reala = (int16_t)srca;
+    uint32_t imaga = (int16_t)(srca >> 16);
+    uint32_t realb = (int16_t)srcb;
+    uint32_t imagb = (int16_t)(srcb >> 16);
+    uint32_t reald = srcd;
+    uint32_t imagd = srcd >> 32;
+    uint32_t realr = reala * realb - imaga * imagb + reald;
+    uint32_t imagr = reala * imagb + imaga * realb + imagd;
+
+    return deposit64(realr, 32, 32, imagr);
+}
+
+uint64_t helper_cmulaf(uint64_t srcd, uint64_t srca, uint64_t srcb)
+{
+    uint32_t reala = (int16_t)srca;
+    uint32_t imaga = (int16_t)(srca >> 16);
+    uint32_t realb = (int16_t)srcb;
+    uint32_t imagb = (int16_t)(srcb >> 16);
+    uint32_t reald = (int16_t)srcd;
+    uint32_t imagd = (int16_t)(srcd >> 16);
+    int32_t realr = reala * realb - imaga * imagb;
+    int32_t imagr = reala * imagb + imaga * realb;
+
+    return deposit32((realr >> 15) + reald, 16, 16, (imagr >> 15) + imagd);
+}
+
+uint64_t helper_cmul2(uint64_t srca, uint64_t srcb, int shift, int round)
+{
+    uint32_t reala = (int16_t)srca;
+    uint32_t imaga = (int16_t)(srca >> 16);
+    uint32_t realb = (int16_t)srcb;
+    uint32_t imagb = (int16_t)(srcb >> 16);
+    int32_t realr = reala * realb - imaga * imagb + round;
+    int32_t imagr = reala * imagb + imaga * realb + round;
+
+    return deposit32(realr >> shift, 16, 16, imagr >> shift);
+}
