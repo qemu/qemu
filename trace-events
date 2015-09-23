@@ -1552,10 +1552,6 @@ vfio_generic_quirk_read(const char * region_name, const char *name, int index, u
 vfio_generic_quirk_write(const char * region_name, const char *name, int index, uint64_t addr, uint64_t data, int size) "%s write(%s:BAR%d+0x%"PRIx64", 0x%"PRIx64", %d"
 vfio_probe_ati_bar4_window_quirk(const char *name) "Enabled ATI/AMD BAR4 window quirk for device %s"
 #issue with )
-vfio_rtl8168_quirk_read(const char *name, const char *type, uint64_t val) "%s [%s]: 0x%"PRIx64
-vfio_rtl8168_quirk_write(const char *name, uint64_t val) "%s [address]: 0x%"PRIx64
-vfio_rtl8168_quirk_msix(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table write[0x%x]: 0x%"PRIx64
-vfio_rtl8168_quirk_enable(const char *name) "%s"
 vfio_probe_ati_bar2_4000_quirk(const char *name) "Enabled ATI/AMD BAR2 0x4000 quirk for device %s"
 vfio_probe_nvidia_bar5_window_quirk(const char *name) "Enabled NVIDIA BAR5 window quirk for device %s"
 vfio_probe_nvidia_bar0_88000_quirk(const char *name) "Enabled NVIDIA BAR0 0x88000 quirk for device %s"
@@ -1588,6 +1584,10 @@ vfio_quirk_nvidia_3d0_state(const char *name, const char *state) "%s %s"
 vfio_quirk_nvidia_3d0_read(const char *name, uint8_t offset, unsigned size, uint64_t val) " (%s, @0x%x, len=0x%x) %"PRIx64
 vfio_quirk_nvidia_3d0_write(const char *name, uint8_t offset, uint64_t data, unsigned size) "(%s, @0x%x, 0x%"PRIx64", len=0x%x)"
 vfio_quirk_nvidia_3d0_probe(const char *name) "%s"
+vfio_quirk_rtl8168_fake_latch(const char *name, uint64_t val) "%s 0x%"PRIx64
+vfio_quirk_rtl8168_msix_write(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table write[0x%x]: 0x%"PRIx64
+vfio_quirk_rtl8168_msix_read(const char *name, uint16_t offset, uint64_t val) "%s MSI-X table read[0x%x]: 0x%"PRIx64
+vfio_quirk_rtl8168_probe(const char *name) "%s"
 
 # hw/vfio/vfio-common.c
 vfio_region_write(const char *name, int index, uint64_t addr, uint64_t data, unsigned size) " (%s:region%d+0x%"PRIx64", 0x%"PRIx64 ", %d)"

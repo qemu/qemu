@@ -784,81 +784,63 @@ static void vfio_probe_nvidia_bar0_1800_quirk(VFIOPCIDevice *vdev, int nr)
  * vfio: vfio_bar_write(0000:05:00.0:BAR2+0x74, 0x8001f000, 4) // do write
  * vfio: vfio_bar_read(0000:05:00.0:BAR2+0x74, 4) = 0x1f000 // complete
  */
-static uint64_t vfio_rtl8168_window_quirk_read(void *opaque,
-                                               hwaddr addr, unsigned size)
+typedef struct VFIOrtl8168Quirk {
+    VFIOPCIDevice *vdev;
+    uint32_t addr;
+    uint32_t data;
+    bool enabled;
+} VFIOrtl8168Quirk;
+
+static uint64_t vfio_rtl8168_quirk_address_read(void *opaque,
+                                                hwaddr addr, unsigned size)
 {
-    VFIOLegacyQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
-    uint64_t val = 0;
+    VFIOrtl8168Quirk *rtl = opaque;
+    VFIOPCIDevice *vdev = rtl->vdev;
+    uint64_t data = vfio_region_read(&vdev->bars[2].region, addr + 0x74, size);
 
-    if (!quirk->data.flags) { /* Non-MSI-X table access */
-        return vfio_region_read(&vdev->bars[quirk->data.bar].region,
-                                addr + 0x70, size);
+    if (rtl->enabled) {
+        data = rtl->addr ^ 0x80000000U; /* latch/complete */
+        trace_vfio_quirk_rtl8168_fake_latch(vdev->vbasedev.name, data);
     }
 
-    switch (addr) {
-    case 4: /* address */
-        val = quirk->data.address_match ^ 0x80000000U; /* latch/complete */
-        break;
-    case 0: /* data */
-        if ((vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX)) {
-            memory_region_dispatch_read(&vdev->pdev.msix_table_mmio,
-                                (hwaddr)(quirk->data.address_match & 0xfff),
-                                &val, size, MEMTXATTRS_UNSPECIFIED);
-        }
-        break;
-    }
-
-    trace_vfio_rtl8168_quirk_read(vdev->vbasedev.name,
-                                  addr ? "address" : "data", val);
-    return val;
+    return data;
 }
 
-static void vfio_rtl8168_window_quirk_write(void *opaque, hwaddr addr,
-                                            uint64_t data, unsigned size)
+static void vfio_rtl8168_quirk_address_write(void *opaque, hwaddr addr,
+                                             uint64_t data, unsigned size)
 {
-    VFIOLegacyQuirk *quirk = opaque;
-    VFIOPCIDevice *vdev = quirk->vdev;
+    VFIOrtl8168Quirk *rtl = opaque;
+    VFIOPCIDevice *vdev = rtl->vdev;
 
-    switch (addr) {
-    case 4: /* address */
-        if ((data & 0x7fff0000) == 0x10000) { /* MSI-X table */
-            quirk->data.flags = 1; /* Activate reads */
-            quirk->data.address_match = data;
+    rtl->enabled = false;
 
-            trace_vfio_rtl8168_quirk_write(vdev->vbasedev.name, data);
+    if ((data & 0x7fff0000) == 0x10000) { /* MSI-X table */
+        rtl->enabled = true;
+        rtl->addr = (uint32_t)data;
 
-            if (data & 0x80000000U) { /* Do write */
-                if (vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX) {
-                    hwaddr offset = data & 0xfff;
-                    uint64_t val = quirk->data.address_mask;
+        if (data & 0x80000000U) { /* Do write */
+            if (vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX) {
+                hwaddr offset = data & 0xfff;
+                uint64_t val = rtl->data;
 
-                    trace_vfio_rtl8168_quirk_msix(vdev->vbasedev.name,
-                                                  (uint16_t)offset, val);
+                trace_vfio_quirk_rtl8168_msix_write(vdev->vbasedev.name,
+                                                    (uint16_t)offset, val);
 
-                    /* Write to the proper guest MSI-X table instead */
-                    memory_region_dispatch_write(&vdev->pdev.msix_table_mmio,
-                                                 offset, val, size,
-                                                 MEMTXATTRS_UNSPECIFIED);
-                }
-                return; /* Do not write guest MSI-X data to hardware */
+                /* Write to the proper guest MSI-X table instead */
+                memory_region_dispatch_write(&vdev->pdev.msix_table_mmio,
+                                             offset, val, size,
+                                             MEMTXATTRS_UNSPECIFIED);
             }
-        } else {
-            quirk->data.flags = 0; /* De-activate reads, non-MSI-X */
+            return; /* Do not write guest MSI-X data to hardware */
         }
-        break;
-    case 0: /* data */
-        quirk->data.address_mask = data;
-        break;
     }
 
-    vfio_region_write(&vdev->bars[quirk->data.bar].region,
-                      addr + 0x70, data, size);
+    vfio_region_write(&vdev->bars[2].region, addr + 0x74, data, size);
 }
 
-static const MemoryRegionOps vfio_rtl8168_window_quirk = {
-    .read = vfio_rtl8168_window_quirk_read,
-    .write = vfio_rtl8168_window_quirk_write,
+static const MemoryRegionOps vfio_rtl_address_quirk = {
+    .read = vfio_rtl8168_quirk_address_read,
+    .write = vfio_rtl8168_quirk_address_write,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -867,32 +849,75 @@ static const MemoryRegionOps vfio_rtl8168_window_quirk = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static void vfio_probe_rtl8168_bar2_window_quirk(VFIOPCIDevice *vdev, int nr)
+static uint64_t vfio_rtl8168_quirk_data_read(void *opaque,
+                                             hwaddr addr, unsigned size)
 {
-    PCIDevice *pdev = &vdev->pdev;
-    VFIOQuirk *quirk;
-    VFIOLegacyQuirk *legacy;
+    VFIOrtl8168Quirk *rtl = opaque;
+    VFIOPCIDevice *vdev = rtl->vdev;
+    uint64_t data = vfio_region_read(&vdev->bars[2].region, addr + 0x74, size);
 
-    if (pci_get_word(pdev->config + PCI_VENDOR_ID) != PCI_VENDOR_ID_REALTEK ||
-        pci_get_word(pdev->config + PCI_DEVICE_ID) != 0x8168 || nr != 2) {
+    if (rtl->enabled && (vdev->pdev.cap_present & QEMU_PCI_CAP_MSIX)) {
+        hwaddr offset = rtl->addr & 0xfff;
+        memory_region_dispatch_read(&vdev->pdev.msix_table_mmio, offset,
+                                    &data, size, MEMTXATTRS_UNSPECIFIED);
+        trace_vfio_quirk_rtl8168_msix_read(vdev->vbasedev.name, offset, data);
+    }
+
+    return data;
+}
+
+static void vfio_rtl8168_quirk_data_write(void *opaque, hwaddr addr,
+                                          uint64_t data, unsigned size)
+{
+    VFIOrtl8168Quirk *rtl = opaque;
+    VFIOPCIDevice *vdev = rtl->vdev;
+
+    rtl->data = (uint32_t)data;
+
+    vfio_region_write(&vdev->bars[2].region, addr + 0x70, data, size);
+}
+
+static const MemoryRegionOps vfio_rtl_data_quirk = {
+    .read = vfio_rtl8168_quirk_data_read,
+    .write = vfio_rtl8168_quirk_data_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+        .unaligned = false,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
+{
+    VFIOQuirk *quirk;
+    VFIOrtl8168Quirk *rtl;
+
+    if (!vfio_pci_is(vdev, PCI_VENDOR_ID_REALTEK, 0x8168) || nr != 2) {
         return;
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->data = legacy = g_malloc0(sizeof(*legacy));
-    quirk->mem = legacy->mem = g_malloc0_n(sizeof(MemoryRegion), 1);
-    quirk->nr_mem = 1;
-    legacy->vdev = vdev;
-    legacy->data.bar = nr;
+    quirk->mem = g_malloc0_n(sizeof(MemoryRegion), 2);
+    quirk->nr_mem = 2;
+    quirk->data = rtl = g_malloc0(sizeof(*rtl));
+    rtl->vdev = vdev;
 
-    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_rtl8168_window_quirk,
-                          legacy, "vfio-rtl8168-window-quirk", 8);
+    memory_region_init_io(&quirk->mem[0], OBJECT(vdev),
+                          &vfio_rtl_address_quirk, rtl,
+                          "vfio-rtl8168-window-address-quirk", 4);
     memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
-                                        0x70, quirk->mem, 1);
+                                        0x74, &quirk->mem[0], 1);
+
+    memory_region_init_io(&quirk->mem[1], OBJECT(vdev),
+                          &vfio_rtl_data_quirk, rtl,
+                          "vfio-rtl8168-window-data-quirk", 4);
+    memory_region_add_subregion_overlap(&vdev->bars[nr].region.mem,
+                                        0x70, &quirk->mem[1], 1);
 
     QLIST_INSERT_HEAD(&vdev->bars[nr].quirks, quirk, next);
 
-    trace_vfio_rtl8168_quirk_enable(vdev->vbasedev.name);
+    trace_vfio_quirk_rtl8168_probe(vdev->vbasedev.name);
 }
 
 /*
@@ -944,7 +969,7 @@ void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
     vfio_probe_nvidia_bar5_window_quirk(vdev, nr);
     vfio_probe_nvidia_bar0_88000_quirk(vdev, nr);
     vfio_probe_nvidia_bar0_1800_quirk(vdev, nr);
-    vfio_probe_rtl8168_bar2_window_quirk(vdev, nr);
+    vfio_probe_rtl8168_bar2_quirk(vdev, nr);
 }
 
 void vfio_bar_quirk_teardown(VFIOPCIDevice *vdev, int nr)
