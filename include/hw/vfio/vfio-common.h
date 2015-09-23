@@ -97,7 +97,7 @@ typedef struct VFIODevice {
     int type;
     bool reset_works;
     bool needs_reset;
-    bool allow_mmap;
+    bool no_mmap;
     VFIODeviceOps *ops;
     unsigned int num_irqs;
     unsigned int num_regions;
