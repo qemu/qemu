@@ -54,15 +54,7 @@ matrix:
   include:
     # Make check target (we only do this once)
     - env:
-        - TARGETS=alpha-softmmu,arm-softmmu,aarch64-softmmu,cris-softmmu,
-                  i386-softmmu,x86_64-softmmu,m68k-softmmu,microblaze-softmmu,
-                  microblazeel-softmmu,mips-softmmu,mips64-softmmu,
-                  mips64el-softmmu,mipsel-softmmu,or32-softmmu,ppc-softmmu,
-                  ppc64-softmmu,ppcemb-softmmu,s390x-softmmu,sh4-softmmu,
-                  sh4eb-softmmu,sparc-softmmu,sparc64-softmmu,
-                  unicore32-softmmu,unicore32-linux-user,
-                  lm32-softmmu,moxie-softmmu,tricore-softmmu,xtensa-softmmu,
-                  xtensaeb-softmmu
+        - TARGETS=alpha-softmmu,arm-softmmu,aarch64-softmmu,cris-softmmu,i386-softmmu,x86_64-softmmu,m68k-softmmu,microblaze-softmmu,microblazeel-softmmu,mips-softmmu,mips64-softmmu,mips64el-softmmu,mipsel-softmmu,or32-softmmu,ppc-softmmu,ppc64-softmmu,ppcemb-softmmu,s390x-softmmu,sh4-softmmu,sh4eb-softmmu,sparc-softmmu,sparc64-softmmu,unicore32-softmmu,unicore32-linux-user,lm32-softmmu,moxie-softmmu,tricore-softmmu,xtensa-softmmu,xtensaeb-softmmu
           TEST_CMD="make check"
       compiler: gcc
     # Debug related options
