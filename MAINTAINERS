@@ -1071,6 +1071,14 @@ QObject
 M: Luiz Capitulino <lcapitulino@redhat.com>
 S: Maintained
 F: qobject/
+F: include/qapi/qmp/
+X: include/qapi/qmp/dispatch.h
+F: tests/check-qdict.c
+F: tests/check-qfloat.c
+F: tests/check-qint.c
+F: tests/check-qjson.c
+F: tests/check-qlist.c
+F: tests/check-qstring.c
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QEMU Guest Agent
