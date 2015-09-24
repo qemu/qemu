@@ -56,6 +56,7 @@ typedef struct XtfpgaFlashDesc {
 typedef struct XtfpgaBoardDesc {
     const XtfpgaFlashDesc *flash;
     size_t sram_size;
+    const hwaddr *io;
 } XtfpgaBoardDesc;
 
 typedef struct XtfpgaFpgaState {
@@ -229,6 +230,7 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     const char *kernel_cmdline = qemu_opt_get(machine_opts, "append");
     const char *dtb_filename = qemu_opt_get(machine_opts, "dtb");
     const char *initrd_filename = qemu_opt_get(machine_opts, "initrd");
+    const unsigned system_io_size = 224 * 1024 * 1024;
     int n;
 
     for (n = 0; n < smp_cpus; n++) {
@@ -261,8 +263,15 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
 
     system_io = g_malloc(sizeof(*system_io));
     memory_region_init_io(system_io, NULL, &xtfpga_io_ops, NULL, "xtfpga.io",
-                          224 * 1024 * 1024);
-    memory_region_add_subregion(system_memory, 0xf0000000, system_io);
+                          system_io_size);
+    memory_region_add_subregion(system_memory, board->io[0], system_io);
+    if (board->io[1]) {
+        MemoryRegion *io = g_malloc(sizeof(*io));
+
+        memory_region_init_alias(io, NULL, "xtfpga.io.cached",
+                                 system_io, 0, system_io_size);
+        memory_region_add_subregion(system_memory, board->io[1], io);
+    }
     xtfpga_fpga_init(system_io, 0x0d020000);
     if (nd_table[0].used) {
         xtfpga_net_init(system_io, 0x0d030000, 0x0d030400, 0x0d800000,
@@ -441,6 +450,15 @@ static void xtfpga_init(const XtfpgaBoardDesc *board, MachineState *machine)
     }
 }
 
+static const hwaddr xtfpga_mmu_io[2] = {
+    0xf0000000,
+};
+
+static const hwaddr xtfpga_nommu_io[2] = {
+    0x90000000,
+    0x70000000,
+};
+
 static const XtfpgaFlashDesc lx60_flash = {
     .base = 0x08000000,
     .size = 0x00400000,
@@ -452,6 +470,17 @@ static void xtfpga_lx60_init(MachineState *machine)
     static const XtfpgaBoardDesc lx60_board = {
         .flash = &lx60_flash,
         .sram_size = 0x20000,
+        .io = xtfpga_mmu_io,
+    };
+    xtfpga_init(&lx60_board, machine);
+}
+
+static void xtfpga_lx60_nommu_init(MachineState *machine)
+{
+    static const XtfpgaBoardDesc lx60_board = {
+        .flash = &lx60_flash,
+        .sram_size = 0x20000,
+        .io = xtfpga_nommu_io,
     };
     xtfpga_init(&lx60_board, machine);
 }
@@ -467,6 +496,17 @@ static void xtfpga_lx200_init(MachineState *machine)
     static const XtfpgaBoardDesc lx200_board = {
         .flash = &lx200_flash,
         .sram_size = 0x2000000,
+        .io = xtfpga_mmu_io,
+    };
+    xtfpga_init(&lx200_board, machine);
+}
+
+static void xtfpga_lx200_nommu_init(MachineState *machine)
+{
+    static const XtfpgaBoardDesc lx200_board = {
+        .flash = &lx200_flash,
+        .sram_size = 0x2000000,
+        .io = xtfpga_nommu_io,
     };
     xtfpga_init(&lx200_board, machine);
 }
@@ -482,6 +522,17 @@ static void xtfpga_ml605_init(MachineState *machine)
     static const XtfpgaBoardDesc ml605_board = {
         .flash = &ml605_flash,
         .sram_size = 0x2000000,
+        .io = xtfpga_mmu_io,
+    };
+    xtfpga_init(&ml605_board, machine);
+}
+
+static void xtfpga_ml605_nommu_init(MachineState *machine)
+{
+    static const XtfpgaBoardDesc ml605_board = {
+        .flash = &ml605_flash,
+        .sram_size = 0x2000000,
+        .io = xtfpga_nommu_io,
     };
     xtfpga_init(&ml605_board, machine);
 }
@@ -498,6 +549,17 @@ static void xtfpga_kc705_init(MachineState *machine)
     static const XtfpgaBoardDesc kc705_board = {
         .flash = &kc705_flash,
         .sram_size = 0x2000000,
+        .io = xtfpga_mmu_io,
+    };
+    xtfpga_init(&kc705_board, machine);
+}
+
+static void xtfpga_kc705_nommu_init(MachineState *machine)
+{
+    static const XtfpgaBoardDesc kc705_board = {
+        .flash = &kc705_flash,
+        .sram_size = 0x2000000,
+        .io = xtfpga_nommu_io,
     };
     xtfpga_init(&kc705_board, machine);
 }
@@ -518,6 +580,22 @@ static const TypeInfo xtfpga_lx60_type = {
     .class_init = xtfpga_lx60_class_init,
 };
 
+static void xtfpga_lx60_nommu_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "lx60 noMMU EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->init = xtfpga_lx60_nommu_init;
+    mc->max_cpus = 4;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+}
+
+static const TypeInfo xtfpga_lx60_nommu_type = {
+    .name = MACHINE_TYPE_NAME("lx60-nommu"),
+    .parent = TYPE_MACHINE,
+    .class_init = xtfpga_lx60_nommu_class_init,
+};
+
 static void xtfpga_lx200_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -532,6 +610,22 @@ static const TypeInfo xtfpga_lx200_type = {
     .name = MACHINE_TYPE_NAME("lx200"),
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_lx200_class_init,
+};
+
+static void xtfpga_lx200_nommu_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "lx200 noMMU EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->init = xtfpga_lx200_nommu_init;
+    mc->max_cpus = 4;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+}
+
+static const TypeInfo xtfpga_lx200_nommu_type = {
+    .name = MACHINE_TYPE_NAME("lx200-nommu"),
+    .parent = TYPE_MACHINE,
+    .class_init = xtfpga_lx200_nommu_class_init,
 };
 
 static void xtfpga_ml605_class_init(ObjectClass *oc, void *data)
@@ -550,6 +644,22 @@ static const TypeInfo xtfpga_ml605_type = {
     .class_init = xtfpga_ml605_class_init,
 };
 
+static void xtfpga_ml605_nommu_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "ml605 noMMU EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->init = xtfpga_ml605_nommu_init;
+    mc->max_cpus = 4;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+}
+
+static const TypeInfo xtfpga_ml605_nommu_type = {
+    .name = MACHINE_TYPE_NAME("ml605-nommu"),
+    .parent = TYPE_MACHINE,
+    .class_init = xtfpga_ml605_nommu_class_init,
+};
+
 static void xtfpga_kc705_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -566,12 +676,32 @@ static const TypeInfo xtfpga_kc705_type = {
     .class_init = xtfpga_kc705_class_init,
 };
 
+static void xtfpga_kc705_nommu_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "kc705 noMMU EVB (" XTENSA_DEFAULT_CPU_MODEL ")";
+    mc->init = xtfpga_kc705_nommu_init;
+    mc->max_cpus = 4;
+    mc->default_cpu_type = XTENSA_DEFAULT_CPU_TYPE;
+}
+
+static const TypeInfo xtfpga_kc705_nommu_type = {
+    .name = MACHINE_TYPE_NAME("kc705-nommu"),
+    .parent = TYPE_MACHINE,
+    .class_init = xtfpga_kc705_nommu_class_init,
+};
+
 static void xtfpga_machines_init(void)
 {
     type_register_static(&xtfpga_lx60_type);
     type_register_static(&xtfpga_lx200_type);
     type_register_static(&xtfpga_ml605_type);
     type_register_static(&xtfpga_kc705_type);
+    type_register_static(&xtfpga_lx60_nommu_type);
+    type_register_static(&xtfpga_lx200_nommu_type);
+    type_register_static(&xtfpga_ml605_nommu_type);
+    type_register_static(&xtfpga_kc705_nommu_type);
 }
 
 type_init(xtfpga_machines_init)
