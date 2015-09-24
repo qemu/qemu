@@ -1,0 +1,507 @@
+    The QEMU build system architecture
+    ==================================
+
+This document aims to help developers understand the architecture of the
+QEMU build system. As with projects using GNU autotools, the QEMU build
+system has two stages, first the developer runs the "configure" script
+to determine the local build environment characteristics, then they run
+"make" to build the project. There is about where the similarities with
+GNU autotools end, so try to forget what you know about them.
+
+
+Stage 1: configure
+==================
+
+The QEMU configure script is written directly in shell, and should be
+compatible with any POSIX shell, hence it uses #!/bin/sh. An important
+implication of this is that it is important to avoid using bash-isms on
+development platforms where bash is the primary host.
+
+In contrast to autoconf scripts, QEMU's configure is expected to be
+silent while it is checking for features. It will only display output
+when an error occurs, or to show the final feature enablement summary
+on completion.
+
+Adding new checks to the configure script usually comprises the
+following tasks:
+
+ - Initialize one or more variables with the default feature state.
+
+   Ideally features should auto-detect whether they are present,
+   so try to avoid hardcoding the initial state to either enabled
+   or disabled, as that forces the user to pass a --enable-XXX
+   / --disable-XXX flag on every invocation of configure.
+
+ - Add support to the command line arg parser to handle any new
+   --enable-XXX / --disable-XXX flags required by the feature XXX.
+
+ - Add information to the help output message to report on the new
+   feature flag.
+
+ - Add code to perform the actual feature check. As noted above, try to
+   be fully dynamic in checking enablement/disablement.
+
+ - Add code to print out the feature status in the configure summary
+   upon completion.
+
+ - Add any new makefile variables to $config_host_mak on completion.
+
+
+Taking (a simplified version of) the probe for gnutls from configure,
+we have the following pieces:
+
+  # Initial variable state
+  gnutls=""
+
+  ..snip..
+
+  # Configure flag processing
+  --disable-gnutls) gnutls="no"
+  ;;
+  --enable-gnutls) gnutls="yes"
+  ;;
+
+  ..snip..
+
+  # Help output feature message
+  gnutls          GNUTLS cryptography support
+
+  ..snip..
+
+  # Test for gnutls
+  if test "$gnutls" != "no"; then
+     if ! $pkg_config --exists "gnutls"; then
+        gnutls_cflags=`$pkg_config --cflags gnutls`
+        gnutls_libs=`$pkg_config --libs gnutls`
+        libs_softmmu="$gnutls_libs $libs_softmmu"
+        libs_tools="$gnutls_libs $libs_tools"
+        QEMU_CFLAGS="$QEMU_CFLAGS $gnutls_cflags"
+        gnutls="yes"
+     elif test "$gnutls" = "yes"; then
+        feature_not_found "gnutls" "Install gnutls devel"
+     else
+        gnutls="no"
+     fi
+  fi
+
+  ..snip..
+
+  # Completion feature summary
+  echo "GNUTLS support    $gnutls"
+
+  ..snip..
+
+  # Define make variables
+  if test "$gnutls" = "yes" ; then
+     echo "CONFIG_GNUTLS=y" >> $config_host_mak
+  fi
+
+
+Helper functions
+----------------
+
+The configure script provides a variety of helper functions to assist
+developers in checking for system features:
+
+ - do_cc $ARGS...
+
+   Attempt to run the system C compiler passing it $ARGS...
+
+ - do_cxx $ARGS...
+
+   Attempt to run the system C++ compiler passing it $ARGS...
+
+ - compile_object $CFLAGS
+
+   Attempt to compile a test program with the system C compiler using
+   $CFLAGS. The test program must have been previously written to a file
+   called $TMPC.
+
+ - compile_prog $CFLAGS $LDFLAGS
+
+   Attempt to compile a test program with the system C compiler using
+   $CFLAGS and link it with the system linker using $LDFLAGS. The test
+   program must have been previously written to a file called $TMPC.
+
+ - has $COMMAND
+
+   Determine if $COMMAND exists in the current environment, either as a
+   shell builtin, or executable binary, returning 0 on success.
+
+ - path_of $COMMAND
+
+   Return the fully qualified path of $COMMAND, printing it to stdout,
+   and returning 0 on success.
+
+ - check_define $NAME
+
+   Determine if the macro $NAME is defined by the system C compiler
+
+ - check_include $NAME
+
+   Determine if the include $NAME file is available to the system C
+   compiler
+
+ - write_c_skeleton
+
+   Write a minimal C program main() function to the temporary file
+   indicated by $TMPC
+
+ - feature_not_found $NAME $REMEDY
+
+   Print a message to stderr that the feature $NAME was not available
+   on the system, suggesting the user try $REMEDY to address the
+   problem.
+
+ - error_exit $MESSAGE $MORE...
+
+   Print $MESSAGE to stderr, followed by $MORE... and then exit from the
+   configure script with non-zero status
+
+ - query_pkg_config $ARGS...
+
+   Run pkg-config passing it $ARGS. If QEMU is doing a static build,
+   then --static will be automatically added to $ARGS
+
+
+Stage 2: makefiles
+==================
+
+The use of GNU make is required with the QEMU build system.
+
+Although the source code is spread across multiple subdirectories, the
+build system should be considered largely non-recursive in nature, in
+contrast to common practices seen with automake. There is some recursive
+invocation of make, but this is related to the things being built,
+rather than the source directory structure.
+
+QEMU currently supports both VPATH and non-VPATH builds, so there are
+three general ways to invoke configure & perform a build.
+
+ - VPATH, build artifacts outside of QEMU source tree entirely
+
+     cd ../
+     mkdir build
+     cd build
+     ../qemu/configure
+     make
+
+ - VPATH, build artifacts in a subdir of QEMU source tree
+
+     mkdir build
+     cd build
+     ../configure
+     make
+
+ - non-VPATH, build artifacts everywhere
+
+     ./configure
+     make
+
+The QEMU maintainers generally recommend that a VPATH build is used by
+developers. Patches to QEMU are expected to ensure VPATH build still
+works.
+
+
+Module structure
+----------------
+
+There are a number of key outputs of the QEMU build system:
+
+ - Tools - qemu-img, qemu-nbd, qga (guest agent), etc
+ - System emulators - qemu-system-$ARCH
+ - Userspace emulators - qemu-$ARCH
+ - Unit tests
+
+The source code is highly modularized, split across many files to
+facilitate building of all of these components with as little duplicated
+compilation as possible. There can be considered to be two distinct
+groups of files, those which are independent of the QEMU emulation
+target and those which are dependent on the QEMU emulation target.
+
+In the target-independent set lives various general purpose helper code,
+such as error handling infrastructure, standard data structures,
+platform portability wrapper functions, etc. This code can be compiled
+once only and the .o files linked into all output binaries.
+
+In the target-dependent set lives CPU emulation, device emulation and
+much glue code. This sometimes also has to be compiled multiple times,
+once for each target being built.
+
+The utility code that is used by all binaries is built into a
+static archive called libqemuutil.a, which is then linked to all the
+binaries. In order to provide hooks that are only needed by some of the
+binaries, code in libqemuutil.a may depend on other functions that are
+not fully implemented by all QEMU binaries. To deal with this there is a
+second library called libqemustub.a which provides dummy stubs for all
+these functions. These will get lazy linked into the binary if the real
+implementation is not present. In this way, the libqemustub.a static
+library can be thought of as a portable implementation of the weak
+symbols concept. All binaries should link to both libqemuutil.a and
+libqemustub.a. e.g.
+
+ qemu-img$(EXESUF): qemu-img.o ..snip.. libqemuutil.a libqemustub.a
+
+
+Windows platform portability
+----------------------------
+
+On Windows, all binaries have the suffix '.exe', so all Makefile rules
+which create binaries must include the $(EXESUF) variable on the binary
+name. e.g.
+
+ qemu-img$(EXESUF): qemu-img.o ..snip..
+
+This expands to '.exe' on Windows, or '' on other platforms.
+
+A further complication for the system emulator binaries is that
+two separate binaries need to be generated.
+
+The main binary (e.g. qemu-system-x86_64.exe) is linked against the
+Windows console runtime subsystem. These are expected to be run from a
+command prompt window, and so will print stderr to the console that
+launched them.
+
+The second binary generated has a 'w' on the end of its name (e.g.
+qemu-system-x86_64w.exe) and is linked against the Windows graphical
+runtime subsystem. These are expected to be run directly from the
+desktop and will open up a dedicated console window for stderr output.
+
+The Makefile.target will generate the binary for the graphical subsystem
+first, and then use objcopy to relink it against the console subsystem
+to generate the second binary.
+
+
+Object variable naming
+----------------------
+
+The QEMU convention is to define variables to list different groups of
+object files. These are named with the convention $PREFIX-obj-y. For
+example the libqemuutil.a file will be linked with all objects listed
+in a variable 'util-obj-y'. So, for example, util/Makefile.obj will
+contain a set of definitions looking like
+
+  util-obj-y += bitmap.o bitops.o hbitmap.o
+  util-obj-y += fifo8.o
+  util-obj-y += acl.o
+  util-obj-y += error.o qemu-error.o
+
+When there is an object file which needs to be conditionally built based
+on some characteristic of the host system, the configure script will
+define a variable for the conditional. For example, on Windows it will
+define $(CONFIG_POSIX) with a value of 'n' and $(CONFIG_WIN32) with a
+value of 'y'. It is now possible to use the config variables when
+listing object files. For example,
+
+  util-obj-$(CONFIG_WIN32) += oslib-win32.o qemu-thread-win32.o
+  util-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
+
+On Windows this expands to
+
+  util-obj-y += oslib-win32.o qemu-thread-win32.o
+  util-obj-n += oslib-posix.o qemu-thread-posix.o
+
+Since libqemutil.a links in $(util-obj-y), the POSIX specific files
+listed against $(util-obj-n) are ignored on the Windows platform builds.
+
+
+CFLAGS / LDFLAGS / LIBS handling
+--------------------------------
+
+There are many different binaries being built with differing purposes,
+and some of them might even be 3rd party libraries pulled in via git
+submodules. As such the use of the global CFLAGS variable is generally
+avoided in QEMU, since it would apply to too many build targets.
+
+Flags that are needed by any QEMU code (i.e. everything *except* GIT
+submodule projects) are put in $(QEMU_CFLAGS) variable. For linker
+flags the $(LIBS) variable is sometimes used, but a couple of more
+targeted variables are preferred. $(libs_softmmu) is used for
+libraries that must be linked to system emulator targets, $(LIBS_TOOLS)
+is used for tools like qemu-img, qemu-nbd, etc and $(LIBS_QGA) is used
+for the QEMU guest agent. There is currently no specific variable for
+the userspace emulator targets as the global $(LIBS), or more targeted
+variables shown below, are sufficient.
+
+In addition to these variables, it is possible to provide cflags and
+libs against individual source code files, by defining variables of the
+form $FILENAME-cflags and $FILENAME-libs. For example, the curl block
+driver needs to link to the libcurl library, so block/Makefile defines
+some variables:
+
+  curl.o-cflags      := $(CURL_CFLAGS)
+  curl.o-libs        := $(CURL_LIBS)
+
+The scope is a little different between the two variables. The libs get
+used when linking any target binary that includes the curl.o object
+file, while the cflags get used when compiling the curl.c file only.
+
+
+Statically defined files
+------------------------
+
+The following key files are statically defined in the source tree, with
+the rules needed to build QEMU. Their behaviour is influenced by a
+number of dynamically created files listed later.
+
+- Makefile
+
+The main entry point used when invoking make to build all the components
+of QEMU. The default 'all' target will naturally result in the build of
+every component. The various tools and helper binaries are built
+directly via a non-recursive set of rules.
+
+Each system/userspace emulation target needs to have a slightly
+different set of make rules / variables. Thus, make will be recursively
+invoked for each of the emulation targets.
+
+The recursive invocation will end up processing the toplevel
+Makefile.target file (more on that later).
+
+
+- */Makefile.objs
+
+Since the source code is spread across multiple directories, the rules
+for each file are similarly modularized. Thus each subdirectory
+containing .c files will usually also contain a Makefile.objs file.
+These files are not directly invoked by a recursive make, but instead
+they are imported by the top level Makefile and/or Makefile.target
+
+Each Makefile.objs usually just declares a set of variables listing the
+.o files that need building from the source files in the directory. They
+will also define any custom linker or compiler flags. For example in
+block/Makefile.objs
+
+  block-obj-$(CONFIG_LIBISCSI) += iscsi.o
+  block-obj-$(CONFIG_CURL) += curl.o
+
+  ..snip...
+
+  iscsi.o-cflags     := $(LIBISCSI_CFLAGS)
+  iscsi.o-libs       := $(LIBISCSI_LIBS)
+  curl.o-cflags      := $(CURL_CFLAGS)
+  curl.o-libs        := $(CURL_LIBS)
+
+If there are any rules defined in the Makefile.objs file, they should
+all use $(obj) as a prefix to the target, e.g.
+
+  $(obj)/generated-tcg-tracers.h: $(obj)/generated-tcg-tracers.h-timestamp
+
+
+- Makefile.target
+
+This file provides the entry point used to build each individual system
+or userspace emulator target. Each enabled target has its own
+subdirectory. For example if configure is run with the argument
+'--target-list=x86_64-softmmu', then a sub-directory 'x86_64-softmu'
+will be created, containing a 'Makefile' which symlinks back to
+Makefile.target
+
+So when the recursive '$(MAKE) -C x86_64-softmmu' is invoked, it ends up
+using Makefile.target for the build rules.
+
+
+- rules.mak
+
+This file provides the generic helper rules for invoking build tools, in
+particular the compiler and linker. This also contains the magic (hairy)
+'unnest-vars' function which is used to merge the variable definitions
+from all Makefile.objs in the source tree down into the main Makefile
+context.
+
+
+- default-configs/*.mak
+
+The files under default-configs/ control what emulated hardware is built
+into each QEMU system and userspace emulator targets. They merely
+contain a long list of config variable definitions. For example,
+default-configs/x86_64-softmmu.mak has:
+
+  include pci.mak
+  include sound.mak
+  include usb.mak
+  CONFIG_QXL=$(CONFIG_SPICE)
+  CONFIG_VGA_ISA=y
+  CONFIG_VGA_CIRRUS=y
+  CONFIG_VMWARE_VGA=y
+  CONFIG_VIRTIO_VGA=y
+  ...snip...
+
+These files rarely need changing unless new devices / hardware need to
+be enabled for a particular system/userspace emulation target
+
+
+- tests/Makefile
+
+Rules for building the unit tests. This file is included directly by the
+top level Makefile, so anything defined in this file will influence the
+entire build system. Care needs to be taken when writing rules for tests
+to ensure they only apply to the unit test execution / build.
+
+
+- po/Makefile
+
+Rules for building and installing the binary message catalogs from the
+text .po file sources. This almost never needs changing for any reason.
+
+
+Dynamically created files
+-------------------------
+
+The following files are generated dynamically by configure in order to
+control the behaviour of the statically defined makefiles. This avoids
+the need for QEMU makefiles to go through any pre-processing as seen
+with autotools, where Makefile.am generates Makefile.in which generates
+Makefile.
+
+
+- config-host.mak
+
+When configure has determined the characteristics of the build host it
+will write a long list of variables to config-host.mak file. This
+provides the various install directories, compiler / linker flags and a
+variety of CONFIG_* variables related to optionally enabled features.
+This is imported by the top level Makefile in order to tailor the build
+output.
+
+The variables defined here are those which are applicable to all QEMU
+build outputs. Variables which are potentially different for each
+emulator target are defined by the next file...
+
+It is also used as a dependency checking mechanism. If make sees that
+the modification timestamp on configure is newer than that on
+config-host.mak, then configure will be re-run.
+
+
+- config-host.h
+
+The config-host.h file is used by source code to determine what features
+are enabled. It is generated from the contents of config-host.mak using
+the scripts/create_config program. This extracts all the CONFIG_* variables,
+most of the HOST_* variables and a few other misc variables from
+config-host.mak, formatting them as C preprocessor macros.
+
+
+- $TARGET-NAME/config-target.mak
+
+TARGET-NAME is the name of a system or userspace emulator, for example,
+x86_64-softmmu denotes the system emulator for the x86_64 architecture.
+This file contains the variables which need to vary on a per-target
+basis. For example, it will indicate whether KVM or Xen are enabled for
+the target and any other potential custom libraries needed for linking
+the target.
+
+
+- $TARGET-NAME/config-devices.mak
+
+TARGET-NAME is again the name of a system or userspace emulator. The
+config-devices.mak file is automatically generated by make using the
+scripts/make_device_config.sh program, feeding it the
+default-configs/$TARGET-NAME file as input.
+
+
+- $TARGET-NAME/Makefile
+
+This is the entrypoint used when make recurses to build a single system
+or userspace emulator target. It is merely a symlink back to the
+Makefile.target in the top level.

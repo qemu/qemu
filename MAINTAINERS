@@ -1408,3 +1408,11 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: tests/image-fuzzer/
+
+
+Documentation
+-------------
+Build system architecture
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Odd Fixes
+F: docs/build-system.txt
