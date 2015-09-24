@@ -1054,7 +1054,12 @@ M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Supported
 F: qapi/
 X: qapi/*.json
+F: include/qapi/
+X: include/qapi/qmp/
+F: include/qapi/qmp/dispatch.h
 F: tests/qapi-schema/
+F: tests/test-*-visitor.c
+F: tests/test-qmp-*.c
 F: scripts/qapi*
 F: docs/qapi*
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
