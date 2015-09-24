@@ -1083,6 +1083,12 @@ static void spapr_phb_add_pci_device(sPAPRDRConnector *drc,
     void *fdt = NULL;
     int fdt_start_offset = 0, fdt_size;
 
+    if (object_dynamic_cast(OBJECT(pdev), "vfio-pci")) {
+        sPAPRTCETable *tcet = spapr_tce_find_by_liobn(phb->dma_liobn);
+
+        spapr_tce_set_need_vfio(tcet, true);
+    }
+
     if (dev->hotplugged) {
         fdt = create_device_tree(&fdt_size);
         fdt_start_offset = spapr_create_pci_child_dt(phb, pdev, fdt, 0);
