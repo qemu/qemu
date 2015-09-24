@@ -4432,3 +4432,86 @@ void bdrv_stop_replication(BlockDriverState *bs, bool failover, Error **errp)
                    " replication", bs->filename);
     }
 }
+
+void bdrv_start_replication_all(ReplicationMode mode, Error **errp)
+{
+    BlockDriverState *bs = NULL, *temp = NULL;
+    Error *local_err = NULL;
+
+    while ((bs = bdrv_next(bs))) {
+        if (!QLIST_EMPTY(&bs->parents)) {
+            /* It is not top BDS */
+            continue;
+        }
+
+        if (bdrv_is_read_only(bs) || !bdrv_is_inserted(bs)) {
+            continue;
+        }
+
+        bdrv_start_replication(bs, mode, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+    }
+
+    return;
+
+fail:
+    while ((temp = bdrv_next(temp)) && bs != temp) {
+        bdrv_stop_replication(temp, false, NULL);
+    }
+}
+
+void bdrv_do_checkpoint_all(Error **errp)
+{
+    BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
+
+    while ((bs = bdrv_next(bs))) {
+        if (!QLIST_EMPTY(&bs->parents)) {
+            /* It is not top BDS */
+            continue;
+        }
+
+        if (bdrv_is_read_only(bs) || !bdrv_is_inserted(bs)) {
+            continue;
+        }
+
+        bdrv_do_checkpoint(bs, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+}
+
+void bdrv_stop_replication_all(bool failover, Error **errp)
+{
+    BlockDriverState *bs = NULL;
+    Error *local_err = NULL;
+
+    while ((bs = bdrv_next(bs))) {
+        if (!QLIST_EMPTY(&bs->parents)) {
+            /* It is not top BDS */
+            continue;
+        }
+
+        if (bdrv_is_read_only(bs) || !bdrv_is_inserted(bs)) {
+            continue;
+        }
+
+        bdrv_stop_replication(bs, failover, &local_err);
+        if (!errp) {
+            /*
+             * The caller doesn't care the result, they just
+             * want to stop all block's replication.
+             */
+            continue;
+        }
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+    }
+}

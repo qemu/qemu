@@ -592,4 +592,8 @@ void bdrv_start_replication(BlockDriverState *bs, ReplicationMode mode,
 void bdrv_do_checkpoint(BlockDriverState *bs, Error **errp);
 void bdrv_stop_replication(BlockDriverState *bs, bool failover, Error **errp);
 
+void bdrv_start_replication_all(ReplicationMode mode, Error **errp);
+void bdrv_do_checkpoint_all(Error **errp);
+void bdrv_stop_replication_all(bool failover, Error **errp);
+
 #endif
