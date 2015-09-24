@@ -979,7 +979,7 @@ static void emulate_spapr_hypercall(PowerPCCPU *cpu)
 #define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
 #define DIRTY_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) |= tswap64(HPTE64_V_HPTE_DIRTY))
 
-static void spapr_reset_htab(sPAPRMachineState *spapr)
+static void spapr_alloc_htab(sPAPRMachineState *spapr)
 {
     long shift;
     int index;
@@ -994,18 +994,37 @@ static void spapr_reset_htab(sPAPRMachineState *spapr)
         /* Kernel handles htab, we don't need to allocate one */
         spapr->htab_shift = shift;
         kvmppc_kern_htab = true;
+    } else {
+        /* Allocate htab */
+        spapr->htab = qemu_memalign(HTAB_SIZE(spapr), HTAB_SIZE(spapr));
 
+        /* And clear it */
+        memset(spapr->htab, 0, HTAB_SIZE(spapr));
+
+        for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
+            DIRTY_HPTE(HPTE(spapr->htab, index));
+        }
+    }
+}
+
+/*
+ * Clear HTAB entries during reset.
+ *
+ * If host kernel has allocated HTAB, KVM_PPC_ALLOCATE_HTAB ioctl is
+ * used to clear HTAB. Otherwise QEMU-allocated HTAB is cleared manually.
+ */
+static void spapr_reset_htab(sPAPRMachineState *spapr)
+{
+    long shift;
+    int index;
+
+    shift = kvmppc_reset_htab(spapr->htab_shift);
+    if (shift > 0) {
         /* Tell readers to update their file descriptor */
         if (spapr->htab_fd >= 0) {
             spapr->htab_fd_stale = true;
         }
     } else {
-        if (!spapr->htab) {
-            /* Allocate an htab if we don't yet have one */
-            spapr->htab = qemu_memalign(HTAB_SIZE(spapr), HTAB_SIZE(spapr));
-        }
-
-        /* And clear it */
         memset(spapr->htab, 0, HTAB_SIZE(spapr));
 
         for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
@@ -1710,6 +1729,7 @@ static void ppc_spapr_init(MachineState *machine)
         }
         spapr->htab_shift++;
     }
+    spapr_alloc_htab(spapr);
 
     /* Set up Interrupt Controller before we create the VCPUs */
     spapr->icp = xics_system_init(machine,
