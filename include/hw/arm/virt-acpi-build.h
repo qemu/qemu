@@ -32,6 +32,7 @@ typedef struct VirtGuestInfo {
     const MemMapEntry *memmap;
     const int *irqmap;
     bool use_highmem;
+    int gic_version;
 } VirtGuestInfo;
 
 
