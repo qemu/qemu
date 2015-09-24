@@ -55,6 +55,9 @@
 #include "exec/ram_addr.h"
 
 #include "qemu/range.h"
+#ifndef _WIN32
+#include "qemu/mmap-alloc.h"
+#endif
 
 //#define DEBUG_SUBPAGE
 
@@ -84,9 +87,9 @@ static MemoryRegion io_mem_unassigned;
  */
 #define RAM_RESIZEABLE (1 << 2)
 
-/* An extra page is mapped on top of this RAM.
+/* RAM is backed by an mmapped file.
  */
-#define RAM_EXTRA (1 << 3)
+#define RAM_FILE (1 << 3)
 #endif
 
 struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
@@ -1188,13 +1191,10 @@ static void *file_ram_alloc(RAMBlock *block,
     char *filename;
     char *sanitized_name;
     char *c;
-    void *ptr;
-    void *area = NULL;
+    void *area;
     int fd;
     uint64_t hpagesize;
-    uint64_t total;
     Error *local_err = NULL;
-    size_t offset;
 
     hpagesize = gethugepagesize(path, &local_err);
     if (local_err) {
@@ -1238,7 +1238,6 @@ static void *file_ram_alloc(RAMBlock *block,
     g_free(filename);
 
     memory = ROUND_UP(memory, hpagesize);
-    total = memory + hpagesize;
 
     /*
      * ftruncate is not supported by hugetlbfs in older
@@ -1250,38 +1249,12 @@ static void *file_ram_alloc(RAMBlock *block,
         perror("ftruncate");
     }
 
-    ptr = mmap(0, total, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS,
-                -1, 0);
-    if (ptr == MAP_FAILED) {
-        error_setg_errno(errp, errno,
-                         "unable to allocate memory range for hugepages");
-        close(fd);
-        goto error;
-    }
-
-    offset = QEMU_ALIGN_UP((uintptr_t)ptr, hpagesize) - (uintptr_t)ptr;
-
-    area = mmap(ptr + offset, memory, PROT_READ | PROT_WRITE,
-                (block->flags & RAM_SHARED ? MAP_SHARED : MAP_PRIVATE) |
-                MAP_FIXED,
-                fd, 0);
+    area = qemu_ram_mmap(fd, memory, hpagesize, block->flags & RAM_SHARED);
     if (area == MAP_FAILED) {
         error_setg_errno(errp, errno,
                          "unable to map backing store for hugepages");
-        munmap(ptr, total);
         close(fd);
         goto error;
-    }
-
-    if (offset > 0) {
-        munmap(ptr, offset);
-    }
-    ptr += offset;
-    total -= offset;
-
-    if (total > memory + getpagesize()) {
-        munmap(ptr + memory + getpagesize(),
-               total - memory - getpagesize());
     }
 
     if (mem_prealloc) {
@@ -1601,7 +1574,7 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
-    new_block->flags |= RAM_EXTRA;
+    new_block->flags |= RAM_FILE;
     new_block->host = file_ram_alloc(new_block, size,
                                      mem_path, errp);
     if (!new_block->host) {
@@ -1703,8 +1676,8 @@ static void reclaim_ramblock(RAMBlock *block)
         xen_invalidate_map_cache_entry(block->host);
 #ifndef _WIN32
     } else if (block->fd >= 0) {
-        if (block->flags & RAM_EXTRA) {
-            munmap(block->host, block->max_length + getpagesize());
+        if (block->flags & RAM_FILE) {
+            qemu_ram_munmap(block->host, block->max_length);
         } else {
             munmap(block->host, block->max_length);
         }
