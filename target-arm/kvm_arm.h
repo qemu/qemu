@@ -189,6 +189,15 @@ int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu);
  */
 int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu);
 
+int kvm_arm_vgic_probe(void);
+
+#else
+
+static inline int kvm_arm_vgic_probe(void)
+{
+    return 0;
+}
+
 #endif
 
 static inline const char *gic_class_name(void)
