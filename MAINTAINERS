@@ -266,10 +266,10 @@ F: *win32*
 ARM Machines
 ------------
 Allwinner-a10
-M: Li Guang <lig.fnst@cn.fujitsu.com>
+M: Beniamino Galvani <b.galvani@gmail.com>
 S: Maintained
-F: hw/*/allwinner-a10*
-F: include/hw/*/allwinner-a10*
+F: hw/*/allwinner*
+F: include/hw/*/allwinner*
 F: hw/arm/cubieboard.c
 
 Exynos

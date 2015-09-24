@@ -189,11 +189,30 @@ int kvm_arm_sync_mpstate_to_kvm(ARMCPU *cpu);
  */
 int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu);
 
+int kvm_arm_vgic_probe(void);
+
+#else
+
+static inline int kvm_arm_vgic_probe(void)
+{
+    return 0;
+}
+
 #endif
 
 static inline const char *gic_class_name(void)
 {
     return kvm_irqchip_in_kernel() ? "kvm-arm-gic" : "arm_gic";
 }
+
+/**
+ * gicv3_class_name
+ *
+ * Return name of GICv3 class to use depending on whether KVM acceleration is
+ * in use. May throw an error if the chosen implementation is not available.
+ *
+ * Returns: class name to use
+ */
+const char *gicv3_class_name(void);
 
 #endif

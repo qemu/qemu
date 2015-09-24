@@ -585,18 +585,23 @@ void kvm_arch_init_irq_routing(KVMState *s)
 
 int kvm_arch_irqchip_create(KVMState *s)
 {
-    int ret;
-
     /* If we can create the VGIC using the newer device control API, we
      * let the device do this when it initializes itself, otherwise we
      * fall back to the old API */
+    return kvm_check_extension(s, KVM_CAP_DEVICE_CTRL);
+}
 
-    ret = kvm_create_device(s, KVM_DEV_TYPE_ARM_VGIC_V2, true);
-    if (ret == 0) {
-        return 1;
+int kvm_arm_vgic_probe(void)
+{
+    if (kvm_create_device(kvm_state,
+                          KVM_DEV_TYPE_ARM_VGIC_V3, true) == 0) {
+        return 3;
+    } else if (kvm_create_device(kvm_state,
+                                 KVM_DEV_TYPE_ARM_VGIC_V2, true) == 0) {
+        return 2;
+    } else {
+        return 0;
     }
-
-    return 0;
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,

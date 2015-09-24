@@ -384,6 +384,15 @@ struct AcpiMadtGenericMsiFrame {
 
 typedef struct AcpiMadtGenericMsiFrame AcpiMadtGenericMsiFrame;
 
+struct AcpiMadtGenericRedistributor {
+    ACPI_SUB_HEADER_DEF
+    uint16_t reserved;
+    uint64_t base_address;
+    uint32_t range_length;
+} QEMU_PACKED;
+
+typedef struct AcpiMadtGenericRedistributor AcpiMadtGenericRedistributor;
+
 /*
  * Generic Timer Description Table (GTDT)
  */

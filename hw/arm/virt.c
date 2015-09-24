@@ -51,6 +51,7 @@
 #include "hw/intc/arm_gic_common.h"
 #include "kvm_arm.h"
 #include "hw/smbios/smbios.h"
+#include "qapi/visitor.h"
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 256
@@ -81,6 +82,7 @@ typedef struct {
     MachineState parent;
     bool secure;
     bool highmem;
+    int32_t gic_version;
 } VirtMachineState;
 
 #define TYPE_VIRT_MACHINE   MACHINE_TYPE_NAME("virt")
@@ -111,6 +113,10 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_GIC_DIST] =           { 0x08000000, 0x00010000 },
     [VIRT_GIC_CPU] =            { 0x08010000, 0x00010000 },
     [VIRT_GIC_V2M] =            { 0x08020000, 0x00001000 },
+    /* The space in between here is reserved for GICv3 CPU/vCPU/HYP */
+    [VIRT_GIC_ITS] =            { 0x08080000, 0x00020000 },
+    /* This redistributor space allows up to 2*64kB*123 CPUs */
+    [VIRT_GIC_REDIST] =         { 0x080A0000, 0x00F60000 },
     [VIRT_UART] =               { 0x09000000, 0x00001000 },
     [VIRT_RTC] =                { 0x09010000, 0x00001000 },
     [VIRT_FW_CFG] =             { 0x09020000, 0x0000000a },
@@ -255,7 +261,7 @@ static void fdt_add_psci_node(const VirtBoardInfo *vbi)
     qemu_fdt_setprop_cell(fdt, "/psci", "migrate", migrate_fn);
 }
 
-static void fdt_add_timer_nodes(const VirtBoardInfo *vbi)
+static void fdt_add_timer_nodes(const VirtBoardInfo *vbi, int gictype)
 {
     /* Note that on A15 h/w these interrupts are level-triggered,
      * but for the GIC implementation provided by both QEMU and KVM
@@ -264,8 +270,11 @@ static void fdt_add_timer_nodes(const VirtBoardInfo *vbi)
     ARMCPU *armcpu;
     uint32_t irqflags = GIC_FDT_IRQ_FLAGS_EDGE_LO_HI;
 
-    irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
-                         GIC_FDT_IRQ_PPI_CPU_WIDTH, (1 << vbi->smp_cpus) - 1);
+    if (gictype == 2) {
+        irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
+                             GIC_FDT_IRQ_PPI_CPU_WIDTH,
+                             (1 << vbi->smp_cpus) - 1);
+    }
 
     qemu_fdt_add_subnode(vbi->fdt, "/timer");
 
@@ -355,25 +364,36 @@ static void fdt_add_v2m_gic_node(VirtBoardInfo *vbi)
     qemu_fdt_setprop_cell(vbi->fdt, "/intc/v2m", "phandle", vbi->v2m_phandle);
 }
 
-static void fdt_add_gic_node(VirtBoardInfo *vbi)
+static void fdt_add_gic_node(VirtBoardInfo *vbi, int type)
 {
     vbi->gic_phandle = qemu_fdt_alloc_phandle(vbi->fdt);
     qemu_fdt_setprop_cell(vbi->fdt, "/", "interrupt-parent", vbi->gic_phandle);
 
     qemu_fdt_add_subnode(vbi->fdt, "/intc");
-    /* 'cortex-a15-gic' means 'GIC v2' */
-    qemu_fdt_setprop_string(vbi->fdt, "/intc", "compatible",
-                            "arm,cortex-a15-gic");
     qemu_fdt_setprop_cell(vbi->fdt, "/intc", "#interrupt-cells", 3);
     qemu_fdt_setprop(vbi->fdt, "/intc", "interrupt-controller", NULL, 0);
-    qemu_fdt_setprop_sized_cells(vbi->fdt, "/intc", "reg",
-                                     2, vbi->memmap[VIRT_GIC_DIST].base,
-                                     2, vbi->memmap[VIRT_GIC_DIST].size,
-                                     2, vbi->memmap[VIRT_GIC_CPU].base,
-                                     2, vbi->memmap[VIRT_GIC_CPU].size);
     qemu_fdt_setprop_cell(vbi->fdt, "/intc", "#address-cells", 0x2);
     qemu_fdt_setprop_cell(vbi->fdt, "/intc", "#size-cells", 0x2);
     qemu_fdt_setprop(vbi->fdt, "/intc", "ranges", NULL, 0);
+    if (type == 3) {
+        qemu_fdt_setprop_string(vbi->fdt, "/intc", "compatible",
+                                "arm,gic-v3");
+        qemu_fdt_setprop_sized_cells(vbi->fdt, "/intc", "reg",
+                                     2, vbi->memmap[VIRT_GIC_DIST].base,
+                                     2, vbi->memmap[VIRT_GIC_DIST].size,
+                                     2, vbi->memmap[VIRT_GIC_REDIST].base,
+                                     2, vbi->memmap[VIRT_GIC_REDIST].size);
+    } else {
+        /* 'cortex-a15-gic' means 'GIC v2' */
+        qemu_fdt_setprop_string(vbi->fdt, "/intc", "compatible",
+                                "arm,cortex-a15-gic");
+        qemu_fdt_setprop_sized_cells(vbi->fdt, "/intc", "reg",
+                                      2, vbi->memmap[VIRT_GIC_DIST].base,
+                                      2, vbi->memmap[VIRT_GIC_DIST].size,
+                                      2, vbi->memmap[VIRT_GIC_CPU].base,
+                                      2, vbi->memmap[VIRT_GIC_CPU].size);
+    }
+
     qemu_fdt_setprop_cell(vbi->fdt, "/intc", "phandle", vbi->gic_phandle);
 }
 
@@ -396,18 +416,18 @@ static void create_v2m(VirtBoardInfo *vbi, qemu_irq *pic)
     fdt_add_v2m_gic_node(vbi);
 }
 
-static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, bool secure)
+static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, int type, bool secure)
 {
-    /* We create a standalone GIC v2 */
+    /* We create a standalone GIC */
     DeviceState *gicdev;
     SysBusDevice *gicbusdev;
     const char *gictype;
     int i;
 
-    gictype = gic_class_name();
+    gictype = (type == 3) ? gicv3_class_name() : gic_class_name();
 
     gicdev = qdev_create(NULL, gictype);
-    qdev_prop_set_uint32(gicdev, "revision", 2);
+    qdev_prop_set_uint32(gicdev, "revision", type);
     qdev_prop_set_uint32(gicdev, "num-cpu", smp_cpus);
     /* Note that the num-irq property counts both internal and external
      * interrupts; there are always 32 of the former (mandated by GIC spec).
@@ -419,7 +439,11 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, bool secure)
     qdev_init_nofail(gicdev);
     gicbusdev = SYS_BUS_DEVICE(gicdev);
     sysbus_mmio_map(gicbusdev, 0, vbi->memmap[VIRT_GIC_DIST].base);
-    sysbus_mmio_map(gicbusdev, 1, vbi->memmap[VIRT_GIC_CPU].base);
+    if (type == 3) {
+        sysbus_mmio_map(gicbusdev, 1, vbi->memmap[VIRT_GIC_REDIST].base);
+    } else {
+        sysbus_mmio_map(gicbusdev, 1, vbi->memmap[VIRT_GIC_CPU].base);
+    }
 
     /* Wire the outputs from each CPU's generic timer to the
      * appropriate GIC PPI inputs, and the GIC's IRQ output to
@@ -454,9 +478,11 @@ static void create_gic(VirtBoardInfo *vbi, qemu_irq *pic, bool secure)
         pic[i] = qdev_get_gpio_in(gicdev, i);
     }
 
-    fdt_add_gic_node(vbi);
+    fdt_add_gic_node(vbi, type);
 
-    create_v2m(vbi, pic);
+    if (type == 2) {
+        create_v2m(vbi, pic);
+    }
 }
 
 static void create_uart(const VirtBoardInfo *vbi, qemu_irq *pic)
@@ -773,7 +799,10 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
     qemu_fdt_setprop_cells(vbi->fdt, nodename, "bus-range", 0,
                            nr_pcie_buses - 1);
 
-    qemu_fdt_setprop_cells(vbi->fdt, nodename, "msi-parent", vbi->v2m_phandle);
+    if (vbi->v2m_phandle) {
+        qemu_fdt_setprop_cells(vbi->fdt, nodename, "msi-parent",
+                               vbi->v2m_phandle);
+    }
 
     qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
                                  2, base_ecam, 2, size_ecam);
@@ -888,6 +917,7 @@ static void machvirt_init(MachineState *machine)
     VirtMachineState *vms = VIRT_MACHINE(machine);
     qemu_irq pic[NUM_IRQS];
     MemoryRegion *sysmem = get_system_memory();
+    int gic_version = vms->gic_version;
     int n;
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     const char *cpu_model = machine->cpu_model;
@@ -898,6 +928,18 @@ static void machvirt_init(MachineState *machine)
 
     if (!cpu_model) {
         cpu_model = "cortex-a15";
+    }
+
+    /* We can probe only here because during property set
+     * KVM is not available yet
+     */
+    if (!gic_version) {
+        gic_version = kvm_arm_vgic_probe();
+        if (!gic_version) {
+            error_report("Unable to determine GIC version supported by host\n"
+                         "Probably KVM acceleration is not supported\n");
+            exit(1);
+        }
     }
 
     /* Separate the actual CPU model name from any appended features */
@@ -960,7 +1002,7 @@ static void machvirt_init(MachineState *machine)
         object_property_set_bool(cpuobj, true, "realized", NULL);
     }
     g_strfreev(cpustr);
-    fdt_add_timer_nodes(vbi);
+    fdt_add_timer_nodes(vbi, gic_version);
     fdt_add_cpu_nodes(vbi);
     fdt_add_psci_node(vbi);
 
@@ -970,7 +1012,7 @@ static void machvirt_init(MachineState *machine)
 
     create_flash(vbi);
 
-    create_gic(vbi, pic, vms->secure);
+    create_gic(vbi, pic, gic_version, vms->secure);
 
     create_uart(vbi, pic);
 
@@ -992,6 +1034,7 @@ static void machvirt_init(MachineState *machine)
     guest_info->memmap = vbi->memmap;
     guest_info->irqmap = vbi->irqmap;
     guest_info->use_highmem = vms->highmem;
+    guest_info->gic_version = gic_version;
     guest_info_state->machine_done.notify = virt_guest_info_machine_done;
     qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
 
@@ -1043,6 +1086,31 @@ static void virt_set_highmem(Object *obj, bool value, Error **errp)
     vms->highmem = value;
 }
 
+static char *virt_get_gic_version(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    const char *val = vms->gic_version == 3 ? "3" : "2";
+
+    return g_strdup(val);
+}
+
+static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    if (!strcmp(value, "3")) {
+        vms->gic_version = 3;
+    } else if (!strcmp(value, "2")) {
+        vms->gic_version = 2;
+    } else if (!strcmp(value, "host")) {
+        vms->gic_version = 0; /* Will probe later */
+    } else {
+        error_report("Invalid gic-version option value\n"
+                     "Allowed values are: 3, 2, host\n");
+        exit(1);
+    }
+}
+
 static void virt_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -1067,6 +1135,13 @@ static void virt_instance_init(Object *obj)
                                     "Set on/off to enable/disable using "
                                     "physical address space above 32 bits",
                                     NULL);
+    /* Default GIC type is v2 */
+    vms->gic_version = 2;
+    object_property_add_str(obj, "gic-version", virt_get_gic_version,
+                        virt_set_gic_version, NULL);
+    object_property_set_description(obj, "gic-version",
+                                    "Set GIC version. "
+                                    "Valid values are 2, 3 and host", NULL);
 }
 
 static void virt_class_init(ObjectClass *oc, void *data)
@@ -1075,7 +1150,10 @@ static void virt_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "ARM Virtual Machine",
     mc->init = machvirt_init;
-    mc->max_cpus = 8;
+    /* Our maximum number of CPUs depends on how many redistributors
+     * we can fit into memory map
+     */
+    mc->max_cpus = a15memmap[VIRT_GIC_REDIST].size / 0x20000;
     mc->has_dynamic_sysbus = true;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;

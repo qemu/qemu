@@ -24,6 +24,7 @@
 #include "qemu/atomic.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
 #include "hw/s390x/adapter.h"
@@ -2006,6 +2007,39 @@ int kvm_vm_check_attr(KVMState *s, uint32_t group, uint64_t attr)
     ret = kvm_vm_ioctl(s, KVM_HAS_DEVICE_ATTR, &attribute);
     /* kvm returns 0 on success for HAS_DEVICE_ATTR */
     return ret ? 0 : 1;
+}
+
+int kvm_device_check_attr(int dev_fd, uint32_t group, uint64_t attr)
+{
+    struct kvm_device_attr attribute = {
+        .group = group,
+        .attr = attr,
+        .flags = 0,
+    };
+
+    return kvm_device_ioctl(dev_fd, KVM_HAS_DEVICE_ATTR, &attribute) ? 0 : 1;
+}
+
+void kvm_device_access(int fd, int group, uint64_t attr,
+                       void *val, bool write)
+{
+    struct kvm_device_attr kvmattr;
+    int err;
+
+    kvmattr.flags = 0;
+    kvmattr.group = group;
+    kvmattr.attr = attr;
+    kvmattr.addr = (uintptr_t)val;
+
+    err = kvm_device_ioctl(fd,
+                           write ? KVM_SET_DEVICE_ATTR : KVM_GET_DEVICE_ATTR,
+                           &kvmattr);
+    if (err < 0) {
+        error_report("KVM_%s_DEVICE_ATTR failed: %s\n"
+                     "Group %d attr 0x%016" PRIx64, write ? "SET" : "GET",
+                     strerror(-err), group, attr);
+        abort();
+    }
 }
 
 int kvm_has_sync_mmu(void)

@@ -240,6 +240,32 @@ int kvm_device_ioctl(int fd, int type, ...);
 int kvm_vm_check_attr(KVMState *s, uint32_t group, uint64_t attr);
 
 /**
+ * kvm_device_check_attr - check for existence of a specific device attribute
+ * @fd: The device file descriptor
+ * @group: the group
+ * @attr: the attribute of that group to query for
+ *
+ * Returns: 1 if the attribute exists
+ *          0 if the attribute either does not exist or if the vm device
+ *            interface is unavailable
+ */
+int kvm_device_check_attr(int fd, uint32_t group, uint64_t attr);
+
+/**
+ * kvm_device_access - set or get value of a specific vm attribute
+ * @fd: The device file descriptor
+ * @group: the group
+ * @attr: the attribute of that group to set or get
+ * @val: pointer to a storage area for the value
+ * @write: true for set and false for get operation
+ *
+ * This function is not allowed to fail. Use kvm_device_check_attr()
+ * in order to check for the availability of optional attributes.
+ */
+void kvm_device_access(int fd, int group, uint64_t attr,
+                       void *val, bool write);
+
+/**
  * kvm_create_device - create a KVM device for the device control API
  * @KVMState: The KVMState pointer
  * @type: The KVM device type (see Documentation/virtual/kvm/devices in the
