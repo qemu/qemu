@@ -33,7 +33,7 @@
 
 /* send message to a client unix socket */
 static int
-ivshmem_server_send_one_msg(int sock_fd, long peer_id, int fd)
+ivshmem_server_send_one_msg(int sock_fd, int64_t peer_id, int fd)
 {
     int ret;
     struct msghdr msg;
@@ -44,6 +44,7 @@ ivshmem_server_send_one_msg(int sock_fd, long peer_id, int fd)
     } msg_control;
     struct cmsghdr *cmsg;
 
+    peer_id = GINT64_TO_LE(peer_id);
     iov[0].iov_base = &peer_id;
     iov[0].iov_len = sizeof(peer_id);
 
@@ -79,7 +80,7 @@ ivshmem_server_free_peer(IvshmemServer *server, IvshmemServerPeer *peer)
     unsigned vector;
     IvshmemServerPeer *other_peer;
 
-    IVSHMEM_SERVER_DEBUG(server, "free peer %ld\n", peer->id);
+    IVSHMEM_SERVER_DEBUG(server, "free peer %" PRId64 "\n", peer->id);
     close(peer->sock_fd);
     QTAILQ_REMOVE(&server->peer_list, peer, next);
 
@@ -209,7 +210,7 @@ ivshmem_server_handle_new_conn(IvshmemServer *server)
     }
 
     QTAILQ_INSERT_TAIL(&server->peer_list, peer, next);
-    IVSHMEM_SERVER_DEBUG(server, "new peer id = %ld\n",
+    IVSHMEM_SERVER_DEBUG(server, "new peer id = %" PRId64 "\n",
                          peer->id);
     return 0;
 
@@ -459,7 +460,7 @@ ivshmem_server_handle_fds(IvshmemServer *server, fd_set *fds, int maxfd)
 
 /* lookup peer from its id */
 IvshmemServerPeer *
-ivshmem_server_search_peer(IvshmemServer *server, long peer_id)
+ivshmem_server_search_peer(IvshmemServer *server, int64_t peer_id)
 {
     IvshmemServerPeer *peer;
 
@@ -480,7 +481,7 @@ ivshmem_server_dump(const IvshmemServer *server)
 
     /* dump peers */
     QTAILQ_FOREACH(peer, &server->peer_list, next) {
-        printf("peer_id = %ld\n", peer->id);
+        printf("peer_id = %" PRId64 "\n", peer->id);
 
         for (vector = 0; vector < peer->vectors_count; vector++) {
             printf("  vector %d is enabled (fd=%d)\n", vector,

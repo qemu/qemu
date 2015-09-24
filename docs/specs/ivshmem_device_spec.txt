@@ -61,7 +61,7 @@ This server code is available in qemu.git/contrib/ivshmem-server.
 
 The server must be started on the host before any guest.
 It creates a shared memory object then waits for clients to connect on a unix
-socket.
+socket. All the messages are little-endian int64_t integer.
 
 For each client (QEMU process) that connects to the server:
 - the server sends a protocol version, if client does not support it, the client

@@ -43,7 +43,7 @@
  */
 typedef struct IvshmemClientPeer {
     QTAILQ_ENTRY(IvshmemClientPeer) next;    /**< next in list*/
-    long id;                                 /**< the id of the peer */
+    int64_t id;                              /**< the id of the peer */
     int vectors[IVSHMEM_CLIENT_MAX_VECTORS]; /**< one fd per vector */
     unsigned vectors_count;                  /**< number of vectors */
 } IvshmemClientPeer;
@@ -198,7 +198,7 @@ int ivshmem_client_notify_broadcast(const IvshmemClient *client);
  * Returns:  The peer structure, or NULL if not found
  */
 IvshmemClientPeer *
-ivshmem_client_search_peer(IvshmemClient *client, long peer_id);
+ivshmem_client_search_peer(IvshmemClient *client, int64_t peer_id);
 
 /**
  * Dump information of this ivshmem client on stdout

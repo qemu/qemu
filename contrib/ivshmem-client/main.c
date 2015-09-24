@@ -179,7 +179,8 @@ ivshmem_client_notification_cb(const IvshmemClient *client,
 {
     (void)client;
     (void)arg;
-    printf("receive notification from peer_id=%ld vector=%d\n", peer->id, vect);
+    printf("receive notification from peer_id=%" PRId64 " vector=%u\n",
+           peer->id, vect);
 }
 
 int

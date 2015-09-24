@@ -24,7 +24,7 @@
 
 /* read message from the unix socket */
 static int
-ivshmem_client_read_one_msg(IvshmemClient *client, long *index, int *fd)
+ivshmem_client_read_one_msg(IvshmemClient *client, int64_t *index, int *fd)
 {
     int ret;
     struct msghdr msg;
@@ -45,7 +45,7 @@ ivshmem_client_read_one_msg(IvshmemClient *client, long *index, int *fd)
     msg.msg_controllen = sizeof(msg_control);
 
     ret = recvmsg(client->sock_fd, &msg, 0);
-    if (ret < 0) {
+    if (ret < sizeof(*index)) {
         IVSHMEM_CLIENT_DEBUG(client, "cannot read message: %s\n",
                              strerror(errno));
         return -1;
@@ -55,6 +55,7 @@ ivshmem_client_read_one_msg(IvshmemClient *client, long *index, int *fd)
         return -1;
     }
 
+    *index = GINT64_FROM_LE(*index);
     *fd = -1;
 
     for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
@@ -91,7 +92,7 @@ static int
 ivshmem_client_handle_server_msg(IvshmemClient *client)
 {
     IvshmemClientPeer *peer;
-    long peer_id;
+    int64_t peer_id;
     int ret, fd;
 
     ret = ivshmem_client_read_one_msg(client, &peer_id, &fd);
@@ -107,11 +108,11 @@ ivshmem_client_handle_server_msg(IvshmemClient *client)
 
         if (peer == NULL || peer == &client->local) {
             IVSHMEM_CLIENT_DEBUG(client, "receive delete for invalid "
-                                 "peer %ld\n", peer_id);
+                                 "peer %" PRId64 "\n", peer_id);
             return -1;
         }
 
-        IVSHMEM_CLIENT_DEBUG(client, "delete peer id = %ld\n", peer_id);
+        IVSHMEM_CLIENT_DEBUG(client, "delete peer id = %" PRId64 "\n", peer_id);
         ivshmem_client_free_peer(client, peer);
         return 0;
     }
@@ -122,12 +123,12 @@ ivshmem_client_handle_server_msg(IvshmemClient *client)
         peer->id = peer_id;
         peer->vectors_count = 0;
         QTAILQ_INSERT_TAIL(&client->peer_list, peer, next);
-        IVSHMEM_CLIENT_DEBUG(client, "new peer id = %ld\n", peer_id);
+        IVSHMEM_CLIENT_DEBUG(client, "new peer id = %" PRId64 "\n", peer_id);
     }
 
     /* new vector */
-    IVSHMEM_CLIENT_DEBUG(client, "  new vector %d (fd=%d) for peer id %ld\n",
-                         peer->vectors_count, fd, peer->id);
+    IVSHMEM_CLIENT_DEBUG(client, "  new vector %d (fd=%d) for peer id %"
+                         PRId64 "\n", peer->vectors_count, fd, peer->id);
     if (peer->vectors_count >= G_N_ELEMENTS(peer->vectors)) {
         IVSHMEM_CLIENT_DEBUG(client, "Too many vectors received, failing");
         return -1;
@@ -180,7 +181,7 @@ ivshmem_client_connect(IvshmemClient *client)
 {
     struct sockaddr_un sun;
     int fd, ret;
-    long tmp;
+    int64_t tmp;
 
     IVSHMEM_CLIENT_DEBUG(client, "connect to client %s\n",
                          client->unix_sock_path);
@@ -219,7 +220,7 @@ ivshmem_client_connect(IvshmemClient *client)
         IVSHMEM_CLIENT_DEBUG(client, "cannot read from server (2)\n");
         goto err_close;
     }
-    IVSHMEM_CLIENT_DEBUG(client, "our_id=%ld\n", client->local.id);
+    IVSHMEM_CLIENT_DEBUG(client, "our_id=%" PRId64 "\n", client->local.id);
 
     /* now, we expect shared mem fd + a -1 index, note that shm fd
      * is not used */
@@ -350,13 +351,13 @@ ivshmem_client_notify(const IvshmemClient *client,
     int fd;
 
     if (vector >= peer->vectors_count) {
-        IVSHMEM_CLIENT_DEBUG(client, "invalid vector %u on peer %ld\n",
+        IVSHMEM_CLIENT_DEBUG(client, "invalid vector %u on peer %" PRId64 "\n",
                              vector, peer->id);
         return -1;
     }
     fd = peer->vectors[vector];
-    IVSHMEM_CLIENT_DEBUG(client, "notify peer %ld on vector %d, fd %d\n",
-                         peer->id, vector, fd);
+    IVSHMEM_CLIENT_DEBUG(client, "notify peer %" PRId64
+                         " on vector %d, fd %d\n", peer->id, vector, fd);
 
     kick = 1;
     if (write(fd, &kick, sizeof(kick)) != sizeof(kick)) {
@@ -402,7 +403,7 @@ ivshmem_client_notify_broadcast(const IvshmemClient *client)
 
 /* lookup peer from its id */
 IvshmemClientPeer *
-ivshmem_client_search_peer(IvshmemClient *client, long peer_id)
+ivshmem_client_search_peer(IvshmemClient *client, int64_t peer_id)
 {
     IvshmemClientPeer *peer;
 
@@ -427,7 +428,7 @@ ivshmem_client_dump(const IvshmemClient *client)
 
     /* dump local infos */
     peer = &client->local;
-    printf("our_id = %ld\n", peer->id);
+    printf("our_id = %" PRId64 "\n", peer->id);
     for (vector = 0; vector < peer->vectors_count; vector++) {
         printf("  vector %d is enabled (fd=%d)\n", vector,
                peer->vectors[vector]);
@@ -435,7 +436,7 @@ ivshmem_client_dump(const IvshmemClient *client)
 
     /* dump peers */
     QTAILQ_FOREACH(peer, &client->peer_list, next) {
-        printf("peer_id = %ld\n", peer->id);
+        printf("peer_id = %" PRId64 "\n", peer->id);
 
         for (vector = 0; vector < peer->vectors_count; vector++) {
             printf("  vector %d is enabled (fd=%d)\n", vector,

@@ -51,7 +51,7 @@
 typedef struct IvshmemServerPeer {
     QTAILQ_ENTRY(IvshmemServerPeer) next;    /**< next in list*/
     int sock_fd;                             /**< connected unix sock */
-    long id;                                 /**< the id of the peer */
+    int64_t id;                              /**< the id of the peer */
     EventNotifier vectors[IVSHMEM_SERVER_MAX_VECTORS]; /**< one per vector */
     unsigned vectors_count;                  /**< number of vectors */
 } IvshmemServerPeer;
@@ -155,7 +155,7 @@ int ivshmem_server_handle_fds(IvshmemServer *server, fd_set *fds, int maxfd);
  * Returns:  The peer structure, or NULL if not found
  */
 IvshmemServerPeer *
-ivshmem_server_search_peer(IvshmemServer *server, long peer_id);
+ivshmem_server_search_peer(IvshmemServer *server, int64_t peer_id);
 
 /**
  * Dump information of this ivshmem server and its peers on stdout
