@@ -1,5 +1,6 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
+#include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
 #include "internals.h"
@@ -328,3 +329,20 @@ const VMStateDescription vmstate_arm_cpu = {
         NULL
     }
 };
+
+const char *gicv3_class_name(void)
+{
+    if (kvm_irqchip_in_kernel()) {
+#ifdef TARGET_AARCH64
+        return "kvm-arm-gicv3";
+#else
+        error_report("KVM GICv3 acceleration is not supported on this "
+                     "platform\n");
+#endif
+    } else {
+        /* TODO: Software emulation is not implemented yet */
+        error_report("KVM is currently required for GICv3 emulation\n");
+    }
+
+    exit(1);
+}

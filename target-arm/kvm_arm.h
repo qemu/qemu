@@ -205,4 +205,14 @@ static inline const char *gic_class_name(void)
     return kvm_irqchip_in_kernel() ? "kvm-arm-gic" : "arm_gic";
 }
 
+/**
+ * gicv3_class_name
+ *
+ * Return name of GICv3 class to use depending on whether KVM acceleration is
+ * in use. May throw an error if the chosen implementation is not available.
+ *
+ * Returns: class name to use
+ */
+const char *gicv3_class_name(void);
+
 #endif
