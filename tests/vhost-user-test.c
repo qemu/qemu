@@ -46,6 +46,8 @@
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
 
+#define VHOST_USER_F_PROTOCOL_FEATURES 30
+
 typedef enum VhostUserRequest {
     VHOST_USER_NONE = 0,
     VHOST_USER_GET_FEATURES = 1,
@@ -62,6 +64,8 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_VRING_KICK = 12,
     VHOST_USER_SET_VRING_CALL = 13,
     VHOST_USER_SET_VRING_ERR = 14,
+    VHOST_USER_GET_PROTOCOL_FEATURES = 15,
+    VHOST_USER_SET_PROTOCOL_FEATURES = 16,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -211,6 +215,20 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
 
     switch (msg.request) {
     case VHOST_USER_GET_FEATURES:
+        /* send back features to qemu */
+        msg.flags |= VHOST_USER_REPLY_MASK;
+        msg.size = sizeof(m.u64);
+        msg.u64 = 0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
+        p = (uint8_t *) &msg;
+        qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
+        break;
+
+    case VHOST_USER_SET_FEATURES:
+	g_assert_cmpint(msg.u64 & (0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES),
+			!=, 0ULL);
+        break;
+
+    case VHOST_USER_GET_PROTOCOL_FEATURES:
         /* send back features to qemu */
         msg.flags |= VHOST_USER_REPLY_MASK;
         msg.size = sizeof(m.u64);
