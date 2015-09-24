@@ -95,6 +95,7 @@ void qemu_anon_ram_free(void *ptr, size_t size)
     }
 }
 
+#ifndef CONFIG_LOCALTIME_R
 /* FIXME: add proper locking */
 struct tm *gmtime_r(const time_t *timep, struct tm *result)
 {
@@ -118,6 +119,7 @@ struct tm *localtime_r(const time_t *timep, struct tm *result)
     }
     return p;
 }
+#endif /* CONFIG_LOCALTIME_R */
 
 void qemu_set_block(int fd)
 {

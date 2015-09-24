@@ -38,10 +38,12 @@
 #include <strings.h>
 #include <inttypes.h>
 #include <limits.h>
+/* Put unistd.h before time.h as that triggers localtime_r/gmtime_r
+ * function availability on recentish Mingw-w64 platforms. */
+#include <unistd.h>
 #include <time.h>
 #include <ctype.h>
 #include <errno.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/time.h>

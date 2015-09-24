@@ -238,10 +238,34 @@ void qemu_sem_wait(QemuSemaphore *sem)
     }
 }
 
+/* Wrap a Win32 manual-reset event with a fast userspace path.  The idea
+ * is to reset the Win32 event lazily, as part of a test-reset-test-wait
+ * sequence.  Such a sequence is, indeed, how QemuEvents are used by
+ * RCU and other subsystems!
+ *
+ * Valid transitions:
+ * - free->set, when setting the event
+ * - busy->set, when setting the event, followed by futex_wake
+ * - set->free, when resetting the event
+ * - free->busy, when waiting
+ *
+ * set->busy does not happen (it can be observed from the outside but
+ * it really is set->free->busy).
+ *
+ * busy->free provably cannot happen; to enforce it, the set->free transition
+ * is done with an OR, which becomes a no-op if the event has concurrently
+ * transitioned to free or busy (and is faster than cmpxchg).
+ */
+
+#define EV_SET         0
+#define EV_FREE        1
+#define EV_BUSY       -1
+
 void qemu_event_init(QemuEvent *ev, bool init)
 {
     /* Manual reset.  */
-    ev->event = CreateEvent(NULL, TRUE, init, NULL);
+    ev->event = CreateEvent(NULL, TRUE, TRUE, NULL);
+    ev->value = (init ? EV_SET : EV_FREE);
 }
 
 void qemu_event_destroy(QemuEvent *ev)
@@ -251,17 +275,51 @@ void qemu_event_destroy(QemuEvent *ev)
 
 void qemu_event_set(QemuEvent *ev)
 {
-    SetEvent(ev->event);
+    if (atomic_mb_read(&ev->value) != EV_SET) {
+        if (atomic_xchg(&ev->value, EV_SET) == EV_BUSY) {
+            /* There were waiters, wake them up.  */
+            SetEvent(ev->event);
+        }
+    }
 }
 
 void qemu_event_reset(QemuEvent *ev)
 {
-    ResetEvent(ev->event);
+    if (atomic_mb_read(&ev->value) == EV_SET) {
+        /* If there was a concurrent reset (or even reset+wait),
+         * do nothing.  Otherwise change EV_SET->EV_FREE.
+         */
+        atomic_or(&ev->value, EV_FREE);
+    }
 }
 
 void qemu_event_wait(QemuEvent *ev)
 {
-    WaitForSingleObject(ev->event, INFINITE);
+    unsigned value;
+
+    value = atomic_mb_read(&ev->value);
+    if (value != EV_SET) {
+        if (value == EV_FREE) {
+            /* qemu_event_set is not yet going to call SetEvent, but we are
+             * going to do another check for EV_SET below when setting EV_BUSY.
+             * At that point it is safe to call WaitForSingleObject.
+             */
+            ResetEvent(ev->event);
+
+            /* Tell qemu_event_set that there are waiters.  No need to retry
+             * because there cannot be a concurent busy->free transition.
+             * After the CAS, the event will be either set or busy.
+             */
+            if (atomic_cmpxchg(&ev->value, EV_FREE, EV_BUSY) == EV_SET) {
+                value = EV_SET;
+            } else {
+                value = EV_BUSY;
+            }
+        }
+        if (value == EV_BUSY) {
+            WaitForSingleObject(ev->event, INFINITE);
+        }
+    }
 }
 
 struct QemuThreadData {

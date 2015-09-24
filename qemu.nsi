@@ -139,6 +139,9 @@ Section "${PRODUCT} (required)"
 
     ; Write the uninstall keys for Windows
     WriteRegStr HKLM "${UNINST_KEY}" "DisplayName" "QEMU"
+!ifdef DISPLAYVERSION
+    WriteRegStr HKLM "${UNINST_KEY}" "DisplayVersion" "${DISPLAYVERSION}"
+!endif
     WriteRegStr HKLM "${UNINST_KEY}" "UninstallString" '"${UNINST_EXE}"'
     WriteRegDWORD HKLM "${UNINST_KEY}" "NoModify" 1
     WriteRegDWORD HKLM "${UNINST_KEY}" "NoRepair" 1
