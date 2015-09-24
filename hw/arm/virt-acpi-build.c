@@ -114,7 +114,7 @@ static void acpi_dsdt_add_flash(Aml *scope, const MemMapEntry *flash_memmap)
 {
     Aml *dev, *crs;
     hwaddr base = flash_memmap->base;
-    hwaddr size = flash_memmap->size;
+    hwaddr size = flash_memmap->size / 2;
 
     dev = aml_device("FLS0");
     aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0015")));
