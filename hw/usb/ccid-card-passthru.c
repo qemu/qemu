@@ -12,7 +12,7 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "ccid.h"
-#include "libcacard/vscard_common.h"
+#include "cacard/vscard_common.h"
 
 #define DPRINTF(card, lvl, fmt, ...)                    \
 do {                                                    \

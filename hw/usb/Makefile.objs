@@ -23,9 +23,8 @@ common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
 
 ifeq ($(CONFIG_USB_SMARTCARD),y)
 common-obj-y                          += dev-smartcard-reader.o
-common-obj-y                          += ccid-card-passthru.o
-common-obj-$(CONFIG_SMARTCARD_NSS)    += ccid-card-emulated.o
-ccid-card-emulated.o-cflags := -I$(SRC_PATH)/libcacard
+common-obj-$(CONFIG_SMARTCARD)        += ccid-card-passthru.o
+common-obj-$(CONFIG_SMARTCARD)        += ccid-card-emulated.o
 endif
 
 ifeq ($(CONFIG_POSIX),y)
