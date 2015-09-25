@@ -13,6 +13,7 @@ typedef struct VhostNetOptions {
     void *opaque;
 } VhostNetOptions;
 
+uint64_t vhost_net_get_max_queues(VHostNetState *net);
 struct vhost_net *vhost_net_init(VhostNetOptions *options);
 
 int vhost_net_start(VirtIODevice *dev, NetClientState *ncs, int total_queues);
@@ -27,4 +28,6 @@ bool vhost_net_virtqueue_pending(VHostNetState *net, int n);
 void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
                               int idx, bool mask);
 VHostNetState *get_vhost_net(NetClientState *nc);
+
+int vhost_set_vring_enable(NetClientState * nc, int enable);
 #endif

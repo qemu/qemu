@@ -24,13 +24,17 @@
 #include <linux/vhost.h>
 
 #define VHOST_MEMORY_MAX_NREGIONS    8
+#define VHOST_USER_F_PROTOCOL_FEATURES 30
+#define VHOST_USER_PROTOCOL_FEATURE_MASK 0x1ULL
+
+#define VHOST_USER_PROTOCOL_F_MQ    0
 
 typedef enum VhostUserRequest {
     VHOST_USER_NONE = 0,
     VHOST_USER_GET_FEATURES = 1,
     VHOST_USER_SET_FEATURES = 2,
     VHOST_USER_SET_OWNER = 3,
-    VHOST_USER_RESET_OWNER = 4,
+    VHOST_USER_RESET_DEVICE = 4,
     VHOST_USER_SET_MEM_TABLE = 5,
     VHOST_USER_SET_LOG_BASE = 6,
     VHOST_USER_SET_LOG_FD = 7,
@@ -41,6 +45,10 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_VRING_KICK = 12,
     VHOST_USER_SET_VRING_CALL = 13,
     VHOST_USER_SET_VRING_ERR = 14,
+    VHOST_USER_GET_PROTOCOL_FEATURES = 15,
+    VHOST_USER_SET_PROTOCOL_FEATURES = 16,
+    VHOST_USER_GET_QUEUE_NUM = 17,
+    VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -94,7 +102,7 @@ static unsigned long int ioctl_to_vhost_user_request[VHOST_USER_MAX] = {
     VHOST_GET_FEATURES,     /* VHOST_USER_GET_FEATURES */
     VHOST_SET_FEATURES,     /* VHOST_USER_SET_FEATURES */
     VHOST_SET_OWNER,        /* VHOST_USER_SET_OWNER */
-    VHOST_RESET_OWNER,      /* VHOST_USER_RESET_OWNER */
+    VHOST_RESET_DEVICE,      /* VHOST_USER_RESET_DEVICE */
     VHOST_SET_MEM_TABLE,    /* VHOST_USER_SET_MEM_TABLE */
     VHOST_SET_LOG_BASE,     /* VHOST_USER_SET_LOG_BASE */
     VHOST_SET_LOG_FD,       /* VHOST_USER_SET_LOG_FD */
@@ -180,6 +188,19 @@ static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
             0 : -1;
 }
 
+static bool vhost_user_one_time_request(VhostUserRequest request)
+{
+    switch (request) {
+    case VHOST_USER_SET_OWNER:
+    case VHOST_USER_RESET_DEVICE:
+    case VHOST_USER_SET_MEM_TABLE:
+    case VHOST_USER_GET_QUEUE_NUM:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
         void *arg)
 {
@@ -193,27 +214,45 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
-    msg_request = vhost_user_request_translate(request);
+    /* only translate vhost ioctl requests */
+    if (request > VHOST_USER_MAX) {
+        msg_request = vhost_user_request_translate(request);
+    } else {
+        msg_request = request;
+    }
+
+    /*
+     * For non-vring specific requests, like VHOST_USER_SET_MEM_TABLE,
+     * we just need send it once in the first time. For later such
+     * request, we just ignore it.
+     */
+    if (vhost_user_one_time_request(msg_request) && dev->vq_index != 0) {
+        return 0;
+    }
+
     msg.request = msg_request;
     msg.flags = VHOST_USER_VERSION;
     msg.size = 0;
 
-    switch (request) {
-    case VHOST_GET_FEATURES:
+    switch (msg_request) {
+    case VHOST_USER_GET_FEATURES:
+    case VHOST_USER_GET_PROTOCOL_FEATURES:
+    case VHOST_USER_GET_QUEUE_NUM:
         need_reply = 1;
         break;
 
-    case VHOST_SET_FEATURES:
-    case VHOST_SET_LOG_BASE:
+    case VHOST_USER_SET_FEATURES:
+    case VHOST_USER_SET_LOG_BASE:
+    case VHOST_USER_SET_PROTOCOL_FEATURES:
         msg.u64 = *((__u64 *) arg);
         msg.size = sizeof(m.u64);
         break;
 
-    case VHOST_SET_OWNER:
-    case VHOST_RESET_OWNER:
+    case VHOST_USER_SET_OWNER:
+    case VHOST_USER_RESET_DEVICE:
         break;
 
-    case VHOST_SET_MEM_TABLE:
+    case VHOST_USER_SET_MEM_TABLE:
         for (i = 0; i < dev->mem->nregions; ++i) {
             struct vhost_memory_region *reg = dev->mem->regions + i;
             ram_addr_t ram_addr;
@@ -246,30 +285,31 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 
         break;
 
-    case VHOST_SET_LOG_FD:
+    case VHOST_USER_SET_LOG_FD:
         fds[fd_num++] = *((int *) arg);
         break;
 
-    case VHOST_SET_VRING_NUM:
-    case VHOST_SET_VRING_BASE:
+    case VHOST_USER_SET_VRING_NUM:
+    case VHOST_USER_SET_VRING_BASE:
+    case VHOST_USER_SET_VRING_ENABLE:
         memcpy(&msg.state, arg, sizeof(struct vhost_vring_state));
         msg.size = sizeof(m.state);
         break;
 
-    case VHOST_GET_VRING_BASE:
+    case VHOST_USER_GET_VRING_BASE:
         memcpy(&msg.state, arg, sizeof(struct vhost_vring_state));
         msg.size = sizeof(m.state);
         need_reply = 1;
         break;
 
-    case VHOST_SET_VRING_ADDR:
+    case VHOST_USER_SET_VRING_ADDR:
         memcpy(&msg.addr, arg, sizeof(struct vhost_vring_addr));
         msg.size = sizeof(m.addr);
         break;
 
-    case VHOST_SET_VRING_KICK:
-    case VHOST_SET_VRING_CALL:
-    case VHOST_SET_VRING_ERR:
+    case VHOST_USER_SET_VRING_KICK:
+    case VHOST_USER_SET_VRING_CALL:
+    case VHOST_USER_SET_VRING_ERR:
         file = arg;
         msg.u64 = file->index & VHOST_USER_VRING_IDX_MASK;
         msg.size = sizeof(m.u64);
@@ -302,6 +342,8 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 
         switch (msg_request) {
         case VHOST_USER_GET_FEATURES:
+        case VHOST_USER_GET_PROTOCOL_FEATURES:
+        case VHOST_USER_GET_QUEUE_NUM:
             if (msg.size != sizeof(m.u64)) {
                 error_report("Received bad msg size.");
                 return -1;
@@ -327,11 +369,59 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
 
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
+    unsigned long long features;
+    int err;
+
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     dev->opaque = opaque;
 
+    err = vhost_user_call(dev, VHOST_USER_GET_FEATURES, &features);
+    if (err < 0) {
+        return err;
+    }
+
+    if (virtio_has_feature(features, VHOST_USER_F_PROTOCOL_FEATURES)) {
+        dev->backend_features |= 1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
+
+        err = vhost_user_call(dev, VHOST_USER_GET_PROTOCOL_FEATURES, &features);
+        if (err < 0) {
+            return err;
+        }
+
+        dev->protocol_features = features & VHOST_USER_PROTOCOL_FEATURE_MASK;
+        err = vhost_user_call(dev, VHOST_USER_SET_PROTOCOL_FEATURES,
+                              &dev->protocol_features);
+        if (err < 0) {
+            return err;
+        }
+
+        /* query the max queues we support if backend supports Multiple Queue */
+        if (dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MQ)) {
+            err = vhost_user_call(dev, VHOST_USER_GET_QUEUE_NUM, &dev->max_queues);
+            if (err < 0) {
+                return err;
+            }
+        }
+    }
+
     return 0;
+}
+
+static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
+{
+    struct vhost_vring_state state = {
+        .index = dev->vq_index,
+        .num   = enable,
+    };
+
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+
+    if (!(dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MQ))) {
+        return -1;
+    }
+
+    return vhost_user_call(dev, VHOST_USER_SET_VRING_ENABLE, &state);
 }
 
 static int vhost_user_cleanup(struct vhost_dev *dev)
@@ -343,9 +433,18 @@ static int vhost_user_cleanup(struct vhost_dev *dev)
     return 0;
 }
 
+static int vhost_user_get_vq_index(struct vhost_dev *dev, int idx)
+{
+    assert(idx >= dev->vq_index && idx < dev->vq_index + dev->nvqs);
+
+    return idx;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_call = vhost_user_call,
         .vhost_backend_init = vhost_user_init,
-        .vhost_backend_cleanup = vhost_user_cleanup
-        };
+        .vhost_backend_cleanup = vhost_user_cleanup,
+        .vhost_backend_get_vq_index = vhost_user_get_vq_index,
+        .vhost_backend_set_vring_enable = vhost_user_set_vring_enable,
+};

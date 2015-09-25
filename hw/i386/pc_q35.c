@@ -364,18 +364,28 @@ static void pc_q35_machine_options(MachineClass *m)
     m->desc = "Standard PC (Q35 + ICH9, 2009)";
     m->hot_add_cpu = pc_hot_add_cpu;
     m->units_per_default_bus = 1;
-}
-
-static void pc_q35_2_4_machine_options(MachineClass *m)
-{
-    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
-    pc_q35_machine_options(m);
-    pcmc->broken_reserved_end = true;
     m->default_machine_opts = "firmware=bios-256k.bin";
     m->default_display = "std";
     m->no_floppy = 1;
     m->no_tco = 0;
+}
+
+static void pc_q35_2_5_machine_options(MachineClass *m)
+{
+    pc_q35_machine_options(m);
     m->alias = "q35";
+}
+
+DEFINE_Q35_MACHINE(v2_5, "pc-q35-2.5", NULL,
+                   pc_q35_2_5_machine_options);
+
+static void pc_q35_2_4_machine_options(MachineClass *m)
+{
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+    pc_q35_2_5_machine_options(m);
+    m->alias = NULL;
+    pcmc->broken_reserved_end = true;
+    SET_MACHINE_COMPAT(m, PC_COMPAT_2_4);
 }
 
 DEFINE_Q35_MACHINE(v2_4, "pc-q35-2.4", NULL,

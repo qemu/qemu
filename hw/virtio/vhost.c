@@ -719,7 +719,7 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
 {
     hwaddr s, l, a;
     int r;
-    int vhost_vq_index = idx - dev->vq_index;
+    int vhost_vq_index = dev->vhost_ops->vhost_backend_get_vq_index(dev, idx);
     struct vhost_vring_file file = {
         .index = vhost_vq_index
     };
@@ -728,7 +728,6 @@ static int vhost_virtqueue_start(struct vhost_dev *dev,
     };
     struct VirtQueue *vvq = virtio_get_queue(vdev, idx);
 
-    assert(idx >= dev->vq_index && idx < dev->vq_index + dev->nvqs);
 
     vq->num = state.num = virtio_queue_get_num(vdev, idx);
     r = dev->vhost_ops->vhost_call(dev, VHOST_SET_VRING_NUM, &state);
@@ -822,12 +821,12 @@ static void vhost_virtqueue_stop(struct vhost_dev *dev,
                                     struct vhost_virtqueue *vq,
                                     unsigned idx)
 {
-    int vhost_vq_index = idx - dev->vq_index;
+    int vhost_vq_index = dev->vhost_ops->vhost_backend_get_vq_index(dev, idx);
     struct vhost_vring_state state = {
         .index = vhost_vq_index,
     };
     int r;
-    assert(idx >= dev->vq_index && idx < dev->vq_index + dev->nvqs);
+
     r = dev->vhost_ops->vhost_call(dev, VHOST_GET_VRING_BASE, &state);
     if (r < 0) {
         fprintf(stderr, "vhost VQ %d ring restore failed: %d\n", idx, r);
@@ -875,8 +874,9 @@ static void vhost_eventfd_del(MemoryListener *listener,
 static int vhost_virtqueue_init(struct vhost_dev *dev,
                                 struct vhost_virtqueue *vq, int n)
 {
+    int vhost_vq_index = dev->vhost_ops->vhost_backend_get_vq_index(dev, n);
     struct vhost_vring_file file = {
-        .index = n,
+        .index = vhost_vq_index,
     };
     int r = event_notifier_init(&vq->masked_notifier, 0);
     if (r < 0) {
@@ -927,7 +927,7 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     }
 
     for (i = 0; i < hdev->nvqs; ++i) {
-        r = vhost_virtqueue_init(hdev, hdev->vqs + i, i);
+        r = vhost_virtqueue_init(hdev, hdev->vqs + i, hdev->vq_index + i);
         if (r < 0) {
             goto fail_vq;
         }
@@ -1066,17 +1066,15 @@ void vhost_virtqueue_mask(struct vhost_dev *hdev, VirtIODevice *vdev, int n,
 {
     struct VirtQueue *vvq = virtio_get_queue(vdev, n);
     int r, index = n - hdev->vq_index;
+    struct vhost_vring_file file;
 
-    assert(n >= hdev->vq_index && n < hdev->vq_index + hdev->nvqs);
-
-    struct vhost_vring_file file = {
-        .index = index
-    };
     if (mask) {
         file.fd = event_notifier_get_fd(&hdev->vqs[index].masked_notifier);
     } else {
         file.fd = event_notifier_get_fd(virtio_queue_get_guest_notifier(vvq));
     }
+
+    file.index = hdev->vhost_ops->vhost_backend_get_vq_index(hdev, n);
     r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_VRING_CALL, &file);
     assert(r >= 0);
 }

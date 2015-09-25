@@ -307,11 +307,18 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
     if (!desc) {
         virtio_queue_set_vector(vdev, index, VIRTIO_NO_VECTOR);
     } else {
-        /* Fail if we don't have a big enough queue. */
-        /* TODO: Add interface to handle vring.num changing */
-        if (virtio_queue_get_num(vdev, index) > num) {
+        if (info) {
+            /* virtio-1 allows changing the ring size. */
+            if (virtio_queue_get_num(vdev, index) < num) {
+                /* Fail if we exceed the maximum number. */
+                return -EINVAL;
+            }
+            virtio_queue_set_num(vdev, index, num);
+        } else if (virtio_queue_get_num(vdev, index) > num) {
+            /* Fail if we don't have a big enough queue. */
             return -EINVAL;
         }
+        /* We ignore possible increased num for legacy for compatibility. */
         virtio_queue_set_vector(vdev, index, index);
     }
     /* tell notify handler in case of config change */
@@ -460,16 +467,19 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                 MEMTXATTRS_UNSPECIFIED,
                                                 NULL);
             if (features.index == 0) {
-                features.features = (uint32_t)vdev->host_features;
-            } else if (features.index == 1) {
-                features.features = (uint32_t)(vdev->host_features >> 32);
-                /*
-                 * Don't offer version 1 to the guest if it did not
-                 * negotiate at least revision 1.
-                 */
-                if (dev->revision <= 0) {
-                    features.features &= ~(1 << (VIRTIO_F_VERSION_1 - 32));
+                if (dev->revision >= 1) {
+                    /* Don't offer legacy features for modern devices. */
+                    features.features = (uint32_t)
+                        (vdev->host_features & ~VIRTIO_LEGACY_FEATURES);
+                } else {
+                    features.features = (uint32_t)vdev->host_features;
                 }
+            } else if ((features.index == 1) && (dev->revision >= 1)) {
+                /*
+                 * Only offer feature bits beyond 31 if the guest has
+                 * negotiated at least revision 1.
+                 */
+                features.features = (uint32_t)(vdev->host_features >> 32);
             } else {
                 /* Return zeroes if the guest supports more feature bits. */
                 features.features = 0;
@@ -508,14 +518,12 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                 virtio_set_features(vdev,
                                     (vdev->guest_features & 0xffffffff00000000ULL) |
                                     features.features);
-            } else if (features.index == 1) {
+            } else if ((features.index == 1) && (dev->revision >= 1)) {
                 /*
-                 * The guest should not set version 1 if it didn't
-                 * negotiate a revision >= 1.
+                 * If the guest did not negotiate at least revision 1,
+                 * we did not offer it any feature bits beyond 31. Such a
+                 * guest passing us any bit here is therefore buggy.
                  */
-                if (dev->revision <= 0) {
-                    features.features &= ~(1 << (VIRTIO_F_VERSION_1 - 32));
-                }
                 virtio_set_features(vdev,
                                     (vdev->guest_features & 0x00000000ffffffffULL) |
                                     ((uint64_t)features.features << 32));
@@ -766,7 +774,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
          * need to fetch it here. Nothing to do for now, though.
          */
         if (dev->revision >= 0 ||
-            revinfo.revision > virtio_ccw_rev_max(vdev)) {
+            revinfo.revision > virtio_ccw_rev_max(dev)) {
             ret = -ENOSYS;
             break;
         }
@@ -1539,6 +1547,10 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
 
     sch->id.cu_model = virtio_bus_get_vdev_id(&dev->bus);
 
+    if (dev->max_rev >= 1) {
+        virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
+    }
+
     css_generate_sch_crws(sch->cssid, sch->ssid, sch->schid,
                           d->hotplugged, 1);
 }
@@ -1555,6 +1567,8 @@ static Property virtio_ccw_net_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1582,6 +1596,8 @@ static Property virtio_ccw_blk_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1609,6 +1625,8 @@ static Property virtio_ccw_serial_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1636,6 +1654,8 @@ static Property virtio_ccw_balloon_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1663,6 +1683,8 @@ static Property virtio_ccw_scsi_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1689,6 +1711,8 @@ static const TypeInfo virtio_ccw_scsi = {
 #ifdef CONFIG_VHOST_SCSI
 static Property vhost_ccw_scsi_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1727,6 +1751,8 @@ static Property virtio_ccw_rng_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
                     VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1880,6 +1906,8 @@ static Property virtio_ccw_9p_properties[] = {
     DEFINE_PROP_STRING("devno", VirtioCcwDevice, bus_id),
     DEFINE_PROP_BIT("ioeventfd", VirtioCcwDevice, flags,
             VIRTIO_CCW_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("max_revision", VirtioCcwDevice, max_rev,
+                       VIRTIO_CCW_MAX_REV),
     DEFINE_PROP_END_OF_LIST(),
 };
 

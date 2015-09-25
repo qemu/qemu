@@ -88,6 +88,7 @@ struct VirtioCcwDevice {
     SubchDev *sch;
     char *bus_id;
     int revision;
+    uint32_t max_rev;
     VirtioBusState bus;
     bool ioeventfd_started;
     bool ioeventfd_disabled;
@@ -102,9 +103,10 @@ struct VirtioCcwDevice {
 };
 
 /* The maximum virtio revision we support. */
-static inline int virtio_ccw_rev_max(VirtIODevice *vdev)
+#define VIRTIO_CCW_MAX_REV 1
+static inline int virtio_ccw_rev_max(VirtioCcwDevice *dev)
 {
-    return 0;
+    return dev->max_rev;
 }
 
 /* virtual css bus type */

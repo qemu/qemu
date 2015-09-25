@@ -113,6 +113,7 @@ message replies. Most of the requests don't require replies. Here is a list of
 the ones that do:
 
  * VHOST_GET_FEATURES
+ * VHOST_GET_PROTOCOL_FEATURES
  * VHOST_GET_VRING_BASE
 
 There are several messages that the master sends with file descriptors passed
@@ -127,6 +128,30 @@ in the ancillary data:
 If Master is unable to send the full message or receives a wrong reply it will
 close the connection. An optional reconnection mechanism can be implemented.
 
+Any protocol extensions are gated by protocol feature bits,
+which allows full backwards compatibility on both master
+and slave.
+As older slaves don't support negotiating protocol features,
+a feature bit was dedicated for this purpose:
+#define VHOST_USER_F_PROTOCOL_FEATURES 30
+
+Multiple queue support
+----------------------
+
+Multiple queue is treated as a protocol extension, hence the slave has to
+implement protocol features first. The multiple queues feature is supported
+only when the protocol feature VHOST_USER_PROTOCOL_F_MQ (bit 0) is set:
+#define VHOST_USER_PROTOCOL_F_MQ    0
+
+The max number of queues the slave supports can be queried with message
+VHOST_USER_GET_PROTOCOL_FEATURES. Master should stop when the number of
+requested queues is bigger than that.
+
+As all queues share one connection, the master uses a unique index for each
+queue in the sent message to identify a specified queue. One queue pair
+is enabled initially. More queues are enabled dynamically, by sending
+message VHOST_USER_SET_VRING_ENABLE.
+
 Message types
 -------------
 
@@ -138,6 +163,8 @@ Message types
       Slave payload: u64
 
       Get from the underlying vhost implementation the features bitmask.
+      Feature bit VHOST_USER_F_PROTOCOL_FEATURES signals slave support for
+      VHOST_USER_GET_PROTOCOL_FEATURES and VHOST_USER_SET_PROTOCOL_FEATURES.
 
  * VHOST_USER_SET_FEATURES
 
@@ -146,6 +173,33 @@ Message types
       Master payload: u64
 
       Enable features in the underlying vhost implementation using a bitmask.
+      Feature bit VHOST_USER_F_PROTOCOL_FEATURES signals slave support for
+      VHOST_USER_GET_PROTOCOL_FEATURES and VHOST_USER_SET_PROTOCOL_FEATURES.
+
+ * VHOST_USER_GET_PROTOCOL_FEATURES
+
+      Id: 15
+      Equivalent ioctl: VHOST_GET_FEATURES
+      Master payload: N/A
+      Slave payload: u64
+
+      Get the protocol feature bitmask from the underlying vhost implementation.
+      Only legal if feature bit VHOST_USER_F_PROTOCOL_FEATURES is present in
+      VHOST_USER_GET_FEATURES.
+      Note: slave that reported VHOST_USER_F_PROTOCOL_FEATURES must support
+      this message even before VHOST_USER_SET_FEATURES was called.
+
+ * VHOST_USER_SET_PROTOCOL_FEATURES
+
+      Id: 16
+      Ioctl: VHOST_SET_FEATURES
+      Master payload: u64
+
+      Enable protocol features in the underlying vhost implementation.
+      Only legal if feature bit VHOST_USER_F_PROTOCOL_FEATURES is present in
+      VHOST_USER_GET_FEATURES.
+      Note: slave that reported VHOST_USER_F_PROTOCOL_FEATURES must support
+      this message even before VHOST_USER_SET_FEATURES was called.
 
  * VHOST_USER_SET_OWNER
 
@@ -157,10 +211,10 @@ Message types
       as an owner of the session. This can be used on the Slave as a
       "session start" flag.
 
- * VHOST_USER_RESET_OWNER
+ * VHOST_USER_RESET_DEVICE
 
       Id: 4
-      Equivalent ioctl: VHOST_RESET_OWNER
+      Equivalent ioctl: VHOST_RESET_DEVICE
       Master payload: N/A
 
       Issued when a new connection is about to be closed. The Master will no
@@ -264,3 +318,22 @@ Message types
       Bits (0-7) of the payload contain the vring index. Bit 8 is the
       invalid FD flag. This flag is set when there is no file descriptor
       in the ancillary data.
+
+ * VHOST_USER_GET_QUEUE_NUM
+
+      Id: 17
+      Equivalent ioctl: N/A
+      Master payload: N/A
+      Slave payload: u64
+
+      Query how many queues the backend supports. This request should be
+      sent only when VHOST_USER_PROTOCOL_F_MQ is set in quried protocol
+      features by VHOST_USER_GET_PROTOCOL_FEATURES.
+
+ * VHOST_USER_SET_VRING_ENABLE
+
+      Id: 18
+      Equivalent ioctl: N/A
+      Master payload: vring state description
+
+      Signal slave to enable or disable corresponding vring.

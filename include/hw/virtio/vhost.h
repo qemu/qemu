@@ -47,6 +47,8 @@ struct vhost_dev {
     unsigned long long features;
     unsigned long long acked_features;
     unsigned long long backend_features;
+    unsigned long long protocol_features;
+    unsigned long long max_queues;
     bool started;
     bool log_enabled;
     unsigned long long log_size;

@@ -122,6 +122,11 @@ void vhost_net_ack_features(struct vhost_net *net, uint64_t features)
     vhost_ack_features(&net->dev, vhost_net_get_feature_bits(net), features);
 }
 
+uint64_t vhost_net_get_max_queues(VHostNetState *net)
+{
+    return net->dev.max_queues;
+}
+
 static int vhost_net_get_fd(NetClientState *backend)
 {
     switch (backend->info->type) {
@@ -143,6 +148,11 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         fprintf(stderr, "vhost-net requires net backend to be setup\n");
         goto fail;
     }
+    net->nc = options->net_backend;
+
+    net->dev.max_queues = 1;
+    net->dev.nvqs = 2;
+    net->dev.vqs = net->vqs;
 
     if (backend_kernel) {
         r = vhost_net_get_fd(options->net_backend);
@@ -152,14 +162,15 @@ struct vhost_net *vhost_net_init(VhostNetOptions *options)
         net->dev.backend_features = qemu_has_vnet_hdr(options->net_backend)
             ? 0 : (1ULL << VHOST_NET_F_VIRTIO_NET_HDR);
         net->backend = r;
+        net->dev.protocol_features = 0;
     } else {
         net->dev.backend_features = 0;
+        net->dev.protocol_features = 0;
         net->backend = -1;
-    }
-    net->nc = options->net_backend;
 
-    net->dev.nvqs = 2;
-    net->dev.vqs = net->vqs;
+        /* vhost-user needs vq_index to initiate a specific queue pair */
+        net->dev.vq_index = net->nc->queue_index * net->dev.nvqs;
+    }
 
     r = vhost_dev_init(&net->dev, options->opaque,
                        options->backend_type);
@@ -285,7 +296,7 @@ static void vhost_net_stop_one(struct vhost_net *net,
     } else if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER) {
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
             const VhostOps *vhost_ops = net->dev.vhost_ops;
-            int r = vhost_ops->vhost_call(&net->dev, VHOST_RESET_OWNER,
+            int r = vhost_ops->vhost_call(&net->dev, VHOST_RESET_DEVICE,
                                           NULL);
             assert(r >= 0);
         }
@@ -411,7 +422,25 @@ VHostNetState *get_vhost_net(NetClientState *nc)
 
     return vhost_net;
 }
+
+int vhost_set_vring_enable(NetClientState *nc, int enable)
+{
+    VHostNetState *net = get_vhost_net(nc);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+
+    if (vhost_ops->vhost_backend_set_vring_enable) {
+        return vhost_ops->vhost_backend_set_vring_enable(&net->dev, enable);
+    }
+
+    return 0;
+}
+
 #else
+uint64_t vhost_net_get_max_queues(VHostNetState *net)
+{
+    return 1;
+}
+
 struct vhost_net *vhost_net_init(VhostNetOptions *options)
 {
     error_report("vhost-net support is not compiled in");
@@ -453,6 +482,11 @@ void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
 }
 
 VHostNetState *get_vhost_net(NetClientState *nc)
+{
+    return 0;
+}
+
+int vhost_set_vring_enable(NetClientState *nc, int enable)
 {
     return 0;
 }
