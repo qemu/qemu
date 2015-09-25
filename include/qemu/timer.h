@@ -857,7 +857,7 @@ int64_t cpu_icount_to_ns(int64_t icount);
 
 #if defined(_ARCH_PPC)
 
-static inline int64_t cpu_get_real_ticks(void)
+static inline int64_t cpu_get_host_ticks(void)
 {
     int64_t retval;
 #ifdef _ARCH_PPC64
@@ -883,7 +883,7 @@ static inline int64_t cpu_get_real_ticks(void)
 
 #elif defined(__i386__)
 
-static inline int64_t cpu_get_real_ticks(void)
+static inline int64_t cpu_get_host_ticks(void)
 {
     int64_t val;
     asm volatile ("rdtsc" : "=A" (val));
@@ -892,7 +892,7 @@ static inline int64_t cpu_get_real_ticks(void)
 
 #elif defined(__x86_64__)
 
-static inline int64_t cpu_get_real_ticks(void)
+static inline int64_t cpu_get_host_ticks(void)
 {
     uint32_t low,high;
     int64_t val;
@@ -905,7 +905,7 @@ static inline int64_t cpu_get_real_ticks(void)
 
 #elif defined(__hppa__)
 
-static inline int64_t cpu_get_real_ticks(void)
+static inline int64_t cpu_get_host_ticks(void)
 {
     int val;
     asm volatile ("mfctl %%cr16, %0" : "=r"(val));
@@ -914,7 +914,7 @@ static inline int64_t cpu_get_real_ticks(void)
 
 #elif defined(__ia64)
 
-static inline int64_t cpu_get_real_ticks(void)
+static inline int64_t cpu_get_host_ticks(void)
 {
     int64_t val;
     asm volatile ("mov %0 = ar.itc" : "=r"(val) :: "memory");
@@ -923,7 +923,7 @@ static inline int64_t cpu_get_real_ticks(void)
 
 #elif defined(__s390__)
 
-static inline int64_t cpu_get_real_ticks(void)
+static inline int64_t cpu_get_host_ticks(void)
 {
     int64_t val;
     asm volatile("stck 0(%1)" : "=m" (val) : "a" (&val) : "cc");
@@ -932,7 +932,7 @@ static inline int64_t cpu_get_real_ticks(void)
 
 #elif defined(__sparc__)
 
-static inline int64_t cpu_get_real_ticks (void)
+static inline int64_t cpu_get_host_ticks (void)
 {
 #if defined(_LP64)
     uint64_t        rval;
@@ -970,7 +970,7 @@ static inline int64_t cpu_get_real_ticks (void)
                               : "=r" (value));          \
     }
 
-static inline int64_t cpu_get_real_ticks(void)
+static inline int64_t cpu_get_host_ticks(void)
 {
     /* On kernels >= 2.6.25 rdhwr <reg>, $2 and $3 are emulated */
     uint32_t count;
@@ -986,7 +986,7 @@ static inline int64_t cpu_get_real_ticks(void)
 
 #elif defined(__alpha__)
 
-static inline int64_t cpu_get_real_ticks(void)
+static inline int64_t cpu_get_host_ticks(void)
 {
     uint64_t cc;
     uint32_t cur, ofs;
@@ -1001,7 +1001,7 @@ static inline int64_t cpu_get_real_ticks(void)
 /* The host CPU doesn't have an easily accessible cycle counter.
    Just return a monotonically increasing value.  This will be
    totally wrong, but hopefully better than nothing.  */
-static inline int64_t cpu_get_real_ticks (void)
+static inline int64_t cpu_get_host_ticks (void)
 {
     static int64_t ticks = 0;
     return ticks++;

@@ -834,7 +834,7 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 static void timebase_pre_save(void *opaque)
 {
     PPCTimebase *tb = opaque;
-    uint64_t ticks = cpu_get_real_ticks();
+    uint64_t ticks = cpu_get_host_ticks();
     PowerPCCPU *first_ppc_cpu = POWERPC_CPU(first_cpu);
 
     if (!first_ppc_cpu->env.tb_env) {
@@ -878,7 +878,7 @@ static int timebase_post_load(void *opaque, int version_id)
                                      NANOSECONDS_PER_SECOND);
     guest_tb = tb_remote->guest_timebase + MIN(0, migration_duration_tb);
 
-    tb_off_adj = guest_tb - cpu_get_real_ticks();
+    tb_off_adj = guest_tb - cpu_get_host_ticks();
 
     tb_off = first_ppc_cpu->env.tb_env->tb_offset;
     trace_ppc_tb_adjust(tb_off, tb_off_adj, tb_off_adj - tb_off,

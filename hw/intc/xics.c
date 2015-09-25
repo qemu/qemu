@@ -848,7 +848,7 @@ static target_ulong h_xirr_x(PowerPCCPU *cpu, sPAPRMachineState *spapr,
     uint32_t xirr = icp_accept(ss);
 
     args[0] = xirr;
-    args[1] = cpu_get_real_ticks();
+    args[1] = cpu_get_host_ticks();
     return H_SUCCESS;
 }
 
