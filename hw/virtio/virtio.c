@@ -243,13 +243,11 @@ int virtio_queue_empty(VirtQueue *vq)
     return vring_avail_idx(vq) == vq->last_avail_idx;
 }
 
-void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
-                    unsigned int len, unsigned int idx)
+static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
+                               unsigned int len)
 {
     unsigned int offset;
     int i;
-
-    trace_virtqueue_fill(vq, elem, len, idx);
 
     offset = 0;
     for (i = 0; i < elem->in_num; i++) {
@@ -266,6 +264,14 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
         cpu_physical_memory_unmap(elem->out_sg[i].iov_base,
                                   elem->out_sg[i].iov_len,
                                   0, elem->out_sg[i].iov_len);
+}
+
+void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
+                    unsigned int len, unsigned int idx)
+{
+    trace_virtqueue_fill(vq, elem, len, idx);
+
+    virtqueue_unmap_sg(vq, elem, len);
 
     idx = (idx + vring_used_idx(vq)) % vq->vring.num;
 
