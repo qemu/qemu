@@ -304,6 +304,7 @@ static void handleAnyDeviceErrors(Error * err)
 - (float) cdx;
 - (float) cdy;
 - (QEMUScreen) gscreen;
+- (void) raiseAllKeys;
 @end
 
 QemuCocoaView *cocoaView;
@@ -798,6 +799,24 @@ QemuCocoaView *cocoaView;
 - (float) cdx {return cdx;}
 - (float) cdy {return cdy;}
 - (QEMUScreen) gscreen {return screen;}
+
+/*
+ * Makes the target think all down keys are being released.
+ * This prevents a stuck key problem, since we will not see
+ * key up events for those keys after we have lost focus.
+ */
+- (void) raiseAllKeys
+{
+    int index;
+    const int max_index = ARRAY_SIZE(modifiers_state);
+
+   for (index = 0; index < max_index; index++) {
+       if (modifiers_state[index]) {
+           modifiers_state[index] = 0;
+           qemu_input_event_send_key_number(dcl->con, index, false);
+       }
+   }
+}
 @end
 
 
@@ -953,6 +972,13 @@ QemuCocoaView *cocoaView;
      * closing of this window.
      */
     return NO;
+}
+
+/* Called when QEMU goes into the background */
+- (void) applicationWillResignActive: (NSNotification *)aNotification
+{
+    COCOA_DEBUG("QemuCocoaAppController: applicationWillResignActive\n");
+    [cocoaView raiseAllKeys];
 }
 
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv
