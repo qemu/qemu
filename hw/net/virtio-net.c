@@ -1086,13 +1086,7 @@ static ssize_t virtio_net_receive(NetClientState *nc, const uint8_t *buf, size_t
          * must have consumed the complete packet.
          * Otherwise, drop it. */
         if (!n->mergeable_rx_bufs && offset < size) {
-#if 0
-            error_report("virtio-net truncated non-mergeable packet: "
-                         "i %zd mergeable %d offset %zd, size %zd, "
-                         "guest hdr len %zd, host hdr len %zd",
-                         i, n->mergeable_rx_bufs,
-                         offset, size, n->guest_hdr_len, n->host_hdr_len);
-#endif
+            virtqueue_discard(q->rx_vq, &elem, total);
             return size;
         }
 
