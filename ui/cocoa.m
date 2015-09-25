@@ -304,6 +304,7 @@ static void handleAnyDeviceErrors(Error * err)
 - (float) cdx;
 - (float) cdy;
 - (QEMUScreen) gscreen;
+- (void) raiseAllKeys;
 @end
 
 QemuCocoaView *cocoaView;
@@ -798,6 +799,24 @@ QemuCocoaView *cocoaView;
 - (float) cdx {return cdx;}
 - (float) cdy {return cdy;}
 - (QEMUScreen) gscreen {return screen;}
+
+/*
+ * Makes the target think all down keys are being released.
+ * This prevents a stuck key problem, since we will not see
+ * key up events for those keys after we have lost focus.
+ */
+- (void) raiseAllKeys
+{
+    int index;
+    const int max_index = ARRAY_SIZE(modifiers_state);
+
+   for (index = 0; index < max_index; index++) {
+       if (modifiers_state[index]) {
+           modifiers_state[index] = 0;
+           qemu_input_event_send_key_number(dcl->con, index, false);
+       }
+   }
+}
 @end
 
 
@@ -809,12 +828,11 @@ QemuCocoaView *cocoaView;
 */
 @interface QemuCocoaAppController : NSObject
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
-                                             <NSApplicationDelegate>
+                                       <NSWindowDelegate, NSApplicationDelegate>
 #endif
 {
 }
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv;
-- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo;
 - (void)doToggleFullScreen:(id)sender;
 - (void)toggleFullScreen:(id)sender;
 - (void)showQEMUDoc:(id)sender;
@@ -829,6 +847,7 @@ QemuCocoaView *cocoaView;
 - (void)powerDownQEMU:(id)sender;
 - (void)ejectDeviceMedia:(id)sender;
 - (void)changeDeviceMedia:(id)sender;
+- (BOOL)verifyQuit;
 @end
 
 @implementation QemuCocoaAppController
@@ -862,6 +881,7 @@ QemuCocoaView *cocoaView;
 #endif
         [normalWindow makeKeyAndOrderFront:self];
         [normalWindow center];
+        [normalWindow setDelegate: self];
         stretch_video = false;
 
         /* Used for displaying pause on the screen */
@@ -895,29 +915,8 @@ QemuCocoaView *cocoaView;
 - (void)applicationDidFinishLaunching: (NSNotification *) note
 {
     COCOA_DEBUG("QemuCocoaAppController: applicationDidFinishLaunching\n");
-
-    // Display an open dialog box if no arguments were passed or
-    // if qemu was launched from the finder ( the Finder passes "-psn" )
-    if( gArgc <= 1 || strncmp ((char *)gArgv[1], "-psn", 4) == 0) {
-        NSOpenPanel *op = [[NSOpenPanel alloc] init];
-        [op setPrompt:@"Boot image"];
-        [op setMessage:@"Select the disk image you want to boot.\n\nHit the \"Cancel\" button to quit"];
-#if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
-        [op setAllowedFileTypes:supportedImageFileTypes];
-        [op beginSheetModalForWindow:normalWindow
-            completionHandler:^(NSInteger returnCode)
-            { [self openPanelDidEnd:op
-                  returnCode:returnCode contextInfo:NULL ]; } ];
-#else
-        // Compatibility code for pre-10.6, using deprecated method
-        [op beginSheetForDirectory:nil file:nil types:filetypes
-              modalForWindow:normalWindow modalDelegate:self
-              didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:NULL];
-#endif
-    } else {
-        // or launch QEMU, with the global args
-        [self startEmulationWithArgc:gArgc argv:(char **)gArgv];
-    }
+    // launch QEMU, with the global args
+    [self startEmulationWithArgc:gArgc argv:(char **)gArgv];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
@@ -933,6 +932,33 @@ QemuCocoaView *cocoaView;
     return YES;
 }
 
+- (NSApplicationTerminateReply)applicationShouldTerminate:
+                                                         (NSApplication *)sender
+{
+    COCOA_DEBUG("QemuCocoaAppController: applicationShouldTerminate\n");
+    return [self verifyQuit];
+}
+
+/* Called when the user clicks on a window's close button */
+- (BOOL)windowShouldClose:(id)sender
+{
+    COCOA_DEBUG("QemuCocoaAppController: windowShouldClose\n");
+    [NSApp terminate: sender];
+    /* If the user allows the application to quit then the call to
+     * NSApp terminate will never return. If we get here then the user
+     * cancelled the quit, so we should return NO to not permit the
+     * closing of this window.
+     */
+    return NO;
+}
+
+/* Called when QEMU goes into the background */
+- (void) applicationWillResignActive: (NSNotification *)aNotification
+{
+    COCOA_DEBUG("QemuCocoaAppController: applicationWillResignActive\n");
+    [cocoaView raiseAllKeys];
+}
+
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv
 {
     COCOA_DEBUG("QemuCocoaAppController: startEmulationWithArgc\n");
@@ -940,36 +966,6 @@ QemuCocoaView *cocoaView;
     int status;
     status = qemu_main(argc, argv, *_NSGetEnviron());
     exit(status);
-}
-
-- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(NSInteger)returnCode contextInfo:(void *)contextInfo
-{
-    COCOA_DEBUG("QemuCocoaAppController: openPanelDidEnd\n");
-
-    /* The NSFileHandlingPanelOKButton/NSFileHandlingPanelCancelButton values for
-     * returnCode strictly only apply for the 10.6-and-up beginSheetModalForWindow
-     * API. For the legacy pre-10.6 beginSheetForDirectory API they are NSOKButton
-     * and NSCancelButton. However conveniently the values are the same.
-     * We use the non-legacy names because the others are deprecated in OSX 10.10.
-     */
-    if (returnCode == NSFileHandlingPanelCancelButton) {
-        exit(0);
-    } else if (returnCode == NSFileHandlingPanelOKButton) {
-        char *img = (char*)[ [ [ sheet URL ] path ] cStringUsingEncoding:NSASCIIStringEncoding];
-
-        char **argv = g_new(char *, 4);
-
-        [sheet close];
-
-        argv[0] = g_strdup(gArgv[0]);
-        argv[1] = g_strdup("-hda");
-        argv[2] = g_strdup(img);
-        argv[3] = NULL;
-
-        // printf("Using argc %d argv %s -hda %s\n", 3, gArgv[0], img);
-
-        [self startEmulationWithArgc:3 argv:(char**)argv];
-    }
 }
 
 /* We abstract the method called by the Enter Fullscreen menu item
@@ -1122,6 +1118,21 @@ QemuCocoaView *cocoaView;
                             "raw",
                             &err);
         handleAnyDeviceErrors(err);
+    }
+}
+
+/* Verifies if the user really wants to quit */
+- (BOOL)verifyQuit
+{
+    NSAlert *alert = [NSAlert new];
+    [alert autorelease];
+    [alert setMessageText: @"Are you sure you want to quit QEMU?"];
+    [alert addButtonWithTitle: @"Cancel"];
+    [alert addButtonWithTitle: @"Quit"];
+    if([alert runModal] == NSAlertSecondButtonReturn) {
+        return YES;
+    } else {
+        return NO;
     }
 }
 
