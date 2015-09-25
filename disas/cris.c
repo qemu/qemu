@@ -2492,7 +2492,7 @@ print_with_operands (const struct cris_opcode *opcodep,
 	  = spec_reg_info ((insn >> 12) & 15, disdata->distype);
 
 	if (sregp->name == NULL)
-	  /* Should have been caught as a non-match eariler.  */
+	  /* Should have been caught as a non-match earlier.  */
 	  *tp++ = '?';
 	else
 	  {
