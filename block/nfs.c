@@ -43,6 +43,7 @@ typedef struct NFSClient {
     int events;
     bool has_zero_init;
     AioContext *aio_context;
+    blkcnt_t st_blocks;
 } NFSClient;
 
 typedef struct NFSRPC {
@@ -374,6 +375,7 @@ static int64_t nfs_client_open(NFSClient *client, const char *filename,
     }
 
     ret = DIV_ROUND_UP(st.st_size, BDRV_SECTOR_SIZE);
+    client->st_blocks = st.st_blocks;
     client->has_zero_init = S_ISREG(st.st_mode);
     goto out;
 fail:
@@ -464,6 +466,11 @@ static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
     NFSRPC task = {0};
     struct stat st;
 
+    if (bdrv_is_read_only(bs) &&
+        !(bs->open_flags & BDRV_O_NOCACHE)) {
+        return client->st_blocks * 512;
+    }
+
     task.st = &st;
     if (nfs_fstat_async(client->context, client->fh, nfs_co_generic_cb,
                         &task) != 0) {
@@ -475,13 +482,41 @@ static int64_t nfs_get_allocated_file_size(BlockDriverState *bs)
         aio_poll(client->aio_context, true);
     }
 
-    return (task.ret < 0 ? task.ret : st.st_blocks * st.st_blksize);
+    return (task.ret < 0 ? task.ret : st.st_blocks * 512);
 }
 
 static int nfs_file_truncate(BlockDriverState *bs, int64_t offset)
 {
     NFSClient *client = bs->opaque;
     return nfs_ftruncate(client->context, client->fh, offset);
+}
+
+/* Note that this will not re-establish a connection with the NFS server
+ * - it is effectively a NOP.  */
+static int nfs_reopen_prepare(BDRVReopenState *state,
+                              BlockReopenQueue *queue, Error **errp)
+{
+    NFSClient *client = state->bs->opaque;
+    struct stat st;
+    int ret = 0;
+
+    if (state->flags & BDRV_O_RDWR && bdrv_is_read_only(state->bs)) {
+        error_setg(errp, "Cannot open a read-only mount as read-write");
+        return -EACCES;
+    }
+
+    /* Update cache for read-only reopens */
+    if (!(state->flags & BDRV_O_RDWR)) {
+        ret = nfs_fstat(client->context, client->fh, &st);
+        if (ret < 0) {
+            error_setg(errp, "Failed to fstat file: %s",
+                       nfs_get_error(client->context));
+            return ret;
+        }
+        client->st_blocks = st.st_blocks;
+    }
+
+    return 0;
 }
 
 static BlockDriver bdrv_nfs = {
@@ -499,6 +534,7 @@ static BlockDriver bdrv_nfs = {
     .bdrv_file_open                 = nfs_file_open,
     .bdrv_close                     = nfs_file_close,
     .bdrv_create                    = nfs_file_create,
+    .bdrv_reopen_prepare            = nfs_reopen_prepare,
 
     .bdrv_co_readv                  = nfs_co_readv,
     .bdrv_co_writev                 = nfs_co_writev,

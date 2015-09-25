@@ -89,7 +89,8 @@ static void cow_request_end(CowRequest *req)
 
 static int coroutine_fn backup_do_cow(BlockDriverState *bs,
                                       int64_t sector_num, int nb_sectors,
-                                      bool *error_is_read)
+                                      bool *error_is_read,
+                                      bool is_write_notifier)
 {
     BackupBlockJob *job = (BackupBlockJob *)bs->job;
     CowRequest cow_request;
@@ -129,8 +130,14 @@ static int coroutine_fn backup_do_cow(BlockDriverState *bs,
         iov.iov_len = n * BDRV_SECTOR_SIZE;
         qemu_iovec_init_external(&bounce_qiov, &iov, 1);
 
-        ret = bdrv_co_readv(bs, start * BACKUP_SECTORS_PER_CLUSTER, n,
-                            &bounce_qiov);
+        if (is_write_notifier) {
+            ret = bdrv_co_no_copy_on_readv(bs,
+                                           start * BACKUP_SECTORS_PER_CLUSTER,
+                                           n, &bounce_qiov);
+        } else {
+            ret = bdrv_co_readv(bs, start * BACKUP_SECTORS_PER_CLUSTER, n,
+                                &bounce_qiov);
+        }
         if (ret < 0) {
             trace_backup_do_cow_read_fail(job, start, ret);
             if (error_is_read) {
@@ -190,7 +197,7 @@ static int coroutine_fn backup_before_write_notify(
     assert((req->offset & (BDRV_SECTOR_SIZE - 1)) == 0);
     assert((req->bytes & (BDRV_SECTOR_SIZE - 1)) == 0);
 
-    return backup_do_cow(req->bs, sector_num, nb_sectors, NULL);
+    return backup_do_cow(req->bs, sector_num, nb_sectors, NULL, true);
 }
 
 static void backup_set_speed(BlockJob *job, int64_t speed, Error **errp)
@@ -303,7 +310,8 @@ static int coroutine_fn backup_run_incremental(BackupBlockJob *job)
                     return ret;
                 }
                 ret = backup_do_cow(bs, cluster * BACKUP_SECTORS_PER_CLUSTER,
-                                    BACKUP_SECTORS_PER_CLUSTER, &error_is_read);
+                                    BACKUP_SECTORS_PER_CLUSTER, &error_is_read,
+                                    false);
                 if ((ret < 0) &&
                     backup_error_action(job, error_is_read, -ret) ==
                     BLOCK_ERROR_ACTION_REPORT) {
@@ -408,7 +416,7 @@ static void coroutine_fn backup_run(void *opaque)
             }
             /* FULL sync mode we copy the whole drive. */
             ret = backup_do_cow(bs, start * BACKUP_SECTORS_PER_CLUSTER,
-                    BACKUP_SECTORS_PER_CLUSTER, &error_is_read);
+                    BACKUP_SECTORS_PER_CLUSTER, &error_is_read, false);
             if (ret < 0) {
                 /* Depending on error action, fail now or retry cluster */
                 BlockErrorAction action =

@@ -932,7 +932,8 @@ static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
         return ret;
     }
 
-    if (bs->copy_on_read) {
+    /* Don't do copy-on-read if we read data before write operation */
+    if (bs->copy_on_read && !(flags & BDRV_REQ_NO_COPY_ON_READ)) {
         flags |= BDRV_REQ_COPY_ON_READ;
     }
 
@@ -999,6 +1000,15 @@ int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
     trace_bdrv_co_readv(bs, sector_num, nb_sectors);
 
     return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov, 0);
+}
+
+int coroutine_fn bdrv_co_no_copy_on_readv(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+{
+    trace_bdrv_co_no_copy_on_readv(bs, sector_num, nb_sectors);
+
+    return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov,
+                            BDRV_REQ_NO_COPY_ON_READ);
 }
 
 int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
