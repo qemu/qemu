@@ -266,6 +266,13 @@ static void virtqueue_unmap_sg(VirtQueue *vq, const VirtQueueElement *elem,
                                   0, elem->out_sg[i].iov_len);
 }
 
+void virtqueue_discard(VirtQueue *vq, const VirtQueueElement *elem,
+                       unsigned int len)
+{
+    vq->last_avail_idx--;
+    virtqueue_unmap_sg(vq, elem, len);
+}
+
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
