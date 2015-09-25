@@ -12,6 +12,8 @@
 #include <zlib.h> /* For crc32 */
 #include "exec/semihost.h"
 
+#define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
+
 #ifndef CONFIG_USER_ONLY
 static inline bool get_phys_addr(CPUARMState *env, target_ulong address,
                                  int access_type, ARMMMUIdx mmu_idx,
@@ -706,8 +708,8 @@ void pmccntr_sync(CPUARMState *env)
 {
     uint64_t temp_ticks;
 
-    temp_ticks = muldiv64(qemu_clock_get_us(QEMU_CLOCK_VIRTUAL),
-                          get_ticks_per_sec(), 1000000);
+    temp_ticks = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                          ARM_CPU_FREQ, NANOSECONDS_PER_SECOND);
 
     if (env->cp15.c9_pmcr & PMCRD) {
         /* Increment once every 64 processor clock cycles */
@@ -745,8 +747,8 @@ static uint64_t pmccntr_read(CPUARMState *env, const ARMCPRegInfo *ri)
         return env->cp15.c15_ccnt;
     }
 
-    total_ticks = muldiv64(qemu_clock_get_us(QEMU_CLOCK_VIRTUAL),
-                           get_ticks_per_sec(), 1000000);
+    total_ticks = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                           ARM_CPU_FREQ, NANOSECONDS_PER_SECOND);
 
     if (env->cp15.c9_pmcr & PMCRD) {
         /* Increment once every 64 processor clock cycles */
@@ -766,8 +768,8 @@ static void pmccntr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         return;
     }
 
-    total_ticks = muldiv64(qemu_clock_get_us(QEMU_CLOCK_VIRTUAL),
-                           get_ticks_per_sec(), 1000000);
+    total_ticks = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                           ARM_CPU_FREQ, NANOSECONDS_PER_SECOND);
 
     if (env->cp15.c9_pmcr & PMCRD) {
         /* Increment once every 64 processor clock cycles */

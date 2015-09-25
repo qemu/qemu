@@ -64,7 +64,7 @@
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1
 
-#define PCI_FREQUENCY 33000000L
+#define PCI_PERIOD 30    /* 30 ns period = 33.333333 Mhz frequency */
 
 #define SET_MASKED(input, mask, curr) \
     ( ( (input) & ~(mask) ) | ( (curr) & (mask) ) )
@@ -2834,8 +2834,7 @@ static void rtl8139_io_writew(void *opaque, uint8_t addr, uint32_t val)
 
 static void rtl8139_set_next_tctr_time(RTL8139State *s)
 {
-    const uint64_t ns_per_period =
-        muldiv64(0x100000000LL, get_ticks_per_sec(), PCI_FREQUENCY);
+    const uint64_t ns_per_period = (uint64_t)PCI_PERIOD << 32;
 
     DPRINTF("entered rtl8139_set_next_tctr_time\n");
 
@@ -2853,7 +2852,7 @@ static void rtl8139_set_next_tctr_time(RTL8139State *s)
     if (!s->TimerInt) {
         timer_del(s->timer);
     } else {
-        uint64_t delta = muldiv64(s->TimerInt, get_ticks_per_sec(), PCI_FREQUENCY);
+        uint64_t delta = (uint64_t)s->TimerInt * PCI_PERIOD;
         if (s->TCTR_base + delta <= qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL)) {
             delta += ns_per_period;
         }
@@ -3127,8 +3126,8 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
             break;
 
         case Timer:
-            ret = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->TCTR_base,
-                           PCI_FREQUENCY, get_ticks_per_sec());
+            ret = (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) - s->TCTR_base) /
+                  PCI_PERIOD;
             DPRINTF("TCTR Timer read val=0x%08x\n", ret);
             break;
 
@@ -3222,8 +3221,7 @@ static void rtl8139_pre_save(void *opaque)
     int64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     /* for migration to older versions */
-    s->TCTR = muldiv64(current_time - s->TCTR_base, PCI_FREQUENCY,
-                       get_ticks_per_sec());
+    s->TCTR = (current_time - s->TCTR_base) / PCI_PERIOD;
     s->rtl8139_mmio_io_addr_dummy = 0;
 }
 

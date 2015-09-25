@@ -129,14 +129,9 @@ static void i6300esb_restart_timer(I6300State *d, int stage)
     else
         timeout <<= 5;
 
-    /* Get the timeout in units of ticks_per_sec.
-     *
-     * ticks_per_sec is typically 10^9 == 0x3B9ACA00 (30 bits), with
-     * 20 bits of user supplied preload, and 15 bits of scale, the
-     * multiply here can exceed 64-bits, before we divide by 33MHz, so
-     * we use a higher-precision intermediate result.
-     */
-    timeout = muldiv64(timeout, get_ticks_per_sec(), 33000000);
+    /* Get the timeout in nanoseconds. */
+
+    timeout = timeout * 30; /* on a PCI bus, 1 tick is 30 ns*/
 
     i6300esb_debug("stage %d, timeout %" PRIi64 "\n", d->stage, timeout);
 

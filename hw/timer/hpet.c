@@ -126,12 +126,12 @@ static uint32_t hpet_time_after64(uint64_t a, uint64_t b)
 
 static uint64_t ticks_to_ns(uint64_t value)
 {
-    return (muldiv64(value, HPET_CLK_PERIOD, FS_PER_NS));
+    return value * HPET_CLK_PERIOD;
 }
 
 static uint64_t ns_to_ticks(uint64_t value)
 {
-    return (muldiv64(value, FS_PER_NS, HPET_CLK_PERIOD));
+    return value / HPET_CLK_PERIOD;
 }
 
 static uint64_t hpet_fixup_reg(uint64_t new, uint64_t old, uint64_t mask)
@@ -758,7 +758,7 @@ static void hpet_realize(DeviceState *dev, Error **errp)
     /* 64-bit main counter; LegacyReplacementRoute. */
     s->capability = 0x8086a001ULL;
     s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
-    s->capability |= ((HPET_CLK_PERIOD) << 32);
+    s->capability |= ((uint64_t)(HPET_CLK_PERIOD * FS_PER_NS) << 32);
 
     qdev_init_gpio_in(dev, hpet_handle_legacy_irq, 2);
     qdev_init_gpio_out(dev, &s->pit_enabled, 1);

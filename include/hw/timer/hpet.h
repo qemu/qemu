@@ -16,9 +16,9 @@
 #include "qom/object.h"
 
 #define HPET_BASE               0xfed00000
-#define HPET_CLK_PERIOD         10000000ULL /* 10000000 femtoseconds == 10ns*/
+#define HPET_CLK_PERIOD         10 /* 10 ns*/
 
-#define FS_PER_NS 1000000
+#define FS_PER_NS 1000000       /* 1000000 femtoseconds == 1 ns */
 #define HPET_MIN_TIMERS         3
 #define HPET_MAX_TIMERS         32
 
