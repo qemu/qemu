@@ -145,7 +145,6 @@ static uint32_t get_elf_hwcap(void)
 
 #ifdef TARGET_X86_64
 #define ELF_START_MMAP 0x2aaaaab000ULL
-#define elf_check_arch(x) ( ((x) == ELF_ARCH) )
 
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_X86_64
@@ -273,9 +272,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *en
 
 #define ELF_START_MMAP 0x80000000
 
-#define elf_check_arch(x) ((x) == ELF_MACHINE)
-
-#define ELF_ARCH        ELF_MACHINE
+#define ELF_ARCH        EM_ARM
 #define ELF_CLASS       ELFCLASS32
 
 static inline void init_thread(struct target_pt_regs *regs,
@@ -481,9 +478,7 @@ static uint32_t get_elf_hwcap2(void)
 /* 64 bit ARM definitions */
 #define ELF_START_MMAP 0x80000000
 
-#define elf_check_arch(x) ((x) == ELF_MACHINE)
-
-#define ELF_ARCH        ELF_MACHINE
+#define ELF_ARCH        EM_AARCH64
 #define ELF_CLASS       ELFCLASS64
 #define ELF_PLATFORM    "aarch64"
 
@@ -555,8 +550,6 @@ static uint32_t get_elf_hwcap(void)
 #ifdef TARGET_UNICORE32
 
 #define ELF_START_MMAP          0x80000000
-
-#define elf_check_arch(x)       ((x) == EM_UNICORE32)
 
 #define ELF_CLASS               ELFCLASS32
 #define ELF_DATA                ELFDATA2LSB
@@ -666,7 +659,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_START_MMAP 0x80000000
 #define ELF_HWCAP  (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | HWCAP_SPARC_SWAP \
                     | HWCAP_SPARC_MULDIV)
-#define elf_check_arch(x) ( (x) == EM_SPARC )
 
 #define ELF_CLASS   ELFCLASS32
 #define ELF_ARCH    EM_SPARC
@@ -686,6 +678,7 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #ifdef TARGET_PPC
 
+#define ELF_MACHINE    PPC_ELF_MACHINE
 #define ELF_START_MMAP 0x80000000
 
 #if defined(TARGET_PPC64) && !defined(TARGET_ABI32)
@@ -695,8 +688,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_CLASS       ELFCLASS64
 
 #else
-
-#define elf_check_arch(x) ( (x) == EM_PPC )
 
 #define ELF_CLASS       ELFCLASS32
 
@@ -875,8 +866,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *en
 
 #define ELF_START_MMAP 0x80000000
 
-#define elf_check_arch(x) ( (x) == EM_MIPS )
-
 #ifdef TARGET_MIPS64
 #define ELF_CLASS   ELFCLASS64
 #else
@@ -985,8 +974,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env
 
 #define ELF_START_MMAP 0x08000000
 
-#define elf_check_arch(x) ((x) == EM_OPENRISC)
-
 #define ELF_ARCH EM_OPENRISC
 #define ELF_CLASS ELFCLASS32
 #define ELF_DATA  ELFDATA2MSB
@@ -1025,8 +1012,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #ifdef TARGET_SH4
 
 #define ELF_START_MMAP 0x80000000
-
-#define elf_check_arch(x) ( (x) == EM_SH )
 
 #define ELF_CLASS ELFCLASS32
 #define ELF_ARCH  EM_SH
@@ -1110,8 +1095,6 @@ static uint32_t get_elf_hwcap(void)
 
 #define ELF_START_MMAP 0x80000000
 
-#define elf_check_arch(x) ( (x) == EM_CRIS )
-
 #define ELF_CLASS ELFCLASS32
 #define ELF_ARCH  EM_CRIS
 
@@ -1128,8 +1111,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #ifdef TARGET_M68K
 
 #define ELF_START_MMAP 0x80000000
-
-#define elf_check_arch(x) ( (x) == EM_68K )
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_ARCH        EM_68K
@@ -1182,8 +1163,6 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *e
 
 #define ELF_START_MMAP (0x30000000000ULL)
 
-#define elf_check_arch(x) ( (x) == ELF_ARCH )
-
 #define ELF_CLASS      ELFCLASS64
 #define ELF_ARCH       EM_ALPHA
 
@@ -1202,8 +1181,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #ifdef TARGET_S390X
 
 #define ELF_START_MMAP (0x20000000000ULL)
-
-#define elf_check_arch(x) ( (x) == ELF_ARCH )
 
 #define ELF_CLASS	ELFCLASS64
 #define ELF_DATA	ELFDATA2MSB
@@ -1243,6 +1220,14 @@ static inline void init_thread(struct target_pt_regs *regs,
 
 #ifndef ELF_PLATFORM
 #define ELF_PLATFORM (NULL)
+#endif
+
+#ifndef ELF_MACHINE
+#define ELF_MACHINE ELF_ARCH
+#endif
+
+#ifndef elf_check_arch
+#define elf_check_arch(x) ((x) == ELF_ARCH)
 #endif
 
 #ifndef ELF_HWCAP

@@ -26,6 +26,7 @@
 #include "hw/virtio/virtio-bus.h"
 #include "hw/virtio/virtio-access.h"
 #include "hw/fw-path-provider.h"
+#include "linux/vhost.h"
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {

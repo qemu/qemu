@@ -474,8 +474,8 @@ opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
         return;
     }
 
-    val = strtosz_suffix(opt->str ? opt->str : "", &endptr,
-                         STRTOSZ_DEFSUFFIX_B);
+    val = qemu_strtosz_suffix(opt->str ? opt->str : "", &endptr,
+                         QEMU_STRTOSZ_DEFSUFFIX_B);
     if (val < 0 || *endptr) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
                    "a size value representible as a non-negative int64");

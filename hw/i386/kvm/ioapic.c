@@ -10,6 +10,7 @@
  * See the COPYING file in the top-level directory.
  */
 
+#include "monitor/monitor.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/ioapic_internal.h"
 #include "hw/i386/apic_internal.h"
@@ -108,6 +109,15 @@ static void kvm_ioapic_put(IOAPICCommonState *s)
         fprintf(stderr, "KVM_GET_IRQCHIP failed: %s\n", strerror(ret));
         abort();
     }
+}
+
+void kvm_ioapic_dump_state(Monitor *mon, const QDict *qdict)
+{
+    IOAPICCommonState s;
+
+    kvm_ioapic_get(&s);
+
+    ioapic_print_redtbl(mon, &s);
 }
 
 static void kvm_ioapic_reset(DeviceState *dev)

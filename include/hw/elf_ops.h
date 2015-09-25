@@ -282,25 +282,36 @@ static int glue(load_elf, SZ)(const char *name, int fd,
 
     switch (elf_machine) {
         case EM_PPC64:
-            if (EM_PPC64 != ehdr.e_machine)
-                if (EM_PPC != ehdr.e_machine) {
+            if (ehdr.e_machine != EM_PPC64) {
+                if (ehdr.e_machine != EM_PPC) {
                     ret = ELF_LOAD_WRONG_ARCH;
                     goto fail;
                 }
+            }
             break;
         case EM_X86_64:
-            if (EM_X86_64 != ehdr.e_machine)
-                if (EM_386 != ehdr.e_machine) {
+            if (ehdr.e_machine != EM_X86_64) {
+                if (ehdr.e_machine != EM_386) {
                     ret = ELF_LOAD_WRONG_ARCH;
                     goto fail;
                 }
+            }
             break;
         case EM_MICROBLAZE:
-            if (EM_MICROBLAZE != ehdr.e_machine)
-                if (EM_MICROBLAZE_OLD != ehdr.e_machine) {
+            if (ehdr.e_machine != EM_MICROBLAZE) {
+                if (ehdr.e_machine != EM_MICROBLAZE_OLD) {
                     ret = ELF_LOAD_WRONG_ARCH;
                     goto fail;
                 }
+            }
+            break;
+        case EM_MOXIE:
+            if (ehdr.e_machine != EM_MOXIE) {
+                if (ehdr.e_machine != EM_MOXIE_OLD) {
+                    ret = ELF_LOAD_WRONG_ARCH;
+                    goto fail;
+                }
+            }
             break;
         default:
             if (elf_machine != ehdr.e_machine) {

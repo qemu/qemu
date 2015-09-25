@@ -1321,6 +1321,9 @@ bool x86_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     if (interrupt_request & CPU_INTERRUPT_POLL) {
         cs->interrupt_request &= ~CPU_INTERRUPT_POLL;
         apic_poll_irq(cpu->apic_state);
+        /* Don't process multiple interrupt requests in a single call.
+           This is required to make icount-driven execution deterministic. */
+        return true;
     }
 #endif
     if (interrupt_request & CPU_INTERRUPT_SIPI) {

@@ -77,6 +77,7 @@ S: Maintained
 F: target-alpha/
 F: hw/alpha/
 F: tests/tcg/alpha/
+F: disas/alpha.c
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -84,6 +85,9 @@ S: Maintained
 F: target-arm/
 F: hw/arm/
 F: hw/cpu/a*mpcore.c
+F: disas/arm.c
+F: disas/arm-a64.cc
+F: disas/libvixl/
 
 CRIS
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
@@ -91,6 +95,7 @@ S: Maintained
 F: target-cris/
 F: hw/cris/
 F: tests/tcg/cris/
+F: disas/cris.c
 
 LM32
 M: Michael Walle <michael@walle.cc>
@@ -114,6 +119,7 @@ M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
 F: target-microblaze/
 F: hw/microblaze/
+F: disas/microblaze.c
 
 MIPS
 M: Aurelien Jarno <aurelien@aurel32.net>
@@ -122,11 +128,13 @@ S: Maintained
 F: target-mips/
 F: hw/mips/
 F: tests/tcg/mips/
+F: disas/mips.c
 
 Moxie
 M: Anthony Green <green@moxielogic.com>
 S: Maintained
 F: target-moxie/
+F: disas/moxie.c
 
 OpenRISC
 M: Jia Liu <proljc@gmail.com>
@@ -141,6 +149,7 @@ L: qemu-ppc@nongnu.org
 S: Maintained
 F: target-ppc/
 F: hw/ppc/
+F: disas/ppc.c
 
 S390
 M: Richard Henderson <rth@twiddle.net>
@@ -148,12 +157,14 @@ M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target-s390x/
 F: hw/s390x/
+F: disas/s390.c
 
 SH4
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
 F: target-sh4/
 F: hw/sh4/
+F: disas/sh4.c
 
 SPARC
 M: Blue Swirl <blauwirbel@gmail.com>
@@ -162,6 +173,7 @@ S: Maintained
 F: target-sparc/
 F: hw/sparc/
 F: hw/sparc64/
+F: disas/sparc.c
 
 UniCore32
 M: Guan Xuetao <gxt@mprc.pku.edu.cn>
@@ -176,6 +188,7 @@ M: Eduardo Habkost <ehabkost@redhat.com>
 S: Maintained
 F: target-i386/
 F: hw/i386/
+F: disas/i386.c
 
 Xtensa
 M: Max Filippov <jcmvbkbc@gmail.com>
@@ -564,6 +577,7 @@ M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Supported
+F: hw/char/sclp*.[hc]
 F: hw/s390x/s390-virtio-ccw.c
 F: hw/s390x/css.[hc]
 F: hw/s390x/sclp*.[hc]
@@ -668,6 +682,12 @@ M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/*/omap*
 
+IPack
+M: Alberto Garcia <berto@igalia.com>
+S: Odd Fixes
+F: hw/char/ipoctal232.c
+F: hw/ipack/
+
 PCI
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
@@ -703,6 +723,17 @@ M: Scott Wood <scottwood@freescale.com>
 L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/ppc/e500*
+
+Character devices
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Odd Fixes
+F: hw/char/
+
+Network devices
+M: Jason Wang <jasowang@redhat.com>
+S: Odd Fixes
+F: hw/net/
+T: git git://github.com/jasowang/qemu.git net
 
 SCSI
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -888,7 +919,7 @@ F: block/qapi.c
 F: qapi/block*.json
 T: git git://repo.or.cz/qemu/armbru.git block-next
 
-Character Devices
+Character device backends
 M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: qemu-char.c
@@ -983,7 +1014,7 @@ F: hmp.c
 F: hmp-commands.hx
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
-Network device layer
+Network device backends
 M: Jason Wang <jasowang@redhat.com>
 S: Maintained
 F: net/
@@ -1137,53 +1168,58 @@ M: Claudio Fontana <claudio.fontana@huawei.com>
 M: Claudio Fontana <claudio.fontana@gmail.com>
 S: Maintained
 F: tcg/aarch64/
+F: disas/arm-a64.cc
+F: disas/libvixl/
 
 ARM target
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
 F: tcg/arm/
+F: disas/arm.c
 
 i386 target
 L: qemu-devel@nongnu.org
 S: Maintained
 F: tcg/i386/
+F: disas/i386.c
 
 IA64 target
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
 F: tcg/ia64/
+F: disas/ia64.c
 
 MIPS target
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
 F: tcg/mips/
+F: disas/mips.c
 
 PPC
 M: Vassili Karpov (malc) <av1474@comtv.ru>
 S: Maintained
 F: tcg/ppc/
-
-PPC64 target
-M: Vassili Karpov (malc) <av1474@comtv.ru>
-S: Maintained
-F: tcg/ppc64/
+F: disas/ppc.c
 
 S390 target
 M: Alexander Graf <agraf@suse.de>
 M: Richard Henderson <rth@twiddle.net>
 S: Maintained
 F: tcg/s390/
+F: disas/s390.c
 
 SPARC target
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
 F: tcg/sparc/
+F: disas/sparc.c
 
 TCI target
 M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
 F: tcg/tci/
 F: tci.c
+F: disas/tci.c
 
 Stable branches
 ---------------
@@ -1393,3 +1429,11 @@ M: Stefan Hajnoczi <stefanha@redhat.com>
 L: qemu-block@nongnu.org
 S: Supported
 F: tests/image-fuzzer/
+
+
+Documentation
+-------------
+Build system architecture
+M: Daniel P. Berrange <berrange@redhat.com>
+S: Odd Fixes
+F: docs/build-system.txt

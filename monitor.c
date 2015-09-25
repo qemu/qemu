@@ -372,8 +372,7 @@ void monitor_printf(Monitor *mon, const char *fmt, ...)
     va_end(ap);
 }
 
-static int GCC_FMT_ATTR(2, 3) monitor_fprintf(FILE *stream,
-                                              const char *fmt, ...)
+int monitor_fprintf(FILE *stream, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
@@ -957,7 +956,7 @@ int monitor_set_cpu(int cpu_index)
     return 0;
 }
 
-static CPUState *mon_get_cpu(void)
+CPUState *mon_get_cpu(void)
 {
     if (!cur_mon->mon_cpu) {
         monitor_set_cpu(0);
@@ -2697,7 +2696,7 @@ static QDict *monitor_parse_arguments(Monitor *mon,
                         break;
                     }
                 }
-                val = strtosz(p, &end);
+                val = qemu_strtosz(p, &end);
                 if (val < 0) {
                     monitor_printf(mon, "invalid size\n");
                     goto fail;

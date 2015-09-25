@@ -26,10 +26,8 @@
 #if defined(TARGET_AARCH64)
   /* AArch64 definitions */
 #  define TARGET_LONG_BITS 64
-#  define ELF_MACHINE EM_AARCH64
 #else
 #  define TARGET_LONG_BITS 32
-#  define ELF_MACHINE EM_ARM
 #endif
 
 #define TARGET_IS_BIENDIAN 1

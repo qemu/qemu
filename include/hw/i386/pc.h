@@ -123,6 +123,11 @@ int pic_get_output(DeviceState *d);
 void hmp_info_pic(Monitor *mon, const QDict *qdict);
 void hmp_info_irq(Monitor *mon, const QDict *qdict);
 
+/* ioapic.c */
+
+void kvm_ioapic_dump_state(Monitor *mon, const QDict *qdict);
+void ioapic_dump_state(Monitor *mon, const QDict *qdict);
+
 /* Global System Interrupts */
 
 #define GSI_NUM_PINS IOAPIC_NUM_PINS

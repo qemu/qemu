@@ -37,9 +37,12 @@ struct MonitorDef {
 const MonitorDef *target_monitor_defs(void);
 
 CPUArchState *mon_get_cpu_env(void);
+CPUState *mon_get_cpu(void);
 
 void hmp_info_mem(Monitor *mon, const QDict *qdict);
 void hmp_info_tlb(Monitor *mon, const QDict *qdict);
 void hmp_mce(Monitor *mon, const QDict *qdict);
+void hmp_info_local_apic(Monitor *mon, const QDict *qdict);
+void hmp_info_io_apic(Monitor *mon, const QDict *qdict);
 
 #endif /* MONITOR_COMMON */

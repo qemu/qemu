@@ -34,6 +34,7 @@
 #include "hw/loader.h"
 #include "hw/char/serial.h"
 #include "exec/address-spaces.h"
+#include "elf.h"
 
 #define PHYS_MEM_BASE 0x80000000
 
@@ -52,8 +53,7 @@ static void load_kernel(MoxieCPU *cpu, LoaderParams *loader_params)
     ram_addr_t initrd_offset;
 
     kernel_size = load_elf(loader_params->kernel_filename,  NULL, NULL,
-                           &entry, &kernel_low, &kernel_high, 1,
-                           ELF_MACHINE, 0);
+                           &entry, &kernel_low, &kernel_high, 1, EM_MOXIE, 0);
 
     if (kernel_size <= 0) {
         fprintf(stderr, "qemu: could not load kernel '%s'\n",

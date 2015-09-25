@@ -30,8 +30,6 @@
 struct CPULM32State;
 typedef struct CPULM32State CPULM32State;
 
-#define ELF_MACHINE EM_LATTICEMICO32
-
 #define NB_MMU_MODES 1
 #define TARGET_PAGE_BITS 12
 static inline int cpu_mmu_index(CPULM32State *env, bool ifetch)

@@ -132,7 +132,7 @@ static int s390_ipl_init(SysBusDevice *dev)
 
         bios_size = load_elf(bios_filename, bios_translate_addr, &fwbase,
                              &ipl->bios_start_addr, NULL, NULL, 1,
-                             ELF_MACHINE, 0);
+                             EM_S390, 0);
         if (bios_size > 0) {
             /* Adjust ELF start address to final location */
             ipl->bios_start_addr += fwbase;
@@ -154,7 +154,7 @@ static int s390_ipl_init(SysBusDevice *dev)
 
     if (ipl->kernel) {
         kernel_size = load_elf(ipl->kernel, NULL, NULL, &pentry, NULL,
-                               NULL, 1, ELF_MACHINE, 0);
+                               NULL, 1, EM_S390, 0);
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
         }

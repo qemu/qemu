@@ -32,8 +32,6 @@
 
 #include "fpu/softfloat.h"
 
-#define ELF_MACHINE     EM_ALPHA
-
 #define ICACHE_LINE_SIZE 32
 #define DCACHE_LINE_SIZE 32
 

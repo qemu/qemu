@@ -19,6 +19,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "monitor/monitor.h"
 #include "hw/i386/ioapic.h"
 #include "hw/i386/ioapic_internal.h"
 #include "hw/sysbus.h"
@@ -30,6 +31,60 @@
  * and convert to our QOM's realize function
  */
 int ioapic_no;
+
+static void ioapic_irr_dump(Monitor *mon, const char *name, uint32_t bitmap)
+{
+    int i;
+
+    monitor_printf(mon, "%-10s ", name);
+    if (bitmap == 0) {
+        monitor_printf(mon, "(none)\n");
+        return;
+    }
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        if (bitmap & (1 << i)) {
+            monitor_printf(mon, "%-2u ", i);
+        }
+    }
+    monitor_printf(mon, "\n");
+}
+
+void ioapic_print_redtbl(Monitor *mon, IOAPICCommonState *s)
+{
+    static const char *delm_str[] = {
+        "fixed", "lowest", "SMI", "...", "NMI", "INIT", "...", "extINT"};
+    uint32_t remote_irr = 0;
+    int i;
+
+    monitor_printf(mon, "ioapic id=0x%02x sel=0x%02x", s->id, s->ioregsel);
+    if (s->ioregsel) {
+        monitor_printf(mon, " (redir[%u])\n",
+                       (s->ioregsel - IOAPIC_REG_REDTBL_BASE) >> 1);
+    } else {
+        monitor_printf(mon, "\n");
+    }
+    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+        uint64_t entry = s->ioredtbl[i];
+        uint32_t delm = (uint32_t)((entry & IOAPIC_LVT_DELIV_MODE) >>
+                                   IOAPIC_LVT_DELIV_MODE_SHIFT);
+        monitor_printf(mon, "pin %-2u 0x%016"PRIx64" dest=%"PRIx64
+                       " vec=%-3"PRIu64" %s %-5s %-6s %-6s %s\n",
+                       i, entry,
+                       (entry >> IOAPIC_LVT_DEST_SHIFT) &
+                            (entry & IOAPIC_LVT_DEST_MODE ? 0xff : 0xf),
+                       entry & IOAPIC_VECTOR_MASK,
+                       entry & IOAPIC_LVT_POLARITY ? "active-lo" : "active-hi",
+                       entry & IOAPIC_LVT_TRIGGER_MODE ? "level" : "edge",
+                       entry & IOAPIC_LVT_MASKED ? "masked" : "",
+                       delm_str[delm],
+                       entry & IOAPIC_LVT_DEST_MODE ? "logical" : "physical");
+
+        remote_irr |= entry & IOAPIC_LVT_TRIGGER_MODE ?
+                        (entry & IOAPIC_LVT_REMOTE_IRR ? (1 << i) : 0) : 0;
+    }
+    ioapic_irr_dump(mon, "IRR", s->irr);
+    ioapic_irr_dump(mon, "Remote IRR", remote_irr);
+}
 
 void ioapic_reset_common(DeviceState *dev)
 {

@@ -29,8 +29,6 @@
 
 #include "exec/cpu-defs.h"
 
-#define ELF_MACHINE	EM_CRIS
-
 #define EXCP_NMI        1
 #define EXCP_GURU       2
 #define EXCP_BUSFAULT   3

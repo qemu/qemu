@@ -275,7 +275,7 @@ static void mcf5208evb_init(MachineState *machine)
     }
 
     kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
-                           NULL, NULL, 1, ELF_MACHINE, 0);
+                           NULL, NULL, 1, EM_68K, 0);
     entry = elf_entry;
     if (kernel_size < 0) {
         kernel_size = load_uimage(kernel_filename, &entry, NULL, NULL,

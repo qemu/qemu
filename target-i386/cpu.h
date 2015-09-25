@@ -37,10 +37,10 @@
 #define TARGET_HAS_PRECISE_SMC
 
 #ifdef TARGET_X86_64
-#define ELF_MACHINE     EM_X86_64
+#define I386_ELF_MACHINE  EM_X86_64
 #define ELF_MACHINE_UNAME "x86_64"
 #else
-#define ELF_MACHINE     EM_386
+#define I386_ELF_MACHINE  EM_386
 #define ELF_MACHINE_UNAME "i686"
 #endif
 
@@ -1352,5 +1352,8 @@ void enable_compat_apic_id_mode(void);
 
 #define APIC_DEFAULT_ADDRESS 0xfee00000
 #define APIC_SPACE_SIZE      0x100000
+
+void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
+                                   fprintf_function cpu_fprintf, int flags);
 
 #endif /* CPU_I386_H */

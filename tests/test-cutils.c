@@ -1352,6 +1352,86 @@ static void test_qemu_strtoull_full_max(void)
     g_assert_cmpint(res, ==, ULLONG_MAX);
 }
 
+static void test_qemu_strtosz_simple(void)
+{
+    const char *str = "12345M";
+    char *endptr = NULL;
+    int64_t res;
+
+    res = qemu_strtosz(str, &endptr);
+    g_assert_cmpint(res, ==, 12345 * M_BYTE);
+    g_assert(endptr == str + 6);
+
+    res = qemu_strtosz(str, NULL);
+    g_assert_cmpint(res, ==, 12345 * M_BYTE);
+}
+
+static void test_qemu_strtosz_units(void)
+{
+    const char *none = "1";
+    const char *b = "1B";
+    const char *k = "1K";
+    const char *m = "1M";
+    const char *g = "1G";
+    const char *t = "1T";
+    const char *p = "1P";
+    const char *e = "1E";
+    int64_t res;
+
+    /* default is M */
+    res = qemu_strtosz(none, NULL);
+    g_assert_cmpint(res, ==, M_BYTE);
+
+    res = qemu_strtosz(b, NULL);
+    g_assert_cmpint(res, ==, 1);
+
+    res = qemu_strtosz(k, NULL);
+    g_assert_cmpint(res, ==, K_BYTE);
+
+    res = qemu_strtosz(m, NULL);
+    g_assert_cmpint(res, ==, M_BYTE);
+
+    res = qemu_strtosz(g, NULL);
+    g_assert_cmpint(res, ==, G_BYTE);
+
+    res = qemu_strtosz(t, NULL);
+    g_assert_cmpint(res, ==, T_BYTE);
+
+    res = qemu_strtosz(p, NULL);
+    g_assert_cmpint(res, ==, P_BYTE);
+
+    res = qemu_strtosz(e, NULL);
+    g_assert_cmpint(res, ==, E_BYTE);
+}
+
+static void test_qemu_strtosz_float(void)
+{
+    const char *str = "12.345M";
+    int64_t res;
+
+    res = qemu_strtosz(str, NULL);
+    g_assert_cmpint(res, ==, 12.345 * M_BYTE);
+}
+
+static void test_qemu_strtosz_erange(void)
+{
+    const char *str = "10E";
+    int64_t res;
+
+    res = qemu_strtosz(str, NULL);
+    g_assert_cmpint(res, ==, -ERANGE);
+}
+
+static void test_qemu_strtosz_suffix_unit(void)
+{
+    const char *str = "12345";
+    int64_t res;
+
+    res = qemu_strtosz_suffix_unit(str, NULL,
+                                   QEMU_STRTOSZ_DEFSUFFIX_KB, 1000);
+    g_assert_cmpint(res, ==, 12345000);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -1501,6 +1581,17 @@ int main(int argc, char **argv)
                     test_qemu_strtoull_full_trailing);
     g_test_add_func("/cutils/qemu_strtoull_full/max",
                     test_qemu_strtoull_full_max);
+
+    g_test_add_func("/cutils/strtosz/simple",
+                    test_qemu_strtosz_simple);
+    g_test_add_func("/cutils/strtosz/units",
+                    test_qemu_strtosz_units);
+    g_test_add_func("/cutils/strtosz/float",
+                    test_qemu_strtosz_float);
+    g_test_add_func("/cutils/strtosz/erange",
+                    test_qemu_strtosz_erange);
+    g_test_add_func("/cutils/strtosz/suffix-unit",
+                    test_qemu_strtosz_suffix_unit);
 
     return g_test_run();
 }

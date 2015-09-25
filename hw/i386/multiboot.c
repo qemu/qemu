@@ -195,7 +195,7 @@ int load_multiboot(FWCfgState *fw_cfg,
         }
 
         kernel_size = load_elf(kernel_filename, NULL, NULL, &elf_entry,
-                               &elf_low, &elf_high, 0, ELF_MACHINE, 0);
+                               &elf_low, &elf_high, 0, I386_ELF_MACHINE, 0);
         if (kernel_size < 0) {
             fprintf(stderr, "Error while loading elf kernel\n");
             exit(1);

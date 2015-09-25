@@ -256,7 +256,7 @@ static void bamboo_init(MachineState *machine)
                               NULL, NULL);
         if (success < 0) {
             success = load_elf(kernel_filename, NULL, NULL, &elf_entry,
-                               &elf_lowaddr, NULL, 1, ELF_MACHINE, 0);
+                               &elf_lowaddr, NULL, 1, PPC_ELF_MACHINE, 0);
             entry = elf_entry;
             loadaddr = elf_lowaddr;
         }

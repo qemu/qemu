@@ -24,6 +24,8 @@
 #include "cpu.h"
 #include "monitor/monitor.h"
 #include "monitor/hmp-target.h"
+#include "hw/i386/pc.h"
+#include "sysemu/kvm.h"
 #include "hmp.h"
 
 
@@ -491,4 +493,19 @@ const MonitorDef monitor_defs[] = {
 const MonitorDef *target_monitor_defs(void)
 {
     return monitor_defs;
+}
+
+void hmp_info_local_apic(Monitor *mon, const QDict *qdict)
+{
+    x86_cpu_dump_local_apic_state(mon_get_cpu(), (FILE *)mon, monitor_fprintf,
+                                  CPU_DUMP_FPU);
+}
+
+void hmp_info_io_apic(Monitor *mon, const QDict *qdict)
+{
+    if (kvm_irqchip_in_kernel()) {
+        kvm_ioapic_dump_state(mon, qdict);
+    } else {
+        ioapic_dump_state(mon, qdict);
+    }
 }

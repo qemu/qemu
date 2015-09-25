@@ -50,17 +50,73 @@
 #define APIC_TRIGGER_EDGE               0
 #define APIC_TRIGGER_LEVEL              1
 
-#define APIC_LVT_TIMER_PERIODIC         (1<<17)
-#define APIC_LVT_MASKED                 (1<<16)
-#define APIC_LVT_LEVEL_TRIGGER          (1<<15)
-#define APIC_LVT_REMOTE_IRR             (1<<14)
-#define APIC_INPUT_POLARITY             (1<<13)
-#define APIC_SEND_PENDING               (1<<12)
+#define APIC_VECTOR_MASK                0xff
+#define APIC_DCR_MASK                   0xf
 
-#define ESR_ILLEGAL_ADDRESS (1 << 7)
+#define APIC_LVT_TIMER_SHIFT            17
+#define APIC_LVT_MASKED_SHIFT           16
+#define APIC_LVT_LEVEL_TRIGGER_SHIFT    15
+#define APIC_LVT_REMOTE_IRR_SHIFT       14
+#define APIC_LVT_INT_POLARITY_SHIFT     13
+#define APIC_LVT_DELIV_STS_SHIFT        12
+#define APIC_LVT_DELIV_MOD_SHIFT        8
 
-#define APIC_SV_DIRECTED_IO             (1<<12)
-#define APIC_SV_ENABLE                  (1<<8)
+#define APIC_LVT_TIMER_TSCDEADLINE      (2 << APIC_LVT_TIMER_SHIFT)
+#define APIC_LVT_TIMER_PERIODIC         (1 << APIC_LVT_TIMER_SHIFT)
+#define APIC_LVT_MASKED                 (1 << APIC_LVT_MASKED_SHIFT)
+#define APIC_LVT_LEVEL_TRIGGER          (1 << APIC_LVT_LEVEL_TRIGGER_SHIFT)
+#define APIC_LVT_REMOTE_IRR             (1 << APIC_LVT_REMOTE_IRR_SHIFT)
+#define APIC_LVT_INT_POLARITY           (1 << APIC_LVT_INT_POLARITY_SHIFT)
+#define APIC_LVT_DELIV_STS              (1 << APIC_LVT_DELIV_STS_SHIFT)
+#define APIC_LVT_DELIV_MOD              (7 << APIC_LVT_DELIV_MOD_SHIFT)
+
+#define APIC_ESR_ILL_ADDRESS_SHIFT      7
+#define APIC_ESR_RECV_ILL_VECT_SHIFT    6
+#define APIC_ESR_SEND_ILL_VECT_SHIFT    5
+#define APIC_ESR_RECV_ACCEPT_SHIFT      3
+#define APIC_ESR_SEND_ACCEPT_SHIFT      2
+#define APIC_ESR_RECV_CHECK_SUM_SHIFT   1
+
+#define APIC_ESR_ILLEGAL_ADDRESS        (1 << APIC_ESR_ILL_ADDRESS_SHIFT)
+#define APIC_ESR_RECV_ILLEGAL_VECT      (1 << APIC_ESR_RECV_ILL_VECT_SHIFT)
+#define APIC_ESR_SEND_ILLEGAL_VECT      (1 << APIC_ESR_SEND_ILL_VECT_SHIFT)
+#define APIC_ESR_RECV_ACCEPT            (1 << APIC_ESR_RECV_ACCEPT_SHIFT)
+#define APIC_ESR_SEND_ACCEPT            (1 << APIC_ESR_SEND_ACCEPT_SHIFT)
+#define APIC_ESR_RECV_CHECK_SUM         (1 << APIC_ESR_RECV_CHECK_SUM_SHIFT)
+#define APIC_ESR_SEND_CHECK_SUM         1
+
+#define APIC_ICR_DEST_SHIFT             24
+#define APIC_ICR_DEST_SHORT_SHIFT       18
+#define APIC_ICR_TRIGGER_MOD_SHIFT      15
+#define APIC_ICR_LEVEL_SHIFT            14
+#define APIC_ICR_DELIV_STS_SHIFT        12
+#define APIC_ICR_DEST_MOD_SHIFT         11
+#define APIC_ICR_DELIV_MOD_SHIFT        8
+
+#define APIC_ICR_DEST_SHORT             (3 << APIC_ICR_DEST_SHORT_SHIFT)
+#define APIC_ICR_TRIGGER_MOD            (1 << APIC_ICR_TRIGGER_MOD_SHIFT)
+#define APIC_ICR_LEVEL                  (1 << APIC_ICR_LEVEL_SHIFT)
+#define APIC_ICR_DELIV_STS              (1 << APIC_ICR_DELIV_STS_SHIFT)
+#define APIC_ICR_DEST_MOD               (1 << APIC_ICR_DEST_MOD_SHIFT)
+#define APIC_ICR_DELIV_MOD              (7 << APIC_ICR_DELIV_MOD_SHIFT)
+
+#define APIC_PR_CLASS_SHIFT             4
+#define APIC_PR_SUB_CLASS               0xf
+
+#define APIC_LOGDEST_XAPIC_SHIFT        4
+#define APIC_LOGDEST_XAPIC_ID           0xf
+
+#define APIC_LOGDEST_X2APIC_SHIFT       16
+#define APIC_LOGDEST_X2APIC_ID          0xffff
+
+#define APIC_SPURIO_FOCUS_SHIFT         9
+#define APIC_SPURIO_ENABLED_SHIFT       8
+
+#define APIC_SPURIO_FOCUS               (1 << APIC_SPURIO_FOCUS_SHIFT)
+#define APIC_SPURIO_ENABLED             (1 << APIC_SPURIO_ENABLED_SHIFT)
+
+#define APIC_SV_DIRECTED_IO             (1 << 12)
+#define APIC_SV_ENABLE                  (1 << 8)
 
 #define VAPIC_ENABLE_BIT                0
 #define VAPIC_ENABLE_MASK               (1 << VAPIC_ENABLE_BIT)
@@ -146,5 +202,23 @@ void apic_enable_vapic(DeviceState *d, hwaddr paddr);
 
 void vapic_report_tpr_access(DeviceState *dev, CPUState *cpu, target_ulong ip,
                              TPRAccess access);
+
+int apic_get_ppr(APICCommonState *s);
+
+static inline void apic_set_bit(uint32_t *tab, int index)
+{
+    int i, mask;
+    i = index >> 5;
+    mask = 1 << (index & 0x1f);
+    tab[i] |= mask;
+}
+
+static inline int apic_get_bit(uint32_t *tab, int index)
+{
+    int i, mask;
+    i = index >> 5;
+    mask = 1 << (index & 0x1f);
+    return !!(tab[i] & mask);
+}
 
 #endif /* !QEMU_APIC_INTERNAL_H */

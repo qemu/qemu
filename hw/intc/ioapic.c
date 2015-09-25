@@ -20,6 +20,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "monitor/monitor.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/ioapic.h"
@@ -98,7 +99,9 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
             /* level triggered */
             if (level) {
                 s->irr |= mask;
-                ioapic_service(s);
+                if (!(entry & IOAPIC_LVT_REMOTE_IRR)) {
+                    ioapic_service(s);
+                }
             } else {
                 s->irr &= ~mask;
             }
@@ -137,6 +140,17 @@ void ioapic_eoi_broadcast(int vector)
     }
 }
 
+void ioapic_dump_state(Monitor *mon, const QDict *qdict)
+{
+    int i;
+
+    for (i = 0; i < MAX_IOAPICS; i++) {
+        if (ioapics[i] != 0) {
+            ioapic_print_redtbl(mon, ioapics[i]);
+        }
+    }
+}
+
 static uint64_t
 ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -154,14 +168,12 @@ ioapic_mem_read(void *opaque, hwaddr addr, unsigned int size)
         }
         switch (s->ioregsel) {
         case IOAPIC_REG_ID:
+        case IOAPIC_REG_ARB:
             val = s->id << IOAPIC_ID_SHIFT;
             break;
         case IOAPIC_REG_VER:
             val = IOAPIC_VERSION |
                 ((IOAPIC_NUM_PINS - 1) << IOAPIC_VER_ENTRIES_SHIFT);
-            break;
-        case IOAPIC_REG_ARB:
-            val = 0;
             break;
         default:
             index = (s->ioregsel - IOAPIC_REG_REDTBL_BASE) >> 1;

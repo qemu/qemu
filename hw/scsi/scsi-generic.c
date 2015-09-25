@@ -210,6 +210,20 @@ static void scsi_read_complete(void * opaque, int ret)
     }
     blk_set_guest_block_size(s->conf.blk, s->blocksize);
 
+    /* Patch MODE SENSE device specific parameters if the BDS is opened
+     * readonly.
+     */
+    if ((s->type == TYPE_DISK || s->type == TYPE_TAPE) &&
+        blk_is_read_only(s->conf.blk) &&
+        (r->req.cmd.buf[0] == MODE_SENSE ||
+         r->req.cmd.buf[0] == MODE_SENSE_10) &&
+        (r->req.cmd.buf[1] & 0x8) == 0) {
+        if (r->req.cmd.buf[0] == MODE_SENSE) {
+            r->buf[2] |= 0x80;
+        } else  {
+            r->buf[3] |= 0x80;
+        }
+    }
     scsi_req_data(&r->req, len);
     scsi_req_unref(&r->req);
 }
