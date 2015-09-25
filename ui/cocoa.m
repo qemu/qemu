@@ -809,7 +809,7 @@ QemuCocoaView *cocoaView;
 */
 @interface QemuCocoaAppController : NSObject
 #if (MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6)
-                                             <NSApplicationDelegate>
+                                       <NSWindowDelegate, NSApplicationDelegate>
 #endif
 {
 }
@@ -829,6 +829,7 @@ QemuCocoaView *cocoaView;
 - (void)powerDownQEMU:(id)sender;
 - (void)ejectDeviceMedia:(id)sender;
 - (void)changeDeviceMedia:(id)sender;
+- (BOOL)verifyQuit;
 @end
 
 @implementation QemuCocoaAppController
@@ -862,6 +863,7 @@ QemuCocoaView *cocoaView;
 #endif
         [normalWindow makeKeyAndOrderFront:self];
         [normalWindow center];
+        [normalWindow setDelegate: self];
         stretch_video = false;
 
         /* Used for displaying pause on the screen */
@@ -931,6 +933,26 @@ QemuCocoaView *cocoaView;
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)theApplication
 {
     return YES;
+}
+
+- (NSApplicationTerminateReply)applicationShouldTerminate:
+                                                         (NSApplication *)sender
+{
+    COCOA_DEBUG("QemuCocoaAppController: applicationShouldTerminate\n");
+    return [self verifyQuit];
+}
+
+/* Called when the user clicks on a window's close button */
+- (BOOL)windowShouldClose:(id)sender
+{
+    COCOA_DEBUG("QemuCocoaAppController: windowShouldClose\n");
+    [NSApp terminate: sender];
+    /* If the user allows the application to quit then the call to
+     * NSApp terminate will never return. If we get here then the user
+     * cancelled the quit, so we should return NO to not permit the
+     * closing of this window.
+     */
+    return NO;
 }
 
 - (void)startEmulationWithArgc:(int)argc argv:(char**)argv
@@ -1122,6 +1144,21 @@ QemuCocoaView *cocoaView;
                             "raw",
                             &err);
         handleAnyDeviceErrors(err);
+    }
+}
+
+/* Verifies if the user really wants to quit */
+- (BOOL)verifyQuit
+{
+    NSAlert *alert = [NSAlert new];
+    [alert autorelease];
+    [alert setMessageText: @"Are you sure you want to quit QEMU?"];
+    [alert addButtonWithTitle: @"Cancel"];
+    [alert addButtonWithTitle: @"Quit"];
+    if([alert runModal] == NSAlertSecondButtonReturn) {
+        return YES;
+    } else {
+        return NO;
     }
 }
 
