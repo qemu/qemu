@@ -31,6 +31,11 @@ status=1	# failure is the default!
 devname="eiodev$$"
 sudo=""
 
+_sudo_qemu_io_wrapper()
+{
+    (exec $sudo "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@")
+}
+
 _setup_eiodev()
 {
 	# This test should either be run as root or with passwordless sudo
@@ -76,7 +81,9 @@ TEST_IMG="/dev/mapper/$devname"
 echo
 echo "== reading from error device =="
 # Opening image should succeed but the read operation should fail
-$sudo $QEMU_IO --format "$IMGFMT" --nocache -c "read 0 65536" "$TEST_IMG" | _filter_qemu_io
+_sudo_qemu_io_wrapper --format "$IMGFMT" --nocache \
+                      -c "read 0 65536" "$TEST_IMG" \
+    | _filter_qemu_io
 
 # success, all done
 echo "*** done"
