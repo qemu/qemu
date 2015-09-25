@@ -150,9 +150,7 @@ uint32_t helper_clz(uint32_t t0)
 
 uint32_t helper_carry(uint32_t a, uint32_t b, uint32_t cf)
 {
-    uint32_t ncf;
-    ncf = compute_carry(a, b, cf);
-    return ncf;
+    return compute_carry(a, b, cf);
 }
 
 static inline int div_prepare(CPUMBState *env, uint32_t a, uint32_t b)
