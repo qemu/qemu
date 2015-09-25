@@ -458,8 +458,14 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "flushwb";
         goto done0;
     case OE_RR_X1(ILL):
+        if (dest == 0x1c && srca == 0x25) {
+            mnemonic = "bpt";
+            goto done2;
+        }
+        /* Fall through */
     case OE_RR_Y1(ILL):
-        mnemonic = (dest == 0x1c && srca == 0x25 ? "bpt" : "ill");
+        mnemonic = "ill";
+    done2:
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
         return TILEGX_EXCP_OPCODE_UNKNOWN;
     case OE_RR_X1(MF):
