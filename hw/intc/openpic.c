@@ -1643,6 +1643,7 @@ static void openpic_class_init(ObjectClass *oc, void *data)
     dc->props = openpic_properties;
     dc->reset = openpic_reset;
     dc->vmsd = &vmstate_openpic;
+    set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
 
 static const TypeInfo openpic_info = {
