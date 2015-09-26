@@ -161,13 +161,14 @@ static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
 #define CODE_GEN_PHYS_HASH_BITS     15
 #define CODE_GEN_PHYS_HASH_SIZE     (1 << CODE_GEN_PHYS_HASH_BITS)
 
-/* estimated block size for TB allocation */
-/* XXX: use a per code average code fragment size and modulate it
-   according to the host CPU */
+/* Estimated block size for TB allocation.  */
+/* ??? The following is based on a 2015 survey of x86_64 host output.
+   Better would seem to be some sort of dynamically sized TB array,
+   adapting to the block sizes actually being produced.  */
 #if defined(CONFIG_SOFTMMU)
-#define CODE_GEN_AVG_BLOCK_SIZE 128
+#define CODE_GEN_AVG_BLOCK_SIZE 400
 #else
-#define CODE_GEN_AVG_BLOCK_SIZE 64
+#define CODE_GEN_AVG_BLOCK_SIZE 150
 #endif
 
 #if defined(__arm__) || defined(_ARCH_PPC) \
