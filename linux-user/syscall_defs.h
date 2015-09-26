@@ -748,6 +748,10 @@ typedef struct target_siginfo {
 #define TARGET_ILL_PRVREG	(6)	/* privileged register */
 #define TARGET_ILL_COPROC	(7)	/* coprocessor error */
 #define TARGET_ILL_BADSTK	(8)	/* internal stack error */
+#ifdef TARGET_TILEGX
+#define TARGET_ILL_DBLFLT       (9)     /* double fault */
+#define TARGET_ILL_HARDWALL     (10)    /* user networks hardwall violation */
+#endif
 
 /*
  * SIGFPE si_codes
@@ -767,6 +771,7 @@ typedef struct target_siginfo {
  */
 #define TARGET_SEGV_MAPERR     (1)  /* address not mapped to object */
 #define TARGET_SEGV_ACCERR     (2)  /* invalid permissions for mapped object */
+#define TARGET_SEGV_BNDERR     (3)  /* failed address bound checks */
 
 /*
  * SIGBUS si_codes
@@ -774,12 +779,18 @@ typedef struct target_siginfo {
 #define TARGET_BUS_ADRALN       (1)	/* invalid address alignment */
 #define TARGET_BUS_ADRERR       (2)	/* non-existent physical address */
 #define TARGET_BUS_OBJERR       (3)	/* object specific hardware error */
+/* hardware memory error consumed on a machine check: action required */
+#define TARGET_BUS_MCEERR_AR    (4)
+/* hardware memory error detected in process but not consumed: action optional*/
+#define TARGET_BUS_MCEERR_AO    (5)
 
 /*
  * SIGTRAP si_codes
  */
 #define TARGET_TRAP_BRKPT	(1)	/* process breakpoint */
 #define TARGET_TRAP_TRACE	(2)	/* process trace trap */
+#define TARGET_TRAP_BRANCH      (3)     /* process taken branch trap */
+#define TARGET_TRAP_HWBKPT      (4)     /* hardware breakpoint/watchpoint */
 
 #endif /* defined(TARGET_I386) || defined(TARGET_ARM) */
 
