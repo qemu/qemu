@@ -362,6 +362,7 @@ static void adb_kbd_class_init(ObjectClass *oc, void *data)
 
     akc->parent_realize = dc->realize;
     dc->realize = adb_kbd_realizefn;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     adc->devreq = adb_kbd_request;
     dc->reset = adb_kbd_reset;
@@ -566,6 +567,7 @@ static void adb_mouse_class_init(ObjectClass *oc, void *data)
 
     amc->parent_realize = dc->realize;
     dc->realize = adb_mouse_realizefn;
+    set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 
     adc->devreq = adb_mouse_request;
     dc->reset = adb_mouse_reset;
