@@ -590,6 +590,7 @@ static void macio_ide_class_init(ObjectClass *oc, void *data)
     dc->realize = macio_ide_realizefn;
     dc->reset = macio_ide_reset;
     dc->vmsd = &vmstate_pmac;
+    set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
 static const TypeInfo macio_ide_type_info = {
