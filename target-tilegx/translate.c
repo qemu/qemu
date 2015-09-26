@@ -23,6 +23,8 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "exec/cpu_ldst.h"
+#include "linux-user/syscall_defs.h"
+
 #include "opcode_tilegx.h"
 #include "spr_def_64.h"
 
@@ -429,8 +431,66 @@ static void gen_v4op(TCGv d64, TCGv a64, TCGv b64,
     tcg_temp_free_i32(bh);
 }
 
+static TileExcp gen_signal(DisasContext *dc, int signo, int sigcode,
+                           const char *mnemonic)
+{
+    TCGv_i32 t0 = tcg_const_i32(signo);
+    TCGv_i32 t1 = tcg_const_i32(sigcode);
+
+    tcg_gen_st_i32(t0, cpu_env, offsetof(CPUTLGState, signo));
+    tcg_gen_st_i32(t1, cpu_env, offsetof(CPUTLGState, sigcode));
+
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t0);
+
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
+    return TILEGX_EXCP_SIGNAL;
+}
+
+static bool parse_from_addli(uint64_t bundle, int *signo, int *sigcode)
+{
+    int imm;
+
+    if ((get_Opcode_X0(bundle) != ADDLI_OPCODE_X0)
+        || (get_Dest_X0(bundle) != TILEGX_R_ZERO)
+        || (get_SrcA_X0(bundle) != TILEGX_R_ZERO)) {
+        return false;
+    }
+
+    imm = get_Imm16_X0(bundle);
+    *signo = imm & 0x3f;
+    *sigcode = (imm >> 6) & 0xf;
+
+    /* ??? The linux kernel validates both signo and the sigcode vs the
+       known max for each signal.  Don't bother here.  */
+    return true;
+}
+
+static TileExcp gen_specill(DisasContext *dc, unsigned dest, unsigned srca,
+                            uint64_t bundle)
+{
+    const char *mnemonic;
+    int signo;
+    int sigcode;
+
+    if (dest == 0x1c && srca == 0x25) {
+        signo = TARGET_SIGTRAP;
+        sigcode = TARGET_TRAP_BRKPT;
+        mnemonic = "bpt";
+    } else if (dest == 0x1d && srca == 0x25
+               && parse_from_addli(bundle, &signo, &sigcode)) {
+        mnemonic = "raise";
+    } else {
+        signo = TARGET_SIGILL;
+        sigcode = TARGET_ILL_ILLOPC;
+        mnemonic = "ill";
+    }
+
+    return gen_signal(dc, signo, sigcode, mnemonic);
+}
+
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
-                              unsigned dest, unsigned srca)
+                              unsigned dest, unsigned srca, uint64_t bundle)
 {
     TCGv tdest, tsrca;
     const char *mnemonic;
@@ -458,16 +518,9 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "flushwb";
         goto done0;
     case OE_RR_X1(ILL):
-        if (dest == 0x1c && srca == 0x25) {
-            mnemonic = "bpt";
-            goto done2;
-        }
-        /* Fall through */
+        return gen_specill(dc, dest, srca, bundle);
     case OE_RR_Y1(ILL):
-        mnemonic = "ill";
-    done2:
-        qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
-        return TILEGX_EXCP_OPCODE_UNKNOWN;
+        return gen_signal(dc, TARGET_SIGILL, TARGET_ILL_ILLOPC, "ill");
     case OE_RR_X1(MF):
         mnemonic = "mf";
         goto done0;
@@ -1909,7 +1962,7 @@ static TileExcp decode_y0(DisasContext *dc, tilegx_bundle_bits bundle)
     case RRR_1_OPCODE_Y0:
         if (ext == UNARY_RRR_1_OPCODE_Y0) {
             ext = get_UnaryOpcodeExtension_Y0(bundle);
-            return gen_rr_opcode(dc, OE(opc, ext, Y0), dest, srca);
+            return gen_rr_opcode(dc, OE(opc, ext, Y0), dest, srca, bundle);
         }
         /* fallthru */
     case RRR_0_OPCODE_Y0:
@@ -1955,7 +2008,7 @@ static TileExcp decode_y1(DisasContext *dc, tilegx_bundle_bits bundle)
     case RRR_1_OPCODE_Y1:
         if (ext == UNARY_RRR_1_OPCODE_Y0) {
             ext = get_UnaryOpcodeExtension_Y1(bundle);
-            return gen_rr_opcode(dc, OE(opc, ext, Y1), dest, srca);
+            return gen_rr_opcode(dc, OE(opc, ext, Y1), dest, srca, bundle);
         }
         /* fallthru */
     case RRR_0_OPCODE_Y1:
@@ -2057,7 +2110,7 @@ static TileExcp decode_x0(DisasContext *dc, tilegx_bundle_bits bundle)
         ext = get_RRROpcodeExtension_X0(bundle);
         if (ext == UNARY_RRR_0_OPCODE_X0) {
             ext = get_UnaryOpcodeExtension_X0(bundle);
-            return gen_rr_opcode(dc, OE(opc, ext, X0), dest, srca);
+            return gen_rr_opcode(dc, OE(opc, ext, X0), dest, srca, bundle);
         }
         srcb = get_SrcB_X0(bundle);
         return gen_rrr_opcode(dc, OE(opc, ext, X0), dest, srca, srcb);
@@ -2104,7 +2157,7 @@ static TileExcp decode_x1(DisasContext *dc, tilegx_bundle_bits bundle)
         switch (ext) {
         case UNARY_RRR_0_OPCODE_X1:
             ext = get_UnaryOpcodeExtension_X1(bundle);
-            return gen_rr_opcode(dc, OE(opc, ext, X1), dest, srca);
+            return gen_rr_opcode(dc, OE(opc, ext, X1), dest, srca, bundle);
         case ST1_RRR_0_OPCODE_X1:
             return gen_st_opcode(dc, dest, srca, srcb, MO_UB, "st1");
         case ST2_RRR_0_OPCODE_X1:

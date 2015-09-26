@@ -3436,6 +3436,17 @@ static void gen_sigill_reg(CPUTLGState *env)
     queue_signal(env, info.si_signo, &info);
 }
 
+static void do_signal(CPUTLGState *env)
+{
+    target_siginfo_t info;
+
+    info.si_signo = env->signo;
+    info.si_errno = 0;
+    info.si_code = env->sigcode;
+    info._sifields._sigfault._addr = env->pc;
+    queue_signal(env, info.si_signo, &info);
+}
+
 static void set_regval(CPUTLGState *env, uint8_t reg, uint64_t val)
 {
     if (unlikely(reg >= TILEGX_R_COUNT)) {
@@ -3621,6 +3632,9 @@ void cpu_loop(CPUTLGState *env)
         case TILEGX_EXCP_OPCODE_FETCHAND4:
         case TILEGX_EXCP_OPCODE_FETCHOR4:
             do_fetch(env, trapnr, false);
+            break;
+        case TILEGX_EXCP_SIGNAL:
+            do_signal(env);
             break;
         case TILEGX_EXCP_REG_IDN_ACCESS:
         case TILEGX_EXCP_REG_UDN_ACCESS:
