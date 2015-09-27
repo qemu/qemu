@@ -22,6 +22,7 @@
 #include "qemu-common.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
+#include "linux-user/syscall_defs.h"
 
 static void tilegx_cpu_dump_state(CPUState *cs, FILE *f,
                                   fprintf_function cpu_fprintf, int flags)
@@ -121,8 +122,12 @@ static int tilegx_cpu_handle_mmu_fault(CPUState *cs, vaddr address, int rw,
 {
     TileGXCPU *cpu = TILEGX_CPU(cs);
 
-    cs->exception_index = TILEGX_EXCP_SEGV;
+    /* The sigcode field will be filled in by do_signal in main.c.  */
+    cs->exception_index = TILEGX_EXCP_SIGNAL;
     cpu->env.excaddr = address;
+    cpu->env.signo = TARGET_SIGSEGV;
+    cpu->env.sigcode = 0;
+
     return 1;
 }
 

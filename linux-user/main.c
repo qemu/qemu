@@ -3414,17 +3414,6 @@ void cpu_loop(CPUS390XState *env)
 
 #ifdef TARGET_TILEGX
 
-static void gen_sigsegv_maperr(CPUTLGState *env, target_ulong addr)
-{
-    target_siginfo_t info;
-
-    info.si_signo = TARGET_SIGSEGV;
-    info.si_errno = 0;
-    info.si_code = TARGET_SEGV_MAPERR;
-    info._sifields._sigfault._addr = addr;
-    queue_signal(env, info.si_signo, &info);
-}
-
 static void gen_sigill_reg(CPUTLGState *env)
 {
     target_siginfo_t info;
@@ -3436,15 +3425,34 @@ static void gen_sigill_reg(CPUTLGState *env)
     queue_signal(env, info.si_signo, &info);
 }
 
-static void do_signal(CPUTLGState *env)
+static void do_signal(CPUTLGState *env, int signo, int sigcode)
 {
     target_siginfo_t info;
 
-    info.si_signo = env->signo;
+    info.si_signo = signo;
     info.si_errno = 0;
-    info.si_code = env->sigcode;
     info._sifields._sigfault._addr = env->pc;
+
+    if (signo == TARGET_SIGSEGV) {
+        /* The passed in sigcode is a dummy; check for a page mapping
+           and pass either MAPERR or ACCERR.  */
+        target_ulong addr = env->excaddr;
+        info._sifields._sigfault._addr = addr;
+        if (page_check_range(addr, 1, PAGE_VALID) < 0) {
+            sigcode = TARGET_SEGV_MAPERR;
+        } else {
+            sigcode = TARGET_SEGV_ACCERR;
+        }
+    }
+    info.si_code = sigcode;
+
     queue_signal(env, info.si_signo, &info);
+}
+
+static void gen_sigsegv_maperr(CPUTLGState *env, target_ulong addr)
+{
+    env->excaddr = addr;
+    do_signal(env, TARGET_SIGSEGV, 0);
 }
 
 static void set_regval(CPUTLGState *env, uint8_t reg, uint64_t val)
@@ -3634,14 +3642,11 @@ void cpu_loop(CPUTLGState *env)
             do_fetch(env, trapnr, false);
             break;
         case TILEGX_EXCP_SIGNAL:
-            do_signal(env);
+            do_signal(env, env->signo, env->sigcode);
             break;
         case TILEGX_EXCP_REG_IDN_ACCESS:
         case TILEGX_EXCP_REG_UDN_ACCESS:
             gen_sigill_reg(env);
-            break;
-        case TILEGX_EXCP_SEGV:
-            gen_sigsegv_maperr(env, env->excaddr);
             break;
         default:
             fprintf(stderr, "trapnr is %d[0x%x].\n", trapnr, trapnr);
