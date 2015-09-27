@@ -149,6 +149,28 @@ static void lx60_net_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, buffers, ram);
 }
 
+static pflash_t *xtfpga_flash_init(MemoryRegion *address_space,
+                                   const LxBoardDesc *board,
+                                   DriveInfo *dinfo, int be)
+{
+    SysBusDevice *s;
+    DeviceState *dev = qdev_create(NULL, "cfi.pflash01");
+
+    qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
+                        &error_abort);
+    qdev_prop_set_uint32(dev, "num-blocks",
+                         board->flash_size / board->flash_sector_size);
+    qdev_prop_set_uint64(dev, "sector-length", board->flash_sector_size);
+    qdev_prop_set_uint8(dev, "width", 4);
+    qdev_prop_set_bit(dev, "big-endian", be);
+    qdev_prop_set_string(dev, "name", "lx60.io.flash");
+    qdev_init_nofail(dev);
+    s = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(address_space, board->flash_base,
+                                sysbus_mmio_get_region(s, 0));
+    return OBJECT_CHECK(pflash_t, (dev), "cfi.pflash01");
+}
+
 static uint64_t translate_phys_addr(void *opaque, uint64_t addr)
 {
     XtensaCPU *cpu = opaque;
@@ -247,16 +269,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (dinfo) {
-        flash = pflash_cfi01_register(board->flash_base,
-                NULL, "lx60.io.flash", board->flash_size,
-                blk_by_legacy_dinfo(dinfo),
-                board->flash_sector_size,
-                board->flash_size / board->flash_sector_size,
-                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
-        if (flash == NULL) {
-            error_report("unable to mount pflash");
-            exit(EXIT_FAILURE);
-        }
+        flash = xtfpga_flash_init(system_io, board, dinfo, be);
     }
 
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
@@ -386,7 +399,7 @@ static void lx_init(const LxBoardDesc *board, MachineState *machine)
 static void xtensa_lx60_init(MachineState *machine)
 {
     static const LxBoardDesc lx60_board = {
-        .flash_base = 0xf8000000,
+        .flash_base = 0x08000000,
         .flash_size = 0x00400000,
         .flash_sector_size = 0x10000,
         .sram_size = 0x20000,
@@ -397,7 +410,7 @@ static void xtensa_lx60_init(MachineState *machine)
 static void xtensa_lx200_init(MachineState *machine)
 {
     static const LxBoardDesc lx200_board = {
-        .flash_base = 0xf8000000,
+        .flash_base = 0x08000000,
         .flash_size = 0x01000000,
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
@@ -408,7 +421,7 @@ static void xtensa_lx200_init(MachineState *machine)
 static void xtensa_ml605_init(MachineState *machine)
 {
     static const LxBoardDesc ml605_board = {
-        .flash_base = 0xf8000000,
+        .flash_base = 0x08000000,
         .flash_size = 0x01000000,
         .flash_sector_size = 0x20000,
         .sram_size = 0x2000000,
@@ -419,7 +432,7 @@ static void xtensa_ml605_init(MachineState *machine)
 static void xtensa_kc705_init(MachineState *machine)
 {
     static const LxBoardDesc kc705_board = {
-        .flash_base = 0xf0000000,
+        .flash_base = 0x00000000,
         .flash_size = 0x08000000,
         .flash_boot_base = 0x06000000,
         .flash_sector_size = 0x20000,
