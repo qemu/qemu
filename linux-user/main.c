@@ -1414,7 +1414,7 @@ void cpu_loop (CPUSPARCState *env)
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
-            exit (1);
+            exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
     }
@@ -2662,7 +2662,7 @@ void cpu_loop(CPUOpenRISCState *env)
         switch (trapnr) {
         case EXCP_RESET:
             qemu_log("\nReset request, exit, pc is %#x\n", env->pc);
-            exit(1);
+            exit(EXIT_FAILURE);
             break;
         case EXCP_BUSERR:
             qemu_log("\nBus error, exit, pc is %#x\n", env->pc);
@@ -2726,7 +2726,7 @@ void cpu_loop(CPUOpenRISCState *env)
         if (gdbsig) {
             gdb_handlesig(cs, gdbsig);
             if (gdbsig != TARGET_SIGTRAP) {
-                exit(1);
+                exit(EXIT_FAILURE);
             }
         }
 
@@ -2791,7 +2791,7 @@ void cpu_loop(CPUSH4State *env)
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
-            exit (1);
+            exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
     }
@@ -2852,7 +2852,7 @@ void cpu_loop(CPUCRISState *env)
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
-            exit (1);
+            exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
     }
@@ -2933,7 +2933,7 @@ void cpu_loop(CPUMBState *env)
                     printf ("Unhandled hw-exception: 0x%x\n",
                             env->sregs[SR_ESR] & ESR_EC_MASK);
                     cpu_dump_state(cs, stderr, fprintf, 0);
-                    exit (1);
+                    exit(EXIT_FAILURE);
                     break;
             }
             break;
@@ -2954,7 +2954,7 @@ void cpu_loop(CPUMBState *env)
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
-            exit (1);
+            exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
     }
@@ -3123,17 +3123,17 @@ void cpu_loop(CPUAlphaState *env)
         switch (trapnr) {
         case EXCP_RESET:
             fprintf(stderr, "Reset requested. Exit\n");
-            exit(1);
+            exit(EXIT_FAILURE);
             break;
         case EXCP_MCHK:
             fprintf(stderr, "Machine check exception. Exit\n");
-            exit(1);
+            exit(EXIT_FAILURE);
             break;
         case EXCP_SMP_INTERRUPT:
         case EXCP_CLK_INTERRUPT:
         case EXCP_DEV_INTERRUPT:
             fprintf(stderr, "External interrupt. Exit\n");
-            exit(1);
+            exit(EXIT_FAILURE);
             break;
         case EXCP_MMFAULT:
             env->lock_addr = -1;
@@ -3283,7 +3283,7 @@ void cpu_loop(CPUAlphaState *env)
         default:
             printf ("Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
-            exit (1);
+            exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
     }
@@ -3387,7 +3387,7 @@ void cpu_loop(CPUS390XState *env)
             default:
                 fprintf(stderr, "Unhandled program exception: %#x\n", n);
                 cpu_dump_state(cs, stderr, fprintf, 0);
-                exit(1);
+                exit(EXIT_FAILURE);
             }
             break;
 
@@ -3404,7 +3404,7 @@ void cpu_loop(CPUS390XState *env)
         default:
             fprintf(stderr, "Unhandled trap: 0x%x\n", trapnr);
             cpu_dump_state(cs, stderr, fprintf, 0);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         process_pending_signals (env);
     }
@@ -3700,7 +3700,7 @@ CPUArchState *cpu_copy(CPUArchState *env)
 
 static void handle_arg_help(const char *arg)
 {
-    usage(0);
+    usage(EXIT_SUCCESS);
 }
 
 static void handle_arg_log(const char *arg)
@@ -3710,7 +3710,7 @@ static void handle_arg_log(const char *arg)
     mask = qemu_str_to_log_mask(arg);
     if (!mask) {
         qemu_print_log_usage(stdout);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     qemu_set_log(mask);
 }
@@ -3726,7 +3726,7 @@ static void handle_arg_set_env(const char *arg)
     r = p = strdup(arg);
     while ((token = strsep(&p, ",")) != NULL) {
         if (envlist_setenv(envlist, token) != 0) {
-            usage(1);
+            usage(EXIT_FAILURE);
         }
     }
     free(r);
@@ -3738,7 +3738,7 @@ static void handle_arg_unset_env(const char *arg)
     r = p = strdup(arg);
     while ((token = strsep(&p, ",")) != NULL) {
         if (envlist_unsetenv(envlist, token) != 0) {
-            usage(1);
+            usage(EXIT_FAILURE);
         }
     }
     free(r);
@@ -3754,7 +3754,7 @@ static void handle_arg_stack_size(const char *arg)
     char *p;
     guest_stack_size = strtoul(arg, &p, 0);
     if (guest_stack_size == 0) {
-        usage(1);
+        usage(EXIT_FAILURE);
     }
 
     if (*p == 'M') {
@@ -3775,7 +3775,7 @@ static void handle_arg_pagesize(const char *arg)
     if (qemu_host_page_size == 0 ||
         (qemu_host_page_size & (qemu_host_page_size - 1)) != 0) {
         fprintf(stderr, "page size must be a power of two\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -3785,7 +3785,7 @@ static void handle_arg_randseed(const char *arg)
 
     if (parse_uint_full(arg, &seed, 0) != 0 || seed > UINT_MAX) {
         fprintf(stderr, "Invalid seed number: %s\n", arg);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     srand(seed);
 }
@@ -3808,7 +3808,7 @@ static void handle_arg_cpu(const char *arg)
 #if defined(cpu_list)
         cpu_list(stdout, &fprintf);
 #endif
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -3845,12 +3845,12 @@ static void handle_arg_reserved_va(const char *arg)
 #endif
             ) {
             fprintf(stderr, "Reserved virtual address too big\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
     if (*p) {
         fprintf(stderr, "Unrecognised -R size suffix '%s'\n", p);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -3868,7 +3868,7 @@ static void handle_arg_version(const char *arg)
 {
     printf("qemu-" TARGET_NAME " version " QEMU_VERSION QEMU_PKGVERSION
            ", Copyright (c) 2003-2008 Fabrice Bellard\n");
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
 
 struct qemu_argument {
@@ -4031,7 +4031,7 @@ static int parse_args(int argc, char **argv)
                     if (optind >= argc) {
                         (void) fprintf(stderr,
                             "qemu: missing argument for option '%s'\n", r);
-                        exit(1);
+                        exit(EXIT_FAILURE);
                     }
                     arginfo->handle_opt(argv[optind]);
                     optind++;
@@ -4045,13 +4045,13 @@ static int parse_args(int argc, char **argv)
         /* no option matched the current argv */
         if (arginfo->handle_opt == NULL) {
             (void) fprintf(stderr, "qemu: unknown option '%s'\n", r);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
     if (optind >= argc) {
         (void) fprintf(stderr, "qemu: no user program specified\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     filename = argv[optind];
@@ -4080,7 +4080,7 @@ int main(int argc, char **argv, char **envp)
 
     if ((envlist = envlist_create()) == NULL) {
         (void) fprintf(stderr, "Unable to allocate envlist\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     /* add current environment into the list */
@@ -4166,7 +4166,7 @@ int main(int argc, char **argv, char **envp)
     cpu = cpu_init(cpu_model);
     if (!cpu) {
         fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env = cpu->env_ptr;
     cpu_reset(cpu);
@@ -4198,7 +4198,7 @@ int main(int argc, char **argv, char **envp)
                     "space for use as guest address space (check your virtual "
                     "memory ulimit setting or reserve less using -R option)\n",
                     reserved_va);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         if (reserved_va) {
@@ -4231,7 +4231,7 @@ int main(int argc, char **argv, char **envp)
     target_argv = calloc(target_argc + 1, sizeof (char *));
     if (target_argv == NULL) {
 	(void) fprintf(stderr, "Unable to allocate memory for target_argv\n");
-	exit(1);
+	exit(EXIT_FAILURE);
     }
 
     /*
@@ -4260,7 +4260,7 @@ int main(int argc, char **argv, char **envp)
         execfd = open(filename, O_RDONLY);
         if (execfd < 0) {
             printf("Error while loading %s: %s\n", filename, strerror(errno));
-            _exit(1);
+            _exit(EXIT_FAILURE);
         }
     }
 
@@ -4268,7 +4268,7 @@ int main(int argc, char **argv, char **envp)
         info, &bprm);
     if (ret != 0) {
         printf("Error while loading %s: %s\n", filename, strerror(-ret));
-        _exit(1);
+        _exit(EXIT_FAILURE);
     }
 
     for (wrk = target_environ; *wrk; wrk++) {
@@ -4314,7 +4314,7 @@ int main(int argc, char **argv, char **envp)
     /* enable 64 bit mode if possible */
     if (!(env->features[FEAT_8000_0001_EDX] & CPUID_EXT2_LM)) {
         fprintf(stderr, "The selected x86 CPU does not support 64 bit mode\n");
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     env->cr[4] |= CR4_PAE_MASK;
     env->efer |= MSR_EFER_LMA | MSR_EFER_LME;
@@ -4424,7 +4424,7 @@ int main(int argc, char **argv, char **envp)
         if (!(arm_feature(env, ARM_FEATURE_AARCH64))) {
             fprintf(stderr,
                     "The selected ARM CPU does not support 64 bit mode\n");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         for (i = 0; i < 31; i++) {
@@ -4636,7 +4636,7 @@ int main(int argc, char **argv, char **envp)
         if (gdbserver_start(gdbstub_port) < 0) {
             fprintf(stderr, "qemu: could not open gdbserver on port %d\n",
                     gdbstub_port);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
         gdb_handlesig(cpu, 0);
     }
