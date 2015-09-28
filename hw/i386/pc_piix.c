@@ -301,6 +301,13 @@ static void pc_init1(MachineState *machine,
     }
 }
 
+/* Looking for a pc_compat_2_4() function? It doesn't exist.
+ * pc_compat_*() functions that run on machine-init time and
+ * change global QEMU state are deprecated. Please don't create
+ * one, and implement any pc-*-2.4 (and newer) compat code in
+ * HW_COMPAT_*, PC_COMPAT_*, or * pc_*_machine_options().
+ */
+
 static void pc_compat_2_3(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
