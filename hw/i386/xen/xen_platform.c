@@ -387,6 +387,9 @@ static int xen_platform_initfn(PCIDevice *dev)
     PCIXenPlatformState *d = XEN_PLATFORM(dev);
     uint8_t *pci_conf;
 
+    /* Device will crash on reset if xen is not initialized */
+    assert(xen_enabled());
+
     pci_conf = dev->config;
 
     pci_set_word(pci_conf + PCI_COMMAND, PCI_COMMAND_IO | PCI_COMMAND_MEMORY);
