@@ -298,7 +298,27 @@ int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
 #define PC_COMPAT_2_4 \
-        HW_COMPAT_2_4
+        HW_COMPAT_2_4 \
+        {\
+            .driver   = "Haswell-" TYPE_X86_CPU,\
+            .property = "abm",\
+            .value    = "off",\
+        },\
+        {\
+            .driver   = "Haswell-noTSX-" TYPE_X86_CPU,\
+            .property = "abm",\
+            .value    = "off",\
+        },\
+        {\
+            .driver   = "Broadwell-" TYPE_X86_CPU,\
+            .property = "abm",\
+            .value    = "off",\
+        },\
+        {\
+            .driver   = "Broadwell-noTSX-" TYPE_X86_CPU,\
+            .property = "abm",\
+            .value    = "off",\
+        },
 
 #define PC_COMPAT_2_3 \
         PC_COMPAT_2_4 \
