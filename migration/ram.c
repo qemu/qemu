@@ -219,7 +219,6 @@ static RAMBlock *last_seen_block;
 /* This is the last block from where we have sent data */
 static RAMBlock *last_sent_block;
 static ram_addr_t last_offset;
-static unsigned long *migration_bitmap;
 static QemuMutex migration_bitmap_mutex;
 static uint64_t migration_dirty_pages;
 static uint32_t last_version;
@@ -235,6 +234,11 @@ struct PageSearchStatus {
     bool         complete_round;
 };
 typedef struct PageSearchStatus PageSearchStatus;
+
+static struct BitmapRcu {
+    struct rcu_head rcu;
+    unsigned long *bmap;
+} *migration_bitmap_rcu;
 
 struct CompressParam {
     bool start;
@@ -540,7 +544,7 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(RAMBlock *rb,
 
     unsigned long next;
 
-    bitmap = atomic_rcu_read(&migration_bitmap);
+    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
     if (ram_bulk_stage && nr > base) {
         next = nr + 1;
     } else {
@@ -558,7 +562,7 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(RAMBlock *rb,
 static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 {
     unsigned long *bitmap;
-    bitmap = atomic_rcu_read(&migration_bitmap);
+    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
     migration_dirty_pages +=
         cpu_physical_memory_sync_dirty_bitmap(bitmap, start, length);
 }
@@ -1090,17 +1094,22 @@ void free_xbzrle_decoded_buf(void)
     xbzrle_decoded_buf = NULL;
 }
 
+static void migration_bitmap_free(struct BitmapRcu *bmap)
+{
+    g_free(bmap->bmap);
+    g_free(bmap);
+}
+
 static void migration_end(void)
 {
     /* caller have hold iothread lock or is in a bh, so there is
      * no writing race against this migration_bitmap
      */
-    unsigned long *bitmap = migration_bitmap;
-    atomic_rcu_set(&migration_bitmap, NULL);
+    struct BitmapRcu *bitmap = migration_bitmap_rcu;
+    atomic_rcu_set(&migration_bitmap_rcu, NULL);
     if (bitmap) {
         memory_global_dirty_log_stop();
-        synchronize_rcu();
-        g_free(bitmap);
+        call_rcu(bitmap, migration_bitmap_free, rcu);
     }
 
     XBZRLE_cache_lock();
@@ -1136,9 +1145,10 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
     /* called in qemu main thread, so there is
      * no writing race against this migration_bitmap
      */
-    if (migration_bitmap) {
-        unsigned long *old_bitmap = migration_bitmap, *bitmap;
-        bitmap = bitmap_new(new);
+    if (migration_bitmap_rcu) {
+        struct BitmapRcu *old_bitmap = migration_bitmap_rcu, *bitmap;
+        bitmap = g_new(struct BitmapRcu, 1);
+        bitmap->bmap = bitmap_new(new);
 
         /* prevent migration_bitmap content from being set bit
          * by migration_bitmap_sync_range() at the same time.
@@ -1146,13 +1156,12 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
          * at the same time.
          */
         qemu_mutex_lock(&migration_bitmap_mutex);
-        bitmap_copy(bitmap, old_bitmap, old);
-        bitmap_set(bitmap, old, new - old);
-        atomic_rcu_set(&migration_bitmap, bitmap);
+        bitmap_copy(bitmap->bmap, old_bitmap->bmap, old);
+        bitmap_set(bitmap->bmap, old, new - old);
+        atomic_rcu_set(&migration_bitmap_rcu, bitmap);
         qemu_mutex_unlock(&migration_bitmap_mutex);
         migration_dirty_pages += new - old;
-        synchronize_rcu();
-        g_free(old_bitmap);
+        call_rcu(old_bitmap, migration_bitmap_free, rcu);
     }
 }
 
@@ -1210,8 +1219,9 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     reset_ram_globals();
 
     ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
-    migration_bitmap = bitmap_new(ram_bitmap_pages);
-    bitmap_set(migration_bitmap, 0, ram_bitmap_pages);
+    migration_bitmap_rcu = g_new(struct BitmapRcu, 1);
+    migration_bitmap_rcu->bmap = bitmap_new(ram_bitmap_pages);
+    bitmap_set(migration_bitmap_rcu->bmap, 0, ram_bitmap_pages);
 
     /*
      * Count the total number of pages used by ram blocks not including any
