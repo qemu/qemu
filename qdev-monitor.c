@@ -50,6 +50,7 @@ static const QDevAlias qdev_alias_table[] = {
     { "lsi53c895a", "lsi" },
     { "ich9-ahci", "ahci" },
     { "kvm-pci-assign", "pci-assign" },
+    { "e1000", "e1000-82540em" },
     { }
 };
 
