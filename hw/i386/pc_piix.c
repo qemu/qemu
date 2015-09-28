@@ -434,6 +434,11 @@ static void pc_xen_hvm_init(MachineState *machine)
 {
     PCIBus *bus;
 
+    if (!xen_enabled()) {
+        error_report("xenfv machine requires the xen accelerator");
+        exit(1);
+    }
+
     pc_xen_hvm_init_pci(machine);
 
     bus = pci_find_primary_bus();
