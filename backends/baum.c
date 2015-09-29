@@ -561,7 +561,10 @@ static void baum_close(struct CharDriverState *chr)
     g_free(baum);
 }
 
-CharDriverState *chr_baum_init(void)
+static CharDriverState *chr_baum_init(const char *id,
+                                      ChardevBackend *backend,
+                                      ChardevReturn *ret,
+                                      Error **errp)
 {
     BaumDriverState *baum;
     CharDriverState *chr;
@@ -586,14 +589,16 @@ CharDriverState *chr_baum_init(void)
 
     baum->brlapi_fd = brlapi__openConnection(handle, NULL, NULL);
     if (baum->brlapi_fd == -1) {
-        brlapi_perror("baum_init: brlapi_openConnection");
+        error_setg(errp, "brlapi__openConnection: %s",
+                   brlapi_strerror(brlapi_error_location()));
         goto fail_handle;
     }
 
     baum->cellCount_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, baum_cellCount_timer_cb, baum);
 
     if (brlapi__getDisplaySize(handle, &baum->x, &baum->y) == -1) {
-        brlapi_perror("baum_init: brlapi_getDisplaySize");
+        error_setg(errp, "brlapi__getDisplaySize: %s",
+                   brlapi_strerror(brlapi_error_location()));
         goto fail;
     }
 
@@ -609,7 +614,8 @@ CharDriverState *chr_baum_init(void)
         tty = BRLAPI_TTY_DEFAULT;
 
     if (brlapi__enterTtyMode(handle, tty, NULL) == -1) {
-        brlapi_perror("baum_init: brlapi_enterTtyMode");
+        error_setg(errp, "brlapi__enterTtyMode: %s",
+                   brlapi_strerror(brlapi_error_location()));
         goto fail;
     }
 
@@ -630,7 +636,7 @@ fail_handle:
 static void register_types(void)
 {
     register_char_driver("braille", CHARDEV_BACKEND_KIND_BRAILLE, NULL,
-                         NULL);
+                         chr_baum_init);
 }
 
 type_init(register_types);

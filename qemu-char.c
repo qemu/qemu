@@ -4314,11 +4314,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         case CHARDEV_BACKEND_KIND_MSMOUSE:
             abort();
             break;
-#ifdef CONFIG_BRLAPI
         case CHARDEV_BACKEND_KIND_BRAILLE:
-            chr = chr_baum_init();
+            abort();
             break;
-#endif
         case CHARDEV_BACKEND_KIND_TESTDEV:
             chr = chr_testdev_init();
             break;
