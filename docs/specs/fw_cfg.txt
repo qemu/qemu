@@ -216,6 +216,21 @@ the following syntax:
 where <item_name> is the fw_cfg item name, and <path> is the location
 on the host file system of a file containing the data to be inserted.
 
+Small enough items may be provided directly as strings on the command
+line, using the syntax:
+
+    -fw_cfg [name=]<item_name>,string=<string>
+
+The terminating NUL character of the content <string> will NOT be
+included as part of the fw_cfg item data, which is consistent with
+the absence of a NUL terminator for items inserted via the file option.
+
+Both <item_name> and, if applicable, the content <string> are passed
+through by QEMU without any interpretation, expansion, or further
+processing. Any such processing (potentially performed e.g., by the shell)
+is outside of QEMU's responsibility; as such, using plain ASCII characters
+is recommended.
+
 NOTE: Users *SHOULD* choose item names beginning with the prefix "opt/"
 when using the "-fw_cfg" command line option, to avoid conflicting with
 item names used internally by QEMU. For instance:
