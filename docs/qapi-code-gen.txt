@@ -916,20 +916,20 @@ Example:
 
     static void qmp_marshal_output_UserDefOne(UserDefOne *ret_in, QObject **ret_out, Error **errp)
     {
-        Error *local_err = NULL;
+        Error *err = NULL;
         QmpOutputVisitor *mo = qmp_output_visitor_new();
         QapiDeallocVisitor *md;
         Visitor *v;
 
         v = qmp_output_get_visitor(mo);
-        visit_type_UserDefOne(v, &ret_in, "unused", &local_err);
-        if (local_err) {
+        visit_type_UserDefOne(v, &ret_in, "unused", &err);
+        if (err) {
             goto out;
         }
         *ret_out = qmp_output_get_qobject(mo);
 
     out:
-        error_propagate(errp, local_err);
+        error_propagate(errp, err);
         qmp_output_visitor_cleanup(mo);
         md = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(md);
@@ -939,7 +939,7 @@ Example:
 
     static void qmp_marshal_my_command(QDict *args, QObject **ret, Error **errp)
     {
-        Error *local_err = NULL;
+        Error *err = NULL;
         UserDefOne *retval;
         QmpInputVisitor *mi = qmp_input_visitor_new_strict(QOBJECT(args));
         QapiDeallocVisitor *md;
@@ -947,20 +947,20 @@ Example:
         UserDefOne *arg1 = NULL;
 
         v = qmp_input_get_visitor(mi);
-        visit_type_UserDefOne(v, &arg1, "arg1", &local_err);
-        if (local_err) {
+        visit_type_UserDefOne(v, &arg1, "arg1", &err);
+        if (err) {
             goto out;
         }
 
-        retval = qmp_my_command(arg1, &local_err);
-        if (local_err) {
+        retval = qmp_my_command(arg1, &err);
+        if (err) {
             goto out;
         }
 
-        qmp_marshal_output_UserDefOne(retval, ret, &local_err);
+        qmp_marshal_output_UserDefOne(retval, ret, &err);
 
     out:
-        error_propagate(errp, local_err);
+        error_propagate(errp, err);
         qmp_input_visitor_cleanup(mi);
         md = qapi_dealloc_visitor_new();
         v = qapi_dealloc_get_visitor(md);
@@ -1007,7 +1007,7 @@ Example:
     void qapi_event_send_my_event(Error **errp)
     {
         QDict *qmp;
-        Error *local_err = NULL;
+        Error *err = NULL;
         QMPEventFuncEmit emit;
         emit = qmp_event_get_func_emit();
         if (!emit) {
@@ -1016,9 +1016,9 @@ Example:
 
         qmp = qmp_event_build_dict("MY_EVENT");
 
-        emit(EXAMPLE_QAPI_EVENT_MY_EVENT, qmp, &local_err);
+        emit(EXAMPLE_QAPI_EVENT_MY_EVENT, qmp, &err);
 
-        error_propagate(errp, local_err);
+        error_propagate(errp, err);
         QDECREF(qmp);
     }
 

@@ -53,14 +53,14 @@ def gen_call(name, arg_type, ret_type):
     push_indent()
     ret = mcgen('''
 
-%(lhs)sqmp_%(c_name)s(%(args)s&local_err);
+%(lhs)sqmp_%(c_name)s(%(args)s&err);
 ''',
                 c_name=c_name(name), args=argstr, lhs=lhs)
     if ret_type:
-        ret += gen_err_check('local_err')
+        ret += gen_err_check('err')
         ret += mcgen('''
 
-qmp_marshal_output_%(c_name)s(retval, ret, &local_err);
+qmp_marshal_output_%(c_name)s(retval, ret, &err);
 ''',
                      c_name=ret_type.c_name())
     pop_indent()
@@ -69,7 +69,7 @@ qmp_marshal_output_%(c_name)s(retval, ret, &local_err);
 
 def gen_marshal_vars(arg_type, ret_type):
     ret = mcgen('''
-    Error *local_err = NULL;
+    Error *err = NULL;
 ''')
 
     push_indent()
@@ -127,8 +127,8 @@ md = qapi_dealloc_visitor_new();
 v = qapi_dealloc_get_visitor(md);
 ''')
     else:
-        errparg = '&local_err'
-        errarg = 'local_err'
+        errparg = '&err'
+        errarg = 'err'
         ret += mcgen('''
 v = qmp_input_get_visitor(mi);
 ''')
@@ -171,20 +171,20 @@ def gen_marshal_output(ret_type):
 
 static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, Error **errp)
 {
-    Error *local_err = NULL;
+    Error *err = NULL;
     QmpOutputVisitor *mo = qmp_output_visitor_new();
     QapiDeallocVisitor *md;
     Visitor *v;
 
     v = qmp_output_get_visitor(mo);
-    visit_type_%(c_name)s(v, &ret_in, "unused", &local_err);
-    if (local_err) {
+    visit_type_%(c_name)s(v, &ret_in, "unused", &err);
+    if (err) {
         goto out;
     }
     *ret_out = qmp_output_get_qobject(mo);
 
 out:
-    error_propagate(errp, local_err);
+    error_propagate(errp, err);
     qmp_output_visitor_cleanup(mo);
     md = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(md);
@@ -227,7 +227,7 @@ def gen_marshal(name, arg_type, ret_type):
 out:
 ''')
     ret += mcgen('''
-    error_propagate(errp, local_err);
+    error_propagate(errp, err);
 ''')
     ret += gen_marshal_input_visit(arg_type, dealloc=True)
     ret += mcgen('''

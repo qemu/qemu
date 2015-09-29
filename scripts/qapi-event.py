@@ -34,7 +34,7 @@ def gen_event_send(name, arg_type):
 %(proto)s
 {
     QDict *qmp;
-    Error *local_err = NULL;
+    Error *err = NULL;
     QMPEventFuncEmit emit;
 ''',
                 proto=gen_event_send_proto(name, arg_type))
@@ -67,8 +67,8 @@ def gen_event_send(name, arg_type):
     g_assert(v);
 
     /* Fake visit, as if all members are under a structure */
-    visit_start_struct(v, NULL, "", "%(name)s", 0, &local_err);
-    if (local_err) {
+    visit_start_struct(v, NULL, "", "%(name)s", 0, &err);
+    if (err) {
         goto clean;
     }
 
@@ -90,8 +90,8 @@ def gen_event_send(name, arg_type):
                 cast = ''
 
             ret += mcgen('''
-    visit_type_%(c_type)s(v, %(cast)s&%(c_name)s, "%(name)s", &local_err);
-    if (local_err) {
+    visit_type_%(c_type)s(v, %(cast)s&%(c_name)s, "%(name)s", &err);
+    if (err) {
         goto clean;
     }
 ''',
@@ -108,8 +108,8 @@ def gen_event_send(name, arg_type):
 
         ret += mcgen('''
 
-    visit_end_struct(v, &local_err);
-    if (local_err) {
+    visit_end_struct(v, &err);
+    if (err) {
         goto clean;
     }
 
@@ -120,7 +120,7 @@ def gen_event_send(name, arg_type):
 ''')
 
     ret += mcgen('''
-    emit(%(c_enum)s, qmp, &local_err);
+    emit(%(c_enum)s, qmp, &err);
 
 ''',
                  c_enum=c_enum_const(event_enum_name, name))
@@ -131,7 +131,7 @@ def gen_event_send(name, arg_type):
     qmp_output_visitor_cleanup(qov);
 ''')
     ret += mcgen('''
-    error_propagate(errp, local_err);
+    error_propagate(errp, err);
     QDECREF(qmp);
 }
 ''')
