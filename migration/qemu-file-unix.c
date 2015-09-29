@@ -54,7 +54,8 @@ static int socket_get_fd(void *opaque)
     return s->fd;
 }
 
-static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static ssize_t socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
+                                 size_t size)
 {
     QEMUFileSocket *s = opaque;
     ssize_t len;
@@ -138,7 +139,8 @@ static ssize_t unix_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
     return total;
 }
 
-static int unix_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static ssize_t unix_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
+                              size_t size)
 {
     QEMUFileSocket *s = opaque;
     ssize_t len;
@@ -192,7 +194,7 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileSocket));
+    s = g_new0(QEMUFileSocket, 1);
     s->fd = fd;
 
     if (mode[0] == 'r') {
@@ -226,7 +228,7 @@ QEMUFile *qemu_fopen_socket(int fd, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileSocket));
+    s = g_new0(QEMUFileSocket, 1);
     s->fd = fd;
     if (mode[0] == 'w') {
         qemu_set_block(s->fd);

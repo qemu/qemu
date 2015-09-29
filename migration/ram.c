@@ -227,6 +227,17 @@ static uint64_t migration_dirty_pages;
 static uint32_t last_version;
 static bool ram_bulk_stage;
 
+/* used by the search for pages to send */
+struct PageSearchStatus {
+    /* Current block being searched */
+    RAMBlock    *block;
+    /* Current offset to search from */
+    ram_addr_t   offset;
+    /* Set once we wrap around */
+    bool         complete_round;
+};
+typedef struct PageSearchStatus PageSearchStatus;
+
 struct CompressParam {
     bool start;
     bool done;
@@ -497,13 +508,13 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
 
 /* Called with rcu_read_lock() to protect migration_bitmap */
 static inline
-ram_addr_t migration_bitmap_find_and_reset_dirty(MemoryRegion *mr,
+ram_addr_t migration_bitmap_find_and_reset_dirty(RAMBlock *rb,
                                                  ram_addr_t start)
 {
-    unsigned long base = mr->ram_addr >> TARGET_PAGE_BITS;
+    unsigned long base = rb->offset >> TARGET_PAGE_BITS;
     unsigned long nr = base + (start >> TARGET_PAGE_BITS);
-    uint64_t mr_size = TARGET_PAGE_ALIGN(memory_region_size(mr));
-    unsigned long size = base + (mr_size >> TARGET_PAGE_BITS);
+    uint64_t rb_size = rb->used_length;
+    unsigned long size = base + (rb_size >> TARGET_PAGE_BITS);
     unsigned long *bitmap;
 
     unsigned long next;
@@ -530,7 +541,6 @@ static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
     migration_dirty_pages +=
         cpu_physical_memory_sync_dirty_bitmap(bitmap, start, length);
 }
-
 
 /* Fix me: there are too many global variables used in migration process. */
 static int64_t start_time;
@@ -573,7 +583,7 @@ static void migration_bitmap_sync(void)
     qemu_mutex_lock(&migration_bitmap_mutex);
     rcu_read_lock();
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        migration_bitmap_sync_range(block->mr->ram_addr, block->used_length);
+        migration_bitmap_sync_range(block->offset, block->used_length);
     }
     rcu_read_unlock();
     qemu_mutex_unlock(&migration_bitmap_mutex);
@@ -668,12 +678,11 @@ static int ram_save_page(QEMUFile *f, RAMBlock* block, ram_addr_t offset,
     int pages = -1;
     uint64_t bytes_xmit;
     ram_addr_t current_addr;
-    MemoryRegion *mr = block->mr;
     uint8_t *p;
     int ret;
     bool send_async = true;
 
-    p = memory_region_get_ram_ptr(mr) + offset;
+    p = block->host + offset;
 
     /* In doubt sent page as normal */
     bytes_xmit = 0;
@@ -744,7 +753,7 @@ static int do_compress_ram_page(CompressParam *param)
     RAMBlock *block = param->block;
     ram_addr_t offset = param->offset;
 
-    p = memory_region_get_ram_ptr(block->mr) + (offset & TARGET_PAGE_MASK);
+    p = block->host + (offset & TARGET_PAGE_MASK);
 
     bytes_sent = save_page_header(param->file, block, offset |
                                   RAM_SAVE_FLAG_COMPRESS_PAGE);
@@ -852,11 +861,10 @@ static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
 {
     int pages = -1;
     uint64_t bytes_xmit;
-    MemoryRegion *mr = block->mr;
     uint8_t *p;
     int ret;
 
-    p = memory_region_get_ram_ptr(mr) + offset;
+    p = block->host + offset;
 
     bytes_xmit = 0;
     ret = ram_control_save_page(f, block->offset,
@@ -909,6 +917,59 @@ static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
     return pages;
 }
 
+/*
+ * Find the next dirty page and update any state associated with
+ * the search process.
+ *
+ * Returns: True if a page is found
+ *
+ * @f: Current migration stream.
+ * @pss: Data about the state of the current dirty page scan.
+ * @*again: Set to false if the search has scanned the whole of RAM
+ */
+static bool find_dirty_block(QEMUFile *f, PageSearchStatus *pss,
+                             bool *again)
+{
+    pss->offset = migration_bitmap_find_and_reset_dirty(pss->block,
+                                                       pss->offset);
+    if (pss->complete_round && pss->block == last_seen_block &&
+        pss->offset >= last_offset) {
+        /*
+         * We've been once around the RAM and haven't found anything.
+         * Give up.
+         */
+        *again = false;
+        return false;
+    }
+    if (pss->offset >= pss->block->used_length) {
+        /* Didn't find anything in this RAM Block */
+        pss->offset = 0;
+        pss->block = QLIST_NEXT_RCU(pss->block, next);
+        if (!pss->block) {
+            /* Hit the end of the list */
+            pss->block = QLIST_FIRST_RCU(&ram_list.blocks);
+            /* Flag that we've looped */
+            pss->complete_round = true;
+            ram_bulk_stage = false;
+            if (migrate_use_xbzrle()) {
+                /* If xbzrle is on, stop using the data compression at this
+                 * point. In theory, xbzrle can do better than compression.
+                 */
+                flush_compressed_data(f);
+                compression_switch = false;
+            }
+        }
+        /* Didn't find anything this time, but try again on the new block */
+        *again = true;
+        return false;
+    } else {
+        /* Can go around again, but... */
+        *again = true;
+        /* We've found something so probably don't need to */
+        return true;
+    }
+}
+
 /**
  * ram_find_and_save_block: Finds a dirty page and sends it to f
  *
@@ -925,56 +986,40 @@ static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
 static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
                                    uint64_t *bytes_transferred)
 {
-    RAMBlock *block = last_seen_block;
-    ram_addr_t offset = last_offset;
-    bool complete_round = false;
+    PageSearchStatus pss;
     int pages = 0;
-    MemoryRegion *mr;
+    bool again, found;
 
-    if (!block)
-        block = QLIST_FIRST_RCU(&ram_list.blocks);
+    pss.block = last_seen_block;
+    pss.offset = last_offset;
+    pss.complete_round = false;
 
-    while (true) {
-        mr = block->mr;
-        offset = migration_bitmap_find_and_reset_dirty(mr, offset);
-        if (complete_round && block == last_seen_block &&
-            offset >= last_offset) {
-            break;
-        }
-        if (offset >= block->used_length) {
-            offset = 0;
-            block = QLIST_NEXT_RCU(block, next);
-            if (!block) {
-                block = QLIST_FIRST_RCU(&ram_list.blocks);
-                complete_round = true;
-                ram_bulk_stage = false;
-                if (migrate_use_xbzrle()) {
-                    /* If xbzrle is on, stop using the data compression at this
-                     * point. In theory, xbzrle can do better than compression.
-                     */
-                    flush_compressed_data(f);
-                    compression_switch = false;
-                }
-            }
-        } else {
+    if (!pss.block) {
+        pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
+    }
+
+    do {
+        found = find_dirty_block(f, &pss, &again);
+
+        if (found) {
             if (compression_switch && migrate_use_compression()) {
-                pages = ram_save_compressed_page(f, block, offset, last_stage,
+                pages = ram_save_compressed_page(f, pss.block, pss.offset,
+                                                 last_stage,
                                                  bytes_transferred);
             } else {
-                pages = ram_save_page(f, block, offset, last_stage,
+                pages = ram_save_page(f, pss.block, pss.offset, last_stage,
                                       bytes_transferred);
             }
 
             /* if page is unmodified, continue to the next */
             if (pages > 0) {
-                last_sent_block = block;
-                break;
+                last_sent_block = pss.block;
             }
         }
-    }
+    } while (!pages && again);
 
-    last_seen_block = block;
-    last_offset = offset;
+    last_seen_block = pss.block;
+    last_offset = pss.offset;
 
     return pages;
 }
@@ -1344,7 +1389,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
             return NULL;
         }
 
-        return memory_region_get_ram_ptr(block->mr) + offset;
+        return block->host + offset;
     }
 
     len = qemu_get_byte(f);
@@ -1354,7 +1399,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
         if (!strncmp(id, block->idstr, sizeof(id)) &&
             block->max_length > offset) {
-            return memory_region_get_ram_ptr(block->mr) + offset;
+            return block->host + offset;
         }
     }
 

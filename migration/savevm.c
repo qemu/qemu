@@ -138,14 +138,15 @@ static ssize_t block_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
     return qiov.size;
 }
 
-static int block_put_buffer(void *opaque, const uint8_t *buf,
-                           int64_t pos, int size)
+static ssize_t block_put_buffer(void *opaque, const uint8_t *buf,
+                                int64_t pos, size_t size)
 {
     bdrv_save_vmstate(opaque, buf, pos, size);
     return size;
 }
 
-static int block_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static ssize_t block_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
+                                size_t size)
 {
     return bdrv_load_vmstate(opaque, buf, pos, size);
 }
@@ -480,7 +481,7 @@ int register_savevm_live(DeviceState *dev,
 {
     SaveStateEntry *se;
 
-    se = g_malloc0(sizeof(SaveStateEntry));
+    se = g_new0(SaveStateEntry, 1);
     se->version_id = version_id;
     se->section_id = savevm_state.global_section_id++;
     se->ops = ops;
@@ -498,7 +499,7 @@ int register_savevm_live(DeviceState *dev,
             pstrcat(se->idstr, sizeof(se->idstr), "/");
             g_free(id);
 
-            se->compat = g_malloc0(sizeof(CompatEntry));
+            se->compat = g_new0(CompatEntry, 1);
             pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), idstr);
             se->compat->instance_id = instance_id == -1 ?
                          calculate_compat_instance_id(idstr) : instance_id;
@@ -526,7 +527,7 @@ int register_savevm(DeviceState *dev,
                     LoadStateHandler *load_state,
                     void *opaque)
 {
-    SaveVMHandlers *ops = g_malloc0(sizeof(SaveVMHandlers));
+    SaveVMHandlers *ops = g_new0(SaveVMHandlers, 1);
     ops->save_state = save_state;
     ops->load_state = load_state;
     return register_savevm_live(dev, idstr, instance_id, version_id,
@@ -568,7 +569,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     /* If this triggers, alias support can be dropped for the vmsd. */
     assert(alias_id == -1 || required_for_version >= vmsd->minimum_version_id);
 
-    se = g_malloc0(sizeof(SaveStateEntry));
+    se = g_new0(SaveStateEntry, 1);
     se->version_id = vmsd->version_id;
     se->section_id = savevm_state.global_section_id++;
     se->opaque = opaque;
@@ -582,7 +583,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
             pstrcat(se->idstr, sizeof(se->idstr), "/");
             g_free(id);
 
-            se->compat = g_malloc0(sizeof(CompatEntry));
+            se->compat = g_new0(CompatEntry, 1);
             pstrcpy(se->compat->idstr, sizeof(se->compat->idstr), vmsd->name);
             se->compat->instance_id = instance_id == -1 ?
                          calculate_compat_instance_id(vmsd->name) : instance_id;
@@ -1544,7 +1545,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    available_snapshots = g_malloc0(sizeof(int) * nb_sns);
+    available_snapshots = g_new0(int, nb_sns);
     total = 0;
     for (i = 0; i < nb_sns; i++) {
         sn = &sn_tab[i];

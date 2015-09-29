@@ -37,11 +37,11 @@ static int stdio_get_fd(void *opaque)
     return fileno(s->stdio_file);
 }
 
-static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos,
-                            int size)
+static ssize_t stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos,
+                                size_t size)
 {
     QEMUFileStdio *s = opaque;
-    int res;
+    size_t res;
 
     res = fwrite(buf, 1, size, s->stdio_file);
 
@@ -51,11 +51,12 @@ static int stdio_put_buffer(void *opaque, const uint8_t *buf, int64_t pos,
     return res;
 }
 
-static int stdio_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
+static ssize_t stdio_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
+                                size_t size)
 {
     QEMUFileStdio *s = opaque;
     FILE *fp = s->stdio_file;
-    int bytes;
+    ssize_t bytes;
 
     for (;;) {
         clearerr(fp);
@@ -143,7 +144,7 @@ QEMUFile *qemu_popen_cmd(const char *command, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileStdio));
+    s = g_new0(QEMUFileStdio, 1);
 
     s->stdio_file = stdio_file;
 
@@ -175,7 +176,7 @@ QEMUFile *qemu_fopen(const char *filename, const char *mode)
         return NULL;
     }
 
-    s = g_malloc0(sizeof(QEMUFileStdio));
+    s = g_new0(QEMUFileStdio, 1);
 
     s->stdio_file = fopen(filename, mode);
     if (!s->stdio_file) {

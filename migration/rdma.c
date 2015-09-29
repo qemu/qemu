@@ -541,7 +541,7 @@ static int rdma_add_block(RDMAContext *rdma, const char *block_name,
     RDMALocalBlock *block;
     RDMALocalBlock *old = local->block;
 
-    local->block = g_malloc0(sizeof(RDMALocalBlock) * (local->nb_blocks + 1));
+    local->block = g_new0(RDMALocalBlock, local->nb_blocks + 1);
 
     if (local->nb_blocks) {
         int x;
@@ -572,7 +572,7 @@ static int rdma_add_block(RDMAContext *rdma, const char *block_name,
     bitmap_clear(block->transit_bitmap, 0, block->nb_chunks);
     block->unregister_bitmap = bitmap_new(block->nb_chunks);
     bitmap_clear(block->unregister_bitmap, 0, block->nb_chunks);
-    block->remote_keys = g_malloc0(block->nb_chunks * sizeof(uint32_t));
+    block->remote_keys = g_new0(uint32_t, block->nb_chunks);
 
     block->is_ram_block = local->init ? false : true;
 
@@ -617,8 +617,8 @@ static int qemu_rdma_init_ram_blocks(RDMAContext *rdma)
     memset(local, 0, sizeof *local);
     qemu_ram_foreach_block(qemu_rdma_init_one_block, rdma);
     trace_qemu_rdma_init_ram_blocks(local->nb_blocks);
-    rdma->dest_blocks = (RDMADestBlock *) g_malloc0(sizeof(RDMADestBlock) *
-                        rdma->local_ram_blocks.nb_blocks);
+    rdma->dest_blocks = g_new0(RDMADestBlock,
+                               rdma->local_ram_blocks.nb_blocks);
     local->init = true;
     return 0;
 }
@@ -677,8 +677,7 @@ static int rdma_delete_block(RDMAContext *rdma, RDMALocalBlock *block)
 
     if (local->nb_blocks > 1) {
 
-        local->block = g_malloc0(sizeof(RDMALocalBlock) *
-                                    (local->nb_blocks - 1));
+        local->block = g_new0(RDMALocalBlock, local->nb_blocks - 1);
 
         if (block->index) {
             memcpy(local->block, old, sizeof(RDMALocalBlock) * block->index);
@@ -1164,7 +1163,7 @@ static int qemu_rdma_register_and_get_keys(RDMAContext *rdma,
 
     /* allocate memory to store chunk MRs */
     if (!block->pmr) {
-        block->pmr = g_malloc0(block->nb_chunks * sizeof(struct ibv_mr *));
+        block->pmr = g_new0(struct ibv_mr *, block->nb_chunks);
     }
 
     /*
@@ -2494,7 +2493,7 @@ static void *qemu_rdma_data_init(const char *host_port, Error **errp)
     InetSocketAddress *addr;
 
     if (host_port) {
-        rdma = g_malloc0(sizeof(RDMAContext));
+        rdma = g_new0(RDMAContext, 1);
         rdma->current_index = -1;
         rdma->current_chunk = -1;
 
@@ -2519,8 +2518,8 @@ static void *qemu_rdma_data_init(const char *host_port, Error **errp)
  * SEND messages for control only.
  * VM's ram is handled with regular RDMA messages.
  */
-static int qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
-                                int64_t pos, int size)
+static ssize_t qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
+                                    int64_t pos, size_t size)
 {
     QEMUFileRDMA *r = opaque;
     QEMUFile *f = r->file;
@@ -2547,7 +2546,8 @@ static int qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
         r->len = MIN(remaining, RDMA_SEND_INCREMENT);
         remaining -= r->len;
 
-        head.len = r->len;
+        /* Guaranteed to fit due to RDMA_SEND_INCREMENT MIN above */
+        head.len = (uint32_t)r->len;
         head.type = RDMA_CONTROL_QEMU_FILE;
 
         ret = qemu_rdma_exchange_send(rdma, &head, data, NULL, NULL, NULL);
@@ -2564,7 +2564,7 @@ static int qemu_rdma_put_buffer(void *opaque, const uint8_t *buf,
 }
 
 static size_t qemu_rdma_fill(RDMAContext *rdma, uint8_t *buf,
-                             int size, int idx)
+                             size_t size, int idx)
 {
     size_t len = 0;
 
@@ -2585,8 +2585,8 @@ static size_t qemu_rdma_fill(RDMAContext *rdma, uint8_t *buf,
  * RDMA links don't use bytestreams, so we have to
  * return bytes to QEMUFile opportunistically.
  */
-static int qemu_rdma_get_buffer(void *opaque, uint8_t *buf,
-                                int64_t pos, int size)
+static ssize_t qemu_rdma_get_buffer(void *opaque, uint8_t *buf,
+                                    int64_t pos, size_t size)
 {
     QEMUFileRDMA *r = opaque;
     RDMAContext *rdma = r->rdma;
@@ -3399,7 +3399,7 @@ static void *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
         return NULL;
     }
 
-    r = g_malloc0(sizeof(QEMUFileRDMA));
+    r = g_new0(QEMUFileRDMA, 1);
     r->rdma = rdma;
 
     if (mode[0] == 'w') {

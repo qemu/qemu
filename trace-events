@@ -1420,6 +1420,8 @@ migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, 
 migrate_state_too_big(void) ""
 migrate_global_state_post_load(const char *state) "loaded state: %s"
 migrate_global_state_pre_save(const char *state) "saved state: %s"
+migration_completion_file_err(void) ""
+migration_thread_low_pending(uint64_t pending) "%" PRIu64
 
 # migration/rdma.c
 qemu_rdma_accept_incoming_migration(void) ""
@@ -1440,7 +1442,7 @@ qemu_rdma_exchange_get_response_none(const char *desc, int type) "Surprise: got 
 qemu_rdma_exchange_send_issue_callback(void) ""
 qemu_rdma_exchange_send_waiting(const char *desc) "Waiting for response %s"
 qemu_rdma_exchange_send_received(const char *desc) "Response %s received."
-qemu_rdma_fill(int64_t control_len, int size) "RDMA %" PRId64 " of %d bytes already in buffer"
+qemu_rdma_fill(size_t control_len, size_t size) "RDMA %zd of %zd bytes already in buffer"
 qemu_rdma_init_ram_blocks(int blocks) "Allocated %d local ram block structures"
 qemu_rdma_poll_recv(const char *compstr, int64_t comp, int64_t id, int sent) "completion %s #%" PRId64 " received (%" PRId64 ") left %d"
 qemu_rdma_poll_write(const char *compstr, int64_t comp, int left, uint64_t block, uint64_t chunk, void *local, void *remote) "completions %s (%" PRId64 ") left %d, block %" PRIu64 ", chunk: %" PRIu64 " %p %p"
