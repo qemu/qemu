@@ -1886,7 +1886,7 @@ static void win_chr_close(CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static int win_chr_init(CharDriverState *chr, const char *filename)
+static int win_chr_init(CharDriverState *chr, const char *filename, Error **errp)
 {
     WinCharState *s = chr->opaque;
     COMMCONFIG comcfg;
@@ -1897,25 +1897,25 @@ static int win_chr_init(CharDriverState *chr, const char *filename)
 
     s->hsend = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!s->hsend) {
-        fprintf(stderr, "Failed CreateEvent\n");
+        error_setg(errp, "Failed CreateEvent");
         goto fail;
     }
     s->hrecv = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!s->hrecv) {
-        fprintf(stderr, "Failed CreateEvent\n");
+        error_setg(errp, "Failed CreateEvent");
         goto fail;
     }
 
     s->hcom = CreateFile(filename, GENERIC_READ|GENERIC_WRITE, 0, NULL,
                       OPEN_EXISTING, FILE_FLAG_OVERLAPPED, 0);
     if (s->hcom == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Failed CreateFile (%lu)\n", GetLastError());
+        error_setg(errp, "Failed CreateFile (%lu)", GetLastError());
         s->hcom = NULL;
         goto fail;
     }
 
     if (!SetupComm(s->hcom, NRECVBUF, NSENDBUF)) {
-        fprintf(stderr, "Failed SetupComm\n");
+        error_setg(errp, "Failed SetupComm");
         goto fail;
     }
 
@@ -1926,23 +1926,23 @@ static int win_chr_init(CharDriverState *chr, const char *filename)
     CommConfigDialog(filename, NULL, &comcfg);
 
     if (!SetCommState(s->hcom, &comcfg.dcb)) {
-        fprintf(stderr, "Failed SetCommState\n");
+        error_setg(errp, "Failed SetCommState");
         goto fail;
     }
 
     if (!SetCommMask(s->hcom, EV_ERR)) {
-        fprintf(stderr, "Failed SetCommMask\n");
+        error_setg(errp, "Failed SetCommMask");
         goto fail;
     }
 
     cto.ReadIntervalTimeout = MAXDWORD;
     if (!SetCommTimeouts(s->hcom, &cto)) {
-        fprintf(stderr, "Failed SetCommTimeouts\n");
+        error_setg(errp, "Failed SetCommTimeouts");
         goto fail;
     }
 
     if (!ClearCommError(s->hcom, &err, &comstat)) {
-        fprintf(stderr, "Failed ClearCommError\n");
+        error_setg(errp, "Failed ClearCommError");
         goto fail;
     }
     qemu_add_polling_cb(win_chr_poll, chr);
@@ -2047,7 +2047,8 @@ static int win_chr_poll(void *opaque)
     return 0;
 }
 
-static CharDriverState *qemu_chr_open_win_path(const char *filename)
+static CharDriverState *qemu_chr_open_win_path(const char *filename,
+                                               Error **errp)
 {
     CharDriverState *chr;
     WinCharState *s;
@@ -2058,7 +2059,7 @@ static CharDriverState *qemu_chr_open_win_path(const char *filename)
     chr->chr_write = win_chr_write;
     chr->chr_close = win_chr_close;
 
-    if (win_chr_init(chr, filename) < 0) {
+    if (win_chr_init(chr, filename, errp) < 0) {
         g_free(s);
         g_free(chr);
         return NULL;
@@ -3465,6 +3466,7 @@ static void qemu_chr_parse_stdio(QemuOpts *opts, ChardevBackend *backend,
     backend->stdio->signal = qemu_opt_get_bool(opts, "signal", true);
 }
 
+#ifdef HAVE_CHARDEV_SERIAL
 static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
                                   Error **errp)
 {
@@ -3477,6 +3479,7 @@ static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
     backend->serial = g_new0(ChardevHostdev, 1);
     backend->serial->device = g_strdup(device);
 }
+#endif
 
 static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
                                     Error **errp)
@@ -4032,10 +4035,13 @@ static CharDriverState *qmp_chardev_open_file(const char *id,
     return qemu_chr_open_win_file(out);
 }
 
-static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
+static CharDriverState *qmp_chardev_open_serial(const char *id,
+                                                ChardevBackend *backend,
+                                                ChardevReturn *ret,
                                                 Error **errp)
 {
-    return qemu_chr_open_win_path(serial->device);
+    ChardevHostdev *serial = backend->serial;
+    return qemu_chr_open_win_path(serial->device, errp);
 }
 
 static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
@@ -4086,9 +4092,12 @@ static CharDriverState *qmp_chardev_open_file(const char *id,
 }
 
 #ifdef HAVE_CHARDEV_SERIAL
-static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
+static CharDriverState *qmp_chardev_open_serial(const char *id,
+                                                ChardevBackend *backend,
+                                                ChardevReturn *ret,
                                                 Error **errp)
 {
+    ChardevHostdev *serial = backend->serial;
     int fd;
 
     fd = qmp_chardev_open_file_source(serial->device, O_RDWR, errp);
@@ -4098,6 +4107,7 @@ static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
     qemu_set_nonblock(fd);
     return qemu_chr_open_tty_fd(fd);
 }
+#endif
 
 #ifdef HAVE_CHARDEV_PARPORT
 static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
@@ -4252,11 +4262,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         case CHARDEV_BACKEND_KIND_FILE:
             abort();
             break;
-#ifdef HAVE_CHARDEV_SERIAL
         case CHARDEV_BACKEND_KIND_SERIAL:
-            chr = qmp_chardev_open_serial(backend->serial, &local_err);
+            abort();
             break;
-#endif
 #ifdef HAVE_CHARDEV_PARPORT
         case CHARDEV_BACKEND_KIND_PARALLEL:
             chr = qmp_chardev_open_parallel(backend->parallel, &local_err);
@@ -4391,10 +4399,12 @@ static void register_types(void)
                          qemu_chr_parse_file_out, qmp_chardev_open_file);
     register_char_driver("stdio", CHARDEV_BACKEND_KIND_STDIO,
                          qemu_chr_parse_stdio, NULL);
+#if defined HAVE_CHARDEV_SERIAL
     register_char_driver("serial", CHARDEV_BACKEND_KIND_SERIAL,
-                         qemu_chr_parse_serial, NULL);
+                         qemu_chr_parse_serial, qmp_chardev_open_serial);
     register_char_driver("tty", CHARDEV_BACKEND_KIND_SERIAL,
-                         qemu_chr_parse_serial, NULL);
+                         qemu_chr_parse_serial, qmp_chardev_open_serial);
+#endif
     register_char_driver("parallel", CHARDEV_BACKEND_KIND_PARALLEL,
                          qemu_chr_parse_parallel, NULL);
     register_char_driver("parport", CHARDEV_BACKEND_KIND_PARALLEL,
