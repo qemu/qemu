@@ -20,7 +20,6 @@ stub-obj-y += mon-is-qmp.o
 stub-obj-y += mon-printf.o
 stub-obj-y += monitor-init.o
 stub-obj-y += notify-event.o
-stub-obj-$(CONFIG_SPICE) += qemu-chr-open-spice.o
 stub-obj-y += qtest.o
 stub-obj-y += reset.o
 stub-obj-y += runstate-check.o

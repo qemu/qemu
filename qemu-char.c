@@ -4350,14 +4350,12 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         case CHARDEV_BACKEND_KIND_CONSOLE:
             abort();
             break;
-#ifdef CONFIG_SPICE
         case CHARDEV_BACKEND_KIND_SPICEVMC:
-            chr = qemu_chr_open_spice_vmc(backend->spicevmc->type);
+            abort();
             break;
         case CHARDEV_BACKEND_KIND_SPICEPORT:
-            chr = qemu_chr_open_spice_port(backend->spiceport->fqdn);
+            abort();
             break;
-#endif
         case CHARDEV_BACKEND_KIND_VC:
             chr = vc_init(backend->vc);
             break;
