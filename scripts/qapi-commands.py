@@ -101,7 +101,6 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
         return ret
 
     if dealloc:
-        errparg = 'NULL'
         errarg = None
         ret += mcgen('''
     qmp_input_visitor_cleanup(qiv);
@@ -109,36 +108,12 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
     v = qapi_dealloc_get_visitor(qdv);
 ''')
     else:
-        errparg = '&err'
         errarg = 'err'
         ret += mcgen('''
     v = qmp_input_get_visitor(qiv);
 ''')
 
-    for memb in arg_type.members:
-        if memb.optional:
-            ret += mcgen('''
-    visit_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
-''',
-                         c_name=c_name(memb.name), name=memb.name,
-                         errp=errparg)
-            ret += gen_err_check(err=errarg)
-            ret += mcgen('''
-    if (has_%(c_name)s) {
-''',
-                         c_name=c_name(memb.name))
-            push_indent()
-        ret += mcgen('''
-    visit_type_%(c_type)s(v, &%(c_name)s, "%(name)s", %(errp)s);
-''',
-                     c_name=c_name(memb.name), name=memb.name,
-                     c_type=memb.type.c_name(), errp=errparg)
-        ret += gen_err_check(err=errarg)
-        if memb.optional:
-            pop_indent()
-            ret += mcgen('''
-    }
-''')
+    ret += gen_visit_fields(arg_type.members, errarg=errarg)
 
     if dealloc:
         ret += mcgen('''

@@ -71,36 +71,7 @@ def gen_event_send(name, arg_type):
 ''',
                      name=name)
         ret += gen_err_check()
-
-        for memb in arg_type.members:
-            if memb.optional:
-                ret += mcgen('''
-    if (has_%(c_name)s) {
-''',
-                             c_name=c_name(memb.name))
-                push_indent()
-
-            # Ugly: need to cast away the const
-            if memb.type.name == "str":
-                cast = '(char **)'
-            else:
-                cast = ''
-
-            ret += mcgen('''
-    visit_type_%(c_type)s(v, %(cast)s&%(c_name)s, "%(name)s", &err);
-''',
-                         cast=cast,
-                         c_name=c_name(memb.name),
-                         c_type=memb.type.c_name(),
-                         name=memb.name)
-            ret += gen_err_check()
-
-            if memb.optional:
-                pop_indent()
-                ret += mcgen('''
-    }
-''')
-
+        ret += gen_visit_fields(arg_type.members, need_cast=True)
         ret += mcgen('''
     visit_end_struct(v, &err);
     if (err) {

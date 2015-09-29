@@ -1548,6 +1548,49 @@ def gen_err_check(err='err', label='out'):
                  err=err, label=label)
 
 
+def gen_visit_fields(members, prefix='', need_cast=False, errarg='err'):
+    ret = ''
+    if errarg:
+        errparg = '&' + errarg
+    else:
+        errparg = 'NULL'
+
+    for memb in members:
+        if memb.optional:
+            ret += mcgen('''
+    visit_optional(v, &%(prefix)shas_%(c_name)s, "%(name)s", %(errp)s);
+''',
+                         prefix=prefix, c_name=c_name(memb.name),
+                         name=memb.name, errp=errparg)
+            ret += gen_err_check(err=errarg)
+            ret += mcgen('''
+    if (%(prefix)shas_%(c_name)s) {
+''',
+                         prefix=prefix, c_name=c_name(memb.name))
+            push_indent()
+
+        # Ugly: sometimes we need to cast away const
+        if need_cast and memb.type.name == 'str':
+            cast = '(char **)'
+        else:
+            cast = ''
+
+        ret += mcgen('''
+    visit_type_%(c_type)s(v, %(cast)s&%(prefix)s%(c_name)s, "%(name)s", %(errp)s);
+''',
+                     c_type=memb.type.c_name(), prefix=prefix, cast=cast,
+                     c_name=c_name(memb.name), name=memb.name,
+                     errp=errparg)
+        ret += gen_err_check(err=errarg)
+
+        if memb.optional:
+            pop_indent()
+            ret += mcgen('''
+    }
+''')
+    return ret
+
+
 #
 # Common command line parsing
 #
