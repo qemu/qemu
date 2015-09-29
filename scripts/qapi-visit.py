@@ -24,7 +24,7 @@ def gen_visit_decl(name, scalar=False):
     if not scalar:
         c_type += '*'
     return mcgen('''
-void visit_type_%(c_name)s(Visitor *m, %(c_type)sobj, const char *name, Error **errp);
+void visit_type_%(c_name)s(Visitor *v, %(c_type)sobj, const char *name, Error **errp);
 ''',
                  c_name=c_name(name), c_type=c_type)
 
@@ -39,20 +39,20 @@ def gen_visit_implicit_struct(typ):
         # Need a forward declaration
         ret += mcgen('''
 
-static void visit_type_%(c_type)s_fields(Visitor *m, %(c_type)s **obj, Error **errp);
+static void visit_type_%(c_type)s_fields(Visitor *v, %(c_type)s **obj, Error **errp);
 ''',
                      c_type=typ.c_name())
 
     ret += mcgen('''
 
-static void visit_type_implicit_%(c_type)s(Visitor *m, %(c_type)s **obj, Error **errp)
+static void visit_type_implicit_%(c_type)s(Visitor *v, %(c_type)s **obj, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_implicit_struct(m, (void **)obj, sizeof(%(c_type)s), &err);
+    visit_start_implicit_struct(v, (void **)obj, sizeof(%(c_type)s), &err);
     if (!err) {
-        visit_type_%(c_type)s_fields(m, obj, errp);
-        visit_end_implicit_struct(m, &err);
+        visit_type_%(c_type)s_fields(v, obj, errp);
+        visit_end_implicit_struct(v, &err);
     }
     error_propagate(errp, err);
 }
@@ -71,7 +71,7 @@ def gen_visit_struct_fields(name, base, members):
 
     ret += mcgen('''
 
-static void visit_type_%(c_name)s_fields(Visitor *m, %(c_name)s **obj, Error **errp)
+static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **errp)
 {
     Error *err = NULL;
 
@@ -81,7 +81,7 @@ static void visit_type_%(c_name)s_fields(Visitor *m, %(c_name)s **obj, Error **e
 
     if base:
         ret += mcgen('''
-visit_type_implicit_%(c_type)s(m, &(*obj)->%(c_name)s, &err);
+visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
 if (err) {
     goto out;
 }
@@ -91,14 +91,14 @@ if (err) {
     for memb in members:
         if memb.optional:
             ret += mcgen('''
-visit_optional(m, &(*obj)->has_%(c_name)s, "%(name)s", &err);
+visit_optional(v, &(*obj)->has_%(c_name)s, "%(name)s", &err);
 if (!err && (*obj)->has_%(c_name)s) {
 ''',
                          c_name=c_name(memb.name), name=memb.name)
             push_indent()
 
         ret += mcgen('''
-visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "%(name)s", &err);
+visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
 ''',
                      c_type=memb.type.c_name(), c_name=c_name(memb.name),
                      name=memb.name)
@@ -136,16 +136,16 @@ def gen_visit_struct(name, base, members):
     # call qapi_free_FOO() to avoid a memory leak of the partial FOO.
     ret += mcgen('''
 
-void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
+    visit_start_struct(v, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
     if (!err) {
         if (*obj) {
-            visit_type_%(c_name)s_fields(m, obj, errp);
+            visit_type_%(c_name)s_fields(v, obj, errp);
         }
-        visit_end_struct(m, &err);
+        visit_end_struct(v, &err);
     }
     error_propagate(errp, err);
 }
@@ -158,26 +158,26 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
 def gen_visit_list(name, element_type):
     return mcgen('''
 
-void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
     GenericList *i, **prev;
 
-    visit_start_list(m, name, &err);
+    visit_start_list(v, name, &err);
     if (err) {
         goto out;
     }
 
     for (prev = (GenericList **)obj;
-         !err && (i = visit_next_list(m, prev, &err)) != NULL;
+         !err && (i = visit_next_list(v, prev, &err)) != NULL;
          prev = &i) {
         %(c_name)s *native_i = (%(c_name)s *)i;
-        visit_type_%(c_elt_type)s(m, &native_i->value, NULL, &err);
+        visit_type_%(c_elt_type)s(v, &native_i->value, NULL, &err);
     }
 
     error_propagate(errp, err);
     err = NULL;
-    visit_end_list(m, &err);
+    visit_end_list(v, &err);
 out:
     error_propagate(errp, err);
 }
@@ -188,9 +188,9 @@ out:
 def gen_visit_enum(name):
     return mcgen('''
 
-void visit_type_%(c_name)s(Visitor *m, %(c_name)s *obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, %(c_name)s *obj, const char *name, Error **errp)
 {
-    visit_type_enum(m, (int *)obj, %(c_name)s_lookup, "%(name)s", name, errp);
+    visit_type_enum(v, (int *)obj, %(c_name)s_lookup, "%(name)s", name, errp);
 }
 ''',
                  c_name=c_name(name), name=name)
@@ -199,15 +199,15 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s *obj, const char *name, Error 
 def gen_visit_alternate(name, variants):
     ret = mcgen('''
 
-void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_implicit_struct(m, (void**) obj, sizeof(%(c_name)s), &err);
+    visit_start_implicit_struct(v, (void**) obj, sizeof(%(c_name)s), &err);
     if (err) {
         goto out;
     }
-    visit_get_next_type(m, (int*) &(*obj)->kind, %(c_name)s_qtypes, name, &err);
+    visit_get_next_type(v, (int*) &(*obj)->kind, %(c_name)s_qtypes, name, &err);
     if (err) {
         goto out_end;
     }
@@ -218,7 +218,7 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
     for var in variants.variants:
         ret += mcgen('''
     case %(case)s:
-        visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, name, &err);
+        visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, name, &err);
         break;
 ''',
                      case=c_enum_const(variants.tag_member.type.name,
@@ -233,7 +233,7 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
 out_end:
     error_propagate(errp, err);
     err = NULL;
-    visit_end_implicit_struct(m, &err);
+    visit_end_implicit_struct(v, &err);
 out:
     error_propagate(errp, err);
 }
@@ -256,11 +256,11 @@ def gen_visit_union(name, base, variants):
 
     ret += mcgen('''
 
-void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error **errp)
+void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
 {
     Error *err = NULL;
 
-    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
+    visit_start_struct(v, (void **)obj, "%(name)s", name, sizeof(%(c_name)s), &err);
     if (err) {
         goto out;
     }
@@ -270,7 +270,7 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
 
     if base:
         ret += mcgen('''
-        visit_type_%(c_name)s_fields(m, obj, &err);
+        visit_type_%(c_name)s_fields(v, obj, &err);
         if (err) {
             goto out_obj;
         }
@@ -282,11 +282,11 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
         # we pointlessly use a different key for simple unions
         tag_key = 'type'
     ret += mcgen('''
-        visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "%(name)s", &err);
+        visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
         if (err) {
             goto out_obj;
         }
-        if (!visit_start_union(m, !!(*obj)->data, &err) || err) {
+        if (!visit_start_union(v, !!(*obj)->data, &err) || err) {
             goto out_obj;
         }
         switch ((*obj)->%(c_name)s) {
@@ -308,13 +308,13 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
                                        var.name))
         if simple_union_type:
             ret += mcgen('''
-            visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", &err);
+            visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "data", &err);
 ''',
                          c_type=simple_union_type.c_name(),
                          c_name=c_name(var.name))
         else:
             ret += mcgen('''
-            visit_type_implicit_%(c_type)s(m, &(*obj)->%(c_name)s, &err);
+            visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
 ''',
                          c_type=var.type.c_name(),
                          c_name=c_name(var.name))
@@ -329,11 +329,11 @@ void visit_type_%(c_name)s(Visitor *m, %(c_name)s **obj, const char *name, Error
 out_obj:
         error_propagate(errp, err);
         err = NULL;
-        visit_end_union(m, !!(*obj)->data, &err);
+        visit_end_union(v, !!(*obj)->data, &err);
         error_propagate(errp, err);
         err = NULL;
     }
-    visit_end_struct(m, &err);
+    visit_end_struct(v, &err);
 out:
     error_propagate(errp, err);
 }

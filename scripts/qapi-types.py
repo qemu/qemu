@@ -188,17 +188,17 @@ def gen_type_cleanup(name):
 
 void qapi_free_%(c_name)s(%(c_name)s *obj)
 {
-    QapiDeallocVisitor *md;
+    QapiDeallocVisitor *qdv;
     Visitor *v;
 
     if (!obj) {
         return;
     }
 
-    md = qapi_dealloc_visitor_new();
-    v = qapi_dealloc_get_visitor(md);
+    qdv = qapi_dealloc_visitor_new();
+    v = qapi_dealloc_get_visitor(qdv);
     visit_type_%(c_name)s(v, &obj, NULL, NULL);
-    qapi_dealloc_visitor_cleanup(md);
+    qapi_dealloc_visitor_cleanup(qdv);
 }
 ''',
                 c_name=c_name(name))

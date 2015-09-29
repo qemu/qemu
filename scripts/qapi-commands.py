@@ -82,8 +82,8 @@ def gen_marshal_vars(arg_type, ret_type):
 
     if arg_type:
         ret += mcgen('''
-QmpInputVisitor *mi = qmp_input_visitor_new_strict(QOBJECT(args));
-QapiDeallocVisitor *md;
+QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
+QapiDeallocVisitor *qdv;
 Visitor *v;
 ''')
 
@@ -122,15 +122,15 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
         errparg = 'NULL'
         errarg = None
         ret += mcgen('''
-qmp_input_visitor_cleanup(mi);
-md = qapi_dealloc_visitor_new();
-v = qapi_dealloc_get_visitor(md);
+qmp_input_visitor_cleanup(qiv);
+qdv = qapi_dealloc_visitor_new();
+v = qapi_dealloc_get_visitor(qdv);
 ''')
     else:
         errparg = '&err'
         errarg = 'err'
         ret += mcgen('''
-v = qmp_input_get_visitor(mi);
+v = qmp_input_get_visitor(qiv);
 ''')
 
     for memb in arg_type.members:
@@ -160,7 +160,7 @@ visit_type_%(c_type)s(v, &%(c_name)s, "%(name)s", %(errp)s);
 
     if dealloc:
         ret += mcgen('''
-qapi_dealloc_visitor_cleanup(md);
+qapi_dealloc_visitor_cleanup(qdv);
 ''')
     pop_indent()
     return ret
@@ -172,24 +172,24 @@ def gen_marshal_output(ret_type):
 static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, Error **errp)
 {
     Error *err = NULL;
-    QmpOutputVisitor *mo = qmp_output_visitor_new();
-    QapiDeallocVisitor *md;
+    QmpOutputVisitor *qov = qmp_output_visitor_new();
+    QapiDeallocVisitor *qdv;
     Visitor *v;
 
-    v = qmp_output_get_visitor(mo);
+    v = qmp_output_get_visitor(qov);
     visit_type_%(c_name)s(v, &ret_in, "unused", &err);
     if (err) {
         goto out;
     }
-    *ret_out = qmp_output_get_qobject(mo);
+    *ret_out = qmp_output_get_qobject(qov);
 
 out:
     error_propagate(errp, err);
-    qmp_output_visitor_cleanup(mo);
-    md = qapi_dealloc_visitor_new();
-    v = qapi_dealloc_get_visitor(md);
+    qmp_output_visitor_cleanup(qov);
+    qdv = qapi_dealloc_visitor_new();
+    v = qapi_dealloc_get_visitor(qdv);
     visit_type_%(c_name)s(v, &ret_in, "unused", NULL);
-    qapi_dealloc_visitor_cleanup(md);
+    qapi_dealloc_visitor_cleanup(qdv);
 }
 ''',
                  c_type=ret_type.c_type(), c_name=ret_type.c_name())
