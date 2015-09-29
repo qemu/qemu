@@ -3644,12 +3644,16 @@ typedef struct CharDriver {
     const char *name;
     ChardevBackendKind kind;
     void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp);
+    CharDriverState *(*create)(const char *id, ChardevBackend *backend,
+                               ChardevReturn *ret, Error **errp);
 } CharDriver;
 
 static GSList *backends;
 
 void register_char_driver(const char *name, ChardevBackendKind kind,
-        void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp))
+        void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp),
+        CharDriverState *(*create)(const char *id, ChardevBackend *backend,
+                                   ChardevReturn *ret, Error **errp))
 {
     CharDriver *s;
 
@@ -3657,6 +3661,7 @@ void register_char_driver(const char *name, ChardevBackendKind kind,
     s->name = g_strdup(name);
     s->kind = kind;
     s->parse = parse;
+    s->create = create;
 
     backends = g_slist_append(backends, s);
 }
@@ -4211,6 +4216,8 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     ChardevReturn *ret = g_new0(ChardevReturn, 1);
     CharDriverState *base, *chr = NULL;
     Error *local_err = NULL;
+    GSList *i;
+    CharDriver *cd;
 
     chr = qemu_chr_find(id);
     if (chr) {
@@ -4219,98 +4226,113 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
-    switch (backend->kind) {
-    case CHARDEV_BACKEND_KIND_FILE:
-        chr = qmp_chardev_open_file(backend->file, &local_err);
-        break;
-#ifdef HAVE_CHARDEV_SERIAL
-    case CHARDEV_BACKEND_KIND_SERIAL:
-        chr = qmp_chardev_open_serial(backend->serial, &local_err);
-        break;
-#endif
-#ifdef HAVE_CHARDEV_PARPORT
-    case CHARDEV_BACKEND_KIND_PARALLEL:
-        chr = qmp_chardev_open_parallel(backend->parallel, &local_err);
-        break;
-#endif
-    case CHARDEV_BACKEND_KIND_PIPE:
-        chr = qemu_chr_open_pipe(backend->pipe);
-        break;
-    case CHARDEV_BACKEND_KIND_SOCKET:
-        chr = qmp_chardev_open_socket(backend->socket, &local_err);
-        break;
-    case CHARDEV_BACKEND_KIND_UDP:
-        chr = qmp_chardev_open_udp(backend->udp, &local_err);
-        break;
-#ifdef HAVE_CHARDEV_PTY
-    case CHARDEV_BACKEND_KIND_PTY:
-        chr = qemu_chr_open_pty(id, ret);
-        break;
-#endif
-    case CHARDEV_BACKEND_KIND_NULL:
-        chr = qemu_chr_open_null();
-        break;
-    case CHARDEV_BACKEND_KIND_MUX:
-        base = qemu_chr_find(backend->mux->chardev);
-        if (base == NULL) {
-            error_setg(&local_err, "mux: base chardev %s not found",
-                       backend->mux->chardev);
+    for (i = backends; i; i = i->next) {
+        cd = i->data;
+
+        if (cd->kind == backend->kind && cd->create) {
+            chr = cd->create(id, backend, ret, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                goto out_error;
+            }
             break;
         }
-        chr = qemu_chr_open_mux(base);
-        break;
-    case CHARDEV_BACKEND_KIND_MSMOUSE:
-        chr = qemu_chr_open_msmouse();
-        break;
-#ifdef CONFIG_BRLAPI
-    case CHARDEV_BACKEND_KIND_BRAILLE:
-        chr = chr_baum_init();
-        break;
-#endif
-    case CHARDEV_BACKEND_KIND_TESTDEV:
-        chr = chr_testdev_init();
-        break;
-    case CHARDEV_BACKEND_KIND_STDIO:
-        chr = qemu_chr_open_stdio(backend->stdio);
-        break;
-#ifdef _WIN32
-    case CHARDEV_BACKEND_KIND_CONSOLE:
-        chr = qemu_chr_open_win_con();
-        break;
-#endif
-#ifdef CONFIG_SPICE
-    case CHARDEV_BACKEND_KIND_SPICEVMC:
-        chr = qemu_chr_open_spice_vmc(backend->spicevmc->type);
-        break;
-    case CHARDEV_BACKEND_KIND_SPICEPORT:
-        chr = qemu_chr_open_spice_port(backend->spiceport->fqdn);
-        break;
-#endif
-    case CHARDEV_BACKEND_KIND_VC:
-        chr = vc_init(backend->vc);
-        break;
-    case CHARDEV_BACKEND_KIND_RINGBUF:
-    case CHARDEV_BACKEND_KIND_MEMORY:
-        chr = qemu_chr_open_ringbuf(backend->ringbuf, &local_err);
-        break;
-    default:
-        error_setg(errp, "unknown chardev backend (%d)", backend->kind);
-        goto out_error;
     }
 
-    /*
-     * Character backend open hasn't been fully converted to the Error
-     * API.  Some opens fail without setting an error.  Set a generic
-     * error then.
-     * TODO full conversion to Error API
-     */
     if (chr == NULL) {
-        if (local_err) {
-            error_propagate(errp, local_err);
-        } else {
-            error_setg(errp, "Failed to create chardev");
+        switch (backend->kind) {
+        case CHARDEV_BACKEND_KIND_FILE:
+            chr = qmp_chardev_open_file(backend->file, &local_err);
+            break;
+#ifdef HAVE_CHARDEV_SERIAL
+        case CHARDEV_BACKEND_KIND_SERIAL:
+            chr = qmp_chardev_open_serial(backend->serial, &local_err);
+            break;
+#endif
+#ifdef HAVE_CHARDEV_PARPORT
+        case CHARDEV_BACKEND_KIND_PARALLEL:
+            chr = qmp_chardev_open_parallel(backend->parallel, &local_err);
+            break;
+#endif
+        case CHARDEV_BACKEND_KIND_PIPE:
+            chr = qemu_chr_open_pipe(backend->pipe);
+            break;
+        case CHARDEV_BACKEND_KIND_SOCKET:
+            chr = qmp_chardev_open_socket(backend->socket, &local_err);
+            break;
+        case CHARDEV_BACKEND_KIND_UDP:
+            chr = qmp_chardev_open_udp(backend->udp, &local_err);
+            break;
+#ifdef HAVE_CHARDEV_PTY
+        case CHARDEV_BACKEND_KIND_PTY:
+            chr = qemu_chr_open_pty(id, ret);
+            break;
+#endif
+        case CHARDEV_BACKEND_KIND_NULL:
+            chr = qemu_chr_open_null();
+            break;
+        case CHARDEV_BACKEND_KIND_MUX:
+            base = qemu_chr_find(backend->mux->chardev);
+            if (base == NULL) {
+                error_setg(&local_err, "mux: base chardev %s not found",
+                           backend->mux->chardev);
+                break;
+            }
+            chr = qemu_chr_open_mux(base);
+            break;
+        case CHARDEV_BACKEND_KIND_MSMOUSE:
+            chr = qemu_chr_open_msmouse();
+            break;
+#ifdef CONFIG_BRLAPI
+        case CHARDEV_BACKEND_KIND_BRAILLE:
+            chr = chr_baum_init();
+            break;
+#endif
+        case CHARDEV_BACKEND_KIND_TESTDEV:
+            chr = chr_testdev_init();
+            break;
+        case CHARDEV_BACKEND_KIND_STDIO:
+            chr = qemu_chr_open_stdio(backend->stdio);
+            break;
+#ifdef _WIN32
+        case CHARDEV_BACKEND_KIND_CONSOLE:
+            chr = qemu_chr_open_win_con();
+            break;
+#endif
+#ifdef CONFIG_SPICE
+        case CHARDEV_BACKEND_KIND_SPICEVMC:
+            chr = qemu_chr_open_spice_vmc(backend->spicevmc->type);
+            break;
+        case CHARDEV_BACKEND_KIND_SPICEPORT:
+            chr = qemu_chr_open_spice_port(backend->spiceport->fqdn);
+            break;
+#endif
+        case CHARDEV_BACKEND_KIND_VC:
+            chr = vc_init(backend->vc);
+            break;
+        case CHARDEV_BACKEND_KIND_RINGBUF:
+        case CHARDEV_BACKEND_KIND_MEMORY:
+            chr = qemu_chr_open_ringbuf(backend->ringbuf, &local_err);
+            break;
+        default:
+            error_setg(errp, "unknown chardev backend (%d)", backend->kind);
+            goto out_error;
         }
-        goto out_error;
+
+        /*
+         * Character backend open hasn't been fully converted to the Error
+         * API.  Some opens fail without setting an error.  Set a generic
+         * error then.
+         * TODO full conversion to Error API
+         */
+        if (chr == NULL) {
+            if (local_err) {
+                error_propagate(errp, local_err);
+            } else {
+                error_setg(errp, "Failed to create chardev");
+            }
+            goto out_error;
+        }
     }
 
     chr->label = g_strdup(id);
@@ -4349,32 +4371,37 @@ void qmp_chardev_remove(const char *id, Error **errp)
 
 static void register_types(void)
 {
-    register_char_driver("null", CHARDEV_BACKEND_KIND_NULL, NULL);
+    register_char_driver("null", CHARDEV_BACKEND_KIND_NULL, NULL,
+                         NULL);
     register_char_driver("socket", CHARDEV_BACKEND_KIND_SOCKET,
-                         qemu_chr_parse_socket);
-    register_char_driver("udp", CHARDEV_BACKEND_KIND_UDP, qemu_chr_parse_udp);
+                         qemu_chr_parse_socket, NULL);
+    register_char_driver("udp", CHARDEV_BACKEND_KIND_UDP, qemu_chr_parse_udp,
+                         NULL);
     register_char_driver("ringbuf", CHARDEV_BACKEND_KIND_RINGBUF,
-                         qemu_chr_parse_ringbuf);
+                         qemu_chr_parse_ringbuf, NULL);
     register_char_driver("file", CHARDEV_BACKEND_KIND_FILE,
-                         qemu_chr_parse_file_out);
+                         qemu_chr_parse_file_out, NULL);
     register_char_driver("stdio", CHARDEV_BACKEND_KIND_STDIO,
-                         qemu_chr_parse_stdio);
+                         qemu_chr_parse_stdio, NULL);
     register_char_driver("serial", CHARDEV_BACKEND_KIND_SERIAL,
-                         qemu_chr_parse_serial);
+                         qemu_chr_parse_serial, NULL);
     register_char_driver("tty", CHARDEV_BACKEND_KIND_SERIAL,
-                         qemu_chr_parse_serial);
+                         qemu_chr_parse_serial, NULL);
     register_char_driver("parallel", CHARDEV_BACKEND_KIND_PARALLEL,
-                         qemu_chr_parse_parallel);
+                         qemu_chr_parse_parallel, NULL);
     register_char_driver("parport", CHARDEV_BACKEND_KIND_PARALLEL,
-                         qemu_chr_parse_parallel);
-    register_char_driver("pty", CHARDEV_BACKEND_KIND_PTY, NULL);
-    register_char_driver("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL);
+                         qemu_chr_parse_parallel, NULL);
+    register_char_driver("pty", CHARDEV_BACKEND_KIND_PTY, NULL,
+                         NULL);
+    register_char_driver("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL,
+                         NULL);
     register_char_driver("pipe", CHARDEV_BACKEND_KIND_PIPE,
-                         qemu_chr_parse_pipe);
-    register_char_driver("mux", CHARDEV_BACKEND_KIND_MUX, qemu_chr_parse_mux);
+                         qemu_chr_parse_pipe, NULL);
+    register_char_driver("mux", CHARDEV_BACKEND_KIND_MUX, qemu_chr_parse_mux,
+                         NULL);
     /* Bug-compatibility: */
     register_char_driver("memory", CHARDEV_BACKEND_KIND_MEMORY,
-                         qemu_chr_parse_ringbuf);
+                         qemu_chr_parse_ringbuf, NULL);
     /* this must be done after machine init, since we register FEs with muxes
      * as part of realize functions like serial_isa_realizefn when -nographic
      * is specified

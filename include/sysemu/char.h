@@ -345,7 +345,9 @@ bool chr_is_ringbuf(const CharDriverState *chr);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
 
 void register_char_driver(const char *name, ChardevBackendKind kind,
-        void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp));
+        void (*parse)(QemuOpts *opts, ChardevBackend *backend, Error **errp),
+        CharDriverState *(*create)(const char *id, ChardevBackend *backend,
+                                   ChardevReturn *ret, Error **errp));
 
 /* add an eventfd to the qemu devices that are polled */
 CharDriverState *qemu_chr_open_eventfd(int eventfd);
