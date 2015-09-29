@@ -69,7 +69,7 @@ def gen_event_send(name, arg_type):
     /* Fake visit, as if all members are under a structure */
     visit_start_struct(v, NULL, "", "%(name)s", 0, &err);
     if (err) {
-        goto clean;
+        goto out;
     }
 
 ''',
@@ -92,7 +92,7 @@ def gen_event_send(name, arg_type):
             ret += mcgen('''
     visit_type_%(c_type)s(v, %(cast)s&%(c_name)s, "%(name)s", &err);
     if (err) {
-        goto clean;
+        goto out;
     }
 ''',
                          cast=cast,
@@ -110,7 +110,7 @@ def gen_event_send(name, arg_type):
 
     visit_end_struct(v, &err);
     if (err) {
-        goto clean;
+        goto out;
     }
 
     obj = qmp_output_get_qobject(qov);
@@ -127,7 +127,7 @@ def gen_event_send(name, arg_type):
 
     if arg_type and arg_type.members:
         ret += mcgen('''
- clean:
+out:
     qmp_output_visitor_cleanup(qov);
 ''')
     ret += mcgen('''

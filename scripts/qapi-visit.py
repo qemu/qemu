@@ -209,7 +209,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     }
     visit_get_next_type(v, (int*) &(*obj)->kind, %(c_name)s_qtypes, name, &err);
     if (err) {
-        goto out_end;
+        goto out_obj;
     }
     switch ((*obj)->kind) {
 ''',
@@ -230,7 +230,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     default:
         abort();
     }
-out_end:
+out_obj:
     error_propagate(errp, err);
     err = NULL;
     visit_end_implicit_struct(v, &err);
