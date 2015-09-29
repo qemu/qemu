@@ -4312,7 +4312,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             abort();
             break;
         case CHARDEV_BACKEND_KIND_MSMOUSE:
-            chr = qemu_chr_open_msmouse();
+            abort();
             break;
 #ifdef CONFIG_BRLAPI
         case CHARDEV_BACKEND_KIND_BRAILLE:

@@ -356,9 +356,6 @@ extern int term_escape_char;
 
 CharDriverState *qemu_char_get_next_serial(void);
 
-/* msmouse */
-CharDriverState *qemu_chr_open_msmouse(void);
-
 /* testdev.c */
 CharDriverState *chr_testdev_init(void);
 
