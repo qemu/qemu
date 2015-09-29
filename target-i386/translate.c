@@ -2432,7 +2432,7 @@ static void gen_pusha(DisasContext *s)
 {
     int i;
     gen_op_movl_A0_reg(R_ESP);
-    gen_op_addl_A0_im(-8 << s->dflag);
+    gen_op_addl_A0_im(-(8 << s->dflag));
     if (!s->ss32)
         tcg_gen_ext16u_tl(cpu_A0, cpu_A0);
     tcg_gen_mov_tl(cpu_T[1], cpu_A0);
