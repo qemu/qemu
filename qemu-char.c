@@ -4154,11 +4154,14 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
     return false;
 }
 
-static CharDriverState *qmp_chardev_open_socket(ChardevSocket *sock,
+static CharDriverState *qmp_chardev_open_socket(const char *id,
+                                                ChardevBackend *backend,
+                                                ChardevReturn *ret,
                                                 Error **errp)
 {
     CharDriverState *chr;
     TCPCharDriver *s;
+    ChardevSocket *sock = backend->socket;
     SocketAddress *addr = sock->addr;
     bool do_nodelay     = sock->has_nodelay ? sock->nodelay : false;
     bool is_listen      = sock->has_server  ? sock->server  : true;
@@ -4276,7 +4279,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             abort();
             break;
         case CHARDEV_BACKEND_KIND_SOCKET:
-            chr = qmp_chardev_open_socket(backend->socket, &local_err);
+            abort();
             break;
         case CHARDEV_BACKEND_KIND_UDP:
             chr = qmp_chardev_open_udp(backend->udp, &local_err);
@@ -4392,7 +4395,7 @@ static void register_types(void)
     register_char_driver("null", CHARDEV_BACKEND_KIND_NULL, NULL,
                          NULL);
     register_char_driver("socket", CHARDEV_BACKEND_KIND_SOCKET,
-                         qemu_chr_parse_socket, NULL);
+                         qemu_chr_parse_socket, qmp_chardev_open_socket);
     register_char_driver("udp", CHARDEV_BACKEND_KIND_UDP, qemu_chr_parse_udp,
                          NULL);
     register_char_driver("ringbuf", CHARDEV_BACKEND_KIND_RINGBUF,
