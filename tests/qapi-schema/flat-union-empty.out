@@ -1,0 +1,7 @@
+object :empty
+object Base
+    member type: Empty optional=False
+enum Empty []
+object Union
+    base Base
+    tag type

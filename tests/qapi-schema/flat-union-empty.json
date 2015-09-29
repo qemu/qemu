@@ -1,0 +1,4 @@
+# FIXME - flat unions should not be empty
+{ 'enum': 'Empty', 'data': [ ] }
+{ 'struct': 'Base', 'data': { 'type': 'Empty' } }
+{ 'union': 'Union', 'base': 'Base', 'discriminator': 'type', 'data': { } }
