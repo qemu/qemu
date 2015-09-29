@@ -264,16 +264,18 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     if (err) {
         goto out;
     }
-    if (*obj) {
+    if (!*obj) {
+        goto out_obj;
+    }
 ''',
                  c_name=c_name(name), name=name)
 
     if base:
         ret += mcgen('''
-        visit_type_%(c_name)s_fields(v, obj, &err);
-        if (err) {
-            goto out_obj;
-        }
+    visit_type_%(c_name)s_fields(v, obj, &err);
+    if (err) {
+        goto out_obj;
+    }
 ''',
                      c_name=c_name(name))
 
@@ -282,14 +284,14 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
         # we pointlessly use a different key for simple unions
         tag_key = 'type'
     ret += mcgen('''
-        visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
-        if (err) {
-            goto out_obj;
-        }
-        if (!visit_start_union(v, !!(*obj)->data, &err) || err) {
-            goto out_obj;
-        }
-        switch ((*obj)->%(c_name)s) {
+    visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
+    if (err) {
+        goto out_obj;
+    }
+    if (!visit_start_union(v, !!(*obj)->data, &err) || err) {
+        goto out_obj;
+    }
+    switch ((*obj)->%(c_name)s) {
 ''',
                  c_type=variants.tag_member.type.c_name(),
                  # TODO ugly special case for simple union
@@ -302,37 +304,36 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
         # TODO ugly special case for simple union
         simple_union_type = var.simple_union_type()
         ret += mcgen('''
-        case %(case)s:
+    case %(case)s:
 ''',
                      case=c_enum_const(variants.tag_member.type.name,
                                        var.name))
         if simple_union_type:
             ret += mcgen('''
-            visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "data", &err);
+        visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "data", &err);
 ''',
                          c_type=simple_union_type.c_name(),
                          c_name=c_name(var.name))
         else:
             ret += mcgen('''
-            visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
+        visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
 ''',
                          c_type=var.type.c_name(),
                          c_name=c_name(var.name))
         ret += mcgen('''
-            break;
+        break;
 ''')
 
     ret += mcgen('''
-        default:
-            abort();
-        }
-out_obj:
-        error_propagate(errp, err);
-        err = NULL;
-        visit_end_union(v, !!(*obj)->data, &err);
-        error_propagate(errp, err);
-        err = NULL;
+    default:
+        abort();
     }
+out_obj:
+    error_propagate(errp, err);
+    err = NULL;
+    visit_end_union(v, !!(*obj)->data, &err);
+    error_propagate(errp, err);
+    err = NULL;
     visit_end_struct(v, &err);
 out:
     error_propagate(errp, err);
