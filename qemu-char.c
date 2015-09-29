@@ -1390,7 +1390,9 @@ static void pty_chr_close(struct CharDriverState *chr)
 }
 
 static CharDriverState *qemu_chr_open_pty(const char *id,
-                                          ChardevReturn *ret)
+                                          ChardevBackend *backend,
+                                          ChardevReturn *ret,
+                                          Error **errp)
 {
     CharDriverState *chr;
     PtyCharDriver *s;
@@ -1399,6 +1401,7 @@ static CharDriverState *qemu_chr_open_pty(const char *id,
 
     master_fd = qemu_openpty_raw(&slave_fd, pty_name);
     if (master_fd < 0) {
+        error_setg_errno(errp, errno, "Failed to create PTY");
         return NULL;
     }
 
@@ -4287,11 +4290,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         case CHARDEV_BACKEND_KIND_UDP:
             abort();
             break;
-#ifdef HAVE_CHARDEV_PTY
         case CHARDEV_BACKEND_KIND_PTY:
-            chr = qemu_chr_open_pty(id, ret);
+            abort();
             break;
-#endif
         case CHARDEV_BACKEND_KIND_NULL:
             chr = qemu_chr_open_null();
             break;
@@ -4419,8 +4420,10 @@ static void register_types(void)
     register_char_driver("parport", CHARDEV_BACKEND_KIND_PARALLEL,
                          qemu_chr_parse_parallel, qmp_chardev_open_parallel);
 #endif
+#ifdef HAVE_CHARDEV_PTY
     register_char_driver("pty", CHARDEV_BACKEND_KIND_PTY, NULL,
-                         NULL);
+                         qemu_chr_open_pty);
+#endif
     register_char_driver("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL,
                          NULL);
     register_char_driver("pipe", CHARDEV_BACKEND_KIND_PIPE,
