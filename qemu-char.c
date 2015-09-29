@@ -1168,19 +1168,23 @@ static void qemu_chr_close_stdio(struct CharDriverState *chr)
     fd_chr_close(chr);
 }
 
-static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
+static CharDriverState *qemu_chr_open_stdio(const char *id,
+                                            ChardevBackend *backend,
+                                            ChardevReturn *ret,
+                                            Error **errp)
 {
+    ChardevStdio *opts = backend->stdio;
     CharDriverState *chr;
     struct sigaction act;
 
     if (is_daemonized()) {
-        error_report("cannot use stdio with -daemonize");
+        error_setg(errp, "cannot use stdio with -daemonize");
         return NULL;
     }
 
     if (stdio_in_use) {
-        error_report("cannot use stdio by multiple character devices");
-        exit(1);
+        error_setg(errp, "cannot use stdio by multiple character devices");
+        return NULL;
     }
 
     stdio_in_use = true;
@@ -2341,7 +2345,10 @@ static void win_stdio_close(CharDriverState *chr)
     g_free(chr);
 }
 
-static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
+static CharDriverState *qemu_chr_open_stdio(const char *id,
+                                            ChardevBackend *backend,
+                                            ChardevReturn *ret,
+                                            Error **errp)
 {
     CharDriverState   *chr;
     WinStdioCharState *stdio;
@@ -2353,8 +2360,8 @@ static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
 
     stdio->hStdIn = GetStdHandle(STD_INPUT_HANDLE);
     if (stdio->hStdIn == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "cannot open stdio: invalid handle\n");
-        exit(1);
+        error_setg(errp, "cannot open stdio: invalid handle");
+        return NULL;
     }
 
     is_console = GetConsoleMode(stdio->hStdIn, &dwMode) != 0;
@@ -2366,25 +2373,30 @@ static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
     if (is_console) {
         if (qemu_add_wait_object(stdio->hStdIn,
                                  win_stdio_wait_func, chr)) {
-            fprintf(stderr, "qemu_add_wait_object: failed\n");
+            error_setg(errp, "qemu_add_wait_object: failed");
+            goto err1;
         }
     } else {
         DWORD   dwId;
             
         stdio->hInputReadyEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
         stdio->hInputDoneEvent  = CreateEvent(NULL, FALSE, FALSE, NULL);
-        stdio->hInputThread     = CreateThread(NULL, 0, win_stdio_thread,
-                                               chr, 0, &dwId);
-
-        if (stdio->hInputThread == INVALID_HANDLE_VALUE
-            || stdio->hInputReadyEvent == INVALID_HANDLE_VALUE
+        if (stdio->hInputReadyEvent == INVALID_HANDLE_VALUE
             || stdio->hInputDoneEvent == INVALID_HANDLE_VALUE) {
-            fprintf(stderr, "cannot create stdio thread or event\n");
-            exit(1);
+            error_setg(errp, "cannot create event");
+            goto err2;
         }
         if (qemu_add_wait_object(stdio->hInputReadyEvent,
                                  win_stdio_thread_wait_func, chr)) {
-            fprintf(stderr, "qemu_add_wait_object: failed\n");
+            error_setg(errp, "qemu_add_wait_object: failed");
+            goto err2;
+        }
+        stdio->hInputThread     = CreateThread(NULL, 0, win_stdio_thread,
+                                               chr, 0, &dwId);
+
+        if (stdio->hInputThread == INVALID_HANDLE_VALUE) {
+            error_setg(errp, "cannot create stdio thread");
+            goto err3;
         }
     }
 
@@ -2402,6 +2414,15 @@ static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
     qemu_chr_fe_set_echo(chr, false);
 
     return chr;
+
+err3:
+    qemu_del_wait_object(stdio->hInputReadyEvent, NULL, NULL);
+err2:
+    CloseHandle(stdio->hInputReadyEvent);
+    CloseHandle(stdio->hInputDoneEvent);
+err1:
+    qemu_del_wait_object(stdio->hStdIn, NULL, NULL);
+    return NULL;
 }
 #endif /* !_WIN32 */
 
@@ -4321,7 +4342,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             abort();
             break;
         case CHARDEV_BACKEND_KIND_STDIO:
-            chr = qemu_chr_open_stdio(backend->stdio);
+            abort();
             break;
 #ifdef _WIN32
         case CHARDEV_BACKEND_KIND_CONSOLE:
@@ -4411,7 +4432,7 @@ static void register_types(void)
     register_char_driver("file", CHARDEV_BACKEND_KIND_FILE,
                          qemu_chr_parse_file_out, qmp_chardev_open_file);
     register_char_driver("stdio", CHARDEV_BACKEND_KIND_STDIO,
-                         qemu_chr_parse_stdio, NULL);
+                         qemu_chr_parse_stdio, qemu_chr_open_stdio);
 #if defined HAVE_CHARDEV_SERIAL
     register_char_driver("serial", CHARDEV_BACKEND_KIND_SERIAL,
                          qemu_chr_parse_serial, qmp_chardev_open_serial);
