@@ -356,9 +356,6 @@ extern int term_escape_char;
 
 CharDriverState *qemu_char_get_next_serial(void);
 
-/* testdev.c */
-CharDriverState *chr_testdev_init(void);
-
 /* console.c */
 typedef CharDriverState *(VcHandler)(ChardevVC *vc);
 

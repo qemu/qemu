@@ -4318,7 +4318,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             abort();
             break;
         case CHARDEV_BACKEND_KIND_TESTDEV:
-            chr = chr_testdev_init();
+            abort();
             break;
         case CHARDEV_BACKEND_KIND_STDIO:
             chr = qemu_chr_open_stdio(backend->stdio);
