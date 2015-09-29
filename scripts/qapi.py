@@ -81,6 +81,7 @@ def error_path(parent):
 
 class QAPISchemaError(Exception):
     def __init__(self, schema, msg):
+        Exception.__init__(self)
         self.fname = schema.fname
         self.msg = msg
         self.col = 1
@@ -98,6 +99,7 @@ class QAPISchemaError(Exception):
 
 class QAPIExprError(Exception):
     def __init__(self, expr_info, msg):
+        Exception.__init__(self)
         self.info = expr_info
         self.msg = msg
 
