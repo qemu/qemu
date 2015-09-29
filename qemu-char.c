@@ -1078,17 +1078,16 @@ static CharDriverState *qemu_chr_open_fd(int fd_in, int fd_out)
     return chr;
 }
 
-static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
+static CharDriverState *qemu_chr_open_pipe(const char *id,
+                                           ChardevBackend *backend,
+                                           ChardevReturn *ret,
+                                           Error **errp)
 {
+    ChardevHostdev *opts = backend->pipe;
     int fd_in, fd_out;
     char filename_in[CHR_MAX_FILENAME_SIZE];
     char filename_out[CHR_MAX_FILENAME_SIZE];
     const char *filename = opts->device;
-
-    if (filename == NULL) {
-        fprintf(stderr, "chardev: pipe: no filename given\n");
-        return NULL;
-    }
 
     snprintf(filename_in, CHR_MAX_FILENAME_SIZE, "%s.in", filename);
     snprintf(filename_out, CHR_MAX_FILENAME_SIZE, "%s.out", filename);
@@ -1101,6 +1100,7 @@ static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
 	    close(fd_out);
         TFR(fd_in = fd_out = qemu_open(filename, O_RDWR | O_BINARY));
         if (fd_in < 0) {
+            error_setg_file_open(errp, errno, filename);
             return NULL;
         }
     }
@@ -2084,7 +2084,8 @@ static int win_chr_pipe_poll(void *opaque)
     return 0;
 }
 
-static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
+static int win_chr_pipe_init(CharDriverState *chr, const char *filename,
+                             Error **errp)
 {
     WinCharState *s = chr->opaque;
     OVERLAPPED ov;
@@ -2096,12 +2097,12 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
 
     s->hsend = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!s->hsend) {
-        fprintf(stderr, "Failed CreateEvent\n");
+        error_setg(errp, "Failed CreateEvent");
         goto fail;
     }
     s->hrecv = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!s->hrecv) {
-        fprintf(stderr, "Failed CreateEvent\n");
+        error_setg(errp, "Failed CreateEvent");
         goto fail;
     }
 
@@ -2111,7 +2112,7 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
                               PIPE_WAIT,
                               MAXCONNECT, NSENDBUF, NRECVBUF, NTIMEOUT, NULL);
     if (s->hcom == INVALID_HANDLE_VALUE) {
-        fprintf(stderr, "Failed CreateNamedPipe (%lu)\n", GetLastError());
+        error_setg(errp, "Failed CreateNamedPipe (%lu)", GetLastError());
         s->hcom = NULL;
         goto fail;
     }
@@ -2120,13 +2121,13 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
     ov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     ret = ConnectNamedPipe(s->hcom, &ov);
     if (ret) {
-        fprintf(stderr, "Failed ConnectNamedPipe\n");
+        error_setg(errp, "Failed ConnectNamedPipe");
         goto fail;
     }
 
     ret = GetOverlappedResult(s->hcom, &ov, &size, TRUE);
     if (!ret) {
-        fprintf(stderr, "Failed GetOverlappedResult\n");
+        error_setg(errp, "Failed GetOverlappedResult");
         if (ov.hEvent) {
             CloseHandle(ov.hEvent);
             ov.hEvent = NULL;
@@ -2147,8 +2148,12 @@ static int win_chr_pipe_init(CharDriverState *chr, const char *filename)
 }
 
 
-static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
+static CharDriverState *qemu_chr_open_pipe(const char *id,
+                                           ChardevBackend *backend,
+                                           ChardevReturn *ret,
+                                           Error **errp)
 {
+    ChardevHostdev *opts = backend->pipe;
     const char *filename = opts->device;
     CharDriverState *chr;
     WinCharState *s;
@@ -2159,7 +2164,7 @@ static CharDriverState *qemu_chr_open_pipe(ChardevHostdev *opts)
     chr->chr_write = win_chr_write;
     chr->chr_close = win_chr_close;
 
-    if (win_chr_pipe_init(chr, filename) < 0) {
+    if (win_chr_pipe_init(chr, filename, errp) < 0) {
         g_free(s);
         g_free(chr);
         return NULL;
@@ -4268,7 +4273,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             abort();
             break;
         case CHARDEV_BACKEND_KIND_PIPE:
-            chr = qemu_chr_open_pipe(backend->pipe);
+            abort();
             break;
         case CHARDEV_BACKEND_KIND_SOCKET:
             chr = qmp_chardev_open_socket(backend->socket, &local_err);
@@ -4413,7 +4418,7 @@ static void register_types(void)
     register_char_driver("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL,
                          NULL);
     register_char_driver("pipe", CHARDEV_BACKEND_KIND_PIPE,
-                         qemu_chr_parse_pipe, NULL);
+                         qemu_chr_parse_pipe, qemu_chr_open_pipe);
     register_char_driver("mux", CHARDEV_BACKEND_KIND_MUX, qemu_chr_parse_mux,
                          NULL);
     /* Bug-compatibility: */
