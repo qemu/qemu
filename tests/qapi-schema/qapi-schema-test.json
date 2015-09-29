@@ -67,6 +67,14 @@
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
+# for testing use of 'number' within alternates
+{ 'alternate': 'AltStrBool', 'data': { 's': 'str', 'b': 'bool' } }
+{ 'alternate': 'AltStrNum', 'data': { 's': 'str', 'n': 'number' } }
+{ 'alternate': 'AltNumStr', 'data': { 'n': 'number', 's': 'str' } }
+{ 'alternate': 'AltStrInt', 'data': { 's': 'str', 'i': 'int' } }
+{ 'alternate': 'AltIntNum', 'data': { 'i': 'int', 'n': 'number' } }
+{ 'alternate': 'AltNumInt', 'data': { 'n': 'number', 'i': 'int' } }
+
 # for testing native lists
 { 'union': 'UserDefNativeListUnion',
   'data': { 'integer': ['int'],

@@ -371,12 +371,135 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
     UserDefAlternate *tmp;
 
     v = visitor_input_test_init(data, "42");
-
-    visit_type_UserDefAlternate(v, &tmp, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
     g_assert_cmpint(tmp->kind, ==, USER_DEF_ALTERNATE_KIND_I);
     g_assert_cmpint(tmp->i, ==, 42);
     qapi_free_UserDefAlternate(tmp);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "'string'");
+    visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
+    g_assert_cmpint(tmp->kind, ==, USER_DEF_ALTERNATE_KIND_S);
+    g_assert_cmpstr(tmp->s, ==, "string");
+    qapi_free_UserDefAlternate(tmp);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "false");
+    visit_type_UserDefAlternate(v, &tmp, NULL, &err);
+    g_assert(err);
+    error_free(err);
+    err = NULL;
+    qapi_free_UserDefAlternate(tmp);
+    visitor_input_teardown(data, NULL);
+}
+
+static void test_visitor_in_alternate_number(TestInputVisitorData *data,
+                                             const void *unused)
+{
+    Visitor *v;
+    Error *err = NULL;
+    AltStrBool *asb;
+    AltStrNum *asn;
+    AltNumStr *ans;
+    AltStrInt *asi;
+    AltIntNum *ain;
+    AltNumInt *ani;
+
+    /* Parsing an int */
+
+    v = visitor_input_test_init(data, "42");
+    visit_type_AltStrBool(v, &asb, NULL, &err);
+    g_assert(err);
+    error_free(err);
+    err = NULL;
+    qapi_free_AltStrBool(asb);
+    visitor_input_teardown(data, NULL);
+
+    /* FIXME: Order of alternate should not affect semantics; asn should
+     * parse the same as ans */
+    v = visitor_input_test_init(data, "42");
+    visit_type_AltStrNum(v, &asn, NULL, &err);
+    /* FIXME g_assert_cmpint(asn->kind, == ALT_STR_NUM_KIND_N); */
+    /* FIXME g_assert_cmpfloat(asn->n, ==, 42); */
+    g_assert(err);
+    error_free(err);
+    err = NULL;
+    qapi_free_AltStrNum(asn);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42");
+    visit_type_AltNumStr(v, &ans, NULL, &error_abort);
+    g_assert_cmpint(ans->kind, ==, ALT_NUM_STR_KIND_N);
+    g_assert_cmpfloat(ans->n, ==, 42);
+    qapi_free_AltNumStr(ans);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42");
+    visit_type_AltStrInt(v, &asi, NULL, &error_abort);
+    g_assert_cmpint(asi->kind, ==, ALT_STR_INT_KIND_I);
+    g_assert_cmpint(asi->i, ==, 42);
+    qapi_free_AltStrInt(asi);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42");
+    visit_type_AltIntNum(v, &ain, NULL, &error_abort);
+    g_assert_cmpint(ain->kind, ==, ALT_INT_NUM_KIND_I);
+    g_assert_cmpint(ain->i, ==, 42);
+    qapi_free_AltIntNum(ain);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42");
+    visit_type_AltNumInt(v, &ani, NULL, &error_abort);
+    g_assert_cmpint(ani->kind, ==, ALT_NUM_INT_KIND_I);
+    g_assert_cmpint(ani->i, ==, 42);
+    qapi_free_AltNumInt(ani);
+    visitor_input_teardown(data, NULL);
+
+    /* Parsing a double */
+
+    v = visitor_input_test_init(data, "42.5");
+    visit_type_AltStrBool(v, &asb, NULL, &err);
+    g_assert(err);
+    error_free(err);
+    err = NULL;
+    qapi_free_AltStrBool(asb);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42.5");
+    visit_type_AltStrNum(v, &asn, NULL, &error_abort);
+    g_assert_cmpint(asn->kind, ==, ALT_STR_NUM_KIND_N);
+    g_assert_cmpfloat(asn->n, ==, 42.5);
+    qapi_free_AltStrNum(asn);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42.5");
+    visit_type_AltNumStr(v, &ans, NULL, &error_abort);
+    g_assert_cmpint(ans->kind, ==, ALT_NUM_STR_KIND_N);
+    g_assert_cmpfloat(ans->n, ==, 42.5);
+    qapi_free_AltNumStr(ans);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42.5");
+    visit_type_AltStrInt(v, &asi, NULL, &err);
+    g_assert(err);
+    error_free(err);
+    err = NULL;
+    qapi_free_AltStrInt(asi);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42.5");
+    visit_type_AltIntNum(v, &ain, NULL, &error_abort);
+    g_assert_cmpint(ain->kind, ==, ALT_INT_NUM_KIND_N);
+    g_assert_cmpfloat(ain->n, ==, 42.5);
+    qapi_free_AltIntNum(ain);
+    visitor_input_teardown(data, NULL);
+
+    v = visitor_input_test_init(data, "42.5");
+    visit_type_AltNumInt(v, &ani, NULL, &error_abort);
+    g_assert_cmpint(ani->kind, ==, ALT_NUM_INT_KIND_N);
+    g_assert_cmpfloat(ani->n, ==, 42.5);
+    qapi_free_AltNumInt(ani);
+    visitor_input_teardown(data, NULL);
 }
 
 static void test_native_list_integer_helper(TestInputVisitorData *data,
@@ -720,6 +843,8 @@ int main(int argc, char **argv)
                            &in_visitor_data, test_visitor_in_alternate);
     input_visitor_test_add("/visitor/input/errors",
                            &in_visitor_data, test_visitor_in_errors);
+    input_visitor_test_add("/visitor/input/alternate-number",
+                           &in_visitor_data, test_visitor_in_alternate_number);
     input_visitor_test_add("/visitor/input/native_list/int",
                            &in_visitor_data,
                            test_visitor_in_native_list_int);
