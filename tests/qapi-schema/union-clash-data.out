@@ -1,0 +1,6 @@
+object :empty
+object :obj-int-wrapper
+    member data: int optional=False
+object TestUnion
+    case data: :obj-int-wrapper
+enum TestUnionKind ['data']

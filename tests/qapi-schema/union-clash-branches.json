@@ -1,0 +1,5 @@
+# Union branch name collision
+# Reject a union that would result in a collision in generated C names (this
+# would try to generate two enum values 'TEST_UNION_KIND_A_B').
+{ 'union': 'TestUnion',
+  'data': { 'a-b': 'int', 'a_b': 'str' } }

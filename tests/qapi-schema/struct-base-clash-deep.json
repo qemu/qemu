@@ -1,4 +1,7 @@
-# we check for no duplicate keys with indirect base
+# Reject attempts to duplicate QMP members
+# Here, 'name' would have to appear twice on the wire, locally and
+# indirectly for the grandparent base; the collision doesn't care that
+# one instance is optional.
 { 'struct': 'Base',
   'data': { 'name': 'str' } }
 { 'struct': 'Mid',

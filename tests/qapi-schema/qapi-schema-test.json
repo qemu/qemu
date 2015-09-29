@@ -32,11 +32,14 @@
             'dict1': 'UserDefTwoDict' } }
 
 # for testing unions
+# Among other things, test that a name collision between branches does
+# not cause any problems (since only one branch can be in use at a time),
+# by intentionally using two branches that both have a C member 'a_b'
 { 'struct': 'UserDefA',
-  'data': { 'boolean': 'bool' } }
+  'data': { 'boolean': 'bool', '*a_b': 'int' } }
 
 { 'struct': 'UserDefB',
-  'data': { 'intb': 'int' } }
+  'data': { 'intb': 'int', '*a-b': 'bool' } }
 
 { 'union': 'UserDefFlatUnion',
   'base': 'UserDefUnionBase',   # intentional forward reference

@@ -1,0 +1,10 @@
+# Union branch 'type'
+# FIXME: this triggers an assertion failure. But even with that fixed,
+# we would have a clash in generated C, between the simple union's
+# implicit tag member 'kind' and the branch name 'kind' within the
+# union. We should either reject this, or munge the generated C to let
+# it compile.
+# TODO: Even when the generated C is switched to use 'type' rather than
+# 'kind', to match the QMP spelling, the collision should still be detected.
+{ 'union': 'TestUnion',
+  'data': { 'kind': 'int', 'type': 'str' } }

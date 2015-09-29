@@ -1,0 +1,5 @@
+object :empty
+object Base
+object Sub
+    base Base
+    member base: str optional=False

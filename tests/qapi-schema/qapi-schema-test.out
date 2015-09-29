@@ -71,6 +71,7 @@ enum QEnumTwo ['value1', 'value2']
     prefix QENUM_TWO
 object UserDefA
     member boolean: bool optional=False
+    member a_b: int optional=True
 alternate UserDefAlternate
     case uda: UserDefA
     case s: str
@@ -78,6 +79,7 @@ alternate UserDefAlternate
 enum UserDefAlternateKind ['uda', 's', 'i']
 object UserDefB
     member intb: int optional=False
+    member a-b: bool optional=True
 object UserDefC
     member string1: str optional=False
     member string2: str optional=False

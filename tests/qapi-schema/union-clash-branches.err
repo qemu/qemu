@@ -1,0 +1,1 @@
+tests/qapi-schema/union-clash-branches.json:4: Union 'TestUnion' member 'a_b' clashes with 'a-b'

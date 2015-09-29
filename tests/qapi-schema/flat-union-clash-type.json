@@ -1,0 +1,16 @@
+# Flat union branch 'type'
+# FIXME: this triggers an assertion failure. But even with that fixed,
+# we would have a clash in generated C, between the member 'type'
+# inherited from 'Base' and the branch name 'type' within the
+# union. We should either reject this, or munge the generated C to let
+# it compile.
+{ 'enum': 'TestEnum',
+  'data': [ 'type' ] }
+{ 'struct': 'Base',
+  'data': { 'type': 'TestEnum' } }
+{ 'struct': 'Branch1',
+  'data': { 'string': 'str' } }
+{ 'union': 'TestUnion',
+  'base': 'Base',
+  'discriminator': 'type',
+  'data': { 'type': 'Branch1' } }
