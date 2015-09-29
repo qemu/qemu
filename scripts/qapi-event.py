@@ -68,12 +68,9 @@ def gen_event_send(name, arg_type):
 
     /* Fake visit, as if all members are under a structure */
     visit_start_struct(v, NULL, "", "%(name)s", 0, &err);
-    if (err) {
-        goto out;
-    }
-
 ''',
                      name=name)
+        ret += gen_err_check()
 
         for memb in arg_type.members:
             if memb.optional:
@@ -91,14 +88,12 @@ def gen_event_send(name, arg_type):
 
             ret += mcgen('''
     visit_type_%(c_type)s(v, %(cast)s&%(c_name)s, "%(name)s", &err);
-    if (err) {
-        goto out;
-    }
 ''',
                          cast=cast,
                          c_name=c_name(memb.name),
                          c_type=memb.type.c_name(),
                          name=memb.name)
+            ret += gen_err_check()
 
             if memb.optional:
                 pop_indent()
@@ -107,7 +102,6 @@ def gen_event_send(name, arg_type):
 ''')
 
         ret += mcgen('''
-
     visit_end_struct(v, &err);
     if (err) {
         goto out;

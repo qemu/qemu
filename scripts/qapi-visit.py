@@ -81,11 +81,9 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
     if base:
         ret += mcgen('''
     visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
-    if (err) {
-        goto out;
-    }
 ''',
                      c_type=base.c_name(), c_name=c_name('base'))
+        ret += gen_err_check()
 
     for memb in members:
         if memb.optional:
@@ -107,11 +105,7 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
             ret += mcgen('''
     }
 ''')
-        ret += mcgen('''
-    if (err) {
-        goto out;
-    }
-''')
+        ret += gen_err_check()
 
     if re.search('^ *goto out;', ret, re.MULTILINE):
         ret += mcgen('''
@@ -271,11 +265,9 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     if base:
         ret += mcgen('''
     visit_type_%(c_name)s_fields(v, obj, &err);
-    if (err) {
-        goto out_obj;
-    }
 ''',
                      c_name=c_name(name))
+        ret += gen_err_check(label='out_obj')
 
     tag_key = variants.tag_member.name
     if not variants.tag_name:

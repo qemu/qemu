@@ -1536,6 +1536,18 @@ def gen_params(arg_type, extra):
         ret += sep + extra
     return ret
 
+
+def gen_err_check(err='err', label='out'):
+    if not err:
+        return ''
+    return mcgen('''
+    if (%(err)s) {
+        goto %(label)s;
+    }
+''',
+                 err=err, label=label)
+
+
 #
 # Common command line parsing
 #

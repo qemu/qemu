@@ -25,17 +25,6 @@ def gen_command_decl(name, arg_type, ret_type):
                  params=gen_params(arg_type, 'Error **errp'))
 
 
-def gen_err_check(err):
-    if not err:
-        return ''
-    return mcgen('''
-    if (%(err)s) {
-        goto out;
-    }
-''',
-                 err=err)
-
-
 def gen_call(name, arg_type, ret_type):
     ret = ''
 
@@ -56,7 +45,7 @@ def gen_call(name, arg_type, ret_type):
 ''',
                 c_name=c_name(name), args=argstr, lhs=lhs)
     if ret_type:
-        ret += gen_err_check('err')
+        ret += gen_err_check()
         ret += mcgen('''
 
     qmp_marshal_output_%(c_name)s(retval, ret, &err);
@@ -133,7 +122,7 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
 ''',
                          c_name=c_name(memb.name), name=memb.name,
                          errp=errparg)
-            ret += gen_err_check(errarg)
+            ret += gen_err_check(err=errarg)
             ret += mcgen('''
     if (has_%(c_name)s) {
 ''',
@@ -144,7 +133,7 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
 ''',
                      c_name=c_name(memb.name), name=memb.name,
                      c_type=memb.type.c_name(), errp=errparg)
-        ret += gen_err_check(errarg)
+        ret += gen_err_check(err=errarg)
         if memb.optional:
             pop_indent()
             ret += mcgen('''
