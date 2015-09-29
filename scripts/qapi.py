@@ -1537,23 +1537,23 @@ def gen_params(arg_type, extra):
     return ret
 
 
-def gen_err_check(err='err', label='out'):
-    if not err:
+def gen_err_check(label='out', skiperr=False):
+    if skiperr:
         return ''
     return mcgen('''
-    if (%(err)s) {
+    if (err) {
         goto %(label)s;
     }
 ''',
-                 err=err, label=label)
+                 label=label)
 
 
-def gen_visit_fields(members, prefix='', need_cast=False, errarg='err'):
+def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False):
     ret = ''
-    if errarg:
-        errparg = '&' + errarg
-    else:
+    if skiperr:
         errparg = 'NULL'
+    else:
+        errparg = '&err'
 
     for memb in members:
         if memb.optional:
@@ -1562,7 +1562,7 @@ def gen_visit_fields(members, prefix='', need_cast=False, errarg='err'):
 ''',
                          prefix=prefix, c_name=c_name(memb.name),
                          name=memb.name, errp=errparg)
-            ret += gen_err_check(err=errarg)
+            ret += gen_err_check(skiperr=skiperr)
             ret += mcgen('''
     if (%(prefix)shas_%(c_name)s) {
 ''',
@@ -1581,7 +1581,7 @@ def gen_visit_fields(members, prefix='', need_cast=False, errarg='err'):
                      c_type=memb.type.c_name(), prefix=prefix, cast=cast,
                      c_name=c_name(memb.name), name=memb.name,
                      errp=errparg)
-        ret += gen_err_check(err=errarg)
+        ret += gen_err_check(skiperr=skiperr)
 
         if memb.optional:
             pop_indent()

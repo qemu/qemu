@@ -101,19 +101,17 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
         return ret
 
     if dealloc:
-        errarg = None
         ret += mcgen('''
     qmp_input_visitor_cleanup(qiv);
     qdv = qapi_dealloc_visitor_new();
     v = qapi_dealloc_get_visitor(qdv);
 ''')
     else:
-        errarg = 'err'
         ret += mcgen('''
     v = qmp_input_get_visitor(qiv);
 ''')
 
-    ret += gen_visit_fields(arg_type.members, errarg=errarg)
+    ret += gen_visit_fields(arg_type.members, skiperr=dealloc)
 
     if dealloc:
         ret += mcgen('''
