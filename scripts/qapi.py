@@ -560,15 +560,14 @@ def check_union(expr, expr_info):
     # Else, it's a flat union.
     else:
         # The object must have a string member 'base'.
-        if not isinstance(base, str):
+        check_type(expr_info, "'base' for union '%s'" % name,
+                   base, allow_metas=['struct'])
+        if not base:
             raise QAPIExprError(expr_info,
-                                "Flat union '%s' must have a string base field"
+                                "Flat union '%s' must have a base"
                                 % name)
         base_fields = find_base_fields(base)
-        if not base_fields:
-            raise QAPIExprError(expr_info,
-                                "Base '%s' is not a valid struct"
-                                % base)
+        assert base_fields
 
         # The value of member 'discriminator' must name a non-optional
         # member of the base struct.

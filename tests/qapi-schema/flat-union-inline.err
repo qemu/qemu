@@ -1,1 +1,1 @@
-tests/qapi-schema/flat-union-inline.json:7: Flat union 'TestUnion' must have a string base field
+tests/qapi-schema/flat-union-inline.json:7: Member 'value1' of union 'TestUnion' should be a type name
