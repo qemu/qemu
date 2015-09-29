@@ -4214,6 +4214,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
 {
     ChardevReturn *ret = g_new0(ChardevReturn, 1);
     CharDriverState *base, *chr = NULL;
+    Error *local_err = NULL;
 
     chr = qemu_chr_find(id);
     if (chr) {
@@ -4224,22 +4225,22 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
 
     switch (backend->kind) {
     case CHARDEV_BACKEND_KIND_FILE:
-        chr = qmp_chardev_open_file(backend->file, errp);
+        chr = qmp_chardev_open_file(backend->file, &local_err);
         break;
     case CHARDEV_BACKEND_KIND_SERIAL:
-        chr = qmp_chardev_open_serial(backend->serial, errp);
+        chr = qmp_chardev_open_serial(backend->serial, &local_err);
         break;
     case CHARDEV_BACKEND_KIND_PARALLEL:
-        chr = qmp_chardev_open_parallel(backend->parallel, errp);
+        chr = qmp_chardev_open_parallel(backend->parallel, &local_err);
         break;
     case CHARDEV_BACKEND_KIND_PIPE:
         chr = qemu_chr_open_pipe(backend->pipe);
         break;
     case CHARDEV_BACKEND_KIND_SOCKET:
-        chr = qmp_chardev_open_socket(backend->socket, errp);
+        chr = qmp_chardev_open_socket(backend->socket, &local_err);
         break;
     case CHARDEV_BACKEND_KIND_UDP:
-        chr = qmp_chardev_open_udp(backend->udp, errp);
+        chr = qmp_chardev_open_udp(backend->udp, &local_err);
         break;
 #ifdef HAVE_CHARDEV_TTY
     case CHARDEV_BACKEND_KIND_PTY:
@@ -4252,7 +4253,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_MUX:
         base = qemu_chr_find(backend->mux->chardev);
         if (base == NULL) {
-            error_setg(errp, "mux: base chardev %s not found",
+            error_setg(&local_err, "mux: base chardev %s not found",
                        backend->mux->chardev);
             break;
         }
@@ -4290,11 +4291,11 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         break;
     case CHARDEV_BACKEND_KIND_RINGBUF:
     case CHARDEV_BACKEND_KIND_MEMORY:
-        chr = qemu_chr_open_ringbuf(backend->ringbuf, errp);
+        chr = qemu_chr_open_ringbuf(backend->ringbuf, &local_err);
         break;
     default:
         error_setg(errp, "unknown chardev backend (%d)", backend->kind);
-        break;
+        goto out_error;
     }
 
     /*
@@ -4303,25 +4304,30 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
      * error then.
      * TODO full conversion to Error API
      */
-    if (chr == NULL && errp && !*errp) {
-        error_setg(errp, "Failed to create chardev");
-    }
-    if (chr) {
-        chr->label = g_strdup(id);
-        chr->avail_connections =
-            (backend->kind == CHARDEV_BACKEND_KIND_MUX) ? MAX_MUX : 1;
-        if (!chr->filename) {
-            chr->filename = g_strdup(ChardevBackendKind_lookup[backend->kind]);
+    if (chr == NULL) {
+        if (local_err) {
+            error_propagate(errp, local_err);
+        } else {
+            error_setg(errp, "Failed to create chardev");
         }
-        if (!chr->explicit_be_open) {
-            qemu_chr_be_event(chr, CHR_EVENT_OPENED);
-        }
-        QTAILQ_INSERT_TAIL(&chardevs, chr, next);
-        return ret;
-    } else {
-        g_free(ret);
-        return NULL;
+        goto out_error;
     }
+
+    chr->label = g_strdup(id);
+    chr->avail_connections =
+        (backend->kind == CHARDEV_BACKEND_KIND_MUX) ? MAX_MUX : 1;
+    if (!chr->filename) {
+        chr->filename = g_strdup(ChardevBackendKind_lookup[backend->kind]);
+    }
+    if (!chr->explicit_be_open) {
+        qemu_chr_be_event(chr, CHR_EVENT_OPENED);
+    }
+    QTAILQ_INSERT_TAIL(&chardevs, chr, next);
+    return ret;
+
+out_error:
+    g_free(ret);
+    return NULL;
 }
 
 void qmp_chardev_remove(const char *id, Error **errp)
