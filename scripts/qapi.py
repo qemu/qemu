@@ -132,8 +132,7 @@ class QAPISchemaParser(object):
                 include = expr["include"]
                 if not isinstance(include, str):
                     raise QAPIExprError(expr_info,
-                                        'Expected a file name (string), got: %s'
-                                        % include)
+                                        "Value of 'include' must be a string")
                 incl_abs_fname = os.path.join(os.path.dirname(abs_fname),
                                               include)
                 # catch inclusion cycle
