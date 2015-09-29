@@ -682,10 +682,19 @@ static GSource *mux_chr_add_watch(CharDriverState *s, GIOCondition cond)
     return d->drv->chr_add_watch(d->drv, cond);
 }
 
-static CharDriverState *qemu_chr_open_mux(CharDriverState *drv)
+static CharDriverState *qemu_chr_open_mux(const char *id,
+                                          ChardevBackend *backend,
+                                          ChardevReturn *ret, Error **errp)
 {
-    CharDriverState *chr;
+    ChardevMux *mux = backend->mux;
+    CharDriverState *chr, *drv;
     MuxDriver *d;
+
+    drv = qemu_chr_find(mux->chardev);
+    if (drv == NULL) {
+        error_setg(errp, "mux: base chardev %s not found", mux->chardev);
+        return NULL;
+    }
 
     chr = qemu_chr_alloc();
     d = g_new0(MuxDriver, 1);
@@ -4248,7 +4257,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
                                Error **errp)
 {
     ChardevReturn *ret = g_new0(ChardevReturn, 1);
-    CharDriverState *base, *chr = NULL;
+    CharDriverState *chr = NULL;
     Error *local_err = NULL;
     GSList *i;
     CharDriver *cd;
@@ -4300,13 +4309,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             abort();
             break;
         case CHARDEV_BACKEND_KIND_MUX:
-            base = qemu_chr_find(backend->mux->chardev);
-            if (base == NULL) {
-                error_setg(&local_err, "mux: base chardev %s not found",
-                           backend->mux->chardev);
-                break;
-            }
-            chr = qemu_chr_open_mux(base);
+            abort();
             break;
         case CHARDEV_BACKEND_KIND_MSMOUSE:
             chr = qemu_chr_open_msmouse();
@@ -4432,7 +4435,7 @@ static void register_types(void)
     register_char_driver("pipe", CHARDEV_BACKEND_KIND_PIPE,
                          qemu_chr_parse_pipe, qemu_chr_open_pipe);
     register_char_driver("mux", CHARDEV_BACKEND_KIND_MUX, qemu_chr_parse_mux,
-                         NULL);
+                         qemu_chr_open_mux);
     /* Bug-compatibility: */
     register_char_driver("memory", CHARDEV_BACKEND_KIND_MEMORY,
                          qemu_chr_parse_ringbuf, NULL);
