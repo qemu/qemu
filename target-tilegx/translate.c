@@ -1543,7 +1543,7 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         goto do_load_add;
     case OE_IM(LD_ADD, X1):
         memop = MO_TEQ;
-        mnemonic = "ldnt_add";
+        mnemonic = "ld_add";
     do_load_add:
         tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
         tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
