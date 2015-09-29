@@ -29,9 +29,9 @@ def gen_err_check(err):
     if not err:
         return ''
     return mcgen('''
-if (%(err)s) {
-    goto out;
-}
+    if (%(err)s) {
+        goto out;
+    }
 ''',
                  err=err)
 
@@ -50,20 +50,18 @@ def gen_call(name, arg_type, ret_type):
     if ret_type:
         lhs = 'retval = '
 
-    push_indent()
     ret = mcgen('''
 
-%(lhs)sqmp_%(c_name)s(%(args)s&err);
+    %(lhs)sqmp_%(c_name)s(%(args)s&err);
 ''',
                 c_name=c_name(name), args=argstr, lhs=lhs)
     if ret_type:
         ret += gen_err_check('err')
         ret += mcgen('''
 
-qmp_marshal_output_%(c_name)s(retval, ret, &err);
+    qmp_marshal_output_%(c_name)s(retval, ret, &err);
 ''',
                      c_name=ret_type.c_name())
-    pop_indent()
     return ret
 
 
@@ -72,29 +70,27 @@ def gen_marshal_vars(arg_type, ret_type):
     Error *err = NULL;
 ''')
 
-    push_indent()
-
     if ret_type:
         ret += mcgen('''
-%(c_type)s retval;
+    %(c_type)s retval;
 ''',
                      c_type=ret_type.c_type())
 
     if arg_type:
         ret += mcgen('''
-QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
-QapiDeallocVisitor *qdv;
-Visitor *v;
+    QmpInputVisitor *qiv = qmp_input_visitor_new_strict(QOBJECT(args));
+    QapiDeallocVisitor *qdv;
+    Visitor *v;
 ''')
 
         for memb in arg_type.members:
             if memb.optional:
                 ret += mcgen('''
-bool has_%(c_name)s = false;
+    bool has_%(c_name)s = false;
 ''',
                              c_name=c_name(memb.name))
             ret += mcgen('''
-%(c_type)s %(c_name)s = %(c_null)s;
+    %(c_type)s %(c_name)s = %(c_null)s;
 ''',
                          c_name=c_name(memb.name),
                          c_type=memb.type.c_type(),
@@ -103,10 +99,9 @@ bool has_%(c_name)s = false;
     else:
         ret += mcgen('''
 
-(void)args;
+    (void)args;
 ''')
 
-    pop_indent()
     return ret
 
 
@@ -116,38 +111,36 @@ def gen_marshal_input_visit(arg_type, dealloc=False):
     if not arg_type:
         return ret
 
-    push_indent()
-
     if dealloc:
         errparg = 'NULL'
         errarg = None
         ret += mcgen('''
-qmp_input_visitor_cleanup(qiv);
-qdv = qapi_dealloc_visitor_new();
-v = qapi_dealloc_get_visitor(qdv);
+    qmp_input_visitor_cleanup(qiv);
+    qdv = qapi_dealloc_visitor_new();
+    v = qapi_dealloc_get_visitor(qdv);
 ''')
     else:
         errparg = '&err'
         errarg = 'err'
         ret += mcgen('''
-v = qmp_input_get_visitor(qiv);
+    v = qmp_input_get_visitor(qiv);
 ''')
 
     for memb in arg_type.members:
         if memb.optional:
             ret += mcgen('''
-visit_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
+    visit_optional(v, &has_%(c_name)s, "%(name)s", %(errp)s);
 ''',
                          c_name=c_name(memb.name), name=memb.name,
                          errp=errparg)
             ret += gen_err_check(errarg)
             ret += mcgen('''
-if (has_%(c_name)s) {
+    if (has_%(c_name)s) {
 ''',
                          c_name=c_name(memb.name))
             push_indent()
         ret += mcgen('''
-visit_type_%(c_type)s(v, &%(c_name)s, "%(name)s", %(errp)s);
+    visit_type_%(c_type)s(v, &%(c_name)s, "%(name)s", %(errp)s);
 ''',
                      c_name=c_name(memb.name), name=memb.name,
                      c_type=memb.type.c_name(), errp=errparg)
@@ -155,14 +148,13 @@ visit_type_%(c_type)s(v, &%(c_name)s, "%(name)s", %(errp)s);
         if memb.optional:
             pop_indent()
             ret += mcgen('''
-}
+    }
 ''')
 
     if dealloc:
         ret += mcgen('''
-qapi_dealloc_visitor_cleanup(qdv);
+    qapi_dealloc_visitor_cleanup(qdv);
 ''')
-    pop_indent()
     return ret
 
 
@@ -237,17 +229,15 @@ out:
 
 
 def gen_register_command(name, success_response):
-    push_indent()
     options = 'QCO_NO_OPTIONS'
     if not success_response:
         options = 'QCO_NO_SUCCESS_RESP'
 
     ret = mcgen('''
-qmp_register_command("%(name)s", qmp_marshal_%(c_name)s, %(opts)s);
+    qmp_register_command("%(name)s", qmp_marshal_%(c_name)s, %(opts)s);
 ''',
                 name=name, c_name=c_name(name),
                 opts=options)
-    pop_indent()
     return ret
 
 

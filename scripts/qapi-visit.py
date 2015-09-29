@@ -77,28 +77,27 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
 
 ''',
                  c_name=c_name(name))
-    push_indent()
 
     if base:
         ret += mcgen('''
-visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
-if (err) {
-    goto out;
-}
+    visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
+    if (err) {
+        goto out;
+    }
 ''',
                      c_type=base.c_name(), c_name=c_name('base'))
 
     for memb in members:
         if memb.optional:
             ret += mcgen('''
-visit_optional(v, &(*obj)->has_%(c_name)s, "%(name)s", &err);
-if (!err && (*obj)->has_%(c_name)s) {
+    visit_optional(v, &(*obj)->has_%(c_name)s, "%(name)s", &err);
+    if (!err && (*obj)->has_%(c_name)s) {
 ''',
                          c_name=c_name(memb.name), name=memb.name)
             push_indent()
 
         ret += mcgen('''
-visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
+    visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
 ''',
                      c_type=memb.type.c_name(), c_name=c_name(memb.name),
                      name=memb.name)
@@ -106,15 +105,14 @@ visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
         if memb.optional:
             pop_indent()
             ret += mcgen('''
-}
+    }
 ''')
         ret += mcgen('''
-if (err) {
-    goto out;
-}
+    if (err) {
+        goto out;
+    }
 ''')
 
-    pop_indent()
     if re.search('^ *goto out;', ret, re.MULTILINE):
         ret += mcgen('''
 
