@@ -3222,9 +3222,12 @@ static void ringbuf_chr_close(struct CharDriverState *chr)
     chr->opaque = NULL;
 }
 
-static CharDriverState *qemu_chr_open_ringbuf(ChardevRingbuf *opts,
+static CharDriverState *qemu_chr_open_ringbuf(const char *id,
+                                              ChardevBackend *backend,
+                                              ChardevReturn *ret,
                                               Error **errp)
 {
+    ChardevRingbuf *opts = backend->ringbuf;
     CharDriverState *chr;
     RingBufCharDriver *d;
 
@@ -4361,7 +4364,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             break;
         case CHARDEV_BACKEND_KIND_RINGBUF:
         case CHARDEV_BACKEND_KIND_MEMORY:
-            chr = qemu_chr_open_ringbuf(backend->ringbuf, &local_err);
+            abort();
             break;
         default:
             error_setg(errp, "unknown chardev backend (%d)", backend->kind);
@@ -4427,7 +4430,7 @@ static void register_types(void)
     register_char_driver("udp", CHARDEV_BACKEND_KIND_UDP, qemu_chr_parse_udp,
                          qmp_chardev_open_udp);
     register_char_driver("ringbuf", CHARDEV_BACKEND_KIND_RINGBUF,
-                         qemu_chr_parse_ringbuf, NULL);
+                         qemu_chr_parse_ringbuf, qemu_chr_open_ringbuf);
     register_char_driver("file", CHARDEV_BACKEND_KIND_FILE,
                          qemu_chr_parse_file_out, qmp_chardev_open_file);
     register_char_driver("stdio", CHARDEV_BACKEND_KIND_STDIO,
@@ -4458,7 +4461,7 @@ static void register_types(void)
                          qemu_chr_open_mux);
     /* Bug-compatibility: */
     register_char_driver("memory", CHARDEV_BACKEND_KIND_MEMORY,
-                         qemu_chr_parse_ringbuf, NULL);
+                         qemu_chr_parse_ringbuf, qemu_chr_open_ringbuf);
     /* this must be done after machine init, since we register FEs with muxes
      * as part of realize functions like serial_isa_realizefn when -nographic
      * is specified
