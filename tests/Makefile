@@ -224,52 +224,120 @@ check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
 
 check-qtest-generic-y += tests/qom-test$(EXESUF)
 
-check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
-	comments.json empty.json enum-empty.json enum-missing-data.json \
-	enum-wrong-data.json enum-int-member.json enum-dict-member.json \
-	enum-clash-member.json enum-max-member.json enum-union-clash.json \
-	enum-bad-name.json enum-bad-prefix.json \
-	funny-char.json indented-expr.json \
-	missing-type.json bad-ident.json ident-with-escape.json \
-	escape-outside-string.json unknown-escape.json \
-	escape-too-short.json escape-too-big.json unicode-str.json \
-	double-type.json bad-base.json bad-type-bool.json bad-type-int.json \
-	bad-type-dict.json double-data.json unknown-expr-key.json \
-	redefined-type.json redefined-command.json redefined-builtin.json \
-	redefined-event.json command-int.json bad-data.json event-max.json \
-	type-bypass-bad-gen.json \
-	args-invalid.json \
-	args-array-empty.json args-array-unknown.json args-int.json \
-	args-unknown.json args-member-unknown.json args-member-array.json \
-	args-member-array-bad.json args-alternate.json args-union.json \
-	args-any.json \
-	returns-array-bad.json returns-int.json returns-dict.json \
-	returns-unknown.json returns-alternate.json returns-whitelist.json \
-	missing-colon.json missing-comma-list.json missing-comma-object.json \
-	struct-data-invalid.json struct-member-invalid.json \
-	nested-struct-data.json non-objects.json \
-	qapi-schema-test.json quoted-structural-chars.json \
-	leading-comma-list.json leading-comma-object.json \
-	trailing-comma-list.json trailing-comma-object.json \
-	unclosed-list.json unclosed-object.json unclosed-string.json \
-	duplicate-key.json union-invalid-base.json union-bad-branch.json \
-	union-optional-branch.json union-unknown.json union-max.json \
-	flat-union-optional-discriminator.json flat-union-no-base.json \
-	flat-union-invalid-discriminator.json flat-union-inline.json \
-	flat-union-invalid-branch-key.json flat-union-reverse-define.json \
-	flat-union-string-discriminator.json union-base-no-discriminator.json \
-	flat-union-bad-discriminator.json flat-union-bad-base.json \
-	flat-union-base-any.json \
-	flat-union-array-branch.json flat-union-int-branch.json \
-	flat-union-base-union.json flat-union-branch-clash.json \
-	alternate-nested.json alternate-unknown.json alternate-clash.json \
-	alternate-good.json alternate-base.json alternate-array.json \
-	alternate-conflict-string.json alternate-conflict-dict.json \
-	include-simple.json include-relpath.json include-format-err.json \
-	include-non-file.json include-no-file.json include-before-err.json \
-	include-nested-err.json include-self-cycle.json include-cycle.json \
-	include-repetition.json event-nest-struct.json event-case.json \
-	struct-base-clash.json struct-base-clash-deep.json )
+qapi-schema += alternate-array.json
+qapi-schema += alternate-base.json
+qapi-schema += alternate-clash.json
+qapi-schema += alternate-conflict-dict.json
+qapi-schema += alternate-conflict-string.json
+qapi-schema += alternate-good.json
+qapi-schema += alternate-nested.json
+qapi-schema += alternate-unknown.json
+qapi-schema += args-alternate.json
+qapi-schema += args-any.json
+qapi-schema += args-array-empty.json
+qapi-schema += args-array-unknown.json
+qapi-schema += args-int.json
+qapi-schema += args-invalid.json
+qapi-schema += args-member-array-bad.json
+qapi-schema += args-member-array.json
+qapi-schema += args-member-unknown.json
+qapi-schema += args-union.json
+qapi-schema += args-unknown.json
+qapi-schema += bad-base.json
+qapi-schema += bad-data.json
+qapi-schema += bad-ident.json
+qapi-schema += bad-type-bool.json
+qapi-schema += bad-type-dict.json
+qapi-schema += bad-type-int.json
+qapi-schema += command-int.json
+qapi-schema += comments.json
+qapi-schema += double-data.json
+qapi-schema += double-type.json
+qapi-schema += duplicate-key.json
+qapi-schema += empty.json
+qapi-schema += enum-bad-name.json
+qapi-schema += enum-bad-prefix.json
+qapi-schema += enum-clash-member.json
+qapi-schema += enum-dict-member.json
+qapi-schema += enum-empty.json
+qapi-schema += enum-int-member.json
+qapi-schema += enum-max-member.json
+qapi-schema += enum-missing-data.json
+qapi-schema += enum-union-clash.json
+qapi-schema += enum-wrong-data.json
+qapi-schema += escape-outside-string.json
+qapi-schema += escape-too-big.json
+qapi-schema += escape-too-short.json
+qapi-schema += event-case.json
+qapi-schema += event-max.json
+qapi-schema += event-nest-struct.json
+qapi-schema += flat-union-array-branch.json
+qapi-schema += flat-union-bad-base.json
+qapi-schema += flat-union-bad-discriminator.json
+qapi-schema += flat-union-base-any.json
+qapi-schema += flat-union-base-union.json
+qapi-schema += flat-union-branch-clash.json
+qapi-schema += flat-union-inline.json
+qapi-schema += flat-union-int-branch.json
+qapi-schema += flat-union-invalid-branch-key.json
+qapi-schema += flat-union-invalid-discriminator.json
+qapi-schema += flat-union-no-base.json
+qapi-schema += flat-union-optional-discriminator.json
+qapi-schema += flat-union-reverse-define.json
+qapi-schema += flat-union-string-discriminator.json
+qapi-schema += funny-char.json
+qapi-schema += ident-with-escape.json
+qapi-schema += include-before-err.json
+qapi-schema += include-cycle.json
+qapi-schema += include-format-err.json
+qapi-schema += include-nested-err.json
+qapi-schema += include-no-file.json
+qapi-schema += include-non-file.json
+qapi-schema += include-relpath.json
+qapi-schema += include-repetition.json
+qapi-schema += include-self-cycle.json
+qapi-schema += include-simple.json
+qapi-schema += indented-expr.json
+qapi-schema += leading-comma-list.json
+qapi-schema += leading-comma-object.json
+qapi-schema += missing-colon.json
+qapi-schema += missing-comma-list.json
+qapi-schema += missing-comma-object.json
+qapi-schema += missing-type.json
+qapi-schema += nested-struct-data.json
+qapi-schema += non-objects.json
+qapi-schema += qapi-schema-test.json
+qapi-schema += quoted-structural-chars.json
+qapi-schema += redefined-builtin.json
+qapi-schema += redefined-command.json
+qapi-schema += redefined-event.json
+qapi-schema += redefined-type.json
+qapi-schema += returns-alternate.json
+qapi-schema += returns-array-bad.json
+qapi-schema += returns-dict.json
+qapi-schema += returns-int.json
+qapi-schema += returns-unknown.json
+qapi-schema += returns-whitelist.json
+qapi-schema += struct-base-clash-deep.json
+qapi-schema += struct-base-clash.json
+qapi-schema += struct-data-invalid.json
+qapi-schema += struct-member-invalid.json
+qapi-schema += trailing-comma-list.json
+qapi-schema += trailing-comma-object.json
+qapi-schema += type-bypass-bad-gen.json
+qapi-schema += unclosed-list.json
+qapi-schema += unclosed-object.json
+qapi-schema += unclosed-string.json
+qapi-schema += unicode-str.json
+qapi-schema += union-bad-branch.json
+qapi-schema += union-base-no-discriminator.json
+qapi-schema += union-invalid-base.json
+qapi-schema += union-max.json
+qapi-schema += union-optional-branch.json
+qapi-schema += union-unknown.json
+qapi-schema += unknown-escape.json
+qapi-schema += unknown-expr-key.json
+check-qapi-schema-y := $(addprefix tests/qapi-schema/, $(qapi-schema))
 
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h \
 	tests/test-qmp-commands.h tests/test-qapi-event.h \
