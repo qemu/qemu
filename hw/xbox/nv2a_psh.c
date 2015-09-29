@@ -646,7 +646,6 @@ static QString* psh_convert(struct PixelShader *ps)
 
             /* As this means a texture fetch does happen, do alphakill */
             if (ps->alphakill[i]) {
-                assert(false); /* FIXME: Untested */
                 qstring_append_fmt(vars, "if (t%d.a == 0.0) { discard; };\n",
                                    i);
             }
@@ -764,7 +763,7 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
                        const bool alphakill[4],
                        bool alpha_test, enum PshAlphaFunc alpha_func)
 {
-    int i;
+    int i, j;
     struct PixelShader ps;
     memset(&ps, 0, sizeof(ps));
 
@@ -773,6 +772,10 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
     for (i = 0; i < 4; i++) {
         ps.tex_modes[i] = (shader_stage_program >> (i * 5)) & 0x1F;
         ps.rect_tex[i] = rect_tex[i];
+        for (j = 0; j < 4; j++) {
+            ps.compare_mode[i][j] = compare_mode[i][j];
+        }
+        ps.alphakill[i] = alphakill[i];
     }
 
     ps.alpha_test = alpha_test;
