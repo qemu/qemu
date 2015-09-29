@@ -1,16 +1,1 @@
-Traceback (most recent call last):
-  File "tests/qapi-schema/test-qapi.py", line 55, in <module>
-    schema = QAPISchema(sys.argv[1])
-  File "scripts/qapi.py", line 1116, in __init__
-    self.check()
-  File "scripts/qapi.py", line 1299, in check
-    ent.check(self)
-  File "scripts/qapi.py", line 962, in check
-    self.variants.check(schema, members, seen)
-  File "scripts/qapi.py", line 1024, in check
-    v.check(schema, self.tag_member.type, vseen)
-  File "scripts/qapi.py", line 1032, in check
-    QAPISchemaObjectTypeMember.check(self, schema, [], seen)
-  File "scripts/qapi.py", line 994, in check
-    assert self.name not in seen
-AssertionError
+tests/qapi-schema/flat-union-clash-type.json:11: Discriminator name 'type' collides with enum value in 'TestEnum'
