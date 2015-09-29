@@ -383,7 +383,10 @@ static int null_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     return len;
 }
 
-static CharDriverState *qemu_chr_open_null(void)
+static CharDriverState *qemu_chr_open_null(const char *id,
+                                           ChardevBackend *backend,
+                                           ChardevReturn *ret,
+                                           Error **errp)
 {
     CharDriverState *chr;
 
@@ -4294,7 +4297,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             abort();
             break;
         case CHARDEV_BACKEND_KIND_NULL:
-            chr = qemu_chr_open_null();
+            abort();
             break;
         case CHARDEV_BACKEND_KIND_MUX:
             base = qemu_chr_find(backend->mux->chardev);
@@ -4397,7 +4400,7 @@ void qmp_chardev_remove(const char *id, Error **errp)
 static void register_types(void)
 {
     register_char_driver("null", CHARDEV_BACKEND_KIND_NULL, NULL,
-                         NULL);
+                         qemu_chr_open_null);
     register_char_driver("socket", CHARDEV_BACKEND_KIND_SOCKET,
                          qemu_chr_parse_socket, qmp_chardev_open_socket);
     register_char_driver("udp", CHARDEV_BACKEND_KIND_UDP, qemu_chr_parse_udp,
