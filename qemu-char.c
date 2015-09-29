@@ -4357,7 +4357,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
             abort();
             break;
         case CHARDEV_BACKEND_KIND_VC:
-            chr = vc_init(backend->vc);
+            abort();
             break;
         case CHARDEV_BACKEND_KIND_RINGBUF:
         case CHARDEV_BACKEND_KIND_MEMORY:

@@ -357,8 +357,7 @@ extern int term_escape_char;
 CharDriverState *qemu_char_get_next_serial(void);
 
 /* console.c */
-typedef CharDriverState *(VcHandler)(ChardevVC *vc);
-
+typedef CharDriverState *(VcHandler)(ChardevVC *vc, Error **errp);
 void register_vc_handler(VcHandler *handler);
-CharDriverState *vc_init(ChardevVC *vc);
+
 #endif
