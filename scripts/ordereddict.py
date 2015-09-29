@@ -22,6 +22,7 @@
 
 from UserDict import DictMixin
 
+
 class OrderedDict(dict, DictMixin):
 
     def __init__(self, *args, **kwds):
@@ -117,7 +118,7 @@ class OrderedDict(dict, DictMixin):
         if isinstance(other, OrderedDict):
             if len(self) != len(other):
                 return False
-            for p, q in  zip(self.items(), other.items()):
+            for p, q in zip(self.items(), other.items()):
                 if p != q:
                     return False
             return True
