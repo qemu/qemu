@@ -2204,7 +2204,10 @@ static CharDriverState *qemu_chr_open_win_file(HANDLE fd_out)
     return chr;
 }
 
-static CharDriverState *qemu_chr_open_win_con(void)
+static CharDriverState *qemu_chr_open_win_con(const char *id,
+                                              ChardevBackend *backend,
+                                              ChardevReturn *ret,
+                                              Error **errp)
 {
     return qemu_chr_open_win_file(GetStdHandle(STD_OUTPUT_HANDLE));
 }
@@ -4344,11 +4347,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         case CHARDEV_BACKEND_KIND_STDIO:
             abort();
             break;
-#ifdef _WIN32
         case CHARDEV_BACKEND_KIND_CONSOLE:
-            chr = qemu_chr_open_win_con();
+            abort();
             break;
-#endif
 #ifdef CONFIG_SPICE
         case CHARDEV_BACKEND_KIND_SPICEVMC:
             chr = qemu_chr_open_spice_vmc(backend->spicevmc->type);
@@ -4449,8 +4450,10 @@ static void register_types(void)
     register_char_driver("pty", CHARDEV_BACKEND_KIND_PTY, NULL,
                          qemu_chr_open_pty);
 #endif
+#ifdef _WIN32
     register_char_driver("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL,
-                         NULL);
+                         qemu_chr_open_win_con);
+#endif
     register_char_driver("pipe", CHARDEV_BACKEND_KIND_PIPE,
                          qemu_chr_parse_pipe, qemu_chr_open_pipe);
     register_char_driver("mux", CHARDEV_BACKEND_KIND_MUX, qemu_chr_parse_mux,
