@@ -677,6 +677,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
     if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
         ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
         bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
+        struct vfio_iommu_type1_info info;
 
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
@@ -702,6 +703,15 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
          */
         container->min_iova = 0;
         container->max_iova = (hwaddr)-1;
+
+        /* Assume just 4K IOVA page size */
+        container->iova_pgsizes = 0x1000;
+        info.argsz = sizeof(info);
+        ret = ioctl(fd, VFIO_IOMMU_GET_INFO, &info);
+        /* Ignore errors */
+        if ((ret == 0) && (info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
+            container->iova_pgsizes = info.iova_pgsizes;
+        }
     } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU)) {
         struct vfio_iommu_spapr_tce_info info;
 
@@ -744,6 +754,9 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
         }
         container->min_iova = info.dma32_window_start;
         container->max_iova = container->min_iova + info.dma32_window_size - 1;
+
+        /* Assume just 4K IOVA pages for now */
+        container->iova_pgsizes = 0x1000;
     } else {
         error_report("vfio: No available IOMMU models");
         ret = -EINVAL;

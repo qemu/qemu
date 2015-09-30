@@ -71,6 +71,7 @@ typedef struct VFIOContainer {
      * future
      */
     hwaddr min_iova, max_iova;
+    uint64_t iova_pgsizes;
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_ENTRY(VFIOContainer) next;
