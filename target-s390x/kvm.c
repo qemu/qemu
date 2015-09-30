@@ -249,7 +249,7 @@ static void kvm_s390_init_dea_kw(void)
     }
 }
 
-static void kvm_s390_init_crypto(void)
+void kvm_s390_crypto_reset(void)
 {
     kvm_s390_init_aes_kw();
     kvm_s390_init_dea_kw();
@@ -301,8 +301,6 @@ void kvm_s390_reset_vcpu(S390CPU *cpu)
     if (kvm_vcpu_ioctl(cs, KVM_S390_INITIAL_RESET, NULL)) {
         error_report("Initial CPU reset failed on CPU %i", cs->cpu_index);
     }
-
-    kvm_s390_init_crypto();
 }
 
 static int can_sync_regs(CPUState *cs, int regs)

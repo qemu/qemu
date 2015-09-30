@@ -129,6 +129,7 @@ static int modified_clear_reset(S390CPU *cpu)
     }
     cmma_reset(cpu);
     subsystem_reset();
+    s390_crypto_reset();
     scc->load_normal(CPU(cpu));
     cpu_synchronize_all_post_reset();
     resume_all_vcpus();

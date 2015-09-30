@@ -1166,6 +1166,7 @@ void kvm_s390_reset_vcpu(S390CPU *cpu);
 int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
 void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu);
 int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu);
+void kvm_s390_crypto_reset(void);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1215,6 +1216,9 @@ static inline int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
 {
     return 0;
 }
+static inline void kvm_s390_crypto_reset(void)
+{
+}
 #endif
 
 static inline int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
@@ -1259,6 +1263,13 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
                                               bool assign)
 {
     return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
+}
+
+static inline void s390_crypto_reset(void)
+{
+    if (kvm_enabled()) {
+        kvm_s390_crypto_reset();
+    }
 }
 
 #ifdef CONFIG_KVM
