@@ -65,6 +65,12 @@ typedef struct VFIOContainer {
     MemoryListener listener;
     int error;
     bool initialized;
+    /*
+     * This assumes the host IOMMU can support only a single
+     * contiguous IOVA window.  We may need to generalize that in
+     * future
+     */
+    hwaddr min_iova, max_iova;
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_ENTRY(VFIOContainer) next;

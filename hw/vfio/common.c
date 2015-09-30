@@ -343,14 +343,22 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (int128_ge(int128_make64(iova), llend)) {
         return;
     }
+    end = int128_get64(llend);
+
+    if ((iova < container->min_iova) || ((end - 1) > container->max_iova)) {
+        error_report("vfio: IOMMU container %p can't map guest IOVA region"
+                     " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx,
+                     container, iova, end - 1);
+        ret = -EFAULT;
+        goto fail;
+    }
 
     memory_region_ref(section->mr);
 
     if (memory_region_is_iommu(section->mr)) {
         VFIOGuestIOMMU *giommu;
 
-        trace_vfio_listener_region_add_iommu(iova,
-                    int128_get64(int128_sub(llend, int128_one())));
+        trace_vfio_listener_region_add_iommu(iova, end - 1);
         /*
          * FIXME: We should do some checking to see if the
          * capabilities of the host VFIO IOMMU are adequate to model
@@ -387,7 +395,6 @@ static void vfio_listener_region_add(MemoryListener *listener,
 
     /* Here we assume that memory_region_is_ram(section->mr)==true */
 
-    end = int128_get64(llend);
     vaddr = memory_region_get_ram_ptr(section->mr) +
             section->offset_within_region +
             (iova - section->offset_within_address_space);
@@ -685,7 +692,19 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             ret = -errno;
             goto free_container_exit;
         }
+
+        /*
+         * FIXME: This assumes that a Type1 IOMMU can map any 64-bit
+         * IOVA whatsoever.  That's not actually true, but the current
+         * kernel interface doesn't tell us what it can map, and the
+         * existing Type1 IOMMUs generally support any IOVA we're
+         * going to actually try in practice.
+         */
+        container->min_iova = 0;
+        container->max_iova = (hwaddr)-1;
     } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU)) {
+        struct vfio_iommu_spapr_tce_info info;
+
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
             error_report("vfio: failed to set group container: %m");
@@ -710,6 +729,21 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             ret = -errno;
             goto free_container_exit;
         }
+
+        /*
+         * This only considers the host IOMMU's 32-bit window.  At
+         * some point we need to add support for the optional 64-bit
+         * window and dynamic windows
+         */
+        info.argsz = sizeof(info);
+        ret = ioctl(fd, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &info);
+        if (ret) {
+            error_report("vfio: VFIO_IOMMU_SPAPR_TCE_GET_INFO failed: %m");
+            ret = -errno;
+            goto free_container_exit;
+        }
+        container->min_iova = info.dma32_window_start;
+        container->max_iova = container->min_iova + info.dma32_window_size - 1;
     } else {
         error_report("vfio: No available IOMMU models");
         ret = -EINVAL;
