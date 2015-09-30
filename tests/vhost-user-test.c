@@ -272,16 +272,10 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     g_mutex_unlock(&data_mutex);
 }
 
-static const char *init_hugepagefs(void)
+static const char *init_hugepagefs(const char *path)
 {
-    const char *path;
     struct statfs fs;
     int ret;
-
-    path = getenv("QTEST_HUGETLBFS_PATH");
-    if (!path) {
-        path = "/hugetlbfs";
-    }
 
     if (access(path, R_OK | W_OK | X_OK)) {
         g_test_message("access on path (%s): %s\n", path, strerror(errno));
@@ -309,19 +303,31 @@ int main(int argc, char **argv)
 {
     QTestState *s = NULL;
     CharDriverState *chr = NULL;
-    const char *hugefs = 0;
+    const char *hugefs;
     char *socket_path = 0;
     char *qemu_cmd = 0;
     char *chr_path = 0;
     int ret;
+    char template[] = "/tmp/vhost-test-XXXXXX";
+    const char *tmpfs;
+    const char *root;
 
     g_test_init(&argc, &argv, NULL);
 
     module_call_init(MODULE_INIT_QOM);
 
-    hugefs = init_hugepagefs();
-    if (!hugefs) {
-        return 0;
+    tmpfs = mkdtemp(template);
+    if (!tmpfs) {
+          g_test_message("mkdtemp on path (%s): %s\n", template, strerror(errno));
+    }
+    g_assert(tmpfs);
+
+    hugefs = getenv("QTEST_HUGETLBFS_PATH");
+    if (hugefs) {
+        root = init_hugepagefs(hugefs);
+        g_assert(root);
+    } else {
+        root = tmpfs;
     }
 
     socket_path = g_strdup_printf("/tmp/vhost-%d.sock", getpid());
@@ -338,7 +344,7 @@ int main(int argc, char **argv)
     g_cond_init(&data_cond);
     g_thread_new(NULL, thread_function, NULL);
 
-    qemu_cmd = g_strdup_printf(QEMU_CMD, hugefs, socket_path);
+    qemu_cmd = g_strdup_printf(QEMU_CMD, root, socket_path);
     s = qtest_start(qemu_cmd);
     g_free(qemu_cmd);
 
@@ -353,6 +359,13 @@ int main(int argc, char **argv)
     /* cleanup */
     unlink(socket_path);
     g_free(socket_path);
+
+    ret = rmdir(tmpfs);
+    if (ret != 0) {
+        g_test_message("unable to rmdir: path (%s): %s\n",
+                       tmpfs, strerror(errno));
+    }
+    g_assert_cmpint(ret, ==, 0);
 
     return ret;
 }
