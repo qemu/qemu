@@ -312,6 +312,11 @@ out:
     rcu_read_unlock();
 }
 
+static hwaddr vfio_container_granularity(VFIOContainer *container)
+{
+    return (hwaddr)1 << ctz64(container->iova_pgsizes);
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
@@ -369,26 +374,16 @@ static void vfio_listener_region_add(MemoryListener *listener,
          * would be the right place to wire that up (tell the KVM
          * device emulation the VFIO iommu handles to use).
          */
-        /*
-         * This assumes that the guest IOMMU is empty of
-         * mappings at this point.
-         *
-         * One way of doing this is:
-         * 1. Avoid sharing IOMMUs between emulated devices or different
-         * IOMMU groups.
-         * 2. Implement VFIO_IOMMU_ENABLE in the host kernel to fail if
-         * there are some mappings in IOMMU.
-         *
-         * VFIO on SPAPR does that. Other IOMMU models may do that different,
-         * they must make sure there are no existing mappings or
-         * loop through existing mappings to map them into VFIO.
-         */
         giommu = g_malloc0(sizeof(*giommu));
         giommu->iommu = section->mr;
         giommu->container = container;
         giommu->n.notify = vfio_iommu_map_notify;
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
+
         memory_region_register_iommu_notifier(giommu->iommu, &giommu->n);
+        memory_region_iommu_replay(giommu->iommu, &giommu->n,
+                                   vfio_container_granularity(container),
+                                   false);
 
         return;
     }
