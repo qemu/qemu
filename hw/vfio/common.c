@@ -315,8 +315,7 @@ out:
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
-    VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            iommu_data.type1.listener);
+    VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     hwaddr iova, end;
     Int128 llend;
     void *vaddr;
@@ -406,9 +405,9 @@ static void vfio_listener_region_add(MemoryListener *listener,
          * can gracefully fail.  Runtime, there's not much we can do other
          * than throw a hardware error.
          */
-        if (!container->iommu_data.type1.initialized) {
-            if (!container->iommu_data.type1.error) {
-                container->iommu_data.type1.error = ret;
+        if (!container->initialized) {
+            if (!container->error) {
+                container->error = ret;
             }
         } else {
             hw_error("vfio: DMA mapping failed, unable to continue");
@@ -419,8 +418,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
 static void vfio_listener_region_del(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
-    VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            iommu_data.type1.listener);
+    VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     hwaddr iova, end;
     int ret;
 
@@ -485,7 +483,7 @@ static const MemoryListener vfio_memory_listener = {
 
 static void vfio_listener_release(VFIOContainer *container)
 {
-    memory_listener_unregister(&container->iommu_data.type1.listener);
+    memory_listener_unregister(&container->listener);
 }
 
 int vfio_mmap_region(Object *obj, VFIORegion *region,
@@ -683,21 +681,6 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             ret = -errno;
             goto free_container_exit;
         }
-
-        container->iommu_data.type1.listener = vfio_memory_listener;
-        container->iommu_data.release = vfio_listener_release;
-
-        memory_listener_register(&container->iommu_data.type1.listener,
-                                 container->space->as);
-
-        if (container->iommu_data.type1.error) {
-            ret = container->iommu_data.type1.error;
-            error_report("vfio: memory listener initialization failed for container");
-            goto listener_release_exit;
-        }
-
-        container->iommu_data.type1.initialized = true;
-
     } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU)) {
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
@@ -723,18 +706,23 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             ret = -errno;
             goto free_container_exit;
         }
-
-        container->iommu_data.type1.listener = vfio_memory_listener;
-        container->iommu_data.release = vfio_listener_release;
-
-        memory_listener_register(&container->iommu_data.type1.listener,
-                                 container->space->as);
-
     } else {
         error_report("vfio: No available IOMMU models");
         ret = -EINVAL;
         goto free_container_exit;
     }
+
+    container->listener = vfio_memory_listener;
+
+    memory_listener_register(&container->listener, container->space->as);
+
+    if (container->error) {
+        ret = container->error;
+        error_report("vfio: memory listener initialization failed for container");
+        goto listener_release_exit;
+    }
+
+    container->initialized = true;
 
     QLIST_INIT(&container->group_list);
     QLIST_INSERT_HEAD(&space->containers, container, next);
@@ -774,9 +762,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
         VFIOAddressSpace *space = container->space;
         VFIOGuestIOMMU *giommu, *tmp;
 
-        if (container->iommu_data.release) {
-            container->iommu_data.release(container);
-        }
+        vfio_listener_release(container);
         QLIST_REMOVE(container, next);
 
         QLIST_FOREACH_SAFE(giommu, &container->giommu_list, giommu_next, tmp) {
