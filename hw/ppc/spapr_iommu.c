@@ -146,7 +146,7 @@ static int spapr_tce_table_realize(DeviceState *dev)
         tcet->table = kvmppc_create_spapr_tce(tcet->liobn,
                                               window_size,
                                               &tcet->fd,
-                                              tcet->vfio_accel);
+                                              tcet->need_vfio);
     }
 
     if (!tcet->table) {
@@ -172,7 +172,7 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    uint64_t bus_offset,
                                    uint32_t page_shift,
                                    uint32_t nb_table,
-                                   bool vfio_accel)
+                                   bool need_vfio)
 {
     sPAPRTCETable *tcet;
     char tmp[64];
@@ -192,7 +192,7 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
     tcet->bus_offset = bus_offset;
     tcet->page_shift = page_shift;
     tcet->nb_table = nb_table;
-    tcet->vfio_accel = vfio_accel;
+    tcet->need_vfio = need_vfio;
 
     snprintf(tmp, sizeof(tmp), "tce-table-%x", liobn);
     object_property_add_child(OBJECT(owner), tmp, OBJECT(tcet), NULL);

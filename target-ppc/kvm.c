@@ -2070,7 +2070,7 @@ bool kvmppc_spapr_use_multitce(void)
 }
 
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd,
-                              bool vfio_accel)
+                              bool need_vfio)
 {
     struct kvm_create_spapr_tce args = {
         .liobn = liobn,
@@ -2084,7 +2084,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd,
      * destroying the table, which the upper layers -will- do
      */
     *pfd = -1;
-    if (!cap_spapr_tce || (vfio_accel && !cap_spapr_vfio)) {
+    if (!cap_spapr_tce || (need_vfio && !cap_spapr_vfio)) {
         return NULL;
     }
 
