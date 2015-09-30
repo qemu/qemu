@@ -583,6 +583,19 @@ void memory_region_notify_iommu(MemoryRegion *mr,
 void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n);
 
 /**
+ * memory_region_iommu_replay: replay existing IOMMU translations to
+ * a notifier
+ *
+ * @mr: the memory region to observe
+ * @n: the notifier to which to replay iommu mappings
+ * @granularity: Minimum page granularity to replay notifications for
+ * @is_write: Whether to treat the replay as a translate "write"
+ *     through the iommu
+ */
+void memory_region_iommu_replay(MemoryRegion *mr, Notifier *n,
+                                hwaddr granularity, bool is_write);
+
+/**
  * memory_region_unregister_iommu_notifier: unregister a notifier for
  * changes to IOMMU translation entries.
  *
