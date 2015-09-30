@@ -399,19 +399,23 @@ static void vfio_listener_region_add(MemoryListener *listener,
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
                      container, iova, end - iova, vaddr, ret);
+        goto fail;
+    }
 
-        /*
-         * On the initfn path, store the first error in the container so we
-         * can gracefully fail.  Runtime, there's not much we can do other
-         * than throw a hardware error.
-         */
-        if (!container->initialized) {
-            if (!container->error) {
-                container->error = ret;
-            }
-        } else {
-            hw_error("vfio: DMA mapping failed, unable to continue");
+    return;
+
+fail:
+    /*
+     * On the initfn path, store the first error in the container so we
+     * can gracefully fail.  Runtime, there's not much we can do other
+     * than throw a hardware error.
+     */
+    if (!container->initialized) {
+        if (!container->error) {
+            container->error = ret;
         }
+    } else {
+        hw_error("vfio: DMA mapping failed, unable to continue");
     }
 }
 
