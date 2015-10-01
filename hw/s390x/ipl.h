@@ -16,7 +16,8 @@
 #include "cpu.h"
 
 struct IplBlockCcw {
-    uint8_t  reserved0[86];
+    uint8_t  reserved0[85];
+    uint8_t  ssid;
     uint16_t devno;
     uint8_t  vm_flags;
     uint8_t  reserved3[3];

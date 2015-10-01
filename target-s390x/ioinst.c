@@ -509,6 +509,7 @@ static void ioinst_handle_chsc_scsc(ChscReq *req, ChscResp *res)
 
     general_chars[0] = cpu_to_be32(0x03000000);
     general_chars[1] = cpu_to_be32(0x00059000);
+    general_chars[3] = cpu_to_be32(0x00080000);
 
     chsc_chars[0] = cpu_to_be32(0x40000000);
     chsc_chars[3] = cpu_to_be32(0x00040000);

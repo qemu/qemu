@@ -243,6 +243,7 @@ static uint64_t s390_update_iplstate(S390IPLState *ipl)
                 cpu_to_be32(S390_IPLB_MIN_CCW_LEN - S390_IPLB_HEADER_LEN);
             ipl->iplb.pbt = S390_IPL_TYPE_CCW;
             ipl->iplb.ccw.devno = cpu_to_be16(ccw_dev->sch->devno);
+            ipl->iplb.ccw.ssid = ccw_dev->sch->ssid & 3;
             ipl->iplb_valid = true;
             goto out;
         }
