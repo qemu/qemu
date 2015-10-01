@@ -86,7 +86,8 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
 
-check-qtest-generic-y =
+check-qtest-generic-y = tests/device-introspect-test$(EXESUF)
+gcov-files-generic-y = qdev-monitor.c qmp.c
 
 gcov-files-ipack-y += hw/ipack/ipack.c
 check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
@@ -383,6 +384,7 @@ libqos-imx-obj-y = $(libqos-obj-y) tests/libqos/i2c-imx.o
 libqos-usb-obj-y = $(libqos-pc-obj-y) tests/libqos/usb.o
 libqos-virtio-obj-y = $(libqos-pc-obj-y) tests/libqos/virtio.o tests/libqos/virtio-pci.o tests/libqos/virtio-mmio.o tests/libqos/malloc-generic.o
 
+tests/device-introspect-test$(EXESUF): tests/device-introspect-test.o
 tests/rtc-test$(EXESUF): tests/rtc-test.o
 tests/m48t59-test$(EXESUF): tests/m48t59-test.o
 tests/endianness-test$(EXESUF): tests/endianness-test.o
@@ -490,7 +492,7 @@ $(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: $(check-qtest-y)
 		QTEST_QEMU_IMG=qemu-img$(EXESUF) \
 		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$((RANDOM % 255 + 1))} \
 		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y) $(check-qtest-generic-y),"GTESTER $@")
-	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$*-y); do \
+	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$*-y) $(gcov-files-generic-y); do \
 	  echo Gcov report for $$f:;\
 	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
 	done,)
@@ -501,7 +503,7 @@ $(patsubst %, check-%, $(check-unit-y)): check-%: %
 	$(call quiet-command, \
 		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$((RANDOM % 255 + 1))} \
 		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $*,"GTESTER $*")
-	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$(subst tests/,,$*)-y); do \
+	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$(subst tests/,,$*)-y) $(gcov-files-generic-y); do \
 	  echo Gcov report for $$f:;\
 	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
 	done,)
