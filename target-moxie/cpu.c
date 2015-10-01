@@ -114,6 +114,13 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = moxie_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_moxie_cpu;
 #endif
+
+    /*
+     * Reason: moxie_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void moxielite_initfn(Object *obj)

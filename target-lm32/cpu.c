@@ -275,6 +275,13 @@ static void lm32_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = 32 + 7;
     cc->gdb_stop_before_watchpoint = true;
     cc->debug_excp_handler = lm32_debug_excp_handler;
+
+    /*
+     * Reason: lm32_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void lm32_register_cpu_type(const LM32CPUInfo *info)

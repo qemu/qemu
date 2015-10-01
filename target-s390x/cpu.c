@@ -353,6 +353,13 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
 #endif
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
     cc->gdb_core_xml_file = "s390x-core64.xml";
+
+    /*
+     * Reason: s390_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo s390_cpu_type_info = {

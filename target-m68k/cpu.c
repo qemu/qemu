@@ -212,6 +212,13 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     dc->vmsd = &vmstate_m68k_cpu;
     cc->gdb_num_core_regs = 18;
     cc->gdb_core_xml_file = "cf-core.xml";
+
+    /*
+     * Reason: m68k_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void register_cpu_type(const M68kCPUInfo *info)
