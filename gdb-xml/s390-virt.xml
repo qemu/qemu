@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Copyright 2015 IBM Corp.
+
+     This work is licensed under the terms of the GNU GPL, version 2 or
+     (at your option) any later version. See the COPYING file in the
+     top-level directory. -->
+
+<!DOCTYPE feature SYSTEM "gdb-target.dtd">
+<feature name="org.gnu.gdb.s390.virt">
+  <reg name="ckc" bitsize="64" type="uint64" group="system"/>
+  <reg name="cputm" bitsize="64" type="uint64" group="system"/>
+  <reg name="last_break" bitsize="64" type="code_ptr" group="system"/>
+  <reg name="prefix" bitsize="64" type="data_ptr" group="system"/>
+  <reg name="pp" bitsize="64" type="uint64" group="system"/>
+  <reg name="pfault_token" bitsize="64" type="uint64" group="system"/>
+  <reg name="pfault_select" bitsize="64" type="uint64" group="system"/>
+  <reg name="pfault_compare" bitsize="64" type="uint64" group="system"/>
+</feature>
