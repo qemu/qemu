@@ -330,7 +330,7 @@ int main(int argc, char **argv)
         root = tmpfs;
     }
 
-    socket_path = g_strdup_printf("/tmp/vhost-%d.sock", getpid());
+    socket_path = g_strdup_printf("%s/vhost.sock", tmpfs);
 
     /* create char dev and add read handlers */
     qemu_add_opts(&qemu_chardev_opts);
