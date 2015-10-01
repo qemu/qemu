@@ -45,17 +45,10 @@ static void test_one_device(const char *type)
     QDict *resp;
     char *help, *qom_tree;
 
-    /*
-     * Skip this part for the abstract device test case, because
-     * device-list-properties crashes for such devices.
-     * FIXME fix it not to crash
-     */
-    if (strcmp(type, "device")) {
-        resp = qmp("{'execute': 'device-list-properties',"
-                   " 'arguments': {'typename': %s}}",
-                   type);
-        QDECREF(resp);
-    }
+    resp = qmp("{'execute': 'device-list-properties',"
+               " 'arguments': {'typename': %s}}",
+               type);
+    QDECREF(resp);
 
     help = hmp("device_add \"%s,help\"", type);
     g_free(help);
