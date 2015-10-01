@@ -86,6 +86,8 @@ check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 # All QTests for now are POSIX-only, but the dependencies are
 # really in libqtest, not in the testcases themselves.
 
+check-qtest-generic-y =
+
 gcov-files-ipack-y += hw/ipack/ipack.c
 check-qtest-ipack-y += tests/ipoctal232-test$(EXESUF)
 gcov-files-ipack-y += hw/char/ipoctal232.c
@@ -218,10 +220,7 @@ gcov-files-ppc64-y += ppc64-softmmu/hw/ppc/spapr_pci.c
 check-qtest-microblazeel-y = $(check-qtest-microblaze-y)
 check-qtest-xtensaeb-y = $(check-qtest-xtensa-y)
 
-# qom-test works for all sysemu architectures:
-$(foreach target,$(SYSEMU_TARGET_LIST), \
-	$(if $(findstring tests/qom-test$(EXESUF), $(check-qtest-$(target)-y)),, \
-		$(eval check-qtest-$(target)-y += tests/qom-test$(EXESUF))))
+check-qtest-generic-y += tests/qom-test$(EXESUF)
 
 check-qapi-schema-y := $(addprefix tests/qapi-schema/, \
 	comments.json empty.json enum-empty.json enum-missing-data.json \
@@ -448,8 +447,11 @@ CFLAGS += $(TEST_CFLAGS)
 
 TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
 ifeq ($(CONFIG_POSIX),y)
-QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TARGET),))
+QTEST_TARGETS = $(TARGETS)
 check-qtest-y=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
+check-qtest-y += $(check-qtest-generic-y)
+else
+QTEST_TARGETS =
 endif
 
 qtest-obj-y = tests/libqtest.o $(test-util-obj-y)
@@ -487,7 +489,7 @@ $(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: $(check-qtest-y)
 	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
 		QTEST_QEMU_IMG=qemu-img$(EXESUF) \
 		MALLOC_PERTURB_=$${MALLOC_PERTURB_:-$$((RANDOM % 255 + 1))} \
-		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y),"GTESTER $@")
+		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y) $(check-qtest-generic-y),"GTESTER $@")
 	$(if $(CONFIG_GCOV),@for f in $(gcov-files-$*-y); do \
 	  echo Gcov report for $$f:;\
 	  $(GCOV) $(GCOV_OPTIONS) $$f -o `dirname $$f`; \
