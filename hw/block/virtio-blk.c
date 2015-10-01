@@ -30,7 +30,7 @@
 
 VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 {
-    VirtIOBlockReq *req = g_slice_new(VirtIOBlockReq);
+    VirtIOBlockReq *req = g_new(VirtIOBlockReq, 1);
     req->dev = s;
     req->qiov.size = 0;
     req->in_len = 0;
@@ -42,7 +42,7 @@ VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 void virtio_blk_free_request(VirtIOBlockReq *req)
 {
     if (req) {
-        g_slice_free(VirtIOBlockReq, req);
+        g_free(req);
     }
 }
 

@@ -113,7 +113,7 @@ static void mirror_iteration_done(MirrorOp *op, int ret)
     }
 
     qemu_iovec_destroy(&op->qiov);
-    g_slice_free(MirrorOp, op);
+    g_free(op);
 
     if (s->waiting_for_io) {
         qemu_coroutine_enter(s->common.co, NULL);
@@ -264,7 +264,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
     } while (delay_ns == 0 && next_sector < end);
 
     /* Allocate a MirrorOp that is used as an AIO callback.  */
-    op = g_slice_new(MirrorOp);
+    op = g_new(MirrorOp, 1);
     op->s = s;
     op->sector_num = sector_num;
     op->nb_sectors = nb_sectors;

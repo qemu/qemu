@@ -2218,7 +2218,7 @@ void *qemu_aio_get(const AIOCBInfo *aiocb_info, BlockDriverState *bs,
 {
     BlockAIOCB *acb;
 
-    acb = g_slice_alloc(aiocb_info->aiocb_size);
+    acb = g_malloc(aiocb_info->aiocb_size);
     acb->aiocb_info = aiocb_info;
     acb->bs = bs;
     acb->cb = cb;
@@ -2238,7 +2238,7 @@ void qemu_aio_unref(void *p)
     BlockAIOCB *acb = p;
     assert(acb->refcnt > 0);
     if (--acb->refcnt == 0) {
-        g_slice_free1(acb->aiocb_info->aiocb_size, acb);
+        g_free(acb);
     }
 }
 
