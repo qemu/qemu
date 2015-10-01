@@ -42,13 +42,21 @@ void cpu_reload_memory_map(CPUState *cpu)
     AddressSpaceDispatch *d;
 
     if (qemu_in_vcpu_thread()) {
-        /* Do not let the guest prolong the critical section as much as it
-         * as it desires.
+        /* The guest can in theory prolong the RCU critical section as long
+         * as it feels like. The major problem with this is that because it
+         * can do multiple reconfigurations of the memory map within the
+         * critical section, we could potentially accumulate an unbounded
+         * collection of memory data structures awaiting reclamation.
          *
-         * Currently, this is prevented by the I/O thread's periodinc kicking
-         * of the VCPU thread (iothread_requesting_mutex, qemu_cpu_kick_thread)
-         * but this will go away once TCG's execution moves out of the global
-         * mutex.
+         * Because the only thing we're currently protecting with RCU is the
+         * memory data structures, it's sufficient to break the critical section
+         * in this callback, which we know will get called every time the
+         * memory map is rearranged.
+         *
+         * (If we add anything else in the system that uses RCU to protect
+         * its data structures, we will need to implement some other mechanism
+         * to force TCG CPUs to exit the critical section, at which point this
+         * part of this callback might become unnecessary.)
          *
          * This pair matches cpu_exec's rcu_read_lock()/rcu_read_unlock(), which
          * only protects cpu->as->dispatch.  Since we reload it below, we can
