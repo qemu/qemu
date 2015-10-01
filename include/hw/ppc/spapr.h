@@ -589,6 +589,8 @@ sPAPRTCETable *spapr_tce_new_table(DeviceState *owner, uint32_t liobn,
                                    uint32_t page_shift,
                                    uint32_t nb_table,
                                    bool need_vfio);
+void spapr_tce_set_need_vfio(sPAPRTCETable *tcet, bool need_vfio);
+
 MemoryRegion *spapr_tce_get_iommu(sPAPRTCETable *tcet);
 int spapr_dma_dt(void *fdt, int node_off, const char *propname,
                  uint32_t liobn, uint64_t window, uint32_t size);
