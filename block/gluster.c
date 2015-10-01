@@ -429,28 +429,23 @@ static coroutine_fn int qemu_gluster_co_write_zeroes(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, BdrvRequestFlags flags)
 {
     int ret;
-    GlusterAIOCB *acb = g_slice_new(GlusterAIOCB);
+    GlusterAIOCB acb;
     BDRVGlusterState *s = bs->opaque;
     off_t size = nb_sectors * BDRV_SECTOR_SIZE;
     off_t offset = sector_num * BDRV_SECTOR_SIZE;
 
-    acb->size = size;
-    acb->ret = 0;
-    acb->coroutine = qemu_coroutine_self();
-    acb->aio_context = bdrv_get_aio_context(bs);
+    acb.size = size;
+    acb.ret = 0;
+    acb.coroutine = qemu_coroutine_self();
+    acb.aio_context = bdrv_get_aio_context(bs);
 
-    ret = glfs_zerofill_async(s->fd, offset, size, &gluster_finish_aiocb, acb);
+    ret = glfs_zerofill_async(s->fd, offset, size, gluster_finish_aiocb, &acb);
     if (ret < 0) {
-        ret = -errno;
-        goto out;
+        return -errno;
     }
 
     qemu_coroutine_yield();
-    ret = acb->ret;
-
-out:
-    g_slice_free(GlusterAIOCB, acb);
-    return ret;
+    return acb.ret;
 }
 
 static inline bool gluster_supports_zerofill(void)
@@ -541,35 +536,30 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov, int write)
 {
     int ret;
-    GlusterAIOCB *acb = g_slice_new(GlusterAIOCB);
+    GlusterAIOCB acb;
     BDRVGlusterState *s = bs->opaque;
     size_t size = nb_sectors * BDRV_SECTOR_SIZE;
     off_t offset = sector_num * BDRV_SECTOR_SIZE;
 
-    acb->size = size;
-    acb->ret = 0;
-    acb->coroutine = qemu_coroutine_self();
-    acb->aio_context = bdrv_get_aio_context(bs);
+    acb.size = size;
+    acb.ret = 0;
+    acb.coroutine = qemu_coroutine_self();
+    acb.aio_context = bdrv_get_aio_context(bs);
 
     if (write) {
         ret = glfs_pwritev_async(s->fd, qiov->iov, qiov->niov, offset, 0,
-            &gluster_finish_aiocb, acb);
+            gluster_finish_aiocb, &acb);
     } else {
         ret = glfs_preadv_async(s->fd, qiov->iov, qiov->niov, offset, 0,
-            &gluster_finish_aiocb, acb);
+            gluster_finish_aiocb, &acb);
     }
 
     if (ret < 0) {
-        ret = -errno;
-        goto out;
+        return -errno;
     }
 
     qemu_coroutine_yield();
-    ret = acb->ret;
-
-out:
-    g_slice_free(GlusterAIOCB, acb);
-    return ret;
+    return acb.ret;
 }
 
 static int qemu_gluster_truncate(BlockDriverState *bs, int64_t offset)
@@ -600,26 +590,21 @@ static coroutine_fn int qemu_gluster_co_writev(BlockDriverState *bs,
 static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
 {
     int ret;
-    GlusterAIOCB *acb = g_slice_new(GlusterAIOCB);
+    GlusterAIOCB acb;
     BDRVGlusterState *s = bs->opaque;
 
-    acb->size = 0;
-    acb->ret = 0;
-    acb->coroutine = qemu_coroutine_self();
-    acb->aio_context = bdrv_get_aio_context(bs);
+    acb.size = 0;
+    acb.ret = 0;
+    acb.coroutine = qemu_coroutine_self();
+    acb.aio_context = bdrv_get_aio_context(bs);
 
-    ret = glfs_fsync_async(s->fd, &gluster_finish_aiocb, acb);
+    ret = glfs_fsync_async(s->fd, gluster_finish_aiocb, &acb);
     if (ret < 0) {
-        ret = -errno;
-        goto out;
+        return -errno;
     }
 
     qemu_coroutine_yield();
-    ret = acb->ret;
-
-out:
-    g_slice_free(GlusterAIOCB, acb);
-    return ret;
+    return acb.ret;
 }
 
 #ifdef CONFIG_GLUSTERFS_DISCARD
@@ -627,28 +612,23 @@ static coroutine_fn int qemu_gluster_co_discard(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors)
 {
     int ret;
-    GlusterAIOCB *acb = g_slice_new(GlusterAIOCB);
+    GlusterAIOCB acb;
     BDRVGlusterState *s = bs->opaque;
     size_t size = nb_sectors * BDRV_SECTOR_SIZE;
     off_t offset = sector_num * BDRV_SECTOR_SIZE;
 
-    acb->size = 0;
-    acb->ret = 0;
-    acb->coroutine = qemu_coroutine_self();
-    acb->aio_context = bdrv_get_aio_context(bs);
+    acb.size = 0;
+    acb.ret = 0;
+    acb.coroutine = qemu_coroutine_self();
+    acb.aio_context = bdrv_get_aio_context(bs);
 
-    ret = glfs_discard_async(s->fd, offset, size, &gluster_finish_aiocb, acb);
+    ret = glfs_discard_async(s->fd, offset, size, gluster_finish_aiocb, &acb);
     if (ret < 0) {
-        ret = -errno;
-        goto out;
+        return -errno;
     }
 
     qemu_coroutine_yield();
-    ret = acb->ret;
-
-out:
-    g_slice_free(GlusterAIOCB, acb);
-    return ret;
+    return acb.ret;
 }
 #endif
 
