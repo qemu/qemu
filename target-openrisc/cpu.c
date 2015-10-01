@@ -177,6 +177,13 @@ static void openrisc_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_openrisc_cpu;
 #endif
     cc->gdb_num_core_regs = 32 + 3;
+
+    /*
+     * Reason: openrisc_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void cpu_register(const OpenRISCCPUInfo *info)

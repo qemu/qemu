@@ -155,6 +155,13 @@ static void uc32_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = uc32_cpu_get_phys_page_debug;
 #endif
     dc->vmsd = &vmstate_uc32_cpu;
+
+    /*
+     * Reason: uc32_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void uc32_register_cpu_type(const UniCore32CPUInfo *info)

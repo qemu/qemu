@@ -521,6 +521,11 @@ DevicePropertyInfoList *qmp_device_list_properties(const char *typename,
         return NULL;
     }
 
+    if (DEVICE_CLASS(klass)->cannot_destroy_with_object_finalize_yet) {
+        error_setg(errp, "Can't list properties of device '%s'", typename);
+        return NULL;
+    }
+
     obj = object_new(typename);
 
     QTAILQ_FOREACH(prop, &obj->properties, node) {

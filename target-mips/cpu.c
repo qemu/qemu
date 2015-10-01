@@ -153,6 +153,13 @@ static void mips_cpu_class_init(ObjectClass *c, void *data)
 
     cc->gdb_num_core_regs = 73;
     cc->gdb_stop_before_watchpoint = true;
+
+    /*
+     * Reason: mips_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo mips_cpu_type_info = {

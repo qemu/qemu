@@ -1453,6 +1453,8 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
      */
 
     dc->props = host_x86_cpu_properties;
+    /* Reason: host_x86_cpu_initfn() dies when !kvm_enabled() */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static void host_x86_cpu_initfn(Object *obj)
@@ -3190,6 +3192,12 @@ static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 #endif
     cc->cpu_exec_enter = x86_cpu_exec_enter;
     cc->cpu_exec_exit = x86_cpu_exec_exit;
+
+    /*
+     * Reason: x86_cpu_initfn() calls cpu_exec_init(), which saves the
+     * object in cpus -> dangling pointer after final object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo x86_cpu_type_info = {

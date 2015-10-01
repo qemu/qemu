@@ -309,6 +309,13 @@ static void cris_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_stop_before_watchpoint = true;
 
     cc->disas_set_info = cris_disas_set_info;
+
+    /*
+     * Reason: cris_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo cris_cpu_type_info = {

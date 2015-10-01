@@ -91,30 +91,6 @@ static void test_device_intro_abstract(void)
     qtest_end();
 }
 
-static bool blacklisted(const char *type)
-{
-    static const char *blacklist[] = {
-        /* hang in object_unref(): */
-        "realview_pci", "versatile_pci",
-        /* create a CPU, thus use after free (see below): */
-        "allwinner-a10", "digic", "fsl,imx25", "fsl,imx31", "xlnx,zynqmp",
-    };
-    size_t len = strlen(type);
-    int i;
-
-    if (len >= 4 && !strcmp(type + len - 4, "-cpu")) {
-        /* use after free: cpu_exec_init() saves CPUState in cpus */
-        return true;
-    }
-
-    for (i = 0; i < ARRAY_SIZE(blacklist); i++) {
-        if (!strcmp(blacklist[i], type)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 static void test_device_intro_concrete(void)
 {
     QList *types;
@@ -128,9 +104,6 @@ static void test_device_intro_concrete(void)
         type = qdict_get_try_str(qobject_to_qdict(qlist_entry_obj(entry)),
                                 "name");
         g_assert(type);
-        if (blacklisted(type)) {
-            continue;           /* FIXME broken device, skip */
-        }
         test_one_device(type);
     }
 
