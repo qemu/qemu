@@ -46,7 +46,6 @@ struct QTestState
     bool irq_level[MAX_IRQ];
     GString *rx;
     pid_t qemu_pid;  /* our child QEMU process */
-    struct sigaction sigact_old; /* restored on exit */
 };
 
 static GList *qtest_instances;
