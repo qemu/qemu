@@ -455,6 +455,8 @@ static void coroutine_fn mirror_run(void *opaque)
     if (!s->is_none_mode) {
         /* First part, loop on the sectors and initialize the dirty bitmap.  */
         BlockDriverState *base = s->base;
+        bool mark_all_dirty = s->base == NULL && !bdrv_has_zero_init(s->target);
+
         for (sector_num = 0; sector_num < end; ) {
             /* Just to make sure we are not exceeding int limit. */
             int nb_sectors = MIN(INT_MAX >> BDRV_SECTOR_BITS,
@@ -477,7 +479,7 @@ static void coroutine_fn mirror_run(void *opaque)
             }
 
             assert(n > 0);
-            if (ret == 1) {
+            if (ret == 1 || mark_all_dirty) {
                 bdrv_set_dirty_bitmap(s->dirty_bitmap, sector_num, n);
             }
             sector_num += n;
