@@ -47,9 +47,7 @@
     do { } while (0)
 #endif
 
-static bool mig_throttle_on;
 static int dirty_rate_high_cnt;
-static void check_guest_throttling(void);
 
 static uint64_t bitmap_sync_count;
 
@@ -407,6 +405,29 @@ static size_t save_page_header(QEMUFile *f, RAMBlock *block, ram_addr_t offset)
     return size;
 }
 
+/* Reduce amount of guest cpu execution to hopefully slow down memory writes.
+ * If guest dirty memory rate is reduced below the rate at which we can
+ * transfer pages to the destination then we should be able to complete
+ * migration. Some workloads dirty memory way too fast and will not effectively
+ * converge, even with auto-converge.
+ */
+static void mig_throttle_guest_down(void)
+{
+    MigrationState *s = migrate_get_current();
+    uint64_t pct_initial =
+            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL];
+    uint64_t pct_icrement =
+            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
+
+    /* We have not started throttling yet. Let's start it. */
+    if (!cpu_throttle_active()) {
+        cpu_throttle_set(pct_initial);
+    } else {
+        /* Throttling already on, just increase the rate */
+        cpu_throttle_set(cpu_throttle_get_percentage() + pct_icrement);
+    }
+}
+
 /* Update the xbzrle cache to reflect a page that's been sent as all 0.
  * The important thing is that a stale (not-yet-0'd) page be replaced
  * by the new data.
@@ -599,21 +620,21 @@ static void migration_bitmap_sync(void)
             /* The following detection logic can be refined later. For now:
                Check to see if the dirtied bytes is 50% more than the approx.
                amount of bytes that just got transferred since the last time we
-               were in this routine. If that happens >N times (for now N==4)
-               we turn on the throttle down logic */
+               were in this routine. If that happens twice, start or increase
+               throttling */
             bytes_xfer_now = ram_bytes_transferred();
+
             if (s->dirty_pages_rate &&
                (num_dirty_pages_period * TARGET_PAGE_SIZE >
                    (bytes_xfer_now - bytes_xfer_prev)/2) &&
-               (dirty_rate_high_cnt++ > 4)) {
+               (dirty_rate_high_cnt++ >= 2)) {
                     trace_migration_throttle();
-                    mig_throttle_on = true;
                     dirty_rate_high_cnt = 0;
+                    mig_throttle_guest_down();
              }
              bytes_xfer_prev = bytes_xfer_now;
-        } else {
-             mig_throttle_on = false;
         }
+
         if (migrate_use_xbzrle()) {
             if (iterations_prev != acct_info.iterations) {
                 acct_info.xbzrle_cache_miss_rate =
@@ -1146,7 +1167,6 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     RAMBlock *block;
     int64_t ram_bitmap_pages; /* Size of bitmap in pages, including gaps */
 
-    mig_throttle_on = false;
     dirty_rate_high_cnt = 0;
     bitmap_sync_count = 0;
     migration_bitmap_sync_init();
@@ -1251,7 +1271,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         }
         pages_sent += pages;
         acct_info.iterations++;
-        check_guest_throttling();
+
         /* we want to check in the 1st loop, just in case it was the 1st time
            and we had to sync the dirty bitmap.
            qemu_get_clock_ns() is a bit expensive, so we only check each some
@@ -1663,53 +1683,4 @@ void ram_mig_init(void)
 {
     qemu_mutex_init(&XBZRLE.lock);
     register_savevm_live(NULL, "ram", 0, 4, &savevm_ram_handlers, NULL);
-}
-/* Stub function that's gets run on the vcpu when its brought out of the
-   VM to run inside qemu via async_run_on_cpu()*/
-
-static void mig_sleep_cpu(void *opq)
-{
-    qemu_mutex_unlock_iothread();
-    g_usleep(30*1000);
-    qemu_mutex_lock_iothread();
-}
-
-/* To reduce the dirty rate explicitly disallow the VCPUs from spending
-   much time in the VM. The migration thread will try to catchup.
-   Workload will experience a performance drop.
-*/
-static void mig_throttle_guest_down(void)
-{
-    CPUState *cpu;
-
-    qemu_mutex_lock_iothread();
-    CPU_FOREACH(cpu) {
-        async_run_on_cpu(cpu, mig_sleep_cpu, NULL);
-    }
-    qemu_mutex_unlock_iothread();
-}
-
-static void check_guest_throttling(void)
-{
-    static int64_t t0;
-    int64_t        t1;
-
-    if (!mig_throttle_on) {
-        return;
-    }
-
-    if (!t0)  {
-        t0 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-        return;
-    }
-
-    t1 = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-
-    /* If it has been more than 40 ms since the last time the guest
-     * was throttled then do it again.
-     */
-    if (40 < (t1-t0)/1000000) {
-        mig_throttle_guest_down();
-        t0 = t1;
-    }
 }

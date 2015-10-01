@@ -29,8 +29,9 @@
 #include "trace.h"
 #include "qapi/util.h"
 #include "qapi-event.h"
+#include "qom/cpu.h"
 
-#define MAX_THROTTLE  (32 << 20)      /* Migration speed throttling */
+#define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
 /* Amount of time to allocate to each "chunk" of bandwidth-throttled
  * data. */
@@ -44,6 +45,9 @@
 #define DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT 2
 /*0: means nocompress, 1: best speed, ... 9: best compress ratio */
 #define DEFAULT_MIGRATE_COMPRESS_LEVEL 1
+/* Define default autoconverge cpu throttle migration parameters */
+#define DEFAULT_MIGRATE_X_CPU_THROTTLE_INITIAL 20
+#define DEFAULT_MIGRATE_X_CPU_THROTTLE_INCREMENT 10
 
 /* Migration XBZRLE default cache size */
 #define DEFAULT_MIGRATE_CACHE_SIZE (64 * 1024 * 1024)
@@ -71,6 +75,10 @@ MigrationState *migrate_get_current(void)
                 DEFAULT_MIGRATE_COMPRESS_THREAD_COUNT,
         .parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
                 DEFAULT_MIGRATE_DECOMPRESS_THREAD_COUNT,
+        .parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL] =
+                DEFAULT_MIGRATE_X_CPU_THROTTLE_INITIAL,
+        .parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT] =
+                DEFAULT_MIGRATE_X_CPU_THROTTLE_INCREMENT,
     };
 
     return &current_migration;
@@ -372,6 +380,10 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
             s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
     params->decompress_threads =
             s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
+    params->x_cpu_throttle_initial =
+            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL];
+    params->x_cpu_throttle_increment =
+            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
 
     return params;
 }
@@ -435,6 +447,11 @@ MigrationInfo *qmp_query_migrate(Error **errp)
             info->disk->total = blk_mig_bytes_total();
         }
 
+        if (cpu_throttle_active()) {
+            info->has_x_cpu_throttle_percentage = true;
+            info->x_cpu_throttle_percentage = cpu_throttle_get_percentage();
+        }
+
         get_xbzrle_cache_stats(info);
         break;
     case MIGRATION_STATUS_COMPLETED:
@@ -494,7 +511,11 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                                 bool has_compress_threads,
                                 int64_t compress_threads,
                                 bool has_decompress_threads,
-                                int64_t decompress_threads, Error **errp)
+                                int64_t decompress_threads,
+                                bool has_x_cpu_throttle_initial,
+                                int64_t x_cpu_throttle_initial,
+                                bool has_x_cpu_throttle_increment,
+                                int64_t x_cpu_throttle_increment, Error **errp)
 {
     MigrationState *s = migrate_get_current();
 
@@ -517,6 +538,18 @@ void qmp_migrate_set_parameters(bool has_compress_level,
                    "is invalid, it should be in the range of 1 to 255");
         return;
     }
+    if (has_x_cpu_throttle_initial &&
+            (x_cpu_throttle_initial < 1 || x_cpu_throttle_initial > 99)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "x_cpu_throttle_initial",
+                   "an integer in the range of 1 to 99");
+    }
+    if (has_x_cpu_throttle_increment &&
+            (x_cpu_throttle_increment < 1 || x_cpu_throttle_increment > 99)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "x_cpu_throttle_increment",
+                   "an integer in the range of 1 to 99");
+    }
 
     if (has_compress_level) {
         s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] = compress_level;
@@ -527,6 +560,15 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     if (has_decompress_threads) {
         s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
                                                     decompress_threads;
+    }
+    if (has_x_cpu_throttle_initial) {
+        s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL] =
+                                                    x_cpu_throttle_initial;
+    }
+
+    if (has_x_cpu_throttle_increment) {
+        s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT] =
+                                                    x_cpu_throttle_increment;
     }
 }
 
@@ -643,6 +685,10 @@ static MigrationState *migrate_init(const MigrationParams *params)
             s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
     int decompress_thread_count =
             s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
+    int x_cpu_throttle_initial =
+            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL];
+    int x_cpu_throttle_increment =
+            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
 
     memcpy(enabled_capabilities, s->enabled_capabilities,
            sizeof(enabled_capabilities));
@@ -658,6 +704,10 @@ static MigrationState *migrate_init(const MigrationParams *params)
                compress_thread_count;
     s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
                decompress_thread_count;
+    s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL] =
+                x_cpu_throttle_initial;
+    s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT] =
+                x_cpu_throttle_increment;
     s->bandwidth_limit = bandwidth_limit;
     migrate_set_state(s, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
@@ -1025,6 +1075,9 @@ static void *migration_thread(void *opaque)
             g_usleep((initial_time + BUFFER_DELAY - current_time)*1000);
         }
     }
+
+    /* If we enabled cpu throttling for auto-converge, turn it off. */
+    cpu_throttle_stop();
 
     qemu_mutex_lock_iothread();
     if (s->state == MIGRATION_STATUS_COMPLETED) {
