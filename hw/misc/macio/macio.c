@@ -131,6 +131,10 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     MacIOState *s = MACIO(d);
     SysBusDevice *sysbus_dev;
     Error *err = NULL;
+    MemoryRegion *dbdma_mem;
+
+    s->dbdma = DBDMA_init(&dbdma_mem);
+    memory_region_add_subregion(&s->bar, 0x08000, dbdma_mem);
 
     object_property_set_bool(OBJECT(&s->cuda), true, "realized", &err);
     if (err) {
@@ -328,16 +332,12 @@ static void macio_newworld_init(Object *obj)
 static void macio_instance_init(Object *obj)
 {
     MacIOState *s = MACIO(obj);
-    MemoryRegion *dbdma_mem;
 
     memory_region_init(&s->bar, obj, "macio", 0x80000);
 
     object_initialize(&s->cuda, sizeof(s->cuda), TYPE_CUDA);
     qdev_set_parent_bus(DEVICE(&s->cuda), sysbus_get_default());
     object_property_add_child(obj, "cuda", OBJECT(&s->cuda), NULL);
-
-    s->dbdma = DBDMA_init(&dbdma_mem);
-    memory_region_add_subregion(&s->bar, 0x08000, dbdma_mem);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
