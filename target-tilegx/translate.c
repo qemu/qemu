@@ -496,6 +496,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     const char *mnemonic;
     TCGMemOp memop;
     TileExcp ret = TILEGX_EXCP_NONE;
+    bool prefetch_nofault = false;
 
     /* Eliminate instructions with no output before doing anything else.  */
     switch (opext) {
@@ -609,27 +610,30 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RR_X1(LD1S):
         memop = MO_SB;
-        mnemonic = "ld1s";
+        mnemonic = "ld1s"; /* prefetch_l1_fault */
         goto do_load;
     case OE_RR_X1(LD1U):
         memop = MO_UB;
-        mnemonic = "ld1u";
+        mnemonic = "ld1u"; /* prefetch, prefetch_l1 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load;
     case OE_RR_X1(LD2S):
         memop = MO_TESW;
-        mnemonic = "ld2s";
+        mnemonic = "ld2s"; /* prefetch_l2_fault */
         goto do_load;
     case OE_RR_X1(LD2U):
         memop = MO_TEUW;
-        mnemonic = "ld2u";
+        mnemonic = "ld2u"; /* prefetch_l2 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load;
     case OE_RR_X1(LD4S):
         memop = MO_TESL;
-        mnemonic = "ld4s";
+        mnemonic = "ld4s"; /* prefetch_l3_fault */
         goto do_load;
     case OE_RR_X1(LD4U):
         memop = MO_TEUL;
-        mnemonic = "ld4u";
+        mnemonic = "ld4u"; /* prefetch_l3 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load;
     case OE_RR_X1(LDNT1S):
         memop = MO_SB;
@@ -663,7 +667,9 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         memop = MO_TEQ;
         mnemonic = "ld";
     do_load:
-        tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        if (!prefetch_nofault) {
+            tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        }
         break;
     case OE_RR_X1(LDNA):
         tcg_gen_andi_tl(tdest, tsrca, ~7);
@@ -1442,6 +1448,7 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
 {
     TCGv tdest = dest_gr(dc, dest);
     TCGv tsrca = load_gr(dc, srca);
+    bool prefetch_nofault = false;
     const char *mnemonic;
     TCGMemOp memop;
     int i2, i3;
@@ -1491,27 +1498,30 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_IM(LD1S_ADD, X1):
         memop = MO_SB;
-        mnemonic = "ld1s_add";
+        mnemonic = "ld1s_add"; /* prefetch_add_l1_fault */
         goto do_load_add;
     case OE_IM(LD1U_ADD, X1):
         memop = MO_UB;
-        mnemonic = "ld1u_add";
+        mnemonic = "ld1u_add"; /* prefetch_add_l1 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load_add;
     case OE_IM(LD2S_ADD, X1):
         memop = MO_TESW;
-        mnemonic = "ld2s_add";
+        mnemonic = "ld2s_add"; /* prefetch_add_l2_fault */
         goto do_load_add;
     case OE_IM(LD2U_ADD, X1):
         memop = MO_TEUW;
-        mnemonic = "ld2u_add";
+        mnemonic = "ld2u_add"; /* prefetch_add_l2 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load_add;
     case OE_IM(LD4S_ADD, X1):
         memop = MO_TESL;
-        mnemonic = "ld4s_add";
+        mnemonic = "ld4s_add"; /* prefetch_add_l3_fault */
         goto do_load_add;
     case OE_IM(LD4U_ADD, X1):
         memop = MO_TEUL;
-        mnemonic = "ld4u_add";
+        mnemonic = "ld4u_add"; /* prefetch_add_l3 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load_add;
     case OE_IM(LDNT1S_ADD, X1):
         memop = MO_SB;
@@ -1545,7 +1555,9 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         memop = MO_TEQ;
         mnemonic = "ld_add";
     do_load_add:
-        tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        if (!prefetch_nofault) {
+            tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        }
         tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
         break;
     case OE_IM(LDNA_ADD, X1):
