@@ -601,7 +601,6 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
 #ifndef CONFIG_USER_ONLY
     cpu->as = &address_space_memory;
     cpu->thread_id = qemu_get_thread_id();
-    cpu_reload_memory_map(cpu);
 #endif
 
 #if defined(CONFIG_USER_ONLY)
