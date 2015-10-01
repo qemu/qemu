@@ -85,7 +85,7 @@ void QEMU_NORETURN cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc);
 
 #if !defined(CONFIG_USER_ONLY)
 bool qemu_in_vcpu_thread(void);
-void cpu_reload_memory_map(CPUState *cpu);
+void cpu_reloading_memory_map(void);
 void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as);
 /* cputlb.c */
 /**

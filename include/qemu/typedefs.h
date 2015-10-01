@@ -16,6 +16,7 @@ typedef struct BusClass BusClass;
 typedef struct BusState BusState;
 typedef struct CharDriverState CharDriverState;
 typedef struct CompatProperty CompatProperty;
+typedef struct CPUAddressSpace CPUAddressSpace;
 typedef struct DeviceState DeviceState;
 typedef struct DeviceListener DeviceListener;
 typedef struct DisplayChangeListener DisplayChangeListener;

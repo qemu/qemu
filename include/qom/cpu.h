@@ -234,6 +234,10 @@ struct kvm_run;
  * @can_do_io: Nonzero if memory-mapped IO is safe. Deterministic execution
  * requires that IO only be performed on the last instruction of a TB
  * so that interrupts take effect immediately.
+ * @cpu_ases: Pointer to array of CPUAddressSpaces (which define the
+ *            AddressSpaces this CPU has)
+ * @as: Pointer to the first AddressSpace, for the convenience of targets which
+ *      only have a single AddressSpace
  * @env_ptr: Pointer to subclass-specific CPUArchState field.
  * @current_tb: Currently executing TB.
  * @gdb_regs: Additional GDB registers.
@@ -280,9 +284,8 @@ struct CPUState {
     QemuMutex work_mutex;
     struct qemu_work_item *queued_work_first, *queued_work_last;
 
+    CPUAddressSpace *cpu_ases;
     AddressSpace *as;
-    struct AddressSpaceDispatch *memory_dispatch;
-    MemoryListener *tcg_as_listener;
 
     void *env_ptr; /* CPUArchState */
     struct TranslationBlock *current_tb;
