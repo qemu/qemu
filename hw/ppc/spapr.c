@@ -625,6 +625,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
     _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
+    _FDT((fdt_setprop_cell(fdt, offset, "slb-size", env->slb_nr)));
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", env->slb_nr)));
     _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
     _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
