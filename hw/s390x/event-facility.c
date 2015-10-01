@@ -27,8 +27,6 @@ typedef struct SCLPEventsBus {
 struct SCLPEventFacility {
     SysBusDevice parent_obj;
     SCLPEventsBus sbus;
-    SCLPEvent quiesce_event;
-    SCLPEvent cpu_hotplug_event;
     /* guest' receive mask */
     unsigned int receive_mask;
 };
@@ -347,19 +345,21 @@ static void init_event_facility(Object *obj)
 {
     SCLPEventFacility *event_facility = EVENT_FACILITY(obj);
     DeviceState *sdev = DEVICE(obj);
+    Object *new;
 
     /* Spawn a new bus for SCLP events */
     qbus_create_inplace(&event_facility->sbus, sizeof(event_facility->sbus),
                         TYPE_SCLP_EVENTS_BUS, sdev, NULL);
 
-    object_initialize(&event_facility->quiesce_event, sizeof(SCLPEvent),
-                      TYPE_SCLP_QUIESCE);
-    qdev_set_parent_bus(DEVICE(&event_facility->quiesce_event),
-                        &event_facility->sbus.qbus);
-    object_initialize(&event_facility->cpu_hotplug_event, sizeof(SCLPEvent),
-                      TYPE_SCLP_CPU_HOTPLUG);
-    qdev_set_parent_bus(DEVICE(&event_facility->cpu_hotplug_event),
-                        &event_facility->sbus.qbus);
+    new = object_new(TYPE_SCLP_QUIESCE);
+    object_property_add_child(obj, TYPE_SCLP_QUIESCE, new, NULL);
+    object_unref(new);
+    qdev_set_parent_bus(DEVICE(new), &event_facility->sbus.qbus);
+
+    new = object_new(TYPE_SCLP_CPU_HOTPLUG);
+    object_property_add_child(obj, TYPE_SCLP_CPU_HOTPLUG, new, NULL);
+    object_unref(new);
+    qdev_set_parent_bus(DEVICE(new), &event_facility->sbus.qbus);
     /* the facility will automatically realize the devices via the bus */
 }
 
