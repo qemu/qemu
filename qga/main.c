@@ -945,10 +945,11 @@ static void config_load(GAConfig *config)
 {
     GError *gerr = NULL;
     GKeyFile *keyfile;
+    const char *conf = g_getenv("QGA_CONF") ?: QGA_CONF_DEFAULT;
 
     /* read system config */
     keyfile = g_key_file_new();
-    if (!g_key_file_load_from_file(keyfile, QGA_CONF_DEFAULT, 0, &gerr)) {
+    if (!g_key_file_load_from_file(keyfile, conf, 0, &gerr)) {
         goto end;
     }
     if (g_key_file_has_key(keyfile, "general", "daemon", NULL)) {
