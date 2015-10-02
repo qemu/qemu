@@ -1199,6 +1199,7 @@ virtio_gpu_cmd_ctx_destroy(uint32_t ctx) "ctx 0x%x"
 virtio_gpu_cmd_ctx_res_attach(uint32_t ctx, uint32_t res) "ctx 0x%x, res 0x%x"
 virtio_gpu_cmd_ctx_res_detach(uint32_t ctx, uint32_t res) "ctx 0x%x, res 0x%x"
 virtio_gpu_cmd_ctx_submit(uint32_t ctx, uint32_t size) "ctx 0x%x, size %d"
+virtio_gpu_update_cursor(uint32_t scanout, uint32_t x, uint32_t y, const char *type, uint32_t res) "scanout %d, x %d, y %d, %s, res 0x%x"
 virtio_gpu_fence_ctrl(uint64_t fence, uint32_t type) "fence 0x%" PRIx64 ", type 0x%x"
 virtio_gpu_fence_resp(uint64_t fence) "fence 0x%" PRIx64
 
