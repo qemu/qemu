@@ -1907,6 +1907,12 @@ void bdrv_close(BlockDriverState *bs)
     if (bs->job) {
         block_job_cancel_sync(bs->job);
     }
+
+    /* Disable I/O limits and drain all pending throttled requests */
+    if (bs->io_limits_enabled) {
+        bdrv_io_limits_disable(bs);
+    }
+
     bdrv_drain(bs); /* complete I/O */
     bdrv_flush(bs);
     bdrv_drain(bs); /* in case flush left pending I/O */
@@ -1956,11 +1962,6 @@ void bdrv_close(BlockDriverState *bs)
 
     if (bs->blk) {
         blk_dev_change_media_cb(bs->blk, false);
-    }
-
-    /*throttling disk I/O limits*/
-    if (bs->io_limits_enabled) {
-        bdrv_io_limits_disable(bs);
     }
 
     QLIST_FOREACH_SAFE(ban, &bs->aio_notifiers, list, ban_next) {

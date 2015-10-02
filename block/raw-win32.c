@@ -119,9 +119,9 @@ static int aio_worker(void *arg)
     case QEMU_AIO_WRITE:
         count = handle_aiocb_rw(aiocb);
         if (count == aiocb->aio_nbytes) {
-            count = 0;
+            ret = 0;
         } else {
-            count = -EINVAL;
+            ret = -EINVAL;
         }
         break;
     case QEMU_AIO_FLUSH:
