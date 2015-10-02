@@ -1239,11 +1239,36 @@ static void tcg_out_brcond2 (TCGContext *s, const TCGArg *args,
 
 void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr)
 {
-    TCGContext s;
+    tcg_insn_unit i1, i2;
+    uint64_t pair;
+    intptr_t diff = addr - jmp_addr;
 
-    s.code_buf = s.code_ptr = (tcg_insn_unit *)jmp_addr;
-    tcg_out_b(&s, 0, (tcg_insn_unit *)addr);
-    flush_icache_range(jmp_addr, jmp_addr + tcg_current_code_size(&s));
+    if (in_range_b(diff)) {
+        i1 = B | (diff & 0x3fffffc);
+        i2 = NOP;
+    } else if (USE_REG_RA) {
+        intptr_t lo, hi;
+        diff = addr - (uintptr_t)tb_ret_addr;
+        lo = (int16_t)diff;
+        hi = (int32_t)(diff - lo);
+        assert(diff == hi + lo);
+        i1 = ADDIS | TAI(TCG_REG_TMP1, TCG_REG_RA, hi >> 16);
+        i2 = ADDI | TAI(TCG_REG_TMP1, TCG_REG_TMP1, lo);
+    } else {
+        assert(TCG_TARGET_REG_BITS == 32 || addr == (int32_t)addr);
+        i1 = ADDIS | TAI(TCG_REG_TMP1, 0, addr >> 16);
+        i2 = ORI | SAI(TCG_REG_TMP1, TCG_REG_TMP1, addr);
+    }
+#ifdef HOST_WORDS_BIGENDIAN
+    pair = (uint64_t)i1 << 32 | i2;
+#else
+    pair = (uint64_t)i2 << 32 | i1;
+#endif
+
+    /* ??? __atomic_store_8, presuming there's some way to do that
+       for 32-bit, otherwise this is good enough for 64-bit.  */
+    *(uint64_t *)jmp_addr = pair;
+    flush_icache_range(jmp_addr, jmp_addr + 8);
 }
 
 static void tcg_out_call(TCGContext *s, tcg_insn_unit *target)
@@ -1869,14 +1894,16 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_b(s, 0, tb_ret_addr);
         break;
     case INDEX_op_goto_tb:
-        if (s->tb_jmp_offset) {
-            /* Direct jump method.  */
-            s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
-            s->code_ptr += 7;
-        } else {
-            /* Indirect jump method.  */
-            tcg_abort();
+        tcg_debug_assert(s->tb_jmp_offset);
+        /* Direct jump.  Ensure the next insns are 8-byte aligned. */
+        if ((uintptr_t)s->code_ptr & 7) {
+            tcg_out32(s, NOP);
         }
+        s->tb_jmp_offset[args[0]] = tcg_current_code_size(s);
+        /* To be replaced by either a branch+nop or a load into TMP1.  */
+        s->code_ptr += 2;
+        tcg_out32(s, MTSPR | RS(TCG_REG_TMP1) | CTR);
+        tcg_out32(s, BCCTR | BO_ALWAYS);
         s->tb_next_offset[args[0]] = tcg_current_code_size(s);
         break;
     case INDEX_op_br:
