@@ -1083,8 +1083,6 @@ static void config_parse(GAConfig *config, int argc, char **argv)
         { NULL, 0, NULL, 0 }
     };
 
-    config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
-
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
         case 'm':
@@ -1331,6 +1329,8 @@ int main(int argc, char **argv)
     int ret = EXIT_SUCCESS;
     GAState *s = g_new0(GAState, 1);
     GAConfig *config = g_new0(GAConfig, 1);
+
+    config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
     module_call_init(MODULE_INIT_QAPI);
 
