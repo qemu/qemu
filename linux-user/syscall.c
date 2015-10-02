@@ -457,6 +457,7 @@ static uint16_t target_to_host_errno_table[ERRNO_TABLE_SIZE] = {
  * minus the errnos that are not actually generic to all archs.
  */
 static uint16_t host_to_target_errno_table[ERRNO_TABLE_SIZE] = {
+    [EAGAIN]		= TARGET_EAGAIN,
     [EIDRM]		= TARGET_EIDRM,
     [ECHRNG]		= TARGET_ECHRNG,
     [EL2NSYNC]		= TARGET_EL2NSYNC,
@@ -1181,7 +1182,7 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
     abi_long msg_controllen;
     abi_ulong target_cmsg_addr;
-    struct target_cmsghdr *target_cmsg;
+    struct target_cmsghdr *target_cmsg, *target_cmsg_start;
     socklen_t space = 0;
     
     msg_controllen = tswapal(target_msgh->msg_controllen);
@@ -1189,6 +1190,7 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         goto the_end;
     target_cmsg_addr = tswapal(target_msgh->msg_control);
     target_cmsg = lock_user(VERIFY_READ, target_cmsg_addr, msg_controllen, 1);
+    target_cmsg_start = target_cmsg;
     if (!target_cmsg)
         return -TARGET_EFAULT;
 
@@ -1247,7 +1249,8 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         }
 
         cmsg = CMSG_NXTHDR(msgh, cmsg);
-        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
+        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg,
+                                         target_cmsg_start);
     }
     unlock_user(target_cmsg, target_cmsg_addr, 0);
  the_end:
@@ -1261,7 +1264,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
     abi_long msg_controllen;
     abi_ulong target_cmsg_addr;
-    struct target_cmsghdr *target_cmsg;
+    struct target_cmsghdr *target_cmsg, *target_cmsg_start;
     socklen_t space = 0;
 
     msg_controllen = tswapal(target_msgh->msg_controllen);
@@ -1269,6 +1272,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         goto the_end;
     target_cmsg_addr = tswapal(target_msgh->msg_control);
     target_cmsg = lock_user(VERIFY_WRITE, target_cmsg_addr, msg_controllen, 0);
+    target_cmsg_start = target_cmsg;
     if (!target_cmsg)
         return -TARGET_EFAULT;
 
@@ -1382,14 +1386,15 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         }
 
         target_cmsg->cmsg_len = tswapal(tgt_len);
-        tgt_space = TARGET_CMSG_SPACE(tgt_len);
+        tgt_space = TARGET_CMSG_SPACE(len);
         if (msg_controllen < tgt_space) {
             tgt_space = msg_controllen;
         }
         msg_controllen -= tgt_space;
         space += tgt_space;
         cmsg = CMSG_NXTHDR(msgh, cmsg);
-        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg);
+        target_cmsg = TARGET_CMSG_NXTHDR(target_msgh, target_cmsg,
+                                         target_cmsg_start);
     }
     unlock_user(target_cmsg, target_cmsg_addr, space);
  the_end:
@@ -4622,8 +4627,9 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         pthread_mutex_unlock(&clone_lock);
     } else {
         /* if no CLONE_VM, we consider it is a fork */
-        if ((flags & ~(CSIGNAL | CLONE_NPTL_FLAGS2)) != 0)
-            return -EINVAL;
+        if ((flags & ~(CSIGNAL | CLONE_NPTL_FLAGS2)) != 0) {
+            return -TARGET_EINVAL;
+        }
         fork_start();
         ret = fork();
         if (ret == 0) {
@@ -5246,6 +5252,94 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
         return -TARGET_ENOSYS;
     }
 }
+#if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+static abi_long do_name_to_handle_at(abi_long dirfd, abi_long pathname,
+                                     abi_long handle, abi_long mount_id,
+                                     abi_long flags)
+{
+    struct file_handle *target_fh;
+    struct file_handle *fh;
+    int mid = 0;
+    abi_long ret;
+    char *name;
+    unsigned int size, total_size;
+
+    if (get_user_s32(size, handle)) {
+        return -TARGET_EFAULT;
+    }
+
+    name = lock_user_string(pathname);
+    if (!name) {
+        return -TARGET_EFAULT;
+    }
+
+    total_size = sizeof(struct file_handle) + size;
+    target_fh = lock_user(VERIFY_WRITE, handle, total_size, 0);
+    if (!target_fh) {
+        unlock_user(name, pathname, 0);
+        return -TARGET_EFAULT;
+    }
+
+    fh = g_malloc0(total_size);
+    fh->handle_bytes = size;
+
+    ret = get_errno(name_to_handle_at(dirfd, path(name), fh, &mid, flags));
+    unlock_user(name, pathname, 0);
+
+    /* man name_to_handle_at(2):
+     * Other than the use of the handle_bytes field, the caller should treat
+     * the file_handle structure as an opaque data type
+     */
+
+    memcpy(target_fh, fh, total_size);
+    target_fh->handle_bytes = tswap32(fh->handle_bytes);
+    target_fh->handle_type = tswap32(fh->handle_type);
+    g_free(fh);
+    unlock_user(target_fh, handle, total_size);
+
+    if (put_user_s32(mid, mount_id)) {
+        return -TARGET_EFAULT;
+    }
+
+    return ret;
+
+}
+#endif
+
+#if defined(TARGET_NR_open_by_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+static abi_long do_open_by_handle_at(abi_long mount_fd, abi_long handle,
+                                     abi_long flags)
+{
+    struct file_handle *target_fh;
+    struct file_handle *fh;
+    unsigned int size, total_size;
+    abi_long ret;
+
+    if (get_user_s32(size, handle)) {
+        return -TARGET_EFAULT;
+    }
+
+    total_size = sizeof(struct file_handle) + size;
+    target_fh = lock_user(VERIFY_READ, handle, total_size, 1);
+    if (!target_fh) {
+        return -TARGET_EFAULT;
+    }
+
+    fh = g_malloc0(total_size);
+    memcpy(fh, target_fh, total_size);
+    fh->handle_bytes = size;
+    fh->handle_type = tswap32(target_fh->handle_type);
+
+    ret = get_errno(open_by_handle_at(mount_fd, fh,
+                    target_to_host_bitmask(flags, fcntl_flags_tbl)));
+
+    g_free(fh);
+
+    unlock_user(target_fh, handle, total_size);
+
+    return ret;
+}
+#endif
 
 /* Map host to target signal numbers for the wait family of syscalls.
    Assume all other status bits are the same.  */
@@ -5658,6 +5752,16 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                                   arg4));
         unlock_user(p, arg2, 0);
         break;
+#if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+    case TARGET_NR_name_to_handle_at:
+        ret = do_name_to_handle_at(arg1, arg2, arg3, arg4, arg5);
+        break;
+#endif
+#if defined(TARGET_NR_open_by_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
+    case TARGET_NR_open_by_handle_at:
+        ret = do_open_by_handle_at(arg1, arg2, arg3);
+        break;
+#endif
     case TARGET_NR_close:
         ret = get_errno(close(arg1));
         break;
@@ -5808,12 +5912,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             }
             *q = NULL;
 
-            /* This case will not be caught by the host's execve() if its
-               page size is bigger than the target's. */
-            if (total_size > MAX_ARG_PAGES * TARGET_PAGE_SIZE) {
-                ret = -TARGET_E2BIG;
-                goto execve_end;
-            }
             if (!(p = lock_user_string(arg1)))
                 goto execve_efault;
             ret = get_errno(execve(p, argp, envp));

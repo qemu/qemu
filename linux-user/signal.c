@@ -3900,12 +3900,6 @@ static inline abi_ulong get_sigframe(struct target_sigaction *ka,
     return sp;
 }
 
-static void setup_frame(int sig, struct target_sigaction *ka,
-                        target_sigset_t *set, CPUOpenRISCState *env)
-{
-    qemu_log("Not implement.\n");
-}
-
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
                            target_siginfo_t *info,
                            target_sigset_t *set, CPUOpenRISCState *env)
@@ -5662,7 +5656,8 @@ void process_pending_signals(CPUArchState *cpu_env)
         }
 #endif
         /* prepare the stack frame of the virtual CPU */
-#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64)
+#if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64) \
+    || defined(TARGET_OPENRISC)
         /* These targets do not have traditional signals.  */
         setup_rt_frame(sig, sa, &q->info, &target_old_set, cpu_env);
 #else

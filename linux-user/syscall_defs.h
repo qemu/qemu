@@ -235,7 +235,8 @@ struct target_cmsghdr {
 };
 
 #define TARGET_CMSG_DATA(cmsg) ((unsigned char *) ((struct target_cmsghdr *) (cmsg) + 1))
-#define TARGET_CMSG_NXTHDR(mhdr, cmsg) __target_cmsg_nxthdr (mhdr, cmsg)
+#define TARGET_CMSG_NXTHDR(mhdr, cmsg, cmsg_start) \
+                               __target_cmsg_nxthdr(mhdr, cmsg, cmsg_start)
 #define TARGET_CMSG_ALIGN(len) (((len) + sizeof (abi_long) - 1) \
                                & (size_t) ~(sizeof (abi_long) - 1))
 #define TARGET_CMSG_SPACE(len) (TARGET_CMSG_ALIGN (len) \
@@ -243,17 +244,20 @@ struct target_cmsghdr {
 #define TARGET_CMSG_LEN(len)   (TARGET_CMSG_ALIGN (sizeof (struct target_cmsghdr)) + (len))
 
 static __inline__ struct target_cmsghdr *
-__target_cmsg_nxthdr (struct target_msghdr *__mhdr, struct target_cmsghdr *__cmsg)
+__target_cmsg_nxthdr(struct target_msghdr *__mhdr,
+                     struct target_cmsghdr *__cmsg,
+                     struct target_cmsghdr *__cmsg_start)
 {
   struct target_cmsghdr *__ptr;
 
   __ptr = (struct target_cmsghdr *)((unsigned char *) __cmsg
                                     + TARGET_CMSG_ALIGN (tswapal(__cmsg->cmsg_len)));
-  if ((unsigned long)((char *)(__ptr+1) - (char *)(size_t)tswapal(__mhdr->msg_control))
-      > tswapal(__mhdr->msg_controllen))
+  if ((unsigned long)((char *)(__ptr+1) - (char *)__cmsg_start)
+      > tswapal(__mhdr->msg_controllen)) {
     /* No more entries.  */
     return (struct target_cmsghdr *)0;
-  return __cmsg;
+  }
+  return __ptr;
 }
 
 struct target_mmsghdr {
