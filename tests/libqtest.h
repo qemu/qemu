@@ -851,4 +851,11 @@ static inline int64_t clock_set(int64_t val)
  */
 bool qtest_big_endian(void);
 
+
+QDict *qmp_fd_receive(int fd);
+void qmp_fd_sendv(int fd, const char *fmt, va_list ap);
+void qmp_fd_send(int fd, const char *fmt, ...);
+QDict *qmp_fdv(int fd, const char *fmt, va_list ap);
+QDict *qmp_fd(int fd, const char *fmt, ...);
+
 #endif
