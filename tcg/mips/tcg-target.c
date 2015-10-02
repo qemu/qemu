@@ -288,7 +288,7 @@ typedef enum {
     OPC_SRLV     = OPC_SPECIAL | 0x06,
     OPC_ROTRV    = OPC_SPECIAL | (0x01 <<  6) | 0x06,
     OPC_SRAV     = OPC_SPECIAL | 0x07,
-    OPC_JR       = OPC_SPECIAL | 0x08,
+    OPC_JR_R5    = OPC_SPECIAL | 0x08,
     OPC_JALR     = OPC_SPECIAL | 0x09,
     OPC_MOVZ     = OPC_SPECIAL | 0x0A,
     OPC_MOVN     = OPC_SPECIAL | 0x0B,
@@ -320,6 +320,9 @@ typedef enum {
     OPC_WSBH     = OPC_SPECIAL3 | 0x0a0,
     OPC_SEB      = OPC_SPECIAL3 | 0x420,
     OPC_SEH      = OPC_SPECIAL3 | 0x620,
+
+    /* MIPS r6 doesn't have JR, JALR should be used instead */
+    OPC_JR       = use_mips32r6_instructions ? OPC_JALR : OPC_JR_R5,
 } MIPSInsn;
 
 /*
