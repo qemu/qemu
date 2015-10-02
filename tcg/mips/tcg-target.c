@@ -314,6 +314,8 @@ typedef enum {
     OPC_NOR      = OPC_SPECIAL | 0x27,
     OPC_SLT      = OPC_SPECIAL | 0x2A,
     OPC_SLTU     = OPC_SPECIAL | 0x2B,
+    OPC_SELEQZ   = OPC_SPECIAL | 0x35,
+    OPC_SELNEZ   = OPC_SPECIAL | 0x37,
 
     OPC_REGIMM   = 0x01 << 26,
     OPC_BLTZ     = OPC_REGIMM | (0x00 << 16),
@@ -858,13 +860,20 @@ static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
 }
 
 static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGReg c1, TCGReg c2, TCGReg v)
+                            TCGReg c1, TCGReg c2, TCGReg v1, TCGReg v2)
 {
-    MIPSInsn m_opc = OPC_MOVN;
+    bool eqz = false;
+
+    /* If one of the values is zero, put it last to match SEL*Z instructions */
+    if (use_mips32r6_instructions && v1 == 0) {
+        v1 = v2;
+        v2 = 0;
+        cond = tcg_invert_cond(cond);
+    }
 
     switch (cond) {
     case TCG_COND_EQ:
-        m_opc = OPC_MOVZ;
+        eqz = true;
         /* FALLTHRU */
     case TCG_COND_NE:
         if (c2 != 0) {
@@ -877,14 +886,32 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
         /* Minimize code size by preferring a compare not requiring INV.  */
         if (mips_cmp_map[cond] & MIPS_CMP_INV) {
             cond = tcg_invert_cond(cond);
-            m_opc = OPC_MOVZ;
+            eqz = true;
         }
         tcg_out_setcond(s, cond, TCG_TMP0, c1, c2);
         c1 = TCG_TMP0;
         break;
     }
 
-    tcg_out_opc_reg(s, m_opc, ret, v, c1);
+    if (use_mips32r6_instructions) {
+        MIPSInsn m_opc_t = eqz ? OPC_SELEQZ : OPC_SELNEZ;
+        MIPSInsn m_opc_f = eqz ? OPC_SELNEZ : OPC_SELEQZ;
+
+        if (v2 != 0) {
+            tcg_out_opc_reg(s, m_opc_f, TCG_TMP1, v2, c1);
+        }
+        tcg_out_opc_reg(s, m_opc_t, ret, v1, c1);
+        if (v2 != 0) {
+            tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_TMP1);
+        }
+    } else {
+        MIPSInsn m_opc = eqz ? OPC_MOVZ : OPC_MOVN;
+
+        tcg_out_opc_reg(s, m_opc, ret, v1, c1);
+
+        /* This should be guaranteed via constraints */
+        tcg_debug_assert(v2 == ret);
+    }
 }
 
 static void tcg_out_call_int(TCGContext *s, tcg_insn_unit *arg, bool tail)
@@ -1577,7 +1604,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_movcond_i32:
-        tcg_out_movcond(s, args[5], a0, a1, a2, args[3]);
+        tcg_out_movcond(s, args[5], a0, a1, a2, args[3], args[4]);
         break;
 
     case INDEX_op_setcond_i32:
@@ -1666,7 +1693,11 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
 
     { INDEX_op_brcond_i32, { "rZ", "rZ" } },
+#if use_mips32r6_instructions
+    { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
+#else
     { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "0" } },
+#endif
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
 
