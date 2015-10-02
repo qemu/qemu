@@ -1855,12 +1855,10 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         if (USE_REG_RA) {
             ptrdiff_t disp = tcg_pcrel_diff(s, tb_ret_addr);
 
-            /* If we can use a direct branch, otherwise use the value in RA.
-               Note that the direct branch is always forward.  If it's in
-               range now, it'll still be in range after the movi.  Don't
-               bother about the 20 bytes where the test here fails but it
-               would succeed below.  */
-            if (!in_range_b(disp)) {
+            /* Use a direct branch if we can, otherwise use the value in RA.
+               Note that the direct branch is always backward, thus we need
+               to account for the possibility of 5 insns from the movi.  */
+            if (!in_range_b(disp - 20)) {
                 tcg_out32(s, MTSPR | RS(TCG_REG_RA) | CTR);
                 tcg_out_movi(s, TCG_TYPE_PTR, TCG_REG_R3, args[0]);
                 tcg_out32(s, BCCTR | BO_ALWAYS);
