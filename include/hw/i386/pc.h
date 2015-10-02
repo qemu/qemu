@@ -60,6 +60,7 @@ struct PCMachineClass {
 
     /*< public >*/
     bool broken_reserved_end;
+    bool inter_dimm_gap;
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
 };

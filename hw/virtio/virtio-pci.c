@@ -1491,12 +1491,17 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         pci_set_long(cfg_mask->pci_cfg_data, ~0x0);
     }
 
-    if (proxy->nvectors &&
-        msix_init_exclusive_bar(&proxy->pci_dev, proxy->nvectors,
-                                proxy->msix_bar)) {
-        error_report("unable to init msix vectors to %" PRIu32,
-                     proxy->nvectors);
-        proxy->nvectors = 0;
+    if (proxy->nvectors) {
+        int err = msix_init_exclusive_bar(&proxy->pci_dev, proxy->nvectors,
+                                          proxy->msix_bar);
+        if (err) {
+            /* Notice when a system that supports MSIx can't initialize it.  */
+            if (err != -ENOTSUP) {
+                error_report("unable to init msix vectors to %" PRIu32,
+                             proxy->nvectors);
+            }
+            proxy->nvectors = 0;
+        }
     }
 
     proxy->pci_dev.config_write = virtio_write_config;

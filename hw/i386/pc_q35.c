@@ -284,6 +284,13 @@ static void pc_q35_init(MachineState *machine)
     }
 }
 
+/* Looking for a pc_compat_2_4() function? It doesn't exist.
+ * pc_compat_*() functions that run on machine-init time and
+ * change global QEMU state are deprecated. Please don't create
+ * one, and implement any pc-*-2.4 (and newer) compat code in
+ * HW_COMPAT_*, PC_COMPAT_*, or * pc_*_machine_options().
+ */
+
 static void pc_compat_2_3(MachineState *machine)
 {
     PCMachineState *pcms = PC_MACHINE(machine);
@@ -385,6 +392,7 @@ static void pc_q35_2_4_machine_options(MachineClass *m)
     pc_q35_2_5_machine_options(m);
     m->alias = NULL;
     pcmc->broken_reserved_end = true;
+    pcmc->inter_dimm_gap = false;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_4);
 }
 

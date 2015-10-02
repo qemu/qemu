@@ -32,7 +32,8 @@ typedef struct pc_dimms_capacity {
 } pc_dimms_capacity;
 
 void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
-                         MemoryRegion *mr, uint64_t align, Error **errp)
+                         MemoryRegion *mr, uint64_t align, bool gap,
+                         Error **errp)
 {
     int slot;
     MachineState *machine = MACHINE(qdev_get_machine());
@@ -48,7 +49,7 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
 
     addr = pc_dimm_get_free_addr(hpms->base,
                                  memory_region_size(&hpms->mr),
-                                 !addr ? NULL : &addr, align,
+                                 !addr ? NULL : &addr, align, gap,
                                  memory_region_size(mr), &local_err);
     if (local_err) {
         goto out;
@@ -287,8 +288,8 @@ static int pc_dimm_built_list(Object *obj, void *opaque)
 
 uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
                                uint64_t address_space_size,
-                               uint64_t *hint, uint64_t align, uint64_t size,
-                               Error **errp)
+                               uint64_t *hint, uint64_t align, bool gap,
+                               uint64_t size, Error **errp)
 {
     GSList *list = NULL, *item;
     uint64_t new_addr, ret = 0;
@@ -333,13 +334,15 @@ uint64_t pc_dimm_get_free_addr(uint64_t address_space_start,
             goto out;
         }
 
-        if (ranges_overlap(dimm->addr, dimm_size, new_addr, size)) {
+        if (ranges_overlap(dimm->addr, dimm_size, new_addr,
+                           size + (gap ? 1 : 0))) {
             if (hint) {
                 DeviceState *d = DEVICE(dimm);
                 error_setg(errp, "address range conflicts with '%s'", d->id);
                 goto out;
             }
-            new_addr = QEMU_ALIGN_UP(dimm->addr + dimm_size, align);
+            new_addr = QEMU_ALIGN_UP(dimm->addr + dimm_size + (gap ? 1 : 0),
+                                     align);
         }
     }
     ret = new_addr;
