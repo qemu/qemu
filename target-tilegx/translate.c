@@ -1686,11 +1686,27 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_SH(V2SHLI, X0):
     case OE_SH(V2SHLI, X1):
+        i2 = imm & 15;
+        i3 = 0xffff >> i2;
+        tcg_gen_andi_tl(tdest, tsrca, V2_IMM(i3));
+        tcg_gen_shli_tl(tdest, tdest, i2);
+        mnemonic = "v2shli";
+        break;
     case OE_SH(V2SHRSI, X0):
     case OE_SH(V2SHRSI, X1):
+        t0 = tcg_const_tl(imm & 15);
+        gen_helper_v2shrs(tdest, tsrca, t0);
+        tcg_temp_free(t0);
+        mnemonic = "v2shrsi";
+        break;
     case OE_SH(V2SHRUI, X0):
     case OE_SH(V2SHRUI, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        i2 = imm & 15;
+        i3 = (0xffff << i2) & 0xffff;
+        tcg_gen_andi_tl(tdest, tsrca, V2_IMM(i3));
+        tcg_gen_shri_tl(tdest, tdest, i2);
+        mnemonic = "v2shrui";
+        break;
 
     case OE(ADDLI_OPCODE_X0, 0, X0):
     case OE(ADDLI_OPCODE_X1, 0, X1):
