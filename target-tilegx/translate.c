@@ -291,7 +291,7 @@ static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
                               unsigned srcb, TCGMemOp memop, const char *name)
 {
     if (dest) {
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     tcg_gen_qemu_st_tl(load_gr(dc, srcb), load_gr(dc, srca),
@@ -538,7 +538,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "swint1";
     done0:
         if (srca || dest) {
-            return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+            return TILEGX_EXCP_OPCODE_UNKNOWN;
         }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
         return ret;
@@ -584,7 +584,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         tcg_gen_andi_tl(dc->jmp.dest, load_gr(dc, srca), ~7);
     done1:
         if (dest) {
-            return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+            return TILEGX_EXCP_OPCODE_UNKNOWN;
         }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s", mnemonic, reg_names[srca]);
         return ret;
@@ -679,7 +679,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     case OE_RR_X1(LNK):
     case OE_RR_Y1(LNK):
         if (srca) {
-            return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+            return TILEGX_EXCP_OPCODE_UNKNOWN;
         }
         tcg_gen_movi_tl(tdest, dc->pc + TILEGX_BUNDLE_SIZE_IN_BYTES);
         mnemonic = "lnk";
@@ -723,7 +723,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "tblidxb3";
         break;
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", mnemonic,
@@ -1453,7 +1453,7 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "xor";
         break;
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %s", mnemonic,
@@ -1745,7 +1745,7 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %d", mnemonic,
@@ -1839,7 +1839,7 @@ static TileExcp gen_bf_opcode_x0(DisasContext *dc, unsigned ext,
         break;
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %u, %u", mnemonic,
@@ -1895,7 +1895,7 @@ static TileExcp gen_branch_opcode_x1(DisasContext *dc, unsigned ext,
         mnemonic = "blbs";
         break;
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -1962,7 +1962,7 @@ static TileExcp gen_mtspr_x1(DisasContext *dc, unsigned spr, unsigned srca)
 
     if (def == NULL) {
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "mtspr spr[%u], %s", spr, reg_names[srca]);
-        return TILEGX_EXCP_OPCODE_UNKNOWN;
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
 
     tsrca = load_gr(dc, srca);
@@ -1982,7 +1982,7 @@ static TileExcp gen_mfspr_x1(DisasContext *dc, unsigned dest, unsigned spr)
 
     if (def == NULL) {
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "mtspr %s, spr[%u]", reg_names[dest], spr);
-        return TILEGX_EXCP_OPCODE_UNKNOWN;
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
 
     tdest = dest_gr(dc, dest);
@@ -2037,7 +2037,7 @@ static TileExcp decode_y0(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_rri_opcode(dc, OE(opc, 0, Y0), dest, srca, imm);
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -2081,7 +2081,7 @@ static TileExcp decode_y1(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_rri_opcode(dc, OE(opc, 0, Y1), dest, srca, imm);
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -2139,7 +2139,7 @@ static TileExcp decode_y2(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_st_opcode(dc, 0, srca, srcbdest, MO_TEQ, "st");
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -2184,7 +2184,7 @@ static TileExcp decode_x0(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_rri_opcode(dc, OE(opc, 0, X0), dest, srca, imm);
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -2274,7 +2274,7 @@ static TileExcp decode_x1(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_rri_opcode(dc, OE(opc, 0, X1), dest, srca, imm);
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -2285,8 +2285,15 @@ static void notice_excp(DisasContext *dc, uint64_t bundle,
         return;
     }
     gen_exception(dc, excp);
-    if (excp == TILEGX_EXCP_OPCODE_UNIMPLEMENTED) {
+    switch (excp) {
+    case TILEGX_EXCP_OPCODE_UNIMPLEMENTED:
         qemu_log_mask(LOG_UNIMP, "UNIMP %s, [" FMT64X "]\n", type, bundle);
+        break;
+    case TILEGX_EXCP_OPCODE_UNKNOWN:
+        qemu_log_mask(LOG_UNIMP, "UNKNOWN %s, [" FMT64X "]\n", type, bundle);
+        break;
+    default:
+        break;
     }
 }
 
