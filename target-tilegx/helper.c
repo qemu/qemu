@@ -22,6 +22,7 @@
 #include "qemu-common.h"
 #include "exec/helper-proto.h"
 #include <zlib.h> /* For crc32 */
+#include "syscall_defs.h"
 
 void helper_exception(CPUTLGState *env, uint32_t excp)
 {
@@ -29,6 +30,27 @@ void helper_exception(CPUTLGState *env, uint32_t excp)
 
     cs->exception_index = excp;
     cpu_loop_exit(cs);
+}
+
+void helper_ext01_ics(CPUTLGState *env)
+{
+    uint64_t val = env->spregs[TILEGX_SPR_EX_CONTEXT_0_1];
+
+    switch (val) {
+    case 0:
+    case 1:
+        env->spregs[TILEGX_SPR_CRITICAL_SEC] = val;
+        break;
+    default:
+#if defined(CONFIG_USER_ONLY)
+        env->signo = TARGET_SIGILL;
+        env->sigcode = TARGET_ILL_ILLOPC;
+        helper_exception(env, TILEGX_EXCP_SIGNAL);
+#else
+        helper_exception(env, TILEGX_EXCP_OPCODE_UNIMPLEMENTED);
+#endif
+        break;
+    }
 }
 
 uint64_t helper_cntlz(uint64_t arg)

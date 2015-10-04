@@ -529,6 +529,15 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         /* ??? This should yield, especially in system mode.  */
         mnemonic = "nap";
         goto done0;
+    case OE_RR_X1(IRET):
+        gen_helper_ext01_ics(cpu_env);
+        dc->jmp.cond = TCG_COND_ALWAYS;
+        dc->jmp.dest = tcg_temp_new();
+        tcg_gen_ld_tl(dc->jmp.dest, cpu_env,
+                      offsetof(CPUTLGState, spregs[TILEGX_SPR_EX_CONTEXT_0_0]));
+        tcg_gen_andi_tl(dc->jmp.dest, dc->jmp.dest, ~7);
+        mnemonic = "iret";
+        goto done0;
     case OE_RR_X1(SWINT0):
     case OE_RR_X1(SWINT2):
     case OE_RR_X1(SWINT3):
@@ -606,7 +615,6 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RR_X0(FSINGLE_PACK1):
     case OE_RR_Y0(FSINGLE_PACK1):
-    case OE_RR_X1(IRET):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RR_X1(LD1S):
         memop = MO_SB;
@@ -1947,6 +1955,10 @@ static const TileSPR *find_spr(unsigned spr)
       offsetof(CPUTLGState, spregs[TILEGX_SPR_CRITICAL_SEC]), 0, 0)
     D(SIM_CONTROL,
       offsetof(CPUTLGState, spregs[TILEGX_SPR_SIM_CONTROL]), 0, 0)
+    D(EX_CONTEXT_0_0,
+      offsetof(CPUTLGState, spregs[TILEGX_SPR_EX_CONTEXT_0_0]), 0, 0)
+    D(EX_CONTEXT_0_1,
+      offsetof(CPUTLGState, spregs[TILEGX_SPR_EX_CONTEXT_0_1]), 0, 0)
     }
 
 #undef D
