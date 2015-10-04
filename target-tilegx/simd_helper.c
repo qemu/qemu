@@ -100,3 +100,51 @@ uint64_t helper_v2shrs(uint64_t a, uint64_t b)
     }
     return r;
 }
+
+uint64_t helper_v1int_h(uint64_t a, uint64_t b)
+{
+    uint64_t r = 0;
+    int i;
+
+    for (i = 0; i < 32; i += 8) {
+        r = deposit64(r, 2 * i + 8, 8, extract64(a, i + 32, 8));
+        r = deposit64(r, 2 * i, 8, extract64(b, i + 32, 8));
+    }
+    return r;
+}
+
+uint64_t helper_v1int_l(uint64_t a, uint64_t b)
+{
+    uint64_t r = 0;
+    int i;
+
+    for (i = 0; i < 32; i += 8) {
+        r = deposit64(r, 2 * i + 8, 8, extract64(a, i, 8));
+        r = deposit64(r, 2 * i, 8, extract64(b, i, 8));
+    }
+    return r;
+}
+
+uint64_t helper_v2int_h(uint64_t a, uint64_t b)
+{
+    uint64_t r = 0;
+    int i;
+
+    for (i = 0; i < 32; i += 16) {
+        r = deposit64(r, 2 * i + 16, 16, extract64(a, i + 32, 16));
+        r = deposit64(r, 2 * i, 16, extract64(b, i + 32, 16));
+    }
+    return r;
+}
+
+uint64_t helper_v2int_l(uint64_t a, uint64_t b)
+{
+    uint64_t r = 0;
+    int i;
+
+    for (i = 0; i < 32; i += 16) {
+        r = deposit64(r, 2 * i + 16, 16, extract64(a, i, 16));
+        r = deposit64(r, 2 * i, 16, extract64(b, i, 16));
+    }
+    return r;
+}

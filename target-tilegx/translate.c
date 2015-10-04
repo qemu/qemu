@@ -1260,10 +1260,17 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V1DOTPUS, 0, X0):
     case OE_RRR(V1DOTPU, 0, X0):
     case OE_RRR(V1DOTP, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1INT_H, 0, X0):
     case OE_RRR(V1INT_H, 0, X1):
+        gen_helper_v1int_h(tdest, tsrca, tsrcb);
+        mnemonic = "v1int_h";
+        break;
     case OE_RRR(V1INT_L, 0, X0):
     case OE_RRR(V1INT_L, 0, X1):
+        gen_helper_v1int_l(tdest, tsrca, tsrcb);
+        mnemonic = "v1int_l";
+        break;
     case OE_RRR(V1MAXU, 0, X0):
     case OE_RRR(V1MAXU, 0, X1):
     case OE_RRR(V1MINU, 0, X0):
@@ -1329,10 +1336,17 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V2CMPNE, 0, X1):
     case OE_RRR(V2DOTPA, 0, X0):
     case OE_RRR(V2DOTP, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2INT_H, 0, X0):
     case OE_RRR(V2INT_H, 0, X1):
+        gen_helper_v2int_h(tdest, tsrca, tsrcb);
+        mnemonic = "v2int_h";
+        break;
     case OE_RRR(V2INT_L, 0, X0):
     case OE_RRR(V2INT_L, 0, X1):
+        gen_helper_v2int_l(tdest, tsrca, tsrcb);
+        mnemonic = "v2int_l";
+        break;
     case OE_RRR(V2MAXS, 0, X0):
     case OE_RRR(V2MAXS, 0, X1):
     case OE_RRR(V2MINS, 0, X0):
