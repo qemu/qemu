@@ -41,6 +41,21 @@ uint64_t helper_v1multu(uint64_t a, uint64_t b)
     return r;
 }
 
+uint64_t helper_v2mults(uint64_t a, uint64_t b)
+{
+    uint64_t r = 0;
+    int i;
+
+    /* While the instruction talks about signed inputs, with a
+       truncated result the sign of the inputs doesn't matter.  */
+    for (i = 0; i < 64; i += 16) {
+        unsigned ae = extract64(a, i, 16);
+        unsigned be = extract64(b, i, 16);
+        r = deposit64(r, i, 16, ae * be);
+    }
+    return r;
+}
+
 uint64_t helper_v1shl(uint64_t a, uint64_t b)
 {
     uint64_t m;
