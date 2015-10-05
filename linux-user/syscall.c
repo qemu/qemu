@@ -8046,14 +8046,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct pollfd *pfd;
             unsigned int i;
 
-            target_pfd = lock_user(VERIFY_WRITE, arg1, sizeof(struct target_pollfd) * nfds, 1);
-            if (!target_pfd)
-                goto efault;
+            pfd = NULL;
+            target_pfd = NULL;
+            if (nfds) {
+                target_pfd = lock_user(VERIFY_WRITE, arg1,
+                                       sizeof(struct target_pollfd) * nfds, 1);
+                if (!target_pfd) {
+                    goto efault;
+                }
 
-            pfd = alloca(sizeof(struct pollfd) * nfds);
-            for(i = 0; i < nfds; i++) {
-                pfd[i].fd = tswap32(target_pfd[i].fd);
-                pfd[i].events = tswap16(target_pfd[i].events);
+                pfd = alloca(sizeof(struct pollfd) * nfds);
+                for (i = 0; i < nfds; i++) {
+                    pfd[i].fd = tswap32(target_pfd[i].fd);
+                    pfd[i].events = tswap16(target_pfd[i].events);
+                }
             }
 
 # ifdef TARGET_NR_ppoll
