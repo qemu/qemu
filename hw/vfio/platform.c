@@ -310,18 +310,29 @@ static void vfio_platform_eoi(VFIODevice *vbasedev)
 /**
  * vfio_start_eventfd_injection - starts the virtual IRQ injection using
  * user-side handled eventfds
- * @intp: the IRQ struct pointer
+ * @sbdev: the sysbus device handle
+ * @irq: the qemu irq handle
  */
 
-static int vfio_start_eventfd_injection(VFIOINTp *intp)
+static void vfio_start_eventfd_injection(SysBusDevice *sbdev, qemu_irq irq)
 {
     int ret;
+    VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
+    VFIOINTp *intp;
+
+    QLIST_FOREACH(intp, &vdev->intp_list, next) {
+        if (intp->qemuirq == irq) {
+            break;
+        }
+    }
+    assert(intp);
 
     ret = vfio_set_trigger_eventfd(intp, vfio_intp_interrupt);
     if (ret) {
-        error_report("vfio: Error: Failed to pass IRQ fd to the driver: %m");
+        error_report("vfio: failed to start eventfd signaling for IRQ %d: %m",
+                     intp->pin);
+        abort();
     }
-    return ret;
 }
 
 /*
@@ -359,6 +370,15 @@ static int vfio_set_resample_eventfd(VFIOINTp *intp)
     return ret;
 }
 
+/**
+ * vfio_start_irqfd_injection - starts the virtual IRQ injection using
+ * irqfd
+ *
+ * @sbdev: the sysbus device handle
+ * @irq: the qemu irq handle
+ *
+ * In case the irqfd setup fails, we fallback to userspace handled eventfd
+ */
 static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
 {
     VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(sbdev);
@@ -366,7 +386,7 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
 
     if (!kvm_irqfds_enabled() || !kvm_resamplefds_enabled() ||
         !vdev->irqfd_allowed) {
-        return;
+        goto fail_irqfd;
     }
 
     QLIST_FOREACH(intp, &vdev->intp_list, next) {
@@ -375,13 +395,6 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
         }
     }
     assert(intp);
-
-    /* Get to a known interrupt state */
-    qemu_set_fd_handler(event_notifier_get_fd(&intp->interrupt),
-                        NULL, NULL, vdev);
-
-    vfio_mask_single_irqindex(&vdev->vbasedev, intp->pin);
-    qemu_set_irq(intp->qemuirq, 0);
 
     if (kvm_irqchip_add_irqfd_notifier(kvm_state, &intp->interrupt,
                                    &intp->unmask, irq) < 0) {
@@ -395,9 +408,6 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
         goto fail_vfio;
     }
 
-    /* Let's resume injection with irqfd setup */
-    vfio_unmask_single_irqindex(&vdev->vbasedev, intp->pin);
-
     intp->kvm_accel = true;
 
     trace_vfio_platform_start_irqfd_injection(intp->pin,
@@ -406,9 +416,11 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
     return;
 fail_vfio:
     kvm_irqchip_remove_irqfd_notifier(kvm_state, &intp->interrupt, irq);
+    error_report("vfio: failed to start eventfd signaling for IRQ %d: %m",
+                 intp->pin);
+    abort();
 fail_irqfd:
-    vfio_start_eventfd_injection(intp);
-    vfio_unmask_single_irqindex(&vdev->vbasedev, intp->pin);
+    vfio_start_eventfd_injection(sbdev, irq);
     return;
 }
 
@@ -646,7 +658,6 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
     VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(dev);
     SysBusDevice *sbdev = SYS_BUS_DEVICE(dev);
     VFIODevice *vbasedev = &vdev->vbasedev;
-    VFIOINTp *intp;
     int i, ret;
 
     vbasedev->type = VFIO_DEVICE_TYPE_PLATFORM;
@@ -664,10 +675,6 @@ static void vfio_platform_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < vbasedev->num_regions; i++) {
         vfio_map_region(vdev, i);
         sysbus_init_mmio(sbdev, &vdev->regions[i]->mem);
-    }
-
-    QLIST_FOREACH(intp, &vdev->intp_list, next) {
-        vfio_start_eventfd_injection(intp);
     }
 }
 
