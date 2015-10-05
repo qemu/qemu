@@ -57,15 +57,20 @@ static VFIOINTp *vfio_init_intp(VFIODevice *vbasedev,
     sysbus_init_irq(sbdev, &intp->qemuirq);
 
     /* Get an eventfd for trigger */
-    ret = event_notifier_init(&intp->interrupt, 0);
+    intp->interrupt = g_malloc0(sizeof(EventNotifier));
+    ret = event_notifier_init(intp->interrupt, 0);
     if (ret) {
+        g_free(intp->interrupt);
         g_free(intp);
         error_report("vfio: Error: trigger event_notifier_init failed ");
         return NULL;
     }
     /* Get an eventfd for resample/unmask */
-    ret = event_notifier_init(&intp->unmask, 0);
+    intp->unmask = g_malloc0(sizeof(EventNotifier));
+    ret = event_notifier_init(intp->unmask, 0);
     if (ret) {
+        g_free(intp->interrupt);
+        g_free(intp->unmask);
         g_free(intp);
         error_report("vfio: Error: resamplefd event_notifier_init failed");
         return NULL;
@@ -100,7 +105,7 @@ static int vfio_set_trigger_eventfd(VFIOINTp *intp,
     irq_set->start = 0;
     irq_set->count = 1;
     pfd = (int32_t *)&irq_set->data;
-    *pfd = event_notifier_get_fd(&intp->interrupt);
+    *pfd = event_notifier_get_fd(intp->interrupt);
     qemu_set_fd_handler(*pfd, (IOHandler *)handler, NULL, intp);
     ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
     g_free(irq_set);
@@ -182,7 +187,7 @@ static void vfio_intp_mmap_enable(void *opaque)
 static void vfio_intp_inject_pending_lockheld(VFIOINTp *intp)
 {
     trace_vfio_platform_intp_inject_pending_lockheld(intp->pin,
-                              event_notifier_get_fd(&intp->interrupt));
+                              event_notifier_get_fd(intp->interrupt));
 
     intp->state = VFIO_IRQ_ACTIVE;
 
@@ -224,18 +229,18 @@ static void vfio_intp_interrupt(VFIOINTp *intp)
         trace_vfio_intp_interrupt_set_pending(intp->pin);
         QSIMPLEQ_INSERT_TAIL(&vdev->pending_intp_queue,
                              intp, pqnext);
-        ret = event_notifier_test_and_clear(&intp->interrupt);
+        ret = event_notifier_test_and_clear(intp->interrupt);
         qemu_mutex_unlock(&vdev->intp_mutex);
         return;
     }
 
     trace_vfio_platform_intp_interrupt(intp->pin,
-                              event_notifier_get_fd(&intp->interrupt));
+                              event_notifier_get_fd(intp->interrupt));
 
-    ret = event_notifier_test_and_clear(&intp->interrupt);
+    ret = event_notifier_test_and_clear(intp->interrupt);
     if (!ret) {
         error_report("Error when clearing fd=%d (ret = %d)",
-                     event_notifier_get_fd(&intp->interrupt), ret);
+                     event_notifier_get_fd(intp->interrupt), ret);
     }
 
     intp->state = VFIO_IRQ_ACTIVE;
@@ -283,7 +288,7 @@ static void vfio_platform_eoi(VFIODevice *vbasedev)
     QLIST_FOREACH(intp, &vdev->intp_list, next) {
         if (intp->state == VFIO_IRQ_ACTIVE) {
             trace_vfio_platform_eoi(intp->pin,
-                                event_notifier_get_fd(&intp->interrupt));
+                                event_notifier_get_fd(intp->interrupt));
             intp->state = VFIO_IRQ_INACTIVE;
 
             /* deassert the virtual IRQ */
@@ -360,7 +365,7 @@ static int vfio_set_resample_eventfd(VFIOINTp *intp)
     irq_set->start = 0;
     irq_set->count = 1;
     pfd = (int32_t *)&irq_set->data;
-    *pfd = event_notifier_get_fd(&intp->unmask);
+    *pfd = event_notifier_get_fd(intp->unmask);
     qemu_set_fd_handler(*pfd, NULL, NULL, NULL);
     ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
     g_free(irq_set);
@@ -396,8 +401,8 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
     }
     assert(intp);
 
-    if (kvm_irqchip_add_irqfd_notifier(kvm_state, &intp->interrupt,
-                                   &intp->unmask, irq) < 0) {
+    if (kvm_irqchip_add_irqfd_notifier(kvm_state, intp->interrupt,
+                                   intp->unmask, irq) < 0) {
         goto fail_irqfd;
     }
 
@@ -411,11 +416,11 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
     intp->kvm_accel = true;
 
     trace_vfio_platform_start_irqfd_injection(intp->pin,
-                                     event_notifier_get_fd(&intp->interrupt),
-                                     event_notifier_get_fd(&intp->unmask));
+                                     event_notifier_get_fd(intp->interrupt),
+                                     event_notifier_get_fd(intp->unmask));
     return;
 fail_vfio:
-    kvm_irqchip_remove_irqfd_notifier(kvm_state, &intp->interrupt, irq);
+    kvm_irqchip_remove_irqfd_notifier(kvm_state, intp->interrupt, irq);
     error_report("vfio: failed to start eventfd signaling for IRQ %d: %m",
                  intp->pin);
     abort();
