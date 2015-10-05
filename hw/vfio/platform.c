@@ -32,6 +32,11 @@
  * Functions used whatever the injection method
  */
 
+static inline bool vfio_irq_is_automasked(VFIOINTp *intp)
+{
+    return intp->flags & VFIO_IRQ_INFO_AUTOMASKED;
+}
+
 /**
  * vfio_init_intp - allocate, initialize the IRQ struct pointer
  * and add it into the list of IRQs
@@ -65,15 +70,17 @@ static VFIOINTp *vfio_init_intp(VFIODevice *vbasedev,
         error_report("vfio: Error: trigger event_notifier_init failed ");
         return NULL;
     }
-    /* Get an eventfd for resample/unmask */
-    intp->unmask = g_malloc0(sizeof(EventNotifier));
-    ret = event_notifier_init(intp->unmask, 0);
-    if (ret) {
-        g_free(intp->interrupt);
-        g_free(intp->unmask);
-        g_free(intp);
-        error_report("vfio: Error: resamplefd event_notifier_init failed");
-        return NULL;
+    if (vfio_irq_is_automasked(intp)) {
+        /* Get an eventfd for resample/unmask */
+        intp->unmask = g_malloc0(sizeof(EventNotifier));
+        ret = event_notifier_init(intp->unmask, 0);
+        if (ret) {
+            g_free(intp->interrupt);
+            g_free(intp->unmask);
+            g_free(intp);
+            error_report("vfio: Error: resamplefd event_notifier_init failed");
+            return NULL;
+        }
     }
 
     QLIST_INSERT_HEAD(&vdev->intp_list, intp, next);
@@ -294,7 +301,7 @@ static void vfio_platform_eoi(VFIODevice *vbasedev)
             /* deassert the virtual IRQ */
             qemu_set_irq(intp->qemuirq, 0);
 
-            if (intp->flags & VFIO_IRQ_INFO_AUTOMASKED) {
+            if (vfio_irq_is_automasked(intp)) {
                 /* unmasks the physical level-sensitive IRQ */
                 vfio_unmask_single_irqindex(vbasedev, intp->pin);
             }
@@ -409,15 +416,20 @@ static void vfio_start_irqfd_injection(SysBusDevice *sbdev, qemu_irq irq)
     if (vfio_set_trigger_eventfd(intp, NULL) < 0) {
         goto fail_vfio;
     }
-    if (vfio_set_resample_eventfd(intp) < 0) {
-        goto fail_vfio;
+    if (vfio_irq_is_automasked(intp)) {
+        if (vfio_set_resample_eventfd(intp) < 0) {
+            goto fail_vfio;
+        }
+        trace_vfio_platform_start_level_irqfd_injection(intp->pin,
+                                    event_notifier_get_fd(intp->interrupt),
+                                    event_notifier_get_fd(intp->unmask));
+    } else {
+        trace_vfio_platform_start_edge_irqfd_injection(intp->pin,
+                                    event_notifier_get_fd(intp->interrupt));
     }
 
     intp->kvm_accel = true;
 
-    trace_vfio_platform_start_irqfd_injection(intp->pin,
-                                     event_notifier_get_fd(intp->interrupt),
-                                     event_notifier_get_fd(intp->unmask));
     return;
 fail_vfio:
     kvm_irqchip_remove_irqfd_notifier(kvm_state, intp->interrupt, irq);
