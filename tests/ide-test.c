@@ -633,7 +633,7 @@ static void send_scsi_cdb_read10(uint64_t lba, int nblocks)
 
     /* Send Packet */
     for (i = 0; i < sizeof(Read10CDB)/2; i++) {
-        outw(IDE_BASE + reg_data, ((uint16_t *)&pkt)[i]);
+        outw(IDE_BASE + reg_data, cpu_to_le16(((uint16_t *)&pkt)[i]));
     }
 }
 
@@ -733,7 +733,7 @@ static void cdrom_pio_impl(int nblocks)
         size_t offset = i * (limit / 2);
         size_t rem = (rxsize / 2) - offset;
         for (j = 0; j < MIN((limit / 2), rem); j++) {
-            rx[offset + j] = inw(IDE_BASE + reg_data);
+            rx[offset + j] = le16_to_cpu(inw(IDE_BASE + reg_data));
         }
         ide_wait_intr(IDE_PRIMARY_IRQ);
     }
