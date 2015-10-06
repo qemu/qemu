@@ -933,6 +933,12 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         return -errno;
     }
 
+    if (used_memslots > hdev->vhost_ops->vhost_backend_memslots_limit(hdev)) {
+        fprintf(stderr, "vhost backend memory slots limit is less"
+                " than current number of present memory slots\n");
+        close((uintptr_t)opaque);
+        return -1;
+    }
     QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
 
     r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_OWNER, NULL);
