@@ -1608,7 +1608,7 @@ set_timeout:
                 }
 
                 fprog.len = tswap16(tfprog->len);
-                filter = malloc(fprog.len * sizeof(*filter));
+                filter = g_try_new(struct sock_filter, fprog.len);
                 if (filter == NULL) {
                     unlock_user_struct(tfilter, tfprog->filter, 1);
                     unlock_user_struct(tfprog, optval_addr, 1);
@@ -1624,7 +1624,7 @@ set_timeout:
 
                 ret = get_errno(setsockopt(sockfd, SOL_SOCKET,
                                 SO_ATTACH_FILTER, &fprog, sizeof(fprog)));
-                free(filter);
+                g_free(filter);
 
                 unlock_user_struct(tfilter, tfprog->filter, 1);
                 unlock_user_struct(tfprog, optval_addr, 1);
@@ -1935,7 +1935,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
         return NULL;
     }
 
-    vec = calloc(count, sizeof(struct iovec));
+    vec = g_try_new0(struct iovec, count);
     if (vec == NULL) {
         errno = ENOMEM;
         return NULL;
@@ -1999,7 +1999,7 @@ static struct iovec *lock_iovec(int type, abi_ulong target_addr,
     }
     unlock_user(target_vec, target_addr, 0);
  fail2:
-    free(vec);
+    g_free(vec);
     errno = err;
     return NULL;
 }
@@ -2024,7 +2024,7 @@ static void unlock_iovec(struct iovec *vec, abi_ulong target_addr,
         unlock_user(target_vec, target_addr, 0);
     }
 
-    free(vec);
+    g_free(vec);
 }
 
 static inline int target_to_host_sock_type(int *type)
@@ -2726,14 +2726,14 @@ static inline abi_long target_to_host_semarray(int semid, unsigned short **host_
 
     nsems = semid_ds.sem_nsems;
 
-    *host_array = malloc(nsems*sizeof(unsigned short));
+    *host_array = g_try_new(unsigned short, nsems);
     if (!*host_array) {
         return -TARGET_ENOMEM;
     }
     array = lock_user(VERIFY_READ, target_addr,
                       nsems*sizeof(unsigned short), 1);
     if (!array) {
-        free(*host_array);
+        g_free(*host_array);
         return -TARGET_EFAULT;
     }
 
@@ -2770,7 +2770,7 @@ static inline abi_long host_to_target_semarray(int semid, abi_ulong target_addr,
     for(i=0; i<nsems; i++) {
         __put_user((*host_array)[i], &array[i]);
     }
-    free(*host_array);
+    g_free(*host_array);
     unlock_user(array, target_addr, 1);
 
     return 0;
@@ -3030,7 +3030,7 @@ static inline abi_long do_msgsnd(int msqid, abi_long msgp,
 
     if (!lock_user_struct(VERIFY_READ, target_mb, msgp, 0))
         return -TARGET_EFAULT;
-    host_mb = malloc(msgsz+sizeof(long));
+    host_mb = g_try_malloc(msgsz + sizeof(long));
     if (!host_mb) {
         unlock_user_struct(target_mb, msgp, 0);
         return -TARGET_ENOMEM;
@@ -3038,7 +3038,7 @@ static inline abi_long do_msgsnd(int msqid, abi_long msgp,
     host_mb->mtype = (abi_long) tswapal(target_mb->mtype);
     memcpy(host_mb->mtext, target_mb->mtext, msgsz);
     ret = get_errno(msgsnd(msqid, host_mb, msgsz, msgflg));
-    free(host_mb);
+    g_free(host_mb);
     unlock_user_struct(target_mb, msgp, 0);
 
     return ret;
@@ -3465,7 +3465,7 @@ static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
         /* We can't fit all the extents into the fixed size buffer.
          * Allocate one that is large enough and use it instead.
          */
-        fm = malloc(outbufsz);
+        fm = g_try_malloc(outbufsz);
         if (!fm) {
             return -TARGET_ENOMEM;
         }
@@ -3500,7 +3500,7 @@ static abi_long do_ioctl_fs_ioc_fiemap(const IOCTLEntry *ie, uint8_t *buf_temp,
         }
     }
     if (free_fm) {
-        free(fm);
+        g_free(fm);
     }
     return ret;
 }
@@ -7876,8 +7876,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             struct linux_dirent *dirp;
             abi_long count = arg3;
 
-	    dirp = malloc(count);
-	    if (!dirp) {
+            dirp = g_try_malloc(count);
+            if (!dirp) {
                 ret = -TARGET_ENOMEM;
                 goto fail;
             }
@@ -7913,7 +7913,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 		ret = count1;
                 unlock_user(target_dirp, arg2, ret);
             }
-	    free(dirp);
+            g_free(dirp);
         }
 #else
         {
