@@ -642,15 +642,15 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     /* kvm works in page size chunks, but the function may be called
        with sub-page size and unaligned start address. Pad the start
        address to next and truncate size to previous page boundary. */
-    delta = (TARGET_PAGE_SIZE - (start_addr & ~TARGET_PAGE_MASK));
-    delta &= ~TARGET_PAGE_MASK;
+    delta = qemu_real_host_page_size - (start_addr & ~qemu_real_host_page_mask);
+    delta &= ~qemu_real_host_page_mask;
     if (delta > size) {
         return;
     }
     start_addr += delta;
     size -= delta;
-    size &= TARGET_PAGE_MASK;
-    if (!size || (start_addr & ~TARGET_PAGE_MASK)) {
+    size &= qemu_real_host_page_mask;
+    if (!size || (start_addr & ~qemu_real_host_page_mask)) {
         return;
     }
 
