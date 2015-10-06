@@ -26,6 +26,22 @@
 
 static struct vhost_log *vhost_log;
 
+static unsigned int used_memslots;
+static QLIST_HEAD(, vhost_dev) vhost_devices =
+    QLIST_HEAD_INITIALIZER(vhost_devices);
+
+bool vhost_has_free_slot(void)
+{
+    unsigned int slots_limit = ~0U;
+    struct vhost_dev *hdev;
+
+    QLIST_FOREACH(hdev, &vhost_devices, entry) {
+        unsigned int r = hdev->vhost_ops->vhost_backend_memslots_limit(hdev);
+        slots_limit = MIN(slots_limit, r);
+    }
+    return slots_limit > used_memslots;
+}
+
 static void vhost_dev_sync_region(struct vhost_dev *dev,
                                   MemoryRegionSection *section,
                                   uint64_t mfirst, uint64_t mlast,
@@ -457,6 +473,7 @@ static void vhost_set_memory(MemoryListener *listener,
     dev->mem_changed_start_addr = MIN(dev->mem_changed_start_addr, start_addr);
     dev->mem_changed_end_addr = MAX(dev->mem_changed_end_addr, start_addr + size - 1);
     dev->memory_changed = true;
+    used_memslots = dev->mem->nregions;
 }
 
 static bool vhost_section(MemoryRegionSection *section)
@@ -916,6 +933,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         return -errno;
     }
 
+    QLIST_INSERT_HEAD(&vhost_devices, hdev, entry);
+
     r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_OWNER, NULL);
     if (r < 0) {
         goto fail;
@@ -972,6 +991,7 @@ fail_vq:
 fail:
     r = -errno;
     hdev->vhost_ops->vhost_backend_cleanup(hdev);
+    QLIST_REMOVE(hdev, entry);
     return r;
 }
 
@@ -989,6 +1009,7 @@ void vhost_dev_cleanup(struct vhost_dev *hdev)
     g_free(hdev->mem);
     g_free(hdev->mem_sections);
     hdev->vhost_ops->vhost_backend_cleanup(hdev);
+    QLIST_REMOVE(hdev, entry);
 }
 
 /* Stop processing guest IO notifications in qemu.

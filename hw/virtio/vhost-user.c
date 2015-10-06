@@ -440,6 +440,11 @@ static int vhost_user_get_vq_index(struct vhost_dev *dev, int idx)
     return idx;
 }
 
+static int vhost_user_memslots_limit(struct vhost_dev *dev)
+{
+    return VHOST_MEMORY_MAX_NREGIONS;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_call = vhost_user_call,
@@ -447,4 +452,5 @@ const VhostOps user_ops = {
         .vhost_backend_cleanup = vhost_user_cleanup,
         .vhost_backend_get_vq_index = vhost_user_get_vq_index,
         .vhost_backend_set_vring_enable = vhost_user_set_vring_enable,
+        .vhost_backend_memslots_limit = vhost_user_memslots_limit,
 };

@@ -11,6 +11,7 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
 #include "qemu/error-report.h"
+#include "linux/vhost.h"
 
 #include <sys/ioctl.h>
 
@@ -49,12 +50,30 @@ static int vhost_kernel_get_vq_index(struct vhost_dev *dev, int idx)
     return idx - dev->vq_index;
 }
 
+static int vhost_kernel_memslots_limit(struct vhost_dev *dev)
+{
+    int limit = 64;
+    char *s;
+
+    if (g_file_get_contents("/sys/module/vhost/parameters/max_mem_regions",
+                            &s, NULL, NULL)) {
+        uint64_t val = g_ascii_strtoull(s, NULL, 10);
+        if (!((val == G_MAXUINT64 || !val) && errno)) {
+            return val;
+        }
+        error_report("ignoring invalid max_mem_regions value in vhost module:"
+                     " %s", s);
+    }
+    return limit;
+}
+
 static const VhostOps kernel_ops = {
         .backend_type = VHOST_BACKEND_TYPE_KERNEL,
         .vhost_call = vhost_kernel_call,
         .vhost_backend_init = vhost_kernel_init,
         .vhost_backend_cleanup = vhost_kernel_cleanup,
         .vhost_backend_get_vq_index = vhost_kernel_get_vq_index,
+        .vhost_backend_memslots_limit = vhost_kernel_memslots_limit,
 };
 
 int vhost_set_backend_type(struct vhost_dev *dev, VhostBackendType backend_type)

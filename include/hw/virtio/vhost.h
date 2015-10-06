@@ -59,6 +59,7 @@ struct vhost_dev {
     const VhostOps *vhost_ops;
     void *opaque;
     struct vhost_log *log;
+    QLIST_ENTRY(vhost_dev) entry;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
@@ -83,4 +84,5 @@ uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
                             uint64_t features);
 void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
                         uint64_t features);
+bool vhost_has_free_slot(void);
 #endif
