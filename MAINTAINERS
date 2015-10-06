@@ -667,6 +667,7 @@ F: hw/block/cdrom.c
 F: hw/block/hd-geometry.c
 F: tests/ide-test.c
 F: tests/ahci-test.c
+F: tests/libqos/ahci*
 T: git git://github.com/jnsnow/qemu.git ide
 
 Floppy
@@ -675,6 +676,7 @@ L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/fdc.c
 F: include/hw/block/fdc.h
+F: tests/fdc-test.c
 T: git git://github.com/jnsnow/qemu.git ide
 
 OMAP

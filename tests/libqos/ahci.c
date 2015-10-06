@@ -742,7 +742,7 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     g_assert(!(props->lba28 && props->lba48));
     g_assert(!(props->read && props->write));
     g_assert(!props->size || props->data);
-    g_assert(!props->ncq || (props->ncq && props->lba48));
+    g_assert(!props->ncq || props->lba48);
 
     /* Defaults and book-keeping */
     cmd->props = props;
