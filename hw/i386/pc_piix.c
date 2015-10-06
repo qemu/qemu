@@ -39,7 +39,6 @@
 #include "hw/kvm/clock.h"
 #include "sysemu/sysemu.h"
 #include "hw/sysbus.h"
-#include "hw/cpu/icc_bus.h"
 #include "sysemu/arch_init.h"
 #include "sysemu/block-backend.h"
 #include "hw/i2c/smbus.h"
@@ -98,7 +97,6 @@ static void pc_init1(MachineState *machine,
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
-    DeviceState *icc_bridge;
     PcGuestInfo *guest_info;
     ram_addr_t lowmem;
 
@@ -141,11 +139,7 @@ static void pc_init1(MachineState *machine,
         exit(1);
     }
 
-    icc_bridge = qdev_create(NULL, TYPE_ICC_BRIDGE);
-    object_property_add_child(qdev_get_machine(), "icc-bridge",
-                              OBJECT(icc_bridge), NULL);
-
-    pc_cpus_init(machine->cpu_model, icc_bridge);
+    pc_cpus_init(machine->cpu_model);
 
     if (kvm_enabled() && kvmclock_enabled) {
         kvmclock_create();
@@ -226,7 +220,6 @@ static void pc_init1(MachineState *machine,
     if (pci_enabled) {
         ioapic_init_gsi(gsi_state, "i440fx");
     }
-    qdev_init_nofail(icc_bridge);
 
     pc_register_ferr_irq(gsi[13]);
 
@@ -332,7 +325,7 @@ static void pc_compat_2_1(MachineState *machine)
 
     pc_compat_2_2(machine);
     smbios_uuid_encoded = false;
-    x86_cpu_compat_kvm_no_autodisable(FEAT_8000_0001_ECX, CPUID_EXT3_SVM);
+    x86_cpu_change_kvm_default("svm", NULL);
     pcms->enforce_aligned_dimm = false;
 }
 
@@ -368,7 +361,7 @@ static void pc_compat_1_7(MachineState *machine)
     gigabyte_align = false;
     option_rom_has_mr = true;
     legacy_acpi_table_size = 6414;
-    x86_cpu_compat_kvm_no_autoenable(FEAT_1_ECX, CPUID_EXT_X2APIC);
+    x86_cpu_change_kvm_default("x2apic", NULL);
 }
 
 static void pc_compat_1_6(MachineState *machine)
@@ -398,7 +391,7 @@ static void pc_compat_1_3(MachineState *machine)
 static void pc_compat_1_2(MachineState *machine)
 {
     pc_compat_1_3(machine);
-    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
+    x86_cpu_change_kvm_default("kvm-pv-eoi", NULL);
 }
 
 /* PC compat function for pc-0.10 to pc-0.13 */
@@ -421,7 +414,7 @@ static void pc_init_isa(MachineState *machine)
     if (!machine->cpu_model) {
         machine->cpu_model = "486";
     }
-    x86_cpu_compat_kvm_no_autoenable(FEAT_KVM, 1 << KVM_FEATURE_PV_EOI);
+    x86_cpu_change_kvm_default("kvm-pv-eoi", NULL);
     enable_compat_apic_id_mode();
     pc_init1(machine, TYPE_I440FX_PCI_HOST_BRIDGE, TYPE_I440FX_PCI_DEVICE);
 }

@@ -833,6 +833,7 @@ typedef struct CPUX86State {
     BNDReg bnd_regs[4];
     BNDCSReg bndcs_regs;
     uint64_t msr_bndcfgs;
+    uint64_t efer;
 
     /* Beginning of state preserved by INIT (dummy marker).  */
     struct {} start_init_save;
@@ -865,7 +866,6 @@ typedef struct CPUX86State {
     uint32_t sysenter_cs;
     target_ulong sysenter_esp;
     target_ulong sysenter_eip;
-    uint64_t efer;
     uint64_t star;
 
     uint64_t vm_hsave;
@@ -1154,7 +1154,6 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index)
 
 void hw_breakpoint_insert(CPUX86State *env, int index);
 void hw_breakpoint_remove(CPUX86State *env, int index);
-bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update);
 void breakpoint_handler(CPUState *cs);
 
 /* will be suppressed */
@@ -1341,8 +1340,15 @@ void cpu_smm_update(X86CPU *cpu);
 
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
 
-void x86_cpu_compat_kvm_no_autoenable(FeatureWord w, uint32_t features);
-void x86_cpu_compat_kvm_no_autodisable(FeatureWord w, uint32_t features);
+/* Change the value of a KVM-specific default
+ *
+ * If value is NULL, no default will be set and the original
+ * value from the CPU model table will be kept.
+ *
+ * It is valid to call this funciton only for properties that
+ * are already present in the kvm_default_props table.
+ */
+void x86_cpu_change_kvm_default(const char *prop, const char *value);
 
 
 /* Return name of 32-bit register, from a R_* constant */

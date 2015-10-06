@@ -95,15 +95,6 @@ void helper_into(CPUX86State *env, int next_eip_addend)
     }
 }
 
-void helper_single_step(CPUX86State *env)
-{
-#ifndef CONFIG_USER_ONLY
-    check_hw_breakpoints(env, true);
-    env->dr[6] |= DR6_BS;
-#endif
-    raise_exception(env, EXCP01_DB);
-}
-
 void helper_cpuid(CPUX86State *env)
 {
     uint32_t eax, ebx, ecx, edx;
@@ -125,10 +116,6 @@ target_ulong helper_read_crN(CPUX86State *env, int reg)
 }
 
 void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
-{
-}
-
-void helper_movl_drN_T0(CPUX86State *env, int reg, target_ulong t0)
 {
 }
 #else
@@ -174,27 +161,6 @@ void helper_write_crN(CPUX86State *env, int reg, target_ulong t0)
     default:
         env->cr[reg] = t0;
         break;
-    }
-}
-
-void helper_movl_drN_T0(CPUX86State *env, int reg, target_ulong t0)
-{
-    int i;
-
-    if (reg < 4) {
-        hw_breakpoint_remove(env, reg);
-        env->dr[reg] = t0;
-        hw_breakpoint_insert(env, reg);
-    } else if (reg == 7) {
-        for (i = 0; i < DR7_MAX_BP; i++) {
-            hw_breakpoint_remove(env, i);
-        }
-        env->dr[7] = t0;
-        for (i = 0; i < DR7_MAX_BP; i++) {
-            hw_breakpoint_insert(env, i);
-        }
-    } else {
-        env->dr[reg] = t0;
     }
 }
 #endif

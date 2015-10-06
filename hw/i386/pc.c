@@ -59,7 +59,6 @@
 #include "qemu/error-report.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/cpu_hotplug.h"
-#include "hw/cpu/icc_bus.h"
 #include "hw/boards.h"
 #include "hw/pci/pci_host.h"
 #include "acpi-build.h"
@@ -1052,22 +1051,15 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 }
 
 static X86CPU *pc_new_cpu(const char *cpu_model, int64_t apic_id,
-                          DeviceState *icc_bridge, Error **errp)
+                          Error **errp)
 {
     X86CPU *cpu = NULL;
     Error *local_err = NULL;
-
-    if (icc_bridge == NULL) {
-        error_setg(&local_err, "Invalid icc-bridge value");
-        goto out;
-    }
 
     cpu = cpu_x86_create(cpu_model, &local_err);
     if (local_err != NULL) {
         goto out;
     }
-
-    qdev_set_parent_bus(DEVICE(cpu), qdev_get_child_bus(icc_bridge, "icc"));
 
     object_property_set_int(OBJECT(cpu), apic_id, "apic-id", &local_err);
     object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
@@ -1085,7 +1077,6 @@ static const char *current_cpu_model;
 
 void pc_hot_add_cpu(const int64_t id, Error **errp)
 {
-    DeviceState *icc_bridge;
     X86CPU *cpu;
     int64_t apic_id = x86_cpu_apic_id_from_index(id);
     Error *local_err = NULL;
@@ -1114,9 +1105,7 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
         return;
     }
 
-    icc_bridge = DEVICE(object_resolve_path_type("icc-bridge",
-                                                 TYPE_ICC_BRIDGE, NULL));
-    cpu = pc_new_cpu(current_cpu_model, apic_id, icc_bridge, &local_err);
+    cpu = pc_new_cpu(current_cpu_model, apic_id, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
@@ -1124,7 +1113,7 @@ void pc_hot_add_cpu(const int64_t id, Error **errp)
     object_unref(OBJECT(cpu));
 }
 
-void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
+void pc_cpus_init(const char *cpu_model)
 {
     int i;
     X86CPU *cpu = NULL;
@@ -1150,19 +1139,12 @@ void pc_cpus_init(const char *cpu_model, DeviceState *icc_bridge)
 
     for (i = 0; i < smp_cpus; i++) {
         cpu = pc_new_cpu(cpu_model, x86_cpu_apic_id_from_index(i),
-                         icc_bridge, &error);
+                         &error);
         if (error) {
             error_report_err(error);
             exit(1);
         }
         object_unref(OBJECT(cpu));
-    }
-
-    /* map APIC MMIO area if CPU has APIC */
-    if (cpu && cpu->apic_state) {
-        /* XXX: what if the base changes? */
-        sysbus_mmio_map_overlap(SYS_BUS_DEVICE(icc_bridge), 0,
-                                APIC_DEFAULT_ADDRESS, 0x1000);
     }
 
     /* tell smbios about cpuid version and features */
@@ -1933,12 +1915,31 @@ static void pc_machine_initfn(Object *obj)
                              NULL, &error_abort);
 }
 
+static void pc_machine_reset(void)
+{
+    CPUState *cs;
+    X86CPU *cpu;
+
+    qemu_devices_reset();
+
+    /* Reset APIC after devices have been reset to cancel
+     * any changes that qemu_devices_reset() might have done.
+     */
+    CPU_FOREACH(cs) {
+        cpu = X86_CPU(cs);
+
+        if (cpu->apic_state) {
+            device_reset(cpu->apic_state);
+        }
+    }
+}
+
 static unsigned pc_cpu_index_to_socket_id(unsigned cpu_index)
 {
-    unsigned pkg_id, core_id, smt_id;
+    X86CPUTopoInfo topo;
     x86_topo_ids_from_idx(smp_cores, smp_threads, cpu_index,
-                          &pkg_id, &core_id, &smt_id);
-    return pkg_id;
+                          &topo);
+    return topo.pkg_id;
 }
 
 static void pc_machine_class_init(ObjectClass *oc, void *data)
@@ -1954,6 +1955,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "cad";
     mc->hot_add_cpu = pc_hot_add_cpu;
     mc->max_cpus = 255;
+    mc->reset = pc_machine_reset;
     hc->plug = pc_machine_device_plug_cb;
     hc->unplug_request = pc_machine_device_unplug_request_cb;
     hc->unplug = pc_machine_device_unplug_cb;

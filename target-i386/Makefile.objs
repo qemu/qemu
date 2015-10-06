@@ -1,4 +1,4 @@
-obj-y += translate.o helper.o cpu.o
+obj-y += translate.o helper.o cpu.o bpt_helper.o
 obj-y += excp_helper.o fpu_helper.o cc_helper.o int_helper.o svm_helper.o
 obj-y += smm_helper.o misc_helper.o mem_helper.o seg_helper.o
 obj-y += gdbstub.o
