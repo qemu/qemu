@@ -35,7 +35,7 @@ typedef struct S390CcwMachineState {
     bool dea_key_wrap;
 } S390CcwMachineState;
 
-void io_subsystem_reset(void)
+void subsystem_reset(void)
 {
     DeviceState *css, *sclp, *flic, *diag288;
 
