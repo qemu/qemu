@@ -25,6 +25,7 @@
 #include "sysemu/numa.h"
 #include "sysemu/kvm.h"
 #include "trace.h"
+#include "hw/virtio/vhost.h"
 
 typedef struct pc_dimms_capacity {
      uint64_t size;
@@ -93,6 +94,12 @@ void pc_dimm_memory_plug(DeviceState *dev, MemoryHotplugState *hpms,
 
     if (kvm_enabled() && !kvm_has_free_slot(machine)) {
         error_setg(&local_err, "hypervisor has no free memory slots left");
+        goto out;
+    }
+
+    if (!vhost_has_free_slot()) {
+        error_setg(&local_err, "a used vhost backend has no free"
+                               " memory slots left");
         goto out;
     }
 
