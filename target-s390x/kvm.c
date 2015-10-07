@@ -2072,6 +2072,9 @@ void kvm_s390_crw_mchk(void)
         .u.mchk.cr14 = 1 << 28,
         .u.mchk.mcic = 0x00400f1d40330000ULL,
     };
+    if (kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS)) {
+        irq.u.mchk.mcic |= 0x0000004000000000ULL;
+    }
     kvm_s390_floating_interrupt(&irq);
 }
 
