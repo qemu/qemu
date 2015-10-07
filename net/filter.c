@@ -14,6 +14,7 @@
 #include "net/net.h"
 #include "net/vhost_net.h"
 #include "qom/object_interfaces.h"
+#include "qemu/iov.h"
 
 ssize_t qemu_netfilter_receive(NetFilterState *nf,
                                NetFilterDirection direction,
@@ -30,6 +31,63 @@ ssize_t qemu_netfilter_receive(NetFilterState *nf,
     }
 
     return 0;
+}
+
+ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
+                                    unsigned flags,
+                                    const struct iovec *iov,
+                                    int iovcnt,
+                                    void *opaque)
+{
+    int ret = 0;
+    int direction;
+    NetFilterState *nf = opaque;
+    NetFilterState *next = QTAILQ_NEXT(nf, next);
+
+    if (!sender || !sender->peer) {
+        /* no receiver, or sender been deleted, no need to pass it further */
+        goto out;
+    }
+
+    if (nf->direction == NET_FILTER_DIRECTION_ALL) {
+        if (sender == nf->netdev) {
+            /* This packet is sent by netdev itself */
+            direction = NET_FILTER_DIRECTION_TX;
+        } else {
+            direction = NET_FILTER_DIRECTION_RX;
+        }
+    } else {
+        direction = nf->direction;
+    }
+
+    while (next) {
+        /*
+         * if qemu_netfilter_pass_to_next been called, means that
+         * the packet has been hold by filter and has already retured size
+         * to the sender, so sent_cb shouldn't be called later, just
+         * pass NULL to next.
+         */
+        ret = qemu_netfilter_receive(next, direction, sender, flags, iov,
+                                     iovcnt, NULL);
+        if (ret) {
+            return ret;
+        }
+        next = QTAILQ_NEXT(next, next);
+    }
+
+    /*
+     * We have gone through all filters, pass it to receiver.
+     * Do the valid check again incase sender or receiver been
+     * deleted while we go through filters.
+     */
+    if (sender && sender->peer) {
+        qemu_net_queue_send_iov(sender->peer->incoming_queue,
+                                sender, flags, iov, iovcnt, NULL);
+    }
+
+out:
+    /* no receiver, or sender been deleted */
+    return iov_size(iov, iovcnt);
 }
 
 static char *netfilter_get_netdev_id(Object *obj, Error **errp)

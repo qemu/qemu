@@ -66,4 +66,11 @@ ssize_t qemu_netfilter_receive(NetFilterState *nf,
                                int iovcnt,
                                NetPacketSent *sent_cb);
 
+/* pass the packet to the next filter */
+ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
+                                    unsigned flags,
+                                    const struct iovec *iov,
+                                    int iovcnt,
+                                    void *opaque);
+
 #endif /* QEMU_NET_FILTER_H */
