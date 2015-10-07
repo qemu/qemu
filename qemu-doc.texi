@@ -1293,6 +1293,19 @@ copy the shared memory on migration to the destination host.  With
 With the @option{peer} case, the device should be detached and then reattached
 after migration using the PCI hotplug support.
 
+@subsubsection ivshmem and hugepages
+
+Instead of specifying the <shm size> using POSIX shm, you may specify
+a memory backend that has hugepage support:
+
+@example
+qemu-system-i386 -object memory-backend-file,size=1G,mem-path=/mnt/hugepages,id=mb1
+                 -device ivshmem,memdev=mb1
+@end example
+
+ivshmem-server also supports hugepages mount points with the
+@option{-m} memory path argument.
+
 @node direct_linux_boot
 @section Direct Linux Boot
 
