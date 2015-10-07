@@ -40,11 +40,6 @@
 #define ldebug(...)
 #endif
 
-#define IO_READ_PROTO(name)                             \
-    uint32_t name (void *opaque, uint32_t nport)
-#define IO_WRITE_PROTO(name)                                    \
-    void name (void *opaque, uint32_t nport, uint32_t val)
-
 static const char e3[] = "COPYRIGHT (C) CREATIVE TECHNOLOGY LTD, 1992.";
 
 #define TYPE_SB16 "sb16"
@@ -881,7 +876,7 @@ static void reset (SB16State *s)
     legacy_reset (s);
 }
 
-static IO_WRITE_PROTO (dsp_write)
+static void dsp_write(void *opaque, uint32_t nport, uint32_t val)
 {
     SB16State *s = opaque;
     int iport;
@@ -959,7 +954,7 @@ static IO_WRITE_PROTO (dsp_write)
     }
 }
 
-static IO_READ_PROTO (dsp_read)
+static uint32_t dsp_read(void *opaque, uint32_t nport)
 {
     SB16State *s = opaque;
     int iport, retval, ack = 0;
@@ -1058,14 +1053,14 @@ static void reset_mixer (SB16State *s)
     }
 }
 
-static IO_WRITE_PROTO (mixer_write_indexb)
+static void mixer_write_indexb(void *opaque, uint32_t nport, uint32_t val)
 {
     SB16State *s = opaque;
     (void) nport;
     s->mixer_nreg = val;
 }
 
-static IO_WRITE_PROTO (mixer_write_datab)
+static void mixer_write_datab(void *opaque, uint32_t nport, uint32_t val)
 {
     SB16State *s = opaque;
 
@@ -1121,7 +1116,7 @@ static IO_WRITE_PROTO (mixer_write_datab)
     s->mixer_regs[s->mixer_nreg] = val;
 }
 
-static IO_READ_PROTO (mixer_read)
+static uint32_t mixer_read(void *opaque, uint32_t nport)
 {
     SB16State *s = opaque;
 
