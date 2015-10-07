@@ -112,12 +112,12 @@ static void qemu_net_queue_append(NetQueue *queue,
     QTAILQ_INSERT_TAIL(&queue->packets, packet, entry);
 }
 
-static void qemu_net_queue_append_iov(NetQueue *queue,
-                                      NetClientState *sender,
-                                      unsigned flags,
-                                      const struct iovec *iov,
-                                      int iovcnt,
-                                      NetPacketSent *sent_cb)
+void qemu_net_queue_append_iov(NetQueue *queue,
+                               NetClientState *sender,
+                               unsigned flags,
+                               const struct iovec *iov,
+                               int iovcnt,
+                               NetPacketSent *sent_cb)
 {
     NetPacket *packet;
     size_t max_len = 0;
