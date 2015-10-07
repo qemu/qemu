@@ -262,7 +262,7 @@ void helper_set_dr(CPUX86State *env, int reg, target_ulong t0)
         }
         /* fallthru */
     case 6:
-        env->dr[6] = t0;
+        env->dr[6] = t0 | DR6_FIXED_1;
         return;
     case 5:
         if (env->cr[4] & CR4_DE_MASK) {
