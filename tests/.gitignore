@@ -49,5 +49,6 @@ test-vmstate
 test-write-threshold
 test-x86-cpuid
 test-xbzrle
+test-netfilter
 *-test
 qapi-schema/*.test.*
