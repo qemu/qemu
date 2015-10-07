@@ -45,6 +45,7 @@ typedef struct Monitor Monitor;
 typedef struct MouseTransformInfo MouseTransformInfo;
 typedef struct MSIMessage MSIMessage;
 typedef struct NetClientState NetClientState;
+typedef struct NetFilterState NetFilterState;
 typedef struct NICInfo NICInfo;
 typedef struct PcGuestInfo PcGuestInfo;
 typedef struct PCIBridge PCIBridge;
