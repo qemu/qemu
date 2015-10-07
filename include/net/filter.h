@@ -58,4 +58,12 @@ struct NetFilterState {
     QTAILQ_ENTRY(NetFilterState) next;
 };
 
+ssize_t qemu_netfilter_receive(NetFilterState *nf,
+                               NetFilterDirection direction,
+                               NetClientState *sender,
+                               unsigned flags,
+                               const struct iovec *iov,
+                               int iovcnt,
+                               NetPacketSent *sent_cb);
+
 #endif /* QEMU_NET_FILTER_H */
