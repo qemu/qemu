@@ -152,9 +152,13 @@ static ssize_t qemu_net_queue_deliver(NetQueue *queue,
                                       size_t size)
 {
     ssize_t ret = -1;
+    struct iovec iov = {
+        .iov_base = (void *)data,
+        .iov_len = size
+    };
 
     queue->delivering = 1;
-    ret = qemu_deliver_packet(sender, flags, data, size, queue->opaque);
+    ret = qemu_deliver_packet_iov(sender, flags, &iov, 1, queue->opaque);
     queue->delivering = 0;
 
     return ret;
