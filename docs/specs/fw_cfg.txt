@@ -159,6 +159,17 @@ will convert a 16-, 32-, or 64-bit integer to little-endian, then add
 a dynamically allocated copy of the appropriately sized item to fw_cfg
 under the given selector key value.
 
+== fw_cfg_modify_iXX() ==
+
+Modify the value of an XX-bit item (where XX may be 16, 32, or 64).
+Similarly to the corresponding fw_cfg_add_iXX() function set, convert
+a 16-, 32-, or 64-bit integer to little endian, create a dynamically
+allocated copy of the required size, and replace the existing item at
+the given selector key value with the newly allocated one. The previous
+item, assumed to have been allocated during an earlier call to
+fw_cfg_add_iXX() or fw_cfg_modify_iXX() (of the same width XX), is freed
+before the function returns.
+
 == fw_cfg_add_file() ==
 
 Given a filename (i.e., fw_cfg item name), starting pointer, and size,
