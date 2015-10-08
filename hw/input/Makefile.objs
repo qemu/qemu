@@ -8,9 +8,9 @@ common-obj-$(CONFIG_STELLARIS_INPUT) += stellaris_input.o
 common-obj-$(CONFIG_TSC2005) += tsc2005.o
 common-obj-$(CONFIG_VMMOUSE) += vmmouse.o
 
-ifeq ($(CONFIG_LINUX),y)
 common-obj-$(CONFIG_VIRTIO) += virtio-input.o
 common-obj-$(CONFIG_VIRTIO) += virtio-input-hid.o
+ifeq ($(CONFIG_LINUX),y)
 common-obj-$(CONFIG_VIRTIO) += virtio-input-host.o
 endif
 
