@@ -2065,16 +2065,31 @@ void kvm_s390_io_interrupt(uint16_t subchannel_id,
     kvm_s390_floating_interrupt(&irq);
 }
 
+static uint64_t build_channel_report_mcic(void)
+{
+    uint64_t mcic;
+
+    /* subclass: indicate channel report pending */
+    mcic = MCIC_SC_CP |
+    /* subclass modifiers: none */
+    /* storage errors: none */
+    /* validity bits: no damage */
+        MCIC_VB_WP | MCIC_VB_MS | MCIC_VB_PM | MCIC_VB_IA | MCIC_VB_FP |
+        MCIC_VB_GR | MCIC_VB_CR | MCIC_VB_ST | MCIC_VB_AR | MCIC_VB_PR |
+        MCIC_VB_FC | MCIC_VB_CT | MCIC_VB_CC;
+    if (kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS)) {
+        mcic |= MCIC_VB_VR;
+    }
+    return mcic;
+}
+
 void kvm_s390_crw_mchk(void)
 {
     struct kvm_s390_irq irq = {
         .type = KVM_S390_MCHK,
         .u.mchk.cr14 = 1 << 28,
-        .u.mchk.mcic = 0x00400f1d40330000ULL,
+        .u.mchk.mcic = build_channel_report_mcic(),
     };
-    if (kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS)) {
-        irq.u.mchk.mcic |= 0x0000004000000000ULL;
-    }
     kvm_s390_floating_interrupt(&irq);
 }
 
