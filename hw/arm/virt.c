@@ -119,7 +119,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_GIC_REDIST] =         { 0x080A0000, 0x00F60000 },
     [VIRT_UART] =               { 0x09000000, 0x00001000 },
     [VIRT_RTC] =                { 0x09010000, 0x00001000 },
-    [VIRT_FW_CFG] =             { 0x09020000, 0x0000000a },
+    [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -677,13 +677,13 @@ static void create_flash(const VirtBoardInfo *vbi)
     g_free(nodename);
 }
 
-static void create_fw_cfg(const VirtBoardInfo *vbi)
+static void create_fw_cfg(const VirtBoardInfo *vbi, AddressSpace *as)
 {
     hwaddr base = vbi->memmap[VIRT_FW_CFG].base;
     hwaddr size = vbi->memmap[VIRT_FW_CFG].size;
     char *nodename;
 
-    fw_cfg_init_mem_wide(base + 8, base, 8, 0, NULL);
+    fw_cfg_init_mem_wide(base + 8, base, 8, base + 16, as);
 
     nodename = g_strdup_printf("/fw-cfg@%" PRIx64, base);
     qemu_fdt_add_subnode(vbi->fdt, nodename);
@@ -1031,7 +1031,7 @@ static void machvirt_init(MachineState *machine)
      */
     create_virtio_devices(vbi, pic);
 
-    create_fw_cfg(vbi);
+    create_fw_cfg(vbi, &address_space_memory);
     rom_set_fw(fw_cfg_find());
 
     guest_info->smp_cpus = smp_cpus;
