@@ -37,7 +37,9 @@ static void test_fw_cfg_signature(void)
 
 static void test_fw_cfg_id(void)
 {
-    g_assert_cmpint(qfw_cfg_get_u32(fw_cfg, FW_CFG_ID), ==, 1);
+    uint32_t id = qfw_cfg_get_u32(fw_cfg, FW_CFG_ID);
+    g_assert((id == 1) ||
+             (id == 3));
 }
 
 static void test_fw_cfg_uuid(void)
