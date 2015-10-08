@@ -29,8 +29,7 @@
 #include "sysemu/dma.h"
 #include "qemu/timer.h"
 #include "qemu/bitops.h"
-
-#include "sdhci.h"
+#include "sdhci-internal.h"
 
 /* host controller debug messages */
 #ifndef SDHC_DEBUG
