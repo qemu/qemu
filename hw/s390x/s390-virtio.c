@@ -31,7 +31,6 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/virtio/virtio.h"
-#include "hw/sysbus.h"
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
 
@@ -151,9 +150,9 @@ void s390_init_ipl_dev(const char *kernel_filename,
                        const char *firmware,
                        bool enforce_bios)
 {
-    DeviceState *dev;
+    Object *new = object_new(TYPE_S390_IPL);
+    DeviceState *dev = DEVICE(new);
 
-    dev  = qdev_create(NULL, "s390-ipl");
     if (kernel_filename) {
         qdev_prop_set_string(dev, "kernel", kernel_filename);
     }
@@ -163,8 +162,9 @@ void s390_init_ipl_dev(const char *kernel_filename,
     qdev_prop_set_string(dev, "cmdline", kernel_cmdline);
     qdev_prop_set_string(dev, "firmware", firmware);
     qdev_prop_set_bit(dev, "enforce_bios", enforce_bios);
-    object_property_add_child(qdev_get_machine(), "s390-ipl",
-                              OBJECT(dev), NULL);
+    object_property_add_child(qdev_get_machine(), TYPE_S390_IPL,
+                              new, NULL);
+    object_unref(new);
     qdev_init_nofail(dev);
 }
 
