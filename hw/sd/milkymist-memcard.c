@@ -28,7 +28,7 @@
 #include "qemu/error-report.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
-#include "hw/sd.h"
+#include "hw/sd/sd.h"
 
 enum {
     ENABLE_CMD_TX   = (1<<0),

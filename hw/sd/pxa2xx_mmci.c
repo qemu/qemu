@@ -12,7 +12,7 @@
 
 #include "hw/hw.h"
 #include "hw/arm/pxa.h"
-#include "hw/sd.h"
+#include "hw/sd/sd.h"
 #include "hw/qdev.h"
 
 struct PXA2xxMMCIState {

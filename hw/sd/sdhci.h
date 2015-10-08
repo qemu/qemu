@@ -29,7 +29,7 @@
 #include "hw/block/block.h"
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
-#include "hw/sd.h"
+#include "hw/sd/sd.h"
 
 /* R/W SDMA System Address register 0x0 */
 #define SDHC_SYSAD                     0x00
