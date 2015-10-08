@@ -53,6 +53,8 @@
 #define FW_CFG_DMA_CTL_SKIP    0x04
 #define FW_CFG_DMA_CTL_SELECT  0x08
 
+#define FW_CFG_DMA_SIGNATURE 0x51454d5520434647ULL /* "QEMU CFG" */
+
 typedef struct FWCfgEntry {
     uint32_t len;
     uint8_t *data;
@@ -397,6 +399,13 @@ static void fw_cfg_dma_transfer(FWCfgState *s)
     trace_fw_cfg_read(s, 0);
 }
 
+static uint64_t fw_cfg_dma_mem_read(void *opaque, hwaddr addr,
+                                    unsigned size)
+{
+    /* Return a signature value (and handle various read sizes) */
+    return extract64(FW_CFG_DMA_SIGNATURE, (8 - addr - size) * 8, size * 8);
+}
+
 static void fw_cfg_dma_mem_write(void *opaque, hwaddr addr,
                                  uint64_t value, unsigned size)
 {
@@ -420,8 +429,8 @@ static void fw_cfg_dma_mem_write(void *opaque, hwaddr addr,
 static bool fw_cfg_dma_mem_valid(void *opaque, hwaddr addr,
                                   unsigned size, bool is_write)
 {
-    return is_write && ((size == 4 && (addr == 0 || addr == 4)) ||
-                        (size == 8 && addr == 0));
+    return !is_write || ((size == 4 && (addr == 0 || addr == 4)) ||
+                         (size == 8 && addr == 0));
 }
 
 static bool fw_cfg_data_mem_valid(void *opaque, hwaddr addr,
@@ -492,6 +501,7 @@ static const MemoryRegionOps fw_cfg_comb_mem_ops = {
 };
 
 static const MemoryRegionOps fw_cfg_dma_mem_ops = {
+    .read = fw_cfg_dma_mem_read,
     .write = fw_cfg_dma_mem_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid.accepts = fw_cfg_dma_mem_valid,

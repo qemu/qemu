@@ -93,6 +93,9 @@ by selecting the "signature" item using key 0x0000 (FW_CFG_SIGNATURE),
 and reading four bytes from the data register. If the fw_cfg device is
 present, the four bytes read will contain the characters "QEMU".
 
+If the DMA interface is available, then reading the DMA Address
+Register returns 0x51454d5520434647 ("QEMU CFG" in big-endian format).
+
 === Revision / feature bitmap (Key 0x0001, FW_CFG_ID) ===
 
 A 32-bit little-endian unsigned int, this item is used to check for enabled
