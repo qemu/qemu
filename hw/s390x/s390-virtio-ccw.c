@@ -262,6 +262,18 @@ static const TypeInfo ccw_machine_info = {
             .driver   = "virtio-rng-ccw",\
             .property = "max_revision",\
             .value    = "0",\
+        },{\
+            .driver   = "virtio-net-ccw",\
+            .property = "max_revision",\
+            .value    = "0",\
+        },{\
+            .driver   = "virtio-scsi-ccw",\
+            .property = "max_revision",\
+            .value    = "0",\
+        },{\
+            .driver   = "vhost-scsi-ccw",\
+            .property = "max_revision",\
+            .value    = "0",\
         },
 
 static void ccw_machine_2_4_class_init(ObjectClass *oc, void *data)
