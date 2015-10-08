@@ -2994,10 +2994,6 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
     int insn_len = 2;
     int i;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(dc->pc);
-        }
-
     /* Load a halfword onto the instruction register.  */
         dc->ir = cris_fetch(env, dc, dc->pc, 2, 0);
 
@@ -3032,23 +3028,6 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
     }
 #endif
     return insn_len;
-}
-
-static void check_breakpoint(CPUCRISState *env, DisasContext *dc)
-{
-    CPUState *cs = CPU(cris_env_get_cpu(env));
-    CPUBreakpoint *bp;
-
-    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-            if (bp->pc == dc->pc) {
-                cris_evaluate_flags(dc);
-                tcg_gen_movi_tl(env_pc, dc->pc);
-                t_gen_raise_exception(EXCP_DEBUG);
-                dc->is_jmp = DISAS_UPDATE;
-            }
-        }
-    }
 }
 
 #include "translate_v10.c"
@@ -3088,15 +3067,12 @@ static void check_breakpoint(CPUCRISState *env, DisasContext *dc)
  */
 
 /* generate intermediate code for basic block 'tb'.  */
-static inline void
-gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
-                               bool search_pc)
+void gen_intermediate_code(CPUCRISState *env, struct TranslationBlock *tb)
 {
+    CRISCPU *cpu = cris_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUCRISState *env = &cpu->env;
     uint32_t pc_start;
     unsigned int insn_len;
-    int j, lj;
     struct DisasContext ctx;
     struct DisasContext *dc = &ctx;
     uint32_t next_page_start;
@@ -3148,13 +3124,13 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log(
-                "srch=%d pc=%x %x flg=%" PRIx64 " bt=%x ds=%u ccs=%x\n"
+                "pc=%x %x flg=%" PRIx64 " bt=%x ds=%u ccs=%x\n"
                 "pid=%x usp=%x\n"
                 "%x.%x.%x.%x\n"
                 "%x.%x.%x.%x\n"
                 "%x.%x.%x.%x\n"
                 "%x.%x.%x.%x\n",
-                search_pc, dc->pc, dc->ppc,
+                dc->pc, dc->ppc,
                 (uint64_t)tb->flags,
                 env->btarget, (unsigned)tb->flags & 7,
                 env->pregs[PR_CCS],
@@ -3170,38 +3146,33 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
     }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
 
     gen_tb_start(tb);
     do {
-        check_breakpoint(env, dc);
+        tcg_gen_insn_start(dc->delayed_branch == 1
+                           ? dc->ppc | 1 : dc->pc);
+        num_insns++;
 
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            if (dc->delayed_branch == 1) {
-                tcg_ctx.gen_opc_pc[lj] = dc->ppc | 1;
-            } else {
-                tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            }
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            cris_evaluate_flags(dc);
+            tcg_gen_movi_tl(env_pc, dc->pc);
+            t_gen_raise_exception(EXCP_DEBUG);
+            dc->is_jmp = DISAS_UPDATE;
+            break;
         }
 
         /* Pretty disas.  */
         LOG_DIS("%8.8x:\t", dc->pc);
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
         dc->clear_x = 1;
@@ -3213,7 +3184,6 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
             cris_clear_x_flag(dc);
         }
 
-        num_insns++;
         /* Check for delayed branches here. If we do it before
            actually generating any host code, the simulator will just
            loop doing nothing for on this program location.  */
@@ -3318,16 +3288,8 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
     }
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 
 #ifdef DEBUG_DISAS
 #if !DISAS_CRIS
@@ -3339,16 +3301,6 @@ gen_intermediate_code_internal(CRISCPU *cpu, TranslationBlock *tb,
     }
 #endif
 #endif
-}
-
-void gen_intermediate_code (CPUCRISState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(cris_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc (CPUCRISState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(cris_env_get_cpu(env), tb, true);
 }
 
 void cris_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
@@ -3443,7 +3395,8 @@ void cris_initialize_tcg(void)
     }
 }
 
-void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    env->pc = data[0];
 }

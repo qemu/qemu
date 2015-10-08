@@ -230,6 +230,7 @@ typedef struct trap_state {
     uint32_t tt;
 } trap_state;
 #endif
+#define TARGET_INSN_START_EXTRA_WORDS 1
 
 typedef struct sparc_def_t {
     const char *name;
@@ -592,7 +593,6 @@ int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
 #endif
 
 #define cpu_exec cpu_sparc_exec
-#define cpu_gen_code cpu_sparc_gen_code
 #define cpu_signal_handler cpu_sparc_signal_handler
 #define cpu_list sparc_cpu_list
 

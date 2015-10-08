@@ -1359,9 +1359,6 @@ static TCGv_i32 fpu_fcr0, fpu_fcr31;
 static TCGv_i64 fpu_f64[32];
 static TCGv_i64 msa_wr_d[64];
 
-static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
-static target_ulong gen_opc_btarget[OPC_BUF_SIZE];
-
 #include "exec/gen-icount.h"
 
 #define gen_helper_0e0i(name, arg) do {                           \
@@ -18904,10 +18901,6 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         gen_set_label(l1);
     }
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(ctx->pc);
-    }
-
     op = MASK_OP_MAJOR(ctx->opcode);
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
@@ -19539,24 +19532,17 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
-static inline void
-gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
-                               bool search_pc)
+void gen_intermediate_code(CPUMIPSState *env, struct TranslationBlock *tb)
 {
+    MIPSCPU *cpu = mips_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUMIPSState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
     target_ulong next_page_start;
-    CPUBreakpoint *bp;
-    int j, lj = -1;
     int num_insns;
     int max_insns;
     int insn_bytes;
     int is_slot;
-
-    if (search_pc)
-        qemu_log("search pc %d\n", search_pc);
 
     pc_start = tb->pc;
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
@@ -19567,6 +19553,7 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
     ctx.CP0_Config1 = env->CP0_Config1;
     ctx.tb = tb;
     ctx.bstate = BS_NONE;
+    ctx.btarget = 0;
     ctx.kscrexist = (env->CP0_Config4 >> CP0C4_KScrExist) & 0xff;
     ctx.rxi = (env->CP0_Config3 >> CP0C3_RXI) & 1;
     ctx.ie = (env->CP0_Config4 >> CP0C4_IE) & 3;
@@ -19590,40 +19577,32 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
                                  MO_UNALN : MO_ALIGN;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
+    if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
+
     LOG_DISAS("\ntb %p idx %d hflags %04x\n", tb, ctx.mem_idx, ctx.hflags);
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == ctx.pc) {
-                    save_cpu_state(&ctx, 1);
-                    ctx.bstate = BS_BRANCH;
-                    gen_helper_raise_exception_debug(cpu_env);
-                    /* Include the breakpoint location or the tb won't
-                     * be flushed when it must be.  */
-                    ctx.pc += 4;
-                    goto done_generating;
-                }
-            }
+        tcg_gen_insn_start(ctx.pc, ctx.hflags & MIPS_HFLAG_BMASK, ctx.btarget);
+        num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+            save_cpu_state(&ctx, 1);
+            ctx.bstate = BS_BRANCH;
+            gen_helper_raise_exception_debug(cpu_env);
+            /* Include the breakpoint location or the tb won't
+             * be flushed when it must be.  */
+            ctx.pc += 4;
+            goto done_generating;
         }
 
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[lj] = ctx.pc;
-            gen_opc_hflags[lj] = ctx.hflags & MIPS_HFLAG_BMASK;
-            gen_opc_btarget[lj] = ctx.btarget;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
+        }
 
         is_slot = ctx.hflags & MIPS_HFLAG_BMASK;
         if (!(ctx.hflags & MIPS_HFLAG_M16)) {
@@ -19659,8 +19638,6 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
             gen_branch(&ctx, insn_bytes);
         }
         ctx.pc += insn_bytes;
-
-        num_insns++;
 
         /* Execute a branch and its delay slot as a single instruction.
            This is what GDB expects and is consistent with what the
@@ -19710,15 +19687,9 @@ gen_intermediate_code_internal(MIPSCPU *cpu, TranslationBlock *tb,
 done_generating:
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j)
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-    } else {
-        tb->size = ctx.pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = ctx.pc - pc_start;
+    tb->icount = num_insns;
+
 #ifdef DEBUG_DISAS
     LOG_DISAS("\n");
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -19727,16 +19698,6 @@ done_generating:
         qemu_log("\n");
     }
 #endif
-}
-
-void gen_intermediate_code (CPUMIPSState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(mips_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc (CPUMIPSState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(mips_env_get_cpu(env), tb, true);
 }
 
 static void fpu_dump_state(CPUMIPSState *env, FILE *f, fprintf_function fpu_fprintf,
@@ -20062,18 +20023,19 @@ void cpu_state_reset(CPUMIPSState *env)
     }
 }
 
-void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUMIPSState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->active_tc.PC = tcg_ctx.gen_opc_pc[pc_pos];
+    env->active_tc.PC = data[0];
     env->hflags &= ~MIPS_HFLAG_BMASK;
-    env->hflags |= gen_opc_hflags[pc_pos];
+    env->hflags |= data[1];
     switch (env->hflags & MIPS_HFLAG_BMASK_BASE) {
     case MIPS_HFLAG_BR:
         break;
     case MIPS_HFLAG_BC:
     case MIPS_HFLAG_BL:
     case MIPS_HFLAG_B:
-        env->btarget = gen_opc_btarget[pc_pos];
+        env->btarget = data[2];
         break;
     }
 }

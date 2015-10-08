@@ -62,24 +62,15 @@ typedef struct TranslationBlock TranslationBlock;
 #define OPC_BUF_SIZE 640
 #define OPC_MAX_SIZE (OPC_BUF_SIZE - MAX_OP_PER_INSTR)
 
-/* Maximum size a TCG op can expand to.  This is complicated because a
-   single op may require several host instructions and register reloads.
-   For now take a wild guess at 192 bytes, which should allow at least
-   a couple of fixup instructions per argument.  */
-#define TCG_MAX_OP_SIZE 192
-
 #define OPPARAM_BUF_SIZE (OPC_BUF_SIZE * MAX_OPC_PARAM)
 
 #include "qemu/log.h"
 
 void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
-void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
 void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
-                          int pc_pos);
+                          target_ulong *data);
 
 void cpu_gen_init(void);
-int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
-                 int *gen_code_size_ptr);
 bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);
 void page_size_init(void);
 
@@ -170,13 +161,14 @@ static inline void tlb_flush_by_mmuidx(CPUState *cpu, ...)
 #define CODE_GEN_PHYS_HASH_BITS     15
 #define CODE_GEN_PHYS_HASH_SIZE     (1 << CODE_GEN_PHYS_HASH_BITS)
 
-/* estimated block size for TB allocation */
-/* XXX: use a per code average code fragment size and modulate it
-   according to the host CPU */
+/* Estimated block size for TB allocation.  */
+/* ??? The following is based on a 2015 survey of x86_64 host output.
+   Better would seem to be some sort of dynamically sized TB array,
+   adapting to the block sizes actually being produced.  */
 #if defined(CONFIG_SOFTMMU)
-#define CODE_GEN_AVG_BLOCK_SIZE 128
+#define CODE_GEN_AVG_BLOCK_SIZE 400
 #else
-#define CODE_GEN_AVG_BLOCK_SIZE 64
+#define CODE_GEN_AVG_BLOCK_SIZE 150
 #endif
 
 #if defined(__arm__) || defined(_ARCH_PPC) \
@@ -201,6 +193,7 @@ struct TranslationBlock {
 #define CF_USE_ICOUNT  0x20000
 
     void *tc_ptr;    /* pointer to the translated code */
+    uint8_t *tc_search;  /* pointer to search data */
     /* next matching tb for physical address. */
     struct TranslationBlock *phys_hash_next;
     /* original tb when cflags has CF_NOCACHE */

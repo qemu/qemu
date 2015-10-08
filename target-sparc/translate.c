@@ -64,9 +64,6 @@ static TCGv cpu_wim;
 /* Floating point registers */
 static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
-static target_ulong gen_opc_npc[OPC_BUF_SIZE];
-static target_ulong gen_opc_jump_pc[2];
-
 #include "exec/gen-icount.h"
 
 typedef struct DisasContext {
@@ -955,17 +952,44 @@ static inline void gen_branch2(DisasContext *dc, target_ulong pc1,
     gen_goto_tb(dc, 1, pc2, pc2 + 4);
 }
 
-static inline void gen_branch_a(DisasContext *dc, target_ulong pc1,
-                                target_ulong pc2, TCGv r_cond)
+static void gen_branch_a(DisasContext *dc, target_ulong pc1)
 {
     TCGLabel *l1 = gen_new_label();
+    target_ulong npc = dc->npc;
 
-    tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond, 0, l1);
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_cond, 0, l1);
 
-    gen_goto_tb(dc, 0, pc2, pc1);
+    gen_goto_tb(dc, 0, npc, pc1);
 
     gen_set_label(l1);
-    gen_goto_tb(dc, 1, pc2 + 4, pc2 + 8);
+    gen_goto_tb(dc, 1, npc + 4, npc + 8);
+
+    dc->is_br = 1;
+}
+
+static void gen_branch_n(DisasContext *dc, target_ulong pc1)
+{
+    target_ulong npc = dc->npc;
+
+    if (likely(npc != DYNAMIC_PC)) {
+        dc->pc = npc;
+        dc->jump_pc[0] = pc1;
+        dc->jump_pc[1] = npc + 4;
+        dc->npc = JUMP_PC;
+    } else {
+        TCGv t, z;
+
+        tcg_gen_mov_tl(cpu_pc, cpu_npc);
+
+        tcg_gen_addi_tl(cpu_npc, cpu_npc, 4);
+        t = tcg_const_tl(pc1);
+        z = tcg_const_tl(0);
+        tcg_gen_movcond_tl(TCG_COND_NE, cpu_npc, cpu_cond, z, t, cpu_npc);
+        tcg_temp_free(t);
+        tcg_temp_free(z);
+
+        dc->pc = DYNAMIC_PC;
+    }
 }
 
 static inline void gen_generic_branch(DisasContext *dc)
@@ -1398,18 +1422,9 @@ static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc)
         flush_cond(dc);
         gen_cond(cpu_cond, cc, cond, dc);
         if (a) {
-            gen_branch_a(dc, target, dc->npc, cpu_cond);
-            dc->is_br = 1;
+            gen_branch_a(dc, target);
         } else {
-            dc->pc = dc->npc;
-            dc->jump_pc[0] = target;
-            if (unlikely(dc->npc == DYNAMIC_PC)) {
-                dc->jump_pc[1] = DYNAMIC_PC;
-                tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
-            } else {
-                dc->jump_pc[1] = dc->npc + 4;
-                dc->npc = JUMP_PC;
-            }
+            gen_branch_n(dc, target);
         }
     }
 }
@@ -1447,18 +1462,9 @@ static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc)
         flush_cond(dc);
         gen_fcond(cpu_cond, cc, cond);
         if (a) {
-            gen_branch_a(dc, target, dc->npc, cpu_cond);
-            dc->is_br = 1;
+            gen_branch_a(dc, target);
         } else {
-            dc->pc = dc->npc;
-            dc->jump_pc[0] = target;
-            if (unlikely(dc->npc == DYNAMIC_PC)) {
-                dc->jump_pc[1] = DYNAMIC_PC;
-                tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
-            } else {
-                dc->jump_pc[1] = dc->npc + 4;
-                dc->npc = JUMP_PC;
-            }
+            gen_branch_n(dc, target);
         }
     }
 }
@@ -1476,18 +1482,9 @@ static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
     flush_cond(dc);
     gen_cond_reg(cpu_cond, cond, r_reg);
     if (a) {
-        gen_branch_a(dc, target, dc->npc, cpu_cond);
-        dc->is_br = 1;
+        gen_branch_a(dc, target);
     } else {
-        dc->pc = dc->npc;
-        dc->jump_pc[0] = target;
-        if (unlikely(dc->npc == DYNAMIC_PC)) {
-            dc->jump_pc[1] = DYNAMIC_PC;
-            tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
-        } else {
-            dc->jump_pc[1] = dc->npc + 4;
-            dc->npc = JUMP_PC;
-        }
+        gen_branch_n(dc, target);
     }
 }
 
@@ -2481,10 +2478,6 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     TCGv_i32 cpu_src1_32, cpu_src2_32, cpu_dst_32;
     TCGv_i64 cpu_src1_64, cpu_src2_64, cpu_dst_64;
     target_long simm;
-
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(dc->pc);
-    }
 
     opc = GET_FIELD(insn, 0, 1);
     rd = GET_FIELD(insn, 2, 6);
@@ -5213,16 +5206,12 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
     }
 }
 
-static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool spc)
+void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
 {
+    SPARCCPU *cpu = sparc_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUSPARCState *env = &cpu->env;
     target_ulong pc_start, last_pc;
     DisasContext dc1, *dc = &dc1;
-    CPUBreakpoint *bp;
-    int j, lj = -1;
     int num_insns;
     int max_insns;
     unsigned int insn;
@@ -5242,42 +5231,41 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
 
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
+    if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
+
     gen_tb_start(tb);
     do {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == dc->pc) {
-                    if (dc->pc != pc_start)
-                        save_state(dc);
-                    gen_helper_debug(cpu_env);
-                    tcg_gen_exit_tb(0);
-                    dc->is_br = 1;
-                    goto exit_gen_loop;
-                }
-            }
+        if (dc->npc & JUMP_PC) {
+            assert(dc->jump_pc[1] == dc->pc + 4);
+            tcg_gen_insn_start(dc->pc, dc->jump_pc[0] | JUMP_PC);
+        } else {
+            tcg_gen_insn_start(dc->pc, dc->npc);
         }
-        if (spc) {
-            qemu_log("Search PC...\n");
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                tcg_ctx.gen_opc_pc[lj] = dc->pc;
-                gen_opc_npc[lj] = dc->npc;
-                tcg_ctx.gen_opc_instr_start[lj] = 1;
-                tcg_ctx.gen_opc_icount[lj] = num_insns;
+        num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            if (dc->pc != pc_start) {
+                save_state(dc);
             }
+            gen_helper_debug(cpu_env);
+            tcg_gen_exit_tb(0);
+            dc->is_br = 1;
+            goto exit_gen_loop;
         }
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
+        }
+
         last_pc = dc->pc;
         insn = cpu_ldl_code(env, dc->pc);
 
         disas_sparc_insn(dc, insn);
-        num_insns++;
 
         if (dc->is_br)
             break;
@@ -5316,20 +5304,9 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
     }
     gen_tb_end(tb, num_insns);
 
-    if (spc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j)
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-#if 0
-        log_page_dump();
-#endif
-        gen_opc_jump_pc[0] = dc->jump_pc[0];
-        gen_opc_jump_pc[1] = dc->jump_pc[1];
-    } else {
-        tb->size = last_pc + 4 - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = last_pc + 4 - pc_start;
+    tb->icount = num_insns;
+
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("--------------\n");
@@ -5338,16 +5315,6 @@ static inline void gen_intermediate_code_internal(SPARCCPU *cpu,
         qemu_log("\n");
     }
 #endif
-}
-
-void gen_intermediate_code(CPUSPARCState * env, TranslationBlock * tb)
-{
-    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUSPARCState * env, TranslationBlock * tb)
-{
-    gen_intermediate_code_internal(sparc_env_get_cpu(env), tb, true);
 }
 
 void gen_intermediate_code_init(CPUSPARCState *env)
@@ -5451,19 +5418,21 @@ void gen_intermediate_code_init(CPUSPARCState *env)
     }
 }
 
-void restore_state_to_opc(CPUSPARCState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUSPARCState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    target_ulong npc;
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
-    npc = gen_opc_npc[pc_pos];
-    if (npc == 1) {
+    target_ulong pc = data[0];
+    target_ulong npc = data[1];
+
+    env->pc = pc;
+    if (npc == DYNAMIC_PC) {
         /* dynamic NPC: already stored */
-    } else if (npc == 2) {
+    } else if (npc & JUMP_PC) {
         /* jump PC: use 'cond' and the jump targets of the translation */
         if (env->cond) {
-            env->npc = gen_opc_jump_pc[0];
+            env->npc = npc & ~3;
         } else {
-            env->npc = gen_opc_jump_pc[1];
+            env->npc = pc + 4;
         }
     } else {
         env->npc = npc;

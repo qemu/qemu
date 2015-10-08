@@ -8266,21 +8266,26 @@ static void decode_opc(CPUTriCoreState *env, DisasContext *ctx, int *is_branch)
     }
 }
 
-static inline void
-gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
-                              int search_pc)
+void gen_intermediate_code(CPUTriCoreState *env, struct TranslationBlock *tb)
 {
+    TriCoreCPU *cpu = tricore_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUTriCoreState *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
-    int num_insns;
-
-    if (search_pc) {
-        qemu_log("search pc %d\n", search_pc);
-    }
+    int num_insns, max_insns;
 
     num_insns = 0;
+    max_insns = tb->cflags & CF_COUNT_MASK;
+    if (max_insns == 0) {
+        max_insns = CF_COUNT_MASK;
+    }
+    if (singlestep) {
+        max_insns = 1;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
+
     pc_start = tb->pc;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
@@ -8292,17 +8297,13 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
     tcg_clear_temp_count();
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE) {
+        tcg_gen_insn_start(ctx.pc);
+        num_insns++;
+
         ctx.opcode = cpu_ldl_code(env, ctx.pc);
         decode_opc(env, &ctx, 0);
 
-        num_insns++;
-
-        if (tcg_op_buf_full()) {
-            gen_save_pc(ctx.next_pc);
-            tcg_gen_exit_tb(0);
-            break;
-        }
-        if (singlestep) {
+        if (num_insns >= max_insns || tcg_op_buf_full()) {
             gen_save_pc(ctx.next_pc);
             tcg_gen_exit_tb(0);
             break;
@@ -8311,12 +8312,9 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
     }
 
     gen_tb_end(tb, num_insns);
-    if (search_pc) {
-        printf("done_generating search pc\n");
-    } else {
-        tb->size = ctx.pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = ctx.pc - pc_start;
+    tb->icount = num_insns;
+
     if (tcg_check_temp_count()) {
         printf("LEAK at %08x\n", env->PC);
     }
@@ -8331,21 +8329,10 @@ gen_intermediate_code_internal(TriCoreCPU *cpu, struct TranslationBlock *tb,
 }
 
 void
-gen_intermediate_code(CPUTriCoreState *env, struct TranslationBlock *tb)
+restore_state_to_opc(CPUTriCoreState *env, TranslationBlock *tb,
+                     target_ulong *data)
 {
-    gen_intermediate_code_internal(tricore_env_get_cpu(env), tb, false);
-}
-
-void
-gen_intermediate_code_pc(CPUTriCoreState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(tricore_env_get_cpu(env), tb, true);
-}
-
-void
-restore_state_to_opc(CPUTriCoreState *env, TranslationBlock *tb, int pc_pos)
-{
-    env->PC = tcg_ctx.gen_opc_pc[pc_pos];
+    env->PC = data[0];
 }
 /*
  *

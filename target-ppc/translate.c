@@ -11409,17 +11409,13 @@ void ppc_cpu_dump_statistics(CPUState *cs, FILE*f,
 }
 
 /*****************************************************************************/
-static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool search_pc)
+void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
 {
+    PowerPCCPU *cpu = ppc_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUPPCState *env = &cpu->env;
     DisasContext ctx, *ctxp = &ctx;
     opc_handler_t **table, *handler;
     target_ulong pc_start;
-    CPUBreakpoint *bp;
-    int j, lj = -1;
     int num_insns;
     int max_insns;
 
@@ -11476,36 +11472,29 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
 #endif
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
+    if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
 
     gen_tb_start(tb);
     tcg_clear_temp_count();
     /* Set env in case of segfault during code fetch */
     while (ctx.exception == POWERPC_EXCP_NONE && !tcg_op_buf_full()) {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == ctx.nip) {
-                    gen_debug_exception(ctxp);
-                    break;
-                }
-            }
+        tcg_gen_insn_start(ctx.nip);
+        num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, ctx.nip, BP_ANY))) {
+            gen_debug_exception(ctxp);
+            break;
         }
-        if (unlikely(search_pc)) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[lj] = ctx.nip;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
+
         LOG_DISAS("----------------\n");
         LOG_DISAS("nip=" TARGET_FMT_lx " super=%d ir=%d\n",
                   ctx.nip, ctx.mem_idx, (int)msr_ir);
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
         if (unlikely(need_byteswap(&ctx))) {
             ctx.opcode = bswap32(cpu_ldl_code(env, ctx.nip));
@@ -11515,12 +11504,8 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
         LOG_DISAS("translate opcode %08x (%02x %02x %02x) (%s)\n",
                     ctx.opcode, opc1(ctx.opcode), opc2(ctx.opcode),
                     opc3(ctx.opcode), ctx.le_mode ? "little" : "big");
-        if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-            tcg_gen_debug_insn_start(ctx.nip);
-        }
         ctx.nip += 4;
         table = env->opcodes;
-        num_insns++;
         handler = table[opc1(ctx.opcode)];
         if (is_indirect_opcode(handler)) {
             table = ind_table(handler);
@@ -11599,15 +11584,9 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
     }
     gen_tb_end(tb, num_insns);
 
-    if (unlikely(search_pc)) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j)
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-    } else {
-        tb->size = ctx.nip - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = ctx.nip - pc_start;
+    tb->icount = num_insns;
+
 #if defined(DEBUG_DISAS)
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         int flags;
@@ -11620,17 +11599,8 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
 #endif
 }
 
-void gen_intermediate_code (CPUPPCState *env, struct TranslationBlock *tb)
+void restore_state_to_opc(CPUPPCState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    gen_intermediate_code_internal(ppc_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc (CPUPPCState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(ppc_env_get_cpu(env), tb, true);
-}
-
-void restore_state_to_opc(CPUPPCState *env, TranslationBlock *tb, int pc_pos)
-{
-    env->nip = tcg_ctx.gen_opc_pc[pc_pos];
+    env->nip = data[0];
 }

@@ -1005,10 +1005,6 @@ static const DecoderInfo decinfo[] = {
 
 static inline void decode(DisasContext *dc, uint32_t ir)
 {
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(dc->pc);
-    }
-
     dc->ir = ir;
     LOG_DIS("%8.8x\t", dc->ir);
 
@@ -1036,32 +1032,13 @@ static inline void decode(DisasContext *dc, uint32_t ir)
     decinfo[dc->opcode](dc);
 }
 
-static void check_breakpoint(CPULM32State *env, DisasContext *dc)
-{
-    CPUState *cs = CPU(lm32_env_get_cpu(env));
-    CPUBreakpoint *bp;
-
-    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-            if (bp->pc == dc->pc) {
-                tcg_gen_movi_tl(cpu_pc, dc->pc);
-                t_gen_raise_exception(dc, EXCP_DEBUG);
-                dc->is_jmp = DISAS_UPDATE;
-             }
-        }
-    }
-}
-
 /* generate intermediate code for basic block 'tb'.  */
-static inline
-void gen_intermediate_code_internal(LM32CPU *cpu,
-                                    TranslationBlock *tb, bool search_pc)
+void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
 {
+    LM32CPU *cpu = lm32_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPULM32State *env = &cpu->env;
     struct DisasContext ctx, *dc = &ctx;
     uint32_t pc_start;
-    int j, lj;
     uint32_t next_page_start;
     int num_insns;
     int max_insns;
@@ -1083,41 +1060,36 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
     }
 
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
     }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
 
     gen_tb_start(tb);
     do {
-        check_breakpoint(env, dc);
+        tcg_gen_insn_start(dc->pc);
+        num_insns++;
 
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            tcg_gen_movi_tl(cpu_pc, dc->pc);
+            t_gen_raise_exception(dc, EXCP_DEBUG);
+            dc->is_jmp = DISAS_UPDATE;
+            break;
         }
 
         /* Pretty disas.  */
         LOG_DIS("%8.8x:\t", dc->pc);
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
         decode(dc, cpu_ldl_code(env, dc->pc));
         dc->pc += 4;
-        num_insns++;
-
     } while (!dc->is_jmp
          && !tcg_op_buf_full()
          && !cs->singlestep_enabled
@@ -1154,16 +1126,8 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
 
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -1173,16 +1137,6 @@ void gen_intermediate_code_internal(LM32CPU *cpu,
                  dc->pc - pc_start, tcg_op_buf_count());
     }
 #endif
-}
-
-void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(lm32_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPULM32State *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(lm32_env_get_cpu(env), tb, true);
 }
 
 void lm32_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
@@ -1219,9 +1173,10 @@ void lm32_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n\n");
 }
 
-void restore_state_to_opc(CPULM32State *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPULM32State *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    env->pc = data[0];
 }
 
 void lm32_translate_init(void)

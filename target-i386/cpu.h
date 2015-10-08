@@ -794,6 +794,7 @@ typedef struct {
 #define MAX_GP_COUNTERS    (MSR_IA32_PERF_STATUS - MSR_P6_EVNTSEL0)
 
 #define NB_MMU_MODES 3
+#define TARGET_INSN_START_EXTRA_WORDS 1
 
 #define NB_OPMASK_REGS 8
 
@@ -1188,7 +1189,6 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define cpu_init(cpu_model) CPU(cpu_x86_init(cpu_model))
 
 #define cpu_exec cpu_x86_exec
-#define cpu_gen_code cpu_x86_gen_code
 #define cpu_signal_handler cpu_x86_signal_handler
 #define cpu_list x86_cpu_list
 #define cpudef_setup x86_cpudef_setup

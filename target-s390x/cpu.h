@@ -42,6 +42,7 @@
 #include "fpu/softfloat.h"
 
 #define NB_MMU_MODES 3
+#define TARGET_INSN_START_EXTRA_WORDS 1
 
 #define MMU_MODE0_SUFFIX _primary
 #define MMU_MODE1_SUFFIX _secondary
@@ -597,7 +598,6 @@ bool css_present(uint8_t cssid);
 
 #define cpu_init(model) CPU(cpu_s390x_init(model))
 #define cpu_exec cpu_s390x_exec
-#define cpu_gen_code cpu_s390x_gen_code
 #define cpu_signal_handler cpu_s390x_signal_handler
 
 void s390_cpu_list(FILE *f, fprintf_function cpu_fprintf);

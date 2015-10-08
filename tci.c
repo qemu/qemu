@@ -1081,15 +1081,6 @@ uintptr_t tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr)
 
             /* QEMU specific operations. */
 
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-        case INDEX_op_debug_insn_start:
-            TODO();
-            break;
-#else
-        case INDEX_op_debug_insn_start:
-            TODO();
-            break;
-#endif
         case INDEX_op_exit_tb:
             next_tb = *(uint64_t *)tb_ptr;
             goto exit;

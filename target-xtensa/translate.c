@@ -2984,22 +2984,6 @@ static inline unsigned xtensa_insn_len(CPUXtensaState *env, DisasContext *dc)
     return xtensa_op0_insn_len(OP0);
 }
 
-static void check_breakpoint(CPUXtensaState *env, DisasContext *dc)
-{
-    CPUState *cs = CPU(xtensa_env_get_cpu(env));
-    CPUBreakpoint *bp;
-
-    if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-        QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-            if (bp->pc == dc->pc) {
-                tcg_gen_movi_i32(cpu_pc, dc->pc);
-                gen_exception(dc, EXCP_DEBUG);
-                dc->is_jmp = DISAS_UPDATE;
-             }
-        }
-    }
-}
-
 static void gen_ibreak_check(CPUXtensaState *env, DisasContext *dc)
 {
     unsigned i;
@@ -3013,15 +2997,12 @@ static void gen_ibreak_check(CPUXtensaState *env, DisasContext *dc)
     }
 }
 
-static inline
-void gen_intermediate_code_internal(XtensaCPU *cpu,
-                                    TranslationBlock *tb, bool search_pc)
+void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
 {
+    XtensaCPU *cpu = xtensa_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUXtensaState *env = &cpu->env;
     DisasContext dc;
     int insn_count = 0;
-    int j, lj = -1;
     int max_insns = tb->cflags & CF_COUNT_MASK;
     uint32_t pc_start = tb->pc;
     uint32_t next_page_start =
@@ -3029,6 +3010,9 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
 
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
     }
 
     dc.config = env->config;
@@ -3062,28 +3046,19 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
     }
 
     do {
-        check_breakpoint(env, &dc);
-
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc.pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = insn_count;
-        }
-
-        if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-            tcg_gen_debug_insn_start(dc.pc);
-        }
+        tcg_gen_insn_start(dc.pc);
+        ++insn_count;
 
         ++dc.ccount_delta;
 
-        if (insn_count + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (unlikely(cpu_breakpoint_test(cs, dc.pc, BP_ANY))) {
+            tcg_gen_movi_i32(cpu_pc, dc.pc);
+            gen_exception(&dc, EXCP_DEBUG);
+            dc.is_jmp = DISAS_UPDATE;
+            break;
+        }
+
+        if (insn_count == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -3104,7 +3079,6 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         }
 
         disas_xtensa_insn(env, &dc);
-        ++insn_count;
         if (dc.icount) {
             tcg_gen_mov_i32(cpu_SR[ICOUNT], dc.next_icount);
         }
@@ -3142,24 +3116,8 @@ void gen_intermediate_code_internal(XtensaCPU *cpu,
         qemu_log("\n");
     }
 #endif
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        memset(tcg_ctx.gen_opc_instr_start + lj + 1, 0,
-                (j - lj) * sizeof(tcg_ctx.gen_opc_instr_start[0]));
-    } else {
-        tb->size = dc.pc - pc_start;
-        tb->icount = insn_count;
-    }
-}
-
-void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(xtensa_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUXtensaState *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(xtensa_env_get_cpu(env), tb, true);
+    tb->size = dc.pc - pc_start;
+    tb->icount = insn_count;
 }
 
 void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
@@ -3213,7 +3171,8 @@ void xtensa_cpu_dump_state(CPUState *cs, FILE *f,
     }
 }
 
-void restore_state_to_opc(CPUXtensaState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUXtensaState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    env->pc = data[0];
 }

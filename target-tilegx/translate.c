@@ -2320,10 +2320,6 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
     }
     dc->num_wb = 0;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(dc->pc);
-    }
-
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "  %" PRIx64 ":  { ", dc->pc);
     if (get_Mode(bundle)) {
         notice_excp(dc, bundle, "y0", decode_y0(dc, bundle));
@@ -2365,17 +2361,14 @@ static void translate_one_bundle(DisasContext *dc, uint64_t bundle)
     }
 }
 
-static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
-                                                  TranslationBlock *tb,
-                                                  bool search_pc)
+void gen_intermediate_code(CPUTLGState *env, struct TranslationBlock *tb)
 {
+    TileGXCPU *cpu = tilegx_env_get_cpu(env);
     DisasContext ctx;
     DisasContext *dc = &ctx;
     CPUState *cs = CPU(cpu);
-    CPUTLGState *env = &cpu->env;
     uint64_t pc_start = tb->pc;
     uint64_t next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    int j, lj = -1;
     int num_insns = 0;
     int max_insns = tb->cflags & CF_COUNT_MASK;
 
@@ -2397,21 +2390,15 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
     if (cs->singlestep_enabled || singlestep) {
         max_insns = 1;
     }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
     gen_tb_start(tb);
 
     while (1) {
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
+        tcg_gen_insn_start(dc->pc);
+        num_insns++;
+
         translate_one_bundle(dc, cpu_ldq_data(env, dc->pc));
 
         if (dc->exit_tb) {
@@ -2419,7 +2406,7 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
             break;
         }
         dc->pc += TILEGX_BUNDLE_SIZE_IN_BYTES;
-        if (++num_insns >= max_insns
+        if (num_insns >= max_insns
             || dc->pc >= next_page_start
             || tcg_op_buf_full()) {
             /* Ending the TB due to TB size or page boundary.  Set PC.  */
@@ -2430,33 +2417,16 @@ static inline void gen_intermediate_code_internal(TileGXCPU *cpu,
     }
 
     gen_tb_end(tb, num_insns);
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "\n");
 }
 
-void gen_intermediate_code(CPUTLGState *env, struct TranslationBlock *tb)
+void restore_state_to_opc(CPUTLGState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    gen_intermediate_code_internal(tilegx_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUTLGState *env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(tilegx_env_get_cpu(env), tb, true);
-}
-
-void restore_state_to_opc(CPUTLGState *env, TranslationBlock *tb, int pc_pos)
-{
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    env->pc = data[0];
 }
 
 void tilegx_tcg_init(void)

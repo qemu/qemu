@@ -70,8 +70,6 @@ static TCGv cpu_fregs[32];
 /* internal register indexes */
 static TCGv cpu_flags, cpu_delayed_pc;
 
-static uint32_t gen_opc_hflags[OPC_BUF_SIZE];
-
 #include "exec/gen-icount.h"
 
 void sh4_translate_init(void)
@@ -1790,10 +1788,6 @@ static void decode_opc(DisasContext * ctx)
 {
     uint32_t old_flags = ctx->flags;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(ctx->pc);
-    }
-
     _decode_opc(ctx);
 
     if (old_flags & (DELAY_SLOT | DELAY_SLOT_CONDITIONAL)) {
@@ -1820,16 +1814,12 @@ static void decode_opc(DisasContext * ctx)
         gen_store_flags(ctx->flags);
 }
 
-static inline void
-gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
-                               bool search_pc)
+void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
 {
+    SuperHCPU *cpu = sh_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUSH4State *env = &cpu->env;
     DisasContext ctx;
     target_ulong pc_start;
-    CPUBreakpoint *bp;
-    int i, ii;
     int num_insns;
     int max_insns;
 
@@ -1846,45 +1836,34 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
     ctx.features = env->features;
     ctx.has_movcal = (ctx.flags & TB_FLAG_PENDING_MOVCA);
 
-    ii = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
+    if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
+
     gen_tb_start(tb);
     while (ctx.bstate == BS_NONE && !tcg_op_buf_full()) {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (ctx.pc == bp->pc) {
-		    /* We have hit a breakpoint - make sure PC is up-to-date */
-		    tcg_gen_movi_i32(cpu_pc, ctx.pc);
-                    gen_helper_debug(cpu_env);
-                    ctx.bstate = BS_BRANCH;
-		    break;
-		}
-	    }
-	}
-        if (search_pc) {
-            i = tcg_op_buf_count();
-            if (ii < i) {
-                ii++;
-                while (ii < i)
-                    tcg_ctx.gen_opc_instr_start[ii++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[ii] = ctx.pc;
-            gen_opc_hflags[ii] = ctx.flags;
-            tcg_ctx.gen_opc_instr_start[ii] = 1;
-            tcg_ctx.gen_opc_icount[ii] = num_insns;
+        tcg_gen_insn_start(ctx.pc, ctx.flags);
+        num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
+            /* We have hit a breakpoint - make sure PC is up-to-date */
+            tcg_gen_movi_i32(cpu_pc, ctx.pc);
+            gen_helper_debug(cpu_env);
+            ctx.bstate = BS_BRANCH;
+            break;
         }
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
-#if 0
-	fprintf(stderr, "Loading opcode at address 0x%08x\n", ctx.pc);
-	fflush(stderr);
-#endif
+        }
+
         ctx.opcode = cpu_lduw_code(env, ctx.pc);
 	decode_opc(&ctx);
-        num_insns++;
 	ctx.pc += 2;
 	if ((ctx.pc & (TARGET_PAGE_SIZE - 1)) == 0)
 	    break;
@@ -1924,15 +1903,8 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
 
     gen_tb_end(tb, num_insns);
 
-    if (search_pc) {
-        i = tcg_op_buf_count();
-        ii++;
-        while (ii <= i)
-            tcg_ctx.gen_opc_instr_start[ii++] = 0;
-    } else {
-        tb->size = ctx.pc - pc_start;
-        tb->icount = num_insns;
-    }
+    tb->size = ctx.pc - pc_start;
+    tb->icount = num_insns;
 
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -1943,18 +1915,9 @@ gen_intermediate_code_internal(SuperHCPU *cpu, TranslationBlock *tb,
 #endif
 }
 
-void gen_intermediate_code(CPUSH4State * env, struct TranslationBlock *tb)
+void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    gen_intermediate_code_internal(sh_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUSH4State * env, struct TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(sh_env_get_cpu(env), tb, true);
-}
-
-void restore_state_to_opc(CPUSH4State *env, TranslationBlock *tb, int pc_pos)
-{
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
-    env->flags = gen_opc_hflags[pc_pos];
+    env->pc = data[0];
+    env->flags = data[1];
 }

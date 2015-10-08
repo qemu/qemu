@@ -1794,10 +1794,6 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
     UniCore32CPU *cpu = uc32_env_get_cpu(env);
     unsigned int insn;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(s->pc);
-    }
-
     insn = cpu_ldl_code(env, s->pc);
     s->pc += 4;
 
@@ -1868,16 +1864,12 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 }
 
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'. If search_pc is TRUE, also generate PC
-   information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
-        TranslationBlock *tb, bool search_pc)
+   basic block 'tb'.  */
+void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
 {
+    UniCore32CPU *cpu = uc32_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUUniCore32State *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
-    CPUBreakpoint *bp;
-    int j, lj;
     target_ulong pc_start;
     uint32_t next_page_start;
     int num_insns;
@@ -1899,11 +1891,13 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
     cpu_F0d = tcg_temp_new_i64();
     cpu_F1d = tcg_temp_new_i64();
     next_page_start = (pc_start & TARGET_PAGE_MASK) + TARGET_PAGE_SIZE;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
     if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
     }
 
 #ifndef CONFIG_USER_ONLY
@@ -1916,33 +1910,20 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
 
     gen_tb_start(tb);
     do {
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == dc->pc) {
-                    gen_set_pc_im(dc->pc);
-                    gen_exception(EXCP_DEBUG);
-                    dc->is_jmp = DISAS_JUMP;
-                    /* Advance PC so that clearing the breakpoint will
-                       invalidate this TB.  */
-                    dc->pc += 2; /* FIXME */
-                    goto done_generating;
-                }
-            }
-        }
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j) {
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-                }
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
+        tcg_gen_insn_start(dc->pc);
+        num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            gen_set_pc_im(dc->pc);
+            gen_exception(EXCP_DEBUG);
+            dc->is_jmp = DISAS_JUMP;
+            /* Advance PC so that clearing the breakpoint will
+               invalidate this TB.  */
+            dc->pc += 2; /* FIXME */
+            goto done_generating;
         }
 
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
         }
 
@@ -1961,7 +1942,6 @@ static inline void gen_intermediate_code_internal(UniCore32CPU *cpu,
          * Otherwise the subsequent code could get translated several times.
          * Also stop translation when a page boundary is reached.  This
          * ensures prefetch aborts occur at the right place.  */
-        num_insns++;
     } while (!dc->is_jmp && !tcg_op_buf_full() &&
              !cs->singlestep_enabled &&
              !singlestep &&
@@ -2043,26 +2023,8 @@ done_generating:
         qemu_log("\n");
     }
 #endif
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j) {
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-        }
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
-}
-
-void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(uc32_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUUniCore32State *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(uc32_env_get_cpu(env), tb, true);
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 }
 
 static const char *cpu_mode_names[16] = {
@@ -2133,7 +2095,8 @@ void uc32_cpu_dump_state(CPUState *cs, FILE *f,
     cpu_dump_state_ucf64(env, f, cpu_fprintf, flags);
 }
 
-void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->regs[31] = tcg_ctx.gen_opc_pc[pc_pos];
+    env->regs[31] = data[0];
 }

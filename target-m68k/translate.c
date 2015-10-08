@@ -2955,10 +2955,6 @@ static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 {
     uint16_t insn;
 
-    if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP | CPU_LOG_TB_OP_OPT))) {
-        tcg_gen_debug_insn_start(s->pc);
-    }
-
     insn = cpu_lduw_code(env, s->pc);
     s->pc += 2;
 
@@ -2966,15 +2962,11 @@ static void disas_m68k_insn(CPUM68KState * env, DisasContext *s)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static inline void
-gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
-                               bool search_pc)
+void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
 {
+    M68kCPU *cpu = m68k_env_get_cpu(env);
     CPUState *cs = CPU(cpu);
-    CPUM68KState *env = &cpu->env;
     DisasContext dc1, *dc = &dc1;
-    CPUBreakpoint *bp;
-    int j, lj;
     target_ulong pc_start;
     int pc_offset;
     int num_insns;
@@ -2993,43 +2985,34 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
     dc->fpcr = env->fpcr;
     dc->user = (env->sr & SR_S) == 0;
     dc->done_mac = 0;
-    lj = -1;
     num_insns = 0;
     max_insns = tb->cflags & CF_COUNT_MASK;
-    if (max_insns == 0)
+    if (max_insns == 0) {
         max_insns = CF_COUNT_MASK;
+    }
+    if (max_insns > TCG_MAX_INSNS) {
+        max_insns = TCG_MAX_INSNS;
+    }
 
     gen_tb_start(tb);
     do {
         pc_offset = dc->pc - pc_start;
         gen_throws_exception = NULL;
-        if (unlikely(!QTAILQ_EMPTY(&cs->breakpoints))) {
-            QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
-                if (bp->pc == dc->pc) {
-                    gen_exception(dc, dc->pc, EXCP_DEBUG);
-                    dc->is_jmp = DISAS_JUMP;
-                    break;
-                }
-            }
-            if (dc->is_jmp)
-                break;
+        tcg_gen_insn_start(dc->pc);
+        num_insns++;
+
+        if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
+            gen_exception(dc, dc->pc, EXCP_DEBUG);
+            dc->is_jmp = DISAS_JUMP;
+            break;
         }
-        if (search_pc) {
-            j = tcg_op_buf_count();
-            if (lj < j) {
-                lj++;
-                while (lj < j)
-                    tcg_ctx.gen_opc_instr_start[lj++] = 0;
-            }
-            tcg_ctx.gen_opc_pc[lj] = dc->pc;
-            tcg_ctx.gen_opc_instr_start[lj] = 1;
-            tcg_ctx.gen_opc_icount[lj] = num_insns;
-        }
-        if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
+
+        if (num_insns == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
+        }
+
         dc->insn_pc = dc->pc;
 	disas_m68k_insn(env, dc);
-        num_insns++;
     } while (!dc->is_jmp && !tcg_op_buf_full() &&
              !cs->singlestep_enabled &&
              !singlestep &&
@@ -3073,28 +3056,8 @@ gen_intermediate_code_internal(M68kCPU *cpu, TranslationBlock *tb,
         qemu_log("\n");
     }
 #endif
-    if (search_pc) {
-        j = tcg_op_buf_count();
-        lj++;
-        while (lj <= j)
-            tcg_ctx.gen_opc_instr_start[lj++] = 0;
-    } else {
-        tb->size = dc->pc - pc_start;
-        tb->icount = num_insns;
-    }
-
-    //optimize_flags();
-    //expand_target_qops();
-}
-
-void gen_intermediate_code(CPUM68KState *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(m68k_env_get_cpu(env), tb, false);
-}
-
-void gen_intermediate_code_pc(CPUM68KState *env, TranslationBlock *tb)
-{
-    gen_intermediate_code_internal(m68k_env_get_cpu(env), tb, true);
+    tb->size = dc->pc - pc_start;
+    tb->icount = num_insns;
 }
 
 void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
@@ -3120,7 +3083,8 @@ void m68k_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf (f, "FPRESULT = %12g\n", *(double *)&env->fp_result);
 }
 
-void restore_state_to_opc(CPUM68KState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUM68KState *env, TranslationBlock *tb,
+                          target_ulong *data)
 {
-    env->pc = tcg_ctx.gen_opc_pc[pc_pos];
+    env->pc = data[0];
 }
