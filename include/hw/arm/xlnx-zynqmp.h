@@ -24,6 +24,7 @@
 #include "hw/char/cadence_uart.h"
 #include "hw/ide/pci.h"
 #include "hw/ide/ahci.h"
+#include "hw/sd/sdhci.h"
 
 #define TYPE_XLNX_ZYNQMP "xlnx,zynqmp"
 #define XLNX_ZYNQMP(obj) OBJECT_CHECK(XlnxZynqMPState, (obj), \
@@ -33,6 +34,7 @@
 #define XLNX_ZYNQMP_NUM_RPU_CPUS 2
 #define XLNX_ZYNQMP_NUM_GEMS 4
 #define XLNX_ZYNQMP_NUM_UARTS 2
+#define XLNX_ZYNQMP_NUM_SDHCI 2
 
 #define XLNX_ZYNQMP_NUM_OCM_BANKS 4
 #define XLNX_ZYNQMP_OCM_RAM_0_ADDRESS 0xFFFC0000
@@ -63,6 +65,7 @@ typedef struct XlnxZynqMPState {
     CadenceGEMState gem[XLNX_ZYNQMP_NUM_GEMS];
     CadenceUARTState uart[XLNX_ZYNQMP_NUM_UARTS];
     SysbusAHCIState sata;
+    SDHCIState sdhci[XLNX_ZYNQMP_NUM_SDHCI];
 
     char *boot_cpu;
     ARMCPU *boot_cpu_ptr;
