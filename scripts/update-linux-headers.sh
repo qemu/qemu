@@ -53,6 +53,7 @@ cp_portable() {
         -e 's/__attribute__((packed))/QEMU_PACKED/' \
         -e 's/__inline__/inline/' \
         -e '/sys\/ioctl.h/d' \
+        -e 's/SW_MAX/SW_MAX_/' \
         "$f" > "$to/$header";
 }
 
