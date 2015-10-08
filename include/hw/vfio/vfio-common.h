@@ -59,22 +59,19 @@ typedef struct VFIOAddressSpace {
 
 struct VFIOGroup;
 
-typedef struct VFIOType1 {
-    MemoryListener listener;
-    int error;
-    bool initialized;
-} VFIOType1;
-
 typedef struct VFIOContainer {
     VFIOAddressSpace *space;
     int fd; /* /dev/vfio/vfio, empowered by the attached groups */
-    struct {
-        /* enable abstraction to support various iommu backends */
-        union {
-            VFIOType1 type1;
-        };
-        void (*release)(struct VFIOContainer *);
-    } iommu_data;
+    MemoryListener listener;
+    int error;
+    bool initialized;
+    /*
+     * This assumes the host IOMMU can support only a single
+     * contiguous IOVA window.  We may need to generalize that in
+     * future
+     */
+    hwaddr min_iova, max_iova;
+    uint64_t iova_pgsizes;
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_ENTRY(VFIOContainer) next;

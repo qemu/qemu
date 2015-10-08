@@ -312,11 +312,15 @@ out:
     rcu_read_unlock();
 }
 
+static hwaddr vfio_container_granularity(VFIOContainer *container)
+{
+    return (hwaddr)1 << ctz64(container->iova_pgsizes);
+}
+
 static void vfio_listener_region_add(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
-    VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            iommu_data.type1.listener);
+    VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     hwaddr iova, end;
     Int128 llend;
     void *vaddr;
@@ -344,14 +348,22 @@ static void vfio_listener_region_add(MemoryListener *listener,
     if (int128_ge(int128_make64(iova), llend)) {
         return;
     }
+    end = int128_get64(llend);
+
+    if ((iova < container->min_iova) || ((end - 1) > container->max_iova)) {
+        error_report("vfio: IOMMU container %p can't map guest IOVA region"
+                     " 0x%"HWADDR_PRIx"..0x%"HWADDR_PRIx,
+                     container, iova, end - 1);
+        ret = -EFAULT;
+        goto fail;
+    }
 
     memory_region_ref(section->mr);
 
     if (memory_region_is_iommu(section->mr)) {
         VFIOGuestIOMMU *giommu;
 
-        trace_vfio_listener_region_add_iommu(iova,
-                    int128_get64(int128_sub(llend, int128_one())));
+        trace_vfio_listener_region_add_iommu(iova, end - 1);
         /*
          * FIXME: We should do some checking to see if the
          * capabilities of the host VFIO IOMMU are adequate to model
@@ -362,33 +374,22 @@ static void vfio_listener_region_add(MemoryListener *listener,
          * would be the right place to wire that up (tell the KVM
          * device emulation the VFIO iommu handles to use).
          */
-        /*
-         * This assumes that the guest IOMMU is empty of
-         * mappings at this point.
-         *
-         * One way of doing this is:
-         * 1. Avoid sharing IOMMUs between emulated devices or different
-         * IOMMU groups.
-         * 2. Implement VFIO_IOMMU_ENABLE in the host kernel to fail if
-         * there are some mappings in IOMMU.
-         *
-         * VFIO on SPAPR does that. Other IOMMU models may do that different,
-         * they must make sure there are no existing mappings or
-         * loop through existing mappings to map them into VFIO.
-         */
         giommu = g_malloc0(sizeof(*giommu));
         giommu->iommu = section->mr;
         giommu->container = container;
         giommu->n.notify = vfio_iommu_map_notify;
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
+
         memory_region_register_iommu_notifier(giommu->iommu, &giommu->n);
+        memory_region_iommu_replay(giommu->iommu, &giommu->n,
+                                   vfio_container_granularity(container),
+                                   false);
 
         return;
     }
 
     /* Here we assume that memory_region_is_ram(section->mr)==true */
 
-    end = int128_get64(llend);
     vaddr = memory_region_get_ram_ptr(section->mr) +
             section->offset_within_region +
             (iova - section->offset_within_address_space);
@@ -400,27 +401,30 @@ static void vfio_listener_region_add(MemoryListener *listener,
         error_report("vfio_dma_map(%p, 0x%"HWADDR_PRIx", "
                      "0x%"HWADDR_PRIx", %p) = %d (%m)",
                      container, iova, end - iova, vaddr, ret);
+        goto fail;
+    }
 
-        /*
-         * On the initfn path, store the first error in the container so we
-         * can gracefully fail.  Runtime, there's not much we can do other
-         * than throw a hardware error.
-         */
-        if (!container->iommu_data.type1.initialized) {
-            if (!container->iommu_data.type1.error) {
-                container->iommu_data.type1.error = ret;
-            }
-        } else {
-            hw_error("vfio: DMA mapping failed, unable to continue");
+    return;
+
+fail:
+    /*
+     * On the initfn path, store the first error in the container so we
+     * can gracefully fail.  Runtime, there's not much we can do other
+     * than throw a hardware error.
+     */
+    if (!container->initialized) {
+        if (!container->error) {
+            container->error = ret;
         }
+    } else {
+        hw_error("vfio: DMA mapping failed, unable to continue");
     }
 }
 
 static void vfio_listener_region_del(MemoryListener *listener,
                                      MemoryRegionSection *section)
 {
-    VFIOContainer *container = container_of(listener, VFIOContainer,
-                                            iommu_data.type1.listener);
+    VFIOContainer *container = container_of(listener, VFIOContainer, listener);
     hwaddr iova, end;
     int ret;
 
@@ -485,7 +489,7 @@ static const MemoryListener vfio_memory_listener = {
 
 static void vfio_listener_release(VFIOContainer *container)
 {
-    memory_listener_unregister(&container->iommu_data.type1.listener);
+    memory_listener_unregister(&container->listener);
 }
 
 int vfio_mmap_region(Object *obj, VFIORegion *region,
@@ -668,6 +672,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
     if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU) ||
         ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU)) {
         bool v2 = !!ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1v2_IOMMU);
+        struct vfio_iommu_type1_info info;
 
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
@@ -684,21 +689,27 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             goto free_container_exit;
         }
 
-        container->iommu_data.type1.listener = vfio_memory_listener;
-        container->iommu_data.release = vfio_listener_release;
+        /*
+         * FIXME: This assumes that a Type1 IOMMU can map any 64-bit
+         * IOVA whatsoever.  That's not actually true, but the current
+         * kernel interface doesn't tell us what it can map, and the
+         * existing Type1 IOMMUs generally support any IOVA we're
+         * going to actually try in practice.
+         */
+        container->min_iova = 0;
+        container->max_iova = (hwaddr)-1;
 
-        memory_listener_register(&container->iommu_data.type1.listener,
-                                 container->space->as);
-
-        if (container->iommu_data.type1.error) {
-            ret = container->iommu_data.type1.error;
-            error_report("vfio: memory listener initialization failed for container");
-            goto listener_release_exit;
+        /* Assume just 4K IOVA page size */
+        container->iova_pgsizes = 0x1000;
+        info.argsz = sizeof(info);
+        ret = ioctl(fd, VFIO_IOMMU_GET_INFO, &info);
+        /* Ignore errors */
+        if ((ret == 0) && (info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
+            container->iova_pgsizes = info.iova_pgsizes;
         }
-
-        container->iommu_data.type1.initialized = true;
-
     } else if (ioctl(fd, VFIO_CHECK_EXTENSION, VFIO_SPAPR_TCE_IOMMU)) {
+        struct vfio_iommu_spapr_tce_info info;
+
         ret = ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &fd);
         if (ret) {
             error_report("vfio: failed to set group container: %m");
@@ -724,17 +735,40 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as)
             goto free_container_exit;
         }
 
-        container->iommu_data.type1.listener = vfio_memory_listener;
-        container->iommu_data.release = vfio_listener_release;
+        /*
+         * This only considers the host IOMMU's 32-bit window.  At
+         * some point we need to add support for the optional 64-bit
+         * window and dynamic windows
+         */
+        info.argsz = sizeof(info);
+        ret = ioctl(fd, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &info);
+        if (ret) {
+            error_report("vfio: VFIO_IOMMU_SPAPR_TCE_GET_INFO failed: %m");
+            ret = -errno;
+            goto free_container_exit;
+        }
+        container->min_iova = info.dma32_window_start;
+        container->max_iova = container->min_iova + info.dma32_window_size - 1;
 
-        memory_listener_register(&container->iommu_data.type1.listener,
-                                 container->space->as);
-
+        /* Assume just 4K IOVA pages for now */
+        container->iova_pgsizes = 0x1000;
     } else {
         error_report("vfio: No available IOMMU models");
         ret = -EINVAL;
         goto free_container_exit;
     }
+
+    container->listener = vfio_memory_listener;
+
+    memory_listener_register(&container->listener, container->space->as);
+
+    if (container->error) {
+        ret = container->error;
+        error_report("vfio: memory listener initialization failed for container");
+        goto listener_release_exit;
+    }
+
+    container->initialized = true;
 
     QLIST_INIT(&container->group_list);
     QLIST_INSERT_HEAD(&space->containers, container, next);
@@ -774,9 +808,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
         VFIOAddressSpace *space = container->space;
         VFIOGuestIOMMU *giommu, *tmp;
 
-        if (container->iommu_data.release) {
-            container->iommu_data.release(container);
-        }
+        vfio_listener_release(container);
         QLIST_REMOVE(container, next);
 
         QLIST_FOREACH_SAFE(giommu, &container->giommu_list, giommu_next, tmp) {
