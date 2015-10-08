@@ -85,6 +85,8 @@ void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
     target_ulong old_dr7 = env->dr[7];
     int i;
 
+    new_dr7 |= DR7_FIXED_1;
+
     /* If nothing is changing except the global/local enable bits,
        then we can make the change more efficient.  */
     if (((old_dr7 ^ new_dr7) & ~0xff) == 0) {
