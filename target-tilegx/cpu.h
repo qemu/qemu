@@ -53,6 +53,8 @@ enum {
     TILEGX_SPR_CMPEXCH = 0,
     TILEGX_SPR_CRITICAL_SEC = 1,
     TILEGX_SPR_SIM_CONTROL = 2,
+    TILEGX_SPR_EX_CONTEXT_0_0 = 3,
+    TILEGX_SPR_EX_CONTEXT_0_1 = 4,
     TILEGX_SPR_COUNT
 };
 
@@ -60,7 +62,7 @@ enum {
 typedef enum {
     TILEGX_EXCP_NONE = 0,
     TILEGX_EXCP_SYSCALL = 1,
-    TILEGX_EXCP_SEGV = 2,
+    TILEGX_EXCP_SIGNAL = 2,
     TILEGX_EXCP_OPCODE_UNKNOWN = 0x101,
     TILEGX_EXCP_OPCODE_UNIMPLEMENTED = 0x102,
     TILEGX_EXCP_OPCODE_CMPEXCH = 0x103,
@@ -87,10 +89,12 @@ typedef struct CPUTLGState {
     uint64_t pc;                       /* Current pc */
 
 #if defined(CONFIG_USER_ONLY)
+    uint64_t excaddr;                  /* exception address */
     uint64_t atomic_srca;              /* Arguments to atomic "exceptions" */
     uint64_t atomic_srcb;
     uint32_t atomic_dstr;
-    uint64_t excaddr;                  /* exception address */
+    uint32_t signo;                    /* Signal number */
+    uint32_t sigcode;                  /* Signal code */
 #endif
 
     CPU_COMMON

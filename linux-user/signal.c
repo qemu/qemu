@@ -5537,6 +5537,163 @@ long do_rt_sigreturn(CPUAlphaState *env)
     force_sig(TARGET_SIGSEGV);
 }
 
+#elif defined(TARGET_TILEGX)
+
+struct target_sigcontext {
+    union {
+        /* General-purpose registers.  */
+        abi_ulong gregs[56];
+        struct {
+            abi_ulong __gregs[53];
+            abi_ulong tp;        /* Aliases gregs[TREG_TP].  */
+            abi_ulong sp;        /* Aliases gregs[TREG_SP].  */
+            abi_ulong lr;        /* Aliases gregs[TREG_LR].  */
+        };
+    };
+    abi_ulong pc;        /* Program counter.  */
+    abi_ulong ics;       /* In Interrupt Critical Section?  */
+    abi_ulong faultnum;  /* Fault number.  */
+    abi_ulong pad[5];
+};
+
+struct target_ucontext {
+    abi_ulong tuc_flags;
+    abi_ulong tuc_link;
+    target_stack_t tuc_stack;
+    struct target_sigcontext tuc_mcontext;
+    target_sigset_t tuc_sigmask;   /* mask last for extensibility */
+};
+
+struct target_rt_sigframe {
+    unsigned char save_area[16]; /* caller save area */
+    struct target_siginfo info;
+    struct target_ucontext uc;
+};
+
+static void setup_sigcontext(struct target_sigcontext *sc,
+                             CPUArchState *env, int signo)
+{
+    int i;
+
+    for (i = 0; i < TILEGX_R_COUNT; ++i) {
+        __put_user(env->regs[i], &sc->gregs[i]);
+    }
+
+    __put_user(env->pc, &sc->pc);
+    __put_user(0, &sc->ics);
+    __put_user(signo, &sc->faultnum);
+}
+
+static void restore_sigcontext(CPUTLGState *env, struct target_sigcontext *sc)
+{
+    int i;
+
+    for (i = 0; i < TILEGX_R_COUNT; ++i) {
+        __get_user(env->regs[i], &sc->gregs[i]);
+    }
+
+    __get_user(env->pc, &sc->pc);
+}
+
+static abi_ulong get_sigframe(struct target_sigaction *ka, CPUArchState *env,
+                              size_t frame_size)
+{
+    unsigned long sp = env->regs[TILEGX_R_SP];
+
+    if (on_sig_stack(sp) && !likely(on_sig_stack(sp - frame_size))) {
+        return -1UL;
+    }
+
+    if ((ka->sa_flags & SA_ONSTACK) && !sas_ss_flags(sp)) {
+        sp = target_sigaltstack_used.ss_sp + target_sigaltstack_used.ss_size;
+    }
+
+    sp -= frame_size;
+    sp &= -16UL;
+    return sp;
+}
+
+static void setup_rt_frame(int sig, struct target_sigaction *ka,
+                           target_siginfo_t *info,
+                           target_sigset_t *set, CPUArchState *env)
+{
+    abi_ulong frame_addr;
+    struct target_rt_sigframe *frame;
+    unsigned long restorer;
+
+    frame_addr = get_sigframe(ka, env, sizeof(*frame));
+    if (!lock_user_struct(VERIFY_WRITE, frame, frame_addr, 0)) {
+        goto give_sigsegv;
+    }
+
+    /* Always write at least the signal number for the stack backtracer. */
+    if (ka->sa_flags & TARGET_SA_SIGINFO) {
+        /* At sigreturn time, restore the callee-save registers too. */
+        tswap_siginfo(&frame->info, info);
+        /* regs->flags |= PT_FLAGS_RESTORE_REGS; FIXME: we can skip it? */
+    } else {
+        __put_user(info->si_signo, &frame->info.si_signo);
+    }
+
+    /* Create the ucontext.  */
+    __put_user(0, &frame->uc.tuc_flags);
+    __put_user(0, &frame->uc.tuc_link);
+    __put_user(target_sigaltstack_used.ss_sp, &frame->uc.tuc_stack.ss_sp);
+    __put_user(sas_ss_flags(env->regs[TILEGX_R_SP]),
+               &frame->uc.tuc_stack.ss_flags);
+    __put_user(target_sigaltstack_used.ss_size, &frame->uc.tuc_stack.ss_size);
+    setup_sigcontext(&frame->uc.tuc_mcontext, env, info->si_signo);
+
+    restorer = (unsigned long) do_rt_sigreturn;
+    if (ka->sa_flags & TARGET_SA_RESTORER) {
+            restorer = (unsigned long) ka->sa_restorer;
+    }
+    env->pc = (unsigned long) ka->_sa_handler;
+    env->regs[TILEGX_R_SP] = (unsigned long) frame;
+    env->regs[TILEGX_R_LR] = restorer;
+    env->regs[0] = (unsigned long) sig;
+    env->regs[1] = (unsigned long) &frame->info;
+    env->regs[2] = (unsigned long) &frame->uc;
+    /* regs->flags |= PT_FLAGS_CALLER_SAVES; FIXME: we can skip it? */
+
+    unlock_user_struct(frame, frame_addr, 1);
+    return;
+
+give_sigsegv:
+    if (sig == TARGET_SIGSEGV) {
+        ka->_sa_handler = TARGET_SIG_DFL;
+    }
+    force_sig(TARGET_SIGSEGV /* , current */);
+}
+
+long do_rt_sigreturn(CPUTLGState *env)
+{
+    abi_ulong frame_addr = env->regs[TILEGX_R_SP];
+    struct target_rt_sigframe *frame;
+    sigset_t set;
+
+    if (!lock_user_struct(VERIFY_READ, frame, frame_addr, 1)) {
+        goto badframe;
+    }
+    target_to_host_sigset(&set, &frame->uc.tuc_sigmask);
+    do_sigprocmask(SIG_SETMASK, &set, NULL);
+
+    restore_sigcontext(env, &frame->uc.tuc_mcontext);
+    if (do_sigaltstack(frame_addr + offsetof(struct target_rt_sigframe,
+                                             uc.tuc_stack),
+                       0, env->regs[TILEGX_R_SP]) == -EFAULT) {
+        goto badframe;
+    }
+
+    unlock_user_struct(frame, frame_addr, 0);
+    return env->regs[TILEGX_R_RE];
+
+
+ badframe:
+    unlock_user_struct(frame, frame_addr, 0);
+    force_sig(TARGET_SIGSEGV);
+}
+
 #else
 
 static void setup_frame(int sig, struct target_sigaction *ka,
@@ -5657,7 +5814,7 @@ void process_pending_signals(CPUArchState *cpu_env)
 #endif
         /* prepare the stack frame of the virtual CPU */
 #if defined(TARGET_ABI_MIPSN32) || defined(TARGET_ABI_MIPSN64) \
-    || defined(TARGET_OPENRISC)
+    || defined(TARGET_OPENRISC) || defined(TARGET_TILEGX)
         /* These targets do not have traditional signals.  */
         setup_rt_frame(sig, sa, &q->info, &target_old_set, cpu_env);
 #else

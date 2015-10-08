@@ -23,6 +23,8 @@
 #include "disas/disas.h"
 #include "tcg-op.h"
 #include "exec/cpu_ldst.h"
+#include "linux-user/syscall_defs.h"
+
 #include "opcode_tilegx.h"
 #include "spr_def_64.h"
 
@@ -96,6 +98,7 @@ typedef struct {
 #define OE_SH(E,XY)    OE(SHIFT_OPCODE_##XY, E##_SHIFT_OPCODE_##XY, XY)
 
 #define V1_IMM(X)      (((X) & 0xff) * 0x0101010101010101ull)
+#define V2_IMM(X)      (((X) & 0xffff) * 0x0001000100010001ull)
 
 
 static void gen_exception(DisasContext *dc, TileExcp num)
@@ -275,6 +278,44 @@ static void gen_mul_half(TCGv tdest, TCGv tsrca, TCGv tsrcb,
     tcg_temp_free(t);
 }
 
+static void gen_cmul2(TCGv tdest, TCGv tsrca, TCGv tsrcb, int sh, int rd)
+{
+    TCGv_i32 tsh = tcg_const_i32(sh);
+    TCGv_i32 trd = tcg_const_i32(rd);
+    gen_helper_cmul2(tdest, tsrca, tsrcb, tsh, trd);
+    tcg_temp_free_i32(tsh);
+    tcg_temp_free_i32(trd);
+}
+
+static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
+                              unsigned srcb, TCGMemOp memop, const char *name)
+{
+    if (dest) {
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
+    }
+
+    tcg_gen_qemu_st_tl(load_gr(dc, srcb), load_gr(dc, srca),
+		       dc->mmuidx, memop);
+
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", name,
+                  reg_names[srca], reg_names[srcb]);
+    return TILEGX_EXCP_NONE;
+}
+
+static TileExcp gen_st_add_opcode(DisasContext *dc, unsigned srca, unsigned srcb,
+                                  int imm, TCGMemOp memop, const char *name)
+{
+    TCGv tsrca = load_gr(dc, srca);
+    TCGv tsrcb = load_gr(dc, srcb);
+
+    tcg_gen_qemu_st_tl(tsrcb, tsrca, dc->mmuidx, memop);
+    tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
+
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %d", name,
+                  reg_names[srca], reg_names[srcb], imm);
+    return TILEGX_EXCP_NONE;
+}
+
 /* Equality comparison with zero can be done quickly and efficiently.  */
 static void gen_v1cmpeq0(TCGv v)
 {
@@ -310,42 +351,152 @@ static void gen_v1cmpne0(TCGv v)
     tcg_temp_free(c);
 }
 
-static TileExcp gen_st_opcode(DisasContext *dc, unsigned dest, unsigned srca,
-                              unsigned srcb, TCGMemOp memop, const char *name)
+/* Vector addition can be performed via arithmetic plus masking.  It is
+   efficient this way only for 4 or more elements.  */
+static void gen_v12add(TCGv tdest, TCGv tsrca, TCGv tsrcb, uint64_t sign)
 {
-    if (dest) {
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
-    }
+    TCGv tmask = tcg_const_tl(~sign);
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
 
-    tcg_gen_qemu_st_tl(load_gr(dc, srcb), load_gr(dc, srca),
-		       dc->mmuidx, memop);
+    /* ((a & ~sign) + (b & ~sign)) ^ ((a ^ b) & sign).  */
+    tcg_gen_and_tl(t0, tsrca, tmask);
+    tcg_gen_and_tl(t1, tsrcb, tmask);
+    tcg_gen_add_tl(tdest, t0, t1);
+    tcg_gen_xor_tl(t0, tsrca, tsrcb);
+    tcg_gen_andc_tl(t0, t0, tmask);
+    tcg_gen_xor_tl(tdest, tdest, t0);
 
-    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", name,
-                  reg_names[srca], reg_names[srcb]);
-    return TILEGX_EXCP_NONE;
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(tmask);
 }
 
-static TileExcp gen_st_add_opcode(DisasContext *dc, unsigned srca, unsigned srcb,
-                                  int imm, TCGMemOp memop, const char *name)
+/* Similarly for vector subtraction.  */
+static void gen_v12sub(TCGv tdest, TCGv tsrca, TCGv tsrcb, uint64_t sign)
 {
-    TCGv tsrca = load_gr(dc, srca);
-    TCGv tsrcb = load_gr(dc, srcb);
+    TCGv tsign = tcg_const_tl(sign);
+    TCGv t0 = tcg_temp_new();
+    TCGv t1 = tcg_temp_new();
 
-    tcg_gen_qemu_st_tl(tsrcb, tsrca, dc->mmuidx, memop);
-    tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
+    /* ((a | sign) - (b & ~sign)) ^ ((a ^ ~b) & sign).  */
+    tcg_gen_or_tl(t0, tsrca, tsign);
+    tcg_gen_andc_tl(t1, tsrcb, tsign);
+    tcg_gen_sub_tl(tdest, t0, t1);
+    tcg_gen_eqv_tl(t0, tsrca, tsrcb);
+    tcg_gen_and_tl(t0, t0, tsign);
+    tcg_gen_xor_tl(tdest, tdest, t0);
 
-    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %d", name,
-                  reg_names[srca], reg_names[srcb], imm);
-    return TILEGX_EXCP_NONE;
+    tcg_temp_free(t1);
+    tcg_temp_free(t0);
+    tcg_temp_free(tsign);
+}
+
+static void gen_v4sh(TCGv d64, TCGv a64, TCGv b64,
+                     void (*generate)(TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 al = tcg_temp_new_i32();
+    TCGv_i32 ah = tcg_temp_new_i32();
+    TCGv_i32 bl = tcg_temp_new_i32();
+
+    tcg_gen_extr_i64_i32(al, ah, a64);
+    tcg_gen_extrl_i64_i32(bl, b64);
+    tcg_gen_andi_i32(bl, bl, 31);
+    generate(al, al, bl);
+    generate(ah, ah, bl);
+    tcg_gen_concat_i32_i64(d64, al, ah);
+
+    tcg_temp_free_i32(al);
+    tcg_temp_free_i32(ah);
+    tcg_temp_free_i32(bl);
+}
+
+static void gen_v4op(TCGv d64, TCGv a64, TCGv b64,
+                     void (*generate)(TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 al = tcg_temp_new_i32();
+    TCGv_i32 ah = tcg_temp_new_i32();
+    TCGv_i32 bl = tcg_temp_new_i32();
+    TCGv_i32 bh = tcg_temp_new_i32();
+
+    tcg_gen_extr_i64_i32(al, ah, a64);
+    tcg_gen_extr_i64_i32(bl, bh, b64);
+    generate(al, al, bl);
+    generate(ah, ah, bh);
+    tcg_gen_concat_i32_i64(d64, al, ah);
+
+    tcg_temp_free_i32(al);
+    tcg_temp_free_i32(ah);
+    tcg_temp_free_i32(bl);
+    tcg_temp_free_i32(bh);
+}
+
+static TileExcp gen_signal(DisasContext *dc, int signo, int sigcode,
+                           const char *mnemonic)
+{
+    TCGv_i32 t0 = tcg_const_i32(signo);
+    TCGv_i32 t1 = tcg_const_i32(sigcode);
+
+    tcg_gen_st_i32(t0, cpu_env, offsetof(CPUTLGState, signo));
+    tcg_gen_st_i32(t1, cpu_env, offsetof(CPUTLGState, sigcode));
+
+    tcg_temp_free_i32(t1);
+    tcg_temp_free_i32(t0);
+
+    qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
+    return TILEGX_EXCP_SIGNAL;
+}
+
+static bool parse_from_addli(uint64_t bundle, int *signo, int *sigcode)
+{
+    int imm;
+
+    if ((get_Opcode_X0(bundle) != ADDLI_OPCODE_X0)
+        || (get_Dest_X0(bundle) != TILEGX_R_ZERO)
+        || (get_SrcA_X0(bundle) != TILEGX_R_ZERO)) {
+        return false;
+    }
+
+    imm = get_Imm16_X0(bundle);
+    *signo = imm & 0x3f;
+    *sigcode = (imm >> 6) & 0xf;
+
+    /* ??? The linux kernel validates both signo and the sigcode vs the
+       known max for each signal.  Don't bother here.  */
+    return true;
+}
+
+static TileExcp gen_specill(DisasContext *dc, unsigned dest, unsigned srca,
+                            uint64_t bundle)
+{
+    const char *mnemonic;
+    int signo;
+    int sigcode;
+
+    if (dest == 0x1c && srca == 0x25) {
+        signo = TARGET_SIGTRAP;
+        sigcode = TARGET_TRAP_BRKPT;
+        mnemonic = "bpt";
+    } else if (dest == 0x1d && srca == 0x25
+               && parse_from_addli(bundle, &signo, &sigcode)) {
+        mnemonic = "raise";
+    } else {
+        signo = TARGET_SIGILL;
+        sigcode = TARGET_ILL_ILLOPC;
+        mnemonic = "ill";
+    }
+
+    return gen_signal(dc, signo, sigcode, mnemonic);
 }
 
 static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
-                              unsigned dest, unsigned srca)
+                              unsigned dest, unsigned srca, uint64_t bundle)
 {
     TCGv tdest, tsrca;
     const char *mnemonic;
     TCGMemOp memop;
     TileExcp ret = TILEGX_EXCP_NONE;
+    bool prefetch_nofault = false;
 
     /* Eliminate instructions with no output before doing anything else.  */
     switch (opext) {
@@ -368,16 +519,24 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "flushwb";
         goto done0;
     case OE_RR_X1(ILL):
+        return gen_specill(dc, dest, srca, bundle);
     case OE_RR_Y1(ILL):
-        mnemonic = (dest == 0x1c && srca == 0x25 ? "bpt" : "ill");
-        qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
-        return TILEGX_EXCP_OPCODE_UNKNOWN;
+        return gen_signal(dc, TARGET_SIGILL, TARGET_ILL_ILLOPC, "ill");
     case OE_RR_X1(MF):
         mnemonic = "mf";
         goto done0;
     case OE_RR_X1(NAP):
         /* ??? This should yield, especially in system mode.  */
         mnemonic = "nap";
+        goto done0;
+    case OE_RR_X1(IRET):
+        gen_helper_ext01_ics(cpu_env);
+        dc->jmp.cond = TCG_COND_ALWAYS;
+        dc->jmp.dest = tcg_temp_new();
+        tcg_gen_ld_tl(dc->jmp.dest, cpu_env,
+                      offsetof(CPUTLGState, spregs[TILEGX_SPR_EX_CONTEXT_0_0]));
+        tcg_gen_andi_tl(dc->jmp.dest, dc->jmp.dest, ~7);
+        mnemonic = "iret";
         goto done0;
     case OE_RR_X1(SWINT0):
     case OE_RR_X1(SWINT2):
@@ -388,7 +547,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "swint1";
     done0:
         if (srca || dest) {
-            return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+            return TILEGX_EXCP_OPCODE_UNKNOWN;
         }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s", mnemonic);
         return ret;
@@ -434,7 +593,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         tcg_gen_andi_tl(dc->jmp.dest, load_gr(dc, srca), ~7);
     done1:
         if (dest) {
-            return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+            return TILEGX_EXCP_OPCODE_UNKNOWN;
         }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s", mnemonic, reg_names[srca]);
         return ret;
@@ -456,31 +615,33 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RR_X0(FSINGLE_PACK1):
     case OE_RR_Y0(FSINGLE_PACK1):
-    case OE_RR_X1(IRET):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RR_X1(LD1S):
         memop = MO_SB;
-        mnemonic = "ld1s";
+        mnemonic = "ld1s"; /* prefetch_l1_fault */
         goto do_load;
     case OE_RR_X1(LD1U):
         memop = MO_UB;
-        mnemonic = "ld1u";
+        mnemonic = "ld1u"; /* prefetch, prefetch_l1 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load;
     case OE_RR_X1(LD2S):
         memop = MO_TESW;
-        mnemonic = "ld2s";
+        mnemonic = "ld2s"; /* prefetch_l2_fault */
         goto do_load;
     case OE_RR_X1(LD2U):
         memop = MO_TEUW;
-        mnemonic = "ld2u";
+        mnemonic = "ld2u"; /* prefetch_l2 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load;
     case OE_RR_X1(LD4S):
         memop = MO_TESL;
-        mnemonic = "ld4s";
+        mnemonic = "ld4s"; /* prefetch_l3_fault */
         goto do_load;
     case OE_RR_X1(LD4U):
         memop = MO_TEUL;
-        mnemonic = "ld4u";
+        mnemonic = "ld4u"; /* prefetch_l3 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load;
     case OE_RR_X1(LDNT1S):
         memop = MO_SB;
@@ -514,7 +675,9 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         memop = MO_TEQ;
         mnemonic = "ld";
     do_load:
-        tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        if (!prefetch_nofault) {
+            tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        }
         break;
     case OE_RR_X1(LDNA):
         tcg_gen_andi_tl(tdest, tsrca, ~7);
@@ -524,7 +687,7 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
     case OE_RR_X1(LNK):
     case OE_RR_Y1(LNK):
         if (srca) {
-            return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+            return TILEGX_EXCP_OPCODE_UNKNOWN;
         }
         tcg_gen_movi_tl(tdest, dc->pc + TILEGX_BUNDLE_SIZE_IN_BYTES);
         mnemonic = "lnk";
@@ -546,14 +709,29 @@ static TileExcp gen_rr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RR_X0(TBLIDXB0):
     case OE_RR_Y0(TBLIDXB0):
+        tcg_gen_deposit_tl(tdest, load_gr(dc, dest), tsrca, 2, 8);
+        mnemonic = "tblidxb0";
+        break;
     case OE_RR_X0(TBLIDXB1):
     case OE_RR_Y0(TBLIDXB1):
+        tcg_gen_shri_tl(tdest, tsrca, 8);
+        tcg_gen_deposit_tl(tdest, load_gr(dc, dest), tdest, 2, 8);
+        mnemonic = "tblidxb1";
+        break;
     case OE_RR_X0(TBLIDXB2):
     case OE_RR_Y0(TBLIDXB2):
+        tcg_gen_shri_tl(tdest, tsrca, 16);
+        tcg_gen_deposit_tl(tdest, load_gr(dc, dest), tdest, 2, 8);
+        mnemonic = "tblidxb2";
+        break;
     case OE_RR_X0(TBLIDXB3):
     case OE_RR_Y0(TBLIDXB3):
+        tcg_gen_shri_tl(tdest, tsrca, 24);
+        tcg_gen_deposit_tl(tdest, load_gr(dc, dest), tdest, 2, 8);
+        mnemonic = "tblidxb3";
+        break;
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", mnemonic,
@@ -663,15 +841,41 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "cmpne";
         break;
     case OE_RRR(CMULAF, 0, X0):
+        gen_helper_cmulaf(tdest, load_gr(dc, dest), tsrca, tsrcb);
+        mnemonic = "cmulaf";
+        break;
     case OE_RRR(CMULA, 0, X0):
+        gen_helper_cmula(tdest, load_gr(dc, dest), tsrca, tsrcb);
+        mnemonic = "cmula";
+        break;
     case OE_RRR(CMULFR, 0, X0):
+        gen_cmul2(tdest, tsrca, tsrcb, 15, 1 << 14);
+        mnemonic = "cmulfr";
+        break;
     case OE_RRR(CMULF, 0, X0):
+        gen_cmul2(tdest, tsrca, tsrcb, 15, 0);
+        mnemonic = "cmulf";
+        break;
     case OE_RRR(CMULHR, 0, X0):
+        gen_cmul2(tdest, tsrca, tsrcb, 16, 1 << 15);
+        mnemonic = "cmulhr";
+        break;
     case OE_RRR(CMULH, 0, X0):
+        gen_cmul2(tdest, tsrca, tsrcb, 16, 0);
+        mnemonic = "cmulh";
+        break;
     case OE_RRR(CMUL, 0, X0):
+        gen_helper_cmula(tdest, load_zero(dc), tsrca, tsrcb);
+        mnemonic = "cmul";
+        break;
     case OE_RRR(CRC32_32, 0, X0):
+        gen_helper_crc32_32(tdest, tsrca, tsrcb);
+        mnemonic = "crc32_32";
+        break;
     case OE_RRR(CRC32_8, 0, X0):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        gen_helper_crc32_8(tdest, tsrca, tsrcb);
+        mnemonic = "crc32_8";
+        break;
     case OE_RRR(DBLALIGN2, 0, X0):
     case OE_RRR(DBLALIGN2, 0, X1):
         gen_dblaligni(tdest, tsrca, tsrcb, 16);
@@ -1024,8 +1228,12 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RRR(V1ADDUC, 0, X0):
     case OE_RRR(V1ADDUC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1ADD, 0, X0):
     case OE_RRR(V1ADD, 0, X1):
+        gen_v12add(tdest, tsrca, tsrcb, V1_IMM(0x80));
+        mnemonic = "v1add";
+        break;
     case OE_RRR(V1ADIFFU, 0, X0):
     case OE_RRR(V1AVGU, 0, X0):
         return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
@@ -1060,17 +1268,28 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V1DOTPUS, 0, X0):
     case OE_RRR(V1DOTPU, 0, X0):
     case OE_RRR(V1DOTP, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1INT_H, 0, X0):
     case OE_RRR(V1INT_H, 0, X1):
+        gen_helper_v1int_h(tdest, tsrca, tsrcb);
+        mnemonic = "v1int_h";
+        break;
     case OE_RRR(V1INT_L, 0, X0):
     case OE_RRR(V1INT_L, 0, X1):
+        gen_helper_v1int_l(tdest, tsrca, tsrcb);
+        mnemonic = "v1int_l";
+        break;
     case OE_RRR(V1MAXU, 0, X0):
     case OE_RRR(V1MAXU, 0, X1):
     case OE_RRR(V1MINU, 0, X0):
     case OE_RRR(V1MINU, 0, X1):
     case OE_RRR(V1MNZ, 0, X0):
     case OE_RRR(V1MNZ, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1MULTU, 0, X0):
+        gen_helper_v1multu(tdest, tsrca, tsrcb);
+        mnemonic = "v1multu";
+        break;
     case OE_RRR(V1MULUS, 0, X0):
     case OE_RRR(V1MULU, 0, X0):
     case OE_RRR(V1MZ, 0, X0):
@@ -1095,12 +1314,20 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_RRR(V1SUBUC, 0, X0):
     case OE_RRR(V1SUBUC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V1SUB, 0, X0):
     case OE_RRR(V1SUB, 0, X1):
+        gen_v12sub(tdest, tsrca, tsrcb, V1_IMM(0x80));
+        mnemonic = "v1sub";
+        break;
     case OE_RRR(V2ADDSC, 0, X0):
     case OE_RRR(V2ADDSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2ADD, 0, X0):
     case OE_RRR(V2ADD, 0, X1):
+        gen_v12add(tdest, tsrca, tsrcb, V2_IMM(0x8000));
+        mnemonic = "v2add";
+        break;
     case OE_RRR(V2ADIFFS, 0, X0):
     case OE_RRR(V2AVGS, 0, X0):
     case OE_RRR(V2CMPEQ, 0, X0):
@@ -1117,10 +1344,17 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V2CMPNE, 0, X1):
     case OE_RRR(V2DOTPA, 0, X0):
     case OE_RRR(V2DOTP, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2INT_H, 0, X0):
     case OE_RRR(V2INT_H, 0, X1):
+        gen_helper_v2int_h(tdest, tsrca, tsrcb);
+        mnemonic = "v2int_h";
+        break;
     case OE_RRR(V2INT_L, 0, X0):
     case OE_RRR(V2INT_L, 0, X1):
+        gen_helper_v2int_l(tdest, tsrca, tsrcb);
+        mnemonic = "v2int_l";
+        break;
     case OE_RRR(V2MAXS, 0, X0):
     case OE_RRR(V2MAXS, 0, X1):
     case OE_RRR(V2MINS, 0, X0):
@@ -1129,7 +1363,11 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V2MNZ, 0, X1):
     case OE_RRR(V2MULFSC, 0, X0):
     case OE_RRR(V2MULS, 0, X0):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2MULTS, 0, X0):
+        gen_helper_v2mults(tdest, tsrca, tsrcb);
+        mnemonic = "v2mults";
+        break;
     case OE_RRR(V2MZ, 0, X0):
     case OE_RRR(V2MZ, 0, X1):
     case OE_RRR(V2PACKH, 0, X0):
@@ -1144,21 +1382,38 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V2SADU, 0, X0):
     case OE_RRR(V2SHLSC, 0, X0):
     case OE_RRR(V2SHLSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2SHL, 0, X0):
     case OE_RRR(V2SHL, 0, X1):
+        gen_helper_v2shl(tdest, tsrca, tsrcb);
+        mnemonic = "v2shl";
+        break;
     case OE_RRR(V2SHRS, 0, X0):
     case OE_RRR(V2SHRS, 0, X1):
+        gen_helper_v2shrs(tdest, tsrca, tsrcb);
+        mnemonic = "v2shrs";
+        break;
     case OE_RRR(V2SHRU, 0, X0):
     case OE_RRR(V2SHRU, 0, X1):
+        gen_helper_v2shru(tdest, tsrca, tsrcb);
+        mnemonic = "v2shru";
+        break;
     case OE_RRR(V2SUBSC, 0, X0):
     case OE_RRR(V2SUBSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V2SUB, 0, X0):
     case OE_RRR(V2SUB, 0, X1):
+        gen_v12sub(tdest, tsrca, tsrcb, V2_IMM(0x8000));
+        mnemonic = "v2sub";
+        break;
     case OE_RRR(V4ADDSC, 0, X0):
     case OE_RRR(V4ADDSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V4ADD, 0, X0):
     case OE_RRR(V4ADD, 0, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        gen_v4op(tdest, tsrca, tsrcb, tcg_gen_add_i32);
+        mnemonic = "v4add";
+        break;
     case OE_RRR(V4INT_H, 0, X0):
     case OE_RRR(V4INT_H, 0, X1):
         tcg_gen_shri_tl(tdest, tsrcb, 32);
@@ -1174,17 +1429,30 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
     case OE_RRR(V4PACKSC, 0, X1):
     case OE_RRR(V4SHLSC, 0, X0):
     case OE_RRR(V4SHLSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V4SHL, 0, X0):
     case OE_RRR(V4SHL, 0, X1):
+        gen_v4sh(tdest, tsrca, tsrcb, tcg_gen_shl_i32);
+        mnemonic = "v4shl";
+        break;
     case OE_RRR(V4SHRS, 0, X0):
     case OE_RRR(V4SHRS, 0, X1):
+        gen_v4sh(tdest, tsrca, tsrcb, tcg_gen_sar_i32);
+        mnemonic = "v4shrs";
+        break;
     case OE_RRR(V4SHRU, 0, X0):
     case OE_RRR(V4SHRU, 0, X1):
+        gen_v4sh(tdest, tsrca, tsrcb, tcg_gen_shr_i32);
+        mnemonic = "v4shru";
+        break;
     case OE_RRR(V4SUBSC, 0, X0):
     case OE_RRR(V4SUBSC, 0, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_RRR(V4SUB, 0, X0):
     case OE_RRR(V4SUB, 0, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        gen_v4op(tdest, tsrca, tsrcb, tcg_gen_sub_i32);
+        mnemonic = "v2sub";
+        break;
     case OE_RRR(XOR, 0, X0):
     case OE_RRR(XOR, 0, X1):
     case OE_RRR(XOR, 5, Y0):
@@ -1193,7 +1461,7 @@ static TileExcp gen_rrr_opcode(DisasContext *dc, unsigned opext,
         mnemonic = "xor";
         break;
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %s", mnemonic,
@@ -1206,6 +1474,7 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
 {
     TCGv tdest = dest_gr(dc, dest);
     TCGv tsrca = load_gr(dc, srca);
+    bool prefetch_nofault = false;
     const char *mnemonic;
     TCGMemOp memop;
     int i2, i3;
@@ -1255,27 +1524,30 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_IM(LD1S_ADD, X1):
         memop = MO_SB;
-        mnemonic = "ld1s_add";
+        mnemonic = "ld1s_add"; /* prefetch_add_l1_fault */
         goto do_load_add;
     case OE_IM(LD1U_ADD, X1):
         memop = MO_UB;
-        mnemonic = "ld1u_add";
+        mnemonic = "ld1u_add"; /* prefetch_add_l1 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load_add;
     case OE_IM(LD2S_ADD, X1):
         memop = MO_TESW;
-        mnemonic = "ld2s_add";
+        mnemonic = "ld2s_add"; /* prefetch_add_l2_fault */
         goto do_load_add;
     case OE_IM(LD2U_ADD, X1):
         memop = MO_TEUW;
-        mnemonic = "ld2u_add";
+        mnemonic = "ld2u_add"; /* prefetch_add_l2 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load_add;
     case OE_IM(LD4S_ADD, X1):
         memop = MO_TESL;
-        mnemonic = "ld4s_add";
+        mnemonic = "ld4s_add"; /* prefetch_add_l3_fault */
         goto do_load_add;
     case OE_IM(LD4U_ADD, X1):
         memop = MO_TEUL;
-        mnemonic = "ld4u_add";
+        mnemonic = "ld4u_add"; /* prefetch_add_l3 */
+        prefetch_nofault = (dest == TILEGX_R_ZERO);
         goto do_load_add;
     case OE_IM(LDNT1S_ADD, X1):
         memop = MO_SB;
@@ -1307,9 +1579,11 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         goto do_load_add;
     case OE_IM(LD_ADD, X1):
         memop = MO_TEQ;
-        mnemonic = "ldnt_add";
+        mnemonic = "ld_add";
     do_load_add:
-        tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        if (!prefetch_nofault) {
+            tcg_gen_qemu_ld_tl(tdest, tsrca, dc->mmuidx, memop);
+        }
         tcg_gen_addi_tl(dest_gr(dc, srca), tsrca, imm);
         break;
     case OE_IM(LDNA_ADD, X1):
@@ -1325,6 +1599,11 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_IM(V1ADDI, X0):
     case OE_IM(V1ADDI, X1):
+        t0 = tcg_const_tl(V1_IMM(imm));
+        gen_v12add(tdest, tsrca, t0, V1_IMM(0x80));
+        tcg_temp_free(t0);
+        mnemonic = "v1addi";
+        break;
     case OE_IM(V1CMPEQI, X0):
     case OE_IM(V1CMPEQI, X1):
         tcg_gen_xori_tl(tdest, tsrca, V1_IMM(imm));
@@ -1339,8 +1618,14 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
     case OE_IM(V1MAXUI, X1):
     case OE_IM(V1MINUI, X0):
     case OE_IM(V1MINUI, X1):
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     case OE_IM(V2ADDI, X0):
     case OE_IM(V2ADDI, X1):
+        t0 = tcg_const_tl(V2_IMM(imm));
+        gen_v12add(tdest, tsrca, t0, V2_IMM(0x8000));
+        tcg_temp_free(t0);
+        mnemonic = "v2addi";
+        break;
     case OE_IM(V2CMPEQI, X0):
     case OE_IM(V2CMPEQI, X1):
     case OE_IM(V2CMPLTSI, X0):
@@ -1427,11 +1712,27 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
     case OE_SH(V2SHLI, X0):
     case OE_SH(V2SHLI, X1):
+        i2 = imm & 15;
+        i3 = 0xffff >> i2;
+        tcg_gen_andi_tl(tdest, tsrca, V2_IMM(i3));
+        tcg_gen_shli_tl(tdest, tdest, i2);
+        mnemonic = "v2shli";
+        break;
     case OE_SH(V2SHRSI, X0):
     case OE_SH(V2SHRSI, X1):
+        t0 = tcg_const_tl(imm & 15);
+        gen_helper_v2shrs(tdest, tsrca, t0);
+        tcg_temp_free(t0);
+        mnemonic = "v2shrsi";
+        break;
     case OE_SH(V2SHRUI, X0):
     case OE_SH(V2SHRUI, X1):
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        i2 = imm & 15;
+        i3 = (0xffff << i2) & 0xffff;
+        tcg_gen_andi_tl(tdest, tsrca, V2_IMM(i3));
+        tcg_gen_shri_tl(tdest, tdest, i2);
+        mnemonic = "v2shrui";
+        break;
 
     case OE(ADDLI_OPCODE_X0, 0, X0):
     case OE(ADDLI_OPCODE_X1, 0, X1):
@@ -1452,7 +1753,7 @@ static TileExcp gen_rri_opcode(DisasContext *dc, unsigned opext,
         break;
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %d", mnemonic,
@@ -1546,7 +1847,7 @@ static TileExcp gen_bf_opcode_x0(DisasContext *dc, unsigned ext,
         break;
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s, %u, %u", mnemonic,
@@ -1602,7 +1903,7 @@ static TileExcp gen_branch_opcode_x1(DisasContext *dc, unsigned ext,
         mnemonic = "blbs";
         break;
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
@@ -1654,6 +1955,10 @@ static const TileSPR *find_spr(unsigned spr)
       offsetof(CPUTLGState, spregs[TILEGX_SPR_CRITICAL_SEC]), 0, 0)
     D(SIM_CONTROL,
       offsetof(CPUTLGState, spregs[TILEGX_SPR_SIM_CONTROL]), 0, 0)
+    D(EX_CONTEXT_0_0,
+      offsetof(CPUTLGState, spregs[TILEGX_SPR_EX_CONTEXT_0_0]), 0, 0)
+    D(EX_CONTEXT_0_1,
+      offsetof(CPUTLGState, spregs[TILEGX_SPR_EX_CONTEXT_0_1]), 0, 0)
     }
 
 #undef D
@@ -1669,7 +1974,7 @@ static TileExcp gen_mtspr_x1(DisasContext *dc, unsigned spr, unsigned srca)
 
     if (def == NULL) {
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "mtspr spr[%u], %s", spr, reg_names[srca]);
-        return TILEGX_EXCP_OPCODE_UNKNOWN;
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
 
     tsrca = load_gr(dc, srca);
@@ -1689,7 +1994,7 @@ static TileExcp gen_mfspr_x1(DisasContext *dc, unsigned dest, unsigned spr)
 
     if (def == NULL) {
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "mtspr %s, spr[%u]", reg_names[dest], spr);
-        return TILEGX_EXCP_OPCODE_UNKNOWN;
+        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
     }
 
     tdest = dest_gr(dc, dest);
@@ -1715,7 +2020,7 @@ static TileExcp decode_y0(DisasContext *dc, tilegx_bundle_bits bundle)
     case RRR_1_OPCODE_Y0:
         if (ext == UNARY_RRR_1_OPCODE_Y0) {
             ext = get_UnaryOpcodeExtension_Y0(bundle);
-            return gen_rr_opcode(dc, OE(opc, ext, Y0), dest, srca);
+            return gen_rr_opcode(dc, OE(opc, ext, Y0), dest, srca, bundle);
         }
         /* fallthru */
     case RRR_0_OPCODE_Y0:
@@ -1744,7 +2049,7 @@ static TileExcp decode_y0(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_rri_opcode(dc, OE(opc, 0, Y0), dest, srca, imm);
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -1761,7 +2066,7 @@ static TileExcp decode_y1(DisasContext *dc, tilegx_bundle_bits bundle)
     case RRR_1_OPCODE_Y1:
         if (ext == UNARY_RRR_1_OPCODE_Y0) {
             ext = get_UnaryOpcodeExtension_Y1(bundle);
-            return gen_rr_opcode(dc, OE(opc, ext, Y1), dest, srca);
+            return gen_rr_opcode(dc, OE(opc, ext, Y1), dest, srca, bundle);
         }
         /* fallthru */
     case RRR_0_OPCODE_Y1:
@@ -1788,7 +2093,7 @@ static TileExcp decode_y1(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_rri_opcode(dc, OE(opc, 0, Y1), dest, srca, imm);
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -1846,7 +2151,7 @@ static TileExcp decode_y2(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_st_opcode(dc, 0, srca, srcbdest, MO_TEQ, "st");
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -1863,7 +2168,7 @@ static TileExcp decode_x0(DisasContext *dc, tilegx_bundle_bits bundle)
         ext = get_RRROpcodeExtension_X0(bundle);
         if (ext == UNARY_RRR_0_OPCODE_X0) {
             ext = get_UnaryOpcodeExtension_X0(bundle);
-            return gen_rr_opcode(dc, OE(opc, ext, X0), dest, srca);
+            return gen_rr_opcode(dc, OE(opc, ext, X0), dest, srca, bundle);
         }
         srcb = get_SrcB_X0(bundle);
         return gen_rrr_opcode(dc, OE(opc, ext, X0), dest, srca, srcb);
@@ -1891,7 +2196,7 @@ static TileExcp decode_x0(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_rri_opcode(dc, OE(opc, 0, X0), dest, srca, imm);
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -1910,7 +2215,7 @@ static TileExcp decode_x1(DisasContext *dc, tilegx_bundle_bits bundle)
         switch (ext) {
         case UNARY_RRR_0_OPCODE_X1:
             ext = get_UnaryOpcodeExtension_X1(bundle);
-            return gen_rr_opcode(dc, OE(opc, ext, X1), dest, srca);
+            return gen_rr_opcode(dc, OE(opc, ext, X1), dest, srca, bundle);
         case ST1_RRR_0_OPCODE_X1:
             return gen_st_opcode(dc, dest, srca, srcb, MO_UB, "st1");
         case ST2_RRR_0_OPCODE_X1:
@@ -1981,7 +2286,7 @@ static TileExcp decode_x1(DisasContext *dc, tilegx_bundle_bits bundle)
         return gen_rri_opcode(dc, OE(opc, 0, X1), dest, srca, imm);
 
     default:
-        return TILEGX_EXCP_OPCODE_UNIMPLEMENTED;
+        return TILEGX_EXCP_OPCODE_UNKNOWN;
     }
 }
 
@@ -1992,8 +2297,15 @@ static void notice_excp(DisasContext *dc, uint64_t bundle,
         return;
     }
     gen_exception(dc, excp);
-    if (excp == TILEGX_EXCP_OPCODE_UNIMPLEMENTED) {
+    switch (excp) {
+    case TILEGX_EXCP_OPCODE_UNIMPLEMENTED:
         qemu_log_mask(LOG_UNIMP, "UNIMP %s, [" FMT64X "]\n", type, bundle);
+        break;
+    case TILEGX_EXCP_OPCODE_UNKNOWN:
+        qemu_log_mask(LOG_UNIMP, "UNKNOWN %s, [" FMT64X "]\n", type, bundle);
+        break;
+    default:
+        break;
     }
 }
 
