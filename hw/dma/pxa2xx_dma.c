@@ -459,9 +459,8 @@ static int pxa2xx_dma_init(SysBusDevice *sbd)
         return -1;
     }
 
-    s->chan = g_malloc0(sizeof(PXA2xxDMAChannel) * s->channels);
+    s->chan = g_new0(PXA2xxDMAChannel, s->channels);
 
-    memset(s->chan, 0, sizeof(PXA2xxDMAChannel) * s->channels);
     for (i = 0; i < s->channels; i ++)
         s->chan[i].state = DCSR_STOPINTR;
 
