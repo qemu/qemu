@@ -307,6 +307,10 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         g_cond_signal(&s->data_cond);
         break;
 
+    case VHOST_USER_RESET_DEVICE:
+        s->fds_num = 0;
+        break;
+
     default:
         break;
     }
@@ -461,12 +465,37 @@ static guint64 get_log_size(TestServer *s)
     return log_size;
 }
 
+typedef struct TestMigrateSource {
+    GSource source;
+    TestServer *src;
+    TestServer *dest;
+} TestMigrateSource;
+
+static gboolean
+test_migrate_source_check(GSource *source)
+{
+    TestMigrateSource *t = (TestMigrateSource *)source;
+    gboolean overlap = t->src->fds_num > 0 && t->dest->fds_num > 0;
+
+    g_assert(!overlap);
+
+    return FALSE;
+}
+
+GSourceFuncs test_migrate_source_funcs = {
+    NULL,
+    test_migrate_source_check,
+    NULL,
+    NULL
+};
+
 static void test_migrate(void)
 {
     TestServer *s = test_server_new("src");
     TestServer *dest = test_server_new("dest");
     const char *uri = "tcp:127.0.0.1:1234";
     QTestState *global = global_qtest, *from, *to;
+    GSource *source;
     gchar *cmd;
     QDict *rsp;
     guint8 *log;
@@ -483,6 +512,12 @@ static void test_migrate(void)
     cmd = GET_QEMU_CMDE(dest, 2, " -incoming %s", uri);
     to = qtest_init(cmd);
     g_free(cmd);
+
+    source = g_source_new(&test_migrate_source_funcs,
+                          sizeof(TestMigrateSource));
+    ((TestMigrateSource *)source)->src = s;
+    ((TestMigrateSource *)source)->dest = dest;
+    g_source_attach(source, NULL);
 
     /* slow down migration to have time to fiddle with log */
     /* TODO: qtest could learn to break on some places */
@@ -521,6 +556,9 @@ static void test_migrate(void)
     qmp_eventwait("RESUME");
 
     read_guest_mem(dest);
+
+    g_source_destroy(source);
+    g_source_unref(source);
 
     qtest_quit(to);
     test_server_free(dest);
