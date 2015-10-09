@@ -30,10 +30,10 @@
 #endif
 
 #define QEMU_CMD_ACCEL  " -machine accel=tcg"
-#define QEMU_CMD_MEM    " -m 512 -object memory-backend-file,id=mem,size=512M,"\
+#define QEMU_CMD_MEM    " -m %d -object memory-backend-file,id=mem,size=%dM,"\
                         "mem-path=%s,share=on -numa node,memdev=mem"
-#define QEMU_CMD_CHR    " -chardev socket,id=chr0,path=%s"
-#define QEMU_CMD_NETDEV " -netdev vhost-user,id=net0,chardev=chr0,vhostforce"
+#define QEMU_CMD_CHR    " -chardev socket,id=%s,path=%s"
+#define QEMU_CMD_NETDEV " -netdev vhost-user,id=net0,chardev=%s,vhostforce"
 #define QEMU_CMD_NET    " -device virtio-net-pci,netdev=net0 "
 #define QEMU_CMD_ROM    " -option-rom ../pc-bios/pxe-virtio.rom"
 
@@ -131,6 +131,9 @@ static gboolean g_cond_wait_until(CompatGCond cond, CompatGMutex mutex,
     return ret;
 }
 #endif
+
+static const char *tmpfs;
+static const char *root;
 
 static void wait_for_fds(TestServer *s)
 {
@@ -317,7 +320,7 @@ static const char *init_hugepagefs(const char *path)
     return path;
 }
 
-static TestServer *test_server_new(const gchar *tmpfs, const gchar *name)
+static TestServer *test_server_new(const gchar *name)
 {
     TestServer *server = g_new0(TestServer, 1);
     gchar *chr_path;
@@ -337,9 +340,13 @@ static TestServer *test_server_new(const gchar *tmpfs, const gchar *name)
     return server;
 }
 
-#define GET_QEMU_CMD(s, root)                                \
-    g_strdup_printf(QEMU_CMD, (root), (s)->socket_path)
+#define GET_QEMU_CMD(s)                                                        \
+    g_strdup_printf(QEMU_CMD, 512, 512, (root), (s)->chr_name,                 \
+                    (s)->socket_path, (s)->chr_name)
 
+#define GET_QEMU_CMDE(s, mem, extra, ...)                                      \
+    g_strdup_printf(QEMU_CMD extra, (mem), (mem), (root), (s)->chr_name,       \
+                    (s)->socket_path, (s)->chr_name, ##__VA_ARGS__)
 
 static void test_server_free(TestServer *server)
 {
@@ -365,8 +372,6 @@ int main(int argc, char **argv)
     char *qemu_cmd = NULL;
     int ret;
     char template[] = "/tmp/vhost-test-XXXXXX";
-    const char *tmpfs;
-    const char *root;
 
     g_test_init(&argc, &argv, NULL);
 
@@ -387,12 +392,12 @@ int main(int argc, char **argv)
         root = tmpfs;
     }
 
-    server = test_server_new(tmpfs, "test");
+    server = test_server_new("test");
 
     /* run the main loop thread so the chardev may operate */
     g_thread_new(NULL, thread_function, NULL);
 
-    qemu_cmd = GET_QEMU_CMD(server, root);
+    qemu_cmd = GET_QEMU_CMD(server);
 
     s = qtest_start(qemu_cmd);
     g_free(qemu_cmd);
