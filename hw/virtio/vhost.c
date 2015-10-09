@@ -350,6 +350,8 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
     uint64_t log_base = (uintptr_t)log->log;
     int r;
 
+    /* inform backend of log switching, this must be done before
+       releasing the current log, to ensure no logging is lost */
     r = dev->vhost_ops->vhost_call(dev, VHOST_SET_LOG_BASE, &log_base);
     assert(r >= 0);
     vhost_log_put(dev, true);
