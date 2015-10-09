@@ -106,9 +106,29 @@ err:
 static ssize_t vhost_user_receive(NetClientState *nc, const uint8_t *buf,
                                   size_t size)
 {
-    /* Discard the request that is received and managed by backend
-     * by an other way.
+    /* In case of RARP (message size is 60) notify backup to send a fake RARP.
+       This fake RARP will be sent by backend only for guest
+       without GUEST_ANNOUNCE capability.
      */
+    if (size == 60) {
+        VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
+        int r;
+        static int display_rarp_failure = 1;
+        char mac_addr[6];
+
+        /* extract guest mac address from the RARP message */
+        memcpy(mac_addr, &buf[6], 6);
+
+        r = vhost_net_notify_migration_done(s->vhost_net, mac_addr);
+
+        if ((r != 0) && (display_rarp_failure)) {
+            fprintf(stderr,
+                    "Vhost user backend fails to broadcast fake RARP\n");
+            fflush(stderr);
+            display_rarp_failure = 0;
+        }
+    }
+
     return size;
 }
 

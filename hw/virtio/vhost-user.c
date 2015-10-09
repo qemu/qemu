@@ -10,6 +10,7 @@
 
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-backend.h"
+#include "hw/virtio/virtio-net.h"
 #include "sysemu/char.h"
 #include "sysemu/kvm.h"
 #include "qemu/error-report.h"
@@ -27,9 +28,10 @@
 #define VHOST_MEMORY_MAX_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 
-#define VHOST_USER_PROTOCOL_FEATURE_MASK 0x3ULL
+#define VHOST_USER_PROTOCOL_FEATURE_MASK 0x7ULL
 #define VHOST_USER_PROTOCOL_F_MQ         0
 #define VHOST_USER_PROTOCOL_F_LOG_SHMFD  1
+#define VHOST_USER_PROTOCOL_F_RARP       2
 
 typedef enum VhostUserRequest {
     VHOST_USER_NONE = 0,
@@ -51,6 +53,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_PROTOCOL_FEATURES = 16,
     VHOST_USER_GET_QUEUE_NUM = 17,
     VHOST_USER_SET_VRING_ENABLE = 18,
+    VHOST_USER_SEND_RARP = 19,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -566,6 +569,32 @@ static bool vhost_user_requires_shm_log(struct vhost_dev *dev)
                               VHOST_USER_PROTOCOL_F_LOG_SHMFD);
 }
 
+static int vhost_user_migration_done(struct vhost_dev *dev, char* mac_addr)
+{
+    VhostUserMsg msg = { 0 };
+    int err;
+
+    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
+
+    /* If guest supports GUEST_ANNOUNCE do nothing */
+    if (virtio_has_feature(dev->acked_features, VIRTIO_NET_F_GUEST_ANNOUNCE)) {
+        return 0;
+    }
+
+    /* if backend supports VHOST_USER_PROTOCOL_F_RARP ask it to send the RARP */
+    if (virtio_has_feature(dev->protocol_features,
+                           VHOST_USER_PROTOCOL_F_RARP)) {
+        msg.request = VHOST_USER_SEND_RARP;
+        msg.flags = VHOST_USER_VERSION;
+        memcpy((char *)&msg.u64, mac_addr, 6);
+        msg.size = sizeof(m.u64);
+
+        err = vhost_user_write(dev, &msg, NULL, 0);
+        return err;
+    }
+    return -1;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_init,
@@ -587,4 +616,5 @@ const VhostOps user_ops = {
         .vhost_get_vq_index = vhost_user_get_vq_index,
         .vhost_set_vring_enable = vhost_user_set_vring_enable,
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
+        .vhost_migration_done = vhost_user_migration_done,
 };

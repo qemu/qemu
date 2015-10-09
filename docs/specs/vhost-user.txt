@@ -194,6 +194,7 @@ Protocol features
 
 #define VHOST_USER_PROTOCOL_F_MQ             0
 #define VHOST_USER_PROTOCOL_F_LOG_SHMFD      1
+#define VHOST_USER_PROTOCOL_F_RARP           2
 
 Message types
 -------------
@@ -381,3 +382,17 @@ Message types
       Master payload: vring state description
 
       Signal slave to enable or disable corresponding vring.
+
+ * VHOST_USER_SEND_RARP
+
+      Id: 19
+      Equivalent ioctl: N/A
+      Master payload: u64
+
+      Ask vhost user backend to broadcast a fake RARP to notify the migration
+      is terminated for guest that does not support GUEST_ANNOUNCE.
+      Only legal if feature bit VHOST_USER_F_PROTOCOL_FEATURES is present in
+      VHOST_USER_GET_FEATURES and protocol feature bit VHOST_USER_PROTOCOL_F_RARP
+      is present in VHOST_USER_GET_PROTOCOL_FEATURES.
+      The first 6 bytes of the payload contain the mac address of the guest to
+      allow the vhost user backend to construct and broadcast the fake RARP.

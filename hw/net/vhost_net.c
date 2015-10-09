@@ -388,6 +388,18 @@ void vhost_net_cleanup(struct vhost_net *net)
     g_free(net);
 }
 
+int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
+{
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+    int r = -1;
+
+    if (vhost_ops->vhost_migration_done) {
+        r = vhost_ops->vhost_migration_done(&net->dev, mac_addr);
+    }
+
+    return r;
+}
+
 bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
 {
     return vhost_virtqueue_pending(&net->dev, idx);
@@ -477,6 +489,11 @@ bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
 void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
                               int idx, bool mask)
 {
+}
+
+int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
+{
+    return -1;
 }
 
 VHostNetState *get_vhost_net(NetClientState *nc)
