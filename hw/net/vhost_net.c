@@ -85,6 +85,8 @@ static const int user_feature_bits[] = {
     VIRTIO_NET_F_CTRL_MAC_ADDR,
     VIRTIO_NET_F_CTRL_GUEST_OFFLOADS,
 
+    VIRTIO_NET_F_GUEST_ANNOUNCE,
+
     VIRTIO_NET_F_MQ,
 
     VHOST_INVALID_FEATURE_BIT

@@ -103,6 +103,15 @@ err:
     return -1;
 }
 
+static ssize_t vhost_user_receive(NetClientState *nc, const uint8_t *buf,
+                                  size_t size)
+{
+    /* Discard the request that is received and managed by backend
+     * by an other way.
+     */
+    return size;
+}
+
 static void vhost_user_cleanup(NetClientState *nc)
 {
     VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
@@ -132,6 +141,7 @@ static bool vhost_user_has_ufo(NetClientState *nc)
 static NetClientInfo net_vhost_user_info = {
         .type = NET_CLIENT_OPTIONS_KIND_VHOST_USER,
         .size = sizeof(VhostUserState),
+        .receive = vhost_user_receive,
         .cleanup = vhost_user_cleanup,
         .has_vnet_hdr = vhost_user_has_vnet_hdr,
         .has_ufo = vhost_user_has_ufo,
@@ -182,8 +192,6 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
         snprintf(nc->info_str, sizeof(nc->info_str), "vhost-user%d to %s",
                  i, chr->label);
 
-        /* We don't provide a receive callback */
-        nc->receive_disabled = 1;
         nc->queue_index = i;
 
         s = DO_UPCAST(VhostUserState, nc, nc);
