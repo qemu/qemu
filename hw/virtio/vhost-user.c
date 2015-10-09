@@ -15,6 +15,7 @@
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
 #include "exec/ram_addr.h"
+#include "migration/migration.h"
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -440,6 +441,14 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
                 return err;
             }
         }
+    }
+
+    if (dev->migration_blocker == NULL &&
+        !virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_LOG_SHMFD)) {
+        error_setg(&dev->migration_blocker,
+                   "Migration disabled: vhost-user backend lacks "
+                   "VHOST_USER_PROTOCOL_F_LOG_SHMFD feature.");
     }
 
     return 0;

@@ -961,6 +961,8 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
     uint64_t features;
     int i, r;
 
+    hdev->migration_blocker = NULL;
+
     if (vhost_set_backend_type(hdev, backend_type) < 0) {
         close((uintptr_t)opaque);
         return -1;
@@ -1012,12 +1014,18 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         .eventfd_del = vhost_eventfd_del,
         .priority = 10
     };
-    hdev->migration_blocker = NULL;
-    if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
-        error_setg(&hdev->migration_blocker,
-                   "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
+
+    if (hdev->migration_blocker == NULL) {
+        if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
+            error_setg(&hdev->migration_blocker,
+                       "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
+        }
+    }
+
+    if (hdev->migration_blocker != NULL) {
         migrate_add_blocker(hdev->migration_blocker);
     }
+
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
     hdev->n_mem_sections = 0;
     hdev->mem_sections = NULL;
