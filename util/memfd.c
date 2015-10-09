@@ -27,6 +27,11 @@
 
 #include "qemu/osdep.h"
 
+#include <glib.h>
+#include <glib/gprintf.h>
+
+#include <sys/mman.h>
+
 #include "qemu/memfd.h"
 
 #ifdef CONFIG_MEMFD
@@ -35,7 +40,7 @@
 #include <sys/syscall.h>
 #include <asm/unistd.h>
 
-inline static int memfd_create(const char *name, unsigned int flags)
+static int memfd_create(const char *name, unsigned int flags)
 {
 #ifdef __NR_memfd_create
     return syscall(__NR_memfd_create, name, flags);
@@ -52,3 +57,68 @@ inline static int memfd_create(const char *name, unsigned int flags)
 #ifndef MFD_ALLOW_SEALING
 #define MFD_ALLOW_SEALING 0x0002U
 #endif
+
+/*
+ * This is a best-effort helper for shared memory allocation, with
+ * optional sealing. The helper will do his best to allocate using
+ * memfd with sealing, but may fallback on other methods without
+ * sealing.
+ */
+void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
+                       int *fd)
+{
+    void *ptr;
+    int mfd = -1;
+
+    *fd = -1;
+
+#ifdef CONFIG_LINUX
+    if (seals) {
+        mfd = memfd_create(name, MFD_ALLOW_SEALING | MFD_CLOEXEC);
+    }
+
+    if (mfd == -1) {
+        /* some systems have memfd without sealing */
+        mfd = memfd_create(name, MFD_CLOEXEC);
+        seals = 0;
+    }
+#endif
+
+    if (mfd != -1) {
+        if (ftruncate(mfd, size) == -1) {
+            perror("ftruncate");
+            close(mfd);
+            return NULL;
+        }
+
+        if (seals && fcntl(mfd, F_ADD_SEALS, seals) == -1) {
+            perror("fcntl");
+            close(mfd);
+            return NULL;
+        }
+    } else {
+        perror("memfd");
+        return NULL;
+    }
+
+    ptr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, mfd, 0);
+    if (ptr == MAP_FAILED) {
+        perror("mmap");
+        close(mfd);
+        return NULL;
+    }
+
+    *fd = mfd;
+    return ptr;
+}
+
+void qemu_memfd_free(void *ptr, size_t size, int fd)
+{
+    if (ptr) {
+        munmap(ptr, size);
+    }
+
+    if (fd != -1) {
+        close(fd);
+    }
+}
