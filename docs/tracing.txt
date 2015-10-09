@@ -258,11 +258,11 @@ is generated to make use in scripts more convenient.  This step can also be
 performed manually after a build in order to change the binary name in the .stp
 probes:
 
-    scripts/tracetool --dtrace --stap \
-                      --binary path/to/qemu-binary \
-                      --target-type system \
-                      --target-name x86_64 \
-                      <trace-events >qemu.stp
+    scripts/tracetool.py --backends=dtrace --format=stap \
+                         --binary path/to/qemu-binary \
+                         --target-type system \
+                         --target-name x86_64 \
+                         <trace-events >qemu.stp
 
 == Trace event properties ==
 
