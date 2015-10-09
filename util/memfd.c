@@ -138,3 +138,25 @@ void qemu_memfd_free(void *ptr, size_t size, int fd)
         close(fd);
     }
 }
+
+enum {
+    MEMFD_KO,
+    MEMFD_OK,
+    MEMFD_TODO
+};
+
+bool qemu_memfd_check(void)
+{
+    static int memfd_check = MEMFD_TODO;
+
+    if (memfd_check == MEMFD_TODO) {
+        int fd;
+        void *ptr;
+
+        ptr = qemu_memfd_alloc("test", 4096, 0, &fd);
+        memfd_check = ptr ? MEMFD_OK : MEMFD_KO;
+        qemu_memfd_free(ptr, 4096, fd);
+    }
+
+    return memfd_check == MEMFD_OK;
+}

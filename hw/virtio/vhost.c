@@ -1019,6 +1019,9 @@ int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
         if (!(hdev->features & (0x1ULL << VHOST_F_LOG_ALL))) {
             error_setg(&hdev->migration_blocker,
                        "Migration disabled: vhost lacks VHOST_F_LOG_ALL feature.");
+        } else if (!qemu_memfd_check()) {
+            error_setg(&hdev->migration_blocker,
+                       "Migration disabled: failed to allocate shared memory");
         }
     }
 
