@@ -115,11 +115,13 @@ the ones that do:
  * VHOST_GET_FEATURES
  * VHOST_GET_PROTOCOL_FEATURES
  * VHOST_GET_VRING_BASE
+ * VHOST_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
 
 There are several messages that the master sends with file descriptors passed
 in the ancillary data:
 
  * VHOST_SET_MEM_TABLE
+ * VHOST_SET_LOG_BASE (if VHOST_USER_PROTOCOL_F_LOG_SHMFD)
  * VHOST_SET_LOG_FD
  * VHOST_SET_VRING_KICK
  * VHOST_SET_VRING_CALL
@@ -140,8 +142,7 @@ Multiple queue support
 
 Multiple queue is treated as a protocol extension, hence the slave has to
 implement protocol features first. The multiple queues feature is supported
-only when the protocol feature VHOST_USER_PROTOCOL_F_MQ (bit 0) is set:
-#define VHOST_USER_PROTOCOL_F_MQ    0
+only when the protocol feature VHOST_USER_PROTOCOL_F_MQ (bit 0) is set.
 
 The max number of queues the slave supports can be queried with message
 VHOST_USER_GET_PROTOCOL_FEATURES. Master should stop when the number of
@@ -151,6 +152,48 @@ As all queues share one connection, the master uses a unique index for each
 queue in the sent message to identify a specified queue. One queue pair
 is enabled initially. More queues are enabled dynamically, by sending
 message VHOST_USER_SET_VRING_ENABLE.
+
+Migration
+---------
+
+During live migration, the master may need to track the modifications
+the slave makes to the memory mapped regions. The client should mark
+the dirty pages in a log. Once it complies to this logging, it may
+declare the VHOST_F_LOG_ALL vhost feature.
+
+All the modifications to memory pointed by vring "descriptor" should
+be marked. Modifications to "used" vring should be marked if
+VHOST_VRING_F_LOG is part of ring's features.
+
+Dirty pages are of size:
+#define VHOST_LOG_PAGE 0x1000
+
+The log memory fd is provided in the ancillary data of
+VHOST_USER_SET_LOG_BASE message when the slave has
+VHOST_USER_PROTOCOL_F_LOG_SHMFD protocol feature.
+
+The size of the log may be computed by using all the known guest
+addresses. The log covers from address 0 to the maximum of guest
+regions. In pseudo-code, to mark page at "addr" as dirty:
+
+page = addr / VHOST_LOG_PAGE
+log[page / 8] |= 1 << page % 8
+
+Use atomic operations, as the log may be concurrently manipulated.
+
+VHOST_USER_SET_LOG_FD is an optional message with an eventfd in
+ancillary data, it may be used to inform the master that the log has
+been modified.
+
+Once the source has finished migration, VHOST_USER_RESET_OWNER message
+will be sent by the source. No further update must be done before the
+destination takes over with new regions & rings.
+
+Protocol features
+-----------------
+
+#define VHOST_USER_PROTOCOL_F_MQ             0
+#define VHOST_USER_PROTOCOL_F_LOG_SHMFD      1
 
 Message types
 -------------
@@ -236,6 +279,7 @@ Message types
       Id: 6
       Equivalent ioctl: VHOST_SET_LOG_BASE
       Master payload: u64
+      Slave payload: N/A
 
       Sets the logging base address.
 
