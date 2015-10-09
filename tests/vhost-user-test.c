@@ -108,10 +108,16 @@ static VhostUserMsg m __attribute__ ((unused));
 #define VHOST_USER_VERSION    (0x1)
 /*****************************************************************************/
 
-int fds_num = 0, fds[VHOST_MEMORY_MAX_NREGIONS];
-static VhostUserMemory memory;
-static CompatGMutex data_mutex;
-static CompatGCond data_cond;
+typedef struct TestServer {
+    gchar *socket_path;
+    gchar *chr_name;
+    CharDriverState *chr;
+    int fds_num;
+    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    VhostUserMemory memory;
+    GMutex data_mutex;
+    GCond data_cond;
+} TestServer;
 
 #if !GLIB_CHECK_VERSION(2, 32, 0)
 static gboolean g_cond_wait_until(CompatGCond cond, CompatGMutex mutex,
@@ -126,67 +132,68 @@ static gboolean g_cond_wait_until(CompatGCond cond, CompatGMutex mutex,
 }
 #endif
 
-static void wait_for_fds(void)
+static void wait_for_fds(TestServer *s)
 {
     gint64 end_time;
 
-    g_mutex_lock(&data_mutex);
+    g_mutex_lock(&s->data_mutex);
 
     end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
-    while (!fds_num) {
-        if (!g_cond_wait_until(&data_cond, &data_mutex, end_time)) {
+    while (!s->fds_num) {
+        if (!g_cond_wait_until(&s->data_cond, &s->data_mutex, end_time)) {
             /* timeout has passed */
-            g_assert(fds_num);
+            g_assert(s->fds_num);
             break;
         }
     }
 
     /* check for sanity */
-    g_assert_cmpint(fds_num, >, 0);
-    g_assert_cmpint(fds_num, ==, memory.nregions);
+    g_assert_cmpint(s->fds_num, >, 0);
+    g_assert_cmpint(s->fds_num, ==, s->memory.nregions);
 
-    g_mutex_unlock(&data_mutex);
+    g_mutex_unlock(&s->data_mutex);
 }
 
-static void read_guest_mem(void)
+static void read_guest_mem(TestServer *s)
 {
     uint32_t *guest_mem;
     int i, j;
     size_t size;
 
-    wait_for_fds();
+    wait_for_fds(s);
 
-    g_mutex_lock(&data_mutex);
+    g_mutex_lock(&s->data_mutex);
 
     /* iterate all regions */
-    for (i = 0; i < fds_num; i++) {
+    for (i = 0; i < s->fds_num; i++) {
 
         /* We'll check only the region statring at 0x0*/
-        if (memory.regions[i].guest_phys_addr != 0x0) {
+        if (s->memory.regions[i].guest_phys_addr != 0x0) {
             continue;
         }
 
-        g_assert_cmpint(memory.regions[i].memory_size, >, 1024);
+        g_assert_cmpint(s->memory.regions[i].memory_size, >, 1024);
 
-        size =  memory.regions[i].memory_size + memory.regions[i].mmap_offset;
+        size = s->memory.regions[i].memory_size +
+            s->memory.regions[i].mmap_offset;
 
         guest_mem = mmap(0, size, PROT_READ | PROT_WRITE,
-                         MAP_SHARED, fds[i], 0);
+                         MAP_SHARED, s->fds[i], 0);
 
         g_assert(guest_mem != MAP_FAILED);
-        guest_mem += (memory.regions[i].mmap_offset / sizeof(*guest_mem));
+        guest_mem += (s->memory.regions[i].mmap_offset / sizeof(*guest_mem));
 
         for (j = 0; j < 256; j++) {
-            uint32_t a = readl(memory.regions[i].guest_phys_addr + j*4);
+            uint32_t a = readl(s->memory.regions[i].guest_phys_addr + j*4);
             uint32_t b = guest_mem[j];
 
             g_assert_cmpint(a, ==, b);
         }
 
-        munmap(guest_mem, memory.regions[i].memory_size);
+        munmap(guest_mem, s->memory.regions[i].memory_size);
     }
 
-    g_mutex_unlock(&data_mutex);
+    g_mutex_unlock(&s->data_mutex);
 }
 
 static void *thread_function(void *data)
@@ -204,7 +211,8 @@ static int chr_can_read(void *opaque)
 
 static void chr_read(void *opaque, const uint8_t *buf, int size)
 {
-    CharDriverState *chr = opaque;
+    TestServer *s = opaque;
+    CharDriverState *chr = s->chr;
     VhostUserMsg msg;
     uint8_t *p = (uint8_t *) &msg;
     int fd;
@@ -214,12 +222,12 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
-    g_mutex_lock(&data_mutex);
+    g_mutex_lock(&s->data_mutex);
     memcpy(p, buf, VHOST_USER_HDR_SIZE);
 
     if (msg.size) {
         p += VHOST_USER_HDR_SIZE;
-        qemu_chr_fe_read_all(chr, p, msg.size);
+        g_assert_cmpint(qemu_chr_fe_read_all(chr, p, msg.size), ==, msg.size);
     }
 
     switch (msg.request) {
@@ -257,11 +265,11 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
 
     case VHOST_USER_SET_MEM_TABLE:
         /* received the mem table */
-        memcpy(&memory, &msg.memory, sizeof(msg.memory));
-        fds_num = qemu_chr_fe_get_msgfds(chr, fds, sizeof(fds) / sizeof(int));
+        memcpy(&s->memory, &msg.memory, sizeof(msg.memory));
+        s->fds_num = qemu_chr_fe_get_msgfds(chr, s->fds, G_N_ELEMENTS(s->fds));
 
         /* signal the test that it can continue */
-        g_cond_signal(&data_cond);
+        g_cond_signal(&s->data_cond);
         break;
 
     case VHOST_USER_SET_VRING_KICK:
@@ -278,7 +286,8 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     default:
         break;
     }
-    g_mutex_unlock(&data_mutex);
+
+    g_mutex_unlock(&s->data_mutex);
 }
 
 static const char *init_hugepagefs(const char *path)
@@ -308,14 +317,52 @@ static const char *init_hugepagefs(const char *path)
     return path;
 }
 
+static TestServer *test_server_new(const gchar *tmpfs, const gchar *name)
+{
+    TestServer *server = g_new0(TestServer, 1);
+    gchar *chr_path;
+
+    server->socket_path = g_strdup_printf("%s/%s.sock", tmpfs, name);
+
+    chr_path = g_strdup_printf("unix:%s,server,nowait", server->socket_path);
+    server->chr_name = g_strdup_printf("chr-%s", name);
+    server->chr = qemu_chr_new(server->chr_name, chr_path, NULL);
+    g_free(chr_path);
+
+    qemu_chr_add_handlers(server->chr, chr_can_read, chr_read, NULL, server);
+
+    g_mutex_init(&server->data_mutex);
+    g_cond_init(&server->data_cond);
+
+    return server;
+}
+
+#define GET_QEMU_CMD(s, root)                                \
+    g_strdup_printf(QEMU_CMD, (root), (s)->socket_path)
+
+
+static void test_server_free(TestServer *server)
+{
+    int i;
+
+    qemu_chr_delete(server->chr);
+
+    for (i = 0; i < server->fds_num; i++) {
+        close(server->fds[i]);
+    }
+
+    unlink(server->socket_path);
+    g_free(server->socket_path);
+
+    g_free(server);
+}
+
 int main(int argc, char **argv)
 {
     QTestState *s = NULL;
-    CharDriverState *chr = NULL;
+    TestServer *server = NULL;
     const char *hugefs;
-    char *socket_path = 0;
-    char *qemu_cmd = 0;
-    char *chr_path = 0;
+    char *qemu_cmd = NULL;
     int ret;
     char template[] = "/tmp/vhost-test-XXXXXX";
     const char *tmpfs;
@@ -324,10 +371,11 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     module_call_init(MODULE_INIT_QOM);
+    qemu_add_opts(&qemu_chardev_opts);
 
     tmpfs = mkdtemp(template);
     if (!tmpfs) {
-          g_test_message("mkdtemp on path (%s): %s\n", template, strerror(errno));
+        g_test_message("mkdtemp on path (%s): %s\n", template, strerror(errno));
     }
     g_assert(tmpfs);
 
@@ -339,25 +387,17 @@ int main(int argc, char **argv)
         root = tmpfs;
     }
 
-    socket_path = g_strdup_printf("%s/vhost.sock", tmpfs);
-
-    /* create char dev and add read handlers */
-    qemu_add_opts(&qemu_chardev_opts);
-    chr_path = g_strdup_printf("unix:%s,server,nowait", socket_path);
-    chr = qemu_chr_new("chr0", chr_path, NULL);
-    g_free(chr_path);
-    qemu_chr_add_handlers(chr, chr_can_read, chr_read, NULL, chr);
+    server = test_server_new(tmpfs, "test");
 
     /* run the main loop thread so the chardev may operate */
-    g_mutex_init(&data_mutex);
-    g_cond_init(&data_cond);
     g_thread_new(NULL, thread_function, NULL);
 
-    qemu_cmd = g_strdup_printf(QEMU_CMD, root, socket_path);
+    qemu_cmd = GET_QEMU_CMD(server, root);
+
     s = qtest_start(qemu_cmd);
     g_free(qemu_cmd);
 
-    qtest_add_func("/vhost-user/read-guest-mem", read_guest_mem);
+    qtest_add_data_func("/vhost-user/read-guest-mem", server, read_guest_mem);
 
     ret = g_test_run();
 
@@ -366,8 +406,7 @@ int main(int argc, char **argv)
     }
 
     /* cleanup */
-    unlink(socket_path);
-    g_free(socket_path);
+    test_server_free(server);
 
     ret = rmdir(tmpfs);
     if (ret != 0) {
