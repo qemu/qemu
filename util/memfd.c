@@ -97,8 +97,24 @@ void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
             return NULL;
         }
     } else {
-        perror("memfd");
-        return NULL;
+        const char *tmpdir = g_get_tmp_dir();
+        gchar *fname;
+
+        fname = g_strdup_printf("%s/memfd-XXXXXX", tmpdir);
+        mfd = mkstemp(fname);
+        unlink(fname);
+        g_free(fname);
+
+        if (mfd == -1) {
+            perror("mkstemp");
+            return NULL;
+        }
+
+        if (ftruncate(mfd, size) == -1) {
+            perror("ftruncate");
+            close(mfd);
+            return NULL;
+        }
     }
 
     ptr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, mfd, 0);
