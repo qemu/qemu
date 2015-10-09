@@ -99,37 +99,6 @@ static bool ioeventfd_enabled(void)
     return kvm_enabled() && kvm_eventfds_enabled();
 }
 
-static unsigned long int ioctl_to_vhost_user_request[VHOST_USER_MAX] = {
-    -1,                     /* VHOST_USER_NONE */
-    VHOST_GET_FEATURES,     /* VHOST_USER_GET_FEATURES */
-    VHOST_SET_FEATURES,     /* VHOST_USER_SET_FEATURES */
-    VHOST_SET_OWNER,        /* VHOST_USER_SET_OWNER */
-    VHOST_RESET_DEVICE,      /* VHOST_USER_RESET_DEVICE */
-    VHOST_SET_MEM_TABLE,    /* VHOST_USER_SET_MEM_TABLE */
-    VHOST_SET_LOG_BASE,     /* VHOST_USER_SET_LOG_BASE */
-    VHOST_SET_LOG_FD,       /* VHOST_USER_SET_LOG_FD */
-    VHOST_SET_VRING_NUM,    /* VHOST_USER_SET_VRING_NUM */
-    VHOST_SET_VRING_ADDR,   /* VHOST_USER_SET_VRING_ADDR */
-    VHOST_SET_VRING_BASE,   /* VHOST_USER_SET_VRING_BASE */
-    VHOST_GET_VRING_BASE,   /* VHOST_USER_GET_VRING_BASE */
-    VHOST_SET_VRING_KICK,   /* VHOST_USER_SET_VRING_KICK */
-    VHOST_SET_VRING_CALL,   /* VHOST_USER_SET_VRING_CALL */
-    VHOST_SET_VRING_ERR     /* VHOST_USER_SET_VRING_ERR */
-};
-
-static VhostUserRequest vhost_user_request_translate(unsigned long int request)
-{
-    VhostUserRequest idx;
-
-    for (idx = 0; idx < VHOST_USER_MAX; idx++) {
-        if (ioctl_to_vhost_user_request[idx] == request) {
-            break;
-        }
-    }
-
-    return (idx == VHOST_USER_MAX) ? VHOST_USER_NONE : idx;
-}
-
 static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     CharDriverState *chr = dev->opaque;
@@ -176,20 +145,6 @@ fail:
     return -1;
 }
 
-static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
-                            int *fds, int fd_num)
-{
-    CharDriverState *chr = dev->opaque;
-    int size = VHOST_USER_HDR_SIZE + msg->size;
-
-    if (fd_num) {
-        qemu_chr_fe_set_msgfds(chr, fds, fd_num);
-    }
-
-    return qemu_chr_fe_write_all(chr, (const uint8_t *) msg, size) == size ?
-            0 : -1;
-}
-
 static bool vhost_user_one_time_request(VhostUserRequest request)
 {
     switch (request) {
@@ -203,173 +158,32 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
     }
 }
 
-static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
-        void *arg)
+/* most non-init callers ignore the error */
+static int vhost_user_write(struct vhost_dev *dev, VhostUserMsg *msg,
+                            int *fds, int fd_num)
 {
-    VhostUserMsg msg;
-    VhostUserRequest msg_request;
-    struct vhost_vring_file *file = 0;
-    int need_reply = 0;
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
-    int i, fd;
-    size_t fd_num = 0;
-
-    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
-
-    /* only translate vhost ioctl requests */
-    if (request > VHOST_USER_MAX) {
-        msg_request = vhost_user_request_translate(request);
-    } else {
-        msg_request = request;
-    }
+    CharDriverState *chr = dev->opaque;
+    int size = VHOST_USER_HDR_SIZE + msg->size;
 
     /*
      * For non-vring specific requests, like VHOST_USER_SET_MEM_TABLE,
      * we just need send it once in the first time. For later such
      * request, we just ignore it.
      */
-    if (vhost_user_one_time_request(msg_request) && dev->vq_index != 0) {
+    if (vhost_user_one_time_request(msg->request) && dev->vq_index != 0) {
         return 0;
     }
 
-    msg.request = msg_request;
-    msg.flags = VHOST_USER_VERSION;
-    msg.size = 0;
-
-    switch (msg_request) {
-    case VHOST_USER_GET_FEATURES:
-    case VHOST_USER_GET_PROTOCOL_FEATURES:
-    case VHOST_USER_GET_QUEUE_NUM:
-        need_reply = 1;
-        break;
-
-    case VHOST_USER_SET_FEATURES:
-    case VHOST_USER_SET_PROTOCOL_FEATURES:
-        msg.u64 = *((__u64 *) arg);
-        msg.size = sizeof(m.u64);
-        break;
-
-    case VHOST_USER_SET_OWNER:
-    case VHOST_USER_RESET_DEVICE:
-        break;
-
-    case VHOST_USER_SET_MEM_TABLE:
-        for (i = 0; i < dev->mem->nregions; ++i) {
-            struct vhost_memory_region *reg = dev->mem->regions + i;
-            ram_addr_t ram_addr;
-
-            assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
-            qemu_ram_addr_from_host((void *)(uintptr_t)reg->userspace_addr, &ram_addr);
-            fd = qemu_get_ram_fd(ram_addr);
-            if (fd > 0) {
-                msg.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
-                msg.memory.regions[fd_num].memory_size  = reg->memory_size;
-                msg.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
-                msg.memory.regions[fd_num].mmap_offset = reg->userspace_addr -
-                    (uintptr_t) qemu_get_ram_block_host_ptr(ram_addr);
-                assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
-                fds[fd_num++] = fd;
-            }
-        }
-
-        msg.memory.nregions = fd_num;
-
-        if (!fd_num) {
-            error_report("Failed initializing vhost-user memory map, "
-                    "consider using -object memory-backend-file share=on");
-            return -1;
-        }
-
-        msg.size = sizeof(m.memory.nregions);
-        msg.size += sizeof(m.memory.padding);
-        msg.size += fd_num * sizeof(VhostUserMemoryRegion);
-
-        break;
-
-    case VHOST_USER_SET_LOG_FD:
-        fds[fd_num++] = *((int *) arg);
-        break;
-
-    case VHOST_USER_SET_VRING_NUM:
-    case VHOST_USER_SET_VRING_BASE:
-    case VHOST_USER_SET_VRING_ENABLE:
-        memcpy(&msg.state, arg, sizeof(struct vhost_vring_state));
-        msg.size = sizeof(m.state);
-        break;
-
-    case VHOST_USER_GET_VRING_BASE:
-        memcpy(&msg.state, arg, sizeof(struct vhost_vring_state));
-        msg.size = sizeof(m.state);
-        need_reply = 1;
-        break;
-
-    case VHOST_USER_SET_VRING_ADDR:
-        memcpy(&msg.addr, arg, sizeof(struct vhost_vring_addr));
-        msg.size = sizeof(m.addr);
-        break;
-
-    case VHOST_USER_SET_VRING_KICK:
-    case VHOST_USER_SET_VRING_CALL:
-    case VHOST_USER_SET_VRING_ERR:
-        file = arg;
-        msg.u64 = file->index & VHOST_USER_VRING_IDX_MASK;
-        msg.size = sizeof(m.u64);
-        if (ioeventfd_enabled() && file->fd > 0) {
-            fds[fd_num++] = file->fd;
-        } else {
-            msg.u64 |= VHOST_USER_VRING_NOFD_MASK;
-        }
-        break;
-    default:
-        error_report("vhost-user trying to send unhandled ioctl");
-        return -1;
-        break;
+    if (fd_num) {
+        qemu_chr_fe_set_msgfds(chr, fds, fd_num);
     }
 
-    if (vhost_user_write(dev, &msg, fds, fd_num) < 0) {
-        return 0;
-    }
-
-    if (need_reply) {
-        if (vhost_user_read(dev, &msg) < 0) {
-            return 0;
-        }
-
-        if (msg_request != msg.request) {
-            error_report("Received unexpected msg type."
-                    " Expected %d received %d", msg_request, msg.request);
-            return -1;
-        }
-
-        switch (msg_request) {
-        case VHOST_USER_GET_FEATURES:
-        case VHOST_USER_GET_PROTOCOL_FEATURES:
-        case VHOST_USER_GET_QUEUE_NUM:
-            if (msg.size != sizeof(m.u64)) {
-                error_report("Received bad msg size.");
-                return -1;
-            }
-            *((__u64 *) arg) = msg.u64;
-            break;
-        case VHOST_USER_GET_VRING_BASE:
-            if (msg.size != sizeof(m.state)) {
-                error_report("Received bad msg size.");
-                return -1;
-            }
-            memcpy(arg, &msg.state, sizeof(struct vhost_vring_state));
-            break;
-        default:
-            error_report("Received unexpected msg type.");
-            return -1;
-            break;
-        }
-    }
-
-    return 0;
+    return qemu_chr_fe_write_all(chr, (const uint8_t *) msg, size) == size ?
+            0 : -1;
 }
 
-static int vhost_set_log_base(struct vhost_dev *dev, uint64_t base,
-                              struct vhost_log *log)
+static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
+                                   struct vhost_log *log)
 {
     int fds[VHOST_MEMORY_MAX_NREGIONS];
     size_t fd_num = 0;
@@ -405,16 +219,284 @@ static int vhost_set_log_base(struct vhost_dev *dev, uint64_t base,
     return 0;
 }
 
+static int vhost_user_set_mem_table(struct vhost_dev *dev,
+                                    struct vhost_memory *mem)
+{
+    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int i, fd;
+    size_t fd_num = 0;
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_MEM_TABLE,
+        .flags = VHOST_USER_VERSION,
+    };
+
+    for (i = 0; i < dev->mem->nregions; ++i) {
+        struct vhost_memory_region *reg = dev->mem->regions + i;
+        ram_addr_t ram_addr;
+
+        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+        qemu_ram_addr_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                &ram_addr);
+        fd = qemu_get_ram_fd(ram_addr);
+        if (fd > 0) {
+            msg.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
+            msg.memory.regions[fd_num].memory_size  = reg->memory_size;
+            msg.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
+            msg.memory.regions[fd_num].mmap_offset = reg->userspace_addr -
+                (uintptr_t) qemu_get_ram_block_host_ptr(ram_addr);
+            assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
+            fds[fd_num++] = fd;
+        }
+    }
+
+    msg.memory.nregions = fd_num;
+
+    if (!fd_num) {
+        error_report("Failed initializing vhost-user memory map, "
+                     "consider using -object memory-backend-file share=on");
+        return -1;
+    }
+
+    msg.size = sizeof(m.memory.nregions);
+    msg.size += sizeof(m.memory.padding);
+    msg.size += fd_num * sizeof(VhostUserMemoryRegion);
+
+    vhost_user_write(dev, &msg, fds, fd_num);
+
+    return 0;
+}
+
+static int vhost_user_set_vring_addr(struct vhost_dev *dev,
+                                     struct vhost_vring_addr *addr)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_VRING_ADDR,
+        .flags = VHOST_USER_VERSION,
+        .addr = *addr,
+        .size = sizeof(*addr),
+    };
+
+    vhost_user_write(dev, &msg, NULL, 0);
+
+    return 0;
+}
+
+static int vhost_user_set_vring_endian(struct vhost_dev *dev,
+                                       struct vhost_vring_state *ring)
+{
+    error_report("vhost-user trying to send unhandled ioctl");
+    return -1;
+}
+
+static int vhost_set_vring(struct vhost_dev *dev,
+                           unsigned long int request,
+                           struct vhost_vring_state *ring)
+{
+    VhostUserMsg msg = {
+        .request = request,
+        .flags = VHOST_USER_VERSION,
+        .state = *ring,
+        .size = sizeof(*ring),
+    };
+
+    vhost_user_write(dev, &msg, NULL, 0);
+
+    return 0;
+}
+
+static int vhost_user_set_vring_num(struct vhost_dev *dev,
+                                    struct vhost_vring_state *ring)
+{
+    return vhost_set_vring(dev, VHOST_USER_SET_VRING_NUM, ring);
+}
+
+static int vhost_user_set_vring_base(struct vhost_dev *dev,
+                                     struct vhost_vring_state *ring)
+{
+    return vhost_set_vring(dev, VHOST_USER_SET_VRING_BASE, ring);
+}
+
+static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
+{
+    struct vhost_vring_state state = {
+        .index = dev->vq_index,
+        .num   = enable,
+    };
+
+    if (!(dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MQ))) {
+        return -1;
+    }
+
+    return vhost_set_vring(dev, VHOST_USER_SET_VRING_ENABLE, &state);
+}
+
+
+static int vhost_user_get_vring_base(struct vhost_dev *dev,
+                                     struct vhost_vring_state *ring)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_GET_VRING_BASE,
+        .flags = VHOST_USER_VERSION,
+        .state = *ring,
+        .size = sizeof(*ring),
+    };
+
+    vhost_user_write(dev, &msg, NULL, 0);
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        return 0;
+    }
+
+    if (msg.request != VHOST_USER_GET_VRING_BASE) {
+        error_report("Received unexpected msg type. Expected %d received %d",
+                     VHOST_USER_GET_VRING_BASE, msg.request);
+        return -1;
+    }
+
+    if (msg.size != sizeof(m.state)) {
+        error_report("Received bad msg size.");
+        return -1;
+    }
+
+    *ring = msg.state;
+
+    return 0;
+}
+
+static int vhost_set_vring_file(struct vhost_dev *dev,
+                                VhostUserRequest request,
+                                struct vhost_vring_file *file)
+{
+    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    size_t fd_num = 0;
+    VhostUserMsg msg = {
+        .request = request,
+        .flags = VHOST_USER_VERSION,
+        .u64 = file->index & VHOST_USER_VRING_IDX_MASK,
+        .size = sizeof(m.u64),
+    };
+
+    if (ioeventfd_enabled() && file->fd > 0) {
+        fds[fd_num++] = file->fd;
+    } else {
+        msg.u64 |= VHOST_USER_VRING_NOFD_MASK;
+    }
+
+    vhost_user_write(dev, &msg, fds, fd_num);
+
+    return 0;
+}
+
+static int vhost_user_set_vring_kick(struct vhost_dev *dev,
+                                     struct vhost_vring_file *file)
+{
+    return vhost_set_vring_file(dev, VHOST_USER_SET_VRING_KICK, file);
+}
+
+static int vhost_user_set_vring_call(struct vhost_dev *dev,
+                                     struct vhost_vring_file *file)
+{
+    return vhost_set_vring_file(dev, VHOST_USER_SET_VRING_CALL, file);
+}
+
+static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64)
+{
+    VhostUserMsg msg = {
+        .request = request,
+        .flags = VHOST_USER_VERSION,
+        .u64 = u64,
+        .size = sizeof(m.u64),
+    };
+
+    vhost_user_write(dev, &msg, NULL, 0);
+
+    return 0;
+}
+
+static int vhost_user_set_features(struct vhost_dev *dev,
+                                   uint64_t features)
+{
+    return vhost_user_set_u64(dev, VHOST_USER_SET_FEATURES, features);
+}
+
+static int vhost_user_set_protocol_features(struct vhost_dev *dev,
+                                            uint64_t features)
+{
+    return vhost_user_set_u64(dev, VHOST_USER_SET_PROTOCOL_FEATURES, features);
+}
+
+static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
+{
+    VhostUserMsg msg = {
+        .request = request,
+        .flags = VHOST_USER_VERSION,
+    };
+
+    if (vhost_user_one_time_request(request) && dev->vq_index != 0) {
+        return 0;
+    }
+
+    vhost_user_write(dev, &msg, NULL, 0);
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        return 0;
+    }
+
+    if (msg.request != request) {
+        error_report("Received unexpected msg type. Expected %d received %d",
+                     request, msg.request);
+        return -1;
+    }
+
+    if (msg.size != sizeof(m.u64)) {
+        error_report("Received bad msg size.");
+        return -1;
+    }
+
+    *u64 = msg.u64;
+
+    return 0;
+}
+
+static int vhost_user_get_features(struct vhost_dev *dev, uint64_t *features)
+{
+    return vhost_user_get_u64(dev, VHOST_USER_GET_FEATURES, features);
+}
+
+static int vhost_user_set_owner(struct vhost_dev *dev)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_OWNER,
+        .flags = VHOST_USER_VERSION,
+    };
+
+    vhost_user_write(dev, &msg, NULL, 0);
+
+    return 0;
+}
+
+static int vhost_user_reset_device(struct vhost_dev *dev)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_RESET_DEVICE,
+        .flags = VHOST_USER_VERSION,
+    };
+
+    vhost_user_write(dev, &msg, NULL, 0);
+
+    return 0;
+}
+
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
-    unsigned long long features;
+    uint64_t features;
     int err;
 
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     dev->opaque = opaque;
 
-    err = vhost_user_call(dev, VHOST_USER_GET_FEATURES, &features);
+    err = vhost_user_get_features(dev, &features);
     if (err < 0) {
         return err;
     }
@@ -422,21 +504,22 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     if (virtio_has_feature(features, VHOST_USER_F_PROTOCOL_FEATURES)) {
         dev->backend_features |= 1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
 
-        err = vhost_user_call(dev, VHOST_USER_GET_PROTOCOL_FEATURES, &features);
+        err = vhost_user_get_u64(dev, VHOST_USER_GET_PROTOCOL_FEATURES,
+                                 &features);
         if (err < 0) {
             return err;
         }
 
         dev->protocol_features = features & VHOST_USER_PROTOCOL_FEATURE_MASK;
-        err = vhost_user_call(dev, VHOST_USER_SET_PROTOCOL_FEATURES,
-                              &dev->protocol_features);
+        err = vhost_user_set_protocol_features(dev, dev->protocol_features);
         if (err < 0) {
             return err;
         }
 
         /* query the max queues we support if backend supports Multiple Queue */
         if (dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MQ)) {
-            err = vhost_user_call(dev, VHOST_USER_GET_QUEUE_NUM, &dev->max_queues);
+            err = vhost_user_get_u64(dev, VHOST_USER_GET_QUEUE_NUM,
+                                     &dev->max_queues);
             if (err < 0) {
                 return err;
             }
@@ -452,22 +535,6 @@ static int vhost_user_init(struct vhost_dev *dev, void *opaque)
     }
 
     return 0;
-}
-
-static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
-{
-    struct vhost_vring_state state = {
-        .index = dev->vq_index,
-        .num   = enable,
-    };
-
-    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
-
-    if (!(dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MQ))) {
-        return -1;
-    }
-
-    return vhost_user_call(dev, VHOST_USER_SET_VRING_ENABLE, &state);
 }
 
 static int vhost_user_cleanup(struct vhost_dev *dev)
@@ -501,12 +568,23 @@ static bool vhost_user_requires_shm_log(struct vhost_dev *dev)
 
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
-        .vhost_call = vhost_user_call,
         .vhost_backend_init = vhost_user_init,
         .vhost_backend_cleanup = vhost_user_cleanup,
-        .vhost_backend_get_vq_index = vhost_user_get_vq_index,
-        .vhost_backend_set_vring_enable = vhost_user_set_vring_enable,
         .vhost_backend_memslots_limit = vhost_user_memslots_limit,
-        .vhost_set_log_base = vhost_set_log_base,
+        .vhost_set_log_base = vhost_user_set_log_base,
+        .vhost_set_mem_table = vhost_user_set_mem_table,
+        .vhost_set_vring_addr = vhost_user_set_vring_addr,
+        .vhost_set_vring_endian = vhost_user_set_vring_endian,
+        .vhost_set_vring_num = vhost_user_set_vring_num,
+        .vhost_set_vring_base = vhost_user_set_vring_base,
+        .vhost_get_vring_base = vhost_user_get_vring_base,
+        .vhost_set_vring_kick = vhost_user_set_vring_kick,
+        .vhost_set_vring_call = vhost_user_set_vring_call,
+        .vhost_set_features = vhost_user_set_features,
+        .vhost_get_features = vhost_user_get_features,
+        .vhost_set_owner = vhost_user_set_owner,
+        .vhost_reset_device = vhost_user_reset_device,
+        .vhost_get_vq_index = vhost_user_get_vq_index,
+        .vhost_set_vring_enable = vhost_user_set_vring_enable,
         .vhost_requires_shm_log = vhost_user_requires_shm_log,
 };

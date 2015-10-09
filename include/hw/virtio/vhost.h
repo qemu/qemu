@@ -45,14 +45,14 @@ struct vhost_dev {
     int nvqs;
     /* the first virtqueue which would be used by this vhost dev */
     int vq_index;
-    unsigned long long features;
-    unsigned long long acked_features;
-    unsigned long long backend_features;
-    unsigned long long protocol_features;
-    unsigned long long max_queues;
+    uint64_t features;
+    uint64_t acked_features;
+    uint64_t backend_features;
+    uint64_t protocol_features;
+    uint64_t max_queues;
     bool started;
     bool log_enabled;
-    unsigned long long log_size;
+    uint64_t log_size;
     Error *migration_blocker;
     bool memory_changed;
     hwaddr mem_changed_start_addr;
