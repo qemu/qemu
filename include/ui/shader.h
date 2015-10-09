@@ -3,7 +3,9 @@
 
 #include <epoxy/gl.h>
 
-void qemu_gl_run_texture_blit(GLint texture_blit_prog);
+GLuint qemu_gl_init_texture_blit(GLint texture_blit_prog);
+void qemu_gl_run_texture_blit(GLint texture_blit_prog,
+                              GLint texture_blit_vao);
 
 GLuint qemu_gl_create_compile_shader(GLenum type, const GLchar *src);
 GLuint qemu_gl_create_link_program(GLuint vert, GLuint frag);

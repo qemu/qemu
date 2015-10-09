@@ -367,6 +367,12 @@ static void gd_update_full_redraw(VirtualConsole *vc)
     GtkWidget *area = vc->gfx.drawing_area;
     int ww, wh;
     gdk_drawable_get_size(gtk_widget_get_window(area), &ww, &wh);
+#if defined(CONFIG_GTK_GL)
+    if (vc->gfx.gls) {
+        gtk_gl_area_queue_render(GTK_GL_AREA(vc->gfx.drawing_area));
+        return;
+    }
+#endif
     gtk_widget_queue_draw_area(area, 0, 0, ww, wh);
 }
 
@@ -607,6 +613,27 @@ static const DisplayChangeListenerOps dcl_ops = {
 
 /** DisplayState Callbacks (opengl version) **/
 
+#if defined(CONFIG_GTK_GL)
+
+static const DisplayChangeListenerOps dcl_gl_area_ops = {
+    .dpy_name             = "gtk-egl",
+    .dpy_gfx_update       = gd_gl_area_update,
+    .dpy_gfx_switch       = gd_gl_area_switch,
+    .dpy_gfx_check_format = console_gl_check_format,
+    .dpy_refresh          = gd_gl_area_refresh,
+    .dpy_mouse_set        = gd_mouse_set,
+    .dpy_cursor_define    = gd_cursor_define,
+
+    .dpy_gl_ctx_create       = gd_gl_area_create_context,
+    .dpy_gl_ctx_destroy      = gd_gl_area_destroy_context,
+    .dpy_gl_ctx_make_current = gd_gl_area_make_current,
+    .dpy_gl_ctx_get_current  = gd_gl_area_get_current_context,
+    .dpy_gl_scanout          = gd_gl_area_scanout,
+    .dpy_gl_update           = gd_gl_area_scanout_flush,
+};
+
+#else
+
 static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_name             = "gtk-egl",
     .dpy_gfx_update       = gd_egl_update,
@@ -615,9 +642,17 @@ static const DisplayChangeListenerOps dcl_egl_ops = {
     .dpy_refresh          = gd_egl_refresh,
     .dpy_mouse_set        = gd_mouse_set,
     .dpy_cursor_define    = gd_cursor_define,
+
+    .dpy_gl_ctx_create       = gd_egl_create_context,
+    .dpy_gl_ctx_destroy      = qemu_egl_destroy_context,
+    .dpy_gl_ctx_make_current = gd_egl_make_current,
+    .dpy_gl_ctx_get_current  = qemu_egl_get_current_context,
+    .dpy_gl_scanout          = gd_egl_scanout,
+    .dpy_gl_update           = gd_egl_scanout_flush,
 };
 
-#endif
+#endif /* CONFIG_GTK_GL */
+#endif /* CONFIG_OPENGL */
 
 /** QEMU Events **/
 
@@ -667,6 +702,39 @@ static gboolean gd_window_close(GtkWidget *widget, GdkEvent *event,
     return TRUE;
 }
 
+static void gd_set_ui_info(VirtualConsole *vc, gint width, gint height)
+{
+    QemuUIInfo info;
+
+    memset(&info, 0, sizeof(info));
+    info.width = width;
+    info.height = height;
+    dpy_set_ui_info(vc->gfx.dcl.con, &info);
+}
+
+#if defined(CONFIG_GTK_GL)
+
+static gboolean gd_render_event(GtkGLArea *area, GdkGLContext *context,
+                                void *opaque)
+{
+    VirtualConsole *vc = opaque;
+
+    if (vc->gfx.gls) {
+        gd_gl_area_draw(vc);
+    }
+    return TRUE;
+}
+
+static void gd_resize_event(GtkGLArea *area,
+                            gint width, gint height, gpointer *opaque)
+{
+    VirtualConsole *vc = (void *)opaque;
+
+    gd_set_ui_info(vc, width, height);
+}
+
+#endif
+
 static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
 {
     VirtualConsole *vc = opaque;
@@ -677,8 +745,13 @@ static gboolean gd_draw_event(GtkWidget *widget, cairo_t *cr, void *opaque)
 
 #if defined(CONFIG_OPENGL)
     if (vc->gfx.gls) {
+#if defined(CONFIG_GTK_GL)
+        /* invoke render callback please */
+        return FALSE;
+#else
         gd_egl_draw(vc);
         return TRUE;
+#endif
     }
 #endif
 
@@ -1466,12 +1539,8 @@ static gboolean gd_configure(GtkWidget *widget,
                              GdkEventConfigure *cfg, gpointer opaque)
 {
     VirtualConsole *vc = opaque;
-    QemuUIInfo info;
 
-    memset(&info, 0, sizeof(info));
-    info.width = cfg->width;
-    info.height = cfg->height;
-    dpy_set_ui_info(vc->gfx.dcl.con, &info);
+    gd_set_ui_info(vc, cfg->width, cfg->height);
     return FALSE;
 }
 
@@ -1628,6 +1697,15 @@ static void gd_connect_vc_gfx_signals(VirtualConsole *vc)
 #if GTK_CHECK_VERSION(3, 0, 0)
     g_signal_connect(vc->gfx.drawing_area, "draw",
                      G_CALLBACK(gd_draw_event), vc);
+#if defined(CONFIG_GTK_GL)
+    if (display_opengl) {
+        /* wire up GtkGlArea events */
+        g_signal_connect(vc->gfx.drawing_area, "render",
+                         G_CALLBACK(gd_render_event), vc);
+        g_signal_connect(vc->gfx.drawing_area, "resize",
+                         G_CALLBACK(gd_resize_event), vc);
+    }
+#endif
 #else
     g_signal_connect(vc->gfx.drawing_area, "expose-event",
                      G_CALLBACK(gd_expose_event), vc);
@@ -1736,7 +1814,37 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->gfx.scale_x = 1.0;
     vc->gfx.scale_y = 1.0;
 
-    vc->gfx.drawing_area = gtk_drawing_area_new();
+#if defined(CONFIG_OPENGL)
+    if (display_opengl) {
+#if defined(CONFIG_GTK_GL)
+        vc->gfx.drawing_area = gtk_gl_area_new();
+        vc->gfx.dcl.ops = &dcl_gl_area_ops;
+#else
+        vc->gfx.drawing_area = gtk_drawing_area_new();
+        /*
+         * gtk_widget_set_double_buffered() was deprecated in 3.14.
+         * It is required for opengl rendering on X11 though.  A
+         * proper replacement (native opengl support) is only
+         * available in 3.16+.  Silence the warning if possible.
+         */
+#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
+        gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
+#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
+#pragma GCC diagnostic pop
+#endif
+        vc->gfx.dcl.ops = &dcl_egl_ops;
+#endif /* CONFIG_GTK_GL */
+    } else
+#endif
+    {
+        vc->gfx.drawing_area = gtk_drawing_area_new();
+        vc->gfx.dcl.ops = &dcl_ops;
+    }
+
+
     gtk_widget_add_events(vc->gfx.drawing_area,
                           GDK_POINTER_MOTION_MASK |
                           GDK_BUTTON_PRESS_MASK |
@@ -1753,29 +1861,6 @@ static GSList *gd_vc_gfx_init(GtkDisplayState *s, VirtualConsole *vc,
     vc->focus = vc->gfx.drawing_area;
     gtk_notebook_append_page(GTK_NOTEBOOK(s->notebook),
                              vc->tab_item, gtk_label_new(vc->label));
-
-#if defined(CONFIG_OPENGL)
-    if (display_opengl) {
-        /*
-         * gtk_widget_set_double_buffered() was deprecated in 3.14.
-         * It is required for opengl rendering on X11 though.  A
-         * proper replacement (native opengl support) is only
-         * available in 3.16+.  Silence the warning if possible.
-         */
-#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
-        gtk_widget_set_double_buffered(vc->gfx.drawing_area, FALSE);
-#ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
-#pragma GCC diagnostic pop
-#endif
-        vc->gfx.dcl.ops = &dcl_egl_ops;
-    } else
-#endif
-    {
-        vc->gfx.dcl.ops = &dcl_ops;
-    }
 
     vc->gfx.dcl.con = con;
     register_displaychangelistener(&vc->gfx.dcl);
@@ -2059,7 +2144,11 @@ void early_gtk_display_init(int opengl)
         break;
     case 1: /* on */
 #if defined(CONFIG_OPENGL)
+#if defined(CONFIG_GTK_GL)
+        gtk_gl_area_init();
+#else
         gtk_egl_init();
+#endif
 #endif
         break;
     default:

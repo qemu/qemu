@@ -20,6 +20,7 @@
 
 #if defined(CONFIG_OPENGL)
 #include "ui/egl-helpers.h"
+#include "ui/egl-context.h"
 #endif
 
 /* Compatibility define to let us build on both Gtk2 and Gtk3 */
@@ -46,6 +47,11 @@ typedef struct VirtualGfxConsole {
     EGLContext ectx;
     EGLSurface esurface;
     int glupdates;
+    int x, y, w, h;
+    GLuint tex_id;
+    GLuint fbo_id;
+    bool y0_top;
+    bool scanout_mode;
 #endif
 } VirtualGfxConsole;
 
@@ -90,6 +96,39 @@ void gd_egl_update(DisplayChangeListener *dcl,
 void gd_egl_refresh(DisplayChangeListener *dcl);
 void gd_egl_switch(DisplayChangeListener *dcl,
                    DisplaySurface *surface);
+QEMUGLContext gd_egl_create_context(DisplayChangeListener *dcl,
+                                    QEMUGLParams *params);
+void gd_egl_scanout(DisplayChangeListener *dcl,
+                    uint32_t backing_id, bool backing_y_0_top,
+                    uint32_t x, uint32_t y,
+                    uint32_t w, uint32_t h);
+void gd_egl_scanout_flush(DisplayChangeListener *dcl,
+                          uint32_t x, uint32_t y, uint32_t w, uint32_t h);
 void gtk_egl_init(void);
+int gd_egl_make_current(DisplayChangeListener *dcl,
+                        QEMUGLContext ctx);
+
+/* ui/gtk-gl-area.c */
+void gd_gl_area_init(VirtualConsole *vc);
+void gd_gl_area_draw(VirtualConsole *vc);
+void gd_gl_area_update(DisplayChangeListener *dcl,
+                       int x, int y, int w, int h);
+void gd_gl_area_refresh(DisplayChangeListener *dcl);
+void gd_gl_area_switch(DisplayChangeListener *dcl,
+                       DisplaySurface *surface);
+QEMUGLContext gd_gl_area_create_context(DisplayChangeListener *dcl,
+                                        QEMUGLParams *params);
+void gd_gl_area_destroy_context(DisplayChangeListener *dcl,
+                                QEMUGLContext ctx);
+void gd_gl_area_scanout(DisplayChangeListener *dcl,
+                        uint32_t backing_id, bool backing_y_0_top,
+                        uint32_t x, uint32_t y,
+                        uint32_t w, uint32_t h);
+void gd_gl_area_scanout_flush(DisplayChangeListener *dcl,
+                              uint32_t x, uint32_t y, uint32_t w, uint32_t h);
+void gtk_gl_area_init(void);
+QEMUGLContext gd_gl_area_get_current_context(DisplayChangeListener *dcl);
+int gd_gl_area_make_current(DisplayChangeListener *dcl,
+                            QEMUGLContext ctx);
 
 #endif /* UI_GTK_H */

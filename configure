@@ -328,9 +328,11 @@ glusterfs_zerofill="no"
 archipelago="no"
 gtk=""
 gtkabi=""
+gtk_gl="no"
 gnutls=""
 gnutls_hash=""
 vte=""
+virglrenderer=""
 tpm="yes"
 libssh2=""
 vhdx=""
@@ -1121,6 +1123,10 @@ for opt do
   --disable-vte) vte="no"
   ;;
   --enable-vte) vte="yes"
+  ;;
+  --disable-virglrenderer) virglrenderer="no"
+  ;;
+  --enable-virglrenderer) virglrenderer="yes"
   ;;
   --disable-tpm) tpm="no"
   ;;
@@ -3231,6 +3237,9 @@ if test "$opengl" != "no" ; then
     opengl_cflags="$($pkg_config --cflags $opengl_pkgs) $x11_cflags"
     opengl_libs="$($pkg_config --libs $opengl_pkgs) $x11_libs"
     opengl=yes
+    if test "$gtk" = "yes" && $pkg_config --exists "$gtkpackage >= 3.16"; then
+        gtk_gl="yes"
+    fi
   else
     if test "$opengl" = "yes" ; then
       feature_not_found "opengl" "Please install opengl (mesa) devel pkgs: $opengl_pkgs"
@@ -3967,6 +3976,27 @@ EOF
 fi
 
 ##########################################
+# virgl renderer probe
+
+if test "$virglrenderer" != "no" ; then
+  cat > $TMPC << EOF
+#include <virglrenderer.h>
+int main(void) { virgl_renderer_poll(); return 0; }
+EOF
+  virgl_cflags=$($pkg_config --cflags virglrenderer 2>/dev/null)
+  virgl_libs=$($pkg_config --libs virglrenderer 2>/dev/null)
+  if $pkg_config virglrenderer >/dev/null 2>&1 && \
+     compile_prog "$virgl_cflags" "$virgl_libs" ; then
+    virglrenderer="yes"
+  else
+    if test "$virglrenderer" = "yes" ; then
+      feature_not_found "virglrenderer"
+    fi
+    virglrenderer="no"
+  fi
+fi
+
+##########################################
 # check if we have fdatasync
 
 fdatasync=no
@@ -4576,6 +4606,7 @@ fi
 echo "pixman            $pixman"
 echo "SDL support       $sdl"
 echo "GTK support       $gtk"
+echo "GTK GL support    $gtk_gl"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
 echo "GNUTLS gcrypt     $gnutls_gcrypt"
@@ -4583,6 +4614,7 @@ echo "GNUTLS nettle     $gnutls_nettle ${gnutls_nettle+($nettle_version)}"
 echo "libtasn1          $tasn1"
 echo "VTE support       $vte"
 echo "curses support    $curses"
+echo "virgl support     $virglrenderer"
 echo "curl support      $curl"
 echo "mingw32 support   $mingw32"
 echo "Audio drivers     $audio_drv_list"
@@ -4934,6 +4966,9 @@ if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "CONFIG_GTKABI=$gtkabi" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
+  if test "$gtk_gl" = "yes" ; then
+    echo "CONFIG_GTK_GL=y" >> $config_host_mak
+  fi
 fi
 if test "$gnutls" = "yes" ; then
   echo "CONFIG_GNUTLS=y" >> $config_host_mak
@@ -4954,6 +4989,11 @@ fi
 if test "$vte" = "yes" ; then
   echo "CONFIG_VTE=y" >> $config_host_mak
   echo "VTE_CFLAGS=$vte_cflags" >> $config_host_mak
+fi
+if test "$virglrenderer" = "yes" ; then
+  echo "CONFIG_VIRGL=y" >> $config_host_mak
+  echo "VIRGL_CFLAGS=$virgl_cflags" >> $config_host_mak
+  echo "VIRGL_LIBS=$virgl_libs" >> $config_host_mak
 fi
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak

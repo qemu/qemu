@@ -35,6 +35,10 @@ obj-$(CONFIG_VGA) += vga.o
 
 common-obj-$(CONFIG_QXL) += qxl.o qxl-logger.o qxl-render.o
 
-obj-$(CONFIG_VIRTIO) += virtio-gpu.o
+obj-$(CONFIG_VIRTIO) += virtio-gpu.o virtio-gpu-3d.o
 obj-$(CONFIG_VIRTIO_PCI) += virtio-gpu-pci.o
 obj-$(CONFIG_VIRTIO_VGA) += virtio-vga.o
+virtio-gpu.o-cflags := $(VIRGL_CFLAGS)
+virtio-gpu.o-libs += $(VIRGL_LIBS)
+virtio-gpu-3d.o-cflags := $(VIRGL_CFLAGS)
+virtio-gpu-3d.o-libs += $(VIRGL_LIBS)
