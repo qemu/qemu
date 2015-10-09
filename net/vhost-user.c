@@ -15,6 +15,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
+#include "trace.h"
 
 typedef struct VhostUserState {
     NetClientState nc;
@@ -148,18 +149,17 @@ static void net_vhost_user_event(void *opaque, int event)
                                           NET_CLIENT_OPTIONS_KIND_NIC,
                                           MAX_QUEUE_NUM);
     s = DO_UPCAST(VhostUserState, nc, ncs[0]);
+    trace_vhost_user_event(s->chr->label, event);
     switch (event) {
     case CHR_EVENT_OPENED:
         if (vhost_user_start(queues, ncs) < 0) {
             exit(1);
         }
         qmp_set_link(name, true, &err);
-        error_report("chardev \"%s\" went up", s->chr->label);
         break;
     case CHR_EVENT_CLOSED:
         qmp_set_link(name, true, &err);
         vhost_user_stop(queues, ncs);
-        error_report("chardev \"%s\" went down", s->chr->label);
         break;
     }
 
