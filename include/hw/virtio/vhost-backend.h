@@ -28,6 +28,8 @@ typedef int (*vhost_backend_get_vq_index)(struct vhost_dev *dev, int idx);
 typedef int (*vhost_backend_set_vring_enable)(struct vhost_dev *dev, int enable);
 typedef int (*vhost_backend_memslots_limit)(struct vhost_dev *dev);
 
+typedef int (*vhost_set_log_base_op)(struct vhost_dev *dev, uint64_t base);
+
 typedef struct VhostOps {
     VhostBackendType backend_type;
     vhost_call vhost_call;
@@ -36,6 +38,7 @@ typedef struct VhostOps {
     vhost_backend_get_vq_index vhost_backend_get_vq_index;
     vhost_backend_set_vring_enable vhost_backend_set_vring_enable;
     vhost_backend_memslots_limit vhost_backend_memslots_limit;
+    vhost_set_log_base_op vhost_set_log_base;
 } VhostOps;
 
 extern const VhostOps user_ops;

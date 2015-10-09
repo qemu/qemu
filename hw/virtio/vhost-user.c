@@ -242,7 +242,6 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
         break;
 
     case VHOST_USER_SET_FEATURES:
-    case VHOST_USER_SET_LOG_BASE:
     case VHOST_USER_SET_PROTOCOL_FEATURES:
         msg.u64 = *((__u64 *) arg);
         msg.size = sizeof(m.u64);
@@ -367,6 +366,20 @@ static int vhost_user_call(struct vhost_dev *dev, unsigned long int request,
     return 0;
 }
 
+static int vhost_set_log_base(struct vhost_dev *dev, uint64_t base)
+{
+    VhostUserMsg msg = {
+        .request = VHOST_USER_SET_LOG_BASE,
+        .flags = VHOST_USER_VERSION,
+        .u64 = base,
+        .size = sizeof(m.u64),
+    };
+
+    vhost_user_write(dev, &msg, NULL, 0);
+
+    return 0;
+}
+
 static int vhost_user_init(struct vhost_dev *dev, void *opaque)
 {
     unsigned long long features;
@@ -453,4 +466,5 @@ const VhostOps user_ops = {
         .vhost_backend_get_vq_index = vhost_user_get_vq_index,
         .vhost_backend_set_vring_enable = vhost_user_set_vring_enable,
         .vhost_backend_memslots_limit = vhost_user_memslots_limit,
+        .vhost_set_log_base = vhost_set_log_base,
 };

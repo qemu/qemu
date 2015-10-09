@@ -352,7 +352,7 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
 
     /* inform backend of log switching, this must be done before
        releasing the current log, to ensure no logging is lost */
-    r = dev->vhost_ops->vhost_call(dev, VHOST_SET_LOG_BASE, &log_base);
+    r = dev->vhost_ops->vhost_set_log_base(dev, log_base);
     assert(r >= 0);
     vhost_log_put(dev, true);
     dev->log = log;
@@ -1167,8 +1167,8 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         hdev->log_size = vhost_get_log_size(hdev);
         hdev->log = vhost_log_get(hdev->log_size);
         log_base = (uintptr_t)hdev->log->log;
-        r = hdev->vhost_ops->vhost_call(hdev, VHOST_SET_LOG_BASE,
-                                        hdev->log_size ? &log_base : NULL);
+        r = hdev->vhost_ops->vhost_set_log_base(hdev,
+                                                hdev->log_size ? log_base : 0);
         if (r < 0) {
             r = -errno;
             goto fail_log;
