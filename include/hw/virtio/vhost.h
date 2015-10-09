@@ -31,7 +31,8 @@ typedef unsigned long vhost_log_chunk_t;
 struct vhost_log {
     unsigned long long size;
     int refcnt;
-    vhost_log_chunk_t log[0];
+    int fd;
+    vhost_log_chunk_t *log;
 };
 
 struct vhost_memory;

@@ -18,6 +18,7 @@
 #include "qemu/atomic.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
+#include "qemu/memfd.h"
 #include <linux/vhost.h>
 #include "exec/address-spaces.h"
 #include "hw/virtio/virtio-bus.h"
@@ -25,6 +26,7 @@
 #include "migration/migration.h"
 
 static struct vhost_log *vhost_log;
+static struct vhost_log *vhost_log_shm;
 
 static unsigned int used_memslots;
 static QLIST_HEAD(, vhost_dev) vhost_devices =
@@ -302,25 +304,46 @@ static uint64_t vhost_get_log_size(struct vhost_dev *dev)
     }
     return log_size;
 }
-static struct vhost_log *vhost_log_alloc(uint64_t size)
+
+static struct vhost_log *vhost_log_alloc(uint64_t size, bool share)
 {
-    struct vhost_log *log = g_malloc0(sizeof *log + size * sizeof(*(log->log)));
+    struct vhost_log *log;
+    uint64_t logsize = size * sizeof(*(log->log));
+    int fd = -1;
+
+    log = g_new0(struct vhost_log, 1);
+    if (share) {
+        log->log = qemu_memfd_alloc("vhost-log", logsize,
+                                    F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL,
+                                    &fd);
+        memset(log->log, 0, logsize);
+    } else {
+        log->log = g_malloc0(logsize);
+    }
 
     log->size = size;
     log->refcnt = 1;
+    log->fd = fd;
 
     return log;
 }
 
-static struct vhost_log *vhost_log_get(uint64_t size)
+static struct vhost_log *vhost_log_get(uint64_t size, bool share)
 {
-    if (!vhost_log || vhost_log->size != size) {
-        vhost_log = vhost_log_alloc(size);
+    struct vhost_log *log = share ? vhost_log_shm : vhost_log;
+
+    if (!log || log->size != size) {
+        log = vhost_log_alloc(size, share);
+        if (share) {
+            vhost_log_shm = log;
+        } else {
+            vhost_log = log;
+        }
     } else {
-        ++vhost_log->refcnt;
+        ++log->refcnt;
     }
 
-    return vhost_log;
+    return log;
 }
 
 static void vhost_log_put(struct vhost_dev *dev, bool sync)
@@ -337,16 +360,29 @@ static void vhost_log_put(struct vhost_dev *dev, bool sync)
         if (dev->log_size && sync) {
             vhost_log_sync_range(dev, 0, dev->log_size * VHOST_LOG_CHUNK - 1);
         }
+
         if (vhost_log == log) {
+            g_free(log->log);
             vhost_log = NULL;
+        } else if (vhost_log_shm == log) {
+            qemu_memfd_free(log->log, log->size * sizeof(*(log->log)),
+                            log->fd);
+            vhost_log_shm = NULL;
         }
+
         g_free(log);
     }
 }
 
-static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
+static bool vhost_dev_log_is_shared(struct vhost_dev *dev)
 {
-    struct vhost_log *log = vhost_log_get(size);
+    return dev->vhost_ops->vhost_requires_shm_log &&
+           dev->vhost_ops->vhost_requires_shm_log(dev);
+}
+
+static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
+{
+    struct vhost_log *log = vhost_log_get(size, vhost_dev_log_is_shared(dev));
     uint64_t log_base = (uintptr_t)log->log;
     int r;
 
@@ -1165,7 +1201,8 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         uint64_t log_base;
 
         hdev->log_size = vhost_get_log_size(hdev);
-        hdev->log = vhost_log_get(hdev->log_size);
+        hdev->log = vhost_log_get(hdev->log_size,
+                                  vhost_dev_log_is_shared(hdev));
         log_base = (uintptr_t)hdev->log->log;
         r = hdev->vhost_ops->vhost_set_log_base(hdev,
                                                 hdev->log_size ? log_base : 0);
