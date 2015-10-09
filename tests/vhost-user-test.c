@@ -12,6 +12,7 @@
 
 #include "libqtest.h"
 #include "qemu/option.h"
+#include "qemu/range.h"
 #include "sysemu/char.h"
 #include "sysemu/sysemu.h"
 
@@ -47,6 +48,9 @@
 #define VHOST_MEMORY_MAX_NREGIONS    8
 
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
+#define VHOST_USER_PROTOCOL_F_LOG_SHMFD 1
+
+#define VHOST_LOG_PAGE 0x1000
 
 typedef enum VhostUserRequest {
     VHOST_USER_NONE = 0,
@@ -117,6 +121,7 @@ typedef struct TestServer {
     VhostUserMemory memory;
     GMutex data_mutex;
     GCond data_cond;
+    int log_fd;
 } TestServer;
 
 #if !GLIB_CHECK_VERSION(2, 32, 0)
@@ -238,7 +243,8 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         /* send back features to qemu */
         msg.flags |= VHOST_USER_REPLY_MASK;
         msg.size = sizeof(m.u64);
-        msg.u64 = 0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
+        msg.u64 = 0x1ULL << VHOST_F_LOG_ALL |
+            0x1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
         p = (uint8_t *) &msg;
         qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
         break;
@@ -252,7 +258,7 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         /* send back features to qemu */
         msg.flags |= VHOST_USER_REPLY_MASK;
         msg.size = sizeof(m.u64);
-        msg.u64 = 0;
+        msg.u64 = 1 << VHOST_USER_PROTOCOL_F_LOG_SHMFD;
         p = (uint8_t *) &msg;
         qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
         break;
@@ -286,6 +292,21 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
          */
         qemu_set_nonblock(fd);
         break;
+
+    case VHOST_USER_SET_LOG_BASE:
+        if (s->log_fd != -1) {
+            close(s->log_fd);
+            s->log_fd = -1;
+        }
+        qemu_chr_fe_get_msgfds(chr, &s->log_fd, 1);
+        msg.flags |= VHOST_USER_REPLY_MASK;
+        msg.size = 0;
+        p = (uint8_t *) &msg;
+        qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE);
+
+        g_cond_signal(&s->data_cond);
+        break;
+
     default:
         break;
     }
@@ -337,6 +358,8 @@ static TestServer *test_server_new(const gchar *name)
     g_mutex_init(&server->data_mutex);
     g_cond_init(&server->data_cond);
 
+    server->log_fd = -1;
+
     return server;
 }
 
@@ -358,10 +381,153 @@ static void test_server_free(TestServer *server)
         close(server->fds[i]);
     }
 
+    if (server->log_fd != -1) {
+        close(server->log_fd);
+    }
+
     unlink(server->socket_path);
     g_free(server->socket_path);
 
+
+    g_free(server->chr_name);
     g_free(server);
+}
+
+static void wait_for_log_fd(TestServer *s)
+{
+    gint64 end_time;
+
+    g_mutex_lock(&s->data_mutex);
+    end_time = g_get_monotonic_time() + 5 * G_TIME_SPAN_SECOND;
+    while (s->log_fd == -1) {
+        if (!g_cond_wait_until(&s->data_cond, &s->data_mutex, end_time)) {
+            /* timeout has passed */
+            g_assert(s->log_fd != -1);
+            break;
+        }
+    }
+
+    g_mutex_unlock(&s->data_mutex);
+}
+
+static void write_guest_mem(TestServer *s, uint32 seed)
+{
+    uint32_t *guest_mem;
+    int i, j;
+    size_t size;
+
+    wait_for_fds(s);
+
+    /* iterate all regions */
+    for (i = 0; i < s->fds_num; i++) {
+
+        /* We'll write only the region statring at 0x0 */
+        if (s->memory.regions[i].guest_phys_addr != 0x0) {
+            continue;
+        }
+
+        g_assert_cmpint(s->memory.regions[i].memory_size, >, 1024);
+
+        size = s->memory.regions[i].memory_size +
+            s->memory.regions[i].mmap_offset;
+
+        guest_mem = mmap(0, size, PROT_READ | PROT_WRITE,
+                         MAP_SHARED, s->fds[i], 0);
+
+        g_assert(guest_mem != MAP_FAILED);
+        guest_mem += (s->memory.regions[i].mmap_offset / sizeof(*guest_mem));
+
+        for (j = 0; j < 256; j++) {
+            guest_mem[j] = seed + j;
+        }
+
+        munmap(guest_mem, s->memory.regions[i].memory_size);
+        break;
+    }
+}
+
+static guint64 get_log_size(TestServer *s)
+{
+    guint64 log_size = 0;
+    int i;
+
+    for (i = 0; i < s->memory.nregions; ++i) {
+        VhostUserMemoryRegion *reg = &s->memory.regions[i];
+        guint64 last = range_get_last(reg->guest_phys_addr,
+                                       reg->memory_size);
+        log_size = MAX(log_size, last / (8 * VHOST_LOG_PAGE) + 1);
+    }
+
+    return log_size;
+}
+
+static void test_migrate(void)
+{
+    TestServer *s = test_server_new("src");
+    TestServer *dest = test_server_new("dest");
+    const char *uri = "tcp:127.0.0.1:1234";
+    QTestState *global = global_qtest, *from, *to;
+    gchar *cmd;
+    QDict *rsp;
+    guint8 *log;
+    guint64 size;
+
+    cmd = GET_QEMU_CMDE(s, 2, "");
+    from = qtest_start(cmd);
+    g_free(cmd);
+
+    wait_for_fds(s);
+    size = get_log_size(s);
+    g_assert_cmpint(size, ==, (2 * 1024 * 1024) / (VHOST_LOG_PAGE * 8));
+
+    cmd = GET_QEMU_CMDE(dest, 2, " -incoming %s", uri);
+    to = qtest_init(cmd);
+    g_free(cmd);
+
+    /* slow down migration to have time to fiddle with log */
+    /* TODO: qtest could learn to break on some places */
+    rsp = qmp("{ 'execute': 'migrate_set_speed',"
+              "'arguments': { 'value': 10 } }");
+    g_assert(qdict_haskey(rsp, "return"));
+    QDECREF(rsp);
+
+    cmd = g_strdup_printf("{ 'execute': 'migrate',"
+                          "'arguments': { 'uri': '%s' } }",
+                          uri);
+    rsp = qmp(cmd);
+    g_free(cmd);
+    g_assert(qdict_haskey(rsp, "return"));
+    QDECREF(rsp);
+
+    wait_for_log_fd(s);
+
+    log = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, s->log_fd, 0);
+    g_assert(log != MAP_FAILED);
+
+    /* modify first page */
+    write_guest_mem(s, 0x42);
+    log[0] = 1;
+    munmap(log, size);
+
+    /* speed things up */
+    rsp = qmp("{ 'execute': 'migrate_set_speed',"
+              "'arguments': { 'value': 0 } }");
+    g_assert(qdict_haskey(rsp, "return"));
+    QDECREF(rsp);
+
+    qmp_eventwait("STOP");
+
+    global_qtest = to;
+    qmp_eventwait("RESUME");
+
+    read_guest_mem(dest);
+
+    qtest_quit(to);
+    test_server_free(dest);
+    qtest_quit(from);
+    test_server_free(s);
+
+    global_qtest = global;
 }
 
 int main(int argc, char **argv)
@@ -403,6 +569,7 @@ int main(int argc, char **argv)
     g_free(qemu_cmd);
 
     qtest_add_data_func("/vhost-user/read-guest-mem", server, read_guest_mem);
+    qtest_add_func("/vhost-user/migrate", test_migrate);
 
     ret = g_test_run();
 
