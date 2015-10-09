@@ -6,7 +6,7 @@
 { 'include': 'block-core.json' }
 
 ##
-# BiosAtaTranslation:
+# @BiosAtaTranslation:
 #
 # Policy that BIOS should use to interpret cylinder/head/sector
 # addresses.  Note that Bochs BIOS and SeaBIOS will not actually

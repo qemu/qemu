@@ -367,7 +367,7 @@ static OfDpaFlow *of_dpa_flow_alloc(uint64_t cookie)
     OfDpaFlow *flow;
     int64_t now = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) / 1000;
 
-    flow = g_malloc0(sizeof(OfDpaFlow));
+    flow = g_new0(OfDpaFlow, 1);
     if (!flow) {
         return NULL;
     }
@@ -811,7 +811,7 @@ static int of_dpa_group_get_stats(OfDpa *of_dpa, uint32_t id)
 
 static OfDpaGroup *of_dpa_group_alloc(uint32_t id)
 {
-    OfDpaGroup *group = g_malloc0(sizeof(OfDpaGroup));
+    OfDpaGroup *group = g_new0(OfDpaGroup, 1);
 
     if (!group) {
         return NULL;
@@ -2039,15 +2039,14 @@ static int of_dpa_cmd_add_l2_flood(OfDpa *of_dpa, OfDpaGroup *group,
     group->l2_flood.group_count =
         rocker_tlv_get_le16(group_tlvs[ROCKER_TLV_OF_DPA_GROUP_COUNT]);
 
-    tlvs = g_malloc0((group->l2_flood.group_count + 1) *
-                     sizeof(RockerTlv *));
+    tlvs = g_new0(RockerTlv *, group->l2_flood.group_count + 1);
     if (!tlvs) {
         return -ROCKER_ENOMEM;
     }
 
     g_free(group->l2_flood.group_ids);
     group->l2_flood.group_ids =
-        g_malloc0(group->l2_flood.group_count * sizeof(uint32_t));
+        g_new0(uint32_t, group->l2_flood.group_count);
     if (!group->l2_flood.group_ids) {
         err = -ROCKER_ENOMEM;
         goto err_out;

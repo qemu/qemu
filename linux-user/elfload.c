@@ -2853,7 +2853,7 @@ static int fill_note_info(struct elf_note_info *info,
     TaskState *ts = (TaskState *)cpu->opaque;
     int i;
 
-    info->notes = g_malloc0(NUMNOTES * sizeof (struct memelfnote));
+    info->notes = g_new0(struct memelfnote, NUMNOTES);
     if (info->notes == NULL)
         return (-ENOMEM);
     info->prstatus = g_malloc0(sizeof (*info->prstatus));

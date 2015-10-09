@@ -66,7 +66,9 @@ static void imx_update(IMXSerialState *s)
     uint32_t flags;
 
     flags = (s->usr1 & s->ucr1) & (USR1_TRDY|USR1_RRDY);
-    if (!(s->ucr1 & UCR1_TXMPTYEN)) {
+    if (s->ucr1 & UCR1_TXMPTYEN) {
+        flags |= (s->uts1 & UTS1_TXEMPTY);
+    } else {
         flags &= ~USR1_TRDY;
     }
 

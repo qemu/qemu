@@ -22,7 +22,6 @@
  */
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/io.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -590,10 +590,8 @@ static void nvram_writel (void *opaque, hwaddr addr, uint32_t value)
 static uint32_t nvram_readb (void *opaque, hwaddr addr)
 {
     M48t59State *NVRAM = opaque;
-    uint32_t retval;
 
-    retval = m48t59_read(NVRAM, addr);
-    return retval;
+    return m48t59_read(NVRAM, addr);
 }
 
 static uint32_t nvram_readw (void *opaque, hwaddr addr)

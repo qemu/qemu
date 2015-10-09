@@ -985,6 +985,10 @@ static void load_linux(PCMachineState *pcms,
         setup_size = 4;
     }
     setup_size = (setup_size+1)*512;
+    if (setup_size > kernel_size) {
+        fprintf(stderr, "qemu: invalid kernel header\n");
+        exit(1);
+    }
     kernel_size -= setup_size;
 
     setup  = g_malloc(setup_size);

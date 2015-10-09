@@ -218,7 +218,7 @@ FpPort *fp_port_alloc(Rocker *r, char *sw_name,
                       MACAddr *start_mac, unsigned int index,
                       NICPeers *peers)
 {
-    FpPort *port = g_malloc0(sizeof(FpPort));
+    FpPort *port = g_new0(FpPort, 1);
 
     if (!port) {
         return NULL;

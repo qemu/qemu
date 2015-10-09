@@ -1782,8 +1782,7 @@ uint32_t kvmppc_get_tbfreq(void)
 
     ns++;
 
-    retval = atoi(ns);
-    return retval;
+    return atoi(ns);
 }
 
 bool kvmppc_get_host_serial(char **value)

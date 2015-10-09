@@ -275,6 +275,7 @@ L: qemu-devel@nongnu.org
 M: Stefan Weil <sw@weilnetz.de>
 S: Maintained
 F: *win32*
+F: qemu.nsi
 
 ARM Machines
 ------------
