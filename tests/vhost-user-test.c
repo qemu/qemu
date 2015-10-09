@@ -186,7 +186,6 @@ static void read_guest_mem(void)
         munmap(guest_mem, memory.regions[i].memory_size);
     }
 
-    g_assert_cmpint(1, ==, 1);
     g_mutex_unlock(&data_mutex);
 }
 
