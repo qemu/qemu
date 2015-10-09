@@ -21,6 +21,7 @@ typedef enum VhostBackendType {
 } VhostBackendType;
 
 struct vhost_dev;
+struct vhost_log;
 
 typedef int (*vhost_call)(struct vhost_dev *dev, unsigned long int request,
              void *arg);
@@ -30,7 +31,8 @@ typedef int (*vhost_backend_get_vq_index)(struct vhost_dev *dev, int idx);
 typedef int (*vhost_backend_set_vring_enable)(struct vhost_dev *dev, int enable);
 typedef int (*vhost_backend_memslots_limit)(struct vhost_dev *dev);
 
-typedef int (*vhost_set_log_base_op)(struct vhost_dev *dev, uint64_t base);
+typedef int (*vhost_set_log_base_op)(struct vhost_dev *dev, uint64_t base,
+                                     struct vhost_log *log);
 typedef bool (*vhost_requires_shm_log_op)(struct vhost_dev *dev);
 
 typedef struct VhostOps {
