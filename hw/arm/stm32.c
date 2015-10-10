@@ -257,9 +257,9 @@ void stm32_init(
     stm32_create_uart_dev(stm32_container, STM32_UART4, 4, rcc_dev, gpio_dev, afio_dev, 0x40004c00, pic[STM32_UART4_IRQ]);
     stm32_create_uart_dev(stm32_container, STM32_UART5, 5, rcc_dev, gpio_dev, afio_dev, 0x40005000, pic[STM32_UART5_IRQ]);
 
-    qemu_irq tim1_irqs[] = { pic[TIM1_BRK_IRQn], pic[TIM1_UP_IRQn], pic[TIM1_TRG_COM_IRQn],
-                             pic[TIM1_CC_IRQn]};
-    stm32_create_timer_dev(stm32_container, STM32_TIM1, 1, rcc_dev, gpio_dev, afio_dev, 0x40012C00, tim1_irqs, 5);
+    /* Timer 1 has four interrupts but only the TIM1 Update interrupt is implemented. */
+    /*qemu_irq tim1_irqs[] = { pic[TIM1_BRK_IRQn], pic[TIM1_UP_IRQn], pic[TIM1_TRG_COM_IRQn], pic[TIM1_CC_IRQn]};*/
+    stm32_create_timer_dev(stm32_container, STM32_TIM1, 1, rcc_dev, gpio_dev, afio_dev, 0x40012C00, &pic[TIM1_UP_IRQn], 1);
 
     stm32_create_timer_dev(stm32_container, STM32_TIM2, 1, rcc_dev, gpio_dev, afio_dev, 0x40000000, &pic[TIM2_IRQn], 1);
     stm32_create_timer_dev(stm32_container, STM32_TIM3, 1, rcc_dev, gpio_dev, afio_dev, 0x40000400, &pic[TIM3_IRQn], 1);
