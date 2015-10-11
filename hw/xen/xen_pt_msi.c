@@ -610,7 +610,7 @@ error_out:
     return rc;
 }
 
-void xen_pt_msix_delete(XenPCIPassthroughState *s)
+void xen_pt_msix_unmap(XenPCIPassthroughState *s)
 {
     XenPTMSIX *msix = s->msix;
 
@@ -627,6 +627,17 @@ void xen_pt_msix_delete(XenPCIPassthroughState *s)
     }
 
     memory_region_del_subregion(&s->bar[msix->bar_index], &msix->mmio);
+}
+
+void xen_pt_msix_delete(XenPCIPassthroughState *s)
+{
+    XenPTMSIX *msix = s->msix;
+
+    if (!msix) {
+        return;
+    }
+
+    object_unparent(OBJECT(&msix->mmio));
 
     g_free(s->msix);
     s->msix = NULL;

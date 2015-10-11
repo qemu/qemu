@@ -938,10 +938,18 @@ static void xen_pci_passthrough_class_init(ObjectClass *klass, void *data)
     dc->props = xen_pci_passthrough_properties;
 };
 
+static void xen_pci_passthrough_finalize(Object *obj)
+{
+    XenPCIPassthroughState *s = XEN_PT_DEVICE(obj);
+
+    xen_pt_msix_delete(s);
+}
+
 static const TypeInfo xen_pci_passthrough_info = {
     .name = TYPE_XEN_PT_DEVICE,
     .parent = TYPE_PCI_DEVICE,
     .instance_size = sizeof(XenPCIPassthroughState),
+    .instance_finalize = xen_pci_passthrough_finalize,
     .class_init = xen_pci_passthrough_class_init,
 };
 

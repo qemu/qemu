@@ -305,6 +305,7 @@ void xen_pt_msi_disable(XenPCIPassthroughState *s);
 
 int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base);
 void xen_pt_msix_delete(XenPCIPassthroughState *s);
+void xen_pt_msix_unmap(XenPCIPassthroughState *s);
 int xen_pt_msix_update(XenPCIPassthroughState *s);
 int xen_pt_msix_update_remap(XenPCIPassthroughState *s, int bar_index);
 void xen_pt_msix_disable(XenPCIPassthroughState *s);
