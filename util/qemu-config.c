@@ -219,6 +219,14 @@ static QemuOptsList machine_opts = {
             .name = "suppress-vmdesc",
             .type = QEMU_OPT_BOOL,
             .help = "Set on to disable self-describing migration",
+        },{
+            .name = "aes-key-wrap",
+            .type = QEMU_OPT_BOOL,
+            .help = "enable/disable AES key wrapping using the CPACF wrapping key",
+        },{
+            .name = "dea-key-wrap",
+            .type = QEMU_OPT_BOOL,
+            .help = "enable/disable DEA key wrapping using the CPACF wrapping key",
         },
         { /* End of list */ }
     }
