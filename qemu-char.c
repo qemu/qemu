@@ -1196,7 +1196,8 @@ static CharDriverState *qemu_chr_open_stdio(ChardevStdio *opts)
     || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) \
     || defined(__GLIBC__)
 
-#define HAVE_CHARDEV_TTY 1
+#define HAVE_CHARDEV_SERIAL 1
+#define HAVE_CHARDEV_PTY 1
 
 typedef struct {
     GIOChannel *fd;
@@ -1831,6 +1832,8 @@ static CharDriverState *qemu_chr_open_pp_fd(int fd)
 #endif
 
 #else /* _WIN32 */
+
+#define HAVE_CHARDEV_SERIAL 1
 
 typedef struct {
     int max_size;
@@ -4069,10 +4072,10 @@ static CharDriverState *qmp_chardev_open_file(ChardevFile *file, Error **errp)
     return qemu_chr_open_fd(in, out);
 }
 
+#ifdef HAVE_CHARDEV_SERIAL
 static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
                                                 Error **errp)
 {
-#ifdef HAVE_CHARDEV_TTY
     int fd;
 
     fd = qmp_chardev_open_file_source(serial->device, O_RDWR, errp);
@@ -4081,16 +4084,12 @@ static CharDriverState *qmp_chardev_open_serial(ChardevHostdev *serial,
     }
     qemu_set_nonblock(fd);
     return qemu_chr_open_tty_fd(fd);
-#else
-    error_setg(errp, "character device backend type 'serial' not supported");
-    return NULL;
-#endif
 }
 
+#ifdef HAVE_CHARDEV_PARPORT
 static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
                                                   Error **errp)
 {
-#ifdef HAVE_CHARDEV_PARPORT
     int fd;
 
     fd = qmp_chardev_open_file_source(parallel->device, O_RDWR, errp);
@@ -4098,11 +4097,8 @@ static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
         return NULL;
     }
     return qemu_chr_open_pp_fd(fd);
-#else
-    error_setg(errp, "character device backend type 'parallel' not supported");
-    return NULL;
-#endif
 }
+#endif
 
 #endif /* WIN32 */
 
@@ -4227,12 +4223,16 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_FILE:
         chr = qmp_chardev_open_file(backend->file, &local_err);
         break;
+#ifdef HAVE_CHARDEV_SERIAL
     case CHARDEV_BACKEND_KIND_SERIAL:
         chr = qmp_chardev_open_serial(backend->serial, &local_err);
         break;
+#endif
+#ifdef HAVE_CHARDEV_PARPORT
     case CHARDEV_BACKEND_KIND_PARALLEL:
         chr = qmp_chardev_open_parallel(backend->parallel, &local_err);
         break;
+#endif
     case CHARDEV_BACKEND_KIND_PIPE:
         chr = qemu_chr_open_pipe(backend->pipe);
         break;
@@ -4242,7 +4242,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     case CHARDEV_BACKEND_KIND_UDP:
         chr = qmp_chardev_open_udp(backend->udp, &local_err);
         break;
-#ifdef HAVE_CHARDEV_TTY
+#ifdef HAVE_CHARDEV_PTY
     case CHARDEV_BACKEND_KIND_PTY:
         chr = qemu_chr_open_pty(id, ret);
         break;
