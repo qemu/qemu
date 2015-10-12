@@ -495,6 +495,14 @@ typedef struct IsoBcHdr {
     uint8_t id[28];
 } __attribute__((packed)) IsoBcHdr;
 
+/*
+ * Match two CCWs located after PSW and eight filler bytes.
+ * From libmagic and arch/s390/kernel/head.S.
+ */
+const uint8_t linux_s390_magic[] = "\x02\x00\x00\x18\x60\x00\x00\x50\x02\x00"
+                                   "\x00\x68\x60\x00\x00\x50\x40\x40\x40\x40"
+                                   "\x40\x40\x40\x40";
+
 typedef struct IsoBcEntry {
     uint8_t id;
     union {

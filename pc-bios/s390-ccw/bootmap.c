@@ -450,7 +450,16 @@ static void ipl_scsi(void)
 
 static bool is_iso_bc_entry_compatible(IsoBcSection *s)
 {
-    return true;
+    uint8_t *magic_sec = (uint8_t *)(sec + ISO_SECTOR_SIZE);
+
+    if (s->unused || !s->sector_count) {
+        return false;
+    }
+    read_iso_sector(bswap32(s->load_rba), magic_sec,
+                    "Failed to read image sector 0");
+
+    /* Checking bytes 8 - 32 for S390 Linux magic */
+    return !_memcmp(magic_sec + 8, linux_s390_magic, 24);
 }
 
 static void load_iso_bc_entry(IsoBcSection *load)
