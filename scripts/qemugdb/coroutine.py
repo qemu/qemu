@@ -15,6 +15,8 @@
 
 import gdb
 
+VOID_PTR = gdb.lookup_type('void').pointer()
+
 def get_fs_base():
     '''Fetch %fs base value using arch_prctl(ARCH_GET_FS).  This is
        pthread_self().'''
@@ -101,3 +103,17 @@ class CoroutineCommand(gdb.Command):
             return
 
         bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])))
+
+class CoroutineSPFunction(gdb.Function):
+    def __init__(self):
+        gdb.Function.__init__(self, 'qemu_coroutine_sp')
+
+    def invoke(self, addr):
+        return get_jmpbuf_regs(coroutine_to_jmpbuf(addr))['rsp'].cast(VOID_PTR)
+
+class CoroutinePCFunction(gdb.Function):
+    def __init__(self):
+        gdb.Function.__init__(self, 'qemu_coroutine_pc')
+
+    def invoke(self, addr):
+        return get_jmpbuf_regs(coroutine_to_jmpbuf(addr))['rip'].cast(VOID_PTR)
