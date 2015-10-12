@@ -199,14 +199,9 @@ extern int virtio_read_many(ulong sector, void *load_addr, int sec_num);
 
 #define VIRTIO_SECTOR_SIZE 512
 
-static inline ulong virtio_eckd_sector_adjust(ulong sector)
-{
-     return sector * (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
-}
-
 static inline ulong virtio_sector_adjust(ulong sector)
 {
-    return virtio_disk_is_eckd() ? virtio_eckd_sector_adjust(sector) : sector;
+    return sector * (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }
 
 #endif /* VIRTIO_H */
