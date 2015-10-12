@@ -26,6 +26,7 @@
 #define SDHCI_H
 
 #include "qemu-common.h"
+#include "hw/block/block.h"
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "hw/sd.h"
@@ -239,6 +240,7 @@ typedef struct SDHCIState {
     };
     SDState *card;
     MemoryRegion iomem;
+    BlockConf conf;
 
     QEMUTimer *insert_timer;       /* timer for 'changing' sd card. */
     QEMUTimer *transfer_timer;

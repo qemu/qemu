@@ -1259,7 +1259,7 @@ static int aio_worker(void *arg)
         break;
     }
 
-    g_slice_free(RawPosixAIOData, aiocb);
+    g_free(aiocb);
     return ret;
 }
 
@@ -1267,7 +1267,7 @@ static int paio_submit_co(BlockDriverState *bs, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         int type)
 {
-    RawPosixAIOData *acb = g_slice_new(RawPosixAIOData);
+    RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
     ThreadPool *pool;
 
     acb->bs = bs;
@@ -1292,7 +1292,7 @@ static BlockAIOCB *paio_submit(BlockDriverState *bs, int fd,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockCompletionFunc *cb, void *opaque, int type)
 {
-    RawPosixAIOData *acb = g_slice_new(RawPosixAIOData);
+    RawPosixAIOData *acb = g_new(RawPosixAIOData, 1);
     ThreadPool *pool;
 
     acb->bs = bs;
@@ -2237,7 +2237,7 @@ static BlockAIOCB *hdev_aio_ioctl(BlockDriverState *bs,
     if (fd_open(bs) < 0)
         return NULL;
 
-    acb = g_slice_new(RawPosixAIOData);
+    acb = g_new(RawPosixAIOData, 1);
     acb->bs = bs;
     acb->aio_type = QEMU_AIO_IOCTL;
     acb->aio_fildes = s->fd;

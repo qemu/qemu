@@ -492,7 +492,9 @@ SDState *sd_init(BlockBackend *blk, bool is_spi)
     sd->blk = blk;
     sd_reset(sd);
     if (sd->blk) {
-        blk_attach_dev_nofail(sd->blk, sd);
+        /* Attach dev if not already attached.  (This call ignores an
+         * error return code if sd->blk is already attached.) */
+        blk_attach_dev(sd->blk, sd);
         blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
     }
     vmstate_register(NULL, -1, &sd_vmstate, sd);

@@ -30,7 +30,7 @@
 
 VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 {
-    VirtIOBlockReq *req = g_slice_new(VirtIOBlockReq);
+    VirtIOBlockReq *req = g_new(VirtIOBlockReq, 1);
     req->dev = s;
     req->qiov.size = 0;
     req->in_len = 0;
@@ -42,7 +42,7 @@ VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 void virtio_blk_free_request(VirtIOBlockReq *req)
 {
     if (req) {
-        g_slice_free(VirtIOBlockReq, req);
+        g_free(req);
     }
 }
 
@@ -600,6 +600,8 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         return;
     }
 
+    blk_io_plug(s->blk);
+
     while ((req = virtio_blk_get_request(s))) {
         virtio_blk_handle_request(req, &mrb);
     }
@@ -607,6 +609,8 @@ static void virtio_blk_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     if (mrb.num_reqs) {
         virtio_blk_submit_multireq(s->blk, &mrb);
     }
+
+    blk_io_unplug(s->blk);
 }
 
 static void virtio_blk_dma_restart_bh(void *opaque)
