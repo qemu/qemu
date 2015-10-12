@@ -4299,7 +4299,7 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     for (i = backends; i; i = i->next) {
         cd = i->data;
 
-        if (cd->kind == backend->kind && cd->create) {
+        if (cd->kind == backend->kind) {
             chr = cd->create(id, backend, ret, &local_err);
             if (local_err) {
                 error_propagate(errp, local_err);
@@ -4310,81 +4310,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
     }
 
     if (chr == NULL) {
-        switch (backend->kind) {
-        case CHARDEV_BACKEND_KIND_FILE:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_SERIAL:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_PARALLEL:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_PIPE:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_SOCKET:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_UDP:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_PTY:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_NULL:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_MUX:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_MSMOUSE:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_BRAILLE:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_TESTDEV:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_STDIO:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_CONSOLE:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_SPICEVMC:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_SPICEPORT:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_VC:
-            abort();
-            break;
-        case CHARDEV_BACKEND_KIND_RINGBUF:
-        case CHARDEV_BACKEND_KIND_MEMORY:
-            abort();
-            break;
-        default:
-            error_setg(errp, "unknown chardev backend (%d)", backend->kind);
-            goto out_error;
-        }
-
-        /*
-         * Character backend open hasn't been fully converted to the Error
-         * API.  Some opens fail without setting an error.  Set a generic
-         * error then.
-         * TODO full conversion to Error API
-         */
-        if (chr == NULL) {
-            if (local_err) {
-                error_propagate(errp, local_err);
-            } else {
-                error_setg(errp, "Failed to create chardev");
-            }
-            goto out_error;
-        }
+        assert(!i);
+        error_setg(errp, "chardev backend not available");
+        goto out_error;
     }
 
     chr->label = g_strdup(id);
