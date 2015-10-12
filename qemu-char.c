@@ -1753,12 +1753,13 @@ static void pp_close(CharDriverState *chr)
     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
 }
 
-static CharDriverState *qemu_chr_open_pp_fd(int fd)
+static CharDriverState *qemu_chr_open_pp_fd(int fd, Error **errp)
 {
     CharDriverState *chr;
     ParallelCharDriver *drv;
 
     if (ioctl(fd, PPCLAIM) < 0) {
+        error_setg_errno(errp, errno, "not a parallel port");
         close(fd);
         return NULL;
     }
@@ -1818,7 +1819,7 @@ static int pp_ioctl(CharDriverState *chr, int cmd, void *arg)
     return 0;
 }
 
-static CharDriverState *qemu_chr_open_pp_fd(int fd)
+static CharDriverState *qemu_chr_open_pp_fd(int fd, Error **errp)
 {
     CharDriverState *chr;
 
@@ -3481,6 +3482,7 @@ static void qemu_chr_parse_serial(QemuOpts *opts, ChardevBackend *backend,
 }
 #endif
 
+#ifdef HAVE_CHARDEV_PARPORT
 static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
                                     Error **errp)
 {
@@ -3493,6 +3495,7 @@ static void qemu_chr_parse_parallel(QemuOpts *opts, ChardevBackend *backend,
     backend->parallel = g_new0(ChardevHostdev, 1);
     backend->parallel->device = g_strdup(device);
 }
+#endif
 
 static void qemu_chr_parse_pipe(QemuOpts *opts, ChardevBackend *backend,
                                 Error **errp)
@@ -4044,13 +4047,6 @@ static CharDriverState *qmp_chardev_open_serial(const char *id,
     return qemu_chr_open_win_path(serial->device, errp);
 }
 
-static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
-                                                  Error **errp)
-{
-    error_setg(errp, "character device backend type 'parallel' not supported");
-    return NULL;
-}
-
 #else /* WIN32 */
 
 static int qmp_chardev_open_file_source(char *src, int flags,
@@ -4110,16 +4106,19 @@ static CharDriverState *qmp_chardev_open_serial(const char *id,
 #endif
 
 #ifdef HAVE_CHARDEV_PARPORT
-static CharDriverState *qmp_chardev_open_parallel(ChardevHostdev *parallel,
+static CharDriverState *qmp_chardev_open_parallel(const char *id,
+                                                  ChardevBackend *backend,
+                                                  ChardevReturn *ret,
                                                   Error **errp)
 {
+    ChardevHostdev *parallel = backend->parallel;
     int fd;
 
     fd = qmp_chardev_open_file_source(parallel->device, O_RDWR, errp);
     if (fd < 0) {
         return NULL;
     }
-    return qemu_chr_open_pp_fd(fd);
+    return qemu_chr_open_pp_fd(fd, errp);
 }
 #endif
 
@@ -4265,11 +4264,9 @@ ChardevReturn *qmp_chardev_add(const char *id, ChardevBackend *backend,
         case CHARDEV_BACKEND_KIND_SERIAL:
             abort();
             break;
-#ifdef HAVE_CHARDEV_PARPORT
         case CHARDEV_BACKEND_KIND_PARALLEL:
-            chr = qmp_chardev_open_parallel(backend->parallel, &local_err);
+            abort();
             break;
-#endif
         case CHARDEV_BACKEND_KIND_PIPE:
             chr = qemu_chr_open_pipe(backend->pipe);
             break;
@@ -4405,10 +4402,12 @@ static void register_types(void)
     register_char_driver("tty", CHARDEV_BACKEND_KIND_SERIAL,
                          qemu_chr_parse_serial, qmp_chardev_open_serial);
 #endif
+#ifdef HAVE_CHARDEV_PARPORT
     register_char_driver("parallel", CHARDEV_BACKEND_KIND_PARALLEL,
-                         qemu_chr_parse_parallel, NULL);
+                         qemu_chr_parse_parallel, qmp_chardev_open_parallel);
     register_char_driver("parport", CHARDEV_BACKEND_KIND_PARALLEL,
-                         qemu_chr_parse_parallel, NULL);
+                         qemu_chr_parse_parallel, qmp_chardev_open_parallel);
+#endif
     register_char_driver("pty", CHARDEV_BACKEND_KIND_PTY, NULL,
                          NULL);
     register_char_driver("console", CHARDEV_BACKEND_KIND_CONSOLE, NULL,
