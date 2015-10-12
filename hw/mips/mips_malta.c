@@ -901,7 +901,7 @@ static void main_cpu_reset(void *opaque)
 
     if (kvm_enabled()) {
         /* Start running from the bootloader we wrote to end of RAM */
-        env->active_tc.PC = 0x40000000 + loaderparams.ram_size;
+        env->active_tc.PC = 0x40000000 + loaderparams.ram_low_size;
     }
 }
 
