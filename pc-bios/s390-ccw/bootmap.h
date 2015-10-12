@@ -381,6 +381,11 @@ static inline uint64_t bswap64(uint64_t x)
            ((x & 0xff00000000000000ULL) >> 56);
 }
 
+static inline uint32_t iso_733_to_u32(uint64_t x)
+{
+    return (uint32_t)x;
+}
+
 #define ISO_SECTOR_SIZE 2048
 /* El Torito specifies boot image size in 512 byte blocks */
 #define ET_SECTOR_SHIFT 2
@@ -406,6 +411,8 @@ static inline void read_iso_boot_image(uint32_t block_offset, void *load_addr,
 
 const uint8_t el_torito_magic[] = "EL TORITO SPECIFICATION"
                                   "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+#define ISO9660_MAX_DIR_DEPTH 8
 
 typedef struct IsoDirHdr {
     uint8_t dr_len;

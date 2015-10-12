@@ -462,6 +462,87 @@ static bool is_iso_bc_entry_compatible(IsoBcSection *s)
     return !_memcmp(magic_sec + 8, linux_s390_magic, 24);
 }
 
+/* Location of the current sector of the directory */
+static uint32_t sec_loc[ISO9660_MAX_DIR_DEPTH];
+/* Offset in the current sector of the directory */
+static uint32_t sec_offset[ISO9660_MAX_DIR_DEPTH];
+/* Remained directory space in bytes */
+static uint32_t dir_rem[ISO9660_MAX_DIR_DEPTH];
+
+static inline uint32_t iso_get_file_size(uint32_t load_rba)
+{
+    IsoVolDesc *vd = (IsoVolDesc *)sec;
+    IsoDirHdr *cur_record = &vd->vd.primary.rootdir;
+    uint8_t *temp = sec + ISO_SECTOR_SIZE;
+    int level = 0;
+
+    read_iso_sector(ISO_PRIMARY_VD_SECTOR, sec,
+                    "Failed to read ISO primary descriptor");
+    sec_loc[0] = iso_733_to_u32(cur_record->ext_loc);
+    dir_rem[0] = 0;
+    sec_offset[0] = 0;
+
+    while (level >= 0) {
+        IPL_assert(sec_offset[level] <= ISO_SECTOR_SIZE,
+                   "Directory tree structure violation");
+
+        cur_record = (IsoDirHdr *)(temp + sec_offset[level]);
+
+        if (sec_offset[level] == 0) {
+            read_iso_sector(sec_loc[level], temp,
+                            "Failed to read ISO directory");
+            if (dir_rem[level] == 0) {
+                /* Skip self and parent records */
+                dir_rem[level] = iso_733_to_u32(cur_record->data_len) -
+                                 cur_record->dr_len;
+                sec_offset[level] += cur_record->dr_len;
+
+                cur_record = (IsoDirHdr *)(temp + sec_offset[level]);
+                dir_rem[level] -= cur_record->dr_len;
+                sec_offset[level] += cur_record->dr_len;
+                continue;
+            }
+        }
+
+        if (!cur_record->dr_len || sec_offset[level] == ISO_SECTOR_SIZE) {
+            /* Zero-padding and/or the end of current sector */
+            dir_rem[level] -= ISO_SECTOR_SIZE - sec_offset[level];
+            sec_offset[level] = 0;
+            sec_loc[level]++;
+        } else {
+            /* The directory record is valid */
+            if (load_rba == iso_733_to_u32(cur_record->ext_loc)) {
+                return iso_733_to_u32(cur_record->data_len);
+            }
+
+            dir_rem[level] -= cur_record->dr_len;
+            sec_offset[level] += cur_record->dr_len;
+
+            if (cur_record->file_flags & 0x2) {
+                /* Subdirectory */
+                if (level == ISO9660_MAX_DIR_DEPTH - 1) {
+                    sclp_print("ISO-9660 directory depth limit exceeded\n");
+                } else {
+                    level++;
+                    sec_loc[level] = iso_733_to_u32(cur_record->ext_loc);
+                    sec_offset[level] = 0;
+                    dir_rem[level] = 0;
+                    continue;
+                }
+            }
+        }
+
+        if (dir_rem[level] == 0) {
+            /* Nothing remaining */
+            level--;
+            read_iso_sector(sec_loc[level], temp,
+                            "Failed to read ISO directory");
+        }
+    }
+
+    return 0;
+}
+
 static void load_iso_bc_entry(IsoBcSection *load)
 {
     IsoBcSection s = *load;
@@ -470,6 +551,15 @@ static void load_iso_bc_entry(IsoBcSection *load)
      * is padded and ISO_SECTOR_SIZE bytes aligned
      */
     uint32_t blks_to_load = bswap16(s.sector_count) >> ET_SECTOR_SHIFT;
+    uint32_t real_size = iso_get_file_size(bswap32(s.load_rba));
+
+    if (real_size) {
+        /* Round up blocks to load */
+        blks_to_load = (real_size + ISO_SECTOR_SIZE - 1) / ISO_SECTOR_SIZE;
+        sclp_print("ISO boot image size verified\n");
+    } else {
+        sclp_print("ISO boot image size could not be verified\n");
+    }
 
     read_iso_boot_image(bswap32(s.load_rba),
                         (void *)((uint64_t)bswap16(s.load_segment)),
