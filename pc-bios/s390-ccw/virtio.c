@@ -278,6 +278,13 @@ void virtio_assume_scsi(void)
     blk_cfg.physical_block_exp = 0;
 }
 
+void virtio_assume_iso9660(void)
+{
+    guessed_disk_nature = true;
+    blk_cfg.blk_size = 2048;
+    blk_cfg.physical_block_exp = 0;
+}
+
 void virtio_assume_eckd(void)
 {
     guessed_disk_nature = true;

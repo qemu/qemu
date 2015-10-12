@@ -445,6 +445,107 @@ static void ipl_scsi(void)
 }
 
 /***********************************************************************
+ * IPL El Torito ISO9660 image or DVD
+ */
+
+static bool is_iso_bc_entry_compatible(IsoBcSection *s)
+{
+    return true;
+}
+
+static void load_iso_bc_entry(IsoBcSection *load)
+{
+    IsoBcSection s = *load;
+    /*
+     * According to spec, extent for each file
+     * is padded and ISO_SECTOR_SIZE bytes aligned
+     */
+    uint32_t blks_to_load = bswap16(s.sector_count) >> ET_SECTOR_SHIFT;
+
+    read_iso_boot_image(bswap32(s.load_rba),
+                        (void *)((uint64_t)bswap16(s.load_segment)),
+                        blks_to_load);
+
+    /* Trying to get PSW at zero address */
+    if (*((uint64_t *)0) & IPL_PSW_MASK) {
+        jump_to_IPL_code((*((uint64_t *)0)) & 0x7fffffff);
+    }
+
+    /* Try default linux start address */
+    jump_to_IPL_code(KERN_IMAGE_START);
+}
+
+static uint32_t find_iso_bc(void)
+{
+    IsoVolDesc *vd = (IsoVolDesc *)sec;
+    uint32_t block_num = ISO_PRIMARY_VD_SECTOR;
+
+    if (virtio_read_many(block_num++, sec, 1)) {
+        /* If primary vd cannot be read, there is no boot catalog */
+        return 0;
+    }
+
+    while (is_iso_vd_valid(vd) && vd->type != VOL_DESC_TERMINATOR) {
+        if (vd->type == VOL_DESC_TYPE_BOOT) {
+            IsoVdElTorito *et = &vd->vd.boot;
+
+            if (!_memcmp(&et->el_torito[0], el_torito_magic, 32)) {
+                return bswap32(et->bc_offset);
+            }
+        }
+        read_iso_sector(block_num++, sec,
+                        "Failed to read ISO volume descriptor");
+    }
+
+    return 0;
+}
+
+static IsoBcSection *find_iso_bc_entry(void)
+{
+    IsoBcEntry *e = (IsoBcEntry *)sec;
+    uint32_t offset = find_iso_bc();
+    int i;
+
+    if (!offset) {
+        return NULL;
+    }
+
+    read_iso_sector(offset, sec, "Failed to read El Torito boot catalog");
+
+    if (!is_iso_bc_valid(e)) {
+        /* The validation entry is mandatory */
+        virtio_panic("No valid boot catalog found!\n");
+        return NULL;
+    }
+
+    /*
+     * Each entry has 32 bytes size, so one sector cannot contain > 64 entries.
+     * We consider only boot catalogs with no more than 64 entries.
+     */
+    for (i = 1; i < ISO_BC_ENTRY_PER_SECTOR; i++) {
+        if (e[i].id == ISO_BC_BOOTABLE_SECTION) {
+            if (is_iso_bc_entry_compatible(&e[i].body.sect)) {
+                return &e[i].body.sect;
+            }
+        }
+    }
+
+    virtio_panic("No suitable boot entry found on ISO-9660 media!\n");
+
+    return NULL;
+}
+
+static void ipl_iso_el_torito(void)
+{
+    IsoBcSection *s = find_iso_bc_entry();
+
+    if (s) {
+        load_iso_bc_entry(s);
+        /* no return */
+    }
+}
+
+/***********************************************************************
  * IPL starts here
  */
 
@@ -462,6 +563,12 @@ void zipl_load(void)
     if (magic_match(mbr->magic, ZIPL_MAGIC)) {
         ipl_scsi(); /* no return */
     }
+
+    /* Check if we can boot as ISO media */
+    if (virtio_guessed_disk_nature()) {
+        virtio_assume_iso9660();
+    }
+    ipl_iso_el_torito();
 
     /* We have failed to follow the SCSI scheme, so */
     if (virtio_guessed_disk_nature()) {

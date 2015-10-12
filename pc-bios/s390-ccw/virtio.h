@@ -187,6 +187,7 @@ typedef struct VirtioBlkConfig {
 bool virtio_guessed_disk_nature(void);
 void virtio_assume_scsi(void);
 void virtio_assume_eckd(void);
+void virtio_assume_iso9660(void);
 
 extern bool virtio_disk_is_scsi(void);
 extern bool virtio_disk_is_eckd(void);
