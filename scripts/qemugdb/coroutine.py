@@ -16,7 +16,8 @@
 import gdb
 
 def get_fs_base():
-    '''Fetch %fs base value using arch_prctl(ARCH_GET_FS)'''
+    '''Fetch %fs base value using arch_prctl(ARCH_GET_FS).  This is
+       pthread_self().'''
     # %rsp - 120 is scratch space according to the SystemV ABI
     old = gdb.parse_and_eval('*(uint64_t*)($rsp - 120)')
     gdb.execute('call arch_prctl(0x1003, $rsp - 120)', False, True)
@@ -24,9 +25,22 @@ def get_fs_base():
     gdb.execute('set *(uint64_t*)($rsp - 120) = %s' % old, False, True)
     return fs_base
 
+def pthread_self():
+    '''Fetch pthread_self() from the glibc start_thread function.'''
+    f = gdb.newest_frame()
+    while f.name() != 'start_thread':
+        f = f.older()
+        if f is None:
+            return get_fs_base()
+
+    try:
+        return f.read_var("arg")
+    except ValueError:
+        return get_fs_base()
+
 def get_glibc_pointer_guard():
     '''Fetch glibc pointer guard value'''
-    fs_base = get_fs_base()
+    fs_base = pthread_self()
     return gdb.parse_and_eval('*(uint64_t*)((uint64_t)%s + 0x30)' % fs_base)
 
 def glibc_ptr_demangle(val, pointer_guard):
