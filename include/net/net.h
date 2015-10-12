@@ -92,6 +92,7 @@ struct NetClientState {
     NetClientDestructor *destructor;
     unsigned int queue_index;
     unsigned rxfilter_notify_enabled:1;
+    QTAILQ_HEAD(, NetFilterState) filters;
 };
 
 typedef struct NICState {
@@ -151,11 +152,6 @@ void qemu_check_nic_model(NICInfo *nd, const char *model);
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
 
-ssize_t qemu_deliver_packet(NetClientState *sender,
-                            unsigned flags,
-                            const uint8_t *data,
-                            size_t size,
-                            void *opaque);
 ssize_t qemu_deliver_packet_iov(NetClientState *sender,
                             unsigned flags,
                             const struct iovec *iov,

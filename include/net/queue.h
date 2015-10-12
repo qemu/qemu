@@ -34,7 +34,25 @@ typedef void (NetPacketSent) (NetClientState *sender, ssize_t ret);
 #define QEMU_NET_PACKET_FLAG_NONE  0
 #define QEMU_NET_PACKET_FLAG_RAW  (1<<0)
 
-NetQueue *qemu_new_net_queue(void *opaque);
+/* Returns:
+ *   >0 - success
+ *    0 - queue packet for future redelivery
+ *   <0 - failure (discard packet)
+ */
+typedef ssize_t (NetQueueDeliverFunc)(NetClientState *sender,
+                                      unsigned flags,
+                                      const struct iovec *iov,
+                                      int iovcnt,
+                                      void *opaque);
+
+NetQueue *qemu_new_net_queue(NetQueueDeliverFunc *deliver, void *opaque);
+
+void qemu_net_queue_append_iov(NetQueue *queue,
+                               NetClientState *sender,
+                               unsigned flags,
+                               const struct iovec *iov,
+                               int iovcnt,
+                               NetPacketSent *sent_cb);
 
 void qemu_del_net_queue(NetQueue *queue);
 

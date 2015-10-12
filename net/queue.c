@@ -52,13 +52,14 @@ struct NetQueue {
     void *opaque;
     uint32_t nq_maxlen;
     uint32_t nq_count;
+    NetQueueDeliverFunc *deliver;
 
     QTAILQ_HEAD(packets, NetPacket) packets;
 
     unsigned delivering : 1;
 };
 
-NetQueue *qemu_new_net_queue(void *opaque)
+NetQueue *qemu_new_net_queue(NetQueueDeliverFunc *deliver, void *opaque)
 {
     NetQueue *queue;
 
@@ -67,6 +68,7 @@ NetQueue *qemu_new_net_queue(void *opaque)
     queue->opaque = opaque;
     queue->nq_maxlen = 10000;
     queue->nq_count = 0;
+    queue->deliver = deliver;
 
     QTAILQ_INIT(&queue->packets);
 
@@ -110,12 +112,12 @@ static void qemu_net_queue_append(NetQueue *queue,
     QTAILQ_INSERT_TAIL(&queue->packets, packet, entry);
 }
 
-static void qemu_net_queue_append_iov(NetQueue *queue,
-                                      NetClientState *sender,
-                                      unsigned flags,
-                                      const struct iovec *iov,
-                                      int iovcnt,
-                                      NetPacketSent *sent_cb)
+void qemu_net_queue_append_iov(NetQueue *queue,
+                               NetClientState *sender,
+                               unsigned flags,
+                               const struct iovec *iov,
+                               int iovcnt,
+                               NetPacketSent *sent_cb)
 {
     NetPacket *packet;
     size_t max_len = 0;
@@ -152,9 +154,13 @@ static ssize_t qemu_net_queue_deliver(NetQueue *queue,
                                       size_t size)
 {
     ssize_t ret = -1;
+    struct iovec iov = {
+        .iov_base = (void *)data,
+        .iov_len = size
+    };
 
     queue->delivering = 1;
-    ret = qemu_deliver_packet(sender, flags, data, size, queue->opaque);
+    ret = queue->deliver(sender, flags, &iov, 1, queue->opaque);
     queue->delivering = 0;
 
     return ret;
@@ -169,7 +175,7 @@ static ssize_t qemu_net_queue_deliver_iov(NetQueue *queue,
     ssize_t ret = -1;
 
     queue->delivering = 1;
-    ret = qemu_deliver_packet_iov(sender, flags, iov, iovcnt, queue->opaque);
+    ret = queue->deliver(sender, flags, iov, iovcnt, queue->opaque);
     queue->delivering = 0;
 
     return ret;
