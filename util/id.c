@@ -26,3 +26,40 @@ bool id_wellformed(const char *id)
     }
     return true;
 }
+
+#define ID_SPECIAL_CHAR '#'
+
+static const char *const id_subsys_str[] = {
+    [ID_QDEV]  = "qdev",
+    [ID_BLOCK] = "block",
+};
+
+/*
+ *  Generates an ID of the form PREFIX SUBSYSTEM NUMBER
+ *  where:
+ *
+ *  - PREFIX is the reserved character '#'
+ *  - SUBSYSTEM identifies the subsystem creating the ID
+ *  - NUMBER is a decimal number unique within SUBSYSTEM.
+ *
+ *    Example: "#block146"
+ *
+ * Note that these IDs do not satisfy id_wellformed().
+ *
+ * The caller is responsible for freeing the returned string with g_free()
+ */
+char *id_generate(IdSubSystems id)
+{
+    static uint64_t id_counters[ID_MAX];
+    uint32_t rnd;
+
+    assert(id < ID_MAX);
+    assert(id_subsys_str[id]);
+
+    rnd = g_random_int_range(0, 100);
+
+    return g_strdup_printf("%c%s%" PRIu64 "%02" PRId32, ID_SPECIAL_CHAR,
+                                                        id_subsys_str[id],
+                                                        id_counters[id]++,
+                                                        rnd);
+}
