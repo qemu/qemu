@@ -1,6 +1,8 @@
 #include "qemu/osdep.h"
 #include <glob.h>
+#include <dirent.h>
 
+#include "config-host.h"
 #include "ui/egl-helpers.h"
 
 EGLDisplay *qemu_egl_display;
@@ -17,6 +19,133 @@ static int egl_debug;
             fprintf(stderr, "egl: " _x);         \
         }                                        \
     } while (0);
+
+/* ---------------------------------------------------------------------- */
+
+#ifdef CONFIG_OPENGL_DMABUF
+
+int qemu_egl_rn_fd;
+struct gbm_device *qemu_egl_rn_gbm_dev;
+EGLContext qemu_egl_rn_ctx;
+
+int qemu_egl_rendernode_open(void)
+{
+    DIR *dir;
+    struct dirent *e;
+    int r, fd;
+    char *p;
+
+    dir = opendir("/dev/dri");
+    if (!dir) {
+        return -1;
+    }
+
+    fd = -1;
+    while ((e = readdir(dir))) {
+        if (e->d_type != DT_CHR) {
+            continue;
+        }
+
+        if (strncmp(e->d_name, "renderD", 7)) {
+            continue;
+        }
+
+        r = asprintf(&p, "/dev/dri/%s", e->d_name);
+        if (r < 0) {
+            return -1;
+        }
+
+        r = open(p, O_RDWR | O_CLOEXEC | O_NOCTTY | O_NONBLOCK);
+        if (r < 0) {
+            free(p);
+            continue;
+        }
+        fd = r;
+        free(p);
+        break;
+    }
+
+    closedir(dir);
+    if (fd < 0) {
+        return -1;
+    }
+    return fd;
+}
+
+int egl_rendernode_init(void)
+{
+    qemu_egl_rn_fd = -1;
+
+    qemu_egl_rn_fd = qemu_egl_rendernode_open();
+    if (qemu_egl_rn_fd == -1) {
+        fprintf(stderr, "egl: no drm render node available\n");
+        goto err;
+    }
+
+    qemu_egl_rn_gbm_dev = gbm_create_device(qemu_egl_rn_fd);
+    if (!qemu_egl_rn_gbm_dev) {
+        fprintf(stderr, "egl: gbm_create_device failed\n");
+        goto err;
+    }
+
+    qemu_egl_init_dpy((EGLNativeDisplayType)qemu_egl_rn_gbm_dev, false, false);
+
+    if (!epoxy_has_egl_extension(qemu_egl_display,
+                                 "EGL_KHR_surfaceless_context")) {
+        fprintf(stderr, "egl: EGL_KHR_surfaceless_context not supported\n");
+        goto err;
+    }
+    if (!epoxy_has_egl_extension(qemu_egl_display,
+                                 "EGL_MESA_image_dma_buf_export")) {
+        fprintf(stderr, "egl: EGL_MESA_image_dma_buf_export not supported\n");
+        goto err;
+    }
+
+    qemu_egl_rn_ctx = qemu_egl_init_ctx();
+    if (!qemu_egl_rn_ctx) {
+        fprintf(stderr, "egl: egl_init_ctx failed\n");
+        goto err;
+    }
+
+    return 0;
+
+err:
+    if (qemu_egl_rn_gbm_dev) {
+        gbm_device_destroy(qemu_egl_rn_gbm_dev);
+    }
+    if (qemu_egl_rn_fd != -1) {
+        close(qemu_egl_rn_fd);
+    }
+
+    return -1;
+}
+
+int egl_get_fd_for_texture(uint32_t tex_id, EGLint *stride, EGLint *fourcc)
+{
+    EGLImageKHR image;
+    EGLint num_planes, fd;
+
+    image = eglCreateImageKHR(qemu_egl_display, eglGetCurrentContext(),
+                              EGL_GL_TEXTURE_2D_KHR,
+                              (EGLClientBuffer)(unsigned long)tex_id,
+                              NULL);
+    if (!image) {
+        return -1;
+    }
+
+    eglExportDMABUFImageQueryMESA(qemu_egl_display, image, fourcc,
+                                  &num_planes, NULL);
+    if (num_planes != 1) {
+        eglDestroyImageKHR(qemu_egl_display, image);
+        return -1;
+    }
+    eglExportDMABUFImageMESA(qemu_egl_display, image, &fd, stride, NULL);
+    eglDestroyImageKHR(qemu_egl_display, image);
+
+    return fd;
+}
+
+#endif /* CONFIG_OPENGL_DMABUF */
 
 /* ---------------------------------------------------------------------- */
 
