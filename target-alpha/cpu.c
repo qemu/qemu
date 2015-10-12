@@ -298,6 +298,13 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     dc->vmsd = &vmstate_alpha_cpu;
 #endif
     cc->gdb_num_core_regs = 67;
+
+    /*
+     * Reason: alpha_cpu_initfn() calls cpu_exec_init(), which saves
+     * the object in cpus -> dangling pointer after final
+     * object_unref().
+     */
+    dc->cannot_destroy_with_object_finalize_yet = true;
 }
 
 static const TypeInfo alpha_cpu_type_info = {

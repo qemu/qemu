@@ -510,9 +510,7 @@ static void test_flush(void)
         tmp_path);
 
     /* Delay the completion of the flush request until we explicitly do it */
-    qmp_discard_response("{'execute':'human-monitor-command', 'arguments': {"
-                         " 'command-line':"
-                         " 'qemu-io ide0-hd0 \"break flush_to_os A\"'} }");
+    g_free(hmp("qemu-io ide0-hd0 \"break flush_to_os A\""));
 
     /* FLUSH CACHE command on device 0*/
     outb(IDE_BASE + reg_device, 0);
@@ -524,9 +522,7 @@ static void test_flush(void)
     assert_bit_clear(data, DF | ERR | DRQ);
 
     /* Complete the command */
-    qmp_discard_response("{'execute':'human-monitor-command', 'arguments': {"
-                         " 'command-line':"
-                         " 'qemu-io ide0-hd0 \"resume A\"'} }");
+    g_free(hmp("qemu-io ide0-hd0 \"resume A\""));
 
     /* Check registers */
     data = inb(IDE_BASE + reg_device);

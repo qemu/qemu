@@ -1958,7 +1958,7 @@ static void pxa2xx_fir_instance_init(Object *obj)
     PXA2xxFIrState *s = PXA2XX_FIR(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    memory_region_init_io(&s->iomem, NULL, &pxa2xx_fir_ops, s,
+    memory_region_init_io(&s->iomem, obj, &pxa2xx_fir_ops, s,
                           "pxa2xx-fir", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
     sysbus_init_irq(sbd, &s->irq);
