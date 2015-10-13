@@ -344,8 +344,6 @@ typedef struct ObjectProperty
     ObjectPropertyResolve *resolve;
     ObjectPropertyRelease *release;
     void *opaque;
-
-    QTAILQ_ENTRY(ObjectProperty) node;
 } ObjectProperty;
 
 /**
@@ -405,7 +403,7 @@ struct Object
     /*< private >*/
     ObjectClass *class;
     ObjectFree *free;
-    QTAILQ_HEAD(, ObjectProperty) properties;
+    GHashTable *properties;
     uint32_t ref;
     Object *parent;
 };
@@ -1537,6 +1535,9 @@ void object_property_set_description(Object *obj, const char *name,
  * Call @fn passing each child of @obj and @opaque to it, until @fn returns
  * non-zero.
  *
+ * It is forbidden to add or remove children from @obj from the @fn
+ * callback.
+ *
  * Returns: The last value returned by @fn, or 0 if there is no child.
  */
 int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
@@ -1551,6 +1552,9 @@ int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
  * Call @fn passing each child of @obj and @opaque to it, until @fn returns
  * non-zero. Calls recursively, all child nodes of @obj will also be passed
  * all the way down to the leaf nodes of the tree. Depth first ordering.
+ *
+ * It is forbidden to add or remove children from @obj (or its
+ * child nodes) from the @fn callback.
  *
  * Returns: The last value returned by @fn, or 0 if there is no child.
  */
