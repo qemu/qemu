@@ -28,7 +28,8 @@
 #include "qemu/iov.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
-#include "hub.h"
+#include "qapi/visitor.h"
+#include "net/filter.h"
 
 typedef struct DumpState {
     int64_t start_ts;
@@ -225,3 +226,129 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
     }
     return rc;
 }
+
+/* Dumping via filter */
+
+#define TYPE_FILTER_DUMP "filter-dump"
+
+#define FILTER_DUMP(obj) \
+    OBJECT_CHECK(NetFilterDumpState, (obj), TYPE_FILTER_DUMP)
+
+struct NetFilterDumpState {
+    NetFilterState nfs;
+    DumpState ds;
+    char *filename;
+    uint32_t maxlen;
+};
+typedef struct NetFilterDumpState NetFilterDumpState;
+
+static ssize_t filter_dump_receive_iov(NetFilterState *nf, NetClientState *sndr,
+                                       unsigned flags, const struct iovec *iov,
+                                       int iovcnt, NetPacketSent *sent_cb)
+{
+    NetFilterDumpState *nfds = FILTER_DUMP(nf);
+
+    dump_receive_iov(&nfds->ds, iov, iovcnt);
+    return 0;
+}
+
+static void filter_dump_cleanup(NetFilterState *nf)
+{
+    NetFilterDumpState *nfds = FILTER_DUMP(nf);
+
+    dump_cleanup(&nfds->ds);
+}
+
+static void filter_dump_setup(NetFilterState *nf, Error **errp)
+{
+    NetFilterDumpState *nfds = FILTER_DUMP(nf);
+
+    if (!nfds->filename) {
+        error_setg(errp, "dump filter needs 'file' property set!");
+        return;
+    }
+
+    net_dump_state_init(&nfds->ds, nfds->filename, nfds->maxlen, errp);
+}
+
+static void filter_dump_get_maxlen(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    NetFilterDumpState *nfds = FILTER_DUMP(obj);
+    uint32_t value = nfds->maxlen;
+
+    visit_type_uint32(v, &value, name, errp);
+}
+
+static void filter_dump_set_maxlen(Object *obj, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    NetFilterDumpState *nfds = FILTER_DUMP(obj);
+    Error *local_err = NULL;
+    uint32_t value;
+
+    visit_type_uint32(v, &value, name, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    if (value == 0) {
+        error_setg(&local_err, "Property '%s.%s' doesn't take value '%u'",
+                   object_get_typename(obj), name, value);
+        goto out;
+    }
+    nfds->maxlen = value;
+
+out:
+    error_propagate(errp, local_err);
+}
+
+static char *file_dump_get_filename(Object *obj, Error **errp)
+{
+    NetFilterDumpState *nfds = FILTER_DUMP(obj);
+
+    return g_strdup(nfds->filename);
+}
+
+static void file_dump_set_filename(Object *obj, const char *value, Error **errp)
+{
+   NetFilterDumpState *nfds = FILTER_DUMP(obj);
+
+    g_free(nfds->filename);
+    nfds->filename = g_strdup(value);
+}
+
+static void filter_dump_instance_init(Object *obj)
+{
+    NetFilterDumpState *nfds = FILTER_DUMP(obj);
+
+    nfds->maxlen = 65536;
+
+    object_property_add(obj, "maxlen", "int", filter_dump_get_maxlen,
+                        filter_dump_set_maxlen, NULL, NULL, NULL);
+    object_property_add_str(obj, "file", file_dump_get_filename,
+                            file_dump_set_filename, NULL);
+}
+
+static void filter_dump_class_init(ObjectClass *oc, void *data)
+{
+    NetFilterClass *nfc = NETFILTER_CLASS(oc);
+
+    nfc->setup = filter_dump_setup;
+    nfc->cleanup = filter_dump_cleanup;
+    nfc->receive_iov = filter_dump_receive_iov;
+}
+
+static const TypeInfo filter_dump_info = {
+    .name = TYPE_FILTER_DUMP,
+    .parent = TYPE_NETFILTER,
+    .class_init = filter_dump_class_init,
+    .instance_init = filter_dump_instance_init,
+    .instance_size = sizeof(NetFilterDumpState),
+};
+
+static void filter_dump_register_types(void)
+{
+    type_register_static(&filter_dump_info);
+}
+
+type_init(filter_dump_register_types);
