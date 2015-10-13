@@ -16,17 +16,17 @@ qemu-io: can't open device TEST_DIR/t.vmdk: L1 size too big
 no file open, try 'help open'
 
 === Testing monolithicFlat creation and opening ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648 subformat=monolithicFlat
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 2.0G (2147483648 bytes)
 
 === Testing monolithicFlat with zeroed_grain ===
 qemu-img: TEST_DIR/t.IMGFMT: Flat image can't enable zeroed grain
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2147483648 subformat=monolithicFlat
 
 === Testing big twoGbMaxExtentFlat ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824000
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1073741824000 subformat=twoGbMaxExtentFlat
 image: TEST_DIR/t.vmdk
 file format: vmdk
 virtual size: 1.0T (1073741824000 bytes)
@@ -2043,7 +2043,7 @@ RW 12582912 VMFS "dummy.IMGFMT" 1
 
 
 === Testing truncated sparse ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=107374182400
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=107374182400 subformat=monolithicSparse
 qemu-img: Could not open 'TEST_DIR/t.IMGFMT': File truncated, expecting at least 13172736 bytes
 
 === Converting to streamOptimized from image with small cluster size===
@@ -2054,7 +2054,7 @@ wrote 512/512 bytes at offset 10240
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Testing monolithicFlat with internally generated JSON file name ===
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 subformat=monolithicFlat
 qemu-io: can't open: Cannot use relative extent paths with VMDK descriptor file 'json:{"image": {"driver": "file", "filename": "TEST_DIR/t.IMGFMT"}, "driver": "blkdebug", "inject-error.0.event": "read_aio"}'
 
 === Testing version 3 ===
@@ -2264,7 +2264,7 @@ read 512/512 bytes at offset 64931328
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
 === Testing 4TB monolithicFlat creation and IO ===
-Formatting 'TEST_DIR/iotest-version3.IMGFMT', fmt=IMGFMT size=4398046511104
+Formatting 'TEST_DIR/iotest-version3.IMGFMT', fmt=IMGFMT size=4398046511104 subformat=monolithicFlat
 image: TEST_DIR/iotest-version3.IMGFMT
 file format: IMGFMT
 virtual size: 4.0T (4398046511104 bytes)
