@@ -335,6 +335,10 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
         self.decl = self._btin + self.decl
         self._btin = None
 
+    def visit_needed(self, entity):
+        # Visit everything except implicit objects
+        return not isinstance(entity, QAPISchemaObjectType) or entity.info
+
     def visit_enum_type(self, name, info, values, prefix):
         self.decl += gen_visit_decl(name, scalar=True)
         self.defn += gen_visit_enum(name)
@@ -351,13 +355,12 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
             self.defn += defn
 
     def visit_object_type(self, name, info, base, members, variants):
-        if info:
-            self.decl += gen_visit_decl(name)
-            if variants:
-                assert not members      # not implemented
-                self.defn += gen_visit_union(name, base, variants)
-            else:
-                self.defn += gen_visit_struct(name, base, members)
+        self.decl += gen_visit_decl(name)
+        if variants:
+            assert not members      # not implemented
+            self.defn += gen_visit_union(name, base, variants)
+        else:
+            self.defn += gen_visit_struct(name, base, members)
 
     def visit_alternate_type(self, name, info, variants):
         self.decl += gen_visit_decl(name)

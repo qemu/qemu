@@ -811,6 +811,10 @@ class QAPISchemaVisitor(object):
     def visit_end(self):
         pass
 
+    def visit_needed(self, entity):
+        # Default to visiting everything
+        return True
+
     def visit_builtin_type(self, name, info, json_type):
         pass
 
@@ -1304,10 +1308,10 @@ class QAPISchema(object):
             ent.check(self)
 
     def visit(self, visitor):
-        ignore = visitor.visit_begin(self)
-        for name in sorted(self._entity_dict.keys()):
-            if not ignore or not isinstance(self._entity_dict[name], ignore):
-                self._entity_dict[name].visit(visitor)
+        visitor.visit_begin(self)
+        for (name, entity) in sorted(self._entity_dict.items()):
+            if visitor.visit_needed(entity):
+                entity.visit(visitor)
         visitor.visit_end()
 
 
