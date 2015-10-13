@@ -11096,8 +11096,11 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
                         dc->is_jmp = DISAS_UPDATE;
                     } else {
                         gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
-                        /* Advance PC so that clearing the breakpoint will
-                           invalidate this TB.  */
+                        /* The address covered by the breakpoint must be
+                           included in [tb->pc, tb->pc + tb->size) in order
+                           to for it to be properly cleared -- thus we
+                           increment the PC here so that the logic setting
+                           tb->size below does the right thing.  */
                         dc->pc += 4;
                         goto done_generating;
                     }

@@ -3088,6 +3088,11 @@ void gen_intermediate_code(CPUXtensaState *env, TranslationBlock *tb)
             tcg_gen_movi_i32(cpu_pc, dc.pc);
             gen_exception(&dc, EXCP_DEBUG);
             dc.is_jmp = DISAS_UPDATE;
+            /* The address covered by the breakpoint must be included in
+               [tb->pc, tb->pc + tb->size) in order to for it to be
+               properly cleared -- thus we increment the PC here so that
+               the logic setting tb->size below does the right thing.  */
+            dc.pc += 2;
             break;
         }
 
