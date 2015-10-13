@@ -874,7 +874,7 @@ QemuCocoaView *cocoaView;
             exit(1);
         }
         [normalWindow setAcceptsMouseMovedEvents:YES];
-        [normalWindow setTitle:[NSString stringWithFormat:@"QEMU"]];
+        [normalWindow setTitle:@"QEMU"];
         [normalWindow setContentView:cocoaView];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10)
         [normalWindow useOptimizedDrawing:YES];
