@@ -1,10 +1,16 @@
 # *-*- Mode: Python -*-*
 
+# This file is a stress test of supported qapi constructs that must
+# parse and compile correctly.
+
 # for testing enums
 { 'enum': 'EnumOne',
   'data': [ 'value1', 'value2', 'value3' ] }
 { 'struct': 'NestedEnumsOne',
   'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
+
+# An empty enum, although unusual, is currently acceptable
+{ 'enum': 'MyEnum', 'data': [ ] }
 
 # for testing override of default naming heuristic
 { 'enum': 'QEnumTwo',

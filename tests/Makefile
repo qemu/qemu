@@ -260,7 +260,6 @@ qapi-schema += enum-bad-name.json
 qapi-schema += enum-bad-prefix.json
 qapi-schema += enum-clash-member.json
 qapi-schema += enum-dict-member.json
-qapi-schema += enum-empty.json
 qapi-schema += enum-int-member.json
 qapi-schema += enum-max-member.json
 qapi-schema += enum-missing-data.json
