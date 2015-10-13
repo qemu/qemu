@@ -1,9 +1,0 @@
-# Working example of alternate
-{ 'struct': 'Data',
-  'data': { '*number': 'int', '*name': 'str' } }
-{ 'enum': 'Enum',
-  'data': [ 'hello', 'world' ] }
-{ 'alternate': 'Alt',
-  'data': { 'value': 'int',
-            'string': 'Enum',
-            'struct': 'Data' } }

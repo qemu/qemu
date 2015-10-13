@@ -230,7 +230,6 @@ qapi-schema += alternate-clash.json
 qapi-schema += alternate-conflict-dict.json
 qapi-schema += alternate-conflict-string.json
 qapi-schema += alternate-empty.json
-qapi-schema += alternate-good.json
 qapi-schema += alternate-nested.json
 qapi-schema += alternate-unknown.json
 qapi-schema += args-alternate.json
