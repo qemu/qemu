@@ -1353,7 +1353,7 @@ static void add_console_menu_entries(void)
 /* Make menu items for all removable devices.
  * Each device is given an 'Eject' and 'Change' menu item.
  */
-static void addRemovableDevicesMenuItems()
+static void addRemovableDevicesMenuItems(void)
 {
     NSMenu *menu;
     NSMenuItem *menuItem;
