@@ -798,6 +798,9 @@ class QAPISchemaEntity(object):
     def check(self, schema):
         pass
 
+    def is_implicit(self):
+        return not self.info
+
     def visit(self, visitor):
         pass
 
@@ -971,11 +974,11 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.members = members
 
     def c_name(self):
-        assert self.info
+        assert not self.is_implicit()
         return QAPISchemaType.c_name(self)
 
     def c_type(self, is_param=False):
-        assert self.info
+        assert not self.is_implicit()
         return QAPISchemaType.c_type(self)
 
     def json_type(self):
@@ -1043,7 +1046,8 @@ class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     # This function exists to support ugly simple union special cases
     # TODO get rid of them, and drop the function
     def simple_union_type(self):
-        if isinstance(self.type, QAPISchemaObjectType) and not self.type.info:
+        if (self.type.is_implicit() and
+                isinstance(self.type, QAPISchemaObjectType)):
             assert len(self.type.members) == 1
             assert not self.type.variants
             return self.type.members[0].type
@@ -1162,11 +1166,13 @@ class QAPISchema(object):
         self._def_entity(self.the_empty_object_type)
 
     def _make_implicit_enum_type(self, name, values):
-        name = name + 'Kind'
+        name = name + 'Kind'   # Use namespace reserved by add_name()
         self._def_entity(QAPISchemaEnumType(name, None, values, None))
         return name
 
     def _make_array_type(self, element_type):
+        # TODO fooList namespace is not reserved; user can create collisions,
+        # or abuse our type system with ['fooList'] for 2D array
         name = element_type + 'List'
         if not self.lookup_type(name):
             self._def_entity(QAPISchemaArrayType(name, None, element_type))

@@ -337,7 +337,8 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
 
     def visit_needed(self, entity):
         # Visit everything except implicit objects
-        return not isinstance(entity, QAPISchemaObjectType) or entity.info
+        return not (entity.is_implicit() and
+                    isinstance(entity, QAPISchemaObjectType))
 
     def visit_enum_type(self, name, info, values, prefix):
         self.decl += gen_visit_decl(name, scalar=True)

@@ -235,7 +235,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
 
     def visit_needed(self, entity):
         # Visit everything except implicit objects
-        return not isinstance(entity, QAPISchemaObjectType) or entity.info
+        return not (entity.is_implicit() and
+                    isinstance(entity, QAPISchemaObjectType))
 
     def _gen_type_cleanup(self, name):
         self.decl += gen_type_cleanup_decl(name)
