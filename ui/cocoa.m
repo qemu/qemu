@@ -1287,6 +1287,7 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
+    graphic_hw_update(NULL);
 
     if (qemu_input_is_absolute()) {
         if (![cocoaView isAbsoluteEnabled]) {
@@ -1307,7 +1308,6 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
             [cocoaView handleEvent:event];
         }
     } while(event != nil);
-    graphic_hw_update(NULL);
     [pool release];
 }
 
