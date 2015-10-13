@@ -1010,18 +1010,18 @@ class QAPISchemaObjectTypeMember(object):
 
 
 class QAPISchemaObjectTypeVariants(object):
-    def __init__(self, tag_name, tag_enum, variants):
-        assert tag_name is None or isinstance(tag_name, str)
-        assert tag_enum is None or isinstance(tag_enum, str)
+    def __init__(self, tag_name, tag_member, variants):
+        # Flat unions pass tag_name but not tag_member.
+        # Simple unions and alternates pass tag_member but not tag_name.
+        # After check(), tag_member is always set, and tag_name remains
+        # a reliable witness of being used by a flat union.
+        assert bool(tag_member) != bool(tag_name)
+        assert (isinstance(tag_name, str) or
+                isinstance(tag_member, QAPISchemaObjectTypeMember))
         for v in variants:
             assert isinstance(v, QAPISchemaObjectTypeVariant)
         self.tag_name = tag_name
-        if tag_name:
-            assert not tag_enum
-            self.tag_member = None
-        else:
-            self.tag_member = QAPISchemaObjectTypeMember('type', tag_enum,
-                                                         False)
+        self.tag_member = tag_member
         self.variants = variants
 
     def check(self, schema, members, seen):
@@ -1231,28 +1231,29 @@ class QAPISchema(object):
                                               [self._make_member('data', typ)])
         return QAPISchemaObjectTypeVariant(case, typ)
 
-    def _make_tag_enum(self, type_name, variants):
-        return self._make_implicit_enum_type(type_name,
-                                             [v.name for v in variants])
+    def _make_implicit_tag(self, type_name, variants):
+        typ = self._make_implicit_enum_type(type_name,
+                                            [v.name for v in variants])
+        return QAPISchemaObjectTypeMember('type', typ, False)
 
     def _def_union_type(self, expr, info):
         name = expr['union']
         data = expr['data']
         base = expr.get('base')
         tag_name = expr.get('discriminator')
-        tag_enum = None
+        tag_member = None
         if tag_name:
             variants = [self._make_variant(key, value)
                         for (key, value) in data.iteritems()]
         else:
             variants = [self._make_simple_variant(key, value)
                         for (key, value) in data.iteritems()]
-            tag_enum = self._make_tag_enum(name, variants)
+            tag_member = self._make_implicit_tag(name, variants)
         self._def_entity(
             QAPISchemaObjectType(name, info, base,
                                  self._make_members(OrderedDict()),
                                  QAPISchemaObjectTypeVariants(tag_name,
-                                                              tag_enum,
+                                                              tag_member,
                                                               variants)))
 
     def _def_alternate_type(self, expr, info):
@@ -1260,11 +1261,11 @@ class QAPISchema(object):
         data = expr['data']
         variants = [self._make_variant(key, value)
                     for (key, value) in data.iteritems()]
-        tag_enum = self._make_tag_enum(name, variants)
+        tag_member = self._make_implicit_tag(name, variants)
         self._def_entity(
             QAPISchemaAlternateType(name, info,
                                     QAPISchemaObjectTypeVariants(None,
-                                                                 tag_enum,
+                                                                 tag_member,
                                                                  variants)))
 
     def _def_command(self, expr, info):
