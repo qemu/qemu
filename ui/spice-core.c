@@ -494,9 +494,14 @@ static QemuOptsList qemu_spice_opts = {
         },{
             .name = "playback-compression",
             .type = QEMU_OPT_BOOL,
-        }, {
+        },{
             .name = "seamless-migration",
             .type = QEMU_OPT_BOOL,
+#ifdef HAVE_SPICE_GL
+        },{
+            .name = "gl",
+            .type = QEMU_OPT_BOOL,
+#endif
         },
         { /* end of list */ }
     },
@@ -818,6 +823,14 @@ void qemu_spice_init(void)
 
 #if SPICE_SERVER_VERSION >= 0x000c02
     qemu_spice_register_ports();
+#endif
+
+#ifdef HAVE_SPICE_GL
+    if (qemu_opt_get_bool(opts, "gl", 0)) {
+        if (egl_rendernode_init() == 0) {
+            display_opengl = 1;
+        }
+    }
 #endif
 }
 

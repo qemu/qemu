@@ -24,6 +24,14 @@
 #include "ui/console.h"
 #include "sysemu/sysemu.h"
 
+#if defined(CONFIG_OPENGL_DMABUF)
+# if SPICE_SERVER_VERSION >= 0x000d00 /* release 0.13.0 */
+#  define HAVE_SPICE_GL 1
+#  include "ui/egl-helpers.h"
+#  include "ui/egl-context.h"
+# endif
+#endif
+
 #define NUM_MEMSLOTS 8
 #define MEMSLOT_GENERATION_BITS 8
 #define MEMSLOT_SLOT_BITS 8
@@ -50,6 +58,7 @@ enum {
     QXL_COOKIE_TYPE_IO,
     QXL_COOKIE_TYPE_RENDER_UPDATE_AREA,
     QXL_COOKIE_TYPE_POST_LOAD_MONITORS_CONFIG,
+    QXL_COOKIE_TYPE_GL_DRAW_DONE,
 };
 
 typedef struct QXLCookie {
@@ -104,6 +113,12 @@ struct SimpleSpiceDisplay {
     QEMUCursor *cursor;
     int mouse_x, mouse_y;
     QEMUBH *cursor_bh;
+
+#ifdef HAVE_SPICE_GL
+    /* opengl rendering */
+    QEMUBH *gl_unblock_bh;
+    int dmabuf_fd;
+#endif
 };
 
 struct SimpleSpiceUpdate {
