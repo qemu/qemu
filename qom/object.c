@@ -1167,31 +1167,31 @@ out:
 void object_property_parse(Object *obj, const char *string,
                            const char *name, Error **errp)
 {
-    StringInputVisitor *mi;
-    mi = string_input_visitor_new(string);
-    object_property_set(obj, string_input_get_visitor(mi), name, errp);
+    StringInputVisitor *siv;
+    siv = string_input_visitor_new(string);
+    object_property_set(obj, string_input_get_visitor(siv), name, errp);
 
-    string_input_visitor_cleanup(mi);
+    string_input_visitor_cleanup(siv);
 }
 
 char *object_property_print(Object *obj, const char *name, bool human,
                             Error **errp)
 {
-    StringOutputVisitor *mo;
+    StringOutputVisitor *sov;
     char *string = NULL;
     Error *local_err = NULL;
 
-    mo = string_output_visitor_new(human);
-    object_property_get(obj, string_output_get_visitor(mo), name, &local_err);
+    sov = string_output_visitor_new(human);
+    object_property_get(obj, string_output_get_visitor(sov), name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
     }
 
-    string = string_output_get_string(mo);
+    string = string_output_get_string(sov);
 
 out:
-    string_output_visitor_cleanup(mo);
+    string_output_visitor_cleanup(sov);
     return string;
 }
 

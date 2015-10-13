@@ -1,4 +1,7 @@
-# we require the base to be a struct
+# For now, we require the base to be a struct without variants
+# TODO: It would be possible to allow a union as a base, as long as all
+# permutations of QMP names exposed by base do not clash with any QMP
+# member names added by local variants.
 { 'enum': 'TestEnum',
   'data': [ 'value1', 'value2' ] }
 { 'struct': 'TestTypeA',

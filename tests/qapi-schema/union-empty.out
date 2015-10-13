@@ -1,0 +1,3 @@
+object :empty
+object Union
+enum UnionKind []

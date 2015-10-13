@@ -1,1 +1,1 @@
-tests/qapi-schema/struct-base-clash.json:4: Member name 'name' clashes with base 'Base'
+tests/qapi-schema/struct-base-clash.json:5: Member name 'name' clashes with base 'Base'

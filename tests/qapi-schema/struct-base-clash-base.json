@@ -1,0 +1,9 @@
+# Struct member 'base'
+# FIXME: this parses, but then fails to compile due to a duplicate 'base'
+# (one explicit in QMP, the other used to box the base class members).
+# We should either reject the collision at parse time, or change the
+# generated struct to allow this to compile.
+{ 'struct': 'Base', 'data': {} }
+{ 'struct': 'Sub',
+  'base': 'Base',
+  'data': { 'base': 'str' } }

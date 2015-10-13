@@ -1,0 +1,9 @@
+# Union branch 'type'
+# Reject this, because we would have a clash in generated C, between the
+# simple union's implicit tag member 'kind' and the branch name 'kind'
+# within the union.
+# TODO: Even when the generated C is switched to use 'type' rather than
+# 'kind', to match the QMP spelling, the collision should still be detected.
+# Or, we could munge the branch name to allow compilation.
+{ 'union': 'TestUnion',
+  'data': { 'kind': 'int', 'type': 'str' } }

@@ -1,1 +1,1 @@
-{ 'include': [ 'foo', 'bar' ] }
+{ 'include': {} }

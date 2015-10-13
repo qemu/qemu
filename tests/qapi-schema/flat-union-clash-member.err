@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-clash-member.json:11: Member name 'name' of branch 'value1' clashes with base 'Base'

@@ -1,1 +1,1 @@
-tests/qapi-schema/flat-union-base-union.json:11: Base 'UnionBase' is not a valid struct
+tests/qapi-schema/flat-union-base-union.json:14: 'base' for union 'TestUnion' cannot use union type 'UnionBase'

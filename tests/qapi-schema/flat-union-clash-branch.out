@@ -1,0 +1,14 @@
+object :empty
+object Base
+    member enum1: TestEnum optional=False
+    member c_d: str optional=True
+object Branch1
+    member string: str optional=False
+object Branch2
+    member value: int optional=False
+enum TestEnum ['base', 'c-d']
+object TestUnion
+    base Base
+    tag enum1
+    case base: Branch1
+    case c-d: Branch2

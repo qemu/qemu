@@ -1,2 +1,3 @@
+# QAPI cannot include the same key more than once in any {}
 { 'key': 'value',
   'key': 'value' }

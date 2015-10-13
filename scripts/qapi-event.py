@@ -34,7 +34,7 @@ def gen_event_send(name, arg_type):
 %(proto)s
 {
     QDict *qmp;
-    Error *local_err = NULL;
+    Error *err = NULL;
     QMPEventFuncEmit emit;
 ''',
                 proto=gen_event_send_proto(name, arg_type))
@@ -67,50 +67,15 @@ def gen_event_send(name, arg_type):
     g_assert(v);
 
     /* Fake visit, as if all members are under a structure */
-    visit_start_struct(v, NULL, "", "%(name)s", 0, &local_err);
-    if (local_err) {
-        goto clean;
-    }
-
+    visit_start_struct(v, NULL, "", "%(name)s", 0, &err);
 ''',
                      name=name)
-
-        for memb in arg_type.members:
-            if memb.optional:
-                ret += mcgen('''
-    if (has_%(c_name)s) {
-''',
-                             c_name=c_name(memb.name))
-                push_indent()
-
-            # Ugly: need to cast away the const
-            if memb.type.name == "str":
-                cast = '(char **)'
-            else:
-                cast = ''
-
-            ret += mcgen('''
-    visit_type_%(c_type)s(v, %(cast)s&%(c_name)s, "%(name)s", &local_err);
-    if (local_err) {
-        goto clean;
-    }
-''',
-                         cast=cast,
-                         c_name=c_name(memb.name),
-                         c_type=memb.type.c_name(),
-                         name=memb.name)
-
-            if memb.optional:
-                pop_indent()
-                ret += mcgen('''
-    }
-''')
-
+        ret += gen_err_check()
+        ret += gen_visit_fields(arg_type.members, need_cast=True)
         ret += mcgen('''
-
-    visit_end_struct(v, &local_err);
-    if (local_err) {
-        goto clean;
+    visit_end_struct(v, &err);
+    if (err) {
+        goto out;
     }
 
     obj = qmp_output_get_qobject(qov);
@@ -120,18 +85,18 @@ def gen_event_send(name, arg_type):
 ''')
 
     ret += mcgen('''
-    emit(%(c_enum)s, qmp, &local_err);
+    emit(%(c_enum)s, qmp, &err);
 
 ''',
                  c_enum=c_enum_const(event_enum_name, name))
 
     if arg_type and arg_type.members:
         ret += mcgen('''
- clean:
+out:
     qmp_output_visitor_cleanup(qov);
 ''')
     ret += mcgen('''
-    error_propagate(errp, local_err);
+    error_propagate(errp, err);
     QDECREF(qmp);
 }
 ''')

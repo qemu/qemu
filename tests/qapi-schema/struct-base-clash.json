@@ -1,4 +1,5 @@
-# we check for no duplicate keys with base
+# Reject attempts to duplicate QMP members
+# Here, 'name' would have to appear twice on the wire, locally and for base.
 { 'struct': 'Base',
   'data': { 'name': 'str' } }
 { 'struct': 'Sub',

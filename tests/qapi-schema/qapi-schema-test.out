@@ -53,6 +53,30 @@ object :obj-user_def_cmd2-arg
 object :obj-user_def_cmd3-arg
     member a: int optional=False
     member b: int optional=True
+alternate AltIntNum
+    case i: int
+    case n: number
+enum AltIntNumKind ['i', 'n']
+alternate AltNumInt
+    case n: number
+    case i: int
+enum AltNumIntKind ['n', 'i']
+alternate AltNumStr
+    case n: number
+    case s: str
+enum AltNumStrKind ['n', 's']
+alternate AltStrBool
+    case s: str
+    case b: bool
+enum AltStrBoolKind ['s', 'b']
+alternate AltStrInt
+    case s: str
+    case i: int
+enum AltStrIntKind ['s', 'i']
+alternate AltStrNum
+    case s: str
+    case n: number
+enum AltStrNumKind ['s', 'n']
 event EVENT_A None
 event EVENT_B None
 event EVENT_C :obj-EVENT_C-arg
@@ -71,6 +95,7 @@ enum QEnumTwo ['value1', 'value2']
     prefix QENUM_TWO
 object UserDefA
     member boolean: bool optional=False
+    member a_b: int optional=True
 alternate UserDefAlternate
     case uda: UserDefA
     case s: str
@@ -78,6 +103,7 @@ alternate UserDefAlternate
 enum UserDefAlternateKind ['uda', 's', 'i']
 object UserDefB
     member intb: int optional=False
+    member a-b: bool optional=True
 object UserDefC
     member string1: str optional=False
     member string2: str optional=False

@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-clash-type.json:11: Discriminator name 'type' collides with enum value in 'TestEnum'

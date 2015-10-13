@@ -1054,7 +1054,12 @@ M: Michael Roth <mdroth@linux.vnet.ibm.com>
 S: Supported
 F: qapi/
 X: qapi/*.json
+F: include/qapi/
+X: include/qapi/qmp/
+F: include/qapi/qmp/dispatch.h
 F: tests/qapi-schema/
+F: tests/test-*-visitor.c
+F: tests/test-qmp-*.c
 F: scripts/qapi*
 F: docs/qapi*
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
@@ -1071,6 +1076,14 @@ QObject
 M: Luiz Capitulino <lcapitulino@redhat.com>
 S: Maintained
 F: qobject/
+F: include/qapi/qmp/
+X: include/qapi/qmp/dispatch.h
+F: tests/check-qdict.c
+F: tests/check-qfloat.c
+F: tests/check-qint.c
+F: tests/check-qjson.c
+F: tests/check-qlist.c
+F: tests/check-qstring.c
 T: git git://repo.or.cz/qemu/qmp-unstable.git queue/qmp
 
 QEMU Guest Agent
@@ -1095,7 +1108,7 @@ S: Supported
 F: qmp.c
 F: monitor.c
 F: qmp-commands.hx
-F: docs/qmp/
+F: docs/*qmp-*
 F: scripts/qmp/
 T: git git://repo.or.cz/qemu/armbru.git qapi-next
 

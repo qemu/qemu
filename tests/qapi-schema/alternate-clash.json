@@ -1,3 +1,8 @@
-# we detect C enum collisions in an alternate
+# Alternate branch name collision
+# Reject an alternate that would result in a collision in generated C
+# names (this would try to generate two enum values 'ALT1_KIND_A_B').
+# TODO: In the future, if alternates are simplified to not generate
+# the implicit Alt1Kind enum, we would still have a collision with the
+# resulting C union trying to have two members named 'a_b'.
 { 'alternate': 'Alt1',
-  'data': { 'one': 'str', 'ONE': 'int' } }
+  'data': { 'a-b': 'str', 'a_b': 'int' } }
