@@ -31,7 +31,6 @@
 #include "hub.h"
 
 typedef struct DumpState {
-    NetClientState nc;
     int64_t start_ts;
     int fd;
     int pcap_caplen;
@@ -58,10 +57,8 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static ssize_t dump_receive_iov(NetClientState *nc, const struct iovec *iov,
-                                int cnt)
+static ssize_t dump_receive_iov(DumpState *s, const struct iovec *iov, int cnt)
 {
-    DumpState *s = DO_UPCAST(DumpState, nc, nc);
     struct pcap_sf_pkthdr hdr;
     int64_t ts;
     int caplen;
@@ -94,29 +91,11 @@ static ssize_t dump_receive_iov(NetClientState *nc, const struct iovec *iov,
     return size;
 }
 
-static ssize_t dump_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+static void dump_cleanup(DumpState *s)
 {
-    struct iovec iov = {
-        .iov_base = (void *)buf,
-        .iov_len = size
-    };
-    return dump_receive_iov(nc, &iov, 1);
-}
-
-static void dump_cleanup(NetClientState *nc)
-{
-    DumpState *s = DO_UPCAST(DumpState, nc, nc);
-
     close(s->fd);
+    s->fd = -1;
 }
-
-static NetClientInfo net_dump_info = {
-    .type = NET_CLIENT_OPTIONS_KIND_DUMP,
-    .size = sizeof(DumpState),
-    .receive = dump_receive,
-    .receive_iov = dump_receive_iov,
-    .cleanup = dump_cleanup,
-};
 
 static int net_dump_state_init(DumpState *s, const char *filename,
                                int len, Error **errp)
@@ -154,6 +133,49 @@ static int net_dump_state_init(DumpState *s, const char *filename,
     return 0;
 }
 
+/* Dumping via VLAN netclient */
+
+struct DumpNetClient {
+    NetClientState nc;
+    DumpState ds;
+};
+typedef struct DumpNetClient DumpNetClient;
+
+static ssize_t dumpclient_receive(NetClientState *nc, const uint8_t *buf,
+                                  size_t size)
+{
+    DumpNetClient *dc = DO_UPCAST(DumpNetClient, nc, nc);
+    struct iovec iov = {
+        .iov_base = (void *)buf,
+        .iov_len = size
+    };
+
+    return dump_receive_iov(&dc->ds, &iov, 1);
+}
+
+static ssize_t dumpclient_receive_iov(NetClientState *nc,
+                                      const struct iovec *iov, int cnt)
+{
+    DumpNetClient *dc = DO_UPCAST(DumpNetClient, nc, nc);
+
+    return dump_receive_iov(&dc->ds, iov, cnt);
+}
+
+static void dumpclient_cleanup(NetClientState *nc)
+{
+    DumpNetClient *dc = DO_UPCAST(DumpNetClient, nc, nc);
+
+    dump_cleanup(&dc->ds);
+}
+
+static NetClientInfo net_dump_info = {
+    .type = NET_CLIENT_OPTIONS_KIND_DUMP,
+    .size = sizeof(DumpNetClient),
+    .receive = dumpclient_receive,
+    .receive_iov = dumpclient_receive_iov,
+    .cleanup = dumpclient_cleanup,
+};
+
 int net_init_dump(const NetClientOptions *opts, const char *name,
                   NetClientState *peer, Error **errp)
 {
@@ -162,6 +184,7 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
     char def_file[128];
     const NetdevDumpOptions *dump;
     NetClientState *nc;
+    DumpNetClient *dnc;
 
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_DUMP);
     dump = opts->dump;
@@ -195,7 +218,8 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
     snprintf(nc->info_str, sizeof(nc->info_str),
              "dump to %s (len=%d)", file, len);
 
-    rc = net_dump_state_init(DO_UPCAST(DumpState, nc, nc), file, len, errp);
+    dnc = DO_UPCAST(DumpNetClient, nc, nc);
+    rc = net_dump_state_init(&dnc->ds, file, len, errp);
     if (rc) {
         qemu_del_net_client(nc);
     }
