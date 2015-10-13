@@ -790,6 +790,11 @@ class QAPISchemaEntity(object):
     def __init__(self, name, info):
         assert isinstance(name, str)
         self.name = name
+        # For explicitly defined entities, info points to the (explicit)
+        # definition.  For builtins (and their arrays), info is None.
+        # For implicitly defined entities, info points to a place that
+        # triggered the implicit definition (there may be more than one
+        # such place).
         self.info = info
 
     def c_name(self):
@@ -903,6 +908,10 @@ class QAPISchemaEnumType(QAPISchemaType):
     def check(self, schema):
         assert len(set(self.values)) == len(self.values)
 
+    def is_implicit(self):
+        # See QAPISchema._make_implicit_enum_type()
+        return self.name[-4:] == 'Kind'
+
     def c_type(self, is_param=False):
         return c_name(self.name)
 
@@ -928,6 +937,9 @@ class QAPISchemaArrayType(QAPISchemaType):
     def check(self, schema):
         self.element_type = schema.lookup_type(self._element_type_name)
         assert self.element_type
+
+    def is_implicit(self):
+        return True
 
     def json_type(self):
         return 'array'
@@ -972,6 +984,10 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self.variants:
             self.variants.check(schema, members, seen)
         self.members = members
+
+    def is_implicit(self):
+        # See QAPISchema._make_implicit_object_type()
+        return self.name[0] == ':'
 
     def c_name(self):
         assert not self.is_implicit()
@@ -1120,7 +1136,9 @@ class QAPISchema(object):
         try:
             self.exprs = check_exprs(QAPISchemaParser(open(fname, "r")).exprs)
             self._entity_dict = {}
+            self._predefining = True
             self._def_predefineds()
+            self._predefining = False
             self._def_exprs()
             self.check()
         except (QAPISchemaError, QAPIExprError), err:
@@ -1128,6 +1146,8 @@ class QAPISchema(object):
             exit(1)
 
     def _def_entity(self, ent):
+        # Only the predefined types are allowed to not have info
+        assert ent.info or self._predefining
         assert ent.name not in self._entity_dict
         self._entity_dict[ent.name] = ent
 
@@ -1148,7 +1168,7 @@ class QAPISchema(object):
         # declared in the first file whether or not they are used.  Nicer
         # would be to use lazy instantiation, while figuring out how to
         # avoid compilation issues with multiple qapi-types.h.
-        self._make_array_type(name)
+        self._make_array_type(name, None)
 
     def _def_predefineds(self):
         for t in [('str',    'string',  'char' + pointer_suffix, 'NULL'),
@@ -1170,25 +1190,25 @@ class QAPISchema(object):
                                                           [], None)
         self._def_entity(self.the_empty_object_type)
 
-    def _make_implicit_enum_type(self, name, values):
+    def _make_implicit_enum_type(self, name, info, values):
         name = name + 'Kind'   # Use namespace reserved by add_name()
-        self._def_entity(QAPISchemaEnumType(name, None, values, None))
+        self._def_entity(QAPISchemaEnumType(name, info, values, None))
         return name
 
-    def _make_array_type(self, element_type):
+    def _make_array_type(self, element_type, info):
         # TODO fooList namespace is not reserved; user can create collisions,
         # or abuse our type system with ['fooList'] for 2D array
         name = element_type + 'List'
         if not self.lookup_type(name):
-            self._def_entity(QAPISchemaArrayType(name, None, element_type))
+            self._def_entity(QAPISchemaArrayType(name, info, element_type))
         return name
 
-    def _make_implicit_object_type(self, name, role, members):
+    def _make_implicit_object_type(self, name, info, role, members):
         if not members:
             return None
         name = ':obj-%s-%s' % (name, role)
         if not self.lookup_entity(name, QAPISchemaObjectType):
-            self._def_entity(QAPISchemaObjectType(name, None, None,
+            self._def_entity(QAPISchemaObjectType(name, info, None,
                                                   members, None))
         return name
 
@@ -1198,18 +1218,18 @@ class QAPISchema(object):
         prefix = expr.get('prefix')
         self._def_entity(QAPISchemaEnumType(name, info, data, prefix))
 
-    def _make_member(self, name, typ):
+    def _make_member(self, name, typ, info):
         optional = False
         if name.startswith('*'):
             name = name[1:]
             optional = True
         if isinstance(typ, list):
             assert len(typ) == 1
-            typ = self._make_array_type(typ[0])
+            typ = self._make_array_type(typ[0], info)
         return QAPISchemaObjectTypeMember(name, typ, optional)
 
-    def _make_members(self, data):
-        return [self._make_member(key, value)
+    def _make_members(self, data, info):
+        return [self._make_member(key, value, info)
                 for (key, value) in data.iteritems()]
 
     def _def_struct_type(self, expr, info):
@@ -1217,22 +1237,22 @@ class QAPISchema(object):
         base = expr.get('base')
         data = expr['data']
         self._def_entity(QAPISchemaObjectType(name, info, base,
-                                              self._make_members(data),
+                                              self._make_members(data, info),
                                               None))
 
     def _make_variant(self, case, typ):
         return QAPISchemaObjectTypeVariant(case, typ)
 
-    def _make_simple_variant(self, case, typ):
+    def _make_simple_variant(self, case, typ, info):
         if isinstance(typ, list):
             assert len(typ) == 1
-            typ = self._make_array_type(typ[0])
-        typ = self._make_implicit_object_type(typ, 'wrapper',
-                                              [self._make_member('data', typ)])
+            typ = self._make_array_type(typ[0], info)
+        typ = self._make_implicit_object_type(
+            typ, info, 'wrapper', [self._make_member('data', typ, info)])
         return QAPISchemaObjectTypeVariant(case, typ)
 
-    def _make_implicit_tag(self, type_name, variants):
-        typ = self._make_implicit_enum_type(type_name,
+    def _make_implicit_tag(self, type_name, info, variants):
+        typ = self._make_implicit_enum_type(type_name, info,
                                             [v.name for v in variants])
         return QAPISchemaObjectTypeMember('type', typ, False)
 
@@ -1246,12 +1266,12 @@ class QAPISchema(object):
             variants = [self._make_variant(key, value)
                         for (key, value) in data.iteritems()]
         else:
-            variants = [self._make_simple_variant(key, value)
+            variants = [self._make_simple_variant(key, value, info)
                         for (key, value) in data.iteritems()]
-            tag_member = self._make_implicit_tag(name, variants)
+            tag_member = self._make_implicit_tag(name, info, variants)
         self._def_entity(
             QAPISchemaObjectType(name, info, base,
-                                 self._make_members(OrderedDict()),
+                                 self._make_members(OrderedDict(), info),
                                  QAPISchemaObjectTypeVariants(tag_name,
                                                               tag_member,
                                                               variants)))
@@ -1261,7 +1281,7 @@ class QAPISchema(object):
         data = expr['data']
         variants = [self._make_variant(key, value)
                     for (key, value) in data.iteritems()]
-        tag_member = self._make_implicit_tag(name, variants)
+        tag_member = self._make_implicit_tag(name, info, variants)
         self._def_entity(
             QAPISchemaAlternateType(name, info,
                                     QAPISchemaObjectTypeVariants(None,
@@ -1275,11 +1295,11 @@ class QAPISchema(object):
         gen = expr.get('gen', True)
         success_response = expr.get('success-response', True)
         if isinstance(data, OrderedDict):
-            data = self._make_implicit_object_type(name, 'arg',
-                                                   self._make_members(data))
+            data = self._make_implicit_object_type(
+                name, info, 'arg', self._make_members(data, info))
         if isinstance(rets, list):
             assert len(rets) == 1
-            rets = self._make_array_type(rets[0])
+            rets = self._make_array_type(rets[0], info)
         self._def_entity(QAPISchemaCommand(name, info, data, rets, gen,
                                            success_response))
 
@@ -1287,8 +1307,8 @@ class QAPISchema(object):
         name = expr['event']
         data = expr.get('data')
         if isinstance(data, OrderedDict):
-            data = self._make_implicit_object_type(name, 'arg',
-                                                   self._make_members(data))
+            data = self._make_implicit_object_type(
+                name, info, 'arg', self._make_members(data, info))
         self._def_entity(QAPISchemaEvent(name, info, data))
 
     def _def_exprs(self):
