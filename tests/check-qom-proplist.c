@@ -283,6 +283,51 @@ static void test_dummy_getenum(void)
                                    &err);
     g_assert(err != NULL);
     error_free(err);
+
+    object_unparent(OBJECT(dobj));
+}
+
+
+static void test_dummy_iterator(void)
+{
+    Object *parent = object_get_objects_root();
+    DummyObject *dobj = DUMMY_OBJECT(
+        object_new_with_props(TYPE_DUMMY,
+                              parent,
+                              "dummy0",
+                              &error_abort,
+                              "bv", "yes",
+                              "sv", "Hiss hiss hiss",
+                              "av", "platypus",
+                              NULL));
+
+    ObjectProperty *prop;
+    ObjectPropertyIterator *iter;
+    bool seenbv = false, seensv = false, seenav = false, seentype;
+
+    iter = object_property_iter_init(OBJECT(dobj));
+    while ((prop = object_property_iter_next(iter))) {
+        if (g_str_equal(prop->name, "bv")) {
+            seenbv = true;
+        } else if (g_str_equal(prop->name, "sv")) {
+            seensv = true;
+        } else if (g_str_equal(prop->name, "av")) {
+            seenav = true;
+        } else if (g_str_equal(prop->name, "type")) {
+            /* This prop comes from the base Object class */
+            seentype = true;
+        } else {
+            g_printerr("Found prop '%s'\n", prop->name);
+            g_assert_not_reached();
+        }
+    }
+    object_property_iter_free(iter);
+    g_assert(seenbv);
+    g_assert(seenav);
+    g_assert(seensv);
+    g_assert(seentype);
+
+    object_unparent(OBJECT(dobj));
 }
 
 
@@ -297,6 +342,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qom/proplist/createv", test_dummy_createv);
     g_test_add_func("/qom/proplist/badenum", test_dummy_badenum);
     g_test_add_func("/qom/proplist/getenum", test_dummy_getenum);
+    g_test_add_func("/qom/proplist/iterator", test_dummy_iterator);
 
     return g_test_run();
 }

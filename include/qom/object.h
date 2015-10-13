@@ -960,6 +960,55 @@ void object_property_del(Object *obj, const char *name, Error **errp);
 ObjectProperty *object_property_find(Object *obj, const char *name,
                                      Error **errp);
 
+typedef struct ObjectPropertyIterator ObjectPropertyIterator;
+
+/**
+ * object_property_iter_init:
+ * @obj: the object
+ *
+ * Initializes an iterator for traversing all properties
+ * registered against an object instance.
+ *
+ * It is forbidden to modify the property list while iterating,
+ * whether removing or adding properties.
+ *
+ * Typical usage pattern would be
+ *
+ * <example>
+ *   <title>Using object property iterators</title>
+ *   <programlisting>
+ *   ObjectProperty *prop;
+ *   ObjectPropertyIterator *iter;
+ *
+ *   iter = object_property_iter_init(obj);
+ *   while ((prop = object_property_iter_next(iter))) {
+ *     ... do something with prop ...
+ *   }
+ *   object_property_iter_free(iter);
+ *   </programlisting>
+ * </example>
+ *
+ * Returns: the new iterator
+ */
+ObjectPropertyIterator *object_property_iter_init(Object *obj);
+
+/**
+ * object_property_iter_free:
+ * @iter: the iterator instance
+ *
+ * Releases any resources associated with the iterator.
+ */
+void object_property_iter_free(ObjectPropertyIterator *iter);
+
+/**
+ * object_property_iter_next:
+ * @iter: the iterator instance
+ *
+ * Returns: the next property, or %NULL when all properties
+ * have been traversed.
+ */
+ObjectProperty *object_property_iter_next(ObjectPropertyIterator *iter);
+
 void object_unparent(Object *obj);
 
 /**

@@ -67,6 +67,10 @@ struct TypeImpl
     InterfaceImpl interfaces[MAX_INTERFACES];
 };
 
+struct ObjectPropertyIterator {
+    ObjectProperty *next;
+};
+
 static Type type_interface;
 
 static GHashTable *type_table_get(void)
@@ -915,6 +919,30 @@ ObjectProperty *object_property_find(Object *obj, const char *name,
 
     error_setg(errp, "Property '.%s' not found", name);
     return NULL;
+}
+
+ObjectPropertyIterator *object_property_iter_init(Object *obj)
+{
+    ObjectPropertyIterator *ret = g_new0(ObjectPropertyIterator, 1);
+    ret->next = QTAILQ_FIRST(&obj->properties);
+    return ret;
+}
+
+void object_property_iter_free(ObjectPropertyIterator *iter)
+{
+    if (!iter) {
+        return;
+    }
+    g_free(iter);
+}
+
+ObjectProperty *object_property_iter_next(ObjectPropertyIterator *iter)
+{
+    ObjectProperty *ret = iter->next;
+    if (ret) {
+        iter->next = QTAILQ_NEXT(iter->next, node);
+    }
+    return ret;
 }
 
 void object_property_del(Object *obj, const char *name, Error **errp)
