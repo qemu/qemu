@@ -2012,6 +2012,7 @@ qemu -m 512 -object memory-backend-file,id=mem,size=512M,mem-path=/hugetlbfs,sha
 Dump network traffic on VLAN @var{n} to file @var{file} (@file{qemu-vlan0.pcap} by default).
 At most @var{len} bytes (64k by default) per packet are stored. The file format is
 libpcap, so it can be analyzed with tools such as tcpdump or Wireshark.
+Note: For devices created with '-netdev', use '-object filter-dump,...' instead.
 
 @item -net none
 Indicate that no network devices should be configured. It is used to
@@ -3664,6 +3665,13 @@ queue @var{all|rx|tx} is an option that can be applied to any netfilter.
 
 @option{tx}: the filter is attached to the transmit queue of the netdev,
              where it will receive packets sent by the netdev.
+
+@item -object filter-dump,id=@var{id},netdev=@var{dev},file=@var{filename}][,maxlen=@var{len}]
+
+Dump the network traffic on netdev @var{dev} to the file specified by
+@var{filename}. At most @var{len} bytes (64k by default) per packet are stored.
+The file format is libpcap, so it can be analyzed with tools such as tcpdump
+or Wireshark.
 
 @end table
 
