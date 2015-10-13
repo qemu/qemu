@@ -104,9 +104,10 @@
 { 'command': 'user_def_cmd2',
   'data': {'ud1a': 'UserDefOne', '*ud1b': 'UserDefOne'},
   'returns': 'UserDefTwo' }
-{ 'command': 'user_def_cmd3', 'data': {'a': 'int', '*b': 'int' },
+
+# Returning a non-dictionary requires a name from the whitelist
+{ 'command': 'guest-get-time', 'data': {'a': 'int', '*b': 'int' },
   'returns': 'int' }
-# note: command name 'guest-sync' chosen to avoid "cannot use built-in" error
 { 'command': 'guest-sync', 'data': { 'arg': 'any' }, 'returns': 'any' }
 
 # For testing integer range flattening in opts-visitor. The following schema

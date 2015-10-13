@@ -56,9 +56,6 @@ returns_whitelist = [
     'guest-set-vcpus',
     'guest-sync',
     'guest-sync-delimited',
-
-    # From qapi-schema-test:
-    'user_def_cmd3',
 ]
 
 enum_types = []

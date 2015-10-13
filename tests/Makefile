@@ -318,7 +318,6 @@ qapi-schema += redefined-type.json
 qapi-schema += returns-alternate.json
 qapi-schema += returns-array-bad.json
 qapi-schema += returns-dict.json
-qapi-schema += returns-int.json
 qapi-schema += returns-unknown.json
 qapi-schema += returns-whitelist.json
 qapi-schema += struct-base-clash-base.json

@@ -1,3 +1,0 @@
-# It is okay (although not extensible) to return a non-dictionary
-# But to make it work, the name must be in a whitelist
-{ 'command': 'guest-get-time', 'returns': 'int' }
