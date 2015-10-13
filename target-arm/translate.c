@@ -11342,11 +11342,20 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             CPUBreakpoint *bp;
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
-                    gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
-                    /* Advance PC so that clearing the breakpoint will
-                       invalidate this TB.  */
-                    dc->pc += 2;
-                    goto done_generating;
+                    if (bp->flags & BP_CPU) {
+                        gen_helper_check_breakpoints(cpu_env);
+                        /* End the TB early; it's likely not going to be executed */
+                        dc->is_jmp = DISAS_UPDATE;
+                    } else {
+                        gen_exception_internal_insn(dc, 0, EXCP_DEBUG);
+                        /* Advance PC so that clearing the breakpoint will
+                           invalidate this TB.  */
+                        /* TODO: Advance PC by correct instruction length to
+                         * avoid disassembler error messages */
+                        dc->pc += 2;
+                        goto done_generating;
+                    }
+                    break;
                 }
             }
         }
