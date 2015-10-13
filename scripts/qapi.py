@@ -103,6 +103,7 @@ class QAPISchemaError(Exception):
 class QAPIExprError(Exception):
     def __init__(self, expr_info, msg):
         Exception.__init__(self)
+        assert expr_info
         self.info = expr_info
         self.msg = msg
 
@@ -964,6 +965,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             members = []
         seen = {}
         for m in members:
+            assert c_name(m.name) not in seen
             seen[m.name] = m
         for m in self.local_members:
             m.check(schema, members, seen)
@@ -1116,13 +1118,13 @@ class QAPISchema(object):
     def __init__(self, fname):
         try:
             self.exprs = check_exprs(QAPISchemaParser(open(fname, "r")).exprs)
+            self._entity_dict = {}
+            self._def_predefineds()
+            self._def_exprs()
+            self.check()
         except (QAPISchemaError, QAPIExprError), err:
             print >>sys.stderr, err
             exit(1)
-        self._entity_dict = {}
-        self._def_predefineds()
-        self._def_exprs()
-        self.check()
 
     def _def_entity(self, ent):
         assert ent.name not in self._entity_dict
