@@ -1143,7 +1143,12 @@ class QAPISchema(object):
     def _def_builtin_type(self, name, json_type, c_type, c_null):
         self._def_entity(QAPISchemaBuiltinType(name, json_type,
                                                c_type, c_null))
-        self._make_array_type(name)     # TODO really needed?
+        # TODO As long as we have QAPI_TYPES_BUILTIN to share multiple
+        # qapi-types.h from a single .c, all arrays of builtins must be
+        # declared in the first file whether or not they are used.  Nicer
+        # would be to use lazy instantiation, while figuring out how to
+        # avoid compilation issues with multiple qapi-types.h.
+        self._make_array_type(name)
 
     def _def_predefineds(self):
         for t in [('str',    'string',  'char' + pointer_suffix, 'NULL'),
@@ -1192,7 +1197,6 @@ class QAPISchema(object):
         data = expr['data']
         prefix = expr.get('prefix')
         self._def_entity(QAPISchemaEnumType(name, info, data, prefix))
-        self._make_array_type(name)     # TODO really needed?
 
     def _make_member(self, name, typ):
         optional = False
@@ -1215,7 +1219,6 @@ class QAPISchema(object):
         self._def_entity(QAPISchemaObjectType(name, info, base,
                                               self._make_members(data),
                                               None))
-        self._make_array_type(name)     # TODO really needed?
 
     def _make_variant(self, case, typ):
         return QAPISchemaObjectTypeVariant(case, typ)
@@ -1251,7 +1254,6 @@ class QAPISchema(object):
                                  QAPISchemaObjectTypeVariants(tag_name,
                                                               tag_enum,
                                                               variants)))
-        self._make_array_type(name)     # TODO really needed?
 
     def _def_alternate_type(self, expr, info):
         name = expr['alternate']
@@ -1264,7 +1266,6 @@ class QAPISchema(object):
                                     QAPISchemaObjectTypeVariants(None,
                                                                  tag_enum,
                                                                  variants)))
-        self._make_array_type(name)     # TODO really needed?
 
     def _def_command(self, expr, info):
         name = expr['command']

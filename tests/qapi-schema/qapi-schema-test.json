@@ -40,6 +40,10 @@
   'data': { 'string0': 'str',
             'dict1': 'UserDefTwoDict' } }
 
+# dummy struct to force generation of array types not otherwise mentioned
+{ 'struct': 'ForceArrays',
+  'data': { 'unused1':['UserDefOne'], 'unused2':['UserDefTwo'] } }
+
 # for testing unions
 # Among other things, test that a name collision between branches does
 # not cause any problems (since only one branch can be in use at a time),

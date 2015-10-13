@@ -86,6 +86,9 @@ object EventStructOne
     member struct1: UserDefOne optional=False
     member string: str optional=False
     member enum2: EnumOne optional=True
+object ForceArrays
+    member unused1: UserDefOneList optional=False
+    member unused2: UserDefTwoList optional=False
 enum MyEnum []
 object NestedEnumsOne
     member enum1: EnumOne optional=False
