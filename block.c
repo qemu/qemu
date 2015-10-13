@@ -1104,12 +1104,17 @@ static void bdrv_detach_child(BdrvChild *child)
 
 void bdrv_unref_child(BlockDriverState *parent, BdrvChild *child)
 {
-    BlockDriverState *child_bs = child->bs;
+    BlockDriverState *child_bs;
+
+    if (child == NULL) {
+        return;
+    }
 
     if (child->bs->inherits_from == parent) {
         child->bs->inherits_from = NULL;
     }
 
+    child_bs = child->bs;
     bdrv_detach_child(child);
     bdrv_unref(child_bs);
 }
