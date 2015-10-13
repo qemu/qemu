@@ -941,12 +941,17 @@
 # @err-data: #optional base64-encoded stderr of the process
 #       Note: @out-data and @err-data are present only
 #       if 'capture-output' was specified for 'guest-exec'
+# @out-truncated: #optional true if stdout was not fully captured
+#       due to size limitation.
+# @err-truncated: #optional true if stderr was not fully captured
+#       due to size limitation.
 #
 # Since: 2.5
 ##
 { 'struct': 'GuestExecStatus',
   'data': { 'exited': 'bool', '*exitcode': 'int', '*signal': 'int',
-            '*out-data': 'str', '*err-data': 'str' }}
+            '*out-data': 'str', '*err-data': 'str',
+            '*out-truncated': 'bool', '*err-truncated': 'bool' }}
 ##
 # @guest-exec-status
 #
