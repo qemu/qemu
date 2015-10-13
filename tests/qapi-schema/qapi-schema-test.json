@@ -4,10 +4,9 @@
 # parse and compile correctly.
 
 # for testing enums
-{ 'enum': 'EnumOne',
-  'data': [ 'value1', 'value2', 'value3' ] }
 { 'struct': 'NestedEnumsOne',
-  'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
+  'data': { 'enum1': 'EnumOne',   # Intentional forward reference
+            '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
 
 # An empty enum, although unusual, is currently acceptable
 { 'enum': 'MyEnum', 'data': [ ] }
@@ -20,7 +19,11 @@
 # for testing nested structs
 { 'struct': 'UserDefOne',
   'base': 'UserDefZero',        # intentional forward reference
-  'data': { 'string': 'str', '*enum1': 'EnumOne' } }
+  'data': { 'string': 'str',
+            '*enum1': 'EnumOne' } }   # intentional forward reference
+
+{ 'enum': 'EnumOne',
+  'data': [ 'value1', 'value2', 'value3' ] }
 
 { 'struct': 'UserDefZero',
   'data': { 'integer': 'int' } }

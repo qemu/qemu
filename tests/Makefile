@@ -286,7 +286,6 @@ qapi-schema += flat-union-invalid-branch-key.json
 qapi-schema += flat-union-invalid-discriminator.json
 qapi-schema += flat-union-no-base.json
 qapi-schema += flat-union-optional-discriminator.json
-qapi-schema += flat-union-reverse-define.json
 qapi-schema += flat-union-string-discriminator.json
 qapi-schema += funny-char.json
 qapi-schema += ident-with-escape.json
