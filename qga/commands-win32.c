@@ -55,7 +55,9 @@ typedef struct GuestFileHandle {
 
 static struct {
     QTAILQ_HEAD(, GuestFileHandle) filehandles;
-} guest_file_state;
+} guest_file_state = {
+    .filehandles = QTAILQ_HEAD_INITIALIZER(guest_file_state.filehandles),
+};
 
 
 typedef struct OpenFlags {
@@ -388,11 +390,6 @@ void qmp_guest_file_flush(int64_t handle, Error **errp)
     if (!FlushFileBuffers(fh)) {
         error_setg_win32(errp, GetLastError(), "failed to flush file");
     }
-}
-
-static void guest_file_init(void)
-{
-    QTAILQ_INIT(&guest_file_state.filehandles);
 }
 
 #ifdef CONFIG_QGA_NTDDSCSI
@@ -1330,5 +1327,4 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
     if (!vss_initialized()) {
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
-    ga_command_state_add(cs, guest_file_init, NULL);
 }

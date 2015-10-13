@@ -223,7 +223,9 @@ typedef struct GuestFileHandle {
 
 static struct {
     QTAILQ_HEAD(, GuestFileHandle) filehandles;
-} guest_file_state;
+} guest_file_state = {
+    .filehandles = QTAILQ_HEAD_INITIALIZER(guest_file_state.filehandles),
+};
 
 static int64_t guest_file_handle_add(FILE *fh, Error **errp)
 {
@@ -584,11 +586,6 @@ void qmp_guest_file_flush(int64_t handle, Error **errp)
     if (ret == EOF) {
         error_setg_errno(errp, errno, "failed to flush file");
     }
-}
-
-static void guest_file_init(void)
-{
-    QTAILQ_INIT(&guest_file_state.filehandles);
 }
 
 /* linux-specific implementations. avoid this if at all possible. */
@@ -2492,5 +2489,4 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
 #if defined(CONFIG_FSFREEZE)
     ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
 #endif
-    ga_command_state_add(cs, guest_file_init, NULL);
 }
