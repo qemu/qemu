@@ -1,9 +1,0 @@
-object :empty
-object :obj-okay-arg
-    member member1: intList optional=False
-    member member2: defList optional=False
-enum abc ['a', 'b', 'c']
-object def
-    member array: abcList optional=False
-command okay :obj-okay-arg -> None
-   gen=True success_response=True

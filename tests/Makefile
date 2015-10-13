@@ -239,7 +239,6 @@ qapi-schema += args-array-unknown.json
 qapi-schema += args-int.json
 qapi-schema += args-invalid.json
 qapi-schema += args-member-array-bad.json
-qapi-schema += args-member-array.json
 qapi-schema += args-member-unknown.json
 qapi-schema += args-name-clash.json
 qapi-schema += args-union.json
