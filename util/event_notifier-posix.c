@@ -77,7 +77,7 @@ void event_notifier_cleanup(EventNotifier *e)
     close(e->wfd);
 }
 
-int event_notifier_get_fd(EventNotifier *e)
+int event_notifier_get_fd(const EventNotifier *e)
 {
     return e->rfd;
 }

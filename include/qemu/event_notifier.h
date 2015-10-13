@@ -38,7 +38,7 @@ int event_notifier_set_handler(EventNotifier *, EventNotifierHandler *);
 
 #ifdef CONFIG_POSIX
 void event_notifier_init_fd(EventNotifier *, int fd);
-int event_notifier_get_fd(EventNotifier *);
+int event_notifier_get_fd(const EventNotifier *);
 #else
 HANDLE event_notifier_get_handle(EventNotifier *);
 #endif
