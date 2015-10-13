@@ -930,3 +930,65 @@
 ##
 { 'command': 'guest-get-memory-block-info',
   'returns': 'GuestMemoryBlockInfo' }
+
+# @GuestExecStatus:
+#
+# @exited: true if process has already terminated.
+# @exitcode: #optional process exit code if it was normally terminated.
+# @signal: #optional signal number (linux) or unhandled exception code
+#       (windows) if the process was abnormally terminated.
+# @out-data: #optional base64-encoded stdout of the process
+# @err-data: #optional base64-encoded stderr of the process
+#       Note: @out-data and @err-data are present only
+#       if 'capture-output' was specified for 'guest-exec'
+#
+# Since: 2.5
+##
+{ 'struct': 'GuestExecStatus',
+  'data': { 'exited': 'bool', '*exitcode': 'int', '*signal': 'int',
+            '*out-data': 'str', '*err-data': 'str' }}
+##
+# @guest-exec-status
+#
+# Check status of process associated with PID retrieved via guest-exec.
+# Reap the process and associated metadata if it has exited.
+#
+# @pid: pid returned from guest-exec
+#
+# Returns: GuestExecStatus on success.
+#
+# Since 2.5
+##
+{ 'command': 'guest-exec-status',
+  'data':    { 'pid': 'int' },
+  'returns': 'GuestExecStatus' }
+
+##
+# @GuestExec:
+# @pid: pid of child process in guest OS
+#
+#Since: 2.5
+##
+{ 'struct': 'GuestExec',
+  'data': { 'pid': 'int'} }
+
+##
+# @guest-exec:
+#
+# Execute a command in the guest
+#
+# @path: path or executable name to execute
+# @arg: #optional argument list to pass to executable
+# @env: #optional environment variables to pass to executable
+# @input-data: #optional data to be passed to process stdin (base64 encoded)
+# @capture-output: #optional bool flag to enable capture of
+#                  stdout/stderr of running process. defaults to false.
+#
+# Returns: PID on success.
+#
+# Since: 2.5
+##
+{ 'command': 'guest-exec',
+  'data':    { 'path': 'str', '*arg': ['str'], '*env': ['str'],
+               '*input-data': 'str', '*capture-output': 'bool' },
+  'returns': 'GuestExec' }
