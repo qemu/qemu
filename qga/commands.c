@@ -225,6 +225,22 @@ static void guest_exec_child_watch(GPid pid, gint status, gpointer data)
     g_spawn_close_pid(pid);
 }
 
+/** Reset ignored signals back to default. */
+static void guest_exec_task_setup(gpointer data)
+{
+#if !defined(G_OS_WIN32)
+    struct sigaction sigact;
+
+    memset(&sigact, 0, sizeof(struct sigaction));
+    sigact.sa_handler = SIG_DFL;
+
+    if (sigaction(SIGPIPE, &sigact, NULL) != 0) {
+        slog("sigaction() failed to reset child process's SIGPIPE: %s",
+             strerror(errno));
+    }
+#endif
+}
+
 GuestExec *qmp_guest_exec(const char *path,
                        bool has_arg, strList *arg,
                        bool has_env, strList *env,
@@ -250,7 +266,7 @@ GuestExec *qmp_guest_exec(const char *path,
             G_SPAWN_SEARCH_PATH |
             G_SPAWN_DO_NOT_REAP_CHILD |
             G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL,
-            NULL, NULL, &pid, NULL, NULL, NULL, &gerr);
+            guest_exec_task_setup, NULL, &pid, NULL, NULL, NULL, &gerr);
     if (!ret) {
         error_setg(err, QERR_QGA_COMMAND_FAILED, gerr->message);
         g_error_free(gerr);
