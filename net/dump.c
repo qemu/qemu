@@ -25,6 +25,7 @@
 #include "clients.h"
 #include "qemu-common.h"
 #include "qemu/error-report.h"
+#include "qemu/iov.h"
 #include "qemu/log.h"
 #include "qemu/timer.h"
 #include "hub.h"
@@ -57,12 +58,15 @@ struct pcap_sf_pkthdr {
     uint32_t len;
 };
 
-static ssize_t dump_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+static ssize_t dump_receive_iov(NetClientState *nc, const struct iovec *iov,
+                                int cnt)
 {
     DumpState *s = DO_UPCAST(DumpState, nc, nc);
     struct pcap_sf_pkthdr hdr;
     int64_t ts;
     int caplen;
+    size_t size = iov_size(iov, cnt);
+    struct iovec dumpiov[cnt + 1];
 
     /* Early return in case of previous error. */
     if (s->fd < 0) {
@@ -76,14 +80,27 @@ static ssize_t dump_receive(NetClientState *nc, const uint8_t *buf, size_t size)
     hdr.ts.tv_usec = ts % 1000000;
     hdr.caplen = caplen;
     hdr.len = size;
-    if (write(s->fd, &hdr, sizeof(hdr)) != sizeof(hdr) ||
-        write(s->fd, buf, caplen) != caplen) {
+
+    dumpiov[0].iov_base = &hdr;
+    dumpiov[0].iov_len = sizeof(hdr);
+    cnt = iov_copy(&dumpiov[1], cnt, iov, cnt, 0, caplen);
+
+    if (writev(s->fd, dumpiov, cnt + 1) != sizeof(hdr) + caplen) {
         qemu_log("-net dump write error - stop dump\n");
         close(s->fd);
         s->fd = -1;
     }
 
     return size;
+}
+
+static ssize_t dump_receive(NetClientState *nc, const uint8_t *buf, size_t size)
+{
+    struct iovec iov = {
+        .iov_base = (void *)buf,
+        .iov_len = size
+    };
+    return dump_receive_iov(nc, &iov, 1);
 }
 
 static void dump_cleanup(NetClientState *nc)
@@ -97,6 +114,7 @@ static NetClientInfo net_dump_info = {
     .type = NET_CLIENT_OPTIONS_KIND_DUMP,
     .size = sizeof(DumpState),
     .receive = dump_receive,
+    .receive_iov = dump_receive_iov,
     .cleanup = dump_cleanup,
 };
 
