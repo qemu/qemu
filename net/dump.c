@@ -118,13 +118,10 @@ static NetClientInfo net_dump_info = {
     .cleanup = dump_cleanup,
 };
 
-static int net_dump_init(NetClientState *peer, const char *device,
-                         const char *name, const char *filename, int len,
-                         Error **errp)
+static int net_dump_state_init(DumpState *s, const char *filename,
+                               int len, Error **errp)
 {
     struct pcap_file_hdr hdr;
-    NetClientState *nc;
-    DumpState *s;
     struct tm tm;
     int fd;
 
@@ -148,13 +145,6 @@ static int net_dump_init(NetClientState *peer, const char *device,
         return -1;
     }
 
-    nc = qemu_new_net_client(&net_dump_info, peer, device, name);
-
-    snprintf(nc->info_str, sizeof(nc->info_str),
-             "dump to %s (len=%d)", filename, len);
-
-    s = DO_UPCAST(DumpState, nc, nc);
-
     s->fd = fd;
     s->pcap_caplen = len;
 
@@ -167,10 +157,11 @@ static int net_dump_init(NetClientState *peer, const char *device,
 int net_init_dump(const NetClientOptions *opts, const char *name,
                   NetClientState *peer, Error **errp)
 {
-    int len;
+    int len, rc;
     const char *file;
     char def_file[128];
     const NetdevDumpOptions *dump;
+    NetClientState *nc;
 
     assert(opts->kind == NET_CLIENT_OPTIONS_KIND_DUMP);
     dump = opts->dump;
@@ -200,5 +191,13 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
         len = 65536;
     }
 
-    return net_dump_init(peer, "dump", name, file, len, errp);
+    nc = qemu_new_net_client(&net_dump_info, peer, "dump", name);
+    snprintf(nc->info_str, sizeof(nc->info_str),
+             "dump to %s (len=%d)", file, len);
+
+    rc = net_dump_state_init(DO_UPCAST(DumpState, nc, nc), file, len, errp);
+    if (rc) {
+        qemu_del_net_client(nc);
+    }
+    return rc;
 }
