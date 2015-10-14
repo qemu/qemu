@@ -135,9 +135,9 @@ _make_test_img()
     # XXX(hch): have global image options?
     (
      if [ $use_backing = 1 ]; then
-        $QEMU_IMG create -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" $image_size 2>&1
+        $QEMU_IMG create $EXTRA_IMG_ARGS -f $IMGFMT $extra_img_options -b "$backing_file" "$img_name" $image_size 2>&1
      else
-        $QEMU_IMG create -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
+        $QEMU_IMG create $EXTRA_IMG_ARGS -f $IMGFMT $extra_img_options "$img_name" $image_size 2>&1
      fi
     ) | _filter_img_create
 

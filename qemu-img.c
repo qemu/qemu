@@ -303,11 +303,9 @@ static BlockBackend *img_open_opts(const char *id,
 
 static BlockBackend *img_open_file(const char *id, const char *filename,
                                    const char *fmt, int flags,
-                                   bool require_io, bool quiet)
+                                   bool quiet)
 {
     BlockBackend *blk;
-    BlockDriverState *bs;
-    char password[256];
     Error *local_err = NULL;
     QDict *options = NULL;
 
@@ -324,18 +322,6 @@ static BlockBackend *img_open_file(const char *id, const char *filename,
         goto fail;
     }
 
-    bs = blk_bs(blk);
-    if (bdrv_is_encrypted(bs) && require_io) {
-        qprintf(quiet, "Disk image '%s' is encrypted.\n", filename);
-        if (qemu_read_password(password, sizeof(password)) < 0) {
-            error_report("No password given");
-            goto fail;
-        }
-        if (bdrv_set_key(bs, password) < 0) {
-            error_report("invalid password");
-            goto fail;
-        }
-    }
     return blk;
 fail:
     blk_unref(blk);
@@ -727,7 +713,7 @@ static int img_check(int argc, char **argv)
         }
         blk = img_open_opts("image", opts, flags);
     } else {
-        blk = img_open_file("image", filename, fmt, flags, true, quiet);
+        blk = img_open_file("image", filename, fmt, flags, quiet);
     }
     if (!blk) {
         return 1;
@@ -940,7 +926,7 @@ static int img_commit(int argc, char **argv)
         }
         blk = img_open_opts("image", opts, flags);
     } else {
-        blk = img_open_file("image", filename, fmt, flags, true, quiet);
+        blk = img_open_file("image", filename, fmt, flags, quiet);
     }
     if (!blk) {
         return 1;
@@ -1310,13 +1296,13 @@ static int img_compare(int argc, char **argv)
             goto out3;
         }
     } else {
-        blk1 = img_open_file("image_1", filename1, fmt1, flags, true, quiet);
+        blk1 = img_open_file("image_1", filename1, fmt1, flags, quiet);
         if (!blk1) {
             ret = 2;
             goto out3;
         }
 
-        blk2 = img_open_file("image_2", filename2, fmt2, flags, true, quiet);
+        blk2 = img_open_file("image_2", filename2, fmt2, flags, quiet);
         if (!blk2) {
             ret = 2;
             goto out2;
@@ -2010,7 +1996,7 @@ static int img_convert(int argc, char **argv)
             opts = qemu_opts_next(opts);
         } else {
             blk[bs_i] = img_open_file(id, argv[optind + bs_i], fmt, src_flags,
-                                      true, quiet);
+                                      quiet);
         }
         g_free(id);
         if (!blk[bs_i]) {
@@ -2160,7 +2146,7 @@ static int img_convert(int argc, char **argv)
      * the bdrv_create() call which takes different params
      */
     out_blk = img_open_file("target", out_filename,
-                            out_fmt, flags, true, quiet);
+                            out_fmt, flags, quiet);
     if (!out_blk) {
         ret = -1;
         goto out;
@@ -2358,12 +2344,14 @@ static ImageInfoList *collect_image_info_list(QemuOpts *opts,
                 goto err;
             }
             blk = img_open_opts("image", opts,
-                                BDRV_O_FLAGS | BDRV_O_NO_BACKING);
+                                BDRV_O_FLAGS | BDRV_O_NO_BACKING |
+                                BDRV_O_NO_IO);
             opts = NULL;
         } else {
             blk = img_open_file("image", filename, fmt,
-                                BDRV_O_FLAGS | BDRV_O_NO_BACKING,
-                                false, false);
+                                BDRV_O_FLAGS | BDRV_O_NO_BACKING |
+                                BDRV_O_NO_IO,
+                                false);
         }
         if (!blk) {
             goto err;
@@ -2699,7 +2687,7 @@ static int img_map(int argc, char **argv)
         }
         blk = img_open_opts("image", opts, BDRV_O_FLAGS);
     } else {
-        blk = img_open_file("image", filename, fmt, BDRV_O_FLAGS, true, false);
+        blk = img_open_file("image", filename, fmt, BDRV_O_FLAGS, false);
     }
     if (!blk) {
         return 1;
@@ -2865,7 +2853,7 @@ static int img_snapshot(int argc, char **argv)
     if (opts) {
         blk = img_open_opts("image", opts, bdrv_oflags);
     } else {
-        blk = img_open_file("image", filename, NULL, bdrv_oflags, true, quiet);
+        blk = img_open_file("image", filename, NULL, bdrv_oflags, quiet);
     }
     if (!blk) {
         return 1;
@@ -3055,7 +3043,7 @@ static int img_rebase(int argc, char **argv)
         }
         blk = img_open_opts("image", opts, flags);
     } else {
-        blk = img_open_file("image", filename, fmt, flags, true, quiet);
+        blk = img_open_file("image", filename, fmt, flags, quiet);
     }
     if (!blk) {
         ret = -1;
@@ -3413,7 +3401,7 @@ static int img_resize(int argc, char **argv)
         blk = img_open_opts("image", opts, BDRV_O_FLAGS | BDRV_O_RDWR);
     } else {
         blk = img_open_file("image", filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR,
-                            true, quiet);
+                            quiet);
     }
     if (!blk) {
         ret = -1;
@@ -3590,7 +3578,7 @@ static int img_amend(int argc, char **argv)
         }
         blk = img_open_opts("image", opts, BDRV_O_FLAGS | BDRV_O_RDWR);
     } else {
-        blk = img_open_file("image", filename, fmt, flags, true, quiet);
+        blk = img_open_file("image", filename, fmt, flags, quiet);
     }
     if (!blk) {
         ret = -1;

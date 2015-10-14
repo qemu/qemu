@@ -1136,6 +1136,13 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
+    if (!(flags & BDRV_O_NO_IO) &&
+        bs->encrypted && !s->cipher) {
+        error_setg(errp, "Image is encrypted but no secret is provided");
+        ret = -EINVAL;
+        goto fail;
+    }
+
     s->cluster_cache = g_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */
     s->cluster_data = qemu_try_blockalign(bs->file->bs, QCOW_MAX_CRYPT_CLUSTERS
@@ -2207,7 +2214,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     options = qdict_new();
     qdict_put(options, "driver", qstring_from_str("qcow2"));
     ret = bdrv_open(&bs, filename, NULL, options,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH,
+                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH |
+                    BDRV_O_NO_IO,
                     &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
@@ -2261,7 +2269,8 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     options = qdict_new();
     qdict_put(options, "driver", qstring_from_str("qcow2"));
     ret = bdrv_open(&bs, filename, NULL, options,
-                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_BACKING,
+                    BDRV_O_RDWR | BDRV_O_CACHE_WB | BDRV_O_NO_BACKING |
+                    BDRV_O_NO_IO,
                     &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

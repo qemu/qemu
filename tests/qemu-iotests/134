@@ -44,23 +44,30 @@ _supported_os Linux
 
 
 size=128M
-IMGOPTS="encryption=on" _make_test_img $size
+SECRET1=secret,id=sec0,data=astrochicken
+SECRET2=secret,id=sec0,data=platypus
+
+EXTRA_IMG_ARGS="--object $SECRET1" IMGOPTS="encryption=on" _make_test_img $size
+
+
+QEMU_IO_OPTIONS=`echo $QEMU_IO_OPTIONS | sed -e 's/-f qcow2//'`
+TEST_IMG="driver=qcow2,file=$TEST_IMG,keyid=sec0"
 
 echo
 echo "== reading whole image =="
-echo "astrochicken" | $QEMU_IO -c "read 0 $size" "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET1 -c "read 0 $size" --source "$TEST_IMG" | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== rewriting whole image =="
-echo "astrochicken" | $QEMU_IO -c "write -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET1  -c "write -P 0xa 0 $size" --source "$TEST_IMG" | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== verify pattern =="
-echo "astrochicken" | $QEMU_IO -c "read -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET1  -c "read -P 0xa 0 $size" --source "$TEST_IMG" | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== verify pattern failure with wrong password =="
-echo "platypus" | $QEMU_IO -c "read -P 0xa 0 $size" "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET2 -c "read -P 0xa 0 $size" --source "$TEST_IMG" | _filter_qemu_io | _filter_testdir
 
 
 # success, all done

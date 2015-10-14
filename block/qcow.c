@@ -231,6 +231,13 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->crypt_method_header) {
         bs->encrypted = 1;
     }
+    if (!(flags & BDRV_O_NO_IO) &&
+        bs->encrypted && !s->cipher) {
+        error_setg(errp, "Image is encrypted but no secret is provided");
+        ret = -EINVAL;
+        goto fail;
+    }
+
     s->cluster_bits = header.cluster_bits;
     s->cluster_size = 1 << s->cluster_bits;
     s->cluster_sectors = 1 << (s->cluster_bits - 9);

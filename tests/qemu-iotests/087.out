@@ -48,6 +48,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 encryption=on
 Testing: -S
 QMP_VERSION
 {"return": {}}
+{"return": {}}
 Encrypted images are deprecated
 Support for them will be removed in a future release.
 You can use 'qemu-img convert' to convert your image to an unencrypted one.
@@ -57,6 +58,7 @@ You can use 'qemu-img convert' to convert your image to an unencrypted one.
 
 Testing:
 QMP_VERSION
+{"return": {}}
 {"return": {}}
 Encrypted images are deprecated
 Support for them will be removed in a future release.

@@ -187,11 +187,21 @@ echo
 _make_test_img -o encryption=on $size
 run_qemu -S <<EOF
 { "execute": "qmp_capabilities" }
+{ "execute": "object-add",
+  "arguments": {
+      "qom-type": "secret",
+      "id": "sec0",
+      "props": {
+         "data": "123456"
+      }
+  }
+}
 { "execute": "blockdev-add",
   "arguments": {
       "options": {
         "driver": "$IMGFMT",
         "id": "disk",
+        "keyid": "sec0",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
@@ -204,11 +214,21 @@ EOF
 
 run_qemu <<EOF
 { "execute": "qmp_capabilities" }
+{ "execute": "object-add",
+  "arguments": {
+      "qom-type": "secret",
+      "id": "sec0",
+      "props": {
+         "data": "123456"
+      }
+  }
+}
 { "execute": "blockdev-add",
   "arguments": {
       "options": {
         "driver": "$IMGFMT",
         "id": "disk",
+        "keyid": "sec0",
         "file": {
             "driver": "file",
             "filename": "$TEST_IMG"
