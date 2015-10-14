@@ -294,7 +294,6 @@ static void process_incoming_migration_co(void *opaque)
         migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
     }
-    qemu_announce_self();
 
     /* Make sure all file formats flush their mutable metadata */
     bdrv_invalidate_cache_all(&local_err);
@@ -304,6 +303,12 @@ static void process_incoming_migration_co(void *opaque)
         migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
     }
+
+    /*
+     * This must happen after all error conditions are dealt with and
+     * we're sure the VM is going to be running on this host.
+     */
+    qemu_announce_self();
 
     /* If global state section was not received or we are in running
        state, we need to obey autostart. Any other state is set with
