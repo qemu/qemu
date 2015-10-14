@@ -309,6 +309,7 @@ gnutls_hash=""
 gnutls_rnd=""
 nettle=""
 gcrypt=""
+gcrypt_kdf="no"
 vte=""
 virglrenderer=""
 tpm="yes"
@@ -2301,6 +2302,19 @@ if test "$gcrypt" != "no"; then
         gcrypt="yes"
         if test -z "$nettle"; then
            nettle="no"
+        fi
+
+        cat > $TMPC << EOF
+#include <gcrypt.h>
+int main(void) {
+  gcry_kdf_derive(NULL, 0, GCRY_KDF_PBKDF2,
+                  GCRY_MD_SHA256,
+                  NULL, 0, 0, 0, NULL);
+ return 0;
+}
+EOF
+        if compile_prog "$gcrypt_cflags" "$gcrypt_libs" ; then
+            gcrypt_kdf=yes
         fi
     else
         if test "$gcrypt" = "yes"; then
@@ -4726,6 +4740,7 @@ echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
 echo "GNUTLS rnd        $gnutls_rnd"
 echo "libgcrypt         $gcrypt"
+echo "libgcrypt kdf     $gcrypt_kdf"
 if test "$nettle" = "yes"; then
     echo "nettle            $nettle ($nettle_version)"
 else
@@ -5108,6 +5123,9 @@ if test "$gnutls_rnd" = "yes" ; then
 fi
 if test "$gcrypt" = "yes" ; then
   echo "CONFIG_GCRYPT=y" >> $config_host_mak
+  if test "$gcrypt_kdf" = "yes" ; then
+    echo "CONFIG_GCRYPT_KDF=y" >> $config_host_mak
+  fi
 fi
 if test "$nettle" = "yes" ; then
   echo "CONFIG_NETTLE=y" >> $config_host_mak

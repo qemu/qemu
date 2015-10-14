@@ -92,6 +92,7 @@ check-unit-$(CONFIG_GNUTLS) += tests/test-io-channel-tls$(EXESUF)
 check-unit-y += tests/test-io-channel-command$(EXESUF)
 check-unit-y += tests/test-io-channel-buffer$(EXESUF)
 check-unit-y += tests/test-base64$(EXESUF)
+check-unit-$(if $(CONFIG_NETTLE),y,$(CONFIG_GCRYPT_KDF)) += tests/test-crypto-pbkdf$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -496,6 +497,7 @@ tests/test-io-channel-command$(EXESUF): tests/test-io-channel-command.o \
         tests/io-channel-helpers.o $(test-io-obj-y)
 tests/test-io-channel-buffer$(EXESUF): tests/test-io-channel-buffer.o \
         tests/io-channel-helpers.o $(test-io-obj-y)
+tests/test-crypto-pbkdf$(EXESUF): tests/test-crypto-pbkdf.o $(test-crypto-obj-y)
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
 libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o
