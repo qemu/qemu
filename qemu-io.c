@@ -21,6 +21,8 @@
 #include "qemu/config-file.h"
 #include "qemu/readline.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/opts-visitor.h"
+#include "qom/object_interfaces.h"
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "trace/control.h"
@@ -205,6 +207,9 @@ static void usage(const char *name)
 "Usage: %s [-h] [-V] [-rsnm] [-f FMT] [-c STRING] ... [file]\n"
 "QEMU Disk exerciser\n"
 "\n"
+"  --object OBJECTDEF   define a object such as 'secret' for\n"
+"                       providing passwords and/or encryption\n"
+"                       keys\n"
 "  -c, --cmd STRING     execute command with its arguments\n"
 "                       from the given string\n"
 "  -f, --format FMT     specifies the block driver to use\n"
@@ -366,6 +371,71 @@ static void reenable_tty_echo(void)
     qemu_set_tty_echo(STDIN_FILENO, true);
 }
 
+enum {
+    OPTION_OBJECT = 258,
+};
+
+static QemuOptsList qemu_object_opts = {
+    .name = "object",
+    .implied_opt_name = "qom-type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
+    .desc = {
+        { }
+    },
+};
+
+static int object_create(void *opaque, QemuOpts *opts, Error **errp)
+{
+    Error *err = NULL;
+    char *type = NULL;
+    char *id = NULL;
+    void *dummy = NULL;
+    OptsVisitor *ov;
+    QDict *pdict;
+
+    ov = opts_visitor_new(opts);
+    pdict = qemu_opts_to_qdict(opts, NULL);
+
+    visit_start_struct(opts_get_visitor(ov), &dummy, NULL, NULL, 0, &err);
+    if (err) {
+        goto out;
+    }
+
+    qdict_del(pdict, "qom-type");
+    visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
+    if (err) {
+        goto out;
+    }
+
+    qdict_del(pdict, "id");
+    visit_type_str(opts_get_visitor(ov), &id, "id", &err);
+    if (err) {
+        goto out;
+    }
+
+    user_creatable_add(type, id, pdict, opts_get_visitor(ov), &err);
+    if (err) {
+        goto out;
+    }
+    visit_end_struct(opts_get_visitor(ov), &err);
+    if (err) {
+        user_creatable_del(id, NULL);
+    }
+
+out:
+    opts_visitor_cleanup(ov);
+
+    QDECREF(pdict);
+    g_free(id);
+    g_free(type);
+    g_free(dummy);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     int readonly = 0;
@@ -384,6 +454,7 @@ int main(int argc, char **argv)
         { "discard", 1, NULL, 'd' },
         { "cache", 1, NULL, 't' },
         { "trace", 1, NULL, 'T' },
+        { "object", 1, NULL, OPTION_OBJECT },
         { NULL, 0, NULL, 0 }
     };
     int c;
@@ -391,6 +462,7 @@ int main(int argc, char **argv)
     int flags = BDRV_O_UNMAP;
     Error *local_error = NULL;
     QDict *opts = NULL;
+    QemuOpts *qopts = NULL;
 
 #ifdef CONFIG_POSIX
     signal(SIGPIPE, SIG_IGN);
@@ -399,6 +471,8 @@ int main(int argc, char **argv)
     progname = basename(argv[0]);
     qemu_init_exec_dir(argv[0]);
 
+    module_call_init(MODULE_INIT_QOM);
+    qemu_add_opts(&qemu_object_opts);
     bdrv_init();
 
     while ((c = getopt_long(argc, argv, sopt, lopt, &opt_index)) != -1) {
@@ -450,6 +524,13 @@ int main(int argc, char **argv)
         case 'h':
             usage(progname);
             exit(0);
+        case OPTION_OBJECT:
+            qopts = qemu_opts_parse_noisily(qemu_find_opts("object"),
+                                            optarg, true);
+            if (!qopts) {
+                exit(1);
+            }
+            break;
         default:
             usage(progname);
             exit(1);
@@ -463,6 +544,12 @@ int main(int argc, char **argv)
 
     if (qemu_init_main_loop(&local_error)) {
         error_report_err(local_error);
+        exit(1);
+    }
+
+    if (qemu_opts_foreach(qemu_find_opts("object"),
+                          object_create,
+                          NULL, NULL)) {
         exit(1);
     }
 
