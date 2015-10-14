@@ -19,3 +19,17 @@
 { 'enum': 'QCryptoTLSCredsEndpoint',
   'prefix': 'QCRYPTO_TLS_CREDS_ENDPOINT',
   'data': ['client', 'server']}
+
+
+##
+# QCryptoSecretFormat:
+#
+# The data format that the secret is provided in
+#
+# @raw: raw bytes. When encoded in JSON only valid UTF-8 sequences can be used
+# @base64: arbitrary base64 encoded binary data
+# Since: 2.6
+##
+{ 'enum': 'QCryptoSecretFormat',
+  'prefix': 'QCRYPTO_SECRET_FORMAT',
+  'data': ['raw', 'base64']}
