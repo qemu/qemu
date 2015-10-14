@@ -1026,11 +1026,6 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         ret = -EINVAL;
         goto fail;
     }
-    if (!qcrypto_cipher_supports(QCRYPTO_CIPHER_ALG_AES_128)) {
-        error_setg(errp, "AES cipher not available");
-        ret = -EINVAL;
-        goto fail;
-    }
     s->crypt_method_header = header.crypt_method;
     if (s->crypt_method_header) {
         bs->encrypted = 1;
@@ -1260,19 +1255,6 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
     BDRVQcow2State *s = bs->opaque;
 
     bs->bl.write_zeroes_alignment = s->cluster_sectors;
-}
-
-static int qcow2_set_key(BlockDriverState *bs, const char *key)
-{
-    BDRVQcow2State *s = bs->opaque;
-
-    assert(bs->encrypted);
-    qcrypto_cipher_free(s->cipher);
-    s->cipher = qcow2_get_cipher_from_key(key, NULL);
-    if (!s->cipher) {
-        return -1;
-    }
-    return 0;
 }
 
 static int qcow2_reopen_prepare(BDRVReopenState *state,
@@ -3191,7 +3173,6 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = qcow2_co_get_block_status,
-    .bdrv_set_key       = qcow2_set_key,
 
     .bdrv_co_readv          = qcow2_co_readv,
     .bdrv_co_writev         = qcow2_co_writev,

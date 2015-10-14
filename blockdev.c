@@ -624,10 +624,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             bdrv_set_io_limits(bs, &cfg);
         }
 
-        if (bdrv_key_required(bs)) {
-            autostart = 0;
-        }
-
         block_acct_init(blk_get_stats(blk), account_invalid, account_failed);
 
         if (!parse_stats_intervals(blk_get_stats(blk), interval_list, errp)) {
@@ -2264,24 +2260,8 @@ void qmp_block_passwd(bool has_device, const char *device,
                       bool has_node_name, const char *node_name,
                       const char *password, Error **errp)
 {
-    Error *local_err = NULL;
-    BlockDriverState *bs;
-    AioContext *aio_context;
-
-    bs = bdrv_lookup_bs(has_device ? device : NULL,
-                        has_node_name ? node_name : NULL,
-                        &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
-    bdrv_add_key(bs, password, errp);
-
-    aio_context_release(aio_context);
+    error_setg_errno(errp, -ENOSYS,
+                     "Setting block passwords directly is no longer supported");
 }
 
 void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
@@ -2507,12 +2487,6 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     }
 
     blk_apply_root_state(blk, medium_bs);
-
-    bdrv_add_key(medium_bs, NULL, &err);
-    if (err) {
-        error_propagate(errp, err);
-        goto fail;
-    }
 
     qmp_blockdev_open_tray(device, false, false, &err);
     if (err) {
@@ -3755,16 +3729,6 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
         if (!bs) {
             goto fail;
         }
-    }
-
-    if (bs && bdrv_key_required(bs)) {
-        if (blk) {
-            blk_unref(blk);
-        } else {
-            bdrv_unref(bs);
-        }
-        error_setg(errp, "blockdev-add doesn't support encrypted devices");
-        goto fail;
     }
 
 fail:

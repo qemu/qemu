@@ -412,10 +412,6 @@ bool bdrv_chain_contains(BlockDriverState *top, BlockDriverState *base);
 BlockDriverState *bdrv_next_node(BlockDriverState *bs);
 BlockDriverState *bdrv_next(BlockDriverState *bs);
 int bdrv_is_encrypted(BlockDriverState *bs);
-int bdrv_key_required(BlockDriverState *bs);
-int bdrv_set_key(BlockDriverState *bs, const char *key);
-void bdrv_add_key(BlockDriverState *bs, const char *key, Error **errp);
-int bdrv_query_missing_keys(void);
 void bdrv_iterate_format(void (*it)(void *opaque, const char *name),
                          void *opaque);
 const char *bdrv_get_node_name(const BlockDriverState *bs);
