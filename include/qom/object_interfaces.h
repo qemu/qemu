@@ -2,6 +2,8 @@
 #define OBJECT_INTERFACES_H
 
 #include "qom/object.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/visitor.h"
 
 #define TYPE_USER_CREATABLE "user-creatable"
 
@@ -72,4 +74,33 @@ void user_creatable_complete(Object *obj, Error **errp);
  * from implements USER_CREATABLE interface.
  */
 bool user_creatable_can_be_deleted(UserCreatable *uc, Error **errp);
+
+/**
+ * user_creatable_add:
+ * @type: the object type name
+ * @id: the unique ID for the object
+ * @qdict: the object parameters
+ * @v: the visitor
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Create an instance of the user creatable object @type, placing
+ * it in the object composition tree with name @id, initializing
+ * it with properties from @qdict
+ *
+ * Returns: the newly created object or NULL on error
+ */
+Object *user_creatable_add(const char *type, const char *id,
+                           const QDict *qdict,
+                           Visitor *v, Error **errp);
+
+/**
+ * user_creatable_del:
+ * @id: the unique ID for the object
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Delete an instance of the user creatable object identified
+ * by @id.
+ */
+void user_creatable_del(const char *id, Error **errp);
+
 #endif

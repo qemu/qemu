@@ -29,6 +29,7 @@
 #include "qapi/string-output-visitor.h"
 #include "qapi/util.h"
 #include "qapi-visit.h"
+#include "qom/object_interfaces.h"
 #include "ui/console.h"
 #include "block/qapi.h"
 #include "qemu-io.h"
@@ -1662,6 +1663,7 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
     void *dummy = NULL;
     OptsVisitor *ov;
     QDict *pdict;
+    Object *obj = NULL;
 
     opts = qemu_opts_from_qdict(qemu_find_opts("object"), qdict, &err);
     if (err) {
@@ -1688,12 +1690,12 @@ void hmp_object_add(Monitor *mon, const QDict *qdict)
         goto out_end;
     }
 
-    object_add(type, id, pdict, opts_get_visitor(ov), &err);
+    obj = user_creatable_add(type, id, pdict, opts_get_visitor(ov), &err);
 
 out_end:
     visit_end_struct(opts_get_visitor(ov), &err_end);
     if (!err && err_end) {
-        qmp_object_del(id, NULL);
+        user_creatable_del(id, NULL);
     }
     error_propagate(&err, err_end);
 out_clean:
@@ -1704,6 +1706,9 @@ out_clean:
     g_free(id);
     g_free(type);
     g_free(dummy);
+    if (obj) {
+        object_unref(obj);
+    }
 
 out:
     hmp_handle_error(mon, &err);
@@ -1936,7 +1941,7 @@ void hmp_object_del(Monitor *mon, const QDict *qdict)
     const char *id = qdict_get_str(qdict, "id");
     Error *err = NULL;
 
-    qmp_object_del(id, &err);
+    user_creatable_del(id, &err);
     hmp_handle_error(mon, &err);
 }
 

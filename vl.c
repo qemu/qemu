@@ -2834,6 +2834,7 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
     OptsVisitor *ov;
     QDict *pdict;
     bool (*type_predicate)(const char *) = opaque;
+    Object *obj = NULL;
 
     ov = opts_visitor_new(opts);
     pdict = qemu_opts_to_qdict(opts, NULL);
@@ -2858,13 +2859,13 @@ static int object_create(void *opaque, QemuOpts *opts, Error **errp)
         goto out;
     }
 
-    object_add(type, id, pdict, opts_get_visitor(ov), &err);
+    obj = user_creatable_add(type, id, pdict, opts_get_visitor(ov), &err);
     if (err) {
         goto out;
     }
     visit_end_struct(opts_get_visitor(ov), &err);
     if (err) {
-        qmp_object_del(id, NULL);
+        user_creatable_del(id, NULL);
     }
 
 out:
@@ -2874,6 +2875,9 @@ out:
     g_free(id);
     g_free(type);
     g_free(dummy);
+    if (obj) {
+        object_unref(obj);
+    }
     if (err) {
         error_report_err(err);
         return -1;
