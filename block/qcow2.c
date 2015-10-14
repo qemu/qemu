@@ -34,6 +34,7 @@
 #include "qapi-event.h"
 #include "trace.h"
 #include "qemu/option_int.h"
+#include "crypto/secret.h"
 
 /*
   Differences with QCOW:
@@ -472,6 +473,11 @@ static QemuOptsList qcow2_runtime_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Clean unused cache entries after this time (in seconds)",
         },
+        {
+            .name = QCOW2_OPT_KEY_ID,
+            .type = QEMU_OPT_STRING,
+            .help = "ID of the secret that provides the encryption key",
+        },
         { /* end of list */ }
     },
 };
@@ -589,6 +595,31 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     }
 }
 
+static QCryptoCipher *qcow2_get_cipher_from_key(const char *key,
+                                                Error **errp)
+{
+    uint8_t keybuf[16];
+    int len, i;
+
+    memset(keybuf, 0, 16);
+    len = strlen(key);
+    if (len > 16) {
+        len = 16;
+    }
+    /* XXX: we could compress the chars to 7 bits to increase
+       entropy */
+    for (i = 0; i < len; i++) {
+        keybuf[i] = key[i];
+    }
+
+    return qcrypto_cipher_new(
+        QCRYPTO_CIPHER_ALG_AES_128,
+        QCRYPTO_CIPHER_MODE_CBC,
+        keybuf, G_N_ELEMENTS(keybuf),
+        errp);
+}
+
+
 typedef struct Qcow2ReopenState {
     Qcow2Cache *l2_table_cache;
     Qcow2Cache *refcount_block_cache;
@@ -596,6 +627,7 @@ typedef struct Qcow2ReopenState {
     int overlap_check;
     bool discard_passthrough[QCOW2_DISCARD_MAX];
     uint64_t cache_clean_interval;
+    QCryptoCipher *cipher;
 } Qcow2ReopenState;
 
 static int qcow2_update_options_prepare(BlockDriverState *bs,
@@ -611,6 +643,8 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     int i;
     Error *local_err = NULL;
     int ret;
+    const char *keyid;
+    char *key;
 
     opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -754,6 +788,24 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     r->discard_passthrough[QCOW2_DISCARD_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
 
+    keyid = qemu_opt_get(opts, QCOW2_OPT_KEY_ID);
+    if (keyid) {
+        key = qcrypto_secret_lookup_as_utf8(keyid,
+                                            errp);
+        if (!key) {
+            ret = -ENOENT;
+            goto fail;
+        }
+
+        r->cipher = qcow2_get_cipher_from_key(key,
+                                              errp);
+        g_free(key);
+        if (!r->cipher) {
+            ret = -ENOSYS;
+            goto fail;
+        }
+    }
+
     ret = 0;
 fail:
     qemu_opts_del(opts);
@@ -788,6 +840,9 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
         s->cache_clean_interval = r->cache_clean_interval;
         cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
     }
+
+    qcrypto_cipher_free(s->cipher);
+    s->cipher = r->cipher;
 }
 
 static void qcow2_update_options_abort(BlockDriverState *bs,
@@ -799,6 +854,7 @@ static void qcow2_update_options_abort(BlockDriverState *bs,
     if (r->refcount_block_cache) {
         qcow2_cache_destroy(bs, r->refcount_block_cache);
     }
+    qcrypto_cipher_free(r->cipher);
 }
 
 static int qcow2_update_options(BlockDriverState *bs, QDict *options,
@@ -1202,33 +1258,11 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
 static int qcow2_set_key(BlockDriverState *bs, const char *key)
 {
     BDRVQcow2State *s = bs->opaque;
-    uint8_t keybuf[16];
-    int len, i;
-    Error *err = NULL;
 
-    memset(keybuf, 0, 16);
-    len = strlen(key);
-    if (len > 16)
-        len = 16;
-    /* XXX: we could compress the chars to 7 bits to increase
-       entropy */
-    for(i = 0;i < len;i++) {
-        keybuf[i] = key[i];
-    }
     assert(bs->encrypted);
-
     qcrypto_cipher_free(s->cipher);
-    s->cipher = qcrypto_cipher_new(
-        QCRYPTO_CIPHER_ALG_AES_128,
-        QCRYPTO_CIPHER_MODE_CBC,
-        keybuf, G_N_ELEMENTS(keybuf),
-        &err);
-
+    s->cipher = qcow2_get_cipher_from_key(key, NULL);
     if (!s->cipher) {
-        /* XXX would be nice if errors in this method could
-         * be properly propagate to the caller. Would need
-         * the bdrv_set_key() API signature to be fixed. */
-        error_free(err);
         return -1;
     }
     return 0;

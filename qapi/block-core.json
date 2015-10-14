@@ -1742,6 +1742,9 @@
 #                         caches. The interval is in seconds. The default value
 #                         is 0 and it disables this feature (since 2.5)
 #
+# @keyid:                 #optional ID of the "secret" object providing the
+#                         AES decryption key (since 2.6)
+#
 # Since: 1.7
 ##
 { 'struct': 'BlockdevOptionsQcow2',
@@ -1754,7 +1757,8 @@
             '*cache-size': 'int',
             '*l2-cache-size': 'int',
             '*refcount-cache-size': 'int',
-            '*cache-clean-interval': 'int' } }
+            '*cache-clean-interval': 'int',
+            '*keyid': 'str' } }
 
 
 ##
