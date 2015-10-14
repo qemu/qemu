@@ -27,6 +27,7 @@
 #include <zlib.h>
 #include "qapi/qmp/qerror.h"
 #include "crypto/cipher.h"
+#include "crypto/secret.h"
 #include "migration/migration.h"
 
 /**************************************************************/
@@ -39,6 +40,8 @@
 #define QCOW_CRYPT_AES  1
 
 #define QCOW_OFLAG_COMPRESSED (1LL << 63)
+
+#define QCOW_OPT_KEY_ID "keyid"
 
 typedef struct QCowHeader {
     uint32_t magic;
@@ -92,6 +95,43 @@ static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 0;
 }
 
+static QCryptoCipher *qcow_get_cipher_from_key(const char *key,
+                                               Error **errp)
+{
+    uint8_t keybuf[16];
+    int len, i;
+
+    memset(keybuf, 0, 16);
+    len = strlen(key);
+    if (len > 16) {
+        len = 16;
+    }
+    /* XXX: we could compress the chars to 7 bits to increase
+       entropy */
+    for (i = 0; i < len; i++) {
+        keybuf[i] = key[i];
+    }
+
+    return qcrypto_cipher_new(
+        QCRYPTO_CIPHER_ALG_AES_128,
+        QCRYPTO_CIPHER_MODE_CBC,
+        keybuf, G_N_ELEMENTS(keybuf),
+        errp);
+}
+
+static QemuOptsList qcow_runtime_opts = {
+    .name = "qcow",
+    .head = QTAILQ_HEAD_INITIALIZER(qcow_runtime_opts.head),
+    .desc = {
+        {
+            .name = QCOW_OPT_KEY_ID,
+            .type = QEMU_OPT_STRING,
+            .help = "ID of the secret that provides the encryption key",
+        },
+        { /* end of list */ }
+    },
+};
+
 static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
@@ -99,6 +139,10 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     unsigned int len, i, shift;
     int ret;
     QCowHeader header;
+    QemuOpts *opts = NULL;
+    const char *keyid;
+    char *key;
+    Error *local_err = NULL;
 
     ret = bdrv_pread(bs->file->bs, 0, &header, sizeof(header));
     if (ret < 0) {
@@ -145,6 +189,32 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         error_setg(errp, "L2 table size must be between 512 and 64k");
         ret = -EINVAL;
         goto fail;
+    }
+
+    opts = qemu_opts_create(&qcow_runtime_opts, NULL, 0, &error_abort);
+    qemu_opts_absorb_qdict(opts, options, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    keyid = qemu_opt_get(opts, QCOW_OPT_KEY_ID);
+    if (keyid) {
+        key = qcrypto_secret_lookup_as_utf8(keyid,
+                                            errp);
+        if (!key) {
+            ret = -ENOENT;
+            goto fail;
+        }
+
+        s->cipher = qcow_get_cipher_from_key(key,
+                                             errp);
+        g_free(key);
+        if (!s->cipher) {
+            ret = -ENOSYS;
+            goto fail;
+        }
     }
 
     if (header.crypt_method > QCOW_CRYPT_AES) {
@@ -261,33 +331,11 @@ static int qcow_reopen_prepare(BDRVReopenState *state,
 static int qcow_set_key(BlockDriverState *bs, const char *key)
 {
     BDRVQcowState *s = bs->opaque;
-    uint8_t keybuf[16];
-    int len, i;
-    Error *err;
 
-    memset(keybuf, 0, 16);
-    len = strlen(key);
-    if (len > 16)
-        len = 16;
-    /* XXX: we could compress the chars to 7 bits to increase
-       entropy */
-    for(i = 0;i < len;i++) {
-        keybuf[i] = key[i];
-    }
     assert(bs->encrypted);
-
     qcrypto_cipher_free(s->cipher);
-    s->cipher = qcrypto_cipher_new(
-        QCRYPTO_CIPHER_ALG_AES_128,
-        QCRYPTO_CIPHER_MODE_CBC,
-        keybuf, G_N_ELEMENTS(keybuf),
-        &err);
-
+    s->cipher = qcow_get_cipher_from_key(key, NULL);
     if (!s->cipher) {
-        /* XXX would be nice if errors in this method could
-         * be properly propagate to the caller. Would need
-         * the bdrv_set_key() API signature to be fixed. */
-        error_free(err);
         return -1;
     }
     return 0;
