@@ -3678,6 +3678,83 @@ Dump the network traffic on netdev @var{dev} to the file specified by
 The file format is libpcap, so it can be analyzed with tools such as tcpdump
 or Wireshark.
 
+@item -object secret,id=@var{id},data=@var{string},format=@var{raw|base64}[,keyid=@var{secretid},iv=@var{string}]
+@item -object secret,id=@var{id},file=@var{filename},format=@var{raw|base64}[,keyid=@var{secretid},iv=@var{string}]
+
+Defines a secret to store a password, encryption key, or some other sensitive
+data. The sensitive data can either be passed directly via the @var{data}
+parameter, or indirectly via the @var{file} parameter. Using the @var{data}
+parameter is insecure unless the sensitive data is encrypted.
+
+The sensitive data can be provided in raw format (the default), or base64.
+When encoded as JSON, the raw format only supports valid UTF-8 characters,
+so base64 is recommended for sending binary data. QEMU will convert from
+which ever format is provided to the format it needs internally. eg, an
+RBD password can be provided in raw format, even though it will be base64
+encoded when passed onto the RBD sever.
+
+For added protection, it is possible to encrypt the data associated with
+a secret using the AES-256-CBC cipher. Use of encryption is indicated
+by providing the @var{keyid} and @var{iv} parameters. The @var{keyid}
+parameter provides the ID of a previously defined secret that contains
+the AES-256 decryption key. This key should be 32-bytes long and be
+base64 encoded. The @var{iv} parameter provides the random initialization
+vector used for encryption of this particular secret and should be a
+base64 encrypted string of the 32-byte IV.
+
+The simplest (insecure) usage is to provide the secret inline
+
+@example
+
+ # $QEMU -object secret,id=sec0,data=letmein,format=raw
+
+@end example
+
+The simplest secure usage is to provide the secret via a file
+
+ # echo -n "letmein" > mypasswd.txt
+ # $QEMU -object secret,id=sec0,file=mypasswd.txt,format=raw
+
+For greater security, AES-256-CBC should be used. To illustrate usage,
+consider the openssl command line tool which can encrypt the data. Note
+that when encrypting, the plaintext must be padded to the cipher block
+size (32 bytes) using the standard PKCS#5/6 compatible padding algorithm.
+
+First a master key needs to be created in base64 encoding:
+
+@example
+ # openssl rand -base64 32 > key.b64
+ # KEY=$(base64 -d key.b64 | hexdump  -v -e '/1 "%02X"')
+@end example
+
+Each secret to be encrypted needs to have a random initialization vector
+generated. These do not need to be kept secret
+
+@example
+ # openssl rand -base64 16 > iv.b64
+ # IV=$(base64 -d iv.b64 | hexdump  -v -e '/1 "%02X"')
+@end example
+
+The secret to be defined can now be encrypted, in this case we're
+telling openssl to base64 encode the result, but it could be left
+as raw bytes if desired.
+
+@example
+ # SECRET=$(echo -n "letmein" |
+            openssl enc -aes-256-cbc -a -K $KEY -iv $IV)
+@end example
+
+When launching QEMU, create a master secret pointing to @code{key.b64}
+and specify that to be used to decrypt the user password. Pass the
+contents of @code{iv.b64} to the second secret
+
+@example
+ # $QEMU \
+     -object secret,id=secmaster0,format=base64,file=key.b64 \
+     -object secret,id=sec0,keyid=secmaster0,format=base64,\
+         data=$SECRET,iv=$(<iv.b64)
+@end example
+
 @end table
 
 ETEXI
