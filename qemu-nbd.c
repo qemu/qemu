@@ -23,9 +23,12 @@
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
+#include "qemu/config-file.h"
 #include "block/snapshot.h"
 #include "qapi/util.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/opts-visitor.h"
+#include "qom/object_interfaces.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -45,6 +48,7 @@
 #define QEMU_NBD_OPT_AIO           2
 #define QEMU_NBD_OPT_DISCARD       3
 #define QEMU_NBD_OPT_DETECT_ZEROES 4
+#define QEMU_NBD_OPT_OBJECT        5
 
 static NBDExport *exp;
 static int verbose;
@@ -78,6 +82,9 @@ static void usage(const char *name)
 "  -o, --offset=OFFSET       offset into the image\n"
 "  -P, --partition=NUM       only expose partition NUM\n"
 "\n"
+"General purpose options:\n"
+"  --object type,id=ID,...   define an object such as 'secret' for providing\n"
+"                            passwords and/or encryption keys\n"
 #ifdef __linux__
 "Kernel NBD client support:\n"
 "  -c, --connect=DEV         connect FILE to the local NBD device DEV\n"
@@ -380,6 +387,67 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
 }
 
 
+static QemuOptsList qemu_object_opts = {
+    .name = "object",
+    .implied_opt_name = "qom-type",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_object_opts.head),
+    .desc = {
+        { }
+    },
+};
+
+static int object_create(void *opaque, QemuOpts *opts, Error **errp)
+{
+    Error *err = NULL;
+    char *type = NULL;
+    char *id = NULL;
+    void *dummy = NULL;
+    OptsVisitor *ov;
+    QDict *pdict;
+
+    ov = opts_visitor_new(opts);
+    pdict = qemu_opts_to_qdict(opts, NULL);
+
+    visit_start_struct(opts_get_visitor(ov), &dummy, NULL, NULL, 0, &err);
+    if (err) {
+        goto out;
+    }
+
+    qdict_del(pdict, "qom-type");
+    visit_type_str(opts_get_visitor(ov), &type, "qom-type", &err);
+    if (err) {
+        goto out;
+    }
+
+    qdict_del(pdict, "id");
+    visit_type_str(opts_get_visitor(ov), &id, "id", &err);
+    if (err) {
+        goto out;
+    }
+
+    user_creatable_add(type, id, pdict, opts_get_visitor(ov), &err);
+    if (err) {
+        goto out;
+    }
+    visit_end_struct(opts_get_visitor(ov), &err);
+    if (err) {
+        user_creatable_del(id, NULL);
+    }
+
+out:
+    opts_visitor_cleanup(ov);
+
+    QDECREF(pdict);
+    g_free(id);
+    g_free(type);
+    g_free(dummy);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     BlockBackend *blk;
@@ -417,6 +485,7 @@ int main(int argc, char **argv)
         { "format", 1, NULL, 'f' },
         { "persistent", 0, NULL, 't' },
         { "verbose", 0, NULL, 'v' },
+        { "object", 1, NULL, QEMU_NBD_OPT_OBJECT },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -434,6 +503,7 @@ int main(int argc, char **argv)
     Error *local_err = NULL;
     BlockdevDetectZeroesOptions detect_zeroes = BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     QDict *options = NULL;
+    QemuOpts *opts;
 
     /* The client thread uses SIGTERM to interrupt the server.  A signal
      * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
@@ -442,6 +512,8 @@ int main(int argc, char **argv)
     memset(&sa_sigterm, 0, sizeof(sa_sigterm));
     sa_sigterm.sa_handler = termsig_handler;
     sigaction(SIGTERM, &sa_sigterm, NULL);
+    module_call_init(MODULE_INIT_QOM);
+    qemu_add_opts(&qemu_object_opts);
     qemu_init_exec_dir(argv[0]);
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
@@ -578,6 +650,13 @@ int main(int argc, char **argv)
             usage(argv[0]);
             exit(0);
             break;
+        case QEMU_NBD_OPT_OBJECT:
+            opts = qemu_opts_parse_noisily(qemu_find_opts("object"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         case '?':
             errx(EXIT_FAILURE, "Try `%s --help' for more information.",
                  argv[0]);
@@ -588,6 +667,12 @@ int main(int argc, char **argv)
         errx(EXIT_FAILURE, "Invalid number of argument.\n"
              "Try `%s --help' for more information.",
              argv[0]);
+    }
+
+    if (qemu_opts_foreach(qemu_find_opts("object"),
+                          object_create,
+                          NULL, NULL)) {
+        exit(1);
     }
 
     if (disconnect) {
