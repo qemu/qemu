@@ -373,6 +373,7 @@ static void reenable_tty_echo(void)
 
 enum {
     OPTION_OBJECT = 258,
+    OPTION_SOURCE = 259,
 };
 
 static QemuOptsList qemu_object_opts = {
@@ -436,6 +437,16 @@ out:
     return 0;
 }
 
+static QemuOptsList file_opts = {
+    .name = "file",
+    .implied_opt_name = "file",
+    .head = QTAILQ_HEAD_INITIALIZER(file_opts.head),
+    .desc = {
+        /* no elements => accept any params */
+        { /* end of list */ }
+    },
+};
+
 int main(int argc, char **argv)
 {
     int readonly = 0;
@@ -455,6 +466,7 @@ int main(int argc, char **argv)
         { "cache", 1, NULL, 't' },
         { "trace", 1, NULL, 'T' },
         { "object", 1, NULL, OPTION_OBJECT },
+        { "source", 1, NULL, OPTION_SOURCE },
         { NULL, 0, NULL, 0 }
     };
     int c;
@@ -531,6 +543,12 @@ int main(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            if (!qemu_opts_parse_noisily(&file_opts, optarg, false)) {
+                qemu_opts_reset(&file_opts);
+                return 0;
+            }
+            break;
         default:
             usage(progname);
             exit(1);
@@ -572,7 +590,24 @@ int main(int argc, char **argv)
         flags |= BDRV_O_RDWR;
     }
 
-    if ((argc - optind) == 1) {
+    qopts = qemu_opts_find(&file_opts, NULL);
+    if (qopts) {
+        char *file;
+        if (opts) {
+            error_report("--source and -f are mutually exclusive");
+            exit(1);
+        }
+        if ((argc - optind) == 1) {
+            error_report("--source and filename are mutually exclusive");
+            exit(1);
+        }
+        file = g_strdup(qemu_opt_get(qopts, "file"));
+        qemu_opt_unset(qopts, "file");
+        opts = qemu_opts_to_qdict(qopts, NULL);
+        qemu_opts_reset(&file_opts);
+        openfile(file, flags, opts);
+        g_free(file);
+    } else if ((argc - optind) == 1) {
         openfile(argv[optind], flags, opts);
     }
     command_loop();
