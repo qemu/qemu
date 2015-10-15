@@ -450,7 +450,7 @@ static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT_MAX] = {
     [QAPI_EVENT_VSERPORT_CHANGE]   = { 1000 * SCALE_MS },
 };
 
-static MonitorQAPIEventState monitor_qapi_event_state[QAPI_EVENT_MAX];
+GHashTable *monitor_qapi_event_state;
 
 /*
  * Emits the event to every monitor instance, @event is only used for trace
@@ -468,6 +468,8 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
     }
 }
 
+static void monitor_qapi_event_handler(void *opaque);
+
 /*
  * Queue a new event for emission to Monitor instances,
  * applying any rate limiting if required.
@@ -480,7 +482,6 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
 
     assert(event < QAPI_EVENT_MAX);
     evconf = &monitor_qapi_event_conf[event];
-    evstate = &monitor_qapi_event_state[event];
     trace_monitor_protocol_event_queue(event, qdict, evconf->rate);
 
     qemu_mutex_lock(&monitor_lock);
@@ -489,7 +490,12 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
         /* Unthrottled event */
         monitor_qapi_event_emit(event, qdict);
     } else {
-        if (timer_pending(evstate->timer)) {
+        MonitorQAPIEventState key = { .event = event };
+
+        evstate = g_hash_table_lookup(monitor_qapi_event_state, &key);
+        assert(!evstate || timer_pending(evstate->timer));
+
+        if (evstate) {
             /*
              * Timer is pending for (at least) evconf->rate ns after
              * last send.  Store event for sending when timer fires,
@@ -508,6 +514,14 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
             int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
             monitor_qapi_event_emit(event, qdict);
+
+            evstate = g_new(MonitorQAPIEventState, 1);
+            evstate->event = event;
+            evstate->qdict = NULL;
+            evstate->timer = timer_new_ns(QEMU_CLOCK_REALTIME,
+                                          monitor_qapi_event_handler,
+                                          evstate);
+            g_hash_table_add(monitor_qapi_event_state, evstate);
             timer_mod_ns(evstate->timer, now + evconf->rate);
         }
     }
@@ -535,27 +549,34 @@ static void monitor_qapi_event_handler(void *opaque)
         QDECREF(evstate->qdict);
         evstate->qdict = NULL;
         timer_mod_ns(evstate->timer, now + evconf->rate);
+    } else {
+        g_hash_table_remove(monitor_qapi_event_state, evstate);
+        timer_free(evstate->timer);
+        g_free(evstate);
     }
 
     qemu_mutex_unlock(&monitor_lock);
 }
 
+static unsigned int qapi_event_throttle_hash(const void *key)
+{
+    const MonitorQAPIEventState *evstate = key;
+
+    return evstate->event * 255;
+}
+
+static gboolean qapi_event_throttle_equal(const void *a, const void *b)
+{
+    const MonitorQAPIEventState *eva = a;
+    const MonitorQAPIEventState *evb = b;
+
+    return eva->event == evb->event;
+}
+
 static void monitor_qapi_event_init(void)
 {
-    int i;
-    MonitorQAPIEventState *evstate;
-
-    for (i = 0; i < QAPI_EVENT_MAX; i++) {
-        if (monitor_qapi_event_conf[i].rate) {
-            evstate = &monitor_qapi_event_state[i];
-            evstate->event = i;
-            evstate->qdict = NULL;
-            evstate->timer = timer_new_ns(QEMU_CLOCK_REALTIME,
-                                          monitor_qapi_event_handler,
-                                          evstate);
-        }
-    }
-
+    monitor_qapi_event_state = g_hash_table_new(qapi_event_throttle_hash,
+                                                qapi_event_throttle_equal);
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
 
