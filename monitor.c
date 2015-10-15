@@ -545,10 +545,9 @@ monitor_qapi_event_throttle(QAPIEvent event, int64_t rate)
     assert(rate * SCALE_MS <= INT64_MAX);
     evstate->rate = rate * SCALE_MS;
     evstate->qdict = NULL;
-    evstate->timer = timer_new(QEMU_CLOCK_REALTIME,
-                               SCALE_MS,
-                               monitor_qapi_event_handler,
-                               evstate);
+    evstate->timer = timer_new_ns(QEMU_CLOCK_REALTIME,
+                                  monitor_qapi_event_handler,
+                                  evstate);
 }
 
 static void monitor_qapi_event_init(void)
