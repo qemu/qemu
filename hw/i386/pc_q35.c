@@ -128,7 +128,7 @@ static void pc_q35_init(MachineState *machine)
         exit(1);
     }
 
-    pc_cpus_init(machine->cpu_model);
+    pc_cpus_init(pcms);
     pc_acpi_init("q35-acpi-dsdt.aml");
 
     kvmclock_create();
