@@ -49,6 +49,7 @@
 #define QEMU_NBD_OPT_DISCARD       3
 #define QEMU_NBD_OPT_DETECT_ZEROES 4
 #define QEMU_NBD_OPT_OBJECT        5
+#define QEMU_NBD_OPT_SOURCE        6
 
 static NBDExport *exp;
 static int verbose;
@@ -387,6 +388,16 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
 }
 
 
+static QemuOptsList file_opts = {
+    .name = "file",
+    .implied_opt_name = "file",
+    .head = QTAILQ_HEAD_INITIALIZER(file_opts.head),
+    .desc = {
+        /* no elements => accept any params */
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList qemu_object_opts = {
     .name = "object",
     .implied_opt_name = "qom-type",
@@ -486,6 +497,7 @@ int main(int argc, char **argv)
         { "persistent", 0, NULL, 't' },
         { "verbose", 0, NULL, 'v' },
         { "object", 1, NULL, QEMU_NBD_OPT_OBJECT },
+        { "source", 1, NULL, QEMU_NBD_OPT_SOURCE },
         { NULL, 0, NULL, 0 }
     };
     int ch;
@@ -657,13 +669,23 @@ int main(int argc, char **argv)
                 exit(1);
             }
             break;
+        case QEMU_NBD_OPT_SOURCE:
+            if (srcpath) {
+                errx(EXIT_FAILURE, "--source can only be used once");
+            }
+            if (!qemu_opts_parse_noisily(&file_opts, optarg, true)) {
+                qemu_opts_reset(&file_opts);
+                exit(EXIT_FAILURE);
+            }
+            srcpath = optarg;
+            break;
         case '?':
             errx(EXIT_FAILURE, "Try `%s --help' for more information.",
                  argv[0]);
         }
     }
 
-    if ((argc - optind) != 1) {
+    if ((argc - optind) > 1) {
         errx(EXIT_FAILURE, "Invalid number of argument.\n"
              "Try `%s --help' for more information.",
              argv[0]);
@@ -757,15 +779,36 @@ int main(int argc, char **argv)
     bdrv_init();
     atexit(bdrv_close_all);
 
-    if (fmt) {
-        options = qdict_new();
-        qdict_put(options, "driver", qstring_from_str(fmt));
+    if (srcpath) {
+        char *file = NULL;
+        opts = qemu_opts_find(&file_opts, NULL);
+        if (fmt) {
+            errx(EXIT_FAILURE, "--source and -f are mutually exclusive");
+        }
+        if ((argc - optind) > 1) {
+            errx(EXIT_FAILURE, "--source and filename are mutually exclusive");
+        }
+        file = g_strdup(qemu_opt_get(opts, "file"));
+        qemu_opt_unset(opts, "file");
+        options = qemu_opts_to_qdict(opts, NULL);
+        qemu_opts_reset(&file_opts);
+        blk = blk_new_open("hda", file, NULL, options, flags, &local_err);
+        g_free(file);
+    } else {
+        if (fmt) {
+            options = qdict_new();
+            qdict_put(options, "driver", qstring_from_str(fmt));
+        }
+        if ((argc - optind) != 1) {
+            errx(EXIT_FAILURE, "one of --source or filename are expected");
+        }
+
+        srcpath = argv[optind];
+        blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
     }
 
-    srcpath = argv[optind];
-    blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
     if (!blk) {
-        errx(EXIT_FAILURE, "Failed to blk_new_open '%s': %s", argv[optind],
+        errx(EXIT_FAILURE, "Failed to blk_new_open '%s': %s", srcpath,
              error_get_pretty(local_err));
     }
     bs = blk_bs(blk);
