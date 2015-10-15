@@ -175,6 +175,11 @@ The format of asynchronous events is:
 For a listing of supported asynchronous events, please, refer to the
 qmp-events.txt file.
 
+Some events are rate-limited to at most one per second.  If additional
+"similar" events arrive within one second, all but the last one are
+dropped, and the last one is delayed.  "Similar" normally means same
+event type.  See qmp-events.txt for details.
+
 2.5 QGA Synchronization
 -----------------------
 

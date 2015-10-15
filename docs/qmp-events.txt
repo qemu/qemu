@@ -28,6 +28,8 @@ Example:
     "data": { "actual": 944766976 },
     "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
 
+Note: this event is rate-limited.
+
 BLOCK_IMAGE_CORRUPTED
 ---------------------
 
@@ -296,6 +298,8 @@ Example:
      "data": { "reference": "usr1", "sector-num": 345435, "sectors-count": 5 },
      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
 
+Note: this event is rate-limited.
+
 QUORUM_REPORT_BAD
 -----------------
 
@@ -317,6 +321,8 @@ Example:
 { "event": "QUORUM_REPORT_BAD",
      "data": { "node-name": "1.raw", "sector-num": 345435, "sectors-count": 5 },
      "timestamp": { "seconds": 1344522075, "microseconds": 745528 } }
+
+Note: this event is rate-limited.
 
 RESET
 -----
@@ -357,6 +363,8 @@ Example:
 { "event": "RTC_CHANGE",
     "data": { "offset": 78 },
     "timestamp": { "seconds": 1267020223, "microseconds": 435656 } }
+
+Note: this event is rate-limited.
 
 SHUTDOWN
 --------
@@ -632,6 +640,8 @@ Example:
     "data": { "id": "channel0", "open": true },
     "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
 
+Note: this event is rate-limited separately for each "id".
+
 WAKEUP
 ------
 
@@ -662,3 +672,5 @@ Example:
 
 Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
 followed respectively by the RESET, SHUTDOWN, or STOP events.
+
+Note: this event is rate-limited.
