@@ -677,6 +677,11 @@ static inline uint32_t pci_config_size(const PCIDevice *d)
     return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
 }
 
+static inline uint16_t pci_requester_id(PCIDevice *dev)
+{
+    return (pci_bus_num(dev->bus) << 8) | dev->devfn;
+}
+
 /* DMA access functions */
 static inline AddressSpace *pci_get_address_space(PCIDevice *dev)
 {
