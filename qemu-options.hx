@@ -3627,7 +3627,7 @@ expensive operation that consumes random pool entropy, so it is
 recommended that a persistent set of parameters be generated
 upfront and saved.
 
-@item -object tls-creds-x509,id=@var{id},endpoint=@var{endpoint},dir=@var{/path/to/cred/dir},verify-peer=@var{on|off}
+@item -object tls-creds-x509,id=@var{id},endpoint=@var{endpoint},dir=@var{/path/to/cred/dir},verify-peer=@var{on|off},passwordid=@var{id}
 
 Creates a TLS anonymous credentials object, which can be used to provide
 TLS support on network backends. The @option{id} parameter is a unique
@@ -3653,6 +3653,12 @@ providing the x509 certificates. The certificates must be stored
 in PEM format, in filenames @var{ca-cert.pem}, @var{ca-crl.pem} (optional),
 @var{server-cert.pem} (only servers), @var{server-key.pem} (only servers),
 @var{client-cert.pem} (only clients), and @var{client-key.pem} (only clients).
+
+For the @var{server-key.pem} and @var{client-key.pem} files which
+contain sensitive private keys, it is possible to use an encrypted
+version by providing the @var{passwordid} parameter. This provides
+the ID of a previously created @code{secret} object containing the
+password for decryption.
 
 @item -object filter-buffer,id=@var{id},netdev=@var{netdevid},interval=@var{t}[,queue=@var{all|rx|tx}]
 
