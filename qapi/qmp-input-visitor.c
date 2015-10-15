@@ -240,15 +240,15 @@ static void qmp_input_type_bool(Visitor *v, bool *obj, const char *name,
                                 Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
-    QObject *qobj = qmp_input_get_object(qiv, name, true);
+    QBool *qbool = qobject_to_qbool(qmp_input_get_object(qiv, name, true));
 
-    if (!qobj || qobject_type(qobj) != QTYPE_QBOOL) {
+    if (!qbool) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "boolean");
         return;
     }
 
-    *obj = qbool_get_bool(qobject_to_qbool(qobj));
+    *obj = qbool_get_bool(qbool);
 }
 
 static void qmp_input_type_str(Visitor *v, char **obj, const char *name,

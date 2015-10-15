@@ -243,8 +243,7 @@ int64_t qdict_get_int(const QDict *qdict, const char *key)
  */
 bool qdict_get_bool(const QDict *qdict, const char *key)
 {
-    QObject *obj = qdict_get_obj(qdict, key, QTYPE_QBOOL);
-    return qbool_get_bool(qobject_to_qbool(obj));
+    return qbool_get_bool(qobject_to_qbool(qdict_get(qdict, key)));
 }
 
 /**
@@ -316,13 +315,9 @@ int64_t qdict_get_try_int(const QDict *qdict, const char *key,
  */
 bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value)
 {
-    QObject *obj;
+    QBool *qbool = qobject_to_qbool(qdict_get(qdict, key));
 
-    obj = qdict_get(qdict, key);
-    if (!obj || qobject_type(obj) != QTYPE_QBOOL)
-        return def_value;
-
-    return qbool_get_bool(qobject_to_qbool(obj));
+    return qbool ? qbool_get_bool(qbool) : def_value;
 }
 
 /**
