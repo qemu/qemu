@@ -14,6 +14,7 @@ test-blockjob-txn
 test-coroutine
 test-crypto-cipher
 test-crypto-hash
+test-crypto-ivgen
 test-crypto-pbkdf
 test-crypto-secret
 test-crypto-tlscredsx509

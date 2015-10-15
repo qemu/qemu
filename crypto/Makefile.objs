@@ -13,6 +13,10 @@ crypto-obj-$(if $(CONFIG_GCRYPT),n,$(CONFIG_GNUTLS_RND)) += random-gnutls.o
 crypto-obj-y += pbkdf.o
 crypto-obj-$(CONFIG_NETTLE) += pbkdf-nettle.o
 crypto-obj-$(if $(CONFIG_NETTLE),n,$(CONFIG_GCRYPT_KDF)) += pbkdf-gcrypt.o
+crypto-obj-y += ivgen.o
+crypto-obj-y += ivgen-essiv.o
+crypto-obj-y += ivgen-plain.o
+crypto-obj-y += ivgen-plain64.o
 
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o
