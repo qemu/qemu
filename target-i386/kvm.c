@@ -91,6 +91,15 @@ static bool has_msr_xss;
 static bool has_msr_architectural_pmu;
 static uint32_t num_architectural_pmu_counters;
 
+static int has_xsave;
+static int has_xcrs;
+static int has_pit_state2;
+
+int kvm_has_pit_state2(void)
+{
+    return has_pit_state2;
+}
+
 bool kvm_has_smm(void)
 {
     return kvm_check_extension(kvm_state, KVM_CAP_X86_SMM);
@@ -766,7 +775,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
-    if (kvm_has_xsave()) {
+    if (has_xsave) {
         env->kvm_xsave_buf = qemu_memalign(4096, sizeof(struct kvm_xsave));
     }
 
@@ -933,6 +942,18 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     uint64_t shadow_mem;
     int ret;
     struct utsname utsname;
+
+#ifdef KVM_CAP_XSAVE
+    has_xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
+#endif
+
+#ifdef KVM_CAP_XCRS
+    has_xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
+#endif
+
+#ifdef KVM_CAP_PIT_STATE2
+    has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
+#endif
 
     ret = kvm_get_supported_msrs(s);
     if (ret < 0) {
@@ -1142,7 +1163,7 @@ static int kvm_put_xsave(X86CPU *cpu)
     uint8_t *xmm, *ymmh, *zmmh;
     int i, r;
 
-    if (!kvm_has_xsave()) {
+    if (!has_xsave) {
         return kvm_put_fpu(cpu);
     }
 
@@ -1196,7 +1217,7 @@ static int kvm_put_xcrs(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     struct kvm_xcrs xcrs = {};
 
-    if (!kvm_has_xcrs()) {
+    if (!has_xcrs) {
         return 0;
     }
 
@@ -1525,7 +1546,7 @@ static int kvm_get_xsave(X86CPU *cpu)
     const uint8_t *xmm, *ymmh, *zmmh;
     uint16_t cwd, swd, twd;
 
-    if (!kvm_has_xsave()) {
+    if (!has_xsave) {
         return kvm_get_fpu(cpu);
     }
 
@@ -1584,7 +1605,7 @@ static int kvm_get_xcrs(X86CPU *cpu)
     int i, ret;
     struct kvm_xcrs xcrs;
 
-    if (!kvm_has_xcrs()) {
+    if (!has_xcrs) {
         return 0;
     }
 
