@@ -255,15 +255,15 @@ static void qmp_input_type_str(Visitor *v, char **obj, const char *name,
                                Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
-    QObject *qobj = qmp_input_get_object(qiv, name, true);
+    QString *qstr = qobject_to_qstring(qmp_input_get_object(qiv, name, true));
 
-    if (!qobj || qobject_type(qobj) != QTYPE_QSTRING) {
+    if (!qstr) {
         error_setg(errp, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
                    "string");
         return;
     }
 
-    *obj = g_strdup(qstring_get_str(qobject_to_qstring(qobj)));
+    *obj = g_strdup(qstring_get_str(qstr));
 }
 
 static void qmp_input_type_number(Visitor *v, double *obj, const char *name,

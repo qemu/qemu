@@ -117,9 +117,9 @@ void qstring_append_chr(QString *qstring, int c)
  */
 QString *qobject_to_qstring(const QObject *obj)
 {
-    if (qobject_type(obj) != QTYPE_QSTRING)
+    if (!obj || qobject_type(obj) != QTYPE_QSTRING) {
         return NULL;
-
+    }
     return container_of(obj, QString, base);
 }
 
