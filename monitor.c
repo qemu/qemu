@@ -181,7 +181,8 @@ typedef struct {
  * instance.
  */
 typedef struct MonitorQAPIEventState {
-    QAPIEvent event;    /* Event being tracked */
+    QAPIEvent event;    /* Throttling state for this event type and... */
+    QDict *data;        /* ... data, see qapi_event_throttle_equal() */
     QEMUTimer *timer;   /* Timer for handling delayed events */
     QDict *qdict;       /* Delayed event (if any) */
 } MonitorQAPIEventState;
@@ -490,7 +491,8 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
         /* Unthrottled event */
         monitor_qapi_event_emit(event, qdict);
     } else {
-        MonitorQAPIEventState key = { .event = event };
+        QDict *data = qobject_to_qdict(qdict_get(qdict, "data"));
+        MonitorQAPIEventState key = { .event = event, .data = data };
 
         evstate = g_hash_table_lookup(monitor_qapi_event_state, &key);
         assert(!evstate || timer_pending(evstate->timer));
@@ -517,6 +519,8 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
 
             evstate = g_new(MonitorQAPIEventState, 1);
             evstate->event = event;
+            evstate->data = data;
+            QINCREF(evstate->data);
             evstate->qdict = NULL;
             evstate->timer = timer_new_ns(QEMU_CLOCK_REALTIME,
                                           monitor_qapi_event_handler,
@@ -551,6 +555,7 @@ static void monitor_qapi_event_handler(void *opaque)
         timer_mod_ns(evstate->timer, now + evconf->rate);
     } else {
         g_hash_table_remove(monitor_qapi_event_state, evstate);
+        QDECREF(evstate->data);
         timer_free(evstate->timer);
         g_free(evstate);
     }
@@ -561,8 +566,13 @@ static void monitor_qapi_event_handler(void *opaque)
 static unsigned int qapi_event_throttle_hash(const void *key)
 {
     const MonitorQAPIEventState *evstate = key;
+    unsigned int hash = evstate->event * 255;
 
-    return evstate->event * 255;
+    if (evstate->event == QAPI_EVENT_VSERPORT_CHANGE) {
+        hash += g_str_hash(qdict_get_str(evstate->data, "id"));
+    }
+
+    return hash;
 }
 
 static gboolean qapi_event_throttle_equal(const void *a, const void *b)
@@ -570,7 +580,16 @@ static gboolean qapi_event_throttle_equal(const void *a, const void *b)
     const MonitorQAPIEventState *eva = a;
     const MonitorQAPIEventState *evb = b;
 
-    return eva->event == evb->event;
+    if (eva->event != evb->event) {
+        return FALSE;
+    }
+
+    if (eva->event == QAPI_EVENT_VSERPORT_CHANGE) {
+        return !strcmp(qdict_get_str(eva->data, "id"),
+                       qdict_get_str(evb->data, "id"));
+    }
+
+    return TRUE;
 }
 
 static void monitor_qapi_event_init(void)
