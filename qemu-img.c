@@ -38,6 +38,7 @@
 #include "block/blockjob.h"
 #include "block/qapi.h"
 #include <getopt.h>
+#include <err.h>
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_VERSION QEMU_PKGVERSION \
                           ", Copyright (c) 2004-2008 Fabrice Bellard\n"
@@ -51,6 +52,8 @@ enum {
     OPTION_OUTPUT = 256,
     OPTION_BACKING_CHAIN = 257,
     OPTION_OBJECT = 258,
+    OPTION_SOURCE = 259,
+    OPTION_TARGET = 260,
 };
 
 typedef enum OutputFormat {
@@ -172,6 +175,16 @@ static QemuOptsList qemu_object_opts = {
     },
 };
 
+static QemuOptsList qemu_source_opts = {
+    .name = "source",
+    .implied_opt_name = "file",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_source_opts.head),
+    .desc = {
+        { }
+    },
+};
+
+
 static int object_create(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *err = NULL;
@@ -266,9 +279,31 @@ static int print_block_option_help(const char *filename, const char *fmt)
     return 0;
 }
 
-static BlockBackend *img_open(const char *id, const char *filename,
-                              const char *fmt, int flags,
-                              bool require_io, bool quiet)
+static BlockBackend *img_open_opts(const char *id,
+                                   QemuOpts *opts, int flags)
+{
+    QDict *options;
+    Error *local_err = NULL;
+    char *file = NULL;
+    BlockBackend *blk;
+    file = g_strdup(qemu_opt_get(opts, "file"));
+    qemu_opt_unset(opts, "file");
+    options = qemu_opts_to_qdict(opts, NULL);
+    blk = blk_new_open(id, file, NULL, options, flags, &local_err);
+    if (!blk) {
+        error_report("Could not open '%s': %s", file ? file : "",
+                     error_get_pretty(local_err));
+        g_free(file);
+        error_free(local_err);
+        return NULL;
+    }
+    g_free(file);
+    return blk;
+}
+
+static BlockBackend *img_open_file(const char *id, const char *filename,
+                                   const char *fmt, int flags,
+                                   bool require_io, bool quiet)
 {
     BlockBackend *blk;
     BlockDriverState *bs;
@@ -576,7 +611,7 @@ static int img_check(int argc, char **argv)
 {
     int c, ret;
     OutputFormat output_format = OFORMAT_HUMAN;
-    const char *filename, *fmt, *output, *cache;
+    const char *filename = NULL, *fmt, *output, *cache;
     BlockBackend *blk;
     BlockDriverState *bs;
     int fix = 0;
@@ -596,6 +631,7 @@ static int img_check(int argc, char **argv)
             {"repair", required_argument, 0, 'r'},
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:r:T:q",
@@ -639,12 +675,29 @@ static int img_check(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            if (filename) {
+                errx(EXIT_FAILURE, "--source can only be specified once");
+            }
+            filename = optarg;
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
-    if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+    if (filename) {
+        if (optind != argc) {
+            error_exit("--source and filename are mutually exclusive");
+        }
+    } else {
+        if (optind != argc - 1) {
+            error_exit("Expecting one image file name");
+        }
+        filename = argv[optind++];
     }
-    filename = argv[optind++];
 
     if (output && !strcmp(output, "json")) {
         output_format = OFORMAT_JSON;
@@ -667,7 +720,15 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open("image", filename, fmt, flags, true, quiet);
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
+    if (opts) {
+        if (fmt) {
+            errx(EXIT_FAILURE, "--source and --format are mutually exclusive");
+        }
+        blk = img_open_opts("image", opts, flags);
+    } else {
+        blk = img_open_file("image", filename, fmt, flags, true, quiet);
+    }
     if (!blk) {
         return 1;
     }
@@ -773,7 +834,7 @@ static void run_block_job(BlockJob *job, Error **errp)
 static int img_commit(int argc, char **argv)
 {
     int c, ret, flags;
-    const char *filename, *fmt, *cache, *base;
+    const char *filename = NULL, *fmt, *cache, *base;
     BlockBackend *blk;
     BlockDriverState *bs, *base_bs;
     bool progress = false, quiet = false, drop = false;
@@ -789,6 +850,7 @@ static int img_commit(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:ht:b:dpq",
@@ -828,6 +890,17 @@ static int img_commit(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            if (filename) {
+                errx(EXIT_FAILURE, "--source can only be specified once");
+            }
+            filename = optarg;
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
 
@@ -836,10 +909,16 @@ static int img_commit(int argc, char **argv)
         progress = false;
     }
 
-    if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+    if (filename) {
+        if (optind != argc) {
+            error_exit("--source and filename are mutually exclusive");
+        }
+    } else {
+        if (optind != argc - 1) {
+            error_exit("Expecting one image file name");
+        }
+        filename = argv[optind++];
     }
-    filename = argv[optind++];
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           object_create,
@@ -854,7 +933,15 @@ static int img_commit(int argc, char **argv)
         return 1;
     }
 
-    blk = img_open("image", filename, fmt, flags, true, quiet);
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
+    if (opts) {
+        if (fmt) {
+            errx(EXIT_FAILURE, "--source and --format are mutually exclusive");
+        }
+        blk = img_open_opts("image", opts, flags);
+    } else {
+        blk = img_open_file("image", filename, fmt, flags, true, quiet);
+    }
     if (!blk) {
         return 1;
     }
@@ -1088,7 +1175,8 @@ static int check_empty_sectors(BlockBackend *blk, int64_t sect_num,
  */
 static int img_compare(int argc, char **argv)
 {
-    const char *fmt1 = NULL, *fmt2 = NULL, *cache, *filename1, *filename2;
+    const char *fmt1 = NULL, *fmt2 = NULL, *cache,
+        *filename1 = NULL, *filename2 = NULL;
     BlockBackend *blk1, *blk2;
     BlockDriverState *bs1, *bs2;
     int64_t total_sectors1, total_sectors2;
@@ -1111,6 +1199,7 @@ static int img_compare(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:F:T:pqs",
@@ -1148,6 +1237,20 @@ static int img_compare(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            if (filename2) {
+                errx(EXIT_FAILURE, "--source can only be specified twice");
+            } else if (filename1) {
+                filename2 = optarg;
+            } else {
+                filename1 = optarg;
+            }
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
 
@@ -1156,12 +1259,20 @@ static int img_compare(int argc, char **argv)
         progress = false;
     }
 
-
-    if (optind != argc - 2) {
-        error_exit("Expecting two image file names");
+    if (filename1) {
+        if (optind != argc) {
+            error_exit("--source and filenames are mutually exclusive");
+        }
+        if (!filename2) {
+            error_exit("Expecting two --source arguments");
+        }
+    } else {
+        if (optind != argc - 2) {
+            error_exit("Expecting two image file names");
+        }
+        filename1 = argv[optind++];
+        filename2 = argv[optind++];
     }
-    filename1 = argv[optind++];
-    filename2 = argv[optind++];
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           object_create,
@@ -1180,18 +1291,38 @@ static int img_compare(int argc, char **argv)
         goto out3;
     }
 
-    blk1 = img_open("image_1", filename1, fmt1, flags, true, quiet);
-    if (!blk1) {
-        ret = 2;
-        goto out3;
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
+    if (opts) {
+        if (fmt1 || fmt2) {
+            error_report("--source and -f or -F are mutuall exclusive");
+            goto out3;
+        }
+
+        blk1 = img_open_opts("image_1", opts, flags);
+        if (!blk1) {
+            ret = 2;
+            goto out3;
+        }
+
+        blk2 = img_open_opts("image_2", qemu_opts_next(opts), flags);
+        if (!blk2) {
+            ret = 2;
+            goto out3;
+        }
+    } else {
+        blk1 = img_open_file("image_1", filename1, fmt1, flags, true, quiet);
+        if (!blk1) {
+            ret = 2;
+            goto out3;
+        }
+
+        blk2 = img_open_file("image_2", filename2, fmt2, flags, true, quiet);
+        if (!blk2) {
+            ret = 2;
+            goto out2;
+        }
     }
     bs1 = blk_bs(blk1);
-
-    blk2 = img_open("image_2", filename2, fmt2, flags, true, quiet);
-    if (!blk2) {
-        ret = 2;
-        goto out2;
-    }
     bs2 = blk_bs(blk2);
 
     buf1 = blk_blockalign(blk1, IO_BUF_SIZE);
@@ -1658,10 +1789,11 @@ fail:
 
 static int img_convert(int argc, char **argv)
 {
-    int c, bs_n, bs_i, compress, cluster_sectors, skip_create;
+    int c, bs_n = 0, bs_i, compress, cluster_sectors, skip_create;
     int64_t ret = 0;
     int progress = 0, flags, src_flags;
-    const char *fmt, *out_fmt, *cache, *src_cache, *out_baseimg, *out_filename;
+    const char *fmt, *out_fmt, *cache, *src_cache,
+        *out_baseimg, *out_filename = NULL;
     BlockDriver *drv, *proto_drv;
     BlockBackend **blk = NULL, *out_blk = NULL;
     BlockDriverState **bs = NULL, *out_bs = NULL;
@@ -1692,6 +1824,7 @@ static int img_convert(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:O:B:ce6o:s:l:S:pt:T:qn",
@@ -1793,6 +1926,14 @@ static int img_convert(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            bs_n++;
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
 
@@ -1808,19 +1949,32 @@ static int img_convert(int argc, char **argv)
     }
     qemu_progress_init(progress, 1.0);
 
-
-    bs_n = argc - optind - 1;
-    out_filename = bs_n >= 1 ? argv[argc - 1] : NULL;
+    if (!bs_n) {
+        out_filename = (argc - optind - 1) >= 1 ? argv[argc - 1] : NULL;
+    }
 
     if (options && has_help_option(options)) {
         ret = print_block_option_help(out_filename, out_fmt);
         goto out;
     }
 
-    if (bs_n < 1) {
-        error_exit("Must specify image file name");
+    if (bs_n) {
+        if (argc > (optind + 1)) {
+            error_exit("--source and filenames are mutually exclusive");
+        }
+        if (argc != (optind + 1)) {
+            error_exit("Must specify target image file name");
+        }
+        if (!bs_n) {
+            error_exit("At least one --source arg is expected with --target");
+        }
+        out_filename = argv[argc - 1];
+    } else {
+        bs_n = argc - optind - 1;
+        if (bs_n < 1) {
+            error_exit("Must specify image file name");
+        }
     }
-
 
     if (bs_n > 1 && out_baseimg) {
         error_report("-B makes no sense when concatenating multiple input "
@@ -1843,11 +1997,21 @@ static int img_convert(int argc, char **argv)
     bs_sectors = g_new(int64_t, bs_n);
 
     total_sectors = 0;
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
         char *id = bs_n > 1 ? g_strdup_printf("source_%d", bs_i)
                             : g_strdup("source");
-        blk[bs_i] = img_open(id, argv[optind + bs_i], fmt, src_flags,
-                             true, quiet);
+        if (opts) {
+            if (fmt) {
+                error_report("--source and -f are mutually exclusive");
+                goto out;
+            }
+            blk[bs_i] = img_open_opts(id, opts, src_flags);
+            opts = qemu_opts_next(opts);
+        } else {
+            blk[bs_i] = img_open_file(id, argv[optind + bs_i], fmt, src_flags,
+                                      true, quiet);
+        }
         g_free(id);
         if (!blk[bs_i]) {
             ret = -1;
@@ -1991,7 +2155,12 @@ static int img_convert(int argc, char **argv)
         goto out;
     }
 
-    out_blk = img_open("target", out_filename, out_fmt, flags, true, quiet);
+    /* XXX we could allow a --target OPTSRING and then use
+     * img_open_opts here, but then we have trouble with
+     * the bdrv_create() call which takes different params
+     */
+    out_blk = img_open_file("target", out_filename,
+                            out_fmt, flags, true, quiet);
     if (!out_blk) {
         ret = -1;
         goto out;
@@ -2158,7 +2327,8 @@ static gboolean str_equal_func(gconstpointer a, gconstpointer b)
  * image file.  If there was an error a message will have been printed to
  * stderr.
  */
-static ImageInfoList *collect_image_info_list(const char *filename,
+static ImageInfoList *collect_image_info_list(QemuOpts *opts,
+                                              const char *filename,
                                               const char *fmt,
                                               bool chain)
 {
@@ -2182,8 +2352,19 @@ static ImageInfoList *collect_image_info_list(const char *filename,
         }
         g_hash_table_insert(filenames, (gpointer)filename, NULL);
 
-        blk = img_open("image", filename, fmt,
-                       BDRV_O_FLAGS | BDRV_O_NO_BACKING, false, false);
+        if (opts) {
+            if (fmt) {
+                error_report("--source and -f are mutually exclusive");
+                goto err;
+            }
+            blk = img_open_opts("image", opts,
+                                BDRV_O_FLAGS | BDRV_O_NO_BACKING);
+            opts = NULL;
+        } else {
+            blk = img_open_file("image", filename, fmt,
+                                BDRV_O_FLAGS | BDRV_O_NO_BACKING,
+                                false, false);
+        }
         if (!blk) {
             goto err;
         }
@@ -2229,7 +2410,7 @@ static int img_info(int argc, char **argv)
     int c;
     OutputFormat output_format = OFORMAT_HUMAN;
     bool chain = false;
-    const char *filename, *fmt, *output;
+    const char *filename = NULL, *fmt, *output;
     ImageInfoList *list;
     QemuOpts *opts;
 
@@ -2243,6 +2424,7 @@ static int img_info(int argc, char **argv)
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"backing-chain", no_argument, 0, OPTION_BACKING_CHAIN},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:h",
@@ -2271,12 +2453,29 @@ static int img_info(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            if (filename) {
+                error_exit("--source can only be specified once");
+            }
+            filename = optarg;
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
-    if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+    if (filename) {
+        if (optind != argc) {
+            error_exit("--source and filename are mutually exclusive");
+        }
+    } else {
+        if (optind != argc - 1) {
+            error_exit("Expecting one image file name");
+        }
+        filename = argv[optind++];
     }
-    filename = argv[optind++];
 
     if (output && !strcmp(output, "json")) {
         output_format = OFORMAT_JSON;
@@ -2293,7 +2492,8 @@ static int img_info(int argc, char **argv)
         exit(1);
     }
 
-    list = collect_image_info_list(filename, fmt, chain);
+    list = collect_image_info_list(qemu_opts_find(&qemu_source_opts, NULL),
+                                   filename, fmt, chain);
     if (!list) {
         return 1;
     }
@@ -2412,7 +2612,7 @@ static int img_map(int argc, char **argv)
     OutputFormat output_format = OFORMAT_HUMAN;
     BlockBackend *blk;
     BlockDriverState *bs;
-    const char *filename, *fmt, *output;
+    const char *filename = NULL, *fmt, *output;
     int64_t length;
     MapEntry curr = { .length = 0 }, next;
     int ret = 0;
@@ -2427,6 +2627,7 @@ static int img_map(int argc, char **argv)
             {"format", required_argument, 0, 'f'},
             {"output", required_argument, 0, OPTION_OUTPUT},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:h",
@@ -2452,12 +2653,29 @@ static int img_map(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            if (filename) {
+                error_exit("--source can only be specified once");
+            }
+            filename = optarg;
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
-    if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+    if (filename) {
+        if (optind != argc) {
+            error_exit("--source and filename are mutually exclusive");
+        }
+    } else {
+        if (optind != argc - 1) {
+            error_exit("Expecting one image file name");
+        }
+        filename = argv[optind];
     }
-    filename = argv[optind];
 
     if (output && !strcmp(output, "json")) {
         output_format = OFORMAT_JSON;
@@ -2474,7 +2692,15 @@ static int img_map(int argc, char **argv)
         exit(1);
     }
 
-    blk = img_open("image", filename, fmt, BDRV_O_FLAGS, true, false);
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
+    if (opts) {
+        if (fmt) {
+            errx(EXIT_FAILURE, "--source and --format are mutually exclusive");
+        }
+        blk = img_open_opts("image", opts, BDRV_O_FLAGS);
+    } else {
+        blk = img_open_file("image", filename, fmt, BDRV_O_FLAGS, true, false);
+    }
     if (!blk) {
         return 1;
     }
@@ -2533,7 +2759,7 @@ static int img_snapshot(int argc, char **argv)
     BlockBackend *blk;
     BlockDriverState *bs;
     QEMUSnapshotInfo sn;
-    char *filename, *snapshot_name = NULL;
+    char *filename = NULL, *snapshot_name = NULL;
     int c, ret = 0, bdrv_oflags;
     int action = 0;
     qemu_timeval tv;
@@ -2548,6 +2774,7 @@ static int img_snapshot(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "la:c:d:hq",
@@ -2602,13 +2829,30 @@ static int img_snapshot(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            if (filename) {
+                error_exit("--source can only be specified once");
+            }
+            filename = optarg;
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
 
-    if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+    if (filename) {
+        if (optind != argc) {
+            error_exit("--source and filename are mutually exclusive");
+        }
+    } else {
+        if (optind != argc - 1) {
+            error_exit("Expecting one image file name");
+        }
+        filename = argv[optind++];
     }
-    filename = argv[optind++];
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           object_create,
@@ -2617,7 +2861,12 @@ static int img_snapshot(int argc, char **argv)
     }
 
     /* Open the image */
-    blk = img_open("image", filename, NULL, bdrv_oflags, true, quiet);
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
+    if (opts) {
+        blk = img_open_opts("image", opts, bdrv_oflags);
+    } else {
+        blk = img_open_file("image", filename, NULL, bdrv_oflags, true, quiet);
+    }
     if (!blk) {
         return 1;
     }
@@ -2675,7 +2924,7 @@ static int img_rebase(int argc, char **argv)
 {
     BlockBackend *blk = NULL, *blk_old_backing = NULL, *blk_new_backing = NULL;
     BlockDriverState *bs = NULL;
-    char *filename;
+    char *filename = NULL;
     const char *fmt, *cache, *src_cache, *out_basefmt, *out_baseimg;
     int c, flags, src_flags, ret;
     int unsafe = 0;
@@ -2695,6 +2944,7 @@ static int img_rebase(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "hf:F:b:upt:T:q",
@@ -2738,6 +2988,13 @@ static int img_rebase(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
 
@@ -2745,13 +3002,20 @@ static int img_rebase(int argc, char **argv)
         progress = 0;
     }
 
-    if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+    if (filename) {
+        if (optind != argc) {
+            error_exit("--source and filename are mutually exclusive");
+        }
+    } else {
+        if (optind != argc - 1) {
+            error_exit("Expecting one image file name");
+        }
+        filename = argv[optind++];
     }
+
     if (!unsafe && !out_baseimg) {
         error_exit("Must specify backing file (-b) or use unsafe mode (-u)");
     }
-    filename = argv[optind++];
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           object_create,
@@ -2782,7 +3046,17 @@ static int img_rebase(int argc, char **argv)
      * Ignore the old backing file for unsafe rebase in case we want to correct
      * the reference to a renamed or moved backing file.
      */
-    blk = img_open("image", filename, fmt, flags, true, quiet);
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
+    if (opts) {
+        if (fmt) {
+            error_report("--source and --format are mutually exclusive");
+            ret = -1;
+            goto out;
+        }
+        blk = img_open_opts("image", opts, flags);
+    } else {
+        blk = img_open_file("image", filename, fmt, flags, true, quiet);
+    }
     if (!blk) {
         ret = -1;
         goto out;
@@ -3014,7 +3288,7 @@ static int img_resize(int argc, char **argv)
 {
     Error *err = NULL;
     int c, ret, relative;
-    const char *filename, *fmt, *size;
+    const char *filename = NULL, *fmt, *size;
     int64_t n, total_size;
     bool quiet = false;
     BlockBackend *blk = NULL;
@@ -3050,6 +3324,7 @@ static int img_resize(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "f:hq",
@@ -3075,12 +3350,25 @@ static int img_resize(int argc, char **argv)
                 exit(1);
             }
             break;
+        case OPTION_SOURCE:
+            opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                           optarg, true);
+            if (!opts) {
+                exit(1);
+            }
+            break;
         }
     }
-    if (optind != argc - 1) {
-        error_exit("Expecting one image file name");
+    if (filename) {
+        if (optind != argc) {
+            error_exit("--source and filename are mutually exclusive");
+        }
+    } else {
+        if (optind != argc - 1) {
+            error_exit("Expecting one image file name");
+        }
+        filename = argv[optind++];
     }
-    filename = argv[optind++];
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
                           object_create,
@@ -3115,8 +3403,18 @@ static int img_resize(int argc, char **argv)
     n = qemu_opt_get_size(param, BLOCK_OPT_SIZE, 0);
     qemu_opts_del(param);
 
-    blk = img_open("image", filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR,
-                   true, quiet);
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
+    if (opts) {
+        if (fmt) {
+            error_report("--source and --format are mutually exclusive");
+            ret = -1;
+            goto out;
+        }
+        blk = img_open_opts("image", opts, BDRV_O_FLAGS | BDRV_O_RDWR);
+    } else {
+        blk = img_open_file("image", filename, fmt, BDRV_O_FLAGS | BDRV_O_RDWR,
+                            true, quiet);
+    }
     if (!blk) {
         ret = -1;
         goto out;
@@ -3169,7 +3467,7 @@ static int img_amend(int argc, char **argv)
     char *options = NULL;
     QemuOptsList *create_opts = NULL;
     QemuOpts *opts = NULL;
-    const char *fmt = NULL, *filename, *cache;
+    const char *fmt = NULL, *filename = NULL, *cache;
     int flags;
     bool quiet = false, progress = false;
     BlockBackend *blk = NULL;
@@ -3181,6 +3479,7 @@ static int img_amend(int argc, char **argv)
         static const struct option long_options[] = {
             {"help", no_argument, 0, 'h'},
             {"object", required_argument, 0, OPTION_OBJECT},
+            {"source", required_argument, 0, OPTION_SOURCE},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, "ho:f:t:pq",
@@ -3227,11 +3526,24 @@ static int img_amend(int argc, char **argv)
                     exit(1);
                 }
                 break;
+            case OPTION_SOURCE:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("source"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(1);
+                }
+                break;
         }
     }
 
     if (!options) {
         error_exit("Must specify options (-o)");
+    }
+
+    if (filename) {
+        if (optind != argc) {
+            error_exit("--source and filename are mutually exclusive");
+        }
     }
 
     if (qemu_opts_foreach(qemu_find_opts("object"),
@@ -3245,7 +3557,9 @@ static int img_amend(int argc, char **argv)
     }
     qemu_progress_init(progress, 1.0);
 
-    filename = (optind == argc - 1) ? argv[argc - 1] : NULL;
+    if (!filename) {
+        filename = (optind == argc - 1) ? argv[argc - 1] : NULL;
+    }
     if (fmt && has_help_option(options)) {
         /* If a format is explicitly specified (and possibly no filename is
          * given), print option help here */
@@ -3253,8 +3567,9 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    if (optind != argc - 1) {
-        error_report("Expecting one image file name");
+    if (!filename &&
+        (optind != argc - 1)) {
+        error_exit("Expecting one image file name");
         ret = -1;
         goto out;
     }
@@ -3266,7 +3581,17 @@ static int img_amend(int argc, char **argv)
         goto out;
     }
 
-    blk = img_open("image", filename, fmt, flags, true, quiet);
+    opts = qemu_opts_find(&qemu_source_opts, NULL);
+    if (opts) {
+        if (fmt) {
+            error_report("--source and --format are mutually exclusive");
+            ret = -1;
+            goto out;
+        }
+        blk = img_open_opts("image", opts, BDRV_O_FLAGS | BDRV_O_RDWR);
+    } else {
+        blk = img_open_file("image", filename, fmt, flags, true, quiet);
+    }
     if (!blk) {
         ret = -1;
         goto out;
@@ -3364,6 +3689,7 @@ int main(int argc, char **argv)
 
     module_call_init(MODULE_INIT_QOM);
     qemu_add_opts(&qemu_object_opts);
+    qemu_add_opts(&qemu_source_opts);
 
     /* find the command */
     for (cmd = img_cmds; cmd->name != NULL; cmd++) {

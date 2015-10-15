@@ -637,6 +637,12 @@ QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
     return NULL;
 }
 
+
+QemuOpts *qemu_opts_next(QemuOpts *opts)
+{
+    return QTAILQ_NEXT(opts, next);
+}
+
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
                            int fail_if_exists, Error **errp)
 {
