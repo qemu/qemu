@@ -78,3 +78,19 @@
 { 'enum': 'QCryptoCipherMode',
   'prefix': 'QCRYPTO_CIPHER_MODE',
   'data': ['ecb', 'cbc']}
+
+
+##
+# QCryptoIVGenAlgorithm:
+#
+# The supported algorithms for generating initialization
+# vectors for full disk encryption
+#
+# @plain: 64-bit sector number truncated to 32-bits
+# @plain64: 64-bit sector number
+# @essiv: 64-bit sector number encrypted with a hash of the encryption key
+# Since: 2.6
+##
+{ 'enum': 'QCryptoIVGenAlgorithm',
+  'prefix': 'QCRYPTO_IVGEN_ALG',
+  'data': ['plain', 'plain64', 'essiv']}
