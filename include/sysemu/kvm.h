@@ -52,6 +52,7 @@ extern bool kvm_msi_via_irqfd_allowed;
 extern bool kvm_gsi_routing_allowed;
 extern bool kvm_gsi_direct_mapping;
 extern bool kvm_readonly_mem_allowed;
+extern bool kvm_direct_msi_allowed;
 
 #if defined CONFIG_KVM || !defined NEED_CPU_H
 #define kvm_enabled()           (kvm_allowed)
@@ -145,6 +146,13 @@ extern bool kvm_readonly_mem_allowed;
  */
 #define kvm_readonly_mem_enabled() (kvm_readonly_mem_allowed)
 
+/**
+ * kvm_direct_msi_enabled:
+ *
+ * Returns: true if KVM allows direct MSI injection.
+ */
+#define kvm_direct_msi_enabled() (kvm_direct_msi_allowed)
+
 #else
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
@@ -157,6 +165,7 @@ extern bool kvm_readonly_mem_allowed;
 #define kvm_gsi_routing_allowed() (false)
 #define kvm_gsi_direct_mapping() (false)
 #define kvm_readonly_mem_enabled() (false)
+#define kvm_direct_msi_enabled() (false)
 #endif
 
 struct kvm_run;

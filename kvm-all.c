@@ -93,7 +93,6 @@ struct KVMState
     uint32_t *used_gsi_bitmap;
     unsigned int gsi_count;
     QTAILQ_HEAD(msi_hashtab, KVMMSIRoute) msi_hashtab[KVM_MSI_HASHTAB_SIZE];
-    bool direct_msi;
 #endif
     KVMMemoryListener memory_listener;
 };
@@ -111,6 +110,7 @@ bool kvm_gsi_direct_mapping;
 bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
 bool kvm_vm_attributes_allowed;
+bool kvm_direct_msi_allowed;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -979,7 +979,7 @@ void kvm_init_irq_routing(KVMState *s)
     s->irq_routes = g_malloc0(sizeof(*s->irq_routes));
     s->nr_allocated_irq_routes = 0;
 
-    if (!s->direct_msi) {
+    if (!kvm_direct_msi_allowed) {
         for (i = 0; i < KVM_MSI_HASHTAB_SIZE; i++) {
             QTAILQ_INIT(&s->msi_hashtab[i]);
         }
@@ -1113,7 +1113,7 @@ static int kvm_irqchip_get_virq(KVMState *s)
      * number can succeed even though a new route entry cannot be added.
      * When this happens, flush dynamic MSI entries to free IRQ route entries.
      */
-    if (!s->direct_msi && s->irq_routes->nr == s->gsi_count) {
+    if (!kvm_direct_msi_allowed && s->irq_routes->nr == s->gsi_count) {
         kvm_flush_dynamic_msi_routes(s);
     }
 
@@ -1150,7 +1150,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
     struct kvm_msi msi;
     KVMMSIRoute *route;
 
-    if (s->direct_msi) {
+    if (kvm_direct_msi_allowed) {
         msi.address_lo = (uint32_t)msg.address;
         msi.address_hi = msg.address >> 32;
         msi.data = le32_to_cpu(msg.data);
@@ -1598,7 +1598,7 @@ static int kvm_init(MachineState *ms)
 #endif
 
 #ifdef KVM_CAP_IRQ_ROUTING
-    s->direct_msi = (kvm_check_extension(s, KVM_CAP_SIGNAL_MSI) > 0);
+    kvm_direct_msi_allowed = (kvm_check_extension(s, KVM_CAP_SIGNAL_MSI) > 0);
 #endif
 
     s->intx_set_mask = kvm_check_extension(s, KVM_CAP_PCI_2_3);
