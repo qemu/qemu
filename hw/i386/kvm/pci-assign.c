@@ -979,7 +979,7 @@ static void assigned_dev_update_msi(PCIDevice *pci_dev)
         MSIMessage msg = msi_get_message(pci_dev, 0);
         int virq;
 
-        virq = kvm_irqchip_add_msi_route(kvm_state, msg);
+        virq = kvm_irqchip_add_msi_route(kvm_state, msg, pci_dev);
         if (virq < 0) {
             perror("assigned_dev_update_msi: kvm_irqchip_add_msi_route");
             return;
@@ -1017,7 +1017,7 @@ static void assigned_dev_update_msi_msg(PCIDevice *pci_dev)
     }
 
     kvm_irqchip_update_msi_route(kvm_state, assigned_dev->msi_virq[0],
-                                 msi_get_message(pci_dev, 0));
+                                 msi_get_message(pci_dev, 0), pci_dev);
 }
 
 static bool assigned_dev_msix_masked(MSIXTableEntry *entry)
@@ -1083,7 +1083,7 @@ static int assigned_dev_update_msix_mmio(PCIDevice *pci_dev)
 
         msg.address = entry->addr_lo | ((uint64_t)entry->addr_hi << 32);
         msg.data = entry->data;
-        r = kvm_irqchip_add_msi_route(kvm_state, msg);
+        r = kvm_irqchip_add_msi_route(kvm_state, msg, pci_dev);
         if (r < 0) {
             return r;
         }
@@ -1602,7 +1602,8 @@ static void assigned_dev_msix_mmio_write(void *opaque, hwaddr addr,
                 msg.data = entry->data;
 
                 ret = kvm_irqchip_update_msi_route(kvm_state,
-                                                   adev->msi_virq[i], msg);
+                                                   adev->msi_virq[i], msg,
+                                                   pdev);
                 if (ret) {
                     error_report("Error updating irq routing entry (%d)", ret);
                 }

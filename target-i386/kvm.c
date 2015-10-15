@@ -2992,7 +2992,7 @@ int kvm_device_msix_deassign(KVMState *s, uint32_t dev_id)
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
-                             uint64_t address, uint32_t data)
+                             uint64_t address, uint32_t data, PCIDevice *dev)
 {
     return 0;
 }

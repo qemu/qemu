@@ -326,7 +326,7 @@ int kvm_arch_on_sigbus(int code, void *addr);
 void kvm_arch_init_irq_routing(KVMState *s);
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
-                             uint64_t address, uint32_t data);
+                             uint64_t address, uint32_t data, PCIDevice *dev);
 
 int kvm_arch_msi_data_to_gsi(uint32_t data);
 
@@ -451,8 +451,9 @@ static inline void cpu_clean_state(CPUState *cpu)
     }
 }
 
-int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg);
-int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg);
+int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg, PCIDevice *dev);
+int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
+                                 PCIDevice *dev);
 void kvm_irqchip_release_virq(KVMState *s, int virq);
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter);
