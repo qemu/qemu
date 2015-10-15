@@ -185,7 +185,7 @@ typedef struct MonitorQAPIEventState {
     int64_t rate;       /* Minimum time (in ns) between two events */
     int64_t last;       /* QEMU_CLOCK_REALTIME value at last emission */
     QEMUTimer *timer;   /* Timer for handling delayed events */
-    QObject *data;      /* Event pending delayed dispatch */
+    QDict *qdict;       /* Delayed event (if any) */
 } MonitorQAPIEventState;
 
 struct Monitor {
@@ -444,14 +444,14 @@ static MonitorQAPIEventState monitor_qapi_event_state[QAPI_EVENT_MAX];
  * Emits the event to every monitor instance, @event is only used for trace
  * Called with monitor_lock held.
  */
-static void monitor_qapi_event_emit(QAPIEvent event, QObject *data)
+static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
 {
     Monitor *mon;
 
-    trace_monitor_protocol_event_emit(event, data);
+    trace_monitor_protocol_event_emit(event, qdict);
     QLIST_FOREACH(mon, &mon_list, entry) {
         if (monitor_is_qmp(mon) && mon->qmp.in_command_mode) {
-            monitor_json_emitter(mon, data);
+            monitor_json_emitter(mon, QOBJECT(qdict));
         }
     }
 }
@@ -461,7 +461,7 @@ static void monitor_qapi_event_emit(QAPIEvent event, QObject *data)
  * applying any rate limiting if required.
  */
 static void
-monitor_qapi_event_queue(QAPIEvent event, QDict *data, Error **errp)
+monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
 {
     MonitorQAPIEventState *evstate;
     assert(event < QAPI_EVENT_MAX);
@@ -469,7 +469,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *data, Error **errp)
 
     evstate = &(monitor_qapi_event_state[event]);
     trace_monitor_protocol_event_queue(event,
-                                       data,
+                                       qdict,
                                        evstate->rate,
                                        evstate->last,
                                        now);
@@ -477,26 +477,26 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *data, Error **errp)
     /* Rate limit of 0 indicates no throttling */
     qemu_mutex_lock(&monitor_lock);
     if (!evstate->rate) {
-        monitor_qapi_event_emit(event, QOBJECT(data));
+        monitor_qapi_event_emit(event, qdict);
         evstate->last = now;
     } else {
         int64_t delta = now - evstate->last;
-        if (evstate->data ||
+        if (evstate->qdict ||
             delta < evstate->rate) {
             /* If there's an existing event pending, replace
              * it with the new event, otherwise schedule a
              * timer for delayed emission
              */
-            if (evstate->data) {
-                qobject_decref(evstate->data);
+            if (evstate->qdict) {
+                QDECREF(evstate->qdict);
             } else {
                 int64_t then = evstate->last + evstate->rate;
                 timer_mod_ns(evstate->timer, then);
             }
-            evstate->data = QOBJECT(data);
-            qobject_incref(evstate->data);
+            evstate->qdict = qdict;
+            QINCREF(evstate->qdict);
         } else {
-            monitor_qapi_event_emit(event, QOBJECT(data));
+            monitor_qapi_event_emit(event, qdict);
             evstate->last = now;
         }
     }
@@ -513,14 +513,14 @@ static void monitor_qapi_event_handler(void *opaque)
     int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
     trace_monitor_protocol_event_handler(evstate->event,
-                                         evstate->data,
+                                         evstate->qdict,
                                          evstate->last,
                                          now);
     qemu_mutex_lock(&monitor_lock);
-    if (evstate->data) {
-        monitor_qapi_event_emit(evstate->event, evstate->data);
-        qobject_decref(evstate->data);
-        evstate->data = NULL;
+    if (evstate->qdict) {
+        monitor_qapi_event_emit(evstate->event, evstate->qdict);
+        QDECREF(evstate->qdict);
+        evstate->qdict = NULL;
     }
     evstate->last = now;
     qemu_mutex_unlock(&monitor_lock);
@@ -547,7 +547,7 @@ monitor_qapi_event_throttle(QAPIEvent event, int64_t rate)
     assert(rate * SCALE_MS <= INT64_MAX);
     evstate->rate = rate * SCALE_MS;
     evstate->last = 0;
-    evstate->data = NULL;
+    evstate->qdict = NULL;
     evstate->timer = timer_new(QEMU_CLOCK_REALTIME,
                                SCALE_MS,
                                monitor_qapi_event_handler,
