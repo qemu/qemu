@@ -229,8 +229,7 @@ double qdict_get_double(const QDict *qdict, const char *key)
  */
 int64_t qdict_get_int(const QDict *qdict, const char *key)
 {
-    QObject *obj = qdict_get_obj(qdict, key, QTYPE_QINT);
-    return qint_get_int(qobject_to_qint(obj));
+    return qint_get_int(qobject_to_qint(qdict_get(qdict, key)));
 }
 
 /**
@@ -297,13 +296,9 @@ const char *qdict_get_str(const QDict *qdict, const char *key)
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t def_value)
 {
-    QObject *obj;
+    QInt *qint = qobject_to_qint(qdict_get(qdict, key));
 
-    obj = qdict_get(qdict, key);
-    if (!obj || qobject_type(obj) != QTYPE_QINT)
-        return def_value;
-
-    return qint_get_int(qobject_to_qint(obj));
+    return qint ? qint_get_int(qint) : def_value;
 }
 
 /**
