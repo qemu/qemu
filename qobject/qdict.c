@@ -46,9 +46,9 @@ QDict *qdict_new(void)
  */
 QDict *qobject_to_qdict(const QObject *obj)
 {
-    if (qobject_type(obj) != QTYPE_QDICT)
+    if (!obj || qobject_type(obj) != QTYPE_QDICT) {
         return NULL;
-
+    }
     return container_of(obj, QDict, base);
 }
 
@@ -269,7 +269,7 @@ QList *qdict_get_qlist(const QDict *qdict, const char *key)
  */
 QDict *qdict_get_qdict(const QDict *qdict, const char *key)
 {
-    return qobject_to_qdict(qdict_get_obj(qdict, key, QTYPE_QDICT));
+    return qobject_to_qdict(qdict_get(qdict, key));
 }
 
 /**
