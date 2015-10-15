@@ -59,10 +59,6 @@ typedef struct QObject {
     size_t refcnt;
 } QObject;
 
-/* Objects definitions must include this */
-#define QObject_HEAD  \
-    QObject base
-
 /* Get the 'base' part of an object */
 #define QOBJECT(obj) (&(obj)->base)
 

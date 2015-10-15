@@ -17,7 +17,7 @@
 #include "qapi/qmp/qobject.h"
 
 typedef struct QInt {
-    QObject_HEAD;
+    QObject base;
     int64_t value;
 } QInt;
 

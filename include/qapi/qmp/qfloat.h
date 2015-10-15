@@ -18,7 +18,7 @@
 #include "qapi/qmp/qobject.h"
 
 typedef struct QFloat {
-    QObject_HEAD;
+    QObject base;
     double value;
 } QFloat;
 
