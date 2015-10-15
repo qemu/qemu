@@ -182,10 +182,13 @@ typedef struct {
  */
 typedef struct MonitorQAPIEventState {
     QAPIEvent event;    /* Event being tracked */
-    int64_t rate;       /* Minimum time (in ns) between two events */
     QEMUTimer *timer;   /* Timer for handling delayed events */
     QDict *qdict;       /* Delayed event (if any) */
 } MonitorQAPIEventState;
+
+typedef struct {
+    int64_t rate;       /* Minimum time (in ns) between two events */
+} MonitorQAPIEventConf;
 
 struct Monitor {
     CharDriverState *chr;
@@ -437,6 +440,16 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data,
 }
 
 
+static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT_MAX] = {
+    /* Limit guest-triggerable events to 1 per second */
+    [QAPI_EVENT_RTC_CHANGE]        = { 1000 * SCALE_MS },
+    [QAPI_EVENT_WATCHDOG]          = { 1000 * SCALE_MS },
+    [QAPI_EVENT_BALLOON_CHANGE]    = { 1000 * SCALE_MS },
+    [QAPI_EVENT_QUORUM_REPORT_BAD] = { 1000 * SCALE_MS },
+    [QAPI_EVENT_QUORUM_FAILURE]    = { 1000 * SCALE_MS },
+    [QAPI_EVENT_VSERPORT_CHANGE]   = { 1000 * SCALE_MS },
+};
+
 static MonitorQAPIEventState monitor_qapi_event_state[QAPI_EVENT_MAX];
 
 /*
@@ -462,21 +475,23 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
 static void
 monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
 {
+    MonitorQAPIEventConf *evconf;
     MonitorQAPIEventState *evstate;
 
     assert(event < QAPI_EVENT_MAX);
+    evconf = &monitor_qapi_event_conf[event];
     evstate = &monitor_qapi_event_state[event];
-    trace_monitor_protocol_event_queue(event, qdict, evstate->rate);
+    trace_monitor_protocol_event_queue(event, qdict, evconf->rate);
 
     qemu_mutex_lock(&monitor_lock);
 
-    if (!evstate->rate) {
+    if (!evconf->rate) {
         /* Unthrottled event */
         monitor_qapi_event_emit(event, qdict);
     } else {
         if (timer_pending(evstate->timer)) {
             /*
-             * Timer is pending for (at least) evstate->rate ns after
+             * Timer is pending for (at least) evconf->rate ns after
              * last send.  Store event for sending when timer fires,
              * replacing a prior stored event if any.
              */
@@ -485,15 +500,15 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
             QINCREF(evstate->qdict);
         } else {
             /*
-             * Last send was (at least) evstate->rate ns ago.
+             * Last send was (at least) evconf->rate ns ago.
              * Send immediately, and arm the timer to call
-             * monitor_qapi_event_handler() in evstate->rate ns.  Any
+             * monitor_qapi_event_handler() in evconf->rate ns.  Any
              * events arriving before then will be delayed until then.
              */
             int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
             monitor_qapi_event_emit(event, qdict);
-            timer_mod_ns(evstate->timer, now + evstate->rate);
+            timer_mod_ns(evstate->timer, now + evconf->rate);
         }
     }
 
@@ -501,13 +516,14 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
 }
 
 /*
- * This function runs evstate->rate ns after sending a throttled
+ * This function runs evconf->rate ns after sending a throttled
  * event.
  * If another event has since been stored, send it.
  */
 static void monitor_qapi_event_handler(void *opaque)
 {
     MonitorQAPIEventState *evstate = opaque;
+    MonitorQAPIEventConf *evconf = &monitor_qapi_event_conf[evstate->event];
 
     trace_monitor_protocol_event_handler(evstate->event, evstate->qdict);
     qemu_mutex_lock(&monitor_lock);
@@ -518,47 +534,27 @@ static void monitor_qapi_event_handler(void *opaque)
         monitor_qapi_event_emit(evstate->event, evstate->qdict);
         QDECREF(evstate->qdict);
         evstate->qdict = NULL;
-        timer_mod_ns(evstate->timer, now + evstate->rate);
+        timer_mod_ns(evstate->timer, now + evconf->rate);
     }
 
     qemu_mutex_unlock(&monitor_lock);
 }
 
-/*
- * @event: the event ID to be limited
- * @rate: the rate limit in milliseconds
- *
- * Sets a rate limit on a particular event, so no
- * more than 1 event will be emitted within @rate
- * milliseconds
- */
-static void
-monitor_qapi_event_throttle(QAPIEvent event, int64_t rate)
-{
-    MonitorQAPIEventState *evstate;
-    assert(event < QAPI_EVENT_MAX);
-
-    evstate = &(monitor_qapi_event_state[event]);
-
-    trace_monitor_protocol_event_throttle(event, rate);
-    evstate->event = event;
-    assert(rate * SCALE_MS <= INT64_MAX);
-    evstate->rate = rate * SCALE_MS;
-    evstate->qdict = NULL;
-    evstate->timer = timer_new_ns(QEMU_CLOCK_REALTIME,
-                                  monitor_qapi_event_handler,
-                                  evstate);
-}
-
 static void monitor_qapi_event_init(void)
 {
-    /* Limit guest-triggerable events to 1 per second */
-    monitor_qapi_event_throttle(QAPI_EVENT_RTC_CHANGE, 1000);
-    monitor_qapi_event_throttle(QAPI_EVENT_WATCHDOG, 1000);
-    monitor_qapi_event_throttle(QAPI_EVENT_BALLOON_CHANGE, 1000);
-    monitor_qapi_event_throttle(QAPI_EVENT_QUORUM_REPORT_BAD, 1000);
-    monitor_qapi_event_throttle(QAPI_EVENT_QUORUM_FAILURE, 1000);
-    monitor_qapi_event_throttle(QAPI_EVENT_VSERPORT_CHANGE, 1000);
+    int i;
+    MonitorQAPIEventState *evstate;
+
+    for (i = 0; i < QAPI_EVENT_MAX; i++) {
+        if (monitor_qapi_event_conf[i].rate) {
+            evstate = &monitor_qapi_event_state[i];
+            evstate->event = i;
+            evstate->qdict = NULL;
+            evstate->timer = timer_new_ns(QEMU_CLOCK_REALTIME,
+                                          monitor_qapi_event_handler,
+                                          evstate);
+        }
+    }
 
     qmp_event_set_func_emit(monitor_qapi_event_queue);
 }
