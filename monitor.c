@@ -183,7 +183,6 @@ typedef struct {
 typedef struct MonitorQAPIEventState {
     QAPIEvent event;    /* Event being tracked */
     int64_t rate;       /* Minimum time (in ns) between two events */
-    int64_t last;       /* QEMU_CLOCK_REALTIME value at last emission */
     QEMUTimer *timer;   /* Timer for handling delayed events */
     QDict *qdict;       /* Delayed event (if any) */
 } MonitorQAPIEventState;
@@ -464,65 +463,64 @@ static void
 monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
 {
     MonitorQAPIEventState *evstate;
+
     assert(event < QAPI_EVENT_MAX);
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    evstate = &monitor_qapi_event_state[event];
+    trace_monitor_protocol_event_queue(event, qdict, evstate->rate);
 
-    evstate = &(monitor_qapi_event_state[event]);
-    trace_monitor_protocol_event_queue(event,
-                                       qdict,
-                                       evstate->rate,
-                                       evstate->last,
-                                       now);
-
-    /* Rate limit of 0 indicates no throttling */
     qemu_mutex_lock(&monitor_lock);
+
     if (!evstate->rate) {
+        /* Unthrottled event */
         monitor_qapi_event_emit(event, qdict);
-        evstate->last = now;
     } else {
-        int64_t delta = now - evstate->last;
-        if (evstate->qdict ||
-            delta < evstate->rate) {
-            /* If there's an existing event pending, replace
-             * it with the new event, otherwise schedule a
-             * timer for delayed emission
+        if (timer_pending(evstate->timer)) {
+            /*
+             * Timer is pending for (at least) evstate->rate ns after
+             * last send.  Store event for sending when timer fires,
+             * replacing a prior stored event if any.
              */
-            if (evstate->qdict) {
-                QDECREF(evstate->qdict);
-            } else {
-                int64_t then = evstate->last + evstate->rate;
-                timer_mod_ns(evstate->timer, then);
-            }
+            QDECREF(evstate->qdict);
             evstate->qdict = qdict;
             QINCREF(evstate->qdict);
         } else {
+            /*
+             * Last send was (at least) evstate->rate ns ago.
+             * Send immediately, and arm the timer to call
+             * monitor_qapi_event_handler() in evstate->rate ns.  Any
+             * events arriving before then will be delayed until then.
+             */
+            int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
             monitor_qapi_event_emit(event, qdict);
-            evstate->last = now;
+            timer_mod_ns(evstate->timer, now + evstate->rate);
         }
     }
+
     qemu_mutex_unlock(&monitor_lock);
 }
 
 /*
- * The callback invoked by QemuTimer when a delayed
- * event is ready to be emitted
+ * This function runs evstate->rate ns after sending a throttled
+ * event.
+ * If another event has since been stored, send it.
  */
 static void monitor_qapi_event_handler(void *opaque)
 {
     MonitorQAPIEventState *evstate = opaque;
-    int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
 
-    trace_monitor_protocol_event_handler(evstate->event,
-                                         evstate->qdict,
-                                         evstate->last,
-                                         now);
+    trace_monitor_protocol_event_handler(evstate->event, evstate->qdict);
     qemu_mutex_lock(&monitor_lock);
+
     if (evstate->qdict) {
+        int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+
         monitor_qapi_event_emit(evstate->event, evstate->qdict);
         QDECREF(evstate->qdict);
         evstate->qdict = NULL;
+        timer_mod_ns(evstate->timer, now + evstate->rate);
     }
-    evstate->last = now;
+
     qemu_mutex_unlock(&monitor_lock);
 }
 
@@ -546,7 +544,6 @@ monitor_qapi_event_throttle(QAPIEvent event, int64_t rate)
     evstate->event = event;
     assert(rate * SCALE_MS <= INT64_MAX);
     evstate->rate = rate * SCALE_MS;
-    evstate->last = 0;
     evstate->qdict = NULL;
     evstate->timer = timer_new(QEMU_CLOCK_REALTIME,
                                SCALE_MS,
