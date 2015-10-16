@@ -3416,6 +3416,17 @@
             'features': 'int' } }
 
 ##
+# @DummyForceArrays
+#
+# Not used by QMP; hack to let us use X86CPUFeatureWordInfoList internally
+#
+# Since 2.5
+##
+{ 'struct': 'DummyForceArrays',
+  'data': { 'unused': ['X86CPUFeatureWordInfo'] } }
+
+
+##
 # @RxState:
 #
 # Packets receiving state

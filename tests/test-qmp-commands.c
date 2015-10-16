@@ -46,7 +46,7 @@ UserDefTwo *qmp_user_def_cmd2(UserDefOne *ud1a,
     return ret;
 }
 
-int64_t qmp_user_def_cmd3(int64_t a, bool has_b, int64_t b, Error **errp)
+int64_t qmp_guest_get_time(int64_t a, bool has_b, int64_t b, Error **errp)
 {
     return a + (has_b ? b : 0);
 }
@@ -160,7 +160,7 @@ static void test_dispatch_cmd_io(void)
 
     qdict_put(args3, "a", qint_from_int(66));
     qdict_put(req, "arguments", args3);
-    qdict_put(req, "execute", qstring_from_str("user_def_cmd3"));
+    qdict_put(req, "execute", qstring_from_str("guest-get-time"));
 
     ret3 = qobject_to_qint(test_qmp_dispatch(req));
     assert(qint_get_int(ret3) == 66);

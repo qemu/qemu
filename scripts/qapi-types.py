@@ -233,6 +233,11 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         self.decl = self._btin + self.decl
         self._btin = None
 
+    def visit_needed(self, entity):
+        # Visit everything except implicit objects
+        return not (entity.is_implicit() and
+                    isinstance(entity, QAPISchemaObjectType))
+
     def _gen_type_cleanup(self, name):
         self.decl += gen_type_cleanup_decl(name)
         self.defn += gen_type_cleanup(name)
@@ -254,14 +259,13 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self._gen_type_cleanup(name)
 
     def visit_object_type(self, name, info, base, members, variants):
-        if info:
-            self._fwdecl += gen_fwd_object_or_array(name)
-            if variants:
-                assert not members      # not implemented
-                self.decl += gen_union(name, base, variants)
-            else:
-                self.decl += gen_struct(name, base, members)
-            self._gen_type_cleanup(name)
+        self._fwdecl += gen_fwd_object_or_array(name)
+        if variants:
+            assert not members      # not implemented
+            self.decl += gen_union(name, base, variants)
+        else:
+            self.decl += gen_struct(name, base, members)
+        self._gen_type_cleanup(name)
 
     def visit_alternate_type(self, name, info, variants):
         self._fwdecl += gen_fwd_object_or_array(name)

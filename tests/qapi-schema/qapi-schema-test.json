@@ -1,10 +1,15 @@
 # *-*- Mode: Python -*-*
 
+# This file is a stress test of supported qapi constructs that must
+# parse and compile correctly.
+
 # for testing enums
-{ 'enum': 'EnumOne',
-  'data': [ 'value1', 'value2', 'value3' ] }
 { 'struct': 'NestedEnumsOne',
-  'data': { 'enum1': 'EnumOne', '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
+  'data': { 'enum1': 'EnumOne',   # Intentional forward reference
+            '*enum2': 'EnumOne', 'enum3': 'EnumOne', '*enum4': 'EnumOne' } }
+
+# An empty enum, although unusual, is currently acceptable
+{ 'enum': 'MyEnum', 'data': [ ] }
 
 # for testing override of default naming heuristic
 { 'enum': 'QEnumTwo',
@@ -14,7 +19,11 @@
 # for testing nested structs
 { 'struct': 'UserDefOne',
   'base': 'UserDefZero',        # intentional forward reference
-  'data': { 'string': 'str', '*enum1': 'EnumOne' } }
+  'data': { 'string': 'str',
+            '*enum1': 'EnumOne' } }   # intentional forward reference
+
+{ 'enum': 'EnumOne',
+  'data': [ 'value1', 'value2', 'value3' ] }
 
 { 'struct': 'UserDefZero',
   'data': { 'integer': 'int' } }
@@ -30,6 +39,10 @@
 { 'struct': 'UserDefTwo',
   'data': { 'string0': 'str',
             'dict1': 'UserDefTwoDict' } }
+
+# dummy struct to force generation of array types not otherwise mentioned
+{ 'struct': 'ForceArrays',
+  'data': { 'unused1':['UserDefOne'], 'unused2':['UserDefTwo'] } }
 
 # for testing unions
 # Among other things, test that a name collision between branches does
@@ -98,9 +111,10 @@
 { 'command': 'user_def_cmd2',
   'data': {'ud1a': 'UserDefOne', '*ud1b': 'UserDefOne'},
   'returns': 'UserDefTwo' }
-{ 'command': 'user_def_cmd3', 'data': {'a': 'int', '*b': 'int' },
+
+# Returning a non-dictionary requires a name from the whitelist
+{ 'command': 'guest-get-time', 'data': {'a': 'int', '*b': 'int' },
   'returns': 'int' }
-# note: command name 'guest-sync' chosen to avoid "cannot use built-in" error
 { 'command': 'guest-sync', 'data': { 'arg': 'any' }, 'returns': 'any' }
 
 # For testing integer range flattening in opts-visitor. The following schema

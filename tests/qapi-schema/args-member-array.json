@@ -1,4 +1,0 @@
-# valid array members
-{ 'enum': 'abc', 'data': [ 'a', 'b', 'c' ] }
-{ 'struct': 'def', 'data': { 'array': [ 'abc' ] } }
-{ 'command': 'okay', 'data': { 'member1': [ 'int' ], 'member2': [ 'def' ] } }

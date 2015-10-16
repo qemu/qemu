@@ -54,7 +54,6 @@ class QAPISchemaGenIntrospectVisitor(QAPISchemaVisitor):
         self._jsons = []
         self._used_types = []
         self._name_map = {}
-        return QAPISchemaType   # don't visit types for now
 
     def visit_end(self):
         # visit the types that are actually used
@@ -81,6 +80,10 @@ const char %(c_name)s[] = %(c_string)s;
         self._jsons = None
         self._used_types = None
         self._name_map = None
+
+    def visit_needed(self, entity):
+        # Ignore types on first pass; visit_end() will pick up used types
+        return not isinstance(entity, QAPISchemaType)
 
     def _name(self, name):
         if self._unmask:
