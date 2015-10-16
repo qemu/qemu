@@ -379,6 +379,7 @@ typedef struct CPUARMState {
         uint64_t dbgwvr[16]; /* watchpoint value registers */
         uint64_t dbgwcr[16]; /* watchpoint control registers */
         uint64_t mdscr_el1;
+        uint64_t oslsr_el1; /* OS Lock Status */
         /* If the counter is enabled, this stores the last time the counter
          * was reset. Otherwise it stores the counter value
          */
