@@ -5194,7 +5194,7 @@ void switch_mode(CPUARMState *env, int mode)
  *        BIT IRQ     IMO      Non-secure         Secure
  *        EL3 FIQ  RW FMO   EL0 EL1 EL2 EL3   EL0 EL1 EL2 EL3
  */
-const int8_t target_el_table[2][2][2][2][2][4] = {
+static const int8_t target_el_table[2][2][2][2][2][4] = {
     {{{{/* 0   0   0   0 */{ 1,  1,  2, -1 },{ 3, -1, -1,  3 },},
        {/* 0   0   0   1 */{ 2,  2,  2, -1 },{ 3, -1, -1,  3 },},},
       {{/* 0   0   1   0 */{ 1,  1,  2, -1 },{ 3, -1, -1,  3 },},
