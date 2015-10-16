@@ -393,12 +393,12 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
         return;
     }
 
-    if (!s->regs[LOCKSTA]) {
-        s->regs[offset / 4] = val;
-    } else {
-        DB_PRINT("SCLR registers are locked. Unlock them first\n");
+    if (s->regs[LOCKSTA]) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "SCLR registers are locked. Unlock them first\n");
         return;
     }
+    s->regs[offset] = val;
 
     switch (offset) {
     case PSS_RST_CTRL:
