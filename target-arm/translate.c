@@ -7720,9 +7720,15 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 return;
             case 4: /* dsb */
             case 5: /* dmb */
-            case 6: /* isb */
                 ARCH(7);
                 /* We don't emulate caches so these are a no-op.  */
+                return;
+            case 6: /* isb */
+                /* We need to break the TB after this insn to execute
+                 * self-modifying code correctly and also to take
+                 * any pending interrupts immediately.
+                 */
+                gen_lookup_tb(s);
                 return;
             default:
                 goto illegal_op;
@@ -10030,8 +10036,15 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
                             break;
                         case 4: /* dsb */
                         case 5: /* dmb */
-                        case 6: /* isb */
                             /* These execute as NOPs.  */
+                            break;
+                        case 6: /* isb */
+                            /* We need to break the TB after this insn
+                             * to execute self-modifying code correctly
+                             * and also to take any pending interrupts
+                             * immediately.
+                             */
+                            gen_lookup_tb(s);
                             break;
                         default:
                             goto illegal_op;

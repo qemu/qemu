@@ -1230,8 +1230,14 @@ static void handle_sync(DisasContext *s, uint32_t insn,
         return;
     case 4: /* DSB */
     case 5: /* DMB */
-    case 6: /* ISB */
         /* We don't emulate caches so barriers are no-ops */
+        return;
+    case 6: /* ISB */
+        /* We need to break the TB after this insn to execute
+         * a self-modified code correctly and also to take
+         * any pending interrupts immediately.
+         */
+        s->is_jmp = DISAS_UPDATE;
         return;
     default:
         unallocated_encoding(s);
