@@ -139,8 +139,8 @@ paio_submit_co(int64_t sector_num, int nb_sectors, int type) "sector_num %"PRId6
 paio_submit(void *acb, void *opaque, int64_t sector_num, int nb_sectors, int type) "acb %p opaque %p sector_num %"PRId64" nb_sectors %d type %d"
 
 # ioport.c
-cpu_in(unsigned int addr, unsigned int val) "addr %#x value %u"
-cpu_out(unsigned int addr, unsigned int val) "addr %#x value %u"
+cpu_in(unsigned int addr, char size, unsigned int val) "addr %#x(%c) value %u"
+cpu_out(unsigned int addr, char size, unsigned int val) "addr %#x(%c) value %u"
 
 # balloon.c
 # Since requests are raised via monitor, not many tracepoints are needed.
