@@ -331,6 +331,8 @@ gtkabi=""
 gtk_gl="no"
 gnutls=""
 gnutls_hash=""
+nettle=""
+gcrypt=""
 vte=""
 virglrenderer=""
 tpm="yes"
@@ -1114,6 +1116,14 @@ for opt do
   ;;
   --enable-gnutls) gnutls="yes"
   ;;
+  --disable-nettle) nettle="no"
+  ;;
+  --enable-nettle) nettle="yes"
+  ;;
+  --disable-gcrypt) gcrypt="no"
+  ;;
+  --enable-gcrypt) gcrypt="yes"
+  ;;
   --enable-rdma) rdma="yes"
   ;;
   --disable-rdma) rdma="no"
@@ -1324,6 +1334,8 @@ disabled with --disable-FEATURE, default is enabled if available:
   sparse          sparse checker
 
   gnutls          GNUTLS cryptography support
+  nettle          nettle cryptography support
+  gcrypt          libgcrypt cryptography support
   sdl             SDL UI
   --with-sdlabi     select preferred SDL ABI 1.2 or 2.0
   gtk             gtk UI
@@ -2254,20 +2266,76 @@ else
     gnutls_hash="no"
 fi
 
-if test "$gnutls_gcrypt" != "no"; then
-    if has "libgcrypt-config"; then
+
+# If user didn't give a --disable/enable-gcrypt flag,
+# then mark as disabled if user requested nettle
+# explicitly, or if gnutls links to nettle
+if test -z "$gcrypt"
+then
+    if test "$nettle" = "yes" || test "$gnutls_nettle" = "yes"
+    then
+        gcrypt="no"
+    fi
+fi
+
+# If user didn't give a --disable/enable-nettle flag,
+# then mark as disabled if user requested gcrypt
+# explicitly, or if gnutls links to gcrypt
+if test -z "$nettle"
+then
+    if test "$gcrypt" = "yes" || test "$gnutls_gcrypt" = "yes"
+    then
+        nettle="no"
+    fi
+fi
+
+has_libgcrypt_config() {
+    if ! has "libgcrypt-config"
+    then
+	return 1
+    fi
+
+    if test -n "$cross_prefix"
+    then
+	host=`libgcrypt-config --host`
+	if test "$host-" != $cross_prefix
+	then
+	    return 1
+	fi
+    fi
+
+    return 0
+}
+
+if test "$gcrypt" != "no"; then
+    if has_libgcrypt_config; then
         gcrypt_cflags=`libgcrypt-config --cflags`
         gcrypt_libs=`libgcrypt-config --libs`
+        # Debian has remove -lgpg-error from libgcrypt-config
+        # as it "spreads unnecessary dependencies" which in
+        # turn breaks static builds...
+        if test "$static" = "yes"
+        then
+            gcrypt_libs="$gcrypt_libs -lgpg-error"
+        fi
         libs_softmmu="$gcrypt_libs $libs_softmmu"
         libs_tools="$gcrypt_libs $libs_tools"
         QEMU_CFLAGS="$QEMU_CFLAGS $gcrypt_cflags"
+        gcrypt="yes"
+        if test -z "$nettle"; then
+           nettle="no"
+        fi
     else
-        feature_not_found "gcrypt" "Install gcrypt devel"
+        if test "$gcrypt" = "yes"; then
+            feature_not_found "gcrypt" "Install gcrypt devel"
+        else
+            gcrypt="no"
+        fi
     fi
 fi
 
 
-if test "$gnutls_nettle" != "no"; then
+if test "$nettle" != "no"; then
     if $pkg_config --exists "nettle"; then
         nettle_cflags=`$pkg_config --cflags nettle`
         nettle_libs=`$pkg_config --libs nettle`
@@ -2275,9 +2343,19 @@ if test "$gnutls_nettle" != "no"; then
         libs_softmmu="$nettle_libs $libs_softmmu"
         libs_tools="$nettle_libs $libs_tools"
         QEMU_CFLAGS="$QEMU_CFLAGS $nettle_cflags"
+        nettle="yes"
     else
-        feature_not_found "nettle" "Install nettle devel"
+        if test "$nettle" = "yes"; then
+            feature_not_found "nettle" "Install nettle devel"
+        else
+            nettle="no"
+        fi
     fi
+fi
+
+if test "$gcrypt" = "yes" && test "$nettle" = "yes"
+then
+    error_exit "Only one of gcrypt & nettle can be enabled"
 fi
 
 ##########################################
@@ -4621,8 +4699,8 @@ echo "GTK support       $gtk"
 echo "GTK GL support    $gtk_gl"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
-echo "GNUTLS gcrypt     $gnutls_gcrypt"
-echo "GNUTLS nettle     $gnutls_nettle ${gnutls_nettle+($nettle_version)}"
+echo "libgcrypt         $gcrypt"
+echo "nettle            $nettle ${nettle+($nettle_version)}"
 echo "libtasn1          $tasn1"
 echo "VTE support       $vte"
 echo "curses support    $curses"
@@ -4991,11 +5069,11 @@ fi
 if test "$gnutls_hash" = "yes" ; then
   echo "CONFIG_GNUTLS_HASH=y" >> $config_host_mak
 fi
-if test "$gnutls_gcrypt" = "yes" ; then
-  echo "CONFIG_GNUTLS_GCRYPT=y" >> $config_host_mak
+if test "$gcrypt" = "yes" ; then
+  echo "CONFIG_GCRYPT=y" >> $config_host_mak
 fi
-if test "$gnutls_nettle" = "yes" ; then
-  echo "CONFIG_GNUTLS_NETTLE=y" >> $config_host_mak
+if test "$nettle" = "yes" ; then
+  echo "CONFIG_NETTLE=y" >> $config_host_mak
   echo "CONFIG_NETTLE_VERSION_MAJOR=${nettle_version%%.*}" >> $config_host_mak
 fi
 if test "$tasn1" = "yes" ; then
