@@ -5224,11 +5224,22 @@ uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
                                  uint32_t cur_el, bool secure)
 {
     CPUARMState *env = cs->env_ptr;
-    int rw = ((env->cp15.scr_el3 & SCR_RW) == SCR_RW);
+    int rw;
     int scr;
     int hcr;
     int target_el;
-    int is64 = arm_el_is_aa64(env, 3);
+    /* Is the highest EL AArch64? */
+    int is64 = arm_feature(env, ARM_FEATURE_AARCH64);
+
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        rw = ((env->cp15.scr_el3 & SCR_RW) == SCR_RW);
+    } else {
+        /* Either EL2 is the highest EL (and so the EL2 register width
+         * is given by is64); or there is no EL2 or EL3, in which case
+         * the value of 'rw' does not affect the table lookup anyway.
+         */
+        rw = is64;
+    }
 
     switch (excp_idx) {
     case EXCP_IRQ:
