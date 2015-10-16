@@ -874,7 +874,7 @@ QemuCocoaView *cocoaView;
             exit(1);
         }
         [normalWindow setAcceptsMouseMovedEvents:YES];
-        [normalWindow setTitle:[NSString stringWithFormat:@"QEMU"]];
+        [normalWindow setTitle:@"QEMU"];
         [normalWindow setContentView:cocoaView];
 #if (MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10)
         [normalWindow useOptimizedDrawing:YES];
@@ -1287,6 +1287,7 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
     NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
 
     COCOA_DEBUG("qemu_cocoa: cocoa_refresh\n");
+    graphic_hw_update(NULL);
 
     if (qemu_input_is_absolute()) {
         if (![cocoaView isAbsoluteEnabled]) {
@@ -1307,7 +1308,6 @@ static void cocoa_refresh(DisplayChangeListener *dcl)
             [cocoaView handleEvent:event];
         }
     } while(event != nil);
-    graphic_hw_update(NULL);
     [pool release];
 }
 
@@ -1353,7 +1353,7 @@ static void add_console_menu_entries(void)
 /* Make menu items for all removable devices.
  * Each device is given an 'Eject' and 'Change' menu item.
  */
-static void addRemovableDevicesMenuItems()
+static void addRemovableDevicesMenuItems(void)
 {
     NSMenu *menu;
     NSMenuItem *menuItem;
