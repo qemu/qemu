@@ -112,8 +112,6 @@ const QEMULogItem qemu_log_items[] = {
       "x86 only: show protected mode far calls/returns/exceptions" },
     { CPU_LOG_RESET, "cpu_reset",
       "show CPU state before CPU resets" },
-    { CPU_LOG_IOPORT, "ioport",
-      "show all i/o ports accesses" },
     { LOG_UNIMP, "unimp",
       "log unimplemented functionality" },
     { LOG_GUEST_ERROR, "guest_errors",
