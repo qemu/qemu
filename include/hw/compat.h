@@ -2,7 +2,11 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_2_4 \
-        /* empty */
+        {\
+            .driver   = "virtio-blk-device",\
+            .property = "scsi",\
+            .value    = "true",\
+        },
 
 #define HW_COMPAT_2_3 \
         {\
