@@ -884,12 +884,17 @@ static void virt_build_smbios(VirtGuestInfo *guest_info)
     FWCfgState *fw_cfg = guest_info->fw_cfg;
     uint8_t *smbios_tables, *smbios_anchor;
     size_t smbios_tables_len, smbios_anchor_len;
+    const char *product = "QEMU Virtual Machine";
 
     if (!fw_cfg) {
         return;
     }
 
-    smbios_set_defaults("QEMU", "QEMU Virtual Machine",
+    if (kvm_enabled()) {
+        product = "KVM Virtual Machine";
+    }
+
+    smbios_set_defaults("QEMU", product,
                         "1.0", false, true, SMBIOS_ENTRY_POINT_30);
 
     smbios_get_tables(NULL, 0, &smbios_tables, &smbios_tables_len,
