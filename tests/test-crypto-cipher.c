@@ -287,6 +287,32 @@ static void test_cipher(const void *opaque)
     qcrypto_cipher_free(cipher);
 }
 
+
+static void test_cipher_null_iv(void)
+{
+    QCryptoCipher *cipher;
+    uint8_t key[32] = { 0 };
+    uint8_t plaintext[32] = { 0 };
+    uint8_t ciphertext[32] = { 0 };
+
+    cipher = qcrypto_cipher_new(
+        QCRYPTO_CIPHER_ALG_AES_256,
+        QCRYPTO_CIPHER_MODE_CBC,
+        key, sizeof(key),
+        &error_abort);
+    g_assert(cipher != NULL);
+
+    /* Don't call qcrypto_cipher_setiv */
+
+    qcrypto_cipher_encrypt(cipher,
+                           plaintext,
+                           ciphertext,
+                           sizeof(plaintext),
+                           &error_abort);
+
+    qcrypto_cipher_free(cipher);
+}
+
 int main(int argc, char **argv)
 {
     size_t i;
@@ -298,5 +324,9 @@ int main(int argc, char **argv)
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
         g_test_add_data_func(test_data[i].path, &test_data[i], test_cipher);
     }
+
+    g_test_add_func("/crypto/cipher/null-iv",
+                    test_cipher_null_iv);
+
     return g_test_run();
 }

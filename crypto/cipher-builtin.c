@@ -25,8 +25,7 @@ typedef struct QCryptoCipherBuiltinAES QCryptoCipherBuiltinAES;
 struct QCryptoCipherBuiltinAES {
     AES_KEY encrypt_key;
     AES_KEY decrypt_key;
-    uint8_t *iv;
-    size_t niv;
+    uint8_t iv[AES_BLOCK_SIZE];
 };
 typedef struct QCryptoCipherBuiltinDESRFB QCryptoCipherBuiltinDESRFB;
 struct QCryptoCipherBuiltinDESRFB {
@@ -61,7 +60,6 @@ static void qcrypto_cipher_free_aes(QCryptoCipher *cipher)
 {
     QCryptoCipherBuiltin *ctxt = cipher->opaque;
 
-    g_free(ctxt->state.aes.iv);
     g_free(ctxt);
     cipher->opaque = NULL;
 }
@@ -145,15 +143,13 @@ static int qcrypto_cipher_setiv_aes(QCryptoCipher *cipher,
                                      Error **errp)
 {
     QCryptoCipherBuiltin *ctxt = cipher->opaque;
-    if (niv != 16) {
-        error_setg(errp, "IV must be 16 bytes not %zu", niv);
+    if (niv != AES_BLOCK_SIZE) {
+        error_setg(errp, "IV must be %d bytes not %zu",
+                   AES_BLOCK_SIZE, niv);
         return -1;
     }
 
-    g_free(ctxt->state.aes.iv);
-    ctxt->state.aes.iv = g_new0(uint8_t, niv);
-    memcpy(ctxt->state.aes.iv, iv, niv);
-    ctxt->state.aes.niv = niv;
+    memcpy(ctxt->state.aes.iv, iv, AES_BLOCK_SIZE);
 
     return 0;
 }
