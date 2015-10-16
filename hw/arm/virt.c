@@ -1162,6 +1162,7 @@ static void virt_class_init(ObjectClass *oc, void *data)
     mc->has_dynamic_sysbus = true;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
+    mc->pci_allow_0_address = true;
 }
 
 static const TypeInfo machvirt_info = {
