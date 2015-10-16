@@ -60,7 +60,7 @@ static void collie_init(MachineState *machine)
 
 static void collie_machine_init(MachineClass *mc)
 {
-    mc->desc = "Collie PDA (SA-1110)";
+    mc->desc = "Sharp SL-5500 (Collie) PDA (SA-1110)";
     mc->init = collie_init;
 }
 

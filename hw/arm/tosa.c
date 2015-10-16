@@ -254,7 +254,7 @@ static void tosa_init(MachineState *machine)
 
 static void tosapda_machine_init(MachineClass *mc)
 {
-    mc->desc = "Tosa PDA (PXA255)";
+    mc->desc = "Sharp SL-6000 (Tosa) PDA (PXA255)";
     mc->init = tosa_init;
 }
 
