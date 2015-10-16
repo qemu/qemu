@@ -4099,7 +4099,7 @@ static void pgraph_method(NV2AState *d,
          * but nothing obvious sticks out. Weird.
          */
         if (parameter != 0) {
-            assert(!(pg->pending_interrupts & NV_PGRAPH_INTR_NOTIFY));
+            assert(!(pg->pending_interrupts & NV_PGRAPH_INTR_ERROR));
 
 
             pg->trapped_channel_id = pg->channel_id;
@@ -4107,7 +4107,7 @@ static void pgraph_method(NV2AState *d,
             pg->trapped_method = method;
             pg->trapped_data[0] = parameter;
             pg->notify_source = NV_PGRAPH_NSOURCE_NOTIFICATION; /* TODO: check this */
-            pg->pending_interrupts |= NV_PGRAPH_INTR_NOTIFY;
+            pg->pending_interrupts |= NV_PGRAPH_INTR_ERROR;
 
             qemu_mutex_unlock(&pg->lock);
             qemu_mutex_lock_iothread();
@@ -4115,7 +4115,7 @@ static void pgraph_method(NV2AState *d,
             qemu_mutex_lock(&pg->lock);
             qemu_mutex_unlock_iothread();
 
-            while (pg->pending_interrupts & NV_PGRAPH_INTR_NOTIFY) {
+            while (pg->pending_interrupts & NV_PGRAPH_INTR_ERROR) {
                 qemu_cond_wait(&pg->interrupt_cond, &pg->lock);
             }
         }
