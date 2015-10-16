@@ -28,6 +28,7 @@
 #include "exec/gdbstub.h"
 #include "qemu/host-utils.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
 #include "hw/i386/apic_internal.h"
@@ -505,7 +506,18 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (hyperv_enabled(cpu)) {
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
-        memcpy(signature, "Microsoft Hv", 12);
+        if (!cpu->hyperv_vendor_id) {
+            memcpy(signature, "Microsoft Hv", 12);
+        } else {
+            size_t len = strlen(cpu->hyperv_vendor_id);
+
+            if (len > 12) {
+                error_report("hv-vendor-id truncated to 12 characters");
+                len = 12;
+            }
+            memset(signature, 0, 12);
+            memcpy(signature, cpu->hyperv_vendor_id, len);
+        }
         c->eax = HYPERV_CPUID_MIN;
         c->ebx = signature[0];
         c->ecx = signature[1];
