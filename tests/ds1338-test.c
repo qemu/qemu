@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
-    s = qtest_start("-display none -machine imx25_pdk");
+    s = qtest_start("-display none -machine imx25-pdk");
     i2c = imx_i2c_create(IMX25_I2C_0_BASE);
     addr = DS1338_ADDR;
 
