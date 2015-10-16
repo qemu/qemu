@@ -39,6 +39,7 @@ struct QCryptoCipherBuiltin {
         QCryptoCipherBuiltinAES aes;
         QCryptoCipherBuiltinDESRFB desrfb;
     } state;
+    size_t blocksize;
     void (*free)(QCryptoCipher *cipher);
     int (*setiv)(QCryptoCipher *cipher,
                  const uint8_t *iv, size_t niv,
@@ -181,6 +182,7 @@ static int qcrypto_cipher_init_aes(QCryptoCipher *cipher,
         goto error;
     }
 
+    ctxt->blocksize = AES_BLOCK_SIZE;
     ctxt->free = qcrypto_cipher_free_aes;
     ctxt->setiv = qcrypto_cipher_setiv_aes;
     ctxt->encrypt = qcrypto_cipher_encrypt_aes;
@@ -282,6 +284,7 @@ static int qcrypto_cipher_init_des_rfb(QCryptoCipher *cipher,
     memcpy(ctxt->state.desrfb.key, key, nkey);
     ctxt->state.desrfb.nkey = nkey;
 
+    ctxt->blocksize = 8;
     ctxt->free = qcrypto_cipher_free_des_rfb;
     ctxt->setiv = qcrypto_cipher_setiv_des_rfb;
     ctxt->encrypt = qcrypto_cipher_encrypt_des_rfb;
@@ -370,6 +373,12 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
 {
     QCryptoCipherBuiltin *ctxt = cipher->opaque;
 
+    if (len % ctxt->blocksize) {
+        error_setg(errp, "Length %zu must be a multiple of block size %zu",
+                   len, ctxt->blocksize);
+        return -1;
+    }
+
     return ctxt->encrypt(cipher, in, out, len, errp);
 }
 
@@ -381,6 +390,12 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
                            Error **errp)
 {
     QCryptoCipherBuiltin *ctxt = cipher->opaque;
+
+    if (len % ctxt->blocksize) {
+        error_setg(errp, "Length %zu must be a multiple of block size %zu",
+                   len, ctxt->blocksize);
+        return -1;
+    }
 
     return ctxt->decrypt(cipher, in, out, len, errp);
 }
