@@ -205,10 +205,11 @@ static void cpu_exec_nocache(CPUState *cpu, int max_cycles,
     if (max_cycles > CF_COUNT_MASK)
         max_cycles = CF_COUNT_MASK;
 
+    cpu->tb_invalidated_flag = false;
     tb = tb_gen_code(cpu, orig_tb->pc, orig_tb->cs_base, orig_tb->flags,
                      max_cycles | CF_NOCACHE
                          | (ignore_icount ? CF_IGNORE_ICOUNT : 0));
-    tb->orig_tb = tcg_ctx.tb_ctx.tb_invalidated_flag ? NULL : orig_tb;
+    tb->orig_tb = cpu->tb_invalidated_flag ? NULL : orig_tb;
     cpu->current_tb = tb;
     /* execute the generated code */
     trace_exec_tb_nocache(tb, tb->pc);
@@ -228,8 +229,6 @@ static TranslationBlock *tb_find_physical(CPUState *cpu,
     TranslationBlock *tb, **tb_hash_head, **ptb1;
     unsigned int h;
     tb_page_addr_t phys_pc, phys_page1;
-
-    tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
 
     /* find translated block using physical mappings */
     phys_pc = get_page_addr_code(env, pc);
@@ -303,6 +302,7 @@ static TranslationBlock *tb_find_slow(CPUState *cpu,
 #endif
 
     /* if no translated code available, then translate it now */
+    cpu->tb_invalidated_flag = false;
     tb = tb_gen_code(cpu, pc, cs_base, flags, 0);
 
 #ifdef CONFIG_USER_ONLY
@@ -509,12 +509,11 @@ int cpu_exec(CPUState *cpu)
                 tb = tb_find_fast(cpu);
                 /* Note: we do it here to avoid a gcc bug on Mac OS X when
                    doing it in tb_find_slow */
-                if (tcg_ctx.tb_ctx.tb_invalidated_flag) {
+                if (cpu->tb_invalidated_flag) {
                     /* as some TB could have been invalidated because
-                       of memory exceptions while generating the code, we
+                       of a tb_flush while generating the code, we
                        must recompute the hash index here */
                     next_tb = 0;
-                    tcg_ctx.tb_ctx.tb_invalidated_flag = 0;
                 }
                 /* see if we can patch the calling TB. When the TB
                    spans two pages, we cannot safely do a direct
