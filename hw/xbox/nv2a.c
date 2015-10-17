@@ -1947,6 +1947,9 @@ static void *nv_dma_map(NV2AState *d, hwaddr dma_obj_address, hwaddr *len)
     /* TODO: Handle targets and classes properly */
     NV2A_DPRINTF("dma_map %x, %x, %" HWADDR_PRIx " %" HWADDR_PRIx "\n",
                  dma.dma_class, dma.dma_target, dma.address, dma.limit);
+
+    dma.address &= 0x07FFFFFF;
+
     // assert(dma.address + dma.limit < memory_region_size(d->vram));
     *len = dma.limit;
     return d->vram_ptr + dma.address;
@@ -4004,10 +4007,10 @@ static void pgraph_method(NV2AState *d,
         context_surfaces_2d->dest_pitch = parameter >> 16;
         break;
     case NV062_SET_OFFSET_SOURCE:
-        context_surfaces_2d->source_offset = parameter;
+        context_surfaces_2d->source_offset = parameter & 0x07FFFFFF;
         break;
     case NV062_SET_OFFSET_DESTIN:
-        context_surfaces_2d->dest_offset = parameter;
+        context_surfaces_2d->dest_offset = parameter & 0x07FFFFFF;
         break;
 
     case NV09F_SET_CONTEXT_SURFACES:
