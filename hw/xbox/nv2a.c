@@ -2786,7 +2786,7 @@ static void pgraph_bind_textures(NV2AState *d)
 #ifdef USE_TEXTURE_CACHE
         TextureKey key = {
             .state = state,
-            .data_hash = fast_hash(texture_data, length, 1000)
+            .data_hash = fast_hash(texture_data, length, 5003)
                             ^ fnv_hash(palette_data, palette_length),
             .texture_data = texture_data,
             .palette_data = palette_data,
@@ -3787,7 +3787,7 @@ static void pgraph_init(NV2AState *d)
         NULL, texture_key_retrieve,
         texture_key_destroy, texture_binding_destroy,
         NULL, NULL);
-    g_lru_cache_set_max_size(pg->texture_cache, 128);
+    g_lru_cache_set_max_size(pg->texture_cache, 512);
 
     pg->shader_cache = g_hash_table_new(shader_hash, shader_equal);
 
