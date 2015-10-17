@@ -269,7 +269,7 @@ static GIOStatus ga_channel_write(GAChannel *c, const char *buf, size_t size,
 GIOStatus ga_channel_write_all(GAChannel *c, const char *buf, size_t size)
 {
     GIOStatus status = G_IO_STATUS_NORMAL;
-    size_t count;
+    size_t count = 0;
 
     while (size) {
         status = ga_channel_write(c, buf, size, &count);
