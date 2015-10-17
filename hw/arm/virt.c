@@ -884,12 +884,17 @@ static void virt_build_smbios(VirtGuestInfo *guest_info)
     FWCfgState *fw_cfg = guest_info->fw_cfg;
     uint8_t *smbios_tables, *smbios_anchor;
     size_t smbios_tables_len, smbios_anchor_len;
+    const char *product = "QEMU Virtual Machine";
 
     if (!fw_cfg) {
         return;
     }
 
-    smbios_set_defaults("QEMU", "QEMU Virtual Machine",
+    if (kvm_enabled()) {
+        product = "KVM Virtual Machine";
+    }
+
+    smbios_set_defaults("QEMU", product,
                         "1.0", false, true, SMBIOS_ENTRY_POINT_30);
 
     smbios_get_tables(NULL, 0, &smbios_tables, &smbios_tables_len,
@@ -1157,6 +1162,7 @@ static void virt_class_init(ObjectClass *oc, void *data)
     mc->has_dynamic_sysbus = true;
     mc->block_default_type = IF_VIRTIO;
     mc->no_cdrom = 1;
+    mc->pci_allow_0_address = true;
 }
 
 static const TypeInfo machvirt_info = {

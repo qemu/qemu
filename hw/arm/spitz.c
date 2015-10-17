@@ -976,7 +976,7 @@ static void akitapda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Akita PDA (PXA270)";
+    mc->desc = "Sharp SL-C1000 (Akita) PDA (PXA270)";
     mc->init = akita_init;
 }
 
@@ -990,7 +990,7 @@ static void spitzpda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Spitz PDA (PXA270)";
+    mc->desc = "Sharp SL-C3000 (Spitz) PDA (PXA270)";
     mc->init = spitz_init;
 }
 
@@ -1004,7 +1004,7 @@ static void borzoipda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Borzoi PDA (PXA270)";
+    mc->desc = "Sharp SL-C3100 (Borzoi) PDA (PXA270)";
     mc->init = borzoi_init;
 }
 
@@ -1018,7 +1018,7 @@ static void terrierpda_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Terrier PDA (PXA270)";
+    mc->desc = "Sharp SL-C3200 (Terrier) PDA (PXA270)";
     mc->init = terrier_init;
 }
 

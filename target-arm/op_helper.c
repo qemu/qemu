@@ -867,6 +867,15 @@ static bool check_breakpoints(ARMCPU *cpu)
     return false;
 }
 
+void HELPER(check_breakpoints)(CPUARMState *env)
+{
+    ARMCPU *cpu = arm_env_get_cpu(env);
+
+    if (check_breakpoints(cpu)) {
+        HELPER(exception_internal(env, EXCP_DEBUG));
+    }
+}
+
 void arm_debug_excp_handler(CPUState *cs)
 {
     /* Called by core code when a watchpoint or breakpoint fires;
@@ -897,18 +906,22 @@ void arm_debug_excp_handler(CPUState *cs)
             }
         }
     } else {
-        if (check_breakpoints(cpu)) {
-            bool same_el = (arm_debug_target_el(env) == arm_current_el(env));
-            if (extended_addresses_enabled(env)) {
-                env->exception.fsr = (1 << 9) | 0x22;
-            } else {
-                env->exception.fsr = 0x2;
-            }
-            /* FAR is UNKNOWN, so doesn't need setting */
-            raise_exception(env, EXCP_PREFETCH_ABORT,
-                            syn_breakpoint(same_el),
-                            arm_debug_target_el(env));
+        uint64_t pc = is_a64(env) ? env->pc : env->regs[15];
+        bool same_el = (arm_debug_target_el(env) == arm_current_el(env));
+
+        if (cpu_breakpoint_test(cs, pc, BP_GDB)) {
+            return;
         }
+
+        if (extended_addresses_enabled(env)) {
+            env->exception.fsr = (1 << 9) | 0x22;
+        } else {
+            env->exception.fsr = 0x2;
+        }
+        /* FAR is UNKNOWN, so doesn't need setting */
+        raise_exception(env, EXCP_PREFETCH_ABORT,
+                        syn_breakpoint(same_el),
+                        arm_debug_target_el(env));
     }
 }
 

@@ -657,8 +657,12 @@ static const ARMCPRegInfo v6_cp_reginfo[] = {
     { .name = "MVA_prefetch",
       .cp = 15, .crn = 7, .crm = 13, .opc1 = 0, .opc2 = 1,
       .access = PL1_W, .type = ARM_CP_NOP },
+    /* We need to break the TB after ISB to execute self-modifying code
+     * correctly and also to take any pending interrupts immediately.
+     * So use arm_cp_write_ignore() function instead of ARM_CP_NOP flag.
+     */
     { .name = "ISB", .cp = 15, .crn = 7, .crm = 5, .opc1 = 0, .opc2 = 4,
-      .access = PL0_W, .type = ARM_CP_NOP },
+      .access = PL0_W, .type = ARM_CP_NO_RAW, .writefn = arm_cp_write_ignore },
     { .name = "DSB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 4,
       .access = PL0_W, .type = ARM_CP_NOP },
     { .name = "DMB", .cp = 15, .crn = 7, .crm = 10, .opc1 = 0, .opc2 = 5,
@@ -3223,6 +3227,9 @@ static const ARMCPRegInfo el3_no_el2_cp_reginfo[] = {
     { .name = "CNTHP_CTL_EL2", .state = ARM_CP_STATE_BOTH,
       .opc0 = 3, .opc1 = 4, .crn = 14, .crm = 2, .opc2 = 1,
       .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
+    { .name = "MDCR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 1,
+      .access = PL2_RW, .type = ARM_CP_CONST, .resetvalue = 0 },
     REGINFO_SENTINEL
 };
 
@@ -3444,6 +3451,15 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .resetvalue = 0,
       .writefn = gt_hyp_ctl_write, .raw_writefn = raw_write },
 #endif
+    /* The only field of MDCR_EL2 that has a defined architectural reset value
+     * is MDCR_EL2.HPMN which should reset to the value of PMCR_EL0.N; but we
+     * don't impelment any PMU event counters, so using zero as a reset
+     * value for MDCR_EL2 is okay
+     */
+    { .name = "MDCR_EL2", .state = ARM_CP_STATE_BOTH,
+      .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 1,
+      .access = PL2_RW, .resetvalue = 0,
+      .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el2), },
     REGINFO_SENTINEL
 };
 
@@ -3564,6 +3580,23 @@ static CPAccessResult ctr_el0_access(CPUARMState *env, const ARMCPRegInfo *ri)
     return CP_ACCESS_OK;
 }
 
+static void oslar_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                        uint64_t value)
+{
+    /* Writes to OSLAR_EL1 may update the OS lock status, which can be
+     * read via a bit in OSLSR_EL1.
+     */
+    int oslock;
+
+    if (ri->state == ARM_CP_STATE_AA32) {
+        oslock = (value == 0xC5ACCE55);
+    } else {
+        oslock = value & 1;
+    }
+
+    env->cp15.oslsr_el1 = deposit32(env->cp15.oslsr_el1, 1, 1, oslock);
+}
+
 static const ARMCPRegInfo debug_cp_reginfo[] = {
     /* DBGDRAR, DBGDSAR: always RAZ since we don't implement memory mapped
      * debug components. The AArch64 version of DBGDRAR is named MDRAR_EL1;
@@ -3592,10 +3625,14 @@ static const ARMCPRegInfo debug_cp_reginfo[] = {
       .type = ARM_CP_ALIAS,
       .access = PL1_R,
       .fieldoffset = offsetof(CPUARMState, cp15.mdscr_el1), },
-    /* We define a dummy WI OSLAR_EL1, because Linux writes to it. */
     { .name = "OSLAR_EL1", .state = ARM_CP_STATE_BOTH,
       .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 0, .opc2 = 4,
-      .access = PL1_W, .type = ARM_CP_NOP },
+      .access = PL1_W, .type = ARM_CP_NO_RAW,
+      .writefn = oslar_write },
+    { .name = "OSLSR_EL1", .state = ARM_CP_STATE_BOTH,
+      .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 1, .opc2 = 4,
+      .access = PL1_R, .resetvalue = 10,
+      .fieldoffset = offsetof(CPUARMState, cp15.oslsr_el1) },
     /* Dummy OSDLR_EL1: 32-bit Linux will read this */
     { .name = "OSDLR_EL1", .state = ARM_CP_STATE_BOTH,
       .cp = 14, .opc0 = 2, .opc1 = 0, .crn = 1, .crm = 3, .opc2 = 4,
@@ -5194,7 +5231,7 @@ void switch_mode(CPUARMState *env, int mode)
  *        BIT IRQ     IMO      Non-secure         Secure
  *        EL3 FIQ  RW FMO   EL0 EL1 EL2 EL3   EL0 EL1 EL2 EL3
  */
-const int8_t target_el_table[2][2][2][2][2][4] = {
+static const int8_t target_el_table[2][2][2][2][2][4] = {
     {{{{/* 0   0   0   0 */{ 1,  1,  2, -1 },{ 3, -1, -1,  3 },},
        {/* 0   0   0   1 */{ 2,  2,  2, -1 },{ 3, -1, -1,  3 },},},
       {{/* 0   0   1   0 */{ 1,  1,  2, -1 },{ 3, -1, -1,  3 },},
@@ -5220,11 +5257,22 @@ uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
                                  uint32_t cur_el, bool secure)
 {
     CPUARMState *env = cs->env_ptr;
-    int rw = ((env->cp15.scr_el3 & SCR_RW) == SCR_RW);
+    int rw;
     int scr;
     int hcr;
     int target_el;
-    int is64 = arm_el_is_aa64(env, 3);
+    /* Is the highest EL AArch64? */
+    int is64 = arm_feature(env, ARM_FEATURE_AARCH64);
+
+    if (arm_feature(env, ARM_FEATURE_EL3)) {
+        rw = ((env->cp15.scr_el3 & SCR_RW) == SCR_RW);
+    } else {
+        /* Either EL2 is the highest EL (and so the EL2 register width
+         * is given by is64); or there is no EL2 or EL3, in which case
+         * the value of 'rw' does not affect the table lookup anyway.
+         */
+        rw = is64;
+    }
 
     switch (excp_idx) {
     case EXCP_IRQ:

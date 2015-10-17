@@ -379,6 +379,8 @@ typedef struct CPUARMState {
         uint64_t dbgwvr[16]; /* watchpoint value registers */
         uint64_t dbgwcr[16]; /* watchpoint control registers */
         uint64_t mdscr_el1;
+        uint64_t oslsr_el1; /* OS Lock Status */
+        uint64_t mdcr_el2;
         /* If the counter is enabled, this stores the last time the counter
          * was reset. Otherwise it stores the counter value
          */
@@ -1016,11 +1018,11 @@ static inline bool access_secure_reg(CPUARMState *env)
  */
 #define A32_BANKED_CURRENT_REG_GET(_env, _regname)        \
     A32_BANKED_REG_GET((_env), _regname,                \
-                       ((!arm_el_is_aa64((_env), 3) && arm_is_secure(_env))))
+                       (arm_is_secure(_env) && !arm_el_is_aa64((_env), 3)))
 
 #define A32_BANKED_CURRENT_REG_SET(_env, _regname, _val)                       \
     A32_BANKED_REG_SET((_env), _regname,                                    \
-                       ((!arm_el_is_aa64((_env), 3) && arm_is_secure(_env))),  \
+                       (arm_is_secure(_env) && !arm_el_is_aa64((_env), 3)), \
                        (_val))
 
 void arm_cpu_list(FILE *f, fprintf_function cpu_fprintf);
@@ -1587,7 +1589,12 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
      * interrupt.
      */
     if ((target_el > cur_el) && (target_el != 1)) {
-        if (arm_el_is_aa64(env, 3) || ((scr || hcr) && (!secure))) {
+        /* ARM_FEATURE_AARCH64 enabled means the highest EL is AArch64.
+         * This code currently assumes that EL2 is not implemented
+         * (and so that highest EL will be 3 and the target_el also 3).
+         */
+        if (arm_feature(env, ARM_FEATURE_AARCH64) ||
+            ((scr || hcr) && (!secure))) {
             unmasked = 1;
         }
     }
@@ -1695,7 +1702,22 @@ static inline int cpu_mmu_index(CPUARMState *env, bool ifetch)
  */
 static inline int arm_debug_target_el(CPUARMState *env)
 {
-    return 1;
+    bool secure = arm_is_secure(env);
+    bool route_to_el2 = false;
+
+    if (arm_feature(env, ARM_FEATURE_EL2) && !secure) {
+        route_to_el2 = env->cp15.hcr_el2 & HCR_TGE ||
+                       env->cp15.mdcr_el2 & (1 << 8);
+    }
+
+    if (route_to_el2) {
+        return 2;
+    } else if (arm_feature(env, ARM_FEATURE_EL3) &&
+               !arm_el_is_aa64(env, 3) && secure) {
+        return 3;
+    } else {
+        return 1;
+    }
 }
 
 static inline bool aa64_generate_debug_exceptions(CPUARMState *env)

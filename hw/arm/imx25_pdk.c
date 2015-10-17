@@ -151,4 +151,4 @@ static void imx25_pdk_machine_init(MachineClass *mc)
     mc->init = imx25_pdk_init;
 }
 
-DEFINE_MACHINE("imx25_pdk", imx25_pdk_machine_init)
+DEFINE_MACHINE("imx25-pdk", imx25_pdk_machine_init)
