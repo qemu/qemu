@@ -108,7 +108,8 @@ echo
 echo === Overriding backing file ===
 echo
 
-echo "info block" | run_qemu -drive file="$TEST_IMG",driver=qcow2,backing.file.filename="$TEST_IMG.orig" -nodefaults
+echo "info block" | run_qemu -drive file="$TEST_IMG",driver=qcow2,backing.file.filename="$TEST_IMG.orig" -nodefaults\
+                  | _filter_generated_node_ids
 
 # Drivers that don't support backing files
 run_qemu -drive file="$TEST_IMG",driver=raw,backing.file.filename="$TEST_IMG.orig"

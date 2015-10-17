@@ -246,6 +246,14 @@ int64_t qemu_strtosz_suffix_unit(const char *nptr, char **end,
 #define STR_OR_NULL(str) ((str) ? (str) : "null")
 
 /* id.c */
+
+typedef enum IdSubSystems {
+    ID_QDEV,
+    ID_BLOCK,
+    ID_MAX      /* last element, used as array size */
+} IdSubSystems;
+
+char *id_generate(IdSubSystems id);
 bool id_wellformed(const char *id);
 
 /* path.c */

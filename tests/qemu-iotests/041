@@ -780,7 +780,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
         # here we check that the last registered quorum file has not been
         # swapped out and unref
         result = self.vm.qmp('query-named-block-nodes')
-        self.assert_qmp(result, 'return[0]/file', quorum_img3)
+        self.assert_qmp(result, 'return[1]/file', quorum_img3)
         self.vm.shutdown()
 
     def test_cancel_after_ready(self):
@@ -799,7 +799,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
         result = self.vm.qmp('query-named-block-nodes')
         # here we check that the last registered quorum file has not been
         # swapped out and unref
-        self.assert_qmp(result, 'return[0]/file', quorum_img3)
+        self.assert_qmp(result, 'return[1]/file', quorum_img3)
         self.vm.shutdown()
         self.assertTrue(iotests.compare_images(quorum_img2, quorum_repair_img),
                         'target image does not match source after mirroring')

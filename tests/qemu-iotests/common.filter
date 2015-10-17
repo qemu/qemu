@@ -128,6 +128,11 @@ _filter_date()
         -e 's/[A-Z][a-z][a-z] [A-z][a-z][a-z]  *[0-9][0-9]* [0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]$/DATE/'
 }
 
+_filter_generated_node_ids()
+{
+     sed -re 's/\#block[0-9]{3,}/NODE_NAME/'
+}
+
 # replace occurrences of the actual TEST_DIR value with TEST_DIR
 _filter_testdir()
 {

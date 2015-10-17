@@ -748,7 +748,7 @@ static int img_commit(int argc, char **argv)
         /* This is different from QMP, which by default uses the deepest file in
          * the backing chain (i.e., the very base); however, the traditional
          * behavior of qemu-img commit is using the immediate backing file. */
-        base_bs = bs->backing_hd;
+        base_bs = backing_bs(bs);
         if (!base_bs) {
             error_setg(&local_err, "Image does not have a backing file");
             goto done;
@@ -766,12 +766,12 @@ static int img_commit(int argc, char **argv)
         goto done;
     }
 
-    /* The block job will swap base_bs and bs (which is not what we really want
-     * here, but okay) and unref base_bs (after the swap, i.e., the old top
-     * image). In order to still be able to empty that top image afterwards,
-     * increment the reference counter here preemptively. */
+    /* When the block job completes, the BlockBackend reference will point to
+     * the old backing file. In order to avoid that the top image is already
+     * deleted, so we can still empty it afterwards, increment the reference
+     * counter here preemptively. */
     if (!drop) {
-        bdrv_ref(base_bs);
+        bdrv_ref(bs);
     }
 
     run_block_job(bs->job, &local_err);
@@ -779,8 +779,8 @@ static int img_commit(int argc, char **argv)
         goto unref_backing;
     }
 
-    if (!drop && base_bs->drv->bdrv_make_empty) {
-        ret = base_bs->drv->bdrv_make_empty(base_bs);
+    if (!drop && bs->drv->bdrv_make_empty) {
+        ret = bs->drv->bdrv_make_empty(bs);
         if (ret) {
             error_setg_errno(&local_err, -ret, "Could not empty %s",
                              filename);
@@ -790,7 +790,7 @@ static int img_commit(int argc, char **argv)
 
 unref_backing:
     if (!drop) {
-        bdrv_unref(base_bs);
+        bdrv_unref(bs);
     }
 
 done:
@@ -2207,7 +2207,7 @@ static int get_block_status(BlockDriverState *bs, int64_t sector_num,
         if (ret & (BDRV_BLOCK_ZERO|BDRV_BLOCK_DATA)) {
             break;
         }
-        bs = bs->backing_hd;
+        bs = backing_bs(bs);
         if (bs == NULL) {
             ret = 0;
             break;

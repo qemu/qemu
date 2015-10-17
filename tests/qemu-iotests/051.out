@@ -59,7 +59,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,backing.file.filename=TEST_DIR/t.qcow2.orig -nodefaults
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K
-ide0-hd0: TEST_DIR/t.qcow2 (qcow2)
+ide0-hd0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
     Backing file:     TEST_DIR/t.qcow2.orig (chain depth: 1)
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K

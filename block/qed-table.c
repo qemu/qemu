@@ -63,7 +63,7 @@ static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
     read_table_cb->iov.iov_len = s->header.cluster_size * s->header.table_size,
 
     qemu_iovec_init_external(qiov, &read_table_cb->iov, 1);
-    bdrv_aio_readv(s->bs->file, offset / BDRV_SECTOR_SIZE, qiov,
+    bdrv_aio_readv(s->bs->file->bs, offset / BDRV_SECTOR_SIZE, qiov,
                    qiov->size / BDRV_SECTOR_SIZE,
                    qed_read_table_cb, read_table_cb);
 }
@@ -152,7 +152,7 @@ static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
     /* Adjust for offset into table */
     offset += start * sizeof(uint64_t);
 
-    bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
+    bdrv_aio_writev(s->bs->file->bs, offset / BDRV_SECTOR_SIZE,
                     &write_table_cb->qiov,
                     write_table_cb->qiov.size / BDRV_SECTOR_SIZE,
                     qed_write_table_cb, write_table_cb);

@@ -203,12 +203,11 @@ BlockDriverState *bdrv_new(void);
 void bdrv_make_anon(BlockDriverState *bs);
 void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
+void bdrv_replace_in_backing_chain(BlockDriverState *old,
+                                   BlockDriverState *new);
+
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_parse_discard_flags(const char *mode, int *flags);
-int bdrv_open_image(BlockDriverState **pbs, const char *filename,
-                    QDict *options, const char *bdref_key,
-                    BlockDriverState* parent, const BdrvChildRole *child_role,
-                    bool allow_none, Error **errp);
 BdrvChild *bdrv_open_child(const char *filename,
                            QDict *options, const char *bdref_key,
                            BlockDriverState* parent,
@@ -585,7 +584,13 @@ typedef enum {
     BLKDBG_EVENT_MAX,
 } BlkDebugEvent;
 
-#define BLKDBG_EVENT(bs, evt) bdrv_debug_event(bs, evt)
+#define BLKDBG_EVENT(child, evt) \
+    do { \
+        if (child) { \
+            bdrv_debug_event(child->bs, evt); \
+        } \
+    } while (0)
+
 void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
 
 int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,

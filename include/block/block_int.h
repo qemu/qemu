@@ -122,7 +122,6 @@ struct BlockDriver {
     int (*bdrv_write)(BlockDriverState *bs, int64_t sector_num,
                       const uint8_t *buf, int nb_sectors);
     void (*bdrv_close)(BlockDriverState *bs);
-    void (*bdrv_rebind)(BlockDriverState *bs);
     int (*bdrv_create)(const char *filename, QemuOpts *opts, Error **errp);
     int (*bdrv_set_key)(BlockDriverState *bs, const char *key);
     int (*bdrv_make_empty)(BlockDriverState *bs);
@@ -339,6 +338,7 @@ struct BdrvChild {
     BlockDriverState *bs;
     const BdrvChildRole *role;
     QLIST_ENTRY(BdrvChild) next;
+    QLIST_ENTRY(BdrvChild) next_parent;
 };
 
 /*
@@ -378,9 +378,8 @@ struct BlockDriverState {
     QDict *full_open_options;
     char exact_filename[PATH_MAX];
 
-    BlockDriverState *backing_hd;
-    BdrvChild *backing_child;
-    BlockDriverState *file;
+    BdrvChild *backing;
+    BdrvChild *file;
 
     NotifierList close_notifiers;
 
@@ -446,6 +445,7 @@ struct BlockDriverState {
      * parent node of this node. */
     BlockDriverState *inherits_from;
     QLIST_HEAD(, BdrvChild) children;
+    QLIST_HEAD(, BdrvChild) parents;
 
     QDict *options;
     BlockdevDetectZeroesOptions detect_zeroes;
@@ -457,6 +457,11 @@ struct BlockDriverState {
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
 };
+
+static inline BlockDriverState *backing_bs(BlockDriverState *bs)
+{
+    return bs->backing ? bs->backing->bs : NULL;
+}
 
 
 /* Essential block drivers which must always be statically linked into qemu, and
@@ -496,7 +501,7 @@ void bdrv_add_before_write_notifier(BlockDriverState *bs,
  *
  * May be called from .bdrv_detach_aio_context() to detach children from the
  * current #AioContext.  This is only needed by block drivers that manage their
- * own children.  Both ->file and ->backing_hd are automatically handled and
+ * own children.  Both ->file and ->backing are automatically handled and
  * block drivers should not call this function on them explicitly.
  */
 void bdrv_detach_aio_context(BlockDriverState *bs);
@@ -506,7 +511,7 @@ void bdrv_detach_aio_context(BlockDriverState *bs);
  *
  * May be called from .bdrv_attach_aio_context() to attach children to the new
  * #AioContext.  This is only needed by block drivers that manage their own
- * children.  Both ->file and ->backing_hd are automatically handled and block
+ * children.  Both ->file and ->backing are automatically handled and block
  * drivers should not call this function on them explicitly.
  */
 void bdrv_attach_aio_context(BlockDriverState *bs,
@@ -655,6 +660,8 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockCompletionFunc *cb, void *opaque,
                   Error **errp);
 
+void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
+
 void blk_dev_change_media_cb(BlockBackend *blk, bool load);
 bool blk_dev_has_removable_media(BlockBackend *blk);
 void blk_dev_eject_request(BlockBackend *blk, bool force);
@@ -663,5 +670,6 @@ bool blk_dev_is_medium_locked(BlockBackend *blk);
 void blk_dev_resize_cb(BlockBackend *blk);
 
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
+bool bdrv_requests_pending(BlockDriverState *bs);
 
 #endif /* BLOCK_INT_H */

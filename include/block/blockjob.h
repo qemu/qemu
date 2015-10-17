@@ -65,6 +65,14 @@ struct BlockJob {
     BlockDriverState *bs;
 
     /**
+     * The ID of the block job. Currently the BlockBackend name of the BDS
+     * owning the job at the time when the job is started.
+     *
+     * TODO Decouple block job IDs from BlockBackend names
+     */
+    char *id;
+
+    /**
      * The coroutine that executes the job.  If not NULL, it is
      * reentered when busy is false and the job is cancelled.
      */

@@ -100,7 +100,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     int ret;
     QCowHeader header;
 
-    ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
+    ret = bdrv_pread(bs->file->bs, 0, &header, sizeof(header));
     if (ret < 0) {
         goto fail;
     }
@@ -193,7 +193,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
 
-    ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
+    ret = bdrv_pread(bs->file->bs, s->l1_table_offset, s->l1_table,
                s->l1_size * sizeof(uint64_t));
     if (ret < 0) {
         goto fail;
@@ -205,7 +205,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* alloc L2 cache (max. 64k * 16 * 8 = 8 MB) */
     s->l2_cache =
-        qemu_try_blockalign(bs->file,
+        qemu_try_blockalign(bs->file->bs,
                             s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
     if (s->l2_cache == NULL) {
         error_setg(errp, "Could not allocate L2 table cache");
@@ -224,7 +224,7 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
             ret = -EINVAL;
             goto fail;
         }
-        ret = bdrv_pread(bs->file, header.backing_file_offset,
+        ret = bdrv_pread(bs->file->bs, header.backing_file_offset,
                    bs->backing_file, len);
         if (ret < 0) {
             goto fail;
@@ -369,13 +369,13 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
         if (!allocate)
             return 0;
         /* allocate a new l2 entry */
-        l2_offset = bdrv_getlength(bs->file);
+        l2_offset = bdrv_getlength(bs->file->bs);
         /* round to cluster size */
         l2_offset = (l2_offset + s->cluster_size - 1) & ~(s->cluster_size - 1);
         /* update the L1 entry */
         s->l1_table[l1_index] = l2_offset;
         tmp = cpu_to_be64(l2_offset);
-        if (bdrv_pwrite_sync(bs->file,
+        if (bdrv_pwrite_sync(bs->file->bs,
                 s->l1_table_offset + l1_index * sizeof(tmp),
                 &tmp, sizeof(tmp)) < 0)
             return 0;
@@ -405,11 +405,12 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
     l2_table = s->l2_cache + (min_index << s->l2_bits);
     if (new_l2_table) {
         memset(l2_table, 0, s->l2_size * sizeof(uint64_t));
-        if (bdrv_pwrite_sync(bs->file, l2_offset, l2_table,
+        if (bdrv_pwrite_sync(bs->file->bs, l2_offset, l2_table,
                 s->l2_size * sizeof(uint64_t)) < 0)
             return 0;
     } else {
-        if (bdrv_pread(bs->file, l2_offset, l2_table, s->l2_size * sizeof(uint64_t)) !=
+        if (bdrv_pread(bs->file->bs, l2_offset, l2_table,
+                       s->l2_size * sizeof(uint64_t)) !=
             s->l2_size * sizeof(uint64_t))
             return 0;
     }
@@ -430,20 +431,21 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
                overwritten */
             if (decompress_cluster(bs, cluster_offset) < 0)
                 return 0;
-            cluster_offset = bdrv_getlength(bs->file);
+            cluster_offset = bdrv_getlength(bs->file->bs);
             cluster_offset = (cluster_offset + s->cluster_size - 1) &
                 ~(s->cluster_size - 1);
             /* write the cluster content */
-            if (bdrv_pwrite(bs->file, cluster_offset, s->cluster_cache, s->cluster_size) !=
+            if (bdrv_pwrite(bs->file->bs, cluster_offset, s->cluster_cache,
+                            s->cluster_size) !=
                 s->cluster_size)
                 return -1;
         } else {
-            cluster_offset = bdrv_getlength(bs->file);
+            cluster_offset = bdrv_getlength(bs->file->bs);
             if (allocate == 1) {
                 /* round to cluster size */
                 cluster_offset = (cluster_offset + s->cluster_size - 1) &
                     ~(s->cluster_size - 1);
-                bdrv_truncate(bs->file, cluster_offset + s->cluster_size);
+                bdrv_truncate(bs->file->bs, cluster_offset + s->cluster_size);
                 /* if encrypted, we must initialize the cluster
                    content which won't be written */
                 if (bs->encrypted &&
@@ -463,7 +465,8 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
                                 errno = EIO;
                                 return -1;
                             }
-                            if (bdrv_pwrite(bs->file, cluster_offset + i * 512,
+                            if (bdrv_pwrite(bs->file->bs,
+                                            cluster_offset + i * 512,
                                             s->cluster_data, 512) != 512)
                                 return -1;
                         }
@@ -477,7 +480,7 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
         /* update L2 table */
         tmp = cpu_to_be64(cluster_offset);
         l2_table[l2_index] = tmp;
-        if (bdrv_pwrite_sync(bs->file, l2_offset + l2_index * sizeof(tmp),
+        if (bdrv_pwrite_sync(bs->file->bs, l2_offset + l2_index * sizeof(tmp),
                 &tmp, sizeof(tmp)) < 0)
             return 0;
     }
@@ -546,7 +549,7 @@ static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
     if (s->cluster_cache_offset != coffset) {
         csize = cluster_offset >> (63 - s->cluster_bits);
         csize &= (s->cluster_size - 1);
-        ret = bdrv_pread(bs->file, coffset, s->cluster_data, csize);
+        ret = bdrv_pread(bs->file->bs, coffset, s->cluster_data, csize);
         if (ret != csize)
             return -1;
         if (decompress_buffer(s->cluster_cache, s->cluster_size,
@@ -594,13 +597,13 @@ static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
         }
 
         if (!cluster_offset) {
-            if (bs->backing_hd) {
+            if (bs->backing) {
                 /* read from the base image */
                 hd_iov.iov_base = (void *)buf;
                 hd_iov.iov_len = n * 512;
                 qemu_iovec_init_external(&hd_qiov, &hd_iov, 1);
                 qemu_co_mutex_unlock(&s->lock);
-                ret = bdrv_co_readv(bs->backing_hd, sector_num,
+                ret = bdrv_co_readv(bs->backing->bs, sector_num,
                                     n, &hd_qiov);
                 qemu_co_mutex_lock(&s->lock);
                 if (ret < 0) {
@@ -625,7 +628,7 @@ static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
             hd_iov.iov_len = n * 512;
             qemu_iovec_init_external(&hd_qiov, &hd_iov, 1);
             qemu_co_mutex_unlock(&s->lock);
-            ret = bdrv_co_readv(bs->file,
+            ret = bdrv_co_readv(bs->file->bs,
                                 (cluster_offset >> 9) + index_in_cluster,
                                 n, &hd_qiov);
             qemu_co_mutex_lock(&s->lock);
@@ -727,7 +730,7 @@ static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
         hd_iov.iov_len = n * 512;
         qemu_iovec_init_external(&hd_qiov, &hd_iov, 1);
         qemu_co_mutex_unlock(&s->lock);
-        ret = bdrv_co_writev(bs->file,
+        ret = bdrv_co_writev(bs->file->bs,
                              (cluster_offset >> 9) + index_in_cluster,
                              n, &hd_qiov);
         qemu_co_mutex_lock(&s->lock);
@@ -879,10 +882,10 @@ static int qcow_make_empty(BlockDriverState *bs)
     int ret;
 
     memset(s->l1_table, 0, l1_length);
-    if (bdrv_pwrite_sync(bs->file, s->l1_table_offset, s->l1_table,
+    if (bdrv_pwrite_sync(bs->file->bs, s->l1_table_offset, s->l1_table,
             l1_length) < 0)
         return -1;
-    ret = bdrv_truncate(bs->file, s->l1_table_offset + l1_length);
+    ret = bdrv_truncate(bs->file->bs, s->l1_table_offset + l1_length);
     if (ret < 0)
         return ret;
 
@@ -962,7 +965,7 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
         }
 
         cluster_offset &= s->cluster_offset_mask;
-        ret = bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len);
+        ret = bdrv_pwrite(bs->file->bs, cluster_offset, out_buf, out_len);
         if (ret < 0) {
             goto fail;
         }

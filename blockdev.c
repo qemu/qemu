@@ -411,7 +411,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         bdrv_flags |= BDRV_O_NO_FLUSH;
     }
 
-#ifdef CONFIG_LINUX_AIO
     if ((buf = qemu_opt_get(opts, "aio")) != NULL) {
         if (!strcmp(buf, "native")) {
             bdrv_flags |= BDRV_O_NATIVE_AIO;
@@ -422,7 +421,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
            goto early_err;
         }
     }
-#endif
 
     if ((buf = qemu_opt_get(opts, "format")) != NULL) {
         if (is_help_option(buf)) {
@@ -1546,7 +1544,7 @@ static void external_snapshot_commit(BlkTransactionState *common)
     /* We don't need (or want) to use the transactional
      * bdrv_reopen_multiple() across all the entries at once, because we
      * don't want to abort all of them if one of them fails the reopen */
-    bdrv_reopen(state->new_bs, state->new_bs->open_flags & ~BDRV_O_RDWR,
+    bdrv_reopen(state->old_bs, state->old_bs->open_flags & ~BDRV_O_RDWR,
                 NULL);
 
     aio_context_release(state->aio_context);
@@ -2508,7 +2506,7 @@ void qmp_drive_backup(const char *device, const char *target,
     /* See if we have a backing HD we can use to create our new image
      * on top of. */
     if (sync == MIRROR_SYNC_MODE_TOP) {
-        source = bs->backing_hd;
+        source = backing_bs(bs);
         if (!source) {
             sync = MIRROR_SYNC_MODE_FULL;
         }
@@ -2716,7 +2714,7 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
 
     flags = bs->open_flags | BDRV_O_RDWR;
-    source = bs->backing_hd;
+    source = backing_bs(bs);
     if (!source && sync == MIRROR_SYNC_MODE_TOP) {
         sync = MIRROR_SYNC_MODE_FULL;
     }

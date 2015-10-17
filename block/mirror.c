@@ -353,6 +353,11 @@ static void mirror_exit(BlockJob *job, void *opaque)
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
     MirrorExitData *data = opaque;
     AioContext *replace_aio_context = NULL;
+    BlockDriverState *src = s->common.bs;
+
+    /* Make sure that the source BDS doesn't go away before we called
+     * block_job_completed(). */
+    bdrv_ref(src);
 
     if (s->to_replace) {
         replace_aio_context = bdrv_get_aio_context(s->to_replace);
@@ -367,14 +372,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
         if (bdrv_get_flags(s->target) != bdrv_get_flags(to_replace)) {
             bdrv_reopen(s->target, bdrv_get_flags(to_replace), NULL);
         }
-        bdrv_swap(s->target, to_replace);
-        if (s->common.driver->job_type == BLOCK_JOB_TYPE_COMMIT) {
-            /* drop the bs loop chain formed by the swap: break the loop then
-             * trigger the unref from the top one */
-            BlockDriverState *p = s->base->backing_hd;
-            bdrv_set_backing_hd(s->base, NULL);
-            bdrv_unref(p);
-        }
+        bdrv_replace_in_backing_chain(to_replace, s->target);
     }
     if (s->to_replace) {
         bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
@@ -388,6 +386,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
     bdrv_unref(s->target);
     block_job_completed(&s->common, data->ret);
     g_free(data);
+    bdrv_unref(src);
 }
 
 static void coroutine_fn mirror_run(void *opaque)
@@ -431,7 +430,7 @@ static void coroutine_fn mirror_run(void *opaque)
      */
     bdrv_get_backing_filename(s->target, backing_filename,
                               sizeof(backing_filename));
-    if (backing_filename[0] && !s->target->backing_hd) {
+    if (backing_filename[0] && !s->target->backing) {
         ret = bdrv_get_info(s->target, &bdi);
         if (ret < 0) {
             goto immediate_exit;
@@ -637,8 +636,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
         return;
     }
     if (!s->synced) {
-        error_setg(errp, QERR_BLOCK_JOB_NOT_READY,
-                   bdrv_get_device_name(job->bs));
+        error_setg(errp, QERR_BLOCK_JOB_NOT_READY, job->id);
         return;
     }
 
@@ -766,7 +764,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
     is_none_mode = mode == MIRROR_SYNC_MODE_NONE;
-    base = mode == MIRROR_SYNC_MODE_TOP ? bs->backing_hd : NULL;
+    base = mode == MIRROR_SYNC_MODE_TOP ? backing_bs(bs) : NULL;
     mirror_start_job(bs, target, replaces,
                      speed, granularity, buf_size,
                      on_source_error, on_target_error, unmap, cb, opaque, errp,

@@ -295,8 +295,6 @@ typedef struct BDRVQcow2State {
     char *image_backing_format;
 } BDRVQcow2State;
 
-struct QCowAIOCB;
-
 typedef struct Qcow2COWRegion {
     /**
      * Offset of the COW region in bytes from the start of the first cluster

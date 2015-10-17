@@ -98,9 +98,7 @@ static void usage(const char *name)
 "                            '[ID_OR_NAME]'\n"
 "  -n, --nocache             disable host cache\n"
 "      --cache=MODE          set cache mode (none, writeback, ...)\n"
-#ifdef CONFIG_LINUX_AIO
 "      --aio=MODE            set AIO mode (native or threads)\n"
-#endif
 "      --discard=MODE        set discard mode (ignore, unmap)\n"
 "      --detect-zeroes=MODE  set detect-zeroes mode (off, on, unmap)\n"
 "\n"
@@ -412,9 +410,7 @@ int main(int argc, char **argv)
         { "load-snapshot", 1, NULL, 'l' },
         { "nocache", 0, NULL, 'n' },
         { "cache", 1, NULL, QEMU_NBD_OPT_CACHE },
-#ifdef CONFIG_LINUX_AIO
         { "aio", 1, NULL, QEMU_NBD_OPT_AIO },
-#endif
         { "discard", 1, NULL, QEMU_NBD_OPT_DISCARD },
         { "detect-zeroes", 1, NULL, QEMU_NBD_OPT_DETECT_ZEROES },
         { "shared", 1, NULL, 'e' },
@@ -432,9 +428,7 @@ int main(int argc, char **argv)
     int fd;
     bool seen_cache = false;
     bool seen_discard = false;
-#ifdef CONFIG_LINUX_AIO
     bool seen_aio = false;
-#endif
     pthread_t client_thread;
     const char *fmt = NULL;
     Error *local_err = NULL;
@@ -467,7 +461,6 @@ int main(int argc, char **argv)
                 errx(EXIT_FAILURE, "Invalid cache mode `%s'", optarg);
             }
             break;
-#ifdef CONFIG_LINUX_AIO
         case QEMU_NBD_OPT_AIO:
             if (seen_aio) {
                 errx(EXIT_FAILURE, "--aio can only be specified once");
@@ -481,7 +474,6 @@ int main(int argc, char **argv)
                errx(EXIT_FAILURE, "invalid aio mode `%s'", optarg);
             }
             break;
-#endif
         case QEMU_NBD_OPT_DISCARD:
             if (seen_discard) {
                 errx(EXIT_FAILURE, "--discard can only be specified once");

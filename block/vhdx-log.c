@@ -81,7 +81,7 @@ static int vhdx_log_peek_hdr(BlockDriverState *bs, VHDXLogEntries *log,
 
     offset = log->offset + read;
 
-    ret = bdrv_pread(bs->file, offset, hdr, sizeof(VHDXLogEntryHeader));
+    ret = bdrv_pread(bs->file->bs, offset, hdr, sizeof(VHDXLogEntryHeader));
     if (ret < 0) {
         goto exit;
     }
@@ -141,7 +141,7 @@ static int vhdx_log_read_sectors(BlockDriverState *bs, VHDXLogEntries *log,
         }
         offset = log->offset + read;
 
-        ret = bdrv_pread(bs->file, offset, buffer, VHDX_LOG_SECTOR_SIZE);
+        ret = bdrv_pread(bs->file->bs, offset, buffer, VHDX_LOG_SECTOR_SIZE);
         if (ret < 0) {
             goto exit;
         }
@@ -191,7 +191,8 @@ static int vhdx_log_write_sectors(BlockDriverState *bs, VHDXLogEntries *log,
             /* full */
             break;
         }
-        ret = bdrv_pwrite(bs->file, offset, buffer_tmp, VHDX_LOG_SECTOR_SIZE);
+        ret = bdrv_pwrite(bs->file->bs, offset, buffer_tmp,
+                          VHDX_LOG_SECTOR_SIZE);
         if (ret < 0) {
             goto exit;
         }
@@ -353,7 +354,7 @@ static int vhdx_log_read_desc(BlockDriverState *bs, BDRVVHDXState *s,
     }
 
     desc_sectors = vhdx_compute_desc_sectors(hdr.descriptor_count);
-    desc_entries = qemu_try_blockalign(bs->file,
+    desc_entries = qemu_try_blockalign(bs->file->bs,
                                        desc_sectors * VHDX_LOG_SECTOR_SIZE);
     if (desc_entries == NULL) {
         ret = -ENOMEM;
@@ -462,7 +463,7 @@ static int vhdx_log_flush_desc(BlockDriverState *bs, VHDXLogDescriptor *desc,
 
     /* count is only > 1 if we are writing zeroes */
     for (i = 0; i < count; i++) {
-        ret = bdrv_pwrite_sync(bs->file, file_offset, buffer,
+        ret = bdrv_pwrite_sync(bs->file->bs, file_offset, buffer,
                                VHDX_LOG_SECTOR_SIZE);
         if (ret < 0) {
             goto exit;
@@ -509,7 +510,7 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
         /* if the log shows a FlushedFileOffset larger than our current file
          * size, then that means the file has been truncated / corrupted, and
          * we must refused to open it / use it */
-        if (hdr_tmp.flushed_file_offset > bdrv_getlength(bs->file)) {
+        if (hdr_tmp.flushed_file_offset > bdrv_getlength(bs->file->bs)) {
             ret = -EINVAL;
             goto exit;
         }
@@ -539,12 +540,12 @@ static int vhdx_log_flush(BlockDriverState *bs, BDRVVHDXState *s,
                 goto exit;
             }
         }
-        if (bdrv_getlength(bs->file) < desc_entries->hdr.last_file_offset) {
+        if (bdrv_getlength(bs->file->bs) < desc_entries->hdr.last_file_offset) {
             new_file_size = desc_entries->hdr.last_file_offset;
             if (new_file_size % (1024*1024)) {
                 /* round up to nearest 1MB boundary */
                 new_file_size = ((new_file_size >> 20) + 1) << 20;
-                bdrv_truncate(bs->file, new_file_size);
+                bdrv_truncate(bs->file->bs, new_file_size);
             }
         }
         qemu_vfree(desc_entries);
@@ -908,8 +909,8 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
                 .sequence_number     = s->log.sequence,
                 .descriptor_count    = sectors,
                 .reserved            = 0,
-                .flushed_file_offset = bdrv_getlength(bs->file),
-                .last_file_offset    = bdrv_getlength(bs->file),
+                .flushed_file_offset = bdrv_getlength(bs->file->bs),
+                .last_file_offset    = bdrv_getlength(bs->file->bs),
               };
 
     new_hdr.log_guid = header->log_guid;
@@ -940,7 +941,7 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
 
         if (i == 0 && leading_length) {
             /* partial sector at the front of the buffer */
-            ret = bdrv_pread(bs->file, file_offset, merged_sector,
+            ret = bdrv_pread(bs->file->bs, file_offset, merged_sector,
                              VHDX_LOG_SECTOR_SIZE);
             if (ret < 0) {
                 goto exit;
@@ -950,7 +951,7 @@ static int vhdx_log_write(BlockDriverState *bs, BDRVVHDXState *s,
             sector_write = merged_sector;
         } else if (i == sectors - 1 && trailing_length) {
             /* partial sector at the end of the buffer */
-            ret = bdrv_pread(bs->file,
+            ret = bdrv_pread(bs->file->bs,
                             file_offset,
                             merged_sector + trailing_length,
                             VHDX_LOG_SECTOR_SIZE - trailing_length);

@@ -54,6 +54,7 @@ void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
     bdrv_op_unblock(bs, BLOCK_OP_TYPE_DATAPLANE, job->blocker);
 
     job->driver        = driver;
+    job->id            = g_strdup(bdrv_get_device_name(bs));
     job->bs            = bs;
     job->cb            = cb;
     job->opaque        = opaque;
@@ -81,6 +82,7 @@ void block_job_release(BlockDriverState *bs)
     bs->job = NULL;
     bdrv_op_unblock_all(bs, job->blocker);
     error_free(job->blocker);
+    g_free(job->id);
     g_free(job);
 }
 
@@ -113,8 +115,7 @@ void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
 void block_job_complete(BlockJob *job, Error **errp)
 {
     if (job->pause_count || job->cancelled || !job->driver->complete) {
-        error_setg(errp, QERR_BLOCK_JOB_NOT_READY,
-                   bdrv_get_device_name(job->bs));
+        error_setg(errp, QERR_BLOCK_JOB_NOT_READY, job->id);
         return;
     }
 
@@ -269,7 +270,7 @@ BlockJobInfo *block_job_query(BlockJob *job)
 {
     BlockJobInfo *info = g_new0(BlockJobInfo, 1);
     info->type      = g_strdup(BlockJobType_lookup[job->driver->job_type]);
-    info->device    = g_strdup(bdrv_get_device_name(job->bs));
+    info->device    = g_strdup(job->id);
     info->len       = job->len;
     info->busy      = job->busy;
     info->paused    = job->pause_count > 0;
@@ -291,7 +292,7 @@ static void block_job_iostatus_set_err(BlockJob *job, int error)
 void block_job_event_cancelled(BlockJob *job)
 {
     qapi_event_send_block_job_cancelled(job->driver->job_type,
-                                        bdrv_get_device_name(job->bs),
+                                        job->id,
                                         job->len,
                                         job->offset,
                                         job->speed,
@@ -301,7 +302,7 @@ void block_job_event_cancelled(BlockJob *job)
 void block_job_event_completed(BlockJob *job, const char *msg)
 {
     qapi_event_send_block_job_completed(job->driver->job_type,
-                                        bdrv_get_device_name(job->bs),
+                                        job->id,
                                         job->len,
                                         job->offset,
                                         job->speed,
@@ -315,7 +316,7 @@ void block_job_event_ready(BlockJob *job)
     job->ready = true;
 
     qapi_event_send_block_job_ready(job->driver->job_type,
-                                    bdrv_get_device_name(job->bs),
+                                    job->id,
                                     job->len,
                                     job->offset,
                                     job->speed, &error_abort);
@@ -344,7 +345,7 @@ BlockErrorAction block_job_error_action(BlockJob *job, BlockDriverState *bs,
     default:
         abort();
     }
-    qapi_event_send_block_job_error(bdrv_get_device_name(job->bs),
+    qapi_event_send_block_job_error(job->id,
                                     is_read ? IO_OPERATION_TYPE_READ :
                                     IO_OPERATION_TYPE_WRITE,
                                     action, &error_abort);
