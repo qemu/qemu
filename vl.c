@@ -4101,8 +4101,8 @@ int main(int argc, char **argv, char **envp)
 
     machine_class->max_cpus = machine_class->max_cpus ?: 1; /* Default to UP */
     if (max_cpus > machine_class->max_cpus) {
-        fprintf(stderr, "Number of SMP cpus requested (%d), exceeds max cpus "
-                "supported by machine `%s' (%d)\n", max_cpus,
+        fprintf(stderr, "Number of SMP CPUs requested (%d) exceeds max CPUs "
+                "supported by machine '%s' (%d)\n", max_cpus,
                 machine_class->name, machine_class->max_cpus);
         exit(1);
     }
