@@ -537,10 +537,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             bdrv_flags |= BDRV_O_COPY_ON_READ;
         }
 
-        if (runstate_check(RUN_STATE_INMIGRATE)) {
-            bdrv_flags |= BDRV_O_INCOMING;
-        }
-
         bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
         blk = blk_new_open(qemu_opts_id(opts), file, NULL, bs_opts, bdrv_flags,
