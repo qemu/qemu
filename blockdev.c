@@ -614,6 +614,54 @@ err_no_opts:
     return NULL;
 }
 
+static QemuOptsList qemu_root_bds_opts;
+
+/* Takes the ownership of bs_opts */
+static BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp)
+{
+    BlockDriverState *bs;
+    QemuOpts *opts;
+    Error *local_error = NULL;
+    BlockdevDetectZeroesOptions detect_zeroes;
+    int ret;
+    int bdrv_flags = 0;
+
+    opts = qemu_opts_create(&qemu_root_bds_opts, NULL, 1, errp);
+    if (!opts) {
+        goto fail;
+    }
+
+    qemu_opts_absorb_qdict(opts, bs_opts, &local_error);
+    if (local_error) {
+        error_propagate(errp, local_error);
+        goto fail;
+    }
+
+    extract_common_blockdev_options(opts, &bdrv_flags, NULL, NULL,
+                                    &detect_zeroes, &local_error);
+    if (local_error) {
+        error_propagate(errp, local_error);
+        goto fail;
+    }
+
+    bs = NULL;
+    ret = bdrv_open(&bs, NULL, NULL, bs_opts, bdrv_flags, errp);
+    if (ret < 0) {
+        goto fail_no_bs_opts;
+    }
+
+    bs->detect_zeroes = detect_zeroes;
+
+fail_no_bs_opts:
+    qemu_opts_del(opts);
+    return bs;
+
+fail:
+    qemu_opts_del(opts);
+    QDECREF(bs_opts);
+    return NULL;
+}
+
 static void qemu_opt_rename(QemuOpts *opts, const char *from, const char *to,
                             Error **errp)
 {
@@ -3171,18 +3219,14 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
         bs = blk_bs(blk);
     } else {
-        int ret;
-
         if (!qdict_get_try_str(qdict, "node-name")) {
             error_setg(errp, "'id' and/or 'node-name' need to be specified for "
                        "the root node");
             goto fail;
         }
 
-        bs = NULL;
-        ret = bdrv_open(&bs, NULL, NULL, qdict, BDRV_O_RDWR | BDRV_O_CACHE_WB,
-                        errp);
-        if (ret < 0) {
+        bs = bds_tree_init(qdict, errp);
+        if (!bs) {
             goto fail;
         }
     }
@@ -3324,6 +3368,47 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "throttling.group",
             .type = QEMU_OPT_STRING,
             .help = "name of the block throttling group",
+        },{
+            .name = "copy-on-read",
+            .type = QEMU_OPT_BOOL,
+            .help = "copy read data from backing file into image file",
+        },{
+            .name = "detect-zeroes",
+            .type = QEMU_OPT_STRING,
+            .help = "try to optimize zero writes (off, on, unmap)",
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_root_bds_opts = {
+    .name = "root-bds",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_common_drive_opts.head),
+    .desc = {
+        {
+            .name = "discard",
+            .type = QEMU_OPT_STRING,
+            .help = "discard operation (ignore/off, unmap/on)",
+        },{
+            .name = "cache.writeback",
+            .type = QEMU_OPT_BOOL,
+            .help = "enables writeback mode for any caches",
+        },{
+            .name = "cache.direct",
+            .type = QEMU_OPT_BOOL,
+            .help = "enables use of O_DIRECT (bypass the host page cache)",
+        },{
+            .name = "cache.no-flush",
+            .type = QEMU_OPT_BOOL,
+            .help = "ignore any flush requests for the device",
+        },{
+            .name = "aio",
+            .type = QEMU_OPT_STRING,
+            .help = "host AIO implementation (threads, native)",
+        },{
+            .name = "read-only",
+            .type = QEMU_OPT_BOOL,
+            .help = "open drive file as read-only",
         },{
             .name = "copy-on-read",
             .type = QEMU_OPT_BOOL,
