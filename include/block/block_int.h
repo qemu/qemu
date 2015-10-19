@@ -26,6 +26,7 @@
 
 #include "block/accounting.h"
 #include "block/block.h"
+#include "block/throttle-groups.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
@@ -447,6 +448,15 @@ struct BlockDriverState {
     /* threshold limit for writes, in bytes. "High water mark". */
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
+};
+
+struct BlockBackendRootState {
+    int open_flags;
+    bool read_only;
+    BlockdevDetectZeroesOptions detect_zeroes;
+
+    char *throttle_group;
+    ThrottleState *throttle_state;
 };
 
 static inline BlockDriverState *backing_bs(BlockDriverState *bs)

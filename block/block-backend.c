@@ -13,6 +13,7 @@
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
 #include "block/blockjob.h"
+#include "block/throttle-groups.h"
 #include "sysemu/blockdev.h"
 #include "sysemu/sysemu.h"
 #include "qapi-event.h"
@@ -36,6 +37,10 @@ struct BlockBackend {
 
     /* the block size for which the guest device expects atomicity */
     int guest_block_size;
+
+    /* If the BDS tree is removed, some of its options are stored here (which
+     * can be used to restore those options in the new BDS on insert) */
+    BlockBackendRootState root_state;
 
     /* I/O stats (display with "info blockstats"). */
     BlockAcctStats stats;
@@ -160,6 +165,10 @@ static void blk_delete(BlockBackend *blk)
         blk->bs->blk = NULL;
         bdrv_unref(blk->bs);
         blk->bs = NULL;
+    }
+    if (blk->root_state.throttle_state) {
+        g_free(blk->root_state.throttle_group);
+        throttle_group_unref(blk->root_state.throttle_state);
     }
     /* Avoid double-remove after blk_hide_on_behalf_of_hmp_drive_del() */
     if (blk->name[0]) {
@@ -1066,4 +1075,35 @@ int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
 int blk_probe_geometry(BlockBackend *blk, HDGeometry *geo)
 {
     return bdrv_probe_geometry(blk->bs, geo);
+}
+
+/*
+ * Updates the BlockBackendRootState object with data from the currently
+ * attached BlockDriverState.
+ */
+void blk_update_root_state(BlockBackend *blk)
+{
+    assert(blk->bs);
+
+    blk->root_state.open_flags    = blk->bs->open_flags;
+    blk->root_state.read_only     = blk->bs->read_only;
+    blk->root_state.detect_zeroes = blk->bs->detect_zeroes;
+
+    if (blk->root_state.throttle_group) {
+        g_free(blk->root_state.throttle_group);
+        throttle_group_unref(blk->root_state.throttle_state);
+    }
+    if (blk->bs->throttle_state) {
+        const char *name = throttle_group_get_name(blk->bs);
+        blk->root_state.throttle_group = g_strdup(name);
+        blk->root_state.throttle_state = throttle_group_incref(name);
+    } else {
+        blk->root_state.throttle_group = NULL;
+        blk->root_state.throttle_state = NULL;
+    }
+}
+
+BlockBackendRootState *blk_get_root_state(BlockBackend *blk)
+{
+    return &blk->root_state;
 }

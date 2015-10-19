@@ -163,6 +163,8 @@ void blk_add_close_notifier(BlockBackend *blk, Notifier *notify);
 void blk_io_plug(BlockBackend *blk);
 void blk_io_unplug(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);
+BlockBackendRootState *blk_get_root_state(BlockBackend *blk);
+void blk_update_root_state(BlockBackend *blk);
 
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
                   BlockCompletionFunc *cb, void *opaque);
