@@ -1393,9 +1393,12 @@
 #
 # @driver:        block driver name
 # @id:            #optional id by which the new block device can be referred to.
-#                 This is a required option on the top level of blockdev-add, and
-#                 currently not allowed on any other level.
-# @node-name:     #optional the name of a block driver state node (Since 2.0)
+#                 This option is only allowed on the top level of blockdev-add.
+#                 A BlockBackend will be created by blockdev-add if and only if
+#                 this option is given.
+# @node-name:     #optional the name of a block driver state node (Since 2.0).
+#                 This option is required on the top level of blockdev-add if
+#                 the @id option is not given there.
 # @discard:       #optional discard-related options (default: ignore)
 # @cache:         #optional cache-related options
 # @aio:           #optional AIO backend (default: threads)
@@ -1859,7 +1862,9 @@
 ##
 # @blockdev-add:
 #
-# Creates a new block device.
+# Creates a new block device. If the @id option is given at the top level, a
+# BlockBackend will be created; otherwise, @node-name is mandatory at the top
+# level and no BlockBackend will be created.
 #
 # This command is still a work in progress.  It doesn't support all
 # block drivers, it lacks a matching blockdev-del, and more.  Stay

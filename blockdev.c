@@ -3026,16 +3026,11 @@ out:
 void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 {
     QmpOutputVisitor *ov = qmp_output_visitor_new();
-    BlockBackend *blk;
+    BlockDriverState *bs;
+    BlockBackend *blk = NULL;
     QObject *obj;
     QDict *qdict;
     Error *local_err = NULL;
-
-    /* Require an ID in the top level */
-    if (!options->has_id) {
-        error_setg(errp, "Block device needs an ID");
-        goto fail;
-    }
 
     /* TODO Sort it out in raw-posix and drive_new(): Reject aio=native with
      * cache.direct=false instead of silently switching to aio=threads, except
@@ -3064,14 +3059,37 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
     qdict_flatten(qdict);
 
-    blk = blockdev_init(NULL, qdict, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto fail;
+    if (options->has_id) {
+        blk = blockdev_init(NULL, qdict, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            goto fail;
+        }
+
+        bs = blk_bs(blk);
+    } else {
+        int ret;
+
+        if (!qdict_get_try_str(qdict, "node-name")) {
+            error_setg(errp, "'id' and/or 'node-name' need to be specified for "
+                       "the root node");
+            goto fail;
+        }
+
+        bs = NULL;
+        ret = bdrv_open(&bs, NULL, NULL, qdict, BDRV_O_RDWR | BDRV_O_CACHE_WB,
+                        errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
-    if (bdrv_key_required(blk_bs(blk))) {
-        blk_unref(blk);
+    if (bs && bdrv_key_required(bs)) {
+        if (blk) {
+            blk_unref(blk);
+        } else {
+            bdrv_unref(bs);
+        }
         error_setg(errp, "blockdev-add doesn't support encrypted devices");
         goto fail;
     }
