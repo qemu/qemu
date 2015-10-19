@@ -677,7 +677,11 @@ int64_t blk_getlength(BlockBackend *blk)
 
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr)
 {
-    bdrv_get_geometry(blk->bs, nb_sectors_ptr);
+    if (!blk->bs) {
+        *nb_sectors_ptr = 0;
+    } else {
+        bdrv_get_geometry(blk->bs, nb_sectors_ptr);
+    }
 }
 
 int64_t blk_nb_sectors(BlockBackend *blk)
@@ -813,7 +817,9 @@ int blk_flush_all(void)
 
 void blk_drain(BlockBackend *blk)
 {
-    bdrv_drain(blk->bs);
+    if (blk->bs) {
+        bdrv_drain(blk->bs);
+    }
 }
 
 void blk_drain_all(void)
@@ -909,6 +915,10 @@ int blk_is_read_only(BlockBackend *blk)
 
 int blk_is_sg(BlockBackend *blk)
 {
+    if (!blk->bs) {
+        return 0;
+    }
+
     return bdrv_is_sg(blk->bs);
 }
 
@@ -956,12 +966,16 @@ bool blk_is_available(BlockBackend *blk)
 
 void blk_lock_medium(BlockBackend *blk, bool locked)
 {
-    bdrv_lock_medium(blk->bs, locked);
+    if (blk->bs) {
+        bdrv_lock_medium(blk->bs, locked);
+    }
 }
 
 void blk_eject(BlockBackend *blk, bool eject_flag)
 {
-    bdrv_eject(blk->bs, eject_flag);
+    if (blk->bs) {
+        bdrv_eject(blk->bs, eject_flag);
+    }
 }
 
 int blk_get_flags(BlockBackend *blk)
@@ -975,7 +989,11 @@ int blk_get_flags(BlockBackend *blk)
 
 int blk_get_max_transfer_length(BlockBackend *blk)
 {
-    return blk->bs->bl.max_transfer_length;
+    if (blk->bs) {
+        return blk->bs->bl.max_transfer_length;
+    } else {
+        return 0;
+    }
 }
 
 void blk_set_guest_block_size(BlockBackend *blk, int align)
@@ -990,22 +1008,32 @@ void *blk_blockalign(BlockBackend *blk, size_t size)
 
 bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp)
 {
+    if (!blk->bs) {
+        return false;
+    }
+
     return bdrv_op_is_blocked(blk->bs, op, errp);
 }
 
 void blk_op_unblock(BlockBackend *blk, BlockOpType op, Error *reason)
 {
-    bdrv_op_unblock(blk->bs, op, reason);
+    if (blk->bs) {
+        bdrv_op_unblock(blk->bs, op, reason);
+    }
 }
 
 void blk_op_block_all(BlockBackend *blk, Error *reason)
 {
-    bdrv_op_block_all(blk->bs, reason);
+    if (blk->bs) {
+        bdrv_op_block_all(blk->bs, reason);
+    }
 }
 
 void blk_op_unblock_all(BlockBackend *blk, Error *reason)
 {
-    bdrv_op_unblock_all(blk->bs, reason);
+    if (blk->bs) {
+        bdrv_op_unblock_all(blk->bs, reason);
+    }
 }
 
 AioContext *blk_get_aio_context(BlockBackend *blk)
@@ -1025,15 +1053,19 @@ static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
 
 void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 {
-    bdrv_set_aio_context(blk->bs, new_context);
+    if (blk->bs) {
+        bdrv_set_aio_context(blk->bs, new_context);
+    }
 }
 
 void blk_add_aio_context_notifier(BlockBackend *blk,
         void (*attached_aio_context)(AioContext *new_context, void *opaque),
         void (*detach_aio_context)(void *opaque), void *opaque)
 {
-    bdrv_add_aio_context_notifier(blk->bs, attached_aio_context,
-                                  detach_aio_context, opaque);
+    if (blk->bs) {
+        bdrv_add_aio_context_notifier(blk->bs, attached_aio_context,
+                                      detach_aio_context, opaque);
+    }
 }
 
 void blk_remove_aio_context_notifier(BlockBackend *blk,
@@ -1042,23 +1074,31 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                      void (*detach_aio_context)(void *),
                                      void *opaque)
 {
-    bdrv_remove_aio_context_notifier(blk->bs, attached_aio_context,
-                                     detach_aio_context, opaque);
+    if (blk->bs) {
+        bdrv_remove_aio_context_notifier(blk->bs, attached_aio_context,
+                                         detach_aio_context, opaque);
+    }
 }
 
 void blk_add_close_notifier(BlockBackend *blk, Notifier *notify)
 {
-    bdrv_add_close_notifier(blk->bs, notify);
+    if (blk->bs) {
+        bdrv_add_close_notifier(blk->bs, notify);
+    }
 }
 
 void blk_io_plug(BlockBackend *blk)
 {
-    bdrv_io_plug(blk->bs);
+    if (blk->bs) {
+        bdrv_io_plug(blk->bs);
+    }
 }
 
 void blk_io_unplug(BlockBackend *blk)
 {
-    bdrv_io_unplug(blk->bs);
+    if (blk->bs) {
+        bdrv_io_unplug(blk->bs);
+    }
 }
 
 BlockAcctStats *blk_get_stats(BlockBackend *blk)
