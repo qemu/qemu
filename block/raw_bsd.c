@@ -154,11 +154,6 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
     return bdrv_truncate(bs->file->bs, offset);
 }
 
-static bool raw_is_inserted(BlockDriverState *bs)
-{
-    return bdrv_is_inserted(bs->file->bs);
-}
-
 static int raw_media_changed(BlockDriverState *bs)
 {
     return bdrv_media_changed(bs->file->bs);
@@ -264,7 +259,6 @@ BlockDriver bdrv_raw = {
     .bdrv_refresh_limits  = &raw_refresh_limits,
     .bdrv_probe_blocksizes = &raw_probe_blocksizes,
     .bdrv_probe_geometry  = &raw_probe_geometry,
-    .bdrv_is_inserted     = &raw_is_inserted,
     .bdrv_media_changed   = &raw_media_changed,
     .bdrv_eject           = &raw_eject,
     .bdrv_lock_medium     = &raw_lock_medium,
