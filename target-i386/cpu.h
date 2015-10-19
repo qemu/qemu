@@ -155,6 +155,7 @@
 #define HF_SVMI_SHIFT       21 /* SVM intercepts are active */
 #define HF_OSFXSR_SHIFT     22 /* CR4.OSFXSR */
 #define HF_SMAP_SHIFT       23 /* CR4.SMAP */
+#define HF_IOBPT_SHIFT      24 /* an io breakpoint enabled */
 
 #define HF_CPL_MASK          (3 << HF_CPL_SHIFT)
 #define HF_SOFTMMU_MASK      (1 << HF_SOFTMMU_SHIFT)
@@ -178,6 +179,7 @@
 #define HF_SVMI_MASK         (1 << HF_SVMI_SHIFT)
 #define HF_OSFXSR_MASK       (1 << HF_OSFXSR_SHIFT)
 #define HF_SMAP_MASK         (1 << HF_SMAP_SHIFT)
+#define HF_IOBPT_MASK        (1 << HF_IOBPT_SHIFT)
 
 /* hflags2 */
 

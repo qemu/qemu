@@ -49,60 +49,72 @@ static inline int hw_breakpoint_len(unsigned long dr7, int index)
     return (len == 2) ? 8 : len + 1;
 }
 
-static void hw_breakpoint_insert(CPUX86State *env, int index)
+static int hw_breakpoint_insert(CPUX86State *env, int index)
 {
     CPUState *cs = CPU(x86_env_get_cpu(env));
-    int type = 0, err = 0;
+    target_ulong dr7 = env->dr[7];
+    target_ulong drN = env->dr[index];
+    int err = 0;
 
-    switch (hw_breakpoint_type(env->dr[7], index)) {
+    switch (hw_breakpoint_type(dr7, index)) {
     case DR7_TYPE_BP_INST:
-        if (hw_breakpoint_enabled(env->dr[7], index)) {
-            err = cpu_breakpoint_insert(cs, env->dr[index], BP_CPU,
+        if (hw_breakpoint_enabled(dr7, index)) {
+            err = cpu_breakpoint_insert(cs, drN, BP_CPU,
                                         &env->cpu_breakpoint[index]);
         }
         break;
-    case DR7_TYPE_DATA_WR:
-        type = BP_CPU | BP_MEM_WRITE;
-        break;
+
     case DR7_TYPE_IO_RW:
-        /* No support for I/O watchpoints yet */
+        /* Notice when we should enable calls to bpt_io.  */
+        return hw_breakpoint_enabled(env->dr[7], index)
+               ? HF_IOBPT_MASK : 0;
+
+    case DR7_TYPE_DATA_WR:
+        if (hw_breakpoint_enabled(dr7, index)) {
+            err = cpu_watchpoint_insert(cs, drN,
+                                        hw_breakpoint_len(dr7, index),
+                                        BP_CPU | BP_MEM_WRITE,
+                                        &env->cpu_watchpoint[index]);
+        }
         break;
+
     case DR7_TYPE_DATA_RW:
-        type = BP_CPU | BP_MEM_ACCESS;
+        if (hw_breakpoint_enabled(dr7, index)) {
+            err = cpu_watchpoint_insert(cs, drN,
+                                        hw_breakpoint_len(dr7, index),
+                                        BP_CPU | BP_MEM_ACCESS,
+                                        &env->cpu_watchpoint[index]);
+        }
         break;
     }
-
-    if (type != 0) {
-        err = cpu_watchpoint_insert(cs, env->dr[index],
-                                    hw_breakpoint_len(env->dr[7], index),
-                                    type, &env->cpu_watchpoint[index]);
-    }
-
     if (err) {
         env->cpu_breakpoint[index] = NULL;
     }
+    return 0;
 }
 
 static void hw_breakpoint_remove(CPUX86State *env, int index)
 {
-    CPUState *cs;
+    CPUState *cs = CPU(x86_env_get_cpu(env));
 
-    if (!env->cpu_breakpoint[index]) {
-        return;
-    }
-    cs = CPU(x86_env_get_cpu(env));
     switch (hw_breakpoint_type(env->dr[7], index)) {
     case DR7_TYPE_BP_INST:
-        if (hw_breakpoint_enabled(env->dr[7], index)) {
+        if (env->cpu_breakpoint[index]) {
             cpu_breakpoint_remove_by_ref(cs, env->cpu_breakpoint[index]);
+            env->cpu_breakpoint[index] = NULL;
         }
         break;
+
     case DR7_TYPE_DATA_WR:
     case DR7_TYPE_DATA_RW:
-        cpu_watchpoint_remove_by_ref(cs, env->cpu_watchpoint[index]);
+        if (env->cpu_breakpoint[index]) {
+            cpu_watchpoint_remove_by_ref(cs, env->cpu_watchpoint[index]);
+            env->cpu_breakpoint[index] = NULL;
+        }
         break;
+
     case DR7_TYPE_IO_RW:
-        /* No support for I/O watchpoints yet */
+        /* HF_IOBPT_MASK cleared elsewhere.  */
         break;
     }
 }
@@ -110,6 +122,7 @@ static void hw_breakpoint_remove(CPUX86State *env, int index)
 void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
 {
     target_ulong old_dr7 = env->dr[7];
+    int iobpt = 0;
     int i;
 
     new_dr7 |= DR7_FIXED_1;
@@ -130,7 +143,10 @@ void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
         env->dr[7] = new_dr7;
         for (i = 0; i < DR7_MAX_BP; i++) {
             if (mod & (2 << i * 2) && hw_breakpoint_enabled(new_dr7, i)) {
-                hw_breakpoint_insert(env, i);
+                iobpt |= hw_breakpoint_insert(env, i);
+            } else if (hw_breakpoint_type(new_dr7, i) == DR7_TYPE_IO_RW
+                       && hw_breakpoint_enabled(new_dr7, i)) {
+                iobpt |= HF_IOBPT_MASK;
             }
         }
     } else {
@@ -139,9 +155,11 @@ void cpu_x86_update_dr7(CPUX86State *env, uint32_t new_dr7)
         }
         env->dr[7] = new_dr7;
         for (i = 0; i < DR7_MAX_BP; i++) {
-            hw_breakpoint_insert(env, i);
+            iobpt |= hw_breakpoint_insert(env, i);
         }
     }
+
+    env->hflags = (env->hflags & ~HF_IOBPT_MASK) | iobpt;
 }
 
 static bool check_hw_breakpoints(CPUX86State *env, bool force_dr6_update)
@@ -240,6 +258,33 @@ void helper_movl_drN_T0(CPUX86State *env, int reg, target_ulong t0)
         cpu_x86_update_dr7(env, t0);
     } else {
         env->dr[reg] = t0;
+    }
+#endif
+}
+
+/* Check if Port I/O is trapped by a breakpoint.  */
+void helper_bpt_io(CPUX86State *env, uint32_t port,
+                   uint32_t size, target_ulong next_eip)
+{
+#ifndef CONFIG_USER_ONLY
+    target_ulong dr7 = env->dr[7];
+    int i, hit = 0;
+
+    for (i = 0; i < DR7_MAX_BP; ++i) {
+        if (hw_breakpoint_type(dr7, i) == DR7_TYPE_IO_RW
+            && hw_breakpoint_enabled(dr7, i)) {
+            int bpt_len = hw_breakpoint_len(dr7, i);
+            if (port + size - 1 >= env->dr[i]
+                && port <= env->dr[i] + bpt_len - 1) {
+                hit |= 1 << i;
+            }
+        }
+    }
+
+    if (hit) {
+        env->dr[6] = (env->dr[6] & ~0xf) | hit;
+        env->eip = next_eip;
+        raise_exception(env, EXCP01_DB);
     }
 #endif
 }
