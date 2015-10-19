@@ -3143,14 +3143,20 @@ void bdrv_invalidate_cache_all(Error **errp)
 bool bdrv_is_inserted(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
+    BdrvChild *child;
 
     if (!drv) {
         return false;
     }
-    if (!drv->bdrv_is_inserted) {
-        return true;
+    if (drv->bdrv_is_inserted) {
+        return drv->bdrv_is_inserted(bs);
     }
-    return drv->bdrv_is_inserted(bs);
+    QLIST_FOREACH(child, &bs->children, next) {
+        if (!bdrv_is_inserted(child->bs)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /**
