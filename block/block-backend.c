@@ -529,7 +529,7 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
         return -EIO;
     }
 
-    if (!blk_is_inserted(blk)) {
+    if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
@@ -668,6 +668,10 @@ int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count)
 
 int64_t blk_getlength(BlockBackend *blk)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_getlength(blk->bs);
 }
 
@@ -678,6 +682,10 @@ void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr)
 
 int64_t blk_nb_sectors(BlockBackend *blk)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_nb_sectors(blk->bs);
 }
 
@@ -708,6 +716,10 @@ BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
 BlockAIOCB *blk_aio_flush(BlockBackend *blk,
                           BlockCompletionFunc *cb, void *opaque)
 {
+    if (!blk_is_available(blk)) {
+        return abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
+    }
+
     return bdrv_aio_flush(blk->bs, cb, opaque);
 }
 
@@ -749,12 +761,20 @@ int blk_aio_multiwrite(BlockBackend *blk, BlockRequest *reqs, int num_reqs)
 
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_ioctl(blk->bs, req, buf);
 }
 
 BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
                           BlockCompletionFunc *cb, void *opaque)
 {
+    if (!blk_is_available(blk)) {
+        return abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
+    }
+
     return bdrv_aio_ioctl(blk->bs, req, buf, cb, opaque);
 }
 
@@ -770,11 +790,19 @@ int blk_co_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
 
 int blk_co_flush(BlockBackend *blk)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_co_flush(blk->bs);
 }
 
 int blk_flush(BlockBackend *blk)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_flush(blk->bs);
 }
 
@@ -908,6 +936,11 @@ void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 
 void blk_invalidate_cache(BlockBackend *blk, Error **errp)
 {
+    if (!blk->bs) {
+        error_setg(errp, "Device '%s' has no medium", blk->name);
+        return;
+    }
+
     bdrv_invalidate_cache(blk->bs, errp);
 }
 
@@ -1063,6 +1096,10 @@ int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
 
 int blk_truncate(BlockBackend *blk, int64_t offset)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_truncate(blk->bs, offset);
 }
 
@@ -1079,21 +1116,37 @@ int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                      int64_t pos, int size)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_save_vmstate(blk->bs, buf, pos, size);
 }
 
 int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_load_vmstate(blk->bs, buf, pos, size);
 }
 
 int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_probe_blocksizes(blk->bs, bsz);
 }
 
 int blk_probe_geometry(BlockBackend *blk, HDGeometry *geo)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_probe_geometry(blk->bs, geo);
 }
 
