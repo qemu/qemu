@@ -1028,6 +1028,12 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
     s->crypt_method_header = header.crypt_method;
     if (s->crypt_method_header) {
+        if (flags & BDRV_O_RDWR) {
+            error_setg(errp,
+                       "Writing of encrypted qcow2 images is no longer supported");
+            ret = -ENOSYS;
+            goto fail;
+        }
         bs->encrypted = 1;
     }
 

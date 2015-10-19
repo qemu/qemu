@@ -55,19 +55,19 @@ TEST_IMG="driver=qcow2,file=$TEST_IMG,keyid=sec0"
 
 echo
 echo "== reading whole image =="
-$QEMU_IO --object $SECRET1 -c "read 0 $size" --source "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET1 -c "read 0 $size" --source "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== rewriting whole image =="
-$QEMU_IO --object $SECRET1  -c "write -P 0xa 0 $size" --source "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET1  -c "write -P 0xa 0 $size" --source "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== verify pattern =="
-$QEMU_IO --object $SECRET1  -c "read -P 0xa 0 $size" --source "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET1  -c "read -P 0xa 0 $size" --source "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 
 echo
 echo "== verify pattern failure with wrong password =="
-$QEMU_IO --object $SECRET2 -c "read -P 0xa 0 $size" --source "$TEST_IMG" | _filter_qemu_io | _filter_testdir
+$QEMU_IO --object $SECRET2 -c "read -P 0xa 0 $size" --source "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 
 
 # success, all done
