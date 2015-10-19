@@ -301,9 +301,9 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
         info->tray_open = blk_dev_is_tray_open(blk);
     }
 
-    if (bdrv_iostatus_is_enabled(bs)) {
+    if (blk_iostatus_is_enabled(blk)) {
         info->has_io_status = true;
-        info->io_status = bs->iostatus;
+        info->io_status = blk_iostatus(blk);
     }
 
     if (!QLIST_EMPTY(&bs->dirty_bitmaps)) {

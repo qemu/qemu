@@ -414,12 +414,6 @@ struct BlockDriverState {
     /* do we need to tell the quest if we have a volatile write cache? */
     int enable_write_cache;
 
-    /* NOTE: the following infos are only hints for real hardware
-       drivers. They are not used by the block driver */
-    BlockdevOnError on_read_error, on_write_error;
-    bool iostatus_enabled;
-    BlockDeviceIoStatus iostatus;
-
     /* the following member gives a name to every node on the bs graph. */
     char node_name[32];
     /* element of the list of named nodes building the graph */

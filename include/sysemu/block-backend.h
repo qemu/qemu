@@ -76,6 +76,11 @@ BlockDriverState *blk_bs(BlockBackend *blk);
 void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk);
 
 void blk_iostatus_enable(BlockBackend *blk);
+bool blk_iostatus_is_enabled(const BlockBackend *blk);
+BlockDeviceIoStatus blk_iostatus(const BlockBackend *blk);
+void blk_iostatus_disable(BlockBackend *blk);
+void blk_iostatus_reset(BlockBackend *blk);
+void blk_iostatus_set_err(BlockBackend *blk, int error);
 int blk_attach_dev(BlockBackend *blk, void *dev);
 void blk_attach_dev_nofail(BlockBackend *blk, void *dev);
 void blk_detach_dev(BlockBackend *blk, void *dev);
@@ -120,6 +125,8 @@ int blk_flush(BlockBackend *blk);
 int blk_flush_all(void);
 void blk_drain(BlockBackend *blk);
 void blk_drain_all(void);
+void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
+                      BlockdevOnError on_write_error);
 BlockdevOnError blk_get_on_error(BlockBackend *blk, bool is_read);
 BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
                                       int error);

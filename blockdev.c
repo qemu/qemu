@@ -549,7 +549,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     bs->detect_zeroes = detect_zeroes;
 
-    bdrv_set_on_error(bs, on_read_error, on_write_error);
+    blk_set_on_error(blk, on_read_error, on_write_error);
 
     /* disk I/O throttling */
     if (throttle_enabled(&cfg)) {
@@ -2168,8 +2168,8 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
     if (blk_get_attached_dev(blk)) {
         blk_hide_on_behalf_of_hmp_drive_del(blk);
         /* Further I/O must not pause the guest */
-        bdrv_set_on_error(bs, BLOCKDEV_ON_ERROR_REPORT,
-                          BLOCKDEV_ON_ERROR_REPORT);
+        blk_set_on_error(blk, BLOCKDEV_ON_ERROR_REPORT,
+                         BLOCKDEV_ON_ERROR_REPORT);
     } else {
         blk_unref(blk);
     }

@@ -12,7 +12,9 @@
 
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
+#include "block/blockjob.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
 #include "qapi-event.h"
 
 /* Number of coroutines to reserve per attached device model */
@@ -37,6 +39,10 @@ struct BlockBackend {
 
     /* I/O stats (display with "info blockstats"). */
     BlockAcctStats stats;
+
+    BlockdevOnError on_read_error, on_write_error;
+    bool iostatus_enabled;
+    BlockDeviceIoStatus iostatus;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -330,7 +336,7 @@ int blk_attach_dev(BlockBackend *blk, void *dev)
     }
     blk_ref(blk);
     blk->dev = dev;
-    bdrv_iostatus_reset(blk->bs);
+    blk_iostatus_reset(blk);
     return 0;
 }
 
@@ -462,7 +468,47 @@ void blk_dev_resize_cb(BlockBackend *blk)
 
 void blk_iostatus_enable(BlockBackend *blk)
 {
-    bdrv_iostatus_enable(blk->bs);
+    blk->iostatus_enabled = true;
+    blk->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+}
+
+/* The I/O status is only enabled if the drive explicitly
+ * enables it _and_ the VM is configured to stop on errors */
+bool blk_iostatus_is_enabled(const BlockBackend *blk)
+{
+    return (blk->iostatus_enabled &&
+           (blk->on_write_error == BLOCKDEV_ON_ERROR_ENOSPC ||
+            blk->on_write_error == BLOCKDEV_ON_ERROR_STOP   ||
+            blk->on_read_error == BLOCKDEV_ON_ERROR_STOP));
+}
+
+BlockDeviceIoStatus blk_iostatus(const BlockBackend *blk)
+{
+    return blk->iostatus;
+}
+
+void blk_iostatus_disable(BlockBackend *blk)
+{
+    blk->iostatus_enabled = false;
+}
+
+void blk_iostatus_reset(BlockBackend *blk)
+{
+    if (blk_iostatus_is_enabled(blk)) {
+        blk->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+        if (blk->bs && blk->bs->job) {
+            block_job_iostatus_reset(blk->bs->job);
+        }
+    }
+}
+
+void blk_iostatus_set_err(BlockBackend *blk, int error)
+{
+    assert(blk_iostatus_is_enabled(blk));
+    if (blk->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
+        blk->iostatus = error == ENOSPC ? BLOCK_DEVICE_IO_STATUS_NOSPACE :
+                                          BLOCK_DEVICE_IO_STATUS_FAILED;
+    }
 }
 
 static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
@@ -738,21 +784,81 @@ void blk_drain_all(void)
     bdrv_drain_all();
 }
 
+void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
+                      BlockdevOnError on_write_error)
+{
+    blk->on_read_error = on_read_error;
+    blk->on_write_error = on_write_error;
+}
+
 BlockdevOnError blk_get_on_error(BlockBackend *blk, bool is_read)
 {
-    return bdrv_get_on_error(blk->bs, is_read);
+    return is_read ? blk->on_read_error : blk->on_write_error;
 }
 
 BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
                                       int error)
 {
-    return bdrv_get_error_action(blk->bs, is_read, error);
+    BlockdevOnError on_err = blk_get_on_error(blk, is_read);
+
+    switch (on_err) {
+    case BLOCKDEV_ON_ERROR_ENOSPC:
+        return (error == ENOSPC) ?
+               BLOCK_ERROR_ACTION_STOP : BLOCK_ERROR_ACTION_REPORT;
+    case BLOCKDEV_ON_ERROR_STOP:
+        return BLOCK_ERROR_ACTION_STOP;
+    case BLOCKDEV_ON_ERROR_REPORT:
+        return BLOCK_ERROR_ACTION_REPORT;
+    case BLOCKDEV_ON_ERROR_IGNORE:
+        return BLOCK_ERROR_ACTION_IGNORE;
+    default:
+        abort();
+    }
 }
 
+static void send_qmp_error_event(BlockBackend *blk,
+                                 BlockErrorAction action,
+                                 bool is_read, int error)
+{
+    IoOperationType optype;
+
+    optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
+    qapi_event_send_block_io_error(blk_name(blk), optype, action,
+                                   blk_iostatus_is_enabled(blk),
+                                   error == ENOSPC, strerror(error),
+                                   &error_abort);
+}
+
+/* This is done by device models because, while the block layer knows
+ * about the error, it does not know whether an operation comes from
+ * the device or the block layer (from a job, for example).
+ */
 void blk_error_action(BlockBackend *blk, BlockErrorAction action,
                       bool is_read, int error)
 {
-    bdrv_error_action(blk->bs, action, is_read, error);
+    assert(error >= 0);
+
+    if (action == BLOCK_ERROR_ACTION_STOP) {
+        /* First set the iostatus, so that "info block" returns an iostatus
+         * that matches the events raised so far (an additional error iostatus
+         * is fine, but not a lost one).
+         */
+        blk_iostatus_set_err(blk, error);
+
+        /* Then raise the request to stop the VM and the event.
+         * qemu_system_vmstop_request_prepare has two effects.  First,
+         * it ensures that the STOP event always comes after the
+         * BLOCK_IO_ERROR event.  Second, it ensures that even if management
+         * can observe the STOP event and do a "cont" before the STOP
+         * event is issued, the VM will not stop.  In this case, vm_start()
+         * also ensures that the STOP/RESUME pair of events is emitted.
+         */
+        qemu_system_vmstop_request_prepare();
+        send_qmp_error_event(blk, action, is_read, error);
+        qemu_system_vmstop_request(RUN_STATE_IO_ERROR);
+    } else {
+        send_qmp_error_event(blk, action, is_read, error);
+    }
 }
 
 int blk_is_read_only(BlockBackend *blk)
