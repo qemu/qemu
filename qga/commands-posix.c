@@ -2213,8 +2213,14 @@ GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
 
     dp = opendir("/sys/devices/system/memory/");
     if (!dp) {
-        error_setg_errno(errp, errno, "Can't open directory"
-                         "\"/sys/devices/system/memory/\"\n");
+        /* it's ok if this happens to be a system that doesn't expose
+         * memory blocks via sysfs, but otherwise we should report
+         * an error
+         */
+        if (errno != ENOENT) {
+            error_setg_errno(errp, errno, "Can't open directory"
+                             "\"/sys/devices/system/memory/\"\n");
+        }
         return NULL;
     }
 
