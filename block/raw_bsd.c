@@ -154,7 +154,7 @@ static int raw_truncate(BlockDriverState *bs, int64_t offset)
     return bdrv_truncate(bs->file->bs, offset);
 }
 
-static int raw_is_inserted(BlockDriverState *bs)
+static bool raw_is_inserted(BlockDriverState *bs)
 {
     return bdrv_is_inserted(bs->file->bs);
 }

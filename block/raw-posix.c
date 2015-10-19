@@ -2398,15 +2398,13 @@ out:
     return prio;
 }
 
-static int cdrom_is_inserted(BlockDriverState *bs)
+static bool cdrom_is_inserted(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
 
     ret = ioctl(s->fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
-    if (ret == CDS_DISC_OK)
-        return 1;
-    return 0;
+    return ret == CDS_DISC_OK;
 }
 
 static void cdrom_eject(BlockDriverState *bs, bool eject_flag)
@@ -2532,7 +2530,7 @@ static int cdrom_reopen(BlockDriverState *bs)
     return 0;
 }
 
-static int cdrom_is_inserted(BlockDriverState *bs)
+static bool cdrom_is_inserted(BlockDriverState *bs)
 {
     return raw_getlength(bs) > 0;
 }

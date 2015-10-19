@@ -3140,14 +3140,16 @@ void bdrv_invalidate_cache_all(Error **errp)
 /**
  * Return TRUE if the media is present
  */
-int bdrv_is_inserted(BlockDriverState *bs)
+bool bdrv_is_inserted(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
 
-    if (!drv)
-        return 0;
-    if (!drv->bdrv_is_inserted)
-        return 1;
+    if (!drv) {
+        return false;
+    }
+    if (!drv->bdrv_is_inserted) {
+        return true;
+    }
     return drv->bdrv_is_inserted(bs);
 }
 

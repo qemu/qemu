@@ -769,7 +769,7 @@ void blk_invalidate_cache(BlockBackend *blk, Error **errp)
     bdrv_invalidate_cache(blk->bs, errp);
 }
 
-int blk_is_inserted(BlockBackend *blk)
+bool blk_is_inserted(BlockBackend *blk)
 {
     return bdrv_is_inserted(blk->bs);
 }
