@@ -512,16 +512,40 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         goto early_err;
     }
 
+    if (snapshot) {
+        /* always use cache=unsafe with snapshot */
+        bdrv_flags &= ~BDRV_O_CACHE_MASK;
+        bdrv_flags |= (BDRV_O_SNAPSHOT|BDRV_O_CACHE_WB|BDRV_O_NO_FLUSH);
+    }
+
+    if (copy_on_read) {
+        bdrv_flags |= BDRV_O_COPY_ON_READ;
+    }
+
+    bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
+
     /* init */
     if ((!file || !*file) && !has_driver_specific_opts) {
-        blk = blk_new_with_bs(qemu_opts_id(opts), errp);
+        BlockBackendRootState *blk_rs;
+
+        blk = blk_new(qemu_opts_id(opts), errp);
         if (!blk) {
             goto early_err;
         }
 
-        bs = blk_bs(blk);
-        bs->open_flags = snapshot ? BDRV_O_SNAPSHOT : 0;
-        bs->read_only = ro;
+        blk_rs = blk_get_root_state(blk);
+        blk_rs->open_flags    = bdrv_flags;
+        blk_rs->read_only     = ro;
+        blk_rs->detect_zeroes = detect_zeroes;
+
+        if (throttle_enabled(&cfg)) {
+            if (!throttling_group) {
+                throttling_group = blk_name(blk);
+            }
+            blk_rs->throttle_group = g_strdup(throttling_group);
+            blk_rs->throttle_state = throttle_group_incref(throttling_group);
+            blk_rs->throttle_state->cfg = cfg;
+        }
 
         QDECREF(bs_opts);
     } else {
@@ -529,42 +553,30 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             file = NULL;
         }
 
-        if (snapshot) {
-            /* always use cache=unsafe with snapshot */
-            bdrv_flags &= ~BDRV_O_CACHE_MASK;
-            bdrv_flags |= (BDRV_O_SNAPSHOT|BDRV_O_CACHE_WB|BDRV_O_NO_FLUSH);
-        }
-
-        if (copy_on_read) {
-            bdrv_flags |= BDRV_O_COPY_ON_READ;
-        }
-
-        bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
-
         blk = blk_new_open(qemu_opts_id(opts), file, NULL, bs_opts, bdrv_flags,
                            errp);
         if (!blk) {
             goto err_no_bs_opts;
         }
         bs = blk_bs(blk);
-    }
 
-    bs->detect_zeroes = detect_zeroes;
+        bs->detect_zeroes = detect_zeroes;
+
+        /* disk I/O throttling */
+        if (throttle_enabled(&cfg)) {
+            if (!throttling_group) {
+                throttling_group = blk_name(blk);
+            }
+            bdrv_io_limits_enable(bs, throttling_group);
+            bdrv_set_io_limits(bs, &cfg);
+        }
+
+        if (bdrv_key_required(bs)) {
+            autostart = 0;
+        }
+    }
 
     blk_set_on_error(blk, on_read_error, on_write_error);
-
-    /* disk I/O throttling */
-    if (throttle_enabled(&cfg)) {
-        if (!throttling_group) {
-            throttling_group = blk_name(blk);
-        }
-        bdrv_io_limits_enable(bs, throttling_group);
-        bdrv_set_io_limits(bs, &cfg);
-    }
-
-    if (bdrv_key_required(bs)) {
-        autostart = 0;
-    }
 
 err_no_bs_opts:
     qemu_opts_del(opts);
