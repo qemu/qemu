@@ -1227,6 +1227,12 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
             continue;
         }
 
+        /* only query information on queue 0 since the info is per nic,
+         * not per queue
+         */
+        if (nc->queue_index != 0)
+            continue;
+
         if (nc->info->query_rx_filter) {
             info = nc->info->query_rx_filter(nc);
             entry = g_malloc0(sizeof(*entry));
