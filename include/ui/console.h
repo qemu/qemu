@@ -321,13 +321,23 @@ static inline pixman_format_code_t surface_format(DisplaySurface *s)
 #ifdef CONFIG_CURSES
 #include <curses.h>
 typedef chtype console_ch_t;
+extern chtype vga_to_curses[];
 #else
 typedef unsigned long console_ch_t;
 #endif
 static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 {
-    if (!(ch & 0xff))
+    uint8_t c = ch;
+#ifdef CONFIG_CURSES
+    if (vga_to_curses[c]) {
+        ch &= ~(console_ch_t)0xff;
+        ch |= vga_to_curses[c];
+    }
+#else
+    if (c == '\0') {
         ch |= ' ';
+    }
+#endif
     *dest = ch;
 }
 
