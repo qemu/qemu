@@ -77,8 +77,6 @@ struct KVMState
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
-    int pit_state2;
-    int xsave, xcrs;
     int many_ioeventfds;
     int intx_set_mask;
     /* The man page (and posix) say ioctl numbers are signed int, but
@@ -93,7 +91,6 @@ struct KVMState
     uint32_t *used_gsi_bitmap;
     unsigned int gsi_count;
     QTAILQ_HEAD(msi_hashtab, KVMMSIRoute) msi_hashtab[KVM_MSI_HASHTAB_SIZE];
-    bool direct_msi;
 #endif
     KVMMemoryListener memory_listener;
 };
@@ -111,6 +108,7 @@ bool kvm_gsi_direct_mapping;
 bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
 bool kvm_vm_attributes_allowed;
+bool kvm_direct_msi_allowed;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -642,15 +640,15 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     /* kvm works in page size chunks, but the function may be called
        with sub-page size and unaligned start address. Pad the start
        address to next and truncate size to previous page boundary. */
-    delta = (TARGET_PAGE_SIZE - (start_addr & ~TARGET_PAGE_MASK));
-    delta &= ~TARGET_PAGE_MASK;
+    delta = qemu_real_host_page_size - (start_addr & ~qemu_real_host_page_mask);
+    delta &= ~qemu_real_host_page_mask;
     if (delta > size) {
         return;
     }
     start_addr += delta;
     size -= delta;
-    size &= TARGET_PAGE_MASK;
-    if (!size || (start_addr & ~TARGET_PAGE_MASK)) {
+    size &= qemu_real_host_page_mask;
+    if (!size || (start_addr & ~qemu_real_host_page_mask)) {
         return;
     }
 
@@ -979,7 +977,7 @@ void kvm_init_irq_routing(KVMState *s)
     s->irq_routes = g_malloc0(sizeof(*s->irq_routes));
     s->nr_allocated_irq_routes = 0;
 
-    if (!s->direct_msi) {
+    if (!kvm_direct_msi_allowed) {
         for (i = 0; i < KVM_MSI_HASHTAB_SIZE; i++) {
             QTAILQ_INIT(&s->msi_hashtab[i]);
         }
@@ -1113,7 +1111,7 @@ static int kvm_irqchip_get_virq(KVMState *s)
      * number can succeed even though a new route entry cannot be added.
      * When this happens, flush dynamic MSI entries to free IRQ route entries.
      */
-    if (!s->direct_msi && s->irq_routes->nr == s->gsi_count) {
+    if (!kvm_direct_msi_allowed && s->irq_routes->nr == s->gsi_count) {
         kvm_flush_dynamic_msi_routes(s);
     }
 
@@ -1150,7 +1148,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
     struct kvm_msi msi;
     KVMMSIRoute *route;
 
-    if (s->direct_msi) {
+    if (kvm_direct_msi_allowed) {
         msi.address_lo = (uint32_t)msg.address;
         msi.address_hi = msg.address >> 32;
         msi.data = le32_to_cpu(msg.data);
@@ -1189,7 +1187,7 @@ int kvm_irqchip_send_msi(KVMState *s, MSIMessage msg)
     return kvm_set_irq(s, route->kroute.gsi, 1);
 }
 
-int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
+int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg, PCIDevice *dev)
 {
     struct kvm_irq_routing_entry kroute = {};
     int virq;
@@ -1213,7 +1211,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
     kroute.u.msi.data = le32_to_cpu(msg.data);
-    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data)) {
+    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data, dev)) {
         kvm_irqchip_release_virq(s, virq);
         return -EINVAL;
     }
@@ -1224,7 +1222,8 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
     return virq;
 }
 
-int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
+int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
+                                 PCIDevice *dev)
 {
     struct kvm_irq_routing_entry kroute = {};
 
@@ -1242,7 +1241,7 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg)
     kroute.u.msi.address_lo = (uint32_t)msg.address;
     kroute.u.msi.address_hi = msg.address >> 32;
     kroute.u.msi.data = le32_to_cpu(msg.data);
-    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data)) {
+    if (kvm_arch_fixup_msi_route(&kroute, msg.address, msg.data, dev)) {
         return -EINVAL;
     }
 
@@ -1585,20 +1584,8 @@ static int kvm_init(MachineState *ms)
     s->debugregs = kvm_check_extension(s, KVM_CAP_DEBUGREGS);
 #endif
 
-#ifdef KVM_CAP_XSAVE
-    s->xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
-#endif
-
-#ifdef KVM_CAP_XCRS
-    s->xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
-#endif
-
-#ifdef KVM_CAP_PIT_STATE2
-    s->pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
-#endif
-
 #ifdef KVM_CAP_IRQ_ROUTING
-    s->direct_msi = (kvm_check_extension(s, KVM_CAP_SIGNAL_MSI) > 0);
+    kvm_direct_msi_allowed = (kvm_check_extension(s, KVM_CAP_SIGNAL_MSI) > 0);
 #endif
 
     s->intx_set_mask = kvm_check_extension(s, KVM_CAP_PCI_2_3);
@@ -2060,21 +2047,6 @@ int kvm_has_robust_singlestep(void)
 int kvm_has_debugregs(void)
 {
     return kvm_state->debugregs;
-}
-
-int kvm_has_xsave(void)
-{
-    return kvm_state->xsave;
-}
-
-int kvm_has_xcrs(void)
-{
-    return kvm_state->xcrs;
-}
-
-int kvm_has_pit_state2(void)
-{
-    return kvm_state->pit_state2;
 }
 
 int kvm_has_many_ioeventfds(void)

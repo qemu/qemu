@@ -35,8 +35,8 @@ typedef struct MemTxAttrs {
     unsigned int secure:1;
     /* Memory access is usermode (unprivileged) */
     unsigned int user:1;
-    /* Stream ID (for MSI for example) */
-    unsigned int stream_id:16;
+    /* Requester ID (for MSI for example) */
+    unsigned int requester_id:16;
 } MemTxAttrs;
 
 /* Bus masters which don't specify any attributes will get this,

@@ -255,6 +255,12 @@ L: xen-devel@lists.xensource.com
 S: Supported
 F: xen-*
 F: */xen*
+F: hw/char/xen_console.c
+F: hw/display/xenfb.c
+F: hw/net/xen_nic.c
+F: hw/xen/
+F: hw/xenpv/
+F: include/hw/xen/
 
 Hosts:
 ------
@@ -285,6 +291,36 @@ S: Maintained
 F: hw/*/allwinner*
 F: include/hw/*/allwinner*
 F: hw/arm/cubieboard.c
+
+ARM PrimeCell
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Maintained
+F: hw/char/pl011.c
+F: hw/display/pl110*
+F: hw/dma/pl080.c
+F: hw/dma/pl330.c
+F: hw/gpio/pl061.c
+F: hw/input/pl050.c
+F: hw/intc/pl190.c
+F: hw/sd/pl181.c
+F: hw/timer/pl031.c
+F: include/hw/arm/primecell.h
+
+ARM cores
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Maintained
+F: hw/intc/arm*
+F: hw/intc/gic_internal.h
+F: hw/misc/a9scu.c
+F: hw/misc/arm11scu.c
+F: hw/timer/a9gtimer*
+F: hw/timer/arm_*
+F: include/hw/arm/arm.h
+F: include/hw/intc/arm*
+F: include/hw/misc/a9scu.h
+F: include/hw/misc/arm11scu.h
+F: include/hw/timer/a9gtimer.h
+F: include/hw/timer/arm_mptimer.h
 
 Exynos
 M: Evgeny Voevodin <e.voevodin@samsung.com>
@@ -322,11 +358,6 @@ M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/integratorcp.c
 
-Mainstone
-L: qemu-devel@nongnu.org
-S: Orphan
-F: hw/arm/mainstone.c
-
 Musicpal
 M: Jan Kiszka <jan.kiszka@web.de>
 S: Maintained
@@ -346,11 +377,17 @@ Real View
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/arm/realview*
+F: hw/intc/realview_gic.c
+F: include/hw/intc/realview_gic.h
 
-Spitz
+PXA2XX
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
+F: hw/arm/mainstone.c
 F: hw/arm/spitz.c
+F: hw/arm/tosa.c
+F: hw/arm/z2.c
+F: hw/*/pxa2xx*
 
 Stellaris
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -726,6 +763,8 @@ M: Scott Wood <scottwood@freescale.com>
 L: qemu-ppc@nongnu.org
 S: Supported
 F: hw/ppc/e500*
+F: hw/pci-host/ppce500.c
+F: hw/net/fsl_etsec/
 
 Character devices
 M: Paolo Bonzini <pbonzini@redhat.com>

@@ -3140,12 +3140,16 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("hv-vapic", X86CPU, hyperv_vapic, false),
     DEFINE_PROP_BOOL("hv-time", X86CPU, hyperv_time, false),
     DEFINE_PROP_BOOL("hv-crash", X86CPU, hyperv_crash, false),
+    DEFINE_PROP_BOOL("hv-reset", X86CPU, hyperv_reset, false),
+    DEFINE_PROP_BOOL("hv-vpindex", X86CPU, hyperv_vpindex, false),
+    DEFINE_PROP_BOOL("hv-runtime", X86CPU, hyperv_runtime, false),
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, false),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),
     DEFINE_PROP_UINT32("level", X86CPU, env.cpuid_level, 0),
     DEFINE_PROP_UINT32("xlevel", X86CPU, env.cpuid_xlevel, 0),
     DEFINE_PROP_UINT32("xlevel2", X86CPU, env.cpuid_xlevel2, 0),
+    DEFINE_PROP_STRING("hv-vendor-id", X86CPU, hyperv_vendor_id),
     DEFINE_PROP_END_OF_LIST()
 };
 

@@ -28,6 +28,7 @@
 #include "exec/gdbstub.h"
 #include "qemu/host-utils.h"
 #include "qemu/config-file.h"
+#include "qemu/error-report.h"
 #include "hw/i386/pc.h"
 #include "hw/i386/apic.h"
 #include "hw/i386/apic_internal.h"
@@ -82,11 +83,23 @@ static bool has_msr_hv_hypercall;
 static bool has_msr_hv_vapic;
 static bool has_msr_hv_tsc;
 static bool has_msr_hv_crash;
+static bool has_msr_hv_reset;
+static bool has_msr_hv_vpindex;
+static bool has_msr_hv_runtime;
 static bool has_msr_mtrr;
 static bool has_msr_xss;
 
 static bool has_msr_architectural_pmu;
 static uint32_t num_architectural_pmu_counters;
+
+static int has_xsave;
+static int has_xcrs;
+static int has_pit_state2;
+
+int kvm_has_pit_state2(void)
+{
+    return has_pit_state2;
+}
 
 bool kvm_has_smm(void)
 {
@@ -460,7 +473,10 @@ static bool hyperv_enabled(X86CPU *cpu)
            (hyperv_hypercall_available(cpu) ||
             cpu->hyperv_time  ||
             cpu->hyperv_relaxed_timing ||
-            cpu->hyperv_crash);
+            cpu->hyperv_crash ||
+            cpu->hyperv_reset ||
+            cpu->hyperv_vpindex ||
+            cpu->hyperv_runtime);
 }
 
 static Error *invtsc_mig_blocker;
@@ -490,7 +506,18 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (hyperv_enabled(cpu)) {
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS;
-        memcpy(signature, "Microsoft Hv", 12);
+        if (!cpu->hyperv_vendor_id) {
+            memcpy(signature, "Microsoft Hv", 12);
+        } else {
+            size_t len = strlen(cpu->hyperv_vendor_id);
+
+            if (len > 12) {
+                error_report("hv-vendor-id truncated to 12 characters");
+                len = 12;
+            }
+            memset(signature, 0, 12);
+            memcpy(signature, cpu->hyperv_vendor_id, len);
+        }
         c->eax = HYPERV_CPUID_MIN;
         c->ebx = signature[0];
         c->ecx = signature[1];
@@ -529,7 +556,15 @@ int kvm_arch_init_vcpu(CPUState *cs)
         if (cpu->hyperv_crash && has_msr_hv_crash) {
             c->edx |= HV_X64_GUEST_CRASH_MSR_AVAILABLE;
         }
-
+        if (cpu->hyperv_reset && has_msr_hv_reset) {
+            c->eax |= HV_X64_MSR_RESET_AVAILABLE;
+        }
+        if (cpu->hyperv_vpindex && has_msr_hv_vpindex) {
+            c->eax |= HV_X64_MSR_VP_INDEX_AVAILABLE;
+        }
+        if (cpu->hyperv_runtime && has_msr_hv_runtime) {
+            c->eax |= HV_X64_MSR_VP_RUNTIME_AVAILABLE;
+        }
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
         if (cpu->hyperv_relaxed_timing) {
@@ -752,7 +787,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
     }
 
-    if (kvm_has_xsave()) {
+    if (has_xsave) {
         env->kvm_xsave_buf = qemu_memalign(4096, sizeof(struct kvm_xsave));
     }
 
@@ -858,6 +893,18 @@ static int kvm_get_supported_msrs(KVMState *s)
                     has_msr_hv_crash = true;
                     continue;
                 }
+                if (kvm_msr_list->indices[i] == HV_X64_MSR_RESET) {
+                    has_msr_hv_reset = true;
+                    continue;
+                }
+                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_INDEX) {
+                    has_msr_hv_vpindex = true;
+                    continue;
+                }
+                if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_RUNTIME) {
+                    has_msr_hv_runtime = true;
+                    continue;
+                }
             }
         }
 
@@ -907,6 +954,18 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     uint64_t shadow_mem;
     int ret;
     struct utsname utsname;
+
+#ifdef KVM_CAP_XSAVE
+    has_xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
+#endif
+
+#ifdef KVM_CAP_XCRS
+    has_xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
+#endif
+
+#ifdef KVM_CAP_PIT_STATE2
+    has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
+#endif
 
     ret = kvm_get_supported_msrs(s);
     if (ret < 0) {
@@ -1116,7 +1175,7 @@ static int kvm_put_xsave(X86CPU *cpu)
     uint8_t *xmm, *ymmh, *zmmh;
     int i, r;
 
-    if (!kvm_has_xsave()) {
+    if (!has_xsave) {
         return kvm_put_fpu(cpu);
     }
 
@@ -1170,7 +1229,7 @@ static int kvm_put_xcrs(X86CPU *cpu)
     CPUX86State *env = &cpu->env;
     struct kvm_xcrs xcrs = {};
 
-    if (!kvm_has_xcrs()) {
+    if (!has_xcrs) {
         return 0;
     }
 
@@ -1403,6 +1462,10 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_CRASH_CTL,
                               HV_X64_MSR_CRASH_CTL_NOTIFY);
         }
+        if (has_msr_hv_runtime) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_VP_RUNTIME,
+                              env->msr_hv_runtime);
+        }
         if (has_msr_mtrr) {
             kvm_msr_entry_set(&msrs[n++], MSR_MTRRdefType, env->mtrr_deftype);
             kvm_msr_entry_set(&msrs[n++],
@@ -1495,7 +1558,7 @@ static int kvm_get_xsave(X86CPU *cpu)
     const uint8_t *xmm, *ymmh, *zmmh;
     uint16_t cwd, swd, twd;
 
-    if (!kvm_has_xsave()) {
+    if (!has_xsave) {
         return kvm_get_fpu(cpu);
     }
 
@@ -1554,7 +1617,7 @@ static int kvm_get_xcrs(X86CPU *cpu)
     int i, ret;
     struct kvm_xcrs xcrs;
 
-    if (!kvm_has_xcrs()) {
+    if (!has_xcrs) {
         return 0;
     }
 
@@ -1768,6 +1831,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             msrs[n++].index = HV_X64_MSR_CRASH_P0 + j;
         }
     }
+    if (has_msr_hv_runtime) {
+        msrs[n++].index = HV_X64_MSR_VP_RUNTIME;
+    }
     if (has_msr_mtrr) {
         msrs[n++].index = MSR_MTRRdefType;
         msrs[n++].index = MSR_MTRRfix64K_00000;
@@ -1920,6 +1986,9 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
             env->msr_hv_crash_params[index - HV_X64_MSR_CRASH_P0] = msrs[i].data;
+            break;
+        case HV_X64_MSR_VP_RUNTIME:
+            env->msr_hv_runtime = msrs[i].data;
             break;
         case MSR_MTRRdefType:
             env->mtrr_deftype = msrs[i].data;
@@ -2956,7 +3025,7 @@ int kvm_device_msix_deassign(KVMState *s, uint32_t dev_id)
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
-                             uint64_t address, uint32_t data)
+                             uint64_t address, uint32_t data, PCIDevice *dev)
 {
     return 0;
 }

@@ -2208,7 +2208,7 @@ int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
 }
 
 int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
-                              uint64_t address, uint32_t data)
+                             uint64_t address, uint32_t data, PCIDevice *dev)
 {
     S390PCIBusDevice *pbdev;
     uint32_t fid = data >> ZPCI_MSI_VEC_BITS;

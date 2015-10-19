@@ -128,7 +128,7 @@ The core RCU API is small:
         the callback function is g_free, in particular, g_free_rcu can be
         used.  In the above case, one could have written simply:
 
-            g_free_rcu(foo_reclaim, rcu);
+            g_free_rcu(&foo, rcu);
 
      typeof(*p) atomic_rcu_read(p);
 

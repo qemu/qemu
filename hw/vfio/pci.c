@@ -424,7 +424,7 @@ static void vfio_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
         return;
     }
 
-    virq = kvm_irqchip_add_msi_route(kvm_state, *msg);
+    virq = kvm_irqchip_add_msi_route(kvm_state, *msg, &vdev->pdev);
     if (virq < 0) {
         event_notifier_cleanup(&vector->kvm_interrupt);
         return;
@@ -449,9 +449,10 @@ static void vfio_remove_kvm_msi_virq(VFIOMSIVector *vector)
     event_notifier_cleanup(&vector->kvm_interrupt);
 }
 
-static void vfio_update_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage msg)
+static void vfio_update_kvm_msi_virq(VFIOMSIVector *vector, MSIMessage msg,
+                                     PCIDevice *pdev)
 {
-    kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg);
+    kvm_irqchip_update_msi_route(kvm_state, vector->virq, msg, pdev);
 }
 
 static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
@@ -486,7 +487,7 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
         if (!msg) {
             vfio_remove_kvm_msi_virq(vector);
         } else {
-            vfio_update_kvm_msi_virq(vector, *msg);
+            vfio_update_kvm_msi_virq(vector, *msg, pdev);
         }
     } else {
         vfio_add_kvm_msi_virq(vdev, vector, msg, true);
@@ -760,7 +761,7 @@ static void vfio_update_msi(VFIOPCIDevice *vdev)
         }
 
         msg = msi_get_message(&vdev->pdev, i);
-        vfio_update_kvm_msi_virq(vector, msg);
+        vfio_update_kvm_msi_virq(vector, msg, &vdev->pdev);
     }
 }
 

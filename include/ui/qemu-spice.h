@@ -43,9 +43,7 @@ int qemu_spice_set_pw_expire(time_t expires);
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             const char *subject);
 
-CharDriverState *qemu_chr_open_spice_vmc(const char *type);
 #if SPICE_SERVER_VERSION >= 0x000c02
-CharDriverState *qemu_chr_open_spice_port(const char *name);
 void qemu_spice_register_ports(void);
 #else
 static inline CharDriverState *qemu_chr_open_spice_port(const char *name)

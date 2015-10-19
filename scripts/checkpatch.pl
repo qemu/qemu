@@ -1010,7 +1010,9 @@ sub possible {
 			case|
 			else|
 			asm|__asm__|
-			do
+			do|
+			\#|
+			\#\#
 		)(?:\s|$)|
 		^(?:typedef|struct|enum)\b
 	    )}x;
@@ -1702,11 +1704,6 @@ sub process {
 		if ($line =~ /^.\s*\{/ &&
 		    $prevline =~ /^.\s*(?:typedef\s+)?(enum|union|struct)(?:\s+$Ident)?\s*$/) {
 			ERROR("open brace '{' following $1 go on the same line\n" . $hereprev);
-		}
-
-# ... however, open braces on typedef lines should be avoided.
-		if ($line =~ /^.\s*typedef\s+(enum|union|struct)(?:\s+$Ident\b)?.*[^;]$/) {
-			ERROR("typedefs should be separate from struct declaration\n" . $herecurr);
 		}
 
 # missing space after union, struct or enum definition

@@ -47,7 +47,7 @@ VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
     const size_t zero_skip = offsetof(VirtIOSCSIReq, elem)
                              + sizeof(VirtQueueElement);
 
-    req = g_slice_alloc(sizeof(*req) + vs->cdb_size);
+    req = g_malloc(sizeof(*req) + vs->cdb_size);
     req->vq = vq;
     req->dev = s;
     qemu_sglist_init(&req->qsgl, DEVICE(s), 8, &address_space_memory);
@@ -58,11 +58,9 @@ VirtIOSCSIReq *virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq)
 
 void virtio_scsi_free_req(VirtIOSCSIReq *req)
 {
-    VirtIOSCSICommon *vs = (VirtIOSCSICommon *)req->dev;
-
     qemu_iovec_destroy(&req->resp_iov);
     qemu_sglist_destroy(&req->qsgl);
-    g_slice_free1(sizeof(*req) + vs->cdb_size, req);
+    g_free(req);
 }
 
 static void virtio_scsi_complete_req(VirtIOSCSIReq *req)
@@ -250,7 +248,7 @@ static void virtio_scsi_cancel_notify(Notifier *notifier, void *data)
     if (--n->tmf_req->remaining == 0) {
         virtio_scsi_complete_req(n->tmf_req);
     }
-    g_slice_free(VirtIOSCSICancelNotifier, n);
+    g_free(n);
 }
 
 /* Return 0 if the request is ready to be completed and return to guest;
@@ -301,7 +299,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
                 VirtIOSCSICancelNotifier *notifier;
 
                 req->remaining = 1;
-                notifier = g_slice_new(VirtIOSCSICancelNotifier);
+                notifier = g_new(VirtIOSCSICancelNotifier, 1);
                 notifier->tmf_req = req;
                 notifier->notifier.notify = virtio_scsi_cancel_notify;
                 scsi_req_cancel_async(r, &notifier->notifier);
@@ -350,7 +348,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
                     VirtIOSCSICancelNotifier *notifier;
 
                     req->remaining++;
-                    notifier = g_slice_new(VirtIOSCSICancelNotifier);
+                    notifier = g_new(VirtIOSCSICancelNotifier, 1);
                     notifier->notifier.notify = virtio_scsi_cancel_notify;
                     notifier->tmf_req = req;
                     scsi_req_cancel_async(r, &notifier->notifier);

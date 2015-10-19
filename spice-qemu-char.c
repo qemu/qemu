@@ -296,15 +296,14 @@ static CharDriverState *chr_open(const char *subtype,
     return chr;
 }
 
-CharDriverState *qemu_chr_open_spice_vmc(const char *type)
+static CharDriverState *qemu_chr_open_spice_vmc(const char *id,
+                                                ChardevBackend *backend,
+                                                ChardevReturn *ret,
+                                                Error **errp)
 {
+    const char *type = backend->spicevmc->type;
     const char **psubtype = spice_server_char_device_recognized_subtypes();
 
-    if (type == NULL) {
-        fprintf(stderr, "spice-qemu-char: missing name parameter\n");
-        print_allowed_subtypes();
-        return NULL;
-    }
     for (; *psubtype != NULL; ++psubtype) {
         if (strcmp(type, *psubtype) == 0) {
             break;
@@ -320,8 +319,12 @@ CharDriverState *qemu_chr_open_spice_vmc(const char *type)
 }
 
 #if SPICE_SERVER_VERSION >= 0x000c02
-CharDriverState *qemu_chr_open_spice_port(const char *name)
+static CharDriverState *qemu_chr_open_spice_port(const char *id,
+                                                 ChardevBackend *backend,
+                                                 ChardevReturn *ret,
+                                                 Error **errp)
 {
+    const char *name = backend->spiceport->fqdn;
     CharDriverState *chr;
     SpiceCharDriver *s;
 
@@ -379,9 +382,9 @@ static void qemu_chr_parse_spice_port(QemuOpts *opts, ChardevBackend *backend,
 static void register_types(void)
 {
     register_char_driver("spicevmc", CHARDEV_BACKEND_KIND_SPICEVMC,
-                         qemu_chr_parse_spice_vmc);
+                         qemu_chr_parse_spice_vmc, qemu_chr_open_spice_vmc);
     register_char_driver("spiceport", CHARDEV_BACKEND_KIND_SPICEPORT,
-                         qemu_chr_parse_spice_port);
+                         qemu_chr_parse_spice_port, qemu_chr_open_spice_port);
 }
 
 type_init(register_types);

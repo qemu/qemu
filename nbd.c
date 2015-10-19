@@ -1005,7 +1005,7 @@ static NBDRequest *nbd_request_get(NBDClient *client)
     client->nb_requests++;
     nbd_update_can_read(client);
 
-    req = g_slice_new0(NBDRequest);
+    req = g_new0(NBDRequest, 1);
     nbd_client_get(client);
     req->client = client;
     return req;
@@ -1018,7 +1018,7 @@ static void nbd_request_put(NBDRequest *req)
     if (req->data) {
         qemu_vfree(req->data);
     }
-    g_slice_free(NBDRequest, req);
+    g_free(req);
 
     client->nb_requests--;
     nbd_update_can_read(client);

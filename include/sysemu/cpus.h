@@ -2,6 +2,7 @@
 #define QEMU_CPUS_H
 
 /* cpus.c */
+bool qemu_in_vcpu_thread(void);
 void qemu_init_cpu_loop(void);
 void resume_all_vcpus(void);
 void pause_all_vcpus(void);

@@ -1962,7 +1962,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
         chr->init(chr);
 }
 
-static CharDriverState *text_console_init(ChardevVC *vc)
+static CharDriverState *text_console_init(ChardevVC *vc, Error **errp)
 {
     CharDriverState *chr;
     QemuConsole *s;
@@ -1993,6 +1993,7 @@ static CharDriverState *text_console_init(ChardevVC *vc)
 
     if (!s) {
         g_free(chr);
+        error_setg(errp, "cannot create text console");
         return NULL;
     }
 
@@ -2012,9 +2013,10 @@ static CharDriverState *text_console_init(ChardevVC *vc)
 
 static VcHandler *vc_handler = text_console_init;
 
-CharDriverState *vc_init(ChardevVC *vc)
+static CharDriverState *vc_init(const char *id, ChardevBackend *backend,
+                                ChardevReturn *ret, Error **errp)
 {
-    return vc_handler(vc);
+    return vc_handler(backend->vc, errp);
 }
 
 void register_vc_handler(VcHandler *handler)
@@ -2093,7 +2095,8 @@ static const TypeInfo qemu_console_info = {
 static void register_types(void)
 {
     type_register_static(&qemu_console_info);
-    register_char_driver("vc", CHARDEV_BACKEND_KIND_VC, qemu_chr_parse_vc);
+    register_char_driver("vc", CHARDEV_BACKEND_KIND_VC, qemu_chr_parse_vc,
+                         vc_init);
 }
 
 type_init(register_types);

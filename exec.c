@@ -161,6 +161,21 @@ static void memory_map_init(void);
 static void tcg_commit(MemoryListener *listener);
 
 static MemoryRegion io_mem_watch;
+
+/**
+ * CPUAddressSpace: all the information a CPU needs about an AddressSpace
+ * @cpu: the CPU whose AddressSpace this is
+ * @as: the AddressSpace itself
+ * @memory_dispatch: its dispatch pointer (cached, RCU protected)
+ * @tcg_as_listener: listener for tracking changes to the AddressSpace
+ */
+struct CPUAddressSpace {
+    CPUState *cpu;
+    AddressSpace *as;
+    struct AddressSpaceDispatch *memory_dispatch;
+    MemoryListener tcg_as_listener;
+};
+
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
@@ -431,7 +446,7 @@ address_space_translate_for_iotlb(CPUState *cpu, hwaddr addr,
                                   hwaddr *xlat, hwaddr *plen)
 {
     MemoryRegionSection *section;
-    section = address_space_translate_internal(cpu->memory_dispatch,
+    section = address_space_translate_internal(cpu->cpu_ases[0].memory_dispatch,
                                                addr, xlat, plen, false);
 
     assert(!section->mr->iommu_ops);
@@ -537,13 +552,16 @@ void tcg_cpu_address_space_init(CPUState *cpu, AddressSpace *as)
     /* We only support one address space per cpu at the moment.  */
     assert(cpu->as == as);
 
-    if (cpu->tcg_as_listener) {
-        memory_listener_unregister(cpu->tcg_as_listener);
-    } else {
-        cpu->tcg_as_listener = g_new0(MemoryListener, 1);
+    if (cpu->cpu_ases) {
+        /* We've already registered the listener for our only AS */
+        return;
     }
-    cpu->tcg_as_listener->commit = tcg_commit;
-    memory_listener_register(cpu->tcg_as_listener, as);
+
+    cpu->cpu_ases = g_new0(CPUAddressSpace, 1);
+    cpu->cpu_ases[0].cpu = cpu;
+    cpu->cpu_ases[0].as = as;
+    cpu->cpu_ases[0].tcg_as_listener.commit = tcg_commit;
+    memory_listener_register(&cpu->cpu_ases[0].tcg_as_listener, as);
 }
 #endif
 
@@ -601,7 +619,6 @@ void cpu_exec_init(CPUState *cpu, Error **errp)
 #ifndef CONFIG_USER_ONLY
     cpu->as = &address_space_memory;
     cpu->thread_id = qemu_get_thread_id();
-    cpu_reload_memory_map(cpu);
 #endif
 
 #if defined(CONFIG_USER_ONLY)
@@ -2219,7 +2236,8 @@ static uint16_t dummy_section(PhysPageMap *map, AddressSpace *as,
 
 MemoryRegion *iotlb_to_region(CPUState *cpu, hwaddr index)
 {
-    AddressSpaceDispatch *d = atomic_rcu_read(&cpu->memory_dispatch);
+    CPUAddressSpace *cpuas = &cpu->cpu_ases[0];
+    AddressSpaceDispatch *d = atomic_rcu_read(&cpuas->memory_dispatch);
     MemoryRegionSection *sections = d->map.sections;
 
     return sections[index & ~TARGET_PAGE_MASK].mr;
@@ -2278,19 +2296,20 @@ static void mem_commit(MemoryListener *listener)
 
 static void tcg_commit(MemoryListener *listener)
 {
-    CPUState *cpu;
+    CPUAddressSpace *cpuas;
+    AddressSpaceDispatch *d;
 
     /* since each CPU stores ram addresses in its TLB cache, we must
        reset the modified entries */
-    /* XXX: slow ! */
-    CPU_FOREACH(cpu) {
-        /* FIXME: Disentangle the cpu.h circular files deps so we can
-           directly get the right CPU from listener.  */
-        if (cpu->tcg_as_listener != listener) {
-            continue;
-        }
-        cpu_reload_memory_map(cpu);
-    }
+    cpuas = container_of(listener, CPUAddressSpace, tcg_as_listener);
+    cpu_reloading_memory_map();
+    /* The CPU and TLB are protected by the iothread lock.
+     * We reload the dispatch pointer now because cpu_reloading_memory_map()
+     * may have split the RCU critical section.
+     */
+    d = atomic_rcu_read(&cpuas->as->dispatch);
+    cpuas->memory_dispatch = d;
+    tlb_flush(cpuas->cpu, 1);
 }
 
 void address_space_init_dispatch(AddressSpace *as)
