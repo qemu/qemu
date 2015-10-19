@@ -1282,10 +1282,6 @@ static void *file_ram_alloc(RAMBlock *block,
     return area;
 
 error:
-    if (mem_prealloc) {
-        error_report("%s", error_get_pretty(*errp));
-        exit(1);
-    }
     return NULL;
 }
 #endif
