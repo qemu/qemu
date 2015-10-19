@@ -18,6 +18,8 @@
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64
 
+static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
+
 struct BlockBackend {
     char *name;
     int refcnt;
@@ -34,10 +36,12 @@ struct BlockBackend {
 typedef struct BlockBackendAIOCB {
     BlockAIOCB common;
     QEMUBH *bh;
+    BlockBackend *blk;
     int ret;
 } BlockBackendAIOCB;
 
 static const AIOCBInfo block_backend_aiocb_info = {
+    .get_aio_context = blk_aiocb_get_aio_context,
     .aiocb_size = sizeof(BlockBackendAIOCB),
 };
 
@@ -558,6 +562,7 @@ static BlockAIOCB *abort_aio_request(BlockBackend *blk, BlockCompletionFunc *cb,
     QEMUBH *bh;
 
     acb = blk_aio_get(&block_backend_aiocb_info, blk, cb, opaque);
+    acb->blk = blk;
     acb->ret = ret;
 
     bh = aio_bh_new(blk_get_aio_context(blk), error_callback_bh, acb);
@@ -831,7 +836,17 @@ void blk_op_unblock_all(BlockBackend *blk, Error *reason)
 
 AioContext *blk_get_aio_context(BlockBackend *blk)
 {
-    return bdrv_get_aio_context(blk->bs);
+    if (blk->bs) {
+        return bdrv_get_aio_context(blk->bs);
+    } else {
+        return qemu_get_aio_context();
+    }
+}
+
+static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
+{
+    BlockBackendAIOCB *blk_acb = DO_UPCAST(BlockBackendAIOCB, common, acb);
+    return blk_get_aio_context(blk_acb->blk);
 }
 
 void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
