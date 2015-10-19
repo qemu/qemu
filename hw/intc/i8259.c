@@ -171,6 +171,7 @@ static void pic_set_irq(void *opaque, int irq, int level)
             }
             s->last_irr |= mask;
         } else {
+            s->irr &= ~mask;
             s->last_irr &= ~mask;
         }
     }
