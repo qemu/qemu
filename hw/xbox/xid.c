@@ -82,6 +82,7 @@ typedef struct USBXIDState {
     const XIDDesc *xid_desc;
 
     QEMUPutKbdEntry *kbd_entry;
+    bool in_dirty;
     XIDGamepadReport in_state;
     XIDGamepadOutputReport out_state;
 } USBXIDState;
@@ -262,6 +263,8 @@ static void xbox_gamepad_keyboard_event(void *opaque, int keycode)
     default:
         break;
     }
+
+    s->in_dirty = true;
 }
 
 
@@ -364,7 +367,12 @@ static void usb_xid_handle_data(USBDevice *dev, USBPacket *p)
     switch (p->pid) {
     case USB_TOKEN_IN:
         if (p->ep->nr == 2) {
-            usb_packet_copy(p, &s->in_state, s->in_state.bLength);
+            if (s->in_dirty) {
+                usb_packet_copy(p, &s->in_state, s->in_state.bLength);
+                s->in_dirty = false;
+            } else {
+                p->status = USB_RET_NAK;
+            }
         } else {
             assert(false);
         }
