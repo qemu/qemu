@@ -808,6 +808,11 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
                 return -EINVAL;
             }
             bs = blk_bs(blk);
+            if (!bs) {
+                fprintf(stderr, "Block device %s has no medium\n",
+                        device_name);
+                return -EINVAL;
+            }
 
             if (bs != bs_prev) {
                 bs_prev = bs;

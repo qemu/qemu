@@ -4145,6 +4145,10 @@ int monitor_read_block_device_key(Monitor *mon, const char *device,
         monitor_printf(mon, "Device not found %s\n", device);
         return -1;
     }
+    if (!blk_bs(blk)) {
+        monitor_printf(mon, "Device '%s' has no medium\n", device);
+        return -1;
+    }
 
     bdrv_add_key(blk_bs(blk), NULL, &err);
     if (err) {
