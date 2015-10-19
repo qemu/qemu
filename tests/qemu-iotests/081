@@ -102,8 +102,20 @@ $QEMU_IO -c "open -o $quorum" -c "read -P 0x32 0 $size" | _filter_qemu_io
 echo
 echo "== checking mixed reference/option specification =="
 
-run_qemu -drive "file=$TEST_DIR/2.raw,format=$IMGFMT,if=none,id=drive2" <<EOF
+run_qemu <<EOF
 { "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+    "arguments": {
+        "options": {
+            "node-name": "drive2",
+            "driver": "$IMGFMT",
+            "file": {
+                "driver": "file",
+                "filename": "$TEST_DIR/2.raw"
+            }
+        }
+    }
+}
 { "execute": "blockdev-add",
     "arguments": {
         "options": {
@@ -112,7 +124,7 @@ run_qemu -drive "file=$TEST_DIR/2.raw,format=$IMGFMT,if=none,id=drive2" <<EOF
             "vote-threshold": 2,
             "children": [
                 {
-                    "driver": "raw",
+                    "driver": "$IMGFMT",
                     "file": {
                         "driver": "file",
                         "filename": "$TEST_DIR/1.raw"
@@ -120,7 +132,7 @@ run_qemu -drive "file=$TEST_DIR/2.raw,format=$IMGFMT,if=none,id=drive2" <<EOF
                 },
                 "drive2",
                 {
-                    "driver": "raw",
+                    "driver": "$IMGFMT",
                     "file": {
                         "driver": "file",
                         "filename": "$TEST_DIR/3.raw"

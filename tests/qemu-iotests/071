@@ -104,8 +104,17 @@ echo
 echo "=== Testing blkdebug on existing block device ==="
 echo
 
-run_qemu -drive "file=$TEST_IMG,format=raw,if=none,id=drive0" <<EOF
+run_qemu <<EOF
 { "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+    "arguments": {
+        "options": {
+            "node-name": "drive0",
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+    }
+}
 { "execute": "blockdev-add",
     "arguments": {
         "options": {
@@ -133,8 +142,20 @@ echo
 echo "=== Testing blkverify on existing block device ==="
 echo
 
-run_qemu -drive "file=$TEST_IMG,format=$IMGFMT,if=none,id=drive0" <<EOF
+run_qemu <<EOF
 { "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+    "arguments": {
+        "options": {
+            "node-name": "drive0",
+            "driver": "$IMGFMT",
+            "file": {
+                "driver": "file",
+                "filename": "$TEST_IMG"
+            }
+        }
+    }
+}
 { "execute": "blockdev-add",
     "arguments": {
         "options": {
@@ -142,11 +163,8 @@ run_qemu -drive "file=$TEST_IMG,format=$IMGFMT,if=none,id=drive0" <<EOF
             "id": "drive0-verify",
             "test": "drive0",
             "raw": {
-                "driver": "raw",
-                "file": {
-                    "driver": "file",
-                    "filename": "$TEST_IMG.base"
-                }
+                "driver": "file",
+                "filename": "$TEST_IMG.base"
             }
         }
     }
@@ -163,8 +181,17 @@ echo
 echo "=== Testing blkverify on existing raw block device ==="
 echo
 
-run_qemu -drive "file=$TEST_IMG.base,format=raw,if=none,id=drive0" <<EOF
+run_qemu <<EOF
 { "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+    "arguments": {
+        "options": {
+            "node-name": "drive0",
+            "driver": "file",
+            "filename": "$TEST_IMG.base"
+        }
+    }
+}
 { "execute": "blockdev-add",
     "arguments": {
         "options": {
@@ -193,8 +220,17 @@ echo
 echo "=== Testing blkdebug's set-state through QMP ==="
 echo
 
-run_qemu -drive "file=$TEST_IMG,format=raw,if=none,id=drive0" <<EOF
+run_qemu <<EOF
 { "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+    "arguments": {
+        "options": {
+            "node-name": "drive0",
+            "driver": "file",
+            "filename": "$TEST_IMG"
+        }
+    }
+}
 { "execute": "blockdev-add",
     "arguments": {
         "options": {
