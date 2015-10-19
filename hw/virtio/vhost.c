@@ -656,13 +656,14 @@ static int vhost_dev_set_features(struct vhost_dev *dev, bool enable_log)
 
 static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
 {
-    int r, t, i;
+    int r, t, i, idx;
     r = vhost_dev_set_features(dev, enable_log);
     if (r < 0) {
         goto err_features;
     }
     for (i = 0; i < dev->nvqs; ++i) {
-        r = vhost_virtqueue_set_addr(dev, dev->vqs + i, i,
+        idx = dev->vhost_ops->vhost_get_vq_index(dev, dev->vq_index + i);
+        r = vhost_virtqueue_set_addr(dev, dev->vqs + i, idx,
                                      enable_log);
         if (r < 0) {
             goto err_vq;
@@ -671,7 +672,8 @@ static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
     return 0;
 err_vq:
     for (; i >= 0; --i) {
-        t = vhost_virtqueue_set_addr(dev, dev->vqs + i, i,
+        idx = dev->vhost_ops->vhost_get_vq_index(dev, dev->vq_index + i);
+        t = vhost_virtqueue_set_addr(dev, dev->vqs + i, idx,
                                      dev->log_enabled);
         assert(t >= 0);
     }
