@@ -47,14 +47,6 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
 }
 
 
-void block_acct_highest_sector(BlockAcctStats *stats, int64_t sector_num,
-                               unsigned int nb_sectors)
-{
-    if (stats->wr_highest_sector < sector_num + nb_sectors - 1) {
-        stats->wr_highest_sector = sector_num + nb_sectors - 1;
-    }
-}
-
 void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
                       int num_requests)
 {

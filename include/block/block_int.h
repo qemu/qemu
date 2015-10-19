@@ -402,6 +402,9 @@ struct BlockDriverState {
     /* I/O stats (display with "info blockstats"). */
     BlockAcctStats stats;
 
+    /* Offset after the highest byte written to */
+    uint64_t wr_highest_offset;
+
     /* I/O Limits */
     BlockLimits bl;
 

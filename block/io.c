@@ -1151,7 +1151,9 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     bdrv_set_dirty(bs, sector_num, nb_sectors);
 
-    block_acct_highest_sector(&bs->stats, sector_num, nb_sectors);
+    if (bs->wr_highest_offset < offset + bytes) {
+        bs->wr_highest_offset = offset + bytes;
+    }
 
     if (ret >= 0) {
         bs->total_sectors = MAX(bs->total_sectors, sector_num + nb_sectors);
