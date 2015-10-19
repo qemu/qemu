@@ -771,7 +771,12 @@ void blk_invalidate_cache(BlockBackend *blk, Error **errp)
 
 bool blk_is_inserted(BlockBackend *blk)
 {
-    return bdrv_is_inserted(blk->bs);
+    return blk->bs && bdrv_is_inserted(blk->bs);
+}
+
+bool blk_is_available(BlockBackend *blk)
+{
+    return blk_is_inserted(blk) && !blk_dev_is_tray_open(blk);
 }
 
 void blk_lock_medium(BlockBackend *blk, bool locked)
