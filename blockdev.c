@@ -350,25 +350,134 @@ static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 
 typedef enum { MEDIA_DISK, MEDIA_CDROM } DriveMediaType;
 
+/* All parameters but @opts are optional and may be set to NULL. */
+static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
+    const char **throttling_group, ThrottleConfig *throttle_cfg,
+    BlockdevDetectZeroesOptions *detect_zeroes, Error **errp)
+{
+    const char *discard;
+    Error *local_error = NULL;
+    const char *aio;
+
+    if (bdrv_flags) {
+        if (!qemu_opt_get_bool(opts, "read-only", false)) {
+            *bdrv_flags |= BDRV_O_RDWR;
+        }
+        if (qemu_opt_get_bool(opts, "copy-on-read", false)) {
+            *bdrv_flags |= BDRV_O_COPY_ON_READ;
+        }
+
+        if ((discard = qemu_opt_get(opts, "discard")) != NULL) {
+            if (bdrv_parse_discard_flags(discard, bdrv_flags) != 0) {
+                error_setg(errp, "Invalid discard option");
+                return;
+            }
+        }
+
+        if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true)) {
+            *bdrv_flags |= BDRV_O_CACHE_WB;
+        }
+        if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
+            *bdrv_flags |= BDRV_O_NOCACHE;
+        }
+        if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
+            *bdrv_flags |= BDRV_O_NO_FLUSH;
+        }
+
+        if ((aio = qemu_opt_get(opts, "aio")) != NULL) {
+            if (!strcmp(aio, "native")) {
+                *bdrv_flags |= BDRV_O_NATIVE_AIO;
+            } else if (!strcmp(aio, "threads")) {
+                /* this is the default */
+            } else {
+               error_setg(errp, "invalid aio option");
+               return;
+            }
+        }
+    }
+
+    /* disk I/O throttling */
+    if (throttling_group) {
+        *throttling_group = qemu_opt_get(opts, "throttling.group");
+    }
+
+    if (throttle_cfg) {
+        memset(throttle_cfg, 0, sizeof(*throttle_cfg));
+        throttle_cfg->buckets[THROTTLE_BPS_TOTAL].avg =
+            qemu_opt_get_number(opts, "throttling.bps-total", 0);
+        throttle_cfg->buckets[THROTTLE_BPS_READ].avg  =
+            qemu_opt_get_number(opts, "throttling.bps-read", 0);
+        throttle_cfg->buckets[THROTTLE_BPS_WRITE].avg =
+            qemu_opt_get_number(opts, "throttling.bps-write", 0);
+        throttle_cfg->buckets[THROTTLE_OPS_TOTAL].avg =
+            qemu_opt_get_number(opts, "throttling.iops-total", 0);
+        throttle_cfg->buckets[THROTTLE_OPS_READ].avg =
+            qemu_opt_get_number(opts, "throttling.iops-read", 0);
+        throttle_cfg->buckets[THROTTLE_OPS_WRITE].avg =
+            qemu_opt_get_number(opts, "throttling.iops-write", 0);
+
+        throttle_cfg->buckets[THROTTLE_BPS_TOTAL].max =
+            qemu_opt_get_number(opts, "throttling.bps-total-max", 0);
+        throttle_cfg->buckets[THROTTLE_BPS_READ].max  =
+            qemu_opt_get_number(opts, "throttling.bps-read-max", 0);
+        throttle_cfg->buckets[THROTTLE_BPS_WRITE].max =
+            qemu_opt_get_number(opts, "throttling.bps-write-max", 0);
+        throttle_cfg->buckets[THROTTLE_OPS_TOTAL].max =
+            qemu_opt_get_number(opts, "throttling.iops-total-max", 0);
+        throttle_cfg->buckets[THROTTLE_OPS_READ].max =
+            qemu_opt_get_number(opts, "throttling.iops-read-max", 0);
+        throttle_cfg->buckets[THROTTLE_OPS_WRITE].max =
+            qemu_opt_get_number(opts, "throttling.iops-write-max", 0);
+
+        throttle_cfg->op_size =
+            qemu_opt_get_number(opts, "throttling.iops-size", 0);
+
+        if (!check_throttle_config(throttle_cfg, errp)) {
+            return;
+        }
+    }
+
+    if (detect_zeroes) {
+        *detect_zeroes =
+            qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
+                            qemu_opt_get(opts, "detect-zeroes"),
+                            BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
+                            BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
+                            &local_error);
+        if (local_error) {
+            error_propagate(errp, local_error);
+            return;
+        }
+
+        if (bdrv_flags &&
+            *detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
+            !(*bdrv_flags & BDRV_O_UNMAP))
+        {
+            error_setg(errp, "setting detect-zeroes to unmap is not allowed "
+                             "without setting discard operation to unmap");
+            return;
+        }
+    }
+}
+
 /* Takes the ownership of bs_opts */
 static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
                                    Error **errp)
 {
     const char *buf;
-    int ro = 0;
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
     int snapshot = 0;
-    bool copy_on_read;
     Error *error = NULL;
     QemuOpts *opts;
     const char *id;
     bool has_driver_specific_opts;
-    BlockdevDetectZeroesOptions detect_zeroes;
-    const char *throttling_group;
+    BlockdevDetectZeroesOptions detect_zeroes =
+        BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
+    const char *throttling_group = NULL;
 
     /* Check common options by copying from bs_opts to opts, all other options
      * stay in bs_opts for processing by bdrv_open(). */
@@ -393,35 +502,12 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     /* extract parameters */
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
-    ro = qemu_opt_get_bool(opts, "read-only", 0);
-    copy_on_read = qemu_opt_get_bool(opts, "copy-on-read", false);
 
-    if ((buf = qemu_opt_get(opts, "discard")) != NULL) {
-        if (bdrv_parse_discard_flags(buf, &bdrv_flags) != 0) {
-            error_setg(errp, "invalid discard option");
-            goto early_err;
-        }
-    }
-
-    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true)) {
-        bdrv_flags |= BDRV_O_CACHE_WB;
-    }
-    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
-        bdrv_flags |= BDRV_O_NOCACHE;
-    }
-    if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
-        bdrv_flags |= BDRV_O_NO_FLUSH;
-    }
-
-    if ((buf = qemu_opt_get(opts, "aio")) != NULL) {
-        if (!strcmp(buf, "native")) {
-            bdrv_flags |= BDRV_O_NATIVE_AIO;
-        } else if (!strcmp(buf, "threads")) {
-            /* this is the default */
-        } else {
-           error_setg(errp, "invalid aio option");
-           goto early_err;
-        }
+    extract_common_blockdev_options(opts, &bdrv_flags, &throttling_group, &cfg,
+                                    &detect_zeroes, &error);
+    if (error) {
+        error_propagate(errp, error);
+        goto early_err;
     }
 
     if ((buf = qemu_opt_get(opts, "format")) != NULL) {
@@ -437,43 +523,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
             goto early_err;
         }
         qdict_put(bs_opts, "driver", qstring_from_str(buf));
-    }
-
-    /* disk I/O throttling */
-    memset(&cfg, 0, sizeof(cfg));
-    cfg.buckets[THROTTLE_BPS_TOTAL].avg =
-        qemu_opt_get_number(opts, "throttling.bps-total", 0);
-    cfg.buckets[THROTTLE_BPS_READ].avg  =
-        qemu_opt_get_number(opts, "throttling.bps-read", 0);
-    cfg.buckets[THROTTLE_BPS_WRITE].avg =
-        qemu_opt_get_number(opts, "throttling.bps-write", 0);
-    cfg.buckets[THROTTLE_OPS_TOTAL].avg =
-        qemu_opt_get_number(opts, "throttling.iops-total", 0);
-    cfg.buckets[THROTTLE_OPS_READ].avg =
-        qemu_opt_get_number(opts, "throttling.iops-read", 0);
-    cfg.buckets[THROTTLE_OPS_WRITE].avg =
-        qemu_opt_get_number(opts, "throttling.iops-write", 0);
-
-    cfg.buckets[THROTTLE_BPS_TOTAL].max =
-        qemu_opt_get_number(opts, "throttling.bps-total-max", 0);
-    cfg.buckets[THROTTLE_BPS_READ].max  =
-        qemu_opt_get_number(opts, "throttling.bps-read-max", 0);
-    cfg.buckets[THROTTLE_BPS_WRITE].max =
-        qemu_opt_get_number(opts, "throttling.bps-write-max", 0);
-    cfg.buckets[THROTTLE_OPS_TOTAL].max =
-        qemu_opt_get_number(opts, "throttling.iops-total-max", 0);
-    cfg.buckets[THROTTLE_OPS_READ].max =
-        qemu_opt_get_number(opts, "throttling.iops-read-max", 0);
-    cfg.buckets[THROTTLE_OPS_WRITE].max =
-        qemu_opt_get_number(opts, "throttling.iops-write-max", 0);
-
-    cfg.op_size = qemu_opt_get_number(opts, "throttling.iops-size", 0);
-
-    throttling_group = qemu_opt_get(opts, "throttling.group");
-
-    if (!check_throttle_config(&cfg, &error)) {
-        error_propagate(errp, error);
-        goto early_err;
     }
 
     on_write_error = BLOCKDEV_ON_ERROR_ENOSPC;
@@ -494,35 +543,11 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         }
     }
 
-    detect_zeroes =
-        qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
-                        qemu_opt_get(opts, "detect-zeroes"),
-                        BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
-                        BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
-                        &error);
-    if (error) {
-        error_propagate(errp, error);
-        goto early_err;
-    }
-
-    if (detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
-        !(bdrv_flags & BDRV_O_UNMAP)) {
-        error_setg(errp, "setting detect-zeroes to unmap is not allowed "
-                         "without setting discard operation to unmap");
-        goto early_err;
-    }
-
     if (snapshot) {
         /* always use cache=unsafe with snapshot */
         bdrv_flags &= ~BDRV_O_CACHE_MASK;
         bdrv_flags |= (BDRV_O_SNAPSHOT|BDRV_O_CACHE_WB|BDRV_O_NO_FLUSH);
     }
-
-    if (copy_on_read) {
-        bdrv_flags |= BDRV_O_COPY_ON_READ;
-    }
-
-    bdrv_flags |= ro ? 0 : BDRV_O_RDWR;
 
     /* init */
     if ((!file || !*file) && !has_driver_specific_opts) {
@@ -535,7 +560,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
         blk_rs = blk_get_root_state(blk);
         blk_rs->open_flags    = bdrv_flags;
-        blk_rs->read_only     = ro;
+        blk_rs->read_only     = !(bdrv_flags & BDRV_O_RDWR);
         blk_rs->detect_zeroes = detect_zeroes;
 
         if (throttle_enabled(&cfg)) {
