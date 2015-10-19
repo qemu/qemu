@@ -157,11 +157,6 @@ static const unsigned dac1_samplerate[] = { 5512, 11025, 22050, 44100 };
 #define DAC2_CHANNEL 1
 #define ADC_CHANNEL 2
 
-#define IO_READ_PROTO(n) \
-static uint32_t n (void *opaque, uint32_t addr)
-#define IO_WRITE_PROTO(n) \
-static void n (void *opaque, uint32_t addr, uint32_t val)
-
 static void es1370_dac1_callback (void *opaque, int free);
 static void es1370_dac2_callback (void *opaque, int free);
 static void es1370_adc_callback (void *opaque, int avail);
@@ -474,7 +469,7 @@ static inline uint32_t es1370_fixup (ES1370State *s, uint32_t addr)
     return addr;
 }
 
-IO_WRITE_PROTO (es1370_writeb)
+static void es1370_writeb(void *opaque, uint32_t addr, uint32_t val)
 {
     ES1370State *s = opaque;
     uint32_t shift, mask;
@@ -512,7 +507,7 @@ IO_WRITE_PROTO (es1370_writeb)
     }
 }
 
-IO_WRITE_PROTO (es1370_writew)
+static void es1370_writew(void *opaque, uint32_t addr, uint32_t val)
 {
     ES1370State *s = opaque;
     addr = es1370_fixup (s, addr);
@@ -549,7 +544,7 @@ IO_WRITE_PROTO (es1370_writew)
     }
 }
 
-IO_WRITE_PROTO (es1370_writel)
+static void es1370_writel(void *opaque, uint32_t addr, uint32_t val)
 {
     ES1370State *s = opaque;
     struct chan *d = &s->chan[0];
@@ -615,7 +610,7 @@ IO_WRITE_PROTO (es1370_writel)
     }
 }
 
-IO_READ_PROTO (es1370_readb)
+static uint32_t es1370_readb(void *opaque, uint32_t addr)
 {
     ES1370State *s = opaque;
     uint32_t val;
@@ -650,7 +645,7 @@ IO_READ_PROTO (es1370_readb)
     return val;
 }
 
-IO_READ_PROTO (es1370_readw)
+static uint32_t es1370_readw(void *opaque, uint32_t addr)
 {
     ES1370State *s = opaque;
     struct chan *d = &s->chan[0];
@@ -692,7 +687,7 @@ IO_READ_PROTO (es1370_readw)
     return val;
 }
 
-IO_READ_PROTO (es1370_readl)
+static uint32_t es1370_readl(void *opaque, uint32_t addr)
 {
     ES1370State *s = opaque;
     uint32_t val;

@@ -41,11 +41,6 @@
 #define GUS_ENDIANNESS 0
 #endif
 
-#define IO_READ_PROTO(name) \
-    static uint32_t name (void *opaque, uint32_t nport)
-#define IO_WRITE_PROTO(name) \
-    static void name (void *opaque, uint32_t nport, uint32_t val)
-
 #define TYPE_GUS "gus"
 #define GUS(obj) OBJECT_CHECK (GUSState, (obj), TYPE_GUS)
 
@@ -64,14 +59,14 @@ typedef struct GUSState {
     qemu_irq pic;
 } GUSState;
 
-IO_READ_PROTO (gus_readb)
+static uint32_t gus_readb(void *opaque, uint32_t nport)
 {
     GUSState *s = opaque;
 
     return gus_read (&s->emu, nport, 1);
 }
 
-IO_WRITE_PROTO (gus_writeb)
+static void gus_writeb(void *opaque, uint32_t nport, uint32_t val)
 {
     GUSState *s = opaque;
 
