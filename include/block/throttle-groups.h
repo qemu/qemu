@@ -30,6 +30,9 @@
 
 const char *throttle_group_get_name(BlockDriverState *bs);
 
+ThrottleState *throttle_group_incref(const char *name);
+void throttle_group_unref(ThrottleState *ts);
+
 void throttle_group_config(BlockDriverState *bs, ThrottleConfig *cfg);
 void throttle_group_get_config(BlockDriverState *bs, ThrottleConfig *cfg);
 
