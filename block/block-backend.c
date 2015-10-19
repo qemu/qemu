@@ -872,7 +872,11 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
 
 int blk_is_read_only(BlockBackend *blk)
 {
-    return bdrv_is_read_only(blk->bs);
+    if (blk->bs) {
+        return bdrv_is_read_only(blk->bs);
+    } else {
+        return blk->root_state.read_only;
+    }
 }
 
 int blk_is_sg(BlockBackend *blk)
@@ -882,12 +886,24 @@ int blk_is_sg(BlockBackend *blk)
 
 int blk_enable_write_cache(BlockBackend *blk)
 {
-    return bdrv_enable_write_cache(blk->bs);
+    if (blk->bs) {
+        return bdrv_enable_write_cache(blk->bs);
+    } else {
+        return !!(blk->root_state.open_flags & BDRV_O_CACHE_WB);
+    }
 }
 
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 {
-    bdrv_set_enable_write_cache(blk->bs, wce);
+    if (blk->bs) {
+        bdrv_set_enable_write_cache(blk->bs, wce);
+    } else {
+        if (wce) {
+            blk->root_state.open_flags |= BDRV_O_CACHE_WB;
+        } else {
+            blk->root_state.open_flags &= ~BDRV_O_CACHE_WB;
+        }
+    }
 }
 
 void blk_invalidate_cache(BlockBackend *blk, Error **errp)
@@ -917,7 +933,11 @@ void blk_eject(BlockBackend *blk, bool eject_flag)
 
 int blk_get_flags(BlockBackend *blk)
 {
-    return bdrv_get_flags(blk->bs);
+    if (blk->bs) {
+        return bdrv_get_flags(blk->bs);
+    } else {
+        return blk->root_state.open_flags;
+    }
 }
 
 int blk_get_max_transfer_length(BlockBackend *blk)
