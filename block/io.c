@@ -23,6 +23,7 @@
  */
 
 #include "trace.h"
+#include "sysemu/block-backend.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
 #include "block/throttle-groups.h"
@@ -1905,7 +1906,10 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
         }
     }
 
-    block_acct_merge_done(&bs->stats, BLOCK_ACCT_WRITE, num_reqs - outidx - 1);
+    if (bs->blk) {
+        block_acct_merge_done(blk_get_stats(bs->blk), BLOCK_ACCT_WRITE,
+                              num_reqs - outidx - 1);
+    }
 
     return outidx + 1;
 }

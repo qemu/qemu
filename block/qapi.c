@@ -344,16 +344,20 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
     }
 
     s->stats = g_malloc0(sizeof(*s->stats));
-    s->stats->rd_bytes = bs->stats.nr_bytes[BLOCK_ACCT_READ];
-    s->stats->wr_bytes = bs->stats.nr_bytes[BLOCK_ACCT_WRITE];
-    s->stats->rd_operations = bs->stats.nr_ops[BLOCK_ACCT_READ];
-    s->stats->wr_operations = bs->stats.nr_ops[BLOCK_ACCT_WRITE];
-    s->stats->rd_merged = bs->stats.merged[BLOCK_ACCT_READ];
-    s->stats->wr_merged = bs->stats.merged[BLOCK_ACCT_WRITE];
-    s->stats->flush_operations = bs->stats.nr_ops[BLOCK_ACCT_FLUSH];
-    s->stats->wr_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_WRITE];
-    s->stats->rd_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_READ];
-    s->stats->flush_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_FLUSH];
+    if (bs->blk) {
+        BlockAcctStats *stats = blk_get_stats(bs->blk);
+
+        s->stats->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
+        s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
+        s->stats->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
+        s->stats->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
+        s->stats->rd_merged = stats->merged[BLOCK_ACCT_READ];
+        s->stats->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
+        s->stats->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];
+        s->stats->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
+        s->stats->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
+        s->stats->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
+    }
 
     s->stats->wr_highest_offset = bs->wr_highest_offset;
 

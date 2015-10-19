@@ -34,6 +34,9 @@ struct BlockBackend {
 
     /* the block size for which the guest device expects atomicity */
     int guest_block_size;
+
+    /* I/O stats (display with "info blockstats"). */
+    BlockAcctStats stats;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -892,7 +895,7 @@ void blk_io_unplug(BlockBackend *blk)
 
 BlockAcctStats *blk_get_stats(BlockBackend *blk)
 {
-    return bdrv_get_stats(blk->bs);
+    return &blk->stats;
 }
 
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,

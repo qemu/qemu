@@ -4153,14 +4153,3 @@ void bdrv_refresh_filename(BlockDriverState *bs)
         QDECREF(json);
     }
 }
-
-/* This accessor function purpose is to allow the device models to access the
- * BlockAcctStats structure embedded inside a BlockDriverState without being
- * aware of the BlockDriverState structure layout.
- * It will go away when the BlockAcctStats structure will be moved inside
- * the device models.
- */
-BlockAcctStats *bdrv_get_stats(BlockDriverState *bs)
-{
-    return &bs->stats;
-}
