@@ -341,8 +341,13 @@ static void curses_setup(void)
     nodelay(stdscr, TRUE); nonl(); keypad(stdscr, TRUE);
     start_color(); raw(); scrollok(stdscr, FALSE);
 
-    for (i = 0; i < 64; i ++)
+    for (i = 0; i < 64; i++) {
         init_pair(i, colour_default[i & 7], colour_default[i >> 3]);
+    }
+    /* Set default color for more than 64. (monitor uses 0x74xx for example) */
+    for (i = 64; i < COLOR_PAIRS; i++) {
+        init_pair(i, COLOR_WHITE, COLOR_BLACK);
+    }
 }
 
 static void curses_keyboard_setup(void)
