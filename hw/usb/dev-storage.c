@@ -613,20 +613,22 @@ static void usb_msd_realize_storage(USBDevice *dev, Error **errp)
         return;
     }
 
-    bdrv_add_key(blk_bs(blk), NULL, &err);
-    if (err) {
-        if (monitor_cur_is_qmp()) {
-            error_propagate(errp, err);
-            return;
-        }
-        error_free(err);
-        err = NULL;
-        if (cur_mon) {
-            monitor_read_bdrv_key_start(cur_mon, blk_bs(blk),
-                                        usb_msd_password_cb, s);
-            s->dev.auto_attach = 0;
-        } else {
-            autostart = 0;
+    if (blk_bs(blk)) {
+        bdrv_add_key(blk_bs(blk), NULL, &err);
+        if (err) {
+            if (monitor_cur_is_qmp()) {
+                error_propagate(errp, err);
+                return;
+            }
+            error_free(err);
+            err = NULL;
+            if (cur_mon) {
+                monitor_read_bdrv_key_start(cur_mon, blk_bs(blk),
+                                            usb_msd_password_cb, s);
+                s->dev.auto_attach = 0;
+            } else {
+                autostart = 0;
+            }
         }
     }
 
