@@ -31,6 +31,9 @@ struct BlockBackend {
     /* TODO change to DeviceState when all users are qdevified */
     const BlockDevOps *dev_ops;
     void *dev_opaque;
+
+    /* the block size for which the guest device expects atomicity */
+    int guest_block_size;
 };
 
 typedef struct BlockBackendAIOCB {
@@ -351,7 +354,7 @@ void blk_detach_dev(BlockBackend *blk, void *dev)
     blk->dev = NULL;
     blk->dev_ops = NULL;
     blk->dev_opaque = NULL;
-    bdrv_set_guest_block_size(blk->bs, 512);
+    blk->guest_block_size = 512;
     blk_unref(blk);
 }
 
@@ -806,7 +809,7 @@ int blk_get_max_transfer_length(BlockBackend *blk)
 
 void blk_set_guest_block_size(BlockBackend *blk, int align)
 {
-    bdrv_set_guest_block_size(blk->bs, align);
+    blk->guest_block_size = align;
 }
 
 void *blk_blockalign(BlockBackend *blk, size_t size)
