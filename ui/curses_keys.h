@@ -29,8 +29,7 @@
 #include "keymaps.h"
 
 
-#define KEY_RELEASE         0x80
-#define KEY_MASK            0x7f
+#define KEY_MASK            SCANCODE_KEYMASK
 #define GREY_CODE           0xe0
 #define GREY                SCANCODE_GREY
 #define SHIFT_CODE          0x2a
@@ -60,6 +59,8 @@ static const int curses2keysym[CURSES_KEYS] = {
     ['\n'] = KEY_ENTER,
     [27] = 27,
     [KEY_BTAB] = '\t' | KEYSYM_SHIFT,
+    [KEY_SPREVIOUS] = KEY_PPAGE | KEYSYM_SHIFT,
+    [KEY_SNEXT] = KEY_NPAGE | KEYSYM_SHIFT,
 };
 
 static const int curses2keycode[CURSES_KEYS] = {
@@ -148,6 +149,9 @@ static const int curses2keycode[CURSES_KEYS] = {
     [KEY_NPAGE] = 81 | GREY, /* Page Down */
     [KEY_IC] = 82 | GREY, /* Insert */
     [KEY_DC] = 83 | GREY, /* Delete */
+
+    [KEY_SPREVIOUS] = 73 | GREY | SHIFT, /* Shift + Page Up */
+    [KEY_SNEXT] = 81 | GREY | SHIFT, /* Shift + Page Down */
 
     ['!'] = 2 | SHIFT,
     ['@'] = 3 | SHIFT,
