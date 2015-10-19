@@ -1937,7 +1937,7 @@ static int xen_pt_config_reg_init(XenPCIPassthroughState *s,
                 break;
         case 4: rc = xen_host_pci_get_long(&s->real_device, offset, &val);
                 break;
-        default: assert(1);
+        default: abort();
         }
         if (rc) {
             /* Serious issues when we cannot read the host values! */
@@ -1982,7 +1982,7 @@ static int xen_pt_config_reg_init(XenPCIPassthroughState *s,
                 break;
         case 4: pci_set_long(s->dev.config + offset, val);
                 break;
-        default: assert(1);
+        default: abort();
         }
         /* set register value pointer to the data. */
         reg_entry->ptr.byte = s->dev.config + offset;
