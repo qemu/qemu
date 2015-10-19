@@ -1912,6 +1912,10 @@ void bdrv_close(BlockDriverState *bs)
     bdrv_drain(bs); /* in case flush left pending I/O */
     notifier_list_notify(&bs->close_notifiers, bs);
 
+    if (bs->blk) {
+        blk_dev_change_media_cb(bs->blk, false);
+    }
+
     if (bs->drv) {
         BdrvChild *child, *next;
 
@@ -1948,10 +1952,6 @@ void bdrv_close(BlockDriverState *bs)
         bs->options = NULL;
         QDECREF(bs->full_open_options);
         bs->full_open_options = NULL;
-    }
-
-    if (bs->blk) {
-        blk_dev_change_media_cb(bs->blk, false);
     }
 
     QLIST_FOREACH_SAFE(ban, &bs->aio_notifiers, list, ban_next) {
