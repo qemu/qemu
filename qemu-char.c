@@ -92,31 +92,6 @@
 
 /***********************************************************/
 /* Socket address helpers */
-static void qapi_copy_SocketAddress(SocketAddress **p_dest,
-                                    SocketAddress *src)
-{
-    QmpOutputVisitor *qov;
-    QmpInputVisitor *qiv;
-    Visitor *ov, *iv;
-    QObject *obj;
-
-    *p_dest = NULL;
-
-    qov = qmp_output_visitor_new();
-    ov = qmp_output_get_visitor(qov);
-    visit_type_SocketAddress(ov, &src, NULL, &error_abort);
-    obj = qmp_output_get_qobject(qov);
-    qmp_output_visitor_cleanup(qov);
-    if (!obj) {
-        return;
-    }
-
-    qiv = qmp_input_visitor_new(obj);
-    iv = qmp_input_get_visitor(qiv);
-    visit_type_SocketAddress(iv, p_dest, NULL, &error_abort);
-    qmp_input_visitor_cleanup(qiv);
-    qobject_decref(obj);
-}
 
 static int SocketAddress_to_str(char *dest, int max_len,
                                 const char *prefix, SocketAddress *addr,

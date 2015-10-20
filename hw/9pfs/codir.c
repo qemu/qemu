@@ -14,7 +14,7 @@
 
 #include "fsdev/qemu-fsdev.h"
 #include "qemu/thread.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 #include "virtio-9p-coth.h"
 
 int v9fs_co_readdir_r(V9fsPDU *pdu, V9fsFidState *fidp, struct dirent *dent,

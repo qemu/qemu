@@ -69,6 +69,8 @@
 #include "sysemu/os-posix.h"
 #endif
 
+#include "qapi/error.h"
+
 #if defined(CONFIG_SOLARIS) && CONFIG_SOLARIS_VERSION < 10
 /* [u]int_fast*_t not in <sys/int_types.h> */
 typedef unsigned char           uint_fast8_t;
@@ -285,5 +287,19 @@ void qemu_set_tty_echo(int fd, bool echo);
 void os_mem_prealloc(int fd, char *area, size_t sz);
 
 int qemu_read_password(char *buf, int buf_size);
+
+/**
+ * qemu_fork:
+ *
+ * A version of fork that avoids signal handler race
+ * conditions that can lead to child process getting
+ * signals that are otherwise only expected by the
+ * parent. It also resets all signal handlers to the
+ * default settings.
+ *
+ * Returns 0 to child process, pid number to parent
+ * or -1 on failure.
+ */
+pid_t qemu_fork(Error **errp);
 
 #endif

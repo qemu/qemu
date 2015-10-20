@@ -19,7 +19,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/sockets.h"
 #include "qemu/bitmap.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>

@@ -16,8 +16,8 @@
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
-#include "block/coroutine.h"
-#include "block/coroutine_int.h"
+#include "qemu/coroutine.h"
+#include "qemu/coroutine_int.h"
 
 enum {
     POOL_BATCH_SIZE = 64,

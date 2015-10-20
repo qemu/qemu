@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 #include "migration/qemu-file.h"
 
 typedef struct QEMUFileStdio {

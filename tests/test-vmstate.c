@@ -27,7 +27,7 @@
 #include "qemu-common.h"
 #include "migration/migration.h"
 #include "migration/vmstate.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 
 static char temp_file[] = "/tmp/vmst.test.XXXXXX";
 static int temp_fd;

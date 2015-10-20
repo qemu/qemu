@@ -26,7 +26,7 @@
 #define BLOCK_QCOW2_H
 
 #include "crypto/cipher.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 
 //#define DEBUG_ALLOC
 //#define DEBUG_ALLOC2

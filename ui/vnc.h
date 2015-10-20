@@ -34,6 +34,7 @@
 #include "audio/audio.h"
 #include "qemu/bitmap.h"
 #include "crypto/tlssession.h"
+#include "qemu/buffer.h"
 #include <zlib.h>
 #include <stdbool.h>
 
@@ -55,13 +56,6 @@
  * Core data structures
  *
  *****************************************************************************/
-
-typedef struct Buffer
-{
-    size_t capacity;
-    size_t offset;
-    uint8_t *buffer;
-} Buffer;
 
 typedef struct VncState VncState;
 typedef struct VncJob VncJob;
@@ -534,14 +528,6 @@ ssize_t vnc_client_io_error(VncState *vs, ssize_t ret, int last_errno);
 
 void start_client_init(VncState *vs);
 void start_auth_vnc(VncState *vs);
-
-/* Buffer management */
-void buffer_reserve(Buffer *buffer, size_t len);
-void buffer_reset(Buffer *buffer);
-void buffer_free(Buffer *buffer);
-void buffer_append(Buffer *buffer, const void *data, size_t len);
-void buffer_advance(Buffer *buf, size_t len);
-uint8_t *buffer_end(Buffer *buffer);
 
 
 /* Misc helpers */

@@ -19,7 +19,7 @@
 #include "block/nbd.h"
 #include "sysemu/block-backend.h"
 
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 
 #include <errno.h>
 #include <string.h>

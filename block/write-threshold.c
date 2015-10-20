@@ -11,7 +11,7 @@
  */
 
 #include "block/block_int.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 #include "block/write-threshold.h"
 #include "qemu/notify.h"
 #include "qapi-event.h"

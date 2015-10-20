@@ -25,6 +25,9 @@
 #include "monitor/monitor.h"
 #include "qemu/sockets.h"
 #include "qemu/main-loop.h"
+#include "qapi/qmp-input-visitor.h"
+#include "qapi/qmp-output-visitor.h"
+#include "qapi-visit.h"
 
 #ifndef AI_ADDRCONFIG
 # define AI_ADDRCONFIG 0
@@ -125,12 +128,15 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
     ai.ai_family = PF_UNSPEC;
     ai.ai_socktype = SOCK_STREAM;
 
-    if ((qemu_opt_get(opts, "host") == NULL) ||
-        (qemu_opt_get(opts, "port") == NULL)) {
-        error_setg(errp, "host and/or port not specified");
+    if ((qemu_opt_get(opts, "host") == NULL)) {
+        error_setg(errp, "host not specified");
         return -1;
     }
-    pstrcpy(port, sizeof(port), qemu_opt_get(opts, "port"));
+    if (qemu_opt_get(opts, "port") != NULL) {
+        pstrcpy(port, sizeof(port), qemu_opt_get(opts, "port"));
+    } else {
+        port[0] = '\0';
+    }
     addr = qemu_opt_get(opts, "host");
 
     to = qemu_opt_get_number(opts, "to", 0);
@@ -142,6 +148,10 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
     /* lookup */
     if (port_offset) {
         unsigned long long baseport;
+        if (strlen(port) == 0) {
+            error_setg(errp, "port not specified");
+            return -1;
+        }
         if (parse_uint_full(port, &baseport, 10) < 0) {
             error_setg(errp, "can't convert to a number: %s", port);
             return -1;
@@ -153,7 +163,8 @@ int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
         }
         snprintf(port, sizeof(port), "%d", (int)baseport + port_offset);
     }
-    rc = getaddrinfo(strlen(addr) ? addr : NULL, port, &ai, &res);
+    rc = getaddrinfo(strlen(addr) ? addr : NULL,
+                     strlen(port) ? port : NULL, &ai, &res);
     if (rc != 0) {
         error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
                    gai_strerror(rc));
@@ -1017,4 +1028,141 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
     }
     qemu_opts_del(opts);
     return fd;
+}
+
+
+static SocketAddress *
+socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
+                                socklen_t salen,
+                                Error **errp)
+{
+    char host[NI_MAXHOST];
+    char serv[NI_MAXSERV];
+    SocketAddress *addr;
+    int ret;
+
+    ret = getnameinfo((struct sockaddr *)sa, salen,
+                      host, sizeof(host),
+                      serv, sizeof(serv),
+                      NI_NUMERICHOST | NI_NUMERICSERV);
+    if (ret != 0) {
+        error_setg(errp, "Cannot format numeric socket address: %s",
+                   gai_strerror(ret));
+        return NULL;
+    }
+
+    addr = g_new0(SocketAddress, 1);
+    addr->kind = SOCKET_ADDRESS_KIND_INET;
+    addr->inet = g_new0(InetSocketAddress, 1);
+    addr->inet->host = g_strdup(host);
+    addr->inet->port = g_strdup(serv);
+    if (sa->ss_family == AF_INET) {
+        addr->inet->has_ipv4 = addr->inet->ipv4 = true;
+    } else {
+        addr->inet->has_ipv6 = addr->inet->ipv6 = true;
+    }
+
+    return addr;
+}
+
+
+#ifndef WIN32
+static SocketAddress *
+socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
+                                socklen_t salen,
+                                Error **errp)
+{
+    SocketAddress *addr;
+    struct sockaddr_un *su = (struct sockaddr_un *)sa;
+
+    addr = g_new0(SocketAddress, 1);
+    addr->kind = SOCKET_ADDRESS_KIND_UNIX;
+    addr->q_unix = g_new0(UnixSocketAddress, 1);
+    if (su->sun_path[0]) {
+        addr->q_unix->path = g_strndup(su->sun_path,
+                                       sizeof(su->sun_path));
+    }
+
+    return addr;
+}
+#endif /* WIN32 */
+
+static SocketAddress *
+socket_sockaddr_to_address(struct sockaddr_storage *sa,
+                           socklen_t salen,
+                           Error **errp)
+{
+    switch (sa->ss_family) {
+    case AF_INET:
+    case AF_INET6:
+        return socket_sockaddr_to_address_inet(sa, salen, errp);
+
+#ifndef WIN32
+    case AF_UNIX:
+        return socket_sockaddr_to_address_unix(sa, salen, errp);
+#endif /* WIN32 */
+
+    default:
+        error_setg(errp, "socket family %d unsupported",
+                   sa->ss_family);
+        return NULL;
+    }
+    return 0;
+}
+
+
+SocketAddress *socket_local_address(int fd, Error **errp)
+{
+    struct sockaddr_storage ss;
+    socklen_t sslen = sizeof(ss);
+
+    if (getsockname(fd, (struct sockaddr *)&ss, &sslen) < 0) {
+        error_setg_errno(errp, socket_error(), "%s",
+                         "Unable to query local socket address");
+        return NULL;
+    }
+
+    return socket_sockaddr_to_address(&ss, sslen, errp);
+}
+
+
+SocketAddress *socket_remote_address(int fd, Error **errp)
+{
+    struct sockaddr_storage ss;
+    socklen_t sslen = sizeof(ss);
+
+    if (getpeername(fd, (struct sockaddr *)&ss, &sslen) < 0) {
+        error_setg_errno(errp, socket_error(), "%s",
+                         "Unable to query remote socket address");
+        return NULL;
+    }
+
+    return socket_sockaddr_to_address(&ss, sslen, errp);
+}
+
+
+void qapi_copy_SocketAddress(SocketAddress **p_dest,
+                             SocketAddress *src)
+{
+    QmpOutputVisitor *qov;
+    QmpInputVisitor *qiv;
+    Visitor *ov, *iv;
+    QObject *obj;
+
+    *p_dest = NULL;
+
+    qov = qmp_output_visitor_new();
+    ov = qmp_output_get_visitor(qov);
+    visit_type_SocketAddress(ov, &src, NULL, &error_abort);
+    obj = qmp_output_get_qobject(qov);
+    qmp_output_visitor_cleanup(qov);
+    if (!obj) {
+        return;
+    }
+
+    qiv = qmp_input_visitor_new(obj);
+    iv = qmp_input_get_visitor(qiv);
+    visit_type_SocketAddress(iv, p_dest, NULL, &error_abort);
+    qmp_input_visitor_cleanup(qiv);
+    qobject_decref(obj);
 }

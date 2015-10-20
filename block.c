@@ -33,7 +33,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "qemu/notify.h"
-#include "block/coroutine.h"
+#include "qemu/coroutine.h"
 #include "block/qapi.h"
 #include "qmp-commands.h"
 #include "qemu/timer.h"
