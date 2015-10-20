@@ -1197,10 +1197,11 @@ void print_net_client(Monitor *mon, NetClientState *nc)
         monitor_printf(mon, "filters:\n");
     }
     QTAILQ_FOREACH(nf, &nc->filters, next) {
-        monitor_printf(mon, "  - %s: type=%s%s\n",
-                       object_get_canonical_path_component(OBJECT(nf)),
+        char *path = object_get_canonical_path_component(OBJECT(nf));
+        monitor_printf(mon, "  - %s: type=%s%s\n", path,
                        object_get_typename(OBJECT(nf)),
                        nf->info_str);
+        g_free(path);
     }
 }
 
