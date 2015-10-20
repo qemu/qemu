@@ -488,10 +488,10 @@ static inline int vmsvga_fill_rect(struct vmsvga_state_s *s,
 #endif
 
 struct vmsvga_cursor_definition_s {
-    int width;
-    int height;
+    uint32_t width;
+    uint32_t height;
     int id;
-    int bpp;
+    uint32_t bpp;
     int hot_x;
     int hot_y;
     uint32_t mask[1024];
@@ -658,7 +658,10 @@ static void vmsvga_fifo_run(struct vmsvga_state_s *s)
             cursor.bpp = vmsvga_fifo_read(s);
 
             args = SVGA_BITMAP_SIZE(x, y) + SVGA_PIXMAP_SIZE(x, y, cursor.bpp);
-            if (SVGA_BITMAP_SIZE(x, y) > sizeof cursor.mask ||
+            if (cursor.width > 256 ||
+                cursor.height > 256 ||
+                cursor.bpp > 32 ||
+                SVGA_BITMAP_SIZE(x, y) > sizeof cursor.mask ||
                 SVGA_PIXMAP_SIZE(x, y, cursor.bpp) > sizeof cursor.image) {
                     goto badcmd;
             }
