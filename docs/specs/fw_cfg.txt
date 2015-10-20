@@ -76,6 +76,13 @@ increasing address order, similar to memcpy().
 
 Selector Register IOport: 0x510
 Data Register IOport:     0x511
+DMA Address IOport:       0x514
+
+=== ARM Register Locations ===
+
+Selector Register address: Base + 8 (2 bytes)
+Data Register address:     Base + 0 (8 bytes)
+DMA Address address:       Base + 16 (8 bytes)
 
 == Firmware Configuration Items ==
 
@@ -86,11 +93,15 @@ by selecting the "signature" item using key 0x0000 (FW_CFG_SIGNATURE),
 and reading four bytes from the data register. If the fw_cfg device is
 present, the four bytes read will contain the characters "QEMU".
 
-=== Revision (Key 0x0001, FW_CFG_ID) ===
+If the DMA interface is available, then reading the DMA Address
+Register returns 0x51454d5520434647 ("QEMU CFG" in big-endian format).
 
-A 32-bit little-endian unsigned int, this item is used as an interface
-revision number, and is currently set to 1 by QEMU when fw_cfg is
-initialized.
+=== Revision / feature bitmap (Key 0x0001, FW_CFG_ID) ===
+
+A 32-bit little-endian unsigned int, this item is used to check for enabled
+features.
+ - Bit 0: traditional interface. Always set.
+ - Bit 1: DMA interface.
 
 === File Directory (Key 0x0019, FW_CFG_FILE_DIR) ===
 
@@ -132,6 +143,55 @@ Selector Reg.    Range Usage
 In practice, the number of allowed firmware configuration items is given
 by the value of FW_CFG_MAX_ENTRY (see fw_cfg.h).
 
+= Guest-side DMA Interface =
+
+If bit 1 of the feature bitmap is set, the DMA interface is present. This does
+not replace the existing fw_cfg interface, it is an add-on. This interface
+can be used through the 64-bit wide address register.
+
+The address register is in big-endian format. The value for the register is 0
+at startup and after an operation. A write to the least significant half (at
+offset 4) triggers an operation. This means that operations with 32-bit
+addresses can be triggered with just one write, whereas operations with
+64-bit addresses can be triggered with one 64-bit write or two 32-bit writes,
+starting with the most significant half (at offset 0).
+
+In this register, the physical address of a FWCfgDmaAccess structure in RAM
+should be written. This is the format of the FWCfgDmaAccess structure:
+
+typedef struct FWCfgDmaAccess {
+    uint32_t control;
+    uint32_t length;
+    uint64_t address;
+} FWCfgDmaAccess;
+
+The fields of the structure are in big endian mode, and the field at the lowest
+address is the "control" field.
+
+The "control" field has the following bits:
+ - Bit 0: Error
+ - Bit 1: Read
+ - Bit 2: Skip
+ - Bit 3: Select. The upper 16 bits are the selected index.
+
+When an operation is triggered, if the "control" field has bit 3 set, the
+upper 16 bits are interpreted as an index of a firmware configuration item.
+This has the same effect as writing the selector register.
+
+If the "control" field has bit 1 set, a read operation will be performed.
+"length" bytes for the current selector and offset will be copied into the
+physical RAM address specified by the "address" field.
+
+If the "control" field has bit 2 set (and not bit 1), a skip operation will be
+performed. The offset for the current selector will be advanced "length" bytes.
+
+To check the result, read the "control" field:
+   error bit set        ->  something went wrong.
+   all bits cleared     ->  transfer finished successfully.
+   otherwise            ->  transfer still in progress (doesn't happen
+                            today due to implementation not being async,
+                            but may in the future).
+
 = Host-side API =
 
 The following functions are available to the QEMU programmer for adding
@@ -158,6 +218,17 @@ Insert an XX-bit item, where XX may be 16, 32, or 64. These functions
 will convert a 16-, 32-, or 64-bit integer to little-endian, then add
 a dynamically allocated copy of the appropriately sized item to fw_cfg
 under the given selector key value.
+
+== fw_cfg_modify_iXX() ==
+
+Modify the value of an XX-bit item (where XX may be 16, 32, or 64).
+Similarly to the corresponding fw_cfg_add_iXX() function set, convert
+a 16-, 32-, or 64-bit integer to little endian, create a dynamically
+allocated copy of the required size, and replace the existing item at
+the given selector key value with the newly allocated one. The previous
+item, assumed to have been allocated during an earlier call to
+fw_cfg_add_iXX() or fw_cfg_modify_iXX() (of the same width XX), is freed
+before the function returns.
 
 == fw_cfg_add_file() ==
 
@@ -215,6 +286,21 @@ the following syntax:
 
 where <item_name> is the fw_cfg item name, and <path> is the location
 on the host file system of a file containing the data to be inserted.
+
+Small enough items may be provided directly as strings on the command
+line, using the syntax:
+
+    -fw_cfg [name=]<item_name>,string=<string>
+
+The terminating NUL character of the content <string> will NOT be
+included as part of the fw_cfg item data, which is consistent with
+the absence of a NUL terminator for items inserted via the file option.
+
+Both <item_name> and, if applicable, the content <string> are passed
+through by QEMU without any interpretation, expansion, or further
+processing. Any such processing (potentially performed e.g., by the shell)
+is outside of QEMU's responsibility; as such, using plain ASCII characters
+is recommended.
 
 NOTE: Users *SHOULD* choose item names beginning with the prefix "opt/"
 when using the "-fw_cfg" command line option, to avoid conflicting with

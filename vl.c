@@ -512,6 +512,10 @@ static QemuOptsList qemu_fw_cfg_opts = {
             .type = QEMU_OPT_STRING,
             .help = "Sets the name of the file from which\n"
                     "the fw_cfg blob will be loaded",
+        }, {
+            .name = "string",
+            .type = QEMU_OPT_STRING,
+            .help = "Sets content of the blob to be inserted from a string",
         },
         { /* end of list */ }
     },
@@ -2239,11 +2243,16 @@ char *qemu_find_file(int type, const char *name)
     return NULL;
 }
 
+static inline bool nonempty_str(const char *str)
+{
+    return str && *str;
+}
+
 static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
 {
     gchar *buf;
     size_t size;
-    const char *name, *file;
+    const char *name, *file, *str;
 
     if (opaque == NULL) {
         error_report("fw_cfg device not available");
@@ -2251,8 +2260,15 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     }
     name = qemu_opt_get(opts, "name");
     file = qemu_opt_get(opts, "file");
-    if (name == NULL || *name == '\0' || file == NULL || *file == '\0') {
-        error_report("invalid argument value");
+    str = qemu_opt_get(opts, "string");
+
+    /* we need name and either a file or the content string */
+    if (!(nonempty_str(name) && (nonempty_str(file) || nonempty_str(str)))) {
+        error_report("invalid argument(s)");
+        return -1;
+    }
+    if (nonempty_str(file) && nonempty_str(str)) {
+        error_report("file and string are mutually exclusive");
         return -1;
     }
     if (strlen(name) > FW_CFG_MAX_FILE_PATH - 1) {
@@ -2263,9 +2279,14 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
         error_report("WARNING: externally provided fw_cfg item names "
                      "should be prefixed with \"opt/\"!");
     }
-    if (!g_file_get_contents(file, &buf, &size, NULL)) {
-        error_report("can't load %s", file);
-        return -1;
+    if (nonempty_str(str)) {
+        size = strlen(str); /* NUL terminator NOT included in fw_cfg blob */
+        buf = g_memdup(str, size);
+    } else {
+        if (!g_file_get_contents(file, &buf, &size, NULL)) {
+            error_report("can't load %s", file);
+            return -1;
+        }
     }
     fw_cfg_add_file((FWCfgState *)opaque, name, buf, size);
     return 0;
