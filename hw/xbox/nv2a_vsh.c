@@ -690,9 +690,10 @@ static const char* vsh_header =
     "}\n";
 
 void vsh_translate(uint16_t version,
-                       const uint32_t *tokens,
-                       unsigned int length,
-                       QString *header, QString *body)
+                   const uint32_t *tokens,
+                   unsigned int length,
+                   bool z_perspective,
+                   QString *header, QString *body)
 {
 
 
@@ -732,7 +733,8 @@ void vsh_translate(uint16_t version,
         "    vtx.inv_w = 1.0;\n"
         "  } else {\n"
         "    vtx.inv_w = 1.0 / oPos.w;\n"
-        "  }\n");
+        "  }\n"
+    );
 
     qstring_append(body,
         /* the shaders leave the result in screen space, while
@@ -741,6 +743,16 @@ void vsh_translate(uint16_t version,
          */
         "  oPos.x = 2.0 * (oPos.x - surfaceSize.x * 0.5) / surfaceSize.x;\n"
         "  oPos.y = -2.0 * (oPos.y - surfaceSize.y * 0.5) / surfaceSize.y;\n"
+    );
+    if (z_perspective) {
+        qstring_append(body, "  oPos.z = oPos.w;\n");
+    }
+    qstring_append(body,
+        /* Map the clip range into clip space so z is clipped correctly.
+         * Note this makes the values in the depth buffer wrong. This should be
+         * handled with gl_ClipDistance instead, but that has performance issues
+         * on OS X.
+         */
         "  if (clipRange.y != clipRange.x) {\n"
         "    oPos.z = (oPos.z - 0.5 * (clipRange.x + clipRange.y)) / (0.5 * (clipRange.y - clipRange.x));\n"
         "  }\n"
@@ -755,7 +767,6 @@ void vsh_translate(uint16_t version,
              * can't multiply by W because it could be meaningless here */
         "    oPos.w = 1.0;\n"
         "  }\n"
-
     );
 
 }

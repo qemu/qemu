@@ -628,6 +628,7 @@ static QString *generate_vertex_shader(const ShaderState state,
         vsh_translate(VSH_VERSION_XVS,
                       (uint32_t*)state.program_data,
                       state.program_length,
+                      state.z_perspective,
                       header, body);
     } else {
         assert(false);

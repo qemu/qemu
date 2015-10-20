@@ -394,6 +394,7 @@
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_GEQUAL                     6
 #       define NV_PGRAPH_CONTROL_0_ZFUNC_ALWAYS                     7
 #   define NV_PGRAPH_CONTROL_0_DITHERENABLE                     (1 << 22)
+#   define NV_PGRAPH_CONTROL_0_Z_PERSPECTIVE_ENABLE             (1 << 23)
 #   define NV_PGRAPH_CONTROL_0_ZWRITEENABLE                     (1 << 24)
 #   define NV_PGRAPH_CONTROL_0_STENCIL_WRITE_ENABLE             (1 << 25)
 #   define NV_PGRAPH_CONTROL_0_ALPHA_WRITE_ENABLE               (1 << 26)
@@ -765,6 +766,7 @@
 #   define NV097_SET_CONTROL0                                 0x00970290
 #       define NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE            (1 << 0)
 #       define NV097_SET_CONTROL0_Z_FORMAT                        (1 << 12)
+#       define NV097_SET_CONTROL0_Z_PERSPECTIVE_ENABLE            (1 << 16)
 #   define NV097_SET_FOG_MODE                                 0x0097029C
 #       define NV097_SET_FOG_MODE_V_LINEAR                        0x2601
 #       define NV097_SET_FOG_MODE_V_EXP                           0x800
@@ -2943,20 +2945,20 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
                                    NV_PGRAPH_CONTROL_0_ALPHAFUNC),
         },
 
+        /* fixed function stuff */
         .skinning = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
                              NV_PGRAPH_CSV0_D_SKIN),
-
         .lighting = GET_MASK(pg->regs[NV_PGRAPH_CSV0_C],
                              NV_PGRAPH_CSV0_C_LIGHTING),
-
         .normalization = pg->regs[NV_PGRAPH_CSV0_C]
                            & NV_PGRAPH_CSV0_C_NORMALIZATION_ENABLE,
 
-        /* fixed function stuff */
         .fixed_function = fixed_function,
 
         /* vertex program stuff */
         .vertex_program = vertex_program,
+        .z_perspective = pg->regs[NV_PGRAPH_CONTROL_0]
+                            & NV_PGRAPH_CONTROL_0_Z_PERSPECTIVE_ENABLE,
 
         /* geometry shader stuff */
         .primitive_mode = pg->primitive_mode,
@@ -4297,6 +4299,12 @@ static void pgraph_method(NV2AState *d,
         uint32_t z_format = GET_MASK(parameter, NV097_SET_CONTROL0_Z_FORMAT);
         SET_MASK(pg->regs[NV_PGRAPH_SETUPRASTER],
                  NV_PGRAPH_SETUPRASTER_Z_FORMAT, z_format);
+
+        bool z_perspective =
+            parameter & NV097_SET_CONTROL0_Z_PERSPECTIVE_ENABLE;
+        SET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                 NV_PGRAPH_CONTROL_0_Z_PERSPECTIVE_ENABLE,
+                 z_perspective);
         break;
     }
 
