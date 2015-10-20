@@ -20,6 +20,10 @@ void virtio_input_send(VirtIOInput *vinput, virtio_input_event *event)
     unsigned have, need;
     int i, len;
 
+    if (!vinput->active) {
+        return;
+    }
+
     /* queue up events ... */
     if (vinput->qindex == vinput->qsize) {
         vinput->qsize++;
