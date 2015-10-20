@@ -708,7 +708,7 @@ static ssize_t nc_sendv_compat(NetClientState *nc, const struct iovec *iov,
         offset = iov[0].iov_len;
     } else {
         buffer = buf;
-        offset = iov_to_buf(iov, iovcnt, 0, buffer, sizeof(buffer));
+        offset = iov_to_buf(iov, iovcnt, 0, buf, sizeof(buf));
     }
 
     if (flags & QEMU_NET_PACKET_FLAG_RAW && nc->info->receive_raw) {
