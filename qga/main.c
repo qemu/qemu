@@ -161,6 +161,12 @@ static gboolean register_signal_handlers(void)
         g_error("error configuring signal handler: %s", strerror(errno));
     }
 
+    sigact.sa_handler = SIG_IGN;
+    if (sigaction(SIGPIPE, &sigact, NULL) != 0) {
+        g_error("error configuring SIGPIPE signal handler: %s",
+                strerror(errno));
+    }
+
     return true;
 }
 
@@ -945,10 +951,11 @@ static void config_load(GAConfig *config)
 {
     GError *gerr = NULL;
     GKeyFile *keyfile;
+    const char *conf = g_getenv("QGA_CONF") ?: QGA_CONF_DEFAULT;
 
     /* read system config */
     keyfile = g_key_file_new();
-    if (!g_key_file_load_from_file(keyfile, QGA_CONF_DEFAULT, 0, &gerr)) {
+    if (!g_key_file_load_from_file(keyfile, conf, 0, &gerr)) {
         goto end;
     }
     if (g_key_file_has_key(keyfile, "general", "daemon", NULL)) {
@@ -1081,8 +1088,6 @@ static void config_parse(GAConfig *config, int argc, char **argv)
         { "statedir", 1, NULL, 't' },
         { NULL, 0, NULL, 0 }
     };
-
-    config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -1330,6 +1335,8 @@ int main(int argc, char **argv)
     int ret = EXIT_SUCCESS;
     GAState *s = g_new0(GAState, 1);
     GAConfig *config = g_new0(GAConfig, 1);
+
+    config->log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
 
     module_call_init(MODULE_INIT_QAPI);
 

@@ -356,7 +356,7 @@ static void qmp_response(JSONMessageParser *parser, QList *tokens)
     qmp->response = (QDict *)obj;
 }
 
-QDict *qtest_qmp_receive(QTestState *s)
+QDict *qmp_fd_receive(int fd)
 {
     QMPResponseParser qmp;
     bool log = getenv("QTEST_LOG") != NULL;
@@ -367,7 +367,7 @@ QDict *qtest_qmp_receive(QTestState *s)
         ssize_t len;
         char c;
 
-        len = read(s->qmp_fd, &c, 1);
+        len = read(fd, &c, 1);
         if (len == -1 && errno == EINTR) {
             continue;
         }
@@ -387,12 +387,17 @@ QDict *qtest_qmp_receive(QTestState *s)
     return qmp.response;
 }
 
+QDict *qtest_qmp_receive(QTestState *s)
+{
+    return qmp_fd_receive(s->qmp_fd);
+}
+
 /**
  * Allow users to send a message without waiting for the reply,
  * in the case that they choose to discard all replies up until
  * a particular EVENT is received.
  */
-void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
+void qmp_fd_sendv(int fd, const char *fmt, va_list ap)
 {
     va_list ap_copy;
     QObject *qobj;
@@ -416,11 +421,23 @@ void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
             fprintf(stderr, "%s", str);
         }
         /* Send QMP request */
-        socket_send(s->qmp_fd, str, size);
+        socket_send(fd, str, size);
 
         QDECREF(qstr);
         qobject_decref(qobj);
     }
+}
+
+void qtest_async_qmpv(QTestState *s, const char *fmt, va_list ap)
+{
+    qmp_fd_sendv(s->qmp_fd, fmt, ap);
+}
+
+QDict *qmp_fdv(int fd, const char *fmt, va_list ap)
+{
+    qmp_fd_sendv(fd, fmt, ap);
+
+    return qmp_fd_receive(fd);
 }
 
 QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
@@ -429,6 +446,26 @@ QDict *qtest_qmpv(QTestState *s, const char *fmt, va_list ap)
 
     /* Receive reply */
     return qtest_qmp_receive(s);
+}
+
+QDict *qmp_fd(int fd, const char *fmt, ...)
+{
+    va_list ap;
+    QDict *response;
+
+    va_start(ap, fmt);
+    response = qmp_fdv(fd, fmt, ap);
+    va_end(ap);
+    return response;
+}
+
+void qmp_fd_send(int fd, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    qmp_fd_sendv(fd, fmt, ap);
+    va_end(ap);
 }
 
 QDict *qtest_qmp(QTestState *s, const char *fmt, ...)

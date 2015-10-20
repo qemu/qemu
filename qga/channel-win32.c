@@ -269,7 +269,7 @@ static GIOStatus ga_channel_write(GAChannel *c, const char *buf, size_t size,
 GIOStatus ga_channel_write_all(GAChannel *c, const char *buf, size_t size)
 {
     GIOStatus status = G_IO_STATUS_NORMAL;
-    size_t count;
+    size_t count = 0;
 
     while (size) {
         status = ga_channel_write(c, buf, size, &count);
@@ -322,7 +322,7 @@ static gboolean ga_channel_open(GAChannel *c, GAChannelMethod method,
 GAChannel *ga_channel_new(GAChannelMethod method, const gchar *path,
                           GAChannelCallback cb, gpointer opaque)
 {
-    GAChannel *c = g_malloc0(sizeof(GAChannel));
+    GAChannel *c = g_new0(GAChannel, 1);
     SECURITY_ATTRIBUTES sec_attrs;
 
     if (!ga_channel_open(c, method, path)) {

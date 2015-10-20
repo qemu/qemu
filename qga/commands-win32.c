@@ -55,7 +55,9 @@ typedef struct GuestFileHandle {
 
 static struct {
     QTAILQ_HEAD(, GuestFileHandle) filehandles;
-} guest_file_state;
+} guest_file_state = {
+    .filehandles = QTAILQ_HEAD_INITIALIZER(guest_file_state.filehandles),
+};
 
 
 typedef struct OpenFlags {
@@ -106,7 +108,7 @@ static int64_t guest_file_handle_add(HANDLE fh, Error **errp)
     if (handle < 0) {
         return -1;
     }
-    gfh = g_malloc0(sizeof(GuestFileHandle));
+    gfh = g_new0(GuestFileHandle, 1);
     gfh->id = handle;
     gfh->fh = fh;
     QTAILQ_INSERT_TAIL(&guest_file_state.filehandles, gfh, next);
@@ -298,7 +300,7 @@ GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
         slog("guest-file-read failed, handle %" PRId64, handle);
     } else {
         buf[read_count] = 0;
-        read_data = g_malloc0(sizeof(GuestFileRead));
+        read_data = g_new0(GuestFileRead, 1);
         read_data->count = (size_t)read_count;
         read_data->eof = read_count == 0;
 
@@ -342,7 +344,7 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
         error_setg_win32(errp, GetLastError(), "failed to write to file");
         slog("guest-file-write-failed, handle: %" PRId64, handle);
     } else {
-        write_data = g_malloc0(sizeof(GuestFileWrite));
+        write_data = g_new0(GuestFileWrite, 1);
         write_data->count = (size_t) write_count;
     }
 
@@ -388,11 +390,6 @@ void qmp_guest_file_flush(int64_t handle, Error **errp)
     if (!FlushFileBuffers(fh)) {
         error_setg_win32(errp, GetLastError(), "failed to flush file");
     }
-}
-
-static void guest_file_init(void)
-{
-    QTAILQ_INIT(&guest_file_state.filehandles);
 }
 
 #ifdef CONFIG_QGA_NTDDSCSI
@@ -865,7 +862,7 @@ static DWORD WINAPI do_suspend(LPVOID opaque)
 void qmp_guest_suspend_disk(Error **errp)
 {
     Error *local_err = NULL;
-    GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
+    GuestSuspendMode *mode = g_new(GuestSuspendMode, 1);
 
     *mode = GUEST_SUSPEND_MODE_DISK;
     check_suspend_mode(*mode, &local_err);
@@ -881,7 +878,7 @@ void qmp_guest_suspend_disk(Error **errp)
 void qmp_guest_suspend_ram(Error **errp)
 {
     Error *local_err = NULL;
-    GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
+    GuestSuspendMode *mode = g_new(GuestSuspendMode, 1);
 
     *mode = GUEST_SUSPEND_MODE_RAM;
     check_suspend_mode(*mode, &local_err);
@@ -1330,5 +1327,4 @@ void ga_command_state_init(GAState *s, GACommandState *cs)
     if (!vss_initialized()) {
         ga_command_state_add(cs, NULL, guest_fsfreeze_cleanup);
     }
-    ga_command_state_add(cs, guest_file_init, NULL);
 }

@@ -165,4 +165,65 @@ static inline GThread *g_thread_new(const char *name,
 #define CompatGCond GCond
 #endif /* glib 2.31 */
 
+#ifndef g_assert_true
+#define g_assert_true(expr)                                                    \
+    do {                                                                       \
+        if (G_LIKELY(expr)) {                                                  \
+        } else {                                                               \
+            g_assertion_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC,   \
+                                "'" #expr "' should be TRUE");                 \
+        }                                                                      \
+    } while (0)
+#endif
+
+#ifndef g_assert_false
+#define g_assert_false(expr)                                                   \
+    do {                                                                       \
+        if (G_LIKELY(!(expr))) {                                               \
+        } else {                                                               \
+            g_assertion_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC,   \
+                                "'" #expr "' should be FALSE");                \
+        }                                                                      \
+    } while (0)
+#endif
+
+#ifndef g_assert_null
+#define g_assert_null(expr)                                                    \
+    do {                                                                       \
+        if (G_LIKELY((expr) == NULL)) {                                        \
+        } else {                                                               \
+            g_assertion_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC,   \
+                                "'" #expr "' should be NULL");                 \
+        }                                                                      \
+    } while (0)
+#endif
+
+#ifndef g_assert_nonnull
+#define g_assert_nonnull(expr)                                                 \
+    do {                                                                       \
+        if (G_LIKELY((expr) != NULL)) {                                        \
+        } else {                                                               \
+            g_assertion_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC,   \
+                                "'" #expr "' should not be NULL");             \
+        }                                                                      \
+    } while (0)
+#endif
+
+#ifndef g_assert_cmpmem
+#define g_assert_cmpmem(m1, l1, m2, l2)                                        \
+    do {                                                                       \
+        gconstpointer __m1 = m1, __m2 = m2;                                    \
+        int __l1 = l1, __l2 = l2;                                              \
+        if (__l1 != __l2) {                                                    \
+            g_assertion_message_cmpnum(                                        \
+                G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC,                   \
+                #l1 " (len(" #m1 ")) == " #l2 " (len(" #m2 "))", __l1, "==",   \
+                __l2, 'i');                                                    \
+        } else if (memcmp(__m1, __m2, __l1) != 0) {                            \
+            g_assertion_message(G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC,   \
+                                "assertion failed (" #m1 " == " #m2 ")");      \
+        }                                                                      \
+    } while (0)
+#endif
+
 #endif
