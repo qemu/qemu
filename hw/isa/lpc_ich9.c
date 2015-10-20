@@ -394,7 +394,7 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
 
     /* SMI_EN = PMBASE + 30. SMI control and enable register */
     if (lpc->pm.smi_en & ICH9_PMIO_SMI_EN_APMC_EN) {
-        cpu_interrupt(first_cpu, CPU_INTERRUPT_SMI);
+        cpu_interrupt(current_cpu, CPU_INTERRUPT_SMI);
     }
 }
 
