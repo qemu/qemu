@@ -2105,38 +2105,44 @@ static TileExcp decode_y2(DisasContext *dc, tilegx_bundle_bits bundle)
     unsigned srcbdest = get_SrcBDest_Y2(bundle);
     const char *mnemonic;
     TCGMemOp memop;
+    bool prefetch_nofault = false;
 
     switch (OEY2(opc, mode)) {
     case OEY2(LD1S_OPCODE_Y2, MODE_OPCODE_YA2):
         memop = MO_SB;
-        mnemonic = "ld1s";
+        mnemonic = "ld1s"; /* prefetch_l1_fault */
         goto do_load;
     case OEY2(LD1U_OPCODE_Y2, MODE_OPCODE_YA2):
         memop = MO_UB;
-        mnemonic = "ld1u";
+        mnemonic = "ld1u"; /* prefetch, prefetch_l1 */
+        prefetch_nofault = (srcbdest == TILEGX_R_ZERO);
         goto do_load;
     case OEY2(LD2S_OPCODE_Y2, MODE_OPCODE_YA2):
         memop = MO_TESW;
-        mnemonic = "ld2s";
+        mnemonic = "ld2s"; /* prefetch_l2_fault */
         goto do_load;
     case OEY2(LD2U_OPCODE_Y2, MODE_OPCODE_YA2):
         memop = MO_TEUW;
-        mnemonic = "ld2u";
+        mnemonic = "ld2u"; /* prefetch_l2 */
+        prefetch_nofault = (srcbdest == TILEGX_R_ZERO);
         goto do_load;
     case OEY2(LD4S_OPCODE_Y2, MODE_OPCODE_YB2):
         memop = MO_TESL;
-        mnemonic = "ld4s";
+        mnemonic = "ld4s"; /* prefetch_l3_fault */
         goto do_load;
     case OEY2(LD4U_OPCODE_Y2, MODE_OPCODE_YB2):
         memop = MO_TEUL;
-        mnemonic = "ld4u";
+        mnemonic = "ld4u"; /* prefetch_l3 */
+        prefetch_nofault = (srcbdest == TILEGX_R_ZERO);
         goto do_load;
     case OEY2(LD_OPCODE_Y2, MODE_OPCODE_YB2):
         memop = MO_TEQ;
         mnemonic = "ld";
     do_load:
-        tcg_gen_qemu_ld_tl(dest_gr(dc, srcbdest), load_gr(dc, srca),
-                           dc->mmuidx, memop);
+        if (!prefetch_nofault) {
+            tcg_gen_qemu_ld_tl(dest_gr(dc, srcbdest), load_gr(dc, srca),
+                               dc->mmuidx, memop);
+        }
         qemu_log_mask(CPU_LOG_TB_IN_ASM, "%s %s, %s", mnemonic,
                       reg_names[srcbdest], reg_names[srca]);
         return TILEGX_EXCP_NONE;
