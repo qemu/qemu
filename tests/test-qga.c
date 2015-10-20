@@ -273,13 +273,15 @@ static void test_qga_get_fsinfo(gconstpointer fix)
     g_assert_nonnull(ret);
     qmp_assert_no_error(ret);
 
-    /* check there is at least a fs */
+    /* sanity-check the response if there are any filesystems */
     list = qdict_get_qlist(ret, "return");
     entry = qlist_first(list);
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "name"));
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "mountpoint"));
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "type"));
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "disk"));
+    if (entry) {
+        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "name"));
+        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "mountpoint"));
+        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "type"));
+        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "disk"));
+    }
 
     QDECREF(ret);
 }
