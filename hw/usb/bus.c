@@ -655,9 +655,12 @@ void hmp_info_usb(Monitor *mon, const QDict *qdict)
             dev = port->dev;
             if (!dev)
                 continue;
-            monitor_printf(mon, "  Device %d.%d, Port %s, Speed %s Mb/s, Product %s\n",
-                           bus->busnr, dev->addr, port->path, usb_speed(dev->speed),
-                           dev->product_desc);
+            monitor_printf(mon, "  Device %d.%d, Port %s, Speed %s Mb/s, "
+                           "Product %s%s%s\n",
+                           bus->busnr, dev->addr, port->path,
+                           usb_speed(dev->speed), dev->product_desc,
+                           dev->qdev.id ? ", ID: " : "",
+                           dev->qdev.id ?: "");
         }
     }
 }
