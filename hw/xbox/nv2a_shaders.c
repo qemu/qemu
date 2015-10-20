@@ -815,18 +815,7 @@ ShaderBinding* generate_shaders(const ShaderState state)
 
     /* generate a fragment shader from register combiners */
 
-    QString *fragment_shader_code = psh_translate(state.combiner_control,
-                   state.shader_stage_program,
-                   state.other_stage_input,
-                   state.rgb_inputs, state.rgb_outputs,
-                   state.alpha_inputs, state.alpha_outputs,
-                   /* constant_0, constant_1, */
-                   state.final_inputs_0, state.final_inputs_1,
-                   /* final_constant_0, final_constant_1, */
-                   state.rect_tex,
-                   state.compare_mode,
-                   state.alphakill,
-                   state.alpha_test, state.alpha_func);
+    QString *fragment_shader_code = psh_translate(state.psh);
 
     const char *fragment_shader_code_str = qstring_get_str(fragment_shader_code);
 

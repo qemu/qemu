@@ -35,18 +35,25 @@ enum PshAlphaFunc {
     ALPHA_FUNC_ALWAYS,
 };
 
-QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
-                       uint32_t other_stage_input,
-                       const uint32_t rgb_inputs[8],
-                       const uint32_t rgb_outputs[8],
-                       const uint32_t alpha_inputs[8],
-                       const uint32_t alpha_outputs[8],
-                       /*uint32_t constant_0[8], uint32_t constant_1[8],*/
-                       uint32_t final_inputs_0, uint32_t final_inputs_1,
-                       /*uint32_t final_constant_0, uint32_t final_constant_1,*/
-                       const bool rect_tex[4],
-                       const bool compare_mode[4][4],
-                       const bool alphakill[4],
-                       bool alpha_test, enum PshAlphaFunc alpha_func);
+typedef struct PshState {
+    /* fragment shader - register combiner stuff */
+    uint32_t combiner_control;
+    uint32_t shader_stage_program;
+    uint32_t other_stage_input;
+    uint32_t final_inputs_0;
+    uint32_t final_inputs_1;
+
+    uint32_t rgb_inputs[8], rgb_outputs[8];
+    uint32_t alpha_inputs[8], alpha_outputs[8];
+
+    bool rect_tex[4];
+    bool compare_mode[4][4];
+    bool alphakill[4];
+
+    bool alpha_test;
+    enum PshAlphaFunc alpha_func;
+} PshState;
+
+QString *psh_translate(const PshState state);
 
 #endif

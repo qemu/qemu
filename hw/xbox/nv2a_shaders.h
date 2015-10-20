@@ -52,22 +52,7 @@ enum ShaderPolygonMode {
 };
 
 typedef struct ShaderState {
-    /* fragment shader - register combiner stuff */
-    uint32_t combiner_control;
-    uint32_t shader_stage_program;
-    uint32_t other_stage_input;
-    uint32_t final_inputs_0;
-    uint32_t final_inputs_1;
-
-    uint32_t rgb_inputs[8], rgb_outputs[8];
-    uint32_t alpha_inputs[8], alpha_outputs[8];
-
-    bool rect_tex[4];
-    bool compare_mode[4][4];
-    bool alphakill[4];
-
-    bool alpha_test;
-    enum PshAlphaFunc alpha_func;
+    PshState psh;
 
     bool texture_matrix_enable[4];
     enum VshTexgen texgen[4][4];

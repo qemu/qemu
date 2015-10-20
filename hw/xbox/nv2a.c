@@ -2929,17 +2929,19 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     bool binding_changed = false;
 
     ShaderState state = {
-        /* register combier stuff */
-        .combiner_control = pg->regs[NV_PGRAPH_COMBINECTL],
-        .shader_stage_program = pg->regs[NV_PGRAPH_SHADERPROG],
-        .other_stage_input = pg->regs[NV_PGRAPH_SHADERCTL],
-        .final_inputs_0 = pg->regs[NV_PGRAPH_COMBINESPECFOG0],
-        .final_inputs_1 = pg->regs[NV_PGRAPH_COMBINESPECFOG1],
+        .psh = (PshState){
+            /* register combier stuff */
+            .combiner_control = pg->regs[NV_PGRAPH_COMBINECTL],
+            .shader_stage_program = pg->regs[NV_PGRAPH_SHADERPROG],
+            .other_stage_input = pg->regs[NV_PGRAPH_SHADERCTL],
+            .final_inputs_0 = pg->regs[NV_PGRAPH_COMBINESPECFOG0],
+            .final_inputs_1 = pg->regs[NV_PGRAPH_COMBINESPECFOG1],
 
-        .alpha_test = pg->regs[NV_PGRAPH_CONTROL_0]
-                        & NV_PGRAPH_CONTROL_0_ALPHATESTENABLE,
-        .alpha_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
-                               NV_PGRAPH_CONTROL_0_ALPHAFUNC),
+            .alpha_test = pg->regs[NV_PGRAPH_CONTROL_0]
+                            & NV_PGRAPH_CONTROL_0_ALPHATESTENABLE,
+            .alpha_func = GET_MASK(pg->regs[NV_PGRAPH_CONTROL_0],
+                                   NV_PGRAPH_CONTROL_0_ALPHAFUNC),
+        },
 
         .skinning = GET_MASK(pg->regs[NV_PGRAPH_CSV0_D],
                              NV_PGRAPH_CSV0_D_SKIN),
@@ -3025,16 +3027,16 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
     }
 
     for (i = 0; i < 8; i++) {
-        state.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
-        state.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
-        state.alpha_inputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAI0 + i * 4];
-        state.alpha_outputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAO0 + i * 4];
+        state.psh.rgb_inputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORI0 + i * 4];
+        state.psh.rgb_outputs[i] = pg->regs[NV_PGRAPH_COMBINECOLORO0 + i * 4];
+        state.psh.alpha_inputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAI0 + i * 4];
+        state.psh.alpha_outputs[i] = pg->regs[NV_PGRAPH_COMBINEALPHAO0 + i * 4];
         //constant_0[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR0 + i * 4];
         //constant_1[i] = pg->regs[NV_PGRAPH_COMBINEFACTOR1 + i * 4];
     }
 
     for (i = 0; i < 4; i++) {
-        state.rect_tex[i] = false;
+        state.psh.rect_tex[i] = false;
         bool enabled = pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4]
                          & NV_PGRAPH_TEXCTL0_0_ENABLE;
         unsigned int color_format =
@@ -3042,14 +3044,14 @@ static void pgraph_bind_shaders(PGRAPHState *pg)
                      NV_PGRAPH_TEXFMT0_COLOR);
 
         if (enabled && kelvin_color_format_map[color_format].linear) {
-            state.rect_tex[i] = true;
+            state.psh.rect_tex[i] = true;
         }
 
         for (j = 0; j < 4; j++) {
-            state.compare_mode[i][j] =
+            state.psh.compare_mode[i][j] =
                 (pg->regs[NV_PGRAPH_SHADERCLIPMODE] >> (4 * i + j)) & 1;
         }
-        state.alphakill[i] = pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4]
+        state.psh.alphakill[i] = pg->regs[NV_PGRAPH_TEXCTL0_0 + i*4]
                                & NV_PGRAPH_TEXCTL0_0_ALPHAKILLEN;
     }
 

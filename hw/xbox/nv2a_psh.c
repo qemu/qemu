@@ -194,6 +194,8 @@ struct PSStageInfo {
 };
 
 struct PixelShader {
+    PshState state;
+
     int num_stages, flags;
     struct PSStageInfo stage[8];
     struct FCInputInfo final_input;
@@ -201,21 +203,14 @@ struct PixelShader {
 
     //uint32_t dot_mapping, input_texture;
 
-    bool rect_tex[4];
-    bool compare_mode[4][4];
-    bool alphakill[4];
-
-    bool alpha_test;
-    enum PshAlphaFunc alpha_func;
-
     QString *varE, *varF;
     QString *code;
     int cur_stage;
 
     int num_var_refs;
-    const char var_refs[32][32];
+    char var_refs[32][32];
     int num_const_refs;
-    const char const_refs[32][32];
+    char const_refs[32][32];
 };
 
 static void add_var_ref(struct PixelShader *ps, const char *var)
@@ -569,7 +564,7 @@ static QString* psh_convert(struct PixelShader *ps)
                                i);
             break;
         case PS_TEXTUREMODES_PROJECT2D:
-            if (ps->rect_tex[i]) {
+            if (ps->state.rect_tex[i]) {
                 sampler_type = "sampler2DRect";
             } else {
                 sampler_type = "sampler2D";
@@ -594,13 +589,13 @@ static QString* psh_convert(struct PixelShader *ps)
             assert(false);
             break;
         case PS_TEXTUREMODES_DPNDNT_AR:
-            assert(!ps->rect_tex[i]);
+            assert(!ps->state.rect_tex[i]);
             sampler_type = "sampler2D";
             qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, t%d.ar);\n",
                                i, i, ps->input_tex[i]);
             break;
         case PS_TEXTUREMODES_DPNDNT_GB:
-            assert(!ps->rect_tex[i]);
+            assert(!ps->state.rect_tex[i]);
             sampler_type = "sampler2D";
             qstring_append_fmt(vars, "vec4 t%d = texture(texSamp%d, t%d.gb);\n",
                                i, i, ps->input_tex[i]);
@@ -613,7 +608,7 @@ static QString* psh_convert(struct PixelShader *ps)
                                i, i, i, ps->input_tex[i], i);
             /* No break here! Extension of BUMPENVMAP */
         case PS_TEXTUREMODES_BUMPENVMAP:
-            assert(!ps->rect_tex[i]);
+            assert(!ps->state.rect_tex[i]);
             sampler_type = "sampler2D";
             qstring_append_fmt(preflight, "uniform mat2 bumpMat%d;\n", i);
             /* FIXME: Do bumpMat swizzle on CPU before upload */
@@ -627,7 +622,7 @@ static QString* psh_convert(struct PixelShader *ps)
             for (j = 0; j < 4; j++) {
                 qstring_append_fmt(vars, "  if(pT%d.%c %s 0.0) { discard; };\n",
                                    i, "xyzw"[j],
-                                   ps->compare_mode[i][j] ? ">=" : "<");
+                                   ps->state.compare_mode[i][j] ? ">=" : "<");
             }
             break;
         }
@@ -645,7 +640,7 @@ static QString* psh_convert(struct PixelShader *ps)
             qstring_append_fmt(preflight, "uniform %s texSamp%d;\n", sampler_type, i);
 
             /* As this means a texture fetch does happen, do alphakill */
-            if (ps->alphakill[i]) {
+            if (ps->state.alphakill[i]) {
                 qstring_append_fmt(vars, "if (t%d.a == 0.0) { discard; };\n",
                                    i);
             }
@@ -679,13 +674,13 @@ static QString* psh_convert(struct PixelShader *ps)
         qstring_append_fmt(preflight, "uniform vec4 %s;\n", ps->const_refs[i]);
     }
 
-    if (ps->alpha_test && ps->alpha_func != ALPHA_FUNC_ALWAYS) {
+    if (ps->state.alpha_test && ps->state.alpha_func != ALPHA_FUNC_ALWAYS) {
         qstring_append_fmt(preflight, "uniform float alphaRef;\n");
-        if (ps->alpha_func == ALPHA_FUNC_NEVER) {
+        if (ps->state.alpha_func == ALPHA_FUNC_NEVER) {
             qstring_append(ps->code, "discard;\n");
         } else {
             const char* alpha_op;
-            switch (ps->alpha_func) {
+            switch (ps->state.alpha_func) {
             case ALPHA_FUNC_LESS: alpha_op = "<"; break;
             case ALPHA_FUNC_EQUAL: alpha_op = "=="; break;
             case ALPHA_FUNC_LEQUAL: alpha_op = "<="; break;
@@ -749,50 +744,34 @@ static void parse_combiner_output(uint32_t value, struct OutputInfo *out)
     out->cd_alphablue = flags & 0x40;
 }
 
-QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
-                       uint32_t other_stage_input,
-                       const uint32_t rgb_inputs[8],
-                       const uint32_t rgb_outputs[8],
-                       const uint32_t alpha_inputs[8],
-                       const uint32_t alpha_outputs[8],
-                       /*uint32_t constant_0[8], uint32_t constant_1[8],*/
-                       uint32_t final_inputs_0, uint32_t final_inputs_1,
-                       /*uint32_t final_constant_0, uint32_t final_constant_1,*/
-                       const bool rect_tex[4],
-                       const bool compare_mode[4][4],
-                       const bool alphakill[4],
-                       bool alpha_test, enum PshAlphaFunc alpha_func)
+QString *psh_translate(const PshState state)
 {
-    int i, j;
+    int i;
     struct PixelShader ps;
     memset(&ps, 0, sizeof(ps));
 
-    ps.num_stages = combiner_control & 0xFF;
-    ps.flags = combiner_control >> 8;
-    for (i = 0; i < 4; i++) {
-        ps.tex_modes[i] = (shader_stage_program >> (i * 5)) & 0x1F;
-        ps.rect_tex[i] = rect_tex[i];
-        for (j = 0; j < 4; j++) {
-            ps.compare_mode[i][j] = compare_mode[i][j];
-        }
-        ps.alphakill[i] = alphakill[i];
-    }
+    ps.state = state;
 
-    ps.alpha_test = alpha_test;
-    ps.alpha_func = alpha_func;
+    ps.num_stages = state.combiner_control & 0xFF;
+    ps.flags = state.combiner_control >> 8;
+    for (i = 0; i < 4; i++) {
+        ps.tex_modes[i] = (state.shader_stage_program >> (i * 5)) & 0x1F;
+    }
 
     ps.input_tex[0] = -1;
     ps.input_tex[1] = 0;
-    ps.input_tex[2] = (other_stage_input >> 16) & 0xF;
-    ps.input_tex[3] = (other_stage_input >> 20) & 0xF;
+    ps.input_tex[2] = (state.other_stage_input >> 16) & 0xF;
+    ps.input_tex[3] = (state.other_stage_input >> 20) & 0xF;
     for (i = 0; i < ps.num_stages; i++) {
-        parse_combiner_inputs(rgb_inputs[i], &ps.stage[i].rgb_input.a,
-            &ps.stage[i].rgb_input.b, &ps.stage[i].rgb_input.c, &ps.stage[i].rgb_input.d);
-        parse_combiner_inputs(alpha_inputs[i], &ps.stage[i].alpha_input.a,
-            &ps.stage[i].alpha_input.b, &ps.stage[i].alpha_input.c, &ps.stage[i].alpha_input.d);
+        parse_combiner_inputs(state.rgb_inputs[i],
+            &ps.stage[i].rgb_input.a, &ps.stage[i].rgb_input.b,
+            &ps.stage[i].rgb_input.c, &ps.stage[i].rgb_input.d);
+        parse_combiner_inputs(state.alpha_inputs[i],
+            &ps.stage[i].alpha_input.a, &ps.stage[i].alpha_input.b,
+            &ps.stage[i].alpha_input.c, &ps.stage[i].alpha_input.d);
 
-        parse_combiner_output(rgb_outputs[i], &ps.stage[i].rgb_output);
-        parse_combiner_output(alpha_outputs[i], &ps.stage[i].alpha_output);
+        parse_combiner_output(state.rgb_outputs[i], &ps.stage[i].rgb_output);
+        parse_combiner_output(state.alpha_outputs[i], &ps.stage[i].alpha_output);
         //ps.stage[i].c0 = (pDef->PSC0Mapping >> (i * 4)) & 0xF;
         //ps.stage[i].c1 = (pDef->PSC1Mapping >> (i * 4)) & 0xF;
         //ps.stage[i].c0_value = constant_0[i];
@@ -800,13 +779,15 @@ QString *psh_translate(uint32_t combiner_control, uint32_t shader_stage_program,
     }
 
     struct InputInfo blank;
-    ps.final_input.enabled = final_inputs_0 || final_inputs_1;
+    ps.final_input.enabled = state.final_inputs_0 || state.final_inputs_1;
     if (ps.final_input.enabled) {
-        parse_combiner_inputs(final_inputs_0, &ps.final_input.a, &ps.final_input.b,
+        parse_combiner_inputs(state.final_inputs_0,
+                              &ps.final_input.a, &ps.final_input.b,
                               &ps.final_input.c, &ps.final_input.d);
-        parse_combiner_inputs(final_inputs_1, &ps.final_input.e, &ps.final_input.f,
+        parse_combiner_inputs(state.final_inputs_1,
+                              &ps.final_input.e, &ps.final_input.f,
                               &ps.final_input.g, &blank);
-        int flags = final_inputs_1 & 0xFF;
+        int flags = state.final_inputs_1 & 0xFF;
         ps.final_input.clamp_sum = flags & PS_FINALCOMBINERSETTING_CLAMP_SUM;
         ps.final_input.inv_v1 = flags & PS_FINALCOMBINERSETTING_COMPLEMENT_V1;
         ps.final_input.inv_r0 = flags & PS_FINALCOMBINERSETTING_COMPLEMENT_R0;
