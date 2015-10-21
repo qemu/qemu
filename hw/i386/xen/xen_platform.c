@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "exec/address-spaces.h"
 #include "sysemu/block-backend.h"
+#include "qemu/error-report.h"
 
 #include <xenguest.h>
 
@@ -388,7 +389,10 @@ static void xen_platform_realize(PCIDevice *dev, Error **errp)
     uint8_t *pci_conf;
 
     /* Device will crash on reset if xen is not initialized */
-    assert(xen_enabled());
+    if (!xen_enabled()) {
+        error_setg(errp, "xen-platform device requires the Xen accelerator");
+        return;
+    }
 
     pci_conf = dev->config;
 
