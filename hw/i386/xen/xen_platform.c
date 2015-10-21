@@ -382,7 +382,7 @@ static const VMStateDescription vmstate_xen_platform = {
     }
 };
 
-static int xen_platform_initfn(PCIDevice *dev)
+static void xen_platform_realize(PCIDevice *dev, Error **errp)
 {
     PCIXenPlatformState *d = XEN_PLATFORM(dev);
     uint8_t *pci_conf;
@@ -407,8 +407,6 @@ static int xen_platform_initfn(PCIDevice *dev)
                      &d->mmio_bar);
 
     platform_fixed_ioport_init(d);
-
-    return 0;
 }
 
 static void platform_reset(DeviceState *dev)
@@ -423,7 +421,7 @@ static void xen_platform_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = xen_platform_initfn;
+    k->realize = xen_platform_realize;
     k->vendor_id = PCI_VENDOR_ID_XEN;
     k->device_id = PCI_DEVICE_ID_XEN_PLATFORM;
     k->class_id = PCI_CLASS_OTHERS << 8 | 0x80;
