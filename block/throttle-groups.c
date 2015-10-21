@@ -33,8 +33,7 @@
  * its own locking.
  *
  * This locking is however handled internally in this file, so it's
- * mostly transparent to outside users (but see the documentation in
- * throttle_groups_lock()).
+ * transparent to outside users.
  *
  * The whole ThrottleGroup structure is private and invisible to
  * outside users, that only use it through its ThrottleState.
@@ -466,34 +465,6 @@ void throttle_group_unregister_bs(BlockDriverState *bs)
 
     throttle_group_unref(&tg->ts);
     bs->throttle_state = NULL;
-}
-
-/* Acquire the lock of this throttling group.
- *
- * You won't normally need to use this. None of the functions from the
- * ThrottleGroup API require you to acquire the lock since all of them
- * deal with it internally.
- *
- * This should only be used in exceptional cases when you want to
- * access the protected fields of a BlockDriverState directly
- * (e.g. bdrv_swap()).
- *
- * @bs: a BlockDriverState that is member of the group
- */
-void throttle_group_lock(BlockDriverState *bs)
-{
-    ThrottleGroup *tg = container_of(bs->throttle_state, ThrottleGroup, ts);
-    qemu_mutex_lock(&tg->lock);
-}
-
-/* Release the lock of this throttling group.
- *
- * See the comments in throttle_group_lock().
- */
-void throttle_group_unlock(BlockDriverState *bs)
-{
-    ThrottleGroup *tg = container_of(bs->throttle_state, ThrottleGroup, ts);
-    qemu_mutex_unlock(&tg->lock);
 }
 
 static void throttle_groups_init(void)
