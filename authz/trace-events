@@ -5,3 +5,7 @@ qauthz_is_allowed(void *authz, const char *identity, bool allowed) "AuthZ %p che
 
 # auth/simple.c
 qauthz_simple_is_allowed(void *authz, const char *wantidentity, const char *gotidentity) "AuthZ simple %p check want identity=%s got identity=%s"
+
+# auth/list.c
+qauthz_list_check_rule(void *authz, const char *identity, const char *rule, int format, int policy) "AuthZ list %p check rule=%s identity=%s format=%d policy=%d"
+qauthz_list_default_policy(void *authz, const char *identity, int policy) "AuthZ list %p default identity=%s policy=%d"

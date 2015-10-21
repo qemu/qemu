@@ -5,7 +5,7 @@ util-obj-y += opts-visitor.o qapi-clone-visitor.o
 util-obj-y += qmp-event.o
 util-obj-y += qapi-util.o
 
-QAPI_COMMON_MODULES = block-core block char common crypto introspect
+QAPI_COMMON_MODULES = authz block-core block char common crypto introspect
 QAPI_COMMON_MODULES += job migration misc net rdma rocker run-state
 QAPI_COMMON_MODULES += sockets tpm trace transaction ui
 QAPI_TARGET_MODULES = target
