@@ -95,6 +95,11 @@ static const VMStateDescription vmstate_ipl = {
      }
 };
 
+static S390IPLState *get_ipl_device(void)
+{
+    return S390_IPL(object_resolve_path_type("", TYPE_S390_IPL, NULL));
+}
+
 static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
 {
     uint64_t dstaddr = *(uint64_t *) opaque;
@@ -218,7 +223,7 @@ static Property s390_ipl_properties[] = {
  * - -1 if no valid boot device was found
  * - ccw id of the boot device otherwise
  */
-static uint64_t s390_update_iplstate(CPUS390XState *env, S390IPLState *ipl)
+static uint64_t s390_update_iplstate(S390IPLState *ipl)
 {
     DeviceState *dev_st;
 
@@ -251,25 +256,19 @@ out:
     return (uint32_t) (ipl->cssid << 24 | ipl->ssid << 16 | ipl->devno);
 }
 
-int s390_ipl_update_diag308(IplParameterBlock *iplb)
+void s390_ipl_update_diag308(IplParameterBlock *iplb)
 {
-    S390IPLState *ipl;
+    S390IPLState *ipl = get_ipl_device();
 
-    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
-    if (ipl) {
-        ipl->iplb = *iplb;
-        ipl->iplb_valid = true;
-        return 0;
-    }
-    return -1;
+    ipl->iplb = *iplb;
+    ipl->iplb_valid = true;
 }
 
 IplParameterBlock *s390_ipl_get_iplb(void)
 {
-    S390IPLState *ipl;
+    S390IPLState *ipl = get_ipl_device();
 
-    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
-    if (!ipl || !ipl->iplb_valid) {
+    if (!ipl->iplb_valid) {
         return NULL;
     }
     return &ipl->iplb;
@@ -277,33 +276,33 @@ IplParameterBlock *s390_ipl_get_iplb(void)
 
 void s390_reipl_request(void)
 {
-    S390IPLState *ipl;
+    S390IPLState *ipl = get_ipl_device();
 
-    ipl = S390_IPL(object_resolve_path(TYPE_S390_IPL, NULL));
     ipl->reipl_requested = true;
     qemu_system_reset_request();
+}
+
+void s390_ipl_prepare_cpu(S390CPU *cpu)
+{
+    S390IPLState *ipl = get_ipl_device();
+
+    cpu->env.psw.addr = ipl->start_addr;
+    cpu->env.psw.mask = IPL_PSW_MASK;
+
+    if (!ipl->kernel || ipl->iplb_valid) {
+        cpu->env.psw.addr = ipl->bios_start_addr;
+        cpu->env.regs[7] = s390_update_iplstate(ipl);
+    }
 }
 
 static void s390_ipl_reset(DeviceState *dev)
 {
     S390IPLState *ipl = S390_IPL(dev);
-    S390CPU *cpu = S390_CPU(qemu_get_cpu(0));
-    CPUS390XState *env = &cpu->env;
-
-    env->psw.addr = ipl->start_addr;
-    env->psw.mask = IPL_PSW_MASK;
 
     if (!ipl->reipl_requested) {
         ipl->iplb_valid = false;
     }
     ipl->reipl_requested = false;
-
-    if (!ipl->kernel || ipl->iplb_valid) {
-        env->psw.addr = ipl->bios_start_addr;
-        env->regs[7] = s390_update_iplstate(env, ipl);
-    }
-
-    s390_cpu_set_state(CPU_STATE_OPERATING, cpu);
 }
 
 static void s390_ipl_class_init(ObjectClass *klass, void *data)

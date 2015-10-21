@@ -12,13 +12,16 @@
 #ifndef HW_S390_IPL_H
 #define HW_S390_IPL_H
 
+#include "cpu.h"
+
 typedef struct IplParameterBlock {
       uint8_t  reserved1[110];
       uint16_t devno;
       uint8_t  reserved2[88];
 } IplParameterBlock;
 
-int s390_ipl_update_diag308(IplParameterBlock *iplb);
+void s390_ipl_update_diag308(IplParameterBlock *iplb);
+void s390_ipl_prepare_cpu(S390CPU *cpu);
 IplParameterBlock *s390_ipl_get_iplb(void);
 void s390_reipl_request(void);
 

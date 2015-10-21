@@ -173,16 +173,15 @@ int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit)
     return kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
 }
 
-void kvm_s390_clear_cmma_callback(void *opaque)
+void kvm_s390_cmma_reset(void)
 {
     int rc;
-    KVMState *s = opaque;
     struct kvm_device_attr attr = {
         .group = KVM_S390_VM_MEM_CTRL,
         .attr = KVM_S390_VM_MEM_CLR_CMMA,
     };
 
-    rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
+    rc = kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
     trace_kvm_clear_cmma(rc);
 }
 
@@ -200,9 +199,6 @@ static void kvm_s390_enable_cmma(KVMState *s)
     }
 
     rc = kvm_vm_ioctl(s, KVM_SET_DEVICE_ATTR, &attr);
-    if (!rc) {
-        qemu_register_reset(kvm_s390_clear_cmma_callback, s);
-    }
     trace_kvm_enable_cmma(rc);
 }
 
@@ -249,7 +245,7 @@ static void kvm_s390_init_dea_kw(void)
     }
 }
 
-static void kvm_s390_init_crypto(void)
+void kvm_s390_crypto_reset(void)
 {
     kvm_s390_init_aes_kw();
     kvm_s390_init_dea_kw();
@@ -301,8 +297,6 @@ void kvm_s390_reset_vcpu(S390CPU *cpu)
     if (kvm_vcpu_ioctl(cs, KVM_S390_INITIAL_RESET, NULL)) {
         error_report("Initial CPU reset failed on CPU %i", cs->cpu_index);
     }
-
-    kvm_s390_init_crypto();
 }
 
 static int can_sync_regs(CPUState *cs, int regs)
@@ -2065,12 +2059,30 @@ void kvm_s390_io_interrupt(uint16_t subchannel_id,
     kvm_s390_floating_interrupt(&irq);
 }
 
+static uint64_t build_channel_report_mcic(void)
+{
+    uint64_t mcic;
+
+    /* subclass: indicate channel report pending */
+    mcic = MCIC_SC_CP |
+    /* subclass modifiers: none */
+    /* storage errors: none */
+    /* validity bits: no damage */
+        MCIC_VB_WP | MCIC_VB_MS | MCIC_VB_PM | MCIC_VB_IA | MCIC_VB_FP |
+        MCIC_VB_GR | MCIC_VB_CR | MCIC_VB_ST | MCIC_VB_AR | MCIC_VB_PR |
+        MCIC_VB_FC | MCIC_VB_CT | MCIC_VB_CC;
+    if (kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS)) {
+        mcic |= MCIC_VB_VR;
+    }
+    return mcic;
+}
+
 void kvm_s390_crw_mchk(void)
 {
     struct kvm_s390_irq irq = {
         .type = KVM_S390_MCHK,
         .u.mchk.cr14 = 1 << 28,
-        .u.mchk.mcic = 0x00400f1d40330000ULL,
+        .u.mchk.mcic = build_channel_report_mcic(),
     };
     kvm_s390_floating_interrupt(&irq);
 }

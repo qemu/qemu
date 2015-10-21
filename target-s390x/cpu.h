@@ -1160,12 +1160,13 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
                                     int vq, bool assign);
 int kvm_s390_cpu_restart(S390CPU *cpu);
 int kvm_s390_get_memslot_count(KVMState *s);
-void kvm_s390_clear_cmma_callback(void *opaque);
+void kvm_s390_cmma_reset(void);
 int kvm_s390_set_cpu_state(S390CPU *cpu, uint8_t cpu_state);
 void kvm_s390_reset_vcpu(S390CPU *cpu);
 int kvm_s390_set_mem_limit(KVMState *s, uint64_t new_limit, uint64_t *hw_limit);
 void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu);
 int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu);
+void kvm_s390_crypto_reset(void);
 #else
 static inline void kvm_s390_io_interrupt(uint16_t subchannel_id,
                                         uint16_t subchannel_nr,
@@ -1189,7 +1190,7 @@ static inline int kvm_s390_cpu_restart(S390CPU *cpu)
 {
     return -ENOSYS;
 }
-static inline void kvm_s390_clear_cmma_callback(void *opaque)
+static inline void kvm_s390_cmma_reset(void)
 {
 }
 static inline int kvm_s390_get_memslot_count(KVMState *s)
@@ -1215,6 +1216,9 @@ static inline int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
 {
     return 0;
 }
+static inline void kvm_s390_crypto_reset(void)
+{
+}
 #endif
 
 static inline int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
@@ -1225,11 +1229,10 @@ static inline int s390_set_memory_limit(uint64_t new_limit, uint64_t *hw_limit)
     return 0;
 }
 
-static inline void cmma_reset(S390CPU *cpu)
+static inline void s390_cmma_reset(void)
 {
     if (kvm_enabled()) {
-        CPUState *cs = CPU(cpu);
-        kvm_s390_clear_cmma_callback(cs->kvm_state);
+        kvm_s390_cmma_reset();
     }
 }
 
@@ -1261,6 +1264,13 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
     return kvm_s390_assign_subch_ioeventfd(notifier, sch_id, vq, assign);
 }
 
+static inline void s390_crypto_reset(void)
+{
+    if (kvm_enabled()) {
+        kvm_s390_crypto_reset();
+    }
+}
+
 #ifdef CONFIG_KVM
 static inline bool vregs_needed(void *opaque)
 {
@@ -1275,4 +1285,49 @@ static inline bool vregs_needed(void *opaque)
     return 0;
 }
 #endif
+
+/* machine check interruption code */
+
+/* subclasses */
+#define MCIC_SC_SD 0x8000000000000000ULL
+#define MCIC_SC_PD 0x4000000000000000ULL
+#define MCIC_SC_SR 0x2000000000000000ULL
+#define MCIC_SC_CD 0x0800000000000000ULL
+#define MCIC_SC_ED 0x0400000000000000ULL
+#define MCIC_SC_DG 0x0100000000000000ULL
+#define MCIC_SC_W  0x0080000000000000ULL
+#define MCIC_SC_CP 0x0040000000000000ULL
+#define MCIC_SC_SP 0x0020000000000000ULL
+#define MCIC_SC_CK 0x0010000000000000ULL
+
+/* subclass modifiers */
+#define MCIC_SCM_B  0x0002000000000000ULL
+#define MCIC_SCM_DA 0x0000000020000000ULL
+#define MCIC_SCM_AP 0x0000000000080000ULL
+
+/* storage errors */
+#define MCIC_SE_SE 0x0000800000000000ULL
+#define MCIC_SE_SC 0x0000400000000000ULL
+#define MCIC_SE_KE 0x0000200000000000ULL
+#define MCIC_SE_DS 0x0000100000000000ULL
+#define MCIC_SE_IE 0x0000000080000000ULL
+
+/* validity bits */
+#define MCIC_VB_WP 0x0000080000000000ULL
+#define MCIC_VB_MS 0x0000040000000000ULL
+#define MCIC_VB_PM 0x0000020000000000ULL
+#define MCIC_VB_IA 0x0000010000000000ULL
+#define MCIC_VB_FA 0x0000008000000000ULL
+#define MCIC_VB_VR 0x0000004000000000ULL
+#define MCIC_VB_EC 0x0000002000000000ULL
+#define MCIC_VB_FP 0x0000001000000000ULL
+#define MCIC_VB_GR 0x0000000800000000ULL
+#define MCIC_VB_CR 0x0000000400000000ULL
+#define MCIC_VB_ST 0x0000000100000000ULL
+#define MCIC_VB_AR 0x0000000040000000ULL
+#define MCIC_VB_PR 0x0000000000200000ULL
+#define MCIC_VB_FC 0x0000000000100000ULL
+#define MCIC_VB_CT 0x0000000000020000ULL
+#define MCIC_VB_CC 0x0000000000010000ULL
+
 #endif
