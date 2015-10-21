@@ -57,8 +57,8 @@ void tlb_fill(CPUState *cs,
     int ret = xtensa_get_physical_addr(env, true, vaddr, is_write, mmu_idx,
             &paddr, &page_size, &access);
 
-    qemu_log("%s(%08x, %d, %d) -> %08x, ret = %d\n", __func__,
-            vaddr, is_write, mmu_idx, paddr, ret);
+    qemu_log_mask(CPU_LOG_MMU, "%s(%08x, %d, %d) -> %08x, ret = %d\n",
+                  __func__, vaddr, is_write, mmu_idx, paddr, ret);
 
     if (ret == 0) {
         tlb_set_page(cs,
