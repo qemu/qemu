@@ -41,6 +41,7 @@ static inline bool qemu_log_enabled(void)
 #define LOG_UNIMP          (1 << 10)
 #define LOG_GUEST_ERROR    (1 << 11)
 #define CPU_LOG_MMU        (1 << 12)
+#define CPU_LOG_TB_NOCHAIN (1 << 13)
 
 /* Returns true if a bit is set in the current loglevel mask
  */

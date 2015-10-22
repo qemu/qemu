@@ -288,16 +288,24 @@ typedef enum {
     OPC_SRLV     = OPC_SPECIAL | 0x06,
     OPC_ROTRV    = OPC_SPECIAL | (0x01 <<  6) | 0x06,
     OPC_SRAV     = OPC_SPECIAL | 0x07,
-    OPC_JR       = OPC_SPECIAL | 0x08,
+    OPC_JR_R5    = OPC_SPECIAL | 0x08,
     OPC_JALR     = OPC_SPECIAL | 0x09,
     OPC_MOVZ     = OPC_SPECIAL | 0x0A,
     OPC_MOVN     = OPC_SPECIAL | 0x0B,
     OPC_MFHI     = OPC_SPECIAL | 0x10,
     OPC_MFLO     = OPC_SPECIAL | 0x12,
     OPC_MULT     = OPC_SPECIAL | 0x18,
+    OPC_MUL_R6   = OPC_SPECIAL | (0x02 <<  6) | 0x18,
+    OPC_MUH      = OPC_SPECIAL | (0x03 <<  6) | 0x18,
     OPC_MULTU    = OPC_SPECIAL | 0x19,
+    OPC_MULU     = OPC_SPECIAL | (0x02 <<  6) | 0x19,
+    OPC_MUHU     = OPC_SPECIAL | (0x03 <<  6) | 0x19,
     OPC_DIV      = OPC_SPECIAL | 0x1A,
+    OPC_DIV_R6   = OPC_SPECIAL | (0x02 <<  6) | 0x1A,
+    OPC_MOD      = OPC_SPECIAL | (0x03 <<  6) | 0x1A,
     OPC_DIVU     = OPC_SPECIAL | 0x1B,
+    OPC_DIVU_R6  = OPC_SPECIAL | (0x02 <<  6) | 0x1B,
+    OPC_MODU     = OPC_SPECIAL | (0x03 <<  6) | 0x1B,
     OPC_ADDU     = OPC_SPECIAL | 0x21,
     OPC_SUBU     = OPC_SPECIAL | 0x23,
     OPC_AND      = OPC_SPECIAL | 0x24,
@@ -306,13 +314,15 @@ typedef enum {
     OPC_NOR      = OPC_SPECIAL | 0x27,
     OPC_SLT      = OPC_SPECIAL | 0x2A,
     OPC_SLTU     = OPC_SPECIAL | 0x2B,
+    OPC_SELEQZ   = OPC_SPECIAL | 0x35,
+    OPC_SELNEZ   = OPC_SPECIAL | 0x37,
 
     OPC_REGIMM   = 0x01 << 26,
     OPC_BLTZ     = OPC_REGIMM | (0x00 << 16),
     OPC_BGEZ     = OPC_REGIMM | (0x01 << 16),
 
     OPC_SPECIAL2 = 0x1c << 26,
-    OPC_MUL      = OPC_SPECIAL2 | 0x002,
+    OPC_MUL_R5   = OPC_SPECIAL2 | 0x002,
 
     OPC_SPECIAL3 = 0x1f << 26,
     OPC_EXT      = OPC_SPECIAL3 | 0x000,
@@ -320,6 +330,15 @@ typedef enum {
     OPC_WSBH     = OPC_SPECIAL3 | 0x0a0,
     OPC_SEB      = OPC_SPECIAL3 | 0x420,
     OPC_SEH      = OPC_SPECIAL3 | 0x620,
+
+    /* MIPS r6 doesn't have JR, JALR should be used instead */
+    OPC_JR       = use_mips32r6_instructions ? OPC_JALR : OPC_JR_R5,
+
+    /*
+     * MIPS r6 replaces MUL with an alternative encoding which is
+     * backwards-compatible at the assembly level.
+     */
+    OPC_MUL      = use_mips32r6_instructions ? OPC_MUL_R6 : OPC_MUL_R5,
 } MIPSInsn;
 
 /*
@@ -841,13 +860,20 @@ static void tcg_out_brcond2(TCGContext *s, TCGCond cond, TCGReg al, TCGReg ah,
 }
 
 static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
-                            TCGReg c1, TCGReg c2, TCGReg v)
+                            TCGReg c1, TCGReg c2, TCGReg v1, TCGReg v2)
 {
-    MIPSInsn m_opc = OPC_MOVN;
+    bool eqz = false;
+
+    /* If one of the values is zero, put it last to match SEL*Z instructions */
+    if (use_mips32r6_instructions && v1 == 0) {
+        v1 = v2;
+        v2 = 0;
+        cond = tcg_invert_cond(cond);
+    }
 
     switch (cond) {
     case TCG_COND_EQ:
-        m_opc = OPC_MOVZ;
+        eqz = true;
         /* FALLTHRU */
     case TCG_COND_NE:
         if (c2 != 0) {
@@ -860,14 +886,32 @@ static void tcg_out_movcond(TCGContext *s, TCGCond cond, TCGReg ret,
         /* Minimize code size by preferring a compare not requiring INV.  */
         if (mips_cmp_map[cond] & MIPS_CMP_INV) {
             cond = tcg_invert_cond(cond);
-            m_opc = OPC_MOVZ;
+            eqz = true;
         }
         tcg_out_setcond(s, cond, TCG_TMP0, c1, c2);
         c1 = TCG_TMP0;
         break;
     }
 
-    tcg_out_opc_reg(s, m_opc, ret, v, c1);
+    if (use_mips32r6_instructions) {
+        MIPSInsn m_opc_t = eqz ? OPC_SELEQZ : OPC_SELNEZ;
+        MIPSInsn m_opc_f = eqz ? OPC_SELNEZ : OPC_SELEQZ;
+
+        if (v2 != 0) {
+            tcg_out_opc_reg(s, m_opc_f, TCG_TMP1, v2, c1);
+        }
+        tcg_out_opc_reg(s, m_opc_t, ret, v1, c1);
+        if (v2 != 0) {
+            tcg_out_opc_reg(s, OPC_OR, ret, ret, TCG_TMP1);
+        }
+    } else {
+        MIPSInsn m_opc = eqz ? OPC_MOVZ : OPC_MOVN;
+
+        tcg_out_opc_reg(s, m_opc, ret, v1, c1);
+
+        /* This should be guaranteed via constraints */
+        tcg_debug_assert(v2 == ret);
+    }
 }
 
 static void tcg_out_call_int(TCGContext *s, tcg_insn_unit *arg, bool tail)
@@ -1445,21 +1489,45 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         i1 = OPC_MULT, i2 = OPC_MFLO;
         goto do_hilo1;
     case INDEX_op_mulsh_i32:
+        if (use_mips32r6_instructions) {
+            tcg_out_opc_reg(s, OPC_MUH, a0, a1, a2);
+            break;
+        }
         i1 = OPC_MULT, i2 = OPC_MFHI;
         goto do_hilo1;
     case INDEX_op_muluh_i32:
+        if (use_mips32r6_instructions) {
+            tcg_out_opc_reg(s, OPC_MUHU, a0, a1, a2);
+            break;
+        }
         i1 = OPC_MULTU, i2 = OPC_MFHI;
         goto do_hilo1;
     case INDEX_op_div_i32:
+        if (use_mips32r6_instructions) {
+            tcg_out_opc_reg(s, OPC_DIV_R6, a0, a1, a2);
+            break;
+        }
         i1 = OPC_DIV, i2 = OPC_MFLO;
         goto do_hilo1;
     case INDEX_op_divu_i32:
+        if (use_mips32r6_instructions) {
+            tcg_out_opc_reg(s, OPC_DIVU_R6, a0, a1, a2);
+            break;
+        }
         i1 = OPC_DIVU, i2 = OPC_MFLO;
         goto do_hilo1;
     case INDEX_op_rem_i32:
+        if (use_mips32r6_instructions) {
+            tcg_out_opc_reg(s, OPC_MOD, a0, a1, a2);
+            break;
+        }
         i1 = OPC_DIV, i2 = OPC_MFHI;
         goto do_hilo1;
     case INDEX_op_remu_i32:
+        if (use_mips32r6_instructions) {
+            tcg_out_opc_reg(s, OPC_MODU, a0, a1, a2);
+            break;
+        }
         i1 = OPC_DIVU, i2 = OPC_MFHI;
     do_hilo1:
         tcg_out_opc_reg(s, i1, 0, a1, a2);
@@ -1536,7 +1604,7 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 
     case INDEX_op_movcond_i32:
-        tcg_out_movcond(s, args[5], a0, a1, a2, args[3]);
+        tcg_out_movcond(s, args[5], a0, a1, a2, args[3], args[4]);
         break;
 
     case INDEX_op_setcond_i32:
@@ -1592,8 +1660,10 @@ static const TCGTargetOpDef mips_op_defs[] = {
 
     { INDEX_op_add_i32, { "r", "rZ", "rJ" } },
     { INDEX_op_mul_i32, { "r", "rZ", "rZ" } },
+#if !use_mips32r6_instructions
     { INDEX_op_muls2_i32, { "r", "r", "rZ", "rZ" } },
     { INDEX_op_mulu2_i32, { "r", "r", "rZ", "rZ" } },
+#endif
     { INDEX_op_mulsh_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_muluh_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_div_i32, { "r", "rZ", "rZ" } },
@@ -1623,7 +1693,11 @@ static const TCGTargetOpDef mips_op_defs[] = {
     { INDEX_op_deposit_i32, { "r", "0", "rZ" } },
 
     { INDEX_op_brcond_i32, { "rZ", "rZ" } },
+#if use_mips32r6_instructions
+    { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
+#else
     { INDEX_op_movcond_i32, { "r", "rZ", "rZ", "rZ", "0" } },
+#endif
     { INDEX_op_setcond_i32, { "r", "rZ", "rZ" } },
     { INDEX_op_setcond2_i32, { "r", "rZ", "rZ", "rZ", "rZ" } },
 
