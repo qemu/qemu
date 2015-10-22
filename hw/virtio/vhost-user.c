@@ -281,7 +281,7 @@ static int vhost_user_set_vring_addr(struct vhost_dev *dev,
         .request = VHOST_USER_SET_VRING_ADDR,
         .flags = VHOST_USER_VERSION,
         .payload.addr = *addr,
-        .size = sizeof(*addr),
+        .size = sizeof(msg.payload.addr),
     };
 
     vhost_user_write(dev, &msg, NULL, 0);
@@ -304,7 +304,7 @@ static int vhost_set_vring(struct vhost_dev *dev,
         .request = request,
         .flags = VHOST_USER_VERSION,
         .payload.state = *ring,
-        .size = sizeof(*ring),
+        .size = sizeof(msg.payload.state),
     };
 
     vhost_user_write(dev, &msg, NULL, 0);
@@ -346,7 +346,7 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
         .request = VHOST_USER_GET_VRING_BASE,
         .flags = VHOST_USER_VERSION,
         .payload.state = *ring,
-        .size = sizeof(*ring),
+        .size = sizeof(msg.payload.state),
     };
 
     vhost_user_write(dev, &msg, NULL, 0);
