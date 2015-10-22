@@ -1705,3 +1705,6 @@ qcrypto_tls_creds_x509_load_cert_list(void *creds, const char *file) "TLS creds 
 
 # crypto/tlssession.c
 qcrypto_tls_session_new(void *session, void *creds, const char *hostname, const char *aclname, int endpoint) "TLS session new session=%p creds=%p hostname=%s aclname=%s endpoint=%d"
+
+# net/vhost-user.c
+vhost_user_event(const char *chr, int event) "chr: %s got event: %d"

@@ -764,6 +764,7 @@ static int host_pci_config_read(int pos, int len, uint32_t val)
     /* Access real host bridge. */
     int rc = snprintf(path, size, "/sys/bus/pci/devices/%04x:%02x:%02x.%d/%s",
                       0, 0, 0, 0, "config");
+    int ret = 0;
 
     if (rc >= size || rc < 0) {
         return -ENODEV;
@@ -775,16 +776,18 @@ static int host_pci_config_read(int pos, int len, uint32_t val)
     }
 
     if (lseek(config_fd, pos, SEEK_SET) != pos) {
-        return -errno;
+        ret = -errno;
+        goto out;
     }
     do {
         rc = read(config_fd, (uint8_t *)&val, len);
     } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
     if (rc != len) {
-        return -errno;
+        ret = -errno;
     }
-
-    return 0;
+out:
+    close(config_fd);
+    return ret;
 }
 
 static int igd_pt_i440fx_initfn(struct PCIDevice *pci_dev)

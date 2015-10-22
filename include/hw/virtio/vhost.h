@@ -31,7 +31,8 @@ typedef unsigned long vhost_log_chunk_t;
 struct vhost_log {
     unsigned long long size;
     int refcnt;
-    vhost_log_chunk_t log[0];
+    int fd;
+    vhost_log_chunk_t *log;
 };
 
 struct vhost_memory;
@@ -44,14 +45,14 @@ struct vhost_dev {
     int nvqs;
     /* the first virtqueue which would be used by this vhost dev */
     int vq_index;
-    unsigned long long features;
-    unsigned long long acked_features;
-    unsigned long long backend_features;
-    unsigned long long protocol_features;
-    unsigned long long max_queues;
+    uint64_t features;
+    uint64_t acked_features;
+    uint64_t backend_features;
+    uint64_t protocol_features;
+    uint64_t max_queues;
     bool started;
     bool log_enabled;
-    unsigned long long log_size;
+    uint64_t log_size;
     Error *migration_blocker;
     bool memory_changed;
     hwaddr mem_changed_start_addr;
@@ -59,6 +60,7 @@ struct vhost_dev {
     const VhostOps *vhost_ops;
     void *opaque;
     struct vhost_log *log;
+    QLIST_ENTRY(vhost_dev) entry;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,
@@ -83,4 +85,5 @@ uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
                             uint64_t features);
 void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,
                         uint64_t features);
+bool vhost_has_free_slot(void);
 #endif

@@ -15,6 +15,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qmp-commands.h"
+#include "trace.h"
 
 typedef struct VhostUserState {
     NetClientState nc;
@@ -102,6 +103,35 @@ err:
     return -1;
 }
 
+static ssize_t vhost_user_receive(NetClientState *nc, const uint8_t *buf,
+                                  size_t size)
+{
+    /* In case of RARP (message size is 60) notify backup to send a fake RARP.
+       This fake RARP will be sent by backend only for guest
+       without GUEST_ANNOUNCE capability.
+     */
+    if (size == 60) {
+        VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
+        int r;
+        static int display_rarp_failure = 1;
+        char mac_addr[6];
+
+        /* extract guest mac address from the RARP message */
+        memcpy(mac_addr, &buf[6], 6);
+
+        r = vhost_net_notify_migration_done(s->vhost_net, mac_addr);
+
+        if ((r != 0) && (display_rarp_failure)) {
+            fprintf(stderr,
+                    "Vhost user backend fails to broadcast fake RARP\n");
+            fflush(stderr);
+            display_rarp_failure = 0;
+        }
+    }
+
+    return size;
+}
+
 static void vhost_user_cleanup(NetClientState *nc)
 {
     VhostUserState *s = DO_UPCAST(VhostUserState, nc, nc);
@@ -131,6 +161,7 @@ static bool vhost_user_has_ufo(NetClientState *nc)
 static NetClientInfo net_vhost_user_info = {
         .type = NET_CLIENT_OPTIONS_KIND_VHOST_USER,
         .size = sizeof(VhostUserState),
+        .receive = vhost_user_receive,
         .cleanup = vhost_user_cleanup,
         .has_vnet_hdr = vhost_user_has_vnet_hdr,
         .has_ufo = vhost_user_has_ufo,
@@ -148,18 +179,17 @@ static void net_vhost_user_event(void *opaque, int event)
                                           NET_CLIENT_OPTIONS_KIND_NIC,
                                           MAX_QUEUE_NUM);
     s = DO_UPCAST(VhostUserState, nc, ncs[0]);
+    trace_vhost_user_event(s->chr->label, event);
     switch (event) {
     case CHR_EVENT_OPENED:
         if (vhost_user_start(queues, ncs) < 0) {
             exit(1);
         }
         qmp_set_link(name, true, &err);
-        error_report("chardev \"%s\" went up", s->chr->label);
         break;
     case CHR_EVENT_CLOSED:
         qmp_set_link(name, true, &err);
         vhost_user_stop(queues, ncs);
-        error_report("chardev \"%s\" went down", s->chr->label);
         break;
     }
 
@@ -182,8 +212,6 @@ static int net_vhost_user_init(NetClientState *peer, const char *device,
         snprintf(nc->info_str, sizeof(nc->info_str), "vhost-user%d to %s",
                  i, chr->label);
 
-        /* We don't provide a receive callback */
-        nc->receive_disabled = 1;
         nc->queue_index = i;
 
         s = DO_UPCAST(VhostUserState, nc, nc);

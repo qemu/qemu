@@ -69,7 +69,7 @@ for arch in $ARCHLIST; do
     fi
 
     # Blacklist architectures which have KVM headers but are actually dead
-    if [ "$arch" = "ia64" ]; then
+    if [ "$arch" = "ia64" -o "$arch" = "mips" ]; then
         continue
     fi
 
@@ -77,7 +77,7 @@ for arch in $ARCHLIST; do
 
     rm -rf "$output/linux-headers/asm-$arch"
     mkdir -p "$output/linux-headers/asm-$arch"
-    for header in kvm.h kvm_para.h; do
+    for header in kvm.h kvm_para.h unistd.h; do
         cp "$tmpdir/include/asm/$header" "$output/linux-headers/asm-$arch"
     done
     if [ $arch = powerpc ]; then
@@ -92,6 +92,9 @@ for arch in $ARCHLIST; do
     fi
     if [ $arch = x86 ]; then
         cp_portable "$tmpdir/include/asm/hyperv.h" "$output/include/standard-headers/asm-x86/"
+        cp "$tmpdir/include/asm/unistd_32.h" "$output/linux-headers/asm-x86/"
+        cp "$tmpdir/include/asm/unistd_x32.h" "$output/linux-headers/asm-x86/"
+        cp "$tmpdir/include/asm/unistd_64.h" "$output/linux-headers/asm-x86/"
     fi
 done
 

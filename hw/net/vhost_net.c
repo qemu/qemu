@@ -85,6 +85,8 @@ static const int user_feature_bits[] = {
     VIRTIO_NET_F_CTRL_MAC_ADDR,
     VIRTIO_NET_F_CTRL_GUEST_OFFLOADS,
 
+    VIRTIO_NET_F_GUEST_ANNOUNCE,
+
     VIRTIO_NET_F_MQ,
 
     VHOST_INVALID_FEATURE_BIT
@@ -252,8 +254,7 @@ static int vhost_net_start_one(struct vhost_net *net,
         file.fd = net->backend;
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
             const VhostOps *vhost_ops = net->dev.vhost_ops;
-            r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
-                                      &file);
+            r = vhost_ops->vhost_net_set_backend(&net->dev, &file);
             if (r < 0) {
                 r = -errno;
                 goto fail;
@@ -266,8 +267,7 @@ fail:
     if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
         while (file.index-- > 0) {
             const VhostOps *vhost_ops = net->dev.vhost_ops;
-            int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
-                                          &file);
+            int r = vhost_ops->vhost_net_set_backend(&net->dev, &file);
             assert(r >= 0);
         }
     }
@@ -289,15 +289,13 @@ static void vhost_net_stop_one(struct vhost_net *net,
     if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_TAP) {
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
             const VhostOps *vhost_ops = net->dev.vhost_ops;
-            int r = vhost_ops->vhost_call(&net->dev, VHOST_NET_SET_BACKEND,
-                                          &file);
+            int r = vhost_ops->vhost_net_set_backend(&net->dev, &file);
             assert(r >= 0);
         }
     } else if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER) {
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
             const VhostOps *vhost_ops = net->dev.vhost_ops;
-            int r = vhost_ops->vhost_call(&net->dev, VHOST_RESET_DEVICE,
-                                          NULL);
+            int r = vhost_ops->vhost_reset_device(&net->dev);
             assert(r >= 0);
         }
     }
@@ -390,6 +388,18 @@ void vhost_net_cleanup(struct vhost_net *net)
     g_free(net);
 }
 
+int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
+{
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+    int r = -1;
+
+    if (vhost_ops->vhost_migration_done) {
+        r = vhost_ops->vhost_migration_done(&net->dev, mac_addr);
+    }
+
+    return r;
+}
+
 bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
 {
     return vhost_virtqueue_pending(&net->dev, idx);
@@ -428,8 +438,8 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
     VHostNetState *net = get_vhost_net(nc);
     const VhostOps *vhost_ops = net->dev.vhost_ops;
 
-    if (vhost_ops->vhost_backend_set_vring_enable) {
-        return vhost_ops->vhost_backend_set_vring_enable(&net->dev, enable);
+    if (vhost_ops->vhost_set_vring_enable) {
+        return vhost_ops->vhost_set_vring_enable(&net->dev, enable);
     }
 
     return 0;
@@ -479,6 +489,11 @@ bool vhost_net_virtqueue_pending(VHostNetState *net, int idx)
 void vhost_net_virtqueue_mask(VHostNetState *net, VirtIODevice *dev,
                               int idx, bool mask)
 {
+}
+
+int vhost_net_notify_migration_done(struct vhost_net *net, char* mac_addr)
+{
+    return -1;
 }
 
 VHostNetState *get_vhost_net(NetClientState *nc)
