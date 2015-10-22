@@ -89,7 +89,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_state state;
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
-    };
+    } payload;
 } QEMU_PACKED VhostUserMsg;
 
 static VhostUserMsg m __attribute__ ((unused));
@@ -200,8 +200,8 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     VhostUserMsg msg = {
         .request = VHOST_USER_SET_LOG_BASE,
         .flags = VHOST_USER_VERSION,
-        .u64 = base,
-        .size = sizeof(m.u64),
+        .payload.u64 = base,
+        .size = sizeof(m.payload.u64),
     };
 
     if (shmfd && log->fd != -1) {
@@ -247,17 +247,17 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                 &ram_addr);
         fd = qemu_get_ram_fd(ram_addr);
         if (fd > 0) {
-            msg.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
-            msg.memory.regions[fd_num].memory_size  = reg->memory_size;
-            msg.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
-            msg.memory.regions[fd_num].mmap_offset = reg->userspace_addr -
+            msg.payload.memory.regions[fd_num].userspace_addr = reg->userspace_addr;
+            msg.payload.memory.regions[fd_num].memory_size  = reg->memory_size;
+            msg.payload.memory.regions[fd_num].guest_phys_addr = reg->guest_phys_addr;
+            msg.payload.memory.regions[fd_num].mmap_offset = reg->userspace_addr -
                 (uintptr_t) qemu_get_ram_block_host_ptr(ram_addr);
             assert(fd_num < VHOST_MEMORY_MAX_NREGIONS);
             fds[fd_num++] = fd;
         }
     }
 
-    msg.memory.nregions = fd_num;
+    msg.payload.memory.nregions = fd_num;
 
     if (!fd_num) {
         error_report("Failed initializing vhost-user memory map, "
@@ -265,8 +265,8 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
         return -1;
     }
 
-    msg.size = sizeof(m.memory.nregions);
-    msg.size += sizeof(m.memory.padding);
+    msg.size = sizeof(m.payload.memory.nregions);
+    msg.size += sizeof(m.payload.memory.padding);
     msg.size += fd_num * sizeof(VhostUserMemoryRegion);
 
     vhost_user_write(dev, &msg, fds, fd_num);
@@ -280,7 +280,7 @@ static int vhost_user_set_vring_addr(struct vhost_dev *dev,
     VhostUserMsg msg = {
         .request = VHOST_USER_SET_VRING_ADDR,
         .flags = VHOST_USER_VERSION,
-        .addr = *addr,
+        .payload.addr = *addr,
         .size = sizeof(*addr),
     };
 
@@ -303,7 +303,7 @@ static int vhost_set_vring(struct vhost_dev *dev,
     VhostUserMsg msg = {
         .request = request,
         .flags = VHOST_USER_VERSION,
-        .state = *ring,
+        .payload.state = *ring,
         .size = sizeof(*ring),
     };
 
@@ -345,7 +345,7 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
     VhostUserMsg msg = {
         .request = VHOST_USER_GET_VRING_BASE,
         .flags = VHOST_USER_VERSION,
-        .state = *ring,
+        .payload.state = *ring,
         .size = sizeof(*ring),
     };
 
@@ -361,12 +361,12 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
         return -1;
     }
 
-    if (msg.size != sizeof(m.state)) {
+    if (msg.size != sizeof(m.payload.state)) {
         error_report("Received bad msg size.");
         return -1;
     }
 
-    *ring = msg.state;
+    *ring = msg.payload.state;
 
     return 0;
 }
@@ -380,14 +380,14 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
     VhostUserMsg msg = {
         .request = request,
         .flags = VHOST_USER_VERSION,
-        .u64 = file->index & VHOST_USER_VRING_IDX_MASK,
-        .size = sizeof(m.u64),
+        .payload.u64 = file->index & VHOST_USER_VRING_IDX_MASK,
+        .size = sizeof(m.payload.u64),
     };
 
     if (ioeventfd_enabled() && file->fd > 0) {
         fds[fd_num++] = file->fd;
     } else {
-        msg.u64 |= VHOST_USER_VRING_NOFD_MASK;
+        msg.payload.u64 |= VHOST_USER_VRING_NOFD_MASK;
     }
 
     vhost_user_write(dev, &msg, fds, fd_num);
@@ -412,8 +412,8 @@ static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64)
     VhostUserMsg msg = {
         .request = request,
         .flags = VHOST_USER_VERSION,
-        .u64 = u64,
-        .size = sizeof(m.u64),
+        .payload.u64 = u64,
+        .size = sizeof(m.payload.u64),
     };
 
     vhost_user_write(dev, &msg, NULL, 0);
@@ -456,12 +456,12 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
         return -1;
     }
 
-    if (msg.size != sizeof(m.u64)) {
+    if (msg.size != sizeof(m.payload.u64)) {
         error_report("Received bad msg size.");
         return -1;
     }
 
-    *u64 = msg.u64;
+    *u64 = msg.payload.u64;
 
     return 0;
 }
@@ -591,8 +591,8 @@ static int vhost_user_migration_done(struct vhost_dev *dev, char* mac_addr)
                            VHOST_USER_PROTOCOL_F_RARP)) {
         msg.request = VHOST_USER_SEND_RARP;
         msg.flags = VHOST_USER_VERSION;
-        memcpy((char *)&msg.u64, mac_addr, 6);
-        msg.size = sizeof(m.u64);
+        memcpy((char *)&msg.payload.u64, mac_addr, 6);
+        msg.size = sizeof(m.payload.u64);
 
         err = vhost_user_write(dev, &msg, NULL, 0);
         return err;
