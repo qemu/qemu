@@ -414,6 +414,13 @@ static void kvm_fixup_page_sizes(PowerPCCPU *cpu)
     /* Convert to QEMU form */
     memset(&env->sps, 0, sizeof(env->sps));
 
+    /* If we have HV KVM, we need to forbid CI large pages if our
+     * host page size is smaller than 64K.
+     */
+    if (smmu_info.flags & KVM_PPC_PAGE_SIZES_REAL) {
+        env->ci_large_pages = getpagesize() >= 0x10000;
+    }
+
     /*
      * XXX This loop should be an entry wide AND of the capabilities that
      *     the selected CPU has with the capabilities that KVM supports.

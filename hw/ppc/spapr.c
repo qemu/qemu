@@ -597,6 +597,24 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     uint32_t vcpus_per_socket = smp_threads * smp_cores;
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
 
+    /* Note: we keep CI large pages off for now because a 64K capable guest
+     * provisioned with large pages might otherwise try to map a qemu
+     * framebuffer (or other kind of memory mapped PCI BAR) using 64K pages
+     * even if that qemu runs on a 4k host.
+     *
+     * We can later add this bit back when we are confident this is not
+     * an issue (!HV KVM or 64K host)
+     */
+    uint8_t pa_features_206[] = { 6, 0,
+        0xf6, 0x1f, 0xc7, 0x00, 0x80, 0xc0 };
+    uint8_t pa_features_207[] = { 24, 0,
+        0xf6, 0x1f, 0xc7, 0xc0, 0x80, 0xf0,
+        0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
+        0x80, 0x00, 0x80, 0x00, 0x80, 0x00 };
+    uint8_t *pa_features;
+    size_t pa_size;
+
     _FDT((fdt_setprop_cell(fdt, offset, "reg", index)));
     _FDT((fdt_setprop_string(fdt, offset, "device_type", "cpu")));
 
@@ -662,6 +680,19 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
         _FDT((fdt_setprop(fdt, offset, "ibm,segment-page-sizes",
                           page_sizes_prop, page_sizes_prop_size)));
     }
+
+    /* Do the ibm,pa-features property, adjust it for ci-large-pages */
+    if (env->mmu_model == POWERPC_MMU_2_06) {
+        pa_features = pa_features_206;
+        pa_size = sizeof(pa_features_206);
+    } else /* env->mmu_model == POWERPC_MMU_2_07 */ {
+        pa_features = pa_features_207;
+        pa_size = sizeof(pa_features_207);
+    }
+    if (env->ci_large_pages) {
+        pa_features[3] |= 0x20;
+    }
+    _FDT((fdt_setprop(fdt, offset, "ibm,pa-features", pa_features, pa_size)));
 
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
                            cs->cpu_index / vcpus_per_socket)));

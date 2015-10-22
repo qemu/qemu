@@ -7864,6 +7864,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_book3s_ids(env);
         gen_spr_amr(env);
         gen_spr_book3s_purr(env);
+        env->ci_large_pages = true;
         break;
     default:
         g_assert_not_reached();
