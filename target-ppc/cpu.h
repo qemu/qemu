@@ -117,14 +117,14 @@ enum powerpc_mmu_t {
 #define POWERPC_MMU_AMR      0x00040000
     /* 64 bits PowerPC MMU                                     */
     POWERPC_MMU_64B        = POWERPC_MMU_64 | 0x00000001,
+    /* Architecture 2.03 and later (has LPCR) */
+    POWERPC_MMU_2_03       = POWERPC_MMU_64 | 0x00000002,
     /* Architecture 2.06 variant                               */
     POWERPC_MMU_2_06       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
                              | POWERPC_MMU_AMR | 0x00000003,
-    /* Architecture 2.06 "degraded" (no 1T segments)           */
-    POWERPC_MMU_2_06a      = POWERPC_MMU_64 | POWERPC_MMU_AMR
-                             | 0x00000003,
-    /* Architecture 2.06 "degraded" (no 1T segments or AMR)    */
-    POWERPC_MMU_2_06d      = POWERPC_MMU_64 | 0x00000003,
+    /* Architecture 2.07 variant                               */
+    POWERPC_MMU_2_07       = POWERPC_MMU_64 | POWERPC_MMU_1TSEG
+                             | POWERPC_MMU_AMR | 0x00000004,
 #endif /* defined(TARGET_PPC64) */
 };
 
