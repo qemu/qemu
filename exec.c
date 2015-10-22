@@ -903,7 +903,7 @@ static RAMBlock *qemu_get_ram_block(ram_addr_t addr)
 
     block = atomic_rcu_read(&ram_list.mru_block);
     if (block && addr - block->offset < block->max_length) {
-        goto found;
+        return block;
     }
     QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
         if (addr - block->offset < block->max_length) {
