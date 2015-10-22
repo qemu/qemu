@@ -201,7 +201,7 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
         .request = VHOST_USER_SET_LOG_BASE,
         .flags = VHOST_USER_VERSION,
         .payload.u64 = base,
-        .size = sizeof(m.payload.u64),
+        .size = sizeof(msg.payload.u64),
     };
 
     if (shmfd && log->fd != -1) {
@@ -265,8 +265,8 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
         return -1;
     }
 
-    msg.size = sizeof(m.payload.memory.nregions);
-    msg.size += sizeof(m.payload.memory.padding);
+    msg.size = sizeof(msg.payload.memory.nregions);
+    msg.size += sizeof(msg.payload.memory.padding);
     msg.size += fd_num * sizeof(VhostUserMemoryRegion);
 
     vhost_user_write(dev, &msg, fds, fd_num);
@@ -361,7 +361,7 @@ static int vhost_user_get_vring_base(struct vhost_dev *dev,
         return -1;
     }
 
-    if (msg.size != sizeof(m.payload.state)) {
+    if (msg.size != sizeof(msg.payload.state)) {
         error_report("Received bad msg size.");
         return -1;
     }
@@ -381,7 +381,7 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
         .request = request,
         .flags = VHOST_USER_VERSION,
         .payload.u64 = file->index & VHOST_USER_VRING_IDX_MASK,
-        .size = sizeof(m.payload.u64),
+        .size = sizeof(msg.payload.u64),
     };
 
     if (ioeventfd_enabled() && file->fd > 0) {
@@ -413,7 +413,7 @@ static int vhost_user_set_u64(struct vhost_dev *dev, int request, uint64_t u64)
         .request = request,
         .flags = VHOST_USER_VERSION,
         .payload.u64 = u64,
-        .size = sizeof(m.payload.u64),
+        .size = sizeof(msg.payload.u64),
     };
 
     vhost_user_write(dev, &msg, NULL, 0);
@@ -456,7 +456,7 @@ static int vhost_user_get_u64(struct vhost_dev *dev, int request, uint64_t *u64)
         return -1;
     }
 
-    if (msg.size != sizeof(m.payload.u64)) {
+    if (msg.size != sizeof(msg.payload.u64)) {
         error_report("Received bad msg size.");
         return -1;
     }
@@ -592,7 +592,7 @@ static int vhost_user_migration_done(struct vhost_dev *dev, char* mac_addr)
         msg.request = VHOST_USER_SEND_RARP;
         msg.flags = VHOST_USER_VERSION;
         memcpy((char *)&msg.payload.u64, mac_addr, 6);
-        msg.size = sizeof(m.payload.u64);
+        msg.size = sizeof(msg.payload.u64);
 
         err = vhost_user_write(dev, &msg, NULL, 0);
         return err;
