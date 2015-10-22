@@ -184,6 +184,12 @@ static void s390_cpu_machine_reset_cb(void *opaque)
 }
 #endif
 
+static void s390_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->mach = bfd_mach_s390_64;
+    info->print_insn = print_insn_s390;
+}
+
 static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -351,6 +357,8 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     cc->cpu_exec_interrupt = s390_cpu_exec_interrupt;
     cc->debug_excp_handler = s390x_cpu_debug_excp_handler;
 #endif
+    cc->disas_set_info = s390_cpu_disas_set_info;
+
     cc->gdb_num_core_regs = S390_NUM_CORE_REGS;
     cc->gdb_core_xml_file = "s390x-core64.xml";
 

@@ -48,6 +48,12 @@ static void moxie_cpu_reset(CPUState *s)
     tlb_flush(s, 1);
 }
 
+static void moxie_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->mach = bfd_arch_moxie;
+    info->print_insn = print_insn_moxie;
+}
+
 static void moxie_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -114,6 +120,7 @@ static void moxie_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = moxie_cpu_get_phys_page_debug;
     cc->vmsd = &vmstate_moxie_cpu;
 #endif
+    cc->disas_set_info = moxie_cpu_disas_set_info;
 
     /*
      * Reason: moxie_cpu_initfn() calls cpu_exec_init(), which saves

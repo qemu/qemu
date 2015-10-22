@@ -214,11 +214,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
         s.info.mach = bfd_mach_i386_i386;
     }
     s.info.print_insn = print_insn_i386;
-#elif defined(TARGET_SPARC)
-    s.info.print_insn = print_insn_sparc;
-#ifdef TARGET_SPARC64
-    s.info.mach = bfd_mach_sparc_v9b;
-#endif
 #elif defined(TARGET_PPC)
     if ((flags >> 16) & 1) {
         s.info.endian = BFD_ENDIAN_LITTLE;
@@ -235,29 +230,6 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
     s.info.disassembler_options = (char *)"any";
     s.info.print_insn = print_insn_ppc;
-#elif defined(TARGET_M68K)
-    s.info.print_insn = print_insn_m68k;
-#elif defined(TARGET_MIPS)
-#ifdef TARGET_WORDS_BIGENDIAN
-    s.info.print_insn = print_insn_big_mips;
-#else
-    s.info.print_insn = print_insn_little_mips;
-#endif
-#elif defined(TARGET_SH4)
-    s.info.mach = bfd_mach_sh4;
-    s.info.print_insn = print_insn_sh;
-#elif defined(TARGET_ALPHA)
-    s.info.mach = bfd_mach_alpha_ev6;
-    s.info.print_insn = print_insn_alpha;
-#elif defined(TARGET_S390X)
-    s.info.mach = bfd_mach_s390_64;
-    s.info.print_insn = print_insn_s390;
-#elif defined(TARGET_MOXIE)
-    s.info.mach = bfd_arch_moxie;
-    s.info.print_insn = print_insn_moxie;
-#elif defined(TARGET_LM32)
-    s.info.mach = bfd_mach_lm32;
-    s.info.print_insn = print_insn_lm32;
 #endif
     if (s.info.print_insn == NULL) {
         s.info.print_insn = print_insn_od_target;
@@ -429,13 +401,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
         s.info.mach = bfd_mach_i386_i386;
     }
     s.info.print_insn = print_insn_i386;
-#elif defined(TARGET_ALPHA)
-    s.info.print_insn = print_insn_alpha;
-#elif defined(TARGET_SPARC)
-    s.info.print_insn = print_insn_sparc;
-#ifdef TARGET_SPARC64
-    s.info.mach = bfd_mach_sparc_v9b;
-#endif
 #elif defined(TARGET_PPC)
     if (flags & 0xFFFF) {
         /* If we have a precise definition of the instruction set, use it. */
@@ -451,26 +416,6 @@ void monitor_disas(Monitor *mon, CPUState *cpu,
         s.info.endian = BFD_ENDIAN_LITTLE;
     }
     s.info.print_insn = print_insn_ppc;
-#elif defined(TARGET_M68K)
-    s.info.print_insn = print_insn_m68k;
-#elif defined(TARGET_MIPS)
-#ifdef TARGET_WORDS_BIGENDIAN
-    s.info.print_insn = print_insn_big_mips;
-#else
-    s.info.print_insn = print_insn_little_mips;
-#endif
-#elif defined(TARGET_SH4)
-    s.info.mach = bfd_mach_sh4;
-    s.info.print_insn = print_insn_sh;
-#elif defined(TARGET_S390X)
-    s.info.mach = bfd_mach_s390_64;
-    s.info.print_insn = print_insn_s390;
-#elif defined(TARGET_MOXIE)
-    s.info.mach = bfd_arch_moxie;
-    s.info.print_insn = print_insn_moxie;
-#elif defined(TARGET_LM32)
-    s.info.mach = bfd_mach_lm32;
-    s.info.print_insn = print_insn_lm32;
 #endif
     if (!s.info.print_insn) {
         monitor_printf(mon, "0x" TARGET_FMT_lx

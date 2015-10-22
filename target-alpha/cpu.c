@@ -46,6 +46,12 @@ static bool alpha_cpu_has_work(CPUState *cs)
                                     | CPU_INTERRUPT_MCHK);
 }
 
+static void alpha_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->mach = bfd_mach_alpha_ev6;
+    info->print_insn = print_insn_alpha;
+}
+
 static void alpha_cpu_realizefn(DeviceState *dev, Error **errp)
 {
     CPUState *cs = CPU(dev);
@@ -297,6 +303,8 @@ static void alpha_cpu_class_init(ObjectClass *oc, void *data)
     cc->get_phys_page_debug = alpha_cpu_get_phys_page_debug;
     dc->vmsd = &vmstate_alpha_cpu;
 #endif
+    cc->disas_set_info = alpha_cpu_disas_set_info;
+
     cc->gdb_num_core_regs = 67;
 
     /*

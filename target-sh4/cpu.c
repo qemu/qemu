@@ -70,6 +70,12 @@ static void superh_cpu_reset(CPUState *s)
     set_default_nan_mode(1, &env->fp_status);
 }
 
+static void superh_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+{
+    info->mach = bfd_mach_sh4;
+    info->print_insn = print_insn_sh;
+}
+
 typedef struct SuperHCPUListState {
     fprintf_function cpu_fprintf;
     FILE *file;
@@ -288,8 +294,11 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
 #else
     cc->get_phys_page_debug = superh_cpu_get_phys_page_debug;
 #endif
-    dc->vmsd = &vmstate_sh_cpu;
+    cc->disas_set_info = superh_cpu_disas_set_info;
+
     cc->gdb_num_core_regs = 59;
+
+    dc->vmsd = &vmstate_sh_cpu;
 
     /*
      * Reason: superh_cpu_initfn() calls cpu_exec_init(), which saves
