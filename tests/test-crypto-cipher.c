@@ -229,6 +229,7 @@ static void test_cipher(const void *opaque)
     uint8_t *key, *iv, *ciphertext, *plaintext, *outtext;
     size_t nkey, niv, nciphertext, nplaintext;
     char *outtexthex;
+    size_t ivsize, keysize, blocksize;
 
     nkey = unhex_string(data->key, &key);
     niv = unhex_string(data->iv, &iv);
@@ -245,6 +246,15 @@ static void test_cipher(const void *opaque)
         &error_abort);
     g_assert(cipher != NULL);
 
+    keysize = qcrypto_cipher_get_key_len(data->alg);
+    blocksize = qcrypto_cipher_get_block_len(data->alg);
+    ivsize = qcrypto_cipher_get_iv_len(data->alg, data->mode);
+
+    g_assert_cmpint(keysize, ==, nkey);
+    g_assert_cmpint(ivsize, ==, niv);
+    if (niv) {
+        g_assert_cmpint(blocksize, ==, niv);
+    }
 
     if (iv) {
         g_assert(qcrypto_cipher_setiv(cipher,

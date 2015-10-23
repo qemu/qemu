@@ -28,6 +28,54 @@ static size_t alg_key_len[QCRYPTO_CIPHER_ALG_LAST] = {
     [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
 };
 
+static size_t alg_block_len[QCRYPTO_CIPHER_ALG_LAST] = {
+    [QCRYPTO_CIPHER_ALG_AES_128] = 16,
+    [QCRYPTO_CIPHER_ALG_AES_192] = 16,
+    [QCRYPTO_CIPHER_ALG_AES_256] = 16,
+    [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
+};
+
+static bool mode_need_iv[QCRYPTO_CIPHER_MODE_LAST] = {
+    [QCRYPTO_CIPHER_MODE_ECB] = false,
+    [QCRYPTO_CIPHER_MODE_CBC] = true,
+};
+
+
+size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgorithm alg)
+{
+    if (alg >= G_N_ELEMENTS(alg_key_len)) {
+        return 0;
+    }
+    return alg_block_len[alg];
+}
+
+
+size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgorithm alg)
+{
+    if (alg >= G_N_ELEMENTS(alg_key_len)) {
+        return 0;
+    }
+    return alg_key_len[alg];
+}
+
+
+size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
+                                 QCryptoCipherMode mode)
+{
+    if (alg >= G_N_ELEMENTS(alg_block_len)) {
+        return 0;
+    }
+    if (mode >= G_N_ELEMENTS(mode_need_iv)) {
+        return 0;
+    }
+
+    if (mode_need_iv[mode]) {
+        return alg_block_len[alg];
+    }
+    return 0;
+}
+
+
 static bool
 qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
                                    size_t nkey,
