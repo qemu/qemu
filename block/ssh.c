@@ -800,14 +800,15 @@ static coroutine_fn void set_fd_handler(BDRVSSHState *s, BlockDriverState *bs)
             rd_handler, wr_handler);
 
     aio_set_fd_handler(bdrv_get_aio_context(bs), s->sock,
-                       rd_handler, wr_handler, co);
+                       false, rd_handler, wr_handler, co);
 }
 
 static coroutine_fn void clear_fd_handler(BDRVSSHState *s,
                                           BlockDriverState *bs)
 {
     DPRINTF("s->sock=%d", s->sock);
-    aio_set_fd_handler(bdrv_get_aio_context(bs), s->sock, NULL, NULL, NULL);
+    aio_set_fd_handler(bdrv_get_aio_context(bs), s->sock,
+                       false, NULL, NULL, NULL);
 }
 
 /* A non-blocking call returned EAGAIN, so yield, ensuring the

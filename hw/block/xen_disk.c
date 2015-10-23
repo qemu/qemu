@@ -931,9 +931,11 @@ static int blk_connect(struct XenDevice *xendev)
     blk_attach_dev_nofail(blkdev->blk, blkdev);
     blkdev->file_size = blk_getlength(blkdev->blk);
     if (blkdev->file_size < 0) {
+        BlockDriverState *bs = blk_bs(blkdev->blk);
+        const char *drv_name = bs ? bdrv_get_format_name(bs) : NULL;
         xen_be_printf(&blkdev->xendev, 1, "blk_getlength: %d (%s) | drv %s\n",
                       (int)blkdev->file_size, strerror(-blkdev->file_size),
-                      bdrv_get_format_name(blk_bs(blkdev->blk)) ?: "-");
+                      drv_name ?: "-");
         blkdev->file_size = 0;
     }
 

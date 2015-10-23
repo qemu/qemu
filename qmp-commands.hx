@@ -2520,8 +2520,8 @@ Each json-object contain the following:
     - "wr_total_time_ns": total time spend on writes in nano-seconds (json-int)
     - "rd_total_time_ns": total time spend on reads in nano-seconds (json-int)
     - "flush_total_time_ns": total time spend on cache flushes in nano-seconds (json-int)
-    - "wr_highest_offset": Highest offset of a sector written since the
-                           BlockDriverState has been opened (json-int)
+    - "wr_highest_offset": The offset after the greatest byte written to the
+                           BlockDriverState since it has been opened (json-int)
     - "rd_merged": number of read requests that have been merged into
                    another request (json-int)
     - "wr_merged": number of write requests that have been merged into

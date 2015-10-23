@@ -14,6 +14,7 @@
 #include "trace.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
+#include "sysemu/block-backend.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
 #include "qemu/bitmap.h"
@@ -599,7 +600,9 @@ immediate_exit:
     g_free(s->cow_bitmap);
     g_free(s->in_flight_bitmap);
     bdrv_release_dirty_bitmap(bs, s->dirty_bitmap);
-    bdrv_iostatus_disable(s->target);
+    if (s->target->blk) {
+        blk_iostatus_disable(s->target->blk);
+    }
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
@@ -621,7 +624,9 @@ static void mirror_iostatus_reset(BlockJob *job)
 {
     MirrorBlockJob *s = container_of(job, MirrorBlockJob, common);
 
-    bdrv_iostatus_reset(s->target);
+    if (s->target->blk) {
+        blk_iostatus_reset(s->target->blk);
+    }
 }
 
 static void mirror_complete(BlockJob *job, Error **errp)
@@ -704,7 +709,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
     if ((on_source_error == BLOCKDEV_ON_ERROR_STOP ||
          on_source_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
-        !bdrv_iostatus_is_enabled(bs)) {
+        (!bs->blk || !blk_iostatus_is_enabled(bs->blk))) {
         error_setg(errp, QERR_INVALID_PARAMETER, "on-source-error");
         return;
     }
@@ -740,8 +745,10 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
         return;
     }
     bdrv_set_enable_write_cache(s->target, true);
-    bdrv_set_on_error(s->target, on_target_error, on_target_error);
-    bdrv_iostatus_enable(s->target);
+    if (s->target->blk) {
+        blk_set_on_error(s->target->blk, on_target_error, on_target_error);
+        blk_iostatus_enable(s->target->blk);
+    }
     s->common.co = qemu_coroutine_create(mirror_run);
     trace_mirror_start(bs, s, s->common.co, opaque);
     qemu_coroutine_enter(s->common.co, s);

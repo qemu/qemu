@@ -30,6 +30,9 @@
 
 const char *throttle_group_get_name(BlockDriverState *bs);
 
+ThrottleState *throttle_group_incref(const char *name);
+void throttle_group_unref(ThrottleState *ts);
+
 void throttle_group_config(BlockDriverState *bs, ThrottleConfig *cfg);
 void throttle_group_get_config(BlockDriverState *bs, ThrottleConfig *cfg);
 
@@ -39,8 +42,5 @@ void throttle_group_unregister_bs(BlockDriverState *bs);
 void coroutine_fn throttle_group_co_io_limits_intercept(BlockDriverState *bs,
                                                         unsigned int bytes,
                                                         bool is_write);
-
-void throttle_group_lock(BlockDriverState *bs);
-void throttle_group_unlock(BlockDriverState *bs);
 
 #endif

@@ -12,11 +12,16 @@
 
 #include "sysemu/block-backend.h"
 #include "block/block_int.h"
+#include "block/blockjob.h"
+#include "block/throttle-groups.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/sysemu.h"
 #include "qapi-event.h"
 
 /* Number of coroutines to reserve per attached device model */
 #define COROUTINE_POOL_RESERVATION 64
+
+static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb);
 
 struct BlockBackend {
     char *name;
@@ -29,15 +34,31 @@ struct BlockBackend {
     /* TODO change to DeviceState when all users are qdevified */
     const BlockDevOps *dev_ops;
     void *dev_opaque;
+
+    /* the block size for which the guest device expects atomicity */
+    int guest_block_size;
+
+    /* If the BDS tree is removed, some of its options are stored here (which
+     * can be used to restore those options in the new BDS on insert) */
+    BlockBackendRootState root_state;
+
+    /* I/O stats (display with "info blockstats"). */
+    BlockAcctStats stats;
+
+    BlockdevOnError on_read_error, on_write_error;
+    bool iostatus_enabled;
+    BlockDeviceIoStatus iostatus;
 };
 
 typedef struct BlockBackendAIOCB {
     BlockAIOCB common;
     QEMUBH *bh;
+    BlockBackend *blk;
     int ret;
 } BlockBackendAIOCB;
 
 static const AIOCBInfo block_backend_aiocb_info = {
+    .get_aio_context = blk_aiocb_get_aio_context,
     .aiocb_size = sizeof(BlockBackendAIOCB),
 };
 
@@ -144,6 +165,10 @@ static void blk_delete(BlockBackend *blk)
         blk->bs->blk = NULL;
         bdrv_unref(blk->bs);
         blk->bs = NULL;
+    }
+    if (blk->root_state.throttle_state) {
+        g_free(blk->root_state.throttle_group);
+        throttle_group_unref(blk->root_state.throttle_state);
     }
     /* Avoid double-remove after blk_hide_on_behalf_of_hmp_drive_del() */
     if (blk->name[0]) {
@@ -309,6 +334,17 @@ void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk)
 }
 
 /*
+ * Associates a new BlockDriverState with @blk.
+ */
+void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
+{
+    assert(!blk->bs && !bs->blk);
+    bdrv_ref(bs);
+    blk->bs = bs;
+    bs->blk = blk;
+}
+
+/*
  * Attach device model @dev to @blk.
  * Return 0 on success, -EBUSY when a device model is attached already.
  */
@@ -320,7 +356,7 @@ int blk_attach_dev(BlockBackend *blk, void *dev)
     }
     blk_ref(blk);
     blk->dev = dev;
-    bdrv_iostatus_reset(blk->bs);
+    blk_iostatus_reset(blk);
     return 0;
 }
 
@@ -347,7 +383,7 @@ void blk_detach_dev(BlockBackend *blk, void *dev)
     blk->dev = NULL;
     blk->dev_ops = NULL;
     blk->dev_opaque = NULL;
-    bdrv_set_guest_block_size(blk->bs, 512);
+    blk->guest_block_size = 512;
     blk_unref(blk);
 }
 
@@ -452,7 +488,47 @@ void blk_dev_resize_cb(BlockBackend *blk)
 
 void blk_iostatus_enable(BlockBackend *blk)
 {
-    bdrv_iostatus_enable(blk->bs);
+    blk->iostatus_enabled = true;
+    blk->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+}
+
+/* The I/O status is only enabled if the drive explicitly
+ * enables it _and_ the VM is configured to stop on errors */
+bool blk_iostatus_is_enabled(const BlockBackend *blk)
+{
+    return (blk->iostatus_enabled &&
+           (blk->on_write_error == BLOCKDEV_ON_ERROR_ENOSPC ||
+            blk->on_write_error == BLOCKDEV_ON_ERROR_STOP   ||
+            blk->on_read_error == BLOCKDEV_ON_ERROR_STOP));
+}
+
+BlockDeviceIoStatus blk_iostatus(const BlockBackend *blk)
+{
+    return blk->iostatus;
+}
+
+void blk_iostatus_disable(BlockBackend *blk)
+{
+    blk->iostatus_enabled = false;
+}
+
+void blk_iostatus_reset(BlockBackend *blk)
+{
+    if (blk_iostatus_is_enabled(blk)) {
+        blk->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
+        if (blk->bs && blk->bs->job) {
+            block_job_iostatus_reset(blk->bs->job);
+        }
+    }
+}
+
+void blk_iostatus_set_err(BlockBackend *blk, int error)
+{
+    assert(blk_iostatus_is_enabled(blk));
+    if (blk->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
+        blk->iostatus = error == ENOSPC ? BLOCK_DEVICE_IO_STATUS_NOSPACE :
+                                          BLOCK_DEVICE_IO_STATUS_FAILED;
+    }
 }
 
 static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
@@ -464,7 +540,7 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
         return -EIO;
     }
 
-    if (!blk_is_inserted(blk)) {
+    if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
@@ -558,6 +634,7 @@ static BlockAIOCB *abort_aio_request(BlockBackend *blk, BlockCompletionFunc *cb,
     QEMUBH *bh;
 
     acb = blk_aio_get(&block_backend_aiocb_info, blk, cb, opaque);
+    acb->blk = blk;
     acb->ret = ret;
 
     bh = aio_bh_new(blk_get_aio_context(blk), error_callback_bh, acb);
@@ -602,16 +679,28 @@ int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int count)
 
 int64_t blk_getlength(BlockBackend *blk)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_getlength(blk->bs);
 }
 
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr)
 {
-    bdrv_get_geometry(blk->bs, nb_sectors_ptr);
+    if (!blk->bs) {
+        *nb_sectors_ptr = 0;
+    } else {
+        bdrv_get_geometry(blk->bs, nb_sectors_ptr);
+    }
 }
 
 int64_t blk_nb_sectors(BlockBackend *blk)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_nb_sectors(blk->bs);
 }
 
@@ -642,6 +731,10 @@ BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
 BlockAIOCB *blk_aio_flush(BlockBackend *blk,
                           BlockCompletionFunc *cb, void *opaque)
 {
+    if (!blk_is_available(blk)) {
+        return abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
+    }
+
     return bdrv_aio_flush(blk->bs, cb, opaque);
 }
 
@@ -683,12 +776,20 @@ int blk_aio_multiwrite(BlockBackend *blk, BlockRequest *reqs, int num_reqs)
 
 int blk_ioctl(BlockBackend *blk, unsigned long int req, void *buf)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_ioctl(blk->bs, req, buf);
 }
 
 BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
                           BlockCompletionFunc *cb, void *opaque)
 {
+    if (!blk_is_available(blk)) {
+        return abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
+    }
+
     return bdrv_aio_ioctl(blk->bs, req, buf, cb, opaque);
 }
 
@@ -704,11 +805,19 @@ int blk_co_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
 
 int blk_co_flush(BlockBackend *blk)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_co_flush(blk->bs);
 }
 
 int blk_flush(BlockBackend *blk)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_flush(blk->bs);
 }
 
@@ -719,7 +828,9 @@ int blk_flush_all(void)
 
 void blk_drain(BlockBackend *blk)
 {
-    bdrv_drain(blk->bs);
+    if (blk->bs) {
+        bdrv_drain(blk->bs);
+    }
 }
 
 void blk_drain_all(void)
@@ -727,76 +838,178 @@ void blk_drain_all(void)
     bdrv_drain_all();
 }
 
+void blk_set_on_error(BlockBackend *blk, BlockdevOnError on_read_error,
+                      BlockdevOnError on_write_error)
+{
+    blk->on_read_error = on_read_error;
+    blk->on_write_error = on_write_error;
+}
+
 BlockdevOnError blk_get_on_error(BlockBackend *blk, bool is_read)
 {
-    return bdrv_get_on_error(blk->bs, is_read);
+    return is_read ? blk->on_read_error : blk->on_write_error;
 }
 
 BlockErrorAction blk_get_error_action(BlockBackend *blk, bool is_read,
                                       int error)
 {
-    return bdrv_get_error_action(blk->bs, is_read, error);
+    BlockdevOnError on_err = blk_get_on_error(blk, is_read);
+
+    switch (on_err) {
+    case BLOCKDEV_ON_ERROR_ENOSPC:
+        return (error == ENOSPC) ?
+               BLOCK_ERROR_ACTION_STOP : BLOCK_ERROR_ACTION_REPORT;
+    case BLOCKDEV_ON_ERROR_STOP:
+        return BLOCK_ERROR_ACTION_STOP;
+    case BLOCKDEV_ON_ERROR_REPORT:
+        return BLOCK_ERROR_ACTION_REPORT;
+    case BLOCKDEV_ON_ERROR_IGNORE:
+        return BLOCK_ERROR_ACTION_IGNORE;
+    default:
+        abort();
+    }
 }
 
+static void send_qmp_error_event(BlockBackend *blk,
+                                 BlockErrorAction action,
+                                 bool is_read, int error)
+{
+    IoOperationType optype;
+
+    optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
+    qapi_event_send_block_io_error(blk_name(blk), optype, action,
+                                   blk_iostatus_is_enabled(blk),
+                                   error == ENOSPC, strerror(error),
+                                   &error_abort);
+}
+
+/* This is done by device models because, while the block layer knows
+ * about the error, it does not know whether an operation comes from
+ * the device or the block layer (from a job, for example).
+ */
 void blk_error_action(BlockBackend *blk, BlockErrorAction action,
                       bool is_read, int error)
 {
-    bdrv_error_action(blk->bs, action, is_read, error);
+    assert(error >= 0);
+
+    if (action == BLOCK_ERROR_ACTION_STOP) {
+        /* First set the iostatus, so that "info block" returns an iostatus
+         * that matches the events raised so far (an additional error iostatus
+         * is fine, but not a lost one).
+         */
+        blk_iostatus_set_err(blk, error);
+
+        /* Then raise the request to stop the VM and the event.
+         * qemu_system_vmstop_request_prepare has two effects.  First,
+         * it ensures that the STOP event always comes after the
+         * BLOCK_IO_ERROR event.  Second, it ensures that even if management
+         * can observe the STOP event and do a "cont" before the STOP
+         * event is issued, the VM will not stop.  In this case, vm_start()
+         * also ensures that the STOP/RESUME pair of events is emitted.
+         */
+        qemu_system_vmstop_request_prepare();
+        send_qmp_error_event(blk, action, is_read, error);
+        qemu_system_vmstop_request(RUN_STATE_IO_ERROR);
+    } else {
+        send_qmp_error_event(blk, action, is_read, error);
+    }
 }
 
 int blk_is_read_only(BlockBackend *blk)
 {
-    return bdrv_is_read_only(blk->bs);
+    if (blk->bs) {
+        return bdrv_is_read_only(blk->bs);
+    } else {
+        return blk->root_state.read_only;
+    }
 }
 
 int blk_is_sg(BlockBackend *blk)
 {
+    if (!blk->bs) {
+        return 0;
+    }
+
     return bdrv_is_sg(blk->bs);
 }
 
 int blk_enable_write_cache(BlockBackend *blk)
 {
-    return bdrv_enable_write_cache(blk->bs);
+    if (blk->bs) {
+        return bdrv_enable_write_cache(blk->bs);
+    } else {
+        return !!(blk->root_state.open_flags & BDRV_O_CACHE_WB);
+    }
 }
 
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce)
 {
-    bdrv_set_enable_write_cache(blk->bs, wce);
+    if (blk->bs) {
+        bdrv_set_enable_write_cache(blk->bs, wce);
+    } else {
+        if (wce) {
+            blk->root_state.open_flags |= BDRV_O_CACHE_WB;
+        } else {
+            blk->root_state.open_flags &= ~BDRV_O_CACHE_WB;
+        }
+    }
 }
 
 void blk_invalidate_cache(BlockBackend *blk, Error **errp)
 {
+    if (!blk->bs) {
+        error_setg(errp, "Device '%s' has no medium", blk->name);
+        return;
+    }
+
     bdrv_invalidate_cache(blk->bs, errp);
 }
 
-int blk_is_inserted(BlockBackend *blk)
+bool blk_is_inserted(BlockBackend *blk)
 {
-    return bdrv_is_inserted(blk->bs);
+    return blk->bs && bdrv_is_inserted(blk->bs);
+}
+
+bool blk_is_available(BlockBackend *blk)
+{
+    return blk_is_inserted(blk) && !blk_dev_is_tray_open(blk);
 }
 
 void blk_lock_medium(BlockBackend *blk, bool locked)
 {
-    bdrv_lock_medium(blk->bs, locked);
+    if (blk->bs) {
+        bdrv_lock_medium(blk->bs, locked);
+    }
 }
 
 void blk_eject(BlockBackend *blk, bool eject_flag)
 {
-    bdrv_eject(blk->bs, eject_flag);
+    if (blk->bs) {
+        bdrv_eject(blk->bs, eject_flag);
+    }
 }
 
 int blk_get_flags(BlockBackend *blk)
 {
-    return bdrv_get_flags(blk->bs);
+    if (blk->bs) {
+        return bdrv_get_flags(blk->bs);
+    } else {
+        return blk->root_state.open_flags;
+    }
 }
 
 int blk_get_max_transfer_length(BlockBackend *blk)
 {
-    return blk->bs->bl.max_transfer_length;
+    if (blk->bs) {
+        return blk->bs->bl.max_transfer_length;
+    } else {
+        return 0;
+    }
 }
 
 void blk_set_guest_block_size(BlockBackend *blk, int align)
 {
-    bdrv_set_guest_block_size(blk->bs, align);
+    blk->guest_block_size = align;
 }
 
 void *blk_blockalign(BlockBackend *blk, size_t size)
@@ -806,40 +1019,64 @@ void *blk_blockalign(BlockBackend *blk, size_t size)
 
 bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp)
 {
+    if (!blk->bs) {
+        return false;
+    }
+
     return bdrv_op_is_blocked(blk->bs, op, errp);
 }
 
 void blk_op_unblock(BlockBackend *blk, BlockOpType op, Error *reason)
 {
-    bdrv_op_unblock(blk->bs, op, reason);
+    if (blk->bs) {
+        bdrv_op_unblock(blk->bs, op, reason);
+    }
 }
 
 void blk_op_block_all(BlockBackend *blk, Error *reason)
 {
-    bdrv_op_block_all(blk->bs, reason);
+    if (blk->bs) {
+        bdrv_op_block_all(blk->bs, reason);
+    }
 }
 
 void blk_op_unblock_all(BlockBackend *blk, Error *reason)
 {
-    bdrv_op_unblock_all(blk->bs, reason);
+    if (blk->bs) {
+        bdrv_op_unblock_all(blk->bs, reason);
+    }
 }
 
 AioContext *blk_get_aio_context(BlockBackend *blk)
 {
-    return bdrv_get_aio_context(blk->bs);
+    if (blk->bs) {
+        return bdrv_get_aio_context(blk->bs);
+    } else {
+        return qemu_get_aio_context();
+    }
+}
+
+static AioContext *blk_aiocb_get_aio_context(BlockAIOCB *acb)
+{
+    BlockBackendAIOCB *blk_acb = DO_UPCAST(BlockBackendAIOCB, common, acb);
+    return blk_get_aio_context(blk_acb->blk);
 }
 
 void blk_set_aio_context(BlockBackend *blk, AioContext *new_context)
 {
-    bdrv_set_aio_context(blk->bs, new_context);
+    if (blk->bs) {
+        bdrv_set_aio_context(blk->bs, new_context);
+    }
 }
 
 void blk_add_aio_context_notifier(BlockBackend *blk,
         void (*attached_aio_context)(AioContext *new_context, void *opaque),
         void (*detach_aio_context)(void *opaque), void *opaque)
 {
-    bdrv_add_aio_context_notifier(blk->bs, attached_aio_context,
-                                  detach_aio_context, opaque);
+    if (blk->bs) {
+        bdrv_add_aio_context_notifier(blk->bs, attached_aio_context,
+                                      detach_aio_context, opaque);
+    }
 }
 
 void blk_remove_aio_context_notifier(BlockBackend *blk,
@@ -848,28 +1085,36 @@ void blk_remove_aio_context_notifier(BlockBackend *blk,
                                      void (*detach_aio_context)(void *),
                                      void *opaque)
 {
-    bdrv_remove_aio_context_notifier(blk->bs, attached_aio_context,
-                                     detach_aio_context, opaque);
+    if (blk->bs) {
+        bdrv_remove_aio_context_notifier(blk->bs, attached_aio_context,
+                                         detach_aio_context, opaque);
+    }
 }
 
 void blk_add_close_notifier(BlockBackend *blk, Notifier *notify)
 {
-    bdrv_add_close_notifier(blk->bs, notify);
+    if (blk->bs) {
+        bdrv_add_close_notifier(blk->bs, notify);
+    }
 }
 
 void blk_io_plug(BlockBackend *blk)
 {
-    bdrv_io_plug(blk->bs);
+    if (blk->bs) {
+        bdrv_io_plug(blk->bs);
+    }
 }
 
 void blk_io_unplug(BlockBackend *blk)
 {
-    bdrv_io_unplug(blk->bs);
+    if (blk->bs) {
+        bdrv_io_unplug(blk->bs);
+    }
 }
 
 BlockAcctStats *blk_get_stats(BlockBackend *blk)
 {
-    return bdrv_get_stats(blk->bs);
+    return &blk->stats;
 }
 
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
@@ -902,6 +1147,10 @@ int blk_write_compressed(BlockBackend *blk, int64_t sector_num,
 
 int blk_truncate(BlockBackend *blk, int64_t offset)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_truncate(blk->bs, offset);
 }
 
@@ -918,20 +1167,67 @@ int blk_discard(BlockBackend *blk, int64_t sector_num, int nb_sectors)
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                      int64_t pos, int size)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_save_vmstate(blk->bs, buf, pos, size);
 }
 
 int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_load_vmstate(blk->bs, buf, pos, size);
 }
 
 int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_probe_blocksizes(blk->bs, bsz);
 }
 
 int blk_probe_geometry(BlockBackend *blk, HDGeometry *geo)
 {
+    if (!blk_is_available(blk)) {
+        return -ENOMEDIUM;
+    }
+
     return bdrv_probe_geometry(blk->bs, geo);
+}
+
+/*
+ * Updates the BlockBackendRootState object with data from the currently
+ * attached BlockDriverState.
+ */
+void blk_update_root_state(BlockBackend *blk)
+{
+    assert(blk->bs);
+
+    blk->root_state.open_flags    = blk->bs->open_flags;
+    blk->root_state.read_only     = blk->bs->read_only;
+    blk->root_state.detect_zeroes = blk->bs->detect_zeroes;
+
+    if (blk->root_state.throttle_group) {
+        g_free(blk->root_state.throttle_group);
+        throttle_group_unref(blk->root_state.throttle_state);
+    }
+    if (blk->bs->throttle_state) {
+        const char *name = throttle_group_get_name(blk->bs);
+        blk->root_state.throttle_group = g_strdup(name);
+        blk->root_state.throttle_state = throttle_group_incref(name);
+    } else {
+        blk->root_state.throttle_group = NULL;
+        blk->root_state.throttle_state = NULL;
+    }
+}
+
+BlockBackendRootState *blk_get_root_state(BlockBackend *blk)
+{
+    return &blk->root_state;
 }

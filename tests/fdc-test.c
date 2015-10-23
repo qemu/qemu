@@ -304,9 +304,7 @@ static void test_media_insert(void)
     qmp_discard_response("{'execute':'change', 'arguments':{"
                          " 'device':'floppy0', 'target': %s, 'arg': 'raw' }}",
                          test_image);
-    qmp_discard_response(""); /* ignore event
-                                 (FIXME open -> open transition?!) */
-    qmp_discard_response(""); /* ignore event */
+    qmp_discard_response(""); /* ignore event (open -> close) */
 
     dir = inb(FLOPPY_BASE + reg_dir);
     assert_bit_set(dir, DSKCHG);

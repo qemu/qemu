@@ -301,17 +301,17 @@ static void bdrv_query_info(BlockBackend *blk, BlockInfo **p_info,
         info->tray_open = blk_dev_is_tray_open(blk);
     }
 
-    if (bdrv_iostatus_is_enabled(bs)) {
+    if (blk_iostatus_is_enabled(blk)) {
         info->has_io_status = true;
-        info->io_status = bs->iostatus;
+        info->io_status = blk_iostatus(blk);
     }
 
-    if (!QLIST_EMPTY(&bs->dirty_bitmaps)) {
+    if (bs && !QLIST_EMPTY(&bs->dirty_bitmaps)) {
         info->has_dirty_bitmaps = true;
         info->dirty_bitmaps = bdrv_query_dirty_bitmaps(bs);
     }
 
-    if (bs->drv) {
+    if (bs && bs->drv) {
         info->has_inserted = true;
         info->inserted = bdrv_block_device_info(bs, errp);
         if (info->inserted == NULL) {
@@ -344,18 +344,22 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
     }
 
     s->stats = g_malloc0(sizeof(*s->stats));
-    s->stats->rd_bytes = bs->stats.nr_bytes[BLOCK_ACCT_READ];
-    s->stats->wr_bytes = bs->stats.nr_bytes[BLOCK_ACCT_WRITE];
-    s->stats->rd_operations = bs->stats.nr_ops[BLOCK_ACCT_READ];
-    s->stats->wr_operations = bs->stats.nr_ops[BLOCK_ACCT_WRITE];
-    s->stats->rd_merged = bs->stats.merged[BLOCK_ACCT_READ];
-    s->stats->wr_merged = bs->stats.merged[BLOCK_ACCT_WRITE];
-    s->stats->wr_highest_offset =
-        bs->stats.wr_highest_sector * BDRV_SECTOR_SIZE;
-    s->stats->flush_operations = bs->stats.nr_ops[BLOCK_ACCT_FLUSH];
-    s->stats->wr_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_WRITE];
-    s->stats->rd_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_READ];
-    s->stats->flush_total_time_ns = bs->stats.total_time_ns[BLOCK_ACCT_FLUSH];
+    if (bs->blk) {
+        BlockAcctStats *stats = blk_get_stats(bs->blk);
+
+        s->stats->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
+        s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
+        s->stats->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
+        s->stats->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
+        s->stats->rd_merged = stats->merged[BLOCK_ACCT_READ];
+        s->stats->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
+        s->stats->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];
+        s->stats->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
+        s->stats->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
+        s->stats->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
+    }
+
+    s->stats->wr_highest_offset = bs->wr_highest_offset;
 
     if (bs->file) {
         s->has_parent = true;

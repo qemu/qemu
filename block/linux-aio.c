@@ -287,7 +287,7 @@ void laio_detach_aio_context(void *s_, AioContext *old_context)
 {
     struct qemu_laio_state *s = s_;
 
-    aio_set_event_notifier(old_context, &s->e, NULL);
+    aio_set_event_notifier(old_context, &s->e, false, NULL);
     qemu_bh_delete(s->completion_bh);
 }
 
@@ -296,7 +296,8 @@ void laio_attach_aio_context(void *s_, AioContext *new_context)
     struct qemu_laio_state *s = s_;
 
     s->completion_bh = aio_bh_new(new_context, qemu_laio_completion_bh, s);
-    aio_set_event_notifier(new_context, &s->e, qemu_laio_completion_cb);
+    aio_set_event_notifier(new_context, &s->e, false,
+                           qemu_laio_completion_cb);
 }
 
 void *laio_init(void)

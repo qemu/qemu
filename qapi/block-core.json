@@ -215,10 +215,11 @@
 # @drv: the name of the block format used to open the backing device. As of
 #       0.14.0 this can be: 'blkdebug', 'bochs', 'cloop', 'cow', 'dmg',
 #       'file', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
-#       'host_floppy', 'http', 'https', 'nbd', 'parallels', 'qcow',
+#       'http', 'https', 'nbd', 'parallels', 'qcow',
 #       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
 #       2.2: 'archipelago' added, 'cow' dropped
 #       2.3: 'host_floppy' deprecated
+#       2.5: 'host_floppy' dropped
 #
 # @backing_file: #optional the name of the backing file (for copy-on-write)
 #
@@ -1373,15 +1374,14 @@
 #
 # Drivers that are supported in block device operations.
 #
-# @host_device, @host_cdrom, @host_floppy: Since 2.1
-# @host_floppy: deprecated since 2.3
+# @host_device, @host_cdrom: Since 2.1
 #
 # Since: 2.0
 ##
 { 'enum': 'BlockdevDriver',
   'data': [ 'archipelago', 'blkdebug', 'blkverify', 'bochs', 'cloop',
             'dmg', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
-            'host_floppy', 'http', 'https', 'null-aio', 'null-co', 'parallels',
+            'http', 'https', 'null-aio', 'null-co', 'parallels',
             'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'tftp', 'vdi', 'vhdx',
             'vmdk', 'vpc', 'vvfat' ] }
 
@@ -1393,9 +1393,12 @@
 #
 # @driver:        block driver name
 # @id:            #optional id by which the new block device can be referred to.
-#                 This is a required option on the top level of blockdev-add, and
-#                 currently not allowed on any other level.
-# @node-name:     #optional the name of a block driver state node (Since 2.0)
+#                 This option is only allowed on the top level of blockdev-add.
+#                 A BlockBackend will be created by blockdev-add if and only if
+#                 this option is given.
+# @node-name:     #optional the name of a block driver state node (Since 2.0).
+#                 This option is required on the top level of blockdev-add if
+#                 the @id option is not given there.
 # @discard:       #optional discard-related options (default: ignore)
 # @cache:         #optional cache-related options
 # @aio:           #optional AIO backend (default: threads)
@@ -1816,7 +1819,6 @@
 # TODO gluster: Wait for structured options
       'host_cdrom': 'BlockdevOptionsFile',
       'host_device':'BlockdevOptionsFile',
-      'host_floppy':'BlockdevOptionsFile',
       'http':       'BlockdevOptionsFile',
       'https':      'BlockdevOptionsFile',
 # TODO iscsi: Wait for structured options
@@ -1860,7 +1862,9 @@
 ##
 # @blockdev-add:
 #
-# Creates a new block device.
+# Creates a new block device. If the @id option is given at the top level, a
+# BlockBackend will be created; otherwise, @node-name is mandatory at the top
+# level and no BlockBackend will be created.
 #
 # This command is still a work in progress.  It doesn't support all
 # block drivers, it lacks a matching blockdev-del, and more.  Stay

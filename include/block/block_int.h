@@ -26,6 +26,7 @@
 
 #include "block/accounting.h"
 #include "block/block.h"
+#include "block/throttle-groups.h"
 #include "qemu/option.h"
 #include "qemu/queue.h"
 #include "qemu/coroutine.h"
@@ -212,7 +213,7 @@ struct BlockDriver {
         const char *backing_file, const char *backing_fmt);
 
     /* removable device specific */
-    int (*bdrv_is_inserted)(BlockDriverState *bs);
+    bool (*bdrv_is_inserted)(BlockDriverState *bs);
     int (*bdrv_media_changed)(BlockDriverState *bs);
     void (*bdrv_eject)(BlockDriverState *bs, bool eject_flag);
     void (*bdrv_lock_medium)(BlockDriverState *bs, bool locked);
@@ -399,8 +400,8 @@ struct BlockDriverState {
     unsigned       pending_reqs[2];
     QLIST_ENTRY(BlockDriverState) round_robin;
 
-    /* I/O stats (display with "info blockstats"). */
-    BlockAcctStats stats;
+    /* Offset after the highest byte written to */
+    uint64_t wr_highest_offset;
 
     /* I/O Limits */
     BlockLimits bl;
@@ -411,17 +412,8 @@ struct BlockDriverState {
     /* Alignment requirement for offset/length of I/O requests */
     unsigned int request_alignment;
 
-    /* the block size for which the guest device expects atomicity */
-    int guest_block_size;
-
     /* do we need to tell the quest if we have a volatile write cache? */
     int enable_write_cache;
-
-    /* NOTE: the following infos are only hints for real hardware
-       drivers. They are not used by the block driver */
-    BlockdevOnError on_read_error, on_write_error;
-    bool iostatus_enabled;
-    BlockDeviceIoStatus iostatus;
 
     /* the following member gives a name to every node on the bs graph. */
     char node_name[32];
@@ -456,6 +448,17 @@ struct BlockDriverState {
     /* threshold limit for writes, in bytes. "High water mark". */
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
+
+    int quiesce_counter;
+};
+
+struct BlockBackendRootState {
+    int open_flags;
+    bool read_only;
+    BlockdevDetectZeroesOptions detect_zeroes;
+
+    char *throttle_group;
+    ThrottleState *throttle_state;
 };
 
 static inline BlockDriverState *backing_bs(BlockDriverState *bs)

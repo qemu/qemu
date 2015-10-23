@@ -16,6 +16,7 @@
 #include "block/blockjob.h"
 #include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
+#include "sysemu/block-backend.h"
 
 enum {
     /*
@@ -222,7 +223,7 @@ void stream_start(BlockDriverState *bs, BlockDriverState *base,
 
     if ((on_error == BLOCKDEV_ON_ERROR_STOP ||
          on_error == BLOCKDEV_ON_ERROR_ENOSPC) &&
-        !bdrv_iostatus_is_enabled(bs)) {
+        (!bs->blk || !blk_iostatus_is_enabled(bs->blk))) {
         error_setg(errp, QERR_INVALID_PARAMETER, "on-error");
         return;
     }

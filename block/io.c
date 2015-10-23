@@ -23,6 +23,7 @@
  */
 
 #include "trace.h"
+#include "sysemu/block-backend.h"
 #include "block/blockjob.h"
 #include "block/block_int.h"
 #include "block/throttle-groups.h"
@@ -1151,7 +1152,9 @@ static int coroutine_fn bdrv_aligned_pwritev(BlockDriverState *bs,
 
     bdrv_set_dirty(bs, sector_num, nb_sectors);
 
-    block_acct_highest_sector(&bs->stats, sector_num, nb_sectors);
+    if (bs->wr_highest_offset < offset + bytes) {
+        bs->wr_highest_offset = offset + bytes;
+    }
 
     if (ret >= 0) {
         bs->total_sectors = MAX(bs->total_sectors, sector_num + nb_sectors);
@@ -1903,7 +1906,10 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
         }
     }
 
-    block_acct_merge_done(&bs->stats, BLOCK_ACCT_WRITE, num_reqs - outidx - 1);
+    if (bs->blk) {
+        block_acct_merge_done(blk_get_stats(bs->blk), BLOCK_ACCT_WRITE,
+                              num_reqs - outidx - 1);
+    }
 
     return outidx + 1;
 }
@@ -2617,4 +2623,21 @@ void bdrv_flush_io_queue(BlockDriverState *bs)
         bdrv_flush_io_queue(bs->file->bs);
     }
     bdrv_start_throttled_reqs(bs);
+}
+
+void bdrv_drained_begin(BlockDriverState *bs)
+{
+    if (!bs->quiesce_counter++) {
+        aio_disable_external(bdrv_get_aio_context(bs));
+    }
+    bdrv_drain(bs);
+}
+
+void bdrv_drained_end(BlockDriverState *bs)
+{
+    assert(bs->quiesce_counter > 0);
+    if (--bs->quiesce_counter > 0) {
+        return;
+    }
+    aio_enable_external(bdrv_get_aio_context(bs));
 }

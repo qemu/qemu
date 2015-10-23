@@ -55,7 +55,8 @@ void qemu_set_fd_handler(int fd,
                          void *opaque)
 {
     iohandler_init();
-    aio_set_fd_handler(iohandler_ctx, fd, fd_read, fd_write, opaque);
+    aio_set_fd_handler(iohandler_ctx, fd, false,
+                       fd_read, fd_write, opaque);
 }
 
 /* reaping of zombies.  right now we're not passing the status to

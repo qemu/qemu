@@ -24,6 +24,7 @@
 #include "sysemu/arch_init.h"
 #include "hw/qdev.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/block-backend.h"
 #include "qom/qom-qobject.h"
 #include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qobject.h"
@@ -170,6 +171,7 @@ SpiceInfo *qmp_query_spice(Error **errp)
 void qmp_cont(Error **errp)
 {
     Error *local_err = NULL;
+    BlockBackend *blk;
     BlockDriverState *bs;
 
     if (runstate_needs_reset()) {
@@ -179,8 +181,8 @@ void qmp_cont(Error **errp)
         return;
     }
 
-    for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
-        bdrv_iostatus_reset(bs);
+    for (blk = blk_next(NULL); blk; blk = blk_next(blk)) {
+        blk_iostatus_reset(blk);
     }
     for (bs = bdrv_next(NULL); bs; bs = bdrv_next(bs)) {
         bdrv_add_key(bs, NULL, &local_err);

@@ -42,8 +42,9 @@ read failed: Input/output error
 
 === Testing blkdebug on existing block device ===
 
-Testing: -drive file=TEST_DIR/t.IMGFMT,format=raw,if=none,id=drive0
+Testing:
 QMP_VERSION
+{"return": {}}
 {"return": {}}
 {"return": {}}
 read failed: Input/output error
@@ -56,8 +57,9 @@ QEMU_PROG: Failed to flush the refcount block cache: Input/output error
 
 === Testing blkverify on existing block device ===
 
-Testing: -drive file=TEST_DIR/t.IMGFMT,format=IMGFMT,if=none,id=drive0
+Testing:
 QMP_VERSION
+{"return": {}}
 {"return": {}}
 {"return": {}}
 blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
@@ -65,8 +67,9 @@ blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
 
 === Testing blkverify on existing raw block device ===
 
-Testing: -drive file=TEST_DIR/t.IMGFMT.base,format=raw,if=none,id=drive0
+Testing:
 QMP_VERSION
+{"return": {}}
 {"return": {}}
 {"return": {}}
 blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
@@ -74,8 +77,9 @@ blkverify: read sector_num=0 nb_sectors=1 contents mismatch in sector 0
 
 === Testing blkdebug's set-state through QMP ===
 
-Testing: -drive file=TEST_DIR/t.IMGFMT,format=raw,if=none,id=drive0
+Testing:
 QMP_VERSION
+{"return": {}}
 {"return": {}}
 {"return": {}}
 read 512/512 bytes at offset 0

@@ -174,11 +174,6 @@ typedef enum BlockOpType {
     BLOCK_OP_TYPE_MAX,
 } BlockOpType;
 
-void bdrv_iostatus_enable(BlockDriverState *bs);
-void bdrv_iostatus_reset(BlockDriverState *bs);
-void bdrv_iostatus_disable(BlockDriverState *bs);
-bool bdrv_iostatus_is_enabled(const BlockDriverState *bs);
-void bdrv_iostatus_set_err(BlockDriverState *bs, int error);
 void bdrv_info_print(Monitor *mon, const QObject *data);
 void bdrv_info(Monitor *mon, QObject **ret_data);
 void bdrv_stats_print(Monitor *mon, const QObject *data);
@@ -389,17 +384,11 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                             int64_t sector_num, int nb_sectors, int *pnum);
 
-void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
-                       BlockdevOnError on_write_error);
-BlockdevOnError bdrv_get_on_error(BlockDriverState *bs, bool is_read);
-BlockErrorAction bdrv_get_error_action(BlockDriverState *bs, bool is_read, int error);
-void bdrv_error_action(BlockDriverState *bs, BlockErrorAction action,
-                       bool is_read, int error);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_enable_write_cache(BlockDriverState *bs);
 void bdrv_set_enable_write_cache(BlockDriverState *bs, bool wce);
-int bdrv_is_inserted(BlockDriverState *bs);
+bool bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
 void bdrv_lock_medium(BlockDriverState *bs, bool locked);
 void bdrv_eject(BlockDriverState *bs, bool eject_flag);
@@ -466,7 +455,6 @@ void bdrv_img_create(const char *filename, const char *fmt,
 size_t bdrv_min_mem_align(BlockDriverState *bs);
 /* Returns optimal alignment in bytes for bounce buffer */
 size_t bdrv_opt_mem_align(BlockDriverState *bs);
-void bdrv_set_guest_block_size(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
 void *qemu_blockalign0(BlockDriverState *bs, size_t size);
 void *qemu_try_blockalign(BlockDriverState *bs, size_t size);
@@ -622,6 +610,23 @@ void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
 void bdrv_flush_io_queue(BlockDriverState *bs);
 
-BlockAcctStats *bdrv_get_stats(BlockDriverState *bs);
+/**
+ * bdrv_drained_begin:
+ *
+ * Begin a quiesced section for exclusive access to the BDS, by disabling
+ * external request sources including NBD server and device model. Note that
+ * this doesn't block timers or coroutines from submitting more requests, which
+ * means block_job_pause is still necessary.
+ *
+ * This function can be recursive.
+ */
+void bdrv_drained_begin(BlockDriverState *bs);
+
+/**
+ * bdrv_drained_end:
+ *
+ * End a quiescent section started by bdrv_drained_begin().
+ */
+void bdrv_drained_end(BlockDriverState *bs);
 
 #endif

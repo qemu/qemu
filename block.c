@@ -257,7 +257,6 @@ BlockDriverState *bdrv_new(void)
     for (i = 0; i < BLOCK_OP_TYPE_MAX; i++) {
         QLIST_INIT(&bs->op_blockers[i]);
     }
-    bdrv_iostatus_disable(bs);
     notifier_list_init(&bs->close_notifiers);
     notifier_with_return_list_init(&bs->before_write_notifiers);
     qemu_co_queue_init(&bs->throttled_reqs[0]);
@@ -857,7 +856,6 @@ static int bdrv_open_common(BlockDriverState *bs, BdrvChild *file,
         goto fail_opts;
     }
 
-    bs->guest_block_size = 512;
     bs->request_alignment = 512;
     bs->zero_beyond_eof = true;
     open_flags = bdrv_open_flags(bs, flags);
@@ -1079,6 +1077,10 @@ static int bdrv_fill_options(QDict **options, const char **pfilename,
         if (!drv->bdrv_needs_filename) {
             qdict_del(*options, "filename");
         }
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        *flags |= BDRV_O_INCOMING;
     }
 
     return 0;
@@ -1908,6 +1910,10 @@ void bdrv_close(BlockDriverState *bs)
     bdrv_drain(bs); /* in case flush left pending I/O */
     notifier_list_notify(&bs->close_notifiers, bs);
 
+    if (bs->blk) {
+        blk_dev_change_media_cb(bs->blk, false);
+    }
+
     if (bs->drv) {
         BdrvChild *child, *next;
 
@@ -1944,10 +1950,6 @@ void bdrv_close(BlockDriverState *bs)
         bs->options = NULL;
         QDECREF(bs->full_open_options);
         bs->full_open_options = NULL;
-    }
-
-    if (bs->blk) {
-        blk_dev_change_media_cb(bs->blk, false);
     }
 
     QLIST_FOREACH_SAFE(ban, &bs->aio_notifiers, list, ban_next) {
@@ -1998,18 +2000,9 @@ static void bdrv_move_feature_fields(BlockDriverState *bs_dest,
     /* move some fields that need to stay attached to the device */
 
     /* dev info */
-    bs_dest->guest_block_size   = bs_src->guest_block_size;
     bs_dest->copy_on_read       = bs_src->copy_on_read;
 
     bs_dest->enable_write_cache = bs_src->enable_write_cache;
-
-    /* r/w error */
-    bs_dest->on_read_error      = bs_src->on_read_error;
-    bs_dest->on_write_error     = bs_src->on_write_error;
-
-    /* i/o status */
-    bs_dest->iostatus_enabled   = bs_src->iostatus_enabled;
-    bs_dest->iostatus           = bs_src->iostatus;
 
     /* dirty bitmap */
     bs_dest->dirty_bitmaps      = bs_src->dirty_bitmaps;
@@ -2497,82 +2490,6 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
 }
 
-void bdrv_set_on_error(BlockDriverState *bs, BlockdevOnError on_read_error,
-                       BlockdevOnError on_write_error)
-{
-    bs->on_read_error = on_read_error;
-    bs->on_write_error = on_write_error;
-}
-
-BlockdevOnError bdrv_get_on_error(BlockDriverState *bs, bool is_read)
-{
-    return is_read ? bs->on_read_error : bs->on_write_error;
-}
-
-BlockErrorAction bdrv_get_error_action(BlockDriverState *bs, bool is_read, int error)
-{
-    BlockdevOnError on_err = is_read ? bs->on_read_error : bs->on_write_error;
-
-    switch (on_err) {
-    case BLOCKDEV_ON_ERROR_ENOSPC:
-        return (error == ENOSPC) ?
-               BLOCK_ERROR_ACTION_STOP : BLOCK_ERROR_ACTION_REPORT;
-    case BLOCKDEV_ON_ERROR_STOP:
-        return BLOCK_ERROR_ACTION_STOP;
-    case BLOCKDEV_ON_ERROR_REPORT:
-        return BLOCK_ERROR_ACTION_REPORT;
-    case BLOCKDEV_ON_ERROR_IGNORE:
-        return BLOCK_ERROR_ACTION_IGNORE;
-    default:
-        abort();
-    }
-}
-
-static void send_qmp_error_event(BlockDriverState *bs,
-                                 BlockErrorAction action,
-                                 bool is_read, int error)
-{
-    IoOperationType optype;
-
-    optype = is_read ? IO_OPERATION_TYPE_READ : IO_OPERATION_TYPE_WRITE;
-    qapi_event_send_block_io_error(bdrv_get_device_name(bs), optype, action,
-                                   bdrv_iostatus_is_enabled(bs),
-                                   error == ENOSPC, strerror(error),
-                                   &error_abort);
-}
-
-/* This is done by device models because, while the block layer knows
- * about the error, it does not know whether an operation comes from
- * the device or the block layer (from a job, for example).
- */
-void bdrv_error_action(BlockDriverState *bs, BlockErrorAction action,
-                       bool is_read, int error)
-{
-    assert(error >= 0);
-
-    if (action == BLOCK_ERROR_ACTION_STOP) {
-        /* First set the iostatus, so that "info block" returns an iostatus
-         * that matches the events raised so far (an additional error iostatus
-         * is fine, but not a lost one).
-         */
-        bdrv_iostatus_set_err(bs, error);
-
-        /* Then raise the request to stop the VM and the event.
-         * qemu_system_vmstop_request_prepare has two effects.  First,
-         * it ensures that the STOP event always comes after the
-         * BLOCK_IO_ERROR event.  Second, it ensures that even if management
-         * can observe the STOP event and do a "cont" before the STOP
-         * event is issued, the VM will not stop.  In this case, vm_start()
-         * also ensures that the STOP/RESUME pair of events is emitted.
-         */
-        qemu_system_vmstop_request_prepare();
-        send_qmp_error_event(bs, action, is_read, error);
-        qemu_system_vmstop_request(RUN_STATE_IO_ERROR);
-    } else {
-        send_qmp_error_event(bs, action, is_read, error);
-    }
-}
-
 int bdrv_is_read_only(BlockDriverState *bs)
 {
     return bs->read_only;
@@ -2766,6 +2683,11 @@ BlockDriverState *bdrv_lookup_bs(const char *device,
         blk = blk_by_name(device);
 
         if (blk) {
+            if (!blk_bs(blk)) {
+                error_setg(errp, "Device '%s' has no medium", device);
+                return NULL;
+            }
+
             return blk_bs(blk);
         }
     }
@@ -3136,15 +3058,23 @@ void bdrv_invalidate_cache_all(Error **errp)
 /**
  * Return TRUE if the media is present
  */
-int bdrv_is_inserted(BlockDriverState *bs)
+bool bdrv_is_inserted(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
+    BdrvChild *child;
 
-    if (!drv)
-        return 0;
-    if (!drv->bdrv_is_inserted)
-        return 1;
-    return drv->bdrv_is_inserted(bs);
+    if (!drv) {
+        return false;
+    }
+    if (drv->bdrv_is_inserted) {
+        return drv->bdrv_is_inserted(bs);
+    }
+    QLIST_FOREACH(child, &bs->children, next) {
+        if (!bdrv_is_inserted(child->bs)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /**
@@ -3193,11 +3123,6 @@ void bdrv_lock_medium(BlockDriverState *bs, bool locked)
     if (drv && drv->bdrv_lock_medium) {
         drv->bdrv_lock_medium(bs, locked);
     }
-}
-
-void bdrv_set_guest_block_size(BlockDriverState *bs, int align)
-{
-    bs->guest_block_size = align;
 }
 
 BdrvDirtyBitmap *bdrv_find_dirty_bitmap(BlockDriverState *bs, const char *name)
@@ -3595,46 +3520,6 @@ bool bdrv_op_blocker_is_empty(BlockDriverState *bs)
         }
     }
     return true;
-}
-
-void bdrv_iostatus_enable(BlockDriverState *bs)
-{
-    bs->iostatus_enabled = true;
-    bs->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
-}
-
-/* The I/O status is only enabled if the drive explicitly
- * enables it _and_ the VM is configured to stop on errors */
-bool bdrv_iostatus_is_enabled(const BlockDriverState *bs)
-{
-    return (bs->iostatus_enabled &&
-           (bs->on_write_error == BLOCKDEV_ON_ERROR_ENOSPC ||
-            bs->on_write_error == BLOCKDEV_ON_ERROR_STOP   ||
-            bs->on_read_error == BLOCKDEV_ON_ERROR_STOP));
-}
-
-void bdrv_iostatus_disable(BlockDriverState *bs)
-{
-    bs->iostatus_enabled = false;
-}
-
-void bdrv_iostatus_reset(BlockDriverState *bs)
-{
-    if (bdrv_iostatus_is_enabled(bs)) {
-        bs->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
-        if (bs->job) {
-            block_job_iostatus_reset(bs->job);
-        }
-    }
-}
-
-void bdrv_iostatus_set_err(BlockDriverState *bs, int error)
-{
-    assert(bdrv_iostatus_is_enabled(bs));
-    if (bs->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
-        bs->iostatus = error == ENOSPC ? BLOCK_DEVICE_IO_STATUS_NOSPACE :
-                                         BLOCK_DEVICE_IO_STATUS_FAILED;
-    }
 }
 
 void bdrv_img_create(const char *filename, const char *fmt,
@@ -4147,15 +4032,4 @@ void bdrv_refresh_filename(BlockDriverState *bs)
                  qstring_get_str(json));
         QDECREF(json);
     }
-}
-
-/* This accessor function purpose is to allow the device models to access the
- * BlockAcctStats structure embedded inside a BlockDriverState without being
- * aware of the BlockDriverState structure layout.
- * It will go away when the BlockAcctStats structure will be moved inside
- * the device models.
- */
-BlockAcctStats *bdrv_get_stats(BlockDriverState *bs)
-{
-    return &bs->stats;
 }

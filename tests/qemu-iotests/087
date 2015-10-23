@@ -54,7 +54,7 @@ size=128M
 _make_test_img $size
 
 echo
-echo === Missing ID ===
+echo === Missing ID and node-name ===
 echo
 
 run_qemu <<EOF

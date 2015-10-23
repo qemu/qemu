@@ -122,6 +122,8 @@ struct AioContext {
 
     /* TimerLists for calling timers - one per clock type */
     QEMUTimerListGroup tlg;
+
+    int external_disable_cnt;
 };
 
 /**
@@ -299,6 +301,7 @@ bool aio_poll(AioContext *ctx, bool blocking);
  */
 void aio_set_fd_handler(AioContext *ctx,
                         int fd,
+                        bool is_external,
                         IOHandler *io_read,
                         IOHandler *io_write,
                         void *opaque);
@@ -312,6 +315,7 @@ void aio_set_fd_handler(AioContext *ctx,
  */
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
+                            bool is_external,
                             EventNotifierHandler *io_read);
 
 /* Return a GSource that lets the main loop poll the file descriptors attached
@@ -372,5 +376,41 @@ static inline void aio_timer_init(AioContext *ctx,
  * Compute the timeout that a blocking aio_poll should use.
  */
 int64_t aio_compute_timeout(AioContext *ctx);
+
+/**
+ * aio_disable_external:
+ * @ctx: the aio context
+ *
+ * Disable the further processing of external clients.
+ */
+static inline void aio_disable_external(AioContext *ctx)
+{
+    atomic_inc(&ctx->external_disable_cnt);
+}
+
+/**
+ * aio_enable_external:
+ * @ctx: the aio context
+ *
+ * Enable the processing of external clients.
+ */
+static inline void aio_enable_external(AioContext *ctx)
+{
+    assert(ctx->external_disable_cnt > 0);
+    atomic_dec(&ctx->external_disable_cnt);
+}
+
+/**
+ * aio_node_check:
+ * @ctx: the aio context
+ * @is_external: Whether or not the checked node is an external event source.
+ *
+ * Check if the node's is_external flag is okay to be polled by the ctx at this
+ * moment. True means green light.
+ */
+static inline bool aio_node_check(AioContext *ctx, bool is_external)
+{
+    return !is_external || !atomic_read(&ctx->external_disable_cnt);
+}
 
 #endif
