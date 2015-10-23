@@ -309,7 +309,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
     /* fill fd sets */
     count = 0;
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
-        if (!node->deleted && node->io_notify) {
+        if (!node->deleted && node->io_notify
+            && aio_node_check(ctx, node->is_external)) {
             events[count++] = event_notifier_get_handle(node->e);
         }
     }

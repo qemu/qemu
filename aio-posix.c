@@ -261,7 +261,8 @@ bool aio_poll(AioContext *ctx, bool blocking)
 
     /* fill pollfds */
     QLIST_FOREACH(node, &ctx->aio_handlers, node) {
-        if (!node->deleted && node->pfd.events) {
+        if (!node->deleted && node->pfd.events
+            && aio_node_check(ctx, node->is_external)) {
             add_pollfd(node);
         }
     }
