@@ -88,6 +88,7 @@ check-unit-y += tests/test-timed-average$(EXESUF)
 check-unit-y += tests/test-base64$(EXESUF)
 check-unit-y += tests/test-crypto-pbkdf$(EXESUF)
 check-unit-y += tests/test-crypto-ivgen$(EXESUF)
+check-unit-y += tests/test-crypto-afsplit$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -478,6 +479,7 @@ tests/test-crypto-tlssession$(EXESUF): tests/test-crypto-tlssession.o \
 	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o $(test-crypto-obj-y)
 tests/test-crypto-pbkdf$(EXESUF): tests/test-crypto-pbkdf.o $(test-crypto-obj-y)
 tests/test-crypto-ivgen$(EXESUF): tests/test-crypto-ivgen.o $(test-crypto-obj-y)
+tests/test-crypto-afsplit$(EXESUF): tests/test-crypto-afsplit.o $(test-crypto-obj-y)
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
 libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o
