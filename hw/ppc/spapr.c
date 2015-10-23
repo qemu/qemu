@@ -597,6 +597,24 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
     uint32_t vcpus_per_socket = smp_threads * smp_cores;
     uint32_t pft_size_prop[] = {0, cpu_to_be32(spapr->htab_shift)};
 
+    /* Note: we keep CI large pages off for now because a 64K capable guest
+     * provisioned with large pages might otherwise try to map a qemu
+     * framebuffer (or other kind of memory mapped PCI BAR) using 64K pages
+     * even if that qemu runs on a 4k host.
+     *
+     * We can later add this bit back when we are confident this is not
+     * an issue (!HV KVM or 64K host)
+     */
+    uint8_t pa_features_206[] = { 6, 0,
+        0xf6, 0x1f, 0xc7, 0x00, 0x80, 0xc0 };
+    uint8_t pa_features_207[] = { 24, 0,
+        0xf6, 0x1f, 0xc7, 0xc0, 0x80, 0xf0,
+        0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x80, 0x00,
+        0x80, 0x00, 0x80, 0x00, 0x80, 0x00 };
+    uint8_t *pa_features;
+    size_t pa_size;
+
     _FDT((fdt_setprop_cell(fdt, offset, "reg", index)));
     _FDT((fdt_setprop_string(fdt, offset, "device_type", "cpu")));
 
@@ -625,6 +643,7 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
     _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
+    _FDT((fdt_setprop_cell(fdt, offset, "slb-size", env->slb_nr)));
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", env->slb_nr)));
     _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
     _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
@@ -661,6 +680,19 @@ static void spapr_populate_cpu_dt(CPUState *cs, void *fdt, int offset,
         _FDT((fdt_setprop(fdt, offset, "ibm,segment-page-sizes",
                           page_sizes_prop, page_sizes_prop_size)));
     }
+
+    /* Do the ibm,pa-features property, adjust it for ci-large-pages */
+    if (env->mmu_model == POWERPC_MMU_2_06) {
+        pa_features = pa_features_206;
+        pa_size = sizeof(pa_features_206);
+    } else /* env->mmu_model == POWERPC_MMU_2_07 */ {
+        pa_features = pa_features_207;
+        pa_size = sizeof(pa_features_207);
+    }
+    if (env->ci_large_pages) {
+        pa_features[3] |= 0x20;
+    }
+    _FDT((fdt_setprop(fdt, offset, "ibm,pa-features", pa_features, pa_size)));
 
     _FDT((fdt_setprop_cell(fdt, offset, "ibm,chip-id",
                            cs->cpu_index / vcpus_per_socket)));
@@ -979,7 +1011,7 @@ static void emulate_spapr_hypercall(PowerPCCPU *cpu)
 #define CLEAN_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) &= tswap64(~HPTE64_V_HPTE_DIRTY))
 #define DIRTY_HPTE(_hpte)  ((*(uint64_t *)(_hpte)) |= tswap64(HPTE64_V_HPTE_DIRTY))
 
-static void spapr_reset_htab(sPAPRMachineState *spapr)
+static void spapr_alloc_htab(sPAPRMachineState *spapr)
 {
     long shift;
     int index;
@@ -992,20 +1024,47 @@ static void spapr_reset_htab(sPAPRMachineState *spapr)
 
     if (shift > 0) {
         /* Kernel handles htab, we don't need to allocate one */
+        if (shift != spapr->htab_shift) {
+            error_setg(&error_abort, "Failed to allocate HTAB of requested size, try with smaller maxmem");
+        }
+
         spapr->htab_shift = shift;
         kvmppc_kern_htab = true;
+    } else {
+        /* Allocate htab */
+        spapr->htab = qemu_memalign(HTAB_SIZE(spapr), HTAB_SIZE(spapr));
+
+        /* And clear it */
+        memset(spapr->htab, 0, HTAB_SIZE(spapr));
+
+        for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
+            DIRTY_HPTE(HPTE(spapr->htab, index));
+        }
+    }
+}
+
+/*
+ * Clear HTAB entries during reset.
+ *
+ * If host kernel has allocated HTAB, KVM_PPC_ALLOCATE_HTAB ioctl is
+ * used to clear HTAB. Otherwise QEMU-allocated HTAB is cleared manually.
+ */
+static void spapr_reset_htab(sPAPRMachineState *spapr)
+{
+    long shift;
+    int index;
+
+    shift = kvmppc_reset_htab(spapr->htab_shift);
+    if (shift > 0) {
+        if (shift != spapr->htab_shift) {
+            error_setg(&error_abort, "Requested HTAB allocation failed during reset");
+        }
 
         /* Tell readers to update their file descriptor */
         if (spapr->htab_fd >= 0) {
             spapr->htab_fd_stale = true;
         }
     } else {
-        if (!spapr->htab) {
-            /* Allocate an htab if we don't yet have one */
-            spapr->htab = qemu_memalign(HTAB_SIZE(spapr), HTAB_SIZE(spapr));
-        }
-
-        /* And clear it */
         memset(spapr->htab, 0, HTAB_SIZE(spapr));
 
         for (index = 0; index < HTAB_SIZE(spapr) / HASH_PTE_SIZE_64; index++) {
@@ -1710,6 +1769,7 @@ static void ppc_spapr_init(MachineState *machine)
         }
         spapr->htab_shift++;
     }
+    spapr_alloc_htab(spapr);
 
     /* Set up Interrupt Controller before we create the VCPUs */
     spapr->icp = xics_system_init(machine,

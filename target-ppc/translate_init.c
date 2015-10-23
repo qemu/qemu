@@ -7864,6 +7864,7 @@ static void init_proc_book3s_64(CPUPPCState *env, int version)
         gen_spr_book3s_ids(env);
         gen_spr_amr(env);
         gen_spr_book3s_purr(env);
+        env->ci_large_pages = true;
         break;
     default:
         g_assert_not_reached();
@@ -8019,7 +8020,7 @@ POWERPC_FAMILY(POWER5P)(ObjectClass *oc, void *data)
                     (1ull << MSR_DR) |
                     (1ull << MSR_PMM) |
                     (1ull << MSR_RI);
-    pcc->mmu_model = POWERPC_MMU_64B;
+    pcc->mmu_model = POWERPC_MMU_2_03;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
 #endif
@@ -8243,7 +8244,7 @@ POWERPC_FAMILY(POWER8)(ObjectClass *oc, void *data)
                     (1ull << MSR_PMM) |
                     (1ull << MSR_RI) |
                     (1ull << MSR_LE);
-    pcc->mmu_model = POWERPC_MMU_2_06;
+    pcc->mmu_model = POWERPC_MMU_2_07;
 #if defined(CONFIG_SOFTMMU)
     pcc->handle_mmu_fault = ppc_hash64_handle_mmu_fault;
 #endif

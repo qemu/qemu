@@ -42,10 +42,8 @@
 #include "sysemu/arch_init.h"
 #include "sysemu/qtest.h"
 #include "exec/address-spaces.h"
+#include "trace.h"
 #include "elf.h"
-
-//#define HARD_DEBUG_PPC_IO
-//#define DEBUG_PPC_IO
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -56,26 +54,6 @@
 #define BIOS_FILENAME "ppc_rom.bin"
 #define KERNEL_LOAD_ADDR 0x01000000
 #define INITRD_LOAD_ADDR 0x01800000
-
-#if defined (HARD_DEBUG_PPC_IO) && !defined (DEBUG_PPC_IO)
-#define DEBUG_PPC_IO
-#endif
-
-#if defined (HARD_DEBUG_PPC_IO)
-#define PPC_IO_DPRINTF(fmt, ...)                         \
-do {                                                     \
-    if (qemu_loglevel_mask(CPU_LOG_IOPORT)) {            \
-        qemu_log("%s: " fmt, __func__ , ## __VA_ARGS__); \
-    } else {                                             \
-        printf("%s : " fmt, __func__ , ## __VA_ARGS__);  \
-    }                                                    \
-} while (0)
-#elif defined (DEBUG_PPC_IO)
-#define PPC_IO_DPRINTF(fmt, ...) \
-qemu_log_mask(CPU_LOG_IOPORT, fmt, ## __VA_ARGS__)
-#else
-#define PPC_IO_DPRINTF(fmt, ...) do { } while (0)
-#endif
 
 /* Constants for devices init */
 static const int ide_iobase[2] = { 0x1f0, 0x170 };
@@ -199,8 +177,7 @@ static void PREP_io_800_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
     sysctrl_t *sysctrl = opaque;
 
-    PPC_IO_DPRINTF("0x%08" PRIx32 " => 0x%02" PRIx32 "\n",
-                   addr - PPC_IO_BASE, val);
+    trace_prep_io_800_writeb(addr - PPC_IO_BASE, val);
     switch (addr) {
     case 0x0092:
         /* Special port 92 */
@@ -327,8 +304,7 @@ static uint32_t PREP_io_800_readb (void *opaque, uint32_t addr)
         printf("ERROR: unaffected IO port: %04" PRIx32 " read\n", addr);
         break;
     }
-    PPC_IO_DPRINTF("0x%08" PRIx32 " <= 0x%02" PRIx32 "\n",
-                   addr - PPC_IO_BASE, retval);
+    trace_prep_io_800_readb(addr - PPC_IO_BASE, retval);
 
     return retval;
 }

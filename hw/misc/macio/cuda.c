@@ -738,6 +738,7 @@ static void cuda_class_init(ObjectClass *oc, void *data)
     dc->reset = cuda_reset;
     dc->vmsd = &vmstate_cuda;
     dc->props = cuda_properties;
+    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
 }
 
 static const TypeInfo cuda_type_info = {

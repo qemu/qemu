@@ -750,7 +750,6 @@ static void vscsi_report_luns(VSCSIState *s, vscsi_req *req)
     len = n+8;
 
     resp_data = g_malloc0(len);
-    memset(resp_data, 0, len);
     stl_be_p(resp_data, n);
     i = found_lun0 ? 8 : 16;
     QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {

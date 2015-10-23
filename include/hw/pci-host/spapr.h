@@ -78,6 +78,7 @@ struct sPAPRPHBState {
     MemoryRegion memwindow, iowindow, msiwindow;
 
     uint32_t dma_liobn;
+    hwaddr dma_win_addr, dma_win_size;
     AddressSpace iommu_as;
     MemoryRegion iommu_root;
 
@@ -114,8 +115,6 @@ struct sPAPRPHBVFIOState {
 #define SPAPR_PCI_IO_WIN_SIZE        0x10000
 
 #define SPAPR_PCI_MSI_WINDOW         0x40000000000ULL
-
-#define SPAPR_PCI_DMA32_SIZE         0x40000000
 
 static inline qemu_irq spapr_phb_lsi_qirq(struct sPAPRPHBState *phb, int pin)
 {
