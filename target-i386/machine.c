@@ -367,8 +367,12 @@ static int cpu_post_load(void *opaque, int version_id)
 
     cpu_breakpoint_remove_all(cs, BP_CPU);
     cpu_watchpoint_remove_all(cs, BP_CPU);
-    for (i = 0; i < DR7_MAX_BP; i++) {
-        hw_breakpoint_insert(env, i);
+    {
+        /* Indicate all breakpoints disabled, as they are, then
+           let the helper re-enable them.  */
+        target_ulong dr7 = env->dr[7];
+        env->dr[7] = dr7 & ~(DR7_GLOBAL_BP_MASK | DR7_LOCAL_BP_MASK);
+        cpu_x86_update_dr7(env, dr7);
     }
     tlb_flush(cs, 1);
 

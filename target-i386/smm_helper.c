@@ -266,7 +266,7 @@ void helper_rsm(CPUX86State *env)
 
     val = x86_ldl_phys(cs, sm_state + 0x7efc); /* revision ID */
     if (val & 0x20000) {
-        env->smbase = x86_ldl_phys(cs, sm_state + 0x7f00) & ~0x7fff;
+        env->smbase = x86_ldl_phys(cs, sm_state + 0x7f00);
     }
 #else
     cpu_x86_update_cr0(env, x86_ldl_phys(cs, sm_state + 0x7ffc));
@@ -319,7 +319,7 @@ void helper_rsm(CPUX86State *env)
 
     val = x86_ldl_phys(cs, sm_state + 0x7efc); /* revision ID */
     if (val & 0x20000) {
-        env->smbase = x86_ldl_phys(cs, sm_state + 0x7ef8) & ~0x7fff;
+        env->smbase = x86_ldl_phys(cs, sm_state + 0x7ef8);
     }
 #endif
     if ((env->hflags2 & HF2_SMM_INSIDE_NMI_MASK) == 0) {

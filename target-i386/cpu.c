@@ -312,7 +312,7 @@ static const char *cpuid_6_feature_name[] = {
           CPUID_PAE | CPUID_MCE | CPUID_CX8 | CPUID_APIC | CPUID_SEP | \
           CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_CMOV | CPUID_PAT | \
           CPUID_PSE36 | CPUID_CLFLUSH | CPUID_ACPI | CPUID_MMX | \
-          CPUID_FXSR | CPUID_SSE | CPUID_SSE2 | CPUID_SS)
+          CPUID_FXSR | CPUID_SSE | CPUID_SSE2 | CPUID_SS | CPUID_DE)
           /* partly implemented:
           CPUID_MTRR, CPUID_MCA, CPUID_CLFLUSH (needed for Win64) */
           /* missing:
@@ -656,7 +656,6 @@ struct X86CPUDefinition {
     int stepping;
     FeatureWordArray features;
     char model_id[48];
-    bool cache_info_passthrough;
 };
 
 static X86CPUDefinition builtin_x86_defs[] = {
@@ -1420,6 +1419,7 @@ static X86CPUDefinition host_cpudef;
 
 static Property host_x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("migratable", X86CPU, migratable, true),
+    DEFINE_PROP_BOOL("host-cache-info", X86CPU, cache_info_passthrough, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
@@ -1446,7 +1446,6 @@ static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
     cpu_x86_fill_model_id(host_cpudef.model_id);
 
     xcc->cpu_def = &host_cpudef;
-    host_cpudef.cache_info_passthrough = true;
 
     /* level, xlevel, xlevel2, and the feature words are initialized on
      * instance_init, because they require KVM to be initialized.
@@ -1492,7 +1491,7 @@ static void report_unavailable_features(FeatureWord w, uint32_t mask)
     int i;
 
     for (i = 0; i < 32; ++i) {
-        if (1 << i & mask) {
+        if ((1UL << i) & mask) {
             const char *reg = get_register_name_32(f->cpuid_reg);
             assert(reg);
             fprintf(stderr, "warning: %s doesn't support requested feature: "
@@ -2094,7 +2093,6 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
     object_property_set_int(OBJECT(cpu), def->stepping, "stepping", errp);
     object_property_set_int(OBJECT(cpu), def->xlevel, "xlevel", errp);
     object_property_set_int(OBJECT(cpu), def->xlevel2, "xlevel2", errp);
-    cpu->cache_info_passthrough = def->cache_info_passthrough;
     object_property_set_str(OBJECT(cpu), def->model_id, "model-id", errp);
     for (w = 0; w < FEATURE_WORDS; w++) {
         env->features[w] = def->features[w];
