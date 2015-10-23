@@ -107,6 +107,43 @@ struct QCryptoCipher {
  */
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg);
 
+/**
+ * qcrypto_cipher_get_block_len:
+ * @alg: the cipher algorithm
+ *
+ * Get the required data block size in bytes. When
+ * encrypting data, it must be a multiple of the
+ * block size.
+ *
+ * Returns: the block size in bytes
+ */
+size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgorithm alg);
+
+
+/**
+ * qcrypto_cipher_get_key_len:
+ * @alg: the cipher algorithm
+ *
+ * Get the required key size in bytes.
+ *
+ * Returns: the key size in bytes
+ */
+size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgorithm alg);
+
+
+/**
+ * qcrypto_cipher_get_iv_len:
+ * @alg: the cipher algorithm
+ * @mode: the cipher mode
+ *
+ * Get the required initialization vector size
+ * in bytes, if one is required.
+ *
+ * Returns: the IV size in bytes, or 0 if no IV is permitted
+ */
+size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
+                                 QCryptoCipherMode mode);
+
 
 /**
  * qcrypto_cipher_new:
