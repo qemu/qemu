@@ -448,6 +448,8 @@ struct BlockDriverState {
     /* threshold limit for writes, in bytes. "High water mark". */
     uint64_t write_threshold_offset;
     NotifierWithReturn write_threshold_notifier;
+
+    int quiesce_counter;
 };
 
 struct BlockBackendRootState {

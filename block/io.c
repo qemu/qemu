@@ -2624,3 +2624,20 @@ void bdrv_flush_io_queue(BlockDriverState *bs)
     }
     bdrv_start_throttled_reqs(bs);
 }
+
+void bdrv_drained_begin(BlockDriverState *bs)
+{
+    if (!bs->quiesce_counter++) {
+        aio_disable_external(bdrv_get_aio_context(bs));
+    }
+    bdrv_drain(bs);
+}
+
+void bdrv_drained_end(BlockDriverState *bs)
+{
+    assert(bs->quiesce_counter > 0);
+    if (--bs->quiesce_counter > 0) {
+        return;
+    }
+    aio_enable_external(bdrv_get_aio_context(bs));
+}

@@ -610,4 +610,23 @@ void bdrv_io_plug(BlockDriverState *bs);
 void bdrv_io_unplug(BlockDriverState *bs);
 void bdrv_flush_io_queue(BlockDriverState *bs);
 
+/**
+ * bdrv_drained_begin:
+ *
+ * Begin a quiesced section for exclusive access to the BDS, by disabling
+ * external request sources including NBD server and device model. Note that
+ * this doesn't block timers or coroutines from submitting more requests, which
+ * means block_job_pause is still necessary.
+ *
+ * This function can be recursive.
+ */
+void bdrv_drained_begin(BlockDriverState *bs);
+
+/**
+ * bdrv_drained_end:
+ *
+ * End a quiescent section started by bdrv_drained_begin().
+ */
+void bdrv_drained_end(BlockDriverState *bs);
+
 #endif
