@@ -109,8 +109,7 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
 
 #define PATH_NET_TAP "/dev/tap"
 
-int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
-             int vnet_hdr_required, int mq_required, Error **errp)
+static int tap_open_clone(char *ifname, int ifname_size, Error **errp)
 {
     int fd, s, ret;
     struct ifreq ifr;
@@ -126,7 +125,8 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
     ret = ioctl(fd, TAPGIFNAME, (void *)&ifr);
     if (ret < 0) {
         error_setg_errno(errp, errno, "could not get tap interface name");
-        goto error;
+        close(fd);
+        return -1;
     }
 
     if (ifname[0] != '\0') {
@@ -135,17 +135,45 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
         if (s < 0) {
             error_setg_errno(errp, errno,
                              "could not open socket to set interface name");
-            goto error;
+            close(fd);
+            return -1;
         }
         ifr.ifr_data = ifname;
         ret = ioctl(s, SIOCSIFNAME, (void *)&ifr);
         close(s);
         if (ret < 0) {
             error_setg(errp, "could not set tap interface name");
-            goto error;
+            close(fd);
+            return -1;
         }
     } else {
         pstrcpy(ifname, ifname_size, ifr.ifr_name);
+    }
+
+    return fd;
+}
+
+int tap_open(char *ifname, int ifname_size, int *vnet_hdr,
+             int vnet_hdr_required, int mq_required, Error **errp)
+{
+    int fd = -1;
+
+    /* If the specified tap device already exists just use it. */
+    if (ifname[0] != '\0') {
+        char dname[100];
+        snprintf(dname, sizeof dname, "/dev/%s", ifname);
+        TFR(fd = open(dname, O_RDWR));
+        if (fd < 0 && errno != ENOENT) {
+            error_setg_errno(errp, errno, "could not open %s", dname);
+            return -1;
+        }
+    }
+
+    if (fd < 0) {
+        /* Tap device not specified or does not exist. */
+        if ((fd = tap_open_clone(ifname, ifname_size, errp)) < 0) {
+            return -1;
+        }
     }
 
     if (*vnet_hdr) {
