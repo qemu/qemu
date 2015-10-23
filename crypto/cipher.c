@@ -47,7 +47,7 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
     return true;
 }
 
-#if defined(CONFIG_GNUTLS_GCRYPT) || defined(CONFIG_GNUTLS_NETTLE)
+#if defined(CONFIG_GCRYPT) || defined(CONFIG_NETTLE)
 static uint8_t *
 qcrypto_cipher_munge_des_rfb_key(const uint8_t *key,
                                  size_t nkey)
@@ -63,11 +63,11 @@ qcrypto_cipher_munge_des_rfb_key(const uint8_t *key,
     }
     return ret;
 }
-#endif /* CONFIG_GNUTLS_GCRYPT || CONFIG_GNUTLS_NETTLE */
+#endif /* CONFIG_GCRYPT || CONFIG_NETTLE */
 
-#ifdef CONFIG_GNUTLS_GCRYPT
+#ifdef CONFIG_GCRYPT
 #include "crypto/cipher-gcrypt.c"
-#elif defined CONFIG_GNUTLS_NETTLE
+#elif defined CONFIG_NETTLE
 #include "crypto/cipher-nettle.c"
 #else
 #include "crypto/cipher-builtin.c"

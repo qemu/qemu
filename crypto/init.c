@@ -24,8 +24,9 @@
 #ifdef CONFIG_GNUTLS
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
+#endif
 
-#ifdef CONFIG_GNUTLS_GCRYPT
+#ifdef CONFIG_GCRYPT
 #include <gcrypt.h>
 #endif
 
@@ -37,6 +38,7 @@
  *  - When GNUTLS >= 2.12, we must not initialize gcrypt threading
  *    because GNUTLS will do that itself
  *  - When GNUTLS < 2.12 we must always initialize gcrypt threading
+ *  - When GNUTLS is disabled we must always initialize gcrypt threading
  *
  * But....
  *
@@ -47,12 +49,15 @@
  *
  *   - gcrypt < 1.6.0
  * AND
- *   - gnutls < 2.12
+ *      - gnutls < 2.12
+ *   OR
+ *      - gnutls is disabled
  *
  */
 
-#if (defined(CONFIG_GNUTLS_GCRYPT) &&           \
-     (!defined(GNUTLS_VERSION_NUMBER) ||        \
+#if (defined(CONFIG_GCRYPT) &&                  \
+     (!defined(CONFIG_GNUTLS) ||                \
+      !defined(GNUTLS_VERSION_NUMBER) ||       \
       (GNUTLS_VERSION_NUMBER < 0x020c00)) &&    \
      (!defined(GCRYPT_VERSION_NUMBER) ||        \
       (GCRYPT_VERSION_NUMBER < 0x010600)))
@@ -113,6 +118,7 @@ static struct gcry_thread_cbs qcrypto_gcrypt_thread_impl = {
 
 int qcrypto_init(Error **errp)
 {
+#ifdef CONFIG_GNUTLS
     int ret;
     ret = gnutls_global_init();
     if (ret < 0) {
@@ -125,8 +131,9 @@ int qcrypto_init(Error **errp)
     gnutls_global_set_log_level(10);
     gnutls_global_set_log_function(qcrypto_gnutls_log);
 #endif
+#endif
 
-#ifdef CONFIG_GNUTLS_GCRYPT
+#ifdef CONFIG_GCRYPT
     if (!gcry_check_version(GCRYPT_VERSION)) {
         error_setg(errp, "Unable to initialize gcrypt");
         return -1;
@@ -139,12 +146,3 @@ int qcrypto_init(Error **errp)
 
     return 0;
 }
-
-#else /* ! CONFIG_GNUTLS */
-
-int qcrypto_init(Error **errp G_GNUC_UNUSED)
-{
-    return 0;
-}
-
-#endif /* ! CONFIG_GNUTLS */

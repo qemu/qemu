@@ -287,6 +287,79 @@ static void test_cipher(const void *opaque)
     qcrypto_cipher_free(cipher);
 }
 
+
+static void test_cipher_null_iv(void)
+{
+    QCryptoCipher *cipher;
+    uint8_t key[32] = { 0 };
+    uint8_t plaintext[32] = { 0 };
+    uint8_t ciphertext[32] = { 0 };
+
+    cipher = qcrypto_cipher_new(
+        QCRYPTO_CIPHER_ALG_AES_256,
+        QCRYPTO_CIPHER_MODE_CBC,
+        key, sizeof(key),
+        &error_abort);
+    g_assert(cipher != NULL);
+
+    /* Don't call qcrypto_cipher_setiv */
+
+    qcrypto_cipher_encrypt(cipher,
+                           plaintext,
+                           ciphertext,
+                           sizeof(plaintext),
+                           &error_abort);
+
+    qcrypto_cipher_free(cipher);
+}
+
+static void test_cipher_short_plaintext(void)
+{
+    Error *err = NULL;
+    QCryptoCipher *cipher;
+    uint8_t key[32] = { 0 };
+    uint8_t plaintext1[20] = { 0 };
+    uint8_t ciphertext1[20] = { 0 };
+    uint8_t plaintext2[40] = { 0 };
+    uint8_t ciphertext2[40] = { 0 };
+    int ret;
+
+    cipher = qcrypto_cipher_new(
+        QCRYPTO_CIPHER_ALG_AES_256,
+        QCRYPTO_CIPHER_MODE_CBC,
+        key, sizeof(key),
+        &error_abort);
+    g_assert(cipher != NULL);
+
+    /* Should report an error as plaintext is shorter
+     * than block size
+     */
+    ret = qcrypto_cipher_encrypt(cipher,
+                                 plaintext1,
+                                 ciphertext1,
+                                 sizeof(plaintext1),
+                                 &err);
+    g_assert(ret == -1);
+    g_assert(err != NULL);
+
+    error_free(err);
+    err = NULL;
+
+    /* Should report an error as plaintext is larger than
+     * block size, but not a multiple of block size
+     */
+    ret = qcrypto_cipher_encrypt(cipher,
+                                 plaintext2,
+                                 ciphertext2,
+                                 sizeof(plaintext2),
+                                 &err);
+    g_assert(ret == -1);
+    g_assert(err != NULL);
+
+    error_free(err);
+    qcrypto_cipher_free(cipher);
+}
+
 int main(int argc, char **argv)
 {
     size_t i;
@@ -298,5 +371,12 @@ int main(int argc, char **argv)
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
         g_test_add_data_func(test_data[i].path, &test_data[i], test_cipher);
     }
+
+    g_test_add_func("/crypto/cipher/null-iv",
+                    test_cipher_null_iv);
+
+    g_test_add_func("/crypto/cipher/short-plaintext",
+                    test_cipher_short_plaintext);
+
     return g_test_run();
 }

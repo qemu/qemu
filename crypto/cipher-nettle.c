@@ -69,7 +69,7 @@ struct QCryptoCipherNettle {
     nettle_cipher_func *alg_encrypt;
     nettle_cipher_func *alg_decrypt;
     uint8_t *iv;
-    size_t niv;
+    size_t blocksize;
 };
 
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
@@ -125,7 +125,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         ctx->alg_encrypt = des_encrypt_wrapper;
         ctx->alg_decrypt = des_decrypt_wrapper;
 
-        ctx->niv = DES_BLOCK_SIZE;
+        ctx->blocksize = DES_BLOCK_SIZE;
         break;
 
     case QCRYPTO_CIPHER_ALG_AES_128:
@@ -140,14 +140,14 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         ctx->alg_encrypt = aes_encrypt_wrapper;
         ctx->alg_decrypt = aes_decrypt_wrapper;
 
-        ctx->niv = AES_BLOCK_SIZE;
+        ctx->blocksize = AES_BLOCK_SIZE;
         break;
     default:
         error_setg(errp, "Unsupported cipher algorithm %d", alg);
         goto error;
     }
 
-    ctx->iv = g_new0(uint8_t, ctx->niv);
+    ctx->iv = g_new0(uint8_t, ctx->blocksize);
     cipher->opaque = ctx;
 
     return cipher;
@@ -184,6 +184,12 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
 {
     QCryptoCipherNettle *ctx = cipher->opaque;
 
+    if (len % ctx->blocksize) {
+        error_setg(errp, "Length %zu must be a multiple of block size %zu",
+                   len, ctx->blocksize);
+        return -1;
+    }
+
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
         ctx->alg_encrypt(ctx->ctx_encrypt, len, out, in);
@@ -191,7 +197,7 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
 
     case QCRYPTO_CIPHER_MODE_CBC:
         cbc_encrypt(ctx->ctx_encrypt, ctx->alg_encrypt,
-                    ctx->niv, ctx->iv,
+                    ctx->blocksize, ctx->iv,
                     len, out, in);
         break;
     default:
@@ -211,6 +217,12 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
 {
     QCryptoCipherNettle *ctx = cipher->opaque;
 
+    if (len % ctx->blocksize) {
+        error_setg(errp, "Length %zu must be a multiple of block size %zu",
+                   len, ctx->blocksize);
+        return -1;
+    }
+
     switch (cipher->mode) {
     case QCRYPTO_CIPHER_MODE_ECB:
         ctx->alg_decrypt(ctx->ctx_decrypt ? ctx->ctx_decrypt : ctx->ctx_encrypt,
@@ -219,7 +231,7 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
 
     case QCRYPTO_CIPHER_MODE_CBC:
         cbc_decrypt(ctx->ctx_decrypt ? ctx->ctx_decrypt : ctx->ctx_encrypt,
-                    ctx->alg_decrypt, ctx->niv, ctx->iv,
+                    ctx->alg_decrypt, ctx->blocksize, ctx->iv,
                     len, out, in);
         break;
     default:
@@ -235,9 +247,9 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
                          Error **errp)
 {
     QCryptoCipherNettle *ctx = cipher->opaque;
-    if (niv != ctx->niv) {
+    if (niv != ctx->blocksize) {
         error_setg(errp, "Expected IV size %zu not %zu",
-                   ctx->niv, niv);
+                   ctx->blocksize, niv);
         return -1;
     }
     memcpy(ctx->iv, iv, niv);

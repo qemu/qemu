@@ -34,6 +34,11 @@ bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg)
     }
 }
 
+typedef struct QCryptoCipherGcrypt QCryptoCipherGcrypt;
+struct QCryptoCipherGcrypt {
+    gcry_cipher_hd_t handle;
+    size_t blocksize;
+};
 
 QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                                   QCryptoCipherMode mode,
@@ -41,7 +46,7 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
                                   Error **errp)
 {
     QCryptoCipher *cipher;
-    gcry_cipher_hd_t handle;
+    QCryptoCipherGcrypt *ctx;
     gcry_error_t err;
     int gcryalg, gcrymode;
 
@@ -87,7 +92,9 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
     cipher->alg = alg;
     cipher->mode = mode;
 
-    err = gcry_cipher_open(&handle, gcryalg, gcrymode, 0);
+    ctx = g_new0(QCryptoCipherGcrypt, 1);
+
+    err = gcry_cipher_open(&ctx->handle, gcryalg, gcrymode, 0);
     if (err != 0) {
         error_setg(errp, "Cannot initialize cipher: %s",
                    gcry_strerror(err));
@@ -100,10 +107,12 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
          * bizarre RFB variant of DES :-)
          */
         uint8_t *rfbkey = qcrypto_cipher_munge_des_rfb_key(key, nkey);
-        err = gcry_cipher_setkey(handle, rfbkey, nkey);
+        err = gcry_cipher_setkey(ctx->handle, rfbkey, nkey);
         g_free(rfbkey);
+        ctx->blocksize = 8;
     } else {
-        err = gcry_cipher_setkey(handle, key, nkey);
+        err = gcry_cipher_setkey(ctx->handle, key, nkey);
+        ctx->blocksize = 16;
     }
     if (err != 0) {
         error_setg(errp, "Cannot set key: %s",
@@ -111,11 +120,12 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
         goto error;
     }
 
-    cipher->opaque = handle;
+    cipher->opaque = ctx;
     return cipher;
 
  error:
-    gcry_cipher_close(handle);
+    gcry_cipher_close(ctx->handle);
+    g_free(ctx);
     g_free(cipher);
     return NULL;
 }
@@ -123,12 +133,13 @@ QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
 
 void qcrypto_cipher_free(QCryptoCipher *cipher)
 {
-    gcry_cipher_hd_t handle;
+    QCryptoCipherGcrypt *ctx;
     if (!cipher) {
         return;
     }
-    handle = cipher->opaque;
-    gcry_cipher_close(handle);
+    ctx = cipher->opaque;
+    gcry_cipher_close(ctx->handle);
+    g_free(ctx);
     g_free(cipher);
 }
 
@@ -139,10 +150,16 @@ int qcrypto_cipher_encrypt(QCryptoCipher *cipher,
                            size_t len,
                            Error **errp)
 {
-    gcry_cipher_hd_t handle = cipher->opaque;
+    QCryptoCipherGcrypt *ctx = cipher->opaque;
     gcry_error_t err;
 
-    err = gcry_cipher_encrypt(handle,
+    if (len % ctx->blocksize) {
+        error_setg(errp, "Length %zu must be a multiple of block size %zu",
+                   len, ctx->blocksize);
+        return -1;
+    }
+
+    err = gcry_cipher_encrypt(ctx->handle,
                               out, len,
                               in, len);
     if (err != 0) {
@@ -161,10 +178,16 @@ int qcrypto_cipher_decrypt(QCryptoCipher *cipher,
                            size_t len,
                            Error **errp)
 {
-    gcry_cipher_hd_t handle = cipher->opaque;
+    QCryptoCipherGcrypt *ctx = cipher->opaque;
     gcry_error_t err;
 
-    err = gcry_cipher_decrypt(handle,
+    if (len % ctx->blocksize) {
+        error_setg(errp, "Length %zu must be a multiple of block size %zu",
+                   len, ctx->blocksize);
+        return -1;
+    }
+
+    err = gcry_cipher_decrypt(ctx->handle,
                               out, len,
                               in, len);
     if (err != 0) {
@@ -180,11 +203,17 @@ int qcrypto_cipher_setiv(QCryptoCipher *cipher,
                          const uint8_t *iv, size_t niv,
                          Error **errp)
 {
-    gcry_cipher_hd_t handle = cipher->opaque;
+    QCryptoCipherGcrypt *ctx = cipher->opaque;
     gcry_error_t err;
 
-    gcry_cipher_reset(handle);
-    err = gcry_cipher_setiv(handle, iv, niv);
+    if (niv != ctx->blocksize) {
+        error_setg(errp, "Expected IV size %zu not %zu",
+                   ctx->blocksize, niv);
+        return -1;
+    }
+
+    gcry_cipher_reset(ctx->handle);
+    err = gcry_cipher_setiv(ctx->handle, iv, niv);
     if (err != 0) {
         error_setg(errp, "Cannot set IV: %s",
                    gcry_strerror(err));
