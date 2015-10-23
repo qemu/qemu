@@ -299,6 +299,7 @@ bool aio_poll(AioContext *ctx, bool blocking);
  */
 void aio_set_fd_handler(AioContext *ctx,
                         int fd,
+                        bool is_external,
                         IOHandler *io_read,
                         IOHandler *io_write,
                         void *opaque);
@@ -312,6 +313,7 @@ void aio_set_fd_handler(AioContext *ctx,
  */
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
+                            bool is_external,
                             EventNotifierHandler *io_read);
 
 /* Return a GSource that lets the main loop poll the file descriptors attached

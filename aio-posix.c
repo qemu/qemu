@@ -25,6 +25,7 @@ struct AioHandler
     IOHandler *io_write;
     int deleted;
     void *opaque;
+    bool is_external;
     QLIST_ENTRY(AioHandler) node;
 };
 
@@ -43,6 +44,7 @@ static AioHandler *find_aio_handler(AioContext *ctx, int fd)
 
 void aio_set_fd_handler(AioContext *ctx,
                         int fd,
+                        bool is_external,
                         IOHandler *io_read,
                         IOHandler *io_write,
                         void *opaque)
@@ -82,6 +84,7 @@ void aio_set_fd_handler(AioContext *ctx,
         node->io_read = io_read;
         node->io_write = io_write;
         node->opaque = opaque;
+        node->is_external = is_external;
 
         node->pfd.events = (io_read ? G_IO_IN | G_IO_HUP | G_IO_ERR : 0);
         node->pfd.events |= (io_write ? G_IO_OUT | G_IO_ERR : 0);
@@ -92,10 +95,11 @@ void aio_set_fd_handler(AioContext *ctx,
 
 void aio_set_event_notifier(AioContext *ctx,
                             EventNotifier *notifier,
+                            bool is_external,
                             EventNotifierHandler *io_read)
 {
     aio_set_fd_handler(ctx, event_notifier_get_fd(notifier),
-                       (IOHandler *)io_read, NULL, notifier);
+                       is_external, (IOHandler *)io_read, NULL, notifier);
 }
 
 bool aio_prepare(AioContext *ctx)

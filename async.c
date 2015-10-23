@@ -247,7 +247,7 @@ aio_ctx_finalize(GSource     *source)
     }
     qemu_mutex_unlock(&ctx->bh_lock);
 
-    aio_set_event_notifier(ctx, &ctx->notifier, NULL);
+    aio_set_event_notifier(ctx, &ctx->notifier, false, NULL);
     event_notifier_cleanup(&ctx->notifier);
     rfifolock_destroy(&ctx->lock);
     qemu_mutex_destroy(&ctx->bh_lock);
@@ -329,6 +329,7 @@ AioContext *aio_context_new(Error **errp)
     }
     g_source_set_can_recurse(&ctx->source, true);
     aio_set_event_notifier(ctx, &ctx->notifier,
+                           false,
                            (EventNotifierHandler *)
                            event_notifier_dummy_cb);
     ctx->thread_pool = NULL;

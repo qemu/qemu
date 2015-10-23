@@ -154,18 +154,20 @@ static int curl_sock_cb(CURL *curl, curl_socket_t fd, int action,
     DPRINTF("CURL (AIO): Sock action %d on fd %d\n", action, fd);
     switch (action) {
         case CURL_POLL_IN:
-            aio_set_fd_handler(s->aio_context, fd, curl_multi_read,
-                               NULL, state);
+            aio_set_fd_handler(s->aio_context, fd, false,
+                               curl_multi_read, NULL, state);
             break;
         case CURL_POLL_OUT:
-            aio_set_fd_handler(s->aio_context, fd, NULL, curl_multi_do, state);
+            aio_set_fd_handler(s->aio_context, fd, false,
+                               NULL, curl_multi_do, state);
             break;
         case CURL_POLL_INOUT:
-            aio_set_fd_handler(s->aio_context, fd, curl_multi_read,
-                               curl_multi_do, state);
+            aio_set_fd_handler(s->aio_context, fd, false,
+                               curl_multi_read, curl_multi_do, state);
             break;
         case CURL_POLL_REMOVE:
-            aio_set_fd_handler(s->aio_context, fd, NULL, NULL, NULL);
+            aio_set_fd_handler(s->aio_context, fd, false,
+                               NULL, NULL, NULL);
             break;
     }
 

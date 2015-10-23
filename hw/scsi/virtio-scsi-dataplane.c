@@ -60,7 +60,8 @@ static VirtIOSCSIVring *virtio_scsi_vring_init(VirtIOSCSI *s,
     r = g_new(VirtIOSCSIVring, 1);
     r->host_notifier = *virtio_queue_get_host_notifier(vq);
     r->guest_notifier = *virtio_queue_get_guest_notifier(vq);
-    aio_set_event_notifier(s->ctx, &r->host_notifier, handler);
+    aio_set_event_notifier(s->ctx, &r->host_notifier, false,
+                           handler);
 
     r->parent = s;
 
@@ -71,7 +72,8 @@ static VirtIOSCSIVring *virtio_scsi_vring_init(VirtIOSCSI *s,
     return r;
 
 fail_vring:
-    aio_set_event_notifier(s->ctx, &r->host_notifier, NULL);
+    aio_set_event_notifier(s->ctx, &r->host_notifier, false,
+                           NULL);
     k->set_host_notifier(qbus->parent, n, false);
     g_free(r);
     return NULL;
@@ -162,14 +164,17 @@ static void virtio_scsi_clear_aio(VirtIOSCSI *s)
     int i;
 
     if (s->ctrl_vring) {
-        aio_set_event_notifier(s->ctx, &s->ctrl_vring->host_notifier, NULL);
+        aio_set_event_notifier(s->ctx, &s->ctrl_vring->host_notifier,
+                               false, NULL);
     }
     if (s->event_vring) {
-        aio_set_event_notifier(s->ctx, &s->event_vring->host_notifier, NULL);
+        aio_set_event_notifier(s->ctx, &s->event_vring->host_notifier,
+                               false, NULL);
     }
     if (s->cmd_vrings) {
         for (i = 0; i < vs->conf.num_queues && s->cmd_vrings[i]; i++) {
-            aio_set_event_notifier(s->ctx, &s->cmd_vrings[i]->host_notifier, NULL);
+            aio_set_event_notifier(s->ctx, &s->cmd_vrings[i]->host_notifier,
+                                   false, NULL);
         }
     }
 }
@@ -290,10 +295,13 @@ void virtio_scsi_dataplane_stop(VirtIOSCSI *s)
 
     aio_context_acquire(s->ctx);
 
-    aio_set_event_notifier(s->ctx, &s->ctrl_vring->host_notifier, NULL);
-    aio_set_event_notifier(s->ctx, &s->event_vring->host_notifier, NULL);
+    aio_set_event_notifier(s->ctx, &s->ctrl_vring->host_notifier,
+                           false, NULL);
+    aio_set_event_notifier(s->ctx, &s->event_vring->host_notifier,
+                           false, NULL);
     for (i = 0; i < vs->conf.num_queues; i++) {
-        aio_set_event_notifier(s->ctx, &s->cmd_vrings[i]->host_notifier, NULL);
+        aio_set_event_notifier(s->ctx, &s->cmd_vrings[i]->host_notifier,
+                               false, NULL);
     }
 
     blk_drain_all(); /* ensure there are no in-flight requests */
