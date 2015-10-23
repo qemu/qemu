@@ -1890,7 +1890,7 @@ fi
 if test "$seccomp" != "no" ; then
     case "$cpu" in
     i386|x86_64)
-        libseccomp_minver="2.1.1"
+        libseccomp_minver="2.1.0"
         ;;
     arm|aarch64)
         libseccomp_minver="2.2.3"
