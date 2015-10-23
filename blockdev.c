@@ -1569,6 +1569,7 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     /* Acquire AioContext now so any threads operating on old_bs stop */
     state->aio_context = bdrv_get_aio_context(state->old_bs);
     aio_context_acquire(state->aio_context);
+    bdrv_drained_begin(state->old_bs);
 
     if (!bdrv_is_inserted(state->old_bs)) {
         error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
@@ -1638,8 +1639,6 @@ static void external_snapshot_commit(BlkTransactionState *common)
      * don't want to abort all of them if one of them fails the reopen */
     bdrv_reopen(state->old_bs, state->old_bs->open_flags & ~BDRV_O_RDWR,
                 NULL);
-
-    aio_context_release(state->aio_context);
 }
 
 static void external_snapshot_abort(BlkTransactionState *common)
@@ -1649,7 +1648,14 @@ static void external_snapshot_abort(BlkTransactionState *common)
     if (state->new_bs) {
         bdrv_unref(state->new_bs);
     }
+}
+
+static void external_snapshot_clean(BlkTransactionState *common)
+{
+    ExternalSnapshotState *state =
+                             DO_UPCAST(ExternalSnapshotState, common, common);
     if (state->aio_context) {
+        bdrv_drained_end(state->old_bs);
         aio_context_release(state->aio_context);
     }
 }
@@ -1809,6 +1815,7 @@ static const BdrvActionOps actions[] = {
         .prepare  = external_snapshot_prepare,
         .commit   = external_snapshot_commit,
         .abort = external_snapshot_abort,
+        .clean = external_snapshot_clean,
     },
     [TRANSACTION_ACTION_KIND_DRIVE_BACKUP] = {
         .instance_size = sizeof(DriveBackupState),
