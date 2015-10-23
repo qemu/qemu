@@ -163,6 +163,11 @@ static void test_hash_digest(void)
     for (i = 0; i < G_N_ELEMENTS(expected_outputs) ; i++) {
         int ret;
         char *digest;
+        size_t digestsize;
+
+        digestsize = qcrypto_hash_digest_len(i);
+
+        g_assert_cmpint(digestsize * 2, ==, strlen(expected_outputs[i]));
 
         ret = qcrypto_hash_digest(i,
                                   INPUT_TEXT,
