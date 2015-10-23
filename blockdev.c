@@ -1756,6 +1756,11 @@ static void blockdev_backup_prepare(BlkTransactionState *common, Error **errp)
         return;
     }
 
+    if (!blk_is_available(blk)) {
+        error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, backup->device);
+        return;
+    }
+
     target = blk_by_name(backup->target);
     if (!target) {
         error_setg(errp, "Device '%s' not found", backup->target);
@@ -1770,6 +1775,8 @@ static void blockdev_backup_prepare(BlkTransactionState *common, Error **errp)
         return;
     }
     aio_context_acquire(state->aio_context);
+    state->bs = blk_bs(blk);
+    bdrv_drained_begin(state->bs);
 
     qmp_blockdev_backup(backup->device, backup->target,
                         backup->sync,
@@ -1782,7 +1789,6 @@ static void blockdev_backup_prepare(BlkTransactionState *common, Error **errp)
         return;
     }
 
-    state->bs = blk_bs(blk);
     state->job = state->bs->job;
 }
 
@@ -1802,6 +1808,7 @@ static void blockdev_backup_clean(BlkTransactionState *common)
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
 
     if (state->aio_context) {
+        bdrv_drained_end(state->bs);
         aio_context_release(state->aio_context);
     }
 }
