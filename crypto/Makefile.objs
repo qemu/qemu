@@ -17,6 +17,7 @@ crypto-obj-y += ivgen.o
 crypto-obj-y += ivgen-essiv.o
 crypto-obj-y += ivgen-plain.o
 crypto-obj-y += ivgen-plain64.o
+crypto-obj-y += afsplit.o
 
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o
