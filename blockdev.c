@@ -1370,6 +1370,7 @@ typedef struct InternalSnapshotState {
     BlockDriverState *bs;
     AioContext *aio_context;
     QEMUSnapshotInfo sn;
+    bool created;
 } InternalSnapshotState;
 
 static void internal_snapshot_prepare(BlkTransactionState *common,
@@ -1413,6 +1414,9 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
         return;
     }
     bs = blk_bs(blk);
+
+    state->bs = bs;
+    bdrv_drained_begin(bs);
 
     if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_INTERNAL_SNAPSHOT, errp)) {
         return;
@@ -1465,7 +1469,7 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     }
 
     /* 4. succeed, mark a snapshot is created */
-    state->bs = bs;
+    state->created = true;
 }
 
 static void internal_snapshot_abort(BlkTransactionState *common)
@@ -1476,7 +1480,7 @@ static void internal_snapshot_abort(BlkTransactionState *common)
     QEMUSnapshotInfo *sn = &state->sn;
     Error *local_error = NULL;
 
-    if (!bs) {
+    if (!state->created) {
         return;
     }
 
@@ -1497,6 +1501,9 @@ static void internal_snapshot_clean(BlkTransactionState *common)
                                              common, common);
 
     if (state->aio_context) {
+        if (state->bs) {
+            bdrv_drained_end(state->bs);
+        }
         aio_context_release(state->aio_context);
     }
 }
