@@ -44,6 +44,17 @@ typedef enum {
  */
 gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg);
 
+
+/**
+ * qcrypto_hash_digest_len:
+ * @alg: the hash algorithm
+ *
+ * Determine the size of the hash digest in bytes
+ *
+ * Returns: the digest length in bytes
+ */
+size_t qcrypto_hash_digest_len(QCryptoHashAlgorithm alg);
+
 /**
  * qcrypto_hash_bytesv:
  * @alg: the hash algorithm
