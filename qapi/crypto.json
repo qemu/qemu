@@ -94,3 +94,65 @@
 { 'enum': 'QCryptoIVGenAlgorithm',
   'prefix': 'QCRYPTO_IVGEN_ALG',
   'data': ['plain', 'plain64', 'essiv']}
+
+##
+# QCryptoBlockFormat:
+#
+# The supported full disk encryption formats
+#
+# @qcowaes: QCow/QCow2 built-in AES-CBC encryption. Do not use
+# Since: 2.6
+##
+{ 'enum': 'QCryptoBlockFormat',
+#  'prefix': 'QCRYPTO_BLOCK_FORMAT',
+  'data': ['qcowaes']}
+
+##
+# QCryptoBlockOptionsBase:
+#
+# The common options that apply to all full disk
+# encryption formats
+#
+# @format: the encryption format
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockOptionsBase',
+  'data': { 'format': 'QCryptoBlockFormat' }}
+
+##
+# QCryptoBlockOptionsQCowAES:
+#
+# The options that apply to QCow AES encryption format
+#
+# @keyid: the ID of a QCryptoSecret object providing the decryption key
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockOptionsQCowAES',
+  'data': { 'keyid': 'str' }}
+
+##
+# QCryptoBlockOpenOptions:
+#
+# The options that are available for all encryption formats
+# when opening an existing volume
+#
+# Since: 2.6
+##
+{ 'union': 'QCryptoBlockOpenOptions',
+  'base': 'QCryptoBlockOptionsBase',
+  'discriminator': 'format',
+  'data': { 'qcowaes': 'QCryptoBlockOptionsQCowAES' } }
+
+
+##
+# QCryptoBlockCreateOptions:
+#
+# The options that are available for all encryption formats
+# when initializing a new volume
+#
+# Since: 2.6
+##
+{ 'union': 'QCryptoBlockCreateOptions',
+  'base': 'QCryptoBlockOptionsBase',
+  'discriminator': 'format',
+  'data': { 'qcowaes': 'QCryptoBlockOptionsQCowAES' } }
