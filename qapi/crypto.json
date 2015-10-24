@@ -101,11 +101,12 @@
 # The supported full disk encryption formats
 #
 # @qcowaes: QCow/QCow2 built-in AES-CBC encryption. Do not use
+# @luks: LUKS encryption format. Recommended
 # Since: 2.6
 ##
 { 'enum': 'QCryptoBlockFormat',
 #  'prefix': 'QCRYPTO_BLOCK_FORMAT',
-  'data': ['qcowaes']}
+  'data': ['qcowaes', 'luks']}
 
 ##
 # QCryptoBlockOptionsBase:
@@ -131,6 +132,39 @@
   'data': { 'keyid': 'str' }}
 
 ##
+# QCryptoBlockOptionsLUKS:
+#
+# The options that apply to LUKS encryption format
+#
+# @keyid: the ID of a QCryptoSecret object providing the decryption key
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockOptionsLUKS',
+  'data': { 'keyid': 'str' }}
+
+
+##
+# QCryptoBlockCreateOptionsLUKS:
+#
+# The options that apply to LUKS encryption format initialization
+#
+# @cipher_alg: the cipher algorithm for data encryption
+# @cipher_mode: the cipher mode for data encryption
+# @ivgen_alg: the initialization vector generator
+# @ivgen_hash_alg: (optional) the initialization vector generator hash
+# @hash_alg: the master key hash algorithm
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockCreateOptionsLUKS',
+  'base': 'QCryptoBlockOptionsLUKS',
+  'data': { 'cipher_alg': 'QCryptoCipherAlgorithm',
+            'cipher_mode': 'QCryptoCipherMode',
+            'ivgen_alg': 'QCryptoIVGenAlgorithm',
+            '*ivgen_hash_alg': 'QCryptoHashAlgorithm',
+            'hash_alg': 'QCryptoHashAlgorithm'}}
+
+
+##
 # QCryptoBlockOpenOptions:
 #
 # The options that are available for all encryption formats
@@ -141,7 +175,8 @@
 { 'union': 'QCryptoBlockOpenOptions',
   'base': 'QCryptoBlockOptionsBase',
   'discriminator': 'format',
-  'data': { 'qcowaes': 'QCryptoBlockOptionsQCowAES' } }
+  'data': { 'qcowaes': 'QCryptoBlockOptionsQCowAES',
+            'luks': 'QCryptoBlockOptionsLUKS' } }
 
 
 ##
@@ -155,4 +190,5 @@
 { 'union': 'QCryptoBlockCreateOptions',
   'base': 'QCryptoBlockOptionsBase',
   'discriminator': 'format',
-  'data': { 'qcowaes': 'QCryptoBlockOptionsQCowAES' } }
+  'data': { 'qcowaes': 'QCryptoBlockOptionsQCowAES',
+            'luks': 'QCryptoBlockCreateOptionsLUKS' } }

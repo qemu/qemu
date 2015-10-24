@@ -20,9 +20,11 @@
 
 #include "crypto/blockpriv.h"
 #include "crypto/block-qcowaes.h"
+#include "crypto/block-luks.h"
 
 static const QCryptoBlockDriver *qcrypto_block_drivers[] = {
     [Q_CRYPTO_BLOCK_FORMAT_QCOWAES] = &qcrypto_block_driver_qcowaes,
+    [Q_CRYPTO_BLOCK_FORMAT_LUKS] = &qcrypto_block_driver_luks,
 };
 
 
