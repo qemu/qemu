@@ -109,3 +109,71 @@
 { 'enum': 'QCryptoIVGenAlgorithm',
   'prefix': 'QCRYPTO_IVGEN_ALG',
   'data': ['plain', 'plain64', 'essiv']}
+
+##
+# QCryptoBlockFormat:
+#
+# The supported full disk encryption formats
+#
+# @qcow: QCow/QCow2 built-in AES-CBC encryption. Use only
+#        for liberating data from old images.
+#
+# Since: 2.6
+##
+{ 'enum': 'QCryptoBlockFormat',
+#  'prefix': 'QCRYPTO_BLOCK_FORMAT',
+  'data': ['qcow']}
+
+##
+# QCryptoBlockOptionsBase:
+#
+# The common options that apply to all full disk
+# encryption formats
+#
+# @format: the encryption format
+#
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockOptionsBase',
+  'data': { 'format': 'QCryptoBlockFormat' }}
+
+##
+# QCryptoBlockOptionsQCow:
+#
+# The options that apply to QCow/QCow2 AES-CBC encryption format
+#
+# @key-secret: #optional the ID of a QCryptoSecret object providing the
+#              decryption key. Mandatory except when probing image for
+#              metadata only.
+#
+# Since: 2.6
+##
+{ 'struct': 'QCryptoBlockOptionsQCow',
+  'data': { '*key-secret': 'str' }}
+
+##
+# QCryptoBlockOpenOptions:
+#
+# The options that are available for all encryption formats
+# when opening an existing volume
+#
+# Since: 2.6
+##
+{ 'union': 'QCryptoBlockOpenOptions',
+  'base': 'QCryptoBlockOptionsBase',
+  'discriminator': 'format',
+  'data': { 'qcow': 'QCryptoBlockOptionsQCow' } }
+
+
+##
+# QCryptoBlockCreateOptions:
+#
+# The options that are available for all encryption formats
+# when initializing a new volume
+#
+# Since: 2.6
+##
+{ 'union': 'QCryptoBlockCreateOptions',
+  'base': 'QCryptoBlockOptionsBase',
+  'discriminator': 'format',
+  'data': { 'qcow': 'QCryptoBlockOptionsQCow' } }

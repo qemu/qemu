@@ -13,6 +13,7 @@ test-bitops
 test-blockjob-txn
 test-coroutine
 test-crypto-afsplit
+test-crypto-block
 test-crypto-cipher
 test-crypto-hash
 test-crypto-ivgen
