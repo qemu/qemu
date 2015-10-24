@@ -21,6 +21,7 @@ crypto-obj-y += afsplit.o
 crypto-obj-y += xts.o
 crypto-obj-y += block.o
 crypto-obj-y += block-qcow.o
+crypto-obj-y += block-luks.o
 
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o

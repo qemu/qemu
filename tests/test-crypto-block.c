@@ -23,6 +23,15 @@
 #include "crypto/block.h"
 #include "qemu/buffer.h"
 #include "crypto/secret.h"
+#ifndef _WIN32
+#include <sys/resource.h>
+#endif
+
+#if defined(CONFIG_UUID) && (defined(_WIN32) || defined RUSAGE_THREAD)
+#define TEST_LUKS
+#else
+#undef TEST_LUKS
+#endif
 
 static QCryptoBlockCreateOptions qcow_create_opts = {
     .format = Q_CRYPTO_BLOCK_FORMAT_QCOW,
@@ -40,6 +49,63 @@ static QCryptoBlockOpenOptions qcow_open_opts = {
     },
 };
 
+
+#ifdef TEST_LUKS
+static QCryptoBlockOpenOptions luks_open_opts = {
+    .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
+    .u.luks = {
+        .has_key_secret = true,
+        .key_secret = (char *)"sec0",
+    },
+};
+
+
+/* Creation with all default values */
+static QCryptoBlockCreateOptions luks_create_opts_default = {
+    .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
+    .u.luks = {
+        .has_key_secret = true,
+        .key_secret = (char *)"sec0",
+    },
+};
+
+
+/* ...and with explicit values */
+static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_plain64 = {
+    .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
+    .u.luks = {
+        .has_key_secret = true,
+        .key_secret = (char *)"sec0",
+        .has_cipher_alg = true,
+        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .has_cipher_mode = true,
+        .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
+        .has_ivgen_alg = true,
+        .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
+    },
+};
+
+
+static QCryptoBlockCreateOptions luks_create_opts_aes256_cbc_essiv = {
+    .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
+    .u.luks = {
+        .has_key_secret = true,
+        .key_secret = (char *)"sec0",
+        .has_cipher_alg = true,
+        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .has_cipher_mode = true,
+        .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
+        .has_ivgen_alg = true,
+        .ivgen_alg = QCRYPTO_IVGEN_ALG_ESSIV,
+        .has_ivgen_hash_alg = true,
+        .ivgen_hash_alg = QCRYPTO_HASH_ALG_SHA256,
+        .has_hash_alg = true,
+        .hash_alg = QCRYPTO_HASH_ALG_SHA1,
+    },
+};
+#endif /* TEST_LUKS */
+
+
 static struct QCryptoBlockTestData {
     const char *path;
     QCryptoBlockCreateOptions *create_opts;
@@ -52,7 +118,9 @@ static struct QCryptoBlockTestData {
     QCryptoHashAlgorithm hash_alg;
 
     QCryptoIVGenAlgorithm ivgen_alg;
-    QCryptoCipherAlgorithm ivgen_hash;
+    QCryptoHashAlgorithm ivgen_hash;
+
+    bool slow;
 } test_data[] = {
     {
         .path = "/crypto/block/qcow",
@@ -66,6 +134,54 @@ static struct QCryptoBlockTestData {
 
         .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
     },
+#ifdef TEST_LUKS
+    {
+        .path = "/crypto/block/luks/default",
+        .create_opts = &luks_create_opts_default,
+        .open_opts = &luks_open_opts,
+
+        .expect_header = true,
+
+        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .cipher_mode = QCRYPTO_CIPHER_MODE_XTS,
+        .hash_alg = QCRYPTO_HASH_ALG_SHA256,
+
+        .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
+
+        .slow = true,
+    },
+    {
+        .path = "/crypto/block/luks/aes-256-cbc-plain64",
+        .create_opts = &luks_create_opts_aes256_cbc_plain64,
+        .open_opts = &luks_open_opts,
+
+        .expect_header = true,
+
+        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
+        .hash_alg = QCRYPTO_HASH_ALG_SHA256,
+
+        .ivgen_alg = QCRYPTO_IVGEN_ALG_PLAIN64,
+
+        .slow = true,
+    },
+    {
+        .path = "/crypto/block/luks/aes-256-cbc-essiv",
+        .create_opts = &luks_create_opts_aes256_cbc_essiv,
+        .open_opts = &luks_open_opts,
+
+        .expect_header = true,
+
+        .cipher_alg = QCRYPTO_CIPHER_ALG_AES_256,
+        .cipher_mode = QCRYPTO_CIPHER_MODE_CBC,
+        .hash_alg = QCRYPTO_HASH_ALG_SHA1,
+
+        .ivgen_alg = QCRYPTO_IVGEN_ALG_ESSIV,
+        .ivgen_hash = QCRYPTO_HASH_ALG_SHA256,
+
+        .slow = true,
+    },
+#endif
 };
 
 
@@ -232,7 +348,14 @@ int main(int argc, char **argv)
     g_assert(qcrypto_init(NULL) == 0);
 
     for (i = 0; i < G_N_ELEMENTS(test_data); i++) {
-        g_test_add_data_func(test_data[i].path, &test_data[i], test_block);
+        if (test_data[i].open_opts->format == Q_CRYPTO_BLOCK_FORMAT_LUKS &&
+            !qcrypto_hash_supports(test_data[i].hash_alg)) {
+            continue;
+        }
+        if (!test_data[i].slow ||
+            g_test_slow()) {
+            g_test_add_data_func(test_data[i].path, &test_data[i], test_block);
+        }
     }
 
     return g_test_run();
