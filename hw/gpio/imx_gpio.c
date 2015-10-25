@@ -29,11 +29,12 @@ typedef enum IMXGPIOLevel {
 } IMXGPIOLevel;
 
 #define DPRINTF(fmt, args...) \
-          do { \
-              if (DEBUG_IMX_GPIO) { \
-                  fprintf(stderr, "%s: " fmt , __func__, ##args); \
-              } \
-          } while (0)
+    do { \
+        if (DEBUG_IMX_GPIO) { \
+            fprintf(stderr, "[%s]%s: " fmt , TYPE_IMX_GPIO, \
+                                             __func__, ##args); \
+        } \
+    } while (0)
 
 static const char *imx_gpio_reg_name(uint32_t reg)
 {
@@ -176,19 +177,19 @@ static uint64_t imx_gpio_read(void *opaque, hwaddr offset, unsigned size)
         if (s->has_edge_sel) {
             reg_value = s->edge_sel;
         } else {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: EDGE_SEL register not "
+            qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: EDGE_SEL register not "
                           "present on this version of GPIO device\n",
                           TYPE_IMX_GPIO, __func__);
         }
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: Bad register at offset %d\n",
-                      TYPE_IMX_GPIO, __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_GPIO, __func__, offset);
         break;
     }
 
-    DPRINTF("(%s) = 0x%"PRIx32"\n", imx_gpio_reg_name(offset), reg_value);
+    DPRINTF("(%s) = 0x%" PRIx32 "\n", imx_gpio_reg_name(offset), reg_value);
 
     return reg_value;
 }
@@ -198,7 +199,7 @@ static void imx_gpio_write(void *opaque, hwaddr offset, uint64_t value,
 {
     IMXGPIOState *s = IMX_GPIO(opaque);
 
-    DPRINTF("(%s, value = 0x%"PRIx32")\n", imx_gpio_reg_name(offset),
+    DPRINTF("(%s, value = 0x%" PRIx32 ")\n", imx_gpio_reg_name(offset),
             (uint32_t)value);
 
     switch (offset) {
@@ -238,15 +239,15 @@ static void imx_gpio_write(void *opaque, hwaddr offset, uint64_t value,
             s->edge_sel = value;
             imx_gpio_set_all_int_lines(s);
         } else {
-            qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: EDGE_SEL register not "
+            qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: EDGE_SEL register not "
                           "present on this version of GPIO device\n",
                           TYPE_IMX_GPIO, __func__);
         }
         break;
 
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: Bad register at offset %d\n",
-                      TYPE_IMX_GPIO, __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_GPIO, __func__, offset);
         break;
     }
 
