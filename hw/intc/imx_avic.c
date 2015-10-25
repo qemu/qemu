@@ -17,27 +17,17 @@
 
 #include "hw/intc/imx_avic.h"
 
-#define DEBUG_INT 1
-#undef DEBUG_INT /* comment out for debugging */
+#ifndef DEBUG_IMX_AVIC
+#define DEBUG_IMX_AVIC 0
+#endif
 
-#ifdef DEBUG_INT
 #define DPRINTF(fmt, args...) \
-do { printf("%s: " fmt , TYPE_IMX_AVIC, ##args); } while (0)
-#else
-#define DPRINTF(fmt, args...) do {} while (0)
-#endif
-
-/*
- * Define to 1 for messages about attempts to
- * access unimplemented registers or similar.
- */
-#define DEBUG_IMPLEMENTATION 1
-#if DEBUG_IMPLEMENTATION
-#  define IPRINTF(fmt, args...) \
-    do  { fprintf(stderr, "%s: " fmt, TYPE_IMX_AVIC, ##args); } while (0)
-#else
-#  define IPRINTF(fmt, args...) do {} while (0)
-#endif
+    do { \
+        if (DEBUG_IMX_AVIC) { \
+            fprintf(stderr, "[%s]%s: " fmt , TYPE_IMX_AVIC, \
+                                             __func__, ##args); \
+        } \
+    } while (0)
 
 static const VMStateDescription vmstate_imx_avic = {
     .name = TYPE_IMX_AVIC,
@@ -115,8 +105,8 @@ static uint64_t imx_avic_read(void *opaque,
 {
     IMXAVICState *s = (IMXAVICState *)opaque;
 
+    DPRINTF("read(offset = 0x%" HWADDR_PRIx ")\n", offset);
 
-    DPRINTF("read(offset = 0x%x)\n", offset >> 2);
     switch (offset >> 2) {
     case 0: /* INTCNTL */
         return s->intcntl;
@@ -213,7 +203,8 @@ static uint64_t imx_avic_read(void *opaque,
         return 0x4;
 
     default:
-        IPRINTF("%s: Bad offset 0x%x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_AVIC, __func__, offset);
         return 0;
     }
 }
@@ -225,13 +216,13 @@ static void imx_avic_write(void *opaque, hwaddr offset,
 
     /* Vector Registers not yet supported */
     if (offset >= 0x100 && offset <= 0x2fc) {
-        IPRINTF("%s to vector register %d ignored\n", __func__,
-                (unsigned int)((offset - 0x100) >> 2));
+        qemu_log_mask(LOG_UNIMP, "[%s]%s: vector %d ignored\n",
+                      TYPE_IMX_AVIC, __func__, (int)((offset - 0x100) >> 2));
         return;
     }
 
-    DPRINTF("%s(0x%x) = %x\n", __func__,
-            (unsigned int)offset>>2, (unsigned int)val);
+    DPRINTF("(0x%" HWADDR_PRIx ") = 0x%x\n", offset, (unsigned int)val);
+
     switch (offset >> 2) {
     case 0: /* Interrupt Control Register, INTCNTL */
         s->intcntl = val & (ABFEN | NIDIS | FIDIS | NIAD | FIAD | NM);
@@ -305,7 +296,8 @@ static void imx_avic_write(void *opaque, hwaddr offset,
         return;
 
     default:
-        IPRINTF("%s: Bad offset %x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_AVIC, __func__, offset);
     }
     imx_avic_update(s);
 }
