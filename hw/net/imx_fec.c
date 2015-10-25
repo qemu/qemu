@@ -27,31 +27,29 @@
 /* For crc32 */
 #include <zlib.h>
 
-#ifndef IMX_FEC_DEBUG
-#define IMX_FEC_DEBUG          0
+#ifndef DEBUG_IMX_FEC
+#define DEBUG_IMX_FEC 0
 #endif
 
-#ifndef IMX_PHY_DEBUG
-#define IMX_PHY_DEBUG          0
-#endif
-
-#if IMX_FEC_DEBUG
-#define FEC_PRINTF(fmt, ...) \
-    do { fprintf(stderr, "%s[%s]: " fmt , TYPE_IMX_FEC, __func__, \
-                 ## __VA_ARGS__); \
+#define FEC_PRINTF(fmt, args...) \
+    do { \
+        if (DEBUG_IMX_FEC) { \
+            fprintf(stderr, "[%s]%s: " fmt , TYPE_IMX_FEC, \
+                                             __func__, ##args); \
+        } \
     } while (0)
-#else
-#define FEC_PRINTF(fmt, ...) do {} while (0)
+
+#ifndef DEBUG_IMX_PHY
+#define DEBUG_IMX_PHY 0
 #endif
 
-#if IMX_PHY_DEBUG
-#define PHY_PRINTF(fmt, ...) \
-    do { fprintf(stderr, "%s.phy[%s]: " fmt , TYPE_IMX_FEC, __func__, \
-                 ## __VA_ARGS__); \
+#define PHY_PRINTF(fmt, args...) \
+    do { \
+        if (DEBUG_IMX_PHY) { \
+            fprintf(stderr, "[%s.phy]%s: " fmt , TYPE_IMX_FEC, \
+                                                 __func__, ##args); \
+        } \
     } while (0)
-#else
-#define PHY_PRINTF(fmt, ...) do {} while (0)
-#endif
 
 static const VMStateDescription vmstate_imx_fec = {
     .name = TYPE_IMX_FEC,
@@ -182,12 +180,12 @@ static uint32_t do_phy_read(IMXFECState *s, int reg)
     case 18:
     case 27:
     case 31:
-        qemu_log_mask(LOG_UNIMP, "%s.phy[%s]: reg %d not implemented\n",
+        qemu_log_mask(LOG_UNIMP, "[%s.phy]%s: reg %d not implemented\n",
                       TYPE_IMX_FEC, __func__, reg);
         val = 0;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: Bad address at offset %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s.phy]%s: Bad address at offset %d\n",
                       TYPE_IMX_FEC, __func__, reg);
         val = 0;
         break;
@@ -230,11 +228,11 @@ static void do_phy_write(IMXFECState *s, int reg, uint32_t val)
     case 18:
     case 27:
     case 31:
-        qemu_log_mask(LOG_UNIMP, "%s.phy[%s]: reg %d not implemented\n",
+        qemu_log_mask(LOG_UNIMP, "[%s.phy)%s: reg %d not implemented\n",
                       TYPE_IMX_FEC, __func__, reg);
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s.phy[%s]: Bad address at offset %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s.phy]%s: Bad address at offset %d\n",
                       TYPE_IMX_FEC, __func__, reg);
         break;
     }
@@ -357,7 +355,7 @@ static uint64_t imx_fec_read(void *opaque, hwaddr addr, unsigned size)
 {
     IMXFECState *s = IMX_FEC(opaque);
 
-    FEC_PRINTF("reading from @ 0x%03x\n", (int)addr);
+    FEC_PRINTF("reading from @ 0x%" HWADDR_PRIx "\n", addr);
 
     switch (addr & 0x3ff) {
     case 0x004:
@@ -417,8 +415,8 @@ static uint64_t imx_fec_read(void *opaque, hwaddr addr, unsigned size)
     case 0x308:
         return s->miigsk_enr;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: Bad address at offset %d\n",
-                      TYPE_IMX_FEC, __func__, (int)addr);
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad address at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_FEC, __func__, addr);
         return 0;
     }
 }
@@ -428,7 +426,7 @@ static void imx_fec_write(void *opaque, hwaddr addr,
 {
     IMXFECState *s = IMX_FEC(opaque);
 
-    FEC_PRINTF("writing 0x%08x @ 0x%03x\n", (int)value, (int)addr);
+    FEC_PRINTF("writing 0x%08x @ 0x%" HWADDR_PRIx "\n", (int)value, addr);
 
     switch (addr & 0x3ff) {
     case 0x004: /* EIR */
@@ -530,8 +528,8 @@ static void imx_fec_write(void *opaque, hwaddr addr,
         s->miigsk_enr = (value & 0x2) ? 0x6 : 0;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: Bad address at offset %d\n",
-                      TYPE_IMX_FEC, __func__, (int)addr);
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad address at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_FEC, __func__, addr);
         break;
     }
 
@@ -561,7 +559,7 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
     FEC_PRINTF("len %d\n", (int)size);
 
     if (!s->rx_enabled) {
-        qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: Unexpected packet\n",
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Unexpected packet\n",
                       TYPE_IMX_FEC, __func__);
         return 0;
     }
@@ -592,14 +590,16 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
              * save the remainder for when more RX buffers are
              * available, or flag an error.
              */
-            qemu_log_mask(LOG_GUEST_ERROR, "%s[%s]: Lost end of frame\n",
+            qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Lost end of frame\n",
                           TYPE_IMX_FEC, __func__);
             break;
         }
         buf_len = (size <= s->emrbr) ? size : s->emrbr;
         bd.length = buf_len;
         size -= buf_len;
-        FEC_PRINTF("rx_bd %x length %d\n", addr, bd.length);
+
+        FEC_PRINTF("rx_bd 0x%x length %d\n", addr, bd.length);
+
         /* The last 4 bytes are the CRC.  */
         if (size < 4) {
             buf_len += size - 4;
