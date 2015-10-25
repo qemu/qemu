@@ -3606,6 +3606,7 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
         addr->inet = g_new0(InetSocketAddress, 1);
         addr->inet->host = g_strdup(host);
         addr->inet->port = g_strdup(port);
+        addr->inet->has_port = true;
         addr->inet->has_to = qemu_opt_get(opts, "to");
         addr->inet->to = qemu_opt_get_number(opts, "to", 0);
         addr->inet->has_ipv4 = qemu_opt_get(opts, "ipv4");
