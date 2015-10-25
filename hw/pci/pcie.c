@@ -426,13 +426,13 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
      */
     if ((sltsta & PCI_EXP_SLTSTA_PDS) && (val & PCI_EXP_SLTCTL_PCC) &&
         ((val & PCI_EXP_SLTCTL_PIC_OFF) == PCI_EXP_SLTCTL_PIC_OFF)) {
-            PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
-            pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
-                                pcie_unplug_device, NULL);
+        PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
+        pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                            pcie_unplug_device, NULL);
 
-            pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
-                                         PCI_EXP_SLTSTA_PDS);
-            pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
+                                     PCI_EXP_SLTSTA_PDS);
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
                                        PCI_EXP_SLTSTA_PDC);
     }
 
