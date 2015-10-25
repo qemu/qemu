@@ -16,13 +16,17 @@
 #define CKIH_FREQ 26000000 /* 26MHz crystal input */
 #define CKIL_FREQ    32768 /* nominal 32khz clock */
 
-//#define DEBUG_CCM 1
-#ifdef DEBUG_CCM
-#define DPRINTF(fmt, args...) \
-do { printf("%s: " fmt , TYPE_IMX_CCM, ##args); } while (0)
-#else
-#define DPRINTF(fmt, args...) do {} while (0)
+#ifndef DEBUG_IMX_CCM
+#define DEBUG_IMX_CCM 0
 #endif
+
+#define DPRINTF(fmt, args...) \
+    do { \
+        if (DEBUG_IMX_CCM) { \
+            fprintf(stderr, "[%s]%s: " fmt , TYPE_IMX_CCM, \
+                                             __func__, ##args); \
+        } \
+    } while (0)
 
 static int imx_ccm_post_load(void *opaque, int version_id);
 
@@ -109,7 +113,7 @@ static void update_clocks(IMXCCMState *s)
     s->hsp_clk_freq = s->mcu_clk_freq / (1 + EXTRACT(s->pdr0, HSP));
     s->ipg_clk_freq = s->hsp_clk_freq / (1 + EXTRACT(s->pdr0, IPG));
 
-    DPRINTF("%s: mcu %uMHz, HSP %uMHz, IPG %uHz\n", __func__,
+    DPRINTF("mcu %uMHz, HSP %uMHz, IPG %uHz\n",
             s->mcu_clk_freq / 1000000,
             s->hsp_clk_freq / 1000000,
             s->ipg_clk_freq);
@@ -135,7 +139,8 @@ static uint64_t imx_ccm_read(void *opaque, hwaddr offset,
 {
     IMXCCMState *s = (IMXCCMState *)opaque;
 
-    DPRINTF("%s(offset=%x)", __func__, offset >> 2);
+    DPRINTF("(offset=0x%" HWADDR_PRIx ")\n", offset);
+
     switch (offset >> 2) {
     case 0: /* CCMR */
         DPRINTF(" ccmr = 0x%x\n", s->ccmr);
@@ -166,9 +171,11 @@ static uint64_t imx_ccm_read(void *opaque, hwaddr offset,
     case 23:
         DPRINTF(" pcmr0 = 0x%x\n", s->pmcr0);
         return s->pmcr0;
+    default:
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_CCM, __func__, offset);
+        return 0;
     }
-    DPRINTF(" return 0\n");
-    return 0;
 }
 
 static void imx_ccm_write(void *opaque, hwaddr offset,
@@ -176,8 +183,9 @@ static void imx_ccm_write(void *opaque, hwaddr offset,
 {
     IMXCCMState *s = (IMXCCMState *)opaque;
 
-    DPRINTF("%s(offset=%x, value = %x)\n", __func__,
-            offset >> 2, (unsigned int)value);
+    DPRINTF("(offset=0x%" HWADDR_PRIx ", value = 0x%x)\n",
+            offset, (unsigned int)value);
+
     switch (offset >> 2) {
     case 0:
         s->ccmr = CCMR_FPMF | (value & 0x3b6fdfff);
@@ -205,6 +213,8 @@ static void imx_ccm_write(void *opaque, hwaddr offset,
         return;
 
     default:
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_CCM, __func__, offset);
         return;
     }
     update_clocks(s);
