@@ -15,7 +15,12 @@
 from qapi import *
 import re
 
+# visit_type_FOO_implicit() is emitted as needed; track if it has already
+# been output.
 implicit_structs_seen = set()
+
+# visit_type_FOO_fields() is always emitted; track if a forward declaration
+# or implementation has already been output.
 struct_fields_seen = set()
 
 
@@ -29,19 +34,24 @@ void visit_type_%(c_name)s(Visitor *v, %(c_type)sobj, const char *name, Error **
                  c_name=c_name(name), c_type=c_type)
 
 
-def gen_visit_implicit_struct(typ):
-    if typ in implicit_structs_seen:
-        return ''
-    implicit_structs_seen.add(typ)
-
+def gen_visit_fields_decl(typ):
     ret = ''
     if typ.name not in struct_fields_seen:
-        # Need a forward declaration
         ret += mcgen('''
 
 static void visit_type_%(c_type)s_fields(Visitor *v, %(c_type)s **obj, Error **errp);
 ''',
                      c_type=typ.c_name())
+        struct_fields_seen.add(typ.name)
+    return ret
+
+
+def gen_visit_implicit_struct(typ):
+    if typ in implicit_structs_seen:
+        return ''
+    implicit_structs_seen.add(typ)
+
+    ret = gen_visit_fields_decl(typ)
 
     ret += mcgen('''
 
