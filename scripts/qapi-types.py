@@ -77,16 +77,13 @@ struct %(c_name)s {
 ''',
                 c_name=c_name(name))
 
-    if base:
-        ret += gen_struct_field('base', base, False)
-
-    ret += gen_struct_fields(members)
+    ret += gen_struct_fields(members, base)
 
     # Make sure that all structs have at least one field; this avoids
     # potential issues with attempting to malloc space for zero-length
     # structs in C, and also incompatibility with C++ (where an empty
     # struct is size 1).
-    if not base and not members:
+    if not (base and base.members) and not members:
         ret += mcgen('''
     char qapi_dummy_field_for_empty_struct;
 ''')
@@ -280,11 +277,10 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         if variants:
             assert not members      # not implemented
             self.decl += gen_union(name, base, variants)
-            # TODO Use gen_upcast on structs too, once they have sane layout
-            if base:
-                self.decl += gen_upcast(name, base)
         else:
             self.decl += gen_struct(name, base, members)
+        if base:
+            self.decl += gen_upcast(name, base)
         self._gen_type_cleanup(name)
 
     def visit_alternate_type(self, name, info, variants):

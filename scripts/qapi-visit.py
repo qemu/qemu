@@ -72,13 +72,12 @@ static void visit_type_implicit_%(c_type)s(Visitor *v, %(c_type)s **obj, Error *
 
 
 def gen_visit_struct_fields(name, base, members):
-    struct_fields_seen.add(name)
-
     ret = ''
 
     if base:
-        ret += gen_visit_implicit_struct(base)
+        ret += gen_visit_fields_decl(base)
 
+    struct_fields_seen.add(name)
     ret += mcgen('''
 
 static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **errp)
@@ -90,9 +89,9 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
 
     if base:
         ret += mcgen('''
-    visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
+    visit_type_%(c_type)s_fields(v, (%(c_type)s **)obj, &err);
 ''',
-                     c_type=base.c_name(), c_name=c_name('base'))
+                     c_type=base.c_name())
         ret += gen_err_check()
 
     ret += gen_visit_fields(members, prefix='(*obj)->')

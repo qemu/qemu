@@ -200,8 +200,6 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
 {
     SpiceServerInfo *server = g_malloc0(sizeof(*server));
     SpiceChannel *client = g_malloc0(sizeof(*client));
-    server->base = g_malloc0(sizeof(*server->base));
-    client->base = g_malloc0(sizeof(*client->base));
 
     /*
      * Spice server might have called us from spice worker thread
@@ -218,9 +216,11 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     }
 
     if (info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
-        add_addr_info(client->base, (struct sockaddr *)&info->paddr_ext,
+        add_addr_info(qapi_SpiceChannel_base(client),
+                      (struct sockaddr *)&info->paddr_ext,
                       info->plen_ext);
-        add_addr_info(server->base, (struct sockaddr *)&info->laddr_ext,
+        add_addr_info(qapi_SpiceServerInfo_base(server),
+                      (struct sockaddr *)&info->laddr_ext,
                       info->llen_ext);
     } else {
         error_report("spice: %s, extended address is expected",
@@ -229,7 +229,9 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
 
     switch (event) {
     case SPICE_CHANNEL_EVENT_CONNECTED:
-        qapi_event_send_spice_connected(server->base, client->base, &error_abort);
+        qapi_event_send_spice_connected(qapi_SpiceServerInfo_base(server),
+                                        qapi_SpiceChannel_base(client),
+                                        &error_abort);
         break;
     case SPICE_CHANNEL_EVENT_INITIALIZED:
         if (auth) {
@@ -242,7 +244,9 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
         break;
     case SPICE_CHANNEL_EVENT_DISCONNECTED:
         channel_list_del(info);
-        qapi_event_send_spice_disconnected(server->base, client->base, &error_abort);
+        qapi_event_send_spice_disconnected(qapi_SpiceServerInfo_base(server),
+                                           qapi_SpiceChannel_base(client),
+                                           &error_abort);
         break;
     default:
         break;
@@ -378,16 +382,15 @@ static SpiceChannelList *qmp_query_spice_channels(void)
 
         chan = g_malloc0(sizeof(*chan));
         chan->value = g_malloc0(sizeof(*chan->value));
-        chan->value->base = g_malloc0(sizeof(*chan->value->base));
 
         paddr = (struct sockaddr *)&item->info->paddr_ext;
         plen = item->info->plen_ext;
         getnameinfo(paddr, plen,
                     host, sizeof(host), port, sizeof(port),
                     NI_NUMERICHOST | NI_NUMERICSERV);
-        chan->value->base->host = g_strdup(host);
-        chan->value->base->port = g_strdup(port);
-        chan->value->base->family = inet_netfamily(paddr->sa_family);
+        chan->value->host = g_strdup(host);
+        chan->value->port = g_strdup(port);
+        chan->value->family = inet_netfamily(paddr->sa_family);
 
         chan->value->connection_id = item->info->connection_id;
         chan->value->channel_type = item->info->type;

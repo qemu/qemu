@@ -258,15 +258,13 @@ static UserDefTwo *nested_struct_create(void)
     udnp->dict1->string1 = strdup("test_string1");
     udnp->dict1->dict2 = g_malloc0(sizeof(*udnp->dict1->dict2));
     udnp->dict1->dict2->userdef = g_new0(UserDefOne, 1);
-    udnp->dict1->dict2->userdef->base = g_new0(UserDefZero, 1);
-    udnp->dict1->dict2->userdef->base->integer = 42;
+    udnp->dict1->dict2->userdef->integer = 42;
     udnp->dict1->dict2->userdef->string = strdup("test_string");
     udnp->dict1->dict2->string = strdup("test_string2");
     udnp->dict1->dict3 = g_malloc0(sizeof(*udnp->dict1->dict3));
     udnp->dict1->has_dict3 = true;
     udnp->dict1->dict3->userdef = g_new0(UserDefOne, 1);
-    udnp->dict1->dict3->userdef->base = g_new0(UserDefZero, 1);
-    udnp->dict1->dict3->userdef->base->integer = 43;
+    udnp->dict1->dict3->userdef->integer = 43;
     udnp->dict1->dict3->userdef->string = strdup("test_string");
     udnp->dict1->dict3->string = strdup("test_string3");
     return udnp;
@@ -278,15 +276,15 @@ static void nested_struct_compare(UserDefTwo *udnp1, UserDefTwo *udnp2)
     g_assert(udnp2);
     g_assert_cmpstr(udnp1->string0, ==, udnp2->string0);
     g_assert_cmpstr(udnp1->dict1->string1, ==, udnp2->dict1->string1);
-    g_assert_cmpint(udnp1->dict1->dict2->userdef->base->integer, ==,
-                    udnp2->dict1->dict2->userdef->base->integer);
+    g_assert_cmpint(udnp1->dict1->dict2->userdef->integer, ==,
+                    udnp2->dict1->dict2->userdef->integer);
     g_assert_cmpstr(udnp1->dict1->dict2->userdef->string, ==,
                     udnp2->dict1->dict2->userdef->string);
     g_assert_cmpstr(udnp1->dict1->dict2->string, ==,
                     udnp2->dict1->dict2->string);
     g_assert(udnp1->dict1->has_dict3 == udnp2->dict1->has_dict3);
-    g_assert_cmpint(udnp1->dict1->dict3->userdef->base->integer, ==,
-                    udnp2->dict1->dict3->userdef->base->integer);
+    g_assert_cmpint(udnp1->dict1->dict3->userdef->integer, ==,
+                    udnp2->dict1->dict3->userdef->integer);
     g_assert_cmpstr(udnp1->dict1->dict3->userdef->string, ==,
                     udnp2->dict1->dict3->userdef->string);
     g_assert_cmpstr(udnp1->dict1->dict3->string, ==,

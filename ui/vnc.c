@@ -262,8 +262,8 @@ static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
     Error *err = NULL;
 
     info = g_malloc(sizeof(*info));
-    info->base = g_malloc(sizeof(*info->base));
-    vnc_init_basic_info_from_server_addr(vd->lsock, info->base, &err);
+    vnc_init_basic_info_from_server_addr(vd->lsock,
+                                         qapi_VncServerInfo_base(info), &err);
     info->has_auth = true;
     info->auth = g_strdup(vnc_auth_name(vd));
     if (err) {
@@ -300,8 +300,8 @@ static void vnc_client_cache_addr(VncState *client)
     Error *err = NULL;
 
     client->info = g_malloc0(sizeof(*client->info));
-    client->info->base = g_malloc0(sizeof(*client->info->base));
-    vnc_init_basic_info_from_remote_addr(client->csock, client->info->base,
+    vnc_init_basic_info_from_remote_addr(client->csock,
+                                         qapi_VncClientInfo_base(client->info),
                                          &err);
     if (err) {
         qapi_free_VncClientInfo(client->info);
@@ -317,7 +317,6 @@ static void vnc_qmp_event(VncState *vs, QAPIEvent event)
     if (!vs->info) {
         return;
     }
-    g_assert(vs->info->base);
 
     si = vnc_server_info_get(vs->vd);
     if (!si) {
@@ -326,7 +325,8 @@ static void vnc_qmp_event(VncState *vs, QAPIEvent event)
 
     switch (event) {
     case QAPI_EVENT_VNC_CONNECTED:
-        qapi_event_send_vnc_connected(si, vs->info->base, &error_abort);
+        qapi_event_send_vnc_connected(si, qapi_VncClientInfo_base(vs->info),
+                                      &error_abort);
         break;
     case QAPI_EVENT_VNC_INITIALIZED:
         qapi_event_send_vnc_initialized(si, vs->info, &error_abort);
@@ -361,11 +361,10 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
     }
 
     info = g_malloc0(sizeof(*info));
-    info->base = g_malloc0(sizeof(*info->base));
-    info->base->host = g_strdup(host);
-    info->base->service = g_strdup(serv);
-    info->base->family = inet_netfamily(sa.ss_family);
-    info->base->websocket = client->websocket;
+    info->host = g_strdup(host);
+    info->service = g_strdup(serv);
+    info->family = inet_netfamily(sa.ss_family);
+    info->websocket = client->websocket;
 
     if (client->tls) {
         info->x509_dname = qcrypto_tls_session_get_peer_name(client->tls);
