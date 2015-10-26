@@ -318,6 +318,7 @@ qapi-schema += redefined-type.json
 qapi-schema += reserved-command-q.json
 qapi-schema += reserved-member-has.json
 qapi-schema += reserved-member-q.json
+qapi-schema += reserved-member-u.json
 qapi-schema += reserved-type-kind.json
 qapi-schema += reserved-type-list.json
 qapi-schema += returns-alternate.json

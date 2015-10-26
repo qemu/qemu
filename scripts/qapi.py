@@ -490,7 +490,7 @@ def check_type(expr_info, source, value, allow_array=False,
     for (key, arg) in value.items():
         check_name(expr_info, "Member of %s" % source, key,
                    allow_optional=allow_optional)
-        if c_name(key, False).startswith('has_'):
+        if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPIExprError(expr_info,
                                 "Member of %s uses reserved name '%s'"
                                 % (source, key))

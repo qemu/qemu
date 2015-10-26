@@ -1,0 +1,7 @@
+# Potential C member name collision
+# We reject use of 'u' as a member name, to allow it for internal use in
+# putting union branch members in a separate namespace from QMP members.
+# This is true even for non-unions, because it is possible to convert a
+# struct to flat union while remaining backwards compatible in QMP.
+# TODO - we could munge the member name to 'q_u' to avoid the collision
+{ 'struct': 'Oops', 'data': { 'u': 'str' } }
