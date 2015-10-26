@@ -51,10 +51,21 @@ def gen_struct_field(name, typ, optional):
     return ret
 
 
-def gen_struct_fields(members):
+def gen_struct_fields(local_members, base=None):
     ret = ''
 
-    for memb in members:
+    if base:
+        ret += mcgen('''
+    /* Members inherited from %(c_name)s: */
+''',
+                     c_name=base.c_name())
+        for memb in base.members:
+            ret += gen_struct_field(memb.name, memb.type, memb.optional)
+        ret += mcgen('''
+    /* Own members: */
+''')
+
+    for memb in local_members:
         ret += gen_struct_field(memb.name, memb.type, memb.optional)
     return ret
 
@@ -126,14 +137,7 @@ struct %(c_name)s {
 ''',
                 c_name=c_name(name))
     if base:
-        ret += mcgen('''
-    /* Members inherited from %(c_name)s: */
-''',
-                     c_name=c_name(base.name))
-        ret += gen_struct_fields(base.members)
-        ret += mcgen('''
-    /* Own members: */
-''')
+        ret += gen_struct_fields([], base)
     else:
         ret += mcgen('''
     %(c_type)s kind;
