@@ -149,23 +149,10 @@ struct %(c_name)s {
     if base:
         ret += gen_struct_fields([], base)
     else:
-        # TODO As a hack, we emit both 'kind' and 'type'. Ultimately, we
-        # want to use only 'type', but the conversion is large enough to
-        # require staging over several commits.
-        ret += mcgen('''
-    union {
-        %(c_type)s kind;
-        %(c_type)s type;
-    };
-''',
-                     c_type=c_name(variants.tag_member.type.name))
+        ret += gen_struct_field(variants.tag_member.name,
+                                variants.tag_member.type,
+                                False)
 
-    # TODO As a hack, we emit the union twice, once as an anonymous union
-    # and once as a named union.  Ultimately, we want to use only the
-    # named union version (as it avoids conflicts between tag values as
-    # branch names competing with non-variant QMP names), but the conversion
-    # is large enough to require staging over several commits.
-    tmp = ''
     # FIXME: What purpose does data serve, besides preventing a union that
     # has a branch named 'data'? We use it in qapi-visit.py to decide
     # whether to bypass the switch statement if visiting the discriminator
@@ -174,7 +161,7 @@ struct %(c_name)s {
     # should not be any data leaks even without a data pointer.  Or, if
     # 'data' is merely added to guarantee we don't have an empty union,
     # shouldn't we enforce that at .json parse time?
-    tmp += mcgen('''
+    ret += mcgen('''
     union { /* union tag is @%(c_name)s */
         void *data;
 ''',
@@ -183,17 +170,14 @@ struct %(c_name)s {
     for var in variants.variants:
         # Ugly special case for simple union TODO get rid of it
         typ = var.simple_union_type() or var.type
-        tmp += mcgen('''
+        ret += mcgen('''
         %(c_type)s %(c_name)s;
 ''',
                      c_type=typ.c_type(),
                      c_name=c_name(var.name))
 
-    ret += tmp
-    ret += '    ' + '\n    '.join(tmp.split('\n'))
     ret += mcgen('''
     } u;
-    };
 };
 ''')
 
