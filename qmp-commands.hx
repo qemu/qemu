@@ -4003,6 +4003,41 @@ Example:
 EQMP
 
     {
+        .name       = "blockdev-close-tray",
+        .args_type  = "device:s",
+        .mhandler.cmd_new = qmp_marshal_blockdev_close_tray,
+    },
+
+SQMP
+blockdev-close-tray
+-------------------
+
+Closes a block device's tray. If there is a block driver state tree associated
+with the block device (which is currently ejected), that tree will be loaded as
+the medium.
+
+If the tray was already closed before, this will be a no-op.
+
+Arguments:
+
+- "device": block device name (json-string)
+
+Example:
+
+-> { "execute": "blockdev-close-tray",
+     "arguments": { "device": "ide1-cd0" } }
+
+<- { "timestamp": { "seconds": 1418751345,
+                    "microseconds": 272147 },
+     "event": "DEVICE_TRAY_MOVED",
+     "data": { "device": "ide1-cd0",
+               "tray-open": false } }
+
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "query-named-block-nodes",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_named_block_nodes,

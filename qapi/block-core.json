@@ -1908,6 +1908,22 @@
   'data': { 'device': 'str',
             '*force': 'bool' } }
 
+##
+# @blockdev-close-tray:
+#
+# Closes a block device's tray. If there is a block driver state tree associated
+# with the block device (which is currently ejected), that tree will be loaded
+# as the medium.
+#
+# If the tray was already closed before, this will be a no-op.
+#
+# @device: block device name
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-close-tray',
+  'data': { 'device': 'str' } }
+
 
 ##
 # @BlockErrorAction
