@@ -1735,15 +1735,15 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
             if (*endp != '\0') {
                 goto err_out;
             }
-            keylist->value->kind = KEY_VALUE_KIND_NUMBER;
-            keylist->value->number = value;
+            keylist->value->type = KEY_VALUE_KIND_NUMBER;
+            keylist->value->u.number = value;
         } else {
             int idx = index_from_key(keyname_buf);
             if (idx == Q_KEY_CODE_MAX) {
                 goto err_out;
             }
-            keylist->value->kind = KEY_VALUE_KIND_QCODE;
-            keylist->value->qcode = idx;
+            keylist->value->type = KEY_VALUE_KIND_QCODE;
+            keylist->value->u.qcode = idx;
         }
 
         if (!separator) {

@@ -147,10 +147,10 @@ void qmp_x_input_send_event(bool has_console, int64_t console,
     for (e = events; e != NULL; e = e->next) {
         InputEvent *event = e->value;
 
-        if (!qemu_input_find_handler(1 << event->kind, con)) {
+        if (!qemu_input_find_handler(1 << event->type, con)) {
             error_setg(errp, "Input handler not found for "
                              "event type %s",
-                            InputEventKind_lookup[event->kind]);
+                            InputEventKind_lookup[event->type]);
             return;
         }
     }
@@ -168,22 +168,22 @@ static void qemu_input_transform_abs_rotate(InputEvent *evt)
 {
     switch (graphic_rotate) {
     case 90:
-        if (evt->abs->axis == INPUT_AXIS_X) {
-            evt->abs->axis = INPUT_AXIS_Y;
-        } else if (evt->abs->axis == INPUT_AXIS_Y) {
-            evt->abs->axis = INPUT_AXIS_X;
-            evt->abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->abs->value;
+        if (evt->u.abs->axis == INPUT_AXIS_X) {
+            evt->u.abs->axis = INPUT_AXIS_Y;
+        } else if (evt->u.abs->axis == INPUT_AXIS_Y) {
+            evt->u.abs->axis = INPUT_AXIS_X;
+            evt->u.abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->u.abs->value;
         }
         break;
     case 180:
-        evt->abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->abs->value;
+        evt->u.abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->u.abs->value;
         break;
     case 270:
-        if (evt->abs->axis == INPUT_AXIS_X) {
-            evt->abs->axis = INPUT_AXIS_Y;
-            evt->abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->abs->value;
-        } else if (evt->abs->axis == INPUT_AXIS_Y) {
-            evt->abs->axis = INPUT_AXIS_X;
+        if (evt->u.abs->axis == INPUT_AXIS_X) {
+            evt->u.abs->axis = INPUT_AXIS_Y;
+            evt->u.abs->value = INPUT_EVENT_ABS_SIZE - 1 - evt->u.abs->value;
+        } else if (evt->u.abs->axis == INPUT_AXIS_Y) {
+            evt->u.abs->axis = INPUT_AXIS_X;
         }
         break;
     }
@@ -197,18 +197,18 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
     if (src) {
         idx = qemu_console_get_index(src);
     }
-    switch (evt->kind) {
+    switch (evt->type) {
     case INPUT_EVENT_KIND_KEY:
-        switch (evt->key->key->kind) {
+        switch (evt->u.key->key->type) {
         case KEY_VALUE_KIND_NUMBER:
-            qcode = qemu_input_key_number_to_qcode(evt->key->key->number);
+            qcode = qemu_input_key_number_to_qcode(evt->u.key->key->u.number);
             name = QKeyCode_lookup[qcode];
-            trace_input_event_key_number(idx, evt->key->key->number,
-                                         name, evt->key->down);
+            trace_input_event_key_number(idx, evt->u.key->key->u.number,
+                                         name, evt->u.key->down);
             break;
         case KEY_VALUE_KIND_QCODE:
-            name = QKeyCode_lookup[evt->key->key->qcode];
-            trace_input_event_key_qcode(idx, name, evt->key->down);
+            name = QKeyCode_lookup[evt->u.key->key->u.qcode];
+            trace_input_event_key_qcode(idx, name, evt->u.key->down);
             break;
         case KEY_VALUE_KIND_MAX:
             /* keep gcc happy */
@@ -216,16 +216,16 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         }
         break;
     case INPUT_EVENT_KIND_BTN:
-        name = InputButton_lookup[evt->btn->button];
-        trace_input_event_btn(idx, name, evt->btn->down);
+        name = InputButton_lookup[evt->u.btn->button];
+        trace_input_event_btn(idx, name, evt->u.btn->down);
         break;
     case INPUT_EVENT_KIND_REL:
-        name = InputAxis_lookup[evt->rel->axis];
-        trace_input_event_rel(idx, name, evt->rel->value);
+        name = InputAxis_lookup[evt->u.rel->axis];
+        trace_input_event_rel(idx, name, evt->u.rel->value);
         break;
     case INPUT_EVENT_KIND_ABS:
-        name = InputAxis_lookup[evt->abs->axis];
-        trace_input_event_abs(idx, name, evt->abs->value);
+        name = InputAxis_lookup[evt->u.abs->axis];
+        trace_input_event_abs(idx, name, evt->u.abs->value);
         break;
     case INPUT_EVENT_KIND_MAX:
         /* keep gcc happy */
@@ -311,12 +311,12 @@ void qemu_input_event_send(QemuConsole *src, InputEvent *evt)
     qemu_input_event_trace(src, evt);
 
     /* pre processing */
-    if (graphic_rotate && (evt->kind == INPUT_EVENT_KIND_ABS)) {
+    if (graphic_rotate && (evt->type == INPUT_EVENT_KIND_ABS)) {
             qemu_input_transform_abs_rotate(evt);
     }
 
     /* send event */
-    s = qemu_input_find_handler(1 << evt->kind, src);
+    s = qemu_input_find_handler(1 << evt->type, src);
     if (!s) {
         return;
     }
@@ -348,10 +348,10 @@ void qemu_input_event_sync(void)
 InputEvent *qemu_input_event_new_key(KeyValue *key, bool down)
 {
     InputEvent *evt = g_new0(InputEvent, 1);
-    evt->key = g_new0(InputKeyEvent, 1);
-    evt->kind = INPUT_EVENT_KIND_KEY;
-    evt->key->key = key;
-    evt->key->down = down;
+    evt->u.key = g_new0(InputKeyEvent, 1);
+    evt->type = INPUT_EVENT_KIND_KEY;
+    evt->u.key->key = key;
+    evt->u.key->down = down;
     return evt;
 }
 
@@ -372,16 +372,16 @@ void qemu_input_event_send_key(QemuConsole *src, KeyValue *key, bool down)
 void qemu_input_event_send_key_number(QemuConsole *src, int num, bool down)
 {
     KeyValue *key = g_new0(KeyValue, 1);
-    key->kind = KEY_VALUE_KIND_NUMBER;
-    key->number = num;
+    key->type = KEY_VALUE_KIND_NUMBER;
+    key->u.number = num;
     qemu_input_event_send_key(src, key, down);
 }
 
 void qemu_input_event_send_key_qcode(QemuConsole *src, QKeyCode q, bool down)
 {
     KeyValue *key = g_new0(KeyValue, 1);
-    key->kind = KEY_VALUE_KIND_QCODE;
-    key->qcode = q;
+    key->type = KEY_VALUE_KIND_QCODE;
+    key->u.qcode = q;
     qemu_input_event_send_key(src, key, down);
 }
 
@@ -398,10 +398,10 @@ void qemu_input_event_send_key_delay(uint32_t delay_ms)
 InputEvent *qemu_input_event_new_btn(InputButton btn, bool down)
 {
     InputEvent *evt = g_new0(InputEvent, 1);
-    evt->btn = g_new0(InputBtnEvent, 1);
-    evt->kind = INPUT_EVENT_KIND_BTN;
-    evt->btn->button = btn;
-    evt->btn->down = down;
+    evt->u.btn = g_new0(InputBtnEvent, 1);
+    evt->type = INPUT_EVENT_KIND_BTN;
+    evt->u.btn->button = btn;
+    evt->u.btn->down = down;
     return evt;
 }
 
@@ -451,8 +451,8 @@ InputEvent *qemu_input_event_new_move(InputEventKind kind,
     InputEvent *evt = g_new0(InputEvent, 1);
     InputMoveEvent *move = g_new0(InputMoveEvent, 1);
 
-    evt->kind = kind;
-    evt->data = move;
+    evt->type = kind;
+    evt->u.data = move;
     move->axis = axis;
     move->value = value;
     return evt;
