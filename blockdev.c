@@ -1168,7 +1168,7 @@ void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
                                 bool has_format, const char *format,
                                 bool has_mode, NewImageMode mode, Error **errp)
 {
-    BlockdevSnapshot snapshot = {
+    BlockdevSnapshotSync snapshot = {
         .has_device = has_device,
         .device = (char *) device,
         .has_node_name = has_node_name,

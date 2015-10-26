@@ -682,7 +682,7 @@
   'data': [ 'existing', 'absolute-paths' ] }
 
 ##
-# @BlockdevSnapshot
+# @BlockdevSnapshotSync
 #
 # Either @device or @node-name must be set but not both.
 #
@@ -699,7 +699,7 @@
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 ##
-{ 'struct': 'BlockdevSnapshot',
+{ 'struct': 'BlockdevSnapshotSync',
   'data': { '*device': 'str', '*node-name': 'str',
             'snapshot-file': 'str', '*snapshot-node-name': 'str',
             '*format': 'str', '*mode': 'NewImageMode' } }
@@ -790,7 +790,7 @@
 #
 # Generates a synchronous snapshot of a block device.
 #
-# For the arguments, see the documentation of BlockdevSnapshot.
+# For the arguments, see the documentation of BlockdevSnapshotSync.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -798,7 +798,7 @@
 # Since 0.14.0
 ##
 { 'command': 'blockdev-snapshot-sync',
-  'data': 'BlockdevSnapshot' }
+  'data': 'BlockdevSnapshotSync' }
 
 ##
 # @change-backing-file

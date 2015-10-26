@@ -1548,7 +1548,7 @@
 ##
 { 'union': 'TransactionAction',
   'data': {
-       'blockdev-snapshot-sync': 'BlockdevSnapshot',
+       'blockdev-snapshot-sync': 'BlockdevSnapshotSync',
        'drive-backup': 'DriveBackup',
        'blockdev-backup': 'BlockdevBackup',
        'abort': 'Abort',
