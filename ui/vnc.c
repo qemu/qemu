@@ -156,10 +156,11 @@ char *vnc_socket_remote_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
-static VncBasicInfo *vnc_basic_info_get(struct sockaddr_storage *sa,
-                                        socklen_t salen)
+static void vnc_init_basic_info(struct sockaddr_storage *sa,
+                                socklen_t salen,
+                                VncBasicInfo *info,
+                                Error **errp)
 {
-    VncBasicInfo *info;
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
     int err;
@@ -168,42 +169,44 @@ static VncBasicInfo *vnc_basic_info_get(struct sockaddr_storage *sa,
                            host, sizeof(host),
                            serv, sizeof(serv),
                            NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
-        VNC_DEBUG("Cannot resolve address %d: %s\n",
-                  err, gai_strerror(err));
-        return NULL;
+        error_setg(errp, "Cannot resolve address: %s",
+                   gai_strerror(err));
+        return;
     }
 
-    info = g_malloc0(sizeof(VncBasicInfo));
     info->host = g_strdup(host);
     info->service = g_strdup(serv);
     info->family = inet_netfamily(sa->ss_family);
-    return info;
 }
 
-static VncBasicInfo *vnc_basic_info_get_from_server_addr(int fd)
+static void vnc_init_basic_info_from_server_addr(int fd, VncBasicInfo *info,
+                                                 Error **errp)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
 
     salen = sizeof(sa);
     if (getsockname(fd, (struct sockaddr*)&sa, &salen) < 0) {
-        return NULL;
+        error_setg_errno(errp, errno, "getsockname failed");
+        return;
     }
 
-    return vnc_basic_info_get(&sa, salen);
+    vnc_init_basic_info(&sa, salen, info, errp);
 }
 
-static VncBasicInfo *vnc_basic_info_get_from_remote_addr(int fd)
+static void vnc_init_basic_info_from_remote_addr(int fd, VncBasicInfo *info,
+                                                 Error **errp)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
 
     salen = sizeof(sa);
     if (getpeername(fd, (struct sockaddr*)&sa, &salen) < 0) {
-        return NULL;
+        error_setg_errno(errp, errno, "getpeername failed");
+        return;
     }
 
-    return vnc_basic_info_get(&sa, salen);
+    vnc_init_basic_info(&sa, salen, info, errp);
 }
 
 static const char *vnc_auth_name(VncDisplay *vd) {
@@ -256,15 +259,18 @@ static const char *vnc_auth_name(VncDisplay *vd) {
 static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
 {
     VncServerInfo *info;
-    VncBasicInfo *bi = vnc_basic_info_get_from_server_addr(vd->lsock);
-    if (!bi) {
-        return NULL;
-    }
+    Error *err = NULL;
 
     info = g_malloc(sizeof(*info));
-    info->base = bi;
+    info->base = g_malloc(sizeof(*info->base));
+    vnc_init_basic_info_from_server_addr(vd->lsock, info->base, &err);
     info->has_auth = true;
     info->auth = g_strdup(vnc_auth_name(vd));
+    if (err) {
+        qapi_free_VncServerInfo(info);
+        info = NULL;
+        error_free(err);
+    }
     return info;
 }
 
@@ -291,11 +297,16 @@ static void vnc_client_cache_auth(VncState *client)
 
 static void vnc_client_cache_addr(VncState *client)
 {
-    VncBasicInfo *bi = vnc_basic_info_get_from_remote_addr(client->csock);
+    Error *err = NULL;
 
-    if (bi) {
-        client->info = g_malloc0(sizeof(*client->info));
-        client->info->base = bi;
+    client->info = g_malloc0(sizeof(*client->info));
+    client->info->base = g_malloc0(sizeof(*client->info->base));
+    vnc_init_basic_info_from_remote_addr(client->csock, client->info->base,
+                                         &err);
+    if (err) {
+        qapi_free_VncClientInfo(client->info);
+        client->info = NULL;
+        error_free(err);
     }
 }
 
