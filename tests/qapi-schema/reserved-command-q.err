@@ -1,0 +1,1 @@
+tests/qapi-schema/reserved-command-q.json:5: 'command' uses invalid name 'q-unix'

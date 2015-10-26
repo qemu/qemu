@@ -1,4 +1,0 @@
-object :empty
-object Foo
-    member unix: int optional=False
-    member q-unix: bool optional=False

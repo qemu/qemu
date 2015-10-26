@@ -1,7 +1,5 @@
 # C entity name collision
-# FIXME - This parses, but fails to compile, because it attempts to declare
-# two 'qmp_q_unix' functions (one for 'q-unix', the other because c_name()
-# munges 'unix' to 'q_unix' to avoid reserved word collisions). We should
-# reject attempts to explicitly use 'q_' names, to reserve it for qapi.
+# We reject names like 'q-unix', because they can collide with the mangled
+# name for 'unix' in generated C.
 { 'command': 'unix' }
 { 'command': 'q-unix' }

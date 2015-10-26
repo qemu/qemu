@@ -376,7 +376,9 @@ def check_name(expr_info, source, name, allow_optional=False,
     # code always prefixes it with the enum name
     if enum_member:
         membername = '_' + membername
-    if not valid_name.match(membername):
+    # Reserve the entire 'q_' namespace for c_name()
+    if not valid_name.match(membername) or \
+       c_name(membername, False).startswith('q_'):
         raise QAPIExprError(expr_info,
                             "%s uses invalid name '%s'" % (source, name))
 
@@ -488,6 +490,10 @@ def check_type(expr_info, source, value, allow_array=False,
     for (key, arg) in value.items():
         check_name(expr_info, "Member of %s" % source, key,
                    allow_optional=allow_optional)
+        if c_name(key, False).startswith('has_'):
+            raise QAPIExprError(expr_info,
+                                "Member of %s uses reserved name '%s'"
+                                % (source, key))
         # Todo: allow dictionaries to represent default values of
         # an optional argument.
         check_type(expr_info, "Member '%s' of %s" % (key, source), arg,

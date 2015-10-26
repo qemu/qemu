@@ -112,7 +112,9 @@ and field names within a type, should be all lower case with words
 separated by a hyphen.  However, some existing older commands and
 complex types use underscore; when extending such expressions,
 consistency is preferred over blindly avoiding underscore.  Event
-names should be ALL_CAPS with words separated by underscore.
+names should be ALL_CAPS with words separated by underscore.  Field
+names cannot start with 'has-' or 'has_', as this is reserved for
+tracking optional fields.
 
 Any name (command, event, type, field, or enum value) beginning with
 "x-" is marked experimental, and may be withdrawn or changed
@@ -123,9 +125,10 @@ vendor), even if the rest of the name uses dash (example:
 __com.redhat_drive-mirror).  Other than downstream extensions (with
 leading underscore and the use of dots), all names should begin with a
 letter, and contain only ASCII letters, digits, dash, and underscore.
-It is okay to reuse names that match C keywords; the generator will
-rename a field named "default" in the QAPI to "q_default" in the
-generated C code.
+Names beginning with 'q_' are reserved for the generator: QMP names
+that resemble C keywords or other problematic strings will be munged
+in C to use this prefix.  For example, a field named "default" in
+qapi becomes "q_default" in the generated C code.
 
 In the rest of this document, usage lines are given for each
 expression type, with literal strings written in lower case and
