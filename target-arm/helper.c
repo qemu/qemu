@@ -6079,6 +6079,28 @@ simple_ap_to_rw_prot(CPUARMState *env, ARMMMUIdx mmu_idx, int ap)
     return simple_ap_to_rw_prot_is_user(ap, regime_is_user(env, mmu_idx));
 }
 
+/* Translate S2 section/page access permissions to protection flags
+ *
+ * @env:     CPUARMState
+ * @s2ap:    The 2-bit stage2 access permissions (S2AP)
+ * @xn:      XN (execute-never) bit
+ */
+static int get_S2prot(CPUARMState *env, int s2ap, int xn)
+{
+    int prot = 0;
+
+    if (s2ap & 1) {
+        prot |= PAGE_READ;
+    }
+    if (s2ap & 2) {
+        prot |= PAGE_WRITE;
+    }
+    if (!xn) {
+        prot |= PAGE_EXEC;
+    }
+    return prot;
+}
+
 /* Translate section/page access permissions to protection flags
  *
  * @env:     CPUARMState
@@ -6782,9 +6804,15 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
          */
         page_size = (1ULL << ((stride * (4 - level)) + 3));
         descaddr |= (address & (page_size - 1));
-        /* Extract attributes from the descriptor and merge with table attrs */
+        /* Extract attributes from the descriptor */
         attrs = extract64(descriptor, 2, 10)
             | (extract64(descriptor, 52, 12) << 10);
+
+        if (mmu_idx == ARMMMUIdx_S2NS) {
+            /* Stage 2 table descriptors do not include any attribute fields */
+            break;
+        }
+        /* Merge in attributes from table descriptors */
         attrs |= extract32(tableattrs, 0, 2) << 11; /* XN, PXN */
         attrs |= extract32(tableattrs, 3, 1) << 5; /* APTable[1] => AP[2] */
         /* The sense of AP[1] vs APTable[0] is reversed, as APTable[0] == 1
@@ -6806,11 +6834,16 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     }
 
     ap = extract32(attrs, 4, 2);
-    ns = extract32(attrs, 3, 1);
     xn = extract32(attrs, 12, 1);
-    pxn = extract32(attrs, 11, 1);
 
-    *prot = get_S1prot(env, mmu_idx, va_size == 64, ap, ns, xn, pxn);
+    if (mmu_idx == ARMMMUIdx_S2NS) {
+        ns = true;
+        *prot = get_S2prot(env, ap, xn);
+    } else {
+        ns = extract32(attrs, 3, 1);
+        pxn = extract32(attrs, 11, 1);
+        *prot = get_S1prot(env, mmu_idx, va_size == 64, ap, ns, xn, pxn);
+    }
 
     fault_type = permission_fault;
     if (!(*prot & (1 << access_type))) {
