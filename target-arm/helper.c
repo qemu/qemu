@@ -15,10 +15,10 @@
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
 
 #ifndef CONFIG_USER_ONLY
-static inline bool get_phys_addr(CPUARMState *env, target_ulong address,
-                                 int access_type, ARMMMUIdx mmu_idx,
-                                 hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
-                                 target_ulong *page_size, uint32_t *fsr);
+static bool get_phys_addr(CPUARMState *env, target_ulong address,
+                          int access_type, ARMMMUIdx mmu_idx,
+                          hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
+                          target_ulong *page_size, uint32_t *fsr);
 
 /* Definitions for the PMCCNTR and PMCR registers */
 #define PMCRD   0x8
@@ -7126,10 +7126,10 @@ static bool get_phys_addr_pmsav5(CPUARMState *env, uint32_t address,
  * @page_size: set to the size of the page containing phys_ptr
  * @fsr: set to the DFSR/IFSR value on failure
  */
-static inline bool get_phys_addr(CPUARMState *env, target_ulong address,
-                                 int access_type, ARMMMUIdx mmu_idx,
-                                 hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
-                                 target_ulong *page_size, uint32_t *fsr)
+static bool get_phys_addr(CPUARMState *env, target_ulong address,
+                          int access_type, ARMMMUIdx mmu_idx,
+                          hwaddr *phys_ptr, MemTxAttrs *attrs, int *prot,
+                          target_ulong *page_size, uint32_t *fsr)
 {
     if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
         /* TODO: when we support EL2 we should here call ourselves recursively
