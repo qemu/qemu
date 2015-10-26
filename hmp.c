@@ -841,11 +841,11 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
                        c, TpmModel_lookup[ti->model]);
 
         monitor_printf(mon, "  \\ %s: type=%s",
-                       ti->id, TpmTypeOptionsKind_lookup[ti->options->kind]);
+                       ti->id, TpmTypeOptionsKind_lookup[ti->options->type]);
 
-        switch (ti->options->kind) {
+        switch (ti->options->type) {
         case TPM_TYPE_OPTIONS_KIND_PASSTHROUGH:
-            tpo = ti->options->passthrough;
+            tpo = ti->options->u.passthrough;
             monitor_printf(mon, "%s%s%s%s",
                            tpo->has_path ? ",path=" : "",
                            tpo->has_path ? tpo->path : "",
