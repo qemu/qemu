@@ -2147,6 +2147,57 @@ void qmp_blockdev_close_tray(const char *device, Error **errp)
     blk_dev_change_media_cb(blk, true);
 }
 
+void qmp_blockdev_remove_medium(const char *device, Error **errp)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    AioContext *aio_context;
+    bool has_device;
+
+    blk = blk_by_name(device);
+    if (!blk) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
+        return;
+    }
+
+    /* For BBs without a device, we can exchange the BDS tree at will */
+    has_device = blk_get_attached_dev(blk);
+
+    if (has_device && !blk_dev_has_removable_media(blk)) {
+        error_setg(errp, "Device '%s' is not removable", device);
+        return;
+    }
+
+    if (has_device && !blk_dev_is_tray_open(blk)) {
+        error_setg(errp, "Tray of device '%s' is not open", device);
+        return;
+    }
+
+    bs = blk_bs(blk);
+    if (!bs) {
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
+        goto out;
+    }
+
+    /* This follows the convention established by bdrv_make_anon() */
+    if (bs->device_list.tqe_prev) {
+        QTAILQ_REMOVE(&bdrv_states, bs, device_list);
+        bs->device_list.tqe_prev = NULL;
+    }
+
+    blk_remove_bs(blk);
+
+out:
+    aio_context_release(aio_context);
+}
+
 /* throttling disk I/O limits */
 void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
                                int64_t bps_wr,

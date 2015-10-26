@@ -4038,6 +4038,51 @@ Example:
 EQMP
 
     {
+        .name       = "blockdev-remove-medium",
+        .args_type  = "device:s",
+        .mhandler.cmd_new = qmp_marshal_blockdev_remove_medium,
+    },
+
+SQMP
+blockdev-remove-medium
+----------------------
+
+Removes a medium (a block driver state tree) from a block device. That block
+device's tray must currently be open (unless there is no attached guest device).
+
+If the tray is open and there is no medium inserted, this will be a no-op.
+
+Arguments:
+
+- "device": block device name (json-string)
+
+Example:
+
+-> { "execute": "blockdev-remove-medium",
+     "arguments": { "device": "ide1-cd0" } }
+
+<- { "error": { "class": "GenericError",
+                "desc": "Tray of device 'ide1-cd0' is not open" } }
+
+-> { "execute": "blockdev-open-tray",
+     "arguments": { "device": "ide1-cd0" } }
+
+<- { "timestamp": { "seconds": 1418751627,
+                    "microseconds": 549958 },
+     "event": "DEVICE_TRAY_MOVED",
+     "data": { "device": "ide1-cd0",
+               "tray-open": true } }
+
+<- { "return": {} }
+
+-> { "execute": "blockdev-remove-medium",
+     "arguments": { "device": "ide1-cd0" } }
+
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "query-named-block-nodes",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_named_block_nodes,

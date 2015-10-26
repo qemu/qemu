@@ -1924,6 +1924,22 @@
 { 'command': 'blockdev-close-tray',
   'data': { 'device': 'str' } }
 
+##
+# @blockdev-remove-medium:
+#
+# Removes a medium (a block driver state tree) from a block device. That block
+# device's tray must currently be open (unless there is no attached guest
+# device).
+#
+# If the tray is open and there is no medium inserted, this will be a no-op.
+#
+# @device: block device name
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-remove-medium',
+  'data': { 'device': 'str' } }
+
 
 ##
 # @BlockErrorAction
