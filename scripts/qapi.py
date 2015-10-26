@@ -548,7 +548,8 @@ def check_union(expr, expr_info):
     base = expr.get('base')
     discriminator = expr.get('discriminator')
     members = expr['data']
-    values = {'MAX': '(automatic)', 'KIND': '(automatic)'}
+    values = {'MAX': '(automatic)', 'KIND': '(automatic)',
+              'TYPE': '(automatic)'}
 
     # Two types of unions, determined by discriminator.
 
