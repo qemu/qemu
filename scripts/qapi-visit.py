@@ -87,7 +87,8 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
 
     ret += gen_visit_fields(members, prefix='(*obj)->')
 
-    if re.search('^ *goto out;', ret, re.MULTILINE):
+    # 'goto out' produced for base, and by gen_visit_fields() for each member
+    if base or members:
         ret += mcgen('''
 
 out:
