@@ -222,4 +222,22 @@ static inline ulong virtio_sector_adjust(ulong sector)
     return sector * (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }
 
+struct VDev {
+    int nr_vqs;
+    VRing *vrings;
+    int cmd_vr_idx;
+    void *ring_area;
+    long wait_reply_timeout;
+    bool guessed_disk_nature;
+    SubChannelId schid;
+    SenseId senseid;
+    union {
+        VirtioBlkConfig blk;
+    } config;
+};
+typedef struct VDev VDev;
+
+VDev *virtio_get_device(void);
+VirtioDevType virtio_get_device_type(void);
+
 #endif /* VIRTIO_H */

@@ -11,12 +11,33 @@
 #include "s390-ccw.h"
 #include "virtio.h"
 
+#define VRING_WAIT_REPLY_TIMEOUT 3
+
 static VRing block[VIRTIO_MAX_VQS];
 static char ring_area[VIRTIO_RING_SIZE * VIRTIO_MAX_VQS]
                      __attribute__((__aligned__(PAGE_SIZE)));
-static int nr_vqs = 1;
 
 static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
+
+static VDev vdev = {
+    .nr_vqs = 1,
+    .vrings = block,
+    .cmd_vr_idx = 0,
+    .ring_area = ring_area,
+    .wait_reply_timeout = VRING_WAIT_REPLY_TIMEOUT,
+    .guessed_disk_nature = false,
+    .schid = { .one = 1 },
+};
+
+VDev *virtio_get_device(void)
+{
+    return &vdev;
+}
+
+VirtioDevType virtio_get_device_type(void)
+{
+    return vdev.senseid.cu_model;
+}
 
 /* virtio spec v1.0 para 4.3.3.2 */
 static long kvm_hypercall(unsigned long nr, unsigned long param1,
@@ -65,7 +86,7 @@ static int drain_irqs(SubChannelId schid)
     }
 }
 
-static int run_ccw(SubChannelId schid, int cmd, void *ptr, int len)
+static int run_ccw(VDev *vdev, int cmd, void *ptr, int len)
 {
     Ccw1 ccw = {};
     CmdOrb orb = {};
@@ -73,9 +94,9 @@ static int run_ccw(SubChannelId schid, int cmd, void *ptr, int len)
     int r;
 
     /* start command processing */
-    stsch_err(schid, &schib);
+    stsch_err(vdev->schid, &schib);
     schib.scsw.ctrl = SCSW_FCTL_START_FUNC;
-    msch(schid, &schib);
+    msch(vdev->schid, &schib);
 
     /* start subchannel command */
     orb.fmt = 1;
@@ -86,30 +107,16 @@ static int run_ccw(SubChannelId schid, int cmd, void *ptr, int len)
     ccw.cda = (long)ptr;
     ccw.count = len;
 
-    r = ssch(schid, &orb);
+    r = ssch(vdev->schid, &orb);
     /*
      * XXX Wait until device is done processing the CCW. For now we can
      *     assume that a simple tsch will have finished the CCW processing,
      *     but the architecture allows for asynchronous operation
      */
     if (!r) {
-        r = drain_irqs(schid);
+        r = drain_irqs(vdev->schid);
     }
     return r;
-}
-
-static void virtio_set_status(SubChannelId schid,
-                              unsigned long dev_addr)
-{
-    unsigned char status = dev_addr;
-    if (run_ccw(schid, CCW_CMD_WRITE_STATUS, &status, sizeof(status))) {
-        panic("Could not write status to host!\n");
-    }
-}
-
-static void virtio_reset(SubChannelId schid)
-{
-    run_ccw(schid, CCW_CMD_VDEV_RESET, NULL, 0);
 }
 
 static void vring_init(VRing *vr, VqInfo *info)
@@ -199,22 +206,22 @@ static int vr_poll(VRing *vr)
  *
  * Returns 0 on success, 1 on timeout.
  */
-static int vring_wait_reply(int timeout)
+static int vring_wait_reply(void)
 {
-    ulong target_second = get_second() + timeout;
+    ulong target_second = get_second() + vdev.wait_reply_timeout;
 
     /* Wait for any queue to be updated by the host */
     do {
         int i, r = 0;
 
-        for (i = 0; i < nr_vqs; i++) {
-            r += vr_poll(&block[i]);
+        for (i = 0; i < vdev.nr_vqs; i++) {
+            r += vr_poll(&vdev.vrings[i]);
         }
         yield();
         if (r) {
             return 0;
         }
-    } while (!timeout || (get_second() < target_second));
+    } while (!vdev.wait_reply_timeout || (get_second() < target_second));
 
     return 1;
 }
@@ -227,29 +234,28 @@ int virtio_read_many(ulong sector, void *load_addr, int sec_num)
 {
     VirtioBlkOuthdr out_hdr;
     u8 status;
-    int r;
+    VRing *vr = &vdev.vrings[vdev.cmd_vr_idx];
 
     /* Tell the host we want to read */
     out_hdr.type = VIRTIO_BLK_T_IN;
     out_hdr.ioprio = 99;
     out_hdr.sector = virtio_sector_adjust(sector);
 
-    vring_send_buf(&block[0], &out_hdr, sizeof(out_hdr), VRING_DESC_F_NEXT);
+    vring_send_buf(vr, &out_hdr, sizeof(out_hdr), VRING_DESC_F_NEXT);
 
     /* This is where we want to receive data */
-    vring_send_buf(&block[0], load_addr, virtio_get_block_size() * sec_num,
+    vring_send_buf(vr, load_addr, virtio_get_block_size() * sec_num,
                    VRING_DESC_F_WRITE | VRING_HIDDEN_IS_CHAIN |
                    VRING_DESC_F_NEXT);
 
     /* status field */
-    vring_send_buf(&block[0], &status, sizeof(u8), VRING_DESC_F_WRITE |
-                   VRING_HIDDEN_IS_CHAIN);
+    vring_send_buf(vr, &status, sizeof(u8),
+                   VRING_DESC_F_WRITE | VRING_HIDDEN_IS_CHAIN);
 
     /* Now we can tell the host to read */
-    vring_wait_reply(0);
+    vring_wait_reply();
 
-    r = drain_irqs(block[0].schid);
-    if (r) {
+    if (drain_irqs(vr->schid)) {
         /* Well, whatever status is supposed to contain... */
         status = 1;
     }
@@ -284,46 +290,43 @@ int virtio_read(ulong sector, void *load_addr)
     return virtio_read_many(sector, load_addr, 1);
 }
 
-static VirtioBlkConfig blk_cfg = {};
-static bool guessed_disk_nature;
-
 bool virtio_guessed_disk_nature(void)
 {
-    return guessed_disk_nature;
+    return vdev.guessed_disk_nature;
 }
 
 void virtio_assume_scsi(void)
 {
-    guessed_disk_nature = true;
-    blk_cfg.blk_size = 512;
-    blk_cfg.physical_block_exp = 0;
+    vdev.guessed_disk_nature = true;
+    vdev.config.blk.blk_size = 512;
+    vdev.config.blk.physical_block_exp = 0;
 }
 
 void virtio_assume_iso9660(void)
 {
-    guessed_disk_nature = true;
-    blk_cfg.blk_size = 2048;
-    blk_cfg.physical_block_exp = 0;
+    vdev.guessed_disk_nature = true;
+    vdev.config.blk.blk_size = 2048;
+    vdev.config.blk.physical_block_exp = 0;
 }
 
 void virtio_assume_eckd(void)
 {
-    guessed_disk_nature = true;
-    blk_cfg.blk_size = 4096;
-    blk_cfg.physical_block_exp = 0;
+    vdev.guessed_disk_nature = true;
+    vdev.config.blk.blk_size = 4096;
+    vdev.config.blk.physical_block_exp = 0;
 
     /* this must be here to calculate code segment position */
-    blk_cfg.geometry.heads = 15;
-    blk_cfg.geometry.sectors = 12;
+    vdev.config.blk.geometry.heads = 15;
+    vdev.config.blk.geometry.sectors = 12;
 }
 
 bool virtio_disk_is_scsi(void)
 {
-    if (guessed_disk_nature) {
+    if (vdev.guessed_disk_nature) {
         return (virtio_get_block_size()  == 512);
     }
-    return (blk_cfg.geometry.heads == 255)
-        && (blk_cfg.geometry.sectors == 63)
+    return (vdev.config.blk.geometry.heads == 255)
+        && (vdev.config.blk.geometry.sectors == 63)
         && (virtio_get_block_size()  == 512);
 }
 
@@ -350,11 +353,11 @@ bool virtio_disk_is_eckd(void)
 {
     const int block_size = virtio_get_block_size();
 
-    if (guessed_disk_nature) {
+    if (vdev.guessed_disk_nature) {
         return (block_size  == 4096);
     }
-    return (blk_cfg.geometry.heads == 15)
-        && (blk_cfg.geometry.sectors ==
+    return (vdev.config.blk.geometry.heads == 15)
+        && (vdev.config.blk.geometry.sectors ==
             virtio_eckd_sectors_for_block_size(block_size));
 }
 
@@ -365,36 +368,45 @@ bool virtio_ipl_disk_is_valid(void)
 
 int virtio_get_block_size(void)
 {
-    return blk_cfg.blk_size << blk_cfg.physical_block_exp;
+    return vdev.config.blk.blk_size << vdev.config.blk.physical_block_exp;
 }
 
 uint8_t virtio_get_heads(void)
 {
-    return blk_cfg.geometry.heads;
+    return vdev.config.blk.geometry.heads;
 }
 
 uint8_t virtio_get_sectors(void)
 {
-    return blk_cfg.geometry.sectors;
+    return vdev.config.blk.geometry.sectors;
 }
 
 uint64_t virtio_get_blocks(void)
 {
-    return blk_cfg.capacity /
+    return vdev.config.blk.capacity /
            (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }
 
-static void virtio_setup_ccw(SubChannelId schid,
-                             int nvr, void *cfg, int cfg_size)
+static void virtio_setup_ccw(VDev *vdev)
 {
-    int i;
+    int i, cfg_size;
+    unsigned char status = VIRTIO_CONFIG_S_DRIVER_OK;
 
-    blk_cfg.blk_size = 0; /* mark "illegal" - setup started... */
-    nr_vqs = nvr;
-    guessed_disk_nature = false;
+    vdev->config.blk.blk_size = 0; /* mark "illegal" - setup started... */
+    vdev->guessed_disk_nature = false;
 
-    virtio_reset(schid);
-    IPL_assert(run_ccw(schid, CCW_CMD_READ_CONF, cfg, cfg_size) == 0,
+    run_ccw(vdev, CCW_CMD_VDEV_RESET, NULL, 0);
+
+    switch (vdev->senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        vdev->nr_vqs = 1;
+        vdev->cmd_vr_idx = 0;
+        cfg_size = sizeof(vdev->config.blk);
+        break;
+    default:
+        panic("Unsupported virtio device\n");
+    }
+    IPL_assert(run_ccw(vdev, CCW_CMD_READ_CONF, &vdev->config, cfg_size) == 0,
                "Could not get block device configuration");
 
     /*
@@ -403,7 +415,7 @@ static void virtio_setup_ccw(SubChannelId schid,
      * expect it.
      */
 
-    for (i = 0; i < nr_vqs; i++) {
+    for (i = 0; i < vdev->nr_vqs; i++) {
         VqInfo info = {
             .queue = (unsigned long long) ring_area + (i * VIRTIO_RING_SIZE),
             .align = KVM_S390_VIRTIO_RING_ALIGN,
@@ -416,43 +428,46 @@ static void virtio_setup_ccw(SubChannelId schid,
         };
 
         IPL_assert(
-            run_ccw(schid, CCW_CMD_READ_VQ_CONF, &config, sizeof(config)) == 0,
+            run_ccw(vdev, CCW_CMD_READ_VQ_CONF, &config, sizeof(config)) == 0,
             "Could not get block device VQ configuration");
         info.num = config.num;
-        vring_init(&block[i], &info);
-        block[i].schid = schid;
-        IPL_assert(run_ccw(schid, CCW_CMD_SET_VQ, &info, sizeof(info)) == 0,
+        vring_init(&vdev->vrings[i], &info);
+        vdev->vrings[i].schid = vdev->schid;
+        IPL_assert(run_ccw(vdev, CCW_CMD_SET_VQ, &info, sizeof(info)) == 0,
                    "Cannot set VQ info");
     }
-    virtio_set_status(schid, VIRTIO_CONFIG_S_DRIVER_OK);
+    IPL_assert(
+        run_ccw(vdev, CCW_CMD_WRITE_STATUS, &status, sizeof(status)) == 0,
+        "Could not write status to host");
 }
 
 void virtio_setup_block(SubChannelId schid)
 {
-    virtio_setup_ccw(schid, 1, &blk_cfg, sizeof(blk_cfg));
+    vdev.schid = schid;
+    virtio_setup_ccw(&vdev);
 
     if (!virtio_ipl_disk_is_valid()) {
         /* make sure all getters but blocksize return 0 for invalid IPL disk */
-        memset(&blk_cfg, 0, sizeof(blk_cfg));
+        memset(&vdev.config.blk, 0, sizeof(vdev.config.blk));
         virtio_assume_scsi();
     }
 }
 
 bool virtio_is_blk(SubChannelId schid)
 {
-    int r;
-    SenseId senseid = {};
-
+    vdev.schid = schid;
+    memset(&vdev.senseid, 0, sizeof(vdev.senseid));
     /* run sense id command */
-    r = run_ccw(schid, CCW_CMD_SENSE_ID, &senseid, sizeof(senseid));
-    if (r) {
+    if (run_ccw(&vdev, CCW_CMD_SENSE_ID, &vdev.senseid, sizeof(vdev.senseid))) {
         return false;
     }
-    if ((senseid.cu_type != 0x3832) || (senseid.cu_model != VIRTIO_ID_BLOCK)) {
-        return false;
+    if (vdev.senseid.cu_type == 0x3832) {
+        switch (vdev.senseid.cu_model) {
+        case VIRTIO_ID_BLOCK:
+            return true;
+        }
     }
-
-    return true;
+    return false;
 }
 
 int enable_mss_facility(void)
