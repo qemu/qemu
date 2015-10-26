@@ -1579,8 +1579,9 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
-    if (has_snapshot_node_name && bdrv_find_node(snapshot_node_name)) {
-        error_setg(errp, "New snapshot node name already existing");
+    if (has_snapshot_node_name &&
+        bdrv_lookup_bs(snapshot_node_name, snapshot_node_name, NULL)) {
+        error_setg(errp, "New snapshot node name already in use");
         return;
     }
 
