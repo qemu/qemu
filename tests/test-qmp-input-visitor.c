@@ -360,7 +360,7 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
     g_assert_cmpint(tmp->enum1, ==, ENUM_ONE_VALUE1);
     g_assert_cmpstr(tmp->string, ==, "str");
     g_assert_cmpint(tmp->integer, ==, 41);
-    g_assert_cmpint(tmp->value1->boolean, ==, true);
+    g_assert_cmpint(tmp->u.value1->boolean, ==, true);
 
     base = qapi_UserDefFlatUnion_base(tmp);
     g_assert(&base->enum1 == &tmp->enum1);
@@ -377,15 +377,15 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42");
     visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
-    g_assert_cmpint(tmp->kind, ==, USER_DEF_ALTERNATE_KIND_I);
-    g_assert_cmpint(tmp->i, ==, 42);
+    g_assert_cmpint(tmp->type, ==, USER_DEF_ALTERNATE_KIND_I);
+    g_assert_cmpint(tmp->u.i, ==, 42);
     qapi_free_UserDefAlternate(tmp);
     visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "'string'");
     visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
-    g_assert_cmpint(tmp->kind, ==, USER_DEF_ALTERNATE_KIND_S);
-    g_assert_cmpstr(tmp->s, ==, "string");
+    g_assert_cmpint(tmp->type, ==, USER_DEF_ALTERNATE_KIND_S);
+    g_assert_cmpstr(tmp->u.s, ==, "string");
     qapi_free_UserDefAlternate(tmp);
     visitor_input_teardown(data, NULL);
 
@@ -424,8 +424,8 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
      * parse the same as ans */
     v = visitor_input_test_init(data, "42");
     visit_type_AltStrNum(v, &asn, NULL, &err);
-    /* FIXME g_assert_cmpint(asn->kind, == ALT_STR_NUM_KIND_N); */
-    /* FIXME g_assert_cmpfloat(asn->n, ==, 42); */
+    /* FIXME g_assert_cmpint(asn->type, == ALT_STR_NUM_KIND_N); */
+    /* FIXME g_assert_cmpfloat(asn->u.n, ==, 42); */
     g_assert(err);
     error_free(err);
     err = NULL;
@@ -434,29 +434,29 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumStr(v, &ans, NULL, &error_abort);
-    g_assert_cmpint(ans->kind, ==, ALT_NUM_STR_KIND_N);
-    g_assert_cmpfloat(ans->n, ==, 42);
+    g_assert_cmpint(ans->type, ==, ALT_NUM_STR_KIND_N);
+    g_assert_cmpfloat(ans->u.n, ==, 42);
     qapi_free_AltNumStr(ans);
     visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltStrInt(v, &asi, NULL, &error_abort);
-    g_assert_cmpint(asi->kind, ==, ALT_STR_INT_KIND_I);
-    g_assert_cmpint(asi->i, ==, 42);
+    g_assert_cmpint(asi->type, ==, ALT_STR_INT_KIND_I);
+    g_assert_cmpint(asi->u.i, ==, 42);
     qapi_free_AltStrInt(asi);
     visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltIntNum(v, &ain, NULL, &error_abort);
-    g_assert_cmpint(ain->kind, ==, ALT_INT_NUM_KIND_I);
-    g_assert_cmpint(ain->i, ==, 42);
+    g_assert_cmpint(ain->type, ==, ALT_INT_NUM_KIND_I);
+    g_assert_cmpint(ain->u.i, ==, 42);
     qapi_free_AltIntNum(ain);
     visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumInt(v, &ani, NULL, &error_abort);
-    g_assert_cmpint(ani->kind, ==, ALT_NUM_INT_KIND_I);
-    g_assert_cmpint(ani->i, ==, 42);
+    g_assert_cmpint(ani->type, ==, ALT_NUM_INT_KIND_I);
+    g_assert_cmpint(ani->u.i, ==, 42);
     qapi_free_AltNumInt(ani);
     visitor_input_teardown(data, NULL);
 
@@ -472,15 +472,15 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrNum(v, &asn, NULL, &error_abort);
-    g_assert_cmpint(asn->kind, ==, ALT_STR_NUM_KIND_N);
-    g_assert_cmpfloat(asn->n, ==, 42.5);
+    g_assert_cmpint(asn->type, ==, ALT_STR_NUM_KIND_N);
+    g_assert_cmpfloat(asn->u.n, ==, 42.5);
     qapi_free_AltStrNum(asn);
     visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumStr(v, &ans, NULL, &error_abort);
-    g_assert_cmpint(ans->kind, ==, ALT_NUM_STR_KIND_N);
-    g_assert_cmpfloat(ans->n, ==, 42.5);
+    g_assert_cmpint(ans->type, ==, ALT_NUM_STR_KIND_N);
+    g_assert_cmpfloat(ans->u.n, ==, 42.5);
     qapi_free_AltNumStr(ans);
     visitor_input_teardown(data, NULL);
 
@@ -494,15 +494,15 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltIntNum(v, &ain, NULL, &error_abort);
-    g_assert_cmpint(ain->kind, ==, ALT_INT_NUM_KIND_N);
-    g_assert_cmpfloat(ain->n, ==, 42.5);
+    g_assert_cmpint(ain->type, ==, ALT_INT_NUM_KIND_N);
+    g_assert_cmpfloat(ain->u.n, ==, 42.5);
     qapi_free_AltIntNum(ain);
     visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumInt(v, &ani, NULL, &error_abort);
-    g_assert_cmpint(ani->kind, ==, ALT_NUM_INT_KIND_N);
-    g_assert_cmpfloat(ani->n, ==, 42.5);
+    g_assert_cmpint(ani->type, ==, ALT_NUM_INT_KIND_N);
+    g_assert_cmpfloat(ani->u.n, ==, 42.5);
     qapi_free_AltNumInt(ani);
     visitor_input_teardown(data, NULL);
 }
@@ -532,68 +532,68 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
     visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &err);
     g_assert(err == NULL);
     g_assert(cvalue != NULL);
-    g_assert_cmpint(cvalue->kind, ==, kind);
+    g_assert_cmpint(cvalue->type, ==, kind);
 
     switch (kind) {
     case USER_DEF_NATIVE_LIST_UNION_KIND_INTEGER: {
         intList *elem = NULL;
-        for (i = 0, elem = cvalue->integer; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.integer; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_S8: {
         int8List *elem = NULL;
-        for (i = 0, elem = cvalue->s8; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.s8; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_S16: {
         int16List *elem = NULL;
-        for (i = 0, elem = cvalue->s16; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.s16; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_S32: {
         int32List *elem = NULL;
-        for (i = 0, elem = cvalue->s32; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.s32; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_S64: {
         int64List *elem = NULL;
-        for (i = 0, elem = cvalue->s64; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.s64; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_U8: {
         uint8List *elem = NULL;
-        for (i = 0, elem = cvalue->u8; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.u8; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_U16: {
         uint16List *elem = NULL;
-        for (i = 0, elem = cvalue->u16; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.u16; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_U32: {
         uint32List *elem = NULL;
-        for (i = 0, elem = cvalue->u32; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.u32; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_U64: {
         uint64List *elem = NULL;
-        for (i = 0, elem = cvalue->u64; elem; elem = elem->next, i++) {
+        for (i = 0, elem = cvalue->u.u64; elem; elem = elem->next, i++) {
             g_assert_cmpint(elem->value, ==, i);
         }
         break;
@@ -695,9 +695,9 @@ static void test_visitor_in_native_list_bool(TestInputVisitorData *data,
     visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &err);
     g_assert(err == NULL);
     g_assert(cvalue != NULL);
-    g_assert_cmpint(cvalue->kind, ==, USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN);
+    g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN);
 
-    for (i = 0, elem = cvalue->boolean; elem; elem = elem->next, i++) {
+    for (i = 0, elem = cvalue->u.boolean; elem; elem = elem->next, i++) {
         g_assert_cmpint(elem->value, ==, (i % 3 == 0) ? 1 : 0);
     }
 
@@ -730,9 +730,9 @@ static void test_visitor_in_native_list_string(TestInputVisitorData *data,
     visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &err);
     g_assert(err == NULL);
     g_assert(cvalue != NULL);
-    g_assert_cmpint(cvalue->kind, ==, USER_DEF_NATIVE_LIST_UNION_KIND_STRING);
+    g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_STRING);
 
-    for (i = 0, elem = cvalue->string; elem; elem = elem->next, i++) {
+    for (i = 0, elem = cvalue->u.string; elem; elem = elem->next, i++) {
         gchar str[8];
         sprintf(str, "%d", i);
         g_assert_cmpstr(elem->value, ==, str);
@@ -769,9 +769,9 @@ static void test_visitor_in_native_list_number(TestInputVisitorData *data,
     visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &err);
     g_assert(err == NULL);
     g_assert(cvalue != NULL);
-    g_assert_cmpint(cvalue->kind, ==, USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER);
+    g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER);
 
-    for (i = 0, elem = cvalue->number; elem; elem = elem->next, i++) {
+    for (i = 0, elem = cvalue->u.number; elem; elem = elem->next, i++) {
         GString *double_expected = g_string_new("");
         GString *double_actual = g_string_new("");
 
