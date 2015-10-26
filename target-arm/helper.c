@@ -6480,6 +6480,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     MMUFaultType fault_type = translation_fault;
     uint32_t level = 1;
     uint32_t epd = 0;
+    int32_t t0sz, t1sz;
     int32_t tsz;
     uint32_t tg;
     uint64_t ttbr;
@@ -6535,12 +6536,12 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * This is a Non-secure PL0/1 stage 1 translation, so controlled by
      * TTBCR/TTBR0/TTBR1 in accordance with ARM ARM DDI0406C table B-32:
      */
-    int32_t t0sz = extract32(tcr->raw_tcr, 0, 6);
+    t0sz = extract32(tcr->raw_tcr, 0, 6);
     if (va_size == 64) {
         t0sz = MIN(t0sz, 39);
         t0sz = MAX(t0sz, 16);
     }
-    int32_t t1sz = extract32(tcr->raw_tcr, 16, 6);
+    t1sz = extract32(tcr->raw_tcr, 16, 6);
     if (va_size == 64) {
         t1sz = MIN(t1sz, 39);
         t1sz = MAX(t1sz, 16);
