@@ -189,18 +189,18 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     if (err) {
         goto out;
     }
-    visit_get_next_type(v, (int*) &(*obj)->kind, %(c_name)s_qtypes, name, &err);
+    visit_get_next_type(v, (int*) &(*obj)->type, %(c_name)s_qtypes, name, &err);
     if (err) {
         goto out_obj;
     }
-    switch ((*obj)->kind) {
+    switch ((*obj)->type) {
 ''',
                 c_name=c_name(name))
 
     for var in variants.variants:
         ret += mcgen('''
     case %(case)s:
-        visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, name, &err);
+        visit_type_%(c_type)s(v, &(*obj)->u.%(c_name)s, name, &err);
         break;
 ''',
                      case=c_enum_const(variants.tag_member.type.name,
@@ -261,22 +261,16 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
 ''',
                      c_type=variants.tag_member.type.c_name(),
-                     # TODO ugly special case for simple union
-                     # Use same tag name in C as on the wire to get rid of
-                     # it, then: c_name=c_name(variants.tag_member.name)
-                     c_name='kind',
+                     c_name=c_name(variants.tag_member.name),
                      name=variants.tag_member.name)
     ret += gen_err_check(label='out_obj')
     ret += mcgen('''
-    if (!visit_start_union(v, !!(*obj)->data, &err) || err) {
+    if (!visit_start_union(v, !!(*obj)->u.data, &err) || err) {
         goto out_obj;
     }
     switch ((*obj)->%(c_name)s) {
 ''',
-                 # TODO ugly special case for simple union
-                 # Use same tag name in C as on the wire to get rid of
-                 # it, then: c_name=c_name(variants.tag_member.name)
-                 c_name=c_name(variants.tag_name or 'kind'))
+                 c_name=c_name(variants.tag_member.name))
 
     for var in variants.variants:
         # TODO ugly special case for simple union
@@ -288,13 +282,13 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
                                        var.name))
         if simple_union_type:
             ret += mcgen('''
-        visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "data", &err);
+        visit_type_%(c_type)s(v, &(*obj)->u.%(c_name)s, "data", &err);
 ''',
                          c_type=simple_union_type.c_name(),
                          c_name=c_name(var.name))
         else:
             ret += mcgen('''
-        visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
+        visit_type_implicit_%(c_type)s(v, &(*obj)->u.%(c_name)s, &err);
 ''',
                          c_type=var.type.c_name(),
                          c_name=c_name(var.name))
@@ -310,7 +304,7 @@ out_obj:
     error_propagate(errp, err);
     err = NULL;
     if (*obj) {
-        visit_end_union(v, !!(*obj)->data, &err);
+        visit_end_union(v, !!(*obj)->u.data, &err);
     }
     error_propagate(errp, err);
     err = NULL;
