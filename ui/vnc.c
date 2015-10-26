@@ -3524,9 +3524,9 @@ void vnc_display_open(const char *id, Error **errp)
         }
 
         if (strncmp(vnc, "unix:", 5) == 0) {
-            saddr->kind = SOCKET_ADDRESS_KIND_UNIX;
-            saddr->q_unix = g_new0(UnixSocketAddress, 1);
-            saddr->q_unix->path = g_strdup(vnc + 5);
+            saddr->type = SOCKET_ADDRESS_KIND_UNIX;
+            saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
+            saddr->u.q_unix->path = g_strdup(vnc + 5);
 
             if (vs->ws_enabled) {
                 error_setg(errp, "UNIX sockets not supported with websock");
@@ -3534,12 +3534,12 @@ void vnc_display_open(const char *id, Error **errp)
             }
         } else {
             unsigned long long baseport;
-            saddr->kind = SOCKET_ADDRESS_KIND_INET;
-            saddr->inet = g_new0(InetSocketAddress, 1);
+            saddr->type = SOCKET_ADDRESS_KIND_INET;
+            saddr->u.inet = g_new0(InetSocketAddress, 1);
             if (vnc[0] == '[' && vnc[hlen - 1] == ']') {
-                saddr->inet->host = g_strndup(vnc + 1, hlen - 2);
+                saddr->u.inet->host = g_strndup(vnc + 1, hlen - 2);
             } else {
-                saddr->inet->host = g_strndup(vnc, hlen);
+                saddr->u.inet->host = g_strndup(vnc, hlen);
             }
             if (parse_uint_full(h + 1, &baseport, 10) < 0) {
                 error_setg(errp, "can't convert to a number: %s", h + 1);
@@ -3550,28 +3550,28 @@ void vnc_display_open(const char *id, Error **errp)
                 error_setg(errp, "port %s out of range", h + 1);
                 goto fail;
             }
-            saddr->inet->port = g_strdup_printf(
+            saddr->u.inet->port = g_strdup_printf(
                 "%d", (int)baseport + 5900);
 
             if (to) {
-                saddr->inet->has_to = true;
-                saddr->inet->to = to;
+                saddr->u.inet->has_to = true;
+                saddr->u.inet->to = to;
             }
-            saddr->inet->ipv4 = saddr->inet->has_ipv4 = has_ipv4;
-            saddr->inet->ipv6 = saddr->inet->has_ipv6 = has_ipv6;
+            saddr->u.inet->ipv4 = saddr->u.inet->has_ipv4 = has_ipv4;
+            saddr->u.inet->ipv6 = saddr->u.inet->has_ipv6 = has_ipv6;
 
             if (vs->ws_enabled) {
-                wsaddr->kind = SOCKET_ADDRESS_KIND_INET;
-                wsaddr->inet = g_new0(InetSocketAddress, 1);
-                wsaddr->inet->host = g_strdup(saddr->inet->host);
-                wsaddr->inet->port = g_strdup(websocket);
+                wsaddr->type = SOCKET_ADDRESS_KIND_INET;
+                wsaddr->u.inet = g_new0(InetSocketAddress, 1);
+                wsaddr->u.inet->host = g_strdup(saddr->u.inet->host);
+                wsaddr->u.inet->port = g_strdup(websocket);
 
                 if (to) {
-                    wsaddr->inet->has_to = true;
-                    wsaddr->inet->to = to;
+                    wsaddr->u.inet->has_to = true;
+                    wsaddr->u.inet->to = to;
                 }
-                wsaddr->inet->ipv4 = wsaddr->inet->has_ipv4 = has_ipv4;
-                wsaddr->inet->ipv6 = wsaddr->inet->has_ipv6 = has_ipv6;
+                wsaddr->u.inet->ipv4 = wsaddr->u.inet->has_ipv4 = has_ipv4;
+                wsaddr->u.inet->ipv6 = wsaddr->u.inet->has_ipv6 = has_ipv6;
             }
         }
     } else {
@@ -3770,7 +3770,7 @@ void vnc_display_open(const char *id, Error **errp)
         if (csock < 0) {
             goto fail;
         }
-        vs->is_unix = saddr->kind == SOCKET_ADDRESS_KIND_UNIX;
+        vs->is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
         vnc_connect(vs, csock, false, false);
     } else {
         /* listen for connects */
@@ -3778,7 +3778,7 @@ void vnc_display_open(const char *id, Error **errp)
         if (vs->lsock < 0) {
             goto fail;
         }
-        vs->is_unix = saddr->kind == SOCKET_ADDRESS_KIND_UNIX;
+        vs->is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
         if (vs->ws_enabled) {
             vs->lwebsock = socket_listen(wsaddr, errp);
             if (vs->lwebsock < 0) {

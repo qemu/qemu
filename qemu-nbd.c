@@ -362,17 +362,17 @@ static SocketAddress *nbd_build_socket_address(const char *sockpath,
 
     saddr = g_new0(SocketAddress, 1);
     if (sockpath) {
-        saddr->kind = SOCKET_ADDRESS_KIND_UNIX;
-        saddr->q_unix = g_new0(UnixSocketAddress, 1);
-        saddr->q_unix->path = g_strdup(sockpath);
+        saddr->type = SOCKET_ADDRESS_KIND_UNIX;
+        saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
+        saddr->u.q_unix->path = g_strdup(sockpath);
     } else {
-        saddr->kind = SOCKET_ADDRESS_KIND_INET;
-        saddr->inet = g_new0(InetSocketAddress, 1);
-        saddr->inet->host = g_strdup(bindto);
+        saddr->type = SOCKET_ADDRESS_KIND_INET;
+        saddr->u.inet = g_new0(InetSocketAddress, 1);
+        saddr->u.inet->host = g_strdup(bindto);
         if (port) {
-            saddr->inet->port = g_strdup(port);
+            saddr->u.inet->port = g_strdup(port);
         } else  {
-            saddr->inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
+            saddr->u.inet->port = g_strdup_printf("%d", NBD_DEFAULT_PORT);
         }
     }
 
