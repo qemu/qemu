@@ -390,10 +390,10 @@ def add_name(name, info, meta, implicit=False):
         raise QAPIExprError(info,
                             "%s '%s' is already defined"
                             % (all_names[name], name))
-    if not implicit and name.endswith('Kind'):
+    if not implicit and (name.endswith('Kind') or name.endswith('List')):
         raise QAPIExprError(info,
-                            "%s '%s' should not end in 'Kind'"
-                            % (meta, name))
+                            "%s '%s' should not end in '%s'"
+                            % (meta, name, name[-4:]))
     all_names[name] = meta
 
 
@@ -1196,9 +1196,7 @@ class QAPISchema(object):
         return name
 
     def _make_array_type(self, element_type, info):
-        # TODO fooList namespace is not reserved; user can create collisions,
-        # or abuse our type system with ['fooList'] for 2D array
-        name = element_type + 'List'
+        name = element_type + 'List'   # Use namespace reserved by add_name()
         if not self.lookup_type(name):
             self._def_entity(QAPISchemaArrayType(name, info, element_type))
         return name

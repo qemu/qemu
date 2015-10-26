@@ -1,3 +1,0 @@
-object :empty
-object FooList
-    member s: str optional=False
