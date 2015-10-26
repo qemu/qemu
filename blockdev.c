@@ -2088,6 +2088,42 @@ out:
     aio_context_release(aio_context);
 }
 
+void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
+                            Error **errp)
+{
+    BlockBackend *blk;
+    bool locked;
+
+    if (!has_force) {
+        force = false;
+    }
+
+    blk = blk_by_name(device);
+    if (!blk) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
+        return;
+    }
+
+    if (!blk_dev_has_removable_media(blk)) {
+        error_setg(errp, "Device '%s' is not removable", device);
+        return;
+    }
+
+    if (blk_dev_is_tray_open(blk)) {
+        return;
+    }
+
+    locked = blk_dev_is_medium_locked(blk);
+    if (locked) {
+        blk_dev_eject_request(blk, force);
+    }
+
+    if (!locked || force) {
+        blk_dev_change_media_cb(blk, false);
+    }
+}
+
 /* throttling disk I/O limits */
 void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
                                int64_t bps_wr,

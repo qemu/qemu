@@ -3955,6 +3955,54 @@ Example (2):
 EQMP
 
     {
+        .name       = "blockdev-open-tray",
+        .args_type  = "device:s,force:b?",
+        .mhandler.cmd_new = qmp_marshal_blockdev_open_tray,
+    },
+
+SQMP
+blockdev-open-tray
+------------------
+
+Opens a block device's tray. If there is a block driver state tree inserted as a
+medium, it will become inaccessible to the guest (but it will remain associated
+to the block device, so closing the tray will make it accessible again).
+
+If the tray was already open before, this will be a no-op.
+
+Once the tray opens, a DEVICE_TRAY_MOVED event is emitted. There are cases in
+which no such event will be generated, these include:
+- if the guest has locked the tray, @force is false and the guest does not
+  respond to the eject request
+- if the BlockBackend denoted by @device does not have a guest device attached
+  to it
+- if the guest device does not have an actual tray and is empty, for instance
+  for floppy disk drives
+
+Arguments:
+
+- "device": block device name (json-string)
+- "force": if false (the default), an eject request will be sent to the guest if
+           it has locked the tray (and the tray will not be opened immediately);
+           if true, the tray will be opened regardless of whether it is locked
+           (json-bool, optional)
+
+Example:
+
+-> { "execute": "blockdev-open-tray",
+     "arguments": { "device": "ide1-cd0" } }
+
+<- { "timestamp": { "seconds": 1418751016,
+                    "microseconds": 716996 },
+     "event": "DEVICE_TRAY_MOVED",
+     "data": { "device": "ide1-cd0",
+               "tray-open": true } }
+
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "query-named-block-nodes",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_named_block_nodes,
