@@ -1185,6 +1185,18 @@ void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
                        &snapshot, errp);
 }
 
+void qmp_blockdev_snapshot(const char *node, const char *overlay,
+                           Error **errp)
+{
+    BlockdevSnapshot snapshot_data = {
+        .node = (char *) node,
+        .overlay = (char *) overlay
+    };
+
+    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT,
+                       &snapshot_data, errp);
+}
+
 void qmp_blockdev_snapshot_internal_sync(const char *device,
                                          const char *name,
                                          Error **errp)
@@ -1530,58 +1542,48 @@ typedef struct ExternalSnapshotState {
 static void external_snapshot_prepare(BlkTransactionState *common,
                                       Error **errp)
 {
-    int flags, ret;
-    QDict *options;
+    int flags = 0, ret;
+    QDict *options = NULL;
     Error *local_err = NULL;
-    bool has_device = false;
+    /* Device and node name of the image to generate the snapshot from */
     const char *device;
-    bool has_node_name = false;
     const char *node_name;
-    bool has_snapshot_node_name = false;
-    const char *snapshot_node_name;
+    /* Reference to the new image (for 'blockdev-snapshot') */
+    const char *snapshot_ref;
+    /* File name of the new image (for 'blockdev-snapshot-sync') */
     const char *new_image_file;
-    const char *format = "qcow2";
-    enum NewImageMode mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
     TransactionAction *action = common->action;
 
-    /* get parameters */
-    g_assert(action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
-
-    has_device = action->u.blockdev_snapshot_sync->has_device;
-    device = action->u.blockdev_snapshot_sync->device;
-    has_node_name = action->u.blockdev_snapshot_sync->has_node_name;
-    node_name = action->u.blockdev_snapshot_sync->node_name;
-    has_snapshot_node_name =
-        action->u.blockdev_snapshot_sync->has_snapshot_node_name;
-    snapshot_node_name = action->u.blockdev_snapshot_sync->snapshot_node_name;
-
-    new_image_file = action->u.blockdev_snapshot_sync->snapshot_file;
-    if (action->u.blockdev_snapshot_sync->has_format) {
-        format = action->u.blockdev_snapshot_sync->format;
-    }
-    if (action->u.blockdev_snapshot_sync->has_mode) {
-        mode = action->u.blockdev_snapshot_sync->mode;
+    /* 'blockdev-snapshot' and 'blockdev-snapshot-sync' have similar
+     * purpose but a different set of parameters */
+    switch (action->type) {
+    case TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT:
+        {
+            BlockdevSnapshot *s = action->u.blockdev_snapshot;
+            device = s->node;
+            node_name = s->node;
+            new_image_file = NULL;
+            snapshot_ref = s->overlay;
+        }
+        break;
+    case TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC:
+        {
+            BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync;
+            device = s->has_device ? s->device : NULL;
+            node_name = s->has_node_name ? s->node_name : NULL;
+            new_image_file = s->snapshot_file;
+            snapshot_ref = NULL;
+        }
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     /* start processing */
-    state->old_bs = bdrv_lookup_bs(has_device ? device : NULL,
-                                   has_node_name ? node_name : NULL,
-                                   &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    if (has_node_name && !has_snapshot_node_name) {
-        error_setg(errp, "New snapshot node name missing");
-        return;
-    }
-
-    if (has_snapshot_node_name &&
-        bdrv_lookup_bs(snapshot_node_name, snapshot_node_name, NULL)) {
-        error_setg(errp, "New snapshot node name already in use");
+    state->old_bs = bdrv_lookup_bs(device, node_name, errp);
+    if (!state->old_bs) {
         return;
     }
 
@@ -1612,35 +1614,70 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
-    flags = state->old_bs->open_flags;
+    if (action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC) {
+        BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync;
+        const char *format = s->has_format ? s->format : "qcow2";
+        enum NewImageMode mode;
+        const char *snapshot_node_name =
+            s->has_snapshot_node_name ? s->snapshot_node_name : NULL;
 
-    /* create new image w/backing file */
-    if (mode != NEW_IMAGE_MODE_EXISTING) {
-        bdrv_img_create(new_image_file, format,
-                        state->old_bs->filename,
-                        state->old_bs->drv->format_name,
-                        NULL, -1, flags, &local_err, false);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (node_name && !snapshot_node_name) {
+            error_setg(errp, "New snapshot node name missing");
             return;
         }
+
+        if (snapshot_node_name &&
+            bdrv_lookup_bs(snapshot_node_name, snapshot_node_name, NULL)) {
+            error_setg(errp, "New snapshot node name already in use");
+            return;
+        }
+
+        flags = state->old_bs->open_flags;
+
+        /* create new image w/backing file */
+        mode = s->has_mode ? s->mode : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+        if (mode != NEW_IMAGE_MODE_EXISTING) {
+            bdrv_img_create(new_image_file, format,
+                            state->old_bs->filename,
+                            state->old_bs->drv->format_name,
+                            NULL, -1, flags, &local_err, false);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+        }
+
+        options = qdict_new();
+        if (s->has_snapshot_node_name) {
+            qdict_put(options, "node-name",
+                      qstring_from_str(snapshot_node_name));
+        }
+        qdict_put(options, "driver", qstring_from_str(format));
+
+        flags |= BDRV_O_NO_BACKING;
     }
 
-    options = qdict_new();
-    if (has_snapshot_node_name) {
-        qdict_put(options, "node-name",
-                  qstring_from_str(snapshot_node_name));
-    }
-    qdict_put(options, "driver", qstring_from_str(format));
-
-    /* TODO Inherit bs->options or only take explicit options with an
-     * extended QMP command? */
     assert(state->new_bs == NULL);
-    ret = bdrv_open(&state->new_bs, new_image_file, NULL, options,
-                    flags | BDRV_O_NO_BACKING, &local_err);
+    ret = bdrv_open(&state->new_bs, new_image_file, snapshot_ref, options,
+                    flags, errp);
     /* We will manually add the backing_hd field to the bs later */
     if (ret != 0) {
-        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (state->new_bs->blk != NULL) {
+        error_setg(errp, "The snapshot is already in use by %s",
+                   blk_name(state->new_bs->blk));
+        return;
+    }
+
+    if (bdrv_op_is_blocked(state->new_bs, BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT,
+                           errp)) {
+        return;
+    }
+
+    if (state->new_bs->backing != NULL) {
+        error_setg(errp, "The snapshot already has a backing image");
     }
 }
 
@@ -1843,6 +1880,12 @@ static void abort_commit(BlkTransactionState *common)
 }
 
 static const BdrvActionOps actions[] = {
+    [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT] = {
+        .instance_size = sizeof(ExternalSnapshotState),
+        .prepare  = external_snapshot_prepare,
+        .commit   = external_snapshot_commit,
+        .abort = external_snapshot_abort,
+    },
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
         .instance_size = sizeof(ExternalSnapshotState),
         .prepare  = external_snapshot_prepare,

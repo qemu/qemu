@@ -705,6 +705,21 @@
             '*format': 'str', '*mode': 'NewImageMode' } }
 
 ##
+# @BlockdevSnapshot
+#
+# @node: device or node name that will have a snapshot created.
+#
+# @overlay: reference to the existing block device that will become
+#           the overlay of @node, as part of creating the snapshot.
+#           It must not have a current backing file (this can be
+#           achieved by passing "backing": "" to blockdev-add).
+#
+# Since 2.5
+##
+{ 'struct': 'BlockdevSnapshot',
+  'data': { 'node': 'str', 'overlay': 'str' } }
+
+##
 # @DriveBackup
 #
 # @device: the name of the device which should be copied.
@@ -799,6 +814,19 @@
 ##
 { 'command': 'blockdev-snapshot-sync',
   'data': 'BlockdevSnapshotSync' }
+
+
+##
+# @blockdev-snapshot
+#
+# Generates a snapshot of a block device.
+#
+# For the arguments, see the documentation of BlockdevSnapshot.
+#
+# Since 2.5
+##
+{ 'command': 'blockdev-snapshot',
+  'data': 'BlockdevSnapshot' }
 
 ##
 # @change-backing-file

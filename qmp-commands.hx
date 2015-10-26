@@ -1495,6 +1495,44 @@ Example:
 EQMP
 
     {
+        .name       = "blockdev-snapshot",
+        .args_type  = "node:s,overlay:s",
+        .mhandler.cmd_new = qmp_marshal_blockdev_snapshot,
+    },
+
+SQMP
+blockdev-snapshot
+-----------------
+Since 2.5
+
+Create a snapshot, by installing 'node' as the backing image of
+'overlay'. Additionally, if 'node' is associated with a block
+device, the block device changes to using 'overlay' as its new active
+image.
+
+Arguments:
+
+- "node": device that will have a snapshot created (json-string)
+- "overlay": device that will have 'node' as its backing image (json-string)
+
+Example:
+
+-> { "execute": "blockdev-add",
+                "arguments": { "options": { "driver": "qcow2",
+                                            "node-name": "node1534",
+                                            "file": { "driver": "file",
+                                                      "filename": "hd1.qcow2" },
+                                            "backing": "" } } }
+
+<- { "return": {} }
+
+-> { "execute": "blockdev-snapshot", "arguments": { "node": "ide-hd0",
+                                                    "overlay": "node1534" } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "blockdev-snapshot-internal-sync",
         .args_type  = "device:B,name:s",
         .mhandler.cmd_new = qmp_marshal_blockdev_snapshot_internal_sync,

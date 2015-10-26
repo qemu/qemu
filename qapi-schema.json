@@ -1545,9 +1545,11 @@
 # abort since 1.6
 # blockdev-snapshot-internal-sync since 1.7
 # blockdev-backup since 2.3
+# blockdev-snapshot since 2.5
 ##
 { 'union': 'TransactionAction',
   'data': {
+       'blockdev-snapshot': 'BlockdevSnapshot',
        'blockdev-snapshot-sync': 'BlockdevSnapshotSync',
        'drive-backup': 'DriveBackup',
        'blockdev-backup': 'BlockdevBackup',
