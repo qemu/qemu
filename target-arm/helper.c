@@ -21,6 +21,12 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
                           target_ulong *page_size, uint32_t *fsr,
                           ARMMMUFaultInfo *fi);
 
+static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
+                               int access_type, ARMMMUIdx mmu_idx,
+                               hwaddr *phys_ptr, MemTxAttrs *txattrs, int *prot,
+                               target_ulong *page_size_ptr, uint32_t *fsr,
+                               ARMMMUFaultInfo *fi);
+
 /* Definitions for the PMCCNTR and PMCR registers */
 #define PMCRD   0x8
 #define PMCRC   0x4
@@ -6207,6 +6213,32 @@ static bool get_level1_table_address(CPUARMState *env, ARMMMUIdx mmu_idx,
     return true;
 }
 
+/* Translate a S1 pagetable walk through S2 if needed.  */
+static hwaddr S1_ptw_translate(CPUARMState *env, ARMMMUIdx mmu_idx,
+                               hwaddr addr, MemTxAttrs txattrs,
+                               uint32_t *fsr,
+                               ARMMMUFaultInfo *fi)
+{
+    if ((mmu_idx == ARMMMUIdx_S1NSE0 || mmu_idx == ARMMMUIdx_S1NSE1) &&
+        !regime_translation_disabled(env, ARMMMUIdx_S2NS)) {
+        target_ulong s2size;
+        hwaddr s2pa;
+        int s2prot;
+        int ret;
+
+        ret = get_phys_addr_lpae(env, addr, 0, ARMMMUIdx_S2NS, &s2pa,
+                                 &txattrs, &s2prot, &s2size, fsr, fi);
+        if (ret) {
+            fi->s2addr = addr;
+            fi->stage2 = true;
+            fi->s1ptw = true;
+            return ~0;
+        }
+        addr = s2pa;
+    }
+    return addr;
+}
+
 /* All loads done in the course of a page table walk go through here.
  * TODO: rather than ignoring errors from physical memory reads (which
  * are external aborts in ARM terminology) we should propagate this
@@ -6222,11 +6254,19 @@ static uint32_t arm_ldl_ptw(CPUState *cs, hwaddr addr, bool is_secure)
     return address_space_ldl(cs->as, addr, attrs, NULL);
 }
 
-static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure)
+static uint64_t arm_ldq_ptw(CPUState *cs, hwaddr addr, bool is_secure,
+                            ARMMMUIdx mmu_idx, uint32_t *fsr,
+                            ARMMMUFaultInfo *fi)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
     MemTxAttrs attrs = {};
 
     attrs.secure = is_secure;
+    addr = S1_ptw_translate(env, mmu_idx, addr, attrs, fsr, fi);
+    if (fi->s1ptw) {
+        return 0;
+    }
     return address_space_ldq(cs->as, addr, attrs, NULL);
 }
 
@@ -6785,7 +6825,11 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         descaddr |= (address >> (stride * (4 - level))) & descmask;
         descaddr &= ~7ULL;
         nstable = extract32(tableattrs, 4, 1);
-        descriptor = arm_ldq_ptw(cs, descaddr, !nstable);
+        descriptor = arm_ldq_ptw(cs, descaddr, !nstable, mmu_idx, fsr, fi);
+        if (fi->s1ptw) {
+            goto do_fault;
+        }
+
         if (!(descriptor & 1) ||
             (!(descriptor & 2) && (level == 3))) {
             /* Invalid, or the Reserved level 3 encoding */
@@ -6869,6 +6913,8 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
 do_fault:
     /* Long-descriptor format IFSR/DFSR value */
     *fsr = (1 << 9) | (fault_type << 2) | level;
+    /* Tag the error as S2 for failed S1 PTW at S2 or ordinary S2.  */
+    fi->stage2 = fi->s1ptw || (mmu_idx == ARMMMUIdx_S2NS);
     return true;
 }
 

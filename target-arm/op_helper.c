@@ -104,10 +104,10 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
          * information; this is always true for exceptions reported to EL1.
          */
         if (is_write == 2) {
-            syn = syn_insn_abort(same_el, 0, 0, syn);
+            syn = syn_insn_abort(same_el, 0, fi.s1ptw, syn);
             exc = EXCP_PREFETCH_ABORT;
         } else {
-            syn = syn_data_abort(same_el, 0, 0, 0, is_write == 1, syn);
+            syn = syn_data_abort(same_el, 0, 0, fi.s1ptw, is_write == 1, syn);
             if (is_write == 1 && arm_feature(env, ARM_FEATURE_V6)) {
                 fsr |= (1 << 11);
             }
