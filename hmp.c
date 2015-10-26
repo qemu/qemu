@@ -1345,22 +1345,25 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     const char *arg = qdict_get_try_str(qdict, "arg");
     Error *err = NULL;
 
-    if (strcmp(device, "vnc") == 0 &&
-            (strcmp(target, "passwd") == 0 ||
-             strcmp(target, "password") == 0)) {
-        if (!arg) {
-            monitor_read_password(mon, hmp_change_read_arg, NULL);
+    if (strcmp(device, "vnc") == 0) {
+        if (strcmp(target, "passwd") == 0 ||
+            strcmp(target, "password") == 0) {
+            if (!arg) {
+                monitor_read_password(mon, hmp_change_read_arg, NULL);
+                return;
+            }
+        }
+        qmp_change("vnc", target, !!arg, arg, &err);
+    } else {
+        qmp_blockdev_change_medium(device, target, !!arg, arg, &err);
+        if (err &&
+            error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
+            error_free(err);
+            monitor_read_block_device_key(mon, device, NULL, NULL);
             return;
         }
     }
 
-    qmp_change(device, target, !!arg, arg, &err);
-    if (err &&
-        error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
-        error_free(err);
-        monitor_read_block_device_key(mon, device, NULL, NULL);
-        return;
-    }
     hmp_handle_error(mon, &err);
 }
 
