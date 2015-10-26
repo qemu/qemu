@@ -1393,6 +1393,7 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     BlockDriverState *bs;
     BlockDriver *drv = NULL;
     const char *drvname;
+    const char *backing;
     Error *local_err = NULL;
     int snapshot_flags = 0;
 
@@ -1459,6 +1460,12 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
     }
 
     assert(drvname || !(flags & BDRV_O_PROTOCOL));
+
+    backing = qdict_get_try_str(options, "backing");
+    if (backing && *backing == '\0') {
+        flags |= BDRV_O_NO_BACKING;
+        qdict_del(options, "backing");
+    }
 
     bs->open_flags = flags;
     bs->options = options;
