@@ -83,8 +83,9 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 {
     bool ret;
     uint32_t fsr = 0;
+    ARMMMUFaultInfo fi = {};
 
-    ret = arm_tlb_fill(cs, addr, is_write, mmu_idx, &fsr);
+    ret = arm_tlb_fill(cs, addr, is_write, mmu_idx, &fsr, &fi);
     if (unlikely(ret)) {
         ARMCPU *cpu = ARM_CPU(cs);
         CPUARMState *env = &cpu->env;

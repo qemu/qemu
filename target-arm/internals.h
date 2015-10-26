@@ -414,8 +414,21 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type);
 void arm_handle_psci_call(ARMCPU *cpu);
 #endif
 
+/**
+ * ARMMMUFaultInfo: Information describing an ARM MMU Fault
+ * @s2addr: Address that caused a fault at stage 2
+ * @stage2: True if we faulted at stage 2
+ * @s1ptw: True if we faulted at stage 2 while doing a stage 1 page-table walk
+ */
+typedef struct ARMMMUFaultInfo ARMMMUFaultInfo;
+struct ARMMMUFaultInfo {
+    target_ulong s2addr;
+    bool stage2;
+    bool s1ptw;
+};
+
 /* Do a page table walk and add page to TLB if possible */
 bool arm_tlb_fill(CPUState *cpu, vaddr address, int rw, int mmu_idx,
-                  uint32_t *fsr);
+                  uint32_t *fsr, ARMMMUFaultInfo *fi);
 
 #endif
