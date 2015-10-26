@@ -1958,12 +1958,12 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
         value = info->value;
 
         if (value) {
-            switch (value->kind) {
+            switch (value->type) {
             case MEMORY_DEVICE_INFO_KIND_DIMM:
-                di = value->dimm;
+                di = value->u.dimm;
 
                 monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
-                               MemoryDeviceInfoKind_lookup[value->kind],
+                               MemoryDeviceInfoKind_lookup[value->type],
                                di->id ? di->id : "");
                 monitor_printf(mon, "  addr: 0x%" PRIx64 "\n", di->addr);
                 monitor_printf(mon, "  slot: %" PRId64 "\n", di->slot);

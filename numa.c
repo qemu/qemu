@@ -226,9 +226,9 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
         goto error;
     }
 
-    switch (object->kind) {
+    switch (object->type) {
     case NUMA_OPTIONS_KIND_NODE:
-        numa_node_parse(object->node, opts, &err);
+        numa_node_parse(object->u.node, opts, &err);
         if (err) {
             goto error;
         }
@@ -487,9 +487,9 @@ static void numa_stat_memory_devices(uint64_t node_mem[])
         MemoryDeviceInfo *value = info->value;
 
         if (value) {
-            switch (value->kind) {
+            switch (value->type) {
             case MEMORY_DEVICE_INFO_KIND_DIMM:
-                node_mem[value->dimm->node] += value->dimm->size;
+                node_mem[value->u.dimm->node] += value->u.dimm->size;
                 break;
             default:
                 break;
