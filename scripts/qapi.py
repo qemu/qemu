@@ -172,7 +172,7 @@ class QAPISchemaParser(object):
 
             if self.tok == '#':
                 self.cursor = self.src.find('\n', self.cursor)
-            elif self.tok in ['{', '}', ':', ',', '[', ']']:
+            elif self.tok in "{}:,[]":
                 return
             elif self.tok == "'":
                 string = ''
@@ -390,7 +390,7 @@ def add_name(name, info, meta, implicit=False):
         raise QAPIExprError(info,
                             "%s '%s' is already defined"
                             % (all_names[name], name))
-    if not implicit and name[-4:] == 'Kind':
+    if not implicit and name.endswith('Kind'):
         raise QAPIExprError(info,
                             "%s '%s' should not end in 'Kind'"
                             % (meta, name))
@@ -910,7 +910,7 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type()
-        return self.name[-4:] == 'Kind'
+        return self.name.endswith('Kind')
 
     def c_type(self, is_param=False):
         return c_name(self.name)
