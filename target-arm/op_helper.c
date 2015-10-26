@@ -90,13 +90,19 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
         ARMCPU *cpu = ARM_CPU(cs);
         CPUARMState *env = &cpu->env;
         uint32_t syn, exc;
-        bool same_el = (arm_current_el(env) != 0);
+        unsigned int target_el;
+        bool same_el;
 
         if (retaddr) {
             /* now we have a real cpu fault */
             cpu_restore_state(cs, retaddr);
         }
 
+        target_el = exception_target_el(env);
+        if (fi.stage2) {
+            target_el = 2;
+        }
+        same_el = arm_current_el(env) == target_el;
         /* AArch64 syndrome does not have an LPAE bit */
         syn = fsr & ~(1 << 9);
 
@@ -116,7 +122,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
 
         env->exception.vaddress = addr;
         env->exception.fsr = fsr;
-        raise_exception(env, exc, syn, exception_target_el(env));
+        raise_exception(env, exc, syn, target_el);
     }
 }
 #endif
