@@ -6536,10 +6536,26 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * This is a Non-secure PL0/1 stage 1 translation, so controlled by
      * TTBCR/TTBR0/TTBR1 in accordance with ARM ARM DDI0406C table B-32:
      */
-    t0sz = extract32(tcr->raw_tcr, 0, 6);
     if (va_size == 64) {
+        /* AArch64 translation.  */
+        t0sz = extract32(tcr->raw_tcr, 0, 6);
         t0sz = MIN(t0sz, 39);
         t0sz = MAX(t0sz, 16);
+    } else if (mmu_idx != ARMMMUIdx_S2NS) {
+        /* AArch32 stage 1 translation.  */
+        t0sz = extract32(tcr->raw_tcr, 0, 3);
+    } else {
+        /* AArch32 stage 2 translation.  */
+        bool sext = extract32(tcr->raw_tcr, 4, 1);
+        bool sign = extract32(tcr->raw_tcr, 3, 1);
+        t0sz = sextract32(tcr->raw_tcr, 0, 4);
+
+        /* If the sign-extend bit is not the same as t0sz[3], the result
+         * is unpredictable. Flag this as a guest error.  */
+        if (sign != sext) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "AArch32: VTCR.S / VTCR.T0SZ[3] missmatch\n");
+        }
     }
     t1sz = extract32(tcr->raw_tcr, 16, 6);
     if (va_size == 64) {
