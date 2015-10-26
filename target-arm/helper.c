@@ -6470,12 +6470,72 @@ typedef enum {
     permission_fault = 3,
 } MMUFaultType;
 
+/*
+ * check_s2_startlevel
+ * @cpu:        ARMCPU
+ * @is_aa64:    True if the translation regime is in AArch64 state
+ * @startlevel: Suggested starting level
+ * @inputsize:  Bitsize of IPAs
+ * @stride:     Page-table stride (See the ARM ARM)
+ *
+ * Returns true if the suggested starting level is OK and false otherwise.
+ */
+static bool check_s2_startlevel(ARMCPU *cpu, bool is_aa64, int level,
+                                int inputsize, int stride)
+{
+    /* Negative levels are never allowed.  */
+    if (level < 0) {
+        return false;
+    }
+
+    if (is_aa64) {
+        unsigned int pamax = arm_pamax(cpu);
+
+        switch (stride) {
+        case 13: /* 64KB Pages.  */
+            if (level == 0 || (level == 1 && pamax <= 42)) {
+                return false;
+            }
+            break;
+        case 11: /* 16KB Pages.  */
+            if (level == 0 || (level == 1 && pamax <= 40)) {
+                return false;
+            }
+            break;
+        case 9: /* 4KB Pages.  */
+            if (level == 0 && pamax <= 42) {
+                return false;
+            }
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        const int grainsize = stride + 3;
+        int startsizecheck;
+
+        /* AArch32 only supports 4KB pages. Assert on that.  */
+        assert(stride == 9);
+
+        if (level == 0) {
+            return false;
+        }
+
+        startsizecheck = inputsize - ((3 - level) * stride + grainsize);
+        if (startsizecheck < 1 || startsizecheck > stride + 4) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
                                int access_type, ARMMMUIdx mmu_idx,
                                hwaddr *phys_ptr, MemTxAttrs *txattrs, int *prot,
                                target_ulong *page_size_ptr, uint32_t *fsr)
 {
-    CPUState *cs = CPU(arm_env_get_cpu(env));
+    ARMCPU *cpu = arm_env_get_cpu(env);
+    CPUState *cs = CPU(cpu);
     /* Read an LPAE long-descriptor translation table. */
     MMUFaultType fault_type = translation_fault;
     uint32_t level = 1;
@@ -6630,18 +6690,46 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         goto do_fault;
     }
 
-    /* The starting level depends on the virtual address size (which can be
-     * up to 48 bits) and the translation granule size. It indicates the number
-     * of strides (stride bits at a time) needed to consume the bits
-     * of the input address. In the pseudocode this is:
-     *  level = 4 - RoundUp((inputsize - grainsize) / stride)
-     * where their 'inputsize' is our 'inputsize', 'grainsize' is
-     * our 'stride + 3' and 'stride' is our 'stride'.
-     * Applying the usual "rounded up m/n is (m+n-1)/n" and simplifying:
-     *     = 4 - (inputsize - stride - 3 + stride - 1) / stride
-     *     = 4 - (inputsize - 4) / stride;
-     */
-    level = 4 - (inputsize - 4) / stride;
+    if (mmu_idx != ARMMMUIdx_S2NS) {
+        /* The starting level depends on the virtual address size (which can
+         * be up to 48 bits) and the translation granule size. It indicates
+         * the number of strides (stride bits at a time) needed to
+         * consume the bits of the input address. In the pseudocode this is:
+         *  level = 4 - RoundUp((inputsize - grainsize) / stride)
+         * where their 'inputsize' is our 'inputsize', 'grainsize' is
+         * our 'stride + 3' and 'stride' is our 'stride'.
+         * Applying the usual "rounded up m/n is (m+n-1)/n" and simplifying:
+         * = 4 - (inputsize - stride - 3 + stride - 1) / stride
+         * = 4 - (inputsize - 4) / stride;
+         */
+        level = 4 - (inputsize - 4) / stride;
+    } else {
+        /* For stage 2 translations the starting level is specified by the
+         * VTCR_EL2.SL0 field (whose interpretation depends on the page size)
+         */
+        int startlevel = extract32(tcr->raw_tcr, 6, 2);
+        bool ok;
+
+        if (va_size == 32 || stride == 9) {
+            /* AArch32 or 4KB pages */
+            level = 2 - startlevel;
+        } else {
+            /* 16KB or 64KB pages */
+            level = 3 - startlevel;
+        }
+
+        /* Check that the starting level is valid. */
+        ok = check_s2_startlevel(cpu, va_size == 64, level,
+                                 inputsize, stride);
+        if (!ok) {
+            /* AArch64 reports these as level 0 faults.
+             * AArch32 reports these as level 1 faults.
+             */
+            level = va_size == 64 ? 0 : 1;
+            fault_type = translation_fault;
+            goto do_fault;
+        }
+    }
 
     /* Clear the vaddr bits which aren't part of the within-region address,
      * so that we don't have to special case things when calculating the
