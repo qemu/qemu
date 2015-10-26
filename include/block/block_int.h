@@ -473,6 +473,8 @@ extern BlockDriver bdrv_file;
 extern BlockDriver bdrv_raw;
 extern BlockDriver bdrv_qcow2;
 
+extern QTAILQ_HEAD(BdrvStates, BlockDriverState) bdrv_states;
+
 /**
  * bdrv_setup_io_funcs:
  *

@@ -73,8 +73,7 @@ struct BdrvDirtyBitmap {
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
-static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
-    QTAILQ_HEAD_INITIALIZER(bdrv_states);
+struct BdrvStates bdrv_states = QTAILQ_HEAD_INITIALIZER(bdrv_states);
 
 static QTAILQ_HEAD(, BlockDriverState) graph_bdrv_states =
     QTAILQ_HEAD_INITIALIZER(graph_bdrv_states);
