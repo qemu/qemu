@@ -1980,16 +1980,15 @@ out:
 
 void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 {
-    BlockBackend *blk;
+    Error *local_err = NULL;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    qmp_blockdev_open_tray(device, has_force, force, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
-    eject_device(blk, force, errp);
+    qmp_blockdev_remove_medium(device, errp);
 }
 
 void qmp_block_passwd(bool has_device, const char *device,
