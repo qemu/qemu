@@ -1,0 +1,6 @@
+# C member name collision
+# FIXME - This parses, but fails to compile, because the C struct is given
+# two 'has_a' members, one from the flag for optional 'a', and the other
+# from member 'has-a'.  Either reject this at parse time, or munge the C
+# names to avoid the collision.
+{ 'command': 'oops', 'data': { '*a': 'str', 'has-a': 'str' } }

@@ -1,0 +1,5 @@
+# Potential C name collision
+# FIXME - This parses and compiles on its own, but prevents the user from
+# creating a type named 'Foo' and using ['Foo'] for an array.  We should
+# reject the use of any type names ending in 'List'.
+{ 'struct': 'FooList', 'data': { 's': 'str' } }
