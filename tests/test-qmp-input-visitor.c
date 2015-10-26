@@ -347,6 +347,7 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
     Visitor *v;
     Error *err = NULL;
     UserDefFlatUnion *tmp;
+    UserDefUnionBase *base;
 
     v = visitor_input_test_init(data,
                                 "{ 'enum1': 'value1', "
@@ -360,6 +361,10 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
     g_assert_cmpstr(tmp->string, ==, "str");
     g_assert_cmpint(tmp->integer, ==, 41);
     g_assert_cmpint(tmp->value1->boolean, ==, true);
+
+    base = qapi_UserDefFlatUnion_base(tmp);
+    g_assert(&base->enum1 == &tmp->enum1);
+
     qapi_free_UserDefFlatUnion(tmp);
 }
 

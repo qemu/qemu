@@ -98,6 +98,19 @@ struct %(c_name)s {
     return ret
 
 
+def gen_upcast(name, base):
+    # C makes const-correctness ugly.  We have to cast away const to let
+    # this function work for both const and non-const obj.
+    return mcgen('''
+
+static inline %(base)s *qapi_%(c_name)s_base(const %(c_name)s *obj)
+{
+    return (%(base)s *)obj;
+}
+''',
+                 c_name=c_name(name), base=base.c_name())
+
+
 def gen_alternate_qtypes_decl(name):
     return mcgen('''
 
@@ -267,6 +280,9 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
         if variants:
             assert not members      # not implemented
             self.decl += gen_union(name, base, variants)
+            # TODO Use gen_upcast on structs too, once they have sane layout
+            if base:
+                self.decl += gen_upcast(name, base)
         else:
             self.decl += gen_struct(name, base, members)
         self._gen_type_cleanup(name)
