@@ -1,0 +1,1 @@
+ivshmem-client-obj-y = ivshmem-client.o main.o

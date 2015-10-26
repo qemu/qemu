@@ -450,6 +450,8 @@ void qtest_add_data_func(const char *str, const void *data, void (*fn));
         g_free(path); \
     } while (0)
 
+void qtest_add_abrt_handler(void (*fn), const void *data);
+
 /**
  * qtest_start:
  * @args: other arguments to pass to QEMU

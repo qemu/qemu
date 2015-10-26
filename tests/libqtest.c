@@ -48,6 +48,7 @@ struct QTestState
     pid_t qemu_pid;  /* our child QEMU process */
 };
 
+static GHookList abrt_hooks;
 static GList *qtest_instances;
 static struct sigaction sigact_old;
 
@@ -111,10 +112,7 @@ static void kill_qemu(QTestState *s)
 
 static void sigabrt_handler(int signo)
 {
-    GList *elem;
-    for (elem = qtest_instances; elem; elem = elem->next) {
-        kill_qemu(elem->data);
-    }
+    g_hook_list_invoke(&abrt_hooks, FALSE);
 }
 
 static void setup_sigabrt_handler(void)
@@ -133,6 +131,23 @@ static void setup_sigabrt_handler(void)
 static void cleanup_sigabrt_handler(void)
 {
     sigaction(SIGABRT, &sigact_old, NULL);
+}
+
+void qtest_add_abrt_handler(void (*fn), const void *data)
+{
+    GHook *hook;
+
+    /* Only install SIGABRT handler once */
+    if (!abrt_hooks.is_setup) {
+        g_hook_list_init(&abrt_hooks, sizeof(GHook));
+        setup_sigabrt_handler();
+    }
+
+    hook = g_hook_alloc(&abrt_hooks);
+    hook->func = fn;
+    hook->data = (void *)data;
+
+    g_hook_prepend(&abrt_hooks, hook);
 }
 
 QTestState *qtest_init(const char *extra_args)
@@ -155,12 +170,7 @@ QTestState *qtest_init(const char *extra_args)
     sock = init_socket(socket_path);
     qmpsock = init_socket(qmp_socket_path);
 
-    /* Only install SIGABRT handler once */
-    if (!qtest_instances) {
-        setup_sigabrt_handler();
-    }
-
-    qtest_instances = g_list_prepend(qtest_instances, s);
+    qtest_add_abrt_handler(kill_qemu, s);
 
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
@@ -208,12 +218,13 @@ QTestState *qtest_init(const char *extra_args)
 
 void qtest_quit(QTestState *s)
 {
+    qtest_instances = g_list_remove(qtest_instances, s);
+    g_hook_destroy_link(&abrt_hooks, g_hook_find_data(&abrt_hooks, TRUE, s));
+
     /* Uninstall SIGABRT handler on last instance */
-    if (qtest_instances && !qtest_instances->next) {
+    if (!qtest_instances) {
         cleanup_sigabrt_handler();
     }
-
-    qtest_instances = g_list_remove(qtest_instances, s);
 
     kill_qemu(s);
     close(s->fd);

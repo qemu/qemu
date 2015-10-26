@@ -104,3 +104,8 @@ target-obj-y += trace/
 # by libqemuutil.a.  These should be moved to a separate .json schema.
 qga-obj-y = qga/
 qga-vss-dll-obj-y = qga/
+
+######################################################################
+# contrib
+ivshmem-client-obj-y = contrib/ivshmem-client/
+ivshmem-server-obj-y = contrib/ivshmem-server/

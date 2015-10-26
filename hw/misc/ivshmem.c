@@ -19,6 +19,7 @@
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
 #include "sysemu/kvm.h"
 #include "migration/migration.h"
@@ -26,6 +27,10 @@
 #include "qemu/event_notifier.h"
 #include "qemu/fifo8.h"
 #include "sysemu/char.h"
+#include "sysemu/hostmem.h"
+#include "qapi/visitor.h"
+
+#include "hw/misc/ivshmem.h"
 
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -34,6 +39,7 @@
 #define PCI_VENDOR_ID_IVSHMEM   PCI_VENDOR_ID_REDHAT_QUMRANET
 #define PCI_DEVICE_ID_IVSHMEM   0x1110
 
+#define IVSHMEM_MAX_PEERS G_MAXUINT16
 #define IVSHMEM_IOEVENTFD   0
 #define IVSHMEM_MSI     1
 
@@ -54,24 +60,26 @@
 #define IVSHMEM(obj) \
     OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM)
 
+#define IVSHMEM_MEMDEV_PROP "memdev"
+
 typedef struct Peer {
     int nb_eventfds;
     EventNotifier *eventfds;
 } Peer;
 
-typedef struct EventfdEntry {
+typedef struct MSIVector {
     PCIDevice *pdev;
-    int vector;
-} EventfdEntry;
+    int virq;
+} MSIVector;
 
 typedef struct IVShmemState {
     /*< private >*/
     PCIDevice parent_obj;
     /*< public >*/
 
+    HostMemoryBackend *hostmem;
     uint32_t intrmask;
     uint32_t intrstatus;
-    uint32_t doorbell;
 
     CharDriverState **eventfd_chr;
     CharDriverState *server_chr;
@@ -85,18 +93,15 @@ typedef struct IVShmemState {
     MemoryRegion bar;
     MemoryRegion ivshmem;
     uint64_t ivshmem_size; /* size of shared memory region */
-    uint32_t ivshmem_attr;
     uint32_t ivshmem_64bit;
-    int shm_fd; /* shared memory file descriptor */
 
     Peer *peers;
-    int nb_peers; /* how many guests we have space for */
-    int max_peer; /* maximum numbered peer */
+    int nb_peers; /* how many peers we have space for */
 
     int vm_id;
     uint32_t vectors;
     uint32_t features;
-    EventfdEntry *eventfd_table;
+    MSIVector *msi_vectors;
 
     Error *migration_blocker;
 
@@ -119,12 +124,8 @@ static inline uint32_t ivshmem_has_feature(IVShmemState *ivs,
     return (ivs->features & (1 << feature));
 }
 
-static inline bool is_power_of_two(uint64_t x) {
-    return (x & (x - 1)) == 0;
-}
-
 /* accessing registers - based on rtl8139 */
-static void ivshmem_update_irq(IVShmemState *s, int val)
+static void ivshmem_update_irq(IVShmemState *s)
 {
     PCIDevice *d = PCI_DEVICE(s);
     int isr;
@@ -145,7 +146,7 @@ static void ivshmem_IntrMask_write(IVShmemState *s, uint32_t val)
 
     s->intrmask = val;
 
-    ivshmem_update_irq(s, val);
+    ivshmem_update_irq(s);
 }
 
 static uint32_t ivshmem_IntrMask_read(IVShmemState *s)
@@ -163,7 +164,7 @@ static void ivshmem_IntrStatus_write(IVShmemState *s, uint32_t val)
 
     s->intrstatus = val;
 
-    ivshmem_update_irq(s, val);
+    ivshmem_update_irq(s);
 }
 
 static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
@@ -173,7 +174,7 @@ static uint32_t ivshmem_IntrStatus_read(IVShmemState *s)
     /* reading ISR clears all interrupts */
     s->intrstatus = 0;
 
-    ivshmem_update_irq(s, 0);
+    ivshmem_update_irq(s);
 
     return ret;
 }
@@ -201,7 +202,7 @@ static void ivshmem_io_write(void *opaque, hwaddr addr,
 
         case DOORBELL:
             /* check that dest VM ID is reasonable */
-            if (dest > s->max_peer) {
+            if (dest >= s->nb_peers) {
                 IVSHMEM_DPRINTF("Invalid destination VM ID (%d)\n", dest);
                 break;
             }
@@ -210,10 +211,13 @@ static void ivshmem_io_write(void *opaque, hwaddr addr,
             if (vector < s->peers[dest].nb_eventfds) {
                 IVSHMEM_DPRINTF("Notifying VM %d on vector %d\n", dest, vector);
                 event_notifier_set(&s->peers[dest].eventfds[vector]);
+            } else {
+                IVSHMEM_DPRINTF("Invalid destination vector %d on VM %d\n",
+                                vector, dest);
             }
             break;
         default:
-            IVSHMEM_DPRINTF("Invalid VM Doorbell VM %d\n", dest);
+            IVSHMEM_DPRINTF("Unhandled write " TARGET_FMT_plx "\n", addr);
     }
 }
 
@@ -236,7 +240,7 @@ static uint64_t ivshmem_io_read(void *opaque, hwaddr addr,
 
         case IVPOSITION:
             /* return my VM ID if the memory is mapped */
-            if (s->shm_fd > 0) {
+            if (memory_region_is_mapped(&s->ivshmem)) {
                 ret = s->vm_id;
             } else {
                 ret = -1;
@@ -265,14 +269,14 @@ static void ivshmem_receive(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
 
-    ivshmem_IntrStatus_write(s, *buf);
+    IVSHMEM_DPRINTF("ivshmem_receive 0x%02x size: %d\n", *buf, size);
 
-    IVSHMEM_DPRINTF("ivshmem_receive 0x%02x\n", *buf);
+    ivshmem_IntrStatus_write(s, *buf);
 }
 
 static int ivshmem_can_receive(void * opaque)
 {
-    return 8;
+    return sizeof(int64_t);
 }
 
 static void ivshmem_event(void *opaque, int event)
@@ -282,11 +286,70 @@ static void ivshmem_event(void *opaque, int event)
 
 static void fake_irqfd(void *opaque, const uint8_t *buf, int size) {
 
-    EventfdEntry *entry = opaque;
+    MSIVector *entry = opaque;
     PCIDevice *pdev = entry->pdev;
+    IVShmemState *s = IVSHMEM(pdev);
+    int vector = entry - s->msi_vectors;
 
-    IVSHMEM_DPRINTF("interrupt on vector %p %d\n", pdev, entry->vector);
-    msix_notify(pdev, entry->vector);
+    IVSHMEM_DPRINTF("interrupt on vector %p %d\n", pdev, vector);
+    msix_notify(pdev, vector);
+}
+
+static int ivshmem_vector_unmask(PCIDevice *dev, unsigned vector,
+                                 MSIMessage msg)
+{
+    IVShmemState *s = IVSHMEM(dev);
+    EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+    MSIVector *v = &s->msi_vectors[vector];
+    int ret;
+
+    IVSHMEM_DPRINTF("vector unmask %p %d\n", dev, vector);
+
+    ret = kvm_irqchip_update_msi_route(kvm_state, v->virq, msg, dev);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL, v->virq);
+}
+
+static void ivshmem_vector_mask(PCIDevice *dev, unsigned vector)
+{
+    IVShmemState *s = IVSHMEM(dev);
+    EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+    int ret;
+
+    IVSHMEM_DPRINTF("vector mask %p %d\n", dev, vector);
+
+    ret = kvm_irqchip_remove_irqfd_notifier_gsi(kvm_state, n,
+                                                s->msi_vectors[vector].virq);
+    if (ret != 0) {
+        error_report("remove_irqfd_notifier_gsi failed");
+    }
+}
+
+static void ivshmem_vector_poll(PCIDevice *dev,
+                                unsigned int vector_start,
+                                unsigned int vector_end)
+{
+    IVShmemState *s = IVSHMEM(dev);
+    unsigned int vector;
+
+    IVSHMEM_DPRINTF("vector poll %p %d-%d\n", dev, vector_start, vector_end);
+
+    vector_end = MIN(vector_end, s->vectors);
+
+    for (vector = vector_start; vector < vector_end; vector++) {
+        EventNotifier *notifier = &s->peers[s->vm_id].eventfds[vector];
+
+        if (!msix_is_masked(dev, vector)) {
+            continue;
+        }
+
+        if (event_notifier_test_and_clear(notifier)) {
+            msix_set_pending(dev, vector);
+        }
+    }
 }
 
 static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *n,
@@ -294,24 +357,26 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
 {
     /* create a event character device based on the passed eventfd */
     IVShmemState *s = opaque;
-    CharDriverState * chr;
+    PCIDevice *pdev = PCI_DEVICE(s);
     int eventfd = event_notifier_get_fd(n);
+    CharDriverState *chr;
+
+    s->msi_vectors[vector].pdev = pdev;
 
     chr = qemu_chr_open_eventfd(eventfd);
 
     if (chr == NULL) {
-        error_report("creating eventfd for eventfd %d failed", eventfd);
-        exit(1);
+        error_report("creating chardriver for eventfd %d failed", eventfd);
+        return NULL;
     }
     qemu_chr_fe_claim_no_fail(chr);
 
     /* if MSI is supported we need multiple interrupts */
     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        s->eventfd_table[vector].pdev = PCI_DEVICE(s);
-        s->eventfd_table[vector].vector = vector;
+        s->msi_vectors[vector].pdev = PCI_DEVICE(s);
 
         qemu_chr_add_handlers(chr, ivshmem_can_receive, fake_irqfd,
-                      ivshmem_event, &s->eventfd_table[vector]);
+                      ivshmem_event, &s->msi_vectors[vector]);
     } else {
         qemu_chr_add_handlers(chr, ivshmem_can_receive, ivshmem_receive,
                       ivshmem_event, s);
@@ -321,22 +386,23 @@ static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *
 
 }
 
-static int check_shm_size(IVShmemState *s, int fd) {
+static int check_shm_size(IVShmemState *s, int fd, Error **errp)
+{
     /* check that the guest isn't going to try and map more memory than the
      * the object has allocated return -1 to indicate error */
 
     struct stat buf;
 
     if (fstat(fd, &buf) < 0) {
-        error_report("exiting: fstat on fd %d failed: %s",
-                     fd, strerror(errno));
+        error_setg(errp, "exiting: fstat on fd %d failed: %s",
+                   fd, strerror(errno));
         return -1;
     }
 
     if (s->ivshmem_size > buf.st_size) {
-        error_report("Requested memory size greater"
-                     " than shared object size (%" PRIu64 " > %" PRIu64")",
-                     s->ivshmem_size, (uint64_t)buf.st_size);
+        error_setg(errp, "Requested memory size greater"
+                   " than shared object size (%" PRIu64 " > %" PRIu64")",
+                   s->ivshmem_size, (uint64_t)buf.st_size);
         return -1;
     } else {
         return 0;
@@ -345,13 +411,16 @@ static int check_shm_size(IVShmemState *s, int fd) {
 
 /* create the shared memory BAR when we are not using the server, so we can
  * create the BAR and map the memory immediately */
-static void create_shared_memory_BAR(IVShmemState *s, int fd) {
-
+static int create_shared_memory_BAR(IVShmemState *s, int fd, uint8_t attr,
+                                    Error **errp)
+{
     void * ptr;
 
-    s->shm_fd = fd;
-
     ptr = mmap(0, s->ivshmem_size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (ptr == MAP_FAILED) {
+        error_setg_errno(errp, errno, "Failed to mmap shared memory");
+        return -1;
+    }
 
     memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s), "ivshmem.bar2",
                                s->ivshmem_size, ptr);
@@ -359,7 +428,9 @@ static void create_shared_memory_BAR(IVShmemState *s, int fd) {
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
     /* region for shared memory */
-    pci_register_bar(PCI_DEVICE(s), 2, s->ivshmem_attr, &s->bar);
+    pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
+
+    return 0;
 }
 
 static void ivshmem_add_eventfd(IVShmemState *s, int posn, int i)
@@ -382,25 +453,26 @@ static void ivshmem_del_eventfd(IVShmemState *s, int posn, int i)
                               &s->peers[posn].eventfds[i]);
 }
 
-static void close_guest_eventfds(IVShmemState *s, int posn)
+static void close_peer_eventfds(IVShmemState *s, int posn)
 {
-    int i, guest_curr_max;
+    int i, n;
 
     if (!ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
         return;
     }
     if (posn < 0 || posn >= s->nb_peers) {
+        error_report("invalid peer %d", posn);
         return;
     }
 
-    guest_curr_max = s->peers[posn].nb_eventfds;
+    n = s->peers[posn].nb_eventfds;
 
     memory_region_transaction_begin();
-    for (i = 0; i < guest_curr_max; i++) {
+    for (i = 0; i < n; i++) {
         ivshmem_del_eventfd(s, posn, i);
     }
     memory_region_transaction_commit();
-    for (i = 0; i < guest_curr_max; i++) {
+    for (i = 0; i < n; i++) {
         event_notifier_cleanup(&s->peers[posn].eventfds[i]);
     }
 
@@ -409,125 +481,207 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
 }
 
 /* this function increase the dynamic storage need to store data about other
- * guests */
-static int increase_dynamic_storage(IVShmemState *s, int new_min_size)
+ * peers */
+static int resize_peers(IVShmemState *s, int new_min_size)
 {
 
-    int j, old_nb_alloc;
+    int j, old_size;
 
-    /* check for integer overflow */
-    if (new_min_size >= INT_MAX / sizeof(Peer) - 1 || new_min_size <= 0) {
+    /* limit number of max peers */
+    if (new_min_size <= 0 || new_min_size > IVSHMEM_MAX_PEERS) {
         return -1;
     }
-
-    old_nb_alloc = s->nb_peers;
-
-    if (new_min_size >= s->nb_peers) {
-        /* +1 because #new_min_size is used as last array index */
-        s->nb_peers = new_min_size + 1;
-    } else {
+    if (new_min_size <= s->nb_peers) {
         return 0;
     }
 
-    IVSHMEM_DPRINTF("bumping storage to %d guests\n", s->nb_peers);
+    old_size = s->nb_peers;
+    s->nb_peers = new_min_size;
+
+    IVSHMEM_DPRINTF("bumping storage to %d peers\n", s->nb_peers);
+
     s->peers = g_realloc(s->peers, s->nb_peers * sizeof(Peer));
 
-    /* zero out new pointers */
-    for (j = old_nb_alloc; j < s->nb_peers; j++) {
-        s->peers[j].eventfds = NULL;
+    for (j = old_size; j < s->nb_peers; j++) {
+        s->peers[j].eventfds = g_new0(EventNotifier, s->vectors);
         s->peers[j].nb_eventfds = 0;
     }
 
     return 0;
 }
 
+static bool fifo_update_and_get(IVShmemState *s, const uint8_t *buf, int size,
+                                void *data, size_t len)
+{
+    const uint8_t *p;
+    uint32_t num;
+
+    assert(len <= sizeof(int64_t)); /* limitation of the fifo */
+    if (fifo8_is_empty(&s->incoming_fifo) && size == len) {
+        memcpy(data, buf, size);
+        return true;
+    }
+
+    IVSHMEM_DPRINTF("short read of %d bytes\n", size);
+
+    num = MIN(size, sizeof(int64_t) - fifo8_num_used(&s->incoming_fifo));
+    fifo8_push_all(&s->incoming_fifo, buf, num);
+
+    if (fifo8_num_used(&s->incoming_fifo) < len) {
+        assert(num == 0);
+        return false;
+    }
+
+    size -= num;
+    buf += num;
+    p = fifo8_pop_buf(&s->incoming_fifo, len, &num);
+    assert(num == len);
+
+    memcpy(data, p, len);
+
+    if (size > 0) {
+        fifo8_push_all(&s->incoming_fifo, buf, size);
+    }
+
+    return true;
+}
+
+static bool fifo_update_and_get_i64(IVShmemState *s,
+                                    const uint8_t *buf, int size, int64_t *i64)
+{
+    if (fifo_update_and_get(s, buf, size, i64, sizeof(*i64))) {
+        *i64 = GINT64_FROM_LE(*i64);
+        return true;
+    }
+
+    return false;
+}
+
+static int ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector)
+{
+    PCIDevice *pdev = PCI_DEVICE(s);
+    MSIMessage msg = msix_get_message(pdev, vector);
+    int ret;
+
+    IVSHMEM_DPRINTF("ivshmem_add_kvm_msi_virq vector:%d\n", vector);
+
+    if (s->msi_vectors[vector].pdev != NULL) {
+        return 0;
+    }
+
+    ret = kvm_irqchip_add_msi_route(kvm_state, msg, pdev);
+    if (ret < 0) {
+        error_report("ivshmem: kvm_irqchip_add_msi_route failed");
+        return -1;
+    }
+
+    s->msi_vectors[vector].virq = ret;
+    s->msi_vectors[vector].pdev = pdev;
+
+    return 0;
+}
+
+static void setup_interrupt(IVShmemState *s, int vector)
+{
+    EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
+    bool with_irqfd = kvm_msi_via_irqfd_enabled() &&
+        ivshmem_has_feature(s, IVSHMEM_MSI);
+    PCIDevice *pdev = PCI_DEVICE(s);
+
+    IVSHMEM_DPRINTF("setting up interrupt for vector: %d\n", vector);
+
+    if (!with_irqfd) {
+        IVSHMEM_DPRINTF("with eventfd");
+        s->eventfd_chr[vector] = create_eventfd_chr_device(s, n, vector);
+    } else if (msix_enabled(pdev)) {
+        IVSHMEM_DPRINTF("with irqfd");
+        if (ivshmem_add_kvm_msi_virq(s, vector) < 0) {
+            return;
+        }
+
+        if (!msix_is_masked(pdev, vector)) {
+            kvm_irqchip_add_irqfd_notifier_gsi(kvm_state, n, NULL,
+                                               s->msi_vectors[vector].virq);
+        }
+    } else {
+        /* it will be delayed until msix is enabled, in write_config */
+        IVSHMEM_DPRINTF("with irqfd, delayed until msix enabled");
+    }
+}
+
 static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 {
     IVShmemState *s = opaque;
-    int incoming_fd, tmp_fd;
-    int guest_max_eventfd;
-    long incoming_posn;
+    int incoming_fd;
+    int new_eventfd;
+    int64_t incoming_posn;
+    Error *err = NULL;
+    Peer *peer;
 
-    if (fifo8_is_empty(&s->incoming_fifo) && size == sizeof(incoming_posn)) {
-        memcpy(&incoming_posn, buf, size);
-    } else {
-        const uint8_t *p;
-        uint32_t num;
-
-        IVSHMEM_DPRINTF("short read of %d bytes\n", size);
-        num = MAX(size, sizeof(long) - fifo8_num_used(&s->incoming_fifo));
-        fifo8_push_all(&s->incoming_fifo, buf, num);
-        if (fifo8_num_used(&s->incoming_fifo) < sizeof(incoming_posn)) {
-            return;
-        }
-        size -= num;
-        buf += num;
-        p = fifo8_pop_buf(&s->incoming_fifo, sizeof(incoming_posn), &num);
-        g_assert(num == sizeof(incoming_posn));
-        memcpy(&incoming_posn, p, sizeof(incoming_posn));
-        if (size > 0) {
-            fifo8_push_all(&s->incoming_fifo, buf, size);
-        }
+    if (!fifo_update_and_get_i64(s, buf, size, &incoming_posn)) {
+        return;
     }
 
     if (incoming_posn < -1) {
-        IVSHMEM_DPRINTF("invalid incoming_posn %ld\n", incoming_posn);
+        IVSHMEM_DPRINTF("invalid incoming_posn %" PRId64 "\n", incoming_posn);
         return;
     }
 
     /* pick off s->server_chr->msgfd and store it, posn should accompany msg */
-    tmp_fd = qemu_chr_fe_get_msgfd(s->server_chr);
-    IVSHMEM_DPRINTF("posn is %ld, fd is %d\n", incoming_posn, tmp_fd);
+    incoming_fd = qemu_chr_fe_get_msgfd(s->server_chr);
+    IVSHMEM_DPRINTF("posn is %" PRId64 ", fd is %d\n",
+                    incoming_posn, incoming_fd);
 
-    /* make sure we have enough space for this guest */
+    /* make sure we have enough space for this peer */
     if (incoming_posn >= s->nb_peers) {
-        if (increase_dynamic_storage(s, incoming_posn) < 0) {
-            error_report("increase_dynamic_storage() failed");
-            if (tmp_fd != -1) {
-                close(tmp_fd);
+        if (resize_peers(s, incoming_posn + 1) < 0) {
+            error_report("failed to resize peers array");
+            if (incoming_fd != -1) {
+                close(incoming_fd);
             }
             return;
         }
     }
 
-    if (tmp_fd == -1) {
-        /* if posn is positive and unseen before then this is our posn*/
-        if ((incoming_posn >= 0) &&
-                            (s->peers[incoming_posn].eventfds == NULL)) {
-            /* receive our posn */
-            s->vm_id = incoming_posn;
-            return;
-        } else {
-            /* otherwise an fd == -1 means an existing guest has gone away */
-            IVSHMEM_DPRINTF("posn %ld has gone away\n", incoming_posn);
-            close_guest_eventfds(s, incoming_posn);
-            return;
-        }
-    }
-
-    /* because of the implementation of get_msgfd, we need a dup */
-    incoming_fd = dup(tmp_fd);
+    peer = &s->peers[incoming_posn];
 
     if (incoming_fd == -1) {
-        error_report("could not allocate file descriptor %s", strerror(errno));
-        close(tmp_fd);
+        /* if posn is positive and unseen before then this is our posn*/
+        if (incoming_posn >= 0 && s->vm_id == -1) {
+            /* receive our posn */
+            s->vm_id = incoming_posn;
+        } else {
+            /* otherwise an fd == -1 means an existing peer has gone away */
+            IVSHMEM_DPRINTF("posn %" PRId64 " has gone away\n", incoming_posn);
+            close_peer_eventfds(s, incoming_posn);
+        }
         return;
     }
 
     /* if the position is -1, then it's shared memory region fd */
     if (incoming_posn == -1) {
-
         void * map_ptr;
 
-        s->max_peer = 0;
+        if (memory_region_is_mapped(&s->ivshmem)) {
+            error_report("shm already initialized");
+            close(incoming_fd);
+            return;
+        }
 
-        if (check_shm_size(s, incoming_fd) == -1) {
-            exit(1);
+        if (check_shm_size(s, incoming_fd, &err) == -1) {
+            error_report_err(err);
+            close(incoming_fd);
+            return;
         }
 
         /* mmap the region and map into the BAR2 */
         map_ptr = mmap(0, s->ivshmem_size, PROT_READ|PROT_WRITE, MAP_SHARED,
                                                             incoming_fd, 0);
+        if (map_ptr == MAP_FAILED) {
+            error_report("Failed to mmap shared memory %s", strerror(errno));
+            close(incoming_fd);
+            return;
+        }
         memory_region_init_ram_ptr(&s->ivshmem, OBJECT(s),
                                    "ivshmem.bar2", s->ivshmem_size, map_ptr);
         vmstate_register_ram(&s->ivshmem, DEVICE(s));
@@ -537,44 +691,59 @@ static void ivshmem_read(void *opaque, const uint8_t *buf, int size)
 
         memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
-        /* only store the fd if it is successfully mapped */
-        s->shm_fd = incoming_fd;
-
+        close(incoming_fd);
         return;
     }
 
-    /* each guest has an array of eventfds, and we keep track of how many
-     * guests for each VM */
-    guest_max_eventfd = s->peers[incoming_posn].nb_eventfds;
-
-    if (guest_max_eventfd == 0) {
-        /* one eventfd per MSI vector */
-        s->peers[incoming_posn].eventfds = g_new(EventNotifier, s->vectors);
+    /* each peer has an associated array of eventfds, and we keep
+     * track of how many eventfds received so far */
+    /* get a new eventfd: */
+    if (peer->nb_eventfds >= s->vectors) {
+        error_report("Too many eventfd received, device has %d vectors",
+                     s->vectors);
+        close(incoming_fd);
+        return;
     }
 
-    /* this is an eventfd for a particular guest VM */
-    IVSHMEM_DPRINTF("eventfds[%ld][%d] = %d\n", incoming_posn,
-                    guest_max_eventfd, incoming_fd);
-    event_notifier_init_fd(&s->peers[incoming_posn].eventfds[guest_max_eventfd],
-                           incoming_fd);
+    new_eventfd = peer->nb_eventfds++;
 
-    /* increment count for particular guest */
-    s->peers[incoming_posn].nb_eventfds++;
-
-    /* keep track of the maximum VM ID */
-    if (incoming_posn > s->max_peer) {
-        s->max_peer = incoming_posn;
-    }
+    /* this is an eventfd for a particular peer VM */
+    IVSHMEM_DPRINTF("eventfds[%" PRId64 "][%d] = %d\n", incoming_posn,
+                    new_eventfd, incoming_fd);
+    event_notifier_init_fd(&peer->eventfds[new_eventfd], incoming_fd);
+    fcntl_setfl(incoming_fd, O_NONBLOCK); /* msix/irqfd poll non block */
 
     if (incoming_posn == s->vm_id) {
-        s->eventfd_chr[guest_max_eventfd] = create_eventfd_chr_device(s,
-                   &s->peers[s->vm_id].eventfds[guest_max_eventfd],
-                   guest_max_eventfd);
+        setup_interrupt(s, new_eventfd);
     }
 
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
-        ivshmem_add_eventfd(s, incoming_posn, guest_max_eventfd);
+        ivshmem_add_eventfd(s, incoming_posn, new_eventfd);
     }
+}
+
+static void ivshmem_check_version(void *opaque, const uint8_t * buf, int size)
+{
+    IVShmemState *s = opaque;
+    int tmp;
+    int64_t version;
+
+    if (!fifo_update_and_get_i64(s, buf, size, &version)) {
+        return;
+    }
+
+    tmp = qemu_chr_fe_get_msgfd(s->server_chr);
+    if (tmp != -1 || version != IVSHMEM_PROTOCOL_VERSION) {
+        fprintf(stderr, "incompatible version, you are connecting to a ivshmem-"
+                "server using a different protocol please check your setup\n");
+        qemu_chr_delete(s->server_chr);
+        s->server_chr = NULL;
+        return;
+    }
+
+    IVSHMEM_DPRINTF("version check ok, switch to real chardev handler\n");
+    qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive, ivshmem_read,
+                          ivshmem_event, s);
 }
 
 /* Select the MSI-X vectors used by device.
@@ -585,6 +754,7 @@ static void ivshmem_use_msix(IVShmemState * s)
     PCIDevice *d = PCI_DEVICE(s);
     int i;
 
+    IVSHMEM_DPRINTF("%s, msix present: %d\n", __func__, msix_present(d));
     if (!msix_present(d)) {
         return;
     }
@@ -599,128 +769,127 @@ static void ivshmem_reset(DeviceState *d)
     IVShmemState *s = IVSHMEM(d);
 
     s->intrstatus = 0;
+    s->intrmask = 0;
     ivshmem_use_msix(s);
 }
 
-static uint64_t ivshmem_get_size(IVShmemState * s) {
-
-    uint64_t value;
-    char *ptr;
-
-    value = strtoull(s->sizearg, &ptr, 10);
-    switch (*ptr) {
-        case 0: case 'M': case 'm':
-            value <<= 20;
-            break;
-        case 'G': case 'g':
-            value <<= 30;
-            break;
-        default:
-            error_report("invalid ram size: %s", s->sizearg);
-            exit(1);
-    }
-
-    /* BARs must be a power of 2 */
-    if (!is_power_of_two(value)) {
-        error_report("size must be power of 2");
-        exit(1);
-    }
-
-    return value;
-}
-
-static void ivshmem_setup_msi(IVShmemState * s)
+static int ivshmem_setup_msi(IVShmemState * s)
 {
     if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
-        IVSHMEM_DPRINTF("msix initialization failed\n");
-        exit(1);
+        return -1;
     }
 
     IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
 
     /* allocate QEMU char devices for receiving interrupts */
-    s->eventfd_table = g_malloc0(s->vectors * sizeof(EventfdEntry));
+    s->msi_vectors = g_malloc0(s->vectors * sizeof(MSIVector));
 
     ivshmem_use_msix(s);
-}
-
-static void ivshmem_save(QEMUFile* f, void *opaque)
-{
-    IVShmemState *proxy = opaque;
-    PCIDevice *pci_dev = PCI_DEVICE(proxy);
-
-    IVSHMEM_DPRINTF("ivshmem_save\n");
-    pci_device_save(pci_dev, f);
-
-    if (ivshmem_has_feature(proxy, IVSHMEM_MSI)) {
-        msix_save(pci_dev, f);
-    } else {
-        qemu_put_be32(f, proxy->intrstatus);
-        qemu_put_be32(f, proxy->intrmask);
-    }
-
-}
-
-static int ivshmem_load(QEMUFile* f, void *opaque, int version_id)
-{
-    IVSHMEM_DPRINTF("ivshmem_load\n");
-
-    IVShmemState *proxy = opaque;
-    PCIDevice *pci_dev = PCI_DEVICE(proxy);
-    int ret;
-
-    if (version_id > 0) {
-        return -EINVAL;
-    }
-
-    if (proxy->role_val == IVSHMEM_PEER) {
-        error_report("'peer' devices are not migratable");
-        return -EINVAL;
-    }
-
-    ret = pci_device_load(pci_dev, f);
-    if (ret) {
-        return ret;
-    }
-
-    if (ivshmem_has_feature(proxy, IVSHMEM_MSI)) {
-        msix_load(pci_dev, f);
-	ivshmem_use_msix(proxy);
-    } else {
-        proxy->intrstatus = qemu_get_be32(f);
-        proxy->intrmask = qemu_get_be32(f);
-    }
-
     return 0;
 }
 
-static void ivshmem_write_config(PCIDevice *pci_dev, uint32_t address,
-				 uint32_t val, int len)
+static void ivshmem_enable_irqfd(IVShmemState *s)
 {
-    pci_default_write_config(pci_dev, address, val, len);
+    PCIDevice *pdev = PCI_DEVICE(s);
+    int i;
+
+    for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
+        ivshmem_add_kvm_msi_virq(s, i);
+    }
+
+    if (msix_set_vector_notifiers(pdev,
+                                  ivshmem_vector_unmask,
+                                  ivshmem_vector_mask,
+                                  ivshmem_vector_poll)) {
+        error_report("ivshmem: msix_set_vector_notifiers failed");
+    }
 }
 
-static int pci_ivshmem_init(PCIDevice *dev)
+static void ivshmem_remove_kvm_msi_virq(IVShmemState *s, int vector)
+{
+    IVSHMEM_DPRINTF("ivshmem_remove_kvm_msi_virq vector:%d\n", vector);
+
+    if (s->msi_vectors[vector].pdev == NULL) {
+        return;
+    }
+
+    /* it was cleaned when masked in the frontend. */
+    kvm_irqchip_release_virq(kvm_state, s->msi_vectors[vector].virq);
+
+    s->msi_vectors[vector].pdev = NULL;
+}
+
+static void ivshmem_disable_irqfd(IVShmemState *s)
+{
+    PCIDevice *pdev = PCI_DEVICE(s);
+    int i;
+
+    for (i = 0; i < s->peers[s->vm_id].nb_eventfds; i++) {
+        ivshmem_remove_kvm_msi_virq(s, i);
+    }
+
+    msix_unset_vector_notifiers(pdev);
+}
+
+static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,
+                                 uint32_t val, int len)
+{
+    IVShmemState *s = IVSHMEM(pdev);
+    int is_enabled, was_enabled = msix_enabled(pdev);
+
+    pci_default_write_config(pdev, address, val, len);
+    is_enabled = msix_enabled(pdev);
+
+    if (kvm_msi_via_irqfd_enabled() && s->vm_id != -1) {
+        if (!was_enabled && is_enabled) {
+            ivshmem_enable_irqfd(s);
+        } else if (was_enabled && !is_enabled) {
+            ivshmem_disable_irqfd(s);
+        }
+    }
+}
+
+static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
 {
     IVShmemState *s = IVSHMEM(dev);
     uint8_t *pci_conf;
+    uint8_t attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
+        PCI_BASE_ADDRESS_MEM_PREFETCH;
 
-    if (s->sizearg == NULL)
-        s->ivshmem_size = 4 << 20; /* 4 MB default */
-    else {
-        s->ivshmem_size = ivshmem_get_size(s);
+    if (!!s->server_chr + !!s->shmobj + !!s->hostmem != 1) {
+        error_setg(errp, "You must specify either a shmobj, a chardev"
+                   " or a hostmem");
+        return;
     }
 
-    fifo8_create(&s->incoming_fifo, sizeof(long));
+    if (s->hostmem) {
+        MemoryRegion *mr;
 
-    register_savevm(DEVICE(dev), "ivshmem", 0, 0, ivshmem_save, ivshmem_load,
-                                                                        dev);
+        if (s->sizearg) {
+            g_warning("size argument ignored with hostmem");
+        }
+
+        mr = host_memory_backend_get_memory(s->hostmem, errp);
+        s->ivshmem_size = memory_region_size(mr);
+    } else if (s->sizearg == NULL) {
+        s->ivshmem_size = 4 << 20; /* 4 MB default */
+    } else {
+        char *end;
+        int64_t size = qemu_strtosz(s->sizearg, &end);
+        if (size < 0 || *end != '\0' || !is_power_of_2(size)) {
+            error_setg(errp, "Invalid size %s", s->sizearg);
+            return;
+        }
+        s->ivshmem_size = size;
+    }
+
+    fifo8_create(&s->incoming_fifo, sizeof(int64_t));
 
     /* IRQFD requires MSI */
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD) &&
         !ivshmem_has_feature(s, IVSHMEM_MSI)) {
-        error_report("ioeventfd/irqfd requires MSI");
-        exit(1);
+        error_setg(errp, "ioeventfd/irqfd requires MSI");
+        return;
     }
 
     /* check that role is reasonable */
@@ -730,8 +899,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
         } else if (strncmp(s->role, "master", 7) == 0) {
             s->role_val = IVSHMEM_MASTER;
         } else {
-            error_report("'role' must be 'peer' or 'master'");
-            exit(1);
+            error_setg(errp, "'role' must be 'peer' or 'master'");
+            return;
         }
     } else {
         s->role_val = IVSHMEM_MASTER; /* default */
@@ -748,8 +917,6 @@ static int pci_ivshmem_init(PCIDevice *dev)
 
     pci_config_set_interrupt_pin(pci_conf, 1);
 
-    s->shm_fd = 0;
-
     memory_region_init_io(&s->ivshmem_mmio, OBJECT(s), &ivshmem_mmio_ops, s,
                           "ivshmem-mmio", IVSHMEM_REG_BAR_SIZE);
 
@@ -758,50 +925,50 @@ static int pci_ivshmem_init(PCIDevice *dev)
                      &s->ivshmem_mmio);
 
     memory_region_init(&s->bar, OBJECT(s), "ivshmem-bar2-container", s->ivshmem_size);
-    s->ivshmem_attr = PCI_BASE_ADDRESS_SPACE_MEMORY |
-        PCI_BASE_ADDRESS_MEM_PREFETCH;
     if (s->ivshmem_64bit) {
-        s->ivshmem_attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
+        attr |= PCI_BASE_ADDRESS_MEM_TYPE_64;
     }
 
-    if ((s->server_chr != NULL) &&
-                        (strncmp(s->server_chr->filename, "unix:", 5) == 0)) {
+    if (s->hostmem != NULL) {
+        MemoryRegion *mr;
+
+        IVSHMEM_DPRINTF("using hostmem\n");
+
+        mr = host_memory_backend_get_memory(MEMORY_BACKEND(s->hostmem), errp);
+        vmstate_register_ram(mr, DEVICE(s));
+        memory_region_add_subregion(&s->bar, 0, mr);
+        pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
+    } else if (s->server_chr != NULL) {
+        if (strncmp(s->server_chr->filename, "unix:", 5)) {
+            error_setg(errp, "chardev is not a unix client socket");
+            return;
+        }
+
         /* if we get a UNIX socket as the parameter we will talk
          * to the ivshmem server to receive the memory region */
-
-        if (s->shmobj != NULL) {
-            error_report("WARNING: do not specify both 'chardev' "
-                         "and 'shm' with ivshmem");
-        }
 
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
-        if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
-            ivshmem_setup_msi(s);
+        if (ivshmem_has_feature(s, IVSHMEM_MSI) &&
+            ivshmem_setup_msi(s)) {
+            error_setg(errp, "msix initialization failed");
+            return;
         }
 
-        /* we allocate enough space for 16 guests and grow as needed */
-        s->nb_peers = 16;
+        /* we allocate enough space for 16 peers and grow as needed */
+        resize_peers(s, 16);
         s->vm_id = -1;
 
-        /* allocate/initialize space for interrupt handling */
-        s->peers = g_malloc0(s->nb_peers * sizeof(Peer));
-
-        pci_register_bar(dev, 2, s->ivshmem_attr, &s->bar);
+        pci_register_bar(dev, 2, attr, &s->bar);
 
         s->eventfd_chr = g_malloc0(s->vectors * sizeof(CharDriverState *));
 
-        qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive, ivshmem_read,
-                     ivshmem_event, s);
+        qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive,
+                              ivshmem_check_version, ivshmem_event, s);
     } else {
         /* just map the file immediately, we're not using a server */
         int fd;
-
-        if (s->shmobj == NULL) {
-            error_report("Must specify 'chardev' or 'shm' to ivshmem");
-            exit(1);
-        }
 
         IVSHMEM_DPRINTF("using shm_open (shm object = %s)\n", s->shmobj);
 
@@ -816,38 +983,154 @@ static int pci_ivshmem_init(PCIDevice *dev)
 
         } else if ((fd = shm_open(s->shmobj, O_CREAT|O_RDWR,
                         S_IRWXU|S_IRWXG|S_IRWXO)) < 0) {
-            error_report("could not open shared file");
-            exit(1);
-
+            error_setg(errp, "could not open shared file");
+            return;
         }
 
-        if (check_shm_size(s, fd) == -1) {
-            exit(1);
+        if (check_shm_size(s, fd, errp) == -1) {
+            return;
         }
 
-        create_shared_memory_BAR(s, fd);
-
+        create_shared_memory_BAR(s, fd, attr, errp);
+        close(fd);
     }
-
-    dev->config_write = ivshmem_write_config;
-
-    return 0;
 }
 
-static void pci_ivshmem_uninit(PCIDevice *dev)
+static void pci_ivshmem_exit(PCIDevice *dev)
 {
     IVShmemState *s = IVSHMEM(dev);
+    int i;
+
+    fifo8_destroy(&s->incoming_fifo);
 
     if (s->migration_blocker) {
         migrate_del_blocker(s->migration_blocker);
         error_free(s->migration_blocker);
     }
 
-    memory_region_del_subregion(&s->bar, &s->ivshmem);
-    vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
-    unregister_savevm(DEVICE(dev), "ivshmem", s);
-    fifo8_destroy(&s->incoming_fifo);
+    if (memory_region_is_mapped(&s->ivshmem)) {
+        if (!s->hostmem) {
+            void *addr = memory_region_get_ram_ptr(&s->ivshmem);
+
+            if (munmap(addr, s->ivshmem_size) == -1) {
+                error_report("Failed to munmap shared memory %s",
+                             strerror(errno));
+            }
+        }
+
+        vmstate_unregister_ram(&s->ivshmem, DEVICE(dev));
+        memory_region_del_subregion(&s->bar, &s->ivshmem);
+    }
+
+    if (s->eventfd_chr) {
+        for (i = 0; i < s->vectors; i++) {
+            if (s->eventfd_chr[i]) {
+                qemu_chr_free(s->eventfd_chr[i]);
+            }
+        }
+        g_free(s->eventfd_chr);
+    }
+
+    if (s->peers) {
+        for (i = 0; i < s->nb_peers; i++) {
+            close_peer_eventfds(s, i);
+        }
+        g_free(s->peers);
+    }
+
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        msix_uninit_exclusive_bar(dev);
+    }
+
+    g_free(s->msi_vectors);
 }
+
+static bool test_msix(void *opaque, int version_id)
+{
+    IVShmemState *s = opaque;
+
+    return ivshmem_has_feature(s, IVSHMEM_MSI);
+}
+
+static bool test_no_msix(void *opaque, int version_id)
+{
+    return !test_msix(opaque, version_id);
+}
+
+static int ivshmem_pre_load(void *opaque)
+{
+    IVShmemState *s = opaque;
+
+    if (s->role_val == IVSHMEM_PEER) {
+        error_report("'peer' devices are not migratable");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int ivshmem_post_load(void *opaque, int version_id)
+{
+    IVShmemState *s = opaque;
+
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        ivshmem_use_msix(s);
+    }
+
+    return 0;
+}
+
+static int ivshmem_load_old(QEMUFile *f, void *opaque, int version_id)
+{
+    IVShmemState *s = opaque;
+    PCIDevice *pdev = PCI_DEVICE(s);
+    int ret;
+
+    IVSHMEM_DPRINTF("ivshmem_load_old\n");
+
+    if (version_id != 0) {
+        return -EINVAL;
+    }
+
+    if (s->role_val == IVSHMEM_PEER) {
+        error_report("'peer' devices are not migratable");
+        return -EINVAL;
+    }
+
+    ret = pci_device_load(pdev, f);
+    if (ret) {
+        return ret;
+    }
+
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        msix_load(pdev, f);
+        ivshmem_use_msix(s);
+    } else {
+        s->intrstatus = qemu_get_be32(f);
+        s->intrmask = qemu_get_be32(f);
+    }
+
+    return 0;
+}
+
+static const VMStateDescription ivshmem_vmsd = {
+    .name = "ivshmem",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_load = ivshmem_pre_load,
+    .post_load = ivshmem_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_obj, IVShmemState),
+
+        VMSTATE_MSIX_TEST(parent_obj, IVShmemState, test_msix),
+        VMSTATE_UINT32_TEST(intrstatus, IVShmemState, test_no_msix),
+        VMSTATE_UINT32_TEST(intrmask, IVShmemState, test_no_msix),
+
+        VMSTATE_END_OF_LIST()
+    },
+    .load_state_old = ivshmem_load_old,
+    .minimum_version_id_old = 0
+};
 
 static Property ivshmem_properties[] = {
     DEFINE_PROP_CHR("chardev", IVShmemState, server_chr),
@@ -866,20 +1149,50 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_ivshmem_init;
-    k->exit = pci_ivshmem_uninit;
+    k->realize = pci_ivshmem_realize;
+    k->exit = pci_ivshmem_exit;
+    k->config_write = ivshmem_write_config;
     k->vendor_id = PCI_VENDOR_ID_IVSHMEM;
     k->device_id = PCI_DEVICE_ID_IVSHMEM;
     k->class_id = PCI_CLASS_MEMORY_RAM;
     dc->reset = ivshmem_reset;
     dc->props = ivshmem_properties;
+    dc->vmsd = &ivshmem_vmsd;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+    dc->desc = "Inter-VM shared memory";
+}
+
+static void ivshmem_check_memdev_is_busy(Object *obj, const char *name,
+                                         Object *val, Error **errp)
+{
+    MemoryRegion *mr;
+
+    mr = host_memory_backend_get_memory(MEMORY_BACKEND(val), errp);
+    if (memory_region_is_mapped(mr)) {
+        char *path = object_get_canonical_path_component(val);
+        error_setg(errp, "can't use already busy memdev: %s", path);
+        g_free(path);
+    } else {
+        qdev_prop_allow_set_link_before_realize(obj, name, val, errp);
+    }
+}
+
+static void ivshmem_init(Object *obj)
+{
+    IVShmemState *s = IVSHMEM(obj);
+
+    object_property_add_link(obj, IVSHMEM_MEMDEV_PROP, TYPE_MEMORY_BACKEND,
+                             (Object **)&s->hostmem,
+                             ivshmem_check_memdev_is_busy,
+                             OBJ_PROP_LINK_UNREF_ON_RELEASE,
+                             &error_abort);
 }
 
 static const TypeInfo ivshmem_info = {
     .name          = TYPE_IVSHMEM,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(IVShmemState),
+    .instance_init = ivshmem_init,
     .class_init    = ivshmem_class_init,
 };
 

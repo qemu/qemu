@@ -200,8 +200,14 @@ static uint64_t msix_pba_mmio_read(void *opaque, hwaddr addr,
     return pci_get_long(dev->msix_pba + addr);
 }
 
+static void msix_pba_mmio_write(void *opaque, hwaddr addr,
+                                uint64_t val, unsigned size)
+{
+}
+
 static const MemoryRegionOps msix_pba_mmio_ops = {
     .read = msix_pba_mmio_read,
+    .write = msix_pba_mmio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid = {
         .min_access_size = 4,

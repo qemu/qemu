@@ -1266,9 +1266,13 @@ is qemu.git/contrib/ivshmem-server.  An example syntax when using the shared
 memory server is:
 
 @example
-qemu-system-i386 -device ivshmem,size=<size in format accepted by -m>[,chardev=<id>]
-                 [,msi=on][,ioeventfd=on][,vectors=n][,role=peer|master]
-qemu-system-i386 -chardev socket,path=<path>,id=<id>
+# First start the ivshmem server once and for all
+ivshmem-server -p <pidfile> -S <path> -m <shm name> -l <shm size> -n <vectors n>
+
+# Then start your qemu instances with matching arguments
+qemu-system-i386 -device ivshmem,size=<shm size>,vectors=<vectors n>,chardev=<id>
+                 [,msi=on][,ioeventfd=on][,role=peer|master]
+                 -chardev socket,path=<path>,id=<id>
 @end example
 
 When using the server, the guest will be assigned a VM ID (>=0) that allows guests
@@ -1288,6 +1292,19 @@ copy the shared memory on migration to the destination host.  With
 @option{role=peer}, the guest will not be able to migrate with the device attached.
 With the @option{peer} case, the device should be detached and then reattached
 after migration using the PCI hotplug support.
+
+@subsubsection ivshmem and hugepages
+
+Instead of specifying the <shm size> using POSIX shm, you may specify
+a memory backend that has hugepage support:
+
+@example
+qemu-system-i386 -object memory-backend-file,size=1G,mem-path=/mnt/hugepages,id=mb1
+                 -device ivshmem,memdev=mb1
+@end example
+
+ivshmem-server also supports hugepages mount points with the
+@option{-m} memory path argument.
 
 @node direct_linux_boot
 @section Direct Linux Boot

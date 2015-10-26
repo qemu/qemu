@@ -2,30 +2,106 @@
 Device Specification for Inter-VM shared memory device
 ------------------------------------------------------
 
-The Inter-VM shared memory device is designed to share a region of memory to
-userspace in multiple virtual guests.  The memory region does not belong to any
-guest, but is a POSIX memory object on the host.  Optionally, the device may
-support sending interrupts to other guests sharing the same memory region.
+The Inter-VM shared memory device is designed to share a memory region (created
+on the host via the POSIX shared memory API) between multiple QEMU processes
+running different guests. In order for all guests to be able to pick up the
+shared memory area, it is modeled by QEMU as a PCI device exposing said memory
+to the guest as a PCI BAR.
+The memory region does not belong to any guest, but is a POSIX memory object on
+the host. The host can access this shared memory if needed.
+
+The device also provides an optional communication mechanism between guests
+sharing the same memory object. More details about that in the section 'Guest to
+guest communication' section.
 
 
 The Inter-VM PCI device
 -----------------------
 
-*BARs*
+From the VM point of view, the ivshmem PCI device supports three BARs.
 
-The device supports three BARs.  BAR0 is a 1 Kbyte MMIO region to support
-registers.  BAR1 is used for MSI-X when it is enabled in the device.  BAR2 is
-used to map the shared memory object from the host.  The size of BAR2 is
-specified when the guest is started and must be a power of 2 in size.
+- BAR0 is a 1 Kbyte MMIO region to support registers and interrupts when MSI is
+  not used.
+- BAR1 is used for MSI-X when it is enabled in the device.
+- BAR2 is used to access the shared memory object.
 
-*Registers*
+It is your choice how to use the device but you must choose between two
+behaviors :
 
-The device currently supports 4 registers of 32-bits each.  Registers
-are used for synchronization between guests sharing the same memory object when
-interrupts are supported (this requires using the shared memory server).
+- basically, if you only need the shared memory part, you will map BAR2.
+  This way, you have access to the shared memory in guest and can use it as you
+  see fit (memnic, for example, uses it in userland
+  http://dpdk.org/browse/memnic).
 
-The server assigns each VM an ID number and sends this ID number to the QEMU
-process when the guest starts.
+- BAR0 and BAR1 are used to implement an optional communication mechanism
+  through interrupts in the guests. If you need an event mechanism between the
+  guests accessing the shared memory, you will most likely want to write a
+  kernel driver that will handle interrupts. See details in the section 'Guest
+  to guest communication' section.
+
+The behavior is chosen when starting your QEMU processes:
+- no communication mechanism needed, the first QEMU to start creates the shared
+  memory on the host, subsequent QEMU processes will use it.
+
+- communication mechanism needed, an ivshmem server must be started before any
+  QEMU processes, then each QEMU process connects to the server unix socket.
+
+For more details on the QEMU ivshmem parameters, see qemu-doc documentation.
+
+
+Guest to guest communication
+----------------------------
+
+This section details the communication mechanism between the guests accessing
+the ivhsmem shared memory.
+
+*ivshmem server*
+
+This server code is available in qemu.git/contrib/ivshmem-server.
+
+The server must be started on the host before any guest.
+It creates a shared memory object then waits for clients to connect on a unix
+socket. All the messages are little-endian int64_t integer.
+
+For each client (QEMU process) that connects to the server:
+- the server sends a protocol version, if client does not support it, the client
+  closes the communication,
+- the server assigns an ID for this client and sends this ID to him as the first
+  message,
+- the server sends a fd to the shared memory object to this client,
+- the server creates a new set of host eventfds associated to the new client and
+  sends this set to all already connected clients,
+- finally, the server sends all the eventfds sets for all clients to the new
+  client.
+
+The server signals all clients when one of them disconnects.
+
+The client IDs are limited to 16 bits because of the current implementation (see
+Doorbell register in 'PCI device registers' subsection). Hence only 65536
+clients are supported.
+
+All the file descriptors (fd to the shared memory, eventfds for each client)
+are passed to clients using SCM_RIGHTS over the server unix socket.
+
+Apart from the current ivshmem implementation in QEMU, an ivshmem client has
+been provided in qemu.git/contrib/ivshmem-client for debug.
+
+*QEMU as an ivshmem client*
+
+At initialisation, when creating the ivshmem device, QEMU first receives a
+protocol version and closes communication with server if it does not match.
+Then, QEMU gets its ID from the server then makes it available through BAR0
+IVPosition register for the VM to use (see 'PCI device registers' subsection).
+QEMU then uses the fd to the shared memory to map it to BAR2.
+eventfds for all other clients received from the server are stored to implement
+BAR0 Doorbell register (see 'PCI device registers' subsection).
+Finally, eventfds assigned to this QEMU process are used to send interrupts in
+this VM.
+
+*PCI device registers*
+
+From the VM point of view, the ivshmem PCI device supports 4 registers of
+32-bits each.
 
 enum ivshmem_registers {
     IntrMask = 0,
@@ -49,8 +125,8 @@ bit to 0 and unmasked by setting the first bit to 1.
 IVPosition Register: The IVPosition register is read-only and reports the
 guest's ID number.  The guest IDs are non-negative integers.  When using the
 server, since the server is a separate process, the VM ID will only be set when
-the device is ready (shared memory is received from the server and accessible via
-the device).  If the device is not ready, the IVPosition will return -1.
+the device is ready (shared memory is received from the server and accessible
+via the device).  If the device is not ready, the IVPosition will return -1.
 Applications should ensure that they have a valid VM ID before accessing the
 shared memory.
 
@@ -59,8 +135,8 @@ Doorbell register.  The doorbell register is 32-bits, logically divided into
 two 16-bit fields.  The high 16-bits are the guest ID to interrupt and the low
 16-bits are the interrupt vector to trigger.  The semantics of the value
 written to the doorbell depends on whether the device is using MSI or a regular
-pin-based interrupt.  In short, MSI uses vectors while regular interrupts set the
-status register.
+pin-based interrupt.  In short, MSI uses vectors while regular interrupts set
+the status register.
 
 Regular Interrupts
 
@@ -71,7 +147,7 @@ interrupt in the destination guest.
 
 Message Signalled Interrupts
 
-A ivshmem device may support multiple MSI vectors.  If so, the lower 16-bits
+An ivshmem device may support multiple MSI vectors.  If so, the lower 16-bits
 written to the Doorbell register must be between 0 and the maximum number of
 vectors the guest supports.  The lower 16 bits written to the doorbell is the
 MSI vector that will be raised in the destination guest.  The number of MSI
@@ -83,14 +159,3 @@ interrupt itself should be communicated via the shared memory region.  Devices
 supporting multiple MSI vectors can use different vectors to indicate different
 events have occurred.  The semantics of interrupt vectors are left to the
 user's discretion.
-
-
-Usage in the Guest
-------------------
-
-The shared memory device is intended to be used with the provided UIO driver.
-Very little configuration is needed.  The guest should map BAR0 to access the
-registers (an array of 32-bit ints allows simple writing) and map BAR2 to
-access the shared memory region itself.  The size of the shared memory region
-is specified when the guest (or shared memory server) is started.  A guest may
-map the whole shared memory region or only part of it.
