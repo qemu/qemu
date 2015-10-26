@@ -4083,6 +4083,43 @@ Example:
 EQMP
 
     {
+        .name       = "blockdev-insert-medium",
+        .args_type  = "device:s,node-name:s",
+        .mhandler.cmd_new = qmp_marshal_blockdev_insert_medium,
+    },
+
+SQMP
+blockdev-insert-medium
+----------------------
+
+Inserts a medium (a block driver state tree) into a block device. That block
+device's tray must currently be open (unless there is no attached guest device)
+and there must be no medium inserted already.
+
+Arguments:
+
+- "device": block device name (json-string)
+- "node-name": root node of the BDS tree to insert into the block device
+
+Example:
+
+-> { "execute": "blockdev-add",
+     "arguments": { "options": { "node-name": "node0",
+                                 "driver": "raw",
+                                 "file": { "driver": "file",
+                                           "filename": "fedora.iso" } } } }
+
+<- { "return": {} }
+
+-> { "execute": "blockdev-insert-medium",
+     "arguments": { "device": "ide1-cd0",
+                    "node-name": "node0" } }
+
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "query-named-block-nodes",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_named_block_nodes,

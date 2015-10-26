@@ -1940,6 +1940,23 @@
 { 'command': 'blockdev-remove-medium',
   'data': { 'device': 'str' } }
 
+##
+# @blockdev-insert-medium:
+#
+# Inserts a medium (a block driver state tree) into a block device. That block
+# device's tray must currently be open (unless there is no attached guest
+# device) and there must be no medium inserted already.
+#
+# @device:    block device name
+#
+# @node-name: name of a node in the block driver state graph
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-insert-medium',
+  'data': { 'device': 'str',
+            'node-name': 'str'} }
+
 
 ##
 # @BlockErrorAction
