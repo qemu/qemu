@@ -6481,7 +6481,6 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     uint32_t level = 1;
     uint32_t epd = 0;
     int32_t t0sz, t1sz;
-    int32_t tsz;
     uint32_t tg;
     uint64_t ttbr;
     int ttbr_select;
@@ -6491,6 +6490,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     uint32_t attrs;
     int32_t granule_sz = 9;
     int32_t va_size = 32;
+    int inputsize;
     int32_t tbi = 0;
     TCR *tcr = regime_tcr(env, mmu_idx);
     int ap, ns, xn, pxn;
@@ -6593,7 +6593,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         if (el < 2) {
             epd = extract32(tcr->raw_tcr, 7, 1);
         }
-        tsz = t0sz;
+        inputsize = va_size - t0sz;
 
         tg = extract32(tcr->raw_tcr, 14, 2);
         if (tg == 1) { /* 64KB pages */
@@ -6608,7 +6608,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
 
         ttbr = regime_ttbr(env, mmu_idx, 1);
         epd = extract32(tcr->raw_tcr, 23, 1);
-        tsz = t1sz;
+        inputsize = va_size - t1sz;
 
         tg = extract32(tcr->raw_tcr, 30, 2);
         if (tg == 3)  { /* 64KB pages */
@@ -6620,7 +6620,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     }
 
     /* Here we should have set up all the parameters for the translation:
-     * va_size, ttbr, epd, tsz, granule_sz, tbi
+     * va_size, inputsize, ttbr, epd, granule_sz, tbi
      */
 
     if (epd) {
@@ -6635,27 +6635,27 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
      * of strides (granule_sz bits at a time) needed to consume the bits
      * of the input address. In the pseudocode this is:
      *  level = 4 - RoundUp((inputsize - grainsize) / stride)
-     * where their 'inputsize' is our 'va_size - tsz', 'grainsize' is
+     * where their 'inputsize' is our 'inputsize', 'grainsize' is
      * our 'granule_sz + 3' and 'stride' is our 'granule_sz'.
      * Applying the usual "rounded up m/n is (m+n-1)/n" and simplifying:
-     *     = 4 - (va_size - tsz - granule_sz - 3 + granule_sz - 1) / granule_sz
-     *     = 4 - (va_size - tsz - 4) / granule_sz;
+     *     = 4 - (inputsize - granule_sz - 3 + granule_sz - 1) / granule_sz
+     *     = 4 - (inputsize - 4) / granule_sz;
      */
-    level = 4 - (va_size - tsz - 4) / granule_sz;
+    level = 4 - (inputsize - 4) / granule_sz;
 
     /* Clear the vaddr bits which aren't part of the within-region address,
      * so that we don't have to special case things when calculating the
      * first descriptor address.
      */
-    if (tsz) {
-        address &= (1ULL << (va_size - tsz)) - 1;
+    if (va_size != inputsize) {
+        address &= (1ULL << inputsize) - 1;
     }
 
     descmask = (1ULL << (granule_sz + 3)) - 1;
 
     /* Now we can extract the actual base address from the TTBR */
     descaddr = extract64(ttbr, 0, 48);
-    descaddr &= ~((1ULL << (va_size - tsz - (granule_sz * (4 - level)))) - 1);
+    descaddr &= ~((1ULL << (inputsize - (granule_sz * (4 - level)))) - 1);
 
     /* Secure accesses start with the page table in secure memory and
      * can be downgraded to non-secure at any step. Non-secure accesses
