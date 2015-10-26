@@ -767,8 +767,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     /* FIXME error_setg(errp, ...) on failure */
     const NetdevTapOptions *tap;
 
-    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_TAP);
-    tap = opts->tap;
+    assert(opts->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    tap = opts->u.tap;
 
     if (!tap->has_ifname) {
         error_report("tap: no interface name");

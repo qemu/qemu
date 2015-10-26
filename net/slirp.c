@@ -746,8 +746,8 @@ int net_init_slirp(const NetClientOptions *opts, const char *name,
     const NetdevUserOptions *user;
     const char **dnssearch;
 
-    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_USER);
-    user = opts->user;
+    assert(opts->type == NET_CLIENT_OPTIONS_KIND_USER);
+    user = opts->u.user;
 
     vnet = user->has_net ? g_strdup(user->net) :
            user->has_ip  ? g_strdup_printf("%s/24", user->ip) :
