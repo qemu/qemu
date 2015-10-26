@@ -1239,6 +1239,33 @@ void blk_update_root_state(BlockBackend *blk)
     }
 }
 
+/*
+ * Applies the information in the root state to the given BlockDriverState. This
+ * does not include the flags which have to be specified for bdrv_open(), use
+ * blk_get_open_flags_from_root_state() to inquire them.
+ */
+void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs)
+{
+    bs->detect_zeroes = blk->root_state.detect_zeroes;
+    if (blk->root_state.throttle_group) {
+        bdrv_io_limits_enable(bs, blk->root_state.throttle_group);
+    }
+}
+
+/*
+ * Returns the flags to be used for bdrv_open() of a BlockDriverState which is
+ * supposed to inherit the root state.
+ */
+int blk_get_open_flags_from_root_state(BlockBackend *blk)
+{
+    int bs_flags;
+
+    bs_flags = blk->root_state.read_only ? 0 : BDRV_O_RDWR;
+    bs_flags |= blk->root_state.open_flags & ~BDRV_O_RDWR;
+
+    return bs_flags;
+}
+
 BlockBackendRootState *blk_get_root_state(BlockBackend *blk)
 {
     return &blk->root_state;
