@@ -101,6 +101,7 @@ void tlb_fill(CPUState *cs, target_ulong addr, int is_write, int mmu_idx,
         target_el = exception_target_el(env);
         if (fi.stage2) {
             target_el = 2;
+            env->cp15.hpfar_el2 = extract64(fi.s2addr, 12, 47) << 4;
         }
         same_el = arm_current_el(env) == target_el;
         /* AArch64 syndrome does not have an LPAE bit */

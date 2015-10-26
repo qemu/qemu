@@ -7196,14 +7196,38 @@ static bool get_phys_addr(CPUARMState *env, target_ulong address,
                           ARMMMUFaultInfo *fi)
 {
     if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
-        /* TODO: when we support EL2 we should here call ourselves recursively
-         * to do the stage 1 and then stage 2 translations. The arm_ld*_ptw
-         * functions will also need changing to perform ARMMMUIdx_S2NS loads
-         * rather than direct physical memory loads when appropriate.
-         * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
+        /* Call ourselves recursively to do the stage 1 and then stage 2
+         * translations.
          */
-        assert(!arm_feature(env, ARM_FEATURE_EL2));
-        mmu_idx += ARMMMUIdx_S1NSE0;
+        if (arm_feature(env, ARM_FEATURE_EL2)) {
+            hwaddr ipa;
+            int s2_prot;
+            int ret;
+
+            ret = get_phys_addr(env, address, access_type,
+                                mmu_idx + ARMMMUIdx_S1NSE0, &ipa, attrs,
+                                prot, page_size, fsr, fi);
+
+            /* If S1 fails or S2 is disabled, return early.  */
+            if (ret || regime_translation_disabled(env, ARMMMUIdx_S2NS)) {
+                *phys_ptr = ipa;
+                return ret;
+            }
+
+            /* S1 is done. Now do S2 translation.  */
+            ret = get_phys_addr_lpae(env, ipa, access_type, ARMMMUIdx_S2NS,
+                                     phys_ptr, attrs, &s2_prot,
+                                     page_size, fsr, fi);
+            fi->s2addr = ipa;
+            /* Combine the S1 and S2 perms.  */
+            *prot &= s2_prot;
+            return ret;
+        } else {
+            /*
+             * For non-EL2 CPUs a stage1+stage2 translation is just stage 1.
+             */
+            mmu_idx += ARMMMUIdx_S1NSE0;
+        }
     }
 
     /* The page table entries may downgrade secure to non-secure, but
