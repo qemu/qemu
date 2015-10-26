@@ -50,7 +50,7 @@ static bool find_dev(Schib *schib, int dev_no)
         if (!schib->pmcw.dnv) {
             continue;
         }
-        if (!virtio_is_blk(blk_schid)) {
+        if (!virtio_is_supported(blk_schid)) {
             continue;
         }
         if ((dev_no < 0) || (schib->pmcw.dev == dev_no)) {
@@ -95,7 +95,7 @@ static void virtio_setup(uint64_t dev_info)
         panic("No virtio-blk device found!\n");
     }
 
-    virtio_setup_block(blk_schid);
+    virtio_setup_device(blk_schid);
 
     if (!virtio_ipl_disk_is_valid()) {
         panic("No valid hard disk detected.\n");

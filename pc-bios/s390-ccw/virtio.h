@@ -201,7 +201,15 @@ struct VirtioBlkConfig {
 } __attribute__((packed));
 typedef struct VirtioBlkConfig VirtioBlkConfig;
 
-bool virtio_guessed_disk_nature(void);
+enum guessed_disk_nature_type {
+    VIRTIO_GDN_NONE     = 0,
+    VIRTIO_GDN_DASD     = 1,
+    VIRTIO_GDN_CDROM    = 2,
+    VIRTIO_GDN_SCSI     = 3,
+};
+typedef enum guessed_disk_nature_type VirtioGDN;
+
+VirtioGDN virtio_guessed_disk_nature(void);
 void virtio_assume_scsi(void);
 void virtio_assume_eckd(void);
 void virtio_assume_iso9660(void);
@@ -228,7 +236,7 @@ struct VDev {
     int cmd_vr_idx;
     void *ring_area;
     long wait_reply_timeout;
-    bool guessed_disk_nature;
+    VirtioGDN guessed_disk_nature;
     SubChannelId schid;
     SenseId senseid;
     union {

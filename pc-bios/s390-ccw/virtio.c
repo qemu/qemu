@@ -25,7 +25,6 @@ static VDev vdev = {
     .cmd_vr_idx = 0,
     .ring_area = ring_area,
     .wait_reply_timeout = VRING_WAIT_REPLY_TIMEOUT,
-    .guessed_disk_nature = false,
     .schid = { .one = 1 },
 };
 
@@ -230,11 +229,12 @@ static int vring_wait_reply(void)
  *               Virtio block                  *
  ***********************************************/
 
-int virtio_read_many(ulong sector, void *load_addr, int sec_num)
+static int virtio_blk_read_many(VDev *vdev,
+                                ulong sector, void *load_addr, int sec_num)
 {
     VirtioBlkOuthdr out_hdr;
     u8 status;
-    VRing *vr = &vdev.vrings[vdev.cmd_vr_idx];
+    VRing *vr = &vdev->vrings[vdev->cmd_vr_idx];
 
     /* Tell the host we want to read */
     out_hdr.type = VIRTIO_BLK_T_IN;
@@ -260,6 +260,16 @@ int virtio_read_many(ulong sector, void *load_addr, int sec_num)
         status = 1;
     }
     return status;
+}
+
+int virtio_read_many(ulong sector, void *load_addr, int sec_num)
+{
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        return virtio_blk_read_many(&vdev, sector, load_addr, sec_num);
+    }
+    panic("\n! No readable IPL device !\n");
+    return -1;
 }
 
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
@@ -290,44 +300,60 @@ int virtio_read(ulong sector, void *load_addr)
     return virtio_read_many(sector, load_addr, 1);
 }
 
-bool virtio_guessed_disk_nature(void)
+VirtioGDN virtio_guessed_disk_nature(void)
 {
     return vdev.guessed_disk_nature;
 }
 
 void virtio_assume_scsi(void)
 {
-    vdev.guessed_disk_nature = true;
-    vdev.config.blk.blk_size = 512;
-    vdev.config.blk.physical_block_exp = 0;
+    vdev.guessed_disk_nature = VIRTIO_GDN_SCSI;
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        vdev.config.blk.blk_size = 512;
+        vdev.config.blk.physical_block_exp = 0;
+        break;
+    }
 }
 
 void virtio_assume_iso9660(void)
 {
-    vdev.guessed_disk_nature = true;
-    vdev.config.blk.blk_size = 2048;
-    vdev.config.blk.physical_block_exp = 0;
+    vdev.guessed_disk_nature = VIRTIO_GDN_CDROM;
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        vdev.config.blk.blk_size = 2048;
+        vdev.config.blk.physical_block_exp = 0;
+        break;
+    }
 }
 
 void virtio_assume_eckd(void)
 {
-    vdev.guessed_disk_nature = true;
-    vdev.config.blk.blk_size = 4096;
-    vdev.config.blk.physical_block_exp = 0;
+    vdev.guessed_disk_nature = VIRTIO_GDN_DASD;
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        vdev.config.blk.blk_size = 4096;
+        vdev.config.blk.physical_block_exp = 0;
 
-    /* this must be here to calculate code segment position */
-    vdev.config.blk.geometry.heads = 15;
-    vdev.config.blk.geometry.sectors = 12;
+        /* this must be here to calculate code segment position */
+        vdev.config.blk.geometry.heads = 15;
+        vdev.config.blk.geometry.sectors = 12;
+        break;
+    }
 }
 
 bool virtio_disk_is_scsi(void)
 {
-    if (vdev.guessed_disk_nature) {
-        return (virtio_get_block_size()  == 512);
+    if (vdev.guessed_disk_nature == VIRTIO_GDN_SCSI) {
+        return true;
     }
-    return (vdev.config.blk.geometry.heads == 255)
-        && (vdev.config.blk.geometry.sectors == 63)
-        && (virtio_get_block_size()  == 512);
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        return (vdev.config.blk.geometry.heads == 255)
+            && (vdev.config.blk.geometry.sectors == 63)
+            && (virtio_get_block_size()  == 512);
+    }
+    return false;
 }
 
 /*
@@ -353,12 +379,16 @@ bool virtio_disk_is_eckd(void)
 {
     const int block_size = virtio_get_block_size();
 
-    if (vdev.guessed_disk_nature) {
-        return (block_size  == 4096);
+    if (vdev.guessed_disk_nature == VIRTIO_GDN_DASD) {
+        return true;
     }
-    return (vdev.config.blk.geometry.heads == 15)
-        && (vdev.config.blk.geometry.sectors ==
-            virtio_eckd_sectors_for_block_size(block_size));
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        return (vdev.config.blk.geometry.heads == 15)
+            && (vdev.config.blk.geometry.sectors ==
+                virtio_eckd_sectors_for_block_size(block_size));
+    }
+    return false;
 }
 
 bool virtio_ipl_disk_is_valid(void)
@@ -368,23 +398,39 @@ bool virtio_ipl_disk_is_valid(void)
 
 int virtio_get_block_size(void)
 {
-    return vdev.config.blk.blk_size << vdev.config.blk.physical_block_exp;
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        return vdev.config.blk.blk_size << vdev.config.blk.physical_block_exp;
+    }
+    return 0;
 }
 
 uint8_t virtio_get_heads(void)
 {
-    return vdev.config.blk.geometry.heads;
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        return vdev.config.blk.geometry.heads;
+    }
+    return 0;
 }
 
 uint8_t virtio_get_sectors(void)
 {
-    return vdev.config.blk.geometry.sectors;
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        return vdev.config.blk.geometry.sectors;
+    }
+    return 0;
 }
 
 uint64_t virtio_get_blocks(void)
 {
-    return vdev.config.blk.capacity /
-           (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        return vdev.config.blk.capacity /
+               (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
+    }
+    return 0;
 }
 
 static void virtio_setup_ccw(VDev *vdev)
@@ -393,7 +439,7 @@ static void virtio_setup_ccw(VDev *vdev)
     unsigned char status = VIRTIO_CONFIG_S_DRIVER_OK;
 
     vdev->config.blk.blk_size = 0; /* mark "illegal" - setup started... */
-    vdev->guessed_disk_nature = false;
+    vdev->guessed_disk_nature = VIRTIO_GDN_NONE;
 
     run_ccw(vdev, CCW_CMD_VDEV_RESET, NULL, 0);
 
@@ -441,19 +487,27 @@ static void virtio_setup_ccw(VDev *vdev)
         "Could not write status to host");
 }
 
-void virtio_setup_block(SubChannelId schid)
+void virtio_setup_device(SubChannelId schid)
 {
     vdev.schid = schid;
     virtio_setup_ccw(&vdev);
 
-    if (!virtio_ipl_disk_is_valid()) {
-        /* make sure all getters but blocksize return 0 for invalid IPL disk */
-        memset(&vdev.config.blk, 0, sizeof(vdev.config.blk));
-        virtio_assume_scsi();
+    switch (vdev.senseid.cu_model) {
+    case VIRTIO_ID_BLOCK:
+        if (!virtio_ipl_disk_is_valid()) {
+            /* make sure all getters but blocksize return 0 for
+             * invalid IPL disk
+             */
+            memset(&vdev.config.blk, 0, sizeof(vdev.config.blk));
+            virtio_assume_scsi();
+        }
+        break;
+    default:
+        panic("\n! No IPL device available !\n");
     }
 }
 
-bool virtio_is_blk(SubChannelId schid)
+bool virtio_is_supported(SubChannelId schid)
 {
     vdev.schid = schid;
     memset(&vdev.senseid, 0, sizeof(vdev.senseid));
