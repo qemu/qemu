@@ -228,8 +228,7 @@ def gen_visit_union(name, base, variants):
     ret = ''
 
     if base:
-        members = [m for m in base.members if m != variants.tag_member]
-        ret += gen_visit_struct_fields(name, None, members)
+        ret += gen_visit_fields_decl(base)
 
     for var in variants.variants:
         # Ugly special case for simple union TODO get rid of it
@@ -254,31 +253,30 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
 
     if base:
         ret += mcgen('''
-    visit_type_%(c_name)s_fields(v, obj, &err);
+    visit_type_%(c_name)s_fields(v, (%(c_name)s **)obj, &err);
 ''',
-                     c_name=c_name(name))
-        ret += gen_err_check(label='out_obj')
-
-    tag_key = variants.tag_member.name
-    if not variants.tag_name:
-        # we pointlessly use a different key for simple unions
-        tag_key = 'type'
-    ret += mcgen('''
+                     c_name=base.c_name())
+    else:
+        ret += mcgen('''
     visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
-    if (err) {
-        goto out_obj;
-    }
+''',
+                     c_type=variants.tag_member.type.c_name(),
+                     # TODO ugly special case for simple union
+                     # Use same tag name in C as on the wire to get rid of
+                     # it, then: c_name=c_name(variants.tag_member.name)
+                     c_name='kind',
+                     name=variants.tag_member.name)
+    ret += gen_err_check(label='out_obj')
+    ret += mcgen('''
     if (!visit_start_union(v, !!(*obj)->data, &err) || err) {
         goto out_obj;
     }
     switch ((*obj)->%(c_name)s) {
 ''',
-                 c_type=variants.tag_member.type.c_name(),
                  # TODO ugly special case for simple union
                  # Use same tag name in C as on the wire to get rid of
                  # it, then: c_name=c_name(variants.tag_member.name)
-                 c_name=c_name(variants.tag_name or 'kind'),
-                 name=tag_key)
+                 c_name=c_name(variants.tag_name or 'kind'))
 
     for var in variants.variants:
         # TODO ugly special case for simple union
