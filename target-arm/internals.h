@@ -152,6 +152,31 @@ static inline void update_spsel(CPUARMState *env, uint32_t imm)
     aarch64_restore_sp(env, cur_el);
 }
 
+/*
+ * arm_pamax
+ * @cpu: ARMCPU
+ *
+ * Returns the implementation defined bit-width of physical addresses.
+ * The ARMv8 reference manuals refer to this as PAMax().
+ */
+static inline unsigned int arm_pamax(ARMCPU *cpu)
+{
+    static const unsigned int pamax_map[] = {
+        [0] = 32,
+        [1] = 36,
+        [2] = 40,
+        [3] = 42,
+        [4] = 44,
+        [5] = 48,
+    };
+    unsigned int parange = extract32(cpu->id_aa64mmfr0, 0, 4);
+
+    /* id_aa64mmfr0 is a read-only register so values outside of the
+     * supported mappings can be considered an implementation error.  */
+    assert(parange < ARRAY_SIZE(pamax_map));
+    return pamax_map[parange];
+}
+
 /* Return true if extended addresses are enabled.
  * This is always the case if our translation regime is 64 bit,
  * but depends on TTBCR.EAE for 32 bit.
@@ -389,8 +414,21 @@ bool arm_is_psci_call(ARMCPU *cpu, int excp_type);
 void arm_handle_psci_call(ARMCPU *cpu);
 #endif
 
+/**
+ * ARMMMUFaultInfo: Information describing an ARM MMU Fault
+ * @s2addr: Address that caused a fault at stage 2
+ * @stage2: True if we faulted at stage 2
+ * @s1ptw: True if we faulted at stage 2 while doing a stage 1 page-table walk
+ */
+typedef struct ARMMMUFaultInfo ARMMMUFaultInfo;
+struct ARMMMUFaultInfo {
+    target_ulong s2addr;
+    bool stage2;
+    bool s1ptw;
+};
+
 /* Do a page table walk and add page to TLB if possible */
 bool arm_tlb_fill(CPUState *cpu, vaddr address, int rw, int mmu_idx,
-                  uint32_t *fsr);
+                  uint32_t *fsr, ARMMMUFaultInfo *fi);
 
 #endif

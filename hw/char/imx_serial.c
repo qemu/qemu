@@ -22,25 +22,17 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"
 
-//#define DEBUG_SERIAL 1
-#ifdef DEBUG_SERIAL
-#define DPRINTF(fmt, args...) \
-do { printf("%s: " fmt , TYPE_IMX_SERIAL, ##args); } while (0)
-#else
-#define DPRINTF(fmt, args...) do {} while (0)
+#ifndef DEBUG_IMX_UART
+#define DEBUG_IMX_UART 0
 #endif
 
-/*
- * Define to 1 for messages about attempts to
- * access unimplemented registers or similar.
- */
-//#define DEBUG_IMPLEMENTATION 1
-#ifdef DEBUG_IMPLEMENTATION
-#  define IPRINTF(fmt, args...) \
-    do  { fprintf(stderr, "%s: " fmt, TYPE_IMX_SERIAL, ##args); } while (0)
-#else
-#  define IPRINTF(fmt, args...) do {} while (0)
-#endif
+#define DPRINTF(fmt, args...) \
+    do { \
+        if (DEBUG_IMX_UART) { \
+            fprintf(stderr, "[%s]%s: " fmt , TYPE_IMX_SERIAL, \
+                                             __func__, ##args); \
+        } \
+    } while (0)
 
 static const VMStateDescription vmstate_imx_serial = {
     .name = TYPE_IMX_SERIAL,
@@ -115,7 +107,8 @@ static uint64_t imx_serial_read(void *opaque, hwaddr offset,
     IMXSerialState *s = (IMXSerialState *)opaque;
     uint32_t c;
 
-    DPRINTF("read(offset=%x)\n", offset >> 2);
+    DPRINTF("read(offset=0x%" HWADDR_PRIx ")\n", offset);
+
     switch (offset >> 2) {
     case 0x0: /* URXD */
         c = s->readbuff;
@@ -167,7 +160,8 @@ static uint64_t imx_serial_read(void *opaque, hwaddr offset,
         return 0x0; /* TODO */
 
     default:
-        IPRINTF("%s: bad offset: 0x%x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_SERIAL, __func__, offset);
         return 0;
     }
 }
@@ -178,9 +172,8 @@ static void imx_serial_write(void *opaque, hwaddr offset,
     IMXSerialState *s = (IMXSerialState *)opaque;
     unsigned char ch;
 
-    DPRINTF("write(offset=%x, value = %x) to %s\n",
-            offset >> 2,
-            (unsigned int)value, s->chr ? s->chr->label : "NODEV");
+    DPRINTF("write(offset=0x%" HWADDR_PRIx ", value = 0x%x) to %s\n",
+            offset, (unsigned int)value, s->chr ? s->chr->label : "NODEV");
 
     switch (offset >> 2) {
     case 0x10: /* UTXD */
@@ -198,7 +191,9 @@ static void imx_serial_write(void *opaque, hwaddr offset,
 
     case 0x20: /* UCR1 */
         s->ucr1 = value & 0xffff;
+
         DPRINTF("write(ucr1=%x)\n", (unsigned int)value);
+
         imx_update(s);
         break;
 
@@ -266,12 +261,14 @@ static void imx_serial_write(void *opaque, hwaddr offset,
 
     case 0x2d: /* UTS1 */
     case 0x23: /* UCR4 */
-        IPRINTF("Unimplemented Register %x written to\n", offset >> 2);
+        qemu_log_mask(LOG_UNIMP, "[%s]%s: Unimplemented reg 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_SERIAL, __func__, offset);
         /* TODO */
         break;
 
     default:
-        IPRINTF("%s: Bad offset 0x%x\n", __func__, (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "[%s]%s: Bad register at offset 0x%"
+                      HWADDR_PRIx "\n", TYPE_IMX_SERIAL, __func__, offset);
     }
 }
 
@@ -284,7 +281,9 @@ static int imx_can_receive(void *opaque)
 static void imx_put_data(void *opaque, uint32_t value)
 {
     IMXSerialState *s = (IMXSerialState *)opaque;
+
     DPRINTF("received char\n");
+
     s->usr1 |= USR1_RRDY;
     s->usr2 |= USR2_RDR;
     s->uts1 &= ~UTS1_RXEMPTY;
@@ -319,8 +318,7 @@ static void imx_serial_realize(DeviceState *dev, Error **errp)
         qemu_chr_add_handlers(s->chr, imx_can_receive, imx_receive,
                               imx_event, s);
     } else {
-        DPRINTF("No char dev for uart at 0x%lx\n",
-                (unsigned long)s->iomem.ram_addr);
+        DPRINTF("No char dev for uart\n");
     }
 }
 
