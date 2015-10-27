@@ -569,8 +569,7 @@ int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
     } while ((i = virtqueue_next_desc(vdev, desc_pa, i, max)) != max);
 
     /* Now map what we have collected */
-    virtqueue_map_sg(elem->in_sg, elem->in_addr, elem->in_num, 1);
-    virtqueue_map_sg(elem->out_sg, elem->out_addr, elem->out_num, 0);
+    virtqueue_map(elem);
 
     elem->index = head;
 
