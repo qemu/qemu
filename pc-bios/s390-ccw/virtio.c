@@ -162,7 +162,7 @@ static u64 get_clock(void)
     return r;
 }
 
-static ulong get_second(void)
+ulong get_second(void)
 {
     return (get_clock() >> 12) / 1000000;
 }

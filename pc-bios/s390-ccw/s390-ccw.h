@@ -67,6 +67,7 @@ bool virtio_is_blk(struct subchannel_id schid);
 void virtio_setup_block(struct subchannel_id schid);
 int virtio_read(ulong sector, void *load_addr);
 int enable_mss_facility(void);
+ulong get_second(void);
 
 /* bootmap.c */
 void zipl_load(void);
@@ -142,5 +143,43 @@ static inline void yield(void)
 }
 
 #define MAX_SECTOR_SIZE 4096
+
+static inline void sleep(unsigned int seconds)
+{
+    ulong target = get_second() + seconds;
+
+    while (get_second() < target) {
+        yield();
+    }
+}
+
+static inline void *memcpy(void *s1, const void *s2, size_t n)
+{
+    uint8_t *p1 = s1;
+    const uint8_t *p2 = s2;
+
+    while (n--) {
+        p1[n] = p2[n];
+    }
+    return s1;
+}
+
+static inline void IPL_assert(bool term, const char *message)
+{
+    if (!term) {
+        sclp_print("\n! ");
+        sclp_print(message);
+        panic(" !\n"); /* no return */
+    }
+}
+
+static inline void IPL_check(bool term, const char *message)
+{
+    if (!term) {
+        sclp_print("\n! WARNING: ");
+        sclp_print(message);
+        sclp_print(" !\n");
+    }
+}
 
 #endif /* S390_CCW_H */
