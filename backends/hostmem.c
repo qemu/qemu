@@ -313,9 +313,11 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
         assert(maxnode <= MAX_NODES);
         if (mbind(ptr, sz, backend->policy,
                   maxnode ? backend->host_nodes : NULL, maxnode + 1, flags)) {
-            error_setg_errno(errp, errno,
-                             "cannot bind memory to host NUMA nodes");
-            return;
+            if (backend->policy != MPOL_DEFAULT || errno != ENOSYS) {
+                error_setg_errno(errp, errno,
+                                 "cannot bind memory to host NUMA nodes");
+                return;
+            }
         }
 #endif
         /* Preallocate memory after the NUMA policy has been instantiated.
