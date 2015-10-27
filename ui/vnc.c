@@ -3572,6 +3572,8 @@ void vnc_display_open(const char *id, Error **errp)
             if (to) {
                 saddr->u.inet->has_to = true;
                 saddr->u.inet->to = to;
+                saddr->u.inet->has_to = true;
+                saddr->u.inet->to = to + 5900;
             }
             saddr->u.inet->ipv4 = saddr->u.inet->has_ipv4 = has_ipv4;
             saddr->u.inet->ipv6 = saddr->u.inet->has_ipv6 = has_ipv6;
