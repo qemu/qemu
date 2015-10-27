@@ -11179,6 +11179,35 @@ undef:
                        default_exception_el(s));
 }
 
+static bool insn_crosses_page(CPUARMState *env, DisasContext *s)
+{
+    /* Return true if the insn at dc->pc might cross a page boundary.
+     * (False positives are OK, false negatives are not.)
+     */
+    uint16_t insn;
+
+    if ((s->pc & 3) == 0) {
+        /* At a 4-aligned address we can't be crossing a page */
+        return false;
+    }
+
+    /* This must be a Thumb insn */
+    insn = arm_lduw_code(env, s->pc, s->bswap_code);
+
+    if ((insn >> 11) >= 0x1d) {
+        /* Top five bits 0b11101 / 0b11110 / 0b11111 : this is the
+         * First half of a 32-bit Thumb insn. Thumb-1 cores might
+         * end up actually treating this as two 16-bit insns (see the
+         * code at the start of disas_thumb2_insn()) but we don't bother
+         * to check for that as it is unlikely, and false positives here
+         * are harmless.
+         */
+        return true;
+    }
+    /* Definitely a 16-bit insn, can't be crossing a page. */
+    return false;
+}
+
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'.  */
 void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
@@ -11190,6 +11219,7 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
     target_ulong next_page_start;
     int num_insns;
     int max_insns;
+    bool end_of_page;
 
     /* generate intermediate code */
 
@@ -11411,11 +11441,24 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
          * Otherwise the subsequent code could get translated several times.
          * Also stop translation when a page boundary is reached.  This
          * ensures prefetch aborts occur at the right place.  */
+
+        /* We want to stop the TB if the next insn starts in a new page,
+         * or if it spans between this page and the next. This means that
+         * if we're looking at the last halfword in the page we need to
+         * see if it's a 16-bit Thumb insn (which will fit in this TB)
+         * or a 32-bit Thumb insn (which won't).
+         * This is to avoid generating a silly TB with a single 16-bit insn
+         * in it at the end of this page (which would execute correctly
+         * but isn't very efficient).
+         */
+        end_of_page = (dc->pc >= next_page_start) ||
+            ((dc->pc >= next_page_start - 3) && insn_crosses_page(env, dc));
+
     } while (!dc->is_jmp && !tcg_op_buf_full() &&
              !cs->singlestep_enabled &&
              !singlestep &&
              !dc->ss_active &&
-             dc->pc < next_page_start &&
+             !end_of_page &&
              num_insns < max_insns);
 
     if (tb->cflags & CF_LAST_IO) {
