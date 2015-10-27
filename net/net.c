@@ -708,7 +708,7 @@ static ssize_t nc_sendv_compat(NetClientState *nc, const struct iovec *iov,
         offset = iov[0].iov_len;
     } else {
         buffer = buf;
-        offset = iov_to_buf(iov, iovcnt, 0, buffer, sizeof(buffer));
+        offset = iov_to_buf(iov, iovcnt, 0, buf, sizeof(buf));
     }
 
     if (flags & QEMU_NET_PACKET_FLAG_RAW && nc->info->receive_raw) {
@@ -1197,10 +1197,11 @@ void print_net_client(Monitor *mon, NetClientState *nc)
         monitor_printf(mon, "filters:\n");
     }
     QTAILQ_FOREACH(nf, &nc->filters, next) {
-        monitor_printf(mon, "  - %s: type=%s%s\n",
-                       object_get_canonical_path_component(OBJECT(nf)),
+        char *path = object_get_canonical_path_component(OBJECT(nf));
+        monitor_printf(mon, "  - %s: type=%s%s\n", path,
                        object_get_typename(OBJECT(nf)),
                        nf->info_str);
+        g_free(path);
     }
 }
 
@@ -1226,6 +1227,12 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
             }
             continue;
         }
+
+        /* only query information on queue 0 since the info is per nic,
+         * not per queue
+         */
+        if (nc->queue_index != 0)
+            continue;
 
         if (nc->info->query_rx_filter) {
             info = nc->info->query_rx_filter(nc);

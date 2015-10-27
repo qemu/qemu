@@ -2769,7 +2769,12 @@ static bool object_create_initial(const char *type)
         return false;
     }
 
-    if (g_str_equal(type, "filter-buffer")) {
+    /*
+     * return false for concrete netfilters since
+     * they depend on netdevs already existing
+     */
+    if (g_str_equal(type, "filter-buffer") ||
+        g_str_equal(type, "filter-dump")) {
         return false;
     }
 
