@@ -20,6 +20,7 @@
  */
 
 #include "hw/sysbus.h"
+#include "migration/migration.h"
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
 #include "gic_internal.h"
@@ -307,11 +308,6 @@ static void kvm_arm_gic_put(GICState *s)
     int num_cpu;
     int num_irq;
 
-    if (!kvm_arm_gic_can_save_restore(s)) {
-            DPRINTF("Cannot put kernel gic state, no kernel interface");
-            return;
-    }
-
     /* Note: We do the restore in a slightly different order than the save
      * (where the order doesn't matter and is simply ordered according to the
      * register offset values */
@@ -411,11 +407,6 @@ static void kvm_arm_gic_get(GICState *s)
     int i;
     int cpu;
 
-    if (!kvm_arm_gic_can_save_restore(s)) {
-            DPRINTF("Cannot get kernel gic state, no kernel interface");
-            return;
-    }
-
     /*****************************************************************
      * Distributor State
      */
@@ -503,7 +494,10 @@ static void kvm_arm_gic_reset(DeviceState *dev)
     KVMARMGICClass *kgc = KVM_ARM_GIC_GET_CLASS(s);
 
     kgc->parent_reset(dev);
-    kvm_arm_gic_put(s);
+
+    if (kvm_arm_gic_can_save_restore(s)) {
+        kvm_arm_gic_put(s);
+    }
 }
 
 static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
@@ -573,6 +567,12 @@ static void kvm_arm_gic_realize(DeviceState *dev, Error **errp)
                             KVM_DEV_ARM_VGIC_GRP_ADDR,
                             KVM_VGIC_V2_ADDR_TYPE_CPU,
                             s->dev_fd);
+
+    if (!kvm_arm_gic_can_save_restore(s)) {
+        error_setg(&s->migration_blocker, "This operating system kernel does "
+                                          "not support vGICv2 migration");
+        migrate_add_blocker(s->migration_blocker);
+    }
 }
 
 static void kvm_arm_gic_class_init(ObjectClass *klass, void *data)

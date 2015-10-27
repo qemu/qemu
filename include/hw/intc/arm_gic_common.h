@@ -111,6 +111,7 @@ typedef struct GICState {
     bool security_extn;
     bool irq_reset_nonsecure; /* configure IRQs as group 1 (NS) on reset? */
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
+    Error *migration_blocker;
 } GICState;
 
 #define TYPE_ARM_GIC_COMMON "arm_gic_common"
