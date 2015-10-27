@@ -26,7 +26,7 @@ import os, sys
 
 sys.path.append(os.path.dirname(__file__))
 
-from qemugdb import mtree, coroutine
+from qemugdb import aio, mtree, coroutine
 
 class QemuCommand(gdb.Command):
     '''Prefix for QEMU debug support commands'''
@@ -37,6 +37,7 @@ class QemuCommand(gdb.Command):
 QemuCommand()
 coroutine.CoroutineCommand()
 mtree.MtreeCommand()
+aio.HandlersCommand()
 
 coroutine.CoroutineSPFunction()
 coroutine.CoroutinePCFunction()
