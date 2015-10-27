@@ -1204,6 +1204,7 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     BdrvChild *child = g_new(BdrvChild, 1);
     *child = (BdrvChild) {
         .bs     = child_bs,
+        .parent = parent_bs,
         .name   = g_strdup(child_name),
         .role   = child_role,
     };
