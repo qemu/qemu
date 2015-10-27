@@ -839,10 +839,7 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
         req->next = s->rq;
         s->rq = req;
 
-        virtqueue_map_sg(req->elem.in_sg, req->elem.in_addr,
-            req->elem.in_num, 1);
-        virtqueue_map_sg(req->elem.out_sg, req->elem.out_addr,
-            req->elem.out_num, 0);
+        virtqueue_map(&req->elem);
     }
 
     return 0;
