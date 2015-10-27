@@ -448,26 +448,64 @@ int virtqueue_avail_bytes(VirtQueue *vq, unsigned int in_bytes,
     return in_bytes <= in_total && out_bytes <= out_total;
 }
 
-void virtqueue_map_sg(struct iovec *sg, hwaddr *addr,
-    size_t num_sg, int is_write)
+static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
+                                unsigned int *num_sg, unsigned int max_size,
+                                int is_write)
 {
     unsigned int i;
     hwaddr len;
 
-    if (num_sg > VIRTQUEUE_MAX_SIZE) {
-        error_report("virtio: map attempt out of bounds: %zd > %d",
-                     num_sg, VIRTQUEUE_MAX_SIZE);
-        exit(1);
-    }
+    /* Note: this function MUST validate input, some callers
+     * are passing in num_sg values received over the network.
+     */
+    /* TODO: teach all callers that this can fail, and return failure instead
+     * of asserting here.
+     * When we do, we might be able to re-enable NDEBUG below.
+     */
+#ifdef NDEBUG
+#error building with NDEBUG is not supported
+#endif
+    assert(*num_sg <= max_size);
 
-    for (i = 0; i < num_sg; i++) {
+    for (i = 0; i < *num_sg; i++) {
         len = sg[i].iov_len;
         sg[i].iov_base = cpu_physical_memory_map(addr[i], &len, is_write);
-        if (sg[i].iov_base == NULL || len != sg[i].iov_len) {
+        if (!sg[i].iov_base) {
             error_report("virtio: error trying to map MMIO memory");
             exit(1);
         }
+        if (len == sg[i].iov_len) {
+            continue;
+        }
+        if (*num_sg >= max_size) {
+            error_report("virtio: memory split makes iovec too large");
+            exit(1);
+        }
+        memmove(sg + i + 1, sg + i, sizeof(*sg) * (*num_sg - i));
+        memmove(addr + i + 1, addr + i, sizeof(*addr) * (*num_sg - i));
+        assert(len < sg[i + 1].iov_len);
+        sg[i].iov_len = len;
+        addr[i + 1] += len;
+        sg[i + 1].iov_len -= len;
+        ++*num_sg;
     }
+}
+
+/* Deprecated: don't use in new code */
+void virtqueue_map_sg(struct iovec *sg, hwaddr *addr,
+                      size_t num_sg, int is_write)
+{
+    virtqueue_map_iovec(sg, addr, &num_sg, num_sg, is_write);
+}
+
+void virtqueue_map(VirtQueueElement *elem)
+{
+    virtqueue_map_iovec(elem->in_sg, elem->in_addr, &elem->in_num,
+                        MIN(ARRAY_SIZE(elem->in_sg), ARRAY_SIZE(elem->in_addr)),
+                        1);
+    virtqueue_map_iovec(elem->out_sg, elem->out_addr, &elem->out_num,
+                        MIN(ARRAY_SIZE(elem->out_sg), ARRAY_SIZE(elem->out_addr)),
+                        0);
 }
 
 int virtqueue_pop(VirtQueue *vq, VirtQueueElement *elem)
