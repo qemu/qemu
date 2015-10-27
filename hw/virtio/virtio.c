@@ -491,13 +491,6 @@ static void virtqueue_map_iovec(struct iovec *sg, hwaddr *addr,
     }
 }
 
-/* Deprecated: don't use in new code */
-void virtqueue_map_sg(struct iovec *sg, hwaddr *addr,
-                      size_t num_sg, int is_write)
-{
-    virtqueue_map_iovec(sg, addr, &num_sg, num_sg, is_write);
-}
-
 void virtqueue_map(VirtQueueElement *elem)
 {
     virtqueue_map_iovec(elem->in_sg, elem->in_addr, &elem->in_num,
