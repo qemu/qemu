@@ -2583,6 +2583,10 @@ Each json-object contain the following:
                    another request (json-int)
     - "wr_merged": number of write requests that have been merged into
                    another request (json-int)
+    - "idle_time_ns": time since the last I/O operation, in
+                      nanoseconds. If the field is absent it means
+                      that there haven't been any operations yet
+                      (json-int, optional)
 - "parent": Contains recursively the statistics of the underlying
             protocol (e.g. the host file for a qcow2 image). If there is
             no underlying protocol, this field is omitted
@@ -2607,7 +2611,8 @@ Example:
                   "flush_total_times_ns":49653
                   "flush_operations":61,
                   "rd_merged":0,
-                  "wr_merged":0
+                  "wr_merged":0,
+                  "idle_time_ns":2953431879
                }
             },
             "stats":{
@@ -2621,7 +2626,8 @@ Example:
                "rd_total_times_ns":3465673657
                "flush_total_times_ns":49653,
                "rd_merged":0,
-               "wr_merged":0
+               "wr_merged":0,
+               "idle_time_ns":2953431879
             }
          },
          {

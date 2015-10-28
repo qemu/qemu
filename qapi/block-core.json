@@ -448,6 +448,10 @@
 # @wr_merged: Number of write requests that have been merged into another
 #             request (Since 2.3).
 #
+# @idle_time_ns: #optional Time since the last I/O operation, in
+#                nanoseconds. If the field is absent it means that
+#                there haven't been any operations yet (Since 2.5).
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -455,7 +459,7 @@
            'wr_operations': 'int', 'flush_operations': 'int',
            'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
            'rd_total_time_ns': 'int', 'wr_highest_offset': 'int',
-           'rd_merged': 'int', 'wr_merged': 'int' } }
+           'rd_merged': 'int', 'wr_merged': 'int', '*idle_time_ns': 'int' } }
 
 ##
 # @BlockStats:

@@ -357,6 +357,11 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
         s->stats->wr_total_time_ns = stats->total_time_ns[BLOCK_ACCT_WRITE];
         s->stats->rd_total_time_ns = stats->total_time_ns[BLOCK_ACCT_READ];
         s->stats->flush_total_time_ns = stats->total_time_ns[BLOCK_ACCT_FLUSH];
+
+        s->stats->has_idle_time_ns = stats->last_access_time_ns > 0;
+        if (s->stats->has_idle_time_ns) {
+            s->stats->idle_time_ns = block_acct_idle_time_ns(stats);
+        }
     }
 
     s->stats->wr_highest_offset = bs->wr_highest_offset;

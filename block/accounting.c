@@ -40,12 +40,15 @@ void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
 
 void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
 {
+    int64_t time_ns = qemu_clock_get_ns(clock_type);
+    int64_t latency_ns = time_ns - cookie->start_time_ns;
+
     assert(cookie->type < BLOCK_MAX_IOTYPE);
 
     stats->nr_bytes[cookie->type] += cookie->bytes;
     stats->nr_ops[cookie->type]++;
-    stats->total_time_ns[cookie->type] +=
-        qemu_clock_get_ns(clock_type) - cookie->start_time_ns;
+    stats->total_time_ns[cookie->type] += latency_ns;
+    stats->last_access_time_ns = time_ns;
 }
 
 
@@ -54,4 +57,9 @@ void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
 {
     assert(type < BLOCK_MAX_IOTYPE);
     stats->merged[type] += num_requests;
+}
+
+int64_t block_acct_idle_time_ns(BlockAcctStats *stats)
+{
+    return qemu_clock_get_ns(clock_type) - stats->last_access_time_ns;
 }

@@ -40,6 +40,7 @@ typedef struct BlockAcctStats {
     uint64_t nr_ops[BLOCK_MAX_IOTYPE];
     uint64_t total_time_ns[BLOCK_MAX_IOTYPE];
     uint64_t merged[BLOCK_MAX_IOTYPE];
+    int64_t last_access_time_ns;
 } BlockAcctStats;
 
 typedef struct BlockAcctCookie {
@@ -53,5 +54,6 @@ void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
 void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie);
 void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
                            int num_requests);
+int64_t block_acct_idle_time_ns(BlockAcctStats *stats);
 
 #endif
