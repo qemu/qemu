@@ -2,6 +2,7 @@
  * QEMU System Emulator block accounting
  *
  * Copyright (c) 2011 Christoph Hellwig
+ * Copyright (c) 2015 Igalia, S.L.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
