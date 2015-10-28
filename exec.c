@@ -1205,6 +1205,7 @@ static void *file_ram_alloc(RAMBlock *block,
                             const char *path,
                             Error **errp)
 {
+    struct stat st;
     char *filename;
     char *sanitized_name;
     char *c;
@@ -1233,26 +1234,33 @@ static void *file_ram_alloc(RAMBlock *block,
         goto error;
     }
 
-    /* Make name safe to use with mkstemp by replacing '/' with '_'. */
-    sanitized_name = g_strdup(memory_region_name(block->mr));
-    for (c = sanitized_name; *c != '\0'; c++) {
-        if (*c == '/')
-            *c = '_';
+    if (!stat(path, &st) && S_ISDIR(st.st_mode)) {
+        /* Make name safe to use with mkstemp by replacing '/' with '_'. */
+        sanitized_name = g_strdup(memory_region_name(block->mr));
+        for (c = sanitized_name; *c != '\0'; c++) {
+            if (*c == '/') {
+                *c = '_';
+            }
+        }
+
+        filename = g_strdup_printf("%s/qemu_back_mem.%s.XXXXXX", path,
+                                   sanitized_name);
+        g_free(sanitized_name);
+
+        fd = mkstemp(filename);
+        if (fd >= 0) {
+            unlink(filename);
+        }
+        g_free(filename);
+    } else {
+        fd = open(path, O_RDWR | O_CREAT, 0644);
     }
 
-    filename = g_strdup_printf("%s/qemu_back_mem.%s.XXXXXX", path,
-                               sanitized_name);
-    g_free(sanitized_name);
-
-    fd = mkstemp(filename);
     if (fd < 0) {
         error_setg_errno(errp, errno,
                          "unable to create backing store for hugepages");
-        g_free(filename);
         goto error;
     }
-    unlink(filename);
-    g_free(filename);
 
     memory = ROUND_UP(memory, hpagesize);
 
