@@ -295,20 +295,20 @@ static bitmask_transtbl fcntl_flags_tbl[] = {
   { 0, 0, 0, 0 }
 };
 
-typedef abi_long (*TargetFdFunc)(void *, size_t);
+typedef abi_long (*TargetFdDataFunc)(void *, size_t);
 typedef struct TargetFdTrans {
-    TargetFdFunc host_to_target;
-    TargetFdFunc target_to_host;
+    TargetFdDataFunc host_to_target_data;
+    TargetFdDataFunc target_to_host_data;
 } TargetFdTrans;
 
 static TargetFdTrans **target_fd_trans;
 
 static unsigned int target_fd_max;
 
-static TargetFdFunc fd_trans_host_to_target(int fd)
+static TargetFdDataFunc fd_trans_host_to_target_data(int fd)
 {
     if (fd < target_fd_max && target_fd_trans[fd]) {
-        return target_fd_trans[fd]->host_to_target;
+        return target_fd_trans[fd]->host_to_target_data;
     }
     return NULL;
 }
@@ -5437,7 +5437,7 @@ host_to_target_signalfd_siginfo(struct signalfd_siginfo *tinfo,
     tinfo->ssi_addr = tswap64(info->ssi_addr);
 }
 
-static abi_long host_to_target_signalfd(void *buf, size_t len)
+static abi_long host_to_target_data_signalfd(void *buf, size_t len)
 {
     int i;
 
@@ -5449,7 +5449,7 @@ static abi_long host_to_target_signalfd(void *buf, size_t len)
 }
 
 static TargetFdTrans target_signalfd_trans = {
-    .host_to_target = host_to_target_signalfd,
+    .host_to_target_data = host_to_target_data_signalfd,
 };
 
 static abi_long do_signalfd4(int fd, abi_long mask, int flags)
@@ -5866,8 +5866,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 goto efault;
             ret = get_errno(read(arg1, p, arg3));
             if (ret >= 0 &&
-                fd_trans_host_to_target(arg1)) {
-                ret = fd_trans_host_to_target(arg1)(p, ret);
+                fd_trans_host_to_target_data(arg1)) {
+                ret = fd_trans_host_to_target_data(arg1)(p, ret);
             }
             unlock_user(p, arg2, ret);
         }
