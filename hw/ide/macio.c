@@ -286,7 +286,11 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     return;
 
 done:
-    block_acct_done(blk_get_stats(s->blk), &s->acct);
+    if (ret < 0) {
+        block_acct_failed(blk_get_stats(s->blk), &s->acct);
+    } else {
+        block_acct_done(blk_get_stats(s->blk), &s->acct);
+    }
     io->dma_end(opaque);
 
     return;
@@ -348,7 +352,11 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
 
 done:
     if (s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) {
-        block_acct_done(blk_get_stats(s->blk), &s->acct);
+        if (ret < 0) {
+            block_acct_failed(blk_get_stats(s->blk), &s->acct);
+        } else {
+            block_acct_done(blk_get_stats(s->blk), &s->acct);
+        }
     }
     io->dma_end(opaque);
 }
