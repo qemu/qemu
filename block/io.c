@@ -216,6 +216,8 @@ void bdrv_disable_copy_on_read(BlockDriverState *bs)
 /* Check if any requests are in-flight (including throttled requests) */
 bool bdrv_requests_pending(BlockDriverState *bs)
 {
+    BdrvChild *child;
+
     if (!QLIST_EMPTY(&bs->tracked_requests)) {
         return true;
     }
@@ -225,12 +227,13 @@ bool bdrv_requests_pending(BlockDriverState *bs)
     if (!qemu_co_queue_empty(&bs->throttled_reqs[1])) {
         return true;
     }
-    if (bs->file && bdrv_requests_pending(bs->file->bs)) {
-        return true;
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        if (bdrv_requests_pending(child->bs)) {
+            return true;
+        }
     }
-    if (bs->backing && bdrv_requests_pending(bs->backing->bs)) {
-        return true;
-    }
+
     return false;
 }
 
