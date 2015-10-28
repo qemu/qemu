@@ -442,6 +442,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     bool account_invalid, account_failed;
+    const char *stats_intervals;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
@@ -480,6 +481,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     account_invalid = qemu_opt_get_bool(opts, "stats-account-invalid", true);
     account_failed = qemu_opt_get_bool(opts, "stats-account-failed", true);
+
+    stats_intervals = qemu_opt_get(opts, "stats-intervals");
 
     extract_common_blockdev_options(opts, &bdrv_flags, &throttling_group, &cfg,
                                     &detect_zeroes, &error);
@@ -579,6 +582,35 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         }
 
         block_acct_init(blk_get_stats(blk), account_invalid, account_failed);
+
+        if (stats_intervals) {
+            char **intervals = g_strsplit(stats_intervals, ":", 0);
+            unsigned i;
+
+            if (*stats_intervals == '\0') {
+                error_setg(&error, "stats-intervals can't have an empty value");
+            }
+
+            for (i = 0; !error && intervals[i] != NULL; i++) {
+                unsigned long long val;
+                if (parse_uint_full(intervals[i], &val, 10) == 0 &&
+                    val > 0 && val <= UINT_MAX) {
+                    block_acct_add_interval(blk_get_stats(blk), val);
+                } else {
+                    error_setg(&error, "Invalid interval length: '%s'",
+                               intervals[i]);
+                }
+            }
+
+            g_strfreev(intervals);
+
+            if (error) {
+                error_propagate(errp, error);
+                blk_unref(blk);
+                blk = NULL;
+                goto err_no_bs_opts;
+            }
+        }
     }
 
     blk_set_on_error(blk, on_read_error, on_write_error);
@@ -3916,6 +3948,11 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "whether to account for failed I/O operations "
                     "in the statistics",
+        },{
+            .name = "stats-intervals",
+            .type = QEMU_OPT_STRING,
+            .help = "colon-separated list of intervals "
+                    "for collecting I/O statistics, in seconds",
         },
         { /* end of list */ }
     },
