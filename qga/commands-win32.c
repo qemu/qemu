@@ -160,7 +160,7 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode,
 
     fd = guest_file_handle_add(fh, errp);
     if (fd < 0) {
-        CloseHandle(&fh);
+        CloseHandle(fh);
         error_setg(errp, "failed to add handle to qmp handle table");
         return -1;
     }
