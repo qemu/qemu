@@ -249,16 +249,16 @@ void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    /* TODO: multifunction hot-plug.
-     * Right now, only a device of function = 0 is allowed to be
-     * hot plugged/unplugged.
+    /* To enable multifunction hot-plug, we just ensure the function
+     * 0 added last. When function 0 is added, we set the sltsta and
+     * inform OS via event notification.
      */
-    assert(PCI_FUNC(pci_dev->devfn) == 0);
-
-    pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
-                               PCI_EXP_SLTSTA_PDS);
-    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev),
-                        PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
+    if (pci_get_function_0(pci_dev)) {
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+                                   PCI_EXP_SLTSTA_PDS);
+        pcie_cap_slot_event(PCI_DEVICE(hotplug_dev),
+                            PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
+    }
 }
 
 static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)

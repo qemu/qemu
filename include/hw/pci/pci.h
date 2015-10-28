@@ -397,6 +397,7 @@ void pci_for_each_bus_depth_first(PCIBus *bus,
                                   void *(*begin)(PCIBus *bus, void *parent_state),
                                   void (*end)(PCIBus *bus, void *state),
                                   void *parent_state);
+PCIDevice *pci_get_function_0(PCIDevice *pci_dev);
 
 /* Use this wrapper when specific scan order is not required. */
 static inline
