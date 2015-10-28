@@ -14,6 +14,7 @@
 
 
 extern TraceEvent trace_events[];
+extern int trace_events_enabled_count;
 
 
 static inline TraceEventID trace_event_count(void)
@@ -54,13 +55,14 @@ static inline bool trace_event_get_state_static(TraceEvent *ev)
 static inline bool trace_event_get_state_dynamic(TraceEvent *ev)
 {
     assert(ev != NULL);
-    return ev->dstate;
+    return unlikely(trace_events_enabled_count) && ev->dstate;
 }
 
 static inline void trace_event_set_state_dynamic(TraceEvent *ev, bool state)
 {
     assert(ev != NULL);
     assert(trace_event_get_state_static(ev));
+    trace_events_enabled_count += state - ev->dstate;
     ev->dstate = state;
 }
 

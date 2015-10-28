@@ -16,6 +16,8 @@
 #endif
 #include "qemu/error-report.h"
 
+int trace_events_enabled_count;
+
 TraceEvent *trace_event_name(const char *name)
 {
     assert(name != NULL);
