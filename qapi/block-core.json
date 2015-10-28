@@ -452,6 +452,24 @@
 #                nanoseconds. If the field is absent it means that
 #                there haven't been any operations yet (Since 2.5).
 #
+# @failed_rd_operations: The number of failed read operations
+#                        performed by the device (Since 2.5)
+#
+# @failed_wr_operations: The number of failed write operations
+#                        performed by the device (Since 2.5)
+#
+# @failed_flush_operations: The number of failed flush operations
+#                           performed by the device (Since 2.5)
+#
+# @invalid_rd_operations: The number of invalid read operations
+#                          performed by the device (Since 2.5)
+#
+# @invalid_wr_operations: The number of invalid write operations
+#                         performed by the device (Since 2.5)
+#
+# @invalid_flush_operations: The number of invalid flush operations
+#                            performed by the device (Since 2.5)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -459,7 +477,10 @@
            'wr_operations': 'int', 'flush_operations': 'int',
            'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
            'rd_total_time_ns': 'int', 'wr_highest_offset': 'int',
-           'rd_merged': 'int', 'wr_merged': 'int', '*idle_time_ns': 'int' } }
+           'rd_merged': 'int', 'wr_merged': 'int', '*idle_time_ns': 'int',
+           'failed_rd_operations': 'int', 'failed_wr_operations': 'int',
+           'failed_flush_operations': 'int', 'invalid_rd_operations': 'int',
+           'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int'  } }
 
 ##
 # @BlockStats:

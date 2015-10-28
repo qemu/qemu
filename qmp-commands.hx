@@ -2587,6 +2587,18 @@ Each json-object contain the following:
                       nanoseconds. If the field is absent it means
                       that there haven't been any operations yet
                       (json-int, optional)
+    - "failed_rd_operations": number of failed read operations
+                              (json-int)
+    - "failed_wr_operations": number of failed write operations
+                              (json-int)
+    - "failed_flush_operations": number of failed flush operations
+                               (json-int)
+    - "invalid_rd_operations": number of invalid read operations
+                               (json-int)
+    - "invalid_wr_operations": number of invalid write operations
+                               (json-int)
+    - "invalid_flush_operations": number of invalid flush operations
+                                  (json-int)
 - "parent": Contains recursively the statistics of the underlying
             protocol (e.g. the host file for a qcow2 image). If there is
             no underlying protocol, this field is omitted

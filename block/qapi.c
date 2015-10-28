@@ -351,6 +351,16 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
         s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
         s->stats->rd_operations = stats->nr_ops[BLOCK_ACCT_READ];
         s->stats->wr_operations = stats->nr_ops[BLOCK_ACCT_WRITE];
+
+        s->stats->failed_rd_operations = stats->failed_ops[BLOCK_ACCT_READ];
+        s->stats->failed_wr_operations = stats->failed_ops[BLOCK_ACCT_WRITE];
+        s->stats->failed_flush_operations = stats->failed_ops[BLOCK_ACCT_FLUSH];
+
+        s->stats->invalid_rd_operations = stats->invalid_ops[BLOCK_ACCT_READ];
+        s->stats->invalid_wr_operations = stats->invalid_ops[BLOCK_ACCT_WRITE];
+        s->stats->invalid_flush_operations =
+            stats->invalid_ops[BLOCK_ACCT_FLUSH];
+
         s->stats->rd_merged = stats->merged[BLOCK_ACCT_READ];
         s->stats->wr_merged = stats->merged[BLOCK_ACCT_WRITE];
         s->stats->flush_operations = stats->nr_ops[BLOCK_ACCT_FLUSH];

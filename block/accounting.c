@@ -51,6 +51,29 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
     stats->last_access_time_ns = time_ns;
 }
 
+void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
+{
+    int64_t time_ns = qemu_clock_get_ns(clock_type);
+
+    assert(cookie->type < BLOCK_MAX_IOTYPE);
+
+    stats->failed_ops[cookie->type]++;
+    stats->total_time_ns[cookie->type] += time_ns - cookie->start_time_ns;
+    stats->last_access_time_ns = time_ns;
+}
+
+void block_acct_invalid(BlockAcctStats *stats, enum BlockAcctType type)
+{
+    assert(type < BLOCK_MAX_IOTYPE);
+
+    /* block_acct_done() and block_acct_failed() update
+     * total_time_ns[], but this one does not. The reason is that
+     * invalid requests are accounted during their submission,
+     * therefore there's no actual I/O involved. */
+
+    stats->invalid_ops[type]++;
+    stats->last_access_time_ns = qemu_clock_get_ns(clock_type);
+}
 
 void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
                       int num_requests)
