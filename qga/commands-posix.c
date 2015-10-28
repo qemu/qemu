@@ -28,6 +28,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/queue.h"
 #include "qemu/host-utils.h"
+#include "qemu/sockets.h"
 
 #ifndef CONFIG_HAS_ENVIRON
 #ifdef __APPLE__
@@ -385,27 +386,6 @@ safe_open_or_create(const char *path, const char *mode, Error **errp)
     return NULL;
 }
 
-static int guest_file_toggle_flags(int fd, int flags, bool set, Error **err)
-{
-    int ret, old_flags;
-
-    old_flags = fcntl(fd, F_GETFL);
-    if (old_flags == -1) {
-        error_setg_errno(err, errno, QERR_QGA_COMMAND_FAILED,
-                         "failed to fetch filehandle flags");
-        return -1;
-    }
-
-    ret = fcntl(fd, F_SETFL, set ? (old_flags | flags) : (old_flags & ~flags));
-    if (ret == -1) {
-        error_setg_errno(err, errno, QERR_QGA_COMMAND_FAILED,
-                         "failed to set filehandle flags");
-        return -1;
-    }
-
-    return ret;
-}
-
 int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode,
                             Error **errp)
 {
@@ -426,10 +406,7 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode,
     /* set fd non-blocking to avoid common use cases (like reading from a
      * named pipe) from hanging the agent
      */
-    if (guest_file_toggle_flags(fileno(fh), O_NONBLOCK, true, errp) < 0) {
-        fclose(fh);
-        return -1;
-    }
+    qemu_set_nonblock(fileno(fh));
 
     handle = guest_file_handle_add(fh, errp);
     if (handle < 0) {
