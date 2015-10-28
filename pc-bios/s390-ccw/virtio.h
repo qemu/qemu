@@ -248,4 +248,13 @@ typedef struct VDev VDev;
 VDev *virtio_get_device(void);
 VirtioDevType virtio_get_device_type(void);
 
+struct VirtioCmd {
+    void *data;
+    int size;
+    int flags;
+};
+typedef struct VirtioCmd VirtioCmd;
+
+int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd);
+
 #endif /* VIRTIO_H */

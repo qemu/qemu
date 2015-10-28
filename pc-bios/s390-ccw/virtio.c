@@ -225,6 +225,23 @@ static int vring_wait_reply(void)
     return 1;
 }
 
+int virtio_run(VDev *vdev, int vqid, VirtioCmd *cmd)
+{
+    VRing *vr = &vdev->vrings[vqid];
+    int i = 0;
+
+    do {
+        vring_send_buf(vr, cmd[i].data, cmd[i].size,
+                       cmd[i].flags | (i ? VRING_HIDDEN_IS_CHAIN : 0));
+    } while (cmd[i++].flags & VRING_DESC_F_NEXT);
+
+    vring_wait_reply();
+    if (drain_irqs(vr->schid)) {
+        return -1;
+    }
+    return 0;
+}
+
 /***********************************************
  *               Virtio block                  *
  ***********************************************/
