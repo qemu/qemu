@@ -27,7 +27,7 @@ def generate(events, backend):
     out('TraceEvent trace_events[TRACE_EVENT_COUNT] = {')
 
     for e in events:
-        out('    { .id = %(id)s, .name = \"%(name)s\", .sstate = %(sstate)s, .dstate = 0 },',
+        out('    { .id = %(id)s, .name = \"%(name)s\", .sstate = %(sstate)s },',
             id = "TRACE_" + e.name.upper(),
             name = e.name,
             sstate = "TRACE_%s_ENABLED" % e.name.upper())

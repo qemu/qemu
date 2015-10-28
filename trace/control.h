@@ -104,7 +104,7 @@ static const char * trace_event_get_name(TraceEvent *ev);
  * As a down side, you must always use an immediate #TraceEventID value.
  */
 #define trace_event_get_state(id)                       \
-    ((id ##_ENABLED) && trace_event_get_state_dynamic(trace_event_id(id)))
+    ((id ##_ENABLED) && trace_event_get_state_dynamic_by_id(id))
 
 /**
  * trace_event_get_state_static:

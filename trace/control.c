@@ -17,6 +17,7 @@
 #include "qemu/error-report.h"
 
 int trace_events_enabled_count;
+bool trace_events_dstate[TRACE_EVENT_COUNT];
 
 TraceEvent *trace_event_name(const char *name)
 {
