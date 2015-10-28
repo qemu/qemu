@@ -2599,6 +2599,11 @@ Each json-object contain the following:
                                (json-int)
     - "invalid_flush_operations": number of invalid flush operations
                                   (json-int)
+    - "account_invalid": whether invalid operations are included in
+                         the last access statistics (json-bool)
+    - "account_failed": whether failed operations are included in the
+                         latency and last access statistics
+                         (json-bool)
 - "parent": Contains recursively the statistics of the underlying
             protocol (e.g. the host file for a qcow2 image). If there is
             no underlying protocol, this field is omitted
@@ -2624,7 +2629,9 @@ Example:
                   "flush_operations":61,
                   "rd_merged":0,
                   "wr_merged":0,
-                  "idle_time_ns":2953431879
+                  "idle_time_ns":2953431879,
+                  "account_invalid":true,
+                  "account_failed":false
                }
             },
             "stats":{
@@ -2639,7 +2646,9 @@ Example:
                "flush_total_times_ns":49653,
                "rd_merged":0,
                "wr_merged":0,
-               "idle_time_ns":2953431879
+               "idle_time_ns":2953431879,
+               "account_invalid":true,
+               "account_failed":false
             }
          },
          {
@@ -2655,7 +2664,9 @@ Example:
                "rd_total_times_ns":0
                "flush_total_times_ns":0,
                "rd_merged":0,
-               "wr_merged":0
+               "wr_merged":0,
+               "account_invalid":false,
+               "account_failed":false
             }
          },
          {
@@ -2671,7 +2682,9 @@ Example:
                "rd_total_times_ns":0
                "flush_total_times_ns":0,
                "rd_merged":0,
-               "wr_merged":0
+               "wr_merged":0,
+               "account_invalid":false,
+               "account_failed":false
             }
          },
          {
@@ -2687,7 +2700,9 @@ Example:
                "rd_total_times_ns":0
                "flush_total_times_ns":0,
                "rd_merged":0,
-               "wr_merged":0
+               "wr_merged":0,
+               "account_invalid":false,
+               "account_failed":false
             }
          }
       ]

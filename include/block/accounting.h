@@ -25,6 +25,7 @@
 #define BLOCK_ACCOUNTING_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "qemu/typedefs.h"
 
@@ -43,6 +44,8 @@ typedef struct BlockAcctStats {
     uint64_t total_time_ns[BLOCK_MAX_IOTYPE];
     uint64_t merged[BLOCK_MAX_IOTYPE];
     int64_t last_access_time_ns;
+    bool account_invalid;
+    bool account_failed;
 } BlockAcctStats;
 
 typedef struct BlockAcctCookie {
@@ -51,6 +54,8 @@ typedef struct BlockAcctCookie {
     enum BlockAcctType type;
 } BlockAcctCookie;
 
+void block_acct_init(BlockAcctStats *stats, bool account_invalid,
+                     bool account_failed);
 void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
                       int64_t bytes, enum BlockAcctType type);
 void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie);

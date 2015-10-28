@@ -441,6 +441,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     const char *buf;
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
+    bool account_invalid, account_failed;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
@@ -476,6 +477,9 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
     /* extract parameters */
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
+
+    account_invalid = qemu_opt_get_bool(opts, "stats-account-invalid", true);
+    account_failed = qemu_opt_get_bool(opts, "stats-account-failed", true);
 
     extract_common_blockdev_options(opts, &bdrv_flags, &throttling_group, &cfg,
                                     &detect_zeroes, &error);
@@ -573,6 +577,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         if (bdrv_key_required(bs)) {
             autostart = 0;
         }
+
+        block_acct_init(blk_get_stats(blk), account_invalid, account_failed);
     }
 
     blk_set_on_error(blk, on_read_error, on_write_error);
@@ -3900,6 +3906,16 @@ QemuOptsList qemu_common_drive_opts = {
             .name = "detect-zeroes",
             .type = QEMU_OPT_STRING,
             .help = "try to optimize zero writes (off, on, unmap)",
+        },{
+            .name = "stats-account-invalid",
+            .type = QEMU_OPT_BOOL,
+            .help = "whether to account for invalid I/O operations "
+                    "in the statistics",
+        },{
+            .name = "stats-account-failed",
+            .type = QEMU_OPT_BOOL,
+            .help = "whether to account for failed I/O operations "
+                    "in the statistics",
         },
         { /* end of list */ }
     },

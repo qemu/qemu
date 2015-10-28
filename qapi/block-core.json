@@ -470,6 +470,12 @@
 # @invalid_flush_operations: The number of invalid flush operations
 #                            performed by the device (Since 2.5)
 #
+# @account_invalid: Whether invalid operations are included in the
+#                   last access statistics (Since 2.5)
+#
+# @account_failed: Whether failed operations are included in the
+#                  latency and last access statistics (Since 2.5)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -480,7 +486,8 @@
            'rd_merged': 'int', 'wr_merged': 'int', '*idle_time_ns': 'int',
            'failed_rd_operations': 'int', 'failed_wr_operations': 'int',
            'failed_flush_operations': 'int', 'invalid_rd_operations': 'int',
-           'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int'  } }
+           'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
+           'account_invalid': 'bool', 'account_failed': 'bool' } }
 
 ##
 # @BlockStats:
@@ -1461,6 +1468,12 @@
 #                 (default: enospc)
 # @read-only:     #optional whether the block device should be read-only
 #                 (default: false)
+# @stats-account-invalid: #optional whether to include invalid
+#                         operations when computing last access statistics
+#                         (default: true) (Since 2.5)
+# @stats-account-failed: #optional whether to include failed
+#                         operations when computing latency and last
+#                         access statistics (default: true) (Since 2.5)
 # @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
 #                 (default: off)
 #
@@ -1476,6 +1489,8 @@
             '*rerror': 'BlockdevOnError',
             '*werror': 'BlockdevOnError',
             '*read-only': 'bool',
+            '*stats-account-invalid': 'bool',
+            '*stats-account-failed': 'bool',
             '*detect-zeroes': 'BlockdevDetectZeroesOptions' } }
 
 ##

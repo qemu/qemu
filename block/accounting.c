@@ -28,6 +28,13 @@
 
 static QEMUClockType clock_type = QEMU_CLOCK_REALTIME;
 
+void block_acct_init(BlockAcctStats *stats, bool account_invalid,
+                     bool account_failed)
+{
+    stats->account_invalid = account_invalid;
+    stats->account_failed = account_failed;
+}
+
 void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
                       int64_t bytes, enum BlockAcctType type)
 {
@@ -53,13 +60,17 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
 
 void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
 {
-    int64_t time_ns = qemu_clock_get_ns(clock_type);
-
     assert(cookie->type < BLOCK_MAX_IOTYPE);
 
     stats->failed_ops[cookie->type]++;
-    stats->total_time_ns[cookie->type] += time_ns - cookie->start_time_ns;
-    stats->last_access_time_ns = time_ns;
+
+    if (stats->account_failed) {
+        int64_t time_ns = qemu_clock_get_ns(clock_type);
+        int64_t latency_ns = time_ns - cookie->start_time_ns;
+
+        stats->total_time_ns[cookie->type] += latency_ns;
+        stats->last_access_time_ns = time_ns;
+    }
 }
 
 void block_acct_invalid(BlockAcctStats *stats, enum BlockAcctType type)
@@ -72,7 +83,10 @@ void block_acct_invalid(BlockAcctStats *stats, enum BlockAcctType type)
      * therefore there's no actual I/O involved. */
 
     stats->invalid_ops[type]++;
-    stats->last_access_time_ns = qemu_clock_get_ns(clock_type);
+
+    if (stats->account_invalid) {
+        stats->last_access_time_ns = qemu_clock_get_ns(clock_type);
+    }
 }
 
 void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,

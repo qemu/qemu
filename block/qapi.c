@@ -372,6 +372,9 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
         if (s->stats->has_idle_time_ns) {
             s->stats->idle_time_ns = block_acct_idle_time_ns(stats);
         }
+
+        s->stats->account_invalid = stats->account_invalid;
+        s->stats->account_failed = stats->account_failed;
     }
 
     s->stats->wr_highest_offset = bs->wr_highest_offset;
