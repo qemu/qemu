@@ -26,13 +26,15 @@
 #include "block/block_int.h"
 #include "qemu/timer.h"
 
+static QEMUClockType clock_type = QEMU_CLOCK_REALTIME;
+
 void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
                       int64_t bytes, enum BlockAcctType type)
 {
     assert(type < BLOCK_MAX_IOTYPE);
 
     cookie->bytes = bytes;
-    cookie->start_time_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+    cookie->start_time_ns = qemu_clock_get_ns(clock_type);
     cookie->type = type;
 }
 
@@ -43,7 +45,7 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
     stats->nr_bytes[cookie->type] += cookie->bytes;
     stats->nr_ops[cookie->type]++;
     stats->total_time_ns[cookie->type] +=
-        qemu_clock_get_ns(QEMU_CLOCK_REALTIME) - cookie->start_time_ns;
+        qemu_clock_get_ns(clock_type) - cookie->start_time_ns;
 }
 
 
