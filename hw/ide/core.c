@@ -895,7 +895,7 @@ static void ide_sector_write(IDEState *s)
     qemu_iovec_init_external(&s->qiov, &s->iov, 1);
 
     block_acct_start(blk_get_stats(s->blk), &s->acct,
-                     n * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
+                     n * BDRV_SECTOR_SIZE, BLOCK_ACCT_WRITE);
     s->pio_aiocb = blk_aio_writev(s->blk, sector_num, &s->qiov, n,
                                   ide_sector_write_cb, s);
 }
