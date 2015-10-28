@@ -25,14 +25,20 @@
 #include "block/accounting.h"
 #include "block/block_int.h"
 #include "qemu/timer.h"
+#include "sysemu/qtest.h"
 
 static QEMUClockType clock_type = QEMU_CLOCK_REALTIME;
+static const int qtest_latency_ns = NANOSECONDS_PER_SECOND / 1000;
 
 void block_acct_init(BlockAcctStats *stats, bool account_invalid,
                      bool account_failed)
 {
     stats->account_invalid = account_invalid;
     stats->account_failed = account_failed;
+
+    if (qtest_enabled()) {
+        clock_type = QEMU_CLOCK_VIRTUAL;
+    }
 }
 
 void block_acct_cleanup(BlockAcctStats *stats)
@@ -84,6 +90,10 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
     int64_t time_ns = qemu_clock_get_ns(clock_type);
     int64_t latency_ns = time_ns - cookie->start_time_ns;
 
+    if (qtest_enabled()) {
+        latency_ns = qtest_latency_ns;
+    }
+
     assert(cookie->type < BLOCK_MAX_IOTYPE);
 
     stats->nr_bytes[cookie->type] += cookie->bytes;
@@ -106,6 +116,10 @@ void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
         BlockAcctTimedStats *s;
         int64_t time_ns = qemu_clock_get_ns(clock_type);
         int64_t latency_ns = time_ns - cookie->start_time_ns;
+
+        if (qtest_enabled()) {
+            latency_ns = qtest_latency_ns;
+        }
 
         stats->total_time_ns[cookie->type] += latency_ns;
         stats->last_access_time_ns = time_ns;
