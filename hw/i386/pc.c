@@ -1631,8 +1631,7 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
         goto out;
     }
 
-    pc_dimm_memory_plug(dev, &pcms->hotplug_memory, mr, align, false,
-                        &local_err);
+    pc_dimm_memory_plug(dev, &pcms->hotplug_memory, mr, align, &local_err);
     if (local_err) {
         goto out;
     }
