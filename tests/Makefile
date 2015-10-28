@@ -83,6 +83,7 @@ check-unit-y += tests/test-crypto-cipher$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-crypto-tlscredsx509$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-crypto-tlssession$(EXESUF)
 check-unit-$(CONFIG_LINUX) += tests/test-qga$(EXESUF)
+check-unit-y += tests/test-timed-average$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -412,6 +413,9 @@ tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 	migration/vmstate.o migration/qemu-file.o migration/qemu-file-buf.o \
         migration/qemu-file-unix.o qjson.o \
 	$(test-qom-obj-y)
+tests/test-timed-average$(EXESUF): tests/test-timed-average.o qemu-timer.o \
+	libqemuutil.a stubs/clock-warp.o stubs/cpu-get-icount.o \
+	stubs/notify-event.o stubs/replay.o
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
