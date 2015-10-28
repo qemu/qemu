@@ -1917,9 +1917,11 @@ void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
             gen_set_pc_im(dc->pc);
             gen_exception(EXCP_DEBUG);
             dc->is_jmp = DISAS_JUMP;
-            /* Advance PC so that clearing the breakpoint will
-               invalidate this TB.  */
-            dc->pc += 2; /* FIXME */
+            /* The address covered by the breakpoint must be included in
+               [tb->pc, tb->pc + tb->size) in order to for it to be
+               properly cleared -- thus we increment the PC here so that
+               the logic setting tb->size below does the right thing.  */
+            dc->pc += 4;
             goto done_generating;
         }
 

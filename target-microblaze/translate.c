@@ -1693,6 +1693,11 @@ void gen_intermediate_code(CPUMBState *env, struct TranslationBlock *tb)
         if (unlikely(cpu_breakpoint_test(cs, dc->pc, BP_ANY))) {
             t_gen_raise_exception(dc, EXCP_DEBUG);
             dc->is_jmp = DISAS_UPDATE;
+            /* The address covered by the breakpoint must be included in
+               [tb->pc, tb->pc + tb->size) in order to for it to be
+               properly cleared -- thus we increment the PC here so that
+               the logic setting tb->size below does the right thing.  */
+            dc->pc += 4;
             break;
         }
 

@@ -11488,6 +11488,11 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
 
         if (unlikely(cpu_breakpoint_test(cs, ctx.nip, BP_ANY))) {
             gen_debug_exception(ctxp);
+            /* The address covered by the breakpoint must be included in
+               [tb->pc, tb->pc + tb->size) in order to for it to be
+               properly cleared -- thus we increment the PC here so that
+               the logic setting tb->size below does the right thing.  */
+            ctx.nip += 4;
             break;
         }
 
