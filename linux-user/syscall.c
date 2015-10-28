@@ -2089,6 +2089,12 @@ static abi_long do_socket(int domain, int type, int protocol)
 
     if (domain == PF_NETLINK)
         return -TARGET_EAFNOSUPPORT;
+
+    if (domain == AF_PACKET ||
+        (domain == AF_INET && type == SOCK_PACKET)) {
+        protocol = tswap16(protocol);
+    }
+
     ret = get_errno(socket(domain, type, protocol));
     if (ret >= 0) {
         ret = sock_flags_fixup(ret, target_type);
