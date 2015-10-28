@@ -257,6 +257,21 @@ static void copy_in_vring_desc(VirtIODevice *vdev,
     host->next = virtio_lduw_p(vdev, &guest->next);
 }
 
+static bool read_vring_desc(VirtIODevice *vdev,
+                            hwaddr guest,
+                            struct vring_desc *host)
+{
+    if (address_space_read(&address_space_memory, guest, MEMTXATTRS_UNSPECIFIED,
+                           (uint8_t *)host, sizeof *host)) {
+        return false;
+    }
+    host->addr = virtio_tswap64(vdev, host->addr);
+    host->len = virtio_tswap32(vdev, host->len);
+    host->flags = virtio_tswap16(vdev, host->flags);
+    host->next = virtio_tswap16(vdev, host->next);
+    return true;
+}
+
 /* This is stolen from linux/drivers/vhost/vhost.c. */
 static int get_indirect(VirtIODevice *vdev, Vring *vring,
                         VirtQueueElement *elem, struct vring_desc *indirect)
@@ -284,23 +299,16 @@ static int get_indirect(VirtIODevice *vdev, Vring *vring,
     }
 
     do {
-        struct vring_desc *desc_ptr;
-        MemoryRegion *mr;
-
         /* Translate indirect descriptor */
-        desc_ptr = vring_map(&mr,
-                             indirect->addr + found * sizeof(desc),
-                             sizeof(desc), false);
-        if (!desc_ptr) {
-            error_report("Failed to map indirect descriptor "
+        if (!read_vring_desc(vdev, indirect->addr + found * sizeof(desc),
+                             &desc)) {
+            error_report("Failed to read indirect descriptor "
                          "addr %#" PRIx64 " len %zu",
                          (uint64_t)indirect->addr + found * sizeof(desc),
                          sizeof(desc));
             vring->broken = true;
             return -EFAULT;
         }
-        copy_in_vring_desc(vdev, desc_ptr, &desc);
-        memory_region_unref(mr);
 
         /* Ensure descriptor has been loaded before accessing fields */
         barrier(); /* read_barrier_depends(); */
