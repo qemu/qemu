@@ -108,27 +108,30 @@ static void cd_data_to_raw(uint8_t *buf, int lba)
 static int cd_read_sector(IDEState *s, int lba, uint8_t *buf, int sector_size)
 {
     int ret;
+    block_acct_start(blk_get_stats(s->blk), &s->acct,
+                     4 * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
 
     switch(sector_size) {
     case 2048:
-        block_acct_start(blk_get_stats(s->blk), &s->acct,
-                         4 * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
         ret = blk_read(s->blk, (int64_t)lba << 2, buf, 4);
-        block_acct_done(blk_get_stats(s->blk), &s->acct);
         break;
     case 2352:
-        block_acct_start(blk_get_stats(s->blk), &s->acct,
-                         4 * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
         ret = blk_read(s->blk, (int64_t)lba << 2, buf + 16, 4);
-        block_acct_done(blk_get_stats(s->blk), &s->acct);
-        if (ret < 0)
-            return ret;
-        cd_data_to_raw(buf, lba);
+        if (ret >= 0) {
+            cd_data_to_raw(buf, lba);
+        }
         break;
     default:
-        ret = -EIO;
-        break;
+        block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
+        return -EIO;
     }
+
+    if (ret < 0) {
+        block_acct_failed(blk_get_stats(s->blk), &s->acct);
+    } else {
+        block_acct_done(blk_get_stats(s->blk), &s->acct);
+    }
+
     return ret;
 }
 
@@ -357,7 +360,11 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
     return;
 
 eot:
-    block_acct_done(blk_get_stats(s->blk), &s->acct);
+    if (ret < 0) {
+        block_acct_failed(blk_get_stats(s->blk), &s->acct);
+    } else {
+        block_acct_done(blk_get_stats(s->blk), &s->acct);
+    }
     ide_set_inactive(s, false);
 }
 
