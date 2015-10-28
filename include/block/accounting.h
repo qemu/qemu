@@ -78,5 +78,7 @@ void block_acct_invalid(BlockAcctStats *stats, enum BlockAcctType type);
 void block_acct_merge_done(BlockAcctStats *stats, enum BlockAcctType type,
                            int num_requests);
 int64_t block_acct_idle_time_ns(BlockAcctStats *stats);
+double block_acct_queue_depth(BlockAcctTimedStats *stats,
+                              enum BlockAcctType type);
 
 #endif

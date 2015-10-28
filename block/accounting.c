@@ -143,3 +143,15 @@ int64_t block_acct_idle_time_ns(BlockAcctStats *stats)
 {
     return qemu_clock_get_ns(clock_type) - stats->last_access_time_ns;
 }
+
+double block_acct_queue_depth(BlockAcctTimedStats *stats,
+                              enum BlockAcctType type)
+{
+    uint64_t sum, elapsed;
+
+    assert(type < BLOCK_MAX_IOTYPE);
+
+    sum = timed_average_sum(&stats->latency[type], &elapsed);
+
+    return (double) sum / elapsed;
+}

@@ -450,6 +450,12 @@
 # @avg_flush_latency_ns: Average latency of flush operations in the
 #                        defined interval, in nanoseconds.
 #
+# @avg_rd_queue_depth: Average number of pending read operations
+#                      in the defined interval.
+#
+# @avg_wr_queue_depth: Average number of pending write operations
+#                      in the defined interval.
+#
 # Since: 2.5
 ##
 
@@ -458,7 +464,8 @@
             'max_rd_latency_ns': 'int', 'avg_rd_latency_ns': 'int',
             'min_wr_latency_ns': 'int', 'max_wr_latency_ns': 'int',
             'avg_wr_latency_ns': 'int', 'min_flush_latency_ns': 'int',
-            'max_flush_latency_ns': 'int', 'avg_flush_latency_ns': 'int' } }
+            'max_flush_latency_ns': 'int', 'avg_flush_latency_ns': 'int',
+            'avg_rd_queue_depth': 'number', 'avg_wr_queue_depth': 'number' } }
 
 ##
 # @BlockDeviceStats:

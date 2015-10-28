@@ -402,6 +402,11 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
             dev_stats->min_flush_latency_ns = timed_average_min(fl);
             dev_stats->max_flush_latency_ns = timed_average_max(fl);
             dev_stats->avg_flush_latency_ns = timed_average_avg(fl);
+
+            dev_stats->avg_rd_queue_depth =
+                block_acct_queue_depth(ts, BLOCK_ACCT_READ);
+            dev_stats->avg_wr_queue_depth =
+                block_acct_queue_depth(ts, BLOCK_ACCT_WRITE);
         }
     }
 

@@ -120,8 +120,10 @@ void timed_average_init(TimedAverage *ta, QEMUClockType clock_type,
  * expiration time if that's the case.
  *
  * @ta: the TimedAverage structure
+ * @elapsed: if non-NULL, the elapsed time (in ns) within the current
+ *           window will be stored here
  */
-static void check_expirations(TimedAverage *ta)
+static void check_expirations(TimedAverage *ta, uint64_t *elapsed)
 {
     int64_t now = qemu_clock_get_ns(ta->clock_type);
     int i;
@@ -143,6 +145,12 @@ static void check_expirations(TimedAverage *ta)
     } else {
         ta->current = 1;
     }
+
+    /* Calculate the elapsed time within the current window */
+    if (elapsed) {
+        int64_t remaining = ta->windows[ta->current].expiration - now;
+        *elapsed = ta->period - remaining;
+    }
 }
 
 /* Account a value
@@ -153,7 +161,7 @@ static void check_expirations(TimedAverage *ta)
 void timed_average_account(TimedAverage *ta, uint64_t value)
 {
     int i;
-    check_expirations(ta);
+    check_expirations(ta, NULL);
 
     /* Do the accounting in both windows at the same time */
     for (i = 0; i < 2; i++) {
@@ -180,7 +188,7 @@ void timed_average_account(TimedAverage *ta, uint64_t value)
 uint64_t timed_average_min(TimedAverage *ta)
 {
     TimedAverageWindow *w;
-    check_expirations(ta);
+    check_expirations(ta, NULL);
     w = current_window(ta);
     return w->min < UINT64_MAX ? w->min : 0;
 }
@@ -193,7 +201,7 @@ uint64_t timed_average_min(TimedAverage *ta)
 uint64_t timed_average_avg(TimedAverage *ta)
 {
     TimedAverageWindow *w;
-    check_expirations(ta);
+    check_expirations(ta, NULL);
     w = current_window(ta);
     return w->count > 0 ? w->sum / w->count : 0;
 }
@@ -205,6 +213,19 @@ uint64_t timed_average_avg(TimedAverage *ta)
  */
 uint64_t timed_average_max(TimedAverage *ta)
 {
-    check_expirations(ta);
+    check_expirations(ta, NULL);
     return current_window(ta)->max;
+}
+
+/* Get the sum of all accounted values
+ * @ta:      the TimedAverage structure
+ * @elapsed: if non-NULL, the elapsed time (in ns) will be stored here
+ * @ret:     the sum of all accounted values
+ */
+uint64_t timed_average_sum(TimedAverage *ta, uint64_t *elapsed)
+{
+    TimedAverageWindow *w;
+    check_expirations(ta, elapsed);
+    w = current_window(ta);
+    return w->sum;
 }
