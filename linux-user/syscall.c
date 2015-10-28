@@ -309,7 +309,7 @@ static unsigned int target_fd_max;
 
 static TargetFdDataFunc fd_trans_host_to_target_data(int fd)
 {
-    if (fd < target_fd_max && target_fd_trans[fd]) {
+    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
         return target_fd_trans[fd]->host_to_target_data;
     }
     return NULL;
@@ -317,7 +317,7 @@ static TargetFdDataFunc fd_trans_host_to_target_data(int fd)
 
 static TargetFdAddrFunc fd_trans_target_to_host_addr(int fd)
 {
-    if (fd < target_fd_max && target_fd_trans[fd]) {
+    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
         return target_fd_trans[fd]->target_to_host_addr;
     }
     return NULL;
