@@ -176,6 +176,7 @@ static void blk_delete(BlockBackend *blk)
     }
     g_free(blk->name);
     drive_info_del(blk->legacy_dinfo);
+    block_acct_cleanup(&blk->stats);
     g_free(blk);
 }
 

@@ -414,6 +414,52 @@
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'] }
 
+
+##
+# @BlockDeviceTimedStats:
+#
+# Statistics of a block device during a given interval of time.
+#
+# @interval_length: Interval used for calculating the statistics,
+#                   in seconds.
+#
+# @min_rd_latency_ns: Minimum latency of read operations in the
+#                     defined interval, in nanoseconds.
+#
+# @min_wr_latency_ns: Minimum latency of write operations in the
+#                     defined interval, in nanoseconds.
+#
+# @min_flush_latency_ns: Minimum latency of flush operations in the
+#                        defined interval, in nanoseconds.
+#
+# @max_rd_latency_ns: Maximum latency of read operations in the
+#                     defined interval, in nanoseconds.
+#
+# @max_wr_latency_ns: Maximum latency of write operations in the
+#                     defined interval, in nanoseconds.
+#
+# @max_flush_latency_ns: Maximum latency of flush operations in the
+#                        defined interval, in nanoseconds.
+#
+# @avg_rd_latency_ns: Average latency of read operations in the
+#                     defined interval, in nanoseconds.
+#
+# @avg_wr_latency_ns: Average latency of write operations in the
+#                     defined interval, in nanoseconds.
+#
+# @avg_flush_latency_ns: Average latency of flush operations in the
+#                        defined interval, in nanoseconds.
+#
+# Since: 2.5
+##
+
+{ 'struct': 'BlockDeviceTimedStats',
+  'data': { 'interval_length': 'int', 'min_rd_latency_ns': 'int',
+            'max_rd_latency_ns': 'int', 'avg_rd_latency_ns': 'int',
+            'min_wr_latency_ns': 'int', 'max_wr_latency_ns': 'int',
+            'avg_wr_latency_ns': 'int', 'min_flush_latency_ns': 'int',
+            'max_flush_latency_ns': 'int', 'avg_flush_latency_ns': 'int' } }
+
 ##
 # @BlockDeviceStats:
 #
@@ -476,6 +522,9 @@
 # @account_failed: Whether failed operations are included in the
 #                  latency and last access statistics (Since 2.5)
 #
+# @timed_stats: Statistics specific to the set of previously defined
+#               intervals of time (Since 2.5)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -487,7 +536,8 @@
            'failed_rd_operations': 'int', 'failed_wr_operations': 'int',
            'failed_flush_operations': 'int', 'invalid_rd_operations': 'int',
            'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
-           'account_invalid': 'bool', 'account_failed': 'bool' } }
+           'account_invalid': 'bool', 'account_failed': 'bool',
+           'timed_stats': ['BlockDeviceTimedStats'] } }
 
 ##
 # @BlockStats:

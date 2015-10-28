@@ -35,6 +35,39 @@ void block_acct_init(BlockAcctStats *stats, bool account_invalid,
     stats->account_failed = account_failed;
 }
 
+void block_acct_cleanup(BlockAcctStats *stats)
+{
+    BlockAcctTimedStats *s, *next;
+    QSLIST_FOREACH_SAFE(s, &stats->intervals, entries, next) {
+        g_free(s);
+    }
+}
+
+void block_acct_add_interval(BlockAcctStats *stats, unsigned interval_length)
+{
+    BlockAcctTimedStats *s;
+    unsigned i;
+
+    s = g_new0(BlockAcctTimedStats, 1);
+    s->interval_length = interval_length;
+    QSLIST_INSERT_HEAD(&stats->intervals, s, entries);
+
+    for (i = 0; i < BLOCK_MAX_IOTYPE; i++) {
+        timed_average_init(&s->latency[i], clock_type,
+                           (uint64_t) interval_length * NANOSECONDS_PER_SECOND);
+    }
+}
+
+BlockAcctTimedStats *block_acct_interval_next(BlockAcctStats *stats,
+                                              BlockAcctTimedStats *s)
+{
+    if (s == NULL) {
+        return QSLIST_FIRST(&stats->intervals);
+    } else {
+        return QSLIST_NEXT(s, entries);
+    }
+}
+
 void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
                       int64_t bytes, enum BlockAcctType type)
 {
@@ -47,6 +80,7 @@ void block_acct_start(BlockAcctStats *stats, BlockAcctCookie *cookie,
 
 void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
 {
+    BlockAcctTimedStats *s;
     int64_t time_ns = qemu_clock_get_ns(clock_type);
     int64_t latency_ns = time_ns - cookie->start_time_ns;
 
@@ -56,6 +90,10 @@ void block_acct_done(BlockAcctStats *stats, BlockAcctCookie *cookie)
     stats->nr_ops[cookie->type]++;
     stats->total_time_ns[cookie->type] += latency_ns;
     stats->last_access_time_ns = time_ns;
+
+    QSLIST_FOREACH(s, &stats->intervals, entries) {
+        timed_average_account(&s->latency[cookie->type], latency_ns);
+    }
 }
 
 void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
@@ -65,11 +103,16 @@ void block_acct_failed(BlockAcctStats *stats, BlockAcctCookie *cookie)
     stats->failed_ops[cookie->type]++;
 
     if (stats->account_failed) {
+        BlockAcctTimedStats *s;
         int64_t time_ns = qemu_clock_get_ns(clock_type);
         int64_t latency_ns = time_ns - cookie->start_time_ns;
 
         stats->total_time_ns[cookie->type] += latency_ns;
         stats->last_access_time_ns = time_ns;
+
+        QSLIST_FOREACH(s, &stats->intervals, entries) {
+            timed_average_account(&s->latency[cookie->type], latency_ns);
+        }
     }
 }
 

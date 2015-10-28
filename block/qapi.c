@@ -346,6 +346,7 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
     s->stats = g_malloc0(sizeof(*s->stats));
     if (bs->blk) {
         BlockAcctStats *stats = blk_get_stats(bs->blk);
+        BlockAcctTimedStats *ts = NULL;
 
         s->stats->rd_bytes = stats->nr_bytes[BLOCK_ACCT_READ];
         s->stats->wr_bytes = stats->nr_bytes[BLOCK_ACCT_WRITE];
@@ -375,6 +376,33 @@ static BlockStats *bdrv_query_stats(const BlockDriverState *bs,
 
         s->stats->account_invalid = stats->account_invalid;
         s->stats->account_failed = stats->account_failed;
+
+        while ((ts = block_acct_interval_next(stats, ts))) {
+            BlockDeviceTimedStatsList *timed_stats =
+                g_malloc0(sizeof(*timed_stats));
+            BlockDeviceTimedStats *dev_stats = g_malloc0(sizeof(*dev_stats));
+            timed_stats->next = s->stats->timed_stats;
+            timed_stats->value = dev_stats;
+            s->stats->timed_stats = timed_stats;
+
+            TimedAverage *rd = &ts->latency[BLOCK_ACCT_READ];
+            TimedAverage *wr = &ts->latency[BLOCK_ACCT_WRITE];
+            TimedAverage *fl = &ts->latency[BLOCK_ACCT_FLUSH];
+
+            dev_stats->interval_length = ts->interval_length;
+
+            dev_stats->min_rd_latency_ns = timed_average_min(rd);
+            dev_stats->max_rd_latency_ns = timed_average_max(rd);
+            dev_stats->avg_rd_latency_ns = timed_average_avg(rd);
+
+            dev_stats->min_wr_latency_ns = timed_average_min(wr);
+            dev_stats->max_wr_latency_ns = timed_average_max(wr);
+            dev_stats->avg_wr_latency_ns = timed_average_avg(wr);
+
+            dev_stats->min_flush_latency_ns = timed_average_min(fl);
+            dev_stats->max_flush_latency_ns = timed_average_max(fl);
+            dev_stats->avg_flush_latency_ns = timed_average_avg(fl);
+        }
     }
 
     s->stats->wr_highest_offset = bs->wr_highest_offset;
