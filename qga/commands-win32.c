@@ -128,6 +128,28 @@ static GuestFileHandle *guest_file_handle_find(int64_t id, Error **errp)
     return NULL;
 }
 
+static void handle_set_nonblocking(HANDLE fh)
+{
+    DWORD file_type, pipe_state;
+    file_type = GetFileType(fh);
+    if (file_type != FILE_TYPE_PIPE) {
+        return;
+    }
+    /* If file_type == FILE_TYPE_PIPE, according to MSDN
+     * the specified file is socket or named pipe */
+    if (!GetNamedPipeHandleState(fh, &pipe_state, NULL,
+                                 NULL, NULL, NULL, 0)) {
+        return;
+    }
+    /* The fd is named pipe fd */
+    if (pipe_state & PIPE_NOWAIT) {
+        return;
+    }
+
+    pipe_state |= PIPE_NOWAIT;
+    SetNamedPipeHandleState(fh, &pipe_state, NULL, NULL);
+}
+
 int64_t qmp_guest_file_open(const char *path, bool has_mode,
                             const char *mode, Error **errp)
 {
@@ -157,6 +179,11 @@ int64_t qmp_guest_file_open(const char *path, bool has_mode,
                          path);
         return -1;
     }
+
+    /* set fd non-blocking to avoid common use cases (like reading from a
+     * named pipe) from hanging the agent
+     */
+    handle_set_nonblocking(fh);
 
     fd = guest_file_handle_add(fh, errp);
     if (fd < 0) {
