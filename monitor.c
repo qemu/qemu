@@ -3907,6 +3907,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
 err_out:
     monitor_protocol_emitter(mon, data, local_err);
     qobject_decref(data);
+    error_free(local_err);
     QDECREF(input);
     QDECREF(args);
 }
