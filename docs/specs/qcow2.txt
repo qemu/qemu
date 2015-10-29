@@ -45,6 +45,7 @@ The first cluster of a qcow2 image contains the file header:
          32 - 35:   crypt_method
                     0 for no encryption
                     1 for AES encryption
+                    2 for LUKS encryption
 
          36 - 39:   l1_size
                     Number of entries in the active L1 table
@@ -123,6 +124,7 @@ be stored. Each extension has a structure like the following:
                         0x00000000 - End of the header extension area
                         0xE2792ACA - Backing file format name
                         0x6803f857 - Feature name table
+                        0x4c554b53 - LUKS partition header + key data
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -165,6 +167,57 @@ the header extension data. Each entry look like this:
           2 - 47:   Feature name (padded with zeros, but not necessarily null
                     terminated if it has full length)
 
+
+== LUKS header and key slots ==
+
+If the 'crypt_method' header field specifies LUKS ( value == 2), the qcow2
+LUKS header extension is mandatory, to provide the data tables used by the
+LUKS encryption format.
+
+The first 592 bytes contain the LUKS partition header. This is then followed
+by the key material data areas. The size of the key material data areas is
+determined by the number of stripes in the key slot and key size.
+
+Refer to the LUKS format specification ('docs/on-disk-format.pdf' in the
+cryptsetup source package) for details of the LUKS partition header format.
+
+In the LUKS partition header, the "payload-offset" field does not refer
+to the offset of the QCow2 payload. Instead it simply refers to the
+total required length of the QCow2 header extension.
+
+In the LUKS key slots header, the "key-material-offset" is an absolute
+location in the qcow2 container.
+
+Logically the layout looks like
+
+  +-----------------------------+
+  | QCow2 header                |
+  +-----------------------------+
+  | QCow2 header extension X    |
+  +-----------------------------+
+  | QCow2 header extension LUKS |
+  | +-------------------------+ |
+  | | LUKS partition header   | |
+  | +-------------------------+ |
+  | | LUKS key material 1     | |
+  | +-------------------------+ |
+  | | LUKS key material 2     | |
+  | +-------------------------+ |
+  | | LUKS key material ...   | |
+  | +-------------------------+ |
+  | | LUKS key material 8     | |
+  | +-------------------------+ |
+  +-----------------------------+
+  | QCow2 header extension ...  |
+  +-----------------------------+
+  | QCow2 header extension Z    |
+  +-----------------------------+
+  | QCow2 cluster payload       |
+  .                             .
+  .                             .
+  .                             .
+  |                             |
+  +-----------------------------+
 
 == Host cluster management ==
 

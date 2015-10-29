@@ -35,6 +35,8 @@
 #include "trace.h"
 #include "qemu/option_int.h"
 #include "crypto/secret.h"
+#include "qapi/opts-visitor.h"
+#include "qapi-visit.h"
 
 /*
   Differences with QCOW:
@@ -61,6 +63,7 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_END 0
 #define  QCOW2_EXT_MAGIC_BACKING_FORMAT 0xE2792ACA
 #define  QCOW2_EXT_MAGIC_FEATURE_TABLE 0x6803f857
+#define  QCOW2_EXT_MAGIC_LUKS_HEADER 0x4c554b53
 
 static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -72,6 +75,63 @@ static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
         return 100;
     else
         return 0;
+}
+
+
+struct QCow2FDEData {
+    BlockDriverState *bs;
+    size_t hdr_ext_offset; /* Offset of encryption header extension data */
+    size_t hdr_ext_length; /* Length of encryption header extension data */
+};
+
+static ssize_t qcow2_header_read_func(QCryptoBlock *block,
+                                      size_t offset,
+                                      uint8_t *buf,
+                                      size_t buflen,
+                                      Error **errp,
+                                      void *opaque)
+{
+    struct QCow2FDEData *data = opaque;
+    ssize_t ret;
+
+    if ((offset + buflen) > data->hdr_ext_length) {
+        error_setg_errno(errp, EINVAL,
+                         "Request for data outside of extension header");
+        return -1;
+    }
+
+    ret = bdrv_pread(data->bs->file->bs,
+                     data->hdr_ext_offset + offset, buf, buflen);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not read encryption header");
+        return ret;
+    }
+    return ret;
+}
+
+
+static ssize_t qcow2_header_write_func(QCryptoBlock *block,
+                                       size_t offset,
+                                       const uint8_t *buf,
+                                       size_t buflen,
+                                       Error **errp,
+                                       void *opaque)
+{
+    struct QCow2FDEData *data = opaque;
+    ssize_t ret;
+
+    if ((offset + buflen) > data->hdr_ext_length) {
+        error_setg_errno(errp, EINVAL,
+                         "Request for data outside of extension header");
+        return -1;
+    }
+
+    ret = bdrv_pwrite(data->bs, data->hdr_ext_offset + offset, buf, buflen);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not read encryption header");
+        return ret;
+    }
+    return ret;
 }
 
 
@@ -90,6 +150,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
     QCowExtension ext;
     uint64_t offset;
     int ret;
+    struct QCow2FDEData fdedata;
 
 #ifdef DEBUG_EXT
     printf("qcow2_read_extensions: start=%ld end=%ld\n", start_offset, end_offset);
@@ -160,6 +221,24 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             }
             break;
 
+        case QCOW2_EXT_MAGIC_LUKS_HEADER:
+            if (s->crypt_method_header != QCOW_CRYPT_LUKS) {
+                error_setg(errp, "LUKS header extension only "
+                           "expected with LUKS encryption method");
+                return -EINVAL;
+            }
+            fdedata.bs = bs;
+            fdedata.hdr_ext_offset = offset;
+            fdedata.hdr_ext_length = ext.len;
+
+            s->fde = qcrypto_block_open(s->fde_opts,
+                                        qcow2_header_read_func,
+                                        &fdedata,
+                                        errp);
+            if (!s->fde) {
+                return -EINVAL;
+            }
+            break;
         default:
             /* unknown magic - save it in case we need to rewrite the header */
             {
@@ -474,7 +553,7 @@ static QemuOptsList qcow2_runtime_opts = {
             .help = "Clean unused cache entries after this time (in seconds)",
         },
         {
-            .name = QCOW2_OPT_KEY_ID,
+            .name = QCOW2_OPT_FDE_KEY_ID,
             .type = QEMU_OPT_STRING,
             .help = "ID of the secret that provides the encryption key",
         },
@@ -594,6 +673,98 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
         }
     }
 }
+
+
+static QCryptoBlockOpenOptions *
+qcow2_fde_open_opts_init(QCryptoBlockFormat format,
+                         QemuOpts *opts,
+                         Error **errp)
+{
+    OptsVisitor *ov;
+    QCryptoBlockOpenOptions *ret;
+    Error *local_err = NULL;
+
+    ret = g_new0(QCryptoBlockOpenOptions, 1);
+    ret->format = format;
+
+    ov = opts_visitor_new(opts);
+
+    switch (format) {
+    case Q_CRYPTO_BLOCK_FORMAT_QCOWAES:
+        ret->u.qcowaes = g_new0(QCryptoBlockOptionsQCowAES, 1);
+        visit_type_QCryptoBlockOptionsQCowAES(opts_get_visitor(ov),
+                                              &ret->u.qcowaes,
+                                              "qcowaes", &local_err);
+        break;
+
+    case Q_CRYPTO_BLOCK_FORMAT_LUKS:
+        ret->u.luks = g_new0(QCryptoBlockOptionsLUKS, 1);
+        visit_type_QCryptoBlockOptionsLUKS(opts_get_visitor(ov),
+                                           &ret->u.luks, "luks", &local_err);
+        break;
+
+    default:
+        error_setg(&local_err, "Unsupported block format %d", format);
+        break;
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        opts_visitor_cleanup(ov);
+        qapi_free_QCryptoBlockOpenOptions(ret);
+        return NULL;
+    }
+
+    opts_visitor_cleanup(ov);
+    return ret;
+}
+
+
+static QCryptoBlockCreateOptions *
+qcow2_fde_create_opts_init(QCryptoBlockFormat format,
+                           QemuOpts *opts,
+                           Error **errp)
+{
+    OptsVisitor *ov;
+    QCryptoBlockCreateOptions *ret;
+    Error *local_err = NULL;
+
+    ret = g_new0(QCryptoBlockCreateOptions, 1);
+    ret->format = format;
+
+    ov = opts_visitor_new(opts);
+
+    switch (format) {
+    case Q_CRYPTO_BLOCK_FORMAT_QCOWAES:
+        ret->u.qcowaes = g_new0(QCryptoBlockOptionsQCowAES, 1);
+        visit_type_QCryptoBlockOptionsQCowAES(opts_get_visitor(ov),
+                                              &ret->u.qcowaes,
+                                              "qcowaes", &local_err);
+        break;
+
+    case Q_CRYPTO_BLOCK_FORMAT_LUKS:
+        ret->u.luks = g_new0(QCryptoBlockCreateOptionsLUKS, 1);
+        visit_type_QCryptoBlockCreateOptionsLUKS(opts_get_visitor(ov),
+                                                 &ret->u.luks,
+                                                 "luks", &local_err);
+        break;
+
+    default:
+        error_setg(&local_err, "Unsupported block format %d", format);
+        break;
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        opts_visitor_cleanup(ov);
+        qapi_free_QCryptoBlockCreateOptions(ret);
+        return NULL;
+    }
+
+    opts_visitor_cleanup(ov);
+    return ret;
+}
+
 
 typedef struct Qcow2ReopenState {
     Qcow2Cache *l2_table_cache;
@@ -761,13 +932,30 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     r->discard_passthrough[QCOW2_DISCARD_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
 
-    if (s->crypt_method_header) {
-        r->fde_opts = g_new0(QCryptoBlockOpenOptions, 1);
-        r->fde_opts->format = Q_CRYPTO_BLOCK_FORMAT_QCOWAES;
-        r->fde_opts->u.qcowaes = g_new0(QCryptoBlockOptionsQCowAES, 1);
+    switch (s->crypt_method_header) {
+    case QCOW_CRYPT_NONE:
+        break;
 
-        r->fde_opts->u.qcowaes->keyid =
-            g_strdup(qemu_opt_get(opts, QCOW2_OPT_KEY_ID));
+    case QCOW_CRYPT_AES:
+        r->fde_opts = qcow2_fde_open_opts_init(
+            Q_CRYPTO_BLOCK_FORMAT_QCOWAES,
+            opts,
+            errp);
+        break;
+
+    case QCOW_CRYPT_LUKS:
+        r->fde_opts = qcow2_fde_open_opts_init(
+            Q_CRYPTO_BLOCK_FORMAT_QCOWAES,
+            opts,
+            errp);
+        break;
+
+    default:
+        g_assert_not_reached();
+    }
+    if (s->crypt_method_header &&
+        !r->fde_opts) {
+        goto fail;
     }
 
     ret = 0;
@@ -1102,7 +1290,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (!(flags & BDRV_O_NO_IO) &&
-        bs->encrypted) {
+        s->crypt_method_header == QCOW_CRYPT_AES) {
         s->fde = qcrypto_block_open(s->fde_opts,
                                     NULL, NULL,
                                     errp);
@@ -1139,6 +1327,13 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     if (qcow2_read_extensions(bs, header.header_length, ext_end, NULL,
         &local_err)) {
         error_propagate(errp, local_err);
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    if (!(flags & BDRV_O_NO_IO) &&
+        bs->encrypted && !s->fde) {
+        error_setg(errp, "No encryption layer was initiailized");
         ret = -EINVAL;
         goto fail;
     }
@@ -2013,6 +2208,10 @@ static int qcow2_create2(const char *filename, int64_t total_size,
 {
     int cluster_bits;
     QDict *options;
+    const char *fdestr;
+    QCryptoBlockCreateOptions *fdeopts = NULL;
+    QCryptoBlock *fde = NULL;
+    size_t i;
 
     /* Calculate cluster_bits */
     cluster_bits = ctz32(cluster_size);
@@ -2135,8 +2334,35 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         .header_length              = cpu_to_be32(sizeof(*header)),
     };
 
-    if (flags & BLOCK_FLAG_ENCRYPT) {
-        header->crypt_method = cpu_to_be32(QCOW_CRYPT_AES);
+    fdestr = qemu_opt_get(opts, QCOW2_OPT_FDE);
+    if (fdestr) {
+        for (i = 0; i < Q_CRYPTO_BLOCK_FORMAT_MAX; i++) {
+            if (g_str_equal(QCryptoBlockFormat_lookup[i],
+                            fdestr)) {
+                fdeopts = qcow2_fde_create_opts_init(i,
+                                                     opts,
+                                                     errp);
+                if (!fdeopts) {
+                    goto out;
+                }
+                break;
+            }
+        }
+        if (!fdeopts) {
+            error_setg(errp, "Unknown fde format %s", fdestr);
+            goto out;
+        }
+        switch (fdeopts->format) {
+        case Q_CRYPTO_BLOCK_FORMAT_QCOWAES:
+            header->crypt_method = cpu_to_be32(QCOW_CRYPT_AES);
+            break;
+        case Q_CRYPTO_BLOCK_FORMAT_LUKS:
+            header->crypt_method = cpu_to_be32(QCOW_CRYPT_LUKS);
+            break;
+        default:
+            error_setg(errp, "Unsupported fde format %s", fdestr);
+            goto out;
+        }
     } else {
         header->crypt_method = cpu_to_be32(QCOW_CRYPT_NONE);
     }
@@ -2151,6 +2377,24 @@ static int qcow2_create2(const char *filename, int64_t total_size,
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not write qcow2 header");
         goto out;
+    }
+
+    /* XXXX this is roughly where we need to write the LUKS header,
+     * but its not going to fit inside the first cluster. Need to
+     * allow qcow2 header extensions to consume >1 cluster....
+     */
+    if (fdeopts && 0) {
+        struct QCow2FDEData fdedata;
+        fdedata.bs = bs;
+        fdedata.hdr_ext_offset = cluster_size;
+
+        fde = qcrypto_block_create(fdeopts,
+                                   qcow2_header_write_func,
+                                   &fdedata,
+                                   errp);
+        if (!fde) {
+            goto out;
+        }
     }
 
     /* Write a refcount table with one refcount block */
@@ -3135,6 +3379,36 @@ static QemuOptsList qcow2_create_opts = {
             .type = QEMU_OPT_NUMBER,
             .help = "Width of a reference count entry in bits",
             .def_value_str = "16"
+        },
+        {
+            .name = QCOW2_OPT_FDE_KEY_ID,
+            .type = QEMU_OPT_STRING,
+            .help = "ID of the secret that provides the encryption key",
+        },
+        {
+            .name = QCOW2_OPT_FDE_CIPHER_ALG,
+            .type = QEMU_OPT_STRING,
+            .help = "Name of encryption cipher algorithm",
+        },
+        {
+            .name = QCOW2_OPT_FDE_CIPHER_MODE,
+            .type = QEMU_OPT_STRING,
+            .help = "Name of encryption cipher mode",
+        },
+        {
+            .name = QCOW2_OPT_FDE_IVGEN_ALG,
+            .type = QEMU_OPT_STRING,
+            .help = "Name of IV generator algorithm",
+        },
+        {
+            .name = QCOW2_OPT_FDE_IVGEN_HASH_ALG,
+            .type = QEMU_OPT_STRING,
+            .help = "Name of IV generator hash algorithm",
+        },
+        {
+            .name = QCOW2_OPT_FDE_HASH_ALG,
+            .type = QEMU_OPT_STRING,
+            .help = "Name of encryption hash algorithm",
         },
         { /* end of list */ }
     }

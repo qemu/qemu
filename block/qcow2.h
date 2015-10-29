@@ -36,6 +36,7 @@
 
 #define QCOW_CRYPT_NONE 0
 #define QCOW_CRYPT_AES  1
+#define QCOW_CRYPT_LUKS 2
 
 #define QCOW_MAX_CRYPT_CLUSTERS 32
 #define QCOW_MAX_SNAPSHOTS 65536
@@ -97,7 +98,15 @@
 #define QCOW2_OPT_L2_CACHE_SIZE "l2-cache-size"
 #define QCOW2_OPT_REFCOUNT_CACHE_SIZE "refcount-cache-size"
 #define QCOW2_OPT_CACHE_CLEAN_INTERVAL "cache-clean-interval"
-#define QCOW2_OPT_KEY_ID "keyid"
+
+#define QCOW2_OPT_FDE "fde"
+#define QCOW2_OPT_FDE_KEY_ID "keyid"
+#define QCOW2_OPT_FDE_CIPHER_ALG "cipher_alg"
+#define QCOW2_OPT_FDE_CIPHER_MODE "cipher_mode"
+#define QCOW2_OPT_FDE_IVGEN_ALG "ivgen_alg"
+#define QCOW2_OPT_FDE_IVGEN_HASH_ALG "ivgen_hash_alg"
+#define QCOW2_OPT_FDE_HASH_ALG "hash_alg"
+
 
 typedef struct QCowHeader {
     uint32_t magic;
