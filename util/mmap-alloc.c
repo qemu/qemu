@@ -26,7 +26,7 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
     void *ptr1;
 
     if (ptr == MAP_FAILED) {
-        return NULL;
+        return MAP_FAILED;
     }
 
     /* Make sure align is a power of 2 */
@@ -41,7 +41,7 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
                 fd, 0);
     if (ptr1 == MAP_FAILED) {
         munmap(ptr, total);
-        return NULL;
+        return MAP_FAILED;
     }
 
     ptr += offset;

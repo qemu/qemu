@@ -847,6 +847,9 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     PCIConfigWriteFunc *config_write = pc->config_write;
     Error *local_err = NULL;
     AddressSpace *dma_as;
+    DeviceState *dev = DEVICE(pci_dev);
+
+    pci_dev->bus = bus;
 
     if (devfn < 0) {
         for(devfn = bus->devfn_min ; devfn < ARRAY_SIZE(bus->devices);
@@ -864,9 +867,17 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
                    PCI_SLOT(devfn), PCI_FUNC(devfn), name,
                    bus->devices[devfn]->name);
         return NULL;
+    } else if (dev->hotplugged &&
+               pci_get_function_0(pci_dev)) {
+        error_setg(errp, "PCI: slot %d function 0 already ocuppied by %s,"
+                   " new func %s cannot be exposed to guest.",
+                   PCI_SLOT(devfn),
+                   bus->devices[PCI_DEVFN(PCI_SLOT(devfn), 0)]->name,
+                   name);
+
+       return NULL;
     }
 
-    pci_dev->bus = bus;
     pci_dev->devfn = devfn;
     dma_as = pci_device_iommu_address_space(pci_dev);
 
@@ -2452,6 +2463,33 @@ void pci_bus_get_w64_range(PCIBus *bus, Range *range)
 {
     range->begin = range->end = 0;
     pci_for_each_device_under_bus(bus, pci_dev_get_w64, range);
+}
+
+static bool pcie_has_upstream_port(PCIDevice *dev)
+{
+    PCIDevice *parent_dev = pci_bridge_get_device(dev->bus);
+
+    /* Device associated with an upstream port.
+     * As there are several types of these, it's easier to check the
+     * parent device: upstream ports are always connected to
+     * root or downstream ports.
+     */
+    return parent_dev &&
+        pci_is_express(parent_dev) &&
+        parent_dev->exp.exp_cap &&
+        (pcie_cap_get_type(parent_dev) == PCI_EXP_TYPE_ROOT_PORT ||
+         pcie_cap_get_type(parent_dev) == PCI_EXP_TYPE_DOWNSTREAM);
+}
+
+PCIDevice *pci_get_function_0(PCIDevice *pci_dev)
+{
+    if(pcie_has_upstream_port(pci_dev)) {
+        /* With an upstream PCIe port, we only support 1 device at slot 0 */
+        return pci_dev->bus->devices[0];
+    } else {
+        /* Other bus types might support multiple devices at slots 0-31 */
+        return pci_dev->bus->devices[PCI_DEVFN(PCI_SLOT(pci_dev->devfn), 0)];
+    }
 }
 
 static const TypeInfo pci_device_type_info = {

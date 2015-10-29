@@ -249,24 +249,42 @@ void pcie_cap_slot_hotplug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    /* TODO: multifunction hot-plug.
-     * Right now, only a device of function = 0 is allowed to be
-     * hot plugged/unplugged.
+    /* To enable multifunction hot-plug, we just ensure the function
+     * 0 added last. When function 0 is added, we set the sltsta and
+     * inform OS via event notification.
      */
-    assert(PCI_FUNC(pci_dev->devfn) == 0);
+    if (pci_get_function_0(pci_dev)) {
+        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
+                                   PCI_EXP_SLTSTA_PDS);
+        pcie_cap_slot_event(PCI_DEVICE(hotplug_dev),
+                            PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
+    }
+}
 
-    pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
-                               PCI_EXP_SLTSTA_PDS);
-    pcie_cap_slot_event(PCI_DEVICE(hotplug_dev),
-                        PCI_EXP_HP_EV_PDC | PCI_EXP_HP_EV_ABP);
+static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
+{
+    object_unparent(OBJECT(dev));
 }
 
 void pcie_cap_slot_hot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                          DeviceState *dev, Error **errp)
 {
     uint8_t *exp_cap;
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
+    PCIBus *bus = pci_dev->bus;
 
     pcie_cap_slot_hotplug_common(PCI_DEVICE(hotplug_dev), dev, &exp_cap, errp);
+
+    /* In case user cancel the operation of multi-function hot-add,
+     * remove the function that is unexposed to guest individually,
+     * without interaction with guest.
+     */
+    if (pci_dev->devfn &&
+        !bus->devices[0]) {
+        pcie_unplug_device(bus, pci_dev, NULL);
+
+        return;
+    }
 
     pcie_cap_slot_push_attention_button(PCI_DEVICE(hotplug_dev));
 }
@@ -376,11 +394,6 @@ void pcie_cap_slot_reset(PCIDevice *dev)
                                  PCI_EXP_SLTSTA_ABP);
 
     hotplug_event_update_event_status(dev);
-}
-
-static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
-{
-    object_unparent(OBJECT(dev));
 }
 
 void pcie_cap_slot_write_config(PCIDevice *dev,
