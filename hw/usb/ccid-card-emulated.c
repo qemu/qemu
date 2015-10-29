@@ -166,7 +166,7 @@ static void emulated_push_event(EmulatedState *card, EmulEvent *event)
 
 static void emulated_push_type(EmulatedState *card, uint32_t type)
 {
-    EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent));
+    EmulEvent *event = g_new(EmulEvent, 1);
 
     assert(event);
     event->p.gen.type = type;
@@ -175,7 +175,7 @@ static void emulated_push_type(EmulatedState *card, uint32_t type)
 
 static void emulated_push_error(EmulatedState *card, uint64_t code)
 {
-    EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent));
+    EmulEvent *event = g_new(EmulEvent, 1);
 
     assert(event);
     event->p.error.type = EMUL_ERROR;
