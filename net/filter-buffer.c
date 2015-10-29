@@ -167,6 +167,26 @@ out:
     error_propagate(errp, local_err);
 }
 
+static void default_filter_set_buffer_flag(NetFilterState *nf,
+                                           void *opaque,
+                                           Error **errp)
+{
+    if (!strcmp(object_get_typename(OBJECT(nf)), TYPE_FILTER_BUFFER)) {
+        FilterBufferState *s = FILTER_BUFFER(nf);
+        bool *flag = opaque;
+
+        if (s->is_default) {
+            s->enable_buffer = *flag;
+        }
+    }
+}
+
+void qemu_set_default_filter_buffers(bool enable_buffer)
+{
+    qemu_foreach_netfilter(default_filter_set_buffer_flag,
+                           &enable_buffer, NULL);
+}
+
 /*
 * This will be used by COLO or MC FT, for which they will need
 * to buffer the packets of VM's net devices, Here we add a default
