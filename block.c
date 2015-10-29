@@ -1018,36 +1018,44 @@ static QDict *parse_json_filename(const char *filename, Error **errp)
     return options;
 }
 
+static void parse_json_protocol(QDict *options, const char **pfilename,
+                                Error **errp)
+{
+    QDict *json_options;
+    Error *local_err = NULL;
+
+    /* Parse json: pseudo-protocol */
+    if (!*pfilename || !g_str_has_prefix(*pfilename, "json:")) {
+        return;
+    }
+
+    json_options = parse_json_filename(*pfilename, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    /* Options given in the filename have lower priority than options
+     * specified directly */
+    qdict_join(options, json_options, false);
+    QDECREF(json_options);
+    *pfilename = NULL;
+}
+
 /*
  * Fills in default options for opening images and converts the legacy
  * filename/flags pair to option QDict entries.
  * The BDRV_O_PROTOCOL flag in *flags will be set or cleared accordingly if a
  * block driver has been specified explicitly.
  */
-static int bdrv_fill_options(QDict **options, const char **pfilename,
+static int bdrv_fill_options(QDict **options, const char *filename,
                              int *flags, Error **errp)
 {
-    const char *filename = *pfilename;
     const char *drvname;
     bool protocol = *flags & BDRV_O_PROTOCOL;
     bool parse_filename = false;
     BlockDriver *drv = NULL;
     Error *local_err = NULL;
-
-    /* Parse json: pseudo-protocol */
-    if (filename && g_str_has_prefix(filename, "json:")) {
-        QDict *json_options = parse_json_filename(filename, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
-            return -EINVAL;
-        }
-
-        /* Options given in the filename have lower priority than options
-         * specified directly */
-        qdict_join(*options, json_options, false);
-        QDECREF(json_options);
-        *pfilename = filename = NULL;
-    }
 
     drvname = qdict_get_try_str(*options, "driver");
     if (drvname) {
@@ -1487,13 +1495,19 @@ static int bdrv_open_inherit(BlockDriverState **pbs, const char *filename,
         options = qdict_new();
     }
 
+    parse_json_protocol(options, &filename, &local_err);
+    if (local_err) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
     if (child_role) {
         bs->inherits_from = parent;
         child_role->inherit_options(&flags, options,
                                     parent->open_flags, parent->options);
     }
 
-    ret = bdrv_fill_options(&options, &filename, &flags, &local_err);
+    ret = bdrv_fill_options(&options, filename, &flags, &local_err);
     if (local_err) {
         goto fail;
     }
