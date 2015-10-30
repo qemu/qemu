@@ -965,7 +965,7 @@ static struct bt_device_s *bt_device_add(const char *opt)
     if (!strcmp(devname, "keyboard"))
         return bt_keyboard_init(vlan);
 
-    error_report("unsupported bluetooth device `%s'", devname);
+    error_report("unsupported bluetooth device '%s'", devname);
     return 0;
 }
 
@@ -3735,7 +3735,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_uuid:
                 if(qemu_uuid_parse(optarg, qemu_uuid) < 0) {
-                    error_report("fail to parse UUID string: wrong format");
+                    error_report("failed to parse UUID string: wrong format");
                     exit(1);
                 }
                 qemu_uuid_set = true;
@@ -4166,12 +4166,12 @@ int main(int argc, char **argv, char **envp)
         if (display_type == DT_NOGRAPHIC
             && (default_parallel || default_serial
                 || default_monitor || default_virtcon)) {
-            error_report("-nographic can not be used with -daemonize");
+            error_report("-nographic cannot be used with -daemonize");
             exit(1);
         }
 #ifdef CONFIG_CURSES
         if (display_type == DT_CURSES) {
-            error_report("curses display can not be used with -daemonize");
+            error_report("curses display cannot be used with -daemonize");
             exit(1);
         }
 #endif
@@ -4576,7 +4576,7 @@ int main(int argc, char **argv, char **envp)
                       vnc_init_func, NULL, NULL);
     if (show_vnc_port) {
         char *ret = vnc_display_local_addr("default");
-        printf("VNC server running on `%s'\n", ret);
+        printf("VNC server running on '%s'\n", ret);
         g_free(ret);
     }
 #endif
