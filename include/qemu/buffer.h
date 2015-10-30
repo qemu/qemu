@@ -127,4 +127,14 @@ uint8_t *buffer_end(Buffer *buffer);
  */
 gboolean buffer_empty(Buffer *buffer);
 
+/**
+ * buffer_move_empty:
+ * @to: destination buffer object
+ * @from: source buffer object
+ *
+ * Moves buffer, without copying data.  'to' buffer must be empty.
+ * 'from' buffer is empty and zero-sized on return.
+ */
+void buffer_move_empty(Buffer *to, Buffer *from);
+
 #endif /* QEMU_BUFFER_H__ */
