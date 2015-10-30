@@ -165,6 +165,14 @@ static inline GThread *g_thread_new(const char *name,
 #define CompatGCond GCond
 #endif /* glib 2.31 */
 
+#if !GLIB_CHECK_VERSION(2, 32, 0)
+/* Beware, function returns gboolean since 2.39.2, see GLib commit 9101915 */
+static inline void g_hash_table_add(GHashTable *hash_table, gpointer key)
+{
+    g_hash_table_replace(hash_table, key, key);
+}
+#endif
+
 #ifndef g_assert_true
 #define g_assert_true(expr)                                                    \
     do {                                                                       \

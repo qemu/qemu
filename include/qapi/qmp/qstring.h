@@ -17,7 +17,7 @@
 #include "qapi/qmp/qobject.h"
 
 typedef struct QString {
-    QObject_HEAD;
+    QObject base;
     char *string;
     size_t length;
     size_t capacity;

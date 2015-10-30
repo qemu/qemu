@@ -46,9 +46,9 @@ QDict *qdict_new(void)
  */
 QDict *qobject_to_qdict(const QObject *obj)
 {
-    if (qobject_type(obj) != QTYPE_QDICT)
+    if (!obj || qobject_type(obj) != QTYPE_QDICT) {
         return NULL;
-
+    }
     return container_of(obj, QDict, base);
 }
 
@@ -229,8 +229,7 @@ double qdict_get_double(const QDict *qdict, const char *key)
  */
 int64_t qdict_get_int(const QDict *qdict, const char *key)
 {
-    QObject *obj = qdict_get_obj(qdict, key, QTYPE_QINT);
-    return qint_get_int(qobject_to_qint(obj));
+    return qint_get_int(qobject_to_qint(qdict_get(qdict, key)));
 }
 
 /**
@@ -243,8 +242,7 @@ int64_t qdict_get_int(const QDict *qdict, const char *key)
  */
 bool qdict_get_bool(const QDict *qdict, const char *key)
 {
-    QObject *obj = qdict_get_obj(qdict, key, QTYPE_QBOOL);
-    return qbool_get_bool(qobject_to_qbool(obj));
+    return qbool_get_bool(qobject_to_qbool(qdict_get(qdict, key)));
 }
 
 /**
@@ -270,7 +268,7 @@ QList *qdict_get_qlist(const QDict *qdict, const char *key)
  */
 QDict *qdict_get_qdict(const QDict *qdict, const char *key)
 {
-    return qobject_to_qdict(qdict_get_obj(qdict, key, QTYPE_QDICT));
+    return qobject_to_qdict(qdict_get(qdict, key));
 }
 
 /**
@@ -284,8 +282,7 @@ QDict *qdict_get_qdict(const QDict *qdict, const char *key)
  */
 const char *qdict_get_str(const QDict *qdict, const char *key)
 {
-    QObject *obj = qdict_get_obj(qdict, key, QTYPE_QSTRING);
-    return qstring_get_str(qobject_to_qstring(obj));
+    return qstring_get_str(qobject_to_qstring(qdict_get(qdict, key)));
 }
 
 /**
@@ -298,13 +295,9 @@ const char *qdict_get_str(const QDict *qdict, const char *key)
 int64_t qdict_get_try_int(const QDict *qdict, const char *key,
                           int64_t def_value)
 {
-    QObject *obj;
+    QInt *qint = qobject_to_qint(qdict_get(qdict, key));
 
-    obj = qdict_get(qdict, key);
-    if (!obj || qobject_type(obj) != QTYPE_QINT)
-        return def_value;
-
-    return qint_get_int(qobject_to_qint(obj));
+    return qint ? qint_get_int(qint) : def_value;
 }
 
 /**
@@ -316,13 +309,9 @@ int64_t qdict_get_try_int(const QDict *qdict, const char *key,
  */
 bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value)
 {
-    QObject *obj;
+    QBool *qbool = qobject_to_qbool(qdict_get(qdict, key));
 
-    obj = qdict_get(qdict, key);
-    if (!obj || qobject_type(obj) != QTYPE_QBOOL)
-        return def_value;
-
-    return qbool_get_bool(qobject_to_qbool(obj));
+    return qbool ? qbool_get_bool(qbool) : def_value;
 }
 
 /**
@@ -335,13 +324,9 @@ bool qdict_get_try_bool(const QDict *qdict, const char *key, bool def_value)
  */
 const char *qdict_get_try_str(const QDict *qdict, const char *key)
 {
-    QObject *obj;
+    QString *qstr = qobject_to_qstring(qdict_get(qdict, key));
 
-    obj = qdict_get(qdict, key);
-    if (!obj || qobject_type(obj) != QTYPE_QSTRING)
-        return NULL;
-
-    return qstring_get_str(qobject_to_qstring(obj));
+    return qstr ? qstring_get_str(qstr) : NULL;
 }
 
 /**
