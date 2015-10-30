@@ -34,10 +34,22 @@ typedef struct Buffer Buffer;
  */
 
 struct Buffer {
+    char *name;
     size_t capacity;
     size_t offset;
     uint8_t *buffer;
 };
+
+/**
+ * buffer_init:
+ * @buffer: the buffer object
+ * @name: buffer name
+ *
+ * Optionally attach a name to the buffer, to make it easier
+ * to identify in debug traces.
+ */
+void buffer_init(Buffer *buffer, const char *name, ...)
+        GCC_FMT_ATTR(2, 3);
 
 /**
  * buffer_reserve:

@@ -22,6 +22,15 @@
 
 #define BUFFER_MIN_INIT_SIZE 4096
 
+void buffer_init(Buffer *buffer, const char *name, ...)
+{
+    va_list ap;
+
+    va_start(ap, name);
+    buffer->name = g_strdup_vprintf(name, ap);
+    va_end(ap);
+}
+
 void buffer_reserve(Buffer *buffer, size_t len)
 {
     if ((buffer->capacity - buffer->offset) < len) {
@@ -49,9 +58,11 @@ void buffer_reset(Buffer *buffer)
 void buffer_free(Buffer *buffer)
 {
     g_free(buffer->buffer);
+    g_free(buffer->name);
     buffer->offset = 0;
     buffer->capacity = 0;
     buffer->buffer = NULL;
+    buffer->name = NULL;
 }
 
 void buffer_append(Buffer *buffer, const void *data, size_t len)
