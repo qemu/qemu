@@ -1487,7 +1487,7 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 assert(s->cipher);
                 Error *err = NULL;
                 if (qcow2_encrypt_sectors(s, sector_num,  cluster_data,
-                                          cluster_data, cur_nr_sectors, false,
+                                          cur_nr_sectors, false,
                                           &err) < 0) {
                     error_free(err);
                     ret = -EIO;
@@ -1587,8 +1587,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
             qemu_iovec_to_buf(&hd_qiov, 0, cluster_data, hd_qiov.size);
 
             if (qcow2_encrypt_sectors(s, sector_num, cluster_data,
-                                      cluster_data, cur_nr_sectors,
-                                      true, &err) < 0) {
+                                      cur_nr_sectors, true, &err) < 0) {
                 error_free(err);
                 ret = -EIO;
                 goto fail;
