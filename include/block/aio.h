@@ -406,6 +406,17 @@ static inline void aio_enable_external(AioContext *ctx)
 }
 
 /**
+ * aio_external_disabled:
+ * @ctx: the aio context
+ *
+ * Return true if the external clients are disabled.
+ */
+static inline bool aio_external_disabled(AioContext *ctx)
+{
+    return atomic_read(&ctx->external_disable_cnt);
+}
+
+/**
  * aio_node_check:
  * @ctx: the aio context
  * @is_external: Whether or not the checked node is an external event source.
