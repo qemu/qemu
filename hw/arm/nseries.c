@@ -1275,7 +1275,7 @@ static int n8x0_atag_setup(void *p, int model)
     strcpy((void *) w, "hw-build");		/* char component[12] */
     w += 6;
     strcpy((void *) w, "QEMU ");
-    pstrcat((void *) w, 12, qemu_get_version()); /* char version[12] */
+    pstrcat((void *) w, 12, qemu_hw_version()); /* char version[12] */
     w += 6;
 
     tag = (model == 810) ? "1.1.10-qemu" : "1.1.6-qemu";

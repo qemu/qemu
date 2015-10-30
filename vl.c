@@ -4052,7 +4052,7 @@ int main(int argc, char **argv, char **envp)
     cpu_exec_init_all();
 
     if (machine_class->hw_version) {
-        qemu_set_version(machine_class->hw_version);
+        qemu_set_hw_version(machine_class->hw_version);
     }
 
     /* Init CPU def lists, based on config

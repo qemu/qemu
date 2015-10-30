@@ -2243,7 +2243,7 @@ void x86_cpudef_setup(void)
                 pstrcpy(def->model_id, sizeof(def->model_id),
                         "QEMU Virtual CPU version ");
                 pstrcat(def->model_id, sizeof(def->model_id),
-                        qemu_get_version());
+                        qemu_hw_version());
                 break;
             }
         }
