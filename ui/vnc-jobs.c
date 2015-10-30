@@ -235,6 +235,14 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
         vnc_unlock_output(job->vs);
         goto disconnected;
     }
+    if (buffer_empty(&job->vs->output)) {
+        /*
+         * Looks like a NOP as it obviously moves no data.  But it
+         * moves the empty buffer, so we don't have to malloc a new
+         * one for vs.output
+         */
+        buffer_move_empty(&vs.output, &job->vs->output);
+    }
     vnc_unlock_output(job->vs);
 
     /* Make a local copy of vs and switch output buffers */
