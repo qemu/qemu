@@ -732,10 +732,6 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
                                           width, height, NULL, 0);
 
     /* guest surface */
-#if 0 /* FIXME */
-    if (ds_get_bytes_per_pixel(ds) != vd->guest.ds->pf.bytes_per_pixel)
-        console_color_init(ds);
-#endif
     qemu_pixman_image_unref(vd->guest.fb);
     vd->guest.fb = pixman_image_ref(surface->image);
     vd->guest.format = surface->format;
