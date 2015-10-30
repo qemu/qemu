@@ -10,7 +10,7 @@
 #include "sysemu/block-backend.h"
 #include "sysemu/blockdev.h"
 #include "hw/sysbus.h"
-#include "hw/sd.h"
+#include "hw/sd/sd.h"
 
 //#define DEBUG_PL181 1
 

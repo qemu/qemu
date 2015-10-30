@@ -653,6 +653,11 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
 static void virtio_scsi_save(QEMUFile *f, void *opaque)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+
+    if (s->dataplane_started) {
+        virtio_scsi_dataplane_stop(s);
+    }
     virtio_save(vdev, f);
 }
 

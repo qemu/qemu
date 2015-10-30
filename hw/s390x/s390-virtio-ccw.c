@@ -20,6 +20,7 @@
 #include "qemu/config-file.h"
 #include "s390-pci-bus.h"
 #include "hw/s390x/storage-keys.h"
+#include "hw/compat.h"
 
 #define TYPE_S390_CCW_MACHINE               "s390-ccw-machine"
 
@@ -236,6 +237,7 @@ static const TypeInfo ccw_machine_info = {
 };
 
 #define CCW_COMPAT_2_4 \
+        HW_COMPAT_2_4 \
         {\
             .driver   = TYPE_S390_SKEYS,\
             .property = "migration-enabled",\

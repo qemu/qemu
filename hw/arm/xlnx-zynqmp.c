@@ -48,6 +48,14 @@ static const int uart_intr[XLNX_ZYNQMP_NUM_UARTS] = {
     21, 22,
 };
 
+static const uint64_t sdhci_addr[XLNX_ZYNQMP_NUM_SDHCI] = {
+    0xFF160000, 0xFF170000,
+};
+
+static const int sdhci_intr[XLNX_ZYNQMP_NUM_SDHCI] = {
+    48, 49,
+};
+
 typedef struct XlnxZynqMPGICRegion {
     int region_index;
     uint32_t address;
@@ -97,6 +105,13 @@ static void xlnx_zynqmp_init(Object *obj)
 
     object_initialize(&s->sata, sizeof(s->sata), TYPE_SYSBUS_AHCI);
     qdev_set_parent_bus(DEVICE(&s->sata), sysbus_get_default());
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
+        object_initialize(&s->sdhci[i], sizeof(s->sdhci[i]),
+                          TYPE_SYSBUS_SDHCI);
+        qdev_set_parent_bus(DEVICE(&s->sdhci[i]),
+                            sysbus_get_default());
+    }
 }
 
 static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
@@ -258,6 +273,19 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0, SATA_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0, gic_spi[SATA_INTR]);
+
+    for (i = 0; i < XLNX_ZYNQMP_NUM_SDHCI; i++) {
+        object_property_set_bool(OBJECT(&s->sdhci[i]), true,
+                                 "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->sdhci[i]), 0,
+                        sdhci_addr[i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->sdhci[i]), 0,
+                           gic_spi[sdhci_intr[i]]);
+    }
 }
 
 static Property xlnx_zynqmp_props[] = {

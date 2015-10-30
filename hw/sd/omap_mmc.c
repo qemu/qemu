@@ -18,7 +18,7 @@
  */
 #include "hw/hw.h"
 #include "hw/arm/omap.h"
-#include "hw/sd.h"
+#include "hw/sd/sd.h"
 
 struct omap_mmc_s {
     qemu_irq irq;

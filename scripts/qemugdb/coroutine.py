@@ -15,8 +15,11 @@
 
 import gdb
 
+VOID_PTR = gdb.lookup_type('void').pointer()
+
 def get_fs_base():
-    '''Fetch %fs base value using arch_prctl(ARCH_GET_FS)'''
+    '''Fetch %fs base value using arch_prctl(ARCH_GET_FS).  This is
+       pthread_self().'''
     # %rsp - 120 is scratch space according to the SystemV ABI
     old = gdb.parse_and_eval('*(uint64_t*)($rsp - 120)')
     gdb.execute('call arch_prctl(0x1003, $rsp - 120)', False, True)
@@ -24,17 +27,29 @@ def get_fs_base():
     gdb.execute('set *(uint64_t*)($rsp - 120) = %s' % old, False, True)
     return fs_base
 
+def pthread_self():
+    '''Fetch pthread_self() from the glibc start_thread function.'''
+    f = gdb.newest_frame()
+    while f.name() != 'start_thread':
+        f = f.older()
+        if f is None:
+            return get_fs_base()
+
+    try:
+        return f.read_var("arg")
+    except ValueError:
+        return get_fs_base()
+
 def get_glibc_pointer_guard():
     '''Fetch glibc pointer guard value'''
-    fs_base = get_fs_base()
+    fs_base = pthread_self()
     return gdb.parse_and_eval('*(uint64_t*)((uint64_t)%s + 0x30)' % fs_base)
 
 def glibc_ptr_demangle(val, pointer_guard):
     '''Undo effect of glibc's PTR_MANGLE()'''
     return gdb.parse_and_eval('(((uint64_t)%s >> 0x11) | ((uint64_t)%s << (64 - 0x11))) ^ (uint64_t)%s' % (val, val, pointer_guard))
 
-def bt_jmpbuf(jmpbuf):
-    '''Backtrace a jmpbuf'''
+def get_jmpbuf_regs(jmpbuf):
     JB_RBX  = 0
     JB_RBP  = 1
     JB_R12  = 2
@@ -44,35 +59,35 @@ def bt_jmpbuf(jmpbuf):
     JB_RSP  = 6
     JB_PC   = 7
 
-    old_rbx = gdb.parse_and_eval('(uint64_t)$rbx')
-    old_rbp = gdb.parse_and_eval('(uint64_t)$rbp')
-    old_rsp = gdb.parse_and_eval('(uint64_t)$rsp')
-    old_r12 = gdb.parse_and_eval('(uint64_t)$r12')
-    old_r13 = gdb.parse_and_eval('(uint64_t)$r13')
-    old_r14 = gdb.parse_and_eval('(uint64_t)$r14')
-    old_r15 = gdb.parse_and_eval('(uint64_t)$r15')
-    old_rip = gdb.parse_and_eval('(uint64_t)$rip')
-
     pointer_guard = get_glibc_pointer_guard()
-    gdb.execute('set $rbx = %s' % jmpbuf[JB_RBX])
-    gdb.execute('set $rbp = %s' % glibc_ptr_demangle(jmpbuf[JB_RBP], pointer_guard))
-    gdb.execute('set $rsp = %s' % glibc_ptr_demangle(jmpbuf[JB_RSP], pointer_guard))
-    gdb.execute('set $r12 = %s' % jmpbuf[JB_R12])
-    gdb.execute('set $r13 = %s' % jmpbuf[JB_R13])
-    gdb.execute('set $r14 = %s' % jmpbuf[JB_R14])
-    gdb.execute('set $r15 = %s' % jmpbuf[JB_R15])
-    gdb.execute('set $rip = %s' % glibc_ptr_demangle(jmpbuf[JB_PC], pointer_guard))
+    return {'rbx': jmpbuf[JB_RBX],
+        'rbp': glibc_ptr_demangle(jmpbuf[JB_RBP], pointer_guard),
+        'rsp': glibc_ptr_demangle(jmpbuf[JB_RSP], pointer_guard),
+        'r12': jmpbuf[JB_R12],
+        'r13': jmpbuf[JB_R13],
+        'r14': jmpbuf[JB_R14],
+        'r15': jmpbuf[JB_R15],
+        'rip': glibc_ptr_demangle(jmpbuf[JB_PC], pointer_guard) }
+
+def bt_jmpbuf(jmpbuf):
+    '''Backtrace a jmpbuf'''
+    regs = get_jmpbuf_regs(jmpbuf)
+    old = dict()
+
+    for i in regs:
+        old[i] = gdb.parse_and_eval('(uint64_t)$%s' % i)
+
+    for i in regs:
+        gdb.execute('set $%s = %s' % (i, regs[i]))
 
     gdb.execute('bt')
 
-    gdb.execute('set $rbx = %s' % old_rbx)
-    gdb.execute('set $rbp = %s' % old_rbp)
-    gdb.execute('set $rsp = %s' % old_rsp)
-    gdb.execute('set $r12 = %s' % old_r12)
-    gdb.execute('set $r13 = %s' % old_r13)
-    gdb.execute('set $r14 = %s' % old_r14)
-    gdb.execute('set $r15 = %s' % old_r15)
-    gdb.execute('set $rip = %s' % old_rip)
+    for i in regs:
+        gdb.execute('set $%s = %s' % (i, old[i]))
+
+def coroutine_to_jmpbuf(co):
+    coroutine_pointer = co.cast(gdb.lookup_type('CoroutineUContext').pointer())
+    return coroutine_pointer['env']['__jmpbuf']
 
 
 class CoroutineCommand(gdb.Command):
@@ -87,5 +102,18 @@ class CoroutineCommand(gdb.Command):
             gdb.write('usage: qemu coroutine <coroutine-pointer>\n')
             return
 
-        coroutine_pointer = gdb.parse_and_eval(argv[0]).cast(gdb.lookup_type('CoroutineUContext').pointer())
-        bt_jmpbuf(coroutine_pointer['env']['__jmpbuf'])
+        bt_jmpbuf(coroutine_to_jmpbuf(gdb.parse_and_eval(argv[0])))
+
+class CoroutineSPFunction(gdb.Function):
+    def __init__(self):
+        gdb.Function.__init__(self, 'qemu_coroutine_sp')
+
+    def invoke(self, addr):
+        return get_jmpbuf_regs(coroutine_to_jmpbuf(addr))['rsp'].cast(VOID_PTR)
+
+class CoroutinePCFunction(gdb.Function):
+    def __init__(self):
+        gdb.Function.__init__(self, 'qemu_coroutine_pc')
+
+    def invoke(self, addr):
+        return get_jmpbuf_regs(coroutine_to_jmpbuf(addr))['rip'].cast(VOID_PTR)

@@ -2285,7 +2285,11 @@ static const TypeInfo spapr_machine_info = {
     },
 };
 
+#define SPAPR_COMPAT_2_4 \
+        HW_COMPAT_2_4
+
 #define SPAPR_COMPAT_2_3 \
+        SPAPR_COMPAT_2_4 \
         HW_COMPAT_2_3 \
         {\
             .driver   = "spapr-pci-host-bridge",\
@@ -2399,11 +2403,16 @@ static const TypeInfo spapr_machine_2_3_info = {
 
 static void spapr_machine_2_4_class_init(ObjectClass *oc, void *data)
 {
+    static GlobalProperty compat_props[] = {
+        SPAPR_COMPAT_2_4
+        { /* end of list */ }
+    };
     MachineClass *mc = MACHINE_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant) v2.4";
     mc->alias = "pseries";
     mc->is_default = 0;
+    mc->compat_props = compat_props;
 }
 
 static const TypeInfo spapr_machine_2_4_info = {

@@ -798,6 +798,11 @@ static void virtio_blk_set_status(VirtIODevice *vdev, uint8_t status)
 static void virtio_blk_save(QEMUFile *f, void *opaque)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
+
+    if (s->dataplane) {
+        virtio_blk_data_plane_stop(s->dataplane);
+    }
 
     virtio_save(vdev, f);
 }
@@ -972,7 +977,7 @@ static Property virtio_blk_properties[] = {
     DEFINE_PROP_STRING("serial", VirtIOBlock, conf.serial),
     DEFINE_PROP_BIT("config-wce", VirtIOBlock, conf.config_wce, 0, true),
 #ifdef __linux__
-    DEFINE_PROP_BIT("scsi", VirtIOBlock, conf.scsi, 0, true),
+    DEFINE_PROP_BIT("scsi", VirtIOBlock, conf.scsi, 0, false),
 #endif
     DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
                     true),
