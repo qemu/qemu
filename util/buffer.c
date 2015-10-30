@@ -91,3 +91,19 @@ void buffer_move_empty(Buffer *to, Buffer *from)
     from->capacity = 0;
     from->buffer = NULL;
 }
+
+void buffer_move(Buffer *to, Buffer *from)
+{
+    if (to->offset == 0) {
+        buffer_move_empty(to, from);
+        return;
+    }
+
+    buffer_reserve(to, from->offset);
+    buffer_append(to, from->buffer, from->offset);
+
+    g_free(from->buffer);
+    from->offset = 0;
+    from->capacity = 0;
+    from->buffer = NULL;
+}

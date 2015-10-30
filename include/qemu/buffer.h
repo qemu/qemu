@@ -137,4 +137,14 @@ gboolean buffer_empty(Buffer *buffer);
  */
 void buffer_move_empty(Buffer *to, Buffer *from);
 
+/**
+ * buffer_move:
+ * @to: destination buffer object
+ * @from: source buffer object
+ *
+ * Moves buffer, copying data (unless 'to' buffer happens to be empty).
+ * 'from' buffer is empty and zero-sized on return.
+ */
+void buffer_move(Buffer *to, Buffer *from);
+
 #endif /* QEMU_BUFFER_H__ */
