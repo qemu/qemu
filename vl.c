@@ -3657,8 +3657,7 @@ int main(int argc, char **argv, char **envp)
                 qemu_opts_parse_noisily(olist, "accel=tcg", false);
                 break;
             case QEMU_OPTION_no_kvm_pit: {
-                error_report("warning: KVM PIT can no longer be disabled "
-                             "separately");
+                error_report("warning: ignoring deprecated option");
                 break;
             }
             case QEMU_OPTION_no_kvm_pit_reinjection: {
@@ -3671,8 +3670,8 @@ int main(int argc, char **argv, char **envp)
                     { /* end of list */ }
                 };
 
-                error_report("warning: option deprecated, use "
-                             "lost_tick_policy property of kvm-pit instead");
+                error_report("warning: deprecated, replaced by "
+                             "-global kvm-pit.lost_tick_policy=discard");
                 qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
                 break;
             }
@@ -3795,8 +3794,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_tdf:
-                error_report("warning: user space PIT time drift fix "
-                             "is no longer supported");
+                error_report("warning: ignoring deprecated option");
                 break;
             case QEMU_OPTION_name:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("name"),
