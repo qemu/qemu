@@ -325,12 +325,18 @@ AioContext *aio_context_new(Error **errp)
 {
     int ret;
     AioContext *ctx;
+    Error *local_err = NULL;
+
     ctx = (AioContext *) g_source_new(&aio_source_funcs, sizeof(AioContext));
+    aio_context_setup(ctx, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto fail;
+    }
     ret = event_notifier_init(&ctx->notifier, false);
     if (ret < 0) {
-        g_source_destroy(&ctx->source);
         error_setg_errno(errp, -ret, "Failed to initialize event notifier");
-        return NULL;
+        goto fail;
     }
     g_source_set_can_recurse(&ctx->source, true);
     aio_set_event_notifier(ctx, &ctx->notifier,
@@ -345,6 +351,9 @@ AioContext *aio_context_new(Error **errp)
     ctx->notify_dummy_bh = aio_bh_new(ctx, notify_dummy_bh, NULL);
 
     return ctx;
+fail:
+    g_source_destroy(&ctx->source);
+    return NULL;
 }
 
 void aio_context_ref(AioContext *ctx)

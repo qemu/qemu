@@ -429,4 +429,12 @@ static inline bool aio_node_check(AioContext *ctx, bool is_external)
     return !is_external || !atomic_read(&ctx->external_disable_cnt);
 }
 
+/**
+ * aio_context_setup:
+ * @ctx: the aio context
+ *
+ * Initialize the aio context.
+ */
+void aio_context_setup(AioContext *ctx, Error **errp);
+
 #endif
