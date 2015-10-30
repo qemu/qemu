@@ -2988,6 +2988,26 @@ static void vnc_connect(VncDisplay *vd, int csock,
     vs->csock = csock;
     vs->vd = vd;
 
+    buffer_init(&vs->input,          "vnc-input/%d", csock);
+    buffer_init(&vs->output,         "vnc-output/%d", csock);
+    buffer_init(&vs->ws_input,       "vnc-ws_input/%d", csock);
+    buffer_init(&vs->ws_output,      "vnc-ws_output/%d", csock);
+    buffer_init(&vs->jobs_buffer,    "vnc-jobs_buffer/%d", csock);
+
+    buffer_init(&vs->tight.tight,    "vnc-tight/%d", csock);
+    buffer_init(&vs->tight.zlib,     "vnc-tight-zlib/%d", csock);
+    buffer_init(&vs->tight.gradient, "vnc-tight-gradient/%d", csock);
+#ifdef CONFIG_VNC_JPEG
+    buffer_init(&vs->tight.jpeg,     "vnc-tight-jpeg/%d", csock);
+#endif
+#ifdef CONFIG_VNC_PNG
+    buffer_init(&vs->tight.png,      "vnc-tight-png/%d", csock);
+#endif
+    buffer_init(&vs->zlib.zlib,      "vnc-zlib/%d", csock);
+    buffer_init(&vs->zrle.zrle,      "vnc-zrle/%d", csock);
+    buffer_init(&vs->zrle.fb,        "vnc-zrle-fb/%d", csock);
+    buffer_init(&vs->zrle.zlib,      "vnc-zrle-zlib/%d", csock);
+
     if (skipauth) {
 	vs->auth = VNC_AUTH_NONE;
 	vs->subauth = VNC_AUTH_INVALID;
