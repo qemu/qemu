@@ -906,7 +906,7 @@ static int bt_hci_parse(const char *str)
     bdaddr_t bdaddr;
 
     if (nb_hcis >= MAX_NICS) {
-        error_report("Too many bluetooth HCIs (max %i).", MAX_NICS);
+        error_report("Too many bluetooth HCIs (max %i)", MAX_NICS);
         return -1;
     }
 
@@ -2279,7 +2279,7 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     }
     if (strncmp(name, "opt/", 4) != 0) {
         error_report("WARNING: externally provided fw_cfg item names "
-                     "should be prefixed with \"opt/\"!");
+                     "should be prefixed with \"opt/\"");
     }
     if (nonempty_str(str)) {
         size = strlen(str); /* NUL terminator NOT included in fw_cfg blob */
@@ -2637,7 +2637,7 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
     }
     if (name && !is_help_option(name)) {
         error_report("Unsupported machine type");
-        error_printf("Use -machine help to list supported machines!\n");
+        error_printf("Use -machine help to list supported machines\n");
     } else {
         printf("Supported machines are:\n");
         machines = g_slist_sort(machines, machine_class_cmp);
@@ -3441,7 +3441,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_fsdev:
                 olist = qemu_find_opts("fsdev");
                 if (!olist) {
-                    error_report("fsdev is not supported by this qemu build.");
+                    error_report("fsdev is not supported by this qemu build");
                     exit(1);
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, true);
@@ -3456,7 +3456,7 @@ int main(int argc, char **argv, char **envp)
 
                 olist = qemu_find_opts("virtfs");
                 if (!olist) {
-                    error_report("virtfs is not supported by this qemu build.");
+                    error_report("virtfs is not supported by this qemu build");
                     exit(1);
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, true);
@@ -3466,7 +3466,7 @@ int main(int argc, char **argv, char **envp)
 
                 if (qemu_opt_get(opts, "fsdriver") == NULL ||
                     qemu_opt_get(opts, "mount_tag") == NULL) {
-                    error_report("Usage: -virtfs fsdriver,mount_tag=tag.");
+                    error_report("Usage: -virtfs fsdriver,mount_tag=tag");
                     exit(1);
                 }
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"),
@@ -3658,7 +3658,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_no_kvm_pit: {
                 error_report("Warning: KVM PIT can no longer be disabled "
-                             "separately.");
+                             "separately");
                 break;
             }
             case QEMU_OPTION_no_kvm_pit_reinjection: {
@@ -3672,7 +3672,7 @@ int main(int argc, char **argv, char **envp)
                 };
 
                 error_report("Warning: option deprecated, use "
-                             "lost_tick_policy property of kvm-pit instead.");
+                             "lost_tick_policy property of kvm-pit instead");
                 qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
                 break;
             }
@@ -3736,7 +3736,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_uuid:
                 if(qemu_uuid_parse(optarg, qemu_uuid) < 0) {
                     error_report("Fail to parse UUID string."
-                                 " Wrong format.");
+                                 " Wrong format");
                     exit(1);
                 }
                 qemu_uuid_set = true;
@@ -3798,7 +3798,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_tdf:
                 error_report("Warning: user space PIT time drift fix "
-                             "is no longer supported.");
+                             "is no longer supported");
                 break;
             case QEMU_OPTION_name:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("name"),
@@ -3901,7 +3901,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_spice:
                 olist = qemu_find_opts("spice");
                 if (!olist) {
-                    error_report("spice is not supported by this qemu build.");
+                    error_report("spice is not supported by this qemu build");
                     exit(1);
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, false);
@@ -4003,8 +4003,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (machine_class == NULL) {
-        error_report("No machine specified, and there is no default.");
-        error_printf("Use -machine help to list supported machines!\n");
+        error_report("No machine specified, and there is no default");
+        error_printf("Use -machine help to list supported machines\n");
         exit(1);
     }
 
@@ -4252,9 +4252,9 @@ int main(int argc, char **argv, char **envp)
 #endif
     if (request_opengl == 1 && display_opengl == 0) {
 #if defined(CONFIG_OPENGL)
-        error_report("OpenGL is not supported by the display.");
+        error_report("OpenGL is not supported by the display");
 #else
-        error_report("QEMU was built without opengl support.");
+        error_report("QEMU was built without opengl support");
 #endif
         exit(1);
     }
