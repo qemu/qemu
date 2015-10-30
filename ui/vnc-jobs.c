@@ -29,6 +29,7 @@
 #include "vnc.h"
 #include "vnc-jobs.h"
 #include "qemu/sockets.h"
+#include "qemu/main-loop.h"
 #include "block/aio.h"
 
 /*
@@ -165,8 +166,11 @@ void vnc_jobs_consume_buffer(VncState *vs)
 
     vnc_lock_output(vs);
     if (vs->jobs_buffer.offset) {
-        vnc_write(vs, vs->jobs_buffer.buffer, vs->jobs_buffer.offset);
-        buffer_reset(&vs->jobs_buffer);
+        if (vs->csock != -1 && buffer_empty(&vs->output)) {
+            qemu_set_fd_handler(vs->csock, vnc_client_read,
+                                vnc_client_write, vs);
+        }
+        buffer_move(&vs->output, &vs->jobs_buffer);
     }
     flush = vs->csock != -1 && vs->abort != true;
     vnc_unlock_output(vs);
@@ -193,8 +197,6 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
     local->hextile = orig->hextile;
     local->zrle = orig->zrle;
     local->csock = -1; /* Don't do any network work on this thread */
-
-    buffer_reset(&local->output);
 }
 
 static void vnc_async_encoding_end(VncState *orig, VncState *local)
@@ -272,14 +274,13 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
 
     vnc_lock_output(job->vs);
     if (job->vs->csock != -1) {
-        buffer_reserve(&job->vs->jobs_buffer, vs.output.offset);
-        buffer_append(&job->vs->jobs_buffer, vs.output.buffer,
-                      vs.output.offset);
+        buffer_move(&job->vs->jobs_buffer, &vs.output);
         /* Copy persistent encoding data */
         vnc_async_encoding_end(job->vs, &vs);
 
 	qemu_bh_schedule(job->vs->bh);
     }  else {
+        buffer_reset(&vs.output);
         /* Copy persistent encoding data */
         vnc_async_encoding_end(job->vs, &vs);
     }
