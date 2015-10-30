@@ -906,7 +906,7 @@ static int bt_hci_parse(const char *str)
     bdaddr_t bdaddr;
 
     if (nb_hcis >= MAX_NICS) {
-        error_report("Too many bluetooth HCIs (max %i)", MAX_NICS);
+        error_report("too many bluetooth HCIs (max %i)", MAX_NICS);
         return -1;
     }
 
@@ -1101,7 +1101,7 @@ static int parse_add_fd(void *opaque, QemuOpts *opts, Error **errp)
     }
 #endif
     if (dupfd == -1) {
-        error_report("Error duplicating fd: %s", strerror(errno));
+        error_report("error duplicating fd: %s", strerror(errno));
         return -1;
     }
 
@@ -1248,7 +1248,7 @@ static void smp_parse(QemuOpts *opts)
     }
 
     if (max_cpus > MAX_CPUMASK_BITS) {
-        error_report("Unsupported number of maxcpus");
+        error_report("unsupported number of maxcpus");
         exit(1);
     }
     if (max_cpus < smp_cpus) {
@@ -2031,7 +2031,7 @@ static void select_vgahw (const char *p)
         }
     } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
-        error_report("Unknown vga type: %s", p);
+        error_report("unknown vga type: %s", p);
         exit(1);
     }
     while (*opts) {
@@ -2107,7 +2107,7 @@ static DisplayType select_display(const char *p)
                 }
             } else {
             invalid_sdl_args:
-                error_report("Invalid SDL option string");
+                error_report("invalid SDL option string");
                 exit(1);
             }
             opts = nextopt;
@@ -2136,7 +2136,7 @@ static DisplayType select_display(const char *p)
 #ifdef CONFIG_CURSES
         display = DT_CURSES;
 #else
-        error_report("Curses support is disabled");
+        error_report("curses support is disabled");
         exit(1);
 #endif
     } else if (strstart(p, "gtk", &opts)) {
@@ -2165,7 +2165,7 @@ static DisplayType select_display(const char *p)
                 }
             } else {
             invalid_gtk_args:
-                error_report("Invalid GTK option string");
+                error_report("invalid GTK option string");
                 exit(1);
             }
             opts = nextopt;
@@ -2177,7 +2177,7 @@ static DisplayType select_display(const char *p)
     } else if (strstart(p, "none", &opts)) {
         display = DT_NONE;
     } else {
-        error_report("Unknown display type");
+        error_report("unknown display type");
         exit(1);
     }
 
@@ -2636,7 +2636,7 @@ static gint machine_class_cmp(gconstpointer a, gconstpointer b)
         return mc;
     }
     if (name && !is_help_option(name)) {
-        error_report("Unsupported machine type");
+        error_report("unsupported machine type");
         error_printf("Use -machine help to list supported machines\n");
     } else {
         printf("Supported machines are:\n");
@@ -3012,7 +3012,7 @@ int main(int argc, char **argv, char **envp)
     runstate_init();
 
     if (qcrypto_init(&err) < 0) {
-        error_report("Cannot initialize crypto: %s", error_get_pretty(err));
+        error_report("cannot initialize crypto: %s", error_get_pretty(err));
         exit(1);
     }
     rtc_clock = QEMU_CLOCK_HOST;
@@ -3213,7 +3213,7 @@ int main(int argc, char **argv, char **envp)
 #ifdef CONFIG_CURSES
                 display_type = DT_CURSES;
 #else
-                error_report("Curses support is disabled");
+                error_report("curses support is disabled");
                 exit(1);
 #endif
                 break;
@@ -3551,7 +3551,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_watchdog_action:
                 if (select_watchdog_action(optarg) == -1) {
-                    error_report("Unknown -watchdog-action parameter");
+                    error_report("unknown -watchdog-action parameter");
                     exit(1);
                 }
                 break;
@@ -3720,7 +3720,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_balloon:
                 if (balloon_parse(optarg) < 0) {
-                    error_report("Unknown -balloon argument %s", optarg);
+                    error_report("unknown -balloon argument %s", optarg);
                     exit(1);
                 }
                 break;
@@ -3735,15 +3735,14 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_uuid:
                 if(qemu_uuid_parse(optarg, qemu_uuid) < 0) {
-                    error_report("Fail to parse UUID string."
-                                 " Wrong format");
+                    error_report("fail to parse UUID string: wrong format");
                     exit(1);
                 }
                 qemu_uuid_set = true;
                 break;
             case QEMU_OPTION_option_rom:
                 if (nb_option_roms >= MAX_OPTION_ROMS) {
-                    error_report("Too many option ROMs");
+                    error_report("too many option ROMs");
                     exit(1);
                 }
                 opts = qemu_opts_parse_noisily(qemu_find_opts("option-rom"),
@@ -3780,7 +3779,7 @@ int main(int argc, char **argv, char **envp)
                         } else  if (strcmp("auto", target) == 0) {
                             semihosting.target = SEMIHOSTING_TARGET_AUTO;
                         } else {
-                            error_report("Unsupported semihosting-config %s",
+                            error_report("unsupported semihosting-config %s",
                                          optarg);
                             exit(1);
                         }
@@ -3791,8 +3790,7 @@ int main(int argc, char **argv, char **envp)
                     qemu_opt_foreach(opts, add_semihosting_arg,
                                      &semihosting, NULL);
                 } else {
-                    error_report("Unsupported semihosting-config %s",
-                                 optarg);
+                    error_report("unsupported semihosting-config %s", optarg);
                     exit(1);
                 }
                 break;
@@ -3809,7 +3807,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_prom_env:
                 if (nb_prom_envs >= MAX_PROM_ENVS) {
-                    error_report("Too many prom variables");
+                    error_report("too many prom variables");
                     exit(1);
                 }
                 prom_envs[nb_prom_envs] = optarg;
@@ -4280,7 +4278,7 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     if (pid_file && qemu_create_pidfile(pid_file) != 0) {
-        error_report("Could not acquire pid file: %s", strerror(errno));
+        error_report("could not acquire pid file: %s", strerror(errno));
         exit(1);
     }
 
