@@ -615,6 +615,17 @@ static void framebuffer_update_request(VncState *vs, int incremental,
 static void vnc_refresh(DisplayChangeListener *dcl);
 static int vnc_refresh_server_surface(VncDisplay *vd);
 
+static int vnc_width(VncDisplay *vd)
+{
+    return MIN(VNC_MAX_WIDTH, ROUND_UP(surface_width(vd->ds),
+                                       VNC_DIRTY_PIXELS_PER_BIT));
+}
+
+static int vnc_height(VncDisplay *vd)
+{
+    return MIN(VNC_MAX_HEIGHT, surface_height(vd->ds));
+}
+
 static void vnc_set_area_dirty(DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT],
                                VNC_MAX_WIDTH / VNC_DIRTY_PIXELS_PER_BIT),
                                int width, int height,
@@ -725,9 +736,8 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     /* server surface */
     qemu_pixman_image_unref(vd->server);
     vd->ds = surface;
-    width = MIN(VNC_MAX_WIDTH, ROUND_UP(surface_width(vd->ds),
-                                        VNC_DIRTY_PIXELS_PER_BIT));
-    height = MIN(VNC_MAX_HEIGHT, surface_height(vd->ds));
+    width = vnc_width(vd);
+    height = vnc_height(vd);
     vd->server = pixman_image_create_bits(VNC_SERVER_FB_FORMAT,
                                           width, height, NULL, 0);
 
