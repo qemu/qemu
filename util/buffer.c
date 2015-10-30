@@ -20,7 +20,8 @@
 
 #include "qemu/buffer.h"
 
-#define BUFFER_MIN_INIT_SIZE 4096
+#define BUFFER_MIN_INIT_SIZE     4096
+#define BUFFER_MIN_SHRINK_SIZE  65536
 
 void buffer_init(Buffer *buffer, const char *name, ...)
 {
@@ -29,6 +30,23 @@ void buffer_init(Buffer *buffer, const char *name, ...)
     va_start(ap, name);
     buffer->name = g_strdup_vprintf(name, ap);
     va_end(ap);
+}
+
+void buffer_shrink(Buffer *buffer)
+{
+    /*
+     * Only shrink in case the used size is *much* smaller than the
+     * capacity, to avoid bumping up & down the buffers all the time.
+     * realloc() isn't exactly cheap ...
+     */
+    if (buffer->offset < (buffer->capacity >> 3) &&
+        buffer->capacity > BUFFER_MIN_SHRINK_SIZE) {
+        return;
+    }
+
+    buffer->capacity = pow2ceil(buffer->offset);
+    buffer->capacity = MAX(buffer->capacity, BUFFER_MIN_SHRINK_SIZE);
+    buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
 }
 
 void buffer_reserve(Buffer *buffer, size_t len)

@@ -52,6 +52,16 @@ void buffer_init(Buffer *buffer, const char *name, ...)
         GCC_FMT_ATTR(2, 3);
 
 /**
+ * buffer_shrink:
+ * @buffer: the buffer object
+ *
+ * Try to shrink the buffer.  Checks current buffer capacity and size
+ * and reduces capacity in case only a fraction of the buffer is
+ * actually used.
+ */
+void buffer_shrink(Buffer *buffer);
+
+/**
  * buffer_reserve:
  * @buffer: the buffer object
  * @len: the minimum required free space
