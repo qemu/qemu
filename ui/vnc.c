@@ -628,8 +628,12 @@ static int vnc_height(VncDisplay *vd)
 
 static void vnc_set_area_dirty(DECLARE_BITMAP(dirty[VNC_MAX_HEIGHT],
                                VNC_MAX_WIDTH / VNC_DIRTY_PIXELS_PER_BIT),
-                               int width, int height,
-                               int x, int y, int w, int h) {
+                               VncDisplay *vd,
+                               int x, int y, int w, int h)
+{
+    int width = vnc_width(vd);
+    int height = vnc_height(vd);
+
     /* this is needed this to ensure we updated all affected
      * blocks if x % VNC_DIRTY_PIXELS_PER_BIT != 0 */
     w += (x % VNC_DIRTY_PIXELS_PER_BIT);
@@ -651,10 +655,8 @@ static void vnc_dpy_update(DisplayChangeListener *dcl,
 {
     VncDisplay *vd = container_of(dcl, VncDisplay, dcl);
     struct VncSurface *s = &vd->guest;
-    int width = pixman_image_get_width(vd->server);
-    int height = pixman_image_get_height(vd->server);
 
-    vnc_set_area_dirty(s->dirty, width, height, x, y, w, h);
+    vnc_set_area_dirty(s->dirty, vd, x, y, w, h);
 }
 
 void vnc_framebuffer_update(VncState *vs, int x, int y, int w, int h,
@@ -755,7 +757,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     width = vnc_width(vd);
     height = vnc_height(vd);
     memset(vd->guest.dirty, 0x00, sizeof(vd->guest.dirty));
-    vnc_set_area_dirty(vd->guest.dirty, width, height, 0, 0,
+    vnc_set_area_dirty(vd->guest.dirty, vd, 0, 0,
                        width, height);
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
@@ -765,7 +767,7 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
             vnc_cursor_define(vs);
         }
         memset(vs->dirty, 0x00, sizeof(vs->dirty));
-        vnc_set_area_dirty(vs->dirty, width, height, 0, 0,
+        vnc_set_area_dirty(vs->dirty, vd, 0, 0,
                            width, height);
     }
 }
@@ -2021,9 +2023,6 @@ static void ext_key_event(VncState *vs, int down,
 static void framebuffer_update_request(VncState *vs, int incremental,
                                        int x, int y, int w, int h)
 {
-    int width = pixman_image_get_width(vs->vd->server);
-    int height = pixman_image_get_height(vs->vd->server);
-
     vs->need_update = 1;
 
     if (incremental) {
@@ -2031,7 +2030,7 @@ static void framebuffer_update_request(VncState *vs, int incremental,
     }
 
     vs->force_update = 1;
-    vnc_set_area_dirty(vs->dirty, width, height, x, y, w, h);
+    vnc_set_area_dirty(vs->dirty, vs->vd, x, y, w, h);
 }
 
 static void send_ext_key_event_ack(VncState *vs)
