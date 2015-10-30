@@ -1019,8 +1019,7 @@ static int parse_sandbox(void *opaque, QemuOpts *opts, Error **errp)
             return -1;
         }
 #else
-        error_report("sandboxing request but seccomp is not compiled "
-                     "into this build");
+        error_report("seccomp support is disabled");
         return -1;
 #endif
     }
@@ -3441,7 +3440,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_fsdev:
                 olist = qemu_find_opts("fsdev");
                 if (!olist) {
-                    error_report("fsdev is not supported by this qemu build");
+                    error_report("fsdev support is disabled");
                     exit(1);
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, true);
@@ -3456,7 +3455,7 @@ int main(int argc, char **argv, char **envp)
 
                 olist = qemu_find_opts("virtfs");
                 if (!olist) {
-                    error_report("virtfs is not supported by this qemu build");
+                    error_report("virtfs support is disabled");
                     exit(1);
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, true);
@@ -3897,7 +3896,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_spice:
                 olist = qemu_find_opts("spice");
                 if (!olist) {
-                    error_report("spice is not supported by this qemu build");
+                    error_report("spice support is disabled");
                     exit(1);
                 }
                 opts = qemu_opts_parse_noisily(olist, optarg, false);
@@ -4250,7 +4249,7 @@ int main(int argc, char **argv, char **envp)
 #if defined(CONFIG_OPENGL)
         error_report("OpenGL is not supported by the display");
 #else
-        error_report("QEMU was built without opengl support");
+        error_report("OpenGL support is disabled");
 #endif
         exit(1);
     }
