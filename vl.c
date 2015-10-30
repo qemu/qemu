@@ -2278,7 +2278,7 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
         return -1;
     }
     if (strncmp(name, "opt/", 4) != 0) {
-        error_report("WARNING: externally provided fw_cfg item names "
+        error_report("warning: externally provided fw_cfg item names "
                      "should be prefixed with \"opt/\"");
     }
     if (nonempty_str(str)) {
@@ -3657,7 +3657,7 @@ int main(int argc, char **argv, char **envp)
                 qemu_opts_parse_noisily(olist, "accel=tcg", false);
                 break;
             case QEMU_OPTION_no_kvm_pit: {
-                error_report("Warning: KVM PIT can no longer be disabled "
+                error_report("warning: KVM PIT can no longer be disabled "
                              "separately");
                 break;
             }
@@ -3671,7 +3671,7 @@ int main(int argc, char **argv, char **envp)
                     { /* end of list */ }
                 };
 
-                error_report("Warning: option deprecated, use "
+                error_report("warning: option deprecated, use "
                              "lost_tick_policy property of kvm-pit instead");
                 qdev_prop_register_global_list(kvm_pit_lost_tick_policy);
                 break;
@@ -3797,7 +3797,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_tdf:
-                error_report("Warning: user space PIT time drift fix "
+                error_report("warning: user space PIT time drift fix "
                              "is no longer supported");
                 break;
             case QEMU_OPTION_name:
