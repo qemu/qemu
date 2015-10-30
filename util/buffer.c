@@ -30,6 +30,14 @@ static size_t buffer_req_size(Buffer *buffer, size_t len)
                pow2ceil(buffer->offset + len));
 }
 
+static void buffer_adj_size(Buffer *buffer, size_t len)
+{
+    size_t old = buffer->capacity;
+    buffer->capacity = buffer_req_size(buffer, len);
+    buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
+    trace_buffer_resize(buffer->name ?: "unnamed",
+                        old, buffer->capacity);
+}
 
 void buffer_init(Buffer *buffer, const char *name, ...)
 {
@@ -42,8 +50,6 @@ void buffer_init(Buffer *buffer, const char *name, ...)
 
 void buffer_shrink(Buffer *buffer)
 {
-    size_t old;
-
     /*
      * Only shrink in case the used size is *much* smaller than the
      * capacity, to avoid bumping up & down the buffers all the time.
@@ -54,24 +60,13 @@ void buffer_shrink(Buffer *buffer)
         return;
     }
 
-    old = buffer->capacity;
-    buffer->capacity = pow2ceil(buffer->offset);
-    buffer->capacity = MAX(buffer->capacity, BUFFER_MIN_SHRINK_SIZE);
-    buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
-    trace_buffer_resize(buffer->name ?: "unnamed",
-                        old, buffer->capacity);
+    buffer_adj_size(buffer, 0);
 }
 
 void buffer_reserve(Buffer *buffer, size_t len)
 {
-    size_t old;
-
     if ((buffer->capacity - buffer->offset) < len) {
-        old = buffer->capacity;
-        buffer->capacity = buffer_req_size(buffer, len);
-        buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
-        trace_buffer_resize(buffer->name ?: "unnamed",
-                            old, buffer->capacity);
+        buffer_adj_size(buffer, len);
     }
 }
 
