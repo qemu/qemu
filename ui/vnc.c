@@ -724,6 +724,17 @@ void *vnc_server_fb_ptr(VncDisplay *vd, int x, int y)
     return ptr;
 }
 
+static void vnc_update_server_surface(VncDisplay *vd)
+{
+    qemu_pixman_image_unref(vd->server);
+    vd->server = NULL;
+
+    vd->server = pixman_image_create_bits(VNC_SERVER_FB_FORMAT,
+                                          vnc_width(vd),
+                                          vnc_height(vd),
+                                          NULL, 0);
+}
+
 static void vnc_dpy_switch(DisplayChangeListener *dcl,
                            DisplaySurface *surface)
 {
@@ -732,19 +743,17 @@ static void vnc_dpy_switch(DisplayChangeListener *dcl,
     int width, height;
 
     vnc_abort_display_jobs(vd);
+    vd->ds = surface;
 
     /* server surface */
-    qemu_pixman_image_unref(vd->server);
-    vd->ds = surface;
-    width = vnc_width(vd);
-    height = vnc_height(vd);
-    vd->server = pixman_image_create_bits(VNC_SERVER_FB_FORMAT,
-                                          width, height, NULL, 0);
+    vnc_update_server_surface(vd);
 
     /* guest surface */
     qemu_pixman_image_unref(vd->guest.fb);
     vd->guest.fb = pixman_image_ref(surface->image);
     vd->guest.format = surface->format;
+    width = vnc_width(vd);
+    height = vnc_height(vd);
     memset(vd->guest.dirty, 0x00, sizeof(vd->guest.dirty));
     vnc_set_area_dirty(vd->guest.dirty, width, height, 0, 0,
                        width, height);
