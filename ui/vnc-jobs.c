@@ -54,7 +54,6 @@ struct VncJobQueue {
     QemuCond cond;
     QemuMutex mutex;
     QemuThread thread;
-    Buffer buffer;
     bool exit;
     QTAILQ_HEAD(, VncJob) jobs;
 };
@@ -193,7 +192,6 @@ static void vnc_async_encoding_start(VncState *orig, VncState *local)
     local->zlib = orig->zlib;
     local->hextile = orig->hextile;
     local->zrle = orig->zrle;
-    local->output =  queue->buffer;
     local->csock = -1; /* Don't do any network work on this thread */
 
     buffer_reset(&local->output);
@@ -206,8 +204,6 @@ static void vnc_async_encoding_end(VncState *orig, VncState *local)
     orig->hextile = local->hextile;
     orig->zrle = local->zrle;
     orig->lossy_rect = local->lossy_rect;
-
-    queue->buffer = local->output;
 }
 
 static int vnc_worker_thread_loop(VncJobQueue *queue)
@@ -304,7 +300,6 @@ static VncJobQueue *vnc_queue_init(void)
 
     qemu_cond_init(&queue->cond);
     qemu_mutex_init(&queue->mutex);
-    buffer_init(&queue->buffer, "vnc-job-queue");
     QTAILQ_INIT(&queue->jobs);
     return queue;
 }
@@ -313,7 +308,6 @@ static void vnc_queue_clear(VncJobQueue *q)
 {
     qemu_cond_destroy(&queue->cond);
     qemu_mutex_destroy(&queue->mutex);
-    buffer_free(&queue->buffer);
     g_free(q);
     queue = NULL; /* Unset global queue */
 }
