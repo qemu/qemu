@@ -315,6 +315,40 @@ static void print_eckd_msg(void)
     sclp_print(msg);
 }
 
+static void ipl_eckd(void)
+{
+    ScsiMbr *mbr = (void *)sec;
+    LDL_VTOC *vlbl = (void *)sec;
+
+    print_eckd_msg();
+
+    /* Grab the MBR again */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(0, mbr, "Cannot read block 0 on DASD");
+
+    if (magic_match(mbr->magic, IPL1_MAGIC)) {
+        ipl_eckd_cdl(); /* no return */
+    }
+
+    /* LDL/CMS? */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(2, vlbl, "Cannot read block 2");
+
+    if (magic_match(vlbl->magic, CMS1_MAGIC)) {
+        ipl_eckd_ldl(ECKD_CMS); /* no return */
+    }
+    if (magic_match(vlbl->magic, LNX1_MAGIC)) {
+        ipl_eckd_ldl(ECKD_LDL); /* no return */
+    }
+
+    ipl_eckd_ldl(ECKD_LDL_UNLABELED); /* it still may return */
+    /*
+     * Ok, it is not a LDL by any means.
+     * It still might be a CDL with zero record keys for IPL1 and IPL2
+     */
+    ipl_eckd_cdl();
+}
+
 /***********************************************************************
  * IPL a SCSI disk
  */
@@ -412,7 +446,13 @@ static void ipl_scsi(void)
     const int pte_len = sizeof(ScsiBlockPtr);
     ScsiBlockPtr *prog_table_entry;
 
-    /* The 0-th block (MBR) was already read into sec[] */
+    /* Grab the MBR */
+    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
+    read_block(0, mbr, "Cannot read block 0");
+
+    if (!magic_match(mbr->magic, ZIPL_MAGIC)) {
+        return;
+    }
 
     sclp_print("Using SCSI scheme.\n");
     debug_print_int("MBR Version", mbr->version_id);
@@ -649,57 +689,58 @@ static void ipl_iso_el_torito(void)
 }
 
 /***********************************************************************
- * IPL starts here
+ * Bus specific IPL sequences
  */
 
-void zipl_load(void)
+static void zipl_load_vblk(void)
 {
-    ScsiMbr *mbr = (void *)sec;
-    LDL_VTOC *vlbl = (void *)sec;
-
-    /* Grab the MBR */
-    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
-    read_block(0, mbr, "Cannot read block 0");
-
-    dputs("checking magic\n");
-
-    if (magic_match(mbr->magic, ZIPL_MAGIC)) {
-        ipl_scsi(); /* no return */
-    }
-
-    /* Check if we can boot as ISO media */
     if (virtio_guessed_disk_nature()) {
         virtio_assume_iso9660();
     }
     ipl_iso_el_torito();
 
-    /* We have failed to follow the SCSI scheme, so */
     if (virtio_guessed_disk_nature()) {
         sclp_print("Using guessed DASD geometry.\n");
         virtio_assume_eckd();
     }
-    print_eckd_msg();
-    if (magic_match(mbr->magic, IPL1_MAGIC)) {
-        ipl_eckd_cdl(); /* no return */
+    ipl_eckd();
+}
+
+static void zipl_load_vscsi(void)
+{
+    if (virtio_get_block_size() == VIRTIO_ISO_BLOCK_SIZE) {
+        /* Is it an ISO image in non-CD drive? */
+        ipl_iso_el_torito();
     }
 
-    /* LDL/CMS? */
-    memset(sec, FREE_SPACE_FILLER, sizeof(sec));
-    read_block(2, vlbl, "Cannot read block 2");
+    sclp_print("Using guessed DASD geometry.\n");
+    virtio_assume_eckd();
+    ipl_eckd();
+}
 
-    if (magic_match(vlbl->magic, CMS1_MAGIC)) {
-        ipl_eckd_ldl(ECKD_CMS); /* no return */
-    }
-    if (magic_match(vlbl->magic, LNX1_MAGIC)) {
-        ipl_eckd_ldl(ECKD_LDL); /* no return */
+/***********************************************************************
+ * IPL starts here
+ */
+
+void zipl_load(void)
+{
+    if (virtio_get_device()->is_cdrom) {
+        ipl_iso_el_torito();
+        panic("\n! Cannot IPL this ISO image !\n");
     }
 
-    ipl_eckd_ldl(ECKD_LDL_UNLABELED); /* it still may return */
-    /*
-     * Ok, it is not a LDL by any means.
-     * It still might be a CDL with zero record keys for IPL1 and IPL2
-     */
-    ipl_eckd_cdl();
+    ipl_scsi();
+
+    switch (virtio_get_device_type()) {
+    case VIRTIO_ID_BLOCK:
+        zipl_load_vblk();
+        break;
+    case VIRTIO_ID_SCSI:
+        zipl_load_vscsi();
+        break;
+    default:
+        panic("\n! Unknown IPL device type !\n");
+    }
 
     panic("\n* this can never happen *\n");
 }
