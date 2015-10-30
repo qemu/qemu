@@ -70,16 +70,6 @@ else
     TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
 fi
 
-function valgrind_qemu_io()
-{
-    valgrind --log-file=/tmp/$$.valgrind --error-exitcode=99 $REAL_QEMU_IO "$@"
-    if [ $? != 0 ]; then
-        cat /tmp/$$.valgrind
-    fi
-    rm -f /tmp/$$.valgrind
-}
-
-
 _optstr_add()
 {
     if [ -n "$1" ]; then
