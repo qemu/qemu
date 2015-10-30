@@ -124,6 +124,11 @@ struct AioContext {
     QEMUTimerListGroup tlg;
 
     int external_disable_cnt;
+
+    /* epoll(7) state used when built with CONFIG_EPOLL */
+    int epollfd;
+    bool epoll_enabled;
+    bool epoll_available;
 };
 
 /**
