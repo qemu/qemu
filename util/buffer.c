@@ -19,6 +19,7 @@
  */
 
 #include "qemu/buffer.h"
+#include "trace.h"
 
 #define BUFFER_MIN_INIT_SIZE     4096
 #define BUFFER_MIN_SHRINK_SIZE  65536
@@ -34,6 +35,8 @@ void buffer_init(Buffer *buffer, const char *name, ...)
 
 void buffer_shrink(Buffer *buffer)
 {
+    size_t old;
+
     /*
      * Only shrink in case the used size is *much* smaller than the
      * capacity, to avoid bumping up & down the buffers all the time.
@@ -44,17 +47,25 @@ void buffer_shrink(Buffer *buffer)
         return;
     }
 
+    old = buffer->capacity;
     buffer->capacity = pow2ceil(buffer->offset);
     buffer->capacity = MAX(buffer->capacity, BUFFER_MIN_SHRINK_SIZE);
     buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
+    trace_buffer_resize(buffer->name ?: "unnamed",
+                        old, buffer->capacity);
 }
 
 void buffer_reserve(Buffer *buffer, size_t len)
 {
+    size_t old;
+
     if ((buffer->capacity - buffer->offset) < len) {
+        old = buffer->capacity;
         buffer->capacity = pow2ceil(buffer->offset + len);
         buffer->capacity = MAX(buffer->capacity, BUFFER_MIN_INIT_SIZE);
         buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
+        trace_buffer_resize(buffer->name ?: "unnamed",
+                            old, buffer->capacity);
     }
 }
 
@@ -75,6 +86,7 @@ void buffer_reset(Buffer *buffer)
 
 void buffer_free(Buffer *buffer)
 {
+    trace_buffer_free(buffer->name ?: "unnamed", buffer->capacity);
     g_free(buffer->buffer);
     g_free(buffer->name);
     buffer->offset = 0;
@@ -98,6 +110,9 @@ void buffer_advance(Buffer *buffer, size_t len)
 
 void buffer_move_empty(Buffer *to, Buffer *from)
 {
+    trace_buffer_move_empty(to->name ?: "unnamed",
+                            from->offset,
+                            from->name ?: "unnamed");
     assert(to->offset == 0);
 
     g_free(to->buffer);
@@ -117,6 +132,9 @@ void buffer_move(Buffer *to, Buffer *from)
         return;
     }
 
+    trace_buffer_move(to->name ?: "unnamed",
+                      from->offset,
+                      from->name ?: "unnamed");
     buffer_reserve(to, from->offset);
     buffer_append(to, from->buffer, from->offset);
 
