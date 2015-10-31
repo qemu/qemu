@@ -8,6 +8,7 @@ crypto-obj-y += tlscredsanon.o
 crypto-obj-y += tlscredsx509.o
 crypto-obj-y += tlssession.o
 crypto-obj-y += secret.o
+crypto-obj-y += random.o
 
 # Let the userspace emulators avoid linking gnutls/etc
 crypto-aes-obj-y = aes.o
