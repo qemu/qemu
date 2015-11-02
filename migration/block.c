@@ -591,7 +591,7 @@ static int64_t get_remaining_dirty(void)
 
 /* Called with iothread lock taken.  */
 
-static void blk_mig_cleanup(void)
+static void block_migration_cleanup(void *opaque)
 {
     BlkMigDevState *bmds;
     BlkMigBlock *blk;
@@ -616,11 +616,6 @@ static void blk_mig_cleanup(void)
         g_free(blk);
     }
     blk_mig_unlock();
-}
-
-static void block_migration_cancel(void *opaque)
-{
-    blk_mig_cleanup();
 }
 
 static int block_save_setup(QEMUFile *f, void *opaque)
@@ -884,7 +879,7 @@ static SaveVMHandlers savevm_block_handlers = {
     .save_live_complete = block_save_complete,
     .save_live_pending = block_save_pending,
     .load_state = block_load,
-    .cleanup = block_migration_cancel,
+    .cleanup = block_migration_cleanup,
     .is_active = block_is_active,
 };
 
