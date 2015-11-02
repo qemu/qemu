@@ -1685,7 +1685,7 @@ static SaveVMHandlers savevm_ram_handlers = {
     .save_live_complete = ram_save_complete,
     .save_live_pending = ram_save_pending,
     .load_state = ram_load,
-    .cancel = ram_migration_cancel,
+    .cleanup = ram_migration_cancel,
 };
 
 void ram_mig_init(void)

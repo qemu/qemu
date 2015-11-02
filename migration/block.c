@@ -884,7 +884,7 @@ static SaveVMHandlers savevm_block_handlers = {
     .save_live_complete = block_save_complete,
     .save_live_pending = block_save_pending,
     .load_state = block_load,
-    .cancel = block_migration_cancel,
+    .cleanup = block_migration_cancel,
     .is_active = block_is_active,
 };
 
