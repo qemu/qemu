@@ -750,7 +750,6 @@ static int block_save_complete(QEMUFile *f, void *opaque)
 
     qemu_put_be64(f, BLK_MIG_FLAG_EOS);
 
-    blk_mig_cleanup();
     return 0;
 }
 

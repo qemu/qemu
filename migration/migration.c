@@ -613,12 +613,9 @@ static void migrate_fd_cleanup(void *opaque)
 
     assert(s->state != MIGRATION_STATUS_ACTIVE);
 
-    if (s->state != MIGRATION_STATUS_COMPLETED) {
-        qemu_savevm_state_cancel();
-        if (s->state == MIGRATION_STATUS_CANCELLING) {
-            migrate_set_state(s, MIGRATION_STATUS_CANCELLING,
-                              MIGRATION_STATUS_CANCELLED);
-        }
+    if (s->state == MIGRATION_STATUS_CANCELLING) {
+        migrate_set_state(s, MIGRATION_STATUS_CANCELLING,
+                          MIGRATION_STATUS_CANCELLED);
     }
 
     notifier_list_notify(&migration_state_notifiers, s);
@@ -1028,6 +1025,7 @@ static void *migration_thread(void *opaque)
     int64_t initial_bytes = 0;
     int64_t max_size = 0;
     int64_t start_time = initial_time;
+    int64_t end_time;
     bool old_vm_running = false;
 
     rcu_register_thread();
@@ -1089,10 +1087,11 @@ static void *migration_thread(void *opaque)
 
     /* If we enabled cpu throttling for auto-converge, turn it off. */
     cpu_throttle_stop();
+    end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
 
     qemu_mutex_lock_iothread();
+    qemu_savevm_state_cancel();
     if (s->state == MIGRATION_STATUS_COMPLETED) {
-        int64_t end_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
         uint64_t transferred_bytes = qemu_ftell(s->file);
         s->total_time = end_time - s->total_time;
         s->downtime = end_time - start_time;
