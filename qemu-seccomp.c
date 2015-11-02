@@ -16,6 +16,14 @@
 #include <seccomp.h>
 #include "sysemu/seccomp.h"
 
+#if SCMP_VER_MAJOR >= 3
+  #define HAVE_CACHEFLUSH
+#elif SCMP_VER_MAJOR == 2 && SCMP_VER_MINOR >= 3
+  #define HAVE_CACHEFLUSH
+#elif SCMP_VER_MAJOR == 2 && SCMP_VER_MINOR == 2 && SCMP_VER_MICRO >= 3
+  #define HAVE_CACHEFLUSH
+#endif
+
 struct QemuSeccompSyscall {
     int32_t num;
     uint8_t priority;
@@ -238,7 +246,10 @@ static const struct QemuSeccompSyscall seccomp_whitelist[] = {
     { SCMP_SYS(inotify_init1), 240 },
     { SCMP_SYS(inotify_add_watch), 240 },
     { SCMP_SYS(mbind), 240 },
-    { SCMP_SYS(memfd_create), 240 }
+    { SCMP_SYS(memfd_create), 240 },
+#ifdef HAVE_CACHEFLUSH
+    { SCMP_SYS(cacheflush), 240 },
+#endif
 };
 
 int seccomp_start(void)
