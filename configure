@@ -791,6 +791,9 @@ for opt do
   --enable-modules)
       modules="yes"
   ;;
+  --disable-modules)
+      modules="no"
+  ;;
   --cpu=*)
   ;;
   --target-list=*) target_list="$optarg"
