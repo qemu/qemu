@@ -1,0 +1,1 @@
+tests/qapi-schema/reserved-member-q.json:4: Member of 'data' for struct 'Foo' uses invalid name 'q-unix'

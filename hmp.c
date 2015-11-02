@@ -569,8 +569,8 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
         for (client = info->clients; client; client = client->next) {
             monitor_printf(mon, "Client:\n");
             monitor_printf(mon, "     address: %s:%s\n",
-                           client->value->base->host,
-                           client->value->base->service);
+                           client->value->host,
+                           client->value->service);
             monitor_printf(mon, "  x509_dname: %s\n",
                            client->value->x509_dname ?
                            client->value->x509_dname : "none");
@@ -638,7 +638,7 @@ void hmp_info_spice(Monitor *mon, const QDict *qdict)
         for (chan = info->channels; chan; chan = chan->next) {
             monitor_printf(mon, "Channel:\n");
             monitor_printf(mon, "     address: %s:%s%s\n",
-                           chan->value->base->host, chan->value->base->port,
+                           chan->value->host, chan->value->port,
                            chan->value->tls ? " [tls]" : "");
             monitor_printf(mon, "     session: %" PRId64 "\n",
                            chan->value->connection_id);
@@ -841,11 +841,11 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
                        c, TpmModel_lookup[ti->model]);
 
         monitor_printf(mon, "  \\ %s: type=%s",
-                       ti->id, TpmTypeOptionsKind_lookup[ti->options->kind]);
+                       ti->id, TpmTypeOptionsKind_lookup[ti->options->type]);
 
-        switch (ti->options->kind) {
+        switch (ti->options->type) {
         case TPM_TYPE_OPTIONS_KIND_PASSTHROUGH:
-            tpo = ti->options->passthrough;
+            tpo = ti->options->u.passthrough;
             monitor_printf(mon, "%s%s%s%s",
                            tpo->has_path ? ",path=" : "",
                            tpo->has_path ? tpo->path : "",
@@ -1735,15 +1735,15 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
             if (*endp != '\0') {
                 goto err_out;
             }
-            keylist->value->kind = KEY_VALUE_KIND_NUMBER;
-            keylist->value->number = value;
+            keylist->value->type = KEY_VALUE_KIND_NUMBER;
+            keylist->value->u.number = value;
         } else {
             int idx = index_from_key(keyname_buf);
             if (idx == Q_KEY_CODE_MAX) {
                 goto err_out;
             }
-            keylist->value->kind = KEY_VALUE_KIND_QCODE;
-            keylist->value->qcode = idx;
+            keylist->value->type = KEY_VALUE_KIND_QCODE;
+            keylist->value->u.qcode = idx;
         }
 
         if (!separator) {
@@ -1958,12 +1958,12 @@ void hmp_info_memory_devices(Monitor *mon, const QDict *qdict)
         value = info->value;
 
         if (value) {
-            switch (value->kind) {
+            switch (value->type) {
             case MEMORY_DEVICE_INFO_KIND_DIMM:
-                di = value->dimm;
+                di = value->u.dimm;
 
                 monitor_printf(mon, "Memory device [%s]: \"%s\"\n",
-                               MemoryDeviceInfoKind_lookup[value->kind],
+                               MemoryDeviceInfoKind_lookup[value->type],
                                di->id ? di->id : "");
                 monitor_printf(mon, "  addr: 0x%" PRIx64 "\n", di->addr);
                 monitor_printf(mon, "  slot: %" PRId64 "\n", di->slot);

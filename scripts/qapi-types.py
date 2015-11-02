@@ -36,26 +36,37 @@ struct %(c_name)s {
                  c_name=c_name(name), c_type=element_type.c_type())
 
 
-def gen_struct_field(name, typ, optional):
+def gen_struct_field(member):
     ret = ''
 
-    if optional:
+    if member.optional:
         ret += mcgen('''
     bool has_%(c_name)s;
 ''',
-                     c_name=c_name(name))
+                     c_name=c_name(member.name))
     ret += mcgen('''
     %(c_type)s %(c_name)s;
 ''',
-                 c_type=typ.c_type(), c_name=c_name(name))
+                 c_type=member.type.c_type(), c_name=c_name(member.name))
     return ret
 
 
-def gen_struct_fields(members):
+def gen_struct_fields(local_members, base=None):
     ret = ''
 
-    for memb in members:
-        ret += gen_struct_field(memb.name, memb.type, memb.optional)
+    if base:
+        ret += mcgen('''
+    /* Members inherited from %(c_name)s: */
+''',
+                     c_name=base.c_name())
+        for memb in base.members:
+            ret += gen_struct_field(memb)
+        ret += mcgen('''
+    /* Own members: */
+''')
+
+    for memb in local_members:
+        ret += gen_struct_field(memb)
     return ret
 
 
@@ -66,16 +77,13 @@ struct %(c_name)s {
 ''',
                 c_name=c_name(name))
 
-    if base:
-        ret += gen_struct_field('base', base, False)
-
-    ret += gen_struct_fields(members)
+    ret += gen_struct_fields(members, base)
 
     # Make sure that all structs have at least one field; this avoids
     # potential issues with attempting to malloc space for zero-length
     # structs in C, and also incompatibility with C++ (where an empty
     # struct is size 1).
-    if not base and not members:
+    if not (base and base.members) and not members:
         ret += mcgen('''
     char qapi_dummy_field_for_empty_struct;
 ''')
@@ -85,6 +93,19 @@ struct %(c_name)s {
 ''')
 
     return ret
+
+
+def gen_upcast(name, base):
+    # C makes const-correctness ugly.  We have to cast away const to let
+    # this function work for both const and non-const obj.
+    return mcgen('''
+
+static inline %(base)s *qapi_%(c_name)s_base(const %(c_name)s *obj)
+{
+    return (%(base)s *)obj;
+}
+''',
+                 c_name=c_name(name), base=base.c_name())
 
 
 def gen_alternate_qtypes_decl(name):
@@ -126,19 +147,9 @@ struct %(c_name)s {
 ''',
                 c_name=c_name(name))
     if base:
-        ret += mcgen('''
-    /* Members inherited from %(c_name)s: */
-''',
-                     c_name=c_name(base.name))
-        ret += gen_struct_fields(base.members)
-        ret += mcgen('''
-    /* Own members: */
-''')
+        ret += gen_struct_fields([], base)
     else:
-        ret += mcgen('''
-    %(c_type)s kind;
-''',
-                     c_type=c_name(variants.tag_member.type.name))
+        ret += gen_struct_field(variants.tag_member)
 
     # FIXME: What purpose does data serve, besides preventing a union that
     # has a branch named 'data'? We use it in qapi-visit.py to decide
@@ -152,10 +163,7 @@ struct %(c_name)s {
     union { /* union tag is @%(c_name)s */
         void *data;
 ''',
-                 # TODO ugly special case for simple union
-                 # Use same tag name in C as on the wire to get rid of
-                 # it, then: c_name=c_name(variants.tag_member.name)
-                 c_name=c_name(variants.tag_name or 'kind'))
+                 c_name=c_name(variants.tag_member.name))
 
     for var in variants.variants:
         # Ugly special case for simple union TODO get rid of it
@@ -167,7 +175,7 @@ struct %(c_name)s {
                      c_name=c_name(var.name))
 
     ret += mcgen('''
-    };
+    } u;
 };
 ''')
 
@@ -265,6 +273,8 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
             self.decl += gen_union(name, base, variants)
         else:
             self.decl += gen_struct(name, base, members)
+        if base:
+            self.decl += gen_upcast(name, base)
         self._gen_type_cleanup(name)
 
     def visit_alternate_type(self, name, info, variants):

@@ -187,8 +187,8 @@ int net_init_dump(const NetClientOptions *opts, const char *name,
     NetClientState *nc;
     DumpNetClient *dnc;
 
-    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_DUMP);
-    dump = opts->dump;
+    assert(opts->type == NET_CLIENT_OPTIONS_KIND_DUMP);
+    dump = opts->u.dump;
 
     assert(peer);
 

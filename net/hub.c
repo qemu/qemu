@@ -285,9 +285,9 @@ int net_init_hubport(const NetClientOptions *opts, const char *name,
 {
     const NetdevHubPortOptions *hubport;
 
-    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_HUBPORT);
+    assert(opts->type == NET_CLIENT_OPTIONS_KIND_HUBPORT);
     assert(!peer);
-    hubport = opts->hubport;
+    hubport = opts->u.hubport;
 
     net_hub_add_port(hubport->hubid, name);
     return 0;

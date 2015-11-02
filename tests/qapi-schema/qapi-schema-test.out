@@ -81,6 +81,9 @@ event EVENT_A None
 event EVENT_B None
 event EVENT_C :obj-EVENT_C-arg
 event EVENT_D :obj-EVENT_D-arg
+object Empty1
+object Empty2
+    base Empty1
 enum EnumOne ['value1', 'value2', 'value3']
 object EventStructOne
     member struct1: UserDefOne optional=False

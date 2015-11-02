@@ -565,8 +565,8 @@ int net_init_bridge(const NetClientOptions *opts, const char *name,
     TAPState *s;
     int fd, vnet_hdr;
 
-    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_BRIDGE);
-    bridge = opts->bridge;
+    assert(opts->type == NET_CLIENT_OPTIONS_KIND_BRIDGE);
+    bridge = opts->u.bridge;
 
     helper = bridge->has_helper ? bridge->helper : DEFAULT_BRIDGE_HELPER;
     br     = bridge->has_br     ? bridge->br     : DEFAULT_BRIDGE_INTERFACE;
@@ -728,8 +728,8 @@ int net_init_tap(const NetClientOptions *opts, const char *name,
     const char *vhostfdname;
     char ifname[128];
 
-    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_TAP);
-    tap = opts->tap;
+    assert(opts->type == NET_CLIENT_OPTIONS_KIND_TAP);
+    tap = opts->u.tap;
     queues = tap->has_queues ? tap->queues : 1;
     vhostfdname = tap->has_vhostfd ? tap->vhostfd : NULL;
 

@@ -15,7 +15,12 @@
 from qapi import *
 import re
 
+# visit_type_FOO_implicit() is emitted as needed; track if it has already
+# been output.
 implicit_structs_seen = set()
+
+# visit_type_FOO_fields() is always emitted; track if a forward declaration
+# or implementation has already been output.
 struct_fields_seen = set()
 
 
@@ -29,19 +34,24 @@ void visit_type_%(c_name)s(Visitor *v, %(c_type)sobj, const char *name, Error **
                  c_name=c_name(name), c_type=c_type)
 
 
-def gen_visit_implicit_struct(typ):
-    if typ in implicit_structs_seen:
-        return ''
-    implicit_structs_seen.add(typ)
-
+def gen_visit_fields_decl(typ):
     ret = ''
     if typ.name not in struct_fields_seen:
-        # Need a forward declaration
         ret += mcgen('''
 
 static void visit_type_%(c_type)s_fields(Visitor *v, %(c_type)s **obj, Error **errp);
 ''',
                      c_type=typ.c_name())
+        struct_fields_seen.add(typ.name)
+    return ret
+
+
+def gen_visit_implicit_struct(typ):
+    if typ in implicit_structs_seen:
+        return ''
+    implicit_structs_seen.add(typ)
+
+    ret = gen_visit_fields_decl(typ)
 
     ret += mcgen('''
 
@@ -62,13 +72,12 @@ static void visit_type_implicit_%(c_type)s(Visitor *v, %(c_type)s **obj, Error *
 
 
 def gen_visit_struct_fields(name, base, members):
-    struct_fields_seen.add(name)
-
     ret = ''
 
     if base:
-        ret += gen_visit_implicit_struct(base)
+        ret += gen_visit_fields_decl(base)
 
+    struct_fields_seen.add(name)
     ret += mcgen('''
 
 static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **errp)
@@ -80,14 +89,15 @@ static void visit_type_%(c_name)s_fields(Visitor *v, %(c_name)s **obj, Error **e
 
     if base:
         ret += mcgen('''
-    visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
+    visit_type_%(c_type)s_fields(v, (%(c_type)s **)obj, &err);
 ''',
-                     c_type=base.c_name(), c_name=c_name('base'))
+                     c_type=base.c_name())
         ret += gen_err_check()
 
     ret += gen_visit_fields(members, prefix='(*obj)->')
 
-    if re.search('^ *goto out;', ret, re.MULTILINE):
+    # 'goto out' produced for base, and by gen_visit_fields() for each member
+    if base or members:
         ret += mcgen('''
 
 out:
@@ -179,18 +189,18 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     if (err) {
         goto out;
     }
-    visit_get_next_type(v, (int*) &(*obj)->kind, %(c_name)s_qtypes, name, &err);
+    visit_get_next_type(v, (int*) &(*obj)->type, %(c_name)s_qtypes, name, &err);
     if (err) {
         goto out_obj;
     }
-    switch ((*obj)->kind) {
+    switch ((*obj)->type) {
 ''',
                 c_name=c_name(name))
 
     for var in variants.variants:
         ret += mcgen('''
     case %(case)s:
-        visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, name, &err);
+        visit_type_%(c_type)s(v, &(*obj)->u.%(c_name)s, name, &err);
         break;
 ''',
                      case=c_enum_const(variants.tag_member.type.name,
@@ -218,8 +228,7 @@ def gen_visit_union(name, base, variants):
     ret = ''
 
     if base:
-        members = [m for m in base.members if m != variants.tag_member]
-        ret += gen_visit_struct_fields(name, None, members)
+        ret += gen_visit_fields_decl(base)
 
     for var in variants.variants:
         # Ugly special case for simple union TODO get rid of it
@@ -244,31 +253,24 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
 
     if base:
         ret += mcgen('''
-    visit_type_%(c_name)s_fields(v, obj, &err);
+    visit_type_%(c_name)s_fields(v, (%(c_name)s **)obj, &err);
 ''',
-                     c_name=c_name(name))
-        ret += gen_err_check(label='out_obj')
-
-    tag_key = variants.tag_member.name
-    if not variants.tag_name:
-        # we pointlessly use a different key for simple unions
-        tag_key = 'type'
-    ret += mcgen('''
+                     c_name=base.c_name())
+    else:
+        ret += mcgen('''
     visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "%(name)s", &err);
-    if (err) {
-        goto out_obj;
-    }
-    if (!visit_start_union(v, !!(*obj)->data, &err) || err) {
+''',
+                     c_type=variants.tag_member.type.c_name(),
+                     c_name=c_name(variants.tag_member.name),
+                     name=variants.tag_member.name)
+    ret += gen_err_check(label='out_obj')
+    ret += mcgen('''
+    if (!visit_start_union(v, !!(*obj)->u.data, &err) || err) {
         goto out_obj;
     }
     switch ((*obj)->%(c_name)s) {
 ''',
-                 c_type=variants.tag_member.type.c_name(),
-                 # TODO ugly special case for simple union
-                 # Use same tag name in C as on the wire to get rid of
-                 # it, then: c_name=c_name(variants.tag_member.name)
-                 c_name=c_name(variants.tag_name or 'kind'),
-                 name=tag_key)
+                 c_name=c_name(variants.tag_member.name))
 
     for var in variants.variants:
         # TODO ugly special case for simple union
@@ -280,13 +282,13 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
                                        var.name))
         if simple_union_type:
             ret += mcgen('''
-        visit_type_%(c_type)s(v, &(*obj)->%(c_name)s, "data", &err);
+        visit_type_%(c_type)s(v, &(*obj)->u.%(c_name)s, "data", &err);
 ''',
                          c_type=simple_union_type.c_name(),
                          c_name=c_name(var.name))
         else:
             ret += mcgen('''
-        visit_type_implicit_%(c_type)s(v, &(*obj)->%(c_name)s, &err);
+        visit_type_implicit_%(c_type)s(v, &(*obj)->u.%(c_name)s, &err);
 ''',
                          c_type=var.type.c_name(),
                          c_name=c_name(var.name))
@@ -302,7 +304,7 @@ out_obj:
     error_propagate(errp, err);
     err = NULL;
     if (*obj) {
-        visit_end_union(v, !!(*obj)->data, &err);
+        visit_end_union(v, !!(*obj)->u.data, &err);
     }
     error_propagate(errp, err);
     err = NULL;

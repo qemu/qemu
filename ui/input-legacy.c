@@ -113,8 +113,8 @@ static void legacy_kbd_event(DeviceState *dev, QemuConsole *src,
     if (!entry || !entry->put_kbd) {
         return;
     }
-    count = qemu_input_key_value_to_scancode(evt->key->key,
-                                             evt->key->down,
+    count = qemu_input_key_value_to_scancode(evt->u.key->key,
+                                             evt->u.key->down,
                                              scancodes);
     for (i = 0; i < count; i++) {
         entry->put_kbd(entry->opaque, scancodes[i]);
@@ -150,21 +150,22 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
     };
     QEMUPutMouseEntry *s = (QEMUPutMouseEntry *)dev;
 
-    switch (evt->kind) {
+    switch (evt->type) {
     case INPUT_EVENT_KIND_BTN:
-        if (evt->btn->down) {
-            s->buttons |= bmap[evt->btn->button];
+        if (evt->u.btn->down) {
+            s->buttons |= bmap[evt->u.btn->button];
         } else {
-            s->buttons &= ~bmap[evt->btn->button];
+            s->buttons &= ~bmap[evt->u.btn->button];
         }
-        if (evt->btn->down && evt->btn->button == INPUT_BUTTON_WHEEL_UP) {
+        if (evt->u.btn->down && evt->u.btn->button == INPUT_BUTTON_WHEEL_UP) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
                                     -1,
                                     s->buttons);
         }
-        if (evt->btn->down && evt->btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+        if (evt->u.btn->down &&
+            evt->u.btn->button == INPUT_BUTTON_WHEEL_DOWN) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
@@ -173,10 +174,10 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         }
         break;
     case INPUT_EVENT_KIND_ABS:
-        s->axis[evt->abs->axis] = evt->abs->value;
+        s->axis[evt->u.abs->axis] = evt->u.abs->value;
         break;
     case INPUT_EVENT_KIND_REL:
-        s->axis[evt->rel->axis] += evt->rel->value;
+        s->axis[evt->u.rel->axis] += evt->u.rel->value;
         break;
     default:
         break;

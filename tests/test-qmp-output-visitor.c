@@ -250,16 +250,14 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     ud2->dict1->dict2 = g_malloc0(sizeof(*ud2->dict1->dict2));
     ud2->dict1->dict2->userdef = g_new0(UserDefOne, 1);
     ud2->dict1->dict2->userdef->string = g_strdup(string);
-    ud2->dict1->dict2->userdef->base = g_new0(UserDefZero, 1);
-    ud2->dict1->dict2->userdef->base->integer = value;
+    ud2->dict1->dict2->userdef->integer = value;
     ud2->dict1->dict2->string = g_strdup(strings[2]);
 
     ud2->dict1->dict3 = g_malloc0(sizeof(*ud2->dict1->dict3));
     ud2->dict1->has_dict3 = true;
     ud2->dict1->dict3->userdef = g_new0(UserDefOne, 1);
     ud2->dict1->dict3->userdef->string = g_strdup(string);
-    ud2->dict1->dict3->userdef->base = g_new0(UserDefZero, 1);
-    ud2->dict1->dict3->userdef->base->integer = value;
+    ud2->dict1->dict3->userdef->integer = value;
     ud2->dict1->dict3->string = g_strdup(strings[3]);
 
     visit_type_UserDefTwo(data->ov, &ud2, "unused", &err);
@@ -301,8 +299,8 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
                                            const void *unused)
 {
     EnumOne bad_values[] = { ENUM_ONE_MAX, -1 };
-    UserDefZero b;
-    UserDefOne u = { .base = &b }, *pu = &u;
+    UserDefOne u = {0};
+    UserDefOne *pu = &u;
     Error *err;
     int i;
 
@@ -416,8 +414,7 @@ static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
         p->value->dict1->dict2 = g_new0(UserDefTwoDictDict, 1);
         p->value->dict1->dict2->userdef = g_new0(UserDefOne, 1);
         p->value->dict1->dict2->userdef->string = g_strdup(string);
-        p->value->dict1->dict2->userdef->base = g_new0(UserDefZero, 1);
-        p->value->dict1->dict2->userdef->base->integer = 42;
+        p->value->dict1->dict2->userdef->integer = 42;
         p->value->dict1->dict2->string = g_strdup(string);
         p->value->dict1->has_dict3 = false;
 
@@ -490,9 +487,9 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     UserDefFlatUnion *tmp = g_malloc0(sizeof(UserDefFlatUnion));
     tmp->enum1 = ENUM_ONE_VALUE1;
     tmp->string = g_strdup("str");
-    tmp->value1 = g_malloc0(sizeof(UserDefA));
-    /* TODO when generator bug is fixed: tmp->integer = 41; */
-    tmp->value1->boolean = true;
+    tmp->u.value1 = g_malloc0(sizeof(UserDefA));
+    tmp->integer = 41;
+    tmp->u.value1->boolean = true;
 
     visit_type_UserDefFlatUnion(data->ov, &tmp, NULL, &err);
     g_assert(err == NULL);
@@ -503,7 +500,7 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
 
     g_assert_cmpstr(qdict_get_str(qdict, "enum1"), ==, "value1");
     g_assert_cmpstr(qdict_get_str(qdict, "string"), ==, "str");
-    /* TODO g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 41); */
+    g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, 41);
     g_assert_cmpint(qdict_get_bool(qdict, "boolean"), ==, true);
 
     qapi_free_UserDefFlatUnion(tmp);
@@ -517,8 +514,8 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     Error *err = NULL;
 
     UserDefAlternate *tmp = g_malloc0(sizeof(UserDefAlternate));
-    tmp->kind = USER_DEF_ALTERNATE_KIND_I;
-    tmp->i = 42;
+    tmp->type = USER_DEF_ALTERNATE_KIND_I;
+    tmp->u.i = 42;
 
     visit_type_UserDefAlternate(data->ov, &tmp, NULL, &err);
     g_assert(err == NULL);
@@ -543,9 +540,9 @@ static void test_visitor_out_empty(TestOutputVisitorData *data,
 static void init_native_list(UserDefNativeListUnion *cvalue)
 {
     int i;
-    switch (cvalue->kind) {
+    switch (cvalue->type) {
     case USER_DEF_NATIVE_LIST_UNION_KIND_INTEGER: {
-        intList **list = &cvalue->integer;
+        intList **list = &cvalue->u.integer;
         for (i = 0; i < 32; i++) {
             *list = g_new0(intList, 1);
             (*list)->value = i;
@@ -555,7 +552,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_S8: {
-        int8List **list = &cvalue->s8;
+        int8List **list = &cvalue->u.s8;
         for (i = 0; i < 32; i++) {
             *list = g_new0(int8List, 1);
             (*list)->value = i;
@@ -565,7 +562,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_S16: {
-        int16List **list = &cvalue->s16;
+        int16List **list = &cvalue->u.s16;
         for (i = 0; i < 32; i++) {
             *list = g_new0(int16List, 1);
             (*list)->value = i;
@@ -575,7 +572,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_S32: {
-        int32List **list = &cvalue->s32;
+        int32List **list = &cvalue->u.s32;
         for (i = 0; i < 32; i++) {
             *list = g_new0(int32List, 1);
             (*list)->value = i;
@@ -585,7 +582,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_S64: {
-        int64List **list = &cvalue->s64;
+        int64List **list = &cvalue->u.s64;
         for (i = 0; i < 32; i++) {
             *list = g_new0(int64List, 1);
             (*list)->value = i;
@@ -595,7 +592,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_U8: {
-        uint8List **list = &cvalue->u8;
+        uint8List **list = &cvalue->u.u8;
         for (i = 0; i < 32; i++) {
             *list = g_new0(uint8List, 1);
             (*list)->value = i;
@@ -605,7 +602,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_U16: {
-        uint16List **list = &cvalue->u16;
+        uint16List **list = &cvalue->u.u16;
         for (i = 0; i < 32; i++) {
             *list = g_new0(uint16List, 1);
             (*list)->value = i;
@@ -615,7 +612,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_U32: {
-        uint32List **list = &cvalue->u32;
+        uint32List **list = &cvalue->u.u32;
         for (i = 0; i < 32; i++) {
             *list = g_new0(uint32List, 1);
             (*list)->value = i;
@@ -625,7 +622,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_U64: {
-        uint64List **list = &cvalue->u64;
+        uint64List **list = &cvalue->u.u64;
         for (i = 0; i < 32; i++) {
             *list = g_new0(uint64List, 1);
             (*list)->value = i;
@@ -635,7 +632,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN: {
-        boolList **list = &cvalue->boolean;
+        boolList **list = &cvalue->u.boolean;
         for (i = 0; i < 32; i++) {
             *list = g_new0(boolList, 1);
             (*list)->value = (i % 3 == 0);
@@ -645,7 +642,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_STRING: {
-        strList **list = &cvalue->string;
+        strList **list = &cvalue->u.string;
         for (i = 0; i < 32; i++) {
             *list = g_new0(strList, 1);
             (*list)->value = g_strdup_printf("%d", i);
@@ -655,7 +652,7 @@ static void init_native_list(UserDefNativeListUnion *cvalue)
         break;
     }
     case USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER: {
-        numberList **list = &cvalue->number;
+        numberList **list = &cvalue->u.number;
         for (i = 0; i < 32; i++) {
             *list = g_new0(numberList, 1);
             (*list)->value = (double)i / 3;
@@ -764,14 +761,14 @@ static void test_native_list(TestOutputVisitorData *data,
     Error *err = NULL;
     QObject *obj;
 
-    cvalue->kind = kind;
+    cvalue->type = kind;
     init_native_list(cvalue);
 
     visit_type_UserDefNativeListUnion(data->ov, &cvalue, NULL, &err);
     g_assert(err == NULL);
 
     obj = qmp_output_get_qobject(data->qov);
-    check_native_list(obj, cvalue->kind);
+    check_native_list(obj, cvalue->type);
     qapi_free_UserDefNativeListUnion(cvalue);
     qobject_decref(obj);
 }

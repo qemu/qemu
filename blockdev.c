@@ -1137,13 +1137,14 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void blockdev_do_action(int kind, void *data, Error **errp)
+static void blockdev_do_action(TransactionActionKind type, void *data,
+                               Error **errp)
 {
     TransactionAction action;
     TransactionActionList list;
 
-    action.kind = kind;
-    action.data = data;
+    action.type = type;
+    action.u.data = data;
     list.value = &action;
     list.next = NULL;
     qmp_transaction(&list, errp);
@@ -1388,9 +1389,9 @@ static void internal_snapshot_prepare(BlkTransactionState *common,
     InternalSnapshotState *state;
     int ret1;
 
-    g_assert(common->action->kind ==
+    g_assert(common->action->type ==
              TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_INTERNAL_SYNC);
-    internal = common->action->blockdev_snapshot_internal_sync;
+    internal = common->action->u.blockdev_snapshot_internal_sync;
     state = DO_UPCAST(InternalSnapshotState, common, common);
 
     /* 1. parse input */
@@ -1536,22 +1537,22 @@ static void external_snapshot_prepare(BlkTransactionState *common,
     TransactionAction *action = common->action;
 
     /* get parameters */
-    g_assert(action->kind == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
+    g_assert(action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
 
-    has_device = action->blockdev_snapshot_sync->has_device;
-    device = action->blockdev_snapshot_sync->device;
-    has_node_name = action->blockdev_snapshot_sync->has_node_name;
-    node_name = action->blockdev_snapshot_sync->node_name;
+    has_device = action->u.blockdev_snapshot_sync->has_device;
+    device = action->u.blockdev_snapshot_sync->device;
+    has_node_name = action->u.blockdev_snapshot_sync->has_node_name;
+    node_name = action->u.blockdev_snapshot_sync->node_name;
     has_snapshot_node_name =
-        action->blockdev_snapshot_sync->has_snapshot_node_name;
-    snapshot_node_name = action->blockdev_snapshot_sync->snapshot_node_name;
+        action->u.blockdev_snapshot_sync->has_snapshot_node_name;
+    snapshot_node_name = action->u.blockdev_snapshot_sync->snapshot_node_name;
 
-    new_image_file = action->blockdev_snapshot_sync->snapshot_file;
-    if (action->blockdev_snapshot_sync->has_format) {
-        format = action->blockdev_snapshot_sync->format;
+    new_image_file = action->u.blockdev_snapshot_sync->snapshot_file;
+    if (action->u.blockdev_snapshot_sync->has_format) {
+        format = action->u.blockdev_snapshot_sync->format;
     }
-    if (action->blockdev_snapshot_sync->has_mode) {
-        mode = action->blockdev_snapshot_sync->mode;
+    if (action->u.blockdev_snapshot_sync->has_mode) {
+        mode = action->u.blockdev_snapshot_sync->mode;
     }
 
     /* start processing */
@@ -1681,8 +1682,8 @@ static void drive_backup_prepare(BlkTransactionState *common, Error **errp)
     DriveBackup *backup;
     Error *local_err = NULL;
 
-    assert(common->action->kind == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
-    backup = common->action->drive_backup;
+    assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
+    backup = common->action->u.drive_backup;
 
     blk = blk_by_name(backup->device);
     if (!blk) {
@@ -1754,8 +1755,8 @@ static void blockdev_backup_prepare(BlkTransactionState *common, Error **errp)
     BlockBackend *blk, *target;
     Error *local_err = NULL;
 
-    assert(common->action->kind == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
-    backup = common->action->blockdev_backup;
+    assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
+    backup = common->action->u.blockdev_backup;
 
     blk = blk_by_name(backup->device);
     if (!blk) {
@@ -1887,9 +1888,9 @@ void qmp_transaction(TransactionActionList *dev_list, Error **errp)
         dev_info = dev_entry->value;
         dev_entry = dev_entry->next;
 
-        assert(dev_info->kind < ARRAY_SIZE(actions));
+        assert(dev_info->type < ARRAY_SIZE(actions));
 
-        ops = &actions[dev_info->kind];
+        ops = &actions[dev_info->type];
         assert(ops->instance_size > 0);
 
         state = g_malloc0(ops->instance_size);

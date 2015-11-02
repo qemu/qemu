@@ -1,0 +1,1 @@
+tests/qapi-schema/reserved-type-kind.json:2: enum 'UnionKind' should not end in 'Kind'

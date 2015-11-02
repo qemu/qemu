@@ -139,11 +139,11 @@ static int number_to_qcode[0x100];
 
 int qemu_input_key_value_to_number(const KeyValue *value)
 {
-    if (value->kind == KEY_VALUE_KIND_QCODE) {
-        return qcode_to_number[value->qcode];
+    if (value->type == KEY_VALUE_KIND_QCODE) {
+        return qcode_to_number[value->u.qcode];
     } else {
-        assert(value->kind == KEY_VALUE_KIND_NUMBER);
-        return value->number;
+        assert(value->type == KEY_VALUE_KIND_NUMBER);
+        return value->u.number;
     }
 }
 
@@ -166,11 +166,11 @@ int qemu_input_key_number_to_qcode(uint8_t nr)
 
 int qemu_input_key_value_to_qcode(const KeyValue *value)
 {
-    if (value->kind == KEY_VALUE_KIND_QCODE) {
-        return value->qcode;
+    if (value->type == KEY_VALUE_KIND_QCODE) {
+        return value->u.qcode;
     } else {
-        assert(value->kind == KEY_VALUE_KIND_NUMBER);
-        return qemu_input_key_number_to_qcode(value->number);
+        assert(value->type == KEY_VALUE_KIND_NUMBER);
+        return qemu_input_key_number_to_qcode(value->u.number);
     }
 }
 
@@ -180,8 +180,8 @@ int qemu_input_key_value_to_scancode(const KeyValue *value, bool down,
     int keycode = qemu_input_key_value_to_number(value);
     int count = 0;
 
-    if (value->kind == KEY_VALUE_KIND_QCODE &&
-        value->qcode == Q_KEY_CODE_PAUSE) {
+    if (value->type == KEY_VALUE_KIND_QCODE &&
+        value->u.qcode == Q_KEY_CODE_PAUSE) {
         /* specific case */
         int v = down ? 0 : 0x80;
         codes[count++] = 0xe1;

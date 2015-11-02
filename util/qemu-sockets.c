@@ -918,23 +918,23 @@ SocketAddress *socket_parse(const char *str, Error **errp)
             error_setg(errp, "invalid Unix socket address");
             goto fail;
         } else {
-            addr->kind = SOCKET_ADDRESS_KIND_UNIX;
-            addr->q_unix = g_new(UnixSocketAddress, 1);
-            addr->q_unix->path = g_strdup(str + 5);
+            addr->type = SOCKET_ADDRESS_KIND_UNIX;
+            addr->u.q_unix = g_new(UnixSocketAddress, 1);
+            addr->u.q_unix->path = g_strdup(str + 5);
         }
     } else if (strstart(str, "fd:", NULL)) {
         if (str[3] == '\0') {
             error_setg(errp, "invalid file descriptor address");
             goto fail;
         } else {
-            addr->kind = SOCKET_ADDRESS_KIND_FD;
-            addr->fd = g_new(String, 1);
-            addr->fd->str = g_strdup(str + 3);
+            addr->type = SOCKET_ADDRESS_KIND_FD;
+            addr->u.fd = g_new(String, 1);
+            addr->u.fd->str = g_strdup(str + 3);
         }
     } else {
-        addr->kind = SOCKET_ADDRESS_KIND_INET;
-        addr->inet = inet_parse(str, errp);
-        if (addr->inet == NULL) {
+        addr->type = SOCKET_ADDRESS_KIND_INET;
+        addr->u.inet = inet_parse(str, errp);
+        if (addr->u.inet == NULL) {
             goto fail;
         }
     }
@@ -952,19 +952,19 @@ int socket_connect(SocketAddress *addr, Error **errp,
     int fd;
 
     opts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
-    switch (addr->kind) {
+    switch (addr->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        inet_addr_to_opts(opts, addr->inet);
+        inet_addr_to_opts(opts, addr->u.inet);
         fd = inet_connect_opts(opts, errp, callback, opaque);
         break;
 
     case SOCKET_ADDRESS_KIND_UNIX:
-        qemu_opt_set(opts, "path", addr->q_unix->path, &error_abort);
+        qemu_opt_set(opts, "path", addr->u.q_unix->path, &error_abort);
         fd = unix_connect_opts(opts, errp, callback, opaque);
         break;
 
     case SOCKET_ADDRESS_KIND_FD:
-        fd = monitor_get_fd(cur_mon, addr->fd->str, errp);
+        fd = monitor_get_fd(cur_mon, addr->u.fd->str, errp);
         if (fd >= 0 && callback) {
             qemu_set_nonblock(fd);
             callback(fd, NULL, opaque);
@@ -984,19 +984,19 @@ int socket_listen(SocketAddress *addr, Error **errp)
     int fd;
 
     opts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
-    switch (addr->kind) {
+    switch (addr->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        inet_addr_to_opts(opts, addr->inet);
+        inet_addr_to_opts(opts, addr->u.inet);
         fd = inet_listen_opts(opts, 0, errp);
         break;
 
     case SOCKET_ADDRESS_KIND_UNIX:
-        qemu_opt_set(opts, "path", addr->q_unix->path, &error_abort);
+        qemu_opt_set(opts, "path", addr->u.q_unix->path, &error_abort);
         fd = unix_listen_opts(opts, errp);
         break;
 
     case SOCKET_ADDRESS_KIND_FD:
-        fd = monitor_get_fd(cur_mon, addr->fd->str, errp);
+        fd = monitor_get_fd(cur_mon, addr->u.fd->str, errp);
         break;
 
     default:
@@ -1012,12 +1012,12 @@ int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
     int fd;
 
     opts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
-    switch (remote->kind) {
+    switch (remote->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        inet_addr_to_opts(opts, remote->inet);
+        inet_addr_to_opts(opts, remote->u.inet);
         if (local) {
-            qemu_opt_set(opts, "localaddr", local->inet->host, &error_abort);
-            qemu_opt_set(opts, "localport", local->inet->port, &error_abort);
+            qemu_opt_set(opts, "localaddr", local->u.inet->host, &error_abort);
+            qemu_opt_set(opts, "localport", local->u.inet->port, &error_abort);
         }
         fd = inet_dgram_opts(opts, errp);
         break;
@@ -1052,14 +1052,14 @@ socket_sockaddr_to_address_inet(struct sockaddr_storage *sa,
     }
 
     addr = g_new0(SocketAddress, 1);
-    addr->kind = SOCKET_ADDRESS_KIND_INET;
-    addr->inet = g_new0(InetSocketAddress, 1);
-    addr->inet->host = g_strdup(host);
-    addr->inet->port = g_strdup(serv);
+    addr->type = SOCKET_ADDRESS_KIND_INET;
+    addr->u.inet = g_new0(InetSocketAddress, 1);
+    addr->u.inet->host = g_strdup(host);
+    addr->u.inet->port = g_strdup(serv);
     if (sa->ss_family == AF_INET) {
-        addr->inet->has_ipv4 = addr->inet->ipv4 = true;
+        addr->u.inet->has_ipv4 = addr->u.inet->ipv4 = true;
     } else {
-        addr->inet->has_ipv6 = addr->inet->ipv6 = true;
+        addr->u.inet->has_ipv6 = addr->u.inet->ipv6 = true;
     }
 
     return addr;
@@ -1076,11 +1076,11 @@ socket_sockaddr_to_address_unix(struct sockaddr_storage *sa,
     struct sockaddr_un *su = (struct sockaddr_un *)sa;
 
     addr = g_new0(SocketAddress, 1);
-    addr->kind = SOCKET_ADDRESS_KIND_UNIX;
-    addr->q_unix = g_new0(UnixSocketAddress, 1);
+    addr->type = SOCKET_ADDRESS_KIND_UNIX;
+    addr->u.q_unix = g_new0(UnixSocketAddress, 1);
     if (su->sun_path[0]) {
-        addr->q_unix->path = g_strndup(su->sun_path,
-                                       sizeof(su->sun_path));
+        addr->u.q_unix->path = g_strndup(su->sun_path,
+                                         sizeof(su->sun_path));
     }
 
     return addr;

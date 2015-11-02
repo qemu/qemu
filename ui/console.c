@@ -2016,7 +2016,7 @@ static VcHandler *vc_handler = text_console_init;
 static CharDriverState *vc_init(const char *id, ChardevBackend *backend,
                                 ChardevReturn *ret, Error **errp)
 {
-    return vc_handler(backend->vc, errp);
+    return vc_handler(backend->u.vc, errp);
 }
 
 void register_vc_handler(VcHandler *handler)
@@ -2057,30 +2057,30 @@ static void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend,
 {
     int val;
 
-    backend->vc = g_new0(ChardevVC, 1);
+    backend->u.vc = g_new0(ChardevVC, 1);
 
     val = qemu_opt_get_number(opts, "width", 0);
     if (val != 0) {
-        backend->vc->has_width = true;
-        backend->vc->width = val;
+        backend->u.vc->has_width = true;
+        backend->u.vc->width = val;
     }
 
     val = qemu_opt_get_number(opts, "height", 0);
     if (val != 0) {
-        backend->vc->has_height = true;
-        backend->vc->height = val;
+        backend->u.vc->has_height = true;
+        backend->u.vc->height = val;
     }
 
     val = qemu_opt_get_number(opts, "cols", 0);
     if (val != 0) {
-        backend->vc->has_cols = true;
-        backend->vc->cols = val;
+        backend->u.vc->has_cols = true;
+        backend->u.vc->cols = val;
     }
 
     val = qemu_opt_get_number(opts, "rows", 0);
     if (val != 0) {
-        backend->vc->has_rows = true;
-        backend->vc->rows = val;
+        backend->u.vc->has_rows = true;
+        backend->u.vc->rows = val;
     }
 }
 

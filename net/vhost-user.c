@@ -301,8 +301,8 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
     const NetdevVhostUserOptions *vhost_user_opts;
     CharDriverState *chr;
 
-    assert(opts->kind == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
-    vhost_user_opts = opts->vhost_user;
+    assert(opts->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER);
+    vhost_user_opts = opts->u.vhost_user;
 
     chr = net_vhost_parse_chardev(vhost_user_opts, errp);
     if (!chr) {

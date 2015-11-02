@@ -179,7 +179,7 @@ int qmp_pc_dimm_device_list(Object *obj, void *opaque)
                                                NULL);
             di->memdev = object_get_canonical_path(OBJECT(dimm->hostmem));
 
-            info->dimm = di;
+            info->u.dimm = di;
             elem->value = info;
             elem->next = NULL;
             **prev = elem;
@@ -203,9 +203,9 @@ ram_addr_t get_current_ram_size(void)
         MemoryDeviceInfo *value = info->value;
 
         if (value) {
-            switch (value->kind) {
+            switch (value->type) {
             case MEMORY_DEVICE_INFO_KIND_DIMM:
-                size += value->dimm->size;
+                size += value->u.dimm->size;
                 break;
             default:
                 break;

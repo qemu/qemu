@@ -11,6 +11,10 @@
 # An empty enum, although unusual, is currently acceptable
 { 'enum': 'MyEnum', 'data': [ ] }
 
+# Likewise for an empty struct, including an empty base
+{ 'struct': 'Empty1', 'data': { } }
+{ 'struct': 'Empty2', 'base': 'Empty1', 'data': { } }
+
 # for testing override of default naming heuristic
 { 'enum': 'QEnumTwo',
   'prefix': 'QENUM_TWO',

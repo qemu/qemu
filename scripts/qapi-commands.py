@@ -175,7 +175,9 @@ def gen_marshal(name, arg_type, ret_type):
     ret += gen_marshal_input_visit(arg_type)
     ret += gen_call(name, arg_type, ret_type)
 
-    if re.search('^ *goto out;', ret, re.MULTILINE):
+    # 'goto out' produced by gen_marshal_input_visit->gen_visit_fields()
+    # for each arg_type member, and by gen_call() for ret_type
+    if (arg_type and arg_type.members) or ret_type:
         ret += mcgen('''
 
 out:

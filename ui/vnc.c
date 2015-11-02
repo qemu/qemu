@@ -156,10 +156,11 @@ char *vnc_socket_remote_addr(const char *format, int fd) {
     return addr_to_string(format, &sa, salen);
 }
 
-static VncBasicInfo *vnc_basic_info_get(struct sockaddr_storage *sa,
-                                        socklen_t salen)
+static void vnc_init_basic_info(struct sockaddr_storage *sa,
+                                socklen_t salen,
+                                VncBasicInfo *info,
+                                Error **errp)
 {
-    VncBasicInfo *info;
     char host[NI_MAXHOST];
     char serv[NI_MAXSERV];
     int err;
@@ -168,42 +169,44 @@ static VncBasicInfo *vnc_basic_info_get(struct sockaddr_storage *sa,
                            host, sizeof(host),
                            serv, sizeof(serv),
                            NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
-        VNC_DEBUG("Cannot resolve address %d: %s\n",
-                  err, gai_strerror(err));
-        return NULL;
+        error_setg(errp, "Cannot resolve address: %s",
+                   gai_strerror(err));
+        return;
     }
 
-    info = g_malloc0(sizeof(VncBasicInfo));
     info->host = g_strdup(host);
     info->service = g_strdup(serv);
     info->family = inet_netfamily(sa->ss_family);
-    return info;
 }
 
-static VncBasicInfo *vnc_basic_info_get_from_server_addr(int fd)
+static void vnc_init_basic_info_from_server_addr(int fd, VncBasicInfo *info,
+                                                 Error **errp)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
 
     salen = sizeof(sa);
     if (getsockname(fd, (struct sockaddr*)&sa, &salen) < 0) {
-        return NULL;
+        error_setg_errno(errp, errno, "getsockname failed");
+        return;
     }
 
-    return vnc_basic_info_get(&sa, salen);
+    vnc_init_basic_info(&sa, salen, info, errp);
 }
 
-static VncBasicInfo *vnc_basic_info_get_from_remote_addr(int fd)
+static void vnc_init_basic_info_from_remote_addr(int fd, VncBasicInfo *info,
+                                                 Error **errp)
 {
     struct sockaddr_storage sa;
     socklen_t salen;
 
     salen = sizeof(sa);
     if (getpeername(fd, (struct sockaddr*)&sa, &salen) < 0) {
-        return NULL;
+        error_setg_errno(errp, errno, "getpeername failed");
+        return;
     }
 
-    return vnc_basic_info_get(&sa, salen);
+    vnc_init_basic_info(&sa, salen, info, errp);
 }
 
 static const char *vnc_auth_name(VncDisplay *vd) {
@@ -256,15 +259,18 @@ static const char *vnc_auth_name(VncDisplay *vd) {
 static VncServerInfo *vnc_server_info_get(VncDisplay *vd)
 {
     VncServerInfo *info;
-    VncBasicInfo *bi = vnc_basic_info_get_from_server_addr(vd->lsock);
-    if (!bi) {
-        return NULL;
-    }
+    Error *err = NULL;
 
     info = g_malloc(sizeof(*info));
-    info->base = bi;
+    vnc_init_basic_info_from_server_addr(vd->lsock,
+                                         qapi_VncServerInfo_base(info), &err);
     info->has_auth = true;
     info->auth = g_strdup(vnc_auth_name(vd));
+    if (err) {
+        qapi_free_VncServerInfo(info);
+        info = NULL;
+        error_free(err);
+    }
     return info;
 }
 
@@ -291,11 +297,16 @@ static void vnc_client_cache_auth(VncState *client)
 
 static void vnc_client_cache_addr(VncState *client)
 {
-    VncBasicInfo *bi = vnc_basic_info_get_from_remote_addr(client->csock);
+    Error *err = NULL;
 
-    if (bi) {
-        client->info = g_malloc0(sizeof(*client->info));
-        client->info->base = bi;
+    client->info = g_malloc0(sizeof(*client->info));
+    vnc_init_basic_info_from_remote_addr(client->csock,
+                                         qapi_VncClientInfo_base(client->info),
+                                         &err);
+    if (err) {
+        qapi_free_VncClientInfo(client->info);
+        client->info = NULL;
+        error_free(err);
     }
 }
 
@@ -306,7 +317,6 @@ static void vnc_qmp_event(VncState *vs, QAPIEvent event)
     if (!vs->info) {
         return;
     }
-    g_assert(vs->info->base);
 
     si = vnc_server_info_get(vs->vd);
     if (!si) {
@@ -315,7 +325,8 @@ static void vnc_qmp_event(VncState *vs, QAPIEvent event)
 
     switch (event) {
     case QAPI_EVENT_VNC_CONNECTED:
-        qapi_event_send_vnc_connected(si, vs->info->base, &error_abort);
+        qapi_event_send_vnc_connected(si, qapi_VncClientInfo_base(vs->info),
+                                      &error_abort);
         break;
     case QAPI_EVENT_VNC_INITIALIZED:
         qapi_event_send_vnc_initialized(si, vs->info, &error_abort);
@@ -350,11 +361,10 @@ static VncClientInfo *qmp_query_vnc_client(const VncState *client)
     }
 
     info = g_malloc0(sizeof(*info));
-    info->base = g_malloc0(sizeof(*info->base));
-    info->base->host = g_strdup(host);
-    info->base->service = g_strdup(serv);
-    info->base->family = inet_netfamily(sa.ss_family);
-    info->base->websocket = client->websocket;
+    info->host = g_strdup(host);
+    info->service = g_strdup(serv);
+    info->family = inet_netfamily(sa.ss_family);
+    info->websocket = client->websocket;
 
     if (client->tls) {
         info->x509_dname = qcrypto_tls_session_get_peer_name(client->tls);
@@ -3514,9 +3524,9 @@ void vnc_display_open(const char *id, Error **errp)
         }
 
         if (strncmp(vnc, "unix:", 5) == 0) {
-            saddr->kind = SOCKET_ADDRESS_KIND_UNIX;
-            saddr->q_unix = g_new0(UnixSocketAddress, 1);
-            saddr->q_unix->path = g_strdup(vnc + 5);
+            saddr->type = SOCKET_ADDRESS_KIND_UNIX;
+            saddr->u.q_unix = g_new0(UnixSocketAddress, 1);
+            saddr->u.q_unix->path = g_strdup(vnc + 5);
 
             if (vs->ws_enabled) {
                 error_setg(errp, "UNIX sockets not supported with websock");
@@ -3524,12 +3534,12 @@ void vnc_display_open(const char *id, Error **errp)
             }
         } else {
             unsigned long long baseport;
-            saddr->kind = SOCKET_ADDRESS_KIND_INET;
-            saddr->inet = g_new0(InetSocketAddress, 1);
+            saddr->type = SOCKET_ADDRESS_KIND_INET;
+            saddr->u.inet = g_new0(InetSocketAddress, 1);
             if (vnc[0] == '[' && vnc[hlen - 1] == ']') {
-                saddr->inet->host = g_strndup(vnc + 1, hlen - 2);
+                saddr->u.inet->host = g_strndup(vnc + 1, hlen - 2);
             } else {
-                saddr->inet->host = g_strndup(vnc, hlen);
+                saddr->u.inet->host = g_strndup(vnc, hlen);
             }
             if (parse_uint_full(h + 1, &baseport, 10) < 0) {
                 error_setg(errp, "can't convert to a number: %s", h + 1);
@@ -3540,28 +3550,28 @@ void vnc_display_open(const char *id, Error **errp)
                 error_setg(errp, "port %s out of range", h + 1);
                 goto fail;
             }
-            saddr->inet->port = g_strdup_printf(
+            saddr->u.inet->port = g_strdup_printf(
                 "%d", (int)baseport + 5900);
 
             if (to) {
-                saddr->inet->has_to = true;
-                saddr->inet->to = to;
+                saddr->u.inet->has_to = true;
+                saddr->u.inet->to = to;
             }
-            saddr->inet->ipv4 = saddr->inet->has_ipv4 = has_ipv4;
-            saddr->inet->ipv6 = saddr->inet->has_ipv6 = has_ipv6;
+            saddr->u.inet->ipv4 = saddr->u.inet->has_ipv4 = has_ipv4;
+            saddr->u.inet->ipv6 = saddr->u.inet->has_ipv6 = has_ipv6;
 
             if (vs->ws_enabled) {
-                wsaddr->kind = SOCKET_ADDRESS_KIND_INET;
-                wsaddr->inet = g_new0(InetSocketAddress, 1);
-                wsaddr->inet->host = g_strdup(saddr->inet->host);
-                wsaddr->inet->port = g_strdup(websocket);
+                wsaddr->type = SOCKET_ADDRESS_KIND_INET;
+                wsaddr->u.inet = g_new0(InetSocketAddress, 1);
+                wsaddr->u.inet->host = g_strdup(saddr->u.inet->host);
+                wsaddr->u.inet->port = g_strdup(websocket);
 
                 if (to) {
-                    wsaddr->inet->has_to = true;
-                    wsaddr->inet->to = to;
+                    wsaddr->u.inet->has_to = true;
+                    wsaddr->u.inet->to = to;
                 }
-                wsaddr->inet->ipv4 = wsaddr->inet->has_ipv4 = has_ipv4;
-                wsaddr->inet->ipv6 = wsaddr->inet->has_ipv6 = has_ipv6;
+                wsaddr->u.inet->ipv4 = wsaddr->u.inet->has_ipv4 = has_ipv4;
+                wsaddr->u.inet->ipv6 = wsaddr->u.inet->has_ipv6 = has_ipv6;
             }
         }
     } else {
@@ -3760,7 +3770,7 @@ void vnc_display_open(const char *id, Error **errp)
         if (csock < 0) {
             goto fail;
         }
-        vs->is_unix = saddr->kind == SOCKET_ADDRESS_KIND_UNIX;
+        vs->is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
         vnc_connect(vs, csock, false, false);
     } else {
         /* listen for connects */
@@ -3768,7 +3778,7 @@ void vnc_display_open(const char *id, Error **errp)
         if (vs->lsock < 0) {
             goto fail;
         }
-        vs->is_unix = saddr->kind == SOCKET_ADDRESS_KIND_UNIX;
+        vs->is_unix = saddr->type == SOCKET_ADDRESS_KIND_UNIX;
         if (vs->ws_enabled) {
             vs->lwebsock = socket_listen(wsaddr, errp);
             if (vs->lwebsock < 0) {
