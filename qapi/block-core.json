@@ -1895,14 +1895,42 @@
 # level and no BlockBackend will be created.
 #
 # This command is still a work in progress.  It doesn't support all
-# block drivers, it lacks a matching blockdev-del, and more.  Stay
-# away from it unless you want to help with its development.
+# block drivers among other things.  Stay away from it unless you want
+# to help with its development.
 #
 # @options: block device options for the new device
 #
 # Since: 1.7
 ##
 { 'command': 'blockdev-add', 'data': { 'options': 'BlockdevOptions' } }
+
+##
+# @x-blockdev-del:
+#
+# Deletes a block device that has been added using blockdev-add.
+# The selected device can be either a block backend or a graph node.
+#
+# In the former case the backend will be destroyed, along with its
+# inserted medium if there's any. The command will fail if the backend
+# or its medium are in use.
+#
+# In the latter case the node will be destroyed. The command will fail
+# if the node is attached to a block backend or is otherwise being
+# used.
+#
+# One of @id or @node-name must be specified, but not both.
+#
+# This command is still a work in progress and is considered
+# experimental. Stay away from it unless you want to help with its
+# development.
+#
+# @id: #optional Name of the block backend device to delete.
+#
+# @node-name: #optional Name of the graph node to delete.
+#
+# Since: 2.5
+##
+{ 'command': 'x-blockdev-del', 'data': { '*id': 'str', '*node-name': 'str' } }
 
 ##
 # @blockdev-open-tray:

@@ -3946,8 +3946,8 @@ blockdev-add
 Add a block device.
 
 This command is still a work in progress.  It doesn't support all
-block drivers, it lacks a matching blockdev-del, and more.  Stay away
-from it unless you want to help with its development.
+block drivers among other things.  Stay away from it unless you want
+to help with its development.
 
 Arguments:
 
@@ -3988,6 +3988,63 @@ Example (2):
        }
      }
 
+<- { "return": {} }
+
+EQMP
+
+    {
+        .name       = "x-blockdev-del",
+        .args_type  = "id:s?,node-name:s?",
+        .mhandler.cmd_new = qmp_marshal_x_blockdev_del,
+    },
+
+SQMP
+x-blockdev-del
+------------
+Since 2.5
+
+Deletes a block device thas has been added using blockdev-add.
+The selected device can be either a block backend or a graph node.
+
+In the former case the backend will be destroyed, along with its
+inserted medium if there's any. The command will fail if the backend
+or its medium are in use.
+
+In the latter case the node will be destroyed. The command will fail
+if the node is attached to a block backend or is otherwise being
+used.
+
+One of "id" or "node-name" must be specified, but not both.
+
+This command is still a work in progress and is considered
+experimental. Stay away from it unless you want to help with its
+development.
+
+Arguments:
+
+- "id": Name of the block backend device to delete (json-string, optional)
+- "node-name": Name of the graph node to delete (json-string, optional)
+
+Example:
+
+-> { "execute": "blockdev-add",
+     "arguments": {
+         "options": {
+             "driver": "qcow2",
+             "id": "drive0",
+             "file": {
+                 "driver": "file",
+                 "filename": "test.qcow2"
+             }
+         }
+     }
+   }
+
+<- { "return": {} }
+
+-> { "execute": "x-blockdev-del",
+     "arguments": { "id": "drive0" }
+   }
 <- { "return": {} }
 
 EQMP
