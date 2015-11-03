@@ -337,6 +337,16 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "qemu64" "-" TYPE_X86_CPU,\
             .property = "abm",\
             .value    = "on",\
+        },\
+        {\
+            .driver   = "qemu64" "-" TYPE_X86_CPU,\
+            .property = "popcnt",\
+            .value    = "on",\
+        },\
+        {\
+            .driver   = "qemu32" "-" TYPE_X86_CPU,\
+            .property = "popcnt",\
+            .value    = "on",\
         },
 
 #define PC_COMPAT_2_3 \
