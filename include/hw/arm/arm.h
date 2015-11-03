@@ -17,7 +17,7 @@
 #include "cpu.h"
 
 /* armv7m.c */
-qemu_irq *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
+DeviceState *armv7m_init(MemoryRegion *system_memory, int mem_size, int num_irq,
                       const char *kernel_filename, const char *cpu_model);
 
 /*

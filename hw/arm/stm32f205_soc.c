@@ -59,9 +59,8 @@ static void stm32f205_soc_initfn(Object *obj)
 static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
 {
     STM32F205State *s = STM32F205_SOC(dev_soc);
-    DeviceState *syscfgdev, *usartdev, *timerdev;
+    DeviceState *syscfgdev, *usartdev, *timerdev, *nvic;
     SysBusDevice *syscfgbusdev, *usartbusdev, *timerbusdev;
-    qemu_irq *pic;
     Error *err = NULL;
     int i;
 
@@ -88,8 +87,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, sram);
 
-    pic = armv7m_init(get_system_memory(), FLASH_SIZE, 96,
-                      s->kernel_filename, s->cpu_model);
+    nvic = armv7m_init(get_system_memory(), FLASH_SIZE, 96,
+                       s->kernel_filename, s->cpu_model);
 
     /* System configuration controller */
     syscfgdev = DEVICE(&s->syscfg);
@@ -100,7 +99,7 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     }
     syscfgbusdev = SYS_BUS_DEVICE(syscfgdev);
     sysbus_mmio_map(syscfgbusdev, 0, 0x40013800);
-    sysbus_connect_irq(syscfgbusdev, 0, pic[71]);
+    sysbus_connect_irq(syscfgbusdev, 0, qdev_get_gpio_in(nvic, 71));
 
     /* Attach UART (uses USART registers) and USART controllers */
     for (i = 0; i < STM_NUM_USARTS; i++) {
@@ -112,7 +111,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
         }
         usartbusdev = SYS_BUS_DEVICE(usartdev);
         sysbus_mmio_map(usartbusdev, 0, usart_addr[i]);
-        sysbus_connect_irq(usartbusdev, 0, pic[usart_irq[i]]);
+        sysbus_connect_irq(usartbusdev, 0,
+                           qdev_get_gpio_in(nvic, usart_irq[i]));
     }
 
     /* Timer 2 to 5 */
@@ -126,7 +126,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
         }
         timerbusdev = SYS_BUS_DEVICE(timerdev);
         sysbus_mmio_map(timerbusdev, 0, timer_addr[i]);
-        sysbus_connect_irq(timerbusdev, 0, pic[timer_irq[i]]);
+        sysbus_connect_irq(timerbusdev, 0,
+                           qdev_get_gpio_in(nvic, timer_irq[i]));
     }
 }
 
