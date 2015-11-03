@@ -452,13 +452,15 @@ build_madt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info,
     for (i = 0; i < guest_info->smp_cpus; i++) {
         AcpiMadtGenericInterrupt *gicc = acpi_data_push(table_data,
                                                      sizeof *gicc);
+        ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(i));
+
         gicc->type = ACPI_APIC_GENERIC_INTERRUPT;
         gicc->length = sizeof(*gicc);
         if (guest_info->gic_version == 2) {
             gicc->base_address = memmap[VIRT_GIC_CPU].base;
         }
         gicc->cpu_interface_number = i;
-        gicc->arm_mpidr = i;
+        gicc->arm_mpidr = armcpu->mp_affinity;
         gicc->uid = i;
         if (test_bit(i, cpuinfo->found_cpus)) {
             gicc->flags = cpu_to_le32(ACPI_GICC_ENABLED);
