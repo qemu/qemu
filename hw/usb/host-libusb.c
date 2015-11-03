@@ -1240,7 +1240,7 @@ static void usb_host_handle_control(USBDevice *udev, USBPacket *p,
 
     /* Fix up USB-3 ep0 maxpacket size to allow superspeed connected devices
      * to work redirected to a not superspeed capable hcd */
-    if (udev->speed == USB_SPEED_SUPER &&
+    if ((udev->speedmask & USB_SPEED_MASK_SUPER) &&
         !(udev->port->speedmask & USB_SPEED_MASK_SUPER) &&
         request == 0x8006 && value == 0x100 && index == 0) {
         r->usb3ep0quirk = true;
