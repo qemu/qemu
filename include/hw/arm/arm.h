@@ -87,6 +87,16 @@ struct arm_boot_info {
      * -pflash. It also implies that fw_cfg_find() will succeed.
      */
     bool firmware_loaded;
+
+    /* Address at which board specific loader/setup code exists. If enabled,
+     * this code-blob will run before anything else. It must return to the
+     * caller via the link register. There is no stack set up. Enabled by
+     * defining write_board_setup, which is responsible for loading the blob
+     * to the specified address.
+     */
+    hwaddr board_setup_addr;
+    void (*write_board_setup)(ARMCPU *cpu,
+                              const struct arm_boot_info *info);
 };
 
 /**
