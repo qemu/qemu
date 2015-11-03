@@ -3130,7 +3130,8 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
     { .name = "SPSR_EL1", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 0, .crn = 4, .crm = 0, .opc2 = 0,
-      .access = PL1_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[1]) },
+      .access = PL1_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_SVC]) },
     /* We rely on the access checks not allowing the guest to write to the
      * state field when SPSel indicates that it's being used as the stack
      * pointer.
@@ -3299,23 +3300,28 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "SPSR_EL2", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 0, .opc2 = 0,
-      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[6]) },
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_HYP]) },
     { .name = "SPSR_IRQ", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 0,
-      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[4]) },
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_IRQ]) },
     { .name = "SPSR_ABT", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 1,
-      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[2]) },
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_ABT]) },
     { .name = "SPSR_UND", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 2,
-      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[3]) },
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_UND]) },
     { .name = "SPSR_FIQ", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 4, .crn = 4, .crm = 3, .opc2 = 3,
-      .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[5]) },
+      .access = PL2_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_FIQ]) },
     { .name = "VBAR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 12, .crm = 0, .opc2 = 0,
       .access = PL2_RW, .writefn = vbar_write,
@@ -3552,7 +3558,8 @@ static const ARMCPRegInfo el3_cp_reginfo[] = {
     { .name = "SPSR_EL3", .state = ARM_CP_STATE_AA64,
       .type = ARM_CP_ALIAS,
       .opc0 = 3, .opc1 = 6, .crn = 4, .crm = 0, .opc2 = 0,
-      .access = PL3_RW, .fieldoffset = offsetof(CPUARMState, banked_spsr[7]) },
+      .access = PL3_RW,
+      .fieldoffset = offsetof(CPUARMState, banked_spsr[BANK_MON]) },
     { .name = "VBAR_EL3", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 6, .crn = 12, .crm = 0, .opc2 = 0,
       .access = PL3_RW, .writefn = vbar_write,
@@ -5183,21 +5190,21 @@ int bank_number(int mode)
     switch (mode) {
     case ARM_CPU_MODE_USR:
     case ARM_CPU_MODE_SYS:
-        return 0;
+        return BANK_USRSYS;
     case ARM_CPU_MODE_SVC:
-        return 1;
+        return BANK_SVC;
     case ARM_CPU_MODE_ABT:
-        return 2;
+        return BANK_ABT;
     case ARM_CPU_MODE_UND:
-        return 3;
+        return BANK_UND;
     case ARM_CPU_MODE_IRQ:
-        return 4;
+        return BANK_IRQ;
     case ARM_CPU_MODE_FIQ:
-        return 5;
+        return BANK_FIQ;
     case ARM_CPU_MODE_HYP:
-        return 6;
+        return BANK_HYP;
     case ARM_CPU_MODE_MON:
-        return 7;
+        return BANK_MON;
     }
     g_assert_not_reached();
 }

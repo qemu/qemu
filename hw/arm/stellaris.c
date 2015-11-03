@@ -16,6 +16,7 @@
 #include "net/net.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 
 #define GPIO_A 0
 #define GPIO_B 1
@@ -1176,6 +1177,14 @@ static int stellaris_adc_init(SysBusDevice *sbd)
     return 0;
 }
 
+static
+void do_sys_reset(void *opaque, int n, int level)
+{
+    if (level) {
+        qemu_system_reset_request();
+    }
+}
+
 /* Board init.  */
 static stellaris_board_info stellaris_boards[] = {
   { "LM3S811EVB",
@@ -1210,8 +1219,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         0x40024000, 0x40025000, 0x40026000};
     static const int gpio_irq[7] = {0, 1, 2, 3, 4, 30, 31};
 
-    qemu_irq *pic;
-    DeviceState *gpio_dev[7];
+    DeviceState *gpio_dev[7], *nvic;
     qemu_irq gpio_in[7][8];
     qemu_irq gpio_out[7][8];
     qemu_irq adc;
@@ -1241,12 +1249,19 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     vmstate_register_ram_global(sram);
     memory_region_add_subregion(system_memory, 0x20000000, sram);
 
-    pic = armv7m_init(system_memory, flash_size, NUM_IRQ_LINES,
+    nvic = armv7m_init(system_memory, flash_size, NUM_IRQ_LINES,
                       kernel_filename, cpu_model);
+
+    qdev_connect_gpio_out_named(nvic, "SYSRESETREQ", 0,
+                                qemu_allocate_irq(&do_sys_reset, NULL, 0));
 
     if (board->dc1 & (1 << 16)) {
         dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
-                                    pic[14], pic[15], pic[16], pic[17], NULL);
+                                    qdev_get_gpio_in(nvic, 14),
+                                    qdev_get_gpio_in(nvic, 15),
+                                    qdev_get_gpio_in(nvic, 16),
+                                    qdev_get_gpio_in(nvic, 17),
+                                    NULL);
         adc = qdev_get_gpio_in(dev, 0);
     } else {
         adc = NULL;
@@ -1255,19 +1270,21 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         if (board->dc2 & (0x10000 << i)) {
             dev = sysbus_create_simple(TYPE_STELLARIS_GPTM,
                                        0x40030000 + i * 0x1000,
-                                       pic[timer_irq[i]]);
+                                       qdev_get_gpio_in(nvic, timer_irq[i]));
             /* TODO: This is incorrect, but we get away with it because
                the ADC output is only ever pulsed.  */
             qdev_connect_gpio_out(dev, 0, adc);
         }
     }
 
-    stellaris_sys_init(0x400fe000, pic[28], board, nd_table[0].macaddr.a);
+    stellaris_sys_init(0x400fe000, qdev_get_gpio_in(nvic, 28),
+                       board, nd_table[0].macaddr.a);
 
     for (i = 0; i < 7; i++) {
         if (board->dc4 & (1 << i)) {
             gpio_dev[i] = sysbus_create_simple("pl061_luminary", gpio_addr[i],
-                                               pic[gpio_irq[i]]);
+                                               qdev_get_gpio_in(nvic,
+                                                                gpio_irq[i]));
             for (j = 0; j < 8; j++) {
                 gpio_in[i][j] = qdev_get_gpio_in(gpio_dev[i], j);
                 gpio_out[i][j] = NULL;
@@ -1276,7 +1293,8 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     }
 
     if (board->dc2 & (1 << 12)) {
-        dev = sysbus_create_simple(TYPE_STELLARIS_I2C, 0x40020000, pic[8]);
+        dev = sysbus_create_simple(TYPE_STELLARIS_I2C, 0x40020000,
+                                   qdev_get_gpio_in(nvic, 8));
         i2c = (I2CBus *)qdev_get_child_bus(dev, "i2c");
         if (board->peripherals & BP_OLED_I2C) {
             i2c_create_slave(i2c, "ssd0303", 0x3d);
@@ -1286,11 +1304,12 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
     for (i = 0; i < 4; i++) {
         if (board->dc2 & (1 << i)) {
             sysbus_create_simple("pl011_luminary", 0x4000c000 + i * 0x1000,
-                                 pic[uart_irq[i]]);
+                                 qdev_get_gpio_in(nvic, uart_irq[i]));
         }
     }
     if (board->dc2 & (1 << 4)) {
-        dev = sysbus_create_simple("pl022", 0x40008000, pic[7]);
+        dev = sysbus_create_simple("pl022", 0x40008000,
+                                   qdev_get_gpio_in(nvic, 7));
         if (board->peripherals & BP_OLED_SSI) {
             void *bus;
             DeviceState *sddev;
@@ -1326,7 +1345,7 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
         qdev_set_nic_properties(enet, &nd_table[0]);
         qdev_init_nofail(enet);
         sysbus_mmio_map(SYS_BUS_DEVICE(enet), 0, 0x40048000);
-        sysbus_connect_irq(SYS_BUS_DEVICE(enet), 0, pic[42]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(enet), 0, qdev_get_gpio_in(nvic, 42));
     }
     if (board->peripherals & BP_GAMEPAD) {
         qemu_irq gpad_irq[5];

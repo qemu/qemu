@@ -126,6 +126,8 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
     CPUARMState *env = &cpu->env;
     uint32_t psr = pstate_read(env);
     int i;
+    int el = arm_current_el(env);
+    const char *ns_status;
 
     cpu_fprintf(f, "PC=%016"PRIx64"  SP=%016"PRIx64"\n",
             env->pc, env->xregs[31]);
@@ -137,13 +139,22 @@ void aarch64_cpu_dump_state(CPUState *cs, FILE *f,
             cpu_fprintf(f, " ");
         }
     }
-    cpu_fprintf(f, "PSTATE=%08x (flags %c%c%c%c)\n",
+
+    if (arm_feature(env, ARM_FEATURE_EL3) && el != 3) {
+        ns_status = env->cp15.scr_el3 & SCR_NS ? "NS " : "S ";
+    } else {
+        ns_status = "";
+    }
+
+    cpu_fprintf(f, "\nPSTATE=%08x %c%c%c%c %sEL%d%c\n",
                 psr,
                 psr & PSTATE_N ? 'N' : '-',
                 psr & PSTATE_Z ? 'Z' : '-',
                 psr & PSTATE_C ? 'C' : '-',
-                psr & PSTATE_V ? 'V' : '-');
-    cpu_fprintf(f, "\n");
+                psr & PSTATE_V ? 'V' : '-',
+                ns_status,
+                el,
+                psr & PSTATE_SP ? 'h' : 't');
 
     if (flags & CPU_DUMP_FPU) {
         int numvfpregs = 32;
