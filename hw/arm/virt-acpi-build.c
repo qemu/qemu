@@ -449,6 +449,22 @@ build_madt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info,
     gicd->length = sizeof(*gicd);
     gicd->base_address = memmap[VIRT_GIC_DIST].base;
 
+    for (i = 0; i < guest_info->smp_cpus; i++) {
+        AcpiMadtGenericInterrupt *gicc = acpi_data_push(table_data,
+                                                     sizeof *gicc);
+        gicc->type = ACPI_APIC_GENERIC_INTERRUPT;
+        gicc->length = sizeof(*gicc);
+        if (guest_info->gic_version == 2) {
+            gicc->base_address = memmap[VIRT_GIC_CPU].base;
+        }
+        gicc->cpu_interface_number = i;
+        gicc->arm_mpidr = i;
+        gicc->uid = i;
+        if (test_bit(i, cpuinfo->found_cpus)) {
+            gicc->flags = cpu_to_le32(ACPI_GICC_ENABLED);
+        }
+    }
+
     if (guest_info->gic_version == 3) {
         AcpiMadtGenericRedistributor *gicr = acpi_data_push(table_data,
                                                          sizeof *gicr);
@@ -458,20 +474,6 @@ build_madt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info,
         gicr->base_address = cpu_to_le64(memmap[VIRT_GIC_REDIST].base);
         gicr->range_length = cpu_to_le32(memmap[VIRT_GIC_REDIST].size);
     } else {
-        for (i = 0; i < guest_info->smp_cpus; i++) {
-            AcpiMadtGenericInterrupt *gicc = acpi_data_push(table_data,
-                                                         sizeof *gicc);
-            gicc->type = ACPI_APIC_GENERIC_INTERRUPT;
-            gicc->length = sizeof(*gicc);
-            gicc->base_address = memmap[VIRT_GIC_CPU].base;
-            gicc->cpu_interface_number = i;
-            gicc->arm_mpidr = i;
-            gicc->uid = i;
-            if (test_bit(i, cpuinfo->found_cpus)) {
-                gicc->flags = cpu_to_le32(ACPI_GICC_ENABLED);
-            }
-        }
-
         gic_msi = acpi_data_push(table_data, sizeof *gic_msi);
         gic_msi->type = ACPI_APIC_GENERIC_MSI_FRAME;
         gic_msi->length = sizeof(*gic_msi);
