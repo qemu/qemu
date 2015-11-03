@@ -103,7 +103,8 @@ function add_snapshot_image()
            { 'options':
              { 'driver': 'qcow2', 'node-name': 'snap_${1}', ${extra_params}
                'file':
-               { 'driver': 'file', 'filename': '${snapshot_file}' } } } }"
+               { 'driver': 'file', 'filename': '${snapshot_file}',
+                 'node-name': 'file_${1}' } } } }"
     _send_qemu_cmd $h "${cmd}" "return"
 }
 
@@ -185,6 +186,15 @@ blockdev_snapshot ${SNAPSHOTS}
 SNAPSHOTS=$((${SNAPSHOTS}+1))
 add_snapshot_image ${SNAPSHOTS}
 blockdev_snapshot ${SNAPSHOTS}
+
+echo
+echo === Invalid command - cannot create a snapshot using a file BDS ===
+echo
+
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot',
+                     'arguments': { 'node':'virtio0',
+                                    'overlay':'file_${SNAPSHOTS}' }
+                   }" "error"
 
 echo
 echo === Invalid command - snapshot node used as active layer ===

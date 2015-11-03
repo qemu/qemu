@@ -62,6 +62,10 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 {"return": {}}
 {"return": {}}
 
+=== Invalid command - cannot create a snapshot using a file BDS ===
+
+{"error": {"class": "GenericError", "desc": "The snapshot does not support backing images"}}
+
 === Invalid command - snapshot node used as active layer ===
 
 {"error": {"class": "GenericError", "desc": "The snapshot is already in use by virtio0"}}
