@@ -65,7 +65,7 @@ function create_single_snapshot()
 {
     cmd="{ 'execute': 'blockdev-snapshot-sync',
                       'arguments': { 'device': 'virtio0',
-                                     'snapshot-file':'"${TEST_DIR}/${1}-${snapshot_virt0}"',
+                                     'snapshot-file':'${TEST_DIR}/${1}-${snapshot_virt0}',
                                      'format': 'qcow2' } }"
     _send_qemu_cmd $h "${cmd}" "return"
 }
@@ -77,10 +77,10 @@ function create_group_snapshot()
            {'actions': [
                { 'type': 'blockdev-snapshot-sync', 'data' :
                    { 'device': 'virtio0',
-                      'snapshot-file': '"${TEST_DIR}/${1}-${snapshot_virt0}"' } },
+                      'snapshot-file': '${TEST_DIR}/${1}-${snapshot_virt0}' } },
                { 'type': 'blockdev-snapshot-sync', 'data' :
                    { 'device': 'virtio1',
-                       'snapshot-file': '"${TEST_DIR}/${1}-${snapshot_virt1}"' } } ]
+                       'snapshot-file': '${TEST_DIR}/${1}-${snapshot_virt1}' } } ]
              } }"
 
     _send_qemu_cmd $h "${cmd}" "return"
@@ -101,9 +101,9 @@ function add_snapshot_image()
     mv "${TEST_IMG}" "${snapshot_file}"
     cmd="{ 'execute': 'blockdev-add', 'arguments':
            { 'options':
-             { 'driver': 'qcow2', 'node-name': 'snap_"${1}"', "${extra_params}"
+             { 'driver': 'qcow2', 'node-name': 'snap_${1}', ${extra_params}
                'file':
-               { 'driver': 'file', 'filename': '"${snapshot_file}"' } } } }"
+               { 'driver': 'file', 'filename': '${snapshot_file}' } } } }"
     _send_qemu_cmd $h "${cmd}" "return"
 }
 
@@ -113,7 +113,7 @@ function blockdev_snapshot()
 {
     cmd="{ 'execute': 'blockdev-snapshot',
                       'arguments': { 'node': 'virtio0',
-                                     'overlay':'snap_"${1}"' } }"
+                                     'overlay':'snap_${1}' } }"
     _send_qemu_cmd $h "${cmd}" "${2:-return}"
 }
 
@@ -152,7 +152,7 @@ echo === Invalid command - missing device and nodename ===
 echo
 
 _send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot-sync',
-                         'arguments': { 'snapshot-file':'"${TEST_DIR}/1-${snapshot_virt0}"',
+                         'arguments': { 'snapshot-file':'${TEST_DIR}/1-${snapshot_virt0}',
                                      'format': 'qcow2' } }" "error"
 
 echo
@@ -224,7 +224,7 @@ blockdev_snapshot $((${SNAPSHOTS}+1)) error
 
 _send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot',
                      'arguments': { 'node':'nodevice',
-                                    'overlay':'snap_"${SNAPSHOTS}"' }
+                                    'overlay':'snap_${SNAPSHOTS}' }
                    }" "error"
 
 # success, all done
