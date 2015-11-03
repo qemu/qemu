@@ -264,6 +264,7 @@ rdma=""
 gprof="no"
 debug_tcg="no"
 debug="no"
+fortify_source=""
 strip_opt="yes"
 tcg_interpreter="no"
 bigendian="no"
@@ -879,6 +880,7 @@ for opt do
       debug_tcg="yes"
       debug="yes"
       strip_opt="no"
+      fortify_source="no"
   ;;
   --enable-sparse) sparse="yes"
   ;;
@@ -4439,6 +4441,19 @@ if ! compile_object "-Werror"; then
     ccache_cpp2=yes
 fi
 
+#################################################
+# clang does not support glibc + FORTIFY_SOURCE.
+
+if test "$fortify_source" != "no"; then
+  if echo | $cc -dM -E - | grep __clang__ > /dev/null 2>&1 ; then
+    fortify_source="no";
+  elif echo | $cxx -dM -E - | grep __clang__ > /dev/null 2>&1 ; then
+    fortify_source="no";
+  else
+    fortify_source="yes"
+  fi
+fi
+
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
@@ -4446,7 +4461,7 @@ fi
 if test "$gcov" = "yes" ; then
   CFLAGS="-fprofile-arcs -ftest-coverage -g $CFLAGS"
   LDFLAGS="-fprofile-arcs -ftest-coverage $LDFLAGS"
-elif test "$debug" = "no" ; then
+elif test "$fortify_source" = "yes" ; then
   CFLAGS="-O2 -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $CFLAGS"
 fi
 
