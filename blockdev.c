@@ -1678,6 +1678,11 @@ static void external_snapshot_prepare(BlkTransactionState *common,
 
     if (state->new_bs->backing != NULL) {
         error_setg(errp, "The snapshot already has a backing image");
+        return;
+    }
+
+    if (!state->new_bs->drv->supports_backing) {
+        error_setg(errp, "The snapshot does not support backing images");
     }
 }
 
