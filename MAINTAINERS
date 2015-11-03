@@ -81,6 +81,7 @@ F: disas/alpha.c
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: target-arm/
 F: hw/arm/
@@ -216,6 +217,7 @@ F: */kvm.*
 
 ARM
 M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: target-arm/kvm.c
 
@@ -287,6 +289,7 @@ ARM Machines
 ------------
 Allwinner-a10
 M: Beniamino Galvani <b.galvani@gmail.com>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/allwinner*
 F: include/hw/*/allwinner*
@@ -294,6 +297,7 @@ F: hw/arm/cubieboard.c
 
 ARM PrimeCell
 M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/char/pl011.c
 F: hw/display/pl110*
@@ -308,6 +312,7 @@ F: include/hw/arm/primecell.h
 
 ARM cores
 M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/intc/arm*
 F: hw/intc/gic_internal.h
@@ -327,54 +332,64 @@ M: Evgeny Voevodin <e.voevodin@samsung.com>
 M: Maksim Kozlov <m.kozlov@samsung.com>
 M: Igor Mitsyanko <i.mitsyanko@gmail.com>
 M: Dmitry Solodkiy <d.solodkiy@samsung.com>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/exynos*
 
 Calxeda Highbank
 M: Rob Herring <robh@kernel.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/highbank.c
 F: hw/net/xgmac.c
 
 Canon DIGIC
 M: Antony Pavlov <antonynpavlov@gmail.com>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: include/hw/arm/digic.h
 F: hw/*/digic*
 
 Gumstix
 L: qemu-devel@nongnu.org
+L: qemu-arm@nongnu.org
 S: Orphan
 F: hw/arm/gumstix.c
 
 i.MX31
 M: Peter Chubb <peter.chubb@nicta.com.au>
+L: qemu-arm@nongnu.org
 S: Odd fixes
 F: hw/*/imx*
 F: hw/arm/kzm.c
 
 Integrator CP
 M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/integratorcp.c
 
 Musicpal
 M: Jan Kiszka <jan.kiszka@web.de>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/musicpal.c
 
 nSeries
 M: Andrzej Zaborowski <balrogg@gmail.com>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/nseries.c
 
 Palm
 M: Andrzej Zaborowski <balrogg@gmail.com>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/palm.c
 
 Real View
 M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/realview*
 F: hw/intc/realview_gic.c
@@ -382,6 +397,7 @@ F: include/hw/intc/realview_gic.h
 
 PXA2XX
 M: Andrzej Zaborowski <balrogg@gmail.com>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/mainstone.c
 F: hw/arm/spitz.c
@@ -391,17 +407,20 @@ F: hw/*/pxa2xx*
 
 Stellaris
 M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/stellaris*
 
 Versatile PB
 M: Peter Maydell <peter.maydell@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/*/versatile*
 
 Xilinx Zynq
 M: Alistair Francis <alistair.francis@xilinx.com>
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/xilinx_zynq.c
 F: hw/misc/zynq_slcr.c
@@ -411,6 +430,7 @@ F: hw/ssi/xilinx_spips.c
 Xilinx ZynqMP
 M: Alistair Francis <alistair.francis@xilinx.com>
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/xlnx-zynqmp.c
 F: hw/arm/xlnx-ep108.c
@@ -419,6 +439,7 @@ F: include/hw/arm/xlnx-zynqmp.h
 ARM ACPI Subsystem
 M: Shannon Zhao <zhaoshenglong@huawei.com>
 M: Shannon Zhao <shannon.zhao@linaro.org>
+L: qemu-arm@nongnu.org
 S: Maintained
 F: hw/arm/virt-acpi-build.c
 F: include/hw/arm/virt-acpi-build.h
@@ -1235,6 +1256,7 @@ AArch64 target
 M: Claudio Fontana <claudio.fontana@huawei.com>
 M: Claudio Fontana <claudio.fontana@gmail.com>
 S: Maintained
+L: qemu-arm@nongnu.org
 F: tcg/aarch64/
 F: disas/arm-a64.cc
 F: disas/libvixl/
@@ -1242,6 +1264,7 @@ F: disas/libvixl/
 ARM target
 M: Andrzej Zaborowski <balrogg@gmail.com>
 S: Maintained
+L: qemu-arm@nongnu.org
 F: tcg/arm/
 F: disas/arm.c
 
