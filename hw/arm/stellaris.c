@@ -16,6 +16,7 @@
 #include "net/net.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
+#include "sysemu/sysemu.h"
 
 #define GPIO_A 0
 #define GPIO_B 1
@@ -1176,6 +1177,14 @@ static int stellaris_adc_init(SysBusDevice *sbd)
     return 0;
 }
 
+static
+void do_sys_reset(void *opaque, int n, int level)
+{
+    if (level) {
+        qemu_system_reset_request();
+    }
+}
+
 /* Board init.  */
 static stellaris_board_info stellaris_boards[] = {
   { "LM3S811EVB",
@@ -1242,6 +1251,9 @@ static void stellaris_init(const char *kernel_filename, const char *cpu_model,
 
     nvic = armv7m_init(system_memory, flash_size, NUM_IRQ_LINES,
                       kernel_filename, cpu_model);
+
+    qdev_connect_gpio_out_named(nvic, "SYSRESETREQ", 0,
+                                qemu_allocate_irq(&do_sys_reset, NULL, 0));
 
     if (board->dc1 & (1 << 16)) {
         dev = sysbus_create_varargs(TYPE_STELLARIS_ADC, 0x40038000,
