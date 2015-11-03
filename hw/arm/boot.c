@@ -28,14 +28,14 @@
 #define KERNEL64_LOAD_ADDR 0x00080000
 
 typedef enum {
-    FIXUP_NONE = 0,   /* do nothing */
-    FIXUP_TERMINATOR, /* end of insns */
-    FIXUP_BOARDID,    /* overwrite with board ID number */
-    FIXUP_ARGPTR,     /* overwrite with pointer to kernel args */
-    FIXUP_ENTRYPOINT, /* overwrite with kernel entry point */
-    FIXUP_GIC_CPU_IF, /* overwrite with GIC CPU interface address */
-    FIXUP_BOOTREG,    /* overwrite with boot register address */
-    FIXUP_DSB,        /* overwrite with correct DSB insn for cpu */
+    FIXUP_NONE = 0,     /* do nothing */
+    FIXUP_TERMINATOR,   /* end of insns */
+    FIXUP_BOARDID,      /* overwrite with board ID number */
+    FIXUP_ARGPTR,       /* overwrite with pointer to kernel args */
+    FIXUP_ENTRYPOINT,   /* overwrite with kernel entry point */
+    FIXUP_GIC_CPU_IF,   /* overwrite with GIC CPU interface address */
+    FIXUP_BOOTREG,      /* overwrite with boot register address */
+    FIXUP_DSB,          /* overwrite with correct DSB insn for cpu */
     FIXUP_MAX,
 } FixupType;
 
