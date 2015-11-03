@@ -25,6 +25,16 @@
 #ifndef TARGET_ARM_INTERNALS_H
 #define TARGET_ARM_INTERNALS_H
 
+/* register banks for CPU modes */
+#define BANK_USRSYS 0
+#define BANK_SVC    1
+#define BANK_ABT    2
+#define BANK_UND    3
+#define BANK_IRQ    4
+#define BANK_FIQ    5
+#define BANK_HYP    6
+#define BANK_MON    7
+
 static inline bool excp_is_internal(int excp)
 {
     /* Return true if this exception number represents a QEMU-internal
@@ -91,9 +101,9 @@ static inline void arm_log_exception(int idx)
 static inline unsigned int aarch64_banked_spsr_index(unsigned int el)
 {
     static const unsigned int map[4] = {
-        [1] = 1, /* EL1.  */
-        [2] = 6, /* EL2.  */
-        [3] = 7, /* EL3.  */
+        [1] = BANK_SVC, /* EL1.  */
+        [2] = BANK_HYP, /* EL2.  */
+        [3] = BANK_MON, /* EL3.  */
     };
     assert(el >= 1 && el <= 3);
     return map[el];
