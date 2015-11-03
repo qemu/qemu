@@ -322,6 +322,11 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "host" "-" TYPE_X86_CPU,\
             .property = "host-cache-info",\
             .value    = "on",\
+        },\
+        {\
+            .driver   = TYPE_X86_CPU,\
+            .property = "check",\
+            .value    = "off",\
         },
 
 #define PC_COMPAT_2_3 \
