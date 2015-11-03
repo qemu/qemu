@@ -450,7 +450,7 @@ static void text_console_resize(QemuConsole *s)
     if (s->width < w1)
         w1 = s->width;
 
-    cells = g_malloc(s->width * s->total_height * sizeof(TextCell));
+    cells = g_new(TextCell, s->width * s->total_height);
     for(y = 0; y < s->total_height; y++) {
         c = &cells[y * s->width];
         if (w1 > 0) {

@@ -109,7 +109,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
     }
 
     if (!k) {
-        k = g_malloc0(sizeof(kbd_layout_t));
+        k = g_new0(kbd_layout_t, 1);
     }
 
     for(;;) {

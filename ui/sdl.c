@@ -985,7 +985,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         sdl_grab_start();
     }
 
-    dcl = g_malloc0(sizeof(DisplayChangeListener));
+    dcl = g_new0(DisplayChangeListener, 1);
     dcl->ops = &dcl_ops;
     register_displaychangelistener(dcl);
 

@@ -206,7 +206,7 @@ QEMUPutMouseEntry *qemu_add_mouse_event_handler(QEMUPutMouseEvent *func,
 {
     QEMUPutMouseEntry *s;
 
-    s = g_malloc0(sizeof(QEMUPutMouseEntry));
+    s = g_new0(QEMUPutMouseEntry, 1);
 
     s->qemu_put_mouse_event = func;
     s->qemu_put_mouse_event_opaque = opaque;
@@ -240,7 +240,7 @@ QEMUPutLEDEntry *qemu_add_led_event_handler(QEMUPutLEDEvent *func,
 {
     QEMUPutLEDEntry *s;
 
-    s = g_malloc0(sizeof(QEMUPutLEDEntry));
+    s = g_new0(QEMUPutLEDEntry, 1);
 
     s->put_led = func;
     s->opaque = opaque;
