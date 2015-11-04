@@ -3408,13 +3408,18 @@ static void vm_completion(ReadLineState *rs, const char *str)
     readline_set_completion_index(rs, len);
     while ((bs = bdrv_next(bs))) {
         SnapshotInfoList *snapshots, *snapshot;
+        AioContext *ctx = bdrv_get_aio_context(bs);
+        bool ok = false;
 
-        if (!bdrv_can_snapshot(bs)) {
+        aio_context_acquire(ctx);
+        if (bdrv_can_snapshot(bs)) {
+            ok = bdrv_query_snapshot_info_list(bs, &snapshots, NULL) == 0;
+        }
+        aio_context_release(ctx);
+        if (!ok) {
             continue;
         }
-        if (bdrv_query_snapshot_info_list(bs, &snapshots, NULL)) {
-            continue;
-        }
+
         snapshot = snapshots;
         while (snapshot) {
             char *completion = snapshot->value->name;
