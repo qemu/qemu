@@ -892,8 +892,14 @@ int css_do_tsch_get_irb(SubchDev *sch, IRB *target_irb, int *irb_len)
         /* If a unit check is pending, copy sense data. */
         if ((s->dstat & SCSW_DSTAT_UNIT_CHECK) &&
             (p->chars & PMCW_CHARS_MASK_CSENSE)) {
+            int i;
+
             irb.scsw.flags |= SCSW_FLAGS_MASK_ESWF | SCSW_FLAGS_MASK_ECTL;
+            /* Attention: sense_data is already BE! */
             memcpy(irb.ecw, sch->sense_data, sizeof(sch->sense_data));
+            for (i = 0; i < ARRAY_SIZE(irb.ecw); i++) {
+                irb.ecw[i] = be32_to_cpu(irb.ecw[i]);
+            }
             irb.esw[1] = 0x01000000 | (sizeof(sch->sense_data) << 8);
         }
     }
