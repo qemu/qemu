@@ -231,6 +231,7 @@ typedef struct S390PCIBusDevice {
     AdapterRoutes routes;
     AddressSpace as;
     MemoryRegion mr;
+    MemoryRegion iommu_mr;
 } S390PCIBusDevice;
 
 typedef struct S390pciState {
@@ -244,6 +245,7 @@ typedef struct S390pciState {
 int chsc_sei_nt2_get_event(void *res);
 int chsc_sei_nt2_have_event(void);
 void s390_pci_sclp_configure(int configure, SCCB *sccb);
+void s390_pcihost_iommu_configure(S390PCIBusDevice *pbdev, bool enable);
 S390PCIBusDevice *s390_pci_find_dev_by_idx(uint32_t idx);
 S390PCIBusDevice *s390_pci_find_dev_by_fh(uint32_t fh);
 S390PCIBusDevice *s390_pci_find_dev_by_fid(uint32_t fid);
