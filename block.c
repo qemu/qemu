@@ -1907,7 +1907,7 @@ void bdrv_close(BlockDriverState *bs)
     }
 
     /* Disable I/O limits and drain all pending throttled requests */
-    if (bs->io_limits_enabled) {
+    if (bs->throttle_state) {
         bdrv_io_limits_disable(bs);
     }
 
@@ -3712,7 +3712,7 @@ void bdrv_detach_aio_context(BlockDriverState *bs)
         baf->detach_aio_context(baf->opaque);
     }
 
-    if (bs->io_limits_enabled) {
+    if (bs->throttle_state) {
         throttle_timers_detach_aio_context(&bs->throttle_timers);
     }
     if (bs->drv->bdrv_detach_aio_context) {
@@ -3748,7 +3748,7 @@ void bdrv_attach_aio_context(BlockDriverState *bs,
     if (bs->drv->bdrv_attach_aio_context) {
         bs->drv->bdrv_attach_aio_context(bs, new_context);
     }
-    if (bs->io_limits_enabled) {
+    if (bs->throttle_state) {
         throttle_timers_attach_aio_context(&bs->throttle_timers, new_context);
     }
 

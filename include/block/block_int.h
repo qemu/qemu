@@ -390,7 +390,10 @@ struct BlockDriverState {
     /* number of in-flight serialising requests */
     unsigned int serialising_in_flight;
 
-    /* I/O throttling */
+    /* I/O throttling.
+     * throttle_state tells us if this BDS has I/O limits configured.
+     * io_limits_enabled tells us if they are currently being
+     * enforced, but it can be temporarily set to false */
     CoQueue      throttled_reqs[2];
     bool         io_limits_enabled;
     /* The following fields are protected by the ThrottleGroup lock.
