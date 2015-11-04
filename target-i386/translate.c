@@ -7731,16 +7731,28 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                     goto illegal_op;
             }
             break;
-        case 7: /* sfence / clflush */
+        case 7: /* sfence / clflush / clflushopt / pcommit */
             if ((modrm & 0xc7) == 0xc0) {
-                /* sfence */
-                /* XXX: also check for cpuid_ext2_features & CPUID_EXT2_EMMX */
-                if (!(s->cpuid_features & CPUID_SSE))
-                    goto illegal_op;
+                if (s->prefix & PREFIX_DATA) {
+                    /* pcommit */
+                    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_PCOMMIT))
+                        goto illegal_op;
+                } else {
+                    /* sfence */
+                    /* XXX: also check for cpuid_ext2_features & CPUID_EXT2_EMMX */
+                    if (!(s->cpuid_features & CPUID_SSE))
+                        goto illegal_op;
+                }
             } else {
-                /* clflush */
-                if (!(s->cpuid_features & CPUID_CLFLUSH))
-                    goto illegal_op;
+                if (s->prefix & PREFIX_DATA) {
+                    /* clflushopt */
+                    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_CLFLUSHOPT))
+                        goto illegal_op;
+                } else {
+                    /* clflush */
+                    if (!(s->cpuid_features & CPUID_CLFLUSH))
+                        goto illegal_op;
+                }
                 gen_lea_modrm(env, s, modrm);
             }
             break;
