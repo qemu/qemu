@@ -7716,9 +7716,20 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             }
             break;
         case 5: /* lfence */
-        case 6: /* mfence */
             if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE2))
                 goto illegal_op;
+            break;
+        case 6: /* mfence/clwb */
+            if (s->prefix & PREFIX_DATA) {
+                /* clwb */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_CLWB))
+                    goto illegal_op;
+                gen_nop_modrm(env, s, modrm);
+            } else {
+                /* mfence */
+                if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE2))
+                    goto illegal_op;
+            }
             break;
         case 7: /* sfence / clflush */
             if ((modrm & 0xc7) == 0xc0) {
