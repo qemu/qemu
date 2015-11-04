@@ -437,6 +437,9 @@ void throttle_group_register_bs(BlockDriverState *bs, const char *groupname)
  * list, destroying the timers and setting the throttle_state pointer
  * to NULL.
  *
+ * The BlockDriverState must not have pending throttled requests, so
+ * the caller has to drain them first.
+ *
  * The group will be destroyed if it's empty after this operation.
  *
  * @bs: the BlockDriverState to remove
@@ -445,6 +448,10 @@ void throttle_group_unregister_bs(BlockDriverState *bs)
 {
     ThrottleGroup *tg = container_of(bs->throttle_state, ThrottleGroup, ts);
     int i;
+
+    assert(bs->pending_reqs[0] == 0 && bs->pending_reqs[1] == 0);
+    assert(qemu_co_queue_empty(&bs->throttled_reqs[0]));
+    assert(qemu_co_queue_empty(&bs->throttled_reqs[1]));
 
     qemu_mutex_lock(&tg->lock);
     for (i = 0; i < 2; i++) {
