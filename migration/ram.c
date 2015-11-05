@@ -1700,7 +1700,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
 static SaveVMHandlers savevm_ram_handlers = {
     .save_live_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,
-    .save_live_complete = ram_save_complete,
+    .save_live_complete_precopy = ram_save_complete,
     .save_live_pending = ram_save_pending,
     .load_state = ram_load,
     .cleanup = ram_migration_cleanup,

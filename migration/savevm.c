@@ -807,19 +807,19 @@ static bool should_send_vmdesc(void)
     return !machine->suppress_vmdesc;
 }
 
-void qemu_savevm_state_complete(QEMUFile *f)
+void qemu_savevm_state_complete_precopy(QEMUFile *f)
 {
     QJSON *vmdesc;
     int vmdesc_len;
     SaveStateEntry *se;
     int ret;
 
-    trace_savevm_state_complete();
+    trace_savevm_state_complete_precopy();
 
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->save_live_complete) {
+        if (!se->ops || !se->ops->save_live_complete_precopy) {
             continue;
         }
         if (se->ops && se->ops->is_active) {
@@ -831,7 +831,7 @@ void qemu_savevm_state_complete(QEMUFile *f)
 
         save_section_header(f, se, QEMU_VM_SECTION_END);
 
-        ret = se->ops->save_live_complete(f, se->opaque);
+        ret = se->ops->save_live_complete_precopy(f, se->opaque);
         trace_savevm_section_end(se->idstr, se->section_id, ret);
         save_section_footer(f, se);
         if (ret < 0) {
@@ -942,7 +942,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 
     ret = qemu_file_get_error(f);
     if (ret == 0) {
-        qemu_savevm_state_complete(f);
+        qemu_savevm_state_complete_precopy(f);
         ret = qemu_file_get_error(f);
     }
     if (ret != 0) {

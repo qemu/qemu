@@ -40,7 +40,7 @@ typedef struct SaveVMHandlers {
     SaveStateHandler *save_state;
 
     void (*cleanup)(void *opaque);
-    int (*save_live_complete)(QEMUFile *f, void *opaque);
+    int (*save_live_complete_precopy)(QEMUFile *f, void *opaque);
 
     /* This runs both outside and inside the iothread lock.  */
     bool (*is_active)(void *opaque);
