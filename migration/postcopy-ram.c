@@ -184,6 +184,97 @@ int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
     return 0;
 }
 
+/*
+ * Setup an area of RAM so that it *can* be used for postcopy later; this
+ * must be done right at the start prior to pre-copy.
+ * opaque should be the MIS.
+ */
+static int init_range(const char *block_name, void *host_addr,
+                      ram_addr_t offset, ram_addr_t length, void *opaque)
+{
+    MigrationIncomingState *mis = opaque;
+
+    trace_postcopy_init_range(block_name, host_addr, offset, length);
+
+    /*
+     * We need the whole of RAM to be truly empty for postcopy, so things
+     * like ROMs and any data tables built during init must be zero'd
+     * - we're going to get the copy from the source anyway.
+     * (Precopy will just overwrite this data, so doesn't need the discard)
+     */
+    if (postcopy_ram_discard_range(mis, host_addr, length)) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * At the end of migration, undo the effects of init_range
+ * opaque should be the MIS.
+ */
+static int cleanup_range(const char *block_name, void *host_addr,
+                        ram_addr_t offset, ram_addr_t length, void *opaque)
+{
+    MigrationIncomingState *mis = opaque;
+    struct uffdio_range range_struct;
+    trace_postcopy_cleanup_range(block_name, host_addr, offset, length);
+
+    /*
+     * We turned off hugepage for the precopy stage with postcopy enabled
+     * we can turn it back on now.
+     */
+#ifdef MADV_HUGEPAGE
+    if (madvise(host_addr, length, MADV_HUGEPAGE)) {
+        error_report("%s HUGEPAGE: %s", __func__, strerror(errno));
+        return -1;
+    }
+#endif
+
+    /*
+     * We can also turn off userfault now since we should have all the
+     * pages.   It can be useful to leave it on to debug postcopy
+     * if you're not sure it's always getting every page.
+     */
+    range_struct.start = (uintptr_t)host_addr;
+    range_struct.len = length;
+
+    if (ioctl(mis->userfault_fd, UFFDIO_UNREGISTER, &range_struct)) {
+        error_report("%s: userfault unregister %s", __func__, strerror(errno));
+
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Initialise postcopy-ram, setting the RAM to a state where we can go into
+ * postcopy later; must be called prior to any precopy.
+ * called from arch_init's similarly named ram_postcopy_incoming_init
+ */
+int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages)
+{
+    if (qemu_ram_foreach_block(init_range, mis)) {
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * At the end of a migration where postcopy_ram_incoming_init was called.
+ */
+int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
+{
+    /* TODO: Join the fault thread once we're sure it will exit */
+    if (qemu_ram_foreach_block(cleanup_range, mis)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 #else
 /* No target OS support, stubs just fail */
 bool postcopy_ram_supported_by_host(void)
@@ -192,10 +283,23 @@ bool postcopy_ram_supported_by_host(void)
     return false;
 }
 
+int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages)
+{
+    error_report("postcopy_ram_incoming_init: No OS support");
+    return -1;
+}
+
+int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
+{
+    assert(0);
+    return -1;
+}
+
 int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
                                size_t length)
 {
     assert(0);
+    return -1;
 }
 #endif
 
