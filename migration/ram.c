@@ -1160,6 +1160,45 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
     }
 }
 
+/*
+ * 'expected' is the value you expect the bitmap mostly to be full
+ * of; it won't bother printing lines that are all this value.
+ * If 'todump' is null the migration bitmap is dumped.
+ */
+void ram_debug_dump_bitmap(unsigned long *todump, bool expected)
+{
+    int64_t ram_pages = last_ram_offset() >> TARGET_PAGE_BITS;
+
+    int64_t cur;
+    int64_t linelen = 128;
+    char linebuf[129];
+
+    if (!todump) {
+        todump = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    }
+
+    for (cur = 0; cur < ram_pages; cur += linelen) {
+        int64_t curb;
+        bool found = false;
+        /*
+         * Last line; catch the case where the line length
+         * is longer than remaining ram
+         */
+        if (cur + linelen > ram_pages) {
+            linelen = ram_pages - cur;
+        }
+        for (curb = 0; curb < linelen; curb++) {
+            bool thisbit = test_bit(cur + curb, todump);
+            linebuf[curb] = thisbit ? '1' : '.';
+            found = found || (thisbit != expected);
+        }
+        if (found) {
+            linebuf[curb] = '\0';
+            fprintf(stderr,  "0x%08" PRIx64 " : %s\n", cur, linebuf);
+        }
+    }
+}
+
 /* Each of ram_save_setup, ram_save_iterate and ram_save_complete has
  * long-running RCU critical section.  When rcu-reclaims in the code
  * start to become numerous it will be necessary to reduce the
