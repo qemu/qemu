@@ -266,7 +266,7 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
         arch = !!(key & FW_CFG_ARCH_LOCAL);
         e = &s->entries[arch][key & FW_CFG_ENTRY_MASK];
         if (e->read_callback) {
-            e->read_callback(e->callback_opaque, s->cur_offset);
+            e->read_callback(e->callback_opaque);
         }
     }
 

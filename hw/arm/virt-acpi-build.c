@@ -631,7 +631,7 @@ static void acpi_ram_update(MemoryRegion *mr, GArray *data)
     memory_region_set_dirty(mr, 0, size);
 }
 
-static void virt_acpi_build_update(void *build_opaque, uint32_t offset)
+static void virt_acpi_build_update(void *build_opaque)
 {
     AcpiBuildState *build_state = build_opaque;
     AcpiBuildTables tables;

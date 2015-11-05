@@ -70,8 +70,7 @@ typedef struct FWCfgDmaAccess {
     uint64_t address;
 } QEMU_PACKED FWCfgDmaAccess;
 
-typedef void (*FWCfgCallback)(void *opaque, uint8_t *data);
-typedef void (*FWCfgReadCallback)(void *opaque, uint32_t offset);
+typedef void (*FWCfgReadCallback)(void *opaque);
 
 /**
  * fw_cfg_add_bytes:
