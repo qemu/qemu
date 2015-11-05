@@ -978,19 +978,61 @@ static bool should_send_vmdesc(void)
     return !machine->suppress_vmdesc && !in_postcopy;
 }
 
+/*
+ * Calls the save_live_complete_postcopy methods
+ * causing the last few pages to be sent immediately and doing any associated
+ * cleanup.
+ * Note postcopy also calls qemu_savevm_state_complete_precopy to complete
+ * all the other devices, but that happens at the point we switch to postcopy.
+ */
+void qemu_savevm_state_complete_postcopy(QEMUFile *f)
+{
+    SaveStateEntry *se;
+    int ret;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->ops || !se->ops->save_live_complete_postcopy) {
+            continue;
+        }
+        if (se->ops && se->ops->is_active) {
+            if (!se->ops->is_active(se->opaque)) {
+                continue;
+            }
+        }
+        trace_savevm_section_start(se->idstr, se->section_id);
+        /* Section type */
+        qemu_put_byte(f, QEMU_VM_SECTION_END);
+        qemu_put_be32(f, se->section_id);
+
+        ret = se->ops->save_live_complete_postcopy(f, se->opaque);
+        trace_savevm_section_end(se->idstr, se->section_id, ret);
+        save_section_footer(f, se);
+        if (ret < 0) {
+            qemu_file_set_error(f, ret);
+            return;
+        }
+    }
+
+    qemu_put_byte(f, QEMU_VM_EOF);
+    qemu_fflush(f);
+}
+
 void qemu_savevm_state_complete_precopy(QEMUFile *f)
 {
     QJSON *vmdesc;
     int vmdesc_len;
     SaveStateEntry *se;
     int ret;
+    bool in_postcopy = migration_in_postcopy(migrate_get_current());
 
     trace_savevm_state_complete_precopy();
 
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (!se->ops || !se->ops->save_live_complete_precopy) {
+        if (!se->ops ||
+            (in_postcopy && se->ops->save_live_complete_postcopy) ||
+            !se->ops->save_live_complete_precopy) {
             continue;
         }
         if (se->ops && se->ops->is_active) {
@@ -1039,7 +1081,10 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f)
         save_section_footer(f, se);
     }
 
-    qemu_put_byte(f, QEMU_VM_EOF);
+    if (!in_postcopy) {
+        /* Postcopy stream will still be going */
+        qemu_put_byte(f, QEMU_VM_EOF);
+    }
 
     json_end_array(vmdesc);
     qjson_finish(vmdesc);
