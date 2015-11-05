@@ -135,6 +135,9 @@ struct MigrationState
 
     /* Flag set once the migration has been asked to enter postcopy */
     bool start_postcopy;
+
+    /* Flag set once the migration thread is running (and needs joining) */
+    bool migration_thread_running;
 };
 
 void process_incoming_migration(QEMUFile *f);
