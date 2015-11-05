@@ -146,6 +146,21 @@ static int64_t cvtnum(const char *s)
     return ret;
 }
 
+static void print_cvtnum_err(int64_t rc, const char *arg)
+{
+    switch (rc) {
+    case -EINVAL:
+        printf("Parsing error: non-numeric argument,"
+               " or extraneous/unrecognized suffix -- %s\n", arg);
+        break;
+    case -ERANGE:
+        printf("Parsing error: argument too large -- %s\n", arg);
+        break;
+    default:
+        printf("Parsing error: %s\n", arg);
+    }
+}
+
 #define EXABYTES(x)     ((long long)(x) << 60)
 #define PETABYTES(x)    ((long long)(x) << 50)
 #define TERABYTES(x)    ((long long)(x) << 40)
@@ -367,13 +382,13 @@ create_iovec(BlockBackend *blk, QEMUIOVector *qiov, char **argv, int nr_iov,
 
         len = cvtnum(arg);
         if (len < 0) {
-            printf("non-numeric length argument -- %s\n", arg);
+            print_cvtnum_err(len, arg);
             goto fail;
         }
 
         /* should be SIZE_T_MAX, but that doesn't exist */
         if (len > INT_MAX) {
-            printf("too large length argument -- %s\n", arg);
+            printf("Argument '%s' exceeds maximum size %d\n", arg, INT_MAX);
             goto fail;
         }
 
@@ -700,7 +715,7 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
             lflag = 1;
             pattern_count = cvtnum(optarg);
             if (pattern_count < 0) {
-                printf("non-numeric length argument -- %s\n", optarg);
+                print_cvtnum_err(pattern_count, optarg);
                 return 0;
             }
             break;
@@ -721,7 +736,7 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
             sflag = 1;
             pattern_offset = cvtnum(optarg);
             if (pattern_offset < 0) {
-                printf("non-numeric length argument -- %s\n", optarg);
+                print_cvtnum_err(pattern_offset, optarg);
                 return 0;
             }
             break;
@@ -744,14 +759,14 @@ static int read_f(BlockBackend *blk, int argc, char **argv)
 
     offset = cvtnum(argv[optind]);
     if (offset < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(offset, argv[optind]);
         return 0;
     }
 
     optind++;
     count = cvtnum(argv[optind]);
     if (count < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(count, argv[optind]);
         return 0;
     } else if (count > SIZE_MAX) {
         printf("length cannot exceed %" PRIu64 ", given %s\n",
@@ -906,7 +921,7 @@ static int readv_f(BlockBackend *blk, int argc, char **argv)
 
     offset = cvtnum(argv[optind]);
     if (offset < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(offset, argv[optind]);
         return 0;
     }
     optind++;
@@ -1055,14 +1070,14 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
 
     offset = cvtnum(argv[optind]);
     if (offset < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(offset, argv[optind]);
         return 0;
     }
 
     optind++;
     count = cvtnum(argv[optind]);
     if (count < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(count, argv[optind]);
         return 0;
     } else if (count > SIZE_MAX) {
         printf("length cannot exceed %" PRIu64 ", given %s\n",
@@ -1191,7 +1206,7 @@ static int writev_f(BlockBackend *blk, int argc, char **argv)
 
     offset = cvtnum(argv[optind]);
     if (offset < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(offset, argv[optind]);
         return 0;
     }
     optind++;
@@ -1318,7 +1333,7 @@ static int multiwrite_f(BlockBackend *blk, int argc, char **argv)
         /* Read the offset of the request */
         offset = cvtnum(argv[optind]);
         if (offset < 0) {
-            printf("non-numeric offset argument -- %s\n", argv[optind]);
+            print_cvtnum_err(offset, argv[optind]);
             goto out;
         }
         optind++;
@@ -1545,7 +1560,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
 
     ctx->offset = cvtnum(argv[optind]);
     if (ctx->offset < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(ctx->offset, argv[optind]);
         g_free(ctx);
         return 0;
     }
@@ -1640,7 +1655,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
 
     ctx->offset = cvtnum(argv[optind]);
     if (ctx->offset < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(ctx->offset, argv[optind]);
         g_free(ctx);
         return 0;
     }
@@ -1700,7 +1715,7 @@ static int truncate_f(BlockBackend *blk, int argc, char **argv)
 
     offset = cvtnum(argv[1]);
     if (offset < 0) {
-        printf("non-numeric truncate argument -- %s\n", argv[1]);
+        print_cvtnum_err(offset, argv[1]);
         return 0;
     }
 
@@ -1847,14 +1862,14 @@ static int discard_f(BlockBackend *blk, int argc, char **argv)
 
     offset = cvtnum(argv[optind]);
     if (offset < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(offset, argv[optind]);
         return 0;
     }
 
     optind++;
     count = cvtnum(argv[optind]);
     if (count < 0) {
-        printf("non-numeric length argument -- %s\n", argv[optind]);
+        print_cvtnum_err(count, argv[optind]);
         return 0;
     } else if (count >> BDRV_SECTOR_BITS > INT_MAX) {
         printf("length cannot exceed %"PRIu64", given %s\n",
@@ -1893,7 +1908,7 @@ static int alloc_f(BlockBackend *blk, int argc, char **argv)
 
     offset = cvtnum(argv[1]);
     if (offset < 0) {
-        printf("non-numeric offset argument -- %s\n", argv[1]);
+        print_cvtnum_err(offset, argv[1]);
         return 0;
     } else if (offset & 0x1ff) {
         printf("offset %" PRId64 " is not sector aligned\n",
@@ -1904,7 +1919,7 @@ static int alloc_f(BlockBackend *blk, int argc, char **argv)
     if (argc == 3) {
         nb_sectors = cvtnum(argv[2]);
         if (nb_sectors < 0) {
-            printf("non-numeric length argument -- %s\n", argv[2]);
+            print_cvtnum_err(nb_sectors, argv[2]);
             return 0;
         } else if (nb_sectors > INT_MAX) {
             printf("length argument cannot exceed %d, given %s\n",
@@ -2249,7 +2264,7 @@ static int sigraise_f(BlockBackend *blk, int argc, char **argv)
 {
     int64_t sig = cvtnum(argv[1]);
     if (sig < 0) {
-        printf("non-numeric signal number argument -- %s\n", argv[1]);
+        print_cvtnum_err(sig, argv[1]);
         return 0;
     } else if (sig > NSIG) {
         printf("signal argument '%s' is too large to be a valid signal\n",
