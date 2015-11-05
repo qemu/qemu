@@ -111,6 +111,51 @@ bool kvm_allows_irq0_override(void)
     return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
 }
 
+static int kvm_get_tsc(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+    struct {
+        struct kvm_msrs info;
+        struct kvm_msr_entry entries[1];
+    } msr_data;
+    int ret;
+
+    if (env->tsc_valid) {
+        return 0;
+    }
+
+    msr_data.info.nmsrs = 1;
+    msr_data.entries[0].index = MSR_IA32_TSC;
+    env->tsc_valid = !runstate_is_running();
+
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
+    if (ret < 0) {
+        return ret;
+    }
+
+    env->tsc = msr_data.entries[0].data;
+    return 0;
+}
+
+static inline void do_kvm_synchronize_tsc(void *arg)
+{
+    CPUState *cpu = arg;
+
+    kvm_get_tsc(cpu);
+}
+
+void kvm_synchronize_all_tsc(void)
+{
+    CPUState *cpu;
+
+    if (kvm_enabled()) {
+        CPU_FOREACH(cpu) {
+            run_on_cpu(cpu, do_kvm_synchronize_tsc, cpu);
+        }
+    }
+}
+
 static struct kvm_cpuid2 *try_get_cpuid(KVMState *s, int max)
 {
     struct kvm_cpuid2 *cpuid;
