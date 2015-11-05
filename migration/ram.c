@@ -1016,6 +1016,91 @@ static bool find_dirty_block(QEMUFile *f, PageSearchStatus *pss,
 }
 
 /**
+ * flush_page_queue: Flush any remaining pages in the ram request queue
+ *    it should be empty at the end anyway, but in error cases there may be
+ *    some left.
+ *
+ * ms: MigrationState
+ */
+void flush_page_queue(MigrationState *ms)
+{
+    struct MigrationSrcPageRequest *mspr, *next_mspr;
+    /* This queue generally should be empty - but in the case of a failed
+     * migration might have some droppings in.
+     */
+    rcu_read_lock();
+    QSIMPLEQ_FOREACH_SAFE(mspr, &ms->src_page_requests, next_req, next_mspr) {
+        memory_region_unref(mspr->rb->mr);
+        QSIMPLEQ_REMOVE_HEAD(&ms->src_page_requests, next_req);
+        g_free(mspr);
+    }
+    rcu_read_unlock();
+}
+
+/**
+ * Queue the pages for transmission, e.g. a request from postcopy destination
+ *   ms: MigrationStatus in which the queue is held
+ *   rbname: The RAMBlock the request is for - may be NULL (to mean reuse last)
+ *   start: Offset from the start of the RAMBlock
+ *   len: Length (in bytes) to send
+ *   Return: 0 on success
+ */
+int ram_save_queue_pages(MigrationState *ms, const char *rbname,
+                         ram_addr_t start, ram_addr_t len)
+{
+    RAMBlock *ramblock;
+
+    rcu_read_lock();
+    if (!rbname) {
+        /* Reuse last RAMBlock */
+        ramblock = ms->last_req_rb;
+
+        if (!ramblock) {
+            /*
+             * Shouldn't happen, we can't reuse the last RAMBlock if
+             * it's the 1st request.
+             */
+            error_report("ram_save_queue_pages no previous block");
+            goto err;
+        }
+    } else {
+        ramblock = qemu_ram_block_by_name(rbname);
+
+        if (!ramblock) {
+            /* We shouldn't be asked for a non-existent RAMBlock */
+            error_report("ram_save_queue_pages no block '%s'", rbname);
+            goto err;
+        }
+        ms->last_req_rb = ramblock;
+    }
+    trace_ram_save_queue_pages(ramblock->idstr, start, len);
+    if (start+len > ramblock->used_length) {
+        error_report("%s request overrun start=%zx len=%zx blocklen=%zx",
+                     __func__, start, len, ramblock->used_length);
+        goto err;
+    }
+
+    struct MigrationSrcPageRequest *new_entry =
+        g_malloc0(sizeof(struct MigrationSrcPageRequest));
+    new_entry->rb = ramblock;
+    new_entry->offset = start;
+    new_entry->len = len;
+
+    memory_region_ref(ramblock->mr);
+    qemu_mutex_lock(&ms->src_page_req_mutex);
+    QSIMPLEQ_INSERT_TAIL(&ms->src_page_requests, new_entry, next_req);
+    qemu_mutex_unlock(&ms->src_page_req_mutex);
+    rcu_read_unlock();
+
+    return 0;
+
+err:
+    rcu_read_unlock();
+    return -1;
+}
+
+
+/**
  * ram_find_and_save_block: Finds a dirty page and sends it to f
  *
  * Called within an RCU critical section.
