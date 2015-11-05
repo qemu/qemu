@@ -539,15 +539,27 @@ int cpu_exec(CPUState *cpu)
                    only be set by a memory fault) */
             } /* for(;;) */
         } else {
-            /* Reload env after longjmp - the compiler may have smashed all
-             * local variables as longjmp is marked 'noreturn'. */
+#if defined(__clang__) || !QEMU_GNUC_PREREQ(4, 6)
+            /* Some compilers wrongly smash all local variables after
+             * siglongjmp. There were bug reports for gcc 4.5.0 and clang.
+             * Reload essential local variables here for those compilers.
+             * Newer versions of gcc would complain about this code (-Wclobbered). */
             cpu = current_cpu;
             cc = CPU_GET_CLASS(cpu);
-            cpu->can_do_io = 1;
 #ifdef TARGET_I386
             x86_cpu = X86_CPU(cpu);
             env = &x86_cpu->env;
 #endif
+#else /* buggy compiler */
+            /* Assert that the compiler does not smash local variables. */
+            g_assert(cpu == current_cpu);
+            g_assert(cc == CPU_GET_CLASS(cpu));
+#ifdef TARGET_I386
+            g_assert(x86_cpu == X86_CPU(cpu));
+            g_assert(env == &x86_cpu->env);
+#endif
+#endif /* buggy compiler */
+            cpu->can_do_io = 1;
             tb_lock_reset();
         }
     } /* for(;;) */

@@ -247,8 +247,8 @@ static inline void qemu_timersub(const struct timeval *val1,
 
 void qemu_set_cloexec(int fd);
 
-void qemu_set_version(const char *);
-const char *qemu_get_version(void);
+void qemu_set_hw_version(const char *);
+const char *qemu_hw_version(void);
 
 void fips_set_state(bool requested);
 bool fips_get_state(void);

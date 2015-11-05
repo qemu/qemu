@@ -694,15 +694,6 @@ void cpu_synchronize_all_post_init(void)
     }
 }
 
-void cpu_clean_all_dirty(void)
-{
-    CPUState *cpu;
-
-    CPU_FOREACH(cpu) {
-        cpu_clean_state(cpu);
-    }
-}
-
 static int do_vm_stop(RunState state)
 {
     int ret = 0;

@@ -52,7 +52,7 @@ extern int madvise(caddr_t, size_t, int);
 
 static bool fips_enabled = false;
 
-static const char *qemu_version = QEMU_VERSION;
+static const char *hw_version = QEMU_VERSION;
 
 int socket_set_cork(int fd, int v)
 {
@@ -311,14 +311,14 @@ int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
     return ret;
 }
 
-void qemu_set_version(const char *version)
+void qemu_set_hw_version(const char *version)
 {
-    qemu_version = version;
+    hw_version = version;
 }
 
-const char *qemu_get_version(void)
+const char *qemu_hw_version(void)
 {
-    return qemu_version;
+    return hw_version;
 }
 
 void fips_set_state(bool requested)
