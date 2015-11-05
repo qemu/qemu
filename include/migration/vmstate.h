@@ -39,7 +39,7 @@ typedef struct SaveVMHandlers {
     void (*set_params)(const MigrationParams *params, void * opaque);
     SaveStateHandler *save_state;
 
-    void (*cancel)(void *opaque);
+    void (*cleanup)(void *opaque);
     int (*save_live_complete)(QEMUFile *f, void *opaque);
 
     /* This runs both outside and inside the iothread lock.  */

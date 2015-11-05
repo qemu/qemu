@@ -902,14 +902,14 @@ uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size)
     return ret;
 }
 
-void qemu_savevm_state_cancel(void)
+void qemu_savevm_state_cleanup(void)
 {
     SaveStateEntry *se;
 
-    trace_savevm_state_cancel();
+    trace_savevm_state_cleanup();
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
-        if (se->ops && se->ops->cancel) {
-            se->ops->cancel(se->opaque);
+        if (se->ops && se->ops->cleanup) {
+            se->ops->cleanup(se->opaque);
         }
     }
 }
@@ -943,7 +943,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         ret = qemu_file_get_error(f);
     }
     if (ret != 0) {
-        qemu_savevm_state_cancel();
+        qemu_savevm_state_cleanup();
         error_setg_errno(errp, -ret, "Error while writing VM state");
     }
     return ret;
