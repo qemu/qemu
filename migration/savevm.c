@@ -64,6 +64,8 @@ static struct mig_cmd_args {
     const char *name;
 } mig_cmd_args[] = {
     [MIG_CMD_INVALID]          = { .len = -1, .name = "INVALID" },
+    [MIG_CMD_OPEN_RETURN_PATH] = { .len =  0, .name = "OPEN_RETURN_PATH" },
+    [MIG_CMD_PING]             = { .len = sizeof(uint32_t), .name = "PING" },
     [MIG_CMD_MAX]              = { .len = -1, .name = "MAX" },
 };
 
@@ -724,6 +726,21 @@ void qemu_savevm_command_send(QEMUFile *f,
     qemu_fflush(f);
 }
 
+void qemu_savevm_send_ping(QEMUFile *f, uint32_t value)
+{
+    uint32_t buf;
+
+    trace_savevm_send_ping(value);
+    buf = cpu_to_be32(value);
+    qemu_savevm_command_send(f, MIG_CMD_PING, sizeof(value), (uint8_t *)&buf);
+}
+
+void qemu_savevm_send_open_return_path(QEMUFile *f)
+{
+    trace_savevm_send_open_return_path();
+    qemu_savevm_command_send(f, MIG_CMD_OPEN_RETURN_PATH, 0, NULL);
+}
+
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -1043,8 +1060,10 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
  */
 static int loadvm_process_command(QEMUFile *f)
 {
+    MigrationIncomingState *mis = migration_incoming_get_current();
     uint16_t cmd;
     uint16_t len;
+    uint32_t tmp32;
 
     cmd = qemu_get_be16(f);
     len = qemu_get_be16(f);
@@ -1063,7 +1082,29 @@ static int loadvm_process_command(QEMUFile *f)
     }
 
     switch (cmd) {
-        /* Filling added in next patch */
+    case MIG_CMD_OPEN_RETURN_PATH:
+        if (mis->to_src_file) {
+            error_report("CMD_OPEN_RETURN_PATH called when RP already open");
+            /* Not really a problem, so don't give up */
+            return 0;
+        }
+        mis->to_src_file = qemu_file_get_return_path(f);
+        if (!mis->to_src_file) {
+            error_report("CMD_OPEN_RETURN_PATH failed");
+            return -1;
+        }
+        break;
+
+    case MIG_CMD_PING:
+        tmp32 = qemu_get_be32(f);
+        trace_loadvm_process_command_ping(tmp32);
+        if (!mis->to_src_file) {
+            error_report("CMD_PING (0x%x) received with no return path",
+                         tmp32);
+            return -1;
+        }
+        /* migrate_send_rp_pong(mis, tmp32); TODO: gets added later */
+        break;
     }
 
     return 0;

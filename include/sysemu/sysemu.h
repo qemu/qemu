@@ -87,6 +87,8 @@ void qemu_announce_self(void);
 /* Subcommands for QEMU_VM_COMMAND */
 enum qemu_vm_cmd {
     MIG_CMD_INVALID = 0,   /* Must be 0 */
+    MIG_CMD_OPEN_RETURN_PATH,  /* Tell the dest to open the Return path */
+    MIG_CMD_PING,              /* Request a PONG on the RP */
     MIG_CMD_MAX
 };
 
@@ -100,6 +102,8 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f);
 uint64_t qemu_savevm_state_pending(QEMUFile *f, uint64_t max_size);
 void qemu_savevm_command_send(QEMUFile *f, enum qemu_vm_cmd command,
                               uint16_t len, uint8_t *data);
+void qemu_savevm_send_ping(QEMUFile *f, uint32_t value);
+void qemu_savevm_send_open_return_path(QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
 
 typedef enum DisplayType
