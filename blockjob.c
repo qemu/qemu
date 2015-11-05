@@ -188,43 +188,29 @@ struct BlockFinishData {
     int ret;
 };
 
-static void block_job_finish_cb(void *opaque, int ret)
-{
-    struct BlockFinishData *data = opaque;
-
-    data->cancelled = block_job_is_cancelled(data->job);
-    data->ret = ret;
-    data->cb(data->opaque, ret);
-}
-
 static int block_job_finish_sync(BlockJob *job,
                                  void (*finish)(BlockJob *, Error **errp),
                                  Error **errp)
 {
-    struct BlockFinishData data;
     BlockDriverState *bs = job->bs;
     Error *local_err = NULL;
+    int ret;
 
     assert(bs->job == job);
 
-    /* Set up our own callback to store the result and chain to
-     * the original callback.
-     */
-    data.job = job;
-    data.cb = job->cb;
-    data.opaque = job->opaque;
-    data.ret = -EINPROGRESS;
-    job->cb = block_job_finish_cb;
-    job->opaque = &data;
+    block_job_ref(job);
     finish(job, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        block_job_unref(job);
         return -EBUSY;
     }
-    while (data.ret == -EINPROGRESS) {
+    while (!job->completed) {
         aio_poll(bdrv_get_aio_context(bs), true);
     }
-    return (data.cancelled && data.ret == 0) ? -ECANCELED : data.ret;
+    ret = (job->cancelled && job->ret == 0) ? -ECANCELED : job->ret;
+    block_job_unref(job);
+    return ret;
 }
 
 /* A wrapper around block_job_cancel() taking an Error ** parameter so it may be
