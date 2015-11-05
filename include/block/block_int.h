@@ -669,6 +669,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  * @on_target_error: The action to take upon error writing to the target.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
+ * @txn: Transaction that this job is part of (may be NULL).
  *
  * Start a backup operation on @bs.  Clusters in @bs are written to @target
  * until the job is cancelled or manually completed.
@@ -679,7 +680,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb, void *opaque,
-                  Error **errp);
+                  BlockJobTxn *txn, Error **errp);
 
 void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
 
