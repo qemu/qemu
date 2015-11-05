@@ -668,6 +668,28 @@ void qmp_migrate_set_parameters(bool has_compress_level,
     }
 }
 
+void qmp_migrate_start_postcopy(Error **errp)
+{
+    MigrationState *s = migrate_get_current();
+
+    if (!migrate_postcopy_ram()) {
+        error_setg(errp, "Enable postcopy with migration_set_capability before"
+                         " the start of migration");
+        return;
+    }
+
+    if (s->state == MIGRATION_STATUS_NONE) {
+        error_setg(errp, "Postcopy must be started after migration has been"
+                         " started");
+        return;
+    }
+    /*
+     * we don't error if migration has finished since that would be racy
+     * with issuing this command.
+     */
+    atomic_set(&s->start_postcopy, true);
+}
+
 /* shared migration helpers */
 
 static void migrate_set_state(MigrationState *s, int old_state, int new_state)

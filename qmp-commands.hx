@@ -718,6 +718,25 @@ Example:
 
 EQMP
     {
+        .name       = "migrate-start-postcopy",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_migrate_start_postcopy,
+    },
+
+SQMP
+migrate-start-postcopy
+----------------------
+
+Switch an in-progress migration to postcopy mode. Ignored after the end of
+migration (or once already in postcopy).
+
+Example:
+-> { "execute": "migrate-start-postcopy" }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "query-migrate-cache-size",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_migrate_cache_size,

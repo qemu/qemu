@@ -1293,6 +1293,13 @@ void hmp_client_migrate_info(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
+void hmp_migrate_start_postcopy(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    qmp_migrate_start_postcopy(&err);
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_set_password(Monitor *mon, const QDict *qdict)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");

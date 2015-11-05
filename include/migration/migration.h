@@ -127,6 +127,9 @@ struct MigrationState
     int64_t xbzrle_cache_size;
     int64_t setup_time;
     int64_t dirty_sync_count;
+
+    /* Flag set once the migration has been asked to enter postcopy */
+    bool start_postcopy;
 };
 
 void process_incoming_migration(QEMUFile *f);
