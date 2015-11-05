@@ -1426,12 +1426,22 @@ flic_no_device_api(int err) "flic: no Device Contral API support %d"
 flic_reset_failed(int err) "flic: reset failed %d"
 
 # migration.c
+await_return_path_close_on_source_close(void) ""
+await_return_path_close_on_source_joining(void) ""
 migrate_set_state(int new_state) "new state %d"
 migrate_fd_cleanup(void) ""
 migrate_fd_error(void) ""
 migrate_fd_cancel(void) ""
 migrate_pending(uint64_t size, uint64_t max) "pending size %" PRIu64 " max %" PRIu64
 migrate_send_rp_message(int msg_type, uint16_t len) "%d: len %d"
+open_return_path_on_source(void) ""
+open_return_path_on_source_continue(void) ""
+source_return_path_thread_bad_end(void) ""
+source_return_path_thread_end(void) ""
+source_return_path_thread_entry(void) ""
+source_return_path_thread_loop_top(void) ""
+source_return_path_thread_pong(uint32_t val) "%x"
+source_return_path_thread_shut(uint32_t val) "%x"
 migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %g max_size %" PRId64
 migrate_state_too_big(void) ""
 migrate_global_state_post_load(const char *state) "loaded state: %s"

@@ -80,6 +80,14 @@ struct MigrationState
 
     int state;
     MigrationParams params;
+
+    /* State related to return path */
+    struct {
+        QEMUFile     *from_dst_file;
+        QemuThread    rp_thread;
+        bool          error;
+    } rp_state;
+
     double mbps;
     int64_t total_time;
     int64_t downtime;
