@@ -1592,12 +1592,22 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
     rcu_read_lock();
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
         ram_addr_t addr, total_ram_bytes;
-        void *host;
+        void *host = NULL;
         uint8_t ch;
 
         addr = qemu_get_be64(f);
         flags = addr & ~TARGET_PAGE_MASK;
         addr &= TARGET_PAGE_MASK;
+
+        if (flags & (RAM_SAVE_FLAG_COMPRESS | RAM_SAVE_FLAG_PAGE |
+                     RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
+            host = host_from_stream_offset(f, addr, flags);
+            if (!host) {
+                error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
+                ret = -EINVAL;
+                break;
+            }
+        }
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
         case RAM_SAVE_FLAG_MEM_SIZE:
@@ -1635,33 +1645,17 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 total_ram_bytes -= length;
             }
             break;
+
         case RAM_SAVE_FLAG_COMPRESS:
-            host = host_from_stream_offset(f, addr, flags);
-            if (!host) {
-                error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
-                ret = -EINVAL;
-                break;
-            }
             ch = qemu_get_byte(f);
             ram_handle_compressed(host, ch, TARGET_PAGE_SIZE);
             break;
+
         case RAM_SAVE_FLAG_PAGE:
-            host = host_from_stream_offset(f, addr, flags);
-            if (!host) {
-                error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
-                ret = -EINVAL;
-                break;
-            }
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
             break;
-        case RAM_SAVE_FLAG_COMPRESS_PAGE:
-            host = host_from_stream_offset(f, addr, flags);
-            if (!host) {
-                error_report("Invalid RAM offset " RAM_ADDR_FMT, addr);
-                ret = -EINVAL;
-                break;
-            }
 
+        case RAM_SAVE_FLAG_COMPRESS_PAGE:
             len = qemu_get_be32(f);
             if (len < 0 || len > compressBound(TARGET_PAGE_SIZE)) {
                 error_report("Invalid compressed data length: %d", len);
@@ -1671,13 +1665,8 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             qemu_get_buffer(f, compressed_data_buf, len);
             decompress_data_with_multi_threads(compressed_data_buf, host, len);
             break;
+
         case RAM_SAVE_FLAG_XBZRLE:
-            host = host_from_stream_offset(f, addr, flags);
-            if (!host) {
-                error_report("Illegal RAM offset " RAM_ADDR_FMT, addr);
-                ret = -EINVAL;
-                break;
-            }
             if (load_xbzrle(f, addr, host) < 0) {
                 error_report("Failed to decompress XBZRLE page at "
                              RAM_ADDR_FMT, addr);
