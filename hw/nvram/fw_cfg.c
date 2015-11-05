@@ -304,23 +304,6 @@ static uint64_t fw_cfg_data_read(void *opaque, hwaddr addr, unsigned size)
     return value;
 }
 
-static uint8_t fw_cfg_read(FWCfgState *s)
-{
-    int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
-    FWCfgEntry *e = (s->cur_entry == FW_CFG_INVALID) ? NULL :
-                    &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
-    uint8_t ret;
-
-    if (s->cur_entry == FW_CFG_INVALID || !e->data || s->cur_offset >= e->len)
-        ret = 0;
-    else {
-        ret = e->data[s->cur_offset++];
-    }
-
-    trace_fw_cfg_read(s, ret);
-    return ret;
-}
-
 static void fw_cfg_data_mem_write(void *opaque, hwaddr addr,
                                   uint64_t value, unsigned size)
 {
@@ -470,12 +453,6 @@ static bool fw_cfg_ctl_mem_valid(void *opaque, hwaddr addr,
     return is_write && size == 2;
 }
 
-static uint64_t fw_cfg_comb_read(void *opaque, hwaddr addr,
-                                 unsigned size)
-{
-    return fw_cfg_read(opaque);
-}
-
 static void fw_cfg_comb_write(void *opaque, hwaddr addr,
                               uint64_t value, unsigned size)
 {
@@ -513,7 +490,7 @@ static const MemoryRegionOps fw_cfg_data_mem_ops = {
 };
 
 static const MemoryRegionOps fw_cfg_comb_mem_ops = {
-    .read = fw_cfg_comb_read,
+    .read = fw_cfg_data_read,
     .write = fw_cfg_comb_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.accepts = fw_cfg_comb_valid,
