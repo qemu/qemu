@@ -1420,14 +1420,12 @@ static inline void *host_from_stream_offset(QEMUFile *f,
     qemu_get_buffer(f, (uint8_t *)id, len);
     id[len] = 0;
 
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        if (!strncmp(id, block->idstr, sizeof(id)) &&
-            block->max_length > offset) {
-            return block->host + offset;
-        }
+    block = qemu_ram_block_by_name(id);
+    if (block && block->max_length > offset) {
+        return block->host + offset;
     }
 
-    error_report("Can't find block %s!", id);
+    error_report("Can't find block %s", id);
     return NULL;
 }
 
@@ -1576,23 +1574,20 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 id[len] = 0;
                 length = qemu_get_be64(f);
 
-                QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-                    if (!strncmp(id, block->idstr, sizeof(id))) {
-                        if (length != block->used_length) {
-                            Error *local_err = NULL;
+                block = qemu_ram_block_by_name(id);
+                if (block) {
+                    if (length != block->used_length) {
+                        Error *local_err = NULL;
 
-                            ret = qemu_ram_resize(block->offset, length, &local_err);
-                            if (local_err) {
-                                error_report_err(local_err);
-                            }
+                        ret = qemu_ram_resize(block->offset, length,
+                                              &local_err);
+                        if (local_err) {
+                            error_report_err(local_err);
                         }
-                        ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,
-                                              block->idstr);
-                        break;
                     }
-                }
-
-                if (!block) {
+                    ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,
+                                          block->idstr);
+                } else {
                     error_report("Unknown ramblock \"%s\", cannot "
                                  "accept migration", id);
                     ret = -EINVAL;
