@@ -84,6 +84,7 @@ typedef struct IscsiTask {
     IscsiLun *iscsilun;
     QEMUTimer retry_timer;
     bool force_next_flush;
+    int err_code;
 } IscsiTask;
 
 typedef struct IscsiAIOCB {
@@ -169,18 +170,69 @@ static inline unsigned exp_random(double mean)
     return -mean * log((double)rand() / RAND_MAX);
 }
 
-/* SCSI_STATUS_TASK_SET_FULL and SCSI_STATUS_TIMEOUT were introduced
- * in libiscsi 1.10.0 as part of an enum. The LIBISCSI_API_VERSION
- * macro was introduced in 1.11.0. So use the API_VERSION macro as
- * a hint that the macros are defined and define them ourselves
- * otherwise to keep the required libiscsi version at 1.9.0 */
-#if !defined(LIBISCSI_API_VERSION)
-#define QEMU_SCSI_STATUS_TASK_SET_FULL  0x28
-#define QEMU_SCSI_STATUS_TIMEOUT        0x0f000002
-#else
-#define QEMU_SCSI_STATUS_TASK_SET_FULL  SCSI_STATUS_TASK_SET_FULL
-#define QEMU_SCSI_STATUS_TIMEOUT        SCSI_STATUS_TIMEOUT
+/* SCSI_SENSE_ASCQ_INVALID_FIELD_IN_PARAMETER_LIST was introduced in
+ * libiscsi 1.10.0, together with other constants we need.  Use it as
+ * a hint that we have to define them ourselves if needed, to keep the
+ * minimum required libiscsi version at 1.9.0.  We use an ASCQ macro for
+ * the test because SCSI_STATUS_* is an enum.
+ *
+ * To guard against future changes where SCSI_SENSE_ASCQ_* also becomes
+ * an enum, check against the LIBISCSI_API_VERSION macro, which was
+ * introduced in 1.11.0.  If it is present, there is no need to define
+ * anything.
+ */
+#if !defined(SCSI_SENSE_ASCQ_INVALID_FIELD_IN_PARAMETER_LIST) && \
+    !defined(LIBISCSI_API_VERSION)
+#define SCSI_STATUS_TASK_SET_FULL                          0x28
+#define SCSI_STATUS_TIMEOUT                                0x0f000002
+#define SCSI_SENSE_ASCQ_INVALID_FIELD_IN_PARAMETER_LIST    0x2600
+#define SCSI_SENSE_ASCQ_PARAMETER_LIST_LENGTH_ERROR        0x1a00
 #endif
+
+static int iscsi_translate_sense(struct scsi_sense *sense)
+{
+    int ret;
+
+    switch (sense->key) {
+    case SCSI_SENSE_NOT_READY:
+        return -EBUSY;
+    case SCSI_SENSE_DATA_PROTECTION:
+        return -EACCES;
+    case SCSI_SENSE_COMMAND_ABORTED:
+        return -ECANCELED;
+    case SCSI_SENSE_ILLEGAL_REQUEST:
+        /* Parse ASCQ */
+        break;
+    default:
+        return -EIO;
+    }
+    switch (sense->ascq) {
+    case SCSI_SENSE_ASCQ_PARAMETER_LIST_LENGTH_ERROR:
+    case SCSI_SENSE_ASCQ_INVALID_OPERATION_CODE:
+    case SCSI_SENSE_ASCQ_INVALID_FIELD_IN_CDB:
+    case SCSI_SENSE_ASCQ_INVALID_FIELD_IN_PARAMETER_LIST:
+        ret = -EINVAL;
+        break;
+    case SCSI_SENSE_ASCQ_LBA_OUT_OF_RANGE:
+        ret = -ENOSPC;
+        break;
+    case SCSI_SENSE_ASCQ_LOGICAL_UNIT_NOT_SUPPORTED:
+        ret = -ENOTSUP;
+        break;
+    case SCSI_SENSE_ASCQ_MEDIUM_NOT_PRESENT:
+    case SCSI_SENSE_ASCQ_MEDIUM_NOT_PRESENT_TRAY_CLOSED:
+    case SCSI_SENSE_ASCQ_MEDIUM_NOT_PRESENT_TRAY_OPEN:
+        ret = -ENOMEDIUM;
+        break;
+    case SCSI_SENSE_ASCQ_WRITE_PROTECTED:
+        ret = -EACCES;
+        break;
+    default:
+        ret = -EIO;
+        break;
+    }
+    return ret;
+}
 
 static void
 iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
@@ -203,11 +255,11 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 goto out;
             }
             if (status == SCSI_STATUS_BUSY ||
-                status == QEMU_SCSI_STATUS_TIMEOUT ||
-                status == QEMU_SCSI_STATUS_TASK_SET_FULL) {
+                status == SCSI_STATUS_TIMEOUT ||
+                status == SCSI_STATUS_TASK_SET_FULL) {
                 unsigned retry_time =
                     exp_random(iscsi_retry_times[iTask->retries - 1]);
-                if (status == QEMU_SCSI_STATUS_TIMEOUT) {
+                if (status == SCSI_STATUS_TIMEOUT) {
                     /* make sure the request is rescheduled AFTER the
                      * reconnect is initiated */
                     retry_time = EVENT_INTERVAL * 2;
@@ -226,6 +278,7 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
                 return;
             }
         }
+        iTask->err_code = iscsi_translate_sense(&task->sense);
         error_report("iSCSI Failure: %s", iscsi_get_error(iscsi));
     } else {
         iTask->iscsilun->force_next_flush |= iTask->force_next_flush;
@@ -455,7 +508,7 @@ retry:
     }
 
     if (iTask.status != SCSI_STATUS_GOOD) {
-        return -EIO;
+        return iTask.err_code;
     }
 
     iscsi_allocationmap_set(iscsilun, sector_num, nb_sectors);
@@ -644,7 +697,7 @@ retry:
     }
 
     if (iTask.status != SCSI_STATUS_GOOD) {
-        return -EIO;
+        return iTask.err_code;
     }
 
     return 0;
@@ -683,7 +736,7 @@ retry:
     }
 
     if (iTask.status != SCSI_STATUS_GOOD) {
-        return -EIO;
+        return iTask.err_code;
     }
 
     return 0;
@@ -703,7 +756,7 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     if (status < 0) {
         error_report("Failed to ioctl(SG_IO) to iSCSI lun. %s",
                      iscsi_get_error(iscsi));
-        acb->status = -EIO;
+        acb->status = iscsi_translate_sense(&acb->task->sense);
     }
 
     acb->ioh->driver_status = 0;
@@ -905,7 +958,7 @@ retry:
     }
 
     if (iTask.status != SCSI_STATUS_GOOD) {
-        return -EIO;
+        return iTask.err_code;
     }
 
     iscsi_allocationmap_clear(iscsilun, sector_num, nb_sectors);
@@ -999,7 +1052,7 @@ retry:
     }
 
     if (iTask.status != SCSI_STATUS_GOOD) {
-        return -EIO;
+        return iTask.err_code;
     }
 
     if (flags & BDRV_REQ_MAY_UNMAP) {
