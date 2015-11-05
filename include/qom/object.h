@@ -394,9 +394,6 @@ struct ObjectClass
  * As a result, #Object contains a reference to the objects type as its
  * first member.  This allows identification of the real type of the object at
  * run time.
- *
- * #Object also contains a list of #Interfaces that this object
- * implements.
  */
 struct Object
 {
