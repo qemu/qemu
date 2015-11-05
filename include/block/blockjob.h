@@ -130,6 +130,9 @@ struct BlockJob {
 
     /** The opaque value that is passed to the completion function.  */
     void *opaque;
+
+    /** Reference count of the block job */
+    int refcnt;
 };
 
 /**
@@ -174,12 +177,21 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
 void block_job_yield(BlockJob *job);
 
 /**
- * block_job_release:
+ * block_job_ref:
  * @bs: The block device.
  *
- * Release job resources when an error occurred or job completed.
+ * Grab a reference to the block job. Should be paired with block_job_unref.
  */
-void block_job_release(BlockDriverState *bs);
+void block_job_ref(BlockJob *job);
+
+/**
+ * block_job_unref:
+ * @bs: The block device.
+ *
+ * Release reference to the block job and release resources if it is the last
+ * reference.
+ */
+void block_job_unref(BlockJob *job);
 
 /**
  * block_job_completed:

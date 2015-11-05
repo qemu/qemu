@@ -283,32 +283,6 @@ typedef struct {
     BlockDriverState *bs;
 } BDRVPutRefBH;
 
-static void bdrv_put_ref_bh(void *opaque)
-{
-    BDRVPutRefBH *s = opaque;
-
-    bdrv_unref(s->bs);
-    qemu_bh_delete(s->bh);
-    g_free(s);
-}
-
-/*
- * Release a BDS reference in a BH
- *
- * It is not safe to use bdrv_unref() from a callback function when the callers
- * still need the BlockDriverState.  In such cases we schedule a BH to release
- * the reference.
- */
-static void bdrv_put_ref_bh_schedule(BlockDriverState *bs)
-{
-    BDRVPutRefBH *s;
-
-    s = g_new(BDRVPutRefBH, 1);
-    s->bh = qemu_bh_new(bdrv_put_ref_bh, s);
-    s->bs = bs;
-    qemu_bh_schedule(s->bh);
-}
-
 static int parse_block_error_action(const char *buf, bool is_read, Error **errp)
 {
     if (!strcmp(buf, "ignore")) {
@@ -2741,8 +2715,6 @@ static void block_job_cb(void *opaque, int ret)
     } else {
         block_job_event_completed(bs->job, msg);
     }
-
-    bdrv_put_ref_bh_schedule(bs);
 }
 
 void qmp_block_stream(const char *device,
