@@ -1584,6 +1584,171 @@ static int postcopy_each_ram_send_discard(MigrationState *ms)
 }
 
 /*
+ * Helper for postcopy_chunk_hostpages; it's called twice to cleanup
+ *   the two bitmaps, that are similar, but one is inverted.
+ *
+ * We search for runs of target-pages that don't start or end on a
+ * host page boundary;
+ * unsent_pass=true: Cleans up partially unsent host pages by searching
+ *                 the unsentmap
+ * unsent_pass=false: Cleans up partially dirty host pages by searching
+ *                 the main migration bitmap
+ *
+ */
+static void postcopy_chunk_hostpages_pass(MigrationState *ms, bool unsent_pass,
+                                          RAMBlock *block,
+                                          PostcopyDiscardState *pds)
+{
+    unsigned long *bitmap;
+    unsigned long *unsentmap;
+    unsigned int host_ratio = qemu_host_page_size / TARGET_PAGE_SIZE;
+    unsigned long first = block->offset >> TARGET_PAGE_BITS;
+    unsigned long len = block->used_length >> TARGET_PAGE_BITS;
+    unsigned long last = first + (len - 1);
+    unsigned long run_start;
+
+    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
+
+    if (unsent_pass) {
+        /* Find a sent page */
+        run_start = find_next_zero_bit(unsentmap, last + 1, first);
+    } else {
+        /* Find a dirty page */
+        run_start = find_next_bit(bitmap, last + 1, first);
+    }
+
+    while (run_start <= last) {
+        bool do_fixup = false;
+        unsigned long fixup_start_addr;
+        unsigned long host_offset;
+
+        /*
+         * If the start of this run of pages is in the middle of a host
+         * page, then we need to fixup this host page.
+         */
+        host_offset = run_start % host_ratio;
+        if (host_offset) {
+            do_fixup = true;
+            run_start -= host_offset;
+            fixup_start_addr = run_start;
+            /* For the next pass */
+            run_start = run_start + host_ratio;
+        } else {
+            /* Find the end of this run */
+            unsigned long run_end;
+            if (unsent_pass) {
+                run_end = find_next_bit(unsentmap, last + 1, run_start + 1);
+            } else {
+                run_end = find_next_zero_bit(bitmap, last + 1, run_start + 1);
+            }
+            /*
+             * If the end isn't at the start of a host page, then the
+             * run doesn't finish at the end of a host page
+             * and we need to discard.
+             */
+            host_offset = run_end % host_ratio;
+            if (host_offset) {
+                do_fixup = true;
+                fixup_start_addr = run_end - host_offset;
+                /*
+                 * This host page has gone, the next loop iteration starts
+                 * from after the fixup
+                 */
+                run_start = fixup_start_addr + host_ratio;
+            } else {
+                /*
+                 * No discards on this iteration, next loop starts from
+                 * next sent/dirty page
+                 */
+                run_start = run_end + 1;
+            }
+        }
+
+        if (do_fixup) {
+            unsigned long page;
+
+            /* Tell the destination to discard this page */
+            if (unsent_pass || !test_bit(fixup_start_addr, unsentmap)) {
+                /* For the unsent_pass we:
+                 *     discard partially sent pages
+                 * For the !unsent_pass (dirty) we:
+                 *     discard partially dirty pages that were sent
+                 *     (any partially sent pages were already discarded
+                 *     by the previous unsent_pass)
+                 */
+                postcopy_discard_send_range(ms, pds, fixup_start_addr,
+                                            host_ratio);
+            }
+
+            /* Clean up the bitmap */
+            for (page = fixup_start_addr;
+                 page < fixup_start_addr + host_ratio; page++) {
+                /* All pages in this host page are now not sent */
+                set_bit(page, unsentmap);
+
+                /*
+                 * Remark them as dirty, updating the count for any pages
+                 * that weren't previously dirty.
+                 */
+                migration_dirty_pages += !test_and_set_bit(page, bitmap);
+            }
+        }
+
+        if (unsent_pass) {
+            /* Find the next sent page for the next iteration */
+            run_start = find_next_zero_bit(unsentmap, last + 1,
+                                           run_start);
+        } else {
+            /* Find the next dirty page for the next iteration */
+            run_start = find_next_bit(bitmap, last + 1, run_start);
+        }
+    }
+}
+
+/*
+ * Utility for the outgoing postcopy code.
+ *
+ * Discard any partially sent host-page size chunks, mark any partially
+ * dirty host-page size chunks as all dirty.
+ *
+ * Returns: 0 on success
+ */
+static int postcopy_chunk_hostpages(MigrationState *ms)
+{
+    struct RAMBlock *block;
+
+    if (qemu_host_page_size == TARGET_PAGE_SIZE) {
+        /* Easy case - TPS==HPS - nothing to be done */
+        return 0;
+    }
+
+    /* Easiest way to make sure we don't resume in the middle of a host-page */
+    last_seen_block = NULL;
+    last_sent_block = NULL;
+    last_offset     = 0;
+
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        unsigned long first = block->offset >> TARGET_PAGE_BITS;
+
+        PostcopyDiscardState *pds =
+                         postcopy_discard_send_init(ms, first, block->idstr);
+
+        /* First pass: Discard all partially sent host pages */
+        postcopy_chunk_hostpages_pass(ms, true, block, pds);
+        /*
+         * Second pass: Ensure that all partially dirty host pages are made
+         * fully dirty.
+         */
+        postcopy_chunk_hostpages_pass(ms, false, block, pds);
+
+        postcopy_discard_send_finish(ms, pds);
+    } /* ram_list loop */
+
+    return 0;
+}
+
+/*
  * Transmit the set of pages to be discarded after precopy to the target
  * these are pages that:
  *     a) Have been previously transmitted but are now dirty again
@@ -1611,6 +1776,13 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
         error_report("migration ram resized during precopy phase");
         rcu_read_unlock();
         return -EINVAL;
+    }
+
+    /* Deal with TPS != HPS */
+    ret = postcopy_chunk_hostpages(ms);
+    if (ret) {
+        rcu_read_unlock();
+        return ret;
     }
 
     /*
