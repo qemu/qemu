@@ -578,6 +578,20 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     for (cap = params; cap; cap = cap->next) {
         s->enabled_capabilities[cap->value->capability] = cap->value->state;
     }
+
+    if (migrate_postcopy_ram()) {
+        if (migrate_use_compression()) {
+            /* The decompression threads asynchronously write into RAM
+             * rather than use the atomic copies needed to avoid
+             * userfaulting.  It should be possible to fix the decompression
+             * threads for compatibility in future.
+             */
+            error_report("Postcopy is not currently compatible with "
+                         "compression");
+            s->enabled_capabilities[MIGRATION_CAPABILITY_X_POSTCOPY_RAM] =
+                false;
+        }
+    }
 }
 
 void qmp_migrate_set_parameters(bool has_compress_level,
@@ -954,6 +968,15 @@ void qmp_migrate_set_downtime(double value, Error **errp)
     value *= 1e9;
     value = MAX(0, MIN(UINT64_MAX, value));
     max_downtime = (uint64_t)value;
+}
+
+bool migrate_postcopy_ram(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_X_POSTCOPY_RAM];
 }
 
 bool migrate_auto_converge(void)
