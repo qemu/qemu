@@ -96,6 +96,7 @@ struct MigrationIncomingState {
     int       userfault_fd;
     QEMUFile *to_src_file;
     QemuMutex rp_mutex;    /* We send replies from multiple threads */
+    void     *postcopy_tmp_page;
 
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;

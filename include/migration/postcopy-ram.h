@@ -69,4 +69,25 @@ void postcopy_discard_send_range(MigrationState *ms, PostcopyDiscardState *pds,
 void postcopy_discard_send_finish(MigrationState *ms,
                                   PostcopyDiscardState *pds);
 
+/*
+ * Place a page (from) at (host) efficiently
+ *    There are restrictions on how 'from' must be mapped, in general best
+ *    to use other postcopy_ routines to allocate.
+ * returns 0 on success
+ */
+int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from);
+
+/*
+ * Place a zero page at (host) atomically
+ * returns 0 on success
+ */
+int postcopy_place_page_zero(MigrationIncomingState *mis, void *host);
+
+/*
+ * Allocate a page of memory that can be mapped at a later point in time
+ * using postcopy_place_page
+ * Returns: Pointer to allocated page
+ */
+void *postcopy_get_tmp_page(MigrationIncomingState *mis);
+
 #endif

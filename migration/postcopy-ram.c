@@ -272,6 +272,10 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         return -1;
     }
 
+    if (mis->postcopy_tmp_page) {
+        munmap(mis->postcopy_tmp_page, getpagesize());
+        mis->postcopy_tmp_page = NULL;
+    }
     return 0;
 }
 
@@ -338,6 +342,83 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
     return 0;
 }
 
+/*
+ * Place a host page (from) at (host) atomically
+ * returns 0 on success
+ */
+int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from)
+{
+    struct uffdio_copy copy_struct;
+
+    copy_struct.dst = (uint64_t)(uintptr_t)host;
+    copy_struct.src = (uint64_t)(uintptr_t)from;
+    copy_struct.len = getpagesize();
+    copy_struct.mode = 0;
+
+    /* copy also acks to the kernel waking the stalled thread up
+     * TODO: We can inhibit that ack and only do it if it was requested
+     * which would be slightly cheaper, but we'd have to be careful
+     * of the order of updating our page state.
+     */
+    if (ioctl(mis->userfault_fd, UFFDIO_COPY, &copy_struct)) {
+        int e = errno;
+        error_report("%s: %s copy host: %p from: %p",
+                     __func__, strerror(e), host, from);
+
+        return -e;
+    }
+
+    trace_postcopy_place_page(host);
+    return 0;
+}
+
+/*
+ * Place a zero page at (host) atomically
+ * returns 0 on success
+ */
+int postcopy_place_page_zero(MigrationIncomingState *mis, void *host)
+{
+    struct uffdio_zeropage zero_struct;
+
+    zero_struct.range.start = (uint64_t)(uintptr_t)host;
+    zero_struct.range.len = getpagesize();
+    zero_struct.mode = 0;
+
+    if (ioctl(mis->userfault_fd, UFFDIO_ZEROPAGE, &zero_struct)) {
+        int e = errno;
+        error_report("%s: %s zero host: %p",
+                     __func__, strerror(e), host);
+
+        return -e;
+    }
+
+    trace_postcopy_place_page_zero(host);
+    return 0;
+}
+
+/*
+ * Returns a target page of memory that can be mapped at a later point in time
+ * using postcopy_place_page
+ * The same address is used repeatedly, postcopy_place_page just takes the
+ * backing page away.
+ * Returns: Pointer to allocated page
+ *
+ */
+void *postcopy_get_tmp_page(MigrationIncomingState *mis)
+{
+    if (!mis->postcopy_tmp_page) {
+        mis->postcopy_tmp_page = mmap(NULL, getpagesize(),
+                             PROT_READ | PROT_WRITE, MAP_PRIVATE |
+                             MAP_ANONYMOUS, -1, 0);
+        if (!mis->postcopy_tmp_page) {
+            error_report("%s: %s", __func__, strerror(errno));
+            return NULL;
+        }
+    }
+
+    return mis->postcopy_tmp_page;
+}
+
 #else
 /* No target OS support, stubs just fail */
 bool postcopy_ram_supported_by_host(void)
@@ -370,6 +451,25 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
     assert(0);
     return -1;
 }
+
+int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from)
+{
+    assert(0);
+    return -1;
+}
+
+int postcopy_place_page_zero(MigrationIncomingState *mis, void *host)
+{
+    assert(0);
+    return -1;
+}
+
+void *postcopy_get_tmp_page(MigrationIncomingState *mis)
+{
+    assert(0);
+    return NULL;
+}
+
 #endif
 
 /* ------------------------------------------------------------------------- */

@@ -1551,6 +1551,8 @@ postcopy_discard_send_range(const char *ramblock, unsigned long start, unsigned 
 postcopy_ram_discard_range(void *start, size_t length) "%p,+%zx"
 postcopy_cleanup_range(const char *ramblock, void *host_addr, size_t offset, size_t length) "%s: %p offset=%zx length=%zx"
 postcopy_init_range(const char *ramblock, void *host_addr, size_t offset, size_t length) "%s: %p offset=%zx length=%zx"
+postcopy_place_page(void *host_addr) "host=%p"
+postcopy_place_page_zero(void *host_addr) "host=%p"
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
