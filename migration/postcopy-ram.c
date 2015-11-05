@@ -24,6 +24,7 @@
 #include "migration/migration.h"
 #include "migration/postcopy-ram.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/balloon.h"
 #include "qemu/error-report.h"
 #include "trace.h"
 
@@ -308,6 +309,8 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         mis->have_fault_thread = false;
     }
 
+    qemu_balloon_inhibit(false);
+
     if (enable_mlock) {
         if (os_mlock() < 0) {
             error_report("mlock: %s", strerror(errno));
@@ -532,6 +535,12 @@ int postcopy_ram_enable_notify(MigrationIncomingState *mis)
     if (qemu_ram_foreach_block(ram_block_enable_notify, mis)) {
         return -1;
     }
+
+    /*
+     * Ballooning can mark pages as absent while we're postcopying
+     * that would cause false userfaults.
+     */
+    qemu_balloon_inhibit(true);
 
     trace_postcopy_ram_enable_notify();
 

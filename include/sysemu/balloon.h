@@ -22,5 +22,7 @@ typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);
 int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
 			     QEMUBalloonStatus *stat_func, void *opaque);
 void qemu_remove_balloon_handler(void *opaque);
+bool qemu_balloon_is_inhibited(void);
+void qemu_balloon_inhibit(bool state);
 
 #endif
