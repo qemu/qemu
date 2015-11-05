@@ -444,6 +444,23 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     return params;
 }
 
+/*
+ * Return true if we're already in the middle of a migration
+ * (i.e. any of the active or setup states)
+ */
+static bool migration_is_setup_or_active(int state)
+{
+    switch (state) {
+    case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_SETUP:
+        return true;
+
+    default:
+        return false;
+
+    }
+}
+
 static void get_xbzrle_cache_stats(MigrationInfo *info)
 {
     if (migrate_use_xbzrle()) {
@@ -551,8 +568,7 @@ void qmp_migrate_set_capabilities(MigrationCapabilityStatusList *params,
     MigrationState *s = migrate_get_current();
     MigrationCapabilityStatusList *cap;
 
-    if (s->state == MIGRATION_STATUS_ACTIVE ||
-        s->state == MIGRATION_STATUS_SETUP) {
+    if (migration_is_setup_or_active(s->state)) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
     }
@@ -682,8 +698,7 @@ static void migrate_fd_cancel(MigrationState *s)
 
     do {
         old_state = s->state;
-        if (old_state != MIGRATION_STATUS_SETUP &&
-            old_state != MIGRATION_STATUS_ACTIVE) {
+        if (!migration_is_setup_or_active(old_state)) {
             break;
         }
         migrate_set_state(s, old_state, MIGRATION_STATUS_CANCELLING);
@@ -815,8 +830,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     params.blk = has_blk && blk;
     params.shared = has_inc && inc;
 
-    if (s->state == MIGRATION_STATUS_ACTIVE ||
-        s->state == MIGRATION_STATUS_SETUP ||
+    if (migration_is_setup_or_active(s->state) ||
         s->state == MIGRATION_STATUS_CANCELLING) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
         return;
