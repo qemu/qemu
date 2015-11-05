@@ -252,7 +252,8 @@ static void fw_cfg_write(FWCfgState *s, uint8_t value)
 
 static int fw_cfg_select(FWCfgState *s, uint16_t key)
 {
-    int ret;
+    int arch, ret;
+    FWCfgEntry *e;
 
     s->cur_offset = 0;
     if ((key & FW_CFG_ENTRY_MASK) >= FW_CFG_MAX_ENTRY) {
@@ -261,6 +262,12 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
     } else {
         s->cur_entry = key;
         ret = 1;
+        /* entry successfully selected, now run callback if present */
+        arch = !!(key & FW_CFG_ARCH_LOCAL);
+        e = &s->entries[arch][key & FW_CFG_ENTRY_MASK];
+        if (e->read_callback) {
+            e->read_callback(e->callback_opaque, s->cur_offset);
+        }
     }
 
     trace_fw_cfg_select(s, key, ret);
@@ -276,9 +283,6 @@ static uint8_t fw_cfg_read(FWCfgState *s)
     if (s->cur_entry == FW_CFG_INVALID || !e->data || s->cur_offset >= e->len)
         ret = 0;
     else {
-        if (e->read_callback) {
-            e->read_callback(e->callback_opaque, s->cur_offset);
-        }
         ret = e->data[s->cur_offset++];
     }
 
@@ -369,10 +373,6 @@ static void fw_cfg_dma_transfer(FWCfgState *s)
                 len = dma.length;
             } else {
                 len = (e->len - s->cur_offset);
-            }
-
-            if (e->read_callback) {
-                e->read_callback(e->callback_opaque, s->cur_offset);
             }
 
             /* If the access is not a read access, it will be a skip access,
@@ -513,7 +513,8 @@ static void fw_cfg_reset(DeviceState *d)
 {
     FWCfgState *s = FW_CFG(d);
 
-    fw_cfg_select(s, 0);
+    /* we never register a read callback for FW_CFG_SIGNATURE */
+    fw_cfg_select(s, FW_CFG_SIGNATURE);
 }
 
 /* Save restore 32 bit int as uint16_t

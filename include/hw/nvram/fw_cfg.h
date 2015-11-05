@@ -183,13 +183,9 @@ void fw_cfg_add_file(FWCfgState *s, const char *filename, void *data,
  * structure residing at key value FW_CFG_FILE_DIR, containing the item name,
  * data size, and assigned selector key value.
  * Additionally, set a callback function (and argument) to be called each
- * time a byte is read by the guest from this particular item, or, in the
- * case of DMA, each time a read or skip request overlaps with the valid
- * offset range of the item.
- * NOTE: In addition to the opaque argument set here, the callback function
- * takes the current data offset as an additional argument, allowing it the
- * option of only acting upon specific offset values (e.g., 0, before the
- * first data byte of the selected item is returned to the guest).
+ * time this item is selected (by having its selector key either written to
+ * the fw_cfg control register, or passed to QEMU in FWCfgDmaAccess.control
+ * with FW_CFG_DMA_CTL_SELECT).
  */
 void fw_cfg_add_file_callback(FWCfgState *s, const char *filename,
                               FWCfgReadCallback callback, void *callback_opaque,
