@@ -1554,6 +1554,15 @@ postcopy_cleanup_range(const char *ramblock, void *host_addr, size_t offset, siz
 postcopy_init_range(const char *ramblock, void *host_addr, size_t offset, size_t length) "%s: %p offset=%zx length=%zx"
 postcopy_place_page(void *host_addr) "host=%p"
 postcopy_place_page_zero(void *host_addr) "host=%p"
+postcopy_ram_enable_notify(void) ""
+postcopy_ram_fault_thread_entry(void) ""
+postcopy_ram_fault_thread_exit(void) ""
+postcopy_ram_fault_thread_quit(void) ""
+postcopy_ram_fault_thread_request(uint64_t hostaddr, const char *ramblock, size_t offset) "Request for HVA=%" PRIx64 " rb=%s offset=%zx"
+postcopy_ram_incoming_cleanup_closeuf(void) ""
+postcopy_ram_incoming_cleanup_entry(void) ""
+postcopy_ram_incoming_cleanup_exit(void) ""
+postcopy_ram_incoming_cleanup_join(void) ""
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"

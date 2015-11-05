@@ -51,6 +51,8 @@ struct PostcopyDiscardState {
  */
 #if defined(__linux__)
 
+#include <poll.h>
+#include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
@@ -267,15 +269,41 @@ int postcopy_ram_incoming_init(MigrationIncomingState *mis, size_t ram_pages)
  */
 int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
 {
-    /* TODO: Join the fault thread once we're sure it will exit */
-    if (qemu_ram_foreach_block(cleanup_range, mis)) {
-        return -1;
+    trace_postcopy_ram_incoming_cleanup_entry();
+
+    if (mis->have_fault_thread) {
+        uint64_t tmp64;
+
+        if (qemu_ram_foreach_block(cleanup_range, mis)) {
+            return -1;
+        }
+        /*
+         * Tell the fault_thread to exit, it's an eventfd that should
+         * currently be at 0, we're going to increment it to 1
+         */
+        tmp64 = 1;
+        if (write(mis->userfault_quit_fd, &tmp64, 8) == 8) {
+            trace_postcopy_ram_incoming_cleanup_join();
+            qemu_thread_join(&mis->fault_thread);
+        } else {
+            /* Not much we can do here, but may as well report it */
+            error_report("%s: incrementing userfault_quit_fd: %s", __func__,
+                         strerror(errno));
+        }
+        trace_postcopy_ram_incoming_cleanup_closeuf();
+        close(mis->userfault_fd);
+        close(mis->userfault_quit_fd);
+        mis->have_fault_thread = false;
     }
+
+    postcopy_state_set(POSTCOPY_INCOMING_END);
+    migrate_send_rp_shut(mis, qemu_file_get_error(mis->from_src_file) != 0);
 
     if (mis->postcopy_tmp_page) {
         munmap(mis->postcopy_tmp_page, getpagesize());
         mis->postcopy_tmp_page = NULL;
     }
+    trace_postcopy_ram_incoming_cleanup_exit();
     return 0;
 }
 
@@ -314,30 +342,139 @@ static int ram_block_enable_notify(const char *block_name, void *host_addr,
 static void *postcopy_ram_fault_thread(void *opaque)
 {
     MigrationIncomingState *mis = opaque;
+    struct uffd_msg msg;
+    int ret;
+    size_t hostpagesize = getpagesize();
+    RAMBlock *rb = NULL;
+    RAMBlock *last_rb = NULL; /* last RAMBlock we sent part of */
 
-    fprintf(stderr, "postcopy_ram_fault_thread\n");
-    /* TODO: In later patch */
+    trace_postcopy_ram_fault_thread_entry();
     qemu_sem_post(&mis->fault_thread_sem);
-    while (1) {
-        /* TODO: In later patch */
-    }
 
+    while (true) {
+        ram_addr_t rb_offset;
+        ram_addr_t in_raspace;
+        struct pollfd pfd[2];
+
+        /*
+         * We're mainly waiting for the kernel to give us a faulting HVA,
+         * however we can be told to quit via userfault_quit_fd which is
+         * an eventfd
+         */
+        pfd[0].fd = mis->userfault_fd;
+        pfd[0].events = POLLIN;
+        pfd[0].revents = 0;
+        pfd[1].fd = mis->userfault_quit_fd;
+        pfd[1].events = POLLIN; /* Waiting for eventfd to go positive */
+        pfd[1].revents = 0;
+
+        if (poll(pfd, 2, -1 /* Wait forever */) == -1) {
+            error_report("%s: userfault poll: %s", __func__, strerror(errno));
+            break;
+        }
+
+        if (pfd[1].revents) {
+            trace_postcopy_ram_fault_thread_quit();
+            break;
+        }
+
+        ret = read(mis->userfault_fd, &msg, sizeof(msg));
+        if (ret != sizeof(msg)) {
+            if (errno == EAGAIN) {
+                /*
+                 * if a wake up happens on the other thread just after
+                 * the poll, there is nothing to read.
+                 */
+                continue;
+            }
+            if (ret < 0) {
+                error_report("%s: Failed to read full userfault message: %s",
+                             __func__, strerror(errno));
+                break;
+            } else {
+                error_report("%s: Read %d bytes from userfaultfd expected %zd",
+                             __func__, ret, sizeof(msg));
+                break; /* Lost alignment, don't know what we'd read next */
+            }
+        }
+        if (msg.event != UFFD_EVENT_PAGEFAULT) {
+            error_report("%s: Read unexpected event %ud from userfaultfd",
+                         __func__, msg.event);
+            continue; /* It's not a page fault, shouldn't happen */
+        }
+
+        rb = qemu_ram_block_from_host(
+                 (void *)(uintptr_t)msg.arg.pagefault.address,
+                 true, &in_raspace, &rb_offset);
+        if (!rb) {
+            error_report("postcopy_ram_fault_thread: Fault outside guest: %"
+                         PRIx64, (uint64_t)msg.arg.pagefault.address);
+            break;
+        }
+
+        rb_offset &= ~(hostpagesize - 1);
+        trace_postcopy_ram_fault_thread_request(msg.arg.pagefault.address,
+                                                qemu_ram_get_idstr(rb),
+                                                rb_offset);
+
+        /*
+         * Send the request to the source - we want to request one
+         * of our host page sizes (which is >= TPS)
+         */
+        if (rb != last_rb) {
+            last_rb = rb;
+            migrate_send_rp_req_pages(mis, qemu_ram_get_idstr(rb),
+                                     rb_offset, hostpagesize);
+        } else {
+            /* Save some space */
+            migrate_send_rp_req_pages(mis, NULL,
+                                     rb_offset, hostpagesize);
+        }
+    }
+    trace_postcopy_ram_fault_thread_exit();
     return NULL;
 }
 
 int postcopy_ram_enable_notify(MigrationIncomingState *mis)
 {
-    /* Create the fault handler thread and wait for it to be ready */
+    /* Open the fd for the kernel to give us userfaults */
+    mis->userfault_fd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+    if (mis->userfault_fd == -1) {
+        error_report("%s: Failed to open userfault fd: %s", __func__,
+                     strerror(errno));
+        return -1;
+    }
+
+    /*
+     * Although the host check already tested the API, we need to
+     * do the check again as an ABI handshake on the new fd.
+     */
+    if (!ufd_version_check(mis->userfault_fd)) {
+        return -1;
+    }
+
+    /* Now an eventfd we use to tell the fault-thread to quit */
+    mis->userfault_quit_fd = eventfd(0, EFD_CLOEXEC);
+    if (mis->userfault_quit_fd == -1) {
+        error_report("%s: Opening userfault_quit_fd: %s", __func__,
+                     strerror(errno));
+        close(mis->userfault_fd);
+        return -1;
+    }
+
     qemu_sem_init(&mis->fault_thread_sem, 0);
     qemu_thread_create(&mis->fault_thread, "postcopy/fault",
                        postcopy_ram_fault_thread, mis, QEMU_THREAD_JOINABLE);
     qemu_sem_wait(&mis->fault_thread_sem);
     qemu_sem_destroy(&mis->fault_thread_sem);
+    mis->have_fault_thread = true;
 
     /* Mark so that we get notified of accesses to unwritten areas */
     if (qemu_ram_foreach_block(ram_block_enable_notify, mis)) {
         return -1;
     }
+
+    trace_postcopy_ram_enable_notify();
 
     return 0;
 }
