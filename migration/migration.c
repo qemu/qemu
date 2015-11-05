@@ -325,12 +325,36 @@ static void process_incoming_migration_co(void *opaque)
 {
     QEMUFile *f = opaque;
     Error *local_err = NULL;
+    MigrationIncomingState *mis;
+    PostcopyState ps;
     int ret;
 
-    migration_incoming_state_new(f);
+    mis = migration_incoming_state_new(f);
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_generate_event(MIGRATION_STATUS_ACTIVE);
+
     ret = qemu_loadvm_state(f);
+
+    ps = postcopy_state_get();
+    trace_process_incoming_migration_co_end(ret, ps);
+    if (ps != POSTCOPY_INCOMING_NONE) {
+        if (ps == POSTCOPY_INCOMING_ADVISE) {
+            /*
+             * Where a migration had postcopy enabled (and thus went to advise)
+             * but managed to complete within the precopy period, we can use
+             * the normal exit.
+             */
+            postcopy_ram_incoming_cleanup(mis);
+        } else if (ret >= 0) {
+            /*
+             * Postcopy was started, cleanup should happen at the end of the
+             * postcopy thread.
+             */
+            trace_process_incoming_migration_co_postcopy_end_main();
+            return;
+        }
+        /* Else if something went wrong then just fall out of the normal exit */
+    }
 
     qemu_fclose(f);
     free_xbzrle_decoded_buf();
