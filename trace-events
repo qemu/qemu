@@ -1431,6 +1431,7 @@ migrate_fd_cleanup(void) ""
 migrate_fd_error(void) ""
 migrate_fd_cancel(void) ""
 migrate_pending(uint64_t size, uint64_t max) "pending size %" PRIu64 " max %" PRIu64
+migrate_send_rp_message(int msg_type, uint16_t len) "%d: len %d"
 migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, uint64_t size) "transferred %" PRIu64 " time_spent %" PRIu64 " bandwidth %g max_size %" PRId64
 migrate_state_too_big(void) ""
 migrate_global_state_post_load(const char *state) "loaded state: %s"

@@ -97,6 +97,7 @@ MigrationIncomingState *migration_incoming_state_new(QEMUFile* f)
     mis_current = g_new0(MigrationIncomingState, 1);
     mis_current->from_src_file = f;
     QLIST_INIT(&mis_current->loadvm_handlers);
+    qemu_mutex_init(&mis_current->rp_mutex);
 
     return mis_current;
 }
@@ -342,6 +343,50 @@ void process_incoming_migration(QEMUFile *f)
     migrate_decompress_threads_create();
     qemu_set_nonblock(fd);
     qemu_coroutine_enter(co, f);
+}
+
+/*
+ * Send a message on the return channel back to the source
+ * of the migration.
+ */
+void migrate_send_rp_message(MigrationIncomingState *mis,
+                             enum mig_rp_message_type message_type,
+                             uint16_t len, void *data)
+{
+    trace_migrate_send_rp_message((int)message_type, len);
+    qemu_mutex_lock(&mis->rp_mutex);
+    qemu_put_be16(mis->to_src_file, (unsigned int)message_type);
+    qemu_put_be16(mis->to_src_file, len);
+    qemu_put_buffer(mis->to_src_file, data, len);
+    qemu_fflush(mis->to_src_file);
+    qemu_mutex_unlock(&mis->rp_mutex);
+}
+
+/*
+ * Send a 'SHUT' message on the return channel with the given value
+ * to indicate that we've finished with the RP.  Non-0 value indicates
+ * error.
+ */
+void migrate_send_rp_shut(MigrationIncomingState *mis,
+                          uint32_t value)
+{
+    uint32_t buf;
+
+    buf = cpu_to_be32(value);
+    migrate_send_rp_message(mis, MIG_RP_MSG_SHUT, sizeof(buf), &buf);
+}
+
+/*
+ * Send a 'PONG' message on the return channel with the given value
+ * (normally in response to a 'PING')
+ */
+void migrate_send_rp_pong(MigrationIncomingState *mis,
+                          uint32_t value)
+{
+    uint32_t buf;
+
+    buf = cpu_to_be32(value);
+    migrate_send_rp_message(mis, MIG_RP_MSG_PONG, sizeof(buf), &buf);
 }
 
 /* amount of nanoseconds we are willing to wait for migration to be down.
