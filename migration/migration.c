@@ -1243,10 +1243,12 @@ static int await_return_path_close_on_source(MigrationState *ms)
  *   The caller 'breaks' the loop when this returns.
  *
  * @s: Current migration state
+ * @current_active_state: The migration state we expect to be in
  * @*old_vm_running: Pointer to old_vm_running flag
  * @*start_time: Pointer to time to update
  */
-static void migration_completion(MigrationState *s, bool *old_vm_running,
+static void migration_completion(MigrationState *s, int current_active_state,
+                                 bool *old_vm_running,
                                  int64_t *start_time)
 {
     int ret;
@@ -1275,11 +1277,11 @@ static void migration_completion(MigrationState *s, bool *old_vm_running,
         goto fail;
     }
 
-    migrate_set_state(s, MIGRATION_STATUS_ACTIVE, MIGRATION_STATUS_COMPLETED);
+    migrate_set_state(s, current_active_state, MIGRATION_STATUS_COMPLETED);
     return;
 
 fail:
-    migrate_set_state(s, MIGRATION_STATUS_ACTIVE, MIGRATION_STATUS_FAILED);
+    migrate_set_state(s, current_active_state, MIGRATION_STATUS_FAILED);
 }
 
 /*
@@ -1321,7 +1323,8 @@ static void *migration_thread(void *opaque)
                 qemu_savevm_state_iterate(s->file);
             } else {
                 trace_migration_thread_low_pending(pending_size);
-                migration_completion(s, &old_vm_running, &start_time);
+                migration_completion(s, MIGRATION_STATUS_ACTIVE,
+                                     &old_vm_running, &start_time);
                 break;
             }
         }
