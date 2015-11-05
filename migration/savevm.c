@@ -1380,6 +1380,65 @@ static int loadvm_postcopy_ram_handle_discard(MigrationIncomingState *mis,
     return 0;
 }
 
+/*
+ * Triggered by a postcopy_listen command; this thread takes over reading
+ * the input stream, leaving the main thread free to carry on loading the rest
+ * of the device state (from RAM).
+ * (TODO:This could do with being in a postcopy file - but there again it's
+ * just another input loop, not that postcopy specific)
+ */
+static void *postcopy_ram_listen_thread(void *opaque)
+{
+    QEMUFile *f = opaque;
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    int load_res;
+
+    qemu_sem_post(&mis->listen_thread_sem);
+    trace_postcopy_ram_listen_thread_start();
+
+    /*
+     * Because we're a thread and not a coroutine we can't yield
+     * in qemu_file, and thus we must be blocking now.
+     */
+    qemu_file_set_blocking(f, true);
+    load_res = qemu_loadvm_state_main(f, mis);
+    /* And non-blocking again so we don't block in any cleanup */
+    qemu_file_set_blocking(f, false);
+
+    trace_postcopy_ram_listen_thread_exit();
+    if (load_res < 0) {
+        error_report("%s: loadvm failed: %d", __func__, load_res);
+        qemu_file_set_error(f, load_res);
+    } else {
+        /*
+         * This looks good, but it's possible that the device loading in the
+         * main thread hasn't finished yet, and so we might not be in 'RUN'
+         * state yet; wait for the end of the main thread.
+         */
+        qemu_event_wait(&mis->main_thread_load_event);
+    }
+    postcopy_ram_incoming_cleanup(mis);
+    /*
+     * If everything has worked fine, then the main thread has waited
+     * for us to start, and we're the last use of the mis.
+     * (If something broke then qemu will have to exit anyway since it's
+     * got a bad migration state).
+     */
+    migration_incoming_state_destroy();
+
+    if (load_res < 0) {
+        /*
+         * If something went wrong then we have a bad state so exit;
+         * depending how far we got it might be possible at this point
+         * to leave the guest running and fire MCEs for pages that never
+         * arrived as a desperate recovery step.
+         */
+        exit(EXIT_FAILURE);
+    }
+
+    return NULL;
+}
+
 /* After this message we must be able to immediately receive postcopy data */
 static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
 {
@@ -1399,7 +1458,20 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
         return -1;
     }
 
-    /* TODO start up the postcopy listening thread */
+    if (mis->have_listen_thread) {
+        error_report("CMD_POSTCOPY_RAM_LISTEN already has a listen thread");
+        return -1;
+    }
+
+    mis->have_listen_thread = true;
+    /* Start up the listening thread and wait for it to signal ready */
+    qemu_sem_init(&mis->listen_thread_sem, 0);
+    qemu_thread_create(&mis->listen_thread, "postcopy/listen",
+                       postcopy_ram_listen_thread, mis->from_src_file,
+                       QEMU_THREAD_JOINABLE);
+    qemu_sem_wait(&mis->listen_thread_sem);
+    qemu_sem_destroy(&mis->listen_thread_sem);
+
     return 0;
 }
 
@@ -1744,6 +1816,11 @@ int qemu_loadvm_state(QEMUFile *f)
     qemu_event_set(&mis->main_thread_load_event);
 
     trace_qemu_loadvm_state_post_main(ret);
+
+    if (mis->have_listen_thread) {
+        /* Listen thread still going, can't clean up yet */
+        return ret;
+    }
 
     if (ret == 0) {
         ret = qemu_file_get_error(f);

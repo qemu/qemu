@@ -93,6 +93,10 @@ struct MigrationIncomingState {
     QemuThread     fault_thread;
     QemuSemaphore  fault_thread_sem;
 
+    bool           have_listen_thread;
+    QemuThread     listen_thread;
+    QemuSemaphore  listen_thread_sem;
+
     /* For the kernel to send us notifications */
     int       userfault_fd;
     /* To tell the fault_thread to quit */

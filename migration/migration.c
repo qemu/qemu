@@ -1441,6 +1441,12 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
         goto fail;
     }
 
+    /*
+     * Make sure the receiver can get incoming pages before we send the rest
+     * of the state
+     */
+    qemu_savevm_send_postcopy_listen(fb);
+
     qemu_savevm_state_complete_precopy(fb);
     qemu_savevm_send_ping(fb, 3);
 
