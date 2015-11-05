@@ -170,6 +170,8 @@ MigrationState *migrate_init(const MigrationParams *params);
 bool migration_in_setup(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
+/* True if outgoing migration has entered postcopy phase */
+bool migration_in_postcopy(MigrationState *);
 MigrationState *migrate_get_current(void);
 
 void migrate_compress_threads_create(void);

@@ -462,6 +462,7 @@ static bool migration_is_setup_or_active(int state)
 {
     switch (state) {
     case MIGRATION_STATUS_ACTIVE:
+    case MIGRATION_STATUS_POSTCOPY_ACTIVE:
     case MIGRATION_STATUS_SETUP:
         return true;
 
@@ -533,6 +534,39 @@ MigrationInfo *qmp_query_migrate(Error **errp)
         if (cpu_throttle_active()) {
             info->has_x_cpu_throttle_percentage = true;
             info->x_cpu_throttle_percentage = cpu_throttle_get_percentage();
+        }
+
+        get_xbzrle_cache_stats(info);
+        break;
+    case MIGRATION_STATUS_POSTCOPY_ACTIVE:
+        /* Mostly the same as active; TODO add some postcopy stats */
+        info->has_status = true;
+        info->has_total_time = true;
+        info->total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME)
+            - s->total_time;
+        info->has_expected_downtime = true;
+        info->expected_downtime = s->expected_downtime;
+        info->has_setup_time = true;
+        info->setup_time = s->setup_time;
+
+        info->has_ram = true;
+        info->ram = g_malloc0(sizeof(*info->ram));
+        info->ram->transferred = ram_bytes_transferred();
+        info->ram->remaining = ram_bytes_remaining();
+        info->ram->total = ram_bytes_total();
+        info->ram->duplicate = dup_mig_pages_transferred();
+        info->ram->skipped = skipped_mig_pages_transferred();
+        info->ram->normal = norm_mig_pages_transferred();
+        info->ram->normal_bytes = norm_mig_bytes_transferred();
+        info->ram->dirty_pages_rate = s->dirty_pages_rate;
+        info->ram->mbps = s->mbps;
+
+        if (blk_mig_active()) {
+            info->has_disk = true;
+            info->disk = g_malloc0(sizeof(*info->disk));
+            info->disk->transferred = blk_mig_bytes_transferred();
+            info->disk->remaining = blk_mig_bytes_remaining();
+            info->disk->total = blk_mig_bytes_total();
         }
 
         get_xbzrle_cache_stats(info);
@@ -718,7 +752,8 @@ static void migrate_fd_cleanup(void *opaque)
         s->file = NULL;
     }
 
-    assert(s->state != MIGRATION_STATUS_ACTIVE);
+    assert((s->state != MIGRATION_STATUS_ACTIVE) &&
+           (s->state != MIGRATION_STATUS_POSTCOPY_ACTIVE));
 
     if (s->state == MIGRATION_STATUS_CANCELLING) {
         migrate_set_state(s, MIGRATION_STATUS_CANCELLING,
@@ -791,6 +826,11 @@ bool migration_has_failed(MigrationState *s)
 {
     return (s->state == MIGRATION_STATUS_CANCELLED ||
             s->state == MIGRATION_STATUS_FAILED);
+}
+
+bool migration_in_postcopy(MigrationState *s)
+{
+    return (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
 MigrationState *migrate_init(const MigrationParams *params)
@@ -1307,7 +1347,10 @@ static void *migration_thread(void *opaque)
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     migrate_set_state(s, MIGRATION_STATUS_SETUP, MIGRATION_STATUS_ACTIVE);
 
-    while (s->state == MIGRATION_STATUS_ACTIVE) {
+    trace_migration_thread_setup_complete();
+
+    while (s->state == MIGRATION_STATUS_ACTIVE ||
+           s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
         int64_t current_time;
         uint64_t pending_size;
 
