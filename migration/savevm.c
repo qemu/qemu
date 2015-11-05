@@ -974,7 +974,8 @@ int qemu_savevm_state_iterate(QEMUFile *f)
 static bool should_send_vmdesc(void)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
-    return !machine->suppress_vmdesc;
+    bool in_postcopy = migration_in_postcopy(migrate_get_current());
+    return !machine->suppress_vmdesc && !in_postcopy;
 }
 
 void qemu_savevm_state_complete_precopy(QEMUFile *f)
