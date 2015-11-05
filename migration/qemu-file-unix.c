@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 #include "qemu/coroutine.h"
@@ -39,12 +40,43 @@ static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
     QEMUFileSocket *s = opaque;
     ssize_t len;
     ssize_t size = iov_size(iov, iovcnt);
+    ssize_t offset = 0;
+    int     err;
 
-    len = iov_send(s->fd, iov, iovcnt, 0, size);
-    if (len < size) {
-        len = -socket_error();
-    }
-    return len;
+    while (size > 0) {
+        len = iov_send(s->fd, iov, iovcnt, offset, size);
+
+        if (len > 0) {
+            size -= len;
+            offset += len;
+        }
+
+        if (size > 0) {
+            err = socket_error();
+
+            if (err != EAGAIN && err != EWOULDBLOCK) {
+                error_report("socket_writev_buffer: Got err=%d for (%zu/%zu)",
+                             err, (size_t)size, (size_t)len);
+                /*
+                 * If I've already sent some but only just got the error, I
+                 * could return the amount validly sent so far and wait for the
+                 * next call to report the error, but I'd rather flag the error
+                 * immediately.
+                 */
+                return -err;
+            }
+
+            /* Emulate blocking */
+            GPollFD pfd;
+
+            pfd.fd = s->fd;
+            pfd.events = G_IO_OUT | G_IO_ERR;
+            pfd.revents = 0;
+            g_poll(&pfd, 1 /* 1 fd */, -1 /* no timeout */);
+        }
+     }
+
+    return offset;
 }
 
 static int socket_get_fd(void *opaque)
