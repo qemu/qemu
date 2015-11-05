@@ -72,7 +72,6 @@ void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
 
 void cpu_gen_init(void);
 bool cpu_restore_state(CPUState *cpu, uintptr_t searched_pc);
-void page_size_init(void);
 
 void QEMU_NORETURN cpu_resume_from_signal(CPUState *cpu, void *puc);
 void QEMU_NORETURN cpu_io_recompile(CPUState *cpu, uintptr_t retaddr);

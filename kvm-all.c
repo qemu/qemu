@@ -1461,7 +1461,6 @@ static int kvm_init(MachineState *ms)
      * page size for the system though.
      */
     assert(TARGET_PAGE_SIZE <= getpagesize());
-    page_size_init();
 
     s->sigmask_len = 8;
 
