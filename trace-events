@@ -1255,6 +1255,7 @@ qemu_file_fclose(void) ""
 migration_bitmap_sync_start(void) ""
 migration_bitmap_sync_end(uint64_t dirty_pages) "dirty_pages %" PRIu64""
 migration_throttle(void) ""
+ram_postcopy_send_discard_bitmap(void) ""
 
 # hw/display/qxl.c
 disable qxl_interface_set_mm_time(int qid, uint32_t mm_time) "%d %d"
@@ -1531,6 +1532,11 @@ rdma_start_incoming_migration_after_dest_init(void) ""
 rdma_start_incoming_migration_after_rdma_listen(void) ""
 rdma_start_outgoing_migration_after_rdma_connect(void) ""
 rdma_start_outgoing_migration_after_rdma_source_init(void) ""
+
+# migration/postcopy-ram.c
+postcopy_discard_send_finish(const char *ramblock, int nwords, int ncmds) "%s mask words sent=%d in %d commands"
+postcopy_discard_send_range(const char *ramblock, unsigned long start, unsigned long length) "%s:%lx/%lx"
+postcopy_ram_discard_range(void *start, size_t length) "%p,+%zx"
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"

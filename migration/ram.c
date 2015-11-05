@@ -32,6 +32,7 @@
 #include "qemu/timer.h"
 #include "qemu/main-loop.h"
 #include "migration/migration.h"
+#include "migration/postcopy-ram.h"
 #include "exec/address-spaces.h"
 #include "migration/page_cache.h"
 #include "qemu/error-report.h"
@@ -967,6 +968,8 @@ static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
  * @f: Current migration stream.
  * @pss: Data about the state of the current dirty page scan.
  * @*again: Set to false if the search has scanned the whole of RAM
+ * *ram_addr_abs: Pointer into which to store the address of the dirty page
+ *               within the global ram_addr space
  */
 static bool find_dirty_block(QEMUFile *f, PageSearchStatus *pss,
                              bool *again, ram_addr_t *ram_addr_abs)
@@ -1064,7 +1067,6 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
                 if (unsentmap) {
                     clear_bit(dirty_ram_abs >> TARGET_PAGE_BITS, unsentmap);
                 }
-
             }
         }
     } while (!pages && again);
@@ -1232,6 +1234,183 @@ void ram_debug_dump_bitmap(unsigned long *todump, bool expected)
         }
     }
 }
+
+/* **** functions for postcopy ***** */
+
+/*
+ * Callback from postcopy_each_ram_send_discard for each RAMBlock
+ * Note: At this point the 'unsentmap' is the processed bitmap combined
+ *       with the dirtymap; so a '1' means it's either dirty or unsent.
+ * start,length: Indexes into the bitmap for the first bit
+ *            representing the named block and length in target-pages
+ */
+static int postcopy_send_discard_bm_ram(MigrationState *ms,
+                                        PostcopyDiscardState *pds,
+                                        unsigned long start,
+                                        unsigned long length)
+{
+    unsigned long end = start + length; /* one after the end */
+    unsigned long current;
+    unsigned long *unsentmap;
+
+    unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
+    for (current = start; current < end; ) {
+        unsigned long one = find_next_bit(unsentmap, end, current);
+
+        if (one <= end) {
+            unsigned long zero = find_next_zero_bit(unsentmap, end, one + 1);
+            unsigned long discard_length;
+
+            if (zero >= end) {
+                discard_length = end - one;
+            } else {
+                discard_length = zero - one;
+            }
+            postcopy_discard_send_range(ms, pds, one, discard_length);
+            current = one + discard_length;
+        } else {
+            current = one;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * Utility for the outgoing postcopy code.
+ *   Calls postcopy_send_discard_bm_ram for each RAMBlock
+ *   passing it bitmap indexes and name.
+ * Returns: 0 on success
+ * (qemu_ram_foreach_block ends up passing unscaled lengths
+ *  which would mean postcopy code would have to deal with target page)
+ */
+static int postcopy_each_ram_send_discard(MigrationState *ms)
+{
+    struct RAMBlock *block;
+    int ret;
+
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        unsigned long first = block->offset >> TARGET_PAGE_BITS;
+        PostcopyDiscardState *pds = postcopy_discard_send_init(ms,
+                                                               first,
+                                                               block->idstr);
+
+        /*
+         * Postcopy sends chunks of bitmap over the wire, but it
+         * just needs indexes at this point, avoids it having
+         * target page specific code.
+         */
+        ret = postcopy_send_discard_bm_ram(ms, pds, first,
+                                    block->used_length >> TARGET_PAGE_BITS);
+        postcopy_discard_send_finish(ms, pds);
+        if (ret) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+/*
+ * Transmit the set of pages to be discarded after precopy to the target
+ * these are pages that:
+ *     a) Have been previously transmitted but are now dirty again
+ *     b) Pages that have never been transmitted, this ensures that
+ *        any pages on the destination that have been mapped by background
+ *        tasks get discarded (transparent huge pages is the specific concern)
+ * Hopefully this is pretty sparse
+ */
+int ram_postcopy_send_discard_bitmap(MigrationState *ms)
+{
+    int ret;
+    unsigned long *bitmap, *unsentmap;
+
+    rcu_read_lock();
+
+    /* This should be our last sync, the src is now paused */
+    migration_bitmap_sync();
+
+    unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
+    if (!unsentmap) {
+        /* We don't have a safe way to resize the sentmap, so
+         * if the bitmap was resized it will be NULL at this
+         * point.
+         */
+        error_report("migration ram resized during precopy phase");
+        rcu_read_unlock();
+        return -EINVAL;
+    }
+
+    /*
+     * Update the unsentmap to be unsentmap = unsentmap | dirty
+     */
+    bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+    bitmap_or(unsentmap, unsentmap, bitmap,
+               last_ram_offset() >> TARGET_PAGE_BITS);
+
+
+    trace_ram_postcopy_send_discard_bitmap();
+#ifdef DEBUG_POSTCOPY
+    ram_debug_dump_bitmap(unsentmap, true);
+#endif
+
+    ret = postcopy_each_ram_send_discard(ms);
+    rcu_read_unlock();
+
+    return ret;
+}
+
+/*
+ * At the start of the postcopy phase of migration, any now-dirty
+ * precopied pages are discarded.
+ *
+ * start, length describe a byte address range within the RAMBlock
+ *
+ * Returns 0 on success.
+ */
+int ram_discard_range(MigrationIncomingState *mis,
+                      const char *block_name,
+                      uint64_t start, size_t length)
+{
+    int ret = -1;
+
+    rcu_read_lock();
+    RAMBlock *rb = qemu_ram_block_by_name(block_name);
+
+    if (!rb) {
+        error_report("ram_discard_range: Failed to find block '%s'",
+                     block_name);
+        goto err;
+    }
+
+    uint8_t *host_startaddr = rb->host + start;
+
+    if ((uintptr_t)host_startaddr & (qemu_host_page_size - 1)) {
+        error_report("ram_discard_range: Unaligned start address: %p",
+                     host_startaddr);
+        goto err;
+    }
+
+    if ((start + length) <= rb->used_length) {
+        uint8_t *host_endaddr = host_startaddr + length;
+        if ((uintptr_t)host_endaddr & (qemu_host_page_size - 1)) {
+            error_report("ram_discard_range: Unaligned end address: %p",
+                         host_endaddr);
+            goto err;
+        }
+        ret = postcopy_ram_discard_range(mis, host_startaddr, length);
+    } else {
+        error_report("ram_discard_range: Overrun block '%s' (%" PRIu64
+                     "/%zu/%zu)",
+                     block_name, start, length, rb->used_length);
+    }
+
+err:
+    rcu_read_unlock();
+
+    return ret;
+}
+
 
 /* Each of ram_save_setup, ram_save_iterate and ram_save_complete has
  * long-running RCU critical section.  When rcu-reclaims in the code

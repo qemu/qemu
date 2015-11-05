@@ -199,6 +199,11 @@ double xbzrle_mig_cache_miss_rate(void);
 
 void ram_handle_compressed(void *host, uint8_t ch, uint64_t size);
 void ram_debug_dump_bitmap(unsigned long *todump, bool expected);
+/* For outgoing discard bitmap */
+int ram_postcopy_send_discard_bitmap(MigrationState *ms);
+/* For incoming postcopy discard */
+int ram_discard_range(MigrationIncomingState *mis, const char *block_name,
+                      uint64_t start, size_t length);
 
 /**
  * @migrate_add_blocker - prevent migration from proceeding
