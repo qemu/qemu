@@ -2097,6 +2097,7 @@ static int ram_load_postcopy(QEMUFile *f)
     MigrationIncomingState *mis = migration_incoming_get_current();
     /* Temporary page that is later 'placed' */
     void *postcopy_host_page = postcopy_get_tmp_page(mis);
+    void *last_host = NULL;
 
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
         ram_addr_t addr;
@@ -2133,7 +2134,16 @@ static int ram_load_postcopy(QEMUFile *f)
             /* If all TP are zero then we can optimise the place */
             if (!((uintptr_t)host & ~qemu_host_page_mask)) {
                 all_zero = true;
+            } else {
+                /* not the 1st TP within the HP */
+                if (host != (last_host + TARGET_PAGE_SIZE)) {
+                    error_report("Non-sequential target page %p/%p\n",
+                                  host, last_host);
+                    ret = -EINVAL;
+                    break;
+                }
             }
+
 
             /*
              * If it's the last part of a host page then we place the host
@@ -2143,6 +2153,7 @@ static int ram_load_postcopy(QEMUFile *f)
                                      ~qemu_host_page_mask) == 0;
             place_source = postcopy_host_page;
         }
+        last_host = host;
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
         case RAM_SAVE_FLAG_COMPRESS:
