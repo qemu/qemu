@@ -277,7 +277,8 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
 static uint8_t fw_cfg_read(FWCfgState *s)
 {
     int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
-    FWCfgEntry *e = &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
+    FWCfgEntry *e = (s->cur_entry == FW_CFG_INVALID) ? NULL :
+                    &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
     uint8_t ret;
 
     if (s->cur_entry == FW_CFG_INVALID || !e->data || s->cur_offset >= e->len)
@@ -342,7 +343,8 @@ static void fw_cfg_dma_transfer(FWCfgState *s)
     }
 
     arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
-    e = &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
+    e = (s->cur_entry == FW_CFG_INVALID) ? NULL :
+        &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
 
     if (dma.control & FW_CFG_DMA_CTL_READ) {
         read = 1;
