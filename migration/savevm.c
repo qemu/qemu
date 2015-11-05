@@ -931,7 +931,7 @@ void qemu_savevm_state_begin(QEMUFile *f,
  *   0 : We haven't finished, caller have to go again
  *   1 : We have finished, we can go to complete phase
  */
-int qemu_savevm_state_iterate(QEMUFile *f)
+int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
 {
     SaveStateEntry *se;
     int ret = 1;
@@ -945,6 +945,15 @@ int qemu_savevm_state_iterate(QEMUFile *f)
             if (!se->ops->is_active(se->opaque)) {
                 continue;
             }
+        }
+        /*
+         * In the postcopy phase, any device that doesn't know how to
+         * do postcopy should have saved it's state in the _complete
+         * call that's already run, it might get confused if we call
+         * iterate afterwards.
+         */
+        if (postcopy && !se->ops->save_live_complete_postcopy) {
+            continue;
         }
         if (qemu_file_rate_limit(f)) {
             return 0;
@@ -1160,7 +1169,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
     qemu_mutex_lock_iothread();
 
     while (qemu_file_get_error(f) == 0) {
-        if (qemu_savevm_state_iterate(f) > 0) {
+        if (qemu_savevm_state_iterate(f, false) > 0) {
             break;
         }
     }

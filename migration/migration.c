@@ -1628,7 +1628,7 @@ static void *migration_thread(void *opaque)
                     continue;
                 }
                 /* Just another iteration step */
-                qemu_savevm_state_iterate(s->file);
+                qemu_savevm_state_iterate(s->file, entered_postcopy);
             } else {
                 trace_migration_thread_low_pending(pending_size);
                 migration_completion(s, current_active_state,
