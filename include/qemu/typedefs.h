@@ -79,6 +79,7 @@ typedef struct QEMUSizedBuffer QEMUSizedBuffer;
 typedef struct QEMUTimerListGroup QEMUTimerListGroup;
 typedef struct QEMUTimer QEMUTimer;
 typedef struct Range Range;
+typedef struct RAMBlock RAMBlock;
 typedef struct SerialState SerialState;
 typedef struct SHPCDevice SHPCDevice;
 typedef struct SMBusDevice SMBusDevice;

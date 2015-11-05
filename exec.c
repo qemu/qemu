@@ -1377,6 +1377,11 @@ static RAMBlock *find_ram_block(ram_addr_t addr)
     return NULL;
 }
 
+const char *qemu_ram_get_idstr(RAMBlock *rb)
+{
+    return rb->idstr;
+}
+
 /* Called with iothread lock held.  */
 void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
 {
@@ -1877,8 +1882,16 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
     }
 }
 
-/* Some of the softmmu routines need to translate from a host pointer
- * (typically a TLB entry) back to a ram offset.
+/*
+ * Translates a host ptr back to a RAMBlock, a ram_addr and an offset
+ * in that RAMBlock.
+ *
+ * ptr: Host pointer to look up
+ * round_offset: If true round the result offset down to a page boundary
+ * *ram_addr: set to result ram_addr
+ * *offset: set to result offset within the RAMBlock
+ *
+ * Returns: RAMBlock (or NULL if not found)
  *
  * By the time this function returns, the returned pointer is not protected
  * by RCU anymore.  If the caller is not within an RCU critical section and
@@ -1886,18 +1899,22 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
  * pointer, such as a reference to the region that includes the incoming
  * ram_addr_t.
  */
-MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
+RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
+                                   ram_addr_t *ram_addr,
+                                   ram_addr_t *offset)
 {
     RAMBlock *block;
     uint8_t *host = ptr;
-    MemoryRegion *mr;
 
     if (xen_enabled()) {
         rcu_read_lock();
         *ram_addr = xen_ram_addr_from_mapcache(ptr);
-        mr = qemu_get_ram_block(*ram_addr)->mr;
+        block = qemu_get_ram_block(*ram_addr);
+        if (block) {
+            *offset = (host - block->host);
+        }
         rcu_read_unlock();
-        return mr;
+        return block;
     }
 
     rcu_read_lock();
@@ -1920,10 +1937,29 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
     return NULL;
 
 found:
-    *ram_addr = block->offset + (host - block->host);
-    mr = block->mr;
+    *offset = (host - block->host);
+    if (round_offset) {
+        *offset &= TARGET_PAGE_MASK;
+    }
+    *ram_addr = block->offset + *offset;
     rcu_read_unlock();
-    return mr;
+    return block;
+}
+
+/* Some of the softmmu routines need to translate from a host pointer
+   (typically a TLB entry) back to a ram offset.  */
+MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
+{
+    RAMBlock *block;
+    ram_addr_t offset; /* Not used */
+
+    block = qemu_ram_block_from_host(ptr, false, ram_addr, &offset);
+
+    if (!block) {
+        return NULL;
+    }
+
+    return block->mr;
 }
 
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
