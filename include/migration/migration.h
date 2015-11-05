@@ -86,6 +86,9 @@ struct MigrationIncomingState {
      */
     QemuEvent main_thread_load_event;
 
+    QemuThread     fault_thread;
+    QemuSemaphore  fault_thread_sem;
+
     /* For the kernel to send us notifications */
     int       userfault_fd;
     QEMUFile *to_src_file;

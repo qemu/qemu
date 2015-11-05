@@ -275,6 +275,69 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
     return 0;
 }
 
+/*
+ * Mark the given area of RAM as requiring notification to unwritten areas
+ * Used as a  callback on qemu_ram_foreach_block.
+ *   host_addr: Base of area to mark
+ *   offset: Offset in the whole ram arena
+ *   length: Length of the section
+ *   opaque: MigrationIncomingState pointer
+ * Returns 0 on success
+ */
+static int ram_block_enable_notify(const char *block_name, void *host_addr,
+                                   ram_addr_t offset, ram_addr_t length,
+                                   void *opaque)
+{
+    MigrationIncomingState *mis = opaque;
+    struct uffdio_register reg_struct;
+
+    reg_struct.range.start = (uintptr_t)host_addr;
+    reg_struct.range.len = length;
+    reg_struct.mode = UFFDIO_REGISTER_MODE_MISSING;
+
+    /* Now tell our userfault_fd that it's responsible for this area */
+    if (ioctl(mis->userfault_fd, UFFDIO_REGISTER, &reg_struct)) {
+        error_report("%s userfault register: %s", __func__, strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Handle faults detected by the USERFAULT markings
+ */
+static void *postcopy_ram_fault_thread(void *opaque)
+{
+    MigrationIncomingState *mis = opaque;
+
+    fprintf(stderr, "postcopy_ram_fault_thread\n");
+    /* TODO: In later patch */
+    qemu_sem_post(&mis->fault_thread_sem);
+    while (1) {
+        /* TODO: In later patch */
+    }
+
+    return NULL;
+}
+
+int postcopy_ram_enable_notify(MigrationIncomingState *mis)
+{
+    /* Create the fault handler thread and wait for it to be ready */
+    qemu_sem_init(&mis->fault_thread_sem, 0);
+    qemu_thread_create(&mis->fault_thread, "postcopy/fault",
+                       postcopy_ram_fault_thread, mis, QEMU_THREAD_JOINABLE);
+    qemu_sem_wait(&mis->fault_thread_sem);
+    qemu_sem_destroy(&mis->fault_thread_sem);
+
+    /* Mark so that we get notified of accesses to unwritten areas */
+    if (qemu_ram_foreach_block(ram_block_enable_notify, mis)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 #else
 /* No target OS support, stubs just fail */
 bool postcopy_ram_supported_by_host(void)
@@ -297,6 +360,12 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
 
 int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
                                size_t length)
+{
+    assert(0);
+    return -1;
+}
+
+int postcopy_ram_enable_notify(MigrationIncomingState *mis)
 {
     assert(0);
     return -1;
