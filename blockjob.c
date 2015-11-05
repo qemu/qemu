@@ -37,6 +37,19 @@
 #include "qemu/timer.h"
 #include "qapi-event.h"
 
+/* Transactional group of block jobs */
+struct BlockJobTxn {
+
+    /* Is this txn being cancelled? */
+    bool aborting;
+
+    /* List of jobs */
+    QLIST_HEAD(, BlockJob) jobs;
+
+    /* Reference count */
+    int refcnt;
+};
+
 void *block_job_create(const BlockJobDriver *driver, BlockDriverState *bs,
                        int64_t speed, BlockCompletionFunc *cb,
                        void *opaque, Error **errp)
@@ -94,6 +107,86 @@ void block_job_unref(BlockJob *job)
     }
 }
 
+static void block_job_completed_single(BlockJob *job)
+{
+    if (!job->ret) {
+        if (job->driver->commit) {
+            job->driver->commit(job);
+        }
+    } else {
+        if (job->driver->abort) {
+            job->driver->abort(job);
+        }
+    }
+    job->cb(job->opaque, job->ret);
+    if (job->txn) {
+        block_job_txn_unref(job->txn);
+    }
+    block_job_unref(job);
+}
+
+static void block_job_completed_txn_abort(BlockJob *job)
+{
+    AioContext *ctx;
+    BlockJobTxn *txn = job->txn;
+    BlockJob *other_job, *next;
+
+    if (txn->aborting) {
+        /*
+         * We are cancelled by another job, which will handle everything.
+         */
+        return;
+    }
+    txn->aborting = true;
+    /* We are the first failed job. Cancel other jobs. */
+    QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
+        ctx = bdrv_get_aio_context(other_job->bs);
+        aio_context_acquire(ctx);
+    }
+    QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
+        if (other_job == job || other_job->completed) {
+            /* Other jobs are "effectively" cancelled by us, set the status for
+             * them; this job, however, may or may not be cancelled, depending
+             * on the caller, so leave it. */
+            if (other_job != job) {
+                other_job->cancelled = true;
+            }
+            continue;
+        }
+        block_job_cancel_sync(other_job);
+        assert(other_job->completed);
+    }
+    QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
+        ctx = bdrv_get_aio_context(other_job->bs);
+        block_job_completed_single(other_job);
+        aio_context_release(ctx);
+    }
+}
+
+static void block_job_completed_txn_success(BlockJob *job)
+{
+    AioContext *ctx;
+    BlockJobTxn *txn = job->txn;
+    BlockJob *other_job, *next;
+    /*
+     * Successful completion, see if there are other running jobs in this
+     * txn.
+     */
+    QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
+        if (!other_job->completed) {
+            return;
+        }
+    }
+    /* We are the last completed job, commit the transaction. */
+    QLIST_FOREACH_SAFE(other_job, &txn->jobs, txn_list, next) {
+        ctx = bdrv_get_aio_context(other_job->bs);
+        aio_context_acquire(ctx);
+        assert(other_job->ret == 0);
+        block_job_completed_single(other_job);
+        aio_context_release(ctx);
+    }
+}
+
 void block_job_completed(BlockJob *job, int ret)
 {
     BlockDriverState *bs = job->bs;
@@ -102,8 +195,13 @@ void block_job_completed(BlockJob *job, int ret)
     assert(!job->completed);
     job->completed = true;
     job->ret = ret;
-    job->cb(job->opaque, ret);
-    block_job_unref(job);
+    if (!job->txn) {
+        block_job_completed_single(job);
+    } else if (ret < 0 || block_job_is_cancelled(job)) {
+        block_job_completed_txn_abort(job);
+    } else {
+        block_job_completed_txn_success(job);
+    }
 }
 
 void block_job_set_speed(BlockJob *job, int64_t speed, Error **errp)
@@ -401,4 +499,37 @@ void block_job_defer_to_main_loop(BlockJob *job,
     data->opaque = opaque;
 
     qemu_bh_schedule(data->bh);
+}
+
+BlockJobTxn *block_job_txn_new(void)
+{
+    BlockJobTxn *txn = g_new0(BlockJobTxn, 1);
+    QLIST_INIT(&txn->jobs);
+    txn->refcnt = 1;
+    return txn;
+}
+
+static void block_job_txn_ref(BlockJobTxn *txn)
+{
+    txn->refcnt++;
+}
+
+void block_job_txn_unref(BlockJobTxn *txn)
+{
+    if (txn && --txn->refcnt == 0) {
+        g_free(txn);
+    }
+}
+
+void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job)
+{
+    if (!txn) {
+        return;
+    }
+
+    assert(!job->txn);
+    job->txn = txn;
+
+    QLIST_INSERT_HEAD(&txn->jobs, job, txn_list);
+    block_job_txn_ref(txn);
 }

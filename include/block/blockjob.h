@@ -162,6 +162,9 @@ struct BlockJob {
      */
     int ret;
 
+    /** Non-NULL if this job is part of a transaction */
+    BlockJobTxn *txn;
+    QLIST_ENTRY(BlockJob) txn_list;
 };
 
 /**
@@ -404,5 +407,40 @@ typedef void BlockJobDeferToMainLoopFn(BlockJob *job, void *opaque);
 void block_job_defer_to_main_loop(BlockJob *job,
                                   BlockJobDeferToMainLoopFn *fn,
                                   void *opaque);
+
+/**
+ * block_job_txn_new:
+ *
+ * Allocate and return a new block job transaction.  Jobs can be added to the
+ * transaction using block_job_txn_add_job().
+ *
+ * The transaction is automatically freed when the last job completes or is
+ * cancelled.
+ *
+ * All jobs in the transaction either complete successfully or fail/cancel as a
+ * group.  Jobs wait for each other before completing.  Cancelling one job
+ * cancels all jobs in the transaction.
+ */
+BlockJobTxn *block_job_txn_new(void);
+
+/**
+ * block_job_txn_unref:
+ *
+ * Release a reference that was previously acquired with block_job_txn_add_job
+ * or block_job_txn_new. If it's the last reference to the object, it will be
+ * freed.
+ */
+void block_job_txn_unref(BlockJobTxn *txn);
+
+/**
+ * block_job_txn_add_job:
+ * @txn: The transaction (may be NULL)
+ * @job: Job to add to the transaction
+ *
+ * Add @job to the transaction.  The @job must not already be in a transaction.
+ * The caller must call either block_job_txn_unref() or block_job_completed()
+ * to release the reference that is automatically grabbed here.
+ */
+void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
 
 #endif
