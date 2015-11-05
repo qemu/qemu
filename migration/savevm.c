@@ -922,6 +922,8 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         .blk = 0,
         .shared = 0
     };
+    MigrationState *ms = migrate_init(&params);
+    ms->file = f;
 
     if (qemu_savevm_state_blocked(errp)) {
         return -EINVAL;
