@@ -53,6 +53,29 @@ enum mig_rp_message_type {
 };
 
 typedef QLIST_HEAD(, LoadStateEntry) LoadStateEntry_Head;
+
+/* The current postcopy state is read/set by postcopy_state_get/set
+ * which update it atomically.
+ * The state is updated as postcopy messages are received, and
+ * in general only one thread should be writing to the state at any one
+ * time, initially the main thread and then the listen thread;
+ * Corner cases are where either thread finishes early and/or errors.
+ * The state is checked as messages are received to ensure that
+ * the source is sending us messages in the correct order.
+ * The state is also used by the RAM reception code to know if it
+ * has to place pages atomically, and the cleanup code at the end of
+ * the main thread to know if it has to delay cleanup until the end
+ * of postcopy.
+ */
+typedef enum {
+    POSTCOPY_INCOMING_NONE = 0,  /* Initial state - no postcopy */
+    POSTCOPY_INCOMING_ADVISE,
+    POSTCOPY_INCOMING_DISCARD,
+    POSTCOPY_INCOMING_LISTENING,
+    POSTCOPY_INCOMING_RUNNING,
+    POSTCOPY_INCOMING_END
+} PostcopyState;
+
 /* State for the incoming migration */
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
@@ -240,4 +263,8 @@ void global_state_set_optional(void);
 void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
+
+PostcopyState postcopy_state_get(void);
+/* Set the state and return the old state */
+PostcopyState postcopy_state_set(PostcopyState new_state);
 #endif

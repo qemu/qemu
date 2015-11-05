@@ -45,6 +45,7 @@
 #include "exec/memory.h"
 #include "qmp-commands.h"
 #include "trace.h"
+#include "qemu/bitops.h"
 #include "qemu/iov.h"
 #include "block/snapshot.h"
 #include "block/qapi.h"
@@ -57,6 +58,8 @@
 #define ARP_PTYPE_IP 0x0800
 #define ARP_OP_REQUEST_REV 0x3
 
+const unsigned int postcopy_ram_discard_version = 0;
+
 static bool skip_section_footers;
 
 static struct mig_cmd_args {
@@ -66,6 +69,11 @@ static struct mig_cmd_args {
     [MIG_CMD_INVALID]          = { .len = -1, .name = "INVALID" },
     [MIG_CMD_OPEN_RETURN_PATH] = { .len =  0, .name = "OPEN_RETURN_PATH" },
     [MIG_CMD_PING]             = { .len = sizeof(uint32_t), .name = "PING" },
+    [MIG_CMD_POSTCOPY_ADVISE]  = { .len = 16, .name = "POSTCOPY_ADVISE" },
+    [MIG_CMD_POSTCOPY_LISTEN]  = { .len =  0, .name = "POSTCOPY_LISTEN" },
+    [MIG_CMD_POSTCOPY_RUN]     = { .len =  0, .name = "POSTCOPY_RUN" },
+    [MIG_CMD_POSTCOPY_RAM_DISCARD] = {
+                                   .len = -1, .name = "POSTCOPY_RAM_DISCARD" },
     [MIG_CMD_MAX]              = { .len = -1, .name = "MAX" },
 };
 
@@ -741,6 +749,77 @@ void qemu_savevm_send_open_return_path(QEMUFile *f)
     qemu_savevm_command_send(f, MIG_CMD_OPEN_RETURN_PATH, 0, NULL);
 }
 
+/* Send prior to any postcopy transfer */
+void qemu_savevm_send_postcopy_advise(QEMUFile *f)
+{
+    uint64_t tmp[2];
+    tmp[0] = cpu_to_be64(getpagesize());
+    tmp[1] = cpu_to_be64(1ul << qemu_target_page_bits());
+
+    trace_qemu_savevm_send_postcopy_advise();
+    qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_ADVISE, 16, (uint8_t *)tmp);
+}
+
+/* Sent prior to starting the destination running in postcopy, discard pages
+ * that have already been sent but redirtied on the source.
+ * CMD_POSTCOPY_RAM_DISCARD consist of:
+ *      byte   version (0)
+ *      byte   Length of name field (not including 0)
+ *  n x byte   RAM block name
+ *      byte   0 terminator (just for safety)
+ *  n x        Byte ranges within the named RAMBlock
+ *      be64   Start of the range
+ *      be64   Length
+ *
+ *  name:  RAMBlock name that these entries are part of
+ *  len: Number of page entries
+ *  start_list: 'len' addresses
+ *  length_list: 'len' addresses
+ *
+ */
+void qemu_savevm_send_postcopy_ram_discard(QEMUFile *f, const char *name,
+                                           uint16_t len,
+                                           uint64_t *start_list,
+                                           uint64_t *length_list)
+{
+    uint8_t *buf;
+    uint16_t tmplen;
+    uint16_t t;
+    size_t name_len = strlen(name);
+
+    trace_qemu_savevm_send_postcopy_ram_discard(name, len);
+    assert(name_len < 256);
+    buf = g_malloc0(1 + 1 + name_len + 1 + (8 + 8) * len);
+    buf[0] = postcopy_ram_discard_version;
+    buf[1] = name_len;
+    memcpy(buf + 2, name, name_len);
+    tmplen = 2 + name_len;
+    buf[tmplen++] = '\0';
+
+    for (t = 0; t < len; t++) {
+        cpu_to_be64w((uint64_t *)(buf + tmplen), start_list[t]);
+        tmplen += 8;
+        cpu_to_be64w((uint64_t *)(buf + tmplen), length_list[t]);
+        tmplen += 8;
+    }
+    qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_RAM_DISCARD, tmplen, buf);
+    g_free(buf);
+}
+
+/* Get the destination into a state where it can receive postcopy data. */
+void qemu_savevm_send_postcopy_listen(QEMUFile *f)
+{
+    trace_savevm_send_postcopy_listen();
+    qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_LISTEN, 0, NULL);
+}
+
+/* Kick the destination into running */
+void qemu_savevm_send_postcopy_run(QEMUFile *f)
+{
+    trace_savevm_send_postcopy_run();
+    qemu_savevm_command_send(f, MIG_CMD_POSTCOPY_RUN, 0, NULL);
+}
+
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -1057,6 +1136,169 @@ enum LoadVMExitCodes {
 };
 
 static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis);
+
+/* ------ incoming postcopy messages ------ */
+/* 'advise' arrives before any transfers just to tell us that a postcopy
+ * *might* happen - it might be skipped if precopy transferred everything
+ * quickly.
+ */
+static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis)
+{
+    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_ADVISE);
+    uint64_t remote_hps, remote_tps;
+
+    trace_loadvm_postcopy_handle_advise();
+    if (ps != POSTCOPY_INCOMING_NONE) {
+        error_report("CMD_POSTCOPY_ADVISE in wrong postcopy state (%d)", ps);
+        return -1;
+    }
+
+    remote_hps = qemu_get_be64(mis->from_src_file);
+    if (remote_hps != getpagesize())  {
+        /*
+         * Some combinations of mismatch are probably possible but it gets
+         * a bit more complicated.  In particular we need to place whole
+         * host pages on the dest at once, and we need to ensure that we
+         * handle dirtying to make sure we never end up sending part of
+         * a hostpage on it's own.
+         */
+        error_report("Postcopy needs matching host page sizes (s=%d d=%d)",
+                     (int)remote_hps, getpagesize());
+        return -1;
+    }
+
+    remote_tps = qemu_get_be64(mis->from_src_file);
+    if (remote_tps != (1ul << qemu_target_page_bits())) {
+        /*
+         * Again, some differences could be dealt with, but for now keep it
+         * simple.
+         */
+        error_report("Postcopy needs matching target page sizes (s=%d d=%d)",
+                     (int)remote_tps, 1 << qemu_target_page_bits());
+        return -1;
+    }
+
+    return 0;
+}
+
+/* After postcopy we will be told to throw some pages away since they're
+ * dirty and will have to be demand fetched.  Must happen before CPU is
+ * started.
+ * There can be 0..many of these messages, each encoding multiple pages.
+ */
+static int loadvm_postcopy_ram_handle_discard(MigrationIncomingState *mis,
+                                              uint16_t len)
+{
+    int tmp;
+    char ramid[256];
+    PostcopyState ps = postcopy_state_get();
+
+    trace_loadvm_postcopy_ram_handle_discard();
+
+    switch (ps) {
+    case POSTCOPY_INCOMING_ADVISE:
+        /* 1st discard */
+        tmp = 0; /* TODO: later patch postcopy_ram_prepare_discard(mis); */
+        if (tmp) {
+            return tmp;
+        }
+        break;
+
+    case POSTCOPY_INCOMING_DISCARD:
+        /* Expected state */
+        break;
+
+    default:
+        error_report("CMD_POSTCOPY_RAM_DISCARD in wrong postcopy state (%d)",
+                     ps);
+        return -1;
+    }
+    /* We're expecting a
+     *    Version (0)
+     *    a RAM ID string (length byte, name, 0 term)
+     *    then at least 1 16 byte chunk
+    */
+    if (len < (1 + 1 + 1 + 1 + 2 * 8)) {
+        error_report("CMD_POSTCOPY_RAM_DISCARD invalid length (%d)", len);
+        return -1;
+    }
+
+    tmp = qemu_get_byte(mis->from_src_file);
+    if (tmp != postcopy_ram_discard_version) {
+        error_report("CMD_POSTCOPY_RAM_DISCARD invalid version (%d)", tmp);
+        return -1;
+    }
+
+    if (!qemu_get_counted_string(mis->from_src_file, ramid)) {
+        error_report("CMD_POSTCOPY_RAM_DISCARD Failed to read RAMBlock ID");
+        return -1;
+    }
+    tmp = qemu_get_byte(mis->from_src_file);
+    if (tmp != 0) {
+        error_report("CMD_POSTCOPY_RAM_DISCARD missing nil (%d)", tmp);
+        return -1;
+    }
+
+    len -= 3 + strlen(ramid);
+    if (len % 16) {
+        error_report("CMD_POSTCOPY_RAM_DISCARD invalid length (%d)", len);
+        return -1;
+    }
+    trace_loadvm_postcopy_ram_handle_discard_header(ramid, len);
+    while (len) {
+        /* TODO - ram_discard_range gets added in a later patch
+        uint64_t start_addr, block_length;
+        start_addr = qemu_get_be64(mis->from_src_file);
+        block_length = qemu_get_be64(mis->from_src_file);
+
+        len -= 16;
+        int ret = ram_discard_range(mis, ramid, start_addr,
+                                    block_length);
+        if (ret) {
+            return ret;
+        }
+        */
+    }
+    trace_loadvm_postcopy_ram_handle_discard_end();
+
+    return 0;
+}
+
+/* After this message we must be able to immediately receive postcopy data */
+static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
+{
+    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_LISTENING);
+    trace_loadvm_postcopy_handle_listen();
+    if (ps != POSTCOPY_INCOMING_ADVISE && ps != POSTCOPY_INCOMING_DISCARD) {
+        error_report("CMD_POSTCOPY_LISTEN in wrong postcopy state (%d)", ps);
+        return -1;
+    }
+
+    /* TODO start up the postcopy listening thread */
+    return 0;
+}
+
+/* After all discards we can start running and asking for pages */
+static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
+{
+    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
+    trace_loadvm_postcopy_handle_run();
+    if (ps != POSTCOPY_INCOMING_LISTENING) {
+        error_report("CMD_POSTCOPY_RUN in wrong postcopy state (%d)", ps);
+        return -1;
+    }
+
+    if (autostart) {
+        /* Hold onto your hats, starting the CPU */
+        vm_start();
+    } else {
+        /* leave it paused and let management decide when to start the CPU */
+        runstate_set(RUN_STATE_PAUSED);
+    }
+
+    return 0;
+}
+
 /**
  * loadvm_process_command: Process an incoming 'QEMU_VM_COMMAND'
  *
@@ -1112,6 +1354,18 @@ static int loadvm_process_command(QEMUFile *f)
         }
         migrate_send_rp_pong(mis, tmp32);
         break;
+
+    case MIG_CMD_POSTCOPY_ADVISE:
+        return loadvm_postcopy_handle_advise(mis);
+
+    case MIG_CMD_POSTCOPY_LISTEN:
+        return loadvm_postcopy_handle_listen(mis);
+
+    case MIG_CMD_POSTCOPY_RUN:
+        return loadvm_postcopy_handle_run(mis);
+
+    case MIG_CMD_POSTCOPY_RAM_DISCARD:
+        return loadvm_postcopy_ram_handle_discard(mis, len);
     }
 
     return 0;

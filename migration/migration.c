@@ -57,6 +57,13 @@ static NotifierList migration_state_notifiers =
 
 static bool deferred_incoming;
 
+/*
+ * Current state of incoming postcopy; note this is not part of
+ * MigrationIncomingState since it's state is used during cleanup
+ * at the end as MIS is being freed.
+ */
+static PostcopyState incoming_postcopy_state;
+
 /* When we add fault tolerance, we could have several
    migrations at once.  For now we don't need to add
    dynamic creation of migration */
@@ -284,6 +291,7 @@ static void process_incoming_migration_co(void *opaque)
     int ret;
 
     migration_incoming_state_new(f);
+    postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_generate_event(MIGRATION_STATUS_ACTIVE);
     ret = qemu_loadvm_state(f);
 
@@ -1367,3 +1375,15 @@ void migrate_fd_connect(MigrationState *s)
     qemu_thread_create(&s->thread, "migration", migration_thread, s,
                        QEMU_THREAD_JOINABLE);
 }
+
+PostcopyState  postcopy_state_get(void)
+{
+    return atomic_mb_read(&incoming_postcopy_state);
+}
+
+/* Set the state and return the old state */
+PostcopyState postcopy_state_set(PostcopyState new_state)
+{
+    return atomic_xchg(&incoming_postcopy_state, new_state);
+}
+
