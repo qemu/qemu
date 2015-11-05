@@ -41,6 +41,12 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis);
 int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
                                size_t length);
 
+/*
+ * Userfault requires us to mark RAM as NOHUGEPAGE prior to discard
+ * however leaving it until after precopy means that most of the precopy
+ * data is still THPd
+ */
+int postcopy_ram_prepare_discard(MigrationIncomingState *mis);
 
 /*
  * Called at the start of each RAMBlock by the bitmap code.

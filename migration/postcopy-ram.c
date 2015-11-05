@@ -226,12 +226,10 @@ static int cleanup_range(const char *block_name, void *host_addr,
      * We turned off hugepage for the precopy stage with postcopy enabled
      * we can turn it back on now.
      */
-#ifdef MADV_HUGEPAGE
-    if (madvise(host_addr, length, MADV_HUGEPAGE)) {
+    if (qemu_madvise(host_addr, length, QEMU_MADV_HUGEPAGE)) {
         error_report("%s HUGEPAGE: %s", __func__, strerror(errno));
         return -1;
     }
-#endif
 
     /*
      * We can also turn off userfault now since we should have all the
@@ -304,6 +302,43 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         mis->postcopy_tmp_page = NULL;
     }
     trace_postcopy_ram_incoming_cleanup_exit();
+    return 0;
+}
+
+/*
+ * Disable huge pages on an area
+ */
+static int nhp_range(const char *block_name, void *host_addr,
+                    ram_addr_t offset, ram_addr_t length, void *opaque)
+{
+    trace_postcopy_nhp_range(block_name, host_addr, offset, length);
+
+    /*
+     * Before we do discards we need to ensure those discards really
+     * do delete areas of the page, even if THP thinks a hugepage would
+     * be a good idea, so force hugepages off.
+     */
+    if (qemu_madvise(host_addr, length, QEMU_MADV_NOHUGEPAGE)) {
+        error_report("%s: NOHUGEPAGE: %s", __func__, strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+ * Userfault requires us to mark RAM as NOHUGEPAGE prior to discard
+ * however leaving it until after precopy means that most of the precopy
+ * data is still THPd
+ */
+int postcopy_ram_prepare_discard(MigrationIncomingState *mis)
+{
+    if (qemu_ram_foreach_block(nhp_range, mis)) {
+        return -1;
+    }
+
+    postcopy_state_set(POSTCOPY_INCOMING_DISCARD);
+
     return 0;
 }
 
@@ -578,6 +613,12 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
 
 int postcopy_ram_discard_range(MigrationIncomingState *mis, uint8_t *start,
                                size_t length)
+{
+    assert(0);
+    return -1;
+}
+
+int postcopy_ram_prepare_discard(MigrationIncomingState *mis)
 {
     assert(0);
     return -1;
