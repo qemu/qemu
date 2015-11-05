@@ -99,8 +99,11 @@ enum qemu_vm_cmd {
     MIG_CMD_POSTCOPY_RAM_DISCARD,  /* A list of pages to discard that
                                       were previously sent during
                                       precopy but are dirty. */
+    MIG_CMD_PACKAGED,          /* Send a wrapped stream within this stream */
     MIG_CMD_MAX
 };
+
+#define MAX_VM_CMD_PACKAGED_SIZE (1ul << 24)
 
 bool qemu_savevm_state_blocked(Error **errp);
 void qemu_savevm_state_begin(QEMUFile *f,
@@ -114,6 +117,7 @@ void qemu_savevm_command_send(QEMUFile *f, enum qemu_vm_cmd command,
                               uint16_t len, uint8_t *data);
 void qemu_savevm_send_ping(QEMUFile *f, uint32_t value);
 void qemu_savevm_send_open_return_path(QEMUFile *f);
+int qemu_savevm_send_packaged(QEMUFile *f, const QEMUSizedBuffer *qsb);
 void qemu_savevm_send_postcopy_advise(QEMUFile *f);
 void qemu_savevm_send_postcopy_listen(QEMUFile *f);
 void qemu_savevm_send_postcopy_run(QEMUFile *f);
