@@ -87,6 +87,11 @@ static bool ufd_version_check(int ufd)
     return true;
 }
 
+/*
+ * Note: This has the side effect of munlock'ing all of RAM, that's
+ * normally fine since if the postcopy succeeds it gets turned back on at the
+ * end.
+ */
 bool postcopy_ram_supported_by_host(void)
 {
     long pagesize = getpagesize();
@@ -112,6 +117,15 @@ bool postcopy_ram_supported_by_host(void)
     /* Version and features check */
     if (!ufd_version_check(ufd)) {
         goto out;
+    }
+
+    /*
+     * userfault and mlock don't go together; we'll put it back later if
+     * it was enabled.
+     */
+    if (munlockall()) {
+        error_report("%s: munlockall: %s", __func__,  strerror(errno));
+        return -1;
     }
 
     /*
@@ -292,6 +306,16 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         close(mis->userfault_fd);
         close(mis->userfault_quit_fd);
         mis->have_fault_thread = false;
+    }
+
+    if (enable_mlock) {
+        if (os_mlock() < 0) {
+            error_report("mlock: %s", strerror(errno));
+            /*
+             * It doesn't feel right to fail at this point, we have a valid
+             * VM state.
+             */
+        }
     }
 
     postcopy_state_set(POSTCOPY_INCOMING_END);
