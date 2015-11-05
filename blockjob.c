@@ -99,6 +99,9 @@ void block_job_completed(BlockJob *job, int ret)
     BlockDriverState *bs = job->bs;
 
     assert(bs->job == job);
+    assert(!job->completed);
+    job->completed = true;
+    job->ret = ret;
     job->cb(job->opaque, ret);
     block_job_unref(job);
 }

@@ -153,6 +153,15 @@ struct BlockJob {
 
     /** Reference count of the block job */
     int refcnt;
+
+    /* True if this job has reported completion by calling block_job_completed.
+     */
+    bool completed;
+
+    /* ret code passed to block_job_completed.
+     */
+    int ret;
+
 };
 
 /**
