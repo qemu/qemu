@@ -1051,11 +1051,18 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
     return NULL;
 }
 
+enum LoadVMExitCodes {
+    /* Allow a command to quit all layers of nested loadvm loops */
+    LOADVM_QUIT     =  1,
+};
+
+static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis);
 /**
  * loadvm_process_command: Process an incoming 'QEMU_VM_COMMAND'
  *
- * Returns: 0 on success, negative on error (in which case it will issue an
- *          error message).
+ * Returns: 0 on just a normal return
+ *          LOADVM_QUIT All good, but exit the loop
+ *          <0 error (in which case it will issue an error message).
  * @f: The stream to read the command data from.
  */
 static int loadvm_process_command(QEMUFile *f)
@@ -1162,14 +1169,113 @@ void loadvm_free_handlers(MigrationIncomingState *mis)
     }
 }
 
+static int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis)
+{
+    uint8_t section_type;
+    int ret;
+
+    while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
+        uint32_t instance_id, version_id, section_id;
+        SaveStateEntry *se;
+        LoadStateEntry *le;
+        char idstr[256];
+
+        trace_qemu_loadvm_state_section(section_type);
+        switch (section_type) {
+        case QEMU_VM_SECTION_START:
+        case QEMU_VM_SECTION_FULL:
+            /* Read section start */
+            section_id = qemu_get_be32(f);
+            if (!qemu_get_counted_string(f, idstr)) {
+                error_report("Unable to read ID string for section %u",
+                            section_id);
+                return -EINVAL;
+            }
+            instance_id = qemu_get_be32(f);
+            version_id = qemu_get_be32(f);
+
+            trace_qemu_loadvm_state_section_startfull(section_id, idstr,
+                                                      instance_id, version_id);
+            /* Find savevm section */
+            se = find_se(idstr, instance_id);
+            if (se == NULL) {
+                error_report("Unknown savevm section or instance '%s' %d",
+                             idstr, instance_id);
+                return -EINVAL;
+            }
+
+            /* Validate version */
+            if (version_id > se->version_id) {
+                error_report("savevm: unsupported version %d for '%s' v%d",
+                             version_id, idstr, se->version_id);
+                return -EINVAL;
+            }
+
+            /* Add entry */
+            le = g_malloc0(sizeof(*le));
+
+            le->se = se;
+            le->section_id = section_id;
+            le->version_id = version_id;
+            QLIST_INSERT_HEAD(&mis->loadvm_handlers, le, entry);
+
+            ret = vmstate_load(f, le->se, le->version_id);
+            if (ret < 0) {
+                error_report("error while loading state for instance 0x%x of"
+                             " device '%s'", instance_id, idstr);
+                return ret;
+            }
+            if (!check_section_footer(f, le)) {
+                return -EINVAL;
+            }
+            break;
+        case QEMU_VM_SECTION_PART:
+        case QEMU_VM_SECTION_END:
+            section_id = qemu_get_be32(f);
+
+            trace_qemu_loadvm_state_section_partend(section_id);
+            QLIST_FOREACH(le, &mis->loadvm_handlers, entry) {
+                if (le->section_id == section_id) {
+                    break;
+                }
+            }
+            if (le == NULL) {
+                error_report("Unknown savevm section %d", section_id);
+                return -EINVAL;
+            }
+
+            ret = vmstate_load(f, le->se, le->version_id);
+            if (ret < 0) {
+                error_report("error while loading state section id %d(%s)",
+                             section_id, le->se->idstr);
+                return ret;
+            }
+            if (!check_section_footer(f, le)) {
+                return -EINVAL;
+            }
+            break;
+        case QEMU_VM_COMMAND:
+            ret = loadvm_process_command(f);
+            trace_qemu_loadvm_state_section_command(ret);
+            if ((ret < 0) || (ret & LOADVM_QUIT)) {
+                return ret;
+            }
+            break;
+        default:
+            error_report("Unknown savevm section type %d", section_type);
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
+
 int qemu_loadvm_state(QEMUFile *f)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
-    uint8_t section_type;
     unsigned int v;
     int ret;
-    int file_error_after_eof = -1;
 
     if (qemu_savevm_state_blocked(&local_err)) {
         error_report_err(local_err);
@@ -1204,105 +1310,14 @@ int qemu_loadvm_state(QEMUFile *f)
         }
     }
 
-    while ((section_type = qemu_get_byte(f)) != QEMU_VM_EOF) {
-        uint32_t instance_id, version_id, section_id;
-        SaveStateEntry *se;
-        LoadStateEntry *le;
-        char idstr[256];
+    ret = qemu_loadvm_state_main(f, mis);
+    qemu_event_set(&mis->main_thread_load_event);
 
-        trace_qemu_loadvm_state_section(section_type);
-        switch (section_type) {
-        case QEMU_VM_SECTION_START:
-        case QEMU_VM_SECTION_FULL:
-            /* Read section start */
-            section_id = qemu_get_be32(f);
-            if (!qemu_get_counted_string(f, idstr)) {
-                error_report("Unable to read ID string for section %u",
-                            section_id);
-                return -EINVAL;
-            }
-            instance_id = qemu_get_be32(f);
-            version_id = qemu_get_be32(f);
+    trace_qemu_loadvm_state_post_main(ret);
 
-            trace_qemu_loadvm_state_section_startfull(section_id, idstr,
-                                                      instance_id, version_id);
-            /* Find savevm section */
-            se = find_se(idstr, instance_id);
-            if (se == NULL) {
-                error_report("Unknown savevm section or instance '%s' %d",
-                             idstr, instance_id);
-                ret = -EINVAL;
-                goto out;
-            }
-
-            /* Validate version */
-            if (version_id > se->version_id) {
-                error_report("savevm: unsupported version %d for '%s' v%d",
-                             version_id, idstr, se->version_id);
-                ret = -EINVAL;
-                goto out;
-            }
-
-            /* Add entry */
-            le = g_malloc0(sizeof(*le));
-
-            le->se = se;
-            le->section_id = section_id;
-            le->version_id = version_id;
-            QLIST_INSERT_HEAD(&mis->loadvm_handlers, le, entry);
-
-            ret = vmstate_load(f, le->se, le->version_id);
-            if (ret < 0) {
-                error_report("error while loading state for instance 0x%x of"
-                             " device '%s'", instance_id, idstr);
-                goto out;
-            }
-            if (!check_section_footer(f, le)) {
-                ret = -EINVAL;
-                goto out;
-            }
-            break;
-        case QEMU_VM_SECTION_PART:
-        case QEMU_VM_SECTION_END:
-            section_id = qemu_get_be32(f);
-
-            trace_qemu_loadvm_state_section_partend(section_id);
-            QLIST_FOREACH(le, &mis->loadvm_handlers, entry) {
-                if (le->section_id == section_id) {
-                    break;
-                }
-            }
-            if (le == NULL) {
-                error_report("Unknown savevm section %d", section_id);
-                ret = -EINVAL;
-                goto out;
-            }
-
-            ret = vmstate_load(f, le->se, le->version_id);
-            if (ret < 0) {
-                error_report("error while loading state section id %d(%s)",
-                             section_id, le->se->idstr);
-                goto out;
-            }
-            if (!check_section_footer(f, le)) {
-                ret = -EINVAL;
-                goto out;
-            }
-            break;
-        case QEMU_VM_COMMAND:
-            ret = loadvm_process_command(f);
-            if (ret < 0) {
-                goto out;
-            }
-            break;
-        default:
-            error_report("Unknown savevm section type %d", section_type);
-            ret = -EINVAL;
-            goto out;
-        }
+    if (ret == 0) {
+        ret = qemu_file_get_error(f);
     }
-
-    file_error_after_eof = qemu_file_get_error(f);
 
     /*
      * Try to read in the VMDESC section as well, so that dumping tools that
@@ -1314,10 +1329,10 @@ int qemu_loadvm_state(QEMUFile *f)
      * We also mustn't read data that isn't there; some transports (RDMA)
      * will stall waiting for that data when the source has already closed.
      */
-    if (should_send_vmdesc()) {
+    if (ret == 0 && should_send_vmdesc()) {
         uint8_t *buf;
         uint32_t size;
-        section_type = qemu_get_byte(f);
+        uint8_t  section_type = qemu_get_byte(f);
 
         if (section_type != QEMU_VM_VMDESCRIPTION) {
             error_report("Expected vmdescription section, but got %d",
@@ -1340,14 +1355,6 @@ int qemu_loadvm_state(QEMUFile *f)
     }
 
     cpu_synchronize_all_post_init();
-
-    ret = 0;
-
-out:
-    if (ret == 0) {
-        /* We may not have a VMDESC section, so ignore relative errors */
-        ret = file_error_after_eof;
-    }
 
     return ret;
 }

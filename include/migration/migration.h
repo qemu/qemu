@@ -57,6 +57,12 @@ typedef QLIST_HEAD(, LoadStateEntry) LoadStateEntry_Head;
 struct MigrationIncomingState {
     QEMUFile *from_src_file;
 
+    /*
+     * Free at the start of the main state load, set as the main thread finishes
+     * loading state.
+     */
+    QemuEvent main_thread_load_event;
+
     QEMUFile *to_src_file;
     QemuMutex rp_mutex;    /* We send replies from multiple threads */
 

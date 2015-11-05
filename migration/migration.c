@@ -98,12 +98,14 @@ MigrationIncomingState *migration_incoming_state_new(QEMUFile* f)
     mis_current->from_src_file = f;
     QLIST_INIT(&mis_current->loadvm_handlers);
     qemu_mutex_init(&mis_current->rp_mutex);
+    qemu_event_init(&mis_current->main_thread_load_event, false);
 
     return mis_current;
 }
 
 void migration_incoming_state_destroy(void)
 {
+    qemu_event_destroy(&mis_current->main_thread_load_event);
     loadvm_free_handlers(mis_current);
     g_free(mis_current);
     mis_current = NULL;

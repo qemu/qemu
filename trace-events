@@ -1202,7 +1202,11 @@ virtio_gpu_fence_resp(uint64_t fence) "fence 0x%" PRIx64
 
 # migration/savevm.c
 qemu_loadvm_state_section(unsigned int section_type) "%d"
+qemu_loadvm_state_section_command(int ret) "%d"
 qemu_loadvm_state_section_partend(uint32_t section_id) "%u"
+qemu_loadvm_state_main(void) ""
+qemu_loadvm_state_main_quit_parent(void) ""
+qemu_loadvm_state_post_main(int ret) "%d"
 qemu_loadvm_state_section_startfull(uint32_t section_id, const char *idstr, uint32_t instance_id, uint32_t version_id) "%u(%s) %u %u"
 loadvm_process_command(uint16_t com, uint16_t len) "com=0x%x len=%d"
 loadvm_process_command_ping(uint32_t val) "%x"
