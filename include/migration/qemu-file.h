@@ -197,6 +197,7 @@ int qemu_file_get_error(QEMUFile *f);
 void qemu_file_set_error(QEMUFile *f, int ret);
 int qemu_file_shutdown(QEMUFile *f);
 void qemu_fflush(QEMUFile *f);
+void qemu_file_set_blocking(QEMUFile *f, bool block);
 
 static inline void qemu_put_be64s(QEMUFile *f, const uint64_t *pv)
 {

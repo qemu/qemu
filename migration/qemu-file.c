@@ -648,3 +648,18 @@ size_t qemu_get_counted_string(QEMUFile *f, char buf[256])
 
     return res == len ? res : 0;
 }
+
+/*
+ * Set the blocking state of the QEMUFile.
+ * Note: On some transports the OS only keeps a single blocking state for
+ *       both directions, and thus changing the blocking on the main
+ *       QEMUFile can also affect the return path.
+ */
+void qemu_file_set_blocking(QEMUFile *f, bool block)
+{
+    if (block) {
+        qemu_set_block(qemu_get_fd(f));
+    } else {
+        qemu_set_nonblock(qemu_get_fd(f));
+    }
+}
