@@ -196,7 +196,7 @@ ecc_diag_mem_readb(uint64_t addr, uint32_t ret) "Read diagnostic %"PRId64"= %02x
 
 # hw/nvram/fw_cfg.c
 fw_cfg_select(void *s, uint16_t key, int ret) "%p key %d = %d"
-fw_cfg_read(void *s, uint8_t ret) "%p = %d"
+fw_cfg_read(void *s, uint64_t ret) "%p = %"PRIx64
 fw_cfg_add_file(void *s, int index, char *name, size_t len) "%p #%d: %s (%zd bytes)"
 
 # hw/block/hd-geometry.c

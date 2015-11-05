@@ -274,6 +274,36 @@ static int fw_cfg_select(FWCfgState *s, uint16_t key)
     return ret;
 }
 
+static uint64_t fw_cfg_data_read(void *opaque, hwaddr addr, unsigned size)
+{
+    FWCfgState *s = opaque;
+    int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
+    FWCfgEntry *e = (s->cur_entry == FW_CFG_INVALID) ? NULL :
+                    &s->entries[arch][s->cur_entry & FW_CFG_ENTRY_MASK];
+    uint64_t value = 0;
+
+    assert(size > 0 && size <= sizeof(value));
+    if (s->cur_entry != FW_CFG_INVALID && e->data && s->cur_offset < e->len) {
+        /* The least significant 'size' bytes of the return value are
+         * expected to contain a string preserving portion of the item
+         * data, padded with zeros on the right in case we run out early.
+         * In technical terms, we're composing the host-endian representation
+         * of the big endian interpretation of the fw_cfg string.
+         */
+        do {
+            value = (value << 8) | e->data[s->cur_offset++];
+        } while (--size && s->cur_offset < e->len);
+        /* If size is still not zero, we *did* run out early, so continue
+         * left-shifting, to add the appropriate number of padding zeros
+         * on the right.
+         */
+        value <<= 8 * size;
+    }
+
+    trace_fw_cfg_read(s, value);
+    return value;
+}
+
 static uint8_t fw_cfg_read(FWCfgState *s)
 {
     int arch = !!(s->cur_entry & FW_CFG_ARCH_LOCAL);
@@ -289,19 +319,6 @@ static uint8_t fw_cfg_read(FWCfgState *s)
 
     trace_fw_cfg_read(s, ret);
     return ret;
-}
-
-static uint64_t fw_cfg_data_mem_read(void *opaque, hwaddr addr,
-                                     unsigned size)
-{
-    FWCfgState *s = opaque;
-    uint64_t value = 0;
-    unsigned i;
-
-    for (i = 0; i < size; ++i) {
-        value = (value << 8) | fw_cfg_read(s);
-    }
-    return value;
 }
 
 static void fw_cfg_data_mem_write(void *opaque, hwaddr addr,
@@ -485,7 +502,7 @@ static const MemoryRegionOps fw_cfg_ctl_mem_ops = {
 };
 
 static const MemoryRegionOps fw_cfg_data_mem_ops = {
-    .read = fw_cfg_data_mem_read,
+    .read = fw_cfg_data_read,
     .write = fw_cfg_data_mem_write,
     .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
