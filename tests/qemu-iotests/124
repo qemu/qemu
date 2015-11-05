@@ -36,6 +36,23 @@ def try_remove(img):
         pass
 
 
+def transaction_action(action, **kwargs):
+    return {
+        'type': action,
+        'data': kwargs
+    }
+
+
+def transaction_bitmap_clear(node, name, **kwargs):
+    return transaction_action('block-dirty-bitmap-clear',
+                              node=node, name=name, **kwargs)
+
+
+def transaction_drive_backup(device, target, **kwargs):
+    return transaction_action('drive-backup', device=device, target=target,
+                              **kwargs)
+
+
 class Bitmap:
     def __init__(self, name, drive):
         self.name = name
@@ -262,6 +279,43 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         of 128KiB instead of the present default of 64KiB.
         '''
         return self.do_incremental_simple(granularity=131072)
+
+
+    def test_incremental_transaction(self):
+        '''Test: Verify backups made from transactionally created bitmaps.
+
+        Create a bitmap "before" VM execution begins, then create a second
+        bitmap AFTER writes have already occurred. Use transactions to create
+        a full backup and synchronize both bitmaps to this backup.
+        Create an incremental backup through both bitmaps and verify that
+        both backups match the current drive0 image.
+        '''
+
+        drive0 = self.drives[0]
+        bitmap0 = self.add_bitmap('bitmap0', drive0)
+        self.hmp_io_writes(drive0['id'], (('0xab', 0, 512),
+                                          ('0xfe', '16M', '256k'),
+                                          ('0x64', '32736k', '64k')))
+        bitmap1 = self.add_bitmap('bitmap1', drive0)
+
+        result = self.vm.qmp('transaction', actions=[
+            transaction_bitmap_clear(bitmap0.drive['id'], bitmap0.name),
+            transaction_bitmap_clear(bitmap1.drive['id'], bitmap1.name),
+            transaction_drive_backup(drive0['id'], drive0['backup'],
+                                     sync='full', format=drive0['fmt'])
+        ])
+        self.assert_qmp(result, 'return', {})
+        self.wait_until_completed(drive0['id'])
+        self.files.append(drive0['backup'])
+
+        self.hmp_io_writes(drive0['id'], (('0x9a', 0, 512),
+                                          ('0x55', '8M', '352k'),
+                                          ('0x78', '15872k', '1M')))
+        # Both bitmaps should be correctly in sync.
+        self.create_incremental(bitmap0)
+        self.create_incremental(bitmap1)
+        self.vm.shutdown()
+        self.check_backups()
 
 
     def test_incremental_failure(self):
