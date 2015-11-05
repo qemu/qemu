@@ -259,6 +259,35 @@ static void deferred_incoming_migration(Error **errp)
     deferred_incoming = true;
 }
 
+/* Request a range of pages from the source VM at the given
+ * start address.
+ *   rbname: Name of the RAMBlock to request the page in, if NULL it's the same
+ *           as the last request (a name must have been given previously)
+ *   Start: Address offset within the RB
+ *   Len: Length in bytes required - must be a multiple of pagesize
+ */
+void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char *rbname,
+                               ram_addr_t start, size_t len)
+{
+    uint8_t bufc[12 + 1 + 255]; /* start (8), len (4), rbname upto 256 */
+    size_t msglen = 12; /* start + len */
+
+    *(uint64_t *)bufc = cpu_to_be64((uint64_t)start);
+    *(uint32_t *)(bufc + 8) = cpu_to_be32((uint32_t)len);
+
+    if (rbname) {
+        int rbname_len = strlen(rbname);
+        assert(rbname_len < 256);
+
+        bufc[msglen++] = rbname_len;
+        memcpy(bufc + msglen, rbname, rbname_len);
+        msglen += rbname_len;
+        migrate_send_rp_message(mis, MIG_RP_MSG_REQ_PAGES_ID, msglen, bufc);
+    } else {
+        migrate_send_rp_message(mis, MIG_RP_MSG_REQ_PAGES, msglen, bufc);
+    }
+}
+
 void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
@@ -1151,8 +1180,21 @@ static struct rp_cmd_args {
     [MIG_RP_MSG_INVALID]        = { .len = -1, .name = "INVALID" },
     [MIG_RP_MSG_SHUT]           = { .len =  4, .name = "SHUT" },
     [MIG_RP_MSG_PONG]           = { .len =  4, .name = "PONG" },
+    [MIG_RP_MSG_REQ_PAGES]      = { .len = 12, .name = "REQ_PAGES" },
+    [MIG_RP_MSG_REQ_PAGES_ID]   = { .len = -1, .name = "REQ_PAGES_ID" },
     [MIG_RP_MSG_MAX]            = { .len = -1, .name = "MAX" },
 };
+
+/*
+ * Process a request for pages received on the return path,
+ * We're allowed to send more than requested (e.g. to round to our page size)
+ * and we don't need to send pages that have already been sent.
+ */
+static void migrate_handle_rp_req_pages(MigrationState *ms, const char* rbname,
+                                       ram_addr_t start, size_t len)
+{
+    trace_migrate_handle_rp_req_pages(rbname, start, len);
+}
 
 /*
  * Handles messages sent on the return path towards the source VM
@@ -1166,6 +1208,8 @@ static void *source_return_path_thread(void *opaque)
     const int max_len = 512;
     uint8_t buf[max_len];
     uint32_t tmp32, sibling_error;
+    ram_addr_t start = 0; /* =0 to silence warning */
+    size_t  len = 0, expected_len;
     int res;
 
     trace_source_return_path_thread_entry();
@@ -1223,6 +1267,32 @@ static void *source_return_path_thread(void *opaque)
         case MIG_RP_MSG_PONG:
             tmp32 = be32_to_cpup((uint32_t *)buf);
             trace_source_return_path_thread_pong(tmp32);
+            break;
+
+        case MIG_RP_MSG_REQ_PAGES:
+            start = be64_to_cpup((uint64_t *)buf);
+            len = be32_to_cpup((uint32_t *)(buf + 8));
+            migrate_handle_rp_req_pages(ms, NULL, start, len);
+            break;
+
+        case MIG_RP_MSG_REQ_PAGES_ID:
+            expected_len = 12 + 1; /* header + termination */
+
+            if (header_len >= expected_len) {
+                start = be64_to_cpup((uint64_t *)buf);
+                len = be32_to_cpup((uint32_t *)(buf + 8));
+                /* Now we expect an idstr */
+                tmp32 = buf[12]; /* Length of the following idstr */
+                buf[13 + tmp32] = '\0';
+                expected_len += tmp32;
+            }
+            if (header_len != expected_len) {
+                error_report("RP: Req_Page_id with length %d expecting %zd",
+                        header_len, expected_len);
+                mark_source_rp_bad(ms);
+                goto out;
+            }
+            migrate_handle_rp_req_pages(ms, (char *)&buf[13], start, len);
             break;
 
         default:

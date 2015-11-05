@@ -49,6 +49,9 @@ enum mig_rp_message_type {
     MIG_RP_MSG_SHUT,         /* sibling will not send any more RP messages */
     MIG_RP_MSG_PONG,         /* Response to a PING; data (seq: be32 ) */
 
+    MIG_RP_MSG_REQ_PAGES_ID, /* data (start: be64, len: be32, id: string) */
+    MIG_RP_MSG_REQ_PAGES,    /* data (start: be64, len: be32) */
+
     MIG_RP_MSG_MAX
 };
 
@@ -256,6 +259,8 @@ void migrate_send_rp_shut(MigrationIncomingState *mis,
                           uint32_t value);
 void migrate_send_rp_pong(MigrationIncomingState *mis,
                           uint32_t value);
+void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
+                              ram_addr_t start, size_t len);
 
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
 void ram_control_after_iterate(QEMUFile *f, uint64_t flags);
