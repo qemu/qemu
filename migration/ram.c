@@ -237,7 +237,14 @@ typedef struct PageSearchStatus PageSearchStatus;
 
 static struct BitmapRcu {
     struct rcu_head rcu;
+    /* Main migration bitmap */
     unsigned long *bmap;
+    /* bitmap of pages that haven't been sent even once
+     * only maintained and used in postcopy at the moment
+     * where it's used to send the dirtymap at the start
+     * of the postcopy phase
+     */
+    unsigned long *unsentmap;
 } *migration_bitmap_rcu;
 
 struct CompressParam {
@@ -531,10 +538,18 @@ static int save_xbzrle_page(QEMUFile *f, uint8_t **current_data,
     return 1;
 }
 
-/* Called with rcu_read_lock() to protect migration_bitmap */
+/* Called with rcu_read_lock() to protect migration_bitmap
+ * rb: The RAMBlock  to search for dirty pages in
+ * start: Start address (typically so we can continue from previous page)
+ * ram_addr_abs: Pointer into which to store the address of the dirty page
+ *               within the global ram_addr space
+ *
+ * Returns: byte offset within memory region of the start of a dirty page
+ */
 static inline
 ram_addr_t migration_bitmap_find_and_reset_dirty(RAMBlock *rb,
-                                                 ram_addr_t start)
+                                                 ram_addr_t start,
+                                                 ram_addr_t *ram_addr_abs)
 {
     unsigned long base = rb->offset >> TARGET_PAGE_BITS;
     unsigned long nr = base + (start >> TARGET_PAGE_BITS);
@@ -555,6 +570,7 @@ ram_addr_t migration_bitmap_find_and_reset_dirty(RAMBlock *rb,
         clear_bit(next, bitmap);
         migration_dirty_pages--;
     }
+    *ram_addr_abs = next << TARGET_PAGE_BITS;
     return (next - base) << TARGET_PAGE_BITS;
 }
 
@@ -953,10 +969,11 @@ static int ram_save_compressed_page(QEMUFile *f, RAMBlock *block,
  * @*again: Set to false if the search has scanned the whole of RAM
  */
 static bool find_dirty_block(QEMUFile *f, PageSearchStatus *pss,
-                             bool *again)
+                             bool *again, ram_addr_t *ram_addr_abs)
 {
     pss->offset = migration_bitmap_find_and_reset_dirty(pss->block,
-                                                       pss->offset);
+                                                       pss->offset,
+                                                       ram_addr_abs);
     if (pss->complete_round && pss->block == last_seen_block &&
         pss->offset >= last_offset) {
         /*
@@ -1014,6 +1031,8 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
     PageSearchStatus pss;
     int pages = 0;
     bool again, found;
+    ram_addr_t dirty_ram_abs; /* Address of the start of the dirty page in
+                                 ram_addr_t space */
 
     pss.block = last_seen_block;
     pss.offset = last_offset;
@@ -1024,7 +1043,7 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
     }
 
     do {
-        found = find_dirty_block(f, &pss, &again);
+        found = find_dirty_block(f, &pss, &again, &dirty_ram_abs);
 
         if (found) {
             if (compression_switch && migrate_use_compression()) {
@@ -1038,7 +1057,14 @@ static int ram_find_and_save_block(QEMUFile *f, bool last_stage,
 
             /* if page is unmodified, continue to the next */
             if (pages > 0) {
+                unsigned long *unsentmap;
+
+                unsentmap = atomic_rcu_read(&migration_bitmap_rcu)->unsentmap;
                 last_sent_block = pss.block;
+                if (unsentmap) {
+                    clear_bit(dirty_ram_abs >> TARGET_PAGE_BITS, unsentmap);
+                }
+
             }
         }
     } while (!pages && again);
@@ -1097,6 +1123,7 @@ void free_xbzrle_decoded_buf(void)
 static void migration_bitmap_free(struct BitmapRcu *bmap)
 {
     g_free(bmap->bmap);
+    g_free(bmap->unsentmap);
     g_free(bmap);
 }
 
@@ -1153,6 +1180,13 @@ void migration_bitmap_extend(ram_addr_t old, ram_addr_t new)
         qemu_mutex_lock(&migration_bitmap_mutex);
         bitmap_copy(bitmap->bmap, old_bitmap->bmap, old);
         bitmap_set(bitmap->bmap, old, new - old);
+
+        /* We don't have a way to safely extend the sentmap
+         * with RCU; so mark it as missing, entry to postcopy
+         * will fail.
+         */
+        bitmap->unsentmap = NULL;
+
         atomic_rcu_set(&migration_bitmap_rcu, bitmap);
         qemu_mutex_unlock(&migration_bitmap_mutex);
         migration_dirty_pages += new - old;
@@ -1253,9 +1287,14 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     reset_ram_globals();
 
     ram_bitmap_pages = last_ram_offset() >> TARGET_PAGE_BITS;
-    migration_bitmap_rcu = g_new(struct BitmapRcu, 1);
+    migration_bitmap_rcu = g_new0(struct BitmapRcu, 1);
     migration_bitmap_rcu->bmap = bitmap_new(ram_bitmap_pages);
     bitmap_set(migration_bitmap_rcu->bmap, 0, ram_bitmap_pages);
+
+    if (migrate_postcopy_ram()) {
+        migration_bitmap_rcu->unsentmap = bitmap_new(ram_bitmap_pages);
+        bitmap_set(migration_bitmap_rcu->unsentmap, 0, ram_bitmap_pages);
+    }
 
     /*
      * Count the total number of pages used by ram blocks not including any
