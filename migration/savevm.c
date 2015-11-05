@@ -59,6 +59,14 @@
 
 static bool skip_section_footers;
 
+static struct mig_cmd_args {
+    ssize_t     len; /* -1 = variable */
+    const char *name;
+} mig_cmd_args[] = {
+    [MIG_CMD_INVALID]          = { .len = -1, .name = "INVALID" },
+    [MIG_CMD_MAX]              = { .len = -1, .name = "MAX" },
+};
+
 static int announce_self_create(uint8_t *buf,
                                 uint8_t *mac_addr)
 {
@@ -694,6 +702,28 @@ static void save_section_footer(QEMUFile *f, SaveStateEntry *se)
     }
 }
 
+/**
+ * qemu_savevm_command_send: Send a 'QEMU_VM_COMMAND' type element with the
+ *                           command and associated data.
+ *
+ * @f: File to send command on
+ * @command: Command type to send
+ * @len: Length of associated data
+ * @data: Data associated with command.
+ */
+void qemu_savevm_command_send(QEMUFile *f,
+                              enum qemu_vm_cmd command,
+                              uint16_t len,
+                              uint8_t *data)
+{
+    trace_savevm_command_send(command, len);
+    qemu_put_byte(f, QEMU_VM_COMMAND);
+    qemu_put_be16(f, (uint16_t)command);
+    qemu_put_be16(f, len);
+    qemu_put_buffer(f, data, len);
+    qemu_fflush(f);
+}
+
 bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
@@ -1004,6 +1034,41 @@ static SaveStateEntry *find_se(const char *idstr, int instance_id)
     return NULL;
 }
 
+/**
+ * loadvm_process_command: Process an incoming 'QEMU_VM_COMMAND'
+ *
+ * Returns: 0 on success, negative on error (in which case it will issue an
+ *          error message).
+ * @f: The stream to read the command data from.
+ */
+static int loadvm_process_command(QEMUFile *f)
+{
+    uint16_t cmd;
+    uint16_t len;
+
+    cmd = qemu_get_be16(f);
+    len = qemu_get_be16(f);
+
+    trace_loadvm_process_command(cmd, len);
+    if (cmd >= MIG_CMD_MAX || cmd == MIG_CMD_INVALID) {
+        error_report("MIG_CMD 0x%x unknown (len 0x%x)", cmd, len);
+        return -EINVAL;
+    }
+
+    if (mig_cmd_args[cmd].len != -1 && mig_cmd_args[cmd].len != len) {
+        error_report("%s received with bad length - expecting %zu, got %d",
+                     mig_cmd_args[cmd].name,
+                     (size_t)mig_cmd_args[cmd].len, len);
+        return -ERANGE;
+    }
+
+    switch (cmd) {
+        /* Filling added in next patch */
+    }
+
+    return 0;
+}
+
 struct LoadStateEntry {
     QLIST_ENTRY(LoadStateEntry) entry;
     SaveStateEntry *se;
@@ -1180,6 +1245,12 @@ int qemu_loadvm_state(QEMUFile *f)
             }
             if (!check_section_footer(f, le)) {
                 ret = -EINVAL;
+                goto out;
+            }
+            break;
+        case QEMU_VM_COMMAND:
+            ret = loadvm_process_command(f);
+            if (ret < 0) {
                 goto out;
             }
             break;
