@@ -1258,7 +1258,6 @@ static int open_return_path_on_source(MigrationState *ms)
     return 0;
 }
 
-__attribute__ (( unused )) /* Until later in patch series */
 /* Returns 0 if the RP was ok, otherwise there was an error on the RP */
 static int await_return_path_close_on_source(MigrationState *ms)
 {
@@ -1399,23 +1398,47 @@ static void migration_completion(MigrationState *s, int current_active_state,
 {
     int ret;
 
-    qemu_mutex_lock_iothread();
-    *start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
-    *old_vm_running = runstate_is_running();
+    if (s->state == MIGRATION_STATUS_ACTIVE) {
+        qemu_mutex_lock_iothread();
+        *start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+        *old_vm_running = runstate_is_running();
+        ret = global_state_store();
 
-    ret = global_state_store();
-    if (!ret) {
-        ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
-        if (ret >= 0) {
-            qemu_file_set_rate_limit(s->file, INT64_MAX);
-            qemu_savevm_state_complete_precopy(s->file);
+        if (!ret) {
+            ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+            if (ret >= 0) {
+                qemu_file_set_rate_limit(s->file, INT64_MAX);
+                qemu_savevm_state_complete_precopy(s->file);
+            }
         }
-    }
-    qemu_mutex_unlock_iothread();
+        qemu_mutex_unlock_iothread();
 
-    if (ret < 0) {
-        goto fail;
+        if (ret < 0) {
+            goto fail;
+        }
+    } else if (s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE) {
+        trace_migration_completion_postcopy_end();
+
+        qemu_savevm_state_complete_postcopy(s->file);
+        trace_migration_completion_postcopy_end_after_complete();
+    }
+
+    /*
+     * If rp was opened we must clean up the thread before
+     * cleaning everything else up (since if there are no failures
+     * it will wait for the destination to send it's status in
+     * a SHUT command).
+     * Postcopy opens rp if enabled (even if it's not avtivated)
+     */
+    if (migrate_postcopy_ram()) {
+        int rp_error;
+        trace_migration_completion_postcopy_end_before_rp();
+        rp_error = await_return_path_close_on_source(s);
+        trace_migration_completion_postcopy_end_after_rp(rp_error);
+        if (rp_error) {
+            goto fail;
+        }
     }
 
     if (qemu_file_get_error(s->file)) {

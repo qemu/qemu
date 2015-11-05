@@ -1453,6 +1453,11 @@ migrate_fd_error(void) ""
 migrate_fd_cancel(void) ""
 migrate_pending(uint64_t size, uint64_t max, uint64_t post, uint64_t nonpost) "pending size %" PRIu64 " max %" PRIu64 " (post=%" PRIu64 " nonpost=%" PRIu64 ")"
 migrate_send_rp_message(int msg_type, uint16_t len) "%d: len %d"
+migration_completion_file_err(void) ""
+migration_completion_postcopy_end(void) ""
+migration_completion_postcopy_end_after_complete(void) ""
+migration_completion_postcopy_end_before_rp(void) ""
+migration_completion_postcopy_end_after_rp(int rp_error) "%d"
 migration_thread_after_loop(void) ""
 migration_thread_file_err(void) ""
 migration_thread_setup_complete(void) ""
@@ -1470,7 +1475,6 @@ migrate_transferred(uint64_t tranferred, uint64_t time_spent, double bandwidth, 
 migrate_state_too_big(void) ""
 migrate_global_state_post_load(const char *state) "loaded state: %s"
 migrate_global_state_pre_save(const char *state) "saved state: %s"
-migration_completion_file_err(void) ""
 migration_thread_low_pending(uint64_t pending) "%" PRIu64
 
 # migration/rdma.c
