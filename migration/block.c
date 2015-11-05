@@ -748,7 +748,9 @@ static int block_save_complete(QEMUFile *f, void *opaque)
     return 0;
 }
 
-static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
+static void block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
+                               uint64_t *non_postcopiable_pending,
+                               uint64_t *postcopiable_pending)
 {
     /* Estimate pending number of bytes to send */
     uint64_t pending;
@@ -767,7 +769,8 @@ static uint64_t block_save_pending(QEMUFile *f, void *opaque, uint64_t max_size)
     qemu_mutex_unlock_iothread();
 
     DPRINTF("Enter save live pending  %" PRIu64 "\n", pending);
-    return pending;
+    /* We don't do postcopy */
+    *non_postcopiable_pending += pending;
 }
 
 static int block_load(QEMUFile *f, void *opaque, int version_id)
