@@ -237,11 +237,29 @@ static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
     }
 }
 
+static void backup_commit(BlockJob *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    if (s->sync_bitmap) {
+        backup_cleanup_sync_bitmap(s, 0);
+    }
+}
+
+static void backup_abort(BlockJob *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    if (s->sync_bitmap) {
+        backup_cleanup_sync_bitmap(s, -1);
+    }
+}
+
 static const BlockJobDriver backup_job_driver = {
     .instance_size  = sizeof(BackupBlockJob),
     .job_type       = BLOCK_JOB_TYPE_BACKUP,
     .set_speed      = backup_set_speed,
     .iostatus_reset = backup_iostatus_reset,
+    .commit         = backup_commit,
+    .abort          = backup_abort,
 };
 
 static BlockErrorAction backup_error_action(BackupBlockJob *job,
@@ -457,10 +475,6 @@ static void coroutine_fn backup_run(void *opaque)
     /* wait until pending backup_do_cow() calls have completed */
     qemu_co_rwlock_wrlock(&job->flush_rwlock);
     qemu_co_rwlock_unlock(&job->flush_rwlock);
-
-    if (job->sync_bitmap) {
-        backup_cleanup_sync_bitmap(job, ret);
-    }
     hbitmap_free(job->bitmap);
 
     if (target->blk) {
