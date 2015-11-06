@@ -425,8 +425,9 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
                                        const void *unused)
 {
     QObject *arg;
+    UserDefAlternate *tmp;
 
-    UserDefAlternate *tmp = g_malloc0(sizeof(UserDefAlternate));
+    tmp = g_new0(UserDefAlternate, 1);
     tmp->type = USER_DEF_ALTERNATE_KIND_I;
     tmp->u.i = 42;
 
@@ -435,6 +436,19 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
 
     g_assert(qobject_type(arg) == QTYPE_QINT);
     g_assert_cmpint(qint_get_int(qobject_to_qint(arg)), ==, 42);
+
+    qapi_free_UserDefAlternate(tmp);
+    qobject_decref(arg);
+
+    tmp = g_new0(UserDefAlternate, 1);
+    tmp->type = USER_DEF_ALTERNATE_KIND_S;
+    tmp->u.s = g_strdup("hello");
+
+    visit_type_UserDefAlternate(data->ov, &tmp, NULL, &error_abort);
+    arg = qmp_output_get_qobject(data->qov);
+
+    g_assert(qobject_type(arg) == QTYPE_QSTRING);
+    g_assert_cmpstr(qstring_get_str(qobject_to_qstring(arg)), ==, "hello");
 
     qapi_free_UserDefAlternate(tmp);
     qobject_decref(arg);
