@@ -268,6 +268,10 @@ static void s390_init(MachineState *machine)
     hwaddr virtio_region_len;
     hwaddr virtio_region_start;
 
+    error_printf("WARNING\n"
+                 "The s390-virtio machine (non-ccw) is deprecated.\n"
+                 "It will be removed in 2.6. Please use s390-ccw-virtio\n");
+
     if (machine->ram_slots) {
         error_report("Memory hotplug not supported by the selected machine.");
         exit(EXIT_FAILURE);
@@ -334,7 +338,7 @@ static void s390_machine_class_init(ObjectClass *oc, void *data)
     NMIClass *nc = NMI_CLASS(oc);
 
     mc->alias = "s390";
-    mc->desc = "VirtIO based S390 machine";
+    mc->desc = "VirtIO based S390 machine (deprecated)";
     mc->init = s390_init;
     mc->reset = s390_machine_reset;
     mc->block_default_type = IF_VIRTIO;
