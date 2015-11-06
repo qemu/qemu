@@ -516,6 +516,10 @@ query-qmp-schema.  QGA currently doesn't support introspection.
 
 query-qmp-schema returns a JSON array of SchemaInfo objects.  These
 objects together describe the wire ABI, as defined in the QAPI schema.
+There is no specified order to the SchemaInfo objects returned; a
+client must search for a particular name throughout the entire array
+to learn more about that name, but is at least guaranteed that there
+will be no collisions between type, command, and event names.
 
 However, the SchemaInfo can't reflect all the rules and restrictions
 that apply to QMP.  It's interface introspection (figuring out what's
@@ -596,7 +600,9 @@ any.  Each element is a JSON object with members "name" (the member's
 name), "type" (the name of its type), and optionally "default".  The
 member is optional if "default" is present.  Currently, "default" can
 only have value null.  Other values are reserved for future
-extensions.
+extensions.  The "members" array is in no particular order; clients
+must search the entire object when learning whether a particular
+member is supported.
 
 Example: the SchemaInfo for MyType from section Struct types
 
@@ -610,7 +616,9 @@ Example: the SchemaInfo for MyType from section Struct types
 "variants" is a JSON array describing the object's variant members.
 Each element is a JSON object with members "case" (the value of type
 tag this element applies to) and "type" (the name of an object type
-that provides the variant members for this type tag value).
+that provides the variant members for this type tag value).  The
+"variants" array is in no particular order, and is not guaranteed to
+list cases in the same order as the corresponding "tag" enum type.
 
 Example: the SchemaInfo for flat union BlockdevOptions from section
 Union types
@@ -651,7 +659,8 @@ Union types
 The SchemaInfo for an alternate type has meta-type "alternate", and
 variant member "members".  "members" is a JSON array.  Each element is
 a JSON object with member "type", which names a type.  Values of the
-alternate type conform to exactly one of its member types.
+alternate type conform to exactly one of its member types.  There is
+no guarantee on the order in which "members" will be listed.
 
 Example: the SchemaInfo for BlockRef from section Alternate types
 
@@ -673,7 +682,9 @@ Example: the SchemaInfo for ['str']
       "element-type": "str" }
 
 The SchemaInfo for an enumeration type has meta-type "enum" and
-variant member "values".
+variant member "values".  The values are listed in no particular
+order; clients must search the entire enum when learning whether a
+particular value is supported.
 
 Example: the SchemaInfo for MyEnum from section Enumeration types
 
