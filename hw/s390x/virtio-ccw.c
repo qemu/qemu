@@ -33,30 +33,10 @@
 #include "hw/s390x/css.h"
 #include "virtio-ccw.h"
 #include "trace.h"
+#include "hw/s390x/css-bridge.h"
 
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
-
-static void virtual_css_bus_reset(BusState *qbus)
-{
-    /* This should actually be modelled via the generic css */
-    css_reset();
-}
-
-
-static void virtual_css_bus_class_init(ObjectClass *klass, void *data)
-{
-    BusClass *k = BUS_CLASS(klass);
-
-    k->reset = virtual_css_bus_reset;
-}
-
-static const TypeInfo virtual_css_bus_info = {
-    .name = TYPE_VIRTUAL_CSS_BUS,
-    .parent = TYPE_BUS,
-    .instance_size = sizeof(VirtualCssBus),
-    .class_init = virtual_css_bus_class_init,
-};
 
 VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch)
 {
@@ -121,26 +101,6 @@ static int virtio_ccw_ioeventfd_assign(DeviceState *d, EventNotifier *notifier,
     uint32_t sch_id = (css_build_subchannel_id(sch) << 16) | sch->schid;
 
     return s390_assign_subch_ioeventfd(notifier, sch_id, n, assign);
-}
-
-VirtualCssBus *virtual_css_bus_init(void)
-{
-    VirtualCssBus *cbus;
-    BusState *bus;
-    DeviceState *dev;
-
-    /* Create bridge device */
-    dev = qdev_create(NULL, TYPE_VIRTUAL_CSS_BRIDGE);
-    qdev_init_nofail(dev);
-
-    /* Create bus on bridge device */
-    bus = qbus_create(TYPE_VIRTUAL_CSS_BUS, dev, "virtual-css");
-    cbus = VIRTUAL_CSS_BUS(bus);
-
-    /* Enable hotplugging */
-    qbus_set_hotplug_handler(bus, dev, &error_abort);
-
-    return cbus;
 }
 
 /* Communication blocks used by several channel commands. */
@@ -1565,8 +1525,8 @@ static int virtio_ccw_busdev_exit(DeviceState *dev)
     return _info->exit(_dev);
 }
 
-static void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,
-                                     DeviceState *dev, Error **errp)
+void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,
+                              DeviceState *dev, Error **errp)
 {
     VirtioCcwDevice *_dev = (VirtioCcwDevice *)dev;
     SubchDev *sch = _dev->sch;
@@ -1603,37 +1563,6 @@ static const TypeInfo virtio_ccw_device_info = {
     .class_init = virtio_ccw_device_class_init,
     .class_size = sizeof(VirtIOCCWDeviceClass),
     .abstract = true,
-};
-
-/***************** Virtual-css Bus Bridge Device ********************/
-/* Only required to have the virtio bus as child in the system bus */
-
-static int virtual_css_bridge_init(SysBusDevice *dev)
-{
-    /* nothing */
-    return 0;
-}
-
-static void virtual_css_bridge_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    k->init = virtual_css_bridge_init;
-    hc->unplug = virtio_ccw_busdev_unplug;
-    set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
-}
-
-static const TypeInfo virtual_css_bridge_info = {
-    .name          = TYPE_VIRTUAL_CSS_BRIDGE,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
-    .class_init    = virtual_css_bridge_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_HOTPLUG_HANDLER },
-        { }
-    }
 };
 
 /* virtio-ccw-bus */
@@ -1730,7 +1659,6 @@ static const TypeInfo virtio_ccw_9p_info = {
 static void virtio_ccw_register(void)
 {
     type_register_static(&virtio_ccw_bus_info);
-    type_register_static(&virtual_css_bus_info);
     type_register_static(&virtio_ccw_device_info);
     type_register_static(&virtio_ccw_serial);
     type_register_static(&virtio_ccw_blk);
@@ -1741,7 +1669,6 @@ static void virtio_ccw_register(void)
     type_register_static(&vhost_ccw_scsi);
 #endif
     type_register_static(&virtio_ccw_rng);
-    type_register_static(&virtual_css_bridge_info);
 #ifdef CONFIG_VIRTFS
     type_register_static(&virtio_ccw_9p_info);
 #endif

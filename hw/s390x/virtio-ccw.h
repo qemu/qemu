@@ -101,17 +101,8 @@ static inline int virtio_ccw_rev_max(VirtioCcwDevice *dev)
     return dev->max_rev;
 }
 
-/* virtual css bridge type */
-#define TYPE_VIRTUAL_CSS_BRIDGE "virtual-css-bridge"
-
-/* virtual css bus type */
-typedef struct VirtualCssBus {
-    BusState parent_obj;
-} VirtualCssBus;
-
-#define TYPE_VIRTUAL_CSS_BUS "virtual-css-bus"
-#define VIRTUAL_CSS_BUS(obj) \
-     OBJECT_CHECK(VirtualCssBus, (obj), TYPE_VIRTUAL_CSS_BUS)
+void virtio_ccw_busdev_unplug(HotplugHandler *hotplug_dev,
+                              DeviceState *dev, Error **errp);
 
 /* virtio-scsi-ccw */
 
@@ -192,7 +183,6 @@ typedef struct VirtIORNGCcw {
     VirtIORNG vdev;
 } VirtIORNGCcw;
 
-VirtualCssBus *virtual_css_bus_init(void);
 void virtio_ccw_device_update_status(SubchDev *sch);
 VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch);
 
