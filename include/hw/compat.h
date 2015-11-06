@@ -6,6 +6,10 @@
             .driver   = "virtio-blk-device",\
             .property = "scsi",\
             .value    = "true",\
+        },{\
+            .driver   = "virtio-pci",\
+            .property = "migrate-extra",\
+            .value    = "off",\
         },
 
 #define HW_COMPAT_2_3 \

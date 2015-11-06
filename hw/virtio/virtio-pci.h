@@ -75,6 +75,10 @@ typedef struct VirtioBusClass VirtioPCIBusClass;
 #define VIRTIO_PCI_FLAG_DISABLE_LEGACY (1 << VIRTIO_PCI_FLAG_DISABLE_LEGACY_BIT)
 #define VIRTIO_PCI_FLAG_DISABLE_MODERN (1 << VIRTIO_PCI_FLAG_DISABLE_MODERN_BIT)
 
+/* migrate extra state */
+#define VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT 4
+#define VIRTIO_PCI_FLAG_MIGRATE_EXTRA (1 << VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT)
+
 typedef struct {
     MSIMessage msg;
     int virq;
@@ -104,6 +108,14 @@ typedef struct VirtIOPCIRegion {
     uint32_t type;
 } VirtIOPCIRegion;
 
+typedef struct VirtIOPCIQueue {
+  uint16_t num;
+  bool enabled;
+  uint32_t desc[2];
+  uint32_t avail[2];
+  uint32_t used[2];
+} VirtIOPCIQueue;
+
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
@@ -124,13 +136,7 @@ struct VirtIOPCIProxy {
     uint32_t dfselect;
     uint32_t gfselect;
     uint32_t guest_features[2];
-    struct {
-        uint16_t num;
-        bool enabled;
-        uint32_t desc[2];
-        uint32_t avail[2];
-        uint32_t used[2];
-    } vqs[VIRTIO_QUEUE_MAX];
+    VirtIOPCIQueue vqs[VIRTIO_QUEUE_MAX];
 
     bool ioeventfd_disabled;
     bool ioeventfd_started;

@@ -1116,6 +1116,16 @@ static bool virtio_ringsize_needed(void *opaque)
     return false;
 }
 
+static bool virtio_extra_state_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    return k->has_extra_state &&
+        k->has_extra_state(qbus->parent);
+}
+
 static void put_virtqueue_state(QEMUFile *f, void *pv, size_t size)
 {
     VirtIODevice *vdev = pv;
@@ -1210,6 +1220,53 @@ static const VMStateDescription vmstate_virtio_ringsize = {
     }
 };
 
+static int get_extra_state(QEMUFile *f, void *pv, size_t size)
+{
+    VirtIODevice *vdev = pv;
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    if (!k->load_extra_state) {
+        return -1;
+    } else {
+        return k->load_extra_state(qbus->parent, f);
+    }
+}
+
+static void put_extra_state(QEMUFile *f, void *pv, size_t size)
+{
+    VirtIODevice *vdev = pv;
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    k->save_extra_state(qbus->parent, f);
+}
+
+static const VMStateInfo vmstate_info_extra_state = {
+    .name = "virtqueue_extra_state",
+    .get = get_extra_state,
+    .put = put_extra_state,
+};
+
+static const VMStateDescription vmstate_virtio_extra_state = {
+    .name = "virtio/extra_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = &virtio_extra_state_needed,
+    .fields = (VMStateField[]) {
+        {
+            .name         = "extra_state",
+            .version_id   = 0,
+            .field_exists = NULL,
+            .size         = 0,
+            .info         = &vmstate_info_extra_state,
+            .flags        = VMS_SINGLE,
+            .offset       = 0,
+        },
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio_device_endian = {
     .name = "virtio/device_endian",
     .version_id = 1,
@@ -1245,6 +1302,7 @@ static const VMStateDescription vmstate_virtio = {
         &vmstate_virtio_64bit_features,
         &vmstate_virtio_virtqueues,
         &vmstate_virtio_ringsize,
+        &vmstate_virtio_extra_state,
         NULL
     }
 };
