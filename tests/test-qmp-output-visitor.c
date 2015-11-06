@@ -166,41 +166,6 @@ static void test_visitor_out_enum_errors(TestOutputVisitorData *data,
     }
 }
 
-typedef struct TestStruct
-{
-    int64_t integer;
-    bool boolean;
-    char *string;
-} TestStruct;
-
-static void visit_type_TestStruct(Visitor *v, TestStruct **obj,
-                                  const char *name, Error **errp)
-{
-    Error *err = NULL;
-
-    visit_start_struct(v, (void **)obj, "TestStruct", name, sizeof(TestStruct),
-                       &err);
-    if (err) {
-        goto out;
-    }
-
-    visit_type_int(v, &(*obj)->integer, "integer", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_bool(v, &(*obj)->boolean, "boolean", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_str(v, &(*obj)->string, "string", &err);
-
-out_end:
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_struct(v, &err);
-out:
-    error_propagate(errp, err);
-}
 
 static void test_visitor_out_struct(TestOutputVisitorData *data,
                                     const void *unused)
@@ -314,29 +279,6 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
     }
 }
 
-typedef struct TestStructList
-{
-    union {
-        TestStruct *value;
-        uint64_t padding;
-    };
-    struct TestStructList *next;
-} TestStructList;
-
-static void visit_type_TestStructList(Visitor *v, TestStructList **obj,
-                                      const char *name, Error **errp)
-{
-    GenericList *i, **head = (GenericList **)obj;
-
-    visit_start_list(v, name, errp);
-
-    for (*head = i = visit_next_list(v, head, errp); i; i = visit_next_list(v, &i, errp)) {
-        TestStructList *native_i = (TestStructList *)i;
-        visit_type_TestStruct(v, &native_i->value, NULL, errp);
-    }
-
-    visit_end_list(v, errp);
-}
 
 static void test_visitor_out_list(TestOutputVisitorData *data,
                                   const void *unused)

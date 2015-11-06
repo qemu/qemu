@@ -92,6 +92,7 @@ object EventStructOne
 object ForceArrays
     member unused1: UserDefOneList optional=False
     member unused2: UserDefTwoList optional=False
+    member unused3: TestStructList optional=False
 enum MyEnum []
 object NestedEnumsOne
     member enum1: EnumOne optional=False
@@ -100,6 +101,10 @@ object NestedEnumsOne
     member enum4: EnumOne optional=True
 enum QEnumTwo ['value1', 'value2']
     prefix QENUM_TWO
+object TestStruct
+    member integer: int optional=False
+    member boolean: bool optional=False
+    member string: str optional=False
 object UserDefA
     member boolean: bool optional=False
     member a_b: int optional=True

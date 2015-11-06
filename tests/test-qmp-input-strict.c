@@ -89,41 +89,6 @@ static Visitor *validate_test_init_raw(TestInputVisitorData *data,
     return v;
 }
 
-typedef struct TestStruct
-{
-    int64_t integer;
-    bool boolean;
-    char *string;
-} TestStruct;
-
-static void visit_type_TestStruct(Visitor *v, TestStruct **obj,
-                                  const char *name, Error **errp)
-{
-    Error *err = NULL;
-
-    visit_start_struct(v, (void **)obj, "TestStruct", name, sizeof(TestStruct),
-                       &err);
-    if (err) {
-        goto out;
-    }
-
-    visit_type_int(v, &(*obj)->integer, "integer", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_bool(v, &(*obj)->boolean, "boolean", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_str(v, &(*obj)->string, "string", &err);
-
-out_end:
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_struct(v, &err);
-out:
-    error_propagate(errp, err);
-}
 
 static void test_validate_struct(TestInputVisitorData *data,
                                   const void *unused)
