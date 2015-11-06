@@ -45,6 +45,8 @@ static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
 {
     Visitor *v;
 
+    visitor_input_teardown(data, NULL);
+
     data->obj = qobject_from_jsonv(json_string, ap);
     g_assert(data->obj);
 
@@ -174,12 +176,7 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
         visit_type_EnumOne(v, &res, NULL, &err);
         g_assert(!err);
         g_assert_cmpint(i, ==, res);
-
-        visitor_input_teardown(data, NULL);
     }
-
-    data->obj = NULL;
-    data->qiv = NULL;
 }
 
 
@@ -202,12 +199,6 @@ static void test_visitor_in_struct(TestInputVisitorData *data,
     g_free(p);
 }
 
-static void check_and_free_str(char *str, const char *cmp)
-{
-    g_assert_cmpstr(str, ==, cmp);
-    g_free(str);
-}
-
 static void test_visitor_in_struct_nested(TestInputVisitorData *data,
                                           const void *unused)
 {
@@ -223,17 +214,14 @@ static void test_visitor_in_struct_nested(TestInputVisitorData *data,
     visit_type_UserDefTwo(v, &udp, NULL, &err);
     g_assert(!err);
 
-    check_and_free_str(udp->string0, "string0");
-    check_and_free_str(udp->dict1->string1, "string1");
+    g_assert_cmpstr(udp->string0, ==, "string0");
+    g_assert_cmpstr(udp->dict1->string1, ==, "string1");
     g_assert_cmpint(udp->dict1->dict2->userdef->integer, ==, 42);
-    check_and_free_str(udp->dict1->dict2->userdef->string, "string");
-    check_and_free_str(udp->dict1->dict2->string, "string2");
+    g_assert_cmpstr(udp->dict1->dict2->userdef->string, ==, "string");
+    g_assert_cmpstr(udp->dict1->dict2->string, ==, "string2");
     g_assert(udp->dict1->has_dict3 == false);
 
-    g_free(udp->dict1->dict2->userdef);
-    g_free(udp->dict1->dict2);
-    g_free(udp->dict1);
-    g_free(udp);
+    qapi_free_UserDefTwo(udp);
 }
 
 static void test_visitor_in_list(TestInputVisitorData *data,
@@ -343,14 +331,12 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
     g_assert_cmpint(tmp->type, ==, USER_DEF_ALTERNATE_KIND_I);
     g_assert_cmpint(tmp->u.i, ==, 42);
     qapi_free_UserDefAlternate(tmp);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "'string'");
     visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
     g_assert_cmpint(tmp->type, ==, USER_DEF_ALTERNATE_KIND_S);
     g_assert_cmpstr(tmp->u.s, ==, "string");
     qapi_free_UserDefAlternate(tmp);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "false");
     visit_type_UserDefAlternate(v, &tmp, NULL, &err);
@@ -358,7 +344,6 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
     error_free(err);
     err = NULL;
     qapi_free_UserDefAlternate(tmp);
-    visitor_input_teardown(data, NULL);
 }
 
 static void test_visitor_in_alternate_number(TestInputVisitorData *data,
@@ -381,7 +366,6 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     error_free(err);
     err = NULL;
     qapi_free_AltStrBool(asb);
-    visitor_input_teardown(data, NULL);
 
     /* FIXME: Order of alternate should not affect semantics; asn should
      * parse the same as ans */
@@ -393,35 +377,30 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     error_free(err);
     err = NULL;
     qapi_free_AltStrNum(asn);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumStr(v, &ans, NULL, &error_abort);
     g_assert_cmpint(ans->type, ==, ALT_NUM_STR_KIND_N);
     g_assert_cmpfloat(ans->u.n, ==, 42);
     qapi_free_AltNumStr(ans);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltStrInt(v, &asi, NULL, &error_abort);
     g_assert_cmpint(asi->type, ==, ALT_STR_INT_KIND_I);
     g_assert_cmpint(asi->u.i, ==, 42);
     qapi_free_AltStrInt(asi);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltIntNum(v, &ain, NULL, &error_abort);
     g_assert_cmpint(ain->type, ==, ALT_INT_NUM_KIND_I);
     g_assert_cmpint(ain->u.i, ==, 42);
     qapi_free_AltIntNum(ain);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumInt(v, &ani, NULL, &error_abort);
     g_assert_cmpint(ani->type, ==, ALT_NUM_INT_KIND_I);
     g_assert_cmpint(ani->u.i, ==, 42);
     qapi_free_AltNumInt(ani);
-    visitor_input_teardown(data, NULL);
 
     /* Parsing a double */
 
@@ -431,21 +410,18 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     error_free(err);
     err = NULL;
     qapi_free_AltStrBool(asb);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrNum(v, &asn, NULL, &error_abort);
     g_assert_cmpint(asn->type, ==, ALT_STR_NUM_KIND_N);
     g_assert_cmpfloat(asn->u.n, ==, 42.5);
     qapi_free_AltStrNum(asn);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumStr(v, &ans, NULL, &error_abort);
     g_assert_cmpint(ans->type, ==, ALT_NUM_STR_KIND_N);
     g_assert_cmpfloat(ans->u.n, ==, 42.5);
     qapi_free_AltNumStr(ans);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrInt(v, &asi, NULL, &err);
@@ -453,21 +429,18 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     error_free(err);
     err = NULL;
     qapi_free_AltStrInt(asi);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltIntNum(v, &ain, NULL, &error_abort);
     g_assert_cmpint(ain->type, ==, ALT_INT_NUM_KIND_N);
     g_assert_cmpfloat(ain->u.n, ==, 42.5);
     qapi_free_AltIntNum(ain);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumInt(v, &ani, NULL, &error_abort);
     g_assert_cmpint(ani->type, ==, ALT_NUM_INT_KIND_N);
     g_assert_cmpfloat(ani->u.n, ==, 42.5);
     qapi_free_AltNumInt(ani);
-    visitor_input_teardown(data, NULL);
 }
 
 static void test_native_list_integer_helper(TestInputVisitorData *data,

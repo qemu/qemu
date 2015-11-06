@@ -49,6 +49,8 @@ static Visitor *validate_test_init_internal(TestInputVisitorData *data,
 {
     Visitor *v;
 
+    validate_teardown(data, NULL);
+
     data->obj = qobject_from_jsonv(json_string, ap);
     g_assert(data->obj);
 
@@ -191,6 +193,7 @@ static void test_validate_fail_struct(TestInputVisitorData *data,
 
     visit_type_TestStruct(v, &p, NULL, &err);
     g_assert(err);
+    error_free(err);
     if (p) {
         g_free(p->string);
     }
@@ -208,6 +211,7 @@ static void test_validate_fail_struct_nested(TestInputVisitorData *data,
 
     visit_type_UserDefTwo(v, &udp, NULL, &err);
     g_assert(err);
+    error_free(err);
     qapi_free_UserDefTwo(udp);
 }
 
@@ -222,6 +226,7 @@ static void test_validate_fail_list(TestInputVisitorData *data,
 
     visit_type_UserDefOneList(v, &head, NULL, &err);
     g_assert(err);
+    error_free(err);
     qapi_free_UserDefOneList(head);
 }
 
@@ -237,6 +242,7 @@ static void test_validate_fail_union_native_list(TestInputVisitorData *data,
 
     visit_type_UserDefNativeListUnion(v, &tmp, NULL, &err);
     g_assert(err);
+    error_free(err);
     qapi_free_UserDefNativeListUnion(tmp);
 }
 
@@ -251,6 +257,7 @@ static void test_validate_fail_union_flat(TestInputVisitorData *data,
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
     g_assert(err);
+    error_free(err);
     qapi_free_UserDefFlatUnion(tmp);
 }
 
@@ -266,6 +273,7 @@ static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
 
     visit_type_UserDefFlatUnion2(v, &tmp, NULL, &err);
     g_assert(err);
+    error_free(err);
     qapi_free_UserDefFlatUnion2(tmp);
 }
 
@@ -280,6 +288,7 @@ static void test_validate_fail_alternate(TestInputVisitorData *data,
 
     visit_type_UserDefAlternate(v, &tmp, NULL, &err);
     g_assert(err);
+    error_free(err);
     qapi_free_UserDefAlternate(tmp);
 }
 

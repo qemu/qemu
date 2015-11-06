@@ -391,6 +391,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     qobj = QOBJECT(qdict);
     visit_type_any(data->ov, &qobj, NULL, &err);
     g_assert(!err);
+    qobject_decref(qobj);
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
     qdict = qobject_to_qdict(obj);
@@ -411,7 +412,6 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     g_assert(qstring);
     g_assert_cmpstr(qstring_get_str(qstring), ==, "foo");
     qobject_decref(obj);
-    qobject_decref(qobj);
 }
 
 static void test_visitor_out_union_flat(TestOutputVisitorData *data,
@@ -463,6 +463,7 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     g_assert_cmpint(qint_get_int(qobject_to_qint(arg)), ==, 42);
 
     qapi_free_UserDefAlternate(tmp);
+    qobject_decref(arg);
 }
 
 static void test_visitor_out_empty(TestOutputVisitorData *data,
