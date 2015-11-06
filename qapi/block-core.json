@@ -1959,6 +1959,29 @@
 
 
 ##
+# @blockdev-change-medium:
+#
+# Changes the medium inserted into a block device by ejecting the current medium
+# and loading a new image file which is inserted as the new medium (this command
+# combines blockdev-open-tray, blockdev-remove-medium, blockdev-insert-medium
+# and blockdev-close-tray).
+#
+# @device:          block device name
+#
+# @filename:        filename of the new image to be loaded
+#
+# @format:          #optional, format to open the new image with (defaults to
+#                   the probed format)
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-change-medium',
+  'data': { 'device': 'str',
+            'filename': 'str',
+            '*format': 'str' } }
+
+
+##
 # @BlockErrorAction
 #
 # An enumeration of action that has been taken when a DISK I/O occurs

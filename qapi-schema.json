@@ -1856,8 +1856,10 @@
 #          device's password.  The behavior of reads and writes to the block
 #          device between when these calls are executed is undefined.
 #
-# Notes:  It is strongly recommended that this interface is not used especially
-#         for changing block devices.
+# Notes:  This interface is deprecated, and it is strongly recommended that you
+#         avoid using it.  For changing block devices, use
+#         blockdev-change-medium; for changing VNC parameters, use
+#         change-vnc-password.
 #
 # Since: 0.14.0
 ##

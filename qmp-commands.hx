@@ -4182,6 +4182,37 @@ Example:
 EQMP
 
     {
+        .name       = "blockdev-change-medium",
+        .args_type  = "device:B,filename:F,format:s?",
+        .mhandler.cmd_new = qmp_marshal_blockdev_change_medium,
+    },
+
+SQMP
+blockdev-change-medium
+----------------------
+
+Changes the medium inserted into a block device by ejecting the current medium
+and loading a new image file which is inserted as the new medium.
+
+Arguments:
+
+- "device": device name (json-string)
+- "filename": filename of the new image (json-string)
+- "format": format of the new image (json-string, optional)
+
+Examples:
+
+1. Change a removable medium
+
+-> { "execute": "blockdev-change-medium",
+             "arguments": { "device": "ide1-cd0",
+                            "filename": "/srv/images/Fedora-12-x86_64-DVD.iso",
+                            "format": "raw" } }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "query-memdev",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_query_memdev,
