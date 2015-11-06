@@ -283,7 +283,7 @@ static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
 static void test_visitor_out_list(TestOutputVisitorData *data,
                                   const void *unused)
 {
-    char *value_str = (char *) "list value";
+    const char *value_str = "list value";
     TestStructList *p, *head = NULL;
     const int max_items = 10;
     bool value_bool = true;
@@ -294,12 +294,13 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
     QList *qlist;
     int i;
 
+    /* Build the list in reverse order... */
     for (i = 0; i < max_items; i++) {
         p = g_malloc0(sizeof(*p));
         p->value = g_malloc0(sizeof(*p->value));
-        p->value->integer = value_int;
+        p->value->integer = value_int + (max_items - i - 1);
         p->value->boolean = value_bool;
-        p->value->string = value_str;
+        p->value->string = g_strdup(value_str);
 
         p->next = head;
         head = p;
@@ -315,6 +316,7 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
     qlist = qobject_to_qlist(obj);
     g_assert(!qlist_empty(qlist));
 
+    /* ...and ensure that the visitor sees it in order */
     i = 0;
     QLIST_FOREACH_ENTRY(qlist, entry) {
         QDict *qdict;
@@ -322,7 +324,7 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
         g_assert(qobject_type(entry->value) == QTYPE_QDICT);
         qdict = qobject_to_qdict(entry->value);
         g_assert_cmpint(qdict_size(qdict), ==, 3);
-        g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, value_int);
+        g_assert_cmpint(qdict_get_int(qdict, "integer"), ==, value_int + i);
         g_assert_cmpint(qdict_get_bool(qdict, "boolean"), ==, value_bool);
         g_assert_cmpstr(qdict_get_str(qdict, "string"), ==, value_str);
         i++;
@@ -330,13 +332,7 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
     g_assert_cmpint(i, ==, max_items);
 
     QDECREF(qlist);
-
-    for (p = head; p;) {
-        TestStructList *tmp = p->next;
-        g_free(p->value);
-        g_free(p);
-        p = tmp;
-    }
+    qapi_free_TestStructList(head);
 }
 
 static void test_visitor_out_list_qapi_free(TestOutputVisitorData *data,
