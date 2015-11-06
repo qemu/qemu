@@ -275,7 +275,8 @@ static void check_reserved_space (hwaddr *start,
 
 static void gt64120_isd_mapping(GT64120State *s)
 {
-    hwaddr start = s->regs[GT_ISD] << 21;
+    /* Bits 14:0 of ISD map to bits 35:21 of the start address.  */
+    hwaddr start = ((hwaddr)s->regs[GT_ISD] << 21) & 0xFFFE00000ull;
     hwaddr length = 0x1000;
 
     if (s->ISD_length) {
