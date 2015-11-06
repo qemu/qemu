@@ -79,7 +79,7 @@ static void vnc_unlock_queue(VncJobQueue *queue)
 
 VncJob *vnc_job_new(VncState *vs)
 {
-    VncJob *job = g_malloc0(sizeof(VncJob));
+    VncJob *job = g_new0(VncJob, 1);
 
     job->vs = vs;
     vnc_lock_queue(queue);
@@ -90,7 +90,7 @@ VncJob *vnc_job_new(VncState *vs)
 
 int vnc_job_add_rect(VncJob *job, int x, int y, int w, int h)
 {
-    VncRectEntry *entry = g_malloc0(sizeof(VncRectEntry));
+    VncRectEntry *entry = g_new0(VncRectEntry, 1);
 
     entry->rect.x = x;
     entry->rect.y = y;
@@ -298,7 +298,7 @@ disconnected:
 
 static VncJobQueue *vnc_queue_init(void)
 {
-    VncJobQueue *queue = g_malloc0(sizeof(VncJobQueue));
+    VncJobQueue *queue = g_new0(VncJobQueue, 1);
 
     qemu_cond_init(&queue->cond);
     qemu_mutex_init(&queue->mutex);

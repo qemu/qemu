@@ -751,8 +751,7 @@ int unix_listen_opts(QemuOpts *opts, Error **errp)
         qemu_opt_set(opts, "path", un.sun_path, &error_abort);
     }
 
-    if ((access(un.sun_path, F_OK) == 0) &&
-        unlink(un.sun_path) < 0) {
+    if (unlink(un.sun_path) < 0 && errno != ENOENT) {
         error_setg_errno(errp, errno,
                          "Failed to unlink socket %s", un.sun_path);
         goto err;

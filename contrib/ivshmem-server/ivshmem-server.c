@@ -168,7 +168,9 @@ ivshmem_server_handle_new_conn(IvshmemServer *server)
     }
     if (i == G_MAXUINT16) {
         IVSHMEM_SERVER_DEBUG(server, "cannot allocate new client id\n");
-        goto fail;
+        close(newfd);
+        g_free(peer);
+        return -1;
     }
     peer->id = server->cur_id++;
 

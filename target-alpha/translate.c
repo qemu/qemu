@@ -2916,7 +2916,7 @@ void gen_intermediate_code(CPUAlphaState *env, struct TranslationBlock *tb)
         num_insns++;
 
         if (unlikely(cpu_breakpoint_test(cs, ctx.pc, BP_ANY))) {
-            gen_excp(&ctx, EXCP_DEBUG, 0);
+            ret = gen_excp(&ctx, EXCP_DEBUG, 0);
             /* The address covered by the breakpoint must be included in
                [tb->pc, tb->pc + tb->size) in order to for it to be
                properly cleared -- thus we increment the PC here so that

@@ -30,6 +30,7 @@ test-qapi-types.[ch]
 test-qapi-visit.[ch]
 test-qdev-global-props
 test-qemu-opts
+test-qga
 test-qmp-commands
 test-qmp-commands.h
 test-qmp-event

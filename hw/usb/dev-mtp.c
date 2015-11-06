@@ -359,8 +359,7 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
     }
     while ((entry = readdir(dir)) != NULL) {
         if ((o->nchildren % 32) == 0) {
-            o->children = g_realloc(o->children,
-                                    (o->nchildren + 32) * sizeof(MTPObject *));
+            o->children = g_renew(MTPObject *, o->children, o->nchildren + 32);
         }
         o->children[o->nchildren] =
             usb_mtp_object_alloc(s, s->next_handle++, o, entry->d_name);

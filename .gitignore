@@ -24,6 +24,8 @@
 /*-darwin-user
 /*-linux-user
 /*-bsd-user
+/ivshmem-client
+/ivshmem-server
 /libdis*
 /libuser
 /linux-headers/asm
