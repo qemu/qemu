@@ -94,13 +94,11 @@ static void test_validate_struct(TestInputVisitorData *data,
                                   const void *unused)
 {
     TestStruct *p = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = validate_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
 
-    visit_type_TestStruct(v, &p, NULL, &err);
-    g_assert(!err);
+    visit_type_TestStruct(v, &p, NULL, &error_abort);
     g_free(p->string);
     g_free(p);
 }
@@ -109,7 +107,6 @@ static void test_validate_struct_nested(TestInputVisitorData *data,
                                          const void *unused)
 {
     UserDefTwo *udp = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = validate_test_init(data, "{ 'string0': 'string0', "
@@ -117,8 +114,7 @@ static void test_validate_struct_nested(TestInputVisitorData *data,
                            "'dict2': { 'userdef': { 'integer': 42, "
                            "'string': 'string' }, 'string': 'string2'}}}");
 
-    visit_type_UserDefTwo(v, &udp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefTwo(v, &udp, NULL, &error_abort);
     qapi_free_UserDefTwo(udp);
 }
 
@@ -126,13 +122,11 @@ static void test_validate_list(TestInputVisitorData *data,
                                 const void *unused)
 {
     UserDefOneList *head = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = validate_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44 } ]");
 
-    visit_type_UserDefOneList(v, &head, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefOneList(v, &head, NULL, &error_abort);
     qapi_free_UserDefOneList(head);
 }
 
@@ -141,12 +135,10 @@ static void test_validate_union_native_list(TestInputVisitorData *data,
 {
     UserDefNativeListUnion *tmp = NULL;
     Visitor *v;
-    Error *err = NULL;
 
     v = validate_test_init(data, "{ 'type': 'integer', 'data' : [ 1, 2 ] }");
 
-    visit_type_UserDefNativeListUnion(v, &tmp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefNativeListUnion(v, &tmp, NULL, &error_abort);
     qapi_free_UserDefNativeListUnion(tmp);
 }
 
@@ -155,7 +147,6 @@ static void test_validate_union_flat(TestInputVisitorData *data,
 {
     UserDefFlatUnion *tmp = NULL;
     Visitor *v;
-    Error *err = NULL;
 
     v = validate_test_init(data,
                            "{ 'enum1': 'value1', "
@@ -163,8 +154,7 @@ static void test_validate_union_flat(TestInputVisitorData *data,
                            "'string': 'str', "
                            "'boolean': true }");
 
-    visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefFlatUnion(v, &tmp, NULL, &error_abort);
     qapi_free_UserDefFlatUnion(tmp);
 }
 
@@ -173,12 +163,10 @@ static void test_validate_alternate(TestInputVisitorData *data,
 {
     UserDefAlternate *tmp = NULL;
     Visitor *v;
-    Error *err = NULL;
 
     v = validate_test_init(data, "42");
 
-    visit_type_UserDefAlternate(v, &tmp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
     qapi_free_UserDefAlternate(tmp);
 }
 
@@ -296,16 +284,11 @@ static void do_test_validate_qmp_introspect(TestInputVisitorData *data,
                                             const char *schema_json)
 {
     SchemaInfoList *schema = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = validate_test_init_raw(data, schema_json);
 
-    visit_type_SchemaInfoList(v, &schema, NULL, &err);
-    if (err) {
-        fprintf(stderr, "%s", error_get_pretty(err));
-    }
-    g_assert(!err);
+    visit_type_SchemaInfoList(v, &schema, NULL, &error_abort);
     g_assert(schema);
 
     qapi_free_SchemaInfoList(schema);

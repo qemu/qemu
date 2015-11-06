@@ -45,11 +45,9 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
                                  const void *unused)
 {
     int64_t value = -42;
-    Error *err = NULL;
     QObject *obj;
 
-    visit_type_int(data->ov, &value, NULL, &err);
-    g_assert(!err);
+    visit_type_int(data->ov, &value, NULL, &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -62,12 +60,10 @@ static void test_visitor_out_int(TestOutputVisitorData *data,
 static void test_visitor_out_bool(TestOutputVisitorData *data,
                                   const void *unused)
 {
-    Error *err = NULL;
     bool value = true;
     QObject *obj;
 
-    visit_type_bool(data->ov, &value, NULL, &err);
-    g_assert(!err);
+    visit_type_bool(data->ov, &value, NULL, &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -81,11 +77,9 @@ static void test_visitor_out_number(TestOutputVisitorData *data,
                                     const void *unused)
 {
     double value = 3.14;
-    Error *err = NULL;
     QObject *obj;
 
-    visit_type_number(data->ov, &value, NULL, &err);
-    g_assert(!err);
+    visit_type_number(data->ov, &value, NULL, &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -99,11 +93,9 @@ static void test_visitor_out_string(TestOutputVisitorData *data,
                                     const void *unused)
 {
     char *string = (char *) "Q E M U";
-    Error *err = NULL;
     QObject *obj;
 
-    visit_type_str(data->ov, &string, NULL, &err);
-    g_assert(!err);
+    visit_type_str(data->ov, &string, NULL, &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -117,12 +109,10 @@ static void test_visitor_out_no_string(TestOutputVisitorData *data,
                                        const void *unused)
 {
     char *string = NULL;
-    Error *err = NULL;
     QObject *obj;
 
     /* A null string should return "" */
-    visit_type_str(data->ov, &string, NULL, &err);
-    g_assert(!err);
+    visit_type_str(data->ov, &string, NULL, &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -135,13 +125,11 @@ static void test_visitor_out_no_string(TestOutputVisitorData *data,
 static void test_visitor_out_enum(TestOutputVisitorData *data,
                                   const void *unused)
 {
-    Error *err = NULL;
     QObject *obj;
     EnumOne i;
 
     for (i = 0; i < ENUM_ONE_MAX; i++) {
-        visit_type_EnumOne(data->ov, &i, "unused", &err);
-        g_assert(!err);
+        visit_type_EnumOne(data->ov, &i, "unused", &error_abort);
 
         obj = qmp_output_get_qobject(data->qov);
         g_assert(obj != NULL);
@@ -174,12 +162,10 @@ static void test_visitor_out_struct(TestOutputVisitorData *data,
                                .boolean = false,
                                .string = (char *) "foo"};
     TestStruct *p = &test_struct;
-    Error *err = NULL;
     QObject *obj;
     QDict *qdict;
 
-    visit_type_TestStruct(data->ov, &p, NULL, &err);
-    g_assert(!err);
+    visit_type_TestStruct(data->ov, &p, NULL, &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -198,7 +184,6 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
                                            const void *unused)
 {
     int64_t value = 42;
-    Error *err = NULL;
     UserDefTwo *ud2;
     QObject *obj;
     QDict *qdict, *dict1, *dict2, *dict3, *userdef;
@@ -225,8 +210,7 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     ud2->dict1->dict3->userdef->integer = value;
     ud2->dict1->dict3->string = g_strdup(strings[3]);
 
-    visit_type_UserDefTwo(data->ov, &ud2, "unused", &err);
-    g_assert(!err);
+    visit_type_UserDefTwo(data->ov, &ud2, "unused", &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -288,7 +272,6 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
     const int max_items = 10;
     bool value_bool = true;
     int value_int = 10;
-    Error *err = NULL;
     QListEntry *entry;
     QObject *obj;
     QList *qlist;
@@ -306,8 +289,7 @@ static void test_visitor_out_list(TestOutputVisitorData *data,
         head = p;
     }
 
-    visit_type_TestStructList(data->ov, &head, NULL, &err);
-    g_assert(!err);
+    visit_type_TestStructList(data->ov, &head, NULL, &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -367,7 +349,6 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
                                  const void *unused)
 {
     QObject *qobj;
-    Error *err = NULL;
     QInt *qint;
     QBool *qbool;
     QString *qstring;
@@ -375,8 +356,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     QObject *obj;
 
     qobj = QOBJECT(qint_from_int(-42));
-    visit_type_any(data->ov, &qobj, NULL, &err);
-    g_assert(!err);
+    visit_type_any(data->ov, &qobj, NULL, &error_abort);
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
     g_assert(qobject_type(obj) == QTYPE_QINT);
@@ -389,8 +369,7 @@ static void test_visitor_out_any(TestOutputVisitorData *data,
     qdict_put(qdict, "boolean", qbool_from_bool(true));
     qdict_put(qdict, "string", qstring_from_str("foo"));
     qobj = QOBJECT(qdict);
-    visit_type_any(data->ov, &qobj, NULL, &err);
-    g_assert(!err);
+    visit_type_any(data->ov, &qobj, NULL, &error_abort);
     qobject_decref(qobj);
     obj = qmp_output_get_qobject(data->qov);
     g_assert(obj != NULL);
@@ -420,8 +399,6 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     QObject *arg;
     QDict *qdict;
 
-    Error *err = NULL;
-
     UserDefFlatUnion *tmp = g_malloc0(sizeof(UserDefFlatUnion));
     tmp->enum1 = ENUM_ONE_VALUE1;
     tmp->string = g_strdup("str");
@@ -429,8 +406,7 @@ static void test_visitor_out_union_flat(TestOutputVisitorData *data,
     tmp->integer = 41;
     tmp->u.value1->boolean = true;
 
-    visit_type_UserDefFlatUnion(data->ov, &tmp, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefFlatUnion(data->ov, &tmp, NULL, &error_abort);
     arg = qmp_output_get_qobject(data->qov);
 
     g_assert(qobject_type(arg) == QTYPE_QDICT);
@@ -449,14 +425,12 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
                                        const void *unused)
 {
     QObject *arg;
-    Error *err = NULL;
 
     UserDefAlternate *tmp = g_malloc0(sizeof(UserDefAlternate));
     tmp->type = USER_DEF_ALTERNATE_KIND_I;
     tmp->u.i = 42;
 
-    visit_type_UserDefAlternate(data->ov, &tmp, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefAlternate(data->ov, &tmp, NULL, &error_abort);
     arg = qmp_output_get_qobject(data->qov);
 
     g_assert(qobject_type(arg) == QTYPE_QINT);
@@ -697,14 +671,12 @@ static void test_native_list(TestOutputVisitorData *data,
                              UserDefNativeListUnionKind kind)
 {
     UserDefNativeListUnion *cvalue = g_new0(UserDefNativeListUnion, 1);
-    Error *err = NULL;
     QObject *obj;
 
     cvalue->type = kind;
     init_native_list(cvalue);
 
-    visit_type_UserDefNativeListUnion(data->ov, &cvalue, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefNativeListUnion(data->ov, &cvalue, NULL, &error_abort);
 
     obj = qmp_output_get_qobject(data->qov);
     check_native_list(obj, cvalue->type);
