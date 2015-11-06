@@ -1676,25 +1676,6 @@ ram_addr_t qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t maxsz,
     return qemu_ram_alloc_internal(size, maxsz, resized, NULL, true, mr, errp);
 }
 
-void qemu_ram_free_from_ptr(ram_addr_t addr)
-{
-    RAMBlock *block;
-
-    qemu_mutex_lock_ramlist();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        if (addr == block->offset) {
-            QLIST_REMOVE_RCU(block, next);
-            ram_list.mru_block = NULL;
-            /* Write list before version */
-            smp_wmb();
-            ram_list.version++;
-            g_free_rcu(block, rcu);
-            break;
-        }
-    }
-    qemu_mutex_unlock_ramlist();
-}
-
 static void reclaim_ramblock(RAMBlock *block)
 {
     if (block->flags & RAM_PREALLOC) {

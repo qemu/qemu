@@ -861,7 +861,7 @@ static void memory_region_destructor_ram(MemoryRegion *mr)
 
 static void memory_region_destructor_ram_from_ptr(MemoryRegion *mr)
 {
-    qemu_ram_free_from_ptr(mr->ram_addr);
+    qemu_ram_free(mr->ram_addr);
 }
 
 static void memory_region_destructor_rom_device(MemoryRegion *mr)

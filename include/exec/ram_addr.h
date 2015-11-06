@@ -75,7 +75,6 @@ int qemu_get_ram_fd(ram_addr_t addr);
 void *qemu_get_ram_block_host_ptr(ram_addr_t addr);
 void *qemu_get_ram_ptr(ram_addr_t addr);
 void qemu_ram_free(ram_addr_t addr);
-void qemu_ram_free_from_ptr(ram_addr_t addr);
 
 int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp);
 
