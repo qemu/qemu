@@ -97,6 +97,13 @@ static void pci_ich9_reset(DeviceState *dev)
     ahci_reset(&d->ahci);
 }
 
+static void pci_ich9_ahci_init(Object *obj)
+{
+    struct AHCIPCIState *d = ICH_AHCI(obj);
+
+    ahci_init(&d->ahci, DEVICE(obj));
+}
+
 static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
 {
     struct AHCIPCIState *d;
@@ -104,7 +111,7 @@ static void pci_ich9_ahci_realize(PCIDevice *dev, Error **errp)
     uint8_t *sata_cap;
     d = ICH_AHCI(dev);
 
-    ahci_init(&d->ahci, DEVICE(dev), pci_get_address_space(dev), 6);
+    ahci_realize(&d->ahci, DEVICE(dev), pci_get_address_space(dev), 6);
 
     pci_config_set_prog_interface(dev->config, AHCI_PROGMODE_MAJOR_REV_1);
 
@@ -171,6 +178,7 @@ static const TypeInfo ich_ahci_info = {
     .name          = TYPE_ICH9_AHCI,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(AHCIPCIState),
+    .instance_init = pci_ich9_ahci_init,
     .class_init    = ich_ahci_class_init,
 };
 

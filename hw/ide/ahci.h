@@ -366,7 +366,8 @@ typedef struct SDBFIS {
     uint32_t payload;
 } QEMU_PACKED SDBFIS;
 
-void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports);
+void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports);
+void ahci_init(AHCIState *s, DeviceState *qdev);
 void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);

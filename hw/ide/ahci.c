@@ -1434,7 +1434,17 @@ static const IDEDMAOps ahci_dma_ops = {
     .cmd_done = ahci_cmd_done,
 };
 
-void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
+void ahci_init(AHCIState *s, DeviceState *qdev)
+{
+    s->container = qdev;
+    /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
+    memory_region_init_io(&s->mem, OBJECT(qdev), &ahci_mem_ops, s,
+                          "ahci", AHCI_MEM_BAR_SIZE);
+    memory_region_init_io(&s->idp, OBJECT(qdev), &ahci_idp_ops, s,
+                          "ahci-idp", 32);
+}
+
+void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
 {
     qemu_irq *irqs;
     int i;
@@ -1442,16 +1452,8 @@ void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports)
     s->as = as;
     s->ports = ports;
     s->dev = g_new0(AHCIDevice, ports);
-    s->container = qdev;
     ahci_reg_init(s);
-    /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
-    memory_region_init_io(&s->mem, OBJECT(qdev), &ahci_mem_ops, s,
-                          "ahci", AHCI_MEM_BAR_SIZE);
-    memory_region_init_io(&s->idp, OBJECT(qdev), &ahci_idp_ops, s,
-                          "ahci-idp", 32);
-
     irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
-
     for (i = 0; i < s->ports; i++) {
         AHCIDevice *ad = &s->dev[i];
 
@@ -1646,15 +1648,22 @@ static void sysbus_ahci_reset(DeviceState *dev)
     ahci_reset(&s->ahci);
 }
 
-static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
+static void sysbus_ahci_init(Object *obj)
 {
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    SysbusAHCIState *s = SYSBUS_AHCI(dev);
+    SysbusAHCIState *s = SYSBUS_AHCI(obj);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
 
-    ahci_init(&s->ahci, dev, &address_space_memory, s->num_ports);
+    ahci_init(&s->ahci, DEVICE(obj));
 
     sysbus_init_mmio(sbd, &s->ahci.mem);
     sysbus_init_irq(sbd, &s->ahci.irq);
+}
+
+static void sysbus_ahci_realize(DeviceState *dev, Error **errp)
+{
+    SysbusAHCIState *s = SYSBUS_AHCI(dev);
+
+    ahci_realize(&s->ahci, dev, &address_space_memory, s->num_ports);
 }
 
 static Property sysbus_ahci_properties[] = {
@@ -1677,6 +1686,7 @@ static const TypeInfo sysbus_ahci_info = {
     .name          = TYPE_SYSBUS_AHCI,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SysbusAHCIState),
+    .instance_init = sysbus_ahci_init,
     .class_init    = sysbus_ahci_class_init,
 };
 
