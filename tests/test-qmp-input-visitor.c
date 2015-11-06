@@ -698,8 +698,10 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
     TestStruct *p = NULL;
     Error *err = NULL;
     Visitor *v;
+    strList *q = NULL;
 
-    v = visitor_input_test_init(data, "{ 'integer': false, 'boolean': 'foo', 'string': -42 }");
+    v = visitor_input_test_init(data, "{ 'integer': false, 'boolean': 'foo', "
+                                "'string': -42 }");
 
     visit_type_TestStruct(v, &p, NULL, &err);
     error_free_or_abort(&err);
@@ -709,6 +711,12 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
 
     g_free(p->string);
     g_free(p);
+
+    v = visitor_input_test_init(data, "[ '1', '2', false, '3' ]");
+    visit_type_strList(v, &q, NULL, &err);
+    error_free_or_abort(&err);
+    assert(q);
+    qapi_free_strList(q);
 }
 
 int main(int argc, char **argv)
