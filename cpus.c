@@ -42,6 +42,7 @@
 #include "qemu/seqlock.h"
 #include "qapi-event.h"
 #include "hw/nmi.h"
+#include "sysemu/replay.h"
 
 #ifndef _WIN32
 #include "qemu/compatfd.h"
@@ -334,7 +335,7 @@ static int64_t qemu_icount_round(int64_t count)
     return (count + (1 << icount_time_shift) - 1) >> icount_time_shift;
 }
 
-static void icount_warp_rt(void *opaque)
+static void icount_warp_rt(void)
 {
     /* The icount_warp_timer is rescheduled soon after vm_clock_warp_start
      * changes from -1 to another value, so the race here is okay.
@@ -345,7 +346,8 @@ static void icount_warp_rt(void *opaque)
 
     seqlock_write_lock(&timers_state.vm_clock_seqlock);
     if (runstate_is_running()) {
-        int64_t clock = cpu_get_clock_locked();
+        int64_t clock = REPLAY_CLOCK(REPLAY_CLOCK_VIRTUAL_RT,
+                                     cpu_get_clock_locked());
         int64_t warp_delta;
 
         warp_delta = clock - vm_clock_warp_start;
@@ -366,6 +368,11 @@ static void icount_warp_rt(void *opaque)
     if (qemu_clock_expired(QEMU_CLOCK_VIRTUAL)) {
         qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
     }
+}
+
+static void icount_dummy_timer(void *opaque)
+{
+    (void)opaque;
 }
 
 void qtest_clock_warp(int64_t dest)
@@ -403,6 +410,18 @@ void qemu_clock_warp(QEMUClockType type)
         return;
     }
 
+    /* Nothing to do if the VM is stopped: QEMU_CLOCK_VIRTUAL timers
+     * do not fire, so computing the deadline does not make sense.
+     */
+    if (!runstate_is_running()) {
+        return;
+    }
+
+    /* warp clock deterministically in record/replay mode */
+    if (!replay_checkpoint(CHECKPOINT_CLOCK_WARP)) {
+        return;
+    }
+
     if (icount_sleep) {
         /*
          * If the CPUs have been sleeping, advance QEMU_CLOCK_VIRTUAL timer now.
@@ -412,7 +431,7 @@ void qemu_clock_warp(QEMUClockType type)
          * the CPU starts running, in case the CPU is woken by an event other
          * than the earliest QEMU_CLOCK_VIRTUAL timer.
          */
-        icount_warp_rt(NULL);
+        icount_warp_rt();
         timer_del(icount_warp_timer);
     }
     if (!all_cpu_threads_idle()) {
@@ -605,7 +624,7 @@ void configure_icount(QemuOpts *opts, Error **errp)
     icount_sleep = qemu_opt_get_bool(opts, "sleep", true);
     if (icount_sleep) {
         icount_warp_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
-                                         icount_warp_rt, NULL);
+                                         icount_dummy_timer, NULL);
     }
 
     icount_align_option = qemu_opt_get_bool(opts, "align", false);
@@ -1402,6 +1421,28 @@ int vm_stop_force_state(RunState state)
     }
 }
 
+static int64_t tcg_get_icount_limit(void)
+{
+    int64_t deadline;
+
+    if (replay_mode != REPLAY_MODE_PLAY) {
+        deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
+
+        /* Maintain prior (possibly buggy) behaviour where if no deadline
+         * was set (as there is no QEMU_CLOCK_VIRTUAL timer) or it is more than
+         * INT32_MAX nanoseconds ahead, we still use INT32_MAX
+         * nanoseconds.
+         */
+        if ((deadline < 0) || (deadline > INT32_MAX)) {
+            deadline = INT32_MAX;
+        }
+
+        return qemu_icount_round(deadline);
+    } else {
+        return replay_get_instructions();
+    }
+}
+
 static int tcg_cpu_exec(CPUState *cpu)
 {
     int ret;
@@ -1414,24 +1455,12 @@ static int tcg_cpu_exec(CPUState *cpu)
 #endif
     if (use_icount) {
         int64_t count;
-        int64_t deadline;
         int decr;
         timers_state.qemu_icount -= (cpu->icount_decr.u16.low
                                     + cpu->icount_extra);
         cpu->icount_decr.u16.low = 0;
         cpu->icount_extra = 0;
-        deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
-
-        /* Maintain prior (possibly buggy) behaviour where if no deadline
-         * was set (as there is no QEMU_CLOCK_VIRTUAL timer) or it is more than
-         * INT32_MAX nanoseconds ahead, we still use INT32_MAX
-         * nanoseconds.
-         */
-        if ((deadline < 0) || (deadline > INT32_MAX)) {
-            deadline = INT32_MAX;
-        }
-
-        count = qemu_icount_round(deadline);
+        count = tcg_get_icount_limit();
         timers_state.qemu_icount += count;
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;
@@ -1449,6 +1478,7 @@ static int tcg_cpu_exec(CPUState *cpu)
                         + cpu->icount_extra);
         cpu->icount_decr.u32 = 0;
         cpu->icount_extra = 0;
+        replay_account_executed_instructions();
     }
     return ret;
 }

@@ -122,6 +122,8 @@ int main(int argc, char **argv)
 #include "qapi-event.h"
 #include "exec/semihost.h"
 #include "crypto/init.h"
+#include "sysemu/replay.h"
+#include "qapi/qmp/qerror.h"
 
 #define MAX_VIRTIO_CONSOLES 1
 #define MAX_SCLP_CONSOLES 1
@@ -474,6 +476,12 @@ static QemuOptsList qemu_icount_opts = {
         }, {
             .name = "sleep",
             .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "rr",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "rrfile",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -846,7 +854,11 @@ static void configure_rtc(QemuOpts *opts)
         if (!strcmp(value, "utc")) {
             rtc_utc = 1;
         } else if (!strcmp(value, "localtime")) {
+            Error *blocker = NULL;
             rtc_utc = 0;
+            error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED,
+                      "-rtc base=localtime");
+            replay_add_blocker(blocker);
         } else {
             configure_rtc_date_offset(value, 0);
         }
@@ -1255,6 +1267,11 @@ static void smp_parse(QemuOpts *opts)
         exit(1);
     }
 
+    if (smp_cpus > 1 || smp_cores > 1 || smp_threads > 1) {
+        Error *blocker = NULL;
+        error_setg(&blocker, QERR_REPLAY_NOT_SUPPORTED, "smp");
+        replay_add_blocker(blocker);
+    }
 }
 
 static void realtime_init(void)
@@ -1641,15 +1658,21 @@ static void qemu_kill_report(void)
 static int qemu_reset_requested(void)
 {
     int r = reset_requested;
-    reset_requested = 0;
-    return r;
+    if (r && replay_checkpoint(CHECKPOINT_RESET_REQUESTED)) {
+        reset_requested = 0;
+        return r;
+    }
+    return false;
 }
 
 static int qemu_suspend_requested(void)
 {
     int r = suspend_requested;
-    suspend_requested = 0;
-    return r;
+    if (r && replay_checkpoint(CHECKPOINT_SUSPEND_REQUESTED)) {
+        suspend_requested = 0;
+        return r;
+    }
+    return false;
 }
 
 static WakeupReason qemu_wakeup_requested(void)
@@ -1797,12 +1820,18 @@ void qemu_system_killed(int signal, pid_t pid)
     shutdown_signal = signal;
     shutdown_pid = pid;
     no_shutdown = 0;
-    qemu_system_shutdown_request();
+
+    /* Cannot call qemu_system_shutdown_request directly because
+     * we are in a signal handler.
+     */
+    shutdown_requested = 1;
+    qemu_notify_event();
 }
 
 void qemu_system_shutdown_request(void)
 {
     trace_qemu_system_shutdown_request();
+    replay_shutdown_request();
     shutdown_requested = 1;
     qemu_notify_event();
 }
@@ -3991,6 +4020,8 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
+    replay_configure(icount_opts);
+
     opts = qemu_get_machine_opts();
     optarg = qemu_opt_get(opts, "type");
     if (optarg) {
@@ -4424,9 +4455,10 @@ int main(int argc, char **argv, char **envp)
     }
 
     /* open the virtual block devices */
-    if (snapshot)
-        qemu_opts_foreach(qemu_find_opts("drive"),
-                          drive_enable_snapshot, NULL, NULL);
+    if (snapshot || replay_mode != REPLAY_MODE_NONE) {
+        qemu_opts_foreach(qemu_find_opts("drive"), drive_enable_snapshot,
+                          NULL, NULL);
+    }
     if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
                           &machine_class->block_default_type, NULL)) {
         exit(1);
@@ -4481,6 +4513,10 @@ int main(int argc, char **argv, char **envp)
     }
     qemu_add_globals();
 
+    /* This checkpoint is required by replay to separate prior clock
+       reading from the other reads, because timer polling functions query
+       clock values from the log. */
+    replay_checkpoint(CHECKPOINT_INIT);
     qdev_machine_init();
 
     current_machine->ram_size = ram_size;
@@ -4599,6 +4635,12 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
+    replay_start();
+
+    /* This checkpoint is required by replay to separate prior clock
+       reading from the other reads, because timer polling functions query
+       clock values from the log. */
+    replay_checkpoint(CHECKPOINT_RESET);
     qemu_system_reset(VMRESET_SILENT);
     register_global_state();
     if (loadvm) {
@@ -4636,6 +4678,8 @@ int main(int argc, char **argv, char **envp)
     }
 
     main_loop();
+    replay_disable_events();
+
     bdrv_close_all();
     pause_all_vcpus();
     res_free();

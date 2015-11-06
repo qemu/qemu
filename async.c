@@ -59,6 +59,11 @@ QEMUBH *aio_bh_new(AioContext *ctx, QEMUBHFunc *cb, void *opaque)
     return bh;
 }
 
+void aio_bh_call(QEMUBH *bh)
+{
+    bh->cb(bh->opaque);
+}
+
 /* Multiple occurrences of aio_bh_poll cannot be called concurrently */
 int aio_bh_poll(AioContext *ctx)
 {
@@ -84,7 +89,7 @@ int aio_bh_poll(AioContext *ctx)
                 ret = 1;
             }
             bh->idle = 0;
-            bh->cb(bh->opaque);
+            aio_bh_call(bh);
         }
     }
 

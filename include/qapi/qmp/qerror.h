@@ -106,4 +106,7 @@
 #define QERR_UNSUPPORTED \
     "this feature or command is not currently supported"
 
+#define QERR_REPLAY_NOT_SUPPORTED \
+    "Record/replay feature is not supported for '%s'"
+
 #endif /* QERROR_H */

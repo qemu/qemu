@@ -209,6 +209,11 @@ void aio_notify(AioContext *ctx);
 void aio_notify_accept(AioContext *ctx);
 
 /**
+ * aio_bh_call: Executes callback function of the specified BH.
+ */
+void aio_bh_call(QEMUBH *bh);
+
+/**
  * aio_bh_poll: Poll bottom halves for an AioContext.
  *
  * These are internal functions used by the QEMU main loop.
