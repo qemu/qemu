@@ -79,6 +79,11 @@ typedef struct VirtioBusClass VirtioPCIBusClass;
 #define VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT 4
 #define VIRTIO_PCI_FLAG_MIGRATE_EXTRA (1 << VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT)
 
+/* have pio notification for modern device ? */
+#define VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT 5
+#define VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY \
+    (1 << VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT)
+
 typedef struct {
     MSIMessage msg;
     int virq;
@@ -123,11 +128,14 @@ struct VirtIOPCIProxy {
     VirtIOPCIRegion isr;
     VirtIOPCIRegion device;
     VirtIOPCIRegion notify;
+    VirtIOPCIRegion notify_pio;
     MemoryRegion modern_bar;
+    MemoryRegion io_bar;
     MemoryRegion modern_cfg;
     AddressSpace modern_as;
     uint32_t legacy_io_bar;
     uint32_t msix_bar;
+    uint32_t modern_io_bar;
     uint32_t modern_mem_bar;
     int config_cap;
     uint32_t flags;

@@ -271,7 +271,9 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
     bool legacy = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_LEGACY);
     bool modern = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN);
     bool fast_mmio = kvm_ioeventfd_any_length_enabled();
+    bool modern_pio = proxy->flags & VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY;
     MemoryRegion *modern_mr = &proxy->notify.mr;
+    MemoryRegion *modern_notify_mr = &proxy->notify_pio.mr;
     MemoryRegion *legacy_mr = &proxy->bar;
     hwaddr modern_addr = QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
                          virtio_get_queue_index(vq);
@@ -294,6 +296,10 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
                 memory_region_add_eventfd(modern_mr, modern_addr, 2,
                                           false, n, notifier);
             }
+            if (modern_pio) {
+                memory_region_add_eventfd(modern_notify_mr, 0, 2,
+                                              true, n, notifier);
+            }
         }
         if (legacy) {
             memory_region_add_eventfd(legacy_mr, legacy_addr, 2,
@@ -307,6 +313,10 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
             } else {
                 memory_region_del_eventfd(modern_mr, modern_addr, 2,
                                           false, n, notifier);
+            }
+            if (modern_pio) {
+                memory_region_del_eventfd(modern_notify_mr, 0, 2,
+                                          true, n, notifier);
             }
         }
         if (legacy) {
@@ -1416,6 +1426,17 @@ static void virtio_pci_notify_write(void *opaque, hwaddr addr,
     }
 }
 
+static void virtio_pci_notify_write_pio(void *opaque, hwaddr addr,
+                                        uint64_t val, unsigned size)
+{
+    VirtIODevice *vdev = opaque;
+    unsigned queue = val;
+
+    if (queue < VIRTIO_QUEUE_MAX) {
+        virtio_queue_notify(vdev, queue);
+    }
+}
+
 static uint64_t virtio_pci_isr_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
@@ -1509,6 +1530,16 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
         },
         .endianness = DEVICE_LITTLE_ENDIAN,
     };
+    static const MemoryRegionOps notify_pio_ops = {
+        .read = virtio_pci_notify_read,
+        .write = virtio_pci_notify_write_pio,
+        .impl = {
+            .min_access_size = 1,
+            .max_access_size = 4,
+        },
+        .endianness = DEVICE_LITTLE_ENDIAN,
+    };
+
 
     memory_region_init_io(&proxy->common.mr, OBJECT(proxy),
                           &common_ops,
@@ -1533,27 +1564,57 @@ static void virtio_pci_modern_regions_init(VirtIOPCIProxy *proxy)
                           virtio_bus_get_device(&proxy->bus),
                           "virtio-pci-notify",
                           proxy->notify.size);
+
+    memory_region_init_io(&proxy->notify_pio.mr, OBJECT(proxy),
+                          &notify_pio_ops,
+                          virtio_bus_get_device(&proxy->bus),
+                          "virtio-pci-notify-pio",
+                          proxy->notify.size);
 }
 
 static void virtio_pci_modern_region_map(VirtIOPCIProxy *proxy,
                                          VirtIOPCIRegion *region,
-                                         struct virtio_pci_cap *cap)
+                                         struct virtio_pci_cap *cap,
+                                         MemoryRegion *mr,
+                                         uint8_t bar)
 {
-    memory_region_add_subregion(&proxy->modern_bar,
-                                region->offset,
-                                &region->mr);
+    memory_region_add_subregion(mr, region->offset, &region->mr);
 
     cap->cfg_type = region->type;
-    cap->bar = proxy->modern_mem_bar;
+    cap->bar = bar;
     cap->offset = cpu_to_le32(region->offset);
     cap->length = cpu_to_le32(region->size);
     virtio_pci_add_mem_cap(proxy, cap);
+
 }
 
-static void virtio_pci_modern_region_unmap(VirtIOPCIProxy *proxy,
-                                           VirtIOPCIRegion *region)
+static void virtio_pci_modern_mem_region_map(VirtIOPCIProxy *proxy,
+                                             VirtIOPCIRegion *region,
+                                             struct virtio_pci_cap *cap)
+{
+    virtio_pci_modern_region_map(proxy, region, cap,
+                                 &proxy->modern_bar, proxy->modern_mem_bar);
+}
+
+static void virtio_pci_modern_io_region_map(VirtIOPCIProxy *proxy,
+                                            VirtIOPCIRegion *region,
+                                            struct virtio_pci_cap *cap)
+{
+    virtio_pci_modern_region_map(proxy, region, cap,
+                                 &proxy->io_bar, proxy->modern_io_bar);
+}
+
+static void virtio_pci_modern_mem_region_unmap(VirtIOPCIProxy *proxy,
+                                               VirtIOPCIRegion *region)
 {
     memory_region_del_subregion(&proxy->modern_bar,
+                                &region->mr);
+}
+
+static void virtio_pci_modern_io_region_unmap(VirtIOPCIProxy *proxy,
+                                              VirtIOPCIRegion *region)
+{
+    memory_region_del_subregion(&proxy->io_bar,
                                 &region->mr);
 }
 
@@ -1564,6 +1625,7 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
     VirtioBusState *bus = &proxy->bus;
     bool legacy = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_LEGACY);
     bool modern = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN);
+    bool modern_pio = proxy->flags & VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY;
     uint8_t *config;
     uint32_t size;
     VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
@@ -1602,16 +1664,31 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
             .cap.cap_len = sizeof cfg,
             .cap.cfg_type = VIRTIO_PCI_CAP_PCI_CFG,
         };
-        struct virtio_pci_cfg_cap *cfg_mask;
+        struct virtio_pci_notify_cap notify_pio = {
+            .cap.cap_len = sizeof notify,
+            .notify_off_multiplier = cpu_to_le32(0x0),
+        };
 
-        /* TODO: add io access for speed */
+        struct virtio_pci_cfg_cap *cfg_mask;
 
         virtio_add_feature(&vdev->host_features, VIRTIO_F_VERSION_1);
         virtio_pci_modern_regions_init(proxy);
-        virtio_pci_modern_region_map(proxy, &proxy->common, &cap);
-        virtio_pci_modern_region_map(proxy, &proxy->isr, &cap);
-        virtio_pci_modern_region_map(proxy, &proxy->device, &cap);
-        virtio_pci_modern_region_map(proxy, &proxy->notify, &notify.cap);
+
+        virtio_pci_modern_mem_region_map(proxy, &proxy->common, &cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->isr, &cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->device, &cap);
+        virtio_pci_modern_mem_region_map(proxy, &proxy->notify, &notify.cap);
+
+        if (modern_pio) {
+            memory_region_init(&proxy->io_bar, OBJECT(proxy),
+                               "virtio-pci-io", 0x4);
+
+            pci_register_bar(&proxy->pci_dev, proxy->modern_io_bar,
+                             PCI_BASE_ADDRESS_SPACE_IO, &proxy->io_bar);
+
+            virtio_pci_modern_io_region_map(proxy, &proxy->notify_pio,
+                                            &notify_pio.cap);
+        }
 
         pci_register_bar(&proxy->pci_dev, proxy->modern_mem_bar,
                          PCI_BASE_ADDRESS_SPACE_MEMORY |
@@ -1667,14 +1744,18 @@ static void virtio_pci_device_unplugged(DeviceState *d)
 {
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
     bool modern = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN);
+    bool modern_pio = proxy->flags & VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY;
 
     virtio_pci_stop_ioeventfd(proxy);
 
     if (modern) {
-        virtio_pci_modern_region_unmap(proxy, &proxy->common);
-        virtio_pci_modern_region_unmap(proxy, &proxy->isr);
-        virtio_pci_modern_region_unmap(proxy, &proxy->device);
-        virtio_pci_modern_region_unmap(proxy, &proxy->notify);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->common);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->isr);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->device);
+        virtio_pci_modern_mem_region_unmap(proxy, &proxy->notify);
+        if (modern_pio) {
+            virtio_pci_modern_io_region_unmap(proxy, &proxy->notify_pio);
+        }
     }
 }
 
@@ -1694,6 +1775,7 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
      */
     proxy->legacy_io_bar  = 0;
     proxy->msix_bar       = 1;
+    proxy->modern_io_bar  = 2;
     proxy->modern_mem_bar = 4;
 
     proxy->common.offset = 0x0;
@@ -1712,6 +1794,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     proxy->notify.size =
         QEMU_VIRTIO_PCI_QUEUE_MEM_MULT * VIRTIO_QUEUE_MAX;
     proxy->notify.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
+
+    proxy->notify_pio.offset = 0x0;
+    proxy->notify_pio.size = 0x4;
+    proxy->notify_pio.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
 
     /* subclasses can enforce modern, so do this unconditionally */
     memory_region_init(&proxy->modern_bar, OBJECT(proxy), "virtio-pci",
@@ -1759,6 +1845,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_DISABLE_MODERN_BIT, true),
     DEFINE_PROP_BIT("migrate-extra", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT, true),
+    DEFINE_PROP_BIT("modern-pio-notify", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
