@@ -88,9 +88,6 @@ static MemoryRegion io_mem_unassigned;
  */
 #define RAM_RESIZEABLE (1 << 2)
 
-/* RAM is backed by an mmapped file.
- */
-#define RAM_FILE (1 << 3)
 #endif
 
 struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
@@ -1601,7 +1598,6 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
-    new_block->flags |= RAM_FILE;
     new_block->host = file_ram_alloc(new_block, size,
                                      mem_path, errp);
     if (!new_block->host) {
@@ -1684,11 +1680,7 @@ static void reclaim_ramblock(RAMBlock *block)
         xen_invalidate_map_cache_entry(block->host);
 #ifndef _WIN32
     } else if (block->fd >= 0) {
-        if (block->flags & RAM_FILE) {
-            qemu_ram_munmap(block->host, block->max_length);
-        } else {
-            munmap(block->host, block->max_length);
-        }
+        qemu_ram_munmap(block->host, block->max_length);
         close(block->fd);
 #endif
     } else {
