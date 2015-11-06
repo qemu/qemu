@@ -40,9 +40,27 @@ static void validate_teardown(TestInputVisitorData *data,
     }
 }
 
-/* This is provided instead of a test setup function so that the JSON
-   string used by the tests are kept in the test functions (and not
-   int main()) */
+/* The various test_init functions are provided instead of a test setup
+   function so that the JSON string used by the tests are kept in the test
+   functions (and not in main()). */
+static Visitor *validate_test_init_internal(TestInputVisitorData *data,
+                                            const char *json_string,
+                                            va_list *ap)
+{
+    Visitor *v;
+
+    data->obj = qobject_from_jsonv(json_string, ap);
+    g_assert(data->obj);
+
+    data->qiv = qmp_input_visitor_new_strict(data->obj);
+    g_assert(data->qiv);
+
+    v = qmp_input_get_visitor(data->qiv);
+    g_assert(v);
+
+    return v;
+}
+
 static GCC_FMT_ATTR(2, 3)
 Visitor *validate_test_init(TestInputVisitorData *data,
                              const char *json_string, ...)
@@ -51,17 +69,8 @@ Visitor *validate_test_init(TestInputVisitorData *data,
     va_list ap;
 
     va_start(ap, json_string);
-    data->obj = qobject_from_jsonv(json_string, &ap);
+    v = validate_test_init_internal(data, json_string, &ap);
     va_end(ap);
-
-    g_assert(data->obj != NULL);
-
-    data->qiv = qmp_input_visitor_new_strict(data->obj);
-    g_assert(data->qiv != NULL);
-
-    v = qmp_input_get_visitor(data->qiv);
-    g_assert(v != NULL);
-
     return v;
 }
 
@@ -75,18 +84,7 @@ Visitor *validate_test_init(TestInputVisitorData *data,
 static Visitor *validate_test_init_raw(TestInputVisitorData *data,
                                        const char *json_string)
 {
-    Visitor *v;
-
-    data->obj = qobject_from_json(json_string);
-    g_assert(data->obj != NULL);
-
-    data->qiv = qmp_input_visitor_new_strict(data->obj);
-    g_assert(data->qiv != NULL);
-
-    v = qmp_input_get_visitor(data->qiv);
-    g_assert(v != NULL);
-
-    return v;
+    return validate_test_init_internal(data, json_string, NULL);
 }
 
 
