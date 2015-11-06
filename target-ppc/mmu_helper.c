@@ -1295,7 +1295,9 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUPPCState *env)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_03:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_07:
+    case POWERPC_MMU_2_07a:
         dump_slb(f, cpu_fprintf, env);
         break;
 #endif
@@ -1435,7 +1437,9 @@ hwaddr ppc_cpu_get_phys_page_debug(CPUState *cs, vaddr addr)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_03:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_07:
+    case POWERPC_MMU_2_07a:
         return ppc_hash64_get_phys_page_debug(env, addr);
 #endif
 
@@ -1939,7 +1943,9 @@ void ppc_tlb_invalidate_all(CPUPPCState *env)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_03:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_07:
+    case POWERPC_MMU_2_07a:
 #endif /* defined(TARGET_PPC64) */
         tlb_flush(CPU(cpu), 1);
         break;
@@ -2013,7 +2019,9 @@ void ppc_tlb_invalidate_one(CPUPPCState *env, target_ulong addr)
     case POWERPC_MMU_64B:
     case POWERPC_MMU_2_03:
     case POWERPC_MMU_2_06:
+    case POWERPC_MMU_2_06a:
     case POWERPC_MMU_2_07:
+    case POWERPC_MMU_2_07a:
         /* tlbie invalidate TLBs for all segments */
         /* XXX: given the fact that there are too many segments to invalidate,
          *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
