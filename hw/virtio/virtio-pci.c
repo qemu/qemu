@@ -270,6 +270,7 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
     EventNotifier *notifier = virtio_queue_get_host_notifier(vq);
     bool legacy = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_LEGACY);
     bool modern = !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN);
+    bool fast_mmio = kvm_ioeventfd_any_length_enabled();
     MemoryRegion *modern_mr = &proxy->notify.mr;
     MemoryRegion *legacy_mr = &proxy->bar;
     hwaddr modern_addr = QEMU_VIRTIO_PCI_QUEUE_MEM_MULT *
@@ -286,8 +287,13 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
         }
         virtio_queue_set_host_notifier_fd_handler(vq, true, set_handler);
         if (modern) {
-            memory_region_add_eventfd(modern_mr, modern_addr, 2,
-                                      true, n, notifier);
+            if (fast_mmio) {
+                memory_region_add_eventfd(modern_mr, modern_addr, 0,
+                                          false, n, notifier);
+            } else {
+                memory_region_add_eventfd(modern_mr, modern_addr, 2,
+                                          false, n, notifier);
+            }
         }
         if (legacy) {
             memory_region_add_eventfd(legacy_mr, legacy_addr, 2,
@@ -295,8 +301,13 @@ static int virtio_pci_set_host_notifier_internal(VirtIOPCIProxy *proxy,
         }
     } else {
         if (modern) {
-            memory_region_del_eventfd(modern_mr, modern_addr, 2,
-                                      true, n, notifier);
+            if (fast_mmio) {
+                memory_region_del_eventfd(modern_mr, modern_addr, 0,
+                                          false, n, notifier);
+            } else {
+                memory_region_del_eventfd(modern_mr, modern_addr, 2,
+                                          false, n, notifier);
+            }
         }
         if (legacy) {
             memory_region_del_eventfd(legacy_mr, legacy_addr, 2,
