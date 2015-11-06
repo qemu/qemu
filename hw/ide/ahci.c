@@ -804,8 +804,21 @@ static int prdt_tbl_entry_size(const AHCI_SG *tbl)
     return (le32_to_cpu(tbl->flags_size) & AHCI_PRDT_SIZE_MASK) + 1;
 }
 
+/**
+ * Fetch entries in a guest-provided PRDT and convert it into a QEMU SGlist.
+ * @ad: The AHCIDevice for whom we are building the SGList.
+ * @sglist: The SGList target to add PRD entries to.
+ * @cmd: The AHCI Command Header that describes where the PRDT is.
+ * @limit: The remaining size of the S/ATA transaction, in bytes.
+ * @offset: The number of bytes already transferred, in bytes.
+ *
+ * The AHCI PRDT can describe up to 256GiB. S/ATA only support transactions of
+ * up to 32MiB as of ATA8-ACS3 rev 1b, assuming a 512 byte sector size. We stop
+ * building the sglist from the PRDT as soon as we hit @limit bytes,
+ * which is <= INT32_MAX/2GiB.
+ */
 static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
-                                AHCICmdHdr *cmd, int64_t limit, int32_t offset)
+                                AHCICmdHdr *cmd, int64_t limit, uint64_t offset)
 {
     uint16_t opts = le16_to_cpu(cmd->opts);
     uint16_t prdtl = le16_to_cpu(cmd->prdtl);
@@ -822,14 +835,6 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
     int tbl_entry_size;
     IDEBus *bus = &ad->port;
     BusState *qbus = BUS(bus);
-
-    /*
-     * Note: AHCI PRDT can describe up to 256GiB. SATA/ATA only support
-     * transactions of up to 32MiB as of ATA8-ACS3 rev 1b, assuming a
-     * 512 byte sector size. We limit the PRDT in this implementation to
-     * a reasonably large 2GiB, which can accommodate the maximum transfer
-     * request for sector sizes up to 32K.
-     */
 
     if (!prdtl) {
         DPRINTF(ad->port_no, "no sg list given by guest: 0x%08x\n", opts);
@@ -880,13 +885,6 @@ static int ahci_populate_sglist(AHCIDevice *ad, QEMUSGList *sglist,
             qemu_sglist_add(sglist, le64_to_cpu(tbl[i].addr),
                             MIN(prdt_tbl_entry_size(&tbl[i]),
                                 limit - sglist->size));
-            if (sglist->size > INT32_MAX) {
-                error_report("AHCI Physical Region Descriptor Table describes "
-                             "more than 2 GiB.");
-                qemu_sglist_destroy(sglist);
-                r = -1;
-                goto out;
-            }
         }
     }
 

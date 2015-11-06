@@ -397,7 +397,7 @@ struct IDEState {
     struct iovec iov;
     QEMUIOVector qiov;
     /* ATA DMA state */
-    int32_t io_buffer_offset;
+    uint64_t io_buffer_offset;
     int32_t io_buffer_size;
     QEMUSGList sg;
     /* PIO transfer handling */
