@@ -220,6 +220,13 @@ void error_free(Error *err)
     }
 }
 
+void error_free_or_abort(Error **errp)
+{
+    assert(errp && *errp);
+    error_free(*errp);
+    *errp = NULL;
+}
+
 void error_propagate(Error **dst_errp, Error *local_err)
 {
     if (!local_err) {

@@ -111,8 +111,7 @@ static void test_visitor_in_int_overflow(TestInputVisitorData *data,
     v = visitor_input_test_init(data, "%f", DBL_MAX);
 
     visit_type_int(v, &res, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
 }
 
 static void test_visitor_in_bool(TestInputVisitorData *data,
@@ -319,9 +318,7 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "false");
     visit_type_UserDefAlternate(v, &tmp, NULL, &err);
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_UserDefAlternate(tmp);
 }
 
@@ -341,9 +338,7 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltStrBool(v, &asb, NULL, &err);
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_AltStrBool(asb);
 
     /* FIXME: Order of alternate should not affect semantics; asn should
@@ -352,9 +347,7 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     visit_type_AltStrNum(v, &asn, NULL, &err);
     /* FIXME g_assert_cmpint(asn->type, == ALT_STR_NUM_KIND_N); */
     /* FIXME g_assert_cmpfloat(asn->u.n, ==, 42); */
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_AltStrNum(asn);
 
     v = visitor_input_test_init(data, "42");
@@ -385,9 +378,7 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrBool(v, &asb, NULL, &err);
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_AltStrBool(asb);
 
     v = visitor_input_test_init(data, "42.5");
@@ -404,9 +395,7 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrInt(v, &asi, NULL, &err);
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_AltStrInt(asi);
 
     v = visitor_input_test_init(data, "42.5");
@@ -713,12 +702,11 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
     v = visitor_input_test_init(data, "{ 'integer': false, 'boolean': 'foo', 'string': -42 }");
 
     visit_type_TestStruct(v, &p, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     /* FIXME - a failed parse should not leave a partially-allocated p
      * for us to clean up; this could cause callers to leak memory. */
     g_assert(p->string == NULL);
 
-    error_free(err);
     g_free(p->string);
     g_free(p);
 }

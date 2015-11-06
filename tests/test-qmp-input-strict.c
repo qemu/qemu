@@ -180,8 +180,7 @@ static void test_validate_fail_struct(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo', 'extra': 42 }");
 
     visit_type_TestStruct(v, &p, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
     if (p) {
         g_free(p->string);
     }
@@ -198,8 +197,7 @@ static void test_validate_fail_struct_nested(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string', 'extra': [42, 23, {'foo':'bar'}] }, 'string2': 'string2'}}}");
 
     visit_type_UserDefTwo(v, &udp, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefTwo(udp);
 }
 
@@ -213,8 +211,7 @@ static void test_validate_fail_list(TestInputVisitorData *data,
     v = validate_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44, 'extra': 'ggg' } ]");
 
     visit_type_UserDefOneList(v, &head, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefOneList(head);
 }
 
@@ -229,8 +226,7 @@ static void test_validate_fail_union_native_list(TestInputVisitorData *data,
                            "{ 'type': 'integer', 'data' : [ 'string' ] }");
 
     visit_type_UserDefNativeListUnion(v, &tmp, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefNativeListUnion(tmp);
 }
 
@@ -244,8 +240,7 @@ static void test_validate_fail_union_flat(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string': 'c', 'integer': 41, 'boolean': true }");
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefFlatUnion(tmp);
 }
 
@@ -260,8 +255,7 @@ static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'integer': 42, 'string': 'c', 'string1': 'd', 'string2': 'e' }");
 
     visit_type_UserDefFlatUnion2(v, &tmp, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefFlatUnion2(tmp);
 }
 
@@ -275,8 +269,7 @@ static void test_validate_fail_alternate(TestInputVisitorData *data,
     v = validate_test_init(data, "3.14");
 
     visit_type_UserDefAlternate(v, &tmp, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefAlternate(tmp);
 }
 
