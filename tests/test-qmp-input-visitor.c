@@ -230,6 +230,12 @@ static void test_visitor_in_list(TestInputVisitorData *data,
     }
 
     qapi_free_UserDefOneList(head);
+    head = NULL;
+
+    /* An empty list is valid */
+    v = visitor_input_test_init(data, "[]");
+    visit_type_UserDefOneList(v, &head, NULL, &error_abort);
+    g_assert(!head);
 }
 
 static void test_visitor_in_any(TestInputVisitorData *data,
@@ -719,6 +725,50 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
     qapi_free_strList(q);
 }
 
+static void test_visitor_in_wrong_type(TestInputVisitorData *data,
+                                       const void *unused)
+{
+    TestStruct *p = NULL;
+    Visitor *v;
+    strList *q = NULL;
+    int64_t i;
+    Error *err = NULL;
+
+    /* Make sure arrays and structs cannot be confused */
+
+    v = visitor_input_test_init(data, "[]");
+    visit_type_TestStruct(v, &p, NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!p);
+
+    v = visitor_input_test_init(data, "{}");
+    visit_type_strList(v, &q, NULL, &err);
+    error_free_or_abort(&err);
+    assert(!q);
+
+    /* Make sure primitives and struct cannot be confused */
+
+    v = visitor_input_test_init(data, "1");
+    visit_type_TestStruct(v, &p, NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!p);
+
+    v = visitor_input_test_init(data, "{}");
+    visit_type_int(v, &i, NULL, &err);
+    error_free_or_abort(&err);
+
+    /* Make sure primitives and arrays cannot be confused */
+
+    v = visitor_input_test_init(data, "1");
+    visit_type_strList(v, &q, NULL, &err);
+    error_free_or_abort(&err);
+    assert(!q);
+
+    v = visitor_input_test_init(data, "[]");
+    visit_type_int(v, &i, NULL, &err);
+    error_free_or_abort(&err);
+}
+
 int main(int argc, char **argv)
 {
     TestInputVisitorData in_visitor_data;
@@ -751,6 +801,8 @@ int main(int argc, char **argv)
                            &in_visitor_data, test_visitor_in_alternate);
     input_visitor_test_add("/visitor/input/errors",
                            &in_visitor_data, test_visitor_in_errors);
+    input_visitor_test_add("/visitor/input/wrong-type",
+                           &in_visitor_data, test_visitor_in_wrong_type);
     input_visitor_test_add("/visitor/input/alternate-number",
                            &in_visitor_data, test_visitor_in_alternate_number);
     input_visitor_test_add("/visitor/input/native_list/int",
