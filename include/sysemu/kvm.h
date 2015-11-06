@@ -53,6 +53,7 @@ extern bool kvm_gsi_routing_allowed;
 extern bool kvm_gsi_direct_mapping;
 extern bool kvm_readonly_mem_allowed;
 extern bool kvm_direct_msi_allowed;
+extern bool kvm_ioeventfd_any_length_allowed;
 
 #if defined CONFIG_KVM || !defined NEED_CPU_H
 #define kvm_enabled()           (kvm_allowed)
@@ -153,6 +154,12 @@ extern bool kvm_direct_msi_allowed;
  */
 #define kvm_direct_msi_enabled() (kvm_direct_msi_allowed)
 
+/**
+ * kvm_ioeventfd_any_length_enabled:
+ * Returns: true if KVM allows any length io eventfd.
+ */
+#define kvm_ioeventfd_any_length_enabled() (kvm_ioeventfd_any_length_allowed)
+
 #else
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
@@ -166,6 +173,7 @@ extern bool kvm_direct_msi_allowed;
 #define kvm_gsi_direct_mapping() (false)
 #define kvm_readonly_mem_enabled() (false)
 #define kvm_direct_msi_enabled() (false)
+#define kvm_ioeventfd_any_length_enabled() (false)
 #endif
 
 struct kvm_run;
