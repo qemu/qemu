@@ -662,11 +662,14 @@ Example: the SchemaInfo for BlockRef from section Alternate types
 
 The SchemaInfo for an array type has meta-type "array", and variant
 member "element-type", which names the array's element type.  Array
-types are implicitly defined.
+types are implicitly defined.  For convenience, the array's name may
+resemble the element type; however, clients should examine member
+"element-type" instead of making assumptions based on parsing member
+"name".
 
 Example: the SchemaInfo for ['str']
 
-    { "name": "strList", "meta-type": "array",
+    { "name": "[str]", "meta-type": "array",
       "element-type": "str" }
 
 The SchemaInfo for an enumeration type has meta-type "enum" and
