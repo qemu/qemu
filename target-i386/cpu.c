@@ -259,8 +259,8 @@ static const char *svm_feature_name[] = {
 static const char *cpuid_7_0_ebx_feature_name[] = {
     "fsgsbase", "tsc_adjust", NULL, "bmi1", "hle", "avx2", NULL, "smep",
     "bmi2", "erms", "invpcid", "rtm", NULL, NULL, "mpx", NULL,
-    "avx512f", NULL, "rdseed", "adx", "smap", NULL, NULL, NULL,
-    NULL, NULL, "avx512pf", "avx512er", "avx512cd", NULL, NULL, NULL,
+    "avx512f", NULL, "rdseed", "adx", "smap", NULL, "pcommit", "clflushopt",
+    "clwb", NULL, "avx512pf", "avx512er", "avx512cd", NULL, NULL, NULL,
 };
 
 static const char *cpuid_apm_edx_feature_name[] = {
@@ -671,12 +671,11 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_MTRR | CPUID_CLFLUSH | CPUID_MCA |
             CPUID_PSE36,
         .features[FEAT_1_ECX] =
-            CPUID_EXT_SSE3 | CPUID_EXT_CX16 | CPUID_EXT_POPCNT,
+            CPUID_EXT_SSE3 | CPUID_EXT_CX16,
         .features[FEAT_8000_0001_EDX] =
             CPUID_EXT2_LM | CPUID_EXT2_SYSCALL | CPUID_EXT2_NX,
         .features[FEAT_8000_0001_ECX] =
-            CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM |
-            CPUID_EXT3_ABM | CPUID_EXT3_SSE4A,
+            CPUID_EXT3_LAHF_LM | CPUID_EXT3_SVM,
         .xlevel = 0x8000000A,
     },
     {
@@ -772,7 +771,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_1_EDX] =
             PPRO_FEATURES,
         .features[FEAT_1_ECX] =
-            CPUID_EXT_SSE3 | CPUID_EXT_POPCNT,
+            CPUID_EXT_SSE3,
         .xlevel = 0x80000004,
     },
     {

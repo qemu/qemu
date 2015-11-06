@@ -322,6 +322,31 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "host" "-" TYPE_X86_CPU,\
             .property = "host-cache-info",\
             .value    = "on",\
+        },\
+        {\
+            .driver   = TYPE_X86_CPU,\
+            .property = "check",\
+            .value    = "off",\
+        },\
+        {\
+            .driver   = "qemu64" "-" TYPE_X86_CPU,\
+            .property = "sse4a",\
+            .value    = "on",\
+        },\
+        {\
+            .driver   = "qemu64" "-" TYPE_X86_CPU,\
+            .property = "abm",\
+            .value    = "on",\
+        },\
+        {\
+            .driver   = "qemu64" "-" TYPE_X86_CPU,\
+            .property = "popcnt",\
+            .value    = "on",\
+        },\
+        {\
+            .driver   = "qemu32" "-" TYPE_X86_CPU,\
+            .property = "popcnt",\
+            .value    = "on",\
         },
 
 #define PC_COMPAT_2_3 \
