@@ -39,6 +39,9 @@ static void aw_a10_init(Object *obj)
         qemu_check_nic_model(&nd_table[0], TYPE_AW_EMAC);
         qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
     }
+
+    object_initialize(&s->sata, sizeof(s->sata), TYPE_ALLWINNER_AHCI);
+    qdev_set_parent_bus(DEVICE(&s->sata), sysbus_get_default());
 }
 
 static void aw_a10_realize(DeviceState *dev, Error **errp)
@@ -92,6 +95,14 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbusdev = SYS_BUS_DEVICE(&s->emac);
     sysbus_mmio_map(sysbusdev, 0, AW_A10_EMAC_BASE);
     sysbus_connect_irq(sysbusdev, 0, s->irq[55]);
+
+    object_property_set_bool(OBJECT(&s->sata), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0, AW_A10_SATA_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->sata), 0, s->irq[56]);
 
     /* FIXME use a qdev chardev prop instead of serial_hds[] */
     serial_mm_init(get_system_memory(), AW_A10_UART0_REG_BASE, 2, s->irq[1],

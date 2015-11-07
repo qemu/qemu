@@ -366,7 +366,8 @@ typedef struct SDBFIS {
     uint32_t payload;
 } QEMU_PACKED SDBFIS;
 
-void ahci_init(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports);
+void ahci_realize(AHCIState *s, DeviceState *qdev, AddressSpace *as, int ports);
+void ahci_init(AHCIState *s, DeviceState *qdev);
 void ahci_uninit(AHCIState *s);
 
 void ahci_reset(AHCIState *s);
@@ -384,5 +385,21 @@ typedef struct SysbusAHCIState {
     AHCIState ahci;
     uint32_t num_ports;
 } SysbusAHCIState;
+
+#define TYPE_ALLWINNER_AHCI "allwinner-ahci"
+#define ALLWINNER_AHCI(obj) OBJECT_CHECK(AllwinnerAHCIState, (obj), \
+                       TYPE_ALLWINNER_AHCI)
+
+#define ALLWINNER_AHCI_MMIO_OFF  0x80
+#define ALLWINNER_AHCI_MMIO_SIZE 0x80
+
+struct AllwinnerAHCIState {
+    /*< private >*/
+    SysbusAHCIState parent_obj;
+    /*< public >*/
+
+    MemoryRegion mmio;
+    uint32_t regs[ALLWINNER_AHCI_MMIO_SIZE/4];
+};
 
 #endif /* HW_IDE_AHCI_H */

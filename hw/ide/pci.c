@@ -103,13 +103,6 @@ static int32_t bmdma_prepare_buf(IDEDMA *dma, int32_t limit)
                 qemu_sglist_add(&s->sg, bm->cur_prd_addr, sg_len);
             }
 
-            /* Note: We limit the max transfer to be 2GiB.
-             * This should accommodate the largest ATA transaction
-             * for LBA48 (65,536 sectors) and 32K sector sizes. */
-            if (s->sg.size > INT32_MAX) {
-                error_report("IDE: sglist describes more than 2GiB.");
-                break;
-            }
             bm->cur_prd_addr += l;
             bm->cur_prd_len -= l;
             s->io_buffer_size += l;
