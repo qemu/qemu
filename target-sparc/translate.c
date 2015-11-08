@@ -2708,12 +2708,16 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x4: /* V9 rdtick */
                     {
                         TCGv_ptr r_tickptr;
+                        TCGv_i32 r_const;
 
                         r_tickptr = tcg_temp_new_ptr();
+                        r_const = tcg_const_i32(dc->mem_idx);
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                        offsetof(CPUSPARCState, tick));
-                        gen_helper_tick_get_count(cpu_dst, r_tickptr);
+                        gen_helper_tick_get_count(cpu_dst, cpu_env, r_tickptr,
+                                                  r_const);
                         tcg_temp_free_ptr(r_tickptr);
+                        tcg_temp_free_i32(r_const);
                         gen_store_gpr(dc, rd, cpu_dst);
                     }
                     break;
@@ -2750,12 +2754,16 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 0x18: /* System tick */
                     {
                         TCGv_ptr r_tickptr;
+                        TCGv_i32 r_const;
 
                         r_tickptr = tcg_temp_new_ptr();
+                        r_const = tcg_const_i32(dc->mem_idx);
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                        offsetof(CPUSPARCState, stick));
-                        gen_helper_tick_get_count(cpu_dst, r_tickptr);
+                        gen_helper_tick_get_count(cpu_dst, cpu_env, r_tickptr,
+                                                  r_const);
                         tcg_temp_free_ptr(r_tickptr);
+                        tcg_temp_free_i32(r_const);
                         gen_store_gpr(dc, rd, cpu_dst);
                     }
                     break;
@@ -2863,12 +2871,16 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                 case 4: // tick
                     {
                         TCGv_ptr r_tickptr;
+                        TCGv_i32 r_const;
 
                         r_tickptr = tcg_temp_new_ptr();
+                        r_const = tcg_const_i32(dc->mem_idx);
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
                                        offsetof(CPUSPARCState, tick));
-                        gen_helper_tick_get_count(cpu_tmp0, r_tickptr);
+                        gen_helper_tick_get_count(cpu_tmp0, cpu_env,
+                                                  r_tickptr, r_const);
                         tcg_temp_free_ptr(r_tickptr);
+                        tcg_temp_free_i32(r_const);
                     }
                     break;
                 case 5: // tba

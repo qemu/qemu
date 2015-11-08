@@ -51,10 +51,16 @@ void helper_tick_set_count(void *opaque, uint64_t count)
 #endif
 }
 
-uint64_t helper_tick_get_count(void *opaque)
+uint64_t helper_tick_get_count(CPUSPARCState *env, void *opaque, int mem_idx)
 {
 #if !defined(CONFIG_USER_ONLY)
-    return cpu_tick_get_count(opaque);
+    CPUTimer *timer = opaque;
+
+    if (timer->npt && mem_idx < MMU_KERNEL_IDX) {
+        helper_raise_exception(env, TT_PRIV_INSN);
+    }
+
+    return cpu_tick_get_count(timer);
 #else
     return 0;
 #endif
