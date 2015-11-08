@@ -363,6 +363,8 @@ void cpu_put_timer(QEMUFile *f, CPUTimer *s)
     qemu_put_be32s(f, &s->frequency);
     qemu_put_be32s(f, &s->disabled);
     qemu_put_be64s(f, &s->disabled_mask);
+    qemu_put_be32s(f, &s->npt);
+    qemu_put_be64s(f, &s->npt_mask);
     qemu_put_sbe64s(f, &s->clock_offset);
 
     timer_put(f, s->qtimer);
@@ -373,6 +375,8 @@ void cpu_get_timer(QEMUFile *f, CPUTimer *s)
     qemu_get_be32s(f, &s->frequency);
     qemu_get_be32s(f, &s->disabled);
     qemu_get_be64s(f, &s->disabled_mask);
+    qemu_get_be32s(f, &s->npt);
+    qemu_get_be64s(f, &s->npt_mask);
     qemu_get_sbe64s(f, &s->clock_offset);
 
     timer_get(f, s->qtimer);
@@ -380,15 +384,17 @@ void cpu_get_timer(QEMUFile *f, CPUTimer *s)
 
 static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
                                   QEMUBHFunc *cb, uint32_t frequency,
-                                  uint64_t disabled_mask)
+                                  uint64_t disabled_mask, uint64_t npt_mask)
 {
     CPUTimer *timer = g_malloc0(sizeof (CPUTimer));
 
     timer->name = name;
     timer->frequency = frequency;
     timer->disabled_mask = disabled_mask;
+    timer->npt_mask = npt_mask;
 
     timer->disabled = 1;
+    timer->npt = 1;
     timer->clock_offset = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     timer->qtimer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cb, cpu);
@@ -799,13 +805,16 @@ static SPARCCPU *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
     env = &cpu->env;
 
     env->tick = cpu_timer_create("tick", cpu, tick_irq,
-                                  tick_frequency, TICK_NPT_MASK);
+                                  tick_frequency, TICK_INT_DIS,
+                                  TICK_NPT_MASK);
 
     env->stick = cpu_timer_create("stick", cpu, stick_irq,
-                                   stick_frequency, TICK_INT_DIS);
+                                   stick_frequency, TICK_INT_DIS,
+                                   TICK_NPT_MASK);
 
     env->hstick = cpu_timer_create("hstick", cpu, hstick_irq,
-                                    hstick_frequency, TICK_INT_DIS);
+                                    hstick_frequency, TICK_INT_DIS,
+                                    TICK_NPT_MASK);
 
     reset_info = g_malloc0(sizeof(ResetData));
     reset_info->cpu = cpu;
