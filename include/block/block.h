@@ -335,10 +335,18 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
 typedef struct BlockRequest {
     /* Fields to be filled by multiwrite caller */
-    int64_t sector;
-    int nb_sectors;
-    int flags;
-    QEMUIOVector *qiov;
+    union {
+        struct {
+            int64_t sector;
+            int nb_sectors;
+            int flags;
+            QEMUIOVector *qiov;
+        };
+        struct {
+            int req;
+            void *buf;
+        };
+    };
     BlockCompletionFunc *cb;
     void *opaque;
 
