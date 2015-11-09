@@ -2528,26 +2528,109 @@ int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
     return rwco.ret;
 }
 
-/* needed for generic scsi interface */
+typedef struct {
+    CoroutineIOCompletion *co;
+    QEMUBH *bh;
+} BdrvIoctlCompletionData;
 
-int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+static void bdrv_ioctl_bh_cb(void *opaque)
+{
+    BdrvIoctlCompletionData *data = opaque;
+
+    bdrv_co_io_em_complete(data->co, -ENOTSUP);
+    qemu_bh_delete(data->bh);
+}
+
+static int bdrv_co_do_ioctl(BlockDriverState *bs, int req, void *buf)
 {
     BlockDriver *drv = bs->drv;
+    BdrvTrackedRequest tracked_req;
+    CoroutineIOCompletion co = {
+        .coroutine = qemu_coroutine_self(),
+    };
+    BlockAIOCB *acb;
 
-    if (drv && drv->bdrv_ioctl)
-        return drv->bdrv_ioctl(bs, req, buf);
-    return -ENOTSUP;
+    tracked_request_begin(&tracked_req, bs, 0, 0, BDRV_TRACKED_IOCTL);
+    if (!drv || !drv->bdrv_aio_ioctl) {
+        co.ret = -ENOTSUP;
+        goto out;
+    }
+
+    acb = drv->bdrv_aio_ioctl(bs, req, buf, bdrv_co_io_em_complete, &co);
+    if (!acb) {
+        BdrvIoctlCompletionData *data = g_new(BdrvIoctlCompletionData, 1);
+        data->bh = aio_bh_new(bdrv_get_aio_context(bs),
+                                bdrv_ioctl_bh_cb, data);
+        data->co = &co;
+        qemu_bh_schedule(data->bh);
+    }
+    qemu_coroutine_yield();
+out:
+    tracked_request_end(&tracked_req);
+    return co.ret;
+}
+
+typedef struct {
+    BlockDriverState *bs;
+    int req;
+    void *buf;
+    int ret;
+} BdrvIoctlCoData;
+
+static void coroutine_fn bdrv_co_ioctl_entry(void *opaque)
+{
+    BdrvIoctlCoData *data = opaque;
+    data->ret = bdrv_co_do_ioctl(data->bs, data->req, data->buf);
+}
+
+/* needed for generic scsi interface */
+int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
+{
+    BdrvIoctlCoData data = {
+        .bs = bs,
+        .req = req,
+        .buf = buf,
+        .ret = -EINPROGRESS,
+    };
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_co_ioctl_entry(&data);
+    } else {
+        Coroutine *co = qemu_coroutine_create(bdrv_co_ioctl_entry);
+        qemu_coroutine_enter(co, &data);
+    }
+    while (data.ret == -EINPROGRESS) {
+        aio_poll(bdrv_get_aio_context(bs), true);
+    }
+    return data.ret;
+}
+
+static void coroutine_fn bdrv_co_aio_ioctl_entry(void *opaque)
+{
+    BlockAIOCBCoroutine *acb = opaque;
+    acb->req.error = bdrv_co_do_ioctl(acb->common.bs,
+                                      acb->req.req, acb->req.buf);
+    bdrv_co_complete(acb);
 }
 
 BlockAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockCompletionFunc *cb, void *opaque)
 {
-    BlockDriver *drv = bs->drv;
+    BlockAIOCBCoroutine *acb = qemu_aio_get(&bdrv_em_co_aiocb_info,
+                                            bs, cb, opaque);
+    Coroutine *co;
 
-    if (drv && drv->bdrv_aio_ioctl)
-        return drv->bdrv_aio_ioctl(bs, req, buf, cb, opaque);
-    return NULL;
+    acb->need_bh = true;
+    acb->req.error = -EINPROGRESS;
+    acb->req.req = req;
+    acb->req.buf = buf;
+    co = qemu_coroutine_create(bdrv_co_aio_ioctl_entry);
+    qemu_coroutine_enter(co, acb);
+
+    bdrv_co_maybe_schedule_bh(acb);
+    return &acb->common;
 }
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
