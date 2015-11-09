@@ -116,12 +116,12 @@ static uint32_t timer_enabled(HPETTimer *t)
 
 static uint32_t hpet_time_after(uint64_t a, uint64_t b)
 {
-    return ((int32_t)(b) - (int32_t)(a) < 0);
+    return ((int32_t)(b - a) < 0);
 }
 
 static uint32_t hpet_time_after64(uint64_t a, uint64_t b)
 {
-    return ((int64_t)(b) - (int64_t)(a) < 0);
+    return ((int64_t)(b - a) < 0);
 }
 
 static uint64_t ticks_to_ns(uint64_t value)
