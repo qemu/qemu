@@ -237,8 +237,21 @@ bool bdrv_requests_pending(BlockDriverState *bs)
     return false;
 }
 
+static void bdrv_drain_recurse(BlockDriverState *bs)
+{
+    BdrvChild *child;
+
+    if (bs->drv && bs->drv->bdrv_drain) {
+        bs->drv->bdrv_drain(bs);
+    }
+    QLIST_FOREACH(child, &bs->children, next) {
+        bdrv_drain_recurse(child->bs);
+    }
+}
+
 /*
- * Wait for pending requests to complete on a single BlockDriverState subtree
+ * Wait for pending requests to complete on a single BlockDriverState subtree,
+ * and suspend block driver's internal I/O until next request arrives.
  *
  * Note that unlike bdrv_drain_all(), the caller must hold the BlockDriverState
  * AioContext.
@@ -251,6 +264,7 @@ void bdrv_drain(BlockDriverState *bs)
 {
     bool busy = true;
 
+    bdrv_drain_recurse(bs);
     while (busy) {
         /* Keep iterating */
          bdrv_flush_io_queue(bs);

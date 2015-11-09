@@ -295,6 +295,12 @@ struct BlockDriver {
      */
     int (*bdrv_probe_geometry)(BlockDriverState *bs, HDGeometry *geo);
 
+    /**
+     * Drain and stop any internal sources of requests in the driver, and
+     * remain so until next I/O callback (e.g. bdrv_co_writev) is called.
+     */
+    void (*bdrv_drain)(BlockDriverState *bs);
+
     QLIST_ENTRY(BlockDriver) list;
 };
 
