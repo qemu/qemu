@@ -898,38 +898,6 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     return &acb->common;
 }
 
-static void ioctl_cb(void *opaque, int status)
-{
-    int *p_status = opaque;
-    *p_status = status;
-}
-
-static int iscsi_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
-{
-    IscsiLun *iscsilun = bs->opaque;
-    int status;
-
-    switch (req) {
-    case SG_GET_VERSION_NUM:
-        *(int *)buf = 30000;
-        break;
-    case SG_GET_SCSI_ID:
-        ((struct sg_scsi_id *)buf)->scsi_type = iscsilun->type;
-        break;
-    case SG_IO:
-        status = -EINPROGRESS;
-        iscsi_aio_ioctl(bs, req, buf, ioctl_cb, &status);
-
-        while (status == -EINPROGRESS) {
-            aio_poll(iscsilun->aio_context, true);
-        }
-
-        return 0;
-    default:
-        return -1;
-    }
-    return 0;
-}
 #endif
 
 static int64_t
@@ -1860,7 +1828,6 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_co_flush_to_disk = iscsi_co_flush,
 
 #ifdef __linux__
-    .bdrv_ioctl       = iscsi_ioctl,
     .bdrv_aio_ioctl   = iscsi_aio_ioctl,
 #endif
 

@@ -227,7 +227,6 @@ struct BlockDriver {
     void (*bdrv_lock_medium)(BlockDriverState *bs, bool locked);
 
     /* to control generic scsi devices */
-    int (*bdrv_ioctl)(BlockDriverState *bs, unsigned long int req, void *buf);
     BlockAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockCompletionFunc *cb, void *opaque);
