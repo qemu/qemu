@@ -369,3 +369,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     aio_context_release(ctx);
     return progress;
 }
+
+void aio_context_setup(AioContext *ctx, Error **errp)
+{
+}

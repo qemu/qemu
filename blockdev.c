@@ -1120,6 +1120,9 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
     if (!strcmp(device, "all")) {
         ret = bdrv_commit_all();
     } else {
+        BlockDriverState *bs;
+        AioContext *aio_context;
+
         blk = blk_by_name(device);
         if (!blk) {
             monitor_printf(mon, "Device '%s' not found\n", device);
@@ -1129,7 +1132,14 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
             monitor_printf(mon, "Device '%s' has no medium\n", device);
             return;
         }
-        ret = bdrv_commit(blk_bs(blk));
+
+        bs = blk_bs(blk);
+        aio_context = bdrv_get_aio_context(bs);
+        aio_context_acquire(aio_context);
+
+        ret = bdrv_commit(bs);
+
+        aio_context_release(aio_context);
     }
     if (ret < 0) {
         monitor_printf(mon, "'commit' error for '%s': %s\n", device,
