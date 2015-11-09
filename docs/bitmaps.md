@@ -97,11 +97,7 @@ which is included at the end of this document.
 }
 ```
 
-## Transactions (Not yet implemented)
-
-* Transactional commands are forthcoming in a future version,
-  and are not yet available for use. This section serves as
-  documentation of intent for their design and usage.
+## Transactions
 
 ### Justification
 
