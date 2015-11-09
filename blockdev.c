@@ -3171,6 +3171,7 @@ static void do_drive_backup(const char *device, const char *target,
         bmap = bdrv_find_dirty_bitmap(bs, bitmap);
         if (!bmap) {
             error_setg(errp, "Bitmap '%s' could not be found", bitmap);
+            bdrv_unref(target_bs);
             goto out;
         }
     }
