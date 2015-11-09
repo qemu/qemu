@@ -2318,18 +2318,20 @@ static void coroutine_fn bdrv_flush_co_entry(void *opaque)
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
     int ret;
+    BdrvTrackedRequest req;
 
     if (!bs || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
         bdrv_is_sg(bs)) {
         return 0;
     }
 
+    tracked_request_begin(&req, bs, 0, 0, BDRV_TRACKED_FLUSH);
     /* Write back cached data to the OS even with cache=unsafe */
     BLKDBG_EVENT(bs->file, BLKDBG_FLUSH_TO_OS);
     if (bs->drv->bdrv_co_flush_to_os) {
         ret = bs->drv->bdrv_co_flush_to_os(bs);
         if (ret < 0) {
-            return ret;
+            goto out;
         }
     }
 
@@ -2369,14 +2371,17 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
         ret = 0;
     }
     if (ret < 0) {
-        return ret;
+        goto out;
     }
 
     /* Now flush the underlying protocol.  It will also have BDRV_O_NO_FLUSH
      * in the case of cache=unsafe, so there are no useless flushes.
      */
 flush_parent:
-    return bs->file ? bdrv_co_flush(bs->file->bs) : 0;
+    ret = bs->file ? bdrv_co_flush(bs->file->bs) : 0;
+out:
+    tracked_request_end(&req);
+    return ret;
 }
 
 int bdrv_flush(BlockDriverState *bs)
