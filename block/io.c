@@ -2424,6 +2424,7 @@ static void coroutine_fn bdrv_discard_co_entry(void *opaque)
 int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
                                  int nb_sectors)
 {
+    BdrvTrackedRequest req;
     int max_discard, ret;
 
     if (!bs->drv) {
@@ -2446,6 +2447,8 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
         return 0;
     }
 
+    tracked_request_begin(&req, bs, sector_num, nb_sectors,
+                          BDRV_TRACKED_DISCARD);
     bdrv_set_dirty(bs, sector_num, nb_sectors);
 
     max_discard = MIN_NON_ZERO(bs->bl.max_discard, BDRV_REQUEST_MAX_SECTORS);
@@ -2479,20 +2482,24 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
             acb = bs->drv->bdrv_aio_discard(bs, sector_num, nb_sectors,
                                             bdrv_co_io_em_complete, &co);
             if (acb == NULL) {
-                return -EIO;
+                ret = -EIO;
+                goto out;
             } else {
                 qemu_coroutine_yield();
                 ret = co.ret;
             }
         }
         if (ret && ret != -ENOTSUP) {
-            return ret;
+            goto out;
         }
 
         sector_num += num;
         nb_sectors -= num;
     }
-    return 0;
+    ret = 0;
+out:
+    tracked_request_end(&req);
+    return ret;
 }
 
 int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
