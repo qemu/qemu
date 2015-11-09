@@ -375,6 +375,9 @@ static void *spapr_create_fdt_skel(hwaddr initrd_base,
                           qemu_uuid[14], qemu_uuid[15]);
 
     _FDT((fdt_property_string(fdt, "vm,uuid", buf)));
+    if (qemu_uuid_set) {
+        _FDT((fdt_property_string(fdt, "system-id", buf)));
+    }
     g_free(buf);
 
     if (qemu_get_vm_name()) {
