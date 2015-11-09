@@ -60,11 +60,19 @@
 
 #define BLOCK_PROBE_BUF_SIZE        512
 
+enum BdrvTrackedRequestType {
+    BDRV_TRACKED_READ,
+    BDRV_TRACKED_WRITE,
+    BDRV_TRACKED_FLUSH,
+    BDRV_TRACKED_IOCTL,
+    BDRV_TRACKED_DISCARD,
+};
+
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
     int64_t offset;
     unsigned int bytes;
-    bool is_write;
+    enum BdrvTrackedRequestType type;
 
     bool serialising;
     int64_t overlap_offset;

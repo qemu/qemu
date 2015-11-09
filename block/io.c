@@ -348,13 +348,14 @@ static void tracked_request_end(BdrvTrackedRequest *req)
 static void tracked_request_begin(BdrvTrackedRequest *req,
                                   BlockDriverState *bs,
                                   int64_t offset,
-                                  unsigned int bytes, bool is_write)
+                                  unsigned int bytes,
+                                  enum BdrvTrackedRequestType type)
 {
     *req = (BdrvTrackedRequest){
         .bs = bs,
         .offset         = offset,
         .bytes          = bytes,
-        .is_write       = is_write,
+        .type           = type,
         .co             = qemu_coroutine_self(),
         .serialising    = false,
         .overlap_offset = offset,
@@ -971,7 +972,7 @@ static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
         bytes = ROUND_UP(bytes, align);
     }
 
-    tracked_request_begin(&req, bs, offset, bytes, false);
+    tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_READ);
     ret = bdrv_aligned_preadv(bs, &req, offset, bytes, align,
                               use_local_qiov ? &local_qiov : qiov,
                               flags);
@@ -1292,7 +1293,7 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
      * Pad qiov with the read parts and be sure to have a tracked request not
      * only for bdrv_aligned_pwritev, but also for the reads of the RMW cycle.
      */
-    tracked_request_begin(&req, bs, offset, bytes, true);
+    tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_WRITE);
 
     if (!qiov) {
         ret = bdrv_co_do_zero_pwritev(bs, offset, bytes, flags, &req);
