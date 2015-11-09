@@ -1179,8 +1179,8 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
         qemu_savevm_state_complete_precopy(f);
         ret = qemu_file_get_error(f);
     }
+    qemu_savevm_state_cleanup();
     if (ret != 0) {
-        qemu_savevm_state_cleanup();
         error_setg_errno(errp, -ret, "Error while writing VM state");
     }
     return ret;
