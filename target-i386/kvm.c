@@ -25,6 +25,8 @@
 #include "sysemu/kvm_int.h"
 #include "kvm_i386.h"
 #include "cpu.h"
+#include "hyperv.h"
+
 #include "exec/gdbstub.h"
 #include "qemu/host-utils.h"
 #include "qemu/config-file.h"
@@ -33,6 +35,7 @@
 #include "hw/i386/apic.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/i386/apic-msidef.h"
+
 #include "exec/ioport.h"
 #include "standard-headers/asm-x86/hyperv.h"
 #include "hw/pci/pci.h"
@@ -2962,6 +2965,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         qemu_mutex_lock_iothread();
         ret = kvm_handle_debug(cpu, &run->debug.arch);
         qemu_mutex_unlock_iothread();
+        break;
+    case KVM_EXIT_HYPERV:
+        ret = kvm_hv_handle_exit(cpu, &run->hyperv);
         break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
