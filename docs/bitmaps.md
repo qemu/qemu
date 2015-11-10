@@ -19,11 +19,19 @@ which is included at the end of this document.
 * A dirty bitmap's name is unique to the node, but bitmaps attached to different
   nodes can share the same name.
 
+* Dirty bitmaps created for internal use by QEMU may be anonymous and have no
+  name, but any user-created bitmaps may not be. There can be any number of
+  anonymous bitmaps per node.
+
+* The name of a user-created bitmap must not be empty ("").
+
 ## Bitmap Modes
 
 * A Bitmap can be "frozen," which means that it is currently in-use by a backup
   operation and cannot be deleted, renamed, written to, reset,
   etc.
+
+* The normal operating mode for a bitmap is "active."
 
 ## Basic QMP Usage
 
@@ -318,6 +326,155 @@ full backup as a backing image.
                 "speed": 0, "len": 67108864, "offset": 67108864},
       "event": "BLOCK_JOB_COMPLETED" }
     ```
+
+### Partial Transactional Failures
+
+* Sometimes, a transaction will succeed in launching and return success,
+  but then later the backup jobs themselves may fail. It is possible that
+  a management application may have to deal with a partial backup failure
+  after a successful transaction.
+
+* If multiple backup jobs are specified in a single transaction, when one of
+  them fails, it will not interact with the other backup jobs in any way.
+
+* The job(s) that succeeded will clear the dirty bitmap associated with the
+  operation, but the job(s) that failed will not. It is not "safe" to delete
+  any incremental backups that were created successfully in this scenario,
+  even though others failed.
+
+#### Example
+
+* QMP example highlighting two backup jobs:
+
+    ```json
+    { "execute": "transaction",
+      "arguments": {
+        "actions": [
+          { "type": "drive-backup",
+            "data": { "device": "drive0", "bitmap": "bitmap0",
+                      "format": "qcow2", "mode": "existing",
+                      "sync": "incremental", "target": "d0-incr-1.qcow2" } },
+          { "type": "drive-backup",
+            "data": { "device": "drive1", "bitmap": "bitmap1",
+                      "format": "qcow2", "mode": "existing",
+                      "sync": "incremental", "target": "d1-incr-1.qcow2" } },
+        ]
+      }
+    }
+    ```
+
+* QMP example response, highlighting one success and one failure:
+    * Acknowledgement that the Transaction was accepted and jobs were launched:
+        ```json
+        { "return": {} }
+        ```
+
+    * Later, QEMU sends notice that the first job was completed:
+        ```json
+        { "timestamp": { "seconds": 1447192343, "microseconds": 615698 },
+          "data": { "device": "drive0", "type": "backup",
+                     "speed": 0, "len": 67108864, "offset": 67108864 },
+          "event": "BLOCK_JOB_COMPLETED"
+        }
+        ```
+
+    * Later yet, QEMU sends notice that the second job has failed:
+        ```json
+        { "timestamp": { "seconds": 1447192399, "microseconds": 683015 },
+          "data": { "device": "drive1", "action": "report",
+                    "operation": "read" },
+          "event": "BLOCK_JOB_ERROR" }
+        ```
+
+        ```json
+        { "timestamp": { "seconds": 1447192399, "microseconds": 685853 },
+          "data": { "speed": 0, "offset": 0, "len": 67108864,
+                    "error": "Input/output error",
+                    "device": "drive1", "type": "backup" },
+          "event": "BLOCK_JOB_COMPLETED" }
+
+* In the above example, "d0-incr-1.qcow2" is valid and must be kept,
+  but "d1-incr-1.qcow2" is invalid and should be deleted. If a VM-wide
+  incremental backup of all drives at a point-in-time is to be made,
+  new backups for both drives will need to be made, taking into account
+  that a new incremental backup for drive0 needs to be based on top of
+  "d0-incr-1.qcow2."
+
+### Grouped Completion Mode
+
+* While jobs launched by transactions normally complete or fail on their own,
+  it is possible to instruct them to complete or fail together as a group.
+
+* QMP transactions take an optional properties structure that can affect
+  the semantics of the transaction.
+
+* The "completion-mode" transaction property can be either "individual"
+  which is the default, legacy behavior described above, or "grouped,"
+  a new behavior detailed below.
+
+* Delayed Completion: In grouped completion mode, no jobs will report
+  success until all jobs are ready to report success.
+
+* Grouped failure: If any job fails in grouped completion mode, all remaining
+  jobs will be cancelled. Any incremental backups will restore their dirty
+  bitmap objects as if no backup command was ever issued.
+
+    * Regardless of if QEMU reports a particular incremental backup job as
+      CANCELLED or as an ERROR, the in-memory bitmap will be restored.
+
+#### Example
+
+* Here's the same example scenario from above with the new property:
+
+    ```json
+    { "execute": "transaction",
+      "arguments": {
+        "actions": [
+          { "type": "drive-backup",
+            "data": { "device": "drive0", "bitmap": "bitmap0",
+                      "format": "qcow2", "mode": "existing",
+                      "sync": "incremental", "target": "d0-incr-1.qcow2" } },
+          { "type": "drive-backup",
+            "data": { "device": "drive1", "bitmap": "bitmap1",
+                      "format": "qcow2", "mode": "existing",
+                      "sync": "incremental", "target": "d1-incr-1.qcow2" } },
+        ],
+        "properties": {
+          "completion-mode": "grouped"
+        }
+      }
+    }
+    ```
+
+* QMP example response, highlighting a failure for drive2:
+    * Acknowledgement that the Transaction was accepted and jobs were launched:
+        ```json
+        { "return": {} }
+        ```
+
+    * Later, QEMU sends notice that the second job has errored out,
+      but that the first job was also cancelled:
+        ```json
+        { "timestamp": { "seconds": 1447193702, "microseconds": 632377 },
+          "data": { "device": "drive1", "action": "report",
+                    "operation": "read" },
+          "event": "BLOCK_JOB_ERROR" }
+        ```
+
+        ```json
+        { "timestamp": { "seconds": 1447193702, "microseconds": 640074 },
+          "data": { "speed": 0, "offset": 0, "len": 67108864,
+                    "error": "Input/output error",
+                    "device": "drive1", "type": "backup" },
+          "event": "BLOCK_JOB_COMPLETED" }
+        ```
+
+        ```json
+        { "timestamp": { "seconds": 1447193702, "microseconds": 640163 },
+          "data": { "device": "drive0", "type": "backup", "speed": 0,
+                    "len": 67108864, "offset": 16777216 },
+          "event": "BLOCK_JOB_CANCELLED" }
+        ```
 
 <!--
 The FreeBSD Documentation License
