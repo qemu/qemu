@@ -1184,7 +1184,8 @@ int ram_save_queue_pages(MigrationState *ms, const char *rbname,
     }
     trace_ram_save_queue_pages(ramblock->idstr, start, len);
     if (start+len > ramblock->used_length) {
-        error_report("%s request overrun start=%zx len=%zx blocklen=%zx",
+        error_report("%s request overrun start=" RAM_ADDR_FMT " len="
+                     RAM_ADDR_FMT " blocklen=" RAM_ADDR_FMT,
                      __func__, start, len, ramblock->used_length);
         goto err;
     }
@@ -1845,7 +1846,7 @@ int ram_discard_range(MigrationIncomingState *mis,
         ret = postcopy_ram_discard_range(mis, host_startaddr, length);
     } else {
         error_report("ram_discard_range: Overrun block '%s' (%" PRIu64
-                     "/%zu/%zu)",
+                     "/%zx/" RAM_ADDR_FMT")",
                      block_name, start, length, rb->used_length);
     }
 
