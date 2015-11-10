@@ -11,29 +11,35 @@
 #include "s390-ccw.h"
 #include "virtio.h"
 
-static VRing block;
+static VRing block[VIRTIO_MAX_VQS];
+static char ring_area[VIRTIO_RING_SIZE * VIRTIO_MAX_VQS]
+                     __attribute__((__aligned__(PAGE_SIZE)));
+static int nr_vqs = 1;
 
 static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
+/* virtio spec v1.0 para 4.3.3.2 */
 static long kvm_hypercall(unsigned long nr, unsigned long param1,
-                          unsigned long param2)
+                          unsigned long param2, unsigned long param3)
 {
     register ulong r_nr asm("1") = nr;
     register ulong r_param1 asm("2") = param1;
     register ulong r_param2 asm("3") = param2;
+    register ulong r_param3 asm("4") = param3;
     register long retval asm("2");
 
     asm volatile ("diag 2,4,0x500"
                   : "=d" (retval)
-                  : "d" (r_nr), "0" (r_param1), "r"(r_param2)
+                  : "d" (r_nr), "0" (r_param1), "r"(r_param2), "d"(r_param3)
                   : "memory", "cc");
 
     return retval;
 }
 
-static void virtio_notify(SubChannelId schid)
+static long virtio_notify(SubChannelId schid, int vq_idx, long cookie)
 {
-    kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, *(u32 *)&schid, 0);
+    return kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, *(u32 *)&schid,
+                         vq_idx, cookie);
 }
 
 /***********************************************
@@ -106,15 +112,17 @@ static void virtio_reset(SubChannelId schid)
     run_ccw(schid, CCW_CMD_VDEV_RESET, NULL, 0);
 }
 
-static void vring_init(VRing *vr, unsigned int num, void *p,
-                       unsigned long align)
+static void vring_init(VRing *vr, VqInfo *info)
 {
+    void *p = (void *) info->queue;
+
     debug_print_addr("init p", p);
-    vr->num = num;
+    vr->id = info->index;
+    vr->num = info->num;
     vr->desc = p;
-    vr->avail = p + num * sizeof(VRingDesc);
-    vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + align-1)
-                & ~(align - 1));
+    vr->avail = p + info->num * sizeof(VRingDesc);
+    vr->used = (void *)(((unsigned long)&vr->avail->ring[info->num]
+               + info->align - 1) & ~(info->align - 1));
 
     /* Zero out all relevant field */
     vr->avail->flags = 0;
@@ -125,13 +133,15 @@ static void vring_init(VRing *vr, unsigned int num, void *p,
     vr->used->idx = 0;
     vr->used_idx = 0;
     vr->next_idx = 0;
+    vr->cookie = 0;
 
     debug_print_addr("init vr", vr);
 }
 
-static void vring_notify(SubChannelId schid)
+static bool vring_notify(VRing *vr)
 {
-    virtio_notify(schid);
+    vr->cookie = virtio_notify(vr->schid, vr->id, vr->cookie);
+    return vr->cookie >= 0;
 }
 
 static void vring_send_buf(VRing *vr, void *p, int len, int flags)
@@ -167,6 +177,21 @@ ulong get_second(void)
     return (get_clock() >> 12) / 1000000;
 }
 
+static int vr_poll(VRing *vr)
+{
+    if (vr->used->idx == vr->used_idx) {
+        vring_notify(vr);
+        yield();
+        return 0;
+    }
+
+    vr->used_idx = vr->used->idx;
+    vr->next_idx = 0;
+    vr->desc[0].len = 0;
+    vr->desc[0].flags = 0;
+    return 1; /* vr has been updated */
+}
+
 /*
  * Wait for the host to reply.
  *
@@ -174,28 +199,24 @@ ulong get_second(void)
  *
  * Returns 0 on success, 1 on timeout.
  */
-static int vring_wait_reply(VRing *vr, int timeout)
+static int vring_wait_reply(int timeout)
 {
     ulong target_second = get_second() + timeout;
-    SubChannelId schid = vr->schid;
-    int r = 0;
 
-    /* Wait until the used index has moved. */
-    while (vr->used->idx == vr->used_idx) {
-        vring_notify(schid);
-        if (timeout && (get_second() >= target_second)) {
-            r = 1;
-            break;
+    /* Wait for any queue to be updated by the host */
+    do {
+        int i, r = 0;
+
+        for (i = 0; i < nr_vqs; i++) {
+            r += vr_poll(&block[i]);
         }
         yield();
-    }
+        if (r) {
+            return 0;
+        }
+    } while (!timeout || (get_second() < target_second));
 
-    vr->used_idx = vr->used->idx;
-    vr->next_idx = 0;
-    vr->desc[0].len = 0;
-    vr->desc[0].flags = 0;
-
-    return r;
+    return 1;
 }
 
 /***********************************************
@@ -213,21 +234,21 @@ int virtio_read_many(ulong sector, void *load_addr, int sec_num)
     out_hdr.ioprio = 99;
     out_hdr.sector = virtio_sector_adjust(sector);
 
-    vring_send_buf(&block, &out_hdr, sizeof(out_hdr), VRING_DESC_F_NEXT);
+    vring_send_buf(&block[0], &out_hdr, sizeof(out_hdr), VRING_DESC_F_NEXT);
 
     /* This is where we want to receive data */
-    vring_send_buf(&block, load_addr, virtio_get_block_size() * sec_num,
+    vring_send_buf(&block[0], load_addr, virtio_get_block_size() * sec_num,
                    VRING_DESC_F_WRITE | VRING_HIDDEN_IS_CHAIN |
                    VRING_DESC_F_NEXT);
 
     /* status field */
-    vring_send_buf(&block, &status, sizeof(u8), VRING_DESC_F_WRITE |
+    vring_send_buf(&block[0], &status, sizeof(u8), VRING_DESC_F_WRITE |
                    VRING_HIDDEN_IS_CHAIN);
 
     /* Now we can tell the host to read */
-    vring_wait_reply(&block, 0);
+    vring_wait_reply(0);
 
-    r = drain_irqs(block.schid);
+    r = drain_irqs(block[0].schid);
     if (r) {
         /* Well, whatever status is supposed to contain... */
         status = 1;
@@ -363,15 +384,18 @@ uint64_t virtio_get_blocks(void)
            (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }
 
-void virtio_setup_block(SubChannelId schid)
+static void virtio_setup_ccw(SubChannelId schid,
+                             int nvr, void *cfg, int cfg_size)
 {
-    VqInfo info;
-    VqConfig config = {};
+    int i;
 
     blk_cfg.blk_size = 0; /* mark "illegal" - setup started... */
+    nr_vqs = nvr;
     guessed_disk_nature = false;
 
     virtio_reset(schid);
+    IPL_assert(run_ccw(schid, CCW_CMD_READ_CONF, cfg, cfg_size) == 0,
+               "Could not get block device configuration");
 
     /*
      * Skipping CCW_CMD_READ_FEAT. We're not doing anything fancy, and
@@ -379,25 +403,33 @@ void virtio_setup_block(SubChannelId schid)
      * expect it.
      */
 
-    config.index = 0;
-    if (run_ccw(schid, CCW_CMD_READ_VQ_CONF, &config, sizeof(config))) {
-        panic("Could not get block device VQ configuration\n");
-    }
-    if (run_ccw(schid, CCW_CMD_READ_CONF, &blk_cfg, sizeof(blk_cfg))) {
-        panic("Could not get block device configuration\n");
-    }
-    vring_init(&block, config.num, ring_area,
-               KVM_S390_VIRTIO_RING_ALIGN);
+    for (i = 0; i < nr_vqs; i++) {
+        VqInfo info = {
+            .queue = (unsigned long long) ring_area + (i * VIRTIO_RING_SIZE),
+            .align = KVM_S390_VIRTIO_RING_ALIGN,
+            .index = i,
+            .num = 0,
+        };
+        VqConfig config = {
+            .index = i,
+            .num = 0,
+        };
 
-    info.queue = (unsigned long long) ring_area;
-    info.align = KVM_S390_VIRTIO_RING_ALIGN;
-    info.index = 0;
-    info.num = config.num;
-    block.schid = schid;
-
-    if (!run_ccw(schid, CCW_CMD_SET_VQ, &info, sizeof(info))) {
-        virtio_set_status(schid, VIRTIO_CONFIG_S_DRIVER_OK);
+        IPL_assert(
+            run_ccw(schid, CCW_CMD_READ_VQ_CONF, &config, sizeof(config)) == 0,
+            "Could not get block device VQ configuration");
+        info.num = config.num;
+        vring_init(&block[i], &info);
+        block[i].schid = schid;
+        IPL_assert(run_ccw(schid, CCW_CMD_SET_VQ, &info, sizeof(info)) == 0,
+                   "Cannot set VQ info");
     }
+    virtio_set_status(schid, VIRTIO_CONFIG_S_DRIVER_OK);
+}
+
+void virtio_setup_block(SubChannelId schid)
+{
+    virtio_setup_ccw(schid, 1, &blk_cfg, sizeof(blk_cfg));
 
     if (!virtio_ipl_disk_is_valid()) {
         /* make sure all getters but blocksize return 0 for invalid IPL disk */

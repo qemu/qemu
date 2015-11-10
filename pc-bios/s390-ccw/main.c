@@ -12,7 +12,6 @@
 #include "virtio.h"
 
 char stack[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
-char ring_area[PAGE_SIZE * 8] __attribute__((__aligned__(PAGE_SIZE)));
 uint64_t boot_value;
 static SubChannelId blk_schid = { .one = 1 };
 

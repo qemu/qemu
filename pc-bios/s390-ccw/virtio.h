@@ -72,6 +72,8 @@ struct VirtioDev {
 };
 typedef struct VirtioDev VirtioDev;
 
+#define VIRTIO_RING_SIZE            (PAGE_SIZE * 8)
+#define VIRTIO_MAX_VQS              3
 #define KVM_S390_VIRTIO_RING_ALIGN  4096
 
 #define VRING_USED_F_NO_NOTIFY  1
@@ -130,6 +132,8 @@ struct VRing {
     VRingAvail *avail;
     VRingUsed *used;
     SubChannelId schid;
+    long cookie;
+    int id;
 };
 typedef struct VRing VRing;
 
