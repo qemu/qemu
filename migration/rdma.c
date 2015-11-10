@@ -577,7 +577,7 @@ static int rdma_add_block(RDMAContext *rdma, const char *block_name,
     block->is_ram_block = local->init ? false : true;
 
     if (rdma->blockmap) {
-        g_hash_table_insert(rdma->blockmap, (void *) block_offset, block);
+        g_hash_table_insert(rdma->blockmap, (void *)(uintptr_t)block_offset, block);
     }
 
     trace_rdma_add_block(block_name, local->nb_blocks,
