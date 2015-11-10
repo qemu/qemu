@@ -45,8 +45,10 @@
 #include <sys/eventfd.h>
 #endif
 
-/* KVM uses PAGE_SIZE in its definition of COALESCED_MMIO_MAX */
-#define PAGE_SIZE TARGET_PAGE_SIZE
+/* KVM uses PAGE_SIZE in its definition of KVM_COALESCED_MMIO_MAX. We
+ * need to use the real host PAGE_SIZE, as that's what KVM will use.
+ */
+#define PAGE_SIZE getpagesize()
 
 //#define DEBUG_KVM
 
