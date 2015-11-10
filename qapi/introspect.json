@@ -25,6 +25,10 @@
 # Returns: array of @SchemaInfo, where each element describes an
 # entity in the ABI: command, event, type, ...
 #
+# The order of the various SchemaInfo is unspecified; however, all
+# names are guaranteed to be unique (no name will be duplicated with
+# different meta-types).
+#
 # Note: the QAPI schema is also used to help define *internal*
 # interfaces, by defining QAPI types.  These are not part of the QMP
 # wire ABI, and therefore not returned by this command.
@@ -78,7 +82,8 @@
 #        Commands and events have the name defined in the QAPI schema.
 #        Unlike command and event names, type names are not part of
 #        the wire ABI.  Consequently, type names are meaningless
-#        strings here.
+#        strings here, although they are still guaranteed unique
+#        regardless of @meta-type.
 #
 # All references to other SchemaInfo are by name.
 #
@@ -130,7 +135,7 @@
 #
 # Additional SchemaInfo members for meta-type 'enum'.
 #
-# @values: the enumeration type's values.
+# @values: the enumeration type's values, in no particular order.
 #
 # Values of this type are JSON string on the wire.
 #
@@ -158,14 +163,16 @@
 #
 # Additional SchemaInfo members for meta-type 'object'.
 #
-# @members: the object type's (non-variant) members.
+# @members: the object type's (non-variant) members, in no particular order.
 #
 # @tag: #optional the name of the member serving as type tag.
 #       An element of @members with this name must exist.
 #
 # @variants: #optional variant members, i.e. additional members that
 #            depend on the type tag's value.  Present exactly when
-#            @tag is present.
+#            @tag is present.  The variants are in no particular order,
+#            and may even differ from the order of the values of the
+#            enum type of the @tag.
 #
 # Values of this type are JSON object on the wire.
 #
@@ -219,7 +226,7 @@
 #
 # Additional SchemaInfo members for meta-type 'alternate'.
 #
-# @members: the alternate type's members.
+# @members: the alternate type's members, in no particular order.
 #           The members' wire encoding is distinct, see
 #           docs/qapi-code-gen.txt section Alternate types.
 #

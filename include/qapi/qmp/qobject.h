@@ -90,6 +90,7 @@ static inline void qobject_incref(QObject *obj)
  */
 static inline void qobject_decref(QObject *obj)
 {
+    assert(!obj || obj->refcnt);
     if (obj && --obj->refcnt == 0) {
         assert(obj->type != NULL);
         assert(obj->type->destroy != NULL);

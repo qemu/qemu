@@ -186,40 +186,6 @@ static void visit_primitive_list(Visitor *v, void **native, Error **errp)
     }
 }
 
-typedef struct TestStruct
-{
-    int64_t integer;
-    bool boolean;
-    char *string;
-} TestStruct;
-
-static void visit_type_TestStruct(Visitor *v, TestStruct **obj,
-                                  const char *name, Error **errp)
-{
-    Error *err = NULL;
-
-    visit_start_struct(v, (void **)obj, NULL, name, sizeof(TestStruct), &err);
-    if (err) {
-        goto out;
-    }
-
-    visit_type_int(v, &(*obj)->integer, "integer", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_bool(v, &(*obj)->boolean, "boolean", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_str(v, &(*obj)->string, "string", &err);
-
-out_end:
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_struct(v, &err);
-out:
-    error_propagate(errp, err);
-}
 
 static TestStruct *struct_create(void)
 {
@@ -336,14 +302,13 @@ static void test_primitives(gconstpointer opaque)
     const SerializeOps *ops = args->ops;
     PrimitiveType *pt = args->test_data;
     PrimitiveType *pt_copy = g_malloc0(sizeof(*pt_copy));
-    Error *err = NULL;
     void *serialize_data;
 
     pt_copy->type = pt->type;
-    ops->serialize(pt, &serialize_data, visit_primitive_type, &err);
-    ops->deserialize((void **)&pt_copy, serialize_data, visit_primitive_type, &err);
+    ops->serialize(pt, &serialize_data, visit_primitive_type, &error_abort);
+    ops->deserialize((void **)&pt_copy, serialize_data, visit_primitive_type,
+                     &error_abort);
 
-    g_assert(err == NULL);
     g_assert(pt_copy != NULL);
     if (pt->type == PTYPE_STRING) {
         g_assert_cmpstr(pt->value.string, ==, pt_copy->value.string);
@@ -379,7 +344,6 @@ static void test_primitive_lists(gconstpointer opaque)
     PrimitiveList pl = { .value = { NULL } };
     PrimitiveList pl_copy = { .value = { NULL } };
     PrimitiveList *pl_copy_ptr = &pl_copy;
-    Error *err = NULL;
     void *serialize_data;
     void *cur_head = NULL;
     int i;
@@ -526,10 +490,11 @@ static void test_primitive_lists(gconstpointer opaque)
         }
     }
 
-    ops->serialize((void **)&pl, &serialize_data, visit_primitive_list, &err);
-    ops->deserialize((void **)&pl_copy_ptr, serialize_data, visit_primitive_list, &err);
+    ops->serialize((void **)&pl, &serialize_data, visit_primitive_list,
+                   &error_abort);
+    ops->deserialize((void **)&pl_copy_ptr, serialize_data,
+                     visit_primitive_list, &error_abort);
 
-    g_assert(err == NULL);
     i = 0;
 
     /* compare our deserialized list of primitives to the original */
@@ -686,10 +651,8 @@ static void test_primitive_lists(gconstpointer opaque)
     g_assert_cmpint(i, ==, 33);
 
     ops->cleanup(serialize_data);
-    dealloc_helper(&pl, visit_primitive_list, &err);
-    g_assert(!err);
-    dealloc_helper(&pl_copy, visit_primitive_list, &err);
-    g_assert(!err);
+    dealloc_helper(&pl, visit_primitive_list, &error_abort);
+    dealloc_helper(&pl_copy, visit_primitive_list, &error_abort);
     g_free(args);
 }
 
@@ -699,13 +662,12 @@ static void test_struct(gconstpointer opaque)
     const SerializeOps *ops = args->ops;
     TestStruct *ts = struct_create();
     TestStruct *ts_copy = NULL;
-    Error *err = NULL;
     void *serialize_data;
 
-    ops->serialize(ts, &serialize_data, visit_struct, &err);
-    ops->deserialize((void **)&ts_copy, serialize_data, visit_struct, &err); 
+    ops->serialize(ts, &serialize_data, visit_struct, &error_abort);
+    ops->deserialize((void **)&ts_copy, serialize_data, visit_struct,
+                     &error_abort);
 
-    g_assert(err == NULL);
     struct_compare(ts, ts_copy);
 
     struct_cleanup(ts);
@@ -721,14 +683,12 @@ static void test_nested_struct(gconstpointer opaque)
     const SerializeOps *ops = args->ops;
     UserDefTwo *udnp = nested_struct_create();
     UserDefTwo *udnp_copy = NULL;
-    Error *err = NULL;
     void *serialize_data;
 
-    ops->serialize(udnp, &serialize_data, visit_nested_struct, &err);
+    ops->serialize(udnp, &serialize_data, visit_nested_struct, &error_abort);
     ops->deserialize((void **)&udnp_copy, serialize_data, visit_nested_struct,
-                     &err);
+                     &error_abort);
 
-    g_assert(err == NULL);
     nested_struct_compare(udnp, udnp_copy);
 
     nested_struct_cleanup(udnp);
@@ -743,7 +703,6 @@ static void test_nested_struct_list(gconstpointer opaque)
     TestArgs *args = (TestArgs *) opaque;
     const SerializeOps *ops = args->ops;
     UserDefTwoList *listp = NULL, *tmp, *tmp_copy, *listp_copy = NULL;
-    Error *err = NULL;
     void *serialize_data;
     int i = 0;
 
@@ -754,11 +713,10 @@ static void test_nested_struct_list(gconstpointer opaque)
         listp = tmp;
     }
 
-    ops->serialize(listp, &serialize_data, visit_nested_struct_list, &err);
+    ops->serialize(listp, &serialize_data, visit_nested_struct_list,
+                   &error_abort);
     ops->deserialize((void **)&listp_copy, serialize_data,
-                     visit_nested_struct_list, &err); 
-
-    g_assert(err == NULL);
+                     visit_nested_struct_list, &error_abort);
 
     tmp = listp;
     tmp_copy = listp_copy;

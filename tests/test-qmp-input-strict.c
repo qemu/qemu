@@ -40,9 +40,29 @@ static void validate_teardown(TestInputVisitorData *data,
     }
 }
 
-/* This is provided instead of a test setup function so that the JSON
-   string used by the tests are kept in the test functions (and not
-   int main()) */
+/* The various test_init functions are provided instead of a test setup
+   function so that the JSON string used by the tests are kept in the test
+   functions (and not in main()). */
+static Visitor *validate_test_init_internal(TestInputVisitorData *data,
+                                            const char *json_string,
+                                            va_list *ap)
+{
+    Visitor *v;
+
+    validate_teardown(data, NULL);
+
+    data->obj = qobject_from_jsonv(json_string, ap);
+    g_assert(data->obj);
+
+    data->qiv = qmp_input_visitor_new_strict(data->obj);
+    g_assert(data->qiv);
+
+    v = qmp_input_get_visitor(data->qiv);
+    g_assert(v);
+
+    return v;
+}
+
 static GCC_FMT_ATTR(2, 3)
 Visitor *validate_test_init(TestInputVisitorData *data,
                              const char *json_string, ...)
@@ -51,17 +71,8 @@ Visitor *validate_test_init(TestInputVisitorData *data,
     va_list ap;
 
     va_start(ap, json_string);
-    data->obj = qobject_from_jsonv(json_string, &ap);
+    v = validate_test_init_internal(data, json_string, &ap);
     va_end(ap);
-
-    g_assert(data->obj != NULL);
-
-    data->qiv = qmp_input_visitor_new_strict(data->obj);
-    g_assert(data->qiv != NULL);
-
-    v = qmp_input_get_visitor(data->qiv);
-    g_assert(v != NULL);
-
     return v;
 }
 
@@ -75,67 +86,19 @@ Visitor *validate_test_init(TestInputVisitorData *data,
 static Visitor *validate_test_init_raw(TestInputVisitorData *data,
                                        const char *json_string)
 {
-    Visitor *v;
-
-    data->obj = qobject_from_json(json_string);
-    g_assert(data->obj != NULL);
-
-    data->qiv = qmp_input_visitor_new_strict(data->obj);
-    g_assert(data->qiv != NULL);
-
-    v = qmp_input_get_visitor(data->qiv);
-    g_assert(v != NULL);
-
-    return v;
+    return validate_test_init_internal(data, json_string, NULL);
 }
 
-typedef struct TestStruct
-{
-    int64_t integer;
-    bool boolean;
-    char *string;
-} TestStruct;
-
-static void visit_type_TestStruct(Visitor *v, TestStruct **obj,
-                                  const char *name, Error **errp)
-{
-    Error *err = NULL;
-
-    visit_start_struct(v, (void **)obj, "TestStruct", name, sizeof(TestStruct),
-                       &err);
-    if (err) {
-        goto out;
-    }
-
-    visit_type_int(v, &(*obj)->integer, "integer", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_bool(v, &(*obj)->boolean, "boolean", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_str(v, &(*obj)->string, "string", &err);
-
-out_end:
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_struct(v, &err);
-out:
-    error_propagate(errp, err);
-}
 
 static void test_validate_struct(TestInputVisitorData *data,
                                   const void *unused)
 {
     TestStruct *p = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = validate_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
 
-    visit_type_TestStruct(v, &p, NULL, &err);
-    g_assert(!err);
+    visit_type_TestStruct(v, &p, NULL, &error_abort);
     g_free(p->string);
     g_free(p);
 }
@@ -144,7 +107,6 @@ static void test_validate_struct_nested(TestInputVisitorData *data,
                                          const void *unused)
 {
     UserDefTwo *udp = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = validate_test_init(data, "{ 'string0': 'string0', "
@@ -152,8 +114,7 @@ static void test_validate_struct_nested(TestInputVisitorData *data,
                            "'dict2': { 'userdef': { 'integer': 42, "
                            "'string': 'string' }, 'string': 'string2'}}}");
 
-    visit_type_UserDefTwo(v, &udp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefTwo(v, &udp, NULL, &error_abort);
     qapi_free_UserDefTwo(udp);
 }
 
@@ -161,13 +122,11 @@ static void test_validate_list(TestInputVisitorData *data,
                                 const void *unused)
 {
     UserDefOneList *head = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = validate_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44 } ]");
 
-    visit_type_UserDefOneList(v, &head, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefOneList(v, &head, NULL, &error_abort);
     qapi_free_UserDefOneList(head);
 }
 
@@ -176,12 +135,10 @@ static void test_validate_union_native_list(TestInputVisitorData *data,
 {
     UserDefNativeListUnion *tmp = NULL;
     Visitor *v;
-    Error *err = NULL;
 
     v = validate_test_init(data, "{ 'type': 'integer', 'data' : [ 1, 2 ] }");
 
-    visit_type_UserDefNativeListUnion(v, &tmp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefNativeListUnion(v, &tmp, NULL, &error_abort);
     qapi_free_UserDefNativeListUnion(tmp);
 }
 
@@ -190,7 +147,6 @@ static void test_validate_union_flat(TestInputVisitorData *data,
 {
     UserDefFlatUnion *tmp = NULL;
     Visitor *v;
-    Error *err = NULL;
 
     v = validate_test_init(data,
                            "{ 'enum1': 'value1', "
@@ -198,8 +154,7 @@ static void test_validate_union_flat(TestInputVisitorData *data,
                            "'string': 'str', "
                            "'boolean': true }");
 
-    visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefFlatUnion(v, &tmp, NULL, &error_abort);
     qapi_free_UserDefFlatUnion(tmp);
 }
 
@@ -208,12 +163,10 @@ static void test_validate_alternate(TestInputVisitorData *data,
 {
     UserDefAlternate *tmp = NULL;
     Visitor *v;
-    Error *err = NULL;
 
     v = validate_test_init(data, "42");
 
-    visit_type_UserDefAlternate(v, &tmp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
     qapi_free_UserDefAlternate(tmp);
 }
 
@@ -227,7 +180,7 @@ static void test_validate_fail_struct(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo', 'extra': 42 }");
 
     visit_type_TestStruct(v, &p, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     if (p) {
         g_free(p->string);
     }
@@ -244,7 +197,7 @@ static void test_validate_fail_struct_nested(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string0': 'string0', 'dict1': { 'string1': 'string1', 'dict2': { 'userdef1': { 'integer': 42, 'string': 'string', 'extra': [42, 23, {'foo':'bar'}] }, 'string2': 'string2'}}}");
 
     visit_type_UserDefTwo(v, &udp, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefTwo(udp);
 }
 
@@ -258,7 +211,7 @@ static void test_validate_fail_list(TestInputVisitorData *data,
     v = validate_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44, 'extra': 'ggg' } ]");
 
     visit_type_UserDefOneList(v, &head, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefOneList(head);
 }
 
@@ -273,7 +226,7 @@ static void test_validate_fail_union_native_list(TestInputVisitorData *data,
                            "{ 'type': 'integer', 'data' : [ 'string' ] }");
 
     visit_type_UserDefNativeListUnion(v, &tmp, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefNativeListUnion(tmp);
 }
 
@@ -287,7 +240,7 @@ static void test_validate_fail_union_flat(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'string': 'c', 'integer': 41, 'boolean': true }");
 
     visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefFlatUnion(tmp);
 }
 
@@ -302,7 +255,7 @@ static void test_validate_fail_union_flat_no_discrim(TestInputVisitorData *data,
     v = validate_test_init(data, "{ 'integer': 42, 'string': 'c', 'string1': 'd', 'string2': 'e' }");
 
     visit_type_UserDefFlatUnion2(v, &tmp, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefFlatUnion2(tmp);
 }
 
@@ -316,7 +269,7 @@ static void test_validate_fail_alternate(TestInputVisitorData *data,
     v = validate_test_init(data, "3.14");
 
     visit_type_UserDefAlternate(v, &tmp, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     qapi_free_UserDefAlternate(tmp);
 }
 
@@ -324,16 +277,11 @@ static void do_test_validate_qmp_introspect(TestInputVisitorData *data,
                                             const char *schema_json)
 {
     SchemaInfoList *schema = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = validate_test_init_raw(data, schema_json);
 
-    visit_type_SchemaInfoList(v, &schema, NULL, &err);
-    if (err) {
-        fprintf(stderr, "%s", error_get_pretty(err));
-    }
-    g_assert(!err);
+    visit_type_SchemaInfoList(v, &schema, NULL, &error_abort);
     g_assert(schema);
 
     qapi_free_SchemaInfoList(schema);

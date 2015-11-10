@@ -107,10 +107,12 @@ const char %(c_name)s[] = %(c_string)s;
         # characters.
         if isinstance(typ, QAPISchemaBuiltinType):
             return typ.name
+        if isinstance(typ, QAPISchemaArrayType):
+            return '[' + self._use_type(typ.element_type) + ']'
         return self._name(typ.name)
 
     def _gen_json(self, name, mtype, obj):
-        if mtype != 'command' and mtype != 'event' and mtype != 'builtin':
+        if mtype not in ('command', 'event', 'builtin', 'array'):
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
@@ -136,8 +138,8 @@ const char %(c_name)s[] = %(c_string)s;
         self._gen_json(name, 'enum', {'values': values})
 
     def visit_array_type(self, name, info, element_type):
-        self._gen_json(name, 'array',
-                       {'element-type': self._use_type(element_type)})
+        element = self._use_type(element_type)
+        self._gen_json('[' + element + ']', 'array', {'element-type': element})
 
     def visit_object_type_flat(self, name, info, members, variants):
         obj = {'members': [self._gen_member(m) for m in members]}

@@ -30,6 +30,10 @@
  * Handle an error without reporting it (just for completeness):
  *     error_free(err);
  *
+ * Assert that an expected error occurred, but clean it up without
+ * reporting it (primarily useful in testsuites):
+ *     error_free_or_abort(&err);
+ *
  * Pass an existing error to the caller:
  *     error_propagate(errp, err);
  * where Error **errp is a parameter, by convention the last one.
@@ -188,6 +192,11 @@ Error *error_copy(const Error *err);
  * @err may be NULL.
  */
 void error_free(Error *err);
+
+/*
+ * Convenience function to assert that *@errp is set, then silently free it.
+ */
+void error_free_or_abort(Error **errp);
 
 /*
  * Convenience function to error_report() and free @err.

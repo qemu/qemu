@@ -3,6 +3,9 @@
 # This file is a stress test of supported qapi constructs that must
 # parse and compile correctly.
 
+{ 'struct': 'TestStruct',
+  'data': { 'integer': 'int', 'boolean': 'bool', 'string': 'str' } }
+
 # for testing enums
 { 'struct': 'NestedEnumsOne',
   'data': { 'enum1': 'EnumOne',   # Intentional forward reference
@@ -46,7 +49,8 @@
 
 # dummy struct to force generation of array types not otherwise mentioned
 { 'struct': 'ForceArrays',
-  'data': { 'unused1':['UserDefOne'], 'unused2':['UserDefTwo'] } }
+  'data': { 'unused1':['UserDefOne'], 'unused2':['UserDefTwo'],
+            'unused3':['TestStruct'] } }
 
 # for testing unions
 # Among other things, test that a name collision between branches does

@@ -36,9 +36,29 @@ static void visitor_input_teardown(TestInputVisitorData *data,
     }
 }
 
-/* This is provided instead of a test setup function so that the JSON
-   string used by the tests are kept in the test functions (and not
-   int main()) */
+/* The various test_init functions are provided instead of a test setup
+   function so that the JSON string used by the tests are kept in the test
+   functions (and not in main()). */
+static Visitor *visitor_input_test_init_internal(TestInputVisitorData *data,
+                                                 const char *json_string,
+                                                 va_list *ap)
+{
+    Visitor *v;
+
+    visitor_input_teardown(data, NULL);
+
+    data->obj = qobject_from_jsonv(json_string, ap);
+    g_assert(data->obj);
+
+    data->qiv = qmp_input_visitor_new(data->obj);
+    g_assert(data->qiv);
+
+    v = qmp_input_get_visitor(data->qiv);
+    g_assert(v);
+
+    return v;
+}
+
 static GCC_FMT_ATTR(2, 3)
 Visitor *visitor_input_test_init(TestInputVisitorData *data,
                                  const char *json_string, ...)
@@ -47,17 +67,8 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
     va_list ap;
 
     va_start(ap, json_string);
-    data->obj = qobject_from_jsonv(json_string, &ap);
+    v = visitor_input_test_init_internal(data, json_string, &ap);
     va_end(ap);
-
-    g_assert(data->obj != NULL);
-
-    data->qiv = qmp_input_visitor_new(data->obj);
-    g_assert(data->qiv != NULL);
-
-    v = qmp_input_get_visitor(data->qiv);
-    g_assert(v != NULL);
-
     return v;
 }
 
@@ -71,32 +82,18 @@ Visitor *visitor_input_test_init(TestInputVisitorData *data,
 static Visitor *visitor_input_test_init_raw(TestInputVisitorData *data,
                                             const char *json_string)
 {
-    Visitor *v;
-
-    data->obj = qobject_from_json(json_string);
-
-    g_assert(data->obj != NULL);
-
-    data->qiv = qmp_input_visitor_new(data->obj);
-    g_assert(data->qiv != NULL);
-
-    v = qmp_input_get_visitor(data->qiv);
-    g_assert(v != NULL);
-
-    return v;
+    return visitor_input_test_init_internal(data, json_string, NULL);
 }
 
 static void test_visitor_in_int(TestInputVisitorData *data,
                                 const void *unused)
 {
     int64_t res = 0, value = -42;
-    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, "%" PRId64, value);
 
-    visit_type_int(v, &res, NULL, &err);
-    g_assert(!err);
+    visit_type_int(v, &res, NULL, &error_abort);
     g_assert_cmpint(res, ==, value);
 }
 
@@ -114,21 +111,18 @@ static void test_visitor_in_int_overflow(TestInputVisitorData *data,
     v = visitor_input_test_init(data, "%f", DBL_MAX);
 
     visit_type_int(v, &res, NULL, &err);
-    g_assert(err);
-    error_free(err);
+    error_free_or_abort(&err);
 }
 
 static void test_visitor_in_bool(TestInputVisitorData *data,
                                  const void *unused)
 {
-    Error *err = NULL;
     bool res = false;
     Visitor *v;
 
     v = visitor_input_test_init(data, "true");
 
-    visit_type_bool(v, &res, NULL, &err);
-    g_assert(!err);
+    visit_type_bool(v, &res, NULL, &error_abort);
     g_assert_cmpint(res, ==, true);
 }
 
@@ -136,13 +130,11 @@ static void test_visitor_in_number(TestInputVisitorData *data,
                                    const void *unused)
 {
     double res = 0, value = 3.14;
-    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, "%f", value);
 
-    visit_type_number(v, &res, NULL, &err);
-    g_assert(!err);
+    visit_type_number(v, &res, NULL, &error_abort);
     g_assert_cmpfloat(res, ==, value);
 }
 
@@ -150,13 +142,11 @@ static void test_visitor_in_string(TestInputVisitorData *data,
                                    const void *unused)
 {
     char *res = NULL, *value = (char *) "Q E M U";
-    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, "%s", value);
 
-    visit_type_str(v, &res, NULL, &err);
-    g_assert(!err);
+    visit_type_str(v, &res, NULL, &error_abort);
     g_assert_cmpstr(res, ==, value);
 
     g_free(res);
@@ -165,7 +155,6 @@ static void test_visitor_in_string(TestInputVisitorData *data,
 static void test_visitor_in_enum(TestInputVisitorData *data,
                                  const void *unused)
 {
-    Error *err = NULL;
     Visitor *v;
     EnumOne i;
 
@@ -174,63 +163,21 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
 
         v = visitor_input_test_init(data, "%s", EnumOne_lookup[i]);
 
-        visit_type_EnumOne(v, &res, NULL, &err);
-        g_assert(!err);
+        visit_type_EnumOne(v, &res, NULL, &error_abort);
         g_assert_cmpint(i, ==, res);
-
-        visitor_input_teardown(data, NULL);
     }
-
-    data->obj = NULL;
-    data->qiv = NULL;
 }
 
-typedef struct TestStruct
-{
-    int64_t integer;
-    bool boolean;
-    char *string;
-} TestStruct;
-
-static void visit_type_TestStruct(Visitor *v, TestStruct **obj,
-                                  const char *name, Error **errp)
-{
-    Error *err = NULL;
-
-    visit_start_struct(v, (void **)obj, "TestStruct", name, sizeof(TestStruct),
-                       &err);
-    if (err) {
-        goto out;
-    }
-    visit_type_int(v, &(*obj)->integer, "integer", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_bool(v, &(*obj)->boolean, "boolean", &err);
-    if (err) {
-        goto out_end;
-    }
-    visit_type_str(v, &(*obj)->string, "string", &err);
-
-out_end:
-    error_propagate(errp, err);
-    err = NULL;
-    visit_end_struct(v, &err);
-out:
-    error_propagate(errp, err);
-}
 
 static void test_visitor_in_struct(TestInputVisitorData *data,
                                    const void *unused)
 {
     TestStruct *p = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
 
-    visit_type_TestStruct(v, &p, NULL, &err);
-    g_assert(!err);
+    visit_type_TestStruct(v, &p, NULL, &error_abort);
     g_assert_cmpint(p->integer, ==, -42);
     g_assert(p->boolean == true);
     g_assert_cmpstr(p->string, ==, "foo");
@@ -239,17 +186,10 @@ static void test_visitor_in_struct(TestInputVisitorData *data,
     g_free(p);
 }
 
-static void check_and_free_str(char *str, const char *cmp)
-{
-    g_assert_cmpstr(str, ==, cmp);
-    g_free(str);
-}
-
 static void test_visitor_in_struct_nested(TestInputVisitorData *data,
                                           const void *unused)
 {
     UserDefTwo *udp = NULL;
-    Error *err = NULL;
     Visitor *v;
 
     v = visitor_input_test_init(data, "{ 'string0': 'string0', "
@@ -257,34 +197,28 @@ static void test_visitor_in_struct_nested(TestInputVisitorData *data,
                                 "'dict2': { 'userdef': { 'integer': 42, "
                                 "'string': 'string' }, 'string': 'string2'}}}");
 
-    visit_type_UserDefTwo(v, &udp, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefTwo(v, &udp, NULL, &error_abort);
 
-    check_and_free_str(udp->string0, "string0");
-    check_and_free_str(udp->dict1->string1, "string1");
+    g_assert_cmpstr(udp->string0, ==, "string0");
+    g_assert_cmpstr(udp->dict1->string1, ==, "string1");
     g_assert_cmpint(udp->dict1->dict2->userdef->integer, ==, 42);
-    check_and_free_str(udp->dict1->dict2->userdef->string, "string");
-    check_and_free_str(udp->dict1->dict2->string, "string2");
+    g_assert_cmpstr(udp->dict1->dict2->userdef->string, ==, "string");
+    g_assert_cmpstr(udp->dict1->dict2->string, ==, "string2");
     g_assert(udp->dict1->has_dict3 == false);
 
-    g_free(udp->dict1->dict2->userdef);
-    g_free(udp->dict1->dict2);
-    g_free(udp->dict1);
-    g_free(udp);
+    qapi_free_UserDefTwo(udp);
 }
 
 static void test_visitor_in_list(TestInputVisitorData *data,
                                  const void *unused)
 {
     UserDefOneList *item, *head = NULL;
-    Error *err = NULL;
     Visitor *v;
     int i;
 
     v = visitor_input_test_init(data, "[ { 'string': 'string0', 'integer': 42 }, { 'string': 'string1', 'integer': 43 }, { 'string': 'string2', 'integer': 44 } ]");
 
-    visit_type_UserDefOneList(v, &head, NULL, &err);
-    g_assert(!err);
+    visit_type_UserDefOneList(v, &head, NULL, &error_abort);
     g_assert(head != NULL);
 
     for (i = 0, item = head; item; item = item->next, i++) {
@@ -296,13 +230,18 @@ static void test_visitor_in_list(TestInputVisitorData *data,
     }
 
     qapi_free_UserDefOneList(head);
+    head = NULL;
+
+    /* An empty list is valid */
+    v = visitor_input_test_init(data, "[]");
+    visit_type_UserDefOneList(v, &head, NULL, &error_abort);
+    g_assert(!head);
 }
 
 static void test_visitor_in_any(TestInputVisitorData *data,
                                 const void *unused)
 {
     QObject *res = NULL;
-    Error *err = NULL;
     Visitor *v;
     QInt *qint;
     QBool *qbool;
@@ -311,16 +250,14 @@ static void test_visitor_in_any(TestInputVisitorData *data,
     QObject *qobj;
 
     v = visitor_input_test_init(data, "-42");
-    visit_type_any(v, &res, NULL, &err);
-    g_assert(!err);
+    visit_type_any(v, &res, NULL, &error_abort);
     qint = qobject_to_qint(res);
     g_assert(qint);
     g_assert_cmpint(qint_get_int(qint), ==, -42);
     qobject_decref(res);
 
     v = visitor_input_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
-    visit_type_any(v, &res, NULL, &err);
-    g_assert(!err);
+    visit_type_any(v, &res, NULL, &error_abort);
     qdict = qobject_to_qdict(res);
     g_assert(qdict && qdict_size(qdict) == 3);
     qobj = qdict_get(qdict, "integer");
@@ -345,7 +282,6 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
                                        const void *unused)
 {
     Visitor *v;
-    Error *err = NULL;
     UserDefFlatUnion *tmp;
     UserDefUnionBase *base;
 
@@ -355,8 +291,7 @@ static void test_visitor_in_union_flat(TestInputVisitorData *data,
                                 "'string': 'str', "
                                 "'boolean': true }");
 
-    visit_type_UserDefFlatUnion(v, &tmp, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefFlatUnion(v, &tmp, NULL, &error_abort);
     g_assert_cmpint(tmp->enum1, ==, ENUM_ONE_VALUE1);
     g_assert_cmpstr(tmp->string, ==, "str");
     g_assert_cmpint(tmp->integer, ==, 41);
@@ -380,22 +315,17 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
     g_assert_cmpint(tmp->type, ==, USER_DEF_ALTERNATE_KIND_I);
     g_assert_cmpint(tmp->u.i, ==, 42);
     qapi_free_UserDefAlternate(tmp);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "'string'");
     visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
     g_assert_cmpint(tmp->type, ==, USER_DEF_ALTERNATE_KIND_S);
     g_assert_cmpstr(tmp->u.s, ==, "string");
     qapi_free_UserDefAlternate(tmp);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "false");
     visit_type_UserDefAlternate(v, &tmp, NULL, &err);
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_UserDefAlternate(tmp);
-    visitor_input_teardown(data, NULL);
 }
 
 static void test_visitor_in_alternate_number(TestInputVisitorData *data,
@@ -414,11 +344,8 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltStrBool(v, &asb, NULL, &err);
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_AltStrBool(asb);
-    visitor_input_teardown(data, NULL);
 
     /* FIXME: Order of alternate should not affect semantics; asn should
      * parse the same as ans */
@@ -426,85 +353,68 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     visit_type_AltStrNum(v, &asn, NULL, &err);
     /* FIXME g_assert_cmpint(asn->type, == ALT_STR_NUM_KIND_N); */
     /* FIXME g_assert_cmpfloat(asn->u.n, ==, 42); */
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_AltStrNum(asn);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumStr(v, &ans, NULL, &error_abort);
     g_assert_cmpint(ans->type, ==, ALT_NUM_STR_KIND_N);
     g_assert_cmpfloat(ans->u.n, ==, 42);
     qapi_free_AltNumStr(ans);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltStrInt(v, &asi, NULL, &error_abort);
     g_assert_cmpint(asi->type, ==, ALT_STR_INT_KIND_I);
     g_assert_cmpint(asi->u.i, ==, 42);
     qapi_free_AltStrInt(asi);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltIntNum(v, &ain, NULL, &error_abort);
     g_assert_cmpint(ain->type, ==, ALT_INT_NUM_KIND_I);
     g_assert_cmpint(ain->u.i, ==, 42);
     qapi_free_AltIntNum(ain);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumInt(v, &ani, NULL, &error_abort);
     g_assert_cmpint(ani->type, ==, ALT_NUM_INT_KIND_I);
     g_assert_cmpint(ani->u.i, ==, 42);
     qapi_free_AltNumInt(ani);
-    visitor_input_teardown(data, NULL);
 
     /* Parsing a double */
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrBool(v, &asb, NULL, &err);
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_AltStrBool(asb);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrNum(v, &asn, NULL, &error_abort);
     g_assert_cmpint(asn->type, ==, ALT_STR_NUM_KIND_N);
     g_assert_cmpfloat(asn->u.n, ==, 42.5);
     qapi_free_AltStrNum(asn);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumStr(v, &ans, NULL, &error_abort);
     g_assert_cmpint(ans->type, ==, ALT_NUM_STR_KIND_N);
     g_assert_cmpfloat(ans->u.n, ==, 42.5);
     qapi_free_AltNumStr(ans);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrInt(v, &asi, NULL, &err);
-    g_assert(err);
-    error_free(err);
-    err = NULL;
+    error_free_or_abort(&err);
     qapi_free_AltStrInt(asi);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltIntNum(v, &ain, NULL, &error_abort);
     g_assert_cmpint(ain->type, ==, ALT_INT_NUM_KIND_N);
     g_assert_cmpfloat(ain->u.n, ==, 42.5);
     qapi_free_AltIntNum(ain);
-    visitor_input_teardown(data, NULL);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumInt(v, &ani, NULL, &error_abort);
     g_assert_cmpint(ani->type, ==, ALT_NUM_INT_KIND_N);
     g_assert_cmpfloat(ani->u.n, ==, 42.5);
     qapi_free_AltNumInt(ani);
-    visitor_input_teardown(data, NULL);
 }
 
 static void test_native_list_integer_helper(TestInputVisitorData *data,
@@ -512,7 +422,6 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
                                             UserDefNativeListUnionKind kind)
 {
     UserDefNativeListUnion *cvalue = NULL;
-    Error *err = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
     GString *gstr_union = g_string_new("");
@@ -529,8 +438,7 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
-    visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &error_abort);
     g_assert(cvalue != NULL);
     g_assert_cmpint(cvalue->type, ==, kind);
 
@@ -675,7 +583,6 @@ static void test_visitor_in_native_list_bool(TestInputVisitorData *data,
 {
     UserDefNativeListUnion *cvalue = NULL;
     boolList *elem = NULL;
-    Error *err = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
     GString *gstr_union = g_string_new("");
@@ -692,8 +599,7 @@ static void test_visitor_in_native_list_bool(TestInputVisitorData *data,
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
-    visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &error_abort);
     g_assert(cvalue != NULL);
     g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_BOOLEAN);
 
@@ -711,7 +617,6 @@ static void test_visitor_in_native_list_string(TestInputVisitorData *data,
 {
     UserDefNativeListUnion *cvalue = NULL;
     strList *elem = NULL;
-    Error *err = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
     GString *gstr_union = g_string_new("");
@@ -727,8 +632,7 @@ static void test_visitor_in_native_list_string(TestInputVisitorData *data,
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
-    visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &error_abort);
     g_assert(cvalue != NULL);
     g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_STRING);
 
@@ -750,7 +654,6 @@ static void test_visitor_in_native_list_number(TestInputVisitorData *data,
 {
     UserDefNativeListUnion *cvalue = NULL;
     numberList *elem = NULL;
-    Error *err = NULL;
     Visitor *v;
     GString *gstr_list = g_string_new("");
     GString *gstr_union = g_string_new("");
@@ -766,8 +669,7 @@ static void test_visitor_in_native_list_number(TestInputVisitorData *data,
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
-    visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &err);
-    g_assert(err == NULL);
+    visit_type_UserDefNativeListUnion(v, &cvalue, NULL, &error_abort);
     g_assert(cvalue != NULL);
     g_assert_cmpint(cvalue->type, ==, USER_DEF_NATIVE_LIST_UNION_KIND_NUMBER);
 
@@ -802,18 +704,69 @@ static void test_visitor_in_errors(TestInputVisitorData *data,
     TestStruct *p = NULL;
     Error *err = NULL;
     Visitor *v;
+    strList *q = NULL;
 
-    v = visitor_input_test_init(data, "{ 'integer': false, 'boolean': 'foo', 'string': -42 }");
+    v = visitor_input_test_init(data, "{ 'integer': false, 'boolean': 'foo', "
+                                "'string': -42 }");
 
     visit_type_TestStruct(v, &p, NULL, &err);
-    g_assert(err);
+    error_free_or_abort(&err);
     /* FIXME - a failed parse should not leave a partially-allocated p
      * for us to clean up; this could cause callers to leak memory. */
     g_assert(p->string == NULL);
 
-    error_free(err);
     g_free(p->string);
     g_free(p);
+
+    v = visitor_input_test_init(data, "[ '1', '2', false, '3' ]");
+    visit_type_strList(v, &q, NULL, &err);
+    error_free_or_abort(&err);
+    assert(q);
+    qapi_free_strList(q);
+}
+
+static void test_visitor_in_wrong_type(TestInputVisitorData *data,
+                                       const void *unused)
+{
+    TestStruct *p = NULL;
+    Visitor *v;
+    strList *q = NULL;
+    int64_t i;
+    Error *err = NULL;
+
+    /* Make sure arrays and structs cannot be confused */
+
+    v = visitor_input_test_init(data, "[]");
+    visit_type_TestStruct(v, &p, NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!p);
+
+    v = visitor_input_test_init(data, "{}");
+    visit_type_strList(v, &q, NULL, &err);
+    error_free_or_abort(&err);
+    assert(!q);
+
+    /* Make sure primitives and struct cannot be confused */
+
+    v = visitor_input_test_init(data, "1");
+    visit_type_TestStruct(v, &p, NULL, &err);
+    error_free_or_abort(&err);
+    g_assert(!p);
+
+    v = visitor_input_test_init(data, "{}");
+    visit_type_int(v, &i, NULL, &err);
+    error_free_or_abort(&err);
+
+    /* Make sure primitives and arrays cannot be confused */
+
+    v = visitor_input_test_init(data, "1");
+    visit_type_strList(v, &q, NULL, &err);
+    error_free_or_abort(&err);
+    assert(!q);
+
+    v = visitor_input_test_init(data, "[]");
+    visit_type_int(v, &i, NULL, &err);
+    error_free_or_abort(&err);
 }
 
 int main(int argc, char **argv)
@@ -848,6 +801,8 @@ int main(int argc, char **argv)
                            &in_visitor_data, test_visitor_in_alternate);
     input_visitor_test_add("/visitor/input/errors",
                            &in_visitor_data, test_visitor_in_errors);
+    input_visitor_test_add("/visitor/input/wrong-type",
+                           &in_visitor_data, test_visitor_in_wrong_type);
     input_visitor_test_add("/visitor/input/alternate-number",
                            &in_visitor_data, test_visitor_in_alternate_number);
     input_visitor_test_add("/visitor/input/native_list/int",

@@ -225,8 +225,7 @@ static void test_dealloc_partial(void)
     assert(ud2->dict1 == NULL);
 
     /* confirm & release construction error */
-    assert(err != NULL);
-    error_free(err);
+    error_free_or_abort(&err);
 
     /* tear down partial object */
     qapi_free_UserDefTwo(ud2);

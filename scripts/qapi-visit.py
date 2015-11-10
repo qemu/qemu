@@ -138,6 +138,10 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
 
 
 def gen_visit_list(name, element_type):
+    # FIXME: if *obj is NULL on entry, and the first visit_next_list()
+    # assigns to *obj, while a later one fails, we should clean up *obj
+    # rather than leaving it non-NULL. As currently written, the caller must
+    # call qapi_free_FOOList() to avoid a memory leak of the partial FOOList.
     return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
