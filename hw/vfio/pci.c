@@ -28,6 +28,7 @@
 #include "config.h"
 #include "hw/pci/msi.h"
 #include "hw/pci/msix.h"
+#include "hw/pci/pci_bridge.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "sysemu/kvm.h"
@@ -586,7 +587,7 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
 {
     vfio_disable_interrupts(vdev);
 
-    vdev->msi_vectors = g_malloc0(vdev->msix->entries * sizeof(VFIOMSIVector));
+    vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->msix->entries);
 
     vdev->interrupt = VFIO_INT_MSIX;
 
@@ -622,7 +623,7 @@ static void vfio_msi_enable(VFIOPCIDevice *vdev)
 
     vdev->nr_vectors = msi_nr_vectors_allocated(&vdev->pdev);
 retry:
-    vdev->msi_vectors = g_malloc0(vdev->nr_vectors * sizeof(VFIOMSIVector));
+    vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->nr_vectors);
 
     for (i = 0; i < vdev->nr_vectors; i++) {
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
@@ -1524,13 +1525,38 @@ static int vfio_setup_pcie_cap(VFIOPCIDevice *vdev, int pos, uint8_t size)
     }
 
     if (!pci_bus_is_express(vdev->pdev.bus)) {
+        PCIBus *bus = vdev->pdev.bus;
+        PCIDevice *bridge;
+
         /*
-         * Use express capability as-is on PCI bus.  It doesn't make much
-         * sense to even expose, but some drivers (ex. tg3) depend on it
-         * and guests don't seem to be particular about it.  We'll need
-         * to revist this or force express devices to express buses if we
-         * ever expose an IOMMU to the guest.
+         * Traditionally PCI device assignment exposes the PCIe capability
+         * as-is on non-express buses.  The reason being that some drivers
+         * simply assume that it's there, for example tg3.  However when
+         * we're running on a native PCIe machine type, like Q35, we need
+         * to hide the PCIe capability.  The reason for this is twofold;
+         * first Windows guests get a Code 10 error when the PCIe capability
+         * is exposed in this configuration.  Therefore express devices won't
+         * work at all unless they're attached to express buses in the VM.
+         * Second, a native PCIe machine introduces the possibility of fine
+         * granularity IOMMUs supporting both translation and isolation.
+         * Guest code to discover the IOMMU visibility of a device, such as
+         * IOMMU grouping code on Linux, is very aware of device types and
+         * valid transitions between bus types.  An express device on a non-
+         * express bus is not a valid combination on bare metal systems.
+         *
+         * Drivers that require a PCIe capability to make the device
+         * functional are simply going to need to have their devices placed
+         * on a PCIe bus in the VM.
          */
+        while (!pci_bus_is_root(bus)) {
+            bridge = pci_bridge_get_device(bus);
+            bus = bridge->bus;
+        }
+
+        if (pci_bus_is_express(bus)) {
+            return 0;
+        }
+
     } else if (pci_bus_is_root(vdev->pdev.bus)) {
         /*
          * On a Root Complex bus Endpoints become Root Complex Integrated

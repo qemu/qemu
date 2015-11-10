@@ -284,7 +284,7 @@ static void vfio_vga_probe_ati_3c3_quirk(VFIOPCIDevice *vdev)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_malloc0(sizeof(MemoryRegion));
+    quirk->mem = g_new0(MemoryRegion, 1);
     quirk->nr_mem = 1;
 
     memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_ati_3c3_quirk, vdev,
@@ -319,7 +319,7 @@ static void vfio_probe_ati_bar4_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_malloc0(sizeof(MemoryRegion) * 2);
+    quirk->mem = g_new0(MemoryRegion, 2);
     quirk->nr_mem = 2;
     window = quirk->data = g_malloc0(sizeof(*window) +
                                      sizeof(VFIOConfigWindowMatch));
@@ -368,7 +368,7 @@ static void vfio_probe_ati_bar2_quirk(VFIOPCIDevice *vdev, int nr)
 
     quirk = g_malloc0(sizeof(*quirk));
     mirror = quirk->data = g_malloc0(sizeof(*mirror));
-    mirror->mem = quirk->mem = g_malloc0(sizeof(MemoryRegion));
+    mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
     quirk->nr_mem = 1;
     mirror->vdev = vdev;
     mirror->offset = 0x4000;
@@ -544,7 +544,7 @@ static void vfio_vga_probe_nvidia_3d0_quirk(VFIOPCIDevice *vdev)
 
     quirk = g_malloc0(sizeof(*quirk));
     quirk->data = data = g_malloc0(sizeof(*data));
-    quirk->mem = g_malloc0(sizeof(MemoryRegion) * 2);
+    quirk->mem = g_new0(MemoryRegion, 2);
     quirk->nr_mem = 2;
     data->vdev = vdev;
 
@@ -661,7 +661,7 @@ static void vfio_probe_nvidia_bar5_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_malloc0(sizeof(MemoryRegion) * 4);
+    quirk->mem = g_new0(MemoryRegion, 4);
     quirk->nr_mem = 4;
     bar5 = quirk->data = g_malloc0(sizeof(*bar5) +
                                    (sizeof(VFIOConfigWindowMatch) * 2));
@@ -756,7 +756,7 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
 
     quirk = g_malloc0(sizeof(*quirk));
     mirror = quirk->data = g_malloc0(sizeof(*mirror));
-    mirror->mem = quirk->mem = g_malloc0(sizeof(MemoryRegion));
+    mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
     quirk->nr_mem = 1;
     mirror->vdev = vdev;
     mirror->offset = 0x88000;
@@ -775,7 +775,7 @@ static void vfio_probe_nvidia_bar0_quirk(VFIOPCIDevice *vdev, int nr)
     if (vdev->has_vga) {
         quirk = g_malloc0(sizeof(*quirk));
         mirror = quirk->data = g_malloc0(sizeof(*mirror));
-        mirror->mem = quirk->mem = g_malloc0(sizeof(MemoryRegion));
+        mirror->mem = quirk->mem = g_new0(MemoryRegion, 1);
         quirk->nr_mem = 1;
         mirror->vdev = vdev;
         mirror->offset = 0x1800;
@@ -938,7 +938,7 @@ static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
     }
 
     quirk = g_malloc0(sizeof(*quirk));
-    quirk->mem = g_malloc0(sizeof(MemoryRegion) * 2);
+    quirk->mem = g_new0(MemoryRegion, 2);
     quirk->nr_mem = 2;
     quirk->data = rtl = g_malloc0(sizeof(*rtl));
     rtl->vdev = vdev;
