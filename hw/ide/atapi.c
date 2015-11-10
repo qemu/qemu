@@ -824,7 +824,6 @@ static void cmd_inquiry(IDEState *s, uint8_t *buf)
  out:
     buf[size_idx] = idx - preamble_len;
     ide_atapi_cmd_reply(s, idx, max_len);
-    return;
 }
 
 static void cmd_get_configuration(IDEState *s, uint8_t *buf)
