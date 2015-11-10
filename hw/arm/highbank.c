@@ -22,6 +22,7 @@
 #include "hw/devices.h"
 #include "hw/loader.h"
 #include "net/net.h"
+#include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
 #include "sysemu/block-backend.h"
@@ -32,9 +33,51 @@
 #define SMP_BOOT_REG            0x40
 #define MPCORE_PERIPHBASE       0xfff10000
 
+#define MVBAR_ADDR              0x200
+
 #define NIRQ_GIC                160
 
 /* Board init.  */
+
+/* MVBAR_ADDR is limited by precision of movw */
+
+QEMU_BUILD_BUG_ON(MVBAR_ADDR >= (1 << 16));
+
+#define ARMV7_IMM16(x) (extract32((x),  0, 12) | \
+                        extract32((x), 12,  4) << 16)
+
+static void hb_write_board_setup(ARMCPU *cpu,
+                                 const struct arm_boot_info *info)
+{
+    int n;
+    uint32_t board_setup_blob[] = {
+        /* MVBAR_ADDR */
+        /* Default unimplemented and unused vectors to spin. Makes it
+         * easier to debug (as opposed to the CPU running away).
+         */
+        0xeafffffe, /* notused1: b notused */
+        0xeafffffe, /* notused2: b notused */
+        0xe1b0f00e, /* smc: movs pc, lr - exception return */
+        0xeafffffe, /* prefetch_abort: b prefetch_abort */
+        0xeafffffe, /* data_abort: b data_abort */
+        0xeafffffe, /* notused3: b notused3 */
+        0xeafffffe, /* irq: b irq */
+        0xeafffffe, /* fiq: b fiq */
+#define BOARD_SETUP_ADDR (MVBAR_ADDR + 8 * sizeof(uint32_t))
+        0xe3000000 + ARMV7_IMM16(MVBAR_ADDR), /* movw r0, MVBAR_ADDR */
+        0xee0c0f30, /* mcr p15, 0, r0, c12, c0, 1 - set MVBAR */
+        0xee110f11, /* mrc p15, 0, r0, c1 , c1, 0 - get SCR */
+        0xe3810001, /* orr r0, #1 - set NS */
+        0xee010f11, /* mcr p15, 0, r0, c1 , c1, 0 - set SCR */
+        0xe1600070, /* smc - go to monitor mode to flush NS change */
+        0xe12fff1e, /* bx lr - return to caller */
+    };
+    for (n = 0; n < ARRAY_SIZE(board_setup_blob); n++) {
+        board_setup_blob[n] = tswap32(board_setup_blob[n]);
+    }
+    rom_add_blob_fixed("board-setup", board_setup_blob,
+                       sizeof(board_setup_blob), MVBAR_ADDR);
+}
 
 static void hb_write_secondary(ARMCPU *cpu, const struct arm_boot_info *info)
 {
@@ -223,15 +266,13 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     MemoryRegion *sysmem;
     char *sysboot_filename;
 
-    if (!cpu_model) {
-        switch (machine_id) {
-        case CALXEDA_HIGHBANK:
-            cpu_model = "cortex-a9";
-            break;
-        case CALXEDA_MIDWAY:
-            cpu_model = "cortex-a15";
-            break;
-        }
+    switch (machine_id) {
+    case CALXEDA_HIGHBANK:
+        cpu_model = "cortex-a9";
+        break;
+    case CALXEDA_MIDWAY:
+        cpu_model = "cortex-a15";
+        break;
     }
 
     for (n = 0; n < smp_cpus; n++) {
@@ -240,24 +281,16 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         ARMCPU *cpu;
         Error *err = NULL;
 
-        if (!oc) {
-            error_report("Unable to find CPU definition");
-            exit(1);
-        }
-
         cpuobj = object_new(object_class_get_name(oc));
         cpu = ARM_CPU(cpuobj);
 
-        /* By default A9 and A15 CPUs have EL3 enabled.  This board does not
-         * currently support EL3 so the CPU EL3 property is disabled before
-         * realization.
-         */
-        if (object_property_find(cpuobj, "has_el3", NULL)) {
-            object_property_set_bool(cpuobj, false, "has_el3", &err);
-            if (err) {
-                error_report_err(err);
-                exit(1);
-            }
+        object_property_set_int(cpuobj, QEMU_PSCI_CONDUIT_SMC,
+                                "psci-conduit", &error_abort);
+
+        if (n) {
+            /* Secondary CPUs start in PSCI powered-down state */
+            object_property_set_bool(cpuobj, true,
+                                     "start-powered-off", &error_abort);
         }
 
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
@@ -378,6 +411,16 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     highbank_binfo.loader_start = 0;
     highbank_binfo.write_secondary_boot = hb_write_secondary;
     highbank_binfo.secondary_cpu_reset_hook = hb_reset_secondary;
+    if (!kvm_enabled()) {
+        highbank_binfo.board_setup_addr = BOARD_SETUP_ADDR;
+        highbank_binfo.write_board_setup = hb_write_board_setup;
+        highbank_binfo.secure_board_setup = true;
+    } else {
+        error_report("WARNING: cannot load built-in Monitor support "
+                     "if KVM is enabled. Some guests (such as Linux) "
+                     "may not boot.");
+    }
+
     arm_load_kernel(ARM_CPU(first_cpu), &highbank_binfo);
 }
 
