@@ -35,8 +35,6 @@ static const uint8_t gic_id[] = {
     0x90, 0x13, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1
 };
 
-#define NUM_CPU(s) ((s)->num_cpu)
-
 static inline int gic_get_current_cpu(GICState *s)
 {
     if (s->num_cpu > 1) {
@@ -64,7 +62,7 @@ void gic_update(GICState *s)
     int cpu;
     int cm;
 
-    for (cpu = 0; cpu < NUM_CPU(s); cpu++) {
+    for (cpu = 0; cpu < s->num_cpu; cpu++) {
         cm = 1 << cpu;
         s->current_pending[cpu] = 1023;
         if (!(s->ctlr & (GICD_CTLR_EN_GRP0 | GICD_CTLR_EN_GRP1))
@@ -567,7 +565,7 @@ static uint32_t gic_dist_readb(void *opaque, hwaddr offset, MemTxAttrs attrs)
         if (offset == 4)
             /* Interrupt Controller Type Register */
             return ((s->num_irq / 32) - 1)
-                    | ((NUM_CPU(s) - 1) << 5)
+                    | ((s->num_cpu - 1) << 5)
                     | (s->security_extn << 10);
         if (offset < 0x08)
             return 0;
@@ -1284,7 +1282,7 @@ static void arm_gic_realize(DeviceState *dev, Error **errp)
      * GIC v2 defines a larger memory region (0x1000) so this will need
      * to be extended when we implement A15.
      */
-    for (i = 0; i < NUM_CPU(s); i++) {
+    for (i = 0; i < s->num_cpu; i++) {
         s->backref[i] = s;
         memory_region_init_io(&s->cpuiomem[i+1], OBJECT(s), &gic_cpu_ops,
                               &s->backref[i], "gic_cpu", 0x100);
