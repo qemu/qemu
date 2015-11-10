@@ -97,6 +97,12 @@ struct arm_boot_info {
     hwaddr board_setup_addr;
     void (*write_board_setup)(ARMCPU *cpu,
                               const struct arm_boot_info *info);
+
+    /* If set, the board specific loader/setup blob will be run from secure
+     * mode, regardless of secure_boot. The blob becomes responsible for
+     * changing to non-secure state if implementing a non-secure boot
+     */
+    bool secure_board_setup;
 };
 
 /**
