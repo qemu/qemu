@@ -917,7 +917,13 @@ void arm_debug_excp_handler(CPUState *cs)
         uint64_t pc = is_a64(env) ? env->pc : env->regs[15];
         bool same_el = (arm_debug_target_el(env) == arm_current_el(env));
 
-        if (cpu_breakpoint_test(cs, pc, BP_GDB)) {
+        /* (1) GDB breakpoints should be handled first.
+         * (2) Do not raise a CPU exception if no CPU breakpoint has fired,
+         * since singlestep is also done by generating a debug internal
+         * exception.
+         */
+        if (cpu_breakpoint_test(cs, pc, BP_GDB)
+            || !cpu_breakpoint_test(cs, pc, BP_CPU)) {
             return;
         }
 
