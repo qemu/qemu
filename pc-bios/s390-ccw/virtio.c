@@ -11,7 +11,7 @@
 #include "s390-ccw.h"
 #include "virtio.h"
 
-static struct vring block;
+static VRing block;
 
 static char chsc_page[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
@@ -31,7 +31,7 @@ static long kvm_hypercall(unsigned long nr, unsigned long param1,
     return retval;
 }
 
-static void virtio_notify(struct subchannel_id schid)
+static void virtio_notify(SubChannelId schid)
 {
     kvm_hypercall(KVM_S390_VIRTIO_CCW_NOTIFY, *(u32 *)&schid, 0);
 }
@@ -40,9 +40,9 @@ static void virtio_notify(struct subchannel_id schid)
  *             Virtio functions                *
  ***********************************************/
 
-static int drain_irqs(struct subchannel_id schid)
+static int drain_irqs(SubChannelId schid)
 {
-    struct irb irb = {};
+    Irb irb = {};
     int r = 0;
 
     while (1) {
@@ -59,11 +59,11 @@ static int drain_irqs(struct subchannel_id schid)
     }
 }
 
-static int run_ccw(struct subchannel_id schid, int cmd, void *ptr, int len)
+static int run_ccw(SubChannelId schid, int cmd, void *ptr, int len)
 {
-    struct ccw1 ccw = {};
-    struct cmd_orb orb = {};
-    struct schib schib;
+    Ccw1 ccw = {};
+    CmdOrb orb = {};
+    Schib schib;
     int r;
 
     /* start command processing */
@@ -92,7 +92,7 @@ static int run_ccw(struct subchannel_id schid, int cmd, void *ptr, int len)
     return r;
 }
 
-static void virtio_set_status(struct subchannel_id schid,
+static void virtio_set_status(SubChannelId schid,
                               unsigned long dev_addr)
 {
     unsigned char status = dev_addr;
@@ -101,18 +101,18 @@ static void virtio_set_status(struct subchannel_id schid,
     }
 }
 
-static void virtio_reset(struct subchannel_id schid)
+static void virtio_reset(SubChannelId schid)
 {
     run_ccw(schid, CCW_CMD_VDEV_RESET, NULL, 0);
 }
 
-static void vring_init(struct vring *vr, unsigned int num, void *p,
+static void vring_init(VRing *vr, unsigned int num, void *p,
                        unsigned long align)
 {
     debug_print_addr("init p", p);
     vr->num = num;
     vr->desc = p;
-    vr->avail = p + num*sizeof(struct vring_desc);
+    vr->avail = p + num * sizeof(VRingDesc);
     vr->used = (void *)(((unsigned long)&vr->avail->ring[num] + align-1)
                 & ~(align - 1));
 
@@ -129,12 +129,12 @@ static void vring_init(struct vring *vr, unsigned int num, void *p,
     debug_print_addr("init vr", vr);
 }
 
-static void vring_notify(struct subchannel_id schid)
+static void vring_notify(SubChannelId schid)
 {
     virtio_notify(schid);
 }
 
-static void vring_send_buf(struct vring *vr, void *p, int len, int flags)
+static void vring_send_buf(VRing *vr, void *p, int len, int flags)
 {
     /* For follow-up chains we need to keep the first entry point */
     if (!(flags & VRING_HIDDEN_IS_CHAIN)) {
@@ -174,10 +174,10 @@ ulong get_second(void)
  *
  * Returns 0 on success, 1 on timeout.
  */
-static int vring_wait_reply(struct vring *vr, int timeout)
+static int vring_wait_reply(VRing *vr, int timeout)
 {
     ulong target_second = get_second() + timeout;
-    struct subchannel_id schid = vr->schid;
+    SubChannelId schid = vr->schid;
     int r = 0;
 
     /* Wait until the used index has moved. */
@@ -204,7 +204,7 @@ static int vring_wait_reply(struct vring *vr, int timeout)
 
 int virtio_read_many(ulong sector, void *load_addr, int sec_num)
 {
-    struct virtio_blk_outhdr out_hdr;
+    VirtioBlkOuthdr out_hdr;
     u8 status;
     int r;
 
@@ -363,10 +363,10 @@ uint64_t virtio_get_blocks(void)
            (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }
 
-void virtio_setup_block(struct subchannel_id schid)
+void virtio_setup_block(SubChannelId schid)
 {
-    struct vq_info_block info;
-    struct vq_config_block config = {};
+    VqInfo info;
+    VqConfig config = {};
 
     blk_cfg.blk_size = 0; /* mark "illegal" - setup started... */
     guessed_disk_nature = false;
@@ -406,10 +406,10 @@ void virtio_setup_block(struct subchannel_id schid)
     }
 }
 
-bool virtio_is_blk(struct subchannel_id schid)
+bool virtio_is_blk(SubChannelId schid)
 {
     int r;
-    struct senseid senseid = {};
+    SenseId senseid = {};
 
     /* run sense id command */
     r = run_ccw(schid, CCW_CMD_SENSE_ID, &senseid, sizeof(senseid));
@@ -426,7 +426,7 @@ bool virtio_is_blk(struct subchannel_id schid)
 int enable_mss_facility(void)
 {
     int ret;
-    struct chsc_area_sda *sda_area = (struct chsc_area_sda *) chsc_page;
+    ChscAreaSda *sda_area = (ChscAreaSda *) chsc_page;
 
     memset(sda_area, 0, PAGE_SIZE);
     sda_area->request.length = 0x0400;

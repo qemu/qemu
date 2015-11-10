@@ -45,6 +45,14 @@ typedef unsigned long long __u64;
 
 #include "cio.h"
 
+typedef struct irb Irb;
+typedef struct ccw1 Ccw1;
+typedef struct cmd_orb CmdOrb;
+typedef struct schib Schib;
+typedef struct chsc_area_sda ChscAreaSda;
+typedef struct senseid SenseId;
+typedef struct subchannel_id SubChannelId;
+
 /* start.s */
 void disabled_wait(void);
 void consume_sclp_int(void);
@@ -63,8 +71,8 @@ void sclp_setup(void);
 /* virtio.c */
 unsigned long virtio_load_direct(ulong rec_list1, ulong rec_list2,
                                  ulong subchan_id, void *load_addr);
-bool virtio_is_blk(struct subchannel_id schid);
-void virtio_setup_block(struct subchannel_id schid);
+bool virtio_is_blk(SubChannelId schid);
+void virtio_setup_block(SubChannelId schid);
 int virtio_read(ulong sector, void *load_addr);
 int enable_mss_facility(void);
 ulong get_second(void);
