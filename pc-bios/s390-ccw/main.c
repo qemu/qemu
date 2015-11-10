@@ -91,15 +91,11 @@ static void virtio_setup(uint64_t dev_info)
         }
     }
 
-    if (!found) {
-        panic("No virtio-blk device found!\n");
-    }
+    IPL_assert(found, "No virtio device found");
 
     virtio_setup_device(blk_schid);
 
-    if (!virtio_ipl_disk_is_valid()) {
-        panic("No valid hard disk detected.\n");
-    }
+    IPL_assert(virtio_ipl_disk_is_valid(), "No valid IPL device detected");
 }
 
 int main(void)

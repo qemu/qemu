@@ -28,6 +28,7 @@ enum VirtioDevType {
     VIRTIO_ID_BLOCK = 2,
     VIRTIO_ID_CONSOLE = 3,
     VIRTIO_ID_BALLOON = 5,
+    VIRTIO_ID_SCSI = 8,
 };
 typedef enum VirtioDevType VirtioDevType;
 
@@ -224,11 +225,34 @@ extern uint64_t virtio_get_blocks(void);
 extern int virtio_read_many(ulong sector, void *load_addr, int sec_num);
 
 #define VIRTIO_SECTOR_SIZE 512
+#define VIRTIO_ISO_BLOCK_SIZE 2048
+#define VIRTIO_SCSI_BLOCK_SIZE 512
 
 static inline ulong virtio_sector_adjust(ulong sector)
 {
     return sector * (virtio_get_block_size() / VIRTIO_SECTOR_SIZE);
 }
+
+struct VirtioScsiConfig {
+    uint32_t num_queues;
+    uint32_t seg_max;
+    uint32_t max_sectors;
+    uint32_t cmd_per_lun;
+    uint32_t event_info_size;
+    uint32_t sense_size;
+    uint32_t cdb_size;
+    uint16_t max_channel;
+    uint16_t max_target;
+    uint32_t max_lun;
+} __attribute__((packed));
+typedef struct VirtioScsiConfig VirtioScsiConfig;
+
+struct ScsiDevice {
+    uint16_t channel;   /* Always 0 in QEMU     */
+    uint16_t target;    /* will be scanned over */
+    uint32_t lun;       /* will be reported     */
+};
+typedef struct ScsiDevice ScsiDevice;
 
 struct VDev {
     int nr_vqs;
@@ -241,7 +265,15 @@ struct VDev {
     SenseId senseid;
     union {
         VirtioBlkConfig blk;
+        VirtioScsiConfig scsi;
     } config;
+    ScsiDevice *scsi_device;
+    bool is_cdrom;
+    int scsi_block_size;
+    int blk_factor;
+    uint64_t scsi_last_block;
+    uint32_t scsi_dev_cyls;
+    uint8_t scsi_dev_heads;
 };
 typedef struct VDev VDev;
 
