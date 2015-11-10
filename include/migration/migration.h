@@ -35,6 +35,7 @@
 #define QEMU_VM_SUBSECTION           0x05
 #define QEMU_VM_VMDESCRIPTION        0x06
 #define QEMU_VM_CONFIGURATION        0x07
+#define QEMU_VM_COMMAND              0x08
 #define QEMU_VM_SECTION_FOOTER       0x7e
 
 struct MigrationParams {
@@ -42,13 +43,67 @@ struct MigrationParams {
     bool shared;
 };
 
-typedef struct MigrationState MigrationState;
+/* Messages sent on the return path from destination to source */
+enum mig_rp_message_type {
+    MIG_RP_MSG_INVALID = 0,  /* Must be 0 */
+    MIG_RP_MSG_SHUT,         /* sibling will not send any more RP messages */
+    MIG_RP_MSG_PONG,         /* Response to a PING; data (seq: be32 ) */
+
+    MIG_RP_MSG_REQ_PAGES_ID, /* data (start: be64, len: be32, id: string) */
+    MIG_RP_MSG_REQ_PAGES,    /* data (start: be64, len: be32) */
+
+    MIG_RP_MSG_MAX
+};
 
 typedef QLIST_HEAD(, LoadStateEntry) LoadStateEntry_Head;
 
+/* The current postcopy state is read/set by postcopy_state_get/set
+ * which update it atomically.
+ * The state is updated as postcopy messages are received, and
+ * in general only one thread should be writing to the state at any one
+ * time, initially the main thread and then the listen thread;
+ * Corner cases are where either thread finishes early and/or errors.
+ * The state is checked as messages are received to ensure that
+ * the source is sending us messages in the correct order.
+ * The state is also used by the RAM reception code to know if it
+ * has to place pages atomically, and the cleanup code at the end of
+ * the main thread to know if it has to delay cleanup until the end
+ * of postcopy.
+ */
+typedef enum {
+    POSTCOPY_INCOMING_NONE = 0,  /* Initial state - no postcopy */
+    POSTCOPY_INCOMING_ADVISE,
+    POSTCOPY_INCOMING_DISCARD,
+    POSTCOPY_INCOMING_LISTENING,
+    POSTCOPY_INCOMING_RUNNING,
+    POSTCOPY_INCOMING_END
+} PostcopyState;
+
 /* State for the incoming migration */
 struct MigrationIncomingState {
-    QEMUFile *file;
+    QEMUFile *from_src_file;
+
+    /*
+     * Free at the start of the main state load, set as the main thread finishes
+     * loading state.
+     */
+    QemuEvent main_thread_load_event;
+
+    bool           have_fault_thread;
+    QemuThread     fault_thread;
+    QemuSemaphore  fault_thread_sem;
+
+    bool           have_listen_thread;
+    QemuThread     listen_thread;
+    QemuSemaphore  listen_thread_sem;
+
+    /* For the kernel to send us notifications */
+    int       userfault_fd;
+    /* To tell the fault_thread to quit */
+    int       userfault_quit_fd;
+    QEMUFile *to_src_file;
+    QemuMutex rp_mutex;    /* We send replies from multiple threads */
+    void     *postcopy_tmp_page;
 
     /* See savevm.c */
     LoadStateEntry_Head loadvm_handlers;
@@ -57,6 +112,18 @@ struct MigrationIncomingState {
 MigrationIncomingState *migration_incoming_get_current(void);
 MigrationIncomingState *migration_incoming_state_new(QEMUFile *f);
 void migration_incoming_state_destroy(void);
+
+/*
+ * An outstanding page request, on the source, having been received
+ * and queued
+ */
+struct MigrationSrcPageRequest {
+    RAMBlock *rb;
+    hwaddr    offset;
+    hwaddr    len;
+
+    QSIMPLEQ_ENTRY(MigrationSrcPageRequest) next_req;
+};
 
 struct MigrationState
 {
@@ -70,6 +137,14 @@ struct MigrationState
 
     int state;
     MigrationParams params;
+
+    /* State related to return path */
+    struct {
+        QEMUFile     *from_dst_file;
+        QemuThread    rp_thread;
+        bool          error;
+    } rp_state;
+
     double mbps;
     int64_t total_time;
     int64_t downtime;
@@ -80,6 +155,18 @@ struct MigrationState
     int64_t xbzrle_cache_size;
     int64_t setup_time;
     int64_t dirty_sync_count;
+
+    /* Flag set once the migration has been asked to enter postcopy */
+    bool start_postcopy;
+
+    /* Flag set once the migration thread is running (and needs joining) */
+    bool migration_thread_running;
+
+    /* Queue of outstanding page requests from the destination */
+    QemuMutex src_page_req_mutex;
+    QSIMPLEQ_HEAD(src_page_requests, MigrationSrcPageRequest) src_page_requests;
+    /* The RAMBlock used in the last src_page_request */
+    RAMBlock *last_req_rb;
 };
 
 void process_incoming_migration(QEMUFile *f);
@@ -116,9 +203,12 @@ int migrate_fd_close(MigrationState *s);
 
 void add_migration_state_change_notifier(Notifier *notify);
 void remove_migration_state_change_notifier(Notifier *notify);
+MigrationState *migrate_init(const MigrationParams *params);
 bool migration_in_setup(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
+/* True if outgoing migration has entered postcopy phase */
+bool migration_in_postcopy(MigrationState *);
 MigrationState *migrate_get_current(void);
 
 void migrate_compress_threads_create(void);
@@ -145,6 +235,13 @@ uint64_t xbzrle_mig_pages_cache_miss(void);
 double xbzrle_mig_cache_miss_rate(void);
 
 void ram_handle_compressed(void *host, uint8_t ch, uint64_t size);
+void ram_debug_dump_bitmap(unsigned long *todump, bool expected);
+/* For outgoing discard bitmap */
+int ram_postcopy_send_discard_bitmap(MigrationState *ms);
+/* For incoming postcopy discard */
+int ram_discard_range(MigrationIncomingState *mis, const char *block_name,
+                      uint64_t start, size_t length);
+int ram_postcopy_incoming_init(MigrationIncomingState *mis);
 
 /**
  * @migrate_add_blocker - prevent migration from proceeding
@@ -160,6 +257,7 @@ void migrate_add_blocker(Error *reason);
  */
 void migrate_del_blocker(Error *reason);
 
+bool migrate_postcopy_ram(void);
 bool migrate_zero_blocks(void);
 
 bool migrate_auto_converge(void);
@@ -178,6 +276,17 @@ int migrate_compress_level(void);
 int migrate_compress_threads(void);
 int migrate_decompress_threads(void);
 bool migrate_use_events(void);
+
+/* Sending on the return path - generic and then for each message type */
+void migrate_send_rp_message(MigrationIncomingState *mis,
+                             enum mig_rp_message_type message_type,
+                             uint16_t len, void *data);
+void migrate_send_rp_shut(MigrationIncomingState *mis,
+                          uint32_t value);
+void migrate_send_rp_pong(MigrationIncomingState *mis,
+                          uint32_t value);
+void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
+                              ram_addr_t start, size_t len);
 
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
 void ram_control_after_iterate(QEMUFile *f, uint64_t flags);
@@ -204,4 +313,12 @@ void global_state_set_optional(void);
 void savevm_skip_configuration(void);
 int global_state_store(void);
 void global_state_store_running(void);
+
+void flush_page_queue(MigrationState *ms);
+int ram_save_queue_pages(MigrationState *ms, const char *rbname,
+                         ram_addr_t start, ram_addr_t len);
+
+PostcopyState postcopy_state_get(void);
+/* Set the state and return the old state */
+PostcopyState postcopy_state_set(PostcopyState new_state);
 #endif

@@ -89,6 +89,11 @@ typedef size_t (QEMURamSaveFunc)(QEMUFile *f, void *opaque,
                                uint64_t *bytes_sent);
 
 /*
+ * Return a QEMUFile for comms in the opposite direction
+ */
+typedef QEMUFile *(QEMURetPathFunc)(void *opaque);
+
+/*
  * Stop any read or write (depending on flags) on the underlying
  * transport on the QEMUFile.
  * Existing blocking reads/writes must be woken
@@ -106,6 +111,7 @@ typedef struct QEMUFileOps {
     QEMURamHookFunc *after_ram_iterate;
     QEMURamHookFunc *hook_ram_load;
     QEMURamSaveFunc *save_page;
+    QEMURetPathFunc *get_return_path;
     QEMUFileShutdownFunc *shut_down;
 } QEMUFileOps;
 
@@ -163,9 +169,11 @@ void qemu_put_be32(QEMUFile *f, unsigned int v);
 void qemu_put_be64(QEMUFile *f, uint64_t v);
 size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset);
 size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size);
+size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size);
 ssize_t qemu_put_compression_data(QEMUFile *f, const uint8_t *p, size_t size,
                                   int level);
 int qemu_put_qemu_file(QEMUFile *f_des, QEMUFile *f_src);
+
 /*
  * Note that you can only peek continuous bytes from where the current pointer
  * is; you aren't guaranteed to be able to peak to +n bytes unless you've
@@ -194,7 +202,9 @@ int64_t qemu_file_get_rate_limit(QEMUFile *f);
 int qemu_file_get_error(QEMUFile *f);
 void qemu_file_set_error(QEMUFile *f, int ret);
 int qemu_file_shutdown(QEMUFile *f);
+QEMUFile *qemu_file_get_return_path(QEMUFile *f);
 void qemu_fflush(QEMUFile *f);
+void qemu_file_set_blocking(QEMUFile *f, bool block);
 
 static inline void qemu_put_be64s(QEMUFile *f, const uint64_t *pv)
 {

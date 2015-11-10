@@ -657,7 +657,6 @@ void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
 
     inbuf = g_string_new("");
     qtest_chr = chr;
-    page_size_init();
 }
 
 bool qtest_driver(void)

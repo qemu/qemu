@@ -22,8 +22,6 @@
 #ifndef CONFIG_USER_ONLY
 #include "hw/xen/xen.h"
 
-typedef struct RAMBlock RAMBlock;
-
 struct RAMBlock {
     struct rcu_head rcu;
     struct MemoryRegion *mr;

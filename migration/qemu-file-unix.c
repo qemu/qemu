@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/sockets.h"
 #include "qemu/coroutine.h"
@@ -39,12 +40,43 @@ static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
     QEMUFileSocket *s = opaque;
     ssize_t len;
     ssize_t size = iov_size(iov, iovcnt);
+    ssize_t offset = 0;
+    int     err;
 
-    len = iov_send(s->fd, iov, iovcnt, 0, size);
-    if (len < size) {
-        len = -socket_error();
-    }
-    return len;
+    while (size > 0) {
+        len = iov_send(s->fd, iov, iovcnt, offset, size);
+
+        if (len > 0) {
+            size -= len;
+            offset += len;
+        }
+
+        if (size > 0) {
+            err = socket_error();
+
+            if (err != EAGAIN && err != EWOULDBLOCK) {
+                error_report("socket_writev_buffer: Got err=%d for (%zu/%zu)",
+                             err, (size_t)size, (size_t)len);
+                /*
+                 * If I've already sent some but only just got the error, I
+                 * could return the amount validly sent so far and wait for the
+                 * next call to report the error, but I'd rather flag the error
+                 * immediately.
+                 */
+                return -err;
+            }
+
+            /* Emulate blocking */
+            GPollFD pfd;
+
+            pfd.fd = s->fd;
+            pfd.events = G_IO_OUT | G_IO_ERR;
+            pfd.revents = 0;
+            g_poll(&pfd, 1 /* 1 fd */, -1 /* no timeout */);
+        }
+     }
+
+    return offset;
 }
 
 static int socket_get_fd(void *opaque)
@@ -94,6 +126,56 @@ static int socket_shutdown(void *opaque, bool rd, bool wr)
         return -errno;
     } else {
         return 0;
+    }
+}
+
+static int socket_return_close(void *opaque)
+{
+    QEMUFileSocket *s = opaque;
+    /*
+     * Note: We don't close the socket, that should be done by the forward
+     * path.
+     */
+    g_free(s);
+    return 0;
+}
+
+static const QEMUFileOps socket_return_read_ops = {
+    .get_fd          = socket_get_fd,
+    .get_buffer      = socket_get_buffer,
+    .close           = socket_return_close,
+    .shut_down       = socket_shutdown,
+};
+
+static const QEMUFileOps socket_return_write_ops = {
+    .get_fd          = socket_get_fd,
+    .writev_buffer   = socket_writev_buffer,
+    .close           = socket_return_close,
+    .shut_down       = socket_shutdown,
+};
+
+/*
+ * Give a QEMUFile* off the same socket but data in the opposite
+ * direction.
+ */
+static QEMUFile *socket_get_return_path(void *opaque)
+{
+    QEMUFileSocket *forward = opaque;
+    QEMUFileSocket *reverse;
+
+    if (qemu_file_get_error(forward->file)) {
+        /* If the forward file is in error, don't try and open a return */
+        return NULL;
+    }
+
+    reverse = g_malloc0(sizeof(QEMUFileSocket));
+    reverse->fd = forward->fd;
+    /* I don't think there's a better way to tell which direction 'this' is */
+    if (forward->file->ops->get_buffer != NULL) {
+        /* being called from the read side, so we need to be able to write */
+        return qemu_fopen_ops(reverse, &socket_return_write_ops);
+    } else {
+        return qemu_fopen_ops(reverse, &socket_return_read_ops);
     }
 }
 
@@ -206,18 +288,19 @@ QEMUFile *qemu_fdopen(int fd, const char *mode)
 }
 
 static const QEMUFileOps socket_read_ops = {
-    .get_fd     = socket_get_fd,
-    .get_buffer = socket_get_buffer,
-    .close      = socket_close,
-    .shut_down  = socket_shutdown
-
+    .get_fd          = socket_get_fd,
+    .get_buffer      = socket_get_buffer,
+    .close           = socket_close,
+    .shut_down       = socket_shutdown,
+    .get_return_path = socket_get_return_path
 };
 
 static const QEMUFileOps socket_write_ops = {
-    .get_fd        = socket_get_fd,
-    .writev_buffer = socket_writev_buffer,
-    .close         = socket_close,
-    .shut_down     = socket_shutdown
+    .get_fd          = socket_get_fd,
+    .writev_buffer   = socket_writev_buffer,
+    .close           = socket_close,
+    .shut_down       = socket_shutdown,
+    .get_return_path = socket_get_return_path
 };
 
 QEMUFile *qemu_fopen_socket(int fd, const char *mode)

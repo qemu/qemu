@@ -1588,7 +1588,7 @@ static int htab_load(QEMUFile *f, void *opaque, int version_id)
 static SaveVMHandlers savevm_htab_handlers = {
     .save_live_setup = htab_save_setup,
     .save_live_iterate = htab_save_iterate,
-    .save_live_complete = htab_save_complete,
+    .save_live_complete_precopy = htab_save_complete,
     .load_state = htab_load,
 };
 

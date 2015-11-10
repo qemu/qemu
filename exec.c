@@ -1377,6 +1377,11 @@ static RAMBlock *find_ram_block(ram_addr_t addr)
     return NULL;
 }
 
+const char *qemu_ram_get_idstr(RAMBlock *rb)
+{
+    return rb->idstr;
+}
+
 /* Called with iothread lock held.  */
 void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
 {
@@ -1447,7 +1452,7 @@ int qemu_ram_resize(ram_addr_t base, ram_addr_t newsize, Error **errp)
 
     assert(block);
 
-    newsize = TARGET_PAGE_ALIGN(newsize);
+    newsize = HOST_PAGE_ALIGN(newsize);
 
     if (block->used_length == newsize) {
         return 0;
@@ -1591,7 +1596,7 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
         return -1;
     }
 
-    size = TARGET_PAGE_ALIGN(size);
+    size = HOST_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
     new_block->used_length = size;
@@ -1627,8 +1632,8 @@ ram_addr_t qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     ram_addr_t addr;
     Error *local_err = NULL;
 
-    size = TARGET_PAGE_ALIGN(size);
-    max_size = TARGET_PAGE_ALIGN(max_size);
+    size = HOST_PAGE_ALIGN(size);
+    max_size = HOST_PAGE_ALIGN(max_size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
     new_block->resized = resized;
@@ -1877,8 +1882,16 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
     }
 }
 
-/* Some of the softmmu routines need to translate from a host pointer
- * (typically a TLB entry) back to a ram offset.
+/*
+ * Translates a host ptr back to a RAMBlock, a ram_addr and an offset
+ * in that RAMBlock.
+ *
+ * ptr: Host pointer to look up
+ * round_offset: If true round the result offset down to a page boundary
+ * *ram_addr: set to result ram_addr
+ * *offset: set to result offset within the RAMBlock
+ *
+ * Returns: RAMBlock (or NULL if not found)
  *
  * By the time this function returns, the returned pointer is not protected
  * by RCU anymore.  If the caller is not within an RCU critical section and
@@ -1886,18 +1899,22 @@ static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
  * pointer, such as a reference to the region that includes the incoming
  * ram_addr_t.
  */
-MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
+RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
+                                   ram_addr_t *ram_addr,
+                                   ram_addr_t *offset)
 {
     RAMBlock *block;
     uint8_t *host = ptr;
-    MemoryRegion *mr;
 
     if (xen_enabled()) {
         rcu_read_lock();
         *ram_addr = xen_ram_addr_from_mapcache(ptr);
-        mr = qemu_get_ram_block(*ram_addr)->mr;
+        block = qemu_get_ram_block(*ram_addr);
+        if (block) {
+            *offset = (host - block->host);
+        }
         rcu_read_unlock();
-        return mr;
+        return block;
     }
 
     rcu_read_lock();
@@ -1920,10 +1937,49 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
     return NULL;
 
 found:
-    *ram_addr = block->offset + (host - block->host);
-    mr = block->mr;
+    *offset = (host - block->host);
+    if (round_offset) {
+        *offset &= TARGET_PAGE_MASK;
+    }
+    *ram_addr = block->offset + *offset;
     rcu_read_unlock();
-    return mr;
+    return block;
+}
+
+/*
+ * Finds the named RAMBlock
+ *
+ * name: The name of RAMBlock to find
+ *
+ * Returns: RAMBlock (or NULL if not found)
+ */
+RAMBlock *qemu_ram_block_by_name(const char *name)
+{
+    RAMBlock *block;
+
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        if (!strcmp(name, block->idstr)) {
+            return block;
+        }
+    }
+
+    return NULL;
+}
+
+/* Some of the softmmu routines need to translate from a host pointer
+   (typically a TLB entry) back to a ram offset.  */
+MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
+{
+    RAMBlock *block;
+    ram_addr_t offset; /* Not used */
+
+    block = qemu_ram_block_from_host(ptr, false, ram_addr, &offset);
+
+    if (!block) {
+        return NULL;
+    }
+
+    return block->mr;
 }
 
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
@@ -3502,6 +3558,16 @@ int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,
     }
     return 0;
 }
+
+/*
+ * Allows code that needs to deal with migration bitmaps etc to still be built
+ * target independent.
+ */
+size_t qemu_target_page_bits(void)
+{
+    return TARGET_PAGE_BITS;
+}
+
 #endif
 
 /*

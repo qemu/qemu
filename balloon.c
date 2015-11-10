@@ -36,6 +36,17 @@
 static QEMUBalloonEvent *balloon_event_fn;
 static QEMUBalloonStatus *balloon_stat_fn;
 static void *balloon_opaque;
+static bool balloon_inhibited;
+
+bool qemu_balloon_is_inhibited(void)
+{
+    return balloon_inhibited;
+}
+
+void qemu_balloon_inhibit(bool state)
+{
+    balloon_inhibited = state;
+}
 
 static bool have_balloon(Error **errp)
 {
