@@ -1814,6 +1814,26 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     address_space_init(&proxy->modern_as, &proxy->modern_cfg, "virtio-pci-cfg-as");
 
+    if (!(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_PCIE)
+        && !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN)
+        && pci_bus_is_express(pci_dev->bus)
+        && !pci_bus_is_root(pci_dev->bus)) {
+        int pos;
+
+        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+        pos = pcie_endpoint_cap_init(pci_dev, 0);
+        assert(pos > 0);
+
+        pos = pci_add_capability(pci_dev, PCI_CAP_ID_PM, 0, PCI_PM_SIZEOF);
+        assert(pos > 0);
+
+        /*
+         * Indicates that this function complies with revision 1.2 of the
+         * PCI Power Management Interface Specification.
+         */
+        pci_set_word(pci_dev->config + pos + PCI_PM_PMC, 0x3);
+    }
+
     virtio_pci_bus_new(&proxy->bus, sizeof(proxy->bus), proxy);
     if (k->realize) {
         k->realize(proxy, errp);
@@ -1854,6 +1874,8 @@ static Property virtio_pci_properties[] = {
                     VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT, true),
     DEFINE_PROP_BIT("modern-pio-notify", VirtIOPCIProxy, flags,
                     VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT, false),
+    DEFINE_PROP_BIT("x-disable-pcie", VirtIOPCIProxy, flags,
+                    VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

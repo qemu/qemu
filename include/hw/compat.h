@@ -8,6 +8,10 @@
             .value    = "true",\
         },{\
             .driver   = "virtio-pci",\
+            .property = "x-disable-pcie",\
+            .value    = "on",\
+        },{\
+            .driver   = "virtio-pci",\
             .property = "migrate-extra",\
             .value    = "off",\
         },
