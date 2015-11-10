@@ -223,15 +223,13 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
     MemoryRegion *sysmem;
     char *sysboot_filename;
 
-    if (!cpu_model) {
-        switch (machine_id) {
-        case CALXEDA_HIGHBANK:
-            cpu_model = "cortex-a9";
-            break;
-        case CALXEDA_MIDWAY:
-            cpu_model = "cortex-a15";
-            break;
-        }
+    switch (machine_id) {
+    case CALXEDA_HIGHBANK:
+        cpu_model = "cortex-a9";
+        break;
+    case CALXEDA_MIDWAY:
+        cpu_model = "cortex-a15";
+        break;
     }
 
     for (n = 0; n < smp_cpus; n++) {
@@ -239,11 +237,6 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         Object *cpuobj;
         ARMCPU *cpu;
         Error *err = NULL;
-
-        if (!oc) {
-            error_report("Unable to find CPU definition");
-            exit(1);
-        }
 
         cpuobj = object_new(object_class_get_name(oc));
         cpu = ARM_CPU(cpuobj);
