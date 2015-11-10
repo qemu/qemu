@@ -587,7 +587,7 @@ static void vfio_msix_enable(VFIOPCIDevice *vdev)
 {
     vfio_disable_interrupts(vdev);
 
-    vdev->msi_vectors = g_malloc0(vdev->msix->entries * sizeof(VFIOMSIVector));
+    vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->msix->entries);
 
     vdev->interrupt = VFIO_INT_MSIX;
 
@@ -623,7 +623,7 @@ static void vfio_msi_enable(VFIOPCIDevice *vdev)
 
     vdev->nr_vectors = msi_nr_vectors_allocated(&vdev->pdev);
 retry:
-    vdev->msi_vectors = g_malloc0(vdev->nr_vectors * sizeof(VFIOMSIVector));
+    vdev->msi_vectors = g_new0(VFIOMSIVector, vdev->nr_vectors);
 
     for (i = 0; i < vdev->nr_vectors; i++) {
         VFIOMSIVector *vector = &vdev->msi_vectors[i];
