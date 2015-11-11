@@ -2274,6 +2274,7 @@ static int ram_load_postcopy(QEMUFile *f)
     /* Temporary page that is later 'placed' */
     void *postcopy_host_page = postcopy_get_tmp_page(mis);
     void *last_host = NULL;
+    bool all_zero = false;
 
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
         ram_addr_t addr;
@@ -2281,7 +2282,6 @@ static int ram_load_postcopy(QEMUFile *f)
         void *page_buffer = NULL;
         void *place_source = NULL;
         uint8_t ch;
-        bool all_zero = false;
 
         addr = qemu_get_be64(f);
         flags = addr & ~TARGET_PAGE_MASK;
