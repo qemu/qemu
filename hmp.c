@@ -1355,7 +1355,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
         }
         qmp_change("vnc", target, !!arg, arg, &err);
     } else {
-        qmp_blockdev_change_medium(device, target, !!arg, arg, &err);
+        qmp_blockdev_change_medium(device, target, !!arg, arg, false, 0, &err);
         if (err &&
             error_get_class(err) == ERROR_CLASS_DEVICE_ENCRYPTED) {
             error_free(err);

@@ -2145,6 +2145,8 @@ void qmp_blockdev_insert_medium(const char *device, const char *node_name,
 
 void qmp_blockdev_change_medium(const char *device, const char *filename,
                                 bool has_format, const char *format,
+                                bool has_read_only,
+                                BlockdevChangeReadOnlyMode read_only,
                                 Error **errp)
 {
     BlockBackend *blk;
@@ -2165,6 +2167,26 @@ void qmp_blockdev_change_medium(const char *device, const char *filename,
     }
 
     bdrv_flags = blk_get_open_flags_from_root_state(blk);
+
+    if (!has_read_only) {
+        read_only = BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN;
+    }
+
+    switch (read_only) {
+    case BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN:
+        break;
+
+    case BLOCKDEV_CHANGE_READ_ONLY_MODE_READ_ONLY:
+        bdrv_flags &= ~BDRV_O_RDWR;
+        break;
+
+    case BLOCKDEV_CHANGE_READ_ONLY_MODE_READ_WRITE:
+        bdrv_flags |= BDRV_O_RDWR;
+        break;
+
+    default:
+        abort();
+    }
 
     if (has_format) {
         options = qdict_new();
