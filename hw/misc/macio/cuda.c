@@ -110,6 +110,24 @@
 /* CUDA returns time_t's offset from Jan 1, 1904, not 1970 */
 #define RTC_OFFSET                      2082844800
 
+/* CUDA registers */
+#define CUDA_REG_B       0x00
+#define CUDA_REG_A       0x01
+#define CUDA_REG_DIRB    0x02
+#define CUDA_REG_DIRA    0x03
+#define CUDA_REG_T1CL    0x04
+#define CUDA_REG_T1CH    0x05
+#define CUDA_REG_T1LL    0x06
+#define CUDA_REG_T1LH    0x07
+#define CUDA_REG_T2CL    0x08
+#define CUDA_REG_T2CH    0x09
+#define CUDA_REG_SR      0x0a
+#define CUDA_REG_ACR     0x0b
+#define CUDA_REG_PCR     0x0c
+#define CUDA_REG_IFR     0x0d
+#define CUDA_REG_IER     0x0e
+#define CUDA_REG_ANH     0x0f
+
 static void cuda_update(CUDAState *s);
 static void cuda_receive_packet_from_host(CUDAState *s,
                                           const uint8_t *data, int len);
@@ -226,66 +244,67 @@ static uint32_t cuda_readb(void *opaque, hwaddr addr)
 
     addr = (addr >> 9) & 0xf;
     switch(addr) {
-    case 0:
+    case CUDA_REG_B:
         val = s->b;
         break;
-    case 1:
+    case CUDA_REG_A:
         val = s->a;
         break;
-    case 2:
+    case CUDA_REG_DIRB:
         val = s->dirb;
         break;
-    case 3:
+    case CUDA_REG_DIRA:
         val = s->dira;
         break;
-    case 4:
+    case CUDA_REG_T1CL:
         val = get_counter(&s->timers[0]) & 0xff;
         s->ifr &= ~T1_INT;
         cuda_update_irq(s);
         break;
-    case 5:
+    case CUDA_REG_T1CH:
         val = get_counter(&s->timers[0]) >> 8;
         cuda_update_irq(s);
         break;
-    case 6:
+    case CUDA_REG_T1LL:
         val = s->timers[0].latch & 0xff;
         break;
-    case 7:
+    case CUDA_REG_T1LH:
         /* XXX: check this */
         val = (s->timers[0].latch >> 8) & 0xff;
         break;
-    case 8:
+    case CUDA_REG_T2CL:
         val = get_counter(&s->timers[1]) & 0xff;
         s->ifr &= ~T2_INT;
         break;
-    case 9:
+    case CUDA_REG_T2CH:
         val = get_counter(&s->timers[1]) >> 8;
         break;
-    case 10:
+    case CUDA_REG_SR:
         val = s->sr;
         s->ifr &= ~(SR_INT | SR_CLOCK_INT | SR_DATA_INT);
         cuda_update_irq(s);
         break;
-    case 11:
+    case CUDA_REG_ACR:
         val = s->acr;
         break;
-    case 12:
+    case CUDA_REG_PCR:
         val = s->pcr;
         break;
-    case 13:
+    case CUDA_REG_IFR:
         val = s->ifr;
-        if (s->ifr & s->ier)
+        if (s->ifr & s->ier) {
             val |= 0x80;
+        }
         break;
-    case 14:
+    case CUDA_REG_IER:
         val = s->ier | 0x80;
         break;
     default:
-    case 15:
+    case CUDA_REG_ANH:
         val = s->anh;
         break;
     }
-    if (addr != 13 || val != 0) {
+    if (addr != CUDA_REG_IFR || val != 0) {
         CUDA_DPRINTF("read: reg=0x%x val=%02x\n", (int)addr, val);
     }
 
@@ -300,61 +319,61 @@ static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
     CUDA_DPRINTF("write: reg=0x%x val=%02x\n", (int)addr, val);
 
     switch(addr) {
-    case 0:
+    case CUDA_REG_B:
         s->b = val;
         cuda_update(s);
         break;
-    case 1:
+    case CUDA_REG_A:
         s->a = val;
         break;
-    case 2:
+    case CUDA_REG_DIRB:
         s->dirb = val;
         break;
-    case 3:
+    case CUDA_REG_DIRA:
         s->dira = val;
         break;
-    case 4:
+    case CUDA_REG_T1CL:
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
         cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
-    case 5:
+    case CUDA_REG_T1CH:
         s->timers[0].latch = (s->timers[0].latch & 0xff) | (val << 8);
         s->ifr &= ~T1_INT;
         set_counter(s, &s->timers[0], s->timers[0].latch);
         break;
-    case 6:
+    case CUDA_REG_T1LL:
         s->timers[0].latch = (s->timers[0].latch & 0xff00) | val;
         cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
-    case 7:
+    case CUDA_REG_T1LH:
         s->timers[0].latch = (s->timers[0].latch & 0xff) | (val << 8);
         s->ifr &= ~T1_INT;
         cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
-    case 8:
+    case CUDA_REG_T2CL:
         s->timers[1].latch = val;
         set_counter(s, &s->timers[1], val);
         break;
-    case 9:
+    case CUDA_REG_T2CH:
         set_counter(s, &s->timers[1], (val << 8) | s->timers[1].latch);
         break;
-    case 10:
+    case CUDA_REG_SR:
         s->sr = val;
         break;
-    case 11:
+    case CUDA_REG_ACR:
         s->acr = val;
         cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         cuda_update(s);
         break;
-    case 12:
+    case CUDA_REG_PCR:
         s->pcr = val;
         break;
-    case 13:
+    case CUDA_REG_IFR:
         /* reset bits */
         s->ifr &= ~val;
         cuda_update_irq(s);
         break;
-    case 14:
+    case CUDA_REG_IER:
         if (val & IER_SET) {
             /* set bits */
             s->ier |= val & 0x7f;
@@ -365,7 +384,7 @@ static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
         cuda_update_irq(s);
         break;
     default:
-    case 15:
+    case CUDA_REG_ANH:
         s->anh = val;
         break;
     }
