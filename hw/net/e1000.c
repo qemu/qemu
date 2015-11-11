@@ -1854,6 +1854,8 @@ static Property e1000_properties[] = {
                     compat_flags, E1000_FLAG_AUTONEG_BIT, true),
     DEFINE_PROP_BIT("mitigation", E1000State,
                     compat_flags, E1000_FLAG_MIT_BIT, true),
+    DEFINE_PROP_BIT("extra_mac_registers", E1000State,
+                    compat_flags, E1000_FLAG_MAC_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
