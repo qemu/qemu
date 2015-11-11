@@ -337,6 +337,7 @@ int qdev_walk_children(DeviceState *dev,
                        void *opaque);
 
 void qdev_reset_all(DeviceState *dev);
+void qdev_reset_all_fn(void *opaque);
 
 /**
  * @qbus_reset_all:

@@ -309,8 +309,7 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
     uint64_t pte;
     uint32_t flags;
     S390PCIBusDevice *pbdev = container_of(iommu, S390PCIBusDevice, mr);
-    S390pciState *s = S390_PCI_HOST_BRIDGE(pci_device_root_bus(pbdev->pdev)
-                                           ->qbus.parent);
+    S390pciState *s;
     IOMMUTLBEntry ret = {
         .target_as = &address_space_memory,
         .iova = 0,
@@ -319,8 +318,13 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
         .perm = IOMMU_NONE,
     };
 
+    if (!pbdev->configured || !pbdev->pdev) {
+        return ret;
+    }
+
     DPRINTF("iommu trans addr 0x%" PRIx64 "\n", addr);
 
+    s = S390_PCI_HOST_BRIDGE(pci_device_root_bus(pbdev->pdev)->qbus.parent);
     /* s390 does not have an APIC mapped to main storage so we use
      * a separate AddressSpace only for msix notifications
      */

@@ -237,9 +237,14 @@ M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: target-s390x/kvm.c
+F: target-s390x/ioinst.[ch]
+F: target-s390x/machine.c
 F: hw/intc/s390_flic.c
 F: hw/intc/s390_flic_kvm.c
 F: include/hw/s390x/s390_flic.h
+F: gdb-xml/s390*.xml
+T: git git://github.com/cohuck/qemu.git s390-next
+T: git git://github.com/borntraeger/qemu.git s390-next
 
 X86
 M: Paolo Bonzini <pbonzini@redhat.com>
@@ -637,15 +642,13 @@ M: Christian Borntraeger <borntraeger@de.ibm.com>
 M: Alexander Graf <agraf@suse.de>
 S: Supported
 F: hw/char/sclp*.[hc]
-F: hw/s390x/s390-virtio-ccw.c
-F: hw/s390x/css.[hc]
-F: hw/s390x/sclp*.[hc]
-F: hw/s390x/ipl*.[hc]
-F: hw/s390x/*pci*.[hc]
-F: hw/s390x/s390-skeys*.c
+F: hw/s390x/
+X: hw/s390x/s390-virtio-bus.[ch]
 F: include/hw/s390x/
 F: pc-bios/s390-ccw/
-T: git git://github.com/cohuck/qemu virtio-ccw-upstr
+F: hw/watchdog/wdt_diag288.c
+T: git git://github.com/cohuck/qemu.git s390-next
+T: git git://github.com/borntraeger/qemu.git s390-next
 
 UniCore32 Machines
 -------------
@@ -872,7 +875,8 @@ M: Cornelia Huck <cornelia.huck@de.ibm.com>
 M: Christian Borntraeger <borntraeger@de.ibm.com>
 S: Supported
 F: hw/s390x/virtio-ccw.[hc]
-T: git git://github.com/cohuck/qemu virtio-ccw-upstr
+T: git git://github.com/cohuck/qemu.git s390-next
+T: git git://github.com/borntraeger/qemu.git s390-next
 
 virtio-input
 M: Gerd Hoffmann <kraxel@redhat.com>

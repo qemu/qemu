@@ -445,6 +445,206 @@ static void ipl_scsi(void)
 }
 
 /***********************************************************************
+ * IPL El Torito ISO9660 image or DVD
+ */
+
+static bool is_iso_bc_entry_compatible(IsoBcSection *s)
+{
+    uint8_t *magic_sec = (uint8_t *)(sec + ISO_SECTOR_SIZE);
+
+    if (s->unused || !s->sector_count) {
+        return false;
+    }
+    read_iso_sector(bswap32(s->load_rba), magic_sec,
+                    "Failed to read image sector 0");
+
+    /* Checking bytes 8 - 32 for S390 Linux magic */
+    return !_memcmp(magic_sec + 8, linux_s390_magic, 24);
+}
+
+/* Location of the current sector of the directory */
+static uint32_t sec_loc[ISO9660_MAX_DIR_DEPTH];
+/* Offset in the current sector of the directory */
+static uint32_t sec_offset[ISO9660_MAX_DIR_DEPTH];
+/* Remained directory space in bytes */
+static uint32_t dir_rem[ISO9660_MAX_DIR_DEPTH];
+
+static inline uint32_t iso_get_file_size(uint32_t load_rba)
+{
+    IsoVolDesc *vd = (IsoVolDesc *)sec;
+    IsoDirHdr *cur_record = &vd->vd.primary.rootdir;
+    uint8_t *temp = sec + ISO_SECTOR_SIZE;
+    int level = 0;
+
+    read_iso_sector(ISO_PRIMARY_VD_SECTOR, sec,
+                    "Failed to read ISO primary descriptor");
+    sec_loc[0] = iso_733_to_u32(cur_record->ext_loc);
+    dir_rem[0] = 0;
+    sec_offset[0] = 0;
+
+    while (level >= 0) {
+        IPL_assert(sec_offset[level] <= ISO_SECTOR_SIZE,
+                   "Directory tree structure violation");
+
+        cur_record = (IsoDirHdr *)(temp + sec_offset[level]);
+
+        if (sec_offset[level] == 0) {
+            read_iso_sector(sec_loc[level], temp,
+                            "Failed to read ISO directory");
+            if (dir_rem[level] == 0) {
+                /* Skip self and parent records */
+                dir_rem[level] = iso_733_to_u32(cur_record->data_len) -
+                                 cur_record->dr_len;
+                sec_offset[level] += cur_record->dr_len;
+
+                cur_record = (IsoDirHdr *)(temp + sec_offset[level]);
+                dir_rem[level] -= cur_record->dr_len;
+                sec_offset[level] += cur_record->dr_len;
+                continue;
+            }
+        }
+
+        if (!cur_record->dr_len || sec_offset[level] == ISO_SECTOR_SIZE) {
+            /* Zero-padding and/or the end of current sector */
+            dir_rem[level] -= ISO_SECTOR_SIZE - sec_offset[level];
+            sec_offset[level] = 0;
+            sec_loc[level]++;
+        } else {
+            /* The directory record is valid */
+            if (load_rba == iso_733_to_u32(cur_record->ext_loc)) {
+                return iso_733_to_u32(cur_record->data_len);
+            }
+
+            dir_rem[level] -= cur_record->dr_len;
+            sec_offset[level] += cur_record->dr_len;
+
+            if (cur_record->file_flags & 0x2) {
+                /* Subdirectory */
+                if (level == ISO9660_MAX_DIR_DEPTH - 1) {
+                    sclp_print("ISO-9660 directory depth limit exceeded\n");
+                } else {
+                    level++;
+                    sec_loc[level] = iso_733_to_u32(cur_record->ext_loc);
+                    sec_offset[level] = 0;
+                    dir_rem[level] = 0;
+                    continue;
+                }
+            }
+        }
+
+        if (dir_rem[level] == 0) {
+            /* Nothing remaining */
+            level--;
+            read_iso_sector(sec_loc[level], temp,
+                            "Failed to read ISO directory");
+        }
+    }
+
+    return 0;
+}
+
+static void load_iso_bc_entry(IsoBcSection *load)
+{
+    IsoBcSection s = *load;
+    /*
+     * According to spec, extent for each file
+     * is padded and ISO_SECTOR_SIZE bytes aligned
+     */
+    uint32_t blks_to_load = bswap16(s.sector_count) >> ET_SECTOR_SHIFT;
+    uint32_t real_size = iso_get_file_size(bswap32(s.load_rba));
+
+    if (real_size) {
+        /* Round up blocks to load */
+        blks_to_load = (real_size + ISO_SECTOR_SIZE - 1) / ISO_SECTOR_SIZE;
+        sclp_print("ISO boot image size verified\n");
+    } else {
+        sclp_print("ISO boot image size could not be verified\n");
+    }
+
+    read_iso_boot_image(bswap32(s.load_rba),
+                        (void *)((uint64_t)bswap16(s.load_segment)),
+                        blks_to_load);
+
+    /* Trying to get PSW at zero address */
+    if (*((uint64_t *)0) & IPL_PSW_MASK) {
+        jump_to_IPL_code((*((uint64_t *)0)) & 0x7fffffff);
+    }
+
+    /* Try default linux start address */
+    jump_to_IPL_code(KERN_IMAGE_START);
+}
+
+static uint32_t find_iso_bc(void)
+{
+    IsoVolDesc *vd = (IsoVolDesc *)sec;
+    uint32_t block_num = ISO_PRIMARY_VD_SECTOR;
+
+    if (virtio_read_many(block_num++, sec, 1)) {
+        /* If primary vd cannot be read, there is no boot catalog */
+        return 0;
+    }
+
+    while (is_iso_vd_valid(vd) && vd->type != VOL_DESC_TERMINATOR) {
+        if (vd->type == VOL_DESC_TYPE_BOOT) {
+            IsoVdElTorito *et = &vd->vd.boot;
+
+            if (!_memcmp(&et->el_torito[0], el_torito_magic, 32)) {
+                return bswap32(et->bc_offset);
+            }
+        }
+        read_iso_sector(block_num++, sec,
+                        "Failed to read ISO volume descriptor");
+    }
+
+    return 0;
+}
+
+static IsoBcSection *find_iso_bc_entry(void)
+{
+    IsoBcEntry *e = (IsoBcEntry *)sec;
+    uint32_t offset = find_iso_bc();
+    int i;
+
+    if (!offset) {
+        return NULL;
+    }
+
+    read_iso_sector(offset, sec, "Failed to read El Torito boot catalog");
+
+    if (!is_iso_bc_valid(e)) {
+        /* The validation entry is mandatory */
+        virtio_panic("No valid boot catalog found!\n");
+        return NULL;
+    }
+
+    /*
+     * Each entry has 32 bytes size, so one sector cannot contain > 64 entries.
+     * We consider only boot catalogs with no more than 64 entries.
+     */
+    for (i = 1; i < ISO_BC_ENTRY_PER_SECTOR; i++) {
+        if (e[i].id == ISO_BC_BOOTABLE_SECTION) {
+            if (is_iso_bc_entry_compatible(&e[i].body.sect)) {
+                return &e[i].body.sect;
+            }
+        }
+    }
+
+    virtio_panic("No suitable boot entry found on ISO-9660 media!\n");
+
+    return NULL;
+}
+
+static void ipl_iso_el_torito(void)
+{
+    IsoBcSection *s = find_iso_bc_entry();
+
+    if (s) {
+        load_iso_bc_entry(s);
+        /* no return */
+    }
+}
+
+/***********************************************************************
  * IPL starts here
  */
 
@@ -462,6 +662,12 @@ void zipl_load(void)
     if (magic_match(mbr->magic, ZIPL_MAGIC)) {
         ipl_scsi(); /* no return */
     }
+
+    /* Check if we can boot as ISO media */
+    if (virtio_guessed_disk_nature()) {
+        virtio_assume_iso9660();
+    }
+    ipl_iso_el_torito();
 
     /* We have failed to follow the SCSI scheme, so */
     if (virtio_guessed_disk_nature()) {

@@ -341,4 +341,210 @@ static inline bool magic_match(const void *data, const void *magic)
     return *((uint32_t *)data) == *((uint32_t *)magic);
 }
 
+static inline int _memcmp(const void *s1, const void *s2, size_t n)
+{
+    int i;
+    const uint8_t *p1 = s1, *p2 = s2;
+
+    for (i = 0; i < n; i++) {
+        if (p1[i] != p2[i]) {
+            return p1[i] > p2[i] ? 1 : -1;
+        }
+    }
+
+    return 0;
+}
+
+/* from include/qemu/bswap.h */
+
+/* El Torito is always little-endian */
+static inline uint16_t bswap16(uint16_t x)
+{
+    return ((x & 0x00ff) << 8) | ((x & 0xff00) >> 8);
+}
+
+static inline uint32_t bswap32(uint32_t x)
+{
+    return ((x & 0x000000ffU) << 24) | ((x & 0x0000ff00U) <<  8) |
+           ((x & 0x00ff0000U) >>  8) | ((x & 0xff000000U) >> 24);
+}
+
+static inline uint64_t bswap64(uint64_t x)
+{
+    return ((x & 0x00000000000000ffULL) << 56) |
+           ((x & 0x000000000000ff00ULL) << 40) |
+           ((x & 0x0000000000ff0000ULL) << 24) |
+           ((x & 0x00000000ff000000ULL) <<  8) |
+           ((x & 0x000000ff00000000ULL) >>  8) |
+           ((x & 0x0000ff0000000000ULL) >> 24) |
+           ((x & 0x00ff000000000000ULL) >> 40) |
+           ((x & 0xff00000000000000ULL) >> 56);
+}
+
+static inline uint32_t iso_733_to_u32(uint64_t x)
+{
+    return (uint32_t)x;
+}
+
+#define ISO_SECTOR_SIZE 2048
+/* El Torito specifies boot image size in 512 byte blocks */
+#define ET_SECTOR_SHIFT 2
+#define KERN_IMAGE_START 0x010000UL
+#define PSW_MASK_64 0x0000000100000000ULL
+#define PSW_MASK_32 0x0000000080000000ULL
+#define IPL_PSW_MASK (PSW_MASK_32 | PSW_MASK_64)
+
+#define ISO_PRIMARY_VD_SECTOR 16
+
+static inline void read_iso_sector(uint32_t block_offset, void *buf,
+                                   const char *errmsg)
+{
+    IPL_assert(virtio_read_many(block_offset, buf, 1) == 0, errmsg);
+}
+
+static inline void read_iso_boot_image(uint32_t block_offset, void *load_addr,
+                                       uint32_t blks_to_load)
+{
+    IPL_assert(virtio_read_many(block_offset, load_addr, blks_to_load) == 0,
+               "Failed to read boot image!");
+}
+
+const uint8_t el_torito_magic[] = "EL TORITO SPECIFICATION"
+                                  "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+#define ISO9660_MAX_DIR_DEPTH 8
+
+typedef struct IsoDirHdr {
+    uint8_t dr_len;
+    uint8_t ear_len;
+    uint64_t ext_loc;
+    uint64_t data_len;
+    uint8_t recording_datetime[7];
+    uint8_t file_flags;
+    uint8_t file_unit_size;
+    uint8_t gap_size;
+    uint32_t vol_seqnum;
+    uint8_t fileid_len;
+} __attribute__((packed)) IsoDirHdr;
+
+typedef struct IsoVdElTorito {
+    uint8_t el_torito[32]; /* must contain el_torito_magic value */
+    uint8_t unused0[32];
+    uint32_t bc_offset;
+    uint8_t unused1[1974];
+} __attribute__((packed)) IsoVdElTorito;
+
+typedef struct IsoVdPrimary {
+    uint8_t unused1;
+    uint8_t sys_id[32];
+    uint8_t vol_id[32];
+    uint8_t unused2[8];
+    uint64_t vol_space_size;
+    uint8_t unused3[32];
+    uint32_t vol_set_size;
+    uint32_t vol_seqnum;
+    uint32_t log_block_size;
+    uint64_t path_table_size;
+    uint32_t l_path_table;
+    uint32_t opt_l_path_table;
+    uint32_t m_path_table;
+    uint32_t opt_m_path_table;
+    IsoDirHdr rootdir;
+    uint8_t root_null;
+    uint8_t reserved2[1858];
+} __attribute__((packed)) IsoVdPrimary;
+
+typedef struct IsoVolDesc {
+    uint8_t type;
+    uint8_t ident[5];
+    uint8_t version;
+    union {
+        IsoVdElTorito boot;
+        IsoVdPrimary primary;
+    } vd;
+} __attribute__((packed)) IsoVolDesc;
+
+const uint8_t vol_desc_magic[] = "CD001";
+#define VOL_DESC_TYPE_BOOT 0
+#define VOL_DESC_TYPE_PRIMARY 1
+#define VOL_DESC_TYPE_SUPPLEMENT 2
+#define VOL_DESC_TYPE_PARTITION 3
+#define VOL_DESC_TERMINATOR 255
+
+static inline bool is_iso_vd_valid(IsoVolDesc *vd)
+{
+    return !_memcmp(&vd->ident[0], vol_desc_magic, 5) &&
+           vd->version == 0x1 &&
+           vd->type <= VOL_DESC_TYPE_PARTITION;
+}
+
+typedef struct IsoBcValid {
+    uint8_t platform_id;
+    uint16_t reserved;
+    uint8_t id[24];
+    uint16_t checksum;
+    uint8_t key[2];
+} __attribute__((packed)) IsoBcValid;
+
+typedef struct IsoBcSection {
+    uint8_t boot_type;
+    uint16_t load_segment;
+    uint8_t sys_type;
+    uint8_t unused;
+    uint16_t sector_count;
+    uint32_t load_rba;
+    uint8_t selection[20];
+} __attribute__((packed)) IsoBcSection;
+
+typedef struct IsoBcHdr {
+    uint8_t platform_id;
+    uint16_t sect_num;
+    uint8_t id[28];
+} __attribute__((packed)) IsoBcHdr;
+
+/*
+ * Match two CCWs located after PSW and eight filler bytes.
+ * From libmagic and arch/s390/kernel/head.S.
+ */
+const uint8_t linux_s390_magic[] = "\x02\x00\x00\x18\x60\x00\x00\x50\x02\x00"
+                                   "\x00\x68\x60\x00\x00\x50\x40\x40\x40\x40"
+                                   "\x40\x40\x40\x40";
+
+typedef struct IsoBcEntry {
+    uint8_t id;
+    union {
+        IsoBcValid valid; /* id == 0x01 */
+        IsoBcSection sect; /* id == 0x88 || id == 0x0 */
+        IsoBcHdr hdr; /* id == 0x90 || id == 0x91 */
+    } body;
+} __attribute__((packed)) IsoBcEntry;
+
+#define ISO_BC_ENTRY_PER_SECTOR (ISO_SECTOR_SIZE / sizeof(IsoBcEntry))
+#define ISO_BC_HDR_VALIDATION 0x01
+#define ISO_BC_BOOTABLE_SECTION 0x88
+#define ISO_BC_MAGIC_55 0x55
+#define ISO_BC_MAGIC_AA 0xaa
+#define ISO_BC_PLATFORM_X86 0x0
+#define ISO_BC_PLATFORM_PPC 0x1
+#define ISO_BC_PLATFORM_MAC 0x2
+
+static inline bool is_iso_bc_valid(IsoBcEntry *e)
+{
+    IsoBcValid *v = &e->body.valid;
+
+    if (e->id != ISO_BC_HDR_VALIDATION) {
+        return false;
+    }
+
+    if (v->platform_id != ISO_BC_PLATFORM_X86 &&
+        v->platform_id != ISO_BC_PLATFORM_PPC &&
+        v->platform_id != ISO_BC_PLATFORM_MAC) {
+        return false;
+    }
+
+    return v->key[0] == ISO_BC_MAGIC_55 &&
+           v->key[1] == ISO_BC_MAGIC_AA &&
+           v->reserved == 0x0;
+}
+
 #endif /* _PC_BIOS_S390_CCW_BOOTMAP_H */

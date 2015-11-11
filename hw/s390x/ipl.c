@@ -15,7 +15,6 @@
 #include "cpu.h"
 #include "elf.h"
 #include "hw/loader.h"
-#include "hw/sysbus.h"
 #include "hw/s390x/virtio-ccw.h"
 #include "hw/s390x/css.h"
 #include "ipl.h"
@@ -28,44 +27,6 @@
 #define PARMFILE_START                  0x001000UL
 #define ZIPL_IMAGE_START                0x009000UL
 #define IPL_PSW_MASK                    (PSW_MASK_32 | PSW_MASK_64)
-
-#define TYPE_S390_IPL "s390-ipl"
-#define S390_IPL(obj) \
-    OBJECT_CHECK(S390IPLState, (obj), TYPE_S390_IPL)
-#if 0
-#define S390_IPL_CLASS(klass) \
-    OBJECT_CLASS_CHECK(S390IPLState, (klass), TYPE_S390_IPL)
-#define S390_IPL_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(S390IPLState, (obj), TYPE_S390_IPL)
-#endif
-
-typedef struct S390IPLClass {
-    /*< private >*/
-    SysBusDeviceClass parent_class;
-    /*< public >*/
-
-    void (*parent_reset) (SysBusDevice *dev);
-} S390IPLClass;
-
-typedef struct S390IPLState {
-    /*< private >*/
-    SysBusDevice parent_obj;
-    uint64_t start_addr;
-    uint64_t bios_start_addr;
-    bool enforce_bios;
-    IplParameterBlock iplb;
-    bool iplb_valid;
-    bool reipl_requested;
-
-    /*< public >*/
-    char *kernel;
-    char *initrd;
-    char *cmdline;
-    char *firmware;
-    uint8_t cssid;
-    uint8_t ssid;
-    uint16_t devno;
-} S390IPLState;
 
 static const VMStateDescription vmstate_iplb = {
     .name = "ipl/iplb",
@@ -110,11 +71,12 @@ static uint64_t bios_translate_addr(void *opaque, uint64_t srcaddr)
     return srcaddr + dstaddr;
 }
 
-static int s390_ipl_init(SysBusDevice *dev)
+static void s390_ipl_realize(DeviceState *dev, Error **errp)
 {
     S390IPLState *ipl = S390_IPL(dev);
     uint64_t pentry = KERN_IMAGE_START;
     int kernel_size;
+    Error *l_err = NULL;
 
     int bios_size;
     char *bios_filename;
@@ -132,7 +94,8 @@ static int s390_ipl_init(SysBusDevice *dev)
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (bios_filename == NULL) {
-            hw_error("could not find stage1 bootloader\n");
+            error_setg(&l_err, "could not find stage1 bootloader\n");
+            goto error;
         }
 
         bios_size = load_elf(bios_filename, bios_translate_addr, &fwbase,
@@ -150,7 +113,8 @@ static int s390_ipl_init(SysBusDevice *dev)
         g_free(bios_filename);
 
         if (bios_size == -1) {
-            hw_error("could not load bootloader '%s'\n", bios_name);
+            error_setg(&l_err, "could not load bootloader '%s'\n", bios_name);
+            goto error;
         }
 
         /* default boot target is the bios */
@@ -164,8 +128,8 @@ static int s390_ipl_init(SysBusDevice *dev)
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
         }
         if (kernel_size < 0) {
-            fprintf(stderr, "could not load kernel '%s'\n", ipl->kernel);
-            return -1;
+            error_setg(&l_err, "could not load kernel '%s'\n", ipl->kernel);
+            goto error;
         }
         /*
          * Is it a Linux kernel (starting at 0x10000)? If yes, we fill in the
@@ -192,9 +156,8 @@ static int s390_ipl_init(SysBusDevice *dev)
             initrd_size = load_image_targphys(ipl->initrd, initrd_offset,
                                               ram_size - initrd_offset);
             if (initrd_size == -1) {
-                fprintf(stderr, "qemu: could not load initrd '%s'\n",
-                        ipl->initrd);
-                exit(1);
+                error_setg(&l_err, "could not load initrd '%s'\n", ipl->initrd);
+                goto error;
             }
 
             /*
@@ -205,7 +168,9 @@ static int s390_ipl_init(SysBusDevice *dev)
             stq_p(rom_ptr(INITRD_PARM_SIZE), initrd_size);
         }
     }
-    return 0;
+    qemu_register_reset(qdev_reset_all_fn, dev);
+error:
+    error_propagate(errp, l_err);
 }
 
 static Property s390_ipl_properties[] = {
@@ -308,9 +273,8 @@ static void s390_ipl_reset(DeviceState *dev)
 static void s390_ipl_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    k->init = s390_ipl_init;
+    dc->realize = s390_ipl_realize;
     dc->props = s390_ipl_properties;
     dc->reset = s390_ipl_reset;
     dc->vmsd = &vmstate_ipl;
@@ -319,8 +283,8 @@ static void s390_ipl_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo s390_ipl_info = {
     .class_init = s390_ipl_class_init,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .name  = "s390-ipl",
+    .parent = TYPE_DEVICE,
+    .name  = TYPE_S390_IPL,
     .instance_size  = sizeof(S390IPLState),
 };
 
