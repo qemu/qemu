@@ -41,20 +41,20 @@
 
 #ifdef E1000_DEBUG
 enum {
-    DEBUG_GENERAL,	DEBUG_IO,	DEBUG_MMIO,	DEBUG_INTERRUPT,
-    DEBUG_RX,		DEBUG_TX,	DEBUG_MDIC,	DEBUG_EEPROM,
-    DEBUG_UNKNOWN,	DEBUG_TXSUM,	DEBUG_TXERR,	DEBUG_RXERR,
+    DEBUG_GENERAL,      DEBUG_IO,       DEBUG_MMIO,     DEBUG_INTERRUPT,
+    DEBUG_RX,           DEBUG_TX,       DEBUG_MDIC,     DEBUG_EEPROM,
+    DEBUG_UNKNOWN,      DEBUG_TXSUM,    DEBUG_TXERR,    DEBUG_RXERR,
     DEBUG_RXFILTER,     DEBUG_PHY,      DEBUG_NOTYET,
 };
-#define DBGBIT(x)	(1<<DEBUG_##x)
+#define DBGBIT(x)    (1<<DEBUG_##x)
 static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 
-#define	DBGOUT(what, fmt, ...) do { \
+#define DBGOUT(what, fmt, ...) do { \
     if (debugflags & DBGBIT(what)) \
         fprintf(stderr, "e1000: " fmt, ## __VA_ARGS__); \
     } while (0)
 #else
-#define	DBGOUT(what, fmt, ...) do {} while (0)
+#define DBGOUT(what, fmt, ...) do {} while (0)
 #endif
 
 #define IOPORT_SIZE       0x40
@@ -118,7 +118,7 @@ typedef struct E1000State_st {
     } tx;
 
     struct {
-        uint32_t val_in;	// shifted in from guest driver
+        uint32_t val_in;    /* shifted in from guest driver */
         uint16_t bitnum_in;
         uint16_t bitnum_out;
         uint16_t reading;
@@ -155,19 +155,19 @@ typedef struct E1000BaseClass {
 #define E1000_DEVICE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(E1000BaseClass, (obj), TYPE_E1000_BASE)
 
-#define	defreg(x)	x = (E1000_##x>>2)
+#define defreg(x)    x = (E1000_##x>>2)
 enum {
-    defreg(CTRL),	defreg(EECD),	defreg(EERD),	defreg(GPRC),
-    defreg(GPTC),	defreg(ICR),	defreg(ICS),	defreg(IMC),
-    defreg(IMS),	defreg(LEDCTL),	defreg(MANC),	defreg(MDIC),
-    defreg(MPC),	defreg(PBA),	defreg(RCTL),	defreg(RDBAH),
-    defreg(RDBAL),	defreg(RDH),	defreg(RDLEN),	defreg(RDT),
-    defreg(STATUS),	defreg(SWSM),	defreg(TCTL),	defreg(TDBAH),
-    defreg(TDBAL),	defreg(TDH),	defreg(TDLEN),	defreg(TDT),
-    defreg(TORH),	defreg(TORL),	defreg(TOTH),	defreg(TOTL),
-    defreg(TPR),	defreg(TPT),	defreg(TXDCTL),	defreg(WUFC),
-    defreg(RA),		defreg(MTA),	defreg(CRCERRS),defreg(VFTA),
-    defreg(VET),        defreg(RDTR),   defreg(RADV),   defreg(TADV),
+    defreg(CTRL),    defreg(EECD),    defreg(EERD),    defreg(GPRC),
+    defreg(GPTC),    defreg(ICR),     defreg(ICS),     defreg(IMC),
+    defreg(IMS),     defreg(LEDCTL),  defreg(MANC),    defreg(MDIC),
+    defreg(MPC),     defreg(PBA),     defreg(RCTL),    defreg(RDBAH),
+    defreg(RDBAL),   defreg(RDH),     defreg(RDLEN),   defreg(RDT),
+    defreg(STATUS),  defreg(SWSM),    defreg(TCTL),    defreg(TDBAH),
+    defreg(TDBAL),   defreg(TDH),     defreg(TDLEN),   defreg(TDT),
+    defreg(TORH),    defreg(TORL),    defreg(TOTH),    defreg(TOTL),
+    defreg(TPR),     defreg(TPT),     defreg(TXDCTL),  defreg(WUFC),
+    defreg(RA),      defreg(MTA),     defreg(CRCERRS), defreg(VFTA),
+    defreg(VET),     defreg(RDTR),    defreg(RADV),    defreg(TADV),
     defreg(ITR),
 };
 
@@ -226,18 +226,18 @@ enum { NPHYWRITEOPS = ARRAY_SIZE(phyreg_writeops) };
 
 enum { PHY_R = 1, PHY_W = 2, PHY_RW = PHY_R | PHY_W };
 static const char phy_regcap[0x20] = {
-    [PHY_STATUS] = PHY_R,	[M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
-    [PHY_ID1] = PHY_R,		[M88E1000_PHY_SPEC_CTRL] = PHY_RW,
-    [PHY_CTRL] = PHY_RW,	[PHY_1000T_CTRL] = PHY_RW,
-    [PHY_LP_ABILITY] = PHY_R,	[PHY_1000T_STATUS] = PHY_R,
-    [PHY_AUTONEG_ADV] = PHY_RW,	[M88E1000_RX_ERR_CNTR] = PHY_R,
-    [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R,
+    [PHY_STATUS]      = PHY_R,     [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
+    [PHY_ID1]         = PHY_R,     [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
+    [PHY_CTRL]        = PHY_RW,    [PHY_1000T_CTRL]             = PHY_RW,
+    [PHY_LP_ABILITY]  = PHY_R,     [PHY_1000T_STATUS]           = PHY_R,
+    [PHY_AUTONEG_ADV] = PHY_RW,    [M88E1000_RX_ERR_CNTR]       = PHY_R,
+    [PHY_ID2]         = PHY_R,     [M88E1000_PHY_SPEC_STATUS]   = PHY_R,
     [PHY_AUTONEG_EXP] = PHY_R,
 };
 
 /* PHY_ID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
 static const uint16_t phy_reg_init[] = {
-    [PHY_CTRL] =   MII_CR_SPEED_SELECT_MSB |
+    [PHY_CTRL]   = MII_CR_SPEED_SELECT_MSB |
                    MII_CR_FULL_DUPLEX |
                    MII_CR_AUTO_NEG_EN,
 
@@ -264,15 +264,15 @@ static const uint16_t phy_reg_init[] = {
 };
 
 static const uint32_t mac_reg_init[] = {
-    [PBA] =     0x00100030,
-    [LEDCTL] =  0x602,
-    [CTRL] =    E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |
+    [PBA]     = 0x00100030,
+    [LEDCTL]  = 0x602,
+    [CTRL]    = E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |
                 E1000_CTRL_SPD_1000 | E1000_CTRL_SLU,
-    [STATUS] =  0x80000000 | E1000_STATUS_GIO_MASTER_ENABLE |
+    [STATUS]  = 0x80000000 | E1000_STATUS_GIO_MASTER_ENABLE |
                 E1000_STATUS_ASDV | E1000_STATUS_MTXCKOK |
                 E1000_STATUS_SPEED_1000 | E1000_STATUS_FD |
                 E1000_STATUS_LU,
-    [MANC] =    E1000_MANC_EN_MNG2HOST | E1000_MANC_RCV_TCO_EN |
+    [MANC]    = E1000_MANC_EN_MNG2HOST | E1000_MANC_RCV_TCO_EN |
                 E1000_MANC_ARP_EN | E1000_MANC_0298_EN |
                 E1000_MANC_RMCP_EN,
 };
@@ -510,17 +510,19 @@ set_eecd(E1000State *s, int index, uint32_t val)
 
     s->eecd_state.old_eecd = val & (E1000_EECD_SK | E1000_EECD_CS |
             E1000_EECD_DI|E1000_EECD_FWE_MASK|E1000_EECD_REQ);
-    if (!(E1000_EECD_CS & val))			// CS inactive; nothing to do
-	return;
-    if (E1000_EECD_CS & (val ^ oldval)) {	// CS rise edge; reset state
-	s->eecd_state.val_in = 0;
-	s->eecd_state.bitnum_in = 0;
-	s->eecd_state.bitnum_out = 0;
-	s->eecd_state.reading = 0;
-    }
-    if (!(E1000_EECD_SK & (val ^ oldval)))	// no clock edge
+    if (!(E1000_EECD_CS & val)) {            /* CS inactive; nothing to do */
         return;
-    if (!(E1000_EECD_SK & val)) {		// falling edge
+    }
+    if (E1000_EECD_CS & (val ^ oldval)) {    /* CS rise edge; reset state */
+        s->eecd_state.val_in = 0;
+        s->eecd_state.bitnum_in = 0;
+        s->eecd_state.bitnum_out = 0;
+        s->eecd_state.reading = 0;
+    }
+    if (!(E1000_EECD_SK & (val ^ oldval))) {    /* no clock edge */
+        return;
+    }
+    if (!(E1000_EECD_SK & val)) {               /* falling edge */
         s->eecd_state.bitnum_out++;
         return;
     }
@@ -621,12 +623,13 @@ xmit_seg(E1000State *s)
         css = tp->ipcss;
         DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
                frames, tp->size, css);
-        if (tp->ip) {		// IPv4
+        if (tp->ip) {    /* IPv4 */
             stw_be_p(tp->data+css+2, tp->size - css);
             stw_be_p(tp->data+css+4,
-                          be16_to_cpup((uint16_t *)(tp->data+css+4))+frames);
-        } else			// IPv6
+                     be16_to_cpup((uint16_t *)(tp->data+css+4))+frames);
+        } else {         /* IPv6 */
             stw_be_p(tp->data+css+4, tp->size - css);
+        }
         css = tp->tucss;
         len = tp->size - css;
         DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", tp->tcp, css, len);
@@ -634,8 +637,8 @@ xmit_seg(E1000State *s)
             sofar = frames * tp->mss;
             stl_be_p(tp->data+css+4, ldl_be_p(tp->data+css+4)+sofar); /* seq */
             if (tp->paylen - sofar > tp->mss)
-                tp->data[css + 13] &= ~9;		// PSH, FIN
-        } else	// UDP
+                tp->data[css + 13] &= ~9;    /* PSH, FIN */
+        } else    /* UDP */
             stw_be_p(tp->data+css+4, len);
         if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
             unsigned int phsum;
@@ -657,8 +660,10 @@ xmit_seg(E1000State *s)
         memmove(tp->data, tp->data + 4, 8);
         memcpy(tp->data + 8, tp->vlan_header, 4);
         e1000_send_packet(s, tp->vlan, tp->size + 4);
-    } else
+    } else {
         e1000_send_packet(s, tp->data, tp->size);
+    }
+
     s->mac_reg[TPT]++;
     s->mac_reg[GPTC]++;
     n = s->mac_reg[TOTL];
@@ -679,7 +684,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     struct e1000_tx *tp = &s->tx;
 
     s->mit_ide |= (txd_lower & E1000_TXD_CMD_IDE);
-    if (dtype == E1000_TXD_CMD_DEXT) {	// context descriptor
+    if (dtype == E1000_TXD_CMD_DEXT) {    /* context descriptor */
         op = le32_to_cpu(xp->cmd_and_length);
         tp->ipcss = xp->lower_setup.ip_fields.ipcss;
         tp->ipcso = xp->lower_setup.ip_fields.ipcso;
@@ -694,7 +699,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         tp->tcp = (op & E1000_TXD_CMD_TCP) ? 1 : 0;
         tp->tse = (op & E1000_TXD_CMD_TSE) ? 1 : 0;
         tp->tso_frames = 0;
-        if (tp->tucso == 0) {	// this is probably wrong
+        if (tp->tucso == 0) {    /* this is probably wrong */
             DBGOUT(TXSUM, "TCP/UDP: cso 0!\n");
             tp->tucso = tp->tucss + (tp->tcp ? 16 : 6);
         }
@@ -718,7 +723,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         stw_be_p(tp->vlan_header + 2,
                       le16_to_cpu(dp->upper.fields.special));
     }
-        
+
     addr = le64_to_cpu(dp->buffer_addr);
     if (tp->tse && tp->cptse) {
         msh = tp->hdr_len + tp->mss;
@@ -1206,41 +1211,46 @@ set_ims(E1000State *s, int index, uint32_t val)
     set_ics(s, 0, 0);
 }
 
-#define getreg(x)	[x] = mac_readreg
+#define getreg(x)    [x] = mac_readreg
 static uint32_t (*macreg_readops[])(E1000State *, int) = {
-    getreg(PBA),	getreg(RCTL),	getreg(TDH),	getreg(TXDCTL),
-    getreg(WUFC),	getreg(TDT),	getreg(CTRL),	getreg(LEDCTL),
-    getreg(MANC),	getreg(MDIC),	getreg(SWSM),	getreg(STATUS),
-    getreg(TORL),	getreg(TOTL),	getreg(IMS),	getreg(TCTL),
-    getreg(RDH),	getreg(RDT),	getreg(VET),	getreg(ICS),
-    getreg(TDBAL),	getreg(TDBAH),	getreg(RDBAH),	getreg(RDBAL),
-    getreg(TDLEN),      getreg(RDLEN),  getreg(RDTR),   getreg(RADV),
-    getreg(TADV),       getreg(ITR),
+    getreg(PBA),      getreg(RCTL),     getreg(TDH),      getreg(TXDCTL),
+    getreg(WUFC),     getreg(TDT),      getreg(CTRL),     getreg(LEDCTL),
+    getreg(MANC),     getreg(MDIC),     getreg(SWSM),     getreg(STATUS),
+    getreg(TORL),     getreg(TOTL),     getreg(IMS),      getreg(TCTL),
+    getreg(RDH),      getreg(RDT),      getreg(VET),      getreg(ICS),
+    getreg(TDBAL),    getreg(TDBAH),    getreg(RDBAH),    getreg(RDBAL),
+    getreg(TDLEN),    getreg(RDLEN),    getreg(RDTR),     getreg(RADV),
+    getreg(TADV),     getreg(ITR),
 
-    [TOTH] = mac_read_clr8,	[TORH] = mac_read_clr8,	[GPRC] = mac_read_clr4,
-    [GPTC] = mac_read_clr4,	[TPR] = mac_read_clr4,	[TPT] = mac_read_clr4,
-    [ICR] = mac_icr_read,	[EECD] = get_eecd,	[EERD] = flash_eerd_read,
-    [CRCERRS ... MPC] = &mac_readreg,
-    [RA ... RA+31] = &mac_readreg,
-    [MTA ... MTA+127] = &mac_readreg,
+    [TOTH]    = mac_read_clr8,      [TORH]    = mac_read_clr8,
+    [GPRC]    = mac_read_clr4,      [GPTC]    = mac_read_clr4,
+    [TPT]     = mac_read_clr4,      [TPR]     = mac_read_clr4,
+    [ICR]     = mac_icr_read,       [EECD]    = get_eecd,
+    [EERD]    = flash_eerd_read,
+
+    [CRCERRS ... MPC]   = &mac_readreg,
+    [RA ... RA+31]      = &mac_readreg,
+    [MTA ... MTA+127]   = &mac_readreg,
     [VFTA ... VFTA+127] = &mac_readreg,
 };
 enum { NREADOPS = ARRAY_SIZE(macreg_readops) };
 
-#define putreg(x)	[x] = mac_writereg
+#define putreg(x)    [x] = mac_writereg
 static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
-    putreg(PBA),	putreg(EERD),	putreg(SWSM),	putreg(WUFC),
-    putreg(TDBAL),	putreg(TDBAH),	putreg(TXDCTL),	putreg(RDBAH),
-    putreg(RDBAL),	putreg(LEDCTL), putreg(VET),
-    [TDLEN] = set_dlen,	[RDLEN] = set_dlen,	[TCTL] = set_tctl,
-    [TDT] = set_tctl,	[MDIC] = set_mdic,	[ICS] = set_ics,
-    [TDH] = set_16bit,	[RDH] = set_16bit,	[RDT] = set_rdt,
-    [IMC] = set_imc,	[IMS] = set_ims,	[ICR] = set_icr,
-    [EECD] = set_eecd,	[RCTL] = set_rx_control, [CTRL] = set_ctrl,
-    [RDTR] = set_16bit, [RADV] = set_16bit,     [TADV] = set_16bit,
-    [ITR] = set_16bit,
-    [RA ... RA+31] = &mac_writereg,
-    [MTA ... MTA+127] = &mac_writereg,
+    putreg(PBA),      putreg(EERD),     putreg(SWSM),     putreg(WUFC),
+    putreg(TDBAL),    putreg(TDBAH),    putreg(TXDCTL),   putreg(RDBAH),
+    putreg(RDBAL),    putreg(LEDCTL),   putreg(VET),
+
+    [TDLEN]  = set_dlen,   [RDLEN]  = set_dlen,       [TCTL] = set_tctl,
+    [TDT]    = set_tctl,   [MDIC]   = set_mdic,       [ICS]  = set_ics,
+    [TDH]    = set_16bit,  [RDH]    = set_16bit,      [RDT]  = set_rdt,
+    [IMC]    = set_imc,    [IMS]    = set_ims,        [ICR]  = set_icr,
+    [EECD]   = set_eecd,   [RCTL]   = set_rx_control, [CTRL] = set_ctrl,
+    [RDTR]   = set_16bit,  [RADV]   = set_16bit,      [TADV] = set_16bit,
+    [ITR]    = set_16bit,
+
+    [RA ... RA+31]      = &mac_writereg,
+    [MTA ... MTA+127]   = &mac_writereg,
     [VFTA ... VFTA+127] = &mac_writereg,
 };
 

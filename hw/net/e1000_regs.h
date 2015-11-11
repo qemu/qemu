@@ -158,7 +158,7 @@
 #define E1000_PHY_CTRL     0x00F10  /* PHY Control Register in CSR */
 #define FEXTNVM_SW_CONFIG  0x0001
 #define E1000_PBA      0x01000  /* Packet Buffer Allocation - RW */
-#define E1000_PBS      0x01008  /* Packet Buffer Size */
+#define E1000_PBS      0x01008  /* Packet Buffer Size - RW */
 #define E1000_EEMNGCTL 0x01010  /* MNG EEprom Control */
 #define E1000_FLASH_UPDATES 1000
 #define E1000_EEARBC   0x01024  /* EEPROM Auto Read Bus Control */
