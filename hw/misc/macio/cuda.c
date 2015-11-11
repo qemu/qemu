@@ -560,19 +560,21 @@ static void cuda_receive_packet_from_host(CUDAState *s,
     switch(data[0]) {
     case ADB_PACKET:
         {
-            uint8_t obuf[ADB_MAX_OUT_LEN + 2];
+            uint8_t obuf[ADB_MAX_OUT_LEN + 3];
             int olen;
             olen = adb_request(&s->adb_bus, obuf + 2, data + 1, len - 1);
             if (olen > 0) {
                 obuf[0] = ADB_PACKET;
                 obuf[1] = 0x00;
+                cuda_send_packet_to_host(s, obuf, olen + 2);
             } else {
                 /* error */
                 obuf[0] = ADB_PACKET;
                 obuf[1] = -olen;
+                obuf[2] = data[1];
                 olen = 0;
+                cuda_send_packet_to_host(s, obuf, olen + 3);
             }
-            cuda_send_packet_to_host(s, obuf, olen + 2);
         }
         break;
     case CUDA_PACKET:
