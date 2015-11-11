@@ -872,6 +872,7 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
     static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     static const int mta_shift[] = {4, 3, 2, 0};
     uint32_t f, rctl = s->mac_reg[RCTL], ra[2], *rp;
+    int isbcast = !memcmp(buf, bcast, sizeof bcast), ismcast = (buf[0] & 1);
 
     if (is_vlan_packet(s, buf) && vlan_rx_filter_enabled(s)) {
         uint16_t vid = be16_to_cpup((uint16_t *)(buf + 14));
@@ -881,14 +882,17 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
             return 0;
     }
 
-    if (rctl & E1000_RCTL_UPE)			// promiscuous
+    if (!isbcast && !ismcast && (rctl & E1000_RCTL_UPE)) { /* promiscuous ucast */
         return 1;
+    }
 
-    if ((buf[0] & 1) && (rctl & E1000_RCTL_MPE))	// promiscuous mcast
+    if (ismcast && (rctl & E1000_RCTL_MPE)) {          /* promiscuous mcast */
         return 1;
+    }
 
-    if ((rctl & E1000_RCTL_BAM) && !memcmp(buf, bcast, sizeof bcast))
+    if (isbcast && (rctl & E1000_RCTL_BAM)) {          /* broadcast enabled */
         return 1;
+    }
 
     for (rp = s->mac_reg + RA; rp < s->mac_reg + RA + 32; rp += 2) {
         if (!(rp[1] & E1000_RAH_AV))
