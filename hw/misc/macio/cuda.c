@@ -148,7 +148,7 @@ static uint64_t get_tb(uint64_t time, uint64_t freq)
     return muldiv64(time, freq, get_ticks_per_sec());
 }
 
-static unsigned int get_counter(CUDATimer *s)
+static unsigned int get_counter(CUDATimer *ti)
 {
     int64_t d;
     unsigned int counter;
@@ -156,19 +156,19 @@ static unsigned int get_counter(CUDATimer *s)
     uint64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
 
     /* Reverse of the tb calculation algorithm that Mac OS X uses on bootup. */
-    tb_diff = get_tb(current_time, s->frequency) - s->load_time;
-    d = (tb_diff * 0xBF401675E5DULL) / (s->frequency << 24);
+    tb_diff = get_tb(current_time, ti->frequency) - ti->load_time;
+    d = (tb_diff * 0xBF401675E5DULL) / (ti->frequency << 24);
 
-    if (s->index == 0) {
+    if (ti->index == 0) {
         /* the timer goes down from latch to -1 (period of latch + 2) */
-        if (d <= (s->counter_value + 1)) {
-            counter = (s->counter_value - d) & 0xffff;
+        if (d <= (ti->counter_value + 1)) {
+            counter = (ti->counter_value - d) & 0xffff;
         } else {
-            counter = (d - (s->counter_value + 1)) % (s->latch + 2);
-            counter = (s->latch - counter) & 0xffff;
+            counter = (d - (ti->counter_value + 1)) % (ti->latch + 2);
+            counter = (ti->latch - counter) & 0xffff;
         }
     } else {
-        counter = (s->counter_value - d) & 0xffff;
+        counter = (ti->counter_value - d) & 0xffff;
     }
     return counter;
 }
