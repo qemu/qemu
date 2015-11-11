@@ -371,11 +371,12 @@ static void ppc_core99_init(MachineState *machine)
         /* 970 gets a U3 bus */
         pci_bus = pci_pmac_u3_init(pic, get_system_memory(), get_system_io());
         machine_arch = ARCH_MAC99_U3;
-        machine->usb |= defaults_enabled() && !machine->usb_disabled;
     } else {
         pci_bus = pci_pmac_init(pic, get_system_memory(), get_system_io());
         machine_arch = ARCH_MAC99;
     }
+
+    machine->usb |= defaults_enabled() && !machine->usb_disabled;
 
     /* Timebase Frequency */
     if (kvm_enabled()) {
