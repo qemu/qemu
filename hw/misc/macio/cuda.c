@@ -136,7 +136,7 @@ static void cuda_timer_update(CUDAState *s, CUDATimer *ti,
 
 static void cuda_update_irq(CUDAState *s)
 {
-    if (s->ifr & s->ier & (SR_INT | T1_INT)) {
+    if (s->ifr & s->ier & (SR_INT | T1_INT | T2_INT)) {
         qemu_irq_raise(s->irq);
     } else {
         qemu_irq_lower(s->irq);
@@ -175,7 +175,7 @@ static unsigned int get_counter(CUDATimer *ti)
 
 static void set_counter(CUDAState *s, CUDATimer *ti, unsigned int val)
 {
-    CUDA_DPRINTF("T%d.counter=%d\n", 1 + (ti->timer == NULL), val);
+    CUDA_DPRINTF("T%d.counter=%d\n", 1 + ti->index, val);
     ti->load_time = get_tb(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
                            s->frequency);
     ti->counter_value = val;
@@ -220,7 +220,7 @@ static void cuda_timer_update(CUDAState *s, CUDATimer *ti,
 {
     if (!ti->timer)
         return;
-    if ((s->acr & T1MODE) != T1MODE_CONT) {
+    if (ti->index == 0 && (s->acr & T1MODE) != T1MODE_CONT) {
         timer_del(ti->timer);
     } else {
         ti->next_irq_time = get_next_irq_time(ti, current_time);
@@ -235,6 +235,16 @@ static void cuda_timer1(void *opaque)
 
     cuda_timer_update(s, ti, ti->next_irq_time);
     s->ifr |= T1_INT;
+    cuda_update_irq(s);
+}
+
+static void cuda_timer2(void *opaque)
+{
+    CUDAState *s = opaque;
+    CUDATimer *ti = &s->timers[1];
+
+    cuda_timer_update(s, ti, ti->next_irq_time);
+    s->ifr |= T2_INT;
     cuda_update_irq(s);
 }
 
@@ -276,6 +286,7 @@ static uint32_t cuda_readb(void *opaque, hwaddr addr)
     case CUDA_REG_T2CL:
         val = get_counter(&s->timers[1]) & 0xff;
         s->ifr &= ~T2_INT;
+        cuda_update_irq(s);
         break;
     case CUDA_REG_T2CH:
         val = get_counter(&s->timers[1]) >> 8;
@@ -352,11 +363,15 @@ static void cuda_writeb(void *opaque, hwaddr addr, uint32_t val)
         cuda_timer_update(s, &s->timers[0], qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL));
         break;
     case CUDA_REG_T2CL:
-        s->timers[1].latch = val;
-        set_counter(s, &s->timers[1], val);
+        s->timers[1].latch = (s->timers[1].latch & 0xff00) | val;
         break;
     case CUDA_REG_T2CH:
-        set_counter(s, &s->timers[1], (val << 8) | s->timers[1].latch);
+        /* To ensure T2 generates an interrupt on zero crossing with the
+           common timer code, write the value directly from the latch to
+           the counter */
+        s->timers[1].latch = (s->timers[1].latch & 0xff) | (val << 8);
+        s->ifr &= ~T2_INT;
+        set_counter(s, &s->timers[1], s->timers[1].latch);
         break;
     case CUDA_REG_SR:
         s->sr = val;
@@ -719,8 +734,7 @@ static void cuda_reset(DeviceState *dev)
     s->timers[0].latch = 0xffff;
     set_counter(s, &s->timers[0], 0xffff);
 
-    s->timers[1].latch = 0;
-    set_counter(s, &s->timers[1], 0xffff);
+    s->timers[1].latch = 0xffff;
 }
 
 static void cuda_realizefn(DeviceState *dev, Error **errp)
@@ -730,7 +744,8 @@ static void cuda_realizefn(DeviceState *dev, Error **errp)
 
     s->timers[0].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_timer1, s);
     s->timers[0].frequency = s->frequency;
-    s->timers[1].frequency = s->frequency;
+    s->timers[1].timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_timer2, s);
+    s->timers[1].frequency = (SCALE_US * 6000) / 4700;
 
     qemu_get_timedate(&tm, 0);
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
