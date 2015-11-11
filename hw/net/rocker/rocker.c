@@ -101,8 +101,7 @@ RockerSwitch *qmp_query_rocker(const char *name, Error **errp)
 
     r = rocker_find(name);
     if (!r) {
-        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-                  "rocker %s not found", name);
+        error_setg(errp, "rocker %s not found", name);
         return NULL;
     }
 
@@ -122,8 +121,7 @@ RockerPortList *qmp_query_rocker_ports(const char *name, Error **errp)
 
     r = rocker_find(name);
     if (!r) {
-        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-                  "rocker %s not found", name);
+        error_setg(errp, "rocker %s not found", name);
         return NULL;
     }
 
