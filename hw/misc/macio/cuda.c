@@ -480,7 +480,7 @@ static void cuda_adb_poll(void *opaque)
 static void cuda_receive_packet(CUDAState *s,
                                 const uint8_t *data, int len)
 {
-    uint8_t obuf[16];
+    uint8_t obuf[16] = { CUDA_PACKET, 0, data[0] };
     int autopoll;
     uint32_t ti;
 
@@ -497,23 +497,15 @@ static void cuda_receive_packet(CUDAState *s,
                 timer_del(s->adb_poll_timer);
             }
         }
-        obuf[0] = CUDA_PACKET;
-        obuf[1] = data[1];
-        cuda_send_packet_to_host(s, obuf, 2);
+        cuda_send_packet_to_host(s, obuf, 3);
         break;
     case CUDA_SET_TIME:
         ti = (((uint32_t)data[1]) << 24) + (((uint32_t)data[2]) << 16) + (((uint32_t)data[3]) << 8) + data[4];
         s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
-        obuf[0] = CUDA_PACKET;
-        obuf[1] = 0;
-        obuf[2] = 0;
         cuda_send_packet_to_host(s, obuf, 3);
         break;
     case CUDA_GET_TIME:
         ti = s->tick_offset + (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
-        obuf[0] = CUDA_PACKET;
-        obuf[1] = 0;
-        obuf[2] = 0;
         obuf[3] = ti >> 24;
         obuf[4] = ti >> 16;
         obuf[5] = ti >> 8;
@@ -524,20 +516,14 @@ static void cuda_receive_packet(CUDAState *s,
     case CUDA_SET_DEVICE_LIST:
     case CUDA_SET_AUTO_RATE:
     case CUDA_SET_POWER_MESSAGES:
-        obuf[0] = CUDA_PACKET;
-        obuf[1] = 0;
-        cuda_send_packet_to_host(s, obuf, 2);
+        cuda_send_packet_to_host(s, obuf, 3);
         break;
     case CUDA_POWERDOWN:
-        obuf[0] = CUDA_PACKET;
-        obuf[1] = 0;
-        cuda_send_packet_to_host(s, obuf, 2);
+        cuda_send_packet_to_host(s, obuf, 3);
         qemu_system_shutdown_request();
         break;
     case CUDA_RESET_SYSTEM:
-        obuf[0] = CUDA_PACKET;
-        obuf[1] = 0;
-        cuda_send_packet_to_host(s, obuf, 2);
+        cuda_send_packet_to_host(s, obuf, 3);
         qemu_system_reset_request();
         break;
     default:
