@@ -2027,28 +2027,28 @@ static void select_vgahw (const char *p)
             vga_interface_type = VGA_STD;
         } else {
             error_report("standard VGA not available");
-            exit(0);
+            exit(1);
         }
     } else if (strstart(p, "cirrus", &opts)) {
         if (cirrus_vga_available()) {
             vga_interface_type = VGA_CIRRUS;
         } else {
             error_report("Cirrus VGA not available");
-            exit(0);
+            exit(1);
         }
     } else if (strstart(p, "vmware", &opts)) {
         if (vmware_vga_available()) {
             vga_interface_type = VGA_VMWARE;
         } else {
             error_report("VMWare SVGA not available");
-            exit(0);
+            exit(1);
         }
     } else if (strstart(p, "virtio", &opts)) {
         if (virtio_vga_available()) {
             vga_interface_type = VGA_VIRTIO;
         } else {
             error_report("Virtio VGA not available");
-            exit(0);
+            exit(1);
         }
     } else if (strstart(p, "xenfb", &opts)) {
         vga_interface_type = VGA_XENFB;
@@ -2057,21 +2057,21 @@ static void select_vgahw (const char *p)
             vga_interface_type = VGA_QXL;
         } else {
             error_report("QXL VGA not available");
-            exit(0);
+            exit(1);
         }
     } else if (strstart(p, "tcx", &opts)) {
         if (tcx_vga_available()) {
             vga_interface_type = VGA_TCX;
         } else {
             error_report("TCX framebuffer not available");
-            exit(0);
+            exit(1);
         }
     } else if (strstart(p, "cg3", &opts)) {
         if (cg3_vga_available()) {
             vga_interface_type = VGA_CG3;
         } else {
             error_report("CG3 framebuffer not available");
-            exit(0);
+            exit(1);
         }
     } else if (!strstart(p, "none", &opts)) {
     invalid_vga:
