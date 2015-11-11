@@ -248,6 +248,31 @@ static void cuda_timer2(void *opaque)
     cuda_update_irq(s);
 }
 
+static void cuda_set_sr_int(void *opaque)
+{
+    CUDAState *s = opaque;
+
+    CUDA_DPRINTF("CUDA: %s:%d\n", __func__, __LINE__);
+    s->ifr |= SR_INT;
+    cuda_update_irq(s);
+}
+
+static void cuda_delay_set_sr_int(CUDAState *s)
+{
+    int64_t expire;
+
+    if (s->dirb == 0xff) {
+        /* Not in Mac OS, fire the IRQ directly */
+        cuda_set_sr_int(s);
+        return;
+    }
+
+    CUDA_DPRINTF("CUDA: %s:%d\n", __func__, __LINE__);
+
+    expire = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 300 * SCALE_US;
+    timer_mod(s->sr_delay_timer, expire);
+}
+
 static uint32_t cuda_readb(void *opaque, hwaddr addr)
 {
     CUDAState *s = opaque;
@@ -421,8 +446,7 @@ static void cuda_update(CUDAState *s)
                 if (s->data_out_index < sizeof(s->data_out)) {
                     CUDA_DPRINTF("send: %02x\n", s->sr);
                     s->data_out[s->data_out_index++] = s->sr;
-                    s->ifr |= SR_INT;
-                    cuda_update_irq(s);
+                    cuda_delay_set_sr_int(s);
                 }
             }
         } else {
@@ -435,8 +459,7 @@ static void cuda_update(CUDAState *s)
                     if (s->data_in_index >= s->data_in_size) {
                         s->b = (s->b | TREQ);
                     }
-                    s->ifr |= SR_INT;
-                    cuda_update_irq(s);
+                    cuda_delay_set_sr_int(s);
                 }
             }
         }
@@ -448,15 +471,13 @@ static void cuda_update(CUDAState *s)
                 s->b = (s->b | TREQ);
             else
                 s->b = (s->b & ~TREQ);
-            s->ifr |= SR_INT;
-            cuda_update_irq(s);
+            cuda_delay_set_sr_int(s);
         } else {
             if (!(s->last_b & TIP)) {
                 /* handle end of host to cuda transfer */
                 packet_received = (s->data_out_index > 0);
                 /* always an IRQ at the end of transfer */
-                s->ifr |= SR_INT;
-                cuda_update_irq(s);
+                cuda_delay_set_sr_int(s);
             }
             /* signal if there is data to read */
             if (s->data_in_index < s->data_in_size) {
@@ -493,8 +514,7 @@ static void cuda_send_packet_to_host(CUDAState *s,
     s->data_in_size = len;
     s->data_in_index = 0;
     cuda_update(s);
-    s->ifr |= SR_INT;
-    cuda_update_irq(s);
+    cuda_delay_set_sr_int(s);
 }
 
 static void cuda_adb_poll(void *opaque)
@@ -717,7 +737,7 @@ static void cuda_reset(DeviceState *dev)
 
     s->b = 0;
     s->a = 0;
-    s->dirb = 0;
+    s->dirb = 0xff;
     s->dira = 0;
     s->sr = 0;
     s->acr = 0;
@@ -735,6 +755,8 @@ static void cuda_reset(DeviceState *dev)
     set_counter(s, &s->timers[0], 0xffff);
 
     s->timers[1].latch = 0xffff;
+
+    s->sr_delay_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, cuda_set_sr_int, s);
 }
 
 static void cuda_realizefn(DeviceState *dev, Error **errp)

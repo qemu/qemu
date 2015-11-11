@@ -103,6 +103,9 @@ typedef struct CUDAState {
     uint8_t last_b;
     uint8_t last_acr;
 
+    /* MacOS 9 is racy and requires a delay upon setting the SR_INT bit */
+    QEMUTimer *sr_delay_timer;
+
     int data_in_size;
     int data_in_index;
     int data_out_index;
