@@ -22,6 +22,15 @@
 # what's there), not interface specification.  The specification is in
 # the QAPI schema.
 #
+# Furthermore, while we strive to keep the QMP wire format
+# backwards-compatible across qemu versions, the introspection output
+# is not guaranteed to have the same stability.  For example, one
+# version of qemu may list an object member as an optional
+# non-variant, while another lists the same member only through the
+# object's variants; or the type of a member may change from a generic
+# string into a specific enum or from one specific type into an
+# alternate that includes the original type alongside something else.
+#
 # Returns: array of @SchemaInfo, where each element describes an
 # entity in the ABI: command, event, type, ...
 #

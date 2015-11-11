@@ -514,6 +514,17 @@ exactly the server (QEMU) supports.
 For this purpose, QMP provides introspection via command
 query-qmp-schema.  QGA currently doesn't support introspection.
 
+While Client JSON Protocol wire compatibility should be maintained
+between qemu versions, we cannot make the same guarantees for
+introspection stability.  For example, one version of qemu may provide
+a non-variant optional member of a struct, and a later version rework
+the member to instead be non-optional and associated with a variant.
+Likewise, one version of qemu may list a member with open-ended type
+'str', and a later version could convert it to a finite set of strings
+via an enum type; or a member may be converted from a specific type to
+an alternate that represents a choice between the original type and
+something else.
+
 query-qmp-schema returns a JSON array of SchemaInfo objects.  These
 objects together describe the wire ABI, as defined in the QAPI schema.
 There is no specified order to the SchemaInfo objects returned; a
