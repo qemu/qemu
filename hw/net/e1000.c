@@ -135,8 +135,10 @@ typedef struct E1000State_st {
 /* Compatibility flags for migration to/from qemu 1.3.0 and older */
 #define E1000_FLAG_AUTONEG_BIT 0
 #define E1000_FLAG_MIT_BIT 1
+#define E1000_FLAG_MAC_BIT 2
 #define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
 #define E1000_FLAG_MIT (1 << E1000_FLAG_MIT_BIT)
+#define E1000_FLAG_MAC (1 << E1000_FLAG_MAC_BIT)
     uint32_t compat_flags;
 } E1000State;
 
@@ -1380,6 +1382,13 @@ static bool e1000_mit_state_needed(void *opaque)
     return s->compat_flags & E1000_FLAG_MIT;
 }
 
+static bool e1000_full_mac_needed(void *opaque)
+{
+    E1000State *s = opaque;
+
+    return s->compat_flags & E1000_FLAG_MAC;
+}
+
 static const VMStateDescription vmstate_e1000_mit_state = {
     .name = "e1000/mit_state",
     .version_id = 1,
@@ -1391,6 +1400,17 @@ static const VMStateDescription vmstate_e1000_mit_state = {
         VMSTATE_UINT32(mac_reg[TADV], E1000State),
         VMSTATE_UINT32(mac_reg[ITR], E1000State),
         VMSTATE_BOOL(mit_irq_level, E1000State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_e1000_full_mac_state = {
+    .name = "e1000/full_mac_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = e1000_full_mac_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(mac_reg, E1000State, 0x8000),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1474,6 +1494,7 @@ static const VMStateDescription vmstate_e1000 = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_e1000_mit_state,
+        &vmstate_e1000_full_mac_state,
         NULL
     }
 };
