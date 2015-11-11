@@ -1981,46 +1981,12 @@ static const QEMUOption qemu_options[] = {
     { NULL },
 };
 
-static bool vga_available(void)
-{
-    return object_class_by_name("VGA") || object_class_by_name("isa-vga");
-}
-
-static bool cirrus_vga_available(void)
-{
-    return object_class_by_name("cirrus-vga")
-           || object_class_by_name("isa-cirrus-vga");
-}
-
-static bool vmware_vga_available(void)
-{
-    return object_class_by_name("vmware-svga");
-}
-
-static bool qxl_vga_available(void)
-{
-    return object_class_by_name("qxl-vga");
-}
-
-static bool tcx_vga_available(void)
-{
-    return object_class_by_name("SUNW,tcx");
-}
-
-static bool cg3_vga_available(void)
-{
-    return object_class_by_name("cgthree");
-}
-
-static bool virtio_vga_available(void)
-{
-    return object_class_by_name("virtio-vga");
-}
-
 typedef struct VGAInterfaceInfo {
     const char *opt_name;    /* option name */
     const char *name;        /* human-readable name */
-    bool (*available)(void);
+    /* Class names indicating that support is available.
+     * If no class is specified, the interface is always available */
+    const char *class_names[2];
 } VGAInterfaceInfo;
 
 static VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
@@ -2030,42 +1996,52 @@ static VGAInterfaceInfo vga_interfaces[VGA_TYPE_MAX] = {
     [VGA_STD] = {
         .opt_name = "std",
         .name = "standard VGA",
-        .available = vga_available,
+        .class_names = { "VGA", "isa-vga" },
     },
     [VGA_CIRRUS] = {
         .opt_name = "cirrus",
         .name = "Cirrus VGA",
-        .available = cirrus_vga_available,
+        .class_names = { "cirrus-vga", "isa-cirrus-vga" },
     },
     [VGA_VMWARE] = {
         .opt_name = "vmware",
         .name = "VMWare SVGA",
-        .available = vmware_vga_available,
+        .class_names = { "vmware-svga" },
     },
     [VGA_VIRTIO] = {
         .opt_name = "virtio",
         .name = "Virtio VGA",
-        .available = virtio_vga_available,
+        .class_names = { "virtio-vga" },
     },
     [VGA_QXL] = {
         .opt_name = "qxl",
         .name = "QXL VGA",
-        .available = qxl_vga_available,
+        .class_names = { "qxl-vga" },
     },
     [VGA_TCX] = {
         .opt_name = "tcx",
         .name = "TCX framebuffer",
-        .available = tcx_vga_available,
+        .class_names = { "SUNW,tcx" },
     },
     [VGA_CG3] = {
         .opt_name = "cg3",
         .name = "CG3 framebuffer",
-        .available = cg3_vga_available,
+        .class_names = { "cgthree" },
     },
     [VGA_XENFB] = {
         .opt_name = "xenfb",
     },
 };
+
+static bool vga_interface_available(VGAInterfaceType t)
+{
+    VGAInterfaceInfo *ti = &vga_interfaces[t];
+
+    assert(t < VGA_TYPE_MAX);
+    return !ti->class_names[0] ||
+           object_class_by_name(ti->class_names[0]) ||
+           object_class_by_name(ti->class_names[1]);
+}
 
 static void select_vgahw(const char *p)
 {
@@ -2076,7 +2052,7 @@ static void select_vgahw(const char *p)
     for (t = 0; t < VGA_TYPE_MAX; t++) {
         VGAInterfaceInfo *ti = &vga_interfaces[t];
         if (ti->opt_name && strstart(p, ti->opt_name, &opts)) {
-            if (ti->available && !ti->available()) {
+            if (!vga_interface_available(t)) {
                 error_report("%s not available", ti->name);
                 exit(1);
             }
@@ -4492,9 +4468,9 @@ int main(int argc, char **argv, char **envp)
     if (default_vga) {
         if (machine_class->default_display) {
             vga_model = machine_class->default_display;
-        } else if (cirrus_vga_available()) {
+        } else if (vga_interface_available(VGA_CIRRUS)) {
             vga_model = "cirrus";
-        } else if (vga_available()) {
+        } else if (vga_interface_available(VGA_STD)) {
             vga_model = "std";
         }
     }
