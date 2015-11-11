@@ -57,6 +57,8 @@
 #define IER_SET		0x80		/* set bits in IER */
 #define IER_CLR		0		/* clear bits in IER */
 #define SR_INT		0x04		/* Shift register full/empty */
+#define SR_DATA_INT	0x08
+#define SR_CLOCK_INT	0x10
 #define T1_INT          0x40            /* Timer 1 interrupt */
 #define T2_INT          0x20            /* Timer 2 interrupt */
 
@@ -261,7 +263,7 @@ static uint32_t cuda_readb(void *opaque, hwaddr addr)
         break;
     case 10:
         val = s->sr;
-        s->ifr &= ~SR_INT;
+        s->ifr &= ~(SR_INT | SR_CLOCK_INT | SR_DATA_INT);
         cuda_update_irq(s);
         break;
     case 11:
