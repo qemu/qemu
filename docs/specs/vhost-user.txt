@@ -98,6 +98,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_state state;
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
+        VhostUserLog log;
     };
 } QEMU_PACKED VhostUserMsg;
 
@@ -282,7 +283,12 @@ Message types
       Master payload: u64
       Slave payload: N/A
 
-      Sets the logging base address.
+      Sets logging shared memory space.
+      When slave has VHOST_USER_PROTOCOL_F_LOG_SHMFD protocol
+      feature, the log memory fd is provided in the ancillary data of
+      VHOST_USER_SET_LOG_BASE message, the size and offset of shared
+      memory area provided in the message.
+
 
  * VHOST_USER_SET_LOG_FD
 

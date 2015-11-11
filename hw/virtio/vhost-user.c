@@ -75,6 +75,11 @@ typedef struct VhostUserMemory {
     VhostUserMemoryRegion regions[VHOST_MEMORY_MAX_NREGIONS];
 } VhostUserMemory;
 
+typedef struct VhostUserLog {
+    uint64_t mmap_size;
+    uint64_t mmap_offset;
+} VhostUserLog;
+
 typedef struct VhostUserMsg {
     VhostUserRequest request;
 
@@ -89,6 +94,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_state state;
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
+        VhostUserLog log;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
@@ -200,8 +206,9 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     VhostUserMsg msg = {
         .request = VHOST_USER_SET_LOG_BASE,
         .flags = VHOST_USER_VERSION,
-        .payload.u64 = base,
-        .size = sizeof(msg.payload.u64),
+        .payload.log.mmap_size = log->size,
+        .payload.log.mmap_offset = 0,
+        .size = sizeof(msg.payload.log),
     };
 
     if (shmfd && log->fd != -1) {

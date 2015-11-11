@@ -86,6 +86,11 @@ typedef struct VhostUserMemory {
     VhostUserMemoryRegion regions[VHOST_MEMORY_MAX_NREGIONS];
 } VhostUserMemory;
 
+typedef struct VhostUserLog {
+    uint64_t mmap_size;
+    uint64_t mmap_offset;
+} VhostUserLog;
+
 typedef struct VhostUserMsg {
     VhostUserRequest request;
 
@@ -94,10 +99,13 @@ typedef struct VhostUserMsg {
     uint32_t flags;
     uint32_t size; /* the following payload size */
     union {
+#define VHOST_USER_VRING_IDX_MASK   (0xff)
+#define VHOST_USER_VRING_NOFD_MASK  (0x1<<8)
         uint64_t u64;
         struct vhost_vring_state state;
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
+        VhostUserLog log;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
