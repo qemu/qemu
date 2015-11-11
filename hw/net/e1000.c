@@ -37,6 +37,8 @@
 
 #include "e1000_regs.h"
 
+static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
 #define E1000_DEBUG
 
 #ifdef E1000_DEBUG
@@ -182,7 +184,13 @@ enum {
     defreg(DC),      defreg(TNCRS),   defreg(SEC),     defreg(CEXTERR),
     defreg(RLEC),    defreg(XONRXC),  defreg(XONTXC),  defreg(XOFFRXC),
     defreg(XOFFTXC), defreg(RFC),     defreg(RJC),     defreg(RNBC),
-    defreg(TSCTFC),  defreg(MGTPRC),  defreg(MGTPDC),  defreg(MGTPTC)
+    defreg(TSCTFC),  defreg(MGTPRC),  defreg(MGTPDC),  defreg(MGTPTC),
+    defreg(RUC),     defreg(ROC),     defreg(GORCL),   defreg(GORCH),
+    defreg(GOTCL),   defreg(GOTCH),   defreg(BPRC),    defreg(MPRC),
+    defreg(TSCTC),   defreg(PRC64),   defreg(PRC127),  defreg(PRC255),
+    defreg(PRC511),  defreg(PRC1023), defreg(PRC1522), defreg(PTC64),
+    defreg(PTC127),  defreg(PTC255),  defreg(PTC511),  defreg(PTC1023),
+    defreg(PTC1522), defreg(MPTC),    defreg(BPTC)
 };
 
 static void
@@ -588,6 +596,16 @@ inc_reg_if_not_full(E1000State *s, int index)
     }
 }
 
+static inline void
+inc_tx_bcast_or_mcast_count(E1000State *s, const unsigned char *arr)
+{
+    if (!memcmp(arr, bcast, sizeof bcast)) {
+        inc_reg_if_not_full(s, BPTC);
+    } else if (arr[0] & 1) {
+        inc_reg_if_not_full(s, MPTC);
+    }
+}
+
 static void
 grow_8reg_if_not_full(E1000State *s, int index, int size)
 {
@@ -600,6 +618,24 @@ grow_8reg_if_not_full(E1000State *s, int index, int size)
     }
     s->mac_reg[index] = sum;
     s->mac_reg[index+1] = sum >> 32;
+}
+
+static void
+increase_size_stats(E1000State *s, const int *size_regs, int size)
+{
+    if (size > 1023) {
+        inc_reg_if_not_full(s, size_regs[5]);
+    } else if (size > 511) {
+        inc_reg_if_not_full(s, size_regs[4]);
+    } else if (size > 255) {
+        inc_reg_if_not_full(s, size_regs[3]);
+    } else if (size > 127) {
+        inc_reg_if_not_full(s, size_regs[2]);
+    } else if (size > 64) {
+        inc_reg_if_not_full(s, size_regs[1]);
+    } else if (size == 64) {
+        inc_reg_if_not_full(s, size_regs[0]);
+    }
 }
 
 static inline int
@@ -639,12 +675,17 @@ fcs_len(E1000State *s)
 static void
 e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
 {
+    static const int PTCregs[6] = { PTC64, PTC127, PTC255, PTC511,
+                                    PTC1023, PTC1522 };
+
     NetClientState *nc = qemu_get_queue(s->nic);
     if (s->phy_reg[PHY_CTRL] & MII_CR_LOOPBACK) {
         nc->info->receive(nc, buf, size);
     } else {
         qemu_send_packet(nc, buf, size);
     }
+    inc_tx_bcast_or_mcast_count(s, buf);
+    increase_size_stats(s, PTCregs, size);
 }
 
 static void
@@ -671,8 +712,11 @@ xmit_seg(E1000State *s)
         if (tp->tcp) {
             sofar = frames * tp->mss;
             stl_be_p(tp->data+css+4, ldl_be_p(tp->data+css+4)+sofar); /* seq */
-            if (tp->paylen - sofar > tp->mss)
+            if (tp->paylen - sofar > tp->mss) {
                 tp->data[css + 13] &= ~9;    /* PSH, FIN */
+            } else if (frames) {
+                inc_reg_if_not_full(s, TSCTC);
+            }
         } else    /* UDP */
             stw_be_p(tp->data+css+4, len);
         if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
@@ -702,6 +746,8 @@ xmit_seg(E1000State *s)
     inc_reg_if_not_full(s, TPT);
     grow_8reg_if_not_full(s, TOTL, s->tx.size);
     s->mac_reg[GPTC] = s->mac_reg[TPT];
+    s->mac_reg[GOTCL] = s->mac_reg[TOTL];
+    s->mac_reg[GOTCH] = s->mac_reg[TOTH];
 }
 
 static void
@@ -869,7 +915,6 @@ start_xmit(E1000State *s)
 static int
 receive_filter(E1000State *s, const uint8_t *buf, int size)
 {
-    static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     static const int mta_shift[] = {4, 3, 2, 0};
     uint32_t f, rctl = s->mac_reg[RCTL], ra[2], *rp;
     int isbcast = !memcmp(buf, bcast, sizeof bcast), ismcast = (buf[0] & 1);
@@ -887,10 +932,12 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
     }
 
     if (ismcast && (rctl & E1000_RCTL_MPE)) {          /* promiscuous mcast */
+        inc_reg_if_not_full(s, MPRC);
         return 1;
     }
 
     if (isbcast && (rctl & E1000_RCTL_BAM)) {          /* broadcast enabled */
+        inc_reg_if_not_full(s, BPRC);
         return 1;
     }
 
@@ -912,8 +959,10 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
 
     f = mta_shift[(rctl >> E1000_RCTL_MO_SHIFT) & 3];
     f = (((buf[5] << 8) | buf[4]) >> f) & 0xfff;
-    if (s->mac_reg[MTA + (f >> 5)] & (1 << (f & 0x1f)))
+    if (s->mac_reg[MTA + (f >> 5)] & (1 << (f & 0x1f))) {
+        inc_reg_if_not_full(s, MPRC);
         return 1;
+    }
     DBGOUT(RXFILTER,
            "dropping, inexact filter mismatch: %02x:%02x:%02x:%02x:%02x:%02x MO %d MTA[%d] %x\n",
            buf[0], buf[1], buf[2], buf[3], buf[4], buf[5],
@@ -1002,6 +1051,8 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     size_t desc_offset;
     size_t desc_size;
     size_t total_size;
+    static const int PRCregs[6] = { PRC64, PRC127, PRC255, PRC511,
+                                    PRC1023, PRC1522 };
 
     if (!(s->mac_reg[STATUS] & E1000_STATUS_LU)) {
         return -1;
@@ -1015,6 +1066,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     if (size < sizeof(min_buf)) {
         iov_to_buf(iov, iovcnt, 0, min_buf, size);
         memset(&min_buf[size], 0, sizeof(min_buf) - size);
+        inc_reg_if_not_full(s, RUC);
         min_iov.iov_base = filter_buf = min_buf;
         min_iov.iov_len = size = sizeof(min_buf);
         iovcnt = 1;
@@ -1030,6 +1082,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         (size > MAXIMUM_ETHERNET_VLAN_SIZE
         && !(s->mac_reg[RCTL] & E1000_RCTL_LPE)))
         && !(s->mac_reg[RCTL] & E1000_RCTL_SBP)) {
+        inc_reg_if_not_full(s, ROC);
         return size;
     }
 
@@ -1115,6 +1168,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         }
     } while (desc_offset < total_size);
 
+    increase_size_stats(s, PRCregs, total_size);
     inc_reg_if_not_full(s, TPR);
     s->mac_reg[GPRC] = s->mac_reg[TPR];
     /* TOR - Total Octets Received:
@@ -1123,6 +1177,8 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
      * Always include FCS length (4) in size.
      */
     grow_8reg_if_not_full(s, TORL, size+4);
+    s->mac_reg[GORCL] = s->mac_reg[TORL];
+    s->mac_reg[GORCH] = s->mac_reg[TORH];
 
     n = E1000_ICS_RXT0;
     if ((rdt = s->mac_reg[RDT]) < s->mac_reg[RDH])
@@ -1285,11 +1341,23 @@ static uint32_t (*macreg_readops[])(E1000State *, int) = {
     getreg(TNCRS),    getreg(SEC),      getreg(CEXTERR),  getreg(RLEC),
     getreg(XONRXC),   getreg(XONTXC),   getreg(XOFFRXC),  getreg(XOFFTXC),
     getreg(RFC),      getreg(RJC),      getreg(RNBC),     getreg(TSCTFC),
-    getreg(MGTPRC),   getreg(MGTPDC),   getreg(MGTPTC),
+    getreg(MGTPRC),   getreg(MGTPDC),   getreg(MGTPTC),   getreg(GORCL),
+    getreg(GOTCL),
 
     [TOTH]    = mac_read_clr8,      [TORH]    = mac_read_clr8,
+    [GOTCH]   = mac_read_clr8,      [GORCH]   = mac_read_clr8,
+    [PRC64]   = mac_read_clr4,      [PRC127]  = mac_read_clr4,
+    [PRC255]  = mac_read_clr4,      [PRC511]  = mac_read_clr4,
+    [PRC1023] = mac_read_clr4,      [PRC1522] = mac_read_clr4,
+    [PTC64]   = mac_read_clr4,      [PTC127]  = mac_read_clr4,
+    [PTC255]  = mac_read_clr4,      [PTC511]  = mac_read_clr4,
+    [PTC1023] = mac_read_clr4,      [PTC1522] = mac_read_clr4,
     [GPRC]    = mac_read_clr4,      [GPTC]    = mac_read_clr4,
     [TPT]     = mac_read_clr4,      [TPR]     = mac_read_clr4,
+    [RUC]     = mac_read_clr4,      [ROC]     = mac_read_clr4,
+    [BPRC]    = mac_read_clr4,      [MPRC]    = mac_read_clr4,
+    [TSCTC]   = mac_read_clr4,      [BPTC]    = mac_read_clr4,
+    [MPTC]    = mac_read_clr4,
     [ICR]     = mac_icr_read,       [EECD]    = get_eecd,
     [EERD]    = flash_eerd_read,
     [RDFH]    = mac_low13_read,     [RDFT]    = mac_low13_read,
@@ -1370,6 +1438,18 @@ static const uint8_t mac_reg_access[0x8000] = {
     [XONTXC]  = markflag(MAC),    [XOFFRXC] = markflag(MAC),
     [RJC]     = markflag(MAC),    [RNBC]    = markflag(MAC),
     [MGTPDC]  = markflag(MAC),    [MGTPTC]  = markflag(MAC),
+    [RUC]     = markflag(MAC),    [ROC]     = markflag(MAC),
+    [GORCL]   = markflag(MAC),    [GORCH]   = markflag(MAC),
+    [GOTCL]   = markflag(MAC),    [GOTCH]   = markflag(MAC),
+    [BPRC]    = markflag(MAC),    [MPRC]    = markflag(MAC),
+    [TSCTC]   = markflag(MAC),    [PRC64]   = markflag(MAC),
+    [PRC127]  = markflag(MAC),    [PRC255]  = markflag(MAC),
+    [PRC511]  = markflag(MAC),    [PRC1023] = markflag(MAC),
+    [PRC1522] = markflag(MAC),    [PTC64]   = markflag(MAC),
+    [PTC127]  = markflag(MAC),    [PTC255]  = markflag(MAC),
+    [PTC511]  = markflag(MAC),    [PTC1023] = markflag(MAC),
+    [PTC1522] = markflag(MAC),    [MPTC]    = markflag(MAC),
+    [BPTC]    = markflag(MAC),
 
     [TDFH]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
     [TDFT]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
