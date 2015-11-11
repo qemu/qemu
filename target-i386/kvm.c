@@ -86,6 +86,7 @@ static bool has_msr_hv_crash;
 static bool has_msr_hv_reset;
 static bool has_msr_hv_vpindex;
 static bool has_msr_hv_runtime;
+static bool has_msr_hv_synic;
 static bool has_msr_mtrr;
 static bool has_msr_xss;
 
@@ -521,7 +522,8 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_crash ||
             cpu->hyperv_reset ||
             cpu->hyperv_vpindex ||
-            cpu->hyperv_runtime);
+            cpu->hyperv_runtime ||
+            cpu->hyperv_synic);
 }
 
 static Error *invtsc_mig_blocker;
@@ -609,6 +611,21 @@ int kvm_arch_init_vcpu(CPUState *cs)
         }
         if (cpu->hyperv_runtime && has_msr_hv_runtime) {
             c->eax |= HV_X64_MSR_VP_RUNTIME_AVAILABLE;
+        }
+        if (cpu->hyperv_synic) {
+            int sint;
+
+            if (!has_msr_hv_synic ||
+                kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_SYNIC, 0)) {
+                fprintf(stderr, "Hyper-V SynIC is not supported by kernel\n");
+                return -ENOSYS;
+            }
+
+            c->eax |= HV_X64_MSR_SYNIC_AVAILABLE;
+            env->msr_hv_synic_version = HV_SYNIC_VERSION_1;
+            for (sint = 0; sint < ARRAY_SIZE(env->msr_hv_synic_sint); sint++) {
+                env->msr_hv_synic_sint[sint] = HV_SYNIC_SINT_MASKED;
+            }
         }
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
@@ -954,6 +971,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                 }
                 if (kvm_msr_list->indices[i] == HV_X64_MSR_VP_RUNTIME) {
                     has_msr_hv_runtime = true;
+                    continue;
+                }
+                if (kvm_msr_list->indices[i] == HV_X64_MSR_SCONTROL) {
+                    has_msr_hv_synic = true;
                     continue;
                 }
             }
@@ -1517,6 +1538,23 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
             kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_VP_RUNTIME,
                               env->msr_hv_runtime);
         }
+        if (cpu->hyperv_synic) {
+            int j;
+
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_SCONTROL,
+                              env->msr_hv_synic_control);
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_SVERSION,
+                              env->msr_hv_synic_version);
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_SIEFP,
+                              env->msr_hv_synic_evt_page);
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_SIMP,
+                              env->msr_hv_synic_msg_page);
+
+            for (j = 0; j < ARRAY_SIZE(env->msr_hv_synic_sint); j++) {
+                kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_SINT0 + j,
+                                  env->msr_hv_synic_sint[j]);
+            }
+        }
         if (has_msr_mtrr) {
             kvm_msr_entry_set(&msrs[n++], MSR_MTRRdefType, env->mtrr_deftype);
             kvm_msr_entry_set(&msrs[n++],
@@ -1885,6 +1923,17 @@ static int kvm_get_msrs(X86CPU *cpu)
     if (has_msr_hv_runtime) {
         msrs[n++].index = HV_X64_MSR_VP_RUNTIME;
     }
+    if (cpu->hyperv_synic) {
+        uint32_t msr;
+
+        msrs[n++].index = HV_X64_MSR_SCONTROL;
+        msrs[n++].index = HV_X64_MSR_SVERSION;
+        msrs[n++].index = HV_X64_MSR_SIEFP;
+        msrs[n++].index = HV_X64_MSR_SIMP;
+        for (msr = HV_X64_MSR_SINT0; msr <= HV_X64_MSR_SINT15; msr++) {
+            msrs[n++].index = msr;
+        }
+    }
     if (has_msr_mtrr) {
         msrs[n++].index = MSR_MTRRdefType;
         msrs[n++].index = MSR_MTRRfix64K_00000;
@@ -2040,6 +2089,21 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_VP_RUNTIME:
             env->msr_hv_runtime = msrs[i].data;
+            break;
+        case HV_X64_MSR_SCONTROL:
+            env->msr_hv_synic_control = msrs[i].data;
+            break;
+        case HV_X64_MSR_SVERSION:
+            env->msr_hv_synic_version = msrs[i].data;
+            break;
+        case HV_X64_MSR_SIEFP:
+            env->msr_hv_synic_evt_page = msrs[i].data;
+            break;
+        case HV_X64_MSR_SIMP:
+            env->msr_hv_synic_msg_page = msrs[i].data;
+            break;
+        case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
+            env->msr_hv_synic_sint[index - HV_X64_MSR_SINT0] = msrs[i].data;
             break;
         case MSR_MTRRdefType:
             env->mtrr_deftype = msrs[i].data;
