@@ -142,6 +142,8 @@ typedef struct E1000State_st {
     uint32_t compat_flags;
 } E1000State;
 
+#define chkflag(x)     (s->compat_flags & E1000_FLAG_##x)
+
 typedef struct E1000BaseClass {
     PCIDeviceClass parent_class;
     uint16_t phy_id2;
@@ -195,8 +197,7 @@ e1000_link_up(E1000State *s)
 static bool
 have_autoneg(E1000State *s)
 {
-    return (s->compat_flags & E1000_FLAG_AUTONEG) &&
-           (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN);
+    return chkflag(AUTONEG) && (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN);
 }
 
 static void
@@ -321,7 +322,7 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
         if (s->mit_timer_on) {
             return;
         }
-        if (s->compat_flags & E1000_FLAG_MIT) {
+        if (chkflag(MIT)) {
             /* Compute the next mitigation delay according to pending
              * interrupts and the current values of RADV (provided
              * RDTR!=0), TADV and ITR.
@@ -1258,6 +1259,18 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
 
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
 
+enum { MAC_ACCESS_PARTIAL = 1, MAC_ACCESS_FLAG_NEEDED = 2 };
+
+#define markflag(x)    ((E1000_FLAG_##x << 2) | MAC_ACCESS_FLAG_NEEDED)
+/* In the array below the meaning of the bits is: [f|f|f|f|f|f|n|p]
+ * f - flag bits (up to 6 possible flags)
+ * n - flag needed
+ * p - partially implenented */
+static const uint8_t mac_reg_access[0x8000] = {
+    [RDTR]    = markflag(MIT),    [TADV]    = markflag(MIT),
+    [RADV]    = markflag(MIT),    [ITR]     = markflag(MIT),
+};
+
 static void
 e1000_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                  unsigned size)
@@ -1266,9 +1279,20 @@ e1000_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     unsigned int index = (addr & 0x1ffff) >> 2;
 
     if (index < NWRITEOPS && macreg_writeops[index]) {
-        macreg_writeops[index](s, index, val);
+        if (!(mac_reg_access[index] & MAC_ACCESS_FLAG_NEEDED)
+            || (s->compat_flags & (mac_reg_access[index] >> 2))) {
+            if (mac_reg_access[index] & MAC_ACCESS_PARTIAL) {
+                DBGOUT(GENERAL, "Writing to register at offset: 0x%08x. "
+                       "It is not fully implemented.\n", index<<2);
+            }
+            macreg_writeops[index](s, index, val);
+        } else {    /* "flag needed" bit is set, but the flag is not active */
+            DBGOUT(MMIO, "MMIO write attempt to disabled reg. addr=0x%08x\n",
+                   index<<2);
+        }
     } else if (index < NREADOPS && macreg_readops[index]) {
-        DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04"PRIx64"\n", index<<2, val);
+        DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04"PRIx64"\n",
+               index<<2, val);
     } else {
         DBGOUT(UNKNOWN, "MMIO unknown write addr=0x%08x,val=0x%08"PRIx64"\n",
                index<<2, val);
@@ -1281,11 +1305,21 @@ e1000_mmio_read(void *opaque, hwaddr addr, unsigned size)
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
 
-    if (index < NREADOPS && macreg_readops[index])
-    {
-        return macreg_readops[index](s, index);
+    if (index < NREADOPS && macreg_readops[index]) {
+        if (!(mac_reg_access[index] & MAC_ACCESS_FLAG_NEEDED)
+            || (s->compat_flags & (mac_reg_access[index] >> 2))) {
+            if (mac_reg_access[index] & MAC_ACCESS_PARTIAL) {
+                DBGOUT(GENERAL, "Reading register at offset: 0x%08x. "
+                       "It is not fully implemented.\n", index<<2);
+            }
+            return macreg_readops[index](s, index);
+        } else {    /* "flag needed" bit is set, but the flag is not active */
+            DBGOUT(MMIO, "MMIO read attempt of disabled reg. addr=0x%08x\n",
+                   index<<2);
+        }
+    } else {
+        DBGOUT(UNKNOWN, "MMIO unknown read addr=0x%08x\n", index<<2);
     }
-    DBGOUT(UNKNOWN, "MMIO unknown read addr=0x%08x\n", index<<2);
     return 0;
 }
 
@@ -1352,7 +1386,7 @@ static int e1000_post_load(void *opaque, int version_id)
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
 
-    if (!(s->compat_flags & E1000_FLAG_MIT)) {
+    if (!chkflag(MIT)) {
         s->mac_reg[ITR] = s->mac_reg[RDTR] = s->mac_reg[RADV] =
             s->mac_reg[TADV] = 0;
         s->mit_irq_level = false;
@@ -1379,14 +1413,14 @@ static bool e1000_mit_state_needed(void *opaque)
 {
     E1000State *s = opaque;
 
-    return s->compat_flags & E1000_FLAG_MIT;
+    return chkflag(MIT);
 }
 
 static bool e1000_full_mac_needed(void *opaque)
 {
     E1000State *s = opaque;
 
-    return s->compat_flags & E1000_FLAG_MAC;
+    return chkflag(MAC);
 }
 
 static const VMStateDescription vmstate_e1000_mit_state = {
