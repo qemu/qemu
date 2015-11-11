@@ -1026,7 +1026,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
     qemu_fflush(f);
 }
 
-void qemu_savevm_state_complete_precopy(QEMUFile *f)
+void qemu_savevm_state_complete_precopy(QEMUFile *f, bool iterable_only)
 {
     QJSON *vmdesc;
     int vmdesc_len;
@@ -1041,9 +1041,11 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f)
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
         if (!se->ops ||
             (in_postcopy && se->ops->save_live_complete_postcopy) ||
+            (in_postcopy && !iterable_only) ||
             !se->ops->save_live_complete_precopy) {
             continue;
         }
+
         if (se->ops && se->ops->is_active) {
             if (!se->ops->is_active(se->opaque)) {
                 continue;
@@ -1060,6 +1062,10 @@ void qemu_savevm_state_complete_precopy(QEMUFile *f)
             qemu_file_set_error(f, ret);
             return;
         }
+    }
+
+    if (iterable_only) {
+        return;
     }
 
     vmdesc = qjson_new();
@@ -1176,7 +1182,7 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
 
     ret = qemu_file_get_error(f);
     if (ret == 0) {
-        qemu_savevm_state_complete_precopy(f);
+        qemu_savevm_state_complete_precopy(f, false);
         ret = qemu_file_get_error(f);
     }
     qemu_savevm_state_cleanup();

@@ -1429,6 +1429,12 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     }
 
     /*
+     * Cause any non-postcopiable, but iterative devices to
+     * send out their final data.
+     */
+    qemu_savevm_state_complete_precopy(ms->file, true);
+
+    /*
      * in Finish migrate and with the io-lock held everything should
      * be quiet, but we've potentially still got dirty pages and we
      * need to tell the destination to throw any pages it's already received
@@ -1471,7 +1477,7 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
      */
     qemu_savevm_send_postcopy_listen(fb);
 
-    qemu_savevm_state_complete_precopy(fb);
+    qemu_savevm_state_complete_precopy(fb, false);
     qemu_savevm_send_ping(fb, 3);
 
     qemu_savevm_send_postcopy_run(fb);
@@ -1538,7 +1544,7 @@ static void migration_completion(MigrationState *s, int current_active_state,
             ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
             if (ret >= 0) {
                 qemu_file_set_rate_limit(s->file, INT64_MAX);
-                qemu_savevm_state_complete_precopy(s->file);
+                qemu_savevm_state_complete_precopy(s->file, false);
             }
         }
         qemu_mutex_unlock_iothread();
