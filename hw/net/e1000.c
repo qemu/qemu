@@ -172,7 +172,17 @@ enum {
     defreg(TPR),     defreg(TPT),     defreg(TXDCTL),  defreg(WUFC),
     defreg(RA),      defreg(MTA),     defreg(CRCERRS), defreg(VFTA),
     defreg(VET),     defreg(RDTR),    defreg(RADV),    defreg(TADV),
-    defreg(ITR),
+    defreg(ITR),     defreg(FCRUC),   defreg(TDFH),    defreg(TDFT),
+    defreg(TDFHS),   defreg(TDFTS),   defreg(TDFPC),   defreg(RDFH),
+    defreg(RDFT),    defreg(RDFHS),   defreg(RDFTS),   defreg(RDFPC),
+    defreg(IPAV),    defreg(WUC),     defreg(WUS),     defreg(AIT),
+    defreg(IP6AT),   defreg(IP4AT),   defreg(FFLT),    defreg(FFMT),
+    defreg(FFVT),    defreg(WUPM),    defreg(PBM),     defreg(SCC),
+    defreg(ECOL),    defreg(MCC),     defreg(LATECOL), defreg(COLC),
+    defreg(DC),      defreg(TNCRS),   defreg(SEC),     defreg(CEXTERR),
+    defreg(RLEC),    defreg(XONRXC),  defreg(XONTXC),  defreg(XOFFRXC),
+    defreg(XOFFTXC), defreg(RFC),     defreg(RJC),     defreg(RNBC),
+    defreg(TSCTFC),  defreg(MGTPRC),  defreg(MGTPDC),  defreg(MGTPTC)
 };
 
 static void
@@ -1122,6 +1132,30 @@ mac_readreg(E1000State *s, int index)
 }
 
 static uint32_t
+mac_low4_read(E1000State *s, int index)
+{
+    return s->mac_reg[index] & 0xf;
+}
+
+static uint32_t
+mac_low11_read(E1000State *s, int index)
+{
+    return s->mac_reg[index] & 0x7ff;
+}
+
+static uint32_t
+mac_low13_read(E1000State *s, int index)
+{
+    return s->mac_reg[index] & 0x1fff;
+}
+
+static uint32_t
+mac_low16_read(E1000State *s, int index)
+{
+    return s->mac_reg[index] & 0xffff;
+}
+
+static uint32_t
 mac_icr_read(E1000State *s, int index)
 {
     uint32_t ret = s->mac_reg[ICR];
@@ -1223,18 +1257,37 @@ static uint32_t (*macreg_readops[])(E1000State *, int) = {
     getreg(RDH),      getreg(RDT),      getreg(VET),      getreg(ICS),
     getreg(TDBAL),    getreg(TDBAH),    getreg(RDBAH),    getreg(RDBAL),
     getreg(TDLEN),    getreg(RDLEN),    getreg(RDTR),     getreg(RADV),
-    getreg(TADV),     getreg(ITR),
+    getreg(TADV),     getreg(ITR),      getreg(FCRUC),    getreg(IPAV),
+    getreg(WUC),      getreg(WUS),      getreg(SCC),      getreg(ECOL),
+    getreg(MCC),      getreg(LATECOL),  getreg(COLC),     getreg(DC),
+    getreg(TNCRS),    getreg(SEC),      getreg(CEXTERR),  getreg(RLEC),
+    getreg(XONRXC),   getreg(XONTXC),   getreg(XOFFRXC),  getreg(XOFFTXC),
+    getreg(RFC),      getreg(RJC),      getreg(RNBC),     getreg(TSCTFC),
+    getreg(MGTPRC),   getreg(MGTPDC),   getreg(MGTPTC),
 
     [TOTH]    = mac_read_clr8,      [TORH]    = mac_read_clr8,
     [GPRC]    = mac_read_clr4,      [GPTC]    = mac_read_clr4,
     [TPT]     = mac_read_clr4,      [TPR]     = mac_read_clr4,
     [ICR]     = mac_icr_read,       [EECD]    = get_eecd,
     [EERD]    = flash_eerd_read,
+    [RDFH]    = mac_low13_read,     [RDFT]    = mac_low13_read,
+    [RDFHS]   = mac_low13_read,     [RDFTS]   = mac_low13_read,
+    [RDFPC]   = mac_low13_read,
+    [TDFH]    = mac_low11_read,     [TDFT]    = mac_low11_read,
+    [TDFHS]   = mac_low13_read,     [TDFTS]   = mac_low13_read,
+    [TDFPC]   = mac_low13_read,
+    [AIT]     = mac_low16_read,
 
     [CRCERRS ... MPC]   = &mac_readreg,
+    [IP6AT ... IP6AT+3] = &mac_readreg,    [IP4AT ... IP4AT+6] = &mac_readreg,
+    [FFLT ... FFLT+6]   = &mac_low11_read,
     [RA ... RA+31]      = &mac_readreg,
+    [WUPM ... WUPM+31]  = &mac_readreg,
     [MTA ... MTA+127]   = &mac_readreg,
     [VFTA ... VFTA+127] = &mac_readreg,
+    [FFMT ... FFMT+254] = &mac_low4_read,
+    [FFVT ... FFVT+254] = &mac_readreg,
+    [PBM ... PBM+16383] = &mac_readreg,
 };
 enum { NREADOPS = ARRAY_SIZE(macreg_readops) };
 
@@ -1242,7 +1295,11 @@ enum { NREADOPS = ARRAY_SIZE(macreg_readops) };
 static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
     putreg(PBA),      putreg(EERD),     putreg(SWSM),     putreg(WUFC),
     putreg(TDBAL),    putreg(TDBAH),    putreg(TXDCTL),   putreg(RDBAH),
-    putreg(RDBAL),    putreg(LEDCTL),   putreg(VET),
+    putreg(RDBAL),    putreg(LEDCTL),   putreg(VET),      putreg(FCRUC),
+    putreg(TDFH),     putreg(TDFT),     putreg(TDFHS),    putreg(TDFTS),
+    putreg(TDFPC),    putreg(RDFH),     putreg(RDFT),     putreg(RDFHS),
+    putreg(RDFTS),    putreg(RDFPC),    putreg(IPAV),     putreg(WUC),
+    putreg(WUS),      putreg(AIT),
 
     [TDLEN]  = set_dlen,   [RDLEN]  = set_dlen,       [TCTL] = set_tctl,
     [TDT]    = set_tctl,   [MDIC]   = set_mdic,       [ICS]  = set_ics,
@@ -1252,9 +1309,14 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
     [RDTR]   = set_16bit,  [RADV]   = set_16bit,      [TADV] = set_16bit,
     [ITR]    = set_16bit,
 
+    [IP6AT ... IP6AT+3] = &mac_writereg, [IP4AT ... IP4AT+6] = &mac_writereg,
+    [FFLT ... FFLT+6]   = &mac_writereg,
     [RA ... RA+31]      = &mac_writereg,
+    [WUPM ... WUPM+31]  = &mac_writereg,
     [MTA ... MTA+127]   = &mac_writereg,
     [VFTA ... VFTA+127] = &mac_writereg,
+    [FFMT ... FFMT+254] = &mac_writereg, [FFVT ... FFVT+254] = &mac_writereg,
+    [PBM ... PBM+16383] = &mac_writereg,
 };
 
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
@@ -1269,6 +1331,35 @@ enum { MAC_ACCESS_PARTIAL = 1, MAC_ACCESS_FLAG_NEEDED = 2 };
 static const uint8_t mac_reg_access[0x8000] = {
     [RDTR]    = markflag(MIT),    [TADV]    = markflag(MIT),
     [RADV]    = markflag(MIT),    [ITR]     = markflag(MIT),
+
+    [IPAV]    = markflag(MAC),    [WUC]     = markflag(MAC),
+    [IP6AT]   = markflag(MAC),    [IP4AT]   = markflag(MAC),
+    [FFVT]    = markflag(MAC),    [WUPM]    = markflag(MAC),
+    [ECOL]    = markflag(MAC),    [MCC]     = markflag(MAC),
+    [DC]      = markflag(MAC),    [TNCRS]   = markflag(MAC),
+    [RLEC]    = markflag(MAC),    [XONRXC]  = markflag(MAC),
+    [XOFFTXC] = markflag(MAC),    [RFC]     = markflag(MAC),
+    [TSCTFC]  = markflag(MAC),    [MGTPRC]  = markflag(MAC),
+    [WUS]     = markflag(MAC),    [AIT]     = markflag(MAC),
+    [FFLT]    = markflag(MAC),    [FFMT]    = markflag(MAC),
+    [SCC]     = markflag(MAC),    [FCRUC]   = markflag(MAC),
+    [LATECOL] = markflag(MAC),    [COLC]    = markflag(MAC),
+    [SEC]     = markflag(MAC),    [CEXTERR] = markflag(MAC),
+    [XONTXC]  = markflag(MAC),    [XOFFRXC] = markflag(MAC),
+    [RJC]     = markflag(MAC),    [RNBC]    = markflag(MAC),
+    [MGTPDC]  = markflag(MAC),    [MGTPTC]  = markflag(MAC),
+
+    [TDFH]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFT]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFHS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFTS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFPC] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFH]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFT]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFHS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFTS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFPC] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [PBM]   = markflag(MAC) | MAC_ACCESS_PARTIAL,
 };
 
 static void
