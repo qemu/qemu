@@ -580,6 +580,14 @@ putsum(uint8_t *data, uint32_t n, uint32_t sloc, uint32_t css, uint32_t cse)
     }
 }
 
+static inline void
+inc_reg_if_not_full(E1000State *s, int index)
+{
+    if (s->mac_reg[index] != 0xffffffff) {
+        s->mac_reg[index]++;
+    }
+}
+
 static inline int
 vlan_enabled(E1000State *s)
 {
@@ -677,8 +685,8 @@ xmit_seg(E1000State *s)
         e1000_send_packet(s, tp->data, tp->size);
     }
 
-    s->mac_reg[TPT]++;
-    s->mac_reg[GPTC]++;
+    inc_reg_if_not_full(s, TPT);
+    s->mac_reg[GPTC] = s->mac_reg[TPT];
     n = s->mac_reg[TOTL];
     if ((s->mac_reg[TOTL] += s->tx.size) < n)
         s->mac_reg[TOTH]++;
@@ -1091,8 +1099,8 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         }
     } while (desc_offset < total_size);
 
-    s->mac_reg[GPRC]++;
-    s->mac_reg[TPR]++;
+    inc_reg_if_not_full(s, TPR);
+    s->mac_reg[GPRC] = s->mac_reg[TPR];
     /* TOR - Total Octets Received:
      * This register includes bytes received in a packet from the <Destination
      * Address> field through the <CRC> field, inclusively.
