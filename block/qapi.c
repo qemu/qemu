@@ -64,7 +64,7 @@ BlockDeviceInfo *bdrv_block_device_info(BlockDriverState *bs, Error **errp)
     info->backing_file_depth = bdrv_get_backing_file_depth(bs);
     info->detect_zeroes = bs->detect_zeroes;
 
-    if (bs->io_limits_enabled) {
+    if (bs->throttle_state) {
         ThrottleConfig cfg;
 
         throttle_group_get_config(bs, &cfg);

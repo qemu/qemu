@@ -32,11 +32,17 @@ status=1	# failure is the default!
 
 nbd_unix_socket=$TEST_DIR/test_qemu_nbd_socket
 nbd_snapshot_img="nbd:unix:$nbd_unix_socket"
+rm -f "${TEST_DIR}/qemu-nbd.pid"
 
 _cleanup_nbd()
 {
-    if [ -n "$NBD_SNAPSHOT_PID" ]; then
-        kill "$NBD_SNAPSHOT_PID"
+    local NBD_SNAPSHOT_PID
+    if [ -f "${TEST_DIR}/qemu-nbd.pid" ]; then
+        read NBD_SNAPSHOT_PID < "${TEST_DIR}/qemu-nbd.pid"
+        rm -f "${TEST_DIR}/qemu-nbd.pid"
+        if [ -n "$NBD_SNAPSHOT_PID" ]; then
+            kill "$NBD_SNAPSHOT_PID"
+        fi
     fi
     rm -f "$nbd_unix_socket"
 }
@@ -60,7 +66,6 @@ _export_nbd_snapshot()
 {
     _cleanup_nbd
     $QEMU_NBD -v -t -k "$nbd_unix_socket" "$TEST_IMG" -l $1 &
-    NBD_SNAPSHOT_PID=$!
     _wait_for_nbd
 }
 
@@ -68,7 +73,6 @@ _export_nbd_snapshot1()
 {
     _cleanup_nbd
     $QEMU_NBD -v -t -k "$nbd_unix_socket" "$TEST_IMG" -l snapshot.name=$1 &
-    NBD_SNAPSHOT_PID=$!
     _wait_for_nbd
 }
 

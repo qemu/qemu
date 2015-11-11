@@ -41,6 +41,7 @@ class ImageCommitTestCase(iotests.QMPTestCase):
         while not completed:
             for event in self.vm.get_qmp_events(wait=True):
                 if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp_absent(event, 'data/error')
                     self.assert_qmp(event, 'data/type', 'commit')
                     self.assert_qmp(event, 'data/device', 'drive0')
                     self.assert_qmp(event, 'data/offset', event['data']['len'])
@@ -250,6 +251,35 @@ class TestSetSpeed(ImageCommitTestCase):
 
 class TestActiveZeroLengthImage(TestSingleDrive):
     image_len = 0
+
+class TestReopenOverlay(ImageCommitTestCase):
+    image_len = 1024 * 1024
+    img0 = os.path.join(iotests.test_dir, '0.img')
+    img1 = os.path.join(iotests.test_dir, '1.img')
+    img2 = os.path.join(iotests.test_dir, '2.img')
+    img3 = os.path.join(iotests.test_dir, '3.img')
+
+    def setUp(self):
+        iotests.create_image(self.img0, self.image_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.img0, self.img1)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.img1, self.img2)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % self.img2, self.img3)
+        qemu_io('-f', iotests.imgfmt, '-c', 'write -P 0xab 0 128K', self.img1)
+        self.vm = iotests.VM().add_drive(self.img3)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(self.img0)
+        os.remove(self.img1)
+        os.remove(self.img2)
+        os.remove(self.img3)
+
+    # This tests what happens when the overlay image of the 'top' node
+    # needs to be reopened in read-write mode in order to update the
+    # backing image string.
+    def test_reopen_overlay(self):
+        self.run_commit_test(self.img1, self.img0)
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])

@@ -236,13 +236,13 @@ void commit_start(BlockDriverState *bs, BlockDriverState *base,
     orig_overlay_flags = bdrv_get_flags(overlay_bs);
 
     /* convert base & overlay_bs to r/w, if necessary */
-    if (!(orig_base_flags & BDRV_O_RDWR)) {
-        reopen_queue = bdrv_reopen_queue(reopen_queue, base, NULL,
-                                         orig_base_flags | BDRV_O_RDWR);
-    }
     if (!(orig_overlay_flags & BDRV_O_RDWR)) {
         reopen_queue = bdrv_reopen_queue(reopen_queue, overlay_bs, NULL,
                                          orig_overlay_flags | BDRV_O_RDWR);
+    }
+    if (!(orig_base_flags & BDRV_O_RDWR)) {
+        reopen_queue = bdrv_reopen_queue(reopen_queue, base, NULL,
+                                         orig_base_flags | BDRV_O_RDWR);
     }
     if (reopen_queue) {
         bdrv_reopen_multiple(reopen_queue, &local_err);

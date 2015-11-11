@@ -65,6 +65,7 @@ BlockBackend *blk_new_with_bs(const char *name, Error **errp);
 BlockBackend *blk_new_open(const char *name, const char *filename,
                            const char *reference, QDict *options, int flags,
                            Error **errp);
+int blk_get_refcnt(BlockBackend *blk);
 void blk_ref(BlockBackend *blk);
 void blk_unref(BlockBackend *blk);
 const char *blk_name(BlockBackend *blk);
@@ -72,6 +73,7 @@ BlockBackend *blk_by_name(const char *name);
 BlockBackend *blk_next(BlockBackend *blk);
 
 BlockDriverState *blk_bs(BlockBackend *blk);
+void blk_remove_bs(BlockBackend *blk);
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs);
 
 void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk);
@@ -166,6 +168,8 @@ void blk_io_unplug(BlockBackend *blk);
 BlockAcctStats *blk_get_stats(BlockBackend *blk);
 BlockBackendRootState *blk_get_root_state(BlockBackend *blk);
 void blk_update_root_state(BlockBackend *blk);
+void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs);
+int blk_get_open_flags_from_root_state(BlockBackend *blk);
 
 void *blk_aio_get(const AIOCBInfo *aiocb_info, BlockBackend *blk,
                   BlockCompletionFunc *cb, void *opaque);

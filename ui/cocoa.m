@@ -1113,10 +1113,13 @@ QemuCocoaView *cocoaView;
         }
 
         Error *err = NULL;
-        qmp_change_blockdev([drive cStringUsingEncoding: NSASCIIStringEncoding],
-                            [file cStringUsingEncoding: NSASCIIStringEncoding],
-                            "raw",
-                            &err);
+        qmp_blockdev_change_medium([drive cStringUsingEncoding:
+                                          NSASCIIStringEncoding],
+                                   [file cStringUsingEncoding:
+                                         NSASCIIStringEncoding],
+                                   true, "raw",
+                                   false, 0,
+                                   &err);
         handleAnyDeviceErrors(err);
     }
 }

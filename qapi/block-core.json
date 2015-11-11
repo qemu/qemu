@@ -682,7 +682,7 @@
   'data': [ 'existing', 'absolute-paths' ] }
 
 ##
-# @BlockdevSnapshot
+# @BlockdevSnapshotSync
 #
 # Either @device or @node-name must be set but not both.
 #
@@ -699,10 +699,25 @@
 # @mode: #optional whether and how QEMU should create a new image, default is
 #        'absolute-paths'.
 ##
-{ 'struct': 'BlockdevSnapshot',
+{ 'struct': 'BlockdevSnapshotSync',
   'data': { '*device': 'str', '*node-name': 'str',
             'snapshot-file': 'str', '*snapshot-node-name': 'str',
             '*format': 'str', '*mode': 'NewImageMode' } }
+
+##
+# @BlockdevSnapshot
+#
+# @node: device or node name that will have a snapshot created.
+#
+# @overlay: reference to the existing block device that will become
+#           the overlay of @node, as part of creating the snapshot.
+#           It must not have a current backing file (this can be
+#           achieved by passing "backing": "" to blockdev-add).
+#
+# Since 2.5
+##
+{ 'struct': 'BlockdevSnapshot',
+  'data': { 'node': 'str', 'overlay': 'str' } }
 
 ##
 # @DriveBackup
@@ -790,7 +805,7 @@
 #
 # Generates a synchronous snapshot of a block device.
 #
-# For the arguments, see the documentation of BlockdevSnapshot.
+# For the arguments, see the documentation of BlockdevSnapshotSync.
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -798,6 +813,19 @@
 # Since 0.14.0
 ##
 { 'command': 'blockdev-snapshot-sync',
+  'data': 'BlockdevSnapshotSync' }
+
+
+##
+# @blockdev-snapshot
+#
+# Generates a snapshot of a block device.
+#
+# For the arguments, see the documentation of BlockdevSnapshot.
+#
+# Since 2.5
+##
+{ 'command': 'blockdev-snapshot',
   'data': 'BlockdevSnapshot' }
 
 ##
@@ -1867,14 +1895,168 @@
 # level and no BlockBackend will be created.
 #
 # This command is still a work in progress.  It doesn't support all
-# block drivers, it lacks a matching blockdev-del, and more.  Stay
-# away from it unless you want to help with its development.
+# block drivers among other things.  Stay away from it unless you want
+# to help with its development.
 #
 # @options: block device options for the new device
 #
 # Since: 1.7
 ##
 { 'command': 'blockdev-add', 'data': { 'options': 'BlockdevOptions' } }
+
+##
+# @x-blockdev-del:
+#
+# Deletes a block device that has been added using blockdev-add.
+# The selected device can be either a block backend or a graph node.
+#
+# In the former case the backend will be destroyed, along with its
+# inserted medium if there's any. The command will fail if the backend
+# or its medium are in use.
+#
+# In the latter case the node will be destroyed. The command will fail
+# if the node is attached to a block backend or is otherwise being
+# used.
+#
+# One of @id or @node-name must be specified, but not both.
+#
+# This command is still a work in progress and is considered
+# experimental. Stay away from it unless you want to help with its
+# development.
+#
+# @id: #optional Name of the block backend device to delete.
+#
+# @node-name: #optional Name of the graph node to delete.
+#
+# Since: 2.5
+##
+{ 'command': 'x-blockdev-del', 'data': { '*id': 'str', '*node-name': 'str' } }
+
+##
+# @blockdev-open-tray:
+#
+# Opens a block device's tray. If there is a block driver state tree inserted as
+# a medium, it will become inaccessible to the guest (but it will remain
+# associated to the block device, so closing the tray will make it accessible
+# again).
+#
+# If the tray was already open before, this will be a no-op.
+#
+# Once the tray opens, a DEVICE_TRAY_MOVED event is emitted. There are cases in
+# which no such event will be generated, these include:
+# - if the guest has locked the tray, @force is false and the guest does not
+#   respond to the eject request
+# - if the BlockBackend denoted by @device does not have a guest device attached
+#   to it
+# - if the guest device does not have an actual tray and is empty, for instance
+#   for floppy disk drives
+#
+# @device: block device name
+#
+# @force:  #optional if false (the default), an eject request will be sent to
+#          the guest if it has locked the tray (and the tray will not be opened
+#          immediately); if true, the tray will be opened regardless of whether
+#          it is locked
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-open-tray',
+  'data': { 'device': 'str',
+            '*force': 'bool' } }
+
+##
+# @blockdev-close-tray:
+#
+# Closes a block device's tray. If there is a block driver state tree associated
+# with the block device (which is currently ejected), that tree will be loaded
+# as the medium.
+#
+# If the tray was already closed before, this will be a no-op.
+#
+# @device: block device name
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-close-tray',
+  'data': { 'device': 'str' } }
+
+##
+# @blockdev-remove-medium:
+#
+# Removes a medium (a block driver state tree) from a block device. That block
+# device's tray must currently be open (unless there is no attached guest
+# device).
+#
+# If the tray is open and there is no medium inserted, this will be a no-op.
+#
+# @device: block device name
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-remove-medium',
+  'data': { 'device': 'str' } }
+
+##
+# @blockdev-insert-medium:
+#
+# Inserts a medium (a block driver state tree) into a block device. That block
+# device's tray must currently be open (unless there is no attached guest
+# device) and there must be no medium inserted already.
+#
+# @device:    block device name
+#
+# @node-name: name of a node in the block driver state graph
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-insert-medium',
+  'data': { 'device': 'str',
+            'node-name': 'str'} }
+
+
+##
+# @BlockdevChangeReadOnlyMode:
+#
+# Specifies the new read-only mode of a block device subject to the
+# @blockdev-change-medium command.
+#
+# @retain:      Retains the current read-only mode
+#
+# @read-only:   Makes the device read-only
+#
+# @read-write:  Makes the device writable
+#
+# Since: 2.3
+##
+{ 'enum': 'BlockdevChangeReadOnlyMode',
+  'data': ['retain', 'read-only', 'read-write'] }
+
+
+##
+# @blockdev-change-medium:
+#
+# Changes the medium inserted into a block device by ejecting the current medium
+# and loading a new image file which is inserted as the new medium (this command
+# combines blockdev-open-tray, blockdev-remove-medium, blockdev-insert-medium
+# and blockdev-close-tray).
+#
+# @device:          block device name
+#
+# @filename:        filename of the new image to be loaded
+#
+# @format:          #optional, format to open the new image with (defaults to
+#                   the probed format)
+#
+# @read-only-mode:  #optional, change the read-only mode of the device; defaults
+#                   to 'retain'
+#
+# Since: 2.5
+##
+{ 'command': 'blockdev-change-medium',
+  'data': { 'device': 'str',
+            'filename': 'str',
+            '*format': 'str',
+            '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }
 
 
 ##

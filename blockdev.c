@@ -1168,7 +1168,7 @@ void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
                                 bool has_format, const char *format,
                                 bool has_mode, NewImageMode mode, Error **errp)
 {
-    BlockdevSnapshot snapshot = {
+    BlockdevSnapshotSync snapshot = {
         .has_device = has_device,
         .device = (char *) device,
         .has_node_name = has_node_name,
@@ -1183,6 +1183,18 @@ void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
     };
     blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC,
                        &snapshot, errp);
+}
+
+void qmp_blockdev_snapshot(const char *node, const char *overlay,
+                           Error **errp)
+{
+    BlockdevSnapshot snapshot_data = {
+        .node = (char *) node,
+        .overlay = (char *) overlay
+    };
+
+    blockdev_do_action(TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT,
+                       &snapshot_data, errp);
 }
 
 void qmp_blockdev_snapshot_internal_sync(const char *device,
@@ -1530,57 +1542,48 @@ typedef struct ExternalSnapshotState {
 static void external_snapshot_prepare(BlkTransactionState *common,
                                       Error **errp)
 {
-    int flags, ret;
-    QDict *options;
+    int flags = 0, ret;
+    QDict *options = NULL;
     Error *local_err = NULL;
-    bool has_device = false;
+    /* Device and node name of the image to generate the snapshot from */
     const char *device;
-    bool has_node_name = false;
     const char *node_name;
-    bool has_snapshot_node_name = false;
-    const char *snapshot_node_name;
+    /* Reference to the new image (for 'blockdev-snapshot') */
+    const char *snapshot_ref;
+    /* File name of the new image (for 'blockdev-snapshot-sync') */
     const char *new_image_file;
-    const char *format = "qcow2";
-    enum NewImageMode mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     ExternalSnapshotState *state =
                              DO_UPCAST(ExternalSnapshotState, common, common);
     TransactionAction *action = common->action;
 
-    /* get parameters */
-    g_assert(action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC);
-
-    has_device = action->u.blockdev_snapshot_sync->has_device;
-    device = action->u.blockdev_snapshot_sync->device;
-    has_node_name = action->u.blockdev_snapshot_sync->has_node_name;
-    node_name = action->u.blockdev_snapshot_sync->node_name;
-    has_snapshot_node_name =
-        action->u.blockdev_snapshot_sync->has_snapshot_node_name;
-    snapshot_node_name = action->u.blockdev_snapshot_sync->snapshot_node_name;
-
-    new_image_file = action->u.blockdev_snapshot_sync->snapshot_file;
-    if (action->u.blockdev_snapshot_sync->has_format) {
-        format = action->u.blockdev_snapshot_sync->format;
-    }
-    if (action->u.blockdev_snapshot_sync->has_mode) {
-        mode = action->u.blockdev_snapshot_sync->mode;
+    /* 'blockdev-snapshot' and 'blockdev-snapshot-sync' have similar
+     * purpose but a different set of parameters */
+    switch (action->type) {
+    case TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT:
+        {
+            BlockdevSnapshot *s = action->u.blockdev_snapshot;
+            device = s->node;
+            node_name = s->node;
+            new_image_file = NULL;
+            snapshot_ref = s->overlay;
+        }
+        break;
+    case TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC:
+        {
+            BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync;
+            device = s->has_device ? s->device : NULL;
+            node_name = s->has_node_name ? s->node_name : NULL;
+            new_image_file = s->snapshot_file;
+            snapshot_ref = NULL;
+        }
+        break;
+    default:
+        g_assert_not_reached();
     }
 
     /* start processing */
-    state->old_bs = bdrv_lookup_bs(has_device ? device : NULL,
-                                   has_node_name ? node_name : NULL,
-                                   &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    if (has_node_name && !has_snapshot_node_name) {
-        error_setg(errp, "New snapshot node name missing");
-        return;
-    }
-
-    if (has_snapshot_node_name && bdrv_find_node(snapshot_node_name)) {
-        error_setg(errp, "New snapshot node name already existing");
+    state->old_bs = bdrv_lookup_bs(device, node_name, errp);
+    if (!state->old_bs) {
         return;
     }
 
@@ -1611,35 +1614,75 @@ static void external_snapshot_prepare(BlkTransactionState *common,
         return;
     }
 
-    flags = state->old_bs->open_flags;
+    if (action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC) {
+        BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync;
+        const char *format = s->has_format ? s->format : "qcow2";
+        enum NewImageMode mode;
+        const char *snapshot_node_name =
+            s->has_snapshot_node_name ? s->snapshot_node_name : NULL;
 
-    /* create new image w/backing file */
-    if (mode != NEW_IMAGE_MODE_EXISTING) {
-        bdrv_img_create(new_image_file, format,
-                        state->old_bs->filename,
-                        state->old_bs->drv->format_name,
-                        NULL, -1, flags, &local_err, false);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (node_name && !snapshot_node_name) {
+            error_setg(errp, "New snapshot node name missing");
             return;
         }
+
+        if (snapshot_node_name &&
+            bdrv_lookup_bs(snapshot_node_name, snapshot_node_name, NULL)) {
+            error_setg(errp, "New snapshot node name already in use");
+            return;
+        }
+
+        flags = state->old_bs->open_flags;
+
+        /* create new image w/backing file */
+        mode = s->has_mode ? s->mode : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+        if (mode != NEW_IMAGE_MODE_EXISTING) {
+            bdrv_img_create(new_image_file, format,
+                            state->old_bs->filename,
+                            state->old_bs->drv->format_name,
+                            NULL, -1, flags, &local_err, false);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+        }
+
+        options = qdict_new();
+        if (s->has_snapshot_node_name) {
+            qdict_put(options, "node-name",
+                      qstring_from_str(snapshot_node_name));
+        }
+        qdict_put(options, "driver", qstring_from_str(format));
+
+        flags |= BDRV_O_NO_BACKING;
     }
 
-    options = qdict_new();
-    if (has_snapshot_node_name) {
-        qdict_put(options, "node-name",
-                  qstring_from_str(snapshot_node_name));
-    }
-    qdict_put(options, "driver", qstring_from_str(format));
-
-    /* TODO Inherit bs->options or only take explicit options with an
-     * extended QMP command? */
     assert(state->new_bs == NULL);
-    ret = bdrv_open(&state->new_bs, new_image_file, NULL, options,
-                    flags | BDRV_O_NO_BACKING, &local_err);
+    ret = bdrv_open(&state->new_bs, new_image_file, snapshot_ref, options,
+                    flags, errp);
     /* We will manually add the backing_hd field to the bs later */
     if (ret != 0) {
-        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (state->new_bs->blk != NULL) {
+        error_setg(errp, "The snapshot is already in use by %s",
+                   blk_name(state->new_bs->blk));
+        return;
+    }
+
+    if (bdrv_op_is_blocked(state->new_bs, BLOCK_OP_TYPE_EXTERNAL_SNAPSHOT,
+                           errp)) {
+        return;
+    }
+
+    if (state->new_bs->backing != NULL) {
+        error_setg(errp, "The snapshot already has a backing image");
+        return;
+    }
+
+    if (!state->new_bs->drv->supports_backing) {
+        error_setg(errp, "The snapshot does not support backing images");
     }
 }
 
@@ -1842,6 +1885,12 @@ static void abort_commit(BlkTransactionState *common)
 }
 
 static const BdrvActionOps actions[] = {
+    [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT] = {
+        .instance_size = sizeof(ExternalSnapshotState),
+        .prepare  = external_snapshot_prepare,
+        .commit   = external_snapshot_commit,
+        .abort = external_snapshot_abort,
+    },
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
         .instance_size = sizeof(ExternalSnapshotState),
         .prepare  = external_snapshot_prepare,
@@ -1940,56 +1989,17 @@ exit:
     }
 }
 
-
-static void eject_device(BlockBackend *blk, int force, Error **errp)
-{
-    BlockDriverState *bs = blk_bs(blk);
-    AioContext *aio_context;
-
-    if (!bs) {
-        /* No medium inserted, so there is nothing to do */
-        return;
-    }
-
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
-        goto out;
-    }
-    if (!blk_dev_has_removable_media(blk)) {
-        error_setg(errp, "Device '%s' is not removable",
-                   bdrv_get_device_name(bs));
-        goto out;
-    }
-
-    if (blk_dev_is_medium_locked(blk) && !blk_dev_is_tray_open(blk)) {
-        blk_dev_eject_request(blk, force);
-        if (!force) {
-            error_setg(errp, "Device '%s' is locked",
-                       bdrv_get_device_name(bs));
-            goto out;
-        }
-    }
-
-    bdrv_close(bs);
-
-out:
-    aio_context_release(aio_context);
-}
-
 void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 {
-    BlockBackend *blk;
+    Error *local_err = NULL;
 
-    blk = blk_by_name(device);
-    if (!blk) {
-        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-                  "Device '%s' not found", device);
+    qmp_blockdev_open_tray(device, has_force, force, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
         return;
     }
 
-    eject_device(blk, force, errp);
+    qmp_blockdev_remove_medium(device, errp);
 }
 
 void qmp_block_passwd(bool has_device, const char *device,
@@ -2016,39 +2026,15 @@ void qmp_block_passwd(bool has_device, const char *device,
     aio_context_release(aio_context);
 }
 
-/* Assumes AioContext is held */
-static void qmp_bdrv_open_encrypted(BlockDriverState **pbs,
-                                    const char *filename,
-                                    int bdrv_flags, const char *format,
-                                    const char *password, Error **errp)
-{
-    Error *local_err = NULL;
-    QDict *options = NULL;
-    int ret;
-
-    if (format) {
-        options = qdict_new();
-        qdict_put(options, "driver", qstring_from_str(format));
-    }
-
-    ret = bdrv_open(pbs, filename, NULL, options, bdrv_flags, &local_err);
-    if (ret < 0) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    bdrv_add_key(*pbs, password, errp);
-}
-
-void qmp_change_blockdev(const char *device, const char *filename,
-                         const char *format, Error **errp)
+void qmp_blockdev_open_tray(const char *device, bool has_force, bool force,
+                            Error **errp)
 {
     BlockBackend *blk;
-    BlockDriverState *bs;
-    AioContext *aio_context;
-    int bdrv_flags;
-    bool new_bs;
-    Error *err = NULL;
+    bool locked;
+
+    if (!has_force) {
+        force = false;
+    }
 
     blk = blk_by_name(device);
     if (!blk) {
@@ -2056,36 +2042,245 @@ void qmp_change_blockdev(const char *device, const char *filename,
                   "Device '%s' not found", device);
         return;
     }
-    bs = blk_bs(blk);
-    new_bs = !bs;
 
-    aio_context = blk_get_aio_context(blk);
+    if (!blk_dev_has_removable_media(blk)) {
+        error_setg(errp, "Device '%s' is not removable", device);
+        return;
+    }
+
+    if (blk_dev_is_tray_open(blk)) {
+        return;
+    }
+
+    locked = blk_dev_is_medium_locked(blk);
+    if (locked) {
+        blk_dev_eject_request(blk, force);
+    }
+
+    if (!locked || force) {
+        blk_dev_change_media_cb(blk, false);
+    }
+}
+
+void qmp_blockdev_close_tray(const char *device, Error **errp)
+{
+    BlockBackend *blk;
+
+    blk = blk_by_name(device);
+    if (!blk) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
+        return;
+    }
+
+    if (!blk_dev_has_removable_media(blk)) {
+        error_setg(errp, "Device '%s' is not removable", device);
+        return;
+    }
+
+    if (!blk_dev_is_tray_open(blk)) {
+        return;
+    }
+
+    blk_dev_change_media_cb(blk, true);
+}
+
+void qmp_blockdev_remove_medium(const char *device, Error **errp)
+{
+    BlockBackend *blk;
+    BlockDriverState *bs;
+    AioContext *aio_context;
+    bool has_device;
+
+    blk = blk_by_name(device);
+    if (!blk) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
+        return;
+    }
+
+    /* For BBs without a device, we can exchange the BDS tree at will */
+    has_device = blk_get_attached_dev(blk);
+
+    if (has_device && !blk_dev_has_removable_media(blk)) {
+        error_setg(errp, "Device '%s' is not removable", device);
+        return;
+    }
+
+    if (has_device && !blk_dev_is_tray_open(blk)) {
+        error_setg(errp, "Tray of device '%s' is not open", device);
+        return;
+    }
+
+    bs = blk_bs(blk);
+    if (!bs) {
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    eject_device(blk, 0, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_EJECT, errp)) {
         goto out;
     }
 
-    bdrv_flags = blk_is_read_only(blk) ? 0 : BDRV_O_RDWR;
-    bdrv_flags |= blk_get_root_state(blk)->open_flags & ~BDRV_O_RDWR;
-
-    qmp_bdrv_open_encrypted(&bs, filename, bdrv_flags, format, NULL, &err);
-    if (err) {
-        error_propagate(errp, err);
-        goto out;
+    /* This follows the convention established by bdrv_make_anon() */
+    if (bs->device_list.tqe_prev) {
+        QTAILQ_REMOVE(&bdrv_states, bs, device_list);
+        bs->device_list.tqe_prev = NULL;
     }
 
-    if (new_bs) {
-        blk_insert_bs(blk, bs);
-        /* Has been sent automatically by bdrv_open() if blk_bs(blk) was not
-         * NULL */
-        blk_dev_change_media_cb(blk, true);
-    }
+    blk_remove_bs(blk);
 
 out:
     aio_context_release(aio_context);
+}
+
+static void qmp_blockdev_insert_anon_medium(const char *device,
+                                            BlockDriverState *bs, Error **errp)
+{
+    BlockBackend *blk;
+    bool has_device;
+
+    blk = blk_by_name(device);
+    if (!blk) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
+        return;
+    }
+
+    /* For BBs without a device, we can exchange the BDS tree at will */
+    has_device = blk_get_attached_dev(blk);
+
+    if (has_device && !blk_dev_has_removable_media(blk)) {
+        error_setg(errp, "Device '%s' is not removable", device);
+        return;
+    }
+
+    if (has_device && !blk_dev_is_tray_open(blk)) {
+        error_setg(errp, "Tray of device '%s' is not open", device);
+        return;
+    }
+
+    if (blk_bs(blk)) {
+        error_setg(errp, "There already is a medium in device '%s'", device);
+        return;
+    }
+
+    blk_insert_bs(blk, bs);
+
+    QTAILQ_INSERT_TAIL(&bdrv_states, bs, device_list);
+}
+
+void qmp_blockdev_insert_medium(const char *device, const char *node_name,
+                                Error **errp)
+{
+    BlockDriverState *bs;
+
+    bs = bdrv_find_node(node_name);
+    if (!bs) {
+        error_setg(errp, "Node '%s' not found", node_name);
+        return;
+    }
+
+    if (bs->blk) {
+        error_setg(errp, "Node '%s' is already in use by '%s'", node_name,
+                   blk_name(bs->blk));
+        return;
+    }
+
+    qmp_blockdev_insert_anon_medium(device, bs, errp);
+}
+
+void qmp_blockdev_change_medium(const char *device, const char *filename,
+                                bool has_format, const char *format,
+                                bool has_read_only,
+                                BlockdevChangeReadOnlyMode read_only,
+                                Error **errp)
+{
+    BlockBackend *blk;
+    BlockDriverState *medium_bs = NULL;
+    int bdrv_flags, ret;
+    QDict *options = NULL;
+    Error *err = NULL;
+
+    blk = blk_by_name(device);
+    if (!blk) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", device);
+        goto fail;
+    }
+
+    if (blk_bs(blk)) {
+        blk_update_root_state(blk);
+    }
+
+    bdrv_flags = blk_get_open_flags_from_root_state(blk);
+
+    if (!has_read_only) {
+        read_only = BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN;
+    }
+
+    switch (read_only) {
+    case BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN:
+        break;
+
+    case BLOCKDEV_CHANGE_READ_ONLY_MODE_READ_ONLY:
+        bdrv_flags &= ~BDRV_O_RDWR;
+        break;
+
+    case BLOCKDEV_CHANGE_READ_ONLY_MODE_READ_WRITE:
+        bdrv_flags |= BDRV_O_RDWR;
+        break;
+
+    default:
+        abort();
+    }
+
+    if (has_format) {
+        options = qdict_new();
+        qdict_put(options, "driver", qstring_from_str(format));
+    }
+
+    assert(!medium_bs);
+    ret = bdrv_open(&medium_bs, filename, NULL, options, bdrv_flags, errp);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    blk_apply_root_state(blk, medium_bs);
+
+    bdrv_add_key(medium_bs, NULL, &err);
+    if (err) {
+        error_propagate(errp, err);
+        goto fail;
+    }
+
+    qmp_blockdev_open_tray(device, false, false, &err);
+    if (err) {
+        error_propagate(errp, err);
+        goto fail;
+    }
+
+    qmp_blockdev_remove_medium(device, &err);
+    if (err) {
+        error_propagate(errp, err);
+        goto fail;
+    }
+
+    qmp_blockdev_insert_anon_medium(device, medium_bs, &err);
+    if (err) {
+        error_propagate(errp, err);
+        goto fail;
+    }
+
+    qmp_blockdev_close_tray(device, errp);
+
+fail:
+    /* If the medium has been inserted, the device has its own reference, so
+     * ours must be relinquished; and if it has not been inserted successfully,
+     * the reference must be relinquished anyway */
+    bdrv_unref(medium_bs);
 }
 
 /* throttling disk I/O limits */
@@ -2171,14 +2366,14 @@ void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
     if (throttle_enabled(&cfg)) {
         /* Enable I/O limits if they're not enabled yet, otherwise
          * just update the throttling group. */
-        if (!bs->io_limits_enabled) {
+        if (!bs->throttle_state) {
             bdrv_io_limits_enable(bs, has_group ? group : device);
         } else if (has_group) {
             bdrv_io_limits_update_group(bs, group);
         }
         /* Set the new throttling configuration */
         bdrv_set_io_limits(bs, &cfg);
-    } else if (bs->io_limits_enabled) {
+    } else if (bs->throttle_state) {
         /* If all throttling settings are set to 0, disable I/O limits */
         bdrv_io_limits_disable(bs);
     }
@@ -3282,6 +3477,72 @@ void qmp_blockdev_add(BlockdevOptions *options, Error **errp)
 
 fail:
     qmp_output_visitor_cleanup(ov);
+}
+
+void qmp_x_blockdev_del(bool has_id, const char *id,
+                        bool has_node_name, const char *node_name, Error **errp)
+{
+    AioContext *aio_context;
+    BlockBackend *blk;
+    BlockDriverState *bs;
+
+    if (has_id && has_node_name) {
+        error_setg(errp, "Only one of id and node-name must be specified");
+        return;
+    } else if (!has_id && !has_node_name) {
+        error_setg(errp, "No block device specified");
+        return;
+    }
+
+    if (has_id) {
+        blk = blk_by_name(id);
+        if (!blk) {
+            error_setg(errp, "Cannot find block backend %s", id);
+            return;
+        }
+        if (blk_get_refcnt(blk) > 1) {
+            error_setg(errp, "Block backend %s is in use", id);
+            return;
+        }
+        bs = blk_bs(blk);
+        aio_context = blk_get_aio_context(blk);
+    } else {
+        bs = bdrv_find_node(node_name);
+        if (!bs) {
+            error_setg(errp, "Cannot find node %s", node_name);
+            return;
+        }
+        blk = bs->blk;
+        if (blk) {
+            error_setg(errp, "Node %s is in use by %s",
+                       node_name, blk_name(blk));
+            return;
+        }
+        aio_context = bdrv_get_aio_context(bs);
+    }
+
+    aio_context_acquire(aio_context);
+
+    if (bs) {
+        if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, errp)) {
+            goto out;
+        }
+
+        if (bs->refcnt > 1 || !QLIST_EMPTY(&bs->parents)) {
+            error_setg(errp, "Block device %s is in use",
+                       bdrv_get_device_or_node_name(bs));
+            goto out;
+        }
+    }
+
+    if (blk) {
+        blk_unref(blk);
+    } else {
+        bdrv_unref(bs);
+    }
+
+out:
+    aio_context_release(aio_context);
 }
 
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)

@@ -7,6 +7,7 @@
 # snapshots are performed.
 #
 # Copyright (C) 2014 Red Hat, Inc.
+# Copyright (C) 2015 Igalia, S.L.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,17 +35,17 @@ status=1	# failure is the default!
 snapshot_virt0="snapshot-v0.qcow2"
 snapshot_virt1="snapshot-v1.qcow2"
 
-MAX_SNAPSHOTS=10
+SNAPSHOTS=10
 
 _cleanup()
 {
     _cleanup_qemu
-    for i in $(seq 1 ${MAX_SNAPSHOTS})
+    for i in $(seq 1 ${SNAPSHOTS})
     do
         rm -f "${TEST_DIR}/${i}-${snapshot_virt0}"
         rm -f "${TEST_DIR}/${i}-${snapshot_virt1}"
     done
-	_cleanup_test_img
+    rm -f "${TEST_IMG}.1" "${TEST_IMG}.2"
 
 }
 trap "_cleanup; exit \$status" 0 1 2 3 15
@@ -64,7 +65,7 @@ function create_single_snapshot()
 {
     cmd="{ 'execute': 'blockdev-snapshot-sync',
                       'arguments': { 'device': 'virtio0',
-                                     'snapshot-file':'"${TEST_DIR}/${1}-${snapshot_virt0}"',
+                                     'snapshot-file':'${TEST_DIR}/${1}-${snapshot_virt0}',
                                      'format': 'qcow2' } }"
     _send_qemu_cmd $h "${cmd}" "return"
 }
@@ -76,27 +77,60 @@ function create_group_snapshot()
            {'actions': [
                { 'type': 'blockdev-snapshot-sync', 'data' :
                    { 'device': 'virtio0',
-                      'snapshot-file': '"${TEST_DIR}/${1}-${snapshot_virt0}"' } },
+                      'snapshot-file': '${TEST_DIR}/${1}-${snapshot_virt0}' } },
                { 'type': 'blockdev-snapshot-sync', 'data' :
                    { 'device': 'virtio1',
-                       'snapshot-file': '"${TEST_DIR}/${1}-${snapshot_virt1}"' } } ]
+                       'snapshot-file': '${TEST_DIR}/${1}-${snapshot_virt1}' } } ]
              } }"
 
     _send_qemu_cmd $h "${cmd}" "return"
 }
 
+# ${1}: unique identifier for the snapshot filename
+# ${2}: true: open backing images; false: don't open them (default)
+function add_snapshot_image()
+{
+    if [ "${2}" = "true" ]; then
+        extra_params=""
+    else
+        extra_params="'backing': '', "
+    fi
+    base_image="${TEST_DIR}/$((${1}-1))-${snapshot_virt0}"
+    snapshot_file="${TEST_DIR}/${1}-${snapshot_virt0}"
+    _make_test_img -b "${base_image}" "$size"
+    mv "${TEST_IMG}" "${snapshot_file}"
+    cmd="{ 'execute': 'blockdev-add', 'arguments':
+           { 'options':
+             { 'driver': 'qcow2', 'node-name': 'snap_${1}', ${extra_params}
+               'file':
+               { 'driver': 'file', 'filename': '${snapshot_file}',
+                 'node-name': 'file_${1}' } } } }"
+    _send_qemu_cmd $h "${cmd}" "return"
+}
+
+# ${1}: unique identifier for the snapshot filename
+# ${2}: expected response, defaults to 'return'
+function blockdev_snapshot()
+{
+    cmd="{ 'execute': 'blockdev-snapshot',
+                      'arguments': { 'node': 'virtio0',
+                                     'overlay':'snap_${1}' } }"
+    _send_qemu_cmd $h "${cmd}" "${2:-return}"
+}
+
 size=128M
 
 _make_test_img $size
-mv "${TEST_IMG}" "${TEST_IMG}.orig"
+mv "${TEST_IMG}" "${TEST_IMG}.1"
 _make_test_img $size
+mv "${TEST_IMG}" "${TEST_IMG}.2"
 
 echo
 echo === Running QEMU ===
 echo
 
 qemu_comm_method="qmp"
-_launch_qemu -drive file="${TEST_IMG}.orig",if=virtio -drive file="${TEST_IMG}",if=virtio
+_launch_qemu -drive file="${TEST_IMG}.1",if=virtio -drive file="${TEST_IMG}.2",if=virtio
 h=$QEMU_HANDLE
 
 echo
@@ -104,6 +138,8 @@ echo === Sending capabilities ===
 echo
 
 _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
+
+# Tests for the blockdev-snapshot-sync command
 
 echo
 echo === Create a single snapshot on virtio0 ===
@@ -117,7 +153,7 @@ echo === Invalid command - missing device and nodename ===
 echo
 
 _send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot-sync',
-                         'arguments': { 'snapshot-file':'"${TEST_DIR}/1-${snapshot_virt0}"',
+                         'arguments': { 'snapshot-file':'${TEST_DIR}/1-${snapshot_virt0}',
                                      'format': 'qcow2' } }" "error"
 
 echo
@@ -132,10 +168,74 @@ echo
 echo === Create several transactional group snapshots ===
 echo
 
-for i in $(seq 2 ${MAX_SNAPSHOTS})
+for i in $(seq 2 ${SNAPSHOTS})
 do
     create_group_snapshot ${i}
 done
+
+# Tests for the blockdev-snapshot command
+
+echo
+echo === Create a couple of snapshots using blockdev-snapshot ===
+echo
+
+SNAPSHOTS=$((${SNAPSHOTS}+1))
+add_snapshot_image ${SNAPSHOTS}
+blockdev_snapshot ${SNAPSHOTS}
+
+SNAPSHOTS=$((${SNAPSHOTS}+1))
+add_snapshot_image ${SNAPSHOTS}
+blockdev_snapshot ${SNAPSHOTS}
+
+echo
+echo === Invalid command - cannot create a snapshot using a file BDS ===
+echo
+
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot',
+                     'arguments': { 'node':'virtio0',
+                                    'overlay':'file_${SNAPSHOTS}' }
+                   }" "error"
+
+echo
+echo === Invalid command - snapshot node used as active layer ===
+echo
+
+blockdev_snapshot ${SNAPSHOTS} error
+
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot',
+                     'arguments': { 'node':'virtio0',
+                                    'overlay':'virtio0' }
+                   }" "error"
+
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot',
+                     'arguments': { 'node':'virtio0',
+                                    'overlay':'virtio1' }
+                   }" "error"
+
+echo
+echo === Invalid command - snapshot node used as backing hd ===
+echo
+
+blockdev_snapshot $((${SNAPSHOTS}-1)) error
+
+echo
+echo === Invalid command - snapshot node has a backing image ===
+echo
+
+SNAPSHOTS=$((${SNAPSHOTS}+1))
+add_snapshot_image ${SNAPSHOTS} true
+blockdev_snapshot ${SNAPSHOTS} error
+
+echo
+echo === Invalid command - The node does not exist ===
+echo
+
+blockdev_snapshot $((${SNAPSHOTS}+1)) error
+
+_send_qemu_cmd $h "{ 'execute': 'blockdev-snapshot',
+                     'arguments': { 'node':'nodevice',
+                                    'overlay':'snap_${SNAPSHOTS}' }
+                   }" "error"
 
 # success, all done
 echo "*** done"

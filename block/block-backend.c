@@ -189,6 +189,11 @@ static void drive_info_del(DriveInfo *dinfo)
     g_free(dinfo);
 }
 
+int blk_get_refcnt(BlockBackend *blk)
+{
+    return blk ? blk->refcnt : 0;
+}
+
 /*
  * Increment @blk's reference count.
  * @blk must not be null.
@@ -334,6 +339,18 @@ void blk_hide_on_behalf_of_hmp_drive_del(BlockBackend *blk)
 }
 
 /*
+ * Disassociates the currently associated BlockDriverState from @blk.
+ */
+void blk_remove_bs(BlockBackend *blk)
+{
+    blk_update_root_state(blk);
+
+    blk->bs->blk = NULL;
+    bdrv_unref(blk->bs);
+    blk->bs = NULL;
+}
+
+/*
  * Associates a new BlockDriverState with @blk.
  */
 void blk_insert_bs(BlockBackend *blk, BlockDriverState *bs)
@@ -417,18 +434,15 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
 void blk_dev_change_media_cb(BlockBackend *blk, bool load)
 {
     if (blk->dev_ops && blk->dev_ops->change_media_cb) {
-        bool tray_was_closed = !blk_dev_is_tray_open(blk);
+        bool tray_was_open, tray_is_open;
 
+        tray_was_open = blk_dev_is_tray_open(blk);
         blk->dev_ops->change_media_cb(blk->dev_opaque, load);
-        if (tray_was_closed) {
-            /* tray open */
-            qapi_event_send_device_tray_moved(blk_name(blk),
-                                              true, &error_abort);
-        }
-        if (load) {
-            /* tray close */
-            qapi_event_send_device_tray_moved(blk_name(blk),
-                                              false, &error_abort);
+        tray_is_open = blk_dev_is_tray_open(blk);
+
+        if (tray_was_open != tray_is_open) {
+            qapi_event_send_device_tray_moved(blk_name(blk), tray_is_open,
+                                              &error_abort);
         }
     }
 }
@@ -1225,6 +1239,33 @@ void blk_update_root_state(BlockBackend *blk)
         blk->root_state.throttle_group = NULL;
         blk->root_state.throttle_state = NULL;
     }
+}
+
+/*
+ * Applies the information in the root state to the given BlockDriverState. This
+ * does not include the flags which have to be specified for bdrv_open(), use
+ * blk_get_open_flags_from_root_state() to inquire them.
+ */
+void blk_apply_root_state(BlockBackend *blk, BlockDriverState *bs)
+{
+    bs->detect_zeroes = blk->root_state.detect_zeroes;
+    if (blk->root_state.throttle_group) {
+        bdrv_io_limits_enable(bs, blk->root_state.throttle_group);
+    }
+}
+
+/*
+ * Returns the flags to be used for bdrv_open() of a BlockDriverState which is
+ * supposed to inherit the root state.
+ */
+int blk_get_open_flags_from_root_state(BlockBackend *blk)
+{
+    int bs_flags;
+
+    bs_flags = blk->root_state.read_only ? 0 : BDRV_O_RDWR;
+    bs_flags |= blk->root_state.open_flags & ~BDRV_O_RDWR;
+
+    return bs_flags;
 }
 
 BlockBackendRootState *blk_get_root_state(BlockBackend *blk)

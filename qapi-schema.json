@@ -1545,10 +1545,12 @@
 # abort since 1.6
 # blockdev-snapshot-internal-sync since 1.7
 # blockdev-backup since 2.3
+# blockdev-snapshot since 2.5
 ##
 { 'union': 'TransactionAction',
   'data': {
-       'blockdev-snapshot-sync': 'BlockdevSnapshot',
+       'blockdev-snapshot': 'BlockdevSnapshot',
+       'blockdev-snapshot-sync': 'BlockdevSnapshotSync',
        'drive-backup': 'DriveBackup',
        'blockdev-backup': 'BlockdevBackup',
        'abort': 'Abort',
@@ -1856,8 +1858,10 @@
 #          device's password.  The behavior of reads and writes to the block
 #          device between when these calls are executed is undefined.
 #
-# Notes:  It is strongly recommended that this interface is not used especially
-#         for changing block devices.
+# Notes:  This interface is deprecated, and it is strongly recommended that you
+#         avoid using it.  For changing block devices, use
+#         blockdev-change-medium; for changing VNC parameters, use
+#         change-vnc-password.
 #
 # Since: 0.14.0
 ##
