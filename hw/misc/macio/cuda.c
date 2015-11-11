@@ -499,6 +499,9 @@ static void cuda_receive_packet(CUDAState *s,
         }
         cuda_send_packet_to_host(s, obuf, 3);
         break;
+    case CUDA_GET_6805_ADDR:
+        cuda_send_packet_to_host(s, obuf, 3);
+        break;
     case CUDA_SET_TIME:
         ti = (((uint32_t)data[1]) << 24) + (((uint32_t)data[2]) << 16) + (((uint32_t)data[3]) << 8) + data[4];
         s->tick_offset = ti - (qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / get_ticks_per_sec());
