@@ -588,6 +588,20 @@ inc_reg_if_not_full(E1000State *s, int index)
     }
 }
 
+static void
+grow_8reg_if_not_full(E1000State *s, int index, int size)
+{
+    uint64_t sum = s->mac_reg[index] | (uint64_t)s->mac_reg[index+1] << 32;
+
+    if (sum + size < sum) {
+        sum = ~0ULL;
+    } else {
+        sum += size;
+    }
+    s->mac_reg[index] = sum;
+    s->mac_reg[index+1] = sum >> 32;
+}
+
 static inline int
 vlan_enabled(E1000State *s)
 {
@@ -637,7 +651,7 @@ static void
 xmit_seg(E1000State *s)
 {
     uint16_t len, *sp;
-    unsigned int frames = s->tx.tso_frames, css, sofar, n;
+    unsigned int frames = s->tx.tso_frames, css, sofar;
     struct e1000_tx *tp = &s->tx;
 
     if (tp->tse && tp->cptse) {
@@ -686,10 +700,8 @@ xmit_seg(E1000State *s)
     }
 
     inc_reg_if_not_full(s, TPT);
+    grow_8reg_if_not_full(s, TOTL, s->tx.size);
     s->mac_reg[GPTC] = s->mac_reg[TPT];
-    n = s->mac_reg[TOTL];
-    if ((s->mac_reg[TOTL] += s->tx.size) < n)
-        s->mac_reg[TOTH]++;
 }
 
 static void
@@ -1104,11 +1116,9 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     /* TOR - Total Octets Received:
      * This register includes bytes received in a packet from the <Destination
      * Address> field through the <CRC> field, inclusively.
+     * Always include FCS length (4) in size.
      */
-    n = s->mac_reg[TORL] + size + /* Always include FCS length. */ 4;
-    if (n < s->mac_reg[TORL])
-        s->mac_reg[TORH]++;
-    s->mac_reg[TORL] = n;
+    grow_8reg_if_not_full(s, TORL, size+4);
 
     n = E1000_ICS_RXT0;
     if ((rdt = s->mac_reg[RDT]) < s->mac_reg[RDH])
