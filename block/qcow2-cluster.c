@@ -312,7 +312,7 @@ static int count_contiguous_clusters(int nb_clusters, int cluster_size,
     if (!offset)
         return 0;
 
-    assert(qcow2_get_cluster_type(first_entry) != QCOW2_CLUSTER_COMPRESSED);
+    assert(qcow2_get_cluster_type(first_entry) == QCOW2_CLUSTER_NORMAL);
 
     for (i = 0; i < nb_clusters; i++) {
         uint64_t l2_entry = be64_to_cpu(l2_table[i]) & mask;
@@ -324,14 +324,16 @@ static int count_contiguous_clusters(int nb_clusters, int cluster_size,
 	return i;
 }
 
-static int count_contiguous_free_clusters(int nb_clusters, uint64_t *l2_table)
+static int count_contiguous_clusters_by_type(int nb_clusters,
+                                             uint64_t *l2_table,
+                                             int wanted_type)
 {
     int i;
 
     for (i = 0; i < nb_clusters; i++) {
         int type = qcow2_get_cluster_type(be64_to_cpu(l2_table[i]));
 
-        if (type != QCOW2_CLUSTER_UNALLOCATED) {
+        if (type != wanted_type) {
             break;
         }
     }
@@ -554,13 +556,14 @@ int qcow2_get_cluster_offset(BlockDriverState *bs, uint64_t offset,
             ret = -EIO;
             goto fail;
         }
-        c = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], QCOW_OFLAG_ZERO);
+        c = count_contiguous_clusters_by_type(nb_clusters, &l2_table[l2_index],
+                                              QCOW2_CLUSTER_ZERO);
         *cluster_offset = 0;
         break;
     case QCOW2_CLUSTER_UNALLOCATED:
         /* how many empty clusters ? */
-        c = count_contiguous_free_clusters(nb_clusters, &l2_table[l2_index]);
+        c = count_contiguous_clusters_by_type(nb_clusters, &l2_table[l2_index],
+                                              QCOW2_CLUSTER_UNALLOCATED);
         *cluster_offset = 0;
         break;
     case QCOW2_CLUSTER_NORMAL:

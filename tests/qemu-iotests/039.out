@@ -11,7 +11,11 @@ No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-./common.config: Killed                  ( exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@" )
+./common.config: Killed                  ( if [ "${VALGRIND_QEMU}" == "y" ]; then
+    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+else
+    exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+fi )
 incompatible_features     0x1
 ERROR cluster 5 refcount=0 reference=1
 ERROR OFLAG_COPIED data cluster: l2_entry=8000000000050000 refcount=0
@@ -46,7 +50,11 @@ read 512/512 bytes at offset 0
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-./common.config: Killed                  ( exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@" )
+./common.config: Killed                  ( if [ "${VALGRIND_QEMU}" == "y" ]; then
+    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+else
+    exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+fi )
 incompatible_features     0x1
 ERROR cluster 5 refcount=0 reference=1
 Rebuilding refcount structure
@@ -60,7 +68,11 @@ incompatible_features     0x0
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-./common.config: Killed                  ( exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@" )
+./common.config: Killed                  ( if [ "${VALGRIND_QEMU}" == "y" ]; then
+    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+else
+    exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+fi )
 incompatible_features     0x0
 No errors were found on the image.
 
@@ -79,7 +91,11 @@ No errors were found on the image.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-./common.config: Killed                  ( exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@" )
+./common.config: Killed                  ( if [ "${VALGRIND_QEMU}" == "y" ]; then
+    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+else
+    exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+fi )
 incompatible_features     0x1
 ERROR cluster 5 refcount=0 reference=1
 ERROR OFLAG_COPIED data cluster: l2_entry=8000000000050000 refcount=0
@@ -89,7 +105,11 @@ Data may be corrupted, or further writes to the image may corrupt it.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-./common.config: Killed                  ( exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@" )
+./common.config: Killed                  ( if [ "${VALGRIND_QEMU}" == "y" ]; then
+    exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+else
+    exec "$QEMU_IO_PROG" $QEMU_IO_OPTIONS "$@";
+fi )
 incompatible_features     0x0
 No errors were found on the image.
 *** done

@@ -41,7 +41,6 @@ sortme=false
 expunge=true
 have_test_arg=false
 randomize=false
-valgrind=false
 cachemode=false
 rm -f $tmp.list $tmp.tmp $tmp.sed
 
@@ -53,6 +52,7 @@ export CACHEMODE="writeback"
 export QEMU_IO_OPTIONS=""
 export CACHEMODE_IS_DEFAULT=true
 export QEMU_OPTIONS="-nodefaults"
+export VALGRIND_QEMU=
 
 for r
 do
@@ -278,7 +278,7 @@ testlist options
             ;;
 
         -valgrind)
-            valgrind=true
+            VALGRIND_QEMU='y'
             xpand=false
             ;;
 
@@ -435,9 +435,4 @@ fi
 
 if [ "$IMGPROTO" = "nbd" ] ; then
     [ "$QEMU_NBD" = "" ] && _fatal "qemu-nbd not found"
-fi
-
-if $valgrind; then
-    export REAL_QEMU_IO="$QEMU_IO_PROG"
-    export QEMU_IO_PROG=valgrind_qemu_io
 fi

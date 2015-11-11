@@ -70,16 +70,6 @@ else
     TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
 fi
 
-function valgrind_qemu_io()
-{
-    valgrind --log-file=/tmp/$$.valgrind --error-exitcode=99 $REAL_QEMU_IO "$@"
-    if [ $? != 0 ]; then
-        cat /tmp/$$.valgrind
-    fi
-    rm -f /tmp/$$.valgrind
-}
-
-
 _optstr_add()
 {
     if [ -n "$1" ]; then
@@ -154,7 +144,6 @@ _make_test_img()
     # Start an NBD server on the image file, which is what we'll be talking to
     if [ $IMGPROTO = "nbd" ]; then
         eval "$QEMU_NBD -v -t -b 127.0.0.1 -p 10810 -f $IMGFMT  $TEST_IMG_FILE &"
-        QEMU_NBD_PID=$!
         sleep 1 # FIXME: qemu-nbd needs to be listening before we continue
     fi
 }
@@ -175,8 +164,11 @@ _cleanup_test_img()
     case "$IMGPROTO" in
 
         nbd)
-            if [ -n "$QEMU_NBD_PID" ]; then
-                kill $QEMU_NBD_PID
+            if [ -f "${TEST_DIR}/qemu-nbd.pid" ]; then
+                local QEMU_NBD_PID
+                read QEMU_NBD_PID < "${TEST_DIR}/qemu-nbd.pid"
+                kill ${QEMU_NBD_PID}
+                rm -f "${TEST_DIR}/qemu-nbd.pid"
             fi
             rm -f "$TEST_IMG_FILE"
             ;;

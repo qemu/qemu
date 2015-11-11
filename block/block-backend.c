@@ -189,6 +189,11 @@ static void drive_info_del(DriveInfo *dinfo)
     g_free(dinfo);
 }
 
+int blk_get_refcnt(BlockBackend *blk)
+{
+    return blk ? blk->refcnt : 0;
+}
+
 /*
  * Increment @blk's reference count.
  * @blk must not be null.

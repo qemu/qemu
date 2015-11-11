@@ -30,8 +30,6 @@ QEMU_COMM_TIMEOUT=10
 QEMU_FIFO_IN="${TEST_DIR}/qmp-in-$$"
 QEMU_FIFO_OUT="${TEST_DIR}/qmp-out-$$"
 
-QEMU_PID=
-_QEMU_HANDLE=0
 QEMU_HANDLE=0
 
 # If bash version is >= 4.1, these will be overwritten and dynamic
@@ -153,11 +151,11 @@ function _launch_qemu()
     mkfifo "${fifo_out}"
     mkfifo "${fifo_in}"
 
+    QEMU_NEED_PID='y'\
     ${QEMU} -nographic -serial none ${comm} -machine accel=qtest "${@}" \
                                                                 >"${fifo_out}" \
                                                                 2>&1 \
                                                                 <"${fifo_in}" &
-    QEMU_PID[${_QEMU_HANDLE}]=$!
 
     if [[ "${BASH_VERSINFO[0]}" -ge "5" ||
         ("${BASH_VERSINFO[0]}" -ge "4"  &&  "${BASH_VERSINFO[1]}" -ge "1") ]]
@@ -196,10 +194,18 @@ function _cleanup_qemu()
     # QEMU_PID[], QEMU_IN[], QEMU_OUT[] all use same indices
     for i in "${!QEMU_OUT[@]}"
     do
-        if [ -z "${wait}" ]; then
-            kill -KILL ${QEMU_PID[$i]} 2>/dev/null
+        local QEMU_PID
+        if [ -f "${TEST_DIR}/qemu-${i}.pid" ]; then
+            read QEMU_PID < "${TEST_DIR}/qemu-${i}.pid"
+            rm -f "${TEST_DIR}/qemu-${i}.pid"
+            if [ -z "${wait}" ] && [ -n "${QEMU_PID}" ]; then
+                kill -KILL ${QEMU_PID} 2>/dev/null
+            fi
+            if [ -n "${QEMU_PID}" ]; then
+                wait ${QEMU_PID} 2>/dev/null # silent kill
+            fi
         fi
-        wait ${QEMU_PID[$i]} 2>/dev/null # silent kill
+
         if [ -n "${wait}" ]; then
             cat <&${QEMU_OUT[$i]} | _filter_testdir | _filter_qemu \
                                   | _filter_qemu_io | _filter_qmp

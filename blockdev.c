@@ -3479,6 +3479,72 @@ fail:
     qmp_output_visitor_cleanup(ov);
 }
 
+void qmp_x_blockdev_del(bool has_id, const char *id,
+                        bool has_node_name, const char *node_name, Error **errp)
+{
+    AioContext *aio_context;
+    BlockBackend *blk;
+    BlockDriverState *bs;
+
+    if (has_id && has_node_name) {
+        error_setg(errp, "Only one of id and node-name must be specified");
+        return;
+    } else if (!has_id && !has_node_name) {
+        error_setg(errp, "No block device specified");
+        return;
+    }
+
+    if (has_id) {
+        blk = blk_by_name(id);
+        if (!blk) {
+            error_setg(errp, "Cannot find block backend %s", id);
+            return;
+        }
+        if (blk_get_refcnt(blk) > 1) {
+            error_setg(errp, "Block backend %s is in use", id);
+            return;
+        }
+        bs = blk_bs(blk);
+        aio_context = blk_get_aio_context(blk);
+    } else {
+        bs = bdrv_find_node(node_name);
+        if (!bs) {
+            error_setg(errp, "Cannot find node %s", node_name);
+            return;
+        }
+        blk = bs->blk;
+        if (blk) {
+            error_setg(errp, "Node %s is in use by %s",
+                       node_name, blk_name(blk));
+            return;
+        }
+        aio_context = bdrv_get_aio_context(bs);
+    }
+
+    aio_context_acquire(aio_context);
+
+    if (bs) {
+        if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, errp)) {
+            goto out;
+        }
+
+        if (bs->refcnt > 1 || !QLIST_EMPTY(&bs->parents)) {
+            error_setg(errp, "Block device %s is in use",
+                       bdrv_get_device_or_node_name(bs));
+            goto out;
+        }
+    }
+
+    if (blk) {
+        blk_unref(blk);
+    } else {
+        bdrv_unref(bs);
+    }
+
+out:
+    aio_context_release(aio_context);
+}
+
 BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 {
     BlockJobInfoList *head = NULL, **p_next = &head;
