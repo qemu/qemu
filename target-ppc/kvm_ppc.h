@@ -180,7 +180,7 @@ static inline int kvmppc_remove_spapr_tce(void *table, int pfd,
 
 static inline int kvmppc_reset_htab(int shift_hint)
 {
-    return -1;
+    return 0;
 }
 
 static inline uint64_t kvmppc_rma_size(uint64_t current_size,
