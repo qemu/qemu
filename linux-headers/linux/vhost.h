@@ -78,7 +78,7 @@ struct vhost_memory {
 #define VHOST_SET_OWNER _IO(VHOST_VIRTIO, 0x01)
 /* Give up ownership, and reset the device to default values.
  * Allows subsequent call to VHOST_OWNER_SET to succeed. */
-#define VHOST_RESET_DEVICE _IO(VHOST_VIRTIO, 0x02)
+#define VHOST_RESET_OWNER _IO(VHOST_VIRTIO, 0x02)
 
 /* Set up/modify memory layout */
 #define VHOST_SET_MEM_TABLE	_IOW(VHOST_VIRTIO, 0x03, struct vhost_memory)

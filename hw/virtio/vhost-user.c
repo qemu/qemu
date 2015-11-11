@@ -43,7 +43,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_FEATURES = 1,
     VHOST_USER_SET_FEATURES = 2,
     VHOST_USER_SET_OWNER = 3,
-    VHOST_USER_RESET_DEVICE = 4,
+    VHOST_USER_RESET_OWNER = 4,
     VHOST_USER_SET_MEM_TABLE = 5,
     VHOST_USER_SET_LOG_BASE = 6,
     VHOST_USER_SET_LOG_FD = 7,
@@ -163,7 +163,7 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
 {
     switch (request) {
     case VHOST_USER_SET_OWNER:
-    case VHOST_USER_RESET_DEVICE:
+    case VHOST_USER_RESET_OWNER:
     case VHOST_USER_SET_MEM_TABLE:
     case VHOST_USER_GET_QUEUE_NUM:
         return true;
@@ -493,7 +493,7 @@ static int vhost_user_set_owner(struct vhost_dev *dev)
 static int vhost_user_reset_device(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
-        .request = VHOST_USER_RESET_DEVICE,
+        .request = VHOST_USER_RESET_OWNER,
         .flags = VHOST_USER_VERSION,
     };
 
