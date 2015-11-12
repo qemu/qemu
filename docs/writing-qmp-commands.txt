@@ -210,7 +210,7 @@ if you don't see these strings, then something went wrong.
 === Errors ===
 
 QMP commands should use the error interface exported by the error.h header
-file. Basically, errors are set by calling the error_set() function.
+file. Basically, most errors are set by calling the error_setg() function.
 
 Let's say we don't accept the string "message" to contain the word "love". If
 it does contain it, we want the "hello-world" command to return an error:
@@ -219,8 +219,7 @@ void qmp_hello_world(bool has_message, const char *message, Error **errp)
 {
     if (has_message) {
         if (strstr(message, "love")) {
-            error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-                      "the word 'love' is not allowed");
+            error_setg(errp, "the word 'love' is not allowed");
             return;
         }
         printf("%s\n", message);
@@ -229,10 +228,8 @@ void qmp_hello_world(bool has_message, const char *message, Error **errp)
     }
 }
 
-The first argument to the error_set() function is the Error pointer to pointer,
-which is passed to all QMP functions. The second argument is a ErrorClass
-value, which should be ERROR_CLASS_GENERIC_ERROR most of the time (more
-details about error classes are given below). The third argument is a human
+The first argument to the error_setg() function is the Error pointer
+to pointer, which is passed to all QMP functions. The next argument is a human
 description of the error, this is a free-form printf-like string.
 
 Let's test the example above. Build qemu, run it as defined in the "Testing"
@@ -249,8 +246,9 @@ The QMP server's response should be:
     }
 }
 
-As a general rule, all QMP errors should use ERROR_CLASS_GENERIC_ERROR. There
-are two exceptions to this rule:
+As a general rule, all QMP errors should use ERROR_CLASS_GENERIC_ERROR
+(done by default when using error_setg()). There are two exceptions to
+this rule:
 
  1. A non-generic ErrorClass value exists* for the failure you want to report
     (eg. DeviceNotFound)
@@ -259,8 +257,8 @@ are two exceptions to this rule:
     want to report, hence you have to add a new ErrorClass value so that they
     can check for it
 
-If the failure you want to report doesn't fall in one of the two cases above,
-just report ERROR_CLASS_GENERIC_ERROR.
+If the failure you want to report falls into one of the two cases above,
+use error_set() with a second argument of an ErrorClass value.
 
  * All existing ErrorClass values are defined in the qapi-schema.json file
 

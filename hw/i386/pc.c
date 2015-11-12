@@ -1795,9 +1795,9 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
         return;
     }
     if (value > (1ULL << 32)) {
-        error_set(&error, ERROR_CLASS_GENERIC_ERROR,
-                  "Machine option 'max-ram-below-4g=%"PRIu64
-                  "' expects size less than or equal to 4G", value);
+        error_setg(&error,
+                   "Machine option 'max-ram-below-4g=%"PRIu64
+                   "' expects size less than or equal to 4G", value);
         error_propagate(errp, error);
         return;
     }

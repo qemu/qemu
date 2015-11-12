@@ -2462,15 +2462,13 @@ RockerOfDpaFlowList *qmp_query_rocker_of_dpa_flows(const char *name,
 
     r = rocker_find(name);
     if (!r) {
-        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-                  "rocker %s not found", name);
+        error_setg(errp, "rocker %s not found", name);
         return NULL;
     }
 
     w = rocker_get_world(r, ROCKER_WORLD_TYPE_OF_DPA);
     if (!w) {
-        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-                  "rocker %s doesn't have OF-DPA world", name);
+        error_setg(errp, "rocker %s doesn't have OF-DPA world", name);
         return NULL;
     }
 
@@ -2597,15 +2595,13 @@ RockerOfDpaGroupList *qmp_query_rocker_of_dpa_groups(const char *name,
 
     r = rocker_find(name);
     if (!r) {
-        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-                  "rocker %s not found", name);
+        error_setg(errp, "rocker %s not found", name);
         return NULL;
     }
 
     w = rocker_get_world(r, ROCKER_WORLD_TYPE_OF_DPA);
     if (!w) {
-        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-                  "rocker %s doesn't have OF-DPA world", name);
+        error_setg(errp, "rocker %s doesn't have OF-DPA world", name);
         return NULL;
     }
 
