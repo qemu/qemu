@@ -11102,6 +11102,7 @@ void gen_intermediate_code_a64(ARMCPU *cpu, TranslationBlock *tb)
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     if (bp->flags & BP_CPU) {
+                        gen_a64_set_pc_im(dc->pc);
                         gen_helper_check_breakpoints(cpu_env);
                         /* End the TB early; it likely won't be executed */
                         dc->is_jmp = DISAS_UPDATE;
