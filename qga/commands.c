@@ -398,7 +398,7 @@ GuestExec *qmp_guest_exec(const char *path,
     arglist.next = has_arg ? arg : NULL;
 
     argv = guest_exec_get_args(&arglist, true);
-    envp = guest_exec_get_args(has_env ? env : NULL, false);
+    envp = has_env ? guest_exec_get_args(env, false) : NULL;
 
     flags = G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD;
     if (!has_output) {
