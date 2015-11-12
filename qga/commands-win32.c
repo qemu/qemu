@@ -59,6 +59,7 @@ static struct {
     .filehandles = QTAILQ_HEAD_INITIALIZER(guest_file_state.filehandles),
 };
 
+#define FILE_GENERIC_APPEND (FILE_GENERIC_WRITE & ~FILE_WRITE_DATA)
 
 typedef struct OpenFlags {
     const char *forms;
@@ -66,20 +67,20 @@ typedef struct OpenFlags {
     DWORD creation_disposition;
 } OpenFlags;
 static OpenFlags guest_file_open_modes[] = {
-    {"r",   GENERIC_READ,               OPEN_EXISTING},
-    {"rb",  GENERIC_READ,               OPEN_EXISTING},
-    {"w",   GENERIC_WRITE,              CREATE_ALWAYS},
-    {"wb",  GENERIC_WRITE,              CREATE_ALWAYS},
-    {"a",   GENERIC_WRITE,              OPEN_ALWAYS  },
-    {"r+",  GENERIC_WRITE|GENERIC_READ, OPEN_EXISTING},
-    {"rb+", GENERIC_WRITE|GENERIC_READ, OPEN_EXISTING},
-    {"r+b", GENERIC_WRITE|GENERIC_READ, OPEN_EXISTING},
-    {"w+",  GENERIC_WRITE|GENERIC_READ, CREATE_ALWAYS},
-    {"wb+", GENERIC_WRITE|GENERIC_READ, CREATE_ALWAYS},
-    {"w+b", GENERIC_WRITE|GENERIC_READ, CREATE_ALWAYS},
-    {"a+",  GENERIC_WRITE|GENERIC_READ, OPEN_ALWAYS  },
-    {"ab+", GENERIC_WRITE|GENERIC_READ, OPEN_ALWAYS  },
-    {"a+b", GENERIC_WRITE|GENERIC_READ, OPEN_ALWAYS  }
+    {"r",   GENERIC_READ,                     OPEN_EXISTING},
+    {"rb",  GENERIC_READ,                     OPEN_EXISTING},
+    {"w",   GENERIC_WRITE,                    CREATE_ALWAYS},
+    {"wb",  GENERIC_WRITE,                    CREATE_ALWAYS},
+    {"a",   FILE_GENERIC_APPEND,              OPEN_ALWAYS  },
+    {"r+",  GENERIC_WRITE|GENERIC_READ,       OPEN_EXISTING},
+    {"rb+", GENERIC_WRITE|GENERIC_READ,       OPEN_EXISTING},
+    {"r+b", GENERIC_WRITE|GENERIC_READ,       OPEN_EXISTING},
+    {"w+",  GENERIC_WRITE|GENERIC_READ,       CREATE_ALWAYS},
+    {"wb+", GENERIC_WRITE|GENERIC_READ,       CREATE_ALWAYS},
+    {"w+b", GENERIC_WRITE|GENERIC_READ,       CREATE_ALWAYS},
+    {"a+",  FILE_GENERIC_APPEND|GENERIC_READ, OPEN_ALWAYS  },
+    {"ab+", FILE_GENERIC_APPEND|GENERIC_READ, OPEN_ALWAYS  },
+    {"a+b", FILE_GENERIC_APPEND|GENERIC_READ, OPEN_ALWAYS  }
 };
 
 static OpenFlags *find_open_flag(const char *mode_str)
