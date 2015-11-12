@@ -4435,7 +4435,8 @@ fi
 if test "$fortify_source" != "no"; then
   if echo | $cc -dM -E - | grep __clang__ > /dev/null 2>&1 ; then
     fortify_source="no";
-  elif echo | $cxx -dM -E - | grep __clang__ > /dev/null 2>&1 ; then
+  elif test -n "$cxx" &&
+       echo | $cxx -dM -E - | grep __clang__ >/dev/null 2>&1 ; then
     fortify_source="no";
   else
     fortify_source="yes"
