@@ -478,10 +478,12 @@ int main(int argc, char **argv)
     tmpserver = g_strconcat(tmpdir, "/server", NULL);
 
     qtest_add_func("/ivshmem/single", test_ivshmem_single);
-    qtest_add_func("/ivshmem/pair", test_ivshmem_pair);
-    qtest_add_func("/ivshmem/server", test_ivshmem_server);
     qtest_add_func("/ivshmem/hotplug", test_ivshmem_hotplug);
     qtest_add_func("/ivshmem/memdev", test_ivshmem_memdev);
+    if (g_test_slow()) {
+        qtest_add_func("/ivshmem/pair", test_ivshmem_pair);
+        qtest_add_func("/ivshmem/server", test_ivshmem_server);
+    }
 
     ret = g_test_run();
 
