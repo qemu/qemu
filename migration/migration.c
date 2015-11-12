@@ -768,7 +768,7 @@ void qmp_migrate_start_postcopy(Error **errp)
     MigrationState *s = migrate_get_current();
 
     if (!migrate_postcopy_ram()) {
-        error_setg(errp, "Enable postcopy with migration_set_capability before"
+        error_setg(errp, "Enable postcopy with migrate_set_capability before"
                          " the start of migration");
         return;
     }

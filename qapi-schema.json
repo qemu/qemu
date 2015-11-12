@@ -706,7 +706,9 @@
 ##
 # @migrate-start-postcopy
 #
-# Switch migration to postcopy mode
+# Followup to a migration command to switch the migration to postcopy mode.
+# The x-postcopy-ram capability must be set before the original migration
+# command.
 #
 # Since: 2.5
 { 'command': 'migrate-start-postcopy' }
