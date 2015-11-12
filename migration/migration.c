@@ -902,38 +902,31 @@ bool migration_in_postcopy(MigrationState *s)
 MigrationState *migrate_init(const MigrationParams *params)
 {
     MigrationState *s = migrate_get_current();
-    int64_t bandwidth_limit = s->bandwidth_limit;
-    bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
-    int64_t xbzrle_cache_size = s->xbzrle_cache_size;
-    int compress_level = s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL];
-    int compress_thread_count =
-            s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
-    int decompress_thread_count =
-            s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
-    int x_cpu_throttle_initial =
-            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL];
-    int x_cpu_throttle_increment =
-            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
 
-    memcpy(enabled_capabilities, s->enabled_capabilities,
-           sizeof(enabled_capabilities));
-
-    memset(s, 0, sizeof(*s));
+    /*
+     * Reinitialise all migration state, except
+     * parameters/capabilities that the user set, and
+     * locks.
+     */
+    s->bytes_xfer = 0;
+    s->xfer_limit = 0;
+    s->cleanup_bh = 0;
+    s->file = NULL;
+    s->state = MIGRATION_STATUS_NONE;
     s->params = *params;
-    memcpy(s->enabled_capabilities, enabled_capabilities,
-           sizeof(enabled_capabilities));
-    s->xbzrle_cache_size = xbzrle_cache_size;
+    s->rp_state.from_dst_file = NULL;
+    s->rp_state.error = false;
+    s->mbps = 0.0;
+    s->downtime = 0;
+    s->expected_downtime = 0;
+    s->dirty_pages_rate = 0;
+    s->dirty_bytes_rate = 0;
+    s->setup_time = 0;
+    s->dirty_sync_count = 0;
+    s->start_postcopy = false;
+    s->migration_thread_running = false;
+    s->last_req_rb = NULL;
 
-    s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] = compress_level;
-    s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS] =
-               compress_thread_count;
-    s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
-               decompress_thread_count;
-    s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL] =
-                x_cpu_throttle_initial;
-    s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT] =
-                x_cpu_throttle_increment;
-    s->bandwidth_limit = bandwidth_limit;
     migrate_set_state(s, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
     QSIMPLEQ_INIT(&s->src_page_requests);
