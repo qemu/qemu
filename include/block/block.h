@@ -14,6 +14,7 @@ typedef struct BlockDriver BlockDriver;
 typedef struct BlockJob BlockJob;
 typedef struct BdrvChild BdrvChild;
 typedef struct BdrvChildRole BdrvChildRole;
+typedef struct BlockJobTxn BlockJobTxn;
 
 typedef struct BlockDriverInfo {
     /* in bytes, 0 if irrelevant */
@@ -335,10 +336,18 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb);
 
 typedef struct BlockRequest {
     /* Fields to be filled by multiwrite caller */
-    int64_t sector;
-    int nb_sectors;
-    int flags;
-    QEMUIOVector *qiov;
+    union {
+        struct {
+            int64_t sector;
+            int nb_sectors;
+            int flags;
+            QEMUIOVector *qiov;
+        };
+        struct {
+            int req;
+            void *buf;
+        };
+    };
     BlockCompletionFunc *cb;
     void *opaque;
 
@@ -493,7 +502,6 @@ void bdrv_set_dirty_bitmap(BdrvDirtyBitmap *bitmap,
                            int64_t cur_sector, int nr_sectors);
 void bdrv_reset_dirty_bitmap(BdrvDirtyBitmap *bitmap,
                              int64_t cur_sector, int nr_sectors);
-void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap);
 void bdrv_dirty_iter_init(BdrvDirtyBitmap *bitmap, struct HBitmapIter *hbi);
 void bdrv_set_dirty_iter(struct HBitmapIter *hbi, int64_t offset);
 int64_t bdrv_get_dirty_count(BdrvDirtyBitmap *bitmap);

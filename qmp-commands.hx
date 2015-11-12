@@ -1281,7 +1281,7 @@ EQMP
     },
     {
         .name       = "transaction",
-        .args_type  = "actions:q",
+        .args_type  = "actions:q,properties:q?",
         .mhandler.cmd_new = qmp_marshal_transaction,
     },
 
@@ -2583,6 +2583,64 @@ Each json-object contain the following:
                    another request (json-int)
     - "wr_merged": number of write requests that have been merged into
                    another request (json-int)
+    - "idle_time_ns": time since the last I/O operation, in
+                      nanoseconds. If the field is absent it means
+                      that there haven't been any operations yet
+                      (json-int, optional)
+    - "failed_rd_operations": number of failed read operations
+                              (json-int)
+    - "failed_wr_operations": number of failed write operations
+                              (json-int)
+    - "failed_flush_operations": number of failed flush operations
+                               (json-int)
+    - "invalid_rd_operations": number of invalid read operations
+                               (json-int)
+    - "invalid_wr_operations": number of invalid write operations
+                               (json-int)
+    - "invalid_flush_operations": number of invalid flush operations
+                                  (json-int)
+    - "account_invalid": whether invalid operations are included in
+                         the last access statistics (json-bool)
+    - "account_failed": whether failed operations are included in the
+                         latency and last access statistics
+                         (json-bool)
+    - "timed_stats": A json-array containing statistics collected in
+                     specific intervals, with the following members:
+        - "interval_length": interval used for calculating the
+                             statistics, in seconds (json-int)
+        - "min_rd_latency_ns": minimum latency of read operations in
+                               the defined interval, in nanoseconds
+                               (json-int)
+        - "min_wr_latency_ns": minimum latency of write operations in
+                               the defined interval, in nanoseconds
+                               (json-int)
+        - "min_flush_latency_ns": minimum latency of flush operations
+                                  in the defined interval, in
+                                  nanoseconds (json-int)
+        - "max_rd_latency_ns": maximum latency of read operations in
+                               the defined interval, in nanoseconds
+                               (json-int)
+        - "max_wr_latency_ns": maximum latency of write operations in
+                               the defined interval, in nanoseconds
+                               (json-int)
+        - "max_flush_latency_ns": maximum latency of flush operations
+                                  in the defined interval, in
+                                  nanoseconds (json-int)
+        - "avg_rd_latency_ns": average latency of read operations in
+                               the defined interval, in nanoseconds
+                               (json-int)
+        - "avg_wr_latency_ns": average latency of write operations in
+                               the defined interval, in nanoseconds
+                               (json-int)
+        - "avg_flush_latency_ns": average latency of flush operations
+                                  in the defined interval, in
+                                  nanoseconds (json-int)
+        - "avg_rd_queue_depth": average number of pending read
+                                operations in the defined interval
+                                (json-number)
+        - "avg_wr_queue_depth": average number of pending write
+                                operations in the defined interval
+                                (json-number).
 - "parent": Contains recursively the statistics of the underlying
             protocol (e.g. the host file for a qcow2 image). If there is
             no underlying protocol, this field is omitted
@@ -2607,7 +2665,10 @@ Example:
                   "flush_total_times_ns":49653
                   "flush_operations":61,
                   "rd_merged":0,
-                  "wr_merged":0
+                  "wr_merged":0,
+                  "idle_time_ns":2953431879,
+                  "account_invalid":true,
+                  "account_failed":false
                }
             },
             "stats":{
@@ -2621,7 +2682,10 @@ Example:
                "rd_total_times_ns":3465673657
                "flush_total_times_ns":49653,
                "rd_merged":0,
-               "wr_merged":0
+               "wr_merged":0,
+               "idle_time_ns":2953431879,
+               "account_invalid":true,
+               "account_failed":false
             }
          },
          {
@@ -2637,7 +2701,9 @@ Example:
                "rd_total_times_ns":0
                "flush_total_times_ns":0,
                "rd_merged":0,
-               "wr_merged":0
+               "wr_merged":0,
+               "account_invalid":false,
+               "account_failed":false
             }
          },
          {
@@ -2653,7 +2719,9 @@ Example:
                "rd_total_times_ns":0
                "flush_total_times_ns":0,
                "rd_merged":0,
-               "wr_merged":0
+               "wr_merged":0,
+               "account_invalid":false,
+               "account_failed":false
             }
          },
          {
@@ -2669,7 +2737,9 @@ Example:
                "rd_total_times_ns":0
                "flush_total_times_ns":0,
                "rd_merged":0,
-               "wr_merged":0
+               "wr_merged":0,
+               "account_invalid":false,
+               "account_failed":false
             }
          }
       ]

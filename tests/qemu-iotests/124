@@ -36,6 +36,23 @@ def try_remove(img):
         pass
 
 
+def transaction_action(action, **kwargs):
+    return {
+        'type': action,
+        'data': dict((k.replace('_', '-'), v) for k, v in kwargs.iteritems())
+    }
+
+
+def transaction_bitmap_clear(node, name, **kwargs):
+    return transaction_action('block-dirty-bitmap-clear',
+                              node=node, name=name, **kwargs)
+
+
+def transaction_drive_backup(device, target, **kwargs):
+    return transaction_action('drive-backup', device=device, target=target,
+                              **kwargs)
+
+
 class Bitmap:
     def __init__(self, name, drive):
         self.name = name
@@ -122,9 +139,12 @@ class TestIncrementalBackup(iotests.QMPTestCase):
     def do_qmp_backup(self, error='Input/output error', **kwargs):
         res = self.vm.qmp('drive-backup', **kwargs)
         self.assert_qmp(res, 'return', {})
+        return self.wait_qmp_backup(kwargs['device'], error)
 
+
+    def wait_qmp_backup(self, device, error='Input/output error'):
         event = self.vm.event_wait(name="BLOCK_JOB_COMPLETED",
-                                   match={'data': {'device': kwargs['device']}})
+                                   match={'data': {'device': device}})
         self.assertNotEqual(event, None)
 
         try:
@@ -137,6 +157,12 @@ class TestIncrementalBackup(iotests.QMPTestCase):
             # Backup failed.
             self.assert_qmp(event, 'data/error', error)
             return False
+
+
+    def wait_qmp_backup_cancelled(self, device):
+        event = self.vm.event_wait(name='BLOCK_JOB_CANCELLED',
+                                   match={'data': {'device': device}})
+        self.assertNotEqual(event, None)
 
 
     def create_anchor_backup(self, drive=None):
@@ -264,6 +290,43 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         return self.do_incremental_simple(granularity=131072)
 
 
+    def test_incremental_transaction(self):
+        '''Test: Verify backups made from transactionally created bitmaps.
+
+        Create a bitmap "before" VM execution begins, then create a second
+        bitmap AFTER writes have already occurred. Use transactions to create
+        a full backup and synchronize both bitmaps to this backup.
+        Create an incremental backup through both bitmaps and verify that
+        both backups match the current drive0 image.
+        '''
+
+        drive0 = self.drives[0]
+        bitmap0 = self.add_bitmap('bitmap0', drive0)
+        self.hmp_io_writes(drive0['id'], (('0xab', 0, 512),
+                                          ('0xfe', '16M', '256k'),
+                                          ('0x64', '32736k', '64k')))
+        bitmap1 = self.add_bitmap('bitmap1', drive0)
+
+        result = self.vm.qmp('transaction', actions=[
+            transaction_bitmap_clear(bitmap0.drive['id'], bitmap0.name),
+            transaction_bitmap_clear(bitmap1.drive['id'], bitmap1.name),
+            transaction_drive_backup(drive0['id'], drive0['backup'],
+                                     sync='full', format=drive0['fmt'])
+        ])
+        self.assert_qmp(result, 'return', {})
+        self.wait_until_completed(drive0['id'])
+        self.files.append(drive0['backup'])
+
+        self.hmp_io_writes(drive0['id'], (('0x9a', 0, 512),
+                                          ('0x55', '8M', '352k'),
+                                          ('0x78', '15872k', '1M')))
+        # Both bitmaps should be correctly in sync.
+        self.create_incremental(bitmap0)
+        self.create_incremental(bitmap1)
+        self.vm.shutdown()
+        self.check_backups()
+
+
     def test_incremental_failure(self):
         '''Test: Verify backups made after a failure are correct.
 
@@ -317,6 +380,123 @@ class TestIncrementalBackup(iotests.QMPTestCase):
                                           ('0x55', '8M', '352k'),
                                           ('0x78', '15872k', '1M')))
         self.create_incremental()
+        self.vm.shutdown()
+        self.check_backups()
+
+
+    def test_transaction_failure(self):
+        '''Test: Verify backups made from a transaction that partially fails.
+
+        Add a second drive with its own unique pattern, and add a bitmap to each
+        drive. Use blkdebug to interfere with the backup on just one drive and
+        attempt to create a coherent incremental backup across both drives.
+
+        verify a failure in one but not both, then delete the failed stubs and
+        re-run the same transaction.
+
+        verify that both incrementals are created successfully.
+        '''
+
+        # Create a second drive, with pattern:
+        drive1 = self.add_node('drive1')
+        self.img_create(drive1['file'], drive1['fmt'])
+        io_write_patterns(drive1['file'], (('0x14', 0, 512),
+                                           ('0x5d', '1M', '32k'),
+                                           ('0xcd', '32M', '124k')))
+
+        # Create a blkdebug interface to this img as 'drive1'
+        result = self.vm.qmp('blockdev-add', options={
+            'id': drive1['id'],
+            'driver': drive1['fmt'],
+            'file': {
+                'driver': 'blkdebug',
+                'image': {
+                    'driver': 'file',
+                    'filename': drive1['file']
+                },
+                'set-state': [{
+                    'event': 'flush_to_disk',
+                    'state': 1,
+                    'new_state': 2
+                }],
+                'inject-error': [{
+                    'event': 'read_aio',
+                    'errno': 5,
+                    'state': 2,
+                    'immediately': False,
+                    'once': True
+                }],
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        # Create bitmaps and full backups for both drives
+        drive0 = self.drives[0]
+        dr0bm0 = self.add_bitmap('bitmap0', drive0)
+        dr1bm0 = self.add_bitmap('bitmap0', drive1)
+        self.create_anchor_backup(drive0)
+        self.create_anchor_backup(drive1)
+        self.assert_no_active_block_jobs()
+        self.assertFalse(self.vm.get_qmp_events(wait=False))
+
+        # Emulate some writes
+        self.hmp_io_writes(drive0['id'], (('0xab', 0, 512),
+                                          ('0xfe', '16M', '256k'),
+                                          ('0x64', '32736k', '64k')))
+        self.hmp_io_writes(drive1['id'], (('0xba', 0, 512),
+                                          ('0xef', '16M', '256k'),
+                                          ('0x46', '32736k', '64k')))
+
+        # Create incremental backup targets
+        target0 = self.prepare_backup(dr0bm0)
+        target1 = self.prepare_backup(dr1bm0)
+
+        # Ask for a new incremental backup per-each drive,
+        # expecting drive1's backup to fail:
+        transaction = [
+            transaction_drive_backup(drive0['id'], target0, sync='incremental',
+                                     format=drive0['fmt'], mode='existing',
+                                     bitmap=dr0bm0.name),
+            transaction_drive_backup(drive1['id'], target1, sync='incremental',
+                                     format=drive1['fmt'], mode='existing',
+                                     bitmap=dr1bm0.name)
+        ]
+        result = self.vm.qmp('transaction', actions=transaction,
+                             properties={'completion-mode': 'grouped'} )
+        self.assert_qmp(result, 'return', {})
+
+        # Observe that drive0's backup is cancelled and drive1 completes with
+        # an error.
+        self.wait_qmp_backup_cancelled(drive0['id'])
+        self.assertFalse(self.wait_qmp_backup(drive1['id']))
+        error = self.vm.event_wait('BLOCK_JOB_ERROR')
+        self.assert_qmp(error, 'data', {'device': drive1['id'],
+                                        'action': 'report',
+                                        'operation': 'read'})
+        self.assertFalse(self.vm.get_qmp_events(wait=False))
+        self.assert_no_active_block_jobs()
+
+        # Delete drive0's successful target and eliminate our record of the
+        # unsuccessful drive1 target. Then re-run the same transaction.
+        dr0bm0.del_target()
+        dr1bm0.del_target()
+        target0 = self.prepare_backup(dr0bm0)
+        target1 = self.prepare_backup(dr1bm0)
+
+        # Re-run the exact same transaction.
+        result = self.vm.qmp('transaction', actions=transaction,
+                             properties={'completion-mode':'grouped'})
+        self.assert_qmp(result, 'return', {})
+
+        # Both should complete successfully this time.
+        self.assertTrue(self.wait_qmp_backup(drive0['id']))
+        self.assertTrue(self.wait_qmp_backup(drive1['id']))
+        self.make_reference_backup(dr0bm0)
+        self.make_reference_backup(dr1bm0)
+        self.assertFalse(self.vm.get_qmp_events(wait=False))
+        self.assert_no_active_block_jobs()
+
+        # And the images should of course validate.
         self.vm.shutdown()
         self.check_backups()
 

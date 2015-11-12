@@ -574,13 +574,14 @@ static void ide_sector_read_cb(void *opaque, int ret)
     if (ret == -ECANCELED) {
         return;
     }
-    block_acct_done(blk_get_stats(s->blk), &s->acct);
     if (ret != 0) {
         if (ide_handle_rw_error(s, -ret, IDE_RETRY_PIO |
                                 IDE_RETRY_READ)) {
             return;
         }
     }
+
+    block_acct_done(blk_get_stats(s->blk), &s->acct);
 
     n = s->nsector;
     if (n > s->req_nb_sectors) {
@@ -621,6 +622,7 @@ static void ide_sector_read(IDEState *s)
 
     if (!ide_sect_range_ok(s, sector_num, n)) {
         ide_rw_error(s);
+        block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
         return;
     }
 
@@ -672,6 +674,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         assert(s->bus->retry_unit == s->unit);
         s->bus->error_status = op;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
+        block_acct_failed(blk_get_stats(s->blk), &s->acct);
         if (op & IDE_RETRY_DMA) {
             ide_dma_error(s);
         } else {
@@ -750,6 +753,7 @@ static void ide_dma_cb(void *opaque, int ret)
     if ((s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) &&
         !ide_sect_range_ok(s, sector_num, n)) {
         ide_dma_error(s);
+        block_acct_invalid(blk_get_stats(s->blk), s->acct.type);
         return;
     }
 
@@ -826,7 +830,6 @@ static void ide_sector_write_cb(void *opaque, int ret)
     if (ret == -ECANCELED) {
         return;
     }
-    block_acct_done(blk_get_stats(s->blk), &s->acct);
 
     s->pio_aiocb = NULL;
     s->status &= ~BUSY_STAT;
@@ -836,6 +839,8 @@ static void ide_sector_write_cb(void *opaque, int ret)
             return;
         }
     }
+
+    block_acct_done(blk_get_stats(s->blk), &s->acct);
 
     n = s->nsector;
     if (n > s->req_nb_sectors) {
@@ -887,6 +892,7 @@ static void ide_sector_write(IDEState *s)
 
     if (!ide_sect_range_ok(s, sector_num, n)) {
         ide_rw_error(s);
+        block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_WRITE);
         return;
     }
 
@@ -895,7 +901,7 @@ static void ide_sector_write(IDEState *s)
     qemu_iovec_init_external(&s->qiov, &s->iov, 1);
 
     block_acct_start(blk_get_stats(s->blk), &s->acct,
-                     n * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
+                     n * BDRV_SECTOR_SIZE, BLOCK_ACCT_WRITE);
     s->pio_aiocb = blk_aio_writev(s->blk, sector_num, &s->qiov, n,
                                   ide_sector_write_cb, s);
 }

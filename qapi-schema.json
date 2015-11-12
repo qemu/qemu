@@ -1534,6 +1534,26 @@
   'data': { } }
 
 ##
+# @ActionCompletionMode
+#
+# An enumeration of Transactional completion modes.
+#
+# @individual: Do not attempt to cancel any other Actions if any Actions fail
+#              after the Transaction request succeeds. All Actions that
+#              can complete successfully will do so without waiting on others.
+#              This is the default.
+#
+# @grouped: If any Action fails after the Transaction succeeds, cancel all
+#           Actions. Actions do not complete until all Actions are ready to
+#           complete. May be rejected by Actions that do not support this
+#           completion mode.
+#
+# Since: 2.5
+##
+{ 'enum': 'ActionCompletionMode',
+  'data': [ 'individual', 'grouped' ] }
+
+##
 # @TransactionAction
 #
 # A discriminated record of operations that can be performed with
@@ -1546,6 +1566,8 @@
 # blockdev-snapshot-internal-sync since 1.7
 # blockdev-backup since 2.3
 # blockdev-snapshot since 2.5
+# block-dirty-bitmap-add since 2.5
+# block-dirty-bitmap-clear since 2.5
 ##
 { 'union': 'TransactionAction',
   'data': {
@@ -1554,8 +1576,27 @@
        'drive-backup': 'DriveBackup',
        'blockdev-backup': 'BlockdevBackup',
        'abort': 'Abort',
-       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal'
+       'blockdev-snapshot-internal-sync': 'BlockdevSnapshotInternal',
+       'block-dirty-bitmap-add': 'BlockDirtyBitmapAdd',
+       'block-dirty-bitmap-clear': 'BlockDirtyBitmap'
    } }
+
+##
+# @TransactionProperties
+#
+# Optional arguments to modify the behavior of a Transaction.
+#
+# @completion-mode: #optional Controls how jobs launched asynchronously by
+#                   Actions will complete or fail as a group.
+#                   See @ActionCompletionMode for details.
+#
+# Since: 2.5
+##
+{ 'struct': 'TransactionProperties',
+  'data': {
+       '*completion-mode': 'ActionCompletionMode'
+  }
+}
 
 ##
 # @transaction
@@ -1564,8 +1605,12 @@
 # operation fails, then the entire set of actions will be abandoned and the
 # appropriate error returned.
 #
-#  List of:
-#  @TransactionAction: information needed for the respective operation
+# @actions: List of @TransactionAction;
+#           information needed for the respective operations.
+#
+# @properties: #optional structure of additional options to control the
+#              execution of the transaction. See @TransactionProperties
+#              for additional detail.
 #
 # Returns: nothing on success
 #          Errors depend on the operations of the transaction
@@ -1577,7 +1622,10 @@
 # Since 1.1
 ##
 { 'command': 'transaction',
-  'data': { 'actions': [ 'TransactionAction' ] } }
+  'data': { 'actions': [ 'TransactionAction' ],
+            '*properties': 'TransactionProperties'
+          }
+}
 
 ##
 # @human-monitor-command:

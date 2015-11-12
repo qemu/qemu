@@ -414,6 +414,59 @@
 ##
 { 'command': 'query-block', 'returns': ['BlockInfo'] }
 
+
+##
+# @BlockDeviceTimedStats:
+#
+# Statistics of a block device during a given interval of time.
+#
+# @interval_length: Interval used for calculating the statistics,
+#                   in seconds.
+#
+# @min_rd_latency_ns: Minimum latency of read operations in the
+#                     defined interval, in nanoseconds.
+#
+# @min_wr_latency_ns: Minimum latency of write operations in the
+#                     defined interval, in nanoseconds.
+#
+# @min_flush_latency_ns: Minimum latency of flush operations in the
+#                        defined interval, in nanoseconds.
+#
+# @max_rd_latency_ns: Maximum latency of read operations in the
+#                     defined interval, in nanoseconds.
+#
+# @max_wr_latency_ns: Maximum latency of write operations in the
+#                     defined interval, in nanoseconds.
+#
+# @max_flush_latency_ns: Maximum latency of flush operations in the
+#                        defined interval, in nanoseconds.
+#
+# @avg_rd_latency_ns: Average latency of read operations in the
+#                     defined interval, in nanoseconds.
+#
+# @avg_wr_latency_ns: Average latency of write operations in the
+#                     defined interval, in nanoseconds.
+#
+# @avg_flush_latency_ns: Average latency of flush operations in the
+#                        defined interval, in nanoseconds.
+#
+# @avg_rd_queue_depth: Average number of pending read operations
+#                      in the defined interval.
+#
+# @avg_wr_queue_depth: Average number of pending write operations
+#                      in the defined interval.
+#
+# Since: 2.5
+##
+
+{ 'struct': 'BlockDeviceTimedStats',
+  'data': { 'interval_length': 'int', 'min_rd_latency_ns': 'int',
+            'max_rd_latency_ns': 'int', 'avg_rd_latency_ns': 'int',
+            'min_wr_latency_ns': 'int', 'max_wr_latency_ns': 'int',
+            'avg_wr_latency_ns': 'int', 'min_flush_latency_ns': 'int',
+            'max_flush_latency_ns': 'int', 'avg_flush_latency_ns': 'int',
+            'avg_rd_queue_depth': 'number', 'avg_wr_queue_depth': 'number' } }
+
 ##
 # @BlockDeviceStats:
 #
@@ -448,6 +501,37 @@
 # @wr_merged: Number of write requests that have been merged into another
 #             request (Since 2.3).
 #
+# @idle_time_ns: #optional Time since the last I/O operation, in
+#                nanoseconds. If the field is absent it means that
+#                there haven't been any operations yet (Since 2.5).
+#
+# @failed_rd_operations: The number of failed read operations
+#                        performed by the device (Since 2.5)
+#
+# @failed_wr_operations: The number of failed write operations
+#                        performed by the device (Since 2.5)
+#
+# @failed_flush_operations: The number of failed flush operations
+#                           performed by the device (Since 2.5)
+#
+# @invalid_rd_operations: The number of invalid read operations
+#                          performed by the device (Since 2.5)
+#
+# @invalid_wr_operations: The number of invalid write operations
+#                         performed by the device (Since 2.5)
+#
+# @invalid_flush_operations: The number of invalid flush operations
+#                            performed by the device (Since 2.5)
+#
+# @account_invalid: Whether invalid operations are included in the
+#                   last access statistics (Since 2.5)
+#
+# @account_failed: Whether failed operations are included in the
+#                  latency and last access statistics (Since 2.5)
+#
+# @timed_stats: Statistics specific to the set of previously defined
+#               intervals of time (Since 2.5)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -455,7 +539,12 @@
            'wr_operations': 'int', 'flush_operations': 'int',
            'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
            'rd_total_time_ns': 'int', 'wr_highest_offset': 'int',
-           'rd_merged': 'int', 'wr_merged': 'int' } }
+           'rd_merged': 'int', 'wr_merged': 'int', '*idle_time_ns': 'int',
+           'failed_rd_operations': 'int', 'failed_wr_operations': 'int',
+           'failed_flush_operations': 'int', 'invalid_rd_operations': 'int',
+           'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
+           'account_invalid': 'bool', 'account_failed': 'bool',
+           'timed_stats': ['BlockDeviceTimedStats'] } }
 
 ##
 # @BlockStats:
@@ -1436,6 +1525,15 @@
 #                 (default: enospc)
 # @read-only:     #optional whether the block device should be read-only
 #                 (default: false)
+# @stats-account-invalid: #optional whether to include invalid
+#                         operations when computing last access statistics
+#                         (default: true) (Since 2.5)
+# @stats-account-failed: #optional whether to include failed
+#                         operations when computing latency and last
+#                         access statistics (default: true) (Since 2.5)
+# @stats-intervals: #optional colon-separated list of intervals for
+#                   collecting I/O statistics, in seconds (default: none)
+#                   (Since 2.5)
 # @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
 #                 (default: off)
 #
@@ -1451,6 +1549,9 @@
             '*rerror': 'BlockdevOnError',
             '*werror': 'BlockdevOnError',
             '*read-only': 'bool',
+            '*stats-account-invalid': 'bool',
+            '*stats-account-failed': 'bool',
+            '*stats-intervals': 'str',
             '*detect-zeroes': 'BlockdevDetectZeroesOptions' } }
 
 ##

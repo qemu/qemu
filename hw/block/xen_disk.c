@@ -537,7 +537,11 @@ static void qemu_aio_complete(void *opaque, int ret)
             break;
         }
     case BLKIF_OP_READ:
-        block_acct_done(blk_get_stats(ioreq->blkdev->blk), &ioreq->acct);
+        if (ioreq->status == BLKIF_RSP_OKAY) {
+            block_acct_done(blk_get_stats(ioreq->blkdev->blk), &ioreq->acct);
+        } else {
+            block_acct_failed(blk_get_stats(ioreq->blkdev->blk), &ioreq->acct);
+        }
         break;
     case BLKIF_OP_DISCARD:
     default:
@@ -576,7 +580,9 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
         }
 
         block_acct_start(blk_get_stats(blkdev->blk), &ioreq->acct,
-                         ioreq->v.size, BLOCK_ACCT_WRITE);
+                         ioreq->v.size,
+                         ioreq->req.operation == BLKIF_OP_WRITE ?
+                         BLOCK_ACCT_WRITE : BLOCK_ACCT_FLUSH);
         ioreq->aio_inflight++;
         blk_aio_writev(blkdev->blk, ioreq->start / BLOCK_SIZE,
                        &ioreq->v, ioreq->v.size / BLOCK_SIZE,
@@ -720,6 +726,23 @@ static void blk_handle_requests(struct XenBlkDev *blkdev)
 
         /* parse them */
         if (ioreq_parse(ioreq) != 0) {
+
+            switch (ioreq->req.operation) {
+            case BLKIF_OP_READ:
+                block_acct_invalid(blk_get_stats(blkdev->blk),
+                                   BLOCK_ACCT_READ);
+                break;
+            case BLKIF_OP_WRITE:
+                block_acct_invalid(blk_get_stats(blkdev->blk),
+                                   BLOCK_ACCT_WRITE);
+                break;
+            case BLKIF_OP_FLUSH_DISKCACHE:
+                block_acct_invalid(blk_get_stats(blkdev->blk),
+                                   BLOCK_ACCT_FLUSH);
+            default:
+                break;
+            };
+
             if (blk_send_response_one(ioreq)) {
                 xen_be_send_notify(&blkdev->xendev);
             }

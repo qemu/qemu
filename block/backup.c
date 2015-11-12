@@ -221,11 +221,45 @@ static void backup_iostatus_reset(BlockJob *job)
     }
 }
 
+static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
+{
+    BdrvDirtyBitmap *bm;
+    BlockDriverState *bs = job->common.bs;
+
+    if (ret < 0 || block_job_is_cancelled(&job->common)) {
+        /* Merge the successor back into the parent, delete nothing. */
+        bm = bdrv_reclaim_dirty_bitmap(bs, job->sync_bitmap, NULL);
+        assert(bm);
+    } else {
+        /* Everything is fine, delete this bitmap and install the backup. */
+        bm = bdrv_dirty_bitmap_abdicate(bs, job->sync_bitmap, NULL);
+        assert(bm);
+    }
+}
+
+static void backup_commit(BlockJob *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    if (s->sync_bitmap) {
+        backup_cleanup_sync_bitmap(s, 0);
+    }
+}
+
+static void backup_abort(BlockJob *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+    if (s->sync_bitmap) {
+        backup_cleanup_sync_bitmap(s, -1);
+    }
+}
+
 static const BlockJobDriver backup_job_driver = {
     .instance_size  = sizeof(BackupBlockJob),
     .job_type       = BLOCK_JOB_TYPE_BACKUP,
     .set_speed      = backup_set_speed,
     .iostatus_reset = backup_iostatus_reset,
+    .commit         = backup_commit,
+    .abort          = backup_abort,
 };
 
 static BlockErrorAction backup_error_action(BackupBlockJob *job,
@@ -441,19 +475,6 @@ static void coroutine_fn backup_run(void *opaque)
     /* wait until pending backup_do_cow() calls have completed */
     qemu_co_rwlock_wrlock(&job->flush_rwlock);
     qemu_co_rwlock_unlock(&job->flush_rwlock);
-
-    if (job->sync_bitmap) {
-        BdrvDirtyBitmap *bm;
-        if (ret < 0 || block_job_is_cancelled(&job->common)) {
-            /* Merge the successor back into the parent, delete nothing. */
-            bm = bdrv_reclaim_dirty_bitmap(bs, job->sync_bitmap, NULL);
-            assert(bm);
-        } else {
-            /* Everything is fine, delete this bitmap and install the backup. */
-            bm = bdrv_dirty_bitmap_abdicate(bs, job->sync_bitmap, NULL);
-            assert(bm);
-        }
-    }
     hbitmap_free(job->bitmap);
 
     if (target->blk) {
@@ -472,7 +493,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb, void *opaque,
-                  Error **errp)
+                  BlockJobTxn *txn, Error **errp)
 {
     int64_t len;
 
@@ -554,6 +575,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                        sync_bitmap : NULL;
     job->common.len = len;
     job->common.co = qemu_coroutine_create(backup_run);
+    block_job_txn_add_job(txn, &job->common);
     qemu_coroutine_enter(job->common.co, job);
     return;
 

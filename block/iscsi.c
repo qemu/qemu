@@ -97,6 +97,7 @@ typedef struct IscsiAIOCB {
     int status;
     int64_t sector_num;
     int nb_sectors;
+    int ret;
 #ifdef __linux__
     sg_io_hdr_t *ioh;
 #endif
@@ -779,6 +780,38 @@ iscsi_aio_ioctl_cb(struct iscsi_context *iscsi, int status,
     iscsi_schedule_bh(acb);
 }
 
+static void iscsi_ioctl_bh_completion(void *opaque)
+{
+    IscsiAIOCB *acb = opaque;
+
+    qemu_bh_delete(acb->bh);
+    acb->common.cb(acb->common.opaque, acb->ret);
+    qemu_aio_unref(acb);
+}
+
+static void iscsi_ioctl_handle_emulated(IscsiAIOCB *acb, int req, void *buf)
+{
+    BlockDriverState *bs = acb->common.bs;
+    IscsiLun *iscsilun = bs->opaque;
+    int ret = 0;
+
+    switch (req) {
+    case SG_GET_VERSION_NUM:
+        *(int *)buf = 30000;
+        break;
+    case SG_GET_SCSI_ID:
+        ((struct sg_scsi_id *)buf)->scsi_type = iscsilun->type;
+        break;
+    default:
+        ret = -EINVAL;
+    }
+    assert(!acb->bh);
+    acb->bh = aio_bh_new(bdrv_get_aio_context(bs),
+                         iscsi_ioctl_bh_completion, acb);
+    acb->ret = ret;
+    qemu_bh_schedule(acb->bh);
+}
+
 static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockCompletionFunc *cb, void *opaque)
@@ -788,8 +821,6 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     struct iscsi_data data;
     IscsiAIOCB *acb;
 
-    assert(req == SG_IO);
-
     acb = qemu_aio_get(&iscsi_aiocb_info, bs, cb, opaque);
 
     acb->iscsilun = iscsilun;
@@ -797,6 +828,11 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     acb->status      = -EINPROGRESS;
     acb->buf         = NULL;
     acb->ioh         = buf;
+
+    if (req != SG_IO) {
+        iscsi_ioctl_handle_emulated(acb, req, buf);
+        return &acb->common;
+    }
 
     acb->task = malloc(sizeof(struct scsi_task));
     if (acb->task == NULL) {
@@ -862,38 +898,6 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     return &acb->common;
 }
 
-static void ioctl_cb(void *opaque, int status)
-{
-    int *p_status = opaque;
-    *p_status = status;
-}
-
-static int iscsi_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
-{
-    IscsiLun *iscsilun = bs->opaque;
-    int status;
-
-    switch (req) {
-    case SG_GET_VERSION_NUM:
-        *(int *)buf = 30000;
-        break;
-    case SG_GET_SCSI_ID:
-        ((struct sg_scsi_id *)buf)->scsi_type = iscsilun->type;
-        break;
-    case SG_IO:
-        status = -EINPROGRESS;
-        iscsi_aio_ioctl(bs, req, buf, ioctl_cb, &status);
-
-        while (status == -EINPROGRESS) {
-            aio_poll(iscsilun->aio_context, true);
-        }
-
-        return 0;
-    default:
-        return -1;
-    }
-    return 0;
-}
 #endif
 
 static int64_t
@@ -1824,7 +1828,6 @@ static BlockDriver bdrv_iscsi = {
     .bdrv_co_flush_to_disk = iscsi_co_flush,
 
 #ifdef __linux__
-    .bdrv_ioctl       = iscsi_ioctl,
     .bdrv_aio_ioctl   = iscsi_aio_ioctl,
 #endif
 

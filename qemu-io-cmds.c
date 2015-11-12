@@ -1428,6 +1428,7 @@ static void aio_write_done(void *opaque, int ret)
 
     if (ret < 0) {
         printf("aio_write failed: %s\n", strerror(-ret));
+        block_acct_failed(blk_get_stats(ctx->blk), &ctx->acct);
         goto out;
     }
 
@@ -1456,6 +1457,7 @@ static void aio_read_done(void *opaque, int ret)
 
     if (ret < 0) {
         printf("readv failed: %s\n", strerror(-ret));
+        block_acct_failed(blk_get_stats(ctx->blk), &ctx->acct);
         goto out;
     }
 
@@ -1569,6 +1571,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
     if (ctx->offset & 0x1ff) {
         printf("offset %" PRId64 " is not sector aligned\n",
                ctx->offset);
+        block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_READ);
         g_free(ctx);
         return 0;
     }
@@ -1576,6 +1579,7 @@ static int aio_read_f(BlockBackend *blk, int argc, char **argv)
     nr_iov = argc - optind;
     ctx->buf = create_iovec(blk, &ctx->qiov, &argv[optind], nr_iov, 0xab);
     if (ctx->buf == NULL) {
+        block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_READ);
         g_free(ctx);
         return 0;
     }
@@ -1664,6 +1668,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     if (ctx->offset & 0x1ff) {
         printf("offset %" PRId64 " is not sector aligned\n",
                ctx->offset);
+        block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_WRITE);
         g_free(ctx);
         return 0;
     }
@@ -1671,6 +1676,7 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
     nr_iov = argc - optind;
     ctx->buf = create_iovec(blk, &ctx->qiov, &argv[optind], nr_iov, pattern);
     if (ctx->buf == NULL) {
+        block_acct_invalid(blk_get_stats(blk), BLOCK_ACCT_WRITE);
         g_free(ctx);
         return 0;
     }
@@ -1685,7 +1691,10 @@ static int aio_write_f(BlockBackend *blk, int argc, char **argv)
 
 static int aio_flush_f(BlockBackend *blk, int argc, char **argv)
 {
+    BlockAcctCookie cookie;
+    block_acct_start(blk_get_stats(blk), &cookie, 0, BLOCK_ACCT_FLUSH);
     blk_drain_all();
+    block_acct_done(blk_get_stats(blk), &cookie);
     return 0;
 }
 

@@ -50,6 +50,26 @@ typedef struct BlockJobDriver {
      * manually.
      */
     void (*complete)(BlockJob *job, Error **errp);
+
+    /**
+     * If the callback is not NULL, it will be invoked when all the jobs
+     * belonging to the same transaction complete; or upon this job's
+     * completion if it is not in a transaction. Skipped if NULL.
+     *
+     * All jobs will complete with a call to either .commit() or .abort() but
+     * never both.
+     */
+    void (*commit)(BlockJob *job);
+
+    /**
+     * If the callback is not NULL, it will be invoked when any job in the
+     * same transaction fails; or upon this job's failure (due to error or
+     * cancellation) if it is not in a transaction. Skipped if NULL.
+     *
+     * All jobs will complete with a call to either .commit() or .abort() but
+     * never both.
+     */
+    void (*abort)(BlockJob *job);
 } BlockJobDriver;
 
 /**
@@ -130,6 +150,21 @@ struct BlockJob {
 
     /** The opaque value that is passed to the completion function.  */
     void *opaque;
+
+    /** Reference count of the block job */
+    int refcnt;
+
+    /* True if this job has reported completion by calling block_job_completed.
+     */
+    bool completed;
+
+    /* ret code passed to block_job_completed.
+     */
+    int ret;
+
+    /** Non-NULL if this job is part of a transaction */
+    BlockJobTxn *txn;
+    QLIST_ENTRY(BlockJob) txn_list;
 };
 
 /**
@@ -174,12 +209,21 @@ void block_job_sleep_ns(BlockJob *job, QEMUClockType type, int64_t ns);
 void block_job_yield(BlockJob *job);
 
 /**
- * block_job_release:
+ * block_job_ref:
  * @bs: The block device.
  *
- * Release job resources when an error occurred or job completed.
+ * Grab a reference to the block job. Should be paired with block_job_unref.
  */
-void block_job_release(BlockDriverState *bs);
+void block_job_ref(BlockJob *job);
+
+/**
+ * block_job_unref:
+ * @bs: The block device.
+ *
+ * Release reference to the block job and release resources if it is the last
+ * reference.
+ */
+void block_job_unref(BlockJob *job);
 
 /**
  * block_job_completed:
@@ -363,5 +407,40 @@ typedef void BlockJobDeferToMainLoopFn(BlockJob *job, void *opaque);
 void block_job_defer_to_main_loop(BlockJob *job,
                                   BlockJobDeferToMainLoopFn *fn,
                                   void *opaque);
+
+/**
+ * block_job_txn_new:
+ *
+ * Allocate and return a new block job transaction.  Jobs can be added to the
+ * transaction using block_job_txn_add_job().
+ *
+ * The transaction is automatically freed when the last job completes or is
+ * cancelled.
+ *
+ * All jobs in the transaction either complete successfully or fail/cancel as a
+ * group.  Jobs wait for each other before completing.  Cancelling one job
+ * cancels all jobs in the transaction.
+ */
+BlockJobTxn *block_job_txn_new(void);
+
+/**
+ * block_job_txn_unref:
+ *
+ * Release a reference that was previously acquired with block_job_txn_add_job
+ * or block_job_txn_new. If it's the last reference to the object, it will be
+ * freed.
+ */
+void block_job_txn_unref(BlockJobTxn *txn);
+
+/**
+ * block_job_txn_add_job:
+ * @txn: The transaction (may be NULL)
+ * @job: Job to add to the transaction
+ *
+ * Add @job to the transaction.  The @job must not already be in a transaction.
+ * The caller must call either block_job_txn_unref() or block_job_completed()
+ * to release the reference that is automatically grabbed here.
+ */
+void block_job_txn_add_job(BlockJobTxn *txn, BlockJob *job);
 
 #endif

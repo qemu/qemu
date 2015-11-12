@@ -60,11 +60,19 @@
 
 #define BLOCK_PROBE_BUF_SIZE        512
 
+enum BdrvTrackedRequestType {
+    BDRV_TRACKED_READ,
+    BDRV_TRACKED_WRITE,
+    BDRV_TRACKED_FLUSH,
+    BDRV_TRACKED_IOCTL,
+    BDRV_TRACKED_DISCARD,
+};
+
 typedef struct BdrvTrackedRequest {
     BlockDriverState *bs;
     int64_t offset;
     unsigned int bytes;
-    bool is_write;
+    enum BdrvTrackedRequestType type;
 
     bool serialising;
     int64_t overlap_offset;
@@ -219,7 +227,6 @@ struct BlockDriver {
     void (*bdrv_lock_medium)(BlockDriverState *bs, bool locked);
 
     /* to control generic scsi devices */
-    int (*bdrv_ioctl)(BlockDriverState *bs, unsigned long int req, void *buf);
     BlockAIOCB *(*bdrv_aio_ioctl)(BlockDriverState *bs,
         unsigned long int req, void *buf,
         BlockCompletionFunc *cb, void *opaque);
@@ -287,6 +294,12 @@ struct BlockDriver {
      * callback; see hd_geometry_guess().
      */
     int (*bdrv_probe_geometry)(BlockDriverState *bs, HDGeometry *geo);
+
+    /**
+     * Drain and stop any internal sources of requests in the driver, and
+     * remain so until next I/O callback (e.g. bdrv_co_writev) is called.
+     */
+    void (*bdrv_drain)(BlockDriverState *bs);
 
     QLIST_ENTRY(BlockDriver) list;
 };
@@ -656,6 +669,7 @@ void mirror_start(BlockDriverState *bs, BlockDriverState *target,
  * @on_target_error: The action to take upon error writing to the target.
  * @cb: Completion function for the job.
  * @opaque: Opaque pointer value passed to @cb.
+ * @txn: Transaction that this job is part of (may be NULL).
  *
  * Start a backup operation on @bs.  Clusters in @bs are written to @target
  * until the job is cancelled or manually completed.
@@ -666,7 +680,7 @@ void backup_start(BlockDriverState *bs, BlockDriverState *target,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   BlockCompletionFunc *cb, void *opaque,
-                  Error **errp);
+                  BlockJobTxn *txn, Error **errp);
 
 void blk_set_bs(BlockBackend *blk, BlockDriverState *bs);
 
@@ -679,5 +693,8 @@ void blk_dev_resize_cb(BlockBackend *blk);
 
 void bdrv_set_dirty(BlockDriverState *bs, int64_t cur_sector, int nr_sectors);
 bool bdrv_requests_pending(BlockDriverState *bs);
+
+void bdrv_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap **out);
+void bdrv_undo_clear_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *in);
 
 #endif /* BLOCK_INT_H */

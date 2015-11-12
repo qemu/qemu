@@ -76,7 +76,7 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
         s->rq = req;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
-        block_acct_done(blk_get_stats(s->blk), &req->acct);
+        block_acct_failed(blk_get_stats(s->blk), &req->acct);
         virtio_blk_free_request(req);
     }
 
@@ -536,6 +536,8 @@ void virtio_blk_handle_request(VirtIOBlockReq *req, MultiReqBuffer *mrb)
         if (!virtio_blk_sect_range_ok(req->dev, req->sector_num,
                                       req->qiov.size)) {
             virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+            block_acct_invalid(blk_get_stats(req->dev->blk),
+                               is_write ? BLOCK_ACCT_WRITE : BLOCK_ACCT_READ);
             virtio_blk_free_request(req);
             return;
         }

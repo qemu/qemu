@@ -90,7 +90,7 @@ struct SCSIDiskState
     bool tray_locked;
 };
 
-static int scsi_handle_rw_error(SCSIDiskReq *r, int error);
+static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed);
 
 static void scsi_free_request(SCSIRequest *req)
 {
@@ -169,18 +169,18 @@ static void scsi_aio_complete(void *opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
     if (r->req.io_canceled) {
         scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
     if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret)) {
+        if (scsi_handle_rw_error(r, -ret, true)) {
             goto done;
         }
     }
 
+    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
     scsi_req_complete(&r->req, GOOD);
 
 done:
@@ -247,7 +247,7 @@ static void scsi_dma_complete_noio(SCSIDiskReq *r, int ret)
     }
 
     if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret)) {
+        if (scsi_handle_rw_error(r, -ret, false)) {
             goto done;
         }
     }
@@ -273,7 +273,11 @@ static void scsi_dma_complete(void *opaque, int ret)
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
 
-    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    if (ret < 0) {
+        block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    } else {
+        block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    }
     scsi_dma_complete_noio(r, ret);
 }
 
@@ -285,18 +289,18 @@ static void scsi_read_complete(void * opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
     if (r->req.io_canceled) {
         scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
     if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret)) {
+        if (scsi_handle_rw_error(r, -ret, true)) {
             goto done;
         }
     }
 
+    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
     DPRINTF("Data ready tag=0x%x len=%zd\n", r->req.tag, r->qiov.size);
 
     n = r->qiov.size / 512;
@@ -322,7 +326,7 @@ static void scsi_do_read(SCSIDiskReq *r, int ret)
     }
 
     if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret)) {
+        if (scsi_handle_rw_error(r, -ret, false)) {
             goto done;
         }
     }
@@ -355,7 +359,11 @@ static void scsi_do_read_cb(void *opaque, int ret)
     assert (r->req.aiocb != NULL);
     r->req.aiocb = NULL;
 
-    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    if (ret < 0) {
+        block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    } else {
+        block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    }
     scsi_do_read(opaque, ret);
 }
 
@@ -407,7 +415,7 @@ static void scsi_read_data(SCSIRequest *req)
  * scsi_handle_rw_error always manages its reference counts, independent
  * of the return value.
  */
-static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
+static int scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
 {
     bool is_read = (r->req.cmd.mode == SCSI_XFER_FROM_DEV);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
@@ -415,6 +423,9 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
                                                    is_read, error);
 
     if (action == BLOCK_ERROR_ACTION_REPORT) {
+        if (acct_failed) {
+            block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
+        }
         switch (error) {
         case ENOMEDIUM:
             scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
@@ -452,7 +463,7 @@ static void scsi_write_complete_noio(SCSIDiskReq *r, int ret)
     }
 
     if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret)) {
+        if (scsi_handle_rw_error(r, -ret, false)) {
             goto done;
         }
     }
@@ -481,7 +492,11 @@ static void scsi_write_complete(void * opaque, int ret)
     assert (r->req.aiocb != NULL);
     r->req.aiocb = NULL;
 
-    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    if (ret < 0) {
+        block_acct_failed(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    } else {
+        block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    }
     scsi_write_complete_noio(r, ret);
 }
 
@@ -1592,7 +1607,7 @@ static void scsi_unmap_complete_noio(UnmapCBData *data, int ret)
     }
 
     if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret)) {
+        if (scsi_handle_rw_error(r, -ret, false)) {
             goto done;
         }
     }
@@ -1696,17 +1711,18 @@ static void scsi_write_same_complete(void *opaque, int ret)
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
-    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
     if (r->req.io_canceled) {
         scsi_req_cancel_complete(&r->req);
         goto done;
     }
 
     if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret)) {
+        if (scsi_handle_rw_error(r, -ret, true)) {
             goto done;
         }
     }
+
+    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
 
     data->nb_sectors -= data->iov.iov_len / 512;
     data->sector += data->iov.iov_len / 512;
