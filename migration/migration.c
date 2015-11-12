@@ -768,7 +768,7 @@ void qmp_migrate_start_postcopy(Error **errp)
     MigrationState *s = migrate_get_current();
 
     if (!migrate_postcopy_ram()) {
-        error_setg(errp, "Enable postcopy with migration_set_capability before"
+        error_setg(errp, "Enable postcopy with migrate_set_capability before"
                          " the start of migration");
         return;
     }
@@ -902,38 +902,31 @@ bool migration_in_postcopy(MigrationState *s)
 MigrationState *migrate_init(const MigrationParams *params)
 {
     MigrationState *s = migrate_get_current();
-    int64_t bandwidth_limit = s->bandwidth_limit;
-    bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
-    int64_t xbzrle_cache_size = s->xbzrle_cache_size;
-    int compress_level = s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL];
-    int compress_thread_count =
-            s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS];
-    int decompress_thread_count =
-            s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS];
-    int x_cpu_throttle_initial =
-            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL];
-    int x_cpu_throttle_increment =
-            s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT];
 
-    memcpy(enabled_capabilities, s->enabled_capabilities,
-           sizeof(enabled_capabilities));
-
-    memset(s, 0, sizeof(*s));
+    /*
+     * Reinitialise all migration state, except
+     * parameters/capabilities that the user set, and
+     * locks.
+     */
+    s->bytes_xfer = 0;
+    s->xfer_limit = 0;
+    s->cleanup_bh = 0;
+    s->file = NULL;
+    s->state = MIGRATION_STATUS_NONE;
     s->params = *params;
-    memcpy(s->enabled_capabilities, enabled_capabilities,
-           sizeof(enabled_capabilities));
-    s->xbzrle_cache_size = xbzrle_cache_size;
+    s->rp_state.from_dst_file = NULL;
+    s->rp_state.error = false;
+    s->mbps = 0.0;
+    s->downtime = 0;
+    s->expected_downtime = 0;
+    s->dirty_pages_rate = 0;
+    s->dirty_bytes_rate = 0;
+    s->setup_time = 0;
+    s->dirty_sync_count = 0;
+    s->start_postcopy = false;
+    s->migration_thread_running = false;
+    s->last_req_rb = NULL;
 
-    s->parameters[MIGRATION_PARAMETER_COMPRESS_LEVEL] = compress_level;
-    s->parameters[MIGRATION_PARAMETER_COMPRESS_THREADS] =
-               compress_thread_count;
-    s->parameters[MIGRATION_PARAMETER_DECOMPRESS_THREADS] =
-               decompress_thread_count;
-    s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INITIAL] =
-                x_cpu_throttle_initial;
-    s->parameters[MIGRATION_PARAMETER_X_CPU_THROTTLE_INCREMENT] =
-                x_cpu_throttle_increment;
-    s->bandwidth_limit = bandwidth_limit;
     migrate_set_state(s, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
     QSIMPLEQ_INIT(&s->src_page_requests);
@@ -1429,6 +1422,12 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
     }
 
     /*
+     * Cause any non-postcopiable, but iterative devices to
+     * send out their final data.
+     */
+    qemu_savevm_state_complete_precopy(ms->file, true);
+
+    /*
      * in Finish migrate and with the io-lock held everything should
      * be quiet, but we've potentially still got dirty pages and we
      * need to tell the destination to throw any pages it's already received
@@ -1471,7 +1470,7 @@ static int postcopy_start(MigrationState *ms, bool *old_vm_running)
      */
     qemu_savevm_send_postcopy_listen(fb);
 
-    qemu_savevm_state_complete_precopy(fb);
+    qemu_savevm_state_complete_precopy(fb, false);
     qemu_savevm_send_ping(fb, 3);
 
     qemu_savevm_send_postcopy_run(fb);
@@ -1538,7 +1537,7 @@ static void migration_completion(MigrationState *s, int current_active_state,
             ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
             if (ret >= 0) {
                 qemu_file_set_rate_limit(s->file, INT64_MAX);
-                qemu_savevm_state_complete_precopy(s->file);
+                qemu_savevm_state_complete_precopy(s->file, false);
             }
         }
         qemu_mutex_unlock_iothread();
