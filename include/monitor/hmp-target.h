@@ -35,6 +35,7 @@ struct MonitorDef {
 };
 
 const MonitorDef *target_monitor_defs(void);
+int target_get_monitor_def(CPUState *cs, const char *name, uint64_t *pval);
 
 CPUArchState *mon_get_cpu_env(void);
 CPUState *mon_get_cpu(void);

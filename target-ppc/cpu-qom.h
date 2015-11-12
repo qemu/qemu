@@ -118,6 +118,8 @@ void ppc_cpu_dump_state(CPUState *cpu, FILE *f, fprintf_function cpu_fprintf,
                         int flags);
 void ppc_cpu_dump_statistics(CPUState *cpu, FILE *f,
                              fprintf_function cpu_fprintf, int flags);
+int ppc_cpu_get_monitor_def(CPUState *cs, const char *name,
+                            uint64_t *pval);
 hwaddr ppc_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int ppc_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
 int ppc_cpu_gdb_read_register_apple(CPUState *cpu, uint8_t *buf, int reg);
