@@ -37,24 +37,26 @@
 
 #include "e1000_regs.h"
 
+static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
 #define E1000_DEBUG
 
 #ifdef E1000_DEBUG
 enum {
-    DEBUG_GENERAL,	DEBUG_IO,	DEBUG_MMIO,	DEBUG_INTERRUPT,
-    DEBUG_RX,		DEBUG_TX,	DEBUG_MDIC,	DEBUG_EEPROM,
-    DEBUG_UNKNOWN,	DEBUG_TXSUM,	DEBUG_TXERR,	DEBUG_RXERR,
+    DEBUG_GENERAL,      DEBUG_IO,       DEBUG_MMIO,     DEBUG_INTERRUPT,
+    DEBUG_RX,           DEBUG_TX,       DEBUG_MDIC,     DEBUG_EEPROM,
+    DEBUG_UNKNOWN,      DEBUG_TXSUM,    DEBUG_TXERR,    DEBUG_RXERR,
     DEBUG_RXFILTER,     DEBUG_PHY,      DEBUG_NOTYET,
 };
-#define DBGBIT(x)	(1<<DEBUG_##x)
+#define DBGBIT(x)    (1<<DEBUG_##x)
 static int debugflags = DBGBIT(TXERR) | DBGBIT(GENERAL);
 
-#define	DBGOUT(what, fmt, ...) do { \
+#define DBGOUT(what, fmt, ...) do { \
     if (debugflags & DBGBIT(what)) \
         fprintf(stderr, "e1000: " fmt, ## __VA_ARGS__); \
     } while (0)
 #else
-#define	DBGOUT(what, fmt, ...) do {} while (0)
+#define DBGOUT(what, fmt, ...) do {} while (0)
 #endif
 
 #define IOPORT_SIZE       0x40
@@ -118,7 +120,7 @@ typedef struct E1000State_st {
     } tx;
 
     struct {
-        uint32_t val_in;	// shifted in from guest driver
+        uint32_t val_in;    /* shifted in from guest driver */
         uint16_t bitnum_in;
         uint16_t bitnum_out;
         uint16_t reading;
@@ -135,10 +137,14 @@ typedef struct E1000State_st {
 /* Compatibility flags for migration to/from qemu 1.3.0 and older */
 #define E1000_FLAG_AUTONEG_BIT 0
 #define E1000_FLAG_MIT_BIT 1
+#define E1000_FLAG_MAC_BIT 2
 #define E1000_FLAG_AUTONEG (1 << E1000_FLAG_AUTONEG_BIT)
 #define E1000_FLAG_MIT (1 << E1000_FLAG_MIT_BIT)
+#define E1000_FLAG_MAC (1 << E1000_FLAG_MAC_BIT)
     uint32_t compat_flags;
 } E1000State;
+
+#define chkflag(x)     (s->compat_flags & E1000_FLAG_##x)
 
 typedef struct E1000BaseClass {
     PCIDeviceClass parent_class;
@@ -155,20 +161,36 @@ typedef struct E1000BaseClass {
 #define E1000_DEVICE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(E1000BaseClass, (obj), TYPE_E1000_BASE)
 
-#define	defreg(x)	x = (E1000_##x>>2)
+#define defreg(x)    x = (E1000_##x>>2)
 enum {
-    defreg(CTRL),	defreg(EECD),	defreg(EERD),	defreg(GPRC),
-    defreg(GPTC),	defreg(ICR),	defreg(ICS),	defreg(IMC),
-    defreg(IMS),	defreg(LEDCTL),	defreg(MANC),	defreg(MDIC),
-    defreg(MPC),	defreg(PBA),	defreg(RCTL),	defreg(RDBAH),
-    defreg(RDBAL),	defreg(RDH),	defreg(RDLEN),	defreg(RDT),
-    defreg(STATUS),	defreg(SWSM),	defreg(TCTL),	defreg(TDBAH),
-    defreg(TDBAL),	defreg(TDH),	defreg(TDLEN),	defreg(TDT),
-    defreg(TORH),	defreg(TORL),	defreg(TOTH),	defreg(TOTL),
-    defreg(TPR),	defreg(TPT),	defreg(TXDCTL),	defreg(WUFC),
-    defreg(RA),		defreg(MTA),	defreg(CRCERRS),defreg(VFTA),
-    defreg(VET),        defreg(RDTR),   defreg(RADV),   defreg(TADV),
-    defreg(ITR),
+    defreg(CTRL),    defreg(EECD),    defreg(EERD),    defreg(GPRC),
+    defreg(GPTC),    defreg(ICR),     defreg(ICS),     defreg(IMC),
+    defreg(IMS),     defreg(LEDCTL),  defreg(MANC),    defreg(MDIC),
+    defreg(MPC),     defreg(PBA),     defreg(RCTL),    defreg(RDBAH),
+    defreg(RDBAL),   defreg(RDH),     defreg(RDLEN),   defreg(RDT),
+    defreg(STATUS),  defreg(SWSM),    defreg(TCTL),    defreg(TDBAH),
+    defreg(TDBAL),   defreg(TDH),     defreg(TDLEN),   defreg(TDT),
+    defreg(TORH),    defreg(TORL),    defreg(TOTH),    defreg(TOTL),
+    defreg(TPR),     defreg(TPT),     defreg(TXDCTL),  defreg(WUFC),
+    defreg(RA),      defreg(MTA),     defreg(CRCERRS), defreg(VFTA),
+    defreg(VET),     defreg(RDTR),    defreg(RADV),    defreg(TADV),
+    defreg(ITR),     defreg(FCRUC),   defreg(TDFH),    defreg(TDFT),
+    defreg(TDFHS),   defreg(TDFTS),   defreg(TDFPC),   defreg(RDFH),
+    defreg(RDFT),    defreg(RDFHS),   defreg(RDFTS),   defreg(RDFPC),
+    defreg(IPAV),    defreg(WUC),     defreg(WUS),     defreg(AIT),
+    defreg(IP6AT),   defreg(IP4AT),   defreg(FFLT),    defreg(FFMT),
+    defreg(FFVT),    defreg(WUPM),    defreg(PBM),     defreg(SCC),
+    defreg(ECOL),    defreg(MCC),     defreg(LATECOL), defreg(COLC),
+    defreg(DC),      defreg(TNCRS),   defreg(SEC),     defreg(CEXTERR),
+    defreg(RLEC),    defreg(XONRXC),  defreg(XONTXC),  defreg(XOFFRXC),
+    defreg(XOFFTXC), defreg(RFC),     defreg(RJC),     defreg(RNBC),
+    defreg(TSCTFC),  defreg(MGTPRC),  defreg(MGTPDC),  defreg(MGTPTC),
+    defreg(RUC),     defreg(ROC),     defreg(GORCL),   defreg(GORCH),
+    defreg(GOTCL),   defreg(GOTCH),   defreg(BPRC),    defreg(MPRC),
+    defreg(TSCTC),   defreg(PRC64),   defreg(PRC127),  defreg(PRC255),
+    defreg(PRC511),  defreg(PRC1023), defreg(PRC1522), defreg(PTC64),
+    defreg(PTC127),  defreg(PTC255),  defreg(PTC511),  defreg(PTC1023),
+    defreg(PTC1522), defreg(MPTC),    defreg(BPTC)
 };
 
 static void
@@ -193,8 +215,7 @@ e1000_link_up(E1000State *s)
 static bool
 have_autoneg(E1000State *s)
 {
-    return (s->compat_flags & E1000_FLAG_AUTONEG) &&
-           (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN);
+    return chkflag(AUTONEG) && (s->phy_reg[PHY_CTRL] & MII_CR_AUTO_NEG_EN);
 }
 
 static void
@@ -226,18 +247,18 @@ enum { NPHYWRITEOPS = ARRAY_SIZE(phyreg_writeops) };
 
 enum { PHY_R = 1, PHY_W = 2, PHY_RW = PHY_R | PHY_W };
 static const char phy_regcap[0x20] = {
-    [PHY_STATUS] = PHY_R,	[M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
-    [PHY_ID1] = PHY_R,		[M88E1000_PHY_SPEC_CTRL] = PHY_RW,
-    [PHY_CTRL] = PHY_RW,	[PHY_1000T_CTRL] = PHY_RW,
-    [PHY_LP_ABILITY] = PHY_R,	[PHY_1000T_STATUS] = PHY_R,
-    [PHY_AUTONEG_ADV] = PHY_RW,	[M88E1000_RX_ERR_CNTR] = PHY_R,
-    [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R,
+    [PHY_STATUS]      = PHY_R,     [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
+    [PHY_ID1]         = PHY_R,     [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
+    [PHY_CTRL]        = PHY_RW,    [PHY_1000T_CTRL]             = PHY_RW,
+    [PHY_LP_ABILITY]  = PHY_R,     [PHY_1000T_STATUS]           = PHY_R,
+    [PHY_AUTONEG_ADV] = PHY_RW,    [M88E1000_RX_ERR_CNTR]       = PHY_R,
+    [PHY_ID2]         = PHY_R,     [M88E1000_PHY_SPEC_STATUS]   = PHY_R,
     [PHY_AUTONEG_EXP] = PHY_R,
 };
 
 /* PHY_ID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
 static const uint16_t phy_reg_init[] = {
-    [PHY_CTRL] =   MII_CR_SPEED_SELECT_MSB |
+    [PHY_CTRL]   = MII_CR_SPEED_SELECT_MSB |
                    MII_CR_FULL_DUPLEX |
                    MII_CR_AUTO_NEG_EN,
 
@@ -264,15 +285,15 @@ static const uint16_t phy_reg_init[] = {
 };
 
 static const uint32_t mac_reg_init[] = {
-    [PBA] =     0x00100030,
-    [LEDCTL] =  0x602,
-    [CTRL] =    E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |
+    [PBA]     = 0x00100030,
+    [LEDCTL]  = 0x602,
+    [CTRL]    = E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |
                 E1000_CTRL_SPD_1000 | E1000_CTRL_SLU,
-    [STATUS] =  0x80000000 | E1000_STATUS_GIO_MASTER_ENABLE |
+    [STATUS]  = 0x80000000 | E1000_STATUS_GIO_MASTER_ENABLE |
                 E1000_STATUS_ASDV | E1000_STATUS_MTXCKOK |
                 E1000_STATUS_SPEED_1000 | E1000_STATUS_FD |
                 E1000_STATUS_LU,
-    [MANC] =    E1000_MANC_EN_MNG2HOST | E1000_MANC_RCV_TCO_EN |
+    [MANC]    = E1000_MANC_EN_MNG2HOST | E1000_MANC_RCV_TCO_EN |
                 E1000_MANC_ARP_EN | E1000_MANC_0298_EN |
                 E1000_MANC_RMCP_EN,
 };
@@ -319,7 +340,7 @@ set_interrupt_cause(E1000State *s, int index, uint32_t val)
         if (s->mit_timer_on) {
             return;
         }
-        if (s->compat_flags & E1000_FLAG_MIT) {
+        if (chkflag(MIT)) {
             /* Compute the next mitigation delay according to pending
              * interrupts and the current values of RADV (provided
              * RDTR!=0), TADV and ITR.
@@ -510,17 +531,19 @@ set_eecd(E1000State *s, int index, uint32_t val)
 
     s->eecd_state.old_eecd = val & (E1000_EECD_SK | E1000_EECD_CS |
             E1000_EECD_DI|E1000_EECD_FWE_MASK|E1000_EECD_REQ);
-    if (!(E1000_EECD_CS & val))			// CS inactive; nothing to do
-	return;
-    if (E1000_EECD_CS & (val ^ oldval)) {	// CS rise edge; reset state
-	s->eecd_state.val_in = 0;
-	s->eecd_state.bitnum_in = 0;
-	s->eecd_state.bitnum_out = 0;
-	s->eecd_state.reading = 0;
-    }
-    if (!(E1000_EECD_SK & (val ^ oldval)))	// no clock edge
+    if (!(E1000_EECD_CS & val)) {            /* CS inactive; nothing to do */
         return;
-    if (!(E1000_EECD_SK & val)) {		// falling edge
+    }
+    if (E1000_EECD_CS & (val ^ oldval)) {    /* CS rise edge; reset state */
+        s->eecd_state.val_in = 0;
+        s->eecd_state.bitnum_in = 0;
+        s->eecd_state.bitnum_out = 0;
+        s->eecd_state.reading = 0;
+    }
+    if (!(E1000_EECD_SK & (val ^ oldval))) {    /* no clock edge */
+        return;
+    }
+    if (!(E1000_EECD_SK & val)) {               /* falling edge */
         s->eecd_state.bitnum_out++;
         return;
     }
@@ -565,6 +588,56 @@ putsum(uint8_t *data, uint32_t n, uint32_t sloc, uint32_t css, uint32_t cse)
     }
 }
 
+static inline void
+inc_reg_if_not_full(E1000State *s, int index)
+{
+    if (s->mac_reg[index] != 0xffffffff) {
+        s->mac_reg[index]++;
+    }
+}
+
+static inline void
+inc_tx_bcast_or_mcast_count(E1000State *s, const unsigned char *arr)
+{
+    if (!memcmp(arr, bcast, sizeof bcast)) {
+        inc_reg_if_not_full(s, BPTC);
+    } else if (arr[0] & 1) {
+        inc_reg_if_not_full(s, MPTC);
+    }
+}
+
+static void
+grow_8reg_if_not_full(E1000State *s, int index, int size)
+{
+    uint64_t sum = s->mac_reg[index] | (uint64_t)s->mac_reg[index+1] << 32;
+
+    if (sum + size < sum) {
+        sum = ~0ULL;
+    } else {
+        sum += size;
+    }
+    s->mac_reg[index] = sum;
+    s->mac_reg[index+1] = sum >> 32;
+}
+
+static void
+increase_size_stats(E1000State *s, const int *size_regs, int size)
+{
+    if (size > 1023) {
+        inc_reg_if_not_full(s, size_regs[5]);
+    } else if (size > 511) {
+        inc_reg_if_not_full(s, size_regs[4]);
+    } else if (size > 255) {
+        inc_reg_if_not_full(s, size_regs[3]);
+    } else if (size > 127) {
+        inc_reg_if_not_full(s, size_regs[2]);
+    } else if (size > 64) {
+        inc_reg_if_not_full(s, size_regs[1]);
+    } else if (size == 64) {
+        inc_reg_if_not_full(s, size_regs[0]);
+    }
+}
+
 static inline int
 vlan_enabled(E1000State *s)
 {
@@ -602,40 +675,49 @@ fcs_len(E1000State *s)
 static void
 e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
 {
+    static const int PTCregs[6] = { PTC64, PTC127, PTC255, PTC511,
+                                    PTC1023, PTC1522 };
+
     NetClientState *nc = qemu_get_queue(s->nic);
     if (s->phy_reg[PHY_CTRL] & MII_CR_LOOPBACK) {
         nc->info->receive(nc, buf, size);
     } else {
         qemu_send_packet(nc, buf, size);
     }
+    inc_tx_bcast_or_mcast_count(s, buf);
+    increase_size_stats(s, PTCregs, size);
 }
 
 static void
 xmit_seg(E1000State *s)
 {
     uint16_t len, *sp;
-    unsigned int frames = s->tx.tso_frames, css, sofar, n;
+    unsigned int frames = s->tx.tso_frames, css, sofar;
     struct e1000_tx *tp = &s->tx;
 
     if (tp->tse && tp->cptse) {
         css = tp->ipcss;
         DBGOUT(TXSUM, "frames %d size %d ipcss %d\n",
                frames, tp->size, css);
-        if (tp->ip) {		// IPv4
+        if (tp->ip) {    /* IPv4 */
             stw_be_p(tp->data+css+2, tp->size - css);
             stw_be_p(tp->data+css+4,
-                          be16_to_cpup((uint16_t *)(tp->data+css+4))+frames);
-        } else			// IPv6
+                     be16_to_cpup((uint16_t *)(tp->data+css+4))+frames);
+        } else {         /* IPv6 */
             stw_be_p(tp->data+css+4, tp->size - css);
+        }
         css = tp->tucss;
         len = tp->size - css;
         DBGOUT(TXSUM, "tcp %d tucss %d len %d\n", tp->tcp, css, len);
         if (tp->tcp) {
             sofar = frames * tp->mss;
             stl_be_p(tp->data+css+4, ldl_be_p(tp->data+css+4)+sofar); /* seq */
-            if (tp->paylen - sofar > tp->mss)
-                tp->data[css + 13] &= ~9;		// PSH, FIN
-        } else	// UDP
+            if (tp->paylen - sofar > tp->mss) {
+                tp->data[css + 13] &= ~9;    /* PSH, FIN */
+            } else if (frames) {
+                inc_reg_if_not_full(s, TSCTC);
+            }
+        } else    /* UDP */
             stw_be_p(tp->data+css+4, len);
         if (tp->sum_needed & E1000_TXD_POPTS_TXSM) {
             unsigned int phsum;
@@ -657,13 +739,15 @@ xmit_seg(E1000State *s)
         memmove(tp->data, tp->data + 4, 8);
         memcpy(tp->data + 8, tp->vlan_header, 4);
         e1000_send_packet(s, tp->vlan, tp->size + 4);
-    } else
+    } else {
         e1000_send_packet(s, tp->data, tp->size);
-    s->mac_reg[TPT]++;
-    s->mac_reg[GPTC]++;
-    n = s->mac_reg[TOTL];
-    if ((s->mac_reg[TOTL] += s->tx.size) < n)
-        s->mac_reg[TOTH]++;
+    }
+
+    inc_reg_if_not_full(s, TPT);
+    grow_8reg_if_not_full(s, TOTL, s->tx.size);
+    s->mac_reg[GPTC] = s->mac_reg[TPT];
+    s->mac_reg[GOTCL] = s->mac_reg[TOTL];
+    s->mac_reg[GOTCH] = s->mac_reg[TOTH];
 }
 
 static void
@@ -679,7 +763,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
     struct e1000_tx *tp = &s->tx;
 
     s->mit_ide |= (txd_lower & E1000_TXD_CMD_IDE);
-    if (dtype == E1000_TXD_CMD_DEXT) {	// context descriptor
+    if (dtype == E1000_TXD_CMD_DEXT) {    /* context descriptor */
         op = le32_to_cpu(xp->cmd_and_length);
         tp->ipcss = xp->lower_setup.ip_fields.ipcss;
         tp->ipcso = xp->lower_setup.ip_fields.ipcso;
@@ -694,7 +778,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         tp->tcp = (op & E1000_TXD_CMD_TCP) ? 1 : 0;
         tp->tse = (op & E1000_TXD_CMD_TSE) ? 1 : 0;
         tp->tso_frames = 0;
-        if (tp->tucso == 0) {	// this is probably wrong
+        if (tp->tucso == 0) {    /* this is probably wrong */
             DBGOUT(TXSUM, "TCP/UDP: cso 0!\n");
             tp->tucso = tp->tucss + (tp->tcp ? 16 : 6);
         }
@@ -718,7 +802,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         stw_be_p(tp->vlan_header + 2,
                       le16_to_cpu(dp->upper.fields.special));
     }
-        
+
     addr = le64_to_cpu(dp->buffer_addr);
     if (tp->tse && tp->cptse) {
         msh = tp->hdr_len + tp->mss;
@@ -831,9 +915,9 @@ start_xmit(E1000State *s)
 static int
 receive_filter(E1000State *s, const uint8_t *buf, int size)
 {
-    static const uint8_t bcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     static const int mta_shift[] = {4, 3, 2, 0};
     uint32_t f, rctl = s->mac_reg[RCTL], ra[2], *rp;
+    int isbcast = !memcmp(buf, bcast, sizeof bcast), ismcast = (buf[0] & 1);
 
     if (is_vlan_packet(s, buf) && vlan_rx_filter_enabled(s)) {
         uint16_t vid = be16_to_cpup((uint16_t *)(buf + 14));
@@ -843,14 +927,19 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
             return 0;
     }
 
-    if (rctl & E1000_RCTL_UPE)			// promiscuous
+    if (!isbcast && !ismcast && (rctl & E1000_RCTL_UPE)) { /* promiscuous ucast */
         return 1;
+    }
 
-    if ((buf[0] & 1) && (rctl & E1000_RCTL_MPE))	// promiscuous mcast
+    if (ismcast && (rctl & E1000_RCTL_MPE)) {          /* promiscuous mcast */
+        inc_reg_if_not_full(s, MPRC);
         return 1;
+    }
 
-    if ((rctl & E1000_RCTL_BAM) && !memcmp(buf, bcast, sizeof bcast))
+    if (isbcast && (rctl & E1000_RCTL_BAM)) {          /* broadcast enabled */
+        inc_reg_if_not_full(s, BPRC);
         return 1;
+    }
 
     for (rp = s->mac_reg + RA; rp < s->mac_reg + RA + 32; rp += 2) {
         if (!(rp[1] & E1000_RAH_AV))
@@ -870,8 +959,10 @@ receive_filter(E1000State *s, const uint8_t *buf, int size)
 
     f = mta_shift[(rctl >> E1000_RCTL_MO_SHIFT) & 3];
     f = (((buf[5] << 8) | buf[4]) >> f) & 0xfff;
-    if (s->mac_reg[MTA + (f >> 5)] & (1 << (f & 0x1f)))
+    if (s->mac_reg[MTA + (f >> 5)] & (1 << (f & 0x1f))) {
+        inc_reg_if_not_full(s, MPRC);
         return 1;
+    }
     DBGOUT(RXFILTER,
            "dropping, inexact filter mismatch: %02x:%02x:%02x:%02x:%02x:%02x MO %d MTA[%d] %x\n",
            buf[0], buf[1], buf[2], buf[3], buf[4], buf[5],
@@ -960,6 +1051,8 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     size_t desc_offset;
     size_t desc_size;
     size_t total_size;
+    static const int PRCregs[6] = { PRC64, PRC127, PRC255, PRC511,
+                                    PRC1023, PRC1522 };
 
     if (!(s->mac_reg[STATUS] & E1000_STATUS_LU)) {
         return -1;
@@ -973,6 +1066,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
     if (size < sizeof(min_buf)) {
         iov_to_buf(iov, iovcnt, 0, min_buf, size);
         memset(&min_buf[size], 0, sizeof(min_buf) - size);
+        inc_reg_if_not_full(s, RUC);
         min_iov.iov_base = filter_buf = min_buf;
         min_iov.iov_len = size = sizeof(min_buf);
         iovcnt = 1;
@@ -988,6 +1082,7 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         (size > MAXIMUM_ETHERNET_VLAN_SIZE
         && !(s->mac_reg[RCTL] & E1000_RCTL_LPE)))
         && !(s->mac_reg[RCTL] & E1000_RCTL_SBP)) {
+        inc_reg_if_not_full(s, ROC);
         return size;
     }
 
@@ -1073,16 +1168,17 @@ e1000_receive_iov(NetClientState *nc, const struct iovec *iov, int iovcnt)
         }
     } while (desc_offset < total_size);
 
-    s->mac_reg[GPRC]++;
-    s->mac_reg[TPR]++;
+    increase_size_stats(s, PRCregs, total_size);
+    inc_reg_if_not_full(s, TPR);
+    s->mac_reg[GPRC] = s->mac_reg[TPR];
     /* TOR - Total Octets Received:
      * This register includes bytes received in a packet from the <Destination
      * Address> field through the <CRC> field, inclusively.
+     * Always include FCS length (4) in size.
      */
-    n = s->mac_reg[TORL] + size + /* Always include FCS length. */ 4;
-    if (n < s->mac_reg[TORL])
-        s->mac_reg[TORH]++;
-    s->mac_reg[TORL] = n;
+    grow_8reg_if_not_full(s, TORL, size+4);
+    s->mac_reg[GORCL] = s->mac_reg[TORL];
+    s->mac_reg[GORCH] = s->mac_reg[TORH];
 
     n = E1000_ICS_RXT0;
     if ((rdt = s->mac_reg[RDT]) < s->mac_reg[RDH])
@@ -1111,6 +1207,30 @@ static uint32_t
 mac_readreg(E1000State *s, int index)
 {
     return s->mac_reg[index];
+}
+
+static uint32_t
+mac_low4_read(E1000State *s, int index)
+{
+    return s->mac_reg[index] & 0xf;
+}
+
+static uint32_t
+mac_low11_read(E1000State *s, int index)
+{
+    return s->mac_reg[index] & 0x7ff;
+}
+
+static uint32_t
+mac_low13_read(E1000State *s, int index)
+{
+    return s->mac_reg[index] & 0x1fff;
+}
+
+static uint32_t
+mac_low16_read(E1000State *s, int index)
+{
+    return s->mac_reg[index] & 0xffff;
 }
 
 static uint32_t
@@ -1206,45 +1326,143 @@ set_ims(E1000State *s, int index, uint32_t val)
     set_ics(s, 0, 0);
 }
 
-#define getreg(x)	[x] = mac_readreg
+#define getreg(x)    [x] = mac_readreg
 static uint32_t (*macreg_readops[])(E1000State *, int) = {
-    getreg(PBA),	getreg(RCTL),	getreg(TDH),	getreg(TXDCTL),
-    getreg(WUFC),	getreg(TDT),	getreg(CTRL),	getreg(LEDCTL),
-    getreg(MANC),	getreg(MDIC),	getreg(SWSM),	getreg(STATUS),
-    getreg(TORL),	getreg(TOTL),	getreg(IMS),	getreg(TCTL),
-    getreg(RDH),	getreg(RDT),	getreg(VET),	getreg(ICS),
-    getreg(TDBAL),	getreg(TDBAH),	getreg(RDBAH),	getreg(RDBAL),
-    getreg(TDLEN),      getreg(RDLEN),  getreg(RDTR),   getreg(RADV),
-    getreg(TADV),       getreg(ITR),
+    getreg(PBA),      getreg(RCTL),     getreg(TDH),      getreg(TXDCTL),
+    getreg(WUFC),     getreg(TDT),      getreg(CTRL),     getreg(LEDCTL),
+    getreg(MANC),     getreg(MDIC),     getreg(SWSM),     getreg(STATUS),
+    getreg(TORL),     getreg(TOTL),     getreg(IMS),      getreg(TCTL),
+    getreg(RDH),      getreg(RDT),      getreg(VET),      getreg(ICS),
+    getreg(TDBAL),    getreg(TDBAH),    getreg(RDBAH),    getreg(RDBAL),
+    getreg(TDLEN),    getreg(RDLEN),    getreg(RDTR),     getreg(RADV),
+    getreg(TADV),     getreg(ITR),      getreg(FCRUC),    getreg(IPAV),
+    getreg(WUC),      getreg(WUS),      getreg(SCC),      getreg(ECOL),
+    getreg(MCC),      getreg(LATECOL),  getreg(COLC),     getreg(DC),
+    getreg(TNCRS),    getreg(SEC),      getreg(CEXTERR),  getreg(RLEC),
+    getreg(XONRXC),   getreg(XONTXC),   getreg(XOFFRXC),  getreg(XOFFTXC),
+    getreg(RFC),      getreg(RJC),      getreg(RNBC),     getreg(TSCTFC),
+    getreg(MGTPRC),   getreg(MGTPDC),   getreg(MGTPTC),   getreg(GORCL),
+    getreg(GOTCL),
 
-    [TOTH] = mac_read_clr8,	[TORH] = mac_read_clr8,	[GPRC] = mac_read_clr4,
-    [GPTC] = mac_read_clr4,	[TPR] = mac_read_clr4,	[TPT] = mac_read_clr4,
-    [ICR] = mac_icr_read,	[EECD] = get_eecd,	[EERD] = flash_eerd_read,
-    [CRCERRS ... MPC] = &mac_readreg,
-    [RA ... RA+31] = &mac_readreg,
-    [MTA ... MTA+127] = &mac_readreg,
+    [TOTH]    = mac_read_clr8,      [TORH]    = mac_read_clr8,
+    [GOTCH]   = mac_read_clr8,      [GORCH]   = mac_read_clr8,
+    [PRC64]   = mac_read_clr4,      [PRC127]  = mac_read_clr4,
+    [PRC255]  = mac_read_clr4,      [PRC511]  = mac_read_clr4,
+    [PRC1023] = mac_read_clr4,      [PRC1522] = mac_read_clr4,
+    [PTC64]   = mac_read_clr4,      [PTC127]  = mac_read_clr4,
+    [PTC255]  = mac_read_clr4,      [PTC511]  = mac_read_clr4,
+    [PTC1023] = mac_read_clr4,      [PTC1522] = mac_read_clr4,
+    [GPRC]    = mac_read_clr4,      [GPTC]    = mac_read_clr4,
+    [TPT]     = mac_read_clr4,      [TPR]     = mac_read_clr4,
+    [RUC]     = mac_read_clr4,      [ROC]     = mac_read_clr4,
+    [BPRC]    = mac_read_clr4,      [MPRC]    = mac_read_clr4,
+    [TSCTC]   = mac_read_clr4,      [BPTC]    = mac_read_clr4,
+    [MPTC]    = mac_read_clr4,
+    [ICR]     = mac_icr_read,       [EECD]    = get_eecd,
+    [EERD]    = flash_eerd_read,
+    [RDFH]    = mac_low13_read,     [RDFT]    = mac_low13_read,
+    [RDFHS]   = mac_low13_read,     [RDFTS]   = mac_low13_read,
+    [RDFPC]   = mac_low13_read,
+    [TDFH]    = mac_low11_read,     [TDFT]    = mac_low11_read,
+    [TDFHS]   = mac_low13_read,     [TDFTS]   = mac_low13_read,
+    [TDFPC]   = mac_low13_read,
+    [AIT]     = mac_low16_read,
+
+    [CRCERRS ... MPC]   = &mac_readreg,
+    [IP6AT ... IP6AT+3] = &mac_readreg,    [IP4AT ... IP4AT+6] = &mac_readreg,
+    [FFLT ... FFLT+6]   = &mac_low11_read,
+    [RA ... RA+31]      = &mac_readreg,
+    [WUPM ... WUPM+31]  = &mac_readreg,
+    [MTA ... MTA+127]   = &mac_readreg,
     [VFTA ... VFTA+127] = &mac_readreg,
+    [FFMT ... FFMT+254] = &mac_low4_read,
+    [FFVT ... FFVT+254] = &mac_readreg,
+    [PBM ... PBM+16383] = &mac_readreg,
 };
 enum { NREADOPS = ARRAY_SIZE(macreg_readops) };
 
-#define putreg(x)	[x] = mac_writereg
+#define putreg(x)    [x] = mac_writereg
 static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
-    putreg(PBA),	putreg(EERD),	putreg(SWSM),	putreg(WUFC),
-    putreg(TDBAL),	putreg(TDBAH),	putreg(TXDCTL),	putreg(RDBAH),
-    putreg(RDBAL),	putreg(LEDCTL), putreg(VET),
-    [TDLEN] = set_dlen,	[RDLEN] = set_dlen,	[TCTL] = set_tctl,
-    [TDT] = set_tctl,	[MDIC] = set_mdic,	[ICS] = set_ics,
-    [TDH] = set_16bit,	[RDH] = set_16bit,	[RDT] = set_rdt,
-    [IMC] = set_imc,	[IMS] = set_ims,	[ICR] = set_icr,
-    [EECD] = set_eecd,	[RCTL] = set_rx_control, [CTRL] = set_ctrl,
-    [RDTR] = set_16bit, [RADV] = set_16bit,     [TADV] = set_16bit,
-    [ITR] = set_16bit,
-    [RA ... RA+31] = &mac_writereg,
-    [MTA ... MTA+127] = &mac_writereg,
+    putreg(PBA),      putreg(EERD),     putreg(SWSM),     putreg(WUFC),
+    putreg(TDBAL),    putreg(TDBAH),    putreg(TXDCTL),   putreg(RDBAH),
+    putreg(RDBAL),    putreg(LEDCTL),   putreg(VET),      putreg(FCRUC),
+    putreg(TDFH),     putreg(TDFT),     putreg(TDFHS),    putreg(TDFTS),
+    putreg(TDFPC),    putreg(RDFH),     putreg(RDFT),     putreg(RDFHS),
+    putreg(RDFTS),    putreg(RDFPC),    putreg(IPAV),     putreg(WUC),
+    putreg(WUS),      putreg(AIT),
+
+    [TDLEN]  = set_dlen,   [RDLEN]  = set_dlen,       [TCTL] = set_tctl,
+    [TDT]    = set_tctl,   [MDIC]   = set_mdic,       [ICS]  = set_ics,
+    [TDH]    = set_16bit,  [RDH]    = set_16bit,      [RDT]  = set_rdt,
+    [IMC]    = set_imc,    [IMS]    = set_ims,        [ICR]  = set_icr,
+    [EECD]   = set_eecd,   [RCTL]   = set_rx_control, [CTRL] = set_ctrl,
+    [RDTR]   = set_16bit,  [RADV]   = set_16bit,      [TADV] = set_16bit,
+    [ITR]    = set_16bit,
+
+    [IP6AT ... IP6AT+3] = &mac_writereg, [IP4AT ... IP4AT+6] = &mac_writereg,
+    [FFLT ... FFLT+6]   = &mac_writereg,
+    [RA ... RA+31]      = &mac_writereg,
+    [WUPM ... WUPM+31]  = &mac_writereg,
+    [MTA ... MTA+127]   = &mac_writereg,
     [VFTA ... VFTA+127] = &mac_writereg,
+    [FFMT ... FFMT+254] = &mac_writereg, [FFVT ... FFVT+254] = &mac_writereg,
+    [PBM ... PBM+16383] = &mac_writereg,
 };
 
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
+
+enum { MAC_ACCESS_PARTIAL = 1, MAC_ACCESS_FLAG_NEEDED = 2 };
+
+#define markflag(x)    ((E1000_FLAG_##x << 2) | MAC_ACCESS_FLAG_NEEDED)
+/* In the array below the meaning of the bits is: [f|f|f|f|f|f|n|p]
+ * f - flag bits (up to 6 possible flags)
+ * n - flag needed
+ * p - partially implenented */
+static const uint8_t mac_reg_access[0x8000] = {
+    [RDTR]    = markflag(MIT),    [TADV]    = markflag(MIT),
+    [RADV]    = markflag(MIT),    [ITR]     = markflag(MIT),
+
+    [IPAV]    = markflag(MAC),    [WUC]     = markflag(MAC),
+    [IP6AT]   = markflag(MAC),    [IP4AT]   = markflag(MAC),
+    [FFVT]    = markflag(MAC),    [WUPM]    = markflag(MAC),
+    [ECOL]    = markflag(MAC),    [MCC]     = markflag(MAC),
+    [DC]      = markflag(MAC),    [TNCRS]   = markflag(MAC),
+    [RLEC]    = markflag(MAC),    [XONRXC]  = markflag(MAC),
+    [XOFFTXC] = markflag(MAC),    [RFC]     = markflag(MAC),
+    [TSCTFC]  = markflag(MAC),    [MGTPRC]  = markflag(MAC),
+    [WUS]     = markflag(MAC),    [AIT]     = markflag(MAC),
+    [FFLT]    = markflag(MAC),    [FFMT]    = markflag(MAC),
+    [SCC]     = markflag(MAC),    [FCRUC]   = markflag(MAC),
+    [LATECOL] = markflag(MAC),    [COLC]    = markflag(MAC),
+    [SEC]     = markflag(MAC),    [CEXTERR] = markflag(MAC),
+    [XONTXC]  = markflag(MAC),    [XOFFRXC] = markflag(MAC),
+    [RJC]     = markflag(MAC),    [RNBC]    = markflag(MAC),
+    [MGTPDC]  = markflag(MAC),    [MGTPTC]  = markflag(MAC),
+    [RUC]     = markflag(MAC),    [ROC]     = markflag(MAC),
+    [GORCL]   = markflag(MAC),    [GORCH]   = markflag(MAC),
+    [GOTCL]   = markflag(MAC),    [GOTCH]   = markflag(MAC),
+    [BPRC]    = markflag(MAC),    [MPRC]    = markflag(MAC),
+    [TSCTC]   = markflag(MAC),    [PRC64]   = markflag(MAC),
+    [PRC127]  = markflag(MAC),    [PRC255]  = markflag(MAC),
+    [PRC511]  = markflag(MAC),    [PRC1023] = markflag(MAC),
+    [PRC1522] = markflag(MAC),    [PTC64]   = markflag(MAC),
+    [PTC127]  = markflag(MAC),    [PTC255]  = markflag(MAC),
+    [PTC511]  = markflag(MAC),    [PTC1023] = markflag(MAC),
+    [PTC1522] = markflag(MAC),    [MPTC]    = markflag(MAC),
+    [BPTC]    = markflag(MAC),
+
+    [TDFH]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFT]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFHS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFTS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [TDFPC] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFH]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFT]  = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFHS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFTS] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [RDFPC] = markflag(MAC) | MAC_ACCESS_PARTIAL,
+    [PBM]   = markflag(MAC) | MAC_ACCESS_PARTIAL,
+};
 
 static void
 e1000_mmio_write(void *opaque, hwaddr addr, uint64_t val,
@@ -1254,9 +1472,20 @@ e1000_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     unsigned int index = (addr & 0x1ffff) >> 2;
 
     if (index < NWRITEOPS && macreg_writeops[index]) {
-        macreg_writeops[index](s, index, val);
+        if (!(mac_reg_access[index] & MAC_ACCESS_FLAG_NEEDED)
+            || (s->compat_flags & (mac_reg_access[index] >> 2))) {
+            if (mac_reg_access[index] & MAC_ACCESS_PARTIAL) {
+                DBGOUT(GENERAL, "Writing to register at offset: 0x%08x. "
+                       "It is not fully implemented.\n", index<<2);
+            }
+            macreg_writeops[index](s, index, val);
+        } else {    /* "flag needed" bit is set, but the flag is not active */
+            DBGOUT(MMIO, "MMIO write attempt to disabled reg. addr=0x%08x\n",
+                   index<<2);
+        }
     } else if (index < NREADOPS && macreg_readops[index]) {
-        DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04"PRIx64"\n", index<<2, val);
+        DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04"PRIx64"\n",
+               index<<2, val);
     } else {
         DBGOUT(UNKNOWN, "MMIO unknown write addr=0x%08x,val=0x%08"PRIx64"\n",
                index<<2, val);
@@ -1269,11 +1498,21 @@ e1000_mmio_read(void *opaque, hwaddr addr, unsigned size)
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
 
-    if (index < NREADOPS && macreg_readops[index])
-    {
-        return macreg_readops[index](s, index);
+    if (index < NREADOPS && macreg_readops[index]) {
+        if (!(mac_reg_access[index] & MAC_ACCESS_FLAG_NEEDED)
+            || (s->compat_flags & (mac_reg_access[index] >> 2))) {
+            if (mac_reg_access[index] & MAC_ACCESS_PARTIAL) {
+                DBGOUT(GENERAL, "Reading register at offset: 0x%08x. "
+                       "It is not fully implemented.\n", index<<2);
+            }
+            return macreg_readops[index](s, index);
+        } else {    /* "flag needed" bit is set, but the flag is not active */
+            DBGOUT(MMIO, "MMIO read attempt of disabled reg. addr=0x%08x\n",
+                   index<<2);
+        }
+    } else {
+        DBGOUT(UNKNOWN, "MMIO unknown read addr=0x%08x\n", index<<2);
     }
-    DBGOUT(UNKNOWN, "MMIO unknown read addr=0x%08x\n", index<<2);
     return 0;
 }
 
@@ -1340,7 +1579,7 @@ static int e1000_post_load(void *opaque, int version_id)
     E1000State *s = opaque;
     NetClientState *nc = qemu_get_queue(s->nic);
 
-    if (!(s->compat_flags & E1000_FLAG_MIT)) {
+    if (!chkflag(MIT)) {
         s->mac_reg[ITR] = s->mac_reg[RDTR] = s->mac_reg[RADV] =
             s->mac_reg[TADV] = 0;
         s->mit_irq_level = false;
@@ -1367,7 +1606,14 @@ static bool e1000_mit_state_needed(void *opaque)
 {
     E1000State *s = opaque;
 
-    return s->compat_flags & E1000_FLAG_MIT;
+    return chkflag(MIT);
+}
+
+static bool e1000_full_mac_needed(void *opaque)
+{
+    E1000State *s = opaque;
+
+    return chkflag(MAC);
 }
 
 static const VMStateDescription vmstate_e1000_mit_state = {
@@ -1381,6 +1627,17 @@ static const VMStateDescription vmstate_e1000_mit_state = {
         VMSTATE_UINT32(mac_reg[TADV], E1000State),
         VMSTATE_UINT32(mac_reg[ITR], E1000State),
         VMSTATE_BOOL(mit_irq_level, E1000State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_e1000_full_mac_state = {
+    .name = "e1000/full_mac_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = e1000_full_mac_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(mac_reg, E1000State, 0x8000),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -1464,6 +1721,7 @@ static const VMStateDescription vmstate_e1000 = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmstate_e1000_mit_state,
+        &vmstate_e1000_full_mac_state,
         NULL
     }
 };
@@ -1596,6 +1854,8 @@ static Property e1000_properties[] = {
                     compat_flags, E1000_FLAG_AUTONEG_BIT, true),
     DEFINE_PROP_BIT("mitigation", E1000State,
                     compat_flags, E1000_FLAG_MIT_BIT, true),
+    DEFINE_PROP_BIT("extra_mac_registers", E1000State,
+                    compat_flags, E1000_FLAG_MAC_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

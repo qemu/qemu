@@ -90,7 +90,7 @@ pkt_copy(const void *_src, void *_dst, int l)
  * Open a netmap device. We assume there is only one queue
  * (which is the case for the VALE bridge).
  */
-static int netmap_open(NetmapPriv *me)
+static void netmap_open(NetmapPriv *me, Error **errp)
 {
     int fd;
     int err;
@@ -99,9 +99,8 @@ static int netmap_open(NetmapPriv *me)
 
     me->fd = fd = open(me->fdname, O_RDWR);
     if (fd < 0) {
-        error_report("Unable to open netmap device '%s' (%s)",
-                        me->fdname, strerror(errno));
-        return -1;
+        error_setg_file_open(errp, errno, me->fdname);
+        return;
     }
     memset(&req, 0, sizeof(req));
     pstrcpy(req.nr_name, sizeof(req.nr_name), me->ifname);
@@ -109,15 +108,14 @@ static int netmap_open(NetmapPriv *me)
     req.nr_version = NETMAP_API;
     err = ioctl(fd, NIOCREGIF, &req);
     if (err) {
-        error_report("Unable to register %s: %s", me->ifname, strerror(errno));
+        error_setg_errno(errp, errno, "Unable to register %s", me->ifname);
         goto error;
     }
     l = me->memsize = req.nr_memsize;
 
     me->mem = mmap(0, l, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);
     if (me->mem == MAP_FAILED) {
-        error_report("Unable to mmap netmap shared memory: %s",
-                        strerror(errno));
+        error_setg_errno(errp, errno, "Unable to mmap netmap shared memory");
         me->mem = NULL;
         goto error;
     }
@@ -125,11 +123,11 @@ static int netmap_open(NetmapPriv *me)
     me->nifp = NETMAP_IF(me->mem, req.nr_offset);
     me->tx = NETMAP_TXRING(me->nifp, 0);
     me->rx = NETMAP_RXRING(me->nifp, 0);
-    return 0;
+
+    return;
 
 error:
     close(me->fd);
-    return -1;
 }
 
 static void netmap_send(void *opaque);
@@ -438,9 +436,9 @@ static NetClientInfo net_netmap_info = {
 int net_init_netmap(const NetClientOptions *opts,
                     const char *name, NetClientState *peer, Error **errp)
 {
-    /* FIXME error_setg(errp, ...) on failure */
-    const NetdevNetmapOptions *netmap_opts = opts->netmap;
+    const NetdevNetmapOptions *netmap_opts = opts->u.netmap;
     NetClientState *nc;
+    Error *err = NULL;
     NetmapPriv me;
     NetmapState *s;
 
@@ -448,7 +446,9 @@ int net_init_netmap(const NetClientOptions *opts,
         netmap_opts->has_devname ? netmap_opts->devname : "/dev/netmap");
     /* Set default name for the port if not supplied. */
     pstrcpy(me.ifname, sizeof(me.ifname), netmap_opts->ifname);
-    if (netmap_open(&me)) {
+    netmap_open(&me, &err);
+    if (err) {
+        error_propagate(errp, err);
         return -1;
     }
     /* Create the object. */

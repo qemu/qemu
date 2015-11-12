@@ -91,7 +91,7 @@ size_t sopreprbuf(struct socket *so, struct iovec *iov, int *np)
 	int mss = so->so_tcpcb->t_maxseg;
 
 	DEBUG_CALL("sopreprbuf");
-	DEBUG_ARG("so = %lx", (long )so);
+	DEBUG_ARG("so = %p", so);
 
 	if (len <= 0)
 		return 0;
@@ -155,7 +155,7 @@ soread(struct socket *so)
 	struct iovec iov[2];
 
 	DEBUG_CALL("soread");
-	DEBUG_ARG("so = %lx", (long )so);
+	DEBUG_ARG("so = %p", so);
 
 	/*
 	 * No need to check if there's enough room to read.
@@ -215,7 +215,7 @@ int soreadbuf(struct socket *so, const char *buf, int size)
 	struct iovec iov[2];
 
 	DEBUG_CALL("soreadbuf");
-	DEBUG_ARG("so = %lx", (long )so);
+	DEBUG_ARG("so = %p", so);
 
 	/*
 	 * No need to check if there's enough room to read.
@@ -263,7 +263,7 @@ sorecvoob(struct socket *so)
 	struct tcpcb *tp = sototcpcb(so);
 
 	DEBUG_CALL("sorecvoob");
-	DEBUG_ARG("so = %lx", (long)so);
+	DEBUG_ARG("so = %p", so);
 
 	/*
 	 * We take a guess at how much urgent data has arrived.
@@ -293,7 +293,7 @@ sosendoob(struct socket *so)
 	int n, len;
 
 	DEBUG_CALL("sosendoob");
-	DEBUG_ARG("so = %lx", (long)so);
+	DEBUG_ARG("so = %p", so);
 	DEBUG_ARG("sb->sb_cc = %d", sb->sb_cc);
 
 	if (so->so_urgc > 2048)
@@ -351,7 +351,7 @@ sowrite(struct socket *so)
 	struct iovec iov[2];
 
 	DEBUG_CALL("sowrite");
-	DEBUG_ARG("so = %lx", (long)so);
+	DEBUG_ARG("so = %p", so);
 
 	if (so->so_urgc) {
 		sosendoob(so);
@@ -441,7 +441,7 @@ sorecvfrom(struct socket *so)
 	socklen_t addrlen = sizeof(struct sockaddr_in);
 
 	DEBUG_CALL("sorecvfrom");
-	DEBUG_ARG("so = %lx", (long)so);
+	DEBUG_ARG("so = %p", so);
 
 	if (so->so_type == IPPROTO_ICMP) {   /* This is a "ping" reply */
 	  char buff[256];
@@ -543,8 +543,8 @@ sosendto(struct socket *so, struct mbuf *m)
 	struct sockaddr_in addr;
 
 	DEBUG_CALL("sosendto");
-	DEBUG_ARG("so = %lx", (long)so);
-	DEBUG_ARG("m = %lx", (long)m);
+	DEBUG_ARG("so = %p", so);
+	DEBUG_ARG("m = %p", m);
 
         addr.sin_family = AF_INET;
 	if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
