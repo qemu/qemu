@@ -43,7 +43,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_FEATURES = 1,
     VHOST_USER_SET_FEATURES = 2,
     VHOST_USER_SET_OWNER = 3,
-    VHOST_USER_RESET_DEVICE = 4,
+    VHOST_USER_RESET_OWNER = 4,
     VHOST_USER_SET_MEM_TABLE = 5,
     VHOST_USER_SET_LOG_BASE = 6,
     VHOST_USER_SET_LOG_FD = 7,
@@ -75,6 +75,11 @@ typedef struct VhostUserMemory {
     VhostUserMemoryRegion regions[VHOST_MEMORY_MAX_NREGIONS];
 } VhostUserMemory;
 
+typedef struct VhostUserLog {
+    uint64_t mmap_size;
+    uint64_t mmap_offset;
+} VhostUserLog;
+
 typedef struct VhostUserMsg {
     VhostUserRequest request;
 
@@ -89,6 +94,7 @@ typedef struct VhostUserMsg {
         struct vhost_vring_state state;
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
+        VhostUserLog log;
     } payload;
 } QEMU_PACKED VhostUserMsg;
 
@@ -157,7 +163,7 @@ static bool vhost_user_one_time_request(VhostUserRequest request)
 {
     switch (request) {
     case VHOST_USER_SET_OWNER:
-    case VHOST_USER_RESET_DEVICE:
+    case VHOST_USER_RESET_OWNER:
     case VHOST_USER_SET_MEM_TABLE:
     case VHOST_USER_GET_QUEUE_NUM:
         return true;
@@ -200,8 +206,9 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     VhostUserMsg msg = {
         .request = VHOST_USER_SET_LOG_BASE,
         .flags = VHOST_USER_VERSION,
-        .payload.u64 = base,
-        .size = sizeof(msg.payload.u64),
+        .payload.log.mmap_size = log->size,
+        .payload.log.mmap_offset = 0,
+        .size = sizeof(msg.payload.log),
     };
 
     if (shmfd && log->fd != -1) {
@@ -486,7 +493,7 @@ static int vhost_user_set_owner(struct vhost_dev *dev)
 static int vhost_user_reset_device(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
-        .request = VHOST_USER_RESET_DEVICE,
+        .request = VHOST_USER_RESET_OWNER,
         .flags = VHOST_USER_VERSION,
     };
 

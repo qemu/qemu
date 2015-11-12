@@ -156,7 +156,7 @@ static int vhost_kernel_set_owner(struct vhost_dev *dev)
 
 static int vhost_kernel_reset_device(struct vhost_dev *dev)
 {
-    return vhost_kernel_call(dev, VHOST_RESET_DEVICE, NULL);
+    return vhost_kernel_call(dev, VHOST_RESET_OWNER, NULL);
 }
 
 static int vhost_kernel_get_vq_index(struct vhost_dev *dev, int idx)

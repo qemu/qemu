@@ -188,7 +188,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_FEATURES = 1,
     VHOST_USER_SET_FEATURES = 2,
     VHOST_USER_SET_OWNER = 3,
-    VHOST_USER_RESET_DEVICE = 4,
+    VHOST_USER_RESET_OWNER = 4,
     VHOST_USER_SET_MEM_TABLE = 5,
     VHOST_USER_SET_LOG_BASE = 6,
     VHOST_USER_SET_LOG_FD = 7,
@@ -274,7 +274,7 @@ static const char *vubr_request_str[] = {
     [VHOST_USER_GET_FEATURES]           =  "VHOST_USER_GET_FEATURES",
     [VHOST_USER_SET_FEATURES]           =  "VHOST_USER_SET_FEATURES",
     [VHOST_USER_SET_OWNER]              =  "VHOST_USER_SET_OWNER",
-    [VHOST_USER_RESET_DEVICE]           =  "VHOST_USER_RESET_DEVICE",
+    [VHOST_USER_RESET_OWNER]           =  "VHOST_USER_RESET_OWNER",
     [VHOST_USER_SET_MEM_TABLE]          =  "VHOST_USER_SET_MEM_TABLE",
     [VHOST_USER_SET_LOG_BASE]           =  "VHOST_USER_SET_LOG_BASE",
     [VHOST_USER_SET_LOG_FD]             =  "VHOST_USER_SET_LOG_FD",
@@ -921,7 +921,7 @@ vubr_execute_request(VubrDev *dev, VhostUserMsg *vmsg)
         return vubr_set_features_exec(dev, vmsg);
     case VHOST_USER_SET_OWNER:
         return vubr_set_owner_exec(dev, vmsg);
-    case VHOST_USER_RESET_DEVICE:
+    case VHOST_USER_RESET_OWNER:
         return vubr_reset_device_exec(dev, vmsg);
     case VHOST_USER_SET_MEM_TABLE:
         return vubr_set_mem_table_exec(dev, vmsg);

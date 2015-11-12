@@ -109,6 +109,7 @@ bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
 bool kvm_vm_attributes_allowed;
 bool kvm_direct_msi_allowed;
+bool kvm_ioeventfd_any_length_allowed;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -1610,6 +1611,9 @@ static int kvm_init(MachineState *ms)
 
     kvm_vm_attributes_allowed =
         (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES) > 0);
+
+    kvm_ioeventfd_any_length_allowed =
+        (kvm_check_extension(s, KVM_CAP_IOEVENTFD_ANY_LENGTH) > 0);
 
     ret = kvm_arch_init(ms, s);
     if (ret < 0) {

@@ -72,8 +72,19 @@ typedef struct VirtioBusClass VirtioPCIBusClass;
 /* virtio version flags */
 #define VIRTIO_PCI_FLAG_DISABLE_LEGACY_BIT 2
 #define VIRTIO_PCI_FLAG_DISABLE_MODERN_BIT 3
+#define VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT 4
 #define VIRTIO_PCI_FLAG_DISABLE_LEGACY (1 << VIRTIO_PCI_FLAG_DISABLE_LEGACY_BIT)
 #define VIRTIO_PCI_FLAG_DISABLE_MODERN (1 << VIRTIO_PCI_FLAG_DISABLE_MODERN_BIT)
+#define VIRTIO_PCI_FLAG_DISABLE_PCIE (1 << VIRTIO_PCI_FLAG_DISABLE_PCIE_BIT)
+
+/* migrate extra state */
+#define VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT 4
+#define VIRTIO_PCI_FLAG_MIGRATE_EXTRA (1 << VIRTIO_PCI_FLAG_MIGRATE_EXTRA_BIT)
+
+/* have pio notification for modern device ? */
+#define VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT 5
+#define VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY \
+    (1 << VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY_BIT)
 
 typedef struct {
     MSIMessage msg;
@@ -104,6 +115,14 @@ typedef struct VirtIOPCIRegion {
     uint32_t type;
 } VirtIOPCIRegion;
 
+typedef struct VirtIOPCIQueue {
+  uint16_t num;
+  bool enabled;
+  uint32_t desc[2];
+  uint32_t avail[2];
+  uint32_t used[2];
+} VirtIOPCIQueue;
+
 struct VirtIOPCIProxy {
     PCIDevice pci_dev;
     MemoryRegion bar;
@@ -111,11 +130,14 @@ struct VirtIOPCIProxy {
     VirtIOPCIRegion isr;
     VirtIOPCIRegion device;
     VirtIOPCIRegion notify;
+    VirtIOPCIRegion notify_pio;
     MemoryRegion modern_bar;
+    MemoryRegion io_bar;
     MemoryRegion modern_cfg;
     AddressSpace modern_as;
     uint32_t legacy_io_bar;
     uint32_t msix_bar;
+    uint32_t modern_io_bar;
     uint32_t modern_mem_bar;
     int config_cap;
     uint32_t flags;
@@ -124,13 +146,7 @@ struct VirtIOPCIProxy {
     uint32_t dfselect;
     uint32_t gfselect;
     uint32_t guest_features[2];
-    struct {
-        uint16_t num;
-        bool enabled;
-        uint32_t desc[2];
-        uint32_t avail[2];
-        uint32_t used[2];
-    } vqs[VIRTIO_QUEUE_MAX];
+    VirtIOPCIQueue vqs[VIRTIO_QUEUE_MAX];
 
     bool ioeventfd_disabled;
     bool ioeventfd_started;
