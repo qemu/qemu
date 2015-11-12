@@ -2136,6 +2136,8 @@ static int get_monitor_def(target_long *pval, const char *name)
 {
     const MonitorDef *md = target_monitor_defs();
     void *ptr;
+    uint64_t tmp = 0;
+    int ret;
 
     if (md == NULL) {
         return -1;
@@ -2163,7 +2165,13 @@ static int get_monitor_def(target_long *pval, const char *name)
             return 0;
         }
     }
-    return -1;
+
+    ret = target_get_monitor_def(mon_get_cpu(), name, &tmp);
+    if (!ret) {
+        *pval = (target_long) tmp;
+    }
+
+    return ret;
 }
 
 static void next(void)
