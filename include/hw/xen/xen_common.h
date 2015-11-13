@@ -439,4 +439,20 @@ static inline int xen_xc_domain_add_to_physmap(XenXC xch, uint32_t domid,
 }
 #endif
 
+#if CONFIG_XEN_CTRL_INTERFACE_VERSION < 470
+static inline int xen_domain_create(XenXC xc, uint32_t ssidref,
+                                    xen_domain_handle_t handle, uint32_t flags,
+                                    uint32_t *pdomid)
+{
+    return xc_domain_create(xc, ssidref, handle, flags, pdomid);
+}
+#else
+static inline int xen_domain_create(XenXC xc, uint32_t ssidref,
+                                    xen_domain_handle_t handle, uint32_t flags,
+                                    uint32_t *pdomid)
+{
+    return xc_domain_create(xc, ssidref, handle, flags, pdomid, NULL);
+}
+#endif
+
 #endif /* QEMU_HW_XEN_COMMON_H */
