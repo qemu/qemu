@@ -490,7 +490,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     QDict *interval_dict = NULL;
     QList *interval_list = NULL;
     const char *id;
-    bool has_driver_specific_opts;
     BlockdevDetectZeroesOptions detect_zeroes =
         BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     const char *throttling_group = NULL;
@@ -513,8 +512,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     if (id) {
         qdict_del(bs_opts, "id");
     }
-
-    has_driver_specific_opts = !!qdict_size(bs_opts);
 
     /* extract parameters */
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
@@ -578,7 +575,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     /* init */
-    if ((!file || !*file) && !has_driver_specific_opts) {
+    if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
 
         blk = blk_new(qemu_opts_id(opts), errp);
