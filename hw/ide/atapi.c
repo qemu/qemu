@@ -1195,7 +1195,7 @@ enum {
     NONDATA = 0x04,
 };
 
-static const struct {
+static const struct AtapiCmd {
     void (*handler)(IDEState *s, uint8_t *buf);
     int flags;
 } atapi_cmd_table[0x100] = {
@@ -1222,9 +1222,9 @@ static const struct {
 
 void ide_atapi_cmd(IDEState *s)
 {
-    uint8_t *buf;
+    uint8_t *buf = s->io_buffer;
+    const struct AtapiCmd *cmd = &atapi_cmd_table[s->io_buffer[0]];
 
-    buf = s->io_buffer;
 #ifdef DEBUG_IDE_ATAPI
     {
         int i;
@@ -1235,14 +1235,14 @@ void ide_atapi_cmd(IDEState *s)
         printf("\n");
     }
 #endif
+
     /*
      * If there's a UNIT_ATTENTION condition pending, only command flagged with
      * ALLOW_UA are allowed to complete. with other commands getting a CHECK
      * condition response unless a higher priority status, defined by the drive
      * here, is pending.
      */
-    if (s->sense_key == UNIT_ATTENTION &&
-        !(atapi_cmd_table[s->io_buffer[0]].flags & ALLOW_UA)) {
+    if (s->sense_key == UNIT_ATTENTION && !(cmd->flags & ALLOW_UA)) {
         ide_atapi_cmd_check_status(s);
         return;
     }
@@ -1253,7 +1253,7 @@ void ide_atapi_cmd(IDEState *s)
      * GET_EVENT_STATUS_NOTIFICATION to detect such tray open/close
      * states rely on this behavior.
      */
-    if (!(atapi_cmd_table[s->io_buffer[0]].flags & ALLOW_UA) &&
+    if (!(cmd->flags & ALLOW_UA) &&
         !s->tray_open && blk_is_inserted(s->blk) && s->cdrom_changed) {
 
         if (s->cdrom_changed == 1) {
@@ -1268,7 +1268,7 @@ void ide_atapi_cmd(IDEState *s)
     }
 
     /* Report a Not Ready condition if appropriate for the command */
-    if ((atapi_cmd_table[s->io_buffer[0]].flags & CHECK_READY) &&
+    if ((cmd->flags & CHECK_READY) &&
         (!media_present(s) || !blk_is_inserted(s->blk)))
     {
         ide_atapi_cmd_error(s, NOT_READY, ASC_MEDIUM_NOT_PRESENT);
@@ -1279,7 +1279,7 @@ void ide_atapi_cmd(IDEState *s)
      * If this is a data-transferring PIO command and BCL is 0,
      * we abort at the /ATA/ level, not the ATAPI level.
      * See ATA8 ACS3 section 7.17.6.49 and 7.21.5 */
-    if (!(atapi_cmd_table[s->io_buffer[0]].flags & NONDATA)) {
+    if (cmd->handler && !(cmd->flags & NONDATA)) {
         /* TODO: Check IDENTIFY data word 125 for default BCL (currently 0) */
         if (!(atapi_byte_count_limit(s) || s->atapi_dma)) {
             /* TODO: Move abort back into core.c and make static inline again */
@@ -1289,8 +1289,8 @@ void ide_atapi_cmd(IDEState *s)
     }
 
     /* Execute the command */
-    if (atapi_cmd_table[s->io_buffer[0]].handler) {
-        atapi_cmd_table[s->io_buffer[0]].handler(s, buf);
+    if (cmd->handler) {
+        cmd->handler(s, buf);
         return;
     }
 
