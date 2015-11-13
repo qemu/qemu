@@ -23,17 +23,10 @@
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
 
-//#define DEBUG_MMU
 //#define DEBUG_SLB
 
-#ifdef DEBUG_MMU
-#  define LOG_MMU_STATE(cpu) log_cpu_state((cpu), 0)
-#else
-#  define LOG_MMU_STATE(cpu) do { } while (0)
-#endif
-
 #ifdef DEBUG_SLB
-#  define LOG_SLB(...) qemu_log(__VA_ARGS__)
+#  define LOG_SLB(...) qemu_log_mask(CPU_LOG_MMU, __VA_ARGS__)
 #else
 #  define LOG_SLB(...) do { } while (0)
 #endif

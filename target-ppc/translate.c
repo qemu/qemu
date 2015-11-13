@@ -11530,12 +11530,10 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         }
         /* Is opcode *REALLY* valid ? */
         if (unlikely(handler->handler == &gen_invalid)) {
-            if (qemu_log_enabled()) {
-                qemu_log("invalid/unsupported opcode: "
-                         "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
-                         opc1(ctx.opcode), opc2(ctx.opcode),
-                         opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
-            }
+            qemu_log_mask(LOG_GUEST_ERROR, "invalid/unsupported opcode: "
+                          "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
+                          opc1(ctx.opcode), opc2(ctx.opcode),
+                          opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
         } else {
             uint32_t inval;
 
@@ -11546,13 +11544,11 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
             }
 
             if (unlikely((ctx.opcode & inval) != 0)) {
-                if (qemu_log_enabled()) {
-                    qemu_log("invalid bits: %08x for opcode: "
-                             "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
-                             ctx.opcode & inval, opc1(ctx.opcode),
-                             opc2(ctx.opcode), opc3(ctx.opcode),
-                             ctx.opcode, ctx.nip - 4);
-                }
+                qemu_log_mask(LOG_GUEST_ERROR, "invalid bits: %08x for opcode: "
+                              "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
+                              ctx.opcode & inval, opc1(ctx.opcode),
+                              opc2(ctx.opcode), opc3(ctx.opcode),
+                              ctx.opcode, ctx.nip - 4);
                 gen_inval_exception(ctxp, POWERPC_EXCP_INVAL_INVAL);
                 break;
             }

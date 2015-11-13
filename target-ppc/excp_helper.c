@@ -23,6 +23,7 @@
 #include "helper_regs.h"
 
 //#define DEBUG_OP
+//#define DEBUG_SOFTWARE_TLB
 //#define DEBUG_EXCEPTIONS
 
 #ifdef DEBUG_EXCEPTIONS
