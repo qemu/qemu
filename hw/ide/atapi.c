@@ -170,6 +170,17 @@ void ide_atapi_io_error(IDEState *s, int ret)
     }
 }
 
+static uint16_t atapi_byte_count_limit(IDEState *s)
+{
+    uint16_t bcl;
+
+    bcl = s->lcyl | (s->hcyl << 8);
+    if (bcl == 0xffff) {
+        return 0xfffe;
+    }
+    return bcl;
+}
+
 /* The whole ATAPI transfer logic is handled in this function */
 void ide_atapi_cmd_reply_end(IDEState *s)
 {
@@ -212,12 +223,10 @@ void ide_atapi_cmd_reply_end(IDEState *s)
         } else {
             /* a new transfer is needed */
             s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO;
-            byte_count_limit = s->lcyl | (s->hcyl << 8);
+            byte_count_limit = atapi_byte_count_limit(s);
 #ifdef DEBUG_IDE_ATAPI
             printf("byte_count_limit=%d\n", byte_count_limit);
 #endif
-            if (byte_count_limit == 0xffff)
-                byte_count_limit--;
             size = s->packet_transfer_size;
             if (size > byte_count_limit) {
                 /* byte count limit must be even if this case */
@@ -1272,8 +1281,7 @@ void ide_atapi_cmd(IDEState *s)
      * See ATA8 ACS3 section 7.17.6.49 and 7.21.5 */
     if (!(atapi_cmd_table[s->io_buffer[0]].flags & NONDATA)) {
         /* TODO: Check IDENTIFY data word 125 for default BCL (currently 0) */
-        uint16_t byte_count_limit = s->lcyl | (s->hcyl << 8);
-        if (!(byte_count_limit || s->atapi_dma)) {
+        if (!(atapi_byte_count_limit(s) || s->atapi_dma)) {
             /* TODO: Move abort back into core.c and make static inline again */
             ide_abort_command(s);
             return;
