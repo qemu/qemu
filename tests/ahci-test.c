@@ -47,6 +47,7 @@
 /*** Globals ***/
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
 static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
+static char mig_socket[] = "/tmp/qtest-migration.XXXXXX";
 static bool ahci_pedantic;
 
 /*** Function Declarations ***/
@@ -114,8 +115,11 @@ static void ahci_migrate(AHCIQState *from, AHCIQState *to, const char *uri)
 {
     QOSState *tmp = to->parent;
     QPCIDevice *dev = to->dev;
+    char *uri_local = NULL;
+
     if (uri == NULL) {
-        uri = "tcp:127.0.0.1:1234";
+        uri_local = g_strdup_printf("%s%s", "unix:", mig_socket);
+        uri = uri_local;
     }
 
     /* context will be 'to' after completion. */
@@ -135,6 +139,7 @@ static void ahci_migrate(AHCIQState *from, AHCIQState *to, const char *uri)
     from->dev = dev;
 
     verify_state(to);
+    g_free(uri_local);
 }
 
 /*** Test Setup & Teardown ***/
@@ -1105,7 +1110,7 @@ static void test_flush_retry(void)
 static void test_migrate_sanity(void)
 {
     AHCIQState *src, *dst;
-    const char *uri = "tcp:127.0.0.1:1234";
+    char *uri = g_strdup_printf("unix:%s", mig_socket);
 
     src = ahci_boot("-m 1024 -M q35 "
                     "-hda %s ", tmp_path);
@@ -1117,6 +1122,7 @@ static void test_migrate_sanity(void)
 
     ahci_shutdown(src);
     ahci_shutdown(dst);
+    g_free(uri);
 }
 
 /**
@@ -1129,7 +1135,7 @@ static void ahci_migrate_simple(uint8_t cmd_read, uint8_t cmd_write)
     size_t bufsize = 4096;
     unsigned char *tx = g_malloc(bufsize);
     unsigned char *rx = g_malloc0(bufsize);
-    const char *uri = "tcp:127.0.0.1:1234";
+    char *uri = g_strdup_printf("unix:%s", mig_socket);
 
     src = ahci_boot_and_enable("-m 1024 -M q35 "
                                "-hda %s ", tmp_path);
@@ -1158,6 +1164,7 @@ static void ahci_migrate_simple(uint8_t cmd_read, uint8_t cmd_write)
     ahci_shutdown(dst);
     g_free(rx);
     g_free(tx);
+    g_free(uri);
 }
 
 static void test_migrate_dma(void)
@@ -1251,7 +1258,7 @@ static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
     unsigned char *rx = g_malloc0(bufsize);
     uint64_t ptr;
     AHCICommand *cmd;
-    const char *uri = "tcp:127.0.0.1:1234";
+    char *uri = g_strdup_printf("unix:%s", mig_socket);
 
     prepare_blkdebug_script(debug_path, "write_aio");
 
@@ -1301,6 +1308,7 @@ static void ahci_migrate_halted_io(uint8_t cmd_read, uint8_t cmd_write)
     ahci_shutdown(dst);
     g_free(rx);
     g_free(tx);
+    g_free(uri);
 }
 
 static void test_migrate_halted_dma(void)
@@ -1322,7 +1330,7 @@ static void test_flush_migrate(void)
     AHCICommand *cmd;
     uint8_t px;
     const char *s;
-    const char *uri = "tcp:127.0.0.1:1234";
+    char *uri = g_strdup_printf("unix:%s", mig_socket);
 
     prepare_blkdebug_script(debug_path, "flush_to_disk");
 
@@ -1360,6 +1368,7 @@ static void test_flush_migrate(void)
     ahci_command_free(cmd);
     ahci_shutdown(src);
     ahci_shutdown(dst);
+    g_free(uri);
 }
 
 static void test_max(void)
@@ -1626,6 +1635,11 @@ int main(int argc, char **argv)
     g_assert(fd >= 0);
     close(fd);
 
+    /* Reserve a hollow file to use as a socket for migration tests */
+    fd = mkstemp(mig_socket);
+    g_assert(fd >= 0);
+    close(fd);
+
     /* Run the tests */
     qtest_add_func("/ahci/sanity",     test_sanity);
     qtest_add_func("/ahci/pci_spec",   test_pci_spec);
@@ -1668,6 +1682,7 @@ int main(int argc, char **argv)
     /* Cleanup */
     unlink(tmp_path);
     unlink(debug_path);
+    unlink(mig_socket);
 
     return ret;
 }
