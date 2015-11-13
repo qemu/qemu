@@ -2098,6 +2098,7 @@ static const BlkActionOps actions[] = {
         .prepare  = external_snapshot_prepare,
         .commit   = external_snapshot_commit,
         .abort = external_snapshot_abort,
+        .clean = external_snapshot_clean,
     },
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
         .instance_size = sizeof(ExternalSnapshotState),
