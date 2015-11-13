@@ -62,14 +62,22 @@ Guest CPU cores (TCG):
 ----------------------
 Overall
 L: qemu-devel@nongnu.org
-S: Odd fixes
+M: Paolo Bonzini <pbonzini@redhat.com>
+M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
+M: Richard Henderson <rth@twiddle.net>
+S: Maintained
 F: cpu-exec.c
+F: cpu-exec-common.c
+F: cpus.c
 F: cputlb.c
+F: exec.c
 F: softmmu_template.h
-F: translate-all.c
-F: include/exec/cpu_ldst.h
-F: include/exec/cpu_ldst_template.h
+F: translate-all.*
+F: translate-common.c
+F: include/exec/cpu*.h
+F: include/exec/exec-all.h
 F: include/exec/helper*.h
+F: include/exec/tb-hash.h
 
 Alpha
 M: Richard Henderson <rth@twiddle.net>
@@ -1042,6 +1050,7 @@ S: Supported
 F: include/exec/ioport.h
 F: ioport.c
 F: include/exec/memory.h
+F: include/exec/ram_addr.h
 F: memory.c
 F: include/exec/memory-internal.h
 F: exec.c
