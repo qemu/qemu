@@ -19,6 +19,7 @@ typedef struct QOSState {
 QOSState *qtest_vboot(QOSOps *ops, const char *cmdline_fmt, va_list ap);
 QOSState *qtest_boot(QOSOps *ops, const char *cmdline_fmt, ...);
 void qtest_shutdown(QOSState *qs);
+bool have_qemu_img(void);
 void mkimg(const char *file, const char *fmt, unsigned size_mb);
 void mkqcow2(const char *file, unsigned size_mb);
 void set_context(QOSState *s);
