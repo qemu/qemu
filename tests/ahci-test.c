@@ -39,10 +39,9 @@
 #include "hw/pci/pci_ids.h"
 #include "hw/pci/pci_regs.h"
 
-/* Test-specific defines -- in MiB */
-#define TEST_IMAGE_SIZE_MB (200 * 1024)
-#define TEST_IMAGE_SECTORS ((TEST_IMAGE_SIZE_MB / AHCI_SECTOR_SIZE)     \
-                            * 1024 * 1024)
+/* Test images sizes in MB */
+#define TEST_IMAGE_SIZE_MB_LARGE (200 * 1024)
+#define TEST_IMAGE_SIZE_MB_SMALL 64
 
 /*** Globals ***/
 static char tmp_path[] = "/tmp/qtest.XXXXXX";
@@ -50,6 +49,7 @@ static char debug_path[] = "/tmp/qtest-blkdebug.XXXXXX";
 static char mig_socket[] = "/tmp/qtest-migration.XXXXXX";
 static bool ahci_pedantic;
 static const char *imgfmt;
+static unsigned test_image_size_mb;
 
 /*** Function Declarations ***/
 static void ahci_test_port_spec(AHCIQState *ahci, uint8_t port);
@@ -61,6 +61,11 @@ static void ahci_test_msicap(AHCIQState *ahci, uint8_t offset);
 static void ahci_test_pmcap(AHCIQState *ahci, uint8_t offset);
 
 /*** Utilities ***/
+
+static uint64_t mb_to_sectors(uint64_t image_size_mb)
+{
+    return (image_size_mb * 1024 * 1024) / AHCI_SECTOR_SIZE;
+}
 
 static void string_bswap16(uint16_t *s, size_t bytes)
 {
@@ -906,7 +911,7 @@ static void ahci_test_max(AHCIQState *ahci)
     uint64_t nsect;
     uint8_t port;
     uint8_t cmd;
-    uint64_t config_sect = TEST_IMAGE_SECTORS - 1;
+    uint64_t config_sect = mb_to_sectors(test_image_size_mb) - 1;
 
     if (config_sect > 0xFFFFFF) {
         cmd = CMD_READ_MAX_EXT;
@@ -1489,7 +1494,7 @@ static uint64_t offset_sector(enum OffsetType ofst,
         return 1;
     case OFFSET_HIGH:
         ceil = (addr_type == ADDR_MODE_LBA28) ? 0xfffffff : 0xffffffffffff;
-        ceil = MIN(ceil, TEST_IMAGE_SECTORS - 1);
+        ceil = MIN(ceil, mb_to_sectors(test_image_size_mb) - 1);
         nsectors = buffsize / AHCI_SECTOR_SIZE;
         return ceil - nsectors + 1;
     default:
@@ -1571,8 +1576,9 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
                                 enum BuffLen len, enum OffsetType offset)
 {
     char *name;
-    AHCIIOTestOptions *opts = g_malloc(sizeof(AHCIIOTestOptions));
+    AHCIIOTestOptions *opts;
 
+    opts = g_malloc(sizeof(AHCIIOTestOptions));
     opts->length = len;
     opts->address_type = addr;
     opts->io_type = type;
@@ -1583,6 +1589,13 @@ static void create_ahci_io_test(enum IOMode type, enum AddrMode addr,
                            addr_mode_str[addr],
                            buff_len_str[len],
                            offset_str[offset]);
+
+    if ((addr == ADDR_MODE_LBA48) && (offset == OFFSET_HIGH) &&
+        (mb_to_sectors(test_image_size_mb) <= 0xFFFFFFF)) {
+        g_test_message("%s: skipped; test image too small", name);
+        g_free(name);
+        return;
+    }
 
     qtest_add_data_func(name, opts, test_io_interface);
     g_free(name);
@@ -1633,8 +1646,18 @@ int main(int argc, char **argv)
     /* Create a temporary image */
     fd = mkstemp(tmp_path);
     g_assert(fd >= 0);
-    imgfmt = "qcow2";
-    mkqcow2(tmp_path, TEST_IMAGE_SIZE_MB);
+    if (have_qemu_img()) {
+        imgfmt = "qcow2";
+        test_image_size_mb = TEST_IMAGE_SIZE_MB_LARGE;
+        mkqcow2(tmp_path, TEST_IMAGE_SIZE_MB_LARGE);
+    } else {
+        g_test_message("QTEST_QEMU_IMG not set or qemu-img missing; "
+                       "skipping LBA48 high-sector tests");
+        imgfmt = "raw";
+        test_image_size_mb = TEST_IMAGE_SIZE_MB_SMALL;
+        ret = ftruncate(fd, test_image_size_mb * 1024 * 1024);
+        g_assert(ret == 0);
+    }
     close(fd);
 
     /* Create temporary blkdebug instructions */
