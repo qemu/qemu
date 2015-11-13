@@ -91,11 +91,6 @@ void helper_spc_write(CPUCRISState *env, uint32_t new_spc)
 #endif
 }
 
-void helper_dump(uint32_t a0, uint32_t a1, uint32_t a2)
-{
-	qemu_log("%s: a0=%x a1=%x\n", __func__, a0, a1);
-}
-
 /* Used by the tlb decoder.  */
 #define EXTRACT_FIELD(src, start, end) \
 	    (((src) >> start) & ((1 << (end - start + 1)) - 1))

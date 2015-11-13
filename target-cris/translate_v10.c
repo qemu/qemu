@@ -58,7 +58,7 @@ static inline int dec10_size(unsigned int size)
 
 static inline void cris_illegal_insn(DisasContext *dc)
 {
-    qemu_log("illegal insn at pc=%x\n", dc->pc);
+    qemu_log_mask(LOG_GUEST_ERROR, "illegal insn at pc=%x\n", dc->pc);
     t_gen_raise_exception(EXCP_BREAK);
 }
 

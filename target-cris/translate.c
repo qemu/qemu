@@ -779,7 +779,7 @@ static void cris_alu_op_exec(DisasContext *dc, int op,
         t_gen_subx_carry(dc, dst);
         break;
     default:
-        qemu_log("illegal ALU op.\n");
+        qemu_log_mask(LOG_GUEST_ERROR, "illegal ALU op.\n");
         BUG();
         break;
     }

@@ -165,7 +165,7 @@ static void serial_receive(void *opaque, const uint8_t *buf, int size)
 
     /* Got a byte.  */
     if (s->rx_fifo_len >= 16) {
-        qemu_log("WARNING: UART dropped char.\n");
+        D(qemu_log("WARNING: UART dropped char.\n"));
         return;
     }
 
