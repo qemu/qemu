@@ -28,6 +28,13 @@ static inline bool qemu_log_enabled(void)
     return qemu_logfile != NULL;
 }
 
+/* Returns true if qemu_log() will write somewhere else than stderr
+ */
+static inline bool qemu_log_separate(void)
+{
+    return qemu_logfile != NULL && qemu_logfile != stderr;
+}
+
 #define CPU_LOG_TB_OUT_ASM (1 << 0)
 #define CPU_LOG_TB_IN_ASM  (1 << 1)
 #define CPU_LOG_TB_OP      (1 << 2)
