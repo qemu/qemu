@@ -1758,6 +1758,9 @@ cpu_unhalt(int cpu_index) "unhalting cpu %d"
 # hw/arm/virt-acpi-build.c
 virt_acpi_setup(void) "No fw cfg or ACPI disabled. Bailing out."
 
+# hw/alpha/pci.c
+alpha_pci_iack_write(void) ""
+
 # audio/alsaaudio.c
 alsa_revents(int revents) "revents = %d"
 alsa_pollout(int i, int fd) "i = %d fd = %d"
