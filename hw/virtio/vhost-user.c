@@ -121,8 +121,8 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 
     r = qemu_chr_fe_read_all(chr, p, size);
     if (r != size) {
-        error_report("Failed to read msg header. Read %d instead of %d.", r,
-                size);
+        error_report("Failed to read msg header. Read %d instead of %d."
+                     " Original request %d.", r, size, msg->request);
         goto fail;
     }
 
