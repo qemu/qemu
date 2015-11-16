@@ -1282,6 +1282,52 @@ static void qcow2_reopen_abort(BDRVReopenState *state)
     g_free(state->opaque);
 }
 
+static void qcow2_join_options(QDict *options, QDict *old_options)
+{
+    bool has_new_overlap_template =
+        qdict_haskey(options, QCOW2_OPT_OVERLAP) ||
+        qdict_haskey(options, QCOW2_OPT_OVERLAP_TEMPLATE);
+    bool has_new_total_cache_size =
+        qdict_haskey(options, QCOW2_OPT_CACHE_SIZE);
+    bool has_all_cache_options;
+
+    /* New overlap template overrides all old overlap options */
+    if (has_new_overlap_template) {
+        qdict_del(old_options, QCOW2_OPT_OVERLAP);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_TEMPLATE);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_MAIN_HEADER);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_ACTIVE_L1);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_ACTIVE_L2);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_REFCOUNT_TABLE);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_REFCOUNT_BLOCK);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_SNAPSHOT_TABLE);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_INACTIVE_L1);
+        qdict_del(old_options, QCOW2_OPT_OVERLAP_INACTIVE_L2);
+    }
+
+    /* New total cache size overrides all old options */
+    if (qdict_haskey(options, QCOW2_OPT_CACHE_SIZE)) {
+        qdict_del(old_options, QCOW2_OPT_L2_CACHE_SIZE);
+        qdict_del(old_options, QCOW2_OPT_REFCOUNT_CACHE_SIZE);
+    }
+
+    qdict_join(options, old_options, false);
+
+    /*
+     * If after merging all cache size options are set, an old total size is
+     * overwritten. Do keep all options, however, if all three are new. The
+     * resulting error message is what we want to happen.
+     */
+    has_all_cache_options =
+        qdict_haskey(options, QCOW2_OPT_CACHE_SIZE) ||
+        qdict_haskey(options, QCOW2_OPT_L2_CACHE_SIZE) ||
+        qdict_haskey(options, QCOW2_OPT_REFCOUNT_CACHE_SIZE);
+
+    if (has_all_cache_options && !has_new_total_cache_size) {
+        qdict_del(options, QCOW2_OPT_CACHE_SIZE);
+    }
+}
+
 static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, int *pnum)
 {
@@ -3145,6 +3191,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_prepare  = qcow2_reopen_prepare,
     .bdrv_reopen_commit   = qcow2_reopen_commit,
     .bdrv_reopen_abort    = qcow2_reopen_abort,
+    .bdrv_join_options    = qcow2_join_options,
     .bdrv_create        = qcow2_create,
     .bdrv_has_zero_init = bdrv_has_zero_init_1,
     .bdrv_co_get_block_status = qcow2_co_get_block_status,
