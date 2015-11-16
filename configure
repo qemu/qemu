@@ -1888,16 +1888,34 @@ fi
 # libseccomp check
 
 if test "$seccomp" != "no" ; then
-    if test "$cpu" = "i386" || test "$cpu" = "x86_64" &&
-        $pkg_config --atleast-version=2.1.1 libseccomp; then
+    case "$cpu" in
+    i386|x86_64)
+        libseccomp_minver="2.1.0"
+        ;;
+    arm|aarch64)
+        libseccomp_minver="2.2.3"
+        ;;
+    *)
+        libseccomp_minver=""
+        ;;
+    esac
+
+    if test "$libseccomp_minver" != "" &&
+       $pkg_config --atleast-version=$libseccomp_minver libseccomp ; then
         libs_softmmu="$libs_softmmu `$pkg_config --libs libseccomp`"
         QEMU_CFLAGS="$QEMU_CFLAGS `$pkg_config --cflags libseccomp`"
-	seccomp="yes"
+        seccomp="yes"
     else
-	if test "$seccomp" = "yes"; then
-            feature_not_found "libseccomp" "Install libseccomp devel >= 2.1.1"
-	fi
-	seccomp="no"
+        if test "$seccomp" = "yes" ; then
+            if test "$libseccomp_minver" != "" ; then
+                feature_not_found "libseccomp" \
+                    "Install libseccomp devel >= $libseccomp_minver"
+            else
+                feature_not_found "libseccomp" \
+                    "libseccomp is not supported for host cpu $cpu"
+            fi
+        fi
+        seccomp="no"
     fi
 fi
 ##########################################
