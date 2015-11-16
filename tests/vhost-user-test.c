@@ -70,6 +70,7 @@ typedef enum VhostUserRequest {
     VHOST_USER_SET_VRING_ERR = 14,
     VHOST_USER_GET_PROTOCOL_FEATURES = 15,
     VHOST_USER_SET_PROTOCOL_FEATURES = 16,
+    VHOST_USER_SET_VRING_ENABLE = 18,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -315,8 +316,10 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         g_cond_signal(&s->data_cond);
         break;
 
-    case VHOST_USER_RESET_OWNER:
-        s->fds_num = 0;
+    case VHOST_USER_SET_VRING_ENABLE:
+        if (!msg.payload.state.num) {
+            s->fds_num = 0;
+        }
         break;
 
     default:
