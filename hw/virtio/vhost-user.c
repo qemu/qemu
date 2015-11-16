@@ -333,18 +333,23 @@ static int vhost_user_set_vring_base(struct vhost_dev *dev,
 
 static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
 {
-    struct vhost_vring_state state = {
-        .index = dev->vq_index,
-        .num   = enable,
-    };
+    int i;
 
     if (!virtio_has_feature(dev->features, VHOST_USER_F_PROTOCOL_FEATURES)) {
         return -1;
     }
 
-    return vhost_set_vring(dev, VHOST_USER_SET_VRING_ENABLE, &state);
-}
+    for (i = 0; i < dev->nvqs; ++i) {
+        struct vhost_vring_state state = {
+            .index = dev->vq_index + i,
+            .num   = enable,
+        };
 
+        vhost_set_vring(dev, VHOST_USER_SET_VRING_ENABLE, &state);
+    }
+
+    return 0;
+}
 
 static int vhost_user_get_vring_base(struct vhost_dev *dev,
                                      struct vhost_vring_state *ring)
