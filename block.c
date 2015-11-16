@@ -624,6 +624,20 @@ static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
 }
 
 /**
+ * Combines a QDict of new block driver @options with any missing options taken
+ * from @old_options, so that leaving out an option defaults to its old value.
+ */
+static void bdrv_join_options(BlockDriverState *bs, QDict *options,
+                              QDict *old_options)
+{
+    if (bs->drv && bs->drv->bdrv_join_options) {
+        bs->drv->bdrv_join_options(options, old_options);
+    } else {
+        qdict_join(options, old_options, false);
+    }
+}
+
+/**
  * Set open flags for a given discard mode
  *
  * Return 0 on success, -1 if the discard mode was invalid.
@@ -1663,7 +1677,7 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
     }
 
     old_options = qdict_clone_shallow(bs->options);
-    qdict_join(options, old_options, false);
+    bdrv_join_options(bs, options, old_options);
     QDECREF(old_options);
 
     /* bdrv_open() masks this flag out */
