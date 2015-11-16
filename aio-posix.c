@@ -210,6 +210,7 @@ void aio_set_fd_handler(AioContext *ctx,
 {
     AioHandler *node;
     bool is_new = false;
+    bool deleted = false;
 
     node = find_aio_handler(ctx, fd);
 
@@ -228,7 +229,7 @@ void aio_set_fd_handler(AioContext *ctx,
                  * releasing the walking_handlers lock.
                  */
                 QLIST_REMOVE(node, node);
-                g_free(node);
+                deleted = true;
             }
         }
     } else {
@@ -253,6 +254,9 @@ void aio_set_fd_handler(AioContext *ctx,
 
     aio_epoll_update(ctx, node, is_new);
     aio_notify(ctx);
+    if (deleted) {
+        g_free(node);
+    }
 }
 
 void aio_set_event_notifier(AioContext *ctx,
