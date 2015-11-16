@@ -265,7 +265,7 @@ static void type_initialize(TypeImpl *ti)
         GSList *e;
         int i;
 
-        g_assert(parent->class_size <= ti->class_size);
+        g_assert_cmpint(parent->class_size, <=, ti->class_size);
         memcpy(ti->class, parent->class, parent->class_size);
         ti->class->interfaces = NULL;
 
@@ -347,9 +347,9 @@ void object_initialize_with_type(void *data, size_t size, TypeImpl *type)
     g_assert(type != NULL);
     type_initialize(type);
 
-    g_assert(type->instance_size >= sizeof(Object));
+    g_assert_cmpint(type->instance_size, >=, sizeof(Object));
     g_assert(type->abstract == false);
-    g_assert(size >= type->instance_size);
+    g_assert_cmpint(size, >=, type->instance_size);
 
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
@@ -450,7 +450,7 @@ static void object_finalize(void *data)
     object_property_del_all(obj);
     object_deinit(obj, ti);
 
-    g_assert(obj->ref == 0);
+    g_assert_cmpint(obj->ref, ==, 0);
     if (obj->free) {
         obj->free(obj);
     }
@@ -872,7 +872,7 @@ void object_ref(Object *obj)
     if (!obj) {
         return;
     }
-     atomic_inc(&obj->ref);
+    atomic_inc(&obj->ref);
 }
 
 void object_unref(Object *obj)
@@ -880,7 +880,7 @@ void object_unref(Object *obj)
     if (!obj) {
         return;
     }
-    g_assert(obj->ref > 0);
+    g_assert_cmpint(obj->ref, >, 0);
 
     /* parent always holds a reference to its children */
     if (atomic_fetch_dec(&obj->ref) == 1) {
