@@ -53,6 +53,7 @@
 #include "hw/xen/xen_pt.h"
 #endif
 #include "migration/migration.h"
+#include "kvm_i386.h"
 
 #define MAX_IDE_BUS 2
 

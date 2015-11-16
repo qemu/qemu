@@ -33,6 +33,7 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                property accel=accel1[:accel2[:...]] selects accelerator\n"
     "                supported accelerators are kvm, xen, tcg (default: tcg)\n"
     "                kernel_irqchip=on|off controls accelerated irqchip support\n"
+    "                kernel_irqchip=on|off|split controls accelerated irqchip support (default=off)\n"
     "                vmport=on|off|auto controls emulation of vmport (default: auto)\n"
     "                kvm_shadow_mem=size of KVM shadow MMU\n"
     "                dump-guest-core=on|off include guest memory in a core dump (default=on)\n"
@@ -55,7 +56,7 @@ kvm, xen, or tcg can be available. By default, tcg is used. If there is more
 than one accelerator specified, the next one is used if the previous one fails
 to initialize.
 @item kernel_irqchip=on|off
-Enables in-kernel irqchip support for the chosen accelerator when available.
+Controls in-kernel irqchip support for the chosen accelerator when available.
 @item gfx_passthru=on|off
 Enables IGD GFX passthrough support for the chosen machine when available.
 @item vmport=on|off|auto

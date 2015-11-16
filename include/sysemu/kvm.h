@@ -43,6 +43,7 @@
 
 extern bool kvm_allowed;
 extern bool kvm_kernel_irqchip;
+extern bool kvm_split_irqchip;
 extern bool kvm_async_interrupts_allowed;
 extern bool kvm_halt_in_kernel_allowed;
 extern bool kvm_eventfds_allowed;
@@ -69,6 +70,16 @@ extern bool kvm_ioeventfd_any_length_allowed;
  * following functions or some other specific check instead.
  */
 #define kvm_irqchip_in_kernel() (kvm_kernel_irqchip)
+
+/**
+ * kvm_irqchip_is_split:
+ *
+ * Returns: true if the user asked us to split the irqchip
+ * implementation between user and kernel space. The details are
+ * architecture and machine specific. On PC, it means that the PIC,
+ * IOAPIC, and PIT are in user space while the LAPIC is in the kernel.
+ */
+#define kvm_irqchip_is_split() (kvm_split_irqchip)
 
 /**
  * kvm_async_interrupts_enabled:
