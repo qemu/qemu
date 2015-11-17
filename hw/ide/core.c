@@ -679,8 +679,8 @@ static void ide_sector_read(IDEState *s)
 
     block_acct_start(blk_get_stats(s->blk), &s->acct,
                      n * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
-    s->pio_aiocb = blk_aio_readv(s->blk, sector_num, &s->qiov, n,
-                                 ide_sector_read_cb, s);
+    s->pio_aiocb = ide_buffered_readv(s, sector_num, &s->qiov, n,
+                                      ide_sector_read_cb, s);
 }
 
 void dma_buf_commit(IDEState *s, uint32_t tx_bytes)
