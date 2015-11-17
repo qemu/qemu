@@ -642,8 +642,9 @@ static void error_callback_bh(void *opaque)
     qemu_aio_unref(acb);
 }
 
-static BlockAIOCB *abort_aio_request(BlockBackend *blk, BlockCompletionFunc *cb,
-                                     void *opaque, int ret)
+BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
+                                  BlockCompletionFunc *cb,
+                                  void *opaque, int ret)
 {
     struct BlockBackendAIOCB *acb;
     QEMUBH *bh;
@@ -665,7 +666,7 @@ BlockAIOCB *blk_aio_write_zeroes(BlockBackend *blk, int64_t sector_num,
 {
     int ret = blk_check_request(blk, sector_num, nb_sectors);
     if (ret < 0) {
-        return abort_aio_request(blk, cb, opaque, ret);
+        return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
     return bdrv_aio_write_zeroes(blk->bs, sector_num, nb_sectors, flags,
@@ -725,7 +726,7 @@ BlockAIOCB *blk_aio_readv(BlockBackend *blk, int64_t sector_num,
 {
     int ret = blk_check_request(blk, sector_num, nb_sectors);
     if (ret < 0) {
-        return abort_aio_request(blk, cb, opaque, ret);
+        return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
     return bdrv_aio_readv(blk->bs, sector_num, iov, nb_sectors, cb, opaque);
@@ -737,7 +738,7 @@ BlockAIOCB *blk_aio_writev(BlockBackend *blk, int64_t sector_num,
 {
     int ret = blk_check_request(blk, sector_num, nb_sectors);
     if (ret < 0) {
-        return abort_aio_request(blk, cb, opaque, ret);
+        return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
     return bdrv_aio_writev(blk->bs, sector_num, iov, nb_sectors, cb, opaque);
@@ -747,7 +748,7 @@ BlockAIOCB *blk_aio_flush(BlockBackend *blk,
                           BlockCompletionFunc *cb, void *opaque)
 {
     if (!blk_is_available(blk)) {
-        return abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
+        return blk_abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
     }
 
     return bdrv_aio_flush(blk->bs, cb, opaque);
@@ -759,7 +760,7 @@ BlockAIOCB *blk_aio_discard(BlockBackend *blk,
 {
     int ret = blk_check_request(blk, sector_num, nb_sectors);
     if (ret < 0) {
-        return abort_aio_request(blk, cb, opaque, ret);
+        return blk_abort_aio_request(blk, cb, opaque, ret);
     }
 
     return bdrv_aio_discard(blk->bs, sector_num, nb_sectors, cb, opaque);
@@ -802,7 +803,7 @@ BlockAIOCB *blk_aio_ioctl(BlockBackend *blk, unsigned long int req, void *buf,
                           BlockCompletionFunc *cb, void *opaque)
 {
     if (!blk_is_available(blk)) {
-        return abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
+        return blk_abort_aio_request(blk, cb, opaque, -ENOMEDIUM);
     }
 
     return bdrv_aio_ioctl(blk->bs, req, buf, cb, opaque);
