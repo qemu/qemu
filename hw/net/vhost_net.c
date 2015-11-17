@@ -77,14 +77,8 @@ static const int user_feature_bits[] = {
     VIRTIO_NET_F_HOST_ECN,
     VIRTIO_NET_F_HOST_UFO,
     VIRTIO_NET_F_MRG_RXBUF,
-    VIRTIO_NET_F_STATUS,
-    VIRTIO_NET_F_CTRL_VQ,
-    VIRTIO_NET_F_CTRL_RX,
-    VIRTIO_NET_F_CTRL_VLAN,
-    VIRTIO_NET_F_CTRL_RX_EXTRA,
-    VIRTIO_NET_F_CTRL_MAC_ADDR,
-    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS,
 
+    /* This bit implies RARP isn't sent by QEMU out of band */
     VIRTIO_NET_F_GUEST_ANNOUNCE,
 
     VIRTIO_NET_F_MQ,
