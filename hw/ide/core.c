@@ -561,6 +561,53 @@ static bool ide_sect_range_ok(IDEState *s,
     return true;
 }
 
+static void ide_buffered_readv_cb(void *opaque, int ret)
+{
+    IDEBufferedRequest *req = opaque;
+    if (!req->orphaned) {
+        if (!ret) {
+            qemu_iovec_from_buf(req->original_qiov, 0, req->iov.iov_base,
+                                req->original_qiov->size);
+        }
+        req->original_cb(req->original_opaque, ret);
+    }
+    QLIST_REMOVE(req, list);
+    qemu_vfree(req->iov.iov_base);
+    g_free(req);
+}
+
+#define MAX_BUFFERED_REQS 16
+
+BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
+                               QEMUIOVector *iov, int nb_sectors,
+                               BlockCompletionFunc *cb, void *opaque)
+{
+    BlockAIOCB *aioreq;
+    IDEBufferedRequest *req;
+    int c = 0;
+
+    QLIST_FOREACH(req, &s->buffered_requests, list) {
+        c++;
+    }
+    if (c > MAX_BUFFERED_REQS) {
+        return blk_abort_aio_request(s->blk, cb, opaque, -EIO);
+    }
+
+    req = g_new0(IDEBufferedRequest, 1);
+    req->original_qiov = iov;
+    req->original_cb = cb;
+    req->original_opaque = opaque;
+    req->iov.iov_base = qemu_blockalign(blk_bs(s->blk), iov->size);
+    req->iov.iov_len = iov->size;
+    qemu_iovec_init_external(&req->qiov, &req->iov, 1);
+
+    aioreq = blk_aio_readv(s->blk, sector_num, &req->qiov, nb_sectors,
+                           ide_buffered_readv_cb, req);
+
+    QLIST_INSERT_HEAD(&s->buffered_requests, req, list);
+    return aioreq;
+}
+
 static void ide_sector_read(IDEState *s);
 
 static void ide_sector_read_cb(void *opaque, int ret)
