@@ -76,6 +76,23 @@
  * But when all you do with the error is pass it on, please use
  *     foo(arg, errp);
  * for readability.
+ *
+ * Receive and accumulate multiple errors (first one wins):
+ *     Error *err = NULL, *local_err = NULL;
+ *     foo(arg, &err);
+ *     bar(arg, &local_err);
+ *     error_propagate(&err, local_err);
+ *     if (err) {
+ *         handle the error...
+ *     }
+ *
+ * Do *not* "optimize" this to
+ *     foo(arg, &err);
+ *     bar(arg, &err); // WRONG!
+ *     if (err) {
+ *         handle the error...
+ *     }
+ * because this may pass a non-null err to bar().
  */
 
 #ifndef ERROR_H
