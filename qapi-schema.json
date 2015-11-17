@@ -3579,16 +3579,22 @@
 # Button of a pointer input device (mouse, tablet).
 #
 # Since: 2.0
+#
+# Note that the spelling of these values may change when the
+# x-input-send-event is promoted out of experimental status.
 ##
 { 'enum'  : 'InputButton',
   'data'  : [ 'Left', 'Middle', 'Right', 'WheelUp', 'WheelDown' ] }
 
 ##
-# @InputButton
+# @InputAxis
 #
 # Position axis of a pointer input device (mouse, tablet).
 #
 # Since: 2.0
+#
+# Note that the spelling of these values may change when the
+# x-input-send-event is promoted out of experimental status.
 ##
 { 'enum'  : 'InputAxis',
   'data'  : [ 'X', 'Y' ] }
@@ -3679,7 +3685,10 @@
 #
 # Since: 2.2
 #
-# Note: this command is experimental, and not a stable API.
+# Note: this command is experimental, and not a stable API.  Things that
+# might change before it becomes stable include the spelling of enum
+# values for InputButton and InputAxis, and the notion of how to designate
+# which console will receive the event.
 #
 ##
 { 'command': 'x-input-send-event',
