@@ -3848,8 +3848,10 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     break;
 #ifdef TARGET_X86_64
                 case MO_64:
-                    tcg_gen_mulu2_i64(cpu_regs[s->vex_v], cpu_regs[reg],
+                    tcg_gen_mulu2_i64(cpu_T[0], cpu_T[1],
                                       cpu_T[0], cpu_regs[R_EDX]);
+                    tcg_gen_mov_i64(cpu_regs[s->vex_v], cpu_T[0]);
+                    tcg_gen_mov_i64(cpu_regs[reg], cpu_T[1]);
                     break;
 #endif
                 }
