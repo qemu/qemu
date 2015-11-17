@@ -69,7 +69,7 @@ sector = "%d"
 
     def setUp(self):
         drive_args = []
-        drive_args.append("stats-intervals=%d" % interval_length)
+        drive_args.append("stats-intervals.0=%d" % interval_length)
         drive_args.append("stats-account-invalid=%s" %
                           (self.account_invalid and "on" or "off"))
         drive_args.append("stats-account-failed=%s" %

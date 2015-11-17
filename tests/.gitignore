@@ -9,6 +9,7 @@ check-qom-proplist
 rcutorture
 test-aio
 test-bitops
+test-blockjob-txn
 test-coroutine
 test-crypto-cipher
 test-crypto-hash
@@ -45,6 +46,7 @@ test-string-input-visitor
 test-string-output-visitor
 test-thread-pool
 test-throttle
+test-timed-average
 test-visitor-serialization
 test-vmstate
 test-write-threshold

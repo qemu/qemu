@@ -300,6 +300,45 @@ static int parse_block_error_action(const char *buf, bool is_read, Error **errp)
     }
 }
 
+static bool parse_stats_intervals(BlockAcctStats *stats, QList *intervals,
+                                  Error **errp)
+{
+    const QListEntry *entry;
+    for (entry = qlist_first(intervals); entry; entry = qlist_next(entry)) {
+        switch (qobject_type(entry->value)) {
+
+        case QTYPE_QSTRING: {
+            unsigned long long length;
+            const char *str = qstring_get_str(qobject_to_qstring(entry->value));
+            if (parse_uint_full(str, &length, 10) == 0 &&
+                length > 0 && length <= UINT_MAX) {
+                block_acct_add_interval(stats, (unsigned) length);
+            } else {
+                error_setg(errp, "Invalid interval length: %s", str);
+                return false;
+            }
+            break;
+        }
+
+        case QTYPE_QINT: {
+            int64_t length = qint_get_int(qobject_to_qint(entry->value));
+            if (length > 0 && length <= UINT_MAX) {
+                block_acct_add_interval(stats, (unsigned) length);
+            } else {
+                error_setg(errp, "Invalid interval length: %" PRId64, length);
+                return false;
+            }
+            break;
+        }
+
+        default:
+            error_setg(errp, "The specification of stats-intervals is invalid");
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool check_throttle_config(ThrottleConfig *cfg, Error **errp)
 {
     if (throttle_conflicting(cfg)) {
@@ -442,13 +481,14 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     bool account_invalid, account_failed;
-    const char *stats_intervals;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
     int snapshot = 0;
     Error *error = NULL;
     QemuOpts *opts;
+    QDict *interval_dict = NULL;
+    QList *interval_list = NULL;
     const char *id;
     bool has_driver_specific_opts;
     BlockdevDetectZeroesOptions detect_zeroes =
@@ -482,7 +522,14 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     account_invalid = qemu_opt_get_bool(opts, "stats-account-invalid", true);
     account_failed = qemu_opt_get_bool(opts, "stats-account-failed", true);
 
-    stats_intervals = qemu_opt_get(opts, "stats-intervals");
+    qdict_extract_subqdict(bs_opts, &interval_dict, "stats-intervals.");
+    qdict_array_split(interval_dict, &interval_list);
+
+    if (qdict_size(interval_dict) != 0) {
+        error_setg(errp, "Invalid option stats-intervals.%s",
+                   qdict_first(interval_dict)->key);
+        goto early_err;
+    }
 
     extract_common_blockdev_options(opts, &bdrv_flags, &throttling_group, &cfg,
                                     &detect_zeroes, &error);
@@ -583,33 +630,10 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
         block_acct_init(blk_get_stats(blk), account_invalid, account_failed);
 
-        if (stats_intervals) {
-            char **intervals = g_strsplit(stats_intervals, ":", 0);
-            unsigned i;
-
-            if (*stats_intervals == '\0') {
-                error_setg(&error, "stats-intervals can't have an empty value");
-            }
-
-            for (i = 0; !error && intervals[i] != NULL; i++) {
-                unsigned long long val;
-                if (parse_uint_full(intervals[i], &val, 10) == 0 &&
-                    val > 0 && val <= UINT_MAX) {
-                    block_acct_add_interval(blk_get_stats(blk), val);
-                } else {
-                    error_setg(&error, "Invalid interval length: '%s'",
-                               intervals[i]);
-                }
-            }
-
-            g_strfreev(intervals);
-
-            if (error) {
-                error_propagate(errp, error);
-                blk_unref(blk);
-                blk = NULL;
-                goto err_no_bs_opts;
-            }
+        if (!parse_stats_intervals(blk_get_stats(blk), interval_list, errp)) {
+            blk_unref(blk);
+            blk = NULL;
+            goto err_no_bs_opts;
         }
     }
 
@@ -617,10 +641,14 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
 
 err_no_bs_opts:
     qemu_opts_del(opts);
+    QDECREF(interval_dict);
+    QDECREF(interval_list);
     return blk;
 
 early_err:
     qemu_opts_del(opts);
+    QDECREF(interval_dict);
+    QDECREF(interval_list);
 err_no_opts:
     QDECREF(bs_opts);
     return NULL;
@@ -3948,11 +3976,6 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "whether to account for failed I/O operations "
                     "in the statistics",
-        },{
-            .name = "stats-intervals",
-            .type = QEMU_OPT_STRING,
-            .help = "colon-separated list of intervals "
-                    "for collecting I/O statistics, in seconds",
         },
         { /* end of list */ }
     },

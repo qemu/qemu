@@ -141,7 +141,7 @@
 
 #define TPM_TIS_IFACE_ID_SUPPORTED_FLAGS1_3 \
     (TPM_TIS_IFACE_ID_INTERFACE_TIS1_3 | \
-     (~0 << 4)/* all of it is don't care */)
+     (~0u << 4)/* all of it is don't care */)
 
 /* if backend was a TPM 2.0: */
 #define TPM_TIS_IFACE_ID_SUPPORTED_FLAGS2_0 \

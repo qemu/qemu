@@ -1531,9 +1531,8 @@
 # @stats-account-failed: #optional whether to include failed
 #                         operations when computing latency and last
 #                         access statistics (default: true) (Since 2.5)
-# @stats-intervals: #optional colon-separated list of intervals for
-#                   collecting I/O statistics, in seconds (default: none)
-#                   (Since 2.5)
+# @stats-intervals: #optional list of intervals for collecting I/O
+#                   statistics, in seconds (default: none) (Since 2.5)
 # @detect-zeroes: #optional detect and optimize zero writes (Since 2.1)
 #                 (default: off)
 #
@@ -1551,7 +1550,7 @@
             '*read-only': 'bool',
             '*stats-account-invalid': 'bool',
             '*stats-account-failed': 'bool',
-            '*stats-intervals': 'str',
+            '*stats-intervals': ['int'],
             '*detect-zeroes': 'BlockdevDetectZeroesOptions' } }
 
 ##
