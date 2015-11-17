@@ -7527,13 +7527,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         break;
     case 0x1ae:
         modrm = cpu_ldub_code(env, s->pc++);
-        mod = (modrm >> 6) & 3;
-        op = (modrm >> 3) & 7;
-        switch(op) {
-        case 0: /* fxsave */
-            if (mod == 3 || !(s->cpuid_features & CPUID_FXSR) ||
-                (s->prefix & PREFIX_LOCK))
+        switch (modrm) {
+        CASE_MEM_OP(0): /* fxsave */
+            if (!(s->cpuid_features & CPUID_FXSR)
+                || (prefixes & PREFIX_LOCK)) {
                 goto illegal_op;
+            }
             if ((s->flags & HF_EM_MASK) || (s->flags & HF_TS_MASK)) {
                 gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
                 break;
@@ -7541,10 +7540,12 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_lea_modrm(env, s, modrm);
             gen_helper_fxsave(cpu_env, cpu_A0);
             break;
-        case 1: /* fxrstor */
-            if (mod == 3 || !(s->cpuid_features & CPUID_FXSR) ||
-                (s->prefix & PREFIX_LOCK))
+
+        CASE_MEM_OP(1): /* fxrstor */
+            if (!(s->cpuid_features & CPUID_FXSR)
+                || (prefixes & PREFIX_LOCK)) {
                 goto illegal_op;
+            }
             if ((s->flags & HF_EM_MASK) || (s->flags & HF_TS_MASK)) {
                 gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
                 break;
@@ -7552,71 +7553,90 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_lea_modrm(env, s, modrm);
             gen_helper_fxrstor(cpu_env, cpu_A0);
             break;
-        case 2: /* ldmxcsr */
-        case 3: /* stmxcsr */
+
+        CASE_MEM_OP(2): /* ldmxcsr */
+            if ((s->flags & HF_EM_MASK) || !(s->flags & HF_OSFXSR_MASK)) {
+                goto illegal_op;
+            }
             if (s->flags & HF_TS_MASK) {
                 gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
                 break;
             }
-            if ((s->flags & HF_EM_MASK) || !(s->flags & HF_OSFXSR_MASK) ||
-                mod == 3)
-                goto illegal_op;
             gen_lea_modrm(env, s, modrm);
-            if (op == 2) {
-                tcg_gen_qemu_ld_i32(cpu_tmp2_i32, cpu_A0,
-                                    s->mem_index, MO_LEUL);
-                gen_helper_ldmxcsr(cpu_env, cpu_tmp2_i32);
-            } else {
-                tcg_gen_ld32u_tl(cpu_T0,
-                                 cpu_env, offsetof(CPUX86State, mxcsr));
-                gen_op_st_v(s, MO_32, cpu_T0, cpu_A0);
-            }
+            tcg_gen_qemu_ld_i32(cpu_tmp2_i32, cpu_A0, s->mem_index, MO_LEUL);
+            gen_helper_ldmxcsr(cpu_env, cpu_tmp2_i32);
             break;
-        case 5: /* lfence */
-            if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE2))
+
+        CASE_MEM_OP(3): /* stmxcsr */
+            if ((s->flags & HF_EM_MASK) || !(s->flags & HF_OSFXSR_MASK)) {
                 goto illegal_op;
+            }
+            if (s->flags & HF_TS_MASK) {
+                gen_exception(s, EXCP07_PREX, pc_start - s->cs_base);
+                break;
+            }
+            gen_lea_modrm(env, s, modrm);
+            tcg_gen_ld32u_tl(cpu_T0, cpu_env, offsetof(CPUX86State, mxcsr));
+            gen_op_st_v(s, MO_32, cpu_T0, cpu_A0);
             break;
-        case 6: /* mfence/clwb */
-            if (s->prefix & PREFIX_DATA) {
+
+        CASE_MEM_OP(6): /* clwb */
+            if (prefixes & PREFIX_LOCK) {
+                goto illegal_op;
+            }
+            if (prefixes & PREFIX_DATA) {
                 /* clwb */
-                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_CLWB))
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_CLWB)) {
                     goto illegal_op;
+                }
                 gen_nop_modrm(env, s, modrm);
-            } else {
-                /* mfence */
-                if ((modrm & 0xc7) != 0xc0 || !(s->cpuid_features & CPUID_SSE2))
+                break;
+            }
+            goto illegal_op;
+
+        CASE_MEM_OP(7): /* clflush / clflushopt */
+            if (prefixes & PREFIX_LOCK) {
+                goto illegal_op;
+            }
+            if (prefixes & PREFIX_DATA) {
+                /* clflushopt */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_CLFLUSHOPT)) {
                     goto illegal_op;
-            }
-            break;
-        case 7: /* sfence / clflush / clflushopt / pcommit */
-            if ((modrm & 0xc7) == 0xc0) {
-                if (s->prefix & PREFIX_DATA) {
-                    /* pcommit */
-                    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_PCOMMIT))
-                        goto illegal_op;
-                } else {
-                    /* sfence */
-                    /* XXX: also check for cpuid_ext2_features & CPUID_EXT2_EMMX */
-                    if (!(s->cpuid_features & CPUID_SSE))
-                        goto illegal_op;
                 }
             } else {
-                if (s->prefix & PREFIX_DATA) {
-                    /* clflushopt */
-                    if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_CLFLUSHOPT))
-                        goto illegal_op;
-                } else {
-                    /* clflush */
-                    if (!(s->cpuid_features & CPUID_CLFLUSH))
-                        goto illegal_op;
+                /* clflush */
+                if ((s->prefix & (PREFIX_REPZ | PREFIX_REPNZ))
+                    || !(s->cpuid_features & CPUID_CLFLUSH)) {
+                    goto illegal_op;
                 }
-                gen_lea_modrm(env, s, modrm);
+            }
+            gen_nop_modrm(env, s, modrm);
+            break;
+
+        case 0xf8: /* sfence / pcommit */
+            if (prefixes & PREFIX_DATA) {
+                /* pcommit */
+                if (!(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_PCOMMIT)
+                    || (prefixes & PREFIX_LOCK)) {
+                    goto illegal_op;
+                }
+                break;
+            }
+            /* fallthru */
+        case 0xf9 ... 0xff: /* sfence */
+        case 0xe8 ... 0xef: /* lfence */
+        case 0xf0 ... 0xf7: /* mfence */
+            if (!(s->cpuid_features & CPUID_SSE2)
+                || (prefixes & PREFIX_LOCK)) {
+                goto illegal_op;
             }
             break;
+
         default:
             goto illegal_op;
         }
         break;
+
     case 0x10d: /* 3DNow! prefetch(w) */
         modrm = cpu_ldub_code(env, s->pc++);
         mod = (modrm >> 6) & 3;
