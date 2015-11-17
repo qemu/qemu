@@ -148,20 +148,26 @@ a feature bit was dedicated for this purpose:
 
 Starting and stopping rings
 ----------------------
+Client must only process each ring when it is both started and enabled.
+
+If VHOST_USER_F_PROTOCOL_FEATURES has not been negotiated, the ring is initialized
+in an enabled state.
+
+If VHOST_USER_F_PROTOCOL_FEATURES has been negotiated, the ring is initialized
+in a disabled state. Client must not process it until ring is enabled by
+VHOST_USER_SET_VRING_ENABLE with parameter 1, or after it has been disabled by
+VHOST_USER_SET_VRING_ENABLE with parameter 0.
+
 Each ring is initialized in a stopped state, client must not process it until
-ring is enabled.
+ring is started, or after it has been stopped.
 
-If VHOST_USER_F_PROTOCOL_FEATURES has been negotiated, client must start and
-stop ring processing upon receiving VHOST_USER_SET_VRING_ENABLE with parameters
-1 and 0 respoectively.
+Client must start ring upon receiving a kick (that is, detecting that file
+descriptor is readable) on the descriptor specified by
+VHOST_USER_SET_VRING_KICK, and stop ring upon receiving
+VHOST_USER_GET_VRING_BASE.
 
-If VHOST_USER_F_PROTOCOL_FEATURES has not been negotiated, client must start
-ring processing upon receiving a kick (that is, detecting that file descriptor
-is readable) on the descriptor specified by VHOST_USER_SET_VRING_KICK, and stop
-ring processing upon receiving VHOST_USER_GET_VRING_BASE.
-
-While rings are running, client must support changing some configuration
-aspects on the fly.
+While processing the rings (when they are started and enabled), client must
+support changing some configuration aspects on the fly.
 
 Multiple queue support
 ----------------------
