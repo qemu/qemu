@@ -34,10 +34,33 @@ typedef struct Buffer Buffer;
  */
 
 struct Buffer {
+    char *name;
     size_t capacity;
     size_t offset;
+    uint64_t avg_size;
     uint8_t *buffer;
 };
+
+/**
+ * buffer_init:
+ * @buffer: the buffer object
+ * @name: buffer name
+ *
+ * Optionally attach a name to the buffer, to make it easier
+ * to identify in debug traces.
+ */
+void buffer_init(Buffer *buffer, const char *name, ...)
+        GCC_FMT_ATTR(2, 3);
+
+/**
+ * buffer_shrink:
+ * @buffer: the buffer object
+ *
+ * Try to shrink the buffer.  Checks current buffer capacity and size
+ * and reduces capacity in case only a fraction of the buffer is
+ * actually used.
+ */
+void buffer_shrink(Buffer *buffer);
 
 /**
  * buffer_reserve:
@@ -114,5 +137,25 @@ uint8_t *buffer_end(Buffer *buffer);
  * Returns: true if the buffer holds data, false otherwise
  */
 gboolean buffer_empty(Buffer *buffer);
+
+/**
+ * buffer_move_empty:
+ * @to: destination buffer object
+ * @from: source buffer object
+ *
+ * Moves buffer, without copying data.  'to' buffer must be empty.
+ * 'from' buffer is empty and zero-sized on return.
+ */
+void buffer_move_empty(Buffer *to, Buffer *from);
+
+/**
+ * buffer_move:
+ * @to: destination buffer object
+ * @from: source buffer object
+ *
+ * Moves buffer, copying data (unless 'to' buffer happens to be empty).
+ * 'from' buffer is empty and zero-sized on return.
+ */
+void buffer_move(Buffer *to, Buffer *from);
 
 #endif /* QEMU_BUFFER_H__ */
