@@ -189,8 +189,8 @@ static int cd_read_sector(IDEState *s)
     block_acct_start(blk_get_stats(s->blk), &s->acct,
                      4 * BDRV_SECTOR_SIZE, BLOCK_ACCT_READ);
 
-    blk_aio_readv(s->blk, (int64_t)s->lba << 2, &s->qiov, 4,
-                  cd_read_sector_cb, s);
+    ide_buffered_readv(s, (int64_t)s->lba << 2, &s->qiov, 4,
+                       cd_read_sector_cb, s);
 
     s->status |= BUSY_STAT;
     return 0;
@@ -432,9 +432,9 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
     s->bus->dma->iov.iov_len = n * 4 * 512;
     qemu_iovec_init_external(&s->bus->dma->qiov, &s->bus->dma->iov, 1);
 
-    s->bus->dma->aiocb = blk_aio_readv(s->blk, (int64_t)s->lba << 2,
-                                       &s->bus->dma->qiov, n * 4,
-                                       ide_atapi_cmd_read_dma_cb, s);
+    s->bus->dma->aiocb = ide_buffered_readv(s, (int64_t)s->lba << 2,
+                                            &s->bus->dma->qiov, n * 4,
+                                            ide_atapi_cmd_read_dma_cb, s);
     return;
 
 eot:
