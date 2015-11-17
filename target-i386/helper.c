@@ -890,38 +890,30 @@ do_check_protect_pse36:
         goto do_fault_rsvd;
     }
     ptep ^= PG_NX_MASK;
-    if ((ptep & PG_NX_MASK) && is_write1 == 2) {
+
+    /* can the page can be put in the TLB?  prot will tell us */
+    if (is_user && !(ptep & PG_USER_MASK)) {
         goto do_fault_protect;
     }
-    switch (mmu_idx) {
-    case MMU_USER_IDX:
-        if (!(ptep & PG_USER_MASK)) {
-            goto do_fault_protect;
-        }
-        if (is_write && !(ptep & PG_RW_MASK)) {
-            goto do_fault_protect;
-        }
-        break;
 
-    case MMU_KSMAP_IDX:
-        if (is_write1 != 2 && (ptep & PG_USER_MASK)) {
-            goto do_fault_protect;
+    prot = 0;
+    if (mmu_idx != MMU_KSMAP_IDX || !(ptep & PG_USER_MASK)) {
+        prot |= PAGE_READ;
+        if ((ptep & PG_RW_MASK) || (!is_user && !(env->cr[0] & CR0_WP_MASK))) {
+            prot |= PAGE_WRITE;
         }
-        /* fall through */
-    case MMU_KNOSMAP_IDX:
-        if (is_write1 == 2 && (env->cr[4] & CR4_SMEP_MASK) &&
-            (ptep & PG_USER_MASK)) {
-            goto do_fault_protect;
-        }
-        if ((env->cr[0] & CR0_WP_MASK) &&
-            is_write && !(ptep & PG_RW_MASK)) {
-            goto do_fault_protect;
-        }
-        break;
-
-    default: /* cannot happen */
-        break;
     }
+    if (!(ptep & PG_NX_MASK) &&
+        (mmu_idx == MMU_USER_IDX ||
+         !((env->cr[4] & CR4_SMEP_MASK) && (ptep & PG_USER_MASK)))) {
+        prot |= PAGE_EXEC;
+    }
+
+    if ((prot & (1 << is_write1)) == 0) {
+        goto do_fault_protect;
+    }
+
+    /* yes, it can! */
     is_dirty = is_write && !(pte & PG_DIRTY_MASK);
     if (!(pte & PG_ACCESSED_MASK) || is_dirty) {
         pte |= PG_ACCESSED_MASK;
@@ -931,25 +923,13 @@ do_check_protect_pse36:
         x86_stl_phys_notdirty(cs, pte_addr, pte);
     }
 
-    /* the page can be put in the TLB */
-    prot = PAGE_READ;
-    if (!(ptep & PG_NX_MASK) &&
-        (mmu_idx == MMU_USER_IDX ||
-         !((env->cr[4] & CR4_SMEP_MASK) && (ptep & PG_USER_MASK)))) {
-        prot |= PAGE_EXEC;
-    }
-    if (pte & PG_DIRTY_MASK) {
+    if (!(pte & PG_DIRTY_MASK)) {
         /* only set write access if already dirty... otherwise wait
            for dirty access */
-        if (is_user) {
-            if (ptep & PG_RW_MASK)
-                prot |= PAGE_WRITE;
-        } else {
-            if (!(env->cr[0] & CR0_WP_MASK) ||
-                (ptep & PG_RW_MASK))
-                prot |= PAGE_WRITE;
-        }
+        assert(!is_write);
+        prot &= ~PAGE_WRITE;
     }
+
  do_mapping:
     pte = pte & env->a20_mask;
 
@@ -962,6 +942,7 @@ do_check_protect_pse36:
     page_offset = vaddr & (page_size - 1);
     paddr = pte + page_offset;
 
+    assert(prot & (1 << is_write1));
     tlb_set_page_with_attrs(cs, vaddr, paddr, cpu_get_mem_attrs(env),
                             prot, mmu_idx, page_size);
     return 0;
