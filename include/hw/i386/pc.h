@@ -347,7 +347,24 @@ bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
             .driver   = "qemu32" "-" TYPE_X86_CPU,\
             .property = "popcnt",\
             .value    = "on",\
+        },{\
+            .driver   = "Opteron_G2" "-" TYPE_X86_CPU,\
+            .property = "rdtscp",\
+            .value    = "on",\
+        },{\
+            .driver   = "Opteron_G3" "-" TYPE_X86_CPU,\
+            .property = "rdtscp",\
+            .value    = "on",\
+        },{\
+            .driver   = "Opteron_G4" "-" TYPE_X86_CPU,\
+            .property = "rdtscp",\
+            .value    = "on",\
+        },{\
+            .driver   = "Opteron_G5" "-" TYPE_X86_CPU,\
+            .property = "rdtscp",\
+            .value    = "on",\
         },
+
 
 #define PC_COMPAT_2_3 \
         PC_COMPAT_2_4 \
