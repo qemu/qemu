@@ -233,6 +233,22 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
     /* Ignore writes to SSBM if it keeps the old value */
     if ((val & BM_CMD_START) != (bm->cmd & BM_CMD_START)) {
         if (!(val & BM_CMD_START)) {
+            /* First invoke the callbacks of all buffered requests
+             * and flag those requests as orphaned. Ideally there
+             * are no unbuffered (Scatter Gather DMA Requests or
+             * write requests) pending and we can avoid to drain. */
+            IDEBufferedRequest *req;
+            IDEState *s = idebus_active_if(bm->bus);
+            QLIST_FOREACH(req, &s->buffered_requests, list) {
+                if (!req->orphaned) {
+#ifdef DEBUG_IDE
+                    printf("%s: invoking cb %p of buffered request %p with"
+                           " -ECANCELED\n", __func__, req->original_cb, req);
+#endif
+                    req->original_cb(req->original_opaque, -ECANCELED);
+                }
+                req->orphaned = true;
+            }
             /*
              * We can't cancel Scatter Gather DMA in the middle of the
              * operation or a partial (not full) DMA transfer would reach
@@ -246,6 +262,9 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
              * aio operation with preadv/pwritev.
              */
             if (bm->bus->dma->aiocb) {
+#ifdef DEBUG_IDE
+                printf("%s: draining all remaining requests", __func__);
+#endif
                 blk_drain_all();
                 assert(bm->bus->dma->aiocb == NULL);
             }
