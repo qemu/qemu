@@ -15,7 +15,7 @@
 #include "qemu/xattr.h"
 #include "virtio-9p.h"
 #include "fsdev/file-op-9p.h"
-#include "virtio-9p-xattr.h"
+#include "9p-xattr.h"
 
 #define MAP_ACL_ACCESS "user.virtfs.system.posix_acl_access"
 #define MAP_ACL_DEFAULT "user.virtfs.system.posix_acl_default"

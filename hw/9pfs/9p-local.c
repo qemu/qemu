@@ -12,7 +12,7 @@
  */
 
 #include "virtio-9p.h"
-#include "virtio-9p-xattr.h"
+#include "9p-xattr.h"
 #include "fsdev/qemu-fsdev.h"   /* local_ops */
 #include <arpa/inet.h>
 #include <pwd.h>

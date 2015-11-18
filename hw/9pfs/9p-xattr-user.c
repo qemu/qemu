@@ -1,5 +1,5 @@
 /*
- * Virtio 9p user. xattr callback
+ * 9p user. xattr callback
  *
  * Copyright IBM, Corp. 2010
  *
@@ -12,10 +12,9 @@
  */
 
 #include <sys/types.h>
-#include "hw/virtio/virtio.h"
 #include "virtio-9p.h"
 #include "fsdev/file-op-9p.h"
-#include "virtio-9p-xattr.h"
+#include "9p-xattr.h"
 
 
 static ssize_t mp_user_getxattr(FsContext *ctx, const char *path,
