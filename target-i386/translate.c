@@ -7902,6 +7902,40 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
             gen_nop_modrm(env, s, modrm);
             break;
 
+        case 0xc0 ... 0xc7: /* rdfsbase (f3 0f ae /0) */
+        case 0xc8 ... 0xc8: /* rdgsbase (f3 0f ae /1) */
+        case 0xd0 ... 0xd7: /* wrfsbase (f3 0f ae /2) */
+        case 0xd8 ... 0xd8: /* wrgsbase (f3 0f ae /3) */
+            if (CODE64(s)
+                && (prefixes & PREFIX_REPZ)
+                && !(prefixes & PREFIX_LOCK)
+                && (s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_FSGSBASE)) {
+                TCGv base, treg, src, dst;
+
+                /* Preserve hflags bits by testing CR4 at runtime.  */
+                tcg_gen_movi_i32(cpu_tmp2_i32, CR4_FSGSBASE_MASK);
+                gen_helper_cr4_testbit(cpu_env, cpu_tmp2_i32);
+
+                base = cpu_seg_base[modrm & 8 ? R_GS : R_FS];
+                treg = cpu_regs[(modrm & 7) | REX_B(s)];
+
+                if (modrm & 0x10) {
+                    /* wr*base */
+                    dst = base, src = treg;
+                } else {
+                    /* rd*base */
+                    dst = treg, src = base;
+                }
+
+                if (s->dflag == MO_32) {
+                    tcg_gen_ext32u_tl(dst, src);
+                } else {
+                    tcg_gen_mov_tl(dst, src);
+                }
+                break;
+            }
+            goto illegal_op;
+
         case 0xf8: /* sfence / pcommit */
             if (prefixes & PREFIX_DATA) {
                 /* pcommit */
