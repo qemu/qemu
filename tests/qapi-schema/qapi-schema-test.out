@@ -185,6 +185,7 @@ enum __org.qemu_x-Enum ['__org.qemu_x-value']
 object __org.qemu_x-Struct
     base __org.qemu_x-Base
     member __org.qemu_x-member2: str optional=False
+    member wchar-t: int optional=True
 object __org.qemu_x-Struct2
     member array: __org.qemu_x-Union1List optional=False
 object __org.qemu_x-Union1

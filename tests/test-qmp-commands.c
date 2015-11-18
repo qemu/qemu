@@ -65,6 +65,10 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
     ret->type = ORG_QEMU_X_UNION1_KIND___ORG_QEMU_X_BRANCH;
     ret->u.__org_qemu_x_branch = strdup("blah1");
 
+    /* Also test that 'wchar-t' was munged to 'q_wchar_t' */
+    if (b && b->value && !b->value->has_q_wchar_t) {
+        b->value->q_wchar_t = 1;
+    }
     return ret;
 }
 
