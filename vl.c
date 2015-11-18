@@ -4288,14 +4288,23 @@ int main(int argc, char **argv, char **envp)
     page_size_init();
     socket_init();
 
-    if (qemu_opts_foreach(qemu_find_opts("object"),
-                          object_create,
-                          object_create_initial, NULL)) {
+    if (qemu_opts_foreach(qemu_find_opts("chardev"),
+                          chardev_init_func, NULL, NULL)) {
         exit(1);
     }
 
-    if (qemu_opts_foreach(qemu_find_opts("chardev"),
-                          chardev_init_func, NULL, NULL)) {
+    if (qtest_chrdev) {
+        Error *local_err = NULL;
+        qtest_init(qtest_chrdev, qtest_log, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            exit(1);
+        }
+    }
+
+    if (qemu_opts_foreach(qemu_find_opts("object"),
+                          object_create,
+                          object_create_initial, NULL)) {
         exit(1);
     }
 
@@ -4324,15 +4333,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     configure_accelerator(current_machine);
-
-    if (qtest_chrdev) {
-        Error *local_err = NULL;
-        qtest_init(qtest_chrdev, qtest_log, &local_err);
-        if (local_err) {
-            error_report_err(local_err);
-            exit(1);
-        }
-    }
 
     machine_opts = qemu_get_machine_opts();
     kernel_filename = qemu_opt_get(machine_opts, "kernel");
