@@ -1,3 +1,4 @@
 object :empty
 object Union
+    member type: UnionKind optional=False
 enum UnionKind []

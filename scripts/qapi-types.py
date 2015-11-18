@@ -269,7 +269,10 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
     def visit_object_type(self, name, info, base, members, variants):
         self._fwdecl += gen_fwd_object_or_array(name)
         if variants:
-            assert not members      # not implemented
+            if members:
+                # Members other than variants.tag_member not implemented
+                assert len(members) == 1
+                assert members[0] == variants.tag_member
             self.decl += gen_union(name, base, variants)
         else:
             self.decl += gen_struct(name, base, members)

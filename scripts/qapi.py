@@ -957,6 +957,9 @@ class QAPISchemaArrayType(QAPISchemaType):
 
 class QAPISchemaObjectType(QAPISchemaType):
     def __init__(self, name, info, base, local_members, variants):
+        # struct has local_members, optional base, and no variants
+        # flat union has base, variants, and no local_members
+        # simple union has local_members, variants, and no base
         QAPISchemaType.__init__(self, name, info)
         assert base is None or isinstance(base, str)
         for m in local_members:
@@ -1048,10 +1051,10 @@ class QAPISchemaObjectTypeVariants(object):
         self.variants = variants
 
     def check(self, schema, members, seen):
-        if self.tag_name:
+        if self.tag_name:    # flat union
             self.tag_member = seen[self.tag_name]
-        else:
-            self.tag_member.check(schema, members, seen)
+        if seen:
+            assert self.tag_member in seen.itervalues()
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
         for v in self.variants:
             vseen = dict(seen)
@@ -1085,6 +1088,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         self.variants = variants
 
     def check(self, schema):
+        self.variants.tag_member.check(schema, [], {})
         self.variants.check(schema, [], {})
 
     def json_type(self):
@@ -1270,13 +1274,14 @@ class QAPISchema(object):
         if tag_name:
             variants = [self._make_variant(key, value)
                         for (key, value) in data.iteritems()]
+            members = []
         else:
             variants = [self._make_simple_variant(key, value, info)
                         for (key, value) in data.iteritems()]
             tag_member = self._make_implicit_tag(name, info, variants)
+            members = [tag_member]
         self._def_entity(
-            QAPISchemaObjectType(name, info, base,
-                                 self._make_members(OrderedDict(), info),
+            QAPISchemaObjectType(name, info, base, members,
                                  QAPISchemaObjectTypeVariants(tag_name,
                                                               tag_member,
                                                               variants)))
