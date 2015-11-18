@@ -977,26 +977,22 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self.members:
             return
         self.members = False                    # mark as being checked
+        seen = OrderedDict()
         if self._base_name:
             self.base = schema.lookup_type(self._base_name)
             assert isinstance(self.base, QAPISchemaObjectType)
             assert not self.base.variants       # not implemented
             self.base.check(schema)
-            members = list(self.base.members)
-        else:
-            members = []
-        seen = {}
-        for m in members:
-            assert m.name not in seen
-            seen[m.name] = m
+            for m in self.base.members:
+                assert m.name not in seen
+                seen[m.name] = m
         for m in self.local_members:
             m.check(schema)
             assert m.name not in seen
             seen[m.name] = m
-            members.append(m)
         if self.variants:
             self.variants.check(schema, seen)
-        self.members = members
+        self.members = seen.values()
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_object_type()
