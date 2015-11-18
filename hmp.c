@@ -311,17 +311,25 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
 
         monitor_printf(mon, "%c CPU #%" PRId64 ":", active, cpu->value->CPU);
 
-        if (cpu->value->has_pc) {
-            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->pc);
-        }
-        if (cpu->value->has_nip) {
-            monitor_printf(mon, " nip=0x%016" PRIx64, cpu->value->nip);
-        }
-        if (cpu->value->has_npc) {
-            monitor_printf(mon, " npc=0x%016" PRIx64, cpu->value->npc);
-        }
-        if (cpu->value->has_PC) {
-            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->PC);
+        switch (cpu->value->arch) {
+        case CPU_INFO_ARCH_X86:
+            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->u.x86->pc);
+            break;
+        case CPU_INFO_ARCH_PPC:
+            monitor_printf(mon, " nip=0x%016" PRIx64, cpu->value->u.ppc->nip);
+            break;
+        case CPU_INFO_ARCH_SPARC:
+            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->u.sparc->pc);
+            monitor_printf(mon, " npc=0x%016" PRIx64, cpu->value->u.sparc->npc);
+            break;
+        case CPU_INFO_ARCH_MIPS:
+            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.mips->PC);
+            break;
+        case CPU_INFO_ARCH_TRICORE:
+            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.tricore->PC);
+            break;
+        default:
+            break;
         }
 
         if (cpu->value->halted) {
