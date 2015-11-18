@@ -987,7 +987,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             members = []
         seen = {}
         for m in members:
-            assert c_name(m.name) not in seen
+            assert m.name not in seen
             seen[m.name] = m
         for m in self.local_members:
             m.check(schema)
