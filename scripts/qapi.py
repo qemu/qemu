@@ -990,7 +990,10 @@ class QAPISchemaObjectType(QAPISchemaType):
             assert c_name(m.name) not in seen
             seen[m.name] = m
         for m in self.local_members:
-            m.check(schema, members, seen)
+            m.check(schema)
+            assert m.name not in seen
+            seen[m.name] = m
+            members.append(m)
         if self.variants:
             self.variants.check(schema, members, seen)
         self.members = members
@@ -1027,12 +1030,9 @@ class QAPISchemaObjectTypeMember(object):
         self.type = None
         self.optional = optional
 
-    def check(self, schema, all_members, seen):
-        assert self.name not in seen
+    def check(self, schema):
         self.type = schema.lookup_type(self._type_name)
         assert self.type
-        all_members.append(self)
-        seen[self.name] = self
 
 
 class QAPISchemaObjectTypeVariants(object):
@@ -1065,7 +1065,7 @@ class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
         QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
 
     def check(self, schema, tag_type, seen):
-        QAPISchemaObjectTypeMember.check(self, schema, [], seen)
+        QAPISchemaObjectTypeMember.check(self, schema)
         assert self.name in tag_type.values
 
     # This function exists to support ugly simple union special cases
@@ -1087,7 +1087,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
         self.variants = variants
 
     def check(self, schema):
-        self.variants.tag_member.check(schema, [], {})
+        self.variants.tag_member.check(schema)
         self.variants.check(schema, [], {})
 
     def json_type(self):
