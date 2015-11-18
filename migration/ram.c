@@ -1249,6 +1249,7 @@ static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
         if (unsentmap) {
             clear_bit(dirty_ram_abs >> TARGET_PAGE_BITS, unsentmap);
         }
+        last_sent_block = block;
     }
 
     return res;
