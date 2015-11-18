@@ -981,10 +981,8 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self._base_name:
             self.base = schema.lookup_type(self._base_name)
             assert isinstance(self.base, QAPISchemaObjectType)
-            assert not self.base.variants       # not implemented
             self.base.check(schema)
-            for m in self.base.members:
-                m.check_clash(seen)
+            self.base.check_clash(schema, seen)
         for m in self.local_members:
             m.check(schema)
             m.check_clash(seen)
@@ -993,6 +991,11 @@ class QAPISchemaObjectType(QAPISchemaType):
             self.variants.check(schema, seen)
             assert self.variants.tag_member in self.members
             self.variants.check_clash(schema, seen)
+
+    def check_clash(self, schema, seen):
+        assert not self.variants       # not implemented
+        for m in self.members:
+            m.check_clash(seen)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_object_type()
@@ -1064,11 +1067,8 @@ class QAPISchemaObjectTypeVariants(object):
         for v in self.variants:
             # Reset seen map for each variant, since qapi names from one
             # branch do not affect another branch
-            vseen = dict(seen)
             assert isinstance(v.type, QAPISchemaObjectType)
-            assert not v.type.variants       # not implemented
-            for m in v.type.members:
-                m.check_clash(vseen)
+            v.type.check_clash(schema, dict(seen))
 
 
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
