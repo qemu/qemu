@@ -1057,8 +1057,7 @@ class QAPISchemaObjectTypeVariants(object):
             assert self.tag_member in seen.itervalues()
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
         for v in self.variants:
-            vseen = dict(seen)
-            v.check(schema, self.tag_member.type, vseen)
+            v.check(schema, self.tag_member.type, {})
 
 
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
