@@ -1,5 +1,5 @@
 /*
- * Virtio 9p handle callback
+ * 9p handle callback
  *
  * Copyright IBM, Corp. 2011
  *
@@ -11,7 +11,6 @@
  *
  */
 
-#include "hw/virtio/virtio.h"
 #include "virtio-9p.h"
 #include "virtio-9p-xattr.h"
 #include <arpa/inet.h>
