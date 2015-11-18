@@ -304,9 +304,9 @@ qcrypto_tls_session_check_certificate(QCryptoTLSSession *session,
 
                 allow = qemu_acl_party_is_allowed(acl, session->peername);
 
-                error_setg(errp, "TLS x509 ACL check for %s is %s",
-                           session->peername, allow ? "allowed" : "denied");
                 if (!allow) {
+                    error_setg(errp, "TLS x509 ACL check for %s is denied",
+                               session->peername);
                     goto error;
                 }
             }
