@@ -654,6 +654,10 @@ qcrypto_tls_creds_x509_unload(QCryptoTLSCredsX509 *creds)
         gnutls_certificate_free_credentials(creds->data);
         creds->data = NULL;
     }
+    if (creds->parent_obj.dh_params) {
+        gnutls_dh_params_deinit(creds->parent_obj.dh_params);
+        creds->parent_obj.dh_params = NULL;
+    }
 }
 
 
