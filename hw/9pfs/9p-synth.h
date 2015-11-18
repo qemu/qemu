@@ -1,5 +1,5 @@
 /*
- * Virtio 9p
+ * 9p
  *
  * Copyright IBM, Corp. 2011
  *
@@ -10,8 +10,8 @@
  * the COPYING file in the top-level directory.
  *
  */
-#ifndef HW_9PFS_VIRTIO9P_SYNTH_H
-#define HW_9PFS_VIRTIO9P_SYNTH_H 1
+#ifndef HW_9PFS_SYNTH_H
+#define HW_9PFS_SYNTH_H 1
 
 #include <unistd.h>
 #include <sys/types.h>
