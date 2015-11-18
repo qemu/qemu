@@ -485,7 +485,8 @@ qcrypto_tls_creds_x509_sanity_check(QCryptoTLSCredsX509 *creds,
     int ret = -1;
 
     memset(cacerts, 0, sizeof(cacerts));
-    if (access(certFile, R_OK) == 0) {
+    if (certFile &&
+        access(certFile, R_OK) == 0) {
         cert = qcrypto_tls_creds_load_cert(creds,
                                            certFile, isServer,
                                            errp);
