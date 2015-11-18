@@ -1643,7 +1643,6 @@ static void *migration_thread(void *opaque)
             if (pending_size && pending_size >= max_size) {
                 /* Still a significant amount to transfer */
 
-                current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
                 if (migrate_postcopy_ram() &&
                     s->state != MIGRATION_STATUS_POSTCOPY_ACTIVE &&
                     pend_nonpost <= max_size &&
