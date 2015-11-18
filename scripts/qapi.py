@@ -957,8 +957,10 @@ class QAPISchemaObjectType(QAPISchemaType):
         assert base is None or isinstance(base, str)
         for m in local_members:
             assert isinstance(m, QAPISchemaObjectTypeMember)
-        assert (variants is None or
-                isinstance(variants, QAPISchemaObjectTypeVariants))
+            m.set_owner(name)
+        if variants is not None:
+            assert isinstance(variants, QAPISchemaObjectTypeVariants)
+            variants.set_owner(name)
         self._base_name = base
         self.base = None
         self.local_members = local_members
@@ -1013,6 +1015,8 @@ class QAPISchemaObjectType(QAPISchemaType):
 
 
 class QAPISchemaObjectTypeMember(object):
+    role = 'member'
+
     def __init__(self, name, typ, optional):
         assert isinstance(name, str)
         assert isinstance(typ, str)
@@ -1021,8 +1025,14 @@ class QAPISchemaObjectTypeMember(object):
         self._type_name = typ
         self.type = None
         self.optional = optional
+        self.owner = None
+
+    def set_owner(self, name):
+        assert not self.owner
+        self.owner = name
 
     def check(self, schema):
+        assert self.owner
         self.type = schema.lookup_type(self._type_name)
         assert self.type
 
@@ -1030,6 +1040,23 @@ class QAPISchemaObjectTypeMember(object):
         # TODO change key of seen from QAPI name to C name
         assert self.name not in seen
         seen[self.name] = self
+
+    def _pretty_owner(self):
+        owner = self.owner
+        if owner.startswith(':obj-'):
+            # See QAPISchema._make_implicit_object_type() - reverse the
+            # mapping there to create a nice human-readable description
+            owner = owner[5:]
+            if owner.endswith('-arg'):
+                return '(parameter of %s)' % owner[:-4]
+            else:
+                assert owner.endswith('-wrapper')
+                # Unreachable and not implemented
+                assert False
+        return '(%s of %s)' % (self.role, owner)
+
+    def describe(self):
+        return "'%s' %s" % (self.name, self._pretty_owner())
 
 
 class QAPISchemaObjectTypeVariants(object):
@@ -1046,6 +1073,10 @@ class QAPISchemaObjectTypeVariants(object):
         self.tag_name = tag_name
         self.tag_member = tag_member
         self.variants = variants
+
+    def set_owner(self, name):
+        for v in self.variants:
+            v.set_owner(name)
 
     def check(self, schema, seen):
         if not self.tag_member:    # flat union
@@ -1066,6 +1097,8 @@ class QAPISchemaObjectTypeVariants(object):
 
 
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
+    role = 'branch'
+
     def __init__(self, name, typ):
         QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
 
@@ -1085,6 +1118,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
         QAPISchemaType.__init__(self, name, info)
         assert isinstance(variants, QAPISchemaObjectTypeVariants)
         assert not variants.tag_name
+        variants.set_owner(name)
+        variants.tag_member.set_owner(self.name)
         self.variants = variants
 
     def check(self, schema):
@@ -1217,6 +1252,7 @@ class QAPISchema(object):
     def _make_implicit_object_type(self, name, info, role, members):
         if not members:
             return None
+        # See also QAPISchemaObjectTypeMember._pretty_owner()
         name = ':obj-%s-%s' % (name, role)
         if not self.lookup_entity(name, QAPISchemaObjectType):
             self._def_entity(QAPISchemaObjectType(name, info, None,
