@@ -403,7 +403,7 @@ static QDict *build_qmp_error_dict(Error *err)
     QObject *obj;
 
     obj = qobject_from_jsonf("{ 'error': { 'class': %s, 'desc': %s } }",
-                             ErrorClass_lookup[error_get_class(err)],
+                             QapiErrorClass_lookup[error_get_class(err)],
                              error_get_pretty(err));
 
     return qobject_to_qdict(obj);
