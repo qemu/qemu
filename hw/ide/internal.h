@@ -343,6 +343,16 @@ enum ide_dma_cmd {
 #define ide_cmd_is_read(s) \
 	((s)->dma_cmd == IDE_DMA_READ)
 
+typedef struct IDEBufferedRequest {
+    QLIST_ENTRY(IDEBufferedRequest) list;
+    struct iovec iov;
+    QEMUIOVector qiov;
+    QEMUIOVector *original_qiov;
+    BlockCompletionFunc *original_cb;
+    void *original_opaque;
+    bool orphaned;
+} IDEBufferedRequest;
+
 /* NOTE: IDEState represents in fact one drive */
 struct IDEState {
     IDEBus *bus;
@@ -396,6 +406,7 @@ struct IDEState {
     BlockAIOCB *pio_aiocb;
     struct iovec iov;
     QEMUIOVector qiov;
+    QLIST_HEAD(, IDEBufferedRequest) buffered_requests;
     /* ATA DMA state */
     uint64_t io_buffer_offset;
     int32_t io_buffer_size;
@@ -572,6 +583,9 @@ void ide_set_inactive(IDEState *s, bool more);
 BlockAIOCB *ide_issue_trim(BlockBackend *blk,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockCompletionFunc *cb, void *opaque);
+BlockAIOCB *ide_buffered_readv(IDEState *s, int64_t sector_num,
+                               QEMUIOVector *iov, int nb_sectors,
+                               BlockCompletionFunc *cb, void *opaque);
 
 /* hw/ide/atapi.c */
 void ide_atapi_cmd(IDEState *s);
