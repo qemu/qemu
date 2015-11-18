@@ -27,9 +27,6 @@ typedef struct GenericList
     struct GenericList *next;
 } GenericList;
 
-void visit_start_handle(Visitor *v, void **obj, const char *kind,
-                        const char *name, Error **errp);
-void visit_end_handle(Visitor *v, Error **errp);
 void visit_start_struct(Visitor *v, void **obj, const char *kind,
                         const char *name, size_t size, Error **errp);
 void visit_end_struct(Visitor *v, Error **errp);
