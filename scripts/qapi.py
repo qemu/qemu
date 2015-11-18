@@ -353,9 +353,11 @@ def discriminator_find_enum_define(expr):
     return find_enum(discriminator_type)
 
 
-# FIXME should enforce "other than downstream extensions [...], all
-# names should begin with a letter".
-valid_name = re.compile('^[a-zA-Z_][a-zA-Z0-9_.-]*$')
+# Names must be letters, numbers, -, and _.  They must start with letter,
+# except for downstream extensions which must start with __RFQDN_.
+# Dots are only valid in the downstream extension prefix.
+valid_name = re.compile('^(__[a-zA-Z0-9.-]+_)?'
+                        '[a-zA-Z][a-zA-Z0-9_-]*$')
 
 
 def check_name(expr_info, source, name, allow_optional=False,
@@ -374,8 +376,8 @@ def check_name(expr_info, source, name, allow_optional=False,
                                 % (source, name))
     # Enum members can start with a digit, because the generated C
     # code always prefixes it with the enum name
-    if enum_member:
-        membername = '_' + membername
+    if enum_member and membername[0].isdigit():
+        membername = 'D' + membername
     # Reserve the entire 'q_' namespace for c_name()
     if not valid_name.match(membername) or \
        c_name(membername, False).startswith('q_'):

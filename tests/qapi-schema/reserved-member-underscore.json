@@ -1,0 +1,4 @@
+# C member name collision
+# We reject use of a single leading underscore in all names (names must
+# begin with a letter or a downstream extension double-underscore prefix).
+{ 'struct': 'Oops', 'data': { '_oops': 'str' } }
