@@ -1345,7 +1345,7 @@ static void *source_return_path_thread(void *opaque)
             break;
         }
     }
-    if (rp && qemu_file_get_error(rp)) {
+    if (qemu_file_get_error(rp)) {
         trace_source_return_path_thread_bad_end();
         mark_source_rp_bad(ms);
     }
