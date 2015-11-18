@@ -504,9 +504,9 @@ static void handle_mousewheel(SDL_Event *ev)
     InputButton btn;
 
     if (wev->y > 0) {
-        btn = INPUT_BUTTON_WHEEL_UP;
+        btn = INPUT_BUTTON_WHEELUP;
     } else if (wev->y < 0) {
-        btn = INPUT_BUTTON_WHEEL_DOWN;
+        btn = INPUT_BUTTON_WHEELDOWN;
     } else {
         return;
     }

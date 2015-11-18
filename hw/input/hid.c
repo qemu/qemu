@@ -139,9 +139,9 @@ static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
     case INPUT_EVENT_KIND_BTN:
         if (evt->u.btn->down) {
             e->buttons_state |= bmap[evt->u.btn->button];
-            if (evt->u.btn->button == INPUT_BUTTON_WHEEL_UP) {
+            if (evt->u.btn->button == INPUT_BUTTON_WHEELUP) {
                 e->dz--;
-            } else if (evt->u.btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+            } else if (evt->u.btn->button == INPUT_BUTTON_WHEELDOWN) {
                 e->dz++;
             }
         } else {

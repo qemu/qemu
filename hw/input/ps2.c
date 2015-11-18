@@ -405,9 +405,9 @@ static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
     case INPUT_EVENT_KIND_BTN:
         if (evt->u.btn->down) {
             s->mouse_buttons |= bmap[evt->u.btn->button];
-            if (evt->u.btn->button == INPUT_BUTTON_WHEEL_UP) {
+            if (evt->u.btn->button == INPUT_BUTTON_WHEELUP) {
                 s->mouse_dz--;
-            } else if (evt->u.btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+            } else if (evt->u.btn->button == INPUT_BUTTON_WHEELDOWN) {
                 s->mouse_dz++;
             }
         } else {

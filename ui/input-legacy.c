@@ -157,7 +157,7 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         } else {
             s->buttons &= ~bmap[evt->u.btn->button];
         }
-        if (evt->u.btn->down && evt->u.btn->button == INPUT_BUTTON_WHEEL_UP) {
+        if (evt->u.btn->down && evt->u.btn->button == INPUT_BUTTON_WHEELUP) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],
@@ -165,7 +165,7 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
                                     s->buttons);
         }
         if (evt->u.btn->down &&
-            evt->u.btn->button == INPUT_BUTTON_WHEEL_DOWN) {
+            evt->u.btn->button == INPUT_BUTTON_WHEELDOWN) {
             s->qemu_put_mouse_event(s->qemu_put_mouse_event_opaque,
                                     s->axis[INPUT_AXIS_X],
                                     s->axis[INPUT_AXIS_Y],

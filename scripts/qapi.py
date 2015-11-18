@@ -1440,7 +1440,7 @@ def camel_to_upper(value):
 def c_enum_const(type_name, const_name, prefix=None):
     if prefix is not None:
         type_name = prefix
-    return camel_to_upper(type_name + '_' + const_name)
+    return camel_to_upper(type_name) + '_' + c_name(const_name, False).upper()
 
 c_name_trans = string.maketrans('.-', '__')
 
