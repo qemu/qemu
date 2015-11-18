@@ -1,5 +1,5 @@
 /*
- * Virtio 9p backend
+ * 9p backend
  *
  * Copyright IBM, Corp. 2010
  *
@@ -16,7 +16,7 @@
 #include "block/thread-pool.h"
 #include "qemu/coroutine.h"
 #include "qemu/main-loop.h"
-#include "virtio-9p-coth.h"
+#include "coth.h"
 
 /* Called from QEMU I/O thread.  */
 static void coroutine_enter_cb(void *opaque, int ret)

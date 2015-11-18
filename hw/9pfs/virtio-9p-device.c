@@ -18,7 +18,7 @@
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
 #include "virtio-9p-xattr.h"
-#include "virtio-9p-coth.h"
+#include "coth.h"
 #include "hw/virtio/virtio-access.h"
 
 static uint64_t virtio_9p_get_features(VirtIODevice *vdev, uint64_t features,
