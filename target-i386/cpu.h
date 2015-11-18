@@ -407,6 +407,7 @@
 #define XSTATE_OPMASK                   (1ULL << 5)
 #define XSTATE_ZMM_Hi256                (1ULL << 6)
 #define XSTATE_Hi16_ZMM                 (1ULL << 7)
+#define XSTATE_PKRU                     (1ULL << 9)
 
 
 /* CPUID feature words */
@@ -414,6 +415,7 @@ typedef enum FeatureWord {
     FEAT_1_EDX,         /* CPUID[1].EDX */
     FEAT_1_ECX,         /* CPUID[1].ECX */
     FEAT_7_0_EBX,       /* CPUID[EAX=7,ECX=0].EBX */
+    FEAT_7_0_ECX,       /* CPUID[EAX=7,ECX=0].ECX */
     FEAT_8000_0001_EDX, /* CPUID[8000_0001].EDX */
     FEAT_8000_0001_ECX, /* CPUID[8000_0001].ECX */
     FEAT_8000_0007_EDX, /* CPUID[8000_0007].EDX */
@@ -584,6 +586,9 @@ typedef uint32_t FeatureWordArray[FEATURE_WORDS];
 #define CPUID_7_0_EBX_AVX512PF (1U << 26) /* AVX-512 Prefetch */
 #define CPUID_7_0_EBX_AVX512ER (1U << 27) /* AVX-512 Exponential and Reciprocal */
 #define CPUID_7_0_EBX_AVX512CD (1U << 28) /* AVX-512 Conflict Detection */
+
+#define CPUID_7_0_ECX_PKU      (1U << 3)
+#define CPUID_7_0_ECX_OSPKE    (1U << 4)
 
 #define CPUID_XSAVE_XSAVEOPT   (1U << 0)
 #define CPUID_XSAVE_XSAVEC     (1U << 1)
@@ -995,6 +1000,8 @@ typedef struct CPUX86State {
 
     uint64_t xcr0;
     uint64_t xss;
+
+    uint32_t pkru;
 
     TPRAccess tpr_access_type;
 } CPUX86State;

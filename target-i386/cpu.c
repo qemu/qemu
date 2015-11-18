@@ -263,6 +263,17 @@ static const char *cpuid_7_0_ebx_feature_name[] = {
     "clwb", NULL, "avx512pf", "avx512er", "avx512cd", NULL, NULL, NULL,
 };
 
+static const char *cpuid_7_0_ecx_feature_name[] = {
+    NULL, NULL, NULL, "pku",
+    "ospke", NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL, NULL,
+};
+
 static const char *cpuid_apm_edx_feature_name[] = {
     NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL,
@@ -352,6 +363,7 @@ static const char *cpuid_6_feature_name[] = {
           CPUID_7_0_EBX_FSGSBASE, CPUID_7_0_EBX_HLE, CPUID_7_0_EBX_AVX2,
           CPUID_7_0_EBX_ERMS, CPUID_7_0_EBX_INVPCID, CPUID_7_0_EBX_RTM,
           CPUID_7_0_EBX_RDSEED */
+#define TCG_7_0_ECX_FEATURES 0
 #define TCG_APM_FEATURES 0
 #define TCG_6_EAX_FEATURES CPUID_6_EAX_ARAT
 
@@ -408,6 +420,13 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .cpuid_needs_ecx = true, .cpuid_ecx = 0,
         .cpuid_reg = R_EBX,
         .tcg_features = TCG_7_0_EBX_FEATURES,
+    },
+    [FEAT_7_0_ECX] = {
+        .feat_names = cpuid_7_0_ecx_feature_name,
+        .cpuid_eax = 7,
+        .cpuid_needs_ecx = true, .cpuid_ecx = 0,
+        .cpuid_reg = R_ECX,
+        .tcg_features = TCG_7_0_ECX_FEATURES,
     },
     [FEAT_8000_0007_EDX] = {
         .feat_names = cpuid_apm_edx_feature_name,
@@ -469,6 +488,8 @@ static const ExtSaveArea ext_save_areas[] = {
             .offset = 0x480, .size = 0x200 },
     [7] = { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
             .offset = 0x680, .size = 0x400 },
+    [9] = { .feature = FEAT_7_0_ECX, .bits = CPUID_7_0_ECX_PKU,
+            .offset = 0xA80, .size = 0x8 },
 };
 
 const char *get_register_name_32(unsigned int reg)
@@ -2390,7 +2411,7 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         if (count == 0) {
             *eax = 0; /* Maximum ECX value for sub-leaves */
             *ebx = env->features[FEAT_7_0_EBX]; /* Feature flags */
-            *ecx = 0; /* Reserved */
+            *ecx = env->features[FEAT_7_0_ECX]; /* Feature flags */
             *edx = 0; /* Reserved */
         } else {
             *eax = 0;
