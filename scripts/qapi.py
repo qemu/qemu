@@ -992,6 +992,7 @@ class QAPISchemaObjectType(QAPISchemaType):
         if self.variants:
             self.variants.check(schema, seen)
             assert self.variants.tag_member in self.members
+            self.variants.check_clash(schema, seen)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_object_type()
@@ -1056,6 +1057,18 @@ class QAPISchemaObjectTypeVariants(object):
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
         for v in self.variants:
             v.check(schema, self.tag_member.type)
+            if isinstance(v.type, QAPISchemaObjectType):
+                v.type.check(schema)
+
+    def check_clash(self, schema, seen):
+        for v in self.variants:
+            # Reset seen map for each variant, since qapi names from one
+            # branch do not affect another branch
+            vseen = dict(seen)
+            assert isinstance(v.type, QAPISchemaObjectType)
+            assert not v.type.variants       # not implemented
+            for m in v.type.members:
+                m.check_clash(vseen)
 
 
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
@@ -1086,6 +1099,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
     def check(self, schema):
         self.variants.tag_member.check(schema)
+        # Not calling self.variants.check_clash(), because there's nothing
+        # to clash with
         self.variants.check(schema, {})
 
     def json_type(self):
