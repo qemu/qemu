@@ -548,8 +548,7 @@ def check_union(expr, expr_info):
     base = expr.get('base')
     discriminator = expr.get('discriminator')
     members = expr['data']
-    values = {'MAX': '(automatic)', 'KIND': '(automatic)',
-              'TYPE': '(automatic)'}
+    values = {'MAX': '(automatic)'}
 
     # Two types of unions, determined by discriminator.
 
@@ -607,19 +606,13 @@ def check_union(expr, expr_info):
                                " of branch '%s'" % key)
 
         # If the discriminator names an enum type, then all members
-        # of 'data' must also be members of the enum type, which in turn
-        # must not collide with the discriminator name.
+        # of 'data' must also be members of the enum type.
         if enum_define:
             if key not in enum_define['enum_values']:
                 raise QAPIExprError(expr_info,
                                     "Discriminator value '%s' is not found in "
                                     "enum '%s'" %
                                     (key, enum_define["enum_name"]))
-            if discriminator in enum_define['enum_values']:
-                raise QAPIExprError(expr_info,
-                                    "Discriminator name '%s' collides with "
-                                    "enum value in '%s'" %
-                                    (discriminator, enum_define["enum_name"]))
 
         # Otherwise, check for conflicts in the generated enum
         else:
