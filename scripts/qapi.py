@@ -995,7 +995,7 @@ class QAPISchemaObjectType(QAPISchemaType):
             seen[m.name] = m
             members.append(m)
         if self.variants:
-            self.variants.check(schema, members, seen)
+            self.variants.check(schema, seen)
         self.members = members
 
     def is_implicit(self):
@@ -1050,21 +1050,21 @@ class QAPISchemaObjectTypeVariants(object):
         self.tag_member = tag_member
         self.variants = variants
 
-    def check(self, schema, members, seen):
+    def check(self, schema, seen):
         if self.tag_name:    # flat union
             self.tag_member = seen[self.tag_name]
         if seen:
             assert self.tag_member in seen.itervalues()
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
         for v in self.variants:
-            v.check(schema, self.tag_member.type, {})
+            v.check(schema, self.tag_member.type)
 
 
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     def __init__(self, name, typ):
         QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
 
-    def check(self, schema, tag_type, seen):
+    def check(self, schema, tag_type):
         QAPISchemaObjectTypeMember.check(self, schema)
         assert self.name in tag_type.values
 
@@ -1088,7 +1088,7 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
     def check(self, schema):
         self.variants.tag_member.check(schema)
-        self.variants.check(schema, [], {})
+        self.variants.check(schema, {})
 
     def json_type(self):
         return 'value'
