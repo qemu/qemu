@@ -382,7 +382,7 @@ static void ps2_mouse_send_packet(PS2MouseState *s)
 static void ps2_mouse_event(DeviceState *dev, QemuConsole *src,
                             InputEvent *evt)
 {
-    static const int bmap[INPUT_BUTTON_MAX] = {
+    static const int bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]   = MOUSE_EVENT_LBUTTON,
         [INPUT_BUTTON_MIDDLE] = MOUSE_EVENT_MBUTTON,
         [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,

@@ -1108,7 +1108,7 @@ void kbd_put_keysym_console(QemuConsole *s, int keysym)
     }
 }
 
-static const int qcode_to_keysym[Q_KEY_CODE_MAX] = {
+static const int qcode_to_keysym[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_UP]     = QEMU_KEY_UP,
     [Q_KEY_CODE_DOWN]   = QEMU_KEY_DOWN,
     [Q_KEY_CODE_RIGHT]  = QEMU_KEY_RIGHT,

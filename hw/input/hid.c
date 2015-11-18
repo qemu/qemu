@@ -108,7 +108,7 @@ void hid_set_next_idle(HIDState *hs)
 static void hid_pointer_event(DeviceState *dev, QemuConsole *src,
                               InputEvent *evt)
 {
-    static const int bmap[INPUT_BUTTON_MAX] = {
+    static const int bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]   = 0x01,
         [INPUT_BUTTON_RIGHT]  = 0x02,
         [INPUT_BUTTON_MIDDLE] = 0x04,

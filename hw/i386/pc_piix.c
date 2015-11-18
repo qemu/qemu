@@ -225,7 +225,7 @@ static void pc_init1(MachineState *machine,
 
     pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
 
-    assert(pcms->vmport != ON_OFF_AUTO_MAX);
+    assert(pcms->vmport != ON_OFF_AUTO__MAX);
     if (pcms->vmport == ON_OFF_AUTO_AUTO) {
         pcms->vmport = xen_enabled() ? ON_OFF_AUTO_OFF : ON_OFF_AUTO_ON;
     }

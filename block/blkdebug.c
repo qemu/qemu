@@ -36,7 +36,7 @@ typedef struct BDRVBlkdebugState {
     int state;
     int new_state;
 
-    QLIST_HEAD(, BlkdebugRule) rules[BLKDBG_MAX];
+    QLIST_HEAD(, BlkdebugRule) rules[BLKDBG__MAX];
     QSIMPLEQ_HEAD(, BlkdebugRule) active_rules;
     QLIST_HEAD(, BlkdebugSuspendedReq) suspended_reqs;
 } BDRVBlkdebugState;
@@ -147,7 +147,7 @@ static int get_event_by_name(const char *name, BlkdebugEvent *event)
 {
     int i;
 
-    for (i = 0; i < BLKDBG_MAX; i++) {
+    for (i = 0; i < BLKDBG__MAX; i++) {
         if (!strcmp(BlkdebugEvent_lookup[i], name)) {
             *event = i;
             return 0;
@@ -507,7 +507,7 @@ static void blkdebug_close(BlockDriverState *bs)
     BlkdebugRule *rule, *next;
     int i;
 
-    for (i = 0; i < BLKDBG_MAX; i++) {
+    for (i = 0; i < BLKDBG__MAX; i++) {
         QLIST_FOREACH_SAFE(rule, &s->rules[i], next, next) {
             remove_rule(rule);
         }
@@ -576,7 +576,7 @@ static void blkdebug_debug_event(BlockDriverState *bs, BlkdebugEvent event)
     struct BlkdebugRule *rule, *next;
     bool injected;
 
-    assert((int)event >= 0 && event < BLKDBG_MAX);
+    assert((int)event >= 0 && event < BLKDBG__MAX);
 
     injected = false;
     s->new_state = s->state;
@@ -633,7 +633,7 @@ static int blkdebug_debug_remove_breakpoint(BlockDriverState *bs,
     BlkdebugRule *rule, *next;
     int i, ret = -ENOENT;
 
-    for (i = 0; i < BLKDBG_MAX; i++) {
+    for (i = 0; i < BLKDBG__MAX; i++) {
         QLIST_FOREACH_SAFE(rule, &s->rules[i], next, next) {
             if (rule->action == ACTION_SUSPEND &&
                 !strcmp(rule->options.suspend.tag, tag)) {

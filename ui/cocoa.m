@@ -733,7 +733,7 @@ QemuCocoaView *cocoaView;
          */
         if ((isMouseGrabbed || [[self window] isKeyWindow]) &&
             (last_buttons != buttons)) {
-            static uint32_t bmap[INPUT_BUTTON_MAX] = {
+            static uint32_t bmap[INPUT_BUTTON__MAX] = {
                 [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
                 [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
                 [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,

@@ -132,7 +132,7 @@ static const int qcode_to_number[] = {
     [Q_KEY_CODE_RO] = 0x73,
     [Q_KEY_CODE_KP_COMMA] = 0x7e,
 
-    [Q_KEY_CODE_MAX] = 0,
+    [Q_KEY_CODE__MAX] = 0,
 };
 
 static int number_to_qcode[0x100];
@@ -154,7 +154,7 @@ int qemu_input_key_number_to_qcode(uint8_t nr)
     if (first) {
         int qcode, number;
         first = false;
-        for (qcode = 0; qcode < Q_KEY_CODE_MAX; qcode++) {
+        for (qcode = 0; qcode < Q_KEY_CODE__MAX; qcode++) {
             number = qcode_to_number[qcode];
             assert(number < ARRAY_SIZE(number_to_qcode));
             number_to_qcode[number] = qcode;

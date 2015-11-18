@@ -38,7 +38,7 @@ struct QEMUPutMouseEntry {
     /* new input core */
     QemuInputHandler h;
     QemuInputHandlerState *s;
-    int axis[INPUT_AXIS_MAX];
+    int axis[INPUT_AXIS__MAX];
     int buttons;
 };
 
@@ -67,7 +67,7 @@ int index_from_key(const char *key)
         }
     }
 
-    /* Return Q_KEY_CODE_MAX if the key is invalid */
+    /* Return Q_KEY_CODE__MAX if the key is invalid */
     return i;
 }
 
@@ -143,7 +143,7 @@ QEMUPutKbdEntry *qemu_add_kbd_event_handler(QEMUPutKBDEvent *func, void *opaque)
 static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
                                InputEvent *evt)
 {
-    static const int bmap[INPUT_BUTTON_MAX] = {
+    static const int bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]   = MOUSE_EVENT_LBUTTON,
         [INPUT_BUTTON_MIDDLE] = MOUSE_EVENT_MBUTTON,
         [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,

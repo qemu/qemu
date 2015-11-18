@@ -1676,7 +1676,7 @@ static void check_pointer_type_change(Notifier *notifier, void *data)
 
 static void pointer_event(VncState *vs, int button_mask, int x, int y)
 {
-    static uint32_t bmap[INPUT_BUTTON_MAX] = {
+    static uint32_t bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]       = 0x01,
         [INPUT_BUTTON_MIDDLE]     = 0x02,
         [INPUT_BUTTON_RIGHT]      = 0x04,

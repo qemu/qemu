@@ -202,7 +202,7 @@ static int global_state_post_load(void *opaque, int version_id)
     s->received = true;
     trace_migrate_global_state_post_load(runstate);
 
-    r = qapi_enum_parse(RunState_lookup, runstate, RUN_STATE_MAX,
+    r = qapi_enum_parse(RunState_lookup, runstate, RUN_STATE__MAX,
                                 -1, &local_err);
 
     if (r == -1) {
@@ -479,7 +479,7 @@ MigrationCapabilityStatusList *qmp_query_migrate_capabilities(Error **errp)
     int i;
 
     caps = NULL; /* silence compiler warning */
-    for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+    for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
         if (head == NULL) {
             head = g_malloc0(sizeof(*caps));
             caps = head;

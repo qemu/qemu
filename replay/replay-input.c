@@ -61,7 +61,7 @@ void replay_save_input_event(InputEvent *evt)
             replay_put_dword(evt->u.key->key->u.qcode);
             replay_put_byte(evt->u.key->down);
             break;
-        case KEY_VALUE_KIND_MAX:
+        case KEY_VALUE_KIND__MAX:
             /* keep gcc happy */
             break;
         }
@@ -78,7 +78,7 @@ void replay_save_input_event(InputEvent *evt)
         replay_put_dword(evt->u.abs->axis);
         replay_put_qword(evt->u.abs->value);
         break;
-    case INPUT_EVENT_KIND_MAX:
+    case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
         break;
     }
@@ -109,7 +109,7 @@ InputEvent *replay_read_input_event(void)
             evt.u.key->key->u.qcode = (QKeyCode)replay_get_dword();
             evt.u.key->down = replay_get_byte();
             break;
-        case KEY_VALUE_KIND_MAX:
+        case KEY_VALUE_KIND__MAX:
             /* keep gcc happy */
             break;
         }
@@ -129,7 +129,7 @@ InputEvent *replay_read_input_event(void)
         evt.u.abs->axis = (InputAxis)replay_get_dword();
         evt.u.abs->value = replay_get_qword();
         break;
-    case INPUT_EVENT_KIND_MAX:
+    case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
         break;
     }

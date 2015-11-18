@@ -1053,7 +1053,7 @@ Example:
 
     const char *const example_QAPIEvent_lookup[] = {
         [EXAMPLE_QAPI_EVENT_MY_EVENT] = "MY_EVENT",
-        [EXAMPLE_QAPI_EVENT_MAX] = NULL,
+        [EXAMPLE_QAPI_EVENT__MAX] = NULL,
     };
     $ cat qapi-generated/example-qapi-event.h
 [Uninteresting stuff omitted...]
@@ -1070,7 +1070,7 @@ Example:
 
     typedef enum example_QAPIEvent {
         EXAMPLE_QAPI_EVENT_MY_EVENT = 0,
-        EXAMPLE_QAPI_EVENT_MAX = 1,
+        EXAMPLE_QAPI_EVENT__MAX = 1,
     } example_QAPIEvent;
 
     extern const char *const example_QAPIEvent_lookup[];

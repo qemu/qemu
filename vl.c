@@ -570,8 +570,8 @@ static int default_driver_check(void *opaque, QemuOpts *opts, Error **errp)
 
 static RunState current_run_state = RUN_STATE_PRELAUNCH;
 
-/* We use RUN_STATE_MAX but any invalid value will do */
-static RunState vmstop_requested = RUN_STATE_MAX;
+/* We use RUN_STATE__MAX but any invalid value will do */
+static RunState vmstop_requested = RUN_STATE__MAX;
 static QemuMutex vmstop_lock;
 
 typedef struct {
@@ -642,10 +642,10 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_RUNNING },
     { RUN_STATE_GUEST_PANICKED, RUN_STATE_FINISH_MIGRATE },
 
-    { RUN_STATE_MAX, RUN_STATE_MAX },
+    { RUN_STATE__MAX, RUN_STATE__MAX },
 };
 
-static bool runstate_valid_transitions[RUN_STATE_MAX][RUN_STATE_MAX];
+static bool runstate_valid_transitions[RUN_STATE__MAX][RUN_STATE__MAX];
 
 bool runstate_check(RunState state)
 {
@@ -669,7 +669,7 @@ static void runstate_init(void)
     const RunStateTransition *p;
 
     memset(&runstate_valid_transitions, 0, sizeof(runstate_valid_transitions));
-    for (p = &runstate_transitions_def[0]; p->from != RUN_STATE_MAX; p++) {
+    for (p = &runstate_transitions_def[0]; p->from != RUN_STATE__MAX; p++) {
         runstate_valid_transitions[p->from][p->to] = true;
     }
 
@@ -679,7 +679,7 @@ static void runstate_init(void)
 /* This function will abort() on invalid state transitions */
 void runstate_set(RunState new_state)
 {
-    assert(new_state < RUN_STATE_MAX);
+    assert(new_state < RUN_STATE__MAX);
 
     if (!runstate_valid_transitions[current_run_state][new_state]) {
         error_report("invalid runstate transition: '%s' -> '%s'",
@@ -717,9 +717,9 @@ static bool qemu_vmstop_requested(RunState *r)
 {
     qemu_mutex_lock(&vmstop_lock);
     *r = vmstop_requested;
-    vmstop_requested = RUN_STATE_MAX;
+    vmstop_requested = RUN_STATE__MAX;
     qemu_mutex_unlock(&vmstop_lock);
-    return *r < RUN_STATE_MAX;
+    return *r < RUN_STATE__MAX;
 }
 
 void qemu_system_vmstop_request_prepare(void)
@@ -739,7 +739,7 @@ void vm_start(void)
     RunState requested;
 
     qemu_vmstop_requested(&requested);
-    if (runstate_is_running() && requested == RUN_STATE_MAX) {
+    if (runstate_is_running() && requested == RUN_STATE__MAX) {
         return;
     }
 

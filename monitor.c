@@ -441,7 +441,7 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data,
 }
 
 
-static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT_MAX] = {
+static MonitorQAPIEventConf monitor_qapi_event_conf[QAPI_EVENT__MAX] = {
     /* Limit guest-triggerable events to 1 per second */
     [QAPI_EVENT_RTC_CHANGE]        = { 1000 * SCALE_MS },
     [QAPI_EVENT_WATCHDOG]          = { 1000 * SCALE_MS },
@@ -481,7 +481,7 @@ monitor_qapi_event_queue(QAPIEvent event, QDict *qdict, Error **errp)
     MonitorQAPIEventConf *evconf;
     MonitorQAPIEventState *evstate;
 
-    assert(event < QAPI_EVENT_MAX);
+    assert(event < QAPI_EVENT__MAX);
     evconf = &monitor_qapi_event_conf[event];
     trace_monitor_protocol_event_queue(event, qdict, evconf->rate);
 
@@ -946,7 +946,7 @@ EventInfoList *qmp_query_events(Error **errp)
     EventInfoList *info, *ev_list = NULL;
     QAPIEvent e;
 
-    for (e = 0 ; e < QAPI_EVENT_MAX ; e++) {
+    for (e = 0 ; e < QAPI_EVENT__MAX ; e++) {
         const char *event_name = QAPIEvent_lookup[e];
         assert(event_name != NULL);
         info = g_malloc0(sizeof(*info));
@@ -1386,7 +1386,7 @@ static void hmp_mouse_move(Monitor *mon, const QDict *qdict)
 
 static void hmp_mouse_button(Monitor *mon, const QDict *qdict)
 {
-    static uint32_t bmap[INPUT_BUTTON_MAX] = {
+    static uint32_t bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
         [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
         [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,
@@ -3217,7 +3217,7 @@ void sendkey_completion(ReadLineState *rs, int nb_args, const char *str)
     }
     len = strlen(str);
     readline_set_completion_index(rs, len);
-    for (i = 0; i < Q_KEY_CODE_MAX; i++) {
+    for (i = 0; i < Q_KEY_CODE__MAX; i++) {
         if (!strncmp(str, QKeyCode_lookup[i], len)) {
             readline_add_completion(rs, QKeyCode_lookup[i]);
         }
@@ -3316,7 +3316,7 @@ void migrate_set_capability_completion(ReadLineState *rs, int nb_args,
     readline_set_completion_index(rs, len);
     if (nb_args == 2) {
         int i;
-        for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+        for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
             const char *name = MigrationCapability_lookup[i];
             if (!strncmp(str, name, len)) {
                 readline_add_completion(rs, name);
@@ -3337,7 +3337,7 @@ void migrate_set_parameter_completion(ReadLineState *rs, int nb_args,
     readline_set_completion_index(rs, len);
     if (nb_args == 2) {
         int i;
-        for (i = 0; i < MIGRATION_PARAMETER_MAX; i++) {
+        for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
             const char *name = MigrationParameter_lookup[i];
             if (!strncmp(str, name, len)) {
                 readline_add_completion(rs, name);

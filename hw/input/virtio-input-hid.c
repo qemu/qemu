@@ -21,7 +21,7 @@
 
 /* ----------------------------------------------------------------- */
 
-static const unsigned int keymap_qcode[Q_KEY_CODE_MAX] = {
+static const unsigned int keymap_qcode[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_ESC]                 = KEY_ESC,
     [Q_KEY_CODE_1]                   = KEY_1,
     [Q_KEY_CODE_2]                   = KEY_2,
@@ -138,7 +138,7 @@ static const unsigned int keymap_qcode[Q_KEY_CODE_MAX] = {
     [Q_KEY_CODE_MENU]                = KEY_MENU,
 };
 
-static const unsigned int keymap_button[INPUT_BUTTON_MAX] = {
+static const unsigned int keymap_button[INPUT_BUTTON__MAX] = {
     [INPUT_BUTTON_LEFT]              = BTN_LEFT,
     [INPUT_BUTTON_RIGHT]             = BTN_RIGHT,
     [INPUT_BUTTON_MIDDLE]            = BTN_MIDDLE,
@@ -146,12 +146,12 @@ static const unsigned int keymap_button[INPUT_BUTTON_MAX] = {
     [INPUT_BUTTON_WHEEL_DOWN]        = BTN_GEAR_DOWN,
 };
 
-static const unsigned int axismap_rel[INPUT_AXIS_MAX] = {
+static const unsigned int axismap_rel[INPUT_AXIS__MAX] = {
     [INPUT_AXIS_X]                   = REL_X,
     [INPUT_AXIS_Y]                   = REL_Y,
 };
 
-static const unsigned int axismap_abs[INPUT_AXIS_MAX] = {
+static const unsigned int axismap_abs[INPUT_AXIS__MAX] = {
     [INPUT_AXIS_X]                   = ABS_X,
     [INPUT_AXIS_Y]                   = ABS_Y,
 };
