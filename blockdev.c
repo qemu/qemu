@@ -2098,6 +2098,7 @@ static const BlkActionOps actions[] = {
         .prepare  = external_snapshot_prepare,
         .commit   = external_snapshot_commit,
         .abort = external_snapshot_abort,
+        .clean = external_snapshot_clean,
     },
     [TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC] = {
         .instance_size = sizeof(ExternalSnapshotState),
@@ -3171,6 +3172,7 @@ static void do_drive_backup(const char *device, const char *target,
         bmap = bdrv_find_dirty_bitmap(bs, bitmap);
         if (!bmap) {
             error_setg(errp, "Bitmap '%s' could not be found", bitmap);
+            bdrv_unref(target_bs);
             goto out;
         }
     }
