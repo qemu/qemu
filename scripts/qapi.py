@@ -977,20 +977,23 @@ class QAPISchemaObjectType(QAPISchemaType):
             self.base = schema.lookup_type(self._base_name)
             assert isinstance(self.base, QAPISchemaObjectType)
             self.base.check(schema)
-            self.base.check_clash(schema, seen)
+            self.base.check_clash(schema, self.info, seen)
         for m in self.local_members:
             m.check(schema)
-            m.check_clash(seen)
+            m.check_clash(self.info, seen)
         self.members = seen.values()
         if self.variants:
             self.variants.check(schema, seen)
             assert self.variants.tag_member in self.members
-            self.variants.check_clash(schema, seen)
+            self.variants.check_clash(schema, self.info, seen)
 
-    def check_clash(self, schema, seen):
+    # Check that the members of this type do not cause duplicate JSON fields,
+    # and update seen to track the members seen so far. Report any errors
+    # on behalf of info, which is not necessarily self.info
+    def check_clash(self, schema, info, seen):
         assert not self.variants       # not implemented
         for m in self.members:
-            m.check_clash(seen)
+            m.check_clash(info, seen)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_object_type()
@@ -1036,10 +1039,13 @@ class QAPISchemaObjectTypeMember(object):
         self.type = schema.lookup_type(self._type_name)
         assert self.type
 
-    def check_clash(self, seen):
-        # TODO change key of seen from QAPI name to C name
-        assert self.name not in seen
-        seen[self.name] = self
+    def check_clash(self, info, seen):
+        cname = c_name(self.name)
+        if cname in seen:
+            raise QAPIExprError(info,
+                                "%s collides with %s"
+                                % (self.describe(), seen[cname].describe()))
+        seen[cname] = self
 
     def _pretty_owner(self):
         owner = self.owner
@@ -1080,7 +1086,8 @@ class QAPISchemaObjectTypeVariants(object):
 
     def check(self, schema, seen):
         if not self.tag_member:    # flat union
-            self.tag_member = seen[self.tag_name]
+            self.tag_member = seen[c_name(self.tag_name)]
+            assert self.tag_name == self.tag_member.name
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
         for v in self.variants:
             v.check(schema)
@@ -1088,12 +1095,12 @@ class QAPISchemaObjectTypeVariants(object):
             if isinstance(v.type, QAPISchemaObjectType):
                 v.type.check(schema)
 
-    def check_clash(self, schema, seen):
+    def check_clash(self, schema, info, seen):
         for v in self.variants:
             # Reset seen map for each variant, since qapi names from one
             # branch do not affect another branch
             assert isinstance(v.type, QAPISchemaObjectType)
-            v.type.check_clash(schema, dict(seen))
+            v.type.check_clash(schema, info, dict(seen))
 
 
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):

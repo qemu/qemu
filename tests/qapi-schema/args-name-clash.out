@@ -1,6 +1,0 @@
-object :empty
-object :obj-oops-arg
-    member a-b: str optional=False
-    member a_b: str optional=False
-command oops :obj-oops-arg -> None
-   gen=True success_response=True

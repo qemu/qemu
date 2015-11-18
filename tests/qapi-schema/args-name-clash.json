@@ -1,5 +1,4 @@
 # C member name collision
-# FIXME - This parses, but fails to compile, because the C struct is given
-# two 'a_b' members.  Either reject this at parse time, or munge the C names
-# to avoid the collision.
+# Reject members that clash when mapped to C names (we would have two 'a_b'
+# members).
 { 'command': 'oops', 'data': { 'a-b': 'str', 'a_b': 'str' } }
