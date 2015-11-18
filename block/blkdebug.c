@@ -36,7 +36,7 @@ typedef struct BDRVBlkdebugState {
     int state;
     int new_state;
 
-    QLIST_HEAD(, BlkdebugRule) rules[BLKDBG_EVENT_MAX];
+    QLIST_HEAD(, BlkdebugRule) rules[BLKDBG_MAX];
     QSIMPLEQ_HEAD(, BlkdebugRule) active_rules;
     QLIST_HEAD(, BlkdebugSuspendedReq) suspended_reqs;
 } BDRVBlkdebugState;
@@ -64,7 +64,7 @@ enum {
 };
 
 typedef struct BlkdebugRule {
-    BlkDebugEvent event;
+    BlkdebugEvent event;
     int action;
     int state;
     union {
@@ -143,69 +143,12 @@ static QemuOptsList *config_groups[] = {
     NULL
 };
 
-static const char *event_names[BLKDBG_EVENT_MAX] = {
-    [BLKDBG_L1_UPDATE]                      = "l1_update",
-    [BLKDBG_L1_GROW_ALLOC_TABLE]            = "l1_grow.alloc_table",
-    [BLKDBG_L1_GROW_WRITE_TABLE]            = "l1_grow.write_table",
-    [BLKDBG_L1_GROW_ACTIVATE_TABLE]         = "l1_grow.activate_table",
-
-    [BLKDBG_L2_LOAD]                        = "l2_load",
-    [BLKDBG_L2_UPDATE]                      = "l2_update",
-    [BLKDBG_L2_UPDATE_COMPRESSED]           = "l2_update_compressed",
-    [BLKDBG_L2_ALLOC_COW_READ]              = "l2_alloc.cow_read",
-    [BLKDBG_L2_ALLOC_WRITE]                 = "l2_alloc.write",
-
-    [BLKDBG_READ_AIO]                       = "read_aio",
-    [BLKDBG_READ_BACKING_AIO]               = "read_backing_aio",
-    [BLKDBG_READ_COMPRESSED]                = "read_compressed",
-
-    [BLKDBG_WRITE_AIO]                      = "write_aio",
-    [BLKDBG_WRITE_COMPRESSED]               = "write_compressed",
-
-    [BLKDBG_VMSTATE_LOAD]                   = "vmstate_load",
-    [BLKDBG_VMSTATE_SAVE]                   = "vmstate_save",
-
-    [BLKDBG_COW_READ]                       = "cow_read",
-    [BLKDBG_COW_WRITE]                      = "cow_write",
-
-    [BLKDBG_REFTABLE_LOAD]                  = "reftable_load",
-    [BLKDBG_REFTABLE_GROW]                  = "reftable_grow",
-    [BLKDBG_REFTABLE_UPDATE]                = "reftable_update",
-
-    [BLKDBG_REFBLOCK_LOAD]                  = "refblock_load",
-    [BLKDBG_REFBLOCK_UPDATE]                = "refblock_update",
-    [BLKDBG_REFBLOCK_UPDATE_PART]           = "refblock_update_part",
-    [BLKDBG_REFBLOCK_ALLOC]                 = "refblock_alloc",
-    [BLKDBG_REFBLOCK_ALLOC_HOOKUP]          = "refblock_alloc.hookup",
-    [BLKDBG_REFBLOCK_ALLOC_WRITE]           = "refblock_alloc.write",
-    [BLKDBG_REFBLOCK_ALLOC_WRITE_BLOCKS]    = "refblock_alloc.write_blocks",
-    [BLKDBG_REFBLOCK_ALLOC_WRITE_TABLE]     = "refblock_alloc.write_table",
-    [BLKDBG_REFBLOCK_ALLOC_SWITCH_TABLE]    = "refblock_alloc.switch_table",
-
-    [BLKDBG_CLUSTER_ALLOC]                  = "cluster_alloc",
-    [BLKDBG_CLUSTER_ALLOC_BYTES]            = "cluster_alloc_bytes",
-    [BLKDBG_CLUSTER_FREE]                   = "cluster_free",
-
-    [BLKDBG_FLUSH_TO_OS]                    = "flush_to_os",
-    [BLKDBG_FLUSH_TO_DISK]                  = "flush_to_disk",
-
-    [BLKDBG_PWRITEV_RMW_HEAD]               = "pwritev_rmw.head",
-    [BLKDBG_PWRITEV_RMW_AFTER_HEAD]         = "pwritev_rmw.after_head",
-    [BLKDBG_PWRITEV_RMW_TAIL]               = "pwritev_rmw.tail",
-    [BLKDBG_PWRITEV_RMW_AFTER_TAIL]         = "pwritev_rmw.after_tail",
-    [BLKDBG_PWRITEV]                        = "pwritev",
-    [BLKDBG_PWRITEV_ZERO]                   = "pwritev_zero",
-    [BLKDBG_PWRITEV_DONE]                   = "pwritev_done",
-
-    [BLKDBG_EMPTY_IMAGE_PREPARE]            = "empty_image_prepare",
-};
-
-static int get_event_by_name(const char *name, BlkDebugEvent *event)
+static int get_event_by_name(const char *name, BlkdebugEvent *event)
 {
     int i;
 
-    for (i = 0; i < BLKDBG_EVENT_MAX; i++) {
-        if (!strcmp(event_names[i], name)) {
+    for (i = 0; i < BLKDBG_MAX; i++) {
+        if (!strcmp(BlkdebugEvent_lookup[i], name)) {
             *event = i;
             return 0;
         }
@@ -224,7 +167,7 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
     struct add_rule_data *d = opaque;
     BDRVBlkdebugState *s = d->s;
     const char* event_name;
-    BlkDebugEvent event;
+    BlkdebugEvent event;
     struct BlkdebugRule *rule;
 
     /* Find the right event for the rule */
@@ -564,7 +507,7 @@ static void blkdebug_close(BlockDriverState *bs)
     BlkdebugRule *rule, *next;
     int i;
 
-    for (i = 0; i < BLKDBG_EVENT_MAX; i++) {
+    for (i = 0; i < BLKDBG_MAX; i++) {
         QLIST_FOREACH_SAFE(rule, &s->rules[i], next, next) {
             remove_rule(rule);
         }
@@ -627,13 +570,13 @@ static bool process_rule(BlockDriverState *bs, struct BlkdebugRule *rule,
     return injected;
 }
 
-static void blkdebug_debug_event(BlockDriverState *bs, BlkDebugEvent event)
+static void blkdebug_debug_event(BlockDriverState *bs, BlkdebugEvent event)
 {
     BDRVBlkdebugState *s = bs->opaque;
     struct BlkdebugRule *rule, *next;
     bool injected;
 
-    assert((int)event >= 0 && event < BLKDBG_EVENT_MAX);
+    assert((int)event >= 0 && event < BLKDBG_MAX);
 
     injected = false;
     s->new_state = s->state;
@@ -648,7 +591,7 @@ static int blkdebug_debug_breakpoint(BlockDriverState *bs, const char *event,
 {
     BDRVBlkdebugState *s = bs->opaque;
     struct BlkdebugRule *rule;
-    BlkDebugEvent blkdebug_event;
+    BlkdebugEvent blkdebug_event;
 
     if (get_event_by_name(event, &blkdebug_event) < 0) {
         return -ENOENT;
@@ -690,7 +633,7 @@ static int blkdebug_debug_remove_breakpoint(BlockDriverState *bs,
     BlkdebugRule *rule, *next;
     int i, ret = -ENOENT;
 
-    for (i = 0; i < BLKDBG_EVENT_MAX; i++) {
+    for (i = 0; i < BLKDBG_MAX; i++) {
         QLIST_FOREACH_SAFE(rule, &s->rules[i], next, next) {
             if (rule->action == ACTION_SUSPEND &&
                 !strcmp(rule->options.suspend.tag, tag)) {

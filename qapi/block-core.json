@@ -1776,8 +1776,10 @@
 # @BlkdebugEvent
 #
 # Trigger events supported by blkdebug.
+#
+# Since: 2.0
 ##
-{ 'enum': 'BlkdebugEvent',
+{ 'enum': 'BlkdebugEvent', 'prefix': 'BLKDBG',
   'data': [ 'l1_update', 'l1_grow.alloc_table', 'l1_grow.write_table',
             'l1_grow.activate_table', 'l2_load', 'l2_update',
             'l2_update_compressed', 'l2_alloc.cow_read', 'l2_alloc.write',
