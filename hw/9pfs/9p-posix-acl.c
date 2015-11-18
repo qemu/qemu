@@ -1,5 +1,5 @@
 /*
- * Virtio 9p system.posix* xattr callback
+ * 9p system.posix* xattr callback
  *
  * Copyright IBM, Corp. 2010
  *
@@ -13,7 +13,6 @@
 
 #include <sys/types.h>
 #include "qemu/xattr.h"
-#include "hw/virtio/virtio.h"
 #include "virtio-9p.h"
 #include "fsdev/file-op-9p.h"
 #include "virtio-9p-xattr.h"
