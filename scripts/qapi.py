@@ -537,8 +537,6 @@ def check_event(expr, expr_info):
     global events
     name = expr['event']
 
-    if name.upper() == 'MAX':
-        raise QAPIExprError(expr_info, "Event name 'MAX' cannot be created")
     events.append(name)
     check_type(expr_info, "'data' for event '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
@@ -550,7 +548,7 @@ def check_union(expr, expr_info):
     base = expr.get('base')
     discriminator = expr.get('discriminator')
     members = expr['data']
-    values = {'MAX': '(automatic)'}
+    values = {}
 
     # Two types of unions, determined by discriminator.
 
@@ -629,7 +627,7 @@ def check_union(expr, expr_info):
 def check_alternate(expr, expr_info):
     name = expr['alternate']
     members = expr['data']
-    values = {'MAX': '(automatic)'}
+    values = {}
     types_seen = {}
 
     # Check every branch
@@ -662,7 +660,7 @@ def check_enum(expr, expr_info):
     name = expr['enum']
     members = expr.get('data')
     prefix = expr.get('prefix')
-    values = {'MAX': '(automatic)'}
+    values = {}
 
     if not isinstance(members, list):
         raise QAPIExprError(expr_info,
