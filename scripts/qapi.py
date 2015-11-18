@@ -1059,7 +1059,8 @@ class QAPISchemaObjectTypeVariants(object):
             self.tag_member = seen[self.tag_name]
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
         for v in self.variants:
-            v.check(schema, self.tag_member.type)
+            v.check(schema)
+            assert v.name in self.tag_member.type.values
             if isinstance(v.type, QAPISchemaObjectType):
                 v.type.check(schema)
 
@@ -1074,10 +1075,6 @@ class QAPISchemaObjectTypeVariants(object):
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
     def __init__(self, name, typ):
         QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
-
-    def check(self, schema, tag_type):
-        QAPISchemaObjectTypeMember.check(self, schema)
-        assert self.name in tag_type.values
 
     # This function exists to support ugly simple union special cases
     # TODO get rid of them, and drop the function
