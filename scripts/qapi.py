@@ -984,12 +984,10 @@ class QAPISchemaObjectType(QAPISchemaType):
             assert not self.base.variants       # not implemented
             self.base.check(schema)
             for m in self.base.members:
-                assert m.name not in seen
-                seen[m.name] = m
+                m.check_clash(seen)
         for m in self.local_members:
             m.check(schema)
-            assert m.name not in seen
-            seen[m.name] = m
+            m.check_clash(seen)
         if self.variants:
             self.variants.check(schema, seen)
         self.members = seen.values()
@@ -1029,6 +1027,11 @@ class QAPISchemaObjectTypeMember(object):
     def check(self, schema):
         self.type = schema.lookup_type(self._type_name)
         assert self.type
+
+    def check_clash(self, seen):
+        # TODO change key of seen from QAPI name to C name
+        assert self.name not in seen
+        seen[self.name] = self
 
 
 class QAPISchemaObjectTypeVariants(object):
