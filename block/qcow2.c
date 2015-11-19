@@ -595,31 +595,6 @@ static void read_cache_sizes(BlockDriverState *bs, QemuOpts *opts,
     }
 }
 
-static QCryptoCipher *qcow2_get_cipher_from_key(const char *key,
-                                                Error **errp)
-{
-    uint8_t keybuf[16];
-    int len, i;
-
-    memset(keybuf, 0, 16);
-    len = strlen(key);
-    if (len > 16) {
-        len = 16;
-    }
-    /* XXX: we could compress the chars to 7 bits to increase
-       entropy */
-    for (i = 0; i < len; i++) {
-        keybuf[i] = key[i];
-    }
-
-    return qcrypto_cipher_new(
-        QCRYPTO_CIPHER_ALG_AES_128,
-        QCRYPTO_CIPHER_MODE_CBC,
-        keybuf, G_N_ELEMENTS(keybuf),
-        errp);
-}
-
-
 typedef struct Qcow2ReopenState {
     Qcow2Cache *l2_table_cache;
     Qcow2Cache *refcount_block_cache;
@@ -627,7 +602,7 @@ typedef struct Qcow2ReopenState {
     int overlap_check;
     bool discard_passthrough[QCOW2_DISCARD_MAX];
     uint64_t cache_clean_interval;
-    QCryptoCipher *cipher;
+    QCryptoBlockOpenOptions *fde_opts; /* Disk encryption runtime options */
 } Qcow2ReopenState;
 
 static int qcow2_update_options_prepare(BlockDriverState *bs,
@@ -643,8 +618,6 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     int i;
     Error *local_err = NULL;
     int ret;
-    const char *keyid;
-    char *key;
 
     opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
@@ -788,22 +761,13 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
     r->discard_passthrough[QCOW2_DISCARD_OTHER] =
         qemu_opt_get_bool(opts, QCOW2_OPT_DISCARD_OTHER, false);
 
-    keyid = qemu_opt_get(opts, QCOW2_OPT_KEY_ID);
-    if (keyid) {
-        key = qcrypto_secret_lookup_as_utf8(keyid,
-                                            errp);
-        if (!key) {
-            ret = -ENOENT;
-            goto fail;
-        }
+    if (s->crypt_method_header) {
+        r->fde_opts = g_new0(QCryptoBlockOpenOptions, 1);
+        r->fde_opts->format = Q_CRYPTO_BLOCK_FORMAT_QCOWAES;
+        r->fde_opts->u.qcowaes = g_new0(QCryptoBlockOptionsQCowAES, 1);
 
-        r->cipher = qcow2_get_cipher_from_key(key,
-                                              errp);
-        g_free(key);
-        if (!r->cipher) {
-            ret = -ENOSYS;
-            goto fail;
-        }
+        r->fde_opts->u.qcowaes->keyid =
+            g_strdup(qemu_opt_get(opts, QCOW2_OPT_KEY_ID));
     }
 
     ret = 0;
@@ -841,8 +805,8 @@ static void qcow2_update_options_commit(BlockDriverState *bs,
         cache_clean_timer_init(bs, bdrv_get_aio_context(bs));
     }
 
-    qcrypto_cipher_free(s->cipher);
-    s->cipher = r->cipher;
+    qapi_free_QCryptoBlockOpenOptions(s->fde_opts);
+    s->fde_opts = r->fde_opts;
 }
 
 static void qcow2_update_options_abort(BlockDriverState *bs,
@@ -854,7 +818,7 @@ static void qcow2_update_options_abort(BlockDriverState *bs,
     if (r->refcount_block_cache) {
         qcow2_cache_destroy(bs, r->refcount_block_cache);
     }
-    qcrypto_cipher_free(r->cipher);
+    qapi_free_QCryptoBlockOpenOptions(r->fde_opts);
 }
 
 static int qcow2_update_options(BlockDriverState *bs, QDict *options,
@@ -1138,10 +1102,15 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     if (!(flags & BDRV_O_NO_IO) &&
-        bs->encrypted && !s->cipher) {
-        error_setg(errp, "Image is encrypted but no secret is provided");
-        ret = -EINVAL;
-        goto fail;
+        bs->encrypted) {
+        s->fde = qcrypto_block_open(s->fde_opts,
+                                    NULL, NULL,
+                                    errp);
+        if (!s->fde) {
+            error_setg(errp, "Could not setup encryption layer");
+            ret = -EINVAL;
+            goto fail;
+        }
     }
 
     s->cluster_cache = g_malloc(s->cluster_size);
@@ -1328,7 +1297,7 @@ static int64_t coroutine_fn qcow2_co_get_block_status(BlockDriverState *bs,
     }
 
     if (cluster_offset != 0 && ret != QCOW2_CLUSTER_COMPRESSED &&
-        !s->cipher) {
+        !s->fde) {
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         cluster_offset |= (index_in_cluster << BDRV_SECTOR_BITS);
         status |= BDRV_BLOCK_OFFSET_VALID | cluster_offset;
@@ -1378,7 +1347,7 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
 
         /* prepare next request */
         cur_nr_sectors = remaining_sectors;
-        if (s->cipher) {
+        if (s->fde) {
             cur_nr_sectors = MIN(cur_nr_sectors,
                 QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors);
         }
@@ -1450,7 +1419,7 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
             }
 
             if (bs->encrypted) {
-                assert(s->cipher);
+                assert(s->fde);
 
                 /*
                  * For encrypted images, read everything into a temporary
@@ -1484,10 +1453,12 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 goto fail;
             }
             if (bs->encrypted) {
-                assert(s->cipher);
+                assert(s->fde);
                 Error *err = NULL;
-                if (qcow2_encrypt_sectors(s, sector_num,  cluster_data,
-                                          cur_nr_sectors, false,
+                if (qcrypto_block_decrypt(s->fde,
+                                          sector_num,
+                                          cluster_data,
+                                          cur_nr_sectors,
                                           &err) < 0) {
                     error_free(err);
                     ret = -EIO;
@@ -1571,7 +1542,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
         if (bs->encrypted) {
             Error *err = NULL;
-            assert(s->cipher);
+            assert(s->fde);
             if (!cluster_data) {
                 cluster_data = qemu_try_blockalign(bs->file->bs,
                                                    QCOW_MAX_CRYPT_CLUSTERS
@@ -1586,8 +1557,11 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                    QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
             qemu_iovec_to_buf(&hd_qiov, 0, cluster_data, hd_qiov.size);
 
-            if (qcow2_encrypt_sectors(s, sector_num, cluster_data,
-                                      cur_nr_sectors, true, &err) < 0) {
+            if (qcrypto_block_encrypt(s->fde,
+                                      sector_num,
+                                      cluster_data,
+                                      cur_nr_sectors,
+                                      &err) < 0) {
                 error_free(err);
                 ret = -EIO;
                 goto fail;
@@ -1698,8 +1672,8 @@ static void qcow2_close(BlockDriverState *bs)
     qcow2_cache_destroy(bs, s->l2_table_cache);
     qcow2_cache_destroy(bs, s->refcount_block_cache);
 
-    qcrypto_cipher_free(s->cipher);
-    s->cipher = NULL;
+    qcrypto_block_free(s->fde);
+    s->fde = NULL;
 
     g_free(s->unknown_header_fields);
     cleanup_unknown_header_ext(bs);
@@ -1717,7 +1691,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     int flags = s->flags;
-    QCryptoCipher *cipher = NULL;
+    QCryptoBlock *fde = NULL;
     QDict *options;
     Error *local_err = NULL;
     int ret;
@@ -1727,8 +1701,8 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
      * that means we don't have to worry about reopening them here.
      */
 
-    cipher = s->cipher;
-    s->cipher = NULL;
+    fde = s->fde;
+    s->fde = NULL;
 
     qcow2_close(bs);
 
@@ -1753,7 +1727,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
         return;
     }
 
-    s->cipher = cipher;
+    s->fde = fde;
 }
 
 static size_t header_ext_add(char *buf, uint32_t magic, const void *s,
@@ -2961,9 +2935,9 @@ static int qcow2_amend_options(BlockDriverState *bs, QemuOpts *opts,
             backing_format = qemu_opt_get(opts, BLOCK_OPT_BACKING_FMT);
         } else if (!strcmp(desc->name, BLOCK_OPT_ENCRYPT)) {
             encrypt = qemu_opt_get_bool(opts, BLOCK_OPT_ENCRYPT,
-                                        !!s->cipher);
+                                        !!s->fde);
 
-            if (encrypt != !!s->cipher) {
+            if (encrypt != !!s->fde) {
                 fprintf(stderr, "Changing the encryption flag is not "
                         "supported.\n");
                 return -ENOTSUP;
