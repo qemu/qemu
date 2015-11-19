@@ -2408,3 +2408,26 @@
 ##
 { 'command': 'block-set-write-threshold',
   'data': { 'node-name': 'str', 'write-threshold': 'uint64' } }
+
+##
+# @x-blockdev-change
+#
+# Dynamically reconfigure the block driver state graph. It can be used
+# to add, remove, insert or replace a block driver state. Currently only
+# the Quorum driver implements this feature to add or remove its child.
+# This is useful to fix a broken quorum child.
+#
+# @parent: the id or name of the node that will be changed.
+#
+# @child: #optional the name of the child that will be deleted.
+#
+# @node: #optional the name of the node will be added.
+#
+# Note: this command is experimental, and its API is not stable.
+#
+# Since: 2.6
+##
+{ 'command': 'x-blockdev-change',
+  'data' : { 'parent': 'str',
+             '*child': 'str',
+             '*node': 'str' } }
