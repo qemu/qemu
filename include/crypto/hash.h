@@ -24,14 +24,7 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 
-typedef enum {
-    QCRYPTO_HASH_ALG_MD5,
-    QCRYPTO_HASH_ALG_SHA1,
-    QCRYPTO_HASH_ALG_SHA256,
-
-    QCRYPTO_HASH_ALG_LAST
-} QCryptoHashAlgorithm;
-
+/* See also "QCryptoHashAlgorithm" defined in qapi/crypto.json */
 
 /**
  * qcrypto_hash_supports:
