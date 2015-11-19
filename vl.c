@@ -1536,12 +1536,14 @@ MachineInfoList *qmp_query_machines(Error **errp)
 static int machine_help_func(QemuOpts *opts, MachineState *machine)
 {
     ObjectProperty *prop;
+    ObjectPropertyIterator *iter;
 
     if (!qemu_opt_has_help_opt(opts)) {
         return 0;
     }
 
-    QTAILQ_FOREACH(prop, &OBJECT(machine)->properties, node) {
+    iter = object_property_iter_init(OBJECT(machine));
+    while ((prop = object_property_iter_next(iter))) {
         if (!prop->set) {
             continue;
         }
@@ -1554,6 +1556,7 @@ static int machine_help_func(QemuOpts *opts, MachineState *machine)
             error_printf("\n");
         }
     }
+    object_property_iter_free(iter);
 
     return 1;
 }
