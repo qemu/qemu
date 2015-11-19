@@ -1916,35 +1916,6 @@ static BlockDriverState *find_vmstate_bs(void)
     return NULL;
 }
 
-/*
- * Deletes snapshots of a given name in all opened images.
- */
-static int del_existing_snapshots(Monitor *mon, const char *name)
-{
-    BlockDriverState *bs;
-    QEMUSnapshotInfo sn1, *snapshot = &sn1;
-    Error *err = NULL;
-
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
-        if (bdrv_can_snapshot(bs) &&
-            bdrv_snapshot_find(bs, snapshot, name) >= 0) {
-            bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
-            if (err) {
-                monitor_printf(mon,
-                               "Error while deleting snapshot on device '%s':"
-                               " %s\n",
-                               bdrv_get_device_name(bs),
-                               error_get_pretty(err));
-                error_free(err);
-                return -1;
-            }
-        }
-    }
-
-    return 0;
-}
-
 void hmp_savevm(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
@@ -2002,7 +1973,11 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
     }
 
     /* Delete old snapshots of the same name */
-    if (name && del_existing_snapshots(mon, name) < 0) {
+    if (name && bdrv_all_delete_snapshot(name, &bs1, &local_err) < 0) {
+        monitor_printf(mon,
+                       "Error while deleting snapshot on device '%s': %s\n",
+                       bdrv_get_device_name(bs1), error_get_pretty(local_err));
+        error_free(local_err);
         goto the_end;
     }
 
@@ -2162,20 +2137,11 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
-        if (bdrv_can_snapshot(bs)) {
-            err = NULL;
-            bdrv_snapshot_delete_by_id_or_name(bs, name, &err);
-            if (err) {
-                monitor_printf(mon,
-                               "Error while deleting snapshot on device '%s':"
-                               " %s\n",
-                               bdrv_get_device_name(bs),
-                               error_get_pretty(err));
-                error_free(err);
-            }
-        }
+    if (bdrv_all_delete_snapshot(name, &bs, &err) < 0) {
+        monitor_printf(mon,
+                       "Error while deleting snapshot on device '%s': %s\n",
+                       bdrv_get_device_name(bs), error_get_pretty(err));
+        error_free(err);
     }
 }
 

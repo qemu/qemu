@@ -82,5 +82,7 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
  * when appropriate for appropriate block drivers */
 
 bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs);
+int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bsd_bs,
+                             Error **err);
 
 #endif
