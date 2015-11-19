@@ -254,9 +254,9 @@ static void gic_activate_irq(GICState *s, int cpu, int irq)
     int bitno = preemption_level % 32;
 
     if (gic_has_groups(s) && GIC_TEST_GROUP(irq, (1 << cpu))) {
-        s->nsapr[regno][cpu] &= (1 << bitno);
+        s->nsapr[regno][cpu] |= (1 << bitno);
     } else {
-        s->apr[regno][cpu] &= (1 << bitno);
+        s->apr[regno][cpu] |= (1 << bitno);
     }
 
     s->running_priority[cpu] = prio;

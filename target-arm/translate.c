@@ -7210,6 +7210,7 @@ static int disas_coproc_insn(DisasContext *s, uint32_t insn)
                 break;
             }
 
+            gen_set_condexec(s);
             gen_set_pc_im(s, s->pc - 4);
             tmpptr = tcg_const_ptr(ri);
             tcg_syn = tcg_const_i32(syndrome);
@@ -11373,6 +11374,7 @@ void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
             QTAILQ_FOREACH(bp, &cs->breakpoints, entry) {
                 if (bp->pc == dc->pc) {
                     if (bp->flags & BP_CPU) {
+                        gen_set_condexec(dc);
                         gen_set_pc_im(dc, dc->pc);
                         gen_helper_check_breakpoints(cpu_env);
                         /* End the TB early; it's likely not going to be executed */
