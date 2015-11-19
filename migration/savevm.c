@@ -1935,6 +1935,15 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
         return;
     }
 
+    /* Delete old snapshots of the same name */
+    if (name && bdrv_all_delete_snapshot(name, &bs1, &local_err) < 0) {
+        monitor_printf(mon,
+                       "Error while deleting snapshot on device '%s': %s\n",
+                       bdrv_get_device_name(bs1), error_get_pretty(local_err));
+        error_free(local_err);
+        return;
+    }
+
     bs = find_vmstate_bs();
     if (!bs) {
         monitor_printf(mon, "No block device can accept snapshots\n");
@@ -1970,15 +1979,6 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
         /* cast below needed for OpenBSD where tv_sec is still 'long' */
         localtime_r((const time_t *)&tv.tv_sec, &tm);
         strftime(sn->name, sizeof(sn->name), "vm-%Y%m%d%H%M%S", &tm);
-    }
-
-    /* Delete old snapshots of the same name */
-    if (name && bdrv_all_delete_snapshot(name, &bs1, &local_err) < 0) {
-        monitor_printf(mon,
-                       "Error while deleting snapshot on device '%s': %s\n",
-                       bdrv_get_device_name(bs1), error_get_pretty(local_err));
-        error_free(local_err);
-        goto the_end;
     }
 
     /* save the VM state */
