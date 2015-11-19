@@ -26,7 +26,7 @@
 #define B(n) MMX_B(n)
 #define W(n) MMX_W(n)
 #define L(n) MMX_L(n)
-#define Q(n) q
+#define Q(n) MMX_Q(n)
 #define SUFFIX _mmx
 #else
 #define Reg XMMReg
