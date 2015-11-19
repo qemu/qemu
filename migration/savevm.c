@@ -2051,6 +2051,12 @@ int load_vmstate(const char *name)
     QEMUFile *f;
     int ret;
 
+    if (!bdrv_all_can_snapshot(&bs)) {
+        error_report("Device '%s' is writable but does not support snapshots.",
+                     bdrv_get_device_name(bs));
+        return -ENOTSUP;
+    }
+
     bs_vm_state = find_vmstate_bs();
     if (!bs_vm_state) {
         error_report("No block device supports snapshots");
@@ -2071,15 +2077,8 @@ int load_vmstate(const char *name)
     writable and check if the requested snapshot is available too. */
     bs = NULL;
     while ((bs = bdrv_next(bs))) {
-
-        if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
-            continue;
-        }
-
         if (!bdrv_can_snapshot(bs)) {
-            error_report("Device '%s' is writable but does not support snapshots.",
-                               bdrv_get_device_name(bs));
-            return -ENOTSUP;
+            continue;
         }
 
         ret = bdrv_snapshot_find(bs, &sn, name);
