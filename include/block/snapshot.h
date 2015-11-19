@@ -91,4 +91,6 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
                              uint64_t vm_state_size,
                              BlockDriverState **first_bad_bs);
 
+BlockDriverState *bdrv_all_find_vmstate_bs(void);
+
 #endif
