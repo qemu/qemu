@@ -34,6 +34,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/i386/ioapic.h"
 #include "qapi/visitor.h"
+#include "qemu/error-report.h"
 
 /*
  * I440FX chipset data sheet.
@@ -301,6 +302,10 @@ static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)
 static void i440fx_realize(PCIDevice *dev, Error **errp)
 {
     dev->config[I440FX_SMRAM] = 0x02;
+
+    if (object_property_get_bool(qdev_get_machine(), "iommu", NULL)) {
+        error_report("warning: i440fx doesn't support emulated iommu");
+    }
 }
 
 PCIBus *i440fx_init(const char *host_type, const char *pci_type,

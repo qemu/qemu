@@ -462,11 +462,6 @@ bool machine_usb(MachineState *machine)
     return machine->usb;
 }
 
-bool machine_iommu(MachineState *machine)
-{
-    return machine->iommu;
-}
-
 bool machine_kernel_irqchip_allowed(MachineState *machine)
 {
     return machine->kernel_irqchip_allowed;

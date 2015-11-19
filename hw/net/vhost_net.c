@@ -77,14 +77,8 @@ static const int user_feature_bits[] = {
     VIRTIO_NET_F_HOST_ECN,
     VIRTIO_NET_F_HOST_UFO,
     VIRTIO_NET_F_MRG_RXBUF,
-    VIRTIO_NET_F_STATUS,
-    VIRTIO_NET_F_CTRL_VQ,
-    VIRTIO_NET_F_CTRL_RX,
-    VIRTIO_NET_F_CTRL_VLAN,
-    VIRTIO_NET_F_CTRL_RX_EXTRA,
-    VIRTIO_NET_F_CTRL_MAC_ADDR,
-    VIRTIO_NET_F_CTRL_GUEST_OFFLOADS,
 
+    /* This bit implies RARP isn't sent by QEMU out of band */
     VIRTIO_NET_F_GUEST_ANNOUNCE,
 
     VIRTIO_NET_F_MQ,
@@ -290,12 +284,6 @@ static void vhost_net_stop_one(struct vhost_net *net,
         for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
             const VhostOps *vhost_ops = net->dev.vhost_ops;
             int r = vhost_ops->vhost_net_set_backend(&net->dev, &file);
-            assert(r >= 0);
-        }
-    } else if (net->nc->info->type == NET_CLIENT_OPTIONS_KIND_VHOST_USER) {
-        for (file.index = 0; file.index < net->dev.nvqs; ++file.index) {
-            const VhostOps *vhost_ops = net->dev.vhost_ops;
-            int r = vhost_ops->vhost_reset_device(&net->dev);
             assert(r >= 0);
         }
     }

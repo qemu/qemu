@@ -121,8 +121,8 @@ static int vhost_user_read(struct vhost_dev *dev, VhostUserMsg *msg)
 
     r = qemu_chr_fe_read_all(chr, p, size);
     if (r != size) {
-        error_report("Failed to read msg header. Read %d instead of %d.", r,
-                size);
+        error_report("Failed to read msg header. Read %d instead of %d."
+                     " Original request %d.", r, size, msg->request);
         goto fail;
     }
 
@@ -206,7 +206,7 @@ static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
     VhostUserMsg msg = {
         .request = VHOST_USER_SET_LOG_BASE,
         .flags = VHOST_USER_VERSION,
-        .payload.log.mmap_size = log->size,
+        .payload.log.mmap_size = log->size * sizeof(*(log->log)),
         .payload.log.mmap_offset = 0,
         .size = sizeof(msg.payload.log),
     };
@@ -333,18 +333,23 @@ static int vhost_user_set_vring_base(struct vhost_dev *dev,
 
 static int vhost_user_set_vring_enable(struct vhost_dev *dev, int enable)
 {
-    struct vhost_vring_state state = {
-        .index = dev->vq_index,
-        .num   = enable,
-    };
+    int i;
 
-    if (!(dev->protocol_features & (1ULL << VHOST_USER_PROTOCOL_F_MQ))) {
+    if (!virtio_has_feature(dev->features, VHOST_USER_F_PROTOCOL_FEATURES)) {
         return -1;
     }
 
-    return vhost_set_vring(dev, VHOST_USER_SET_VRING_ENABLE, &state);
-}
+    for (i = 0; i < dev->nvqs; ++i) {
+        struct vhost_vring_state state = {
+            .index = dev->vq_index + i,
+            .num   = enable,
+        };
 
+        vhost_set_vring(dev, VHOST_USER_SET_VRING_ENABLE, &state);
+    }
+
+    return 0;
+}
 
 static int vhost_user_get_vring_base(struct vhost_dev *dev,
                                      struct vhost_vring_state *ring)

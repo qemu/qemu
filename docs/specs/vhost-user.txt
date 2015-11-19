@@ -87,6 +87,14 @@ Depending on the request type, payload can be:
    User address: a 64-bit user address
    mmap offset: 64-bit offset where region starts in the mapped memory
 
+* Log description
+   ---------------------------
+   | log size | log offset |
+   ---------------------------
+   log size: size of area used for logging
+   log offset: offset from start of supplied file descriptor
+       where logging starts (i.e. where guest address 0 would be logged)
+
 In QEMU the vhost-user message is implemented with the following struct:
 
 typedef struct VhostUserMsg {
@@ -138,6 +146,29 @@ As older slaves don't support negotiating protocol features,
 a feature bit was dedicated for this purpose:
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 
+Starting and stopping rings
+----------------------
+Client must only process each ring when it is both started and enabled.
+
+If VHOST_USER_F_PROTOCOL_FEATURES has not been negotiated, the ring is initialized
+in an enabled state.
+
+If VHOST_USER_F_PROTOCOL_FEATURES has been negotiated, the ring is initialized
+in a disabled state. Client must not process it until ring is enabled by
+VHOST_USER_SET_VRING_ENABLE with parameter 1, or after it has been disabled by
+VHOST_USER_SET_VRING_ENABLE with parameter 0.
+
+Each ring is initialized in a stopped state, client must not process it until
+ring is started, or after it has been stopped.
+
+Client must start ring upon receiving a kick (that is, detecting that file
+descriptor is readable) on the descriptor specified by
+VHOST_USER_SET_VRING_KICK, and stop ring upon receiving
+VHOST_USER_GET_VRING_BASE.
+
+While processing the rings (when they are started and enabled), client must
+support changing some configuration aspects on the fly.
+
 Multiple queue support
 ----------------------
 
@@ -162,9 +193,13 @@ the slave makes to the memory mapped regions. The client should mark
 the dirty pages in a log. Once it complies to this logging, it may
 declare the VHOST_F_LOG_ALL vhost feature.
 
+To start/stop logging of data/used ring writes, server may send messages
+VHOST_USER_SET_FEATURES with VHOST_F_LOG_ALL and VHOST_USER_SET_VRING_ADDR with
+VHOST_VRING_F_LOG in ring's flags set to 1/0, respectively.
+
 All the modifications to memory pointed by vring "descriptor" should
 be marked. Modifications to "used" vring should be marked if
-VHOST_VRING_F_LOG is part of ring's features.
+VHOST_VRING_F_LOG is part of ring's flags.
 
 Dirty pages are of size:
 #define VHOST_LOG_PAGE 0x1000
@@ -173,22 +208,35 @@ The log memory fd is provided in the ancillary data of
 VHOST_USER_SET_LOG_BASE message when the slave has
 VHOST_USER_PROTOCOL_F_LOG_SHMFD protocol feature.
 
-The size of the log may be computed by using all the known guest
-addresses. The log covers from address 0 to the maximum of guest
+The size of the log is supplied as part of VhostUserMsg
+which should be large enough to cover all known guest
+addresses. Log starts at the supplied offset in the
+supplied file descriptor.
+The log covers from address 0 to the maximum of guest
 regions. In pseudo-code, to mark page at "addr" as dirty:
 
 page = addr / VHOST_LOG_PAGE
 log[page / 8] |= 1 << page % 8
 
+Where addr is the guest physical address.
+
 Use atomic operations, as the log may be concurrently manipulated.
+
+Note that when logging modifications to the used ring (when VHOST_VRING_F_LOG
+is set for this ring), log_guest_addr should be used to calculate the log
+offset: the write to first byte of the used ring is logged at this offset from
+log start. Also note that this value might be outside the legal guest physical
+address range (i.e. does not have to be covered by the VhostUserMemory table),
+but the bit offset of the last byte of the ring must fall within
+the size supplied by VhostUserLog.
 
 VHOST_USER_SET_LOG_FD is an optional message with an eventfd in
 ancillary data, it may be used to inform the master that the log has
 been modified.
 
-Once the source has finished migration, VHOST_USER_RESET_OWNER message
-will be sent by the source. No further update must be done before the
-destination takes over with new regions & rings.
+Once the source has finished migration, rings will be stopped by
+the source. No further update must be done before rings are
+restarted.
 
 Protocol features
 -----------------
@@ -259,11 +307,13 @@ Message types
  * VHOST_USER_RESET_OWNER
 
       Id: 4
-      Equivalent ioctl: VHOST_RESET_OWNER
       Master payload: N/A
 
-      Issued when a new connection is about to be closed. The Master will no
-      longer own this connection (and will usually close it).
+      This is no longer used. Used to be sent to request stopping
+      all rings, but some clients interpreted it to also discard
+      connection state (this interpretation would lead to bugs).
+      It is recommended that clients either ignore this message,
+      or use it to stop all rings.
 
  * VHOST_USER_SET_MEM_TABLE
 
@@ -388,6 +438,8 @@ Message types
       Master payload: vring state description
 
       Signal slave to enable or disable corresponding vring.
+      This request should be sent only when VHOST_USER_F_PROTOCOL_FEATURES
+      has been negotiated.
 
  * VHOST_USER_SEND_RARP
 

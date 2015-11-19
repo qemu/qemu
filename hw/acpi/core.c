@@ -625,8 +625,12 @@ void acpi_pm1_cnt_reset(ACPIREGS *ar)
 void acpi_gpe_init(ACPIREGS *ar, uint8_t len)
 {
     ar->gpe.len = len;
-    ar->gpe.sts = g_malloc0(len / 2);
-    ar->gpe.en = g_malloc0(len / 2);
+    /* Only first len / 2 bytes are ever used,
+     * but the caller in ich9.c migrates full len bytes.
+     * TODO: fix ich9.c and drop the extra allocation.
+     */
+    ar->gpe.sts = g_malloc0(len);
+    ar->gpe.en = g_malloc0(len);
 }
 
 void acpi_gpe_reset(ACPIREGS *ar)
