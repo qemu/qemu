@@ -21,21 +21,21 @@
 #include "crypto/cipher.h"
 
 
-static size_t alg_key_len[QCRYPTO_CIPHER_ALG_LAST] = {
+static size_t alg_key_len[QCRYPTO_CIPHER_ALG__MAX] = {
     [QCRYPTO_CIPHER_ALG_AES_128] = 16,
     [QCRYPTO_CIPHER_ALG_AES_192] = 24,
     [QCRYPTO_CIPHER_ALG_AES_256] = 32,
     [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
 };
 
-static size_t alg_block_len[QCRYPTO_CIPHER_ALG_LAST] = {
+static size_t alg_block_len[QCRYPTO_CIPHER_ALG__MAX] = {
     [QCRYPTO_CIPHER_ALG_AES_128] = 16,
     [QCRYPTO_CIPHER_ALG_AES_192] = 16,
     [QCRYPTO_CIPHER_ALG_AES_256] = 16,
     [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
 };
 
-static bool mode_need_iv[QCRYPTO_CIPHER_MODE_LAST] = {
+static bool mode_need_iv[QCRYPTO_CIPHER_MODE__MAX] = {
     [QCRYPTO_CIPHER_MODE_ECB] = false,
     [QCRYPTO_CIPHER_MODE_CBC] = true,
 };
@@ -81,7 +81,7 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
                                    size_t nkey,
                                    Error **errp)
 {
-    if ((unsigned)alg >= QCRYPTO_CIPHER_ALG_LAST) {
+    if ((unsigned)alg >= QCRYPTO_CIPHER_ALG__MAX) {
         error_setg(errp, "Cipher algorithm %d out of range",
                    alg);
         return false;
