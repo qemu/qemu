@@ -961,6 +961,15 @@ static inline void compute_hflags(CPUMIPSState *env)
 }
 
 #ifndef CONFIG_USER_ONLY
+static inline void cpu_mips_tlb_flush(CPUMIPSState *env, int flush_global)
+{
+    MIPSCPU *cpu = mips_env_get_cpu(env);
+
+    /* Flush qemu's TLB and discard all shadowed entries.  */
+    tlb_flush(CPU(cpu), flush_global);
+    env->tlb->tlb_in_use = env->tlb->nb_tlb;
+}
+
 /* Called for updates to CP0_Status.  */
 static inline void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc)
 {
@@ -999,6 +1008,7 @@ static inline void sync_c0_status(CPUMIPSState *env, CPUMIPSState *cpu, int tc)
 static inline void cpu_mips_store_status(CPUMIPSState *env, target_ulong val)
 {
     uint32_t mask = env->CP0_Status_rw_bitmask;
+    target_ulong old = env->CP0_Status;
 
     if (env->insn_flags & ISA_MIPS32R6) {
         bool has_supervisor = extract32(mask, CP0St_KSU, 2) == 0x3;
@@ -1014,7 +1024,13 @@ static inline void cpu_mips_store_status(CPUMIPSState *env, target_ulong val)
         mask &= ~(((1 << CP0St_SR) | (1 << CP0St_NMI)) & val);
     }
 
-    env->CP0_Status = (env->CP0_Status & ~mask) | (val & mask);
+    env->CP0_Status = (old & ~mask) | (val & mask);
+#if defined(TARGET_MIPS64)
+    if ((env->CP0_Status ^ old) & (old & (7 << CP0St_UX))) {
+        /* Access to at least one of the 64-bit segments has been disabled */
+        cpu_mips_tlb_flush(env, 1);
+    }
+#endif
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
         sync_c0_status(env, env, env->current_tc);
     } else {
