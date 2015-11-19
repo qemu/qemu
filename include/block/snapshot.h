@@ -86,5 +86,9 @@ int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bsd_bs,
                              Error **err);
 int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bsd_bs);
 int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs);
+int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
+                             BlockDriverState *vm_state_bs,
+                             uint64_t vm_state_size,
+                             BlockDriverState **first_bad_bs);
 
 #endif

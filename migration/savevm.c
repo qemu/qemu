@@ -1996,19 +1996,10 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
         goto the_end;
     }
 
-    /* create the snapshots */
-
-    bs1 = NULL;
-    while ((bs1 = bdrv_next(bs1))) {
-        if (bdrv_can_snapshot(bs1)) {
-            /* Write VM state size only to the image that contains the state */
-            sn->vm_state_size = (bs == bs1 ? vm_state_size : 0);
-            ret = bdrv_snapshot_create(bs1, sn);
-            if (ret < 0) {
-                monitor_printf(mon, "Error while creating snapshot on '%s'\n",
-                               bdrv_get_device_name(bs1));
-            }
-        }
+    ret = bdrv_all_create_snapshot(sn, bs, vm_state_size, &bs);
+    if (ret < 0) {
+        monitor_printf(mon, "Error while creating snapshot on '%s'\n",
+                       bdrv_get_device_name(bs));
     }
 
  the_end:
