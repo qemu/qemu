@@ -739,7 +739,7 @@ typedef union {
     uint16_t _w[4];
     uint32_t _l[2];
     float32 _s[2];
-    uint64_t q;
+    uint64_t _q[1];
 } MMXReg;
 
 typedef struct BNDReg {
@@ -777,7 +777,7 @@ typedef struct BNDCSReg {
 #define MMX_L(n) _l[n]
 #define MMX_S(n) _s[n]
 #endif
-#define MMX_Q(n) q
+#define MMX_Q(n) _q[n]
 
 typedef union {
     floatx80 d __attribute__((aligned(16)));
