@@ -36,15 +36,15 @@ static const VMStateDescription vmstate_xmm_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(0), XMMReg),
-        VMSTATE_UINT64(XMM_Q(1), XMMReg),
+        VMSTATE_UINT64(XMM_Q(0), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(1), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
 #define VMSTATE_XMM_REGS(_field, _state, _start)                         \
     VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
-                             vmstate_xmm_reg, XMMReg)
+                             vmstate_xmm_reg, ZMMReg)
 
 /* YMMH format is the same as XMM, but for bits 128-255 */
 static const VMStateDescription vmstate_ymmh_reg = {
@@ -52,32 +52,32 @@ static const VMStateDescription vmstate_ymmh_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(2), XMMReg),
-        VMSTATE_UINT64(XMM_Q(3), XMMReg),
+        VMSTATE_UINT64(XMM_Q(2), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(3), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
 #define VMSTATE_YMMH_REGS_VARS(_field, _state, _start, _v)               \
     VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, _v,    \
-                             vmstate_ymmh_reg, XMMReg)
+                             vmstate_ymmh_reg, ZMMReg)
 
 static const VMStateDescription vmstate_zmmh_reg = {
     .name = "zmmh_reg",
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(4), XMMReg),
-        VMSTATE_UINT64(XMM_Q(5), XMMReg),
-        VMSTATE_UINT64(XMM_Q(6), XMMReg),
-        VMSTATE_UINT64(XMM_Q(7), XMMReg),
+        VMSTATE_UINT64(XMM_Q(4), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(5), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(6), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(7), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
 #define VMSTATE_ZMMH_REGS_VARS(_field, _state, _start)                   \
     VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
-                             vmstate_zmmh_reg, XMMReg)
+                             vmstate_zmmh_reg, ZMMReg)
 
 #ifdef TARGET_X86_64
 static const VMStateDescription vmstate_hi16_zmm_reg = {
@@ -85,21 +85,21 @@ static const VMStateDescription vmstate_hi16_zmm_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(0), XMMReg),
-        VMSTATE_UINT64(XMM_Q(1), XMMReg),
-        VMSTATE_UINT64(XMM_Q(2), XMMReg),
-        VMSTATE_UINT64(XMM_Q(3), XMMReg),
-        VMSTATE_UINT64(XMM_Q(4), XMMReg),
-        VMSTATE_UINT64(XMM_Q(5), XMMReg),
-        VMSTATE_UINT64(XMM_Q(6), XMMReg),
-        VMSTATE_UINT64(XMM_Q(7), XMMReg),
+        VMSTATE_UINT64(XMM_Q(0), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(1), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(2), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(3), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(4), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(5), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(6), ZMMReg),
+        VMSTATE_UINT64(XMM_Q(7), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
 
 #define VMSTATE_Hi16_ZMM_REGS_VARS(_field, _state, _start)               \
     VMSTATE_STRUCT_SUB_ARRAY(_field, _state, _start, CPU_NB_REGS, 0,     \
-                             vmstate_hi16_zmm_reg, XMMReg)
+                             vmstate_hi16_zmm_reg, ZMMReg)
 #endif
 
 static const VMStateDescription vmstate_bnd_regs = {

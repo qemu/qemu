@@ -732,7 +732,7 @@ typedef union {
     uint64_t _q[8];
     float32 _s[16];
     float64 _d[8];
-} XMMReg; /* really zmm */
+} ZMMReg;
 
 typedef union {
     uint8_t _b[8];
@@ -865,8 +865,8 @@ typedef struct CPUX86State {
     float_status mmx_status; /* for 3DNow! float ops */
     float_status sse_status;
     uint32_t mxcsr;
-    XMMReg xmm_regs[CPU_NB_REGS == 8 ? 8 : 32];
-    XMMReg xmm_t0;
+    ZMMReg xmm_regs[CPU_NB_REGS == 8 ? 8 : 32];
+    ZMMReg xmm_t0;
     MMXReg mmx_t0;
 
     uint64_t opmask_regs[NB_OPMASK_REGS];

@@ -20,18 +20,18 @@
 #define Reg MMXReg
 #define SUFFIX _mmx
 #else
-#define Reg XMMReg
+#define Reg ZMMReg
 #define SUFFIX _xmm
 #endif
 
 #define dh_alias_Reg ptr
-#define dh_alias_XMMReg ptr
+#define dh_alias_ZMMReg ptr
 #define dh_alias_MMXReg ptr
 #define dh_ctype_Reg Reg *
-#define dh_ctype_XMMReg XMMReg *
+#define dh_ctype_ZMMReg ZMMReg *
 #define dh_ctype_MMXReg MMXReg *
 #define dh_is_signed_Reg dh_is_signed_ptr
-#define dh_is_signed_XMMReg dh_is_signed_ptr
+#define dh_is_signed_ZMMReg dh_is_signed_ptr
 #define dh_is_signed_MMXReg dh_is_signed_ptr
 
 DEF_HELPER_3(glue(psrlw, SUFFIX), void, env, Reg, Reg)
@@ -154,52 +154,52 @@ DEF_HELPER_3(cvtss2sd, void, env, Reg, Reg)
 DEF_HELPER_3(cvtsd2ss, void, env, Reg, Reg)
 DEF_HELPER_3(cvtdq2ps, void, env, Reg, Reg)
 DEF_HELPER_3(cvtdq2pd, void, env, Reg, Reg)
-DEF_HELPER_3(cvtpi2ps, void, env, XMMReg, MMXReg)
-DEF_HELPER_3(cvtpi2pd, void, env, XMMReg, MMXReg)
-DEF_HELPER_3(cvtsi2ss, void, env, XMMReg, i32)
-DEF_HELPER_3(cvtsi2sd, void, env, XMMReg, i32)
+DEF_HELPER_3(cvtpi2ps, void, env, ZMMReg, MMXReg)
+DEF_HELPER_3(cvtpi2pd, void, env, ZMMReg, MMXReg)
+DEF_HELPER_3(cvtsi2ss, void, env, ZMMReg, i32)
+DEF_HELPER_3(cvtsi2sd, void, env, ZMMReg, i32)
 
 #ifdef TARGET_X86_64
-DEF_HELPER_3(cvtsq2ss, void, env, XMMReg, i64)
-DEF_HELPER_3(cvtsq2sd, void, env, XMMReg, i64)
+DEF_HELPER_3(cvtsq2ss, void, env, ZMMReg, i64)
+DEF_HELPER_3(cvtsq2sd, void, env, ZMMReg, i64)
 #endif
 
-DEF_HELPER_3(cvtps2dq, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(cvtpd2dq, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(cvtps2pi, void, env, MMXReg, XMMReg)
-DEF_HELPER_3(cvtpd2pi, void, env, MMXReg, XMMReg)
-DEF_HELPER_2(cvtss2si, s32, env, XMMReg)
-DEF_HELPER_2(cvtsd2si, s32, env, XMMReg)
+DEF_HELPER_3(cvtps2dq, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(cvtpd2dq, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(cvtps2pi, void, env, MMXReg, ZMMReg)
+DEF_HELPER_3(cvtpd2pi, void, env, MMXReg, ZMMReg)
+DEF_HELPER_2(cvtss2si, s32, env, ZMMReg)
+DEF_HELPER_2(cvtsd2si, s32, env, ZMMReg)
 #ifdef TARGET_X86_64
-DEF_HELPER_2(cvtss2sq, s64, env, XMMReg)
-DEF_HELPER_2(cvtsd2sq, s64, env, XMMReg)
+DEF_HELPER_2(cvtss2sq, s64, env, ZMMReg)
+DEF_HELPER_2(cvtsd2sq, s64, env, ZMMReg)
 #endif
 
-DEF_HELPER_3(cvttps2dq, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(cvttpd2dq, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(cvttps2pi, void, env, MMXReg, XMMReg)
-DEF_HELPER_3(cvttpd2pi, void, env, MMXReg, XMMReg)
-DEF_HELPER_2(cvttss2si, s32, env, XMMReg)
-DEF_HELPER_2(cvttsd2si, s32, env, XMMReg)
+DEF_HELPER_3(cvttps2dq, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(cvttpd2dq, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(cvttps2pi, void, env, MMXReg, ZMMReg)
+DEF_HELPER_3(cvttpd2pi, void, env, MMXReg, ZMMReg)
+DEF_HELPER_2(cvttss2si, s32, env, ZMMReg)
+DEF_HELPER_2(cvttsd2si, s32, env, ZMMReg)
 #ifdef TARGET_X86_64
-DEF_HELPER_2(cvttss2sq, s64, env, XMMReg)
-DEF_HELPER_2(cvttsd2sq, s64, env, XMMReg)
+DEF_HELPER_2(cvttss2sq, s64, env, ZMMReg)
+DEF_HELPER_2(cvttsd2sq, s64, env, ZMMReg)
 #endif
 
-DEF_HELPER_3(rsqrtps, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(rsqrtss, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(rcpps, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(rcpss, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(extrq_r, void, env, XMMReg, XMMReg)
-DEF_HELPER_4(extrq_i, void, env, XMMReg, int, int)
-DEF_HELPER_3(insertq_r, void, env, XMMReg, XMMReg)
-DEF_HELPER_4(insertq_i, void, env, XMMReg, int, int)
-DEF_HELPER_3(haddps, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(haddpd, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(hsubps, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(hsubpd, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(addsubps, void, env, XMMReg, XMMReg)
-DEF_HELPER_3(addsubpd, void, env, XMMReg, XMMReg)
+DEF_HELPER_3(rsqrtps, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(rsqrtss, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(rcpps, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(rcpss, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(extrq_r, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_4(extrq_i, void, env, ZMMReg, int, int)
+DEF_HELPER_3(insertq_r, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_4(insertq_i, void, env, ZMMReg, int, int)
+DEF_HELPER_3(haddps, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(haddpd, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(hsubps, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(hsubpd, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(addsubps, void, env, ZMMReg, ZMMReg)
+DEF_HELPER_3(addsubpd, void, env, ZMMReg, ZMMReg)
 
 #define SSE_HELPER_CMP(name, F)                           \
     DEF_HELPER_3(name ## ps, void, env, Reg, Reg)         \

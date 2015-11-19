@@ -2602,28 +2602,28 @@ static inline void gen_ldo_env_A0(DisasContext *s, int offset)
 {
     int mem_index = s->mem_index;
     tcg_gen_qemu_ld_i64(cpu_tmp1_i64, cpu_A0, mem_index, MO_LEQ);
-    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(0)));
+    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(ZMMReg, XMM_Q(0)));
     tcg_gen_addi_tl(cpu_tmp0, cpu_A0, 8);
     tcg_gen_qemu_ld_i64(cpu_tmp1_i64, cpu_tmp0, mem_index, MO_LEQ);
-    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(1)));
+    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(ZMMReg, XMM_Q(1)));
 }
 
 static inline void gen_sto_env_A0(DisasContext *s, int offset)
 {
     int mem_index = s->mem_index;
-    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(0)));
+    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(ZMMReg, XMM_Q(0)));
     tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_A0, mem_index, MO_LEQ);
     tcg_gen_addi_tl(cpu_tmp0, cpu_A0, 8);
-    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(XMMReg, XMM_Q(1)));
+    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, offset + offsetof(ZMMReg, XMM_Q(1)));
     tcg_gen_qemu_st_i64(cpu_tmp1_i64, cpu_tmp0, mem_index, MO_LEQ);
 }
 
 static inline void gen_op_movo(int d_offset, int s_offset)
 {
-    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, s_offset + offsetof(XMMReg, XMM_Q(0)));
-    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, d_offset + offsetof(XMMReg, XMM_Q(0)));
-    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, s_offset + offsetof(XMMReg, XMM_Q(1)));
-    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, d_offset + offsetof(XMMReg, XMM_Q(1)));
+    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, s_offset + offsetof(ZMMReg, XMM_Q(0)));
+    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, d_offset + offsetof(ZMMReg, XMM_Q(0)));
+    tcg_gen_ld_i64(cpu_tmp1_i64, cpu_env, s_offset + offsetof(ZMMReg, XMM_Q(1)));
+    tcg_gen_st_i64(cpu_tmp1_i64, cpu_env, d_offset + offsetof(ZMMReg, XMM_Q(1)));
 }
 
 static inline void gen_op_movq(int d_offset, int s_offset)
@@ -3640,20 +3640,20 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b,
                     case 0x23: case 0x33: /* pmovsxwd, pmovzxwd */
                     case 0x25: case 0x35: /* pmovsxdq, pmovzxdq */
                         gen_ldq_env_A0(s, op2_offset +
-                                        offsetof(XMMReg, XMM_Q(0)));
+                                        offsetof(ZMMReg, XMM_Q(0)));
                         break;
                     case 0x21: case 0x31: /* pmovsxbd, pmovzxbd */
                     case 0x24: case 0x34: /* pmovsxwq, pmovzxwq */
                         tcg_gen_qemu_ld_i32(cpu_tmp2_i32, cpu_A0,
                                             s->mem_index, MO_LEUL);
                         tcg_gen_st_i32(cpu_tmp2_i32, cpu_env, op2_offset +
-                                        offsetof(XMMReg, XMM_L(0)));
+                                        offsetof(ZMMReg, XMM_L(0)));
                         break;
                     case 0x22: case 0x32: /* pmovsxbq, pmovzxbq */
                         tcg_gen_qemu_ld_tl(cpu_tmp0, cpu_A0,
                                            s->mem_index, MO_LEUW);
                         tcg_gen_st16_tl(cpu_tmp0, cpu_env, op2_offset +
-                                        offsetof(XMMReg, XMM_W(0)));
+                                        offsetof(ZMMReg, XMM_W(0)));
                         break;
                     case 0x2a:            /* movntqda */
                         gen_ldo_env_A0(s, op1_offset);

@@ -29,7 +29,7 @@
 #define Q(n) MMX_Q(n)
 #define SUFFIX _mmx
 #else
-#define Reg XMMReg
+#define Reg ZMMReg
 #define XMM_ONLY(...) __VA_ARGS__
 #define B(n) XMM_B(n)
 #define W(n) XMM_W(n)
@@ -675,42 +675,42 @@ void helper_cvtdq2pd(CPUX86State *env, Reg *d, Reg *s)
     d->XMM_D(1) = int32_to_float64(l1, &env->sse_status);
 }
 
-void helper_cvtpi2ps(CPUX86State *env, XMMReg *d, MMXReg *s)
+void helper_cvtpi2ps(CPUX86State *env, ZMMReg *d, MMXReg *s)
 {
     d->XMM_S(0) = int32_to_float32(s->MMX_L(0), &env->sse_status);
     d->XMM_S(1) = int32_to_float32(s->MMX_L(1), &env->sse_status);
 }
 
-void helper_cvtpi2pd(CPUX86State *env, XMMReg *d, MMXReg *s)
+void helper_cvtpi2pd(CPUX86State *env, ZMMReg *d, MMXReg *s)
 {
     d->XMM_D(0) = int32_to_float64(s->MMX_L(0), &env->sse_status);
     d->XMM_D(1) = int32_to_float64(s->MMX_L(1), &env->sse_status);
 }
 
-void helper_cvtsi2ss(CPUX86State *env, XMMReg *d, uint32_t val)
+void helper_cvtsi2ss(CPUX86State *env, ZMMReg *d, uint32_t val)
 {
     d->XMM_S(0) = int32_to_float32(val, &env->sse_status);
 }
 
-void helper_cvtsi2sd(CPUX86State *env, XMMReg *d, uint32_t val)
+void helper_cvtsi2sd(CPUX86State *env, ZMMReg *d, uint32_t val)
 {
     d->XMM_D(0) = int32_to_float64(val, &env->sse_status);
 }
 
 #ifdef TARGET_X86_64
-void helper_cvtsq2ss(CPUX86State *env, XMMReg *d, uint64_t val)
+void helper_cvtsq2ss(CPUX86State *env, ZMMReg *d, uint64_t val)
 {
     d->XMM_S(0) = int64_to_float32(val, &env->sse_status);
 }
 
-void helper_cvtsq2sd(CPUX86State *env, XMMReg *d, uint64_t val)
+void helper_cvtsq2sd(CPUX86State *env, ZMMReg *d, uint64_t val)
 {
     d->XMM_D(0) = int64_to_float64(val, &env->sse_status);
 }
 #endif
 
 /* float to integer */
-void helper_cvtps2dq(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_cvtps2dq(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_L(0) = float32_to_int32(s->XMM_S(0), &env->sse_status);
     d->XMM_L(1) = float32_to_int32(s->XMM_S(1), &env->sse_status);
@@ -718,49 +718,49 @@ void helper_cvtps2dq(CPUX86State *env, XMMReg *d, XMMReg *s)
     d->XMM_L(3) = float32_to_int32(s->XMM_S(3), &env->sse_status);
 }
 
-void helper_cvtpd2dq(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_cvtpd2dq(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_L(0) = float64_to_int32(s->XMM_D(0), &env->sse_status);
     d->XMM_L(1) = float64_to_int32(s->XMM_D(1), &env->sse_status);
     d->XMM_Q(1) = 0;
 }
 
-void helper_cvtps2pi(CPUX86State *env, MMXReg *d, XMMReg *s)
+void helper_cvtps2pi(CPUX86State *env, MMXReg *d, ZMMReg *s)
 {
     d->MMX_L(0) = float32_to_int32(s->XMM_S(0), &env->sse_status);
     d->MMX_L(1) = float32_to_int32(s->XMM_S(1), &env->sse_status);
 }
 
-void helper_cvtpd2pi(CPUX86State *env, MMXReg *d, XMMReg *s)
+void helper_cvtpd2pi(CPUX86State *env, MMXReg *d, ZMMReg *s)
 {
     d->MMX_L(0) = float64_to_int32(s->XMM_D(0), &env->sse_status);
     d->MMX_L(1) = float64_to_int32(s->XMM_D(1), &env->sse_status);
 }
 
-int32_t helper_cvtss2si(CPUX86State *env, XMMReg *s)
+int32_t helper_cvtss2si(CPUX86State *env, ZMMReg *s)
 {
     return float32_to_int32(s->XMM_S(0), &env->sse_status);
 }
 
-int32_t helper_cvtsd2si(CPUX86State *env, XMMReg *s)
+int32_t helper_cvtsd2si(CPUX86State *env, ZMMReg *s)
 {
     return float64_to_int32(s->XMM_D(0), &env->sse_status);
 }
 
 #ifdef TARGET_X86_64
-int64_t helper_cvtss2sq(CPUX86State *env, XMMReg *s)
+int64_t helper_cvtss2sq(CPUX86State *env, ZMMReg *s)
 {
     return float32_to_int64(s->XMM_S(0), &env->sse_status);
 }
 
-int64_t helper_cvtsd2sq(CPUX86State *env, XMMReg *s)
+int64_t helper_cvtsd2sq(CPUX86State *env, ZMMReg *s)
 {
     return float64_to_int64(s->XMM_D(0), &env->sse_status);
 }
 #endif
 
 /* float to integer truncated */
-void helper_cvttps2dq(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_cvttps2dq(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_L(0) = float32_to_int32_round_to_zero(s->XMM_S(0), &env->sse_status);
     d->XMM_L(1) = float32_to_int32_round_to_zero(s->XMM_S(1), &env->sse_status);
@@ -768,48 +768,48 @@ void helper_cvttps2dq(CPUX86State *env, XMMReg *d, XMMReg *s)
     d->XMM_L(3) = float32_to_int32_round_to_zero(s->XMM_S(3), &env->sse_status);
 }
 
-void helper_cvttpd2dq(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_cvttpd2dq(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_L(0) = float64_to_int32_round_to_zero(s->XMM_D(0), &env->sse_status);
     d->XMM_L(1) = float64_to_int32_round_to_zero(s->XMM_D(1), &env->sse_status);
     d->XMM_Q(1) = 0;
 }
 
-void helper_cvttps2pi(CPUX86State *env, MMXReg *d, XMMReg *s)
+void helper_cvttps2pi(CPUX86State *env, MMXReg *d, ZMMReg *s)
 {
     d->MMX_L(0) = float32_to_int32_round_to_zero(s->XMM_S(0), &env->sse_status);
     d->MMX_L(1) = float32_to_int32_round_to_zero(s->XMM_S(1), &env->sse_status);
 }
 
-void helper_cvttpd2pi(CPUX86State *env, MMXReg *d, XMMReg *s)
+void helper_cvttpd2pi(CPUX86State *env, MMXReg *d, ZMMReg *s)
 {
     d->MMX_L(0) = float64_to_int32_round_to_zero(s->XMM_D(0), &env->sse_status);
     d->MMX_L(1) = float64_to_int32_round_to_zero(s->XMM_D(1), &env->sse_status);
 }
 
-int32_t helper_cvttss2si(CPUX86State *env, XMMReg *s)
+int32_t helper_cvttss2si(CPUX86State *env, ZMMReg *s)
 {
     return float32_to_int32_round_to_zero(s->XMM_S(0), &env->sse_status);
 }
 
-int32_t helper_cvttsd2si(CPUX86State *env, XMMReg *s)
+int32_t helper_cvttsd2si(CPUX86State *env, ZMMReg *s)
 {
     return float64_to_int32_round_to_zero(s->XMM_D(0), &env->sse_status);
 }
 
 #ifdef TARGET_X86_64
-int64_t helper_cvttss2sq(CPUX86State *env, XMMReg *s)
+int64_t helper_cvttss2sq(CPUX86State *env, ZMMReg *s)
 {
     return float32_to_int64_round_to_zero(s->XMM_S(0), &env->sse_status);
 }
 
-int64_t helper_cvttsd2sq(CPUX86State *env, XMMReg *s)
+int64_t helper_cvttsd2sq(CPUX86State *env, ZMMReg *s)
 {
     return float64_to_int64_round_to_zero(s->XMM_D(0), &env->sse_status);
 }
 #endif
 
-void helper_rsqrtps(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_rsqrtps(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_S(0) = float32_div(float32_one,
                               float32_sqrt(s->XMM_S(0), &env->sse_status),
@@ -825,14 +825,14 @@ void helper_rsqrtps(CPUX86State *env, XMMReg *d, XMMReg *s)
                               &env->sse_status);
 }
 
-void helper_rsqrtss(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_rsqrtss(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_S(0) = float32_div(float32_one,
                               float32_sqrt(s->XMM_S(0), &env->sse_status),
                               &env->sse_status);
 }
 
-void helper_rcpps(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_rcpps(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_S(0) = float32_div(float32_one, s->XMM_S(0), &env->sse_status);
     d->XMM_S(1) = float32_div(float32_one, s->XMM_S(1), &env->sse_status);
@@ -840,7 +840,7 @@ void helper_rcpps(CPUX86State *env, XMMReg *d, XMMReg *s)
     d->XMM_S(3) = float32_div(float32_one, s->XMM_S(3), &env->sse_status);
 }
 
-void helper_rcpss(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_rcpss(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_S(0) = float32_div(float32_one, s->XMM_S(0), &env->sse_status);
 }
@@ -857,12 +857,12 @@ static inline uint64_t helper_extrq(uint64_t src, int shift, int len)
     return (src >> shift) & mask;
 }
 
-void helper_extrq_r(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_extrq_r(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_Q(0) = helper_extrq(d->XMM_Q(0), s->XMM_B(1), s->XMM_B(0));
 }
 
-void helper_extrq_i(CPUX86State *env, XMMReg *d, int index, int length)
+void helper_extrq_i(CPUX86State *env, ZMMReg *d, int index, int length)
 {
     d->XMM_Q(0) = helper_extrq(d->XMM_Q(0), index, length);
 }
@@ -879,19 +879,19 @@ static inline uint64_t helper_insertq(uint64_t src, int shift, int len)
     return (src & ~(mask << shift)) | ((src & mask) << shift);
 }
 
-void helper_insertq_r(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_insertq_r(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_Q(0) = helper_insertq(s->XMM_Q(0), s->XMM_B(9), s->XMM_B(8));
 }
 
-void helper_insertq_i(CPUX86State *env, XMMReg *d, int index, int length)
+void helper_insertq_i(CPUX86State *env, ZMMReg *d, int index, int length)
 {
     d->XMM_Q(0) = helper_insertq(d->XMM_Q(0), index, length);
 }
 
-void helper_haddps(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_haddps(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    XMMReg r;
+    ZMMReg r;
 
     r.XMM_S(0) = float32_add(d->XMM_S(0), d->XMM_S(1), &env->sse_status);
     r.XMM_S(1) = float32_add(d->XMM_S(2), d->XMM_S(3), &env->sse_status);
@@ -900,18 +900,18 @@ void helper_haddps(CPUX86State *env, XMMReg *d, XMMReg *s)
     *d = r;
 }
 
-void helper_haddpd(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_haddpd(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    XMMReg r;
+    ZMMReg r;
 
     r.XMM_D(0) = float64_add(d->XMM_D(0), d->XMM_D(1), &env->sse_status);
     r.XMM_D(1) = float64_add(s->XMM_D(0), s->XMM_D(1), &env->sse_status);
     *d = r;
 }
 
-void helper_hsubps(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_hsubps(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    XMMReg r;
+    ZMMReg r;
 
     r.XMM_S(0) = float32_sub(d->XMM_S(0), d->XMM_S(1), &env->sse_status);
     r.XMM_S(1) = float32_sub(d->XMM_S(2), d->XMM_S(3), &env->sse_status);
@@ -920,16 +920,16 @@ void helper_hsubps(CPUX86State *env, XMMReg *d, XMMReg *s)
     *d = r;
 }
 
-void helper_hsubpd(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_hsubpd(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
-    XMMReg r;
+    ZMMReg r;
 
     r.XMM_D(0) = float64_sub(d->XMM_D(0), d->XMM_D(1), &env->sse_status);
     r.XMM_D(1) = float64_sub(s->XMM_D(0), s->XMM_D(1), &env->sse_status);
     *d = r;
 }
 
-void helper_addsubps(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_addsubps(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_S(0) = float32_sub(d->XMM_S(0), s->XMM_S(0), &env->sse_status);
     d->XMM_S(1) = float32_add(d->XMM_S(1), s->XMM_S(1), &env->sse_status);
@@ -937,7 +937,7 @@ void helper_addsubps(CPUX86State *env, XMMReg *d, XMMReg *s)
     d->XMM_S(3) = float32_add(d->XMM_S(3), s->XMM_S(3), &env->sse_status);
 }
 
-void helper_addsubpd(CPUX86State *env, XMMReg *d, XMMReg *s)
+void helper_addsubpd(CPUX86State *env, ZMMReg *d, ZMMReg *s)
 {
     d->XMM_D(0) = float64_sub(d->XMM_D(0), s->XMM_D(0), &env->sse_status);
     d->XMM_D(1) = float64_add(d->XMM_D(1), s->XMM_D(1), &env->sse_status);
