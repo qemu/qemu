@@ -85,5 +85,6 @@ bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs);
 int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bsd_bs,
                              Error **err);
 int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bsd_bs);
+int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs);
 
 #endif

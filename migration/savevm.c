@@ -2056,6 +2056,12 @@ int load_vmstate(const char *name)
                      bdrv_get_device_name(bs));
         return -ENOTSUP;
     }
+    ret = bdrv_all_find_snapshot(name, &bs);
+    if (ret < 0) {
+        error_report("Device '%s' does not have the requested snapshot '%s'",
+                     bdrv_get_device_name(bs), name);
+        return ret;
+    }
 
     bs_vm_state = find_vmstate_bs();
     if (!bs_vm_state) {
@@ -2071,22 +2077,6 @@ int load_vmstate(const char *name)
         error_report("This is a disk-only snapshot. Revert to it offline "
             "using qemu-img.");
         return -EINVAL;
-    }
-
-    /* Verify if there is any device that doesn't support snapshots and is
-    writable and check if the requested snapshot is available too. */
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
-        if (!bdrv_can_snapshot(bs)) {
-            continue;
-        }
-
-        ret = bdrv_snapshot_find(bs, &sn, name);
-        if (ret < 0) {
-            error_report("Device '%s' does not have the requested snapshot '%s'",
-                           bdrv_get_device_name(bs), name);
-            return ret;
-        }
     }
 
     /* Flush all IO requests so they don't interfere with the new state.  */
@@ -2142,8 +2132,8 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
 void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
 {
     BlockDriverState *bs, *bs1;
-    QEMUSnapshotInfo *sn_tab, *sn, s, *sn_info = &s;
-    int nb_sns, i, ret, available;
+    QEMUSnapshotInfo *sn_tab, *sn;
+    int nb_sns, i;
     int total;
     int *available_snapshots;
 
@@ -2167,21 +2157,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
     available_snapshots = g_new0(int, nb_sns);
     total = 0;
     for (i = 0; i < nb_sns; i++) {
-        sn = &sn_tab[i];
-        available = 1;
-        bs1 = NULL;
-
-        while ((bs1 = bdrv_next(bs1))) {
-            if (bdrv_can_snapshot(bs1) && bs1 != bs) {
-                ret = bdrv_snapshot_find(bs1, sn_info, sn->id_str);
-                if (ret < 0) {
-                    available = 0;
-                    break;
-                }
-            }
-        }
-
-        if (available) {
+        if (bdrv_all_find_snapshot(sn_tab[i].id_str, &bs1) == 0) {
             available_snapshots[total] = i;
             total++;
         }
