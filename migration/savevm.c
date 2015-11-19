@@ -2116,11 +2116,6 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
     Error *err;
     const char *name = qdict_get_str(qdict, "name");
 
-    if (!find_vmstate_bs()) {
-        monitor_printf(mon, "No block device supports snapshots\n");
-        return;
-    }
-
     if (bdrv_all_delete_snapshot(name, &bs, &err) < 0) {
         monitor_printf(mon,
                        "Error while deleting snapshot on device '%s': %s\n",
