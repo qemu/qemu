@@ -830,6 +830,101 @@ typedef struct {
 
 #define NB_OPMASK_REGS 8
 
+typedef union X86LegacyXSaveArea {
+    struct {
+        uint16_t fcw;
+        uint16_t fsw;
+        uint8_t ftw;
+        uint8_t reserved;
+        uint16_t fpop;
+        uint64_t fpip;
+        uint64_t fpdp;
+        uint32_t mxcsr;
+        uint32_t mxcsr_mask;
+        FPReg fpregs[8];
+        uint8_t xmm_regs[16][16];
+    };
+    uint8_t data[512];
+} X86LegacyXSaveArea;
+
+typedef struct X86XSaveHeader {
+    uint64_t xstate_bv;
+    uint64_t xcomp_bv;
+    uint8_t reserved[48];
+} X86XSaveHeader;
+
+/* Ext. save area 2: AVX State */
+typedef struct XSaveAVX {
+    uint8_t ymmh[16][16];
+} XSaveAVX;
+
+/* Ext. save area 3: BNDREG */
+typedef struct XSaveBNDREG {
+    BNDReg bnd_regs[4];
+} XSaveBNDREG;
+
+/* Ext. save area 4: BNDCSR */
+typedef union XSaveBNDCSR {
+    BNDCSReg bndcsr;
+    uint8_t data[64];
+} XSaveBNDCSR;
+
+/* Ext. save area 5: Opmask */
+typedef struct XSaveOpmask {
+    uint64_t opmask_regs[NB_OPMASK_REGS];
+} XSaveOpmask;
+
+/* Ext. save area 6: ZMM_Hi256 */
+typedef struct XSaveZMM_Hi256 {
+    uint8_t zmm_hi256[16][32];
+} XSaveZMM_Hi256;
+
+/* Ext. save area 7: Hi16_ZMM */
+typedef struct XSaveHi16_ZMM {
+    uint8_t hi16_zmm[16][64];
+} XSaveHi16_ZMM;
+
+/* Ext. save area 9: PKRU state */
+typedef struct XSavePKRU {
+    uint32_t pkru;
+    uint32_t padding;
+} XSavePKRU;
+
+typedef struct X86XSaveArea {
+    X86LegacyXSaveArea legacy;
+    X86XSaveHeader header;
+
+    /* Extended save areas: */
+
+    /* AVX State: */
+    XSaveAVX avx_state;
+    uint8_t padding[960 - 576 - sizeof(XSaveAVX)];
+    /* MPX State: */
+    XSaveBNDREG bndreg_state;
+    XSaveBNDCSR bndcsr_state;
+    /* AVX-512 State: */
+    XSaveOpmask opmask_state;
+    XSaveZMM_Hi256 zmm_hi256_state;
+    XSaveHi16_ZMM hi16_zmm_state;
+    /* PKRU State: */
+    XSavePKRU pkru_state;
+} X86XSaveArea;
+
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, avx_state) != 0x240);
+QEMU_BUILD_BUG_ON(sizeof(XSaveAVX) != 0x100);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, bndreg_state) != 0x3c0);
+QEMU_BUILD_BUG_ON(sizeof(XSaveBNDREG) != 0x40);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, bndcsr_state) != 0x400);
+QEMU_BUILD_BUG_ON(sizeof(XSaveBNDCSR) != 0x40);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, opmask_state) != 0x440);
+QEMU_BUILD_BUG_ON(sizeof(XSaveOpmask) != 0x40);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, zmm_hi256_state) != 0x480);
+QEMU_BUILD_BUG_ON(sizeof(XSaveZMM_Hi256) != 0x200);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, hi16_zmm_state) != 0x680);
+QEMU_BUILD_BUG_ON(sizeof(XSaveHi16_ZMM) != 0x400);
+QEMU_BUILD_BUG_ON(offsetof(X86XSaveArea, pkru_state) != 0xA80);
+QEMU_BUILD_BUG_ON(sizeof(XSavePKRU) != 0x8);
+
 typedef enum TPRAccess {
     TPR_ACCESS_READ,
     TPR_ACCESS_WRITE,
