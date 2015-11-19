@@ -75,4 +75,12 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
 int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
                                          const char *id_or_name,
                                          Error **errp);
+
+
+/* Group operations. All block drivers are involved.
+ * These functions will properly handle dataplane (take aio_context_acquire
+ * when appropriate for appropriate block drivers */
+
+bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs);
+
 #endif

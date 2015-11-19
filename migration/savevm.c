@@ -1958,19 +1958,10 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
     const char *name = qdict_get_try_str(qdict, "name");
     Error *local_err = NULL;
 
-    /* Verify if there is a device that doesn't support snapshots and is writable */
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
-
-        if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
-            continue;
-        }
-
-        if (!bdrv_can_snapshot(bs)) {
-            monitor_printf(mon, "Device '%s' is writable but does not support snapshots.\n",
-                               bdrv_get_device_name(bs));
-            return;
-        }
+    if (!bdrv_all_can_snapshot(&bs)) {
+        monitor_printf(mon, "Device '%s' is writable but does not "
+                       "support snapshots.\n", bdrv_get_device_name(bs));
+        return;
     }
 
     bs = find_vmstate_bs();

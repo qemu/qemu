@@ -356,3 +356,27 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
 
     return ret;
 }
+
+
+/* Group operations. All block drivers are involved.
+ * These functions will properly handle dataplane (take aio_context_acquire
+ * when appropriate for appropriate block drivers) */
+
+bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
+{
+    bool ok = true;
+    BlockDriverState *bs = NULL;
+
+    while (ok && (bs = bdrv_next(bs))) {
+        AioContext *ctx = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(ctx);
+        if (bdrv_is_inserted(bs) && !bdrv_is_read_only(bs)) {
+            ok = bdrv_can_snapshot(bs);
+        }
+        aio_context_release(ctx);
+    }
+
+    *first_bad_bs = bs;
+    return ok;
+}
