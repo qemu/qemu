@@ -26,21 +26,8 @@
 
 typedef struct QCryptoCipher QCryptoCipher;
 
-typedef enum {
-    QCRYPTO_CIPHER_ALG_AES_128,
-    QCRYPTO_CIPHER_ALG_AES_192,
-    QCRYPTO_CIPHER_ALG_AES_256,
-    QCRYPTO_CIPHER_ALG_DES_RFB, /* A stupid variant on DES for VNC */
-
-    QCRYPTO_CIPHER_ALG_LAST
-} QCryptoCipherAlgorithm;
-
-typedef enum {
-    QCRYPTO_CIPHER_MODE_ECB,
-    QCRYPTO_CIPHER_MODE_CBC,
-
-    QCRYPTO_CIPHER_MODE_LAST
-} QCryptoCipherMode;
+/* See also "QCryptoCipherAlgorithm" and "QCryptoCipherMode"
+ * enums defined in qapi/crypto.json */
 
 /**
  * QCryptoCipher:
