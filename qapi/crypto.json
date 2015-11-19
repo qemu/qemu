@@ -33,3 +33,18 @@
 { 'enum': 'QCryptoSecretFormat',
   'prefix': 'QCRYPTO_SECRET_FORMAT',
   'data': ['raw', 'base64']}
+
+
+##
+# QCryptoHashAlgorithm:
+#
+# The supported algorithms for computing content digests
+#
+# @md5: MD5. Should not be used in any new code, legacy compat only
+# @sha1: SHA-1. Should not be used in any new code, legacy compat only
+# @sha256: SHA-256. Current recommended strong hash.
+# Since: 2.6
+##
+{ 'enum': 'QCryptoHashAlgorithm',
+  'prefix': 'QCRYPTO_HASH_ALG',
+  'data': ['md5', 'sha1', 'sha256']}
