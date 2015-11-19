@@ -2093,16 +2093,11 @@ int load_vmstate(const char *name)
     /* Flush all IO requests so they don't interfere with the new state.  */
     bdrv_drain_all();
 
-    bs = NULL;
-    while ((bs = bdrv_next(bs))) {
-        if (bdrv_can_snapshot(bs)) {
-            ret = bdrv_snapshot_goto(bs, name);
-            if (ret < 0) {
-                error_report("Error %d while activating snapshot '%s' on '%s'",
-                             ret, name, bdrv_get_device_name(bs));
-                return ret;
-            }
-        }
+    ret = bdrv_all_goto_snapshot(name, &bs);
+    if (ret < 0) {
+        error_report("Error %d while activating snapshot '%s' on '%s'",
+                     ret, name, bdrv_get_device_name(bs));
+        return ret;
     }
 
     /* restore the VM state */
