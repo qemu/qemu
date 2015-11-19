@@ -1345,7 +1345,7 @@ static void *source_return_path_thread(void *opaque)
             break;
         }
     }
-    if (rp && qemu_file_get_error(rp)) {
+    if (qemu_file_get_error(rp)) {
         trace_source_return_path_thread_bad_end();
         mark_source_rp_bad(ms);
     }
@@ -1643,7 +1643,6 @@ static void *migration_thread(void *opaque)
             if (pending_size && pending_size >= max_size) {
                 /* Still a significant amount to transfer */
 
-                current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
                 if (migrate_postcopy_ram() &&
                     s->state != MIGRATION_STATUS_POSTCOPY_ACTIVE &&
                     pend_nonpost <= max_size &&
