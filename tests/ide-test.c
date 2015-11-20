@@ -699,23 +699,18 @@ static void cdrom_pio_impl(int nblocks)
     outb(IDE_BASE + reg_lba_middle, BYTE_COUNT_LIMIT & 0xFF);
     outb(IDE_BASE + reg_lba_high, (BYTE_COUNT_LIMIT >> 8 & 0xFF));
     outb(IDE_BASE + reg_command, CMD_PACKET);
-    /* HPD0: Check_Status_A State */
+    /* HP0: Check_Status_A State */
     nsleep(400);
     data = ide_wait_clear(BSY);
-    /* HPD1: Send_Packet State */
+    /* HP1: Send_Packet State */
     assert_bit_set(data, DRQ | DRDY);
     assert_bit_clear(data, ERR | DF | BSY);
 
     /* SCSI CDB (READ10) -- read n*2048 bytes from block 0 */
     send_scsi_cdb_read10(0, nblocks);
 
-    /* HPD3: INTRQ_Wait */
+    /* HP3: INTRQ_Wait */
     ide_wait_intr(IDE_PRIMARY_IRQ);
-
-    /* HPD2: Check_Status_B */
-    data = ide_wait_clear(BSY);
-    assert_bit_set(data, DRQ | DRDY);
-    assert_bit_clear(data, ERR | DF | BSY);
 
     /* Read data back: occurs in bursts of 'BYTE_COUNT_LIMIT' bytes.
      * If BYTE_COUNT_LIMIT is odd, we transfer BYTE_COUNT_LIMIT - 1 bytes.
@@ -728,6 +723,11 @@ static void cdrom_pio_impl(int nblocks)
     for (i = 0; i < DIV_ROUND_UP(rxsize, limit); i++) {
         size_t offset = i * (limit / 2);
         size_t rem = (rxsize / 2) - offset;
+        /* HP2: Check_Status_B */
+        data = ide_wait_clear(BSY);
+        assert_bit_set(data, DRQ | DRDY);
+        assert_bit_clear(data, ERR | DF | BSY);
+        /* HP4: Transfer_Data */
         for (j = 0; j < MIN((limit / 2), rem); j++) {
             rx[offset + j] = le16_to_cpu(inw(IDE_BASE + reg_data));
         }
