@@ -1415,6 +1415,8 @@ int vm_stop_force_state(RunState state)
         return vm_stop(state);
     } else {
         runstate_set(state);
+
+        bdrv_drain_all();
         /* Make sure to return an error if the flush in a previous vm_stop()
          * failed. */
         return bdrv_flush_all();
