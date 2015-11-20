@@ -1628,8 +1628,10 @@ static int kvm_init(MachineState *ms)
 
     kvm_state = s;
 
-    s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
-    s->memory_listener.listener.eventfd_del = kvm_mem_ioeventfd_del;
+    if (kvm_eventfds_allowed) {
+        s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
+        s->memory_listener.listener.eventfd_del = kvm_mem_ioeventfd_del;
+    }
     s->memory_listener.listener.coalesced_mmio_add = kvm_coalesce_mmio_region;
     s->memory_listener.listener.coalesced_mmio_del = kvm_uncoalesce_mmio_region;
 
