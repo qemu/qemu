@@ -36,6 +36,8 @@
 
 #define MAX_IS_ALLOCATED_SEARCH 65536
 
+#define MAX_INFLIGHT_IO 512
+
 //#define DEBUG_BLK_MIGRATION
 
 #ifdef DEBUG_BLK_MIGRATION
@@ -665,7 +667,10 @@ static int block_save_iterate(QEMUFile *f, void *opaque)
     blk_mig_lock();
     while ((block_mig_state.submitted +
             block_mig_state.read_done) * BLOCK_SIZE <
-           qemu_file_get_rate_limit(f)) {
+           qemu_file_get_rate_limit(f) &&
+           (block_mig_state.submitted +
+            block_mig_state.read_done) <
+           MAX_INFLIGHT_IO) {
         blk_mig_unlock();
         if (block_mig_state.bulk_completed == 0) {
             /* first finish the bulk phase */
