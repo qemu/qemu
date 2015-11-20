@@ -1093,7 +1093,7 @@ static BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     BdrvChild *child = g_new(BdrvChild, 1);
     *child = (BdrvChild) {
         .bs     = child_bs,
-        .name   = child_name,
+        .name   = g_strdup(child_name),
         .role   = child_role,
     };
 
@@ -1107,6 +1107,7 @@ static void bdrv_detach_child(BdrvChild *child)
 {
     QLIST_REMOVE(child, next);
     QLIST_REMOVE(child, next_parent);
+    g_free(child->name);
     g_free(child);
 }
 
