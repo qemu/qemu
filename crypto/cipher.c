@@ -89,7 +89,7 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
 
     if (alg_key_len[alg] != nkey) {
         error_setg(errp, "Cipher key length %zu should be %zu",
-                   alg_key_len[alg], nkey);
+                   nkey, alg_key_len[alg]);
         return false;
     }
     return true;
