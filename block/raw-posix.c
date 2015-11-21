@@ -1976,8 +1976,8 @@ BlockDriver bdrv_file = {
 
 #if defined(__APPLE__) && defined(__MACH__)
 static kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator );
-static kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize );
-
+static kern_return_t GetBSDPath(io_iterator_t mediaIterator, char *bsdPath,
+                                CFIndex maxPathSize, int flags);
 kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator )
 {
     kern_return_t       kernResult;
@@ -2004,7 +2004,8 @@ kern_return_t FindEjectableCDMedia( io_iterator_t *mediaIterator )
     return kernResult;
 }
 
-kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex maxPathSize )
+kern_return_t GetBSDPath(io_iterator_t mediaIterator, char *bsdPath,
+                         CFIndex maxPathSize, int flags)
 {
     io_object_t     nextMedia;
     kern_return_t   kernResult = KERN_FAILURE;
@@ -2017,7 +2018,9 @@ kern_return_t GetBSDPath( io_iterator_t mediaIterator, char *bsdPath, CFIndex ma
         if ( bsdPathAsCFString ) {
             size_t devPathLength;
             strcpy( bsdPath, _PATH_DEV );
-            strcat( bsdPath, "r" );
+            if (flags & BDRV_O_NOCACHE) {
+                strcat(bsdPath, "r");
+            }
             devPathLength = strlen( bsdPath );
             if ( CFStringGetCString( bsdPathAsCFString, bsdPath + devPathLength, maxPathSize - devPathLength, kCFStringEncodingASCII ) ) {
                 kernResult = KERN_SUCCESS;
@@ -2129,8 +2132,8 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
         int fd;
 
         kernResult = FindEjectableCDMedia( &mediaIterator );
-        kernResult = GetBSDPath( mediaIterator, bsdPath, sizeof( bsdPath ) );
-
+        kernResult = GetBSDPath(mediaIterator, bsdPath, sizeof(bsdPath),
+                                flags);
         if ( bsdPath[ 0 ] != '\0' ) {
             strcat(bsdPath,"s0");
             /* some CDs don't have a partition 0 */
