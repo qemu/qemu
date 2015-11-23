@@ -8,6 +8,7 @@ check-qom-interface
 check-qom-proplist
 rcutorture
 test-aio
+test-base64
 test-bitops
 test-blockjob-txn
 test-coroutine
