@@ -19,6 +19,7 @@
 #include "qemu/sockets.h"
 #include "migration/failover.h"
 #include "qapi-event.h"
+#include "net/filter.h"
 
 /*
  * The delay time before qemu begin the procedure of default failover treatment.
@@ -131,6 +132,8 @@ static void primary_vm_do_failover(void)
                      "old_state: %d", old_state);
         return;
     }
+    /* Don't buffer any packets while exited COLO */
+    qemu_set_default_filter_buffers(false);
 }
 
 void colo_do_failover(MigrationState *s)
@@ -290,6 +293,8 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
+    qemu_release_default_filters_packets();
+
     if (colo_shutdown) {
         colo_ctl_put(s->to_dst_file, COLO_COMMAND_GUEST_SHUTDOWN, 0);
         qemu_fflush(s->to_dst_file);
@@ -367,6 +372,8 @@ static void colo_process_checkpoint(MigrationState *s)
         error_report("Failed to allocate colo buffer!");
         goto out;
     }
+    /* Begin to buffer packets that sent by VM */
+    qemu_set_default_filter_buffers(true);
 
     qemu_mutex_lock_iothread();
     vm_start();
