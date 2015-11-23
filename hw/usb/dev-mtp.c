@@ -109,8 +109,9 @@ struct MTPObject {
     char         *path;
     struct stat  stat;
     MTPObject    *parent;
-    MTPObject    **children;
     uint32_t     nchildren;
+    QLIST_HEAD(, MTPObject) children;
+    QLIST_ENTRY(MTPObject) list;
     bool         have_children;
     QTAILQ_ENTRY(MTPObject) next;
 };
@@ -317,15 +318,24 @@ ignore:
 
 static void usb_mtp_object_free(MTPState *s, MTPObject *o)
 {
-    int i;
+    MTPObject *iter;
+
+    if (!o) {
+        return;
+    }
 
     trace_usb_mtp_object_free(s->dev.addr, o->handle, o->path);
 
     QTAILQ_REMOVE(&s->objects, o, next);
-    for (i = 0; i < o->nchildren; i++) {
-        usb_mtp_object_free(s, o->children[i]);
+    if (o->parent) {
+        QLIST_REMOVE(o, list);
+        o->parent->nchildren--;
     }
-    g_free(o->children);
+
+    while (!QLIST_EMPTY(&o->children)) {
+        iter = QLIST_FIRST(&o->children);
+        usb_mtp_object_free(s, iter);
+    }
     g_free(o->name);
     g_free(o->path);
     g_free(o);
@@ -343,6 +353,25 @@ static MTPObject *usb_mtp_object_lookup(MTPState *s, uint32_t handle)
     return NULL;
 }
 
+static MTPObject *usb_mtp_add_child(MTPState *s, MTPObject *o,
+                                    char *name)
+{
+    MTPObject *child =
+        usb_mtp_object_alloc(s, s->next_handle++, o, name);
+
+    if (child) {
+        trace_usb_mtp_add_child(s->dev.addr, child->handle, child->path);
+        QLIST_INSERT_HEAD(&o->children, child, list);
+        o->nchildren++;
+
+        if (child->format == FMT_ASSOCIATION) {
+            QLIST_INIT(&child->children);
+        }
+    }
+
+    return child;
+}
+
 static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
 {
     struct dirent *entry;
@@ -358,14 +387,7 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
         return;
     }
     while ((entry = readdir(dir)) != NULL) {
-        if ((o->nchildren % 32) == 0) {
-            o->children = g_renew(MTPObject *, o->children, o->nchildren + 32);
-        }
-        o->children[o->nchildren] =
-            usb_mtp_object_alloc(s, s->next_handle++, o, entry->d_name);
-        if (o->children[o->nchildren] != NULL) {
-            o->nchildren++;
-        }
+        usb_mtp_add_child(s, o, entry->d_name);
     }
     closedir(dir);
 }
@@ -617,13 +639,15 @@ static MTPData *usb_mtp_get_object_handles(MTPState *s, MTPControl *c,
                                            MTPObject *o)
 {
     MTPData *d = usb_mtp_data_alloc(c);
-    uint32_t i, handles[o->nchildren];
+    uint32_t i = 0, handles[o->nchildren];
+    MTPObject *iter;
 
     trace_usb_mtp_op_get_object_handles(s->dev.addr, o->handle, o->path);
 
-    for (i = 0; i < o->nchildren; i++) {
-        handles[i] = o->children[i]->handle;
+    QLIST_FOREACH(iter, &o->children, list) {
+        handles[i++] = iter->handle;
     }
+    assert(i == o->nchildren);
     usb_mtp_add_u32_array(d, o->nchildren, handles);
 
     return d;
