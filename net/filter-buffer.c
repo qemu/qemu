@@ -167,6 +167,25 @@ out:
     error_propagate(errp, local_err);
 }
 
+static void default_filter_release_packets(NetFilterState *nf,
+                                           void *opaque,
+                                           Error **errp)
+{
+    if (!strcmp(object_get_typename(OBJECT(nf)), TYPE_FILTER_BUFFER)) {
+        FilterBufferState *s = FILTER_BUFFER(nf);
+
+        if (s->is_default) {
+            filter_buffer_flush(nf);
+        }
+    }
+}
+
+/* public APIs */
+void qemu_release_default_filters_packets(void)
+{
+    qemu_foreach_netfilter(default_filter_release_packets, NULL, NULL);
+}
+
 static void default_filter_set_buffer_flag(NetFilterState *nf,
                                            void *opaque,
                                            Error **errp)
