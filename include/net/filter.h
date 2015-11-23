@@ -74,4 +74,7 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
                                     int iovcnt,
                                     void *opaque);
 
+void netdev_add_default_filter_buffer(const char *netdev_id,
+                                      NetFilterDirection direction,
+                                      Error **errp);
 #endif /* QEMU_NET_FILTER_H */
