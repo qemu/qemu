@@ -440,10 +440,7 @@ endif
 install: all $(if $(BUILD_DOCS),install-doc) \
 install-datadir install-localstatedir
 ifneq ($(TOOLS),)
-	$(call install-prog,$(filter-out qemu-ga,$(TOOLS)),$(DESTDIR)$(bindir))
-ifneq (,$(findstring qemu-ga,$(TOOLS)))
-	$(call install-prog,qemu-ga$(EXESUF),$(DESTDIR)$(bindir))
-endif
+	$(call install-prog,$(subst qemu-ga,qemu-ga$(EXESUF),$(TOOLS)),$(DESTDIR)$(bindir))
 endif
 ifneq ($(CONFIG_MODULES),)
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_moddir)"
