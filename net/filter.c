@@ -163,7 +163,8 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
     }
 
     nf->netdev = ncs[0];
-
+    nf->is_default = false;
+    nf->enabled = true;
     if (nfc->setup) {
         nfc->setup(nf, &local_err);
         if (local_err) {
@@ -190,6 +191,9 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
         g_free(info);
     }
     object_property_iter_free(iter);
+    info = g_strdup_printf(",status=%s", nf->enabled ? "on" : "off");
+    g_strlcat(nf->info_str, info, sizeof(nf->info_str));
+    g_free(info);
 }
 
 static void netfilter_finalize(Object *obj)

@@ -56,6 +56,8 @@ struct NetFilterState {
     NetClientState *netdev;
     NetFilterDirection direction;
     char info_str[256];
+    bool is_default;
+    bool enabled;
     QTAILQ_ENTRY(NetFilterState) next;
 };
 
@@ -74,4 +76,12 @@ ssize_t qemu_netfilter_pass_to_next(NetClientState *sender,
                                     int iovcnt,
                                     void *opaque);
 
+static inline bool qemu_need_skip_netfilter(NetFilterState *nf)
+{
+    return nf->enabled ? false : true;
+}
+
+void netdev_add_default_filter_buffer(const char *netdev_id,
+                                      NetFilterDirection direction,
+                                      Error **errp);
 #endif /* QEMU_NET_FILTER_H */

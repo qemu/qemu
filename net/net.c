@@ -581,6 +581,10 @@ static ssize_t filter_receive_iov(NetClientState *nc,
     NetFilterState *nf = NULL;
 
     QTAILQ_FOREACH(nf, &nc->filters, next) {
+        /* Don't go through filter if it is off */
+        if (qemu_need_skip_netfilter(nf)) {
+            continue;
+        }
         ret = qemu_netfilter_receive(nf, direction, sender, flags, iov,
                                      iovcnt, sent_cb);
         if (ret) {
@@ -1027,6 +1031,14 @@ static int net_client_init1(const void *object, int is_netdev, Error **errp)
                        NetClientOptionsKind_lookup[opts->type]);
         }
         return -1;
+    }
+
+    if (is_netdev) {
+        const Netdev *netdev = object;
+
+        netdev_add_default_filter_buffer(netdev->id,
+                                         NET_FILTER_DIRECTION_RX,
+                                         errp);
     }
     return 0;
 }
