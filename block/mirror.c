@@ -388,6 +388,7 @@ static void mirror_exit(BlockJob *job, void *opaque)
     bdrv_unref(s->target);
     block_job_completed(&s->common, data->ret);
     g_free(data);
+    bdrv_drained_end(src);
     bdrv_unref(src);
 }
 
@@ -607,6 +608,9 @@ immediate_exit:
 
     data = g_malloc(sizeof(*data));
     data->ret = ret;
+    /* Before we switch to target in mirror_exit, make sure data doesn't
+     * change. */
+    bdrv_drained_begin(s->common.bs);
     block_job_defer_to_main_loop(&s->common, mirror_exit, data);
 }
 
