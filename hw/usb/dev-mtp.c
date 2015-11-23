@@ -213,7 +213,7 @@ static const USBDescIface desc_iface_full = {
         },{
             .bEndpointAddress      = USB_DIR_IN | EP_EVENT,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
+            .wMaxPacketSize        = 64,
             .bInterval             = 0x0a,
         },
     }
@@ -255,7 +255,7 @@ static const USBDescIface desc_iface_high = {
         },{
             .bEndpointAddress      = USB_DIR_IN | EP_EVENT,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
+            .wMaxPacketSize        = 64,
             .bInterval             = 0x0a,
         },
     }
@@ -1297,6 +1297,31 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
         }
         break;
     case EP_EVENT:
+#ifdef __linux__
+        if (!QTAILQ_EMPTY(&s->events)) {
+            struct MTPMonEntry *e = QTAILQ_LAST(&s->events, events);
+            uint32_t handle;
+            int len = sizeof(container) + sizeof(uint32_t);
+
+            if (p->iov.size < len) {
+                trace_usb_mtp_stall(s->dev.addr,
+                                    "packet too small to send event");
+                p->status = USB_RET_STALL;
+                return;
+            }
+
+            QTAILQ_REMOVE(&s->events, e, next);
+            container.length = cpu_to_le32(len);
+            container.type = cpu_to_le32(TYPE_EVENT);
+            container.code = cpu_to_le16(e->event);
+            container.trans = 0; /* no trans specific events */
+            handle = cpu_to_le32(e->handle);
+            usb_packet_copy(p, &container, sizeof(container));
+            usb_packet_copy(p, &handle, sizeof(uint32_t));
+            g_free(e);
+            return;
+        }
+#endif
         p->status = USB_RET_NAK;
         return;
     default:
