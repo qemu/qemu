@@ -90,6 +90,7 @@ check-unit-y += tests/test-io-channel-file$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-io-channel-tls$(EXESUF)
 check-unit-y += tests/test-io-channel-command$(EXESUF)
 check-unit-y += tests/test-io-channel-buffer$(EXESUF)
+check-unit-y += tests/test-base64$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -423,6 +424,8 @@ tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 	$(test-qom-obj-y)
 tests/test-timed-average$(EXESUF): tests/test-timed-average.o qemu-timer.o \
 	$(test-util-obj-y)
+tests/test-base64$(EXESUF): tests/test-base64.o \
+	libqemuutil.a libqemustub.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
