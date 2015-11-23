@@ -295,8 +295,6 @@
 # @format: #optional data encoding (default 'utf8').
 #          - base64: data must be base64 encoded text.  Its binary
 #            decoding gets written.
-#            Bug: invalid base64 is currently not rejected.
-#            Whitespace *is* invalid.
 #          - utf8: data's UTF-8 encoding is written
 #          - data itself is always Unicode regardless of format, like
 #            any other string.
