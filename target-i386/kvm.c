@@ -1333,9 +1333,8 @@ ASSERT_OFFSET(XSAVE_PKRU, pkru_state);
 static int kvm_put_xsave(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    struct kvm_xsave* xsave = env->kvm_xsave_buf;
+    X86XSaveArea *xsave = env->kvm_xsave_buf;
     uint16_t cwd, swd, twd;
-    uint8_t *xmm, *ymmh, *zmmh;
     int i, r;
 
     if (!has_xsave) {
@@ -1350,25 +1349,26 @@ static int kvm_put_xsave(X86CPU *cpu)
     for (i = 0; i < 8; ++i) {
         twd |= (!env->fptags[i]) << i;
     }
-    xsave->region[XSAVE_FCW_FSW] = (uint32_t)(swd << 16) + cwd;
-    xsave->region[XSAVE_FTW_FOP] = (uint32_t)(env->fpop << 16) + twd;
-    memcpy(&xsave->region[XSAVE_CWD_RIP], &env->fpip, sizeof(env->fpip));
-    memcpy(&xsave->region[XSAVE_CWD_RDP], &env->fpdp, sizeof(env->fpdp));
-    memcpy(&xsave->region[XSAVE_ST_SPACE], env->fpregs,
+    xsave->legacy.fcw = cwd;
+    xsave->legacy.fsw = swd;
+    xsave->legacy.ftw = twd;
+    xsave->legacy.fpop = env->fpop;
+    xsave->legacy.fpip = env->fpip;
+    xsave->legacy.fpdp = env->fpdp;
+    memcpy(&xsave->legacy.fpregs, env->fpregs,
             sizeof env->fpregs);
-    xsave->region[XSAVE_MXCSR] = env->mxcsr;
-    *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV] = env->xstate_bv;
-    memcpy(&xsave->region[XSAVE_BNDREGS], env->bnd_regs,
+    xsave->legacy.mxcsr = env->mxcsr;
+    xsave->header.xstate_bv = env->xstate_bv;
+    memcpy(&xsave->bndreg_state.bnd_regs, env->bnd_regs,
             sizeof env->bnd_regs);
-    memcpy(&xsave->region[XSAVE_BNDCSR], &env->bndcs_regs,
-            sizeof(env->bndcs_regs));
-    memcpy(&xsave->region[XSAVE_OPMASK], env->opmask_regs,
+    xsave->bndcsr_state.bndcsr = env->bndcs_regs;
+    memcpy(&xsave->opmask_state.opmask_regs, env->opmask_regs,
             sizeof env->opmask_regs);
 
-    xmm = (uint8_t *)&xsave->region[XSAVE_XMM_SPACE];
-    ymmh = (uint8_t *)&xsave->region[XSAVE_YMMH_SPACE];
-    zmmh = (uint8_t *)&xsave->region[XSAVE_ZMM_Hi256];
-    for (i = 0; i < CPU_NB_REGS; i++, xmm += 16, ymmh += 16, zmmh += 32) {
+    for (i = 0; i < CPU_NB_REGS; i++) {
+        uint8_t *xmm = xsave->legacy.xmm_regs[i];
+        uint8_t *ymmh = xsave->avx_state.ymmh[i];
+        uint8_t *zmmh = xsave->zmm_hi256_state.zmm_hi256[i];
         stq_p(xmm,     env->xmm_regs[i].ZMM_Q(0));
         stq_p(xmm+8,   env->xmm_regs[i].ZMM_Q(1));
         stq_p(ymmh,    env->xmm_regs[i].ZMM_Q(2));
@@ -1380,9 +1380,9 @@ static int kvm_put_xsave(X86CPU *cpu)
     }
 
 #ifdef TARGET_X86_64
-    memcpy(&xsave->region[XSAVE_Hi16_ZMM], &env->xmm_regs[16],
+    memcpy(&xsave->hi16_zmm_state.hi16_zmm, &env->xmm_regs[16],
             16 * sizeof env->xmm_regs[16]);
-    memcpy(&xsave->region[XSAVE_PKRU], &env->pkru, sizeof env->pkru);
+    memcpy(&xsave->pkru_state, &env->pkru, sizeof env->pkru);
 #endif
     r = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_XSAVE, xsave);
     return r;
@@ -1771,9 +1771,8 @@ static int kvm_get_fpu(X86CPU *cpu)
 static int kvm_get_xsave(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    struct kvm_xsave* xsave = env->kvm_xsave_buf;
+    X86XSaveArea *xsave = env->kvm_xsave_buf;
     int ret, i;
-    const uint8_t *xmm, *ymmh, *zmmh;
     uint16_t cwd, swd, twd;
 
     if (!has_xsave) {
@@ -1785,33 +1784,32 @@ static int kvm_get_xsave(X86CPU *cpu)
         return ret;
     }
 
-    cwd = (uint16_t)xsave->region[XSAVE_FCW_FSW];
-    swd = (uint16_t)(xsave->region[XSAVE_FCW_FSW] >> 16);
-    twd = (uint16_t)xsave->region[XSAVE_FTW_FOP];
-    env->fpop = (uint16_t)(xsave->region[XSAVE_FTW_FOP] >> 16);
+    cwd = xsave->legacy.fcw;
+    swd = xsave->legacy.fsw;
+    twd = xsave->legacy.ftw;
+    env->fpop = xsave->legacy.fpop;
     env->fpstt = (swd >> 11) & 7;
     env->fpus = swd;
     env->fpuc = cwd;
     for (i = 0; i < 8; ++i) {
         env->fptags[i] = !((twd >> i) & 1);
     }
-    memcpy(&env->fpip, &xsave->region[XSAVE_CWD_RIP], sizeof(env->fpip));
-    memcpy(&env->fpdp, &xsave->region[XSAVE_CWD_RDP], sizeof(env->fpdp));
-    env->mxcsr = xsave->region[XSAVE_MXCSR];
-    memcpy(env->fpregs, &xsave->region[XSAVE_ST_SPACE],
+    env->fpip = xsave->legacy.fpip;
+    env->fpdp = xsave->legacy.fpdp;
+    env->mxcsr = xsave->legacy.mxcsr;
+    memcpy(env->fpregs, &xsave->legacy.fpregs,
             sizeof env->fpregs);
-    env->xstate_bv = *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV];
-    memcpy(env->bnd_regs, &xsave->region[XSAVE_BNDREGS],
+    env->xstate_bv = xsave->header.xstate_bv;
+    memcpy(env->bnd_regs, &xsave->bndreg_state.bnd_regs,
             sizeof env->bnd_regs);
-    memcpy(&env->bndcs_regs, &xsave->region[XSAVE_BNDCSR],
-            sizeof(env->bndcs_regs));
-    memcpy(env->opmask_regs, &xsave->region[XSAVE_OPMASK],
+    env->bndcs_regs = xsave->bndcsr_state.bndcsr;
+    memcpy(env->opmask_regs, &xsave->opmask_state.opmask_regs,
             sizeof env->opmask_regs);
 
-    xmm = (const uint8_t *)&xsave->region[XSAVE_XMM_SPACE];
-    ymmh = (const uint8_t *)&xsave->region[XSAVE_YMMH_SPACE];
-    zmmh = (const uint8_t *)&xsave->region[XSAVE_ZMM_Hi256];
-    for (i = 0; i < CPU_NB_REGS; i++, xmm += 16, ymmh += 16, zmmh += 32) {
+    for (i = 0; i < CPU_NB_REGS; i++) {
+        uint8_t *xmm = xsave->legacy.xmm_regs[i];
+        uint8_t *ymmh = xsave->avx_state.ymmh[i];
+        uint8_t *zmmh = xsave->zmm_hi256_state.zmm_hi256[i];
         env->xmm_regs[i].ZMM_Q(0) = ldq_p(xmm);
         env->xmm_regs[i].ZMM_Q(1) = ldq_p(xmm+8);
         env->xmm_regs[i].ZMM_Q(2) = ldq_p(ymmh);
@@ -1823,9 +1821,9 @@ static int kvm_get_xsave(X86CPU *cpu)
     }
 
 #ifdef TARGET_X86_64
-    memcpy(&env->xmm_regs[16], &xsave->region[XSAVE_Hi16_ZMM],
+    memcpy(&env->xmm_regs[16], &xsave->hi16_zmm_state.hi16_zmm,
            16 * sizeof env->xmm_regs[16]);
-    memcpy(&env->pkru, &xsave->region[XSAVE_PKRU], sizeof env->pkru);
+    memcpy(&env->pkru, &xsave->pkru_state, sizeof env->pkru);
 #endif
     return 0;
 }
