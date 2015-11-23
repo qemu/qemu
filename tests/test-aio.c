@@ -393,6 +393,7 @@ static void test_aio_external_client(void)
             aio_enable_external(ctx);
         }
         assert(aio_poll(ctx, false));
+        set_event_notifier(ctx, &data.e, NULL);
         event_notifier_cleanup(&data.e);
     }
 }
