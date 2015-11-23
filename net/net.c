@@ -288,6 +288,23 @@ void qemu_foreach_netfilter(qemu_netfilter_foreach func, void *opaque,
     }
 }
 
+bool qemu_netdev_support_netfilter(void)
+{
+    NetClientState *nc;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        if (nc->info->type == NET_CLIENT_OPTIONS_KIND_NIC) {
+            continue;
+        }
+        if (QTAILQ_EMPTY(&nc->filters)) {
+            error_report("netdev (%s) does not support filter", nc->name);
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static void qemu_net_client_destructor(NetClientState *nc)
 {
     g_free(nc);

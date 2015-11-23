@@ -18,6 +18,8 @@
 #include "qemu/error-report.h"
 #include "migration/failover.h"
 #include "qapi-event.h"
+#include "net/filter.h"
+#include "net/net.h"
 
 static bool vmstate_loading;
 
@@ -129,6 +131,11 @@ static void primary_vm_do_failover(void)
                      old_state);
         return;
     }
+    /* Don't buffer any packets while exited COLO */
+    qemu_set_default_filters_status(false);
+    /* Flush the residuary buffered packts */
+    qemu_release_default_filters_packets();
+
     /* Notify COLO thread that failover work is finished */
     qemu_sem_post(&s->colo_sem);
 }
@@ -335,6 +342,8 @@ static int colo_do_checkpoint_transaction(MigrationState *s,
         goto out;
     }
 
+    qemu_release_default_filters_packets();
+
     if (colo_shutdown) {
         colo_put_cmd(s->to_dst_file, COLO_COMMAND_GUEST_SHUTDOWN, &local_err);
         if (local_err) {
@@ -379,6 +388,17 @@ static int colo_prepare_before_save(MigrationState *s)
     return ret;
 }
 
+static int colo_init_buffer_filters(void)
+{
+    if (!qemu_netdev_support_netfilter()) {
+        return -EPERM;
+    }
+    /* Begin to buffer packets that sent by VM */
+    qemu_set_default_filters_status(true);
+
+    return 0;
+}
+
 static void colo_process_checkpoint(MigrationState *s)
 {
     QEMUSizedBuffer *buffer = NULL;
@@ -387,7 +407,10 @@ static void colo_process_checkpoint(MigrationState *s)
     int ret;
 
     failover_init_state();
-
+    ret = colo_init_buffer_filters();
+    if (ret < 0) {
+        goto out;
+    }
     s->rp_state.from_dst_file = qemu_file_get_return_path(s->to_dst_file);
     if (!s->rp_state.from_dst_file) {
         error_report("Open QEMUFile from_dst_file failed");
