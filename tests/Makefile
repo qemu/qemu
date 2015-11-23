@@ -415,8 +415,7 @@ tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
         migration/qemu-file-unix.o qjson.o \
 	$(test-qom-obj-y)
 tests/test-timed-average$(EXESUF): tests/test-timed-average.o qemu-timer.o \
-	libqemuutil.a stubs/clock-warp.o stubs/cpu-get-icount.o \
-	stubs/notify-event.o stubs/replay.o
+	$(test-util-obj-y)
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
