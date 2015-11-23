@@ -517,7 +517,6 @@ static int query_memdev(Object *obj, void *opaque)
 {
     MemdevList **list = opaque;
     MemdevList *m = NULL;
-    Error *err = NULL;
 
     if (object_dynamic_cast(obj, TYPE_MEMORY_BACKEND)) {
         m = g_malloc0(sizeof(*m));
@@ -525,72 +524,34 @@ static int query_memdev(Object *obj, void *opaque)
         m->value = g_malloc0(sizeof(*m->value));
 
         m->value->size = object_property_get_int(obj, "size",
-                                                 &err);
-        if (err) {
-            goto error;
-        }
-
+                                                 &error_abort);
         m->value->merge = object_property_get_bool(obj, "merge",
-                                                   &err);
-        if (err) {
-            goto error;
-        }
-
+                                                   &error_abort);
         m->value->dump = object_property_get_bool(obj, "dump",
-                                                  &err);
-        if (err) {
-            goto error;
-        }
-
+                                                  &error_abort);
         m->value->prealloc = object_property_get_bool(obj,
-                                                      "prealloc", &err);
-        if (err) {
-            goto error;
-        }
-
+                                                      "prealloc",
+                                                      &error_abort);
         m->value->policy = object_property_get_enum(obj,
                                                     "policy",
                                                     "HostMemPolicy",
-                                                    &err);
-        if (err) {
-            goto error;
-        }
-
+                                                    &error_abort);
         object_property_get_uint16List(obj, "host-nodes",
-                                       &m->value->host_nodes, &err);
-        if (err) {
-            goto error;
-        }
+                                       &m->value->host_nodes,
+                                       &error_abort);
 
         m->next = *list;
         *list = m;
     }
 
     return 0;
-error:
-    g_free(m->value);
-    g_free(m);
-
-    return -1;
 }
 
 MemdevList *qmp_query_memdev(Error **errp)
 {
-    Object *obj;
+    Object *obj = object_get_objects_root();
     MemdevList *list = NULL;
 
-    obj = object_get_objects_root();
-    if (obj == NULL) {
-        return NULL;
-    }
-
-    if (object_child_foreach(obj, query_memdev, &list) != 0) {
-        goto error;
-    }
-
+    object_child_foreach(obj, query_memdev, &list);
     return list;
-
-error:
-    qapi_free_MemdevList(list);
-    return NULL;
 }
