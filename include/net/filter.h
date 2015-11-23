@@ -84,5 +84,6 @@ static inline bool qemu_need_skip_netfilter(NetFilterState *nf)
 void netdev_add_default_filter_buffer(const char *netdev_id,
                                       NetFilterDirection direction,
                                       Error **errp);
+void qemu_release_default_filters_packets(void);
 void qemu_set_default_filters_status(bool enable);
 #endif /* QEMU_NET_FILTER_H */
