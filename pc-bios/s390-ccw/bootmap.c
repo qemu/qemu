@@ -84,7 +84,7 @@ static const int max_bprs_entries = sizeof(_bprs) / sizeof(ExtEckdBlockPtr);
 
 static inline void verify_boot_info(BootInfo *bip)
 {
-    IPL_assert(magic_match(bip->magic, ZIPL_MAGIC), "No zIPL magic");
+    IPL_assert(magic_match(bip->magic, ZIPL_MAGIC), "No zIPL sig in BootInfo");
     IPL_assert(bip->version == BOOT_INFO_VERSION, "Wrong zIPL version");
     IPL_assert(bip->bp_type == BOOT_INFO_BP_TYPE_IPL, "DASD is not for IPL");
     IPL_assert(bip->dev_type == BOOT_INFO_DEV_TYPE_ECKD, "DASD is not ECKD");
@@ -416,7 +416,7 @@ static void zipl_run(ScsiBlockPtr *pte)
     read_block(pte->blockno, tmp_sec, "Cannot read header");
     header = (ComponentHeader *)tmp_sec;
 
-    IPL_assert(magic_match(tmp_sec, ZIPL_MAGIC), "No zIPL magic");
+    IPL_assert(magic_match(tmp_sec, ZIPL_MAGIC), "No zIPL magic in header");
     IPL_assert(header->type == ZIPL_COMP_HEADER_IPL, "Bad header type");
 
     dputs("start loading images\n");
@@ -465,7 +465,7 @@ static void ipl_scsi(void)
     read_block(mbr->blockptr.blockno, sec,
                "Error reading Program Table");
 
-    IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic");
+    IPL_assert(magic_match(sec, ZIPL_MAGIC), "No zIPL magic in PT");
 
     ns_end = sec + virtio_get_block_size();
     for (ns = (sec + pte_len); (ns + pte_len) < ns_end; ns += pte_len) {
