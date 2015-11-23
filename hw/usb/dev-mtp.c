@@ -908,6 +908,7 @@ static void usb_mtp_handle_reset(USBDevice *dev)
 
     trace_usb_mtp_reset(s->dev.addr);
 
+    usb_mtp_object_free(s, QTAILQ_FIRST(&s->objects));
     s->session = 0;
     usb_mtp_data_free(s->data_in);
     s->data_in = NULL;
