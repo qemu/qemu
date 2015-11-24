@@ -220,7 +220,7 @@ static int64_t allocate_clusters(BlockDriverState *bs, int64_t sector_num,
         s->bat_bitmap[idx + i] = cpu_to_le32(s->data_end / s->off_multiplier);
         s->data_end += s->tracks;
         bitmap_set(s->bat_dirty_bmap,
-                   bat_entry_off(idx) / s->bat_dirty_block, 1);
+                   bat_entry_off(idx + i) / s->bat_dirty_block, 1);
     }
 
     return bat2sect(s, idx) + sector_num % s->tracks;
