@@ -169,6 +169,8 @@ struct MigrationState
     RAMBlock *last_req_rb;
 };
 
+void migrate_set_state(int *state, int old_state, int new_state);
+
 void process_incoming_migration(QEMUFile *f);
 
 void qemu_start_incoming_migration(const char *uri, Error **errp);
