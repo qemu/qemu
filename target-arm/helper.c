@@ -6642,6 +6642,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     int ap, ns, xn, pxn;
     uint32_t el = regime_el(env, mmu_idx);
     bool ttbr1_valid = true;
+    uint64_t descaddrmask;
 
     /* TODO:
      * This code does not handle the different format TCR for VTCR_EL2.
@@ -6831,6 +6832,15 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     descaddr = extract64(ttbr, 0, 48);
     descaddr &= ~((1ULL << (inputsize - (stride * (4 - level)))) - 1);
 
+    /* The address field in the descriptor goes up to bit 39 for ARMv7
+     * but up to bit 47 for ARMv8.
+     */
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        descaddrmask = 0xfffffffff000ULL;
+    } else {
+        descaddrmask = 0xfffffff000ULL;
+    }
+
     /* Secure accesses start with the page table in secure memory and
      * can be downgraded to non-secure at any step. Non-secure accesses
      * remain non-secure. We implement this by just ORing in the NSTable/NS
@@ -6854,7 +6864,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
             /* Invalid, or the Reserved level 3 encoding */
             goto do_fault;
         }
-        descaddr = descriptor & 0xfffffff000ULL;
+        descaddr = descriptor & descaddrmask;
 
         if ((descriptor & 2) && (level < 3)) {
             /* Table entry. The top five bits are attributes which  may
