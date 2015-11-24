@@ -1256,7 +1256,7 @@ zero-copy communication to the application level of the guests.  The basic
 syntax is:
 
 @example
-qemu-system-i386 -device ivshmem,size=@var{size}[,shm=@var{shm-name}]
+qemu-system-i386 -device ivshmem,size=@var{size},shm=@var{shm-name}
 @end example
 
 If desired, interrupts can be sent between guest VMs accessing the same shared
