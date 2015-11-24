@@ -45,6 +45,8 @@
 #include <sys/mman.h>
 #include <sys/eventfd.h>
 #include <arpa/inet.h>
+#include <ctype.h>
+#include <netdb.h>
 
 #include <linux/vhost.h>
 
@@ -1211,32 +1213,61 @@ vubr_new(const char *path)
 }
 
 static void
+vubr_set_host(struct sockaddr_in *saddr, const char *host)
+{
+    if (isdigit(host[0])) {
+        if (!inet_aton(host, &saddr->sin_addr)) {
+            fprintf(stderr, "inet_aton() failed.\n");
+            exit(1);
+        }
+    } else {
+        struct hostent *he = gethostbyname(host);
+
+        if (!he) {
+            fprintf(stderr, "gethostbyname() failed.\n");
+            exit(1);
+        }
+        saddr->sin_addr = *(struct in_addr *)he->h_addr;
+    }
+}
+
+static void
 vubr_backend_udp_setup(VubrDev *dev,
                        const char *local_host,
-                       uint16_t local_port,
-                       const char *dest_host,
-                       uint16_t dest_port)
+                       const char *local_port,
+                       const char *remote_host,
+                       const char *remote_port)
 {
     int sock;
-    struct sockaddr_in si_local = {
-        .sin_family = AF_INET,
-        .sin_port = htons(local_port),
-    };
+    const char *r;
 
-    if (inet_aton(local_host, &si_local.sin_addr) == 0) {
-        fprintf(stderr, "inet_aton() failed.\n");
+    int lport, rport;
+
+    lport = strtol(local_port, (char **)&r, 0);
+    if (r == local_port) {
+        fprintf(stderr, "lport parsing failed.\n");
         exit(1);
     }
+
+    rport = strtol(remote_port, (char **)&r, 0);
+    if (r == remote_port) {
+        fprintf(stderr, "rport parsing failed.\n");
+        exit(1);
+    }
+
+    struct sockaddr_in si_local = {
+        .sin_family = AF_INET,
+        .sin_port = htons(lport),
+    };
+
+    vubr_set_host(&si_local, local_host);
 
     /* setup destination for sends */
     dev->backend_udp_dest = (struct sockaddr_in) {
         .sin_family = AF_INET,
-        .sin_port = htons(dest_port),
+        .sin_port = htons(rport),
     };
-    if (inet_aton(dest_host, &dev->backend_udp_dest.sin_addr) == 0) {
-        fprintf(stderr, "inet_aton() failed.\n");
-        exit(1);
-    }
+    vubr_set_host(&dev->backend_udp_dest, remote_host);
 
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock == -1) {
@@ -1250,7 +1281,7 @@ vubr_backend_udp_setup(VubrDev *dev,
     dev->backend_udp_sock = sock;
     dispatcher_add(&dev->dispatcher, sock, dev, vubr_backend_recv_cb);
     DPRINT("Waiting for data from udp backend on %s:%d...\n",
-           local_host, local_port);
+           local_host, lport);
 }
 
 static void
@@ -1263,19 +1294,81 @@ vubr_run(VubrDev *dev)
     }
 }
 
+static int
+vubr_parse_host_port(const char **host, const char **port, const char *buf)
+{
+    char *p = strchr(buf, ':');
+
+    if (!p) {
+        return -1;
+    }
+    *p = '\0';
+    *host = strdup(buf);
+    *port = strdup(p + 1);
+    return 0;
+}
+
+#define DEFAULT_UD_SOCKET "/tmp/vubr.sock"
+#define DEFAULT_LHOST "127.0.0.1"
+#define DEFAULT_LPORT "4444"
+#define DEFAULT_RHOST "127.0.0.1"
+#define DEFAULT_RPORT "5555"
+
+static const char *ud_socket_path = DEFAULT_UD_SOCKET;
+static const char *lhost = DEFAULT_LHOST;
+static const char *lport = DEFAULT_LPORT;
+static const char *rhost = DEFAULT_RHOST;
+static const char *rport = DEFAULT_RPORT;
+
 int
 main(int argc, char *argv[])
 {
     VubrDev *dev;
+    int opt;
 
-    dev = vubr_new("/tmp/vubr.sock");
+    while ((opt = getopt(argc, argv, "l:r:u:")) != -1) {
+
+        switch (opt) {
+        case 'l':
+            if (vubr_parse_host_port(&lhost, &lport, optarg) < 0) {
+                goto out;
+            }
+            break;
+        case 'r':
+            if (vubr_parse_host_port(&rhost, &rport, optarg) < 0) {
+                goto out;
+            }
+            break;
+        case 'u':
+            ud_socket_path = strdup(optarg);
+            break;
+        default:
+            goto out;
+        }
+    }
+
+    DPRINT("ud socket: %s\n", ud_socket_path);
+    DPRINT("local:     %s:%s\n", lhost, lport);
+    DPRINT("remote:    %s:%s\n", rhost, rport);
+
+    dev = vubr_new(ud_socket_path);
     if (!dev) {
         return 1;
     }
 
-    vubr_backend_udp_setup(dev,
-                                 "127.0.0.1", 4444,
-                                 "127.0.0.1", 5555);
+    vubr_backend_udp_setup(dev, lhost, lport, rhost, rport);
     vubr_run(dev);
     return 0;
+
+out:
+    fprintf(stderr, "Usage: %s ", argv[0]);
+    fprintf(stderr, "[-u ud_socket_path] [-l lhost:lport] [-r rhost:rport]\n");
+    fprintf(stderr, "\t-u path to unix doman socket. default: %s\n",
+            DEFAULT_UD_SOCKET);
+    fprintf(stderr, "\t-l local host and port. default: %s:%s\n",
+            DEFAULT_LHOST, DEFAULT_LPORT);
+    fprintf(stderr, "\t-r remote host and port. default: %s:%s\n",
+            DEFAULT_RHOST, DEFAULT_RPORT);
+
+    return 1;
 }
