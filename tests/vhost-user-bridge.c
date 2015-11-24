@@ -747,6 +747,7 @@ vubr_get_features_exec(VubrDev *dev, VhostUserMsg *vmsg)
     vmsg->payload.u64 =
             ((1ULL << VIRTIO_NET_F_MRG_RXBUF) |
              (1ULL << VHOST_F_LOG_ALL) |
+             (1ULL << VIRTIO_NET_F_GUEST_ANNOUNCE) |
              (1ULL << VHOST_USER_F_PROTOCOL_FEATURES));
 
     vmsg->size = sizeof(vmsg->payload.u64);
