@@ -443,7 +443,7 @@ eot:
     if (ret < 0) {
         block_acct_failed(blk_get_stats(s->blk), &s->acct);
     } else {
-    block_acct_done(blk_get_stats(s->blk), &s->acct);
+        block_acct_done(blk_get_stats(s->blk), &s->acct);
     }
     ide_set_inactive(s, false);
 }
