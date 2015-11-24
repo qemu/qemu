@@ -642,14 +642,18 @@ static void nsleep(int64_t nsecs)
 
 static uint8_t ide_wait_clear(uint8_t flag)
 {
-    int i;
     uint8_t data;
+    time_t st;
 
     /* Wait with a 5 second timeout */
-    for (i = 0; i <= 12500000; i++) {
+    time(&st);
+    while (true) {
         data = inb(IDE_BASE + reg_status);
         if (!(data & flag)) {
             return data;
+        }
+        if (difftime(time(NULL), st) > 5.0) {
+            break;
         }
         nsleep(400);
     }
@@ -658,13 +662,17 @@ static uint8_t ide_wait_clear(uint8_t flag)
 
 static void ide_wait_intr(int irq)
 {
-    int i;
+    time_t st;
     bool intr;
 
-    for (i = 0; i <= 12500000; i++) {
+    time(&st);
+    while (true) {
         intr = get_irq(irq);
         if (intr) {
             return;
+        }
+        if (difftime(time(NULL), st) > 5.0) {
+            break;
         }
         nsleep(400);
     }
