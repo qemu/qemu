@@ -532,6 +532,36 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_stimer);
 }
 
+static int kvm_arch_set_tsc_khz(CPUState *cs)
+{
+    X86CPU *cpu = X86_CPU(cs);
+    CPUX86State *env = &cpu->env;
+    int r;
+
+    if (!env->tsc_khz) {
+        return 0;
+    }
+
+    r = kvm_check_extension(cs->kvm_state, KVM_CAP_TSC_CONTROL) ?
+        kvm_vcpu_ioctl(cs, KVM_SET_TSC_KHZ, env->tsc_khz) :
+        -ENOTSUP;
+    if (r < 0) {
+        /* When KVM_SET_TSC_KHZ fails, it's an error only if the current
+         * TSC frequency doesn't match the one we want.
+         */
+        int cur_freq = kvm_check_extension(cs->kvm_state, KVM_CAP_GET_TSC_KHZ) ?
+                       kvm_vcpu_ioctl(cs, KVM_GET_TSC_KHZ) :
+                       -ENOTSUP;
+        if (cur_freq <= 0 || cur_freq != env->tsc_khz) {
+            error_report("warning: TSC frequency mismatch between "
+                         "VM and host, and TSC scaling unavailable");
+            return r;
+        }
+    }
+
+    return 0;
+}
+
 static Error *invtsc_mig_blocker;
 
 #define KVM_MAX_CPUID_ENTRIES  100
@@ -859,13 +889,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return r;
     }
 
-    r = kvm_check_extension(cs->kvm_state, KVM_CAP_TSC_CONTROL);
-    if (r && env->tsc_khz) {
-        r = kvm_vcpu_ioctl(cs, KVM_SET_TSC_KHZ, env->tsc_khz);
-        if (r < 0) {
-            fprintf(stderr, "KVM_SET_TSC_KHZ failed\n");
-            return r;
-        }
+    r = kvm_arch_set_tsc_khz(cs);
+    if (r < 0) {
+        return r;
     }
 
     /* vcpu's TSC frequency is either specified by user, or following
