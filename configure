@@ -1428,6 +1428,9 @@ if compile_object ; then
 else
     error_exit "\"$cc\" either does not exist or does not work"
 fi
+if ! compile_prog ; then
+    error_exit "\"$cc\" cannot build an executable (is your linker broken?)"
+fi
 
 # Check that the C++ compiler exists and works with the C compiler
 if has $cxx; then
