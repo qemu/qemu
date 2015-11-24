@@ -1583,6 +1583,8 @@ colo_vm_state_change(const char *old, const char *new) "Change '%s' => '%s'"
 colo_ctl_put(const char *msg, uint64_t value) "Send '%s' cmd, value: %" PRIu64""
 colo_ctl_get(const char *msg, uint64_t value) "Receive '%s' cmd, value: %" PRIu64""
 colo_failover_set_state(int new_state) "new state %d"
+colo_start_block_replication(void) "Block replication is started"
+colo_stop_block_replication(const char *reason) "Block replication is stopped(reason: '%s')"
 
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
