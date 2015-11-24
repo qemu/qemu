@@ -978,6 +978,7 @@ typedef struct CPUX86State {
     uint32_t sipi_vector;
     bool tsc_valid;
     int64_t tsc_khz;
+    int64_t user_tsc_khz; /* for sanity check only */
     void *kvm_xsave_buf;
 
     uint64_t mcg_cap;

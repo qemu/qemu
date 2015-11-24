@@ -1728,7 +1728,7 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    cpu->env.tsc_khz = value / 1000;
+    cpu->env.tsc_khz = cpu->env.user_tsc_khz = value / 1000;
 }
 
 static void x86_cpuid_get_apic_id(Object *obj, Visitor *v, void *opaque,

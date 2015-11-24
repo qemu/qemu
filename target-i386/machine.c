@@ -6,6 +6,8 @@
 #include "cpu.h"
 #include "sysemu/kvm.h"
 
+#include "qemu/error-report.h"
+
 static const VMStateDescription vmstate_segment = {
     .name = "segment",
     .version_id = 1,
@@ -330,6 +332,13 @@ static int cpu_post_load(void *opaque, int version_id)
     CPUState *cs = CPU(cpu);
     CPUX86State *env = &cpu->env;
     int i;
+
+    if (env->tsc_khz && env->user_tsc_khz &&
+        env->tsc_khz != env->user_tsc_khz) {
+        error_report("Mismatch between user-specified TSC frequency and "
+                     "migrated TSC frequency");
+        return -EINVAL;
+    }
 
     /*
      * Real mode guest segments register DPL should be zero.
@@ -839,6 +848,26 @@ static const VMStateDescription vmstate_xss = {
     }
 };
 
+static bool tsc_khz_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(mc);
+    return env->tsc_khz && pcmc->save_tsc_khz;
+}
+
+static const VMStateDescription vmstate_tsc_khz = {
+    .name = "cpu/tsc_khz",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = tsc_khz_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(env.tsc_khz, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 VMStateDescription vmstate_x86_cpu = {
     .name = "cpu",
     .version_id = 12,
@@ -961,6 +990,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_hyperv_stimer,
         &vmstate_avx512,
         &vmstate_xss,
+        &vmstate_tsc_khz,
         NULL
     }
 };

@@ -360,8 +360,10 @@ DEFINE_Q35_MACHINE(v2_6, "pc-q35-2.6", NULL,
 
 static void pc_q35_2_5_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
     pc_q35_2_6_machine_options(m);
     m->alias = NULL;
+    pcmc->save_tsc_khz = false;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_5);
 }
 

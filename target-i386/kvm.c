@@ -2507,6 +2507,15 @@ int kvm_arch_put_registers(CPUState *cpu, int level)
         }
     }
 
+    if (level == KVM_PUT_FULL_STATE) {
+        /* We don't check for kvm_arch_set_tsc_khz() errors here,
+         * because TSC frequency mismatch shouldn't abort migration,
+         * unless the user explicitly asked for a more strict TSC
+         * setting (e.g. using an explicit "tsc-freq" option).
+         */
+        kvm_arch_set_tsc_khz(cpu);
+    }
+
     ret = kvm_getput_regs(x86_cpu, 1);
     if (ret < 0) {
         return ret;
