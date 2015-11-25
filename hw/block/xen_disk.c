@@ -75,7 +75,6 @@ struct ioreq {
     off_t               start;
     QEMUIOVector        v;
     int                 presync;
-    int                 postsync;
     uint8_t             mapped;
 
     /* grant mapping */
@@ -144,7 +143,6 @@ static void ioreq_reset(struct ioreq *ioreq)
     ioreq->status = 0;
     ioreq->start = 0;
     ioreq->presync = 0;
-    ioreq->postsync = 0;
     ioreq->mapped = 0;
 
     memset(ioreq->domids, 0, sizeof(ioreq->domids));
@@ -518,12 +516,6 @@ static void qemu_aio_complete(void *opaque, int ret)
         return;
     }
     if (ioreq->aio_inflight > 0) {
-        return;
-    }
-    if (ioreq->postsync) {
-        ioreq->postsync = 0;
-        ioreq->aio_inflight++;
-        blk_aio_flush(ioreq->blkdev->blk, qemu_aio_complete, ioreq);
         return;
     }
 
