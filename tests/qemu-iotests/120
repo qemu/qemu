@@ -49,7 +49,7 @@ echo "{'execute': 'qmp_capabilities'}
       {'execute': 'human-monitor-command',
        'arguments': {'command-line': 'qemu-io drv \"write -P 42 0 64k\"'}}
       {'execute': 'quit'}" \
-    | $QEMU -qmp stdio -nodefaults \
+    | $QEMU -qmp stdio -nographic -nodefaults \
             -drive id=drv,if=none,file="$TEST_IMG",driver=raw,file.driver=$IMGFMT \
     | _filter_qmp | _filter_qemu_io
 $QEMU_IO -c 'read -P 42 0 64k' "$TEST_IMG" | _filter_qemu_io
