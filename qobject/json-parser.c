@@ -63,15 +63,6 @@ static JSONTokenType token_get_type(QObject *obj)
     return qdict_get_int(qobject_to_qdict(obj), "type");
 }
 
-static int token_is_escape(QObject *obj, const char *value)
-{
-    if (token_get_type(obj) != JSON_ESCAPE) {
-        return 0;
-    }
-
-    return (strcmp(token_get_value(obj), value) == 0);
-}
-
 /**
  * Error handler
  */
@@ -560,6 +551,7 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
 {
     QObject *token = NULL, *obj;
     JSONParserContext saved_ctxt = parser_context_save(ctxt);
+    const char *val;
 
     if (ap == NULL) {
         goto out;
@@ -570,20 +562,26 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
         goto out;
     }
 
-    if (token_is_escape(token, "%p")) {
+    if (token_get_type(token) != JSON_ESCAPE) {
+        goto out;
+    }
+
+    val = token_get_value(token);
+
+    if (!strcmp(val, "%p")) {
         obj = va_arg(*ap, QObject *);
-    } else if (token_is_escape(token, "%i")) {
+    } else if (!strcmp(val, "%i")) {
         obj = QOBJECT(qbool_from_bool(va_arg(*ap, int)));
-    } else if (token_is_escape(token, "%d")) {
+    } else if (!strcmp(val, "%d")) {
         obj = QOBJECT(qint_from_int(va_arg(*ap, int)));
-    } else if (token_is_escape(token, "%ld")) {
+    } else if (!strcmp(val, "%ld")) {
         obj = QOBJECT(qint_from_int(va_arg(*ap, long)));
-    } else if (token_is_escape(token, "%lld") ||
-               token_is_escape(token, "%I64d")) {
+    } else if (!strcmp(val, "%lld") ||
+               !strcmp(val, "%I64d")) {
         obj = QOBJECT(qint_from_int(va_arg(*ap, long long)));
-    } else if (token_is_escape(token, "%s")) {
+    } else if (!strcmp(val, "%s")) {
         obj = QOBJECT(qstring_from_str(va_arg(*ap, const char *)));
-    } else if (token_is_escape(token, "%f")) {
+    } else if (!strcmp(val, "%f")) {
         obj = QOBJECT(qfloat_from_double(va_arg(*ap, double)));
     } else {
         goto out;
