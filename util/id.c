@@ -29,7 +29,7 @@ bool id_wellformed(const char *id)
 
 #define ID_SPECIAL_CHAR '#'
 
-static const char *const id_subsys_str[] = {
+static const char *const id_subsys_str[ID_MAX] = {
     [ID_QDEV]  = "qdev",
     [ID_BLOCK] = "block",
 };
@@ -53,7 +53,7 @@ char *id_generate(IdSubSystems id)
     static uint64_t id_counters[ID_MAX];
     uint32_t rnd;
 
-    assert(id < ID_MAX);
+    assert(id < ARRAY_SIZE(id_subsys_str));
     assert(id_subsys_str[id]);
 
     rnd = g_random_int_range(0, 100);
