@@ -22,6 +22,14 @@
 #define MAX_TOKEN_SIZE (64ULL << 20)
 #define MAX_NESTING (1ULL << 10)
 
+static void json_message_free_tokens(JSONMessageParser *parser)
+{
+    if (parser->tokens) {
+        g_queue_free(parser->tokens);
+        parser->tokens = NULL;
+    }
+}
+
 static void json_message_process_token(JSONLexer *lexer, GString *input,
                                        JSONTokenType type, int x, int y)
 {
@@ -53,7 +61,7 @@ static void json_message_process_token(JSONLexer *lexer, GString *input,
 
     parser->token_size += input->len;
 
-    qlist_append(parser->tokens, dict);
+    g_queue_push_tail(parser->tokens, dict);
 
     if (type == JSON_ERROR) {
         goto out_emit_bad;
@@ -77,27 +85,24 @@ out_emit_bad:
      * Clear out token list and tell the parser to emit an error
      * indication by passing it a NULL list
      */
-    QDECREF(parser->tokens);
-    parser->tokens = NULL;
+    json_message_free_tokens(parser);
 out_emit:
     /* send current list of tokens to parser and reset tokenizer */
     parser->brace_count = 0;
     parser->bracket_count = 0;
+    /* parser->emit takes ownership of parser->tokens.  */
     parser->emit(parser, parser->tokens);
-    if (parser->tokens) {
-        QDECREF(parser->tokens);
-    }
-    parser->tokens = qlist_new();
+    parser->tokens = g_queue_new();
     parser->token_size = 0;
 }
 
 void json_message_parser_init(JSONMessageParser *parser,
-                              void (*func)(JSONMessageParser *, QList *))
+                              void (*func)(JSONMessageParser *, GQueue *))
 {
     parser->emit = func;
     parser->brace_count = 0;
     parser->bracket_count = 0;
-    parser->tokens = qlist_new();
+    parser->tokens = g_queue_new();
     parser->token_size = 0;
 
     json_lexer_init(&parser->lexer, json_message_process_token);
@@ -117,5 +122,5 @@ int json_message_parser_flush(JSONMessageParser *parser)
 void json_message_parser_destroy(JSONMessageParser *parser)
 {
     json_lexer_destroy(&parser->lexer);
-    QDECREF(parser->tokens);
+    json_message_free_tokens(parser);
 }

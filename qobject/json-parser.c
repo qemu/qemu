@@ -26,11 +26,8 @@
 typedef struct JSONParserContext
 {
     Error *err;
-    struct {
-        QObject **buf;
-        size_t pos;
-        size_t count;
-    } tokens;
+    QObject *current;
+    GQueue *buf;
 } JSONParserContext;
 
 #define BUG_ON(cond) assert(!(cond))
@@ -243,56 +240,34 @@ out:
     return NULL;
 }
 
+/* Note: unless the token object returned by parser_context_peek_token
+ * or parser_context_pop_token is explicitly incref'd, it will be
+ * deleted as soon as parser_context_pop_token is called again.
+ */
 static QObject *parser_context_pop_token(JSONParserContext *ctxt)
 {
-    QObject *token;
-    g_assert(ctxt->tokens.pos < ctxt->tokens.count);
-    token = ctxt->tokens.buf[ctxt->tokens.pos];
-    ctxt->tokens.pos++;
-    return token;
+    qobject_decref(ctxt->current);
+    assert(!g_queue_is_empty(ctxt->buf));
+    ctxt->current = g_queue_pop_head(ctxt->buf);
+    return ctxt->current;
 }
 
-/* Note: parser_context_{peek|pop}_token do not increment the
- * token object's refcount. In both cases the references will continue
- * to be tracked and cleaned up in parser_context_free(), so do not
- * attempt to free the token object.
- */
 static QObject *parser_context_peek_token(JSONParserContext *ctxt)
 {
-    QObject *token;
-    g_assert(ctxt->tokens.pos < ctxt->tokens.count);
-    token = ctxt->tokens.buf[ctxt->tokens.pos];
-    return token;
+    assert(!g_queue_is_empty(ctxt->buf));
+    return g_queue_peek_head(ctxt->buf);
 }
 
-static void tokens_append_from_iter(QObject *obj, void *opaque)
-{
-    JSONParserContext *ctxt = opaque;
-    g_assert(ctxt->tokens.pos < ctxt->tokens.count);
-    ctxt->tokens.buf[ctxt->tokens.pos++] = obj;
-    qobject_incref(obj);
-}
-
-static JSONParserContext *parser_context_new(QList *tokens)
+static JSONParserContext *parser_context_new(GQueue *tokens)
 {
     JSONParserContext *ctxt;
-    size_t count;
 
     if (!tokens) {
         return NULL;
     }
 
-    count = qlist_size(tokens);
-    if (count == 0) {
-        return NULL;
-    }
-
     ctxt = g_malloc0(sizeof(JSONParserContext));
-    ctxt->tokens.pos = 0;
-    ctxt->tokens.count = count;
-    ctxt->tokens.buf = g_malloc(count * sizeof(QObject *));
-    qlist_iter(tokens, tokens_append_from_iter, ctxt);
-    ctxt->tokens.pos = 0;
+    ctxt->buf = tokens;
 
     return ctxt;
 }
@@ -300,12 +275,12 @@ static JSONParserContext *parser_context_new(QList *tokens)
 /* to support error propagation, ctxt->err must be freed separately */
 static void parser_context_free(JSONParserContext *ctxt)
 {
-    int i;
     if (ctxt) {
-        for (i = 0; i < ctxt->tokens.count; i++) {
-            qobject_decref(ctxt->tokens.buf[i]);
+        while (!g_queue_is_empty(ctxt->buf)) {
+            parser_context_pop_token(ctxt);
         }
-        g_free(ctxt->tokens.buf);
+        qobject_decref(ctxt->current);
+        g_queue_free(ctxt->buf);
         g_free(ctxt);
     }
 }
@@ -598,12 +573,12 @@ static QObject *parse_value(JSONParserContext *ctxt, va_list *ap)
     }
 }
 
-QObject *json_parser_parse(QList *tokens, va_list *ap)
+QObject *json_parser_parse(GQueue *tokens, va_list *ap)
 {
     return json_parser_parse_err(tokens, ap, NULL);
 }
 
-QObject *json_parser_parse_err(QList *tokens, va_list *ap, Error **errp)
+QObject *json_parser_parse_err(GQueue *tokens, va_list *ap, Error **errp)
 {
     JSONParserContext *ctxt = parser_context_new(tokens);
     QObject *result;

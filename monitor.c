@@ -3849,7 +3849,7 @@ static QDict *qmp_check_input_obj(QObject *input_obj, Error **errp)
     return input_dict;
 }
 
-static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
+static void handle_qmp_command(JSONMessageParser *parser, GQueue *tokens)
 {
     Error *local_err = NULL;
     QObject *obj, *data;

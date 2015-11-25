@@ -351,7 +351,7 @@ typedef struct {
     QDict *response;
 } QMPResponseParser;
 
-static void qmp_response(JSONMessageParser *parser, QList *tokens)
+static void qmp_response(JSONMessageParser *parser, GQueue *tokens)
 {
     QMPResponseParser *qmp = container_of(parser, QMPResponseParser, parser);
     QObject *obj;
