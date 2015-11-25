@@ -51,7 +51,6 @@
 #include "qemu/main-loop.h"
 #include "translate-all.h"
 #include "sysemu/replay.h"
-#include "sysemu/qtest.h"
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
@@ -1197,10 +1196,8 @@ static long gethugepagesize(const char *path, Error **errp)
         return 0;
     }
 
-    if (!qtest_driver() &&
-        fs.f_type != HUGETLBFS_MAGIC) {
+    if (fs.f_type != HUGETLBFS_MAGIC)
         fprintf(stderr, "Warning: path not on HugeTLBFS: %s\n", path);
-    }
 
     return fs.f_bsize;
 }
