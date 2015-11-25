@@ -16,6 +16,7 @@
 #include "qapi/qmp/json-streamer.h"
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
+#define MAX_TOKEN_COUNT (2ULL << 20)
 #define MAX_NESTING (1ULL << 10)
 
 static void json_message_free_tokens(JSONMessageParser *parser)
@@ -68,6 +69,7 @@ static void json_message_process_token(JSONLexer *lexer, GString *input,
          parser->bracket_count == 0)) {
         goto out_emit;
     } else if (parser->token_size > MAX_TOKEN_SIZE ||
+               g_queue_get_length(parser->tokens) > MAX_TOKEN_COUNT ||
                parser->bracket_count + parser->brace_count > MAX_NESTING) {
         /* Security consideration, we limit total memory allocated per object
          * and the maximum recursion depth that a message can force.
