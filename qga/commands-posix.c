@@ -553,14 +553,31 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
 }
 
 struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
-                                          int64_t whence, Error **errp)
+                                          int64_t whence_code, Error **errp)
 {
     GuestFileHandle *gfh = guest_file_handle_find(handle, errp);
     GuestFileSeek *seek_data = NULL;
     FILE *fh;
     int ret;
+    int whence;
 
     if (!gfh) {
+        return NULL;
+    }
+
+    /* We stupidly exposed 'whence':'int' in our qapi */
+    switch (whence_code) {
+    case QGA_SEEK_SET:
+        whence = SEEK_SET;
+        break;
+    case QGA_SEEK_CUR:
+        whence = SEEK_CUR;
+        break;
+    case QGA_SEEK_END:
+        whence = SEEK_END;
+        break;
+    default:
+        error_setg(errp, "invalid whence code %"PRId64, whence_code);
         return NULL;
     }
 
