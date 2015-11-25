@@ -11,12 +11,9 @@
  *
  */
 
-#include "qapi/qmp/qstring.h"
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qint.h"
 #include "qemu-common.h"
 #include "qapi/qmp/json-lexer.h"
+#include <stdint.h>
 
 #define MAX_TOKEN_SIZE (64ULL << 20)
 
@@ -276,7 +273,7 @@ void json_lexer_init(JSONLexer *lexer, JSONLexerEmitter func)
 {
     lexer->emit = func;
     lexer->state = IN_START;
-    lexer->token = qstring_new();
+    lexer->token = g_string_sized_new(3);
     lexer->x = lexer->y = 0;
 }
 
@@ -295,7 +292,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         new_state = json_lexer[lexer->state][(uint8_t)ch];
         char_consumed = !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
         if (char_consumed) {
-            qstring_append_chr(lexer->token, ch);
+            g_string_append_c(lexer->token, ch);
         }
 
         switch (new_state) {
@@ -313,8 +310,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
             lexer->emit(lexer, lexer->token, new_state, lexer->x, lexer->y);
             /* fall through */
         case JSON_SKIP:
-            QDECREF(lexer->token);
-            lexer->token = qstring_new();
+            g_string_truncate(lexer->token, 0);
             new_state = IN_START;
             break;
         case IN_ERROR:
@@ -332,8 +328,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
              * induce an error/flush state.
              */
             lexer->emit(lexer, lexer->token, JSON_ERROR, lexer->x, lexer->y);
-            QDECREF(lexer->token);
-            lexer->token = qstring_new();
+            g_string_truncate(lexer->token, 0);
             new_state = IN_START;
             lexer->state = new_state;
             return 0;
@@ -346,10 +341,9 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
     /* Do not let a single token grow to an arbitrarily large size,
      * this is a security consideration.
      */
-    if (lexer->token->length > MAX_TOKEN_SIZE) {
+    if (lexer->token->len > MAX_TOKEN_SIZE) {
         lexer->emit(lexer, lexer->token, lexer->state, lexer->x, lexer->y);
-        QDECREF(lexer->token);
-        lexer->token = qstring_new();
+        g_string_truncate(lexer->token, 0);
         lexer->state = IN_START;
     }
 
@@ -379,5 +373,5 @@ int json_lexer_flush(JSONLexer *lexer)
 
 void json_lexer_destroy(JSONLexer *lexer)
 {
-    QDECREF(lexer->token);
+    g_string_free(lexer->token, true);
 }

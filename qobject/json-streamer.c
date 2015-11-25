@@ -12,6 +12,7 @@
  */
 
 #include "qapi/qmp/qlist.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
@@ -21,7 +22,8 @@
 #define MAX_TOKEN_SIZE (64ULL << 20)
 #define MAX_NESTING (1ULL << 10)
 
-static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTokenType type, int x, int y)
+static void json_message_process_token(JSONLexer *lexer, GString *input,
+                                       JSONTokenType type, int x, int y)
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
     QDict *dict;
@@ -45,12 +47,11 @@ static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTok
 
     dict = qdict_new();
     qdict_put(dict, "type", qint_from_int(type));
-    QINCREF(token);
-    qdict_put(dict, "token", token);
+    qdict_put(dict, "token", qstring_from_str(input->str));
     qdict_put(dict, "x", qint_from_int(x));
     qdict_put(dict, "y", qint_from_int(y));
 
-    parser->token_size += token->length;
+    parser->token_size += input->len;
 
     qlist_append(parser->tokens, dict);
 

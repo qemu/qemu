@@ -14,6 +14,7 @@
 #ifndef QEMU_JSON_STREAMER_H
 #define QEMU_JSON_STREAMER_H
 
+#include <stdint.h>
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/json-lexer.h"
 
