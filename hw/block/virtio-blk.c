@@ -72,6 +72,9 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
     VirtIOBlock *s = req->dev;
 
     if (action == BLOCK_ERROR_ACTION_STOP) {
+        /* Break the link as the next request is going to be parsed from the
+         * ring again. Otherwise we may end up doing a double completion! */
+        req->mr_next = NULL;
         req->next = s->rq;
         s->rq = req;
     } else if (action == BLOCK_ERROR_ACTION_REPORT) {
@@ -112,10 +115,6 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
              * happen on the other side of the migration).
              */
             if (virtio_blk_handle_rw_error(req, -ret, is_read)) {
-                /* Break the link in case the next request is added to the
-                 * restart queue and is going to be parsed from the ring again.
-                 */
-                req->mr_next = NULL;
                 continue;
             }
         }

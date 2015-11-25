@@ -2443,7 +2443,7 @@ int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf)
            one operation beginning below the high water mark cannot overrun
            the buffer completely.  Thus we can test for overflow after
            generating code without having to check during generation.  */
-        if (unlikely(s->code_gen_ptr > s->code_gen_highwater)) {
+        if (unlikely((void *)s->code_ptr > s->code_gen_highwater)) {
             return -1;
         }
     }

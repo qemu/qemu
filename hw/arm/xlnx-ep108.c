@@ -51,7 +51,7 @@ static void xlnx_ep108_init(MachineState *machine)
         machine->ram_size = EP108_MAX_RAM_SIZE;
     }
 
-    if (machine->ram_size <= 0x08000000) {
+    if (machine->ram_size < 0x08000000) {
         qemu_log("WARNING: RAM size " RAM_ADDR_FMT " is small for EP108",
                  machine->ram_size);
     }

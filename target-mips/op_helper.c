@@ -23,10 +23,6 @@
 #include "exec/cpu_ldst.h"
 #include "sysemu/kvm.h"
 
-#ifndef CONFIG_USER_ONLY
-static inline void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global);
-#endif
-
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
@@ -1846,15 +1842,6 @@ target_ulong helper_yield(CPUMIPSState *env, target_ulong arg)
 
 #ifndef CONFIG_USER_ONLY
 /* TLB management */
-static void cpu_mips_tlb_flush (CPUMIPSState *env, int flush_global)
-{
-    MIPSCPU *cpu = mips_env_get_cpu(env);
-
-    /* Flush qemu's TLB and discard all shadowed entries.  */
-    tlb_flush(CPU(cpu), flush_global);
-    env->tlb->tlb_in_use = env->tlb->nb_tlb;
-}
-
 static void r4k_mips_tlb_flush_extra (CPUMIPSState *env, int first)
 {
     /* Discard entries from env->tlb[first] onwards.  */
