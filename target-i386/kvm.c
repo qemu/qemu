@@ -784,11 +784,14 @@ int kvm_arch_init_vcpu(CPUState *cs)
             return ret;
         }
 
-        if (banks > MCE_BANKS_DEF) {
-            banks = MCE_BANKS_DEF;
+        if (banks < MCE_BANKS_DEF) {
+            error_report("kvm: Unsupported MCE bank count (QEMU = %d, KVM = %d)",
+                         MCE_BANKS_DEF, banks);
+            return -ENOTSUP;
         }
+
         mcg_cap &= MCE_CAP_DEF;
-        mcg_cap |= banks;
+        mcg_cap |= MCE_BANKS_DEF;
         ret = kvm_vcpu_ioctl(cs, KVM_X86_SETUP_MCE, &mcg_cap);
         if (ret < 0) {
             fprintf(stderr, "KVM_X86_SETUP_MCE: %s", strerror(-ret));
