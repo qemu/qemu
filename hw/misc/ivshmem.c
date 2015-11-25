@@ -60,8 +60,6 @@
 #define IVSHMEM(obj) \
     OBJECT_CHECK(IVShmemState, (obj), TYPE_IVSHMEM)
 
-#define IVSHMEM_MEMDEV_PROP "memdev"
-
 typedef struct Peer {
     int nb_eventfds;
     EventNotifier *eventfds;
@@ -857,8 +855,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         PCI_BASE_ADDRESS_MEM_PREFETCH;
 
     if (!!s->server_chr + !!s->shmobj + !!s->hostmem != 1) {
-        error_setg(errp, "You must specify either a shmobj, a chardev"
-                   " or a hostmem");
+        error_setg(errp,
+                   "You must specify either 'shm', 'chardev' or 'x-memdev'");
         return;
     }
 
@@ -939,6 +937,7 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         memory_region_add_subregion(&s->bar, 0, mr);
         pci_register_bar(PCI_DEVICE(s), 2, attr, &s->bar);
     } else if (s->server_chr != NULL) {
+        /* FIXME do not rely on what chr drivers put into filename */
         if (strncmp(s->server_chr->filename, "unix:", 5)) {
             error_setg(errp, "chardev is not a unix client socket");
             return;
@@ -1181,7 +1180,7 @@ static void ivshmem_init(Object *obj)
 {
     IVShmemState *s = IVSHMEM(obj);
 
-    object_property_add_link(obj, IVSHMEM_MEMDEV_PROP, TYPE_MEMORY_BACKEND,
+    object_property_add_link(obj, "x-memdev", TYPE_MEMORY_BACKEND,
                              (Object **)&s->hostmem,
                              ivshmem_check_memdev_is_busy,
                              OBJ_PROP_LINK_UNREF_ON_RELEASE,

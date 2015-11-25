@@ -1256,7 +1256,7 @@ zero-copy communication to the application level of the guests.  The basic
 syntax is:
 
 @example
-qemu-system-i386 -device ivshmem,size=<size in format accepted by -m>[,shm=<shm name>]
+qemu-system-i386 -device ivshmem,size=@var{size},shm=@var{shm-name}
 @end example
 
 If desired, interrupts can be sent between guest VMs accessing the same shared
@@ -1267,12 +1267,12 @@ memory server is:
 
 @example
 # First start the ivshmem server once and for all
-ivshmem-server -p <pidfile> -S <path> -m <shm name> -l <shm size> -n <vectors n>
+ivshmem-server -p @var{pidfile} -S @var{path} -m @var{shm-name} -l @var{shm-size} -n @var{vectors}
 
 # Then start your qemu instances with matching arguments
-qemu-system-i386 -device ivshmem,size=<shm size>,vectors=<vectors n>,chardev=<id>
+qemu-system-i386 -device ivshmem,size=@var{shm-size},vectors=@var{vectors},chardev=@var{id}
                  [,msi=on][,ioeventfd=on][,role=peer|master]
-                 -chardev socket,path=<path>,id=<id>
+                 -chardev socket,path=@var{path},id=@var{id}
 @end example
 
 When using the server, the guest will be assigned a VM ID (>=0) that allows guests
@@ -1300,7 +1300,7 @@ a memory backend that has hugepage support:
 
 @example
 qemu-system-i386 -object memory-backend-file,size=1G,mem-path=/mnt/hugepages/my-shmem-file,id=mb1
-                 -device ivshmem,memdev=mb1
+                 -device ivshmem,x-memdev=mb1
 @end example
 
 ivshmem-server also supports hugepages mount points with the

@@ -40,6 +40,7 @@ static QPCIDevice *get_device(void)
     QPCIBus *pcibus;
 
     pcibus = qpci_init_pc();
+    dev = NULL;
     qpci_device_foreach(pcibus, 0x1af4, 0x1110, save_fn, &dev);
     g_assert(dev != NULL);
 
@@ -392,7 +393,7 @@ static void test_ivshmem_memdev(void)
 
     /* just for the sake of checking memory-backend property */
     setup_vm_cmd(&state, "-object memory-backend-ram,size=1M,id=mb1"
-                 " -device ivshmem,memdev=mb1", false);
+                 " -device ivshmem,x-memdev=mb1", false);
 
     qtest_quit(state.qtest);
 }
