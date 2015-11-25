@@ -18,7 +18,8 @@
 #include "qapi/qmp/qlist.h"
 
 typedef enum json_token_type {
-    JSON_OPERATOR = 100,
+    JSON_MIN = 100,
+    JSON_OPERATOR = JSON_MIN,
     JSON_INTEGER,
     JSON_FLOAT,
     JSON_KEYWORD,

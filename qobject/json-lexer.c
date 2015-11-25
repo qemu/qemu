@@ -30,7 +30,7 @@
  */
 
 enum json_lexer_state {
-    IN_ERROR = 0,
+    IN_ERROR = 0,               /* must really be 0, see json_lexer[] */
     IN_DQ_UCODE3,
     IN_DQ_UCODE2,
     IN_DQ_UCODE1,
@@ -62,6 +62,8 @@ enum json_lexer_state {
     IN_START,
 };
 
+QEMU_BUILD_BUG_ON((int)JSON_MIN <= (int)IN_START);
+
 #define TERMINAL(state) [0 ... 0x7F] = (state)
 
 /* Return whether TERMINAL is a terminal state and the transition to it
@@ -71,6 +73,8 @@ enum json_lexer_state {
             (json_lexer[(old_state)][0] == (terminal))
 
 static const uint8_t json_lexer[][256] =  {
+    /* Relies on default initialization to IN_ERROR! */
+
     /* double quote string */
     [IN_DQ_UCODE3] = {
         ['0' ... '9'] = IN_DQ_STRING,
@@ -287,6 +291,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
     }
 
     do {
+        assert(lexer->state <= ARRAY_SIZE(json_lexer));
         new_state = json_lexer[lexer->state][(uint8_t)ch];
         char_consumed = !TERMINAL_NEEDED_LOOKAHEAD(lexer->state, new_state);
         if (char_consumed) {
