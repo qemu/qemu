@@ -64,8 +64,7 @@ static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTok
          parser->bracket_count == 0)) {
         goto out_emit;
     } else if (parser->token_size > MAX_TOKEN_SIZE ||
-               parser->bracket_count > MAX_NESTING ||
-               parser->brace_count > MAX_NESTING) {
+               parser->bracket_count + parser->brace_count > MAX_NESTING) {
         /* Security consideration, we limit total memory allocated per object
          * and the maximum recursion depth that a message can force.
          */
