@@ -63,15 +63,6 @@ static JSONTokenType token_get_type(QObject *obj)
     return qdict_get_int(qobject_to_qdict(obj), "type");
 }
 
-static int token_is_keyword(QObject *obj, const char *value)
-{
-    if (token_get_type(obj) != JSON_KEYWORD) {
-        return 0;
-    }
-
-    return strcmp(token_get_value(obj), value) == 0;
-}
-
 static int token_is_escape(QObject *obj, const char *value)
 {
     if (token_get_type(obj) != JSON_ESCAPE) {
@@ -533,6 +524,7 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
 {
     QObject *token, *ret;
     JSONParserContext saved_ctxt = parser_context_save(ctxt);
+    const char *val;
 
     token = parser_context_pop_token(ctxt);
     if (token == NULL) {
@@ -543,14 +535,16 @@ static QObject *parse_keyword(JSONParserContext *ctxt)
         goto out;
     }
 
-    if (token_is_keyword(token, "true")) {
+    val = token_get_value(token);
+
+    if (!strcmp(val, "true")) {
         ret = QOBJECT(qbool_from_bool(true));
-    } else if (token_is_keyword(token, "false")) {
+    } else if (!strcmp(val, "false")) {
         ret = QOBJECT(qbool_from_bool(false));
-    } else if (token_is_keyword(token, "null")) {
+    } else if (!strcmp(val, "null")) {
         ret = qnull();
     } else {
-        parse_error(ctxt, token, "invalid keyword `%s'", token_get_value(token));
+        parse_error(ctxt, token, "invalid keyword '%s'", val);
         goto out;
     }
 
