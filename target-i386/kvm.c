@@ -774,7 +774,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         && (env->features[FEAT_1_EDX] & (CPUID_MCE | CPUID_MCA)) ==
            (CPUID_MCE | CPUID_MCA)
         && kvm_check_extension(cs->kvm_state, KVM_CAP_MCE) > 0) {
-        uint64_t mcg_cap;
+        uint64_t mcg_cap, unsupported_caps;
         int banks;
         int ret;
 
@@ -788,6 +788,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
             error_report("kvm: Unsupported MCE bank count (QEMU = %d, KVM = %d)",
                          (int)(env->mcg_cap & MCG_CAP_BANKS_MASK), banks);
             return -ENOTSUP;
+        }
+
+        unsupported_caps = env->mcg_cap & ~(mcg_cap | MCG_CAP_BANKS_MASK);
+        if (unsupported_caps) {
+            error_report("warning: Unsupported MCG_CAP bits: 0x%" PRIx64,
+                         unsupported_caps);
         }
 
         env->mcg_cap &= mcg_cap | MCG_CAP_BANKS_MASK;
