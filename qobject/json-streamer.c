@@ -68,13 +68,14 @@ static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTok
         /* Security consideration, we limit total memory allocated per object
          * and the maximum recursion depth that a message can force.
          */
-        goto out_emit;
+        goto out_emit_bad;
     }
 
     return;
 
 out_emit_bad:
-    /* clear out token list and tell the parser to emit and error
+    /*
+     * Clear out token list and tell the parser to emit an error
      * indication by passing it a NULL list
      */
     QDECREF(parser->tokens);
