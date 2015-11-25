@@ -11,10 +11,6 @@
  *
  */
 
-#include "qapi/qmp/qlist.h"
-#include "qapi/qmp/qstring.h"
-#include "qapi/qmp/qint.h"
-#include "qapi/qmp/qdict.h"
 #include "qemu-common.h"
 #include "qapi/qmp/json-lexer.h"
 #include "qapi/qmp/json-streamer.h"
@@ -34,7 +30,7 @@ static void json_message_process_token(JSONLexer *lexer, GString *input,
                                        JSONTokenType type, int x, int y)
 {
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
-    QDict *dict;
+    JSONToken *token;
 
     switch (type) {
     case JSON_LCURLY:
@@ -53,15 +49,16 @@ static void json_message_process_token(JSONLexer *lexer, GString *input,
         break;
     }
 
-    dict = qdict_new();
-    qdict_put(dict, "type", qint_from_int(type));
-    qdict_put(dict, "token", qstring_from_str(input->str));
-    qdict_put(dict, "x", qint_from_int(x));
-    qdict_put(dict, "y", qint_from_int(y));
+    token = g_malloc(sizeof(JSONToken) + input->len + 1);
+    token->type = type;
+    memcpy(token->str, input->str, input->len);
+    token->str[input->len] = 0;
+    token->x = x;
+    token->y = y;
 
     parser->token_size += input->len;
 
-    g_queue_push_tail(parser->tokens, dict);
+    g_queue_push_tail(parser->tokens, token);
 
     if (type == JSON_ERROR) {
         goto out_emit_bad;

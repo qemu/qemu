@@ -22,11 +22,12 @@
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/json-lexer.h"
+#include "qapi/qmp/json-streamer.h"
 
 typedef struct JSONParserContext
 {
     Error *err;
-    QObject *current;
+    JSONToken *current;
     GQueue *buf;
 } JSONParserContext;
 
@@ -44,27 +45,10 @@ typedef struct JSONParserContext
 static QObject *parse_value(JSONParserContext *ctxt, va_list *ap);
 
 /**
- * Token manipulators
- *
- * tokens are dictionaries that contain a type, a string value, and geometry information
- * about a token identified by the lexer.  These are routines that make working with
- * these objects a bit easier.
- */
-static const char *token_get_value(QObject *obj)
-{
-    return qdict_get_str(qobject_to_qdict(obj), "token");
-}
-
-static JSONTokenType token_get_type(QObject *obj)
-{
-    return qdict_get_int(qobject_to_qdict(obj), "type");
-}
-
-/**
  * Error handler
  */
 static void GCC_FMT_ATTR(3, 4) parse_error(JSONParserContext *ctxt,
-                                           QObject *token, const char *msg, ...)
+                                           JSONToken *token, const char *msg, ...)
 {
     va_list ap;
     char message[1024];
@@ -142,9 +126,10 @@ static int hex2decimal(char ch)
  *      \t
  *      \u four-hex-digits 
  */
-static QString *qstring_from_escaped_str(JSONParserContext *ctxt, QObject *token)
+static QString *qstring_from_escaped_str(JSONParserContext *ctxt,
+                                         JSONToken *token)
 {
-    const char *ptr = token_get_value(token);
+    const char *ptr = token->str;
     QString *str;
     int double_quote = 1;
 
@@ -240,19 +225,19 @@ out:
     return NULL;
 }
 
-/* Note: unless the token object returned by parser_context_peek_token
- * or parser_context_pop_token is explicitly incref'd, it will be
- * deleted as soon as parser_context_pop_token is called again.
+/* Note: the token object returned by parser_context_peek_token or
+ * parser_context_pop_token is deleted as soon as parser_context_pop_token
+ * is called again.
  */
-static QObject *parser_context_pop_token(JSONParserContext *ctxt)
+static JSONToken *parser_context_pop_token(JSONParserContext *ctxt)
 {
-    qobject_decref(ctxt->current);
+    g_free(ctxt->current);
     assert(!g_queue_is_empty(ctxt->buf));
     ctxt->current = g_queue_pop_head(ctxt->buf);
     return ctxt->current;
 }
 
-static QObject *parser_context_peek_token(JSONParserContext *ctxt)
+static JSONToken *parser_context_peek_token(JSONParserContext *ctxt)
 {
     assert(!g_queue_is_empty(ctxt->buf));
     return g_queue_peek_head(ctxt->buf);
@@ -279,7 +264,7 @@ static void parser_context_free(JSONParserContext *ctxt)
         while (!g_queue_is_empty(ctxt->buf)) {
             parser_context_pop_token(ctxt);
         }
-        qobject_decref(ctxt->current);
+        g_free(ctxt->current);
         g_queue_free(ctxt->buf);
         g_free(ctxt);
     }
@@ -290,7 +275,8 @@ static void parser_context_free(JSONParserContext *ctxt)
  */
 static int parse_pair(JSONParserContext *ctxt, QDict *dict, va_list *ap)
 {
-    QObject *key = NULL, *token = NULL, *value, *peek;
+    QObject *key = NULL, *value;
+    JSONToken *peek, *token;
 
     peek = parser_context_peek_token(ctxt);
     if (peek == NULL) {
@@ -310,7 +296,7 @@ static int parse_pair(JSONParserContext *ctxt, QDict *dict, va_list *ap)
         goto out;
     }
 
-    if (token_get_type(token) != JSON_COLON) {
+    if (token->type != JSON_COLON) {
         parse_error(ctxt, token, "missing : in object pair");
         goto out;
     }
@@ -336,10 +322,10 @@ out:
 static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
 {
     QDict *dict = NULL;
-    QObject *token, *peek;
+    JSONToken *token, *peek;
 
     token = parser_context_pop_token(ctxt);
-    assert(token && token_get_type(token) == JSON_LCURLY);
+    assert(token && token->type == JSON_LCURLY);
 
     dict = qdict_new();
 
@@ -349,7 +335,7 @@ static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
         goto out;
     }
 
-    if (token_get_type(peek) != JSON_RCURLY) {
+    if (peek->type != JSON_RCURLY) {
         if (parse_pair(ctxt, dict, ap) == -1) {
             goto out;
         }
@@ -360,8 +346,8 @@ static QObject *parse_object(JSONParserContext *ctxt, va_list *ap)
             goto out;
         }
 
-        while (token_get_type(token) != JSON_RCURLY) {
-            if (token_get_type(token) != JSON_COMMA) {
+        while (token->type != JSON_RCURLY) {
+            if (token->type != JSON_COMMA) {
                 parse_error(ctxt, token, "expected separator in dict");
                 goto out;
             }
@@ -390,10 +376,10 @@ out:
 static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
 {
     QList *list = NULL;
-    QObject *token, *peek;
+    JSONToken *token, *peek;
 
     token = parser_context_pop_token(ctxt);
-    assert(token && token_get_type(token) == JSON_LSQUARE);
+    assert(token && token->type == JSON_LSQUARE);
 
     list = qlist_new();
 
@@ -403,7 +389,7 @@ static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
         goto out;
     }
 
-    if (token_get_type(peek) != JSON_RSQUARE) {
+    if (peek->type != JSON_RSQUARE) {
         QObject *obj;
 
         obj = parse_value(ctxt, ap);
@@ -420,8 +406,8 @@ static QObject *parse_array(JSONParserContext *ctxt, va_list *ap)
             goto out;
         }
 
-        while (token_get_type(token) != JSON_RSQUARE) {
-            if (token_get_type(token) != JSON_COMMA) {
+        while (token->type != JSON_RSQUARE) {
+            if (token->type != JSON_COMMA) {
                 parse_error(ctxt, token, "expected separator in list");
                 goto out;
             }
@@ -453,51 +439,47 @@ out:
 
 static QObject *parse_keyword(JSONParserContext *ctxt)
 {
-    QObject *token;
-    const char *val;
+    JSONToken *token;
 
     token = parser_context_pop_token(ctxt);
-    assert(token && token_get_type(token) == JSON_KEYWORD);
-    val = token_get_value(token);
+    assert(token && token->type == JSON_KEYWORD);
 
-    if (!strcmp(val, "true")) {
+    if (!strcmp(token->str, "true")) {
         return QOBJECT(qbool_from_bool(true));
-    } else if (!strcmp(val, "false")) {
+    } else if (!strcmp(token->str, "false")) {
         return QOBJECT(qbool_from_bool(false));
-    } else if (!strcmp(val, "null")) {
+    } else if (!strcmp(token->str, "null")) {
         return qnull();
     }
-    parse_error(ctxt, token, "invalid keyword '%s'", val);
+    parse_error(ctxt, token, "invalid keyword '%s'", token->str);
     return NULL;
 }
 
 static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
 {
-    QObject *token;
-    const char *val;
+    JSONToken *token;
 
     if (ap == NULL) {
         return NULL;
     }
 
     token = parser_context_pop_token(ctxt);
-    assert(token && token_get_type(token) == JSON_ESCAPE);
-    val = token_get_value(token);
+    assert(token && token->type == JSON_ESCAPE);
 
-    if (!strcmp(val, "%p")) {
+    if (!strcmp(token->str, "%p")) {
         return va_arg(*ap, QObject *);
-    } else if (!strcmp(val, "%i")) {
+    } else if (!strcmp(token->str, "%i")) {
         return QOBJECT(qbool_from_bool(va_arg(*ap, int)));
-    } else if (!strcmp(val, "%d")) {
+    } else if (!strcmp(token->str, "%d")) {
         return QOBJECT(qint_from_int(va_arg(*ap, int)));
-    } else if (!strcmp(val, "%ld")) {
+    } else if (!strcmp(token->str, "%ld")) {
         return QOBJECT(qint_from_int(va_arg(*ap, long)));
-    } else if (!strcmp(val, "%lld") ||
-               !strcmp(val, "%I64d")) {
+    } else if (!strcmp(token->str, "%lld") ||
+               !strcmp(token->str, "%I64d")) {
         return QOBJECT(qint_from_int(va_arg(*ap, long long)));
-    } else if (!strcmp(val, "%s")) {
+    } else if (!strcmp(token->str, "%s")) {
         return QOBJECT(qstring_from_str(va_arg(*ap, const char *)));
-    } else if (!strcmp(val, "%f")) {
+    } else if (!strcmp(token->str, "%f")) {
         return QOBJECT(qfloat_from_double(va_arg(*ap, double)));
     }
     return NULL;
@@ -505,12 +487,12 @@ static QObject *parse_escape(JSONParserContext *ctxt, va_list *ap)
 
 static QObject *parse_literal(JSONParserContext *ctxt)
 {
-    QObject *token;
+    JSONToken *token;
 
     token = parser_context_pop_token(ctxt);
     assert(token);
 
-    switch (token_get_type(token)) {
+    switch (token->type) {
     case JSON_STRING:
         return QOBJECT(qstring_from_escaped_str(ctxt, token));
     case JSON_INTEGER: {
@@ -529,7 +511,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
         int64_t value;
 
         errno = 0; /* strtoll doesn't set errno on success */
-        value = strtoll(token_get_value(token), NULL, 10);
+        value = strtoll(token->str, NULL, 10);
         if (errno != ERANGE) {
             return QOBJECT(qint_from_int(value));
         }
@@ -537,8 +519,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
     }
     case JSON_FLOAT:
         /* FIXME dependent on locale */
-        return QOBJECT(qfloat_from_double(strtod(token_get_value(token),
-                                                 NULL)));
+        return QOBJECT(qfloat_from_double(strtod(token->str, NULL)));
     default:
         abort();
     }
@@ -546,7 +527,7 @@ static QObject *parse_literal(JSONParserContext *ctxt)
 
 static QObject *parse_value(JSONParserContext *ctxt, va_list *ap)
 {
-    QObject *token;
+    JSONToken *token;
 
     token = parser_context_peek_token(ctxt);
     if (token == NULL) {
@@ -554,7 +535,7 @@ static QObject *parse_value(JSONParserContext *ctxt, va_list *ap)
         return NULL;
     }
 
-    switch (token_get_type(token)) {
+    switch (token->type) {
     case JSON_LCURLY:
         return parse_object(ctxt, ap);
     case JSON_LSQUARE:
