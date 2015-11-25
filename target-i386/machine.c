@@ -746,6 +746,34 @@ static const VMStateDescription vmstate_msr_hyperv_synic = {
     }
 };
 
+static bool hyperv_stimer_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(env->msr_hv_stimer_config); i++) {
+        if (env->msr_hv_stimer_config[i] || env->msr_hv_stimer_count[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_stimer = {
+    .name = "cpu/msr_hyperv_stimer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = hyperv_stimer_enable_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.msr_hv_stimer_config,
+                             X86CPU, HV_SYNIC_STIMER_COUNT),
+        VMSTATE_UINT64_ARRAY(env.msr_hv_stimer_count,
+                             X86CPU, HV_SYNIC_STIMER_COUNT),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool avx512_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -930,6 +958,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_hyperv_crash,
         &vmstate_msr_hyperv_runtime,
         &vmstate_msr_hyperv_synic,
+        &vmstate_msr_hyperv_stimer,
         &vmstate_avx512,
         &vmstate_xss,
         NULL

@@ -90,6 +90,7 @@ static bool has_msr_hv_reset;
 static bool has_msr_hv_vpindex;
 static bool has_msr_hv_runtime;
 static bool has_msr_hv_synic;
+static bool has_msr_hv_stimer;
 static bool has_msr_mtrr;
 static bool has_msr_xss;
 
@@ -526,7 +527,8 @@ static bool hyperv_enabled(X86CPU *cpu)
             cpu->hyperv_reset ||
             cpu->hyperv_vpindex ||
             cpu->hyperv_runtime ||
-            cpu->hyperv_synic);
+            cpu->hyperv_synic ||
+            cpu->hyperv_stimer);
 }
 
 static Error *invtsc_mig_blocker;
@@ -629,6 +631,13 @@ int kvm_arch_init_vcpu(CPUState *cs)
             for (sint = 0; sint < ARRAY_SIZE(env->msr_hv_synic_sint); sint++) {
                 env->msr_hv_synic_sint[sint] = HV_SYNIC_SINT_MASKED;
             }
+        }
+        if (cpu->hyperv_stimer) {
+            if (!has_msr_hv_stimer) {
+                fprintf(stderr, "Hyper-V timers aren't supported by kernel\n");
+                return -ENOSYS;
+            }
+            c->eax |= HV_X64_MSR_SYNTIMER_AVAILABLE;
         }
         c = &cpuid_data.entries[cpuid_i++];
         c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
@@ -978,6 +987,10 @@ static int kvm_get_supported_msrs(KVMState *s)
                 }
                 if (kvm_msr_list->indices[i] == HV_X64_MSR_SCONTROL) {
                     has_msr_hv_synic = true;
+                    continue;
+                }
+                if (kvm_msr_list->indices[i] == HV_X64_MSR_STIMER0_CONFIG) {
+                    has_msr_hv_stimer = true;
                     continue;
                 }
             }
@@ -1558,6 +1571,19 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
                                   env->msr_hv_synic_sint[j]);
             }
         }
+        if (has_msr_hv_stimer) {
+            int j;
+
+            for (j = 0; j < ARRAY_SIZE(env->msr_hv_stimer_config); j++) {
+                kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_STIMER0_CONFIG + j*2,
+                                env->msr_hv_stimer_config[j]);
+            }
+
+            for (j = 0; j < ARRAY_SIZE(env->msr_hv_stimer_count); j++) {
+                kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_STIMER0_COUNT + j*2,
+                                env->msr_hv_stimer_count[j]);
+            }
+        }
         if (has_msr_mtrr) {
             kvm_msr_entry_set(&msrs[n++], MSR_MTRRdefType, env->mtrr_deftype);
             kvm_msr_entry_set(&msrs[n++],
@@ -1937,6 +1963,14 @@ static int kvm_get_msrs(X86CPU *cpu)
             msrs[n++].index = msr;
         }
     }
+    if (has_msr_hv_stimer) {
+        uint32_t msr;
+
+        for (msr = HV_X64_MSR_STIMER0_CONFIG; msr <= HV_X64_MSR_STIMER3_COUNT;
+             msr++) {
+            msrs[n++].index = msr;
+        }
+    }
     if (has_msr_mtrr) {
         msrs[n++].index = MSR_MTRRdefType;
         msrs[n++].index = MSR_MTRRfix64K_00000;
@@ -2107,6 +2141,20 @@ static int kvm_get_msrs(X86CPU *cpu)
             break;
         case HV_X64_MSR_SINT0 ... HV_X64_MSR_SINT15:
             env->msr_hv_synic_sint[index - HV_X64_MSR_SINT0] = msrs[i].data;
+            break;
+        case HV_X64_MSR_STIMER0_CONFIG:
+        case HV_X64_MSR_STIMER1_CONFIG:
+        case HV_X64_MSR_STIMER2_CONFIG:
+        case HV_X64_MSR_STIMER3_CONFIG:
+            env->msr_hv_stimer_config[(index - HV_X64_MSR_STIMER0_CONFIG)/2] =
+                                msrs[i].data;
+            break;
+        case HV_X64_MSR_STIMER0_COUNT:
+        case HV_X64_MSR_STIMER1_COUNT:
+        case HV_X64_MSR_STIMER2_COUNT:
+        case HV_X64_MSR_STIMER3_COUNT:
+            env->msr_hv_stimer_count[(index - HV_X64_MSR_STIMER0_COUNT)/2] =
+                                msrs[i].data;
             break;
         case MSR_MTRRdefType:
             env->mtrr_deftype = msrs[i].data;
