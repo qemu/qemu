@@ -241,10 +241,7 @@ static int cleanup_range(const char *block_name, void *host_addr,
      * We turned off hugepage for the precopy stage with postcopy enabled
      * we can turn it back on now.
      */
-    if (qemu_madvise(host_addr, length, QEMU_MADV_HUGEPAGE)) {
-        error_report("%s HUGEPAGE: %s", __func__, strerror(errno));
-        return -1;
-    }
+    qemu_madvise(host_addr, length, QEMU_MADV_HUGEPAGE);
 
     /*
      * We can also turn off userfault now since we should have all the
@@ -345,10 +342,7 @@ static int nhp_range(const char *block_name, void *host_addr,
      * do delete areas of the page, even if THP thinks a hugepage would
      * be a good idea, so force hugepages off.
      */
-    if (qemu_madvise(host_addr, length, QEMU_MADV_NOHUGEPAGE)) {
-        error_report("%s: NOHUGEPAGE: %s", __func__, strerror(errno));
-        return -1;
-    }
+    qemu_madvise(host_addr, length, QEMU_MADV_NOHUGEPAGE);
 
     return 0;
 }
