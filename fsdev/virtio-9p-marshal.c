@@ -25,37 +25,6 @@
 #include "virtio-9p-marshal.h"
 #include "qemu/bswap.h"
 
-void v9fs_string_free(V9fsString *str)
-{
-    g_free(str->data);
-    str->data = NULL;
-    str->size = 0;
-}
-
-void v9fs_string_null(V9fsString *str)
-{
-    v9fs_string_free(str);
-}
-
-void GCC_FMT_ATTR(2, 3)
-v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
-{
-    va_list ap;
-
-    v9fs_string_free(str);
-
-    va_start(ap, fmt);
-    str->size = g_vasprintf(&str->data, fmt, ap);
-    va_end(ap);
-}
-
-void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
-{
-    v9fs_string_free(lhs);
-    v9fs_string_sprintf(lhs, "%s", rhs->data);
-}
-
-
 static ssize_t v9fs_packunpack(void *addr, struct iovec *sg, int sg_count,
                                size_t offset, size_t size, int pack)
 {
