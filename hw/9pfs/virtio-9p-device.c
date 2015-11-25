@@ -12,7 +12,6 @@
  */
 
 #include "hw/virtio/virtio.h"
-#include "hw/virtio/virtio-9p.h"
 #include "hw/i386/pc.h"
 #include "qemu/sockets.h"
 #include "virtio-9p.h"

@@ -9,7 +9,6 @@
 #include <glib.h>
 #include "standard-headers/linux/virtio_9p.h"
 #include "hw/virtio/virtio.h"
-#include "hw/virtio/virtio-9p.h"
 #include "fsdev/file-op-9p.h"
 #include "fsdev/virtio-9p-marshal.h"
 #include "qemu/thread.h"
@@ -155,6 +154,13 @@ enum {
     P9_FID_DIR,
     P9_FID_XATTR,
 };
+
+typedef struct V9fsConf
+{
+    /* tag name for the device */
+    char *tag;
+    char *fsdev_id;
+} V9fsConf;
 
 typedef struct V9fsXattr
 {
