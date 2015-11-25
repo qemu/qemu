@@ -712,7 +712,7 @@ static void glue(nand_blk_erase_, PAGE_SIZE)(NANDFlashState *s)
         memset(s->storage + (PAGE(addr) << OOB_SHIFT),
                         0xff, OOB_SIZE << s->erase_shift);
         i = SECTOR(addr);
-        page = SECTOR(addr + (ADDR_SHIFT + s->erase_shift));
+        page = SECTOR(addr + (1 << (ADDR_SHIFT + s->erase_shift)));
         for (; i < page; i ++)
             if (blk_write(s->blk, i, iobuf, 1) < 0) {
                 printf("%s: write error in sector %" PRIu64 "\n", __func__, i);

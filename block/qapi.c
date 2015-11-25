@@ -436,7 +436,9 @@ BlockInfoList *qmp_query_block(Error **errp)
         bdrv_query_info(blk, &info->value, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
-            goto err;
+            g_free(info);
+            qapi_free_BlockInfoList(head);
+            return NULL;
         }
 
         *p_next = info;
@@ -444,10 +446,6 @@ BlockInfoList *qmp_query_block(Error **errp)
     }
 
     return head;
-
- err:
-    qapi_free_BlockInfoList(head);
-    return NULL;
 }
 
 BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
