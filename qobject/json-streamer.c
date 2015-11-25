@@ -26,23 +26,21 @@ static void json_message_process_token(JSONLexer *lexer, QString *token, JSONTok
     JSONMessageParser *parser = container_of(lexer, JSONMessageParser, lexer);
     QDict *dict;
 
-    if (type == JSON_OPERATOR) {
-        switch (qstring_get_str(token)[0]) {
-        case '{':
-            parser->brace_count++;
-            break;
-        case '}':
-            parser->brace_count--;
-            break;
-        case '[':
-            parser->bracket_count++;
-            break;
-        case ']':
-            parser->bracket_count--;
-            break;
-        default:
-            break;
-        }
+    switch (type) {
+    case JSON_LCURLY:
+        parser->brace_count++;
+        break;
+    case JSON_RCURLY:
+        parser->brace_count--;
+        break;
+    case JSON_LSQUARE:
+        parser->bracket_count++;
+        break;
+    case JSON_RSQUARE:
+        parser->bracket_count--;
+        break;
+    default:
+        break;
     }
 
     dict = qdict_new();

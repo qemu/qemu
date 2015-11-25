@@ -257,12 +257,12 @@ static const uint8_t json_lexer[][256] =  {
         ['0'] = IN_ZERO,
         ['1' ... '9'] = IN_NONZERO_NUMBER,
         ['-'] = IN_NEG_NONZERO_NUMBER,
-        ['{'] = JSON_OPERATOR,
-        ['}'] = JSON_OPERATOR,
-        ['['] = JSON_OPERATOR,
-        [']'] = JSON_OPERATOR,
-        [','] = JSON_OPERATOR,
-        [':'] = JSON_OPERATOR,
+        ['{'] = JSON_LCURLY,
+        ['}'] = JSON_RCURLY,
+        ['['] = JSON_LSQUARE,
+        [']'] = JSON_RSQUARE,
+        [','] = JSON_COMMA,
+        [':'] = JSON_COLON,
         ['a' ... 'z'] = IN_KEYWORD,
         ['%'] = IN_ESCAPE,
         [' '] = IN_WHITESPACE,
@@ -299,7 +299,12 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         }
 
         switch (new_state) {
-        case JSON_OPERATOR:
+        case JSON_LCURLY:
+        case JSON_RCURLY:
+        case JSON_LSQUARE:
+        case JSON_RSQUARE:
+        case JSON_COLON:
+        case JSON_COMMA:
         case JSON_ESCAPE:
         case JSON_INTEGER:
         case JSON_FLOAT:

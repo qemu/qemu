@@ -19,7 +19,12 @@
 
 typedef enum json_token_type {
     JSON_MIN = 100,
-    JSON_OPERATOR = JSON_MIN,
+    JSON_LCURLY = JSON_MIN,
+    JSON_RCURLY,
+    JSON_LSQUARE,
+    JSON_RSQUARE,
+    JSON_COLON,
+    JSON_COMMA,
     JSON_INTEGER,
     JSON_FLOAT,
     JSON_KEYWORD,
