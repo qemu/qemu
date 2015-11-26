@@ -148,16 +148,17 @@ static void cd_read_sector_cb(void *opaque, int ret)
 {
     IDEState *s = opaque;
 
-    block_acct_done(blk_get_stats(s->blk), &s->acct);
-
 #ifdef DEBUG_IDE_ATAPI
     printf("cd_read_sector_cb: lba=%d ret=%d\n", s->lba, ret);
 #endif
 
     if (ret < 0) {
+        block_acct_failed(blk_get_stats(s->blk), &s->acct);
         ide_atapi_io_error(s, ret);
         return;
     }
+
+    block_acct_done(blk_get_stats(s->blk), &s->acct);
 
     if (s->cd_sector_size == 2352) {
         cd_data_to_raw(s->io_buffer, s->lba);
@@ -173,6 +174,7 @@ static void cd_read_sector_cb(void *opaque, int ret)
 static int cd_read_sector(IDEState *s)
 {
     if (s->cd_sector_size != 2048 && s->cd_sector_size != 2352) {
+        block_acct_invalid(blk_get_stats(s->blk), BLOCK_ACCT_READ);
         return -EINVAL;
     }
 
@@ -441,7 +443,7 @@ eot:
     if (ret < 0) {
         block_acct_failed(blk_get_stats(s->blk), &s->acct);
     } else {
-    block_acct_done(blk_get_stats(s->blk), &s->acct);
+        block_acct_done(blk_get_stats(s->blk), &s->acct);
     }
     ide_set_inactive(s, false);
 }

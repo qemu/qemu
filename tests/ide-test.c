@@ -642,14 +642,18 @@ static void nsleep(int64_t nsecs)
 
 static uint8_t ide_wait_clear(uint8_t flag)
 {
-    int i;
     uint8_t data;
+    time_t st;
 
     /* Wait with a 5 second timeout */
-    for (i = 0; i <= 12500000; i++) {
+    time(&st);
+    while (true) {
         data = inb(IDE_BASE + reg_status);
         if (!(data & flag)) {
             return data;
+        }
+        if (difftime(time(NULL), st) > 5.0) {
+            break;
         }
         nsleep(400);
     }
@@ -658,13 +662,17 @@ static uint8_t ide_wait_clear(uint8_t flag)
 
 static void ide_wait_intr(int irq)
 {
-    int i;
+    time_t st;
     bool intr;
 
-    for (i = 0; i <= 12500000; i++) {
+    time(&st);
+    while (true) {
         intr = get_irq(irq);
         if (intr) {
             return;
+        }
+        if (difftime(time(NULL), st) > 5.0) {
+            break;
         }
         nsleep(400);
     }
@@ -709,9 +717,6 @@ static void cdrom_pio_impl(int nblocks)
     /* SCSI CDB (READ10) -- read n*2048 bytes from block 0 */
     send_scsi_cdb_read10(0, nblocks);
 
-    /* HP3: INTRQ_Wait */
-    ide_wait_intr(IDE_PRIMARY_IRQ);
-
     /* Read data back: occurs in bursts of 'BYTE_COUNT_LIMIT' bytes.
      * If BYTE_COUNT_LIMIT is odd, we transfer BYTE_COUNT_LIMIT - 1 bytes.
      * We allow an odd limit only when the remaining transfer size is
@@ -723,16 +728,25 @@ static void cdrom_pio_impl(int nblocks)
     for (i = 0; i < DIV_ROUND_UP(rxsize, limit); i++) {
         size_t offset = i * (limit / 2);
         size_t rem = (rxsize / 2) - offset;
-        /* HP2: Check_Status_B */
+
+        /* HP3: INTRQ_Wait */
+        ide_wait_intr(IDE_PRIMARY_IRQ);
+
+        /* HP2: Check_Status_B (and clear IRQ) */
         data = ide_wait_clear(BSY);
         assert_bit_set(data, DRQ | DRDY);
         assert_bit_clear(data, ERR | DF | BSY);
+
         /* HP4: Transfer_Data */
         for (j = 0; j < MIN((limit / 2), rem); j++) {
             rx[offset + j] = le16_to_cpu(inw(IDE_BASE + reg_data));
         }
-        ide_wait_intr(IDE_PRIMARY_IRQ);
     }
+
+    /* Check for final completion IRQ */
+    ide_wait_intr(IDE_PRIMARY_IRQ);
+
+    /* Sanity check final state */
     data = ide_wait_clear(DRQ);
     assert_bit_set(data, DRDY);
     assert_bit_clear(data, DRQ | ERR | DF | BSY);
