@@ -1484,6 +1484,30 @@ static void unterminated_literal(void)
     g_assert(obj == NULL);
 }
 
+static char *make_nest(char *buf, size_t cnt)
+{
+    memset(buf, '[', cnt - 1);
+    buf[cnt - 1] = '{';
+    buf[cnt] = '}';
+    memset(buf + cnt + 1, ']', cnt - 1);
+    buf[2 * cnt] = 0;
+    return buf;
+}
+
+static void limits_nesting(void)
+{
+    enum { max_nesting = 1024 }; /* see qobject/json-streamer.c */
+    char buf[2 * (max_nesting + 1) + 1];
+    QObject *obj;
+
+    obj = qobject_from_json(make_nest(buf, max_nesting));
+    g_assert(obj != NULL);
+    qobject_decref(obj);
+
+    obj = qobject_from_json(make_nest(buf, max_nesting + 1));
+    g_assert(obj == NULL);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -1519,6 +1543,7 @@ int main(int argc, char **argv)
     g_test_add_func("/errors/invalid_array_comma", invalid_array_comma);
     g_test_add_func("/errors/invalid_dict_comma", invalid_dict_comma);
     g_test_add_func("/errors/unterminated/literal", unterminated_literal);
+    g_test_add_func("/errors/limits/nesting", limits_nesting);
 
     return g_test_run();
 }

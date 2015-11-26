@@ -14,21 +14,29 @@
 #ifndef QEMU_JSON_STREAMER_H
 #define QEMU_JSON_STREAMER_H
 
-#include "qapi/qmp/qlist.h"
+#include <stdint.h>
+#include "glib-compat.h"
 #include "qapi/qmp/json-lexer.h"
+
+typedef struct JSONToken {
+    int type;
+    int x;
+    int y;
+    char str[];
+} JSONToken;
 
 typedef struct JSONMessageParser
 {
-    void (*emit)(struct JSONMessageParser *parser, QList *tokens);
+    void (*emit)(struct JSONMessageParser *parser, GQueue *tokens);
     JSONLexer lexer;
     int brace_count;
     int bracket_count;
-    QList *tokens;
+    GQueue *tokens;
     uint64_t token_size;
 } JSONMessageParser;
 
 void json_message_parser_init(JSONMessageParser *parser,
-                              void (*func)(JSONMessageParser *, QList *));
+                              void (*func)(JSONMessageParser *, GQueue *));
 
 int json_message_parser_feed(JSONMessageParser *parser,
                              const char *buffer, size_t size);

@@ -18,7 +18,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/error.h"
 
-QObject *json_parser_parse(QList *tokens, va_list *ap);
-QObject *json_parser_parse_err(QList *tokens, va_list *ap, Error **errp);
+QObject *json_parser_parse(GQueue *tokens, va_list *ap);
+QObject *json_parser_parse_err(GQueue *tokens, va_list *ap, Error **errp);
 
 #endif
