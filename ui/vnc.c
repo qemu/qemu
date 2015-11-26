@@ -931,6 +931,11 @@ static void vnc_dpy_copy(DisplayChangeListener *dcl,
     int i, x, y, pitch, inc, w_lim, s;
     int cmp_bytes;
 
+    if (!vd->server) {
+        /* no client connected */
+        return;
+    }
+
     vnc_refresh_server_surface(vd);
     QTAILQ_FOREACH_SAFE(vs, &vd->clients, next, vn) {
         if (vnc_has_feature(vs, VNC_FEATURE_COPYRECT)) {
