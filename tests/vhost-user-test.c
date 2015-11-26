@@ -131,6 +131,7 @@ typedef struct TestServer {
     GMutex data_mutex;
     GCond data_cond;
     int log_fd;
+    uint64_t rings;
 } TestServer;
 
 #if !GLIB_CHECK_VERSION(2, 32, 0)
@@ -279,6 +280,9 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         msg.payload.state.num = 0;
         p = (uint8_t *) &msg;
         qemu_chr_fe_write_all(chr, p, VHOST_USER_HDR_SIZE + msg.size);
+
+        assert(msg.payload.state.index < 2);
+        s->rings &= ~(0x1ULL << msg.payload.state.index);
         break;
 
     case VHOST_USER_SET_MEM_TABLE:
@@ -316,10 +320,9 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
         g_cond_signal(&s->data_cond);
         break;
 
-    case VHOST_USER_SET_VRING_ENABLE:
-        if (!msg.payload.state.num) {
-            s->fds_num = 0;
-        }
+    case VHOST_USER_SET_VRING_BASE:
+        assert(msg.payload.state.index < 2);
+        s->rings |= 0x1ULL << msg.payload.state.index;
         break;
 
     default:
@@ -486,7 +489,7 @@ static gboolean
 test_migrate_source_check(GSource *source)
 {
     TestMigrateSource *t = (TestMigrateSource *)source;
-    gboolean overlap = t->src->fds_num > 0 && t->dest->fds_num > 0;
+    gboolean overlap = t->src->rings && t->dest->rings;
 
     g_assert(!overlap);
 
