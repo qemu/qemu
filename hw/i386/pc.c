@@ -1167,7 +1167,7 @@ void pc_guest_info_machine_done(Notifier *notifier, void *data)
     PcGuestInfoState *guest_info_state = container_of(notifier,
                                                       PcGuestInfoState,
                                                       machine_done);
-    PCIBus *bus = find_i440fx();
+    PCIBus *bus = PC_MACHINE(qdev_get_machine())->bus;
 
     if (bus) {
         int extra_hosts = 0;

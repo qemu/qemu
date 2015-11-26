@@ -51,6 +51,7 @@ struct PCMachineState {
     OnOffAuto vmport;
     OnOffAuto smm;
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
+    PCIBus *bus;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"

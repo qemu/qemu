@@ -185,6 +185,7 @@ static void pc_init1(MachineState *machine,
                               pcms->below_4g_mem_size,
                               pcms->above_4g_mem_size,
                               pci_memory, ram_memory);
+        pcms->bus = pci_bus;
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
