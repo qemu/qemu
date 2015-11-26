@@ -753,24 +753,24 @@ typedef struct BNDCSReg {
 } BNDCSReg;
 
 #ifdef HOST_WORDS_BIGENDIAN
-#define XMM_B(n) _b[63 - (n)]
-#define XMM_W(n) _w[31 - (n)]
-#define XMM_L(n) _l[15 - (n)]
-#define XMM_S(n) _s[15 - (n)]
-#define XMM_Q(n) _q[7 - (n)]
-#define XMM_D(n) _d[7 - (n)]
+#define ZMM_B(n) _b[63 - (n)]
+#define ZMM_W(n) _w[31 - (n)]
+#define ZMM_L(n) _l[15 - (n)]
+#define ZMM_S(n) _s[15 - (n)]
+#define ZMM_Q(n) _q[7 - (n)]
+#define ZMM_D(n) _d[7 - (n)]
 
 #define MMX_B(n) _b[7 - (n)]
 #define MMX_W(n) _w[3 - (n)]
 #define MMX_L(n) _l[1 - (n)]
 #define MMX_S(n) _s[1 - (n)]
 #else
-#define XMM_B(n) _b[n]
-#define XMM_W(n) _w[n]
-#define XMM_L(n) _l[n]
-#define XMM_S(n) _s[n]
-#define XMM_Q(n) _q[n]
-#define XMM_D(n) _d[n]
+#define ZMM_B(n) _b[n]
+#define ZMM_W(n) _w[n]
+#define ZMM_L(n) _l[n]
+#define ZMM_S(n) _s[n]
+#define ZMM_Q(n) _q[n]
+#define ZMM_D(n) _d[n]
 
 #define MMX_B(n) _b[n]
 #define MMX_W(n) _w[n]

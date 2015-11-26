@@ -1169,8 +1169,8 @@ static void do_fxsave(CPUX86State *env, target_ulong ptr, int data64,
             || (env->hflags & HF_CPL_MASK)
             || !(env->hflags & HF_LMA_MASK)) {
             for (i = 0; i < nb_xmm_regs; i++) {
-                cpu_stq_data_ra(env, addr, env->xmm_regs[i].XMM_Q(0), retaddr);
-                cpu_stq_data_ra(env, addr + 8, env->xmm_regs[i].XMM_Q(1), retaddr);
+                cpu_stq_data_ra(env, addr, env->xmm_regs[i].ZMM_Q(0), retaddr);
+                cpu_stq_data_ra(env, addr + 8, env->xmm_regs[i].ZMM_Q(1), retaddr);
                 addr += 16;
             }
         }
@@ -1226,8 +1226,8 @@ static void do_fxrstor(CPUX86State *env, target_ulong ptr, int data64,
             || (env->hflags & HF_CPL_MASK)
             || !(env->hflags & HF_LMA_MASK)) {
             for (i = 0; i < nb_xmm_regs; i++) {
-                env->xmm_regs[i].XMM_Q(0) = cpu_ldq_data_ra(env, addr, retaddr);
-                env->xmm_regs[i].XMM_Q(1) = cpu_ldq_data_ra(env, addr + 8, retaddr);
+                env->xmm_regs[i].ZMM_Q(0) = cpu_ldq_data_ra(env, addr, retaddr);
+                env->xmm_regs[i].ZMM_Q(1) = cpu_ldq_data_ra(env, addr + 8, retaddr);
                 addr += 16;
             }
         }

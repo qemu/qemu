@@ -535,10 +535,10 @@ void x86_cpu_dump_state(CPUState *cs, FILE *f, fprintf_function cpu_fprintf,
         for(i=0;i<nb;i++) {
             cpu_fprintf(f, "XMM%02d=%08x%08x%08x%08x",
                         i,
-                        env->xmm_regs[i].XMM_L(3),
-                        env->xmm_regs[i].XMM_L(2),
-                        env->xmm_regs[i].XMM_L(1),
-                        env->xmm_regs[i].XMM_L(0));
+                        env->xmm_regs[i].ZMM_L(3),
+                        env->xmm_regs[i].ZMM_L(2),
+                        env->xmm_regs[i].ZMM_L(1),
+                        env->xmm_regs[i].ZMM_L(0));
             if ((i & 1) == 1)
                 cpu_fprintf(f, "\n");
             else

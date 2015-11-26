@@ -36,8 +36,8 @@ static const VMStateDescription vmstate_xmm_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(0), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(1), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(0), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(1), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -52,8 +52,8 @@ static const VMStateDescription vmstate_ymmh_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(2), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(3), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(2), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(3), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -67,10 +67,10 @@ static const VMStateDescription vmstate_zmmh_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(4), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(5), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(6), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(7), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(4), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(5), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(6), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(7), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -85,14 +85,14 @@ static const VMStateDescription vmstate_hi16_zmm_reg = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT64(XMM_Q(0), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(1), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(2), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(3), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(4), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(5), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(6), ZMMReg),
-        VMSTATE_UINT64(XMM_Q(7), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(0), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(1), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(2), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(3), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(4), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(5), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(6), ZMMReg),
+        VMSTATE_UINT64(ZMM_Q(7), ZMMReg),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -787,7 +787,7 @@ static bool avx512_needed(void *opaque)
     }
 
     for (i = 0; i < CPU_NB_REGS; i++) {
-#define ENV_XMM(reg, field) (env->xmm_regs[reg].XMM_Q(field))
+#define ENV_XMM(reg, field) (env->xmm_regs[reg].ZMM_Q(field))
         if (ENV_XMM(i, 4) || ENV_XMM(i, 6) ||
             ENV_XMM(i, 5) || ENV_XMM(i, 7)) {
             return true;
