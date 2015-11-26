@@ -447,7 +447,7 @@ uint32_t helper_fpackfix(uint64_t gsr, uint64_t rs2)
     for (word = 0; word < 2; word++) {
         uint32_t val;
         int32_t src = rs2 >> (word * 32);
-        int64_t scaled = src << scale;
+        int64_t scaled = (int64_t)src << scale;
         int64_t from_fixed = scaled >> 16;
 
         val = (from_fixed < -32768 ? -32768 :

@@ -250,7 +250,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
     int target;
     int ret = 0;
 
-    if (s->dataplane_started) {
+    if (s->dataplane_started && d) {
         assert(blk_get_aio_context(d->conf.blk) == s->ctx);
     }
     /* Here VIRTIO_SCSI_S_OK means "FUNCTION COMPLETE".  */
