@@ -3476,6 +3476,19 @@ err:
     return ret;
 }
 
+static QEMUFile *rdma_get_return_path(void *opaque)
+{
+    QEMUFileRDMA *rfile = opaque;
+    RDMAContext *rdma = rfile->rdma;
+    QEMUFile* partner = rdma->tcp_partner;
+
+    fprintf(stderr, "%s\n", __func__);
+    /* TODO: This is racy */
+    assert(partner);
+
+    return qemu_file_get_return_path(partner);
+}
+
 static int qemu_rdma_get_fd(void *opaque)
 {
     QEMUFileRDMA *rfile = opaque;
@@ -3489,6 +3502,7 @@ static const QEMUFileOps rdma_read_ops = {
     .get_fd        = qemu_rdma_get_fd,
     .close         = qemu_rdma_close,
     .hook_ram_load = rdma_load_hook,
+    .get_return_path    = rdma_get_return_path,
 };
 
 static const QEMUFileOps rdma_write_ops = {
@@ -3497,6 +3511,7 @@ static const QEMUFileOps rdma_write_ops = {
     .before_ram_iterate = qemu_rdma_registration_start,
     .after_ram_iterate  = qemu_rdma_registration_stop,
     .save_page          = qemu_rdma_save_page,
+    .get_return_path    = rdma_get_return_path,
 };
 
 static void *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
