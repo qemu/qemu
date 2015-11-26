@@ -472,7 +472,6 @@ static void pc_i440fx_machine_options(MachineClass *m)
 static void pc_i440fx_2_5_machine_options(MachineClass *m)
 {
     pc_i440fx_machine_options(m);
-    m->hw_version = QEMU_VERSION;
     m->alias = "pc";
     m->is_default = 1;
 }

@@ -256,6 +256,10 @@ static inline void qemu_timersub(const struct timeval *val1,
 
 void qemu_set_cloexec(int fd);
 
+/* QEMU "hardware version" setting. Used to replace code that exposed
+ * QEMU_VERSION to guests in the past and need to keep compatibilty.
+ * Do not use qemu_hw_version() in new code.
+ */
 void qemu_set_hw_version(const char *);
 const char *qemu_hw_version(void);
 

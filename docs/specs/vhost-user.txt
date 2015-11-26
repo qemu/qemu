@@ -148,13 +148,23 @@ a feature bit was dedicated for this purpose:
 
 Starting and stopping rings
 ----------------------
-Client must only process each ring when it is both started and enabled.
+Client must only process each ring when it is started.
+
+Client must only pass data between the ring and the
+backend, when the ring is enabled.
+
+If ring is started but disabled, client must process the
+ring without talking to the backend.
+
+For example, for a networking device, in the disabled state
+client must not supply any new RX packets, but must process
+and discard any TX packets.
 
 If VHOST_USER_F_PROTOCOL_FEATURES has not been negotiated, the ring is initialized
 in an enabled state.
 
 If VHOST_USER_F_PROTOCOL_FEATURES has been negotiated, the ring is initialized
-in a disabled state. Client must not process it until ring is enabled by
+in a disabled state. Client must not pass data to/from the backend until ring is enabled by
 VHOST_USER_SET_VRING_ENABLE with parameter 1, or after it has been disabled by
 VHOST_USER_SET_VRING_ENABLE with parameter 0.
 
@@ -166,7 +176,7 @@ descriptor is readable) on the descriptor specified by
 VHOST_USER_SET_VRING_KICK, and stop ring upon receiving
 VHOST_USER_GET_VRING_BASE.
 
-While processing the rings (when they are started and enabled), client must
+While processing the rings (whether they are enabled or not), client must
 support changing some configuration aspects on the fly.
 
 Multiple queue support
@@ -309,11 +319,11 @@ Message types
       Id: 4
       Master payload: N/A
 
-      This is no longer used. Used to be sent to request stopping
+      This is no longer used. Used to be sent to request disabling
       all rings, but some clients interpreted it to also discard
       connection state (this interpretation would lead to bugs).
       It is recommended that clients either ignore this message,
-      or use it to stop all rings.
+      or use it to disable all rings.
 
  * VHOST_USER_SET_MEM_TABLE
 

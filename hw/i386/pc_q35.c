@@ -373,7 +373,6 @@ static void pc_q35_machine_options(MachineClass *m)
 static void pc_q35_2_5_machine_options(MachineClass *m)
 {
     pc_q35_machine_options(m);
-    m->hw_version = QEMU_VERSION;
     m->alias = "q35";
 }
 

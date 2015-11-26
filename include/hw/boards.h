@@ -51,6 +51,11 @@ bool machine_mem_merge(MachineState *machine);
  *    used to provide @cpu_index to socket number mapping, allowing
  *    a machine to group CPU threads belonging to the same socket/package
  *    Returns: socket number given cpu_index belongs to.
+ * @hw_version:
+ *    Value of QEMU_VERSION when the machine was added to QEMU.
+ *    Set only by old machines because they need to keep
+ *    compatibility on code that exposed QEMU_VERSION to guests in
+ *    the past (and now use qemu_hw_version()).
  */
 struct MachineClass {
     /*< private >*/

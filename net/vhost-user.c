@@ -188,7 +188,7 @@ static void net_vhost_user_event(void *opaque, int event)
         qmp_set_link(name, true, &err);
         break;
     case CHR_EVENT_CLOSED:
-        qmp_set_link(name, true, &err);
+        qmp_set_link(name, false, &err);
         vhost_user_stop(queues, ncs);
         break;
     }

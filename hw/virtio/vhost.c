@@ -1226,11 +1226,6 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         }
     }
 
-    if (hdev->vhost_ops->vhost_set_vring_enable) {
-        /* only enable first vq pair by default */
-        hdev->vhost_ops->vhost_set_vring_enable(hdev, hdev->vq_index == 0);
-    }
-
     return 0;
 fail_log:
     vhost_log_put(hdev, false);
@@ -1259,10 +1254,6 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
                              vdev,
                              hdev->vqs + i,
                              hdev->vq_index + i);
-    }
-
-    if (hdev->vhost_ops->vhost_set_vring_enable) {
-        hdev->vhost_ops->vhost_set_vring_enable(hdev, 0);
     }
 
     vhost_log_put(hdev, true);
