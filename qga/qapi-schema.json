@@ -318,13 +318,13 @@
 #
 # Seek to a position in the file, as with fseek(), and return the
 # current file position afterward. Also encapsulates ftell()'s
-# functionality, just Set offset=0, whence=SEEK_CUR.
+# functionality, with offset=0 and whence=1.
 #
 # @handle: filehandle returned by guest-file-open
 #
 # @offset: bytes to skip over in the file stream
 #
-# @whence: SEEK_SET, SEEK_CUR, or SEEK_END, as with fseek()
+# @whence: 0 for SEEK_SET, 1 for SEEK_CUR, or 2 for SEEK_END
 #
 # Returns: @GuestFileSeek on success.
 #
