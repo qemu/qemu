@@ -1519,8 +1519,14 @@ static int qemu_rdma_block_for_wrid(RDMAContext *rdma, int wrid_requested,
          * Coroutine doesn't start until process_incoming_migration()
          * so don't yield unless we know we're running inside of a coroutine.
          */
-        if (rdma->migration_started_on_destination) {
+        if (qemu_in_coroutine()) {
             yield_until_fd_readable(rdma->comp_channel->fd);
+        } else {
+            GPollFD pfd;
+            pfd.fd = rdma->comp_channel->fd;
+            pfd.events = G_IO_IN | G_IO_ERR;
+            pfd.revents = 0;
+            g_poll(&pfd, 1 /* 1 fd */, -1 /* no timeout */);
         }
 
         if (ibv_get_cq_event(rdma->comp_channel, &cq, &cq_ctx)) {
