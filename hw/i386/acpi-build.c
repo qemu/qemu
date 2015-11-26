@@ -762,16 +762,59 @@ static void crs_replace_with_free_ranges(GPtrArray *ranges,
     g_ptr_array_free(free_ranges, false);
 }
 
+/*
+ * crs_range_merge - merges adjacent ranges in the given array.
+ * Array elements are deleted and replaced with the merged ranges.
+ */
+static void crs_range_merge(GPtrArray *range)
+{
+    GPtrArray *tmp =  g_ptr_array_new_with_free_func(crs_range_free);
+    CrsRangeEntry *entry;
+    uint64_t range_base, range_limit;
+    int i;
+
+    if (!range->len) {
+        return;
+    }
+
+    g_ptr_array_sort(range, crs_range_compare);
+
+    entry = g_ptr_array_index(range, 0);
+    range_base = entry->base;
+    range_limit = entry->limit;
+    for (i = 1; i < range->len; i++) {
+        entry = g_ptr_array_index(range, i);
+        if (entry->base - 1 == range_limit) {
+            range_limit = entry->limit;
+        } else {
+            crs_range_insert(tmp, range_base, range_limit);
+            range_base = entry->base;
+            range_limit = entry->limit;
+        }
+    }
+    crs_range_insert(tmp, range_base, range_limit);
+
+    g_ptr_array_set_size(range, 0);
+    for (i = 0; i < tmp->len; i++) {
+        entry = g_ptr_array_index(tmp, i);
+        crs_range_insert(range, entry->base, entry->limit);
+    }
+    g_ptr_array_free(tmp, true);
+}
+
 static Aml *build_crs(PCIHostState *host,
                       GPtrArray *io_ranges, GPtrArray *mem_ranges)
 {
     Aml *crs = aml_resource_template();
+    GPtrArray *host_io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    GPtrArray *host_mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
+    CrsRangeEntry *entry;
     uint8_t max_bus = pci_bus_num(host->bus);
     uint8_t type;
     int devfn;
+    int i;
 
     for (devfn = 0; devfn < ARRAY_SIZE(host->bus->devices); devfn++) {
-        int i;
         uint64_t range_base, range_limit;
         PCIDevice *dev = host->bus->devices[devfn];
 
@@ -794,26 +837,9 @@ static Aml *build_crs(PCIHostState *host,
             }
 
             if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
-                aml_append(crs,
-                    aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
-                                AML_POS_DECODE, AML_ENTIRE_RANGE,
-                                0,
-                                range_base,
-                                range_limit,
-                                0,
-                                range_limit - range_base + 1));
-                crs_range_insert(io_ranges, range_base, range_limit);
+                crs_range_insert(host_io_ranges, range_base, range_limit);
             } else { /* "memory" */
-                aml_append(crs,
-                    aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
-                                     AML_MAX_FIXED, AML_NON_CACHEABLE,
-                                     AML_READ_WRITE,
-                                     0,
-                                     range_base,
-                                     range_limit,
-                                     0,
-                                     range_limit - range_base + 1));
-                crs_range_insert(mem_ranges, range_base, range_limit);
+                crs_range_insert(host_mem_ranges, range_base, range_limit);
             }
         }
 
@@ -832,15 +858,7 @@ static Aml *build_crs(PCIHostState *host,
              * that do not support multiple root buses
              */
             if (range_base && range_base <= range_limit) {
-                aml_append(crs,
-                           aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
-                                       AML_POS_DECODE, AML_ENTIRE_RANGE,
-                                       0,
-                                       range_base,
-                                       range_limit,
-                                       0,
-                                       range_limit - range_base + 1));
-                crs_range_insert(io_ranges, range_base, range_limit);
+                crs_range_insert(host_io_ranges, range_base, range_limit);
             }
 
             range_base =
@@ -853,16 +871,7 @@ static Aml *build_crs(PCIHostState *host,
              * that do not support multiple root buses
              */
             if (range_base && range_base <= range_limit) {
-                aml_append(crs,
-                           aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
-                                            AML_MAX_FIXED, AML_NON_CACHEABLE,
-                                            AML_READ_WRITE,
-                                            0,
-                                            range_base,
-                                            range_limit,
-                                            0,
-                                            range_limit - range_base + 1));
-                crs_range_insert(mem_ranges, range_base, range_limit);
+                crs_range_insert(host_mem_ranges, range_base, range_limit);
             }
 
             range_base =
@@ -875,19 +884,35 @@ static Aml *build_crs(PCIHostState *host,
              * that do not support multiple root buses
              */
             if (range_base && range_base <= range_limit) {
-                aml_append(crs,
-                           aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
-                                            AML_MAX_FIXED, AML_NON_CACHEABLE,
-                                            AML_READ_WRITE,
-                                            0,
-                                            range_base,
-                                            range_limit,
-                                            0,
-                                            range_limit - range_base + 1));
-                crs_range_insert(mem_ranges, range_base, range_limit);
+                crs_range_insert(host_mem_ranges, range_base, range_limit);
             }
         }
     }
+
+    crs_range_merge(host_io_ranges);
+    for (i = 0; i < host_io_ranges->len; i++) {
+        entry = g_ptr_array_index(host_io_ranges, i);
+        aml_append(crs,
+                   aml_word_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                               AML_POS_DECODE, AML_ENTIRE_RANGE,
+                               0, entry->base, entry->limit, 0,
+                               entry->limit - entry->base + 1));
+        crs_range_insert(io_ranges, entry->base, entry->limit);
+    }
+    g_ptr_array_free(host_io_ranges, true);
+
+    crs_range_merge(host_mem_ranges);
+    for (i = 0; i < host_mem_ranges->len; i++) {
+        entry = g_ptr_array_index(host_mem_ranges, i);
+        aml_append(crs,
+                   aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                    AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                    AML_READ_WRITE,
+                                    0, entry->base, entry->limit, 0,
+                                    entry->limit - entry->base + 1));
+        crs_range_insert(mem_ranges, entry->base, entry->limit);
+    }
+    g_ptr_array_free(host_mem_ranges, true);
 
     aml_append(crs,
         aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
