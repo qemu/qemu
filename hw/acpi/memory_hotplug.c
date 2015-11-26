@@ -155,6 +155,7 @@ static void acpi_memory_hotplug_write(void *opaque, hwaddr addr, uint64_t data,
                 qapi_event_send_mem_unplug_error(dev->id,
                                                  error_get_pretty(local_err),
                                                  &error_abort);
+                error_free(local_err);
                 break;
             }
             trace_mhp_acpi_pc_dimm_deleted(mem_st->selector);

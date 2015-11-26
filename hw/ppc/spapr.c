@@ -125,6 +125,7 @@ static XICSState *xics_system_init(MachineState *machine,
             error_report("kernel_irqchip requested but unavailable: %s",
                          error_get_pretty(err));
         }
+        error_free(err);
     }
 
     if (!icp) {
