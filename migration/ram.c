@@ -2714,6 +2714,7 @@ int colo_init_ram_cache(void)
     migration_bitmap_rcu = g_new0(struct BitmapRcu, 1);
     migration_bitmap_rcu->bmap = bitmap_new(ram_cache_pages);
     migration_dirty_pages = 0;
+    memory_global_dirty_log_start();
 
     return 0;
 
@@ -2779,7 +2780,8 @@ void colo_flush_ram_cache(void)
         if (host_off == offset) { /* walk ramblock->host */
             host_off = ramlist_bitmap_find_and_reset_dirty(block, offset);
         }
-        if (offset >= block->used_length) {
+        if (host_off >= block->used_length &&
+            cache_off >= block->used_length) {
             cache_off = host_off = offset = 0;
             block = QLIST_NEXT_RCU(block, next);
         } else {
