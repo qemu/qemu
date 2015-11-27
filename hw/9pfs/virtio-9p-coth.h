@@ -18,14 +18,6 @@
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
 #include "virtio-9p.h"
-#include <glib.h>
-
-typedef struct V9fsThPool {
-    EventNotifier e;
-
-    GThreadPool *pool;
-    GAsyncQueue *completed;
-} V9fsThPool;
 
 /*
  * we want to use bottom half because we want to make sure the below
@@ -45,7 +37,7 @@ typedef struct V9fsThPool {
         qemu_bh_schedule(co_bh);                                        \
         /*                                                              \
          * yield in qemu thread and re-enter back                       \
-         * in glib worker thread                                        \
+         * in worker thread                                             \
          */                                                             \
         qemu_coroutine_yield();                                         \
         qemu_bh_delete(co_bh);                                          \
