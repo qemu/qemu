@@ -216,8 +216,7 @@ static void read_guest_mem(TestServer *s)
 
 static void *thread_function(void *data)
 {
-    GMainLoop *loop;
-    loop = g_main_loop_new(NULL, FALSE);
+    GMainLoop *loop = data;
     g_main_loop_run(loop);
     return NULL;
 }
@@ -389,7 +388,7 @@ static TestServer *test_server_new(const gchar *name)
     g_strdup_printf(QEMU_CMD extra, (mem), (mem), (root), (s)->chr_name,       \
                     (s)->socket_path, (s)->chr_name, ##__VA_ARGS__)
 
-static void test_server_free(TestServer *server)
+static gboolean _test_server_free(TestServer *server)
 {
     int i;
 
@@ -406,9 +405,15 @@ static void test_server_free(TestServer *server)
     unlink(server->socket_path);
     g_free(server->socket_path);
 
-
     g_free(server->chr_name);
     g_free(server);
+
+    return FALSE;
+}
+
+static void test_server_free(TestServer *server)
+{
+    g_idle_add((GSourceFunc)_test_server_free, server);
 }
 
 static void wait_for_log_fd(TestServer *s)
@@ -590,6 +595,8 @@ int main(int argc, char **argv)
     char *qemu_cmd = NULL;
     int ret;
     char template[] = "/tmp/vhost-test-XXXXXX";
+    GMainLoop *loop;
+    GThread *thread;
 
     g_test_init(&argc, &argv, NULL);
 
@@ -612,8 +619,9 @@ int main(int argc, char **argv)
 
     server = test_server_new("test");
 
+    loop = g_main_loop_new(NULL, FALSE);
     /* run the main loop thread so the chardev may operate */
-    g_thread_new(NULL, thread_function, NULL);
+    thread = g_thread_new(NULL, thread_function, loop);
 
     qemu_cmd = GET_QEMU_CMD(server);
 
@@ -631,6 +639,14 @@ int main(int argc, char **argv)
 
     /* cleanup */
     test_server_free(server);
+
+    /* finish the helper thread and dispatch pending sources */
+    g_main_loop_quit(loop);
+    g_thread_join(thread);
+    while (g_main_context_pending(NULL)) {
+        g_main_context_iteration (NULL, TRUE);
+    }
+    g_main_loop_unref(loop);
 
     ret = rmdir(tmpfs);
     if (ret != 0) {
