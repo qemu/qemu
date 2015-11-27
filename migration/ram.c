@@ -587,6 +587,24 @@ static inline bool migration_bitmap_clear_dirty(ram_addr_t addr)
     return ret;
 }
 
+static inline
+ram_addr_t ramlist_bitmap_find_and_reset_dirty(RAMBlock *rb,
+                                               ram_addr_t start)
+{
+    unsigned long base = rb->offset >> TARGET_PAGE_BITS;
+    unsigned long nr = base + (start >> TARGET_PAGE_BITS);
+    uint64_t rb_size = rb->used_length;
+    unsigned long size = base + (rb_size >> TARGET_PAGE_BITS);
+    unsigned long next;
+
+    next = find_next_bit(ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION],
+                         size, nr);
+    if (next < size) {
+         clear_bit(next, ram_list.dirty_memory[DIRTY_MEMORY_MIGRATION]);
+    }
+    return (next - base) << TARGET_PAGE_BITS;
+}
+
 static void migration_bitmap_sync_range(ram_addr_t start, ram_addr_t length)
 {
     unsigned long *bitmap;
@@ -2742,26 +2760,43 @@ void colo_flush_ram_cache(void)
     RAMBlock *block = NULL;
     void *dst_host;
     void *src_host;
-    ram_addr_t offset = 0;
+    ram_addr_t offset = 0, host_off = 0, cache_off = 0;
+    uint64_t host_dirty = 0, both_dirty = 0;
 
     trace_colo_flush_ram_cache_begin(migration_dirty_pages);
+    address_space_sync_dirty_bitmap(&address_space_memory);
     rcu_read_lock();
     block = QLIST_FIRST_RCU(&ram_list.blocks);
     while (block) {
         ram_addr_t ram_addr_abs;
-        offset = migration_bitmap_find_dirty(block, offset, &ram_addr_abs);
-        migration_bitmap_clear_dirty(ram_addr_abs);
+        if (cache_off == offset) { /* walk ramblock->colo_cache */
+            cache_off = migration_bitmap_find_dirty(block,
+                                                    offset, &ram_addr_abs);
+            if (cache_off < block->used_length) {
+                migration_bitmap_clear_dirty(ram_addr_abs);
+            }
+        }
+        if (host_off == offset) { /* walk ramblock->host */
+            host_off = ramlist_bitmap_find_and_reset_dirty(block, offset);
+        }
         if (offset >= block->used_length) {
-            offset = 0;
+            cache_off = host_off = offset = 0;
             block = QLIST_NEXT_RCU(block, next);
         } else {
+            if (host_off <= cache_off) {
+                offset = host_off;
+                host_dirty++;
+                both_dirty += (host_off == cache_off);
+            } else {
+                offset = cache_off;
+            }
             dst_host = block->host + offset;
             src_host = block->colo_cache + offset;
             memcpy(dst_host, src_host, TARGET_PAGE_SIZE);
         }
     }
     rcu_read_unlock();
-    trace_colo_flush_ram_cache_end();
+    trace_colo_flush_ram_cache_end(host_dirty, both_dirty);
     assert(migration_dirty_pages == 0);
 }
 
