@@ -123,6 +123,7 @@ static VhostUserMsg m __attribute__ ((unused));
 
 typedef struct TestServer {
     gchar *socket_path;
+    gchar *mig_path;
     gchar *chr_name;
     CharDriverState *chr;
     int fds_num;
@@ -364,6 +365,7 @@ static TestServer *test_server_new(const gchar *name)
     gchar *chr_path;
 
     server->socket_path = g_strdup_printf("%s/%s.sock", tmpfs, name);
+    server->mig_path = g_strdup_printf("%s/%s.mig", tmpfs, name);
 
     chr_path = g_strdup_printf("unix:%s,server,nowait", server->socket_path);
     server->chr_name = g_strdup_printf("chr-%s", name);
@@ -404,6 +406,9 @@ static gboolean _test_server_free(TestServer *server)
 
     unlink(server->socket_path);
     g_free(server->socket_path);
+
+    unlink(server->mig_path);
+    g_free(server->mig_path);
 
     g_free(server->chr_name);
     g_free(server);
@@ -512,7 +517,7 @@ static void test_migrate(void)
 {
     TestServer *s = test_server_new("src");
     TestServer *dest = test_server_new("dest");
-    const char *uri = "tcp:127.0.0.1:1234";
+    char *uri = g_strdup_printf("%s%s", "unix:", dest->mig_path);
     QTestState *global = global_qtest, *from, *to;
     GSource *source;
     gchar *cmd;
@@ -583,6 +588,7 @@ static void test_migrate(void)
     test_server_free(dest);
     qtest_quit(from);
     test_server_free(s);
+    g_free(uri);
 
     global_qtest = global;
 }
