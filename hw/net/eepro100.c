@@ -774,6 +774,11 @@ static void tx_command(EEPRO100State *s)
 #if 0
         uint16_t tx_buffer_el = lduw_le_pci_dma(&s->dev, tbd_address + 6);
 #endif
+        if (tx_buffer_size == 0) {
+            /* Prevent an endless loop. */
+            logout("loop in %s:%u\n", __FILE__, __LINE__);
+            break;
+        }
         tbd_address += 8;
         TRACE(RXTX, logout
             ("TBD (simplified mode): buffer address 0x%08x, size 0x%04x\n",
@@ -855,6 +860,10 @@ static void set_multicast_list(EEPRO100State *s)
 
 static void action_command(EEPRO100State *s)
 {
+    /* The loop below won't stop if it gets special handcrafted data.
+       Therefore we limit the number of iterations. */
+    unsigned max_loop_count = 16;
+
     for (;;) {
         bool bit_el;
         bool bit_s;
@@ -870,6 +879,13 @@ static void action_command(EEPRO100State *s)
 #if 0
         bool bit_sf = ((s->tx.command & COMMAND_SF) != 0);
 #endif
+
+        if (max_loop_count-- == 0) {
+            /* Prevent an endless loop. */
+            logout("loop in %s:%u\n", __FILE__, __LINE__);
+            break;
+        }
+
         s->cu_offset = s->tx.link;
         TRACE(OTHER,
               logout("val=(cu start), status=0x%04x, command=0x%04x, link=0x%08x\n",
