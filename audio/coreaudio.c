@@ -32,6 +32,10 @@
 #define AUDIO_CAP "coreaudio"
 #include "audio_int.h"
 
+#ifndef MAC_OS_X_VERSION_10_6
+#define MAC_OS_X_VERSION_10_6 1060
+#endif
+
 static int isAtexit;
 
 typedef struct {
@@ -50,6 +54,28 @@ typedef struct coreaudioVoiceOut {
     int rpos;
 } coreaudioVoiceOut;
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_6
+/* The APIs used here only become available from 10.6 */
+
+static OSStatus coreaudio_get_voice(AudioDeviceID *id)
+{
+    UInt32 size = sizeof(*id);
+    AudioObjectPropertyAddress addr = {
+        kAudioHardwarePropertyDefaultOutputDevice,
+        kAudioObjectPropertyScopeGlobal,
+        kAudioObjectPropertyElementMaster
+    };
+
+    return AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                      &addr,
+                                      0,
+                                      NULL,
+                                      &size,
+                                      id);
+}
+#else
+/* Legacy versions of functions using deprecated APIs */
+
 static OSStatus coreaudio_get_voice(AudioDeviceID *id)
 {
     UInt32 size = sizeof(*id);
@@ -59,6 +85,7 @@ static OSStatus coreaudio_get_voice(AudioDeviceID *id)
         &size,
         id);
 }
+#endif
 
 static void coreaudio_logstatus (OSStatus status)
 {
