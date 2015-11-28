@@ -474,25 +474,32 @@ static const X86RegisterInfo32 x86_reg_info_32[CPU_NB_REGS32] = {
 const ExtSaveArea x86_ext_save_areas[] = {
     [XSTATE_YMM_BIT] =
           { .feature = FEAT_1_ECX, .bits = CPUID_EXT_AVX,
-            .offset = 0x240, .size = 0x100 },
+            .offset = offsetof(X86XSaveArea, avx_state),
+            .size = sizeof(XSaveAVX) },
     [XSTATE_BNDREGS_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
-            .offset = 0x3c0, .size = 0x40  },
+            .offset = offsetof(X86XSaveArea, bndreg_state),
+            .size = sizeof(XSaveBNDREG)  },
     [XSTATE_BNDCSR_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_MPX,
-            .offset = 0x400, .size = 0x40  },
+            .offset = offsetof(X86XSaveArea, bndcsr_state),
+            .size = sizeof(XSaveBNDCSR)  },
     [XSTATE_OPMASK_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .offset = 0x440, .size = 0x40 },
+            .offset = offsetof(X86XSaveArea, opmask_state),
+            .size = sizeof(XSaveOpmask) },
     [XSTATE_ZMM_Hi256_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .offset = 0x480, .size = 0x200 },
+            .offset = offsetof(X86XSaveArea, zmm_hi256_state),
+            .size = sizeof(XSaveZMM_Hi256) },
     [XSTATE_Hi16_ZMM_BIT] =
           { .feature = FEAT_7_0_EBX, .bits = CPUID_7_0_EBX_AVX512F,
-            .offset = 0x680, .size = 0x400 },
+            .offset = offsetof(X86XSaveArea, hi16_zmm_state),
+            .size = sizeof(XSaveHi16_ZMM) },
     [XSTATE_PKRU_BIT] =
           { .feature = FEAT_7_0_ECX, .bits = CPUID_7_0_ECX_PKU,
-            .offset = 0xA80, .size = 0x8 },
+            .offset = offsetof(X86XSaveArea, pkru_state),
+            .size = sizeof(XSavePKRU) },
 };
 
 const char *get_register_name_32(unsigned int reg)
