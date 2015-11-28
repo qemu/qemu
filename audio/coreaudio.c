@@ -49,6 +49,7 @@ typedef struct coreaudioVoiceOut {
     AudioDeviceID outputDeviceID;
     UInt32 audioDevicePropertyBufferFrameSize;
     AudioStreamBasicDescription outputStreamBasicDescription;
+    AudioDeviceIOProcID ioprocid;
     int live;
     int decr;
     int rpos;
@@ -598,8 +599,12 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
     }
 
     /* set Callback */
-    status = AudioDeviceAddIOProc(core->outputDeviceID, audioDeviceIOProc, hw);
-    if (status != kAudioHardwareNoError) {
+    core->ioprocid = NULL;
+    status = AudioDeviceCreateIOProcID(core->outputDeviceID,
+                                       audioDeviceIOProc,
+                                       hw,
+                                       &core->ioprocid);
+    if (status != kAudioHardwareNoError || core->ioprocid == NULL) {
         coreaudio_logerr2 (status, typ, "Could not set IOProc\n");
         core->outputDeviceID = kAudioDeviceUnknown;
         return -1;
@@ -607,10 +612,10 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     /* start Playback */
     if (!isPlaying(core->outputDeviceID)) {
-        status = AudioDeviceStart(core->outputDeviceID, audioDeviceIOProc);
+        status = AudioDeviceStart(core->outputDeviceID, core->ioprocid);
         if (status != kAudioHardwareNoError) {
             coreaudio_logerr2 (status, typ, "Could not start playback\n");
-            AudioDeviceRemoveIOProc(core->outputDeviceID, audioDeviceIOProc);
+            AudioDeviceDestroyIOProcID(core->outputDeviceID, core->ioprocid);
             core->outputDeviceID = kAudioDeviceUnknown;
             return -1;
         }
@@ -628,15 +633,15 @@ static void coreaudio_fini_out (HWVoiceOut *hw)
     if (!isAtexit) {
         /* stop playback */
         if (isPlaying(core->outputDeviceID)) {
-            status = AudioDeviceStop(core->outputDeviceID, audioDeviceIOProc);
+            status = AudioDeviceStop(core->outputDeviceID, core->ioprocid);
             if (status != kAudioHardwareNoError) {
                 coreaudio_logerr (status, "Could not stop playback\n");
             }
         }
 
         /* remove callback */
-        status = AudioDeviceRemoveIOProc(core->outputDeviceID,
-                                         audioDeviceIOProc);
+        status = AudioDeviceDestroyIOProcID(core->outputDeviceID,
+                                            core->ioprocid);
         if (status != kAudioHardwareNoError) {
             coreaudio_logerr (status, "Could not remove IOProc\n");
         }
@@ -659,7 +664,7 @@ static int coreaudio_ctl_out (HWVoiceOut *hw, int cmd, ...)
     case VOICE_ENABLE:
         /* start playback */
         if (!isPlaying(core->outputDeviceID)) {
-            status = AudioDeviceStart(core->outputDeviceID, audioDeviceIOProc);
+            status = AudioDeviceStart(core->outputDeviceID, core->ioprocid);
             if (status != kAudioHardwareNoError) {
                 coreaudio_logerr (status, "Could not resume playback\n");
             }
@@ -670,7 +675,8 @@ static int coreaudio_ctl_out (HWVoiceOut *hw, int cmd, ...)
         /* stop playback */
         if (!isAtexit) {
             if (isPlaying(core->outputDeviceID)) {
-                status = AudioDeviceStop(core->outputDeviceID, audioDeviceIOProc);
+                status = AudioDeviceStop(core->outputDeviceID,
+                                         core->ioprocid);
                 if (status != kAudioHardwareNoError) {
                     coreaudio_logerr (status, "Could not pause playback\n");
                 }
