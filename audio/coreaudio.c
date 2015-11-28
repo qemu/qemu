@@ -73,6 +73,111 @@ static OSStatus coreaudio_get_voice(AudioDeviceID *id)
                                       &size,
                                       id);
 }
+
+static OSStatus coreaudio_get_framesizerange(AudioDeviceID id,
+                                             AudioValueRange *framerange)
+{
+    UInt32 size = sizeof(*framerange);
+    AudioObjectPropertyAddress addr = {
+        kAudioDevicePropertyBufferFrameSizeRange,
+        kAudioDevicePropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    };
+
+    return AudioObjectGetPropertyData(id,
+                                      &addr,
+                                      0,
+                                      NULL,
+                                      &size,
+                                      framerange);
+}
+
+static OSStatus coreaudio_get_framesize(AudioDeviceID id, UInt32 *framesize)
+{
+    UInt32 size = sizeof(*framesize);
+    AudioObjectPropertyAddress addr = {
+        kAudioDevicePropertyBufferFrameSize,
+        kAudioDevicePropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    };
+
+    return AudioObjectGetPropertyData(id,
+                                      &addr,
+                                      0,
+                                      NULL,
+                                      &size,
+                                      framesize);
+}
+
+static OSStatus coreaudio_set_framesize(AudioDeviceID id, UInt32 *framesize)
+{
+    UInt32 size = sizeof(*framesize);
+    AudioObjectPropertyAddress addr = {
+        kAudioDevicePropertyBufferFrameSize,
+        kAudioDevicePropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    };
+
+    return AudioObjectSetPropertyData(id,
+                                      &addr,
+                                      0,
+                                      NULL,
+                                      size,
+                                      framesize);
+}
+
+static OSStatus coreaudio_get_streamformat(AudioDeviceID id,
+                                           AudioStreamBasicDescription *d)
+{
+    UInt32 size = sizeof(*d);
+    AudioObjectPropertyAddress addr = {
+        kAudioDevicePropertyStreamFormat,
+        kAudioDevicePropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    };
+
+    return AudioObjectGetPropertyData(id,
+                                      &addr,
+                                      0,
+                                      NULL,
+                                      &size,
+                                      d);
+}
+
+static OSStatus coreaudio_set_streamformat(AudioDeviceID id,
+                                           AudioStreamBasicDescription *d)
+{
+    UInt32 size = sizeof(*d);
+    AudioObjectPropertyAddress addr = {
+        kAudioDevicePropertyStreamFormat,
+        kAudioDevicePropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    };
+
+    return AudioObjectSetPropertyData(id,
+                                      &addr,
+                                      0,
+                                      NULL,
+                                      size,
+                                      d);
+}
+
+static OSStatus coreaudio_get_isrunning(AudioDeviceID id, UInt32 *result)
+{
+    UInt32 size = sizeof(*result);
+    AudioObjectPropertyAddress addr = {
+        kAudioDevicePropertyDeviceIsRunning,
+        kAudioDevicePropertyScopeOutput,
+        kAudioObjectPropertyElementMaster
+    };
+
+    return AudioObjectGetPropertyData(id,
+                                      &addr,
+                                      0,
+                                      NULL,
+                                      &size,
+                                      result);
+}
 #else
 /* Legacy versions of functions using deprecated APIs */
 
@@ -85,7 +190,6 @@ static OSStatus coreaudio_get_voice(AudioDeviceID *id)
         &size,
         id);
 }
-#endif
 
 static OSStatus coreaudio_get_framesizerange(AudioDeviceID id,
                                              AudioValueRange *framerange)
@@ -169,6 +273,7 @@ static OSStatus coreaudio_get_isrunning(AudioDeviceID id, UInt32 *result)
         &size,
         result);
 }
+#endif
 
 static void coreaudio_logstatus (OSStatus status)
 {
