@@ -50,6 +50,16 @@ typedef struct coreaudioVoiceOut {
     int rpos;
 } coreaudioVoiceOut;
 
+static OSStatus coreaudio_get_voice(AudioDeviceID *id)
+{
+    UInt32 size = sizeof(*id);
+
+    return AudioHardwareGetProperty(
+        kAudioHardwarePropertyDefaultOutputDevice,
+        &size,
+        id);
+}
+
 static void coreaudio_logstatus (OSStatus status)
 {
     const char *str = "BUG";
@@ -303,12 +313,7 @@ static int coreaudio_init_out(HWVoiceOut *hw, struct audsettings *as,
 
     audio_pcm_init_info (&hw->info, as);
 
-    /* open default output device */
-    propertySize = sizeof(core->outputDeviceID);
-    status = AudioHardwareGetProperty(
-        kAudioHardwarePropertyDefaultOutputDevice,
-        &propertySize,
-        &core->outputDeviceID);
+    status = coreaudio_get_voice(&core->outputDeviceID);
     if (status != kAudioHardwareNoError) {
         coreaudio_logerr2 (status, typ,
                            "Could not get default output Device\n");
