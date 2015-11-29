@@ -30,6 +30,21 @@
 #define GUI_REFRESH_INTERVAL_DEFAULT    30
 #define GUI_REFRESH_INTERVAL_IDLE     3000
 
+/* Color number is match to standard vga palette */
+enum qemu_color_names {
+    QEMU_COLOR_BLACK   = 0,
+    QEMU_COLOR_BLUE    = 1,
+    QEMU_COLOR_GREEN   = 2,
+    QEMU_COLOR_CYAN    = 3,
+    QEMU_COLOR_RED     = 4,
+    QEMU_COLOR_MAGENTA = 5,
+    QEMU_COLOR_YELLOW  = 6,
+    QEMU_COLOR_WHITE   = 7
+};
+/* Convert to curses char attributes */
+#define ATTR2CHTYPE(c, fg, bg, bold) \
+    ((bold) << 21 | (bg) << 11 | (fg) << 8 | (c))
+
 typedef void QEMUPutKBDEvent(void *opaque, int keycode);
 typedef void QEMUPutLEDEvent(void *opaque, int ledstate);
 typedef void QEMUPutMouseEvent(void *opaque, int dx, int dy, int dz, int buttons_state);

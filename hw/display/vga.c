@@ -1979,7 +1979,8 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     width = (s->last_width - size) / 2;
     dst = chardata + s->last_width + width;
     for (i = 0; i < size; i ++)
-        console_write_ch(dst ++, 0x00200100 | msg_buffer[i]);
+        console_write_ch(dst ++, ATTR2CHTYPE(msg_buffer[i], QEMU_COLOR_BLUE,
+                                             QEMU_COLOR_BLACK, 1));
 
     dpy_text_update(s->con, 0, 0, s->last_width, height);
 }
