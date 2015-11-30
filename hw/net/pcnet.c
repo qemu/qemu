@@ -1064,6 +1064,12 @@ ssize_t pcnet_receive(NetClientState *nc, const uint8_t *buf, size_t size_)
             int pktcount = 0;
 
             if (!s->looptest) {
+                if (size > 4092) {
+#ifdef PCNET_DEBUG_RMD
+                    fprintf(stderr, "pcnet: truncates rx packet.\n");
+#endif
+                    size = 4092;
+                }
                 memcpy(src, buf, size);
                 /* no need to compute the CRC */
                 src[size] = 0;
