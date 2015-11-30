@@ -236,6 +236,23 @@ void *g_try_realloc(void *ptr, size_t size)
     return g_try_realloc_n(ptr, 1, size);
 }
 
+/* Other memory allocation functions */
+
+void *g_memdup(const void *ptr, unsigned size)
+{
+    unsigned char *dup;
+    unsigned i;
+
+    if (!ptr) {
+        return NULL;
+    }
+
+    dup = g_malloc(size);
+    for (i = 0; i < size; i++)
+        dup[i] = ((unsigned char *)ptr)[i];
+    return dup;
+}
+
 /*
  * GLib string allocation functions
  */
