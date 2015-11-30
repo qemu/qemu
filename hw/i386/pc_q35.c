@@ -378,7 +378,6 @@ static void pc_q35_2_3_machine_options(MachineClass *m)
     m->hw_version = "2.3.0";
     m->no_floppy = 0;
     m->no_tco = 1;
-    m->alias = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_3);
 }
 

@@ -448,8 +448,6 @@ static void pc_i440fx_2_3_machine_options(MachineClass *m)
 {
     pc_i440fx_2_4_machine_options(m);
     m->hw_version = "2.3.0";
-    m->alias = NULL;
-    m->is_default = 0;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_3);
 }
 
