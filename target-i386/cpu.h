@@ -738,8 +738,9 @@ typedef union {
     uint8_t _b[8];
     uint16_t _w[4];
     uint32_t _l[2];
-    float32 _s[2];
     uint64_t _q[1];
+    float32 _s[2];
+    float64 _d[1];
 } MMXReg;
 
 typedef struct BNDReg {
