@@ -408,7 +408,7 @@ struct taihu_cpld_t {
     uint8_t reg1;
 };
 
-static uint32_t taihu_cpld_readb (void *opaque, hwaddr addr)
+static uint64_t taihu_cpld_read(void *opaque, hwaddr addr, unsigned size)
 {
     taihu_cpld_t *cpld;
     uint32_t ret;
@@ -429,8 +429,8 @@ static uint32_t taihu_cpld_readb (void *opaque, hwaddr addr)
     return ret;
 }
 
-static void taihu_cpld_writeb (void *opaque,
-                               hwaddr addr, uint32_t value)
+static void taihu_cpld_write(void *opaque, hwaddr addr,
+                             uint64_t value, unsigned size)
 {
     taihu_cpld_t *cpld;
 
@@ -447,48 +447,12 @@ static void taihu_cpld_writeb (void *opaque,
     }
 }
 
-static uint32_t taihu_cpld_readw (void *opaque, hwaddr addr)
-{
-    uint32_t ret;
-
-    ret = taihu_cpld_readb(opaque, addr) << 8;
-    ret |= taihu_cpld_readb(opaque, addr + 1);
-
-    return ret;
-}
-
-static void taihu_cpld_writew (void *opaque,
-                               hwaddr addr, uint32_t value)
-{
-    taihu_cpld_writeb(opaque, addr, (value >> 8) & 0xFF);
-    taihu_cpld_writeb(opaque, addr + 1, value & 0xFF);
-}
-
-static uint32_t taihu_cpld_readl (void *opaque, hwaddr addr)
-{
-    uint32_t ret;
-
-    ret = taihu_cpld_readb(opaque, addr) << 24;
-    ret |= taihu_cpld_readb(opaque, addr + 1) << 16;
-    ret |= taihu_cpld_readb(opaque, addr + 2) << 8;
-    ret |= taihu_cpld_readb(opaque, addr + 3);
-
-    return ret;
-}
-
-static void taihu_cpld_writel (void *opaque,
-                               hwaddr addr, uint32_t value)
-{
-    taihu_cpld_writel(opaque, addr, (value >> 24) & 0xFF);
-    taihu_cpld_writel(opaque, addr + 1, (value >> 16) & 0xFF);
-    taihu_cpld_writel(opaque, addr + 2, (value >> 8) & 0xFF);
-    taihu_cpld_writeb(opaque, addr + 3, value & 0xFF);
-}
-
 static const MemoryRegionOps taihu_cpld_ops = {
-    .old_mmio = {
-        .read = { taihu_cpld_readb, taihu_cpld_readw, taihu_cpld_readl, },
-        .write = { taihu_cpld_writeb, taihu_cpld_writew, taihu_cpld_writel, },
+    .read = taihu_cpld_read,
+    .write = taihu_cpld_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
     },
     .endianness = DEVICE_NATIVE_ENDIAN,
 };

@@ -194,7 +194,7 @@ static inline uint64_t fload_invalid_op_excp(CPUPPCState *env, int op,
     /* Update the floating-point invalid operation summary */
     env->fpscr |= 1 << FPSCR_VX;
     /* Update the floating-point exception summary */
-    env->fpscr |= 1 << FPSCR_FX;
+    env->fpscr |= FP_FX;
     if (ve != 0) {
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
@@ -211,7 +211,7 @@ static inline void float_zero_divide_excp(CPUPPCState *env)
     env->fpscr |= 1 << FPSCR_ZX;
     env->fpscr &= ~((1 << FPSCR_FR) | (1 << FPSCR_FI));
     /* Update the floating-point exception summary */
-    env->fpscr |= 1 << FPSCR_FX;
+    env->fpscr |= FP_FX;
     if (fpscr_ze != 0) {
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
@@ -228,7 +228,7 @@ static inline void float_overflow_excp(CPUPPCState *env)
 
     env->fpscr |= 1 << FPSCR_OX;
     /* Update the floating-point exception summary */
-    env->fpscr |= 1 << FPSCR_FX;
+    env->fpscr |= FP_FX;
     if (fpscr_oe != 0) {
         /* XXX: should adjust the result */
         /* Update the floating-point enabled exception summary */
@@ -248,7 +248,7 @@ static inline void float_underflow_excp(CPUPPCState *env)
 
     env->fpscr |= 1 << FPSCR_UX;
     /* Update the floating-point exception summary */
-    env->fpscr |= 1 << FPSCR_FX;
+    env->fpscr |= FP_FX;
     if (fpscr_ue != 0) {
         /* XXX: should adjust the result */
         /* Update the floating-point enabled exception summary */
@@ -265,7 +265,7 @@ static inline void float_inexact_excp(CPUPPCState *env)
 
     env->fpscr |= 1 << FPSCR_XX;
     /* Update the floating-point exception summary */
-    env->fpscr |= 1 << FPSCR_FX;
+    env->fpscr |= FP_FX;
     if (fpscr_xe != 0) {
         /* Update the floating-point enabled exception summary */
         env->fpscr |= 1 << FPSCR_FEX;
@@ -330,31 +330,31 @@ void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
     if (prev == 0) {
         switch (bit) {
         case FPSCR_VX:
-            env->fpscr |= 1 << FPSCR_FX;
+            env->fpscr |= FP_FX;
             if (fpscr_ve) {
                 goto raise_ve;
             }
             break;
         case FPSCR_OX:
-            env->fpscr |= 1 << FPSCR_FX;
+            env->fpscr |= FP_FX;
             if (fpscr_oe) {
                 goto raise_oe;
             }
             break;
         case FPSCR_UX:
-            env->fpscr |= 1 << FPSCR_FX;
+            env->fpscr |= FP_FX;
             if (fpscr_ue) {
                 goto raise_ue;
             }
             break;
         case FPSCR_ZX:
-            env->fpscr |= 1 << FPSCR_FX;
+            env->fpscr |= FP_FX;
             if (fpscr_ze) {
                 goto raise_ze;
             }
             break;
         case FPSCR_XX:
-            env->fpscr |= 1 << FPSCR_FX;
+            env->fpscr |= FP_FX;
             if (fpscr_xe) {
                 goto raise_xe;
             }
@@ -369,7 +369,7 @@ void helper_fpscr_setbit(CPUPPCState *env, uint32_t bit)
         case FPSCR_VXSQRT:
         case FPSCR_VXCVI:
             env->fpscr |= 1 << FPSCR_VX;
-            env->fpscr |= 1 << FPSCR_FX;
+            env->fpscr |= FP_FX;
             if (fpscr_ve != 0) {
                 goto raise_ve;
             }
