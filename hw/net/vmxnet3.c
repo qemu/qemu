@@ -2015,7 +2015,6 @@ static bool vmxnet3_peer_has_vnet_hdr(VMXNET3State *s)
         return true;
     }
 
-    VMW_WRPRN("Peer has no virtio extension. Task offloads will be emulated.");
     return false;
 }
 
