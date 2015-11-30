@@ -863,6 +863,7 @@ F: net/vhost-user.c
 
 virtio-9p
 M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+M: Greg Kurz <gkurz@linux.vnet.ibm.com>
 S: Supported
 F: hw/9pfs/
 F: fsdev/
