@@ -545,9 +545,6 @@ int gtod_load(QEMUFile *f, void *opaque, int version_id);
 /* service interrupts are floating therefore we must not pass an cpustate */
 void s390_sclp_extint(uint32_t parm);
 
-/* from s390-virtio-bus */
-extern const hwaddr virtio_size;
-
 #else
 static inline unsigned int s390_cpu_halt(S390CPU *cpu)
 {
