@@ -87,7 +87,7 @@ static inline void os_setup_post(void) {}
 void os_set_line_buffering(void);
 static inline void os_set_proc_name(const char *dummy) {}
 
-size_t getpagesize(void);
+int getpagesize(void);
 
 #if !defined(EPROTONOSUPPORT)
 # define EPROTONOSUPPORT EINVAL
