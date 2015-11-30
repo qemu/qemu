@@ -1128,10 +1128,19 @@ int main(int argc, char **argv)
         }
     }
 
+    if (chdir("/") < 0) {
+        do_perror("chdir");
+        goto error;
+    }
+    if (chroot(rpath) < 0) {
+        do_perror("chroot");
+        goto error;
+    }
+
     get_version = false;
 #ifdef FS_IOC_GETVERSION
     /* check whether underlying FS support IOC_GETVERSION */
-    retval = statfs(rpath, &st_fs);
+    retval = statfs("/", &st_fs);
     if (!retval) {
         switch (st_fs.f_type) {
         case EXT2_SUPER_MAGIC:
@@ -1144,16 +1153,7 @@ int main(int argc, char **argv)
     }
 #endif
 
-    if (chdir("/") < 0) {
-        do_perror("chdir");
-        goto error;
-    }
-    if (chroot(rpath) < 0) {
-        do_perror("chroot");
-        goto error;
-    }
     umask(0);
-
     if (init_capabilities() < 0) {
         goto error;
     }
