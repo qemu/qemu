@@ -506,11 +506,22 @@ test_migrate_source_check(GSource *source)
     return FALSE;
 }
 
+#if !GLIB_CHECK_VERSION(2,36,0)
+/* this callback is unnecessary with glib >2.36, the default
+ * prepare for the source does the same */
+static gboolean
+test_migrate_source_prepare(GSource *source, gint *timeout)
+{
+    *timeout = -1;
+    return FALSE;
+}
+#endif
+
 GSourceFuncs test_migrate_source_funcs = {
-    NULL,
-    test_migrate_source_check,
-    NULL,
-    NULL
+#if !GLIB_CHECK_VERSION(2,36,0)
+    .prepare = test_migrate_source_prepare,
+#endif
+    .check = test_migrate_source_check,
 };
 
 static void test_migrate(void)
