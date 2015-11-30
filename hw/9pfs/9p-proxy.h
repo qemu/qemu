@@ -20,9 +20,9 @@
  * marsha/unmarshal doesn't do little endian conversion.
  */
 #define proxy_unmarshal(in_sg, offset, fmt, args...) \
-    v9fs_unmarshal(in_sg, 1, offset, 0, fmt, ##args)
+    v9fs_iov_unmarshal(in_sg, 1, offset, 0, fmt, ##args)
 #define proxy_marshal(out_sg, offset, fmt, args...) \
-    v9fs_marshal(out_sg, 1, offset, 0, fmt, ##args)
+    v9fs_iov_marshal(out_sg, 1, offset, 0, fmt, ##args)
 
 union MsgControl {
     struct cmsghdr cmsg;

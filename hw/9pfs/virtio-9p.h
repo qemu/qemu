@@ -10,7 +10,7 @@
 #include "standard-headers/linux/virtio_9p.h"
 #include "hw/virtio/virtio.h"
 #include "fsdev/file-op-9p.h"
-#include "fsdev/virtio-9p-marshal.h"
+#include "fsdev/9p-iov-marshal.h"
 #include "qemu/thread.h"
 #include "qemu/coroutine.h"
 
@@ -321,9 +321,9 @@ extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
                              const char *name, V9fsPath *path);
 
 #define pdu_marshal(pdu, offset, fmt, args...)  \
-    v9fs_marshal(pdu->elem.in_sg, pdu->elem.in_num, offset, 1, fmt, ##args)
+    v9fs_iov_marshal(pdu->elem.in_sg, pdu->elem.in_num, offset, 1, fmt, ##args)
 #define pdu_unmarshal(pdu, offset, fmt, args...)  \
-    v9fs_unmarshal(pdu->elem.out_sg, pdu->elem.out_num, offset, 1, fmt, ##args)
+    v9fs_iov_unmarshal(pdu->elem.out_sg, pdu->elem.out_num, offset, 1, fmt, ##args)
 
 #define TYPE_VIRTIO_9P "virtio-9p-device"
 #define VIRTIO_9P(obj) \
