@@ -1953,6 +1953,14 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     pcmc->get_hotplug_handler = mc->get_hotplug_handler;
+    pcmc->pci_enabled = true;
+    pcmc->has_acpi_build = true;
+    pcmc->rsdp_in_ram = true;
+    pcmc->smbios_defaults = true;
+    pcmc->smbios_uuid_encoded = true;
+    pcmc->gigabyte_align = true;
+    pcmc->has_reserved_memory = true;
+    pcmc->kvmclock_enabled = true;
     mc->get_hotplug_handler = pc_get_hotpug_handler;
     mc->cpu_index_to_socket_id = pc_cpu_index_to_socket_id;
     mc->default_boot_order = "cad";

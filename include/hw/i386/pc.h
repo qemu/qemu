@@ -75,6 +75,20 @@ struct PCMachineClass {
     bool broken_reserved_end;
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
+
+    bool pci_enabled;
+    bool has_acpi_build;
+    bool rsdp_in_ram;
+    bool smbios_defaults;
+    bool smbios_legacy_mode;
+    bool smbios_uuid_encoded;
+    /* Make sure that guest addresses aligned at 1Gbyte boundaries get
+     * mapped to host addresses aligned at 1Gbyte boundaries.  This way
+     * we can use 1GByte pages in the host.
+     */
+    bool gigabyte_align;
+    bool has_reserved_memory;
+    bool kvmclock_enabled;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
