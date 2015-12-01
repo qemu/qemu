@@ -113,7 +113,6 @@ dispatcher_add(Dispatcher *dispr, int sock, void *ctx, CallbackFunc cb)
     return 0;
 }
 
-#if 0
 /* dispatcher_remove() is not currently in use but may be useful
  * in the future. */
 static int
@@ -127,9 +126,9 @@ dispatcher_remove(Dispatcher *dispr, int sock)
     }
 
     FD_CLR(sock, &dispr->fdset);
+    DPRINT("Sock %d removed from dispatcher watch.\n", sock);
     return 0;
 }
-#endif
 
 /* timeout in us */
 static int
@@ -156,11 +155,16 @@ dispatcher_wait(Dispatcher *dispr, uint32_t timeout)
     /* Now call callback for every ready socket. */
 
     int sock;
-    for (sock = 0; sock < dispr->max_sock + 1; sock++)
-        if (FD_ISSET(sock, &fdset)) {
+    for (sock = 0; sock < dispr->max_sock + 1; sock++) {
+        /* The callback on a socket can remove other sockets from the
+         * dispatcher, thus we have to check that the socket is
+         * still not removed from dispatcher's list
+         */
+        if (FD_ISSET(sock, &fdset) && FD_ISSET(sock, &dispr->fdset)) {
             Event *e = &dispr->events[sock];
             e->callback(sock, e->ctx);
         }
+    }
 
     return 0;
 }
@@ -837,9 +841,10 @@ vubr_set_mem_table_exec(VubrDev *dev, VhostUserMsg *vmsg)
         if (mmap_addr == MAP_FAILED) {
             vubr_die("mmap");
         }
-
         dev_region->mmap_addr = (uint64_t) mmap_addr;
         DPRINT("    mmap_addr:       0x%016"PRIx64"\n", dev_region->mmap_addr);
+
+        close(vmsg->fds[i]);
     }
 
     return 0;
@@ -950,6 +955,17 @@ vubr_get_vring_base_exec(VubrDev *dev, VhostUserMsg *vmsg)
      * we have to respect * VHOST_USER_SET_VRING_ENABLE request. */
     dev->ready = 0;
 
+    if (dev->vq[index].call_fd != -1) {
+        close(dev->vq[index].call_fd);
+        dispatcher_remove(&dev->dispatcher, dev->vq[index].call_fd);
+        dev->vq[index].call_fd = -1;
+    }
+    if (dev->vq[index].kick_fd != -1) {
+        close(dev->vq[index].kick_fd);
+        dispatcher_remove(&dev->dispatcher, dev->vq[index].kick_fd);
+        dev->vq[index].kick_fd = -1;
+    }
+
     /* Reply */
     return 1;
 }
@@ -965,6 +981,10 @@ vubr_set_vring_kick_exec(VubrDev *dev, VhostUserMsg *vmsg)
     assert((u64_arg & VHOST_USER_VRING_NOFD_MASK) == 0);
     assert(vmsg->fd_num == 1);
 
+    if (dev->vq[index].kick_fd != -1) {
+        close(dev->vq[index].kick_fd);
+        dispatcher_remove(&dev->dispatcher, dev->vq[index].kick_fd);
+    }
     dev->vq[index].kick_fd = vmsg->fds[0];
     DPRINT("Got kick_fd: %d for vq: %d\n", vmsg->fds[0], index);
 
@@ -999,6 +1019,10 @@ vubr_set_vring_call_exec(VubrDev *dev, VhostUserMsg *vmsg)
     assert((u64_arg & VHOST_USER_VRING_NOFD_MASK) == 0);
     assert(vmsg->fd_num == 1);
 
+    if (dev->vq[index].call_fd != -1) {
+        close(dev->vq[index].call_fd);
+        dispatcher_remove(&dev->dispatcher, dev->vq[index].call_fd);
+    }
     dev->vq[index].call_fd = vmsg->fds[0];
     DPRINT("Got call_fd: %d for vq: %d\n", vmsg->fds[0], index);
 
