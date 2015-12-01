@@ -58,7 +58,6 @@ struct PCMachineState {
 #define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 #define PC_MACHINE_VMPORT           "vmport"
 #define PC_MACHINE_SMM              "smm"
-#define PC_MACHINE_ENFORCE_ALIGNED_DIMM "enforce-aligned-dimm"
 
 /**
  * PCMachineClass:

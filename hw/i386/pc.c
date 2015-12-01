@@ -1865,13 +1865,6 @@ static void pc_machine_set_smm(Object *obj, Visitor *v, void *opaque,
     visit_type_OnOffAuto(v, &pcms->smm, name, errp);
 }
 
-static bool pc_machine_get_aligned_dimm(Object *obj, Error **errp)
-{
-    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(obj);
-
-    return pcmc->enforce_aligned_dimm;
-}
-
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1906,10 +1899,6 @@ static void pc_machine_initfn(Object *obj)
     object_property_set_description(obj, PC_MACHINE_VMPORT,
                                     "Enable vmport (pc & q35)",
                                     &error_abort);
-
-    object_property_add_bool(obj, PC_MACHINE_ENFORCE_ALIGNED_DIMM,
-                             pc_machine_get_aligned_dimm,
-                             NULL, &error_abort);
 }
 
 static void pc_machine_reset(void)
