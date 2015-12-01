@@ -51,11 +51,9 @@
 #include "hw/nvram/fw_cfg.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
+#include "hw/boards.h"
 
 #include <zlib.h>
-
-bool option_rom_has_mr = false;
-bool rom_file_has_mr = true;
 
 static int roms_loaded;
 
@@ -754,6 +752,7 @@ int rom_add_file(const char *file, const char *fw_dir,
                  hwaddr addr, int32_t bootindex,
                  bool option_rom)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
     int rc, fd = -1;
     char devpath[100];
@@ -810,7 +809,7 @@ int rom_add_file(const char *file, const char *fw_dir,
                  basename);
         snprintf(devpath, sizeof(devpath), "/rom@%s", fw_file_name);
 
-        if ((!option_rom || option_rom_has_mr) && rom_file_has_mr) {
+        if ((!option_rom || mc->option_rom_has_mr) && mc->rom_file_has_mr) {
             data = rom_set_mr(rom, OBJECT(fw_cfg), devpath);
         } else {
             data = rom->data;
@@ -838,6 +837,7 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
                    size_t max_len, hwaddr addr, const char *fw_file_name,
                    FWCfgReadCallback fw_callback, void *callback_opaque)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
     Rom *rom;
     MemoryRegion *mr = NULL;
 
@@ -855,7 +855,7 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
 
         snprintf(devpath, sizeof(devpath), "/rom@%s", fw_file_name);
 
-        if (rom_file_has_mr) {
+        if (mc->rom_file_has_mr) {
             data = rom_set_mr(rom, OBJECT(fw_cfg), devpath);
             mr = rom->mr;
         } else {

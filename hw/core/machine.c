@@ -342,6 +342,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
 
     /* Default 128 MB as guest ram size */
     mc->default_ram_size = 128 * M_BYTE;
+    mc->rom_file_has_mr = true;
 }
 
 static void machine_class_base_init(ObjectClass *oc, void *data)
