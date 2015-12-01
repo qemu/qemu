@@ -61,7 +61,7 @@ typedef enum {
      * opened with BDRV_O_UNMAP.
      */
     BDRV_REQ_MAY_UNMAP          = 0x4,
-    BDRV_REQ_NO_COPY_ON_READ    = 0x8,
+    BDRV_REQ_NO_SERIALISING     = 0x8,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
@@ -248,7 +248,7 @@ int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
     int nb_sectors, QEMUIOVector *qiov);
 int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
-int coroutine_fn bdrv_co_no_copy_on_readv(BlockDriverState *bs,
+int coroutine_fn bdrv_co_readv_no_serialising(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
 int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
     int nb_sectors, QEMUIOVector *qiov);
