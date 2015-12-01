@@ -344,63 +344,6 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         self.check_backups()
 
 
-    def test_incremental_failure(self):
-        '''Test: Verify backups made after a failure are correct.
-
-        Simulate a failure during an incremental backup block job,
-        emulate additional writes, then create another incremental backup
-        afterwards and verify that the backup created is correct.
-        '''
-
-        # Create a blkdebug interface to this img as 'drive1',
-        # but don't actually create a new image.
-        drive1 = self.add_node('drive1', self.drives[0]['fmt'],
-                               path=self.drives[0]['file'],
-                               backup=self.drives[0]['backup'])
-        result = self.vm.qmp('blockdev-add', options={
-            'id': drive1['id'],
-            'driver': drive1['fmt'],
-            'file': {
-                'driver': 'blkdebug',
-                'image': {
-                    'driver': 'file',
-                    'filename': drive1['file']
-                },
-                'set-state': [{
-                    'event': 'flush_to_disk',
-                    'state': 1,
-                    'new_state': 2
-                }],
-                'inject-error': [{
-                    'event': 'read_aio',
-                    'errno': 5,
-                    'state': 2,
-                    'immediately': False,
-                    'once': True
-                }],
-            }
-        })
-        self.assert_qmp(result, 'return', {})
-
-        self.create_anchor_backup(self.drives[0])
-        self.add_bitmap('bitmap0', drive1)
-        # Note: at this point, during a normal execution,
-        # Assume that the VM resumes and begins issuing IO requests here.
-
-        self.hmp_io_writes(drive1['id'], (('0xab', 0, 512),
-                                          ('0xfe', '16M', '256k'),
-                                          ('0x64', '32736k', '64k')))
-
-        result = self.create_incremental(validate=False)
-        self.assertFalse(result)
-        self.hmp_io_writes(drive1['id'], (('0x9a', 0, 512),
-                                          ('0x55', '8M', '352k'),
-                                          ('0x78', '15872k', '1M')))
-        self.create_incremental()
-        self.vm.shutdown()
-        self.check_backups()
-
-
     def test_transaction_failure(self):
         '''Test: Verify backups made from a transaction that partially fails.
 
@@ -546,6 +489,66 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
         self.assertRaises(AssertionError, self.add_bitmap,
                           'bitmap0', self.drives[0],
                           granularity=64000)
+
+
+class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
+    '''Incremental backup tests that utilize a BlkDebug filter on drive0.'''
+
+    def test_incremental_failure(self):
+        '''Test: Verify backups made after a failure are correct.
+
+        Simulate a failure during an incremental backup block job,
+        emulate additional writes, then create another incremental backup
+        afterwards and verify that the backup created is correct.
+        '''
+
+        # Create a blkdebug interface to this img as 'drive1',
+        # but don't actually create a new image.
+        drive1 = self.add_node('drive1', self.drives[0]['fmt'],
+                               path=self.drives[0]['file'],
+                               backup=self.drives[0]['backup'])
+        result = self.vm.qmp('blockdev-add', options={
+            'id': drive1['id'],
+            'driver': drive1['fmt'],
+            'file': {
+                'driver': 'blkdebug',
+                'image': {
+                    'driver': 'file',
+                    'filename': drive1['file']
+                },
+                'set-state': [{
+                    'event': 'flush_to_disk',
+                    'state': 1,
+                    'new_state': 2
+                }],
+                'inject-error': [{
+                    'event': 'read_aio',
+                    'errno': 5,
+                    'state': 2,
+                    'immediately': False,
+                    'once': True
+                }],
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        self.create_anchor_backup(self.drives[0])
+        self.add_bitmap('bitmap0', drive1)
+        # Note: at this point, during a normal execution,
+        # Assume that the VM resumes and begins issuing IO requests here.
+
+        self.hmp_io_writes(drive1['id'], (('0xab', 0, 512),
+                                          ('0xfe', '16M', '256k'),
+                                          ('0x64', '32736k', '64k')))
+
+        result = self.create_incremental(validate=False)
+        self.assertFalse(result)
+        self.hmp_io_writes(drive1['id'], (('0x9a', 0, 512),
+                                          ('0x55', '8M', '352k'),
+                                          ('0x78', '15872k', '1M')))
+        self.create_incremental()
+        self.vm.shutdown()
+        self.check_backups()
 
 
 if __name__ == '__main__':
