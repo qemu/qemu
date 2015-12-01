@@ -89,6 +89,7 @@ struct PCMachineClass {
     bool gigabyte_align;
     bool has_reserved_memory;
     bool kvmclock_enabled;
+    int legacy_acpi_table_size;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"

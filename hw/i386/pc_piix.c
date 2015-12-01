@@ -61,8 +61,6 @@ static const int ide_iobase[MAX_IDE_BUS] = { 0x1f0, 0x170 };
 static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
-static int legacy_acpi_table_size;
-
 /* PC hardware initialisation */
 static void pc_init1(MachineState *machine,
                      const char *host_type, const char *pci_type)
@@ -146,7 +144,7 @@ static void pc_init1(MachineState *machine,
     guest_info = pc_guest_info_init(pcms);
 
     guest_info->has_acpi_build = pcmc->has_acpi_build;
-    guest_info->legacy_acpi_table_size = legacy_acpi_table_size;
+    guest_info->legacy_acpi_table_size = pcmc->legacy_acpi_table_size;
 
     guest_info->isapc_ram_fw = !pcmc->pci_enabled;
     guest_info->has_reserved_memory = pcmc->has_reserved_memory;
@@ -320,23 +318,6 @@ static void pc_compat_2_1(MachineState *machine)
 static void pc_compat_2_0(MachineState *machine)
 {
     pc_compat_2_1(machine);
-    /* This value depends on the actual DSDT and SSDT compiled into
-     * the source QEMU; unfortunately it depends on the binary and
-     * not on the machine type, so we cannot make pc-i440fx-1.7 work on
-     * both QEMU 1.7 and QEMU 2.0.
-     *
-     * Large variations cause migration to fail for more than one
-     * consecutive value of the "-smp" maxcpus option.
-     *
-     * For small variations of the kind caused by different iasl versions,
-     * the 4k rounding usually leaves slack.  However, there could be still
-     * one or two values that break.  For QEMU 1.7 and QEMU 2.0 the
-     * slack is only ~10 bytes before one "-smp maxcpus" value breaks!
-     *
-     * 6652 is valid for QEMU 2.0, the right value for pc-i440fx-1.7 on
-     * QEMU 1.7 it is 6414.  For RHEL/CentOS 7.0 it is 6418.
-     */
-    legacy_acpi_table_size = 6652;
     pc_set_legacy_acpi_data_size();
 }
 
@@ -344,7 +325,6 @@ static void pc_compat_1_7(MachineState *machine)
 {
     pc_compat_2_0(machine);
     option_rom_has_mr = true;
-    legacy_acpi_table_size = 6414;
     x86_cpu_change_kvm_default("x2apic", NULL);
 }
 
@@ -520,6 +500,23 @@ static void pc_i440fx_2_0_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_0);
     pcmc->smbios_legacy_mode = true;
     pcmc->has_reserved_memory = false;
+    /* This value depends on the actual DSDT and SSDT compiled into
+     * the source QEMU; unfortunately it depends on the binary and
+     * not on the machine type, so we cannot make pc-i440fx-1.7 work on
+     * both QEMU 1.7 and QEMU 2.0.
+     *
+     * Large variations cause migration to fail for more than one
+     * consecutive value of the "-smp" maxcpus option.
+     *
+     * For small variations of the kind caused by different iasl versions,
+     * the 4k rounding usually leaves slack.  However, there could be still
+     * one or two values that break.  For QEMU 1.7 and QEMU 2.0 the
+     * slack is only ~10 bytes before one "-smp maxcpus" value breaks!
+     *
+     * 6652 is valid for QEMU 2.0, the right value for pc-i440fx-1.7 on
+     * QEMU 1.7 it is 6414.  For RHEL/CentOS 7.0 it is 6418.
+     */
+    pcmc->legacy_acpi_table_size = 6652;
 }
 
 DEFINE_I440FX_MACHINE(v2_0, "pc-i440fx-2.0", pc_compat_2_0,
@@ -535,6 +532,7 @@ static void pc_i440fx_1_7_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_1_7);
     pcmc->smbios_defaults = false;
     pcmc->gigabyte_align = false;
+    pcmc->legacy_acpi_table_size = 6414;
 }
 
 DEFINE_I440FX_MACHINE(v1_7, "pc-i440fx-1.7", pc_compat_1_7,
