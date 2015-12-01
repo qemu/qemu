@@ -94,6 +94,7 @@ typedef struct VirtIOGPU {
     DeviceState *qdev;
 
     QTAILQ_HEAD(, virtio_gpu_simple_resource) reslist;
+    QTAILQ_HEAD(, virtio_gpu_ctrl_command) cmdq;
     QTAILQ_HEAD(, virtio_gpu_ctrl_command) fenceq;
 
     struct virtio_gpu_scanout scanout[VIRTIO_GPU_MAX_SCANOUT];

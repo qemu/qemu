@@ -755,6 +755,36 @@ static void virtio_gpu_handle_cursor_cb(VirtIODevice *vdev, VirtQueue *vq)
     qemu_bh_schedule(g->cursor_bh);
 }
 
+static void virtio_gpu_process_cmdq(VirtIOGPU *g)
+{
+    struct virtio_gpu_ctrl_command *cmd;
+
+    while (!QTAILQ_EMPTY(&g->cmdq)) {
+        cmd = QTAILQ_FIRST(&g->cmdq);
+
+        /* process command */
+        VIRGL(g, virtio_gpu_virgl_process_cmd, virtio_gpu_simple_process_cmd,
+              g, cmd);
+        QTAILQ_REMOVE(&g->cmdq, cmd, next);
+        if (virtio_gpu_stats_enabled(g->conf)) {
+            g->stats.requests++;
+        }
+
+        if (!cmd->finished) {
+            QTAILQ_INSERT_TAIL(&g->fenceq, cmd, next);
+            g->inflight++;
+            if (virtio_gpu_stats_enabled(g->conf)) {
+                if (g->stats.max_inflight < g->inflight) {
+                    g->stats.max_inflight = g->inflight;
+                }
+                fprintf(stderr, "inflight: %3d (+)\r", g->inflight);
+            }
+        } else {
+            g_free(cmd);
+        }
+    }
+}
+
 static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOGPU *g = VIRTIO_GPU(vdev);
@@ -776,25 +806,13 @@ static void virtio_gpu_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
         cmd->vq = vq;
         cmd->error = 0;
         cmd->finished = false;
-        if (virtio_gpu_stats_enabled(g->conf)) {
-            g->stats.requests++;
-        }
-
-        VIRGL(g, virtio_gpu_virgl_process_cmd, virtio_gpu_simple_process_cmd,
-              g, cmd);
-        if (!cmd->finished) {
-            QTAILQ_INSERT_TAIL(&g->fenceq, cmd, next);
-            g->inflight++;
-            if (virtio_gpu_stats_enabled(g->conf)) {
-                if (g->stats.max_inflight < g->inflight) {
-                    g->stats.max_inflight = g->inflight;
-                }
-                fprintf(stderr, "inflight: %3d (+)\r", g->inflight);
-            }
-            cmd = g_new(struct virtio_gpu_ctrl_command, 1);
-        }
+        cmd->waiting = false;
+        QTAILQ_INSERT_TAIL(&g->cmdq, cmd, next);
+        cmd = g_new(struct virtio_gpu_ctrl_command, 1);
     }
     g_free(cmd);
+
+    virtio_gpu_process_cmdq(g);
 
 #ifdef CONFIG_VIRGL
     if (g->use_virgl_renderer) {
@@ -921,6 +939,7 @@ static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)
     g->ctrl_bh = qemu_bh_new(virtio_gpu_ctrl_bh, g);
     g->cursor_bh = qemu_bh_new(virtio_gpu_cursor_bh, g);
     QTAILQ_INIT(&g->reslist);
+    QTAILQ_INIT(&g->cmdq);
     QTAILQ_INIT(&g->fenceq);
 
     g->enabled_output_bitmask = 1;
