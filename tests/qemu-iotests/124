@@ -494,6 +494,12 @@ class TestIncrementalBackup(TestIncrementalBackupBase):
 class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
     '''Incremental backup tests that utilize a BlkDebug filter on drive0.'''
 
+    def setUp(self):
+        drive0 = self.add_node('drive0')
+        self.img_create(drive0['file'], drive0['fmt'])
+        self.write_default_pattern(drive0['file'])
+        self.vm.launch()
+
     def test_incremental_failure(self):
         '''Test: Verify backups made after a failure are correct.
 
@@ -502,19 +508,15 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         afterwards and verify that the backup created is correct.
         '''
 
-        # Create a blkdebug interface to this img as 'drive1',
-        # but don't actually create a new image.
-        drive1 = self.add_node('drive1', self.drives[0]['fmt'],
-                               path=self.drives[0]['file'],
-                               backup=self.drives[0]['backup'])
+        drive0 = self.drives[0]
         result = self.vm.qmp('blockdev-add', options={
-            'id': drive1['id'],
-            'driver': drive1['fmt'],
+            'id': drive0['id'],
+            'driver': drive0['fmt'],
             'file': {
                 'driver': 'blkdebug',
                 'image': {
                     'driver': 'file',
-                    'filename': drive1['file']
+                    'filename': drive0['file']
                 },
                 'set-state': [{
                     'event': 'flush_to_disk',
@@ -532,18 +534,18 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
         })
         self.assert_qmp(result, 'return', {})
 
-        self.create_anchor_backup(self.drives[0])
-        self.add_bitmap('bitmap0', drive1)
+        self.create_anchor_backup(drive0)
+        self.add_bitmap('bitmap0', drive0)
         # Note: at this point, during a normal execution,
         # Assume that the VM resumes and begins issuing IO requests here.
 
-        self.hmp_io_writes(drive1['id'], (('0xab', 0, 512),
+        self.hmp_io_writes(drive0['id'], (('0xab', 0, 512),
                                           ('0xfe', '16M', '256k'),
                                           ('0x64', '32736k', '64k')))
 
         result = self.create_incremental(validate=False)
         self.assertFalse(result)
-        self.hmp_io_writes(drive1['id'], (('0x9a', 0, 512),
+        self.hmp_io_writes(drive0['id'], (('0x9a', 0, 512),
                                           ('0x55', '8M', '352k'),
                                           ('0x78', '15872k', '1M')))
         self.create_incremental()
