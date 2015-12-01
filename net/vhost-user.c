@@ -316,6 +316,11 @@ int net_init_vhost_user(const NetClientOptions *opts, const char *name,
     }
 
     queues = vhost_user_opts->has_queues ? vhost_user_opts->queues : 1;
+    if (queues < 1) {
+        error_setg(errp,
+                   "vhost-user number of queues must be bigger than zero");
+        return -1;
+    }
 
     return net_vhost_user_init(peer, "vhost_user", name, chr, queues);
 }
