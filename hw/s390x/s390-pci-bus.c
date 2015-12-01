@@ -308,7 +308,7 @@ static IOMMUTLBEntry s390_translate_iommu(MemoryRegion *iommu, hwaddr addr,
 {
     uint64_t pte;
     uint32_t flags;
-    S390PCIBusDevice *pbdev = container_of(iommu, S390PCIBusDevice, mr);
+    S390PCIBusDevice *pbdev = container_of(iommu, S390PCIBusDevice, iommu_mr);
     S390pciState *s;
     IOMMUTLBEntry ret = {
         .target_as = &address_space_memory,
@@ -454,14 +454,32 @@ static const MemoryRegionOps s390_msi_ctrl_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+void s390_pcihost_iommu_configure(S390PCIBusDevice *pbdev, bool enable)
+{
+    pbdev->configured = false;
+
+    if (enable) {
+        uint64_t size = pbdev->pal - pbdev->pba + 1;
+        memory_region_init_iommu(&pbdev->iommu_mr, OBJECT(&pbdev->mr),
+                                 &s390_iommu_ops, "iommu-s390", size);
+        memory_region_add_subregion(&pbdev->mr, pbdev->pba, &pbdev->iommu_mr);
+    } else {
+        memory_region_del_subregion(&pbdev->mr, &pbdev->iommu_mr);
+    }
+
+    pbdev->configured = true;
+}
+
 static void s390_pcihost_init_as(S390pciState *s)
 {
     int i;
+    S390PCIBusDevice *pbdev;
 
     for (i = 0; i < PCI_SLOT_MAX; i++) {
-        memory_region_init_iommu(&s->pbdev[i].mr, OBJECT(s),
-                                 &s390_iommu_ops, "iommu-s390", UINT64_MAX);
-        address_space_init(&s->pbdev[i].as, &s->pbdev[i].mr, "iommu-pci");
+        pbdev = &s->pbdev[i];
+        memory_region_init(&pbdev->mr, OBJECT(s),
+                           "iommu-root-s390", UINT64_MAX);
+        address_space_init(&pbdev->as, &pbdev->mr, "iommu-pci");
     }
 
     memory_region_init_io(&s->msix_notify_mr, OBJECT(s),

@@ -33,6 +33,7 @@
 #include "hw/virtio/virtio.h"
 #include "sysemu/kvm.h"
 #include "exec/address-spaces.h"
+#include "sysemu/qtest.h"
 
 #include "hw/s390x/s390-virtio-bus.h"
 #include "hw/s390x/sclp.h"
@@ -268,9 +269,11 @@ static void s390_init(MachineState *machine)
     hwaddr virtio_region_len;
     hwaddr virtio_region_start;
 
-    error_printf("WARNING\n"
-                 "The s390-virtio machine (non-ccw) is deprecated.\n"
-                 "It will be removed in 2.6. Please use s390-ccw-virtio\n");
+    if (!qtest_enabled()) {
+        error_printf("WARNING\n"
+                     "The s390-virtio machine (non-ccw) is deprecated.\n"
+                     "It will be removed in 2.6. Please use s390-ccw-virtio\n");
+    }
 
     if (machine->ram_slots) {
         error_report("Memory hotplug not supported by the selected machine.");

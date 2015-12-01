@@ -528,7 +528,7 @@ int rpcit_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2)
         goto out;
     }
 
-    mr = pci_device_iommu_address_space(pbdev->pdev)->root;
+    mr = &pbdev->iommu_mr;
     while (start < end) {
         entry = mr->iommu_ops->translate(mr, start, 0);
 
@@ -689,6 +689,9 @@ static int reg_ioat(CPUS390XState *env, S390PCIBusDevice *pbdev, ZpciFib fib)
     pbdev->pba = pba;
     pbdev->pal = pal;
     pbdev->g_iota = g_iota;
+
+    s390_pcihost_iommu_configure(pbdev, true);
+
     return 0;
 }
 
@@ -697,6 +700,8 @@ static void dereg_ioat(S390PCIBusDevice *pbdev)
     pbdev->pba = 0;
     pbdev->pal = 0;
     pbdev->g_iota = 0;
+
+    s390_pcihost_iommu_configure(pbdev, false);
 }
 
 int mpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
