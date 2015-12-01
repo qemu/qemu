@@ -91,22 +91,29 @@ class Bitmap:
                 try_remove(image)
 
 
-class TestIncrementalBackup(iotests.QMPTestCase):
-    def setUp(self):
+class TestIncrementalBackupBase(iotests.QMPTestCase):
+    def __init__(self, *args):
+        super(TestIncrementalBackupBase, self).__init__(*args)
         self.bitmaps = list()
         self.files = list()
         self.drives = list()
         self.vm = iotests.VM()
         self.err_img = os.path.join(iotests.test_dir, 'err.%s' % iotests.imgfmt)
 
+
+    def setUp(self):
         # Create a base image with a distinctive patterning
         drive0 = self.add_node('drive0')
         self.img_create(drive0['file'], drive0['fmt'])
         self.vm.add_drive(drive0['file'])
-        io_write_patterns(drive0['file'], (('0x41', 0, 512),
-                                           ('0xd5', '1M', '32k'),
-                                           ('0xdc', '32M', '124k')))
+        self.write_default_pattern(drive0['file'])
         self.vm.launch()
+
+
+    def write_default_pattern(self, target):
+        io_write_patterns(target, (('0x41', 0, 512),
+                                   ('0xd5', '1M', '32k'),
+                                   ('0xdc', '32M', '124k')))
 
 
     def add_node(self, node_id, fmt=iotests.imgfmt, path=None, backup=None):
@@ -259,6 +266,16 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         self.check_backups()
 
 
+    def tearDown(self):
+        self.vm.shutdown()
+        for bitmap in self.bitmaps:
+            bitmap.cleanup()
+        for filename in self.files:
+            try_remove(filename)
+
+
+
+class TestIncrementalBackup(TestIncrementalBackupBase):
     def test_incremental_simple(self):
         '''
         Test: Create and verify three incremental backups.
@@ -529,14 +546,6 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         self.assertRaises(AssertionError, self.add_bitmap,
                           'bitmap0', self.drives[0],
                           granularity=64000)
-
-
-    def tearDown(self):
-        self.vm.shutdown()
-        for bitmap in self.bitmaps:
-            bitmap.cleanup()
-        for filename in self.files:
-            try_remove(filename)
 
 
 if __name__ == '__main__':
