@@ -755,7 +755,7 @@ static void virtio_gpu_handle_cursor_cb(VirtIODevice *vdev, VirtQueue *vq)
     qemu_bh_schedule(g->cursor_bh);
 }
 
-static void virtio_gpu_process_cmdq(VirtIOGPU *g)
+void virtio_gpu_process_cmdq(VirtIOGPU *g)
 {
     struct virtio_gpu_ctrl_command *cmd;
 
@@ -765,6 +765,9 @@ static void virtio_gpu_process_cmdq(VirtIOGPU *g)
         /* process command */
         VIRGL(g, virtio_gpu_virgl_process_cmd, virtio_gpu_simple_process_cmd,
               g, cmd);
+        if (cmd->waiting) {
+            break;
+        }
         QTAILQ_REMOVE(&g->cmdq, cmd, next);
         if (virtio_gpu_stats_enabled(g->conf)) {
             g->stats.requests++;
