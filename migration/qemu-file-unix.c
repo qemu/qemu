@@ -72,7 +72,8 @@ static ssize_t socket_writev_buffer(void *opaque, struct iovec *iov, int iovcnt,
             pfd.fd = s->fd;
             pfd.events = G_IO_OUT | G_IO_ERR;
             pfd.revents = 0;
-            g_poll(&pfd, 1 /* 1 fd */, -1 /* no timeout */);
+            TFR(err = g_poll(&pfd, 1, -1 /* no timeout */));
+            /* Errors other than EINTR intentionally ignored */
         }
      }
 
