@@ -77,15 +77,6 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-/* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables
- * (128K) and other BIOS datastructures (less than 4K reported to be used at
- * the moment, 32K should be enough for a while).  */
-static unsigned acpi_data_size = 0x20000 + 0x8000;
-void pc_set_legacy_acpi_data_size(void)
-{
-    acpi_data_size = 0x10000;
-}
-
 #define BIOS_CFG_IOPORT 0x510
 #define FW_CFG_ACPI_TABLES (FW_CFG_ARCH_LOCAL + 0)
 #define FW_CFG_SMBIOS_ENTRIES (FW_CFG_ARCH_LOCAL + 1)
@@ -841,6 +832,7 @@ static void load_linux(PCMachineState *pcms,
     FILE *f;
     char *vmode;
     MachineState *machine = MACHINE(pcms);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     const char *kernel_filename = machine->kernel_filename;
     const char *initrd_filename = machine->initrd_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
@@ -908,8 +900,8 @@ static void load_linux(PCMachineState *pcms,
         initrd_max = 0x37ffffff;
     }
 
-    if (initrd_max >= pcms->below_4g_mem_size - acpi_data_size) {
-        initrd_max = pcms->below_4g_mem_size - acpi_data_size - 1;
+    if (initrd_max >= pcms->below_4g_mem_size - pcmc->acpi_data_size) {
+        initrd_max = pcms->below_4g_mem_size - pcmc->acpi_data_size - 1;
     }
 
     fw_cfg_add_i32(fw_cfg, FW_CFG_CMDLINE_ADDR, cmdline_addr);
@@ -1961,6 +1953,9 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->gigabyte_align = true;
     pcmc->has_reserved_memory = true;
     pcmc->kvmclock_enabled = true;
+    /* BIOS ACPI tables: 128K. Other BIOS datastructures: less than 4K reported
+     * to be used at the moment, 32K should be enough for a while.  */
+    pcmc->acpi_data_size = 0x20000 + 0x8000;
     mc->get_hotplug_handler = pc_get_hotpug_handler;
     mc->cpu_index_to_socket_id = pc_cpu_index_to_socket_id;
     mc->default_boot_order = "cad";

@@ -90,6 +90,10 @@ struct PCMachineClass {
     bool has_reserved_memory;
     bool kvmclock_enabled;
     int legacy_acpi_table_size;
+    /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables
+     * and other BIOS datastructures.
+     */
+    unsigned acpi_data_size;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
@@ -200,8 +204,6 @@ void pc_hot_add_cpu(const int64_t id, Error **errp);
 void pc_acpi_init(const char *default_dsdt);
 
 PcGuestInfo *pc_guest_info_init(PCMachineState *pcms);
-
-void pc_set_legacy_acpi_data_size(void);
 
 #define PCI_HOST_PROP_PCI_HOLE_START   "pci-hole-start"
 #define PCI_HOST_PROP_PCI_HOLE_END     "pci-hole-end"

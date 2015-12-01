@@ -302,7 +302,6 @@ static void pc_compat_2_1(MachineState *machine)
 static void pc_compat_2_0(MachineState *machine)
 {
     pc_compat_2_1(machine);
-    pc_set_legacy_acpi_data_size();
 }
 
 static void pc_compat_1_7(MachineState *machine)
@@ -424,6 +423,7 @@ static void pc_q35_2_0_machine_options(MachineClass *m)
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_0);
     pcmc->has_reserved_memory = false;
     pcmc->smbios_legacy_mode = true;
+    pcmc->acpi_data_size = 0x10000;
 }
 
 DEFINE_Q35_MACHINE(v2_0, "pc-q35-2.0", pc_compat_2_0,

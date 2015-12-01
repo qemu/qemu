@@ -318,7 +318,6 @@ static void pc_compat_2_1(MachineState *machine)
 static void pc_compat_2_0(MachineState *machine)
 {
     pc_compat_2_1(machine);
-    pc_set_legacy_acpi_data_size();
 }
 
 static void pc_compat_1_7(MachineState *machine)
@@ -517,6 +516,7 @@ static void pc_i440fx_2_0_machine_options(MachineClass *m)
      * QEMU 1.7 it is 6414.  For RHEL/CentOS 7.0 it is 6418.
      */
     pcmc->legacy_acpi_table_size = 6652;
+    pcmc->acpi_data_size = 0x10000;
 }
 
 DEFINE_I440FX_MACHINE(v2_0, "pc-i440fx-2.0", pc_compat_2_0,
