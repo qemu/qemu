@@ -308,11 +308,8 @@ static void pc_compat_2_2(MachineState *machine)
 
 static void pc_compat_2_1(MachineState *machine)
 {
-    PCMachineState *pcms = PC_MACHINE(machine);
-
     pc_compat_2_2(machine);
     x86_cpu_change_kvm_default("svm", NULL);
-    pcms->enforce_aligned_dimm = false;
 }
 
 static void pc_compat_2_0(MachineState *machine)
@@ -484,6 +481,7 @@ static void pc_i440fx_2_1_machine_options(MachineClass *m)
     m->default_display = NULL;
     SET_MACHINE_COMPAT(m, PC_COMPAT_2_1);
     pcmc->smbios_uuid_encoded = false;
+    pcmc->enforce_aligned_dimm = false;
 }
 
 DEFINE_I440FX_MACHINE(v2_1, "pc-i440fx-2.1", pc_compat_2_1,

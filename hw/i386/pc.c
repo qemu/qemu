@@ -1295,6 +1295,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
     MemoryRegion *ram_below_4g, *ram_above_4g;
     FWCfgState *fw_cfg;
     MachineState *machine = MACHINE(pcms);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
 
     assert(machine->ram_size == pcms->below_4g_mem_size +
                                 pcms->above_4g_mem_size);
@@ -1356,7 +1357,7 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
         pcms->hotplug_memory.base =
             ROUND_UP(0x100000000ULL + pcms->above_4g_mem_size, 1ULL << 30);
 
-        if (pcms->enforce_aligned_dimm) {
+        if (pcmc->enforce_aligned_dimm) {
             /* size hotplug region assuming 1G page max alignment per slot */
             hotplug_mem_size += (1ULL << 30) * machine->ram_slots;
         }
@@ -1609,12 +1610,13 @@ static void pc_dimm_plug(HotplugHandler *hotplug_dev,
     HotplugHandlerClass *hhc;
     Error *local_err = NULL;
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     PCDIMMDevice *dimm = PC_DIMM(dev);
     PCDIMMDeviceClass *ddc = PC_DIMM_GET_CLASS(dimm);
     MemoryRegion *mr = ddc->get_memory_region(dimm);
     uint64_t align = TARGET_PAGE_SIZE;
 
-    if (memory_region_get_alignment(mr) && pcms->enforce_aligned_dimm) {
+    if (memory_region_get_alignment(mr) && pcmc->enforce_aligned_dimm) {
         align = memory_region_get_alignment(mr);
     }
 
@@ -1865,9 +1867,9 @@ static void pc_machine_set_smm(Object *obj, Visitor *v, void *opaque,
 
 static bool pc_machine_get_aligned_dimm(Object *obj, Error **errp)
 {
-    PCMachineState *pcms = PC_MACHINE(obj);
+    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(obj);
 
-    return pcms->enforce_aligned_dimm;
+    return pcmc->enforce_aligned_dimm;
 }
 
 static void pc_machine_initfn(Object *obj)
@@ -1905,7 +1907,6 @@ static void pc_machine_initfn(Object *obj)
                                     "Enable vmport (pc & q35)",
                                     &error_abort);
 
-    pcms->enforce_aligned_dimm = true;
     object_property_add_bool(obj, PC_MACHINE_ENFORCE_ALIGNED_DIMM,
                              pc_machine_get_aligned_dimm,
                              NULL, &error_abort);
@@ -1953,6 +1954,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->gigabyte_align = true;
     pcmc->has_reserved_memory = true;
     pcmc->kvmclock_enabled = true;
+    pcmc->enforce_aligned_dimm = true;
     /* BIOS ACPI tables: 128K. Other BIOS datastructures: less than 4K reported
      * to be used at the moment, 32K should be enough for a while.  */
     pcmc->acpi_data_size = 0x20000 + 0x8000;
