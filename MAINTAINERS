@@ -941,6 +941,13 @@ M: Jiri Pirko <jiri@resnulli.us>
 S: Maintained
 F: hw/net/rocker/
 
+NVDIMM
+M: Xiao Guangrong <guangrong.xiao@linux.intel.com>
+S: Maintained
+F: hw/acpi/nvdimm.c
+F: hw/mem/nvdimm.c
+F: include/hw/mem/nvdimm.h
+
 Subsystems
 ----------
 Audio
