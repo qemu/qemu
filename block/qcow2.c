@@ -2239,6 +2239,13 @@ static int qcow2_create2(const char *filename, int64_t total_size,
         abort();
     }
 
+    /* Create a full header (including things like feature table) */
+    ret = qcow2_update_header(bs);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not update qcow2 header");
+        goto out;
+    }
+
     /* Okay, now that we have a valid image, let's give it the right size */
     ret = bdrv_truncate(bs, total_size);
     if (ret < 0) {

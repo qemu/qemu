@@ -116,6 +116,11 @@ refcount_order            4
 header_length             104
 
 Header extension:
+magic                     0x6803f857
+length                    144
+data                      <binary>
+
+Header extension:
 magic                     0x12345678
 length                    31
 data                      'This is a test header extension'
