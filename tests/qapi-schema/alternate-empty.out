@@ -2,3 +2,5 @@ object :empty
 alternate Alt
     case i: int
 enum AltKind ['i']
+enum QType ['none', 'qnull', 'qint', 'qstring', 'qdict', 'qlist', 'qfloat', 'qbool']
+    prefix QTYPE

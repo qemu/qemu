@@ -160,6 +160,7 @@ The following types are predefined, and map to C as follows:
                        accepts size suffixes
   bool      bool       JSON true or false
   any       QObject *  any JSON value
+  QType     QType      JSON string matching enum QType values
 
 
 === Includes ===

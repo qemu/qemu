@@ -347,8 +347,15 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
                     isinstance(entity, QAPISchemaObjectType))
 
     def visit_enum_type(self, name, info, values, prefix):
-        self.decl += gen_visit_decl(name, scalar=True)
-        self.defn += gen_visit_enum(name)
+        # Special case for our lone builtin enum type
+        # TODO use something cleaner than existence of info
+        if not info:
+            self._btin += gen_visit_decl(name, scalar=True)
+            if do_builtins:
+                self.defn += gen_visit_enum(name)
+        else:
+            self.decl += gen_visit_decl(name, scalar=True)
+            self.defn += gen_visit_enum(name)
 
     def visit_array_type(self, name, info, element_type):
         decl = gen_visit_decl(name)

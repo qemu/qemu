@@ -34,6 +34,7 @@ builtin_types = {
     'uint64':   'QTYPE_QINT',
     'size':     'QTYPE_QINT',
     'any':      None,           # any QType possible, actually
+    'QType':    'QTYPE_QSTRING',
 }
 
 # Whitelist of commands allowed to return a non-dictionary
@@ -1244,6 +1245,11 @@ class QAPISchema(object):
         self.the_empty_object_type = QAPISchemaObjectType(':empty', None, None,
                                                           [], None)
         self._def_entity(self.the_empty_object_type)
+        self._def_entity(QAPISchemaEnumType('QType', None,
+                                            ['none', 'qnull', 'qint',
+                                             'qstring', 'qdict', 'qlist',
+                                             'qfloat', 'qbool'],
+                                            'QTYPE'))
 
     def _make_implicit_enum_type(self, name, info, values):
         name = name + 'Kind'   # Use namespace reserved by add_name()

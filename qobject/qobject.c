@@ -15,7 +15,7 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 
-static void (*qdestroy[QTYPE_MAX])(QObject *) = {
+static void (*qdestroy[QTYPE__MAX])(QObject *) = {
     [QTYPE_NONE] = NULL,               /* No such object exists */
     [QTYPE_QNULL] = NULL,              /* qnull_ is indestructible */
     [QTYPE_QINT] = qint_destroy_obj,
@@ -29,6 +29,6 @@ static void (*qdestroy[QTYPE_MAX])(QObject *) = {
 void qobject_destroy(QObject *obj)
 {
     assert(!obj->refcnt);
-    assert(QTYPE_QNULL < obj->type && obj->type < QTYPE_MAX);
+    assert(QTYPE_QNULL < obj->type && obj->type < QTYPE__MAX);
     qdestroy[obj->type](obj);
 }
