@@ -1,0 +1,1 @@
+tests/qapi-schema/args-member-case.json:2: 'Arg' (parameter of no-way-this-will-get-whitelisted) should not use uppercase

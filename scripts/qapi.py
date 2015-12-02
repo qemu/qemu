@@ -59,6 +59,20 @@ returns_whitelist = [
     'guest-sync-delimited',
 ]
 
+# Whitelist of entities allowed to violate case conventions
+case_whitelist = [
+    # From QMP:
+    'ACPISlotType',         # DIMM, visible through query-acpi-ospm-status
+    'CpuInfoBase',          # CPU, visible through query-cpu
+    'CpuInfoMIPS',          # PC, visible through query-cpu
+    'CpuInfoTricore',       # PC, visible through query-cpu
+    'InputAxis',            # TODO: drop when x-input-send-event is fixed
+    'InputButton',          # TODO: drop when x-input-send-event is fixed
+    'QapiErrorClass',       # all members, visible through errors
+    'UuidInfo',             # UUID, visible through query-uuid
+    'X86CPURegister32',     # all members, visible indirectly through qom-get
+]
+
 enum_types = []
 struct_types = []
 union_types = []
@@ -1038,6 +1052,9 @@ class QAPISchemaMember(object):
 
     def check_clash(self, info, seen):
         cname = c_name(self.name)
+        if cname.lower() != cname and self.owner not in case_whitelist:
+            raise QAPIExprError(info,
+                                "%s should not use uppercase" % self.describe())
         if cname in seen:
             raise QAPIExprError(info,
                                 "%s collides with %s"

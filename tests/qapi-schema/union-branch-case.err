@@ -1,0 +1,1 @@
+tests/qapi-schema/union-branch-case.json:2: 'Branch' (branch of NoWayThisWillGetWhitelisted) should not use uppercase

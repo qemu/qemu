@@ -1,0 +1,1 @@
+tests/qapi-schema/enum-member-case.json:3: 'Value' (member of NoWayThisWillGetWhitelisted) should not use uppercase
