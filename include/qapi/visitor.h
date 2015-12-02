@@ -41,9 +41,9 @@ void visit_end_list(Visitor *v, Error **errp);
  * Check if an optional member @name of an object needs visiting.
  * For input visitors, set *@present according to whether the
  * corresponding visit_type_*() needs calling; for other visitors,
- * leave *@present unchanged.
+ * leave *@present unchanged.  Return *@present for convenience.
  */
-void visit_optional(Visitor *v, bool *present, const char *name);
+bool visit_optional(Visitor *v, bool *present, const char *name);
 
 /**
  * Determine the qtype of the item @name in the current object visit.
