@@ -208,7 +208,7 @@ static void qmp_input_end_list(Visitor *v, Error **errp)
     qmp_input_pop(qiv, errp);
 }
 
-static void qmp_input_get_next_type(Visitor *v, int *kind, const int *qobjects,
+static void qmp_input_get_next_type(Visitor *v, QType *type,
                                     const char *name, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -218,7 +218,7 @@ static void qmp_input_get_next_type(Visitor *v, int *kind, const int *qobjects,
         error_setg(errp, QERR_MISSING_PARAMETER, name ? name : "null");
         return;
     }
-    *kind = qobjects[qobject_type(qobj)];
+    *type = qobject_type(qobj);
 }
 
 static void qmp_input_type_int(Visitor *v, int64_t *obj, const char *name,

@@ -384,9 +384,6 @@ where each branch of the union names a QAPI type.  For example:
    'data': { 'definition': 'BlockdevOptions',
              'reference': 'str' } }
 
-Just like for a simple union, an implicit C enum 'NameKind' is created
-to enumerate the branches for the alternate 'Name'.
-
 Unlike a union, the discriminator string is never passed on the wire
 for the Client JSON Protocol.  Instead, the value's JSON type serves
 as an implicit discriminator, which in turn means that an alternate

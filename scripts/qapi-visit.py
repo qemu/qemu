@@ -172,6 +172,7 @@ out:
 
 
 def gen_visit_enum(name):
+    # FIXME cast from enum *obj to int * invalidly assumes enum is int
     return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, %(c_name)s *obj, const char *name, Error **errp)
@@ -193,7 +194,7 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     if (err) {
         goto out;
     }
-    visit_get_next_type(v, (int*) &(*obj)->type, %(c_name)s_qtypes, name, &err);
+    visit_get_next_type(v, &(*obj)->type, name, &err);
     if (err) {
         goto out_obj;
     }
@@ -201,20 +202,22 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
 ''',
                 c_name=c_name(name))
 
+    # FIXME: When 'number' but not 'int' is present in the alternate, we
+    # should allow QTYPE_INT to promote to QTYPE_FLOAT.
     for var in variants.variants:
         ret += mcgen('''
     case %(case)s:
         visit_type_%(c_type)s(v, &(*obj)->u.%(c_name)s, name, &err);
         break;
 ''',
-                     case=c_enum_const(variants.tag_member.type.name,
-                                       var.name),
+                     case=var.type.alternate_qtype(),
                      c_type=var.type.c_name(),
                      c_name=c_name(var.name))
 
     ret += mcgen('''
     default:
-        abort();
+        error_setg(&err, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "%(name)s");
     }
 out_obj:
     error_propagate(errp, err);
@@ -223,7 +226,8 @@ out_obj:
 out:
     error_propagate(errp, err);
 }
-''')
+''',
+                 name=name)
 
     return ret
 
@@ -437,6 +441,7 @@ fdef.write(mcgen('''
 
 fdecl.write(mcgen('''
 #include "qapi/visitor.h"
+#include "qapi/qmp/qerror.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',

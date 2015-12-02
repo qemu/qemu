@@ -428,7 +428,7 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     UserDefAlternate *tmp;
 
     tmp = g_new0(UserDefAlternate, 1);
-    tmp->type = USER_DEF_ALTERNATE_KIND_I;
+    tmp->type = QTYPE_QINT;
     tmp->u.i = 42;
 
     visit_type_UserDefAlternate(data->ov, &tmp, NULL, &error_abort);
@@ -441,7 +441,7 @@ static void test_visitor_out_alternate(TestOutputVisitorData *data,
     qobject_decref(arg);
 
     tmp = g_new0(UserDefAlternate, 1);
-    tmp->type = USER_DEF_ALTERNATE_KIND_S;
+    tmp->type = QTYPE_QSTRING;
     tmp->u.s = g_strdup("hello");
 
     visit_type_UserDefAlternate(data->ov, &tmp, NULL, &error_abort);

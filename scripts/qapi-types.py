@@ -101,38 +101,6 @@ static inline %(base)s *qapi_%(c_name)s_base(const %(c_name)s *obj)
                  c_name=c_name(name), base=base.c_name())
 
 
-def gen_alternate_qtypes_decl(name):
-    return mcgen('''
-
-extern const int %(c_name)s_qtypes[];
-''',
-                 c_name=c_name(name))
-
-
-def gen_alternate_qtypes(name, variants):
-    ret = mcgen('''
-
-const int %(c_name)s_qtypes[QTYPE__MAX] = {
-''',
-                c_name=c_name(name))
-
-    for var in variants.variants:
-        qtype = var.type.alternate_qtype()
-        assert qtype
-
-        ret += mcgen('''
-    [%(qtype)s] = %(enum_const)s,
-''',
-                     qtype=qtype,
-                     enum_const=c_enum_const(variants.tag_member.type.name,
-                                             var.name))
-
-    ret += mcgen('''
-};
-''')
-    return ret
-
-
 def gen_variants(variants):
     # FIXME: What purpose does data serve, besides preventing a union that
     # has a branch named 'data'? We use it in qapi-visit.py to decide
@@ -264,9 +232,7 @@ class QAPISchemaGenTypeVisitor(QAPISchemaVisitor):
 
     def visit_alternate_type(self, name, info, variants):
         self._fwdecl += gen_fwd_object_or_array(name)
-        self._fwdefn += gen_alternate_qtypes(name, variants)
         self.decl += gen_object(name, None, [variants.tag_member], variants)
-        self.decl += gen_alternate_qtypes_decl(name)
         self._gen_type_cleanup(name)
 
 # If you link code generated from multiple schemata, you want only one

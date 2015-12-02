@@ -56,27 +56,21 @@ object :obj-user_def_cmd2-arg
 alternate AltIntNum
     case i: int
     case n: number
-enum AltIntNumKind ['i', 'n']
 alternate AltNumInt
     case n: number
     case i: int
-enum AltNumIntKind ['n', 'i']
 alternate AltNumStr
     case n: number
     case s: str
-enum AltNumStrKind ['n', 's']
 alternate AltStrBool
     case s: str
     case b: bool
-enum AltStrBoolKind ['s', 'b']
 alternate AltStrInt
     case s: str
     case i: int
-enum AltStrIntKind ['s', 'i']
 alternate AltStrNum
     case s: str
     case n: number
-enum AltStrNumKind ['s', 'n']
 event EVENT_A None
 event EVENT_B None
 event EVENT_C :obj-EVENT_C-arg
@@ -114,7 +108,6 @@ alternate UserDefAlternate
     case uda: UserDefA
     case s: str
     case i: int
-enum UserDefAlternateKind ['uda', 's', 'i']
 object UserDefB
     member intb: int optional=False
     member a-b: bool optional=True
@@ -180,7 +173,6 @@ event __ORG.QEMU_X-EVENT __org.qemu_x-Struct
 alternate __org.qemu_x-Alt
     case __org.qemu_x-branch: str
     case b: __org.qemu_x-Base
-enum __org.qemu_x-AltKind ['__org.qemu_x-branch', 'b']
 object __org.qemu_x-Base
     member __org.qemu_x-member1: __org.qemu_x-Enum optional=False
 enum __org.qemu_x-Enum ['__org.qemu_x-value']
