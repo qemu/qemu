@@ -901,13 +901,16 @@ class QAPISchemaEnumType(QAPISchemaType):
     def __init__(self, name, info, values, prefix):
         QAPISchemaType.__init__(self, name, info)
         for v in values:
-            assert isinstance(v, str)
+            assert isinstance(v, QAPISchemaMember)
+            v.set_owner(name)
         assert prefix is None or isinstance(prefix, str)
         self.values = values
         self.prefix = prefix
 
     def check(self, schema):
-        assert len(set(self.values)) == len(self.values)
+        seen = {}
+        for v in self.values:
+            v.check_clash(self.info, seen)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type()
@@ -916,8 +919,11 @@ class QAPISchemaEnumType(QAPISchemaType):
     def c_type(self, is_param=False):
         return c_name(self.name)
 
+    def member_names(self):
+        return [v.name for v in self.values]
+
     def c_null(self):
-        return c_enum_const(self.name, (self.values + ['_MAX'])[0],
+        return c_enum_const(self.name, (self.member_names() + ['_MAX'])[0],
                             self.prefix)
 
     def json_type(self):
@@ -925,7 +931,7 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def visit(self, visitor):
         visitor.visit_enum_type(self.name, self.info,
-                                self.values, self.prefix)
+                                self.member_names(), self.prefix)
 
 
 class QAPISchemaArrayType(QAPISchemaType):
@@ -1050,6 +1056,9 @@ class QAPISchemaMember(object):
                 assert owner.endswith('-wrapper')
                 # Unreachable and not implemented
                 assert False
+        if owner.endswith('Kind'):
+            # See QAPISchema._make_implicit_enum_type()
+            return '(branch of %s)' % owner[:-4]
         return '(%s of %s)' % (self.role, owner)
 
     def describe(self):
@@ -1100,7 +1109,7 @@ class QAPISchemaObjectTypeVariants(object):
             # Union names must match enum values; alternate names are
             # checked separately. Use 'seen' to tell the two apart.
             if seen:
-                assert v.name in self.tag_member.type.values
+                assert v.name in self.tag_member.type.member_names()
                 assert isinstance(v.type, QAPISchemaObjectType)
                 v.type.check(schema)
 
@@ -1258,15 +1267,20 @@ class QAPISchema(object):
         self.the_empty_object_type = QAPISchemaObjectType(':empty', None, None,
                                                           [], None)
         self._def_entity(self.the_empty_object_type)
-        self._def_entity(QAPISchemaEnumType('QType', None,
-                                            ['none', 'qnull', 'qint',
-                                             'qstring', 'qdict', 'qlist',
-                                             'qfloat', 'qbool'],
+        qtype_values = self._make_enum_members(['none', 'qnull', 'qint',
+                                                'qstring', 'qdict', 'qlist',
+                                                'qfloat', 'qbool'])
+        self._def_entity(QAPISchemaEnumType('QType', None, qtype_values,
                                             'QTYPE'))
 
+    def _make_enum_members(self, values):
+        return [QAPISchemaMember(v) for v in values]
+
     def _make_implicit_enum_type(self, name, info, values):
+        # See also QAPISchemaObjectTypeMember._pretty_owner()
         name = name + 'Kind'   # Use namespace reserved by add_name()
-        self._def_entity(QAPISchemaEnumType(name, info, values, None))
+        self._def_entity(QAPISchemaEnumType(
+            name, info, self._make_enum_members(values), None))
         return name
 
     def _make_array_type(self, element_type, info):
@@ -1289,7 +1303,8 @@ class QAPISchema(object):
         name = expr['enum']
         data = expr['data']
         prefix = expr.get('prefix')
-        self._def_entity(QAPISchemaEnumType(name, info, data, prefix))
+        self._def_entity(QAPISchemaEnumType(
+            name, info, self._make_enum_members(data), prefix))
 
     def _make_member(self, name, typ, info):
         optional = False
