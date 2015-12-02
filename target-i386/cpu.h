@@ -725,23 +725,18 @@ typedef struct SegmentCache {
     uint32_t flags;
 } SegmentCache;
 
-typedef union {
-    uint8_t _b[64];
-    uint16_t _w[32];
-    uint32_t _l[16];
-    uint64_t _q[8];
-    float32 _s[16];
-    float64 _d[8];
-} ZMMReg;
+#define MMREG_UNION(bits)       \
+    union {                     \
+        uint8_t  _b[(bits)/8];  \
+        uint16_t _w[(bits)/16]; \
+        uint32_t _l[(bits)/32]; \
+        uint64_t _q[(bits)/64]; \
+        float32  _s[(bits)/32]; \
+        float64  _d[(bits)/64]; \
+    }
 
-typedef union {
-    uint8_t _b[8];
-    uint16_t _w[4];
-    uint32_t _l[2];
-    uint64_t _q[1];
-    float32 _s[2];
-    float64 _d[1];
-} MMXReg;
+typedef MMREG_UNION(512) ZMMReg;
+typedef MMREG_UNION(64)  MMXReg;
 
 typedef struct BNDReg {
     uint64_t lb;
