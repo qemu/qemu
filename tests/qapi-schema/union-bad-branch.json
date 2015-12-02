@@ -1,8 +1,0 @@
-# we reject normal unions where branches would collide in C
-{ 'struct': 'One',
-  'data': { 'string': 'str' } }
-{ 'struct': 'Two',
-  'data': { 'number': 'int' } }
-{ 'union': 'MyUnion',
-  'data': { 'one': 'One',
-            'ONE': 'Two' } }

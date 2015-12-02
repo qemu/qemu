@@ -341,7 +341,6 @@ qapi-schema += unclosed-list.json
 qapi-schema += unclosed-object.json
 qapi-schema += unclosed-string.json
 qapi-schema += unicode-str.json
-qapi-schema += union-bad-branch.json
 qapi-schema += union-base-no-discriminator.json
 qapi-schema += union-branch-case.json
 qapi-schema += union-clash-branches.json
