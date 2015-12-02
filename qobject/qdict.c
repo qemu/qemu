@@ -19,13 +19,6 @@
 #include "qemu/queue.h"
 #include "qemu-common.h"
 
-static void qdict_destroy_obj(QObject *obj);
-
-static const QType qdict_type = {
-    .code = QTYPE_QDICT,
-    .destroy = qdict_destroy_obj,
-};
-
 /**
  * qdict_new(): Create a new QDict
  *
@@ -36,7 +29,7 @@ QDict *qdict_new(void)
     QDict *qdict;
 
     qdict = g_malloc0(sizeof(*qdict));
-    QOBJECT_INIT(qdict, &qdict_type);
+    qobject_init(QOBJECT(qdict), QTYPE_QDICT);
 
     return qdict;
 }
@@ -441,7 +434,7 @@ void qdict_del(QDict *qdict, const char *key)
 /**
  * qdict_destroy_obj(): Free all the memory allocated by a QDict
  */
-static void qdict_destroy_obj(QObject *obj)
+void qdict_destroy_obj(QObject *obj)
 {
     int i;
     QDict *qdict;

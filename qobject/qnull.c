@@ -13,17 +13,7 @@
 #include "qemu-common.h"
 #include "qapi/qmp/qobject.h"
 
-static void qnull_destroy_obj(QObject *obj)
-{
-    assert(0);
-}
-
-static const QType qnull_type = {
-    .code = QTYPE_QNULL,
-    .destroy = qnull_destroy_obj,
-};
-
 QObject qnull_ = {
-    .type = &qnull_type,
+    .type = QTYPE_QNULL,
     .refcnt = 1,
 };
