@@ -111,7 +111,7 @@ static void tcg_out_call(TCGContext *s, tcg_insn_unit *target);
 static int tcg_target_const_match(tcg_target_long val, TCGType type,
                                   const TCGArgConstraint *arg_ct);
 static void tcg_out_tb_init(TCGContext *s);
-static void tcg_out_tb_finalize(TCGContext *s);
+static bool tcg_out_tb_finalize(TCGContext *s);
 
 
 
@@ -389,11 +389,7 @@ void tcg_prologue_init(TCGContext *s)
     /* Compute a high-water mark, at which we voluntarily flush the buffer
        and start over.  The size here is arbitrary, significantly larger
        than we expect the code generation for any one opcode to require.  */
-    /* ??? We currently have no good estimate for, or checks in,
-       tcg_out_tb_finalize.  If there are quite a lot of guest memory ops,
-       the number of out-of-line fragments could be quite high.  In the
-       short-term, increase the highwater buffer.  */
-    s->code_gen_highwater = s->code_gen_buffer + (total_size - 64*1024);
+    s->code_gen_highwater = s->code_gen_buffer + (total_size - 1024);
 
     tcg_register_jit(s->code_gen_buffer, total_size);
 
@@ -2456,7 +2452,9 @@ int tcg_gen_code(TCGContext *s, tcg_insn_unit *gen_code_buf)
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
 
     /* Generate TB finalization at the end of block */
-    tcg_out_tb_finalize(s);
+    if (!tcg_out_tb_finalize(s)) {
+        return -1;
+    }
 
     /* flush instruction cache */
     flush_icache_range((uintptr_t)s->code_buf, (uintptr_t)s->code_ptr);

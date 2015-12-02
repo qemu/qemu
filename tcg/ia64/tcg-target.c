@@ -1572,7 +1572,7 @@ static void add_qemu_ldst_label(TCGContext *s, bool is_ld, TCGMemOp opc,
     be->labels = l;
 }
 
-static void tcg_out_tb_finalize(TCGContext *s)
+static bool tcg_out_tb_finalize(TCGContext *s)
 {
     static const void * const helpers[8] = {
         helper_ret_stb_mmu,
@@ -1620,7 +1620,16 @@ static void tcg_out_tb_finalize(TCGContext *s)
         }
 
         reloc_pcrel21b_slot2(l->label_ptr, dest);
+
+        /* Test for (pending) buffer overflow.  The assumption is that any
+           one operation beginning below the high water mark cannot overrun
+           the buffer completely.  Thus we can test for overflow after
+           generating code without having to check during generation.  */
+        if (unlikely((void *)s->code_ptr > s->code_gen_highwater)) {
+            return false;
+        }
     }
+    return true;
 }
 
 static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args)

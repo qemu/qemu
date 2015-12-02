@@ -38,6 +38,7 @@ static inline void tcg_out_tb_init(TCGContext *s)
  * Generate TB finalization at the end of block
  */
 
-static inline void tcg_out_tb_finalize(TCGContext *s)
+static inline bool tcg_out_tb_finalize(TCGContext *s)
 {
+    return true;
 }
