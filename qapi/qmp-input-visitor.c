@@ -303,8 +303,7 @@ static void qmp_input_type_any(Visitor *v, QObject **obj, const char *name,
     *obj = qobj;
 }
 
-static void qmp_input_optional(Visitor *v, bool *present, const char *name,
-                               Error **errp)
+static void qmp_input_optional(Visitor *v, bool *present, const char *name)
 {
     QmpInputVisitor *qiv = to_qiv(v);
     QObject *qobj = qmp_input_get_object(qiv, name, true);

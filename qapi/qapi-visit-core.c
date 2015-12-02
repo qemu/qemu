@@ -73,11 +73,10 @@ void visit_end_union(Visitor *v, bool data_present, Error **errp)
     }
 }
 
-void visit_optional(Visitor *v, bool *present, const char *name,
-                    Error **errp)
+void visit_optional(Visitor *v, bool *present, const char *name)
 {
     if (v->optional) {
-        v->optional(v, present, name, errp);
+        v->optional(v, present, name);
     }
 }
 

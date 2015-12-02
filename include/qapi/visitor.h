@@ -36,8 +36,14 @@ void visit_end_implicit_struct(Visitor *v, Error **errp);
 void visit_start_list(Visitor *v, const char *name, Error **errp);
 GenericList *visit_next_list(Visitor *v, GenericList **list, Error **errp);
 void visit_end_list(Visitor *v, Error **errp);
-void visit_optional(Visitor *v, bool *present, const char *name,
-                    Error **errp);
+
+/**
+ * Check if an optional member @name of an object needs visiting.
+ * For input visitors, set *@present according to whether the
+ * corresponding visit_type_*() needs calling; for other visitors,
+ * leave *@present unchanged.
+ */
+void visit_optional(Visitor *v, bool *present, const char *name);
 
 /**
  * Determine the qtype of the item @name in the current object visit.

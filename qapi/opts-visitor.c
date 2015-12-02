@@ -488,7 +488,7 @@ opts_type_size(Visitor *v, uint64_t *obj, const char *name, Error **errp)
 
 
 static void
-opts_optional(Visitor *v, bool *present, const char *name, Error **errp)
+opts_optional(Visitor *v, bool *present, const char *name)
 {
     OptsVisitor *ov = DO_UPCAST(OptsVisitor, visitor, v);
 

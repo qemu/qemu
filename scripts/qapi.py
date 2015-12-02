@@ -1656,15 +1656,11 @@ def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False):
     for memb in members:
         if memb.optional:
             ret += mcgen('''
-    visit_optional(v, &%(prefix)shas_%(c_name)s, "%(name)s", %(errp)s);
+    visit_optional(v, &%(prefix)shas_%(c_name)s, "%(name)s");
+    if (%(prefix)shas_%(c_name)s) {
 ''',
                          prefix=prefix, c_name=c_name(memb.name),
                          name=memb.name, errp=errparg)
-            ret += gen_err_check(skiperr=skiperr)
-            ret += mcgen('''
-    if (%(prefix)shas_%(c_name)s) {
-''',
-                         prefix=prefix, c_name=c_name(memb.name))
             push_indent()
 
         # Ugly: sometimes we need to cast away const

@@ -44,9 +44,8 @@ struct Visitor
     void (*type_any)(Visitor *v, QObject **obj, const char *name,
                      Error **errp);
 
-    /* May be NULL */
-    void (*optional)(Visitor *v, bool *present, const char *name,
-                     Error **errp);
+    /* May be NULL; most useful for input visitors. */
+    void (*optional)(Visitor *v, bool *present, const char *name);
 
     void (*type_uint8)(Visitor *v, uint8_t *obj, const char *name, Error **errp);
     void (*type_uint16)(Visitor *v, uint16_t *obj, const char *name, Error **errp);
