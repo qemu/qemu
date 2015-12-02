@@ -367,6 +367,111 @@ static void nvdimm_build_nfit(GSList *device_list, GArray *table_offsets,
     g_array_free(structures, true);
 }
 
+#define NVDIMM_COMMON_DSM      "NCAL"
+
+static void nvdimm_build_common_dsm(Aml *dev)
+{
+    Aml *method, *ifctx, *function;
+    uint8_t byte_list[1];
+
+    method = aml_method(NVDIMM_COMMON_DSM, 4, AML_NOTSERIALIZED);
+    function = aml_arg(2);
+
+    /*
+     * function 0 is called to inquire what functions are supported by
+     * OSPM
+     */
+    ifctx = aml_if(aml_equal(function, aml_int(0)));
+    byte_list[0] = 0 /* No function Supported */;
+    aml_append(ifctx, aml_return(aml_buffer(1, byte_list)));
+    aml_append(method, ifctx);
+
+    /* No function is supported yet. */
+    byte_list[0] = 1 /* Not Supported */;
+    aml_append(method, aml_return(aml_buffer(1, byte_list)));
+
+    aml_append(dev, method);
+}
+
+static void nvdimm_build_device_dsm(Aml *dev)
+{
+    Aml *method;
+
+    method = aml_method("_DSM", 4, AML_NOTSERIALIZED);
+    aml_append(method, aml_return(aml_call4(NVDIMM_COMMON_DSM, aml_arg(0),
+                                  aml_arg(1), aml_arg(2), aml_arg(3))));
+    aml_append(dev, method);
+}
+
+static void nvdimm_build_nvdimm_devices(GSList *device_list, Aml *root_dev)
+{
+    for (; device_list; device_list = device_list->next) {
+        DeviceState *dev = device_list->data;
+        int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
+                                           NULL);
+        uint32_t handle = nvdimm_slot_to_handle(slot);
+        Aml *nvdimm_dev;
+
+        nvdimm_dev = aml_device("NV%02X", slot);
+
+        /*
+         * ACPI 6.0: 9.20 NVDIMM Devices:
+         *
+         * _ADR object that is used to supply OSPM with unique address
+         * of the NVDIMM device. This is done by returning the NFIT Device
+         * handle that is used to identify the associated entries in ACPI
+         * table NFIT or _FIT.
+         */
+        aml_append(nvdimm_dev, aml_name_decl("_ADR", aml_int(handle)));
+
+        nvdimm_build_device_dsm(nvdimm_dev);
+        aml_append(root_dev, nvdimm_dev);
+    }
+}
+
+static void nvdimm_build_ssdt(GSList *device_list, GArray *table_offsets,
+                              GArray *table_data, GArray *linker)
+{
+    Aml *ssdt, *sb_scope, *dev;
+
+    acpi_add_table(table_offsets, table_data);
+
+    ssdt = init_aml_allocator();
+    acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
+
+    sb_scope = aml_scope("\\_SB");
+
+    dev = aml_device("NVDR");
+
+    /*
+     * ACPI 6.0: 9.20 NVDIMM Devices:
+     *
+     * The ACPI Name Space device uses _HID of ACPI0012 to identify the root
+     * NVDIMM interface device. Platform firmware is required to contain one
+     * such device in _SB scope if NVDIMMs support is exposed by platform to
+     * OSPM.
+     * For each NVDIMM present or intended to be supported by platform,
+     * platform firmware also exposes an ACPI Namespace Device under the
+     * root device.
+     */
+    aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0012")));
+
+    nvdimm_build_common_dsm(dev);
+    nvdimm_build_device_dsm(dev);
+
+    nvdimm_build_nvdimm_devices(device_list, dev);
+
+    aml_append(sb_scope, dev);
+
+    aml_append(ssdt, sb_scope);
+    /* copy AML table into ACPI tables blob and patch header there */
+    g_array_append_vals(table_data, ssdt->buf->data, ssdt->buf->len);
+    build_header(linker, table_data,
+        (void *)(table_data->data + table_data->len - ssdt->buf->len),
+        "SSDT", ssdt->buf->len, 1, "NVDIMM");
+    free_aml_allocator();
+}
+
 void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        GArray *linker)
 {
@@ -378,5 +483,6 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
         return;
     }
     nvdimm_build_nfit(device_list, table_offsets, table_data, linker);
+    nvdimm_build_ssdt(device_list, table_offsets, table_data, linker);
     g_slist_free(device_list);
 }
