@@ -1,0 +1,1 @@
+tests/qapi-schema/base-cycle-direct.json:2: Object Loopy contains itself

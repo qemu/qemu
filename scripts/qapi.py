@@ -940,7 +940,9 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.members = None
 
     def check(self, schema):
-        assert self.members is not False        # not running in cycles
+        if self.members is False:               # check for cycles
+            raise QAPIExprError(self.info,
+                                "Object %s contains itself" % self.name)
         if self.members:
             return
         self.members = False                    # mark as being checked
