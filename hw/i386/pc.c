@@ -1865,6 +1865,20 @@ static void pc_machine_set_smm(Object *obj, Visitor *v, void *opaque,
     visit_type_OnOffAuto(v, &pcms->smm, name, errp);
 }
 
+static bool pc_machine_get_nvdimm(Object *obj, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    return pcms->nvdimm;
+}
+
+static void pc_machine_set_nvdimm(Object *obj, bool value, Error **errp)
+{
+    PCMachineState *pcms = PC_MACHINE(obj);
+
+    pcms->nvdimm = value;
+}
+
 static void pc_machine_initfn(Object *obj)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
@@ -1899,6 +1913,11 @@ static void pc_machine_initfn(Object *obj)
     object_property_set_description(obj, PC_MACHINE_VMPORT,
                                     "Enable vmport (pc & q35)",
                                     &error_abort);
+
+    /* nvdimm is disabled on default. */
+    pcms->nvdimm = false;
+    object_property_add_bool(obj, PC_MACHINE_NVDIMM, pc_machine_get_nvdimm,
+                             pc_machine_set_nvdimm, &error_abort);
 }
 
 static void pc_machine_reset(void)

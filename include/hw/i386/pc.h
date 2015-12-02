@@ -55,6 +55,7 @@ struct PCMachineState {
     uint64_t max_ram_below_4g;
     OnOffAuto vmport;
     OnOffAuto smm;
+    bool nvdimm;
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
@@ -65,6 +66,7 @@ struct PCMachineState {
 #define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 #define PC_MACHINE_VMPORT           "vmport"
 #define PC_MACHINE_SMM              "smm"
+#define PC_MACHINE_NVDIMM           "nvdimm"
 
 /**
  * PCMachineClass:

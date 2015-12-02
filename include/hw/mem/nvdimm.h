@@ -26,4 +26,7 @@
 #include "hw/mem/pc-dimm.h"
 
 #define TYPE_NVDIMM      "nvdimm"
+
+void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
+                       GArray *linker);
 #endif
