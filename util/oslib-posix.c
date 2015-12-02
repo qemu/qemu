@@ -46,7 +46,6 @@ extern int daemon(int, int);
 #else
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif
-#define HUGETLBFS_MAGIC       0x958458f6
 
 #include <termios.h>
 #include <unistd.h>
@@ -65,7 +64,6 @@ extern int daemon(int, int);
 
 #ifdef CONFIG_LINUX
 #include <sys/syscall.h>
-#include <sys/vfs.h>
 #endif
 
 #ifdef __FreeBSD__
@@ -340,26 +338,6 @@ static void sigbus_handler(int signal)
     siglongjmp(sigjump, 1);
 }
 
-static size_t fd_getpagesize(int fd)
-{
-#ifdef CONFIG_LINUX
-    struct statfs fs;
-    int ret;
-
-    if (fd != -1) {
-        do {
-            ret = fstatfs(fd, &fs);
-        } while (ret != 0 && errno == EINTR);
-
-        if (ret == 0 && fs.f_type == HUGETLBFS_MAGIC) {
-            return fs.f_bsize;
-        }
-    }
-#endif
-
-    return getpagesize();
-}
-
 void os_mem_prealloc(int fd, char *area, size_t memory)
 {
     int ret;
@@ -387,7 +365,7 @@ void os_mem_prealloc(int fd, char *area, size_t memory)
         exit(1);
     } else {
         int i;
-        size_t hpagesize = fd_getpagesize(fd);
+        size_t hpagesize = qemu_fd_getpagesize(fd);
         size_t numpages = DIV_ROUND_UP(memory, hpagesize);
 
         /* MAP_POPULATE silently ignores failures */
