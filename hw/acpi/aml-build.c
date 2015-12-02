@@ -1242,14 +1242,21 @@ Aml *aml_unicode(const char *str)
 
 void
 build_header(GArray *linker, GArray *table_data,
-             AcpiTableHeader *h, const char *sig, int len, uint8_t rev)
+             AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
+             const char *oem_table_id)
 {
     memcpy(&h->signature, sig, 4);
     h->length = cpu_to_le32(len);
     h->revision = rev;
     memcpy(h->oem_id, ACPI_BUILD_APPNAME6, 6);
-    memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
-    memcpy(h->oem_table_id + 4, sig, 4);
+
+    if (oem_table_id) {
+        strncpy((char *)h->oem_table_id, oem_table_id, sizeof(h->oem_table_id));
+    } else {
+        memcpy(h->oem_table_id, ACPI_BUILD_APPNAME4, 4);
+        memcpy(h->oem_table_id + 4, sig, 4);
+    }
+
     h->oem_revision = cpu_to_le32(1);
     memcpy(h->asl_compiler_id, ACPI_BUILD_APPNAME4, 4);
     h->asl_compiler_revision = cpu_to_le32(1);
@@ -1316,5 +1323,5 @@ build_rsdt(GArray *table_data, GArray *linker, GArray *table_offsets)
                                        sizeof(uint32_t));
     }
     build_header(linker, table_data,
-                 (void *)rsdt, "RSDT", rsdt_len, 1);
+                 (void *)rsdt, "RSDT", rsdt_len, 1, NULL);
 }
