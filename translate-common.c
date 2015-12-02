@@ -21,7 +21,7 @@
 #include "qom/cpu.h"
 
 uintptr_t qemu_real_host_page_size;
-uintptr_t qemu_real_host_page_mask;
+intptr_t qemu_real_host_page_mask;
 
 #ifndef CONFIG_USER_ONLY
 /* mask must never be zero, except for A20 change call */

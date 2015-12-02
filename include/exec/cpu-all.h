@@ -174,11 +174,13 @@ extern unsigned long reserved_va;
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 #define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)
 
-/* ??? These should be the larger of uintptr_t and target_ulong.  */
+/* Using intptr_t ensures that qemu_*_page_mask is sign-extended even
+ * when intptr_t is 32-bit and we are aligning a long long.
+ */
 extern uintptr_t qemu_real_host_page_size;
-extern uintptr_t qemu_real_host_page_mask;
+extern intptr_t qemu_real_host_page_mask;
 extern uintptr_t qemu_host_page_size;
-extern uintptr_t qemu_host_page_mask;
+extern intptr_t qemu_host_page_mask;
 
 #define HOST_PAGE_ALIGN(addr) (((addr) + qemu_host_page_size - 1) & qemu_host_page_mask)
 #define REAL_HOST_PAGE_ALIGN(addr) (((addr) + qemu_real_host_page_size - 1) & \
