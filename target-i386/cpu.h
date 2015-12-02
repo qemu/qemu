@@ -725,18 +725,18 @@ typedef struct SegmentCache {
     uint32_t flags;
 } SegmentCache;
 
-#define MMREG_UNION(bits)       \
-    union {                     \
-        uint8_t  _b[(bits)/8];  \
-        uint16_t _w[(bits)/16]; \
-        uint32_t _l[(bits)/32]; \
-        uint64_t _q[(bits)/64]; \
-        float32  _s[(bits)/32]; \
-        float64  _d[(bits)/64]; \
+#define MMREG_UNION(n, bits)        \
+    union n {                       \
+        uint8_t  _b_##n[(bits)/8];  \
+        uint16_t _w_##n[(bits)/16]; \
+        uint32_t _l_##n[(bits)/32]; \
+        uint64_t _q_##n[(bits)/64]; \
+        float32  _s_##n[(bits)/32]; \
+        float64  _d_##n[(bits)/64]; \
     }
 
-typedef MMREG_UNION(512) ZMMReg;
-typedef MMREG_UNION(64)  MMXReg;
+typedef MMREG_UNION(ZMMReg, 512) ZMMReg;
+typedef MMREG_UNION(MMXReg, 64)  MMXReg;
 
 typedef struct BNDReg {
     uint64_t lb;
@@ -749,31 +749,31 @@ typedef struct BNDCSReg {
 } BNDCSReg;
 
 #ifdef HOST_WORDS_BIGENDIAN
-#define ZMM_B(n) _b[63 - (n)]
-#define ZMM_W(n) _w[31 - (n)]
-#define ZMM_L(n) _l[15 - (n)]
-#define ZMM_S(n) _s[15 - (n)]
-#define ZMM_Q(n) _q[7 - (n)]
-#define ZMM_D(n) _d[7 - (n)]
+#define ZMM_B(n) _b_ZMMReg[63 - (n)]
+#define ZMM_W(n) _w_ZMMReg[31 - (n)]
+#define ZMM_L(n) _l_ZMMReg[15 - (n)]
+#define ZMM_S(n) _s_ZMMReg[15 - (n)]
+#define ZMM_Q(n) _q_ZMMReg[7 - (n)]
+#define ZMM_D(n) _d_ZMMReg[7 - (n)]
 
-#define MMX_B(n) _b[7 - (n)]
-#define MMX_W(n) _w[3 - (n)]
-#define MMX_L(n) _l[1 - (n)]
-#define MMX_S(n) _s[1 - (n)]
+#define MMX_B(n) _b_MMXReg[7 - (n)]
+#define MMX_W(n) _w_MMXReg[3 - (n)]
+#define MMX_L(n) _l_MMXReg[1 - (n)]
+#define MMX_S(n) _s_MMXReg[1 - (n)]
 #else
-#define ZMM_B(n) _b[n]
-#define ZMM_W(n) _w[n]
-#define ZMM_L(n) _l[n]
-#define ZMM_S(n) _s[n]
-#define ZMM_Q(n) _q[n]
-#define ZMM_D(n) _d[n]
+#define ZMM_B(n) _b_ZMMReg[n]
+#define ZMM_W(n) _w_ZMMReg[n]
+#define ZMM_L(n) _l_ZMMReg[n]
+#define ZMM_S(n) _s_ZMMReg[n]
+#define ZMM_Q(n) _q_ZMMReg[n]
+#define ZMM_D(n) _d_ZMMReg[n]
 
-#define MMX_B(n) _b[n]
-#define MMX_W(n) _w[n]
-#define MMX_L(n) _l[n]
-#define MMX_S(n) _s[n]
+#define MMX_B(n) _b_MMXReg[n]
+#define MMX_W(n) _w_MMXReg[n]
+#define MMX_L(n) _l_MMXReg[n]
+#define MMX_S(n) _s_MMXReg[n]
 #endif
-#define MMX_Q(n) _q[n]
+#define MMX_Q(n) _q_MMXReg[n]
 
 typedef union {
     floatx80 d __attribute__((aligned(16)));
