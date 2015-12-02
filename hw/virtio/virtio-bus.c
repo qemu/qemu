@@ -56,6 +56,9 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
     assert(vdc->get_features != NULL);
     vdev->host_features = vdc->get_features(vdev, vdev->host_features,
                                             errp);
+    if (klass->post_plugged != NULL) {
+        klass->post_plugged(qbus->parent, errp);
+    }
 }
 
 /* Reset the virtio_bus */

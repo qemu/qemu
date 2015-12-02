@@ -1555,6 +1555,17 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
                           d->hotplugged, 1);
 }
 
+static void virtio_ccw_post_plugged(DeviceState *d, Error **errp)
+{
+   VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
+   VirtIODevice *vdev = virtio_bus_get_device(&dev->bus);
+
+   if (!virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1)) {
+        /* A backend didn't support modern virtio. */
+       dev->max_rev = 0;
+   }
+}
+
 static void virtio_ccw_device_unplugged(DeviceState *d)
 {
     VirtioCcwDevice *dev = VIRTIO_CCW_DEVICE(d);
@@ -1891,6 +1902,7 @@ static void virtio_ccw_bus_class_init(ObjectClass *klass, void *data)
     k->save_config = virtio_ccw_save_config;
     k->load_config = virtio_ccw_load_config;
     k->device_plugged = virtio_ccw_device_plugged;
+    k->post_plugged = virtio_ccw_post_plugged;
     k->device_unplugged = virtio_ccw_device_unplugged;
 }
 

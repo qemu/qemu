@@ -105,6 +105,7 @@ typedef struct {
 
 typedef struct VirtioPCIClass {
     PCIDeviceClass parent_class;
+    DeviceRealize parent_dc_realize;
     void (*realize)(VirtIOPCIProxy *vpci_dev, Error **errp);
 } VirtioPCIClass;
 
