@@ -30,6 +30,7 @@
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qint.h"
 #include "qapi/qmp/qstring.h"
+#include "sysemu/qtest.h"
 
 typedef struct BDRVBlkdebugState {
     int state;
@@ -583,9 +584,13 @@ static void suspend_request(BlockDriverState *bs, BlkdebugRule *rule)
     remove_rule(rule);
     QLIST_INSERT_HEAD(&s->suspended_reqs, &r, next);
 
-    printf("blkdebug: Suspended request '%s'\n", r.tag);
+    if (!qtest_enabled()) {
+        printf("blkdebug: Suspended request '%s'\n", r.tag);
+    }
     qemu_coroutine_yield();
-    printf("blkdebug: Resuming request '%s'\n", r.tag);
+    if (!qtest_enabled()) {
+        printf("blkdebug: Resuming request '%s'\n", r.tag);
+    }
 
     QLIST_REMOVE(&r, next);
     g_free(r.tag);

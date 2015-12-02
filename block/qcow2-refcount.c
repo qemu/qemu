@@ -1244,7 +1244,7 @@ fail:
 /* refcount checking functions */
 
 
-static size_t refcount_array_byte_size(BDRVQcow2State *s, uint64_t entries)
+static uint64_t refcount_array_byte_size(BDRVQcow2State *s, uint64_t entries)
 {
     /* This assertion holds because there is no way we can address more than
      * 2^(64 - 9) clusters at once (with cluster size 512 = 2^9, and because
