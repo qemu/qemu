@@ -69,6 +69,7 @@ static void virtio_9p_device_realize(DeviceState *dev, Error **errp)
     QLIST_INIT(&s->active_list);
     for (i = 0; i < (MAX_REQ - 1); i++) {
         QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
+        s->pdus[i].s = s;
     }
 
     s->vq = virtio_add_queue(vdev, MAX_REQ, handle_9p_output);
