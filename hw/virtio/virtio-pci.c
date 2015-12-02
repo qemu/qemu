@@ -1814,13 +1814,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     address_space_init(&proxy->modern_as, &proxy->modern_cfg, "virtio-pci-cfg-as");
 
-    if (!(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_PCIE)
-        && !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN)
-        && pci_bus_is_express(pci_dev->bus)
-        && !pci_bus_is_root(pci_dev->bus)) {
+    if (pci_is_express(pci_dev) && pci_bus_is_express(pci_dev->bus) &&
+        !pci_bus_is_root(pci_dev->bus)) {
         int pos;
 
-        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
         pos = pcie_endpoint_cap_init(pci_dev, 0);
         assert(pos > 0);
 
@@ -1832,6 +1829,12 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
          * PCI Power Management Interface Specification.
          */
         pci_set_word(pci_dev->config + pos + PCI_PM_PMC, 0x3);
+    } else {
+        /*
+         * make future invocations of pci_is_express() return false
+         * and pci_config_size() return PCI_CONFIG_SPACE_SIZE.
+         */
+        pci_dev->cap_present &= ~QEMU_PCI_CAP_EXPRESS;
     }
 
     virtio_pci_bus_new(&proxy->bus, sizeof(proxy->bus), proxy);
@@ -1879,10 +1882,25 @@ static Property virtio_pci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void virtio_pci_dc_realize(DeviceState *qdev, Error **errp)
+{
+    VirtioPCIClass *vpciklass = VIRTIO_PCI_GET_CLASS(qdev);
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev);
+    PCIDevice *pci_dev = &proxy->pci_dev;
+
+    if (!(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_PCIE) &&
+        !(proxy->flags & VIRTIO_PCI_FLAG_DISABLE_MODERN)) {
+        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    }
+
+    vpciklass->parent_dc_realize(qdev, errp);
+}
+
 static void virtio_pci_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    VirtioPCIClass *vpciklass = VIRTIO_PCI_CLASS(klass);
 
     dc->props = virtio_pci_properties;
     k->realize = virtio_pci_realize;
@@ -1890,6 +1908,8 @@ static void virtio_pci_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_OTHERS;
+    vpciklass->parent_dc_realize = dc->realize;
+    dc->realize = virtio_pci_dc_realize;
     dc->reset = virtio_pci_reset;
 }
 
