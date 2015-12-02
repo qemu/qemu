@@ -1478,8 +1478,7 @@ static void zero_bss(abi_ulong elf_bss, abi_ulong last_bss, int prot)
 
     host_start = (uintptr_t) g2h(elf_bss);
     host_end = (uintptr_t) g2h(last_bss);
-    host_map_start = (host_start + qemu_real_host_page_size - 1);
-    host_map_start &= -qemu_real_host_page_size;
+    host_map_start = REAL_HOST_PAGE_ALIGN(host_start);
 
     if (host_map_start < host_end) {
         void *p = mmap((void *)host_map_start, host_end - host_map_start,

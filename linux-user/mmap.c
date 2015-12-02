@@ -444,9 +444,7 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
            /* If so, truncate the file map at eof aligned with 
               the hosts real pagesize. Additional anonymous maps
               will be created beyond EOF.  */
-           len = (sb.st_size - offset);
-           len += qemu_real_host_page_size - 1;
-           len &= ~(qemu_real_host_page_size - 1);
+           len = REAL_HOST_PAGE_ALIGN(sb.st_size - offset);
        }
     }
 
