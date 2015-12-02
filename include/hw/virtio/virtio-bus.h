@@ -60,6 +60,11 @@ typedef struct VirtioBusClass {
      */
     void (*device_plugged)(DeviceState *d, Error **errp);
     /*
+     * Re-evaluate setup after feature bits have been validated
+     * by the device backend.
+     */
+    void (*post_plugged)(DeviceState *d, Error **errp);
+    /*
      * transport independent exit function.
      * This is called by virtio-bus just before the device is unplugged.
      */
