@@ -43,11 +43,6 @@ autoclear_features        0x0
 refcount_order            4
 header_length             72
 
-Header extension:
-magic                     0x6803f857
-length                    144
-data                      <binary>
-
 read 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
@@ -105,11 +100,6 @@ autoclear_features        0x0
 refcount_order            4
 header_length             72
 
-Header extension:
-magic                     0x6803f857
-length                    144
-data                      <binary>
-
 read 131072/131072 bytes at offset 0
 128 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
@@ -154,11 +144,6 @@ compatible_features       0x0
 autoclear_features        0x0
 refcount_order            4
 header_length             72
-
-Header extension:
-magic                     0x6803f857
-length                    144
-data                      <binary>
 
 No errors were found on the image.
 

@@ -1895,31 +1895,33 @@ int qcow2_update_header(BlockDriverState *bs)
     }
 
     /* Feature table */
-    Qcow2Feature features[] = {
-        {
-            .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
-            .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
-            .name = "dirty bit",
-        },
-        {
-            .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
-            .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
-            .name = "corrupt bit",
-        },
-        {
-            .type = QCOW2_FEAT_TYPE_COMPATIBLE,
-            .bit  = QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
-            .name = "lazy refcounts",
-        },
-    };
+    if (s->qcow_version >= 3) {
+        Qcow2Feature features[] = {
+            {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_DIRTY_BITNR,
+                .name = "dirty bit",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_CORRUPT_BITNR,
+                .name = "corrupt bit",
+            },
+            {
+                .type = QCOW2_FEAT_TYPE_COMPATIBLE,
+                .bit  = QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
+                .name = "lazy refcounts",
+            },
+        };
 
-    ret = header_ext_add(buf, QCOW2_EXT_MAGIC_FEATURE_TABLE,
-                         features, sizeof(features), buflen);
-    if (ret < 0) {
-        goto fail;
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_FEATURE_TABLE,
+                             features, sizeof(features), buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+        buf += ret;
+        buflen -= ret;
     }
-    buf += ret;
-    buflen -= ret;
 
     /* Keep unknown header extensions */
     QLIST_FOREACH(uext, &s->unknown_header_ext, next) {
