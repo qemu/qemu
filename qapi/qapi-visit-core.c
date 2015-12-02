@@ -81,11 +81,11 @@ void visit_optional(Visitor *v, bool *present, const char *name,
     }
 }
 
-void visit_get_next_type(Visitor *v, QType *type,
+void visit_get_next_type(Visitor *v, QType *type, bool promote_int,
                          const char *name, Error **errp)
 {
     if (v->get_next_type) {
-        v->get_next_type(v, type, name, errp);
+        v->get_next_type(v, type, promote_int, name, errp);
     }
 }
 

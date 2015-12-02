@@ -33,7 +33,7 @@ struct Visitor
     void (*type_enum)(Visitor *v, int *obj, const char * const strings[],
                       const char *kind, const char *name, Error **errp);
     /* May be NULL; only needed for input visitors. */
-    void (*get_next_type)(Visitor *v, QType *type,
+    void (*get_next_type)(Visitor *v, QType *type, bool promote_int,
                           const char *name, Error **errp);
 
     void (*type_int)(Visitor *v, int64_t *obj, const char *name, Error **errp);

@@ -184,6 +184,11 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s *obj, const char *name, Error 
 
 
 def gen_visit_alternate(name, variants):
+    promote_int = 'true'
+    for var in variants.variants:
+        if var.type.alternate_qtype() == 'QTYPE_QINT':
+            promote_int = 'false'
+
     ret = mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
@@ -194,16 +199,14 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     if (err) {
         goto out;
     }
-    visit_get_next_type(v, &(*obj)->type, name, &err);
+    visit_get_next_type(v, &(*obj)->type, %(promote_int)s, name, &err);
     if (err) {
         goto out_obj;
     }
     switch ((*obj)->type) {
 ''',
-                c_name=c_name(name))
+                c_name=c_name(name), promote_int=promote_int)
 
-    # FIXME: When 'number' but not 'int' is present in the alternate, we
-    # should allow QTYPE_INT to promote to QTYPE_FLOAT.
     for var in variants.variants:
         ret += mcgen('''
     case %(case)s:

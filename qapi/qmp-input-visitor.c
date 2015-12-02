@@ -208,7 +208,7 @@ static void qmp_input_end_list(Visitor *v, Error **errp)
     qmp_input_pop(qiv, errp);
 }
 
-static void qmp_input_get_next_type(Visitor *v, QType *type,
+static void qmp_input_get_next_type(Visitor *v, QType *type, bool promote_int,
                                     const char *name, Error **errp)
 {
     QmpInputVisitor *qiv = to_qiv(v);
@@ -219,6 +219,9 @@ static void qmp_input_get_next_type(Visitor *v, QType *type,
         return;
     }
     *type = qobject_type(qobj);
+    if (promote_int && *type == QTYPE_QINT) {
+        *type = QTYPE_QFLOAT;
+    }
 }
 
 static void qmp_input_type_int(Visitor *v, int64_t *obj, const char *name,

@@ -347,20 +347,16 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     error_free_or_abort(&err);
     qapi_free_AltStrBool(asb);
 
-    /* FIXME: integer should parse as number */
     v = visitor_input_test_init(data, "42");
-    visit_type_AltStrNum(v, &asn, NULL, &err);
-    /* FIXME g_assert_cmpint(asn->type, ==, QTYPE_QFLOAT); */
-    /* FIXME g_assert_cmpfloat(asn->u.n, ==, 42); */
-    error_free_or_abort(&err);
+    visit_type_AltStrNum(v, &asn, NULL, &error_abort);
+    g_assert_cmpint(asn->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpfloat(asn->u.n, ==, 42);
     qapi_free_AltStrNum(asn);
 
-    /* FIXME: integer should parse as number */
     v = visitor_input_test_init(data, "42");
-    visit_type_AltNumStr(v, &ans, NULL, &err);
-    /* FIXME g_assert_cmpint(ans->type, ==, QTYPE_QFLOAT); */
-    /* FIXME g_assert_cmpfloat(ans->u.n, ==, 42); */
-    error_free_or_abort(&err);
+    visit_type_AltNumStr(v, &ans, NULL, &error_abort);
+    g_assert_cmpint(ans->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpfloat(ans->u.n, ==, 42);
     qapi_free_AltNumStr(ans);
 
     v = visitor_input_test_init(data, "42");

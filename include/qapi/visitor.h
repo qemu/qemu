@@ -43,8 +43,9 @@ void visit_optional(Visitor *v, bool *present, const char *name,
  * Determine the qtype of the item @name in the current object visit.
  * For input visitors, set *@type to the correct qtype of a qapi
  * alternate type; for other visitors, leave *@type unchanged.
+ * If @promote_int, treat integers as QTYPE_FLOAT.
  */
-void visit_get_next_type(Visitor *v, QType *type,
+void visit_get_next_type(Visitor *v, QType *type, bool promote_int,
                          const char *name, Error **errp);
 void visit_type_enum(Visitor *v, int *obj, const char * const strings[],
                      const char *kind, const char *name, Error **errp);
