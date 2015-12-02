@@ -1018,27 +1018,17 @@ class QAPISchemaObjectType(QAPISchemaType):
                                        self.members, self.variants)
 
 
-class QAPISchemaObjectTypeMember(object):
+class QAPISchemaMember(object):
     role = 'member'
 
-    def __init__(self, name, typ, optional):
+    def __init__(self, name):
         assert isinstance(name, str)
-        assert isinstance(typ, str)
-        assert isinstance(optional, bool)
         self.name = name
-        self._type_name = typ
-        self.type = None
-        self.optional = optional
         self.owner = None
 
     def set_owner(self, name):
         assert not self.owner
         self.owner = name
-
-    def check(self, schema):
-        assert self.owner
-        self.type = schema.lookup_type(self._type_name)
-        assert self.type
 
     def check_clash(self, info, seen):
         cname = c_name(self.name)
@@ -1064,6 +1054,21 @@ class QAPISchemaObjectTypeMember(object):
 
     def describe(self):
         return "'%s' %s" % (self.name, self._pretty_owner())
+
+
+class QAPISchemaObjectTypeMember(QAPISchemaMember):
+    def __init__(self, name, typ, optional):
+        QAPISchemaMember.__init__(self, name)
+        assert isinstance(typ, str)
+        assert isinstance(optional, bool)
+        self._type_name = typ
+        self.type = None
+        self.optional = optional
+
+    def check(self, schema):
+        assert self.owner
+        self.type = schema.lookup_type(self._type_name)
+        assert self.type
 
 
 class QAPISchemaObjectTypeVariants(object):
