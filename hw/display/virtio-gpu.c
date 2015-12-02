@@ -897,11 +897,22 @@ static int virtio_gpu_ui_info(void *opaque, uint32_t idx, QemuUIInfo *info)
     return 0;
 }
 
+static void virtio_gpu_gl_block(void *opaque, bool block)
+{
+    VirtIOGPU *g = opaque;
+
+    g->renderer_blocked = block;
+    if (!block) {
+        virtio_gpu_process_cmdq(g);
+    }
+}
+
 const GraphicHwOps virtio_gpu_ops = {
     .invalidate = virtio_gpu_invalidate_display,
     .gfx_update = virtio_gpu_update_display,
     .text_update = virtio_gpu_text_update,
     .ui_info = virtio_gpu_ui_info,
+    .gl_block = virtio_gpu_gl_block,
 };
 
 static void virtio_gpu_device_realize(DeviceState *qdev, Error **errp)

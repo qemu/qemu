@@ -107,6 +107,7 @@ typedef struct VirtIOGPU {
 
     bool use_virgl_renderer;
     bool renderer_inited;
+    bool renderer_blocked;
     QEMUTimer *fence_poll;
     QEMUTimer *print_stats;
 
