@@ -320,10 +320,8 @@ extern void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs);
 extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
                              const char *name, V9fsPath *path);
 
-#define pdu_marshal(pdu, offset, fmt, args...)  \
-    v9fs_iov_marshal(pdu->elem.in_sg, pdu->elem.in_num, offset, 1, fmt, ##args)
-#define pdu_unmarshal(pdu, offset, fmt, args...)  \
-    v9fs_iov_unmarshal(pdu->elem.out_sg, pdu->elem.out_num, offset, 1, fmt, ##args)
+ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
+ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
 
 #define TYPE_VIRTIO_9P "virtio-9p-device"
 #define VIRTIO_9P(obj) \

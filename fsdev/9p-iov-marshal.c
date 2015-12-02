@@ -76,15 +76,13 @@ ssize_t v9fs_pack(struct iovec *in_sg, int in_num, size_t offset,
     return v9fs_packunpack((void *)src, in_sg, in_num, offset, size, 1);
 }
 
-ssize_t v9fs_iov_unmarshal(struct iovec *out_sg, int out_num, size_t offset,
-                           int bswap, const char *fmt, ...)
+ssize_t v9fs_iov_vunmarshal(struct iovec *out_sg, int out_num, size_t offset,
+                            int bswap, const char *fmt, va_list ap)
 {
     int i;
-    va_list ap;
     ssize_t copied = 0;
     size_t old_offset = offset;
 
-    va_start(ap, fmt);
     for (i = 0; fmt[i]; i++) {
         switch (fmt[i]) {
         case 'b': {
@@ -180,25 +178,34 @@ ssize_t v9fs_iov_unmarshal(struct iovec *out_sg, int out_num, size_t offset,
             break;
         }
         if (copied < 0) {
-            va_end(ap);
             return copied;
         }
         offset += copied;
     }
-    va_end(ap);
 
     return offset - old_offset;
 }
 
-ssize_t v9fs_iov_marshal(struct iovec *in_sg, int in_num, size_t offset,
-                         int bswap, const char *fmt, ...)
+ssize_t v9fs_iov_unmarshal(struct iovec *out_sg, int out_num, size_t offset,
+                           int bswap, const char *fmt, ...)
+{
+    ssize_t ret;
+    va_list ap;
+
+    va_start(ap, fmt);
+    ret = v9fs_iov_vunmarshal(out_sg, out_num, offset, bswap, fmt, ap);
+    va_end(ap);
+
+    return ret;
+}
+
+ssize_t v9fs_iov_vmarshal(struct iovec *in_sg, int in_num, size_t offset,
+                          int bswap, const char *fmt, va_list ap)
 {
     int i;
-    va_list ap;
     ssize_t copied = 0;
     size_t old_offset = offset;
 
-    va_start(ap, fmt);
     for (i = 0; fmt[i]; i++) {
         switch (fmt[i]) {
         case 'b': {
@@ -290,12 +297,23 @@ ssize_t v9fs_iov_marshal(struct iovec *in_sg, int in_num, size_t offset,
             break;
         }
         if (copied < 0) {
-            va_end(ap);
             return copied;
         }
         offset += copied;
     }
-    va_end(ap);
 
     return offset - old_offset;
+}
+
+ssize_t v9fs_iov_marshal(struct iovec *in_sg, int in_num, size_t offset,
+                         int bswap, const char *fmt, ...)
+{
+    ssize_t ret;
+    va_list ap;
+
+    va_start(ap, fmt);
+    ret = v9fs_iov_vmarshal(in_sg, in_num, offset, bswap, fmt, ap);
+    va_end(ap);
+
+    return ret;
 }
