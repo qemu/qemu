@@ -63,6 +63,17 @@ ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
     return ret;
 }
 
+static void pdu_push_and_notify(V9fsPDU *pdu)
+{
+    V9fsState *s = pdu->s;
+
+    /* push onto queue and notify */
+    virtqueue_push(s->vq, &pdu->elem, pdu->size);
+
+    /* FIXME: we should batch these completions */
+    virtio_notify(VIRTIO_DEVICE(s), s->vq);
+}
+
 static int omode_to_uflags(int8_t mode)
 {
     int ret = 0;
@@ -653,11 +664,7 @@ static void pdu_complete(V9fsPDU *pdu, ssize_t len)
     pdu->size = len;
     pdu->id = id;
 
-    /* push onto queue and notify */
-    virtqueue_push(s->vq, &pdu->elem, len);
-
-    /* FIXME: we should batch these completions */
-    virtio_notify(VIRTIO_DEVICE(s), s->vq);
+    pdu_push_and_notify(pdu);
 
     /* Now wakeup anybody waiting in flush for this request */
     qemu_co_queue_next(&pdu->complete);
