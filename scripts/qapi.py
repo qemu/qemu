@@ -1319,11 +1319,6 @@ class QAPISchema(object):
             typ, info, 'wrapper', [self._make_member('data', typ, info)])
         return QAPISchemaObjectTypeVariant(case, typ)
 
-    def _make_implicit_tag(self, type_name, info, variants):
-        typ = self._make_implicit_enum_type(type_name, info,
-                                            [v.name for v in variants])
-        return QAPISchemaObjectTypeMember('type', typ, False)
-
     def _def_union_type(self, expr, info):
         name = expr['union']
         data = expr['data']
@@ -1337,7 +1332,9 @@ class QAPISchema(object):
         else:
             variants = [self._make_simple_variant(key, value, info)
                         for (key, value) in data.iteritems()]
-            tag_member = self._make_implicit_tag(name, info, variants)
+            typ = self._make_implicit_enum_type(name, info,
+                                                [v.name for v in variants])
+            tag_member = QAPISchemaObjectTypeMember('type', typ, False)
             members = [tag_member]
         self._def_entity(
             QAPISchemaObjectType(name, info, base, members,
