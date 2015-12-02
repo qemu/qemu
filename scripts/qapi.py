@@ -33,7 +33,7 @@ builtin_types = {
     'uint32':   'QTYPE_QINT',
     'uint64':   'QTYPE_QINT',
     'size':     'QTYPE_QINT',
-    'any':      None,           # any qtype_code possible, actually
+    'any':      None,           # any QType possible, actually
 }
 
 # Whitelist of commands allowed to return a non-dictionary

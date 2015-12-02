@@ -177,8 +177,7 @@ size_t qdict_size(const QDict *qdict)
 /**
  * qdict_get_obj(): Get a QObject of a specific type
  */
-static QObject *qdict_get_obj(const QDict *qdict, const char *key,
-                              qtype_code type)
+static QObject *qdict_get_obj(const QDict *qdict, const char *key, QType type)
 {
     QObject *obj;
 
