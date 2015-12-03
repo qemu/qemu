@@ -287,6 +287,11 @@ static void aarch64_cpu_set_pc(CPUState *cs, vaddr value)
     }
 }
 
+static gchar *aarch64_gdb_arch_name(CPUState *cs)
+{
+    return g_strdup("aarch64");
+}
+
 static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
@@ -297,6 +302,7 @@ static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_write_register = aarch64_cpu_gdb_write_register;
     cc->gdb_num_core_regs = 34;
     cc->gdb_core_xml_file = "aarch64-core.xml";
+    cc->gdb_arch_name = aarch64_gdb_arch_name;
 }
 
 static void aarch64_cpu_register(const ARMCPUInfo *info)
