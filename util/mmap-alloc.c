@@ -50,10 +50,11 @@ void *qemu_ram_mmap(int fd, size_t size, size_t align, bool shared)
 #if defined(__powerpc64__) && defined(__linux__)
     /* On ppc64 mappings in the same segment (aka slice) must share the same
      * page size. Since we will be re-allocating part of this segment
-     * from the supplied fd, we should make sure to use the same page size,
-     * unless we are using the system page size, in which case anonymous memory
-     * is OK. Use align as a hint for the page size.
-     * In this case, set MAP_NORESERVE to avoid allocating backing store memory.
+     * from the supplied fd, we should make sure to use the same page size, to
+     * this end we mmap the supplied fd.  In this case, set MAP_NORESERVE to
+     * avoid allocating backing store memory.
+     * We do this unless we are using the system page size, in which case
+     * anonymous memory is OK.
      */
     int anonfd = fd == -1 || qemu_fd_getpagesize(fd) == getpagesize() ? -1 : fd;
     int flags = anonfd == -1 ? MAP_ANONYMOUS : MAP_NORESERVE;
