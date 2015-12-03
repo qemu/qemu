@@ -2198,15 +2198,15 @@ static void set_pixel_format(VncState *vs,
         return;
     }
 
-    vs->client_pf.rmax = red_max;
+    vs->client_pf.rmax = red_max ? red_max : 0xFF;
     vs->client_pf.rbits = hweight_long(red_max);
     vs->client_pf.rshift = red_shift;
     vs->client_pf.rmask = red_max << red_shift;
-    vs->client_pf.gmax = green_max;
+    vs->client_pf.gmax = green_max ? green_max : 0xFF;
     vs->client_pf.gbits = hweight_long(green_max);
     vs->client_pf.gshift = green_shift;
     vs->client_pf.gmask = green_max << green_shift;
-    vs->client_pf.bmax = blue_max;
+    vs->client_pf.bmax = blue_max ? blue_max : 0xFF;
     vs->client_pf.bbits = hweight_long(blue_max);
     vs->client_pf.bshift = blue_shift;
     vs->client_pf.bmask = blue_max << blue_shift;
