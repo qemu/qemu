@@ -279,6 +279,7 @@ smartcard=""
 libusb=""
 usb_redir=""
 opengl=""
+opengl_dmabuf="no"
 zlib="yes"
 lzo=""
 snappy=""
@@ -3274,7 +3275,7 @@ libs_softmmu="$libs_softmmu $fdt_libs"
 # opengl probe (for sdl2, gtk, milkymist-tmu2)
 
 if test "$opengl" != "no" ; then
-  opengl_pkgs="epoxy"
+  opengl_pkgs="epoxy libdrm gbm"
   if $pkg_config $opengl_pkgs x11; then
     opengl_cflags="$($pkg_config --cflags $opengl_pkgs) $x11_cflags"
     opengl_libs="$($pkg_config --libs $opengl_pkgs) $x11_libs"
@@ -3292,6 +3293,18 @@ if test "$opengl" != "no" ; then
   fi
 fi
 
+if test "$opengl" = "yes"; then
+  cat > $TMPC << EOF
+#include <epoxy/egl.h>
+#ifndef EGL_MESA_image_dma_buf_export
+# error mesa/epoxy lacks support for dmabufs (mesa 10.6+)
+#endif
+int main(void) { return 0; }
+EOF
+  if compile_prog "" "" ; then
+    opengl_dmabuf=yes
+  fi
+fi
 
 ##########################################
 # archipelago probe
@@ -4752,6 +4765,7 @@ echo "smartcard support $smartcard"
 echo "libusb            $libusb"
 echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
+echo "OpenGL dmabufs    $opengl_dmabuf"
 echo "libiscsi support  $libiscsi"
 echo "libnfs support    $libnfs"
 echo "build guest agent $guest_agent"
@@ -5050,6 +5064,7 @@ if test "$gtk" = "yes" ; then
   echo "CONFIG_GTK=y" >> $config_host_mak
   echo "CONFIG_GTKABI=$gtkabi" >> $config_host_mak
   echo "GTK_CFLAGS=$gtk_cflags" >> $config_host_mak
+  echo "GTK_LIBS=$gtk_libs" >> $config_host_mak
   if test "$gtk_gl" = "yes" ; then
     echo "CONFIG_GTK_GL=y" >> $config_host_mak
   fi
@@ -5158,6 +5173,9 @@ if test "$opengl" = "yes" ; then
   echo "CONFIG_OPENGL=y" >> $config_host_mak
   echo "OPENGL_CFLAGS=$opengl_cflags" >> $config_host_mak
   echo "OPENGL_LIBS=$opengl_libs" >> $config_host_mak
+  if test "$opengl_dmabuf" = "yes" ; then
+    echo "CONFIG_OPENGL_DMABUF=y" >> $config_host_mak
+  fi
 fi
 
 if test "$lzo" = "yes" ; then
