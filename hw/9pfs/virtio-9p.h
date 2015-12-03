@@ -323,6 +323,11 @@ extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
 ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
 ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
 
+ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
+                            const char *fmt, va_list ap);
+ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
+                              const char *fmt, va_list ap);
+
 #define TYPE_VIRTIO_9P "virtio-9p-device"
 #define VIRTIO_9P(obj) \
         OBJECT_CHECK(V9fsState, (obj), TYPE_VIRTIO_9P)

@@ -45,8 +45,7 @@ ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    ret = v9fs_iov_vmarshal(pdu->elem.in_sg, pdu->elem.in_num,
-                            offset, 1, fmt, ap);
+    ret = virtio_pdu_vmarshal(pdu, offset, fmt, ap);
     va_end(ap);
 
     return ret;
@@ -58,8 +57,7 @@ ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    ret = v9fs_iov_vunmarshal(pdu->elem.out_sg, pdu->elem.out_num,
-                              offset, 1, fmt, ap);
+    ret = virtio_pdu_vunmarshal(pdu, offset, fmt, ap);
     va_end(ap);
 
     return ret;

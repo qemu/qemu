@@ -156,6 +156,20 @@ static void virtio_9p_device_unrealize(DeviceState *dev, Error **errp)
     g_free(s->tag);
 }
 
+ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
+                            const char *fmt, va_list ap)
+{
+    return v9fs_iov_vmarshal(pdu->elem.in_sg, pdu->elem.in_num,
+                             offset, 1, fmt, ap);
+}
+
+ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
+                              const char *fmt, va_list ap)
+{
+    return v9fs_iov_vunmarshal(pdu->elem.out_sg, pdu->elem.out_num,
+                               offset, 1, fmt, ap);
+}
+
 /* virtio-9p device */
 
 static Property virtio_9p_properties[] = {
