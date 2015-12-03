@@ -2329,13 +2329,9 @@ static const TypeInfo spapr_machine_2_5_info = {
 
 static void spapr_machine_2_4_class_init(ObjectClass *oc, void *data)
 {
-    static GlobalProperty compat_props[] = {
-        SPAPR_COMPAT_2_4
-        { /* end of list */ }
-    };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->compat_props = compat_props;
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_4);
 }
 
 static const TypeInfo spapr_machine_2_4_info = {
@@ -2369,13 +2365,9 @@ static void spapr_machine_2_3_instance_init(Object *obj)
 
 static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
 {
-    static GlobalProperty compat_props[] = {
-        SPAPR_COMPAT_2_3
-        { /* end of list */ }
-    };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->compat_props = compat_props;
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_3);
 }
 
 static const TypeInfo spapr_machine_2_3_info = {
@@ -2410,13 +2402,9 @@ static void spapr_machine_2_2_instance_init(Object *obj)
 
 static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
 {
-    static GlobalProperty compat_props[] = {
-        SPAPR_COMPAT_2_2
-        { /* end of list */ }
-    };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->compat_props = compat_props;
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_2);
 }
 
 static const TypeInfo spapr_machine_2_2_info = {
@@ -2446,12 +2434,8 @@ static void spapr_machine_2_1_instance_init(Object *obj)
 static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
-    static GlobalProperty compat_props[] = {
-        SPAPR_COMPAT_2_1
-        { /* end of list */ }
-    };
 
-    mc->compat_props = compat_props;
+    SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_1);
 }
 
 static const TypeInfo spapr_machine_2_1_info = {
