@@ -2366,7 +2366,6 @@ static void spapr_compat_2_3(Object *obj)
 static void spapr_machine_2_3_instance_init(Object *obj)
 {
     spapr_compat_2_3(obj);
-    spapr_machine_initfn(obj);
 }
 
 static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
@@ -2409,7 +2408,6 @@ static void spapr_compat_2_2(Object *obj)
 static void spapr_machine_2_2_instance_init(Object *obj)
 {
     spapr_compat_2_2(obj);
-    spapr_machine_initfn(obj);
 }
 
 static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
@@ -2446,7 +2444,6 @@ static void spapr_compat_2_1(Object *obj)
 static void spapr_machine_2_1_instance_init(Object *obj)
 {
     spapr_compat_2_1(obj);
-    spapr_machine_initfn(obj);
 }
 
 static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
