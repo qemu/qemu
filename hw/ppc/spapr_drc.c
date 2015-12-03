@@ -254,6 +254,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, void *opaque,
                         const char *name, Error **errp)
 {
     sPAPRDRConnector *drc = SPAPR_DR_CONNECTOR(obj);
+    Error *err = NULL;
     int fdt_offset_next, fdt_offset, fdt_depth;
     void *fdt;
 
@@ -276,24 +277,43 @@ static void prop_get_fdt(Object *obj, Visitor *v, void *opaque,
         case FDT_BEGIN_NODE:
             fdt_depth++;
             name = fdt_get_name(fdt, fdt_offset, &name_len);
-            visit_start_struct(v, NULL, NULL, name, 0, NULL);
+            visit_start_struct(v, NULL, NULL, name, 0, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             break;
         case FDT_END_NODE:
             /* shouldn't ever see an FDT_END_NODE before FDT_BEGIN_NODE */
             g_assert(fdt_depth > 0);
-            visit_end_struct(v, NULL);
+            visit_end_struct(v, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             fdt_depth--;
             break;
         case FDT_PROP: {
             int i;
             prop = fdt_get_property_by_offset(fdt, fdt_offset, &prop_len);
             name = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
-            visit_start_list(v, name, NULL);
-            for (i = 0; i < prop_len; i++) {
-                visit_type_uint8(v, (uint8_t *)&prop->data[i], NULL, NULL);
-
+            visit_start_list(v, name, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
             }
-            visit_end_list(v, NULL);
+            for (i = 0; i < prop_len; i++) {
+                visit_type_uint8(v, (uint8_t *)&prop->data[i], NULL, &err);
+                if (err) {
+                    error_propagate(errp, err);
+                    return;
+                }
+            }
+            visit_end_list(v, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
             break;
         }
         default:
