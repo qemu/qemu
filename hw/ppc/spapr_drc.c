@@ -594,6 +594,10 @@ static void spapr_dr_connector_class_init(ObjectClass *k, void *data)
     drck->attach = attach;
     drck->detach = detach;
     drck->release_pending = release_pending;
+    /*
+     * Reason: it crashes FIXME find and document the real reason
+     */
+    dk->cannot_instantiate_with_device_add_yet = true;
 }
 
 static const TypeInfo spapr_dr_connector_info = {
