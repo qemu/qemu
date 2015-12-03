@@ -157,4 +157,13 @@ struct MachineState {
     } \
     machine_init(machine_initfn##_register_types)
 
+#define SET_MACHINE_COMPAT(m, COMPAT) \
+    do {                              \
+        static GlobalProperty props[] = {       \
+            COMPAT                              \
+            { /* end of list */ }               \
+        };                                      \
+        (m)->compat_props = props;              \
+    } while (0)
+
 #endif
