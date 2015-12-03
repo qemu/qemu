@@ -132,7 +132,7 @@ static int coroutine_fn backup_do_cow(BlockDriverState *bs,
         qemu_iovec_init_external(&bounce_qiov, &iov, 1);
 
         if (is_write_notifier) {
-            ret = bdrv_co_no_copy_on_readv(bs,
+            ret = bdrv_co_readv_no_serialising(bs,
                                            start * BACKUP_SECTORS_PER_CLUSTER,
                                            n, &bounce_qiov);
         } else {

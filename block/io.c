@@ -863,7 +863,9 @@ static int coroutine_fn bdrv_aligned_preadv(BlockDriverState *bs,
         mark_request_serialising(req, bdrv_get_cluster_size(bs));
     }
 
-    wait_serialising_requests(req);
+    if (!(flags & BDRV_REQ_NO_SERIALISING)) {
+        wait_serialising_requests(req);
+    }
 
     if (flags & BDRV_REQ_COPY_ON_READ) {
         int pnum;
@@ -952,7 +954,7 @@ static int coroutine_fn bdrv_co_do_preadv(BlockDriverState *bs,
     }
 
     /* Don't do copy-on-read if we read data before write operation */
-    if (bs->copy_on_read && !(flags & BDRV_REQ_NO_COPY_ON_READ)) {
+    if (bs->copy_on_read && !(flags & BDRV_REQ_NO_SERIALISING)) {
         flags |= BDRV_REQ_COPY_ON_READ;
     }
 
@@ -1021,13 +1023,13 @@ int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
     return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov, 0);
 }
 
-int coroutine_fn bdrv_co_no_copy_on_readv(BlockDriverState *bs,
+int coroutine_fn bdrv_co_readv_no_serialising(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
-    trace_bdrv_co_no_copy_on_readv(bs, sector_num, nb_sectors);
+    trace_bdrv_co_readv_no_serialising(bs, sector_num, nb_sectors);
 
     return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov,
-                            BDRV_REQ_NO_COPY_ON_READ);
+                            BDRV_REQ_NO_SERIALISING);
 }
 
 int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,

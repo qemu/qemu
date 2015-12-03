@@ -82,6 +82,31 @@ class TestSyncModesNoneAndTop(iotests.QMPTestCase):
         time.sleep(1)
         self.assertEqual(-1, qemu_io('-c', 'read -P0x41 0 512', target_img).find("verification failed"))
 
+class TestBeforeWriteNotifier(iotests.QMPTestCase):
+    def setUp(self):
+        self.vm = iotests.VM().add_drive_raw("file=blkdebug::null-co://,id=drive0,align=65536,driver=blkdebug")
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(target_img)
+
+    def test_before_write_notifier(self):
+        self.vm.pause_drive("drive0")
+        result = self.vm.qmp('drive-backup', device='drive0',
+                             sync='full', target=target_img,
+                             format="file", speed=1)
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp('block-job-pause', device="drive0")
+        self.assert_qmp(result, 'return', {})
+        # Speed is low enough that this must be an uncopied range, which will
+        # trigger the before write notifier
+        self.vm.hmp_qemu_io('drive0', 'aio_write -P 1 512512 512')
+        self.vm.resume_drive("drive0")
+        result = self.vm.qmp('block-job-resume', device="drive0")
+        self.assert_qmp(result, 'return', {})
+        event = self.cancel_and_wait()
+        self.assert_qmp(event, 'data/type', 'backup')
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'])
