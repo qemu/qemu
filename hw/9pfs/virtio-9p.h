@@ -327,6 +327,8 @@ ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
                             const char *fmt, va_list ap);
 ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
                               const char *fmt, va_list ap);
+void virtio_init_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
+                              unsigned int *pniov, bool is_write);
 
 #define TYPE_VIRTIO_9P "virtio-9p-device"
 #define VIRTIO_9P(obj) \

@@ -170,6 +170,18 @@ ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
                                offset, 1, fmt, ap);
 }
 
+void virtio_init_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
+                              unsigned int *pniov, bool is_write)
+{
+    if (is_write) {
+        *piov = pdu->elem.out_sg;
+        *pniov = pdu->elem.out_num;
+    } else {
+        *piov = pdu->elem.in_sg;
+        *pniov = pdu->elem.in_num;
+    }
+}
+
 /* virtio-9p device */
 
 static Property virtio_9p_properties[] = {
