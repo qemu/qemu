@@ -318,6 +318,8 @@ extern void v9fs_path_free(V9fsPath *path);
 extern void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs);
 extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
                              const char *name, V9fsPath *path);
+extern int v9fs_device_realize_common(V9fsState *s, Error **errp);
+extern void v9fs_device_unrealize_common(V9fsState *s, Error **errp);
 
 ssize_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
 ssize_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...);
