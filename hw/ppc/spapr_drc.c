@@ -259,6 +259,11 @@ static void prop_get_fdt(Object *obj, Visitor *v, void *opaque,
     void *fdt;
 
     if (!drc->fdt) {
+        visit_start_struct(v, NULL, NULL, name, 0, &err);
+        if (!err) {
+            visit_end_struct(v, &err);
+        }
+        error_propagate(errp, err);
         return;
     }
 
