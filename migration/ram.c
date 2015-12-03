@@ -1948,6 +1948,7 @@ static int ram_save_init_globals(void)
 static int ram_save_setup(QEMUFile *f, void *opaque)
 {
     RAMBlock *block;
+    static bool colo_entry = false;
 
     /*
      * migration has already setup the bitmap, reuse it.
@@ -1970,8 +1971,22 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
 
     rcu_read_unlock();
 
-    ram_control_before_iterate(f, RAM_CONTROL_SETUP);
-    ram_control_after_iterate(f, RAM_CONTROL_SETUP);
+    if (!migration_in_colo_state()) {
+        colo_entry = false;
+        ram_control_before_iterate(f, RAM_CONTROL_SETUP);
+        ram_control_after_iterate(f, RAM_CONTROL_SETUP);
+    } else {
+        if (!colo_entry) {
+            /* This is the second time we'll have come here during a COLO migrate,
+             * we've done a normal migration to give the secondary an initial
+             * copy of memory and now we're going through the first checkpoint.
+             * Let the file know (OK, let RDMA reregister itself)
+             */
+            ram_control_before_iterate(f, RAM_CONTROL_SETUP_COLO);
+            ram_control_after_iterate(f, RAM_CONTROL_SETUP_COLO);
+        }
+        colo_entry = true;
+    }
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 

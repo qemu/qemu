@@ -1366,6 +1366,7 @@ static uint64_t qemu_rdma_make_wrid(uint64_t wr_id, uint64_t index,
 static void qemu_rdma_signal_unregister(RDMAContext *rdma, uint64_t index,
                                         uint64_t chunk, uint64_t wr_id)
 {
+    trace_qemu_rdma_signal_unregister(index, chunk, wr_id);
     if (rdma->unregistrations[rdma->unregister_next] != 0) {
         error_report("rdma migration: queue is full");
     } else {
@@ -3378,6 +3379,36 @@ static int qemu_rdma_registration_start(QEMUFile *f, void *opaque,
 }
 
 /*
+ * Called on source
+ * -ve on error
+ * Called when we receive RAM_CONTROL_SETUP_COLO on the transmission
+ * of the first snapshot; we need to reregister RAM on the destination
+ * since all future copies must go to the colo-cache.
+ */
+static int rdma_registration_colo(QEMUFile *f, RDMAContext *rdma)
+{
+    RDMALocalBlocks *local = &rdma->local_ram_blocks;
+    uint64_t bi;
+    trace_rdma_registration_colo();
+
+    /* Force all existing chunks to be deregistered */
+    for (bi = 0; bi < local->nb_blocks; bi++) {
+        RDMALocalBlock *block = local[bi].block;
+        uint64_t ci;
+        for (ci = 0; ci < block->nb_chunks; ci++) {
+            /* One existing use uses 0 for the wr_id ?! */
+            qemu_rdma_signal_unregister(rdma, bi, ci, 0);
+        }
+    }
+
+    /* Makes sure all of our unregistrations go through */
+    qemu_rdma_drain_cq(f, rdma);
+    trace_rdma_registration_colo_end();
+
+    return 0;
+}
+
+/*
  * Inform dest that dynamic registrations are done for now.
  * First, flush writes, if any.
  */
@@ -3397,6 +3428,13 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
 
     if (ret < 0) {
         goto err;
+    }
+
+    if (flags == RAM_CONTROL_SETUP_COLO) {
+        ret = rdma_registration_colo(f, rdma);
+        if (ret < 0) {
+            goto err;
+        }
     }
 
     if (flags == RAM_CONTROL_SETUP) {
