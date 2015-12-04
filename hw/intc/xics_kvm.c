@@ -31,6 +31,7 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "trace.h"
+#include "linux/kvm.h"
 #include "hw/ppc/spapr.h"
 #include "hw/ppc/xics.h"
 #include "kvm_ppc.h"
