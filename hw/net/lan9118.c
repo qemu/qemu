@@ -904,7 +904,8 @@ static void do_mac_write(lan9118_state *s, int reg, uint32_t val)
          */
         break;
     default:
-        hw_error("lan9118: Unimplemented MAC register write: %d = 0x%x\n",
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "lan9118: Unimplemented MAC register write: %d = 0x%x\n",
                  s->mac_cmd & 0xf, val);
     }
 }
@@ -932,8 +933,10 @@ static uint32_t do_mac_read(lan9118_state *s, int reg)
     case MAC_FLOW:
         return s->mac_flow;
     default:
-        hw_error("lan9118: Unimplemented MAC register read: %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "lan9118: Unimplemented MAC register read: %d\n",
                  s->mac_cmd & 0xf);
+        return 0;
     }
 }
 
@@ -1130,7 +1133,8 @@ static void lan9118_writel(void *opaque, hwaddr offset,
         break;
 
     default:
-        hw_error("lan9118_write: Bad reg 0x%x = %x\n", (int)offset, (int)val);
+        qemu_log_mask(LOG_GUEST_ERROR, "lan9118_write: Bad reg 0x%x = %x\n",
+                      (int)offset, (int)val);
         break;
     }
     lan9118_update(s);
@@ -1248,7 +1252,7 @@ static uint64_t lan9118_readl(void *opaque, hwaddr offset,
     case CSR_E2P_DATA:
         return s->e2p_data;
     }
-    hw_error("lan9118_read: Bad reg 0x%x\n", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR, "lan9118_read: Bad reg 0x%x\n", (int)offset);
     return 0;
 }
 
