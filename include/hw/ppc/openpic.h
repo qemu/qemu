@@ -3,6 +3,7 @@
 
 #include "qemu-common.h"
 #include "hw/qdev.h"
+#include "qom/cpu.h"
 
 #define TYPE_OPENPIC "openpic"
 

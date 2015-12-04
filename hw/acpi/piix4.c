@@ -39,6 +39,7 @@
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/xen/xen.h"
+#include "qom/cpu.h"
 
 //#define DEBUG
 
