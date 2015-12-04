@@ -56,6 +56,8 @@ do { fprintf(stderr, "lan9118: error: " fmt , ## __VA_ARGS__);} while (0)
 #define CSR_E2P_CMD     0xb0
 #define CSR_E2P_DATA    0xb4
 
+#define E2P_CMD_MAC_ADDR_LOADED 0x100
+
 /* IRQ_CFG */
 #define IRQ_INT         0x00001000
 #define IRQ_EN          0x00000100
@@ -352,14 +354,14 @@ static void lan9118_reload_eeprom(lan9118_state *s)
 {
     int i;
     if (s->eeprom[0] != 0xa5) {
-        s->e2p_cmd &= ~0x10;
+        s->e2p_cmd &= ~E2P_CMD_MAC_ADDR_LOADED;
         DPRINTF("MACADDR load failed\n");
         return;
     }
     for (i = 0; i < 6; i++) {
         s->conf.macaddr.a[i] = s->eeprom[i + 1];
     }
-    s->e2p_cmd |= 0x10;
+    s->e2p_cmd |= E2P_CMD_MAC_ADDR_LOADED;
     DPRINTF("MACADDR loaded from eeprom\n");
     lan9118_mac_changed(s);
 }
@@ -937,7 +939,7 @@ static uint32_t do_mac_read(lan9118_state *s, int reg)
 
 static void lan9118_eeprom_cmd(lan9118_state *s, int cmd, int addr)
 {
-    s->e2p_cmd = (s->e2p_cmd & 0x10) | (cmd << 28) | addr;
+    s->e2p_cmd = (s->e2p_cmd & E2P_CMD_MAC_ADDR_LOADED) | (cmd << 28) | addr;
     switch (cmd) {
     case 0:
         s->e2p_data = s->eeprom[addr];
