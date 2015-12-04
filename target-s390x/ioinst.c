@@ -12,7 +12,7 @@
 #include "qemu/osdep.h"
 
 #include "cpu.h"
-#include "ioinst.h"
+#include "hw/s390x/ioinst.h"
 #include "trace.h"
 #include "hw/s390x/s390-pci-bus.h"
 

@@ -11,6 +11,7 @@
 
 #ifndef IOINST_S390X_H
 #define IOINST_S390X_H
+
 /*
  * Channel I/O related definitions, as defined in the Principles
  * Of Operation (and taken from the Linux implementation).
@@ -227,20 +228,5 @@ typedef struct IOIntCode {
 
 int ioinst_disassemble_sch_ident(uint32_t value, int *m, int *cssid, int *ssid,
                                  int *schid);
-void ioinst_handle_xsch(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_csch(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_hsch(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_msch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
-void ioinst_handle_ssch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
-void ioinst_handle_stcrw(S390CPU *cpu, uint32_t ipb);
-void ioinst_handle_stsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
-int ioinst_handle_tsch(S390CPU *cpu, uint64_t reg1, uint32_t ipb);
-void ioinst_handle_chsc(S390CPU *cpu, uint32_t ipb);
-int ioinst_handle_tpi(S390CPU *cpu, uint32_t ipb);
-void ioinst_handle_schm(S390CPU *cpu, uint64_t reg1, uint64_t reg2,
-                        uint32_t ipb);
-void ioinst_handle_rsch(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_rchp(S390CPU *cpu, uint64_t reg1);
-void ioinst_handle_sal(S390CPU *cpu, uint64_t reg1);
 
 #endif

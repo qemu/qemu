@@ -10,13 +10,77 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "sysemu/kvm.h"
+#include "hw/s390x/ioinst.h"
+
+#if !defined(CONFIG_USER_ONLY)
+void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
+                    uint64_t param64)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (env->ext_index == MAX_EXT_QUEUE - 1) {
+        /* ugh - can't queue anymore. Let's drop. */
+        return;
+    }
+
+    env->ext_index++;
+    assert(env->ext_index < MAX_EXT_QUEUE);
+
+    env->ext_queue[env->ext_index].code = code;
+    env->ext_queue[env->ext_index].param = param;
+    env->ext_queue[env->ext_index].param64 = param64;
+
+    env->pending_int |= INTERRUPT_EXT;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+static void cpu_inject_io(S390CPU *cpu, uint16_t subchannel_id,
+                          uint16_t subchannel_number,
+                          uint32_t io_int_parm, uint32_t io_int_word)
+{
+    CPUS390XState *env = &cpu->env;
+    int isc = IO_INT_WORD_ISC(io_int_word);
+
+    if (env->io_index[isc] == MAX_IO_QUEUE - 1) {
+        /* ugh - can't queue anymore. Let's drop. */
+        return;
+    }
+
+    env->io_index[isc]++;
+    assert(env->io_index[isc] < MAX_IO_QUEUE);
+
+    env->io_queue[env->io_index[isc]][isc].id = subchannel_id;
+    env->io_queue[env->io_index[isc]][isc].nr = subchannel_number;
+    env->io_queue[env->io_index[isc]][isc].parm = io_int_parm;
+    env->io_queue[env->io_index[isc]][isc].word = io_int_word;
+
+    env->pending_int |= INTERRUPT_IO;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
+
+static void cpu_inject_crw_mchk(S390CPU *cpu)
+{
+    CPUS390XState *env = &cpu->env;
+
+    if (env->mchk_index == MAX_MCHK_QUEUE - 1) {
+        /* ugh - can't queue anymore. Let's drop. */
+        return;
+    }
+
+    env->mchk_index++;
+    assert(env->mchk_index < MAX_MCHK_QUEUE);
+
+    env->mchk_queue[env->mchk_index].type = 1;
+
+    env->pending_int |= INTERRUPT_MCHK;
+    cpu_interrupt(CPU(cpu), CPU_INTERRUPT_HARD);
+}
 
 /*
  * All of the following interrupts are floating, i.e. not per-vcpu.
  * We just need a dummy cpustate in order to be able to inject in the
  * non-kvm case.
  */
-#if !defined(CONFIG_USER_ONLY)
 void s390_sclp_extint(uint32_t parm)
 {
     if (kvm_enabled()) {
