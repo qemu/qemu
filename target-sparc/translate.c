@@ -5097,7 +5097,8 @@ static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
                     if (IS_IMM) {
                         goto illegal_insn;
                     }
-                    if (!supervisor(dc)) {
+                    /* LEON3 allows CASA from user space with ASI 0xa */
+                    if ((GET_FIELD(insn, 19, 26) != 0xa) && !supervisor(dc)) {
                         goto priv_insn;
                     }
 #endif
