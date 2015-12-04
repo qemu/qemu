@@ -416,7 +416,7 @@ const char *qtest_get_arch(void);
  * The path is prefixed with the architecture under test, as
  * returned by qtest_get_arch().
  */
-void qtest_add_func(const char *str, void (*fn));
+void qtest_add_func(const char *str, void (*fn)(void));
 
 /**
  * qtest_add_data_func:
@@ -428,7 +428,8 @@ void qtest_add_func(const char *str, void (*fn));
  * The path is prefixed with the architecture under test, as
  * returned by qtest_get_arch().
  */
-void qtest_add_data_func(const char *str, const void *data, void (*fn));
+void qtest_add_data_func(const char *str, const void *data,
+                         void (*fn)(const void *));
 
 /**
  * qtest_add:
@@ -450,7 +451,7 @@ void qtest_add_data_func(const char *str, const void *data, void (*fn));
         g_free(path); \
     } while (0)
 
-void qtest_add_abrt_handler(void (*fn), const void *data);
+void qtest_add_abrt_handler(GHookFunc fn, const void *data);
 
 /**
  * qtest_start:

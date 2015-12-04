@@ -173,8 +173,9 @@ static void wait_for_fds(TestServer *s)
     g_mutex_unlock(&s->data_mutex);
 }
 
-static void read_guest_mem(TestServer *s)
+static void read_guest_mem(const void *data)
 {
+    TestServer *s = (void *)data;
     uint32_t *guest_mem;
     int i, j;
     size_t size;
