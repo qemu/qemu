@@ -123,10 +123,10 @@ qcrypto_tls_creds_get_path(QCryptoTLSCreds *creds,
         goto cleanup;
     }
 
-    trace_qcrypto_tls_creds_get_path(creds, filename,
-                                     *cred ? *cred : "<none>");
     ret = 0;
  cleanup:
+    trace_qcrypto_tls_creds_get_path(creds, filename,
+                                     *cred ? *cred : "<none>");
     return ret;
 }
 

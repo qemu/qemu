@@ -255,6 +255,7 @@ qcrypto_tls_creds_check_cert_key_purpose(QCryptoTLSCredsX509 *creds,
         }
 
         g_free(buffer);
+        buffer = NULL;
     }
 
     if (isServer) {

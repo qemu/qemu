@@ -42,7 +42,7 @@ struct bt_l2cap_sdp_state_s {
 
 static ssize_t sdp_datalen(const uint8_t **element, ssize_t *left)
 {
-    size_t len = *(*element) ++ & SDP_DSIZE_MASK;
+    uint32_t len = *(*element) ++ & SDP_DSIZE_MASK;
 
     if (!*left)
         return -1;

@@ -504,7 +504,6 @@ typedef struct {
 
 #define OCF_CREATE_CONN_CANCEL		0x0008
 typedef struct {
-    uint8_t	status;
     bdaddr_t	bdaddr;
 } QEMU_PACKED create_conn_cancel_cp;
 #define CREATE_CONN_CANCEL_CP_SIZE 6
@@ -1266,13 +1265,13 @@ typedef struct {
     uint8_t	status;
     uint16_t	handle;
 } QEMU_PACKED reset_failed_contact_counter_rp;
-#define RESET_FAILED_CONTACT_COUNTER_RP_SIZE 4
+#define RESET_FAILED_CONTACT_COUNTER_RP_SIZE 3
 
 #define OCF_READ_LINK_QUALITY		0x0003
 typedef struct {
     uint16_t	handle;
 } QEMU_PACKED read_link_quality_cp;
-#define READ_LINK_QUALITY_CP_SIZE 4
+#define READ_LINK_QUALITY_CP_SIZE 2
 
 typedef struct {
     uint8_t	status;
@@ -1332,7 +1331,7 @@ typedef struct {
     uint8_t	dev_class[3];
     uint16_t	clock_offset;
 } QEMU_PACKED inquiry_info;
-#define INQUIRY_INFO_SIZE 14
+#define INQUIRY_INFO_SIZE 15
 
 #define EVT_CONN_COMPLETE		0x03
 typedef struct {
@@ -1381,7 +1380,7 @@ typedef struct {
     uint16_t	handle;
     uint8_t	encrypt;
 } QEMU_PACKED evt_encrypt_change;
-#define EVT_ENCRYPT_CHANGE_SIZE 5
+#define EVT_ENCRYPT_CHANGE_SIZE 4
 
 #define EVT_CHANGE_CONN_LINK_KEY_COMPLETE	0x09
 typedef struct {
@@ -1628,18 +1627,6 @@ typedef struct {
     uint16_t	min_local_timeout;
 } QEMU_PACKED evt_sniff_subrate;
 #define EVT_SNIFF_SUBRATE_SIZE 11
-
-#define EVT_EXTENDED_INQUIRY_RESULT	0x2F
-typedef struct {
-    bdaddr_t	bdaddr;
-    uint8_t	pscan_rep_mode;
-    uint8_t	pscan_period_mode;
-    uint8_t	dev_class[3];
-    uint16_t	clock_offset;
-    int8_t	rssi;
-    uint8_t	data[240];
-} QEMU_PACKED extended_inquiry_info;
-#define EXTENDED_INQUIRY_INFO_SIZE 254
 
 #define EVT_TESTING			0xFE
 
