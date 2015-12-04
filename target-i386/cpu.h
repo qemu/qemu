@@ -1455,7 +1455,11 @@ void do_interrupt_x86_hardirq(CPUX86State *env, int intno, int is_hw);
 void do_smm_enter(X86CPU *cpu);
 void cpu_smm_update(X86CPU *cpu);
 
+/* apic.c */
 void cpu_report_tpr_access(CPUX86State *env, TPRAccess access);
+void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
+                                   TPRAccess access);
+
 
 /* Change the value of a KVM-specific default
  *
@@ -1480,5 +1484,8 @@ void enable_compat_apic_id_mode(void);
 
 void x86_cpu_dump_local_apic_state(CPUState *cs, FILE *f,
                                    fprintf_function cpu_fprintf, int flags);
+
+/* cpu.c */
+bool cpu_is_bsp(X86CPU *cpu);
 
 #endif /* CPU_I386_H */
