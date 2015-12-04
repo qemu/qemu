@@ -3102,11 +3102,14 @@
 #
 # @in:  #optional The name of the input file
 # @out: The name of the output file
+# @append: #optional Open the file in append mode (default false to
+#          truncate) (Since 2.6)
 #
 # Since: 1.4
 ##
 { 'struct': 'ChardevFile', 'data': { '*in' : 'str',
-                                   'out' : 'str' } }
+                                   'out' : 'str',
+                                   '*append': 'bool' } }
 
 ##
 # @ChardevHostdev:
