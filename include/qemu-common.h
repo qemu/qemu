@@ -22,7 +22,6 @@
 
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
-#include "glib-compat.h"
 #include "qemu/option.h"
 #include "qemu/host-utils.h"
 
