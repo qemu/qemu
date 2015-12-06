@@ -170,7 +170,7 @@ typedef void (*disas_proc)(CPUM68KState *env, DisasContext *s, uint16_t insn);
                              uint16_t insn)                             \
     {                                                                   \
         qemu_log("Dispatch " #name "\n");                               \
-        real_disas_##name(s, env, insn);                                \
+        real_disas_##name(env, s, insn);                                \
     }                                                                   \
     static void real_disas_##name(CPUM68KState *env, DisasContext *s,   \
                                   uint16_t insn)
