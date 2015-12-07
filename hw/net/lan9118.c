@@ -56,6 +56,8 @@ do { fprintf(stderr, "lan9118: error: " fmt , ## __VA_ARGS__);} while (0)
 #define CSR_E2P_CMD     0xb0
 #define CSR_E2P_DATA    0xb4
 
+#define E2P_CMD_MAC_ADDR_LOADED 0x100
+
 /* IRQ_CFG */
 #define IRQ_INT         0x00001000
 #define IRQ_EN          0x00000100
@@ -352,14 +354,14 @@ static void lan9118_reload_eeprom(lan9118_state *s)
 {
     int i;
     if (s->eeprom[0] != 0xa5) {
-        s->e2p_cmd &= ~0x10;
+        s->e2p_cmd &= ~E2P_CMD_MAC_ADDR_LOADED;
         DPRINTF("MACADDR load failed\n");
         return;
     }
     for (i = 0; i < 6; i++) {
         s->conf.macaddr.a[i] = s->eeprom[i + 1];
     }
-    s->e2p_cmd |= 0x10;
+    s->e2p_cmd |= E2P_CMD_MAC_ADDR_LOADED;
     DPRINTF("MACADDR loaded from eeprom\n");
     lan9118_mac_changed(s);
 }
@@ -902,7 +904,8 @@ static void do_mac_write(lan9118_state *s, int reg, uint32_t val)
          */
         break;
     default:
-        hw_error("lan9118: Unimplemented MAC register write: %d = 0x%x\n",
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "lan9118: Unimplemented MAC register write: %d = 0x%x\n",
                  s->mac_cmd & 0xf, val);
     }
 }
@@ -930,14 +933,16 @@ static uint32_t do_mac_read(lan9118_state *s, int reg)
     case MAC_FLOW:
         return s->mac_flow;
     default:
-        hw_error("lan9118: Unimplemented MAC register read: %d\n",
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "lan9118: Unimplemented MAC register read: %d\n",
                  s->mac_cmd & 0xf);
+        return 0;
     }
 }
 
 static void lan9118_eeprom_cmd(lan9118_state *s, int cmd, int addr)
 {
-    s->e2p_cmd = (s->e2p_cmd & 0x10) | (cmd << 28) | addr;
+    s->e2p_cmd = (s->e2p_cmd & E2P_CMD_MAC_ADDR_LOADED) | (cmd << 28) | addr;
     switch (cmd) {
     case 0:
         s->e2p_data = s->eeprom[addr];
@@ -1128,7 +1133,8 @@ static void lan9118_writel(void *opaque, hwaddr offset,
         break;
 
     default:
-        hw_error("lan9118_write: Bad reg 0x%x = %x\n", (int)offset, (int)val);
+        qemu_log_mask(LOG_GUEST_ERROR, "lan9118_write: Bad reg 0x%x = %x\n",
+                      (int)offset, (int)val);
         break;
     }
     lan9118_update(s);
@@ -1246,7 +1252,7 @@ static uint64_t lan9118_readl(void *opaque, hwaddr offset,
     case CSR_E2P_DATA:
         return s->e2p_data;
     }
-    hw_error("lan9118_read: Bad reg 0x%x\n", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR, "lan9118_read: Bad reg 0x%x\n", (int)offset);
     return 0;
 }
 
