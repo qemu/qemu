@@ -78,6 +78,13 @@ typedef int (QEMURamHookFunc)(QEMUFile *f, void *opaque, uint64_t flags,
 #define RAM_CONTROL_FINISH    3
 #define RAM_CONTROL_BLOCK_REG 4
 #define RAM_CONTROL_SETUP_COLO 5
+#define RAM_CONTROL_REMAP     6
+
+/* Data to be passed to a ram_control_load_hook with RAM_CONTROL_REMAP */
+typedef struct QEMUFileRAMControlRemap {
+    const char *block_name;
+    void *data;
+} QEMUFileRAMControlRemap;
 
 /*
  * This function allows override of where the RAM page

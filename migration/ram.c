@@ -2542,8 +2542,20 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                             error_report_err(local_err);
                         }
                     }
-                    ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,
-                                          block->idstr);
+                    if (!migration_incoming_in_colo_state()) {
+                        ram_control_load_hook(f, RAM_CONTROL_BLOCK_REG,
+                                              block->idstr);
+                    } else {
+                            QEMUFileRAMControlRemap remap;
+
+                            /* We need data to arrive in the colo cache not
+                             * in the main memory now.
+                             */
+                            remap.block_name = block->idstr;
+                            remap.data = block->colo_cache;
+                            ram_control_load_hook(f, RAM_CONTROL_REMAP,
+                                                  &remap);
+                    }
                 } else {
                     error_report("Unknown ramblock \"%s\", cannot "
                                  "accept migration", id);

@@ -3348,6 +3348,30 @@ static int rdma_block_notification_handle(QEMUFileRDMA *rfile, const char *name)
     return 0;
 }
 
+/* Destination:
+ * Called via a ram_control_load_hook during the load of a colo checkpoint
+ * when following data has to arrive in the colo-cache rather than main memory
+ */
+static int rdma_load_hook_remap(QEMUFileRDMA *rfile,
+                                QEMUFileRAMControlRemap *remap)
+{
+    RDMAContext *rdma = rfile->rdma;
+
+    unsigned int curr;
+    for (curr = 0; curr < rdma->local_ram_blocks.nb_blocks; curr++) {
+        if (!strcmp(rdma->local_ram_blocks.block[curr].block_name,
+                    remap->block_name)) {
+            rdma->local_ram_blocks.block[curr].local_host_addr =
+                remap->data;
+
+            trace_rdma_load_hook_remap(remap->block_name, remap->data);
+            return 0;
+        }
+    }
+
+    return -ENOENT;
+}
+
 static int rdma_load_hook(QEMUFile *f, void *opaque, uint64_t flags, void *data)
 {
     switch (flags) {
@@ -3356,6 +3380,9 @@ static int rdma_load_hook(QEMUFile *f, void *opaque, uint64_t flags, void *data)
 
     case RAM_CONTROL_HOOK:
         return qemu_rdma_registration_handle(f, opaque);
+
+    case RAM_CONTROL_REMAP:
+        return rdma_load_hook_remap(opaque, data);
 
     default:
         /* Shouldn't be called with any other values */
@@ -3393,9 +3420,13 @@ static int rdma_registration_colo(QEMUFile *f, RDMAContext *rdma)
 
     /* Force all existing chunks to be deregistered */
     for (bi = 0; bi < local->nb_blocks; bi++) {
-        RDMALocalBlock *block = local[bi].block;
         uint64_t ci;
-        for (ci = 0; ci < block->nb_chunks; ci++) {
+        for (ci = 0; local->block[bi].pmr &&
+                     ci < local->block[bi].nb_chunks; ci++) {
+            /* Make sure there is some room for the unregister */
+            if (rdma->unregistrations[rdma->unregister_next] != 0) {
+                qemu_rdma_unregister_waiting(rdma);
+            }
             /* One existing use uses 0 for the wr_id ?! */
             qemu_rdma_signal_unregister(rdma, bi, ci, 0);
         }
