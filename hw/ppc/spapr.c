@@ -2265,6 +2265,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     NMIClass *nc = NMI_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
+    mc->desc = "pSeries Logical Partition (PAPR compliant)";
     mc->init = ppc_spapr_init;
     mc->reset = ppc_spapr_reset;
     mc->block_default_type = IF_SCSI;
@@ -2309,7 +2310,6 @@ static void spapr_machine_2_5_class_init(ObjectClass *oc, void *data)
     MachineClass *mc = MACHINE_CLASS(oc);
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(oc);
 
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.5";
     mc->alias = "pseries";
     mc->is_default = 1;
     smc->dr_lmb_enabled = true;
@@ -2335,7 +2335,6 @@ static void spapr_machine_2_4_class_init(ObjectClass *oc, void *data)
     };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.4";
     mc->compat_props = compat_props;
 }
 
@@ -2376,7 +2375,6 @@ static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
     };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.3";
     mc->compat_props = compat_props;
 }
 
@@ -2418,7 +2416,6 @@ static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
     };
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.2";
     mc->compat_props = compat_props;
 }
 
@@ -2454,7 +2451,6 @@ static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
         { /* end of list */ }
     };
 
-    mc->desc = "pSeries Logical Partition (PAPR compliant) v2.1";
     mc->compat_props = compat_props;
 }
 
