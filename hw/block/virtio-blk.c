@@ -986,7 +986,6 @@ static Property virtio_blk_properties[] = {
 #endif
     DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
                     true),
-    DEFINE_PROP_BIT("x-data-plane", VirtIOBlock, conf.data_plane, 0, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

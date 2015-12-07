@@ -45,7 +45,6 @@ struct VirtIOBlockDataPlane {
      * use it).
      */
     IOThread *iothread;
-    IOThread internal_iothread_obj;
     AioContext *ctx;
     EventNotifier host_notifier;    /* doorbell */
 
@@ -149,14 +148,14 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
 
     *dataplane = NULL;
 
-    if (!conf->data_plane && !conf->iothread) {
+    if (!conf->iothread) {
         return;
     }
 
     /* Don't try if transport does not support notifiers. */
     if (!k->set_guest_notifiers || !k->set_host_notifier) {
         error_setg(errp,
-                   "device is incompatible with x-data-plane "
+                   "device is incompatible with dataplane "
                    "(transport does not support notifiers)");
         return;
     }
@@ -179,16 +178,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     if (conf->iothread) {
         s->iothread = conf->iothread;
         object_ref(OBJECT(s->iothread));
-    } else {
-        /* Create per-device IOThread if none specified.  This is for
-         * x-data-plane option compatibility.  If x-data-plane is removed we
-         * can drop this.
-         */
-        object_initialize(&s->internal_iothread_obj,
-                          sizeof(s->internal_iothread_obj),
-                          TYPE_IOTHREAD);
-        user_creatable_complete(OBJECT(&s->internal_iothread_obj), &error_abort);
-        s->iothread = &s->internal_iothread_obj;
     }
     s->ctx = iothread_get_aio_context(s->iothread);
     s->bh = aio_bh_new(s->ctx, notify_guest_bh, s);
