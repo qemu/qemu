@@ -2302,24 +2302,47 @@ static const TypeInfo spapr_machine_info = {
     },
 };
 
+#define DEFINE_SPAPR_MACHINE(suffix, verstr)                         \
+    static void spapr_machine_##suffix##_class_init(ObjectClass *oc, \
+                                                    void *data)      \
+    {                                                                \
+        MachineClass *mc = MACHINE_CLASS(oc);                        \
+        spapr_machine_##suffix##_class_options(mc);                  \
+    }                                                                \
+    static void spapr_machine_##suffix##_instance_init(Object *obj)  \
+    {                                                                \
+        MachineState *machine = MACHINE(obj);                        \
+        spapr_machine_##suffix##_instance_options(machine);          \
+    }                                                                \
+    static const TypeInfo spapr_machine_##suffix##_info = {          \
+        .name = MACHINE_TYPE_NAME("pseries-" verstr),                \
+        .parent = TYPE_SPAPR_MACHINE,                                \
+        .class_init = spapr_machine_##suffix##_class_init,           \
+        .instance_init = spapr_machine_##suffix##_instance_init,     \
+    };                                                               \
+    static void spapr_machine_register_##suffix(void)                \
+    {                                                                \
+        type_register(&spapr_machine_##suffix##_info);               \
+    }                                                                \
+    machine_init(spapr_machine_register_##suffix)
+
 /*
  * pseries-2.5
  */
-static void spapr_machine_2_5_class_init(ObjectClass *oc, void *data)
+static void spapr_machine_2_5_instance_options(MachineState *machine)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
-    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(oc);
+}
+
+static void spapr_machine_2_5_class_options(MachineClass *mc)
+{
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     mc->alias = "pseries";
     mc->is_default = 1;
     smc->dr_lmb_enabled = true;
 }
 
-static const TypeInfo spapr_machine_2_5_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.5"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_5_class_init,
-};
+DEFINE_SPAPR_MACHINE(2_5, "2.5");
 
 /*
  * pseries-2.4
@@ -2327,18 +2350,17 @@ static const TypeInfo spapr_machine_2_5_info = {
 #define SPAPR_COMPAT_2_4 \
         HW_COMPAT_2_4
 
-static void spapr_machine_2_4_class_init(ObjectClass *oc, void *data)
+static void spapr_machine_2_4_instance_options(MachineState *machine)
 {
-    MachineClass *mc = MACHINE_CLASS(oc);
+    spapr_machine_2_5_instance_options(machine);
+}
 
+static void spapr_machine_2_4_class_options(MachineClass *mc)
+{
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_4);
 }
 
-static const TypeInfo spapr_machine_2_4_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.4"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_4_class_init,
-};
+DEFINE_SPAPR_MACHINE(2_4, "2.4");
 
 /*
  * pseries-2.3
@@ -2352,30 +2374,18 @@ static const TypeInfo spapr_machine_2_4_info = {
             .value    = "off",\
         },
 
-static void spapr_compat_2_3(Object *obj)
+static void spapr_machine_2_3_instance_options(MachineState *machine)
 {
+    spapr_machine_2_4_instance_options(machine);
     savevm_skip_section_footers();
     global_state_set_optional();
 }
 
-static void spapr_machine_2_3_instance_init(Object *obj)
+static void spapr_machine_2_3_class_options(MachineClass *mc)
 {
-    spapr_compat_2_3(obj);
-}
-
-static void spapr_machine_2_3_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_3);
 }
-
-static const TypeInfo spapr_machine_2_3_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.3"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_3_class_init,
-    .instance_init = spapr_machine_2_3_instance_init,
-};
+DEFINE_SPAPR_MACHINE(2_3, "2.3");
 
 /*
  * pseries-2.2
@@ -2390,29 +2400,16 @@ static const TypeInfo spapr_machine_2_3_info = {
             .value    = "0x20000000",\
         },
 
-static void spapr_compat_2_2(Object *obj)
+static void spapr_machine_2_2_instance_options(MachineState *machine)
 {
-    spapr_compat_2_3(obj);
+    spapr_machine_2_3_instance_options(machine);
 }
 
-static void spapr_machine_2_2_instance_init(Object *obj)
+static void spapr_machine_2_2_class_options(MachineClass *mc)
 {
-    spapr_compat_2_2(obj);
-}
-
-static void spapr_machine_2_2_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_2);
 }
-
-static const TypeInfo spapr_machine_2_2_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.2"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_2_class_init,
-    .instance_init = spapr_machine_2_2_instance_init,
-};
+DEFINE_SPAPR_MACHINE(2_2, "2.2");
 
 /*
  * pseries-2.1
@@ -2421,38 +2418,20 @@ static const TypeInfo spapr_machine_2_2_info = {
         SPAPR_COMPAT_2_2 \
         HW_COMPAT_2_1
 
-static void spapr_compat_2_1(Object *obj)
+static void spapr_machine_2_1_instance_options(MachineState *machine)
 {
-    spapr_compat_2_2(obj);
+    spapr_machine_2_2_instance_options(machine);
 }
 
-static void spapr_machine_2_1_instance_init(Object *obj)
+static void spapr_machine_2_1_class_options(MachineClass *mc)
 {
-    spapr_compat_2_1(obj);
-}
-
-static void spapr_machine_2_1_class_init(ObjectClass *oc, void *data)
-{
-    MachineClass *mc = MACHINE_CLASS(oc);
-
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_1);
 }
-
-static const TypeInfo spapr_machine_2_1_info = {
-    .name          = MACHINE_TYPE_NAME("pseries-2.1"),
-    .parent        = TYPE_SPAPR_MACHINE,
-    .class_init    = spapr_machine_2_1_class_init,
-    .instance_init = spapr_machine_2_1_instance_init,
-};
+DEFINE_SPAPR_MACHINE(2_1, "2.1");
 
 static void spapr_machine_register_types(void)
 {
     type_register_static(&spapr_machine_info);
-    type_register_static(&spapr_machine_2_1_info);
-    type_register_static(&spapr_machine_2_2_info);
-    type_register_static(&spapr_machine_2_3_info);
-    type_register_static(&spapr_machine_2_4_info);
-    type_register_static(&spapr_machine_2_5_info);
 }
 
 type_init(spapr_machine_register_types)
