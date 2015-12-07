@@ -2266,6 +2266,12 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
 
     mc->desc = "pSeries Logical Partition (PAPR compliant)";
+
+    /*
+     * We set up the default / latest behaviour here.  The class_init
+     * functions for the specific versioned machine types can override
+     * these details for backwards compatibility
+     */
     mc->init = ppc_spapr_init;
     mc->reset = ppc_spapr_reset;
     mc->block_default_type = IF_SCSI;
@@ -2281,7 +2287,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug = spapr_machine_device_unplug;
     mc->cpu_index_to_socket_id = spapr_cpu_index_to_socket_id;
 
-    smc->dr_lmb_enabled = false;
+    smc->dr_lmb_enabled = true;
     fwc->get_dev_path = spapr_get_fw_dev_path;
     nc->nmi_monitor_handler = spapr_nmi;
 }
@@ -2335,11 +2341,9 @@ static void spapr_machine_2_5_instance_options(MachineState *machine)
 
 static void spapr_machine_2_5_class_options(MachineClass *mc)
 {
-    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
-
+    /* Defaults for the latest behaviour inherited from the base class */
     mc->alias = "pseries";
     mc->is_default = 1;
-    smc->dr_lmb_enabled = true;
 }
 
 DEFINE_SPAPR_MACHINE(2_5, "2.5");
@@ -2357,6 +2361,12 @@ static void spapr_machine_2_4_instance_options(MachineState *machine)
 
 static void spapr_machine_2_4_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
+    spapr_machine_2_5_class_options(mc);
+    mc->alias = NULL;
+    mc->is_default = 0;
+    smc->dr_lmb_enabled = false;
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_4);
 }
 
@@ -2383,6 +2393,7 @@ static void spapr_machine_2_3_instance_options(MachineState *machine)
 
 static void spapr_machine_2_3_class_options(MachineClass *mc)
 {
+    spapr_machine_2_4_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_3);
 }
 DEFINE_SPAPR_MACHINE(2_3, "2.3");
@@ -2407,6 +2418,7 @@ static void spapr_machine_2_2_instance_options(MachineState *machine)
 
 static void spapr_machine_2_2_class_options(MachineClass *mc)
 {
+    spapr_machine_2_3_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_2);
 }
 DEFINE_SPAPR_MACHINE(2_2, "2.2");
@@ -2425,6 +2437,7 @@ static void spapr_machine_2_1_instance_options(MachineState *machine)
 
 static void spapr_machine_2_1_class_options(MachineClass *mc)
 {
+    spapr_machine_2_2_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_1);
 }
 DEFINE_SPAPR_MACHINE(2_1, "2.1");
