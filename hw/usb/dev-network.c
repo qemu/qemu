@@ -1211,7 +1211,7 @@ static void usb_net_handle_dataout(USBNetState *s, USBPacket *p)
     s->out_ptr += sz;
 
     if (!is_rndis(s)) {
-        if (p->iov.size < 64) {
+        if (p->iov.size % 64 || p->iov.size == 0) {
             qemu_send_packet(qemu_get_queue(s->nic), s->out_buf, s->out_ptr);
             s->out_ptr = 0;
         }
