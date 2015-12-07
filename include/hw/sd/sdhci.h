@@ -39,7 +39,7 @@ typedef struct SDHCIState {
     };
     SDState *card;
     MemoryRegion iomem;
-    BlockConf conf;
+    BlockBackend *blk;
 
     QEMUTimer *insert_timer;       /* timer for 'changing' sd card. */
     QEMUTimer *transfer_timer;

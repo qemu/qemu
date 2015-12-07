@@ -1221,7 +1221,12 @@ const VMStateDescription sdhci_vmstate = {
 /* Capabilities registers provide information on supported features of this
  * specific host controller implementation */
 static Property sdhci_pci_properties[] = {
-    DEFINE_BLOCK_PROPERTIES(SDHCIState, conf),
+    /*
+     * We currently fuse controller and card into a single device
+     * model, but we intend to separate them.  For that purpose, the
+     * properties that belong to the card are marked as experimental.
+     */
+    DEFINE_PROP_DRIVE("x-drive", SDHCIState, blk),
     DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
             SDHC_CAPAB_REG_DEFAULT),
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
@@ -1233,7 +1238,7 @@ static void sdhci_pci_realize(PCIDevice *dev, Error **errp)
     SDHCIState *s = PCI_SDHCI(dev);
     dev->config[PCI_CLASS_PROG] = 0x01; /* Standard Host supported DMA */
     dev->config[PCI_INTERRUPT_PIN] = 0x01; /* interrupt pin A */
-    sdhci_initfn(s, s->conf.blk);
+    sdhci_initfn(s, s->blk);
     s->buf_maxsz = sdhci_get_fifolen(s);
     s->fifo_buffer = g_malloc0(s->buf_maxsz);
     s->irq = pci_allocate_irq(dev);
