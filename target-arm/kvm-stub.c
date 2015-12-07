@@ -9,6 +9,7 @@
  * See the COPYING file in the top-level directory.
  *
  */
+#include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "kvm_arm.h"
 

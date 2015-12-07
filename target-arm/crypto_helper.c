@@ -9,7 +9,7 @@
  * version 2 of the License, or (at your option) any later version.
  */
 
-#include <stdlib.h>
+#include "qemu/osdep.h"
 
 #include "cpu.h"
 #include "exec/exec-all.h"

@@ -9,8 +9,7 @@
  *
  */
 
-#include <stdio.h>
-#include <sys/types.h>
+#include "qemu/osdep.h"
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/ptrace.h>
@@ -18,7 +17,6 @@
 #include <linux/elf.h>
 #include <linux/kvm.h>
 
-#include "config-host.h"
 #include "qemu-common.h"
 #include "qemu/timer.h"
 #include "qemu/error-report.h"
