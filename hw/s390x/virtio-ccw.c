@@ -128,7 +128,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
     uint16_t num = info ? info->num : linfo->num;
     uint64_t desc = info ? info->desc : linfo->queue;
 
-    if (index >= VIRTIO_CCW_QUEUE_MAX) {
+    if (index >= VIRTIO_QUEUE_MAX) {
         return -EINVAL;
     }
 
@@ -164,7 +164,7 @@ static int virtio_ccw_set_vqs(SubchDev *sch, VqInfoBlock *info,
         virtio_queue_set_vector(vdev, index, index);
     }
     /* tell notify handler in case of config change */
-    vdev->config_vector = VIRTIO_CCW_QUEUE_MAX;
+    vdev->config_vector = VIRTIO_QUEUE_MAX;
     return 0;
 }
 
@@ -565,7 +565,7 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
                                                     ccw.cda,
                                                     MEMTXATTRS_UNSPECIFIED,
                                                     NULL);
-            if (vq_config.index >= VIRTIO_CCW_QUEUE_MAX) {
+            if (vq_config.index >= VIRTIO_QUEUE_MAX) {
                 ret = -EINVAL;
                 break;
             }
@@ -960,11 +960,11 @@ static void virtio_ccw_notify(DeviceState *d, uint16_t vector)
     uint64_t indicators;
 
     /* queue indicators + secondary indicators */
-    if (vector >= VIRTIO_CCW_QUEUE_MAX + 64) {
+    if (vector >= VIRTIO_QUEUE_MAX + 64) {
         return;
     }
 
-    if (vector < VIRTIO_CCW_QUEUE_MAX) {
+    if (vector < VIRTIO_QUEUE_MAX) {
         if (!dev->indicators) {
             return;
         }
@@ -1325,10 +1325,10 @@ static void virtio_ccw_device_plugged(DeviceState *d, Error **errp)
         dev->max_rev = 0;
     }
 
-    if (virtio_get_num_queues(vdev) > VIRTIO_CCW_QUEUE_MAX) {
+    if (virtio_get_num_queues(vdev) > VIRTIO_QUEUE_MAX) {
         error_setg(errp, "The number of virtqueues %d "
-                   "exceeds ccw limit %d", n,
-                   VIRTIO_CCW_QUEUE_MAX);
+                   "exceeds virtio limit %d", n,
+                   VIRTIO_QUEUE_MAX);
         return;
     }
     if (virtio_get_num_queues(vdev) > flic->adapter_routes_max_batch) {

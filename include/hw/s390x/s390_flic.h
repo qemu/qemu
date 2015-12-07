@@ -24,7 +24,6 @@
  * maximum right now.
  */
 #define ADAPTER_ROUTES_MAX_GSI VIRTIO_QUEUE_MAX
-#define VIRTIO_CCW_QUEUE_MAX 64
 
 typedef struct AdapterRoutes {
     AdapterInfo adapter;
