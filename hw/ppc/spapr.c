@@ -2308,12 +2308,16 @@ static const TypeInfo spapr_machine_info = {
     },
 };
 
-#define DEFINE_SPAPR_MACHINE(suffix, verstr)                         \
+#define DEFINE_SPAPR_MACHINE(suffix, verstr, latest)                 \
     static void spapr_machine_##suffix##_class_init(ObjectClass *oc, \
                                                     void *data)      \
     {                                                                \
         MachineClass *mc = MACHINE_CLASS(oc);                        \
         spapr_machine_##suffix##_class_options(mc);                  \
+        if (latest) {                                                \
+            mc->alias = "pseries";                                   \
+            mc->is_default = 1;                                      \
+        }                                                            \
     }                                                                \
     static void spapr_machine_##suffix##_instance_init(Object *obj)  \
     {                                                                \
@@ -2342,11 +2346,9 @@ static void spapr_machine_2_5_instance_options(MachineState *machine)
 static void spapr_machine_2_5_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
-    mc->alias = "pseries";
-    mc->is_default = 1;
 }
 
-DEFINE_SPAPR_MACHINE(2_5, "2.5");
+DEFINE_SPAPR_MACHINE(2_5, "2.5", true);
 
 /*
  * pseries-2.4
@@ -2364,13 +2366,11 @@ static void spapr_machine_2_4_class_options(MachineClass *mc)
     sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
 
     spapr_machine_2_5_class_options(mc);
-    mc->alias = NULL;
-    mc->is_default = 0;
     smc->dr_lmb_enabled = false;
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_4);
 }
 
-DEFINE_SPAPR_MACHINE(2_4, "2.4");
+DEFINE_SPAPR_MACHINE(2_4, "2.4", false);
 
 /*
  * pseries-2.3
@@ -2396,7 +2396,7 @@ static void spapr_machine_2_3_class_options(MachineClass *mc)
     spapr_machine_2_4_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_3);
 }
-DEFINE_SPAPR_MACHINE(2_3, "2.3");
+DEFINE_SPAPR_MACHINE(2_3, "2.3", false);
 
 /*
  * pseries-2.2
@@ -2421,7 +2421,7 @@ static void spapr_machine_2_2_class_options(MachineClass *mc)
     spapr_machine_2_3_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_2);
 }
-DEFINE_SPAPR_MACHINE(2_2, "2.2");
+DEFINE_SPAPR_MACHINE(2_2, "2.2", false);
 
 /*
  * pseries-2.1
@@ -2440,7 +2440,7 @@ static void spapr_machine_2_1_class_options(MachineClass *mc)
     spapr_machine_2_2_class_options(mc);
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_1);
 }
-DEFINE_SPAPR_MACHINE(2_1, "2.1");
+DEFINE_SPAPR_MACHINE(2_1, "2.1", false);
 
 static void spapr_machine_register_types(void)
 {
