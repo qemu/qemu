@@ -494,6 +494,7 @@ SDState *sd_init(BlockBackend *blk, bool is_spi)
     if (sd->blk) {
         /* Attach dev if not already attached.  (This call ignores an
          * error return code if sd->blk is already attached.) */
+        /* FIXME ignoring blk_attach_dev() failure is dangerously brittle */
         blk_attach_dev(sd->blk, sd);
         blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
     }
