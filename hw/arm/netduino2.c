@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "qemu/osdep.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"
 #include "hw/arm/stm32f205_soc.h"

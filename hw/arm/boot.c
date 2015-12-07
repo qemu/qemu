@@ -7,7 +7,7 @@
  * This code is licensed under the GPL.
  */
 
-#include "config.h"
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/arm/arm.h"
 #include "hw/arm/linux-boot-if.h"

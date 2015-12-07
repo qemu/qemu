@@ -34,6 +34,7 @@
  * # qemu-system-arm -M verdex -pflash flash -monitor null -nographic -m 289
  */
 
+#include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "hw/arm/pxa.h"
 #include "net/net.h"

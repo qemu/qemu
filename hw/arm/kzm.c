@@ -13,6 +13,7 @@
  * i.MX31 SoC
  */
 
+#include "qemu/osdep.h"
 #include "hw/arm/fsl-imx31.h"
 #include "hw/boards.h"
 #include "qemu/error-report.h"

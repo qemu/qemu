@@ -21,6 +21,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/arm/sysbus-fdt.h"
 #include "qemu/error-report.h"
 #include "sysemu/device_tree.h"

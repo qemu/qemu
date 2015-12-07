@@ -15,6 +15,7 @@
  * for more details.
  */
 
+#include "qemu/osdep.h"
 #include "hw/arm/xlnx-zynqmp.h"
 #include "hw/intc/arm_gic_common.h"
 #include "exec/address-spaces.h"

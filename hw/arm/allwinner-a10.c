@@ -15,6 +15,7 @@
  * for more details.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/devices.h"
 #include "hw/arm/allwinner-a10.h"

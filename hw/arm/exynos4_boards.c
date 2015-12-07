@@ -21,6 +21,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "hw/sysbus.h"

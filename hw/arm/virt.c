@@ -28,6 +28,7 @@
  * This is essentially the same approach kvmtool uses.
  */
 
+#include "qemu/osdep.h"
 #include "hw/sysbus.h"
 #include "hw/arm/arm.h"
 #include "hw/arm/primecell.h"

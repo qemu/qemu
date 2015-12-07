@@ -23,6 +23,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/boards.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"

@@ -20,6 +20,7 @@
  *
  */
 
+#include "qemu/osdep.h"
 #include "hw/arm/digic.h"
 
 #define DIGIC4_TIMER_BASE(n)    (0xc0210000 + (n) * 0x100)
