@@ -138,7 +138,7 @@ static inline void vmxnet3_ring_init(Vmxnet3Ring *ring,
 }
 
 #define VMXNET3_RING_DUMP(macro, ring_name, ridx, r)                         \
-    macro("%s#%d: base %" PRIx64 " size %lu cell_size %lu gen %d next %lu",  \
+    macro("%s#%d: base %" PRIx64 " size %zu cell_size %zu gen %d next %zu",  \
           (ring_name), (ridx),                                               \
           (r)->pa, (r)->size, (r)->cell_size, (r)->gen, (r)->next)
 
@@ -925,7 +925,7 @@ static void vmxnet3_rx_need_csum_calculate(struct VmxnetRxPkt *pkt,
 
     /* Validate packet len: csum_start + scum_offset + length of csum field */
     if (pkt_len < (vhdr->csum_start + vhdr->csum_offset + 2)) {
-        VMW_PKPRN("packet len:%lu < csum_start(%d) + csum_offset(%d) + 2, "
+        VMW_PKPRN("packet len:%zu < csum_start(%d) + csum_offset(%d) + 2, "
                   "cannot calculate checksum",
                   pkt_len, vhdr->csum_start, vhdr->csum_offset);
         return;
@@ -1974,7 +1974,7 @@ vmxnet3_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         vmxnet_rx_pkt_attach_data(s->rx_pkt, buf, size, s->rx_vlan_stripping);
         bytes_indicated = vmxnet3_indicate_packet(s) ? size : -1;
         if (bytes_indicated < size) {
-            VMW_PKPRN("RX: %lu of %lu bytes indicated", bytes_indicated, size);
+            VMW_PKPRN("RX: %zu of %zu bytes indicated", bytes_indicated, size);
         }
     } else {
         VMW_PKPRN("Packet dropped by RX filter");
