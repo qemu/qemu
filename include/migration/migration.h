@@ -305,6 +305,7 @@ void migrate_send_rp_req_pages(MigrationIncomingState *mis, const char* rbname,
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags);
 void ram_control_after_iterate(QEMUFile *f, uint64_t flags);
 void ram_control_load_hook(QEMUFile *f, uint64_t flags, void *data);
+int ram_notify_load(const char *block_name, uint64_t offset, uint64_t len);
 
 /* Whenever this is found in the data stream, the flags
  * will be passed to ram_control_load_hook in the incoming-migration

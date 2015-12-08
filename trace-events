@@ -1264,6 +1264,7 @@ migration_bitmap_sync_start(void) ""
 migration_bitmap_sync_end(uint64_t dirty_pages) "dirty_pages %" PRIu64""
 migration_throttle(void) ""
 ram_load_postcopy_loop(uint64_t addr, int flags) "@%" PRIx64 " %x"
+ram_notify_load(const char *block_name, uint64_t offset, uint64_t len) "%s: %" PRIu64 "+%" PRIu64
 ram_postcopy_send_discard_bitmap(void) ""
 ram_save_queue_pages(const char *rbname, size_t start, size_t len) "%s: start: %zx len: %zx"
 colo_flush_ram_cache_begin(uint64_t dirty_pages) "dirty_pages %" PRIu64

@@ -1910,7 +1910,6 @@ static int send_write_notification(RDMAContext *rdma, uint32_t block,
     data.index = block;
     data.start = addr - rdma->local_ram_blocks.block[block].offset;
     data.len = len;
-
     notify_write_to_network(&data);
     return qemu_rdma_exchange_send(rdma, &head, (uint8_t *)&data,
                                    NULL, NULL, NULL);
@@ -1920,13 +1919,15 @@ static int send_write_notification(RDMAContext *rdma, uint32_t block,
 static int handle_write_notification(RDMAContext *rdma, uint8_t *data)
 {
     RDMANotifyWrite notify = *(RDMANotifyWrite *)data;
+    RDMALocalBlock *block;
 
     network_to_notify_write(&notify);
-    /* TODO: Actually call the RAM code */
-    fprintf(stderr, "%s: in %d: %lx+%lx\n", __func__, notify.index,
-            notify.start, notify.len);
+    if (notify.index >= rdma->local_ram_blocks.nb_blocks) {
+        return -EINVAL;
+    }
+    block = &(rdma->local_ram_blocks.block[notify.index]);
 
-    return 0;
+    return ram_notify_load(block->block_name, notify.start, notify.len);
 }
 
 /*
@@ -3189,6 +3190,8 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
                             (comp->offset - block->offset);
 
             ram_handle_compressed(host_addr, comp->value, comp->length);
+            ram_notify_load(block->block_name, comp->offset - block->offset,
+                            comp->length);
             break;
 
         case RDMA_CONTROL_REGISTER_FINISHED:

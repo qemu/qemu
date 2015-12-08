@@ -2150,6 +2150,54 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
     return 0;
 }
 
+/* Called by transports to indicate they've changed some memory; primarily for
+ * RDMA to tell us that it's modified memory behind our back.
+ */
+int ram_notify_load(const char *block_name, uint64_t offset, uint64_t len)
+{
+    /* TODO: We need to make this more efficient */
+    RAMBlock *block;
+
+    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
+        if (!strcmp(block_name, block->idstr)) {
+            break;
+        }
+    }
+
+    if (!block) {
+        error_report("%s: unknown block (%s)\n", __func__, block_name);
+        return -ENOENT;
+    }
+    if (offset + len > block->used_length) {
+        error_report("%s: Overrun block (offset: %" PRIu64 " len: %" PRIu64
+                     " block used_length: %" PRIu64,
+                     __func__, offset, len, block->used_length);
+        return -E2BIG;
+    }
+    if ((offset % TARGET_PAGE_SIZE) || (len % TARGET_PAGE_SIZE)) {
+        error_report("%s: Offset or len not TPS multiple (offset: %" PRIu64
+                     " len: %" PRIu64
+                     " block used_length: %" PRIu64,
+                     __func__, offset, len, block->used_length);
+    }
+    trace_ram_notify_load(block_name, offset, len);
+    if (ram_cache_enable) {
+        /* COLO needs to record the pages that have been received */
+        long bitmap_index = (block->mr->ram_addr + offset) >> TARGET_PAGE_BITS;
+        unsigned long *bitmap = atomic_rcu_read(&migration_bitmap_rcu)->bmap;
+
+        while (len) {
+            if (!test_and_set_bit(bitmap_index, bitmap)) {
+                migration_dirty_pages++;
+            }
+            len -= TARGET_PAGE_SIZE;
+            bitmap_index++;
+        }
+    }
+
+    return 0;
+}
+
 /* Must be called from within a rcu critical section.
  * Returns a pointer from within the RCU-protected ram_list.
  */
