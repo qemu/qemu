@@ -48,7 +48,7 @@ static inline bool fpu_needed(void *opaque)
     return true;
 }
 
-const VMStateDescription vmstate_fpu = {
+static const VMStateDescription vmstate_fpu = {
     .name = "cpu/fpu",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -75,7 +75,7 @@ const VMStateDescription vmstate_fpu = {
     }
 };
 
-const VMStateDescription vmstate_vregs = {
+static const VMStateDescription vmstate_vregs = {
     .name = "cpu/vregs",
     .version_id = 1,
     .minimum_version_id = 1,
