@@ -1275,6 +1275,20 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
                              addr_trans, len, flags);
 }
 
+/* ACPI 1.0b: 6.4.2.2 DMA Format/6.4.2.2.1 ASL Macro for DMA Descriptor */
+Aml *aml_dma(AmlDmaType typ, AmlDmaBusMaster bm, AmlTransferSize sz,
+             uint8_t channel)
+{
+    Aml *var = aml_alloc();
+    uint8_t flags = sz | bm << 2 | typ << 5;
+
+    assert(channel < 8);
+    build_append_byte(var->buf, 0x2A);    /* Byte 0: DMA Descriptor */
+    build_append_byte(var->buf, 1U << channel); /* Byte 1: _DMA - DmaChannel */
+    build_append_byte(var->buf, flags);   /* Byte 2 */
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefSleep */
 Aml *aml_sleep(uint64_t msec)
 {

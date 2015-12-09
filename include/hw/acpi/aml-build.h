@@ -35,6 +35,24 @@ struct Aml {
 typedef struct Aml Aml;
 
 typedef enum {
+    AML_COMPATIBILITY = 0,
+    AML_TYPEA = 1,
+    AML_TYPEB = 2,
+    AML_TYPEF = 3,
+} AmlDmaType;
+
+typedef enum {
+    AML_NOTBUSMASTER = 0,
+    AML_BUSMASTER = 1,
+} AmlDmaBusMaster;
+
+typedef enum {
+    AML_TRANSFER8 = 0,
+    AML_TRANSFER8_16 = 1,
+    AML_TRANSFER16 = 2,
+} AmlTransferSize;
+
+typedef enum {
     AML_DECODE10 = 0,
     AML_DECODE16 = 1,
 } AmlIODecode;
@@ -305,6 +323,8 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
                       uint64_t addr_gran, uint64_t addr_min,
                       uint64_t addr_max, uint64_t addr_trans,
                       uint64_t len);
+Aml *aml_dma(AmlDmaType typ, AmlDmaBusMaster bm, AmlTransferSize sz,
+             uint8_t channel);
 Aml *aml_sleep(uint64_t msec);
 
 /* Block AML object primitives */
