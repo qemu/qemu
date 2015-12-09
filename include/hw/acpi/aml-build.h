@@ -267,6 +267,7 @@ Aml *aml_local(int num);
 Aml *aml_string(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_lnot(Aml *arg);
 Aml *aml_equal(Aml *arg1, Aml *arg2);
+Aml *aml_lgreater(Aml *arg1, Aml *arg2);
 Aml *aml_lgreater_equal(Aml *arg1, Aml *arg2);
 Aml *aml_processor(uint8_t proc_id, uint32_t pblk_addr, uint8_t pblk_len,
                    const char *name_format, ...) GCC_FMT_ATTR(4, 5);
