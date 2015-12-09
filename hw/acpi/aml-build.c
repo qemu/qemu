@@ -427,6 +427,15 @@ Aml *aml_arg(int pos)
     return var;
 }
 
+/* ACPI 2.0a: 17.2.4.4 Type 2 Opcodes Encoding: DefToInteger */
+Aml *aml_to_integer(Aml *arg)
+{
+    Aml *var = aml_opcode(0x99 /* ToIntegerOp */);
+    aml_append(var, arg);
+    build_append_byte(var->buf, 0x00 /* NullNameOp */);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefStore */
 Aml *aml_store(Aml *val, Aml *target)
 {
