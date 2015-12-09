@@ -491,9 +491,9 @@ Aml *aml_shiftleft(Aml *arg1, Aml *count)
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefShiftRight */
-Aml *aml_shiftright(Aml *arg1, Aml *count)
+Aml *aml_shiftright(Aml *arg1, Aml *count, Aml *dst)
 {
-    return build_opcode_2arg_dst(0x7A /* ShiftRightOp */, arg1, count, NULL);
+    return build_opcode_2arg_dst(0x7A /* ShiftRightOp */, arg1, count, dst);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLLess */
