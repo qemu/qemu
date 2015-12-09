@@ -455,11 +455,11 @@ static void test_dummy_iterator(void)
                               NULL));
 
     ObjectProperty *prop;
-    ObjectPropertyIterator *iter;
+    ObjectPropertyIterator iter;
     bool seenbv = false, seensv = false, seenav = false, seentype;
 
-    iter = object_property_iter_init(OBJECT(dobj));
-    while ((prop = object_property_iter_next(iter))) {
+    object_property_iter_init(&iter, OBJECT(dobj));
+    while ((prop = object_property_iter_next(&iter))) {
         if (g_str_equal(prop->name, "bv")) {
             seenbv = true;
         } else if (g_str_equal(prop->name, "sv")) {
@@ -474,7 +474,6 @@ static void test_dummy_iterator(void)
             g_assert_not_reached();
         }
     }
-    object_property_iter_free(iter);
     g_assert(seenbv);
     g_assert(seenav);
     g_assert(seensv);

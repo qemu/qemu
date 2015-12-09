@@ -966,7 +966,10 @@ ObjectProperty *object_property_find(Object *obj, const char *name,
 ObjectProperty *object_class_property_find(ObjectClass *klass, const char *name,
                                            Error **errp);
 
-typedef struct ObjectPropertyIterator ObjectPropertyIterator;
+typedef struct ObjectPropertyIterator {
+    ObjectClass *nextclass;
+    GHashTableIter iter;
+} ObjectPropertyIterator;
 
 /**
  * object_property_iter_init:
@@ -984,31 +987,26 @@ typedef struct ObjectPropertyIterator ObjectPropertyIterator;
  *   <title>Using object property iterators</title>
  *   <programlisting>
  *   ObjectProperty *prop;
- *   ObjectPropertyIterator *iter;
+ *   ObjectPropertyIterator iter;
  *
- *   iter = object_property_iter_init(obj);
- *   while ((prop = object_property_iter_next(iter))) {
+ *   object_property_iter_init(&iter, obj);
+ *   while ((prop = object_property_iter_next(&iter))) {
  *     ... do something with prop ...
  *   }
- *   object_property_iter_free(iter);
  *   </programlisting>
  * </example>
- *
- * Returns: the new iterator
  */
-ObjectPropertyIterator *object_property_iter_init(Object *obj);
-
-/**
- * object_property_iter_free:
- * @iter: the iterator instance
- *
- * Releases any resources associated with the iterator.
- */
-void object_property_iter_free(ObjectPropertyIterator *iter);
+void object_property_iter_init(ObjectPropertyIterator *iter,
+                               Object *obj);
 
 /**
  * object_property_iter_next:
  * @iter: the iterator instance
+ *
+ * Return the next available property. If no further properties
+ * are available, a %NULL value will be returned and the @iter
+ * pointer should not be used again after this point without
+ * re-initializing it.
  *
  * Returns: the next property, or %NULL when all properties
  * have been traversed.
