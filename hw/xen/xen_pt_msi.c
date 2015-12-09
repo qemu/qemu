@@ -421,16 +421,14 @@ int xen_pt_msix_update_remap(XenPCIPassthroughState *s, int bar_index)
 
 static uint32_t get_entry_value(XenPTMSIXEntry *e, int offset)
 {
-    return !(offset % sizeof(*e->latch))
-           ? e->latch[offset / sizeof(*e->latch)] : 0;
+    assert(!(offset % sizeof(*e->latch)));
+    return e->latch[offset / sizeof(*e->latch)];
 }
 
 static void set_entry_value(XenPTMSIXEntry *e, int offset, uint32_t val)
 {
-    if (!(offset % sizeof(*e->latch)))
-    {
-        e->latch[offset / sizeof(*e->latch)] = val;
-    }
+    assert(!(offset % sizeof(*e->latch)));
+    e->latch[offset / sizeof(*e->latch)] = val;
 }
 
 static void pci_msix_write(void *opaque, hwaddr addr,
@@ -494,6 +492,12 @@ static uint64_t pci_msix_read(void *opaque, hwaddr addr,
     }
 }
 
+static bool pci_msix_accepts(void *opaque, hwaddr addr,
+                             unsigned size, bool is_write)
+{
+    return !(addr & (size - 1));
+}
+
 static const MemoryRegionOps pci_msix_ops = {
     .read = pci_msix_read,
     .write = pci_msix_write,
@@ -502,7 +506,13 @@ static const MemoryRegionOps pci_msix_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
         .unaligned = false,
+        .accepts = pci_msix_accepts
     },
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+        .unaligned = false
+    }
 };
 
 int xen_pt_msix_init(XenPCIPassthroughState *s, uint32_t base)
