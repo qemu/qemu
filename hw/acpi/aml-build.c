@@ -764,6 +764,17 @@ Aml *aml_equal(Aml *arg1, Aml *arg2)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLGreaterEqual */
+Aml *aml_lgreater_equal(Aml *arg1, Aml *arg2)
+{
+    /* LGreaterEqualOp := LNotOp LLessOp */
+    Aml *var = aml_opcode(0x92 /* LNotOp */);
+    build_append_byte(var->buf, 0x95 /* LLessOp */);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefIfElse */
 Aml *aml_if(Aml *predicate)
 {
