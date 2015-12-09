@@ -497,9 +497,9 @@ Aml *aml_lless(Aml *arg1, Aml *arg2)
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefAdd */
-Aml *aml_add(Aml *arg1, Aml *arg2)
+Aml *aml_add(Aml *arg1, Aml *arg2, Aml *dst)
 {
-    return build_opcode_2arg_dst(0x72 /* AddOp */, arg1, arg2, NULL);
+    return build_opcode_2arg_dst(0x72 /* AddOp */, arg1, arg2, dst);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefIncrement */

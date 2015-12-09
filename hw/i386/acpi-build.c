@@ -670,7 +670,7 @@ static Aml *build_prt(void)
                    aml_store(aml_shiftright(pin, aml_int(2)), slot));
         /* lnk_idx = (slot + pin) & 3 */
         aml_append(while_ctx,
-                   aml_store(aml_and(aml_add(pin, slot), aml_int(3)), lnk_idx));
+            aml_store(aml_and(aml_add(pin, slot, NULL), aml_int(3)), lnk_idx));
 
         /* route[2] = "LNK[D|A|B|C]", selection based on pin % 3  */
         aml_append(while_ctx, initialize_route(route, "LNKD", lnk_idx, 0));

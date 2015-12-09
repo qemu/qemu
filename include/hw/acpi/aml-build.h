@@ -230,7 +230,7 @@ Aml *aml_or(Aml *arg1, Aml *arg2);
 Aml *aml_shiftleft(Aml *arg1, Aml *count);
 Aml *aml_shiftright(Aml *arg1, Aml *count);
 Aml *aml_lless(Aml *arg1, Aml *arg2);
-Aml *aml_add(Aml *arg1, Aml *arg2);
+Aml *aml_add(Aml *arg1, Aml *arg2, Aml *dst);
 Aml *aml_increment(Aml *arg);
 Aml *aml_index(Aml *arg1, Aml *idx);
 Aml *aml_notify(Aml *arg1, Aml *arg2);
