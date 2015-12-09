@@ -505,9 +505,9 @@ Aml *aml_and(Aml *arg1, Aml *arg2)
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefOr */
-Aml *aml_or(Aml *arg1, Aml *arg2)
+Aml *aml_or(Aml *arg1, Aml *arg2, Aml *dst)
 {
-    return build_opcode_2arg_dst(0x7D /* OrOp */, arg1, arg2, NULL);
+    return build_opcode_2arg_dst(0x7D /* OrOp */, arg1, arg2, dst);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLOr */

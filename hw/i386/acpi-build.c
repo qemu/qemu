@@ -680,7 +680,8 @@ static Aml *build_prt(void)
 
         /* route[0] = 0x[slot]FFFF */
         aml_append(while_ctx,
-            aml_store(aml_or(aml_shiftleft(slot, aml_int(16)), aml_int(0xFFFF)),
+            aml_store(aml_or(aml_shiftleft(slot, aml_int(16)), aml_int(0xFFFF),
+                             NULL),
                       aml_index(route, aml_int(0))));
         /* route[1] = pin & 3 */
         aml_append(while_ctx,
