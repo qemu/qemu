@@ -1366,6 +1366,12 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
                          int is_write, hwaddr access_len);
 
 
+/* Internal functions, part of the implementation of address_space_read.  */
+MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
+                                        MemTxAttrs attrs, uint8_t *buf,
+                                        int len, hwaddr addr1, hwaddr l,
+					MemoryRegion *mr);
+
 #endif
 
 #endif

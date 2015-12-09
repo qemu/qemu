@@ -2468,22 +2468,19 @@ static bool prepare_mmio_access(MemoryRegion *mr)
     return release_lock;
 }
 
-MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                                const uint8_t *buf, int len)
+/* Called within RCU critical section.  */
+static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
+                                                MemTxAttrs attrs,
+                                                const uint8_t *buf,
+                                                int len, hwaddr addr1,
+                                                hwaddr l, MemoryRegion *mr)
 {
-    hwaddr l;
     uint8_t *ptr;
     uint64_t val;
-    hwaddr addr1;
-    MemoryRegion *mr;
     MemTxResult result = MEMTX_OK;
     bool release_lock = false;
 
-    rcu_read_lock();
-    while (len > 0) {
-        l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, true);
-
+    for (;;) {
         if (!memory_access_is_direct(mr, true)) {
             release_lock |= prepare_mmio_access(mr);
             l = memory_access_size(mr, l, addr1);
@@ -2533,28 +2530,50 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         len -= l;
         buf += l;
         addr += l;
+
+        if (!len) {
+            break;
+        }
+
+        l = len;
+        mr = address_space_translate(as, addr, &addr1, &l, true);
     }
-    rcu_read_unlock();
 
     return result;
 }
 
-MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                               uint8_t *buf, int len)
+MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
+                                const uint8_t *buf, int len)
 {
     hwaddr l;
-    uint8_t *ptr;
-    uint64_t val;
     hwaddr addr1;
     MemoryRegion *mr;
     MemTxResult result = MEMTX_OK;
+
+    if (len > 0) {
+        rcu_read_lock();
+        l = len;
+        mr = address_space_translate(as, addr, &addr1, &l, true);
+        result = address_space_write_continue(as, addr, attrs, buf, len,
+                                              addr1, l, mr);
+        rcu_read_unlock();
+    }
+
+    return result;
+}
+
+/* Called within RCU critical section.  */
+MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
+                                        MemTxAttrs attrs, uint8_t *buf,
+                                        int len, hwaddr addr1, hwaddr l,
+                                        MemoryRegion *mr)
+{
+    uint8_t *ptr;
+    uint64_t val;
+    MemTxResult result = MEMTX_OK;
     bool release_lock = false;
 
-    rcu_read_lock();
-    while (len > 0) {
-        l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, false);
-
+    for (;;) {
         if (!memory_access_is_direct(mr, false)) {
             /* I/O case */
             release_lock |= prepare_mmio_access(mr);
@@ -2601,8 +2620,34 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         len -= l;
         buf += l;
         addr += l;
+
+        if (!len) {
+            break;
+        }
+
+        l = len;
+        mr = address_space_translate(as, addr, &addr1, &l, false);
     }
-    rcu_read_unlock();
+
+    return result;
+}
+
+MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
+                               uint8_t *buf, int len)
+{
+    hwaddr l;
+    hwaddr addr1;
+    MemoryRegion *mr;
+    MemTxResult result = MEMTX_OK;
+
+    if (len > 0) {
+        rcu_read_lock();
+        l = len;
+        mr = address_space_translate(as, addr, &addr1, &l, false);
+        result = address_space_read_continue(as, addr, attrs, buf, len,
+                                             addr1, l, mr);
+        rcu_read_unlock();
+    }
 
     return result;
 }
