@@ -187,13 +187,13 @@ typedef struct XenPTMSIXEntry {
     int pirq;
     uint64_t addr;
     uint32_t data;
-    uint32_t vector_ctrl;
+    uint32_t latch[4];
     bool updated; /* indicate whether MSI ADDR or DATA is updated */
-    bool warned;  /* avoid issuing (bogus) warning more than once */
 } XenPTMSIXEntry;
 typedef struct XenPTMSIX {
     uint32_t ctrl_offset;
     bool enabled;
+    bool maskall;
     int total_entries;
     int bar_index;
     uint64_t table_base;

@@ -1499,6 +1499,8 @@ static int xen_pt_msixctrl_reg_write(XenPCIPassthroughState *s,
         xen_pt_msix_disable(s);
     }
 
+    s->msix->maskall = *val & PCI_MSIX_FLAGS_MASKALL;
+
     debug_msix_enabled_old = s->msix->enabled;
     s->msix->enabled = !!(*val & PCI_MSIX_FLAGS_ENABLE);
     if (s->msix->enabled != debug_msix_enabled_old) {
