@@ -470,7 +470,7 @@ static void build_append_pcihp_notify_entry(Aml *method, int slot)
     Aml *if_ctx;
     int32_t devfn = PCI_DEVFN(slot, 0);
 
-    if_ctx = aml_if(aml_and(aml_arg(0), aml_int(0x1U << slot)));
+    if_ctx = aml_if(aml_and(aml_arg(0), aml_int(0x1U << slot), NULL));
     aml_append(if_ctx, aml_notify(aml_name("S%.02X", devfn), aml_arg(1)));
     aml_append(method, if_ctx);
 }
@@ -670,7 +670,8 @@ static Aml *build_prt(void)
                    aml_store(aml_shiftright(pin, aml_int(2), NULL), slot));
         /* lnk_idx = (slot + pin) & 3 */
         aml_append(while_ctx,
-            aml_store(aml_and(aml_add(pin, slot, NULL), aml_int(3)), lnk_idx));
+            aml_store(aml_and(aml_add(pin, slot, NULL), aml_int(3), NULL),
+                      lnk_idx));
 
         /* route[2] = "LNK[D|A|B|C]", selection based on pin % 3  */
         aml_append(while_ctx, initialize_route(route, "LNKD", lnk_idx, 0));
@@ -685,7 +686,8 @@ static Aml *build_prt(void)
                       aml_index(route, aml_int(0))));
         /* route[1] = pin & 3 */
         aml_append(while_ctx,
-            aml_store(aml_and(pin, aml_int(3)), aml_index(route, aml_int(1))));
+            aml_store(aml_and(pin, aml_int(3), NULL),
+                      aml_index(route, aml_int(1))));
         /* res[pin] = route */
         aml_append(while_ctx, aml_store(route, aml_index(res, pin)));
         /* pin++ */

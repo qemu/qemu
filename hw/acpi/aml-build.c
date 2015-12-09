@@ -499,9 +499,9 @@ build_opcode_2arg_dst(uint8_t op, Aml *arg1, Aml *arg2, Aml *dst)
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefAnd */
-Aml *aml_and(Aml *arg1, Aml *arg2)
+Aml *aml_and(Aml *arg1, Aml *arg2, Aml *dst)
 {
-    return build_opcode_2arg_dst(0x7B /* AndOp */, arg1, arg2, NULL);
+    return build_opcode_2arg_dst(0x7B /* AndOp */, arg1, arg2, dst);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefOr */
