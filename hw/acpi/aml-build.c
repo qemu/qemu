@@ -502,10 +502,24 @@ Aml *aml_add(Aml *arg1, Aml *arg2, Aml *dst)
     return build_opcode_2arg_dst(0x72 /* AddOp */, arg1, arg2, dst);
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefSubtract */
+Aml *aml_subtract(Aml *arg1, Aml *arg2, Aml *dst)
+{
+    return build_opcode_2arg_dst(0x74 /* SubtractOp */, arg1, arg2, dst);
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefIncrement */
 Aml *aml_increment(Aml *arg)
 {
     Aml *var = aml_opcode(0x75 /* IncrementOp */);
+    aml_append(var, arg);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefDecrement */
+Aml *aml_decrement(Aml *arg)
+{
+    Aml *var = aml_opcode(0x76 /* DecrementOp */);
     aml_append(var, arg);
     return var;
 }
