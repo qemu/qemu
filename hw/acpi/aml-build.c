@@ -910,15 +910,28 @@ Aml *aml_field(const char *name, AmlAccessType type, AmlUpdateRule rule)
     return var;
 }
 
-/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefCreateDWordField */
-Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name)
+static
+Aml *create_field_common(int opcode, Aml *srcbuf, Aml *index, const char *name)
 {
-    Aml *var = aml_alloc();
-    build_append_byte(var->buf, 0x8A); /* CreateDWordFieldOp */
+    Aml *var = aml_opcode(opcode);
     aml_append(var, srcbuf);
     aml_append(var, index);
     build_append_namestring(var->buf, "%s", name);
     return var;
+}
+
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefCreateDWordField */
+Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name)
+{
+    return create_field_common(0x8A /* CreateDWordFieldOp */,
+                               srcbuf, index, name);
+}
+
+/* ACPI 2.0a: 17.2.4.2 Named Objects Encoding: DefCreateQWordField */
+Aml *aml_create_qword_field(Aml *srcbuf, Aml *index, const char *name)
+{
+    return create_field_common(0x8F /* CreateQWordFieldOp */,
+                               srcbuf, index, name);
 }
 
 /* ACPI 1.0b: 16.2.3 Data Objects Encoding: String */
