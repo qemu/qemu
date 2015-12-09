@@ -1267,6 +1267,39 @@ Aml *aml_sizeof(Aml *arg)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefMutex */
+Aml *aml_mutex(const char *name, uint8_t sync_level)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x01); /* MutexOp */
+    build_append_namestring(var->buf, "%s", name);
+    assert(!(sync_level & 0xF0));
+    build_append_byte(var->buf, sync_level);
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefAcquire */
+Aml *aml_acquire(Aml *mutex, uint16_t timeout)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x23); /* AcquireOp */
+    aml_append(var, mutex);
+    build_append_int_noprefix(var->buf, timeout, sizeof(timeout));
+    return var;
+}
+
+/* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefRelease */
+Aml *aml_release(Aml *mutex)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x27); /* ReleaseOp */
+    aml_append(var, mutex);
+    return var;
+}
+
 void
 build_header(GArray *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
