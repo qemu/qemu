@@ -436,6 +436,19 @@ Aml *aml_to_integer(Aml *arg)
     return var;
 }
 
+/* ACPI 2.0a: 17.2.4.4 Type 2 Opcodes Encoding: DefToHexString */
+Aml *aml_to_hexstring(Aml *src, Aml *dst)
+{
+    Aml *var = aml_opcode(0x98 /* ToHexStringOp */);
+    aml_append(var, src);
+    if (dst) {
+        aml_append(var, dst);
+    } else {
+        build_append_byte(var->buf, 0x00 /* NullNameOp */);
+    }
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefStore */
 Aml *aml_store(Aml *val, Aml *target)
 {
