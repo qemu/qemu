@@ -1228,6 +1228,16 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
                              addr_trans, len, flags);
 }
 
+/* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefSleep */
+Aml *aml_sleep(uint64_t msec)
+{
+    Aml *var = aml_alloc();
+    build_append_byte(var->buf, 0x5B); /* ExtOpPrefix */
+    build_append_byte(var->buf, 0x22); /* SleepOp */
+    aml_append(var, aml_int(msec));
+    return var;
+}
+
 static uint8_t Hex2Byte(const char *src)
 {
     int hi, lo;
