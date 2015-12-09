@@ -307,6 +307,7 @@ Aml *aml_create_dword_field(Aml *srcbuf, Aml *index, const char *name);
 Aml *aml_varpackage(uint32_t num_elements);
 Aml *aml_touuid(const char *uuid);
 Aml *aml_unicode(const char *str);
+Aml *aml_derefof(Aml *arg);
 
 void
 build_header(GArray *linker, GArray *table_data,
