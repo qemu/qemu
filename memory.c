@@ -905,20 +905,22 @@ void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size)
 {
-    if (!owner) {
-        owner = container_get(qdev_get_machine(), "/unattached");
-    }
-
     object_initialize(mr, sizeof(*mr), TYPE_MEMORY_REGION);
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
     }
     mr->name = g_strdup(name);
+    mr->owner = owner;
 
     if (name) {
         char *escaped_name = memory_region_escape_name(name);
         char *name_array = g_strdup_printf("%s[*]", escaped_name);
+
+        if (!owner) {
+            owner = container_get(qdev_get_machine(), "/unattached");
+        }
+
         object_property_add_child(owner, name_array, OBJECT(mr), &error_abort);
         object_unref(OBJECT(mr));
         g_free(name_array);
@@ -1369,24 +1371,18 @@ void memory_region_ref(MemoryRegion *mr)
      * The memory region is a child of its owner.  As long as the
      * owner doesn't call unparent itself on the memory region,
      * ref-ing the owner will also keep the memory region alive.
-     * Memory regions without an owner are supposed to never go away,
-     * but we still ref/unref them for debugging purposes.
+     * Memory regions without an owner are supposed to never go away;
+     * we do not ref/unref them because it slows down DMA sensibly.
      */
-    Object *obj = OBJECT(mr);
-    if (obj && obj->parent) {
-        object_ref(obj->parent);
-    } else {
-        object_ref(obj);
+    if (mr && mr->owner) {
+        object_ref(mr->owner);
     }
 }
 
 void memory_region_unref(MemoryRegion *mr)
 {
-    Object *obj = OBJECT(mr);
-    if (obj && obj->parent) {
-        object_unref(obj->parent);
-    } else {
-        object_unref(obj);
+    if (mr && mr->owner) {
+        object_unref(mr->owner);
     }
 }
 

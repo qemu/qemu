@@ -172,6 +172,7 @@ struct MemoryRegion {
     bool global_locking;
     uint8_t dirty_log_mask;
     ram_addr_t ram_addr;
+    Object *owner;
     const MemoryRegionIOMMUOps *iommu_ops;
 
     const MemoryRegionOps *ops;
