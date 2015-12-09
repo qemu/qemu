@@ -1248,6 +1248,14 @@ Aml *aml_derefof(Aml *arg)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefSizeOf */
+Aml *aml_sizeof(Aml *arg)
+{
+    Aml *var = aml_opcode(0x87 /* SizeOfOp */);
+    aml_append(var, arg);
+    return var;
+}
+
 void
 build_header(GArray *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
