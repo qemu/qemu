@@ -1917,7 +1917,11 @@ static void ppc_spapr_init(MachineState *machine)
     }
 
     if (machine->usb) {
-        pci_create_simple(phb->bus, -1, "pci-ohci");
+        if (smc->use_ohci_by_default) {
+            pci_create_simple(phb->bus, -1, "pci-ohci");
+        } else {
+            pci_create_simple(phb->bus, -1, "nec-usb-xhci");
+        }
 
         if (spapr->has_graphics) {
             USBBus *usb_bus = usb_bus_find(-1);
@@ -2362,7 +2366,10 @@ static void spapr_machine_2_5_instance_options(MachineState *machine)
 
 static void spapr_machine_2_5_class_options(MachineClass *mc)
 {
+    sPAPRMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+
     spapr_machine_2_6_class_options(mc);
+    smc->use_ohci_by_default = true;
     SET_MACHINE_COMPAT(mc, SPAPR_COMPAT_2_5);
 }
 
