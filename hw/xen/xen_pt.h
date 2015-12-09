@@ -113,6 +113,8 @@ struct XenPTRegInfo {
     uint32_t res_mask;
     /* reg read only field mask (ON:RO/ROS, OFF:other) */
     uint32_t ro_mask;
+    /* reg read/write-1-clear field mask (ON:RW1C/RW1CS, OFF:other) */
+    uint32_t rw1c_mask;
     /* reg emulate field mask (ON:emu, OFF:passthrough) */
     uint32_t emu_mask;
     xen_pt_conf_reg_init init;
