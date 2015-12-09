@@ -231,6 +231,7 @@ Aml *aml_int(const uint64_t val);
 Aml *aml_arg(int pos);
 Aml *aml_to_integer(Aml *arg);
 Aml *aml_to_hexstring(Aml *src, Aml *dst);
+Aml *aml_to_buffer(Aml *src, Aml *dst);
 Aml *aml_store(Aml *val, Aml *target);
 Aml *aml_and(Aml *arg1, Aml *arg2);
 Aml *aml_or(Aml *arg1, Aml *arg2);
