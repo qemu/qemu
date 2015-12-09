@@ -1347,6 +1347,15 @@ Aml *aml_release(Aml *mutex)
     return var;
 }
 
+/* ACPI 1.0b: 16.2.5.1 Name Space Modifier Objects Encoding: DefAlias */
+Aml *aml_alias(const char *source_object, const char *alias_object)
+{
+    Aml *var = aml_opcode(0x06 /* AliasOp */);
+    aml_append(var, aml_name("%s", source_object));
+    aml_append(var, aml_name("%s", alias_object));
+    return var;
+}
+
 void
 build_header(GArray *linker, GArray *table_data,
              AcpiTableHeader *h, const char *sig, int len, uint8_t rev,
