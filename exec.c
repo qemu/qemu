@@ -390,17 +390,6 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
     return section;
 }
 
-static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
-{
-    if (is_write) {
-        return memory_region_is_ram(mr) && !mr->readonly;
-    } else {
-        return memory_region_is_ram(mr) || memory_region_is_romd(mr);
-    }
-
-    return false;
-}
-
 /* Called from RCU critical section */
 MemoryRegion *address_space_translate(AddressSpace *as, hwaddr addr,
                                       hwaddr *xlat, hwaddr *plen,
@@ -2632,8 +2621,8 @@ MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
     return result;
 }
 
-MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                               uint8_t *buf, int len)
+MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+                                    MemTxAttrs attrs, uint8_t *buf, int len)
 {
     hwaddr l;
     hwaddr addr1;

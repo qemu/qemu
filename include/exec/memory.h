@@ -1234,23 +1234,7 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
                                 MemTxAttrs attrs,
                                 const uint8_t *buf, int len);
 
-/**
- * address_space_read: read from an address space.
- *
- * Return a MemTxResult indicating whether the operation succeeded
- * or failed (eg unassigned memory, device rejected the transaction,
- * IOMMU fault).
- *
- * @as: #AddressSpace to be accessed
- * @addr: address within that address space
- * @attrs: memory transaction attributes
- * @buf: buffer with the data transferred
- */
-MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                               uint8_t *buf, int len);
-
-/**
- * address_space_ld*: load from an address space
+/* address_space_ld*: load from an address space
  * address_space_st*: store to an address space
  *
  * These functions perform a load or store of the byte, word,
@@ -1385,6 +1369,62 @@ MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
                                         MemTxAttrs attrs, uint8_t *buf,
                                         int len, hwaddr addr1, hwaddr l,
 					MemoryRegion *mr);
+MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+                                    MemTxAttrs attrs, uint8_t *buf, int len);
+void *qemu_get_ram_ptr(ram_addr_t addr);
+
+static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
+{
+    if (is_write) {
+        return memory_region_is_ram(mr) && !mr->readonly;
+    } else {
+        return memory_region_is_ram(mr) || memory_region_is_romd(mr);
+    }
+
+    return false;
+}
+
+/**
+ * address_space_read: read from an address space.
+ *
+ * Return a MemTxResult indicating whether the operation succeeded
+ * or failed (eg unassigned memory, device rejected the transaction,
+ * IOMMU fault).
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @attrs: memory transaction attributes
+ * @buf: buffer with the data transferred
+ */
+static inline __attribute__((__always_inline__))
+MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
+                               uint8_t *buf, int len)
+{
+    MemTxResult result = MEMTX_OK;
+    hwaddr l, addr1;
+    void *ptr;
+    MemoryRegion *mr;
+
+    if (__builtin_constant_p(len)) {
+        if (len) {
+            rcu_read_lock();
+            l = len;
+            mr = address_space_translate(as, addr, &addr1, &l, false);
+            if (len == l && memory_access_is_direct(mr, false)) {
+                addr1 += memory_region_get_ram_addr(mr);
+                ptr = qemu_get_ram_ptr(addr1);
+                memcpy(buf, ptr, len);
+            } else {
+                result = address_space_read_continue(as, addr, attrs, buf, len,
+                                                     addr1, l, mr);
+            }
+            rcu_read_unlock();
+        }
+    } else {
+        result = address_space_read_full(as, addr, attrs, buf, len);
+    }
+    return result;
+}
 
 #endif
 
