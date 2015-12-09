@@ -436,44 +436,55 @@ Aml *aml_store(Aml *val, Aml *target)
     return var;
 }
 
+/**
+ * build_opcode_2arg_dst:
+ * @op: 1-byte opcode
+ * @arg1: 1st operand
+ * @arg2: 2nd operand
+ * @dst: optional target to store to, set to NULL if it's not required
+ *
+ * An internal helper to compose AML terms that have
+ *   "Op Operand Operand Target"
+ * pattern.
+ *
+ * Returns: The newly allocated and composed according to patter Aml object.
+ */
+static Aml *
+build_opcode_2arg_dst(uint8_t op, Aml *arg1, Aml *arg2, Aml *dst)
+{
+    Aml *var = aml_opcode(op);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    if (dst) {
+        aml_append(var, dst);
+    } else {
+        build_append_byte(var->buf, 0x00 /* NullNameOp */);
+    }
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefAnd */
 Aml *aml_and(Aml *arg1, Aml *arg2)
 {
-    Aml *var = aml_opcode(0x7B /* AndOp */);
-    aml_append(var, arg1);
-    aml_append(var, arg2);
-    build_append_byte(var->buf, 0x00 /* NullNameOp */);
-    return var;
+    return build_opcode_2arg_dst(0x7B /* AndOp */, arg1, arg2, NULL);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefOr */
 Aml *aml_or(Aml *arg1, Aml *arg2)
 {
-    Aml *var = aml_opcode(0x7D /* OrOp */);
-    aml_append(var, arg1);
-    aml_append(var, arg2);
-    build_append_byte(var->buf, 0x00 /* NullNameOp */);
-    return var;
+    return build_opcode_2arg_dst(0x7D /* OrOp */, arg1, arg2, NULL);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefShiftLeft */
 Aml *aml_shiftleft(Aml *arg1, Aml *count)
 {
-    Aml *var = aml_opcode(0x79 /* ShiftLeftOp */);
-    aml_append(var, arg1);
-    aml_append(var, count);
-    build_append_byte(var->buf, 0x00); /* NullNameOp */
-    return var;
+    return build_opcode_2arg_dst(0x79 /* ShiftLeftOp */, arg1, count, NULL);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefShiftRight */
 Aml *aml_shiftright(Aml *arg1, Aml *count)
 {
-    Aml *var = aml_opcode(0x7A /* ShiftRightOp */);
-    aml_append(var, arg1);
-    aml_append(var, count);
-    build_append_byte(var->buf, 0x00); /* NullNameOp */
-    return var;
+    return build_opcode_2arg_dst(0x7A /* ShiftRightOp */, arg1, count, NULL);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLLess */
@@ -488,11 +499,7 @@ Aml *aml_lless(Aml *arg1, Aml *arg2)
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefAdd */
 Aml *aml_add(Aml *arg1, Aml *arg2)
 {
-    Aml *var = aml_opcode(0x72 /* AddOp */);
-    aml_append(var, arg1);
-    aml_append(var, arg2);
-    build_append_byte(var->buf, 0x00 /* NullNameOp */);
-    return var;
+    return build_opcode_2arg_dst(0x72 /* AddOp */, arg1, arg2, NULL);
 }
 
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefIncrement */
@@ -506,11 +513,7 @@ Aml *aml_increment(Aml *arg)
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefIndex */
 Aml *aml_index(Aml *arg1, Aml *idx)
 {
-    Aml *var = aml_opcode(0x88 /* IndexOp */);
-    aml_append(var, arg1);
-    aml_append(var, idx);
-    build_append_byte(var->buf, 0x00 /* NullNameOp */);
-    return var;
+    return build_opcode_2arg_dst(0x88 /* IndexOp */, arg1, idx, NULL);
 }
 
 /* ACPI 1.0b: 16.2.5.3 Type 1 Opcodes Encoding: DefNotify */
