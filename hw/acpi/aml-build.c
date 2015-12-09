@@ -484,6 +484,15 @@ Aml *aml_or(Aml *arg1, Aml *arg2)
     return build_opcode_2arg_dst(0x7D /* OrOp */, arg1, arg2, NULL);
 }
 
+/* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefLOr */
+Aml *aml_lor(Aml *arg1, Aml *arg2)
+{
+    Aml *var = aml_opcode(0x91 /* LOrOp */);
+    aml_append(var, arg1);
+    aml_append(var, arg2);
+    return var;
+}
+
 /* ACPI 1.0b: 16.2.5.4 Type 2 Opcodes Encoding: DefShiftLeft */
 Aml *aml_shiftleft(Aml *arg1, Aml *count)
 {
