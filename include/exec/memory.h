@@ -523,7 +523,10 @@ uint64_t memory_region_size(MemoryRegion *mr);
  *
  * @mr: the memory region being queried
  */
-bool memory_region_is_ram(MemoryRegion *mr);
+static inline bool memory_region_is_ram(MemoryRegion *mr)
+{
+    return mr->ram;
+}
 
 /**
  * memory_region_is_skip_dump: check whether a memory region should not be
@@ -563,7 +566,11 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
  *
  * @mr: the memory region being queried
  */
-bool memory_region_is_iommu(MemoryRegion *mr);
+static inline bool memory_region_is_iommu(MemoryRegion *mr)
+{
+    return mr->iommu_ops;
+}
+
 
 /**
  * memory_region_notify_iommu: notify a change in an IOMMU translation entry.
@@ -645,7 +652,11 @@ uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr);
  *
  * @mr: the memory region being queried
  */
-bool memory_region_is_rom(MemoryRegion *mr);
+static inline bool memory_region_is_rom(MemoryRegion *mr)
+{
+    return mr->ram && mr->readonly;
+}
+
 
 /**
  * memory_region_get_fd: Get a file descriptor backing a RAM memory region.
@@ -970,7 +981,10 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
  * DO NOT USE THIS FUNCTION.  This is a temporary workaround while the Xen
  * code is being reworked.
  */
-ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr);
+static inline ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
+{
+    return mr->ram_addr;
+}
 
 uint64_t memory_region_get_alignment(const MemoryRegion *mr);
 /**
