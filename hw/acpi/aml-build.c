@@ -952,10 +952,13 @@ Aml *aml_reserved_field(unsigned length)
 }
 
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefField */
-Aml *aml_field(const char *name, AmlAccessType type, AmlUpdateRule rule)
+Aml *aml_field(const char *name, AmlAccessType type, AmlLockRule lock,
+               AmlUpdateRule rule)
 {
     Aml *var = aml_bundle(0x81 /* FieldOp */, AML_EXT_PACKAGE);
     uint8_t flags = rule << 5 | type;
+
+    flags |= lock << 4; /* LockRule at 4 bit offset */
 
     build_append_namestring(var->buf, "%s", name);
     build_append_byte(var->buf, flags);

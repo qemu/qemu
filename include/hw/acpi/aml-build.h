@@ -49,6 +49,11 @@ typedef enum {
 } AmlAccessType;
 
 typedef enum {
+    AML_NOLOCK = 0,
+    AML_LOCK = 1,
+} AmlLockRule;
+
+typedef enum {
     AML_PRESERVE = 0,
     AML_WRITE_AS_ONES = 1,
     AML_WRITE_AS_ZEROS = 2,
@@ -310,7 +315,8 @@ Aml *aml_while(Aml *predicate);
 Aml *aml_package(uint8_t num_elements);
 Aml *aml_buffer(int buffer_size, uint8_t *byte_list);
 Aml *aml_resource_template(void);
-Aml *aml_field(const char *name, AmlAccessType type, AmlUpdateRule rule);
+Aml *aml_field(const char *name, AmlAccessType type, AmlLockRule lock,
+               AmlUpdateRule rule);
 Aml *aml_mutex(const char *name, uint8_t sync_level);
 Aml *aml_acquire(Aml *mutex, uint16_t timeout);
 Aml *aml_release(Aml *mutex);
