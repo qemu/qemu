@@ -35,6 +35,8 @@
 #include "trace.h"
 #include "hw/s390x/css-bridge.h"
 
+#define NR_CLASSIC_INDICATOR_BITS 64
+
 static void virtio_ccw_bus_new(VirtioBusState *bus, size_t bus_size,
                                VirtioCcwDevice *dev);
 
@@ -506,6 +508,11 @@ static int virtio_ccw_cb(SubchDev *sch, CCW1 ccw)
         }
         if (sch->thinint_active) {
             /* Trigger a command reject. */
+            ret = -ENOSYS;
+            break;
+        }
+        if (virtio_get_num_queues(vdev) > NR_CLASSIC_INDICATOR_BITS) {
+            /* More queues than indicator bits --> trigger a reject */
             ret = -ENOSYS;
             break;
         }
