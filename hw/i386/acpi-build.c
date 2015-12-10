@@ -43,6 +43,7 @@
 #include "sysemu/tpm.h"
 #include "hw/acpi/tpm.h"
 #include "sysemu/tpm_backend.h"
+#include "hw/timer/mc146818rtc_regs.h"
 
 /* Supported chipsets: */
 #include "hw/acpi/piix4.h"
@@ -335,6 +336,7 @@ static void fadt_setup(AcpiFadtDescriptorRev1 *fadt, AcpiPmInfo *pm)
     if (max_cpus > 8) {
         fadt->flags |= cpu_to_le32(1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL);
     }
+    fadt->century = RTC_CENTURY;
 }
 
 
