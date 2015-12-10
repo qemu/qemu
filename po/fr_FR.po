@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: QEMU 1.4.50\n"
 "Report-Msgid-Bugs-To: qemu-devel@nongnu.org\n"
-"POT-Creation-Date: 2015-07-30 07:34+0200\n"
+"POT-Creation-Date: 2015-12-10 13:29+0000\n"
 "PO-Revision-Date: 2014-07-28 23:25+0200\n"
 "Last-Translator: Aurelien Jarno <aurelien@aurel32.net>\n"
 "Language-Team: French <FR@li.org>\n"
@@ -17,70 +17,70 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 "X-Generator: Lokalize 1.4\n"
 
-#: ui/gtk.c:260
+#: ui/gtk.c:271
 msgid " - Press Ctrl+Alt+G to release grab"
 msgstr "- Appuyer sur Ctrl+Alt+G pour arrêter la capture"
 
-#: ui/gtk.c:264
+#: ui/gtk.c:275
 msgid " [Paused]"
 msgstr " [En pause]"
 
-#: ui/gtk.c:1688
+#: ui/gtk.c:1783
 msgid "_Pause"
 msgstr "_Pause"
 
-#: ui/gtk.c:1694
+#: ui/gtk.c:1789
 msgid "_Reset"
 msgstr "_Réinitialiser"
 
-#: ui/gtk.c:1697
+#: ui/gtk.c:1792
 msgid "Power _Down"
 msgstr "_Éteindre"
 
-#: ui/gtk.c:1703
+#: ui/gtk.c:1798
 msgid "_Quit"
 msgstr "_Quitter"
 
-#: ui/gtk.c:1787
+#: ui/gtk.c:1890
 msgid "_Fullscreen"
 msgstr "Mode _plein écran"
 
-#: ui/gtk.c:1801
+#: ui/gtk.c:1904
 msgid "Zoom _In"
 msgstr "Zoom _avant"
 
-#: ui/gtk.c:1808
+#: ui/gtk.c:1911
 msgid "Zoom _Out"
 msgstr "_Zoom arrière"
 
-#: ui/gtk.c:1815
+#: ui/gtk.c:1918
 msgid "Best _Fit"
 msgstr "Zoom _idéal"
 
-#: ui/gtk.c:1822
+#: ui/gtk.c:1925
 msgid "Zoom To _Fit"
 msgstr "Zoomer pour a_juster"
 
-#: ui/gtk.c:1828
+#: ui/gtk.c:1931
 msgid "Grab On _Hover"
 msgstr "Capturer en _survolant"
 
-#: ui/gtk.c:1831
+#: ui/gtk.c:1934
 msgid "_Grab Input"
 msgstr "_Capturer les entrées"
 
-#: ui/gtk.c:1860
+#: ui/gtk.c:1963
 msgid "Show _Tabs"
 msgstr "Montrer les _onglets"
 
-#: ui/gtk.c:1863
+#: ui/gtk.c:1966
 msgid "Detach Tab"
 msgstr "_Détacher l'onglet"
 
-#: ui/gtk.c:1875
+#: ui/gtk.c:1978
 msgid "_Machine"
 msgstr "_Machine"
 
-#: ui/gtk.c:1880
+#: ui/gtk.c:1983
 msgid "_View"
 msgstr "_Vue"
