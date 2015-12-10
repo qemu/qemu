@@ -172,8 +172,8 @@ static void n8x0_nand_setup(struct n800_s *s)
     qdev_prop_set_int32(s->nand, "shift", 1);
     dinfo = drive_get(IF_MTD, 0, 0);
     if (dinfo) {
-        qdev_prop_set_drive_nofail(s->nand, "drive",
-                                   blk_by_legacy_dinfo(dinfo));
+        qdev_prop_set_drive(s->nand, "drive", blk_by_legacy_dinfo(dinfo),
+                            &error_fatal);
     }
     qdev_init_nofail(s->nand);
     sysbus_connect_irq(SYS_BUS_DEVICE(s->nand), 0,

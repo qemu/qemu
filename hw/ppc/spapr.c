@@ -1216,7 +1216,8 @@ static void spapr_create_nvram(sPAPRMachineState *spapr)
     DriveInfo *dinfo = drive_get(IF_PFLASH, 0, 0);
 
     if (dinfo) {
-        qdev_prop_set_drive_nofail(dev, "drive", blk_by_legacy_dinfo(dinfo));
+        qdev_prop_set_drive(dev, "drive", blk_by_legacy_dinfo(dinfo),
+                            &error_fatal);
     }
 
     qdev_init_nofail(dev);

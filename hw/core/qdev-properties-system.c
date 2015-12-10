@@ -364,12 +364,6 @@ void qdev_prop_set_drive(DeviceState *dev, const char *name,
                             name, errp);
 }
 
-void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name,
-                                BlockBackend *value)
-{
-    qdev_prop_set_drive(dev, name, value, &error_fatal);
-}
-
 void qdev_prop_set_chr(DeviceState *dev, const char *name,
                        CharDriverState *value)
 {
