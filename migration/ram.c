@@ -716,6 +716,9 @@ static int save_zero_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset,
  * ram_save_page: Send the given page to the stream
  *
  * Returns: Number of pages written.
+ *          < 0 - error
+ *          >=0 - Number of pages written - this might legally be 0
+ *                if xbzrle noticed the page was the same.
  *
  * @f: QEMUFile where to send the data
  * @block: block that contains the page we want to send
@@ -1249,7 +1252,13 @@ static int ram_save_target_page(MigrationState *ms, QEMUFile *f,
         if (unsentmap) {
             clear_bit(dirty_ram_abs >> TARGET_PAGE_BITS, unsentmap);
         }
-        last_sent_block = block;
+        /* Only update last_sent_block if a block was actually sent; xbzrle
+         * might have decided the page was identical so didn't bother writing
+         * to the stream.
+         */
+        if (res > 0) {
+            last_sent_block = block;
+        }
     }
 
     return res;
