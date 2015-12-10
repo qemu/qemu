@@ -2803,6 +2803,10 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs)
             .has_corrupt        = true,
             .refcount_bits      = s->refcount_bits,
         };
+    } else {
+        /* if this assertion fails, this probably means a new version was
+         * added without having it covered here */
+        assert(false);
     }
 
     return spec_info;
