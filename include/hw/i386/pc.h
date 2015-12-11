@@ -40,7 +40,6 @@ struct PcGuestInfo {
     uint64_t numa_nodes;
     uint64_t *node_mem;
     uint64_t *node_cpu;
-    FWCfgState *fw_cfg;
 };
 
 /**
@@ -62,6 +61,7 @@ struct PCMachineState {
     HotplugHandler *acpi_dev;
     ISADevice *rtc;
     PCIBus *bus;
+    FWCfgState *fw_cfg;
 
     /* Configuration options: */
     uint64_t max_ram_below_4g;

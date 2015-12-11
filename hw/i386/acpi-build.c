@@ -2806,11 +2806,10 @@ void acpi_setup(void)
 {
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
     PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
-    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     AcpiBuildTables tables;
     AcpiBuildState *build_state;
 
-    if (!guest_info->fw_cfg) {
+    if (!pcms->fw_cfg) {
         ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
         return;
     }
@@ -2841,7 +2840,7 @@ void acpi_setup(void)
     build_state->linker_mr =
         acpi_add_rom_blob(build_state, tables.linker, "etc/table-loader", 0);
 
-    fw_cfg_add_file(guest_info->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
+    fw_cfg_add_file(pcms->fw_cfg, ACPI_BUILD_TPMLOG_FILE,
                     tables.tcpalog->data, acpi_data_len(tables.tcpalog));
 
     if (!pcmc->rsdp_in_ram) {
@@ -2853,7 +2852,7 @@ void acpi_setup(void)
         uint32_t rsdp_size = acpi_data_len(tables.rsdp);
 
         build_state->rsdp = g_memdup(tables.rsdp->data, rsdp_size);
-        fw_cfg_add_file_callback(guest_info->fw_cfg, ACPI_BUILD_RSDP_FILE,
+        fw_cfg_add_file_callback(pcms->fw_cfg, ACPI_BUILD_RSDP_FILE,
                                  acpi_build_update, build_state,
                                  build_state->rsdp, rsdp_size);
         build_state->rsdp_mr = NULL;

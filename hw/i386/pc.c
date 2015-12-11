@@ -1172,10 +1172,10 @@ void pc_machine_done(Notifier *notifier, void *data)
                 extra_hosts++;
             }
         }
-        if (extra_hosts && pcms->acpi_guest_info.fw_cfg) {
+        if (extra_hosts && pcms->fw_cfg) {
             uint64_t *val = g_malloc(sizeof(*val));
             *val = cpu_to_le64(extra_hosts);
-            fw_cfg_add_file(pcms->acpi_guest_info.fw_cfg,
+            fw_cfg_add_file(pcms->fw_cfg,
                     "etc/extra-pci-roots", val, sizeof(*val));
         }
     }
@@ -1257,7 +1257,6 @@ void xen_load_linux(PCMachineState *pcms)
 {
     int i;
     FWCfgState *fw_cfg;
-    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
 
     assert(MACHINE(pcms)->kernel_filename != NULL);
 
@@ -1270,7 +1269,7 @@ void xen_load_linux(PCMachineState *pcms)
                !strcmp(option_rom[i].name, "multiboot.bin"));
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
-    guest_info->fw_cfg = fw_cfg;
+    pcms->fw_cfg = fw_cfg;
 }
 
 void pc_memory_init(PCMachineState *pcms,
@@ -1278,7 +1277,6 @@ void pc_memory_init(PCMachineState *pcms,
                     MemoryRegion *rom_memory,
                     MemoryRegion **ram_memory)
 {
-    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     int linux_boot, i;
     MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
@@ -1399,7 +1397,7 @@ void pc_memory_init(PCMachineState *pcms,
     for (i = 0; i < nb_option_roms; i++) {
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
-    guest_info->fw_cfg = fw_cfg;
+    pcms->fw_cfg = fw_cfg;
 }
 
 qemu_irq pc_allocate_cpu_irq(void)
