@@ -114,10 +114,12 @@ h=$QEMU_HANDLE
 QEMU_COMM_TIMEOUT=1
 
 # Silence output since it contains the disk image path and QEMU's readline
-# character echoing makes it very hard to filter the output
+# character echoing makes it very hard to filter the output. Plus, there
+# is no telling how many times the command will repeat before succeeding.
 _send_qemu_cmd $h "drive_backup disk ${TEST_IMG}.copy" "(qemu)" >/dev/null
 _send_qemu_cmd $h "" "Formatting" | _filter_img_create
-qemu_cmd_repeat=20 _send_qemu_cmd $h "info block-jobs" "No active jobs"
+qemu_cmd_repeat=20 _send_qemu_cmd $h "info block-jobs" "No active jobs" >/dev/null
+_send_qemu_cmd $h "info block-jobs" "No active jobs"
 _send_qemu_cmd $h 'quit' ""
 
 # Base image sectors
