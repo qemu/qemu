@@ -71,7 +71,6 @@ static void pc_q35_init(MachineState *machine)
     int i;
     ICH9LPCState *ich9_lpc;
     PCIDevice *ahci;
-    PcGuestInfo *guest_info;
     ram_addr_t lowmem;
     DriveInfo *hd[MAX_SATA_PORTS];
     MachineClass *mc = MACHINE_GET_CLASS(machine);
@@ -134,8 +133,7 @@ static void pc_q35_init(MachineState *machine)
         rom_memory = get_system_memory();
     }
 
-    guest_info = pc_guest_info_init(pcms);
-    guest_info->isapc_ram_fw = false;
+    pc_guest_info_init(pcms);
 
     if (pcmc->smbios_defaults) {
         /* These values are guest ABI, do not change */

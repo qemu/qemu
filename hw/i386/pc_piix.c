@@ -85,7 +85,6 @@ static void pc_init1(MachineState *machine,
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
-    PcGuestInfo *guest_info;
     ram_addr_t lowmem;
 
     /* Check whether RAM fits below 4G (leaving 1/2 GByte for IO memory).
@@ -141,9 +140,7 @@ static void pc_init1(MachineState *machine,
         rom_memory = system_memory;
     }
 
-    guest_info = pc_guest_info_init(pcms);
-
-    guest_info->isapc_ram_fw = !pcmc->pci_enabled;
+    pc_guest_info_init(pcms);
 
     if (pcmc->smbios_defaults) {
         MachineClass *mc = MACHINE_GET_CLASS(machine);

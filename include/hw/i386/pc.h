@@ -35,7 +35,6 @@
 
 /* Machine info for ACPI build: */
 struct PcGuestInfo {
-    bool isapc_ram_fw;
     unsigned apic_id_limit;
     bool apic_xrupt_override;
     uint64_t numa_nodes;
