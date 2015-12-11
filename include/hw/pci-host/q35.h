@@ -59,7 +59,6 @@ typedef struct MCHPCIState {
     ram_addr_t below_4g_mem_size;
     ram_addr_t above_4g_mem_size;
     uint64_t pci_hole64_size;
-    PcGuestInfo *guest_info;
     uint32_t short_root_bus;
     IntelIOMMUState *iommu;
 } MCHPCIState;

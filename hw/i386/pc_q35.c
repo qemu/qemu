@@ -176,7 +176,6 @@ static void pc_q35_init(MachineState *machine)
     q35_host->mch.address_space_io = get_system_io();
     q35_host->mch.below_4g_mem_size = pcms->below_4g_mem_size;
     q35_host->mch.above_4g_mem_size = pcms->above_4g_mem_size;
-    q35_host->mch.guest_info = guest_info;
     /* pci */
     qdev_init_nofail(DEVICE(q35_host));
     phb = PCI_HOST_BRIDGE(q35_host);
