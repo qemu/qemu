@@ -2081,7 +2081,7 @@
   'data': { 'device': 'str' } }
 
 ##
-# @blockdev-remove-medium:
+# @x-blockdev-remove-medium:
 #
 # Removes a medium (a block driver state tree) from a block device. That block
 # device's tray must currently be open (unless there is no attached guest
@@ -2089,19 +2089,25 @@
 #
 # If the tray is open and there is no medium inserted, this will be a no-op.
 #
+# This command is still a work in progress and is considered experimental.
+# Stay away from it unless you want to help with its development.
+#
 # @device: block device name
 #
 # Since: 2.5
 ##
-{ 'command': 'blockdev-remove-medium',
+{ 'command': 'x-blockdev-remove-medium',
   'data': { 'device': 'str' } }
 
 ##
-# @blockdev-insert-medium:
+# @x-blockdev-insert-medium:
 #
 # Inserts a medium (a block driver state tree) into a block device. That block
 # device's tray must currently be open (unless there is no attached guest
 # device) and there must be no medium inserted already.
+#
+# This command is still a work in progress and is considered experimental.
+# Stay away from it unless you want to help with its development.
 #
 # @device:    block device name
 #
@@ -2109,7 +2115,7 @@
 #
 # Since: 2.5
 ##
-{ 'command': 'blockdev-insert-medium',
+{ 'command': 'x-blockdev-insert-medium',
   'data': { 'device': 'str',
             'node-name': 'str'} }
 
@@ -2137,8 +2143,8 @@
 #
 # Changes the medium inserted into a block device by ejecting the current medium
 # and loading a new image file which is inserted as the new medium (this command
-# combines blockdev-open-tray, blockdev-remove-medium, blockdev-insert-medium
-# and blockdev-close-tray).
+# combines blockdev-open-tray, x-blockdev-remove-medium,
+# x-blockdev-insert-medium and blockdev-close-tray).
 #
 # @device:          block device name
 #

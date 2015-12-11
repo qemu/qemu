@@ -174,7 +174,7 @@ class TestBlockdevDel(iotests.QMPTestCase):
     def insertDrive(self, backend, node):
         self.checkBlockBackend(backend, None)
         self.checkBlockDriverState(node)
-        result = self.vm.qmp('blockdev-insert-medium',
+        result = self.vm.qmp('x-blockdev-insert-medium',
                              device = backend, node_name = node)
         self.assert_qmp(result, 'return', {})
         self.checkBlockBackend(backend, node)

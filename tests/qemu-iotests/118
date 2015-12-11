@@ -208,14 +208,14 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
         else:
             self.assert_qmp(result, 'return[0]/inserted/image/filename', old_img)
 
-        result = self.vm.qmp('blockdev-remove-medium', device='drive0')
+        result = self.vm.qmp('x-blockdev-remove-medium', device='drive0')
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/tray_open', True)
         self.assert_qmp_absent(result, 'return[0]/inserted')
 
-        result = self.vm.qmp('blockdev-insert-medium', device='drive0',
+        result = self.vm.qmp('x-blockdev-insert-medium', device='drive0',
                                                        node_name='new')
         self.assert_qmp(result, 'return', {})
 
@@ -243,7 +243,7 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
             # Empty floppy drive
             return
 
-        result = self.vm.qmp('blockdev-remove-medium', device='drive0')
+        result = self.vm.qmp('x-blockdev-remove-medium', device='drive0')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_insert_on_closed(self):
@@ -258,7 +258,7 @@ class GeneralChangeTestsBaseClass(ChangeBaseClass):
                                                'driver': 'file'}})
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-insert-medium', device='drive0',
+        result = self.vm.qmp('x-blockdev-insert-medium', device='drive0',
                                                        node_name='new')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
@@ -289,7 +289,7 @@ class TestInitiallyFilled(GeneralChangeTestsBaseClass):
 
         self.wait_for_open()
 
-        result = self.vm.qmp('blockdev-insert-medium', device='drive0',
+        result = self.vm.qmp('x-blockdev-insert-medium', device='drive0',
                                                        node_name='new')
         self.assert_qmp(result, 'error/class', 'GenericError')
 
@@ -311,7 +311,7 @@ class TestInitiallyEmpty(GeneralChangeTestsBaseClass):
 
         self.wait_for_open()
 
-        result = self.vm.qmp('blockdev-remove-medium', device='drive0')
+        result = self.vm.qmp('x-blockdev-remove-medium', device='drive0')
         # Should be a no-op
         self.assert_qmp(result, 'return', {})
 
@@ -604,14 +604,14 @@ class TestChangeReadOnly(ChangeBaseClass):
         self.assert_qmp(result, 'return[0]/inserted/ro', False)
         self.assert_qmp(result, 'return[0]/inserted/image/filename', old_img)
 
-        result = self.vm.qmp('blockdev-remove-medium', device='drive0')
+        result = self.vm.qmp('x-blockdev-remove-medium', device='drive0')
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('query-block')
         self.assert_qmp(result, 'return[0]/tray_open', True)
         self.assert_qmp_absent(result, 'return[0]/inserted')
 
-        result = self.vm.qmp('blockdev-insert-medium', device='drive0',
+        result = self.vm.qmp('x-blockdev-insert-medium', device='drive0',
                                                        node_name='new')
         self.assert_qmp(result, 'return', {})
 
@@ -653,7 +653,7 @@ class TestBlockJobsAfterCycle(ChangeBaseClass):
 
         # For device-less BBs, calling blockdev-open-tray or blockdev-close-tray
         # is not necessary
-        result = self.vm.qmp('blockdev-remove-medium', device='drive0')
+        result = self.vm.qmp('x-blockdev-remove-medium', device='drive0')
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('query-block')
@@ -666,7 +666,7 @@ class TestBlockJobsAfterCycle(ChangeBaseClass):
                                                'driver': 'file'}})
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('blockdev-insert-medium', device='drive0',
+        result = self.vm.qmp('x-blockdev-insert-medium', device='drive0',
                                                        node_name='node0')
         self.assert_qmp(result, 'return', {})
 
