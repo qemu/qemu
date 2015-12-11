@@ -2545,7 +2545,6 @@ struct AcpiBuildState {
     MemoryRegion *table_mr;
     /* Is table patched? */
     uint8_t patched;
-    PcGuestInfo *guest_info;
     void *rsdp;
     MemoryRegion *rsdp_mr;
     MemoryRegion *linker_mr;
@@ -2825,8 +2824,6 @@ void acpi_setup(void)
     }
 
     build_state = g_malloc0(sizeof *build_state);
-
-    build_state->guest_info = guest_info;
 
     acpi_set_pci_info();
 
