@@ -1276,12 +1276,12 @@ FWCfgState *xen_load_linux(PCMachineState *pcms,
     return fw_cfg;
 }
 
-FWCfgState *pc_memory_init(PCMachineState *pcms,
-                           MemoryRegion *system_memory,
-                           MemoryRegion *rom_memory,
-                           MemoryRegion **ram_memory,
-                           PcGuestInfo *guest_info)
+void pc_memory_init(PCMachineState *pcms,
+                    MemoryRegion *system_memory,
+                    MemoryRegion *rom_memory,
+                    MemoryRegion **ram_memory)
 {
+    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     int linux_boot, i;
     MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
@@ -1403,7 +1403,6 @@ FWCfgState *pc_memory_init(PCMachineState *pcms,
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
     guest_info->fw_cfg = fw_cfg;
-    return fw_cfg;
 }
 
 qemu_irq pc_allocate_cpu_irq(void)

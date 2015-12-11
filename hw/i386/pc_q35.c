@@ -156,7 +156,7 @@ static void pc_q35_init(MachineState *machine)
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         pc_memory_init(pcms, get_system_memory(),
-                       rom_memory, &ram_memory, guest_info);
+                       rom_memory, &ram_memory);
     }
 
     /* irq lines */
