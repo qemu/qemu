@@ -290,7 +290,7 @@ static void acpi_align_size(GArray *blob, unsigned align)
 
 /* FACS */
 static void
-build_facs(GArray *table_data, GArray *linker, PcGuestInfo *guest_info)
+build_facs(GArray *table_data, GArray *linker)
 {
     AcpiFacsDescriptorRev1 *facs = acpi_data_push(table_data, sizeof *facs);
     memcpy(&facs->signature, "FACS", 4);
@@ -361,9 +361,10 @@ build_fadt(GArray *table_data, GArray *linker, AcpiPmInfo *pm,
 }
 
 static void
-build_madt(GArray *table_data, GArray *linker, AcpiCpuInfo *cpu,
-           PcGuestInfo *guest_info)
+build_madt(GArray *table_data, GArray *linker, AcpiCpuInfo *cpu)
 {
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     int madt_start = table_data->len;
 
     AcpiMultipleApicTable *madt;
@@ -1937,13 +1938,15 @@ static Aml *build_q35_osc_method(void)
 static void
 build_dsdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
-           PcPciInfo *pci, PcGuestInfo *guest_info)
+           PcPciInfo *pci)
 {
     CrsRangeEntry *entry;
     Aml *dsdt, *sb_scope, *scope, *dev, *method, *field, *pkg, *crs;
     GPtrArray *mem_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     GPtrArray *io_ranges = g_ptr_array_new_with_free_func(crs_range_free);
     MachineState *machine = MACHINE(qdev_get_machine());
+    PCMachineState *pcms = PC_MACHINE(machine);
+    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     uint32_t nr_mem = machine->ram_slots;
     int root_bus_limit = 0xFF;
     PCIBus *bus = NULL;
@@ -2365,7 +2368,7 @@ acpi_build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
 }
 
 static void
-build_srat(GArray *table_data, GArray *linker, PcGuestInfo *guest_info)
+build_srat(GArray *table_data, GArray *linker)
 {
     AcpiSystemResourceAffinityTable *srat;
     AcpiSratProcessorAffinity *core;
@@ -2376,6 +2379,7 @@ build_srat(GArray *table_data, GArray *linker, PcGuestInfo *guest_info)
     int srat_start, numa_start, slots;
     uint64_t mem_len, mem_base, next_base;
     PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     ram_addr_t hotplugabble_address_space_size =
         object_property_get_int(OBJECT(pcms), PC_MACHINE_MEMHP_REGION_SIZE,
                                 NULL);
@@ -2587,8 +2591,10 @@ static bool acpi_has_nvdimm(void)
 }
 
 static
-void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
+void acpi_build(AcpiBuildTables *tables)
 {
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     GArray *table_offsets;
     unsigned facs, dsdt, rsdt, fadt;
     AcpiCpuInfo cpu;
@@ -2619,12 +2625,11 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
      * requirements.
      */
     facs = tables_blob->len;
-    build_facs(tables_blob, tables->linker, guest_info);
+    build_facs(tables_blob, tables->linker);
 
     /* DSDT is pointed to by FADT */
     dsdt = tables_blob->len;
-    build_dsdt(tables_blob, tables->linker, &cpu, &pm, &misc, &pci,
-               guest_info);
+    build_dsdt(tables_blob, tables->linker, &cpu, &pm, &misc, &pci);
 
     /* Count the size of the DSDT and SSDT, we will need it for legacy
      * sizing of ACPI tables.
@@ -2638,7 +2643,7 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     aml_len += tables_blob->len - fadt;
 
     acpi_add_table(table_offsets, tables_blob);
-    build_madt(tables_blob, tables->linker, &cpu, guest_info);
+    build_madt(tables_blob, tables->linker, &cpu);
 
     if (misc.has_hpet) {
         acpi_add_table(table_offsets, tables_blob);
@@ -2655,7 +2660,7 @@ void acpi_build(PcGuestInfo *guest_info, AcpiBuildTables *tables)
     }
     if (guest_info->numa_nodes) {
         acpi_add_table(table_offsets, tables_blob);
-        build_srat(tables_blob, tables->linker, guest_info);
+        build_srat(tables_blob, tables->linker);
     }
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables_blob);
@@ -2759,7 +2764,7 @@ static void acpi_build_update(void *build_opaque)
 
     acpi_build_tables_init(&tables);
 
-    acpi_build(build_state->guest_info, &tables);
+    acpi_build(&tables);
 
     acpi_ram_update(build_state->table_mr, tables.table_data);
 
@@ -2797,8 +2802,10 @@ static const VMStateDescription vmstate_acpi_build = {
     },
 };
 
-void acpi_setup(PcGuestInfo *guest_info)
+void acpi_setup(void)
 {
+    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
+    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     AcpiBuildTables tables;
     AcpiBuildState *build_state;
 
@@ -2824,7 +2831,7 @@ void acpi_setup(PcGuestInfo *guest_info)
     acpi_set_pci_info();
 
     acpi_build_tables_init(&tables);
-    acpi_build(build_state->guest_info, &tables);
+    acpi_build(&tables);
 
     /* Now expose it all to Guest */
     build_state->table_mr = acpi_add_rom_blob(build_state, tables.table_data,
