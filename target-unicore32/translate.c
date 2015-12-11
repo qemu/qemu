@@ -1860,8 +1860,7 @@ static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
     }
 }
 
-/* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'.  */
+/* generate intermediate code for basic block 'tb'.  */
 void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
 {
     UniCore32CPU *cpu = uc32_env_get_cpu(env);

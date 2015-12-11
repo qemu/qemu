@@ -11209,8 +11209,7 @@ static bool insn_crosses_page(CPUARMState *env, DisasContext *s)
     return false;
 }
 
-/* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'.  */
+/* generate intermediate code for basic block 'tb'.  */
 void gen_intermediate_code(CPUARMState *env, TranslationBlock *tb)
 {
     ARMCPU *cpu = arm_env_get_cpu(env);

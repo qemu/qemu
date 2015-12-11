@@ -1576,8 +1576,7 @@ static void tcg_liveness_analysis(TCGContext *s)
 /* dummy liveness analysis */
 static void tcg_liveness_analysis(TCGContext *s)
 {
-    int nb_ops;
-    nb_ops = s->gen_opc_ptr - s->gen_opc_buf;
+    int nb_ops = s->gen_next_op_idx;
 
     s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
     memset(s->op_dead_args, 0, nb_ops * sizeof(uint16_t));

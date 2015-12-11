@@ -7878,8 +7878,7 @@ void tcg_x86_init(void)
     helper_lock_init();
 }
 
-/* generate intermediate code in gen_opc_buf and gen_opparam_buf for
-   basic block 'tb'.  */
+/* generate intermediate code for basic block 'tb'.  */
 void gen_intermediate_code(CPUX86State *env, TranslationBlock *tb)
 {
     X86CPU *cpu = x86_env_get_cpu(env);
