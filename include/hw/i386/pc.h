@@ -42,16 +42,22 @@ struct PCMachineState {
     MachineState parent_obj;
 
     /* <public> */
+
+    /* State for other subsystems/APIs: */
     MemoryHotplugState hotplug_memory;
 
+    /* Pointers to devices and objects: */
     HotplugHandler *acpi_dev;
     ISADevice *rtc;
+    PCIBus *bus;
 
+    /* Configuration options: */
     uint64_t max_ram_below_4g;
     OnOffAuto vmport;
     OnOffAuto smm;
+
+    /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
-    PCIBus *bus;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
@@ -62,38 +68,56 @@ struct PCMachineState {
 
 /**
  * PCMachineClass:
+ *
+ * Methods:
+ *
  * @get_hotplug_handler: pointer to parent class callback @get_hotplug_handler
+ *
+ * Compat fields:
+ *
  * @enforce_aligned_dimm: check that DIMM's address/size is aligned by
  *                        backend's alignment value if provided
+ * @acpi_data_size: Size of the chunk of memory at the top of RAM
+ *                  for the BIOS ACPI tables and other BIOS
+ *                  datastructures.
+ * @gigabyte_align: Make sure that guest addresses aligned at
+ *                  1Gbyte boundaries get mapped to host
+ *                  addresses aligned at 1Gbyte boundaries. This
+ *                  way we can use 1GByte pages in the host.
+ *
  */
 struct PCMachineClass {
     /*< private >*/
     MachineClass parent_class;
 
     /*< public >*/
-    bool broken_reserved_end;
+
+    /* Methods: */
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
 
+    /* Device configuration: */
     bool pci_enabled;
+    bool kvmclock_enabled;
+
+    /* Compat options: */
+
+    /* ACPI compat: */
     bool has_acpi_build;
     bool rsdp_in_ram;
+    int legacy_acpi_table_size;
+    unsigned acpi_data_size;
+
+    /* SMBIOS compat: */
     bool smbios_defaults;
     bool smbios_legacy_mode;
     bool smbios_uuid_encoded;
-    /* Make sure that guest addresses aligned at 1Gbyte boundaries get
-     * mapped to host addresses aligned at 1Gbyte boundaries.  This way
-     * we can use 1GByte pages in the host.
-     */
+
+    /* RAM / address space compat: */
     bool gigabyte_align;
     bool has_reserved_memory;
-    bool kvmclock_enabled;
-    int legacy_acpi_table_size;
-    /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables
-     * and other BIOS datastructures.
-     */
-    unsigned acpi_data_size;
     bool enforce_aligned_dimm;
+    bool broken_reserved_end;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
