@@ -1770,11 +1770,16 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
      */
     if (rdma->control_ready_expected) {
         RDMAControlHeader resp;
+        uint64_t seq;
         ret = qemu_rdma_exchange_get_response(rdma,
                                     &resp, RDMA_CONTROL_READY, RDMA_WRID_READY);
         if (ret < 0) {
             return ret;
         }
+        qemu_rdma_move_header(rdma, RDMA_WRID_READY, &resp);
+        seq = *(uint64_t *)(rdma->wr_data[RDMA_WRID_READY].control_curr);
+        /* TODO: Add len check before reading seq, should keep it compatible? */
+        trace_qemu_rdma_exchange_send_got_ready(seq);
     }
 
     /*
@@ -1847,22 +1852,26 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
 static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
                                 int expecting)
 {
+    static uint64_t ready_count = 0;
     RDMAControlHeader ready = {
-                                .len = 0,
+                                .len = 8,
                                 .type = RDMA_CONTROL_READY,
                                 .repeat = 1,
                               };
     int ret;
 
+    trace_qemu_rdma_exchange_recv(ready_count, expecting);
+
     /*
      * Inform the source that we're ready to receive a message.
      */
-    ret = qemu_rdma_post_send_control(rdma, NULL, &ready);
+    ret = qemu_rdma_post_send_control(rdma, (uint8_t *)&ready_count, &ready);
 
     if (ret < 0) {
         error_report("Failed to send control buffer!");
         return ret;
     }
+    ready_count++;
 
     /*
      * Block and wait for the message.

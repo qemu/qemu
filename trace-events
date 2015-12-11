@@ -1515,6 +1515,8 @@ qemu_rdma_dest_init_trying(const char *host, const char *ip) "%s => %s"
 qemu_rdma_dump_gid(const char *who, const char *src, const char *dst) "%s Source GID: %s, Dest GID: %s"
 qemu_rdma_exchange_get_response_start(const char *desc) "CONTROL: %s receiving..."
 qemu_rdma_exchange_get_response_none(const char *desc, int type) "Surprise: got %s (%d)"
+qemu_rdma_exchange_recv(uint64_t seq, int expecting) "%" PRIu64 " expecting: %d"
+qemu_rdma_exchange_send_got_ready(uint64_t seq) "%" PRIu64
 qemu_rdma_exchange_send_issue_callback(void) ""
 qemu_rdma_exchange_send_waiting(const char *desc) "Waiting for response %s"
 qemu_rdma_exchange_send_received(const char *desc) "Response %s received."
