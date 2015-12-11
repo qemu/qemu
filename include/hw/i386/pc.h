@@ -33,10 +33,6 @@
 #define kvm_ioapic_in_kernel()   0
 #endif
 
-/* Machine info for ACPI build: */
-struct PcGuestInfo {
-};
-
 /**
  * PCMachineState:
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
@@ -49,7 +45,6 @@ struct PCMachineState {
 
     /* State for other subsystems/APIs: */
     MemoryHotplugState hotplug_memory;
-    PcGuestInfo acpi_guest_info;
     Notifier machine_done;
 
     /* Pointers to devices and objects: */
@@ -233,7 +228,7 @@ void pc_cpus_init(PCMachineState *pcms);
 void pc_hot_add_cpu(const int64_t id, Error **errp);
 void pc_acpi_init(const char *default_dsdt);
 
-PcGuestInfo *pc_guest_info_init(PCMachineState *pcms);
+void pc_guest_info_init(PCMachineState *pcms);
 
 #define PCI_HOST_PROP_PCI_HOLE_START   "pci-hole-start"
 #define PCI_HOST_PROP_PCI_HOLE_END     "pci-hole-end"

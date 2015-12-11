@@ -1183,9 +1183,8 @@ void pc_machine_done(Notifier *notifier, void *data)
     acpi_setup();
 }
 
-PcGuestInfo *pc_guest_info_init(PCMachineState *pcms)
+void pc_guest_info_init(PCMachineState *pcms)
 {
-    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     int i, j;
 
     pcms->apic_id_limit = pc_apic_id_limit(max_cpus);
@@ -1213,7 +1212,6 @@ PcGuestInfo *pc_guest_info_init(PCMachineState *pcms)
 
     pcms->machine_done.notify = pc_machine_done;
     qemu_add_machine_init_done_notifier(&pcms->machine_done);
-    return guest_info;
 }
 
 /* setup pci memory address space mapping into system address space */
