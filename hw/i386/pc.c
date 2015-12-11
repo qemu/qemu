@@ -1156,18 +1156,12 @@ typedef struct PcRomPciInfo {
     uint64_t w64_max;
 } PcRomPciInfo;
 
-typedef struct PcGuestInfoState {
-    PcGuestInfo info;
-    Notifier machine_done;
-} PcGuestInfoState;
-
 static
-void pc_guest_info_machine_done(Notifier *notifier, void *data)
+void pc_machine_done(Notifier *notifier, void *data)
 {
-    PcGuestInfoState *guest_info_state = container_of(notifier,
-                                                      PcGuestInfoState,
-                                                      machine_done);
-    PCIBus *bus = PC_MACHINE(qdev_get_machine())->bus;
+    PCMachineState *pcms = container_of(notifier,
+                                        PCMachineState, machine_done);
+    PCIBus *bus = pcms->bus;
 
     if (bus) {
         int extra_hosts = 0;
@@ -1178,21 +1172,20 @@ void pc_guest_info_machine_done(Notifier *notifier, void *data)
                 extra_hosts++;
             }
         }
-        if (extra_hosts && guest_info_state->info.fw_cfg) {
+        if (extra_hosts && pcms->acpi_guest_info.fw_cfg) {
             uint64_t *val = g_malloc(sizeof(*val));
             *val = cpu_to_le64(extra_hosts);
-            fw_cfg_add_file(guest_info_state->info.fw_cfg,
+            fw_cfg_add_file(pcms->acpi_guest_info.fw_cfg,
                     "etc/extra-pci-roots", val, sizeof(*val));
         }
     }
 
-    acpi_setup(&guest_info_state->info);
+    acpi_setup(&pcms->acpi_guest_info);
 }
 
 PcGuestInfo *pc_guest_info_init(PCMachineState *pcms)
 {
-    PcGuestInfoState *guest_info_state = g_malloc0(sizeof *guest_info_state);
-    PcGuestInfo *guest_info = &guest_info_state->info;
+    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     int i, j;
 
     guest_info->ram_size_below_4g = pcms->below_4g_mem_size;
@@ -1220,8 +1213,8 @@ PcGuestInfo *pc_guest_info_init(PCMachineState *pcms)
         }
     }
 
-    guest_info_state->machine_done.notify = pc_guest_info_machine_done;
-    qemu_add_machine_init_done_notifier(&guest_info_state->machine_done);
+    pcms->machine_done.notify = pc_machine_done;
+    qemu_add_machine_init_done_notifier(&pcms->machine_done);
     return guest_info;
 }
 

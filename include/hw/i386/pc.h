@@ -61,6 +61,8 @@ struct PCMachineState {
 
     /* State for other subsystems/APIs: */
     MemoryHotplugState hotplug_memory;
+    PcGuestInfo acpi_guest_info;
+    Notifier machine_done;
 
     /* Pointers to devices and objects: */
     HotplugHandler *acpi_dev;
