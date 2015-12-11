@@ -1255,11 +1255,11 @@ void pc_acpi_init(const char *default_dsdt)
     }
 }
 
-FWCfgState *xen_load_linux(PCMachineState *pcms,
-                           PcGuestInfo *guest_info)
+void xen_load_linux(PCMachineState *pcms)
 {
     int i;
     FWCfgState *fw_cfg;
+    PcGuestInfo *guest_info = &pcms->acpi_guest_info;
 
     assert(MACHINE(pcms)->kernel_filename != NULL);
 
@@ -1273,7 +1273,6 @@ FWCfgState *xen_load_linux(PCMachineState *pcms,
         rom_add_option(option_rom[i].name, option_rom[i].bootindex);
     }
     guest_info->fw_cfg = fw_cfg;
-    return fw_cfg;
 }
 
 void pc_memory_init(PCMachineState *pcms,
