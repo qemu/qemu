@@ -1188,8 +1188,6 @@ PcGuestInfo *pc_guest_info_init(PCMachineState *pcms)
     PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     int i, j;
 
-    guest_info->ram_size_below_4g = pcms->below_4g_mem_size;
-    guest_info->ram_size = pcms->below_4g_mem_size + pcms->above_4g_mem_size;
     guest_info->apic_id_limit = pc_apic_id_limit(max_cpus);
     guest_info->apic_xrupt_override = kvm_allows_irq0_override();
     guest_info->numa_nodes = nb_numa_nodes;

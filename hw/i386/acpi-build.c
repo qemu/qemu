@@ -2421,17 +2421,17 @@ build_srat(GArray *table_data, GArray *linker)
         next_base = mem_base + mem_len;
 
         /* Cut out the ACPI_PCI hole */
-        if (mem_base <= guest_info->ram_size_below_4g &&
-            next_base > guest_info->ram_size_below_4g) {
-            mem_len -= next_base - guest_info->ram_size_below_4g;
+        if (mem_base <= pcms->below_4g_mem_size &&
+            next_base > pcms->below_4g_mem_size) {
+            mem_len -= next_base - pcms->below_4g_mem_size;
             if (mem_len > 0) {
                 numamem = acpi_data_push(table_data, sizeof *numamem);
                 acpi_build_srat_memory(numamem, mem_base, mem_len, i - 1,
                                        MEM_AFFINITY_ENABLED);
             }
             mem_base = 1ULL << 32;
-            mem_len = next_base - guest_info->ram_size_below_4g;
-            next_base += (1ULL << 32) - guest_info->ram_size_below_4g;
+            mem_len = next_base - pcms->below_4g_mem_size;
+            next_base += (1ULL << 32) - pcms->below_4g_mem_size;
         }
         numamem = acpi_data_push(table_data, sizeof *numamem);
         acpi_build_srat_memory(numamem, mem_base, mem_len, i - 1,
