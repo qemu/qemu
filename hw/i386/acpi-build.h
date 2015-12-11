@@ -4,6 +4,6 @@
 
 #include "qemu/typedefs.h"
 
-void acpi_setup(PcGuestInfo *);
+void acpi_setup(void);
 
 #endif

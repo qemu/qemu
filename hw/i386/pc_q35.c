@@ -136,14 +136,6 @@ static void pc_q35_init(MachineState *machine)
 
     guest_info = pc_guest_info_init(pcms);
     guest_info->isapc_ram_fw = false;
-    guest_info->has_acpi_build = pcmc->has_acpi_build;
-    guest_info->has_reserved_memory = pcmc->has_reserved_memory;
-    guest_info->rsdp_in_ram = pcmc->rsdp_in_ram;
-
-    /* Migration was not supported in 2.0 for Q35, so do not bother
-     * with this hack (see hw/i386/acpi-build.c).
-     */
-    guest_info->legacy_acpi_table_size = 0;
 
     if (pcmc->smbios_defaults) {
         /* These values are guest ABI, do not change */
