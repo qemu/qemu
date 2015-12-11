@@ -1188,24 +1188,24 @@ PcGuestInfo *pc_guest_info_init(PCMachineState *pcms)
     PcGuestInfo *guest_info = &pcms->acpi_guest_info;
     int i, j;
 
-    guest_info->apic_id_limit = pc_apic_id_limit(max_cpus);
-    guest_info->apic_xrupt_override = kvm_allows_irq0_override();
-    guest_info->numa_nodes = nb_numa_nodes;
-    guest_info->node_mem = g_malloc0(guest_info->numa_nodes *
-                                    sizeof *guest_info->node_mem);
+    pcms->apic_id_limit = pc_apic_id_limit(max_cpus);
+    pcms->apic_xrupt_override = kvm_allows_irq0_override();
+    pcms->numa_nodes = nb_numa_nodes;
+    pcms->node_mem = g_malloc0(pcms->numa_nodes *
+                                    sizeof *pcms->node_mem);
     for (i = 0; i < nb_numa_nodes; i++) {
-        guest_info->node_mem[i] = numa_info[i].node_mem;
+        pcms->node_mem[i] = numa_info[i].node_mem;
     }
 
-    guest_info->node_cpu = g_malloc0(guest_info->apic_id_limit *
-                                     sizeof *guest_info->node_cpu);
+    pcms->node_cpu = g_malloc0(pcms->apic_id_limit *
+                                     sizeof *pcms->node_cpu);
 
     for (i = 0; i < max_cpus; i++) {
         unsigned int apic_id = x86_cpu_apic_id_from_index(i);
-        assert(apic_id < guest_info->apic_id_limit);
+        assert(apic_id < pcms->apic_id_limit);
         for (j = 0; j < nb_numa_nodes; j++) {
             if (test_bit(i, numa_info[j].node_cpu)) {
-                guest_info->node_cpu[apic_id] = j;
+                pcms->node_cpu[apic_id] = j;
                 break;
             }
         }

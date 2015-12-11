@@ -35,11 +35,6 @@
 
 /* Machine info for ACPI build: */
 struct PcGuestInfo {
-    unsigned apic_id_limit;
-    bool apic_xrupt_override;
-    uint64_t numa_nodes;
-    uint64_t *node_mem;
-    uint64_t *node_cpu;
 };
 
 /**
@@ -71,6 +66,15 @@ struct PCMachineState {
 
     /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
+
+    /* CPU and apic information: */
+    bool apic_xrupt_override;
+    unsigned apic_id_limit;
+
+    /* NUMA information: */
+    uint64_t numa_nodes;
+    uint64_t *node_mem;
+    uint64_t *node_cpu;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
