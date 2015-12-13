@@ -52,6 +52,14 @@
 #define TYPE_PVSCSI "pvscsi"
 #define PVSCSI(obj) OBJECT_CHECK(PVSCSIState, (obj), TYPE_PVSCSI)
 
+/* Compatability flags for migration */
+#define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT 0
+#define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION \
+    (1 << PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT)
+
+#define PVSCSI_USE_OLD_PCI_CONFIGURATION(s) \
+    ((s)->compat_flags & PVSCSI_COMPAT_OLD_PCI_CONFIGURATION)
+
 typedef struct PVSCSIRingInfo {
     uint64_t            rs_pa;
     uint32_t            txr_len_mask;
@@ -100,6 +108,8 @@ typedef struct {
 
     PVSCSIRingInfo rings;                /* Data transfer rings manager      */
     uint32_t resetting;                  /* Reset in progress                */
+
+    uint32_t compat_flags;
 } PVSCSIState;
 
 typedef struct PVSCSIRequest {
@@ -1069,9 +1079,16 @@ pvscsi_init(PCIDevice *pci_dev)
 
     trace_pvscsi_state("init");
 
-    /* PCI subsystem ID */
-    pci_dev->config[PCI_SUBSYSTEM_ID] = 0x00;
-    pci_dev->config[PCI_SUBSYSTEM_ID + 1] = 0x10;
+    /* PCI subsystem ID, subsystem vendor ID, revision */
+    if (PVSCSI_USE_OLD_PCI_CONFIGURATION(s)) {
+        pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID, 0x1000);
+    } else {
+        pci_set_word(pci_dev->config + PCI_SUBSYSTEM_VENDOR_ID,
+                     PCI_VENDOR_ID_VMWARE);
+        pci_set_word(pci_dev->config + PCI_SUBSYSTEM_ID,
+                     PCI_DEVICE_ID_VMWARE_PVSCSI);
+        pci_config_set_revision(pci_dev->config, 0x2);
+    }
 
     /* PCI latency timer = 255 */
     pci_dev->config[PCI_LATENCY_TIMER] = 0xff;
