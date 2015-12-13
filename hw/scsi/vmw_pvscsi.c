@@ -48,8 +48,17 @@
     (stl_le_pci_dma(&container_of(m, PVSCSIState, rings)->parent_obj, \
                  (m)->rs_pa + offsetof(struct PVSCSIRingsState, field), val))
 
+typedef struct PVSCSIClass {
+    PCIDeviceClass parent_class;
+} PVSCSIClass;
+
 #define TYPE_PVSCSI "pvscsi"
 #define PVSCSI(obj) OBJECT_CHECK(PVSCSIState, (obj), TYPE_PVSCSI)
+
+#define PVSCSI_DEVICE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(PVSCSIClass, (klass), TYPE_PVSCSI)
+#define PVSCSI_DEVICE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(PVSCSIClass, (obj), TYPE_PVSCSI)
 
 /* Compatability flags for migration */
 #define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT 0
@@ -1222,6 +1231,7 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pvscsi_info = {
     .name          = TYPE_PVSCSI,
     .parent        = TYPE_PCI_DEVICE,
+    .class_size    = sizeof(PVSCSIClass),
     .instance_size = sizeof(PVSCSIState),
     .class_init    = pvscsi_class_init,
     .interfaces = (InterfaceInfo[]) {
