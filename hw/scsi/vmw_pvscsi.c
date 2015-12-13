@@ -50,6 +50,7 @@
 
 typedef struct PVSCSIClass {
     PCIDeviceClass parent_class;
+    DeviceRealize parent_dc_realize;
 } PVSCSIClass;
 
 #define TYPE_PVSCSI "pvscsi"
@@ -64,11 +65,15 @@ typedef struct PVSCSIClass {
 #define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT 0
 #define PVSCSI_COMPAT_OLD_PCI_CONFIGURATION \
     (1 << PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT)
+#define PVSCSI_COMPAT_DISABLE_PCIE_BIT 1
+#define PVSCSI_COMPAT_DISABLE_PCIE \
+    (1 << PVSCSI_COMPAT_DISABLE_PCIE_BIT)
 
 #define PVSCSI_USE_OLD_PCI_CONFIGURATION(s) \
     ((s)->compat_flags & PVSCSI_COMPAT_OLD_PCI_CONFIGURATION)
 #define PVSCSI_MSI_OFFSET(s) \
     (PVSCSI_USE_OLD_PCI_CONFIGURATION(s) ? 0x50 : 0x7c)
+#define PVSCSI_EXP_EP_OFFSET (0x40)
 
 typedef struct PVSCSIRingInfo {
     uint64_t            rs_pa;
@@ -1112,6 +1117,10 @@ pvscsi_init(PCIDevice *pci_dev)
 
     pvscsi_init_msi(s);
 
+    if (pci_is_express(pci_dev) && pci_bus_is_express(pci_dev->bus)) {
+        pcie_endpoint_cap_init(pci_dev, PVSCSI_EXP_EP_OFFSET);
+    }
+
     s->completion_worker = qemu_bh_new(pvscsi_process_completion_queue, s);
     if (!s->completion_worker) {
         pvscsi_cleanup_msi(s);
@@ -1166,6 +1175,27 @@ pvscsi_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool pvscsi_vmstate_need_pcie_device(void *opaque)
+{
+    PVSCSIState *s = PVSCSI(opaque);
+
+    return !(s->compat_flags & PVSCSI_COMPAT_DISABLE_PCIE);
+}
+
+static bool pvscsi_vmstate_test_pci_device(void *opaque, int version_id)
+{
+    return !pvscsi_vmstate_need_pcie_device(opaque);
+}
+
+static const VMStateDescription vmstate_pvscsi_pcie_device = {
+    .name = "pvscsi/pcie",
+    .needed = pvscsi_vmstate_need_pcie_device,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCIE_DEVICE(parent_obj, PVSCSIState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_pvscsi = {
     .name = "pvscsi",
     .version_id = 0,
@@ -1173,7 +1203,9 @@ static const VMStateDescription vmstate_pvscsi = {
     .pre_save = pvscsi_pre_save,
     .post_load = pvscsi_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_PCI_DEVICE(parent_obj, PVSCSIState),
+        VMSTATE_STRUCT_TEST(parent_obj, PVSCSIState,
+                            pvscsi_vmstate_test_pci_device, 0,
+                            vmstate_pci_device, PCIDevice),
         VMSTATE_UINT8(msi_used, PVSCSIState),
         VMSTATE_UINT32(resetting, PVSCSIState),
         VMSTATE_UINT64(reg_interrupt_status, PVSCSIState),
@@ -1198,6 +1230,10 @@ static const VMStateDescription vmstate_pvscsi = {
         VMSTATE_UINT64(rings.filled_cmp_ptr, PVSCSIState),
 
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription*[]) {
+        &vmstate_pvscsi_pcie_device,
+        NULL
     }
 };
 
@@ -1208,10 +1244,24 @@ static Property pvscsi_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void pvscsi_realize(DeviceState *qdev, Error **errp)
+{
+    PVSCSIClass *pvs_c = PVSCSI_DEVICE_GET_CLASS(qdev);
+    PCIDevice *pci_dev = PCI_DEVICE(qdev);
+    PVSCSIState *s = PVSCSI(qdev);
+
+    if (!(s->compat_flags & PVSCSI_COMPAT_DISABLE_PCIE)) {
+        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    }
+
+    pvs_c->parent_dc_realize(qdev, errp);
+}
+
 static void pvscsi_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    PVSCSIClass *pvs_k = PVSCSI_DEVICE_CLASS(klass);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->init = pvscsi_init;
@@ -1220,6 +1270,8 @@ static void pvscsi_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VMWARE_PVSCSI;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     k->subsystem_id = 0x1000;
+    pvs_k->parent_dc_realize = dc->realize;
+    dc->realize = pvscsi_realize;
     dc->reset = pvscsi_reset;
     dc->vmsd = &vmstate_pvscsi;
     dc->props = pvscsi_properties;
