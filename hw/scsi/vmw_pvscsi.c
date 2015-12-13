@@ -32,7 +32,6 @@
 #include "trace.h"
 
 
-#define PVSCSI_MSI_OFFSET        (0x50)
 #define PVSCSI_USE_64BIT         (true)
 #define PVSCSI_PER_VECTOR_MASK   (false)
 
@@ -59,6 +58,8 @@
 
 #define PVSCSI_USE_OLD_PCI_CONFIGURATION(s) \
     ((s)->compat_flags & PVSCSI_COMPAT_OLD_PCI_CONFIGURATION)
+#define PVSCSI_MSI_OFFSET(s) \
+    (PVSCSI_USE_OLD_PCI_CONFIGURATION(s) ? 0x50 : 0x7c)
 
 typedef struct PVSCSIRingInfo {
     uint64_t            rs_pa;
@@ -1029,7 +1030,7 @@ pvscsi_init_msi(PVSCSIState *s)
     int res;
     PCIDevice *d = PCI_DEVICE(s);
 
-    res = msi_init(d, PVSCSI_MSI_OFFSET, PVSCSI_MSIX_NUM_VECTORS,
+    res = msi_init(d, PVSCSI_MSI_OFFSET(s), PVSCSI_MSIX_NUM_VECTORS,
                    PVSCSI_USE_64BIT, PVSCSI_PER_VECTOR_MASK);
     if (res < 0) {
         trace_pvscsi_init_msi_fail(res);
