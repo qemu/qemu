@@ -1241,6 +1241,8 @@ static Property pvscsi_properties[] = {
     DEFINE_PROP_UINT8("use_msg", PVSCSIState, use_msg, 1),
     DEFINE_PROP_BIT("x-old-pci-configuration", PVSCSIState, compat_flags,
                     PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT, false),
+    DEFINE_PROP_BIT("x-disable-pcie", PVSCSIState, compat_flags,
+                    PVSCSI_COMPAT_DISABLE_PCIE_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
