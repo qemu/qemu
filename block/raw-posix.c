@@ -779,7 +779,6 @@ static int hdev_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
 {
     BDRVRawState *s = bs->opaque;
     struct hd_geometry ioctl_geo = {0};
-    uint32_t blksize;
 
     /* If DASD, get its geometry */
     if (check_for_dasd(s->fd) < 0) {
@@ -799,12 +798,6 @@ static int hdev_probe_geometry(BlockDriverState *bs, HDGeometry *geo)
     }
     geo->heads = ioctl_geo.heads;
     geo->sectors = ioctl_geo.sectors;
-    if (!probe_physical_blocksize(s->fd, &blksize)) {
-        /* overwrite cyls: HDIO_GETGEO result is incorrect for big drives */
-        geo->cylinders = bdrv_nb_sectors(bs) / (blksize / BDRV_SECTOR_SIZE)
-                                             / (geo->heads * geo->sectors);
-        return 0;
-    }
     geo->cylinders = ioctl_geo.cylinders;
 
     return 0;
