@@ -281,6 +281,33 @@ static void network_to_dest_block(RDMADestBlock *db)
     db->remote_rkey = ntohl(db->remote_rkey);
 }
 
+/* A message from dest->source saying that an area of memory has been written */
+typedef struct QEMU_PACKED {
+    uint32_t index;
+    uint32_t padding;
+    uint64_t start;
+    uint64_t len;
+} RDMANotifyWrite;
+
+/* Pretty arbitrary, well under RDMA_CONTROL_MAX_BUFFER size
+ * and RDMA_CONTROL_MAX_COMMANDS_PER_MESSAGE
+ */
+#define RDMA_WRITE_NOTIFY_COUNT 2048
+
+static void notify_write_to_network(RDMANotifyWrite *notify)
+{
+    notify->index = htonl(notify->index);
+    notify->start = htonll(notify->start);
+    notify->len   = htonll(notify->len);
+}
+
+static void network_to_notify_write(RDMANotifyWrite *notify)
+{
+    notify->index = ntohl(notify->index);
+    notify->start = ntohll(notify->start);
+    notify->len   = ntohll(notify->len);
+}
+
 /*
  * Virtual address of the above structures used for transmitting
  * the RAMBlock descriptions at connection-time.
@@ -378,6 +405,9 @@ typedef struct RDMAContext {
     int unregister_current, unregister_next;
     uint64_t unregistrations[RDMA_SIGNALED_SEND_MAX];
 
+    /* Queue of write notifications waiting to be sent to dest */
+    RDMANotifyWrite write_notifications[RDMA_WRITE_NOTIFY_COUNT];
+    size_t          write_notifications_pending;
     bool            enable_write_notifications;
 
     GHashTable *blockmap;
@@ -517,28 +547,6 @@ static void network_to_result(RDMARegisterResult *result)
     result->rkey = ntohl(result->rkey);
     result->host_addr = ntohll(result->host_addr);
 };
-
-/* A message from dest->source saying that an area of memory has been written */
-typedef struct QEMU_PACKED {
-    uint32_t index;
-    uint32_t padding;
-    uint64_t start;
-    uint64_t len;
-} RDMANotifyWrite;
-
-static void notify_write_to_network(RDMANotifyWrite *notify)
-{
-    notify->index = htonl(notify->index);
-    notify->start = htonll(notify->start);
-    notify->len   = htonll(notify->len);
-}
-
-static void network_to_notify_write(RDMANotifyWrite *notify)
-{
-    notify->index = ntohl(notify->index);
-    notify->start = ntohll(notify->start);
-    notify->len   = ntohll(notify->len);
-}
 
 const char *print_wrid(int wrid);
 static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
@@ -1901,42 +1909,76 @@ static int qemu_rdma_exchange_recv(RDMAContext *rdma, RDMAControlHeader *head,
  * in COLO this is necessary so that it can copy the data back into the
  * secondary's main RAM.
  */
-static int send_write_notification(RDMAContext *rdma, uint32_t block,
-                                    uint64_t addr, uint64_t len)
+static int send_write_notifications(RDMAContext *rdma)
 {
     /* TODO: Make this only happen when needed */
-    /* TODO: Aggregate notifications somehow */
-    RDMAControlHeader head = { .len = sizeof(RDMANotifyWrite),
-                               .type = RDMA_CONTROL_NOTIFY_WRITE,
-                               .repeat = 1,
-                             };
-    RDMANotifyWrite data;
+    RDMAControlHeader head = { .type = RDMA_CONTROL_NOTIFY_WRITE, };
+    size_t index;
 
+    head.repeat = rdma->write_notifications_pending;
+    head.len = head.repeat * sizeof(RDMANotifyWrite);
+    trace_send_write_notifications(head.repeat);
+
+    if (head.len == 0) {
+        return 0;
+    }
+
+    for (index = 0; index < head.repeat; index++) {
+        notify_write_to_network(&(rdma->write_notifications[index]));
+    }
+
+    rdma->write_notifications_pending = 0;
+    return qemu_rdma_exchange_send(rdma, &head,
+                                  (uint8_t *)(rdma->write_notifications),
+                                   NULL, NULL, NULL);
+}
+
+/* dest->source  Queue a write notification for sending.
+ */
+static int queue_write_notification(RDMAContext *rdma, uint32_t block,
+                                    uint64_t addr, uint64_t len)
+{
+    RDMANotifyWrite *entry =
+        &(rdma->write_notifications[rdma->write_notifications_pending]);
     if (!rdma->enable_write_notifications) {
         return 0;
     }
 
-    data.index = block;
-    data.start = addr - rdma->local_ram_blocks.block[block].offset;
-    data.len = len;
-    notify_write_to_network(&data);
-    return qemu_rdma_exchange_send(rdma, &head, (uint8_t *)&data,
-                                   NULL, NULL, NULL);
+    entry->index = block;
+    entry->start = addr - rdma->local_ram_blocks.block[block].offset;
+    entry->len = len;
+
+    rdma->write_notifications_pending++;
+    if (rdma->write_notifications_pending == RDMA_WRITE_NOTIFY_COUNT) {
+        return send_write_notifications(rdma);
+    }
+    return 0;
 }
 
 /* destination: When we receive a write_notification */
-static int handle_write_notification(RDMAContext *rdma, uint8_t *data)
+static int handle_write_notification(RDMAContext *rdma, size_t count,
+                                     uint8_t *data)
 {
-    RDMANotifyWrite notify = *(RDMANotifyWrite *)data;
+    RDMANotifyWrite *notify = (RDMANotifyWrite *)data;
     RDMALocalBlock *block;
 
-    network_to_notify_write(&notify);
-    if (notify.index >= rdma->local_ram_blocks.nb_blocks) {
-        return -EINVAL;
-    }
-    block = &(rdma->local_ram_blocks.block[notify.index]);
+    while (count--) {
+        int ret;
 
-    return ram_notify_load(block->block_name, notify.start, notify.len);
+        network_to_notify_write(notify);
+        if (notify->index >= rdma->local_ram_blocks.nb_blocks) {
+            return -EINVAL;
+        }
+        block = &(rdma->local_ram_blocks.block[notify->index]);
+
+        ret = ram_notify_load(block->block_name,
+                              notify->start, notify->len);
+        if (ret) {
+            return ret;
+        }
+        notify++;
+    }
+    return 0;
 }
 
 /*
@@ -2160,7 +2202,7 @@ retry:
     rdma->total_writes++;
     /* Note: This increment must happen before we call qemu_rdma_poll */
     rdma->nb_sent++;
-    send_write_notification(rdma, current_index, current_addr, sge.length);
+    queue_write_notification(rdma, current_index, current_addr, sge.length);
 
     return 0;
 }
@@ -2419,6 +2461,8 @@ static int qemu_rdma_source_init(RDMAContext *rdma, Error **errp, bool pin_all)
             goto err_rdma_source_init;
         }
     }
+    rdma->write_notifications_pending = 0;
+
 
     return 0;
 
@@ -3385,7 +3429,20 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
             goto out;
 
         case RDMA_CONTROL_NOTIFY_WRITE:
-            handle_write_notification(rdma, rdma->wr_data[idx].control_curr);
+            if ((head.repeat * sizeof(RDMANotifyWrite)) !=
+                rdma->wr_data[idx].control_len)
+            {
+                error_report("Notify write request length incorrect "
+                             "(%zd items, %zd length)",
+                             (size_t)head.repeat,
+                             rdma->wr_data[idx].control_len);
+
+                ret = -ERANGE;
+                goto out;
+            }
+            handle_write_notification(rdma,
+                                      head.repeat,
+                                      rdma->wr_data[idx].control_curr);
             break;
 
         default:
@@ -3546,6 +3603,17 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
     if (ret < 0) {
         goto err;
     }
+
+    /* Flush any outstanding write notifications
+     * Note: After qemu_rdma_drain_cq since that causes the last rdma
+     * write to happen which might add one more write notification
+     */
+
+    ret = send_write_notifications(rdma);
+    if (ret < 0) {
+        goto err;
+    }
+    qemu_fflush(f);
 
     if (flags == RAM_CONTROL_SETUP_COLO) {
         ret = rdma_registration_colo(f, rdma);

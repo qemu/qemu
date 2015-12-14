@@ -1570,6 +1570,7 @@ rdma_start_outgoing_migration_after_rdma_connect(void) ""
 rdma_start_outgoing_migration_after_rdma_source_init(void) ""
 rdma_tcp_partner_accept_accepted(void) ""
 rdma_tcp_partner_connect(int fd) "%d"
+send_write_notifications(size_t count) "%zd"
 
 # migration/postcopy-ram.c
 postcopy_discard_send_finish(const char *ramblock, int nwords, int ncmds) "%s mask words sent=%d in %d commands"
