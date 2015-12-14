@@ -677,9 +677,10 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
 
     if (info->has_backing_filename) {
         func_fprintf(f, "backing file: %s", info->backing_filename);
-        if (info->has_full_backing_filename &&
-            (strcmp(info->backing_filename,
-                    info->full_backing_filename) != 0)) {
+        if (!info->has_full_backing_filename) {
+            func_fprintf(f, " (cannot determine actual path)");
+        } else if (strcmp(info->backing_filename,
+                          info->full_backing_filename) != 0) {
             func_fprintf(f, " (actual path: %s)", info->full_backing_filename);
         }
         func_fprintf(f, "\n");
