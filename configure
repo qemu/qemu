@@ -4766,7 +4766,11 @@ echo "GTK GL support    $gtk_gl"
 echo "GNUTLS support    $gnutls"
 echo "GNUTLS hash       $gnutls_hash"
 echo "libgcrypt         $gcrypt"
-echo "nettle            $nettle ${nettle+($nettle_version)}"
+if test "$nettle" = "yes"; then
+    echo "nettle            $nettle ($nettle_version)"
+else
+    echo "nettle            $nettle"
+fi
 echo "libtasn1          $tasn1"
 echo "VTE support       $vte"
 echo "curses support    $curses"
