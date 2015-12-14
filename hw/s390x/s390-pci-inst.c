@@ -208,12 +208,12 @@ int clp_service_call(S390CPU *cpu, uint8_t r2)
 
         switch (reqsetpci->oc) {
         case CLP_SET_ENABLE_PCI_FN:
-            pbdev->fh = pbdev->fh | 1 << ENABLE_BIT_OFFSET;
+            pbdev->fh = pbdev->fh | FH_ENABLED;
             stl_p(&ressetpci->fh, pbdev->fh);
             stw_p(&ressetpci->hdr.rsp, CLP_RC_OK);
             break;
         case CLP_SET_DISABLE_PCI_FN:
-            pbdev->fh = pbdev->fh & ~(1 << ENABLE_BIT_OFFSET);
+            pbdev->fh = pbdev->fh & ~FH_ENABLED;
             pbdev->error_state = false;
             pbdev->lgstg_blocked = false;
             stl_p(&ressetpci->fh, pbdev->fh);
@@ -818,7 +818,7 @@ int stpcifc_service_call(S390CPU *cpu, uint8_t r1, uint64_t fiba, uint8_t ar)
            ((uint32_t)pbdev->sum << 7) | pbdev->routes.adapter.summary_offset;
     stl_p(&fib.data, data);
 
-    if (pbdev->fh >> ENABLE_BIT_OFFSET) {
+    if (pbdev->fh & FH_ENABLED) {
         fib.fc |= 0x80;
     }
 
