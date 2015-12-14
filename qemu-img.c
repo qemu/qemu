@@ -2040,7 +2040,10 @@ static ImageInfoList *collect_image_info_list(const char *filename,
             if (info->has_full_backing_filename) {
                 filename = info->full_backing_filename;
             } else if (info->has_backing_filename) {
-                filename = info->backing_filename;
+                error_report("Could not determine absolute backing filename,"
+                             " but backing filename '%s' present",
+                             info->backing_filename);
+                goto err;
             }
             if (info->has_backing_filename_format) {
                 fmt = info->backing_filename_format;
