@@ -251,9 +251,10 @@ void bdrv_query_image_info(BlockDriverState *bs,
             return;
         }
 
-        if (strcmp(backing_filename, backing_filename2) != 0) {
-            info->full_backing_filename =
-                        g_strdup(backing_filename2);
+        /* Always report the full_backing_filename if present, even if it's the
+         * same as backing_filename. That they are same is useful info. */
+        if (backing_filename2) {
+            info->full_backing_filename = g_strdup(backing_filename2);
             info->has_full_backing_filename = true;
         }
 
