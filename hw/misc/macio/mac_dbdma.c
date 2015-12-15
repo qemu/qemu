@@ -41,6 +41,7 @@
 #include "hw/isa/isa.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "qemu/main-loop.h"
+#include "qemu/log.h"
 
 /* debug DBDMA */
 //#define DEBUG_DBDMA

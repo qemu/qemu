@@ -13,6 +13,7 @@
 #include <cpu-qom.h>
 #include "internals.h"
 #include "arm-powerctl.h"
+#include "qemu/log.h"
 
 #ifndef DEBUG_ARM_POWERCTL
 #define DEBUG_ARM_POWERCTL 0

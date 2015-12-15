@@ -36,6 +36,7 @@
 #include "hw/pci-host/apb.h"
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
+#include "qemu/log.h"
 
 /* debug APB */
 //#define DEBUG_APB

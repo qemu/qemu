@@ -11,6 +11,7 @@
 #include "qemu/osdep.h"
 #include "hw/ssi/imx_spi.h"
 #include "sysemu/sysemu.h"
+#include "qemu/log.h"
 
 #ifndef DEBUG_IMX_SPI
 #define DEBUG_IMX_SPI 0

@@ -28,6 +28,7 @@
 #include "qemu-common.h"
 #include "cpu.h"
 #include "hw/hw.h"
+#include "qemu/log.h"
 #include "net/net.h"
 #include "hw/qdev.h"
 #include "hw/ppc/spapr.h"

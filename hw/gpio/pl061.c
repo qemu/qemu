@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qemu/log.h"
 
 //#define DEBUG_PL061 1
 

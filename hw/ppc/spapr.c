@@ -29,6 +29,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/numa.h"
 #include "hw/hw.h"
+#include "qemu/log.h"
 #include "hw/fw-path-provider.h"
 #include "elf.h"
 #include "net/net.h"

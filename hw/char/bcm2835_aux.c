@@ -22,6 +22,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/char/bcm2835_aux.h"
+#include "qemu/log.h"
 
 #define AUX_IRQ         0x0
 #define AUX_ENABLES     0x4

@@ -21,6 +21,7 @@
 #include "net/net.h"
 #include "qemu/fifo8.h"
 #include "hw/net/allwinner_emac.h"
+#include "qemu/log.h"
 #include <zlib.h>
 
 static uint8_t padding[60];

@@ -11,7 +11,6 @@
 #include "hw/irq.h"
 #include "block/aio.h"
 #include "migration/vmstate.h"
-#include "qemu/log.h"
 #include "qemu/module.h"
 
 typedef void QEMUResetHandler(void *opaque);

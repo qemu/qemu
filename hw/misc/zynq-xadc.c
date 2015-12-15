@@ -18,6 +18,7 @@
 #include "hw/misc/zynq-xadc.h"
 #include "qemu/timer.h"
 #include "sysemu/sysemu.h"
+#include "qemu/log.h"
 
 enum {
     CFG                = 0x000 / 4,

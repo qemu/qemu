@@ -30,6 +30,7 @@
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
 #include "qemu/main-loop.h"
+#include "qemu/log.h"
 
 #include "hw/timer/digic-timer.h"
 

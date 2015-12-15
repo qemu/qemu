@@ -45,6 +45,7 @@
 #include "qemu/bitops.h"
 #include "exec/address-spaces.h"
 #include "qemu/host-utils.h"
+#include "qemu/log.h"
 #include "hw/sysbus.h"
 #include "sysemu/sysemu.h"
 

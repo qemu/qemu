@@ -33,6 +33,7 @@
 #include "hw/ptimer.h"
 #include "etsec.h"
 #include "registers.h"
+#include "qemu/log.h"
 
 /* #define HEX_DUMP */
 /* #define DEBUG_REGISTER */

@@ -38,6 +38,7 @@
 #include "sysemu/sysemu.h"
 #include "hw/ssi/ssi.h"
 #include "qemu/cutils.h"
+#include "qemu/log.h"
 
 //#define DEBUG
 

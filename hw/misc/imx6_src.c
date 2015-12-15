@@ -12,6 +12,7 @@
 #include "hw/misc/imx6_src.h"
 #include "sysemu/sysemu.h"
 #include "qemu/bitops.h"
+#include "qemu/log.h"
 #include "arm-powerctl.h"
 
 #ifndef DEBUG_IMX6_SRC

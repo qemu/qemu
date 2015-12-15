@@ -27,6 +27,7 @@
 #include "hw/mips/mips.h"
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
 

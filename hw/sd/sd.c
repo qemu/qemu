@@ -39,6 +39,7 @@
 #include "hw/qdev-properties.h"
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 
 //#define DEBUG_SD 1
 

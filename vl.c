@@ -80,6 +80,7 @@ int main(int argc, char **argv)
 #include "qemu/timer.h"
 #include "sysemu/char.h"
 #include "qemu/bitmap.h"
+#include "qemu/log.h"
 #include "sysemu/blockdev.h"
 #include "hw/block/block.h"
 #include "migration/block.h"

@@ -20,6 +20,7 @@
 #include "hw/devices.h"
 #include "sysemu/sysemu.h"
 #include "hw/intc/allwinner-a10-pic.h"
+#include "qemu/log.h"
 
 static void aw_a10_pic_update(AwA10PICState *s)
 {

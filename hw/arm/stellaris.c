@@ -17,6 +17,7 @@
 #include "hw/i2c/i2c.h"
 #include "net/net.h"
 #include "hw/boards.h"
+#include "qemu/log.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
 

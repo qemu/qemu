@@ -27,6 +27,7 @@
 #include "hw/isa/isa.h"
 #include "monitor/monitor.h"
 #include "qemu/timer.h"
+#include "qemu/log.h"
 #include "hw/isa/i8259_internal.h"
 
 /* debug PIC */

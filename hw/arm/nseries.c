@@ -37,6 +37,7 @@
 #include "hw/loader.h"
 #include "sysemu/block-backend.h"
 #include "hw/sysbus.h"
+#include "qemu/log.h"
 #include "exec/address-spaces.h"
 
 /* Nokia N8x0 support */
