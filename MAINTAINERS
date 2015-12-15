@@ -1199,6 +1199,7 @@ SLIRP
 M: Jan Kiszka <jan.kiszka@siemens.com>
 S: Maintained
 F: slirp/
+F: net/slirp.c
 T: git git://git.kiszka.org/qemu.git queues/slirp
 
 Tracing
