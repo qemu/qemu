@@ -131,10 +131,7 @@ void s390_create_virtio_net(BusState *bus, const char *name)
             nd->model = g_strdup("virtio");
         }
 
-        if (strcmp(nd->model, "virtio")) {
-            fprintf(stderr, "S390 only supports VirtIO nics\n");
-            exit(1);
-        }
+        qemu_check_nic_model(nd, "virtio");
 
         dev = qdev_create(bus, name);
         qdev_set_nic_properties(dev, nd);
