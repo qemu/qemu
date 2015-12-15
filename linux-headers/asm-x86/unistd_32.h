@@ -373,5 +373,6 @@
 #define __NR_shutdown 373
 #define __NR_userfaultfd 374
 #define __NR_membarrier 375
+#define __NR_mlock2 376
 
 #endif /* _ASM_X86_UNISTD_32_H */
