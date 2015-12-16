@@ -111,6 +111,7 @@ MigrationIncomingState *migration_incoming_state_new(QEMUFile* f)
 {
     mis_current = g_new0(MigrationIncomingState, 1);
     mis_current->from_src_file = f;
+    mis_current->state = MIGRATION_STATUS_NONE;
     QLIST_INIT(&mis_current->loadvm_handlers);
     qemu_mutex_init(&mis_current->rp_mutex);
     qemu_event_init(&mis_current->main_thread_load_event, false);
@@ -331,8 +332,8 @@ static void process_incoming_migration_co(void *opaque)
 
     mis = migration_incoming_state_new(f);
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
-    migrate_generate_event(MIGRATION_STATUS_ACTIVE);
-
+    migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
+                      MIGRATION_STATUS_ACTIVE);
     ret = qemu_loadvm_state(f);
 
     ps = postcopy_state_get();
@@ -358,10 +359,10 @@ static void process_incoming_migration_co(void *opaque)
 
     qemu_fclose(f);
     free_xbzrle_decoded_buf();
-    migration_incoming_state_destroy();
 
     if (ret < 0) {
-        migrate_generate_event(MIGRATION_STATUS_FAILED);
+        migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_FAILED);
         error_report("load of migration failed: %s", strerror(-ret));
         migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
@@ -370,7 +371,8 @@ static void process_incoming_migration_co(void *opaque)
     /* Make sure all file formats flush their mutable metadata */
     bdrv_invalidate_cache_all(&local_err);
     if (local_err) {
-        migrate_generate_event(MIGRATION_STATUS_FAILED);
+        migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                          MIGRATION_STATUS_FAILED);
         error_report_err(local_err);
         migrate_decompress_threads_join();
         exit(EXIT_FAILURE);
@@ -402,7 +404,9 @@ static void process_incoming_migration_co(void *opaque)
      * observer sees this event they might start to prod at the VM assuming
      * it's ready to use.
      */
-    migrate_generate_event(MIGRATION_STATUS_COMPLETED);
+    migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
+                      MIGRATION_STATUS_COMPLETED);
+    migration_incoming_state_destroy();
 }
 
 void process_incoming_migration(QEMUFile *f)
