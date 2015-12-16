@@ -229,6 +229,8 @@ int bdrv_snapshot_delete(BlockDriverState *bs,
                          Error **errp)
 {
     BlockDriver *drv = bs->drv;
+    int ret;
+
     if (!drv) {
         error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, bdrv_get_device_name(bs));
         return -ENOMEDIUM;
@@ -239,18 +241,21 @@ int bdrv_snapshot_delete(BlockDriverState *bs,
     }
 
     /* drain all pending i/o before deleting snapshot */
-    bdrv_drain(bs);
+    bdrv_drained_begin(bs);
 
     if (drv->bdrv_snapshot_delete) {
-        return drv->bdrv_snapshot_delete(bs, snapshot_id, name, errp);
+        ret = drv->bdrv_snapshot_delete(bs, snapshot_id, name, errp);
+    } else if (bs->file) {
+        ret = bdrv_snapshot_delete(bs->file->bs, snapshot_id, name, errp);
+    } else {
+        error_setg(errp, "Block format '%s' used by device '%s' "
+                   "does not support internal snapshot deletion",
+                   drv->format_name, bdrv_get_device_name(bs));
+        ret = -ENOTSUP;
     }
-    if (bs->file) {
-        return bdrv_snapshot_delete(bs->file->bs, snapshot_id, name, errp);
-    }
-    error_setg(errp, "Block format '%s' used by device '%s' "
-               "does not support internal snapshot deletion",
-               drv->format_name, bdrv_get_device_name(bs));
-    return -ENOTSUP;
+
+    bdrv_drained_end(bs);
+    return ret;
 }
 
 int bdrv_snapshot_delete_by_id_or_name(BlockDriverState *bs,
