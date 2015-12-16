@@ -57,6 +57,9 @@
 #define MSR_KVM_WALL_CLOCK  0x11
 #define MSR_KVM_SYSTEM_TIME 0x12
 
+#define MSR_BUF_SIZE \
+    (sizeof(struct kvm_msrs) + 150 * sizeof(struct kvm_msr_entry))
+
 #ifndef BUS_MCEERR_AR
 #define BUS_MCEERR_AR 4
 #endif
@@ -914,6 +917,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (has_xsave) {
         env->kvm_xsave_buf = qemu_memalign(4096, sizeof(struct kvm_xsave));
     }
+    cpu->kvm_msr_buf = g_malloc0(MSR_BUF_SIZE);
 
     if (env->features[FEAT_1_EDX] & CPUID_MTRR) {
         has_msr_mtrr = true;
@@ -1462,6 +1466,11 @@ static void kvm_msr_entry_set(struct kvm_msr_entry *entry,
     entry->data = value;
 }
 
+static void kvm_msr_buf_reset(X86CPU *cpu)
+{
+    memset(cpu->kvm_msr_buf, 0, MSR_BUF_SIZE);
+}
+
 static int kvm_put_tscdeadline_msr(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
@@ -1528,13 +1537,11 @@ static int kvm_put_msr_feature_control(X86CPU *cpu)
 static int kvm_put_msrs(X86CPU *cpu, int level)
 {
     CPUX86State *env = &cpu->env;
-    struct {
-        struct kvm_msrs info;
-        struct kvm_msr_entry entries[150];
-    } msr_data;
-    struct kvm_msr_entry *msrs = msr_data.entries;
+    struct kvm_msr_entry *msrs = cpu->kvm_msr_buf->entries;
     int n = 0, i;
     int ret;
+
+    kvm_msr_buf_reset(cpu);
 
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_CS, env->sysenter_cs);
     kvm_msr_entry_set(&msrs[n++], MSR_IA32_SYSENTER_ESP, env->sysenter_esp);
@@ -1724,11 +1731,9 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         }
     }
 
-    msr_data.info = (struct kvm_msrs) {
-        .nmsrs = n,
-    };
+    cpu->kvm_msr_buf->nmsrs = n;
 
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, &msr_data);
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_SET_MSRS, cpu->kvm_msr_buf);
     if (ret < 0) {
         return ret;
     }
@@ -1944,12 +1949,10 @@ static int kvm_get_sregs(X86CPU *cpu)
 static int kvm_get_msrs(X86CPU *cpu)
 {
     CPUX86State *env = &cpu->env;
-    struct {
-        struct kvm_msrs info;
-        struct kvm_msr_entry entries[150];
-    } msr_data;
-    struct kvm_msr_entry *msrs = msr_data.entries;
+    struct kvm_msr_entry *msrs = cpu->kvm_msr_buf->entries;
     int ret, i, n;
+
+    kvm_msr_buf_reset(cpu);
 
     n = 0;
     msrs[n++].index = MSR_IA32_SYSENTER_CS;
@@ -2092,11 +2095,9 @@ static int kvm_get_msrs(X86CPU *cpu)
         }
     }
 
-    msr_data.info = (struct kvm_msrs) {
-        .nmsrs = n,
-    };
+    cpu->kvm_msr_buf->nmsrs = n;
 
-    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, &msr_data);
+    ret = kvm_vcpu_ioctl(CPU(cpu), KVM_GET_MSRS, cpu->kvm_msr_buf);
     if (ret < 0) {
         return ret;
     }

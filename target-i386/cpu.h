@@ -1124,6 +1124,8 @@ typedef struct CPUX86State {
     TPRAccess tpr_access_type;
 } CPUX86State;
 
+struct kvm_msrs;
+
 /**
  * X86CPU:
  * @env: #CPUX86State
@@ -1176,6 +1178,8 @@ struct X86CPU {
     struct DeviceState *apic_state;
     struct MemoryRegion *cpu_as_root, *cpu_as_mem, *smram;
     Notifier machine_done;
+
+    struct kvm_msrs *kvm_msr_buf;
 };
 
 static inline X86CPU *x86_env_get_cpu(CPUX86State *env)
