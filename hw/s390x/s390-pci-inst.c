@@ -105,7 +105,8 @@ static int list_pci(ClpReqRspListPci *rrb, uint8_t *cc)
             pci_get_word(pbdev->pdev->config + PCI_DEVICE_ID));
         stw_p(&rrb->response.fh_list[idx - resume_token].vendor_id,
             pci_get_word(pbdev->pdev->config + PCI_VENDOR_ID));
-        stl_p(&rrb->response.fh_list[idx - resume_token].config, 0x80000000);
+        stl_p(&rrb->response.fh_list[idx - resume_token].config,
+            pbdev->configured << 31);
         stl_p(&rrb->response.fh_list[idx - resume_token].fid, pbdev->fid);
         stl_p(&rrb->response.fh_list[idx - resume_token].fh, pbdev->fh);
 
