@@ -1759,9 +1759,6 @@ void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier)
     if (notifier) {
         notifier_list_add(&req->cancel_notifiers, notifier);
     }
-    if (req->io_canceled) {
-        return;
-    }
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->io_canceled = true;
