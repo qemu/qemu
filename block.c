@@ -3272,12 +3272,14 @@ void bdrv_invalidate_cache(BlockDriverState *bs, Error **errp)
         bdrv_invalidate_cache(bs->file->bs, &local_err);
     }
     if (local_err) {
+        bs->open_flags |= BDRV_O_INCOMING;
         error_propagate(errp, local_err);
         return;
     }
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
+        bs->open_flags |= BDRV_O_INCOMING;
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
         return;
     }
