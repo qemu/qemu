@@ -1459,14 +1459,6 @@ static int kvm_put_sregs(X86CPU *cpu)
     return kvm_vcpu_ioctl(CPU(cpu), KVM_SET_SREGS, &sregs);
 }
 
-static void kvm_msr_entry_set(struct kvm_msr_entry *entry,
-                              uint32_t index, uint64_t value)
-{
-    entry->index = index;
-    entry->reserved = 0;
-    entry->data = value;
-}
-
 static void kvm_msr_buf_reset(X86CPU *cpu)
 {
     memset(cpu->kvm_msr_buf, 0, MSR_BUF_SIZE);
@@ -1480,7 +1472,9 @@ static void kvm_msr_entry_add(X86CPU *cpu, uint32_t index, uint64_t value)
 
     assert((void *)(entry + 1) <= limit);
 
-    kvm_msr_entry_set(entry, index, value);
+    entry->index = index;
+    entry->reserved = 0;
+    entry->data = value;
     msrs->nmsrs++;
 }
 
