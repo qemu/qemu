@@ -57,6 +57,24 @@ Quit the emulator.
 ETEXI
 
     {
+        .name       = "x_block_change",
+        .args_type  = "parent:B,add:-a,del:-d,child:B",
+        .params     = "parent [-a] [-d] child",
+        .help       = "add or remove a child from a block driver",
+        .mhandler.cmd = hmp_block_change,
+    },
+
+STEXI
+@item x_block_change
+@findex x_block_change
+Dynamically reconfigure the block driver state graph. It can be used
+to add, remove, insert or replace a block driver state. Currently only
+the Quorum driver implements this feature to add or remove its child.
+This is useful to fix a broken quorum child.
+ETEXI
+
+
+    {
         .name       = "block_resize",
         .args_type  = "device:B,size:o",
         .params     = "device size",

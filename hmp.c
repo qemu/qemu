@@ -1050,6 +1050,26 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
     }
 }
 
+void hmp_block_change(Monitor *mon, const QDict *qdict)
+{
+    const char *parent = qdict_get_str(qdict, "parent");
+    const char *child = qdict_get_str(qdict, "child");
+    bool add = qdict_get_try_bool(qdict, "add", false);
+    bool del = qdict_get_try_bool(qdict, "del", false);
+    Error *err = NULL;
+
+    if (add == del) {
+        error_setg(&err, "Exactly one of -a or -d must be set");
+        hmp_handle_error(mon, &err);
+        return;
+    }
+
+    qmp_x_blockdev_change(parent,
+                          del, child,
+                          add, child, &err);
+    hmp_handle_error(mon, &err);
+}
+
 void hmp_block_resize(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
