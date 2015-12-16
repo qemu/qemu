@@ -496,6 +496,20 @@ Example:
 {"timestamp": {"seconds": 1432121972, "microseconds": 744001},
  "event": "MIGRATION", "data": {"status": "completed"}}
 
+MIGRATION_PASS
+--------------
+
+Emitted from the source side of a migration at the start of each pass
+(when it syncs the dirty bitmap)
+
+Data: None.
+
+  - "pass": An incrementing count (starting at 1 on the first pass)
+
+Example:
+{"timestamp": {"seconds": 1449669631, "microseconds": 239225},
+ "event": "MIGRATION_PASS", "data": {"pass": 2}}
+
 STOP
 ----
 

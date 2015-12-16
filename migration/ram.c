@@ -27,6 +27,7 @@
  */
 #include <stdint.h>
 #include <zlib.h>
+#include "qapi-event.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
 #include "qemu/timer.h"
@@ -682,6 +683,9 @@ static void migration_bitmap_sync(void)
         num_dirty_pages_period = 0;
     }
     s->dirty_sync_count = bitmap_sync_count;
+    if (migrate_use_events()) {
+        qapi_event_send_migration_pass(bitmap_sync_count, NULL);
+    }
 }
 
 /**
