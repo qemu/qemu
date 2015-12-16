@@ -419,6 +419,8 @@ typedef struct RDMAContext {
     int tcp_accept_fd;
     /* The partner QEMUFile */
     QEMUFile *tcp_partner;
+
+    bool shutdown;
 } RDMAContext;
 
 /*
@@ -2348,7 +2350,7 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
         }
 
         ret = rdma_disconnect(rdma->cm_id);
-        if (!ret) {
+        if (!ret && !rdma->shutdown) {
             trace_qemu_rdma_cleanup_waiting_for_disconnect();
             ret = rdma_get_cm_event(rdma->channel, &cm_event);
             if (!ret) {
@@ -3719,6 +3721,52 @@ static QEMUFile *rdma_get_return_path(void *opaque)
     return qemu_file_get_return_path(partner);
 }
 
+static int rdma_shutdown(void *opaque, bool rd, bool wr)
+{
+    QEMUFileRDMA *rfile = opaque;
+    RDMAContext *rdma = rfile->rdma;
+    struct ibv_qp_attr attr;
+    int ret;
+
+    /* Used to avoid some of the cleanup that seems to take a while to
+     * timeout
+     */
+    rdma->shutdown = true;
+
+    /* hmm, no direct equivalent to the shutdown() call - try
+     * to force the device into error state and low timeouts
+     */
+    attr.rnr_retry = 1;
+    attr.timeout = 1; /* ~8us timeout */
+    attr.retry_cnt = 1;
+    attr.min_rnr_timer = 1;
+    ret = ibv_modify_qp(rdma->qp, &attr,
+                        IBV_QP_TIMEOUT | IBV_QP_RETRY_CNT | IBV_QP_RNR_RETRY |
+                        IBV_QP_MIN_RNR_TIMER);
+    if (ret) {
+        error_report("%s: Failed to modify qp timeouts : %s",
+                     __func__, strerror(ret));
+    }
+
+    attr.qp_state = IBV_QPS_ERR;
+    ret = ibv_modify_qp(rdma->qp, &attr, IBV_QP_STATE);
+    if (ret) {
+        error_report("%s: Failed to modify qp state to ERR: %s",
+                     __func__, strerror(ret));
+    }
+    attr.cur_qp_state = IBV_QPS_ERR;
+    ret = ibv_modify_qp(rdma->qp, &attr, IBV_QP_CUR_STATE);
+    if (ret) {
+        error_report("%s: Failed to modify qp cur_state to ERR: %s",
+                     __func__, strerror(ret));
+    }
+    /* Not sure whether to reguard any of the 3 failing as failures,
+     * they're each different hammers, and if any one succeeds that should
+     * help.
+     */
+    return 0;
+}
+
 static int qemu_rdma_get_fd(void *opaque)
 {
     QEMUFileRDMA *rfile = opaque;
@@ -3733,6 +3781,7 @@ static const QEMUFileOps rdma_read_ops = {
     .close         = qemu_rdma_close,
     .hook_ram_load = rdma_load_hook,
     .get_return_path    = rdma_get_return_path,
+    .shut_down     = rdma_shutdown,
 };
 
 static const QEMUFileOps rdma_write_ops = {
@@ -3742,6 +3791,7 @@ static const QEMUFileOps rdma_write_ops = {
     .after_ram_iterate  = qemu_rdma_registration_stop,
     .save_page          = qemu_rdma_save_page,
     .get_return_path    = rdma_get_return_path,
+    .shut_down     = rdma_shutdown,
 };
 
 static void *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
