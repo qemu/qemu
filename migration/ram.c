@@ -2088,10 +2088,12 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
 {
     unsigned int xh_len;
     int xh_flags;
+    uint8_t *loaded_data;
 
     if (!xbzrle_decoded_buf) {
         xbzrle_decoded_buf = g_malloc(TARGET_PAGE_SIZE);
     }
+    loaded_data = xbzrle_decoded_buf;
 
     /* extract RLE header */
     xh_flags = qemu_get_byte(f);
@@ -2107,10 +2109,10 @@ static int load_xbzrle(QEMUFile *f, ram_addr_t addr, void *host)
         return -1;
     }
     /* load data and decode */
-    qemu_get_buffer(f, xbzrle_decoded_buf, xh_len);
+    qemu_get_buffer_in_place(f, &loaded_data, xh_len);
 
     /* decode RLE */
-    if (xbzrle_decode_buffer(xbzrle_decoded_buf, xh_len, host,
+    if (xbzrle_decode_buffer(loaded_data, xh_len, host,
                              TARGET_PAGE_SIZE) == -1) {
         error_report("Failed to load XBZRLE page - decode error!");
         return -1;
