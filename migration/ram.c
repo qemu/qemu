@@ -286,7 +286,6 @@ static bool quit_comp_thread;
 static bool quit_decomp_thread;
 static DecompressParam *decomp_param;
 static QemuThread *decompress_threads;
-static uint8_t *compressed_data_buf;
 
 static int do_compress_ram_page(CompressParam *param);
 
@@ -2207,7 +2206,6 @@ void migrate_decompress_threads_create(void)
     thread_count = migrate_decompress_threads();
     decompress_threads = g_new0(QemuThread, thread_count);
     decomp_param = g_new0(DecompressParam, thread_count);
-    compressed_data_buf = g_malloc0(compressBound(TARGET_PAGE_SIZE));
     quit_decomp_thread = false;
     for (i = 0; i < thread_count; i++) {
         qemu_mutex_init(&decomp_param[i].mutex);
@@ -2238,13 +2236,11 @@ void migrate_decompress_threads_join(void)
     }
     g_free(decompress_threads);
     g_free(decomp_param);
-    g_free(compressed_data_buf);
     decompress_threads = NULL;
     decomp_param = NULL;
-    compressed_data_buf = NULL;
 }
 
-static void decompress_data_with_multi_threads(uint8_t *compbuf,
+static void decompress_data_with_multi_threads(QEMUFile *f,
                                                void *host, int len)
 {
     int idx, thread_count;
@@ -2253,7 +2249,7 @@ static void decompress_data_with_multi_threads(uint8_t *compbuf,
     while (true) {
         for (idx = 0; idx < thread_count; idx++) {
             if (!decomp_param[idx].start) {
-                memcpy(decomp_param[idx].compbuf, compbuf, len);
+                qemu_get_buffer(f, decomp_param[idx].compbuf, len);
                 decomp_param[idx].des = host;
                 decomp_param[idx].len = len;
                 start_decompression(&decomp_param[idx]);
@@ -2498,8 +2494,7 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
                 ret = -EINVAL;
                 break;
             }
-            qemu_get_buffer(f, compressed_data_buf, len);
-            decompress_data_with_multi_threads(compressed_data_buf, host, len);
+            decompress_data_with_multi_threads(f, host, len);
             break;
 
         case RAM_SAVE_FLAG_XBZRLE:
