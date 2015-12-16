@@ -1301,6 +1301,7 @@ static int coroutine_fn bdrv_co_do_pwritev(BlockDriverState *bs,
     if (bs->read_only) {
         return -EPERM;
     }
+    assert(!(bs->open_flags & BDRV_O_INCOMING));
 
     ret = bdrv_check_byte_request(bs, offset, bytes);
     if (ret < 0) {
@@ -2462,6 +2463,7 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
     } else if (bs->read_only) {
         return -EPERM;
     }
+    assert(!(bs->open_flags & BDRV_O_INCOMING));
 
     /* Do nothing if disabled.  */
     if (!(bs->open_flags & BDRV_O_UNMAP)) {
