@@ -1577,13 +1577,19 @@ int memory_region_get_fd(MemoryRegion *mr)
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
 {
-    if (mr->alias) {
-        return memory_region_get_ram_ptr(mr->alias) + mr->alias_offset;
+    void *ptr;
+    uint64_t offset = 0;
+
+    rcu_read_lock();
+    while (mr->alias) {
+        offset += mr->alias_offset;
+        mr = mr->alias;
     }
-
     assert(mr->ram_addr != RAM_ADDR_INVALID);
+    ptr = qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
+    rcu_read_unlock();
 
-    return qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
+    return ptr + offset;
 }
 
 void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp)

@@ -1786,19 +1786,11 @@ void *qemu_get_ram_block_host_ptr(ram_addr_t addr)
  * or address_space_rw instead. For local memory (e.g. video ram) that the
  * device owns, use memory_region_get_ram_ptr.
  *
- * By the time this function returns, the returned pointer is not protected
- * by RCU anymore.  If the caller is not within an RCU critical section and
- * does not hold the iothread lock, it must have other means of protecting the
- * pointer, such as a reference to the region that includes the incoming
- * ram_addr_t.
+ * Called within RCU critical section.
  */
 void *qemu_get_ram_ptr(ram_addr_t addr)
 {
-    RAMBlock *block;
-    void *ptr;
-
-    rcu_read_lock();
-    block = qemu_get_ram_block(addr);
+    RAMBlock *block = qemu_get_ram_block(addr);
 
     if (xen_enabled() && block->host == NULL) {
         /* We need to check if the requested address is in the RAM
@@ -1806,17 +1798,12 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
          * In that case just map until the end of the page.
          */
         if (block->offset == 0) {
-            ptr = xen_map_cache(addr, 0, 0);
-            goto unlock;
+            return xen_map_cache(addr, 0, 0);
         }
 
         block->host = xen_map_cache(block->offset, block->max_length, 1);
     }
-    ptr = ramblock_ptr(block, addr - block->offset);
-
-unlock:
-    rcu_read_unlock();
-    return ptr;
+    return ramblock_ptr(block, addr - block->offset);
 }
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
@@ -1954,6 +1941,7 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
     return block->mr;
 }
 
+/* Called within RCU critical section.  */
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
 {

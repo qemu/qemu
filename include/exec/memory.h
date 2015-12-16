@@ -656,8 +656,13 @@ int memory_region_get_fd(MemoryRegion *mr);
  * memory_region_get_ram_ptr: Get a pointer into a RAM memory region.
  *
  * Returns a host pointer to a RAM memory region (created with
- * memory_region_init_ram() or memory_region_init_ram_ptr()).  Use with
- * care.
+ * memory_region_init_ram() or memory_region_init_ram_ptr()).
+ *
+ * Use with care; by the time this function returns, the returned pointer is
+ * not protected by RCU anymore.  If the caller is not within an RCU critical
+ * section and does not hold the iothread lock, it must have other means of
+ * protecting the pointer, such as a reference to the region that includes
+ * the incoming ram_addr_t.
  *
  * @mr: the memory region being queried.
  */
