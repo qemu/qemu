@@ -1809,36 +1809,33 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
  * but takes a size argument.
  *
- * By the time this function returns, the returned pointer is not protected
- * by RCU anymore.  If the caller is not within an RCU critical section and
- * does not hold the iothread lock, it must have other means of protecting the
- * pointer, such as a reference to the region that includes the incoming
- * ram_addr_t.
+ * Called within RCU critical section.
  */
 static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
 {
-    void *ptr;
+    RAMBlock *block;
+    ram_addr_t offset_inside_block;
     if (*size == 0) {
         return NULL;
     }
-    if (xen_enabled()) {
-        return xen_map_cache(addr, *size, 1);
-    } else {
-        RAMBlock *block;
-        rcu_read_lock();
-        QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-            if (addr - block->offset < block->max_length) {
-                if (addr - block->offset + *size > block->max_length)
-                    *size = block->max_length - addr + block->offset;
-                ptr = ramblock_ptr(block, addr - block->offset);
-                rcu_read_unlock();
-                return ptr;
-            }
+
+    block = qemu_get_ram_block(addr);
+    offset_inside_block = addr - block->offset;
+    *size = MIN(*size, block->max_length - offset_inside_block);
+
+    if (xen_enabled() && block->host == NULL) {
+        /* We need to check if the requested address is in the RAM
+         * because we don't want to map the entire memory in QEMU.
+         * In that case just map the requested area.
+         */
+        if (block->offset == 0) {
+            return xen_map_cache(addr, *size, 1);
         }
 
-        fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
-        abort();
+        block->host = xen_map_cache(block->offset, block->max_length, 1);
     }
+
+    return ramblock_ptr(block, offset_inside_block);
 }
 
 /*
@@ -2786,6 +2783,7 @@ void *address_space_map(AddressSpace *as,
     hwaddr l, xlat, base;
     MemoryRegion *mr, *this_mr;
     ram_addr_t raddr;
+    void *ptr;
 
     if (len == 0) {
         return NULL;
@@ -2837,9 +2835,11 @@ void *address_space_map(AddressSpace *as,
     }
 
     memory_region_ref(mr);
-    rcu_read_unlock();
     *plen = done;
-    return qemu_ram_ptr_length(raddr + base, plen);
+    ptr = qemu_ram_ptr_length(raddr + base, plen);
+    rcu_read_unlock();
+
+    return ptr;
 }
 
 /* Unmaps a memory region previously mapped by address_space_map().
