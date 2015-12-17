@@ -437,11 +437,35 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &iib->bt.io, iib->bt.io_base);
 }
 
+static const VMStateDescription vmstate_ISAIPMIBTDevice = {
+    .name = TYPE_IPMI_INTERFACE,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BOOL(bt.obf_irq_set, ISAIPMIBTDevice),
+        VMSTATE_BOOL(bt.atn_irq_set, ISAIPMIBTDevice),
+        VMSTATE_BOOL(bt.use_irq, ISAIPMIBTDevice),
+        VMSTATE_BOOL(bt.irqs_enabled, ISAIPMIBTDevice),
+        VMSTATE_UINT32(bt.outpos, ISAIPMIBTDevice),
+        VMSTATE_VBUFFER_UINT32(bt.outmsg, ISAIPMIBTDevice, 1, NULL, 0,
+                               bt.outlen),
+        VMSTATE_VBUFFER_UINT32(bt.inmsg, ISAIPMIBTDevice, 1, NULL, 0,
+                               bt.inlen),
+        VMSTATE_UINT8(bt.control_reg, ISAIPMIBTDevice),
+        VMSTATE_UINT8(bt.mask_reg, ISAIPMIBTDevice),
+        VMSTATE_UINT8(bt.waiting_rsp, ISAIPMIBTDevice),
+        VMSTATE_UINT8(bt.waiting_seq, ISAIPMIBTDevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void isa_ipmi_bt_init(Object *obj)
 {
     ISAIPMIBTDevice *iib = ISA_IPMI_BT(obj);
 
     ipmi_bmc_find_and_link(obj, (Object **) &iib->bt.bmc);
+
+    vmstate_register(NULL, 0, &vmstate_ISAIPMIBTDevice, iib);
 }
 
 static void *isa_ipmi_bt_get_backend_data(IPMIInterface *ii)

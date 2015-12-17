@@ -400,11 +400,37 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     isa_register_ioport(isadev, &iik->kcs.io, iik->kcs.io_base);
 }
 
+const VMStateDescription vmstate_ISAIPMIKCSDevice = {
+    .name = TYPE_IPMI_INTERFACE,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BOOL(kcs.obf_irq_set, ISAIPMIKCSDevice),
+        VMSTATE_BOOL(kcs.atn_irq_set, ISAIPMIKCSDevice),
+        VMSTATE_BOOL(kcs.use_irq, ISAIPMIKCSDevice),
+        VMSTATE_BOOL(kcs.irqs_enabled, ISAIPMIKCSDevice),
+        VMSTATE_UINT32(kcs.outpos, ISAIPMIKCSDevice),
+        VMSTATE_VBUFFER_UINT32(kcs.outmsg, ISAIPMIKCSDevice, 1, NULL, 0,
+                               kcs.outlen),
+        VMSTATE_VBUFFER_UINT32(kcs.inmsg, ISAIPMIKCSDevice, 1, NULL, 0,
+                               kcs.inlen),
+        VMSTATE_BOOL(kcs.write_end, ISAIPMIKCSDevice),
+        VMSTATE_UINT8(kcs.status_reg, ISAIPMIKCSDevice),
+        VMSTATE_UINT8(kcs.data_out_reg, ISAIPMIKCSDevice),
+        VMSTATE_INT16(kcs.data_in_reg, ISAIPMIKCSDevice),
+        VMSTATE_INT16(kcs.cmd_reg, ISAIPMIKCSDevice),
+        VMSTATE_UINT8(kcs.waiting_rsp, ISAIPMIKCSDevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void isa_ipmi_kcs_init(Object *obj)
 {
     ISAIPMIKCSDevice *iik = ISA_IPMI_KCS(obj);
 
     ipmi_bmc_find_and_link(obj, (Object **) &iik->kcs.bmc);
+
+    vmstate_register(NULL, 0, &vmstate_ISAIPMIKCSDevice, iik);
 }
 
 static void *isa_ipmi_kcs_get_backend_data(IPMIInterface *ii)

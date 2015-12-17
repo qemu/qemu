@@ -439,11 +439,45 @@ static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)
     qemu_chr_add_handlers(ibe->chr, can_receive, receive, chr_event, ibe);
 }
 
+static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)
+{
+    IPMIBmcExtern *ibe = opaque;
+
+    /*
+     * We don't directly restore waiting_rsp, Instead, we return an
+     * error on the interface if a response was being waited for.
+     */
+    if (ibe->waiting_rsp) {
+        IPMIInterface *ii = ibe->parent.intf;
+        IPMIInterfaceClass *iic = IPMI_INTERFACE_GET_CLASS(ii);
+
+        ibe->waiting_rsp = false;
+        ibe->inbuf[1] = ibe->outbuf[1] | 0x04;
+        ibe->inbuf[2] = ibe->outbuf[2];
+        ibe->inbuf[3] = IPMI_CC_BMC_INIT_IN_PROGRESS;
+        iic->handle_rsp(ii, ibe->outbuf[0], ibe->inbuf + 1, 3);
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_ipmi_bmc_extern = {
+    .name = TYPE_IPMI_BMC_EXTERN,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = ipmi_bmc_extern_post_migrate,
+    .fields      = (VMStateField[]) {
+        VMSTATE_BOOL(send_reset, IPMIBmcExtern),
+        VMSTATE_BOOL(waiting_rsp, IPMIBmcExtern),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void ipmi_bmc_extern_init(Object *obj)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(obj);
 
     ibe->extern_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, extern_timeout, ibe);
+    vmstate_register(NULL, 0, &vmstate_ipmi_bmc_extern, ibe);
 }
 
 static Property ipmi_bmc_extern_properties[] = {
