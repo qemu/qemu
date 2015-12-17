@@ -604,8 +604,10 @@ static void pci_ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
     EbusState *s = DO_UPCAST(EbusState, pci_dev, pci_dev);
 
-    isa_bus_new(DEVICE(pci_dev), get_system_memory(),
-                pci_address_space_io(pci_dev));
+    if (!isa_bus_new(DEVICE(pci_dev), get_system_memory(),
+                     pci_address_space_io(pci_dev), errp)) {
+        return;
+    }
 
     pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
     pci_dev->config[0x05] = 0x00;

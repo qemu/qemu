@@ -920,7 +920,8 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
     {
         qemu_irq *isa_irqs;
 
-        *isa_bus = isa_bus_new(NULL, get_system_memory(), &s->pchip.reg_io);
+        *isa_bus = isa_bus_new(NULL, get_system_memory(), &s->pchip.reg_io,
+                               &error_abort);
         isa_irqs = i8259_init(*isa_bus,
                               qemu_allocate_irq(typhoon_set_isa_irq, s, 0));
         isa_bus_irqs(*isa_bus, isa_irqs);

@@ -440,7 +440,10 @@ static void vt82c686b_realize(PCIDevice *d, Error **errp)
     int i;
 
     isa_bus = isa_bus_new(DEVICE(d), get_system_memory(),
-                          pci_address_space_io(d));
+                          pci_address_space_io(d), errp);
+    if (!isa_bus) {
+        return;
+    }
 
     pci_conf = d->config;
     pci_config_set_prog_interface(pci_conf, 0x0);
