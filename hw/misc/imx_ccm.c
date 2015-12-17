@@ -123,7 +123,7 @@ static void imx_ccm_reset(DeviceState *dev)
 {
     IMXCCMState *s = IMX_CCM(dev);
 
-    s->ccmr = 0x074b0b7b;
+    s->ccmr = 0x074b0b7d;
     s->pdr0 = 0xff870b48;
     s->pdr1 = 0x49fcfe7f;
     s->mpctl = PLL_PD(1) | PLL_MFD(0) | PLL_MFI(6) | PLL_MFN(0);
