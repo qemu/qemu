@@ -223,7 +223,7 @@ Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
 Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
                    AmlLevelAndEdge level_and_edge,
                    AmlActiveHighAndLow high_and_low, AmlShared shared,
-                   uint32_t irq);
+                   uint32_t *irq_list, uint8_t irq_count);
 Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len);
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,

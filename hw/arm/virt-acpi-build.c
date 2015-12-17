@@ -71,7 +71,7 @@ static void acpi_dsdt_add_cpus(Aml *scope, int smp_cpus)
 }
 
 static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
-                                           int uart_irq)
+                                           uint32_t uart_irq)
 {
     Aml *dev = aml_device("COM0");
     aml_append(dev, aml_name_decl("_HID", aml_string("ARMH0011")));
@@ -82,7 +82,7 @@ static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
                                        uart_memmap->size, AML_READ_WRITE));
     aml_append(crs,
                aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                             AML_EXCLUSIVE, uart_irq));
+                             AML_EXCLUSIVE, &uart_irq, 1));
     aml_append(dev, aml_name_decl("_CRS", crs));
 
     /* The _ADR entry is used to link this device to the UART described
@@ -94,7 +94,7 @@ static void acpi_dsdt_add_uart(Aml *scope, const MemMapEntry *uart_memmap,
 }
 
 static void acpi_dsdt_add_rtc(Aml *scope, const MemMapEntry *rtc_memmap,
-                                          int rtc_irq)
+                                          uint32_t rtc_irq)
 {
     Aml *dev = aml_device("RTC0");
     aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0013")));
@@ -105,7 +105,7 @@ static void acpi_dsdt_add_rtc(Aml *scope, const MemMapEntry *rtc_memmap,
                                        rtc_memmap->size, AML_READ_WRITE));
     aml_append(crs,
                aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                             AML_EXCLUSIVE, rtc_irq));
+                             AML_EXCLUSIVE, &rtc_irq, 1));
     aml_append(dev, aml_name_decl("_CRS", crs));
     aml_append(scope, dev);
 }
@@ -136,14 +136,14 @@ static void acpi_dsdt_add_flash(Aml *scope, const MemMapEntry *flash_memmap)
 
 static void acpi_dsdt_add_virtio(Aml *scope,
                                  const MemMapEntry *virtio_mmio_memmap,
-                                 int mmio_irq, int num)
+                                 uint32_t mmio_irq, int num)
 {
     hwaddr base = virtio_mmio_memmap->base;
     hwaddr size = virtio_mmio_memmap->size;
-    int irq = mmio_irq;
     int i;
 
     for (i = 0; i < num; i++) {
+        uint32_t irq = mmio_irq + i;
         Aml *dev = aml_device("VR%02u", i);
         aml_append(dev, aml_name_decl("_HID", aml_string("LNRO0005")));
         aml_append(dev, aml_name_decl("_UID", aml_int(i)));
@@ -152,15 +152,15 @@ static void acpi_dsdt_add_virtio(Aml *scope,
         aml_append(crs, aml_memory32_fixed(base, size, AML_READ_WRITE));
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, irq + i));
+                                 AML_EXCLUSIVE, &irq, 1));
         aml_append(dev, aml_name_decl("_CRS", crs));
         aml_append(scope, dev);
         base += size;
     }
 }
 
-static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap, int irq,
-                              bool use_highmem)
+static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
+                              uint32_t irq, bool use_highmem)
 {
     Aml *method, *crs, *ifctx, *UUID, *ifctx1, *elsectx, *buf;
     int i, bus_no;
@@ -199,18 +199,19 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap, int irq,
 
     /* Create GSI link device */
     for (i = 0; i < PCI_NUM_PINS; i++) {
+        uint32_t irqs =  irq + i;
         Aml *dev_gsi = aml_device("GSI%d", i);
         aml_append(dev_gsi, aml_name_decl("_HID", aml_string("PNP0C0F")));
         aml_append(dev_gsi, aml_name_decl("_UID", aml_int(0)));
         crs = aml_resource_template();
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, irq + i));
+                                 AML_EXCLUSIVE, &irqs, 1));
         aml_append(dev_gsi, aml_name_decl("_PRS", crs));
         crs = aml_resource_template();
         aml_append(crs,
                    aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
-                                 AML_EXCLUSIVE, irq + i));
+                                 AML_EXCLUSIVE, &irqs, 1));
         aml_append(dev_gsi, aml_name_decl("_CRS", crs));
         method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
         aml_append(dev_gsi, method);
