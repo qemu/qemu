@@ -174,6 +174,7 @@ extern bool kvm_ioeventfd_any_length_allowed;
 #else
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
+#define kvm_irqchip_is_split() (false)
 #define kvm_async_interrupts_enabled() (false)
 #define kvm_halt_in_kernel() (false)
 #define kvm_eventfds_enabled() (false)
@@ -316,6 +317,8 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run);
 MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run);
 
 int kvm_arch_handle_exit(CPUState *cpu, struct kvm_run *run);
+
+int kvm_arch_handle_ioapic_eoi(CPUState *cpu, struct kvm_run *run);
 
 int kvm_arch_process_async_events(CPUState *cpu);
 
@@ -484,6 +487,7 @@ void kvm_init_irq_routing(KVMState *s);
 /**
  * kvm_arch_irqchip_create:
  * @KVMState: The KVMState pointer
+ * @MachineState: The MachineState pointer
  *
  * Allow architectures to create an in-kernel irq chip themselves.
  *
@@ -491,7 +495,7 @@ void kvm_init_irq_routing(KVMState *s);
  *            0: irq chip was not created
  *          > 0: irq chip was created
  */
-int kvm_arch_irqchip_create(KVMState *s);
+int kvm_arch_irqchip_create(MachineState *ms, KVMState *s);
 
 /**
  * kvm_set_one_reg - set a register value in KVM via KVM_SET_ONE_REG ioctl

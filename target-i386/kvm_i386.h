@@ -13,6 +13,8 @@
 
 #include "sysemu/kvm.h"
 
+#define kvm_apic_in_kernel() (kvm_irqchip_in_kernel())
+
 bool kvm_allows_irq0_override(void);
 bool kvm_has_smm(void);
 void kvm_synchronize_all_tsc(void);

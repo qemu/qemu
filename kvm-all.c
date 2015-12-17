@@ -99,6 +99,7 @@ struct KVMState
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
+bool kvm_split_irqchip;
 bool kvm_async_interrupts_allowed;
 bool kvm_halt_in_kernel_allowed;
 bool kvm_eventfds_allowed;
@@ -1430,9 +1431,14 @@ static void kvm_irqchip_create(MachineState *machine, KVMState *s)
 
     /* First probe and see if there's a arch-specific hook to create the
      * in-kernel irqchip for us */
-    ret = kvm_arch_irqchip_create(s);
+    ret = kvm_arch_irqchip_create(machine, s);
     if (ret == 0) {
-        ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+        if (machine_kernel_irqchip_split(machine)) {
+            perror("Split IRQ chip mode not supported.");
+            exit(1);
+        } else {
+            ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+        }
     }
     if (ret < 0) {
         fprintf(stderr, "Create kernel irqchip failed: %s\n", strerror(-ret));

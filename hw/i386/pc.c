@@ -65,6 +65,7 @@
 #include "hw/mem/pc-dimm.h"
 #include "qapi/visitor.h"
 #include "qapi-visit.h"
+#include "qom/cpu.h"
 
 /* debug PC/ISA interrupts */
 //#define DEBUG_IRQ
@@ -1517,7 +1518,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     qemu_register_boot_set(pc_boot_set, *rtc_state);
 
     if (!xen_enabled()) {
-        if (kvm_irqchip_in_kernel()) {
+        if (kvm_pit_in_kernel()) {
             pit = kvm_pit_init(isa_bus, 0x40);
         } else {
             pit = pit_init(isa_bus, 0x40, pit_isa_irq, pit_alt_irq);
@@ -1592,7 +1593,7 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
     SysBusDevice *d;
     unsigned int i;
 
-    if (kvm_irqchip_in_kernel()) {
+    if (kvm_ioapic_in_kernel()) {
         dev = qdev_create(NULL, "kvm-ioapic");
     } else {
         dev = qdev_create(NULL, "ioapic");

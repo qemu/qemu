@@ -2743,7 +2743,7 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
     APICCommonState *apic;
     const char *apic_type = "apic";
 
-    if (kvm_irqchip_in_kernel()) {
+    if (kvm_apic_in_kernel()) {
         apic_type = "kvm-apic";
     } else if (xen_enabled()) {
         apic_type = "xen-apic";

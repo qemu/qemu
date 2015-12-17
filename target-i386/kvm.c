@@ -39,6 +39,7 @@
 #include "exec/ioport.h"
 #include "standard-headers/asm-x86/hyperv.h"
 #include "hw/pci/pci.h"
+#include "hw/pci/msi.h"
 #include "migration/migration.h"
 #include "exec/memattrs.h"
 
@@ -2597,7 +2598,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
         }
     }
 
-    if (!kvm_irqchip_in_kernel()) {
+    if (!kvm_pic_in_kernel()) {
         qemu_mutex_lock_iothread();
     }
 
@@ -2615,7 +2616,7 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run)
         }
     }
 
-    if (!kvm_irqchip_in_kernel()) {
+    if (!kvm_pic_in_kernel()) {
         /* Try to inject an interrupt if the guest can accept it */
         if (run->ready_for_interrupt_injection &&
             (cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
@@ -3017,6 +3018,10 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
     case KVM_EXIT_HYPERV:
         ret = kvm_hv_handle_exit(cpu, &run->hyperv);
         break;
+    case KVM_EXIT_IOAPIC_EOI:
+        ioapic_eoi_broadcast(run->eoi.vector);
+        ret = 0;
+        break;
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
@@ -3051,6 +3056,39 @@ void kvm_arch_init_irq_routing(KVMState *s)
      */
     kvm_msi_via_irqfd_allowed = true;
     kvm_gsi_routing_allowed = true;
+
+    if (kvm_irqchip_is_split()) {
+        int i;
+
+        /* If the ioapic is in QEMU and the lapics are in KVM, reserve
+           MSI routes for signaling interrupts to the local apics. */
+        for (i = 0; i < IOAPIC_NUM_PINS; i++) {
+            struct MSIMessage msg = { 0x0, 0x0 };
+            if (kvm_irqchip_add_msi_route(s, msg, NULL) < 0) {
+                error_report("Could not enable split IRQ mode.");
+                exit(1);
+            }
+        }
+    }
+}
+
+int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
+{
+    int ret;
+    if (machine_kernel_irqchip_split(ms)) {
+        ret = kvm_vm_enable_cap(s, KVM_CAP_SPLIT_IRQCHIP, 0, 24);
+        if (ret) {
+            error_report("Could not enable split irqchip mode: %s\n",
+                         strerror(-ret));
+            exit(1);
+        } else {
+            DPRINTF("Enabled KVM_CAP_SPLIT_IRQCHIP\n");
+            kvm_split_irqchip = true;
+            return 1;
+        }
+    } else {
+        return 0;
+    }
 }
 
 /* Classic KVM device assignment interface. Will remain x86 only. */

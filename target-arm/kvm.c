@@ -25,6 +25,7 @@
 #include "internals.h"
 #include "hw/arm/arm.h"
 #include "exec/memattrs.h"
+#include "hw/boards.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -578,8 +579,13 @@ void kvm_arch_init_irq_routing(KVMState *s)
 {
 }
 
-int kvm_arch_irqchip_create(KVMState *s)
+int kvm_arch_irqchip_create(MachineState *ms, KVMState *s)
 {
+     if (machine_kernel_irqchip_split(ms)) {
+         perror("-machine kernel_irqchip=split is not supported on ARM.");
+         exit(1);
+    }
+
     /* If we can create the VGIC using the newer device control API, we
      * let the device do this when it initializes itself, otherwise we
      * fall back to the old API */

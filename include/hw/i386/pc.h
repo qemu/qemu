@@ -20,6 +20,19 @@
 
 #define HPET_INTCAP "hpet-intcap"
 
+#ifdef CONFIG_KVM
+#define kvm_pit_in_kernel() \
+    (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
+#define kvm_pic_in_kernel()  \
+    (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
+#define kvm_ioapic_in_kernel() \
+    (kvm_irqchip_in_kernel() && !kvm_irqchip_is_split())
+#else
+#define kvm_pit_in_kernel()      0
+#define kvm_pic_in_kernel()      0
+#define kvm_ioapic_in_kernel()   0
+#endif
+
 /**
  * PCMachineState:
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
