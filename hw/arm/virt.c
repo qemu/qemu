@@ -120,6 +120,7 @@ static const MemMapEntry a15memmap[] = {
     [VIRT_UART] =               { 0x09000000, 0x00001000 },
     [VIRT_RTC] =                { 0x09010000, 0x00001000 },
     [VIRT_FW_CFG] =             { 0x09020000, 0x00000018 },
+    [VIRT_GPIO] =               { 0x09030000, 0x00001000 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -135,6 +136,7 @@ static const int a15irqmap[] = {
     [VIRT_UART] = 1,
     [VIRT_RTC] = 2,
     [VIRT_PCIE] = 3, /* ... to 6 */
+    [VIRT_GPIO] = 7,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_PLATFORM_BUS] = 112, /* ...to 112 + PLATFORM_BUS_NUM_IRQS -1 */
@@ -535,6 +537,32 @@ static void create_rtc(const VirtBoardInfo *vbi, qemu_irq *pic)
                            GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     qemu_fdt_setprop_cell(vbi->fdt, nodename, "clocks", vbi->clock_phandle);
     qemu_fdt_setprop_string(vbi->fdt, nodename, "clock-names", "apb_pclk");
+    g_free(nodename);
+}
+
+static void create_gpio(const VirtBoardInfo *vbi, qemu_irq *pic)
+{
+    char *nodename;
+    hwaddr base = vbi->memmap[VIRT_GPIO].base;
+    hwaddr size = vbi->memmap[VIRT_GPIO].size;
+    int irq = vbi->irqmap[VIRT_GPIO];
+    const char compat[] = "arm,pl061\0arm,primecell";
+
+    sysbus_create_simple("pl061", base, pic[irq]);
+
+    nodename = g_strdup_printf("/pl061@%" PRIx64, base);
+    qemu_fdt_add_subnode(vbi->fdt, nodename);
+    qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    qemu_fdt_setprop(vbi->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_cell(vbi->fdt, nodename, "#gpio-cells", 2);
+    qemu_fdt_setprop(vbi->fdt, nodename, "gpio-controller", NULL, 0);
+    qemu_fdt_setprop_cells(vbi->fdt, nodename, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    qemu_fdt_setprop_cell(vbi->fdt, nodename, "clocks", vbi->clock_phandle);
+    qemu_fdt_setprop_string(vbi->fdt, nodename, "clock-names", "apb_pclk");
+
     g_free(nodename);
 }
 
@@ -1040,6 +1068,8 @@ static void machvirt_init(MachineState *machine)
     create_rtc(vbi, pic);
 
     create_pcie(vbi, pic, vms->highmem);
+
+    create_gpio(vbi, pic);
 
     /* Create mmio transports, so the user can create virtio backends
      * (which will be automatically plugged in to the transports). If
