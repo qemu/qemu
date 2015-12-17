@@ -26,6 +26,7 @@
 #include "hw/sysbus.h"
 #include "net/net.h"
 #include "hw/cris/etraxfs.h"
+#include "qemu/error-report.h"
 
 #define D(x)
 
@@ -589,7 +590,8 @@ static int fs_eth_init(SysBusDevice *sbd)
     ETRAXFSEthState *s = ETRAX_FS_ETH(dev);
 
     if (!s->dma_out || !s->dma_in) {
-        hw_error("Unconnected ETRAX-FS Ethernet MAC.\n");
+        error_report("Unconnected ETRAX-FS Ethernet MAC");
+        return -1;
     }
 
     s->dma_out->client.push = eth_tx_push;
