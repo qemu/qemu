@@ -565,6 +565,74 @@ Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4)
 }
 
 /*
+ * ACPI 5.0: 6.4.3.8.1 GPIO Connection Descriptor
+ * Type 1, Large Item Name 0xC
+ */
+
+static Aml *aml_gpio_connection(AmlGpioConnectionType type,
+                                AmlConsumerAndProducer con_and_pro,
+                                uint8_t flags, AmlPinConfig pin_config,
+                                uint16_t output_drive,
+                                uint16_t debounce_timeout,
+                                const uint32_t pin_list[], uint32_t pin_count,
+                                const char *resource_source_name,
+                                const uint8_t *vendor_data,
+                                uint16_t vendor_data_len)
+{
+    Aml *var = aml_alloc();
+    const uint16_t min_desc_len = 0x16;
+    uint16_t resource_source_name_len, length;
+    uint16_t pin_table_offset, resource_source_name_offset, vendor_data_offset;
+    uint32_t i;
+
+    assert(resource_source_name);
+    resource_source_name_len = strlen(resource_source_name) + 1;
+    length = min_desc_len + resource_source_name_len + vendor_data_len;
+    pin_table_offset = min_desc_len + 1;
+    resource_source_name_offset = pin_table_offset + pin_count * 2;
+    vendor_data_offset = resource_source_name_offset + resource_source_name_len;
+
+    build_append_byte(var->buf, 0x8C);  /* GPIO Connection Descriptor */
+    build_append_int_noprefix(var->buf, length, 2); /* Length */
+    build_append_byte(var->buf, 1);     /* Revision ID */
+    build_append_byte(var->buf, type);  /* GPIO Connection Type */
+    /* General Flags (2 bytes) */
+    build_append_int_noprefix(var->buf, con_and_pro, 2);
+    /* Interrupt and IO Flags (2 bytes) */
+    build_append_int_noprefix(var->buf, flags, 2);
+    /* Pin Configuration 0 = Default 1 = Pull-up 2 = Pull-down 3 = No Pull */
+    build_append_byte(var->buf, pin_config);
+    /* Output Drive Strength (2 bytes) */
+    build_append_int_noprefix(var->buf, output_drive, 2);
+    /* Debounce Timeout (2 bytes) */
+    build_append_int_noprefix(var->buf, debounce_timeout, 2);
+    /* Pin Table Offset (2 bytes) */
+    build_append_int_noprefix(var->buf, pin_table_offset, 2);
+    build_append_byte(var->buf, 0);     /* Resource Source Index */
+    /* Resource Source Name Offset (2 bytes) */
+    build_append_int_noprefix(var->buf, resource_source_name_offset, 2);
+    /* Vendor Data Offset (2 bytes) */
+    build_append_int_noprefix(var->buf, vendor_data_offset, 2);
+    /* Vendor Data Length (2 bytes) */
+    build_append_int_noprefix(var->buf, vendor_data_len, 2);
+    /* Pin Number (2n bytes)*/
+    for (i = 0; i < pin_count; i++) {
+        build_append_int_noprefix(var->buf, pin_list[i], 2);
+    }
+
+    /* Resource Source Name */
+    build_append_namestring(var->buf, "%s", resource_source_name);
+    build_append_byte(var->buf, '\0');
+
+    /* Vendor-defined Data */
+    if (vendor_data != NULL) {
+        g_array_append_vals(var->buf, vendor_data, vendor_data_len);
+    }
+
+    return var;
+}
+
+/*
  * ACPI 1.0b: 6.4.3.4 32-Bit Fixed Location Memory Range Descriptor
  * (Type 1, Large Item Name 0x6)
  */

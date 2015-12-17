@@ -154,6 +154,26 @@ typedef enum {
     AML_SERIALIZED = 1,
 } AmlSerializeFlag;
 
+/*
+ * ACPI 5.0: Table 6-189 GPIO Connection Descriptor Definition
+ * GPIO Connection Type
+ */
+typedef enum {
+    AML_INTERRUPT_CONNECTION = 0,
+    AML_IO_CONNECTION = 1,
+} AmlGpioConnectionType;
+
+/*
+ * ACPI 5.0: Table 6-189 GPIO Connection Descriptor Definition
+ * _PPI field definition
+ */
+typedef enum {
+    AML_PULL_DEFAULT = 0,
+    AML_PULL_UP = 1,
+    AML_PULL_DOWN = 2,
+    AML_PULL_NONE = 3,
+} AmlPinConfig;
+
 typedef
 struct AcpiBuildTables {
     GArray *table_data;
