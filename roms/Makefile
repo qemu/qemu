@@ -64,7 +64,6 @@ default:
 bios: build-seabios-config-seabios-128k build-seabios-config-seabios-256k
 	cp seabios/builds/seabios-128k/bios.bin ../pc-bios/bios.bin
 	cp seabios/builds/seabios-256k/bios.bin ../pc-bios/bios-256k.bin
-	cp seabios/builds/seabios-256k/src/fw/*dsdt.aml ../pc-bios/
 
 seavgabios: $(patsubst %,seavgabios-%,$(vgabios_variants))
 
