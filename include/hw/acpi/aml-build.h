@@ -238,6 +238,13 @@ Aml *aml_call1(const char *method, Aml *arg1);
 Aml *aml_call2(const char *method, Aml *arg1, Aml *arg2);
 Aml *aml_call3(const char *method, Aml *arg1, Aml *arg2, Aml *arg3);
 Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4);
+Aml *aml_gpio_int(AmlConsumerAndProducer con_and_pro,
+                  AmlLevelAndEdge edge_level,
+                  AmlActiveHighAndLow active_level, AmlShared shared,
+                  AmlPinConfig pin_config, uint16_t debounce_timeout,
+                  const uint32_t pin_list[], uint32_t pin_count,
+                  const char *resource_source_name,
+                  const uint8_t *vendor_data, uint16_t vendor_data_len);
 Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
                         AmlReadAndWrite read_and_write);
 Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,

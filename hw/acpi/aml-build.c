@@ -633,6 +633,26 @@ static Aml *aml_gpio_connection(AmlGpioConnectionType type,
 }
 
 /*
+ * ACPI 5.0: 19.5.53
+ * GpioInt(GPIO Interrupt Connection Resource Descriptor Macro)
+ */
+Aml *aml_gpio_int(AmlConsumerAndProducer con_and_pro,
+                  AmlLevelAndEdge edge_level,
+                  AmlActiveHighAndLow active_level, AmlShared shared,
+                  AmlPinConfig pin_config, uint16_t debounce_timeout,
+                  const uint32_t pin_list[], uint32_t pin_count,
+                  const char *resource_source_name,
+                  const uint8_t *vendor_data, uint16_t vendor_data_len)
+{
+    uint8_t flags = edge_level | (active_level << 1) | (shared << 3);
+
+    return aml_gpio_connection(AML_INTERRUPT_CONNECTION, con_and_pro, flags,
+                               pin_config, 0, debounce_timeout, pin_list,
+                               pin_count, resource_source_name, vendor_data,
+                               vendor_data_len);
+}
+
+/*
  * ACPI 1.0b: 6.4.3.4 32-Bit Fixed Location Memory Range Descriptor
  * (Type 1, Large Item Name 0x6)
  */
