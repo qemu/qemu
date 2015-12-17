@@ -15,13 +15,6 @@
 #include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
 
-static void qfloat_destroy_obj(QObject *obj);
-
-static const QType qfloat_type = {
-    .code = QTYPE_QFLOAT,
-    .destroy = qfloat_destroy_obj,
-};
-
 /**
  * qfloat_from_int(): Create a new QFloat from a float
  *
@@ -32,8 +25,8 @@ QFloat *qfloat_from_double(double value)
     QFloat *qf;
 
     qf = g_malloc(sizeof(*qf));
+    qobject_init(QOBJECT(qf), QTYPE_QFLOAT);
     qf->value = value;
-    QOBJECT_INIT(qf, &qfloat_type);
 
     return qf;
 }
@@ -61,7 +54,7 @@ QFloat *qobject_to_qfloat(const QObject *obj)
  * qfloat_destroy_obj(): Free all memory allocated by a
  * QFloat object
  */
-static void qfloat_destroy_obj(QObject *obj)
+void qfloat_destroy_obj(QObject *obj)
 {
     assert(obj != NULL);
     g_free(qobject_to_qfloat(obj));

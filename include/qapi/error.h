@@ -91,6 +91,20 @@
 typedef struct Error Error;
 
 /*
+ * Overall category of an error.
+ * Based on the qapi type QapiErrorClass, but reproduced here for nicer
+ * enum names.
+ */
+typedef enum ErrorClass {
+    ERROR_CLASS_GENERIC_ERROR = QAPI_ERROR_CLASS_GENERICERROR,
+    ERROR_CLASS_COMMAND_NOT_FOUND = QAPI_ERROR_CLASS_COMMANDNOTFOUND,
+    ERROR_CLASS_DEVICE_ENCRYPTED = QAPI_ERROR_CLASS_DEVICEENCRYPTED,
+    ERROR_CLASS_DEVICE_NOT_ACTIVE = QAPI_ERROR_CLASS_DEVICENOTACTIVE,
+    ERROR_CLASS_DEVICE_NOT_FOUND = QAPI_ERROR_CLASS_DEVICENOTFOUND,
+    ERROR_CLASS_KVM_MISSING_CAP = QAPI_ERROR_CLASS_KVMMISSINGCAP,
+} ErrorClass;
+
+/*
  * Get @err's human-readable error message.
  */
 const char *error_get_pretty(Error *err);

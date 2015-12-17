@@ -588,7 +588,7 @@ static void dump_qlist(fprintf_function func_fprintf, void *f, int indentation,
     int i = 0;
 
     for (entry = qlist_first(list); entry; entry = qlist_next(entry), i++) {
-        qtype_code type = qobject_type(entry->value);
+        QType type = qobject_type(entry->value);
         bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
         const char *format = composite ? "%*s[%i]:\n" : "%*s[%i]: ";
 
@@ -606,7 +606,7 @@ static void dump_qdict(fprintf_function func_fprintf, void *f, int indentation,
     const QDictEntry *entry;
 
     for (entry = qdict_first(dict); entry; entry = qdict_next(dict, entry)) {
-        qtype_code type = qobject_type(entry->value);
+        QType type = qobject_type(entry->value);
         bool composite = (type == QTYPE_QDICT || type == QTYPE_QLIST);
         const char *format = composite ? "%*s%s:\n" : "%*s%s: ";
         char key[strlen(entry->key) + 1];

@@ -1,6 +1,6 @@
 Block I/O error injection using blkdebug
 ----------------------------------------
-Copyright (C) 2014 Red Hat Inc
+Copyright (C) 2014-2015 Red Hat Inc
 
 This work is licensed under the terms of the GNU GPL, version 2 or later.  See
 the COPYING file in the top-level directory.
@@ -92,8 +92,9 @@ The core events are:
 
   flush_to_disk - flush the host block device's disk cache
 
-See block/blkdebug.c:event_names[] for the full list of events.  You may need
-to grep block driver source code to understand the meaning of specific events.
+See qapi/block-core.json:BlkdebugEvent for the full list of events.
+You may need to grep block driver source code to understand the
+meaning of specific events.
 
 State transitions
 -----------------

@@ -2851,7 +2851,7 @@ ImageInfoSpecific *bdrv_get_specific_info(BlockDriverState *bs)
     return NULL;
 }
 
-void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event)
+void bdrv_debug_event(BlockDriverState *bs, BlkdebugEvent event)
 {
     if (!bs || !bs->drv || !bs->drv->bdrv_debug_event) {
         return;

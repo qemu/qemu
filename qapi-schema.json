@@ -744,43 +744,125 @@
 { 'command': 'query-mice', 'returns': ['MouseInfo'] }
 
 ##
-# @CpuInfo:
+# @CpuInfoArch:
 #
-# Information about a virtual CPU
+# An enumeration of cpu types that enable additional information during
+# @query-cpus.
+#
+# Since: 2.6
+##
+{ 'enum': 'CpuInfoArch',
+  'data': ['x86', 'sparc', 'ppc', 'mips', 'tricore', 'other' ] }
+
+##
+# @CpuInfoBase:
+#
+# Common information about a virtual CPU
 #
 # @CPU: the index of the virtual CPU
 #
-# @current: this only exists for backwards compatible and should be ignored
+# @current: this only exists for backwards compatibility and should be ignored
 #
 # @halted: true if the virtual CPU is in the halt state.  Halt usually refers
 #          to a processor specific low power mode.
 #
 # @qom_path: path to the CPU object in the QOM tree (since 2.4)
 #
-# @pc: #optional If the target is i386 or x86_64, this is the 64-bit instruction
-#                pointer.
-#                If the target is Sparc, this is the PC component of the
-#                instruction pointer.
-#
-# @nip: #optional If the target is PPC, the instruction pointer
-#
-# @npc: #optional If the target is Sparc, the NPC component of the instruction
-#                 pointer
-#
-# @PC: #optional If the target is MIPS, the instruction pointer
-#
 # @thread_id: ID of the underlying host thread
+#
+# @arch: architecture of the cpu, which determines which additional fields
+#        will be listed (since 2.6)
 #
 # Since: 0.14.0
 #
 # Notes: @halted is a transient state that changes frequently.  By the time the
 #        data is sent to the client, the guest may no longer be halted.
 ##
-{ 'struct': 'CpuInfo',
+{ 'struct': 'CpuInfoBase',
   'data': {'CPU': 'int', 'current': 'bool', 'halted': 'bool',
-           'qom_path': 'str',
-           '*pc': 'int', '*nip': 'int', '*npc': 'int', '*PC': 'int',
-           'thread_id': 'int'} }
+           'qom_path': 'str', 'thread_id': 'int', 'arch': 'CpuInfoArch' } }
+
+##
+# @CpuInfo:
+#
+# Information about a virtual CPU
+#
+# Since: 0.14.0
+##
+{ 'union': 'CpuInfo', 'base': 'CpuInfoBase', 'discriminator': 'arch',
+  'data': { 'x86': 'CpuInfoX86',
+            'sparc': 'CpuInfoSPARC',
+            'ppc': 'CpuInfoPPC',
+            'mips': 'CpuInfoMIPS',
+            'tricore': 'CpuInfoTricore',
+            'other': 'CpuInfoOther' } }
+
+##
+# @CpuInfoX86:
+#
+# Additional information about a virtual i386 or x86_64 CPU
+#
+# @pc: the 64-bit instruction pointer
+#
+# Since 2.6
+##
+{ 'struct': 'CpuInfoX86', 'data': { 'pc': 'int' } }
+
+##
+# @CpuInfoSPARC:
+#
+# Additional information about a virtual SPARC CPU
+#
+# @pc: the PC component of the instruction pointer
+#
+# @npc: the NPC component of the instruction pointer
+#
+# Since 2.6
+##
+{ 'struct': 'CpuInfoSPARC', 'data': { 'pc': 'int', 'npc': 'int' } }
+
+##
+# @CpuInfoPPC:
+#
+# Additional information about a virtual PPC CPU
+#
+# @nip: the instruction pointer
+#
+# Since 2.6
+##
+{ 'struct': 'CpuInfoPPC', 'data': { 'nip': 'int' } }
+
+##
+# @CpuInfoMIPS:
+#
+# Additional information about a virtual MIPS CPU
+#
+# @PC: the instruction pointer
+#
+# Since 2.6
+##
+{ 'struct': 'CpuInfoMIPS', 'data': { 'PC': 'int' } }
+
+##
+# @CpuInfoTricore:
+#
+# Additional information about a virtual Tricore CPU
+#
+# @PC: the instruction pointer
+#
+# Since 2.6
+##
+{ 'struct': 'CpuInfoTricore', 'data': { 'PC': 'int' } }
+
+##
+# @CpuInfoOther:
+#
+# No additional information is available about the virtual CPU
+#
+# Since 2.6
+#
+##
+{ 'struct': 'CpuInfoOther', 'data': { } }
 
 ##
 # @query-cpus:

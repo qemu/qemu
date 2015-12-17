@@ -48,6 +48,7 @@ void qdict_iter(const QDict *qdict,
                 void *opaque);
 const QDictEntry *qdict_first(const QDict *qdict);
 const QDictEntry *qdict_next(const QDict *qdict, const QDictEntry *entry);
+void qdict_destroy_obj(QObject *obj);
 
 /* Helper to qdict_put_obj(), accepts any object */
 #define qdict_put(qdict, key, obj) \

@@ -133,7 +133,7 @@ struct MigrationState
     QemuThread thread;
     QEMUBH *cleanup_bh;
     QEMUFile *file;
-    int parameters[MIGRATION_PARAMETER_MAX];
+    int parameters[MIGRATION_PARAMETER__MAX];
 
     int state;
     MigrationParams params;
@@ -151,7 +151,7 @@ struct MigrationState
     int64_t expected_downtime;
     int64_t dirty_pages_rate;
     int64_t dirty_bytes_rate;
-    bool enabled_capabilities[MIGRATION_CAPABILITY_MAX];
+    bool enabled_capabilities[MIGRATION_CAPABILITY__MAX];
     int64_t xbzrle_cache_size;
     int64_t setup_time;
     int64_t dirty_sync_count;

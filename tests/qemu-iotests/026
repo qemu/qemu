@@ -66,7 +66,7 @@ for event in \
     \
     l2_load \
     l2_update \
-    l2_alloc.write \
+    l2_alloc_write \
     \
     write_aio \
     \
@@ -126,11 +126,11 @@ CLUSTER_SIZE=512
 
 
 for event in \
-    refblock_alloc.hookup \
-    refblock_alloc.write \
-    refblock_alloc.write_blocks \
-    refblock_alloc.write_table \
-    refblock_alloc.switch_table \
+    refblock_alloc_hookup \
+    refblock_alloc_write \
+    refblock_alloc_write_blocks \
+    refblock_alloc_write_table \
+    refblock_alloc_switch_table \
 
 do
 
@@ -170,9 +170,9 @@ CLUSTER_SIZE=1024
 
 
 for event in \
-    l1_grow.alloc_table \
-    l1_grow.write_table \
-    l1_grow.activate_table \
+    l1_grow_alloc_table \
+    l1_grow_write_table \
+    l1_grow_activate_table \
 
 do
 

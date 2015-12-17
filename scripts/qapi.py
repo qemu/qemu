@@ -33,7 +33,8 @@ builtin_types = {
     'uint32':   'QTYPE_QINT',
     'uint64':   'QTYPE_QINT',
     'size':     'QTYPE_QINT',
-    'any':      None,           # any qtype_code possible, actually
+    'any':      None,           # any QType possible, actually
+    'QType':    'QTYPE_QSTRING',
 }
 
 # Whitelist of commands allowed to return a non-dictionary
@@ -56,6 +57,20 @@ returns_whitelist = [
     'guest-set-vcpus',
     'guest-sync',
     'guest-sync-delimited',
+]
+
+# Whitelist of entities allowed to violate case conventions
+case_whitelist = [
+    # From QMP:
+    'ACPISlotType',         # DIMM, visible through query-acpi-ospm-status
+    'CpuInfoBase',          # CPU, visible through query-cpu
+    'CpuInfoMIPS',          # PC, visible through query-cpu
+    'CpuInfoTricore',       # PC, visible through query-cpu
+    'InputAxis',            # TODO: drop when x-input-send-event is fixed
+    'InputButton',          # TODO: drop when x-input-send-event is fixed
+    'QapiErrorClass',       # all members, visible through errors
+    'UuidInfo',             # UUID, visible through query-uuid
+    'X86CPURegister32',     # all members, visible indirectly through qom-get
 ]
 
 enum_types = []
@@ -353,9 +368,11 @@ def discriminator_find_enum_define(expr):
     return find_enum(discriminator_type)
 
 
-# FIXME should enforce "other than downstream extensions [...], all
-# names should begin with a letter".
-valid_name = re.compile('^[a-zA-Z_][a-zA-Z0-9_.-]*$')
+# Names must be letters, numbers, -, and _.  They must start with letter,
+# except for downstream extensions which must start with __RFQDN_.
+# Dots are only valid in the downstream extension prefix.
+valid_name = re.compile('^(__[a-zA-Z0-9.-]+_)?'
+                        '[a-zA-Z][a-zA-Z0-9_-]*$')
 
 
 def check_name(expr_info, source, name, allow_optional=False,
@@ -374,8 +391,8 @@ def check_name(expr_info, source, name, allow_optional=False,
                                 % (source, name))
     # Enum members can start with a digit, because the generated C
     # code always prefixes it with the enum name
-    if enum_member:
-        membername = '_' + membername
+    if enum_member and membername[0].isdigit():
+        membername = 'D' + membername
     # Reserve the entire 'q_' namespace for c_name()
     if not valid_name.match(membername) or \
        c_name(membername, False).startswith('q_'):
@@ -502,21 +519,6 @@ def check_type(expr_info, source, value, allow_array=False,
                                 'enum'])
 
 
-def check_member_clash(expr_info, base_name, data, source=""):
-    base = find_struct(base_name)
-    assert base
-    base_members = base['data']
-    for key in data.keys():
-        if key.startswith('*'):
-            key = key[1:]
-        if key in base_members or "*" + key in base_members:
-            raise QAPIExprError(expr_info,
-                                "Member name '%s'%s clashes with base '%s'"
-                                % (key, source, base_name))
-    if base.get('base'):
-        check_member_clash(expr_info, base['base'], data, source)
-
-
 def check_command(expr, expr_info):
     name = expr['command']
 
@@ -535,8 +537,6 @@ def check_event(expr, expr_info):
     global events
     name = expr['event']
 
-    if name.upper() == 'MAX':
-        raise QAPIExprError(expr_info, "Event name 'MAX' cannot be created")
     events.append(name)
     check_type(expr_info, "'data' for event '%s'" % name,
                expr.get('data'), allow_dict=True, allow_optional=True,
@@ -548,8 +548,6 @@ def check_union(expr, expr_info):
     base = expr.get('base')
     discriminator = expr.get('discriminator')
     members = expr['data']
-    values = {'MAX': '(automatic)', 'KIND': '(automatic)',
-              'TYPE': '(automatic)'}
 
     # Two types of unions, determined by discriminator.
 
@@ -596,58 +594,28 @@ def check_union(expr, expr_info):
     for (key, value) in members.items():
         check_name(expr_info, "Member of union '%s'" % name, key)
 
-        # Each value must name a known type; furthermore, in flat unions,
-        # branches must be a struct with no overlapping member names
+        # Each value must name a known type
         check_type(expr_info, "Member '%s' of union '%s'" % (key, name),
                    value, allow_array=not base, allow_metas=allow_metas)
-        if base:
-            branch_struct = find_struct(value)
-            assert branch_struct
-            check_member_clash(expr_info, base, branch_struct['data'],
-                               " of branch '%s'" % key)
 
         # If the discriminator names an enum type, then all members
-        # of 'data' must also be members of the enum type, which in turn
-        # must not collide with the discriminator name.
+        # of 'data' must also be members of the enum type.
         if enum_define:
             if key not in enum_define['enum_values']:
                 raise QAPIExprError(expr_info,
                                     "Discriminator value '%s' is not found in "
                                     "enum '%s'" %
                                     (key, enum_define["enum_name"]))
-            if discriminator in enum_define['enum_values']:
-                raise QAPIExprError(expr_info,
-                                    "Discriminator name '%s' collides with "
-                                    "enum value in '%s'" %
-                                    (discriminator, enum_define["enum_name"]))
-
-        # Otherwise, check for conflicts in the generated enum
-        else:
-            c_key = camel_to_upper(key)
-            if c_key in values:
-                raise QAPIExprError(expr_info,
-                                    "Union '%s' member '%s' clashes with '%s'"
-                                    % (name, key, values[c_key]))
-            values[c_key] = key
 
 
 def check_alternate(expr, expr_info):
     name = expr['alternate']
     members = expr['data']
-    values = {'MAX': '(automatic)'}
     types_seen = {}
 
     # Check every branch
     for (key, value) in members.items():
         check_name(expr_info, "Member of alternate '%s'" % name, key)
-
-        # Check for conflicts in the generated enum
-        c_key = camel_to_upper(key)
-        if c_key in values:
-            raise QAPIExprError(expr_info,
-                                "Alternate '%s' member '%s' clashes with '%s'"
-                                % (name, key, values[c_key]))
-        values[c_key] = key
 
         # Ensure alternates have no type conflicts.
         check_type(expr_info, "Member '%s' of alternate '%s'" % (key, name),
@@ -667,7 +635,6 @@ def check_enum(expr, expr_info):
     name = expr['enum']
     members = expr.get('data')
     prefix = expr.get('prefix')
-    values = {'MAX': '(automatic)'}
 
     if not isinstance(members, list):
         raise QAPIExprError(expr_info,
@@ -678,12 +645,6 @@ def check_enum(expr, expr_info):
     for member in members:
         check_name(expr_info, "Member of enum '%s'" % name, member,
                    enum_member=True)
-        key = camel_to_upper(member)
-        if key in values:
-            raise QAPIExprError(expr_info,
-                                "Enum '%s' member '%s' clashes with '%s'"
-                                % (name, member, values[key]))
-        values[key] = member
 
 
 def check_struct(expr, expr_info):
@@ -694,8 +655,6 @@ def check_struct(expr, expr_info):
                allow_dict=True, allow_optional=True)
     check_type(expr_info, "'base' for struct '%s'" % name, expr.get('base'),
                allow_metas=['struct'])
-    if expr.get('base'):
-        check_member_clash(expr_info, expr['base'], expr['data'])
 
 
 def check_keys(expr_elem, meta, required, optional=[]):
@@ -907,13 +866,16 @@ class QAPISchemaEnumType(QAPISchemaType):
     def __init__(self, name, info, values, prefix):
         QAPISchemaType.__init__(self, name, info)
         for v in values:
-            assert isinstance(v, str)
+            assert isinstance(v, QAPISchemaMember)
+            v.set_owner(name)
         assert prefix is None or isinstance(prefix, str)
         self.values = values
         self.prefix = prefix
 
     def check(self, schema):
-        assert len(set(self.values)) == len(self.values)
+        seen = {}
+        for v in self.values:
+            v.check_clash(self.info, seen)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_enum_type()
@@ -922,8 +884,11 @@ class QAPISchemaEnumType(QAPISchemaType):
     def c_type(self, is_param=False):
         return c_name(self.name)
 
+    def member_names(self):
+        return [v.name for v in self.values]
+
     def c_null(self):
-        return c_enum_const(self.name, (self.values + ['MAX'])[0],
+        return c_enum_const(self.name, (self.member_names() + ['_MAX'])[0],
                             self.prefix)
 
     def json_type(self):
@@ -931,7 +896,7 @@ class QAPISchemaEnumType(QAPISchemaType):
 
     def visit(self, visitor):
         visitor.visit_enum_type(self.name, self.info,
-                                self.values, self.prefix)
+                                self.member_names(), self.prefix)
 
 
 class QAPISchemaArrayType(QAPISchemaType):
@@ -957,12 +922,17 @@ class QAPISchemaArrayType(QAPISchemaType):
 
 class QAPISchemaObjectType(QAPISchemaType):
     def __init__(self, name, info, base, local_members, variants):
+        # struct has local_members, optional base, and no variants
+        # flat union has base, variants, and no local_members
+        # simple union has local_members, variants, and no base
         QAPISchemaType.__init__(self, name, info)
         assert base is None or isinstance(base, str)
         for m in local_members:
             assert isinstance(m, QAPISchemaObjectTypeMember)
-        assert (variants is None or
-                isinstance(variants, QAPISchemaObjectTypeVariants))
+            m.set_owner(name)
+        if variants is not None:
+            assert isinstance(variants, QAPISchemaObjectTypeVariants)
+            variants.set_owner(name)
         self._base_name = base
         self.base = None
         self.local_members = local_members
@@ -970,27 +940,34 @@ class QAPISchemaObjectType(QAPISchemaType):
         self.members = None
 
     def check(self, schema):
-        assert self.members is not False        # not running in cycles
+        if self.members is False:               # check for cycles
+            raise QAPIExprError(self.info,
+                                "Object %s contains itself" % self.name)
         if self.members:
             return
         self.members = False                    # mark as being checked
+        seen = OrderedDict()
         if self._base_name:
             self.base = schema.lookup_type(self._base_name)
             assert isinstance(self.base, QAPISchemaObjectType)
-            assert not self.base.variants       # not implemented
             self.base.check(schema)
-            members = list(self.base.members)
-        else:
-            members = []
-        seen = {}
-        for m in members:
-            assert c_name(m.name) not in seen
-            seen[m.name] = m
+            self.base.check_clash(schema, self.info, seen)
         for m in self.local_members:
-            m.check(schema, members, seen)
+            m.check(schema)
+            m.check_clash(self.info, seen)
+        self.members = seen.values()
         if self.variants:
-            self.variants.check(schema, members, seen)
-        self.members = members
+            self.variants.check(schema, seen)
+            assert self.variants.tag_member in self.members
+            self.variants.check_clash(schema, self.info, seen)
+
+    # Check that the members of this type do not cause duplicate JSON fields,
+    # and update seen to track the members seen so far. Report any errors
+    # on behalf of info, which is not necessarily self.info
+    def check_clash(self, schema, info, seen):
+        assert not self.variants       # not implemented
+        for m in self.members:
+            m.check_clash(info, seen)
 
     def is_implicit(self):
         # See QAPISchema._make_implicit_object_type()
@@ -1014,22 +991,63 @@ class QAPISchemaObjectType(QAPISchemaType):
                                        self.members, self.variants)
 
 
-class QAPISchemaObjectTypeMember(object):
-    def __init__(self, name, typ, optional):
+class QAPISchemaMember(object):
+    role = 'member'
+
+    def __init__(self, name):
         assert isinstance(name, str)
+        self.name = name
+        self.owner = None
+
+    def set_owner(self, name):
+        assert not self.owner
+        self.owner = name
+
+    def check_clash(self, info, seen):
+        cname = c_name(self.name)
+        if cname.lower() != cname and self.owner not in case_whitelist:
+            raise QAPIExprError(info,
+                                "%s should not use uppercase" % self.describe())
+        if cname in seen:
+            raise QAPIExprError(info,
+                                "%s collides with %s"
+                                % (self.describe(), seen[cname].describe()))
+        seen[cname] = self
+
+    def _pretty_owner(self):
+        owner = self.owner
+        if owner.startswith(':obj-'):
+            # See QAPISchema._make_implicit_object_type() - reverse the
+            # mapping there to create a nice human-readable description
+            owner = owner[5:]
+            if owner.endswith('-arg'):
+                return '(parameter of %s)' % owner[:-4]
+            else:
+                assert owner.endswith('-wrapper')
+                # Unreachable and not implemented
+                assert False
+        if owner.endswith('Kind'):
+            # See QAPISchema._make_implicit_enum_type()
+            return '(branch of %s)' % owner[:-4]
+        return '(%s of %s)' % (self.role, owner)
+
+    def describe(self):
+        return "'%s' %s" % (self.name, self._pretty_owner())
+
+
+class QAPISchemaObjectTypeMember(QAPISchemaMember):
+    def __init__(self, name, typ, optional):
+        QAPISchemaMember.__init__(self, name)
         assert isinstance(typ, str)
         assert isinstance(optional, bool)
-        self.name = name
         self._type_name = typ
         self.type = None
         self.optional = optional
 
-    def check(self, schema, all_members, seen):
-        assert self.name not in seen
+    def check(self, schema):
+        assert self.owner
         self.type = schema.lookup_type(self._type_name)
         assert self.type
-        all_members.append(self)
-        seen[self.name] = self
 
 
 class QAPISchemaObjectTypeVariants(object):
@@ -1047,24 +1065,37 @@ class QAPISchemaObjectTypeVariants(object):
         self.tag_member = tag_member
         self.variants = variants
 
-    def check(self, schema, members, seen):
-        if self.tag_name:
-            self.tag_member = seen[self.tag_name]
-        else:
-            self.tag_member.check(schema, members, seen)
+    def set_owner(self, name):
+        for v in self.variants:
+            v.set_owner(name)
+
+    def check(self, schema, seen):
+        if not self.tag_member:    # flat union
+            self.tag_member = seen[c_name(self.tag_name)]
+            assert self.tag_name == self.tag_member.name
         assert isinstance(self.tag_member.type, QAPISchemaEnumType)
         for v in self.variants:
-            vseen = dict(seen)
-            v.check(schema, self.tag_member.type, vseen)
+            v.check(schema)
+            # Union names must match enum values; alternate names are
+            # checked separately. Use 'seen' to tell the two apart.
+            if seen:
+                assert v.name in self.tag_member.type.member_names()
+                assert isinstance(v.type, QAPISchemaObjectType)
+                v.type.check(schema)
+
+    def check_clash(self, schema, info, seen):
+        for v in self.variants:
+            # Reset seen map for each variant, since qapi names from one
+            # branch do not affect another branch
+            assert isinstance(v.type, QAPISchemaObjectType)
+            v.type.check_clash(schema, info, dict(seen))
 
 
 class QAPISchemaObjectTypeVariant(QAPISchemaObjectTypeMember):
+    role = 'branch'
+
     def __init__(self, name, typ):
         QAPISchemaObjectTypeMember.__init__(self, name, typ, False)
-
-    def check(self, schema, tag_type, seen):
-        QAPISchemaObjectTypeMember.check(self, schema, [], seen)
-        assert self.name in tag_type.values
 
     # This function exists to support ugly simple union special cases
     # TODO get rid of them, and drop the function
@@ -1082,10 +1113,20 @@ class QAPISchemaAlternateType(QAPISchemaType):
         QAPISchemaType.__init__(self, name, info)
         assert isinstance(variants, QAPISchemaObjectTypeVariants)
         assert not variants.tag_name
+        variants.set_owner(name)
+        variants.tag_member.set_owner(self.name)
         self.variants = variants
 
     def check(self, schema):
-        self.variants.check(schema, [], {})
+        self.variants.tag_member.check(schema)
+        # Not calling self.variants.check_clash(), because there's nothing
+        # to clash with
+        self.variants.check(schema, {})
+        # Alternate branch names have no relation to the tag enum values;
+        # so we have to check for potential name collisions ourselves.
+        seen = {}
+        for v in self.variants.variants:
+            v.check_clash(self.info, seen)
 
     def json_type(self):
         return 'value'
@@ -1196,10 +1237,20 @@ class QAPISchema(object):
         self.the_empty_object_type = QAPISchemaObjectType(':empty', None, None,
                                                           [], None)
         self._def_entity(self.the_empty_object_type)
+        qtype_values = self._make_enum_members(['none', 'qnull', 'qint',
+                                                'qstring', 'qdict', 'qlist',
+                                                'qfloat', 'qbool'])
+        self._def_entity(QAPISchemaEnumType('QType', None, qtype_values,
+                                            'QTYPE'))
+
+    def _make_enum_members(self, values):
+        return [QAPISchemaMember(v) for v in values]
 
     def _make_implicit_enum_type(self, name, info, values):
+        # See also QAPISchemaObjectTypeMember._pretty_owner()
         name = name + 'Kind'   # Use namespace reserved by add_name()
-        self._def_entity(QAPISchemaEnumType(name, info, values, None))
+        self._def_entity(QAPISchemaEnumType(
+            name, info, self._make_enum_members(values), None))
         return name
 
     def _make_array_type(self, element_type, info):
@@ -1211,6 +1262,7 @@ class QAPISchema(object):
     def _make_implicit_object_type(self, name, info, role, members):
         if not members:
             return None
+        # See also QAPISchemaObjectTypeMember._pretty_owner()
         name = ':obj-%s-%s' % (name, role)
         if not self.lookup_entity(name, QAPISchemaObjectType):
             self._def_entity(QAPISchemaObjectType(name, info, None,
@@ -1221,7 +1273,8 @@ class QAPISchema(object):
         name = expr['enum']
         data = expr['data']
         prefix = expr.get('prefix')
-        self._def_entity(QAPISchemaEnumType(name, info, data, prefix))
+        self._def_entity(QAPISchemaEnumType(
+            name, info, self._make_enum_members(data), prefix))
 
     def _make_member(self, name, typ, info):
         optional = False
@@ -1256,11 +1309,6 @@ class QAPISchema(object):
             typ, info, 'wrapper', [self._make_member('data', typ, info)])
         return QAPISchemaObjectTypeVariant(case, typ)
 
-    def _make_implicit_tag(self, type_name, info, variants):
-        typ = self._make_implicit_enum_type(type_name, info,
-                                            [v.name for v in variants])
-        return QAPISchemaObjectTypeMember('type', typ, False)
-
     def _def_union_type(self, expr, info):
         name = expr['union']
         data = expr['data']
@@ -1270,13 +1318,16 @@ class QAPISchema(object):
         if tag_name:
             variants = [self._make_variant(key, value)
                         for (key, value) in data.iteritems()]
+            members = []
         else:
             variants = [self._make_simple_variant(key, value, info)
                         for (key, value) in data.iteritems()]
-            tag_member = self._make_implicit_tag(name, info, variants)
+            typ = self._make_implicit_enum_type(name, info,
+                                                [v.name for v in variants])
+            tag_member = QAPISchemaObjectTypeMember('type', typ, False)
+            members = [tag_member]
         self._def_entity(
-            QAPISchemaObjectType(name, info, base,
-                                 self._make_members(OrderedDict(), info),
+            QAPISchemaObjectType(name, info, base, members,
                                  QAPISchemaObjectTypeVariants(tag_name,
                                                               tag_member,
                                                               variants)))
@@ -1286,7 +1337,7 @@ class QAPISchema(object):
         data = expr['data']
         variants = [self._make_variant(key, value)
                     for (key, value) in data.iteritems()]
-        tag_member = self._make_implicit_tag(name, info, variants)
+        tag_member = QAPISchemaObjectTypeMember('type', 'QType', False)
         self._def_entity(
             QAPISchemaAlternateType(name, info,
                                     QAPISchemaObjectTypeVariants(None,
@@ -1390,7 +1441,7 @@ def camel_to_upper(value):
 def c_enum_const(type_name, const_name, prefix=None):
     if prefix is not None:
         type_name = prefix
-    return camel_to_upper(type_name + '_' + const_name)
+    return camel_to_upper(type_name) + '_' + c_name(const_name, False).upper()
 
 c_name_trans = string.maketrans('.-', '__')
 
@@ -1432,10 +1483,11 @@ def c_name(name, protect=True):
                      'not_eq', 'or', 'or_eq', 'xor', 'xor_eq'])
     # namespace pollution:
     polluted_words = set(['unix', 'errno'])
+    name = name.translate(c_name_trans)
     if protect and (name in c89_words | c99_words | c11_words | gcc_words
                     | cpp_words | polluted_words):
         return "q_" + name
-    return name.translate(c_name_trans)
+    return name
 
 eatspace = '\033EATSPACE.'
 pointer_suffix = ' *' + eatspace
@@ -1515,7 +1567,7 @@ const char *const %(c_name)s_lookup[] = {
 ''',
                      index=index, value=value)
 
-    max_index = c_enum_const(name, 'MAX', prefix)
+    max_index = c_enum_const(name, '_MAX', prefix)
     ret += mcgen('''
     [%(max_index)s] = NULL,
 };
@@ -1526,7 +1578,7 @@ const char *const %(c_name)s_lookup[] = {
 
 def gen_enum(name, values, prefix=None):
     # append automatically generated _MAX value
-    enum_values = values + ['MAX']
+    enum_values = values + ['_MAX']
 
     ret = mcgen('''
 
@@ -1594,15 +1646,10 @@ def gen_visit_fields(members, prefix='', need_cast=False, skiperr=False):
     for memb in members:
         if memb.optional:
             ret += mcgen('''
-    visit_optional(v, &%(prefix)shas_%(c_name)s, "%(name)s", %(errp)s);
+    if (visit_optional(v, &%(prefix)shas_%(c_name)s, "%(name)s")) {
 ''',
                          prefix=prefix, c_name=c_name(memb.name),
                          name=memb.name, errp=errparg)
-            ret += gen_err_check(skiperr=skiperr)
-            ret += mcgen('''
-    if (%(prefix)shas_%(c_name)s) {
-''',
-                         prefix=prefix, c_name=c_name(memb.name))
             push_indent()
 
         # Ugly: sometimes we need to cast away const

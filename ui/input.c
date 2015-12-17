@@ -211,7 +211,7 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
             name = QKeyCode_lookup[evt->u.key->key->u.qcode];
             trace_input_event_key_qcode(idx, name, evt->u.key->down);
             break;
-        case KEY_VALUE_KIND_MAX:
+        case KEY_VALUE_KIND__MAX:
             /* keep gcc happy */
             break;
         }
@@ -228,7 +228,7 @@ static void qemu_input_event_trace(QemuConsole *src, InputEvent *evt)
         name = InputAxis_lookup[evt->u.abs->axis];
         trace_input_event_abs(idx, name, evt->u.abs->value);
         break;
-    case INPUT_EVENT_KIND_MAX:
+    case INPUT_EVENT_KIND__MAX:
         /* keep gcc happy */
         break;
     }
@@ -430,7 +430,7 @@ void qemu_input_update_buttons(QemuConsole *src, uint32_t *button_map,
     InputButton btn;
     uint32_t mask;
 
-    for (btn = 0; btn < INPUT_BUTTON_MAX; btn++) {
+    for (btn = 0; btn < INPUT_BUTTON__MAX; btn++) {
         mask = button_map[btn];
         if ((button_old & mask) == (button_new & mask)) {
             continue;

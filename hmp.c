@@ -311,17 +311,25 @@ void hmp_info_cpus(Monitor *mon, const QDict *qdict)
 
         monitor_printf(mon, "%c CPU #%" PRId64 ":", active, cpu->value->CPU);
 
-        if (cpu->value->has_pc) {
-            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->pc);
-        }
-        if (cpu->value->has_nip) {
-            monitor_printf(mon, " nip=0x%016" PRIx64, cpu->value->nip);
-        }
-        if (cpu->value->has_npc) {
-            monitor_printf(mon, " npc=0x%016" PRIx64, cpu->value->npc);
-        }
-        if (cpu->value->has_PC) {
-            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->PC);
+        switch (cpu->value->arch) {
+        case CPU_INFO_ARCH_X86:
+            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->u.x86->pc);
+            break;
+        case CPU_INFO_ARCH_PPC:
+            monitor_printf(mon, " nip=0x%016" PRIx64, cpu->value->u.ppc->nip);
+            break;
+        case CPU_INFO_ARCH_SPARC:
+            monitor_printf(mon, " pc=0x%016" PRIx64, cpu->value->u.sparc->pc);
+            monitor_printf(mon, " npc=0x%016" PRIx64, cpu->value->u.sparc->npc);
+            break;
+        case CPU_INFO_ARCH_MIPS:
+            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.mips->PC);
+            break;
+        case CPU_INFO_ARCH_TRICORE:
+            monitor_printf(mon, " PC=0x%016" PRIx64, cpu->value->u.tricore->PC);
+            break;
+        default:
+            break;
         }
 
         if (cpu->value->halted) {
@@ -855,7 +863,7 @@ void hmp_info_tpm(Monitor *mon, const QDict *qdict)
                            tpo->has_cancel_path ? ",cancel-path=" : "",
                            tpo->has_cancel_path ? tpo->cancel_path : "");
             break;
-        case TPM_TYPE_OPTIONS_KIND_MAX:
+        case TPM_TYPE_OPTIONS_KIND__MAX:
             break;
         }
         monitor_printf(mon, "\n");
@@ -1203,7 +1211,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
     MigrationCapabilityStatusList *caps = g_malloc0(sizeof(*caps));
     int i;
 
-    for (i = 0; i < MIGRATION_CAPABILITY_MAX; i++) {
+    for (i = 0; i < MIGRATION_CAPABILITY__MAX; i++) {
         if (strcmp(cap, MigrationCapability_lookup[i]) == 0) {
             caps->value = g_malloc0(sizeof(*caps->value));
             caps->value->capability = i;
@@ -1214,7 +1222,7 @@ void hmp_migrate_set_capability(Monitor *mon, const QDict *qdict)
         }
     }
 
-    if (i == MIGRATION_CAPABILITY_MAX) {
+    if (i == MIGRATION_CAPABILITY__MAX) {
         error_setg(&err, QERR_INVALID_PARAMETER, cap);
     }
 
@@ -1239,7 +1247,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     bool has_x_cpu_throttle_increment = false;
     int i;
 
-    for (i = 0; i < MIGRATION_PARAMETER_MAX; i++) {
+    for (i = 0; i < MIGRATION_PARAMETER__MAX; i++) {
         if (strcmp(param, MigrationParameter_lookup[i]) == 0) {
             switch (i) {
             case MIGRATION_PARAMETER_COMPRESS_LEVEL:
@@ -1268,7 +1276,7 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
         }
     }
 
-    if (i == MIGRATION_PARAMETER_MAX) {
+    if (i == MIGRATION_PARAMETER__MAX) {
         error_setg(&err, QERR_INVALID_PARAMETER, param);
     }
 
@@ -1368,7 +1376,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
         if (read_only) {
             read_only_mode =
                 qapi_enum_parse(BlockdevChangeReadOnlyMode_lookup,
-                                read_only, BLOCKDEV_CHANGE_READ_ONLY_MODE_MAX,
+                                read_only, BLOCKDEV_CHANGE_READ_ONLY_MODE__MAX,
                                 BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN, &err);
             if (err) {
                 hmp_handle_error(mon, &err);
@@ -1771,7 +1779,7 @@ void hmp_sendkey(Monitor *mon, const QDict *qdict)
             keylist->value->u.number = value;
         } else {
             int idx = index_from_key(keyname_buf);
-            if (idx == Q_KEY_CODE_MAX) {
+            if (idx == Q_KEY_CODE__MAX) {
                 goto err_out;
             }
             keylist->value->type = KEY_VALUE_KIND_QCODE;

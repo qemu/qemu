@@ -2269,7 +2269,7 @@ static int qcow2_create(const char *filename, QemuOpts *opts, Error **errp)
                                          DEFAULT_CLUSTER_SIZE);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     prealloc = qapi_enum_parse(PreallocMode_lookup, buf,
-                               PREALLOC_MODE_MAX, PREALLOC_MODE_OFF,
+                               PREALLOC_MODE__MAX, PREALLOC_MODE_OFF,
                                &local_err);
     if (local_err) {
         error_propagate(errp, local_err);

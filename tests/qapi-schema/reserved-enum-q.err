@@ -1,0 +1,1 @@
+tests/qapi-schema/reserved-enum-q.json:4: Member of enum 'Foo' uses invalid name 'q-Unix'

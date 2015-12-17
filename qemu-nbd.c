@@ -487,7 +487,7 @@ int main(int argc, char **argv)
             detect_zeroes =
                 qapi_enum_parse(BlockdevDetectZeroesOptions_lookup,
                                 optarg,
-                                BLOCKDEV_DETECT_ZEROES_OPTIONS_MAX,
+                                BLOCKDEV_DETECT_ZEROES_OPTIONS__MAX,
                                 BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
                                 &local_err);
             if (local_err) {

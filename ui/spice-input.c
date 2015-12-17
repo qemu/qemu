@@ -107,12 +107,12 @@ typedef struct QemuSpicePointer {
 static void spice_update_buttons(QemuSpicePointer *pointer,
                                  int wheel, uint32_t button_mask)
 {
-    static uint32_t bmap[INPUT_BUTTON_MAX] = {
+    static uint32_t bmap[INPUT_BUTTON__MAX] = {
         [INPUT_BUTTON_LEFT]        = 0x01,
         [INPUT_BUTTON_MIDDLE]      = 0x04,
         [INPUT_BUTTON_RIGHT]       = 0x02,
-        [INPUT_BUTTON_WHEEL_UP]    = 0x10,
-        [INPUT_BUTTON_WHEEL_DOWN]  = 0x20,
+        [INPUT_BUTTON_WHEELUP]     = 0x10,
+        [INPUT_BUTTON_WHEELDOWN]   = 0x20,
     };
 
     if (wheel < 0) {

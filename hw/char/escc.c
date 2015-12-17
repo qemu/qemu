@@ -714,7 +714,7 @@ MemoryRegion *escc_init(hwaddr base, qemu_irq irqA, qemu_irq irqB,
     return &d->mmio;
 }
 
-static const uint8_t qcode_to_keycode[Q_KEY_CODE_MAX] = {
+static const uint8_t qcode_to_keycode[Q_KEY_CODE__MAX] = {
     [Q_KEY_CODE_SHIFT]         = 99,
     [Q_KEY_CODE_SHIFT_R]       = 110,
     [Q_KEY_CODE_ALT]           = 19,

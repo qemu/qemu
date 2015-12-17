@@ -152,12 +152,13 @@
 { 'event': 'EVENT_D',
   'data': { 'a' : 'EventStructOne', 'b' : 'str', '*c': 'str', '*enum3': 'EnumOne' } }
 
-# test that we correctly compile downstream extensions
+# test that we correctly compile downstream extensions, as well as munge
+# ticklish names
 { 'enum': '__org.qemu_x-Enum', 'data': [ '__org.qemu_x-value' ] }
 { 'struct': '__org.qemu_x-Base',
   'data': { '__org.qemu_x-member1': '__org.qemu_x-Enum' } }
 { 'struct': '__org.qemu_x-Struct', 'base': '__org.qemu_x-Base',
-  'data': { '__org.qemu_x-member2': 'str' } }
+  'data': { '__org.qemu_x-member2': 'str', '*wchar-t': 'int' } }
 { 'union': '__org.qemu_x-Union1', 'data': { '__org.qemu_x-branch': 'str' } }
 { 'struct': '__org.qemu_x-Struct2',
   'data': { 'array': ['__org.qemu_x-Union1'] } }

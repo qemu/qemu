@@ -1,1 +1,0 @@
-tests/qapi-schema/union-clash-type.json:8: Union 'TestUnion' member 'kind' clashes with '(automatic)'

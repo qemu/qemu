@@ -312,13 +312,13 @@ static void test_visitor_in_alternate(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42");
     visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
-    g_assert_cmpint(tmp->type, ==, USER_DEF_ALTERNATE_KIND_I);
+    g_assert_cmpint(tmp->type, ==, QTYPE_QINT);
     g_assert_cmpint(tmp->u.i, ==, 42);
     qapi_free_UserDefAlternate(tmp);
 
     v = visitor_input_test_init(data, "'string'");
     visit_type_UserDefAlternate(v, &tmp, NULL, &error_abort);
-    g_assert_cmpint(tmp->type, ==, USER_DEF_ALTERNATE_KIND_S);
+    g_assert_cmpint(tmp->type, ==, QTYPE_QSTRING);
     g_assert_cmpstr(tmp->u.s, ==, "string");
     qapi_free_UserDefAlternate(tmp);
 
@@ -347,36 +347,33 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
     error_free_or_abort(&err);
     qapi_free_AltStrBool(asb);
 
-    /* FIXME: Order of alternate should not affect semantics; asn should
-     * parse the same as ans */
     v = visitor_input_test_init(data, "42");
-    visit_type_AltStrNum(v, &asn, NULL, &err);
-    /* FIXME g_assert_cmpint(asn->type, == ALT_STR_NUM_KIND_N); */
-    /* FIXME g_assert_cmpfloat(asn->u.n, ==, 42); */
-    error_free_or_abort(&err);
+    visit_type_AltStrNum(v, &asn, NULL, &error_abort);
+    g_assert_cmpint(asn->type, ==, QTYPE_QFLOAT);
+    g_assert_cmpfloat(asn->u.n, ==, 42);
     qapi_free_AltStrNum(asn);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumStr(v, &ans, NULL, &error_abort);
-    g_assert_cmpint(ans->type, ==, ALT_NUM_STR_KIND_N);
+    g_assert_cmpint(ans->type, ==, QTYPE_QFLOAT);
     g_assert_cmpfloat(ans->u.n, ==, 42);
     qapi_free_AltNumStr(ans);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltStrInt(v, &asi, NULL, &error_abort);
-    g_assert_cmpint(asi->type, ==, ALT_STR_INT_KIND_I);
+    g_assert_cmpint(asi->type, ==, QTYPE_QINT);
     g_assert_cmpint(asi->u.i, ==, 42);
     qapi_free_AltStrInt(asi);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltIntNum(v, &ain, NULL, &error_abort);
-    g_assert_cmpint(ain->type, ==, ALT_INT_NUM_KIND_I);
+    g_assert_cmpint(ain->type, ==, QTYPE_QINT);
     g_assert_cmpint(ain->u.i, ==, 42);
     qapi_free_AltIntNum(ain);
 
     v = visitor_input_test_init(data, "42");
     visit_type_AltNumInt(v, &ani, NULL, &error_abort);
-    g_assert_cmpint(ani->type, ==, ALT_NUM_INT_KIND_I);
+    g_assert_cmpint(ani->type, ==, QTYPE_QINT);
     g_assert_cmpint(ani->u.i, ==, 42);
     qapi_free_AltNumInt(ani);
 
@@ -389,13 +386,13 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltStrNum(v, &asn, NULL, &error_abort);
-    g_assert_cmpint(asn->type, ==, ALT_STR_NUM_KIND_N);
+    g_assert_cmpint(asn->type, ==, QTYPE_QFLOAT);
     g_assert_cmpfloat(asn->u.n, ==, 42.5);
     qapi_free_AltStrNum(asn);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumStr(v, &ans, NULL, &error_abort);
-    g_assert_cmpint(ans->type, ==, ALT_NUM_STR_KIND_N);
+    g_assert_cmpint(ans->type, ==, QTYPE_QFLOAT);
     g_assert_cmpfloat(ans->u.n, ==, 42.5);
     qapi_free_AltNumStr(ans);
 
@@ -406,13 +403,13 @@ static void test_visitor_in_alternate_number(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltIntNum(v, &ain, NULL, &error_abort);
-    g_assert_cmpint(ain->type, ==, ALT_INT_NUM_KIND_N);
+    g_assert_cmpint(ain->type, ==, QTYPE_QFLOAT);
     g_assert_cmpfloat(ain->u.n, ==, 42.5);
     qapi_free_AltIntNum(ain);
 
     v = visitor_input_test_init(data, "42.5");
     visit_type_AltNumInt(v, &ani, NULL, &error_abort);
-    g_assert_cmpint(ani->type, ==, ALT_NUM_INT_KIND_N);
+    g_assert_cmpint(ani->type, ==, QTYPE_QFLOAT);
     g_assert_cmpfloat(ani->u.n, ==, 42.5);
     qapi_free_AltNumInt(ani);
 }

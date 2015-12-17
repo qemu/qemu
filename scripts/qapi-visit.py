@@ -172,6 +172,7 @@ out:
 
 
 def gen_visit_enum(name):
+    # FIXME cast from enum *obj to int * invalidly assumes enum is int
     return mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, %(c_name)s *obj, const char *name, Error **errp)
@@ -183,6 +184,11 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s *obj, const char *name, Error 
 
 
 def gen_visit_alternate(name, variants):
+    promote_int = 'true'
+    for var in variants.variants:
+        if var.type.alternate_qtype() == 'QTYPE_QINT':
+            promote_int = 'false'
+
     ret = mcgen('''
 
 void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error **errp)
@@ -193,13 +199,13 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
     if (err) {
         goto out;
     }
-    visit_get_next_type(v, (int*) &(*obj)->type, %(c_name)s_qtypes, name, &err);
+    visit_get_next_type(v, &(*obj)->type, %(promote_int)s, name, &err);
     if (err) {
         goto out_obj;
     }
     switch ((*obj)->type) {
 ''',
-                c_name=c_name(name))
+                c_name=c_name(name), promote_int=promote_int)
 
     for var in variants.variants:
         ret += mcgen('''
@@ -207,14 +213,14 @@ void visit_type_%(c_name)s(Visitor *v, %(c_name)s **obj, const char *name, Error
         visit_type_%(c_type)s(v, &(*obj)->u.%(c_name)s, name, &err);
         break;
 ''',
-                     case=c_enum_const(variants.tag_member.type.name,
-                                       var.name),
+                     case=var.type.alternate_qtype(),
                      c_type=var.type.c_name(),
                      c_name=c_name(var.name))
 
     ret += mcgen('''
     default:
-        abort();
+        error_setg(&err, QERR_INVALID_PARAMETER_TYPE, name ? name : "null",
+                   "%(name)s");
     }
 out_obj:
     error_propagate(errp, err);
@@ -223,7 +229,8 @@ out_obj:
 out:
     error_propagate(errp, err);
 }
-''')
+''',
+                 name=name)
 
     return ret
 
@@ -347,8 +354,15 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
                     isinstance(entity, QAPISchemaObjectType))
 
     def visit_enum_type(self, name, info, values, prefix):
-        self.decl += gen_visit_decl(name, scalar=True)
-        self.defn += gen_visit_enum(name)
+        # Special case for our lone builtin enum type
+        # TODO use something cleaner than existence of info
+        if not info:
+            self._btin += gen_visit_decl(name, scalar=True)
+            if do_builtins:
+                self.defn += gen_visit_enum(name)
+        else:
+            self.decl += gen_visit_decl(name, scalar=True)
+            self.defn += gen_visit_enum(name)
 
     def visit_array_type(self, name, info, element_type):
         decl = gen_visit_decl(name)
@@ -364,7 +378,10 @@ class QAPISchemaGenVisitVisitor(QAPISchemaVisitor):
     def visit_object_type(self, name, info, base, members, variants):
         self.decl += gen_visit_decl(name)
         if variants:
-            assert not members      # not implemented
+            if members:
+                # Members other than variants.tag_member not implemented
+                assert len(members) == 1
+                assert members[0] == variants.tag_member
             self.defn += gen_visit_union(name, base, variants)
         else:
             self.defn += gen_visit_struct(name, base, members)
@@ -427,6 +444,7 @@ fdef.write(mcgen('''
 
 fdecl.write(mcgen('''
 #include "qapi/visitor.h"
+#include "qapi/qmp/qerror.h"
 #include "%(prefix)sqapi-types.h"
 
 ''',

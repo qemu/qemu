@@ -847,7 +847,7 @@ static int parse_read_pattern(const char *opt)
         return QUORUM_READ_PATTERN_QUORUM;
     }
 
-    for (i = 0; i < QUORUM_READ_PATTERN_MAX; i++) {
+    for (i = 0; i < QUORUM_READ_PATTERN__MAX; i++) {
         if (!strcmp(opt, QuorumReadPattern_lookup[i])) {
             return i;
         }

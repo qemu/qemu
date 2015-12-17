@@ -520,66 +520,6 @@ void bdrv_op_block_all(BlockDriverState *bs, Error *reason);
 void bdrv_op_unblock_all(BlockDriverState *bs, Error *reason);
 bool bdrv_op_blocker_is_empty(BlockDriverState *bs);
 
-typedef enum {
-    BLKDBG_L1_UPDATE,
-
-    BLKDBG_L1_GROW_ALLOC_TABLE,
-    BLKDBG_L1_GROW_WRITE_TABLE,
-    BLKDBG_L1_GROW_ACTIVATE_TABLE,
-
-    BLKDBG_L2_LOAD,
-    BLKDBG_L2_UPDATE,
-    BLKDBG_L2_UPDATE_COMPRESSED,
-    BLKDBG_L2_ALLOC_COW_READ,
-    BLKDBG_L2_ALLOC_WRITE,
-
-    BLKDBG_READ_AIO,
-    BLKDBG_READ_BACKING_AIO,
-    BLKDBG_READ_COMPRESSED,
-
-    BLKDBG_WRITE_AIO,
-    BLKDBG_WRITE_COMPRESSED,
-
-    BLKDBG_VMSTATE_LOAD,
-    BLKDBG_VMSTATE_SAVE,
-
-    BLKDBG_COW_READ,
-    BLKDBG_COW_WRITE,
-
-    BLKDBG_REFTABLE_LOAD,
-    BLKDBG_REFTABLE_GROW,
-    BLKDBG_REFTABLE_UPDATE,
-
-    BLKDBG_REFBLOCK_LOAD,
-    BLKDBG_REFBLOCK_UPDATE,
-    BLKDBG_REFBLOCK_UPDATE_PART,
-    BLKDBG_REFBLOCK_ALLOC,
-    BLKDBG_REFBLOCK_ALLOC_HOOKUP,
-    BLKDBG_REFBLOCK_ALLOC_WRITE,
-    BLKDBG_REFBLOCK_ALLOC_WRITE_BLOCKS,
-    BLKDBG_REFBLOCK_ALLOC_WRITE_TABLE,
-    BLKDBG_REFBLOCK_ALLOC_SWITCH_TABLE,
-
-    BLKDBG_CLUSTER_ALLOC,
-    BLKDBG_CLUSTER_ALLOC_BYTES,
-    BLKDBG_CLUSTER_FREE,
-
-    BLKDBG_FLUSH_TO_OS,
-    BLKDBG_FLUSH_TO_DISK,
-
-    BLKDBG_PWRITEV_RMW_HEAD,
-    BLKDBG_PWRITEV_RMW_AFTER_HEAD,
-    BLKDBG_PWRITEV_RMW_TAIL,
-    BLKDBG_PWRITEV_RMW_AFTER_TAIL,
-    BLKDBG_PWRITEV,
-    BLKDBG_PWRITEV_ZERO,
-    BLKDBG_PWRITEV_DONE,
-
-    BLKDBG_EMPTY_IMAGE_PREPARE,
-
-    BLKDBG_EVENT_MAX,
-} BlkDebugEvent;
-
 #define BLKDBG_EVENT(child, evt) \
     do { \
         if (child) { \
@@ -587,7 +527,7 @@ typedef enum {
         } \
     } while (0)
 
-void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
+void bdrv_debug_event(BlockDriverState *bs, BlkdebugEvent event);
 
 int bdrv_debug_breakpoint(BlockDriverState *bs, const char *event,
                            const char *tag);

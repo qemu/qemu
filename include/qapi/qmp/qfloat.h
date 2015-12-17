@@ -25,5 +25,6 @@ typedef struct QFloat {
 QFloat *qfloat_from_double(double value);
 double qfloat_get_double(const QFloat *qi);
 QFloat *qobject_to_qfloat(const QObject *obj);
+void qfloat_destroy_obj(QObject *obj);
 
 #endif /* QFLOAT_H */

@@ -1558,22 +1558,29 @@ CpuInfoList *qmp_query_cpus(Error **errp)
         info->value->qom_path = object_get_canonical_path(OBJECT(cpu));
         info->value->thread_id = cpu->thread_id;
 #if defined(TARGET_I386)
-        info->value->has_pc = true;
-        info->value->pc = env->eip + env->segs[R_CS].base;
+        info->value->arch = CPU_INFO_ARCH_X86;
+        info->value->u.x86 = g_new0(CpuInfoX86, 1);
+        info->value->u.x86->pc = env->eip + env->segs[R_CS].base;
 #elif defined(TARGET_PPC)
-        info->value->has_nip = true;
-        info->value->nip = env->nip;
+        info->value->arch = CPU_INFO_ARCH_PPC;
+        info->value->u.ppc = g_new0(CpuInfoPPC, 1);
+        info->value->u.ppc->nip = env->nip;
 #elif defined(TARGET_SPARC)
-        info->value->has_pc = true;
-        info->value->pc = env->pc;
-        info->value->has_npc = true;
-        info->value->npc = env->npc;
+        info->value->arch = CPU_INFO_ARCH_SPARC;
+        info->value->u.sparc = g_new0(CpuInfoSPARC, 1);
+        info->value->u.sparc->pc = env->pc;
+        info->value->u.sparc->npc = env->npc;
 #elif defined(TARGET_MIPS)
-        info->value->has_PC = true;
-        info->value->PC = env->active_tc.PC;
+        info->value->arch = CPU_INFO_ARCH_MIPS;
+        info->value->u.mips = g_new0(CpuInfoMIPS, 1);
+        info->value->u.mips->PC = env->active_tc.PC;
 #elif defined(TARGET_TRICORE)
-        info->value->has_PC = true;
-        info->value->PC = env->PC;
+        info->value->arch = CPU_INFO_ARCH_TRICORE;
+        info->value->u.tricore = g_new0(CpuInfoTricore, 1);
+        info->value->u.tricore->PC = env->PC;
+#else
+        info->value->arch = CPU_INFO_ARCH_OTHER;
+        info->value->u.other = g_new0(CpuInfoOther, 1);
 #endif
 
         /* XXX: waiting for the qapi to support GSList */

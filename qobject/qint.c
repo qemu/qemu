@@ -14,13 +14,6 @@
 #include "qapi/qmp/qobject.h"
 #include "qemu-common.h"
 
-static void qint_destroy_obj(QObject *obj);
-
-static const QType qint_type = {
-    .code = QTYPE_QINT,
-    .destroy = qint_destroy_obj,
-};
-
 /**
  * qint_from_int(): Create a new QInt from an int64_t
  *
@@ -31,8 +24,8 @@ QInt *qint_from_int(int64_t value)
     QInt *qi;
 
     qi = g_malloc(sizeof(*qi));
+    qobject_init(QOBJECT(qi), QTYPE_QINT);
     qi->value = value;
-    QOBJECT_INIT(qi, &qint_type);
 
     return qi;
 }
@@ -60,7 +53,7 @@ QInt *qobject_to_qint(const QObject *obj)
  * qint_destroy_obj(): Free all memory allocated by a
  * QInt object
  */
-static void qint_destroy_obj(QObject *obj)
+void qint_destroy_obj(QObject *obj)
 {
     assert(obj != NULL);
     g_free(qobject_to_qint(obj));
