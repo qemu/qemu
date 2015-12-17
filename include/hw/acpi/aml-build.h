@@ -148,6 +148,12 @@ typedef enum {
     AML_SHARED_AND_WAKE = 3,
 } AmlShared;
 
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: MethodFlags */
+typedef enum {
+    AML_NOTSERIALIZED = 0,
+    AML_SERIALIZED = 1,
+} AmlSerializeFlag;
+
 typedef
 struct AcpiBuildTables {
     GArray *table_data;
@@ -262,7 +268,7 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_device(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
-Aml *aml_method(const char *name, int arg_count);
+Aml *aml_method(const char *name, int arg_count, AmlSerializeFlag sflag);
 Aml *aml_if(Aml *predicate);
 Aml *aml_else(void);
 Aml *aml_while(Aml *predicate);

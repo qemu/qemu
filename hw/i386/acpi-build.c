@@ -487,7 +487,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         int64_t bsel_val = qint_get_int(qobject_to_qint(bsel));
 
         aml_append(parent_scope, aml_name_decl("BSEL", aml_int(bsel_val)));
-        notify_method = aml_method("DVNT", 2);
+        notify_method = aml_method("DVNT", 2, AML_NOTSERIALIZED);
     }
 
     for (i = 0; i < ARRAY_SIZE(bus->devices); i += PCI_FUNC_MAX) {
@@ -503,7 +503,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                 dev = aml_device("S%.02X", PCI_DEVFN(slot, 0));
                 aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
                 aml_append(dev, aml_name_decl("_ADR", aml_int(slot << 16)));
-                method = aml_method("_EJ0", 1);
+                method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
                 aml_append(method,
                     aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
                 );
@@ -546,22 +546,22 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
                 s3d = 0;
             }
 
-            method = aml_method("_S1D", 0);
+            method = aml_method("_S1D", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_return(aml_int(0)));
             aml_append(dev, method);
 
-            method = aml_method("_S2D", 0);
+            method = aml_method("_S2D", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_return(aml_int(0)));
             aml_append(dev, method);
 
-            method = aml_method("_S3D", 0);
+            method = aml_method("_S3D", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_return(aml_int(s3d)));
             aml_append(dev, method);
         } else if (hotplug_enabled_dev) {
             /* add _SUN/_EJ0 to make slot hotpluggable  */
             aml_append(dev, aml_name_decl("_SUN", aml_int(slot)));
 
-            method = aml_method("_EJ0", 1);
+            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
             aml_append(method,
                 aml_call2("PCEJ", aml_name("BSEL"), aml_name("_SUN"))
             );
@@ -590,7 +590,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     /* Append PCNT method to notify about events on local and child buses.
      * Add unconditionally for root since DSDT expects it.
      */
-    method = aml_method("PCNT", 0);
+    method = aml_method("PCNT", 0, AML_NOTSERIALIZED);
 
     /* If bus supports hotplug select it and notify about local events */
     if (bsel) {
@@ -651,7 +651,7 @@ static Aml *build_prt(void)
 {
     Aml *method, *while_ctx, *pin, *res;
 
-    method = aml_method("_PRT", 0);
+    method = aml_method("_PRT", 0, AML_NOTSERIALIZED);
     res = aml_local(0);
     pin = aml_local(1);
     aml_append(method, aml_store(aml_package(128), res));
@@ -1112,12 +1112,12 @@ build_ssdt(GArray *table_data, GArray *linker,
         /* device present, functioning, decoding, shown in UI */
         aml_append(dev, aml_name_decl("_STA", aml_int(0xF)));
 
-        method = aml_method("RDPT", 0);
+        method = aml_method("RDPT", 0, AML_NOTSERIALIZED);
         aml_append(method, aml_store(aml_name("PEPT"), aml_local(0)));
         aml_append(method, aml_return(aml_local(0)));
         aml_append(dev, method);
 
-        method = aml_method("WRPT", 1);
+        method = aml_method("WRPT", 1, AML_NOTSERIALIZED);
         aml_append(method, aml_store(aml_arg(0), aml_name("PEPT")));
         aml_append(dev, method);
 
@@ -1153,15 +1153,15 @@ build_ssdt(GArray *table_data, GArray *linker,
         for (i = 0; i < acpi_cpus; i++) {
             dev = aml_processor(i, 0, 0, "CP%.02X", i);
 
-            method = aml_method("_MAT", 0);
+            method = aml_method("_MAT", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_return(aml_call1("CPMA", aml_int(i))));
             aml_append(dev, method);
 
-            method = aml_method("_STA", 0);
+            method = aml_method("_STA", 0, AML_NOTSERIALIZED);
             aml_append(method, aml_return(aml_call1("CPST", aml_int(i))));
             aml_append(dev, method);
 
-            method = aml_method("_EJ0", 1);
+            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
             aml_append(method,
                 aml_return(aml_call2("CPEJ", aml_int(i), aml_arg(0)))
             );
@@ -1174,7 +1174,7 @@ build_ssdt(GArray *table_data, GArray *linker,
          *   Method(NTFY, 2) {If (LEqual(Arg0, 0x00)) {Notify(CP00, Arg1)} ...}
          */
         /* Arg0 = Processor ID = APIC ID */
-        method = aml_method("NTFY", 2);
+        method = aml_method("NTFY", 2, AML_NOTSERIALIZED);
         for (i = 0; i < acpi_cpus; i++) {
             ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
             aml_append(ifctx,
@@ -1269,29 +1269,29 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_append(dev, aml_name_decl("_UID", aml_string("0x%02X", i)));
             aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C80")));
 
-            method = aml_method("_CRS", 0);
+            method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
             s = BASEPATH stringify(MEMORY_SLOT_CRS_METHOD);
             aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
             aml_append(dev, method);
 
-            method = aml_method("_STA", 0);
+            method = aml_method("_STA", 0, AML_NOTSERIALIZED);
             s = BASEPATH stringify(MEMORY_SLOT_STATUS_METHOD);
             aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
             aml_append(dev, method);
 
-            method = aml_method("_PXM", 0);
+            method = aml_method("_PXM", 0, AML_NOTSERIALIZED);
             s = BASEPATH stringify(MEMORY_SLOT_PROXIMITY_METHOD);
             aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
             aml_append(dev, method);
 
-            method = aml_method("_OST", 3);
+            method = aml_method("_OST", 3, AML_NOTSERIALIZED);
             s = BASEPATH stringify(MEMORY_SLOT_OST_METHOD);
             aml_append(method, aml_return(aml_call4(
                 s, aml_name("_UID"), aml_arg(0), aml_arg(1), aml_arg(2)
             )));
             aml_append(dev, method);
 
-            method = aml_method("_EJ0", 1);
+            method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
             s = BASEPATH stringify(MEMORY_SLOT_EJECT_METHOD);
             aml_append(method, aml_return(aml_call2(
                        s, aml_name("_UID"), aml_arg(0))));
@@ -1303,7 +1303,8 @@ build_ssdt(GArray *table_data, GArray *linker,
         /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
          *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ... }
          */
-        method = aml_method(stringify(MEMORY_SLOT_NOTIFY_METHOD), 2);
+        method = aml_method(stringify(MEMORY_SLOT_NOTIFY_METHOD), 2,
+                            AML_NOTSERIALIZED);
         for (i = 0; i < nr_mem; i++) {
             ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
             aml_append(ifctx,

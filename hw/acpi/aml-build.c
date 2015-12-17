@@ -696,11 +696,24 @@ Aml *aml_while(Aml *predicate)
 }
 
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefMethod */
-Aml *aml_method(const char *name, int arg_count)
+Aml *aml_method(const char *name, int arg_count, AmlSerializeFlag sflag)
 {
     Aml *var = aml_bundle(0x14 /* MethodOp */, AML_PACKAGE);
+    int methodflags;
+
+    /*
+     * MethodFlags:
+     *   bit 0-2: ArgCount (0-7)
+     *   bit 3: SerializeFlag
+     *     0: NotSerialized
+     *     1: Serialized
+     *   bit 4-7: reserved (must be 0)
+     */
+    assert(arg_count < 8);
+    methodflags = arg_count | (sflag << 3);
+
     build_append_namestring(var->buf, "%s", name);
-    build_append_byte(var->buf, arg_count); /* MethodFlags: ArgCount */
+    build_append_byte(var->buf, methodflags); /* MethodFlags: ArgCount */
     return var;
 }
 
