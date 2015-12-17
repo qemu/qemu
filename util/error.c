@@ -204,7 +204,7 @@ void error_report_err(Error *err)
 {
     error_report("%s", error_get_pretty(err));
     if (err->hint) {
-        error_printf_unless_qmp("%s\n", err->hint->str);
+        error_printf_unless_qmp("%s", err->hint->str);
     }
     error_free(err);
 }

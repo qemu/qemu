@@ -304,6 +304,7 @@ static void qbus_list_bus(DeviceState *dev, Error **errp)
         error_append_hint(errp, "%s\"%s\"", sep, child->name);
         sep = ", ";
     }
+    error_append_hint(errp, "\n");
 }
 
 static void qbus_list_dev(BusState *bus, Error **errp)
@@ -321,6 +322,7 @@ static void qbus_list_dev(BusState *bus, Error **errp)
         }
         sep = ", ";
     }
+    error_append_hint(errp, "\n");
 }
 
 static BusState *qbus_find_bus(DeviceState *dev, char *elem)
