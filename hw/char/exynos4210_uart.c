@@ -20,6 +20,7 @@
  */
 
 #include "hw/sysbus.h"
+#include "qemu/error-report.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/char.h"
 
@@ -595,15 +596,17 @@ DeviceState *exynos4210_uart_create(hwaddr addr,
 
     if (!chr) {
         if (channel >= MAX_SERIAL_PORTS) {
-            hw_error("Only %d serial ports are supported by QEMU.\n",
-                     MAX_SERIAL_PORTS);
+            error_report("Only %d serial ports are supported by QEMU",
+                         MAX_SERIAL_PORTS);
+            exit(1);
         }
         chr = serial_hds[channel];
         if (!chr) {
             snprintf(label, ARRAY_SIZE(label), "%s%d", chr_name, channel);
             chr = qemu_chr_new(label, "null", NULL);
             if (!(chr)) {
-                hw_error("Can't assign serial port to UART%d.\n", channel);
+                error_report("Can't assign serial port to UART%d", channel);
+                exit(1);
             }
         }
     }

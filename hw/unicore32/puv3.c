@@ -17,6 +17,7 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/i386/pc.h"
+#include "qemu/error-report.h"
 #include "sysemu/qtest.h"
 
 #undef DEBUG_PUV3
@@ -95,7 +96,8 @@ static void puv3_load_kernel(const char *kernel_filename)
     size = load_image_targphys(kernel_filename, KERNEL_LOAD_ADDR,
             KERNEL_MAX_SIZE);
     if (size < 0) {
-        hw_error("Load kernel error: '%s'\n", kernel_filename);
+        error_report("Load kernel error: '%s'", kernel_filename);
+        exit(1);
     }
 
     /* cheat curses that we have a graphic console, only under ocd console */
@@ -112,7 +114,8 @@ static void puv3_init(MachineState *machine)
     UniCore32CPU *cpu;
 
     if (initrd_filename) {
-        hw_error("Please use kernel built-in initramdisk.\n");
+        error_report("Please use kernel built-in initramdisk");
+        exit(1);
     }
 
     if (!cpu_model) {
@@ -121,7 +124,8 @@ static void puv3_init(MachineState *machine)
 
     cpu = uc32_cpu_init(cpu_model);
     if (!cpu) {
-        hw_error("Unable to find CPU definition\n");
+        error_report("Unable to find CPU definition");
+        exit(1);
     }
     env = &cpu->env;
 

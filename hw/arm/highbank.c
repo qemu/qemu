@@ -315,11 +315,13 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
         sysboot_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (sysboot_filename != NULL) {
             if (load_image_targphys(sysboot_filename, 0xfff88000, 0x8000) < 0) {
-                hw_error("Unable to load %s\n", bios_name);
+                error_report("Unable to load %s", bios_name);
+                exit(1);
             }
             g_free(sysboot_filename);
         } else {
-           hw_error("Unable to find %s\n", bios_name);
+            error_report("Unable to find %s", bios_name);
+            exit(1);
         }
     }
 
