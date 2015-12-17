@@ -600,8 +600,7 @@ pci_ebus_init(PCIBus *bus, int devfn, qemu_irq *irqs)
     return isa_bus;
 }
 
-static int
-pci_ebus_init1(PCIDevice *pci_dev)
+static void pci_ebus_realize(PCIDevice *pci_dev, Error **errp)
 {
     EbusState *s = DO_UPCAST(EbusState, pci_dev, pci_dev);
 
@@ -621,14 +620,13 @@ pci_ebus_init1(PCIDevice *pci_dev)
     memory_region_init_alias(&s->bar1, OBJECT(s), "bar1", get_system_io(),
                              0, 0x4000);
     pci_register_bar(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->bar1);
-    return 0;
 }
 
 static void ebus_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->init = pci_ebus_init1;
+    k->realize = pci_ebus_realize;
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_EBUS;
     k->revision = 0x01;
