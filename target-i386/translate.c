@@ -2359,6 +2359,20 @@ static void gen_enter(DisasContext *s, int esp_addend, int level)
     gen_op_mov_reg_v(a_ot, R_ESP, cpu_T[1]);
 }
 
+static void gen_leave(DisasContext *s)
+{
+    TCGMemOp d_ot = mo_pushpop(s, s->dflag);
+    TCGMemOp a_ot = mo_stacksize(s);
+
+    gen_lea_v_seg(s, a_ot, cpu_regs[R_EBP], R_SS, -1);
+    gen_op_ld_v(s, d_ot, cpu_T[0], cpu_A0);
+
+    tcg_gen_addi_tl(cpu_T[1], cpu_regs[R_EBP], 1 << d_ot);
+
+    gen_op_mov_reg_v(d_ot, R_EBP, cpu_T[0]);
+    gen_op_mov_reg_v(a_ot, R_ESP, cpu_T[1]);
+}
+
 static void gen_exception(DisasContext *s, int trapno, target_ulong cur_eip)
 {
     gen_update_cc_op(s);
@@ -5114,20 +5128,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
         }
         break;
     case 0xc9: /* leave */
-        /* XXX: exception not precise (ESP is updated before potential exception) */
-        if (CODE64(s)) {
-            gen_op_mov_v_reg(MO_64, cpu_T[0], R_EBP);
-            gen_op_mov_reg_v(MO_64, R_ESP, cpu_T[0]);
-        } else if (s->ss32) {
-            gen_op_mov_v_reg(MO_32, cpu_T[0], R_EBP);
-            gen_op_mov_reg_v(MO_32, R_ESP, cpu_T[0]);
-        } else {
-            gen_op_mov_v_reg(MO_16, cpu_T[0], R_EBP);
-            gen_op_mov_reg_v(MO_16, R_ESP, cpu_T[0]);
-        }
-        ot = gen_pop_T0(s);
-        gen_op_mov_reg_v(ot, R_EBP, cpu_T[0]);
-        gen_pop_update(s, ot);
+        gen_leave(s);
         break;
     case 0x06: /* push es */
     case 0x0e: /* push cs */
