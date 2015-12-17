@@ -325,6 +325,15 @@ char *g_strconcat(const char *s, ...)
 
 /* Other glib functions */
 
+typedef struct pollfd GPollFD;
+
+int poll();
+
+int g_poll (GPollFD *fds, unsigned nfds, int timeout)
+{
+    return poll(fds, nfds, timeout);
+}
+
 typedef struct _GIOChannel GIOChannel;
 GIOChannel *g_io_channel_unix_new(int fd)
 {
