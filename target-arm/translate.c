@@ -926,13 +926,13 @@ static inline void store_reg_from_load(DisasContext *s, int reg, TCGv_i32 var)
 #define DO_GEN_LD(SUFF, OPC)                                             \
 static inline void gen_aa32_ld##SUFF(TCGv_i32 val, TCGv_i32 addr, int index) \
 {                                                                        \
-    tcg_gen_qemu_ld_i32(val, addr, index, OPC);                          \
+    tcg_gen_qemu_ld_i32(val, addr, index, (OPC));                        \
 }
 
 #define DO_GEN_ST(SUFF, OPC)                                             \
 static inline void gen_aa32_st##SUFF(TCGv_i32 val, TCGv_i32 addr, int index) \
 {                                                                        \
-    tcg_gen_qemu_st_i32(val, addr, index, OPC);                          \
+    tcg_gen_qemu_st_i32(val, addr, index, (OPC));                        \
 }
 
 static inline void gen_aa32_ld64(TCGv_i64 val, TCGv_i32 addr, int index)
@@ -988,6 +988,9 @@ DO_GEN_LD(8u, MO_UB)
 DO_GEN_LD(16s, MO_TESW)
 DO_GEN_LD(16u, MO_TEUW)
 DO_GEN_LD(32u, MO_TEUL)
+/* 'a' variants include an alignment check */
+DO_GEN_LD(16ua, MO_TEUW | MO_ALIGN)
+DO_GEN_LD(32ua, MO_TEUL | MO_ALIGN)
 DO_GEN_ST(8, MO_UB)
 DO_GEN_ST(16, MO_TEUW)
 DO_GEN_ST(32, MO_TEUL)
@@ -7435,11 +7438,11 @@ static void gen_load_exclusive(DisasContext *s, int rt, int rt2,
         gen_aa32_ld8u(tmp, addr, get_mem_index(s));
         break;
     case 1:
-        gen_aa32_ld16u(tmp, addr, get_mem_index(s));
+        gen_aa32_ld16ua(tmp, addr, get_mem_index(s));
         break;
     case 2:
     case 3:
-        gen_aa32_ld32u(tmp, addr, get_mem_index(s));
+        gen_aa32_ld32ua(tmp, addr, get_mem_index(s));
         break;
     default:
         abort();
