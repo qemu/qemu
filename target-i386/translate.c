@@ -373,29 +373,12 @@ static inline void gen_op_mov_v_reg(TCGMemOp ot, TCGv t0, int reg)
     }
 }
 
-static inline void gen_op_addl_A0_im(int32_t val)
-{
-    tcg_gen_addi_tl(cpu_A0, cpu_A0, val);
-#ifdef TARGET_X86_64
-    tcg_gen_andi_tl(cpu_A0, cpu_A0, 0xffffffff);
-#endif
-}
-
-#ifdef TARGET_X86_64
-static inline void gen_op_addq_A0_im(int64_t val)
-{
-    tcg_gen_addi_tl(cpu_A0, cpu_A0, val);
-}
-#endif
-    
 static void gen_add_A0_im(DisasContext *s, int val)
 {
-#ifdef TARGET_X86_64
-    if (CODE64(s))
-        gen_op_addq_A0_im(val);
-    else
-#endif
-        gen_op_addl_A0_im(val);
+    tcg_gen_addi_tl(cpu_A0, cpu_A0, val);
+    if (!CODE64(s)) {
+        tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
+    }
 }
 
 static inline void gen_op_jmp_v(TCGv dest)
@@ -6229,7 +6212,7 @@ static target_ulong disas_insn(CPUX86State *env, DisasContext *s,
                exception */
             gen_op_jmp_v(cpu_T[0]);
             /* pop selector */
-            gen_op_addl_A0_im(1 << dflag);
+            gen_add_A0_im(s, 1 << dflag);
             gen_op_ld_v(s, dflag, cpu_T[0], cpu_A0);
             gen_op_movl_seg_T0_vm(R_CS);
             /* add stack offset */
