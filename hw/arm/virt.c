@@ -52,6 +52,7 @@
 #include "kvm_arm.h"
 #include "hw/smbios/smbios.h"
 #include "qapi/visitor.h"
+#include "standard-headers/linux/input.h"
 
 /* Number of external interrupt lines to configure the GIC with */
 #define NUM_IRQS 256
@@ -561,6 +562,7 @@ static void create_gpio(const VirtBoardInfo *vbi, qemu_irq *pic)
 
     pl061_dev = sysbus_create_simple("pl061", base, pic[irq]);
 
+    uint32_t phandle = qemu_fdt_alloc_phandle(vbi->fdt);
     nodename = g_strdup_printf("/pl061@%" PRIx64, base);
     qemu_fdt_add_subnode(vbi->fdt, nodename);
     qemu_fdt_setprop_sized_cells(vbi->fdt, nodename, "reg",
@@ -573,6 +575,20 @@ static void create_gpio(const VirtBoardInfo *vbi, qemu_irq *pic)
                            GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     qemu_fdt_setprop_cell(vbi->fdt, nodename, "clocks", vbi->clock_phandle);
     qemu_fdt_setprop_string(vbi->fdt, nodename, "clock-names", "apb_pclk");
+    qemu_fdt_setprop_cell(vbi->fdt, nodename, "phandle", phandle);
+
+    qemu_fdt_add_subnode(vbi->fdt, "/gpio-keys");
+    qemu_fdt_setprop_string(vbi->fdt, "/gpio-keys", "compatible", "gpio-keys");
+    qemu_fdt_setprop_cell(vbi->fdt, "/gpio-keys", "#size-cells", 0);
+    qemu_fdt_setprop_cell(vbi->fdt, "/gpio-keys", "#address-cells", 1);
+
+    qemu_fdt_add_subnode(vbi->fdt, "/gpio-keys/poweroff");
+    qemu_fdt_setprop_string(vbi->fdt, "/gpio-keys/poweroff",
+                            "label", "GPIO Key Poweroff");
+    qemu_fdt_setprop_cell(vbi->fdt, "/gpio-keys/poweroff", "linux,code",
+                          KEY_POWER);
+    qemu_fdt_setprop_cells(vbi->fdt, "/gpio-keys/poweroff",
+                           "gpios", phandle, 3, 0);
 
     /* connect powerdown request */
     qemu_register_powerdown_notifier(&virt_system_powerdown_notifier);
