@@ -215,4 +215,13 @@ static inline const char *gic_class_name(void)
  */
 const char *gicv3_class_name(void);
 
+/**
+ * kvm_arm_handle_debug:
+ * @cs: CPUState
+ * @debug_exit: debug part of the KVM exit structure
+ *
+ * Returns: TRUE if the debug exception was handled.
+ */
+bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit);
+
 #endif

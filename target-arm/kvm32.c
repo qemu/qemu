@@ -475,3 +475,21 @@ int kvm_arch_get_registers(CPUState *cs)
 
     return 0;
 }
+
+int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: guest debug not yet implemented\n", __func__);
+    return -EINVAL;
+}
+
+int kvm_arch_remove_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: guest debug not yet implemented\n", __func__);
+    return -EINVAL;
+}
+
+bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: guest debug not yet implemented\n", __func__);
+    return false;
+}
