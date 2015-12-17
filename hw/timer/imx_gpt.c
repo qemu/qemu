@@ -81,8 +81,8 @@ static const VMStateDescription vmstate_imx_timer_gpt = {
 
 static const IMXClk imx_gpt_clocks[] = {
     NOCLK,    /* 000 No clock source */
-    IPG,      /* 001 ipg_clk, 532MHz*/
-    IPG,      /* 010 ipg_clk_highfreq */
+    CLK_IPG,  /* 001 ipg_clk, 532MHz*/
+    CLK_IPG,  /* 010 ipg_clk_highfreq */
     NOCLK,    /* 011 not defined */
     CLK_32k,  /* 100 ipg_clk_32k */
     NOCLK,    /* 101 not defined */
@@ -93,14 +93,14 @@ static const IMXClk imx_gpt_clocks[] = {
 static void imx_gpt_set_freq(IMXGPTState *s)
 {
     uint32_t clksrc = extract32(s->cr, GPT_CR_CLKSRC_SHIFT, 3);
-    uint32_t freq = imx_clock_frequency(s->ccm, imx_gpt_clocks[clksrc])
-                    / (1 + s->pr);
-    s->freq = freq;
 
-    DPRINTF("Setting clksrc %d to frequency %d\n", clksrc, freq);
+    s->freq = imx_ccm_get_clock_frequency(s->ccm,
+                                imx_gpt_clocks[clksrc]) / (1 + s->pr);
 
-    if (freq) {
-        ptimer_set_freq(s->timer, freq);
+    DPRINTF("Setting clksrc %d to frequency %d\n", clksrc, s->freq);
+
+    if (s->freq) {
+        ptimer_set_freq(s->timer, s->freq);
     }
 }
 

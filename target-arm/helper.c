@@ -5996,6 +5996,14 @@ static inline bool regime_using_lpae_format(CPUARMState *env,
     return false;
 }
 
+/* Returns true if the translation regime is using LPAE format page tables.
+ * Used when raising alignment exceptions, whose FSR changes depending on
+ * whether the long or short descriptor format is in use. */
+bool arm_regime_using_lpae_format(CPUARMState *env, ARMMMUIdx mmu_idx)
+{
+    return regime_using_lpae_format(env, mmu_idx);
+}
+
 static inline bool regime_is_user(CPUARMState *env, ARMMMUIdx mmu_idx)
 {
     switch (mmu_idx) {

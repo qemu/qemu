@@ -148,6 +148,32 @@ typedef enum {
     AML_SHARED_AND_WAKE = 3,
 } AmlShared;
 
+/* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: MethodFlags */
+typedef enum {
+    AML_NOTSERIALIZED = 0,
+    AML_SERIALIZED = 1,
+} AmlSerializeFlag;
+
+/*
+ * ACPI 5.0: Table 6-189 GPIO Connection Descriptor Definition
+ * GPIO Connection Type
+ */
+typedef enum {
+    AML_INTERRUPT_CONNECTION = 0,
+    AML_IO_CONNECTION = 1,
+} AmlGpioConnectionType;
+
+/*
+ * ACPI 5.0: Table 6-189 GPIO Connection Descriptor Definition
+ * _PPI field definition
+ */
+typedef enum {
+    AML_PULL_DEFAULT = 0,
+    AML_PULL_UP = 1,
+    AML_PULL_DOWN = 2,
+    AML_PULL_NONE = 3,
+} AmlPinConfig;
+
 typedef
 struct AcpiBuildTables {
     GArray *table_data;
@@ -212,12 +238,19 @@ Aml *aml_call1(const char *method, Aml *arg1);
 Aml *aml_call2(const char *method, Aml *arg1, Aml *arg2);
 Aml *aml_call3(const char *method, Aml *arg1, Aml *arg2, Aml *arg3);
 Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4);
+Aml *aml_gpio_int(AmlConsumerAndProducer con_and_pro,
+                  AmlLevelAndEdge edge_level,
+                  AmlActiveHighAndLow active_level, AmlShared shared,
+                  AmlPinConfig pin_config, uint16_t debounce_timeout,
+                  const uint32_t pin_list[], uint32_t pin_count,
+                  const char *resource_source_name,
+                  const uint8_t *vendor_data, uint16_t vendor_data_len);
 Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
                         AmlReadAndWrite read_and_write);
 Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
                    AmlLevelAndEdge level_and_edge,
                    AmlActiveHighAndLow high_and_low, AmlShared shared,
-                   uint32_t irq);
+                   uint32_t *irq_list, uint8_t irq_count);
 Aml *aml_io(AmlIODecode dec, uint16_t min_base, uint16_t max_base,
             uint8_t aln, uint8_t len);
 Aml *aml_operation_region(const char *name, AmlRegionSpace rs,
@@ -262,7 +295,7 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
 /* Block AML object primitives */
 Aml *aml_scope(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
 Aml *aml_device(const char *name_format, ...) GCC_FMT_ATTR(1, 2);
-Aml *aml_method(const char *name, int arg_count);
+Aml *aml_method(const char *name, int arg_count, AmlSerializeFlag sflag);
 Aml *aml_if(Aml *predicate);
 Aml *aml_else(void);
 Aml *aml_while(Aml *predicate);

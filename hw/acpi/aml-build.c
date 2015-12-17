@@ -565,6 +565,94 @@ Aml *aml_call4(const char *method, Aml *arg1, Aml *arg2, Aml *arg3, Aml *arg4)
 }
 
 /*
+ * ACPI 5.0: 6.4.3.8.1 GPIO Connection Descriptor
+ * Type 1, Large Item Name 0xC
+ */
+
+static Aml *aml_gpio_connection(AmlGpioConnectionType type,
+                                AmlConsumerAndProducer con_and_pro,
+                                uint8_t flags, AmlPinConfig pin_config,
+                                uint16_t output_drive,
+                                uint16_t debounce_timeout,
+                                const uint32_t pin_list[], uint32_t pin_count,
+                                const char *resource_source_name,
+                                const uint8_t *vendor_data,
+                                uint16_t vendor_data_len)
+{
+    Aml *var = aml_alloc();
+    const uint16_t min_desc_len = 0x16;
+    uint16_t resource_source_name_len, length;
+    uint16_t pin_table_offset, resource_source_name_offset, vendor_data_offset;
+    uint32_t i;
+
+    assert(resource_source_name);
+    resource_source_name_len = strlen(resource_source_name) + 1;
+    length = min_desc_len + resource_source_name_len + vendor_data_len;
+    pin_table_offset = min_desc_len + 1;
+    resource_source_name_offset = pin_table_offset + pin_count * 2;
+    vendor_data_offset = resource_source_name_offset + resource_source_name_len;
+
+    build_append_byte(var->buf, 0x8C);  /* GPIO Connection Descriptor */
+    build_append_int_noprefix(var->buf, length, 2); /* Length */
+    build_append_byte(var->buf, 1);     /* Revision ID */
+    build_append_byte(var->buf, type);  /* GPIO Connection Type */
+    /* General Flags (2 bytes) */
+    build_append_int_noprefix(var->buf, con_and_pro, 2);
+    /* Interrupt and IO Flags (2 bytes) */
+    build_append_int_noprefix(var->buf, flags, 2);
+    /* Pin Configuration 0 = Default 1 = Pull-up 2 = Pull-down 3 = No Pull */
+    build_append_byte(var->buf, pin_config);
+    /* Output Drive Strength (2 bytes) */
+    build_append_int_noprefix(var->buf, output_drive, 2);
+    /* Debounce Timeout (2 bytes) */
+    build_append_int_noprefix(var->buf, debounce_timeout, 2);
+    /* Pin Table Offset (2 bytes) */
+    build_append_int_noprefix(var->buf, pin_table_offset, 2);
+    build_append_byte(var->buf, 0);     /* Resource Source Index */
+    /* Resource Source Name Offset (2 bytes) */
+    build_append_int_noprefix(var->buf, resource_source_name_offset, 2);
+    /* Vendor Data Offset (2 bytes) */
+    build_append_int_noprefix(var->buf, vendor_data_offset, 2);
+    /* Vendor Data Length (2 bytes) */
+    build_append_int_noprefix(var->buf, vendor_data_len, 2);
+    /* Pin Number (2n bytes)*/
+    for (i = 0; i < pin_count; i++) {
+        build_append_int_noprefix(var->buf, pin_list[i], 2);
+    }
+
+    /* Resource Source Name */
+    build_append_namestring(var->buf, "%s", resource_source_name);
+    build_append_byte(var->buf, '\0');
+
+    /* Vendor-defined Data */
+    if (vendor_data != NULL) {
+        g_array_append_vals(var->buf, vendor_data, vendor_data_len);
+    }
+
+    return var;
+}
+
+/*
+ * ACPI 5.0: 19.5.53
+ * GpioInt(GPIO Interrupt Connection Resource Descriptor Macro)
+ */
+Aml *aml_gpio_int(AmlConsumerAndProducer con_and_pro,
+                  AmlLevelAndEdge edge_level,
+                  AmlActiveHighAndLow active_level, AmlShared shared,
+                  AmlPinConfig pin_config, uint16_t debounce_timeout,
+                  const uint32_t pin_list[], uint32_t pin_count,
+                  const char *resource_source_name,
+                  const uint8_t *vendor_data, uint16_t vendor_data_len)
+{
+    uint8_t flags = edge_level | (active_level << 1) | (shared << 3);
+
+    return aml_gpio_connection(AML_INTERRUPT_CONNECTION, con_and_pro, flags,
+                               pin_config, 0, debounce_timeout, pin_list,
+                               pin_count, resource_source_name, vendor_data,
+                               vendor_data_len);
+}
+
+/*
  * ACPI 1.0b: 6.4.3.4 32-Bit Fixed Location Memory Range Descriptor
  * (Type 1, Large Item Name 0x6)
  */
@@ -598,23 +686,27 @@ Aml *aml_memory32_fixed(uint32_t addr, uint32_t size,
 Aml *aml_interrupt(AmlConsumerAndProducer con_and_pro,
                    AmlLevelAndEdge level_and_edge,
                    AmlActiveHighAndLow high_and_low, AmlShared shared,
-                   uint32_t irq)
+                   uint32_t *irq_list, uint8_t irq_count)
 {
+    int i;
     Aml *var = aml_alloc();
     uint8_t irq_flags = con_and_pro | (level_and_edge << 1)
                         | (high_and_low << 2) | (shared << 3);
+    const int header_bytes_in_len = 2;
+    uint16_t len = header_bytes_in_len + irq_count * sizeof(uint32_t);
+
+    assert(irq_count > 0);
 
     build_append_byte(var->buf, 0x89); /* Extended irq descriptor */
-    build_append_byte(var->buf, 6); /* Length, bits[7:0] minimum value = 6 */
-    build_append_byte(var->buf, 0); /* Length, bits[15:8] minimum value = 0 */
+    build_append_byte(var->buf, len & 0xFF); /* Length, bits[7:0] */
+    build_append_byte(var->buf, len >> 8); /* Length, bits[15:8] */
     build_append_byte(var->buf, irq_flags); /* Interrupt Vector Information. */
-    build_append_byte(var->buf, 0x01);      /* Interrupt table length = 1 */
+    build_append_byte(var->buf, irq_count);   /* Interrupt table length */
 
-    /* Interrupt Number */
-    build_append_byte(var->buf, extract32(irq, 0, 8));  /* bits[7:0] */
-    build_append_byte(var->buf, extract32(irq, 8, 8));  /* bits[15:8] */
-    build_append_byte(var->buf, extract32(irq, 16, 8)); /* bits[23:16] */
-    build_append_byte(var->buf, extract32(irq, 24, 8)); /* bits[31:24] */
+    /* Interrupt Number List */
+    for (i = 0; i < irq_count; i++) {
+        build_append_int_noprefix(var->buf, irq_list[i], 4);
+    }
     return var;
 }
 
@@ -696,11 +788,24 @@ Aml *aml_while(Aml *predicate)
 }
 
 /* ACPI 1.0b: 16.2.5.2 Named Objects Encoding: DefMethod */
-Aml *aml_method(const char *name, int arg_count)
+Aml *aml_method(const char *name, int arg_count, AmlSerializeFlag sflag)
 {
     Aml *var = aml_bundle(0x14 /* MethodOp */, AML_PACKAGE);
+    int methodflags;
+
+    /*
+     * MethodFlags:
+     *   bit 0-2: ArgCount (0-7)
+     *   bit 3: SerializeFlag
+     *     0: NotSerialized
+     *     1: Serialized
+     *   bit 4-7: reserved (must be 0)
+     */
+    assert(arg_count < 8);
+    methodflags = arg_count | (sflag << 3);
+
     build_append_namestring(var->buf, "%s", name);
-    build_append_byte(var->buf, arg_count); /* MethodFlags: ArgCount */
+    build_append_byte(var->buf, methodflags); /* MethodFlags: ArgCount */
     return var;
 }
 

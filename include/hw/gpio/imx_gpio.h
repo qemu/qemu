@@ -54,8 +54,9 @@ typedef struct IMXGPIOState {
     uint32_t isr;
     bool has_edge_sel;
     uint32_t edge_sel;
+    bool has_upper_pin_irq;
 
-    qemu_irq irq;
+    qemu_irq irq[2];
     qemu_irq output[IMX_GPIO_PIN_COUNT];
 } IMXGPIOState;
 

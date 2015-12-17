@@ -19,7 +19,7 @@
 
 #include "hw/arm/arm.h"
 #include "hw/intc/imx_avic.h"
-#include "hw/misc/imx_ccm.h"
+#include "hw/misc/imx31_ccm.h"
 #include "hw/char/imx_serial.h"
 #include "hw/timer/imx_gpt.h"
 #include "hw/timer/imx_epit.h"
@@ -42,7 +42,7 @@ typedef struct FslIMX31State {
     /*< public >*/
     ARMCPU         cpu;
     IMXAVICState   avic;
-    IMXCCMState    ccm;
+    IMX31CCMState  ccm;
     IMXSerialState uart[FSL_IMX31_NUM_UARTS];
     IMXGPTState    gpt;
     IMXEPITState   epit[FSL_IMX31_NUM_EPITS];

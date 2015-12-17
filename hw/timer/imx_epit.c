@@ -51,9 +51,9 @@ static char const *imx_epit_reg_name(uint32_t reg)
  * These are typical.
  */
 static const IMXClk imx_epit_clocks[] =  {
-    0,        /* 00 disabled */
-    IPG,      /* 01 ipg_clk, ~532MHz */
-    IPG,      /* 10 ipg_clk_highfreq */
+    NOCLK,    /* 00 disabled */
+    CLK_IPG,  /* 01 ipg_clk, ~532MHz */
+    CLK_IPG,  /* 10 ipg_clk_highfreq */
     CLK_32k,  /* 11 ipg_clk_32k -- ~32kHz */
 };
 
@@ -73,20 +73,18 @@ static void imx_epit_set_freq(IMXEPITState *s)
 {
     uint32_t clksrc;
     uint32_t prescaler;
-    uint32_t freq;
 
     clksrc = extract32(s->cr, CR_CLKSRC_SHIFT, 2);
     prescaler = 1 + extract32(s->cr, CR_PRESCALE_SHIFT, 12);
 
-    freq = imx_clock_frequency(s->ccm, imx_epit_clocks[clksrc]) / prescaler;
+    s->freq = imx_ccm_get_clock_frequency(s->ccm,
+                                imx_epit_clocks[clksrc]) / prescaler;
 
-    s->freq = freq;
+    DPRINTF("Setting ptimer frequency to %u\n", s->freq);
 
-    DPRINTF("Setting ptimer frequency to %u\n", freq);
-
-    if (freq) {
-        ptimer_set_freq(s->timer_reload, freq);
-        ptimer_set_freq(s->timer_cmp, freq);
+    if (s->freq) {
+        ptimer_set_freq(s->timer_reload, s->freq);
+        ptimer_set_freq(s->timer_cmp, s->freq);
     }
 }
 
