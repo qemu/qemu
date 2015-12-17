@@ -15,6 +15,10 @@
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#ifdef __linux__
+#include <sys/inotify.h>
+#include "qemu/main-loop.h"
+#endif
 
 #include "qemu-common.h"
 #include "qemu/iov.h"
@@ -62,6 +66,11 @@ enum mtp_code {
     /* format codes */
     FMT_UNDEFINED_OBJECT           = 0x3000,
     FMT_ASSOCIATION                = 0x3001,
+
+    /* event codes */
+    EVT_OBJ_ADDED                  = 0x4002,
+    EVT_OBJ_REMOVED                = 0x4003,
+    EVT_OBJ_INFO_CHANGED           = 0x4007,
 };
 
 typedef struct {
@@ -83,6 +92,17 @@ enum {
     EP_DATA_OUT,
     EP_EVENT,
 };
+
+#ifdef __linux__
+typedef struct MTPMonEntry MTPMonEntry;
+
+struct MTPMonEntry {
+    uint32_t event;
+    uint32_t handle;
+
+    QTAILQ_ENTRY(MTPMonEntry) next;
+};
+#endif
 
 struct MTPControl {
     uint16_t     code;
@@ -108,9 +128,14 @@ struct MTPObject {
     char         *name;
     char         *path;
     struct stat  stat;
+#ifdef __linux__
+    /* inotify watch cookie */
+    int          watchfd;
+#endif
     MTPObject    *parent;
-    MTPObject    **children;
     uint32_t     nchildren;
+    QLIST_HEAD(, MTPObject) children;
+    QLIST_ENTRY(MTPObject) list;
     bool         have_children;
     QTAILQ_ENTRY(MTPObject) next;
 };
@@ -128,6 +153,11 @@ struct MTPState {
     uint32_t     next_handle;
 
     QTAILQ_HEAD(, MTPObject) objects;
+#ifdef __linux__
+    /* inotify descriptor */
+    int          inotifyfd;
+    QTAILQ_HEAD(events, MTPMonEntry) events;
+#endif
 };
 
 #define TYPE_USB_MTP "usb-mtp"
@@ -183,7 +213,7 @@ static const USBDescIface desc_iface_full = {
         },{
             .bEndpointAddress      = USB_DIR_IN | EP_EVENT,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
+            .wMaxPacketSize        = 64,
             .bInterval             = 0x0a,
         },
     }
@@ -225,7 +255,7 @@ static const USBDescIface desc_iface_high = {
         },{
             .bEndpointAddress      = USB_DIR_IN | EP_EVENT,
             .bmAttributes          = USB_ENDPOINT_XFER_INT,
-            .wMaxPacketSize        = 8,
+            .wMaxPacketSize        = 64,
             .bInterval             = 0x0a,
         },
     }
@@ -317,15 +347,24 @@ ignore:
 
 static void usb_mtp_object_free(MTPState *s, MTPObject *o)
 {
-    int i;
+    MTPObject *iter;
+
+    if (!o) {
+        return;
+    }
 
     trace_usb_mtp_object_free(s->dev.addr, o->handle, o->path);
 
     QTAILQ_REMOVE(&s->objects, o, next);
-    for (i = 0; i < o->nchildren; i++) {
-        usb_mtp_object_free(s, o->children[i]);
+    if (o->parent) {
+        QLIST_REMOVE(o, list);
+        o->parent->nchildren--;
     }
-    g_free(o->children);
+
+    while (!QLIST_EMPTY(&o->children)) {
+        iter = QLIST_FIRST(&o->children);
+        usb_mtp_object_free(s, iter);
+    }
     g_free(o->name);
     g_free(o->path);
     g_free(o);
@@ -343,6 +382,204 @@ static MTPObject *usb_mtp_object_lookup(MTPState *s, uint32_t handle)
     return NULL;
 }
 
+static MTPObject *usb_mtp_add_child(MTPState *s, MTPObject *o,
+                                    char *name)
+{
+    MTPObject *child =
+        usb_mtp_object_alloc(s, s->next_handle++, o, name);
+
+    if (child) {
+        trace_usb_mtp_add_child(s->dev.addr, child->handle, child->path);
+        QLIST_INSERT_HEAD(&o->children, child, list);
+        o->nchildren++;
+
+        if (child->format == FMT_ASSOCIATION) {
+            QLIST_INIT(&child->children);
+        }
+    }
+
+    return child;
+}
+
+#ifdef __linux__
+static MTPObject *usb_mtp_object_lookup_name(MTPObject *parent,
+                                             char *name, int len)
+{
+    MTPObject *iter;
+
+    QLIST_FOREACH(iter, &parent->children, list) {
+        if (strncmp(iter->name, name, len) == 0) {
+            return iter;
+        }
+    }
+
+    return NULL;
+}
+
+static MTPObject *usb_mtp_object_lookup_wd(MTPState *s, int wd)
+{
+    MTPObject *iter;
+
+    QTAILQ_FOREACH(iter, &s->objects, next) {
+        if (iter->watchfd == wd) {
+            return iter;
+        }
+    }
+
+    return NULL;
+}
+
+static void inotify_watchfn(void *arg)
+{
+    MTPState *s = arg;
+    ssize_t bytes;
+    /* From the man page: atleast one event can be read */
+    int len = sizeof(struct inotify_event) + NAME_MAX + 1;
+    int pos;
+    char buf[len];
+
+    for (;;) {
+        bytes = read(s->inotifyfd, buf, len);
+        pos = 0;
+
+        if (bytes <= 0) {
+            /* Better luck next time */
+            return;
+        }
+
+        /*
+         * TODO: Ignore initiator initiated events.
+         * For now we are good because the store is RO
+         */
+        while (bytes > 0) {
+            char *p = buf + pos;
+            struct inotify_event *event = (struct inotify_event *)p;
+            int watchfd = 0;
+            uint32_t mask = event->mask & (IN_CREATE | IN_DELETE |
+                                           IN_MODIFY | IN_IGNORED);
+            MTPObject *parent = usb_mtp_object_lookup_wd(s, event->wd);
+            MTPMonEntry *entry = NULL;
+            MTPObject *o;
+
+            pos = pos + sizeof(struct inotify_event) + event->len;
+            bytes = bytes - pos;
+
+            if (!parent) {
+                continue;
+            }
+
+            switch (mask) {
+            case IN_CREATE:
+                if (usb_mtp_object_lookup_name
+                    (parent, event->name, event->len)) {
+                    /* Duplicate create event */
+                    continue;
+                }
+                entry = g_new0(MTPMonEntry, 1);
+                entry->handle = s->next_handle;
+                entry->event = EVT_OBJ_ADDED;
+                o = usb_mtp_add_child(s, parent, event->name);
+                if (!o) {
+                    g_free(entry);
+                    continue;
+                }
+                o->watchfd = watchfd;
+                trace_usb_mtp_inotify_event(s->dev.addr, event->name,
+                                            event->mask, "Obj Added");
+                break;
+
+            case IN_DELETE:
+                /*
+                 * The kernel issues a IN_IGNORED event
+                 * when a dir containing a watchpoint is
+                 * deleted, so we don't have to delete the
+                 * watchpoint
+                 */
+                o = usb_mtp_object_lookup_name(parent, event->name, event->len);
+                if (!o) {
+                    continue;
+                }
+                entry = g_new0(MTPMonEntry, 1);
+                entry->handle = o->handle;
+                entry->event = EVT_OBJ_REMOVED;
+                usb_mtp_object_free(s, o);
+                trace_usb_mtp_inotify_event(s->dev.addr, o->path,
+                                      event->mask, "Obj Deleted");
+                break;
+
+            case IN_MODIFY:
+                o = usb_mtp_object_lookup_name(parent, event->name, event->len);
+                if (!o) {
+                    continue;
+                }
+                entry = g_new0(MTPMonEntry, 1);
+                entry->handle = o->handle;
+                entry->event = EVT_OBJ_INFO_CHANGED;
+                trace_usb_mtp_inotify_event(s->dev.addr, o->path,
+                                      event->mask, "Obj Modified");
+                break;
+
+            case IN_IGNORED:
+                o = usb_mtp_object_lookup_name(parent, event->name, event->len);
+                trace_usb_mtp_inotify_event(s->dev.addr, o->path,
+                                      event->mask, "Obj ignored");
+                break;
+
+            default:
+                fprintf(stderr, "usb-mtp: failed to parse inotify event\n");
+                continue;
+            }
+
+            if (entry) {
+                QTAILQ_INSERT_HEAD(&s->events, entry, next);
+            }
+        }
+    }
+}
+
+static int usb_mtp_inotify_init(MTPState *s)
+{
+    int fd;
+
+    fd = inotify_init1(IN_NONBLOCK);
+    if (fd == -1) {
+        return 1;
+    }
+
+    QTAILQ_INIT(&s->events);
+    s->inotifyfd = fd;
+
+    qemu_set_fd_handler(fd, inotify_watchfn, NULL, s);
+
+    return 0;
+}
+
+static void usb_mtp_inotify_cleanup(MTPState *s)
+{
+    MTPMonEntry *e;
+
+    if (!s->inotifyfd) {
+        return;
+    }
+
+    qemu_set_fd_handler(s->inotifyfd, NULL, NULL, s);
+    close(s->inotifyfd);
+
+    QTAILQ_FOREACH(e, &s->events, next) {
+        QTAILQ_REMOVE(&s->events, e, next);
+        g_free(e);
+    }
+}
+
+static int usb_mtp_add_watch(int inotifyfd, char *path)
+{
+    uint32_t mask = IN_CREATE | IN_DELETE | IN_MODIFY |
+        IN_ISDIR;
+
+    return inotify_add_watch(inotifyfd, path, mask);
+}
+#endif
+
 static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
 {
     struct dirent *entry;
@@ -357,15 +594,18 @@ static void usb_mtp_object_readdir(MTPState *s, MTPObject *o)
     if (!dir) {
         return;
     }
+#ifdef __linux__
+    int watchfd = usb_mtp_add_watch(s->inotifyfd, o->path);
+    if (watchfd == -1) {
+        fprintf(stderr, "usb-mtp: failed to add watch for %s\n", o->path);
+    } else {
+        trace_usb_mtp_inotify_event(s->dev.addr, o->path,
+                                    0, "Watch Added");
+        o->watchfd = watchfd;
+    }
+#endif
     while ((entry = readdir(dir)) != NULL) {
-        if ((o->nchildren % 32) == 0) {
-            o->children = g_renew(MTPObject *, o->children, o->nchildren + 32);
-        }
-        o->children[o->nchildren] =
-            usb_mtp_object_alloc(s, s->next_handle++, o, entry->d_name);
-        if (o->children[o->nchildren] != NULL) {
-            o->nchildren++;
-        }
+        usb_mtp_add_child(s, o, entry->d_name);
     }
     closedir(dir);
 }
@@ -617,13 +857,15 @@ static MTPData *usb_mtp_get_object_handles(MTPState *s, MTPControl *c,
                                            MTPObject *o)
 {
     MTPData *d = usb_mtp_data_alloc(c);
-    uint32_t i, handles[o->nchildren];
+    uint32_t i = 0, handles[o->nchildren];
+    MTPObject *iter;
 
     trace_usb_mtp_op_get_object_handles(s->dev.addr, o->handle, o->path);
 
-    for (i = 0; i < o->nchildren; i++) {
-        handles[i] = o->children[i]->handle;
+    QLIST_FOREACH(iter, &o->children, list) {
+        handles[i++] = iter->handle;
     }
+    assert(i == o->nchildren);
     usb_mtp_add_u32_array(d, o->nchildren, handles);
 
     return d;
@@ -754,11 +996,19 @@ static void usb_mtp_command(MTPState *s, MTPControl *c)
         trace_usb_mtp_op_open_session(s->dev.addr);
         s->session = c->argv[0];
         usb_mtp_object_alloc(s, s->next_handle++, NULL, s->root);
+#ifdef __linux__
+        if (usb_mtp_inotify_init(s)) {
+            fprintf(stderr, "usb-mtp: file monitoring init failed\n");
+        }
+#endif
         break;
     case CMD_CLOSE_SESSION:
         trace_usb_mtp_op_close_session(s->dev.addr);
         s->session = 0;
         s->next_handle = 0;
+#ifdef __linux__
+        usb_mtp_inotify_cleanup(s);
+#endif
         usb_mtp_object_free(s, QTAILQ_FIRST(&s->objects));
         assert(QTAILQ_EMPTY(&s->objects));
         break;
@@ -884,6 +1134,10 @@ static void usb_mtp_handle_reset(USBDevice *dev)
 
     trace_usb_mtp_reset(s->dev.addr);
 
+#ifdef __linux__
+    usb_mtp_inotify_cleanup(s);
+#endif
+    usb_mtp_object_free(s, QTAILQ_FIRST(&s->objects));
     s->session = 0;
     usb_mtp_data_free(s->data_in);
     s->data_in = NULL;
@@ -1043,6 +1297,31 @@ static void usb_mtp_handle_data(USBDevice *dev, USBPacket *p)
         }
         break;
     case EP_EVENT:
+#ifdef __linux__
+        if (!QTAILQ_EMPTY(&s->events)) {
+            struct MTPMonEntry *e = QTAILQ_LAST(&s->events, events);
+            uint32_t handle;
+            int len = sizeof(container) + sizeof(uint32_t);
+
+            if (p->iov.size < len) {
+                trace_usb_mtp_stall(s->dev.addr,
+                                    "packet too small to send event");
+                p->status = USB_RET_STALL;
+                return;
+            }
+
+            QTAILQ_REMOVE(&s->events, e, next);
+            container.length = cpu_to_le32(len);
+            container.type = cpu_to_le32(TYPE_EVENT);
+            container.code = cpu_to_le16(e->event);
+            container.trans = 0; /* no trans specific events */
+            handle = cpu_to_le32(e->handle);
+            usb_packet_copy(p, &container, sizeof(container));
+            usb_packet_copy(p, &handle, sizeof(uint32_t));
+            g_free(e);
+            return;
+        }
+#endif
         p->status = USB_RET_NAK;
         return;
     default:
