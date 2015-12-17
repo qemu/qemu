@@ -413,63 +413,17 @@ static inline void gen_op_add_reg_T0(TCGMemOp size, int reg)
     gen_op_mov_reg_v(size, reg, cpu_tmp0);
 }
 
-static inline void gen_op_addl_A0_reg_sN(int shift, int reg)
-{
-    tcg_gen_mov_tl(cpu_tmp0, cpu_regs[reg]);
-    if (shift != 0)
-        tcg_gen_shli_tl(cpu_tmp0, cpu_tmp0, shift);
-    tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
-    /* For x86_64, this sets the higher half of register to zero.
-       For i386, this is equivalent to a nop. */
-    tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
-}
-
-static inline void gen_op_movl_A0_seg(int reg)
-{
-    tcg_gen_ld32u_tl(cpu_A0, cpu_env, offsetof(CPUX86State, segs[reg].base) + REG_L_OFFSET);
-}
-
 static inline void gen_op_addl_A0_seg(DisasContext *s, int reg)
 {
     tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUX86State, segs[reg].base));
-#ifdef TARGET_X86_64
     if (CODE64(s)) {
-        tcg_gen_andi_tl(cpu_A0, cpu_A0, 0xffffffff);
+        tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
         tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
     } else {
         tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
-        tcg_gen_andi_tl(cpu_A0, cpu_A0, 0xffffffff);
+        tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
     }
-#else
-    tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
-#endif
 }
-
-#ifdef TARGET_X86_64
-static inline void gen_op_movq_A0_seg(int reg)
-{
-    tcg_gen_ld_tl(cpu_A0, cpu_env, offsetof(CPUX86State, segs[reg].base));
-}
-
-static inline void gen_op_addq_A0_seg(int reg)
-{
-    tcg_gen_ld_tl(cpu_tmp0, cpu_env, offsetof(CPUX86State, segs[reg].base));
-    tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
-}
-
-static inline void gen_op_movq_A0_reg(int reg)
-{
-    tcg_gen_mov_tl(cpu_A0, cpu_regs[reg]);
-}
-
-static inline void gen_op_addq_A0_reg_sN(int shift, int reg)
-{
-    tcg_gen_mov_tl(cpu_tmp0, cpu_regs[reg]);
-    if (shift != 0)
-        tcg_gen_shli_tl(cpu_tmp0, cpu_tmp0, shift);
-    tcg_gen_add_tl(cpu_A0, cpu_A0, cpu_tmp0);
-}
-#endif
 
 static inline void gen_op_ld_v(DisasContext *s, int idx, TCGv t0, TCGv a0)
 {
@@ -496,68 +450,76 @@ static inline void gen_jmp_im(target_ulong pc)
     gen_op_jmp_v(cpu_tmp0);
 }
 
-static inline void gen_string_movl_A0_ESI(DisasContext *s)
+/* Compute SEG:REG into A0.  SEG is selected from the override segment
+   (OVR_SEG) and the default segment (DEF_SEG).  OVR_SEG may be -1 to
+   indicate no override.  */
+static void gen_lea_v_seg(DisasContext *s, TCGv a0, int def_seg, int ovr_seg)
 {
-    int override;
+    TCGMemOp aflag = s->aflag;
 
-    override = s->override;
-    switch (s->aflag) {
+    switch (aflag) {
 #ifdef TARGET_X86_64
     case MO_64:
-        if (override >= 0) {
-            gen_op_movq_A0_seg(override);
-            gen_op_addq_A0_reg_sN(0, R_ESI);
-        } else {
-            gen_op_movq_A0_reg(R_ESI);
+        if (ovr_seg < 0) {
+            tcg_gen_mov_tl(cpu_A0, a0);
+            return;
         }
         break;
 #endif
     case MO_32:
         /* 32 bit address */
-        if (s->addseg && override < 0)
-            override = R_DS;
-        if (override >= 0) {
-            gen_op_movl_A0_seg(override);
-            gen_op_addl_A0_reg_sN(0, R_ESI);
-        } else {
-            gen_op_movl_A0_reg(R_ESI);
+        if (ovr_seg < 0) {
+            if (s->addseg) {
+                ovr_seg = def_seg;
+            } else {
+                tcg_gen_ext32u_tl(cpu_A0, a0);
+                return;
+            }
         }
         break;
     case MO_16:
-        /* 16 address, always override */
-        if (override < 0)
-            override = R_DS;
-        tcg_gen_ext16u_tl(cpu_A0, cpu_regs[R_ESI]);
-        gen_op_addl_A0_seg(s, override);
+        /* 16 bit address */
+        if (ovr_seg < 0) {
+            ovr_seg = def_seg;
+        }
+        tcg_gen_ext16u_tl(cpu_A0, a0);
+        /* ADDSEG will only be false in 16-bit mode for LEA.  */
+        if (!s->addseg) {
+            return;
+        }
+        a0 = cpu_A0;
         break;
     default:
         tcg_abort();
     }
+
+    if (ovr_seg >= 0) {
+        TCGv seg = tcg_temp_new();
+
+        tcg_gen_ld_tl(seg, cpu_env, offsetof(CPUX86State, segs[ovr_seg].base));
+
+        if (aflag == MO_64) {
+            tcg_gen_add_tl(cpu_A0, a0, seg);
+        } else if (CODE64(s)) {
+            tcg_gen_ext32u_tl(cpu_A0, a0);
+            tcg_gen_add_tl(cpu_A0, cpu_A0, seg);
+        } else {
+            tcg_gen_add_tl(cpu_A0, a0, seg);
+            tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
+        }
+
+        tcg_temp_free(seg);
+    }
+}
+
+static inline void gen_string_movl_A0_ESI(DisasContext *s)
+{
+    gen_lea_v_seg(s, cpu_regs[R_ESI], R_DS, s->override);
 }
 
 static inline void gen_string_movl_A0_EDI(DisasContext *s)
 {
-    switch (s->aflag) {
-#ifdef TARGET_X86_64
-    case MO_64:
-        gen_op_movq_A0_reg(R_EDI);
-        break;
-#endif
-    case MO_32:
-        if (s->addseg) {
-            gen_op_movl_A0_seg(R_ES);
-            gen_op_addl_A0_reg_sN(0, R_EDI);
-        } else {
-            gen_op_movl_A0_reg(R_EDI);
-        }
-        break;
-    case MO_16:
-        tcg_gen_ext16u_tl(cpu_A0, cpu_regs[R_EDI]);
-        gen_op_addl_A0_seg(s, R_ES);
-        break;
-    default:
-        tcg_abort();
-    }
+    gen_lea_v_seg(s, cpu_regs[R_EDI], R_ES, -1);
 }
 
 static inline void gen_op_movl_T0_Dshift(TCGMemOp ot)
@@ -2115,23 +2077,7 @@ static void gen_nop_modrm(CPUX86State *env, DisasContext *s, int modrm)
 /* used for LEA and MOV AX, mem */
 static void gen_add_A0_ds_seg(DisasContext *s)
 {
-    int override, must_add_seg;
-    must_add_seg = s->addseg;
-    override = R_DS;
-    if (s->override >= 0) {
-        override = s->override;
-        must_add_seg = 1;
-    }
-    if (must_add_seg) {
-#ifdef TARGET_X86_64
-        if (CODE64(s)) {
-            gen_op_addq_A0_seg(override);
-        } else
-#endif
-        {
-            gen_op_addl_A0_seg(s, override);
-        }
-    }
+    gen_lea_v_seg(s, cpu_A0, R_DS, s->override);
 }
 
 /* generate modrm memory load or store of 'reg'. TMP0 is used if reg ==
