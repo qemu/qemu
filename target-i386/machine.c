@@ -710,6 +710,70 @@ static const VMStateDescription vmstate_msr_hyperv_runtime = {
     }
 };
 
+static bool hyperv_synic_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    int i;
+
+    if (env->msr_hv_synic_control != 0 ||
+        env->msr_hv_synic_evt_page != 0 ||
+        env->msr_hv_synic_msg_page != 0) {
+        return true;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
+        if (env->msr_hv_synic_sint[i] != 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_synic = {
+    .name = "cpu/msr_hyperv_synic",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = hyperv_synic_enable_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(env.msr_hv_synic_control, X86CPU),
+        VMSTATE_UINT64(env.msr_hv_synic_evt_page, X86CPU),
+        VMSTATE_UINT64(env.msr_hv_synic_msg_page, X86CPU),
+        VMSTATE_UINT64_ARRAY(env.msr_hv_synic_sint, X86CPU,
+                             HV_SYNIC_SINT_COUNT),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool hyperv_stimer_enable_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(env->msr_hv_stimer_config); i++) {
+        if (env->msr_hv_stimer_config[i] || env->msr_hv_stimer_count[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const VMStateDescription vmstate_msr_hyperv_stimer = {
+    .name = "cpu/msr_hyperv_stimer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = hyperv_stimer_enable_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64_ARRAY(env.msr_hv_stimer_config,
+                             X86CPU, HV_SYNIC_STIMER_COUNT),
+        VMSTATE_UINT64_ARRAY(env.msr_hv_stimer_count,
+                             X86CPU, HV_SYNIC_STIMER_COUNT),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool avx512_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -893,6 +957,8 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_msr_hyperv_time,
         &vmstate_msr_hyperv_crash,
         &vmstate_msr_hyperv_runtime,
+        &vmstate_msr_hyperv_synic,
+        &vmstate_msr_hyperv_stimer,
         &vmstate_avx512,
         &vmstate_xss,
         NULL

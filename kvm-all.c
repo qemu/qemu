@@ -45,8 +45,10 @@
 #include <sys/eventfd.h>
 #endif
 
-/* KVM uses PAGE_SIZE in its definition of COALESCED_MMIO_MAX */
-#define PAGE_SIZE TARGET_PAGE_SIZE
+/* KVM uses PAGE_SIZE in its definition of KVM_COALESCED_MMIO_MAX. We
+ * need to use the real host PAGE_SIZE, as that's what KVM will use.
+ */
+#define PAGE_SIZE getpagesize()
 
 //#define DEBUG_KVM
 
@@ -97,6 +99,7 @@ struct KVMState
 
 KVMState *kvm_state;
 bool kvm_kernel_irqchip;
+bool kvm_split_irqchip;
 bool kvm_async_interrupts_allowed;
 bool kvm_halt_in_kernel_allowed;
 bool kvm_eventfds_allowed;
@@ -1298,6 +1301,34 @@ int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
     return virq;
 }
 
+int kvm_irqchip_add_hv_sint_route(KVMState *s, uint32_t vcpu, uint32_t sint)
+{
+    struct kvm_irq_routing_entry kroute = {};
+    int virq;
+
+    if (!kvm_gsi_routing_enabled()) {
+        return -ENOSYS;
+    }
+    if (!kvm_check_extension(s, KVM_CAP_HYPERV_SYNIC)) {
+        return -ENOSYS;
+    }
+    virq = kvm_irqchip_get_virq(s);
+    if (virq < 0) {
+        return virq;
+    }
+
+    kroute.gsi = virq;
+    kroute.type = KVM_IRQ_ROUTING_HV_SINT;
+    kroute.flags = 0;
+    kroute.u.hv_sint.vcpu = vcpu;
+    kroute.u.hv_sint.sint = sint;
+
+    kvm_add_routing_entry(s, &kroute);
+    kvm_irqchip_commit_routes(s);
+
+    return virq;
+}
+
 #else /* !KVM_CAP_IRQ_ROUTING */
 
 void kvm_init_irq_routing(KVMState *s)
@@ -1319,6 +1350,11 @@ int kvm_irqchip_add_msi_route(KVMState *s, MSIMessage msg)
 }
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)
+{
+    return -ENOSYS;
+}
+
+int kvm_irqchip_add_hv_sint_route(KVMState *s, uint32_t vcpu, uint32_t sint)
 {
     return -ENOSYS;
 }
@@ -1395,9 +1431,14 @@ static void kvm_irqchip_create(MachineState *machine, KVMState *s)
 
     /* First probe and see if there's a arch-specific hook to create the
      * in-kernel irqchip for us */
-    ret = kvm_arch_irqchip_create(s);
+    ret = kvm_arch_irqchip_create(machine, s);
     if (ret == 0) {
-        ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+        if (machine_kernel_irqchip_split(machine)) {
+            perror("Split IRQ chip mode not supported.");
+            exit(1);
+        } else {
+            ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+        }
     }
     if (ret < 0) {
         fprintf(stderr, "Create kernel irqchip failed: %s\n", strerror(-ret));
@@ -1626,8 +1667,10 @@ static int kvm_init(MachineState *ms)
 
     kvm_state = s;
 
-    s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
-    s->memory_listener.listener.eventfd_del = kvm_mem_ioeventfd_del;
+    if (kvm_eventfds_allowed) {
+        s->memory_listener.listener.eventfd_add = kvm_mem_ioeventfd_add;
+        s->memory_listener.listener.eventfd_del = kvm_mem_ioeventfd_del;
+    }
     s->memory_listener.listener.coalesced_mmio_add = kvm_coalesce_mmio_region;
     s->memory_listener.listener.coalesced_mmio_del = kvm_uncoalesce_mmio_region;
 

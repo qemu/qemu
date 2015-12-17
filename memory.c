@@ -18,12 +18,14 @@
 #include "exec/ioport.h"
 #include "qapi/visitor.h"
 #include "qemu/bitops.h"
+#include "qemu/error-report.h"
 #include "qom/object.h"
 #include "trace.h"
 #include <assert.h>
 
 #include "exec/memory-internal.h"
 #include "exec/ram_addr.h"
+#include "sysemu/kvm.h"
 #include "sysemu/sysemu.h"
 
 //#define DEBUG_UNASSIGNED
@@ -859,11 +861,6 @@ static void memory_region_destructor_ram(MemoryRegion *mr)
     qemu_ram_free(mr->ram_addr);
 }
 
-static void memory_region_destructor_ram_from_ptr(MemoryRegion *mr)
-{
-    qemu_ram_free_from_ptr(mr->ram_addr);
-}
-
 static void memory_region_destructor_rom_device(MemoryRegion *mr)
 {
     qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
@@ -908,20 +905,22 @@ void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size)
 {
-    if (!owner) {
-        owner = container_get(qdev_get_machine(), "/unattached");
-    }
-
     object_initialize(mr, sizeof(*mr), TYPE_MEMORY_REGION);
     mr->size = int128_make64(size);
     if (size == UINT64_MAX) {
         mr->size = int128_2_64();
     }
     mr->name = g_strdup(name);
+    mr->owner = owner;
 
     if (name) {
         char *escaped_name = memory_region_escape_name(name);
         char *name_array = g_strdup_printf("%s[*]", escaped_name);
+
+        if (!owner) {
+            owner = container_get(qdev_get_machine(), "/unattached");
+        }
+
         object_property_add_child(owner, name_array, OBJECT(mr), &error_abort);
         object_unref(OBJECT(mr));
         g_free(name_array);
@@ -1141,6 +1140,32 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
     return r;
 }
 
+/* Return true if an eventfd was signalled */
+static bool memory_region_dispatch_write_eventfds(MemoryRegion *mr,
+                                                    hwaddr addr,
+                                                    uint64_t data,
+                                                    unsigned size,
+                                                    MemTxAttrs attrs)
+{
+    MemoryRegionIoeventfd ioeventfd = {
+        .addr = addrrange_make(int128_make64(addr), int128_make64(size)),
+        .data = data,
+    };
+    unsigned i;
+
+    for (i = 0; i < mr->ioeventfd_nb; i++) {
+        ioeventfd.match_data = mr->ioeventfds[i].match_data;
+        ioeventfd.e = mr->ioeventfds[i].e;
+
+        if (memory_region_ioeventfd_equal(ioeventfd, mr->ioeventfds[i])) {
+            event_notifier_set(ioeventfd.e);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          hwaddr addr,
                                          uint64_t data,
@@ -1153,6 +1178,11 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
     }
 
     adjust_endianness(mr, &data, size);
+
+    if ((!kvm_eventfds_enabled()) &&
+        memory_region_dispatch_write_eventfds(mr, addr, data, size, attrs)) {
+        return MEMTX_OK;
+    }
 
     if (mr->ops->write) {
         return access_with_adjusted_size(addr, &data, size,
@@ -1246,7 +1276,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
     mr->terminates = true;
-    mr->destructor = memory_region_destructor_ram_from_ptr;
+    mr->destructor = memory_region_destructor_ram;
     mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
 
     /* qemu_ram_alloc_from_ptr cannot fail with ptr != NULL.  */
@@ -1341,24 +1371,18 @@ void memory_region_ref(MemoryRegion *mr)
      * The memory region is a child of its owner.  As long as the
      * owner doesn't call unparent itself on the memory region,
      * ref-ing the owner will also keep the memory region alive.
-     * Memory regions without an owner are supposed to never go away,
-     * but we still ref/unref them for debugging purposes.
+     * Memory regions without an owner are supposed to never go away;
+     * we do not ref/unref them because it slows down DMA sensibly.
      */
-    Object *obj = OBJECT(mr);
-    if (obj && obj->parent) {
-        object_ref(obj->parent);
-    } else {
-        object_ref(obj);
+    if (mr && mr->owner) {
+        object_ref(mr->owner);
     }
 }
 
 void memory_region_unref(MemoryRegion *mr)
 {
-    Object *obj = OBJECT(mr);
-    if (obj && obj->parent) {
-        object_unref(obj->parent);
-    } else {
-        object_unref(obj);
+    if (mr && mr->owner) {
+        object_unref(mr->owner);
     }
 }
 
@@ -1379,11 +1403,6 @@ const char *memory_region_name(const MemoryRegion *mr)
     return mr->name;
 }
 
-bool memory_region_is_ram(MemoryRegion *mr)
-{
-    return mr->ram;
-}
-
 bool memory_region_is_skip_dump(MemoryRegion *mr)
 {
     return mr->skip_dump;
@@ -1401,16 +1420,6 @@ uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr)
 bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
 {
     return memory_region_get_dirty_log_mask(mr) & (1 << client);
-}
-
-bool memory_region_is_rom(MemoryRegion *mr)
-{
-    return mr->ram && mr->readonly;
-}
-
-bool memory_region_is_iommu(MemoryRegion *mr)
-{
-    return mr->iommu_ops;
 }
 
 void memory_region_register_iommu_notifier(MemoryRegion *mr, Notifier *n)
@@ -1549,13 +1558,19 @@ int memory_region_get_fd(MemoryRegion *mr)
 
 void *memory_region_get_ram_ptr(MemoryRegion *mr)
 {
-    if (mr->alias) {
-        return memory_region_get_ram_ptr(mr->alias) + mr->alias_offset;
+    void *ptr;
+    uint64_t offset = 0;
+
+    rcu_read_lock();
+    while (mr->alias) {
+        offset += mr->alias_offset;
+        mr = mr->alias;
     }
-
     assert(mr->ram_addr != RAM_ADDR_INVALID);
+    ptr = qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
+    rcu_read_unlock();
 
-    return qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
+    return ptr + offset;
 }
 
 void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp)
@@ -1672,6 +1687,8 @@ void memory_region_clear_global_locking(MemoryRegion *mr)
     mr->global_locking = false;
 }
 
+static bool userspace_eventfd_warning;
+
 void memory_region_add_eventfd(MemoryRegion *mr,
                                hwaddr addr,
                                unsigned size,
@@ -1687,6 +1704,13 @@ void memory_region_add_eventfd(MemoryRegion *mr,
         .e = e,
     };
     unsigned i;
+
+    if (kvm_enabled() && (!(kvm_eventfds_enabled() ||
+                            userspace_eventfd_warning))) {
+        userspace_eventfd_warning = true;
+        error_report("Using eventfd without MMIO binding in KVM. "
+                     "Suboptimal performance expected");
+    }
 
     if (size) {
         adjust_endianness(mr, &mrfd.data, size);
@@ -1887,11 +1911,6 @@ void memory_region_set_alias_offset(MemoryRegion *mr, hwaddr offset)
     mr->alias_offset = offset;
     memory_region_update_pending |= mr->enabled;
     memory_region_transaction_commit();
-}
-
-ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
-{
-    return mr->ram_addr;
 }
 
 uint64_t memory_region_get_alignment(const MemoryRegion *mr)

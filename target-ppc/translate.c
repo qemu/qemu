@@ -4285,19 +4285,23 @@ static inline void gen_op_mfspr(DisasContext *ctx)
              * allowing userland application to read the PVR
              */
             if (sprn != SPR_PVR) {
-                qemu_log("Trying to read privileged spr %d (0x%03x) at "
-                         TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
-                printf("Trying to read privileged spr %d (0x%03x) at "
-                       TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+                fprintf(stderr, "Trying to read privileged spr %d (0x%03x) at "
+                        TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+                if (qemu_log_separate()) {
+                    qemu_log("Trying to read privileged spr %d (0x%03x) at "
+                             TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+                }
             }
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
     } else {
         /* Not defined */
-        qemu_log("Trying to read invalid spr %d (0x%03x) at "
-                 TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
-        printf("Trying to read invalid spr %d (0x%03x) at "
-               TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+        fprintf(stderr, "Trying to read invalid spr %d (0x%03x) at "
+                TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+        if (qemu_log_separate()) {
+            qemu_log("Trying to read invalid spr %d (0x%03x) at "
+                     TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+        }
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
     }
 }
@@ -4431,18 +4435,22 @@ static void gen_mtspr(DisasContext *ctx)
             (*write_cb)(ctx, sprn, rS(ctx->opcode));
         } else {
             /* Privilege exception */
-            qemu_log("Trying to write privileged spr %d (0x%03x) at "
-                     TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
-            printf("Trying to write privileged spr %d (0x%03x) at "
-                   TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+            fprintf(stderr, "Trying to write privileged spr %d (0x%03x) at "
+                    TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+            if (qemu_log_separate()) {
+                qemu_log("Trying to write privileged spr %d (0x%03x) at "
+                         TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+            }
             gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
         }
     } else {
         /* Not defined */
-        qemu_log("Trying to write invalid spr %d (0x%03x) at "
-                 TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
-        printf("Trying to write invalid spr %d (0x%03x) at "
-               TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+        if (qemu_log_separate()) {
+            qemu_log("Trying to write invalid spr %d (0x%03x) at "
+                     TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
+        }
+        fprintf(stderr, "Trying to write invalid spr %d (0x%03x) at "
+                TARGET_FMT_lx "\n", sprn, sprn, ctx->nip - 4);
         gen_inval_exception(ctx, POWERPC_EXCP_INVAL_SPR);
     }
 }
@@ -11522,12 +11530,10 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
         }
         /* Is opcode *REALLY* valid ? */
         if (unlikely(handler->handler == &gen_invalid)) {
-            if (qemu_log_enabled()) {
-                qemu_log("invalid/unsupported opcode: "
-                         "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
-                         opc1(ctx.opcode), opc2(ctx.opcode),
-                         opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
-            }
+            qemu_log_mask(LOG_GUEST_ERROR, "invalid/unsupported opcode: "
+                          "%02x - %02x - %02x (%08x) " TARGET_FMT_lx " %d\n",
+                          opc1(ctx.opcode), opc2(ctx.opcode),
+                          opc3(ctx.opcode), ctx.opcode, ctx.nip - 4, (int)msr_ir);
         } else {
             uint32_t inval;
 
@@ -11538,13 +11544,11 @@ void gen_intermediate_code(CPUPPCState *env, struct TranslationBlock *tb)
             }
 
             if (unlikely((ctx.opcode & inval) != 0)) {
-                if (qemu_log_enabled()) {
-                    qemu_log("invalid bits: %08x for opcode: "
-                             "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
-                             ctx.opcode & inval, opc1(ctx.opcode),
-                             opc2(ctx.opcode), opc3(ctx.opcode),
-                             ctx.opcode, ctx.nip - 4);
-                }
+                qemu_log_mask(LOG_GUEST_ERROR, "invalid bits: %08x for opcode: "
+                              "%02x - %02x - %02x (%08x) " TARGET_FMT_lx "\n",
+                              ctx.opcode & inval, opc1(ctx.opcode),
+                              opc2(ctx.opcode), opc3(ctx.opcode),
+                              ctx.opcode, ctx.nip - 4);
                 gen_inval_exception(ctxp, POWERPC_EXCP_INVAL_INVAL);
                 break;
             }

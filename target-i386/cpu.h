@@ -920,6 +920,13 @@ typedef struct CPUX86State {
     uint64_t msr_hv_tsc;
     uint64_t msr_hv_crash_params[HV_X64_MSR_CRASH_PARAMS];
     uint64_t msr_hv_runtime;
+    uint64_t msr_hv_synic_control;
+    uint64_t msr_hv_synic_version;
+    uint64_t msr_hv_synic_evt_page;
+    uint64_t msr_hv_synic_msg_page;
+    uint64_t msr_hv_synic_sint[HV_SYNIC_SINT_COUNT];
+    uint64_t msr_hv_stimer_config[HV_SYNIC_STIMER_COUNT];
+    uint64_t msr_hv_stimer_count[HV_SYNIC_STIMER_COUNT];
 
     /* exception/interrupt handling */
     int error_code;

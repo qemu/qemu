@@ -88,10 +88,6 @@ static inline void rcu_read_lock(void)
 
     ctr = atomic_read(&rcu_gp_ctr);
     atomic_xchg(&p_rcu_reader->ctr, ctr);
-    if (atomic_read(&p_rcu_reader->waiting)) {
-        atomic_set(&p_rcu_reader->waiting, false);
-        qemu_event_set(&rcu_gp_event);
-    }
 }
 
 static inline void rcu_read_unlock(void)
@@ -104,7 +100,7 @@ static inline void rcu_read_unlock(void)
     }
 
     atomic_xchg(&p_rcu_reader->ctr, 0);
-    if (atomic_read(&p_rcu_reader->waiting)) {
+    if (unlikely(atomic_read(&p_rcu_reader->waiting))) {
         atomic_set(&p_rcu_reader->waiting, false);
         qemu_event_set(&rcu_gp_event);
     }

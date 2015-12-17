@@ -33,7 +33,7 @@
 #ifdef DEBUG_S390_STDOUT
 #define DPRINTF(fmt, ...) \
     do { fprintf(stderr, fmt, ## __VA_ARGS__); \
-         qemu_log(fmt, ##__VA_ARGS__); } while (0)
+         if (qemu_log_separate()) qemu_log(fmt, ##__VA_ARGS__); } while (0)
 #else
 #define DPRINTF(fmt, ...) \
     do { qemu_log(fmt, ## __VA_ARGS__); } while (0)

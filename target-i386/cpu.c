@@ -2743,7 +2743,7 @@ static void x86_cpu_apic_create(X86CPU *cpu, Error **errp)
     APICCommonState *apic;
     const char *apic_type = "apic";
 
-    if (kvm_irqchip_in_kernel()) {
+    if (kvm_apic_in_kernel()) {
         apic_type = "kvm-apic";
     } else if (xen_enabled()) {
         apic_type = "xen-apic";
@@ -3146,6 +3146,8 @@ static Property x86_cpu_properties[] = {
     DEFINE_PROP_BOOL("hv-reset", X86CPU, hyperv_reset, false),
     DEFINE_PROP_BOOL("hv-vpindex", X86CPU, hyperv_vpindex, false),
     DEFINE_PROP_BOOL("hv-runtime", X86CPU, hyperv_runtime, false),
+    DEFINE_PROP_BOOL("hv-synic", X86CPU, hyperv_synic, false),
+    DEFINE_PROP_BOOL("hv-stimer", X86CPU, hyperv_stimer, false),
     DEFINE_PROP_BOOL("check", X86CPU, check_cpuid, true),
     DEFINE_PROP_BOOL("enforce", X86CPU, enforce_cpuid, false),
     DEFINE_PROP_BOOL("kvm", X86CPU, expose_kvm, true),

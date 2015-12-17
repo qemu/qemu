@@ -560,7 +560,7 @@ void HELPER(sacf)(CPUS390XState *env, uint64_t a1)
         env->psw.mask |= PSW_ASC_HOME;
         break;
     default:
-        qemu_log("unknown sacf mode: %" PRIx64 "\n", a1);
+        HELPER_LOG("unknown sacf mode: %" PRIx64 "\n", a1);
         program_interrupt(env, PGM_SPECIFICATION, 2);
         break;
     }

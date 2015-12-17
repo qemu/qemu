@@ -1516,7 +1516,7 @@ static void dec_null(DisasContext *dc)
         t_gen_raise_exception(dc, EXCP_HW_EXCP);
         return;
     }
-    qemu_log ("unknown insn pc=%x opc=%x\n", dc->pc, dc->opcode);
+    qemu_log_mask(LOG_GUEST_ERROR, "unknown insn pc=%x opc=%x\n", dc->pc, dc->opcode);
     dc->abort_at_next_insn = 1;
 }
 

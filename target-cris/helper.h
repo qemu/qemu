@@ -1,7 +1,6 @@
 DEF_HELPER_2(raise_exception, void, env, i32)
 DEF_HELPER_2(tlb_flush_pid, void, env, i32)
 DEF_HELPER_2(spc_write, void, env, i32)
-DEF_HELPER_3(dump, void, i32, i32, i32)
 DEF_HELPER_1(rfe, void, env)
 DEF_HELPER_1(rfn, void, env)
 

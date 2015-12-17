@@ -53,6 +53,7 @@
 #include "hw/xen/xen_pt.h"
 #endif
 #include "migration/migration.h"
+#include "kvm_i386.h"
 
 #define MAX_IDE_BUS 2
 
@@ -181,7 +182,7 @@ static void pc_init1(MachineState *machine,
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
-    if (kvm_irqchip_in_kernel()) {
+    if (kvm_ioapic_in_kernel()) {
         kvm_pc_setup_irq_routing(pci_enabled);
         gsi = qemu_allocate_irqs(kvm_pc_gsi_handler, gsi_state,
                                  GSI_NUM_PINS);
@@ -205,7 +206,7 @@ static void pc_init1(MachineState *machine,
     }
     isa_bus_irqs(isa_bus, gsi);
 
-    if (kvm_irqchip_in_kernel()) {
+    if (kvm_pic_in_kernel()) {
         i8259 = kvm_i8259_init(isa_bus);
     } else if (xen_enabled()) {
         i8259 = xen_interrupt_controller_init();

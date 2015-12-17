@@ -7,6 +7,14 @@
             .property = "scsi",\
             .value    = "true",\
         },{\
+            .driver   = "pvscsi",\
+            .property = "x-old-pci-configuration",\
+            .value    = "on",\
+        },{\
+            .driver   = "pvscsi",\
+            .property = "x-disable-pcie",\
+            .value    = "on",\
+        },{\
             .driver   = "e1000",\
             .property = "extra_mac_registers",\
             .value    = "off",\

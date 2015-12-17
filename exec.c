@@ -88,9 +88,6 @@ static MemoryRegion io_mem_unassigned;
  */
 #define RAM_RESIZEABLE (1 << 2)
 
-/* RAM is backed by an mmapped file.
- */
-#define RAM_FILE (1 << 3)
 #endif
 
 struct CPUTailQ cpus = QTAILQ_HEAD_INITIALIZER(cpus);
@@ -391,18 +388,6 @@ address_space_translate_internal(AddressSpaceDispatch *d, hwaddr addr, hwaddr *x
         *plen = int128_get64(int128_min(diff, int128_make64(*plen)));
     }
     return section;
-}
-
-static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
-{
-    if (memory_region_is_ram(mr)) {
-        return !(is_write && mr->readonly);
-    }
-    if (memory_region_is_romd(mr)) {
-        return !is_write;
-    }
-
-    return false;
 }
 
 /* Called from RCU critical section */
@@ -873,7 +858,7 @@ void cpu_abort(CPUState *cpu, const char *fmt, ...)
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
     cpu_dump_state(cpu, stderr, fprintf, CPU_DUMP_FPU | CPU_DUMP_CCOP);
-    if (qemu_log_enabled()) {
+    if (qemu_log_separate()) {
         qemu_log("qemu: fatal: ");
         qemu_log_vprintf(fmt, ap2);
         qemu_log("\n");
@@ -1601,7 +1586,6 @@ ram_addr_t qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     new_block->used_length = size;
     new_block->max_length = size;
     new_block->flags = share ? RAM_SHARED : 0;
-    new_block->flags |= RAM_FILE;
     new_block->host = file_ram_alloc(new_block, size,
                                      mem_path, errp);
     if (!new_block->host) {
@@ -1676,25 +1660,6 @@ ram_addr_t qemu_ram_alloc_resizeable(ram_addr_t size, ram_addr_t maxsz,
     return qemu_ram_alloc_internal(size, maxsz, resized, NULL, true, mr, errp);
 }
 
-void qemu_ram_free_from_ptr(ram_addr_t addr)
-{
-    RAMBlock *block;
-
-    qemu_mutex_lock_ramlist();
-    QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-        if (addr == block->offset) {
-            QLIST_REMOVE_RCU(block, next);
-            ram_list.mru_block = NULL;
-            /* Write list before version */
-            smp_wmb();
-            ram_list.version++;
-            g_free_rcu(block, rcu);
-            break;
-        }
-    }
-    qemu_mutex_unlock_ramlist();
-}
-
 static void reclaim_ramblock(RAMBlock *block)
 {
     if (block->flags & RAM_PREALLOC) {
@@ -1703,11 +1668,7 @@ static void reclaim_ramblock(RAMBlock *block)
         xen_invalidate_map_cache_entry(block->host);
 #ifndef _WIN32
     } else if (block->fd >= 0) {
-        if (block->flags & RAM_FILE) {
-            qemu_ram_munmap(block->host, block->max_length);
-        } else {
-            munmap(block->host, block->max_length);
-        }
+        qemu_ram_munmap(block->host, block->max_length);
         close(block->fd);
 #endif
     } else {
@@ -1813,19 +1774,11 @@ void *qemu_get_ram_block_host_ptr(ram_addr_t addr)
  * or address_space_rw instead. For local memory (e.g. video ram) that the
  * device owns, use memory_region_get_ram_ptr.
  *
- * By the time this function returns, the returned pointer is not protected
- * by RCU anymore.  If the caller is not within an RCU critical section and
- * does not hold the iothread lock, it must have other means of protecting the
- * pointer, such as a reference to the region that includes the incoming
- * ram_addr_t.
+ * Called within RCU critical section.
  */
 void *qemu_get_ram_ptr(ram_addr_t addr)
 {
-    RAMBlock *block;
-    void *ptr;
-
-    rcu_read_lock();
-    block = qemu_get_ram_block(addr);
+    RAMBlock *block = qemu_get_ram_block(addr);
 
     if (xen_enabled() && block->host == NULL) {
         /* We need to check if the requested address is in the RAM
@@ -1833,52 +1786,44 @@ void *qemu_get_ram_ptr(ram_addr_t addr)
          * In that case just map until the end of the page.
          */
         if (block->offset == 0) {
-            ptr = xen_map_cache(addr, 0, 0);
-            goto unlock;
+            return xen_map_cache(addr, 0, 0);
         }
 
         block->host = xen_map_cache(block->offset, block->max_length, 1);
     }
-    ptr = ramblock_ptr(block, addr - block->offset);
-
-unlock:
-    rcu_read_unlock();
-    return ptr;
+    return ramblock_ptr(block, addr - block->offset);
 }
 
 /* Return a host pointer to guest's ram. Similar to qemu_get_ram_ptr
  * but takes a size argument.
  *
- * By the time this function returns, the returned pointer is not protected
- * by RCU anymore.  If the caller is not within an RCU critical section and
- * does not hold the iothread lock, it must have other means of protecting the
- * pointer, such as a reference to the region that includes the incoming
- * ram_addr_t.
+ * Called within RCU critical section.
  */
 static void *qemu_ram_ptr_length(ram_addr_t addr, hwaddr *size)
 {
-    void *ptr;
+    RAMBlock *block;
+    ram_addr_t offset_inside_block;
     if (*size == 0) {
         return NULL;
     }
-    if (xen_enabled()) {
-        return xen_map_cache(addr, *size, 1);
-    } else {
-        RAMBlock *block;
-        rcu_read_lock();
-        QLIST_FOREACH_RCU(block, &ram_list.blocks, next) {
-            if (addr - block->offset < block->max_length) {
-                if (addr - block->offset + *size > block->max_length)
-                    *size = block->max_length - addr + block->offset;
-                ptr = ramblock_ptr(block, addr - block->offset);
-                rcu_read_unlock();
-                return ptr;
-            }
+
+    block = qemu_get_ram_block(addr);
+    offset_inside_block = addr - block->offset;
+    *size = MIN(*size, block->max_length - offset_inside_block);
+
+    if (xen_enabled() && block->host == NULL) {
+        /* We need to check if the requested address is in the RAM
+         * because we don't want to map the entire memory in QEMU.
+         * In that case just map the requested area.
+         */
+        if (block->offset == 0) {
+            return xen_map_cache(addr, *size, 1);
         }
 
-        fprintf(stderr, "Bad ram offset %" PRIx64 "\n", (uint64_t)addr);
-        abort();
+        block->host = xen_map_cache(block->offset, block->max_length, 1);
     }
+
+    return ramblock_ptr(block, offset_inside_block);
 }
 
 /*
@@ -1981,6 +1926,7 @@ MemoryRegion *qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr)
     return block->mr;
 }
 
+/* Called within RCU critical section.  */
 static void notdirty_mem_write(void *opaque, hwaddr ram_addr,
                                uint64_t val, unsigned size)
 {
@@ -2511,101 +2457,58 @@ static bool prepare_mmio_access(MemoryRegion *mr)
     return release_lock;
 }
 
-MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                             uint8_t *buf, int len, bool is_write)
+/* Called within RCU critical section.  */
+static MemTxResult address_space_write_continue(AddressSpace *as, hwaddr addr,
+                                                MemTxAttrs attrs,
+                                                const uint8_t *buf,
+                                                int len, hwaddr addr1,
+                                                hwaddr l, MemoryRegion *mr)
 {
-    hwaddr l;
     uint8_t *ptr;
     uint64_t val;
-    hwaddr addr1;
-    MemoryRegion *mr;
     MemTxResult result = MEMTX_OK;
     bool release_lock = false;
 
-    rcu_read_lock();
-    while (len > 0) {
-        l = len;
-        mr = address_space_translate(as, addr, &addr1, &l, is_write);
-
-        if (is_write) {
-            if (!memory_access_is_direct(mr, is_write)) {
-                release_lock |= prepare_mmio_access(mr);
-                l = memory_access_size(mr, l, addr1);
-                /* XXX: could force current_cpu to NULL to avoid
-                   potential bugs */
-                switch (l) {
-                case 8:
-                    /* 64 bit write access */
-                    val = ldq_p(buf);
-                    result |= memory_region_dispatch_write(mr, addr1, val, 8,
-                                                           attrs);
-                    break;
-                case 4:
-                    /* 32 bit write access */
-                    val = ldl_p(buf);
-                    result |= memory_region_dispatch_write(mr, addr1, val, 4,
-                                                           attrs);
-                    break;
-                case 2:
-                    /* 16 bit write access */
-                    val = lduw_p(buf);
-                    result |= memory_region_dispatch_write(mr, addr1, val, 2,
-                                                           attrs);
-                    break;
-                case 1:
-                    /* 8 bit write access */
-                    val = ldub_p(buf);
-                    result |= memory_region_dispatch_write(mr, addr1, val, 1,
-                                                           attrs);
-                    break;
-                default:
-                    abort();
-                }
-            } else {
-                addr1 += memory_region_get_ram_addr(mr);
-                /* RAM case */
-                ptr = qemu_get_ram_ptr(addr1);
-                memcpy(ptr, buf, l);
-                invalidate_and_set_dirty(mr, addr1, l);
+    for (;;) {
+        if (!memory_access_is_direct(mr, true)) {
+            release_lock |= prepare_mmio_access(mr);
+            l = memory_access_size(mr, l, addr1);
+            /* XXX: could force current_cpu to NULL to avoid
+               potential bugs */
+            switch (l) {
+            case 8:
+                /* 64 bit write access */
+                val = ldq_p(buf);
+                result |= memory_region_dispatch_write(mr, addr1, val, 8,
+                                                       attrs);
+                break;
+            case 4:
+                /* 32 bit write access */
+                val = ldl_p(buf);
+                result |= memory_region_dispatch_write(mr, addr1, val, 4,
+                                                       attrs);
+                break;
+            case 2:
+                /* 16 bit write access */
+                val = lduw_p(buf);
+                result |= memory_region_dispatch_write(mr, addr1, val, 2,
+                                                       attrs);
+                break;
+            case 1:
+                /* 8 bit write access */
+                val = ldub_p(buf);
+                result |= memory_region_dispatch_write(mr, addr1, val, 1,
+                                                       attrs);
+                break;
+            default:
+                abort();
             }
         } else {
-            if (!memory_access_is_direct(mr, is_write)) {
-                /* I/O case */
-                release_lock |= prepare_mmio_access(mr);
-                l = memory_access_size(mr, l, addr1);
-                switch (l) {
-                case 8:
-                    /* 64 bit read access */
-                    result |= memory_region_dispatch_read(mr, addr1, &val, 8,
-                                                          attrs);
-                    stq_p(buf, val);
-                    break;
-                case 4:
-                    /* 32 bit read access */
-                    result |= memory_region_dispatch_read(mr, addr1, &val, 4,
-                                                          attrs);
-                    stl_p(buf, val);
-                    break;
-                case 2:
-                    /* 16 bit read access */
-                    result |= memory_region_dispatch_read(mr, addr1, &val, 2,
-                                                          attrs);
-                    stw_p(buf, val);
-                    break;
-                case 1:
-                    /* 8 bit read access */
-                    result |= memory_region_dispatch_read(mr, addr1, &val, 1,
-                                                          attrs);
-                    stb_p(buf, val);
-                    break;
-                default:
-                    abort();
-                }
-            } else {
-                /* RAM case */
-                ptr = qemu_get_ram_ptr(mr->ram_addr + addr1);
-                memcpy(buf, ptr, l);
-            }
+            addr1 += memory_region_get_ram_addr(mr);
+            /* RAM case */
+            ptr = qemu_get_ram_ptr(addr1);
+            memcpy(ptr, buf, l);
+            invalidate_and_set_dirty(mr, addr1, l);
         }
 
         if (release_lock) {
@@ -2616,8 +2519,14 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
         len -= l;
         buf += l;
         addr += l;
+
+        if (!len) {
+            break;
+        }
+
+        l = len;
+        mr = address_space_translate(as, addr, &addr1, &l, true);
     }
-    rcu_read_unlock();
 
     return result;
 }
@@ -2625,15 +2534,122 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
 MemTxResult address_space_write(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
                                 const uint8_t *buf, int len)
 {
-    return address_space_rw(as, addr, attrs, (uint8_t *)buf, len, true);
+    hwaddr l;
+    hwaddr addr1;
+    MemoryRegion *mr;
+    MemTxResult result = MEMTX_OK;
+
+    if (len > 0) {
+        rcu_read_lock();
+        l = len;
+        mr = address_space_translate(as, addr, &addr1, &l, true);
+        result = address_space_write_continue(as, addr, attrs, buf, len,
+                                              addr1, l, mr);
+        rcu_read_unlock();
+    }
+
+    return result;
 }
 
-MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                               uint8_t *buf, int len)
+/* Called within RCU critical section.  */
+MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
+                                        MemTxAttrs attrs, uint8_t *buf,
+                                        int len, hwaddr addr1, hwaddr l,
+                                        MemoryRegion *mr)
 {
-    return address_space_rw(as, addr, attrs, buf, len, false);
+    uint8_t *ptr;
+    uint64_t val;
+    MemTxResult result = MEMTX_OK;
+    bool release_lock = false;
+
+    for (;;) {
+        if (!memory_access_is_direct(mr, false)) {
+            /* I/O case */
+            release_lock |= prepare_mmio_access(mr);
+            l = memory_access_size(mr, l, addr1);
+            switch (l) {
+            case 8:
+                /* 64 bit read access */
+                result |= memory_region_dispatch_read(mr, addr1, &val, 8,
+                                                      attrs);
+                stq_p(buf, val);
+                break;
+            case 4:
+                /* 32 bit read access */
+                result |= memory_region_dispatch_read(mr, addr1, &val, 4,
+                                                      attrs);
+                stl_p(buf, val);
+                break;
+            case 2:
+                /* 16 bit read access */
+                result |= memory_region_dispatch_read(mr, addr1, &val, 2,
+                                                      attrs);
+                stw_p(buf, val);
+                break;
+            case 1:
+                /* 8 bit read access */
+                result |= memory_region_dispatch_read(mr, addr1, &val, 1,
+                                                      attrs);
+                stb_p(buf, val);
+                break;
+            default:
+                abort();
+            }
+        } else {
+            /* RAM case */
+            ptr = qemu_get_ram_ptr(mr->ram_addr + addr1);
+            memcpy(buf, ptr, l);
+        }
+
+        if (release_lock) {
+            qemu_mutex_unlock_iothread();
+            release_lock = false;
+        }
+
+        len -= l;
+        buf += l;
+        addr += l;
+
+        if (!len) {
+            break;
+        }
+
+        l = len;
+        mr = address_space_translate(as, addr, &addr1, &l, false);
+    }
+
+    return result;
 }
 
+MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+                                    MemTxAttrs attrs, uint8_t *buf, int len)
+{
+    hwaddr l;
+    hwaddr addr1;
+    MemoryRegion *mr;
+    MemTxResult result = MEMTX_OK;
+
+    if (len > 0) {
+        rcu_read_lock();
+        l = len;
+        mr = address_space_translate(as, addr, &addr1, &l, false);
+        result = address_space_read_continue(as, addr, attrs, buf, len,
+                                             addr1, l, mr);
+        rcu_read_unlock();
+    }
+
+    return result;
+}
+
+MemTxResult address_space_rw(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
+                             uint8_t *buf, int len, bool is_write)
+{
+    if (is_write) {
+        return address_space_write(as, addr, attrs, (uint8_t *)buf, len);
+    } else {
+        return address_space_read(as, addr, attrs, (uint8_t *)buf, len);
+    }
+}
 
 void cpu_physical_memory_rw(hwaddr addr, uint8_t *buf,
                             int len, int is_write)
@@ -2825,6 +2841,7 @@ void *address_space_map(AddressSpace *as,
     hwaddr l, xlat, base;
     MemoryRegion *mr, *this_mr;
     ram_addr_t raddr;
+    void *ptr;
 
     if (len == 0) {
         return NULL;
@@ -2876,9 +2893,11 @@ void *address_space_map(AddressSpace *as,
     }
 
     memory_region_ref(mr);
-    rcu_read_unlock();
     *plen = done;
-    return qemu_ram_ptr_length(raddr + base, plen);
+    ptr = qemu_ram_ptr_length(raddr + base, plen);
+    rcu_read_unlock();
+
+    return ptr;
 }
 
 /* Unmaps a memory region previously mapped by address_space_map().

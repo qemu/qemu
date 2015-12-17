@@ -40,7 +40,7 @@
 
 #include "standard-headers/linux/types.h"
 
-#define VIRTIO_GPU_FEATURE_VIRGL 0
+#define VIRTIO_GPU_F_VIRGL 0
 
 enum virtio_gpu_ctrl_type {
 	VIRTIO_GPU_UNDEFINED = 0,

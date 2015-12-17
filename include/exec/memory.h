@@ -159,27 +159,33 @@ typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 
 struct MemoryRegion {
     Object parent_obj;
+
     /* All fields are private - violators will be prosecuted */
-    const MemoryRegionOps *ops;
+
+    /* The following fields should fit in a cache line */
+    bool romd_mode;
+    bool ram;
+    bool subpage;
+    bool readonly; /* For RAM regions */
+    bool rom_device;
+    bool flush_coalesced_mmio;
+    bool global_locking;
+    uint8_t dirty_log_mask;
+    ram_addr_t ram_addr;
+    Object *owner;
     const MemoryRegionIOMMUOps *iommu_ops;
+
+    const MemoryRegionOps *ops;
     void *opaque;
     MemoryRegion *container;
     Int128 size;
     hwaddr addr;
     void (*destructor)(MemoryRegion *mr);
-    ram_addr_t ram_addr;
     uint64_t align;
-    bool subpage;
     bool terminates;
-    bool romd_mode;
-    bool ram;
     bool skip_dump;
-    bool readonly; /* For RAM regions */
     bool enabled;
-    bool rom_device;
     bool warning_printed; /* For reservations */
-    bool flush_coalesced_mmio;
-    bool global_locking;
     uint8_t vga_logging_count;
     MemoryRegion *alias;
     hwaddr alias_offset;
@@ -189,7 +195,6 @@ struct MemoryRegion {
     QTAILQ_ENTRY(MemoryRegion) subregions_link;
     QTAILQ_HEAD(coalesced_ranges, CoalescedMemoryRange) coalesced;
     const char *name;
-    uint8_t dirty_log_mask;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
     NotifierList iommu_notify;
@@ -518,7 +523,10 @@ uint64_t memory_region_size(MemoryRegion *mr);
  *
  * @mr: the memory region being queried
  */
-bool memory_region_is_ram(MemoryRegion *mr);
+static inline bool memory_region_is_ram(MemoryRegion *mr)
+{
+    return mr->ram;
+}
 
 /**
  * memory_region_is_skip_dump: check whether a memory region should not be
@@ -558,7 +566,11 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
  *
  * @mr: the memory region being queried
  */
-bool memory_region_is_iommu(MemoryRegion *mr);
+static inline bool memory_region_is_iommu(MemoryRegion *mr)
+{
+    return mr->iommu_ops;
+}
+
 
 /**
  * memory_region_notify_iommu: notify a change in an IOMMU translation entry.
@@ -640,7 +652,11 @@ uint8_t memory_region_get_dirty_log_mask(MemoryRegion *mr);
  *
  * @mr: the memory region being queried
  */
-bool memory_region_is_rom(MemoryRegion *mr);
+static inline bool memory_region_is_rom(MemoryRegion *mr)
+{
+    return mr->ram && mr->readonly;
+}
+
 
 /**
  * memory_region_get_fd: Get a file descriptor backing a RAM memory region.
@@ -656,8 +672,13 @@ int memory_region_get_fd(MemoryRegion *mr);
  * memory_region_get_ram_ptr: Get a pointer into a RAM memory region.
  *
  * Returns a host pointer to a RAM memory region (created with
- * memory_region_init_ram() or memory_region_init_ram_ptr()).  Use with
- * care.
+ * memory_region_init_ram() or memory_region_init_ram_ptr()).
+ *
+ * Use with care; by the time this function returns, the returned pointer is
+ * not protected by RCU anymore.  If the caller is not within an RCU critical
+ * section and does not hold the iothread lock, it must have other means of
+ * protecting the pointer, such as a reference to the region that includes
+ * the incoming ram_addr_t.
  *
  * @mr: the memory region being queried.
  */
@@ -960,7 +981,10 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
  * DO NOT USE THIS FUNCTION.  This is a temporary workaround while the Xen
  * code is being reworked.
  */
-ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr);
+static inline ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
+{
+    return mr->ram_addr;
+}
 
 uint64_t memory_region_get_alignment(const MemoryRegion *mr);
 /**
@@ -1210,23 +1234,7 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
                                 MemTxAttrs attrs,
                                 const uint8_t *buf, int len);
 
-/**
- * address_space_read: read from an address space.
- *
- * Return a MemTxResult indicating whether the operation succeeded
- * or failed (eg unassigned memory, device rejected the transaction,
- * IOMMU fault).
- *
- * @as: #AddressSpace to be accessed
- * @addr: address within that address space
- * @attrs: memory transaction attributes
- * @buf: buffer with the data transferred
- */
-MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
-                               uint8_t *buf, int len);
-
-/**
- * address_space_ld*: load from an address space
+/* address_space_ld*: load from an address space
  * address_space_st*: store to an address space
  *
  * These functions perform a load or store of the byte, word,
@@ -1355,6 +1363,68 @@ void *address_space_map(AddressSpace *as, hwaddr addr,
 void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
                          int is_write, hwaddr access_len);
 
+
+/* Internal functions, part of the implementation of address_space_read.  */
+MemTxResult address_space_read_continue(AddressSpace *as, hwaddr addr,
+                                        MemTxAttrs attrs, uint8_t *buf,
+                                        int len, hwaddr addr1, hwaddr l,
+					MemoryRegion *mr);
+MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
+                                    MemTxAttrs attrs, uint8_t *buf, int len);
+void *qemu_get_ram_ptr(ram_addr_t addr);
+
+static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
+{
+    if (is_write) {
+        return memory_region_is_ram(mr) && !mr->readonly;
+    } else {
+        return memory_region_is_ram(mr) || memory_region_is_romd(mr);
+    }
+
+    return false;
+}
+
+/**
+ * address_space_read: read from an address space.
+ *
+ * Return a MemTxResult indicating whether the operation succeeded
+ * or failed (eg unassigned memory, device rejected the transaction,
+ * IOMMU fault).
+ *
+ * @as: #AddressSpace to be accessed
+ * @addr: address within that address space
+ * @attrs: memory transaction attributes
+ * @buf: buffer with the data transferred
+ */
+static inline __attribute__((__always_inline__))
+MemTxResult address_space_read(AddressSpace *as, hwaddr addr, MemTxAttrs attrs,
+                               uint8_t *buf, int len)
+{
+    MemTxResult result = MEMTX_OK;
+    hwaddr l, addr1;
+    void *ptr;
+    MemoryRegion *mr;
+
+    if (__builtin_constant_p(len)) {
+        if (len) {
+            rcu_read_lock();
+            l = len;
+            mr = address_space_translate(as, addr, &addr1, &l, false);
+            if (len == l && memory_access_is_direct(mr, false)) {
+                addr1 += memory_region_get_ram_addr(mr);
+                ptr = qemu_get_ram_ptr(addr1);
+                memcpy(buf, ptr, len);
+            } else {
+                result = address_space_read_continue(as, addr, attrs, buf, len,
+                                                     addr1, l, mr);
+            }
+            rcu_read_unlock();
+        }
+    } else {
+        result = address_space_read_full(as, addr, attrs, buf, len);
+    }
+    return result;
+}
 
 #endif
 

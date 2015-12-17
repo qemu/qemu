@@ -254,8 +254,8 @@ void xtensa_cpu_do_interrupt(CPUState *cs)
                     env->config->exception_vector[cs->exception_index]);
             env->exception_taken = 1;
         } else {
-            qemu_log("%s(pc = %08x) bad exception_index: %d\n",
-                    __func__, env->pc, cs->exception_index);
+            qemu_log_mask(CPU_LOG_INT, "%s(pc = %08x) bad exception_index: %d\n",
+                          __func__, env->pc, cs->exception_index);
         }
         break;
 

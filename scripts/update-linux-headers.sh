@@ -36,6 +36,7 @@ cp_portable() {
                                      -e 'linux/types' \
                                      -e 'stdint' \
                                      -e 'linux/if_ether' \
+                                     -e 'input-event-codes' \
                                      -e 'sys/' \
                                      > /dev/null
     then
@@ -48,6 +49,7 @@ cp_portable() {
         -e 's/__s\([0-9][0-9]*\)/int\1_t/g' \
         -e 's/__le\([0-9][0-9]*\)/uint\1_t/g' \
         -e 's/__be\([0-9][0-9]*\)/uint\1_t/g' \
+        -e 's/"\(input-event-codes\.h\)"/"standard-headers\/linux\/\1"/' \
         -e 's/<linux\/\([^>]*\)>/"standard-headers\/linux\/\1"/' \
         -e 's/__bitwise__//' \
         -e 's/__attribute__((packed))/QEMU_PACKED/' \
@@ -128,6 +130,7 @@ EOF
 rm -rf "$output/include/standard-headers/linux"
 mkdir -p "$output/include/standard-headers/linux"
 for i in "$tmpdir"/include/linux/*virtio*.h "$tmpdir/include/linux/input.h" \
+         "$tmpdir/include/linux/input-event-codes.h" \
          "$tmpdir/include/linux/pci_regs.h"; do
     cp_portable "$i" "$output/include/standard-headers/linux"
 done

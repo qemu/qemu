@@ -26,8 +26,6 @@
 #include "qemu.h"
 #include "target_signal.h"
 
-//#define DEBUG_SIGNAL
-
 void signal_init(void)
 {
 }

@@ -43,6 +43,7 @@
 
 extern bool kvm_allowed;
 extern bool kvm_kernel_irqchip;
+extern bool kvm_split_irqchip;
 extern bool kvm_async_interrupts_allowed;
 extern bool kvm_halt_in_kernel_allowed;
 extern bool kvm_eventfds_allowed;
@@ -69,6 +70,16 @@ extern bool kvm_ioeventfd_any_length_allowed;
  * following functions or some other specific check instead.
  */
 #define kvm_irqchip_in_kernel() (kvm_kernel_irqchip)
+
+/**
+ * kvm_irqchip_is_split:
+ *
+ * Returns: true if the user asked us to split the irqchip
+ * implementation between user and kernel space. The details are
+ * architecture and machine specific. On PC, it means that the PIC,
+ * IOAPIC, and PIT are in user space while the LAPIC is in the kernel.
+ */
+#define kvm_irqchip_is_split() (kvm_split_irqchip)
 
 /**
  * kvm_async_interrupts_enabled:
@@ -163,6 +174,7 @@ extern bool kvm_ioeventfd_any_length_allowed;
 #else
 #define kvm_enabled()           (0)
 #define kvm_irqchip_in_kernel() (false)
+#define kvm_irqchip_is_split() (false)
 #define kvm_async_interrupts_enabled() (false)
 #define kvm_halt_in_kernel() (false)
 #define kvm_eventfds_enabled() (false)
@@ -305,6 +317,8 @@ void kvm_arch_pre_run(CPUState *cpu, struct kvm_run *run);
 MemTxAttrs kvm_arch_post_run(CPUState *cpu, struct kvm_run *run);
 
 int kvm_arch_handle_exit(CPUState *cpu, struct kvm_run *run);
+
+int kvm_arch_handle_ioapic_eoi(CPUState *cpu, struct kvm_run *run);
 
 int kvm_arch_process_async_events(CPUState *cpu);
 
@@ -455,6 +469,7 @@ int kvm_irqchip_update_msi_route(KVMState *s, int virq, MSIMessage msg,
 void kvm_irqchip_release_virq(KVMState *s, int virq);
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter);
+int kvm_irqchip_add_hv_sint_route(KVMState *s, uint32_t vcpu, uint32_t sint);
 
 int kvm_irqchip_add_irqfd_notifier_gsi(KVMState *s, EventNotifier *n,
                                        EventNotifier *rn, int virq);
@@ -472,6 +487,7 @@ void kvm_init_irq_routing(KVMState *s);
 /**
  * kvm_arch_irqchip_create:
  * @KVMState: The KVMState pointer
+ * @MachineState: The MachineState pointer
  *
  * Allow architectures to create an in-kernel irq chip themselves.
  *
@@ -479,7 +495,7 @@ void kvm_init_irq_routing(KVMState *s);
  *            0: irq chip was not created
  *          > 0: irq chip was created
  */
-int kvm_arch_irqchip_create(KVMState *s);
+int kvm_arch_irqchip_create(MachineState *ms, KVMState *s);
 
 /**
  * kvm_set_one_reg - set a register value in KVM via KVM_SET_ONE_REG ioctl

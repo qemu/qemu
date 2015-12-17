@@ -24,17 +24,10 @@
 #include "kvm_ppc.h"
 #include "mmu-hash32.h"
 
-//#define DEBUG_MMU
 //#define DEBUG_BAT
 
-#ifdef DEBUG_MMU
-#  define LOG_MMU_STATE(cpu) log_cpu_state((cpu), 0)
-#else
-#  define LOG_MMU_STATE(cpu) do { } while (0)
-#endif
-
 #ifdef DEBUG_BATS
-#  define LOG_BATS(...) qemu_log(__VA_ARGS__)
+#  define LOG_BATS(...) qemu_log_mask(CPU_LOG_MMU, __VA_ARGS__)
 #else
 #  define LOG_BATS(...) do { } while (0)
 #endif
@@ -281,9 +274,8 @@ static int ppc_hash32_direct_store(CPUPPCState *env, target_ulong sr,
         }
         return 1;
     default:
-        qemu_log("ERROR: instruction should not need "
+        cpu_abort(cs, "ERROR: instruction should not need "
                  "address translation\n");
-        abort();
     }
     if ((rwx == 1 || key != 1) && (rwx == 0 || key != 0)) {
         *raddr = eaddr;

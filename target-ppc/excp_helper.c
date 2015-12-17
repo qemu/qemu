@@ -23,6 +23,7 @@
 #include "helper_regs.h"
 
 //#define DEBUG_OP
+//#define DEBUG_SOFTWARE_TLB
 //#define DEBUG_EXCEPTIONS
 
 #ifdef DEBUG_EXCEPTIONS
@@ -131,11 +132,10 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
             /* Machine check exception is not enabled.
              * Enter checkstop state.
              */
-            if (qemu_log_enabled()) {
+            fprintf(stderr, "Machine check while not allowed. "
+                    "Entering checkstop state\n");
+            if (qemu_log_separate()) {
                 qemu_log("Machine check while not allowed. "
-                        "Entering checkstop state\n");
-            } else {
-                fprintf(stderr, "Machine check while not allowed. "
                         "Entering checkstop state\n");
             }
             cs->halted = 1;
