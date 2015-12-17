@@ -43,6 +43,7 @@
 #include "hw/pci/pci.h"
 
 #define ARM_SPI_BASE 32
+#define ACPI_POWER_BUTTON_DEVICE "PWRB"
 
 typedef struct VirtAcpiCpuInfo {
     DECLARE_BITMAP(found_cpus, VIRT_ACPI_CPU_ID_LIMIT);
@@ -341,6 +342,15 @@ static void acpi_dsdt_add_gpio(Aml *scope, const MemMapEntry *gpio_memmap,
     aml_append(scope, dev);
 }
 
+static void acpi_dsdt_add_power_button(Aml *scope)
+{
+    Aml *dev = aml_device(ACPI_POWER_BUTTON_DEVICE);
+    aml_append(dev, aml_name_decl("_HID", aml_string("PNP0C0C")));
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+    aml_append(scope, dev);
+}
+
 /* RSDP */
 static GArray *
 build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
@@ -559,6 +569,7 @@ build_dsdt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info)
                       guest_info->use_highmem);
     acpi_dsdt_add_gpio(scope, &memmap[VIRT_GPIO],
                        (irqmap[VIRT_GPIO] + ARM_SPI_BASE));
+    acpi_dsdt_add_power_button(scope);
 
     aml_append(dsdt, scope);
 
