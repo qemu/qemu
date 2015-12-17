@@ -49,18 +49,18 @@ static const VMStateDescription vmstate_imx_ccm = {
     .post_load = imx_ccm_post_load,
 };
 
-uint32_t imx_clock_frequency(DeviceState *dev, IMXClk clock)
+uint32_t imx_ccm_get_clock_frequency(DeviceState *dev, IMXClk clock)
 {
     IMXCCMState *s = IMX_CCM(dev);
 
     switch (clock) {
     case NOCLK:
         return 0;
-    case MCU:
+    case CLK_MCU:
         return s->mcu_clk_freq;
-    case HSP:
+    case CLK_HSP:
         return s->hsp_clk_freq;
-    case IPG:
+    case CLK_IPG:
         return s->ipg_clk_freq;
     case CLK_32k:
         return CKIL_FREQ;

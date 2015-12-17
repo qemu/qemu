@@ -80,12 +80,12 @@ typedef struct IMXCCMState {
 
 typedef enum  {
     NOCLK,
-    MCU,
-    HSP,
-    IPG,
+    CLK_MCU,
+    CLK_HSP,
+    CLK_IPG,
     CLK_32k
 } IMXClk;
 
-uint32_t imx_clock_frequency(DeviceState *s, IMXClk clock);
+uint32_t imx_ccm_get_clock_frequency(DeviceState *s, IMXClk clock);
 
 #endif /* IMX_CCM_H */
