@@ -324,6 +324,23 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
     aml_append(scope, dev);
 }
 
+static void acpi_dsdt_add_gpio(Aml *scope, const MemMapEntry *gpio_memmap,
+                                           uint32_t gpio_irq)
+{
+    Aml *dev = aml_device("GPO0");
+    aml_append(dev, aml_name_decl("_HID", aml_string("ARMH0061")));
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+    aml_append(dev, aml_name_decl("_UID", aml_int(0)));
+
+    Aml *crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(gpio_memmap->base, gpio_memmap->size,
+                                       AML_READ_WRITE));
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                                  AML_EXCLUSIVE, &gpio_irq, 1));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+    aml_append(scope, dev);
+}
+
 /* RSDP */
 static GArray *
 build_rsdp(GArray *rsdp_table, GArray *linker, unsigned rsdt)
@@ -540,6 +557,8 @@ build_dsdt(GArray *table_data, GArray *linker, VirtGuestInfo *guest_info)
                     (irqmap[VIRT_MMIO] + ARM_SPI_BASE), NUM_VIRTIO_TRANSPORTS);
     acpi_dsdt_add_pci(scope, memmap, (irqmap[VIRT_PCIE] + ARM_SPI_BASE),
                       guest_info->use_highmem);
+    acpi_dsdt_add_gpio(scope, &memmap[VIRT_GPIO],
+                       (irqmap[VIRT_GPIO] + ARM_SPI_BASE));
 
     aml_append(dsdt, scope);
 
