@@ -1036,7 +1036,8 @@ Device Tree
 M: Peter Crosthwaite <crosthwaite.peter@gmail.com>
 M: Alexander Graf <agraf@suse.de>
 S: Maintained
-F: device_tree.[ch]
+F: device_tree.c
+F: include/sysemu/device_tree.h
 
 Error reporting
 M: Markus Armbruster <armbru@redhat.com>
