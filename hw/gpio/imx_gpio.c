@@ -62,7 +62,12 @@ static const char *imx_gpio_reg_name(uint32_t reg)
 
 static void imx_gpio_update_int(IMXGPIOState *s)
 {
-    qemu_set_irq(s->irq, (s->isr & s->imr) ? 1 : 0);
+    if (s->has_upper_pin_irq) {
+        qemu_set_irq(s->irq[0], (s->isr & s->imr & 0x0000FFFF) ? 1 : 0);
+        qemu_set_irq(s->irq[1], (s->isr & s->imr & 0xFFFF0000) ? 1 : 0);
+    } else {
+        qemu_set_irq(s->irq[0], (s->isr & s->imr) ? 1 : 0);
+    }
 }
 
 static void imx_gpio_set_int_line(IMXGPIOState *s, int line, IMXGPIOLevel level)
@@ -282,6 +287,8 @@ static const VMStateDescription vmstate_imx_gpio = {
 
 static Property imx_gpio_properties[] = {
     DEFINE_PROP_BOOL("has-edge-sel", IMXGPIOState, has_edge_sel, true),
+    DEFINE_PROP_BOOL("has-upper-pin-irq", IMXGPIOState, has_upper_pin_irq,
+                     false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -311,7 +318,8 @@ static void imx_gpio_realize(DeviceState *dev, Error **errp)
     qdev_init_gpio_in(DEVICE(s), imx_gpio_set, IMX_GPIO_PIN_COUNT);
     qdev_init_gpio_out(DEVICE(s), s->output, IMX_GPIO_PIN_COUNT);
 
-    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq);
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[0]);
+    sysbus_init_irq(SYS_BUS_DEVICE(dev), &s->irq[1]);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 }
 
