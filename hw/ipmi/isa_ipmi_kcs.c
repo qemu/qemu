@@ -370,6 +370,7 @@ typedef struct ISAIPMIKCSDevice {
     ISADevice dev;
     int32 isairq;
     IPMIKCS kcs;
+    IPMIFwInfo fwinfo;
 } ISAIPMIKCSDevice;
 
 static void ipmi_isa_realize(DeviceState *dev, Error **errp)
@@ -398,6 +399,20 @@ static void ipmi_isa_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, iik->kcs.io_base, iik->kcs.io_length);
 
     isa_register_ioport(isadev, &iik->kcs.io, iik->kcs.io_base);
+
+    iik->fwinfo.interface_name = "kcs";
+    iik->fwinfo.interface_type = IPMI_SMBIOS_KCS;
+    iik->fwinfo.ipmi_spec_major_revision = 2;
+    iik->fwinfo.ipmi_spec_minor_revision = 0;
+    iik->fwinfo.base_address = iik->kcs.io_base;
+    iik->fwinfo.i2c_slave_address = iik->kcs.bmc->slave_addr;
+    iik->fwinfo.register_length = iik->kcs.io_length;
+    iik->fwinfo.register_spacing = 1;
+    iik->fwinfo.memspace = IPMI_MEMSPACE_IO;
+    iik->fwinfo.irq_type = IPMI_LEVEL_IRQ;
+    iik->fwinfo.interrupt_number = iik->isairq;
+    iik->fwinfo.acpi_parent = "\\_SB.PCI0.ISA";
+    ipmi_add_fwinfo(&iik->fwinfo, errp);
 }
 
 const VMStateDescription vmstate_ISAIPMIKCSDevice = {

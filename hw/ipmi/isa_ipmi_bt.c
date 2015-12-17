@@ -407,6 +407,7 @@ typedef struct ISAIPMIBTDevice {
     ISADevice dev;
     int32 isairq;
     IPMIBT bt;
+    IPMIFwInfo fwinfo;
 } ISAIPMIBTDevice;
 
 static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
@@ -435,6 +436,20 @@ static void isa_ipmi_bt_realize(DeviceState *dev, Error **errp)
     qdev_set_legacy_instance_id(dev, iib->bt.io_base, iib->bt.io_length);
 
     isa_register_ioport(isadev, &iib->bt.io, iib->bt.io_base);
+
+    iib->fwinfo.interface_name = "bt";
+    iib->fwinfo.interface_type = IPMI_SMBIOS_BT;
+    iib->fwinfo.ipmi_spec_major_revision = 2;
+    iib->fwinfo.ipmi_spec_minor_revision = 0;
+    iib->fwinfo.base_address = iib->bt.io_base;
+    iib->fwinfo.register_length = iib->bt.io_length;
+    iib->fwinfo.register_spacing = 1;
+    iib->fwinfo.memspace = IPMI_MEMSPACE_IO;
+    iib->fwinfo.irq_type = IPMI_LEVEL_IRQ;
+    iib->fwinfo.interrupt_number = iib->isairq;
+    iib->fwinfo.acpi_parent = "\\_SB.PCI0.ISA";
+    iib->fwinfo.i2c_slave_address = iib->bt.bmc->slave_addr;
+    ipmi_add_fwinfo(&iib->fwinfo, errp);
 }
 
 static const VMStateDescription vmstate_ISAIPMIBTDevice = {
