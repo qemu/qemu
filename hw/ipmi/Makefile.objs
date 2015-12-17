@@ -1,2 +1,3 @@
 common-obj-$(CONFIG_IPMI) += ipmi.o
 common-obj-$(CONFIG_IPMI_LOCAL) += ipmi_bmc_sim.o
+common-obj-$(CONFIG_IPMI_LOCAL) += ipmi_bmc_extern.o
