@@ -1,5 +1,5 @@
 /*
- * IMX31 Clock Control Module
+ * IMX Clock Control Module base class
  *
  * Copyright (C) 2012 NICTA
  * Updated by Jean-Christophe Dubois <jcd@tribudubois.net>
@@ -13,33 +13,7 @@
 
 #include "hw/sysbus.h"
 
-/* CCMR */
-#define CCMR_FPME (1<<0)
-#define CCMR_MPE  (1<<3)
-#define CCMR_MDS  (1<<7)
-#define CCMR_FPMF (1<<26)
-#define CCMR_PRCS (3<<1)
-
-/* PDR0 */
-#define PDR0_MCU_PODF_SHIFT (0)
-#define PDR0_MCU_PODF_MASK (0x7)
-#define PDR0_MAX_PODF_SHIFT (3)
-#define PDR0_MAX_PODF_MASK (0x7)
-#define PDR0_IPG_PODF_SHIFT (6)
-#define PDR0_IPG_PODF_MASK (0x3)
-#define PDR0_NFC_PODF_SHIFT (8)
-#define PDR0_NFC_PODF_MASK (0x7)
-#define PDR0_HSP_PODF_SHIFT (11)
-#define PDR0_HSP_PODF_MASK (0x7)
-#define PDR0_PER_PODF_SHIFT (16)
-#define PDR0_PER_PODF_MASK (0x1f)
-#define PDR0_CSI_PODF_SHIFT (23)
-#define PDR0_CSI_PODF_MASK (0x1ff)
-
-#define EXTRACT(value, name) (((value) >> PDR0_##name##_PODF_SHIFT) \
-                              & PDR0_##name##_PODF_MASK)
-#define INSERT(value, name) (((value) & PDR0_##name##_PODF_MASK) << \
-                             PDR0_##name##_PODF_SHIFT)
+#define CKIL_FREQ 32768 /* nominal 32khz clock */
 
 /* PLL control registers */
 #define PD(v) (((v) >> 26) & 0xf)
@@ -53,39 +27,44 @@
 #define PLL_MFN(x)              (((x) & 0x3ff) << 0)
 
 #define TYPE_IMX_CCM "imx.ccm"
-#define IMX_CCM(obj) OBJECT_CHECK(IMXCCMState, (obj), TYPE_IMX_CCM)
+#define IMX_CCM(obj) \
+     OBJECT_CHECK(IMXCCMState, (obj), TYPE_IMX_CCM)
+#define IMX_CCM_CLASS(klass) \
+     OBJECT_CLASS_CHECK(IMXCCMClass, (klass), TYPE_IMX_CCM)
+#define IMX_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(IMXCCMClass, (obj), TYPE_IMX_CCM)
 
 typedef struct IMXCCMState {
     /* <private> */
     SysBusDevice parent_obj;
 
     /* <public> */
-    MemoryRegion iomem;
 
-    uint32_t ccmr;
-    uint32_t pdr0;
-    uint32_t pdr1;
-    uint32_t mpctl;
-    uint32_t spctl;
-    uint32_t cgr[3];
-    uint32_t pmcr0;
-    uint32_t pmcr1;
-
-    /* Frequencies precalculated on register changes */
-    uint32_t pll_refclk_freq;
-    uint32_t mcu_clk_freq;
-    uint32_t hsp_clk_freq;
-    uint32_t ipg_clk_freq;
 } IMXCCMState;
 
 typedef enum  {
     NOCLK,
+    CLK_MPLL,
+    CLK_UPLL,
     CLK_MCU,
     CLK_HSP,
+    CLK_MAX,
+    CLK_AHB,
     CLK_IPG,
+    CLK_PER,
     CLK_32k
 } IMXClk;
 
-uint32_t imx_ccm_get_clock_frequency(DeviceState *s, IMXClk clock);
+typedef struct IMXCCMClass {
+    /* <private> */
+    SysBusDeviceClass parent_class;
+
+    /* <public> */
+    uint32_t (*get_clock_frequency)(IMXCCMState *s, IMXClk clk);
+} IMXCCMClass;
+
+uint32_t imx_ccm_calc_pll(uint32_t pllreg, uint32_t base_freq);
+
+uint32_t imx_ccm_get_clock_frequency(IMXCCMState *s, IMXClk clock);
 
 #endif /* IMX_CCM_H */

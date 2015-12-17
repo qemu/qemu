@@ -31,6 +31,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/ptimer.h"
+#include "hw/misc/imx_ccm.h"
 
 /*
  * GPT : General purpose timer
@@ -82,8 +83,8 @@ typedef struct IMXGPTState{
 
     /*< public >*/
     ptimer_state *timer;
-    MemoryRegion iomem;
-    DeviceState *ccm;
+    MemoryRegion  iomem;
+    IMXCCMState  *ccm;
 
     uint32_t cr;
     uint32_t pr;
