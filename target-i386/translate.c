@@ -304,6 +304,12 @@ static inline TCGMemOp mo_pushpop(DisasContext *s, TCGMemOp ot)
     }
 }
 
+/* Select the size of the stack pointer.  */
+static inline TCGMemOp mo_stacksize(DisasContext *s)
+{
+    return CODE64(s) ? MO_64 : s->ss32 ? MO_32 : MO_16;
+}
+
 /* Select only size 64 else 32.  Used for SSE operand sizes.  */
 static inline TCGMemOp mo_64_32(TCGMemOp ot)
 {
@@ -2289,31 +2295,22 @@ gen_svm_check_intercept(DisasContext *s, target_ulong pc_start, uint64_t type)
 
 static inline void gen_stack_update(DisasContext *s, int addend)
 {
-#ifdef TARGET_X86_64
-    if (CODE64(s)) {
-        gen_op_add_reg_im(MO_64, R_ESP, addend);
-    } else
-#endif
-    if (s->ss32) {
-        gen_op_add_reg_im(MO_32, R_ESP, addend);
-    } else {
-        gen_op_add_reg_im(MO_16, R_ESP, addend);
-    }
+    gen_op_add_reg_im(mo_stacksize(s), R_ESP, addend);
 }
 
 /* Generate a push. It depends on ss32, addseg and dflag.  */
 static void gen_push_v(DisasContext *s, TCGv val)
 {
-    TCGMemOp a_ot, d_ot = mo_pushpop(s, s->dflag);
+    TCGMemOp d_ot = mo_pushpop(s, s->dflag);
+    TCGMemOp a_ot = mo_stacksize(s);
     int size = 1 << d_ot;
     TCGv new_esp = cpu_A0;
 
     tcg_gen_subi_tl(cpu_A0, cpu_regs[R_ESP], size);
 
     if (CODE64(s)) {
-        a_ot = MO_64;
+        /* No special handling.  */
     } else if (s->ss32) {
-        a_ot = MO_32;
         if (s->addseg) {
             new_esp = cpu_tmp4;
             tcg_gen_mov_tl(new_esp, cpu_A0);
@@ -2322,7 +2319,6 @@ static void gen_push_v(DisasContext *s, TCGv val)
             tcg_gen_ext32u_tl(cpu_A0, cpu_A0);
         }
     } else {
-        a_ot = MO_16;
         new_esp = cpu_tmp4;
         tcg_gen_ext16u_tl(cpu_A0, cpu_A0);
         tcg_gen_mov_tl(new_esp, cpu_A0);
