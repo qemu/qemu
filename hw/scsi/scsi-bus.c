@@ -1759,6 +1759,15 @@ void scsi_req_cancel_async(SCSIRequest *req, Notifier *notifier)
     if (notifier) {
         notifier_list_add(&req->cancel_notifiers, notifier);
     }
+    if (req->io_canceled) {
+        /* A blk_aio_cancel_async is pending; when it finishes,
+         * scsi_req_cancel_complete will be called and will
+         * call the notifier we just added.  Just wait for that.
+         */
+        assert(req->aiocb);
+        return;
+    }
+    /* Dropped in scsi_req_cancel_complete.  */
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->io_canceled = true;
@@ -1775,6 +1784,8 @@ void scsi_req_cancel(SCSIRequest *req)
     if (!req->enqueued) {
         return;
     }
+    assert(!req->io_canceled);
+    /* Dropped in scsi_req_cancel_complete.  */
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->io_canceled = true;
