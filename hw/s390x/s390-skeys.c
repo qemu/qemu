@@ -100,8 +100,7 @@ void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
 
     qmp_dump_skeys(filename, &err);
     if (err) {
-        monitor_printf(mon, "%s\n", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
     }
 }
 
