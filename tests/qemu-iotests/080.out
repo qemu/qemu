@@ -2,46 +2,46 @@ QA output created by 080
 
 == Huge header size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
+can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
+can't open device TEST_DIR/t.qcow2: qcow2 header exceeds cluster size
 no file open, try 'help open'
 
 == Huge unknown header extension ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: can't open device TEST_DIR/t.qcow2: Invalid backing file offset
+can't open device TEST_DIR/t.qcow2: Invalid backing file offset
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Header extension too large
+can't open device TEST_DIR/t.qcow2: Header extension too large
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Header extension too large
+can't open device TEST_DIR/t.qcow2: Header extension too large
 no file open, try 'help open'
 
 == Huge refcount table size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: can't open device TEST_DIR/t.qcow2: Reference count table too large
+can't open device TEST_DIR/t.qcow2: Reference count table too large
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Reference count table too large
+can't open device TEST_DIR/t.qcow2: Reference count table too large
 no file open, try 'help open'
 
 == Misaligned refcount table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: can't open device TEST_DIR/t.qcow2: Invalid reference count table offset
+can't open device TEST_DIR/t.qcow2: Invalid reference count table offset
 no file open, try 'help open'
 
 == Huge refcount offset ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: can't open device TEST_DIR/t.qcow2: Invalid reference count table offset
+can't open device TEST_DIR/t.qcow2: Invalid reference count table offset
 no file open, try 'help open'
 
 == Invalid snapshot table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: can't open device TEST_DIR/t.qcow2: Too many snapshots
+can't open device TEST_DIR/t.qcow2: Too many snapshots
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Too many snapshots
+can't open device TEST_DIR/t.qcow2: Too many snapshots
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Invalid snapshot table offset
+can't open device TEST_DIR/t.qcow2: Invalid snapshot table offset
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Invalid snapshot table offset
+can't open device TEST_DIR/t.qcow2: Invalid snapshot table offset
 no file open, try 'help open'
 
 == Hitting snapshot table size limit ==
@@ -52,13 +52,13 @@ read 512/512 bytes at offset 0
 
 == Invalid L1 table ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: can't open device TEST_DIR/t.qcow2: Active L1 table too large
+can't open device TEST_DIR/t.qcow2: Active L1 table too large
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Active L1 table too large
+can't open device TEST_DIR/t.qcow2: Active L1 table too large
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
+can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
 no file open, try 'help open'
-qemu-io: can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
+can't open device TEST_DIR/t.qcow2: Invalid L1 table offset
 no file open, try 'help open'
 
 == Invalid L1 table (with internal snapshot in the image) ==
@@ -67,7 +67,7 @@ qemu-img: Could not open 'TEST_DIR/t.IMGFMT': L1 table is too small
 
 == Invalid backing file size ==
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-io: can't open device TEST_DIR/t.qcow2: Backing file name too long
+can't open device TEST_DIR/t.qcow2: Backing file name too long
 no file open, try 'help open'
 
 == Invalid L2 entry (huge physical offset) ==
