@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Test case for drive-mirror to NBD (especially bdrv_swap() on NBD BDS)
+# Test case for drive-mirror to NBD
 #
 # Copyright (C) 2015 Red Hat, Inc.
 #
@@ -50,8 +50,10 @@ _send_qemu_cmd $QEMU_HANDLE \
     "{'execute': 'qmp_capabilities'}" \
     'return'
 
-# 'format': 'nbd' is not actually "correct", but this is probably the only way
-# to test bdrv_swap() on an NBD BDS
+# 'format': 'nbd' is not actually "correct", but this was the only way to
+# test the bug fixed in commit f53a829.  Though the bug's related code
+# bdrv_swap() was replaced later, let's make sure we don't fall in the same
+# pit again.
 _send_qemu_cmd $QEMU_HANDLE  \
     "{'execute': 'drive-mirror',
       'arguments': {'device': 'src',
