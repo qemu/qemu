@@ -1,0 +1,22 @@
+QA output created by 133
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
+
+=== Check that node-name can't be changed ===
+
+Cannot change the option 'node-name'
+Cannot change the option 'node-name'
+Cannot change the option 'node-name'
+
+=== Check that unchanged node-name is okay ===
+
+
+=== Check that driver can't be changed ===
+
+Cannot change the option 'driver'
+Cannot change the option 'driver'
+Cannot change the option 'driver'
+
+=== Check that unchanged driver is okay ===
+
+*** done

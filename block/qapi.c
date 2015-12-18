@@ -245,15 +245,17 @@ void bdrv_query_image_info(BlockDriverState *bs,
         info->has_backing_filename = true;
         bdrv_get_full_backing_filename(bs, backing_filename2, PATH_MAX, &err);
         if (err) {
-            error_propagate(errp, err);
-            qapi_free_ImageInfo(info);
+            /* Can't reconstruct the full backing filename, so we must omit
+             * this field and apply a Best Effort to this query. */
             g_free(backing_filename2);
-            return;
+            backing_filename2 = NULL;
+            error_free(err);
         }
 
-        if (strcmp(backing_filename, backing_filename2) != 0) {
-            info->full_backing_filename =
-                        g_strdup(backing_filename2);
+        /* Always report the full_backing_filename if present, even if it's the
+         * same as backing_filename. That they are same is useful info. */
+        if (backing_filename2) {
+            info->full_backing_filename = g_strdup(backing_filename2);
             info->has_full_backing_filename = true;
         }
 
@@ -676,7 +678,10 @@ void bdrv_image_info_dump(fprintf_function func_fprintf, void *f,
 
     if (info->has_backing_filename) {
         func_fprintf(f, "backing file: %s", info->backing_filename);
-        if (info->has_full_backing_filename) {
+        if (!info->has_full_backing_filename) {
+            func_fprintf(f, " (cannot determine actual path)");
+        } else if (strcmp(info->backing_filename,
+                          info->full_backing_filename) != 0) {
             func_fprintf(f, " (actual path: %s)", info->full_backing_filename);
         }
         func_fprintf(f, "\n");

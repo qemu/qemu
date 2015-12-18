@@ -91,22 +91,29 @@ class Bitmap:
                 try_remove(image)
 
 
-class TestIncrementalBackup(iotests.QMPTestCase):
-    def setUp(self):
+class TestIncrementalBackupBase(iotests.QMPTestCase):
+    def __init__(self, *args):
+        super(TestIncrementalBackupBase, self).__init__(*args)
         self.bitmaps = list()
         self.files = list()
         self.drives = list()
         self.vm = iotests.VM()
         self.err_img = os.path.join(iotests.test_dir, 'err.%s' % iotests.imgfmt)
 
+
+    def setUp(self):
         # Create a base image with a distinctive patterning
         drive0 = self.add_node('drive0')
         self.img_create(drive0['file'], drive0['fmt'])
         self.vm.add_drive(drive0['file'])
-        io_write_patterns(drive0['file'], (('0x41', 0, 512),
-                                           ('0xd5', '1M', '32k'),
-                                           ('0xdc', '32M', '124k')))
+        self.write_default_pattern(drive0['file'])
         self.vm.launch()
+
+
+    def write_default_pattern(self, target):
+        io_write_patterns(target, (('0x41', 0, 512),
+                                   ('0xd5', '1M', '32k'),
+                                   ('0xdc', '32M', '124k')))
 
 
     def add_node(self, node_id, fmt=iotests.imgfmt, path=None, backup=None):
@@ -259,6 +266,16 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         self.check_backups()
 
 
+    def tearDown(self):
+        self.vm.shutdown()
+        for bitmap in self.bitmaps:
+            bitmap.cleanup()
+        for filename in self.files:
+            try_remove(filename)
+
+
+
+class TestIncrementalBackup(TestIncrementalBackupBase):
     def test_incremental_simple(self):
         '''
         Test: Create and verify three incremental backups.
@@ -323,63 +340,6 @@ class TestIncrementalBackup(iotests.QMPTestCase):
         # Both bitmaps should be correctly in sync.
         self.create_incremental(bitmap0)
         self.create_incremental(bitmap1)
-        self.vm.shutdown()
-        self.check_backups()
-
-
-    def test_incremental_failure(self):
-        '''Test: Verify backups made after a failure are correct.
-
-        Simulate a failure during an incremental backup block job,
-        emulate additional writes, then create another incremental backup
-        afterwards and verify that the backup created is correct.
-        '''
-
-        # Create a blkdebug interface to this img as 'drive1',
-        # but don't actually create a new image.
-        drive1 = self.add_node('drive1', self.drives[0]['fmt'],
-                               path=self.drives[0]['file'],
-                               backup=self.drives[0]['backup'])
-        result = self.vm.qmp('blockdev-add', options={
-            'id': drive1['id'],
-            'driver': drive1['fmt'],
-            'file': {
-                'driver': 'blkdebug',
-                'image': {
-                    'driver': 'file',
-                    'filename': drive1['file']
-                },
-                'set-state': [{
-                    'event': 'flush_to_disk',
-                    'state': 1,
-                    'new_state': 2
-                }],
-                'inject-error': [{
-                    'event': 'read_aio',
-                    'errno': 5,
-                    'state': 2,
-                    'immediately': False,
-                    'once': True
-                }],
-            }
-        })
-        self.assert_qmp(result, 'return', {})
-
-        self.create_anchor_backup(self.drives[0])
-        self.add_bitmap('bitmap0', drive1)
-        # Note: at this point, during a normal execution,
-        # Assume that the VM resumes and begins issuing IO requests here.
-
-        self.hmp_io_writes(drive1['id'], (('0xab', 0, 512),
-                                          ('0xfe', '16M', '256k'),
-                                          ('0x64', '32736k', '64k')))
-
-        result = self.create_incremental(validate=False)
-        self.assertFalse(result)
-        self.hmp_io_writes(drive1['id'], (('0x9a', 0, 512),
-                                          ('0x55', '8M', '352k'),
-                                          ('0x78', '15872k', '1M')))
-        self.create_incremental()
         self.vm.shutdown()
         self.check_backups()
 
@@ -531,12 +491,66 @@ class TestIncrementalBackup(iotests.QMPTestCase):
                           granularity=64000)
 
 
-    def tearDown(self):
+class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
+    '''Incremental backup tests that utilize a BlkDebug filter on drive0.'''
+
+    def setUp(self):
+        drive0 = self.add_node('drive0')
+        self.img_create(drive0['file'], drive0['fmt'])
+        self.write_default_pattern(drive0['file'])
+        self.vm.launch()
+
+    def test_incremental_failure(self):
+        '''Test: Verify backups made after a failure are correct.
+
+        Simulate a failure during an incremental backup block job,
+        emulate additional writes, then create another incremental backup
+        afterwards and verify that the backup created is correct.
+        '''
+
+        drive0 = self.drives[0]
+        result = self.vm.qmp('blockdev-add', options={
+            'id': drive0['id'],
+            'driver': drive0['fmt'],
+            'file': {
+                'driver': 'blkdebug',
+                'image': {
+                    'driver': 'file',
+                    'filename': drive0['file']
+                },
+                'set-state': [{
+                    'event': 'flush_to_disk',
+                    'state': 1,
+                    'new_state': 2
+                }],
+                'inject-error': [{
+                    'event': 'read_aio',
+                    'errno': 5,
+                    'state': 2,
+                    'immediately': False,
+                    'once': True
+                }],
+            }
+        })
+        self.assert_qmp(result, 'return', {})
+
+        self.create_anchor_backup(drive0)
+        self.add_bitmap('bitmap0', drive0)
+        # Note: at this point, during a normal execution,
+        # Assume that the VM resumes and begins issuing IO requests here.
+
+        self.hmp_io_writes(drive0['id'], (('0xab', 0, 512),
+                                          ('0xfe', '16M', '256k'),
+                                          ('0x64', '32736k', '64k')))
+
+        result = self.create_incremental(validate=False)
+        self.assertFalse(result)
+        self.hmp_io_writes(drive0['id'], (('0x9a', 0, 512),
+                                          ('0x55', '8M', '352k'),
+                                          ('0x78', '15872k', '1M')))
+        self.create_incremental()
         self.vm.shutdown()
-        for bitmap in self.bitmaps:
-            bitmap.cleanup()
-        for filename in self.files:
-            try_remove(filename)
+        self.check_backups()
 
 
 if __name__ == '__main__':

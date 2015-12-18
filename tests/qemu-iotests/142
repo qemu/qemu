@@ -1,0 +1,354 @@
+#!/bin/bash
+#
+# Test for configuring cache modes of arbitrary nodes (requires O_DIRECT)
+#
+# Copyright (C) 2015 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f $TEST_IMG.snap
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+# We test all cache modes anyway, but O_DIRECT needs to be supported
+_default_cache_mode none
+_supported_cache_modes none directsync
+
+function do_run_qemu()
+{
+    echo Testing: "$@"
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nographic -monitor stdio -nodefaults "$@"
+    echo
+}
+
+function run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu
+}
+
+size=128M
+
+TEST_IMG="$TEST_IMG.base" _make_test_img $size
+TEST_IMG="$TEST_IMG.snap" _make_test_img $size
+_make_test_img -b "$TEST_IMG.base" $size
+
+echo
+echo === Simple test for all cache modes ===
+echo
+
+run_qemu -drive file="$TEST_IMG",cache=none
+run_qemu -drive file="$TEST_IMG",cache=directsync
+run_qemu -drive file="$TEST_IMG",cache=writeback
+run_qemu -drive file="$TEST_IMG",cache=writethrough
+run_qemu -drive file="$TEST_IMG",cache=unsafe
+run_qemu -drive file="$TEST_IMG",cache=invalid_value
+
+echo
+echo === Check inheritance of cache modes ===
+echo
+
+files="if=none,file=$TEST_IMG,backing.file.filename=$TEST_IMG.base"
+ids="node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file"
+
+function check_cache_all()
+{
+    # cache.direct is supposed to be inherited by both bs->file and
+    # bs->backing
+
+    echo -e "cache.direct=on on none0"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.direct=on | grep "Cache"
+    echo -e "\ncache.direct=on on file"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.direct=on | grep "Cache"
+    echo -e "\ncache.direct=on on backing"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.direct=on | grep "Cache"
+    echo -e "\ncache.direct=on on backing-file"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.direct=on | grep "Cache"
+
+    # cache.writeback is supposed to be inherited by bs->backing; bs->file
+    # always gets cache.writeback=on
+
+    echo -e "\n\ncache.writeback=off on none0"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.writeback=off | grep "Cache"
+    echo -e "\ncache.writeback=off on file"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.writeback=off | grep "Cache"
+    echo -e "\ncache.writeback=off on backing"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.writeback=off | grep "Cache"
+    echo -e "\ncache.writeback=off on backing-file"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.writeback=off | grep "Cache"
+
+    # cache.no-flush is supposed to be inherited by both bs->file and bs->backing
+
+    echo -e "\n\ncache.no-flush=on on none0"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",cache.no-flush=on | grep "Cache"
+    echo -e "\ncache.no-flush=on on file"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",file.cache.no-flush=on | grep "Cache"
+    echo -e "\ncache.no-flush=on on backing"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.cache.no-flush=on | grep "Cache"
+    echo -e "\ncache.no-flush=on on backing-file"
+    echo "$hmp_cmds" | run_qemu -drive "$files","$ids",backing.file.cache.no-flush=on | grep "Cache"
+}
+
+echo
+echo "--- Configure cache modes on the command line ---"
+echo
+
+# First check the inherited cache mode after opening the image.
+
+hmp_cmds="info block image
+info block file
+info block backing
+info block backing-file"
+
+check_cache_all
+
+echo
+echo "--- Cache modes after reopen (live snapshot) ---"
+echo
+
+# Then trigger a reopen and check that the cache modes are still the same.
+
+hmp_cmds="snapshot_blkdev -n none0 $TEST_IMG.snap $IMGFMT
+info block
+info block image
+info block file
+info block backing
+info block backing-file"
+
+check_cache_all
+
+echo
+echo "--- Change cache modes with reopen (qemu-io command, flags) ---"
+echo
+
+# This one actually changes the cache mode with the reopen. For this test, the
+# new cache mode is specified in the flags, not as an option.
+
+hmp_cmds='qemu-io none0 "reopen -c none"
+info block image
+info block file
+info block backing
+info block backing-file'
+
+check_cache_all
+
+echo
+echo "--- Change cache modes with reopen (qemu-io command, options) ---"
+echo
+
+# This one actually changes the cache mode with the reopen. For this test, the
+# new cache mode is specified as an option, not in the flags.
+
+hmp_cmds='qemu-io none0 "reopen -o cache.direct=on"
+info block image
+info block file
+info block backing
+info block backing-file'
+
+check_cache_all
+
+echo
+echo "--- Change cache modes after snapshot ---"
+echo
+
+# This checks that the original image doesn't inherit from the snapshot
+
+hmp_cmds="snapshot_blkdev -n none0 $TEST_IMG.snap $IMGFMT
+qemu-io none0 \"reopen -c none\"
+info block none0
+info block image
+info block file
+info block backing
+info block backing-file"
+
+check_cache_all
+
+echo
+echo "--- Change cache mode in parent, child has explicit option in JSON ---"
+echo
+
+# This checks that children with options explicitly set by the json:
+# pseudo-protocol don't inherit these options from their parents.
+#
+# Yes, blkdebug::json:... is criminal, but I can't see another way to have a
+# BDS initialised with the json: pseudo-protocol, but still have it inherit
+# options from its parent node.
+
+hmp_cmds="qemu-io none0 \"reopen -o cache.writeback=off,cache.direct=on,cache.no-flush=on\"
+info block image
+info block blkdebug
+info block file"
+
+echo "$hmp_cmds" | run_qemu -drive if=none,file="blkdebug::json:{\"filename\":\"$TEST_IMG\",,\"cache\":{\"writeback\":false,,\"direct\":false}}",node-name=image,file.node-name=blkdebug,file.image.node-name=file | grep "Cache"
+
+echo
+echo "=== Check that referenced BDSes don't inherit ==="
+echo
+
+drv_bkfile="if=none,driver=file,filename=$TEST_IMG.base,node-name=backing-file"
+drv_bk="if=none,file=json:{'driver':'$IMGFMT',,'file':'backing-file',,'node-name':'backing'}"
+drv_file="if=none,driver=file,filename=$TEST_IMG,node-name=file"
+drv_img="if=none,id=blk,file=json:{'driver':'$IMGFMT',,'file':'file',,'backing':'backing',,'node-name':'image'}"
+
+function check_cache_all_separate()
+{
+    # Check cache.direct
+
+    echo -e "cache.direct=on on blk"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.direct=on | grep "Cache"
+    echo -e "\ncache.direct=on on file"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.direct=on -drive "$drv_img" | grep "Cache"
+    echo -e "\ncache.direct=on on backing"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.direct=on -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo -e "\ncache.direct=on on backing-file"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.direct=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+
+    # Check cache.writeback
+
+    echo -e "\n\ncache.writeback=off on blk"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.writeback=off | grep "Cache"
+    echo -e "\ncache.writeback=off on file"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.writeback=off -drive "$drv_img" | grep "Cache"
+    echo -e "\ncache.writeback=off on backing"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.writeback=off -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo -e "\ncache.writeback=off on backing-file"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.writeback=off -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+
+    # Check cache.no-flush
+
+    echo -e "\n\ncache.no-flush=on on blk"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img",cache.no-flush=on | grep "Cache"
+    echo -e "\ncache.no-flush=on on file"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk" -drive "$drv_file",cache.no-flush=on -drive "$drv_img" | grep "Cache"
+    echo -e "\ncache.no-flush=on on backing"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile" -drive "$drv_bk",cache.no-flush=on -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+    echo -e "\ncache.no-flush=on on backing-file"
+    echo "$hmp_cmds" | run_qemu -drive "$drv_bkfile",cache.no-flush=on -drive "$drv_bk" -drive "$drv_file" -drive "$drv_img" | grep "Cache"
+}
+
+echo
+echo "--- Configure cache modes on the command line ---"
+echo
+
+# First check the inherited cache mode after opening the image.
+
+hmp_cmds="info block image
+info block file
+info block backing
+info block backing-file"
+
+check_cache_all_separate
+
+echo
+echo "--- Cache modes after reopen (live snapshot) ---"
+echo
+
+# Then trigger a reopen and check that the cache modes are still the same.
+
+hmp_cmds="snapshot_blkdev -n blk $TEST_IMG.snap $IMGFMT
+info block blk
+info block image
+info block file
+info block backing
+info block backing-file"
+
+check_cache_all_separate
+
+echo
+echo "--- Change cache modes with reopen (qemu-io command, flags) ---"
+echo
+
+# This one actually changes the cache mode with the reopen. For this test, the
+# new cache mode is specified as flags, not as option.
+
+hmp_cmds='qemu-io blk "reopen -c none"
+info block image
+info block file
+info block backing
+info block backing-file'
+
+check_cache_all_separate
+
+
+echo
+echo "=== Reopening children instead of the root ==="
+echo
+
+files="if=none,file=$TEST_IMG,backing.file.filename=$TEST_IMG.base"
+ids="node-name=image,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file"
+
+echo
+echo "--- Basic reopen ---"
+echo
+
+hmp_cmds='qemu-io none0 "reopen -o backing.cache.direct=on"
+info block image
+info block file
+info block backing
+info block backing-file'
+
+check_cache_all
+
+echo
+echo "--- Change cache mode after reopening child ---"
+echo
+
+# This checks that children with options explicitly set with reopen don't
+# inherit these options from their parents any more
+
+# TODO Implement node-name support for 'qemu-io' HMP command for -c
+# Can use only -o to access child node options for now
+
+hmp_cmds="qemu-io none0 \"reopen -o file.cache.writeback=off,file.cache.direct=off,file.cache.no-flush=off\"
+qemu-io none0 \"reopen -o backing.file.cache.writeback=on,backing.file.cache.direct=off,backing.file.cache.no-flush=on\"
+qemu-io none0 \"reopen -c none\"
+info block image
+info block file
+info block backing
+info block backing-file"
+
+echo "$hmp_cmds" | run_qemu -drive "$files","$ids" | grep "Cache"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

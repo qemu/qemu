@@ -152,7 +152,8 @@ void qemu_progress_print(float delta, int max)
     state.current = current;
 
     if (current > (state.last_print + state.min_skip) ||
-        (current == 100) || (current == 0)) {
+        current < (state.last_print - state.min_skip) ||
+        current == 100 || current == 0) {
         state.last_print = state.current;
         state.print();
     }

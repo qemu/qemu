@@ -150,6 +150,7 @@ typedef struct BDRVReopenState {
     BlockDriverState *bs;
     int flags;
     QDict *options;
+    QDict *explicit_options;
     void *opaque;
 } BDRVReopenState;
 
@@ -197,7 +198,6 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp);
 BlockDriverState *bdrv_new_root(void);
 BlockDriverState *bdrv_new(void);
 void bdrv_make_anon(BlockDriverState *bs);
-void bdrv_swap(BlockDriverState *bs_new, BlockDriverState *bs_old);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_replace_in_backing_chain(BlockDriverState *old,
                                    BlockDriverState *new);
@@ -210,7 +210,8 @@ BdrvChild *bdrv_open_child(const char *filename,
                            const BdrvChildRole *child_role,
                            bool allow_none, Error **errp);
 void bdrv_set_backing_hd(BlockDriverState *bs, BlockDriverState *backing_hd);
-int bdrv_open_backing_file(BlockDriverState *bs, QDict *options, Error **errp);
+int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
+                           const char *bdref_key, Error **errp);
 int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp);
 int bdrv_open(BlockDriverState **pbs, const char *filename,
               const char *reference, QDict *options, int flags, Error **errp);
@@ -304,9 +305,9 @@ int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);
  * block driver; total_work_size may change during the course of the amendment
  * operation */
 typedef void BlockDriverAmendStatusCB(BlockDriverState *bs, int64_t offset,
-                                      int64_t total_work_size);
+                                      int64_t total_work_size, void *opaque);
 int bdrv_amend_options(BlockDriverState *bs_new, QemuOpts *opts,
-                       BlockDriverAmendStatusCB *status_cb);
+                       BlockDriverAmendStatusCB *status_cb, void *cb_opaque);
 
 /* external snapshots */
 bool bdrv_recurse_is_first_non_filter(BlockDriverState *bs,

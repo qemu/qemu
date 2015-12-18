@@ -997,7 +997,7 @@ static void quorum_attach_aio_context(BlockDriverState *bs,
     }
 }
 
-static void quorum_refresh_filename(BlockDriverState *bs)
+static void quorum_refresh_filename(BlockDriverState *bs, QDict *options)
 {
     BDRVQuorumState *s = bs->opaque;
     QDict *opts;

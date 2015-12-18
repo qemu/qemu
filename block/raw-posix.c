@@ -500,21 +500,17 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         goto fail;
     }
     if (!s->use_aio && (bdrv_flags & BDRV_O_NATIVE_AIO)) {
-        error_printf("WARNING: aio=native was specified for '%s', but "
-                     "it requires cache.direct=on, which was not "
-                     "specified. Falling back to aio=threads.\n"
-                     "         This will become an error condition in "
-                     "future QEMU versions.\n",
-                     bs->filename);
+        error_setg(errp, "aio=native was specified, but it requires "
+                         "cache.direct=on, which was not specified.");
+        ret = -EINVAL;
+        goto fail;
     }
 #else
     if (bdrv_flags & BDRV_O_NATIVE_AIO) {
-        error_printf("WARNING: aio=native was specified for '%s', but "
-                     "is not supported in this build. Falling back to "
-                     "aio=threads.\n"
-                     "         This will become an error condition in "
-                     "future QEMU versions.\n",
-                     bs->filename);
+        error_setg(errp, "aio=native was specified, but is not supported "
+                         "in this build.");
+        ret = -EINVAL;
+        goto fail;
     }
 #endif /* !defined(CONFIG_LINUX_AIO) */
 

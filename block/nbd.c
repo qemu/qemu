@@ -342,13 +342,13 @@ static void nbd_attach_aio_context(BlockDriverState *bs,
     nbd_client_attach_aio_context(bs, new_context);
 }
 
-static void nbd_refresh_filename(BlockDriverState *bs)
+static void nbd_refresh_filename(BlockDriverState *bs, QDict *options)
 {
     QDict *opts = qdict_new();
-    const char *path   = qdict_get_try_str(bs->options, "path");
-    const char *host   = qdict_get_try_str(bs->options, "host");
-    const char *port   = qdict_get_try_str(bs->options, "port");
-    const char *export = qdict_get_try_str(bs->options, "export");
+    const char *path   = qdict_get_try_str(options, "path");
+    const char *host   = qdict_get_try_str(options, "host");
+    const char *port   = qdict_get_try_str(options, "port");
+    const char *export = qdict_get_try_str(options, "export");
 
     qdict_put_obj(opts, "driver", QOBJECT(qstring_from_str("nbd")));
 

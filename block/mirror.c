@@ -18,6 +18,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/ratelimit.h"
 #include "qemu/bitmap.h"
+#include "qemu/error-report.h"
 
 #define SLICE_TIME    100000000ULL /* ns */
 #define MAX_IN_FLIGHT 16
@@ -370,11 +371,22 @@ static void mirror_exit(BlockJob *job, void *opaque)
         if (s->to_replace) {
             to_replace = s->to_replace;
         }
+
+        /* This was checked in mirror_start_job(), but meanwhile one of the
+         * nodes could have been newly attached to a BlockBackend. */
+        if (to_replace->blk && s->target->blk) {
+            error_report("block job: Can't create node with two BlockBackends");
+            data->ret = -EINVAL;
+            goto out;
+        }
+
         if (bdrv_get_flags(s->target) != bdrv_get_flags(to_replace)) {
             bdrv_reopen(s->target, bdrv_get_flags(to_replace), NULL);
         }
         bdrv_replace_in_backing_chain(to_replace, s->target);
     }
+
+out:
     if (s->to_replace) {
         bdrv_op_unblock_all(s->to_replace, s->replace_blocker);
         error_free(s->replace_blocker);
@@ -640,7 +652,7 @@ static void mirror_complete(BlockJob *job, Error **errp)
     Error *local_err = NULL;
     int ret;
 
-    ret = bdrv_open_backing_file(s->target, NULL, &local_err);
+    ret = bdrv_open_backing_file(s->target, NULL, "backing", &local_err);
     if (ret < 0) {
         error_propagate(errp, local_err);
         return;
@@ -705,6 +717,7 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
                              bool is_none_mode, BlockDriverState *base)
 {
     MirrorBlockJob *s;
+    BlockDriverState *replaced_bs;
 
     if (granularity == 0) {
         granularity = bdrv_get_default_bitmap_granularity(target);
@@ -726,6 +739,21 @@ static void mirror_start_job(BlockDriverState *bs, BlockDriverState *target,
 
     if (buf_size == 0) {
         buf_size = DEFAULT_MIRROR_BUF_SIZE;
+    }
+
+    /* We can't support this case as long as the block layer can't handle
+     * multiple BlockBackends per BlockDriverState. */
+    if (replaces) {
+        replaced_bs = bdrv_lookup_bs(replaces, replaces, errp);
+        if (replaced_bs == NULL) {
+            return;
+        }
+    } else {
+        replaced_bs = bs;
+    }
+    if (replaced_bs->blk && target->blk) {
+        error_setg(errp, "Can't create node with two BlockBackends");
+        return;
     }
 
     s = block_job_create(driver, bs, speed, cb, opaque, errp);

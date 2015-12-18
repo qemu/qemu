@@ -387,16 +387,6 @@ static void extract_common_blockdev_options(QemuOpts *opts, int *bdrv_flags,
             }
         }
 
-        if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_WB, true)) {
-            *bdrv_flags |= BDRV_O_CACHE_WB;
-        }
-        if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_DIRECT, false)) {
-            *bdrv_flags |= BDRV_O_NOCACHE;
-        }
-        if (qemu_opt_get_bool(opts, BDRV_OPT_CACHE_NO_FLUSH, false)) {
-            *bdrv_flags |= BDRV_O_NO_FLUSH;
-        }
-
         if ((aio = qemu_opt_get(opts, "aio")) != NULL) {
             if (!strcmp(aio, "native")) {
                 *bdrv_flags |= BDRV_O_NATIVE_AIO;
@@ -490,7 +480,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     QDict *interval_dict = NULL;
     QList *interval_list = NULL;
     const char *id;
-    bool has_driver_specific_opts;
     BlockdevDetectZeroesOptions detect_zeroes =
         BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF;
     const char *throttling_group = NULL;
@@ -513,8 +502,6 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     if (id) {
         qdict_del(bs_opts, "id");
     }
-
-    has_driver_specific_opts = !!qdict_size(bs_opts);
 
     /* extract parameters */
     snapshot = qemu_opt_get_bool(opts, "snapshot", 0);
@@ -572,13 +559,11 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     if (snapshot) {
-        /* always use cache=unsafe with snapshot */
-        bdrv_flags &= ~BDRV_O_CACHE_MASK;
-        bdrv_flags |= (BDRV_O_SNAPSHOT|BDRV_O_CACHE_WB|BDRV_O_NO_FLUSH);
+        bdrv_flags |= BDRV_O_SNAPSHOT;
     }
 
     /* init */
-    if ((!file || !*file) && !has_driver_specific_opts) {
+    if ((!file || !*file) && !qdict_size(bs_opts)) {
         BlockBackendRootState *blk_rs;
 
         blk = blk_new(qemu_opts_id(opts), errp);
@@ -604,6 +589,20 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     } else {
         if (file && !*file) {
             file = NULL;
+        }
+
+        /* bdrv_open() defaults to the values in bdrv_flags (for compatibility
+         * with other callers) rather than what we want as the real defaults.
+         * Apply the defaults here instead. */
+        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_WB, "on");
+        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_DIRECT, "off");
+        qdict_set_default_str(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, "off");
+
+        if (snapshot) {
+            /* always use cache=unsafe with snapshot */
+            qdict_put(bs_opts, BDRV_OPT_CACHE_WB, qstring_from_str("on"));
+            qdict_put(bs_opts, BDRV_OPT_CACHE_DIRECT, qstring_from_str("off"));
+            qdict_put(bs_opts, BDRV_OPT_CACHE_NO_FLUSH, qstring_from_str("on"));
         }
 
         blk = blk_new_open(qemu_opts_id(opts), file, NULL, bs_opts, bdrv_flags,
@@ -3873,18 +3872,6 @@ QemuOptsList qemu_common_drive_opts = {
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
         },{
-            .name = BDRV_OPT_CACHE_WB,
-            .type = QEMU_OPT_BOOL,
-            .help = "enables writeback mode for any caches",
-        },{
-            .name = BDRV_OPT_CACHE_DIRECT,
-            .type = QEMU_OPT_BOOL,
-            .help = "enables use of O_DIRECT (bypass the host page cache)",
-        },{
-            .name = BDRV_OPT_CACHE_NO_FLUSH,
-            .type = QEMU_OPT_BOOL,
-            .help = "ignore any flush requests for the device",
-        },{
             .name = "aio",
             .type = QEMU_OPT_STRING,
             .help = "host AIO implementation (threads, native)",
@@ -3991,18 +3978,6 @@ static QemuOptsList qemu_root_bds_opts = {
             .name = "discard",
             .type = QEMU_OPT_STRING,
             .help = "discard operation (ignore/off, unmap/on)",
-        },{
-            .name = "cache.writeback",
-            .type = QEMU_OPT_BOOL,
-            .help = "enables writeback mode for any caches",
-        },{
-            .name = "cache.direct",
-            .type = QEMU_OPT_BOOL,
-            .help = "enables use of O_DIRECT (bypass the host page cache)",
-        },{
-            .name = "cache.no-flush",
-            .type = QEMU_OPT_BOOL,
-            .help = "ignore any flush requests for the device",
         },{
             .name = "aio",
             .type = QEMU_OPT_STRING,

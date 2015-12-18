@@ -2614,10 +2614,11 @@ int bdrv_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
         bdrv_co_ioctl_entry(&data);
     } else {
         Coroutine *co = qemu_coroutine_create(bdrv_co_ioctl_entry);
+
         qemu_coroutine_enter(co, &data);
-    }
-    while (data.ret == -EINPROGRESS) {
-        aio_poll(bdrv_get_aio_context(bs), true);
+        while (data.ret == -EINPROGRESS) {
+            aio_poll(bdrv_get_aio_context(bs), true);
+        }
     }
     return data.ret;
 }

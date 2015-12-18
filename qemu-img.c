@@ -2040,7 +2040,10 @@ static ImageInfoList *collect_image_info_list(const char *filename,
             if (info->has_full_backing_filename) {
                 filename = info->full_backing_filename;
             } else if (info->has_backing_filename) {
-                filename = info->backing_filename;
+                error_report("Could not determine absolute backing filename,"
+                             " but backing filename '%s' present",
+                             info->backing_filename);
+                goto err;
             }
             if (info->has_backing_filename_format) {
                 fmt = info->backing_filename_format;
@@ -2896,7 +2899,8 @@ out:
 }
 
 static void amend_status_cb(BlockDriverState *bs,
-                            int64_t offset, int64_t total_work_size)
+                            int64_t offset, int64_t total_work_size,
+                            void *opaque)
 {
     qemu_progress_print(100.f * offset / total_work_size, 0);
 }
@@ -3020,7 +3024,7 @@ static int img_amend(int argc, char **argv)
 
     /* In case the driver does not call amend_status_cb() */
     qemu_progress_print(0.f, 0);
-    ret = bdrv_amend_options(bs, opts, &amend_status_cb);
+    ret = bdrv_amend_options(bs, opts, &amend_status_cb, NULL);
     qemu_progress_print(100.f, 0);
     if (ret < 0) {
         error_report("Error while amending options: %s", strerror(-ret));
