@@ -199,7 +199,6 @@
 #define RCC_APB1ENR_BKPEN_BIT    27
 #define RCC_APB1ENR_CAN2EN_BIT   26
 #define RCC_APB1ENR_CAN1EN_BIT   25
-#define RCC_APB1ENR_CANEN_BIT    25
 #define RCC_APB1ENR_USBEN_BIT    23
 #define RCC_APB1ENR_I2C2EN_BIT   22
 #define RCC_APB1ENR_I2C1EN_BIT   21
@@ -360,7 +359,7 @@ static void stm32_rcc_RCC_CR_write(Stm32Rcc *s, uint32_t new_value, bool init)
     clktree_set_enabled(s->HSECLK, new_hseon);
 
     new_hsion = new_value & BIT(RCC_CR_HSION_BIT);
-    if((clktree_is_enabled(s->HSECLK) && !new_hseon) &&
+    if((clktree_is_enabled(s->HSICLK) && !new_hsion) &&
        (s->RCC_CFGR_SW == SW_HSI_SELECTED ||
         (s->RCC_CFGR_SW == SW_PLL_SELECTED && s->RCC_CFGR_PLLSRC == PLLSRC_HSI_SELECTED)
        )
@@ -870,7 +869,7 @@ static int stm32_rcc_init(SysBusDevice *dev)
     Stm32Rcc *s = STM32_RCC(dev);
 
     memory_region_init_io(&s->iomem, OBJECT(s), &stm32_rcc_ops, s,
-                          "rcc", 0x1000);
+                          "rcc", 0x3FF);
 
     sysbus_init_mmio(dev, &s->iomem);
 
