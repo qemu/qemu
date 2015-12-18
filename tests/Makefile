@@ -84,6 +84,12 @@ check-unit-$(CONFIG_GNUTLS) += tests/test-crypto-tlscredsx509$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-crypto-tlssession$(EXESUF)
 check-unit-$(CONFIG_LINUX) += tests/test-qga$(EXESUF)
 check-unit-y += tests/test-timed-average$(EXESUF)
+check-unit-y += tests/test-io-task$(EXESUF)
+check-unit-y += tests/test-io-channel-socket$(EXESUF)
+check-unit-y += tests/test-io-channel-file$(EXESUF)
+check-unit-$(CONFIG_GNUTLS) += tests/test-io-channel-tls$(EXESUF)
+check-unit-y += tests/test-io-channel-command$(EXESUF)
+check-unit-y += tests/test-io-channel-buffer$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -381,6 +387,7 @@ test-qapi-obj-y = tests/test-qapi-visit.o tests/test-qapi-types.o \
 	$(test-qom-obj-y)
 test-crypto-obj-y = $(crypto-obj-y) $(test-qom-obj-y)
 test-block-obj-y = $(block-obj-y) $(test-crypto-obj-y)
+test-io-obj-y = $(io-obj-y) $(test-crypto-obj-y)
 
 tests/check-qint$(EXESUF): tests/check-qint.o $(test-util-obj-y)
 tests/check-qstring$(EXESUF): tests/check-qstring.o $(test-util-obj-y)
@@ -469,6 +476,18 @@ tests/test-crypto-tlscredsx509$(EXESUF): tests/test-crypto-tlscredsx509.o \
 tests/test-crypto-tlssession.o-cflags := $(TASN1_CFLAGS)
 tests/test-crypto-tlssession$(EXESUF): tests/test-crypto-tlssession.o \
 	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o $(test-crypto-obj-y)
+tests/test-io-task$(EXESUF): tests/test-io-task.o $(test-io-obj-y)
+tests/test-io-channel-socket$(EXESUF): tests/test-io-channel-socket.o \
+        tests/io-channel-helpers.o $(test-io-obj-y)
+tests/test-io-channel-file$(EXESUF): tests/test-io-channel-file.o \
+        tests/io-channel-helpers.o $(test-io-obj-y)
+tests/test-io-channel-tls$(EXESUF): tests/test-io-channel-tls.o \
+	tests/crypto-tls-x509-helpers.o tests/pkix_asn1_tab.o \
+	tests/io-channel-helpers.o $(test-io-obj-y)
+tests/test-io-channel-command$(EXESUF): tests/test-io-channel-command.o \
+        tests/io-channel-helpers.o $(test-io-obj-y)
+tests/test-io-channel-buffer$(EXESUF): tests/test-io-channel-buffer.o \
+        tests/io-channel-helpers.o $(test-io-obj-y)
 
 libqos-obj-y = tests/libqos/pci.o tests/libqos/fw_cfg.o tests/libqos/malloc.o
 libqos-obj-y += tests/libqos/i2c.o tests/libqos/libqos.o

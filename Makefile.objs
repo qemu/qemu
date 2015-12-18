@@ -28,6 +28,11 @@ crypto-aes-obj-y = crypto/
 
 qom-obj-y = qom/
 
+#######################################################################
+# io-obj-y is code used by both qemu system emulation and qemu-img
+
+io-obj-y = io/
+
 ######################################################################
 # Target independent part of system emulation. The long term path is to
 # suppress *all* target specific code in case of system emulation, i.e. a

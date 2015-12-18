@@ -61,6 +61,15 @@ case $line in
     value=${line#*=}
     echo "#define $name $value"
     ;;
+ HAVE_*=y) # configuration
+    name=${line%=*}
+    echo "#define $name 1"
+    ;;
+ HAVE_*=*) # configuration
+    name=${line%=*}
+    value=${line#*=}
+    echo "#define $name $value"
+    ;;
  ARCH=*) # configuration
     arch=${line#*=}
     arch_name=`echo $arch | LC_ALL=C tr '[a-z]' '[A-Z]'`

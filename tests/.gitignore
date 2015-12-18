@@ -24,6 +24,14 @@ test-cutils
 test-hbitmap
 test-int128
 test-iov
+test-io-channel-buffer
+test-io-channel-command
+test-io-channel-command.fifo
+test-io-channel-file
+test-io-channel-file.txt
+test-io-channel-socket
+test-io-channel-tls
+test-io-task
 test-mul64
 test-opts-visitor
 test-qapi-event.[ch]
