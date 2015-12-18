@@ -266,8 +266,7 @@ int qdev_device_help(QemuOpts *opts)
     return 1;
 
 error:
-    error_printf("%s\n", error_get_pretty(local_err));
-    error_free(local_err);
+    error_report_err(local_err);
     return 1;
 }
 

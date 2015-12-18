@@ -251,8 +251,7 @@ static void *nbd_client_thread(void *arg)
                                 &size, &local_error);
     if (ret < 0) {
         if (local_error) {
-            fprintf(stderr, "%s\n", error_get_pretty(local_error));
-            error_free(local_error);
+            error_report_err(local_error);
         }
         goto out_socket;
     }
