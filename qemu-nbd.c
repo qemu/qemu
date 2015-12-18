@@ -156,8 +156,7 @@ static int find_partition(BlockBackend *blk, int partition,
     int ret;
 
     if ((ret = blk_read(blk, 0, data, 1)) < 0) {
-        errno = -ret;
-        error_report("error while reading: %s", strerror(errno));
+        error_report("error while reading: %s", strerror(-ret));
         exit(EXIT_FAILURE);
     }
 
@@ -178,8 +177,7 @@ static int find_partition(BlockBackend *blk, int partition,
             int j;
 
             if ((ret = blk_read(blk, mbr[i].start_sector_abs, data1, 1)) < 0) {
-                errno = -ret;
-                error_report("error while reading: %s", strerror(errno));
+                error_report("error while reading: %s", strerror(-ret));
                 exit(EXIT_FAILURE);
             }
 
@@ -721,9 +719,8 @@ int main(int argc, char **argv)
                                                    &local_err);
     }
     if (ret < 0) {
-        errno = -ret;
-        error_report("Failed to load snapshot: %s: %s",
-                     error_get_pretty(local_err), strerror(errno));
+        error_report("Failed to load snapshot: %s",
+                     error_get_pretty(local_err));
         exit(EXIT_FAILURE);
     }
 
@@ -738,9 +735,8 @@ int main(int argc, char **argv)
     if (partition != -1) {
         ret = find_partition(blk, partition, &dev_offset, &fd_size);
         if (ret < 0) {
-            errno = -ret;
             error_report("Could not find partition %d: %s", partition,
-                         strerror(errno));
+                         strerror(-ret));
             exit(EXIT_FAILURE);
         }
     }
