@@ -259,7 +259,7 @@ def main(address, cmd, args):
 
     try:
         client = QemuGuestAgentClient(address)
-    except QemuGuestAgent.error, e:
+    except QemuGuestAgent.error as e:
         import errno
 
         print(e)
