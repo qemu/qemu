@@ -62,7 +62,7 @@ long vnc_client_write_sasl(VncState *vs)
                           (const char **)&vs->sasl.encoded,
                           &vs->sasl.encodedLength);
         if (err != SASL_OK)
-            return vnc_client_io_error(vs, -1, EIO);
+            return vnc_client_io_error(vs, -1, NULL);
 
         vs->sasl.encodedOffset = 0;
     }
@@ -86,7 +86,11 @@ long vnc_client_write_sasl(VncState *vs)
      * SASL encoded output
      */
     if (vs->output.offset == 0) {
-        qemu_set_fd_handler(vs->csock, vnc_client_read, NULL, vs);
+        if (vs->ioc_tag) {
+            g_source_remove(vs->ioc_tag);
+        }
+        vs->ioc_tag = qio_channel_add_watch(
+            vs->ioc, G_IO_IN, vnc_client_io, vs, NULL);
     }
 
     return ret;
@@ -110,7 +114,7 @@ long vnc_client_read_sasl(VncState *vs)
                       &decoded, &decodedLen);
 
     if (err != SASL_OK)
-        return vnc_client_io_error(vs, -1, -EIO);
+        return vnc_client_io_error(vs, -1, NULL);
     VNC_DEBUG("Read SASL Encoded %p size %ld Decoded %p size %d\n",
               encoded, ret, decoded, decodedLen);
     buffer_reserve(&vs->input, decodedLen);
@@ -255,17 +259,17 @@ static int protocol_client_auth_sasl_step(VncState *vs, uint8_t *data, size_t le
         vnc_read_when(vs, protocol_client_auth_sasl_step_len, 4);
     } else {
         if (!vnc_auth_sasl_check_ssf(vs)) {
-            VNC_DEBUG("Authentication rejected for weak SSF %d\n", vs->csock);
+            VNC_DEBUG("Authentication rejected for weak SSF %p\n", vs->ioc);
             goto authreject;
         }
 
         /* Check username whitelist ACL */
         if (vnc_auth_sasl_check_access(vs) < 0) {
-            VNC_DEBUG("Authentication rejected for ACL %d\n", vs->csock);
+            VNC_DEBUG("Authentication rejected for ACL %p\n", vs->ioc);
             goto authreject;
         }
 
-        VNC_DEBUG("Authentication successful %d\n", vs->csock);
+        VNC_DEBUG("Authentication successful %p\n", vs->ioc);
         vnc_write_u32(vs, 0); /* Accept auth */
         /*
          * Delay writing in SSF encoded mode until pending output
@@ -383,17 +387,17 @@ static int protocol_client_auth_sasl_start(VncState *vs, uint8_t *data, size_t l
         vnc_read_when(vs, protocol_client_auth_sasl_step_len, 4);
     } else {
         if (!vnc_auth_sasl_check_ssf(vs)) {
-            VNC_DEBUG("Authentication rejected for weak SSF %d\n", vs->csock);
+            VNC_DEBUG("Authentication rejected for weak SSF %p\n", vs->ioc);
             goto authreject;
         }
 
         /* Check username whitelist ACL */
         if (vnc_auth_sasl_check_access(vs) < 0) {
-            VNC_DEBUG("Authentication rejected for ACL %d\n", vs->csock);
+            VNC_DEBUG("Authentication rejected for ACL %p\n", vs->ioc);
             goto authreject;
         }
 
-        VNC_DEBUG("Authentication successful %d\n", vs->csock);
+        VNC_DEBUG("Authentication successful %p\n", vs->ioc);
         vnc_write_u32(vs, 0); /* Accept auth */
         start_client_init(vs);
     }
@@ -487,6 +491,32 @@ static int protocol_client_auth_sasl_mechname_len(VncState *vs, uint8_t *data, s
     return 0;
 }
 
+static char *
+vnc_socket_ip_addr_string(QIOChannelSocket *ioc,
+                          bool local,
+                          Error **errp)
+{
+    SocketAddress *addr;
+    char *ret;
+
+    if (local) {
+        addr = qio_channel_socket_get_local_address(ioc, errp);
+    } else {
+        addr = qio_channel_socket_get_remote_address(ioc, errp);
+    }
+    if (!addr) {
+        return NULL;
+    }
+
+    if (addr->type != SOCKET_ADDRESS_KIND_INET) {
+        error_setg(errp, "Not an inet socket type");
+        return NULL;
+    }
+    ret = g_strdup_printf("%s;%s", addr->u.inet->host, addr->u.inet->port);
+    qapi_free_SocketAddress(addr);
+    return ret;
+}
+
 void start_auth_sasl(VncState *vs)
 {
     const char *mechlist = NULL;
@@ -495,13 +525,16 @@ void start_auth_sasl(VncState *vs)
     char *localAddr, *remoteAddr;
     int mechlistlen;
 
-    VNC_DEBUG("Initialize SASL auth %d\n", vs->csock);
+    VNC_DEBUG("Initialize SASL auth %p\n", vs->ioc);
 
     /* Get local & remote client addresses in form  IPADDR;PORT */
-    if (!(localAddr = vnc_socket_local_addr("%s;%s", vs->csock)))
+    localAddr = vnc_socket_ip_addr_string(vs->sioc, true, NULL);
+    if (!localAddr) {
         goto authabort;
+    }
 
-    if (!(remoteAddr = vnc_socket_remote_addr("%s;%s", vs->csock))) {
+    remoteAddr = vnc_socket_ip_addr_string(vs->sioc, false, NULL);
+    if (!remoteAddr) {
         g_free(localAddr);
         goto authabort;
     }
