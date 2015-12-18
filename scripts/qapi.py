@@ -167,7 +167,7 @@ class QAPISchemaParser(object):
                     continue
                 try:
                     fobj = open(incl_abs_fname, 'r')
-                except IOError, e:
+                except IOError as e:
                     raise QAPIExprError(expr_info,
                                         '%s: %s' % (e.strerror, include))
                 exprs_include = QAPISchemaParser(fobj, previously_included,
@@ -1189,7 +1189,7 @@ class QAPISchema(object):
             self._predefining = False
             self._def_exprs()
             self.check()
-        except (QAPISchemaError, QAPIExprError), err:
+        except (QAPISchemaError, QAPIExprError) as err:
             print >>sys.stderr, err
             exit(1)
 
@@ -1686,7 +1686,7 @@ def parse_command_line(extra_options="", extra_long_options=[]):
                                        "chp:o:" + extra_options,
                                        ["source", "header", "prefix=",
                                         "output-dir="] + extra_long_options)
-    except getopt.GetoptError, err:
+    except getopt.GetoptError as err:
         print >>sys.stderr, "%s: %s" % (sys.argv[0], str(err))
         sys.exit(1)
 
@@ -1740,7 +1740,7 @@ def open_output(output_dir, do_c, do_h, prefix, c_file, h_file,
     if output_dir:
         try:
             os.makedirs(output_dir)
-        except os.error, e:
+        except os.error as e:
             if e.errno != errno.EEXIST:
                 raise
 
