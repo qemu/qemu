@@ -142,7 +142,6 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
                                   Error **errp)
 {
     VirtIOBlockDataPlane *s;
-    Error *local_err = NULL;
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
 
@@ -163,11 +162,8 @@ void virtio_blk_data_plane_create(VirtIODevice *vdev, VirtIOBlkConf *conf,
     /* If dataplane is (re-)enabled while the guest is running there could be
      * block jobs that can conflict.
      */
-    if (blk_op_is_blocked(conf->conf.blk, BLOCK_OP_TYPE_DATAPLANE,
-                          &local_err)) {
-        error_setg(errp, "cannot start dataplane thread: %s",
-                   error_get_pretty(local_err));
-        error_free(local_err);
+    if (blk_op_is_blocked(conf->conf.blk, BLOCK_OP_TYPE_DATAPLANE, errp)) {
+        error_prepend(errp, "cannot start dataplane thread: ");
         return;
     }
 

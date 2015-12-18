@@ -1762,9 +1762,8 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     ret = qcow2_open(bs, options, flags, &local_err);
     QDECREF(options);
     if (local_err) {
-        error_setg(errp, "Could not reopen qcow2 layer: %s",
-                   error_get_pretty(local_err));
-        error_free(local_err);
+        error_propagate(errp, local_err);
+        error_prepend(errp, "Could not reopen qcow2 layer: ");
         return;
     } else if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not reopen qcow2 layer");

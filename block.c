@@ -1349,12 +1349,10 @@ int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
     ret = bdrv_open_inherit(&backing_hd,
                             *backing_filename ? backing_filename : NULL,
                             reference, options, 0, bs, &child_backing,
-                            &local_err);
+                            errp);
     if (ret < 0) {
         bs->open_flags |= BDRV_O_NO_BACKING;
-        error_setg(errp, "Could not open backing file: %s",
-                   error_get_pretty(local_err));
-        error_free(local_err);
+        error_prepend(errp, "Could not open backing file: ");
         goto free_exit;
     }
 
@@ -1460,12 +1458,11 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     opts = qemu_opts_create(bdrv_qcow2.create_opts, NULL, 0,
                             &error_abort);
     qemu_opt_set_number(opts, BLOCK_OPT_SIZE, total_size, &error_abort);
-    ret = bdrv_create(&bdrv_qcow2, tmp_filename, opts, &local_err);
+    ret = bdrv_create(&bdrv_qcow2, tmp_filename, opts, errp);
     qemu_opts_del(opts);
     if (ret < 0) {
-        error_setg(errp, "Could not create temporary overlay '%s': %s",
-                   tmp_filename, error_get_pretty(local_err));
-        error_free(local_err);
+        error_prepend(errp, "Could not create temporary overlay '%s': ",
+                      tmp_filename);
         goto out;
     }
 
@@ -3729,9 +3726,9 @@ bool bdrv_op_is_blocked(BlockDriverState *bs, BlockOpType op, Error **errp)
     if (!QLIST_EMPTY(&bs->op_blockers[op])) {
         blocker = QLIST_FIRST(&bs->op_blockers[op]);
         if (errp) {
-            error_setg(errp, "Node '%s' is busy: %s",
-                       bdrv_get_device_or_node_name(bs),
-                       error_get_pretty(blocker->reason));
+            *errp = error_copy(blocker->reason);
+            error_prepend(errp, "Node '%s' is busy: ",
+                          bdrv_get_device_or_node_name(bs));
         }
         return true;
     }
