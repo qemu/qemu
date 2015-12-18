@@ -2439,7 +2439,7 @@ static int img_snapshot(int argc, char **argv)
     case SNAPSHOT_DELETE:
         bdrv_snapshot_delete_by_id_or_name(bs, snapshot_name, &err);
         if (err) {
-            error_report("Could not delete snapshot '%s': (%s)",
+            error_report("Could not delete snapshot '%s': %s",
                          snapshot_name, error_get_pretty(err));
             error_free(err);
             ret = 1;
