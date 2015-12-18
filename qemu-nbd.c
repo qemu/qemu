@@ -495,8 +495,8 @@ int main(int argc, char **argv)
                                 BLOCKDEV_DETECT_ZEROES_OPTIONS_OFF,
                                 &local_err);
             if (local_err) {
-                error_report("Failed to parse detect_zeroes mode: %s",
-                             error_get_pretty(local_err));
+                error_reportf_err(local_err,
+                                  "Failed to parse detect_zeroes mode: ");
                 exit(EXIT_FAILURE);
             }
             if (detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP &&
@@ -703,8 +703,8 @@ int main(int argc, char **argv)
     srcpath = argv[optind];
     blk = blk_new_open("hda", srcpath, NULL, options, flags, &local_err);
     if (!blk) {
-        error_report("Failed to blk_new_open '%s': %s", argv[optind],
-                     error_get_pretty(local_err));
+        error_reportf_err(local_err, "Failed to blk_new_open '%s': ",
+                          argv[optind]);
         exit(EXIT_FAILURE);
     }
     bs = blk_bs(blk);
@@ -719,8 +719,7 @@ int main(int argc, char **argv)
                                                    &local_err);
     }
     if (ret < 0) {
-        error_report("Failed to load snapshot: %s",
-                     error_get_pretty(local_err));
+        error_reportf_err(local_err, "Failed to load snapshot: ");
         exit(EXIT_FAILURE);
     }
 

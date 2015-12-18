@@ -725,9 +725,8 @@ USBDevice *usbdevice_create(const char *cmdline)
     }
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
     if (err) {
-        error_report("Failed to initialize USB device '%s': %s",
-                     f->name, error_get_pretty(err));
-        error_free(err);
+        error_reportf_err(err, "Failed to initialize USB device '%s': ",
+                          f->name);
         object_unparent(OBJECT(dev));
         return NULL;
     }

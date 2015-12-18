@@ -64,8 +64,7 @@ static void digic4_board_init(DigicBoard *board)
     s->digic = DIGIC(object_new(TYPE_DIGIC));
     object_property_set_bool(OBJECT(s->digic), true, "realized", &err);
     if (err != NULL) {
-        error_report("Couldn't realize DIGIC SoC: %s",
-                     error_get_pretty(err));
+        error_reportf_err(err, "Couldn't realize DIGIC SoC: ");
         exit(1);
     }
 
