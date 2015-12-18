@@ -198,7 +198,7 @@ static void virgl_cmd_submit_3d(VirtIOGPU *g,
         qemu_log_mask(LOG_GUEST_ERROR, "%s: size mismatch (%zd/%d)",
                       __func__, s, cs.size);
         cmd->error = VIRTIO_GPU_RESP_ERR_INVALID_PARAMETER;
-        return;
+        goto out;
     }
 
     if (virtio_gpu_stats_enabled(g->conf)) {
@@ -208,6 +208,7 @@ static void virgl_cmd_submit_3d(VirtIOGPU *g,
 
     virgl_renderer_submit_cmd(buf, cs.hdr.ctx_id, cs.size / 4);
 
+out:
     g_free(buf);
 }
 
