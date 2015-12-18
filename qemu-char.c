@@ -32,6 +32,7 @@
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
 #include "qapi-visit.h"
+#include "qemu/base64.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -3264,7 +3265,12 @@ void qmp_ringbuf_write(const char *device, const char *data,
     }
 
     if (has_format && (format == DATA_FORMAT_BASE64)) {
-        write_data = g_base64_decode(data, &write_count);
+        write_data = qbase64_decode(data, -1,
+                                    &write_count,
+                                    errp);
+        if (!write_data) {
+            return;
+        }
     } else {
         write_data = (uint8_t *)data;
         write_count = strlen(data);

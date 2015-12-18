@@ -34,6 +34,7 @@
 #include "qapi/qmp/qerror.h"
 #include "qemu/queue.h"
 #include "qemu/host-utils.h"
+#include "qemu/base64.h"
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
 #define SHTDN_REASON_FLAG_PLANNED 0x80000000
@@ -357,7 +358,10 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
         return NULL;
     }
     fh = gfh->fh;
-    buf = g_base64_decode(buf_b64, &buf_len);
+    buf = qbase64_decode(buf_b64, -1, &buf_len, errp);
+    if (!buf) {
+        return NULL;
+    }
 
     if (!has_count) {
         count = buf_len;
@@ -1294,7 +1298,10 @@ void qmp_guest_set_user_password(const char *username,
         return;
     }
 
-    rawpasswddata = (char *)g_base64_decode(password, &rawpasswdlen);
+    rawpasswddata = (char *)qbase64_decode(password, -1, &rawpasswdlen, errp);
+    if (!rawpasswddata) {
+        return;
+    }
     rawpasswddata = g_renew(char, rawpasswddata, rawpasswdlen + 1);
     rawpasswddata[rawpasswdlen] = '\0';
 

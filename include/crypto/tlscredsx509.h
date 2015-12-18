@@ -101,6 +101,7 @@ struct QCryptoTLSCredsX509 {
     gnutls_certificate_credentials_t data;
 #endif
     bool sanityCheck;
+    char *passwordid;
 };
 
 

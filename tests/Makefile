@@ -80,6 +80,7 @@ check-unit-y += tests/test-write-threshold$(EXESUF)
 gcov-files-test-write-threshold-y = block/write-threshold.c
 check-unit-$(CONFIG_GNUTLS_HASH) += tests/test-crypto-hash$(EXESUF)
 check-unit-y += tests/test-crypto-cipher$(EXESUF)
+check-unit-y += tests/test-crypto-secret$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-crypto-tlscredsx509$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-crypto-tlssession$(EXESUF)
 check-unit-$(CONFIG_LINUX) += tests/test-qga$(EXESUF)
@@ -90,6 +91,7 @@ check-unit-y += tests/test-io-channel-file$(EXESUF)
 check-unit-$(CONFIG_GNUTLS) += tests/test-io-channel-tls$(EXESUF)
 check-unit-y += tests/test-io-channel-command$(EXESUF)
 check-unit-y += tests/test-io-channel-buffer$(EXESUF)
+check-unit-y += tests/test-base64$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
@@ -423,6 +425,8 @@ tests/test-vmstate$(EXESUF): tests/test-vmstate.o \
 	$(test-qom-obj-y)
 tests/test-timed-average$(EXESUF): tests/test-timed-average.o qemu-timer.o \
 	$(test-util-obj-y)
+tests/test-base64$(EXESUF): tests/test-base64.o \
+	libqemuutil.a libqemustub.a
 
 tests/test-qapi-types.c tests/test-qapi-types.h :\
 $(SRC_PATH)/tests/qapi-schema/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py $(qapi-py)
@@ -464,6 +468,7 @@ tests/test-mul64$(EXESUF): tests/test-mul64.o $(test-util-obj-y)
 tests/test-bitops$(EXESUF): tests/test-bitops.o $(test-util-obj-y)
 tests/test-crypto-hash$(EXESUF): tests/test-crypto-hash.o $(test-crypto-obj-y)
 tests/test-crypto-cipher$(EXESUF): tests/test-crypto-cipher.o $(test-crypto-obj-y)
+tests/test-crypto-secret$(EXESUF): tests/test-crypto-secret.o $(test-crypto-obj-y)
 
 tests/crypto-tls-x509-helpers.o-cflags := $(TASN1_CFLAGS)
 tests/crypto-tls-x509-helpers.o-libs := $(TASN1_LIBS)

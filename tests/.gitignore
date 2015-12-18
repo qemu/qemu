@@ -8,11 +8,13 @@ check-qom-interface
 check-qom-proplist
 rcutorture
 test-aio
+test-base64
 test-bitops
 test-blockjob-txn
 test-coroutine
 test-crypto-cipher
 test-crypto-hash
+test-crypto-secret
 test-crypto-tlscredsx509
 test-crypto-tlscredsx509-work/
 test-crypto-tlscredsx509-certs/

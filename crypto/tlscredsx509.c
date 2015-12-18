@@ -20,6 +20,7 @@
 
 #include "crypto/tlscredsx509.h"
 #include "crypto/tlscredspriv.h"
+#include "crypto/secret.h"
 #include "qom/object_interfaces.h"
 #include "trace.h"
 
@@ -607,9 +608,30 @@ qcrypto_tls_creds_x509_load(QCryptoTLSCredsX509 *creds,
     }
 
     if (cert != NULL && key != NULL) {
+#if GNUTLS_VERSION_NUMBER >= 0x030111
+        char *password = NULL;
+        if (creds->passwordid) {
+            password = qcrypto_secret_lookup_as_utf8(creds->passwordid,
+                                                     errp);
+            if (!password) {
+                goto cleanup;
+            }
+        }
+        ret = gnutls_certificate_set_x509_key_file2(creds->data,
+                                                    cert, key,
+                                                    GNUTLS_X509_FMT_PEM,
+                                                    password,
+                                                    0);
+        g_free(password);
+#else /* GNUTLS_VERSION_NUMBER < 0x030111 */
+        if (creds->passwordid) {
+            error_setg(errp, "PKCS8 decryption requires GNUTLS >= 3.1.11");
+            goto cleanup;
+        }
         ret = gnutls_certificate_set_x509_key_file(creds->data,
                                                    cert, key,
                                                    GNUTLS_X509_FMT_PEM);
+#endif /* GNUTLS_VERSION_NUMBER < 0x030111 */
         if (ret < 0) {
             error_setg(errp, "Cannot load certificate '%s' & key '%s': %s",
                        cert, key, gnutls_strerror(ret));
@@ -737,6 +759,27 @@ qcrypto_tls_creds_x509_prop_set_sanity(Object *obj,
 }
 
 
+static void
+qcrypto_tls_creds_x509_prop_set_passwordid(Object *obj,
+                                           const char *value,
+                                           Error **errp G_GNUC_UNUSED)
+{
+    QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
+
+    creds->passwordid = g_strdup(value);
+}
+
+
+static char *
+qcrypto_tls_creds_x509_prop_get_passwordid(Object *obj,
+                                           Error **errp G_GNUC_UNUSED)
+{
+    QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
+
+    return g_strdup(creds->passwordid);
+}
+
+
 static bool
 qcrypto_tls_creds_x509_prop_get_sanity(Object *obj,
                                        Error **errp G_GNUC_UNUSED)
@@ -769,6 +812,10 @@ qcrypto_tls_creds_x509_init(Object *obj)
                              qcrypto_tls_creds_x509_prop_get_sanity,
                              qcrypto_tls_creds_x509_prop_set_sanity,
                              NULL);
+    object_property_add_str(obj, "passwordid",
+                            qcrypto_tls_creds_x509_prop_get_passwordid,
+                            qcrypto_tls_creds_x509_prop_set_passwordid,
+                            NULL);
 }
 
 
@@ -777,6 +824,7 @@ qcrypto_tls_creds_x509_finalize(Object *obj)
 {
     QCryptoTLSCredsX509 *creds = QCRYPTO_TLS_CREDS_X509(obj);
 
+    g_free(creds->passwordid);
     qcrypto_tls_creds_x509_unload(creds);
 }
 

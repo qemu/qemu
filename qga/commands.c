@@ -14,6 +14,7 @@
 #include "qga/guest-agent-core.h"
 #include "qga-qmp-commands.h"
 #include "qapi/qmp/qerror.h"
+#include "qemu/base64.h"
 
 /* Maximum captured guest-exec out_data/err_data - 16MB */
 #define GUEST_EXEC_MAX_OUTPUT (16*1024*1024)
@@ -393,9 +394,18 @@ GuestExec *qmp_guest_exec(const char *path,
     GIOChannel *in_ch, *out_ch, *err_ch;
     GSpawnFlags flags;
     bool has_output = (has_capture_output && capture_output);
+    uint8_t *input = NULL;
+    size_t ninput = 0;
 
     arglist.value = (char *)path;
     arglist.next = has_arg ? arg : NULL;
+
+    if (has_input_data) {
+        input = qbase64_decode(input_data, -1, &ninput, err);
+        if (!input) {
+            return NULL;
+        }
+    }
 
     argv = guest_exec_get_args(&arglist, true);
     envp = has_env ? guest_exec_get_args(env, false) : NULL;
@@ -425,7 +435,8 @@ GuestExec *qmp_guest_exec(const char *path,
     g_child_watch_add(pid, guest_exec_child_watch, gei);
 
     if (has_input_data) {
-        gei->in.data = g_base64_decode(input_data, &gei->in.size);
+        gei->in.data = input;
+        gei->in.size = ninput;
 #ifdef G_OS_WIN32
         in_ch = g_io_channel_win32_new_fd(in_fd);
 #else
