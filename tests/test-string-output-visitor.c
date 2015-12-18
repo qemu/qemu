@@ -81,7 +81,7 @@ static void test_visitor_out_intList(TestOutputVisitorData *data,
         3, 4, 5, 6, 11, 12, 13, 21, 22, INT64_MAX - 1, INT64_MAX};
     intList *list = NULL, **tmp = &list;
     int i;
-    Error *errp = NULL;
+    Error *err = NULL;
     char *str;
 
     for (i = 0; i < sizeof(value) / sizeof(value[0]); i++) {
@@ -90,8 +90,8 @@ static void test_visitor_out_intList(TestOutputVisitorData *data,
         tmp = &(*tmp)->next;
     }
 
-    visit_type_intList(data->ov, &list, NULL, &errp);
-    g_assert(errp == NULL);
+    visit_type_intList(data->ov, &list, NULL, &err);
+    g_assert(err == NULL);
 
     str = string_output_get_string(data->sov);
     g_assert(str != NULL);
