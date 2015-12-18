@@ -350,11 +350,11 @@ static void ivshmem_vector_poll(PCIDevice *dev,
     }
 }
 
-static CharDriverState* create_eventfd_chr_device(void * opaque, EventNotifier *n,
+static CharDriverState* create_eventfd_chr_device(IVShmemState *s,
+                                                  EventNotifier *n,
                                                   int vector)
 {
     /* create a event character device based on the passed eventfd */
-    IVShmemState *s = opaque;
     PCIDevice *pdev = PCI_DEVICE(s);
     int eventfd = event_notifier_get_fd(n);
     CharDriverState *chr;
