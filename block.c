@@ -1463,9 +1463,8 @@ int bdrv_append_temp_snapshot(BlockDriverState *bs, int flags, Error **errp)
     ret = bdrv_create(&bdrv_qcow2, tmp_filename, opts, &local_err);
     qemu_opts_del(opts);
     if (ret < 0) {
-        error_setg_errno(errp, -ret, "Could not create temporary overlay "
-                         "'%s': %s", tmp_filename,
-                         error_get_pretty(local_err));
+        error_setg(errp, "Could not create temporary overlay '%s': %s",
+                   tmp_filename, error_get_pretty(local_err));
         error_free(local_err);
         goto out;
     }
