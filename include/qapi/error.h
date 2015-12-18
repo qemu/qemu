@@ -31,6 +31,9 @@
  *     error_report_err(err);
  * This frees the error object.
  *
+ * Report an error to stderr with additional text prepended:
+ *     error_reportf_err(err, "Could not frobnicate '%s': ", name);
+ *
  * Report an error somewhere else:
  *     const char *msg = error_get_pretty(err);
  *     do with msg what needs to be done...
@@ -47,6 +50,10 @@
  * Pass an existing error to the caller:
  *     error_propagate(errp, err);
  * where Error **errp is a parameter, by convention the last one.
+ *
+ * Pass an existing error to the caller with the message modified:
+ *     error_propagate(errp, err);
+ *     error_prepend(errp, "Could not frobnicate '%s': ", name);
  *
  * Create a new error and pass it to the caller:
  *     error_setg(errp, "situation normal, all fouled up");
@@ -108,9 +115,10 @@
 #ifndef ERROR_H
 #define ERROR_H
 
+#include <stdarg.h>
+#include <stdbool.h>
 #include "qemu/compiler.h"
 #include "qapi-types.h"
-#include <stdbool.h>
 
 /*
  * Opaque error object.
@@ -208,7 +216,20 @@ void error_setg_win32_internal(Error **errp,
  */
 void error_propagate(Error **dst_errp, Error *local_err);
 
-/**
+/*
+ * Prepend some text to @errp's human-readable error message.
+ * The text is made by formatting @fmt, @ap like vprintf().
+ */
+void error_vprepend(Error **errp, const char *fmt, va_list ap);
+
+/*
+ * Prepend some text to @errp's human-readable error message.
+ * The text is made by formatting @fmt, ... like printf().
+ */
+void error_prepend(Error **errp, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
+
+/*
  * Append a printf-style human-readable explanation to an existing error.
  * @errp may be NULL, but not &error_fatal or &error_abort.
  * Trivially the case if you call it only after error_setg() or
@@ -249,6 +270,12 @@ void error_free_or_abort(Error **errp);
  * Convenience function to error_report() and free @err.
  */
 void error_report_err(Error *err);
+
+/*
+ * Convenience function to error_prepend(), error_report() and free @err.
+ */
+void error_reportf_err(Error *err, const char *fmt, ...)
+    GCC_FMT_ATTR(2, 3);
 
 /*
  * Just like error_setg(), except you get to specify the error class.

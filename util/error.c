@@ -122,6 +122,29 @@ void error_setg_file_open_internal(Error **errp,
                               "Could not open '%s'", filename);
 }
 
+void error_vprepend(Error **errp, const char *fmt, va_list ap)
+{
+    GString *newmsg;
+
+    if (!errp) {
+        return;
+    }
+
+    newmsg = g_string_new(NULL);
+    g_string_vprintf(newmsg, fmt, ap);
+    g_string_append(newmsg, (*errp)->msg);
+    (*errp)->msg = g_string_free(newmsg, 0);
+}
+
+void error_prepend(Error **errp, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vprepend(errp, fmt, ap);
+    va_end(ap);
+}
+
 void error_append_hint(Error **errp, const char *fmt, ...)
 {
     va_list ap;
@@ -207,6 +230,16 @@ void error_report_err(Error *err)
         error_printf_unless_qmp("%s", err->hint->str);
     }
     error_free(err);
+}
+
+void error_reportf_err(Error *err, const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    error_vprepend(&err, fmt, ap);
+    va_end(ap);
+    error_report_err(err);
 }
 
 void error_free(Error *err)
