@@ -148,33 +148,49 @@ run_qemu -drive if=ide
 run_qemu -drive if=virtio
 run_qemu -drive if=scsi
 
-run_qemu -drive if=none,id=disk -device ide-cd,drive=disk
-run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-cd,drive=disk
-
-run_qemu -drive if=none,id=disk -device ide-drive,drive=disk
-run_qemu -drive if=none,id=disk -device ide-hd,drive=disk
-run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
-run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
+case "$QEMU_DEFAULT_MACHINE" in
+    pc)
+        run_qemu -drive if=none,id=disk -device ide-cd,drive=disk
+        run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-cd,drive=disk
+        run_qemu -drive if=none,id=disk -device ide-drive,drive=disk
+        run_qemu -drive if=none,id=disk -device ide-hd,drive=disk
+        run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
+        run_qemu -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
+        ;;
+     *)
+        ;;
+esac
 
 echo
 echo === Read-only ===
 echo
 
-run_qemu -drive file="$TEST_IMG",if=floppy,readonly=on
-run_qemu -drive file="$TEST_IMG",if=ide,media=cdrom,readonly=on
-run_qemu -drive file="$TEST_IMG",if=scsi,media=cdrom,readonly=on
+case "$QEMU_DEFAULT_MACHINE" in
+    pc)
+        run_qemu -drive file="$TEST_IMG",if=floppy,readonly=on
+        run_qemu -drive file="$TEST_IMG",if=ide,media=cdrom,readonly=on
+        run_qemu -drive file="$TEST_IMG",if=scsi,media=cdrom,readonly=on
+        run_qemu -drive file="$TEST_IMG",if=ide,readonly=on
+        ;;
+     *)
+        ;;
+esac
 
-run_qemu -drive file="$TEST_IMG",if=ide,readonly=on
 run_qemu -drive file="$TEST_IMG",if=virtio,readonly=on
 run_qemu -drive file="$TEST_IMG",if=scsi,readonly=on
 
-run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-cd,drive=disk
-run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
-
-run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-drive,drive=disk
-run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-hd,drive=disk
-run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
-run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
+case "$QEMU_DEFAULT_MACHINE" in
+    pc)
+        run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-cd,drive=disk
+        run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
+        run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-drive,drive=disk
+        run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device ide-hd,drive=disk
+        run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
+        run_qemu -drive file="$TEST_IMG",if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
+        ;;
+     *)
+        ;;
+esac
 
 echo
 echo === Cache modes ===
@@ -261,26 +277,31 @@ echo
 
 $QEMU_IO -c "write -P 0x11 0 4k" "$TEST_IMG" | _filter_qemu_io
 
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG" -snapshot | _filter_qemu_io
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2,snapshot=on | _filter_qemu_io
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2 -snapshot | _filter_qemu_io
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="file:$TEST_IMG" -snapshot | _filter_qemu_io
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="file:$TEST_IMG",snapshot=on | _filter_qemu_io
+device_id="drive0"
+
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file="$TEST_IMG",if=none,id=$device_id -snapshot | _filter_qemu_io
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file="$TEST_IMG",snapshot=on,if=none,id=$device_id | _filter_qemu_io
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2,snapshot=on,if=none,id=$device_id\
+                                                 | _filter_qemu_io
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file.filename="$TEST_IMG",driver=qcow2,if=none,id=$device_id -snapshot\
+                                                 | _filter_qemu_io
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file="file:$TEST_IMG",if=none,id=$device_id -snapshot | _filter_qemu_io
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file="file:$TEST_IMG",snapshot=on,if=none,id=$device_id | _filter_qemu_io
 
 # Opening a read-only file r/w with snapshot=on
 chmod u-w "$TEST_IMG"
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG" -snapshot | _filter_qemu_io
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file="$TEST_IMG",if=none,id=$device_id -snapshot | _filter_qemu_io
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file="$TEST_IMG",snapshot=on,if=none,id=$device_id | _filter_qemu_io
 chmod u+w "$TEST_IMG"
 
 $QEMU_IO -c "read -P 0x11 0 4k" "$TEST_IMG" | _filter_qemu_io
 
-echo 'qemu-io ide0-hd0 "write -P 0x22 0 4k"' | run_qemu -drive file="$TEST_IMG",snapshot=off | _filter_qemu_io
+echo "qemu-io $device_id \"write -P 0x22 0 4k\"" | run_qemu -drive file="$TEST_IMG",snapshot=off,if=none,id=$device_id | _filter_qemu_io
 
 $QEMU_IO -c "read -P 0x22 0 4k" "$TEST_IMG" | _filter_qemu_io
 
-echo -e 'qemu-io ide0-hd0 "write -P 0x33 0 4k"\ncommit ide0-hd0' | run_qemu -drive file="$TEST_IMG",snapshot=on | _filter_qemu_io
+echo -e "qemu-io $device_id \"write -P 0x33 0 4k\"\ncommit $device_id" | run_qemu -drive file="$TEST_IMG",snapshot=on,if=none,id=$device_id\
+                                                                       | _filter_qemu_io
 
 $QEMU_IO -c "read -P 0x33 0 4k" "$TEST_IMG" | _filter_qemu_io
 

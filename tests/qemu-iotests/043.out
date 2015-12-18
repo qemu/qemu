@@ -44,6 +44,7 @@ cluster_size: 65536
         "filename": "TEST_DIR/t.IMGFMT",
         "cluster-size": 65536,
         "format": "IMGFMT",
+        "full-backing-filename": "TEST_DIR/t.IMGFMT.2.base",
         "backing-filename": "TEST_DIR/t.IMGFMT.2.base",
         "dirty-flag": false
     },
@@ -52,6 +53,7 @@ cluster_size: 65536
         "filename": "TEST_DIR/t.IMGFMT.2.base",
         "cluster-size": 65536,
         "format": "IMGFMT",
+        "full-backing-filename": "TEST_DIR/t.IMGFMT.1.base",
         "backing-filename": "TEST_DIR/t.IMGFMT.1.base",
         "dirty-flag": false
     },

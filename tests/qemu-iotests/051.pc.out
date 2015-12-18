@@ -5,16 +5,16 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 === Unknown option ===
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=: Block format 'qcow2' used by device 'virtio0' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on: Block format 'qcow2' used by device 'virtio0' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: Block format 'qcow2' used by device 'virtio0' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: Block format 'qcow2' used by device 'virtio0' doesn't support the option 'unknown_opt'
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
 
 
 === Unknown protocol option ===
@@ -59,7 +59,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,backing.file.filename=TEST_DIR/t.qcow2.orig -nodefaults
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K
-virtio0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+ide0-hd0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
     Cache mode:       writeback
     Backing file:     TEST_DIR/t.qcow2.orig (chain depth: 1)
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
@@ -109,23 +109,20 @@ QEMU X.Y.Z monitor - type 'help' for more information
 
 Testing: -drive if=floppy
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) Warning: Orphaned drive without device: id=floppy0,file=,if=floppy,bus=0,unit=0
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=ide,media=cdrom
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) Warning: Orphaned drive without device: id=ide0-cd0,file=,if=ide,bus=0,unit=0
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=scsi,media=cdrom
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) Warning: Orphaned drive without device: id=scsi0-cd0,file=,if=scsi,bus=0,unit=0
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 Testing: -drive if=ide
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) Warning: Orphaned drive without device: id=ide0-hd0,file=,if=ide,bus=0,unit=0
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) QEMU_PROG: Device needs media, but drive is empty
+QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 
 Testing: -drive if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -133,11 +130,53 @@ QEMU X.Y.Z monitor - type 'help' for more information
 
 Testing: -drive if=scsi
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) Warning: Orphaned drive without device: id=scsi0-hd0,file=,if=scsi,bus=0,unit=0
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) QEMU_PROG: Initialization of device lsi53c895a failed: Device needs media, but drive is empty
+
+Testing: -drive if=none,id=disk -device ide-cd,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-cd,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive if=none,id=disk -device ide-drive,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-drive,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
+
+Testing: -drive if=none,id=disk -device ide-hd,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-hd,drive=disk: Device needs media, but drive is empty
+QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
+
+Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-disk,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-disk,drive=disk: Device needs media, but drive is empty
+
+Testing: -drive if=none,id=disk -device lsi53c895a -device scsi-hd,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device scsi-hd,drive=disk: Device needs media, but drive is empty
 
 
 === Read-only ===
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=floppy,readonly=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=ide,media=cdrom,readonly=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,media=cdrom,readonly=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=ide,readonly=on
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: Can't use a read-only drive
+QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -145,8 +184,33 @@ QEMU X.Y.Z monitor - type 'help' for more information
 
 Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) Warning: Orphaned drive without device: id=scsi0-hd0,file=TEST_DIR/t.qcow2,if=scsi,bus=0,unit=0
-q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-cd,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-cd,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-drive,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-drive,drive=disk: Can't use a read-only drive
+QEMU_PROG: -device ide-drive,drive=disk: Device initialization failed.
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device ide-hd,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -device ide-hd,drive=disk: Can't use a read-only drive
+QEMU_PROG: -device ide-hd,drive=disk: Device initialization failed.
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-disk,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
+
+Testing: -drive file=TEST_DIR/t.qcow2,if=none,id=disk,readonly=on -device lsi53c895a -device scsi-hd,drive=disk
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
 
 === Cache modes ===
