@@ -34,12 +34,10 @@ static void save_fn(QPCIDevice *dev, int devfn, void *data)
     *pdev = dev;
 }
 
-static QPCIDevice *get_device(void)
+static QPCIDevice *get_device(QPCIBus *pcibus)
 {
     QPCIDevice *dev;
-    QPCIBus *pcibus;
 
-    pcibus = qpci_init_pc();
     dev = NULL;
     qpci_device_foreach(pcibus, 0x1af4, 0x1110, save_fn, &dev);
     g_assert(dev != NULL);
@@ -50,6 +48,7 @@ static QPCIDevice *get_device(void)
 typedef struct _IVState {
     QTestState *qtest;
     void *reg_base, *mem_base;
+    QPCIBus *pcibus;
     QPCIDevice *dev;
 } IVState;
 
@@ -100,13 +99,20 @@ static inline void out_reg(IVState *s, enum Reg reg, unsigned v)
     global_qtest = qtest;
 }
 
+static void cleanup_vm(IVState *s)
+{
+    g_free(s->dev);
+    qpci_free_pc(s->pcibus);
+    qtest_quit(s->qtest);
+}
+
 static void setup_vm_cmd(IVState *s, const char *cmd, bool msix)
 {
     uint64_t barsize;
 
     s->qtest = qtest_start(cmd);
-
-    s->dev = get_device();
+    s->pcibus = qpci_init_pc();
+    s->dev = get_device(s->pcibus);
 
     /* FIXME: other bar order fails, mappings changes */
     s->mem_base = qpci_iomap(s->dev, 2, &barsize);
@@ -173,7 +179,7 @@ static void test_ivshmem_single(void)
         g_assert_cmpuint(data[i], ==, i);
     }
 
-    qtest_quit(s->qtest);
+    cleanup_vm(s);
 }
 
 static void test_ivshmem_pair(void)
@@ -218,8 +224,8 @@ static void test_ivshmem_pair(void)
         g_assert_cmpuint(data[i], ==, 0x44);
     }
 
-    qtest_quit(s1->qtest);
-    qtest_quit(s2->qtest);
+    cleanup_vm(s1);
+    cleanup_vm(s2);
     g_free(data);
 }
 
@@ -356,8 +362,8 @@ static void test_ivshmem_server(void)
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
-    qtest_quit(s2->qtest);
-    qtest_quit(s1->qtest);
+    cleanup_vm(s2);
+    cleanup_vm(s1);
 
     if (qemu_write_full(thread.pipe[1], "q", 1) != 1) {
         g_error("qemu_write_full: %s", g_strerror(errno));
@@ -395,7 +401,7 @@ static void test_ivshmem_memdev(void)
     setup_vm_cmd(&state, "-object memory-backend-ram,size=1M,id=mb1"
                  " -device ivshmem,x-memdev=mb1", false);
 
-    qtest_quit(state.qtest);
+    cleanup_vm(&state);
 }
 
 static void cleanup(void)
