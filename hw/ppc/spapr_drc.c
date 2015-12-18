@@ -465,8 +465,7 @@ static void realize(DeviceState *d, Error **errp)
     object_property_add_alias(root_container, link_name,
                               drc->owner, child_name, &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         object_unref(OBJECT(drc));
     }
     g_free(child_name);
@@ -486,8 +485,7 @@ static void unrealize(DeviceState *d, Error **errp)
     snprintf(name, sizeof(name), "%x", drck->get_index(drc));
     object_property_del(root_container, name, &err);
     if (err) {
-        error_report("%s", error_get_pretty(err));
-        error_free(err);
+        error_report_err(err);
         object_unref(OBJECT(drc));
     }
 }
