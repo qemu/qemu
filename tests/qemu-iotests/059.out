@@ -2038,9 +2038,7 @@ Format specific information:
             format: FLAT
 
 === Testing malformed VMFS extent description line ===
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Invalid extent lines:
-RW 12582912 VMFS "dummy.IMGFMT" 1
-
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Invalid extent line: RW 12582912 VMFS "dummy.IMGFMT" 1
 
 === Testing truncated sparse ===
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=107374182400 subformat=monolithicSparse

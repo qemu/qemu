@@ -780,7 +780,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     char access[11];
     char type[11];
     char fname[512];
-    const char *p;
+    const char *p, *np;
     int64_t sectors = 0;
     int64_t flat_offset;
     char *extent_path;
@@ -805,19 +805,16 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
             continue;
         } else if (!strcmp(type, "FLAT")) {
             if (matches != 5 || flat_offset < 0) {
-                error_setg(errp, "Invalid extent lines: \n%s", p);
-                return -EINVAL;
+                goto invalid;
             }
         } else if (!strcmp(type, "VMFS")) {
             if (matches == 4) {
                 flat_offset = 0;
             } else {
-                error_setg(errp, "Invalid extent lines:\n%s", p);
-                return -EINVAL;
+                goto invalid;
             }
         } else if (matches != 4) {
-            error_setg(errp, "Invalid extent lines:\n%s", p);
-            return -EINVAL;
+            goto invalid;
         }
 
         if (sectors <= 0 ||
@@ -883,6 +880,15 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         extent->type = g_strdup(type);
     }
     return 0;
+
+invalid:
+    np = next_line(p);
+    assert(np != p);
+    if (np[-1] == '\n') {
+        np--;
+    }
+    error_setg(errp, "Invalid extent line: %.*s", (int)(np - p), p);
+    return -EINVAL;
 }
 
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
