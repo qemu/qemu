@@ -337,11 +337,11 @@ const char *gicv3_class_name(void)
         return "kvm-arm-gicv3";
 #else
         error_report("KVM GICv3 acceleration is not supported on this "
-                     "platform\n");
+                     "platform");
 #endif
     } else {
         /* TODO: Software emulation is not implemented yet */
-        error_report("KVM is currently required for GICv3 emulation\n");
+        error_report("KVM is currently required for GICv3 emulation");
     }
 
     exit(1);

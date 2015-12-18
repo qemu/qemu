@@ -1563,8 +1563,8 @@ static int loadvm_handle_cmd_packaged(MigrationIncomingState *mis)
     ret = qemu_get_buffer(mis->from_src_file, buffer, (int)length);
     if (ret != length) {
         g_free(buffer);
-        error_report("CMD_PACKAGED: Buffer receive fail ret=%d length=%d\n",
-                ret, length);
+        error_report("CMD_PACKAGED: Buffer receive fail ret=%d length=%d",
+                     ret, length);
         return (ret < 0) ? ret : -EAGAIN;
     }
     trace_loadvm_handle_cmd_packaged_received(ret);

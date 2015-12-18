@@ -1494,8 +1494,8 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
 
     if (sector_num > bs->total_sectors) {
         error_report("Wrong offset: sector_num=0x%" PRIx64
-                " total_sectors=0x%" PRIx64 "\n",
-                sector_num, bs->total_sectors);
+                     " total_sectors=0x%" PRIx64,
+                     sector_num, bs->total_sectors);
         return -EIO;
     }
 

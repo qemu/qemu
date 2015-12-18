@@ -2323,7 +2323,7 @@ static int ram_load_postcopy(QEMUFile *f)
             } else {
                 /* not the 1st TP within the HP */
                 if (host != (last_host + TARGET_PAGE_SIZE)) {
-                    error_report("Non-sequential target page %p/%p\n",
+                    error_report("Non-sequential target page %p/%p",
                                   host, last_host);
                     ret = -EINVAL;
                     break;

@@ -649,7 +649,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         uint32_t nr = cpu->pmsav7_dregion;
 
         if (nr > 0xff) {
-            error_setg(errp, "PMSAv7 MPU #regions invalid %" PRIu32 "\n", nr);
+            error_setg(errp, "PMSAv7 MPU #regions invalid %" PRIu32, nr);
             return;
         }
 

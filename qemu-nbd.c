@@ -554,7 +554,7 @@ int main(int argc, char **argv)
         case 'k':
             sockpath = optarg;
             if (sockpath[0] != '/') {
-                error_report("socket path must be absolute\n");
+                error_report("socket path must be absolute");
                 exit(EXIT_FAILURE);
             }
             break;
@@ -571,7 +571,7 @@ int main(int argc, char **argv)
                 exit(EXIT_FAILURE);
             }
             if (shared < 1) {
-                error_report("Shared device number must be greater than 0\n");
+                error_report("Shared device number must be greater than 0");
                 exit(EXIT_FAILURE);
             }
             break;

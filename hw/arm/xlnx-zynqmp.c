@@ -227,7 +227,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     }
 
     if (!s->boot_cpu_ptr) {
-        error_setg(errp, "ZynqMP Boot cpu %s not found\n", boot_cpu);
+        error_setg(errp, "ZynqMP Boot cpu %s not found", boot_cpu);
         return;
     }
 

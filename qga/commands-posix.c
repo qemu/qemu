@@ -2254,7 +2254,7 @@ GuestMemoryBlockList *qmp_guest_get_memory_blocks(Error **errp)
          */
         if (errno != ENOENT) {
             error_setg_errno(errp, errno, "Can't open directory"
-                             "\"/sys/devices/system/memory/\"\n");
+                             "\"/sys/devices/system/memory/\"");
         }
         return NULL;
     }

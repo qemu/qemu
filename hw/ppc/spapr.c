@@ -1836,7 +1836,8 @@ static void ppc_spapr_init(MachineState *machine)
         ram_addr_t hotplug_mem_size = machine->maxram_size - machine->ram_size;
 
         if (machine->ram_slots > SPAPR_MAX_RAM_SLOTS) {
-            error_report("Specified number of memory slots %"PRIu64" exceeds max supported %d\n",
+            error_report("Specified number of memory slots %" PRIu64
+                         " exceeds max supported %d",
                          machine->ram_slots, SPAPR_MAX_RAM_SLOTS);
             exit(EXIT_FAILURE);
         }

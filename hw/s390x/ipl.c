@@ -94,7 +94,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (bios_filename == NULL) {
-            error_setg(&l_err, "could not find stage1 bootloader\n");
+            error_setg(&l_err, "could not find stage1 bootloader");
             goto error;
         }
 
@@ -113,7 +113,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
         g_free(bios_filename);
 
         if (bios_size == -1) {
-            error_setg(&l_err, "could not load bootloader '%s'\n", bios_name);
+            error_setg(&l_err, "could not load bootloader '%s'", bios_name);
             goto error;
         }
 
@@ -128,7 +128,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
             kernel_size = load_image_targphys(ipl->kernel, 0, ram_size);
         }
         if (kernel_size < 0) {
-            error_setg(&l_err, "could not load kernel '%s'\n", ipl->kernel);
+            error_setg(&l_err, "could not load kernel '%s'", ipl->kernel);
             goto error;
         }
         /*
@@ -156,7 +156,7 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
             initrd_size = load_image_targphys(ipl->initrd, initrd_offset,
                                               ram_size - initrd_offset);
             if (initrd_size == -1) {
-                error_setg(&l_err, "could not load initrd '%s'\n", ipl->initrd);
+                error_setg(&l_err, "could not load initrd '%s'", ipl->initrd);
                 goto error;
             }
 
