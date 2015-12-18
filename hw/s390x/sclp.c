@@ -456,29 +456,29 @@ static void sclp_realize(DeviceState *dev, Error **errp)
 {
     MachineState *machine = MACHINE(qdev_get_machine());
     SCLPDevice *sclp = SCLP(dev);
-    Error *l_err = NULL;
+    Error *err = NULL;
     uint64_t hw_limit;
     int ret;
 
     object_property_set_bool(OBJECT(sclp->event_facility), true, "realized",
-                             &l_err);
-    if (l_err) {
+                             &err);
+    if (err) {
         goto error;
     }
 
     ret = s390_set_memory_limit(machine->maxram_size, &hw_limit);
     if (ret == -E2BIG) {
-        error_setg(&l_err, "qemu: host supports a maximum of %" PRIu64 " GB",
+        error_setg(&err, "qemu: host supports a maximum of %" PRIu64 " GB",
                    hw_limit >> 30);
         goto error;
     } else if (ret) {
-        error_setg(&l_err, "qemu: setting the guest size failed");
+        error_setg(&err, "qemu: setting the guest size failed");
         goto error;
     }
     return;
 error:
-    assert(l_err);
-    error_propagate(errp, l_err);
+    assert(err);
+    error_propagate(errp, err);
 }
 
 static void sclp_memory_init(SCLPDevice *sclp)
