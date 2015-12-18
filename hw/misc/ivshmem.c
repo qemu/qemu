@@ -355,11 +355,8 @@ static CharDriverState* create_eventfd_chr_device(IVShmemState *s,
                                                   int vector)
 {
     /* create a event character device based on the passed eventfd */
-    PCIDevice *pdev = PCI_DEVICE(s);
     int eventfd = event_notifier_get_fd(n);
     CharDriverState *chr;
-
-    s->msi_vectors[vector].pdev = pdev;
 
     chr = qemu_chr_open_eventfd(eventfd);
 
