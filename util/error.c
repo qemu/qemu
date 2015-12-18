@@ -132,7 +132,7 @@ void error_append_hint(Error **errp, const char *fmt, ...)
         return;
     }
     err = *errp;
-    assert(err && errp != &error_abort);
+    assert(err && errp != &error_abort && errp != &error_fatal);
 
     if (!err->hint) {
         err->hint = g_string_new(NULL);

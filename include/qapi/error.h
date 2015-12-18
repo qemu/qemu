@@ -18,6 +18,15 @@
  * Create an error:
  *     error_setg(&err, "situation normal, all fouled up");
  *
+ * Create an error and add additional explanation:
+ *     error_setg(&err, "invalid quark");
+ *     error_append_hint(&err, "Valid quarks are up, down, strange, "
+ *                       "charm, top, bottom.\n");
+ *
+ * Do *not* contract this to
+ *     error_setg(&err, "invalid quark\n"
+ *                "Valid quarks are up, down, strange, charm, top, bottom.");
+ *
  * Report an error to stderr:
  *     error_report_err(err);
  * This frees the error object.
@@ -26,6 +35,7 @@
  *     const char *msg = error_get_pretty(err);
  *     do with msg what needs to be done...
  *     error_free(err);
+ * Note that this loses hints added with error_append_hint().
  *
  * Handle an error without reporting it (just for completeness):
  *     error_free(err);
@@ -142,6 +152,8 @@ ErrorClass error_get_class(const Error *err);
  * If @errp is anything else, *@errp must be NULL.
  * The new error's class is ERROR_CLASS_GENERIC_ERROR, and its
  * human-readable error message is made from printf-style @fmt, ...
+ * The resulting message should be a single phrase, with no newline or
+ * trailing punctuation.
  */
 #define error_setg(errp, fmt, ...)                              \
     error_setg_internal((errp), __FILE__, __LINE__, __func__,   \
@@ -198,7 +210,11 @@ void error_propagate(Error **dst_errp, Error *local_err);
 
 /**
  * Append a printf-style human-readable explanation to an existing error.
- * May be called multiple times, and safe if @errp is NULL.
+ * @errp may be NULL, but not &error_fatal or &error_abort.
+ * Trivially the case if you call it only after error_setg() or
+ * error_propagate().
+ * May be called multiple times.  The resulting hint should end with a
+ * newline.
  */
 void error_append_hint(Error **errp, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
@@ -232,7 +248,7 @@ void error_free_or_abort(Error **errp);
 /*
  * Convenience function to error_report() and free @err.
  */
-void error_report_err(Error *);
+void error_report_err(Error *err);
 
 /*
  * Just like error_setg(), except you get to specify the error class.
