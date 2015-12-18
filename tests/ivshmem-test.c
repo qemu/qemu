@@ -277,18 +277,18 @@ static void *server_thread(void *data)
     return NULL;
 }
 
-static void setup_vm_with_server(IVState *s, int nvectors)
+static void setup_vm_with_server(IVState *s, int nvectors, bool msi)
 {
     char *cmd = g_strdup_printf("-chardev socket,id=chr0,path=%s,nowait "
-                                "-device ivshmem,size=1M,chardev=chr0,vectors=%d",
-                                tmpserver, nvectors);
+                                "-device ivshmem,size=1M,chardev=chr0,vectors=%d,msi=%s",
+                                tmpserver, nvectors, msi ? "true" : "false");
 
-    setup_vm_cmd(s, cmd, true);
+    setup_vm_cmd(s, cmd, msi);
 
     g_free(cmd);
 }
 
-static void test_ivshmem_server(void)
+static void test_ivshmem_server(bool msi)
 {
     IVState state1, state2, *s1, *s2;
     ServerThread thread;
@@ -306,9 +306,9 @@ static void test_ivshmem_server(void)
     ret = ivshmem_server_start(&server);
     g_assert_cmpint(ret, ==, 0);
 
-    setup_vm_with_server(&state1, nvectors);
+    setup_vm_with_server(&state1, nvectors, msi);
     s1 = &state1;
-    setup_vm_with_server(&state2, nvectors);
+    setup_vm_with_server(&state2, nvectors, msi);
     s2 = &state2;
 
     g_assert_cmpuint(in_reg(s1, IVPOSITION), ==, 0xffffffff);
@@ -338,27 +338,37 @@ static void test_ivshmem_server(void)
     g_assert_cmpuint(vm1, !=, vm2);
 
     global_qtest = s1->qtest;
-    ret = qpci_msix_table_size(s1->dev);
-    g_assert_cmpuint(ret, ==, nvectors);
+    if (msi) {
+        ret = qpci_msix_table_size(s1->dev);
+        g_assert_cmpuint(ret, ==, nvectors);
+    }
 
     /* ping vm2 -> vm1 */
-    ret = qpci_msix_pending(s1->dev, 0);
-    g_assert_cmpuint(ret, ==, 0);
+    if (msi) {
+        ret = qpci_msix_pending(s1->dev, 0);
+        g_assert_cmpuint(ret, ==, 0);
+    } else {
+        out_reg(s1, INTRSTATUS, 0);
+    }
     out_reg(s2, DOORBELL, vm1 << 16);
     do {
         g_usleep(10000);
-        ret = qpci_msix_pending(s1->dev, 0);
+        ret = msi ? qpci_msix_pending(s1->dev, 0) : in_reg(s1, INTRSTATUS);
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
     /* ping vm1 -> vm2 */
     global_qtest = s2->qtest;
-    ret = qpci_msix_pending(s2->dev, 0);
-    g_assert_cmpuint(ret, ==, 0);
+    if (msi) {
+        ret = qpci_msix_pending(s2->dev, 0);
+        g_assert_cmpuint(ret, ==, 0);
+    } else {
+        out_reg(s2, INTRSTATUS, 0);
+    }
     out_reg(s1, DOORBELL, vm2 << 16);
     do {
         g_usleep(10000);
-        ret = qpci_msix_pending(s2->dev, 0);
+        ret = msi ? qpci_msix_pending(s2->dev, 0) : in_reg(s2, INTRSTATUS);
     } while (ret == 0 && g_get_monotonic_time() < end_time);
     g_assert_cmpuint(ret, !=, 0);
 
@@ -374,6 +384,16 @@ static void test_ivshmem_server(void)
     ivshmem_server_close(&server);
     close(thread.pipe[1]);
     close(thread.pipe[0]);
+}
+
+static void test_ivshmem_server_msi(void)
+{
+    test_ivshmem_server(true);
+}
+
+static void test_ivshmem_server_irq(void)
+{
+    test_ivshmem_server(false);
 }
 
 #define PCI_SLOT_HP             0x06
@@ -489,7 +509,8 @@ int main(int argc, char **argv)
     qtest_add_func("/ivshmem/memdev", test_ivshmem_memdev);
     if (g_test_slow()) {
         qtest_add_func("/ivshmem/pair", test_ivshmem_pair);
-        qtest_add_func("/ivshmem/server", test_ivshmem_server);
+        qtest_add_func("/ivshmem/server-msi", test_ivshmem_server_msi);
+        qtest_add_func("/ivshmem/server-irq", test_ivshmem_server_irq);
     }
 
     ret = g_test_run();
