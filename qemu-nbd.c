@@ -599,9 +599,8 @@ int main(int argc, char **argv)
     }
 
     if ((argc - optind) != 1) {
-        error_report("Invalid number of argument.\n"
-                     "Try `%s --help' for more information.",
-                     argv[0]);
+        error_report("Invalid number of arguments");
+        error_printf("Try `%s --help' for more information.\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 

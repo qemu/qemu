@@ -2063,9 +2063,9 @@ void kvm_device_access(int fd, int group, uint64_t attr,
                            write ? KVM_SET_DEVICE_ATTR : KVM_GET_DEVICE_ATTR,
                            &kvmattr);
     if (err < 0) {
-        error_report("KVM_%s_DEVICE_ATTR failed: %s\n"
-                     "Group %d attr 0x%016" PRIx64, write ? "SET" : "GET",
-                     strerror(-err), group, attr);
+        error_report("KVM_%s_DEVICE_ATTR failed: %s",
+                     write ? "SET" : "GET", strerror(-err));
+        error_printf("Group %d attr 0x%016" PRIx64, group, attr);
         abort();
     }
 }
