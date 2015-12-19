@@ -1451,7 +1451,7 @@ static void ohci_set_ctl(OHCIState *ohci, uint32_t val)
         trace_usb_ohci_resume(ohci->name);
         break;
     case OHCI_USB_RESET:
-        ohci_hard_reset(ohci);
+        ohci_roothub_reset(ohci);
         break;
     }
 }
