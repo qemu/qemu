@@ -374,8 +374,10 @@ findso:
 	  sbreserve(&so->so_snd, TCP_SNDSPACE);
 	  sbreserve(&so->so_rcv, TCP_RCVSPACE);
 
+	  so->so_lfamily = AF_INET;
 	  so->so_laddr = ti->ti_src;
 	  so->so_lport = ti->ti_sport;
+	  so->so_ffamily = AF_INET;
 	  so->so_faddr = ti->ti_dst;
 	  so->so_fport = ti->ti_dport;
 

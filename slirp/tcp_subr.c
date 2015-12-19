@@ -413,6 +413,7 @@ void tcp_connect(struct socket *inso)
             free(so); /* NOT sofree */
             return;
         }
+        so->so_lfamily = AF_INET;
         so->so_laddr = inso->so_laddr;
         so->so_lport = inso->so_lport;
     }
@@ -430,6 +431,7 @@ void tcp_connect(struct socket *inso)
     qemu_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, &opt, sizeof(int));
     socket_set_nodelay(s);
 
+    so->so_ffamily = AF_INET;
     so->so_fport = addr.sin_port;
     so->so_faddr = addr.sin_addr;
     /* Translate connections from localhost to the real hostname */

@@ -23,6 +23,7 @@
  */
 #include "qemu-common.h"
 #include "qemu/timer.h"
+#include "qemu/error-report.h"
 #include "sysemu/char.h"
 #include "slirp.h"
 #include "hw/hw.h"
@@ -234,7 +235,7 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
 
     slirp->opaque = opaque;
 
-    register_savevm(NULL, "slirp", 0, 3,
+    register_savevm(NULL, "slirp", 0, 4,
                     slirp_state_save, slirp_state_load, slirp);
 
     QTAILQ_INSERT_TAIL(&slirp_instances, slirp, entry);
@@ -1046,10 +1047,26 @@ static void slirp_sbuf_save(QEMUFile *f, struct sbuf *sbuf)
 static void slirp_socket_save(QEMUFile *f, struct socket *so)
 {
     qemu_put_be32(f, so->so_urgc);
-    qemu_put_be32(f, so->so_faddr.s_addr);
-    qemu_put_be32(f, so->so_laddr.s_addr);
-    qemu_put_be16(f, so->so_fport);
-    qemu_put_be16(f, so->so_lport);
+    qemu_put_be16(f, so->so_ffamily);
+    switch (so->so_ffamily) {
+    case AF_INET:
+        qemu_put_be32(f, so->so_faddr.s_addr);
+        qemu_put_be16(f, so->so_fport);
+        break;
+    default:
+        error_report(
+                "so_ffamily unknown, unable to save so_faddr and so_fport\n");
+    }
+    qemu_put_be16(f, so->so_lfamily);
+    switch (so->so_lfamily) {
+    case AF_INET:
+        qemu_put_be32(f, so->so_laddr.s_addr);
+        qemu_put_be16(f, so->so_lport);
+        break;
+    default:
+        error_report(
+                "so_ffamily unknown, unable to save so_laddr and so_lport\n");
+    }
     qemu_put_byte(f, so->so_iptos);
     qemu_put_byte(f, so->so_emu);
     qemu_put_byte(f, so->so_type);
@@ -1169,10 +1186,26 @@ static int slirp_socket_load(QEMUFile *f, struct socket *so)
         return -ENOMEM;
 
     so->so_urgc = qemu_get_be32(f);
-    so->so_faddr.s_addr = qemu_get_be32(f);
-    so->so_laddr.s_addr = qemu_get_be32(f);
-    so->so_fport = qemu_get_be16(f);
-    so->so_lport = qemu_get_be16(f);
+    so->so_ffamily = qemu_get_be16(f);
+    switch (so->so_ffamily) {
+    case AF_INET:
+        so->so_faddr.s_addr = qemu_get_be32(f);
+        so->so_fport = qemu_get_be16(f);
+        break;
+    default:
+        error_report(
+                "so_ffamily unknown, unable to restore so_faddr and so_lport\n");
+    }
+    so->so_lfamily = qemu_get_be16(f);
+    switch (so->so_lfamily) {
+    case AF_INET:
+        so->so_laddr.s_addr = qemu_get_be32(f);
+        so->so_lport = qemu_get_be16(f);
+        break;
+    default:
+        error_report(
+                "so_ffamily unknown, unable to restore so_laddr and so_lport\n");
+    }
     so->so_iptos = qemu_get_byte(f);
     so->so_emu = qemu_get_byte(f);
     so->so_type = qemu_get_byte(f);

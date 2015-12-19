@@ -170,8 +170,10 @@ icmp_input(struct mbuf *m, int hlen)
 	goto end_error;
       }
       so->so_m = m;
+      so->so_ffamily = AF_INET;
       so->so_faddr = ip->ip_dst;
       so->so_fport = htons(7);
+      so->so_lfamily = AF_INET;
       so->so_laddr = ip->ip_src;
       so->so_lport = htons(9);
       so->so_iptos = ip->ip_tos;

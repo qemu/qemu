@@ -31,10 +31,21 @@ struct socket {
   struct tcpiphdr *so_ti;	   /* Pointer to the original ti within
 				    * so_mconn, for non-blocking connections */
   int so_urgc;
-  struct in_addr so_faddr;	   /* foreign host table entry */
-  struct in_addr so_laddr;	   /* local host table entry */
-  uint16_t so_fport;		   /* foreign port */
-  uint16_t so_lport;		   /* local port */
+  union {   /* foreign host */
+      struct sockaddr_storage ss;
+      struct sockaddr_in sin;
+  } fhost;
+#define so_faddr fhost.sin.sin_addr
+#define so_fport fhost.sin.sin_port
+#define so_ffamily fhost.ss.ss_family
+
+  union {   /* local host */
+      struct sockaddr_storage ss;
+      struct sockaddr_in sin;
+  } lhost;
+#define so_laddr lhost.sin.sin_addr
+#define so_lport lhost.sin.sin_port
+#define so_lfamily lhost.ss.ss_family
 
   uint8_t	so_iptos;	/* Type of service */
   uint8_t	so_emu;		/* Is the socket emulated? */

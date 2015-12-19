@@ -190,6 +190,7 @@ udp_input(register struct mbuf *m, int iphlen)
 	  /*
 	   * Setup fields
 	   */
+	  so->so_lfamily = AF_INET;
 	  so->so_laddr = ip->ip_src;
 	  so->so_lport = uh->uh_sport;
 
@@ -202,6 +203,7 @@ udp_input(register struct mbuf *m, int iphlen)
 	   */
 	}
 
+        so->so_ffamily = AF_INET;
         so->so_faddr = ip->ip_dst; /* XXX */
         so->so_fport = uh->uh_dport; /* XXX */
 
@@ -376,6 +378,7 @@ udp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	socket_set_fast_reuse(so->s);
 
 	getsockname(so->s,(struct sockaddr *)&addr,&addrlen);
+	so->so_ffamily = AF_INET;
 	so->so_fport = addr.sin_port;
 	if (addr.sin_addr.s_addr == 0 ||
 	    addr.sin_addr.s_addr == loopback_addr.s_addr) {
@@ -383,6 +386,7 @@ udp_listen(Slirp *slirp, uint32_t haddr, u_int hport, uint32_t laddr,
 	} else {
 	   so->so_faddr = addr.sin_addr;
 	}
+	so->so_lfamily = AF_INET;
 	so->so_lport = lport;
 	so->so_laddr.s_addr = laddr;
 	if (flags != SS_FACCEPTONCE)
