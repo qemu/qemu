@@ -786,7 +786,7 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
         struct ethhdr *reh = (struct ethhdr *)arp_req;
         struct arphdr *rah = (struct arphdr *)(arp_req + ETH_HLEN);
 
-        if (!ifm->arp_requested) {
+        if (!ifm->resolution_requested) {
             /* If the client addr is not known, send an ARP request */
             memset(reh->h_dest, 0xff, ETH_ALEN);
             memcpy(reh->h_source, special_ethaddr, ETH_ALEN - 4);
@@ -812,7 +812,7 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
             rah->ar_tip = iph->ip_dst.s_addr;
             slirp->client_ipaddr = iph->ip_dst;
             slirp_output(slirp->opaque, arp_req, sizeof(arp_req));
-            ifm->arp_requested = true;
+            ifm->resolution_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
             ifm->expiration_date = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + 1000000000ULL;
