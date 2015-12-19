@@ -438,6 +438,7 @@ void
 sorecvfrom(struct socket *so)
 {
 	struct sockaddr_storage addr;
+	struct sockaddr_storage saddr, daddr;
 	socklen_t addrlen = sizeof(struct sockaddr_storage);
 
 	DEBUG_CALL("sorecvfrom");
@@ -525,11 +526,17 @@ sorecvfrom(struct socket *so)
 
 	    /*
 	     * If this packet was destined for CTL_ADDR,
-	     * make it look like that's where it came from, done by udp_output
+	     * make it look like that's where it came from
 	     */
+	    saddr = addr;
+	    sotranslate_in(so, &saddr);
+	    daddr = so->lhost.ss;
+
 	    switch (so->so_ffamily) {
 	    case AF_INET:
-	        udp_output(so, m, (struct sockaddr_in *) &addr);
+	        udp_output(so, m, (struct sockaddr_in *) &saddr,
+	                   (struct sockaddr_in *) &daddr,
+	                   so->so_iptos);
 	        break;
 	    default:
 	        break;
@@ -544,33 +551,20 @@ sorecvfrom(struct socket *so)
 int
 sosendto(struct socket *so, struct mbuf *m)
 {
-	Slirp *slirp = so->slirp;
 	int ret;
-	struct sockaddr_in addr;
+	struct sockaddr_storage addr;
 
 	DEBUG_CALL("sosendto");
 	DEBUG_ARG("so = %p", so);
 	DEBUG_ARG("m = %p", m);
 
-        addr.sin_family = AF_INET;
-	if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
-	    slirp->vnetwork_addr.s_addr) {
-	  /* It's an alias */
-	  if (so->so_faddr.s_addr == slirp->vnameserver_addr.s_addr) {
-	    if (get_dns_addr(&addr.sin_addr) < 0)
-	      addr.sin_addr = loopback_addr;
-	  } else {
-	    addr.sin_addr = loopback_addr;
-	  }
-	} else
-	  addr.sin_addr = so->so_faddr;
-	addr.sin_port = so->so_fport;
-
-	DEBUG_MISC((dfd, " sendto()ing, addr.sin_port=%d, addr.sin_addr.s_addr=%.16s\n", ntohs(addr.sin_port), inet_ntoa(addr.sin_addr)));
+	addr = so->fhost.ss;
+	DEBUG_CALL(" sendto()ing)");
+	sotranslate_out(so, &addr);
 
 	/* Don't care what port we get */
 	ret = sendto(so->s, m->m_data, m->m_len, 0,
-		     (struct sockaddr *)&addr, sizeof (struct sockaddr));
+		     (struct sockaddr *)&addr, sizeof(addr));
 	if (ret < 0)
 		return -1;
 
@@ -725,4 +719,82 @@ sofwdrain(struct socket *so)
 		so->so_state |= SS_FWDRAIN;
 	else
 		sofcantsendmore(so);
+}
+
+/*
+ * Translate addr in host addr when it is a virtual address
+ */
+void sotranslate_out(struct socket *so, struct sockaddr_storage *addr)
+{
+    Slirp *slirp = so->slirp;
+    struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+
+    switch (addr->ss_family) {
+    case AF_INET:
+        if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+                slirp->vnetwork_addr.s_addr) {
+            /* It's an alias */
+            if (so->so_faddr.s_addr == slirp->vnameserver_addr.s_addr) {
+                if (get_dns_addr(&sin->sin_addr) < 0) {
+                    sin->sin_addr = loopback_addr;
+                }
+            } else {
+                sin->sin_addr = loopback_addr;
+            }
+        }
+
+        DEBUG_MISC((dfd, " addr.sin_port=%d, "
+            "addr.sin_addr.s_addr=%.16s\n",
+            ntohs(sin->sin_port), inet_ntoa(sin->sin_addr)));
+        break;
+
+    default:
+        break;
+    }
+}
+
+void sotranslate_in(struct socket *so, struct sockaddr_storage *addr)
+{
+    Slirp *slirp = so->slirp;
+    struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+
+    switch (addr->ss_family) {
+    case AF_INET:
+        if ((so->so_faddr.s_addr & slirp->vnetwork_mask.s_addr) ==
+            slirp->vnetwork_addr.s_addr) {
+            uint32_t inv_mask = ~slirp->vnetwork_mask.s_addr;
+
+            if ((so->so_faddr.s_addr & inv_mask) == inv_mask) {
+                sin->sin_addr = slirp->vhost_addr;
+            } else if (sin->sin_addr.s_addr == loopback_addr.s_addr ||
+                       so->so_faddr.s_addr != slirp->vhost_addr.s_addr) {
+                sin->sin_addr = so->so_faddr;
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
+/*
+ * Translate connections from localhost to the real hostname
+ */
+void sotranslate_accept(struct socket *so)
+{
+    Slirp *slirp = so->slirp;
+
+    switch (so->so_ffamily) {
+    case AF_INET:
+        if (so->so_faddr.s_addr == INADDR_ANY ||
+            (so->so_faddr.s_addr & loopback_mask) ==
+            (loopback_addr.s_addr & loopback_mask)) {
+           so->so_faddr = slirp->vhost_addr;
+        }
+        break;
+
+    default:
+        break;
+    }
 }
