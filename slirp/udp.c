@@ -70,6 +70,8 @@ udp_input(register struct mbuf *m, int iphlen)
 	int len;
 	struct ip save_ip;
 	struct socket *so;
+	struct sockaddr_storage lhost;
+	struct sockaddr_in *lhost4;
 
 	DEBUG_CALL("udp_input");
 	DEBUG_ARG("m = %p", m);
@@ -151,8 +153,12 @@ udp_input(register struct mbuf *m, int iphlen)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	so = solookup(&slirp->udp_last_so, &slirp->udb,
-		      ip->ip_src, uh->uh_sport, (struct in_addr) {0}, 0);
+	lhost.ss_family = AF_INET;
+	lhost4 = (struct sockaddr_in *) &lhost;
+	lhost4->sin_addr = ip->ip_src;
+	lhost4->sin_port = uh->uh_sport;
+
+	so = solookup(&slirp->udp_last_so, &slirp->udb, &lhost, NULL);
 
 	if (so == NULL) {
 	  /*

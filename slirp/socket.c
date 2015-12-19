@@ -15,29 +15,20 @@
 static void sofcantrcvmore(struct socket *so);
 static void sofcantsendmore(struct socket *so);
 
-struct socket *
-solookup(struct socket **last, struct socket *head,
-         struct in_addr laddr, u_int lport,
-         struct in_addr faddr, u_int fport)
+struct socket *solookup(struct socket **last, struct socket *head,
+        struct sockaddr_storage *lhost, struct sockaddr_storage *fhost)
 {
     struct socket *so = *last;
 
     /* Optimisation */
-    if (so != head &&
-            so->so_lport == lport &&
-            so->so_laddr.s_addr == laddr.s_addr &&
-            (!faddr.s_addr ||
-                (so->so_faddr.s_addr == faddr.s_addr &&
-                 so->so_fport == fport))) {
+    if (so != head && sockaddr_equal(&(so->lhost.ss), lhost)
+            && (!fhost || sockaddr_equal(&so->fhost.ss, fhost))) {
         return so;
     }
 
     for (so = head->so_next; so != head; so = so->so_next) {
-        if (so->so_lport == lport &&
-            so->so_laddr.s_addr == laddr.s_addr &&
-            (!faddr.s_addr ||
-                (so->so_faddr.s_addr == faddr.s_addr &&
-                 so->so_fport == fport))) {
+        if (sockaddr_equal(&(so->lhost.ss), lhost)
+                && (!fhost || sockaddr_equal(&so->fhost.ss, fhost))) {
             *last = so;
             return so;
         }

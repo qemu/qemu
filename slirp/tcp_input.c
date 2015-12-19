@@ -227,6 +227,8 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	int iss = 0;
 	u_long tiwin;
 	int ret;
+	struct sockaddr_storage lhost, fhost;
+	struct sockaddr_in *lhost4, *fhost4;
     struct ex_list *ex_ptr;
     Slirp *slirp;
 
@@ -320,9 +322,16 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	 * Locate pcb for segment.
 	 */
 findso:
-	so = solookup(&slirp->tcp_last_so, &slirp->tcb,
-		      ti->ti_src, ti->ti_sport,
-		      ti->ti_dst, ti->ti_dport);
+	lhost.ss_family = AF_INET;
+	lhost4 = (struct sockaddr_in *) &lhost;
+	lhost4->sin_addr = ti->ti_src;
+	lhost4->sin_port = ti->ti_sport;
+	fhost.ss_family = AF_INET;
+	fhost4 = (struct sockaddr_in *) &fhost;
+	fhost4->sin_addr = ti->ti_dst;
+	fhost4->sin_port = ti->ti_dport;
+
+	so = solookup(&slirp->tcp_last_so, &slirp->tcb, &lhost, &fhost);
 
 	/*
 	 * If the state is CLOSED (i.e., TCB does not exist) then
@@ -367,12 +376,8 @@ findso:
 	  sbreserve(&so->so_snd, TCP_SNDSPACE);
 	  sbreserve(&so->so_rcv, TCP_RCVSPACE);
 
-	  so->so_lfamily = AF_INET;
-	  so->so_laddr = ti->ti_src;
-	  so->so_lport = ti->ti_sport;
-	  so->so_ffamily = AF_INET;
-	  so->so_faddr = ti->ti_dst;
-	  so->so_fport = ti->ti_dport;
+	  so->lhost.ss = lhost;
+	  so->fhost.ss = fhost;
 
 	  if ((so->so_iptos = tcp_tos(so)) == 0)
 	    so->so_iptos = ((struct ip *)ti)->ip_tos;

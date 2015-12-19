@@ -87,8 +87,30 @@ struct socket {
 #define SS_HOSTFWD		0x1000	/* Socket describes host->guest forwarding */
 #define SS_INCOMING		0x2000	/* Connection was initiated by a host on the internet */
 
+static inline int sockaddr_equal(struct sockaddr_storage *a,
+        struct sockaddr_storage *b)
+{
+    if (a->ss_family != b->ss_family) {
+        return 0;
+    }
+
+    switch (a->ss_family) {
+    case AF_INET:
+    {
+        struct sockaddr_in *a4 = (struct sockaddr_in *) a;
+        struct sockaddr_in *b4 = (struct sockaddr_in *) b;
+        return a4->sin_addr.s_addr == b4->sin_addr.s_addr
+               && a4->sin_port == b4->sin_port;
+    }
+    default:
+        g_assert_not_reached();
+    }
+
+    return 0;
+}
+
 struct socket *solookup(struct socket **, struct socket *,
-        struct in_addr, u_int, struct in_addr, u_int);
+        struct sockaddr_storage *, struct sockaddr_storage *);
 struct socket *socreate(Slirp *);
 void sofree(struct socket *);
 int soread(struct socket *);
