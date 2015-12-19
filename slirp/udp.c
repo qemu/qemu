@@ -218,6 +218,7 @@ udp_input(register struct mbuf *m, int iphlen)
 	  *ip=save_ip;
 	  DEBUG_MISC((dfd,"udp tx errno = %d-%s\n",errno,strerror(errno)));
 	  icmp_error(m, ICMP_UNREACH,ICMP_UNREACH_NET, 0,strerror(errno));
+	  goto bad;
 	}
 
 	m_free(so->so_m);   /* used for ICMP if error on sorecvfrom */
