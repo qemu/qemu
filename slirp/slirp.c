@@ -762,19 +762,14 @@ void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     }
 }
 
-/* Output the IP packet to the ethernet device. Returns 0 if the packet must be
- * re-queued.
+/* Prepare the IPv4 packet to be sent to the ethernet device. Returns 1 if no
+ * packet should be sent, 0 if the packet must be re-queued, 2 if the packet
+ * is ready to go.
  */
-int if_encap(Slirp *slirp, struct mbuf *ifm)
+static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
+        uint8_t ethaddr[ETH_ALEN])
 {
-    uint8_t buf[1600];
-    struct ethhdr *eh = (struct ethhdr *)buf;
-    uint8_t ethaddr[ETH_ALEN];
     const struct ip *iph = (const struct ip *)ifm->m_data;
-
-    if (ifm->m_len + ETH_HLEN > sizeof(buf)) {
-        return 1;
-    }
 
     if (iph->ip_dst.s_addr == 0) {
         /* 0.0.0.0 can not be a destination address, something went wrong,
@@ -819,15 +814,55 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
         }
         return 0;
     } else {
-        memcpy(eh->h_dest, ethaddr, ETH_ALEN);
         memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 4);
         /* XXX: not correct */
         memcpy(&eh->h_source[2], &slirp->vhost_addr, 4);
         eh->h_proto = htons(ETH_P_IP);
-        memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
-        slirp_output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
+
+        /* Send this */
+        return 2;
+    }
+}
+
+/* Output the IP packet to the ethernet device. Returns 0 if the packet must be
+ * re-queued.
+ */
+int if_encap(Slirp *slirp, struct mbuf *ifm)
+{
+    uint8_t buf[1600];
+    struct ethhdr *eh = (struct ethhdr *)buf;
+    uint8_t ethaddr[ETH_ALEN];
+    const struct ip *iph = (const struct ip *)ifm->m_data;
+    int ret;
+
+    if (ifm->m_len + ETH_HLEN > sizeof(buf)) {
         return 1;
     }
+
+    switch (iph->ip_v) {
+    case IPVERSION:
+        ret = if_encap4(slirp, ifm, eh, ethaddr);
+        if (ret < 2) {
+            return ret;
+        }
+        break;
+
+    default:
+        /* Do not assert while we don't manage IP6VERSION */
+        /* assert(0); */
+        break;
+    }
+
+    memcpy(eh->h_dest, ethaddr, ETH_ALEN);
+    DEBUG_ARGS((dfd, " src = %02x:%02x:%02x:%02x:%02x:%02x\n",
+                eh->h_source[0], eh->h_source[1], eh->h_source[2],
+                eh->h_source[3], eh->h_source[4], eh->h_source[5]));
+    DEBUG_ARGS((dfd, " dst = %02x:%02x:%02x:%02x:%02x:%02x\n",
+                eh->h_dest[0], eh->h_dest[1], eh->h_dest[2],
+                eh->h_dest[3], eh->h_dest[4], eh->h_dest[5]));
+    memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
+    slirp_output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
+    return 1;
 }
 
 /* Drop host forwarding rule, return 0 if found. */
