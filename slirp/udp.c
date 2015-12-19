@@ -169,7 +169,7 @@ udp_input(register struct mbuf *m, int iphlen)
 	  if (!so) {
 	      goto bad;
 	  }
-	  if(udp_attach(so) == -1) {
+	  if (udp_attach(so, AF_INET) == -1) {
 	    DEBUG_MISC((dfd," udp_attach errno = %d-%s\n",
 			errno,strerror(errno)));
 	    sofree(so);
@@ -277,9 +277,10 @@ int udp_output(struct socket *so, struct mbuf *m,
 }
 
 int
-udp_attach(struct socket *so)
+udp_attach(struct socket *so, unsigned short af)
 {
-  if((so->s = qemu_socket(AF_INET,SOCK_DGRAM,0)) != -1) {
+  so->s = qemu_socket(af, SOCK_DGRAM, 0);
+  if (so->s != -1) {
     so->so_expire = curtime + SO_EXPIRE;
     insque(so, &so->slirp->udb);
   }

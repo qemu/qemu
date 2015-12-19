@@ -162,7 +162,7 @@ icmp_input(struct mbuf *m, int hlen)
       if (icmp_send(so, m, hlen) == 0) {
         return;
       }
-      if(udp_attach(so) == -1) {
+      if (udp_attach(so, AF_INET) == -1) {
 	DEBUG_MISC((dfd,"icmp_input udp_attach errno = %d-%s\n",
 		    errno,strerror(errno)));
 	sofree(so);
