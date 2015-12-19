@@ -320,16 +320,9 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
 	 * Locate pcb for segment.
 	 */
 findso:
-	so = slirp->tcp_last_so;
-	if (so->so_fport != ti->ti_dport ||
-	    so->so_lport != ti->ti_sport ||
-	    so->so_laddr.s_addr != ti->ti_src.s_addr ||
-	    so->so_faddr.s_addr != ti->ti_dst.s_addr) {
-		so = solookup(&slirp->tcb, ti->ti_src, ti->ti_sport,
-			       ti->ti_dst, ti->ti_dport);
-		if (so)
-			slirp->tcp_last_so = so;
-	}
+	so = solookup(&slirp->tcp_last_so, &slirp->tcb,
+		      ti->ti_src, ti->ti_sport,
+		      ti->ti_dst, ti->ti_dport);
 
 	/*
 	 * If the state is CLOSED (i.e., TCB does not exist) then

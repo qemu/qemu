@@ -87,8 +87,9 @@ struct socket {
 #define SS_HOSTFWD		0x1000	/* Socket describes host->guest forwarding */
 #define SS_INCOMING		0x2000	/* Connection was initiated by a host on the internet */
 
-struct socket * solookup(struct socket *, struct in_addr, u_int, struct in_addr, u_int);
-struct socket * socreate(Slirp *);
+struct socket *solookup(struct socket **, struct socket *,
+        struct in_addr, u_int, struct in_addr, u_int);
+struct socket *socreate(Slirp *);
 void sofree(struct socket *);
 int soread(struct socket *);
 void sorecvoob(struct socket *);

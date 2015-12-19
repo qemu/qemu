@@ -151,25 +151,8 @@ udp_input(register struct mbuf *m, int iphlen)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	so = slirp->udp_last_so;
-	if (so == &slirp->udb || so->so_lport != uh->uh_sport ||
-	    so->so_laddr.s_addr != ip->ip_src.s_addr) {
-		struct socket *tmp;
-
-		for (tmp = slirp->udb.so_next; tmp != &slirp->udb;
-		     tmp = tmp->so_next) {
-			if (tmp->so_lport == uh->uh_sport &&
-			    tmp->so_laddr.s_addr == ip->ip_src.s_addr) {
-				so = tmp;
-				break;
-			}
-		}
-		if (tmp == &slirp->udb) {
-		  so = NULL;
-		} else {
-		  slirp->udp_last_so = so;
-		}
-	}
+	so = solookup(&slirp->udp_last_so, &slirp->udb,
+		      ip->ip_src, uh->uh_sport, (struct in_addr) {0}, 0);
 
 	if (so == NULL) {
 	  /*
