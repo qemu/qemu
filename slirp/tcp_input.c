@@ -584,7 +584,7 @@ findso:
 	    goto cont_input;
 	  }
 
-          if ((tcp_fconnect(so) == -1) &&
+	  if ((tcp_fconnect(so, so->so_ffamily) == -1) &&
 #if defined(_WIN32)
               socket_error() != WSAEWOULDBLOCK
 #else

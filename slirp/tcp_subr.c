@@ -324,14 +324,15 @@ tcp_sockclosed(struct tcpcb *tp)
  * nonblocking.  Connect returns after the SYN is sent, and does
  * not wait for ACK+SYN.
  */
-int tcp_fconnect(struct socket *so)
+int tcp_fconnect(struct socket *so, unsigned short af)
 {
   int ret=0;
 
   DEBUG_CALL("tcp_fconnect");
   DEBUG_ARG("so = %p", so);
 
-  if( (ret = so->s = qemu_socket(AF_INET,SOCK_STREAM,0)) >= 0) {
+  ret = so->s = qemu_socket(af, SOCK_STREAM, 0);
+  if (ret >= 0) {
     int opt, s=so->s;
     struct sockaddr_storage addr;
 
