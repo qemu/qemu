@@ -360,9 +360,6 @@ void register_char_driver(const char *name, ChardevBackendKind kind,
         CharDriverState *(*create)(const char *id, ChardevBackend *backend,
                                    ChardevReturn *ret, Error **errp));
 
-/* add an eventfd to the qemu devices that are polled */
-CharDriverState *qemu_chr_open_eventfd(int eventfd);
-
 extern int term_escape_char;
 
 CharDriverState *qemu_char_get_next_serial(void);
