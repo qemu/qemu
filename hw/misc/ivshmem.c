@@ -769,18 +769,20 @@ static void ivshmem_reset(DeviceState *d)
     ivshmem_use_msix(s);
 }
 
-static int ivshmem_setup_msi(IVShmemState * s)
+static int ivshmem_setup_interrupts(IVShmemState *s)
 {
-    if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
-        return -1;
-    }
-
-    IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
-
-    /* allocate QEMU char devices for receiving interrupts */
+    /* allocate QEMU callback data for receiving interrupts */
     s->msi_vectors = g_malloc0(s->vectors * sizeof(MSIVector));
 
-    ivshmem_use_msix(s);
+    if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+        if (msix_init_exclusive_bar(PCI_DEVICE(s), s->vectors, 1)) {
+            return -1;
+        }
+
+        IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
+        ivshmem_use_msix(s);
+    }
+
     return 0;
 }
 
@@ -947,9 +949,8 @@ static void pci_ivshmem_realize(PCIDevice *dev, Error **errp)
         IVSHMEM_DPRINTF("using shared memory server (socket = %s)\n",
                         s->server_chr->filename);
 
-        if (ivshmem_has_feature(s, IVSHMEM_MSI) &&
-            ivshmem_setup_msi(s)) {
-            error_setg(errp, "msix initialization failed");
+        if (ivshmem_setup_interrupts(s) < 0) {
+            error_setg(errp, "failed to initialize interrupts");
             return;
         }
 
