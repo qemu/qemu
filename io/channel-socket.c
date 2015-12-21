@@ -493,15 +493,14 @@ static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
     ssize_t ret;
     struct msghdr msg = { NULL, };
+    char control[CMSG_SPACE(sizeof(int) * SOCKET_MAX_FDS)] = { 0 };
+    size_t fdsize = sizeof(int) * nfds;
+    struct cmsghdr *cmsg;
 
     msg.msg_iov = (struct iovec *)iov;
     msg.msg_iovlen = niov;
 
     if (nfds) {
-        char control[CMSG_SPACE(sizeof(int) * SOCKET_MAX_FDS)];
-        size_t fdsize = sizeof(int) * nfds;
-        struct cmsghdr *cmsg;
-
         if (nfds > SOCKET_MAX_FDS) {
             error_setg_errno(errp, -EINVAL,
                              "Only %d FDs can be sent, got %zu",
