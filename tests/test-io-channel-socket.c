@@ -210,12 +210,18 @@ static void test_io_channel_setup_async(SocketAddress *listen_addr,
 
 static void test_io_channel(bool async,
                             SocketAddress *listen_addr,
-                            SocketAddress *connect_addr)
+                            SocketAddress *connect_addr,
+                            bool passFD)
 {
     QIOChannel *src, *dst;
     QIOChannelTest *test;
     if (async) {
         test_io_channel_setup_async(listen_addr, connect_addr, &src, &dst);
+
+        g_assert(!passFD ||
+                 qio_channel_has_feature(src, QIO_CHANNEL_FEATURE_FD_PASS));
+        g_assert(!passFD ||
+                 qio_channel_has_feature(dst, QIO_CHANNEL_FEATURE_FD_PASS));
 
         test = qio_channel_test_new();
         qio_channel_test_run_threads(test, true, src, dst);
@@ -225,6 +231,11 @@ static void test_io_channel(bool async,
         object_unref(OBJECT(dst));
 
         test_io_channel_setup_async(listen_addr, connect_addr, &src, &dst);
+
+        g_assert(!passFD ||
+                 qio_channel_has_feature(src, QIO_CHANNEL_FEATURE_FD_PASS));
+        g_assert(!passFD ||
+                 qio_channel_has_feature(dst, QIO_CHANNEL_FEATURE_FD_PASS));
 
         test = qio_channel_test_new();
         qio_channel_test_run_threads(test, false, src, dst);
@@ -235,6 +246,11 @@ static void test_io_channel(bool async,
     } else {
         test_io_channel_setup_sync(listen_addr, connect_addr, &src, &dst);
 
+        g_assert(!passFD ||
+                 qio_channel_has_feature(src, QIO_CHANNEL_FEATURE_FD_PASS));
+        g_assert(!passFD ||
+                 qio_channel_has_feature(dst, QIO_CHANNEL_FEATURE_FD_PASS));
+
         test = qio_channel_test_new();
         qio_channel_test_run_threads(test, true, src, dst);
         qio_channel_test_validate(test);
@@ -243,6 +259,11 @@ static void test_io_channel(bool async,
         object_unref(OBJECT(dst));
 
         test_io_channel_setup_sync(listen_addr, connect_addr, &src, &dst);
+
+        g_assert(!passFD ||
+                 qio_channel_has_feature(src, QIO_CHANNEL_FEATURE_FD_PASS));
+        g_assert(!passFD ||
+                 qio_channel_has_feature(dst, QIO_CHANNEL_FEATURE_FD_PASS));
 
         test = qio_channel_test_new();
         qio_channel_test_run_threads(test, false, src, dst);
@@ -269,7 +290,7 @@ static void test_io_channel_ipv4(bool async)
     connect_addr->u.inet->host = g_strdup("127.0.0.1");
     connect_addr->u.inet->port = NULL; /* Filled in later */
 
-    test_io_channel(async, listen_addr, connect_addr);
+    test_io_channel(async, listen_addr, connect_addr, false);
 
     qapi_free_SocketAddress(listen_addr);
     qapi_free_SocketAddress(connect_addr);
@@ -303,7 +324,7 @@ static void test_io_channel_ipv6(bool async)
     connect_addr->u.inet->host = g_strdup("::1");
     connect_addr->u.inet->port = NULL; /* Filled in later */
 
-    test_io_channel(async, listen_addr, connect_addr);
+    test_io_channel(async, listen_addr, connect_addr, false);
 
     qapi_free_SocketAddress(listen_addr);
     qapi_free_SocketAddress(connect_addr);
@@ -337,7 +358,7 @@ static void test_io_channel_unix(bool async)
     connect_addr->u.q_unix = g_new0(UnixSocketAddress, 1);
     connect_addr->u.q_unix->path = g_strdup(TEST_SOCKET);
 
-    test_io_channel(async, listen_addr, connect_addr);
+    test_io_channel(async, listen_addr, connect_addr, true);
 
     qapi_free_SocketAddress(listen_addr);
     qapi_free_SocketAddress(connect_addr);
