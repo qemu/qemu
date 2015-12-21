@@ -193,7 +193,9 @@ static void sdhci_reset(SDHCIState *s)
      * initialization */
     memset(&s->sdmasysad, 0, (uintptr_t)&s->capareg - (uintptr_t)&s->sdmasysad);
 
-    sd_set_cb(s->card, s->ro_cb, s->eject_cb);
+    if (!s->noeject_quirk) {
+        sd_set_cb(s->card, s->ro_cb, s->eject_cb);
+    }
     s->data_count = 0;
     s->stopped_state = sdhc_not_stopped;
 }
@@ -1276,6 +1278,7 @@ static Property sdhci_sysbus_properties[] = {
     DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
             SDHC_CAPAB_REG_DEFAULT),
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
+    DEFINE_PROP_BOOL("noeject-quirk", SDHCIState, noeject_quirk, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
