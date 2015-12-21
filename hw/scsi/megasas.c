@@ -718,7 +718,7 @@ static int megasas_ctrl_get_info(MegasasState *s, MegasasCmd *cmd)
     BusChild *kid;
     int num_pd_disks = 0;
 
-    memset(&info, 0x0, cmd->iov_size);
+    memset(&info, 0x0, dcmd_size);
     if (cmd->iov_size < dcmd_size) {
         trace_megasas_dcmd_invalid_xfer_len(cmd->index, cmd->iov_size,
                                             dcmd_size);
