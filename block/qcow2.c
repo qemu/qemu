@@ -1686,6 +1686,32 @@ fail:
     return ret;
 }
 
+static int qcow2_inactivate(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret, result = 0;
+
+    ret = qcow2_cache_flush(bs, s->l2_table_cache);
+    if (ret) {
+        result = ret;
+        error_report("Failed to flush the L2 table cache: %s",
+                     strerror(-ret));
+    }
+
+    ret = qcow2_cache_flush(bs, s->refcount_block_cache);
+    if (ret) {
+        result = ret;
+        error_report("Failed to flush the refcount block cache: %s",
+                     strerror(-ret));
+    }
+
+    if (result == 0) {
+        qcow2_mark_clean(bs);
+    }
+
+    return result;
+}
+
 static void qcow2_close(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
@@ -1694,23 +1720,7 @@ static void qcow2_close(BlockDriverState *bs)
     s->l1_table = NULL;
 
     if (!(bs->open_flags & BDRV_O_INACTIVE)) {
-        int ret1, ret2;
-
-        ret1 = qcow2_cache_flush(bs, s->l2_table_cache);
-        ret2 = qcow2_cache_flush(bs, s->refcount_block_cache);
-
-        if (ret1) {
-            error_report("Failed to flush the L2 table cache: %s",
-                         strerror(-ret1));
-        }
-        if (ret2) {
-            error_report("Failed to flush the refcount block cache: %s",
-                         strerror(-ret2));
-        }
-
-        if (!ret1 && !ret2) {
-            qcow2_mark_clean(bs);
-        }
+        qcow2_inactivate(bs);
     }
 
     cache_clean_timer_del(bs);
@@ -3340,6 +3350,7 @@ BlockDriver bdrv_qcow2 = {
 
     .bdrv_refresh_limits        = qcow2_refresh_limits,
     .bdrv_invalidate_cache      = qcow2_invalidate_cache,
+    .bdrv_inactivate            = qcow2_inactivate,
 
     .create_opts         = &qcow2_create_opts,
     .bdrv_check          = qcow2_check,
