@@ -3303,6 +3303,40 @@ void bdrv_invalidate_cache_all(Error **errp)
     }
 }
 
+static int bdrv_inactivate(BlockDriverState *bs)
+{
+    int ret;
+
+    if (bs->drv->bdrv_inactivate) {
+        ret = bs->drv->bdrv_inactivate(bs);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    bs->open_flags |= BDRV_O_INACTIVE;
+    return 0;
+}
+
+int bdrv_inactivate_all(void)
+{
+    BlockDriverState *bs;
+    int ret;
+
+    QTAILQ_FOREACH(bs, &bdrv_states, device_list) {
+        AioContext *aio_context = bdrv_get_aio_context(bs);
+
+        aio_context_acquire(aio_context);
+        ret = bdrv_inactivate(bs);
+        aio_context_release(aio_context);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 /**************************************************************/
 /* removable device support */
 
