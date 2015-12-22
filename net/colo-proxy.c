@@ -90,6 +90,40 @@ typedef struct COLOProxyState {
 
 } COLOProxyState;
 
+typedef struct Packet {
+    void *data;
+    union {
+        uint8_t *network_layer;
+        struct ip *ip;
+    };
+    uint8_t *transport_layer;
+    int size;
+    COLOProxyState *s;
+    NetClientState *sender;
+} Packet;
+
+typedef struct ConnectionKey {
+    /* (src, dst) must be grouped, in the same way than in IP header */
+    struct in_addr src;
+    struct in_addr dst;
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint8_t ip_proto;
+} QEMU_PACKED ConnectionKey;
+
+/* define one connection */
+typedef struct Connection {
+    /* connection primary send queue: element type: Packet */
+    GQueue primary_list;
+    /* connection secondary send queue: element type: Packet */
+    GQueue secondary_list;
+     /* flag to enqueue unprocessed_connections */
+    bool processing;
+    int ip_proto;
+
+    void *proto; /* tcp only now */
+} Connection;
+
 enum {
     COLO_PROXY_NONE,     /* colo proxy is not started */
     COLO_PROXY_RUNNING,  /* colo proxy is running */
@@ -100,6 +134,38 @@ enum {
 GHashTable *colo_conn_hash;
 static bool colo_do_checkpoint;
 static ssize_t hashtable_max_size;
+
+static inline void colo_proxy_dump_packet(Packet *pkt)
+{
+    int i;
+    for (i = 0; i < pkt->size; i++) {
+        printf("%02x ", ((uint8_t *)pkt->data)[i]);
+    }
+    printf("\n");
+}
+
+static uint32_t connection_key_hash(const void *opaque)
+{
+    const ConnectionKey *key = opaque;
+    uint32_t a, b, c;
+
+    /* Jenkins hash */
+    a = b = c = JHASH_INITVAL + sizeof(*key);
+    a += key->src.s_addr;
+    b += key->dst.s_addr;
+    c += (key->src_port | key->dst_port << 16);
+    __jhash_mix(a, b, c);
+
+    a += key->ip_proto;
+    __jhash_final(a, b, c);
+
+    return c;
+}
+
+static int connection_key_equal(const void *opaque1, const void *opaque2)
+{
+    return memcmp(opaque1, opaque2, sizeof(ConnectionKey)) == 0;
+}
 
 static ssize_t colo_proxy_receive_iov(NetFilterState *nf,
                                          NetClientState *sender,
