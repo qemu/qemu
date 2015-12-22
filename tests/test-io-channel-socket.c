@@ -261,7 +261,7 @@ static void test_io_channel_ipv4(bool async)
 
     listen_addr->type = SOCKET_ADDRESS_KIND_INET;
     listen_addr->u.inet = g_new0(InetSocketAddress, 1);
-    listen_addr->u.inet->host = g_strdup("0.0.0.0");
+    listen_addr->u.inet->host = g_strdup("127.0.0.1");
     listen_addr->u.inet->port = NULL; /* Auto-select */
 
     connect_addr->type = SOCKET_ADDRESS_KIND_INET;
@@ -295,7 +295,7 @@ static void test_io_channel_ipv6(bool async)
 
     listen_addr->type = SOCKET_ADDRESS_KIND_INET;
     listen_addr->u.inet = g_new0(InetSocketAddress, 1);
-    listen_addr->u.inet->host = g_strdup("::");
+    listen_addr->u.inet->host = g_strdup("::1");
     listen_addr->u.inet->port = NULL; /* Auto-select */
 
     connect_addr->type = SOCKET_ADDRESS_KIND_INET;
