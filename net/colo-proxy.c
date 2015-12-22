@@ -167,6 +167,11 @@ static int connection_key_equal(const void *opaque1, const void *opaque2)
     return memcmp(opaque1, opaque2, sizeof(ConnectionKey)) == 0;
 }
 
+bool colo_proxy_query_checkpoint(void)
+{
+    return colo_do_checkpoint;
+}
+
 static ssize_t colo_proxy_receive_iov(NetFilterState *nf,
                                          NetClientState *sender,
                                          unsigned flags,
@@ -201,6 +206,94 @@ static void colo_proxy_cleanup(NetFilterState *nf)
     close(s->sockfd);
     s->sockfd = -1;
     qemu_event_destroy(&s->need_compare_ev);
+}
+
+static void colo_proxy_notify_checkpoint(void)
+{
+    trace_colo_proxy("colo_proxy_notify_checkpoint");
+    colo_do_checkpoint = true;
+}
+
+static void colo_proxy_start_one(NetFilterState *nf,
+                                      void *opaque, Error **errp)
+{
+    COLOProxyState *s;
+    int mode, ret;
+
+    if (strcmp(object_get_typename(OBJECT(nf)), TYPE_FILTER_COLO_PROXY)) {
+        return;
+    }
+
+    mode = *(int *)opaque;
+    s = FILTER_COLO_PROXY(nf);
+    assert(s->colo_mode == mode);
+
+    if (s->colo_mode == COLO_MODE_PRIMARY) {
+        char thread_name[1024];
+
+        ret = colo_proxy_connect(s);
+        if (ret) {
+            error_setg(errp, "colo proxy connect failed");
+            return ;
+        }
+
+        s->status = COLO_PROXY_RUNNING;
+        sprintf(thread_name, "proxy compare %s", nf->netdev_id);
+        qemu_thread_create(&s->thread, thread_name,
+                                colo_proxy_compare_thread, s,
+                                QEMU_THREAD_JOINABLE);
+    } else {
+        ret = colo_wait_incoming(s);
+        if (ret) {
+            error_setg(errp, "colo proxy wait incoming failed");
+            return ;
+        }
+        s->status = COLO_PROXY_RUNNING;
+    }
+}
+
+int colo_proxy_start(int mode)
+{
+    Error *err = NULL;
+    qemu_foreach_netfilter(colo_proxy_start_one, &mode, &err);
+    if (err) {
+        return -1;
+    }
+    return 0;
+}
+
+static void colo_proxy_stop_one(NetFilterState *nf,
+                                      void *opaque, Error **errp)
+{
+    COLOProxyState *s;
+    int mode;
+
+    if (strcmp(object_get_typename(OBJECT(nf)), TYPE_FILTER_COLO_PROXY)) {
+        return;
+    }
+
+    s = FILTER_COLO_PROXY(nf);
+    mode = *(int *)opaque;
+    assert(s->colo_mode == mode);
+
+    s->status = COLO_PROXY_DONE;
+    if (s->sockfd >= 0) {
+        qemu_set_fd_handler(s->sockfd, NULL, NULL, NULL);
+        closesocket(s->sockfd);
+    }
+    if (s->colo_mode == COLO_MODE_PRIMARY) {
+        colo_proxy_primary_checkpoint(s);
+        qemu_event_set(&s->need_compare_ev);
+        qemu_thread_join(&s->thread);
+    } else {
+        colo_proxy_secondary_checkpoint(s);
+    }
+}
+
+void colo_proxy_stop(int mode)
+{
+    Error *err = NULL;
+    qemu_foreach_netfilter(colo_proxy_stop_one, &mode, &err);
 }
 
 static void colo_proxy_setup(NetFilterState *nf, Error **errp)
