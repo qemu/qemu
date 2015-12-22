@@ -1490,6 +1490,7 @@ M: Denis V. Lunev <den@openvz.org>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/parallels.c
+F: docs/specs/parallels.txt
 
 qed
 M: Stefan Hajnoczi <stefanha@redhat.com>

@@ -407,24 +407,16 @@ void virtio_blk_submit_multireq(BlockBackend *blk, MultiReqBuffer *mrb)
     for (i = 0; i < mrb->num_reqs; i++) {
         VirtIOBlockReq *req = mrb->reqs[i];
         if (num_reqs > 0) {
-            bool merge = true;
-
-            /* merge would exceed maximum number of IOVs */
-            if (niov + req->qiov.niov > IOV_MAX) {
-                merge = false;
-            }
-
-            /* merge would exceed maximum transfer length of backend device */
-            if (req->qiov.size / BDRV_SECTOR_SIZE + nb_sectors > max_xfer_len) {
-                merge = false;
-            }
-
-            /* requests are not sequential */
-            if (sector_num + nb_sectors != req->sector_num) {
-                merge = false;
-            }
-
-            if (!merge) {
+            /*
+             * NOTE: We cannot merge the requests in below situations:
+             * 1. requests are not sequential
+             * 2. merge would exceed maximum number of IOVs
+             * 3. merge would exceed maximum transfer length of backend device
+             */
+            if (sector_num + nb_sectors != req->sector_num ||
+                niov > blk_get_max_iov(blk) - req->qiov.niov ||
+                req->qiov.size / BDRV_SECTOR_SIZE > max_xfer_len ||
+                nb_sectors > max_xfer_len - req->qiov.size / BDRV_SECTOR_SIZE) {
                 submit_requests(blk, mrb, start, num_reqs, niov);
                 num_reqs = 0;
             }

@@ -1023,6 +1023,11 @@ int blk_get_max_transfer_length(BlockBackend *blk)
     }
 }
 
+int blk_get_max_iov(BlockBackend *blk)
+{
+    return blk->bs->bl.max_iov;
+}
+
 void blk_set_guest_block_size(BlockBackend *blk, int align)
 {
     blk->guest_block_size = align;

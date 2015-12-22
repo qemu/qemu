@@ -161,12 +161,14 @@ static void mirror_read_complete(void *opaque, int ret)
 static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
 {
     BlockDriverState *source = s->common.bs;
-    int nb_sectors, sectors_per_chunk, nb_chunks;
+    int nb_sectors, sectors_per_chunk, nb_chunks, max_iov;
     int64_t end, sector_num, next_chunk, next_sector, hbitmap_next_sector;
     uint64_t delay_ns = 0;
     MirrorOp *op;
     int pnum;
     int64_t ret;
+
+    max_iov = MIN(source->bl.max_iov, s->target->bl.max_iov);
 
     s->sector_num = hbitmap_iter_next(&s->hbi);
     if (s->sector_num < 0) {
@@ -248,7 +250,7 @@ static uint64_t coroutine_fn mirror_iteration(MirrorBlockJob *s)
             trace_mirror_break_buf_busy(s, nb_chunks, s->in_flight);
             break;
         }
-        if (IOV_MAX < nb_chunks + added_chunks) {
+        if (max_iov < nb_chunks + added_chunks) {
             trace_mirror_break_iov_max(s, nb_chunks, added_chunks);
             break;
         }

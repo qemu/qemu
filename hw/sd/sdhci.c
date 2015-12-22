@@ -193,7 +193,9 @@ static void sdhci_reset(SDHCIState *s)
      * initialization */
     memset(&s->sdmasysad, 0, (uintptr_t)&s->capareg - (uintptr_t)&s->sdmasysad);
 
-    sd_set_cb(s->card, s->ro_cb, s->eject_cb);
+    if (!s->noeject_quirk) {
+        sd_set_cb(s->card, s->ro_cb, s->eject_cb);
+    }
     s->data_count = 0;
     s->stopped_state = sdhc_not_stopped;
 }
@@ -243,9 +245,6 @@ static void sdhci_send_command(SDHCIState *s)
             (s->cmdreg & SDHC_CMD_RESPONSE) == SDHC_CMD_RSP_WITH_BUSY) {
             s->norintsts |= SDHC_NIS_TRSCMP;
         }
-    } else if (rlen != 0 && (s->errintstsen & SDHC_EISEN_CMDIDX)) {
-        s->errintsts |= SDHC_EIS_CMDIDX;
-        s->norintsts |= SDHC_NIS_ERR;
     }
 
     if (s->norintstsen & SDHC_NISEN_CMDCMP) {
@@ -831,7 +830,7 @@ static void sdhci_data_transfer(void *opaque)
 
 static bool sdhci_can_issue_command(SDHCIState *s)
 {
-    if (!SDHC_CLOCK_IS_ON(s->clkcon) || !(s->pwrcon & SDHC_POWER_ON) ||
+    if (!SDHC_CLOCK_IS_ON(s->clkcon) ||
         (((s->prnsts & SDHC_DATA_INHIBIT) || s->stopped_state) &&
         ((s->cmdreg & SDHC_CMD_DATA_PRESENT) ||
         ((s->cmdreg & SDHC_CMD_RESPONSE) == SDHC_CMD_RSP_WITH_BUSY &&
@@ -1279,6 +1278,7 @@ static Property sdhci_sysbus_properties[] = {
     DEFINE_PROP_UINT32("capareg", SDHCIState, capareg,
             SDHC_CAPAB_REG_DEFAULT),
     DEFINE_PROP_UINT32("maxcurr", SDHCIState, maxcurr, 0),
+    DEFINE_PROP_BOOL("noeject-quirk", SDHCIState, noeject_quirk, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

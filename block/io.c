@@ -166,9 +166,13 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.max_transfer_length = bs->file->bs->bl.max_transfer_length;
         bs->bl.min_mem_alignment = bs->file->bs->bl.min_mem_alignment;
         bs->bl.opt_mem_alignment = bs->file->bs->bl.opt_mem_alignment;
+        bs->bl.max_iov = bs->file->bs->bl.max_iov;
     } else {
         bs->bl.min_mem_alignment = 512;
         bs->bl.opt_mem_alignment = getpagesize();
+
+        /* Safe default since most protocols use readv()/writev()/etc */
+        bs->bl.max_iov = IOV_MAX;
     }
 
     if (bs->backing) {
@@ -189,6 +193,9 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
         bs->bl.min_mem_alignment =
             MAX(bs->bl.min_mem_alignment,
                 bs->backing->bs->bl.min_mem_alignment);
+        bs->bl.max_iov =
+            MIN(bs->bl.max_iov,
+                bs->backing->bs->bl.max_iov);
     }
 
     /* Then let the driver override it */
@@ -1882,7 +1889,8 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             merge = 1;
         }
 
-        if (reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1 > IOV_MAX) {
+        if (reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1 >
+            bs->bl.max_iov) {
             merge = 0;
         }
 

@@ -330,6 +330,9 @@ typedef struct BlockLimits {
 
     /* memory alignment for bounce buffer */
     size_t opt_mem_alignment;
+
+    /* maximum number of iovec elements */
+    int max_iov;
 } BlockLimits;
 
 typedef struct BdrvOpBlocker BdrvOpBlocker;
