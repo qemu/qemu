@@ -602,6 +602,70 @@ static void colo_proxy_notify_checkpoint(void)
     colo_do_checkpoint = true;
 }
 
+/*
+ * The IP packets sent by primary and secondary
+ * will be comparison in here
+ * TODO： support ip fragment
+ * return:    0  means packet same
+ *            > 0 || < 0 means packet different
+ */
+static int colo_packet_compare(Packet *ppkt, Packet *spkt)
+{
+    trace_colo_proxy("colo_packet_compare data   ppkt");
+    trace_colo_proxy_packet_size(ppkt->size);
+    trace_colo_proxy_packet_src(inet_ntoa(ppkt->ip->ip_src));
+    trace_colo_proxy_packet_dst(inet_ntoa(ppkt->ip->ip_dst));
+    colo_proxy_dump_packet(ppkt);
+    trace_colo_proxy("colo_packet_compare data   spkt");
+    trace_colo_proxy_packet_size(spkt->size);
+    trace_colo_proxy_packet_src(inet_ntoa(spkt->ip->ip_src));
+    trace_colo_proxy_packet_dst(inet_ntoa(spkt->ip->ip_dst));
+    colo_proxy_dump_packet(spkt);
+
+    if (ppkt->size == spkt->size) {
+        return memcmp(ppkt->data, spkt->data, spkt->size);
+    } else {
+        trace_colo_proxy("colo_packet_compare size not same");
+        return -1;
+    }
+}
+
+static void colo_compare_connection(void *opaque, void *user_data)
+{
+    Connection *conn = opaque;
+    Packet *pkt = NULL;
+    GList *result = NULL;
+
+    while (!g_queue_is_empty(&conn->primary_list) &&
+                !g_queue_is_empty(&conn->secondary_list)) {
+        pkt = g_queue_pop_head(&conn->primary_list);
+        result = g_queue_find_custom(&conn->secondary_list,
+                    pkt, (GCompareFunc)colo_packet_compare);
+        if (result) {
+            colo_send_primary_packet(pkt, NULL);
+            trace_colo_proxy("packet same and release packet");
+        } else {
+            g_queue_push_tail(&conn->primary_list, pkt);
+            trace_colo_proxy("packet different");
+            colo_proxy_notify_checkpoint();
+            break;
+        }
+    }
+}
+
+static void *colo_proxy_compare_thread(void *opaque)
+{
+    COLOProxyState *s = opaque;
+
+    while (s->status == COLO_PROXY_RUNNING) {
+        qemu_event_wait(&s->need_compare_ev);
+        qemu_event_reset(&s->need_compare_ev);
+        g_queue_foreach(&s->conn_list, colo_compare_connection, NULL);
+    }
+
+    return NULL;
+}
+
 static void colo_proxy_start_one(NetFilterState *nf,
                                       void *opaque, Error **errp)
 {
