@@ -167,9 +167,139 @@ static int connection_key_equal(const void *opaque1, const void *opaque2)
     return memcmp(opaque1, opaque2, sizeof(ConnectionKey)) == 0;
 }
 
+static void connection_destroy(void *opaque)
+{
+    Connection *conn = opaque;
+
+    g_queue_foreach(&conn->primary_list, packet_destroy, NULL);
+    g_queue_free(&conn->primary_list);
+    g_queue_foreach(&conn->secondary_list, packet_destroy, NULL);
+    g_queue_free(&conn->secondary_list);
+    g_slice_free(Connection, conn);
+}
+
+static Connection *connection_new(ConnectionKey *key)
+{
+    Connection *conn = g_slice_new(Connection);
+
+    conn->ip_proto = key->ip_proto;
+    conn->processing = false;
+    g_queue_init(&conn->primary_list);
+    g_queue_init(&conn->secondary_list);
+
+    return conn;
+}
+
+/*
+ * Clear hashtable, stop this hash growing really huge
+ */
+static void clear_connection_hashtable(COLOProxyState *s)
+{
+    s->hashtable_size = 0;
+    g_hash_table_remove_all(colo_conn_hash);
+    trace_colo_proxy("clear_connection_hashtable");
+}
+
 bool colo_proxy_query_checkpoint(void)
 {
     return colo_do_checkpoint;
+}
+
+/* Return 0 on success, or return -1 if the pkt is corrupted */
+static int parse_packet_early(Packet *pkt, ConnectionKey *key)
+{
+    int network_length;
+    uint8_t *data = pkt->data;
+    uint16_t l3_proto;
+    uint32_t tmp_ports;
+    ssize_t l2hdr_len = eth_get_l2_hdr_length(data);
+
+    pkt->network_layer = data + ETH_HLEN;
+    l3_proto = eth_get_l3_proto(data, l2hdr_len);
+    if (l3_proto != ETH_P_IP) {
+        if (l3_proto == ETH_P_ARP) {
+            return -1;
+        }
+        return 0;
+    }
+
+    network_length = pkt->ip->ip_hl * 4;
+    pkt->transport_layer = pkt->network_layer + network_length;
+    key->ip_proto = pkt->ip->ip_p;
+    key->src = pkt->ip->ip_src;
+    key->dst = pkt->ip->ip_dst;
+
+    switch (key->ip_proto) {
+    case IPPROTO_TCP:
+    case IPPROTO_UDP:
+    case IPPROTO_DCCP:
+    case IPPROTO_ESP:
+    case IPPROTO_SCTP:
+    case IPPROTO_UDPLITE:
+        tmp_ports = *(uint32_t *)(pkt->transport_layer);
+        key->src_port = tmp_ports & 0xffff;
+        key->dst_port = tmp_ports >> 16;
+        break;
+    case IPPROTO_AH:
+        tmp_ports = *(uint32_t *)(pkt->transport_layer + 4);
+        key->src_port = tmp_ports & 0xffff;
+        key->dst_port = tmp_ports >> 16;
+        break;
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+static Packet *packet_new(COLOProxyState *s, void *data,
+                          int size, ConnectionKey *key, NetClientState *sender)
+{
+    Packet *pkt = g_slice_new(Packet);
+
+    pkt->data = data;
+    pkt->size = size;
+    pkt->s = s;
+    pkt->sender = sender;
+
+    if (parse_packet_early(pkt, key)) {
+        packet_destroy(pkt, NULL);
+        pkt = NULL;
+    }
+
+    return pkt;
+}
+
+static void packet_destroy(void *opaque, void *user_data)
+{
+    Packet *pkt = opaque;
+    g_free(pkt->data);
+    g_slice_free(Packet, pkt);
+}
+
+/* if not found, creata a new connection and add to hash table */
+static Connection *colo_proxy_get_conn(COLOProxyState *s,
+            ConnectionKey *key)
+{
+    /* FIXME: protect colo_conn_hash */
+    Connection *conn = g_hash_table_lookup(colo_conn_hash, key);
+
+    if (conn == NULL) {
+        ConnectionKey *new_key = g_malloc(sizeof(*key));
+
+        conn = connection_new(key);
+        memcpy(new_key, key, sizeof(*key));
+
+        s->hashtable_size++;
+        if (s->hashtable_size > hashtable_max_size) {
+            trace_colo_proxy("colo proxy connection hashtable full, clear it");
+            clear_connection_hashtable(s);
+        } else {
+            g_hash_table_insert(colo_conn_hash, new_key, conn);
+        }
+    }
+
+     return conn;
 }
 
 static ssize_t colo_proxy_enqueue_primary_packet(NetFilterState *nf,
