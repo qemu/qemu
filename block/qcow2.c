@@ -1719,7 +1719,7 @@ static void qcow2_close(BlockDriverState *bs)
     /* else pre-write overlap checks in cache_destroy may crash */
     s->l1_table = NULL;
 
-    if (!(bs->open_flags & BDRV_O_INACTIVE)) {
+    if (!(s->flags & BDRV_O_INACTIVE)) {
         qcow2_inactivate(bs);
     }
 
@@ -1770,6 +1770,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     memset(s, 0, sizeof(BDRVQcow2State));
     options = qdict_clone_shallow(bs->options);
 
+    flags &= ~BDRV_O_INACTIVE;
     ret = qcow2_open(bs, options, flags, &local_err);
     QDECREF(options);
     if (local_err) {
