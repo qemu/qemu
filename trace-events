@@ -1589,6 +1589,14 @@ colo_failover_set_state(int new_state) "new state %d"
 colo_start_block_replication(void) "Block replication is started"
 colo_stop_block_replication(const char *reason) "Block replication is stopped(reason: '%s')"
 
+# net/colo-proxy.c
+colo_proxy(const char *sta) ": %s"
+colo_proxy_with_ret(const char *sta, ssize_t ret) ": %s ret = %zu"
+colo_proxy_packet_src(const char *src) ":ipsrc = %s"
+colo_proxy_packet_dst(const char *dst) ":ipdst = %s"
+colo_proxy_packet_size(int size) ": %d"
+colo_proxy_queue_size(int size) ": %d"
+
 # kvm-all.c
 kvm_ioctl(int type, void *arg) "type 0x%x, arg %p"
 kvm_vm_ioctl(int type, void *arg) "type 0x%x, arg %p"

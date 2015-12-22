@@ -3732,6 +3732,12 @@ queue @var{all|rx|tx} is an option that can be applied to any netfilter.
 @option{tx}: the filter is attached to the transmit queue of the netdev,
              where it will receive packets sent by the netdev.
 
+@item -object colo-proxy,id=@var{id},netdev=@var{netdevid},addr=@var{host:port},mode=@var{primary|secondary}[,queue=@var{all}]
+
+Colo-proxy on netdev @var{netdevid},set colo mode @var{primary|secondary}
+connect other colo through addr@var{host:port},and colo needs queue all
+packet arriving in queue=@var{all}
+
 @item -object filter-dump,id=@var{id},netdev=@var{dev},file=@var{filename}][,maxlen=@var{len}]
 
 Dump the network traffic on netdev @var{dev} to the file specified by
