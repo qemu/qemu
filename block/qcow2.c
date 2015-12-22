@@ -1764,6 +1764,7 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     bdrv_invalidate_cache(bs->file->bs, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
+        bs->drv = NULL;
         return;
     }
 
@@ -1776,9 +1777,11 @@ static void qcow2_invalidate_cache(BlockDriverState *bs, Error **errp)
     if (local_err) {
         error_propagate(errp, local_err);
         error_prepend(errp, "Could not reopen qcow2 layer: ");
+        bs->drv = NULL;
         return;
     } else if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not reopen qcow2 layer");
+        bs->drv = NULL;
         return;
     }
 
