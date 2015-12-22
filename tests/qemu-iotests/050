@@ -51,14 +51,19 @@ fi
 echo
 echo "== Creating images =="
 
+TEST_IMG_SAVE="$TEST_IMG"
+TEST_IMG="$TEST_IMG.old"
+
 size=10M
 _make_test_img $size
 $QEMU_IO -c "write -P 0x40 0 1048576" "$TEST_IMG" | _filter_qemu_io
-mv "$TEST_IMG" "$TEST_IMG.old"
+
+TEST_IMG="$TEST_IMG_SAVE.new"
 
 _make_test_img $size
 $QEMU_IO -c "write -P 0x5a 0 1048576" "$TEST_IMG" | _filter_qemu_io
-mv "$TEST_IMG" "$TEST_IMG.new"
+
+TEST_IMG="$TEST_IMG_SAVE"
 
 _make_test_img -b "$TEST_IMG.old" $size
 $QEMU_IO -c "write -z 0 1048576" "$TEST_IMG" | _filter_qemu_io
