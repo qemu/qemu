@@ -1662,7 +1662,7 @@ static uint64_t vmxnet3_get_command_status(VMXNET3State *s)
 
     switch (s->last_command) {
     case VMXNET3_CMD_ACTIVATE_DEV:
-        ret = (s->device_active) ? 0 : -1;
+        ret = (s->device_active) ? 0 : 1;
         VMW_CFPRN("Device active: %" PRIx64, ret);
         break;
 
