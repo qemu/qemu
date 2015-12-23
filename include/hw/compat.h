@@ -3,6 +3,15 @@
 
 #define HW_COMPAT_2_5 \
     {\
+        .driver   = "pvscsi",\
+        .property = "x-old-pci-configuration",\
+        .value    = "on",\
+    },{\
+        .driver   = "pvscsi",\
+        .property = "x-disable-pcie",\
+        .value    = "on",\
+    },\
+    {\
         .driver   = "vmxnet3",\
         .property = "x-old-msi-offsets",\
         .value    = "on",\
@@ -17,14 +26,6 @@
         .driver   = "virtio-blk-device",\
         .property = "scsi",\
         .value    = "true",\
-    },{\
-        .driver   = "pvscsi",\
-        .property = "x-old-pci-configuration",\
-        .value    = "on",\
-    },{\
-        .driver   = "pvscsi",\
-        .property = "x-disable-pcie",\
-        .value    = "on",\
     },{\
         .driver   = "e1000",\
         .property = "extra_mac_registers",\
