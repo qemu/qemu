@@ -1650,6 +1650,14 @@ static void vmxnet3_handle_command(VMXNET3State *s, uint64_t cmd)
                   "adaptive ring info flags");
         break;
 
+    case VMXNET3_CMD_GET_DID_LO:
+        VMW_CBPRN("Set: Get lower part of device ID");
+        break;
+
+    case VMXNET3_CMD_GET_DID_HI:
+        VMW_CBPRN("Set: Get upper part of device ID");
+        break;
+
     default:
         VMW_CBPRN("Received unknown command: %" PRIx64, cmd);
         break;
@@ -1691,6 +1699,14 @@ static uint64_t vmxnet3_get_command_status(VMXNET3State *s)
 
     case VMXNET3_CMD_GET_ADAPTIVE_RING_INFO:
         ret = VMXNET3_DISABLE_ADAPTIVE_RING;
+        break;
+
+    case VMXNET3_CMD_GET_DID_LO:
+        ret = PCI_DEVICE_ID_VMWARE_VMXNET3;
+        break;
+
+    case VMXNET3_CMD_GET_DID_HI:
+        ret = VMXNET3_DEVICE_REVISION;
         break;
 
     default:
