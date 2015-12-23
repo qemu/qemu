@@ -235,7 +235,11 @@ static const TypeInfo ccw_machine_info = {
     },
 };
 
+#define CCW_COMPAT_2_5 \
+        HW_COMPAT_2_5
+
 #define CCW_COMPAT_2_4 \
+        CCW_COMPAT_2_5 \
         HW_COMPAT_2_4 \
         {\
             .driver   = TYPE_S390_SKEYS,\
@@ -296,8 +300,13 @@ static const TypeInfo ccw_machine_2_4_info = {
 static void ccw_machine_2_5_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    static GlobalProperty compat_props[] = {
+        CCW_COMPAT_2_5
+        { /* end of list */ }
+    };
 
     mc->desc = "VirtIO-ccw based S390 machine v2.5";
+    mc->compat_props = compat_props;
 }
 
 static const TypeInfo ccw_machine_2_5_info = {
