@@ -113,6 +113,8 @@ struct XenPTRegInfo {
     uint32_t res_mask;
     /* reg read only field mask (ON:RO/ROS, OFF:other) */
     uint32_t ro_mask;
+    /* reg read/write-1-clear field mask (ON:RW1C/RW1CS, OFF:other) */
+    uint32_t rw1c_mask;
     /* reg emulate field mask (ON:emu, OFF:passthrough) */
     uint32_t emu_mask;
     xen_pt_conf_reg_init init;
@@ -187,13 +189,13 @@ typedef struct XenPTMSIXEntry {
     int pirq;
     uint64_t addr;
     uint32_t data;
-    uint32_t vector_ctrl;
+    uint32_t latch[4];
     bool updated; /* indicate whether MSI ADDR or DATA is updated */
-    bool warned;  /* avoid issuing (bogus) warning more than once */
 } XenPTMSIXEntry;
 typedef struct XenPTMSIX {
     uint32_t ctrl_offset;
     bool enabled;
+    bool maskall;
     int total_entries;
     int bar_index;
     uint64_t table_base;

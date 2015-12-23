@@ -179,7 +179,8 @@ static int xen_pt_byte_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
     *data = XEN_PT_MERGE_VALUE(*val, *data, writable_mask);
 
     /* create value for writing to I/O device register */
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value & ~reg->rw1c_mask,
+                              throughable_mask);
 
     return 0;
 }
@@ -197,7 +198,8 @@ static int xen_pt_word_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
     *data = XEN_PT_MERGE_VALUE(*val, *data, writable_mask);
 
     /* create value for writing to I/O device register */
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value & ~reg->rw1c_mask,
+                              throughable_mask);
 
     return 0;
 }
@@ -215,7 +217,8 @@ static int xen_pt_long_reg_write(XenPCIPassthroughState *s, XenPTReg *cfg_entry,
     *data = XEN_PT_MERGE_VALUE(*val, *data, writable_mask);
 
     /* create value for writing to I/O device register */
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value, throughable_mask);
+    *val = XEN_PT_MERGE_VALUE(*val, dev_value & ~reg->rw1c_mask,
+                              throughable_mask);
 
     return 0;
 }
@@ -633,6 +636,7 @@ static XenPTRegInfo xen_pt_emu_reg_header0[] = {
         .init_val   = 0x0000,
         .res_mask   = 0x0007,
         .ro_mask    = 0x06F8,
+        .rw1c_mask  = 0xF900,
         .emu_mask   = 0x0010,
         .init       = xen_pt_status_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
@@ -944,6 +948,7 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
         .size       = 2,
         .res_mask   = 0xFFC0,
         .ro_mask    = 0x0030,
+        .rw1c_mask  = 0x000F,
         .init       = xen_pt_common_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_word_reg_write,
@@ -964,6 +969,7 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
         .offset     = PCI_EXP_LNKSTA,
         .size       = 2,
         .ro_mask    = 0x3FFF,
+        .rw1c_mask  = 0xC000,
         .init       = xen_pt_common_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
         .u.w.write  = xen_pt_word_reg_write,
@@ -1000,27 +1006,6 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
  * Power Management Capability
  */
 
-/* write Power Management Control/Status register */
-static int xen_pt_pmcsr_reg_write(XenPCIPassthroughState *s,
-                                  XenPTReg *cfg_entry, uint16_t *val,
-                                  uint16_t dev_value, uint16_t valid_mask)
-{
-    XenPTRegInfo *reg = cfg_entry->reg;
-    uint16_t writable_mask = 0;
-    uint16_t throughable_mask = get_throughable_mask(s, reg, valid_mask);
-    uint16_t *data = cfg_entry->ptr.half_word;
-
-    /* modify emulate register */
-    writable_mask = reg->emu_mask & ~reg->ro_mask & valid_mask;
-    *data = XEN_PT_MERGE_VALUE(*val, *data, writable_mask);
-
-    /* create value for writing to I/O device register */
-    *val = XEN_PT_MERGE_VALUE(*val, dev_value & ~PCI_PM_CTRL_PME_STATUS,
-                              throughable_mask);
-
-    return 0;
-}
-
 /* Power Management Capability reg static information table */
 static XenPTRegInfo xen_pt_emu_reg_pm[] = {
     /* Next Pointer reg */
@@ -1051,11 +1036,12 @@ static XenPTRegInfo xen_pt_emu_reg_pm[] = {
         .size       = 2,
         .init_val   = 0x0008,
         .res_mask   = 0x00F0,
-        .ro_mask    = 0xE10C,
+        .ro_mask    = 0x610C,
+        .rw1c_mask  = 0x8000,
         .emu_mask   = 0x810B,
         .init       = xen_pt_common_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
-        .u.w.write  = xen_pt_pmcsr_reg_write,
+        .u.w.write  = xen_pt_word_reg_write,
     },
     {
         .size = 0,
@@ -1498,6 +1484,8 @@ static int xen_pt_msixctrl_reg_write(XenPCIPassthroughState *s,
     } else if (!(*val & PCI_MSIX_FLAGS_ENABLE) && s->msix->enabled) {
         xen_pt_msix_disable(s);
     }
+
+    s->msix->maskall = *val & PCI_MSIX_FLAGS_MASKALL;
 
     debug_msix_enabled_old = s->msix->enabled;
     s->msix->enabled = !!(*val & PCI_MSIX_FLAGS_ENABLE);

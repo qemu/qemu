@@ -825,6 +825,9 @@ static int blk_init(struct XenDevice *xendev)
     if (!strcmp("aio", blkdev->fileproto)) {
         blkdev->fileproto = "raw";
     }
+    if (!strcmp("vhd", blkdev->fileproto)) {
+        blkdev->fileproto = "vpc";
+    }
     if (blkdev->mode == NULL) {
         blkdev->mode = xenstore_read_be_str(&blkdev->xendev, "mode");
     }
