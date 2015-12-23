@@ -2154,9 +2154,10 @@ void bdrv_close(BlockDriverState *bs)
         bdrv_io_limits_disable(bs);
     }
 
-    bdrv_drain(bs); /* complete I/O */
+    bdrv_drained_begin(bs); /* complete I/O */
     bdrv_flush(bs);
     bdrv_drain(bs); /* in case flush left pending I/O */
+
     notifier_list_notify(&bs->close_notifiers, bs);
 
     if (bs->blk) {
@@ -2206,6 +2207,7 @@ void bdrv_close(BlockDriverState *bs)
         g_free(ban);
     }
     QLIST_INIT(&bs->aio_notifiers);
+    bdrv_drained_end(bs);
 }
 
 void bdrv_close_all(void)
