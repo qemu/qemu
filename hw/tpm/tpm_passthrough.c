@@ -83,12 +83,37 @@ static void tpm_passthrough_cancel_cmd(TPMBackend *tb);
 
 static int tpm_passthrough_unix_write(int fd, const uint8_t *buf, uint32_t len)
 {
-    return send_all(fd, buf, len);
+    int ret, remain;
+
+    remain = len;
+    while (len > 0) {
+        ret = write(fd, buf, remain);
+        if (ret < 0) {
+            if (errno != EINTR && errno != EAGAIN) {
+                return -1;
+            }
+        } else if (ret == 0) {
+            break;
+        } else {
+            buf += ret;
+            remain -= ret;
+        }
+    }
+    return len - remain;
 }
 
 static int tpm_passthrough_unix_read(int fd, uint8_t *buf, uint32_t len)
 {
-    return recv_all(fd, buf, len, true);
+    int ret;
+ reread:
+    ret = read(fd, buf, len);
+    if (ret < 0) {
+        if (errno != EINTR && errno != EAGAIN) {
+            return -1;
+        }
+        goto reread;
+    }
+    return ret;
 }
 
 static uint32_t tpm_passthrough_get_size_from_buffer(const uint8_t *buf)

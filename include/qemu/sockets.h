@@ -40,8 +40,6 @@ int socket_set_nodelay(int fd);
 void qemu_set_block(int fd);
 void qemu_set_nonblock(int fd);
 int socket_set_fast_reuse(int fd);
-int send_all(int fd, const void *buf, int len1);
-int recv_all(int fd, void *buf, int len1, bool single_read);
 
 #ifdef WIN32
 /* Windows has different names for the same constants with the same values */
