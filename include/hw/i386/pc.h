@@ -36,23 +36,28 @@
 /**
  * PCMachineState:
  * @acpi_dev: link to ACPI PM device that performs ACPI hotplug handling
- * @enforce_aligned_dimm: check that DIMM's address/size is aligned by
- *                        backend's alignment value if provided
  */
 struct PCMachineState {
     /*< private >*/
     MachineState parent_obj;
 
     /* <public> */
+
+    /* State for other subsystems/APIs: */
     MemoryHotplugState hotplug_memory;
 
+    /* Pointers to devices and objects: */
     HotplugHandler *acpi_dev;
     ISADevice *rtc;
+    PCIBus *bus;
 
+    /* Configuration options: */
     uint64_t max_ram_below_4g;
     OnOffAuto vmport;
     OnOffAuto smm;
-    bool enforce_aligned_dimm;
+    bool nvdimm;
+
+    /* RAM information (sizes, addresses, configuration): */
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
 };
 
@@ -61,20 +66,60 @@ struct PCMachineState {
 #define PC_MACHINE_MAX_RAM_BELOW_4G "max-ram-below-4g"
 #define PC_MACHINE_VMPORT           "vmport"
 #define PC_MACHINE_SMM              "smm"
-#define PC_MACHINE_ENFORCE_ALIGNED_DIMM "enforce-aligned-dimm"
+#define PC_MACHINE_NVDIMM           "nvdimm"
 
 /**
  * PCMachineClass:
+ *
+ * Methods:
+ *
  * @get_hotplug_handler: pointer to parent class callback @get_hotplug_handler
+ *
+ * Compat fields:
+ *
+ * @enforce_aligned_dimm: check that DIMM's address/size is aligned by
+ *                        backend's alignment value if provided
+ * @acpi_data_size: Size of the chunk of memory at the top of RAM
+ *                  for the BIOS ACPI tables and other BIOS
+ *                  datastructures.
+ * @gigabyte_align: Make sure that guest addresses aligned at
+ *                  1Gbyte boundaries get mapped to host
+ *                  addresses aligned at 1Gbyte boundaries. This
+ *                  way we can use 1GByte pages in the host.
+ *
  */
 struct PCMachineClass {
     /*< private >*/
     MachineClass parent_class;
 
     /*< public >*/
-    bool broken_reserved_end;
+
+    /* Methods: */
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);
+
+    /* Device configuration: */
+    bool pci_enabled;
+    bool kvmclock_enabled;
+
+    /* Compat options: */
+
+    /* ACPI compat: */
+    bool has_acpi_build;
+    bool rsdp_in_ram;
+    int legacy_acpi_table_size;
+    unsigned acpi_data_size;
+
+    /* SMBIOS compat: */
+    bool smbios_defaults;
+    bool smbios_legacy_mode;
+    bool smbios_uuid_encoded;
+
+    /* RAM / address space compat: */
+    bool gigabyte_align;
+    bool has_reserved_memory;
+    bool enforce_aligned_dimm;
+    bool broken_reserved_end;
 };
 
 #define TYPE_PC_MACHINE "generic-pc-machine"
@@ -185,8 +230,6 @@ void pc_hot_add_cpu(const int64_t id, Error **errp);
 void pc_acpi_init(const char *default_dsdt);
 
 PcGuestInfo *pc_guest_info_init(PCMachineState *pcms);
-
-void pc_set_legacy_acpi_data_size(void);
 
 #define PCI_HOST_PROP_PCI_HOLE_START   "pci-hole-start"
 #define PCI_HOST_PROP_PCI_HOLE_END     "pci-hole-end"
@@ -309,485 +352,489 @@ int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
 bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
 
+#define PC_COMPAT_2_5 \
+    HW_COMPAT_2_5
+
 #define PC_COMPAT_2_4 \
-        HW_COMPAT_2_4 \
-        {\
-            .driver   = "Haswell-" TYPE_X86_CPU,\
-            .property = "abm",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "Haswell-noTSX-" TYPE_X86_CPU,\
-            .property = "abm",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "Broadwell-" TYPE_X86_CPU,\
-            .property = "abm",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "Broadwell-noTSX-" TYPE_X86_CPU,\
-            .property = "abm",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "host" "-" TYPE_X86_CPU,\
-            .property = "host-cache-info",\
-            .value    = "on",\
-        },\
-        {\
-            .driver   = TYPE_X86_CPU,\
-            .property = "check",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "qemu64" "-" TYPE_X86_CPU,\
-            .property = "sse4a",\
-            .value    = "on",\
-        },\
-        {\
-            .driver   = "qemu64" "-" TYPE_X86_CPU,\
-            .property = "abm",\
-            .value    = "on",\
-        },\
-        {\
-            .driver   = "qemu64" "-" TYPE_X86_CPU,\
-            .property = "popcnt",\
-            .value    = "on",\
-        },\
-        {\
-            .driver   = "qemu32" "-" TYPE_X86_CPU,\
-            .property = "popcnt",\
-            .value    = "on",\
-        },{\
-            .driver   = "Opteron_G2" "-" TYPE_X86_CPU,\
-            .property = "rdtscp",\
-            .value    = "on",\
-        },{\
-            .driver   = "Opteron_G3" "-" TYPE_X86_CPU,\
-            .property = "rdtscp",\
-            .value    = "on",\
-        },{\
-            .driver   = "Opteron_G4" "-" TYPE_X86_CPU,\
-            .property = "rdtscp",\
-            .value    = "on",\
-        },{\
-            .driver   = "Opteron_G5" "-" TYPE_X86_CPU,\
-            .property = "rdtscp",\
-            .value    = "on",\
-        },
+    PC_COMPAT_2_5 \
+    HW_COMPAT_2_4 \
+    {\
+        .driver   = "Haswell-" TYPE_X86_CPU,\
+        .property = "abm",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "Haswell-noTSX-" TYPE_X86_CPU,\
+        .property = "abm",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "Broadwell-" TYPE_X86_CPU,\
+        .property = "abm",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "Broadwell-noTSX-" TYPE_X86_CPU,\
+        .property = "abm",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "host" "-" TYPE_X86_CPU,\
+        .property = "host-cache-info",\
+        .value    = "on",\
+    },\
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "check",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "qemu64" "-" TYPE_X86_CPU,\
+        .property = "sse4a",\
+        .value    = "on",\
+    },\
+    {\
+        .driver   = "qemu64" "-" TYPE_X86_CPU,\
+        .property = "abm",\
+        .value    = "on",\
+    },\
+    {\
+        .driver   = "qemu64" "-" TYPE_X86_CPU,\
+        .property = "popcnt",\
+        .value    = "on",\
+    },\
+    {\
+        .driver   = "qemu32" "-" TYPE_X86_CPU,\
+        .property = "popcnt",\
+        .value    = "on",\
+    },{\
+        .driver   = "Opteron_G2" "-" TYPE_X86_CPU,\
+        .property = "rdtscp",\
+        .value    = "on",\
+    },{\
+        .driver   = "Opteron_G3" "-" TYPE_X86_CPU,\
+        .property = "rdtscp",\
+        .value    = "on",\
+    },{\
+        .driver   = "Opteron_G4" "-" TYPE_X86_CPU,\
+        .property = "rdtscp",\
+        .value    = "on",\
+    },{\
+        .driver   = "Opteron_G5" "-" TYPE_X86_CPU,\
+        .property = "rdtscp",\
+        .value    = "on",\
+    },
 
 
 #define PC_COMPAT_2_3 \
-        PC_COMPAT_2_4 \
-        HW_COMPAT_2_3 \
-        {\
-            .driver   = TYPE_X86_CPU,\
-            .property = "arat",\
-            .value    = "off",\
-        },{\
-            .driver   = "qemu64" "-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(4),\
-        },{\
-            .driver   = "kvm64" "-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(5),\
-        },{\
-            .driver   = "pentium3" "-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(2),\
-        },{\
-            .driver   = "n270" "-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(5),\
-        },{\
-            .driver   = "Conroe" "-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(4),\
-        },{\
-            .driver   = "Penryn" "-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(4),\
-        },{\
-            .driver   = "Nehalem" "-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(4),\
-        },{\
-            .driver   = "n270" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "Penryn" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "Conroe" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "Nehalem" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "Westmere" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "SandyBridge" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "IvyBridge" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "Haswell" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "Haswell-noTSX" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "Broadwell" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },{\
-            .driver   = "Broadwell-noTSX" "-" TYPE_X86_CPU,\
-            .property = "xlevel",\
-            .value    = stringify(0x8000000a),\
-        },
+    PC_COMPAT_2_4 \
+    HW_COMPAT_2_3 \
+    {\
+        .driver   = TYPE_X86_CPU,\
+        .property = "arat",\
+        .value    = "off",\
+    },{\
+        .driver   = "qemu64" "-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(4),\
+    },{\
+        .driver   = "kvm64" "-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(5),\
+    },{\
+        .driver   = "pentium3" "-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(2),\
+    },{\
+        .driver   = "n270" "-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(5),\
+    },{\
+        .driver   = "Conroe" "-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(4),\
+    },{\
+        .driver   = "Penryn" "-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(4),\
+    },{\
+        .driver   = "Nehalem" "-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(4),\
+    },{\
+        .driver   = "n270" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Penryn" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Conroe" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Nehalem" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Westmere" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "SandyBridge" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "IvyBridge" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Haswell" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Haswell-noTSX" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Broadwell" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },{\
+        .driver   = "Broadwell-noTSX" "-" TYPE_X86_CPU,\
+        .property = "xlevel",\
+        .value    = stringify(0x8000000a),\
+    },
 
 #define PC_COMPAT_2_2 \
-        PC_COMPAT_2_3 \
-        HW_COMPAT_2_2 \
-        {\
-            .driver = "kvm64" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "kvm32" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Conroe" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Penryn" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Nehalem" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Westmere" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "SandyBridge" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Haswell" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Broadwell" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Opteron_G1" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Opteron_G2" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Opteron_G3" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Opteron_G4" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Opteron_G5" "-" TYPE_X86_CPU,\
-            .property = "vme",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Haswell" "-" TYPE_X86_CPU,\
-            .property = "f16c",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Haswell" "-" TYPE_X86_CPU,\
-            .property = "rdrand",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Broadwell" "-" TYPE_X86_CPU,\
-            .property = "f16c",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Broadwell" "-" TYPE_X86_CPU,\
-            .property = "rdrand",\
-            .value = "off",\
-        },
+    PC_COMPAT_2_3 \
+    HW_COMPAT_2_2 \
+    {\
+        .driver = "kvm64" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "kvm32" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Conroe" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Penryn" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Nehalem" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Westmere" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "SandyBridge" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Haswell" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Broadwell" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Opteron_G1" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Opteron_G2" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Opteron_G3" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Opteron_G4" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Opteron_G5" "-" TYPE_X86_CPU,\
+        .property = "vme",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Haswell" "-" TYPE_X86_CPU,\
+        .property = "f16c",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Haswell" "-" TYPE_X86_CPU,\
+        .property = "rdrand",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Broadwell" "-" TYPE_X86_CPU,\
+        .property = "f16c",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Broadwell" "-" TYPE_X86_CPU,\
+        .property = "rdrand",\
+        .value = "off",\
+    },
 
 #define PC_COMPAT_2_1 \
-        PC_COMPAT_2_2 \
-        HW_COMPAT_2_1 \
-        {\
-            .driver = "coreduo" "-" TYPE_X86_CPU,\
-            .property = "vmx",\
-            .value = "on",\
-        },\
-        {\
-            .driver = "core2duo" "-" TYPE_X86_CPU,\
-            .property = "vmx",\
-            .value = "on",\
-        },
+    PC_COMPAT_2_2 \
+    HW_COMPAT_2_1 \
+    {\
+        .driver = "coreduo" "-" TYPE_X86_CPU,\
+        .property = "vmx",\
+        .value = "on",\
+    },\
+    {\
+        .driver = "core2duo" "-" TYPE_X86_CPU,\
+        .property = "vmx",\
+        .value = "on",\
+    },
 
 #define PC_COMPAT_2_0 \
-        PC_COMPAT_2_1 \
-        {\
-            .driver   = "virtio-scsi-pci",\
-            .property = "any_layout",\
-            .value    = "off",\
-        },{\
-            .driver   = "PIIX4_PM",\
-            .property = "memory-hotplug-support",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "apic",\
-            .property = "version",\
-            .value    = stringify(0x11),\
-        },\
-        {\
-            .driver   = "nec-usb-xhci",\
-            .property = "superspeed-ports-first",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "nec-usb-xhci",\
-            .property = "force-pcie-endcap",\
-            .value    = "on",\
-        },\
-        {\
-            .driver   = "pci-serial",\
-            .property = "prog_if",\
-            .value    = stringify(0),\
-        },\
-        {\
-            .driver   = "pci-serial-2x",\
-            .property = "prog_if",\
-            .value    = stringify(0),\
-        },\
-        {\
-            .driver   = "pci-serial-4x",\
-            .property = "prog_if",\
-            .value    = stringify(0),\
-        },\
-        {\
-            .driver   = "virtio-net-pci",\
-            .property = "guest_announce",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "ICH9-LPC",\
-            .property = "memory-hotplug-support",\
-            .value    = "off",\
-        },{\
-            .driver   = "xio3130-downstream",\
-            .property = COMPAT_PROP_PCP,\
-            .value    = "off",\
-        },{\
-            .driver   = "ioh3420",\
-            .property = COMPAT_PROP_PCP,\
-            .value    = "off",\
-        },
+    PC_COMPAT_2_1 \
+    {\
+        .driver   = "virtio-scsi-pci",\
+        .property = "any_layout",\
+        .value    = "off",\
+    },{\
+        .driver   = "PIIX4_PM",\
+        .property = "memory-hotplug-support",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "apic",\
+        .property = "version",\
+        .value    = stringify(0x11),\
+    },\
+    {\
+        .driver   = "nec-usb-xhci",\
+        .property = "superspeed-ports-first",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "nec-usb-xhci",\
+        .property = "force-pcie-endcap",\
+        .value    = "on",\
+    },\
+    {\
+        .driver   = "pci-serial",\
+        .property = "prog_if",\
+        .value    = stringify(0),\
+    },\
+    {\
+        .driver   = "pci-serial-2x",\
+        .property = "prog_if",\
+        .value    = stringify(0),\
+    },\
+    {\
+        .driver   = "pci-serial-4x",\
+        .property = "prog_if",\
+        .value    = stringify(0),\
+    },\
+    {\
+        .driver   = "virtio-net-pci",\
+        .property = "guest_announce",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "ICH9-LPC",\
+        .property = "memory-hotplug-support",\
+        .value    = "off",\
+    },{\
+        .driver   = "xio3130-downstream",\
+        .property = COMPAT_PROP_PCP,\
+        .value    = "off",\
+    },{\
+        .driver   = "ioh3420",\
+        .property = COMPAT_PROP_PCP,\
+        .value    = "off",\
+    },
 
 #define PC_COMPAT_1_7 \
-        PC_COMPAT_2_0 \
-        {\
-            .driver   = TYPE_USB_DEVICE,\
-            .property = "msos-desc",\
-            .value    = "no",\
-        },\
-        {\
-            .driver   = "PIIX4_PM",\
-            .property = "acpi-pci-hotplug-with-bridge-support",\
-            .value    = "off",\
-        },\
-        {\
-            .driver   = "hpet",\
-            .property = HPET_INTCAP,\
-            .value    = stringify(4),\
-        },
+    PC_COMPAT_2_0 \
+    {\
+        .driver   = TYPE_USB_DEVICE,\
+        .property = "msos-desc",\
+        .value    = "no",\
+    },\
+    {\
+        .driver   = "PIIX4_PM",\
+        .property = "acpi-pci-hotplug-with-bridge-support",\
+        .value    = "off",\
+    },\
+    {\
+        .driver   = "hpet",\
+        .property = HPET_INTCAP,\
+        .value    = stringify(4),\
+    },
 
 #define PC_COMPAT_1_6 \
-        PC_COMPAT_1_7 \
-        {\
-            .driver   = "e1000",\
-            .property = "mitigation",\
-            .value    = "off",\
-        },{\
-            .driver   = "qemu64-" TYPE_X86_CPU,\
-            .property = "model",\
-            .value    = stringify(2),\
-        },{\
-            .driver   = "qemu32-" TYPE_X86_CPU,\
-            .property = "model",\
-            .value    = stringify(3),\
-        },{\
-            .driver   = "i440FX-pcihost",\
-            .property = "short_root_bus",\
-            .value    = stringify(1),\
-        },{\
-            .driver   = "q35-pcihost",\
-            .property = "short_root_bus",\
-            .value    = stringify(1),\
-        },
+    PC_COMPAT_1_7 \
+    {\
+        .driver   = "e1000",\
+        .property = "mitigation",\
+        .value    = "off",\
+    },{\
+        .driver   = "qemu64-" TYPE_X86_CPU,\
+        .property = "model",\
+        .value    = stringify(2),\
+    },{\
+        .driver   = "qemu32-" TYPE_X86_CPU,\
+        .property = "model",\
+        .value    = stringify(3),\
+    },{\
+        .driver   = "i440FX-pcihost",\
+        .property = "short_root_bus",\
+        .value    = stringify(1),\
+    },{\
+        .driver   = "q35-pcihost",\
+        .property = "short_root_bus",\
+        .value    = stringify(1),\
+    },
 
 #define PC_COMPAT_1_5 \
-        PC_COMPAT_1_6 \
-        {\
-            .driver   = "Conroe-" TYPE_X86_CPU,\
-            .property = "model",\
-            .value    = stringify(2),\
-        },{\
-            .driver   = "Conroe-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(2),\
-        },{\
-            .driver   = "Penryn-" TYPE_X86_CPU,\
-            .property = "model",\
-            .value    = stringify(2),\
-        },{\
-            .driver   = "Penryn-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(2),\
-        },{\
-            .driver   = "Nehalem-" TYPE_X86_CPU,\
-            .property = "model",\
-            .value    = stringify(2),\
-        },{\
-            .driver   = "Nehalem-" TYPE_X86_CPU,\
-            .property = "level",\
-            .value    = stringify(2),\
-        },{\
-            .driver   = "virtio-net-pci",\
-            .property = "any_layout",\
-            .value    = "off",\
-        },{\
-            .driver = TYPE_X86_CPU,\
-            .property = "pmu",\
-            .value = "on",\
-        },{\
-            .driver   = "i440FX-pcihost",\
-            .property = "short_root_bus",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "q35-pcihost",\
-            .property = "short_root_bus",\
-            .value    = stringify(0),\
-        },
+    PC_COMPAT_1_6 \
+    {\
+        .driver   = "Conroe-" TYPE_X86_CPU,\
+        .property = "model",\
+        .value    = stringify(2),\
+    },{\
+        .driver   = "Conroe-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(2),\
+    },{\
+        .driver   = "Penryn-" TYPE_X86_CPU,\
+        .property = "model",\
+        .value    = stringify(2),\
+    },{\
+        .driver   = "Penryn-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(2),\
+    },{\
+        .driver   = "Nehalem-" TYPE_X86_CPU,\
+        .property = "model",\
+        .value    = stringify(2),\
+    },{\
+        .driver   = "Nehalem-" TYPE_X86_CPU,\
+        .property = "level",\
+        .value    = stringify(2),\
+    },{\
+        .driver   = "virtio-net-pci",\
+        .property = "any_layout",\
+        .value    = "off",\
+    },{\
+        .driver = TYPE_X86_CPU,\
+        .property = "pmu",\
+        .value = "on",\
+    },{\
+        .driver   = "i440FX-pcihost",\
+        .property = "short_root_bus",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "q35-pcihost",\
+        .property = "short_root_bus",\
+        .value    = stringify(0),\
+    },
 
 #define PC_COMPAT_1_4 \
-        PC_COMPAT_1_5 \
-        {\
-            .driver   = "scsi-hd",\
-            .property = "discard_granularity",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "scsi-cd",\
-            .property = "discard_granularity",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "scsi-disk",\
-            .property = "discard_granularity",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "ide-hd",\
-            .property = "discard_granularity",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "ide-cd",\
-            .property = "discard_granularity",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "ide-drive",\
-            .property = "discard_granularity",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "virtio-blk-pci",\
-            .property = "discard_granularity",\
-            .value    = stringify(0),\
-        },{\
-            .driver   = "virtio-serial-pci",\
-            .property = "vectors",\
-            /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
-            .value    = stringify(0xFFFFFFFF),\
-        },{ \
-            .driver   = "virtio-net-pci", \
-            .property = "ctrl_guest_offloads", \
-            .value    = "off", \
-        },{\
-            .driver   = "e1000",\
-            .property = "romfile",\
-            .value    = "pxe-e1000.rom",\
-        },{\
-            .driver   = "ne2k_pci",\
-            .property = "romfile",\
-            .value    = "pxe-ne2k_pci.rom",\
-        },{\
-            .driver   = "pcnet",\
-            .property = "romfile",\
-            .value    = "pxe-pcnet.rom",\
-        },{\
-            .driver   = "rtl8139",\
-            .property = "romfile",\
-            .value    = "pxe-rtl8139.rom",\
-        },{\
-            .driver   = "virtio-net-pci",\
-            .property = "romfile",\
-            .value    = "pxe-virtio.rom",\
-        },{\
-            .driver   = "486-" TYPE_X86_CPU,\
-            .property = "model",\
-            .value    = stringify(0),\
-        },\
-        {\
-            .driver = "n270" "-" TYPE_X86_CPU,\
-            .property = "movbe",\
-            .value = "off",\
-        },\
-        {\
-            .driver = "Westmere" "-" TYPE_X86_CPU,\
-            .property = "pclmulqdq",\
-            .value = "off",\
-        },
+    PC_COMPAT_1_5 \
+    {\
+        .driver   = "scsi-hd",\
+        .property = "discard_granularity",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "scsi-cd",\
+        .property = "discard_granularity",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "scsi-disk",\
+        .property = "discard_granularity",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "ide-hd",\
+        .property = "discard_granularity",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "ide-cd",\
+        .property = "discard_granularity",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "ide-drive",\
+        .property = "discard_granularity",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "virtio-blk-pci",\
+        .property = "discard_granularity",\
+        .value    = stringify(0),\
+    },{\
+        .driver   = "virtio-serial-pci",\
+        .property = "vectors",\
+        /* DEV_NVECTORS_UNSPECIFIED as a uint32_t string */\
+        .value    = stringify(0xFFFFFFFF),\
+    },{ \
+        .driver   = "virtio-net-pci", \
+        .property = "ctrl_guest_offloads", \
+        .value    = "off", \
+    },{\
+        .driver   = "e1000",\
+        .property = "romfile",\
+        .value    = "pxe-e1000.rom",\
+    },{\
+        .driver   = "ne2k_pci",\
+        .property = "romfile",\
+        .value    = "pxe-ne2k_pci.rom",\
+    },{\
+        .driver   = "pcnet",\
+        .property = "romfile",\
+        .value    = "pxe-pcnet.rom",\
+    },{\
+        .driver   = "rtl8139",\
+        .property = "romfile",\
+        .value    = "pxe-rtl8139.rom",\
+    },{\
+        .driver   = "virtio-net-pci",\
+        .property = "romfile",\
+        .value    = "pxe-virtio.rom",\
+    },{\
+        .driver   = "486-" TYPE_X86_CPU,\
+        .property = "model",\
+        .value    = stringify(0),\
+    },\
+    {\
+        .driver = "n270" "-" TYPE_X86_CPU,\
+        .property = "movbe",\
+        .value = "off",\
+    },\
+    {\
+        .driver = "Westmere" "-" TYPE_X86_CPU,\
+        .property = "pclmulqdq",\
+        .value = "off",\
+    },
 
 #define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
     static void pc_machine_##suffix##_class_init(ObjectClass *oc, void *data) \

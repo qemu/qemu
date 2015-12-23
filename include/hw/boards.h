@@ -93,6 +93,8 @@ struct MachineClass {
     GlobalProperty *compat_props;
     const char *hw_version;
     ram_addr_t default_ram_size;
+    bool option_rom_has_mr;
+    bool rom_file_has_mr;
 
     HotplugHandler *(*get_hotplug_handler)(MachineState *machine,
                                            DeviceState *dev);

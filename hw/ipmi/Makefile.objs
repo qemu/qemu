@@ -1,0 +1,5 @@
+common-obj-$(CONFIG_IPMI) += ipmi.o
+common-obj-$(CONFIG_IPMI_LOCAL) += ipmi_bmc_sim.o
+common-obj-$(CONFIG_IPMI_LOCAL) += ipmi_bmc_extern.o
+common-obj-$(CONFIG_ISA_IPMI_KCS) += isa_ipmi_kcs.o
+common-obj-$(CONFIG_ISA_IPMI_BT) += isa_ipmi_bt.o

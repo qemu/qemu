@@ -231,6 +231,11 @@ void acpi_memory_plug_cb(ACPIREGS *ar, qemu_irq irq, MemHotplugState *mem_st,
                          DeviceState *dev, Error **errp)
 {
     MemStatus *mdev;
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (!dc->hotpluggable) {
+        return;
+    }
 
     mdev = acpi_memory_slot_status(mem_st, dev, errp);
     if (!mdev) {

@@ -42,7 +42,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                igd-passthru=on|off controls IGD GFX passthrough support (default=off)\n"
     "                aes-key-wrap=on|off controls support for AES key wrapping (default=on)\n"
     "                dea-key-wrap=on|off controls support for DEA key wrapping (default=on)\n"
-    "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n",
+    "                suppress-vmdesc=on|off disables self-describing migration (default=off)\n"
+    "                nvdimm=on|off controls NVDIMM support (default=off)\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
@@ -81,6 +82,8 @@ execution of AES cryptographic functions.  The default is on.
 Enables or disables DEA key wrapping support on s390-ccw hosts. This feature
 controls whether DEA wrapping keys will be created to allow
 execution of DEA cryptographic functions.  The default is on.
+@item nvdimm=on|off
+Enables or disables NVDIMM support. The default is off.
 @end table
 ETEXI
 
@@ -382,6 +385,58 @@ Add device @var{driver}.  @var{prop}=@var{value} sets driver
 properties.  Valid properties depend on the driver.  To get help on
 possible drivers and properties, use @code{-device help} and
 @code{-device @var{driver},help}.
+
+Some drivers are:
+@item -device ipmi-bmc-sim,id=@var{id}[,slave_addr=@var{val}]
+
+Add an IPMI BMC.  This is a simulation of a hardware management
+interface processor that normally sits on a system.  It provides
+a watchdog and the ability to reset and power control the system.
+You need to connect this to an IPMI interface to make it useful
+
+The IPMI slave address to use for the BMC.  The default is 0x20.
+This address is the BMC's address on the I2C network of management
+controllers.  If you don't know what this means, it is safe to ignore
+it.
+
+@item -device ipmi-bmc-extern,id=@var{id},chardev=@var{id}[,slave_addr=@var{val}]
+
+Add a connection to an external IPMI BMC simulator.  Instead of
+locally emulating the BMC like the above item, instead connect
+to an external entity that provides the IPMI services.
+
+A connection is made to an external BMC simulator.  If you do this, it
+is strongly recommended that you use the "reconnect=" chardev option
+to reconnect to the simulator if the connection is lost.  Note that if
+this is not used carefully, it can be a security issue, as the
+interface has the ability to send resets, NMIs, and power off the VM.
+It's best if QEMU makes a connection to an external simulator running
+on a secure port on localhost, so neither the simulator nor QEMU is
+exposed to any outside network.
+
+See the "lanserv/README.vm" file in the OpenIPMI library for more
+details on the external interface.
+
+@item -device isa-ipmi-kcs,bmc=@var{id}[,ioport=@var{val}][,irq=@var{val}]
+
+Add a KCS IPMI interafce on the ISA bus.  This also adds a
+corresponding ACPI and SMBIOS entries, if appropriate.
+
+@table @option
+@item bmc=@var{id}
+The BMC to connect to, one of ipmi-bmc-sim or ipmi-bmc-extern above.
+@item ioport=@var{val}
+Define the I/O address of the interface.  The default is 0xca0 for KCS.
+@item irq=@var{val}
+Define the interrupt to use.  The default is 5.  To disable interrupts,
+set this to 0.
+@end table
+
+@item -device isa-ipmi-bt,bmc=@var{id}[,ioport=@var{val}][,irq=@var{val}]
+
+Like the KCS interface, but defines a BT interface.  The default port is
+0xe4 and the default interrupt is 5.
+
 ETEXI
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
