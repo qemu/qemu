@@ -388,7 +388,7 @@ static void rtas_quiesce(PowerPCCPU *cpu, sPAPRMachineState *spapr,
 
 static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
 {
-    VIOsPAPRBus *bus = DO_UPCAST(VIOsPAPRBus, bus, dev->qdev.parent_bus);
+    VIOsPAPRBus *bus = SPAPR_VIO_BUS(dev->qdev.parent_bus);
     BusChild *kid;
     VIOsPAPRDevice *other;
 
@@ -449,7 +449,7 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
         }
     } else {
         /* Need to assign an address */
-        VIOsPAPRBus *bus = DO_UPCAST(VIOsPAPRBus, bus, dev->qdev.parent_bus);
+        VIOsPAPRBus *bus = SPAPR_VIO_BUS(dev->qdev.parent_bus);
 
         do {
             dev->reg = bus->next_reg++;
@@ -523,13 +523,12 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
     DeviceState *dev;
 
     /* Create bridge device */
-    dev = qdev_create(NULL, "spapr-vio-bridge");
+    dev = qdev_create(NULL, TYPE_SPAPR_VIO_BRIDGE);
     qdev_init_nofail(dev);
 
     /* Create bus on bridge device */
-
     qbus = qbus_create(TYPE_SPAPR_VIO_BUS, dev, "spapr-vio");
-    bus = DO_UPCAST(VIOsPAPRBus, bus, qbus);
+    bus = SPAPR_VIO_BUS(qbus);
     bus->next_reg = 0x71000000;
 
     /* hcall-vio */
@@ -567,9 +566,8 @@ static void spapr_vio_bridge_class_init(ObjectClass *klass, void *data)
 }
 
 static const TypeInfo spapr_vio_bridge_info = {
-    .name          = "spapr-vio-bridge",
+    .name          = TYPE_SPAPR_VIO_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
     .class_init    = spapr_vio_bridge_class_init,
 };
 
