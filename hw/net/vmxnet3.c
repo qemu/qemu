@@ -1658,6 +1658,10 @@ static void vmxnet3_handle_command(VMXNET3State *s, uint64_t cmd)
         VMW_CBPRN("Set: Get upper part of device ID");
         break;
 
+    case VMXNET3_CMD_GET_DEV_EXTRA_INFO:
+        VMW_CBPRN("Set: Get device extra info");
+        break;
+
     default:
         VMW_CBPRN("Received unknown command: %" PRIx64, cmd);
         break;
@@ -1677,6 +1681,7 @@ static uint64_t vmxnet3_get_command_status(VMXNET3State *s)
     case VMXNET3_CMD_RESET_DEV:
     case VMXNET3_CMD_QUIESCE_DEV:
     case VMXNET3_CMD_GET_QUEUE_STATUS:
+    case VMXNET3_CMD_GET_DEV_EXTRA_INFO:
         ret = 0;
         break;
 
