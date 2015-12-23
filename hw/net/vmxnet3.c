@@ -1716,7 +1716,7 @@ static uint64_t vmxnet3_get_command_status(VMXNET3State *s)
 
     default:
         VMW_WRPRN("Received request for unknown command: %x", s->last_command);
-        ret = -1;
+        ret = 0;
         break;
     }
 
