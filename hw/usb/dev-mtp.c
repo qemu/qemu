@@ -502,9 +502,9 @@ static void inotify_watchfn(void *arg)
                 entry = g_new0(MTPMonEntry, 1);
                 entry->handle = o->handle;
                 entry->event = EVT_OBJ_REMOVED;
-                usb_mtp_object_free(s, o);
                 trace_usb_mtp_inotify_event(s->dev.addr, o->path,
                                       event->mask, "Obj Deleted");
+                usb_mtp_object_free(s, o);
                 break;
 
             case IN_MODIFY:
