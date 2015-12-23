@@ -26,21 +26,8 @@
 
 typedef struct QCryptoCipher QCryptoCipher;
 
-typedef enum {
-    QCRYPTO_CIPHER_ALG_AES_128,
-    QCRYPTO_CIPHER_ALG_AES_192,
-    QCRYPTO_CIPHER_ALG_AES_256,
-    QCRYPTO_CIPHER_ALG_DES_RFB, /* A stupid variant on DES for VNC */
-
-    QCRYPTO_CIPHER_ALG_LAST
-} QCryptoCipherAlgorithm;
-
-typedef enum {
-    QCRYPTO_CIPHER_MODE_ECB,
-    QCRYPTO_CIPHER_MODE_CBC,
-
-    QCRYPTO_CIPHER_MODE_LAST
-} QCryptoCipherMode;
+/* See also "QCryptoCipherAlgorithm" and "QCryptoCipherMode"
+ * enums defined in qapi/crypto.json */
 
 /**
  * QCryptoCipher:
@@ -106,6 +93,43 @@ struct QCryptoCipher {
  * Returns: true if the algorithm is supported, false otherwise
  */
 bool qcrypto_cipher_supports(QCryptoCipherAlgorithm alg);
+
+/**
+ * qcrypto_cipher_get_block_len:
+ * @alg: the cipher algorithm
+ *
+ * Get the required data block size in bytes. When
+ * encrypting data, it must be a multiple of the
+ * block size.
+ *
+ * Returns: the block size in bytes
+ */
+size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgorithm alg);
+
+
+/**
+ * qcrypto_cipher_get_key_len:
+ * @alg: the cipher algorithm
+ *
+ * Get the required key size in bytes.
+ *
+ * Returns: the key size in bytes
+ */
+size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgorithm alg);
+
+
+/**
+ * qcrypto_cipher_get_iv_len:
+ * @alg: the cipher algorithm
+ * @mode: the cipher mode
+ *
+ * Get the required initialization vector size
+ * in bytes, if one is required.
+ *
+ * Returns: the IV size in bytes, or 0 if no IV is permitted
+ */
+size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
+                                 QCryptoCipherMode mode);
 
 
 /**

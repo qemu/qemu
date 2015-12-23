@@ -33,3 +33,48 @@
 { 'enum': 'QCryptoSecretFormat',
   'prefix': 'QCRYPTO_SECRET_FORMAT',
   'data': ['raw', 'base64']}
+
+
+##
+# QCryptoHashAlgorithm:
+#
+# The supported algorithms for computing content digests
+#
+# @md5: MD5. Should not be used in any new code, legacy compat only
+# @sha1: SHA-1. Should not be used in any new code, legacy compat only
+# @sha256: SHA-256. Current recommended strong hash.
+# Since: 2.6
+##
+{ 'enum': 'QCryptoHashAlgorithm',
+  'prefix': 'QCRYPTO_HASH_ALG',
+  'data': ['md5', 'sha1', 'sha256']}
+
+
+##
+# QCryptoCipherAlgorithm:
+#
+# The supported algorithms for content encryption ciphers
+#
+# @aes-128: AES with 128 bit / 16 byte keys
+# @aes-192: AES with 192 bit / 24 byte keys
+# @aes-256: AES with 256 bit / 32 byte keys
+# @des-rfb: RFB specific variant of single DES. Do not use except in VNC.
+# Since: 2.6
+##
+{ 'enum': 'QCryptoCipherAlgorithm',
+  'prefix': 'QCRYPTO_CIPHER_ALG',
+  'data': ['aes-128', 'aes-192', 'aes-256', 'des-rfb']}
+
+
+##
+# QCryptoCipherMode:
+#
+# The supported modes for content encryption ciphers
+#
+# @ecb: Electronic Code Book
+# @cbc: Cipher Block Chaining
+# Since: 2.6
+##
+{ 'enum': 'QCryptoCipherMode',
+  'prefix': 'QCRYPTO_CIPHER_MODE',
+  'data': ['ecb', 'cbc']}

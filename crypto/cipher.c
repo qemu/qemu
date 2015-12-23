@@ -21,19 +21,67 @@
 #include "crypto/cipher.h"
 
 
-static size_t alg_key_len[QCRYPTO_CIPHER_ALG_LAST] = {
+static size_t alg_key_len[QCRYPTO_CIPHER_ALG__MAX] = {
     [QCRYPTO_CIPHER_ALG_AES_128] = 16,
     [QCRYPTO_CIPHER_ALG_AES_192] = 24,
     [QCRYPTO_CIPHER_ALG_AES_256] = 32,
     [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
 };
 
+static size_t alg_block_len[QCRYPTO_CIPHER_ALG__MAX] = {
+    [QCRYPTO_CIPHER_ALG_AES_128] = 16,
+    [QCRYPTO_CIPHER_ALG_AES_192] = 16,
+    [QCRYPTO_CIPHER_ALG_AES_256] = 16,
+    [QCRYPTO_CIPHER_ALG_DES_RFB] = 8,
+};
+
+static bool mode_need_iv[QCRYPTO_CIPHER_MODE__MAX] = {
+    [QCRYPTO_CIPHER_MODE_ECB] = false,
+    [QCRYPTO_CIPHER_MODE_CBC] = true,
+};
+
+
+size_t qcrypto_cipher_get_block_len(QCryptoCipherAlgorithm alg)
+{
+    if (alg >= G_N_ELEMENTS(alg_key_len)) {
+        return 0;
+    }
+    return alg_block_len[alg];
+}
+
+
+size_t qcrypto_cipher_get_key_len(QCryptoCipherAlgorithm alg)
+{
+    if (alg >= G_N_ELEMENTS(alg_key_len)) {
+        return 0;
+    }
+    return alg_key_len[alg];
+}
+
+
+size_t qcrypto_cipher_get_iv_len(QCryptoCipherAlgorithm alg,
+                                 QCryptoCipherMode mode)
+{
+    if (alg >= G_N_ELEMENTS(alg_block_len)) {
+        return 0;
+    }
+    if (mode >= G_N_ELEMENTS(mode_need_iv)) {
+        return 0;
+    }
+
+    if (mode_need_iv[mode]) {
+        return alg_block_len[alg];
+    }
+    return 0;
+}
+
+
 static bool
 qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
                                    size_t nkey,
                                    Error **errp)
 {
-    if ((unsigned)alg >= QCRYPTO_CIPHER_ALG_LAST) {
+    if ((unsigned)alg >= QCRYPTO_CIPHER_ALG__MAX) {
         error_setg(errp, "Cipher algorithm %d out of range",
                    alg);
         return false;
@@ -41,7 +89,7 @@ qcrypto_cipher_validate_key_length(QCryptoCipherAlgorithm alg,
 
     if (alg_key_len[alg] != nkey) {
         error_setg(errp, "Cipher key length %zu should be %zu",
-                   alg_key_len[alg], nkey);
+                   nkey, alg_key_len[alg]);
         return false;
     }
     return true;

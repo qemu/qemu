@@ -24,10 +24,16 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/crypto.h>
 
-static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALG_LAST] = {
+static int qcrypto_hash_alg_map[QCRYPTO_HASH_ALG__MAX] = {
     [QCRYPTO_HASH_ALG_MD5] = GNUTLS_DIG_MD5,
     [QCRYPTO_HASH_ALG_SHA1] = GNUTLS_DIG_SHA1,
     [QCRYPTO_HASH_ALG_SHA256] = GNUTLS_DIG_SHA256,
+};
+
+static size_t qcrypto_hash_alg_size[QCRYPTO_HASH_ALG__MAX] = {
+    [QCRYPTO_HASH_ALG_MD5] = 16,
+    [QCRYPTO_HASH_ALG_SHA1] = 20,
+    [QCRYPTO_HASH_ALG_SHA256] = 32,
 };
 
 gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
@@ -37,6 +43,15 @@ gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg)
     }
     return false;
 }
+
+size_t qcrypto_hash_digest_len(QCryptoHashAlgorithm alg)
+{
+    if (alg >= G_N_ELEMENTS(qcrypto_hash_alg_size)) {
+        return 0;
+    }
+    return qcrypto_hash_alg_size[alg];
+}
+
 
 int qcrypto_hash_bytesv(QCryptoHashAlgorithm alg,
                         const struct iovec *iov,

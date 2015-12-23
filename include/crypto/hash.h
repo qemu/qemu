@@ -24,14 +24,7 @@
 #include "qemu-common.h"
 #include "qapi/error.h"
 
-typedef enum {
-    QCRYPTO_HASH_ALG_MD5,
-    QCRYPTO_HASH_ALG_SHA1,
-    QCRYPTO_HASH_ALG_SHA256,
-
-    QCRYPTO_HASH_ALG_LAST
-} QCryptoHashAlgorithm;
-
+/* See also "QCryptoHashAlgorithm" defined in qapi/crypto.json */
 
 /**
  * qcrypto_hash_supports:
@@ -43,6 +36,17 @@ typedef enum {
  * Returns: true if the algorithm is supported, false otherwise
  */
 gboolean qcrypto_hash_supports(QCryptoHashAlgorithm alg);
+
+
+/**
+ * qcrypto_hash_digest_len:
+ * @alg: the hash algorithm
+ *
+ * Determine the size of the hash digest in bytes
+ *
+ * Returns: the digest length in bytes
+ */
+size_t qcrypto_hash_digest_len(QCryptoHashAlgorithm alg);
 
 /**
  * qcrypto_hash_bytesv:
