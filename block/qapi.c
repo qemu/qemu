@@ -211,11 +211,13 @@ void bdrv_query_image_info(BlockDriverState *bs,
     Error *err = NULL;
     ImageInfo *info;
 
+    aio_context_acquire(bdrv_get_aio_context(bs));
+
     size = bdrv_getlength(bs);
     if (size < 0) {
         error_setg_errno(errp, -size, "Can't get size of device '%s'",
                          bdrv_get_device_name(bs));
-        return;
+        goto out;
     }
 
     info = g_new0(ImageInfo, 1);
@@ -283,10 +285,13 @@ void bdrv_query_image_info(BlockDriverState *bs,
     default:
         error_propagate(errp, err);
         qapi_free_ImageInfo(info);
-        return;
+        goto out;
     }
 
     *p_info = info;
+
+out:
+    aio_context_release(bdrv_get_aio_context(bs));
 }
 
 /* @p_info will be set only on success. */
