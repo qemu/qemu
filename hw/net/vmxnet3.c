@@ -50,7 +50,7 @@
 #define VMXNET3_LINK_STATUS_UP  0x1
 
 /* Least significant bit should be set for revision and version */
-#define VMXNET3_DEVICE_VERSION    0x1
+#define VMXNET3_UPT_REVISION      0x1
 #define VMXNET3_DEVICE_REVISION   0x1
 
 /* Number of interrupt vectors for non-MSIx modes */
@@ -1847,7 +1847,7 @@ vmxnet3_io_bar1_read(void *opaque, hwaddr addr, unsigned size)
         /* UPT Version Report Selection */
         case VMXNET3_REG_UVRS:
             VMW_CBPRN("Read BAR1 [VMXNET3_REG_UVRS], size %d", size);
-            ret = VMXNET3_DEVICE_VERSION;
+            ret = VMXNET3_UPT_REVISION;
             break;
 
         /* Command */
