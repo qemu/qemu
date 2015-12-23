@@ -204,6 +204,7 @@ static void netfilter_finalize(Object *obj)
     if (nf->netdev && !QTAILQ_EMPTY(&nf->netdev->filters)) {
         QTAILQ_REMOVE(&nf->netdev->filters, nf, next);
     }
+    g_free(nf->netdev_id);
 }
 
 static void netfilter_class_init(ObjectClass *oc, void *data)
