@@ -352,12 +352,18 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
         goto error;
     }
 
-    if (getsockname(cioc->fd, (struct sockaddr *)&ioc->localAddr,
-                    &ioc->localAddrLen) < 0) {
+    if (getsockname(cioc->fd, (struct sockaddr *)&cioc->localAddr,
+                    &cioc->localAddrLen) < 0) {
         error_setg_errno(errp, socket_error(),
                          "Unable to query local socket address");
         goto error;
     }
+
+#ifndef WIN32
+    if (cioc->localAddr.ss_family == AF_UNIX) {
+        QIO_CHANNEL(cioc)->features |= (1 << QIO_CHANNEL_FEATURE_FD_PASS);
+    }
+#endif /* WIN32 */
 
     trace_qio_channel_socket_accept_complete(ioc, cioc, cioc->fd);
     return cioc;
@@ -487,15 +493,14 @@ static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
     QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
     ssize_t ret;
     struct msghdr msg = { NULL, };
+    char control[CMSG_SPACE(sizeof(int) * SOCKET_MAX_FDS)] = { 0 };
+    size_t fdsize = sizeof(int) * nfds;
+    struct cmsghdr *cmsg;
 
     msg.msg_iov = (struct iovec *)iov;
     msg.msg_iovlen = niov;
 
     if (nfds) {
-        char control[CMSG_SPACE(sizeof(int) * SOCKET_MAX_FDS)];
-        size_t fdsize = sizeof(int) * nfds;
-        struct cmsghdr *cmsg;
-
         if (nfds > SOCKET_MAX_FDS) {
             error_setg_errno(errp, -EINVAL,
                              "Only %d FDs can be sent, got %zu",
