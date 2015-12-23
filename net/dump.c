@@ -329,6 +329,13 @@ static void filter_dump_instance_init(Object *obj)
                             file_dump_set_filename, NULL);
 }
 
+static void filter_dump_instance_finalize(Object *obj)
+{
+    NetFilterDumpState *nfds = FILTER_DUMP(obj);
+
+    g_free(nfds->filename);
+}
+
 static void filter_dump_class_init(ObjectClass *oc, void *data)
 {
     NetFilterClass *nfc = NETFILTER_CLASS(oc);
@@ -343,6 +350,7 @@ static const TypeInfo filter_dump_info = {
     .parent = TYPE_NETFILTER,
     .class_init = filter_dump_class_init,
     .instance_init = filter_dump_instance_init,
+    .instance_finalize = filter_dump_instance_finalize,
     .instance_size = sizeof(NetFilterDumpState),
 };
 
