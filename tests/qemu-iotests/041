@@ -34,9 +34,11 @@ quorum_img3 = os.path.join(iotests.test_dir, 'quorum3.img')
 quorum_repair_img = os.path.join(iotests.test_dir, 'quorum_repair.img')
 quorum_snapshot_file = os.path.join(iotests.test_dir, 'quorum_snapshot.img')
 
-
 class TestSingleDrive(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
+    qmp_cmd = 'drive-mirror'
+    qmp_target = target_img
+    not_found_error = 'DeviceNotFound'
 
     def setUp(self):
         iotests.create_image(backing_img, self.image_len)
@@ -58,8 +60,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_complete(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
 
         self.complete_and_wait()
@@ -72,8 +74,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_cancel(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
 
         self.cancel_and_wait(force=True)
@@ -84,8 +86,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_cancel_after_ready(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
 
         self.wait_ready_and_cancel()
@@ -98,8 +100,8 @@ class TestSingleDrive(iotests.QMPTestCase):
     def test_pause(self):
         self.assert_no_active_block_jobs()
 
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             target=target_img)
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-pause', device='drive0')
@@ -125,8 +127,8 @@ class TestSingleDrive(iotests.QMPTestCase):
         self.assert_no_active_block_jobs()
 
         # A small buffer is rounded up automatically
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             buf_size=4096, target=target_img)
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             buf_size=4096, target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
 
         self.complete_and_wait()
@@ -141,8 +143,8 @@ class TestSingleDrive(iotests.QMPTestCase):
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,size=%d'
                         % (self.image_len, self.image_len), target_img)
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             buf_size=65536, mode='existing', target=target_img)
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             buf_size=65536, mode='existing', target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
 
         self.complete_and_wait()
@@ -157,8 +159,8 @@ class TestSingleDrive(iotests.QMPTestCase):
 
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=%d,backing_file=%s'
                         % (self.image_len, backing_img), target_img)
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             mode='existing', target=target_img)
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             mode='existing', target=self.qmp_target)
         self.assert_qmp(result, 'return', {})
 
         self.complete_and_wait()
@@ -172,29 +174,81 @@ class TestSingleDrive(iotests.QMPTestCase):
         if iotests.qemu_default_machine != 'pc':
             return
 
-        result = self.vm.qmp('drive-mirror', device='drive1', # CD-ROM
-                             sync='full', target=target_img)
-        self.assert_qmp(result, 'error/class', 'GenericError')
+        result = self.vm.qmp(self.qmp_cmd, device='ide1-cd0', sync='full',
+                             target=self.qmp_target)
+        self.assert_qmp(result, 'error/class', self.not_found_error)
 
     def test_image_not_found(self):
-        result = self.vm.qmp('drive-mirror', device='drive0', sync='full',
-                             mode='existing', target=target_img)
+        result = self.vm.qmp(self.qmp_cmd, device='drive0', sync='full',
+                             mode='existing', target=self.qmp_target)
         self.assert_qmp(result, 'error/class', 'GenericError')
 
     def test_device_not_found(self):
-        result = self.vm.qmp('drive-mirror', device='nonexistent', sync='full',
-                             target=target_img)
-        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+        result = self.vm.qmp(self.qmp_cmd, device='nonexistent', sync='full',
+                             target=self.qmp_target)
+        self.assert_qmp(result, 'error/class', self.not_found_error)
+
+class TestSingleBlockdev(TestSingleDrive):
+    qmp_cmd = 'blockdev-mirror'
+    qmp_target = 'node1'
+    not_found_error = 'GenericError'
+
+    def setUp(self):
+        TestSingleDrive.setUp(self)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
+        args = {'options':
+                    {'driver': iotests.imgfmt,
+                     'node-name': self.qmp_target,
+                     'file': { 'filename': target_img, 'driver': 'file' } } }
+        result = self.vm.qmp("blockdev-add", **args)
+        self.assert_qmp(result, 'return', {})
+
+    test_large_cluster = None
+    test_image_not_found = None
+    test_small_buffer2 = None
+
+class TestBlockdevAttached(iotests.QMPTestCase):
+    image_len = 1 * 1024 * 1024 # MB
+
+    def setUp(self):
+        iotests.create_image(backing_img, self.image_len)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, target_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(target_img)
+
+    def test_blockdev_attached(self):
+        self.assert_no_active_block_jobs()
+        args = {'options':
+                    {'driver': iotests.imgfmt,
+                     'id': 'drive1',
+                     'file': { 'filename': target_img, 'driver': 'file' } } }
+        result = self.vm.qmp("blockdev-add", **args)
+        self.assert_qmp(result, 'return', {})
+        result = self.vm.qmp('blockdev-mirror', device='drive0', sync='full',
+                             target='drive1')
+        self.assert_qmp(result, 'error/class', 'GenericError')
 
 class TestSingleDriveZeroLength(TestSingleDrive):
     image_len = 0
     test_small_buffer2 = None
     test_large_cluster = None
 
+class TestSingleBlockdevZeroLength(TestSingleBlockdev):
+    image_len = 0
+
 class TestSingleDriveUnalignedLength(TestSingleDrive):
     image_len = 1025 * 1024
     test_small_buffer2 = None
     test_large_cluster = None
+
+class TestSingleBlockdevUnalignedLength(TestSingleBlockdev):
+    image_len = 1025 * 1024
 
 class TestMirrorNoBacking(iotests.QMPTestCase):
     image_len = 2 * 1024 * 1024 # MB
