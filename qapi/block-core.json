@@ -1184,6 +1184,54 @@
   'data': 'BlockDirtyBitmap' }
 
 ##
+# @blockdev-mirror
+#
+# Start mirroring a block device's writes to a new destination.
+#
+# @device: the name of the device whose writes should be mirrored.
+#
+# @target: the id or node-name of the block device to mirror to. This mustn't be
+#          attached to guest.
+#
+# @replaces: #optional with sync=full graph node name to be replaced by the new
+#            image when a whole image copy is done. This can be used to repair
+#            broken Quorum files.
+#
+# @speed:  #optional the maximum speed, in bytes per second
+#
+# @sync: what parts of the disk image should be copied to the destination
+#        (all the disk, only the sectors allocated in the topmost image, or
+#        only new I/O).
+#
+# @granularity: #optional granularity of the dirty bitmap, default is 64K
+#               if the image format doesn't have clusters, 4K if the clusters
+#               are smaller than that, else the cluster size.  Must be a
+#               power of 2 between 512 and 64M
+#
+# @buf-size: #optional maximum amount of data in flight from source to
+#            target
+#
+# @on-source-error: #optional the action to take on an error on the source,
+#                   default 'report'.  'stop' and 'enospc' can only be used
+#                   if the block device supports io-status (see BlockInfo).
+#
+# @on-target-error: #optional the action to take on an error on the target,
+#                   default 'report' (no limitations, since this applies to
+#                   a different block device than @device).
+#
+# Returns: nothing on success.
+#
+# Since 2.6
+##
+{ 'command': 'blockdev-mirror',
+  'data': { 'device': 'str', 'target': 'str',
+            '*replaces': 'str',
+            'sync': 'MirrorSyncMode',
+            '*speed': 'int', '*granularity': 'uint32',
+            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
+            '*on-target-error': 'BlockdevOnError' } }
+
+##
 # @block_set_io_throttle:
 #
 # Change I/O throttle limits for a block drive.
