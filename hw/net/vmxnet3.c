@@ -49,6 +49,7 @@
     ((s)->compat_flags & VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS ? 0x50 : 0x84)
 #define VMXNET3_MSIX_OFFSET(s) \
     ((s)->compat_flags & VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS ? 0 : 0x9c)
+#define VMXNET3_DSN_OFFSET     (0x100)
 
 #define VMXNET3_BAR0_IDX      (0)
 #define VMXNET3_BAR1_IDX      (1)
@@ -2253,6 +2254,22 @@ static const MemoryRegionOps b1_ops = {
     },
 };
 
+static uint8_t *vmxnet3_device_serial_num(VMXNET3State *s)
+{
+    static uint64_t dsn_payload;
+    uint8_t *dsnp = (uint8_t *)&dsn_payload;
+
+    dsnp[0] = 0xfe;
+    dsnp[1] = s->conf.macaddr.a[3];
+    dsnp[2] = s->conf.macaddr.a[4];
+    dsnp[3] = s->conf.macaddr.a[5];
+    dsnp[4] = s->conf.macaddr.a[0];
+    dsnp[5] = s->conf.macaddr.a[1];
+    dsnp[6] = s->conf.macaddr.a[2];
+    dsnp[7] = 0xff;
+    return dsnp;
+}
+
 static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     DeviceState *dev = DEVICE(pci_dev);
@@ -2290,8 +2307,15 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     vmxnet3_net_init(s);
 
-    if (pci_is_express(pci_dev) && pci_bus_is_express(pci_dev->bus)) {
-        pcie_endpoint_cap_init(pci_dev, VMXNET3_EXP_EP_OFFSET);
+    if (pci_is_express(pci_dev)) {
+        if (pci_bus_is_express(pci_dev->bus)) {
+            pcie_endpoint_cap_init(pci_dev, VMXNET3_EXP_EP_OFFSET);
+        }
+
+        pcie_add_capability(pci_dev, PCI_EXT_CAP_ID_DSN, 0x1,
+                            VMXNET3_DSN_OFFSET, PCI_EXT_CAP_DSN_SIZEOF);
+        memcpy(pci_dev->config + VMXNET3_DSN_OFFSET + 4,
+               vmxnet3_device_serial_num(s), sizeof(uint64_t));
     }
 
     register_savevm(dev, "vmxnet3-msix", -1, 1,
