@@ -119,8 +119,17 @@
 
 #define VMXNET_FLAG_IS_SET(field, flag) (((field) & (flag)) == (flag))
 
+typedef struct VMXNET3Class {
+    PCIDeviceClass parent_class;
+} VMXNET3Class;
+
 #define TYPE_VMXNET3 "vmxnet3"
 #define VMXNET3(obj) OBJECT_CHECK(VMXNET3State, (obj), TYPE_VMXNET3)
+
+#define VMXNET3_DEVICE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(VMXNET3Class, (klass), TYPE_VMXNET3)
+#define VMXNET3_DEVICE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(VMXNET3Class, (obj), TYPE_VMXNET3)
 
 /* Cyclic ring abstraction */
 typedef struct {
@@ -2621,6 +2630,7 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
 static const TypeInfo vmxnet3_info = {
     .name          = TYPE_VMXNET3,
     .parent        = TYPE_PCI_DEVICE,
+    .class_size    = sizeof(VMXNET3Class),
     .instance_size = sizeof(VMXNET3State),
     .class_init    = vmxnet3_class_init,
     .instance_init = vmxnet3_instance_init,
