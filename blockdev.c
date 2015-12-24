@@ -3291,29 +3291,23 @@ void qmp_blockdev_backup(const char *device, const char *target,
                        NULL, errp);
 }
 
-void qmp_drive_mirror(const char *device, const char *target,
-                      bool has_format, const char *format,
-                      bool has_node_name, const char *node_name,
-                      bool has_replaces, const char *replaces,
-                      enum MirrorSyncMode sync,
-                      bool has_mode, enum NewImageMode mode,
-                      bool has_speed, int64_t speed,
-                      bool has_granularity, uint32_t granularity,
-                      bool has_buf_size, int64_t buf_size,
-                      bool has_on_source_error, BlockdevOnError on_source_error,
-                      bool has_on_target_error, BlockdevOnError on_target_error,
-                      bool has_unmap, bool unmap,
-                      Error **errp)
+/* Parameter check and block job starting for drive mirroring.
+ * Caller should hold @device and @target's aio context (must be the same).
+ **/
+static void blockdev_mirror_common(BlockDriverState *bs,
+                                   BlockDriverState *target,
+                                   bool has_replaces, const char *replaces,
+                                   enum MirrorSyncMode sync,
+                                   bool has_speed, int64_t speed,
+                                   bool has_granularity, uint32_t granularity,
+                                   bool has_buf_size, int64_t buf_size,
+                                   bool has_on_source_error,
+                                   BlockdevOnError on_source_error,
+                                   bool has_on_target_error,
+                                   BlockdevOnError on_target_error,
+                                   bool has_unmap, bool unmap,
+                                   Error **errp)
 {
-    BlockBackend *blk;
-    BlockDriverState *bs;
-    BlockDriverState *source, *target_bs;
-    AioContext *aio_context;
-    Error *local_err = NULL;
-    QDict *options;
-    int flags;
-    int64_t size;
-    int ret;
 
     if (!has_speed) {
         speed = 0;
@@ -3323,9 +3317,6 @@ void qmp_drive_mirror(const char *device, const char *target,
     }
     if (!has_on_target_error) {
         on_target_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!has_mode) {
-        mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
     if (!has_granularity) {
         granularity = 0;
@@ -3348,6 +3339,48 @@ void qmp_drive_mirror(const char *device, const char *target,
         return;
     }
 
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR_SOURCE, errp)) {
+        return;
+    }
+
+    if (!bs->backing && sync == MIRROR_SYNC_MODE_TOP) {
+        sync = MIRROR_SYNC_MODE_FULL;
+    }
+
+    /* pass the node name to replace to mirror start since it's loose coupling
+     * and will allow to check whether the node still exist at mirror completion
+     */
+    mirror_start(bs, target,
+                 has_replaces ? replaces : NULL,
+                 speed, granularity, buf_size, sync,
+                 on_source_error, on_target_error, unmap,
+                 block_job_cb, bs, errp);
+}
+
+void qmp_drive_mirror(const char *device, const char *target,
+                      bool has_format, const char *format,
+                      bool has_node_name, const char *node_name,
+                      bool has_replaces, const char *replaces,
+                      enum MirrorSyncMode sync,
+                      bool has_mode, enum NewImageMode mode,
+                      bool has_speed, int64_t speed,
+                      bool has_granularity, uint32_t granularity,
+                      bool has_buf_size, int64_t buf_size,
+                      bool has_on_source_error, BlockdevOnError on_source_error,
+                      bool has_on_target_error, BlockdevOnError on_target_error,
+                      bool has_unmap, bool unmap,
+                      Error **errp)
+{
+    BlockDriverState *bs;
+    BlockBackend *blk;
+    BlockDriverState *source, *target_bs;
+    AioContext *aio_context;
+    Error *local_err = NULL;
+    QDict *options = NULL;
+    int flags;
+    int64_t size;
+    int ret;
+
     blk = blk_by_name(device);
     if (!blk) {
         error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
@@ -3363,13 +3396,12 @@ void qmp_drive_mirror(const char *device, const char *target,
         goto out;
     }
     bs = blk_bs(blk);
+    if (!has_mode) {
+        mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    }
 
     if (!has_format) {
         format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
-    }
-
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR_SOURCE, errp)) {
-        goto out;
     }
 
     flags = bs->open_flags | BDRV_O_RDWR;
@@ -3466,21 +3498,19 @@ void qmp_drive_mirror(const char *device, const char *target,
 
     bdrv_set_aio_context(target_bs, aio_context);
 
-    /* pass the node name to replace to mirror start since it's loose coupling
-     * and will allow to check whether the node still exist at mirror completion
-     */
-    mirror_start(bs, target_bs,
-                 has_replaces ? replaces : NULL,
-                 speed, granularity, buf_size, sync,
-                 on_source_error, on_target_error,
-                 unmap,
-                 block_job_cb, bs, &local_err);
-    if (local_err != NULL) {
-        bdrv_unref(target_bs);
+    blockdev_mirror_common(bs, target_bs,
+                           has_replaces, replaces, sync,
+                           has_speed, speed,
+                           has_granularity, granularity,
+                           has_buf_size, buf_size,
+                           has_on_source_error, on_source_error,
+                           has_on_target_error, on_target_error,
+                           has_unmap, unmap,
+                           &local_err);
+    if (local_err) {
         error_propagate(errp, local_err);
-        goto out;
+        bdrv_unref(target_bs);
     }
-
 out:
     aio_context_release(aio_context);
 }
