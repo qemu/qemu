@@ -2,7 +2,11 @@
 #define HW_COMPAT_H
 
 #define HW_COMPAT_2_5 \
-    /* empty */
+    {\
+        .driver   = "vmxnet3",\
+        .property = "x-old-msi-offsets",\
+        .value    = "on",\
+    },
 
 #define HW_COMPAT_2_4 \
     {\
