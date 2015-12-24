@@ -40,7 +40,11 @@
 #define VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT 0
 #define VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS \
     (1 << VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT)
+#define VMXNET3_COMPAT_FLAG_DISABLE_PCIE_BIT 1
+#define VMXNET3_COMPAT_FLAG_DISABLE_PCIE \
+    (1 << VMXNET3_COMPAT_FLAG_DISABLE_PCIE_BIT)
 
+#define VMXNET3_EXP_EP_OFFSET (0x48)
 #define VMXNET3_MSI_OFFSET(s) \
     ((s)->compat_flags & VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS ? 0x50 : 0x84)
 #define VMXNET3_MSIX_OFFSET(s) \
@@ -121,6 +125,7 @@
 
 typedef struct VMXNET3Class {
     PCIDeviceClass parent_class;
+    DeviceRealize parent_dc_realize;
 } VMXNET3Class;
 
 #define TYPE_VMXNET3 "vmxnet3"
@@ -2285,6 +2290,10 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
 
     vmxnet3_net_init(s);
 
+    if (pci_is_express(pci_dev) && pci_bus_is_express(pci_dev->bus)) {
+        pcie_endpoint_cap_init(pci_dev, VMXNET3_EXP_EP_OFFSET);
+    }
+
     register_savevm(dev, "vmxnet3-msix", -1, 1,
                     vmxnet3_msix_save, vmxnet3_msix_load, s);
 }
@@ -2554,6 +2563,29 @@ static const VMStateInfo int_state_info = {
     .put = vmxnet3_put_int_state
 };
 
+static bool vmxnet3_vmstate_need_pcie_device(void *opaque)
+{
+    VMXNET3State *s = VMXNET3(opaque);
+
+    return !(s->compat_flags & VMXNET3_COMPAT_FLAG_DISABLE_PCIE);
+}
+
+static bool vmxnet3_vmstate_test_pci_device(void *opaque, int version_id)
+{
+    return !vmxnet3_vmstate_need_pcie_device(opaque);
+}
+
+static const VMStateDescription vmstate_vmxnet3_pcie_device = {
+    .name = "vmxnet3/pcie",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmxnet3_vmstate_need_pcie_device,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCIE_DEVICE(parent_obj, VMXNET3State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_vmxnet3 = {
     .name = "vmxnet3",
     .version_id = 1,
@@ -2561,7 +2593,9 @@ static const VMStateDescription vmstate_vmxnet3 = {
     .pre_save = vmxnet3_pre_save,
     .post_load = vmxnet3_post_load,
     .fields = (VMStateField[]) {
-            VMSTATE_PCI_DEVICE(parent_obj, VMXNET3State),
+            VMSTATE_STRUCT_TEST(parent_obj, VMXNET3State,
+                                vmxnet3_vmstate_test_pci_device, 0,
+                                vmstate_pci_device, PCIDevice),
             VMSTATE_BOOL(rx_packets_compound, VMXNET3State),
             VMSTATE_BOOL(rx_vlan_stripping, VMXNET3State),
             VMSTATE_BOOL(lro_supported, VMXNET3State),
@@ -2596,6 +2630,7 @@ static const VMStateDescription vmstate_vmxnet3 = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmxstate_vmxnet3_mcast_list,
+        &vmstate_vmxnet3_pcie_device,
         NULL
     }
 };
@@ -2607,10 +2642,24 @@ static Property vmxnet3_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static void vmxnet3_realize(DeviceState *qdev, Error **errp)
+{
+    VMXNET3Class *vc = VMXNET3_DEVICE_GET_CLASS(qdev);
+    PCIDevice *pci_dev = PCI_DEVICE(qdev);
+    VMXNET3State *s = VMXNET3(qdev);
+
+    if (!(s->compat_flags & VMXNET3_COMPAT_FLAG_DISABLE_PCIE)) {
+        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    }
+
+    vc->parent_dc_realize(qdev, errp);
+}
+
 static void vmxnet3_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
+    VMXNET3Class *vc = VMXNET3_DEVICE_CLASS(class);
 
     c->realize = vmxnet3_pci_realize;
     c->exit = vmxnet3_pci_uninit;
@@ -2620,6 +2669,8 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
     c->subsystem_vendor_id = PCI_VENDOR_ID_VMWARE;
     c->subsystem_id = PCI_DEVICE_ID_VMWARE_VMXNET3;
+    vc->parent_dc_realize = dc->realize;
+    dc->realize = vmxnet3_realize;
     dc->desc = "VMWare Paravirtualized Ethernet v3";
     dc->reset = vmxnet3_qdev_reset;
     dc->vmsd = &vmstate_vmxnet3;
