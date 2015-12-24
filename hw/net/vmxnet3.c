@@ -36,6 +36,16 @@
 #define VMXNET3_MSIX_BAR_SIZE 0x2000
 #define MIN_BUF_SIZE 60
 
+/* Compatability flags for migration */
+#define VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT 0
+#define VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS \
+    (1 << VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT)
+
+#define VMXNET3_MSI_OFFSET(s) \
+    ((s)->compat_flags & VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS ? 0x50 : 0x84)
+#define VMXNET3_MSIX_OFFSET(s) \
+    ((s)->compat_flags & VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS ? 0 : 0x9c)
+
 #define VMXNET3_BAR0_IDX      (0)
 #define VMXNET3_BAR1_IDX      (1)
 #define VMXNET3_MSIX_BAR_IDX  (2)
@@ -313,6 +323,9 @@ typedef struct {
         MACAddr *mcast_list;
         uint32_t mcast_list_len;
         uint32_t mcast_list_buff_size; /* needed for live migration. */
+
+        /* Compatability flags for migration */
+        uint32_t compat_flags;
 } VMXNET3State;
 
 /* Interrupt management */
@@ -2131,7 +2144,7 @@ vmxnet3_init_msix(VMXNET3State *s)
                         VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_TABLE,
                         &s->msix_bar,
                         VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_PBA,
-                        0);
+                        VMXNET3_MSIX_OFFSET(s));
 
     if (0 > res) {
         VMW_WRPRN("Failed to initialize MSI-X, error %d", res);
@@ -2159,7 +2172,6 @@ vmxnet3_cleanup_msix(VMXNET3State *s)
     }
 }
 
-#define VMXNET3_MSI_OFFSET        (0x50)
 #define VMXNET3_USE_64BIT         (true)
 #define VMXNET3_PER_VECTOR_MASK   (false)
 
@@ -2169,7 +2181,7 @@ vmxnet3_init_msi(VMXNET3State *s)
     PCIDevice *d = PCI_DEVICE(s);
     int res;
 
-    res = msi_init(d, VMXNET3_MSI_OFFSET, VMXNET3_MAX_NMSIX_INTRS,
+    res = msi_init(d, VMXNET3_MSI_OFFSET(s), VMXNET3_MAX_NMSIX_INTRS,
                    VMXNET3_USE_64BIT, VMXNET3_PER_VECTOR_MASK);
     if (0 > res) {
         VMW_WRPRN("Failed to initialize MSI, error %d", res);
