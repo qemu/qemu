@@ -6,6 +6,10 @@
         .driver   = "vmxnet3",\
         .property = "x-old-msi-offsets",\
         .value    = "on",\
+    },{\
+        .driver   = "vmxnet3",\
+        .property = "x-disable-pcie",\
+        .value    = "on",\
     },
 
 #define HW_COMPAT_2_4 \
