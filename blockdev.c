@@ -3368,7 +3368,7 @@ void qmp_drive_mirror(const char *device, const char *target,
         format = mode == NEW_IMAGE_MODE_EXISTING ? NULL : bs->drv->format_name;
     }
 
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR, errp)) {
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_MIRROR_SOURCE, errp)) {
         goto out;
     }
 
