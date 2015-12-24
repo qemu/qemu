@@ -2272,7 +2272,6 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
     return ret;
 }
 
-#ifdef TARGET_NR_sendmmsg
 /* We don't rely on the C library to have sendmmsg/recvmmsg support,
  * so it might not have this *mmsg-specific flag either.
  */
@@ -2319,7 +2318,6 @@ static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec,
     }
     return ret;
 }
-#endif
 
 /* If we don't have a system accept4() then just call accept.
  * The callsites to do_accept4() will ensure that they don't
@@ -2542,6 +2540,8 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         [SOCKOP_shutdown] = 2,    /* sockfd, how */
         [SOCKOP_sendmsg] = 3,     /* sockfd, msg, flags */
         [SOCKOP_recvmsg] = 3,     /* sockfd, msg, flags */
+        [SOCKOP_sendmmsg] = 4,    /* sockfd, msgvec, vlen, flags */
+        [SOCKOP_recvmmsg] = 4,    /* sockfd, msgvec, vlen, flags */
         [SOCKOP_setsockopt] = 5,  /* sockfd, level, optname, optval, optlen */
         [SOCKOP_getsockopt] = 5,  /* sockfd, level, optname, optval, optlen */
     };
@@ -2592,6 +2592,10 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         return do_sendrecvmsg(a[0], a[1], a[2], 1);
     case SOCKOP_recvmsg: /* sockfd, msg, flags */
         return do_sendrecvmsg(a[0], a[1], a[2], 0);
+    case SOCKOP_sendmmsg: /* sockfd, msgvec, vlen, flags */
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 1);
+    case SOCKOP_recvmmsg: /* sockfd, msgvec, vlen, flags */
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0);
     case SOCKOP_setsockopt: /* sockfd, level, optname, optval, optlen */
         return do_setsockopt(a[0], a[1], a[2], a[3], a[4]);
     case SOCKOP_getsockopt: /* sockfd, level, optname, optval, optlen */
