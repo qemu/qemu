@@ -1470,6 +1470,7 @@ static void build_piix4_pci0_int(Aml *table)
     Aml *dev;
     Aml *crs;
     Aml *field;
+    Aml *if_ctx;
     Aml *method;
     uint32_t irqs;
     Aml *sb_scope = aml_scope("_SB");
@@ -1480,6 +1481,25 @@ static void build_piix4_pci0_int(Aml *table)
     aml_append(field, aml_named_field("PRQ2", 8));
     aml_append(field, aml_named_field("PRQ3", 8));
     aml_append(sb_scope, field);
+
+    /* _CRS method - get current settings */
+    method = aml_method("IQCR", 1, AML_SERIALIZED);
+    {
+        crs = aml_resource_template();
+        irqs = 0;
+        aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL,
+                                      AML_ACTIVE_HIGH, AML_SHARED, &irqs, 1));
+        aml_append(method, aml_name_decl("PRR0", crs));
+
+        aml_append(method,
+            aml_create_dword_field(aml_name("PRR0"), aml_int(5), "PRRI"));
+
+        if_ctx = aml_if(aml_lless(aml_arg(0), aml_int(0x80)));
+        aml_append(if_ctx, aml_store(aml_arg(0), aml_name("PRRI")));
+        aml_append(method, if_ctx);
+        aml_append(method, aml_return(aml_name("PRR0")));
+    }
+    aml_append(sb_scope, method);
 
     aml_append(sb_scope, build_link_dev("LNKA", 0, aml_name("PRQ0")));
     aml_append(sb_scope, build_link_dev("LNKB", 1, aml_name("PRQ1")));
