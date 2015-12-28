@@ -109,6 +109,7 @@ typedef struct AcpiPmInfo {
 } AcpiPmInfo;
 
 typedef struct AcpiMiscInfo {
+    bool is_piix4;
     bool has_hpet;
     TPMVersion tpm_version;
     const unsigned char *dsdt_code;
@@ -131,10 +132,12 @@ static void acpi_get_dsdt(AcpiMiscInfo *info)
     assert(!!piix != !!lpc);
 
     if (piix) {
+        info->is_piix4 = true;
         info->dsdt_code = AcpiDsdtAmlCode;
         info->dsdt_size = sizeof AcpiDsdtAmlCode;
     }
     if (lpc) {
+        info->is_piix4 = false;
         info->dsdt_code = Q35AcpiDsdtAmlCode;
         info->dsdt_size = sizeof Q35AcpiDsdtAmlCode;
     }
@@ -1426,6 +1429,68 @@ static void build_dbg_aml(Aml *table)
     aml_append(table, scope);
 }
 
+static void build_piix4_pci0_int(Aml *table)
+{
+    Aml *field;
+    Aml *sb_scope = aml_scope("_SB");
+
+    field = aml_field("PCI0.ISA.P40C", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("PRQ0", 8));
+    aml_append(field, aml_named_field("PRQ1", 8));
+    aml_append(field, aml_named_field("PRQ2", 8));
+    aml_append(field, aml_named_field("PRQ3", 8));
+    aml_append(sb_scope, field);
+
+    aml_append(table, sb_scope);
+}
+
+static void build_piix4_pm(Aml *table)
+{
+    Aml *dev;
+    Aml *scope;
+
+    scope =  aml_scope("_SB.PCI0");
+    dev = aml_device("PX13");
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0x00010003)));
+
+    aml_append(dev, aml_operation_region("P13C", AML_PCI_CONFIG,
+                                         0x00, 0xff));
+    aml_append(scope, dev);
+    aml_append(table, scope);
+}
+
+static void build_piix4_isa_bridge(Aml *table)
+{
+    Aml *dev;
+    Aml *scope;
+    Aml *field;
+
+    scope =  aml_scope("_SB.PCI0");
+    dev = aml_device("ISA");
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0x00010000)));
+
+    /* PIIX PCI to ISA irq remapping */
+    aml_append(dev, aml_operation_region("P40C", AML_PCI_CONFIG,
+                                         0x60, 0x04));
+    /* enable bits */
+    field = aml_field("^PX13.P13C", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
+    /* Offset(0x5f),, 7, */
+    aml_append(field, aml_reserved_field(0x2f8));
+    aml_append(field, aml_reserved_field(7));
+    aml_append(field, aml_named_field("LPEN", 1));
+    /* Offset(0x67),, 3, */
+    aml_append(field, aml_reserved_field(0x38));
+    aml_append(field, aml_reserved_field(3));
+    aml_append(field, aml_named_field("CAEN", 1));
+    aml_append(field, aml_reserved_field(3));
+    aml_append(field, aml_named_field("CBEN", 1));
+    aml_append(dev, field);
+    aml_append(dev, aml_name_decl("FDEN", aml_int(1)));
+
+    aml_append(scope, dev);
+    aml_append(table, scope);
+}
+
 static void
 build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -1447,8 +1512,16 @@ build_ssdt(GArray *table_data, GArray *linker,
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
     build_dbg_aml(ssdt);
-    build_hpet_aml(ssdt);
-    build_isa_devices_aml(ssdt);
+    if (misc->is_piix4) {
+        build_hpet_aml(ssdt);
+        build_piix4_pm(ssdt);
+        build_piix4_isa_bridge(ssdt);
+        build_isa_devices_aml(ssdt);
+        build_piix4_pci0_int(ssdt);
+    } else {
+        build_hpet_aml(ssdt);
+        build_isa_devices_aml(ssdt);
+    }
     build_cpu_hotplug_aml(ssdt);
     build_memory_hotplug_aml(ssdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);

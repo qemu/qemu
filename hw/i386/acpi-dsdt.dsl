@@ -40,47 +40,6 @@ DefinitionBlock (
     }
 
 /****************************************************************
- * PIIX4 PM
- ****************************************************************/
-
-    Scope(\_SB.PCI0) {
-        Device(PX13) {
-            Name(_ADR, 0x00010003)
-            OperationRegion(P13C, PCI_Config, 0x00, 0xff)
-        }
-    }
-
-
-/****************************************************************
- * PIIX3 ISA bridge
- ****************************************************************/
-
-    Scope(\_SB.PCI0) {
-
-        External(ISA, DeviceObj)
-
-        Device(ISA) {
-            Name(_ADR, 0x00010000)
-
-            /* PIIX PCI to ISA irq remapping */
-            OperationRegion(P40C, PCI_Config, 0x60, 0x04)
-
-            /* enable bits */
-            Field(\_SB.PCI0.PX13.P13C, AnyAcc, NoLock, Preserve) {
-                Offset(0x5f),
-                , 7,
-                LPEN, 1,         // LPT
-                Offset(0x67),
-                , 3,
-                CAEN, 1,         // COM1
-                , 3,
-                CBEN, 1,         // COM2
-            }
-            Name(FDEN, 1)
-        }
-    }
-
-/****************************************************************
  * PCI hotplug
  ****************************************************************/
 
@@ -168,12 +127,11 @@ DefinitionBlock (
             }
         }
 
-        Field(PCI0.ISA.P40C, ByteAcc, NoLock, Preserve) {
-            PRQ0,   8,
-            PRQ1,   8,
-            PRQ2,   8,
-            PRQ3,   8
-        }
+
+        External(PRQ0, FieldUnitObj)
+        External(PRQ1, FieldUnitObj)
+        External(PRQ2, FieldUnitObj)
+        External(PRQ3, FieldUnitObj)
 
         Method(IQST, 1, NotSerialized) {
             // _STA method - get status

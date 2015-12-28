@@ -82,6 +82,7 @@ typedef enum {
 typedef enum {
     AML_SYSTEM_MEMORY = 0X00,
     AML_SYSTEM_IO = 0X01,
+    AML_PCI_CONFIG = 0X02,
 } AmlRegionSpace;
 
 typedef enum {
