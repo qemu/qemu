@@ -27,8 +27,6 @@
             External(MEMORY_SLOT_SIZE_HIGH, FieldUnitObj) // read only
             External(MEMORY_SLOT_EJECT, FieldUnitObj) // initiates device eject, write only
             External(MEMORY_SLOT_SLECTOR, FieldUnitObj) // DIMM selector, write only
-            External(MEMORY_SLOT_OST_EVENT, FieldUnitObj) // _OST event code, write only
-            External(MEMORY_SLOT_OST_STATUS, FieldUnitObj) // _OST status code, write only
             External(MEMORY_SLOT_LOCK, MutexObj)
 
             Method(MEMORY_SLOT_CRS_METHOD, 1, Serialized) {
@@ -93,14 +91,6 @@
 
                 Release(MEMORY_SLOT_LOCK)
                 Return(MR64)
-            }
-
-            Method(MEMORY_SLOT_OST_METHOD, 4) {
-                Acquire(MEMORY_SLOT_LOCK, 0xFFFF)
-                Store(ToInteger(Arg0), MEMORY_SLOT_SLECTOR) // select DIMM
-                Store(Arg1, MEMORY_SLOT_OST_EVENT)
-                Store(Arg2, MEMORY_SLOT_OST_STATUS)
-                Release(MEMORY_SLOT_LOCK)
             }
 
             Method(MEMORY_SLOT_EJECT_METHOD, 2) {

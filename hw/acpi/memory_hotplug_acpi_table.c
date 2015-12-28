@@ -137,6 +137,21 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
             aml_append(method, aml_return(ret_val));
         }
         aml_append(mem_ctrl_dev, method);
+
+        method = aml_method(stringify(MEMORY_SLOT_OST_METHOD), 4,
+                            AML_NOTSERIALIZED);
+        {
+            Aml *ost_evt = aml_name(stringify(MEMORY_SLOT_OST_EVENT));
+            Aml *ost_status = aml_name(stringify(MEMORY_SLOT_OST_STATUS));
+
+            aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
+            aml_append(method, aml_store(aml_to_integer(slot_arg0),
+                                         slot_selector));
+            aml_append(method, aml_store(aml_arg(1), ost_evt));
+            aml_append(method, aml_store(aml_arg(2), ost_status));
+            aml_append(method, aml_release(ctrl_lock));
+        }
+        aml_append(mem_ctrl_dev, method);
     }
     aml_append(pci_scope, mem_ctrl_dev);
     aml_append(ctx, pci_scope);
