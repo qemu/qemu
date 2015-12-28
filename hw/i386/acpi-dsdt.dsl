@@ -38,44 +38,4 @@ DefinitionBlock (
 //            External(PX13, DeviceObj)
         }
     }
-
-/****************************************************************
- * PCI hotplug
- ****************************************************************/
-
-    Scope(\_SB.PCI0) {
-        OperationRegion(PCST, SystemIO, 0xae00, 0x08)
-        Field(PCST, DWordAcc, NoLock, WriteAsZeros) {
-            PCIU, 32,
-            PCID, 32,
-        }
-
-        OperationRegion(SEJ, SystemIO, 0xae08, 0x04)
-        Field(SEJ, DWordAcc, NoLock, WriteAsZeros) {
-            B0EJ, 32,
-        }
-
-        OperationRegion(BNMR, SystemIO, 0xae10, 0x04)
-        Field(BNMR, DWordAcc, NoLock, WriteAsZeros) {
-            BNUM, 32,
-        }
-
-        /* Lock to protect access to fields above. */
-        Mutex(BLCK, 0)
-
-        /* Methods called by bulk generated PCI devices below */
-
-        /* Methods called by hotplug devices */
-        Method(PCEJ, 2, NotSerialized) {
-            // _EJ0 method - eject callback
-            Acquire(BLCK, 0xFFFF)
-            Store(Arg0, BNUM)
-            Store(ShiftLeft(1, Arg1), B0EJ)
-            Release(BLCK)
-            Return (0x0)
-        }
-
-        /* Hotplug notification method supplied by SSDT */
-        External(\_SB.PCI0.PCNT, MethodObj)
-    }
 }
