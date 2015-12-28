@@ -132,15 +132,6 @@ DefinitionBlock (
         External(PRQ1, FieldUnitObj)
         External(PRQ2, FieldUnitObj)
         External(PRQ3, FieldUnitObj)
-
-        Method(IQST, 1, NotSerialized) {
-            // _STA method - get status
-            If (And(0x80, Arg0)) {
-                Return (0x09)
-            }
-            Return (0x0B)
-        }
-
         External(LNKA, DeviceObj)
         External(LNKB, DeviceObj)
         External(LNKC, DeviceObj)

@@ -1482,6 +1482,16 @@ static void build_piix4_pci0_int(Aml *table)
     aml_append(field, aml_named_field("PRQ3", 8));
     aml_append(sb_scope, field);
 
+    /* _STA method - get status */
+    method = aml_method("IQST", 1, AML_NOTSERIALIZED);
+    {
+        if_ctx = aml_if(aml_and(aml_int(0x80), aml_arg(0), NULL));
+        aml_append(if_ctx, aml_return(aml_int(0x09)));
+        aml_append(method, if_ctx);
+        aml_append(method, aml_return(aml_int(0x0B)));
+    }
+    aml_append(sb_scope, method);
+
     /* _CRS method - get current settings */
     method = aml_method("IQCR", 1, AML_SERIALIZED);
     {
