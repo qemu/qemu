@@ -25,7 +25,6 @@
             External(MEMORY_SLOT_ADDR_HIGH, FieldUnitObj) // read only
             External(MEMORY_SLOT_SIZE_LOW, FieldUnitObj) // read only
             External(MEMORY_SLOT_SIZE_HIGH, FieldUnitObj) // read only
-            External(MEMORY_SLOT_EJECT, FieldUnitObj) // initiates device eject, write only
             External(MEMORY_SLOT_SLECTOR, FieldUnitObj) // DIMM selector, write only
             External(MEMORY_SLOT_LOCK, MutexObj)
 
@@ -91,13 +90,6 @@
 
                 Release(MEMORY_SLOT_LOCK)
                 Return(MR64)
-            }
-
-            Method(MEMORY_SLOT_EJECT_METHOD, 2) {
-                Acquire(MEMORY_SLOT_LOCK, 0xFFFF)
-                Store(ToInteger(Arg0), MEMORY_SLOT_SLECTOR) // select DIMM
-                Store(1, MEMORY_SLOT_EJECT)
-                Release(MEMORY_SLOT_LOCK)
             }
         } // Device()
     } // Scope()
