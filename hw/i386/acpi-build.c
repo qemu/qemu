@@ -1983,11 +1983,15 @@ build_ssdt(GArray *table_data, GArray *linker,
         build_piix4_pci0_int(ssdt);
     } else {
         sb_scope = aml_scope("_SB");
-        scope = aml_scope("PCI0");
-        aml_append(scope, aml_name_decl("SUPP", aml_int(0)));
-        aml_append(scope, aml_name_decl("CTRL", aml_int(0)));
-        aml_append(scope, build_q35_osc_method());
-        aml_append(sb_scope, scope);
+        dev = aml_device("PCI0");
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
+        aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
+        aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+        aml_append(dev, aml_name_decl("_UID", aml_int(1)));
+        aml_append(dev, aml_name_decl("SUPP", aml_int(0)));
+        aml_append(dev, aml_name_decl("CTRL", aml_int(0)));
+        aml_append(dev, build_q35_osc_method());
+        aml_append(sb_scope, dev);
         aml_append(ssdt, sb_scope);
 
         build_hpet_aml(ssdt);
