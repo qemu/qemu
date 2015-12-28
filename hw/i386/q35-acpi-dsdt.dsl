@@ -114,39 +114,6 @@ DefinitionBlock (
     }
 
 /****************************************************************
- * LPC ISA bridge
- ****************************************************************/
-
-    Scope(\_SB.PCI0) {
-        /* PCI D31:f0 LPC ISA bridge */
-        Device(ISA) {
-            Name (_ADR, 0x001F0000)  // _ADR: Address
-
-            /* ICH9 PCI to ISA irq remapping */
-            OperationRegion(PIRQ, PCI_Config, 0x60, 0x0C)
-
-            OperationRegion(LPCD, PCI_Config, 0x80, 0x2)
-            Field(LPCD, AnyAcc, NoLock, Preserve) {
-                COMA,   3,
-                    ,   1,
-                COMB,   3,
-
-                Offset(0x01),
-                LPTD,   2,
-                    ,   2,
-                FDCD,   2
-            }
-            OperationRegion(LPCE, PCI_Config, 0x82, 0x2)
-            Field(LPCE, AnyAcc, NoLock, Preserve) {
-                CAEN,   1,
-                CBEN,   1,
-                LPEN,   1,
-                FDEN,   1
-            }
-        }
-    }
-
-/****************************************************************
  * PCI IRQs
  ****************************************************************/
 
@@ -283,19 +250,6 @@ DefinitionBlock (
                     Return (PRTA)
                 }
             }
-        }
-
-        Field(PCI0.ISA.PIRQ, ByteAcc, NoLock, Preserve) {
-            PRQA,   8,
-            PRQB,   8,
-            PRQC,   8,
-            PRQD,   8,
-
-            Offset(0x08),
-            PRQE,   8,
-            PRQF,   8,
-            PRQG,   8,
-            PRQH,   8
         }
 
         External(LNKA, DeviceObj)

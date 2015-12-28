@@ -1633,7 +1633,20 @@ static void build_piix4_pci0_int(Aml *table)
 
 static void build_q35_pci0_int(Aml *table)
 {
+    Aml *field;
     Aml *sb_scope = aml_scope("_SB");
+
+    field = aml_field("PCI0.ISA.PIRQ", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("PRQA", 8));
+    aml_append(field, aml_named_field("PRQB", 8));
+    aml_append(field, aml_named_field("PRQC", 8));
+    aml_append(field, aml_named_field("PRQD", 8));
+    aml_append(field, aml_reserved_field(0x20));
+    aml_append(field, aml_named_field("PRQE", 8));
+    aml_append(field, aml_named_field("PRQF", 8));
+    aml_append(field, aml_named_field("PRQG", 8));
+    aml_append(field, aml_named_field("PRQH", 8));
+    aml_append(sb_scope, field);
 
     aml_append(sb_scope, build_irq_status_method());
     aml_append(sb_scope, build_iqcr_method(false));
@@ -1661,6 +1674,46 @@ static void build_q35_pci0_int(Aml *table)
     aml_append(sb_scope, build_gsi_link_dev("GSIH", 0, 0x17));
 
     aml_append(table, sb_scope);
+}
+
+static void build_q35_isa_bridge(Aml *table)
+{
+    Aml *dev;
+    Aml *scope;
+    Aml *field;
+
+    scope =  aml_scope("_SB.PCI0");
+    dev = aml_device("ISA");
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0x001F0000)));
+
+    /* ICH9 PCI to ISA irq remapping */
+    aml_append(dev, aml_operation_region("PIRQ", AML_PCI_CONFIG,
+                                         0x60, 0x0C));
+
+    aml_append(dev, aml_operation_region("LPCD", AML_PCI_CONFIG,
+                                         0x80, 0x02));
+    field = aml_field("LPCD", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("COMA", 3));
+    aml_append(field, aml_reserved_field(1));
+    aml_append(field, aml_named_field("COMB", 3));
+    aml_append(field, aml_reserved_field(1));
+    aml_append(field, aml_named_field("LPTD", 2));
+    aml_append(field, aml_reserved_field(2));
+    aml_append(field, aml_named_field("FDCD", 2));
+    aml_append(dev, field);
+
+    aml_append(dev, aml_operation_region("LPCE", AML_PCI_CONFIG,
+                                         0x82, 0x02));
+    /* enable bits */
+    field = aml_field("LPCE", AML_ANY_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("CAEN", 1));
+    aml_append(field, aml_named_field("CBEN", 1));
+    aml_append(field, aml_named_field("LPEN", 1));
+    aml_append(field, aml_named_field("FDEN", 1));
+    aml_append(dev, field);
+
+    aml_append(scope, dev);
+    aml_append(table, scope);
 }
 
 static void build_piix4_pm(Aml *table)
@@ -1790,6 +1843,7 @@ build_ssdt(GArray *table_data, GArray *linker,
         build_piix4_pci0_int(ssdt);
     } else {
         build_hpet_aml(ssdt);
+        build_q35_isa_bridge(ssdt);
         build_isa_devices_aml(ssdt);
         build_q35_pci0_int(ssdt);
     }
