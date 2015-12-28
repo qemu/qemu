@@ -1429,9 +1429,49 @@ static void build_dbg_aml(Aml *table)
     aml_append(table, scope);
 }
 
+static Aml *build_link_dev(const char *name, uint8_t uid, Aml *reg)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    uint32_t irqs[] = {5, 10, 11};
+
+    dev = aml_device("%s", name);
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C0F")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                                  AML_SHARED, irqs, ARRAY_SIZE(irqs)));
+    aml_append(dev, aml_name_decl("_PRS", crs));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_return(aml_call1("IQST", reg)));
+    aml_append(dev, method);
+
+    method = aml_method("_DIS", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_or(reg, aml_int(0x80), reg));
+    aml_append(dev, method);
+
+    method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_return(aml_call1("IQCR", reg)));
+    aml_append(dev, method);
+
+    method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
+    aml_append(method, aml_create_dword_field(aml_arg(0), aml_int(5), "PRRI"));
+    aml_append(method, aml_store(aml_name("PRRI"), reg));
+    aml_append(dev, method);
+
+    return dev;
+ }
+
 static void build_piix4_pci0_int(Aml *table)
 {
+    Aml *dev;
+    Aml *crs;
     Aml *field;
+    Aml *method;
+    uint32_t irqs;
     Aml *sb_scope = aml_scope("_SB");
 
     field = aml_field("PCI0.ISA.P40C", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
@@ -1440,6 +1480,43 @@ static void build_piix4_pci0_int(Aml *table)
     aml_append(field, aml_named_field("PRQ2", 8));
     aml_append(field, aml_named_field("PRQ3", 8));
     aml_append(sb_scope, field);
+
+    aml_append(sb_scope, build_link_dev("LNKA", 0, aml_name("PRQ0")));
+    aml_append(sb_scope, build_link_dev("LNKB", 1, aml_name("PRQ1")));
+    aml_append(sb_scope, build_link_dev("LNKC", 2, aml_name("PRQ2")));
+    aml_append(sb_scope, build_link_dev("LNKD", 3, aml_name("PRQ3")));
+
+    dev = aml_device("LNKS");
+    {
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C0F")));
+        aml_append(dev, aml_name_decl("_UID", aml_int(4)));
+
+        crs = aml_resource_template();
+        irqs = 9;
+        aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL,
+                                      AML_ACTIVE_HIGH, AML_SHARED,
+                                      &irqs, 1));
+        aml_append(dev, aml_name_decl("_PRS", crs));
+
+        /* The SCI cannot be disabled and is always attached to GSI 9,
+         * so these are no-ops.  We only need this link to override the
+         * polarity to active high and match the content of the MADT.
+         */
+        method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_return(aml_int(0x0b)));
+        aml_append(dev, method);
+
+        method = aml_method("_DIS", 0, AML_NOTSERIALIZED);
+        aml_append(dev, method);
+
+        method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_return(aml_name("_PRS")));
+        aml_append(dev, method);
+
+        method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
+        aml_append(dev, method);
+    }
+    aml_append(sb_scope, dev);
 
     aml_append(table, sb_scope);
 }

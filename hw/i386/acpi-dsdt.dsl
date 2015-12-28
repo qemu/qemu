@@ -152,49 +152,10 @@ DefinitionBlock (
             Return (PRR0)
         }
 
-#define define_link(link, uid, reg)                             \
-        Device(link) {                                          \
-            Name(_HID, EISAID("PNP0C0F"))                       \
-            Name(_UID, uid)                                     \
-            Name(_PRS, ResourceTemplate() {                     \
-                Interrupt(, Level, ActiveHigh, Shared) {        \
-                    5, 10, 11                                   \
-                }                                               \
-            })                                                  \
-            Method(_STA, 0, NotSerialized) {                    \
-                Return (IQST(reg))                              \
-            }                                                   \
-            Method(_DIS, 0, NotSerialized) {                    \
-                Or(reg, 0x80, reg)                              \
-            }                                                   \
-            Method(_CRS, 0, NotSerialized) {                    \
-                Return (IQCR(reg))                              \
-            }                                                   \
-            Method(_SRS, 1, NotSerialized) {                    \
-                CreateDWordField(Arg0, 0x05, PRRI)              \
-                Store(PRRI, reg)                                \
-            }                                                   \
-        }
-
-        define_link(LNKA, 0, PRQ0)
-        define_link(LNKB, 1, PRQ1)
-        define_link(LNKC, 2, PRQ2)
-        define_link(LNKD, 3, PRQ3)
-
-        Device(LNKS) {
-            Name(_HID, EISAID("PNP0C0F"))
-            Name(_UID, 4)
-            Name(_PRS, ResourceTemplate() {
-                Interrupt(, Level, ActiveHigh, Shared) { 9 }
-            })
-
-            // The SCI cannot be disabled and is always attached to GSI 9,
-            // so these are no-ops.  We only need this link to override the
-            // polarity to active high and match the content of the MADT.
-            Method(_STA, 0, NotSerialized) { Return (0x0b) }
-            Method(_DIS, 0, NotSerialized) { }
-            Method(_CRS, 0, NotSerialized) { Return (_PRS) }
-            Method(_SRS, 1, NotSerialized) { }
-        }
+        External(LNKA, DeviceObj)
+        External(LNKB, DeviceObj)
+        External(LNKC, DeviceObj)
+        External(LNKD, DeviceObj)
+        External(LNKS, DeviceObj)
     }
 }
