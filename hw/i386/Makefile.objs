@@ -8,33 +8,3 @@ obj-$(CONFIG_XEN) += ../xenpv/ xen/
 obj-y += kvmvapic.o
 obj-y += acpi-build.o
 obj-y += pci-assign-load-rom.o
-
-gen-hex-y += hw/i386/acpi-dsdt.hex
-gen-hex-y += hw/i386/q35-acpi-dsdt.hex
-
-hw/i386/acpi-build.o: hw/i386/acpi-build.c \
-	$(gen-hex-y)
-
--include $(gen-hex-y:.hex=.d)
-
-iasl-option=$(shell if test -z "`$(1) $(2) 2>&1 > /dev/null`" \
-    ; then echo "$(2)"; else echo "$(3)"; fi ;)
-
-ifdef IASL
-#IASL Present. Generate hex files from .dsl
-hw/i386/%.hex: $(SRC_PATH)/hw/i386/%.dsl $(SRC_PATH)/scripts/acpi_extract_preprocess.py $(SRC_PATH)/scripts/acpi_extract.py
-	$(call quiet-command, $(CPP) -x c -P $(QEMU_DGFLAGS) $(QEMU_INCLUDES) $< -o $*.dsl.i.orig, "  CPP $(TARGET_DIR)$*.dsl.i.orig")
-	$(call quiet-command, $(PYTHON) $(SRC_PATH)/scripts/acpi_extract_preprocess.py $*.dsl.i.orig > $*.dsl.i, "  ACPI_PREPROCESS $(TARGET_DIR)$*.dsl.i")
-	$(call quiet-command, $(IASL) $(call iasl-option,$(IASL),-Pn,) -vs -l -tc -p $* $*.dsl.i $(if $(V), , > /dev/null) 2>&1 ,"  IASL $(TARGET_DIR)$*.dsl.i")
-	$(call quiet-command, $(PYTHON) $(SRC_PATH)/scripts/acpi_extract.py $*.lst > $*.off, "  ACPI_EXTRACT $(TARGET_DIR)$*.off")
-	$(call quiet-command, cat $*.off > $@, "  CAT $(TARGET_DIR)$@")
-else
-#IASL Not present. Restore pre-generated hex files.
-hw/i386/%.hex: $(SRC_PATH)/hw/i386/%.hex.generated
-	$(call quiet-command, cp -f $< $@, "  CP $(TARGET_DIR)$@")
-endif
-
-.PHONY: cleanhex
-cleanhex:
-	rm -f hw/i386/*hex
-clean: cleanhex
