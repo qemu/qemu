@@ -47,10 +47,10 @@ extern const VMStateDescription vmstate_memory_hotplug;
 
 void acpi_memory_ospm_status(MemHotplugState *mem_st, ACPIOSTInfoList ***list);
 
-#define MEMORY_HOTPLUG_DEVICE        MHPD
-#define MEMORY_SLOT_SCAN_METHOD      MSCN
+#define MEMORY_HOTPLUG_DEVICE        "MHPD"
+#define MEMORY_SLOT_SCAN_METHOD      "MSCN"
 #define MEMORY_HOTPLUG_HANDLER_PATH "\\_SB.PCI0." \
-     stringify(MEMORY_HOTPLUG_DEVICE) "." stringify(MEMORY_SLOT_SCAN_METHOD)
+     MEMORY_HOTPLUG_DEVICE "." MEMORY_SLOT_SCAN_METHOD
 
 void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
                               uint16_t io_base, uint16_t io_len);

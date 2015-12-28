@@ -944,9 +944,9 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
 
     /* build memory devices */
     assert(nr_mem <= ACPI_MAX_RAM_SLOTS);
-    scope = aml_scope("\\_SB.PCI0." stringify(MEMORY_HOTPLUG_DEVICE));
+    scope = aml_scope("\\_SB.PCI0." MEMORY_HOTPLUG_DEVICE);
     aml_append(scope,
-        aml_name_decl(stringify(MEMORY_SLOTS_NUMBER), aml_int(nr_mem))
+        aml_name_decl(MEMORY_SLOTS_NUMBER, aml_int(nr_mem))
     );
 
     crs = aml_resource_template();
@@ -956,53 +956,53 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
     aml_append(scope, aml_name_decl("_CRS", crs));
 
     aml_append(scope, aml_operation_region(
-        stringify(MEMORY_HOTPLUG_IO_REGION), AML_SYSTEM_IO,
+        MEMORY_HOTPLUG_IO_REGION, AML_SYSTEM_IO,
         io_base, io_len)
     );
 
-    field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_DWORD_ACC,
+    field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_DWORD_ACC,
                       AML_NOLOCK, AML_PRESERVE);
     aml_append(field, /* read only */
-        aml_named_field(stringify(MEMORY_SLOT_ADDR_LOW), 32));
+        aml_named_field(MEMORY_SLOT_ADDR_LOW, 32));
     aml_append(field, /* read only */
-        aml_named_field(stringify(MEMORY_SLOT_ADDR_HIGH), 32));
+        aml_named_field(MEMORY_SLOT_ADDR_HIGH, 32));
     aml_append(field, /* read only */
-        aml_named_field(stringify(MEMORY_SLOT_SIZE_LOW), 32));
+        aml_named_field(MEMORY_SLOT_SIZE_LOW, 32));
     aml_append(field, /* read only */
-        aml_named_field(stringify(MEMORY_SLOT_SIZE_HIGH), 32));
+        aml_named_field(MEMORY_SLOT_SIZE_HIGH, 32));
     aml_append(field, /* read only */
-        aml_named_field(stringify(MEMORY_SLOT_PROXIMITY), 32));
+        aml_named_field(MEMORY_SLOT_PROXIMITY, 32));
     aml_append(scope, field);
 
-    field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_BYTE_ACC,
+    field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_BYTE_ACC,
                       AML_NOLOCK, AML_WRITE_AS_ZEROS);
     aml_append(field, aml_reserved_field(160 /* bits, Offset(20) */));
     aml_append(field, /* 1 if enabled, read only */
-        aml_named_field(stringify(MEMORY_SLOT_ENABLED), 1));
+        aml_named_field(MEMORY_SLOT_ENABLED, 1));
     aml_append(field,
         /*(read) 1 if has a insert event. (write) 1 to clear event */
-        aml_named_field(stringify(MEMORY_SLOT_INSERT_EVENT), 1));
+        aml_named_field(MEMORY_SLOT_INSERT_EVENT, 1));
     aml_append(field,
         /* (read) 1 if has a remove event. (write) 1 to clear event */
-        aml_named_field(stringify(MEMORY_SLOT_REMOVE_EVENT), 1));
+        aml_named_field(MEMORY_SLOT_REMOVE_EVENT, 1));
     aml_append(field,
         /* initiates device eject, write only */
-        aml_named_field(stringify(MEMORY_SLOT_EJECT), 1));
+        aml_named_field(MEMORY_SLOT_EJECT, 1));
     aml_append(scope, field);
 
-    field = aml_field(stringify(MEMORY_HOTPLUG_IO_REGION), AML_DWORD_ACC,
+    field = aml_field(MEMORY_HOTPLUG_IO_REGION, AML_DWORD_ACC,
                       AML_NOLOCK, AML_PRESERVE);
     aml_append(field, /* DIMM selector, write only */
-        aml_named_field(stringify(MEMORY_SLOT_SLECTOR), 32));
+        aml_named_field(MEMORY_SLOT_SLECTOR, 32));
     aml_append(field, /* _OST event code, write only */
-        aml_named_field(stringify(MEMORY_SLOT_OST_EVENT), 32));
+        aml_named_field(MEMORY_SLOT_OST_EVENT, 32));
     aml_append(field, /* _OST status code, write only */
-        aml_named_field(stringify(MEMORY_SLOT_OST_STATUS), 32));
+        aml_named_field(MEMORY_SLOT_OST_STATUS, 32));
     aml_append(scope, field);
     aml_append(sb_scope, scope);
 
     for (i = 0; i < nr_mem; i++) {
-        #define BASEPATH "\\_SB.PCI0." stringify(MEMORY_HOTPLUG_DEVICE) "."
+        #define BASEPATH "\\_SB.PCI0." MEMORY_HOTPLUG_DEVICE "."
         const char *s;
 
         dev = aml_device("MP%02X", i);
@@ -1010,29 +1010,30 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
         aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C80")));
 
         method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
-        s = BASEPATH stringify(MEMORY_SLOT_CRS_METHOD);
+        s = BASEPATH MEMORY_SLOT_CRS_METHOD;
         aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
         aml_append(dev, method);
 
         method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-        s = BASEPATH stringify(MEMORY_SLOT_STATUS_METHOD);
+        s = BASEPATH MEMORY_SLOT_STATUS_METHOD;
         aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
         aml_append(dev, method);
 
         method = aml_method("_PXM", 0, AML_NOTSERIALIZED);
-        s = BASEPATH stringify(MEMORY_SLOT_PROXIMITY_METHOD);
+        s = BASEPATH MEMORY_SLOT_PROXIMITY_METHOD;
         aml_append(method, aml_return(aml_call1(s, aml_name("_UID"))));
         aml_append(dev, method);
 
         method = aml_method("_OST", 3, AML_NOTSERIALIZED);
-        s = BASEPATH stringify(MEMORY_SLOT_OST_METHOD);
+        s = BASEPATH MEMORY_SLOT_OST_METHOD;
+
         aml_append(method, aml_return(aml_call4(
             s, aml_name("_UID"), aml_arg(0), aml_arg(1), aml_arg(2)
         )));
         aml_append(dev, method);
 
         method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
-        s = BASEPATH stringify(MEMORY_SLOT_EJECT_METHOD);
+        s = BASEPATH MEMORY_SLOT_EJECT_METHOD;
         aml_append(method, aml_return(aml_call2(
                    s, aml_name("_UID"), aml_arg(0))));
         aml_append(dev, method);
@@ -1043,8 +1044,7 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
     /* build Method(MEMORY_SLOT_NOTIFY_METHOD, 2) {
      *     If (LEqual(Arg0, 0x00)) {Notify(MP00, Arg1)} ... }
      */
-    method = aml_method(stringify(MEMORY_SLOT_NOTIFY_METHOD), 2,
-                        AML_NOTSERIALIZED);
+    method = aml_method(MEMORY_SLOT_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
     for (i = 0; i < nr_mem; i++) {
         ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
         aml_append(ifctx,

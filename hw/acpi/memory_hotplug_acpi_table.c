@@ -24,15 +24,15 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
 
     /* scope for memory hotplug controller device node */
     pci_scope = aml_scope("_SB.PCI0");
-    mem_ctrl_dev = aml_device(stringify(MEMORY_HOTPLUG_DEVICE));
+    mem_ctrl_dev = aml_device(MEMORY_HOTPLUG_DEVICE);
     {
         Aml *one = aml_int(1);
         Aml *zero = aml_int(0);
         Aml *ret_val = aml_local(0);
         Aml *slot_arg0 = aml_arg(0);
-        Aml *slots_nr = aml_name(stringify(MEMORY_SLOTS_NUMBER));
-        Aml *ctrl_lock = aml_name(stringify(MEMORY_SLOT_LOCK));
-        Aml *slot_selector = aml_name(stringify(MEMORY_SLOT_SLECTOR));
+        Aml *slots_nr = aml_name(MEMORY_SLOTS_NUMBER);
+        Aml *ctrl_lock = aml_name(MEMORY_SLOT_LOCK);
+        Aml *slot_selector = aml_name(MEMORY_SLOT_SLECTOR);
 
         aml_append(mem_ctrl_dev, aml_name_decl("_HID", aml_string("PNP0A06")));
         aml_append(mem_ctrl_dev,
@@ -48,10 +48,9 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         aml_append(method, aml_return(aml_int(0xB)));
         aml_append(mem_ctrl_dev, method);
 
-        aml_append(mem_ctrl_dev, aml_mutex(stringify(MEMORY_SLOT_LOCK), 0));
+        aml_append(mem_ctrl_dev, aml_mutex(MEMORY_SLOT_LOCK, 0));
 
-        method = aml_method(stringify(MEMORY_SLOT_SCAN_METHOD), 0,
-                            AML_NOTSERIALIZED);
+        method = aml_method(MEMORY_SLOT_SCAN_METHOD, 0, AML_NOTSERIALIZED);
         {
             Aml *else_ctx;
             Aml *while_ctx;
@@ -75,14 +74,14 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
              */
             while_ctx = aml_while(aml_lless(idx, slots_nr));
             {
-                Aml *ins_evt = aml_name(stringify(MEMORY_SLOT_INSERT_EVENT));
-                Aml *rm_evt = aml_name(stringify(MEMORY_SLOT_REMOVE_EVENT));
+                Aml *ins_evt = aml_name(MEMORY_SLOT_INSERT_EVENT);
+                Aml *rm_evt = aml_name(MEMORY_SLOT_REMOVE_EVENT);
 
                 aml_append(while_ctx, aml_store(idx, slot_selector));
                 ifctx = aml_if(aml_equal(ins_evt, one));
                 {
                     aml_append(ifctx,
-                               aml_call2(stringify(MEMORY_SLOT_NOTIFY_METHOD),
+                               aml_call2(MEMORY_SLOT_NOTIFY_METHOD,
                                          idx, dev_chk));
                     aml_append(ifctx, aml_store(one, ins_evt));
                 }
@@ -92,7 +91,7 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
                 ifctx = aml_if(aml_equal(rm_evt, one));
                 {
                     aml_append(ifctx,
-                        aml_call2(stringify(MEMORY_SLOT_NOTIFY_METHOD),
+                        aml_call2(MEMORY_SLOT_NOTIFY_METHOD,
                                   idx, eject_req));
                     aml_append(ifctx, aml_store(one, rm_evt));
                 }
@@ -107,10 +106,9 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         }
         aml_append(mem_ctrl_dev, method);
 
-        method = aml_method(stringify(MEMORY_SLOT_STATUS_METHOD), 1,
-                            AML_NOTSERIALIZED);
+        method = aml_method(MEMORY_SLOT_STATUS_METHOD, 1, AML_NOTSERIALIZED);
         {
-            Aml *slot_enabled = aml_name(stringify(MEMORY_SLOT_ENABLED));
+            Aml *slot_enabled = aml_name(MEMORY_SLOT_ENABLED);
 
             aml_append(method, aml_store(zero, ret_val));
             aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
@@ -128,8 +126,7 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         }
         aml_append(mem_ctrl_dev, method);
 
-        method = aml_method(stringify(MEMORY_SLOT_CRS_METHOD), 1,
-                            AML_SERIALIZED);
+        method = aml_method(MEMORY_SLOT_CRS_METHOD, 1, AML_SERIALIZED);
         {
             Aml *mr64 = aml_name("MR64");
             Aml *mr32 = aml_name("MR32");
@@ -165,13 +162,13 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
                 aml_create_dword_field(mr64, aml_int(26), "MAXH"));
 
             aml_append(method,
-                aml_store(aml_name(stringify(MEMORY_SLOT_ADDR_HIGH)), minh));
+                aml_store(aml_name(MEMORY_SLOT_ADDR_HIGH), minh));
             aml_append(method,
-                aml_store(aml_name(stringify(MEMORY_SLOT_ADDR_LOW)), minl));
+                aml_store(aml_name(MEMORY_SLOT_ADDR_LOW), minl));
             aml_append(method,
-                aml_store(aml_name(stringify(MEMORY_SLOT_SIZE_HIGH)), lenh));
+                aml_store(aml_name(MEMORY_SLOT_SIZE_HIGH), lenh));
             aml_append(method,
-                aml_store(aml_name(stringify(MEMORY_SLOT_SIZE_LOW)), lenl));
+                aml_store(aml_name(MEMORY_SLOT_SIZE_LOW), lenl));
 
             /* 64-bit math: MAX = MIN + LEN - 1 */
             aml_append(method, aml_add(minl, lenl, maxl));
@@ -220,10 +217,10 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         }
         aml_append(mem_ctrl_dev, method);
 
-        method = aml_method(stringify(MEMORY_SLOT_PROXIMITY_METHOD), 1,
+        method = aml_method(MEMORY_SLOT_PROXIMITY_METHOD, 1,
                             AML_NOTSERIALIZED);
         {
-            Aml *proximity = aml_name(stringify(MEMORY_SLOT_PROXIMITY));
+            Aml *proximity = aml_name(MEMORY_SLOT_PROXIMITY);
 
             aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
             aml_append(method, aml_store(aml_to_integer(slot_arg0),
@@ -234,11 +231,10 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         }
         aml_append(mem_ctrl_dev, method);
 
-        method = aml_method(stringify(MEMORY_SLOT_OST_METHOD), 4,
-                            AML_NOTSERIALIZED);
+        method = aml_method(MEMORY_SLOT_OST_METHOD, 4, AML_NOTSERIALIZED);
         {
-            Aml *ost_evt = aml_name(stringify(MEMORY_SLOT_OST_EVENT));
-            Aml *ost_status = aml_name(stringify(MEMORY_SLOT_OST_STATUS));
+            Aml *ost_evt = aml_name(MEMORY_SLOT_OST_EVENT);
+            Aml *ost_status = aml_name(MEMORY_SLOT_OST_STATUS);
 
             aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
             aml_append(method, aml_store(aml_to_integer(slot_arg0),
@@ -249,10 +245,9 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         }
         aml_append(mem_ctrl_dev, method);
 
-        method = aml_method(stringify(MEMORY_SLOT_EJECT_METHOD), 2,
-                            AML_NOTSERIALIZED);
+        method = aml_method(MEMORY_SLOT_EJECT_METHOD, 2, AML_NOTSERIALIZED);
         {
-            Aml *eject = aml_name(stringify(MEMORY_SLOT_EJECT));
+            Aml *eject = aml_name(MEMORY_SLOT_EJECT);
 
             aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
             aml_append(method, aml_store(aml_to_integer(slot_arg0),
