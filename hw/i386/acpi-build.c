@@ -1199,6 +1199,31 @@ static void build_hpet_aml(Aml *table)
     aml_append(table, scope);
 }
 
+static Aml *build_rtc_device_aml(void)
+{
+    Aml *dev;
+    Aml *crs;
+
+    dev = aml_device("RTC");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0B00")));
+    crs = aml_resource_template();
+    aml_append(crs, aml_io(AML_DECODE16, 0x0070, 0x0070, 0x10, 0x02));
+    aml_append(crs, aml_irq_no_flags(8));
+    aml_append(crs, aml_io(AML_DECODE16, 0x0072, 0x0072, 0x02, 0x06));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
+static void build_isa_devices_aml(Aml *table)
+{
+    Aml *scope = aml_scope("_SB.PCI0.ISA");
+
+    aml_append(scope, build_rtc_device_aml());
+
+    aml_append(table, scope);
+}
+
 static void build_dbg_aml(Aml *table)
 {
     Aml *field;
@@ -1256,6 +1281,7 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     build_dbg_aml(ssdt);
     build_hpet_aml(ssdt);
+    build_isa_devices_aml(ssdt);
     build_cpu_hotplug_aml(ssdt);
     build_memory_hotplug_aml(ssdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);

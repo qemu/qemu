@@ -16,15 +16,6 @@
 /* Common legacy ISA style devices. */
 Scope(\_SB.PCI0.ISA) {
 
-    Device(RTC) {
-        Name(_HID, EisaId("PNP0B00"))
-        Name(_CRS, ResourceTemplate() {
-            IO(Decode16, 0x0070, 0x0070, 0x10, 0x02)
-            IRQNoFlags() { 8 }
-            IO(Decode16, 0x0072, 0x0072, 0x02, 0x06)
-        })
-    }
-
     Device(KBD) {
         Name(_HID, EisaId("PNP0303"))
         Method(_STA, 0, NotSerialized) {
