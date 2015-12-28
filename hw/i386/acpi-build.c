@@ -623,6 +623,23 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
     qobject_decref(bsel);
 }
 
+/**
+ * build_prt_entry:
+ * @link_name: link name for PCI route entry
+ *
+ * build AML package containing a PCI route entry for @link_name
+ */
+static Aml *build_prt_entry(const char *link_name)
+{
+    Aml *a_zero = aml_int(0);
+    Aml *pkg = aml_package(4);
+    aml_append(pkg, a_zero);
+    aml_append(pkg, a_zero);
+    aml_append(pkg, aml_name("%s", link_name));
+    aml_append(pkg, a_zero);
+    return pkg;
+}
+
 /*
  * initialize_route - Initialize the interrupt routing rule
  * through a specific LINK:
@@ -633,12 +650,8 @@ static Aml *initialize_route(Aml *route, const char *link_name,
                              Aml *lnk_idx, int idx)
 {
     Aml *if_ctx = aml_if(aml_equal(lnk_idx, aml_int(idx)));
-    Aml *pkg = aml_package(4);
+    Aml *pkg = build_prt_entry(link_name);
 
-    aml_append(pkg, aml_int(0));
-    aml_append(pkg, aml_int(0));
-    aml_append(pkg, aml_name("%s", link_name));
-    aml_append(pkg, aml_int(0));
     aml_append(if_ctx, aml_store(pkg, route));
 
     return if_ctx;
@@ -654,7 +667,7 @@ static Aml *initialize_route(Aml *route, const char *link_name,
  * The hash function is  (slot + pin) & 3 -> "LNK[D|A|B|C]".
  *
  */
-static Aml *build_prt(void)
+static Aml *build_prt(bool is_pci0_prt)
 {
     Aml *method, *while_ctx, *pin, *res;
 
@@ -681,7 +694,29 @@ static Aml *build_prt(void)
 
         /* route[2] = "LNK[D|A|B|C]", selection based on pin % 3  */
         aml_append(while_ctx, initialize_route(route, "LNKD", lnk_idx, 0));
-        aml_append(while_ctx, initialize_route(route, "LNKA", lnk_idx, 1));
+        if (is_pci0_prt) {
+            Aml *if_device_1, *if_pin_4, *else_pin_4;
+
+            /* device 1 is the power-management device, needs SCI */
+            if_device_1 = aml_if(aml_equal(lnk_idx, aml_int(1)));
+            {
+                if_pin_4 = aml_if(aml_equal(pin, aml_int(4)));
+                {
+                    aml_append(if_pin_4,
+                        aml_store(build_prt_entry("LNKS"), route));
+                }
+                aml_append(if_device_1, if_pin_4);
+                else_pin_4 = aml_else();
+                {
+                    aml_append(else_pin_4,
+                        aml_store(build_prt_entry("LNKA"), route));
+                }
+                aml_append(if_device_1, else_pin_4);
+            }
+            aml_append(while_ctx, if_device_1);
+        } else {
+            aml_append(while_ctx, initialize_route(route, "LNKA", lnk_idx, 1));
+        }
         aml_append(while_ctx, initialize_route(route, "LNKB", lnk_idx, 2));
         aml_append(while_ctx, initialize_route(route, "LNKC", lnk_idx, 3));
 
@@ -1474,6 +1509,10 @@ static void build_piix4_pci0_int(Aml *table)
     Aml *method;
     uint32_t irqs;
     Aml *sb_scope = aml_scope("_SB");
+    Aml *pci0_scope = aml_scope("PCI0");
+
+    aml_append(pci0_scope, build_prt(true));
+    aml_append(sb_scope, pci0_scope);
 
     field = aml_field("PCI0.ISA.P40C", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("PRQ0", 8));
@@ -1698,7 +1737,7 @@ build_ssdt(GArray *table_data, GArray *linker,
                 aml_append(dev, aml_name_decl("_PXM", aml_int(numa_node)));
             }
 
-            aml_append(dev, build_prt());
+            aml_append(dev, build_prt(false));
             crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent),
                             io_ranges, mem_ranges);
             aml_append(dev, aml_name_decl("_CRS", crs));
