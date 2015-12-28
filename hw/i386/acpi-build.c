@@ -1318,7 +1318,8 @@ build_ssdt(GArray *table_data, GArray *linker,
             dev = aml_processor(i, 0, 0, "CP%.02X", i);
 
             method = aml_method("_MAT", 0, AML_NOTSERIALIZED);
-            aml_append(method, aml_return(aml_call1("CPMA", aml_int(i))));
+            aml_append(method,
+                aml_return(aml_call1(CPU_MAT_METHOD, aml_int(i))));
             aml_append(dev, method);
 
             method = aml_method("_STA", 0, AML_NOTSERIALIZED);
@@ -1362,7 +1363,7 @@ build_ssdt(GArray *table_data, GArray *linker,
             uint8_t b = test_bit(i, cpu->found_cpus) ? 0x01 : 0x00;
             aml_append(pkg, aml_int(b));
         }
-        aml_append(sb_scope, aml_name_decl("CPON", pkg));
+        aml_append(sb_scope, aml_name_decl(CPU_ON_BITMAP, pkg));
 
         build_memory_devices(sb_scope, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);

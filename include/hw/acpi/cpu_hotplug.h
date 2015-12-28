@@ -28,6 +28,8 @@ void acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
                            AcpiCpuHotplug *gpe_cpu, uint16_t base);
 
 #define CPU_EJECT_METHOD "CPEJ"
+#define CPU_MAT_METHOD "CPMA"
+#define CPU_ON_BITMAP "CPON"
 
 void build_cpu_hotplug_aml(Aml *ctx);
 #endif
