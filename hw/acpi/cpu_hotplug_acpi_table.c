@@ -71,7 +71,7 @@ void build_cpu_hotplug_aml(Aml *ctx)
     aml_append(method, aml_sleep(200));
     aml_append(sb_scope, method);
 
-    method = aml_method(stringify(CPU_SCAN_METHOD), 0, AML_NOTSERIALIZED);
+    method = aml_method(CPU_SCAN_METHOD, 0, AML_NOTSERIALIZED);
     {
         Aml *while_ctx, *if_ctx2, *else_ctx2;
         Aml *bus_check_evt = aml_int(1);

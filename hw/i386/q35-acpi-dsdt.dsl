@@ -384,11 +384,6 @@ DefinitionBlock (
         define_gsi_link(GSIH, 0, 0x17)
     }
 
-#include "hw/acpi/pc-hotplug.h"
-#define CPU_STATUS_BASE ICH9_CPU_HOTPLUG_IO_BASE
-#include "acpi-dsdt-cpu-hotplug.dsl"
-
-
 /****************************************************************
  * General purpose events
  ****************************************************************/
@@ -398,10 +393,6 @@ DefinitionBlock (
         Method(_L00) {
         }
         Method(_L01) {
-        }
-        Method(_E02) {
-            // CPU hotplug event
-            \_SB.CPU_SCAN_METHOD()
         }
         Method(_L04) {
         }

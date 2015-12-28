@@ -247,11 +247,6 @@ DefinitionBlock (
         }
     }
 
-#include "hw/acpi/pc-hotplug.h"
-#define CPU_STATUS_BASE PIIX4_CPU_HOTPLUG_IO_BASE
-#include "acpi-dsdt-cpu-hotplug.dsl"
-
-
 /****************************************************************
  * General purpose events
  ****************************************************************/
@@ -265,10 +260,6 @@ DefinitionBlock (
             Acquire(\_SB.PCI0.BLCK, 0xFFFF)
             \_SB.PCI0.PCNT()
             Release(\_SB.PCI0.BLCK)
-        }
-        Method(_E02) {
-            // CPU hotplug event
-            \_SB.CPU_SCAN_METHOD()
         }
         Method(_L04) {
         }
