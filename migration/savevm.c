@@ -1710,6 +1710,37 @@ void loadvm_free_handlers(MigrationIncomingState *mis)
     }
 }
 
+static LoadStateEntry *loadvm_save_section_entry(MigrationIncomingState *mis,
+                                                 SaveStateEntry *se,
+                                                 uint32_t section_id,
+                                                 uint32_t version_id)
+{
+    LoadStateEntry *le;
+
+    /* Add entry */
+    le = g_malloc0(sizeof(*le));
+
+    le->se = se;
+    le->section_id = section_id;
+    le->version_id = version_id;
+    QLIST_INSERT_HEAD(&mis->loadvm_handlers, le, entry);
+    return le;
+}
+
+static LoadStateEntry *loadvm_find_section_entry(MigrationIncomingState *mis,
+                                                 uint32_t section_id)
+{
+    LoadStateEntry *le;
+
+    QLIST_FOREACH(le, &mis->loadvm_handlers, entry) {
+        if (le->section_id == section_id) {
+            break;
+        }
+    }
+
+    return le;
+}
+
 static int
 qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
 {
@@ -1745,16 +1776,12 @@ qemu_loadvm_section_start_full(QEMUFile *f, MigrationIncomingState *mis)
                      version_id, idstr, se->version_id);
         return -EINVAL;
     }
-
-    /* Add entry */
-    le = g_malloc0(sizeof(*le));
-
-    le->se = se;
-    le->section_id = section_id;
-    le->version_id = version_id;
-    QLIST_INSERT_HEAD(&mis->loadvm_handlers, le, entry);
-
-    ret = vmstate_load(f, le->se, le->version_id);
+     /* Check if we have saved this section info before, if not, save it */
+    le = loadvm_find_section_entry(mis, section_id);
+    if (!le) {
+        le = loadvm_save_section_entry(mis, se, section_id, version_id);
+    }
+    ret = vmstate_load(f, se, version_id);
     if (ret < 0) {
         error_report("error while loading state for instance 0x%x of"
                      " device '%s'", instance_id, idstr);
@@ -1777,12 +1804,9 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
     section_id = qemu_get_be32(f);
 
     trace_qemu_loadvm_state_section_partend(section_id);
-    QLIST_FOREACH(le, &mis->loadvm_handlers, entry) {
-        if (le->section_id == section_id) {
-            break;
-        }
-    }
-    if (le == NULL) {
+
+    le = loadvm_find_section_entry(mis, section_id);
+    if (!le) {
         error_report("Unknown savevm section %d", section_id);
         return -EINVAL;
     }
