@@ -36,10 +36,5 @@ DefinitionBlock (
 {
 
     Scope(\_SB) {
-        OperationRegion(PCST, SystemIO, 0xae00, 0x0c)
-        OperationRegion(PCSB, SystemIO, 0xae0c, 0x01)
-        Field(PCSB, AnyAcc, NoLock, WriteAsZeros) {
-            PCIB, 8,
-        }
     }
 }

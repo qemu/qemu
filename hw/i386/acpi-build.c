@@ -1983,6 +1983,16 @@ build_ssdt(GArray *table_data, GArray *linker,
         build_piix4_pci0_int(ssdt);
     } else {
         sb_scope = aml_scope("_SB");
+        aml_append(sb_scope,
+            aml_operation_region("PCST", AML_SYSTEM_IO, 0xae00, 0x0c));
+        aml_append(sb_scope,
+            aml_operation_region("PCSB", AML_SYSTEM_IO, 0xae0c, 0x01));
+        field = aml_field("PCSB", AML_ANY_ACC, AML_NOLOCK, AML_WRITE_AS_ZEROS);
+        aml_append(field, aml_named_field("PCIB", 8));
+        aml_append(sb_scope, field);
+        aml_append(ssdt, sb_scope);
+
+        sb_scope = aml_scope("_SB");
         dev = aml_device("PCI0");
         aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
         aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
