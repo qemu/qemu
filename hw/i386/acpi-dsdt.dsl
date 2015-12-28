@@ -28,14 +28,6 @@ DefinitionBlock (
     0x1                 // OEM Revision
     )
 {
-
     Scope(\_SB) {
-        Device(PCI0) {
-            Name(_HID, EisaId("PNP0A03"))
-            Name(_ADR, 0x00)
-            Name(_UID, 1)
-//#define PX13 S0B_
-//            External(PX13, DeviceObj)
-        }
     }
 }

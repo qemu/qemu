@@ -1701,6 +1701,14 @@ build_ssdt(GArray *table_data, GArray *linker,
 
     build_dbg_aml(ssdt);
     if (misc->is_piix4) {
+        sb_scope = aml_scope("_SB");
+        dev = aml_device("PCI0");
+        aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
+        aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+        aml_append(dev, aml_name_decl("_UID", aml_int(1)));
+        aml_append(sb_scope, dev);
+        aml_append(ssdt, sb_scope);
+
         build_hpet_aml(ssdt);
         build_piix4_pm(ssdt);
         build_piix4_isa_bridge(ssdt);
