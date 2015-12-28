@@ -2108,6 +2108,13 @@ static void spapr_machine_initfn(Object *obj)
                                     NULL);
 }
 
+static void spapr_machine_finalizefn(Object *obj)
+{
+    sPAPRMachineState *spapr = SPAPR_MACHINE(obj);
+
+    g_free(spapr->kvm_type);
+}
+
 static void ppc_cpu_do_nmi_on_cpu(void *arg)
 {
     CPUState *cs = arg;
@@ -2302,6 +2309,7 @@ static const TypeInfo spapr_machine_info = {
     .abstract      = true,
     .instance_size = sizeof(sPAPRMachineState),
     .instance_init = spapr_machine_initfn,
+    .instance_finalize = spapr_machine_finalizefn,
     .class_size    = sizeof(sPAPRMachineClass),
     .class_init    = spapr_machine_class_init,
     .interfaces = (InterfaceInfo[]) {
