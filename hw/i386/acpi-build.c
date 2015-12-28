@@ -1236,12 +1236,33 @@ static Aml *build_kbd_device_aml(void)
     return dev;
 }
 
+static Aml *build_mouse_device_aml(void)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+
+    dev = aml_device("MOU");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0F13")));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_return(aml_int(0x0f)));
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_irq_no_flags(12));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
 static void build_isa_devices_aml(Aml *table)
 {
     Aml *scope = aml_scope("_SB.PCI0.ISA");
 
     aml_append(scope, build_rtc_device_aml());
     aml_append(scope, build_kbd_device_aml());
+    aml_append(scope, build_mouse_device_aml());
 
     aml_append(table, scope);
 }

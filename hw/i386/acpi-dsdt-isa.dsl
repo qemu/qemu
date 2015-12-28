@@ -16,16 +16,6 @@
 /* Common legacy ISA style devices. */
 Scope(\_SB.PCI0.ISA) {
 
-    Device(MOU) {
-        Name(_HID, EisaId("PNP0F13"))
-        Method(_STA, 0, NotSerialized) {
-            Return (0x0f)
-        }
-        Name(_CRS, ResourceTemplate() {
-            IRQNoFlags() { 12 }
-        })
-    }
-
     Device(FDC0) {
         Name(_HID, EisaId("PNP0700"))
         Method(_STA, 0, NotSerialized) {
