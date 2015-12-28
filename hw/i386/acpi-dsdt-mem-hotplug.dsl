@@ -35,14 +35,6 @@
             External(MEMORY_SLOT_OST_EVENT, FieldUnitObj) // _OST event code, write only
             External(MEMORY_SLOT_OST_STATUS, FieldUnitObj) // _OST status code, write only
 
-            Method(_STA, 0) {
-                If (LEqual(MEMORY_SLOTS_NUMBER, Zero)) {
-                    Return(0x0)
-                }
-                /* present, functioning, decoding, not shown in UI */
-                Return(0xB)
-            }
-
             Mutex (MEMORY_SLOT_LOCK, 0)
 
             Method(MEMORY_SLOT_SCAN_METHOD, 0) {
