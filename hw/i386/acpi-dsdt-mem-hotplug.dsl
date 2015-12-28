@@ -26,26 +26,11 @@
             External(MEMORY_SLOT_SIZE_LOW, FieldUnitObj) // read only
             External(MEMORY_SLOT_SIZE_HIGH, FieldUnitObj) // read only
             External(MEMORY_SLOT_PROXIMITY, FieldUnitObj) // read only
-            External(MEMORY_SLOT_ENABLED, FieldUnitObj) // 1 if enabled, read only
             External(MEMORY_SLOT_EJECT, FieldUnitObj) // initiates device eject, write only
             External(MEMORY_SLOT_SLECTOR, FieldUnitObj) // DIMM selector, write only
             External(MEMORY_SLOT_OST_EVENT, FieldUnitObj) // _OST event code, write only
             External(MEMORY_SLOT_OST_STATUS, FieldUnitObj) // _OST status code, write only
             External(MEMORY_SLOT_LOCK, MutexObj)
-
-            Method(MEMORY_SLOT_STATUS_METHOD, 1) {
-                Store(Zero, Local0)
-
-                Acquire(MEMORY_SLOT_LOCK, 0xFFFF)
-                Store(ToInteger(Arg0), MEMORY_SLOT_SLECTOR) // select DIMM
-
-                If (LEqual(MEMORY_SLOT_ENABLED, One)) {
-                    Store(0xF, Local0)
-                }
-
-                Release(MEMORY_SLOT_LOCK)
-                Return(Local0)
-            }
 
             Method(MEMORY_SLOT_CRS_METHOD, 1, Serialized) {
                 Acquire(MEMORY_SLOT_LOCK, 0xFFFF)
