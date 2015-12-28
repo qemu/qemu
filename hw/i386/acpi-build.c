@@ -1555,12 +1555,24 @@ static Aml *build_iqcr_method(bool is_piix4)
     return method;
 }
 
+/* _STA method - get status */
+static Aml *build_irq_status_method(void)
+{
+    Aml *if_ctx;
+    Aml *method = aml_method("IQST", 1, AML_NOTSERIALIZED);
+
+    if_ctx = aml_if(aml_and(aml_int(0x80), aml_arg(0), NULL));
+    aml_append(if_ctx, aml_return(aml_int(0x09)));
+    aml_append(method, if_ctx);
+    aml_append(method, aml_return(aml_int(0x0B)));
+    return method;
+}
+
 static void build_piix4_pci0_int(Aml *table)
 {
     Aml *dev;
     Aml *crs;
     Aml *field;
-    Aml *if_ctx;
     Aml *method;
     uint32_t irqs;
     Aml *sb_scope = aml_scope("_SB");
@@ -1576,16 +1588,7 @@ static void build_piix4_pci0_int(Aml *table)
     aml_append(field, aml_named_field("PRQ3", 8));
     aml_append(sb_scope, field);
 
-    /* _STA method - get status */
-    method = aml_method("IQST", 1, AML_NOTSERIALIZED);
-    {
-        if_ctx = aml_if(aml_and(aml_int(0x80), aml_arg(0), NULL));
-        aml_append(if_ctx, aml_return(aml_int(0x09)));
-        aml_append(method, if_ctx);
-        aml_append(method, aml_return(aml_int(0x0B)));
-    }
-    aml_append(sb_scope, method);
-
+    aml_append(sb_scope, build_irq_status_method());
     aml_append(sb_scope, build_iqcr_method(true));
 
     aml_append(sb_scope, build_link_dev("LNKA", 0, aml_name("PRQ0")));
@@ -1632,6 +1635,7 @@ static void build_q35_pci0_int(Aml *table)
 {
     Aml *sb_scope = aml_scope("_SB");
 
+    aml_append(sb_scope, build_irq_status_method());
     aml_append(sb_scope, build_iqcr_method(false));
 
     aml_append(sb_scope, build_link_dev("LNKA", 0, aml_name("PRQA")));
