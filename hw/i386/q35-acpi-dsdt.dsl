@@ -315,38 +315,14 @@ DefinitionBlock (
             Return (PRR0)
         }
 
-#define define_link(link, uid, reg)                             \
-        Device(link) {                                          \
-            Name(_HID, EISAID("PNP0C0F"))                       \
-            Name(_UID, uid)                                     \
-            Name(_PRS, ResourceTemplate() {                     \
-                Interrupt(, Level, ActiveHigh, Shared) {        \
-                    5, 10, 11                                   \
-                }                                               \
-            })                                                  \
-            Method(_STA, 0, NotSerialized) {                    \
-                Return (IQST(reg))                              \
-            }                                                   \
-            Method(_DIS, 0, NotSerialized) {                    \
-                Or(reg, 0x80, reg)                              \
-            }                                                   \
-            Method(_CRS, 0, NotSerialized) {                    \
-                Return (IQCR(reg))                              \
-            }                                                   \
-            Method(_SRS, 1, NotSerialized) {                    \
-                CreateDWordField(Arg0, 0x05, PRRI)              \
-                Store(PRRI, reg)                                \
-            }                                                   \
-        }
-
-        define_link(LNKA, 0, PRQA)
-        define_link(LNKB, 1, PRQB)
-        define_link(LNKC, 2, PRQC)
-        define_link(LNKD, 3, PRQD)
-        define_link(LNKE, 4, PRQE)
-        define_link(LNKF, 5, PRQF)
-        define_link(LNKG, 6, PRQG)
-        define_link(LNKH, 7, PRQH)
+        External(LNKA, DeviceObj)
+        External(LNKB, DeviceObj)
+        External(LNKC, DeviceObj)
+        External(LNKD, DeviceObj)
+        External(LNKE, DeviceObj)
+        External(LNKF, DeviceObj)
+        External(LNKG, DeviceObj)
+        External(LNKH, DeviceObj)
 
         External(GSIA, DeviceObj)
         External(GSIB, DeviceObj)

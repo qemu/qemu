@@ -1619,6 +1619,15 @@ static void build_q35_pci0_int(Aml *table)
 {
     Aml *sb_scope = aml_scope("_SB");
 
+    aml_append(sb_scope, build_link_dev("LNKA", 0, aml_name("PRQA")));
+    aml_append(sb_scope, build_link_dev("LNKB", 1, aml_name("PRQB")));
+    aml_append(sb_scope, build_link_dev("LNKC", 2, aml_name("PRQC")));
+    aml_append(sb_scope, build_link_dev("LNKD", 3, aml_name("PRQD")));
+    aml_append(sb_scope, build_link_dev("LNKE", 4, aml_name("PRQE")));
+    aml_append(sb_scope, build_link_dev("LNKF", 5, aml_name("PRQF")));
+    aml_append(sb_scope, build_link_dev("LNKG", 6, aml_name("PRQG")));
+    aml_append(sb_scope, build_link_dev("LNKH", 7, aml_name("PRQH")));
+
     /*
      * TODO: UID probably shouldn't be the same for GSIx devices
      * but that's how it was in original ASL so keep it for now
