@@ -375,40 +375,4 @@ DefinitionBlock (
         define_gsi_link(GSIG, 0, 0x16)
         define_gsi_link(GSIH, 0, 0x17)
     }
-
-/****************************************************************
- * General purpose events
- ****************************************************************/
-    Scope(\_GPE) {
-        Name(_HID, "ACPI0006")
-
-        Method(_L00) {
-        }
-        Method(_L01) {
-        }
-        Method(_L04) {
-        }
-        Method(_L05) {
-        }
-        Method(_L06) {
-        }
-        Method(_L07) {
-        }
-        Method(_L08) {
-        }
-        Method(_L09) {
-        }
-        Method(_L0A) {
-        }
-        Method(_L0B) {
-        }
-        Method(_L0C) {
-        }
-        Method(_L0D) {
-        }
-        Method(_L0E) {
-        }
-        Method(_L0F) {
-        }
-    }
 }

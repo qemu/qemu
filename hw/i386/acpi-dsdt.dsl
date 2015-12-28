@@ -197,44 +197,4 @@ DefinitionBlock (
             Method(_SRS, 1, NotSerialized) { }
         }
     }
-
-/****************************************************************
- * General purpose events
- ****************************************************************/
-    Scope(\_GPE) {
-        Name(_HID, "ACPI0006")
-
-        Method(_L00) {
-        }
-        Method(_E01) {
-            // PCI hotplug event
-            Acquire(\_SB.PCI0.BLCK, 0xFFFF)
-            \_SB.PCI0.PCNT()
-            Release(\_SB.PCI0.BLCK)
-        }
-        Method(_L04) {
-        }
-        Method(_L05) {
-        }
-        Method(_L06) {
-        }
-        Method(_L07) {
-        }
-        Method(_L08) {
-        }
-        Method(_L09) {
-        }
-        Method(_L0A) {
-        }
-        Method(_L0B) {
-        }
-        Method(_L0C) {
-        }
-        Method(_L0D) {
-        }
-        Method(_L0E) {
-        }
-        Method(_L0F) {
-        }
-    }
 }
