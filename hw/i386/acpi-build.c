@@ -1199,6 +1199,41 @@ static void build_hpet_aml(Aml *table)
     aml_append(table, scope);
 }
 
+static void build_dbg_aml(Aml *table)
+{
+    Aml *field;
+    Aml *method;
+    Aml *while_ctx;
+    Aml *scope = aml_scope("\\");
+    Aml *buf = aml_local(0);
+    Aml *len = aml_local(1);
+    Aml *idx = aml_local(2);
+
+    aml_append(scope,
+       aml_operation_region("DBG", AML_SYSTEM_IO, 0x0402, 0x01));
+    field = aml_field("DBG", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("DBGB", 8));
+    aml_append(scope, field);
+
+    method = aml_method("DBUG", 1, AML_NOTSERIALIZED);
+
+    aml_append(method, aml_to_hexstring(aml_arg(0), buf));
+    aml_append(method, aml_to_buffer(buf, buf));
+    aml_append(method, aml_subtract(aml_sizeof(buf), aml_int(1), len));
+    aml_append(method, aml_store(aml_int(0), idx));
+
+    while_ctx = aml_while(aml_lless(idx, len));
+    aml_append(while_ctx,
+        aml_store(aml_derefof(aml_index(buf, idx)), aml_name("DBGB")));
+    aml_append(while_ctx, aml_increment(idx));
+    aml_append(method, while_ctx);
+
+    aml_append(method, aml_store(aml_int(0x0A), aml_name("DBGB")));
+    aml_append(scope, method);
+
+    aml_append(table, scope);
+}
+
 static void
 build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -1219,6 +1254,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     /* Reserve space for header */
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
+    build_dbg_aml(ssdt);
     build_hpet_aml(ssdt);
     build_cpu_hotplug_aml(ssdt);
     build_memory_hotplug_aml(ssdt, nr_mem, pm->mem_hp_io_base,

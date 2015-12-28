@@ -29,8 +29,6 @@ DefinitionBlock (
     )
 {
 
-#include "acpi-dsdt-dbug.dsl"
-
     Scope(\_SB) {
         Device(PCI0) {
             Name(_HID, EisaId("PNP0A03"))
