@@ -53,7 +53,6 @@ Scope(\_SB) {
         Sleep(200)
     }
 
-#define CPU_STATUS_LEN ACPI_GPE_PROC_LEN
     Method(PRSC, 0) {
         // Local5 = active cpu bitmap
         Store(PRS, Local5)
