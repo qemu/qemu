@@ -401,7 +401,7 @@ DefinitionBlock (
         }
         Method(_E02) {
             // CPU hotplug event
-            \_SB.PRSC()
+            \_SB.CPU_SCAN_METHOD()
         }
         Method(_L04) {
         }

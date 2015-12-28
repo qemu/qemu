@@ -16,6 +16,8 @@
 #define ACPI_BUILD_RSDP_FILE "etc/acpi/rsdp"
 #define ACPI_BUILD_TPMLOG_FILE "etc/tpm/log"
 
+#define AML_NOTIFY_METHOD "NTFY"
+
 typedef enum {
     AML_NO_OPCODE = 0,/* has only data */
     AML_OPCODE,       /* has opcode optionally followed by data */

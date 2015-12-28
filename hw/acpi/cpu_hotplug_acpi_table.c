@@ -26,6 +26,8 @@ void build_cpu_hotplug_aml(Aml *ctx)
     Aml *cpu_on = aml_local(0);
     Aml *madt = aml_local(1);
     Aml *cpus_map = aml_name(CPU_ON_BITMAP);
+    Aml *zero = aml_int(0);
+    Aml *one = aml_int(1);
 
     /*
      * _MAT method - creates an madt apic buffer
@@ -60,13 +62,73 @@ void build_cpu_hotplug_aml(Aml *ctx)
     aml_append(method, if_ctx);
     else_ctx = aml_else();
     {
-        aml_append(else_ctx, aml_return(aml_int(0x0)));
+        aml_append(else_ctx, aml_return(zero));
     }
     aml_append(method, else_ctx);
     aml_append(sb_scope, method);
 
     method = aml_method(CPU_EJECT_METHOD, 2, AML_NOTSERIALIZED);
     aml_append(method, aml_sleep(200));
+    aml_append(sb_scope, method);
+
+    method = aml_method(stringify(CPU_SCAN_METHOD), 0, AML_NOTSERIALIZED);
+    {
+        Aml *while_ctx, *if_ctx2, *else_ctx2;
+        Aml *bus_check_evt = aml_int(1);
+        Aml *remove_evt = aml_int(3);
+        Aml *status_map = aml_local(5); /* Local5 = active cpu bitmap */
+        Aml *byte = aml_local(2); /* Local2 = last read byte from bitmap */
+        Aml *idx = aml_local(0); /* Processor ID / APIC ID iterator */
+        Aml *is_cpu_on = aml_local(1); /* Local1 = CPON flag for cpu */
+        Aml *status = aml_local(3); /* Local3 = active state for cpu */
+
+        aml_append(method, aml_store(aml_name(CPU_STATUS_MAP), status_map));
+        aml_append(method, aml_store(zero, byte));
+        aml_append(method, aml_store(zero, idx));
+
+        /* While (idx < SizeOf(CPON)) */
+        while_ctx = aml_while(aml_lless(idx, aml_sizeof(cpus_map)));
+        aml_append(while_ctx,
+            aml_store(aml_derefof(aml_index(cpus_map, idx)), is_cpu_on));
+
+        if_ctx = aml_if(aml_and(idx, aml_int(0x07), NULL));
+        {
+            /* Shift down previously read bitmap byte */
+            aml_append(if_ctx, aml_shiftright(byte, one, byte));
+        }
+        aml_append(while_ctx, if_ctx);
+
+        else_ctx = aml_else();
+        {
+            /* Read next byte from cpu bitmap */
+            aml_append(else_ctx, aml_store(aml_derefof(aml_index(status_map,
+                       aml_shiftright(idx, aml_int(3), NULL))), byte));
+        }
+        aml_append(while_ctx, else_ctx);
+
+        aml_append(while_ctx, aml_store(aml_and(byte, one, NULL), status));
+        if_ctx = aml_if(aml_lnot(aml_equal(is_cpu_on, status)));
+        {
+            /* State change - update CPON with new state */
+            aml_append(if_ctx, aml_store(status, aml_index(cpus_map, idx)));
+            if_ctx2 = aml_if(aml_equal(status, one));
+            {
+                aml_append(if_ctx2,
+                    aml_call2(AML_NOTIFY_METHOD, idx, bus_check_evt));
+            }
+            aml_append(if_ctx, if_ctx2);
+            else_ctx2 = aml_else();
+            {
+                aml_append(else_ctx2,
+                    aml_call2(AML_NOTIFY_METHOD, idx, remove_evt));
+            }
+        }
+        aml_append(if_ctx, else_ctx2);
+        aml_append(while_ctx, if_ctx);
+
+        aml_append(while_ctx, aml_increment(idx)); /* go to next cpu */
+        aml_append(method, while_ctx);
+    }
     aml_append(sb_scope, method);
 
     aml_append(ctx, sb_scope);

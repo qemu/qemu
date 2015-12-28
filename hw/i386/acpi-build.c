@@ -1340,7 +1340,7 @@ build_ssdt(GArray *table_data, GArray *linker,
          *   Method(NTFY, 2) {If (LEqual(Arg0, 0x00)) {Notify(CP00, Arg1)} ...}
          */
         /* Arg0 = Processor ID = APIC ID */
-        method = aml_method("NTFY", 2, AML_NOTSERIALIZED);
+        method = aml_method(AML_NOTIFY_METHOD, 2, AML_NOTSERIALIZED);
         for (i = 0; i < acpi_cpus; i++) {
             ifctx = aml_if(aml_equal(aml_arg(0), aml_int(i)));
             aml_append(ifctx,
