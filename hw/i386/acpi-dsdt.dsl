@@ -250,7 +250,6 @@ DefinitionBlock (
 #include "hw/acpi/pc-hotplug.h"
 #define CPU_STATUS_BASE PIIX4_CPU_HOTPLUG_IO_BASE
 #include "acpi-dsdt-cpu-hotplug.dsl"
-#include "acpi-dsdt-mem-hotplug.dsl"
 
 
 /****************************************************************
@@ -270,10 +269,6 @@ DefinitionBlock (
         Method(_E02) {
             // CPU hotplug event
             \_SB.PRSC()
-        }
-        Method(_E03) {
-            // Memory hotplug event
-            \_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_SCAN_METHOD()
         }
         Method(_L04) {
         }

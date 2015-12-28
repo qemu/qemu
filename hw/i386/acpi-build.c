@@ -1083,6 +1083,12 @@ build_ssdt(GArray *table_data, GArray *linker,
     build_memory_hotplug_aml(ssdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);
 
+    scope =  aml_scope("\\_GPE");
+    method = aml_method("_E03", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_call0(MEMORY_HOTPLUG_HANDLER_PATH));
+    aml_append(scope, method);
+    aml_append(ssdt, scope);
+
     bus = PC_MACHINE(machine)->bus;
     if (bus) {
         QLIST_FOREACH(bus, &bus->child, sibling) {
