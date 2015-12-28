@@ -1696,6 +1696,14 @@ static void build_q35_pci0_int(Aml *table)
     Aml *sb_scope = aml_scope("_SB");
     Aml *pci0_scope = aml_scope("PCI0");
 
+    /* Zero => PIC mode, One => APIC Mode */
+    aml_append(table, aml_name_decl("PICF", aml_int(0)));
+    method = aml_method("_PIC", 1, AML_NOTSERIALIZED);
+    {
+        aml_append(method, aml_store(aml_arg(0), aml_name("PICF")));
+    }
+    aml_append(table, method);
+
     aml_append(pci0_scope,
         aml_name_decl("PRTP", build_q35_routing_table("LNK")));
     aml_append(pci0_scope,

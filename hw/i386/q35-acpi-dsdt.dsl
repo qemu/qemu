@@ -112,14 +112,4 @@ DefinitionBlock (
             }
         }
     }
-
-/****************************************************************
- * PCI IRQs
- ****************************************************************/
-
-    /* Zero => PIC mode, One => APIC Mode */
-    Name(\PICF, Zero)
-    Method(\_PIC, 1, NotSerialized) {
-        Store(Arg0, \PICF)
-    }
 }
