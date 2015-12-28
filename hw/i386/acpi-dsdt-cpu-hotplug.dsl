@@ -48,10 +48,6 @@ Scope(\_SB) {
             Return (0x0)
         }
     }
-    Method(CPEJ, 2, NotSerialized) {
-        // _EJ0 method - eject callback
-        Sleep(200)
-    }
 
     Method(PRSC, 0) {
         // Local5 = active cpu bitmap

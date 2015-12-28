@@ -14,6 +14,7 @@
 
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/pc-hotplug.h"
+#include "hw/acpi/aml-build.h"
 
 typedef struct AcpiCpuHotplug {
     MemoryRegion io;
@@ -25,4 +26,8 @@ void acpi_cpu_plug_cb(ACPIREGS *ar, qemu_irq irq,
 
 void acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
                            AcpiCpuHotplug *gpe_cpu, uint16_t base);
+
+#define CPU_EJECT_METHOD "CPEJ"
+
+void build_cpu_hotplug_aml(Aml *ctx);
 #endif

@@ -1080,6 +1080,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     /* Reserve space for header */
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
+    build_cpu_hotplug_aml(ssdt);
     build_memory_hotplug_aml(ssdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);
 
@@ -1326,7 +1327,7 @@ build_ssdt(GArray *table_data, GArray *linker,
 
             method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);
             aml_append(method,
-                aml_return(aml_call2("CPEJ", aml_int(i), aml_arg(0)))
+                aml_return(aml_call2(CPU_EJECT_METHOD, aml_int(i), aml_arg(0)))
             );
             aml_append(dev, method);
 
