@@ -34,8 +34,7 @@
             External(MEMORY_SLOT_SLECTOR, FieldUnitObj) // DIMM selector, write only
             External(MEMORY_SLOT_OST_EVENT, FieldUnitObj) // _OST event code, write only
             External(MEMORY_SLOT_OST_STATUS, FieldUnitObj) // _OST status code, write only
-
-            Mutex (MEMORY_SLOT_LOCK, 0)
+            External(MEMORY_SLOT_LOCK, MutexObj)
 
             Method(MEMORY_SLOT_SCAN_METHOD, 0) {
                 If (LEqual(MEMORY_SLOTS_NUMBER, Zero)) {

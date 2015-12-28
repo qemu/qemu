@@ -38,6 +38,8 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         /* present, functioning, decoding, not shown in UI */
         aml_append(method, aml_return(aml_int(0xB)));
         aml_append(mem_ctrl_dev, method);
+
+        aml_append(mem_ctrl_dev, aml_mutex(stringify(MEMORY_SLOT_LOCK), 0));
     }
     aml_append(pci_scope, mem_ctrl_dev);
     aml_append(ctx, pci_scope);
