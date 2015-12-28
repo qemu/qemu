@@ -1330,6 +1330,52 @@ static Aml *build_lpt_device_aml(void)
     return dev;
 }
 
+static Aml *build_com_device_aml(uint8_t uid)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    Aml *if_ctx;
+    Aml *else_ctx;
+    Aml *zero = aml_int(0);
+    Aml *is_present = aml_local(0);
+    const char *enabled_field = "CAEN";
+    uint8_t irq = 4;
+    uint16_t io_port = 0x03F8;
+
+    assert(uid == 1 || uid == 2);
+    if (uid == 2) {
+        enabled_field = "CBEN";
+        irq = 3;
+        io_port = 0x02F8;
+    }
+
+    dev = aml_device("COM%d", uid);
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0501")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_name("%s", enabled_field), is_present));
+    if_ctx = aml_if(aml_equal(is_present, zero));
+    {
+        aml_append(if_ctx, aml_return(aml_int(0x00)));
+    }
+    aml_append(method, if_ctx);
+    else_ctx = aml_else();
+    {
+        aml_append(else_ctx, aml_return(aml_int(0x0f)));
+    }
+    aml_append(method, else_ctx);
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_io(AML_DECODE16, io_port, io_port, 0x00, 0x08));
+    aml_append(crs, aml_irq_no_flags(irq));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
 static void build_isa_devices_aml(Aml *table)
 {
     Aml *scope = aml_scope("_SB.PCI0.ISA");
@@ -1339,6 +1385,8 @@ static void build_isa_devices_aml(Aml *table)
     aml_append(scope, build_mouse_device_aml());
     aml_append(scope, build_fdc_device_aml());
     aml_append(scope, build_lpt_device_aml());
+    aml_append(scope, build_com_device_aml(1));
+    aml_append(scope, build_com_device_aml(2));
 
     aml_append(table, scope);
 }
