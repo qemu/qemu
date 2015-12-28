@@ -1199,6 +1199,44 @@ static void build_hpet_aml(Aml *table)
     aml_append(table, scope);
 }
 
+static Aml *build_fdc_device_aml(void)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    Aml *if_ctx;
+    Aml *else_ctx;
+    Aml *zero = aml_int(0);
+    Aml *is_present = aml_local(0);
+
+    dev = aml_device("FDC0");
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0700")));
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_name("FDEN"), is_present));
+    if_ctx = aml_if(aml_equal(is_present, zero));
+    {
+        aml_append(if_ctx, aml_return(aml_int(0x00)));
+    }
+    aml_append(method, if_ctx);
+    else_ctx = aml_else();
+    {
+        aml_append(else_ctx, aml_return(aml_int(0x0f)));
+    }
+    aml_append(method, else_ctx);
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_io(AML_DECODE16, 0x03F2, 0x03F2, 0x00, 0x04));
+    aml_append(crs, aml_io(AML_DECODE16, 0x03F7, 0x03F7, 0x00, 0x01));
+    aml_append(crs, aml_irq_no_flags(6));
+    aml_append(crs,
+        aml_dma(AML_COMPATIBILITY, AML_NOTBUSMASTER, AML_TRANSFER8, 2));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    return dev;
+}
+
 static Aml *build_rtc_device_aml(void)
 {
     Aml *dev;
@@ -1210,6 +1248,7 @@ static Aml *build_rtc_device_aml(void)
     aml_append(crs, aml_io(AML_DECODE16, 0x0070, 0x0070, 0x10, 0x02));
     aml_append(crs, aml_irq_no_flags(8));
     aml_append(crs, aml_io(AML_DECODE16, 0x0072, 0x0072, 0x02, 0x06));
+    aml_append(dev, aml_name_decl("_CRS", crs));
 
     return dev;
 }
@@ -1263,6 +1302,7 @@ static void build_isa_devices_aml(Aml *table)
     aml_append(scope, build_rtc_device_aml());
     aml_append(scope, build_kbd_device_aml());
     aml_append(scope, build_mouse_device_aml());
+    aml_append(scope, build_fdc_device_aml());
 
     aml_append(table, scope);
 }

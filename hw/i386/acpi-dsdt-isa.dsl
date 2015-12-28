@@ -16,24 +16,6 @@
 /* Common legacy ISA style devices. */
 Scope(\_SB.PCI0.ISA) {
 
-    Device(FDC0) {
-        Name(_HID, EisaId("PNP0700"))
-        Method(_STA, 0, NotSerialized) {
-            Store(FDEN, Local0)
-            If (LEqual(Local0, 0)) {
-                Return (0x00)
-            } Else {
-                Return (0x0F)
-            }
-        }
-        Name(_CRS, ResourceTemplate() {
-            IO(Decode16, 0x03F2, 0x03F2, 0x00, 0x04)
-            IO(Decode16, 0x03F7, 0x03F7, 0x00, 0x01)
-            IRQNoFlags() { 6 }
-            DMA(Compatibility, NotBusMaster, Transfer8) { 2 }
-        })
-    }
-
     Device(LPT) {
         Name(_HID, EisaId("PNP0400"))
         Method(_STA, 0, NotSerialized) {
