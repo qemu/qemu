@@ -13,13 +13,12 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-    External(MEMORY_SLOT_NOTIFY_METHOD, MethodObj)
+    External(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_SCAN_METHOD, MethodObj)
 
     Scope(\_SB.PCI0) {
         Device(MEMORY_HOTPLUG_DEVICE) {
             Name(_HID, "PNP0A06")
             Name(_UID, "Memory hotplug resources")
-            External(MEMORY_SLOTS_NUMBER, IntObj)
 
             /* Memory hotplug IO registers */
             External(MEMORY_SLOT_ADDR_LOW, FieldUnitObj) // read only
@@ -28,35 +27,11 @@
             External(MEMORY_SLOT_SIZE_HIGH, FieldUnitObj) // read only
             External(MEMORY_SLOT_PROXIMITY, FieldUnitObj) // read only
             External(MEMORY_SLOT_ENABLED, FieldUnitObj) // 1 if enabled, read only
-            External(MEMORY_SLOT_INSERT_EVENT, FieldUnitObj) // (read) 1 if has a insert event. (write) 1 to clear event
-            External(MEMORY_SLOT_REMOVE_EVENT, FieldUnitObj) // (read) 1 if has a remove event. (write) 1 to clear event
             External(MEMORY_SLOT_EJECT, FieldUnitObj) // initiates device eject, write only
             External(MEMORY_SLOT_SLECTOR, FieldUnitObj) // DIMM selector, write only
             External(MEMORY_SLOT_OST_EVENT, FieldUnitObj) // _OST event code, write only
             External(MEMORY_SLOT_OST_STATUS, FieldUnitObj) // _OST status code, write only
             External(MEMORY_SLOT_LOCK, MutexObj)
-
-            Method(MEMORY_SLOT_SCAN_METHOD, 0) {
-                If (LEqual(MEMORY_SLOTS_NUMBER, Zero)) {
-                     Return(Zero)
-                }
-
-                Store(Zero, Local0) // Mem devs iterrator
-                Acquire(MEMORY_SLOT_LOCK, 0xFFFF)
-                while (LLess(Local0, MEMORY_SLOTS_NUMBER)) {
-                    Store(Local0, MEMORY_SLOT_SLECTOR) // select Local0 DIMM
-                    If (LEqual(MEMORY_SLOT_INSERT_EVENT, One)) { // Memory device needs check
-                        MEMORY_SLOT_NOTIFY_METHOD(Local0, 1)
-                        Store(1, MEMORY_SLOT_INSERT_EVENT)
-                    } Elseif (LEqual(MEMORY_SLOT_REMOVE_EVENT, One)) { // Ejection request
-                        MEMORY_SLOT_NOTIFY_METHOD(Local0, 3)
-                        Store(1, MEMORY_SLOT_REMOVE_EVENT)
-                    }
-                    Add(Local0, One, Local0) // goto next DIMM
-                }
-                Release(MEMORY_SLOT_LOCK)
-                Return(One)
-            }
 
             Method(MEMORY_SLOT_STATUS_METHOD, 1) {
                 Store(Zero, Local0)
