@@ -1631,12 +1631,73 @@ static void build_piix4_pci0_int(Aml *table)
     aml_append(table, sb_scope);
 }
 
+static void append_q35_prt_entry(Aml *ctx, uint32_t nr, const char *name)
+{
+    int i;
+    int head;
+    Aml *pkg;
+    char base = name[3] < 'E' ? 'A' : 'E';
+    char *s = g_strdup(name);
+    Aml *a_nr = aml_int((nr << 16) | 0xffff);
+
+    assert(strlen(s) == 4);
+
+    head = name[3] - base;
+    for (i = 0; i < 4; i++) {
+        if (head + i > 3) {
+            head = i * -1;
+        }
+        s[3] = base + head + i;
+        pkg = aml_package(4);
+        aml_append(pkg, a_nr);
+        aml_append(pkg, aml_int(i));
+        aml_append(pkg, aml_name("%s", s));
+        aml_append(pkg, aml_int(0));
+        aml_append(ctx, pkg);
+    }
+    g_free(s);
+}
+
+static Aml *build_q35_routing_table(const char *str)
+{
+    int i;
+    Aml *pkg;
+    char *name = g_strdup_printf("%s ", str);
+
+    pkg = aml_package(128);
+    for (i = 0; i < 0x18; i++) {
+            name[3] = 'E' + (i & 0x3);
+            append_q35_prt_entry(pkg, i, name);
+    }
+
+    name[3] = 'E';
+    append_q35_prt_entry(pkg, 0x18, name);
+
+    /* INTA -> PIRQA for slot 25 - 31, see the default value of D<N>IR */
+    for (i = 0x0019; i < 0x1e; i++) {
+        name[3] = 'A';
+        append_q35_prt_entry(pkg, i, name);
+    }
+
+    /* PCIe->PCI bridge. use PIRQ[E-H] */
+    name[3] = 'E';
+    append_q35_prt_entry(pkg, 0x1e, name);
+    name[3] = 'A';
+    append_q35_prt_entry(pkg, 0x1f, name);
+
+    g_free(name);
+    return pkg;
+}
+
 static void build_q35_pci0_int(Aml *table)
 {
     Aml *field;
     Aml *method;
     Aml *sb_scope = aml_scope("_SB");
     Aml *pci0_scope = aml_scope("PCI0");
+
+    aml_append(pci0_scope,
+        aml_name_decl("PRTA", build_q35_routing_table("GSI")));
 
     method = aml_method("_PRT", 0, AML_NOTSERIALIZED);
     {

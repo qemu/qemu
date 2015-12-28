@@ -181,63 +181,6 @@ DefinitionBlock (
 
                 prt_slot_lnkA(0x001f)
             })
-
-#define prt_slot_gsi(nr, gsi0, gsi1, gsi2, gsi3)  \
-    Package() { nr##ffff, 0, gsi0, 0 },           \
-    Package() { nr##ffff, 1, gsi1, 0 },           \
-    Package() { nr##ffff, 2, gsi2, 0 },           \
-    Package() { nr##ffff, 3, gsi3, 0 }
-
-#define prt_slot_gsiA(nr) prt_slot_gsi(nr, GSIA, GSIB, GSIC, GSID)
-#define prt_slot_gsiB(nr) prt_slot_gsi(nr, GSIB, GSIC, GSID, GSIA)
-#define prt_slot_gsiC(nr) prt_slot_gsi(nr, GSIC, GSID, GSIA, GSIB)
-#define prt_slot_gsiD(nr) prt_slot_gsi(nr, GSID, GSIA, GSIB, GSIC)
-
-#define prt_slot_gsiE(nr) prt_slot_gsi(nr, GSIE, GSIF, GSIG, GSIH)
-#define prt_slot_gsiF(nr) prt_slot_gsi(nr, GSIF, GSIG, GSIH, GSIE)
-#define prt_slot_gsiG(nr) prt_slot_gsi(nr, GSIG, GSIH, GSIE, GSIF)
-#define prt_slot_gsiH(nr) prt_slot_gsi(nr, GSIH, GSIE, GSIF, GSIG)
-
-            Name(PRTA, package() {
-                prt_slot_gsiE(0x0000),
-                prt_slot_gsiF(0x0001),
-                prt_slot_gsiG(0x0002),
-                prt_slot_gsiH(0x0003),
-                prt_slot_gsiE(0x0004),
-                prt_slot_gsiF(0x0005),
-                prt_slot_gsiG(0x0006),
-                prt_slot_gsiH(0x0007),
-                prt_slot_gsiE(0x0008),
-                prt_slot_gsiF(0x0009),
-                prt_slot_gsiG(0x000a),
-                prt_slot_gsiH(0x000b),
-                prt_slot_gsiE(0x000c),
-                prt_slot_gsiF(0x000d),
-                prt_slot_gsiG(0x000e),
-                prt_slot_gsiH(0x000f),
-                prt_slot_gsiE(0x0010),
-                prt_slot_gsiF(0x0011),
-                prt_slot_gsiG(0x0012),
-                prt_slot_gsiH(0x0013),
-                prt_slot_gsiE(0x0014),
-                prt_slot_gsiF(0x0015),
-                prt_slot_gsiG(0x0016),
-                prt_slot_gsiH(0x0017),
-                prt_slot_gsiE(0x0018),
-
-                /* INTA -> PIRQA for slot 25 - 31, but 30
-                   see the default value of D<N>IR */
-                prt_slot_gsiA(0x0019),
-                prt_slot_gsiA(0x001a),
-                prt_slot_gsiA(0x001b),
-                prt_slot_gsiA(0x001c),
-                prt_slot_gsiA(0x001d),
-
-                /* PCIe->PCI bridge. use PIRQ[E-H] */
-                prt_slot_gsiE(0x001e),
-
-                prt_slot_gsiA(0x001f)
-            })
         }
 
         External(LNKA, DeviceObj)
