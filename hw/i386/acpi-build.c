@@ -1323,7 +1323,8 @@ build_ssdt(GArray *table_data, GArray *linker,
             aml_append(dev, method);
 
             method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-            aml_append(method, aml_return(aml_call1("CPST", aml_int(i))));
+            aml_append(method,
+                aml_return(aml_call1(CPU_STATUS_METHOD, aml_int(i))));
             aml_append(dev, method);
 
             method = aml_method("_EJ0", 1, AML_NOTSERIALIZED);

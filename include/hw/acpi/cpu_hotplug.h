@@ -30,6 +30,7 @@ void acpi_cpu_hotplug_init(MemoryRegion *parent, Object *owner,
 #define CPU_EJECT_METHOD "CPEJ"
 #define CPU_MAT_METHOD "CPMA"
 #define CPU_ON_BITMAP "CPON"
+#define CPU_STATUS_METHOD "CPST"
 
 void build_cpu_hotplug_aml(Aml *ctx);
 #endif

@@ -18,6 +18,8 @@
 void build_cpu_hotplug_aml(Aml *ctx)
 {
     Aml *method;
+    Aml *if_ctx;
+    Aml *else_ctx;
     Aml *sb_scope = aml_scope("_SB");
     uint8_t madt_tmpl[8] = {0x00, 0x08, 0x00, 0x00, 0x00, 0, 0, 0};
     Aml *cpu_id = aml_arg(0);
@@ -41,6 +43,26 @@ void build_cpu_hotplug_aml(Aml *ctx)
     aml_append(method, aml_store(cpu_id, aml_index(madt, aml_int(3))));
     aml_append(method, aml_store(cpu_on, aml_index(madt, aml_int(4))));
     aml_append(method, aml_return(madt));
+    aml_append(sb_scope, method);
+
+    /*
+     * _STA method - return ON status of cpu
+     * cpu_id = Arg0 = Processor ID = Local APIC ID
+     * cpu_on = Local0 = CPON flag for this cpu
+     */
+    method = aml_method(CPU_STATUS_METHOD, 1, AML_NOTSERIALIZED);
+    aml_append(method,
+        aml_store(aml_derefof(aml_index(cpus_map, cpu_id)), cpu_on));
+    if_ctx = aml_if(cpu_on);
+    {
+        aml_append(if_ctx, aml_return(aml_int(0xF)));
+    }
+    aml_append(method, if_ctx);
+    else_ctx = aml_else();
+    {
+        aml_append(else_ctx, aml_return(aml_int(0x0)));
+    }
+    aml_append(method, else_ctx);
     aml_append(sb_scope, method);
 
     method = aml_method(CPU_EJECT_METHOD, 2, AML_NOTSERIALIZED);

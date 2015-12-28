@@ -24,18 +24,6 @@ Scope(\_SB) {
     External(PRS, FieldUnitObj)
 
     /* Methods called by run-time generated SSDT Processor objects */
-    Method(CPST, 1, NotSerialized) {
-        // _STA method - return ON status of cpu
-        // Arg0 = Processor ID = Local APIC ID
-        // Local0 = CPON flag for this cpu
-        Store(DerefOf(Index(CPON, Arg0)), Local0)
-        If (Local0) {
-            Return (0xF)
-        } Else {
-            Return (0x0)
-        }
-    }
-
     Method(PRSC, 0) {
         // Local5 = active cpu bitmap
         Store(PRS, Local5)
