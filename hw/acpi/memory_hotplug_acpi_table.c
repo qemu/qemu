@@ -124,6 +124,98 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         }
         aml_append(mem_ctrl_dev, method);
 
+        method = aml_method(stringify(MEMORY_SLOT_CRS_METHOD), 1,
+                            AML_SERIALIZED);
+        {
+            Aml *mr64 = aml_name("MR64");
+            Aml *mr32 = aml_name("MR32");
+            Aml *crs_tmpl = aml_resource_template();
+            Aml *minl = aml_name("MINL");
+            Aml *minh = aml_name("MINH");
+            Aml *maxl =  aml_name("MAXL");
+            Aml *maxh =  aml_name("MAXH");
+            Aml *lenl = aml_name("LENL");
+            Aml *lenh = aml_name("LENH");
+
+            aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
+            aml_append(method, aml_store(aml_to_integer(slot_arg0),
+                                         slot_selector));
+
+            aml_append(crs_tmpl,
+                aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                                 AML_CACHEABLE, AML_READ_WRITE,
+                                 0, 0x0, 0xFFFFFFFFFFFFFFFEULL, 0,
+                                 0xFFFFFFFFFFFFFFFFULL));
+            aml_append(method, aml_name_decl("MR64", crs_tmpl));
+            aml_append(method,
+                aml_create_dword_field(mr64, aml_int(14), "MINL"));
+            aml_append(method,
+                aml_create_dword_field(mr64, aml_int(18), "MINH"));
+            aml_append(method,
+                aml_create_dword_field(mr64, aml_int(38), "LENL"));
+            aml_append(method,
+                aml_create_dword_field(mr64, aml_int(42), "LENH"));
+            aml_append(method,
+                aml_create_dword_field(mr64, aml_int(22), "MAXL"));
+            aml_append(method,
+                aml_create_dword_field(mr64, aml_int(26), "MAXH"));
+
+            aml_append(method,
+                aml_store(aml_name(stringify(MEMORY_SLOT_ADDR_HIGH)), minh));
+            aml_append(method,
+                aml_store(aml_name(stringify(MEMORY_SLOT_ADDR_LOW)), minl));
+            aml_append(method,
+                aml_store(aml_name(stringify(MEMORY_SLOT_SIZE_HIGH)), lenh));
+            aml_append(method,
+                aml_store(aml_name(stringify(MEMORY_SLOT_SIZE_LOW)), lenl));
+
+            /* 64-bit math: MAX = MIN + LEN - 1 */
+            aml_append(method, aml_add(minl, lenl, maxl));
+            aml_append(method, aml_add(minh, lenh, maxh));
+            ifctx = aml_if(aml_lless(maxl, minl));
+            {
+                aml_append(ifctx, aml_add(maxh, one, maxh));
+            }
+            aml_append(method, ifctx);
+            ifctx = aml_if(aml_lless(maxl, one));
+            {
+                aml_append(ifctx, aml_subtract(maxh, one, maxh));
+            }
+            aml_append(method, ifctx);
+            aml_append(method, aml_subtract(maxl, one, maxl));
+
+            /* return 32-bit _CRS if addr/size is in low mem */
+            /* TODO: remove it since all hotplugged DIMMs are in high mem */
+            ifctx = aml_if(aml_equal(maxh, zero));
+            {
+                crs_tmpl = aml_resource_template();
+                aml_append(crs_tmpl,
+                    aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                     AML_MAX_FIXED, AML_CACHEABLE,
+                                     AML_READ_WRITE,
+                                     0, 0x0, 0xFFFFFFFE, 0,
+                                     0xFFFFFFFF));
+                aml_append(ifctx, aml_name_decl("MR32", crs_tmpl));
+                aml_append(ifctx,
+                    aml_create_dword_field(mr32, aml_int(10), "MIN"));
+                aml_append(ifctx,
+                    aml_create_dword_field(mr32, aml_int(14), "MAX"));
+                aml_append(ifctx,
+                    aml_create_dword_field(mr32, aml_int(22), "LEN"));
+                aml_append(ifctx, aml_store(minl, aml_name("MIN")));
+                aml_append(ifctx, aml_store(maxl, aml_name("MAX")));
+                aml_append(ifctx, aml_store(lenl, aml_name("LEN")));
+
+                aml_append(ifctx, aml_release(ctrl_lock));
+                aml_append(ifctx, aml_return(mr32));
+            }
+            aml_append(method, ifctx);
+
+            aml_append(method, aml_release(ctrl_lock));
+            aml_append(method, aml_return(mr64));
+        }
+        aml_append(mem_ctrl_dev, method);
+
         method = aml_method(stringify(MEMORY_SLOT_PROXIMITY_METHOD), 1,
                             AML_NOTSERIALIZED);
         {
