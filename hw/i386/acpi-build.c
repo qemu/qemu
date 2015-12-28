@@ -1500,6 +1500,31 @@ static Aml *build_link_dev(const char *name, uint8_t uid, Aml *reg)
     return dev;
  }
 
+static Aml *build_gsi_link_dev(const char *name, uint8_t uid, uint8_t gsi)
+{
+    Aml *dev;
+    Aml *crs;
+    Aml *method;
+    uint32_t irqs;
+
+    dev = aml_device("%s", name);
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0C0F")));
+    aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+
+    crs = aml_resource_template();
+    irqs = gsi;
+    aml_append(crs, aml_interrupt(AML_CONSUMER, AML_LEVEL, AML_ACTIVE_HIGH,
+                                  AML_SHARED, &irqs, 1));
+    aml_append(dev, aml_name_decl("_PRS", crs));
+
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    method = aml_method("_SRS", 1, AML_NOTSERIALIZED);
+    aml_append(dev, method);
+
+    return dev;
+}
+
 static void build_piix4_pci0_int(Aml *table)
 {
     Aml *dev;
@@ -1586,6 +1611,26 @@ static void build_piix4_pci0_int(Aml *table)
         aml_append(dev, method);
     }
     aml_append(sb_scope, dev);
+
+    aml_append(table, sb_scope);
+}
+
+static void build_q35_pci0_int(Aml *table)
+{
+    Aml *sb_scope = aml_scope("_SB");
+
+    /*
+     * TODO: UID probably shouldn't be the same for GSIx devices
+     * but that's how it was in original ASL so keep it for now
+     */
+    aml_append(sb_scope, build_gsi_link_dev("GSIA", 0, 0x10));
+    aml_append(sb_scope, build_gsi_link_dev("GSIB", 0, 0x11));
+    aml_append(sb_scope, build_gsi_link_dev("GSIC", 0, 0x12));
+    aml_append(sb_scope, build_gsi_link_dev("GSID", 0, 0x13));
+    aml_append(sb_scope, build_gsi_link_dev("GSIE", 0, 0x14));
+    aml_append(sb_scope, build_gsi_link_dev("GSIF", 0, 0x15));
+    aml_append(sb_scope, build_gsi_link_dev("GSIG", 0, 0x16));
+    aml_append(sb_scope, build_gsi_link_dev("GSIH", 0, 0x17));
 
     aml_append(table, sb_scope);
 }
@@ -1718,7 +1763,9 @@ build_ssdt(GArray *table_data, GArray *linker,
     } else {
         build_hpet_aml(ssdt);
         build_isa_devices_aml(ssdt);
+        build_q35_pci0_int(ssdt);
     }
+
     build_cpu_hotplug_aml(ssdt);
     build_memory_hotplug_aml(ssdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);

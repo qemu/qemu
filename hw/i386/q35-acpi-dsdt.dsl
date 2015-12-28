@@ -348,31 +348,13 @@ DefinitionBlock (
         define_link(LNKG, 6, PRQG)
         define_link(LNKH, 7, PRQH)
 
-#define define_gsi_link(link, uid, gsi)                         \
-        Device(link) {                                          \
-            Name(_HID, EISAID("PNP0C0F"))                       \
-            Name(_UID, uid)                                     \
-            Name(_PRS, ResourceTemplate() {                     \
-                Interrupt(, Level, ActiveHigh, Shared) {        \
-                    gsi                                         \
-                }                                               \
-            })                                                  \
-            Name(_CRS, ResourceTemplate() {                     \
-                Interrupt(, Level, ActiveHigh, Shared) {        \
-                    gsi                                         \
-                }                                               \
-            })                                                  \
-            Method(_SRS, 1, NotSerialized) {                    \
-            }                                                   \
-        }
-
-        define_gsi_link(GSIA, 0, 0x10)
-        define_gsi_link(GSIB, 0, 0x11)
-        define_gsi_link(GSIC, 0, 0x12)
-        define_gsi_link(GSID, 0, 0x13)
-        define_gsi_link(GSIE, 0, 0x14)
-        define_gsi_link(GSIF, 0, 0x15)
-        define_gsi_link(GSIG, 0, 0x16)
-        define_gsi_link(GSIH, 0, 0x17)
+        External(GSIA, DeviceObj)
+        External(GSIB, DeviceObj)
+        External(GSIC, DeviceObj)
+        External(GSID, DeviceObj)
+        External(GSIE, DeviceObj)
+        External(GSIF, DeviceObj)
+        External(GSIG, DeviceObj)
+        External(GSIH, DeviceObj)
     }
 }
