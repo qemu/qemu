@@ -25,7 +25,6 @@
             External(MEMORY_SLOT_ADDR_HIGH, FieldUnitObj) // read only
             External(MEMORY_SLOT_SIZE_LOW, FieldUnitObj) // read only
             External(MEMORY_SLOT_SIZE_HIGH, FieldUnitObj) // read only
-            External(MEMORY_SLOT_PROXIMITY, FieldUnitObj) // read only
             External(MEMORY_SLOT_EJECT, FieldUnitObj) // initiates device eject, write only
             External(MEMORY_SLOT_SLECTOR, FieldUnitObj) // DIMM selector, write only
             External(MEMORY_SLOT_OST_EVENT, FieldUnitObj) // _OST event code, write only
@@ -94,14 +93,6 @@
 
                 Release(MEMORY_SLOT_LOCK)
                 Return(MR64)
-            }
-
-            Method(MEMORY_SLOT_PROXIMITY_METHOD, 1) {
-                Acquire(MEMORY_SLOT_LOCK, 0xFFFF)
-                Store(ToInteger(Arg0), MEMORY_SLOT_SLECTOR) // select DIMM
-                Store(MEMORY_SLOT_PROXIMITY, Local0)
-                Release(MEMORY_SLOT_LOCK)
-                Return(Local0)
             }
 
             Method(MEMORY_SLOT_OST_METHOD, 4) {
