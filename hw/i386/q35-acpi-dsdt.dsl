@@ -238,18 +238,6 @@ DefinitionBlock (
 
                 prt_slot_gsiA(0x001f)
             })
-
-            Method(_PRT, 0, NotSerialized) {
-                /* PCI IRQ routing table, example from ACPI 2.0a specification,
-                   section 6.2.8.1 */
-                /* Note: we provide the same info as the PCI routing
-                   table of the Bochs BIOS */
-                If (LEqual(\PICF, Zero)) {
-                    Return (PRTP)
-                } Else {
-                    Return (PRTA)
-                }
-            }
         }
 
         External(LNKA, DeviceObj)

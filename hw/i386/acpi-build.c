@@ -1634,7 +1634,28 @@ static void build_piix4_pci0_int(Aml *table)
 static void build_q35_pci0_int(Aml *table)
 {
     Aml *field;
+    Aml *method;
     Aml *sb_scope = aml_scope("_SB");
+    Aml *pci0_scope = aml_scope("PCI0");
+
+    method = aml_method("_PRT", 0, AML_NOTSERIALIZED);
+    {
+        Aml *if_ctx;
+        Aml *else_ctx;
+
+        /* PCI IRQ routing table, example from ACPI 2.0a specification,
+           section 6.2.8.1 */
+        /* Note: we provide the same info as the PCI routing
+           table of the Bochs BIOS */
+        if_ctx = aml_if(aml_equal(aml_name("PICF"), aml_int(0)));
+        aml_append(if_ctx, aml_return(aml_name("PRTP")));
+        aml_append(method, if_ctx);
+        else_ctx = aml_else();
+        aml_append(else_ctx, aml_return(aml_name("PRTA")));
+        aml_append(method, else_ctx);
+    }
+    aml_append(pci0_scope, method);
+    aml_append(sb_scope, pci0_scope);
 
     field = aml_field("PCI0.ISA.PIRQ", AML_BYTE_ACC, AML_NOLOCK, AML_PRESERVE);
     aml_append(field, aml_named_field("PRQA", 8));
