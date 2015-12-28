@@ -956,6 +956,9 @@ build_ssdt(GArray *table_data, GArray *linker,
     /* Reserve space for header */
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
+    build_memory_hotplug_aml(ssdt, nr_mem, pm->mem_hp_io_base,
+                             pm->mem_hp_io_len);
+
     bus = PC_MACHINE(machine)->bus;
     if (bus) {
         QLIST_FOREACH(bus, &bus->child, sibling) {
