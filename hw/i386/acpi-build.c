@@ -1697,6 +1697,8 @@ static void build_q35_pci0_int(Aml *table)
     Aml *pci0_scope = aml_scope("PCI0");
 
     aml_append(pci0_scope,
+        aml_name_decl("PRTP", build_q35_routing_table("LNK")));
+    aml_append(pci0_scope,
         aml_name_decl("PRTA", build_q35_routing_table("GSI")));
 
     method = aml_method("_PRT", 0, AML_NOTSERIALIZED);
