@@ -52,6 +52,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/q35.h"
 #include "hw/i386/intel_iommu.h"
+#include "hw/timer/hpet.h"
 
 #include "hw/i386/q35-acpi-dsdt.hex"
 #include "hw/i386/acpi-dsdt.hex"
@@ -1147,6 +1148,57 @@ static void build_memory_devices(Aml *sb_scope, int nr_mem,
     aml_append(sb_scope, method);
 }
 
+static void build_hpet_aml(Aml *table)
+{
+    Aml *crs;
+    Aml *field;
+    Aml *method;
+    Aml *if_ctx;
+    Aml *scope = aml_scope("_SB");
+    Aml *dev = aml_device("HPET");
+    Aml *zero = aml_int(0);
+    Aml *id = aml_local(0);
+    Aml *period = aml_local(1);
+
+    aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0103")));
+    aml_append(dev, aml_name_decl("_UID", zero));
+
+    aml_append(dev,
+        aml_operation_region("HPTM", AML_SYSTEM_MEMORY, HPET_BASE, HPET_LEN));
+    field = aml_field("HPTM", AML_DWORD_ACC, AML_LOCK, AML_PRESERVE);
+    aml_append(field, aml_named_field("VEND", 32));
+    aml_append(field, aml_named_field("PRD", 32));
+    aml_append(dev, field);
+
+    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+    aml_append(method, aml_store(aml_name("VEND"), id));
+    aml_append(method, aml_store(aml_name("PRD"), period));
+    aml_append(method, aml_shiftright(id, aml_int(16), id));
+    if_ctx = aml_if(aml_lor(aml_equal(id, zero),
+                            aml_equal(id, aml_int(0xffff))));
+    {
+        aml_append(if_ctx, aml_return(zero));
+    }
+    aml_append(method, if_ctx);
+
+    if_ctx = aml_if(aml_lor(aml_equal(period, zero),
+                            aml_lgreater(period, aml_int(100000000))));
+    {
+        aml_append(if_ctx, aml_return(zero));
+    }
+    aml_append(method, if_ctx);
+
+    aml_append(method, aml_return(aml_int(0x0F)));
+    aml_append(dev, method);
+
+    crs = aml_resource_template();
+    aml_append(crs, aml_memory32_fixed(HPET_BASE, HPET_LEN, AML_READ_ONLY));
+    aml_append(dev, aml_name_decl("_CRS", crs));
+
+    aml_append(scope, dev);
+    aml_append(table, scope);
+}
+
 static void
 build_ssdt(GArray *table_data, GArray *linker,
            AcpiCpuInfo *cpu, AcpiPmInfo *pm, AcpiMiscInfo *misc,
@@ -1167,6 +1219,7 @@ build_ssdt(GArray *table_data, GArray *linker,
     /* Reserve space for header */
     acpi_data_push(ssdt->buf, sizeof(AcpiTableHeader));
 
+    build_hpet_aml(ssdt);
     build_cpu_hotplug_aml(ssdt);
     build_memory_hotplug_aml(ssdt, nr_mem, pm->mem_hp_io_base,
                              pm->mem_hp_io_len);
