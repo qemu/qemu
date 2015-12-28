@@ -14,10 +14,3 @@
  */
 
     External(\_SB.PCI0.MEMORY_HOTPLUG_DEVICE.MEMORY_SLOT_SCAN_METHOD, MethodObj)
-
-    Scope(\_SB.PCI0) {
-        Device(MEMORY_HOTPLUG_DEVICE) {
-            Name(_HID, "PNP0A06")
-            Name(_UID, "Memory hotplug resources")
-        } // Device()
-    } // Scope()

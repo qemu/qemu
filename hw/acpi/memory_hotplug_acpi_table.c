@@ -24,7 +24,7 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
 
     /* scope for memory hotplug controller device node */
     pci_scope = aml_scope("_SB.PCI0");
-    mem_ctrl_dev = aml_scope(stringify(MEMORY_HOTPLUG_DEVICE));
+    mem_ctrl_dev = aml_device(stringify(MEMORY_HOTPLUG_DEVICE));
     {
         Aml *one = aml_int(1);
         Aml *zero = aml_int(0);
@@ -33,6 +33,10 @@ void build_memory_hotplug_aml(Aml *ctx, uint32_t nr_mem,
         Aml *slots_nr = aml_name(stringify(MEMORY_SLOTS_NUMBER));
         Aml *ctrl_lock = aml_name(stringify(MEMORY_SLOT_LOCK));
         Aml *slot_selector = aml_name(stringify(MEMORY_SLOT_SLECTOR));
+
+        aml_append(mem_ctrl_dev, aml_name_decl("_HID", aml_string("PNP0A06")));
+        aml_append(mem_ctrl_dev,
+            aml_name_decl("_UID", aml_string("Memory hotplug resources")));
 
         method = aml_method("_STA", 0, AML_NOTSERIALIZED);
         ifctx = aml_if(aml_equal(slots_nr, zero));
