@@ -1243,8 +1243,13 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
                     iscsilun->lbprz = !!rc16->lbprz;
                     iscsilun->use_16_for_rw = (rc16->returned_lba > 0xffffffff);
                 }
+                break;
             }
-            break;
+            if (task != NULL && task->status == SCSI_STATUS_CHECK_CONDITION
+                && task->sense.key == SCSI_SENSE_UNIT_ATTENTION) {
+                break;
+            }
+            /* Fall through and try READ CAPACITY(10) instead.  */
         case TYPE_ROM:
             task = iscsi_readcapacity10_sync(iscsilun->iscsi, iscsilun->lun, 0, 0);
             if (task != NULL && task->status == SCSI_STATUS_GOOD) {
