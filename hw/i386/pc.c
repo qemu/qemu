@@ -360,6 +360,31 @@ static const char * const fdc_container_path[] = {
     "/unattached", "/peripheral", "/peripheral-anon"
 };
 
+/*
+ * Locate the FDC at IO address 0x3f0, in order to configure the CMOS registers
+ * and ACPI objects.
+ */
+ISADevice *pc_find_fdc0(void)
+{
+    int i;
+    Object *container;
+    CheckFdcState state = { 0 };
+
+    for (i = 0; i < ARRAY_SIZE(fdc_container_path); i++) {
+        container = container_get(qdev_get_machine(), fdc_container_path[i]);
+        object_child_foreach(container, check_fdc, &state);
+    }
+
+    if (state.multiple) {
+        error_report("warning: multiple floppy disk controllers with "
+                     "iobase=0x3f0 have been found;\n"
+                     "the one being picked for CMOS setup might not reflect "
+                     "your intent");
+    }
+
+    return state.floppy;
+}
+
 static void pc_cmos_init_late(void *opaque)
 {
     pc_cmos_init_late_arg *arg = opaque;
@@ -368,8 +393,6 @@ static void pc_cmos_init_late(void *opaque)
     int8_t heads, sectors;
     int val;
     int i, trans;
-    Object *container;
-    CheckFdcState state = { 0 };
 
     val = 0;
     if (ide_get_geometry(arg->idebus[0], 0,
@@ -399,22 +422,7 @@ static void pc_cmos_init_late(void *opaque)
     }
     rtc_set_memory(s, 0x39, val);
 
-    /*
-     * Locate the FDC at IO address 0x3f0, and configure the CMOS registers
-     * accordingly.
-     */
-    for (i = 0; i < ARRAY_SIZE(fdc_container_path); i++) {
-        container = container_get(qdev_get_machine(), fdc_container_path[i]);
-        object_child_foreach(container, check_fdc, &state);
-    }
-
-    if (state.multiple) {
-        error_report("warning: multiple floppy disk controllers with "
-                     "iobase=0x3f0 have been found;\n"
-                     "the one being picked for CMOS setup might not reflect "
-                     "your intent");
-    }
-    pc_cmos_init_floppy(s, state.floppy);
+    pc_cmos_init_floppy(s, pc_find_fdc0());
 
     qemu_unregister_reset(pc_cmos_init_late, opaque);
 }
