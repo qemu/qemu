@@ -761,7 +761,7 @@ static const IGDHostInfo igd_host_bridge_infos[] = {
     {0xa8, 4},  /* SNB: base of GTT stolen memory */
 };
 
-static int host_pci_config_read(int pos, int len, uint32_t val)
+static int host_pci_config_read(int pos, int len, uint32_t *val)
 {
     char path[PATH_MAX];
     int config_fd;
@@ -784,12 +784,14 @@ static int host_pci_config_read(int pos, int len, uint32_t val)
         ret = -errno;
         goto out;
     }
+
     do {
-        rc = read(config_fd, (uint8_t *)&val, len);
+        rc = read(config_fd, (uint8_t *)val, len);
     } while (rc < 0 && (errno == EINTR || errno == EAGAIN));
     if (rc != len) {
         ret = -errno;
     }
+
 out:
     close(config_fd);
     return ret;
@@ -805,7 +807,7 @@ static int igd_pt_i440fx_initfn(struct PCIDevice *pci_dev)
     for (i = 0; i < num; i++) {
         pos = igd_host_bridge_infos[i].offset;
         len = igd_host_bridge_infos[i].len;
-        rc = host_pci_config_read(pos, len, val);
+        rc = host_pci_config_read(pos, len, &val);
         if (rc) {
             return -ENODEV;
         }
