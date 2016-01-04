@@ -4,17 +4,17 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/
 
 === Unknown option ===
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=,if=none,id=drive0
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=,if=none,id=drive0: Block format 'qcow2' used by device 'drive0' doesn't support the option 'unknown_opt'
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on,if=none,id=drive0
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=on,if=none,id=drive0: Block format 'qcow2' used by device 'drive0' doesn't support the option 'unknown_opt'
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234,if=none,id=drive0
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=1234,if=none,id=drive0: Block format 'qcow2' used by device 'drive0' doesn't support the option 'unknown_opt'
 
-Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo: Block format 'qcow2' used by device 'ide0-hd0' doesn't support the option 'unknown_opt'
+Testing: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo,if=none,id=drive0
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,format=qcow2,unknown_opt=foo,if=none,id=drive0: Block format 'qcow2' used by device 'drive0' doesn't support the option 'unknown_opt'
 
 
 === Unknown protocol option ===
@@ -56,10 +56,11 @@ QEMU X.Y.Z monitor - type 'help' for more information
 
 === Overriding backing file ===
 
-Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,backing.file.filename=TEST_DIR/t.qcow2.orig -nodefaults
+Testing: -drive file=TEST_DIR/t.qcow2,driver=qcow2,backing.file.filename=TEST_DIR/t.qcow2.orig,if=none,id=drive0 -nodefaults
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K
-ide0-hd0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+drive0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+    Removable device: not locked, tray closed
     Cache mode:       writeback
     Backing file:     TEST_DIR/t.qcow2.orig (chain depth: 1)
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
@@ -124,13 +125,13 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Device needs media, but drive is empty
 QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 
-Testing: -drive if=virtio
-QEMU X.Y.Z monitor - type 'help' for more information
-(qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
-
 Testing: -drive if=scsi
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Initialization of device lsi53c895a failed: Device needs media, but drive is empty
+
+Testing: -drive if=virtio
+QEMU X.Y.Z monitor - type 'help' for more information
+(qemu) QEMU_PROG: -drive if=virtio: Device needs media, but drive is empty
 
 Testing: -drive if=none,id=disk -device ide-cd,drive=disk
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -178,11 +179,11 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) QEMU_PROG: Can't use a read-only drive
 QEMU_PROG: Initialization of device ide-hd failed: Device initialization failed.
 
-Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
+Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive file=TEST_DIR/t.qcow2,if=scsi,readonly=on
+Testing: -drive file=TEST_DIR/t.qcow2,if=virtio,readonly=on
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
@@ -238,10 +239,11 @@ QEMU X.Y.Z monitor - type 'help' for more information
 Testing: -drive driver=null-co,cache=invalid_value
 QEMU_PROG: -drive driver=null-co,cache=invalid_value: invalid cache option
 
-Testing: -drive file=TEST_DIR/t.qcow2,cache=writeback,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file -nodefaults
+Testing: -drive file=TEST_DIR/t.qcow2,cache=writeback,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,if=none,id=drive0 -nodefaults
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K
-ide0-hd0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+drive0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+    Removable device: not locked, tray closed
     Cache mode:       writeback
     Backing file:     TEST_DIR/t.qcow2.base (chain depth: 1)
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K[D[D[D[D[D[D[D[D[D[Dinfo block [K[D[D[D[D[D[D[D[D[D[D[Dinfo block f[K[D[D[D[D[D[D[D[D[D[D[D[Dinfo block fi[K[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block fil[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block file[K
@@ -257,10 +259,11 @@ backing-file: TEST_DIR/t.qcow2.base (file, read-only)
     Cache mode:       writeback, ignore flushes
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive file=TEST_DIR/t.qcow2,cache=writethrough,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file -nodefaults
+Testing: -drive file=TEST_DIR/t.qcow2,cache=writethrough,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,if=none,id=drive0 -nodefaults
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K
-ide0-hd0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+drive0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+    Removable device: not locked, tray closed
     Cache mode:       writethrough
     Backing file:     TEST_DIR/t.qcow2.base (chain depth: 1)
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K[D[D[D[D[D[D[D[D[D[Dinfo block [K[D[D[D[D[D[D[D[D[D[D[Dinfo block f[K[D[D[D[D[D[D[D[D[D[D[D[Dinfo block fi[K[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block fil[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block file[K
@@ -276,10 +279,11 @@ backing-file: TEST_DIR/t.qcow2.base (file, read-only)
     Cache mode:       writeback, ignore flushes
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive file=TEST_DIR/t.qcow2,cache=unsafe,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file -nodefaults
+Testing: -drive file=TEST_DIR/t.qcow2,cache=unsafe,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,if=none,id=drive0 -nodefaults
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K
-ide0-hd0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+drive0 (NODE_NAME): TEST_DIR/t.qcow2 (qcow2)
+    Removable device: not locked, tray closed
     Cache mode:       writeback, ignore flushes
     Backing file:     TEST_DIR/t.qcow2.base (chain depth: 1)
 (qemu) i[K[Din[K[D[Dinf[K[D[D[Dinfo[K[D[D[D[Dinfo [K[D[D[D[D[Dinfo b[K[D[D[D[D[D[Dinfo bl[K[D[D[D[D[D[D[Dinfo blo[K[D[D[D[D[D[D[D[Dinfo bloc[K[D[D[D[D[D[D[D[D[Dinfo block[K[D[D[D[D[D[D[D[D[D[Dinfo block [K[D[D[D[D[D[D[D[D[D[D[Dinfo block f[K[D[D[D[D[D[D[D[D[D[D[D[Dinfo block fi[K[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block fil[K[D[D[D[D[D[D[D[D[D[D[D[D[D[Dinfo block file[K
@@ -295,8 +299,8 @@ backing-file: TEST_DIR/t.qcow2.base (file, read-only)
     Cache mode:       writeback, ignore flushes
 (qemu) q[K[Dqu[K[D[Dqui[K[D[D[Dquit[K
 
-Testing: -drive file=TEST_DIR/t.qcow2,cache=invalid_value,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file -nodefaults
-QEMU_PROG: -drive file=TEST_DIR/t.qcow2,cache=invalid_value,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file: invalid cache option
+Testing: -drive file=TEST_DIR/t.qcow2,cache=invalid_value,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,if=none,id=drive0 -nodefaults
+QEMU_PROG: -drive file=TEST_DIR/t.qcow2,cache=invalid_value,backing.file.filename=TEST_DIR/t.qcow2.base,backing.cache.no-flush=on,backing.cache.writeback=on,backing.node-name=backing,backing.file.node-name=backing-file,file.node-name=file,if=none,id=drive0: invalid cache option
 
 
 === Specifying the protocol layer ===
