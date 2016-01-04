@@ -21,6 +21,7 @@
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/smbus.h"
 #include "qemu/config-file.h"
+#include "sysemu/sysemu.h"
 
 /*
  * Hardware is a PIC16LC
@@ -110,13 +111,23 @@ static void smc_write_data(SMBusDevice *dev, uint8_t cmd, uint8_t *buf, int len)
         smc->version_string_index = buf[0];
         break;
 
+    case SMC_REG_POWER:
+        if (buf[0] & (SMC_REG_POWER_RESET | SMC_REG_POWER_CYCLE))
+            qemu_system_reset_request();
+        else if (buf[0] & SMC_REG_POWER_SHUTDOWN)
+            qemu_system_shutdown_request();
+        break;
+
+    case SMC_REG_SCRATCH:
+        smc->scratch_reg = buf[0];
+        break;
+
     /* challenge response
      * (http://www.xbox-linux.org/wiki/PIC_Challenge_Handshake_Sequence) */
     case 0x20:
         break;
     case 0x21:
         break;
-
 
     default:
         break;
@@ -135,6 +146,7 @@ static uint8_t smc_read_data(SMBusDevice *dev, uint8_t cmd, int n)
     case SMC_REG_VER:
         return smc_version_string[
             smc->version_string_index++%(sizeof(smc_version_string)-1)];
+
     case SMC_REG_AVPACK:
         /* pretend to have a composite av pack plugged in */
         return SMC_REG_AVPACK_COMPOSITE;
