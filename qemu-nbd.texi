@@ -19,60 +19,60 @@ Export a QEMU disk image using the NBD protocol.
 
 @table @option
 @item -p, --port=@var{port}
-port to listen on (default @samp{10809})
+The TCP port to listen on (default @samp{10809})
 @item -o, --offset=@var{offset}
-offset into the image
+The offset into the image
 @item -b, --bind=@var{iface}
-interface to bind to (default @samp{0.0.0.0})
+The interface to bind to (default @samp{0.0.0.0})
 @item -k, --socket=@var{path}
 Use a unix socket with path @var{path}
 @item -f, --format=@var{fmt}
-force the use of the block driver for format @var{fmt} instead of
+Force the use of the block driver for format @var{fmt} instead of
 auto-detecting
 @item -r, --read-only
-export read-only
+Export the disk as read-only
 @item -P, --partition=@var{num}
-only expose partition @var{num}
+Only expose partition @var{num}
 @item -s, --snapshot
-use @var{filename} as an external snapshot, create a temporary
+Use @var{filename} as an external snapshot, create a temporary
 file with backing_file=@var{filename}, redirect the write to
 the temporary one
 @item -l, --load-snapshot=@var{snapshot_param}
-load an internal snapshot inside @var{filename} and export it
+Load an internal snapshot inside @var{filename} and export it
 as an read-only device, @var{snapshot_param} format is
 'snapshot.id=[ID],snapshot.name=[NAME]' or '[ID_OR_NAME]'
 @item -n, --nocache
 @itemx --cache=@var{cache}
-set cache mode to be used with the file.  See the documentation of
+The cache mode to be used with the file.  See the documentation of
 the emulator's @code{-drive cache=...} option for allowed values.
 @item --aio=@var{aio}
-choose asynchronous I/O mode between @samp{threads} (the default)
+Set the asynchronous I/O mode between @samp{threads} (the default)
 and @samp{native} (Linux only).
 @item --discard=@var{discard}
-controls whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap})
+Control whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap})
 requests are ignored or passed to the filesystem.  @var{discard} is one of
 @samp{ignore} (or @samp{off}), @samp{unmap} (or @samp{on}).  The default is
 @samp{ignore}.
 @item --detect-zeroes=@var{detect-zeroes}
-enables the automatic conversion of plain zero writes by the OS to
+Control the automatic conversion of plain zero writes by the OS to
 driver-specific optimized zero write commands.  @var{detect-zeroes} is one of
 @samp{off}, @samp{on} or @samp{unmap}.  @samp{unmap}
 converts a zero write to an unmap operation and can only be used if
 @var{discard} is set to @samp{unmap}.  The default is @samp{off}.
 @item -c, --connect=@var{dev}
-connect @var{filename} to NBD device @var{dev}
+Connect @var{filename} to NBD device @var{dev}
 @item -d, --disconnect
-disconnect the specified device
+Disconnect the device @var{dev}
 @item -e, --shared=@var{num}
-device can be shared by @var{num} clients (default @samp{1})
+Allow up to @var{num} clients to share the device (default @samp{1})
 @item -t, --persistent
-don't exit on the last connection
+Don't exit on the last connection
 @item -v, --verbose
-display extra debugging information
+Display extra debugging information
 @item -h, --help
-display this help and exit
+Display this help and exit
 @item -V, --version
-output version information and exit
+Display version information and exit
 @end table
 
 @c man end
