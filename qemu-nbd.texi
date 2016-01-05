@@ -13,56 +13,56 @@ Export QEMU disk image using NBD protocol.
 @c man begin OPTIONS
 @table @option
 @item @var{filename}
- is a disk image filename
+is a disk image filename
 @item -p, --port=@var{port}
-  port to listen on (default @samp{10809})
+port to listen on (default @samp{10809})
 @item -o, --offset=@var{offset}
-  offset into the image
+offset into the image
 @item -b, --bind=@var{iface}
-  interface to bind to (default @samp{0.0.0.0})
+interface to bind to (default @samp{0.0.0.0})
 @item -k, --socket=@var{path}
-  Use a unix socket with path @var{path}
+Use a unix socket with path @var{path}
 @item -f, --format=@var{format}
-  Set image format as @var{format}
+Set image format as @var{format}
 @item -r, --read-only
-  export read-only
+export read-only
 @item -P, --partition=@var{num}
-  only expose partition @var{num}
+only expose partition @var{num}
 @item -s, --snapshot
-  use @var{filename} as an external snapshot, create a temporary
-  file with backing_file=@var{filename}, redirect the write to
-  the temporary one
+use @var{filename} as an external snapshot, create a temporary
+file with backing_file=@var{filename}, redirect the write to
+the temporary one
 @item -l, --load-snapshot=@var{snapshot_param}
-  load an internal snapshot inside @var{filename} and export it
-  as an read-only device, @var{snapshot_param} format is
-  'snapshot.id=[ID],snapshot.name=[NAME]' or '[ID_OR_NAME]'
+load an internal snapshot inside @var{filename} and export it
+as an read-only device, @var{snapshot_param} format is
+'snapshot.id=[ID],snapshot.name=[NAME]' or '[ID_OR_NAME]'
 @item -n, --nocache
 @itemx --cache=@var{cache}
-  set cache mode to be used with the file.  See the documentation of
-  the emulator's @code{-drive cache=...} option for allowed values.
+set cache mode to be used with the file.  See the documentation of
+the emulator's @code{-drive cache=...} option for allowed values.
 @item --aio=@var{aio}
-  choose asynchronous I/O mode between @samp{threads} (the default)
-  and @samp{native} (Linux only).
+choose asynchronous I/O mode between @samp{threads} (the default)
+and @samp{native} (Linux only).
 @item --discard=@var{discard}
-  toggles whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap})
-  requests are ignored or passed to the filesystem.  The default is no
-  (@samp{--discard=ignore}).
+toggles whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap})
+requests are ignored or passed to the filesystem.  The default is no
+(@samp{--discard=ignore}).
 @item -c, --connect=@var{dev}
-  connect @var{filename} to NBD device @var{dev}
+connect @var{filename} to NBD device @var{dev}
 @item -d, --disconnect
-  disconnect the specified device
+disconnect the specified device
 @item -e, --shared=@var{num}
-  device can be shared by @var{num} clients (default @samp{1})
+device can be shared by @var{num} clients (default @samp{1})
 @item -f, --format=@var{fmt}
-  force block driver for format @var{fmt} instead of auto-detecting
+force block driver for format @var{fmt} instead of auto-detecting
 @item -t, --persistent
-  don't exit on the last connection
+don't exit on the last connection
 @item -v, --verbose
-  display extra debugging information
+display extra debugging information
 @item -h, --help
-  display this help and exit
+display this help and exit
 @item -V, --version
-  output version information and exit
+output version information and exit
 @end table
 
 @c man end
