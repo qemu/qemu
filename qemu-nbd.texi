@@ -1,19 +1,23 @@
 @example
 @c man begin SYNOPSIS
-usage: qemu-nbd [OPTION]...  @var{filename}
+@command{qemu-nbd} [OPTION]... @var{filename}
+
+@command{qemu-nbd} @option{-d} @var{dev}
 @c man end
 @end example
 
 @c man begin DESCRIPTION
 
-Export QEMU disk image using NBD protocol.
+Export a QEMU disk image using the NBD protocol.
 
 @c man end
 
 @c man begin OPTIONS
+@var{filename} is a disk image filename.
+
+@var{dev} is an NBD device.
+
 @table @option
-@item @var{filename}
-is a disk image filename
 @item -p, --port=@var{port}
 port to listen on (default @samp{10809})
 @item -o, --offset=@var{offset}
@@ -22,8 +26,9 @@ offset into the image
 interface to bind to (default @samp{0.0.0.0})
 @item -k, --socket=@var{path}
 Use a unix socket with path @var{path}
-@item -f, --format=@var{format}
-Set image format as @var{format}
+@item -f, --format=@var{fmt}
+force the use of the block driver for format @var{fmt} instead of
+auto-detecting
 @item -r, --read-only
 export read-only
 @item -P, --partition=@var{num}
@@ -44,17 +49,22 @@ the emulator's @code{-drive cache=...} option for allowed values.
 choose asynchronous I/O mode between @samp{threads} (the default)
 and @samp{native} (Linux only).
 @item --discard=@var{discard}
-toggles whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap})
-requests are ignored or passed to the filesystem.  The default is no
-(@samp{--discard=ignore}).
+controls whether @dfn{discard} (also known as @dfn{trim} or @dfn{unmap})
+requests are ignored or passed to the filesystem.  @var{discard} is one of
+@samp{ignore} (or @samp{off}), @samp{unmap} (or @samp{on}).  The default is
+@samp{ignore}.
+@item --detect-zeroes=@var{detect-zeroes}
+enables the automatic conversion of plain zero writes by the OS to
+driver-specific optimized zero write commands.  @var{detect-zeroes} is one of
+@samp{off}, @samp{on} or @samp{unmap}.  @samp{unmap}
+converts a zero write to an unmap operation and can only be used if
+@var{discard} is set to @samp{unmap}.  The default is @samp{off}.
 @item -c, --connect=@var{dev}
 connect @var{filename} to NBD device @var{dev}
 @item -d, --disconnect
 disconnect the specified device
 @item -e, --shared=@var{num}
 device can be shared by @var{num} clients (default @samp{1})
-@item -f, --format=@var{fmt}
-force block driver for format @var{fmt} instead of auto-detecting
 @item -t, --persistent
 don't exit on the last connection
 @item -v, --verbose
@@ -79,7 +89,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 @c man end
 
 @c man begin SEEALSO
-qemu-img(1)
+qemu(1), qemu-img(1)
 @c man end
 
 @end ignore
