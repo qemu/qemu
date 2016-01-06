@@ -169,7 +169,7 @@ static int cpu_post_load(void *opaque, int version_id)
     env->spr[SPR_PVR] = env->spr_cb[SPR_PVR].default_value;
     env->lr = env->spr[SPR_LR];
     env->ctr = env->spr[SPR_CTR];
-    env->xer = env->spr[SPR_XER];
+    cpu_write_xer(env, env->spr[SPR_XER]);
 #if defined(TARGET_PPC64)
     env->cfar = env->spr[SPR_CFAR];
 #endif
