@@ -1126,33 +1126,15 @@ static bool virtio_extra_state_needed(void *opaque)
         k->has_extra_state(qbus->parent);
 }
 
-static void put_virtqueue_state(QEMUFile *f, void *pv, size_t size)
-{
-    VirtIODevice *vdev = pv;
-    int i;
-
-    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        qemu_put_be64(f, vdev->vq[i].vring.avail);
-        qemu_put_be64(f, vdev->vq[i].vring.used);
-    }
-}
-
-static int get_virtqueue_state(QEMUFile *f, void *pv, size_t size)
-{
-    VirtIODevice *vdev = pv;
-    int i;
-
-    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        vdev->vq[i].vring.avail = qemu_get_be64(f);
-        vdev->vq[i].vring.used = qemu_get_be64(f);
-    }
-    return 0;
-}
-
-static VMStateInfo vmstate_info_virtqueue = {
+static const VMStateDescription vmstate_virtqueue = {
     .name = "virtqueue_state",
-    .get = get_virtqueue_state,
-    .put = put_virtqueue_state,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(vring.avail, struct VirtQueue),
+        VMSTATE_UINT64(vring.used, struct VirtQueue),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static const VMStateDescription vmstate_virtio_virtqueues = {
@@ -1161,44 +1143,20 @@ static const VMStateDescription vmstate_virtio_virtqueues = {
     .minimum_version_id = 1,
     .needed = &virtio_virtqueue_needed,
     .fields = (VMStateField[]) {
-        {
-            .name         = "virtqueues",
-            .version_id   = 0,
-            .field_exists = NULL,
-            .size         = 0,
-            .info         = &vmstate_info_virtqueue,
-            .flags        = VMS_SINGLE,
-            .offset       = 0,
-        },
+        VMSTATE_STRUCT_VARRAY_KNOWN(vq, struct VirtIODevice, VIRTIO_QUEUE_MAX,
+                      0, vmstate_virtqueue, VirtQueue),
         VMSTATE_END_OF_LIST()
     }
 };
 
-static void put_ringsize_state(QEMUFile *f, void *pv, size_t size)
-{
-    VirtIODevice *vdev = pv;
-    int i;
-
-    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        qemu_put_be32(f, vdev->vq[i].vring.num_default);
-    }
-}
-
-static int get_ringsize_state(QEMUFile *f, void *pv, size_t size)
-{
-    VirtIODevice *vdev = pv;
-    int i;
-
-    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        vdev->vq[i].vring.num_default = qemu_get_be32(f);
-    }
-    return 0;
-}
-
-static VMStateInfo vmstate_info_ringsize = {
+static const VMStateDescription vmstate_ringsize = {
     .name = "ringsize_state",
-    .get = get_ringsize_state,
-    .put = put_ringsize_state,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(vring.num_default, struct VirtQueue),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static const VMStateDescription vmstate_virtio_ringsize = {
@@ -1207,15 +1165,8 @@ static const VMStateDescription vmstate_virtio_ringsize = {
     .minimum_version_id = 1,
     .needed = &virtio_ringsize_needed,
     .fields = (VMStateField[]) {
-        {
-            .name         = "ringsize",
-            .version_id   = 0,
-            .field_exists = NULL,
-            .size         = 0,
-            .info         = &vmstate_info_ringsize,
-            .flags        = VMS_SINGLE,
-            .offset       = 0,
-        },
+        VMSTATE_STRUCT_VARRAY_KNOWN(vq, struct VirtIODevice, VIRTIO_QUEUE_MAX,
+                      0, vmstate_ringsize, VirtQueue),
         VMSTATE_END_OF_LIST()
     }
 };
