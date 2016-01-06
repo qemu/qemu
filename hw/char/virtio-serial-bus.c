@@ -798,7 +798,7 @@ static const TypeInfo virtser_bus_info = {
 
 static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
-    VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
+    VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(qdev);
 
     monitor_printf(mon, "%*sport %d, guest %s, host %s, throttle %s\n",
                    indent, "", port->id,
