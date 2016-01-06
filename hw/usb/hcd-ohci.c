@@ -1241,11 +1241,16 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
     return active;
 }
 
-/* Generate a SOF event, and set a timer for EOF */
-static void ohci_sof(OHCIState *ohci)
+/* set a timer for EOF */
+static void ohci_eof_timer(OHCIState *ohci)
 {
     ohci->sof_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     timer_mod(ohci->eof_timer, ohci->sof_time + usb_frame_time);
+}
+/* Set a timer for EOF and generate a SOF event */
+static void ohci_sof(OHCIState *ohci)
+{
+    ohci_eof_timer(ohci);
     ohci_set_interrupt(ohci, OHCI_INTR_SF);
 }
 
@@ -1353,7 +1358,12 @@ static int ohci_bus_start(OHCIState *ohci)
 
     trace_usb_ohci_start(ohci->name);
 
-    ohci_sof(ohci);
+    /* Delay the first SOF event by one frame time as
+     * linux driver is not ready to receive it and
+     * can meet some race conditions
+     */
+
+    ohci_eof_timer(ohci);
 
     return 1;
 }
