@@ -89,7 +89,6 @@ endif
 
 #######################################################################
 # Target-independent parts used in system and user emulation
-common-obj-y += qemu-log.o
 common-obj-y += tcg-runtime.o
 common-obj-y += hw/
 common-obj-y += qom/
