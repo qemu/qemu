@@ -182,6 +182,13 @@ void trace_init_events(const char *file);
 void trace_init_file(const char *file);
 
 /**
+ * trace_list_events:
+ *
+ * List all available events.
+ */
+void trace_list_events(void);
+
+/**
  * trace_enable_events:
  * @line_buf: A string with a glob pattern of events to be enabled or,
  *            if the string starts with '-', disabled.

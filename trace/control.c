@@ -88,7 +88,16 @@ TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev)
     return NULL;
 }
 
-void trace_enable_events(const char *line_buf)
+void trace_list_events(void)
+{
+    int i;
+    for (i = 0; i < trace_event_count(); i++) {
+        TraceEvent *res = trace_event_id(i);
+        fprintf(stderr, "%s\n", trace_event_get_name(res));
+    }
+}
+
+static void do_trace_enable_events(const char *line_buf)
 {
     const bool enable = ('-' != line_buf[0]);
     const char *line_ptr = enable ? line_buf : line_buf + 1;
@@ -111,6 +120,16 @@ void trace_enable_events(const char *line_buf)
         } else {
             trace_event_set_state_dynamic(ev, enable);
         }
+    }
+}
+
+void trace_enable_events(const char *line_buf)
+{
+    if (is_help_option(line_buf)) {
+        trace_list_events();
+        exit(0);
+    } else {
+        do_trace_enable_events(line_buf);
     }
 }
 
