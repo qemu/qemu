@@ -19,6 +19,7 @@
 
 #include "qemu-common.h"
 #include "qemu/log.h"
+#include "trace/control.h"
 
 static char *logfilename;
 FILE *qemu_logfile;
@@ -154,6 +155,11 @@ int qemu_str_to_log_mask(const char *str)
             for (item = qemu_log_items; item->mask != 0; item++) {
                 mask |= item->mask;
             }
+#ifdef CONFIG_TRACE_LOG
+        } else if (strncmp(p, "trace:", 6) == 0 && p + 6 != p1) {
+            trace_enable_events(p + 6);
+            mask |= LOG_TRACE;
+#endif
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {
                 if (cmp1(p, p1 - p, item->name)) {
@@ -161,9 +167,9 @@ int qemu_str_to_log_mask(const char *str)
                 }
             }
             return 0;
+        found:
+            mask |= item->mask;
         }
-    found:
-        mask |= item->mask;
         if (*p1 != ',') {
             break;
         }
@@ -177,6 +183,10 @@ void qemu_print_log_usage(FILE *f)
     const QEMULogItem *item;
     fprintf(f, "Log items (comma separated):\n");
     for (item = qemu_log_items; item->mask != 0; item++) {
-        fprintf(f, "%-10s %s\n", item->name, item->help);
+        fprintf(f, "%-15s %s\n", item->name, item->help);
     }
+#ifdef CONFIG_TRACE_LOG
+    fprintf(f, "trace:PATTERN   enable trace events\n");
+    fprintf(f, "\nUse \"-d trace:help\" to get a list of trace events.\n\n");
+#endif
 }
