@@ -836,7 +836,11 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
             goto out;
         }
 
-        req->data = blk_blockalign(client->exp->blk, request->len);
+        req->data = blk_try_blockalign(client->exp->blk, request->len);
+        if (req->data == NULL) {
+            rc = -ENOMEM;
+            goto out;
+        }
     }
     if (command == NBD_CMD_WRITE) {
         TRACE("Reading %u byte(s)", request->len);
