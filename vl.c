@@ -2988,7 +2988,6 @@ int main(int argc, char **argv, char **envp)
     bool userconfig = true;
     const char *log_mask = NULL;
     const char *log_file = NULL;
-    const char *trace_events = NULL;
     const char *trace_file = NULL;
     ram_addr_t maxram_size;
     uint64_t ram_slots = 0;
@@ -3905,8 +3904,9 @@ int main(int argc, char **argv, char **envp)
                 if (!opts) {
                     exit(1);
                 }
-                trace_events = qemu_opt_get(opts, "events");
+                trace_init_events(qemu_opt_get(opts, "events"));
                 trace_file = qemu_opt_get(opts, "file");
+                qemu_opts_del(opts);
                 break;
             }
             case QEMU_OPTION_readconfig:
@@ -4106,7 +4106,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (!is_daemonized()) {
-        if (!trace_init_backends(trace_events, trace_file)) {
+        if (!trace_init_backends(trace_file)) {
             exit(1);
         }
     }
@@ -4653,7 +4653,7 @@ int main(int argc, char **argv, char **envp)
     os_setup_post();
 
     if (is_daemonized()) {
-        if (!trace_init_backends(trace_events, trace_file)) {
+        if (!trace_init_backends(trace_file)) {
             exit(1);
         }
     }

@@ -150,8 +150,6 @@ static void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
 
 /**
  * trace_init_backends:
- * @events: Name of file with events to be enabled at startup; may be NULL.
- *          Corresponds to commandline option "-trace events=...".
  * @file:   Name of trace output file; may be NULL.
  *          Corresponds to commandline option "-trace file=...".
  *
@@ -159,7 +157,18 @@ static void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
  *
  * Returns: Whether the backends could be successfully initialized.
  */
-bool trace_init_backends(const char *events, const char *file);
+bool trace_init_backends(const char *file);
+
+/**
+ * trace_init_events:
+ * @events: Name of file with events to be enabled at startup; may be NULL.
+ *          Corresponds to commandline option "-trace events=...".
+ *
+ * Read the list of enabled tracing events.
+ *
+ * Returns: Whether the backends could be successfully initialized.
+ */
+void trace_init_events(const char *file);
 
 
 #include "trace/control-internal.h"

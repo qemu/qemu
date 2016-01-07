@@ -88,7 +88,7 @@ TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev)
     return NULL;
 }
 
-static void trace_init_events(const char *fname)
+void trace_init_events(const char *fname)
 {
     Location loc;
     FILE *fp;
@@ -145,7 +145,7 @@ static void trace_init_events(const char *fname)
     loc_pop(&loc);
 }
 
-bool trace_init_backends(const char *events, const char *file)
+bool trace_init_backends(const char *file)
 {
 #ifdef CONFIG_TRACE_SIMPLE
     if (!st_init(file)) {
@@ -167,6 +167,5 @@ bool trace_init_backends(const char *events, const char *file)
     }
 #endif
 
-    trace_init_events(events);
     return true;
 }
