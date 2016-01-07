@@ -592,7 +592,7 @@ static int fid_to_qid(V9fsPDU *pdu, V9fsFidState *fidp, V9fsQID *qidp)
     return 0;
 }
 
-static V9fsPDU *pdu_alloc(V9fsState *s)
+V9fsPDU *pdu_alloc(V9fsState *s)
 {
     V9fsPDU *pdu = NULL;
 
@@ -604,7 +604,7 @@ static V9fsPDU *pdu_alloc(V9fsState *s)
     return pdu;
 }
 
-static void pdu_free(V9fsPDU *pdu)
+void pdu_free(V9fsPDU *pdu)
 {
     if (pdu) {
         V9fsState *s = pdu->s;
@@ -3246,7 +3246,7 @@ static inline bool is_read_only_op(V9fsPDU *pdu)
     }
 }
 
-static void pdu_submit(V9fsPDU *pdu)
+void pdu_submit(V9fsPDU *pdu)
 {
     Coroutine *co;
     CoroutineEntry *handler;
