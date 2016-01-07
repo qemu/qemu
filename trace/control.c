@@ -88,6 +88,32 @@ TraceEvent *trace_event_pattern(const char *pat, TraceEvent *ev)
     return NULL;
 }
 
+void trace_enable_events(const char *line_buf)
+{
+    const bool enable = ('-' != line_buf[0]);
+    const char *line_ptr = enable ? line_buf : line_buf + 1;
+
+    if (trace_event_is_pattern(line_ptr)) {
+        TraceEvent *ev = NULL;
+        while ((ev = trace_event_pattern(line_ptr, ev)) != NULL) {
+            if (trace_event_get_state_static(ev)) {
+                trace_event_set_state_dynamic(ev, enable);
+            }
+        }
+    } else {
+        TraceEvent *ev = trace_event_name(line_ptr);
+        if (ev == NULL) {
+            error_report("WARNING: trace event '%s' does not exist",
+                         line_ptr);
+        } else if (!trace_event_get_state_static(ev)) {
+            error_report("WARNING: trace event '%s' is not traceable",
+                         line_ptr);
+        } else {
+            trace_event_set_state_dynamic(ev, enable);
+        }
+    }
+}
+
 void trace_init_events(const char *fname)
 {
     Location loc;
@@ -114,27 +140,7 @@ void trace_init_events(const char *fname)
             if ('#' == line_buf[0]) { /* skip commented lines */
                 continue;
             }
-            const bool enable = ('-' != line_buf[0]);
-            char *line_ptr = enable ? line_buf : line_buf + 1;
-            if (trace_event_is_pattern(line_ptr)) {
-                TraceEvent *ev = NULL;
-                while ((ev = trace_event_pattern(line_ptr, ev)) != NULL) {
-                    if (trace_event_get_state_static(ev)) {
-                        trace_event_set_state_dynamic(ev, enable);
-                    }
-                }
-            } else {
-                TraceEvent *ev = trace_event_name(line_ptr);
-                if (ev == NULL) {
-                    error_report("WARNING: trace event '%s' does not exist",
-                                 line_ptr);
-                } else if (!trace_event_get_state_static(ev)) {
-                    error_report("WARNING: trace event '%s' is not traceable",
-                                 line_ptr);
-                } else {
-                    trace_event_set_state_dynamic(ev, enable);
-                }
-            }
+            trace_enable_events(line_buf);
         }
     }
     if (fclose(fp) != 0) {

@@ -270,9 +270,13 @@ static QemuOptsList qemu_sandbox_opts = {
 
 static QemuOptsList qemu_trace_opts = {
     .name = "trace",
-    .implied_opt_name = "trace",
+    .implied_opt_name = "enable",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_trace_opts.head),
     .desc = {
+        {
+            .name = "enable",
+            .type = QEMU_OPT_STRING,
+        },
         {
             .name = "events",
             .type = QEMU_OPT_STRING,
@@ -3900,9 +3904,12 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_trace:
             {
                 opts = qemu_opts_parse_noisily(qemu_find_opts("trace"),
-                                               optarg, false);
+                                               optarg, true);
                 if (!opts) {
                     exit(1);
+                }
+                if (qemu_opt_get(opts, "enable")) {
+                    trace_enable_events(qemu_opt_get(opts, "enable"));
                 }
                 trace_init_events(qemu_opt_get(opts, "events"));
                 if (trace_file) {
