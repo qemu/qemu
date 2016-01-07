@@ -366,6 +366,8 @@ struct CPUTimer
     uint32_t    frequency;
     uint32_t    disabled;
     uint64_t    disabled_mask;
+    uint32_t    npt;
+    uint64_t    npt_mask;
     int64_t     clock_offset;
     QEMUTimer  *qtimer;
 };

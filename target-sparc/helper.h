@@ -25,7 +25,7 @@ DEF_HELPER_2(set_softint, void, env, i64)
 DEF_HELPER_2(clear_softint, void, env, i64)
 DEF_HELPER_2(write_softint, void, env, i64)
 DEF_HELPER_2(tick_set_count, void, ptr, i64)
-DEF_HELPER_1(tick_get_count, i64, ptr)
+DEF_HELPER_3(tick_get_count, i64, env, ptr, int)
 DEF_HELPER_2(tick_set_limit, void, ptr, i64)
 #endif
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
