@@ -25,6 +25,7 @@
 #include "qemu/error-report.h"
 #include "kvm_ppc.h"
 #include "mmu-hash64.h"
+#include "exec/log.h"
 
 //#define DEBUG_SLB
 

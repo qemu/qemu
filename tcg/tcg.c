@@ -60,6 +60,7 @@
 #endif
 
 #include "elf.h"
+#include "exec/log.h"
 
 /* Forward declarations for functions declared in tcg-target.c and used here. */
 static void tcg_target_init(TCGContext *s);

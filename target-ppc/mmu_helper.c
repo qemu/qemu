@@ -24,6 +24,7 @@
 #include "mmu-hash64.h"
 #include "mmu-hash32.h"
 #include "exec/cpu_ldst.h"
+#include "exec/log.h"
 
 //#define DEBUG_MMU
 //#define DEBUG_BATS

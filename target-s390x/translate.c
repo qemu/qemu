@@ -44,6 +44,7 @@ static TCGv_ptr cpu_env;
 #include "exec/helper-gen.h"
 
 #include "trace-tcg.h"
+#include "exec/log.h"
 
 
 /* Information that (most) every instruction needs to manipulate.  */

@@ -33,6 +33,7 @@
 #include "tcg.h"
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
+#include "exec/log.h"
 
 int singlestep;
 unsigned long mmap_min_addr;

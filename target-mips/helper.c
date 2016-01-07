@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "sysemu/kvm.h"
 #include "exec/cpu_ldst.h"
+#include "exec/log.h"
 
 enum {
     TLBRET_XI = -6,
