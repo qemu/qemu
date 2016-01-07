@@ -11,7 +11,7 @@
  *
  */
 
-#include "virtio-9p.h"
+#include "9p.h"
 #include "9p-xattr.h"
 #include <arpa/inet.h>
 #include <pwd.h>

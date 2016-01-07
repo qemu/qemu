@@ -13,7 +13,7 @@
 
 #include <sys/types.h>
 #include "qemu/xattr.h"
-#include "virtio-9p.h"
+#include "9p.h"
 #include "fsdev/file-op-9p.h"
 #include "9p-xattr.h"
 

@@ -11,7 +11,7 @@
  */
 #include <sys/socket.h>
 #include <sys/un.h>
-#include "virtio-9p.h"
+#include "9p.h"
 #include "qemu/error-report.h"
 #include "fsdev/qemu-fsdev.h"
 #include "9p-proxy.h"
