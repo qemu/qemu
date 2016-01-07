@@ -20,6 +20,17 @@
 #include "coth.h"
 #include "hw/virtio/virtio-access.h"
 
+void virtio_9p_push_and_notify(V9fsPDU *pdu)
+{
+    V9fsState *s = pdu->s;
+
+    /* push onto queue and notify */
+    virtqueue_push(s->vq, &pdu->elem, pdu->size);
+
+    /* FIXME: we should batch these completions */
+    virtio_notify(VIRTIO_DEVICE(s), s->vq);
+}
+
 static uint64_t virtio_9p_get_features(VirtIODevice *vdev, uint64_t features,
                                        Error **errp)
 {

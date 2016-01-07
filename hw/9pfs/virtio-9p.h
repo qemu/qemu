@@ -6,6 +6,8 @@
 #include "9p.h"
 
 extern void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq);
+extern void virtio_9p_push_and_notify(V9fsPDU *pdu);
+
 ssize_t virtio_pdu_vmarshal(V9fsPDU *pdu, size_t offset,
                             const char *fmt, va_list ap);
 ssize_t virtio_pdu_vunmarshal(V9fsPDU *pdu, size_t offset,
