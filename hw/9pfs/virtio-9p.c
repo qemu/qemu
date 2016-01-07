@@ -3266,7 +3266,7 @@ void pdu_submit(V9fsPDU *pdu)
     qemu_coroutine_enter(co, pdu);
 }
 
-static void __attribute__((__constructor__)) virtio_9p_set_fd_limit(void)
+static void __attribute__((__constructor__)) v9fs_set_fd_limit(void)
 {
     struct rlimit rlim;
     if (getrlimit(RLIMIT_NOFILE, &rlim) < 0) {
