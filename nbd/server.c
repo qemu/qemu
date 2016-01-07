@@ -818,13 +818,6 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
         goto out;
     }
 
-    if (request->len > NBD_MAX_BUFFER_SIZE) {
-        LOG("len (%u) is larger than max len (%u)",
-            request->len, NBD_MAX_BUFFER_SIZE);
-        rc = -EINVAL;
-        goto out;
-    }
-
     if ((request->from + request->len) < request->from) {
         LOG("integer overflow detected! "
             "you're probably being attacked");
@@ -836,6 +829,13 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
 
     command = request->type & NBD_CMD_MASK_COMMAND;
     if (command == NBD_CMD_READ || command == NBD_CMD_WRITE) {
+        if (request->len > NBD_MAX_BUFFER_SIZE) {
+            LOG("len (%u) is larger than max len (%u)",
+                request->len, NBD_MAX_BUFFER_SIZE);
+            rc = -EINVAL;
+            goto out;
+        }
+
         req->data = blk_blockalign(client->exp->blk, request->len);
     }
     if (command == NBD_CMD_WRITE) {
