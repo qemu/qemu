@@ -145,17 +145,24 @@ void trace_init_events(const char *fname)
     loc_pop(&loc);
 }
 
-bool trace_init_backends(const char *file)
+void trace_init_file(const char *file)
 {
 #ifdef CONFIG_TRACE_SIMPLE
-    if (!st_init(file)) {
-        fprintf(stderr, "failed to initialize simple tracing backend.\n");
-        return false;
-    }
+    st_set_trace_file(file);
 #else
     if (file) {
         fprintf(stderr, "error: -trace file=...: "
                 "option not supported by the selected tracing backends\n");
+        exit(1);
+    }
+#endif
+}
+
+bool trace_init_backends(void)
+{
+#ifdef CONFIG_TRACE_SIMPLE
+    if (!st_init()) {
+        fprintf(stderr, "failed to initialize simple tracing backend.\n");
         return false;
     }
 #endif

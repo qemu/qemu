@@ -2988,7 +2988,7 @@ int main(int argc, char **argv, char **envp)
     bool userconfig = true;
     const char *log_mask = NULL;
     const char *log_file = NULL;
-    const char *trace_file = NULL;
+    char *trace_file = NULL;
     ram_addr_t maxram_size;
     uint64_t ram_slots = 0;
     FILE *vmstate_dump_file = NULL;
@@ -3905,7 +3905,10 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 trace_init_events(qemu_opt_get(opts, "events"));
-                trace_file = qemu_opt_get(opts, "file");
+                if (trace_file) {
+                    g_free(trace_file);
+                }
+                trace_file = g_strdup(qemu_opt_get(opts, "file"));
                 qemu_opts_del(opts);
                 break;
             }
@@ -4089,6 +4092,8 @@ int main(int argc, char **argv, char **envp)
         exit(0);
     }
 
+    trace_init_file(trace_file);
+
     /* Open the logfile at this point and set the log mask if necessary.
      */
     if (log_file) {
@@ -4106,7 +4111,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (!is_daemonized()) {
-        if (!trace_init_backends(trace_file)) {
+        if (!trace_init_backends()) {
             exit(1);
         }
     }
@@ -4653,7 +4658,7 @@ int main(int argc, char **argv, char **envp)
     os_setup_post();
 
     if (is_daemonized()) {
-        if (!trace_init_backends(trace_file)) {
+        if (!trace_init_backends()) {
             exit(1);
         }
     }

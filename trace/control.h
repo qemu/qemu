@@ -157,7 +157,7 @@ static void trace_event_set_state_dynamic(TraceEvent *ev, bool state);
  *
  * Returns: Whether the backends could be successfully initialized.
  */
-bool trace_init_backends(const char *file);
+bool trace_init_backends(void);
 
 /**
  * trace_init_events:
@@ -169,6 +169,17 @@ bool trace_init_backends(const char *file);
  * Returns: Whether the backends could be successfully initialized.
  */
 void trace_init_events(const char *file);
+
+/**
+ * trace_init_file:
+ * @file:   Name of trace output file; may be NULL.
+ *          Corresponds to commandline option "-trace file=...".
+ *
+ * Record the name of the output file for the tracing backend.
+ * Exits if no selected backend does not support specifying the
+ * output file, and a non-NULL file was passed.
+ */
+void trace_init_file(const char *file);
 
 
 #include "trace/control-internal.h"

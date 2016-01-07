@@ -322,7 +322,7 @@ void st_set_trace_file_enabled(bool enable)
  * @file        The trace file name or NULL for the default name-<pid> set at
  *              config time
  */
-bool st_set_trace_file(const char *file)
+void st_set_trace_file(const char *file)
 {
     st_set_trace_file_enabled(false);
 
@@ -336,7 +336,6 @@ bool st_set_trace_file(const char *file)
     }
 
     st_set_trace_file_enabled(true);
-    return true;
 }
 
 void st_print_trace_file_status(FILE *stream, int (*stream_printf)(FILE *stream, const char *fmt, ...))
@@ -374,7 +373,7 @@ static GThread *trace_thread_create(GThreadFunc fn)
     return thread;
 }
 
-bool st_init(const char *file)
+bool st_init(void)
 {
     GThread *thread;
 
@@ -387,6 +386,5 @@ bool st_init(const char *file)
     }
 
     atexit(st_flush_trace_buffer);
-    st_set_trace_file(file);
     return true;
 }
