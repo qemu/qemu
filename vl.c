@@ -4110,10 +4110,8 @@ int main(int argc, char **argv, char **envp)
         qemu_set_log(mask);
     }
 
-    if (!is_daemonized()) {
-        if (!trace_init_backends()) {
-            exit(1);
-        }
+    if (!trace_init_backends()) {
+        exit(1);
     }
 
     /* If no data_dir is specified then try to find it relative to the
@@ -4656,12 +4654,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     os_setup_post();
-
-    if (is_daemonized()) {
-        if (!trace_init_backends()) {
-            exit(1);
-        }
-    }
 
     main_loop();
     replay_disable_events();
