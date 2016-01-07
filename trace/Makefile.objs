@@ -1,24 +1,32 @@
 # -*- mode: makefile -*-
 
 ######################################################################
+# tracetool source files
+# Every rule that invokes tracetool must depend on this so code is regenerated
+# if tracetool itself changes.
+
+tracetool-y = $(SRC_PATH)/scripts/tracetool.py
+tracetool-y += $(shell find $(SRC_PATH)/scripts/tracetool -name "*.py")
+
+######################################################################
 # Auto-generated event descriptions for LTTng ust code
 
 ifeq ($(findstring ust,$(TRACE_BACKENDS)),ust)
 $(obj)/generated-ust-provider.h: $(obj)/generated-ust-provider.h-timestamp
-$(obj)/generated-ust-provider.h-timestamp: $(SRC_PATH)/trace-events
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-ust-provider.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=ust-events-h \
 		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 $(obj)/generated-ust.c: $(obj)/generated-ust.c-timestamp $(BUILD_DIR)/config-host.mak
-$(obj)/generated-ust.c-timestamp: $(SRC_PATH)/trace-events
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-ust.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=ust-events-c \
 		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 $(obj)/generated-events.h: $(obj)/generated-ust-provider.h
 $(obj)/generated-events.c: $(obj)/generated-ust.c
@@ -28,20 +36,20 @@ endif
 # Auto-generated event descriptions
 
 $(obj)/generated-events.h: $(obj)/generated-events.h-timestamp
-$(obj)/generated-events.h-timestamp: $(SRC_PATH)/trace-events
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-events.h-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=events-h \
 		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 $(obj)/generated-events.c: $(obj)/generated-events.c-timestamp $(BUILD_DIR)/config-host.mak
-$(obj)/generated-events.c-timestamp: $(SRC_PATH)/trace-events
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-events.c-timestamp: $(SRC_PATH)/trace-events $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=events-c \
 		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 util-obj-y += generated-events.o
 
@@ -54,7 +62,7 @@ util-obj-y += generated-events.o
 
 $(obj)/generated-tracers.h: $(obj)/generated-tracers.h-timestamp
 	@cmp -s $< $@ || cp $< $@
-$(obj)/generated-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+$(obj)/generated-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=h \
 		--backends=$(TRACE_BACKENDS) \
@@ -65,7 +73,7 @@ $(obj)/generated-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/conf
 
 $(obj)/generated-tracers.c: $(obj)/generated-tracers.c-timestamp
 	@cmp -s $< $@ || cp $< $@
-$(obj)/generated-tracers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+$(obj)/generated-tracers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=c \
 		--backends=$(TRACE_BACKENDS) \
@@ -81,12 +89,12 @@ $(obj)/generated-tracers.o: $(obj)/generated-tracers.c $(obj)/generated-tracers.
 # rule file. So we use '.dtrace' instead
 ifeq ($(findstring dtrace,$(TRACE_BACKENDS)),dtrace)
 $(obj)/generated-tracers-dtrace.dtrace: $(obj)/generated-tracers-dtrace.dtrace-timestamp
-$(obj)/generated-tracers-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-tracers-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=d \
 		--backends=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 $(obj)/generated-tracers-dtrace.h: $(obj)/generated-tracers-dtrace.dtrace
 	$(call quiet-command,dtrace -o $@ -h -s $<, "  GEN   $@")
@@ -100,28 +108,28 @@ endif
 # Translation level
 
 $(obj)/generated-helpers-wrappers.h: $(obj)/generated-helpers-wrappers.h-timestamp
-$(obj)/generated-helpers-wrappers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-helpers-wrappers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=tcg-helper-wrapper-h \
 		--backend=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 $(obj)/generated-helpers.h: $(obj)/generated-helpers.h-timestamp
-$(obj)/generated-helpers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-helpers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=tcg-helper-h \
 		--backend=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 $(obj)/generated-helpers.c: $(obj)/generated-helpers.c-timestamp
-$(obj)/generated-helpers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-helpers.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=tcg-helper-c \
 		--backend=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 $(obj)/generated-helpers.o: $(obj)/generated-helpers.c
 
@@ -129,12 +137,12 @@ target-obj-y += generated-helpers.o
 
 
 $(obj)/generated-tcg-tracers.h: $(obj)/generated-tcg-tracers.h-timestamp
-$(obj)/generated-tcg-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
+	@cmp $< $@ >/dev/null 2>&1 || cp $< $@
+$(obj)/generated-tcg-tracers.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak $(tracetool-y)
 	$(call quiet-command,$(TRACETOOL) \
 		--format=tcg-h \
 		--backend=$(TRACE_BACKENDS) \
 		< $< > $@,"  GEN   $(patsubst %-timestamp,%,$@)")
-	@cmp -s $@ $(patsubst %-timestamp,%,$@) || cp $@ $(patsubst %-timestamp,%,$@)
 
 
 ######################################################################
