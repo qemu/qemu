@@ -51,6 +51,9 @@ void qemu_log_mask(int mask, const char *fmt, ...)
 void do_qemu_set_log(int log_flags, bool use_own_buffers)
 {
     qemu_loglevel = log_flags;
+#ifdef CONFIG_TRACE_LOG
+    qemu_loglevel |= LOG_TRACE;
+#endif
     if (qemu_loglevel && !qemu_logfile) {
         if (logfilename) {
             qemu_logfile = fopen(logfilename, log_append ? "a" : "w");

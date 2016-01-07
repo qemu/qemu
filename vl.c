@@ -4115,6 +4115,8 @@ int main(int argc, char **argv, char **envp)
             exit(1);
         }
         qemu_set_log(mask);
+    } else {
+        qemu_set_log(0);
     }
 
     if (!trace_init_backends()) {

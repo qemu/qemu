@@ -25,6 +25,7 @@ def generate_h_begin(events):
         '#include <sys/types.h>',
         '#include <unistd.h>',
         '#include "trace/control.h"',
+        '#include "qemu/log.h"',
         '')
 
 
@@ -36,10 +37,10 @@ def generate_h(event):
     out('    if (trace_event_get_state(%(event_id)s)) {',
         '        struct timeval _now;',
         '        gettimeofday(&_now, NULL);',
-        '        fprintf(stderr, "%%d@%%zd.%%06zd:%(name)s " %(fmt)s "\\n",',
-        '                        getpid(),',
-        '                        (size_t)_now.tv_sec, (size_t)_now.tv_usec',
-        '                        %(argnames)s);',
+        '        qemu_log_mask(LOG_TRACE, "%%d@%%zd.%%06zd:%(name)s " %(fmt)s "\\n",',
+        '                      getpid(),',
+        '                      (size_t)_now.tv_sec, (size_t)_now.tv_usec',
+        '                      %(argnames)s);',
         '    }',
         event_id="TRACE_" + event.name.upper(),
         name=event.name,

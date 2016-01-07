@@ -5445,8 +5445,8 @@ if have_backend "simple"; then
   # Set the appropriate trace file.
   trace_file="\"$trace_file-\" FMT_pid"
 fi
-if have_backend "stderr"; then
-  echo "CONFIG_TRACE_STDERR=y" >> $config_host_mak
+if have_backend "log"; then
+  echo "CONFIG_TRACE_LOG=y" >> $config_host_mak
 fi
 if have_backend "ust"; then
   echo "CONFIG_TRACE_UST=y" >> $config_host_mak
