@@ -502,9 +502,9 @@ static void inotify_watchfn(void *arg)
                 entry = g_new0(MTPMonEntry, 1);
                 entry->handle = o->handle;
                 entry->event = EVT_OBJ_REMOVED;
-                usb_mtp_object_free(s, o);
                 trace_usb_mtp_inotify_event(s->dev.addr, o->path,
                                       event->mask, "Obj Deleted");
+                usb_mtp_object_free(s, o);
                 break;
 
             case IN_MODIFY:
@@ -556,7 +556,7 @@ static int usb_mtp_inotify_init(MTPState *s)
 
 static void usb_mtp_inotify_cleanup(MTPState *s)
 {
-    MTPMonEntry *e;
+    MTPMonEntry *e, *p;
 
     if (!s->inotifyfd) {
         return;
@@ -565,7 +565,7 @@ static void usb_mtp_inotify_cleanup(MTPState *s)
     qemu_set_fd_handler(s->inotifyfd, NULL, NULL, s);
     close(s->inotifyfd);
 
-    QTAILQ_FOREACH(e, &s->events, next) {
+    QTAILQ_FOREACH_SAFE(e, &s->events, next, p) {
         QTAILQ_REMOVE(&s->events, e, next);
         g_free(e);
     }

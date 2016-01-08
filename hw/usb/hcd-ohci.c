@@ -439,15 +439,37 @@ static void ohci_stop_endpoints(OHCIState *ohci)
     }
 }
 
-/* Reset the controller */
-static void ohci_reset(void *opaque)
+static void ohci_roothub_reset(OHCIState *ohci)
 {
-    OHCIState *ohci = opaque;
     OHCIPort *port;
     int i;
 
     ohci_bus_stop(ohci);
-    ohci->ctl = 0;
+    ohci->rhdesc_a = OHCI_RHA_NPS | ohci->num_ports;
+    ohci->rhdesc_b = 0x0; /* Impl. specific */
+    ohci->rhstatus = 0;
+
+    for (i = 0; i < ohci->num_ports; i++) {
+        port = &ohci->rhport[i];
+        port->ctrl = 0;
+        if (port->port.dev && port->port.dev->attached) {
+            usb_port_reset(&port->port);
+        }
+    }
+    if (ohci->async_td) {
+        usb_cancel_packet(&ohci->usb_packet);
+        ohci->async_td = 0;
+    }
+    ohci_stop_endpoints(ohci);
+}
+
+/* Reset the controller */
+static void ohci_soft_reset(OHCIState *ohci)
+{
+    trace_usb_ohci_reset(ohci->name);
+
+    ohci_bus_stop(ohci);
+    ohci->ctl = (ohci->ctl & OHCI_CTL_IR) | OHCI_USB_SUSPEND;
     ohci->old_ctl = 0;
     ohci->status = 0;
     ohci->intr_status = 0;
@@ -470,25 +492,13 @@ static void ohci_reset(void *opaque)
     ohci->frame_number = 0;
     ohci->pstart = 0;
     ohci->lst = OHCI_LS_THRESH;
+}
 
-    ohci->rhdesc_a = OHCI_RHA_NPS | ohci->num_ports;
-    ohci->rhdesc_b = 0x0; /* Impl. specific */
-    ohci->rhstatus = 0;
-
-    for (i = 0; i < ohci->num_ports; i++)
-      {
-        port = &ohci->rhport[i];
-        port->ctrl = 0;
-        if (port->port.dev && port->port.dev->attached) {
-            usb_port_reset(&port->port);
-        }
-      }
-    if (ohci->async_td) {
-        usb_cancel_packet(&ohci->usb_packet);
-        ohci->async_td = 0;
-    }
-    ohci_stop_endpoints(ohci);
-    trace_usb_ohci_reset(ohci->name);
+static void ohci_hard_reset(OHCIState *ohci)
+{
+    ohci_soft_reset(ohci);
+    ohci->ctl = 0;
+    ohci_roothub_reset(ohci);
 }
 
 /* Get an array of dwords from main memory */
@@ -1231,11 +1241,16 @@ static int ohci_service_ed_list(OHCIState *ohci, uint32_t head, int completion)
     return active;
 }
 
-/* Generate a SOF event, and set a timer for EOF */
-static void ohci_sof(OHCIState *ohci)
+/* set a timer for EOF */
+static void ohci_eof_timer(OHCIState *ohci)
 {
     ohci->sof_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     timer_mod(ohci->eof_timer, ohci->sof_time + usb_frame_time);
+}
+/* Set a timer for EOF and generate a SOF event */
+static void ohci_sof(OHCIState *ohci)
+{
+    ohci_eof_timer(ohci);
     ohci_set_interrupt(ohci, OHCI_INTR_SF);
 }
 
@@ -1343,7 +1358,12 @@ static int ohci_bus_start(OHCIState *ohci)
 
     trace_usb_ohci_start(ohci->name);
 
-    ohci_sof(ohci);
+    /* Delay the first SOF event by one frame time as
+     * linux driver is not ready to receive it and
+     * can meet some race conditions
+     */
+
+    ohci_eof_timer(ohci);
 
     return 1;
 }
@@ -1436,12 +1456,15 @@ static void ohci_set_ctl(OHCIState *ohci, uint32_t val)
         break;
     case OHCI_USB_SUSPEND:
         ohci_bus_stop(ohci);
+        /* clear pending SF otherwise linux driver loops in ohci_irq() */
+        ohci->intr_status &= ~OHCI_INTR_SF;
+        ohci_intr_update(ohci);
         break;
     case OHCI_USB_RESUME:
         trace_usb_ohci_resume(ohci->name);
         break;
     case OHCI_USB_RESET:
-        ohci_reset(ohci);
+        ohci_roothub_reset(ohci);
         break;
     }
 }
@@ -1704,7 +1727,7 @@ static void ohci_mem_write(void *opaque,
         ohci->status |= val;
 
         if (ohci->status & OHCI_STATUS_HCR)
-            ohci_reset(ohci);
+            ohci_soft_reset(ohci);
         break;
 
     case 3: /* HcInterruptStatus */
@@ -1783,7 +1806,7 @@ static void ohci_mem_write(void *opaque,
     case 25: /* HcHReset */
         ohci->hreset = val & ~OHCI_HRESET_FSBIR;
         if (val & OHCI_HRESET_FSBIR)
-            ohci_reset(ohci);
+            ohci_hard_reset(ohci);
         break;
 
     case 26: /* HcHInterruptEnable */
@@ -1960,7 +1983,7 @@ static void usb_ohci_reset_pci(DeviceState *d)
     OHCIPCIState *ohci = PCI_OHCI(dev);
     OHCIState *s = &ohci->state;
 
-    ohci_reset(s);
+    ohci_hard_reset(s);
 }
 
 #define TYPE_SYSBUS_OHCI "sysbus-ohci"
@@ -1993,7 +2016,7 @@ static void usb_ohci_reset_sysbus(DeviceState *dev)
     OHCISysBusState *s = SYSBUS_OHCI(dev);
     OHCIState *ohci = &s->ohci;
 
-    ohci_reset(ohci);
+    ohci_hard_reset(ohci);
 }
 
 static Property ohci_pci_properties[] = {
