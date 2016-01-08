@@ -333,8 +333,14 @@ static void curses_atexit(void)
 static void curses_setup(void)
 {
     int i, colour_default[8] = {
-        COLOR_BLACK, COLOR_BLUE, COLOR_GREEN, COLOR_CYAN,
-        COLOR_RED, COLOR_MAGENTA, COLOR_YELLOW, COLOR_WHITE,
+        [QEMU_COLOR_BLACK]   = COLOR_BLACK,
+        [QEMU_COLOR_BLUE]    = COLOR_BLUE,
+        [QEMU_COLOR_GREEN]   = COLOR_GREEN,
+        [QEMU_COLOR_CYAN]    = COLOR_CYAN,
+        [QEMU_COLOR_RED]     = COLOR_RED,
+        [QEMU_COLOR_MAGENTA] = COLOR_MAGENTA,
+        [QEMU_COLOR_YELLOW]  = COLOR_YELLOW,
+        [QEMU_COLOR_WHITE]   = COLOR_WHITE,
     };
 
     /* input as raw as possible, let everything be interpreted
@@ -343,10 +349,11 @@ static void curses_setup(void)
     nodelay(stdscr, TRUE); nonl(); keypad(stdscr, TRUE);
     start_color(); raw(); scrollok(stdscr, FALSE);
 
+    /* Make color pair to match color format (3bits bg:3bits fg) */
     for (i = 0; i < 64; i++) {
         init_pair(i, colour_default[i & 7], colour_default[i >> 3]);
     }
-    /* Set default color for more than 64. (monitor uses 0x74xx for example) */
+    /* Set default color for more than 64 for safety. */
     for (i = 64; i < COLOR_PAIRS; i++) {
         init_pair(i, COLOR_WHITE, COLOR_BLACK);
     }
