@@ -9,7 +9,7 @@ if [ ! -x $QEMU_PROG ]; then
     exit 1
 fi
 
-cd $SRC_PATH/tests/qemu-iotests
+cd tests/qemu-iotests
 
 ret=0
 ./check -T -nocache -raw || ret=1

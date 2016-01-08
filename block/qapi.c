@@ -250,6 +250,7 @@ void bdrv_query_image_info(BlockDriverState *bs,
             g_free(backing_filename2);
             backing_filename2 = NULL;
             error_free(err);
+            err = NULL;
         }
 
         /* Always report the full_backing_filename if present, even if it's the

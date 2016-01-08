@@ -1,13 +1,12 @@
 QA output created by 095
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=5242880
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=104857600 backing_file=TEST_DIR/t.IMGFMT.base
+Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=5242880
+Formatting 'TEST_DIR/t.IMGFMT.snp1', fmt=IMGFMT size=104857600 backing_file=TEST_DIR/t.IMGFMT.base
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=104857600 backing_file=TEST_DIR/t.IMGFMT.snp1
 
 === Base image info before commit and resize ===
 image: TEST_DIR/t.IMGFMT.base
 file format: IMGFMT
 virtual size: 5.0M (5242880 bytes)
-cluster_size: 65536
 
 === Running QEMU Live Commit Test ===
 
@@ -19,5 +18,4 @@ cluster_size: 65536
 image: TEST_DIR/t.IMGFMT.base
 file format: IMGFMT
 virtual size: 100M (104857600 bytes)
-cluster_size: 65536
 *** done
