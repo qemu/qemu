@@ -26,7 +26,7 @@ It's in
 #ifndef QEMU_JHASH_H__
 #define QEMU_JHASH_H__
 
-#include "qemu/bitopt.h"
+#include "qemu/bitops.h"
 
 /*
  * hashtable relation copy from linux kernel jhash
