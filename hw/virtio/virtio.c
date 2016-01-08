@@ -1380,7 +1380,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     num = qemu_get_be32(f);
 
     if (num > VIRTIO_QUEUE_MAX) {
-        error_report("Invalid number of PCI queues: 0x%x", num);
+        error_report("Invalid number of virtqueues: 0x%x", num);
         return -1;
     }
 
