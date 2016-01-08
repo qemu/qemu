@@ -32,6 +32,7 @@
 #include "qemu/iov.h"
 
 #define ETH_ALEN 6
+#define ETH_HLEN 14
 
 struct eth_header {
     uint8_t  h_dest[ETH_ALEN];   /* destination eth addr */
@@ -170,7 +171,8 @@ struct tcp_hdr {
 #define IP_HEADER_VERSION(ip)     \
     ((ip->ip_ver_len >> 4)&0xf)
 
-#define ETH_P_IP                  (0x0800)
+#define ETH_P_IP                  (0x0800)      /* Internet Protocol packet  */
+#define ETH_P_ARP                 (0x0806)      /* Address Resolution packet */
 #define ETH_P_IPV6                (0x86dd)
 #define ETH_P_VLAN                (0x8100)
 #define ETH_P_DVLAN               (0x88a8)
