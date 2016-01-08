@@ -74,7 +74,6 @@
     ( ( input ) & ( size - 1 )  )
 
 #define ETHER_TYPE_LEN 2
-#define ETH_HLEN (ETH_ALEN * 2 + ETHER_TYPE_LEN)
 #define ETH_MTU     1500
 
 #define VLAN_TCI_LEN 2
