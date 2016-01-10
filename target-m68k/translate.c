@@ -1105,6 +1105,30 @@ DISAS_INSN(scc)
     tcg_temp_free(tmp);
 }
 
+DISAS_INSN(dbcc)
+{
+    TCGLabel *l1;
+    TCGv reg;
+    TCGv tmp;
+    int16_t offset;
+    uint32_t base;
+
+    reg = DREG(insn, 0);
+    base = s->pc;
+    offset = (int16_t)read_im16(env, s);
+    l1 = gen_new_label();
+    gen_jmpcc(s, (insn >> 8) & 0xf, l1);
+
+    tmp = tcg_temp_new();
+    tcg_gen_ext16s_i32(tmp, reg);
+    tcg_gen_addi_i32(tmp, tmp, -1);
+    gen_partset_reg(OS_WORD, reg, tmp);
+    tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, -1, l1);
+    gen_jmp_tb(s, 1, base + offset);
+    gen_set_label(l1);
+    gen_jmp_tb(s, 0, s->pc);
+}
+
 DISAS_INSN(undef_mac)
 {
     gen_exception(s, s->pc - 2, EXCP_LINEA);
@@ -3137,6 +3161,7 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(addsubq,   5080, f0c0, M68000);
     INSN(scc,       50c0, f0f8, CF_ISA_A); /* Scc.B Dx   */
     INSN(scc,       50c0, f0c0, M68000);   /* Scc.B <EA> */
+    INSN(dbcc,      50c8, f0f8, M68000);
     INSN(addsubq,   5080, f1c0, CF_ISA_A);
     INSN(tpf,       51f8, fff8, CF_ISA_A);
 
