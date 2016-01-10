@@ -123,7 +123,7 @@ const char *stm32_periph_name(stm32_periph_t periph);
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Write-only register 0x%x\n", \
                       __FUNCTION__, (int)offset)
 # define STM32_NOT_IMPL_REG(offset, size)      \
-        qemu_log_mask(LOG_UNIMP, "%s: Not implemented yet 0x%x - size %u\n", __FUNCTION__, (int)offset, size)
+        qemu_log_mask(LOG_UNIMP, "%s: Not implemented 0x%x - size %u\n", __FUNCTION__, (int)offset, size)
 
 
 
