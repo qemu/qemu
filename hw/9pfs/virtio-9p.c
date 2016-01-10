@@ -1326,7 +1326,7 @@ out_nofid:
 static int32_t get_iounit(V9fsPDU *pdu, V9fsPath *path)
 {
     struct statfs stbuf;
-    int32_t iounit = 0;
+    int32_t iounit = 0, unit = 0;
     V9fsState *s = pdu->s;
 
     /*
@@ -1334,8 +1334,21 @@ static int32_t get_iounit(V9fsPDU *pdu, V9fsPath *path)
      * and as well as less than (client msize - P9_IOHDRSZ))
      */
     if (!v9fs_co_statfs(pdu, path, &stbuf)) {
-        iounit = stbuf.f_bsize;
-        iounit *= (s->msize - P9_IOHDRSZ)/stbuf.f_bsize;
+	/*
+	 * If host filesystem block size is larger than client msize,
+	 * we will use AGESIZE as the unit. The reason why we choose
+	 * AGESIZE is because the data will be splitted in terms of
+	 * AGESIZE in the virtio layer. In this case, the final
+	 * iounit is equal to the value of ((msize/unit) - 1) * unit.
+	 */
+	if (stbuf.f_bsize > s->msize) {
+	    iounit = 4096;
+	    unit = 4096;
+	} else {
+            iounit = stbuf.f_bsize;
+	    unit = stbuf.f_bsize;
+	}
+        iounit *= (s->msize - P9_IOHDRSZ)/unit;
     }
     if (!iounit) {
         iounit = s->msize - P9_IOHDRSZ;

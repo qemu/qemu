@@ -28,6 +28,7 @@ static FsDriverTable FsDrivers[] = {
 #endif
     { .name = "synth", .ops = &synth_ops},
     { .name = "proxy", .ops = &proxy_ops},
+    { .name = "cephfs", .ops = &cephfs_ops},
 };
 
 int qemu_fsdev_add(QemuOpts *opts)

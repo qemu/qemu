@@ -5,5 +5,8 @@ common-obj-y += virtio-9p-coth.o cofs.o codir.o cofile.o
 common-obj-y += coxattr.o virtio-9p-synth.o
 common-obj-$(CONFIG_OPEN_BY_HANDLE) +=  virtio-9p-handle.o
 common-obj-y += virtio-9p-proxy.o
+common-obj-y += virtio-9p-cephfs.o
 
 obj-y += virtio-9p-device.o
+
+virtio-9p-cephfs.o-libs         := $(CEHFS_LIBS)

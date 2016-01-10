@@ -22,6 +22,7 @@
  * fstype | ops
  * -----------------
  *  local | local_ops
+ *  cephfs| cephfs_ops
  *  .     |
  *  .     |
  *  .     |
@@ -45,4 +46,5 @@ extern FileOperations local_ops;
 extern FileOperations handle_ops;
 extern FileOperations synth_ops;
 extern FileOperations proxy_ops;
+extern FileOperations cephfs_ops;
 #endif
