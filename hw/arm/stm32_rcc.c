@@ -593,8 +593,9 @@ static uint64_t stm32_rcc_readw(void *opaque, hwaddr offset)
             return 0;
         default:
             STM32_BAD_REG(offset, 4);
-            break;
+            return 0;
     }
+    return 0;
 }
 
 

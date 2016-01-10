@@ -115,15 +115,15 @@ const char *stm32_periph_name(stm32_periph_t periph);
 /* REGISTER HELPERS */
 /* Error handlers */
 # define STM32_BAD_REG(offset, size)       \
-        hw_error("%s: Bad register 0x%x - size %u\n", __FUNCTION__, (int)offset, size)
-# define STM32_WARN_RO_REG(offset)        \
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad register 0x%x - size %u\n", __FUNCTION__, (int)offset, size)
+# define STM32_RO_REG(offset)        \
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Read-only register 0x%x\n", \
                       __FUNCTION__, (int)offset)
-# define STM32_WARN_WO_REG(offset)        \
+# define STM32_WO_REG(offset)        \
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Write-only register 0x%x\n", \
                       __FUNCTION__, (int)offset)
 # define STM32_NOT_IMPL_REG(offset, size)      \
-        hw_error("%s: Not implemented yet 0x%x - size %u\n", __FUNCTION__, (int)offset, size)
+        qemu_log_mask(LOG_UNIMP, "%s: Not implemented yet 0x%x - size %u\n", __FUNCTION__, (int)offset, size)
 
 
 

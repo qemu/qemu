@@ -47,6 +47,11 @@ qemu-system-arm options which are useful for trobuleshooting:
     -d ?
         To see available log levels
 
+    -d unimp,guest
+        Enable logging to view warnings when an unimplemented register is
+        accessed or when an invalid register access is attempted.  This is
+        especially useful since many registers are not implemented.
+
     -d cpu,in_asm
         Enable logging to view the CPU state during execution and the ARM
         instructions which are being executed.  I believe --enable-debug must be

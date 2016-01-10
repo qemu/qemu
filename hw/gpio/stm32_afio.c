@@ -154,6 +154,7 @@ static uint64_t stm32_afio_read(void *opaque, hwaddr offset,
             STM32_BAD_REG(offset, size);
             return 0;
     }
+    return 0;
 }
 
 static void stm32_afio_write(void *opaque, hwaddr offset,
