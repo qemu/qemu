@@ -1008,25 +1008,6 @@ static void gen_jmpcc(DisasContext *s, int cond, TCGLabel *l1)
   free_cond(&c);
 }
 
-DISAS_INSN(scc)
-{
-    DisasCompare c;
-    int cond;
-    TCGv reg, tmp;
-
-    cond = (insn >> 8) & 0xf;
-    gen_cc_cond(&c, s, cond);
-
-    tmp = tcg_temp_new();
-    tcg_gen_setcond_i32(c.tcond, tmp, c.v1, c.v2);
-    free_cond(&c);
-
-    reg = DREG(insn, 0);
-    tcg_gen_neg_i32(tmp, tmp);
-    tcg_gen_deposit_i32(reg, reg, tmp, 0, 8);
-    tcg_temp_free(tmp);
-}
-
 /* Force a TB lookup after an instruction that changes the CPU state.  */
 static void gen_lookup_tb(DisasContext *s)
 {
@@ -1104,6 +1085,24 @@ static void gen_jmp_tb(DisasContext *s, int n, uint32_t dest)
         tcg_gen_exit_tb(0);
     }
     s->is_jmp = DISAS_TB_JUMP;
+}
+
+DISAS_INSN(scc)
+{
+    DisasCompare c;
+    int cond;
+    TCGv tmp;
+
+    cond = (insn >> 8) & 0xf;
+    gen_cc_cond(&c, s, cond);
+
+    tmp = tcg_temp_new();
+    tcg_gen_setcond_i32(c.tcond, tmp, c.v1, c.v2);
+    free_cond(&c);
+
+    tcg_gen_neg_i32(tmp, tmp);
+    DEST_EA(env, insn, OS_BYTE, tmp, NULL);
+    tcg_temp_free(tmp);
 }
 
 DISAS_INSN(undef_mac)
@@ -3136,7 +3135,8 @@ void register_m68k_insns (CPUM68KState *env)
     INSN(jump,      4ec0, ffc0, M68000);
     INSN(addsubq,   5000, f080, M68000);
     INSN(addsubq,   5080, f0c0, M68000);
-    INSN(scc,       50c0, f0f8, CF_ISA_A);
+    INSN(scc,       50c0, f0f8, CF_ISA_A); /* Scc.B Dx   */
+    INSN(scc,       50c0, f0c0, M68000);   /* Scc.B <EA> */
     INSN(addsubq,   5080, f1c0, CF_ISA_A);
     INSN(tpf,       51f8, fff8, CF_ISA_A);
 
