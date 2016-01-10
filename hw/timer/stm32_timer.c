@@ -126,7 +126,9 @@ static void stm32_timer_freq(Stm32Timer *s)
 		(s->psc + 1),
 		clk_freq
 	);
-	ptimer_set_freq(s->timer, clk_freq);
+    if(clk_freq != 0) {
+        ptimer_set_freq(s->timer, clk_freq);
+    }
 }
 
 static uint32_t stm32_timer_get_count(Stm32Timer *s)
