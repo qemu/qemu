@@ -808,6 +808,7 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
     DeviceState *dev;
     char *nodename;
     int i;
+    PCIHostState *pci;
 
     dev = qdev_create(NULL, TYPE_GPEX_HOST);
     qdev_init_nofail(dev);
@@ -845,6 +846,19 @@ static void create_pcie(const VirtBoardInfo *vbi, qemu_irq *pic,
 
     for (i = 0; i < GPEX_NUM_IRQS; i++) {
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+    }
+
+    pci = PCI_HOST_BRIDGE(dev);
+    if (pci->bus) {
+        for (i = 0; i < nb_nics; i++) {
+            NICInfo *nd = &nd_table[i];
+
+            if (!nd->model) {
+                nd->model = g_strdup("virtio");
+            }
+
+            pci_nic_init_nofail(nd, pci->bus, nd->model, NULL);
+        }
     }
 
     nodename = g_strdup_printf("/pcie@%" PRIx64, base);
