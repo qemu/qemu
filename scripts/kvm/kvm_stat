@@ -705,7 +705,34 @@ def log(stats):
         line += 1
 
 def get_options():
-    optparser = optparse.OptionParser()
+    description_text = """
+This script displays various statistics about VMs running under KVM.
+The statistics are gathered from the KVM debugfs entries and / or the
+currently available perf traces.
+
+The monitoring takes additional cpu cycles and might affect the VM's
+performance.
+
+Requirements:
+- Access to:
+    /sys/kernel/debug/kvm
+    /sys/kernel/debug/trace/events/*
+    /proc/pid/task
+- /proc/sys/kernel/perf_event_paranoid < 1 if user has no
+  CAP_SYS_ADMIN and perf events are used.
+- CAP_SYS_RESOURCE if the hard limit is not high enough to allow
+  the large number of files that are possibly opened.
+"""
+
+    class PlainHelpFormatter(optparse.IndentedHelpFormatter):
+        def format_description(self, description):
+            if description:
+                return description + "\n"
+            else:
+                return ""
+
+    optparser = optparse.OptionParser(description=description_text,
+                                      formatter=PlainHelpFormatter())
     optparser.add_option('-1', '--once', '--batch',
                          action='store_true',
                          default=False,
