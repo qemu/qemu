@@ -434,11 +434,19 @@ class TracepointProvider(object):
 
         # The constant is needed as a buffer for python libs, std
         # streams and other files that the script opens.
-        rlimit = len(cpus) * len(self._fields) + 50
+        newlim = len(cpus) * len(self._fields) + 50
         try:
-            resource.setrlimit(resource.RLIMIT_NOFILE, (rlimit, rlimit))
+            softlim_, hardlim = resource.getrlimit(resource.RLIMIT_NOFILE)
+
+            if hardlim < newlim:
+                # Now we need CAP_SYS_RESOURCE, to increase the hard limit.
+                resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, newlim))
+            else:
+                # Raising the soft limit is sufficient.
+                resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, hardlim))
+
         except ValueError:
-            sys.exit("NOFILE rlimit could not be raised to {0}".format(rlimit))
+            sys.exit("NOFILE rlimit could not be raised to {0}".format(newlim))
 
         for cpu in cpus:
             group = Group()
