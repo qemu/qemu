@@ -910,6 +910,7 @@ static void ncq_err(NCQTransferState *ncq_tfs)
     ide_state->error = ABRT_ERR;
     ide_state->status = READY_STAT | ERR_STAT;
     ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
+    ncq_tfs->used = 0;
 }
 
 static void ncq_finish(NCQTransferState *ncq_tfs)
