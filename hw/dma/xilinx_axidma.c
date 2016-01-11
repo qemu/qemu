@@ -177,16 +177,6 @@ static inline int streamid_from_addr(hwaddr addr)
     return sid;
 }
 
-#ifdef DEBUG_ENET
-static void stream_desc_show(struct SDesc *d)
-{
-    qemu_log("buffer_addr  = " PRIx64 "\n", d->buffer_address);
-    qemu_log("nxtdesc      = " PRIx64 "\n", d->nxtdesc);
-    qemu_log("control      = %x\n", d->control);
-    qemu_log("status       = %x\n", d->status);
-}
-#endif
-
 static void stream_desc_load(struct Stream *s, hwaddr addr)
 {
     struct SDesc *d = &s->desc;
