@@ -183,15 +183,28 @@ struct arm_elf_prstatus {
 
 QEMU_BUILD_BUG_ON(sizeof(struct arm_elf_prstatus) != 148);
 
+/* struct user_vfp from arch/arm/include/asm/user.h */
+struct arm_user_vfp_state {
+    uint64_t vregs[32];
+    uint32_t fpscr;
+} QEMU_PACKED;
+
+QEMU_BUILD_BUG_ON(sizeof(struct arm_user_vfp_state) != 260);
+
 struct arm_note {
     Elf32_Nhdr hdr;
-    char name[8]; /* align_up(sizeof("CORE"), 4) */
-    struct arm_elf_prstatus prstatus;
+    char name[8]; /* align_up(sizeof("LINUX"), 4) */
+    union {
+        struct arm_elf_prstatus prstatus;
+        struct arm_user_vfp_state vfp;
+    };
 } QEMU_PACKED;
 
 #define ARM_NOTE_HEADER_SIZE offsetof(struct arm_note, prstatus)
 #define ARM_PRSTATUS_NOTE_SIZE \
             (ARM_NOTE_HEADER_SIZE + sizeof(struct arm_elf_prstatus))
+#define ARM_VFP_NOTE_SIZE \
+            (ARM_NOTE_HEADER_SIZE + sizeof(struct arm_user_vfp_state))
 
 static void arm_note_init(struct arm_note *note, DumpState *s,
                           const char *name, Elf32_Word namesz,
@@ -206,17 +219,40 @@ static void arm_note_init(struct arm_note *note, DumpState *s,
     memcpy(note->name, name, namesz);
 }
 
+static int arm_write_elf32_vfp(WriteCoreDumpFunction f, CPUARMState *env,
+                               int cpuid, DumpState *s)
+{
+    struct arm_note note;
+    int ret, i;
+
+    arm_note_init(&note, s, "LINUX", 6, NT_ARM_VFP, sizeof(note.vfp));
+
+    for (i = 0; i < 32; ++i) {
+        note.vfp.vregs[i] = cpu_to_dump64(s, float64_val(env->vfp.regs[i]));
+    }
+
+    note.vfp.fpscr = cpu_to_dump32(s, vfp_get_fpscr(env));
+
+    ret = f(&note, ARM_VFP_NOTE_SIZE, s);
+    if (ret < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
 int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
                              int cpuid, void *opaque)
 {
     struct arm_note note;
     CPUARMState *env = &ARM_CPU(cs)->env;
     DumpState *s = opaque;
-    int ret, i;
+    int ret, i, fpvalid = !!arm_feature(env, ARM_FEATURE_VFP);
 
     arm_note_init(&note, s, "CORE", 5, NT_PRSTATUS, sizeof(note.prstatus));
 
     note.prstatus.pr_pid = cpu_to_dump32(s, cpuid);
+    note.prstatus.pr_fpvalid = cpu_to_dump32(s, fpvalid);
 
     for (i = 0; i < 16; ++i) {
         note.prstatus.pr_reg.regs[i] = cpu_to_dump32(s, env->regs[i]);
@@ -226,6 +262,8 @@ int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
     ret = f(&note, ARM_PRSTATUS_NOTE_SIZE, s);
     if (ret < 0) {
         return -1;
+    } else if (fpvalid) {
+        return arm_write_elf32_vfp(f, env, cpuid, s);
     }
 
     return 0;
@@ -280,6 +318,8 @@ int cpu_get_dump_info(ArchDumpInfo *info,
 
 ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
 {
+    ARMCPU *cpu = ARM_CPU(first_cpu);
+    CPUARMState *env = &cpu->env;
     size_t note_size;
 
     if (class == ELFCLASS64) {
@@ -287,6 +327,9 @@ ssize_t cpu_get_note_size(int class, int machine, int nr_cpus)
         note_size += AARCH64_PRFPREG_NOTE_SIZE;
     } else {
         note_size = ARM_PRSTATUS_NOTE_SIZE;
+        if (arm_feature(env, ARM_FEATURE_VFP)) {
+            note_size += ARM_VFP_NOTE_SIZE;
+        }
     }
 
     return note_size * nr_cpus;
