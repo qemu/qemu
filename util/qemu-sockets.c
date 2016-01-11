@@ -37,7 +37,7 @@
 #endif
 
 /* used temporarily until all users are converted to QemuOpts */
-QemuOptsList socket_optslist = {
+static QemuOptsList socket_optslist = {
     .name = "socket",
     .head = QTAILQ_HEAD_INITIALIZER(socket_optslist.head),
     .desc = {
@@ -114,7 +114,7 @@ NetworkAddressFamily inet_netfamily(int family)
     return NETWORK_ADDRESS_FAMILY_UNKNOWN;
 }
 
-int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
+static int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp)
 {
     struct addrinfo ai,*res,*e;
     const char *addr;
@@ -392,8 +392,8 @@ static struct addrinfo *inet_parse_connect_opts(QemuOpts *opts, Error **errp)
  * function succeeds, callback will be called when the connection
  * completes, with the file descriptor on success, or -1 on error.
  */
-int inet_connect_opts(QemuOpts *opts, Error **errp,
-                      NonBlockingConnectHandler *callback, void *opaque)
+static int inet_connect_opts(QemuOpts *opts, Error **errp,
+                             NonBlockingConnectHandler *callback, void *opaque)
 {
     Error *local_err = NULL;
     struct addrinfo *res, *e;
@@ -440,7 +440,7 @@ int inet_connect_opts(QemuOpts *opts, Error **errp,
     return sock;
 }
 
-int inet_dgram_opts(QemuOpts *opts, Error **errp)
+static int inet_dgram_opts(QemuOpts *opts, Error **errp)
 {
     struct addrinfo ai, *peer = NULL, *local = NULL;
     const char *addr;
@@ -708,7 +708,7 @@ int inet_nonblocking_connect(const char *str,
 
 #ifndef _WIN32
 
-int unix_listen_opts(QemuOpts *opts, Error **errp)
+static int unix_listen_opts(QemuOpts *opts, Error **errp)
 {
     struct sockaddr_un un;
     const char *path = qemu_opt_get(opts, "path");
@@ -772,8 +772,8 @@ err:
     return -1;
 }
 
-int unix_connect_opts(QemuOpts *opts, Error **errp,
-                      NonBlockingConnectHandler *callback, void *opaque)
+static int unix_connect_opts(QemuOpts *opts, Error **errp,
+                             NonBlockingConnectHandler *callback, void *opaque)
 {
     struct sockaddr_un un;
     const char *path = qemu_opt_get(opts, "path");
@@ -832,15 +832,15 @@ int unix_connect_opts(QemuOpts *opts, Error **errp,
 
 #else
 
-int unix_listen_opts(QemuOpts *opts, Error **errp)
+static int unix_listen_opts(QemuOpts *opts, Error **errp)
 {
     error_setg(errp, "unix sockets are not available on windows");
     errno = ENOTSUP;
     return -1;
 }
 
-int unix_connect_opts(QemuOpts *opts, Error **errp,
-                      NonBlockingConnectHandler *callback, void *opaque)
+static int unix_connect_opts(QemuOpts *opts, Error **errp,
+                             NonBlockingConnectHandler *callback, void *opaque)
 {
     error_setg(errp, "unix sockets are not available on windows");
     errno = ENOTSUP;

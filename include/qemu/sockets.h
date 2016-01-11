@@ -30,8 +30,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "qapi/error.h"
 #include "qapi-types.h"
 
-extern QemuOptsList socket_optslist;
-
 /* misc helpers */
 int qemu_socket(int domain, int type, int protocol);
 int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen);
@@ -54,23 +52,16 @@ int socket_set_fast_reuse(int fd);
 typedef void NonBlockingConnectHandler(int fd, Error *err, void *opaque);
 
 InetSocketAddress *inet_parse(const char *str, Error **errp);
-int inet_listen_opts(QemuOpts *opts, int port_offset, Error **errp);
 int inet_listen(const char *str, char *ostr, int olen,
                 int socktype, int port_offset, Error **errp);
-int inet_connect_opts(QemuOpts *opts, Error **errp,
-                      NonBlockingConnectHandler *callback, void *opaque);
 int inet_connect(const char *str, Error **errp);
 int inet_nonblocking_connect(const char *str,
                              NonBlockingConnectHandler *callback,
                              void *opaque, Error **errp);
 
-int inet_dgram_opts(QemuOpts *opts, Error **errp);
 NetworkAddressFamily inet_netfamily(int family);
 
-int unix_listen_opts(QemuOpts *opts, Error **errp);
 int unix_listen(const char *path, char *ostr, int olen, Error **errp);
-int unix_connect_opts(QemuOpts *opts, Error **errp,
-                      NonBlockingConnectHandler *callback, void *opaque);
 int unix_connect(const char *path, Error **errp);
 int unix_nonblocking_connect(const char *str,
                              NonBlockingConnectHandler *callback,
