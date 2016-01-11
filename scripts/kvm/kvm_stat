@@ -285,8 +285,6 @@ def detect_platform():
                     s390_init()
                     return
 
-detect_platform()
-
 
 def walkdir(path):
     """Returns os.walk() data for specified directory.
@@ -453,7 +451,7 @@ class Stats:
                 return True
             return re.match(self.fields_filter, key) is not None
         self.values = dict()
-        for d in providers:
+        for d in self.providers:
             provider_fields = [key for key in d.fields() if wanted(key)]
             for key in provider_fields:
                 self.values[key] = None
@@ -462,7 +460,7 @@ class Stats:
         self.fields_filter = fields_filter
         self._update()
     def get(self):
-        for d in providers:
+        for d in self.providers:
             new = d.read()
             for key in d.fields():
                 oldval = self.values.get(key, (0, 0))
@@ -472,20 +470,6 @@ class Stats:
                     newdelta = newval - oldval[0]
                 self.values[key] = (newval, newdelta)
         return self.values
-
-if not os.path.exists('/sys/kernel/debug'):
-    sys.stderr.write('Please enable CONFIG_DEBUG_FS in your kernel.')
-    sys.exit(1)
-if not os.path.exists(PATH_DEBUGFS_KVM):
-    sys.stderr.write("Please make sure, that debugfs is mounted and "
-                     "readable by the current user:\n"
-                     "('mount -t debugfs debugfs /sys/kernel/debug')\n"
-                     "Also ensure, that the kvm modules are loaded.\n")
-    sys.exit(1)
-if not os.path.exists(PATH_DEBUGFS_TRACING):
-    sys.stderr.write("Please make {0} readable by the current user.\n"
-                     .format(PATH_DEBUGFS_TRACING))
-    sys.exit(1)
 
 LABEL_WIDTH = 40
 NUMBER_WIDTH = 10
@@ -576,56 +560,83 @@ def log(stats):
         statline()
         line += 1
 
-options = optparse.OptionParser()
-options.add_option('-1', '--once', '--batch',
-                   action = 'store_true',
-                   default = False,
-                   dest = 'once',
-                   help = 'run in batch mode for one second',
-                   )
-options.add_option('-l', '--log',
-                   action = 'store_true',
-                   default = False,
-                   dest = 'log',
-                   help = 'run in logging mode (like vmstat)',
-                   )
-options.add_option('-t', '--tracepoints',
-                   action = 'store_true',
-                   default = False,
-                   dest = 'tracepoints',
-                   help = 'retrieve statistics from tracepoints',
-                   )
-options.add_option('-d', '--debugfs',
-                   action = 'store_true',
-                   default = False,
-                   dest = 'debugfs',
-                   help = 'retrieve statistics from debugfs',
-                   )
-options.add_option('-f', '--fields',
-                   action = 'store',
-                   default = None,
-                   dest = 'fields',
-                   help = 'fields to display (regex)',
-                   )
-(options, args) = options.parse_args(sys.argv)
+def get_options():
+    optparser = optparse.OptionParser()
+    optparser.add_option('-1', '--once', '--batch',
+                         action = 'store_true',
+                         default = False,
+                         dest = 'once',
+                         help = 'run in batch mode for one second',
+                         )
+    optparser.add_option('-l', '--log',
+                         action = 'store_true',
+                         default = False,
+                         dest = 'log',
+                         help = 'run in logging mode (like vmstat)',
+                         )
+    optparser.add_option('-t', '--tracepoints',
+                         action = 'store_true',
+                         default = False,
+                         dest = 'tracepoints',
+                         help = 'retrieve statistics from tracepoints',
+                         )
+    optparser.add_option('-d', '--debugfs',
+                         action = 'store_true',
+                         default = False,
+                         dest = 'debugfs',
+                         help = 'retrieve statistics from debugfs',
+                         )
+    optparser.add_option('-f', '--fields',
+                         action = 'store',
+                         default = None,
+                         dest = 'fields',
+                         help = 'fields to display (regex)',
+                         )
+    (options, _) = optparser.parse_args(sys.argv)
+    return options
 
-providers = []
-if options.tracepoints:
-    providers.append(TracepointProvider())
-if options.debugfs:
-    providers.append(DebugfsProvider())
+def get_providers(options):
+    providers = []
 
-if len(providers) == 0:
-    try:
-        providers = [TracepointProvider()]
-    except:
-        providers = [DebugfsProvider()]
+    if options.tracepoints:
+        providers.append(TracepointProvider())
+    if options.debugfs:
+        providers.append(DebugfsProvider())
+    if len(providers) == 0:
+        providers.append(TracepointProvider())
 
-stats = Stats(providers, fields = options.fields)
+    return providers
 
-if options.log:
-    log(stats)
-elif not options.once:
-    curses.wrapper(tui, stats)
-else:
-    batch(stats)
+def check_access():
+    if not os.path.exists('/sys/kernel/debug'):
+        sys.stderr.write('Please enable CONFIG_DEBUG_FS in your kernel.')
+        sys.exit(1)
+
+    if not os.path.exists(PATH_DEBUGFS_KVM):
+        sys.stderr.write("Please make sure, that debugfs is mounted and "
+                         "readable by the current user:\n"
+                         "('mount -t debugfs debugfs /sys/kernel/debug')\n"
+                         "Also ensure, that the kvm modules are loaded.\n")
+        sys.exit(1)
+
+    if not os.path.exists(PATH_DEBUGFS_TRACING):
+        sys.stderr.write("Please make {0} readable by the current user.\n"
+                         .format(PATH_DEBUGFS_TRACING))
+        sys.exit(1)
+
+def main():
+    check_access()
+    detect_platform()
+    options = get_options()
+    providers = get_providers(options)
+    stats = Stats(providers, fields = options.fields)
+
+    if options.log:
+        log(stats)
+    elif not options.once:
+        curses.wrapper(tui, stats)
+    else:
+        batch(stats)
+
+if __name__ == "__main__":
+    main()
