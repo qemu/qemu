@@ -314,7 +314,7 @@ class perf_event_attr(ctypes.Structure):
                 ('bp_addr', ctypes.c_uint64),
                 ('bp_len', ctypes.c_uint64),
                 ]
-def _perf_event_open(attr, pid, cpu, group_fd, flags):
+def perf_event_open(attr, pid, cpu, group_fd, flags):
     return syscall(SC_PERF_EVT_OPEN, ctypes.pointer(attr), ctypes.c_int(pid),
                    ctypes.c_int(cpu), ctypes.c_int(group_fd),
                    ctypes.c_long(flags))
@@ -358,7 +358,7 @@ class Event(object):
         group_leader = -1
         if group.events:
             group_leader = group.events[0].fd
-        fd = _perf_event_open(attr, -1, group.cpu, group_leader, 0)
+        fd = perf_event_open(attr, -1, group.cpu, group_leader, 0)
         if fd == -1:
             err = ctypes.get_errno()
             raise OSError(err, os.strerror(err),
