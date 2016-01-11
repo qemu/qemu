@@ -1270,7 +1270,7 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
              && retries-- > 0);
 
     if (task == NULL || task->status != SCSI_STATUS_GOOD) {
-        error_setg(errp, "iSCSI: failed to send readcapacity10 command.");
+        error_setg(errp, "iSCSI: failed to send readcapacity10/16 command");
     } else if (!iscsilun->block_size ||
                iscsilun->block_size % BDRV_SECTOR_SIZE) {
         error_setg(errp, "iSCSI: the target returned an invalid "

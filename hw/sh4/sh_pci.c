@@ -151,12 +151,11 @@ static int sh_pci_device_init(SysBusDevice *dev)
     return 0;
 }
 
-static int sh_pci_host_init(PCIDevice *d)
+static void sh_pci_host_realize(PCIDevice *d, Error **errp)
 {
     pci_set_word(d->config + PCI_COMMAND, PCI_COMMAND_WAIT);
     pci_set_word(d->config + PCI_STATUS, PCI_STATUS_CAP_LIST |
                  PCI_STATUS_FAST_BACK | PCI_STATUS_DEVSEL_MEDIUM);
-    return 0;
 }
 
 static void sh_pci_host_class_init(ObjectClass *klass, void *data)
@@ -164,7 +163,7 @@ static void sh_pci_host_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = sh_pci_host_init;
+    k->realize = sh_pci_host_realize;
     k->vendor_id = PCI_VENDOR_ID_HITACHI;
     k->device_id = PCI_DEVICE_ID_HITACHI_SH7751R;
     /*

@@ -1890,19 +1890,6 @@ sub process {
 						ERROR("space prohibited after that '$op' $at\n" . $hereptr);
 					}
 
-
-				# << and >> may either have or not have spaces both sides
-				} elsif ($op eq '<<' or $op eq '>>' or
-					 $op eq '&' or $op eq '^' or $op eq '|' or
-					 $op eq '+' or $op eq '-' or
-					 $op eq '*' or $op eq '/' or
-					 $op eq '%')
-				{
-					if ($ctx =~ /Wx[^WCE]|[^WCE]xW/) {
-						ERROR("need consistent spacing around '$op' $at\n" .
-							$hereptr);
-					}
-
 				# A colon needs no spaces before when it is
 				# terminating a case value or a label.
 				} elsif ($opv eq ':C' || $opv eq ':L') {

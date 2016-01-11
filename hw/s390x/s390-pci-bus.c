@@ -123,7 +123,6 @@ void s390_pci_sclp_configure(int configure, SCCB *sccb)
     }
 
     psccb->header.response_code = cpu_to_be16(rc);
-    return;
 }
 
 static uint32_t s390_pci_get_pfid(PCIDevice *pdev)
@@ -439,8 +438,6 @@ static void s390_msi_ctrl_write(void *opaque, hwaddr addr, uint64_t data,
         io_int_word = (pbdev->isc << 27) | IO_INT_WORD_AI;
         s390_io_interrupt(0, 0, 0, io_int_word);
     }
-
-    return;
 }
 
 static uint64_t s390_msi_ctrl_read(void *opaque, hwaddr addr, unsigned size)
@@ -561,7 +558,6 @@ static void s390_pcihost_hot_plug(HotplugHandler *hotplug_dev,
         s390_pci_generate_plug_event(HP_EVENT_TO_CONFIGURED,
                                      pbdev->fh, pbdev->fid);
     }
-    return;
 }
 
 static void s390_pcihost_hot_unplug(HotplugHandler *hotplug_dev,

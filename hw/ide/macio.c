@@ -292,8 +292,6 @@ done:
         block_acct_done(blk_get_stats(s->blk), &s->acct);
     }
     io->dma_end(opaque);
-
-    return;
 }
 
 static void pmac_ide_transfer_cb(void *opaque, int ret)

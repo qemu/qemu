@@ -1193,7 +1193,7 @@ static int gt64120_init(SysBusDevice *dev)
     return 0;
 }
 
-static int gt64120_pci_init(PCIDevice *d)
+static void gt64120_pci_realize(PCIDevice *d, Error **errp)
 {
     /* FIXME: Malta specific hw assumptions ahead */
     pci_set_word(d->config + PCI_COMMAND, 0);
@@ -1207,8 +1207,6 @@ static int gt64120_pci_init(PCIDevice *d)
     pci_set_long(d->config + PCI_BASE_ADDRESS_4, 0x14000000);
     pci_set_long(d->config + PCI_BASE_ADDRESS_5, 0x14000001);
     pci_set_byte(d->config + 0x3d, 0x01);
-
-    return 0;
 }
 
 static void gt64120_pci_class_init(ObjectClass *klass, void *data)
@@ -1216,7 +1214,7 @@ static void gt64120_pci_class_init(ObjectClass *klass, void *data)
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init = gt64120_pci_init;
+    k->realize = gt64120_pci_realize;
     k->vendor_id = PCI_VENDOR_ID_MARVELL;
     k->device_id = PCI_DEVICE_ID_MARVELL_GT6412X;
     k->revision = 0x10;

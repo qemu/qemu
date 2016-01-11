@@ -69,6 +69,8 @@
 #include "sysemu/os-posix.h"
 #endif
 
+#include "glib-compat.h"
+
 #include "qapi/error.h"
 
 #if defined(CONFIG_SOLARIS) && CONFIG_SOLARIS_VERSION < 10

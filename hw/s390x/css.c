@@ -1430,7 +1430,6 @@ void subch_device_save(SubchDev *s, QEMUFile *f)
     }
     qemu_put_byte(f, s->ccw_fmt_1);
     qemu_put_byte(f, s->ccw_no_data_cnt);
-    return;
 }
 
 int subch_device_load(SubchDev *s, QEMUFile *f)
