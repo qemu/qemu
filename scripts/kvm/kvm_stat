@@ -385,9 +385,7 @@ class TracepointProvider(object):
                     extra.append(f + '(' + name + ')')
         fields += extra
         self._setup(fields)
-        self.select(fields)
-    def fields(self):
-        return self._fields
+        self.fields = fields
 
     def _setup(self, _fields):
         self._fields = _fields
@@ -417,7 +415,14 @@ class TracepointProvider(object):
                                         tracepoint=tracepoint,
                                         tracefilter=tracefilter)
             self.group_leaders.append(group)
-    def select(self, fields):
+
+    @property
+    def fields(self):
+        return self._fields
+
+    @fields.setter
+    def fields(self, fields):
+        self._fields = fields
         for group in self.group_leaders:
             for event in group.events:
                 if event.name in fields:
@@ -425,6 +430,7 @@ class TracepointProvider(object):
                     event.enable()
                 else:
                     event.disable()
+
     def read(self):
         ret = defaultdict(int)
         for group in self.group_leaders:
@@ -435,10 +441,15 @@ class TracepointProvider(object):
 class DebugfsProvider(object):
     def __init__(self):
         self._fields = walkdir(PATH_DEBUGFS_KVM)[2]
+
+    @property
     def fields(self):
         return self._fields
-    def select(self, fields):
+
+    @fields.setter
+    def fields(self, fields):
         self._fields = fields
+
     def read(self):
         def val(key):
             return int(file(PATH_DEBUGFS_KVM + '/' + key).read())
@@ -456,17 +467,17 @@ class Stats:
             return re.match(self.fields_filter, key) is not None
         self.values = dict()
         for d in self.providers:
-            provider_fields = [key for key in d.fields() if wanted(key)]
+            provider_fields = [key for key in d.fields if wanted(key)]
             for key in provider_fields:
                 self.values[key] = None
-            d.select(provider_fields)
+            d.fields = provider_fields
     def set_fields_filter(self, fields_filter):
         self.fields_filter = fields_filter
         self._update()
     def get(self):
         for d in self.providers:
             new = d.read()
-            for key in d.fields():
+            for key in d.fields:
                 oldval = self.values.get(key, (0, 0))
                 newval = new[key]
                 newdelta = None
