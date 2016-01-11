@@ -26,7 +26,7 @@ from collections import defaultdict
 class DebugfsProvider(object):
     def __init__(self):
         self.base = '/sys/kernel/debug/kvm'
-        self._fields = os.listdir(self.base)
+        self._fields = walkdir(self.base)[2]
     def fields(self):
         return self._fields
     def select(self, fields):
@@ -285,6 +285,15 @@ def detect_platform():
 
 detect_platform()
 
+
+def walkdir(path):
+    """Returns os.walk() data for specified directory.
+
+    As it is only a wrapper it returns the same 3-tuple of (dirpath,
+    dirnames, filenames).
+    """
+    return next(os.walk(path))
+
 def invert(d):
     return dict((x[1], x[0]) for x in d.iteritems())
 
@@ -394,9 +403,7 @@ class Event(object):
 class TracepointProvider(object):
     def __init__(self):
         path = os.path.join(sys_tracing, 'events', 'kvm')
-        fields = [f
-                  for f in os.listdir(path)
-                  if os.path.isdir(os.path.join(path, f))]
+        fields = walkdir(path)[1]
         extra = []
         for f in fields:
             if f in filters:
