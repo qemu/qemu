@@ -36,12 +36,28 @@
 #define VMXNET3_MSIX_BAR_SIZE 0x2000
 #define MIN_BUF_SIZE 60
 
+/* Compatability flags for migration */
+#define VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT 0
+#define VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS \
+    (1 << VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT)
+#define VMXNET3_COMPAT_FLAG_DISABLE_PCIE_BIT 1
+#define VMXNET3_COMPAT_FLAG_DISABLE_PCIE \
+    (1 << VMXNET3_COMPAT_FLAG_DISABLE_PCIE_BIT)
+
+#define VMXNET3_EXP_EP_OFFSET (0x48)
+#define VMXNET3_MSI_OFFSET(s) \
+    ((s)->compat_flags & VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS ? 0x50 : 0x84)
+#define VMXNET3_MSIX_OFFSET(s) \
+    ((s)->compat_flags & VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS ? 0 : 0x9c)
+#define VMXNET3_DSN_OFFSET     (0x100)
+
 #define VMXNET3_BAR0_IDX      (0)
 #define VMXNET3_BAR1_IDX      (1)
 #define VMXNET3_MSIX_BAR_IDX  (2)
 
 #define VMXNET3_OFF_MSIX_TABLE (0x000)
-#define VMXNET3_OFF_MSIX_PBA   (0x800)
+#define VMXNET3_OFF_MSIX_PBA(s) \
+    ((s)->compat_flags & VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS ? 0x800 : 0x1000)
 
 /* Link speed in Mbps should be shifted by 16 */
 #define VMXNET3_LINK_SPEED      (1000 << 16)
@@ -50,7 +66,7 @@
 #define VMXNET3_LINK_STATUS_UP  0x1
 
 /* Least significant bit should be set for revision and version */
-#define VMXNET3_DEVICE_VERSION    0x1
+#define VMXNET3_UPT_REVISION      0x1
 #define VMXNET3_DEVICE_REVISION   0x1
 
 /* Number of interrupt vectors for non-MSIx modes */
@@ -108,8 +124,18 @@
 
 #define VMXNET_FLAG_IS_SET(field, flag) (((field) & (flag)) == (flag))
 
+typedef struct VMXNET3Class {
+    PCIDeviceClass parent_class;
+    DeviceRealize parent_dc_realize;
+} VMXNET3Class;
+
 #define TYPE_VMXNET3 "vmxnet3"
 #define VMXNET3(obj) OBJECT_CHECK(VMXNET3State, (obj), TYPE_VMXNET3)
+
+#define VMXNET3_DEVICE_CLASS(klass) \
+    OBJECT_CLASS_CHECK(VMXNET3Class, (klass), TYPE_VMXNET3)
+#define VMXNET3_DEVICE_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(VMXNET3Class, (obj), TYPE_VMXNET3)
 
 /* Cyclic ring abstraction */
 typedef struct {
@@ -138,7 +164,7 @@ static inline void vmxnet3_ring_init(Vmxnet3Ring *ring,
 }
 
 #define VMXNET3_RING_DUMP(macro, ring_name, ridx, r)                         \
-    macro("%s#%d: base %" PRIx64 " size %lu cell_size %lu gen %d next %lu",  \
+    macro("%s#%d: base %" PRIx64 " size %zu cell_size %zu gen %d next %zu",  \
           (ring_name), (ridx),                                               \
           (r)->pa, (r)->size, (r)->cell_size, (r)->gen, (r)->next)
 
@@ -313,6 +339,9 @@ typedef struct {
         MACAddr *mcast_list;
         uint32_t mcast_list_len;
         uint32_t mcast_list_buff_size; /* needed for live migration. */
+
+        /* Compatability flags for migration */
+        uint32_t compat_flags;
 } VMXNET3State;
 
 /* Interrupt management */
@@ -925,7 +954,7 @@ static void vmxnet3_rx_need_csum_calculate(struct VmxnetRxPkt *pkt,
 
     /* Validate packet len: csum_start + scum_offset + length of csum field */
     if (pkt_len < (vhdr->csum_start + vhdr->csum_offset + 2)) {
-        VMW_PKPRN("packet len:%lu < csum_start(%d) + csum_offset(%d) + 2, "
+        VMW_PKPRN("packet len:%zu < csum_start(%d) + csum_offset(%d) + 2, "
                   "cannot calculate checksum",
                   pkt_len, vhdr->csum_start, vhdr->csum_offset);
         return;
@@ -1194,8 +1223,13 @@ static void vmxnet3_reset_mac(VMXNET3State *s)
 
 static void vmxnet3_deactivate_device(VMXNET3State *s)
 {
-    VMW_CBPRN("Deactivating vmxnet3...");
-    s->device_active = false;
+    if (s->device_active) {
+        VMW_CBPRN("Deactivating vmxnet3...");
+        vmxnet_tx_pkt_reset(s->tx_pkt);
+        vmxnet_tx_pkt_uninit(s->tx_pkt);
+        vmxnet_rx_pkt_uninit(s->rx_pkt);
+        s->device_active = false;
+    }
 }
 
 static void vmxnet3_reset(VMXNET3State *s)
@@ -1204,7 +1238,6 @@ static void vmxnet3_reset(VMXNET3State *s)
 
     vmxnet3_deactivate_device(s);
     vmxnet3_reset_interrupt_states(s);
-    vmxnet_tx_pkt_reset(s->tx_pkt);
     s->drv_shmem = 0;
     s->tx_sop = true;
     s->skip_current_tx_pkt = false;
@@ -1431,6 +1464,12 @@ static void vmxnet3_activate_device(VMXNET3State *s)
         return;
     }
 
+    /* Verify if device is active */
+    if (s->device_active) {
+        VMW_CFPRN("Vmxnet3 device is active");
+        return;
+    }
+
     vmxnet3_adjust_by_guest_type(s);
     vmxnet3_update_features(s);
     vmxnet3_update_pm_state(s);
@@ -1627,7 +1666,7 @@ static void vmxnet3_handle_command(VMXNET3State *s, uint64_t cmd)
         break;
 
     case VMXNET3_CMD_QUIESCE_DEV:
-        VMW_CBPRN("Set: VMXNET3_CMD_QUIESCE_DEV - pause the device");
+        VMW_CBPRN("Set: VMXNET3_CMD_QUIESCE_DEV - deactivate the device");
         vmxnet3_deactivate_device(s);
         break;
 
@@ -1638,6 +1677,18 @@ static void vmxnet3_handle_command(VMXNET3State *s, uint64_t cmd)
     case VMXNET3_CMD_GET_ADAPTIVE_RING_INFO:
         VMW_CBPRN("Set: VMXNET3_CMD_GET_ADAPTIVE_RING_INFO - "
                   "adaptive ring info flags");
+        break;
+
+    case VMXNET3_CMD_GET_DID_LO:
+        VMW_CBPRN("Set: Get lower part of device ID");
+        break;
+
+    case VMXNET3_CMD_GET_DID_HI:
+        VMW_CBPRN("Set: Get upper part of device ID");
+        break;
+
+    case VMXNET3_CMD_GET_DEV_EXTRA_INFO:
+        VMW_CBPRN("Set: Get device extra info");
         break;
 
     default:
@@ -1652,13 +1703,14 @@ static uint64_t vmxnet3_get_command_status(VMXNET3State *s)
 
     switch (s->last_command) {
     case VMXNET3_CMD_ACTIVATE_DEV:
-        ret = (s->device_active) ? 0 : -1;
+        ret = (s->device_active) ? 0 : 1;
         VMW_CFPRN("Device active: %" PRIx64, ret);
         break;
 
     case VMXNET3_CMD_RESET_DEV:
     case VMXNET3_CMD_QUIESCE_DEV:
     case VMXNET3_CMD_GET_QUEUE_STATUS:
+    case VMXNET3_CMD_GET_DEV_EXTRA_INFO:
         ret = 0;
         break;
 
@@ -1683,9 +1735,17 @@ static uint64_t vmxnet3_get_command_status(VMXNET3State *s)
         ret = VMXNET3_DISABLE_ADAPTIVE_RING;
         break;
 
+    case VMXNET3_CMD_GET_DID_LO:
+        ret = PCI_DEVICE_ID_VMWARE_VMXNET3;
+        break;
+
+    case VMXNET3_CMD_GET_DID_HI:
+        ret = VMXNET3_DEVICE_REVISION;
+        break;
+
     default:
         VMW_WRPRN("Received request for unknown command: %x", s->last_command);
-        ret = -1;
+        ret = 0;
         break;
     }
 
@@ -1741,7 +1801,7 @@ vmxnet3_io_bar1_write(void *opaque,
          * shared address only after we get the high part
          */
         if (val == 0) {
-            s->device_active = false;
+            vmxnet3_deactivate_device(s);
         }
         s->temp_shared_guest_driver_memory = val;
         s->drv_shmem = 0;
@@ -1816,7 +1876,7 @@ vmxnet3_io_bar1_read(void *opaque, hwaddr addr, unsigned size)
         /* UPT Version Report Selection */
         case VMXNET3_REG_UVRS:
             VMW_CBPRN("Read BAR1 [VMXNET3_REG_UVRS], size %d", size);
-            ret = VMXNET3_DEVICE_VERSION;
+            ret = VMXNET3_UPT_REVISION;
             break;
 
         /* Command */
@@ -1974,7 +2034,7 @@ vmxnet3_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         vmxnet_rx_pkt_attach_data(s->rx_pkt, buf, size, s->rx_vlan_stripping);
         bytes_indicated = vmxnet3_indicate_packet(s) ? size : -1;
         if (bytes_indicated < size) {
-            VMW_PKPRN("RX: %lu of %lu bytes indicated", bytes_indicated, size);
+            VMW_PKPRN("RX: %zu of %zu bytes indicated", bytes_indicated, size);
         }
     } else {
         VMW_PKPRN("Packet dropped by RX filter");
@@ -2021,9 +2081,7 @@ static bool vmxnet3_peer_has_vnet_hdr(VMXNET3State *s)
 static void vmxnet3_net_uninit(VMXNET3State *s)
 {
     g_free(s->mcast_list);
-    vmxnet_tx_pkt_reset(s->tx_pkt);
-    vmxnet_tx_pkt_uninit(s->tx_pkt);
-    vmxnet_rx_pkt_uninit(s->rx_pkt);
+    vmxnet3_deactivate_device(s);
     qemu_del_nic(s->nic);
 }
 
@@ -2043,7 +2101,7 @@ static void vmxnet3_net_init(VMXNET3State *s)
 
     s->link_status_and_speed = VMXNET3_LINK_SPEED | VMXNET3_LINK_STATUS_UP;
 
-    VMW_CFPRN("Permanent MAC: " MAC_FMT, MAC_ARG(s->perm_mac.a));
+    VMW_CFPRN("Permanent MAC: " VMXNET_MF, VMXNET_MA(s->perm_mac.a));
 
     s->nic = qemu_new_nic(&net_vmxnet3_info, &s->conf,
                           object_get_typename(OBJECT(s)),
@@ -2101,8 +2159,8 @@ vmxnet3_init_msix(VMXNET3State *s)
                         &s->msix_bar,
                         VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_TABLE,
                         &s->msix_bar,
-                        VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_PBA,
-                        0);
+                        VMXNET3_MSIX_BAR_IDX, VMXNET3_OFF_MSIX_PBA(s),
+                        VMXNET3_MSIX_OFFSET(s));
 
     if (0 > res) {
         VMW_WRPRN("Failed to initialize MSI-X, error %d", res);
@@ -2130,7 +2188,6 @@ vmxnet3_cleanup_msix(VMXNET3State *s)
     }
 }
 
-#define VMXNET3_MSI_OFFSET        (0x50)
 #define VMXNET3_USE_64BIT         (true)
 #define VMXNET3_PER_VECTOR_MASK   (false)
 
@@ -2140,7 +2197,7 @@ vmxnet3_init_msi(VMXNET3State *s)
     PCIDevice *d = PCI_DEVICE(s);
     int res;
 
-    res = msi_init(d, VMXNET3_MSI_OFFSET, VMXNET3_MAX_NMSIX_INTRS,
+    res = msi_init(d, VMXNET3_MSI_OFFSET(s), VMXNET3_MAX_NMSIX_INTRS,
                    VMXNET3_USE_64BIT, VMXNET3_PER_VECTOR_MASK);
     if (0 > res) {
         VMW_WRPRN("Failed to initialize MSI, error %d", res);
@@ -2197,6 +2254,22 @@ static const MemoryRegionOps b1_ops = {
     },
 };
 
+static uint8_t *vmxnet3_device_serial_num(VMXNET3State *s)
+{
+    static uint64_t dsn_payload;
+    uint8_t *dsnp = (uint8_t *)&dsn_payload;
+
+    dsnp[0] = 0xfe;
+    dsnp[1] = s->conf.macaddr.a[3];
+    dsnp[2] = s->conf.macaddr.a[4];
+    dsnp[3] = s->conf.macaddr.a[5];
+    dsnp[4] = s->conf.macaddr.a[0];
+    dsnp[5] = s->conf.macaddr.a[1];
+    dsnp[6] = s->conf.macaddr.a[2];
+    dsnp[7] = 0xff;
+    return dsnp;
+}
+
 static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
     DeviceState *dev = DEVICE(pci_dev);
@@ -2233,6 +2306,17 @@ static void vmxnet3_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 
     vmxnet3_net_init(s);
+
+    if (pci_is_express(pci_dev)) {
+        if (pci_bus_is_express(pci_dev->bus)) {
+            pcie_endpoint_cap_init(pci_dev, VMXNET3_EXP_EP_OFFSET);
+        }
+
+        pcie_add_capability(pci_dev, PCI_EXT_CAP_ID_DSN, 0x1,
+                            VMXNET3_DSN_OFFSET, PCI_EXT_CAP_DSN_SIZEOF);
+        memcpy(pci_dev->config + VMXNET3_DSN_OFFSET + 4,
+               vmxnet3_device_serial_num(s), sizeof(uint64_t));
+    }
 
     register_savevm(dev, "vmxnet3-msix", -1, 1,
                     vmxnet3_msix_save, vmxnet3_msix_load, s);
@@ -2503,6 +2587,29 @@ static const VMStateInfo int_state_info = {
     .put = vmxnet3_put_int_state
 };
 
+static bool vmxnet3_vmstate_need_pcie_device(void *opaque)
+{
+    VMXNET3State *s = VMXNET3(opaque);
+
+    return !(s->compat_flags & VMXNET3_COMPAT_FLAG_DISABLE_PCIE);
+}
+
+static bool vmxnet3_vmstate_test_pci_device(void *opaque, int version_id)
+{
+    return !vmxnet3_vmstate_need_pcie_device(opaque);
+}
+
+static const VMStateDescription vmstate_vmxnet3_pcie_device = {
+    .name = "vmxnet3/pcie",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = vmxnet3_vmstate_need_pcie_device,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCIE_DEVICE(parent_obj, VMXNET3State),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_vmxnet3 = {
     .name = "vmxnet3",
     .version_id = 1,
@@ -2510,7 +2617,9 @@ static const VMStateDescription vmstate_vmxnet3 = {
     .pre_save = vmxnet3_pre_save,
     .post_load = vmxnet3_post_load,
     .fields = (VMStateField[]) {
-            VMSTATE_PCI_DEVICE(parent_obj, VMXNET3State),
+            VMSTATE_STRUCT_TEST(parent_obj, VMXNET3State,
+                                vmxnet3_vmstate_test_pci_device, 0,
+                                vmstate_pci_device, PCIDevice),
             VMSTATE_BOOL(rx_packets_compound, VMXNET3State),
             VMSTATE_BOOL(rx_vlan_stripping, VMXNET3State),
             VMSTATE_BOOL(lro_supported, VMXNET3State),
@@ -2545,19 +2654,38 @@ static const VMStateDescription vmstate_vmxnet3 = {
     },
     .subsections = (const VMStateDescription*[]) {
         &vmxstate_vmxnet3_mcast_list,
+        &vmstate_vmxnet3_pcie_device,
         NULL
     }
 };
 
 static Property vmxnet3_properties[] = {
     DEFINE_NIC_PROPERTIES(VMXNET3State, conf),
+    DEFINE_PROP_BIT("x-old-msi-offsets", VMXNET3State, compat_flags,
+                    VMXNET3_COMPAT_FLAG_OLD_MSI_OFFSETS_BIT, false),
+    DEFINE_PROP_BIT("x-disable-pcie", VMXNET3State, compat_flags,
+                    VMXNET3_COMPAT_FLAG_DISABLE_PCIE_BIT, false),
     DEFINE_PROP_END_OF_LIST(),
 };
+
+static void vmxnet3_realize(DeviceState *qdev, Error **errp)
+{
+    VMXNET3Class *vc = VMXNET3_DEVICE_GET_CLASS(qdev);
+    PCIDevice *pci_dev = PCI_DEVICE(qdev);
+    VMXNET3State *s = VMXNET3(qdev);
+
+    if (!(s->compat_flags & VMXNET3_COMPAT_FLAG_DISABLE_PCIE)) {
+        pci_dev->cap_present |= QEMU_PCI_CAP_EXPRESS;
+    }
+
+    vc->parent_dc_realize(qdev, errp);
+}
 
 static void vmxnet3_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
+    VMXNET3Class *vc = VMXNET3_DEVICE_CLASS(class);
 
     c->realize = vmxnet3_pci_realize;
     c->exit = vmxnet3_pci_uninit;
@@ -2567,6 +2695,8 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
     c->class_id = PCI_CLASS_NETWORK_ETHERNET;
     c->subsystem_vendor_id = PCI_VENDOR_ID_VMWARE;
     c->subsystem_id = PCI_DEVICE_ID_VMWARE_VMXNET3;
+    vc->parent_dc_realize = dc->realize;
+    dc->realize = vmxnet3_realize;
     dc->desc = "VMWare Paravirtualized Ethernet v3";
     dc->reset = vmxnet3_qdev_reset;
     dc->vmsd = &vmstate_vmxnet3;
@@ -2577,6 +2707,7 @@ static void vmxnet3_class_init(ObjectClass *class, void *data)
 static const TypeInfo vmxnet3_info = {
     .name          = TYPE_VMXNET3,
     .parent        = TYPE_PCI_DEVICE,
+    .class_size    = sizeof(VMXNET3Class),
     .instance_size = sizeof(VMXNET3State),
     .class_init    = vmxnet3_class_init,
     .instance_init = vmxnet3_instance_init,
