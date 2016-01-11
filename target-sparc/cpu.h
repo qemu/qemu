@@ -539,6 +539,7 @@ int cpu_sparc_exec(CPUState *cpu);
 /* win_helper.c */
 target_ulong cpu_get_psr(CPUSPARCState *env1);
 void cpu_put_psr(CPUSPARCState *env1, target_ulong val);
+void cpu_put_psr_raw(CPUSPARCState *env1, target_ulong val);
 #ifdef TARGET_SPARC64
 target_ulong cpu_get_ccr(CPUSPARCState *env1);
 void cpu_put_ccr(CPUSPARCState *env1, target_ulong val);
