@@ -237,31 +237,34 @@ IOCTL_NUMBERS = {
 }
 
 def x86_init(flag):
-    globals().update({
-        'SC_PERF_EVT_OPEN' : 298,
-        'EXIT_REASONS' : X86_EXIT_REASONS[flag],
-    })
+    global SC_PERF_EVT_OPEN
+    global EXIT_REASONS
+
+    SC_PERF_EVT_OPEN = 298
+    EXIT_REASONS = X86_EXIT_REASONS[flag]
 
 def s390_init():
-    globals().update({
-        'SC_PERF_EVT_OPEN' : 331
-    })
+    global SC_PERF_EVT_OPEN
+
+    SC_PERF_EVT_OPEN = 331
 
 def ppc_init():
-    globals().update({
-        'SC_PERF_EVT_OPEN' : 319,
-        'IOCTL_NUMBERS' : {
-            'SET_FILTER' : 0x80002406 | (ctypes.sizeof(ctypes.c_char_p) << 16),
-            'ENABLE'     : 0x20002400,
-            'DISABLE'    : 0x20002401,
-        }
-    })
+    global SC_PERF_EVT_OPEN
+    global IOCTL_NUMBERS
+
+    SC_PERF_EVT_OPEN = 319
+
+    IOCTL_NUMBERS['ENABLE'] = 0x20002400
+    IOCTL_NUMBERS['DISABLE'] = 0x20002401
+    IOCTL_NUMBERS['SET_FILTER'] = 0x80002406 | (ctypes.sizeof(ctypes.c_char_p)
+                                                << 16)
 
 def aarch64_init():
-    globals().update({
-        'SC_PERF_EVT_OPEN' : 241,
-        'EXIT_REASONS' : AARCH64_EXIT_REASONS,
-    })
+    global SC_PERF_EVT_OPEN
+    global EXIT_REASONS
+
+    SC_PERF_EVT_OPEN = 241
+    EXIT_REASONS = AARCH64_EXIT_REASONS
 
 def detect_platform():
     if os.uname()[4].startswith('ppc'):
