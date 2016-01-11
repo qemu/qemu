@@ -100,7 +100,7 @@ static void cpu_pre_save(void *opaque)
 #ifndef TARGET_SPARC64
 #define SPARC_VMSTATE_VER 7
 #else
-#define SPARC_VMSTATE_VER 8
+#define SPARC_VMSTATE_VER 9
 #endif
 
 const VMStateDescription vmstate_sparc_cpu = {
@@ -181,6 +181,9 @@ const VMStateDescription vmstate_sparc_cpu = {
         VMSTATE_UINT64(env.hstick_cmpr, SPARCCPU),
         VMSTATE_UINT64(env.ssr, SPARCCPU),
         VMSTATE_CPU_TIMER(env.hstick, SPARCCPU),
+        /* On SPARC32 env.psrpil and env.cwp are migrated as part of the PSR */
+        VMSTATE_UINT32(env.psrpil, SPARCCPU),
+        VMSTATE_UINT32(env.cwp, SPARCCPU),
 #endif
         VMSTATE_END_OF_LIST()
     },
