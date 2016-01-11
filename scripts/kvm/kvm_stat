@@ -36,7 +36,7 @@ class DebugfsProvider(object):
             return int(file(self.base + '/' + key).read())
         return dict([(key, val(key)) for key in self._fields])
 
-vmx_exit_reasons = {
+VMX_EXIT_REASONS = {
     0: 'EXCEPTION_NMI',
     1: 'EXTERNAL_INTERRUPT',
     2: 'TRIPLE_FAULT',
@@ -78,7 +78,7 @@ vmx_exit_reasons = {
     58: 'INVPCID',
 }
 
-svm_exit_reasons = {
+SVM_EXIT_REASONS = {
     0x000: 'READ_CR0',
     0x003: 'READ_CR3',
     0x004: 'READ_CR4',
@@ -154,7 +154,7 @@ svm_exit_reasons = {
 }
 
 # EC definition of HSR (from arch/arm64/include/asm/kvm_arm.h)
-aarch64_exit_reasons = {
+AARCH64_EXIT_REASONS = {
     0x00: 'UNKNOWN',
     0x01: 'WFI',
     0x03: 'CP15_32',
@@ -193,7 +193,7 @@ aarch64_exit_reasons = {
 }
 
 # From include/uapi/linux/kvm.h, KVM_EXIT_xxx
-userspace_exit_reasons = {
+USERSPACE_EXIT_REASONS = {
      0: 'UNKNOWN',
      1: 'EXCEPTION',
      2: 'IO',
@@ -221,15 +221,15 @@ userspace_exit_reasons = {
     24: 'SYSTEM_EVENT',
 }
 
-x86_exit_reasons = {
-    'vmx': vmx_exit_reasons,
-    'svm': svm_exit_reasons,
+X86_EXIT_REASONS = {
+    'vmx': VMX_EXIT_REASONS,
+    'svm': SVM_EXIT_REASONS,
 }
 
-sc_perf_evt_open = None
-exit_reasons = None
+SC_PERF_EVT_OPEN = None
+EXIT_REASONS = None
 
-ioctl_numbers = {
+IOCTL_NUMBERS = {
     'SET_FILTER' : 0x40082406,
     'ENABLE'     : 0x00002400,
     'DISABLE'    : 0x00002401,
@@ -238,19 +238,19 @@ ioctl_numbers = {
 
 def x86_init(flag):
     globals().update({
-        'sc_perf_evt_open' : 298,
-        'exit_reasons' : x86_exit_reasons[flag],
+        'SC_PERF_EVT_OPEN' : 298,
+        'EXIT_REASONS' : X86_EXIT_REASONS[flag],
     })
 
 def s390_init():
     globals().update({
-        'sc_perf_evt_open' : 331
+        'SC_PERF_EVT_OPEN' : 331
     })
 
 def ppc_init():
     globals().update({
-        'sc_perf_evt_open' : 319,
-        'ioctl_numbers' : {
+        'SC_PERF_EVT_OPEN' : 319,
+        'IOCTL_NUMBERS' : {
             'SET_FILTER' : 0x80002406 | (ctypes.sizeof(ctypes.c_char_p) << 16),
             'ENABLE'     : 0x20002400,
             'DISABLE'    : 0x20002401,
@@ -259,8 +259,8 @@ def ppc_init():
 
 def aarch64_init():
     globals().update({
-        'sc_perf_evt_open' : 241,
-        'exit_reasons' : aarch64_exit_reasons,
+        'SC_PERF_EVT_OPEN' : 241,
+        'EXIT_REASONS' : AARCH64_EXIT_REASONS,
     })
 
 def detect_platform():
@@ -274,7 +274,7 @@ def detect_platform():
     for line in file('/proc/cpuinfo').readlines():
         if line.startswith('flags'):
             for flag in line.split():
-                if flag in x86_exit_reasons:
+                if flag in X86_EXIT_REASONS:
                     x86_init(flag)
                     return
         elif line.startswith('vendor_id'):
@@ -298,9 +298,9 @@ def invert(d):
     return dict((x[1], x[0]) for x in d.iteritems())
 
 filters = {}
-filters['kvm_userspace_exit'] = ('reason', invert(userspace_exit_reasons))
-if exit_reasons:
-    filters['kvm_exit'] = ('exit_reason', invert(exit_reasons))
+filters['kvm_userspace_exit'] = ('reason', invert(USERSPACE_EXIT_REASONS))
+if EXIT_REASONS:
+    filters['kvm_exit'] = ('exit_reason', invert(EXIT_REASONS))
 
 libc = ctypes.CDLL('libc.so.6')
 syscall = libc.syscall
@@ -321,7 +321,7 @@ class perf_event_attr(ctypes.Structure):
                 ('bp_len', ctypes.c_uint64),
                 ]
 def _perf_event_open(attr, pid, cpu, group_fd, flags):
-    return syscall(sc_perf_evt_open, ctypes.pointer(attr), ctypes.c_int(pid),
+    return syscall(SC_PERF_EVT_OPEN, ctypes.pointer(attr), ctypes.c_int(pid),
                    ctypes.c_int(cpu), ctypes.c_int(group_fd),
                    ctypes.c_long(flags))
 
@@ -391,14 +391,14 @@ class Event(object):
             err = get_errno()[0]
             raise Exception('perf_event_open failed, errno = ' + err.__str__())
         if filter:
-            fcntl.ioctl(fd, ioctl_numbers['SET_FILTER'], filter)
+            fcntl.ioctl(fd, IOCTL_NUMBERS['SET_FILTER'], filter)
         self.fd = fd
     def enable(self):
-        fcntl.ioctl(self.fd, ioctl_numbers['ENABLE'], 0)
+        fcntl.ioctl(self.fd, IOCTL_NUMBERS['ENABLE'], 0)
     def disable(self):
-        fcntl.ioctl(self.fd, ioctl_numbers['DISABLE'], 0)
+        fcntl.ioctl(self.fd, IOCTL_NUMBERS['DISABLE'], 0)
     def reset(self):
-        fcntl.ioctl(self.fd, ioctl_numbers['RESET'], 0)
+        fcntl.ioctl(self.fd, IOCTL_NUMBERS['RESET'], 0)
 
 class TracepointProvider(object):
     def __init__(self):
@@ -505,8 +505,8 @@ if not os.access('/sys/kernel/debug/kvm', os.F_OK):
     print "and ensure the kvm modules are loaded"
     sys.exit(1)
 
-label_width = 40
-number_width = 10
+LABEL_WIDTH = 40
+NUMBER_WIDTH = 10
 
 def tui(screen, stats):
     curses.use_default_colors()
@@ -524,8 +524,8 @@ def tui(screen, stats):
         screen.erase()
         screen.addstr(0, 0, 'kvm statistics')
         screen.addstr(2, 1, 'Event')
-        screen.addstr(2, 1 + label_width + number_width - len('Total'), 'Total')
-        screen.addstr(2, 1 + label_width + number_width + 8 - len('Current'), 'Current')
+        screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH - len('Total'), 'Total')
+        screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 - len('Current'), 'Current')
         row = 3
         s = stats.get()
         def sortkey(x):
@@ -541,9 +541,9 @@ def tui(screen, stats):
                 break
             col = 1
             screen.addstr(row, col, key)
-            col += label_width
+            col += LABEL_WIDTH
             screen.addstr(row, col, '%10d' % (values[0],))
-            col += number_width
+            col += NUMBER_WIDTH
             if values[1] is not None:
                 screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
             row += 1
