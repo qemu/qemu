@@ -102,6 +102,7 @@ enum VMStateFlags {
     VMS_VARRAY_UINT32    = 0x800,  /* Array with size in uint32_t field*/
     VMS_MUST_EXIST       = 0x1000, /* Field must exist in input */
     VMS_ALLOC            = 0x2000, /* Alloc a buffer on the destination */
+    VMS_MULTIPLY_ELEMENTS = 0x4000, /* multiply varray size by field->num */
 };
 
 typedef struct {
@@ -244,6 +245,16 @@ extern const VMStateInfo vmstate_info_bitmap;
     .size       = sizeof(_type),                                            \
     .flags      = VMS_ARRAY,                                                \
     .offset     = vmstate_offset_2darray(_state, _field, _type, _n1, _n2),  \
+}
+
+#define VMSTATE_VARRAY_MULTIPLY(_field, _state, _field_num, _multiply, _info, _type) { \
+    .name       = (stringify(_field)),                               \
+    .num_offset = vmstate_offset_value(_state, _field_num, uint32_t),\
+    .num        = (_multiply),                                       \
+    .info       = &(_info),                                          \
+    .size       = sizeof(_type),                                     \
+    .flags      = VMS_VARRAY_UINT32|VMS_MULTIPLY_ELEMENTS,           \
+    .offset     = offsetof(_state, _field),                          \
 }
 
 #define VMSTATE_ARRAY_TEST(_field, _state, _num, _test, _info, _type) {\

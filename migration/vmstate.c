@@ -28,6 +28,10 @@ static int vmstate_n_elems(void *opaque, VMStateField *field)
         n_elems = *(uint8_t *)(opaque+field->num_offset);
     }
 
+    if (field->flags & VMS_MULTIPLY_ELEMENTS) {
+        n_elems *= field->num;
+    }
+
     return n_elems;
 }
 
