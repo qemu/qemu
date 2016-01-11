@@ -473,12 +473,18 @@ class Stats:
                 self.values[key] = (newval, newdelta)
         return self.values
 
-if not os.access('/sys/kernel/debug', os.F_OK):
-    print 'Please enable CONFIG_DEBUG_FS in your kernel'
+if not os.path.exists('/sys/kernel/debug'):
+    sys.stderr.write('Please enable CONFIG_DEBUG_FS in your kernel.')
     sys.exit(1)
-if not os.access(PATH_DEBUGFS_KVM, os.F_OK):
-    print "Please mount debugfs ('mount -t debugfs debugfs /sys/kernel/debug')"
-    print "and ensure the kvm modules are loaded"
+if not os.path.exists(PATH_DEBUGFS_KVM):
+    sys.stderr.write("Please make sure, that debugfs is mounted and "
+                     "readable by the current user:\n"
+                     "('mount -t debugfs debugfs /sys/kernel/debug')\n"
+                     "Also ensure, that the kvm modules are loaded.\n")
+    sys.exit(1)
+if not os.path.exists(PATH_DEBUGFS_TRACING):
+    sys.stderr.write("Please make {0} readable by the current user.\n"
+                     .format(PATH_DEBUGFS_TRACING))
     sys.exit(1)
 
 LABEL_WIDTH = 40
