@@ -375,45 +375,47 @@ class Event(object):
 
 class TracepointProvider(object):
     def __init__(self):
+        self.group_leaders = []
+        self._fields = self.get_available_fields()
+        self.setup_traces()
+        self.fields = self._fields
+
+    def get_available_fields(self):
         path = os.path.join(PATH_DEBUGFS_TRACING, 'events', 'kvm')
         fields = walkdir(path)[1]
         extra = []
-        for f in fields:
-            if f in filters:
-                subfield, values = filters[f]
-                for name, number in values.iteritems():
-                    extra.append(f + '(' + name + ')')
+        for field in fields:
+            if field in filters:
+                filter_name_, filter_dicts = filters[field]
+                for name in filter_dicts:
+                    extra.append(field + '(' + name + ')')
         fields += extra
-        self._setup(fields)
-        self.fields = fields
+        return fields
 
-    def _setup(self, _fields):
-        self._fields = _fields
+    def setup_traces(self):
         cpus = get_online_cpus()
 
         # The constant is needed as a buffer for python libs, std
         # streams and other files that the script opens.
-        rlimit = len(cpus) * len(_fields) + 50
+        rlimit = len(cpus) * len(self._fields) + 50
         try:
             resource.setrlimit(resource.RLIMIT_NOFILE, (rlimit, rlimit))
         except ValueError:
             sys.exit("NOFILE rlimit could not be raised to {0}".format(rlimit))
 
-        events = []
-        self.group_leaders = []
         for cpu in cpus:
             group = Group(cpu)
-            for name in _fields:
+            for name in self._fields:
                 tracepoint = name
                 tracefilter = None
-                m = re.match(r'(.*)\((.*)\)', name)
-                if m:
-                    tracepoint, sub = m.groups()
+                match = re.match(r'(.*)\((.*)\)', name)
+                if match:
+                    tracepoint, sub = match.groups()
                     tracefilter = '%s==%d\0' % (filters[tracepoint][0],
                                                 filters[tracepoint][1][sub])
-                event = group.add_event(name, event_set='kvm',
-                                        tracepoint=tracepoint,
-                                        tracefilter=tracefilter)
+                group.add_event(name, event_set='kvm',
+                                tracepoint=tracepoint,
+                                tracefilter=tracefilter)
             self.group_leaders.append(group)
 
     @property
