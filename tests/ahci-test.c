@@ -1045,14 +1045,14 @@ static void test_dma_fragmented(void)
     ahci_command_commit(ahci, cmd, px);
     ahci_command_issue(ahci, cmd);
     ahci_command_verify(ahci, cmd);
-    g_free(cmd);
+    ahci_command_free(cmd);
 
     cmd = ahci_command_create(CMD_READ_DMA);
     ahci_command_adjust(cmd, 0, ptr, bufsize, 32);
     ahci_command_commit(ahci, cmd, px);
     ahci_command_issue(ahci, cmd);
     ahci_command_verify(ahci, cmd);
-    g_free(cmd);
+    ahci_command_free(cmd);
 
     /* Read back the guest's receive buffer into local memory */
     bufread(ptr, rx, bufsize);
