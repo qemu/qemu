@@ -395,8 +395,15 @@ class TracepointProvider(object):
     def _setup(self, _fields):
         self._fields = _fields
         cpus = self._online_cpus()
-        nfiles = len(cpus) * 1000
-        resource.setrlimit(resource.RLIMIT_NOFILE, (nfiles, nfiles))
+
+        # The constant is needed as a buffer for python libs, std
+        # streams and other files that the script opens.
+        rlimit = len(cpus) * len(_fields) + 50
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (rlimit, rlimit))
+        except ValueError:
+            sys.exit("NOFILE rlimit could not be raised to {0}".format(rlimit))
+
         events = []
         self.group_leaders = []
         for cpu in cpus:
