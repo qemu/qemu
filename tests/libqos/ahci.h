@@ -244,6 +244,10 @@
 #define AHCI_VERSION_1_3         (0x00010300)
 
 #define AHCI_SECTOR_SIZE                (512)
+#define ATAPI_SECTOR_SIZE              (2048)
+
+#define AHCI_SIGNATURE_CDROM     (0xeb140101)
+#define AHCI_SIGNATURE_DISK      (0x00000101)
 
 /* FIS types */
 enum {
@@ -277,9 +281,16 @@ enum {
     CMD_READ_MAX_EXT   = 0x27,
     CMD_FLUSH_CACHE    = 0xE7,
     CMD_IDENTIFY       = 0xEC,
+    CMD_PACKET         = 0xA0,
+    CMD_PACKET_ID      = 0xA1,
     /* NCQ */
     READ_FPDMA_QUEUED  = 0x60,
     WRITE_FPDMA_QUEUED = 0x61,
+};
+
+/* ATAPI Commands */
+enum {
+    CMD_ATAPI_READ_10 = 0x28,
 };
 
 /* AHCI Command Header Flags & Masks*/
@@ -561,6 +572,7 @@ void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
 
 /* Command Lifecycle */
 AHCICommand *ahci_command_create(uint8_t command_name);
+AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd);
 void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port);
 void ahci_command_issue(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_command_issue_async(AHCIQState *ahci, AHCICommand *cmd);
@@ -577,6 +589,8 @@ void ahci_command_set_size(AHCICommand *cmd, uint64_t xbytes);
 void ahci_command_set_prd_size(AHCICommand *cmd, unsigned prd_size);
 void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
                             unsigned prd_size);
+void ahci_command_set_acmd(AHCICommand *cmd, void *acmd);
+void ahci_command_enable_atapi_dma(AHCICommand *cmd);
 void ahci_command_adjust(AHCICommand *cmd, uint64_t lba_sect, uint64_t gbuffer,
                          uint64_t xbytes, unsigned prd_size);
 

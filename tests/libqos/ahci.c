@@ -74,7 +74,11 @@ AHCICommandProp ahci_command_properties[] = {
                                  .lba48 = true, .write = true, .ncq = true },
     { .cmd = CMD_READ_MAX,       .lba28 = true },
     { .cmd = CMD_READ_MAX_EXT,   .lba48 = true },
-    { .cmd = CMD_FLUSH_CACHE,    .data = false }
+    { .cmd = CMD_FLUSH_CACHE,    .data = false },
+    { .cmd = CMD_PACKET,         .data = true,  .size = 16,
+                                 .atapi = true, },
+    { .cmd = CMD_PACKET_ID,      .data = true,  .pio = true,
+                                 .size = 512,   .read = true }
 };
 
 struct AHCICommand {
@@ -90,7 +94,7 @@ struct AHCICommand {
     /* Data to be transferred to the guest */
     AHCICommandHeader header;
     RegH2DFIS fis;
-    void *atapi_cmd;
+    unsigned char *atapi_cmd;
 };
 
 /**
@@ -731,6 +735,13 @@ static void command_table_init(AHCICommand *cmd)
     memset(fis->aux, 0x00, ARRAY_SIZE(fis->aux));
 }
 
+void ahci_command_enable_atapi_dma(AHCICommand *cmd)
+{
+    RegH2DFIS *fis = &(cmd->fis);
+    g_assert(cmd->props->atapi);
+    fis->feature_low |= 0x01;
+}
+
 AHCICommand *ahci_command_create(uint8_t command_name)
 {
     AHCICommandProp *props = ahci_command_find(command_name);
@@ -767,8 +778,22 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     return cmd;
 }
 
+AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd)
+{
+    AHCICommand *cmd = ahci_command_create(CMD_PACKET);
+    cmd->atapi_cmd = g_malloc0(16);
+    cmd->atapi_cmd[0] = scsi_cmd;
+    /* ATAPI needs a PIO transfer chunk size set inside of the LBA registers.
+     * The block/sector size is a natural default. */
+    cmd->fis.lba_lo[1] = ATAPI_SECTOR_SIZE >> 8 & 0xFF;
+    cmd->fis.lba_lo[2] = ATAPI_SECTOR_SIZE & 0xFF;
+
+    return cmd;
+}
+
 void ahci_command_free(AHCICommand *cmd)
 {
+    g_free(cmd->atapi_cmd);
     g_free(cmd);
 }
 
@@ -782,10 +807,31 @@ void ahci_command_clr_flags(AHCICommand *cmd, uint16_t cmdh_flags)
     cmd->header.flags &= ~cmdh_flags;
 }
 
+static void ahci_atapi_command_set_offset(AHCICommand *cmd, uint64_t lba)
+{
+    unsigned char *cbd = cmd->atapi_cmd;
+    g_assert(cbd);
+
+    switch (cbd[0]) {
+    case CMD_ATAPI_READ_10:
+        g_assert_cmpuint(lba, <=, UINT32_MAX);
+        stl_be_p(&cbd[2], lba);
+        break;
+    default:
+        /* SCSI doesn't have uniform packet formats,
+         * so you have to add support for it manually. Sorry! */
+        g_assert_not_reached();
+    }
+}
+
 void ahci_command_set_offset(AHCICommand *cmd, uint64_t lba_sect)
 {
     RegH2DFIS *fis = &(cmd->fis);
-    if (cmd->props->lba28) {
+
+    if (cmd->props->atapi) {
+        ahci_atapi_command_set_offset(cmd, lba_sect);
+        return;
+    } else if (cmd->props->lba28) {
         g_assert_cmphex(lba_sect, <=, 0xFFFFFFF);
     } else if (cmd->props->lba48 || cmd->props->ncq) {
         g_assert_cmphex(lba_sect, <=, 0xFFFFFFFFFFFF);
@@ -811,6 +857,24 @@ void ahci_command_set_buffer(AHCICommand *cmd, uint64_t buffer)
     cmd->buffer = buffer;
 }
 
+static void ahci_atapi_set_size(AHCICommand *cmd, uint64_t xbytes)
+{
+    unsigned char *cbd = cmd->atapi_cmd;
+    uint64_t nsectors = xbytes / 2048;
+    g_assert(cbd);
+
+    switch (cbd[0]) {
+    case CMD_ATAPI_READ_10:
+        g_assert_cmpuint(nsectors, <=, UINT16_MAX);
+        stw_be_p(&cbd[7], nsectors);
+        break;
+    default:
+        /* SCSI doesn't have uniform packet formats,
+         * so you have to add support for it manually. Sorry! */
+        g_assert_not_reached();
+    }
+}
+
 void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
                             unsigned prd_size)
 {
@@ -829,6 +893,8 @@ void ahci_command_set_sizes(AHCICommand *cmd, uint64_t xbytes,
         NCQFIS *nfis = (NCQFIS *)&(cmd->fis);
         nfis->sector_low = sect_count & 0xFF;
         nfis->sector_hi = (sect_count >> 8) & 0xFF;
+    } else if (cmd->props->atapi) {
+        ahci_atapi_set_size(cmd, xbytes);
     } else {
         cmd->fis.count = sect_count;
     }
@@ -877,9 +943,14 @@ void ahci_command_commit(AHCIQState *ahci, AHCICommand *cmd, uint8_t port)
     g_assert((table_ptr & 0x7F) == 0x00);
     cmd->header.ctba = table_ptr;
 
-    /* Commit the command header and command FIS */
+    /* Commit the command header (part of the Command List Buffer) */
     ahci_set_command_header(ahci, port, cmd->slot, &(cmd->header));
+    /* Now, write the command table (FIS, ACMD, and PRDT) -- FIS first, */
     ahci_write_fis(ahci, cmd);
+    /* Then ATAPI CMD, if needed */
+    if (cmd->props->atapi) {
+        memwrite(table_ptr + 0x40, cmd->atapi_cmd, 16);
+    }
 
     /* Construct and write the PRDs to the command table */
     g_assert_cmphex(prdtl, ==, cmd->header.prdtl);
