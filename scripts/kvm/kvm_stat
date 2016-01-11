@@ -333,20 +333,21 @@ class Group(object):
         self.events = []
         self.group_leader = None
         self.cpu = cpu
-    def add_event(self, name, event_set, tracepoint, filter=None):
+    def add_event(self, name, event_set, tracepoint, tracefilter=None):
         self.events.append(Event(group=self,
                                  name=name, event_set=event_set,
-                                 tracepoint=tracepoint, filter=filter))
+                                 tracepoint=tracepoint,
+                                 tracefilter=tracefilter))
         if len(self.events) == 1:
             self.file = os.fdopen(self.events[0].fd)
     def read(self):
-        bytes = 8 * (1 + len(self.events))
+        length = 8 * (1 + len(self.events))
         fmt = 'xxxxxxxx' + 'q' * len(self.events)
         return dict(zip([event.name for event in self.events],
-                        struct.unpack(fmt, self.file.read(bytes))))
+                        struct.unpack(fmt, self.file.read(length))))
 
 class Event(object):
-    def __init__(self, group, name, event_set, tracepoint, filter=None):
+    def __init__(self, group, name, event_set, tracepoint, tracefilter=None):
         self.name = name
         attr = perf_event_attr()
         attr.type = PERF_TYPE_TRACEPOINT
@@ -364,8 +365,8 @@ class Event(object):
         if fd == -1:
             err = get_errno()[0]
             raise Exception('perf_event_open failed, errno = ' + err.__str__())
-        if filter:
-            fcntl.ioctl(fd, IOCTL_NUMBERS['SET_FILTER'], filter)
+        if tracefilter:
+            fcntl.ioctl(fd, IOCTL_NUMBERS['SET_FILTER'], tracefilter)
         self.fd = fd
     def enable(self):
         fcntl.ioctl(self.fd, IOCTL_NUMBERS['ENABLE'], 0)
@@ -415,15 +416,15 @@ class TracepointProvider(object):
             group = Group(cpu)
             for name in _fields:
                 tracepoint = name
-                filter = None
+                tracefilter = None
                 m = re.match(r'(.*)\((.*)\)', name)
                 if m:
                     tracepoint, sub = m.groups()
-                    filter = '%s==%d\0' % (filters[tracepoint][0],
-                                           filters[tracepoint][1][sub])
+                    tracefilter = '%s==%d\0' % (filters[tracepoint][0],
+                                                filters[tracepoint][1][sub])
                 event = group.add_event(name, event_set='kvm',
                                         tracepoint=tracepoint,
-                                        filter=filter)
+                                        tracefilter=tracefilter)
             self.group_leaders.append(group)
     def select(self, fields):
         for group in self.group_leaders:
