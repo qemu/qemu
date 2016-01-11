@@ -213,62 +213,72 @@ X86_EXIT_REASONS = {
     'svm': SVM_EXIT_REASONS,
 }
 
-SC_PERF_EVT_OPEN = None
-EXIT_REASONS = None
-
 IOCTL_NUMBERS = {
-    'SET_FILTER' : 0x40082406,
-    'ENABLE'     : 0x00002400,
-    'DISABLE'    : 0x00002401,
-    'RESET'      : 0x00002403,
+    'SET_FILTER':  0x40082406,
+    'ENABLE':      0x00002400,
+    'DISABLE':     0x00002401,
+    'RESET':       0x00002403,
 }
 
-def x86_init(flag):
-    global SC_PERF_EVT_OPEN
-    global EXIT_REASONS
+class Arch(object):
+    """Class that encapsulates global architecture specific data like
+    syscall and ioctl numbers.
 
-    SC_PERF_EVT_OPEN = 298
-    EXIT_REASONS = X86_EXIT_REASONS[flag]
+    """
+    @staticmethod
+    def get_arch():
+        machine = os.uname()[4]
 
-def s390_init():
-    global SC_PERF_EVT_OPEN
+        if machine.startswith('ppc'):
+            return ArchPPC()
+        elif machine.startswith('aarch64'):
+            return ArchA64()
+        elif machine.startswith('s390'):
+            return ArchS390()
+        else:
+            # X86_64
+            for line in open('/proc/cpuinfo'):
+                if not line.startswith('flags'):
+                    continue
 
-    SC_PERF_EVT_OPEN = 331
+                flags = line.split()
+                if 'vmx' in flags:
+                    return ArchX86(VMX_EXIT_REASONS)
+                if 'svm' in flags:
+                    return ArchX86(SVM_EXIT_REASONS)
+                return
 
-def ppc_init():
-    global SC_PERF_EVT_OPEN
-    global IOCTL_NUMBERS
+class ArchX86(Arch):
+    def __init__(self, exit_reasons):
+        self.sc_perf_evt_open = 298
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = exit_reasons
 
-    SC_PERF_EVT_OPEN = 319
+class ArchPPC(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 319
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.ioctl_numbers['ENABLE'] = 0x20002400
+        self.ioctl_numbers['DISABLE'] = 0x20002401
 
-    IOCTL_NUMBERS['ENABLE'] = 0x20002400
-    IOCTL_NUMBERS['DISABLE'] = 0x20002401
-    IOCTL_NUMBERS['SET_FILTER'] = 0x80002406 | (ctypes.sizeof(ctypes.c_char_p)
-                                                << 16)
+        # PPC comes in 32 and 64 bit and some generated ioctl
+        # numbers depend on the wordsize.
+        char_ptr_size = ctypes.sizeof(ctypes.c_char_p)
+        self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
 
-def aarch64_init():
-    global SC_PERF_EVT_OPEN
-    global EXIT_REASONS
+class ArchA64(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 241
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = AARCH64_EXIT_REASONS
 
-    SC_PERF_EVT_OPEN = 241
-    EXIT_REASONS = AARCH64_EXIT_REASONS
+class ArchS390(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 331
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = None
 
-def detect_platform():
-    machine = os.uname()[4]
-
-    if machine.startswith('ppc'):
-        ppc_init()
-    elif machine.startswith('aarch64'):
-        aarch64_init()
-    elif machine.startswith('s390'):
-        s390_init()
-    else:
-        for line in file('/proc/cpuinfo').readlines():
-            if line.startswith('flags'):
-                for flag in line.split():
-                    if flag in X86_EXIT_REASONS:
-                        x86_init(flag)
-                        return
+ARCH = Arch.get_arch()
 
 
 def walkdir(path):
@@ -304,11 +314,10 @@ def get_online_cpus():
 
 
 def get_filters():
-    detect_platform()
     filters = {}
     filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
-    if EXIT_REASONS:
-        filters['kvm_exit'] = ('exit_reason', EXIT_REASONS)
+    if ARCH.exit_reasons:
+        filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
     return filters
 
 libc = ctypes.CDLL('libc.so.6', use_errno=True)
@@ -328,9 +337,9 @@ class perf_event_attr(ctypes.Structure):
                 ('bp_len', ctypes.c_uint64),
                 ]
 def perf_event_open(attr, pid, cpu, group_fd, flags):
-    return syscall(SC_PERF_EVT_OPEN, ctypes.pointer(attr), ctypes.c_int(pid),
-                   ctypes.c_int(cpu), ctypes.c_int(group_fd),
-                   ctypes.c_long(flags))
+    return syscall(ARCH.sc_perf_evt_open, ctypes.pointer(attr),
+                   ctypes.c_int(pid), ctypes.c_int(cpu),
+                   ctypes.c_int(group_fd), ctypes.c_long(flags))
 
 PERF_TYPE_TRACEPOINT = 2
 PERF_FORMAT_GROUP = 1 << 3
@@ -388,19 +397,19 @@ class Event(object):
                           'while calling sys_perf_event_open().')
 
         if trace_filter:
-            fcntl.ioctl(fd, IOCTL_NUMBERS['SET_FILTER'],
+            fcntl.ioctl(fd, ARCH.ioctl_numbers['SET_FILTER'],
                         trace_filter)
 
         self.fd = fd
 
     def enable(self):
-        fcntl.ioctl(self.fd, IOCTL_NUMBERS['ENABLE'], 0)
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['ENABLE'], 0)
 
     def disable(self):
-        fcntl.ioctl(self.fd, IOCTL_NUMBERS['DISABLE'], 0)
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['DISABLE'], 0)
 
     def reset(self):
-        fcntl.ioctl(self.fd, IOCTL_NUMBERS['RESET'], 0)
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['RESET'], 0)
 
 class TracepointProvider(object):
     def __init__(self):
