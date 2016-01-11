@@ -467,6 +467,9 @@ class TracepointProvider(object):
                                       trace_filter=tracefilter))
             self.group_leaders.append(group)
 
+    def available_fields(self):
+        return self.get_available_fields()
+
     @property
     def fields(self):
         return self._fields
@@ -475,23 +478,30 @@ class TracepointProvider(object):
     def fields(self, fields):
         self._fields = fields
         for group in self.group_leaders:
-            for event in group.events:
+            for index, event in enumerate(group.events):
                 if event.name in fields:
                     event.reset()
                     event.enable()
                 else:
-                    event.disable()
+                    # Do not disable the group leader.
+                    # It would disable all of its events.
+                    if index != 0:
+                        event.disable()
 
     def read(self):
         ret = defaultdict(int)
         for group in self.group_leaders:
             for name, val in group.read().iteritems():
-                ret[name] += val
+                if name in self._fields:
+                    ret[name] += val
         return ret
 
 class DebugfsProvider(object):
     def __init__(self):
-        self._fields = walkdir(PATH_DEBUGFS_KVM)[2]
+        self._fields = self.get_available_fields()
+
+    def get_available_fields(self):
+        return walkdir(PATH_DEBUGFS_KVM)[2]
 
     @property
     def fields(self):
@@ -523,7 +533,8 @@ class Stats(object):
         # also clear the cache of old values.
         self.values = {}
         for provider in self.providers:
-            provider_fields = [key for key in provider.fields if wanted(key)]
+            provider_fields = [key for key in provider.get_available_fields()
+                               if wanted(key)]
             provider.fields = provider_fields
 
     @property
@@ -555,7 +566,6 @@ class Tui(object):
         self.stats = stats
         self.screen = None
         self.drilldown = False
-        self.fields_filter = self.stats.fields_filter
         self.update_drilldown()
 
     def __enter__(self):
@@ -586,11 +596,11 @@ class Tui(object):
             curses.endwin()
 
     def update_drilldown(self):
-        if not self.fields_filter:
-            if self.drilldown:
-                self.stats.fields_filter = None
-            else:
-                self.stats.fields_filter = r'^[^\(]*$'
+        if not self.stats.fields_filter:
+            self.stats.fields_filter = r'^[^\(]*$'
+
+        elif self.stats.fields_filter == r'^[^\(]*$':
+            self.stats.fields_filter = None
 
     def refresh(self, sleeptime):
         self.screen.erase()
