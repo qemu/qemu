@@ -1585,6 +1585,8 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
     size_t offset = 7;
     int read_count;
     int64_t xattr_len;
+    V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
+    VirtQueueElement *elem = &v->elems[pdu->idx];
 
     xattr_len = fidp->fs.xattr.len;
     read_count = xattr_len - off;
@@ -1601,7 +1603,8 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
         return err;
     }
     offset += err;
-    err = v9fs_pack(pdu->elem.in_sg, pdu->elem.in_num, offset,
+
+    err = v9fs_pack(elem->in_sg, elem->in_num, offset,
                     ((char *)fidp->fs.xattr.value) + off,
                     read_count);
     if (err < 0) {
@@ -3269,6 +3272,7 @@ void pdu_submit(V9fsPDU *pdu)
 /* Returns 0 on success, 1 on failure. */
 int v9fs_device_realize_common(V9fsState *s, Error **errp)
 {
+    V9fsVirtioState *v = container_of(s, V9fsVirtioState, state);
     int i, len;
     struct stat stat;
     FsDriverEntry *fse;
@@ -3279,8 +3283,9 @@ int v9fs_device_realize_common(V9fsState *s, Error **errp)
     QLIST_INIT(&s->free_list);
     QLIST_INIT(&s->active_list);
     for (i = 0; i < (MAX_REQ - 1); i++) {
-        QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
-        s->pdus[i].s = s;
+        QLIST_INSERT_HEAD(&s->free_list, &v->pdus[i], next);
+        v->pdus[i].s = s;
+        v->pdus[i].idx = i;
     }
 
     v9fs_path_init(&path);

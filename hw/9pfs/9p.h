@@ -131,9 +131,9 @@ struct V9fsPDU
     uint8_t id;
     uint8_t cancelled;
     CoQueue complete;
-    VirtQueueElement elem;
     struct V9fsState *s;
     QLIST_ENTRY(V9fsPDU) next;
+    uint32_t idx;
 };
 
 
@@ -205,16 +205,12 @@ struct V9fsFidState
 
 typedef struct V9fsState
 {
-    VirtIODevice parent_obj;
-    VirtQueue *vq;
-    V9fsPDU pdus[MAX_REQ];
     QLIST_HEAD(, V9fsPDU) free_list;
     QLIST_HEAD(, V9fsPDU) active_list;
     V9fsFidState *fid_list;
     FileOperations *ops;
     FsContext ctx;
     char *tag;
-    size_t config_size;
     enum p9_proto_version proto_version;
     int32_t msize;
     /*

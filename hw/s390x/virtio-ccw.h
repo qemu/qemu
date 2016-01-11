@@ -210,7 +210,7 @@ VirtIODevice *virtio_ccw_get_vdev(SubchDev *sch);
 
 typedef struct V9fsCCWState {
     VirtioCcwDevice parent_obj;
-    V9fsState vdev;
+    V9fsVirtioState vdev;
 } V9fsCCWState;
 
 #endif /* CONFIG_VIRTFS */
