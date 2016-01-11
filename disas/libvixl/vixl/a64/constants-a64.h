@@ -1,4 +1,4 @@
-// Copyright 2013, ARM Limited
+// Copyright 2015, ARM Limited
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,14 @@
 namespace vixl {
 
 const unsigned kNumberOfRegisters = 32;
-const unsigned kNumberOfFPRegisters = 32;
+const unsigned kNumberOfVRegisters = 32;
+const unsigned kNumberOfFPRegisters = kNumberOfVRegisters;
+// Callee saved registers are x21-x30(lr).
+const int kNumberOfCalleeSavedRegisters = 10;
+const int kFirstCalleeSavedRegisterIndex = 21;
+// Callee saved FP registers are d8-d15.
+const int kNumberOfCalleeSavedFPRegisters = 8;
+const int kFirstCalleeSavedFPRegisterIndex = 8;
 
 #define REGISTER_CODE_LIST(R)                                                  \
 R(0)  R(1)  R(2)  R(3)  R(4)  R(5)  R(6)  R(7)                                 \
@@ -100,8 +107,10 @@ V_(FPScale, 15, 10, Bits)                                                      \
 V_(ImmLS, 20, 12, SignedBits)                                                  \
 V_(ImmLSUnsigned, 21, 10, Bits)                                                \
 V_(ImmLSPair, 21, 15, SignedBits)                                              \
-V_(SizeLS, 31, 30, Bits)                                                       \
 V_(ImmShiftLS, 12, 12, Bits)                                                   \
+V_(LSOpc, 23, 22, Bits)                                                        \
+V_(LSVector, 26, 26, Bits)                                                     \
+V_(LSSize, 31, 30, Bits)                                                       \
 V_(ImmPrefetchOperation, 4, 0, Bits)                                           \
 V_(PrefetchHint, 4, 3, Bits)                                                   \
 V_(PrefetchTarget, 2, 1, Bits)                                                 \
@@ -116,9 +125,10 @@ V_(ImmHint, 11, 5, Bits)                                                       \
 V_(ImmBarrierDomain, 11, 10, Bits)                                             \
 V_(ImmBarrierType, 9, 8, Bits)                                                 \
                                                                                \
-/* System (MRS, MSR) */                                                        \
+/* System (MRS, MSR, SYS) */                                                   \
 V_(ImmSystemRegister, 19, 5, Bits)                                             \
 V_(SysO0, 19, 19, Bits)                                                        \
+V_(SysOp, 18, 5, Bits)                                                         \
 V_(SysOp1, 18, 16, Bits)                                                       \
 V_(SysOp2, 7, 5, Bits)                                                         \
 V_(CRn, 15, 12, Bits)                                                          \
@@ -130,7 +140,29 @@ V_(LdStXNotExclusive, 23, 23, Bits)                                            \
 V_(LdStXAcquireRelease, 15, 15, Bits)                                          \
 V_(LdStXSizeLog2, 31, 30, Bits)                                                \
 V_(LdStXPair, 21, 21, Bits)                                                    \
-
+                                                                               \
+/* NEON generic fields */                                                      \
+V_(NEONQ, 30, 30, Bits)                                                        \
+V_(NEONSize, 23, 22, Bits)                                                     \
+V_(NEONLSSize, 11, 10, Bits)                                                   \
+V_(NEONS, 12, 12, Bits)                                                        \
+V_(NEONL, 21, 21, Bits)                                                        \
+V_(NEONM, 20, 20, Bits)                                                        \
+V_(NEONH, 11, 11, Bits)                                                        \
+V_(ImmNEONExt, 14, 11, Bits)                                                   \
+V_(ImmNEON5, 20, 16, Bits)                                                     \
+V_(ImmNEON4, 14, 11, Bits)                                                     \
+                                                                               \
+/* NEON Modified Immediate fields */                                           \
+V_(ImmNEONabc, 18, 16, Bits)                                                   \
+V_(ImmNEONdefgh, 9, 5, Bits)                                                   \
+V_(NEONModImmOp, 29, 29, Bits)                                                 \
+V_(NEONCmode, 15, 12, Bits)                                                    \
+                                                                               \
+/* NEON Shift Immediate fields */                                              \
+V_(ImmNEONImmhImmb, 22, 16, Bits)                                              \
+V_(ImmNEONImmh, 22, 19, Bits)                                                  \
+V_(ImmNEONImmb, 18, 16, Bits)
 
 #define SYSTEM_REGISTER_FIELDS_LIST(V_, M_)                                    \
 /* NZCV */                                                                     \
@@ -140,14 +172,12 @@ V_(Z, 30, 30, Bits)                                                            \
 V_(C, 29, 29, Bits)                                                            \
 V_(V, 28, 28, Bits)                                                            \
 M_(NZCV, Flags_mask)                                                           \
-                                                                               \
 /* FPCR */                                                                     \
 V_(AHP, 26, 26, Bits)                                                          \
 V_(DN, 25, 25, Bits)                                                           \
 V_(FZ, 24, 24, Bits)                                                           \
 V_(RMode, 23, 22, Bits)                                                        \
 M_(FPCR, AHP_mask | DN_mask | FZ_mask | RMode_mask)
-
 
 // Fields offsets.
 #define DECLARE_FIELDS_OFFSETS(Name, HighBit, LowBit, X)                       \
@@ -166,22 +196,26 @@ const int ImmPCRel_mask = ImmPCRelLo_mask | ImmPCRelHi_mask;
 
 // Condition codes.
 enum Condition {
-  eq = 0,
-  ne = 1,
-  hs = 2,
-  lo = 3,
-  mi = 4,
-  pl = 5,
-  vs = 6,
-  vc = 7,
-  hi = 8,
-  ls = 9,
-  ge = 10,
-  lt = 11,
-  gt = 12,
-  le = 13,
-  al = 14,
-  nv = 15  // Behaves as always/al.
+  eq = 0,   // Z set            Equal.
+  ne = 1,   // Z clear          Not equal.
+  cs = 2,   // C set            Carry set.
+  cc = 3,   // C clear          Carry clear.
+  mi = 4,   // N set            Negative.
+  pl = 5,   // N clear          Positive or zero.
+  vs = 6,   // V set            Overflow.
+  vc = 7,   // V clear          No overflow.
+  hi = 8,   // C set, Z clear   Unsigned higher.
+  ls = 9,   // C clear or Z set Unsigned lower or same.
+  ge = 10,  // N == V           Greater or equal.
+  lt = 11,  // N != V           Less than.
+  gt = 12,  // Z clear, N == V  Greater than.
+  le = 13,  // Z set or N != V  Less then or equal
+  al = 14,  //                  Always.
+  nv = 15,  // Behaves as always/al.
+
+  // Aliases.
+  hs = cs,  // C set            Unsigned higher or same.
+  lo = cc   // C clear          Unsigned lower.
 };
 
 inline Condition InvertCondition(Condition cond) {
@@ -190,6 +224,11 @@ inline Condition InvertCondition(Condition cond) {
   VIXL_ASSERT((cond != al) && (cond != nv));
   return static_cast<Condition>(cond ^ 1);
 }
+
+enum FPTrapFlags {
+  EnableTrap   = 1,
+  DisableTrap = 0
+};
 
 enum FlagsUpdate {
   SetFlags   = 1,
@@ -228,7 +267,8 @@ enum Shift {
   LSL = 0x0,
   LSR = 0x1,
   ASR = 0x2,
-  ROR = 0x3
+  ROR = 0x3,
+  MSL = 0x4
 };
 
 enum Extend {
@@ -305,6 +345,32 @@ enum SystemRegister {
           (0x0 << SysOp2_offset)) >> ImmSystemRegister_offset
 };
 
+enum InstructionCacheOp {
+  IVAU = ((0x3 << SysOp1_offset) |
+          (0x7 << CRn_offset) |
+          (0x5 << CRm_offset) |
+          (0x1 << SysOp2_offset)) >> SysOp_offset
+};
+
+enum DataCacheOp {
+  CVAC  = ((0x3 << SysOp1_offset) |
+           (0x7 << CRn_offset) |
+           (0xa << CRm_offset) |
+           (0x1 << SysOp2_offset)) >> SysOp_offset,
+  CVAU  = ((0x3 << SysOp1_offset) |
+           (0x7 << CRn_offset) |
+           (0xb << CRm_offset) |
+           (0x1 << SysOp2_offset)) >> SysOp_offset,
+  CIVAC = ((0x3 << SysOp1_offset) |
+           (0x7 << CRn_offset) |
+           (0xe << CRm_offset) |
+           (0x1 << SysOp2_offset)) >> SysOp_offset,
+  ZVA   = ((0x3 << SysOp1_offset) |
+           (0x7 << CRn_offset) |
+           (0x4 << CRm_offset) |
+           (0x1 << SysOp2_offset)) >> SysOp_offset
+};
+
 // Instruction enumerations.
 //
 // These are the masks that define a class of instructions, and the list of
@@ -331,6 +397,47 @@ enum GenericInstrField {
   ThirtyTwoBits        = 0x00000000,
   FP32                 = 0x00000000,
   FP64                 = 0x00400000
+};
+
+enum NEONFormatField {
+  NEONFormatFieldMask   = 0x40C00000,
+  NEON_Q                = 0x40000000,
+  NEON_8B               = 0x00000000,
+  NEON_16B              = NEON_8B | NEON_Q,
+  NEON_4H               = 0x00400000,
+  NEON_8H               = NEON_4H | NEON_Q,
+  NEON_2S               = 0x00800000,
+  NEON_4S               = NEON_2S | NEON_Q,
+  NEON_1D               = 0x00C00000,
+  NEON_2D               = 0x00C00000 | NEON_Q
+};
+
+enum NEONFPFormatField {
+  NEONFPFormatFieldMask = 0x40400000,
+  NEON_FP_2S            = FP32,
+  NEON_FP_4S            = FP32 | NEON_Q,
+  NEON_FP_2D            = FP64 | NEON_Q
+};
+
+enum NEONLSFormatField {
+  NEONLSFormatFieldMask = 0x40000C00,
+  LS_NEON_8B            = 0x00000000,
+  LS_NEON_16B           = LS_NEON_8B | NEON_Q,
+  LS_NEON_4H            = 0x00000400,
+  LS_NEON_8H            = LS_NEON_4H | NEON_Q,
+  LS_NEON_2S            = 0x00000800,
+  LS_NEON_4S            = LS_NEON_2S | NEON_Q,
+  LS_NEON_1D            = 0x00000C00,
+  LS_NEON_2D            = LS_NEON_1D | NEON_Q
+};
+
+enum NEONScalarFormatField {
+  NEONScalarFormatFieldMask = 0x00C00000,
+  NEONScalar                = 0x10000000,
+  NEON_B                    = 0x00000000,
+  NEON_H                    = 0x00400000,
+  NEON_S                    = 0x00800000,
+  NEON_D                    = 0x00C00000
 };
 
 // PC relative addressing.
@@ -588,6 +695,13 @@ enum SystemHintOp {
   HINT            = SystemHintFixed | 0x00000000
 };
 
+enum SystemSysOp {
+  SystemSysFixed  = 0xD5080000,
+  SystemSysFMask  = 0xFFF80000,
+  SystemSysMask   = 0xFFF80000,
+  SYS             = SystemSysFixed | 0x00000000
+};
+
 // Exception.
 enum ExceptionOp {
   ExceptionFixed = 0xD4000000,
@@ -640,7 +754,9 @@ enum LoadStorePairAnyOp {
   V(STP, s,   0x04000000),          \
   V(LDP, s,   0x04400000),          \
   V(STP, d,   0x44000000),          \
-  V(LDP, d,   0x44400000)
+  V(LDP, d,   0x44400000),          \
+  V(STP, q,   0x84000000),          \
+  V(LDP, q,   0x84400000)
 
 // Load/store pair (post, pre and offset.)
 enum LoadStorePairOp {
@@ -686,6 +802,7 @@ enum LoadStorePairNonTemporalOp {
   LoadStorePairNonTemporalFixed = 0x28000000,
   LoadStorePairNonTemporalFMask = 0x3B800000,
   LoadStorePairNonTemporalMask  = 0xFFC00000,
+  LoadStorePairNonTemporalLBit = 1 << 22,
   STNP_w = LoadStorePairNonTemporalFixed | STP_w,
   LDNP_w = LoadStorePairNonTemporalFixed | LDP_w,
   STNP_x = LoadStorePairNonTemporalFixed | STP_x,
@@ -693,7 +810,9 @@ enum LoadStorePairNonTemporalOp {
   STNP_s = LoadStorePairNonTemporalFixed | STP_s,
   LDNP_s = LoadStorePairNonTemporalFixed | LDP_s,
   STNP_d = LoadStorePairNonTemporalFixed | STP_d,
-  LDNP_d = LoadStorePairNonTemporalFixed | LDP_d
+  LDNP_d = LoadStorePairNonTemporalFixed | LDP_d,
+  STNP_q = LoadStorePairNonTemporalFixed | STP_q,
+  LDNP_q = LoadStorePairNonTemporalFixed | LDP_q
 };
 
 // Load literal.
@@ -706,7 +825,8 @@ enum LoadLiteralOp {
   LDRSW_x_lit      = LoadLiteralFixed | 0x80000000,
   PRFM_lit         = LoadLiteralFixed | 0xC0000000,
   LDR_s_lit        = LoadLiteralFixed | 0x04000000,
-  LDR_d_lit        = LoadLiteralFixed | 0x44000000
+  LDR_d_lit        = LoadLiteralFixed | 0x44000000,
+  LDR_q_lit        = LoadLiteralFixed | 0x84000000
 };
 
 #define LOAD_STORE_OP_LIST(V)     \
@@ -723,15 +843,21 @@ enum LoadLiteralOp {
   V(LD, RSW, x, 0x80800000),  \
   V(LD, RSB, w, 0x00C00000),  \
   V(LD, RSH, w, 0x40C00000),  \
+  V(ST, R, b,   0x04000000),  \
+  V(ST, R, h,   0x44000000),  \
   V(ST, R, s,   0x84000000),  \
   V(ST, R, d,   0xC4000000),  \
+  V(ST, R, q,   0x04800000),  \
+  V(LD, R, b,   0x04400000),  \
+  V(LD, R, h,   0x44400000),  \
   V(LD, R, s,   0x84400000),  \
-  V(LD, R, d,   0xC4400000)
-
+  V(LD, R, d,   0xC4400000),  \
+  V(LD, R, q,   0x04C00000)
 
 // Load/store (post, pre, offset and unsigned.)
 enum LoadStoreOp {
-  LoadStoreOpMask = 0xC4C00000,
+  LoadStoreMask = 0xC4C00000,
+  LoadStoreVMask = 0x04000000,
   #define LOAD_STORE(A, B, C, D)  \
   A##B##_##C = D
   LOAD_STORE_OP_LIST(LOAD_STORE),
@@ -971,8 +1097,10 @@ enum FPCompareOp {
   FCMP_zero      = FCMP_s_zero,
   FCMPE_s        = FPCompareFixed | 0x00000010,
   FCMPE_d        = FPCompareFixed | FP64 | 0x00000010,
+  FCMPE          = FCMPE_s,
   FCMPE_s_zero   = FPCompareFixed | 0x00000018,
-  FCMPE_d_zero   = FPCompareFixed | FP64 | 0x00000018
+  FCMPE_d_zero   = FPCompareFixed | FP64 | 0x00000018,
+  FCMPE_zero     = FCMPE_s_zero
 };
 
 // Floating point conditional compare.
@@ -1026,6 +1154,10 @@ enum FPDataProcessing1SourceOp {
   FSQRT    = FSQRT_s,
   FCVT_ds  = FPDataProcessing1SourceFixed | 0x00028000,
   FCVT_sd  = FPDataProcessing1SourceFixed | FP64 | 0x00020000,
+  FCVT_hs  = FPDataProcessing1SourceFixed | 0x00038000,
+  FCVT_hd  = FPDataProcessing1SourceFixed | FP64 | 0x00038000,
+  FCVT_sh  = FPDataProcessing1SourceFixed | 0x00C20000,
+  FCVT_dh  = FPDataProcessing1SourceFixed | 0x00C28000,
   FRINTN_s = FPDataProcessing1SourceFixed | 0x00040000,
   FRINTN_d = FPDataProcessing1SourceFixed | FP64 | 0x00040000,
   FRINTN   = FRINTN_s,
@@ -1166,7 +1298,9 @@ enum FPIntegerConvertOp {
   FMOV_ws   = FPIntegerConvertFixed | 0x00060000,
   FMOV_sw   = FPIntegerConvertFixed | 0x00070000,
   FMOV_xd   = FMOV_ws | SixtyFourBits | FP64,
-  FMOV_dx   = FMOV_sw | SixtyFourBits | FP64
+  FMOV_dx   = FMOV_sw | SixtyFourBits | FP64,
+  FMOV_d1_x = FPIntegerConvertFixed | SixtyFourBits | 0x008F0000,
+  FMOV_x_d1 = FPIntegerConvertFixed | SixtyFourBits | 0x008E0000
 };
 
 // Conversion between fixed point and floating point.
@@ -1194,6 +1328,775 @@ enum FPFixedPointConvertOp {
   UCVTF_sx_fixed  = UCVTF_fixed | SixtyFourBits,
   UCVTF_dw_fixed  = UCVTF_fixed | FP64,
   UCVTF_dx_fixed  = UCVTF_fixed | SixtyFourBits | FP64
+};
+
+// Crypto - two register SHA.
+enum Crypto2RegSHAOp {
+  Crypto2RegSHAFixed = 0x5E280800,
+  Crypto2RegSHAFMask = 0xFF3E0C00
+};
+
+// Crypto - three register SHA.
+enum Crypto3RegSHAOp {
+  Crypto3RegSHAFixed = 0x5E000000,
+  Crypto3RegSHAFMask = 0xFF208C00
+};
+
+// Crypto - AES.
+enum CryptoAESOp {
+  CryptoAESFixed = 0x4E280800,
+  CryptoAESFMask = 0xFF3E0C00
+};
+
+// NEON instructions with two register operands.
+enum NEON2RegMiscOp {
+  NEON2RegMiscFixed = 0x0E200800,
+  NEON2RegMiscFMask = 0x9F3E0C00,
+  NEON2RegMiscMask  = 0xBF3FFC00,
+  NEON2RegMiscUBit  = 0x20000000,
+  NEON_REV64     = NEON2RegMiscFixed | 0x00000000,
+  NEON_REV32     = NEON2RegMiscFixed | 0x20000000,
+  NEON_REV16     = NEON2RegMiscFixed | 0x00001000,
+  NEON_SADDLP    = NEON2RegMiscFixed | 0x00002000,
+  NEON_UADDLP    = NEON_SADDLP | NEON2RegMiscUBit,
+  NEON_SUQADD    = NEON2RegMiscFixed | 0x00003000,
+  NEON_USQADD    = NEON_SUQADD | NEON2RegMiscUBit,
+  NEON_CLS       = NEON2RegMiscFixed | 0x00004000,
+  NEON_CLZ       = NEON2RegMiscFixed | 0x20004000,
+  NEON_CNT       = NEON2RegMiscFixed | 0x00005000,
+  NEON_RBIT_NOT  = NEON2RegMiscFixed | 0x20005000,
+  NEON_SADALP    = NEON2RegMiscFixed | 0x00006000,
+  NEON_UADALP    = NEON_SADALP | NEON2RegMiscUBit,
+  NEON_SQABS     = NEON2RegMiscFixed | 0x00007000,
+  NEON_SQNEG     = NEON2RegMiscFixed | 0x20007000,
+  NEON_CMGT_zero = NEON2RegMiscFixed | 0x00008000,
+  NEON_CMGE_zero = NEON2RegMiscFixed | 0x20008000,
+  NEON_CMEQ_zero = NEON2RegMiscFixed | 0x00009000,
+  NEON_CMLE_zero = NEON2RegMiscFixed | 0x20009000,
+  NEON_CMLT_zero = NEON2RegMiscFixed | 0x0000A000,
+  NEON_ABS       = NEON2RegMiscFixed | 0x0000B000,
+  NEON_NEG       = NEON2RegMiscFixed | 0x2000B000,
+  NEON_XTN       = NEON2RegMiscFixed | 0x00012000,
+  NEON_SQXTUN    = NEON2RegMiscFixed | 0x20012000,
+  NEON_SHLL      = NEON2RegMiscFixed | 0x20013000,
+  NEON_SQXTN     = NEON2RegMiscFixed | 0x00014000,
+  NEON_UQXTN     = NEON_SQXTN | NEON2RegMiscUBit,
+
+  NEON2RegMiscOpcode = 0x0001F000,
+  NEON_RBIT_NOT_opcode = NEON_RBIT_NOT & NEON2RegMiscOpcode,
+  NEON_NEG_opcode = NEON_NEG & NEON2RegMiscOpcode,
+  NEON_XTN_opcode = NEON_XTN & NEON2RegMiscOpcode,
+  NEON_UQXTN_opcode = NEON_UQXTN & NEON2RegMiscOpcode,
+
+  // These instructions use only one bit of the size field. The other bit is
+  // used to distinguish between instructions.
+  NEON2RegMiscFPMask = NEON2RegMiscMask | 0x00800000,
+  NEON_FABS   = NEON2RegMiscFixed | 0x0080F000,
+  NEON_FNEG   = NEON2RegMiscFixed | 0x2080F000,
+  NEON_FCVTN  = NEON2RegMiscFixed | 0x00016000,
+  NEON_FCVTXN = NEON2RegMiscFixed | 0x20016000,
+  NEON_FCVTL  = NEON2RegMiscFixed | 0x00017000,
+  NEON_FRINTN = NEON2RegMiscFixed | 0x00018000,
+  NEON_FRINTA = NEON2RegMiscFixed | 0x20018000,
+  NEON_FRINTP = NEON2RegMiscFixed | 0x00818000,
+  NEON_FRINTM = NEON2RegMiscFixed | 0x00019000,
+  NEON_FRINTX = NEON2RegMiscFixed | 0x20019000,
+  NEON_FRINTZ = NEON2RegMiscFixed | 0x00819000,
+  NEON_FRINTI = NEON2RegMiscFixed | 0x20819000,
+  NEON_FCVTNS = NEON2RegMiscFixed | 0x0001A000,
+  NEON_FCVTNU = NEON_FCVTNS | NEON2RegMiscUBit,
+  NEON_FCVTPS = NEON2RegMiscFixed | 0x0081A000,
+  NEON_FCVTPU = NEON_FCVTPS | NEON2RegMiscUBit,
+  NEON_FCVTMS = NEON2RegMiscFixed | 0x0001B000,
+  NEON_FCVTMU = NEON_FCVTMS | NEON2RegMiscUBit,
+  NEON_FCVTZS = NEON2RegMiscFixed | 0x0081B000,
+  NEON_FCVTZU = NEON_FCVTZS | NEON2RegMiscUBit,
+  NEON_FCVTAS = NEON2RegMiscFixed | 0x0001C000,
+  NEON_FCVTAU = NEON_FCVTAS | NEON2RegMiscUBit,
+  NEON_FSQRT  = NEON2RegMiscFixed | 0x2081F000,
+  NEON_SCVTF  = NEON2RegMiscFixed | 0x0001D000,
+  NEON_UCVTF  = NEON_SCVTF | NEON2RegMiscUBit,
+  NEON_URSQRTE = NEON2RegMiscFixed | 0x2081C000,
+  NEON_URECPE  = NEON2RegMiscFixed | 0x0081C000,
+  NEON_FRSQRTE = NEON2RegMiscFixed | 0x2081D000,
+  NEON_FRECPE  = NEON2RegMiscFixed | 0x0081D000,
+  NEON_FCMGT_zero = NEON2RegMiscFixed | 0x0080C000,
+  NEON_FCMGE_zero = NEON2RegMiscFixed | 0x2080C000,
+  NEON_FCMEQ_zero = NEON2RegMiscFixed | 0x0080D000,
+  NEON_FCMLE_zero = NEON2RegMiscFixed | 0x2080D000,
+  NEON_FCMLT_zero = NEON2RegMiscFixed | 0x0080E000,
+
+  NEON_FCVTL_opcode = NEON_FCVTL & NEON2RegMiscOpcode,
+  NEON_FCVTN_opcode = NEON_FCVTN & NEON2RegMiscOpcode
+};
+
+// NEON instructions with three same-type operands.
+enum NEON3SameOp {
+  NEON3SameFixed = 0x0E200400,
+  NEON3SameFMask = 0x9F200400,
+  NEON3SameMask = 0xBF20FC00,
+  NEON3SameUBit = 0x20000000,
+  NEON_ADD    = NEON3SameFixed | 0x00008000,
+  NEON_ADDP   = NEON3SameFixed | 0x0000B800,
+  NEON_SHADD  = NEON3SameFixed | 0x00000000,
+  NEON_SHSUB  = NEON3SameFixed | 0x00002000,
+  NEON_SRHADD = NEON3SameFixed | 0x00001000,
+  NEON_CMEQ   = NEON3SameFixed | NEON3SameUBit | 0x00008800,
+  NEON_CMGE   = NEON3SameFixed | 0x00003800,
+  NEON_CMGT   = NEON3SameFixed | 0x00003000,
+  NEON_CMHI   = NEON3SameFixed | NEON3SameUBit | NEON_CMGT,
+  NEON_CMHS   = NEON3SameFixed | NEON3SameUBit | NEON_CMGE,
+  NEON_CMTST  = NEON3SameFixed | 0x00008800,
+  NEON_MLA    = NEON3SameFixed | 0x00009000,
+  NEON_MLS    = NEON3SameFixed | 0x20009000,
+  NEON_MUL    = NEON3SameFixed | 0x00009800,
+  NEON_PMUL   = NEON3SameFixed | 0x20009800,
+  NEON_SRSHL  = NEON3SameFixed | 0x00005000,
+  NEON_SQSHL  = NEON3SameFixed | 0x00004800,
+  NEON_SQRSHL = NEON3SameFixed | 0x00005800,
+  NEON_SSHL   = NEON3SameFixed | 0x00004000,
+  NEON_SMAX   = NEON3SameFixed | 0x00006000,
+  NEON_SMAXP  = NEON3SameFixed | 0x0000A000,
+  NEON_SMIN   = NEON3SameFixed | 0x00006800,
+  NEON_SMINP  = NEON3SameFixed | 0x0000A800,
+  NEON_SABD   = NEON3SameFixed | 0x00007000,
+  NEON_SABA   = NEON3SameFixed | 0x00007800,
+  NEON_UABD   = NEON3SameFixed | NEON3SameUBit | NEON_SABD,
+  NEON_UABA   = NEON3SameFixed | NEON3SameUBit | NEON_SABA,
+  NEON_SQADD  = NEON3SameFixed | 0x00000800,
+  NEON_SQSUB  = NEON3SameFixed | 0x00002800,
+  NEON_SUB    = NEON3SameFixed | NEON3SameUBit | 0x00008000,
+  NEON_UHADD  = NEON3SameFixed | NEON3SameUBit | NEON_SHADD,
+  NEON_UHSUB  = NEON3SameFixed | NEON3SameUBit | NEON_SHSUB,
+  NEON_URHADD = NEON3SameFixed | NEON3SameUBit | NEON_SRHADD,
+  NEON_UMAX   = NEON3SameFixed | NEON3SameUBit | NEON_SMAX,
+  NEON_UMAXP  = NEON3SameFixed | NEON3SameUBit | NEON_SMAXP,
+  NEON_UMIN   = NEON3SameFixed | NEON3SameUBit | NEON_SMIN,
+  NEON_UMINP  = NEON3SameFixed | NEON3SameUBit | NEON_SMINP,
+  NEON_URSHL  = NEON3SameFixed | NEON3SameUBit | NEON_SRSHL,
+  NEON_UQADD  = NEON3SameFixed | NEON3SameUBit | NEON_SQADD,
+  NEON_UQRSHL = NEON3SameFixed | NEON3SameUBit | NEON_SQRSHL,
+  NEON_UQSHL  = NEON3SameFixed | NEON3SameUBit | NEON_SQSHL,
+  NEON_UQSUB  = NEON3SameFixed | NEON3SameUBit | NEON_SQSUB,
+  NEON_USHL   = NEON3SameFixed | NEON3SameUBit | NEON_SSHL,
+  NEON_SQDMULH  = NEON3SameFixed | 0x0000B000,
+  NEON_SQRDMULH = NEON3SameFixed | 0x2000B000,
+
+  // NEON floating point instructions with three same-type operands.
+  NEON3SameFPFixed = NEON3SameFixed | 0x0000C000,
+  NEON3SameFPFMask = NEON3SameFMask | 0x0000C000,
+  NEON3SameFPMask = NEON3SameMask | 0x00800000,
+  NEON_FADD    = NEON3SameFixed | 0x0000D000,
+  NEON_FSUB    = NEON3SameFixed | 0x0080D000,
+  NEON_FMUL    = NEON3SameFixed | 0x2000D800,
+  NEON_FDIV    = NEON3SameFixed | 0x2000F800,
+  NEON_FMAX    = NEON3SameFixed | 0x0000F000,
+  NEON_FMAXNM  = NEON3SameFixed | 0x0000C000,
+  NEON_FMAXP   = NEON3SameFixed | 0x2000F000,
+  NEON_FMAXNMP = NEON3SameFixed | 0x2000C000,
+  NEON_FMIN    = NEON3SameFixed | 0x0080F000,
+  NEON_FMINNM  = NEON3SameFixed | 0x0080C000,
+  NEON_FMINP   = NEON3SameFixed | 0x2080F000,
+  NEON_FMINNMP = NEON3SameFixed | 0x2080C000,
+  NEON_FMLA    = NEON3SameFixed | 0x0000C800,
+  NEON_FMLS    = NEON3SameFixed | 0x0080C800,
+  NEON_FMULX   = NEON3SameFixed | 0x0000D800,
+  NEON_FRECPS  = NEON3SameFixed | 0x0000F800,
+  NEON_FRSQRTS = NEON3SameFixed | 0x0080F800,
+  NEON_FABD    = NEON3SameFixed | 0x2080D000,
+  NEON_FADDP   = NEON3SameFixed | 0x2000D000,
+  NEON_FCMEQ   = NEON3SameFixed | 0x0000E000,
+  NEON_FCMGE   = NEON3SameFixed | 0x2000E000,
+  NEON_FCMGT   = NEON3SameFixed | 0x2080E000,
+  NEON_FACGE   = NEON3SameFixed | 0x2000E800,
+  NEON_FACGT   = NEON3SameFixed | 0x2080E800,
+
+  // NEON logical instructions with three same-type operands.
+  NEON3SameLogicalFixed = NEON3SameFixed | 0x00001800,
+  NEON3SameLogicalFMask = NEON3SameFMask | 0x0000F800,
+  NEON3SameLogicalMask = 0xBFE0FC00,
+  NEON3SameLogicalFormatMask = NEON_Q,
+  NEON_AND = NEON3SameLogicalFixed | 0x00000000,
+  NEON_ORR = NEON3SameLogicalFixed | 0x00A00000,
+  NEON_ORN = NEON3SameLogicalFixed | 0x00C00000,
+  NEON_EOR = NEON3SameLogicalFixed | 0x20000000,
+  NEON_BIC = NEON3SameLogicalFixed | 0x00400000,
+  NEON_BIF = NEON3SameLogicalFixed | 0x20C00000,
+  NEON_BIT = NEON3SameLogicalFixed | 0x20800000,
+  NEON_BSL = NEON3SameLogicalFixed | 0x20400000
+};
+
+// NEON instructions with three different-type operands.
+enum NEON3DifferentOp {
+  NEON3DifferentFixed = 0x0E200000,
+  NEON3DifferentFMask = 0x9F200C00,
+  NEON3DifferentMask  = 0xFF20FC00,
+  NEON_ADDHN    = NEON3DifferentFixed | 0x00004000,
+  NEON_ADDHN2   = NEON_ADDHN | NEON_Q,
+  NEON_PMULL    = NEON3DifferentFixed | 0x0000E000,
+  NEON_PMULL2   = NEON_PMULL | NEON_Q,
+  NEON_RADDHN   = NEON3DifferentFixed | 0x20004000,
+  NEON_RADDHN2  = NEON_RADDHN | NEON_Q,
+  NEON_RSUBHN   = NEON3DifferentFixed | 0x20006000,
+  NEON_RSUBHN2  = NEON_RSUBHN | NEON_Q,
+  NEON_SABAL    = NEON3DifferentFixed | 0x00005000,
+  NEON_SABAL2   = NEON_SABAL | NEON_Q,
+  NEON_SABDL    = NEON3DifferentFixed | 0x00007000,
+  NEON_SABDL2   = NEON_SABDL | NEON_Q,
+  NEON_SADDL    = NEON3DifferentFixed | 0x00000000,
+  NEON_SADDL2   = NEON_SADDL | NEON_Q,
+  NEON_SADDW    = NEON3DifferentFixed | 0x00001000,
+  NEON_SADDW2   = NEON_SADDW | NEON_Q,
+  NEON_SMLAL    = NEON3DifferentFixed | 0x00008000,
+  NEON_SMLAL2   = NEON_SMLAL | NEON_Q,
+  NEON_SMLSL    = NEON3DifferentFixed | 0x0000A000,
+  NEON_SMLSL2   = NEON_SMLSL | NEON_Q,
+  NEON_SMULL    = NEON3DifferentFixed | 0x0000C000,
+  NEON_SMULL2   = NEON_SMULL | NEON_Q,
+  NEON_SSUBL    = NEON3DifferentFixed | 0x00002000,
+  NEON_SSUBL2   = NEON_SSUBL | NEON_Q,
+  NEON_SSUBW    = NEON3DifferentFixed | 0x00003000,
+  NEON_SSUBW2   = NEON_SSUBW | NEON_Q,
+  NEON_SQDMLAL  = NEON3DifferentFixed | 0x00009000,
+  NEON_SQDMLAL2 = NEON_SQDMLAL | NEON_Q,
+  NEON_SQDMLSL  = NEON3DifferentFixed | 0x0000B000,
+  NEON_SQDMLSL2 = NEON_SQDMLSL | NEON_Q,
+  NEON_SQDMULL  = NEON3DifferentFixed | 0x0000D000,
+  NEON_SQDMULL2 = NEON_SQDMULL | NEON_Q,
+  NEON_SUBHN    = NEON3DifferentFixed | 0x00006000,
+  NEON_SUBHN2   = NEON_SUBHN | NEON_Q,
+  NEON_UABAL    = NEON_SABAL | NEON3SameUBit,
+  NEON_UABAL2   = NEON_UABAL | NEON_Q,
+  NEON_UABDL    = NEON_SABDL | NEON3SameUBit,
+  NEON_UABDL2   = NEON_UABDL | NEON_Q,
+  NEON_UADDL    = NEON_SADDL | NEON3SameUBit,
+  NEON_UADDL2   = NEON_UADDL | NEON_Q,
+  NEON_UADDW    = NEON_SADDW | NEON3SameUBit,
+  NEON_UADDW2   = NEON_UADDW | NEON_Q,
+  NEON_UMLAL    = NEON_SMLAL | NEON3SameUBit,
+  NEON_UMLAL2   = NEON_UMLAL | NEON_Q,
+  NEON_UMLSL    = NEON_SMLSL | NEON3SameUBit,
+  NEON_UMLSL2   = NEON_UMLSL | NEON_Q,
+  NEON_UMULL    = NEON_SMULL | NEON3SameUBit,
+  NEON_UMULL2   = NEON_UMULL | NEON_Q,
+  NEON_USUBL    = NEON_SSUBL | NEON3SameUBit,
+  NEON_USUBL2   = NEON_USUBL | NEON_Q,
+  NEON_USUBW    = NEON_SSUBW | NEON3SameUBit,
+  NEON_USUBW2   = NEON_USUBW | NEON_Q
+};
+
+// NEON instructions operating across vectors.
+enum NEONAcrossLanesOp {
+  NEONAcrossLanesFixed = 0x0E300800,
+  NEONAcrossLanesFMask = 0x9F3E0C00,
+  NEONAcrossLanesMask  = 0xBF3FFC00,
+  NEON_ADDV   = NEONAcrossLanesFixed | 0x0001B000,
+  NEON_SADDLV = NEONAcrossLanesFixed | 0x00003000,
+  NEON_UADDLV = NEONAcrossLanesFixed | 0x20003000,
+  NEON_SMAXV  = NEONAcrossLanesFixed | 0x0000A000,
+  NEON_SMINV  = NEONAcrossLanesFixed | 0x0001A000,
+  NEON_UMAXV  = NEONAcrossLanesFixed | 0x2000A000,
+  NEON_UMINV  = NEONAcrossLanesFixed | 0x2001A000,
+
+  // NEON floating point across instructions.
+  NEONAcrossLanesFPFixed = NEONAcrossLanesFixed | 0x0000C000,
+  NEONAcrossLanesFPFMask = NEONAcrossLanesFMask | 0x0000C000,
+  NEONAcrossLanesFPMask  = NEONAcrossLanesMask  | 0x00800000,
+
+  NEON_FMAXV   = NEONAcrossLanesFPFixed | 0x2000F000,
+  NEON_FMINV   = NEONAcrossLanesFPFixed | 0x2080F000,
+  NEON_FMAXNMV = NEONAcrossLanesFPFixed | 0x2000C000,
+  NEON_FMINNMV = NEONAcrossLanesFPFixed | 0x2080C000
+};
+
+// NEON instructions with indexed element operand.
+enum NEONByIndexedElementOp {
+  NEONByIndexedElementFixed = 0x0F000000,
+  NEONByIndexedElementFMask = 0x9F000400,
+  NEONByIndexedElementMask  = 0xBF00F400,
+  NEON_MUL_byelement   = NEONByIndexedElementFixed | 0x00008000,
+  NEON_MLA_byelement   = NEONByIndexedElementFixed | 0x20000000,
+  NEON_MLS_byelement   = NEONByIndexedElementFixed | 0x20004000,
+  NEON_SMULL_byelement = NEONByIndexedElementFixed | 0x0000A000,
+  NEON_SMLAL_byelement = NEONByIndexedElementFixed | 0x00002000,
+  NEON_SMLSL_byelement = NEONByIndexedElementFixed | 0x00006000,
+  NEON_UMULL_byelement = NEONByIndexedElementFixed | 0x2000A000,
+  NEON_UMLAL_byelement = NEONByIndexedElementFixed | 0x20002000,
+  NEON_UMLSL_byelement = NEONByIndexedElementFixed | 0x20006000,
+  NEON_SQDMULL_byelement = NEONByIndexedElementFixed | 0x0000B000,
+  NEON_SQDMLAL_byelement = NEONByIndexedElementFixed | 0x00003000,
+  NEON_SQDMLSL_byelement = NEONByIndexedElementFixed | 0x00007000,
+  NEON_SQDMULH_byelement  = NEONByIndexedElementFixed | 0x0000C000,
+  NEON_SQRDMULH_byelement = NEONByIndexedElementFixed | 0x0000D000,
+
+  // Floating point instructions.
+  NEONByIndexedElementFPFixed = NEONByIndexedElementFixed | 0x00800000,
+  NEONByIndexedElementFPMask = NEONByIndexedElementMask | 0x00800000,
+  NEON_FMLA_byelement  = NEONByIndexedElementFPFixed | 0x00001000,
+  NEON_FMLS_byelement  = NEONByIndexedElementFPFixed | 0x00005000,
+  NEON_FMUL_byelement  = NEONByIndexedElementFPFixed | 0x00009000,
+  NEON_FMULX_byelement = NEONByIndexedElementFPFixed | 0x20009000
+};
+
+// NEON register copy.
+enum NEONCopyOp {
+  NEONCopyFixed = 0x0E000400,
+  NEONCopyFMask = 0x9FE08400,
+  NEONCopyMask  = 0x3FE08400,
+  NEONCopyInsElementMask = NEONCopyMask | 0x40000000,
+  NEONCopyInsGeneralMask = NEONCopyMask | 0x40007800,
+  NEONCopyDupElementMask = NEONCopyMask | 0x20007800,
+  NEONCopyDupGeneralMask = NEONCopyDupElementMask,
+  NEONCopyUmovMask       = NEONCopyMask | 0x20007800,
+  NEONCopySmovMask       = NEONCopyMask | 0x20007800,
+  NEON_INS_ELEMENT       = NEONCopyFixed | 0x60000000,
+  NEON_INS_GENERAL       = NEONCopyFixed | 0x40001800,
+  NEON_DUP_ELEMENT       = NEONCopyFixed | 0x00000000,
+  NEON_DUP_GENERAL       = NEONCopyFixed | 0x00000800,
+  NEON_SMOV              = NEONCopyFixed | 0x00002800,
+  NEON_UMOV              = NEONCopyFixed | 0x00003800
+};
+
+// NEON extract.
+enum NEONExtractOp {
+  NEONExtractFixed = 0x2E000000,
+  NEONExtractFMask = 0xBF208400,
+  NEONExtractMask = 0xBFE08400,
+  NEON_EXT = NEONExtractFixed | 0x00000000
+};
+
+enum NEONLoadStoreMultiOp {
+  NEONLoadStoreMultiL    = 0x00400000,
+  NEONLoadStoreMulti1_1v = 0x00007000,
+  NEONLoadStoreMulti1_2v = 0x0000A000,
+  NEONLoadStoreMulti1_3v = 0x00006000,
+  NEONLoadStoreMulti1_4v = 0x00002000,
+  NEONLoadStoreMulti2    = 0x00008000,
+  NEONLoadStoreMulti3    = 0x00004000,
+  NEONLoadStoreMulti4    = 0x00000000
+};
+
+// NEON load/store multiple structures.
+enum NEONLoadStoreMultiStructOp {
+  NEONLoadStoreMultiStructFixed = 0x0C000000,
+  NEONLoadStoreMultiStructFMask = 0xBFBF0000,
+  NEONLoadStoreMultiStructMask  = 0xBFFFF000,
+  NEONLoadStoreMultiStructStore = NEONLoadStoreMultiStructFixed,
+  NEONLoadStoreMultiStructLoad  = NEONLoadStoreMultiStructFixed |
+                                  NEONLoadStoreMultiL,
+  NEON_LD1_1v = NEONLoadStoreMultiStructLoad | NEONLoadStoreMulti1_1v,
+  NEON_LD1_2v = NEONLoadStoreMultiStructLoad | NEONLoadStoreMulti1_2v,
+  NEON_LD1_3v = NEONLoadStoreMultiStructLoad | NEONLoadStoreMulti1_3v,
+  NEON_LD1_4v = NEONLoadStoreMultiStructLoad | NEONLoadStoreMulti1_4v,
+  NEON_LD2    = NEONLoadStoreMultiStructLoad | NEONLoadStoreMulti2,
+  NEON_LD3    = NEONLoadStoreMultiStructLoad | NEONLoadStoreMulti3,
+  NEON_LD4    = NEONLoadStoreMultiStructLoad | NEONLoadStoreMulti4,
+  NEON_ST1_1v = NEONLoadStoreMultiStructStore | NEONLoadStoreMulti1_1v,
+  NEON_ST1_2v = NEONLoadStoreMultiStructStore | NEONLoadStoreMulti1_2v,
+  NEON_ST1_3v = NEONLoadStoreMultiStructStore | NEONLoadStoreMulti1_3v,
+  NEON_ST1_4v = NEONLoadStoreMultiStructStore | NEONLoadStoreMulti1_4v,
+  NEON_ST2    = NEONLoadStoreMultiStructStore | NEONLoadStoreMulti2,
+  NEON_ST3    = NEONLoadStoreMultiStructStore | NEONLoadStoreMulti3,
+  NEON_ST4    = NEONLoadStoreMultiStructStore | NEONLoadStoreMulti4
+};
+
+// NEON load/store multiple structures with post-index addressing.
+enum NEONLoadStoreMultiStructPostIndexOp {
+  NEONLoadStoreMultiStructPostIndexFixed = 0x0C800000,
+  NEONLoadStoreMultiStructPostIndexFMask = 0xBFA00000,
+  NEONLoadStoreMultiStructPostIndexMask  = 0xBFE0F000,
+  NEONLoadStoreMultiStructPostIndex = 0x00800000,
+  NEON_LD1_1v_post = NEON_LD1_1v | NEONLoadStoreMultiStructPostIndex,
+  NEON_LD1_2v_post = NEON_LD1_2v | NEONLoadStoreMultiStructPostIndex,
+  NEON_LD1_3v_post = NEON_LD1_3v | NEONLoadStoreMultiStructPostIndex,
+  NEON_LD1_4v_post = NEON_LD1_4v | NEONLoadStoreMultiStructPostIndex,
+  NEON_LD2_post = NEON_LD2 | NEONLoadStoreMultiStructPostIndex,
+  NEON_LD3_post = NEON_LD3 | NEONLoadStoreMultiStructPostIndex,
+  NEON_LD4_post = NEON_LD4 | NEONLoadStoreMultiStructPostIndex,
+  NEON_ST1_1v_post = NEON_ST1_1v | NEONLoadStoreMultiStructPostIndex,
+  NEON_ST1_2v_post = NEON_ST1_2v | NEONLoadStoreMultiStructPostIndex,
+  NEON_ST1_3v_post = NEON_ST1_3v | NEONLoadStoreMultiStructPostIndex,
+  NEON_ST1_4v_post = NEON_ST1_4v | NEONLoadStoreMultiStructPostIndex,
+  NEON_ST2_post = NEON_ST2 | NEONLoadStoreMultiStructPostIndex,
+  NEON_ST3_post = NEON_ST3 | NEONLoadStoreMultiStructPostIndex,
+  NEON_ST4_post = NEON_ST4 | NEONLoadStoreMultiStructPostIndex
+};
+
+enum NEONLoadStoreSingleOp {
+  NEONLoadStoreSingle1        = 0x00000000,
+  NEONLoadStoreSingle2        = 0x00200000,
+  NEONLoadStoreSingle3        = 0x00002000,
+  NEONLoadStoreSingle4        = 0x00202000,
+  NEONLoadStoreSingleL        = 0x00400000,
+  NEONLoadStoreSingle_b       = 0x00000000,
+  NEONLoadStoreSingle_h       = 0x00004000,
+  NEONLoadStoreSingle_s       = 0x00008000,
+  NEONLoadStoreSingle_d       = 0x00008400,
+  NEONLoadStoreSingleAllLanes = 0x0000C000,
+  NEONLoadStoreSingleLenMask  = 0x00202000
+};
+
+// NEON load/store single structure.
+enum NEONLoadStoreSingleStructOp {
+  NEONLoadStoreSingleStructFixed = 0x0D000000,
+  NEONLoadStoreSingleStructFMask = 0xBF9F0000,
+  NEONLoadStoreSingleStructMask  = 0xBFFFE000,
+  NEONLoadStoreSingleStructStore = NEONLoadStoreSingleStructFixed,
+  NEONLoadStoreSingleStructLoad  = NEONLoadStoreSingleStructFixed |
+                                   NEONLoadStoreSingleL,
+  NEONLoadStoreSingleStructLoad1 = NEONLoadStoreSingle1 |
+                                   NEONLoadStoreSingleStructLoad,
+  NEONLoadStoreSingleStructLoad2 = NEONLoadStoreSingle2 |
+                                   NEONLoadStoreSingleStructLoad,
+  NEONLoadStoreSingleStructLoad3 = NEONLoadStoreSingle3 |
+                                   NEONLoadStoreSingleStructLoad,
+  NEONLoadStoreSingleStructLoad4 = NEONLoadStoreSingle4 |
+                                   NEONLoadStoreSingleStructLoad,
+  NEONLoadStoreSingleStructStore1 = NEONLoadStoreSingle1 |
+                                    NEONLoadStoreSingleStructFixed,
+  NEONLoadStoreSingleStructStore2 = NEONLoadStoreSingle2 |
+                                    NEONLoadStoreSingleStructFixed,
+  NEONLoadStoreSingleStructStore3 = NEONLoadStoreSingle3 |
+                                    NEONLoadStoreSingleStructFixed,
+  NEONLoadStoreSingleStructStore4 = NEONLoadStoreSingle4 |
+                                    NEONLoadStoreSingleStructFixed,
+  NEON_LD1_b = NEONLoadStoreSingleStructLoad1 | NEONLoadStoreSingle_b,
+  NEON_LD1_h = NEONLoadStoreSingleStructLoad1 | NEONLoadStoreSingle_h,
+  NEON_LD1_s = NEONLoadStoreSingleStructLoad1 | NEONLoadStoreSingle_s,
+  NEON_LD1_d = NEONLoadStoreSingleStructLoad1 | NEONLoadStoreSingle_d,
+  NEON_LD1R  = NEONLoadStoreSingleStructLoad1 | NEONLoadStoreSingleAllLanes,
+  NEON_ST1_b = NEONLoadStoreSingleStructStore1 | NEONLoadStoreSingle_b,
+  NEON_ST1_h = NEONLoadStoreSingleStructStore1 | NEONLoadStoreSingle_h,
+  NEON_ST1_s = NEONLoadStoreSingleStructStore1 | NEONLoadStoreSingle_s,
+  NEON_ST1_d = NEONLoadStoreSingleStructStore1 | NEONLoadStoreSingle_d,
+
+  NEON_LD2_b = NEONLoadStoreSingleStructLoad2 | NEONLoadStoreSingle_b,
+  NEON_LD2_h = NEONLoadStoreSingleStructLoad2 | NEONLoadStoreSingle_h,
+  NEON_LD2_s = NEONLoadStoreSingleStructLoad2 | NEONLoadStoreSingle_s,
+  NEON_LD2_d = NEONLoadStoreSingleStructLoad2 | NEONLoadStoreSingle_d,
+  NEON_LD2R  = NEONLoadStoreSingleStructLoad2 | NEONLoadStoreSingleAllLanes,
+  NEON_ST2_b = NEONLoadStoreSingleStructStore2 | NEONLoadStoreSingle_b,
+  NEON_ST2_h = NEONLoadStoreSingleStructStore2 | NEONLoadStoreSingle_h,
+  NEON_ST2_s = NEONLoadStoreSingleStructStore2 | NEONLoadStoreSingle_s,
+  NEON_ST2_d = NEONLoadStoreSingleStructStore2 | NEONLoadStoreSingle_d,
+
+  NEON_LD3_b = NEONLoadStoreSingleStructLoad3 | NEONLoadStoreSingle_b,
+  NEON_LD3_h = NEONLoadStoreSingleStructLoad3 | NEONLoadStoreSingle_h,
+  NEON_LD3_s = NEONLoadStoreSingleStructLoad3 | NEONLoadStoreSingle_s,
+  NEON_LD3_d = NEONLoadStoreSingleStructLoad3 | NEONLoadStoreSingle_d,
+  NEON_LD3R  = NEONLoadStoreSingleStructLoad3 | NEONLoadStoreSingleAllLanes,
+  NEON_ST3_b = NEONLoadStoreSingleStructStore3 | NEONLoadStoreSingle_b,
+  NEON_ST3_h = NEONLoadStoreSingleStructStore3 | NEONLoadStoreSingle_h,
+  NEON_ST3_s = NEONLoadStoreSingleStructStore3 | NEONLoadStoreSingle_s,
+  NEON_ST3_d = NEONLoadStoreSingleStructStore3 | NEONLoadStoreSingle_d,
+
+  NEON_LD4_b = NEONLoadStoreSingleStructLoad4 | NEONLoadStoreSingle_b,
+  NEON_LD4_h = NEONLoadStoreSingleStructLoad4 | NEONLoadStoreSingle_h,
+  NEON_LD4_s = NEONLoadStoreSingleStructLoad4 | NEONLoadStoreSingle_s,
+  NEON_LD4_d = NEONLoadStoreSingleStructLoad4 | NEONLoadStoreSingle_d,
+  NEON_LD4R  = NEONLoadStoreSingleStructLoad4 | NEONLoadStoreSingleAllLanes,
+  NEON_ST4_b = NEONLoadStoreSingleStructStore4 | NEONLoadStoreSingle_b,
+  NEON_ST4_h = NEONLoadStoreSingleStructStore4 | NEONLoadStoreSingle_h,
+  NEON_ST4_s = NEONLoadStoreSingleStructStore4 | NEONLoadStoreSingle_s,
+  NEON_ST4_d = NEONLoadStoreSingleStructStore4 | NEONLoadStoreSingle_d
+};
+
+// NEON load/store single structure with post-index addressing.
+enum NEONLoadStoreSingleStructPostIndexOp {
+  NEONLoadStoreSingleStructPostIndexFixed = 0x0D800000,
+  NEONLoadStoreSingleStructPostIndexFMask = 0xBF800000,
+  NEONLoadStoreSingleStructPostIndexMask  = 0xBFE0E000,
+  NEONLoadStoreSingleStructPostIndex = 0x00800000,
+  NEON_LD1_b_post = NEON_LD1_b | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD1_h_post = NEON_LD1_h | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD1_s_post = NEON_LD1_s | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD1_d_post = NEON_LD1_d | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD1R_post  = NEON_LD1R | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST1_b_post = NEON_ST1_b | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST1_h_post = NEON_ST1_h | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST1_s_post = NEON_ST1_s | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST1_d_post = NEON_ST1_d | NEONLoadStoreSingleStructPostIndex,
+
+  NEON_LD2_b_post = NEON_LD2_b | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD2_h_post = NEON_LD2_h | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD2_s_post = NEON_LD2_s | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD2_d_post = NEON_LD2_d | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD2R_post  = NEON_LD2R | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST2_b_post = NEON_ST2_b | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST2_h_post = NEON_ST2_h | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST2_s_post = NEON_ST2_s | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST2_d_post = NEON_ST2_d | NEONLoadStoreSingleStructPostIndex,
+
+  NEON_LD3_b_post = NEON_LD3_b | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD3_h_post = NEON_LD3_h | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD3_s_post = NEON_LD3_s | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD3_d_post = NEON_LD3_d | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD3R_post  = NEON_LD3R | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST3_b_post = NEON_ST3_b | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST3_h_post = NEON_ST3_h | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST3_s_post = NEON_ST3_s | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST3_d_post = NEON_ST3_d | NEONLoadStoreSingleStructPostIndex,
+
+  NEON_LD4_b_post = NEON_LD4_b | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD4_h_post = NEON_LD4_h | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD4_s_post = NEON_LD4_s | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD4_d_post = NEON_LD4_d | NEONLoadStoreSingleStructPostIndex,
+  NEON_LD4R_post  = NEON_LD4R | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST4_b_post = NEON_ST4_b | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST4_h_post = NEON_ST4_h | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST4_s_post = NEON_ST4_s | NEONLoadStoreSingleStructPostIndex,
+  NEON_ST4_d_post = NEON_ST4_d | NEONLoadStoreSingleStructPostIndex
+};
+
+// NEON modified immediate.
+enum NEONModifiedImmediateOp {
+  NEONModifiedImmediateFixed = 0x0F000400,
+  NEONModifiedImmediateFMask = 0x9FF80400,
+  NEONModifiedImmediateOpBit = 0x20000000,
+  NEONModifiedImmediate_MOVI = NEONModifiedImmediateFixed | 0x00000000,
+  NEONModifiedImmediate_MVNI = NEONModifiedImmediateFixed | 0x20000000,
+  NEONModifiedImmediate_ORR  = NEONModifiedImmediateFixed | 0x00001000,
+  NEONModifiedImmediate_BIC  = NEONModifiedImmediateFixed | 0x20001000
+};
+
+// NEON shift immediate.
+enum NEONShiftImmediateOp {
+  NEONShiftImmediateFixed = 0x0F000400,
+  NEONShiftImmediateFMask = 0x9F800400,
+  NEONShiftImmediateMask  = 0xBF80FC00,
+  NEONShiftImmediateUBit  = 0x20000000,
+  NEON_SHL      = NEONShiftImmediateFixed | 0x00005000,
+  NEON_SSHLL    = NEONShiftImmediateFixed | 0x0000A000,
+  NEON_USHLL    = NEONShiftImmediateFixed | 0x2000A000,
+  NEON_SLI      = NEONShiftImmediateFixed | 0x20005000,
+  NEON_SRI      = NEONShiftImmediateFixed | 0x20004000,
+  NEON_SHRN     = NEONShiftImmediateFixed | 0x00008000,
+  NEON_RSHRN    = NEONShiftImmediateFixed | 0x00008800,
+  NEON_UQSHRN   = NEONShiftImmediateFixed | 0x20009000,
+  NEON_UQRSHRN  = NEONShiftImmediateFixed | 0x20009800,
+  NEON_SQSHRN   = NEONShiftImmediateFixed | 0x00009000,
+  NEON_SQRSHRN  = NEONShiftImmediateFixed | 0x00009800,
+  NEON_SQSHRUN  = NEONShiftImmediateFixed | 0x20008000,
+  NEON_SQRSHRUN = NEONShiftImmediateFixed | 0x20008800,
+  NEON_SSHR     = NEONShiftImmediateFixed | 0x00000000,
+  NEON_SRSHR    = NEONShiftImmediateFixed | 0x00002000,
+  NEON_USHR     = NEONShiftImmediateFixed | 0x20000000,
+  NEON_URSHR    = NEONShiftImmediateFixed | 0x20002000,
+  NEON_SSRA     = NEONShiftImmediateFixed | 0x00001000,
+  NEON_SRSRA    = NEONShiftImmediateFixed | 0x00003000,
+  NEON_USRA     = NEONShiftImmediateFixed | 0x20001000,
+  NEON_URSRA    = NEONShiftImmediateFixed | 0x20003000,
+  NEON_SQSHLU   = NEONShiftImmediateFixed | 0x20006000,
+  NEON_SCVTF_imm = NEONShiftImmediateFixed | 0x0000E000,
+  NEON_UCVTF_imm = NEONShiftImmediateFixed | 0x2000E000,
+  NEON_FCVTZS_imm = NEONShiftImmediateFixed | 0x0000F800,
+  NEON_FCVTZU_imm = NEONShiftImmediateFixed | 0x2000F800,
+  NEON_SQSHL_imm = NEONShiftImmediateFixed | 0x00007000,
+  NEON_UQSHL_imm = NEONShiftImmediateFixed | 0x20007000
+};
+
+// NEON table.
+enum NEONTableOp {
+  NEONTableFixed = 0x0E000000,
+  NEONTableFMask = 0xBF208C00,
+  NEONTableExt   = 0x00001000,
+  NEONTableMask  = 0xBF20FC00,
+  NEON_TBL_1v    = NEONTableFixed | 0x00000000,
+  NEON_TBL_2v    = NEONTableFixed | 0x00002000,
+  NEON_TBL_3v    = NEONTableFixed | 0x00004000,
+  NEON_TBL_4v    = NEONTableFixed | 0x00006000,
+  NEON_TBX_1v    = NEON_TBL_1v | NEONTableExt,
+  NEON_TBX_2v    = NEON_TBL_2v | NEONTableExt,
+  NEON_TBX_3v    = NEON_TBL_3v | NEONTableExt,
+  NEON_TBX_4v    = NEON_TBL_4v | NEONTableExt
+};
+
+// NEON perm.
+enum NEONPermOp {
+  NEONPermFixed = 0x0E000800,
+  NEONPermFMask = 0xBF208C00,
+  NEONPermMask  = 0x3F20FC00,
+  NEON_UZP1 = NEONPermFixed | 0x00001000,
+  NEON_TRN1 = NEONPermFixed | 0x00002000,
+  NEON_ZIP1 = NEONPermFixed | 0x00003000,
+  NEON_UZP2 = NEONPermFixed | 0x00005000,
+  NEON_TRN2 = NEONPermFixed | 0x00006000,
+  NEON_ZIP2 = NEONPermFixed | 0x00007000
+};
+
+// NEON scalar instructions with two register operands.
+enum NEONScalar2RegMiscOp {
+  NEONScalar2RegMiscFixed = 0x5E200800,
+  NEONScalar2RegMiscFMask = 0xDF3E0C00,
+  NEONScalar2RegMiscMask = NEON_Q | NEONScalar | NEON2RegMiscMask,
+  NEON_CMGT_zero_scalar = NEON_Q | NEONScalar | NEON_CMGT_zero,
+  NEON_CMEQ_zero_scalar = NEON_Q | NEONScalar | NEON_CMEQ_zero,
+  NEON_CMLT_zero_scalar = NEON_Q | NEONScalar | NEON_CMLT_zero,
+  NEON_CMGE_zero_scalar = NEON_Q | NEONScalar | NEON_CMGE_zero,
+  NEON_CMLE_zero_scalar = NEON_Q | NEONScalar | NEON_CMLE_zero,
+  NEON_ABS_scalar       = NEON_Q | NEONScalar | NEON_ABS,
+  NEON_SQABS_scalar     = NEON_Q | NEONScalar | NEON_SQABS,
+  NEON_NEG_scalar       = NEON_Q | NEONScalar | NEON_NEG,
+  NEON_SQNEG_scalar     = NEON_Q | NEONScalar | NEON_SQNEG,
+  NEON_SQXTN_scalar     = NEON_Q | NEONScalar | NEON_SQXTN,
+  NEON_UQXTN_scalar     = NEON_Q | NEONScalar | NEON_UQXTN,
+  NEON_SQXTUN_scalar    = NEON_Q | NEONScalar | NEON_SQXTUN,
+  NEON_SUQADD_scalar    = NEON_Q | NEONScalar | NEON_SUQADD,
+  NEON_USQADD_scalar    = NEON_Q | NEONScalar | NEON_USQADD,
+
+  NEONScalar2RegMiscOpcode = NEON2RegMiscOpcode,
+  NEON_NEG_scalar_opcode = NEON_NEG_scalar & NEONScalar2RegMiscOpcode,
+
+  NEONScalar2RegMiscFPMask  = NEONScalar2RegMiscMask | 0x00800000,
+  NEON_FRSQRTE_scalar    = NEON_Q | NEONScalar | NEON_FRSQRTE,
+  NEON_FRECPE_scalar     = NEON_Q | NEONScalar | NEON_FRECPE,
+  NEON_SCVTF_scalar      = NEON_Q | NEONScalar | NEON_SCVTF,
+  NEON_UCVTF_scalar      = NEON_Q | NEONScalar | NEON_UCVTF,
+  NEON_FCMGT_zero_scalar = NEON_Q | NEONScalar | NEON_FCMGT_zero,
+  NEON_FCMEQ_zero_scalar = NEON_Q | NEONScalar | NEON_FCMEQ_zero,
+  NEON_FCMLT_zero_scalar = NEON_Q | NEONScalar | NEON_FCMLT_zero,
+  NEON_FCMGE_zero_scalar = NEON_Q | NEONScalar | NEON_FCMGE_zero,
+  NEON_FCMLE_zero_scalar = NEON_Q | NEONScalar | NEON_FCMLE_zero,
+  NEON_FRECPX_scalar     = NEONScalar2RegMiscFixed | 0x0081F000,
+  NEON_FCVTNS_scalar     = NEON_Q | NEONScalar | NEON_FCVTNS,
+  NEON_FCVTNU_scalar     = NEON_Q | NEONScalar | NEON_FCVTNU,
+  NEON_FCVTPS_scalar     = NEON_Q | NEONScalar | NEON_FCVTPS,
+  NEON_FCVTPU_scalar     = NEON_Q | NEONScalar | NEON_FCVTPU,
+  NEON_FCVTMS_scalar     = NEON_Q | NEONScalar | NEON_FCVTMS,
+  NEON_FCVTMU_scalar     = NEON_Q | NEONScalar | NEON_FCVTMU,
+  NEON_FCVTZS_scalar     = NEON_Q | NEONScalar | NEON_FCVTZS,
+  NEON_FCVTZU_scalar     = NEON_Q | NEONScalar | NEON_FCVTZU,
+  NEON_FCVTAS_scalar     = NEON_Q | NEONScalar | NEON_FCVTAS,
+  NEON_FCVTAU_scalar     = NEON_Q | NEONScalar | NEON_FCVTAU,
+  NEON_FCVTXN_scalar     = NEON_Q | NEONScalar | NEON_FCVTXN
+};
+
+// NEON scalar instructions with three same-type operands.
+enum NEONScalar3SameOp {
+  NEONScalar3SameFixed = 0x5E200400,
+  NEONScalar3SameFMask = 0xDF200400,
+  NEONScalar3SameMask  = 0xFF20FC00,
+  NEON_ADD_scalar    = NEON_Q | NEONScalar | NEON_ADD,
+  NEON_CMEQ_scalar   = NEON_Q | NEONScalar | NEON_CMEQ,
+  NEON_CMGE_scalar   = NEON_Q | NEONScalar | NEON_CMGE,
+  NEON_CMGT_scalar   = NEON_Q | NEONScalar | NEON_CMGT,
+  NEON_CMHI_scalar   = NEON_Q | NEONScalar | NEON_CMHI,
+  NEON_CMHS_scalar   = NEON_Q | NEONScalar | NEON_CMHS,
+  NEON_CMTST_scalar  = NEON_Q | NEONScalar | NEON_CMTST,
+  NEON_SUB_scalar    = NEON_Q | NEONScalar | NEON_SUB,
+  NEON_UQADD_scalar  = NEON_Q | NEONScalar | NEON_UQADD,
+  NEON_SQADD_scalar  = NEON_Q | NEONScalar | NEON_SQADD,
+  NEON_UQSUB_scalar  = NEON_Q | NEONScalar | NEON_UQSUB,
+  NEON_SQSUB_scalar  = NEON_Q | NEONScalar | NEON_SQSUB,
+  NEON_USHL_scalar   = NEON_Q | NEONScalar | NEON_USHL,
+  NEON_SSHL_scalar   = NEON_Q | NEONScalar | NEON_SSHL,
+  NEON_UQSHL_scalar  = NEON_Q | NEONScalar | NEON_UQSHL,
+  NEON_SQSHL_scalar  = NEON_Q | NEONScalar | NEON_SQSHL,
+  NEON_URSHL_scalar  = NEON_Q | NEONScalar | NEON_URSHL,
+  NEON_SRSHL_scalar  = NEON_Q | NEONScalar | NEON_SRSHL,
+  NEON_UQRSHL_scalar = NEON_Q | NEONScalar | NEON_UQRSHL,
+  NEON_SQRSHL_scalar = NEON_Q | NEONScalar | NEON_SQRSHL,
+  NEON_SQDMULH_scalar = NEON_Q | NEONScalar | NEON_SQDMULH,
+  NEON_SQRDMULH_scalar = NEON_Q | NEONScalar | NEON_SQRDMULH,
+
+  // NEON floating point scalar instructions with three same-type operands.
+  NEONScalar3SameFPFixed = NEONScalar3SameFixed | 0x0000C000,
+  NEONScalar3SameFPFMask = NEONScalar3SameFMask | 0x0000C000,
+  NEONScalar3SameFPMask  = NEONScalar3SameMask | 0x00800000,
+  NEON_FACGE_scalar   = NEON_Q | NEONScalar | NEON_FACGE,
+  NEON_FACGT_scalar   = NEON_Q | NEONScalar | NEON_FACGT,
+  NEON_FCMEQ_scalar   = NEON_Q | NEONScalar | NEON_FCMEQ,
+  NEON_FCMGE_scalar   = NEON_Q | NEONScalar | NEON_FCMGE,
+  NEON_FCMGT_scalar   = NEON_Q | NEONScalar | NEON_FCMGT,
+  NEON_FMULX_scalar   = NEON_Q | NEONScalar | NEON_FMULX,
+  NEON_FRECPS_scalar  = NEON_Q | NEONScalar | NEON_FRECPS,
+  NEON_FRSQRTS_scalar = NEON_Q | NEONScalar | NEON_FRSQRTS,
+  NEON_FABD_scalar    = NEON_Q | NEONScalar | NEON_FABD
+};
+
+// NEON scalar instructions with three different-type operands.
+enum NEONScalar3DiffOp {
+  NEONScalar3DiffFixed = 0x5E200000,
+  NEONScalar3DiffFMask = 0xDF200C00,
+  NEONScalar3DiffMask  = NEON_Q | NEONScalar | NEON3DifferentMask,
+  NEON_SQDMLAL_scalar  = NEON_Q | NEONScalar | NEON_SQDMLAL,
+  NEON_SQDMLSL_scalar  = NEON_Q | NEONScalar | NEON_SQDMLSL,
+  NEON_SQDMULL_scalar  = NEON_Q | NEONScalar | NEON_SQDMULL
+};
+
+// NEON scalar instructions with indexed element operand.
+enum NEONScalarByIndexedElementOp {
+  NEONScalarByIndexedElementFixed = 0x5F000000,
+  NEONScalarByIndexedElementFMask = 0xDF000400,
+  NEONScalarByIndexedElementMask  = 0xFF00F400,
+  NEON_SQDMLAL_byelement_scalar  = NEON_Q | NEONScalar | NEON_SQDMLAL_byelement,
+  NEON_SQDMLSL_byelement_scalar  = NEON_Q | NEONScalar | NEON_SQDMLSL_byelement,
+  NEON_SQDMULL_byelement_scalar  = NEON_Q | NEONScalar | NEON_SQDMULL_byelement,
+  NEON_SQDMULH_byelement_scalar  = NEON_Q | NEONScalar | NEON_SQDMULH_byelement,
+  NEON_SQRDMULH_byelement_scalar
+    = NEON_Q | NEONScalar | NEON_SQRDMULH_byelement,
+
+  // Floating point instructions.
+  NEONScalarByIndexedElementFPFixed
+    = NEONScalarByIndexedElementFixed | 0x00800000,
+  NEONScalarByIndexedElementFPMask
+    = NEONScalarByIndexedElementMask | 0x00800000,
+  NEON_FMLA_byelement_scalar  = NEON_Q | NEONScalar | NEON_FMLA_byelement,
+  NEON_FMLS_byelement_scalar  = NEON_Q | NEONScalar | NEON_FMLS_byelement,
+  NEON_FMUL_byelement_scalar  = NEON_Q | NEONScalar | NEON_FMUL_byelement,
+  NEON_FMULX_byelement_scalar = NEON_Q | NEONScalar | NEON_FMULX_byelement
+};
+
+// NEON scalar register copy.
+enum NEONScalarCopyOp {
+  NEONScalarCopyFixed = 0x5E000400,
+  NEONScalarCopyFMask = 0xDFE08400,
+  NEONScalarCopyMask  = 0xFFE0FC00,
+  NEON_DUP_ELEMENT_scalar = NEON_Q | NEONScalar | NEON_DUP_ELEMENT
+};
+
+// NEON scalar pairwise instructions.
+enum NEONScalarPairwiseOp {
+  NEONScalarPairwiseFixed = 0x5E300800,
+  NEONScalarPairwiseFMask = 0xDF3E0C00,
+  NEONScalarPairwiseMask  = 0xFFB1F800,
+  NEON_ADDP_scalar    = NEONScalarPairwiseFixed | 0x0081B000,
+  NEON_FMAXNMP_scalar = NEONScalarPairwiseFixed | 0x2000C000,
+  NEON_FMINNMP_scalar = NEONScalarPairwiseFixed | 0x2080C000,
+  NEON_FADDP_scalar   = NEONScalarPairwiseFixed | 0x2000D000,
+  NEON_FMAXP_scalar   = NEONScalarPairwiseFixed | 0x2000F000,
+  NEON_FMINP_scalar   = NEONScalarPairwiseFixed | 0x2080F000
+};
+
+// NEON scalar shift immediate.
+enum NEONScalarShiftImmediateOp {
+  NEONScalarShiftImmediateFixed = 0x5F000400,
+  NEONScalarShiftImmediateFMask = 0xDF800400,
+  NEONScalarShiftImmediateMask  = 0xFF80FC00,
+  NEON_SHL_scalar  = NEON_Q | NEONScalar | NEON_SHL,
+  NEON_SLI_scalar  = NEON_Q | NEONScalar | NEON_SLI,
+  NEON_SRI_scalar  = NEON_Q | NEONScalar | NEON_SRI,
+  NEON_SSHR_scalar = NEON_Q | NEONScalar | NEON_SSHR,
+  NEON_USHR_scalar = NEON_Q | NEONScalar | NEON_USHR,
+  NEON_SRSHR_scalar = NEON_Q | NEONScalar | NEON_SRSHR,
+  NEON_URSHR_scalar = NEON_Q | NEONScalar | NEON_URSHR,
+  NEON_SSRA_scalar = NEON_Q | NEONScalar | NEON_SSRA,
+  NEON_USRA_scalar = NEON_Q | NEONScalar | NEON_USRA,
+  NEON_SRSRA_scalar = NEON_Q | NEONScalar | NEON_SRSRA,
+  NEON_URSRA_scalar = NEON_Q | NEONScalar | NEON_URSRA,
+  NEON_UQSHRN_scalar = NEON_Q | NEONScalar | NEON_UQSHRN,
+  NEON_UQRSHRN_scalar = NEON_Q | NEONScalar | NEON_UQRSHRN,
+  NEON_SQSHRN_scalar = NEON_Q | NEONScalar | NEON_SQSHRN,
+  NEON_SQRSHRN_scalar = NEON_Q | NEONScalar | NEON_SQRSHRN,
+  NEON_SQSHRUN_scalar = NEON_Q | NEONScalar | NEON_SQSHRUN,
+  NEON_SQRSHRUN_scalar = NEON_Q | NEONScalar | NEON_SQRSHRUN,
+  NEON_SQSHLU_scalar = NEON_Q | NEONScalar | NEON_SQSHLU,
+  NEON_SQSHL_imm_scalar  = NEON_Q | NEONScalar | NEON_SQSHL_imm,
+  NEON_UQSHL_imm_scalar  = NEON_Q | NEONScalar | NEON_UQSHL_imm,
+  NEON_SCVTF_imm_scalar = NEON_Q | NEONScalar | NEON_SCVTF_imm,
+  NEON_UCVTF_imm_scalar = NEON_Q | NEONScalar | NEON_UCVTF_imm,
+  NEON_FCVTZS_imm_scalar = NEON_Q | NEONScalar | NEON_FCVTZS_imm,
+  NEON_FCVTZU_imm_scalar = NEON_Q | NEONScalar | NEON_FCVTZU_imm
 };
 
 // Unimplemented and unallocated instructions. These are defined to make fixed

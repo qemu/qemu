@@ -1,4 +1,4 @@
-// Copyright 2013, ARM Limited
+// Copyright 2014, ARM Limited
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -29,13 +29,13 @@
 
 #include <list>
 
-#include "globals.h"
-#include "a64/instructions-a64.h"
+#include "vixl/globals.h"
+#include "vixl/a64/instructions-a64.h"
 
 
 // List macro containing all visitors needed by the decoder class.
 
-#define VISITOR_LIST(V)             \
+#define VISITOR_LIST_THAT_RETURN(V) \
   V(PCRelAddressing)                \
   V(AddSubImmediate)                \
   V(LogicalImmediate)               \
@@ -79,8 +79,39 @@
   V(FPDataProcessing3Source)        \
   V(FPIntegerConvert)               \
   V(FPFixedPointConvert)            \
-  V(Unallocated)                    \
-  V(Unimplemented)
+  V(Crypto2RegSHA)                  \
+  V(Crypto3RegSHA)                  \
+  V(CryptoAES)                      \
+  V(NEON2RegMisc)                   \
+  V(NEON3Different)                 \
+  V(NEON3Same)                      \
+  V(NEONAcrossLanes)                \
+  V(NEONByIndexedElement)           \
+  V(NEONCopy)                       \
+  V(NEONExtract)                    \
+  V(NEONLoadStoreMultiStruct)       \
+  V(NEONLoadStoreMultiStructPostIndex)  \
+  V(NEONLoadStoreSingleStruct)      \
+  V(NEONLoadStoreSingleStructPostIndex) \
+  V(NEONModifiedImmediate)          \
+  V(NEONScalar2RegMisc)             \
+  V(NEONScalar3Diff)                \
+  V(NEONScalar3Same)                \
+  V(NEONScalarByIndexedElement)     \
+  V(NEONScalarCopy)                 \
+  V(NEONScalarPairwise)             \
+  V(NEONScalarShiftImmediate)       \
+  V(NEONShiftImmediate)             \
+  V(NEONTable)                      \
+  V(NEONPerm)                       \
+
+#define VISITOR_LIST_THAT_DONT_RETURN(V)  \
+  V(Unallocated)                          \
+  V(Unimplemented)                        \
+
+#define VISITOR_LIST(V)             \
+  VISITOR_LIST_THAT_RETURN(V)       \
+  VISITOR_LIST_THAT_DONT_RETURN(V)  \
 
 namespace vixl {
 
@@ -222,12 +253,17 @@ class Decoder {
   // Decode the Advanced SIMD (NEON) load/store part of the instruction tree,
   // and call the corresponding visitors.
   // On entry, instruction bits 29:25 = 0x6.
-  void DecodeAdvSIMDLoadStore(const Instruction* instr);
+  void DecodeNEONLoadStore(const Instruction* instr);
 
-  // Decode the Advanced SIMD (NEON) data processing part of the instruction
-  // tree, and call the corresponding visitors.
-  // On entry, instruction bits 27:25 = 0x7.
-  void DecodeAdvSIMDDataProcessing(const Instruction* instr);
+  // Decode the Advanced SIMD (NEON) vector data processing part of the
+  // instruction tree, and call the corresponding visitors.
+  // On entry, instruction bits 28:25 = 0x7.
+  void DecodeNEONVectorDataProcessing(const Instruction* instr);
+
+  // Decode the Advanced SIMD (NEON) scalar data processing part of the
+  // instruction tree, and call the corresponding visitors.
+  // On entry, instruction bits 28:25 = 0xF.
+  void DecodeNEONScalarDataProcessing(const Instruction* instr);
 
  private:
   // Visitors are registered in a list.

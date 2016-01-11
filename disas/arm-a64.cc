@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "a64/disasm-a64.h"
+#include "vixl/a64/disasm-a64.h"
 
 extern "C" {
 #include "disas/bfd.h"
