@@ -341,20 +341,20 @@ PATH_DEBUGFS_KVM = '/sys/kernel/debug/kvm'
 class Group(object):
     def __init__(self, cpu):
         self.events = []
-        self.group_leader = None
         self.cpu = cpu
+
     def add_event(self, name, event_set, tracepoint, tracefilter=None):
         self.events.append(Event(group=self,
                                  name=name, event_set=event_set,
                                  tracepoint=tracepoint,
                                  tracefilter=tracefilter))
-        if len(self.events) == 1:
-            self.file = os.fdopen(self.events[0].fd)
+
     def read(self):
         length = 8 * (1 + len(self.events))
-        fmt = 'xxxxxxxx' + 'q' * len(self.events)
+        read_format = 'xxxxxxxx' + 'q' * len(self.events)
         return dict(zip([event.name for event in self.events],
-                        struct.unpack(fmt, self.file.read(length))))
+                        struct.unpack(read_format,
+                                      os.read(self.events[0].fd, length))))
 
 class Event(object):
     def __init__(self, group, name, event_set, tracepoint, tracefilter=None):
