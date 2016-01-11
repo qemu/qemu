@@ -1135,6 +1135,8 @@ static void set_watchdog_timer(IPMIBmcSim *ibs,
             rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
             return;
         }
+        break;
+
     default:
         /* We don't support PRE_SMI */
         rsp[2] = IPMI_CC_INVALID_DATA_FIELD;
