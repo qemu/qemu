@@ -333,10 +333,10 @@ class Group(object):
         self.events = []
         self.group_leader = None
         self.cpu = cpu
-    def add_event(self, name, event_set, tracepoint, filter = None):
-        self.events.append(Event(group = self,
-                                 name = name, event_set = event_set,
-                                 tracepoint = tracepoint, filter = filter))
+    def add_event(self, name, event_set, tracepoint, filter=None):
+        self.events.append(Event(group=self,
+                                 name=name, event_set=event_set,
+                                 tracepoint=tracepoint, filter=filter))
         if len(self.events) == 1:
             self.file = os.fdopen(self.events[0].fd)
     def read(self):
@@ -346,7 +346,7 @@ class Group(object):
                         struct.unpack(fmt, self.file.read(bytes))))
 
 class Event(object):
-    def __init__(self, group, name, event_set, tracepoint, filter = None):
+    def __init__(self, group, name, event_set, tracepoint, filter=None):
         self.name = name
         attr = perf_event_attr()
         attr.type = PERF_TYPE_TRACEPOINT
@@ -421,9 +421,9 @@ class TracepointProvider(object):
                     tracepoint, sub = m.groups()
                     filter = '%s==%d\0' % (filters[tracepoint][0],
                                            filters[tracepoint][1][sub])
-                event = group.add_event(name, event_set = 'kvm',
-                                        tracepoint = tracepoint,
-                                        filter = filter)
+                event = group.add_event(name, event_set='kvm',
+                                        tracepoint=tracepoint,
+                                        filter=filter)
             self.group_leaders.append(group)
     def select(self, fields):
         for group in self.group_leaders:
@@ -441,7 +441,7 @@ class TracepointProvider(object):
         return ret
 
 class Stats:
-    def __init__(self, providers, fields = None):
+    def __init__(self, providers, fields=None):
         self.providers = providers
         self.fields_filter = fields
         self._update()
@@ -499,7 +499,7 @@ def tui(screen, stats):
                 return (-s[x][1], -s[x][0])
             else:
                 return (0, -s[x][0])
-        for key in sorted(s.keys(), key = sortkey):
+        for key in sorted(s.keys(), key=sortkey):
             if row >= screen.getmaxyx()[0]:
                 break
             values = s[key]
@@ -563,34 +563,34 @@ def log(stats):
 def get_options():
     optparser = optparse.OptionParser()
     optparser.add_option('-1', '--once', '--batch',
-                         action = 'store_true',
-                         default = False,
-                         dest = 'once',
-                         help = 'run in batch mode for one second',
+                         action='store_true',
+                         default=False,
+                         dest='once',
+                         help='run in batch mode for one second',
                          )
     optparser.add_option('-l', '--log',
-                         action = 'store_true',
-                         default = False,
-                         dest = 'log',
-                         help = 'run in logging mode (like vmstat)',
+                         action='store_true',
+                         default=False,
+                         dest='log',
+                         help='run in logging mode (like vmstat)',
                          )
     optparser.add_option('-t', '--tracepoints',
-                         action = 'store_true',
-                         default = False,
-                         dest = 'tracepoints',
-                         help = 'retrieve statistics from tracepoints',
+                         action='store_true',
+                         default=False,
+                         dest='tracepoints',
+                         help='retrieve statistics from tracepoints',
                          )
     optparser.add_option('-d', '--debugfs',
-                         action = 'store_true',
-                         default = False,
-                         dest = 'debugfs',
-                         help = 'retrieve statistics from debugfs',
+                         action='store_true',
+                         default=False,
+                         dest='debugfs',
+                         help='retrieve statistics from debugfs',
                          )
     optparser.add_option('-f', '--fields',
-                         action = 'store',
-                         default = None,
-                         dest = 'fields',
-                         help = 'fields to display (regex)',
+                         action='store',
+                         default=None,
+                         dest='fields',
+                         help='fields to display (regex)',
                          )
     (options, _) = optparser.parse_args(sys.argv)
     return options
@@ -629,7 +629,7 @@ def main():
     detect_platform()
     options = get_options()
     providers = get_providers(options)
-    stats = Stats(providers, fields = options.fields)
+    stats = Stats(providers, fields=options.fields)
 
     if options.log:
         log(stats)
