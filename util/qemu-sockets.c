@@ -36,39 +36,6 @@
 # define AI_V4MAPPED 0
 #endif
 
-/* used temporarily until all users are converted to QemuOpts */
-static QemuOptsList socket_optslist = {
-    .name = "socket",
-    .head = QTAILQ_HEAD_INITIALIZER(socket_optslist.head),
-    .desc = {
-        {
-            .name = "path",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "host",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "port",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "localaddr",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "localport",
-            .type = QEMU_OPT_STRING,
-        },{
-            .name = "to",
-            .type = QEMU_OPT_NUMBER,
-        },{
-            .name = "ipv4",
-            .type = QEMU_OPT_BOOL,
-        },{
-            .name = "ipv6",
-            .type = QEMU_OPT_BOOL,
-        },
-        { /* end if list */ }
-    },
-};
 
 static int inet_getport(struct addrinfo *e)
 {
@@ -479,21 +446,29 @@ static int inet_connect_saddr(InetSocketAddress *saddr, Error **errp,
     return sock;
 }
 
-static int inet_dgram_opts(QemuOpts *opts, Error **errp)
+static int inet_dgram_saddr(InetSocketAddress *sraddr,
+                            InetSocketAddress *sladdr,
+                            Error **errp)
 {
     struct addrinfo ai, *peer = NULL, *local = NULL;
     const char *addr;
     const char *port;
     int sock = -1, rc;
+    Error *err = NULL;
 
     /* lookup peer addr */
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
-    ai.ai_family = PF_UNSPEC;
+    ai.ai_family = inet_ai_family_from_address(sraddr, &err);
     ai.ai_socktype = SOCK_DGRAM;
 
-    addr = qemu_opt_get(opts, "host");
-    port = qemu_opt_get(opts, "port");
+    if (err) {
+        error_propagate(errp, err);
+        return -1;
+    }
+
+    addr = sraddr->host;
+    port = sraddr->port;
     if (addr == NULL || strlen(addr) == 0) {
         addr = "localhost";
     }
@@ -501,11 +476,6 @@ static int inet_dgram_opts(QemuOpts *opts, Error **errp)
         error_setg(errp, "remote port not specified");
         return -1;
     }
-
-    if (qemu_opt_get_bool(opts, "ipv4", 0))
-        ai.ai_family = PF_INET;
-    if (qemu_opt_get_bool(opts, "ipv6", 0))
-        ai.ai_family = PF_INET6;
 
     if (0 != (rc = getaddrinfo(addr, port, &ai, &peer))) {
         error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
@@ -519,13 +489,19 @@ static int inet_dgram_opts(QemuOpts *opts, Error **errp)
     ai.ai_family = peer->ai_family;
     ai.ai_socktype = SOCK_DGRAM;
 
-    addr = qemu_opt_get(opts, "localaddr");
-    port = qemu_opt_get(opts, "localport");
-    if (addr == NULL || strlen(addr) == 0) {
+    if (sladdr) {
+        addr = sladdr->host;
+        port = sladdr->port;
+        if (addr == NULL || strlen(addr) == 0) {
+            addr = NULL;
+        }
+        if (!port || strlen(port) == 0) {
+            port = "0";
+        }
+    } else {
         addr = NULL;
-    }
-    if (!port || strlen(port) == 0)
         port = "0";
+    }
 
     if (0 != (rc = getaddrinfo(addr, port, &ai, &local))) {
         error_setg(errp, "address resolution failed for %s:%s: %s", addr, port,
@@ -632,25 +608,6 @@ InetSocketAddress *inet_parse(const char *str, Error **errp)
 fail:
     qapi_free_InetSocketAddress(addr);
     return NULL;
-}
-
-static void inet_addr_to_opts(QemuOpts *opts, const InetSocketAddress *addr)
-{
-    bool ipv4 = addr->has_ipv4 && addr->ipv4;
-    bool ipv6 = addr->has_ipv6 && addr->ipv6;
-
-    if (ipv4 || ipv6) {
-        qemu_opt_set_bool(opts, "ipv4", ipv4, &error_abort);
-        qemu_opt_set_bool(opts, "ipv6", ipv6, &error_abort);
-    } else if (addr->has_ipv4 || addr->has_ipv6) {
-        qemu_opt_set_bool(opts, "ipv4", !addr->has_ipv4, &error_abort);
-        qemu_opt_set_bool(opts, "ipv6", !addr->has_ipv6, &error_abort);
-    }
-    if (addr->has_to) {
-        qemu_opt_set_number(opts, "to", addr->to, &error_abort);
-    }
-    qemu_opt_set(opts, "host", addr->host, &error_abort);
-    qemu_opt_set(opts, "port", addr->port, &error_abort);
 }
 
 int inet_listen(const char *str, char *ostr, int olen,
@@ -1028,25 +985,17 @@ int socket_listen(SocketAddress *addr, Error **errp)
 
 int socket_dgram(SocketAddress *remote, SocketAddress *local, Error **errp)
 {
-    QemuOpts *opts;
     int fd;
 
-    opts = qemu_opts_create(&socket_optslist, NULL, 0, &error_abort);
     switch (remote->type) {
     case SOCKET_ADDRESS_KIND_INET:
-        inet_addr_to_opts(opts, remote->u.inet);
-        if (local) {
-            qemu_opt_set(opts, "localaddr", local->u.inet->host, &error_abort);
-            qemu_opt_set(opts, "localport", local->u.inet->port, &error_abort);
-        }
-        fd = inet_dgram_opts(opts, errp);
+        fd = inet_dgram_saddr(remote->u.inet, local ? local->u.inet : NULL, errp);
         break;
 
     default:
         error_setg(errp, "socket type unsupported for datagram");
         fd = -1;
     }
-    qemu_opts_del(opts);
     return fd;
 }
 
