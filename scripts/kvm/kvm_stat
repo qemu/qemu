@@ -331,6 +331,13 @@ class perf_event_attr(ctypes.Structure):
                 ('bp_addr', ctypes.c_uint64),
                 ('bp_len', ctypes.c_uint64),
                 ]
+
+    def __init__(self):
+        super(self.__class__, self).__init__()
+        self.type = PERF_TYPE_TRACEPOINT
+        self.size = ctypes.sizeof(self)
+        self.read_format = PERF_FORMAT_GROUP
+
 def perf_event_open(attr, pid, cpu, group_fd, flags):
     return syscall(ARCH.sc_perf_evt_open, ctypes.pointer(attr),
                    ctypes.c_int(pid), ctypes.c_int(cpu),
@@ -369,11 +376,7 @@ class Event(object):
                                trace_point, 'id')
 
         event_attr = perf_event_attr()
-        event_attr.type = PERF_TYPE_TRACEPOINT
-        event_attr.size = ctypes.sizeof(event_attr)
         event_attr.config = int(open(id_path).read())
-        event_attr.sample_period = 1
-        event_attr.read_format = PERF_FORMAT_GROUP
         return event_attr
 
     def setup_event(self, group, trace_cpu, trace_point, trace_filter,
