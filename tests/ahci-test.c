@@ -215,6 +215,7 @@ static AHCIQState *ahci_boot_and_enable(const char *cli, ...)
     va_list ap;
     uint16_t buff[256];
     uint8_t port;
+    uint8_t hello;
 
     if (cli) {
         va_start(ap, cli);
@@ -229,7 +230,12 @@ static AHCIQState *ahci_boot_and_enable(const char *cli, ...)
     /* Initialize test device */
     port = ahci_port_select(ahci);
     ahci_port_clear(ahci, port);
-    ahci_io(ahci, port, CMD_IDENTIFY, &buff, sizeof(buff), 0);
+    if (is_atapi(ahci, port)) {
+        hello = CMD_PACKET_ID;
+    } else {
+        hello = CMD_IDENTIFY;
+    }
+    ahci_io(ahci, port, hello, &buff, sizeof(buff), 0);
 
     return ahci;
 }

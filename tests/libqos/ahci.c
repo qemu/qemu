@@ -114,6 +114,11 @@ void ahci_free(AHCIQState *ahci, uint64_t addr)
     qfree(ahci->parent, addr);
 }
 
+bool is_atapi(AHCIQState *ahci, uint8_t port)
+{
+    return ahci_px_rreg(ahci, port, AHCI_PX_SIG) == AHCI_SIGNATURE_CDROM;
+}
+
 /**
  * Locate, verify, and return a handle to the AHCI device.
  */

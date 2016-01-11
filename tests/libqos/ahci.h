@@ -596,5 +596,6 @@ void ahci_command_adjust(AHCICommand *cmd, uint64_t lba_sect, uint64_t gbuffer,
 
 /* Command Misc */
 uint8_t ahci_command_slot(AHCICommand *cmd);
+bool is_atapi(AHCIQState *ahci, uint8_t port);
 
 #endif
