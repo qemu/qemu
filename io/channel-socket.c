@@ -502,7 +502,7 @@ static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
 
     if (nfds) {
         if (nfds > SOCKET_MAX_FDS) {
-            error_setg_errno(errp, -EINVAL,
+            error_setg_errno(errp, EINVAL,
                              "Only %d FDs can be sent, got %zu",
                              SOCKET_MAX_FDS, nfds);
             return -1;
