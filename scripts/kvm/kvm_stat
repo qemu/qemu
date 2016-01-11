@@ -23,18 +23,6 @@ import struct
 import re
 from collections import defaultdict
 
-class DebugfsProvider(object):
-    def __init__(self):
-        self._fields = walkdir(PATH_DEBUGFS_KVM)[2]
-    def fields(self):
-        return self._fields
-    def select(self, fields):
-        self._fields = fields
-    def read(self):
-        def val(key):
-            return int(file(PATH_DEBUGFS_KVM + '/' + key).read())
-        return dict([(key, val(key)) for key in self._fields])
-
 VMX_EXIT_REASONS = {
     'EXCEPTION_NMI':        0,
     'EXTERNAL_INTERRUPT':   1,
@@ -440,6 +428,18 @@ class TracepointProvider(object):
             for name, val in group.read().iteritems():
                 ret[name] += val
         return ret
+
+class DebugfsProvider(object):
+    def __init__(self):
+        self._fields = walkdir(PATH_DEBUGFS_KVM)[2]
+    def fields(self):
+        return self._fields
+    def select(self, fields):
+        self._fields = fields
+    def read(self):
+        def val(key):
+            return int(file(PATH_DEBUGFS_KVM + '/' + key).read())
+        return dict([(key, val(key)) for key in self._fields])
 
 class Stats:
     def __init__(self, providers, fields=None):
