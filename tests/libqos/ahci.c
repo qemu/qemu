@@ -601,6 +601,82 @@ inline unsigned size_to_prdtl(unsigned bytes, unsigned bytes_per_prd)
     return (bytes + bytes_per_prd - 1) / bytes_per_prd;
 }
 
+const AHCIOpts default_opts = { .size = 0 };
+
+/**
+ * ahci_exec: execute a given command on a specific
+ * AHCI port.
+ *
+ * @ahci: The device to send the command to
+ * @port: The port number of the SATA device we wish
+ *        to have execute this command
+ * @op:   The S/ATA command to execute, or if opts.atapi
+ *        is true, the SCSI command code.
+ * @opts: Optional arguments to modify execution behavior.
+ */
+void ahci_exec(AHCIQState *ahci, uint8_t port,
+               uint8_t op, const AHCIOpts *opts_in)
+{
+    AHCICommand *cmd;
+    int rc;
+    AHCIOpts *opts;
+
+    opts = g_memdup((opts_in == NULL ? &default_opts : opts_in),
+                    sizeof(AHCIOpts));
+
+    /* No guest buffer provided, create one. */
+    if (opts->size && !opts->buffer) {
+        opts->buffer = ahci_alloc(ahci, opts->size);
+        g_assert(opts->buffer);
+        qmemset(opts->buffer, 0x00, opts->size);
+    }
+
+    /* Command creation */
+    if (opts->atapi) {
+        cmd = ahci_atapi_command_create(op);
+        if (opts->atapi_dma) {
+            ahci_command_enable_atapi_dma(cmd);
+        }
+    } else {
+        cmd = ahci_command_create(op);
+    }
+    ahci_command_adjust(cmd, opts->lba, opts->buffer,
+                        opts->size, opts->prd_size);
+
+    if (opts->pre_cb) {
+        rc = opts->pre_cb(ahci, cmd, opts);
+        g_assert_cmpint(rc, ==, 0);
+    }
+
+    /* Write command to memory and issue it */
+    ahci_command_commit(ahci, cmd, port);
+    ahci_command_issue_async(ahci, cmd);
+    if (opts->error) {
+        qmp_eventwait("STOP");
+    }
+    if (opts->mid_cb) {
+        rc = opts->mid_cb(ahci, cmd, opts);
+        g_assert_cmpint(rc, ==, 0);
+    }
+    if (opts->error) {
+        qmp_async("{'execute':'cont' }");
+        qmp_eventwait("RESUME");
+    }
+
+    /* Wait for command to complete and verify sanity */
+    ahci_command_wait(ahci, cmd);
+    ahci_command_verify(ahci, cmd);
+    if (opts->post_cb) {
+        rc = opts->post_cb(ahci, cmd, opts);
+        g_assert_cmpint(rc, ==, 0);
+    }
+    ahci_command_free(cmd);
+    if (opts->buffer != opts_in->buffer) {
+        ahci_free(ahci, opts->buffer);
+    }
+    g_free(opts);
+}
+
 /* Issue a command, expecting it to fail and STOP the VM */
 AHCICommand *ahci_guest_io_halt(AHCIQState *ahci, uint8_t port,
                                 uint8_t ide_cmd, uint64_t buffer,

@@ -462,6 +462,21 @@ typedef struct PRD {
 /* Opaque, defined within ahci.c */
 typedef struct AHCICommand AHCICommand;
 
+/* Options to ahci_exec */
+typedef struct AHCIOpts {
+    size_t size;
+    unsigned prd_size;
+    uint64_t lba;
+    uint64_t buffer;
+    bool atapi;
+    bool atapi_dma;
+    bool error;
+    int (*pre_cb)(AHCIQState*, AHCICommand*, const struct AHCIOpts *);
+    int (*mid_cb)(AHCIQState*, AHCICommand*, const struct AHCIOpts *);
+    int (*post_cb)(AHCIQState*, AHCICommand*, const struct AHCIOpts *);
+    void *opaque;
+} AHCIOpts;
+
 /*** Macro Utilities ***/
 #define BITANY(data, mask) (((data) & (mask)) != 0)
 #define BITSET(data, mask) (((data) & (mask)) == (mask))
@@ -569,6 +584,8 @@ AHCICommand *ahci_guest_io_halt(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
 void ahci_guest_io_resume(AHCIQState *ahci, AHCICommand *cmd);
 void ahci_io(AHCIQState *ahci, uint8_t port, uint8_t ide_cmd,
              void *buffer, size_t bufsize, uint64_t sector);
+void ahci_exec(AHCIQState *ahci, uint8_t port,
+               uint8_t op, const AHCIOpts *opts);
 
 /* Command Lifecycle */
 AHCICommand *ahci_command_create(uint8_t command_name);
