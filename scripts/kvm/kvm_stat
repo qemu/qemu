@@ -539,63 +539,97 @@ class Stats(object):
 LABEL_WIDTH = 40
 NUMBER_WIDTH = 10
 
-def tui(screen, stats):
-    curses.use_default_colors()
-    curses.noecho()
-    drilldown = False
-    fields_filter = stats.fields_filter
-    def update_drilldown():
-        if not fields_filter:
-            if drilldown:
-                stats.fields_filter = None
+class Tui(object):
+    def __init__(self, stats):
+        self.stats = stats
+        self.screen = None
+        self.drilldown = False
+        self.fields_filter = self.stats.fields_filter
+        self.update_drilldown()
+
+    def __enter__(self):
+        """Initialises curses for later use.  Based on curses.wrapper
+           implementation from the Python standard library."""
+        self.screen = curses.initscr()
+        curses.noecho()
+        curses.cbreak()
+
+        # The try/catch works around a minor bit of
+        # over-conscientiousness in the curses module, the error
+        # return from C start_color() is ignorable.
+        try:
+            curses.start_color()
+        except:
+            pass
+
+        curses.use_default_colors()
+        return self
+
+    def __exit__(self, *exception):
+        """Resets the terminal to its normal state.  Based on curses.wrappre
+           implementation from the Python standard library."""
+        if self.screen:
+            self.screen.keypad(0)
+            curses.echo()
+            curses.nocbreak()
+            curses.endwin()
+
+    def update_drilldown(self):
+        if not self.fields_filter:
+            if self.drilldown:
+                self.stats.fields_filter = None
             else:
-                stats.fields_filter = r'^[^\(]*$'
-    update_drilldown()
-    def refresh(sleeptime):
-        screen.erase()
-        screen.addstr(0, 0, 'kvm statistics')
-        screen.addstr(2, 1, 'Event')
-        screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH - len('Total'), 'Total')
-        screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 - len('Current'), 'Current')
+                self.stats.fields_filter = r'^[^\(]*$'
+
+    def refresh(self, sleeptime):
+        self.screen.erase()
+        self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+        self.screen.addstr(2, 1, 'Event')
+        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
+                           len('Total'), 'Total')
+        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 -
+                           len('Current'), 'Current')
         row = 3
-        s = stats.get()
+        stats = self.stats.get()
         def sortkey(x):
-            if s[x][1]:
-                return (-s[x][1], -s[x][0])
+            if stats[x][1]:
+                return (-stats[x][1], -stats[x][0])
             else:
-                return (0, -s[x][0])
-        for key in sorted(s.keys(), key=sortkey):
-            if row >= screen.getmaxyx()[0]:
+                return (0, -stats[x][0])
+        for key in sorted(stats.keys(), key=sortkey):
+
+            if row >= self.screen.getmaxyx()[0]:
                 break
-            values = s[key]
+            values = stats[key]
             if not values[0] and not values[1]:
                 break
             col = 1
-            screen.addstr(row, col, key)
+            self.screen.addstr(row, col, key)
             col += LABEL_WIDTH
-            screen.addstr(row, col, '%10d' % (values[0],))
+            self.screen.addstr(row, col, '%10d' % (values[0],))
             col += NUMBER_WIDTH
             if values[1] is not None:
-                screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
+                self.screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
             row += 1
-        screen.refresh()
+        self.screen.refresh()
 
-    sleeptime = 0.25
-    while True:
-        refresh(sleeptime)
-        curses.halfdelay(int(sleeptime * 10))
-        sleeptime = 3
-        try:
-            c = screen.getkey()
-            if c == 'x':
-                drilldown = not drilldown
-                update_drilldown()
-            if c == 'q':
+    def show_stats(self):
+        sleeptime = 0.25
+        while True:
+            self.refresh(sleeptime)
+            curses.halfdelay(int(sleeptime * 10))
+            sleeptime = 3
+            try:
+                char = self.screen.getkey()
+                if char == 'x':
+                    self.drilldown = not self.drilldown
+                    self.update_drilldown()
+                if char == 'q':
+                    break
+            except KeyboardInterrupt:
                 break
-        except KeyboardInterrupt:
-            break
-        except curses.error:
-            continue
+            except curses.error:
+                continue
 
 def batch(stats):
     s = stats.get()
@@ -698,7 +732,8 @@ def main():
     if options.log:
         log(stats)
     elif not options.once:
-        curses.wrapper(tui, stats)
+        with Tui(stats) as tui:
+            tui.show_stats()
     else:
         batch(stats)
 
