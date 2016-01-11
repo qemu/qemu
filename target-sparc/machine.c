@@ -112,7 +112,6 @@ void cpu_save(QEMUFile *f, void *opaque)
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
     CPUSPARCState *env = opaque;
-    SPARCCPU *cpu = sparc_env_get_cpu(env);
     int i;
     uint32_t tmp;
 
@@ -213,6 +212,5 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be64s(f, &env->ssr);
     cpu_get_timer(f, env->hstick);
 #endif
-    tlb_flush(CPU(cpu), 1);
     return 0;
 }
