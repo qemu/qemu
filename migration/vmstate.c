@@ -794,6 +794,29 @@ const VMStateInfo vmstate_info_float64 = {
     .put  = put_float64,
 };
 
+/* CPU_DoubleU type */
+
+static int get_cpudouble(QEMUFile *f, void *pv, size_t size)
+{
+    CPU_DoubleU *v = pv;
+    qemu_get_be32s(f, &v->l.upper);
+    qemu_get_be32s(f, &v->l.lower);
+    return 0;
+}
+
+static void put_cpudouble(QEMUFile *f, void *pv, size_t size)
+{
+    CPU_DoubleU *v = pv;
+    qemu_put_be32s(f, &v->l.upper);
+    qemu_put_be32s(f, &v->l.lower);
+}
+
+const VMStateInfo vmstate_info_cpudouble = {
+    .name = "CPU_Double_U",
+    .get  = get_cpudouble,
+    .put  = put_cpudouble,
+};
+
 /* uint8_t buffers */
 
 static int get_buffer(QEMUFile *f, void *pv, size_t size)

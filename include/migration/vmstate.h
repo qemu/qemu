@@ -156,6 +156,7 @@ extern const VMStateInfo vmstate_info_uint32;
 extern const VMStateInfo vmstate_info_uint64;
 
 extern const VMStateInfo vmstate_info_float64;
+extern const VMStateInfo vmstate_info_cpudouble;
 
 extern const VMStateInfo vmstate_info_timer;
 extern const VMStateInfo vmstate_info_buffer;
@@ -780,6 +781,12 @@ extern const VMStateInfo vmstate_info_bitmap;
 
 #define VMSTATE_FLOAT64_ARRAY(_f, _s, _n)                             \
     VMSTATE_FLOAT64_ARRAY_V(_f, _s, _n, 0)
+
+#define VMSTATE_CPUDOUBLE_ARRAY_V(_f, _s, _n, _v)                     \
+    VMSTATE_ARRAY(_f, _s, _n, _v, vmstate_info_cpudouble, CPU_DoubleU)
+
+#define VMSTATE_CPUDOUBLE_ARRAY(_f, _s, _n)                           \
+    VMSTATE_CPUDOUBLE_ARRAY_V(_f, _s, _n, 0)
 
 #define VMSTATE_BUFFER_V(_f, _s, _v)                                  \
     VMSTATE_STATIC_BUFFER(_f, _s, _v, NULL, 0, sizeof(typeof_field(_s, _f)))
