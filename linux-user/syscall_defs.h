@@ -28,6 +28,8 @@
 #define SOCKOP_sendmsg          16
 #define SOCKOP_recvmsg          17
 #define SOCKOP_accept4          18
+#define SOCKOP_recvmmsg         19
+#define SOCKOP_sendmmsg         20
 
 #define IPCOP_semop		1
 #define IPCOP_semget		2
@@ -2514,20 +2516,23 @@ struct target_mq_attr {
 #define FUTEX_CMD_MASK          ~(FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME)
 
 #ifdef CONFIG_EPOLL
+#if defined(TARGET_X86_64)
+#define TARGET_EPOLL_PACKED QEMU_PACKED
+#else
+#define TARGET_EPOLL_PACKED
+#endif
+
 typedef union target_epoll_data {
     abi_ulong ptr;
-    abi_ulong fd;
-    uint32_t u32;
-    uint64_t u64;
+    abi_int fd;
+    abi_uint u32;
+    abi_ullong u64;
 } target_epoll_data_t;
 
 struct target_epoll_event {
-    uint32_t events;
-#if defined(TARGET_ARM) || defined(TARGET_MIPS) || defined(TARGET_MIPS64)
-    uint32_t __pad;
-#endif
+    abi_uint events;
     target_epoll_data_t data;
-} QEMU_PACKED;
+} TARGET_EPOLL_PACKED;
 #endif
 struct target_rlimit64 {
     uint64_t rlim_cur;
