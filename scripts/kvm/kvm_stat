@@ -279,6 +279,20 @@ def walkdir(path):
     """
     return next(os.walk(path))
 
+
+def get_online_cpus():
+    cpulist = []
+    pattern = r'cpu([0-9]+)'
+    basedir = '/sys/devices/system/cpu'
+    for entry in os.listdir(basedir):
+        match = re.match(pattern, entry)
+        if not match:
+            continue
+        path = os.path.join(basedir, entry, 'online')
+        if os.path.isfile(path) and open(path).read().strip() == '1':
+            cpulist.append(int(match.group(1)))
+    return cpulist
+
 filters = {}
 filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
 if EXIT_REASONS:
@@ -375,23 +389,9 @@ class TracepointProvider(object):
     def fields(self):
         return self._fields
 
-    def _online_cpus(self):
-        l = []
-        pattern = r'cpu([0-9]+)'
-        basedir = '/sys/devices/system/cpu'
-        for entry in os.listdir(basedir):
-            match = re.match(pattern, entry)
-            if not match:
-                continue
-            path = os.path.join(basedir, entry, 'online')
-            if os.path.exists(path) and open(path).read().strip() != '1':
-                continue
-            l.append(int(match.group(1)))
-        return l
-
     def _setup(self, _fields):
         self._fields = _fields
-        cpus = self._online_cpus()
+        cpus = get_online_cpus()
 
         # The constant is needed as a buffer for python libs, std
         # streams and other files that the script opens.
