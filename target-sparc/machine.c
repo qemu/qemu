@@ -4,213 +4,460 @@
 
 #include "cpu.h"
 
-void cpu_save(QEMUFile *f, void *opaque)
-{
-    CPUSPARCState *env = opaque;
-    int i;
-    uint32_t tmp;
+#ifdef TARGET_SPARC64
+static const VMStateDescription vmstate_cpu_timer = {
+    .name = "cpu_timer",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(frequency, CPUTimer),
+        VMSTATE_UINT32(disabled, CPUTimer),
+        VMSTATE_UINT64(disabled_mask, CPUTimer),
+        VMSTATE_UINT32(npt, CPUTimer),
+        VMSTATE_UINT64(npt_mask, CPUTimer),
+        VMSTATE_INT64(clock_offset, CPUTimer),
+        VMSTATE_TIMER_PTR(qtimer, CPUTimer),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    // if env->cwp == env->nwindows - 1, this will set the ins of the last
-    // window as the outs of the first window
-    cpu_set_cwp(env, env->cwp);
+#define VMSTATE_CPU_TIMER(_f, _s)                             \
+    VMSTATE_STRUCT_POINTER(_f, _s, vmstate_cpu_timer, CPUTimer)
 
-    for(i = 0; i < 8; i++)
-        qemu_put_betls(f, &env->gregs[i]);
-    qemu_put_be32s(f, &env->nwindows);
-    for(i = 0; i < env->nwindows * 16; i++)
-        qemu_put_betls(f, &env->regbase[i]);
+static const VMStateDescription vmstate_trap_state = {
+    .name = "trap_state",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(tpc, trap_state),
+        VMSTATE_UINT64(tnpc, trap_state),
+        VMSTATE_UINT64(tstate, trap_state),
+        VMSTATE_UINT32(tt, trap_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
-    /* FPU */
-    for (i = 0; i < TARGET_DPREGS; i++) {
-        qemu_put_be32(f, env->fpr[i].l.upper);
-        qemu_put_be32(f, env->fpr[i].l.lower);
+static const VMStateDescription vmstate_tlb_entry = {
+    .name = "tlb_entry",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(tag, SparcTLBEntry),
+        VMSTATE_UINT64(tte, SparcTLBEntry),
+        VMSTATE_END_OF_LIST()
     }
-
-    qemu_put_betls(f, &env->pc);
-    qemu_put_betls(f, &env->npc);
-    qemu_put_betls(f, &env->y);
-    tmp = cpu_get_psr(env);
-    qemu_put_be32(f, tmp);
-    qemu_put_betls(f, &env->fsr);
-    qemu_put_betls(f, &env->tbr);
-    tmp = env->interrupt_index;
-    qemu_put_be32(f, tmp);
-    qemu_put_be32s(f, &env->pil_in);
-#ifndef TARGET_SPARC64
-    qemu_put_be32s(f, &env->wim);
-    /* MMU */
-    for (i = 0; i < 32; i++)
-        qemu_put_be32s(f, &env->mmuregs[i]);
-    for (i = 0; i < 4; i++) {
-        qemu_put_be64s(f, &env->mxccdata[i]);
-    }
-    for (i = 0; i < 8; i++) {
-        qemu_put_be64s(f, &env->mxccregs[i]);
-    }
-    qemu_put_be32s(f, &env->mmubpctrv);
-    qemu_put_be32s(f, &env->mmubpctrc);
-    qemu_put_be32s(f, &env->mmubpctrs);
-    qemu_put_be64s(f, &env->mmubpaction);
-    for (i = 0; i < 4; i++) {
-        qemu_put_be64s(f, &env->mmubpregs[i]);
-    }
-#else
-    qemu_put_be64s(f, &env->lsu);
-    for (i = 0; i < 16; i++) {
-        qemu_put_be64s(f, &env->immuregs[i]);
-        qemu_put_be64s(f, &env->dmmuregs[i]);
-    }
-    for (i = 0; i < 64; i++) {
-        qemu_put_be64s(f, &env->itlb[i].tag);
-        qemu_put_be64s(f, &env->itlb[i].tte);
-        qemu_put_be64s(f, &env->dtlb[i].tag);
-        qemu_put_be64s(f, &env->dtlb[i].tte);
-    }
-    qemu_put_be32s(f, &env->mmu_version);
-    for (i = 0; i < MAXTL_MAX; i++) {
-        qemu_put_be64s(f, &env->ts[i].tpc);
-        qemu_put_be64s(f, &env->ts[i].tnpc);
-        qemu_put_be64s(f, &env->ts[i].tstate);
-        qemu_put_be32s(f, &env->ts[i].tt);
-    }
-    qemu_put_be32s(f, &env->xcc);
-    qemu_put_be32s(f, &env->asi);
-    qemu_put_be32s(f, &env->pstate);
-    qemu_put_be32s(f, &env->tl);
-    qemu_put_be32s(f, &env->cansave);
-    qemu_put_be32s(f, &env->canrestore);
-    qemu_put_be32s(f, &env->otherwin);
-    qemu_put_be32s(f, &env->wstate);
-    qemu_put_be32s(f, &env->cleanwin);
-    for (i = 0; i < 8; i++)
-        qemu_put_be64s(f, &env->agregs[i]);
-    for (i = 0; i < 8; i++)
-        qemu_put_be64s(f, &env->bgregs[i]);
-    for (i = 0; i < 8; i++)
-        qemu_put_be64s(f, &env->igregs[i]);
-    for (i = 0; i < 8; i++)
-        qemu_put_be64s(f, &env->mgregs[i]);
-    qemu_put_be64s(f, &env->fprs);
-    qemu_put_be64s(f, &env->tick_cmpr);
-    qemu_put_be64s(f, &env->stick_cmpr);
-    cpu_put_timer(f, env->tick);
-    cpu_put_timer(f, env->stick);
-    qemu_put_be64s(f, &env->gsr);
-    qemu_put_be32s(f, &env->gl);
-    qemu_put_be64s(f, &env->hpstate);
-    for (i = 0; i < MAXTL_MAX; i++)
-        qemu_put_be64s(f, &env->htstate[i]);
-    qemu_put_be64s(f, &env->hintp);
-    qemu_put_be64s(f, &env->htba);
-    qemu_put_be64s(f, &env->hver);
-    qemu_put_be64s(f, &env->hstick_cmpr);
-    qemu_put_be64s(f, &env->ssr);
-    cpu_put_timer(f, env->hstick);
+};
 #endif
-}
 
-int cpu_load(QEMUFile *f, void *opaque, int version_id)
+static int get_psr(QEMUFile *f, void *opaque, size_t size)
 {
-    CPUSPARCState *env = opaque;
-    int i;
-    uint32_t tmp;
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
+    uint32_t val = qemu_get_be32(f);
 
-    if (version_id < 6)
-        return -EINVAL;
-    for(i = 0; i < 8; i++)
-        qemu_get_betls(f, &env->gregs[i]);
-    qemu_get_be32s(f, &env->nwindows);
-    for(i = 0; i < env->nwindows * 16; i++)
-        qemu_get_betls(f, &env->regbase[i]);
+    /* needed to ensure that the wrapping registers are correctly updated */
+    env->cwp = 0;
+    cpu_put_psr_raw(env, val);
 
-    /* FPU */
-    for (i = 0; i < TARGET_DPREGS; i++) {
-        env->fpr[i].l.upper = qemu_get_be32(f);
-        env->fpr[i].l.lower = qemu_get_be32(f);
-    }
-
-    qemu_get_betls(f, &env->pc);
-    qemu_get_betls(f, &env->npc);
-    qemu_get_betls(f, &env->y);
-    tmp = qemu_get_be32(f);
-    env->cwp = 0; /* needed to ensure that the wrapping registers are
-                     correctly updated */
-    cpu_put_psr(env, tmp);
-    qemu_get_betls(f, &env->fsr);
-    qemu_get_betls(f, &env->tbr);
-    tmp = qemu_get_be32(f);
-    env->interrupt_index = tmp;
-    qemu_get_be32s(f, &env->pil_in);
-#ifndef TARGET_SPARC64
-    qemu_get_be32s(f, &env->wim);
-    /* MMU */
-    for (i = 0; i < 32; i++)
-        qemu_get_be32s(f, &env->mmuregs[i]);
-    for (i = 0; i < 4; i++) {
-        qemu_get_be64s(f, &env->mxccdata[i]);
-    }
-    for (i = 0; i < 8; i++) {
-        qemu_get_be64s(f, &env->mxccregs[i]);
-    }
-    qemu_get_be32s(f, &env->mmubpctrv);
-    qemu_get_be32s(f, &env->mmubpctrc);
-    qemu_get_be32s(f, &env->mmubpctrs);
-    qemu_get_be64s(f, &env->mmubpaction);
-    for (i = 0; i < 4; i++) {
-        qemu_get_be64s(f, &env->mmubpregs[i]);
-    }
-#else
-    qemu_get_be64s(f, &env->lsu);
-    for (i = 0; i < 16; i++) {
-        qemu_get_be64s(f, &env->immuregs[i]);
-        qemu_get_be64s(f, &env->dmmuregs[i]);
-    }
-    for (i = 0; i < 64; i++) {
-        qemu_get_be64s(f, &env->itlb[i].tag);
-        qemu_get_be64s(f, &env->itlb[i].tte);
-        qemu_get_be64s(f, &env->dtlb[i].tag);
-        qemu_get_be64s(f, &env->dtlb[i].tte);
-    }
-    qemu_get_be32s(f, &env->mmu_version);
-    for (i = 0; i < MAXTL_MAX; i++) {
-        qemu_get_be64s(f, &env->ts[i].tpc);
-        qemu_get_be64s(f, &env->ts[i].tnpc);
-        qemu_get_be64s(f, &env->ts[i].tstate);
-        qemu_get_be32s(f, &env->ts[i].tt);
-    }
-    qemu_get_be32s(f, &env->xcc);
-    qemu_get_be32s(f, &env->asi);
-    qemu_get_be32s(f, &env->pstate);
-    qemu_get_be32s(f, &env->tl);
-    qemu_get_be32s(f, &env->cansave);
-    qemu_get_be32s(f, &env->canrestore);
-    qemu_get_be32s(f, &env->otherwin);
-    qemu_get_be32s(f, &env->wstate);
-    qemu_get_be32s(f, &env->cleanwin);
-    for (i = 0; i < 8; i++)
-        qemu_get_be64s(f, &env->agregs[i]);
-    for (i = 0; i < 8; i++)
-        qemu_get_be64s(f, &env->bgregs[i]);
-    for (i = 0; i < 8; i++)
-        qemu_get_be64s(f, &env->igregs[i]);
-    for (i = 0; i < 8; i++)
-        qemu_get_be64s(f, &env->mgregs[i]);
-    qemu_get_be64s(f, &env->fprs);
-    qemu_get_be64s(f, &env->tick_cmpr);
-    qemu_get_be64s(f, &env->stick_cmpr);
-    cpu_get_timer(f, env->tick);
-    cpu_get_timer(f, env->stick);
-    qemu_get_be64s(f, &env->gsr);
-    qemu_get_be32s(f, &env->gl);
-    qemu_get_be64s(f, &env->hpstate);
-    for (i = 0; i < MAXTL_MAX; i++)
-        qemu_get_be64s(f, &env->htstate[i]);
-    qemu_get_be64s(f, &env->hintp);
-    qemu_get_be64s(f, &env->htba);
-    qemu_get_be64s(f, &env->hver);
-    qemu_get_be64s(f, &env->hstick_cmpr);
-    qemu_get_be64s(f, &env->ssr);
-    cpu_get_timer(f, env->hstick);
-#endif
     return 0;
 }
+
+static void put_psr(QEMUFile *f, void *opaque, size_t size)
+{
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
+    uint32_t val;
+
+    val = cpu_get_psr(env);
+
+    qemu_put_be32(f, val);
+}
+
+static const VMStateInfo vmstate_psr = {
+    .name = "psr",
+    .get = get_psr,
+    .put = put_psr,
+};
+
+static void cpu_pre_save(void *opaque)
+{
+    SPARCCPU *cpu = opaque;
+    CPUSPARCState *env = &cpu->env;
+
+    /* if env->cwp == env->nwindows - 1, this will set the ins of the last
+     * window as the outs of the first window
+     */
+    cpu_set_cwp(env, env->cwp);
+}
+
+const VMStateDescription vmstate_sparc_cpu = {
+    .name = "cpu",
+    .version_id = 7,
+    .minimum_version_id = 7,
+    .minimum_version_id_old = 7,
+    .pre_save = cpu_pre_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINTTL_ARRAY(env.gregs, SPARCCPU, 8),
+        VMSTATE_UINT32(env.nwindows, SPARCCPU),
+        VMSTATE_VARRAY_MULTIPLY(env.regbase, SPARCCPU, env.nwindows, 16,
+                                vmstate_info_uinttl, target_ulong),
+        VMSTATE_CPUDOUBLE_ARRAY(env.fpr, SPARCCPU, TARGET_DPREGS),
+        VMSTATE_UINTTL(env.pc, SPARCCPU),
+        VMSTATE_UINTTL(env.npc, SPARCCPU),
+        VMSTATE_UINTTL(env.y, SPARCCPU),
+        {
+
+            .name = "psr",
+            .version_id = 0,
+            .size = sizeof(uint32_t),
+            .info = &vmstate_psr,
+            .flags = VMS_SINGLE,
+            .offset = 0,
+        },
+        VMSTATE_UINTTL(env.fsr, SPARCCPU),
+        VMSTATE_UINTTL(env.tbr, SPARCCPU),
+        VMSTATE_INT32(env.interrupt_index, SPARCCPU),
+        VMSTATE_UINT32(env.pil_in, SPARCCPU),
+#ifndef TARGET_SPARC64
+        /* MMU */
+        VMSTATE_UINT32(env.wim, SPARCCPU),
+        VMSTATE_UINT32_ARRAY(env.mmuregs, SPARCCPU, 32),
+        VMSTATE_UINT64_ARRAY(env.mxccdata, SPARCCPU, 4),
+        VMSTATE_UINT64_ARRAY(env.mxccregs, SPARCCPU, 8),
+        VMSTATE_UINT32(env.mmubpctrv, SPARCCPU),
+        VMSTATE_UINT32(env.mmubpctrc, SPARCCPU),
+        VMSTATE_UINT32(env.mmubpctrs, SPARCCPU),
+        VMSTATE_UINT64(env.mmubpaction, SPARCCPU),
+        VMSTATE_UINT64_ARRAY(env.mmubpregs, SPARCCPU, 4),
+#else
+        VMSTATE_UINT64(env.lsu, SPARCCPU),
+        /* Unfortunately we cannot use vmstate arrays for these because
+         * the pre-VMState migration code sent the contents on the wire
+         * interleaved rather than one array at a time.
+         */
+        VMSTATE_UINT64(env.immuregs[0], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[0], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[1], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[1], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[2], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[2], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[3], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[3], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[4], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[4], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[5], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[5], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[6], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[6], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[7], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[7], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[8], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[8], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[9], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[9], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[10], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[10], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[11], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[11], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[12], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[12], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[13], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[13], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[14], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[14], SPARCCPU),
+        VMSTATE_UINT64(env.immuregs[15], SPARCCPU),
+        VMSTATE_UINT64(env.dmmuregs[15], SPARCCPU),
+        VMSTATE_STRUCT(env.itlb[0], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[0], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[1], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[1], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[2], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[2], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[3], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[3], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[4], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[4], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[5], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[5], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[6], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[6], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[7], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[7], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[8], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[8], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[9], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[9], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[10], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[10], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[11], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[11], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[12], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[12], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[13], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[13], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[14], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[14], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[15], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[15], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[16], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[16], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[17], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[17], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[18], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[18], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[19], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[19], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[20], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[20], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[21], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[21], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[22], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[22], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[23], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[23], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[24], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[24], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[25], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[25], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[26], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[26], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[27], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[27], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[28], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[28], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[29], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[29], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[30], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[30], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[31], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[31], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[32], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[32], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[33], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[33], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[34], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[34], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[35], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[35], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[36], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[36], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[37], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[37], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[38], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[38], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[39], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[39], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[40], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[40], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[41], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[41], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[42], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[42], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[43], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[43], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[44], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[44], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[45], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[45], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[46], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[46], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[47], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[47], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[48], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[48], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[49], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[49], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[50], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[50], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[51], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[51], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[52], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[52], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[53], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[53], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[54], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[54], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[55], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[55], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[56], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[56], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[57], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[57], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[58], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[58], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[59], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[59], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[60], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[60], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[61], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[61], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[62], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[62], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.itlb[63], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_STRUCT(env.dtlb[63], SPARCCPU, 0, vmstate_tlb_entry,
+                       SparcTLBEntry),
+        VMSTATE_UINT32(env.mmu_version, SPARCCPU),
+        VMSTATE_STRUCT_ARRAY(env.ts, SPARCCPU, MAXTL_MAX, 0,
+                             vmstate_trap_state, trap_state),
+        VMSTATE_UINT32(env.xcc, SPARCCPU),
+        VMSTATE_UINT32(env.asi, SPARCCPU),
+        VMSTATE_UINT32(env.pstate, SPARCCPU),
+        VMSTATE_UINT32(env.tl, SPARCCPU),
+        VMSTATE_UINT32(env.cansave, SPARCCPU),
+        VMSTATE_UINT32(env.canrestore, SPARCCPU),
+        VMSTATE_UINT32(env.otherwin, SPARCCPU),
+        VMSTATE_UINT32(env.wstate, SPARCCPU),
+        VMSTATE_UINT32(env.cleanwin, SPARCCPU),
+        VMSTATE_UINT64_ARRAY(env.agregs, SPARCCPU, 8),
+        VMSTATE_UINT64_ARRAY(env.bgregs, SPARCCPU, 8),
+        VMSTATE_UINT64_ARRAY(env.igregs, SPARCCPU, 8),
+        VMSTATE_UINT64_ARRAY(env.mgregs, SPARCCPU, 8),
+        VMSTATE_UINT64(env.fprs, SPARCCPU),
+        VMSTATE_UINT64(env.tick_cmpr, SPARCCPU),
+        VMSTATE_UINT64(env.stick_cmpr, SPARCCPU),
+        VMSTATE_CPU_TIMER(env.tick, SPARCCPU),
+        VMSTATE_CPU_TIMER(env.stick, SPARCCPU),
+        VMSTATE_UINT64(env.gsr, SPARCCPU),
+        VMSTATE_UINT32(env.gl, SPARCCPU),
+        VMSTATE_UINT64(env.hpstate, SPARCCPU),
+        VMSTATE_UINT64_ARRAY(env.htstate, SPARCCPU, MAXTL_MAX),
+        VMSTATE_UINT64(env.hintp, SPARCCPU),
+        VMSTATE_UINT64(env.htba, SPARCCPU),
+        VMSTATE_UINT64(env.hver, SPARCCPU),
+        VMSTATE_UINT64(env.hstick_cmpr, SPARCCPU),
+        VMSTATE_UINT64(env.ssr, SPARCCPU),
+        VMSTATE_CPU_TIMER(env.hstick, SPARCCPU),
+#endif
+        VMSTATE_END_OF_LIST()
+    },
+};

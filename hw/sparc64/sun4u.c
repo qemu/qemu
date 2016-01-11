@@ -358,30 +358,6 @@ typedef struct ResetData {
     uint64_t prom_addr;
 } ResetData;
 
-void cpu_put_timer(QEMUFile *f, CPUTimer *s)
-{
-    qemu_put_be32s(f, &s->frequency);
-    qemu_put_be32s(f, &s->disabled);
-    qemu_put_be64s(f, &s->disabled_mask);
-    qemu_put_be32s(f, &s->npt);
-    qemu_put_be64s(f, &s->npt_mask);
-    qemu_put_sbe64s(f, &s->clock_offset);
-
-    timer_put(f, s->qtimer);
-}
-
-void cpu_get_timer(QEMUFile *f, CPUTimer *s)
-{
-    qemu_get_be32s(f, &s->frequency);
-    qemu_get_be32s(f, &s->disabled);
-    qemu_get_be64s(f, &s->disabled_mask);
-    qemu_get_be32s(f, &s->npt);
-    qemu_get_be64s(f, &s->npt_mask);
-    qemu_get_sbe64s(f, &s->clock_offset);
-
-    timer_get(f, s->qtimer);
-}
-
 static CPUTimer *cpu_timer_create(const char *name, SPARCCPU *cpu,
                                   QEMUBHFunc *cb, uint32_t frequency,
                                   uint64_t disabled_mask, uint64_t npt_mask)
