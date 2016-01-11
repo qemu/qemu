@@ -1798,6 +1798,155 @@ DISAS_INSN(arith_im)
     tcg_temp_free(dest);
 }
 
+DISAS_INSN(cas)
+{
+    int opsize;
+    TCGv addr;
+    uint16_t ext;
+    TCGv load;
+    TCGv cmp;
+    TCGMemOp opc;
+
+    switch ((insn >> 9) & 3) {
+    case 1:
+        opsize = OS_BYTE;
+        opc = MO_SB;
+        break;
+    case 2:
+        opsize = OS_WORD;
+        opc = MO_TESW;
+        break;
+    case 3:
+        opsize = OS_LONG;
+        opc = MO_TESL;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    opc |= MO_ALIGN;
+
+    ext = read_im16(env, s);
+
+    /* cas Dc,Du,<EA> */
+
+    addr = gen_lea(env, s, insn, opsize);
+    if (IS_NULL_QREG(addr)) {
+        gen_addr_fault(s);
+        return;
+    }
+
+    cmp = gen_extend(DREG(ext, 0), opsize, 1);
+
+    /* if  <EA> == Dc then
+     *     <EA> = Du
+     *     Dc = <EA> (because <EA> == Dc)
+     * else
+     *     Dc = <EA>
+     */
+
+    load = tcg_temp_new();
+    tcg_gen_atomic_cmpxchg_i32(load, addr, cmp, DREG(ext, 6),
+                               IS_USER(s), opc);
+    /* update flags before setting cmp to load */
+    gen_update_cc_cmp(s, load, cmp, opsize);
+    gen_partset_reg(opsize, DREG(ext, 0), load);
+
+    tcg_temp_free(load);
+}
+
+DISAS_INSN(cas2w)
+{
+    uint16_t ext1, ext2;
+    TCGv addr1, addr2;
+    TCGv regs;
+
+    /* cas2 Dc1:Dc2,Du1:Du2,(Rn1):(Rn2) */
+
+    ext1 = read_im16(env, s);
+
+    if (ext1 & 0x8000) {
+        /* Address Register */
+        addr1 = AREG(ext1, 12);
+    } else {
+        /* Data Register */
+        addr1 = DREG(ext1, 12);
+    }
+
+    ext2 = read_im16(env, s);
+    if (ext2 & 0x8000) {
+        /* Address Register */
+        addr2 = AREG(ext2, 12);
+    } else {
+        /* Data Register */
+        addr2 = DREG(ext2, 12);
+    }
+
+    /* if (R1) == Dc1 && (R2) == Dc2 then
+     *     (R1) = Du1
+     *     (R2) = Du2
+     * else
+     *     Dc1 = (R1)
+     *     Dc2 = (R2)
+     */
+
+    regs = tcg_const_i32(REG(ext2, 6) |
+                         (REG(ext1, 6) << 3) |
+                         (REG(ext2, 0) << 6) |
+                         (REG(ext1, 0) << 9));
+    gen_helper_cas2w(cpu_env, regs, addr1, addr2);
+    tcg_temp_free(regs);
+
+    /* Note that cas2w also assigned to env->cc_op.  */
+    s->cc_op = CC_OP_CMPW;
+    s->cc_op_synced = 1;
+}
+
+DISAS_INSN(cas2l)
+{
+    uint16_t ext1, ext2;
+    TCGv addr1, addr2, regs;
+
+    /* cas2 Dc1:Dc2,Du1:Du2,(Rn1):(Rn2) */
+
+    ext1 = read_im16(env, s);
+
+    if (ext1 & 0x8000) {
+        /* Address Register */
+        addr1 = AREG(ext1, 12);
+    } else {
+        /* Data Register */
+        addr1 = DREG(ext1, 12);
+    }
+
+    ext2 = read_im16(env, s);
+    if (ext2 & 0x8000) {
+        /* Address Register */
+        addr2 = AREG(ext2, 12);
+    } else {
+        /* Data Register */
+        addr2 = DREG(ext2, 12);
+    }
+
+    /* if (R1) == Dc1 && (R2) == Dc2 then
+     *     (R1) = Du1
+     *     (R2) = Du2
+     * else
+     *     Dc1 = (R1)
+     *     Dc2 = (R2)
+     */
+
+    regs = tcg_const_i32(REG(ext2, 6) |
+                         (REG(ext1, 6) << 3) |
+                         (REG(ext2, 0) << 6) |
+                         (REG(ext1, 0) << 9));
+    gen_helper_cas2l(cpu_env, regs, addr1, addr2);
+    tcg_temp_free(regs);
+
+    /* Note that cas2l also assigned to env->cc_op.  */
+    s->cc_op = CC_OP_CMPL;
+    s->cc_op_synced = 1;
+}
+
 DISAS_INSN(byterev)
 {
     TCGv reg;
@@ -3641,6 +3790,11 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(bitop_im,  08c0, ffc0);
     INSN(arith_im,  0a80, fff8, CF_ISA_A);
     INSN(arith_im,  0a00, ff00, M68000);
+    INSN(cas,       0ac0, ffc0, CAS);
+    INSN(cas,       0cc0, ffc0, CAS);
+    INSN(cas,       0ec0, ffc0, CAS);
+    INSN(cas2w,     0cfc, ffff, CAS);
+    INSN(cas2l,     0efc, ffff, CAS);
     BASE(move,      1000, f000);
     BASE(move,      2000, f000);
     BASE(move,      3000, f000);

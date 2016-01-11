@@ -12,6 +12,8 @@ DEF_HELPER_3(shr_cc, i32, env, i32, i32)
 DEF_HELPER_3(sar_cc, i32, env, i32, i32)
 DEF_HELPER_2(set_sr, void, env, i32)
 DEF_HELPER_3(movec, void, env, i32, i32)
+DEF_HELPER_4(cas2w, void, env, i32, i32, i32)
+DEF_HELPER_4(cas2l, void, env, i32, i32, i32)
 
 DEF_HELPER_2(f64_to_i32, f32, env, f64)
 DEF_HELPER_2(f64_to_f32, f32, env, f64)
