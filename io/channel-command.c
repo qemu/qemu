@@ -179,6 +179,7 @@ static int qio_channel_command_abort(QIOChannelCommand *ioc,
                        (unsigned long long)ioc->pid);
             return -1;
         }
+        step++;
         usleep(10 * 1000);
         goto rewait;
     }
