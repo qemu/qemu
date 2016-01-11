@@ -76,7 +76,7 @@ AHCICommandProp ahci_command_properties[] = {
     { .cmd = CMD_READ_MAX_EXT,   .lba48 = true },
     { .cmd = CMD_FLUSH_CACHE,    .data = false },
     { .cmd = CMD_PACKET,         .data = true,  .size = 16,
-                                 .atapi = true, },
+                                 .atapi = true, .pio = true },
     { .cmd = CMD_PACKET_ID,      .data = true,  .pio = true,
                                  .size = 512,   .read = true }
 };
@@ -745,6 +745,11 @@ void ahci_command_enable_atapi_dma(AHCICommand *cmd)
     RegH2DFIS *fis = &(cmd->fis);
     g_assert(cmd->props->atapi);
     fis->feature_low |= 0x01;
+    cmd->interrupts &= ~AHCI_PX_IS_PSS;
+    cmd->props->dma = true;
+    cmd->props->pio = false;
+    /* BUG: We expect the DMA Setup interrupt for DMA commands */
+    /* cmd->interrupts |= AHCI_PX_IS_DSS; */
 }
 
 AHCICommand *ahci_command_create(uint8_t command_name)
@@ -761,7 +766,7 @@ AHCICommand *ahci_command_create(uint8_t command_name)
     g_assert(!props->ncq || props->lba48);
 
     /* Defaults and book-keeping */
-    cmd->props = props;
+    cmd->props = g_memdup(props, sizeof(AHCICommandProp));
     cmd->name = command_name;
     cmd->xbytes = props->size;
     cmd->prd_size = 4096;
@@ -799,6 +804,7 @@ AHCICommand *ahci_atapi_command_create(uint8_t scsi_cmd)
 void ahci_command_free(AHCICommand *cmd)
 {
     g_free(cmd->atapi_cmd);
+    g_free(cmd->props);
     g_free(cmd);
 }
 
