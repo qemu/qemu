@@ -775,7 +775,7 @@ static void create_header32(DumpState *s, Error **errp)
 
     /* 64bit max_mapnr_64 */
     kh->max_mapnr_64 = cpu_to_dump64(s, s->max_mapnr);
-    kh->phys_base = cpu_to_dump32(s, PHYS_BASE);
+    kh->phys_base = cpu_to_dump32(s, s->dump_info.phys_base);
     kh->dump_level = cpu_to_dump32(s, DUMP_LEVEL);
 
     offset_note = DISKDUMP_HEADER_BLOCKS * block_size + size;
@@ -875,7 +875,7 @@ static void create_header64(DumpState *s, Error **errp)
 
     /* 64bit max_mapnr_64 */
     kh->max_mapnr_64 = cpu_to_dump64(s, s->max_mapnr);
-    kh->phys_base = cpu_to_dump64(s, PHYS_BASE);
+    kh->phys_base = cpu_to_dump64(s, s->dump_info.phys_base);
     kh->dump_level = cpu_to_dump32(s, DUMP_LEVEL);
 
     offset_note = DISKDUMP_HEADER_BLOCKS * block_size + size;

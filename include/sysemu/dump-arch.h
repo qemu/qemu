@@ -20,6 +20,7 @@ typedef struct ArchDumpInfo {
     int d_class;             /* ELFCLASS32 or ELFCLASS64 */
     uint32_t page_size;      /* The target's page size. If it's variable and
                               * unknown, then this should be the maximum. */
+    uint64_t phys_base;      /* The target's physmem base. */
 } ArchDumpInfo;
 
 struct GuestPhysBlockList; /* memory_mapping.h */

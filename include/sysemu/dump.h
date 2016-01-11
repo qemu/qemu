@@ -33,7 +33,6 @@
 
 #define KDUMP_SIGNATURE             "KDUMP   "
 #define SIG_LEN                     (sizeof(KDUMP_SIGNATURE) - 1)
-#define PHYS_BASE                   (0)
 #define DUMP_LEVEL                  (1)
 #define DISKDUMP_HEADER_BLOCKS      (1)
 
