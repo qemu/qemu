@@ -302,10 +302,14 @@ def get_online_cpus():
         cpu_string = cpu_list.readline()
         return parse_int_list(cpu_string)
 
-filters = {}
-filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
-if EXIT_REASONS:
-    filters['kvm_exit'] = ('exit_reason', EXIT_REASONS)
+
+def get_filters():
+    detect_platform()
+    filters = {}
+    filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
+    if EXIT_REASONS:
+        filters['kvm_exit'] = ('exit_reason', EXIT_REASONS)
+    return filters
 
 libc = ctypes.CDLL('libc.so.6', use_errno=True)
 syscall = libc.syscall
@@ -385,6 +389,7 @@ class Event(object):
 class TracepointProvider(object):
     def __init__(self):
         self.group_leaders = []
+        self.filters = get_filters()
         self._fields = self.get_available_fields()
         self.setup_traces()
         self.fields = self._fields
@@ -394,8 +399,8 @@ class TracepointProvider(object):
         fields = walkdir(path)[1]
         extra = []
         for field in fields:
-            if field in filters:
-                filter_name_, filter_dicts = filters[field]
+            if field in self.filters:
+                filter_name_, filter_dicts = self.filters[field]
                 for name in filter_dicts:
                     extra.append(field + '(' + name + ')')
         fields += extra
@@ -420,8 +425,9 @@ class TracepointProvider(object):
                 match = re.match(r'(.*)\((.*)\)', name)
                 if match:
                     tracepoint, sub = match.groups()
-                    tracefilter = '%s==%d\0' % (filters[tracepoint][0],
-                                                filters[tracepoint][1][sub])
+                    tracefilter = ('%s==%d\0' %
+                                   (self.filters[tracepoint][0],
+                                    self.filters[tracepoint][1][sub]))
                 group.add_event(name, event_set='kvm',
                                 tracepoint=tracepoint,
                                 tracefilter=tracefilter)
@@ -652,7 +658,6 @@ def check_access():
 
 def main():
     check_access()
-    detect_platform()
     options = get_options()
     providers = get_providers(options)
     stats = Stats(providers, fields=options.fields)
