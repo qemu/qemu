@@ -1,4 +1,4 @@
-// Copyright 2013, ARM Limited
+// Copyright 2014, ARM Limited
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -24,9 +24,9 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "globals.h"
-#include "utils.h"
-#include "a64/decoder-a64.h"
+#include "vixl/globals.h"
+#include "vixl/utils.h"
+#include "vixl/a64/decoder-a64.h"
 
 namespace vixl {
 
@@ -271,6 +271,11 @@ void Decoder::DecodeLoadStore(const Instruction* instr) {
               (instr->Bits(27, 24) == 0x9) ||
               (instr->Bits(27, 24) == 0xC) ||
               (instr->Bits(27, 24) == 0xD) );
+  // TODO(all): rearrange the tree to integrate this branch.
+  if ((instr->Bit(28) == 0) && (instr->Bit(29) == 0) && (instr->Bit(26) == 1)) {
+    DecodeNEONLoadStore(instr);
+    return;
+  }
 
   if (instr->Bit(24) == 0) {
     if (instr->Bit(28) == 0) {
@@ -278,7 +283,7 @@ void Decoder::DecodeLoadStore(const Instruction* instr) {
         if (instr->Bit(26) == 0) {
           VisitLoadStoreExclusive(instr);
         } else {
-          DecodeAdvSIMDLoadStore(instr);
+          VIXL_UNREACHABLE();
         }
       } else {
         if ((instr->Bits(31, 30) == 0x3) ||
@@ -483,6 +488,7 @@ void Decoder::DecodeDataProcessing(const Instruction* instr) {
         case 6: {
           if (instr->Bit(29) == 0x1) {
             VisitUnallocated(instr);
+            VIXL_FALLTHROUGH();
           } else {
             if (instr->Bit(30) == 0) {
               if ((instr->Bit(15) == 0x1) ||
@@ -556,18 +562,15 @@ void Decoder::DecodeDataProcessing(const Instruction* instr) {
 void Decoder::DecodeFP(const Instruction* instr) {
   VIXL_ASSERT((instr->Bits(27, 24) == 0xE) ||
               (instr->Bits(27, 24) == 0xF));
-
   if (instr->Bit(28) == 0) {
-    DecodeAdvSIMDDataProcessing(instr);
+    DecodeNEONVectorDataProcessing(instr);
   } else {
-    if (instr->Bit(29) == 1) {
+    if (instr->Bits(31, 30) == 0x3) {
       VisitUnallocated(instr);
+    } else if (instr->Bits(31, 30) == 0x1) {
+      DecodeNEONScalarDataProcessing(instr);
     } else {
-      if (instr->Bits(31, 30) == 0x3) {
-        VisitUnallocated(instr);
-      } else if (instr->Bits(31, 30) == 0x1) {
-        DecodeAdvSIMDDataProcessing(instr);
-      } else {
+      if (instr->Bit(29) == 0) {
         if (instr->Bit(24) == 0) {
           if (instr->Bit(21) == 0) {
             if ((instr->Bit(23) == 1) ||
@@ -674,23 +677,190 @@ void Decoder::DecodeFP(const Instruction* instr) {
             VisitFPDataProcessing3Source(instr);
           }
         }
+      } else {
+        VisitUnallocated(instr);
       }
     }
   }
 }
 
 
-void Decoder::DecodeAdvSIMDLoadStore(const Instruction* instr) {
-  // TODO: Implement Advanced SIMD load/store instruction decode.
+void Decoder::DecodeNEONLoadStore(const Instruction* instr) {
   VIXL_ASSERT(instr->Bits(29, 25) == 0x6);
-  VisitUnimplemented(instr);
+  if (instr->Bit(31) == 0) {
+    if ((instr->Bit(24) == 0) && (instr->Bit(21) == 1)) {
+      VisitUnallocated(instr);
+      return;
+    }
+
+    if (instr->Bit(23) == 0) {
+      if (instr->Bits(20, 16) == 0) {
+        if (instr->Bit(24) == 0) {
+          VisitNEONLoadStoreMultiStruct(instr);
+        } else {
+          VisitNEONLoadStoreSingleStruct(instr);
+        }
+      } else {
+        VisitUnallocated(instr);
+      }
+    } else {
+      if (instr->Bit(24) == 0) {
+        VisitNEONLoadStoreMultiStructPostIndex(instr);
+      } else {
+        VisitNEONLoadStoreSingleStructPostIndex(instr);
+      }
+    }
+  } else {
+    VisitUnallocated(instr);
+  }
 }
 
 
-void Decoder::DecodeAdvSIMDDataProcessing(const Instruction* instr) {
-  // TODO: Implement Advanced SIMD data processing instruction decode.
-  VIXL_ASSERT(instr->Bits(27, 25) == 0x7);
-  VisitUnimplemented(instr);
+void Decoder::DecodeNEONVectorDataProcessing(const Instruction* instr) {
+  VIXL_ASSERT(instr->Bits(28, 25) == 0x7);
+  if (instr->Bit(31) == 0) {
+    if (instr->Bit(24) == 0) {
+      if (instr->Bit(21) == 0) {
+        if (instr->Bit(15) == 0) {
+          if (instr->Bit(10) == 0) {
+            if (instr->Bit(29) == 0) {
+              if (instr->Bit(11) == 0) {
+                VisitNEONTable(instr);
+              } else {
+                VisitNEONPerm(instr);
+              }
+            } else {
+              VisitNEONExtract(instr);
+            }
+          } else {
+            if (instr->Bits(23, 22) == 0) {
+              VisitNEONCopy(instr);
+            } else {
+              VisitUnallocated(instr);
+            }
+          }
+        } else {
+          VisitUnallocated(instr);
+        }
+      } else {
+        if (instr->Bit(10) == 0) {
+          if (instr->Bit(11) == 0) {
+            VisitNEON3Different(instr);
+          } else {
+            if (instr->Bits(18, 17) == 0) {
+              if (instr->Bit(20) == 0) {
+                if (instr->Bit(19) == 0) {
+                  VisitNEON2RegMisc(instr);
+                } else {
+                  if (instr->Bits(30, 29) == 0x2) {
+                    VisitCryptoAES(instr);
+                  } else {
+                    VisitUnallocated(instr);
+                  }
+                }
+              } else {
+                if (instr->Bit(19) == 0) {
+                  VisitNEONAcrossLanes(instr);
+                } else {
+                  VisitUnallocated(instr);
+                }
+              }
+            } else {
+              VisitUnallocated(instr);
+            }
+          }
+        } else {
+          VisitNEON3Same(instr);
+        }
+      }
+    } else {
+      if (instr->Bit(10) == 0) {
+        VisitNEONByIndexedElement(instr);
+      } else {
+        if (instr->Bit(23) == 0) {
+          if (instr->Bits(22, 19) == 0) {
+            VisitNEONModifiedImmediate(instr);
+          } else {
+            VisitNEONShiftImmediate(instr);
+          }
+        } else {
+          VisitUnallocated(instr);
+        }
+      }
+    }
+  } else {
+    VisitUnallocated(instr);
+  }
+}
+
+
+void Decoder::DecodeNEONScalarDataProcessing(const Instruction* instr) {
+  VIXL_ASSERT(instr->Bits(28, 25) == 0xF);
+  if (instr->Bit(24) == 0) {
+    if (instr->Bit(21) == 0) {
+      if (instr->Bit(15) == 0) {
+        if (instr->Bit(10) == 0) {
+          if (instr->Bit(29) == 0) {
+            if (instr->Bit(11) == 0) {
+              VisitCrypto3RegSHA(instr);
+            } else {
+              VisitUnallocated(instr);
+            }
+          } else {
+            VisitUnallocated(instr);
+          }
+        } else {
+          if (instr->Bits(23, 22) == 0) {
+            VisitNEONScalarCopy(instr);
+          } else {
+            VisitUnallocated(instr);
+          }
+        }
+      } else {
+        VisitUnallocated(instr);
+      }
+    } else {
+      if (instr->Bit(10) == 0) {
+        if (instr->Bit(11) == 0) {
+          VisitNEONScalar3Diff(instr);
+        } else {
+          if (instr->Bits(18, 17) == 0) {
+            if (instr->Bit(20) == 0) {
+              if (instr->Bit(19) == 0) {
+                VisitNEONScalar2RegMisc(instr);
+              } else {
+                if (instr->Bit(29) == 0) {
+                  VisitCrypto2RegSHA(instr);
+                } else {
+                  VisitUnallocated(instr);
+                }
+              }
+            } else {
+              if (instr->Bit(19) == 0) {
+                VisitNEONScalarPairwise(instr);
+              } else {
+                VisitUnallocated(instr);
+              }
+            }
+          } else {
+            VisitUnallocated(instr);
+          }
+        }
+      } else {
+        VisitNEONScalar3Same(instr);
+      }
+    }
+  } else {
+    if (instr->Bit(10) == 0) {
+      VisitNEONScalarByIndexedElement(instr);
+    } else {
+      if (instr->Bit(23) == 0) {
+        VisitNEONScalarShiftImmediate(instr);
+      } else {
+        VisitUnallocated(instr);
+      }
+    }
+  }
 }
 
 

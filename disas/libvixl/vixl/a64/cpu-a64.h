@@ -1,4 +1,4 @@
-// Copyright 2013, ARM Limited
+// Copyright 2014, ARM Limited
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,8 +27,8 @@
 #ifndef VIXL_CPU_A64_H
 #define VIXL_CPU_A64_H
 
-#include "globals.h"
-#include "instructions-a64.h"
+#include "vixl/globals.h"
+#include "vixl/a64/instructions-a64.h"
 
 namespace vixl {
 

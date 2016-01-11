@@ -1,7 +1,8 @@
-libvixl_OBJS = utils.o \
-               a64/instructions-a64.o \
-               a64/decoder-a64.o \
-               a64/disasm-a64.o
+libvixl_OBJS = vixl/utils.o \
+               vixl/compiler-intrinsics.o \
+               vixl/a64/instructions-a64.o \
+               vixl/a64/decoder-a64.o \
+               vixl/a64/disasm-a64.o
 
 $(addprefix $(obj)/,$(libvixl_OBJS)): QEMU_CFLAGS := -I$(SRC_PATH)/disas/libvixl $(QEMU_CFLAGS)
 

@@ -1,4 +1,4 @@
-// Copyright 2013, ARM Limited
+// Copyright 2015, ARM Limited
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -27,11 +27,11 @@
 #ifndef VIXL_A64_DISASM_A64_H
 #define VIXL_A64_DISASM_A64_H
 
-#include "globals.h"
-#include "utils.h"
-#include "instructions-a64.h"
-#include "decoder-a64.h"
-#include "assembler-a64.h"
+#include "vixl/globals.h"
+#include "vixl/utils.h"
+#include "vixl/a64/instructions-a64.h"
+#include "vixl/a64/decoder-a64.h"
+#include "vixl/a64/assembler-a64.h"
 
 namespace vixl {
 
@@ -55,6 +55,7 @@ class Disassembler: public DecoderVisitor {
   // customize the disassembly output.
 
   // Prints the name of a register.
+  // TODO: This currently doesn't allow renaming of V registers.
   virtual void AppendRegisterNameToOutput(const Instruction* instr,
                                           const CPURegister& reg);
 
@@ -122,7 +123,8 @@ class Disassembler: public DecoderVisitor {
   int SubstituteLSRegOffsetField(const Instruction* instr, const char* format);
   int SubstitutePrefetchField(const Instruction* instr, const char* format);
   int SubstituteBarrierField(const Instruction* instr, const char* format);
-
+  int SubstituteSysOpField(const Instruction* instr, const char* format);
+  int SubstituteCrField(const Instruction* instr, const char* format);
   bool RdIsZROrSP(const Instruction* instr) const {
     return (instr->Rd() == kZeroRegCode);
   }
@@ -163,7 +165,6 @@ class Disassembler: public DecoderVisitor {
 class PrintDisassembler: public Disassembler {
  public:
   explicit PrintDisassembler(FILE* stream) : stream_(stream) { }
-  virtual ~PrintDisassembler() { }
 
  protected:
   virtual void ProcessOutput(const Instruction* instr);

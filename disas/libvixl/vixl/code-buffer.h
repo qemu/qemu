@@ -28,7 +28,7 @@
 #define VIXL_CODE_BUFFER_H
 
 #include <string.h>
-#include "globals.h"
+#include "vixl/globals.h"
 
 namespace vixl {
 

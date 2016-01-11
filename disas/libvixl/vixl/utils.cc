@@ -1,4 +1,4 @@
-// Copyright 2013, ARM Limited
+// Copyright 2015, ARM Limited
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "utils.h"
+#include "vixl/utils.h"
 #include <stdio.h>
 
 namespace vixl {
@@ -57,82 +57,73 @@ double rawbits_to_double(uint64_t bits) {
 }
 
 
-int CountLeadingZeros(uint64_t value, int width) {
-  VIXL_ASSERT((width == 32) || (width == 64));
-  int count = 0;
-  uint64_t bit_test = UINT64_C(1) << (width - 1);
-  while ((count < width) && ((bit_test & value) == 0)) {
-    count++;
-    bit_test >>= 1;
+uint32_t float_sign(float val) {
+  uint32_t rawbits = float_to_rawbits(val);
+  return unsigned_bitextract_32(31, 31, rawbits);
+}
+
+
+uint32_t float_exp(float val) {
+  uint32_t rawbits = float_to_rawbits(val);
+  return unsigned_bitextract_32(30, 23, rawbits);
+}
+
+
+uint32_t float_mantissa(float val) {
+  uint32_t rawbits = float_to_rawbits(val);
+  return unsigned_bitextract_32(22, 0, rawbits);
+}
+
+
+uint32_t double_sign(double val) {
+  uint64_t rawbits = double_to_rawbits(val);
+  return static_cast<uint32_t>(unsigned_bitextract_64(63, 63, rawbits));
+}
+
+
+uint32_t double_exp(double val) {
+  uint64_t rawbits = double_to_rawbits(val);
+  return static_cast<uint32_t>(unsigned_bitextract_64(62, 52, rawbits));
+}
+
+
+uint64_t double_mantissa(double val) {
+  uint64_t rawbits = double_to_rawbits(val);
+  return unsigned_bitextract_64(51, 0, rawbits);
+}
+
+
+float float_pack(uint32_t sign, uint32_t exp, uint32_t mantissa) {
+  uint32_t bits = (sign << 31) | (exp << 23) | mantissa;
+  return rawbits_to_float(bits);
+}
+
+
+double double_pack(uint64_t sign, uint64_t exp, uint64_t mantissa) {
+  uint64_t bits = (sign << 63) | (exp << 52) | mantissa;
+  return rawbits_to_double(bits);
+}
+
+
+int float16classify(float16 value) {
+  uint16_t exponent_max = (1 << 5) - 1;
+  uint16_t exponent_mask = exponent_max << 10;
+  uint16_t mantissa_mask = (1 << 10) - 1;
+
+  uint16_t exponent = (value & exponent_mask) >> 10;
+  uint16_t mantissa = value & mantissa_mask;
+  if (exponent == 0) {
+    if (mantissa == 0) {
+      return FP_ZERO;
+    }
+    return FP_SUBNORMAL;
+  } else if (exponent == exponent_max) {
+    if (mantissa == 0) {
+      return FP_INFINITE;
+    }
+    return FP_NAN;
   }
-  return count;
-}
-
-
-int CountLeadingSignBits(int64_t value, int width) {
-  VIXL_ASSERT((width == 32) || (width == 64));
-  if (value >= 0) {
-    return CountLeadingZeros(value, width) - 1;
-  } else {
-    return CountLeadingZeros(~value, width) - 1;
-  }
-}
-
-
-int CountTrailingZeros(uint64_t value, int width) {
-  VIXL_ASSERT((width == 32) || (width == 64));
-  int count = 0;
-  while ((count < width) && (((value >> count) & 1) == 0)) {
-    count++;
-  }
-  return count;
-}
-
-
-int CountSetBits(uint64_t value, int width) {
-  // TODO: Other widths could be added here, as the implementation already
-  // supports them.
-  VIXL_ASSERT((width == 32) || (width == 64));
-
-  // Mask out unused bits to ensure that they are not counted.
-  value &= (UINT64_C(0xffffffffffffffff) >> (64-width));
-
-  // Add up the set bits.
-  // The algorithm works by adding pairs of bit fields together iteratively,
-  // where the size of each bit field doubles each time.
-  // An example for an 8-bit value:
-  // Bits:  h  g  f  e  d  c  b  a
-  //         \ |   \ |   \ |   \ |
-  // value = h+g   f+e   d+c   b+a
-  //            \    |      \    |
-  // value =   h+g+f+e     d+c+b+a
-  //                  \          |
-  // value =       h+g+f+e+d+c+b+a
-  const uint64_t kMasks[] = {
-    UINT64_C(0x5555555555555555),
-    UINT64_C(0x3333333333333333),
-    UINT64_C(0x0f0f0f0f0f0f0f0f),
-    UINT64_C(0x00ff00ff00ff00ff),
-    UINT64_C(0x0000ffff0000ffff),
-    UINT64_C(0x00000000ffffffff),
-  };
-
-  for (unsigned i = 0; i < (sizeof(kMasks) / sizeof(kMasks[0])); i++) {
-    int shift = 1 << i;
-    value = ((value >> shift) & kMasks[i]) + (value & kMasks[i]);
-  }
-
-  return value;
-}
-
-
-uint64_t LowestSetBit(uint64_t value) {
-  return value & -value;
-}
-
-
-bool IsPowerOf2(int64_t value) {
-  return (value != 0) && ((value & (value - 1)) == 0);
+  return FP_NORMAL;
 }
 
 
