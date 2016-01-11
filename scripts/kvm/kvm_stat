@@ -287,10 +287,8 @@ filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
 if EXIT_REASONS:
     filters['kvm_exit'] = ('exit_reason', EXIT_REASONS)
 
-libc = ctypes.CDLL('libc.so.6')
+libc = ctypes.CDLL('libc.so.6', use_errno=True)
 syscall = libc.syscall
-get_errno = libc.__errno_location
-get_errno.restype = ctypes.POINTER(ctypes.c_int)
 
 class perf_event_attr(ctypes.Structure):
     _fields_ = [('type', ctypes.c_uint32),
@@ -351,8 +349,9 @@ class Event(object):
             group_leader = group.events[0].fd
         fd = _perf_event_open(attr, -1, group.cpu, group_leader, 0)
         if fd == -1:
-            err = get_errno()[0]
-            raise Exception('perf_event_open failed, errno = ' + err.__str__())
+            err = ctypes.get_errno()
+            raise OSError(err, os.strerror(err),
+                          'while calling sys_perf_event_open().')
         if tracefilter:
             fcntl.ioctl(fd, IOCTL_NUMBERS['SET_FILTER'], tracefilter)
         self.fd = fd
